@@ -51,6 +51,9 @@ jobs:
         path: out/make/**/*
 
   release:
+    permissions:
+      contents: write
+      discussions: write
     needs: build-and-test
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
