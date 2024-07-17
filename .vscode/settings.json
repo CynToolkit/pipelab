@@ -1,0 +1,37 @@
+{
+    "references.preferredLocation": "peek",
+    "workbench.colorCustomizations": {
+        "gitDecoration.ignoredResourceForeground": "#a0a0a02a",
+        "editor.lineHighlightBackground": "#1073cf2d",
+        "editor.lineHighlightBorder": "#9fced11f"
+    },
+    "colorTabs.config": [
+        {
+            "regex": ".*\/agent\/.*",
+            "color": "#FF0000",
+            "label": "MOBILE"
+        },
+        {
+            "regex": ".*\/browser\/.*",
+            "color": "#00FF00",
+        },
+        {
+            "regex": ".*\/core\/.*",
+            "color": "#00FFFF",
+        },
+        {
+            "regex": ".*\/plugin-\/.*",
+            "color": "#FFFF00",
+        },
+    ],
+    "colorTabs.activityBarBackground": false,
+    "colorTabs.titleLabel": true,
+    "colorTabs.titleBackground": false,
+    "cSpell.words": [
+        "controlflow"
+    ],
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "[typescript]": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
+    }
+}

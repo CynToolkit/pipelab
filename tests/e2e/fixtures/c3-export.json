@@ -1,0 +1,34 @@
+{
+  "version": "1.0.0",
+  "name": "From Construct to Steam",
+  "description": "Export from Construct, package with Electron, then upload to Steam",
+  "variables": [],
+  "canvas": {
+    "blocks": [
+      {
+        "type": "event",
+        "origin": {
+          "pluginId": "system",
+          "nodeId": "manual"
+        },
+        "uid": "manual-start",
+        "params": {}
+      },
+      {
+        "uid": "export-construct-project",
+        "type": "action",
+        "origin": {
+          "nodeId": "export-construct-project",
+          "pluginId": "construct"
+        },
+        "params": {
+          "file": "\"./tests/e2e/fixtures/c3-export/test.c3p\"",
+          "username": "",
+          "password": "",
+          "version": "",
+          "headless": true
+        }
+      }
+    ]
+  }
+}

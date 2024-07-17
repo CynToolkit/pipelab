@@ -1,0 +1,30 @@
+{
+  "version": "1.0.0",
+  "name": "Folder to Electron",
+  "description": "",
+  "canvas": {
+    "blocks": [
+      {
+        "type": "event",
+        "origin": {
+          "pluginId": "system",
+          "nodeId": "manual"
+        },
+        "uid": "manual-start",
+        "params": {}
+      },
+      {
+        "uid": "electron-package-node",
+        "type": "action",
+        "origin": {
+          "nodeId": "electron:package",
+          "pluginId": "electron"
+        },
+        "params": {
+          "input-folder": "\"./tests/e2e/fixtures/folder-to-electron\""
+        }
+      }
+    ]
+  },
+  "variables": []
+}
