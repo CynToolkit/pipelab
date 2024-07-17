@@ -1,0 +1,10 @@
+{
+  "image": "mcr.microsoft.com/devcontainers/universal:2",
+  "features": {
+    "ghcr.io/devcontainers/features/node": {
+      "version": "22"
+    },
+    "ghcr.io/devcontainers-contrib/features/corepack:1": {},
+    "ghcr.io/devcontainers-contrib/features/tsx:1": {}
+  }
+}
