@@ -14,6 +14,9 @@ import { definePreset } from '@primevue/themes'
 import './style/main.scss'
 import VueDOMPurifyHTML from 'vue-dompurify-html';
 
+import { init } from "@sentry/electron/renderer";
+import { browserTracingIntegration, replayIntegration, init as vueInit } from "@sentry/vue";
+
 const pinia = createPinia()
 pinia.use(piniaPluginPersistedstate)
 
@@ -658,6 +661,24 @@ const CynPreset = definePreset(Aura, {
     }
   }
 })
+
+init({
+  vueInit,
+  integrations: [
+    browserTracingIntegration({ router }),
+    replayIntegration(),
+  ],
+
+  // Set tracesSampleRate to 1.0 to capture 100%
+  // of transactions for performance monitoring.
+  // We recommend adjusting this value in production
+  tracesSampleRate: 1.0,
+
+  // Capture Replay for 10% of all sessions,
+  // plus for 100% of sessions with an error
+  replaysSessionSampleRate: 0.1,
+  replaysOnErrorSampleRate: 1.0,
+});
 
 createApp(Root)
   .use(router)

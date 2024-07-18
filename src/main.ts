@@ -12,10 +12,19 @@ import { readFile, writeFile } from 'fs/promises'
 import { getFinalPlugins } from '@main/utils'
 import { SavedFile } from '@@/model'
 import { handleActionExecute, handleConditionExecute } from '@main/handler-func'
+import * as Sentry from "@sentry/electron/main";
 
 const isLinux = platform() === "linux";
 
-console.log('process.env.TEST', process.env.TEST)
+console.log("app.isPackaged", app.isPackaged);
+
+if (app.isPackaged) {
+  Sentry.init({
+    dsn: "https://757630879674735027fa5700162253f7@o45694.ingest.us.sentry.io/4507621723144192",
+  });
+}
+
+Sentry.captureException(new Error('test'));
 
 if (!isLinux && process.env.TEST !== 'true' && require('electron-squirrel-startup')) app.quit();
 
