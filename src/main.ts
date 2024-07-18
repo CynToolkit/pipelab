@@ -24,8 +24,6 @@ if (app.isPackaged) {
   });
 }
 
-Sentry.captureException(new Error('test'));
-
 if (!isLinux && process.env.TEST !== 'true' && require('electron-squirrel-startup')) app.quit();
 
 function createWindow(): void {
