@@ -4,7 +4,7 @@ export const ID = "list-files-node";
 export const ListFilesAction = createAction({
   id: ID,
   name: "List files",
-  displayString: "`List files \"${params.recursive ? 'recursively' : ''}\" from \"${params.folder}`\"",
+  displayString: "`List files \"${params.recursive ? 'recursively' : ''}\" from \"${params.folder}`",
   params: {
     folder: {
       control: {
