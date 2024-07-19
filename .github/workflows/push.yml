@@ -49,7 +49,7 @@ jobs:
       if: success()
       uses: actions/upload-artifact@v4
       with:
-        name: ${{ matrix.os }}-build
+        name: make
         path: out/make/**/*
 
   release:
@@ -68,8 +68,9 @@ jobs:
 
     - name: Download artifacts
       uses: actions/download-artifact@v4
-      # with:
-      #   path: out/make
+      with:
+        name: make
+        path: out/make
 
     - name: Display structure of downloaded files
       run: ls -R
