@@ -24,20 +24,20 @@ jobs:
       with:
         run_install: false
 
-    - name: Use Node.js 22
+    - name: Use Node.js 22.4
       uses: actions/setup-node@v4
       with:
-        node-version: '22'
+        node-version: '22.4'
         cache: 'pnpm'
 
     - name: Install dependencies
       run: pnpm install
 
     - name: Package application
-      run: pnpm run package
+      run: pnpm run package && ls -la
 
     - name: list files
-      run: ls -lah out
+      run: ls -lah . && ls -lah out
 
     # - name: Run tests
     #   uses: coactions/setup-xvfb@v1
