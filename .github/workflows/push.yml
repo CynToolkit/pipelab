@@ -34,10 +34,7 @@ jobs:
       run: pnpm install
 
     - name: Package application
-      run: pnpm run package && ls -la
-
-    - name: list files
-      run: ls -lah . && ls -lah out
+      run: pnpm run package
 
     # - name: Run tests
     #   uses: coactions/setup-xvfb@v1
@@ -76,8 +73,7 @@ jobs:
       with:
         files: |
           artifacts/**/*
-        name: Release ${{ github.ref }}
-        draft: false
-        prerelease: false
+        draft: true
+        prerelease: true
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
