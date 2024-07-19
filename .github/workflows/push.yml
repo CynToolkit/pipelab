@@ -71,6 +71,17 @@ jobs:
       with:
         path: artifacts
 
+    - uses: pnpm/action-setup@v4
+      name: Install pnpm
+      with:
+        run_install: false
+
+    - name: Use Node.js 22.4
+      uses: actions/setup-node@v4
+      with:
+        node-version: '22.4'
+        cache: 'pnpm'
+
     - name: Publish release
       run: pnpm run electron-forge publish --from-dry-run
 
