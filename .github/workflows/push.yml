@@ -68,8 +68,11 @@ jobs:
 
     - name: Download artifacts
       uses: actions/download-artifact@v4
-      with:
-        path: artifacts
+      # with:
+      #   path: out/make
+
+    - name: Display structure of downloaded files
+      run: ls -R
 
     - uses: pnpm/action-setup@v4
       name: Install pnpm
