@@ -1,6 +1,6 @@
 {
   "name": "@cyn/app",
-  "version": "1.1.8",
+  "version": "1.1.9",
   "description": "-",
   "main": ".vite/build/main.js",
   "author": "Armaldio",
@@ -55,6 +55,7 @@
     "cpy": "^11.0.1",
     "d3-shape": "^3.2.0",
     "dompurify": "^3.1.6",
+    "electron-squirrel-startup": "1.0.1",
     "electron-updater": "^6.2.1",
     "elkjs": "^0.9.3",
     "esm": "^3.2.25",
@@ -111,7 +112,6 @@
     "@vue/eslint-config-typescript": "^13.0.0",
     "@vue/test-utils": "^2.4.6",
     "electron": "31.2.1",
-    "electron-squirrel-startup": "1.0.1",
     "electron-vite": "2.3.0",
     "eslint": "^9.7.0",
     "eslint-plugin-vue": "^9.27.0",
