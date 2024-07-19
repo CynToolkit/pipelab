@@ -86,7 +86,7 @@ jobs:
       run: pnpm install --prod=false
 
     - name: Publish release
-      run: pnpm electron-forge publish --from-dry-run
+      run: pnpm electron-forge publish -- --from-dry-run
 
     # - name: Release
     #   uses: softprops/action-gh-release@v2
