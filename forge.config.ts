@@ -14,9 +14,26 @@ const config: ForgeConfig = {
     name: "Cyn"
   },
   rebuildConfig: {},
-  makers: [new MakerSquirrel({
-    name: "Cyn"
-  }), new MakerZIP({}, ['darwin', 'linux'])],
+  makers: [
+    new MakerSquirrel({
+      name: "Cyn"
+    }),
+    new MakerZIP({}, ['darwin', 'linux', 'win32'])
+  ],
+  publishers: [
+    {
+      name: '@electron-forge/publisher-github',
+      config: {
+        repository: {
+          owner: 'CynToolkit',
+          name: 'cyn'
+        },
+        prerelease: true,
+        draft: true,
+        generateReleaseNotes: true,
+      }
+    }
+  ],
   plugins: [
     new VitePlugin({
       // `build` can specify multiple entry builds, which can be Main process, Preload scripts, Worker process, etc.

@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow } from 'electron'
+import { app, shell, BrowserWindow, dialog } from 'electron'
 import { join } from 'path'
 import { platform } from 'os'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
@@ -20,13 +20,50 @@ console.log("app.isPackaged", app.isPackaged);
 console.log("process.env.TEST", process.env.TEST);
 console.log("isLinux", isLinux);
 
+if (!isLinux && process.env.TEST !== 'true' && require('electron-squirrel-startup')) app.quit();
+
 if (app.isPackaged) {
   Sentry.init({
     dsn: "https://757630879674735027fa5700162253f7@o45694.ingest.us.sentry.io/4507621723144192",
   });
+
+  import('update-electron-app').then(autoUpdater => {
+    autoUpdater.updateElectronApp()
+
+    // autoUpdater.on('update-downloaded', (event, releaseNotes, releaseName) => {
+    //   const dialogOpts: Electron.MessageBoxOptions = {
+    //     type: 'info',
+    //     buttons: ['Restart', 'Later'],
+    //     title: 'Application Update',
+    //     message: process.platform === 'win32' ? releaseNotes : releaseName,
+    //     detail:
+    //       'A new version has been downloaded. Restart the application to apply the updates.'
+    //   }
+
+    //   dialog.showMessageBox(dialogOpts).then((returnValue) => {
+    //     if (returnValue.response === 0) autoUpdater.quitAndInstall()
+    //   })
+    // })
+
+    // autoUpdater.on('error', (message) => {
+    //   console.error('There was a problem updating the application')
+    //   console.error(message)
+    // })
+
+    // autoUpdater.on('update-available', (info) => {
+    //   console.log('Found update')
+    // })
+
+    // autoUpdater.on('update-not-available', (info) => {
+    //   console.log('No update available')
+    // })
+
+    // autoUpdater.on('', (progressObj) => {
+    //   console.log('Download progress: ' + progressObj.percent)
+    // })
+  })
 }
 
-if (!isLinux && process.env.TEST !== 'true' && require('electron-squirrel-startup')) app.quit();
 
 function createWindow(): void {
   // Create the browser window.
