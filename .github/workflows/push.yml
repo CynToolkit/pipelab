@@ -36,6 +36,9 @@ jobs:
       - name: Package application
         run: pnpm electron-forge publish --dry-run
 
+      - name: Display structure of downloaded files
+        run: ls -R
+
       # - name: Run tests
       #   uses: coactions/setup-xvfb@v1
       #   with:
