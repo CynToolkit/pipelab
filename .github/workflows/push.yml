@@ -36,6 +36,9 @@ jobs:
     - name: Package application
       run: pnpm run package
 
+    - name: list files
+      run: ls -lah out
+
     # - name: Run tests
     #   uses: coactions/setup-xvfb@v1
     #   with:

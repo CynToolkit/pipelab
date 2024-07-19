@@ -1,5 +1,5 @@
 import type { ConfigEnv, UserConfig } from 'vite';
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 import { pluginExposeRenderer } from './vite.base.config';
 import tsconfigPaths from 'vite-tsconfig-paths'
 import vue from '@vitejs/plugin-vue'
@@ -13,6 +13,8 @@ export default defineConfig((env) => {
   const forgeEnv = env as ConfigEnv<'renderer'>;
   const { root, mode, forgeConfigSelf } = forgeEnv;
   const name = forgeConfigSelf.name ?? '';
+
+  const environment = loadEnv(env.mode, process.cwd(), '')
 
   return {
     root,
@@ -30,7 +32,7 @@ export default defineConfig((env) => {
       sentryVitePlugin({
         org: "armaldio",
         project: "cyn",
-        authToken: process.env.SENTRY_AUTH_TOKEN,
+        authToken: environment.SENTRY_AUTH_TOKEN,
       }),
       tsconfigPaths(),
       vue(),

@@ -1,5 +1,5 @@
 import type { ConfigEnv, UserConfig } from 'vite';
-import { defineConfig, mergeConfig } from 'vite';
+import { defineConfig, loadEnv, mergeConfig } from 'vite';
 import { getBuildConfig, getBuildDefine, external, pluginHotRestart } from './vite.base.config';
 import tsconfigPaths from 'vite-tsconfig-paths'
 import { viteStaticCopy } from 'vite-plugin-static-copy'
@@ -10,6 +10,9 @@ export default defineConfig((env) => {
   const forgeEnv = env as ConfigEnv<'build'>;
   const { forgeConfigSelf } = forgeEnv;
   const define = getBuildDefine(forgeEnv);
+
+  const environment = loadEnv(env.mode, process.cwd(), '')
+
   const config: UserConfig = {
     build: {
       sourcemap: true,
@@ -28,7 +31,7 @@ export default defineConfig((env) => {
       sentryVitePlugin({
         org: "armaldio",
         project: "cyn",
-        authToken: process.env.SENTRY_AUTH_TOKEN,
+        authToken: environment.SENTRY_AUTH_TOKEN,
       }),
       viteStaticCopy({
         targets: [
