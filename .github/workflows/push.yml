@@ -34,23 +34,19 @@ jobs:
         run: pnpm install
 
       - name: Package application
-        run: pnpm run package
+        run: pnpm electron-forge publish --dry-run
 
       # - name: Run tests
       #   uses: coactions/setup-xvfb@v1
       #   with:
       #     run: pnpm test:e2e:raw
 
-      - name: Make distributable
-        if: success()
-        run: pnpm run make --skip-package
-
       - name: Upload artifacts
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.os }}-make
-          path: out/make/**/*
+          name: ${{ matrix.os }}-out
+          path: out/**/*
 
   release:
     permissions:
@@ -70,8 +66,8 @@ jobs:
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
-          name: ${{ matrix.os }}-make
-          path: out/make
+          name: ${{ matrix.os }}-out
+          path: out
 
       - name: Display structure of downloaded files
         run: ls -R
@@ -93,7 +89,7 @@ jobs:
       - name: Publish release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: pnpm electron-forge publish -- --from-dry-run
+        run: pnpm electron-forge publish --from-dry-run
 
     # - name: Release
     #   uses: softprops/action-gh-release@v2
