@@ -17,6 +17,8 @@ import * as Sentry from "@sentry/electron/main";
 const isLinux = platform() === "linux";
 
 console.log("app.isPackaged", app.isPackaged);
+console.log("process.env.TEST", process.env.TEST);
+console.log("isLinux", isLinux);
 
 if (app.isPackaged) {
   Sentry.init({
