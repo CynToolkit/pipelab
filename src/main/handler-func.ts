@@ -14,6 +14,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { HandleListenerSendFn } from './handlers'
 import { assetsPath, unpackPath } from './paths'
+import { logger } from '@@/logger'
 
 const checkParams = (definitionParams: InputsDefinition, elementParams: any) => {
   // get a list of all required params
@@ -75,13 +76,13 @@ export const handleConditionExecute = async (
       const value = await node.runner({
         inputs: resolvedInputs,
         log: (...args) => {
-          console.log(`[${node.node.name}]`, ...args)
+          logger.info(`[${node.node.name}]`, ...args)
         },
         meta: {
           definition: ''
         },
         setMeta: () => {
-          console.log('set meta defined here')
+          logger.info('set meta defined here')
         },
         cwd: tmp
       })
@@ -90,7 +91,7 @@ export const handleConditionExecute = async (
         value
       }
     } catch (e) {
-      console.error('e', e)
+      logger.error('e', e)
       return {
         result: {
           ipcError: e
@@ -137,7 +138,7 @@ export const handleActionExecute = async (
 
       const resolvedInputs = params // await resolveActionInputs(params, node.node, steps)
 
-      console.log('resolvedInputs', resolvedInputs)
+      logger.info('resolvedInputs', resolvedInputs)
 
       const _assetsPath = await assetsPath()
       const _unpackPath = await unpackPath()
@@ -146,7 +147,7 @@ export const handleActionExecute = async (
       await node.runner({
         inputs: resolvedInputs,
         log: (...args) => {
-          console.log(`[${node.node.name}]`, ...args)
+          logger.info(`[${node.node.name}]`, ...args)
         },
         setOutput: (key, value) => {
           outputs[key] = value
@@ -155,7 +156,7 @@ export const handleActionExecute = async (
           definition: ''
         },
         setMeta: () => {
-          console.log('set meta defined here')
+          logger.info('set meta defined here')
         },
         cwd: tmp,
         paths: {
@@ -167,7 +168,7 @@ export const handleActionExecute = async (
         outputs
       }
     } catch (e) {
-      console.error('[action:execute] e', e)
+      logger.error('[action:execute] e', e)
       return {
         result: {
           ipcError: e

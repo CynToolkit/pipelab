@@ -16,9 +16,17 @@ import VueDOMPurifyHTML from 'vue-dompurify-html';
 
 // import { init } from "@sentry/electron/renderer";
 import { browserTracingIntegration, replayIntegration, init as vueInit } from "@sentry/vue";
+import Bugsnag from '@bugsnag/electron'
+import BugsnagPluginVue from '@bugsnag/plugin-vue'
+
+Bugsnag.start({
+  plugins: [new BugsnagPluginVue()],
+})
 
 const pinia = createPinia()
 pinia.use(piniaPluginPersistedstate)
+
+const bugsnagVue = Bugsnag.getPlugin('vue')
 
 const CynPreset = definePreset(Aura, {
   primitive: {
@@ -692,4 +700,5 @@ createApp(Root)
       }
     }
   })
+  .use(bugsnagVue)
   .mount('#app')

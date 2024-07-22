@@ -12,20 +12,23 @@ import { readFile, writeFile } from 'fs/promises'
 import { getFinalPlugins } from '@main/utils'
 import { SavedFile } from '@@/model'
 import { handleActionExecute, handleConditionExecute } from '@main/handler-func'
-import * as Sentry from "@sentry/electron/main";
+// import * as Sentry from "@sentry/electron/main";
+import { logger } from '@@/logger'
+import Bugsnag from '@bugsnag/electron'
 
 const isLinux = platform() === "linux";
 
-console.log("app.isPackaged", app.isPackaged);
-console.log("process.env.TEST", process.env.TEST);
-console.log("isLinux", isLinux);
+logger.info("app.isPackaged", app.isPackaged);
+logger.info("process.env.TEST", process.env.TEST);
+logger.info("isLinux", isLinux);
 
 if (!isLinux && process.env.TEST !== 'true' && require('electron-squirrel-startup')) app.quit();
 
-if (app.isPackaged) {
-  Sentry.init({
-    dsn: "https://757630879674735027fa5700162253f7@o45694.ingest.us.sentry.io/4507621723144192",
-  });
+if (app.isPackaged || true) {
+  // Sentry.init({
+  //   dsn: "https://757630879674735027fa5700162253f7@o45694.ingest.us.sentry.io/4507621723144192",
+  // });
+  Bugsnag.start({ apiKey: '91e1c09abbf0f9bf369b28ea99396093' })
 }
 
 function createWindow(): void {
@@ -72,7 +75,6 @@ const { registerBuiltIn } = usePlugins()
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(async () => {
   autoUpdater.setFeedURL({
-    serverType: 'default',
     url: 'https://github.com/CynToolkit/cyn/releases/latest/download',
     headers: {
       'Cache-Control': 'no-cache',
@@ -100,20 +102,20 @@ app.whenReady().then(async () => {
   })
 
   autoUpdater.on('update-available', (info) => {
-    console.log('Found update')
+    logger.info('Found update')
   })
 
   autoUpdater.on('update-not-available', (info) => {
-    console.log('No update available')
+    logger.info('No update available')
   })
 
   autoUpdater.on('checking-for-update', (info) => {
-    console.log('checking-for-update', info)
+    logger.info('checking-for-update', info)
   })
 
-  console.log('app ready')
+  logger.info('app ready')
   autoUpdater.checkForUpdates()
-  console.log('autoUpdater.getFeedURL()', autoUpdater.getFeedURL())
+  logger.info('autoUpdater.getFeedURL()', autoUpdater.getFeedURL())
 
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.cyn')
@@ -146,17 +148,17 @@ app.whenReady().then(async () => {
     },
   } satisfies ParseArgsConfig;
 
-  console.log('config', config)
+  logger.info('config', config)
 
   const {
     values,
   } = parseArgs(config);
 
-  console.log('values', values)
+  logger.info('values', values)
 
   // exit if values are passed
   if (Object.keys(values).length > 0) {
-    console.log('Processing graph...')
+    logger.info('Processing graph...')
 
     const { action, project, output } = values
 
@@ -164,7 +166,7 @@ app.whenReady().then(async () => {
       const rawData = await readFile(project, 'utf8')
       const data = JSON.parse(rawData) as SavedFile
 
-      console.log('data', data)
+      logger.info('data', data)
 
       const { canvas, variables } = data
       const { blocks: nodes } = canvas
@@ -177,22 +179,22 @@ app.whenReady().then(async () => {
         steps: {},
         context: {},
         onNodeEnter: (node) => {
-          console.log('onNodeEnter', node.uid)
+          logger.info('onNodeEnter', node.uid)
         },
         onNodeExit: (node) => {
-          console.log('onNodeExit', node.uid)
+          logger.info('onNodeExit', node.uid)
         },
         onExecuteItem: (node, params, steps) => {
           if (node.type === 'condition') {
             return handleConditionExecute(node.origin.nodeId, node.origin.pluginId, params, {
               send: (data) => {
-                console.log('send', data)
+                logger.info('send', data)
               }
             })
           } else if (node.type === 'action') {
             return handleActionExecute(node.origin.nodeId, node.origin.pluginId, params, {
               send: (data) => {
-                console.log('send', data)
+                logger.info('send', data)
               }
             })
           } else {

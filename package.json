@@ -32,6 +32,9 @@
     "publish": "electron-forge publish"
   },
   "dependencies": {
+    "@bugsnag/electron": "7.25.0",
+    "@bugsnag/js": "7.25.0",
+    "@bugsnag/plugin-vue": "7.25.0",
     "@codemirror/autocomplete": "^6.17.0",
     "@codemirror/commands": "^6.6.0",
     "@codemirror/lang-liquid": "^6.2.1",
@@ -89,6 +92,7 @@
     "tinykeys": "^2.1.0",
     "ts-essentials": "^10.0.1",
     "ts-pattern": "^5.2.0",
+    "tslog": "4.9.3",
     "type-fest": "^4.22.0",
     "update-electron-app": "3.0.0",
     "vue-dompurify-html": "^5.1.0",
