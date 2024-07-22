@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, dialog } from 'electron'
+import { app, shell, BrowserWindow, dialog, autoUpdater } from 'electron'
 import { join } from 'path'
 import { platform } from 'os'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
@@ -26,44 +26,7 @@ if (app.isPackaged) {
   Sentry.init({
     dsn: "https://757630879674735027fa5700162253f7@o45694.ingest.us.sentry.io/4507621723144192",
   });
-
-  import('update-electron-app').then(autoUpdater => {
-    autoUpdater.updateElectronApp()
-
-    // autoUpdater.on('update-downloaded', (event, releaseNotes, releaseName) => {
-    //   const dialogOpts: Electron.MessageBoxOptions = {
-    //     type: 'info',
-    //     buttons: ['Restart', 'Later'],
-    //     title: 'Application Update',
-    //     message: process.platform === 'win32' ? releaseNotes : releaseName,
-    //     detail:
-    //       'A new version has been downloaded. Restart the application to apply the updates.'
-    //   }
-
-    //   dialog.showMessageBox(dialogOpts).then((returnValue) => {
-    //     if (returnValue.response === 0) autoUpdater.quitAndInstall()
-    //   })
-    // })
-
-    // autoUpdater.on('error', (message) => {
-    //   console.error('There was a problem updating the application')
-    //   console.error(message)
-    // })
-
-    // autoUpdater.on('update-available', (info) => {
-    //   console.log('Found update')
-    // })
-
-    // autoUpdater.on('update-not-available', (info) => {
-    //   console.log('No update available')
-    // })
-
-    // autoUpdater.on('', (progressObj) => {
-    //   console.log('Download progress: ' + progressObj.percent)
-    // })
-  })
 }
-
 
 function createWindow(): void {
   // Create the browser window.
@@ -108,6 +71,50 @@ const { registerBuiltIn } = usePlugins()
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(async () => {
+  autoUpdater.setFeedURL({
+    serverType: 'default',
+    url: 'https://github.com/CynToolkit/cyn/releases/latest/download',
+    headers: {
+      'Cache-Control': 'no-cache',
+    },
+  })
+
+  autoUpdater.on('update-downloaded', (event, releaseNotes, releaseName) => {
+    const dialogOpts: Electron.MessageBoxOptions = {
+      type: 'info',
+      buttons: ['Restart', 'Later'],
+      title: 'Application Update',
+      message: process.platform === 'win32' ? releaseNotes : releaseName,
+      detail:
+        'A new version has been downloaded. Restart the application to apply the updates.'
+    }
+
+    dialog.showMessageBox(dialogOpts).then((returnValue) => {
+      if (returnValue.response === 0) autoUpdater.quitAndInstall()
+    })
+  })
+
+  autoUpdater.on('error', (message) => {
+    console.error('There was a problem updating the application')
+    console.error(message)
+  })
+
+  autoUpdater.on('update-available', (info) => {
+    console.log('Found update')
+  })
+
+  autoUpdater.on('update-not-available', (info) => {
+    console.log('No update available')
+  })
+
+  autoUpdater.on('checking-for-update', (info) => {
+    console.log('checking-for-update', info)
+  })
+
+  console.log('app ready')
+  autoUpdater.checkForUpdates()
+  console.log('autoUpdater.getFeedURL()', autoUpdater.getFeedURL())
+
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.cyn')
 

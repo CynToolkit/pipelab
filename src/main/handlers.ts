@@ -58,7 +58,7 @@ export const registerIPCHandlers = () => {
   console.log('registering ipc handlers')
 
   handle('dialog:showOpenDialog', async (event, { value, send }) => {
-    console.log('event', event)
+    // console.log('event', event)
     console.log('value', value)
     console.log('dialog:showOpenDialog')
 
@@ -81,7 +81,7 @@ export const registerIPCHandlers = () => {
   })
 
   handle('fs:read', async (event, { value, send }) => {
-    console.log('event', event)
+    // console.log('event', event)
     console.log('value', value)
     console.log('fs:read')
 
@@ -108,7 +108,7 @@ export const registerIPCHandlers = () => {
   })
 
   handle('fs:write', async (event, { value, send }) => {
-    console.log('event', event)
+    // console.log('event', event)
     console.log('value', value)
     console.log('fs:read')
 
@@ -123,7 +123,7 @@ export const registerIPCHandlers = () => {
   })
 
   handle('dialog:showSaveDialog', async (event, { value, send }) => {
-    console.log('event', event)
+    // console.log('event', event)
     console.log('value', value)
     console.log('dialog:showSaveDialog')
 
