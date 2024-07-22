@@ -24,7 +24,7 @@ logger.info("isLinux", isLinux);
 
 if (!isLinux && process.env.TEST !== 'true' && require('electron-squirrel-startup')) app.quit();
 
-if (app.isPackaged || true) {
+if (app.isPackaged) {
   // Sentry.init({
   //   dsn: "https://757630879674735027fa5700162253f7@o45694.ingest.us.sentry.io/4507621723144192",
   // });
@@ -82,6 +82,9 @@ app.whenReady().then(async () => {
   })
 
   autoUpdater.on('update-downloaded', (event, releaseNotes, releaseName) => {
+    logger.info('releaseNotes', releaseNotes)
+    logger.info('releaseName', releaseName)
+    logger.info("event", event)
     const dialogOpts: Electron.MessageBoxOptions = {
       type: 'info',
       buttons: ['Restart', 'Later'],
@@ -97,8 +100,8 @@ app.whenReady().then(async () => {
   })
 
   autoUpdater.on('error', (message) => {
-    console.error('There was a problem updating the application')
-    console.error(message)
+    logger.info('There was a problem updating the application')
+    logger.info(message)
   })
 
   autoUpdater.on('update-available', (info) => {
