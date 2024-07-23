@@ -88,6 +88,11 @@ export const useEditor = defineStore('editor', () => {
   const name = ref('')
   const description = ref('')
 
+  const isRunning = ref(false)
+  const setIsRunning = (value: boolean) => {
+    isRunning.value = value
+  }
+
   /** All the nodes on the editor */
   const blocks = ref<Array<Block>>([])
 
@@ -438,7 +443,9 @@ export const useEditor = defineStore('editor', () => {
     getPluginDefinition,
     getNodeDefinition,
     processGraph,
-    loadPreset
+    loadPreset,
+    isRunning,
+    setIsRunning,
   }
 })
 
