@@ -6,7 +6,7 @@ import vue from '@vitejs/plugin-vue'
 import Components from 'unplugin-vue-components/vite';
 import { PrimeVueResolver } from '@primevue/auto-import-resolver';
 import vitePluginVueDevtool from 'vite-plugin-vue-devtools'
-import { sentryVitePlugin } from '@sentry/vite-plugin';
+// import { sentryVitePlugin } from '@sentry/vite-plugin';
 
 // https://vitejs.dev/config
 export default defineConfig((env) => {
@@ -29,11 +29,11 @@ export default defineConfig((env) => {
     },
     plugins: [
       pluginExposeRenderer(name),
-      sentryVitePlugin({
-        org: "armaldio",
-        project: "cyn",
-        authToken: environment.SENTRY_AUTH_TOKEN,
-      }),
+      // sentryVitePlugin({
+      //   org: "armaldio",
+      //   project: "cyn",
+      //   authToken: environment.SENTRY_AUTH_TOKEN,
+      // }),
       tsconfigPaths(),
       vue(),
       Components({
