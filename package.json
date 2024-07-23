@@ -4,6 +4,7 @@
   "description": "-",
   "main": ".vite/build/main.js",
   "author": "Armaldio",
+  "private": true,
   "repository": {
     "type": "git",
     "url": "https://github.com/CynToolkit/cyn.git"
@@ -35,6 +36,8 @@
     "@bugsnag/electron": "7.25.0",
     "@bugsnag/js": "7.25.0",
     "@bugsnag/plugin-vue": "7.25.0",
+    "@changesets/changelog-git": "0.2.0",
+    "@changesets/cli": "2.27.7",
     "@codemirror/autocomplete": "^6.17.0",
     "@codemirror/commands": "^6.6.0",
     "@codemirror/lang-liquid": "^6.2.1",
