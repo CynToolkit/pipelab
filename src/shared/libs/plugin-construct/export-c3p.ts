@@ -1,42 +1,46 @@
-import { ExtractInputsFromAction, createAction, createActionRunner } from "@cyn/plugin-core";
-import { exportc3p, sharedParams } from "./export-shared.js";
+import { ExtractInputsFromAction, createAction, createActionRunner } from '@cyn/plugin-core'
+import { exportc3p, sharedParams } from './export-shared.js'
 
-export const ID = "export-construct-project";
+export const ID = 'export-construct-project'
 
 export const exportAction = createAction({
   id: ID,
-  name: "Export .c3p",
+  name: 'Export .c3p',
   displayString: "`Export projet ${params.version ? `r${params.version}` : ''}`",
   meta: {},
   params: {
     file: {
-      label: "File (.c3p)",
-      value: "",
+      label: 'File (.c3p)',
+      value: '',
       control: {
-        type: "path",
-      },
+        type: 'path',
+        options: {
+          properties: ['openFile'],
+          filters: [{ name: 'Construct Project', extensions: ['c3p'] }],
+          title: 'aaaa',
+          message: 'bbbb'
+        }
+      }
     },
-    ...sharedParams,
+    ...sharedParams
   },
   outputs: {
     folder: {
-      type: "data",
+      type: 'data',
       value: undefined as undefined | string,
-      label: "Folder",
+      label: 'Folder'
       // schema: schema.string()
-    },
+    }
   },
-  description: "Export construct project from .c3p file",
-  icon: "",
-});
+  description: 'Export construct project from .c3p file',
+  icon: ''
+})
 
-export const ExportActionRunner = createActionRunner<typeof exportAction>(
-  async (options) => {
-    const file = options.inputs.file
+export const ExportActionRunner = createActionRunner<typeof exportAction>(async (options) => {
+  const file = options.inputs.file
 
-    await exportc3p(file, options);
-    options.log("exportc3p done");
-  }
-);
+  await exportc3p(file, options)
+  options.log('exportc3p done')
+})
 
 export type Params = ExtractInputsFromAction<typeof exportAction>

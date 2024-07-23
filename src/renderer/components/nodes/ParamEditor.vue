@@ -75,7 +75,7 @@
                   </SelectButton>
                 </div>
                 <div class="path" v-if="paramDefinition.control.type === 'path'">
-                  <Button class="w-full" @click="onChangePathClick">Browse path</Button>
+                  <Button class="w-full" @click="onChangePathClick(paramDefinition.control.options)">Browse path</Button>
                 </div>
                 <div class="select" v-if="paramDefinition.control.type === 'select'">
                   <Listbox
@@ -155,6 +155,7 @@ import { vOnClickOutside } from '@vueuse/components'
 import { useEditor } from '@renderer/store/editor'
 import { storeToRefs } from 'pinia'
 import { ListboxChangeEvent } from 'primevue/listbox'
+import type { OpenDialogOptions } from 'electron'
 
 type Params = (Action | Condition | Event)['params']
 
@@ -402,10 +403,10 @@ const getStepLabel = (key: string) => {
 /** On path selection */
 const api = useAPI()
 
-const onChangePathClick = async () => {
+const onChangePathClick = async (options: OpenDialogOptions) => {
   const paths = await api.execute(
     'dialog:showOpenDialog',
-    { title: 'Choose a new path', properties: ['openDirectory'] },
+    options,
     async (_, message) => {
       const { type, data } = message
       if (type === 'end') {

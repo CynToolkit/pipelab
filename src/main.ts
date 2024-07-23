@@ -24,7 +24,7 @@ logger.info("isLinux", isLinux);
 
 if (!isLinux && process.env.TEST !== 'true' && require('electron-squirrel-startup')) app.quit();
 
-if (app.isPackaged) {
+if (app.isPackaged && process.env.TEST !== 'true') {
   // Sentry.init({
   //   dsn: "https://757630879674735027fa5700162253f7@o45694.ingest.us.sentry.io/4507621723144192",
   // });

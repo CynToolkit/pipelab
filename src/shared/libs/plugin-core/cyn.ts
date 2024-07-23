@@ -17,6 +17,7 @@ import {
 import { z } from "zod";
 import { nanoid } from "nanoid";
 import { Nullable } from "vitest";
+import type { OpenDialogOptions } from 'electron'
 
 export type PathOptions = {
   filter?: RegExp;
@@ -205,10 +206,7 @@ export interface ControlTypeCheckbox extends ControlTypeBase {
 
 export interface ControlTypePath extends ControlTypeBase {
   type: "path";
-  // options: {
-  //   value: string;
-  //   onChange: (value: string) => void;
-  // };
+  options: OpenDialogOptions;
 }
 
 export interface ControlTypeJSON extends ControlTypeBase {

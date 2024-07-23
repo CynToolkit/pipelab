@@ -15,6 +15,7 @@ if (process.contextIsolated) {
     contextBridge.exposeInMainWorld('api', api)
     contextBridge.exposeInMainWorld('version', version)
     contextBridge.exposeInMainWorld("isPackaged", process.env.NODE_ENV !== "development")
+    contextBridge.exposeInMainWorld("isTest", process.env.TEST === 'true')
     console.log('process.env.NODE_ENV', process.env.NODE_ENV)
     // contextBridge.exposeInMainWorld('_dirname', __dirname)
   } catch (error) {
@@ -29,5 +30,7 @@ if (process.contextIsolated) {
   window.version = version
   // @ts-ignore (define in dts)
   window.isPackaged = app.isPackaged
+  // @ts-ignore (define in dts)
+  window.isTest = process.env.TEST === 'true'
   // window.__dirname = __dirname
 }
