@@ -20,7 +20,7 @@
     "start:args": "electron-forge start -- --project ./tests/e2e/fixtures/folder-to-electron.json --action run",
     "dev": "pnpm start",
     "test:unit": "vitest",
-    "test:e2e:raw": "vitest run -c tests/e2e/vitest.config.ts",
+    "test:e2e:raw": "pnpm package &&vitest run -c tests/e2e/vitest.config.ts",
     "test:e2e:pw": "echo 1",
     "build": "npm run type-check && electron-vite build",
     "build:no-check": "electron-vite build",
