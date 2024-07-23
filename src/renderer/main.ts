@@ -19,8 +19,10 @@ import { browserTracingIntegration, replayIntegration, init as vueInit } from '@
 import Bugsnag from '@bugsnag/electron'
 import BugsnagPluginVue from '@bugsnag/plugin-vue'
 
+console.log('process.env.TEST', window.isTest)
+
 let bugsnagVue: any
-if (window.isPackaged) {
+if (window.isPackaged && process.env.TEST !== 'true') {
   // Sentry.init({
   //   dsn: "https://757630879674735027fa5700162253f7@o45694.ingest.us.sentry.io/4507621723144192",
   // });
