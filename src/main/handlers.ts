@@ -16,6 +16,7 @@ import { mkdir, writeFile, readFile, access } from 'node:fs/promises'
 import { presets } from './presets/list'
 import { isRequired } from '@@/validation'
 import { handleActionExecute, handleConditionExecute } from './handler-func'
+import { logger } from '@@/logger'
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms))
@@ -32,11 +33,11 @@ export const useAPI = () => {
   const handle = <KEY extends Channels>(channel: KEY, listener: HandleListener<KEY>) => {
     return ipcMain.on(channel, (event, message: Message) => {
       const { data, requestId } = message
-      // console.log('received event', requestId)
-      // console.log('received data', data)
+      // logger.info('received event', requestId)
+      // logger.info('received data', data)
 
       const send: HandleListenerSendFn<KEY> = (events) => {
-        console.log('sending', events, 'to', requestId)
+        logger.debug('sending', events, 'to', requestId)
         return event.sender.send(requestId, events)
       }
 
@@ -55,12 +56,12 @@ export const useAPI = () => {
 export const registerIPCHandlers = () => {
   const { handle } = useAPI()
 
-  console.log('registering ipc handlers')
+  logger.info('registering ipc handlers')
 
   handle('dialog:showOpenDialog', async (event, { value, send }) => {
-    console.log('event', event)
-    console.log('value', value)
-    console.log('dialog:showOpenDialog')
+    // logger.info('event', event)
+    logger.info('value', value)
+    logger.info('dialog:showOpenDialog')
 
     const mainWindow = BrowserWindow.fromWebContents(event.sender)
 
@@ -81,9 +82,9 @@ export const registerIPCHandlers = () => {
   })
 
   handle('fs:read', async (event, { value, send }) => {
-    console.log('event', event)
-    console.log('value', value)
-    console.log('fs:read')
+    // logger.info('event', event)
+    logger.info('value', value)
+    logger.info('fs:read')
 
     try {
       const data = await readFile(value.path, 'utf-8')
@@ -108,9 +109,9 @@ export const registerIPCHandlers = () => {
   })
 
   handle('fs:write', async (event, { value, send }) => {
-    console.log('event', event)
-    console.log('value', value)
-    console.log('fs:read')
+    // logger.info('event', event)
+    logger.info('value', value)
+    logger.info('fs:read')
 
     await writeFile(value.path, value.content, 'utf-8')
 
@@ -123,9 +124,9 @@ export const registerIPCHandlers = () => {
   })
 
   handle('dialog:showSaveDialog', async (event, { value, send }) => {
-    console.log('event', event)
-    console.log('value', value)
-    console.log('dialog:showSaveDialog')
+    // logger.info('event', event)
+    logger.info('value', value)
+    logger.info('dialog:showSaveDialog')
 
     const mainWindow = BrowserWindow.fromWebContents(event.sender)
 
@@ -148,7 +149,7 @@ export const registerIPCHandlers = () => {
   handle('nodes:get', async (_, { send }) => {
     const finalPlugins = getFinalPlugins()
 
-    // console.log(
+    // logger.info(
     //   inspect(finalPlugins, {
     //     depth: 5
     //   })
@@ -165,7 +166,7 @@ export const registerIPCHandlers = () => {
   handle('presets:get', async (_, { send }) => {
     const presetData = await presets()
 
-    // console.log(
+    // logger.info(
     //   inspect(presetData, {
     //     depth: 5
     //   })

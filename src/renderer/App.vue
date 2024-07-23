@@ -34,6 +34,10 @@
                     Settings
                   </router-link>
                 </div>
+
+                <div class="version">
+                  <span>v{{ appVersion }}</span>
+                </div>
               </div>
               <div class="main">
                 <router-view></router-view>
@@ -51,13 +55,14 @@
 
 <script setup lang="ts">
 import { useAppStore } from './store/app'
-import { onMounted } from 'vue'
+import { onMounted, ref } from 'vue'
 import { primary, primaryDarken1, primaryDarken2 } from './style/main'
 import { useFiles } from './store/files'
 import { useAPI } from './composables/api'
 
 const appStore = useAppStore()
 const filesStore = useFiles()
+const api = useAPI()
 
 const { init } = appStore
 
@@ -65,6 +70,14 @@ await filesStore.load()
 console.log('files loaded', filesStore)
 await init()
 console.log('init done')
+
+console.log('window', window)
+
+const appVersion = ref(window.version)
+
+onMounted(async () => {
+  const result = await api.execute('')
+})
 
 </script>
 
@@ -135,5 +148,11 @@ console.log('init done')
 
 .router-link-active {
   background-color: v-bind(primaryDarken2);
+}
+
+.version {
+  font-size: 1.2rem;
+  margin: 16px;
+  text-align: center;
 }
 </style>

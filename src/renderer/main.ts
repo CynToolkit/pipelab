@@ -12,10 +12,23 @@ import 'primeflex/primeflex.css'
 import '@mdi/font/css/materialdesignicons.css'
 import { definePreset } from '@primevue/themes'
 import './style/main.scss'
-import VueDOMPurifyHTML from 'vue-dompurify-html';
+import VueDOMPurifyHTML from 'vue-dompurify-html'
 
-import { init } from "@sentry/electron/renderer";
-import { browserTracingIntegration, replayIntegration, init as vueInit } from "@sentry/vue";
+// import { init } from "@sentry/electron/renderer";
+import { browserTracingIntegration, replayIntegration, init as vueInit } from '@sentry/vue'
+import Bugsnag from '@bugsnag/electron'
+import BugsnagPluginVue from '@bugsnag/plugin-vue'
+
+let bugsnagVue: any
+if (window.isPackaged) {
+  // Sentry.init({
+  //   dsn: "https://757630879674735027fa5700162253f7@o45694.ingest.us.sentry.io/4507621723144192",
+  // });
+  bugsnagVue = Bugsnag.getPlugin('vue')
+  Bugsnag.start({
+    plugins: [new BugsnagPluginVue()]
+  })
+}
 
 const pinia = createPinia()
 pinia.use(piniaPluginPersistedstate)
@@ -662,34 +675,39 @@ const CynPreset = definePreset(Aura, {
   }
 })
 
-init({
-  vueInit,
-  integrations: [
-    browserTracingIntegration({ router }),
-    replayIntegration(),
-  ],
+// init({
+//   vueInit,
+//   integrations: [
+//     browserTracingIntegration({ router }),
+//     replayIntegration(),
+//   ],
 
-  // Set tracesSampleRate to 1.0 to capture 100%
-  // of transactions for performance monitoring.
-  // We recommend adjusting this value in production
-  tracesSampleRate: 1.0,
+//   // Set tracesSampleRate to 1.0 to capture 100%
+//   // of transactions for performance monitoring.
+//   // We recommend adjusting this value in production
+//   tracesSampleRate: 1.0,
 
-  // Capture Replay for 10% of all sessions,
-  // plus for 100% of sessions with an error
-  replaysSessionSampleRate: 0.1,
-  replaysOnErrorSampleRate: 1.0,
-});
+//   // Capture Replay for 10% of all sessions,
+//   // plus for 100% of sessions with an error
+//   replaysSessionSampleRate: 0.1,
+//   replaysOnErrorSampleRate: 1.0,
+// });
 
-createApp(Root)
-  .use(router)
-  .use(pinia)
-  .use(VueDOMPurifyHTML)
-  .use(PrimeVue, {
-    theme: {
-      preset: CynPreset,
-      options: {
-        darkModeSelector: 'light'
-      }
+const app = createApp(Root)
+
+app.use(router)
+app.use(pinia)
+app.use(VueDOMPurifyHTML)
+app.use(PrimeVue, {
+  theme: {
+    preset: CynPreset,
+    options: {
+      darkModeSelector: 'light'
     }
-  })
-  .mount('#app')
+  }
+})
+if (bugsnagVue) {
+  app.use(bugsnagVue)
+}
+
+app.mount('#app')

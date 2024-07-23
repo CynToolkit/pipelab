@@ -6,10 +6,10 @@
     "skipLibCheck": true,
     "esModuleInterop": true,
     "noImplicitAny": true,
-    "sourceMap": true,
     "baseUrl": ".",
     "outDir": "dist",
     "moduleResolution": "node",
+    "inlineSourceMap": true,
     "resolveJsonModule": true,
     "paths": {
       "@@/*": [
