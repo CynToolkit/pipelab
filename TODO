@@ -53,4 +53,5 @@ Tests:
 ✔ better home style @done(24-07-15 17:16)
 ✔ Save in separated files @done(24-07-17 08:11)
 ✔ process graph: main and renderer @done(24-07-17 08:11)
+- run notifications
 - env

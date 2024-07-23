@@ -1,5 +1,7 @@
 <template>
   <div class="editor">
+    <Toast position="bottom-center" />
+
     <!-- <div class="aside">
       <div>
         <div>Editor</div>
@@ -54,14 +56,19 @@
           </Inplace>
         </div>
         <div class="right">
-          <Button label="Save" size="small" @click="onSaveRequest">
+          <Button label="Save" :disabled="isRunning" size="small" @click="onSaveRequest">
             <template #icon>
               <i class="mdi mdi-content-save mr-1"></i>
             </template>
           </Button>
-          <Button label="Run" size="small" @click="run">
+          <Button label="Run" size="small" @click="run" v-if="!isRunning">
             <template #icon>
               <i class="mdi mdi-play mr-1"></i>
+            </template>
+          </Button>
+          <Button label="Cancel" size="small" disabled @click="run" v-else>
+            <template #icon>
+              <i class="mdi mdi-cancel mr-1"></i>
             </template>
           </Button>
           <!-- <Button label="Save" size="small" icon="pi pi-pencil" rounded @click="save"></Button> -->
@@ -80,13 +87,13 @@
         </div>
       </div>
 
-      <Dialog
+      <!--<Dialog
         v-model:visible="showSaveDialog"
         modal
         header="Choose location"
         :style="{ width: '50%' }"
       >
-        <!-- @vue-expect-error -->
+        <!~~ @vue-expect-error ~~>
         <Listbox
           v-model="saveOption"
           :options="saveOptions"
@@ -119,7 +126,7 @@
             @click="onSaveCallback"
           ></Button>
         </div>
-      </Dialog>
+      </Dialog>-->
     </div>
   </div>
 </template>
@@ -135,6 +142,7 @@ import { SavedFile } from '@@/model'
 import { useAPI } from '@renderer/composables/api'
 import { useAppStore } from '@renderer/store/app'
 import { MenuItem } from 'primevue/menuitem'
+import { useToast } from 'primevue/usetoast';
 import { tinykeys } from 'tinykeys'
 import { useRouteParams } from '@vueuse/router'
 import { useFiles } from '@renderer/store/files'
@@ -144,8 +152,8 @@ import { loadExternalFile, loadInternalFile, saveExternalFile } from '@renderer/
 const route = useRoute()
 
 const instance = useEditor()
-const { nodes, variables, name, currentFilePointer, errors, stepsDisplay, id } = storeToRefs(instance)
-const { processGraph, loadPreset, loadSavedFile } = instance
+const { nodes, variables, name, currentFilePointer, errors, stepsDisplay, id, isRunning } = storeToRefs(instance)
+const { processGraph, loadPreset, loadSavedFile, setIsRunning } = instance
 
 const app = useAppStore()
 const { pluginDefinitions } = storeToRefs(app)
@@ -182,12 +190,16 @@ watch(
   }
 )
 
+const toast = useToast();
+
+
 const run = async () => {
   const instance = useEditor()
   const api = useAPI()
 
   const { setActiveNode } = instance
 
+  setIsRunning(true)
   await processGraph({
     graph: klona(nodes.value),
     definitions: pluginDefinitions.value,
@@ -224,6 +236,14 @@ const run = async () => {
         throw new Error('Unhandled type ' + node.type)
       }
     }
+  })
+  setIsRunning(false)
+
+  toast.add({
+    summary: 'Execution done',
+    life: 10_000,
+    severity: 'success',
+    detail: 'Your project has been executed successfully'
   })
 }
 

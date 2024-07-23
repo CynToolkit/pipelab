@@ -18,6 +18,7 @@ import VueDOMPurifyHTML from 'vue-dompurify-html'
 import { browserTracingIntegration, replayIntegration, init as vueInit } from '@sentry/vue'
 import Bugsnag from '@bugsnag/electron'
 import BugsnagPluginVue from '@bugsnag/plugin-vue'
+import ToastService from 'primevue/toastservice';
 
 console.log('process.env.TEST', window.isTest)
 
@@ -708,6 +709,8 @@ app.use(PrimeVue, {
     }
   }
 })
+app.use(ToastService);
+
 if (bugsnagVue) {
   app.use(bugsnagVue)
 }
