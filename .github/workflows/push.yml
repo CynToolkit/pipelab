@@ -38,10 +38,10 @@ jobs:
       - name: Display structure of downloaded files
         run: ls -R
 
-      # - name: Run tests
-      #   uses: coactions/setup-xvfb@v1
-      #   with:
-      #     run: pnpm test:e2e:raw
+      - name: Run tests
+        uses: coactions/setup-xvfb@v1
+        with:
+          run: pnpm test:e2e:raw
 
       - name: Upload artifacts
         if: success()
