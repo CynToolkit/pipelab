@@ -6,8 +6,9 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../assets/icon.png?asset'
 import { registerIPCHandlers } from './main/handlers'
 import { usePlugins } from '@@/plugins'
-import { parseArgs, ParseArgsConfig } from "node:util";
+import { parseArgs, ParseArgsConfig } from 'node:util'
 import { processGraph } from '@@/graph'
+import { Tray, Menu, nativeImage } from 'electron'
 import { readFile, writeFile } from 'fs/promises'
 import { getFinalPlugins } from '@main/utils'
 import { SavedFile } from '@@/model'
@@ -16,13 +17,19 @@ import { handleActionExecute, handleConditionExecute } from '@main/handler-func'
 import { logger } from '@@/logger'
 import Bugsnag from '@bugsnag/electron'
 
-const isLinux = platform() === "linux";
+const isLinux = platform() === 'linux'
+let tray
 
-logger.info("app.isPackaged", app.isPackaged);
-logger.info("process.env.TEST", process.env.TEST);
-logger.info("isLinux", isLinux);
+logger.info('app.isPackaged', app.isPackaged)
+logger.info('process.env.TEST', process.env.TEST)
+logger.info('isLinux', isLinux)
 
-if (!isLinux && process.env.TEST !== 'true' && require('electron-squirrel-startup')) app.quit();
+const imagePath = join('./assets', 'icon.png')
+let isQuiting = false
+
+console.log('imagePath', imagePath)
+
+if (!isLinux && process.env.TEST !== 'true' && require('electron-squirrel-startup')) app.quit()
 
 if (app.isPackaged && process.env.TEST !== 'true') {
   // Sentry.init({
@@ -31,18 +38,21 @@ if (app.isPackaged && process.env.TEST !== 'true') {
   Bugsnag.start({ apiKey: '91e1c09abbf0f9bf369b28ea99396093' })
 }
 
+let mainWindow: BrowserWindow | undefined
+
 function createWindow(): void {
   // Create the browser window.
-  const mainWindow = new BrowserWindow({
+  mainWindow = new BrowserWindow({
     width: 1280,
     height: 720,
     show: false,
+    icon: imagePath,
     autoHideMenuBar: true,
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, 'preload.js'),
       sandbox: false,
-      devTools: true,// is.dev
+      devTools: true // is.dev
     }
   })
 
@@ -55,6 +65,21 @@ function createWindow(): void {
     mainWindow.maximize()
   })
 
+  mainWindow.on('minimize', function (event) {
+    event.preventDefault()
+    mainWindow.hide()
+  })
+
+  mainWindow.on('close', function (event) {
+    console.log('on close')
+    if (!isQuiting) {
+      event.preventDefault()
+      mainWindow.hide()
+    }
+
+    return false
+  })
+
   mainWindow.webContents.setWindowOpenHandler((details) => {
     shell.openExternal(details.url)
     return { action: 'deny' }
@@ -62,9 +87,9 @@ function createWindow(): void {
 
   // and load the index.html of the app.
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
-    mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
+    mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL)
   } else {
-    mainWindow.loadFile(join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`));
+    mainWindow.loadFile(join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`))
   }
 }
 
@@ -77,21 +102,20 @@ app.whenReady().then(async () => {
   autoUpdater.setFeedURL({
     url: 'https://github.com/CynToolkit/cyn/releases/latest/download',
     headers: {
-      'Cache-Control': 'no-cache',
-    },
+      'Cache-Control': 'no-cache'
+    }
   })
 
   autoUpdater.on('update-downloaded', (event, releaseNotes, releaseName) => {
     logger.info('releaseNotes', releaseNotes)
     logger.info('releaseName', releaseName)
-    logger.info("event", event)
+    logger.info('event', event)
     const dialogOpts: Electron.MessageBoxOptions = {
       type: 'info',
       buttons: ['Restart', 'Later'],
       title: 'Application Update',
       message: process.platform === 'win32' ? releaseNotes : releaseName,
-      detail:
-        'A new version has been downloaded. Restart the application to apply the updates.'
+      detail: 'A new version has been downloaded. Restart the application to apply the updates.'
     }
 
     dialog.showMessageBox(dialogOpts).then((returnValue) => {
@@ -123,6 +147,31 @@ app.whenReady().then(async () => {
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.cyn')
 
+  const icon = nativeImage.createFromPath(imagePath)
+  tray = new Tray(icon)
+  const contextMenu = Menu.buildFromTemplate([
+    {
+      label: 'Open',
+      type: 'normal',
+      click: () => {
+        if (mainWindow) {
+          mainWindow.show()
+        }
+      }
+    },
+    { type: 'separator' },
+    {
+      label: 'Exit',
+      type: 'normal',
+      click: () => {
+        isQuiting = true
+        app.quit()
+      }
+    }
+  ])
+
+  tray.setContextMenu(contextMenu)
+
   // Default open or close DevTools by F12 in development
   // and ignore CommandOrControl + R in production.
   // see https://github.com/alex8088/electron-toolkit/tree/master/packages/utils
@@ -137,25 +186,23 @@ app.whenReady().then(async () => {
   const config = {
     options: {
       project: {
-        type: "string",
-        short: "p",
+        type: 'string',
+        short: 'p'
       },
       action: {
-        type: "string",
-        short: "a",
+        type: 'string',
+        short: 'a'
       },
       output: {
-        type: "string",
-        short: "o",
-      },
-    },
-  } satisfies ParseArgsConfig;
+        type: 'string',
+        short: 'o'
+      }
+    }
+  } satisfies ParseArgsConfig
 
   logger.info('config', config)
 
-  const {
-    values,
-  } = parseArgs(config);
+  const { values } = parseArgs(config)
 
   logger.info('values', values)
 
@@ -165,7 +212,7 @@ app.whenReady().then(async () => {
 
     const { action, project, output } = values
 
-    if (action === "run") {
+    if (action === 'run') {
       const rawData = await readFile(project, 'utf8')
       const data = JSON.parse(rawData) as SavedFile
 
@@ -207,7 +254,7 @@ app.whenReady().then(async () => {
       })
 
       if (output) {
-        await writeFile(output, JSON.stringify(result, null, 2), "utf8")
+        await writeFile(output, JSON.stringify(result, null, 2), 'utf8')
       }
     }
 
