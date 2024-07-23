@@ -3,7 +3,7 @@ import { defineConfig, loadEnv, mergeConfig } from 'vite';
 import { getBuildConfig, getBuildDefine, external, pluginHotRestart } from './vite.base.config';
 import tsconfigPaths from 'vite-tsconfig-paths'
 import { viteStaticCopy } from 'vite-plugin-static-copy'
-import { sentryVitePlugin } from "@sentry/vite-plugin";
+// import { sentryVitePlugin } from "@sentry/vite-plugin";
 
 // https://vitejs.dev/config
 export default defineConfig((env) => {
@@ -28,11 +28,11 @@ export default defineConfig((env) => {
     plugins: [
       pluginHotRestart('restart'),
       tsconfigPaths(),
-      sentryVitePlugin({
-        org: "armaldio",
-        project: "cyn",
-        authToken: environment.SENTRY_AUTH_TOKEN,
-      }),
+      // sentryVitePlugin({
+      //   org: "armaldio",
+      //   project: "cyn",
+      //   authToken: environment.SENTRY_AUTH_TOKEN,
+      // }),
       viteStaticCopy({
         targets: [
           {

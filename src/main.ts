@@ -72,9 +72,15 @@ function createWindow(): void {
 
   mainWindow.on('close', function (event) {
     console.log('on close')
-    if (!isQuiting) {
-      event.preventDefault()
-      mainWindow.hide()
+    // if not quitting manually
+    if (isQuiting === false) {
+      // and in dev mode
+      if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
+        app.quit()
+      } else {
+        event.preventDefault()
+        mainWindow.hide()
+      }
     }
 
     return false
@@ -185,14 +191,17 @@ app.whenReady().then(async () => {
 
   const config = {
     options: {
+      /** project: path to file .cyn */
       project: {
         type: 'string',
         short: 'p'
       },
+      /** action: run | open  */
       action: {
         type: 'string',
         short: 'a'
       },
+      /** output: path to output result */
       output: {
         type: 'string',
         short: 'o'
@@ -281,3 +290,8 @@ app.on('window-all-closed', () => {
 
 // In this file you can include the rest of your app"s specific main process
 // code. You can also put them in separate files and require them here.
+
+
+if (import.meta.hot) {
+  console.log('hot reload')
+}
