@@ -92,6 +92,7 @@
     "rollbar": "2.26.4",
     "sass": "^1.77.8",
     "set-value": "^4.1.0",
+    "slash": "5.1.0",
     "tempura": "^0.4.1",
     "thememirror": "^2.0.1",
     "tinykeys": "^2.1.0",
