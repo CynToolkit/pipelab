@@ -6,7 +6,7 @@ import vue from '@vitejs/plugin-vue'
 import Components from 'unplugin-vue-components/vite';
 import { PrimeVueResolver } from '@primevue/auto-import-resolver';
 import vitePluginVueDevtool from 'vite-plugin-vue-devtools'
-// import { sentryVitePlugin } from '@sentry/vite-plugin';
+import { sentryVitePlugin } from '@sentry/vite-plugin';
 
 // https://vitejs.dev/config
 export default defineConfig((env) => {
@@ -15,6 +15,27 @@ export default defineConfig((env) => {
   const name = forgeConfigSelf.name ?? '';
 
   const environment = loadEnv(env.mode, process.cwd(), '')
+
+  const plugins = [
+    pluginExposeRenderer(name),
+    tsconfigPaths(),
+    vue(),
+    Components({
+      resolvers: [
+        PrimeVueResolver()
+      ]
+    }),
+    vitePluginVueDevtool(),
+    // nodePolyfills(),
+  ]
+
+  if (environment.mode === "production") {
+    sentryVitePlugin({
+      org: "armaldio",
+      project: "cyn",
+      authToken: environment.SENTRY_AUTH_TOKEN,
+    })
+  }
 
   return {
     root,
@@ -27,23 +48,7 @@ export default defineConfig((env) => {
     optimizeDeps: {
       include: ['@codemirror/state', '@codemirror/view'],
     },
-    plugins: [
-      pluginExposeRenderer(name),
-      // sentryVitePlugin({
-      //   org: "armaldio",
-      //   project: "cyn",
-      //   authToken: environment.SENTRY_AUTH_TOKEN,
-      // }),
-      tsconfigPaths(),
-      vue(),
-      Components({
-        resolvers: [
-          PrimeVueResolver()
-        ]
-      }),
-      vitePluginVueDevtool(),
-      // nodePolyfills(),
-    ],
+    plugins,
     resolve: {
       preserveSymlinks: true,
     },

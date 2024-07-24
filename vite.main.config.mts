@@ -3,7 +3,7 @@ import { defineConfig, loadEnv, mergeConfig } from 'vite';
 import { getBuildConfig, getBuildDefine, external, pluginHotRestart } from './vite.base.config';
 import tsconfigPaths from 'vite-tsconfig-paths'
 import { viteStaticCopy } from 'vite-plugin-static-copy'
-// import { sentryVitePlugin } from "@sentry/vite-plugin";
+import { sentryVitePlugin } from "@sentry/vite-plugin";
 
 // https://vitejs.dev/config
 export default defineConfig((env) => {
@@ -13,9 +13,34 @@ export default defineConfig((env) => {
 
   const environment = loadEnv(env.mode, process.cwd(), '')
 
+  const plugins = [
+    pluginHotRestart('restart'),
+    tsconfigPaths(),
+    viteStaticCopy({
+      targets: [
+        {
+          src: 'assets',
+          dest: '.',
+        },
+        {
+          src: "node_modules/@jitl/quickjs-wasmfile-release-sync/dist/emscripten-module.wasm",
+          dest: "."
+        }
+      ]
+    }),
+  ]
+
+  if (environment.mode === "production") {
+    sentryVitePlugin({
+      org: "armaldio",
+      project: "cyn",
+      authToken: environment.SENTRY_AUTH_TOKEN,
+    })
+  }
+
   const config: UserConfig = {
     build: {
-      sourcemap: 'inline',
+      sourcemap: true,
       lib: {
         entry: forgeConfigSelf.entry!,
         fileName: () => '[name].js',
@@ -25,27 +50,7 @@ export default defineConfig((env) => {
         external,
       },
     },
-    plugins: [
-      pluginHotRestart('restart'),
-      tsconfigPaths(),
-      // sentryVitePlugin({
-      //   org: "armaldio",
-      //   project: "cyn",
-      //   authToken: environment.SENTRY_AUTH_TOKEN,
-      // }),
-      viteStaticCopy({
-        targets: [
-          {
-            src: 'assets',
-            dest: '.',
-          },
-          {
-            src: "node_modules/@jitl/quickjs-wasmfile-release-sync/dist/emscripten-module.wasm",
-            dest: "."
-          }
-        ]
-      }),
-    ],
+    plugins,
     define,
     resolve: {
       // Load the Node.js entry.

@@ -80,7 +80,10 @@ export const packageApp = createAction({
       value: '',
       label: 'Input folder',
       control: {
-        type: 'path'
+        type: 'path',
+        options: {
+          properties: ['openDirectory']
+        }
       }
     }
   },
@@ -89,7 +92,10 @@ export const packageApp = createAction({
       label: 'Output',
       value: '',
       control: {
-        type: 'path'
+        type: 'path',
+        options: {
+          properties: ['openDirectory']
+        }
       }
     }
   }

@@ -8,8 +8,9 @@ import { FuseV1Options, FuseVersion } from '@electron/fuses'
 const config: ForgeConfig = {
   packagerConfig: {
     asar: {
-      unpack: '**/node_modules/{pnpm,@electron-forge}/**/*'
+      unpack: '**/node_modules/{pnpm,@electron-forge,playwright}/**/*'
     },
+    // asar: false,
     extraResource: ['.vite/build/assets'],
     name: "Cyn"
   },
@@ -18,7 +19,7 @@ const config: ForgeConfig = {
     new MakerSquirrel({
       name: "Cyn"
     }),
-    new MakerZIP({}, ['darwin', 'linux', 'win32'])
+    new MakerZIP({}, ['darwin', 'linux', 'win32']),
   ],
   publishers: [
     {

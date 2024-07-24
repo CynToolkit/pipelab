@@ -13,16 +13,25 @@ import { readFile, writeFile } from 'fs/promises'
 import { getFinalPlugins } from '@main/utils'
 import { SavedFile } from '@@/model'
 import { handleActionExecute, handleConditionExecute } from '@main/handler-func'
-// import * as Sentry from "@sentry/electron/main";
 import { logger } from '@@/logger'
-import Bugsnag from '@bugsnag/electron'
+import * as Sentry from "@sentry/electron/main";
 
 const isLinux = platform() === 'linux'
 let tray
 
 logger.info('app.isPackaged', app.isPackaged)
 logger.info('process.env.TEST', process.env.TEST)
+logger.info('process.env.WINEHOMEDIR', process.env.WINEHOMEDIR)
 logger.info('isLinux', isLinux)
+
+const isWine = platform() === 'win32' && 'WINEHOMEDIR' in process.env
+
+if ((app.isPackaged && process.env.TEST !== 'true' && !isWine)) {
+  Sentry.init({
+    dsn: "https://757630879674735027fa5700162253f7@o45694.ingest.us.sentry.io/4507621723144192",
+    debug: true,
+  });
+}
 
 const imagePath = join('./assets', 'icon.png')
 let isQuiting = false
@@ -30,13 +39,6 @@ let isQuiting = false
 console.log('imagePath', imagePath)
 
 if (!isLinux && process.env.TEST !== 'true' && require('electron-squirrel-startup')) app.quit()
-
-if (app.isPackaged && process.env.TEST !== 'true') {
-  // Sentry.init({
-  //   dsn: "https://757630879674735027fa5700162253f7@o45694.ingest.us.sentry.io/4507621723144192",
-  // });
-  Bugsnag.start({ apiKey: '91e1c09abbf0f9bf369b28ea99396093' })
-}
 
 let mainWindow: BrowserWindow | undefined
 
@@ -71,19 +73,11 @@ function createWindow(): void {
   })
 
   mainWindow.on('close', function (event) {
-    console.log('on close')
-    // if not quitting manually
-    if (isQuiting === false) {
-      // and in dev mode
-      if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
-        app.quit()
-      } else {
-        event.preventDefault()
-        mainWindow.hide()
-      }
-    }
+    app.quit()
+  })
 
-    return false
+  mainWindow.on('minimize', function (event) {
+    mainWindow.hide()
   })
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
@@ -177,6 +171,9 @@ app.whenReady().then(async () => {
   ])
 
   tray.setContextMenu(contextMenu)
+  tray.on("click", () => {
+    mainWindow.show()
+  })
 
   // Default open or close DevTools by F12 in development
   // and ignore CommandOrControl + R in production.
@@ -290,8 +287,3 @@ app.on('window-all-closed', () => {
 
 // In this file you can include the rest of your app"s specific main process
 // code. You can also put them in separate files and require them here.
-
-
-if (import.meta.hot) {
-  console.log('hot reload')
-}
