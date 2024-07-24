@@ -29,12 +29,16 @@ export default defineConfig((env) => {
     // nodePolyfills(),
   ]
 
-  if (environment.mode === "production") {
-    sentryVitePlugin({
-      org: "armaldio",
-      project: "cyn",
-      authToken: environment.SENTRY_AUTH_TOKEN,
-    })
+  const tag = process.env.GITHUB_REF?.includes('refs/tags/')
+  console.log('tag', tag)
+  if (tag) {
+    plugins.push(
+      sentryVitePlugin({
+        org: "armaldio",
+        project: "cyn",
+        authToken: environment.SENTRY_AUTH_TOKEN,
+      })
+    )
   }
 
   return {
