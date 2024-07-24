@@ -33,6 +33,8 @@ jobs:
         run: pnpm install
 
       - name: Package application
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
         run: pnpm electron-forge publish --dry-run
 
       - name: Display structure of downloaded files
