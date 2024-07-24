@@ -56,6 +56,12 @@ export const exportc3p = async <ACTION extends Action>(file: string, { cwd, log,
     const { unpack } = paths
     const modulesPath = join(unpack, 'node_modules')
 
+    console.log('modulesPath', modulesPath)
+
+    const execPath = process.execPath
+
+    console.log('execPath', execPath)
+
     // const playwrightServer = await import("playwright-core/lib/server");
 
     const browserName: "chromium" | "firefox" | "webkit" = "chromium";
@@ -64,9 +70,13 @@ export const exportc3p = async <ACTION extends Action>(file: string, { cwd, log,
     //   browserName,
     // ]);
     await runWithLiveLogs(
-      'node',
+      execPath,
       [ join(modulesPath, 'playwright', 'cli.js'), 'install', browserName ],
-      {},
+      {
+        env: {
+          ELECTRON_RUN_AS_NODE: '1',
+        },
+      },
       log,
     )
 

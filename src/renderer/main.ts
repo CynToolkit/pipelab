@@ -14,23 +14,23 @@ import { definePreset } from '@primevue/themes'
 import './style/main.scss'
 import VueDOMPurifyHTML from 'vue-dompurify-html'
 
-// import { init } from "@sentry/electron/renderer";
-import { browserTracingIntegration, replayIntegration, init as vueInit } from '@sentry/vue'
-import Bugsnag from '@bugsnag/electron'
-import BugsnagPluginVue from '@bugsnag/plugin-vue'
-import ToastService from 'primevue/toastservice';
+import { init } from "@sentry/electron/renderer";
+import { breadcrumbsIntegration, browserTracingIntegration, replayIntegration, init as vueInit } from '@sentry/vue'
+import ToastService from 'primevue/toastservice'
 
 console.log('process.env.TEST', window.isTest)
 
 let bugsnagVue: any
 if (window.isPackaged && process.env.TEST !== 'true') {
-  // Sentry.init({
-  //   dsn: "https://757630879674735027fa5700162253f7@o45694.ingest.us.sentry.io/4507621723144192",
-  // });
-  bugsnagVue = Bugsnag.getPlugin('vue')
-  Bugsnag.start({
-    plugins: [new BugsnagPluginVue()]
-  })
+  init({
+    dsn: "https://757630879674735027fa5700162253f7@o45694.ingest.us.sentry.io/4507621723144192",
+    debug: true,
+    integrations: [
+      breadcrumbsIntegration({
+        console: false
+      })
+    ]
+  }, vueInit);
 }
 
 const pinia = createPinia()
@@ -709,7 +709,7 @@ app.use(PrimeVue, {
     }
   }
 })
-app.use(ToastService);
+app.use(ToastService)
 
 if (bugsnagVue) {
   app.use(bugsnagVue)
