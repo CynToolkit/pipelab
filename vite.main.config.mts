@@ -11,6 +11,8 @@ export default defineConfig((env) => {
   const { forgeConfigSelf } = forgeEnv;
   const define = getBuildDefine(forgeEnv);
 
+  console.log('env.mode', env.mode)
+
   const environment = loadEnv(env.mode, process.cwd(), '')
 
   const plugins = [
@@ -30,12 +32,17 @@ export default defineConfig((env) => {
     }),
   ]
 
-  if (environment.mode === "production") {
-    sentryVitePlugin({
-      org: "armaldio",
-      project: "cyn",
-      authToken: environment.SENTRY_AUTH_TOKEN,
-    })
+  // check if we are in a tag
+  const tag = process.env.GITHUB_REF?.includes('refs/tags/')
+  console.log('tag', tag)
+  if (tag) {
+    plugins.push(
+      sentryVitePlugin({
+        org: "armaldio",
+        project: "cyn",
+        authToken: environment.SENTRY_AUTH_TOKEN,
+      })
+    )
   }
 
   const config: UserConfig = {
