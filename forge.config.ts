@@ -8,7 +8,7 @@ import { FuseV1Options, FuseVersion } from '@electron/fuses'
 const config: ForgeConfig = {
   packagerConfig: {
     asar: {
-      unpack: '**/node_modules/{pnpm,@electron-forge,playwright}/**/*'
+      // unpack: '**/node_modules/{pnpm,@electron-forge,playwright}/**/*'
     },
     // asar: false,
     extraResource: ['.vite/build/assets'],
