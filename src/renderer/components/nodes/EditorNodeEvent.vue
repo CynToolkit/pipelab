@@ -23,6 +23,7 @@
       <Drawer v-model:visible="showSidebar" class="w-full md:w-10 lg:w-9 xl:w-8" position="right">
         <template v-if="nodeDefinition">
           <div v-for="(paramDefinition, key) in nodeDefinition.params" :key="key" class="param">
+            <!-- @vue-ignore -->
             <ParamEditor
               :param="value.params[key]"
               :param-key="key"
@@ -33,8 +34,17 @@
             ></ParamEditor>
           </div>
         </template>
-        <pre>{{ value }}</pre>
-        <pre>{{ getNodeDefinition(value.origin.nodeId, value.origin.pluginId) }}</pre>
+        <template #footer>
+          <div class="flex items-center gap-2">
+            <Button
+              label="Delete"
+              icon="pi pi-trash"
+              class="flex-auto"
+              severity="danger"
+              @click="removeNode(value.uid)"
+            ></Button>
+          </div>
+        </template>
       </Drawer>
     </div>
     <AddNodeButton
@@ -81,7 +91,7 @@ const props = defineProps({
 const { value } = toRefs(props)
 
 const editor = useEditor()
-const { getNodeDefinition, getPluginDefinition, setNodeValue, addNode } = editor
+const { getNodeDefinition, getPluginDefinition, setTriggerValue, addNode, removeNode } = editor
 const { activeNode } = storeToRefs(editor)
 
 const nodeDefinition = computed(() => {
@@ -95,7 +105,7 @@ const pluginDefinition = computed(() => {
 const onValueChanged = (newValue: unknown, paramKey: string) => {
   console.log('newValue', newValue)
 
-  setNodeValue(value.value.uid, {
+  setTriggerValue(value.value.uid, {
     ...value.value,
     params: {
       ...value.value.params,

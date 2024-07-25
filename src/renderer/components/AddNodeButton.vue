@@ -24,11 +24,7 @@
             <ul class="node list-none p-0 m-0">
               <li class="flex align-items-center mb-3">
                 <span class="mr-3">
-                  <img
-                    v-if="plugin.icon.type === 'image'"
-                    width="32"
-                    :src="plugin.icon.image"
-                  />
+                  <img v-if="plugin.icon.type === 'image'" width="32" :src="plugin.icon.image" />
                   <i
                     v-else-if="plugin.icon.type === 'icon'"
                     style="font-size: 2rem"
@@ -52,14 +48,15 @@
                 <a
                   class="element flex align-items-center p-3 border-round w-full transition-colors transition-duration-150 cursor-pointer"
                   style="border-radius: '10px'"
-                  :class="{ 'selected': selected?.nodeId === node.id && selected.pluginId === plugin.id }"
+                  :class="{
+                    selected: selected?.nodeId === node.id && selected.pluginId === plugin.id
+                  }"
                 >
                   <i class="pi pi-home text-xl mr-3"></i>
                   <span class="flex flex-column">
                     <span class="font-bold mb-1"> {{ node.name }}</span>
                     <span class="m-0 text-secondary"> {{ node.description }}</span>
                   </span>
-
                 </a>
               </li>
             </ul>
@@ -91,6 +88,7 @@ import { storeToRefs } from 'pinia'
 import Button from 'primevue/button'
 import InputText from 'primevue/inputtext'
 import { useAppStore } from '@renderer/store/app'
+import { CynNode } from '@@/libs/plugin-core'
 
 type ButtonProps = InstanceType<typeof Button>['$props']
 
@@ -111,10 +109,10 @@ const { path } = toRefs(props)
 const instance = useEditor()
 const appStore = useAppStore()
 
-const { } = storeToRefs(instance)
+const {} = storeToRefs(instance)
 
 const { pluginDefinitions } = storeToRefs(appStore)
-const {  } = appStore
+const {} = appStore
 
 const $searchInput = ref<InstanceType<typeof InputText>>()
 
@@ -174,6 +172,20 @@ const onAdd = () => {
   visible.value = false
 }
 
+const isNodePicked = (node: CynNode, searchedValue: string) => {
+  const description = node.description.toLowerCase()
+  const name = node.name.toLowerCase()
+
+  if (node.type !== 'action') {
+    return false
+  }
+
+  if (description.includes(searchedValue) || name.includes(searchedValue)) {
+    return true
+  }
+  return false
+}
+
 // TODO: refactor
 const searchedElements = computed(() => {
   const searchedValue = search.value.toLowerCase()
@@ -183,15 +195,7 @@ const searchedElements = computed(() => {
       const description = def.description.toLowerCase()
       const name = def.name.toLowerCase()
 
-      const someNodeMatch = def.nodes.some((node) => {
-        const description = node.description.toLowerCase()
-        const name = node.name.toLowerCase()
-
-        if (description.includes(searchedValue) || name.includes(searchedValue)) {
-          return true
-        }
-        return false
-      })
+      const someNodeMatch = def.nodes.some((node) => isNodePicked(node, searchedValue))
 
       if (description.includes(searchedValue) || name.includes(searchedValue) || someNodeMatch) {
         return true
@@ -201,15 +205,7 @@ const searchedElements = computed(() => {
     .map((def) => {
       return {
         ...def,
-        nodes: def.nodes.filter((node) => {
-          const description = node.description.toLowerCase()
-          const name = node.name.toLowerCase()
-
-          if (description.includes(searchedValue) || name.includes(searchedValue)) {
-            return true
-          }
-          return false
-        })
+        nodes: def.nodes.filter((node) => isNodePicked(node, searchedValue))
       }
     })
 })

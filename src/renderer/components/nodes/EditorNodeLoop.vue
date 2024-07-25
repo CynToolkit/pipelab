@@ -26,6 +26,7 @@
     <div class="loop-branches">
       <div class="children">
         <div class="vl"></div>
+        <!-- @vue-ignore -->
         <NodesEditor
           :path="[...path, 'children']"
           :extra-add-button="false"
@@ -49,6 +50,7 @@
     <Drawer v-model:visible="showSidebar" class="w-full md:w-10 lg:w-9 xl:w-8" position="right">
       <template v-if="nodeDefinition">
         <div v-for="(param, key) in nodeDefinition.params" :key="key" class="param">
+          <!-- @vue-ignore -->
           <ParamEditor
             :param="value.params[key]"
             :param-key="key"
@@ -111,7 +113,7 @@ const { value } = toRefs(props)
 const engine = new Liquid()
 
 const editor = useEditor()
-const { getNodeDefinition, setNodeValue, getPluginDefinition } = editor
+const { getNodeDefinition, setBlockValue, getPluginDefinition } = editor
 const { activeNode } = storeToRefs(editor)
 
 const showSidebar = ref(false)
@@ -142,7 +144,7 @@ const subtitle = computedAsync(
 const onValueChanged = (newValue: unknown, paramKey: string) => {
   console.log('newValue', newValue)
 
-  setNodeValue(value.value.uid, {
+  setBlockValue(value.value.uid, {
     ...value.value,
     params: {
       ...value.value.params,

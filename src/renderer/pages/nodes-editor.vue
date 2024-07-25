@@ -3,6 +3,7 @@
     <template v-for="(node, index) in nodes" :key="node.uid">
       <div class="node-wrapper">
         <div class="node">
+          <!-- @vue-ignore -->
           <EditorNodeAction
             v-if="node.type === 'action'"
             :path="[...path, index.toString()]"
@@ -10,28 +11,21 @@
             :steps="steps"
             :errors="errors[node.uid]"
           ></EditorNodeAction>
-          <EditorNodeCondition
+          <!-- <EditorNodeCondition
             v-if="node.type === 'condition'"
             :path="[...path, index.toString()]"
             :value="node"
             :steps="steps"
             :errors="errors[node.uid]"
-          ></EditorNodeCondition>
-          <EditorNodeEvent
-            v-if="node.type === 'event'"
-            :path="[...path, index.toString()]"
-            :value="node"
-            :steps="steps"
-            :errors="errors[node.uid]"
-          ></EditorNodeEvent>
-          <EditorNodeLoop
+          ></EditorNodeCondition> -->
+          <!-- <EditorNodeLoop
             v-if="node.type === 'loop'"
             :path="[...path, index.toString()]"
             :value="node"
             @add-node="addNode"
             :steps="steps"
             :errors="errors[node.uid]"
-          ></EditorNodeLoop>
+          ></EditorNodeLoop> -->
         </div>
       </div>
     </template>

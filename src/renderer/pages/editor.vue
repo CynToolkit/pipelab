@@ -76,6 +76,9 @@
       </div>
       <div class="main">
         <div class="node-editor-wrapper">
+          <EditorNodeEvent v-if="triggers.length > 0" :path="[]" v-for="trigger in triggers" :value="trigger"></EditorNodeEvent>
+          <EditorNodeEvent v-else :path="[]" :value="{ type: 'event', uid: '__trigger__', origin: { pluginId: 'system', nodeId: '__trigger__' }, params: {} }"></EditorNodeEvent>
+
           <NodesEditor
             :errors="errors"
             v-if="instance"
@@ -148,11 +151,12 @@ import { useRouteParams } from '@vueuse/router'
 import { useFiles } from '@renderer/store/files'
 import { klona } from 'klona'
 import { loadExternalFile, loadInternalFile, saveExternalFile } from '@renderer/utils/config'
+import EditorNodeEvent from '@renderer/components/nodes/EditorNodeEvent.vue'
 
 const route = useRoute()
 
 const instance = useEditor()
-const { nodes, variables, name, currentFilePointer, errors, stepsDisplay, id, isRunning } = storeToRefs(instance)
+const { nodes, triggers, variables, name, currentFilePointer, errors, stepsDisplay, id, isRunning } = storeToRefs(instance)
 const { processGraph, loadPreset, loadSavedFile, setIsRunning } = instance
 
 const app = useAppStore()
@@ -216,14 +220,14 @@ const run = async () => {
     },
     onExecuteItem: async (node, params, steps) => {
       console.log('onExecuteItem', node, params, steps)
-      if (node.type === 'condition') {
+      /* if (node.type === 'condition') {
         return api.execute('condition:execute', {
           nodeId: node.origin.nodeId,
           pluginId: node.origin.pluginId,
           params,
           steps
         })
-      } else if (node.type === 'action') {
+      } else  */if (node.type === 'action') {
         const result = await api.execute('action:execute', {
           nodeId: node.origin.nodeId,
           pluginId: node.origin.pluginId,
@@ -320,11 +324,12 @@ const saveCloud = () => {
 
 const saveLocal = async (path: string) => {
   const result: SavedFile = {
-    version: '1.0.0',
+    version: '2.0.0',
     name: name.value,
     description: '',
     canvas: {
-      blocks: nodes.value
+      blocks: nodes.value,
+      triggers: triggers.value
     },
     variables: variables.value
   }
@@ -404,7 +409,7 @@ const pipelineMenu = computed<MenuItem[]>(() => [
 ])
 
 const menu = ref()
-const toggle = (event) => {
+const toggle = (event: any) => {
   menu.value.toggle(event)
 }
 

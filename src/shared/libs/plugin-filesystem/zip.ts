@@ -22,6 +22,9 @@ export const zip = createAction({
     folder: {
       control: {
         type: 'path',
+        options: {
+          properties: ['openDirectory']
+        }
       },
       value: '',
       label: "Folder",

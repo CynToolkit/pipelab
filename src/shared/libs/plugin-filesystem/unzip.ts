@@ -10,6 +10,9 @@ export const unzip = createAction({
     file: {
       control: {
         type: 'path',
+        options: {
+          properties: ['openFile']
+        }
       },
       value: '',
       label: "File",

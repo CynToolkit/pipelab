@@ -1,7 +1,7 @@
 <template>
   <div v-if="isLoading"> <Skeleton width="10rem" height="1rem"></Skeleton> </div>
   <div @click="emit('click', item)" v-else-if="item">
-    <div class="local" v-if="item.saveLocation.type === 'file'">
+    <div class="local" v-if="item.saveLocation.type === 'external'">
       {{ item.name }}
     </div>
     <div class="cloud" v-else-if="item.saveLocation.type === 'cyn-cloud'">

@@ -5,6 +5,7 @@ import { zipRunner, zip } from './zip.js'
 import { unzipRunner, unzip } from './unzip.js'
 import { copy, copyRunner } from './copy.js'
 import { run, runRunner } from './run.js'
+import { openInExplorer, openInExplorerRunner } from './open.js'
 
 export default createNodeDefinition({
     description: 'Filesystem',
@@ -38,6 +39,10 @@ export default createNodeDefinition({
         {
             node: run,
             runner: runRunner
+        },
+        {
+            node: openInExplorer,
+            runner: openInExplorerRunner
         }
     ]
 })

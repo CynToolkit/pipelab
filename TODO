@@ -20,7 +20,6 @@ code editor:
     Stage 1:
         pipecanvas.com
         pipelayn
-        ☐ No more save location
         ☐ Autosave
         ☐ Optimize/minimize images
             ☐ https://www.google.com/search?q=sharp+lossless+compression+png&client=firefox-b-d&sxsrf=AB5stBg5O1Uihp_JBHyJnrcJEeF5sm2ZAg%3A1690961809752&ei=kQfKZImzLc2JkdUPqKWVkAs&ved=0ahUKEwjJv_7Pu72AAxXNRKQEHahSBbIQ4dUDCA4&uact=5&oq=sharp+lossless+compression+png&gs_lp=Egxnd3Mtd2l6LXNlcnAiHnNoYXJwIGxvc3NsZXNzIGNvbXByZXNzaW9uIHBuZzIKEAAYRxjWBBiwAzIKEAAYRxjWBBiwAzIKEAAYRxjWBBiwAzIKEAAYRxjWBBiwAzIKEAAYRxjWBBiwAzIKEAAYRxjWBBiwAzIKEAAYRxjWBBiwAzIKEAAYRxjWBBiwA0i5GVDSBFixGHABeAGQAQCYAQCgAQCqAQC4AQPIAQD4AQHiAwQYACBBiAYBkAYI&sclient=gws-wiz-serp
@@ -45,13 +44,17 @@ EULA
 https://codemirror.net/examples/lint/
 https://remixicon.com/
 
+
+---
+
 Tests:
 - Disable step
 - View logs in realtime
 - editor full width (no sidebar)
-# required
-✔ better home style @done(24-07-15 17:16)
-✔ Save in separated files @done(24-07-17 08:11)
-✔ process graph: main and renderer @done(24-07-17 08:11)
-- run notifications
+- done indicators
+- only one trigger
+- ask feedback on the editor (pause, confirm, etc.)
 - env
+
+
+- tester sur windows de ne rien unpack

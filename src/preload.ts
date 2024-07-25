@@ -6,6 +6,8 @@ import { version } from '../package.json'
 const api = {
 }
 
+// TODO: unify window and contextBridge
+
 // Use `contextBridge` APIs to expose Electron APIs to
 // renderer only if context isolation is enabled, otherwise
 // just add to the DOM global.
@@ -22,15 +24,10 @@ if (process.contextIsolated) {
     console.error(error)
   }
 } else {
-  // @ts-ignore (define in dts)
   window.electron = electronAPI
-  // @ts-ignore (define in dts)
   window.api = api
-  // @ts-ignore (define in dts)
   window.version = version
-  // @ts-ignore (define in dts)
-  window.isPackaged = app.isPackaged
-  // @ts-ignore (define in dts)
+  window.isPackaged = process.env.NODE_ENV !== "development"
   window.isTest = process.env.TEST === 'true'
   // window.__dirname = __dirname
 }

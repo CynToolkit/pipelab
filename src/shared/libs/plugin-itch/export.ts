@@ -15,6 +15,9 @@ export const uploadToItch = createAction({
       value: '',
       control: {
         type: 'path',
+        options: {
+          properties: ['openDirectory']
+        }
       }
     },
     project: {

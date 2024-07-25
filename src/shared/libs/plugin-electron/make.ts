@@ -79,7 +79,10 @@ export const make = createAction({
       value: '',
       label: 'Input folder',
       control: {
-        type: 'path'
+        type: 'path',
+        options: {
+          properties: ['openDirectory']
+        }
       }
     }
   },
@@ -88,7 +91,10 @@ export const make = createAction({
       label: 'Output',
       value: '',
       control: {
-        type: 'path'
+        type: 'path',
+        options: {
+          properties: ['openDirectory']
+        }
       }
     }
   }

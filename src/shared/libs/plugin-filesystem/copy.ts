@@ -12,6 +12,9 @@ export const copy = createAction({
       value: "",
       control: {
         type: "path",
+        options: {
+          properties: ['openFile', 'openDirectory']
+        }
       },
     },
     to: {
@@ -19,6 +22,9 @@ export const copy = createAction({
       value: "",
       control: {
         type: "path",
+        options: {
+          properties: ['openFile', 'openDirectory', 'createDirectory', "promptToCreate"]
+        }
       },
     },
     recursive: {

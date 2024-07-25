@@ -28,6 +28,7 @@
       <div class="branches">
         <div class="branch-true">
           <div class="vl left"></div>
+          <!-- @vue-ignore -->
           <NodesEditor
             :path="[...path, 'branchTrue']"
             :extra-add-button="false"
@@ -38,6 +39,7 @@
         </div>
         <div class="branch-false">
           <div class="vl right"></div>
+          <!-- @vue-ignore -->
           <NodesEditor
             :path="[...path, 'branchFalse']"
             :extra-add-button="false"
@@ -53,6 +55,7 @@
     <Drawer v-model:visible="showSidebar" class="w-full md:w-10 lg:w-9 xl:w-8" position="right">
       <template v-if="nodeDefinition">
         <div v-for="(param, key) in nodeDefinition.params" :key="key" class="param">
+          <!-- @vue-ignore -->
           <ParamEditor
             :param="value.params[key]"
             :param-key="key"
@@ -122,13 +125,13 @@ const subtitle = computedAsync(
 )
 
 const editor = useEditor()
-const { getNodeDefinition, setNodeValue, getPluginDefinition } = editor
+const { getNodeDefinition, setBlockValue, getPluginDefinition } = editor
 const { activeNode } = storeToRefs(editor)
 
 const onValueChanged = (newValue: unknown, paramKey: string) => {
   console.log('newValue', newValue)
 
-  setNodeValue(value.value.uid, {
+  setBlockValue(value.value.uid, {
     ...value.value,
     params: {
       ...value.value.params,

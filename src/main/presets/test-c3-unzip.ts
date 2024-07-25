@@ -8,12 +8,12 @@ export const testC3Unzip: PresetFn = async () => {
   const steamUpload = 'steam-upload-node'
 
   const data: SavedFile = {
-    version: '1.0.0',
+    version: '2.0.0',
     name: 'From Construct to Steam',
     description: 'Export from Construct, package with Electron, then upload to Steam',
     variables: [],
     canvas: {
-      blocks: [
+      triggers: [
         {
           type: 'event',
           origin: {
@@ -23,6 +23,8 @@ export const testC3Unzip: PresetFn = async () => {
           uid: 'manual-start',
           params: {}
         },
+      ],
+      blocks: [
         {
           uid: exportConstructProjectId,
           type: 'action',

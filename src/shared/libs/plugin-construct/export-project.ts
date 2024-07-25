@@ -19,6 +19,9 @@ export const exportProjectAction = createAction({
       value: "",
       control: {
         type: "path",
+        options: {
+          properties: ['openDirectory']
+        }
       },
     },
     ...sharedParams,
