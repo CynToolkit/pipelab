@@ -5,12 +5,12 @@ export const testC3Offline: PresetFn = async () => {
   const steamUpload = 'steam-upload-node'
 
   const data: SavedFile = {
-    version: '1.0.0',
+    version: '2.0.0',
     variables: [],
     name: 'C3 test without export',
     description: 'C3 test without export',
     canvas: {
-      blocks: [
+      triggers: [
         {
           type: 'event',
           origin: {
@@ -20,6 +20,8 @@ export const testC3Offline: PresetFn = async () => {
           uid: 'manual-start',
           params: {}
         },
+      ],
+      blocks: [
         {
           uid: packageWithElecton,
           type: 'action',

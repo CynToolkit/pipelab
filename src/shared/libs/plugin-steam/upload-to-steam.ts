@@ -18,6 +18,9 @@ export const uploadToSteam = createAction({
       label: "Steam Sdk path",
       control: {
         type: "path",
+        options: {
+          properties: ['openDirectory']
+        }
       },
     },
     username: {
@@ -55,6 +58,9 @@ export const uploadToSteam = createAction({
       label: "Input Folder",
       control: {
         type: "path",
+        options: {
+          properties: ['openDirectory']
+        }
       },
     },
   },

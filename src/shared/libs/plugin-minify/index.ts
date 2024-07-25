@@ -17,6 +17,9 @@ export const minifyImage = createAction({
       label: "Fichier",
       control: {
         type: 'path',
+        options: {
+          properties: ['openFile']
+        }
       }
     },
   },

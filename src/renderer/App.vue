@@ -66,17 +66,16 @@ const api = useAPI()
 
 const { init } = appStore
 
-await filesStore.load()
-console.log('files loaded', filesStore)
-await init()
-console.log('init done')
-
 console.log('window', window)
 
 const appVersion = ref(window.version)
 
 onMounted(async () => {
-  const result = await api.execute('')
+  await filesStore.load()
+  console.log('files loaded', filesStore)
+  await init()
+  console.log('init done')
+  // const result = await api.execute('')
 })
 
 </script>

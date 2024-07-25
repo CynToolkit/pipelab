@@ -1,3 +1,5 @@
+// @ts-nocheck
+
 import { PresetFn, SavedFile } from '@@/model'
 
 export const loopPreset: PresetFn = async () => {

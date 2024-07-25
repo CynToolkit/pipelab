@@ -188,10 +188,8 @@ const props = defineProps({
 const { param, paramKey, paramDefinition, steps, value } = toRefs(props)
 
 const editor = useEditor()
-const { getNodeDefinition, setNodeValue, addNode, getPluginDefinition } = editor
+const { getNodeDefinition, setBlockValue, addNode, getPluginDefinition } = editor
 const { nodes } = storeToRefs(editor)
-
-const vm = await createQuickJs()
 
 const emit = defineEmits<{
   (event: 'update:modelValue', data: any): void
@@ -307,7 +305,10 @@ watchDebounced(
       return
     }
 
+
     try {
+      const vm = await createQuickJs()
+
       const result = await vm.run(displayString, {
         params: {},
         // params: resolvedParams.value,

@@ -9,6 +9,9 @@ export const ListFilesAction = createAction({
     folder: {
       control: {
         type: 'path',
+        options: {
+          properties: ['openDirectory']
+        }
       },
       value: '',
       label: "Folder",

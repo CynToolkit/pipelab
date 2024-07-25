@@ -17,7 +17,6 @@ export const useAPI = () => {
    * Send an order
    */
   const send = <KEY extends Channels>(channel: KEY, args?: Data<KEY>) =>
-    // @ts-expect-error
     window.electron.ipcRenderer.send(channel, args)
 
   const on = <KEY extends Channels>(
@@ -25,7 +24,6 @@ export const useAPI = () => {
     listener: (event: Electron.IpcRendererEvent, data: Events<KEY>) => void
   ) => {
     // console.log('listening for', channel)
-    // @ts-expect-error
     return window.electron.ipcRenderer.on(channel, listener)
   }
 
@@ -56,7 +54,6 @@ export const useAPI = () => {
       })
 
       try {
-        // @ts-expect-error
         window.electron.ipcRenderer.send(channel, message)
       } catch (e) {
         console.error(e)

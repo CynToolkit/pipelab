@@ -23,7 +23,7 @@ export const processGraph = async (options: {
     console.log('node', node)
     const rawNode = node
 
-    if (rawNode.type === 'condition') {
+    /* if (rawNode.type === 'condition') {
       options.onNodeEnter(rawNode)
 
       const newParams = await makeResolvedParams({
@@ -61,7 +61,7 @@ export const processGraph = async (options: {
         }
       }
       options.onNodeExit(rawNode)
-    } else if (rawNode.type === 'action') {
+    } else */ if (rawNode.type === 'action') {
       options.onNodeEnter(rawNode)
 
       const newParams = await makeResolvedParams({
@@ -130,7 +130,6 @@ export const processGraph = async (options: {
       console.log('pass: ', rawNode.type)
       options.onNodeExit(rawNode)
     } else {
-      // @ts-expect-error
       console.log("Unknown node type", rawNode.type)
     }
 

@@ -94,10 +94,8 @@ const props = defineProps({
 
 const { value, steps } = toRefs(props)
 
-const vm = await createQuickJs()
-
 const editor = useEditor()
-const { getNodeDefinition, setNodeValue, addNode, getPluginDefinition, removeNode } = editor
+const { getNodeDefinition, setBlockValue, addNode, getPluginDefinition, removeNode } = editor
 const { activeNode } = storeToRefs(editor)
 
 const nodeDefinition = computed(() => {
@@ -111,7 +109,7 @@ const pluginDefinition = computed(() => {
 const onValueChanged = (newValue: unknown, paramKey: string) => {
   console.log('newValue', newValue)
 
-  setNodeValue(value.value.uid, {
+  setBlockValue(value.value.uid, {
     ...value.value,
     params: {
       ...value.value.params,
@@ -150,6 +148,7 @@ const resolvedParams = computedAsync(
 const subtitle = computedAsync(
   async () => {
     const displayString = nodeDefinition.value?.displayString ?? ''
+    const vm = await createQuickJs()
     const result = await vm.run(displayString, {
       params: resolvedParams.value,
       steps: steps.value

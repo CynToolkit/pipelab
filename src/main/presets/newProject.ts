@@ -4,12 +4,12 @@ export const newProjectPreset: PresetFn = async () => {
   const startId = 'manual-start'
 
   const data: SavedFile = {
-    version: '1.0.0',
+    version: '2.0.0',
     name: 'New project',
     description: 'New project',
     variables: [],
     canvas: {
-      blocks: [
+      triggers: [
         {
           type: 'event',
           origin: {
@@ -19,6 +19,9 @@ export const newProjectPreset: PresetFn = async () => {
           uid: startId,
           params: {}
         }
+      ],
+      blocks: [
+
       ]
     }
   }

@@ -7,6 +7,7 @@ import {
   BlockEvent,
   BlockLoop,
   SavedFile,
+  savedFileMigrator,
   Steps
 } from '@@/model'
 import { useAPI } from '@renderer/composables/api'
@@ -48,21 +49,21 @@ export const isActionBlock = (nodeDefinition: Block): nodeDefinition is BlockAct
   return nodeDefinition.type === 'action'
 }
 
-export const isConditionBlock = (nodeDefinition: Block): nodeDefinition is BlockCondition => {
-  return nodeDefinition.type === 'condition'
-}
+// export const isConditionBlock = (nodeDefinition: Block): nodeDefinition is BlockCondition => {
+//   return nodeDefinition.type === 'condition'
+// }
 
-export const isCommentBlock = (nodeDefinition: Block): nodeDefinition is BlockComment => {
-  return nodeDefinition.type === 'comment'
-}
+// export const isCommentBlock = (nodeDefinition: Block): nodeDefinition is BlockComment => {
+//   return nodeDefinition.type === 'comment'
+// }
 
-export const isEventBlock = (nodeDefinition: Block): nodeDefinition is BlockEvent => {
-  return nodeDefinition.type === 'event'
-}
+// export const isEventBlock = (nodeDefinition: Block): nodeDefinition is BlockEvent => {
+//   return nodeDefinition.type === 'event'
+// }
 
-export const isLoopBlock = (nodeDefinition: Block): nodeDefinition is BlockLoop => {
-  return nodeDefinition.type === 'loop'
-}
+// export const isLoopBlock = (nodeDefinition: Block): nodeDefinition is BlockLoop => {
+//   return nodeDefinition.type === 'loop'
+// }
 
 export type BlockToNode<T extends Block> = T['type'] extends 'action'
   ? Action
@@ -96,6 +97,9 @@ export const useEditor = defineStore('editor', () => {
   /** All the nodes on the editor */
   const blocks = ref<Array<Block>>([])
 
+  /** All the trigger nodes on the editor */
+  const triggers = ref<Array<BlockEvent>>([])
+
   /** All the variables of the editor */
   const variables = ref<Array<Variable>>([])
 
@@ -114,11 +118,12 @@ export const useEditor = defineStore('editor', () => {
 
   const savedFile = computed(() => {
     return {
-      version: '1.0.0',
+      version: '2.0.0',
       name: toRaw(name.value),
       description: '',
       canvas: {
-        blocks: toRaw(blocks.value)
+        blocks: toRaw(blocks.value),
+        triggers: toRaw(triggers.value)
       },
       variables: toRaw(variables.value)
     } satisfies SavedFile
@@ -204,7 +209,7 @@ export const useEditor = defineStore('editor', () => {
     return editorErrors
   })
 
-  const validate = (block: Block) => {
+  const validate = (block: Block | BlockEvent) => {
     const errors: ValidationError[] = []
     if (block.type === 'action') {
       const definition = getNodeDefinition(block.origin.nodeId, block.origin.pluginId)
@@ -218,40 +223,44 @@ export const useEditor = defineStore('editor', () => {
           })
         }
       }
-    } else if (block.type === 'condition') {
-      const definition = getNodeDefinition(block.origin.nodeId, block.origin.pluginId)
-      const requiredParams = Object.keys(definition?.params ?? {})
-      for (const requiredParam of requiredParams) {
-        if (!(requiredParam in block.params)) {
-          console.warn(`Missing required param "${requiredParam}" in node "${block.uid}"`)
-          errors.push({
-            type: 'missing',
-            param: requiredParam
-          })
-        }
-      }
+    // } else if (block.type === 'condition') {
+    //   const definition = getNodeDefinition(block.origin.nodeId, block.origin.pluginId)
+    //   const requiredParams = Object.keys(definition?.params ?? {})
+    //   for (const requiredParam of requiredParams) {
+    //     if (!(requiredParam in block.params)) {
+    //       console.warn(`Missing required param "${requiredParam}" in node "${block.uid}"`)
+    //       errors.push({
+    //         type: 'missing',
+    //         param: requiredParam
+    //       })
+    //     }
+    //   }
     } else if (block.type === 'event') {
       //
-    } else if (block.type === 'loop') {
-      const definition = getNodeDefinition(block.origin.nodeId, block.origin.pluginId)
-      const requiredParams = Object.keys(definition?.params ?? {})
-      for (const requiredParam of requiredParams) {
-        if (!(requiredParam in block.params)) {
-          console.warn(`Missing required param "${requiredParam}" in node "${block.uid}"`)
-          errors.push({
-            type: 'missing',
-            param: requiredParam
-          })
-        }
-      }
-    } else if (block.type === 'comment') {
-      //
+    // } else if (block.type === 'loop') {
+    //   const definition = getNodeDefinition(block.origin.nodeId, block.origin.pluginId)
+    //   const requiredParams = Object.keys(definition?.params ?? {})
+    //   for (const requiredParam of requiredParams) {
+    //     if (!(requiredParam in block.params)) {
+    //       console.warn(`Missing required param "${requiredParam}" in node "${block.uid}"`)
+    //       errors.push({
+    //         type: 'missing',
+    //         param: requiredParam
+    //       })
+    //     }
+    //   }
+    // } else if (block.type === 'comment') {
+    //   //
     }
     return errors
   }
 
-  const loadSavedFile = async (data: Readonly<SavedFile>) => {
+  const loadSavedFile = async (input: Readonly<SavedFile>) => {
     clear()
+
+    const data = await savedFileMigrator.migrate(input, {
+      debug: true
+    });
 
     console.log('loadSavedFile data', data)
 
@@ -265,6 +274,11 @@ export const useEditor = defineStore('editor', () => {
     for (const block of data.canvas.blocks) {
       blocks.value.push(block)
       validate(block)
+    }
+
+    for (const trigger of data.canvas.triggers) {
+      triggers.value.push(trigger)
+      validate(trigger)
     }
 
     // // load connections
@@ -294,7 +308,7 @@ export const useEditor = defineStore('editor', () => {
     }
   }
 
-  const setNodeValue = (nodeId: string, value: Block) => {
+  const setBlockValue = (nodeId: string, value: Block) => {
     const nodeIndex = blocks.value.findIndex((b) => b.uid === nodeId)
     console.log('nodeIndex', nodeIndex)
     console.log('0, nodeIndex', 0, nodeIndex)
@@ -305,6 +319,21 @@ export const useEditor = defineStore('editor', () => {
         ...blocks.value.slice(0, nodeIndex),
         value,
         ...blocks.value.slice(nodeIndex + 1, undefined)
+      ]
+    }
+  }
+
+  const setTriggerValue = (nodeId: string, value: BlockEvent) => {
+    const nodeIndex = triggers.value.findIndex((b) => b.uid === nodeId)
+    console.log('nodeIndex', nodeIndex)
+    console.log('0, nodeIndex', 0, nodeIndex)
+    console.log('nodeIndex + 1, triggers.value.length - 1', nodeIndex + 1, triggers.value.length - 1)
+    if (nodeIndex > -1) {
+      // replace node
+      triggers.value = [
+        ...triggers.value.slice(0, nodeIndex),
+        value,
+        ...triggers.value.slice(nodeIndex + 1, undefined)
       ]
     }
   }
@@ -338,17 +367,6 @@ export const useEditor = defineStore('editor', () => {
           params: {},
           branchFalse: [],
           branchTrue: []
-        }
-        addNodeToBlock(node, path, insertAt)
-      } else if (isEventDefinition(nodeDefinition)) {
-        const node: BlockEvent = {
-          uid: nanoid(),
-          type: nodeDefinition.type,
-          origin: {
-            nodeId: nodeDefinition.id,
-            pluginId: pluginDefinition.id
-          },
-          params: {}
         }
         addNodeToBlock(node, path, insertAt)
       } else if (isLoopDefinition(nodeDefinition)) {
@@ -419,6 +437,7 @@ export const useEditor = defineStore('editor', () => {
 
   return {
     nodes: blocks,
+    triggers,
     variables,
     nodeDefinitions,
     activeNode,
@@ -432,7 +451,8 @@ export const useEditor = defineStore('editor', () => {
     currentFilePointer,
 
     setActiveNode,
-    setNodeValue,
+    setBlockValue,
+    setTriggerValue,
     removeNode,
 
     clear,

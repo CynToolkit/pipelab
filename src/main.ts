@@ -67,7 +67,7 @@ function createWindow(): void {
     mainWindow.maximize()
   })
 
-  mainWindow.on('minimize', function (event) {
+  mainWindow.on('minimize', function (event: Event) {
     event.preventDefault()
     mainWindow.hide()
   })
@@ -76,7 +76,7 @@ function createWindow(): void {
     app.quit()
   })
 
-  mainWindow.on('minimize', function (event) {
+  mainWindow.on('minimize', function () {
     mainWindow.hide()
   })
 
@@ -128,15 +128,15 @@ app.whenReady().then(async () => {
     logger.info(message)
   })
 
-  autoUpdater.on('update-available', (info) => {
+  autoUpdater.on('update-available', () => {
     logger.info('Found update')
   })
 
-  autoUpdater.on('update-not-available', (info) => {
+  autoUpdater.on('update-not-available', () => {
     logger.info('No update available')
   })
 
-  autoUpdater.on('checking-for-update', (info) => {
+  autoUpdater.on('checking-for-update', (info: any) => {
     logger.info('checking-for-update', info)
   })
 
@@ -241,13 +241,13 @@ app.whenReady().then(async () => {
           logger.info('onNodeExit', node.uid)
         },
         onExecuteItem: (node, params, steps) => {
-          if (node.type === 'condition') {
+          /* if (node.type === 'condition') {
             return handleConditionExecute(node.origin.nodeId, node.origin.pluginId, params, {
               send: (data) => {
                 logger.info('send', data)
               }
             })
-          } else if (node.type === 'action') {
+          } else  */if (node.type === 'action') {
             return handleActionExecute(node.origin.nodeId, node.origin.pluginId, params, {
               send: (data) => {
                 logger.info('send', data)

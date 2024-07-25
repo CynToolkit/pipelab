@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { PresetFn, SavedFile } from '@@/model'
 
 export const demoPreset: PresetFn = async () => {
