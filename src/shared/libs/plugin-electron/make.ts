@@ -179,6 +179,24 @@ export const makeRunner = createActionRunner<typeof make>(
       recursive: true
     })
 
+    log('Installing nodejs')
+    await runWithLiveLogs(
+      process.execPath,
+      [
+        pnpm,
+        'env',
+        'use',
+        '--global 22'
+      ],
+      {
+        cwd: destinationFolder,
+        env: {
+          ELECTRON_RUN_AS_NODE: '1',
+        }
+      },
+      log
+    )
+
     log('Installing packages')
     await runWithLiveLogs(
       process.execPath,
@@ -186,7 +204,10 @@ export const makeRunner = createActionRunner<typeof make>(
         pnpm,
         'install', '--prefer-offline'],
       {
-        cwd: destinationFolder
+        cwd: destinationFolder,
+        env: {
+          ELECTRON_RUN_AS_NODE: '1',
+        }
       },
       log
     )
