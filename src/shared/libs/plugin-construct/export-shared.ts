@@ -101,7 +101,9 @@ export const exportc3p = async <ACTION extends Action>(file: string, { cwd, log,
       headless: headless,
     });
 
-    const context = await browser.newContext();
+    const context = await browser.newContext({
+      locale: 'en-US',
+    });
     await context.clearPermissions();
 
     const page = await context.newPage();

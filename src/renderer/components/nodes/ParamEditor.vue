@@ -75,7 +75,9 @@
                   </SelectButton>
                 </div>
                 <div class="path" v-if="paramDefinition.control.type === 'path'">
-                  <Button class="w-full" @click="onChangePathClick(paramDefinition.control.options)">Browse path</Button>
+                  <Button class="w-full" @click="onChangePathClick(paramDefinition.control.options)">
+                    {{ paramDefinition.control.label ?? 'Browse path' }}
+                  </Button>
                 </div>
                 <div class="select" v-if="paramDefinition.control.type === 'select'">
                   <Listbox
