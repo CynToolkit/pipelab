@@ -207,6 +207,7 @@ export interface ControlTypeCheckbox extends ControlTypeBase {
 export interface ControlTypePath extends ControlTypeBase {
   type: "path";
   options: OpenDialogOptions;
+  label?: string
 }
 
 export interface ControlTypeJSON extends ControlTypeBase {

@@ -14,6 +14,7 @@ export const exportAction = createAction({
       value: '',
       control: {
         type: 'path',
+        label: 'Pick a file (.c3p)',
         options: {
           properties: ['openFile'],
           filters: [{ name: 'Construct Project', extensions: ['c3p'] }],

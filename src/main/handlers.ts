@@ -59,6 +59,8 @@ export const registerIPCHandlers = () => {
   logger.info('registering ipc handlers')
 
   handle('dialog:showOpenDialog', async (event, { value, send }) => {
+    const slash = (await import('slash')).default
+
     // logger.info('event', event)
     logger.info('value', value)
     logger.info('dialog:showOpenDialog')
@@ -75,7 +77,7 @@ export const registerIPCHandlers = () => {
     send({
       type: 'end',
       data: {
-        filePaths,
+        filePaths: filePaths.map((f) => slash(f)),
         canceled
       }
     })
