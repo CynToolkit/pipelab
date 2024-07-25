@@ -129,7 +129,7 @@ export const packageRunner = createActionRunner<typeof packageApp>(
     const { execa } = await import('execa')
     const _pnpm = join(modulesPath, 'pnpm', 'bin', 'pnpm.cjs')
     console.log('_pnpm', _pnpm)
-    const pnpm = _pnpm.replace('app.asar', 'app.asar.unpacked')
+    const pnpm = _pnpm/* .replace('app.asar', 'app.asar.unpacked') */
     // const forge = join(
     //   __dirname,
     //   "node_modules",
@@ -139,10 +139,10 @@ export const packageRunner = createActionRunner<typeof packageApp>(
     //   "electron-forge.js"
     // ).replace('app.asar/out/main', 'app.asar.unpacked');
 
-    const forge = join(modulesPath, '@electron-forge', 'cli', 'dist', 'electron-forge.js').replace(
+    const forge = join(modulesPath, '@electron-forge', 'cli', 'dist', 'electron-forge.js')/* .replace(
       'app.asar',
       'app.asar.unpacked'
-    )
+    ) */
 
     console.log('pnpm', pnpm)
 
@@ -155,7 +155,7 @@ export const packageRunner = createActionRunner<typeof packageApp>(
 
     const _templateFolder = join(assets, 'electron', 'template', 'app')
 
-    const templateFolder = _templateFolder.replace('app.asar', 'app.asar.unpacked')
+    const templateFolder = _templateFolder/* .replace('app.asar', 'app.asar.unpacked') */
 
     log('_templateFolder', _templateFolder)
     log('templateFolder', templateFolder)
@@ -183,10 +183,13 @@ export const packageRunner = createActionRunner<typeof packageApp>(
 
     log('Installing packages')
     await runWithLiveLogs(
-      pnpm,
-      ['install', '--prefer-offline'],
+      process.execPath,
+      [pnpm, 'install', '--prefer-offline'],
       {
-        cwd: destinationFolder
+        cwd: destinationFolder,
+        env: {
+          ELECTRON_RUN_AS_NODE: '1',
+        },
       },
       log
     )
@@ -211,8 +214,9 @@ export const packageRunner = createActionRunner<typeof packageApp>(
 
       const logs = await runWithLiveLogs(
         // 'node',
-        forge,
+        process.execPath,
         [
+          forge,
           // '--input-type',
           // 'commonjs',
           'package',
@@ -225,7 +229,8 @@ export const packageRunner = createActionRunner<typeof packageApp>(
         {
           cwd: destinationFolder,
           env: {
-            DEBUG: 'electron-packager'
+            DEBUG: 'electron-packager',
+            ELECTRON_RUN_AS_NODE: '1',
           }
         },
         log
