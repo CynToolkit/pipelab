@@ -60,7 +60,7 @@ export const script = async (
     await page.frameLocator('#loginDialog iframe').getByLabel('Username').fill(username)
     await page.frameLocator('#loginDialog iframe').getByLabel('Password').fill(password)
 
-    const tokenPromise = page.waitForResponse('https://account.construct.net/login.json')
+    const tokenPromise = page.waitForResponse(/https:\/\/account.*\.construct\.net\/login.json/i)
 
     await page.frameLocator('#loginDialog iframe').getByRole('button', { name: 'Log in' }).click()
 
