@@ -106,7 +106,7 @@ export const makeRunner = createActionRunner<typeof make>(
 
     const { assets, unpack } = paths
 
-    const { join, dirname, basename } = await import('node:path')
+    const { join, dirname, basename, sep, delimiter } = await import('node:path')
     const { cp } = await import('node:fs/promises')
     const { fileURLToPath } = await import('url')
     // @ts-expect-error
@@ -137,25 +137,30 @@ export const makeRunner = createActionRunner<typeof make>(
     //   "electron-forge.js"
     // ).replace('app.asar/out/main', 'app.asar.unpacked');
 
+    const destinationFolder = join(cwd, 'build')
+
+    log('destinationFolder', destinationFolder)
+
     const forge = join(
-      modulesPath,
+      destinationFolder,
+      'node_modules',
       '@electron-forge',
       'cli',
       'dist',
       'electron-forge.js'
-    ) /* .replace(
-      'app.asar',
-      'app.asar.unpacked'
-    ) */
+    )
+    // const forge = join(
+    //   modulesPath,
+    //   '@electron-forge',
+    //   'cli',
+    //   'dist',
+    //   'electron-forge.js'
+    // )
 
     console.log('pnpm', pnpm)
 
     const appFolder = inputs['input-folder']
     log('appFolder', appFolder)
-
-    const destinationFolder = join(cwd, 'build')
-
-    log('destinationFolder', destinationFolder)
 
     const _templateFolder = join(assets, 'electron', 'template', 'app')
 
@@ -185,27 +190,20 @@ export const makeRunner = createActionRunner<typeof make>(
       recursive: true
     })
 
-    log('Installing nodejs')
-    await runWithLiveLogs(
-      process.execPath,
-      [pnpm, 'env', 'use', '--global', '22'],
-      {
-        cwd: destinationFolder,
-        env: {
-          ELECTRON_RUN_AS_NODE: '1'
-        }
-      },
-      log
-    )
+    const shimsPaths = join(assets, 'shims')
+
+    console.log('process.env.PATH', process.env.PATH)
 
     log('Installing packages')
     await runWithLiveLogs(
       process.execPath,
-      [pnpm, 'install', '--prefer-offline'],
+      [pnpm, 'install'],
       {
         cwd: destinationFolder,
         env: {
-          ELECTRON_RUN_AS_NODE: '1'
+          // DEBUG: '*',
+          ELECTRON_RUN_AS_NODE: '1',
+          PATH: `${shimsPaths}${delimiter}${process.env.PATH}`
         }
       },
       log
@@ -235,8 +233,10 @@ export const makeRunner = createActionRunner<typeof make>(
         {
           cwd: destinationFolder,
           env: {
-            DEBUG: 'electron-packager',
-            ELECTRON_RUN_AS_NODE: '1'
+            // DEBUG: '*',
+            ELECTRON_NO_ASAR: '1',
+            ELECTRON_RUN_AS_NODE: '1',
+            PATH: `${shimsPaths}${delimiter}${process.env.PATH}`
           }
         },
         log

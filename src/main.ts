@@ -9,12 +9,13 @@ import { usePlugins } from '@@/plugins'
 import { parseArgs, ParseArgsConfig } from 'node:util'
 import { processGraph } from '@@/graph'
 import { Tray, Menu, nativeImage } from 'electron'
-import { readFile, writeFile } from 'fs/promises'
+import { readFile, writeFile, mkdir } from 'fs/promises'
 import { getFinalPlugins } from '@main/utils'
 import { SavedFile } from '@@/model'
 import { handleActionExecute, handleConditionExecute } from '@main/handler-func'
 import { logger } from '@@/logger'
-import * as Sentry from "@sentry/electron/main";
+import * as Sentry from '@sentry/electron/main'
+import { assetsPath } from '@main/paths'
 
 const isLinux = platform() === 'linux'
 let tray
@@ -26,11 +27,11 @@ logger.info('isLinux', isLinux)
 
 const isWine = platform() === 'win32' && 'WINEHOMEDIR' in process.env
 
-if ((app.isPackaged && process.env.TEST !== 'true' && !isWine)) {
+if (app.isPackaged && process.env.TEST !== 'true' && !isWine) {
   Sentry.init({
-    dsn: "https://757630879674735027fa5700162253f7@o45694.ingest.us.sentry.io/4507621723144192",
-    debug: true,
-  });
+    dsn: 'https://757630879674735027fa5700162253f7@o45694.ingest.us.sentry.io/4507621723144192',
+    debug: true
+  })
 }
 
 const imagePath = join('./assets', 'icon.png')
@@ -147,40 +148,49 @@ app.whenReady().then(async () => {
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.cyn')
 
-  const icon = nativeImage.createFromPath(imagePath)
-  tray = new Tray(icon)
-  const contextMenu = Menu.buildFromTemplate([
-    {
-      label: 'Open',
-      type: 'normal',
-      click: () => {
-        if (mainWindow) {
-          mainWindow.show()
-        }
-      }
-    },
-    { type: 'separator' },
-    {
-      label: 'Exit',
-      type: 'normal',
-      click: () => {
-        isQuiting = true
-        app.quit()
-      }
-    }
-  ])
-
-  tray.setContextMenu(contextMenu)
-  tray.on("click", () => {
-    mainWindow.show()
-  })
-
   // Default open or close DevTools by F12 in development
   // and ignore CommandOrControl + R in production.
   // see https://github.com/alex8088/electron-toolkit/tree/master/packages/utils
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)
   })
+
+  const assets = await assetsPath()
+  const shimsPaths = join(assets, 'shims')
+
+  await mkdir(shimsPaths, { recursive: true })
+
+  if (platform() === 'win32') {
+    const fakeNode = join(shimsPaths, 'node.bat')
+
+    await writeFile(
+      fakeNode,
+      `REM @echo off
+
+echo "Running fake node"
+
+REM Set the environment variable to run Electron as Node.js
+set ELECTRON_RUN_AS_NODE=1
+
+ECHO %*
+
+REM Shim Electron as Node.js
+start "" "${process.execPath}" %*
+`)
+  } else {
+    const fakeNode = join(shimsPaths, 'node')
+
+    await writeFile(
+      fakeNode,
+      `#!/bin/bash
+
+# Set the environment variable to run Electron as Node.js
+export ELECTRON_RUN_AS_NODE=1
+
+# Shim Electron as Node.js
+exec "${process.execPath}" "$@"
+`)
+  }
 
   registerIPCHandlers()
   await registerBuiltIn()
@@ -247,7 +257,7 @@ app.whenReady().then(async () => {
                 logger.info('send', data)
               }
             })
-          } else  */if (node.type === 'action') {
+          } else  */ if (node.type === 'action') {
             return handleActionExecute(node.origin.nodeId, node.origin.pluginId, params, {
               send: (data) => {
                 logger.info('send', data)
@@ -268,6 +278,34 @@ app.whenReady().then(async () => {
   }
 
   createWindow()
+
+  const icon = nativeImage.createFromPath(imagePath)
+  tray = new Tray(icon)
+  const contextMenu = Menu.buildFromTemplate([
+    {
+      label: 'Open',
+      type: 'normal',
+      click: () => {
+        if (mainWindow) {
+          mainWindow.show()
+        }
+      }
+    },
+    { type: 'separator' },
+    {
+      label: 'Exit',
+      type: 'normal',
+      click: () => {
+        isQuiting = true
+        app.quit()
+      }
+    }
+  ])
+
+  tray.setContextMenu(contextMenu)
+  tray.on('click', () => {
+    mainWindow.show()
+  })
 
   app.on('activate', function () {
     // On macOS it's common to re-create a window in the app when the
