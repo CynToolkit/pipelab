@@ -95,3 +95,5 @@ sentry.properties
 
 
 *.env*
+
+assets/shims
