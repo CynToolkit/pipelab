@@ -57,6 +57,7 @@ Tests:
 - env
 
 
-- tester sur windows de ne rien unpack
 - finir l'implementation des triggers
-- electron post install a besoin de nodejs
+- overwrite d'un fichier fonctionne pas bien
+- fermer trop vite la fenêtre de modifiation n'enregistre pas le changement
+- export Electron ne fonctionne pas
