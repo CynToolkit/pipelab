@@ -28,9 +28,9 @@ export const exportProjectAction = createAction({
   },
   outputs: {
     folder: {
-      type: "data",
+      type: "path",
       value: undefined as undefined | string,
-      label: "Folder",
+      label: "Exported zip",
       // schema: schema.string()
     },
   },

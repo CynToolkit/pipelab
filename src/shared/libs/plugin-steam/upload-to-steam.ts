@@ -55,7 +55,7 @@ export const uploadToSteam = createAction({
     },
     folder: {
       value: "",
-      label: "Input Folder",
+      label: "Folder to upload",
       control: {
         type: "path",
         options: {

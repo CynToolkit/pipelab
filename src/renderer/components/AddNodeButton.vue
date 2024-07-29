@@ -41,21 +41,23 @@
               </li>
               <li
                 v-for="node in plugin.nodes"
-                :key="node.id"
-                class="flex"
-                @click="selected = { nodeId: node.id, pluginId: plugin.id }"
+                :key="node.node.id"
+                class="flex node-item"
+                @click="selected = { nodeId: node.node.id, pluginId: plugin.id }"
+                :disabled="node.disabled"
               >
                 <a
                   class="element flex align-items-center p-3 border-round w-full transition-colors transition-duration-150 cursor-pointer"
                   style="border-radius: '10px'"
                   :class="{
-                    selected: selected?.nodeId === node.id && selected.pluginId === plugin.id
+                    selected: selected?.nodeId === node.node.id && selected.pluginId === plugin.id
                   }"
                 >
                   <i class="pi pi-home text-xl mr-3"></i>
                   <span class="flex flex-column">
-                    <span class="font-bold mb-1"> {{ node.name }}</span>
-                    <span class="m-0 text-secondary"> {{ node.description }}</span>
+                    <span class="font-bold mb-1"> {{ node.node.name }}</span>
+                    <span class="m-0 text-secondary"> {{ node.node.description }}</span>
+                    <span class="m-0 text-secondary font-bold" v-if="typeof node.disabled === 'string'">{{ node.disabled }}</span>
                   </span>
                 </a>
               </li>
@@ -163,7 +165,7 @@ const onAdd = () => {
   const insertAt = Number.parseInt(path.value.pop() ?? '0') + 1
 
   instance.addNode({
-    node,
+    node: node.node,
     plugin: def,
     path: path.value,
     insertAt
@@ -188,6 +190,7 @@ const isNodePicked = (node: CynNode, searchedValue: string) => {
 
 // TODO: refactor
 const searchedElements = computed(() => {
+  console.log('pluginDefinitions', pluginDefinitions.value)
   const searchedValue = search.value.toLowerCase()
 
   return pluginDefinitions.value
@@ -195,7 +198,7 @@ const searchedElements = computed(() => {
       const description = def.description.toLowerCase()
       const name = def.name.toLowerCase()
 
-      const someNodeMatch = def.nodes.some((node) => isNodePicked(node, searchedValue))
+      const someNodeMatch = def.nodes.some((node) => isNodePicked(node.node, searchedValue))
 
       if (description.includes(searchedValue) || name.includes(searchedValue) || someNodeMatch) {
         return true
@@ -205,7 +208,7 @@ const searchedElements = computed(() => {
     .map((def) => {
       return {
         ...def,
-        nodes: def.nodes.filter((node) => isNodePicked(node, searchedValue))
+        nodes: def.nodes.filter((node) => isNodePicked(node.node, searchedValue))
       }
     })
 })
@@ -251,6 +254,15 @@ const searchedElements = computed(() => {
 
   .node {
     flex: 1;
+
+    .node-item {
+      cursor: pointer;
+
+      &[disabled] {
+        pointer-events: none;
+        color: grey;
+      }
+    }
   }
 }
 

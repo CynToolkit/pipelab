@@ -99,7 +99,7 @@ const { getNodeDefinition, setBlockValue, addNode, getPluginDefinition, removeNo
 const { activeNode } = storeToRefs(editor)
 
 const nodeDefinition = computed(() => {
-  return getNodeDefinition(value.value.origin.nodeId, value.value.origin.pluginId) as Action
+  return getNodeDefinition(value.value.origin.nodeId, value.value.origin.pluginId).node as Action
 })
 
 const pluginDefinition = computed(() => {

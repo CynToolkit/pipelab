@@ -43,7 +43,7 @@ export const useAppStore = defineStore('app', () => {
     // const getNodeDefinition = <T extends Block>(node: T extends Block ? T : never) => {
     const plugin = getPluginDefinition(pluginId)
     if (plugin) {
-      return plugin.nodes.find((pluginNode) => pluginNode.id === nodeId)
+      return plugin.nodes.find((pluginNode) => pluginNode.node.id === nodeId)
     }
     return undefined
   }

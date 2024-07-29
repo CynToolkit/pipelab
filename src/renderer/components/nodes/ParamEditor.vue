@@ -369,7 +369,7 @@ const getOutputLabel = (stepUid: string, key: string) => {
   const nodeOrigin = nodes.value.find((n) => n.uid === stepUid)?.origin
   console.log('nodeOrigin', nodeOrigin)
   if (nodeOrigin) {
-    const nodeDef = getNodeDefinition(nodeOrigin.nodeId, nodeOrigin.pluginId) as Action
+    const nodeDef = getNodeDefinition(nodeOrigin.nodeId, nodeOrigin.pluginId).node as Action
     if (nodeDef) {
       return nodeDef.outputs[key]?.label ?? key
     }
@@ -382,7 +382,7 @@ const getOutputDescription = (stepUid: string, key: string) => {
   const nodeOrigin = nodes.value.find((n) => n.uid === stepUid)?.origin
   console.log('nodeOrigin', nodeOrigin)
   if (nodeOrigin) {
-    const nodeDef = getNodeDefinition(nodeOrigin.nodeId, nodeOrigin.pluginId) as Action
+    const nodeDef = getNodeDefinition(nodeOrigin.nodeId, nodeOrigin.pluginId).node as Action
     if (nodeDef) {
       return nodeDef.outputs[key]?.description ?? key
     }
@@ -396,7 +396,7 @@ const getStepLabel = (key: string) => {
   if (nodeOrigin) {
     const nodeDef = getNodeDefinition(nodeOrigin.nodeId, nodeOrigin.pluginId)
     if (nodeDef) {
-      return nodeDef.name
+      return nodeDef.node.name
     }
     return key
   }

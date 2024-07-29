@@ -16,8 +16,11 @@ export const getFinalPlugins = () => {
 
     // send without runner
     for (const element of plugin.nodes) {
-      const { node } = element
-      finalNodes.push(node)
+      const { node, disabled } = element
+      finalNodes.push({
+        node,
+        disabled,
+      })
     }
 
     finalPlugins.push({

@@ -119,7 +119,7 @@ const { activeNode } = storeToRefs(editor)
 const showSidebar = ref(false)
 
 const nodeDefinition = computed(() => {
-  return getNodeDefinition(value.value.origin.nodeId, value.value.origin.pluginId) as Loop
+  return getNodeDefinition(value.value.origin.nodeId, value.value.origin.pluginId).node as Loop
 })
 
 const pluginDefinition = computed(() => {
@@ -144,6 +144,7 @@ const subtitle = computedAsync(
 const onValueChanged = (newValue: unknown, paramKey: string) => {
   console.log('newValue', newValue)
 
+  // @ts-expect-error
   setBlockValue(value.value.uid, {
     ...value.value,
     params: {
