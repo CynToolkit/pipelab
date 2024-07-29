@@ -280,14 +280,20 @@ export interface PluginDefinition {
   description: string;
 }
 
+export type RendererNodeDefinition = {
+  node: CynNode;
+  disabled: boolean | string;
+}
+
 export interface RendererPluginDefinition extends PluginDefinition {
-  nodes: Array<CynNode>;
+  nodes: Array<RendererNodeDefinition>;
 }
 
 export interface MainPluginDefinition extends PluginDefinition {
   nodes: {
     node: CynNode;
     runner: Runner;
+    disabled?: boolean | string
   }[];
 }
 

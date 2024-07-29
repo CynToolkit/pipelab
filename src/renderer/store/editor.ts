@@ -11,7 +11,7 @@ import {
   Steps
 } from '@@/model'
 import { useAPI } from '@renderer/composables/api'
-import { Action, Condition, RendererPluginDefinition, Event, Loop, CynNode, InputDefinition } from '@cyn/plugin-core'
+import { Action, Condition, RendererPluginDefinition, Event, Loop, CynNode, InputDefinition, RendererNodeDefinition } from '@cyn/plugin-core'
 import { Variable } from '@cyn/core'
 import { defineStore, storeToRefs } from 'pinia'
 import get from 'get-value'
@@ -154,12 +154,12 @@ export const useEditor = defineStore('editor', () => {
       }
 
       if (pluginDef) {
-        if (pluginDef.type === 'action') {
-          const outputs = pluginDef.outputs
+        if (pluginDef.node.type === 'action') {
+          const outputs = pluginDef.node.outputs
 
           for (const [key, output] of Object.entries(outputs)) {
             console.log('output', outputs)
-            result[node.uid]['outputs'][key] = `<div class="step">${pluginDef.name} → ${output.label}</div>`
+            result[node.uid]['outputs'][key] = `<div class="step">${pluginDef.node.name} → ${output.label}</div>`
           }
         }
       }
@@ -182,7 +182,7 @@ export const useEditor = defineStore('editor', () => {
           plugin: x.id
         }))
       )
-      .flat(3) satisfies CynNode[]
+      .flat(3) satisfies RendererNodeDefinition[]
   })
 
   const clear = () => {
@@ -213,7 +213,7 @@ export const useEditor = defineStore('editor', () => {
     const errors: ValidationError[] = []
     if (block.type === 'action') {
       const definition = getNodeDefinition(block.origin.nodeId, block.origin.pluginId)
-      const requiredParams = Object.entries(definition?.params ?? {})
+      const requiredParams = Object.entries(definition.node?.params ?? {})
       for (const [key, param] of requiredParams) {
         if (isRequired(param) && !(key in block.params)) {
           console.warn(`Missing required param "${key}" in node "${block.uid}"`)
@@ -356,7 +356,7 @@ export const useEditor = defineStore('editor', () => {
           params: {}
         }
         addNodeToBlock(node, path, insertAt)
-      } else if (isConditionDefinition(nodeDefinition)) {
+      } /* else if (isConditionDefinition(nodeDefinition)) {
         const node: BlockCondition = {
           uid: nanoid(),
           type: nodeDefinition.type,
@@ -381,7 +381,7 @@ export const useEditor = defineStore('editor', () => {
           children: []
         }
         addNodeToBlock(node, path, insertAt)
-      } else {
+      } */ else {
         console.error('Unhandled', nodeDefinition)
       }
     }

@@ -1,5 +1,6 @@
 import { createAction, createActionRunner, runWithLiveLogs } from '@cyn/plugin-core'
 import type { MakeOptions } from '@electron-forge/core'
+import { outFolderName } from '../../../constants'
 
 // TODO: https://js.electronforge.io/modules/_electron_forge_core.html
 
@@ -15,7 +16,7 @@ export const packageApp = createAction({
   meta: {},
   params: {
     arch: {
-      value: '' as MakeOptions['arch'],
+      value: '' as NodeJS.Architecture, // MakeOptions['arch'],
       label: 'Architecture',
       required: false,
       control: {
@@ -52,7 +53,7 @@ export const packageApp = createAction({
       }
     },
     platform: {
-      value: '' as MakeOptions['platform'],
+      value: '' as NodeJS.Platform, // MakeOptions['platform'],
       label: 'Platform',
       required: false,
       control: {
@@ -78,7 +79,7 @@ export const packageApp = createAction({
     },
     'input-folder': {
       value: '',
-      label: 'Input folder',
+      label: 'Folder to package',
       control: {
         type: 'path',
         options: {
@@ -109,6 +110,7 @@ export const packageRunner = createActionRunner<typeof packageApp>(
 
     const { join, dirname, basename, sep, delimiter } = await import('node:path')
     const { cp } = await import('node:fs/promises')
+    const { platform, arch } = await import('process')
     const { fileURLToPath } = await import('url')
     // @ts-expect-error
     const __dirname = fileURLToPath(dirname(import.meta.url))
@@ -228,9 +230,12 @@ export const packageRunner = createActionRunner<typeof packageApp>(
       //   skipPackage: false,
       // });
 
+      const finalPlatform = inputs.platform ?? platform
+      const finalArch = inputs.arch ?? arch
+
       const logs = await runWithLiveLogs(
         process.execPath,
-        [forge, 'package', '--', '--arch', inputs.arch ?? '', '--platform', inputs.platform ?? ''],
+        [forge, 'package', '--', '--arch', finalArch, '--platform', finalPlatform],
         {
           cwd: destinationFolder,
           env: {
@@ -245,7 +250,9 @@ export const packageRunner = createActionRunner<typeof packageApp>(
 
       console.log('logs', logs)
 
-      setOutput('output', join(destinationFolder, 'out', 'app-linux-x64'))
+      const outName = outFolderName(finalPlatform, finalArch)
+
+      setOutput('output', join(destinationFolder, 'out', outName))
     } catch (e) {
       if (e instanceof Error) {
         if (e.name === 'RequestError') {

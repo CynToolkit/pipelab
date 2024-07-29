@@ -131,6 +131,7 @@ const { activeNode } = storeToRefs(editor)
 const onValueChanged = (newValue: unknown, paramKey: string) => {
   console.log('newValue', newValue)
 
+  // @ts-expect-error
   setBlockValue(value.value.uid, {
     ...value.value,
     params: {
@@ -141,7 +142,7 @@ const onValueChanged = (newValue: unknown, paramKey: string) => {
 }
 
 const nodeDefinition = computed(() => {
-  return getNodeDefinition(value.value.origin.nodeId, value.value.origin.pluginId) as Condition
+  return getNodeDefinition(value.value.origin.nodeId, value.value.origin.pluginId).node as Condition
 })
 
 const pluginDefinition = computed(() => {

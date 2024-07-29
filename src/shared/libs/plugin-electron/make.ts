@@ -77,7 +77,7 @@ export const make = createAction({
     },
     'input-folder': {
       value: '',
-      label: 'Input folder',
+      label: 'Folder to package',
       control: {
         type: 'path',
         options: {
@@ -108,6 +108,7 @@ export const makeRunner = createActionRunner<typeof make>(
 
     const { join, dirname, basename, sep, delimiter } = await import('node:path')
     const { cp } = await import('node:fs/promises')
+    const { arch, platform } = await import('process')
     const { fileURLToPath } = await import('url')
     // @ts-expect-error
     const __dirname = fileURLToPath(dirname(import.meta.url))
@@ -227,9 +228,12 @@ export const makeRunner = createActionRunner<typeof make>(
       //   skipPackage: false,
       // });
 
+      const finalPlatform = inputs.platform ?? platform ?? ''
+      const finalArch = inputs.arch ?? arch ?? ''
+
       const logs = await runWithLiveLogs(
         process.execPath,
-        [forge, 'make', '--', '--arch', inputs.arch ?? '', '--platform', inputs.platform ?? ''],
+        [forge, 'make', '--', '--arch', finalArch, '--platform', finalPlatform],
         {
           cwd: destinationFolder,
           env: {

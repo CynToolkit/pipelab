@@ -95,7 +95,7 @@ const { getNodeDefinition, getPluginDefinition, setTriggerValue, addNode, remove
 const { activeNode } = storeToRefs(editor)
 
 const nodeDefinition = computed(() => {
-  return getNodeDefinition(value.value.origin.nodeId, value.value.origin.pluginId) as Event
+  return getNodeDefinition(value.value.origin.nodeId, value.value.origin.pluginId).node as Event
 })
 
 const pluginDefinition = computed(() => {
