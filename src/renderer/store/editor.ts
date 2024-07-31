@@ -17,7 +17,7 @@ import { defineStore, storeToRefs } from 'pinia'
 import get from 'get-value'
 import set from 'set-value'
 import { nanoid } from 'nanoid'
-import { AddNodeEvent } from '@renderer/components/AddNodeButton.model'
+import { AddNodeEvent, AddTriggerEvent } from '@renderer/components/AddNodeButton.model'
 import { useAppStore } from './app'
 import { SaveLocation } from '@@/save-location'
 import { FileRepo, useFiles } from './files'
@@ -188,6 +188,7 @@ export const useEditor = defineStore('editor', () => {
   const clear = () => {
     blocks.value = []
     variables.value = []
+    triggers.value = []
     setActiveNode()
     console.log('clear')
   }
@@ -308,6 +309,16 @@ export const useEditor = defineStore('editor', () => {
     }
   }
 
+  const removeTrigger = (triggerId: string) => {
+    const triggerIndex = triggers.value.findIndex((b) => b.uid === triggerId)
+    if (triggerIndex > -1) {
+      triggers.value = [
+        ...triggers.value.slice(0, triggerIndex),
+        ...triggers.value.slice(triggerIndex + 1, undefined)
+      ]
+    }
+  }
+
   const setBlockValue = (nodeId: string, value: Block) => {
     const nodeIndex = blocks.value.findIndex((b) => b.uid === nodeId)
     console.log('nodeIndex', nodeIndex)
@@ -387,6 +398,61 @@ export const useEditor = defineStore('editor', () => {
     }
   }
 
+  const addTrigger = (event: AddTriggerEvent) => {
+    console.log('event', event)
+    console.log('nodeDefinitions', nodeDefinitions.value)
+
+    const { trigger: triggerDefinition, path, plugin: pluginDefinition, insertAt } = event
+
+    if (triggerDefinition && pluginDefinition) {
+      if (isEventDefinition(triggerDefinition)) {
+        const node: BlockEvent = {
+          uid: nanoid(),
+          type: triggerDefinition.type,
+          origin: {
+            nodeId: triggerDefinition.id,
+            pluginId: pluginDefinition.id
+          },
+          params: {}
+        }
+        addTriggerToBlock(node, path, insertAt)
+      } else {
+        console.error('Unhandled', triggerDefinition)
+      }
+    }
+  }
+
+  const addTriggerToBlock = (node: BlockEvent, path: string[], insertAt: number) => {
+    console.log('path', path)
+    console.log('insertAt', insertAt)
+    const value = path.length === 0 ? triggers.value : get(triggers.value, path)
+    console.log('value', value)
+
+    const firstPart = value.slice(0, insertAt)
+    const secondPart = value.slice(insertAt + 1)
+
+    console.log('firstPart', firstPart)
+    console.log('secondPart', secondPart)
+
+    const newValue = [
+      ...value.slice(0, insertAt),
+      node,
+      ...value.slice(
+        insertAt // already has +1
+      )
+    ]
+    console.log('newValue', newValue)
+    if (path.length === 0) {
+      triggers.value = newValue
+    } else {
+      set(triggers.value, path, newValue)
+    }
+
+    console.log('triggers.value', triggers.value)
+
+    return
+  }
+
   const addNodeToBlock = (node: Block, path: string[], insertAt: number) => {
     console.log('path', path)
     console.log('insertAt', insertAt)
@@ -454,11 +520,16 @@ export const useEditor = defineStore('editor', () => {
     setBlockValue,
     setTriggerValue,
     removeNode,
+    removeTrigger,
 
     clear,
     loadSavedFile,
     addNode,
     addNodeToBlock,
+
+    addTrigger,
+    addTriggerToBlock,
+
     addVariable,
     getPluginDefinition,
     getNodeDefinition,

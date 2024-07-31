@@ -77,7 +77,7 @@
       <div class="main">
         <div class="node-editor-wrapper">
           <EditorNodeEvent v-if="triggers.length > 0" :path="[]" v-for="trigger in triggers" :value="trigger"></EditorNodeEvent>
-          <EditorNodeEvent v-else :path="[]" :value="{ type: 'event', uid: '__trigger__', origin: { pluginId: 'system', nodeId: '__trigger__' }, params: {} }"></EditorNodeEvent>
+          <EditorNodeEventEmpty v-else :path="[]"></EditorNodeEventEmpty>
 
           <NodesEditor
             :errors="errors"
@@ -152,6 +152,7 @@ import { useFiles } from '@renderer/store/files'
 import { klona } from 'klona'
 import { loadExternalFile, loadInternalFile, saveExternalFile } from '@renderer/utils/config'
 import EditorNodeEvent from '@renderer/components/nodes/EditorNodeEvent.vue'
+import EditorNodeEventEmpty from '@renderer/components/nodes/EditorNodeEventEmpty.vue'
 
 const route = useRoute()
 

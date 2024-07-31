@@ -164,30 +164,35 @@ const openFile = async () => {
       const fileToRead = paths.filePaths[0]
       console.log('fileToRead', fileToRead)
 
-      const newId = nanoid()
+      let newId = nanoid()
 
-      const alreadyAddedPaths = Object.values(files.value.data).map((file) => {
+      const alreadyAddedPaths = Object.entries(files.value.data).map(([id, file]) => {
         if (file.type === 'external') {
-          return file.path
+          return {
+            ...file,
+            id
+          }
         }
       })
-      if (alreadyAddedPaths.includes(fileToRead)) {
-        console.error('File already added')
-      } else {
-        // save file to store
-        updateFileStore((state) => {
-          state.data[newId] = {
-            lastModified: new Date().toISOString(),
-            path: fileToRead,
-            summary: {
-              description: '',
-              name: '',
-              plugins: []
-            },
-            type: 'external'
-          }
-        })
+
+      const foundElement = alreadyAddedPaths.find((x) => x.path === fileToRead)
+
+      if (foundElement) {
+        newId = foundElement.id
       }
+      // save file to store
+      updateFileStore((state) => {
+        state.data[newId] = {
+          lastModified: new Date().toISOString(),
+          path: fileToRead,
+          summary: {
+            description: '',
+            name: '',
+            plugins: []
+          },
+          type: 'external'
+        }
+      })
 
       await router.push({
         name: 'Editor',
@@ -207,7 +212,7 @@ const openFile = async () => {
  * and save it to user location
  */
 const newFile = async () => {
-  const id = nanoid()
+  let id = nanoid()
 
   const presets = await api.execute('presets:get')
 
@@ -237,34 +242,36 @@ const newFile = async () => {
 
   let path = paths.filePath
 
-  const alreadyAddedPaths = Object.values(files.value.data).map((file) => {
+  const alreadyAddedPaths = Object.entries(files.value.data).map(([id, file]) => {
     if (file.type === 'external') {
-      return file.path
+      return {
+        ...file,
+        id
+      }
     }
   })
-  if (alreadyAddedPaths.includes(path)) {
-    console.error('File already added')
-  } else {
-    // update file store
-    updateFileStore((state) => {
-      console.log('state', state)
 
-      if (state.data[id]) {
-        throw new Error('Cannot replace file when creating a new one')
-      } else {
-        state.data[id] = {
-          lastModified: new Date().toISOString(),
-          path,
-          summary: {
-            description: '',
-            name: '',
-            plugins: []
-          },
-          type: 'external'
-        }
-      }
-    })
+  const foundExisting = alreadyAddedPaths.find((x) => x.path === path)
+
+  if (foundExisting && foundExisting.type === 'external') {
+    id = foundExisting.id
   }
+
+  // update file store
+  updateFileStore((state) => {
+    console.log('state', state)
+
+    state.data[id] = {
+      lastModified: new Date().toISOString(),
+      path,
+      summary: {
+        description: '',
+        name: '',
+        plugins: []
+      },
+      type: 'external'
+    }
+  })
 
   // write file
   await api.execute('fs:write', {
