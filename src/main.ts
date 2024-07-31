@@ -216,8 +216,6 @@ exec "${process.execPath}" "$@"
     }
   } satisfies ParseArgsConfig
 
-  logger.info('config', config)
-
   const { values } = parseArgs(config)
 
   logger.info('values', values)

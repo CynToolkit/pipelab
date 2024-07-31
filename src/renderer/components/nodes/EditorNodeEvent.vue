@@ -41,7 +41,7 @@
               icon="pi pi-trash"
               class="flex-auto"
               severity="danger"
-              @click="removeNode(value.uid)"
+              @click="removeTrigger(value.uid)"
             ></Button>
           </div>
         </template>
@@ -91,11 +91,16 @@ const props = defineProps({
 const { value } = toRefs(props)
 
 const editor = useEditor()
-const { getNodeDefinition, getPluginDefinition, setTriggerValue, addNode, removeNode } = editor
+const { getNodeDefinition, getPluginDefinition, setTriggerValue, addNode, removeTrigger } = editor
 const { activeNode } = storeToRefs(editor)
 
 const nodeDefinition = computed(() => {
-  return getNodeDefinition(value.value.origin.nodeId, value.value.origin.pluginId).node as Event
+  console.log('value', value)
+  const el = getNodeDefinition(value.value.origin.nodeId, value.value.origin.pluginId)
+  if (el) {
+    return el.node as Event
+  }
+  return undefined
 })
 
 const pluginDefinition = computed(() => {

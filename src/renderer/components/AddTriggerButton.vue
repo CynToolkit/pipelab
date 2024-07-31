@@ -8,7 +8,7 @@
     <Dialog :closable="false" v-model:visible="visible" modal header="" :style="{ width: '75%' }">
       <template #header>
         <div class="flex flex-column w-full">
-          <p class="text-xl">Add plugin</p>
+          <p class="text-xl">Add trigger</p>
           <div class="search">
             <IconField class="search-field" icon-position="left">
               <InputIcon class="pi pi-search"> </InputIcon>
@@ -21,14 +21,14 @@
       <div class="list">
         <div v-for="plugin in searchedElements" :key="plugin.id" class="plugin">
           <div class="triggers">
-            <ul class="node list-none p-0 m-0">
+            <ul class="trigger list-none p-0 m-0">
               <li class="flex align-items-center mb-3">
                 <span class="mr-3">
                   <img v-if="plugin.icon.type === 'image'" width="32" :src="plugin.icon.image" />
                   <i
                     v-else-if="plugin.icon.type === 'icon'"
                     style="font-size: 2rem"
-                    :class="{ 'node-icon': true, mdi: true, [plugin.icon.icon]: true }"
+                    :class="{ 'trigger-icon': true, mdi: true, [plugin.icon.icon]: true }"
                   />
 
                   <!-- <img v-if="plugin.icon" width="24" class="w-2rem h-2rem" :src="plugin.icon" />
@@ -40,24 +40,24 @@
                 </div>
               </li>
               <li
-                v-for="node in plugin.nodes"
-                :key="node.node.id"
-                class="flex node-item"
-                @click="selected = { nodeId: node.node.id, pluginId: plugin.id }"
-                :disabled="node.disabled"
+                v-for="trigger in plugin.triggers"
+                :key="trigger.node.id"
+                class="flex trigger-item"
+                @click="selected = { triggerId: trigger.node.id, pluginId: plugin.id }"
+                :disabled="trigger.disabled"
               >
                 <a
                   class="element flex align-items-center p-3 border-round w-full transition-colors transition-duration-150 cursor-pointer"
                   style="border-radius: '10px'"
                   :class="{
-                    selected: selected?.nodeId === node.node.id && selected.pluginId === plugin.id
+                    selected: selected?.triggerId === trigger.node.id && selected.pluginId === plugin.id
                   }"
                 >
                   <i class="pi pi-home text-xl mr-3"></i>
                   <span class="flex flex-column">
-                    <span class="font-bold mb-1"> {{ node.node.name }}</span>
-                    <span class="m-0 text-secondary"> {{ node.node.description }}</span>
-                    <span class="m-0 text-secondary font-bold" v-if="typeof node.disabled === 'string'">{{ node.disabled }}</span>
+                    <span class="font-bold mb-1"> {{ trigger.node.name }}</span>
+                    <span class="m-0 text-secondary"> {{ trigger.node.description }}</span>
+                    <span class="m-0 text-secondary font-bold" v-if="typeof trigger.disabled === 'string'">{{ trigger.disabled }}</span>
                   </span>
                 </a>
               </li>
@@ -78,7 +78,7 @@
         </div>
       </template>
     </Dialog>
-    <!-- <TieredMenu ref="$menu" :model="nodeMenuItems" :popup="true"></TieredMenu> -->
+    <!-- <TieredMenu ref="$menu" :model="triggerMenuItems" :popup="true"></TieredMenu> -->
   </div>
 </template>
 
@@ -90,7 +90,8 @@ import { storeToRefs } from 'pinia'
 import Button from 'primevue/button'
 import InputText from 'primevue/inputtext'
 import { useAppStore } from '@renderer/store/app'
-import { CynNode } from '@@/libs/plugin-core'
+import { CynNode, Event } from '@@/libs/plugin-core'
+import { BlockEvent } from '@@/model'
 
 type ButtonProps = InstanceType<typeof Button>['$props']
 
@@ -131,7 +132,7 @@ watchEffect(() => {
   }
 })
 
-const selected = ref<{ nodeId: string; pluginId: string }>()
+const selected = ref<{ triggerId: string; pluginId: string }>()
 
 const addNode = () => {
   visible.value = true
@@ -155,17 +156,17 @@ const onAdd = () => {
     return
   }
 
-  const node = getNodeDefinition(selection.nodeId, selection.pluginId)
+  const trigger = getNodeDefinition(selection.triggerId, selection.pluginId)
 
-  if (!node) {
-    console.error('cannot find node')
+  if (!trigger) {
+    console.error('cannot find trigger')
     return
   }
 
   const insertAt = Number.parseInt(path.value.pop() ?? '0') + 1
 
-  instance.addNode({
-    node: node.node,
+  instance.addTrigger({
+    trigger: trigger.node as Event,
     plugin: def,
     path: path.value,
     insertAt
@@ -174,11 +175,11 @@ const onAdd = () => {
   visible.value = false
 }
 
-const isNodePicked = (node: CynNode, searchedValue: string) => {
-  const description = node.description.toLowerCase()
-  const name = node.name.toLowerCase()
+const isNodePicked = (trigger: CynNode, searchedValue: string) => {
+  const description = trigger.description.toLowerCase()
+  const name = trigger.name.toLowerCase()
 
-  if (node.type !== 'action') {
+  if (trigger.type !== 'event') {
     return false
   }
 
@@ -198,7 +199,7 @@ const searchedElements = computed(() => {
       const description = def.description.toLowerCase()
       const name = def.name.toLowerCase()
 
-      const someNodeMatch = def.nodes.some((node) => isNodePicked(node.node, searchedValue))
+      const someNodeMatch = def.nodes.some((trigger) => isNodePicked(trigger.node, searchedValue))
 
       if (description.includes(searchedValue) || name.includes(searchedValue) || someNodeMatch) {
         return true
@@ -208,7 +209,7 @@ const searchedElements = computed(() => {
     .map((def) => {
       return {
         ...def,
-        nodes: def.nodes.filter((node) => isNodePicked(node.node, searchedValue))
+        triggers: def.nodes.filter((trigger) => isNodePicked(trigger.node, searchedValue))
       }
     })
 })
@@ -252,10 +253,10 @@ const searchedElements = computed(() => {
   grid-template-columns: 4fr;
   gap: 4px;
 
-  .node {
+  .trigger {
     flex: 1;
 
-    .node-item {
+    .trigger-item {
       cursor: pointer;
 
       &[disabled] {
