@@ -176,6 +176,7 @@ const showSidebar = ref(false)
   display: flex;
   flex-direction: column;
   align-items: center;
+  background-color: white;
 }
 
 .node-action {
@@ -196,8 +197,7 @@ const showSidebar = ref(false)
   }
 
   &.error {
-    outline: 1px solid red;
-    outline-offset: 3px;
+    background-color: rgba(255, 0, 0, 0.1);
   }
 }
 

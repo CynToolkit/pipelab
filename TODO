@@ -51,13 +51,13 @@ Tests:
 - Disable step
 - View logs in realtime
 - editor full width (no sidebar)
-- done indicators
-- only one trigger
+✔ done indicators @done(24-08-01 07:45)
+✔ only one trigger @done(24-08-01 07:45)
 - ask feedback on the editor (pause, confirm, etc.)
 - env
 
 
-- finir l'implementation des triggers
+✔ finir l'implementation des triggers @done(24-08-01 07:45)
 ✔ overwrite d'un fichier fonctionne pas bien @done(24-07-30 17:40)
-- fermer trop vite la fenêtre de modifiation n'enregistre pas le changement
+✔ fermer trop vite la fenêtre de modification n'enregistre pas le changement @done(24-08-01 07:43)
 - export Electron ne fonctionne pas
