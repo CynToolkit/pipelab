@@ -8,9 +8,6 @@ import { name } from './src/constants'
 
 const config: ForgeConfig = {
   packagerConfig: {
-    ignore: [
-      'node_modules/vue-demi/',
-    ],
     asar: {
       // unpack: '**/node_modules/{pnpm,@electron-forge,playwright}/**/*'
     },
