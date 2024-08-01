@@ -51,7 +51,10 @@
                 </div>
               </div>
               <div class="main">
-                <router-view></router-view>
+                <router-view v-if="!isLoading"></router-view>
+                <div v-else>
+                  <Skeleton width="100%" height="100%"></Skeleton>
+                </div>
               </div>
             </div>
           </div>
@@ -284,8 +287,10 @@ function onInvalidSubmit({ values, errors, results }: any) {
 const onSubmit = handleSubmit(onSuccess, onInvalidSubmit)
 
 const type = ref<'login' | 'register'>('login')
+const isLoading = ref(false)
 
 onMounted(async () => {
+  isLoading.value = true
   await auth.init()
 
   await filesStore.load()
@@ -293,6 +298,7 @@ onMounted(async () => {
   await init()
   console.log('init done')
   // const result = await api.execute('')
+  isLoading.value = false
 })
 </script>
 

@@ -3,6 +3,7 @@
     <div class="editor">
       <div class="flex flex-column gap-1 editor-content">
         <div class="label">
+          <!-- Label -->
           <label :for="`data-${paramKey}`"
             >{{ paramDefinition.label }}
             <span
@@ -14,6 +15,7 @@
           </label>
 
           <div class="infos">
+            <!-- Is valid button -->
             <Button
               text
               size="small"
@@ -27,11 +29,15 @@
             </Button>
           </div>
         </div>
+
+        <!-- Code editor -->
         <div class="code-editor" ref="$codeEditorText"></div>
 
+        <!-- Hint text -->
         <Skeleton height="20px" v-if="hintText === undefined"></Skeleton>
         <div v-else class="hint" :class="{ error: isError }" v-dompurify-html="hintText"></div>
 
+        <!-- Floating indicator -->
         <div
           v-if="isModalDisplayed"
           ref="$floating"
@@ -57,12 +63,15 @@
           </svg>
 
           <div class="helpers">
+            <!-- Value -->
             <Panel header="Value" toggleable>
               <div class="editor">
                 <div class="boolean" v-if="paramDefinition.control.type === 'boolean'">
                   <SelectButton
                     :model-value="param"
                     @change="insertEditorEnd($event.value.value)"
+                    optionLabel="text"
+                    optionValue="value"
                     :options="[
                       { text: 'True', value: 'true' },
                       { text: 'False', value: 'false' }
@@ -91,6 +100,7 @@
                 </div>
               </div>
             </Panel>
+            <!-- Outputs -->
             <Panel header="Outputs" toggleable>
               <div class="steps-list">
                 <template v-for="(step, stepUid) in steps" :key="stepUid">
@@ -296,6 +306,9 @@ const resolveHintTextResult = (result: unknown) => {
   return (result as string).toString()
 }
 
+// @ts-expect-error
+const vm = await createQuickJs()
+
 watchDebounced(
   editorTextValue,
   async () => {
@@ -307,8 +320,6 @@ watchDebounced(
 
 
     try {
-      const vm = await createQuickJs()
-
       const result = await vm.run(displayString, {
         params: {},
         // params: resolvedParams.value,
@@ -353,13 +364,13 @@ const onClickOutside = () => {
   isModalDisplayed.value = false
 }
 
-const onValueChanged = debounce((newValue: string, paramKey: string) => {
+const onValueChanged = (newValue: string, paramKey: string) => {
   console.log('param.value', param.value)
   console.log('newValue', newValue)
   console.log('paramKey', paramKey)
 
   emit('update:modelValue', newValue)
-}, 1000)
+}
 
 onCodeEditorTextUpdate((value) => {
   onValueChanged(value, paramKey.toString())
