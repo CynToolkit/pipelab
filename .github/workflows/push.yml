@@ -73,9 +73,6 @@ jobs:
           name: ${{ matrix.os }}-out
           path: out
 
-      - name: Display structure of downloaded files
-        run: ls -R
-
       - uses: pnpm/action-setup@v4
         name: Install pnpm
         with:
