@@ -79,7 +79,6 @@ import { PropType, computed, ref, toRefs } from 'vue'
 import NodesEditor from '@renderer/pages/nodes-editor.vue'
 import { BlockLoop } from '@@/model'
 import { storeToRefs } from 'pinia'
-import { Liquid } from 'liquidjs'
 import { computedAsync } from '@vueuse/core'
 import AddNodeButton from '@renderer/components/AddNodeButton.vue'
 import { AddNodeEvent } from '../AddNodeButton.model'
@@ -110,8 +109,6 @@ const emit = defineEmits<{
 
 const { value } = toRefs(props)
 
-const engine = new Liquid()
-
 const editor = useEditor()
 const { getNodeDefinition, setBlockValue, getPluginDefinition } = editor
 const { activeNode } = storeToRefs(editor)
@@ -128,10 +125,11 @@ const pluginDefinition = computed(() => {
 
 const subtitle = computedAsync(
   async () => {
-    const result = await engine.parseAndRender(nodeDefinition.value?.displayString ?? '', {
-      params: value.value.params
-    })
-    return result
+    // const result = await engine.parseAndRender(nodeDefinition.value?.displayString ?? '', {
+    //   params: value.value.params
+    // })
+    // return result
+    return 'TODO'
   },
   'Loading...',
   {

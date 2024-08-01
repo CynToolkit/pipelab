@@ -18,7 +18,6 @@ import * as Sentry from '@sentry/electron/main'
 import { assetsPath } from '@main/paths'
 
 // disable asar throughout the app
-process.noAsar = true
 
 const isLinux = platform() === 'linux'
 let tray

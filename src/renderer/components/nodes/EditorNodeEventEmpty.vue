@@ -29,15 +29,9 @@
 
 <script setup lang="ts">
 import { useEditor } from '@renderer/store/editor'
-import { BlockEvent } from '@@/model'
 import { storeToRefs } from 'pinia'
 import { PropType, computed, ref, toRefs } from 'vue'
-import { Liquid } from 'liquidjs'
-import { computedAsync } from '@vueuse/core'
-import ParamEditor from './ParamEditor.vue'
-import { Event } from '@cyn/plugin-core'
 import PluginIcon from './PluginIcon.vue'
-import { ValidationError } from '@renderer/models/error'
 import AddTriggerButton from '../AddTriggerButton.vue'
 
 const props = defineProps({

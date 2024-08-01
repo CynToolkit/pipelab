@@ -64,9 +64,11 @@ export const copyRunner = createActionRunner<typeof copy>(
     }
 
     try {
+      process.noAsar = true
       await cp(from, to, {
         recursive: inputs.recursive,
       });
+      process.noAsar = false
     } catch (e) {
       console.error("Error copying file", e);
     }

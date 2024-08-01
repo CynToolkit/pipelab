@@ -61,15 +61,12 @@ import { useEditor } from '@renderer/store/editor'
 import { BlockEvent } from '@@/model'
 import { storeToRefs } from 'pinia'
 import { PropType, computed, ref, toRefs } from 'vue'
-import { Liquid } from 'liquidjs'
 import { computedAsync } from '@vueuse/core'
 import ParamEditor from './ParamEditor.vue'
 import { Event } from '@cyn/plugin-core'
 import PluginIcon from './PluginIcon.vue'
 import { ValidationError } from '@renderer/models/error'
 import AddNodeButton from '../AddNodeButton.vue'
-
-const engine = new Liquid()
 
 const props = defineProps({
   value: {
@@ -121,10 +118,11 @@ const onValueChanged = (newValue: unknown, paramKey: string) => {
 
 const subtitle = computedAsync(
   async () => {
-    const result = await engine.parseAndRender(nodeDefinition.value?.displayString ?? '', {
-      params: value.value.params
-    })
-    return result
+    // const result = await engine.parseAndRender(nodeDefinition.value?.displayString ?? '', {
+    //   params: value.value.params
+    // })
+    // return result
+    return 'TODO'
   },
   'Loading...',
   {

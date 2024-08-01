@@ -6,11 +6,13 @@
     ☐ Infos are from the variables: account, pipeline & api key
     ☐ It will run the pipeline as if it was your computer
 
+process.noAsar = true is here because electron fs can't deal correctly with asar (for example, like when copying an asar archive)
+
 https://github.com/nocode-js/sequential-workflow-editor
 https://github.com/xyflow/awesome-node-based-uis
+https://github.com/CatalystCode/windows-registry-node
+https://github.com/tympanix/electron-regedit
 
-
-☐ SavedFile with migration
 
 code editor:
     one line: export default, expression only
@@ -61,3 +63,4 @@ Tests:
 ✔ overwrite d'un fichier fonctionne pas bien @done(24-07-30 17:40)
 ✔ fermer trop vite la fenêtre de modification n'enregistre pas le changement @done(24-08-01 07:43)
 - export Electron ne fonctionne pas
+
