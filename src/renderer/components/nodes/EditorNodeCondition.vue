@@ -80,13 +80,10 @@ import { PropType, computed, ref, toRefs } from 'vue'
 import NodesEditor from '@renderer/pages/nodes-editor.vue'
 import { BlockCondition } from '@@/model'
 import { storeToRefs } from 'pinia'
-import { Liquid } from 'liquidjs'
 import { computedAsync } from '@vueuse/core'
 import PluginIcon from './PluginIcon.vue'
 import { Condition } from '@cyn/plugin-core'
 import { ValidationError } from '@renderer/models/error'
-
-const engine = new Liquid()
 
 const props = defineProps({
   value: {
@@ -111,10 +108,11 @@ const $nodeConditionWrapper = ref<HTMLDivElement>()
 
 const subtitle = computedAsync(
   async () => {
-    const result = await engine.parseAndRender(nodeDefinition.value?.displayString ?? '', {
-      params: value.value.params
-    })
-    return result
+    // const result = await engine.parseAndRender(nodeDefinition.value?.displayString ?? '', {
+    //   params: value.value.params
+    // })
+    // return result
+    return 'TODO'
   },
   'Loading...',
   {
