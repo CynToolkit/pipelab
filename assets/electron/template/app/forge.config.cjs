@@ -3,9 +3,14 @@ const { FuseV1Options, FuseVersion } = require('@electron/fuses');
 
 const CynPlugin = require('./cyn-plugin')
 
+/**
+ * @type {import('@electron-forge/shared-types').ForgeConfig}
+ */
 module.exports = {
+  outDir: "./out",
   packagerConfig: {
     asar: true,
+    name: "app",
   },
   rebuildConfig: {},
   makers: [

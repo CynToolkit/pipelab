@@ -1,6 +1,6 @@
 export const name = 'Cyn'
 
-export const outFolderName = (platform: NodeJS.Platform, arch: NodeJS.Architecture) => {
+export const outFolderName = (binName: string, platform: NodeJS.Platform, arch: NodeJS.Architecture) => {
   let platformName = ''
   let archName = ''
 
@@ -26,5 +26,5 @@ export const outFolderName = (platform: NodeJS.Platform, arch: NodeJS.Architectu
     throw new Error('Unsupported architecture')
   }
 
-  return `${name}-${platformName}-${archName}`
+  return `${binName}-${platformName}-${archName}`
 }
