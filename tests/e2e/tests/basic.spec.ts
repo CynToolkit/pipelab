@@ -4,7 +4,7 @@ import { join } from 'path'
 import { tmpdir } from 'os'
 import { nanoid } from 'nanoid'
 import { readFile } from 'fs/promises'
-import { name, outFolderName } from 'src/constants'
+import { name, outFolderName } from '../../../src/constants'
 import { platform, arch } from 'process'
 
 const getBinName = () => {
@@ -17,7 +17,7 @@ const getBinName = () => {
 const tmpLogFile = join(tmpdir(), nanoid() + 'cyn-app-test.log.json')
 const root = process.cwd()
 
-const binFolder = outFolderName(platform, arch)
+const binFolder = outFolderName('Cyn', platform, arch)
 const binName = getBinName()
 
 const bin = join(root, 'out', binFolder, binName)
