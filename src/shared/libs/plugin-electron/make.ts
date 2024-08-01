@@ -183,17 +183,11 @@ export const makeRunner = createActionRunner<typeof make>(
 
     log('placeAppFolder', placeAppFolder)
 
-    const outFolder = join(cwd, 'output')
-
-    log('outFolder', outFolder)
-
     await cp(appFolder, placeAppFolder, {
       recursive: true
     })
 
     const shimsPaths = join(assets, 'shims')
-
-    console.log('process.env.PATH', process.env.PATH)
 
     log('Installing packages')
     await runWithLiveLogs(

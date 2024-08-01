@@ -63,8 +63,12 @@ export const copyRunner = createActionRunner<typeof copy>(
       throw new Error("Missing destination");
     }
 
-    await cp(from, to, {
-      recursive: inputs.recursive,
-    });
+    try {
+      await cp(from, to, {
+        recursive: inputs.recursive,
+      });
+    } catch (e) {
+      console.error("Error copying file", e);
+    }
   }
 );

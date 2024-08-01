@@ -185,17 +185,11 @@ export const packageRunner = createActionRunner<typeof packageApp>(
 
     log('placeAppFolder', placeAppFolder)
 
-    const outFolder = join(cwd, 'output')
-
-    log('outFolder', outFolder)
-
     await cp(appFolder, placeAppFolder, {
       recursive: true
     })
 
     const shimsPaths = join(assets, 'shims')
-
-    console.log('process.env.PATH', process.env.PATH)
 
     log('Installing packages')
     await runWithLiveLogs(
@@ -250,7 +244,7 @@ export const packageRunner = createActionRunner<typeof packageApp>(
 
       console.log('logs', logs)
 
-      const outName = outFolderName(finalPlatform, finalArch)
+      const outName = outFolderName('app', finalPlatform, finalArch)
 
       setOutput('output', join(destinationFolder, 'out', outName))
     } catch (e) {
