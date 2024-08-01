@@ -23,17 +23,14 @@ jobs:
         with:
           run_install: false
 
-      - name: Use Node.js 22.4
+      - name: Use Node.js 22.5.1
         uses: actions/setup-node@v4
         with:
-          node-version: '22.4'
+          node-version: '22.5.1'
           cache: 'pnpm'
 
       - name: Install dependencies
         run: pnpm install
-
-      - name: fix vue-demi
-        run: pnpm vue-demi-switch 3
 
       - name: Package application
         env:
