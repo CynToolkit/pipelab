@@ -68,13 +68,13 @@
               <div class="editor">
                 <div class="boolean" v-if="paramDefinition.control.type === 'boolean'">
                   <SelectButton
-                    :model-value="param"
-                    @change="insertEditorEnd($event.value.value)"
+                    :model-value="resultValue"
+                    @change="insertEditorReplace($event.value)"
                     optionLabel="text"
                     optionValue="value"
                     :options="[
-                      { text: 'True', value: 'true' },
-                      { text: 'False', value: 'false' }
+                      { text: 'True', value: true },
+                      { text: 'False', value: false }
                     ]"
                     aria-labelledby="basic"
                   >
@@ -82,6 +82,7 @@
                       <span>{{ slotProps.option.text }}</span>
                     </template>
                   </SelectButton>
+                  <p v-if="!isValueSimpleBoolean(param)">Value will be overwitten!</p>
                 </div>
                 <div class="path" v-if="paramDefinition.control.type === 'path'">
                   <Button class="w-full" @click="onChangePathClick(paramDefinition.control.options)">
@@ -213,6 +214,10 @@ const $codeEditorText = ref<HTMLDivElement>()
 const $floating = ref<HTMLDivElement>()
 const $arrow = ref<HTMLElement>()
 
+const isValueSimpleBoolean = (str: string) => {
+  return str === 'true' || str === 'false'
+}
+
 function myCompletions(context: CompletionContext) {
   let word = context.matchBefore(/\w*/)
   console.log('word', word)
@@ -263,9 +268,14 @@ const {
   })
 ])
 
-const insertEditorEnd = (str: string) => {
+const insertEditorEnd = (str: string | number | boolean) => {
   console.log('str', str)
-  codeEditorTextUpdate(editorTextValue.value + str)
+  codeEditorTextUpdate(editorTextValue.value + str.toString())
+}
+
+const insertEditorReplace = (str: string | number | boolean) => {
+  console.log('str', str)
+  codeEditorTextUpdate(str.toString())
 }
 
 const { floatingStyles, middlewareData } = useFloating($codeEditorText, $floating, {
