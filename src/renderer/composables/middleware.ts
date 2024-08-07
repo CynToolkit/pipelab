@@ -29,8 +29,6 @@ export const useMiddleware = <HANDLER extends (...args: any[]) => Awaitable<void
       fn: callback,
     })
 
-    console.log('adding handler', id)
-
     return {
       cancel: () => cancel(id),
     }

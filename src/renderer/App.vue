@@ -62,7 +62,8 @@
           <Dialog
             v-model:visible="isAuthModalVisible"
             modal
-            :style="{ width: '30vw' }" :breakpoints="{ '1199px': '75vw', '575px': '90vw' }"
+            :style="{ width: '30vw' }"
+            :breakpoints="{ '1199px': '75vw', '575px': '90vw' }"
           >
             <template #header>
               <div class="flex flex-column w-full">
@@ -70,7 +71,7 @@
               </div>
             </template>
 
-            <div class="login" v-if="type === 'login'">
+            <div v-if="type === 'login'" class="login">
               <div class="grid justify-content-center">
                 <div class="col-12 xl:col-6 w-full">
                   <div class="h-full w-full">
@@ -99,17 +100,17 @@
                           v-model="passwordModel"
                           v-bind="passwordProps"
                           placeholder="Password"
-                          :toggleMask="true"
+                          :toggle-mask="true"
                           :feedback="false"
                           :invalid="!!errors.password"
                           :class="{
                             'w-full': true
                           }"
-                          inputClass="w-full"
+                          input-class="w-full"
                         >
                         </Password>
 
-                        <small class="p-error" v-if="errors.password">
+                        <small v-if="errors.password" class="p-error">
                           {{ errors.password }}
                         </small>
 
@@ -126,14 +127,19 @@
                           class="w-full p-3 text-lg mb-2"
                           @click="onSubmit"
                         />
-                        <Button @click="type = 'register'" text label="Don't have an account?" class="w-full p-3 text-lg" />
+                        <Button
+                          text
+                          label="Don't have an account?"
+                          class="w-full p-3 text-lg"
+                          @click="type = 'register'"
+                        />
                       </div>
                     </form>
                   </div>
                 </div>
               </div>
             </div>
-            <div class="login" v-if="type === 'register'">
+            <div v-if="type === 'register'" class="login">
               <div class="grid justify-content-center">
                 <div class="col-12 xl:col-6 w-full">
                   <div class="h-full w-full">
@@ -162,12 +168,12 @@
                           v-model="passwordModel"
                           v-bind="passwordProps"
                           placeholder="Password"
-                          :toggleMask="true"
+                          :toggle-mask="true"
                           :invalid="!!errors.password"
                           :class="{
                             'w-full': true
                           }"
-                          inputClass="w-full"
+                          input-class="w-full"
                         >
                           <template #header>
                             <div class="text-lg font-bold mb-3">Pick a password</div>
@@ -187,7 +193,7 @@
                           </template>
                         </Password>
 
-                        <small class="p-error" v-if="errors.password">
+                        <small v-if="errors.password" class="p-error">
                           {{ errors.password }}
                         </small>
 
@@ -204,7 +210,12 @@
                           class="w-full p-3 text-lg mb-2"
                           @click="onSubmit"
                         />
-                        <Button text @click="type = 'login'" label="Already have an account?" class="w-full p-3 text-lg" />
+                        <Button
+                          text
+                          label="Already have an account?"
+                          class="w-full p-3 text-lg"
+                          @click="type = 'login'"
+                        />
                       </div>
                     </form>
                   </div>
@@ -233,14 +244,14 @@ import { storeToRefs } from 'pinia'
 import { useForm } from 'vee-validate'
 import { toTypedSchema } from '@vee-validate/valibot'
 import { object, pipe, string, email, nonEmpty, minLength, regex } from 'valibot'
+import { handle } from './composables/handlers'
+import { useLogger } from '@@/logger'
 
 const appStore = useAppStore()
 const filesStore = useFiles()
-const api = useAPI()
+const { logger } = useLogger()
 
 const { init } = appStore
-
-console.log('window', window)
 
 const appVersion = ref(window.version)
 const isAuthModalVisible = ref(false)
@@ -250,7 +261,11 @@ const { user } = storeToRefs(auth)
 
 const schema = toTypedSchema(
   object({
-    email: pipe(string('An email adress is required'), nonEmpty('Email is required'), email('Invalid email')),
+    email: pipe(
+      string('An email adress is required'),
+      nonEmpty('Email is required'),
+      email('Invalid email')
+    ),
     password: pipe(
       string('A password is required'),
       nonEmpty('Password is required'),
@@ -258,7 +273,7 @@ const schema = toTypedSchema(
       regex(/[a-z]/, 'Password must contain at least one lowercase letter'),
       regex(/[A-Z]/, 'Password must contain at least one uppercase letter'),
       regex(/[0-9]/, 'Password must contain at least one number'),
-      regex(/[!@#$%^&*()_+-=[\]{};':"|<>?,.\/`~.]/, 'Password must contain at least one symbol')
+      regex(/[!@#$%^&*()_+-=[\]{};':"|<>?,./`~.]/, 'Password must contain at least one symbol')
     )
   })
 )
@@ -276,12 +291,12 @@ const onSuccess = async (values: any) => {
   } else {
     await auth.login(values.email, values.password)
   }
-};
+}
 
 function onInvalidSubmit({ values, errors, results }: any) {
-  console.log({ values }) // current form values
-  console.log({ errors }) // a map of field names and their first error message
-  console.log({ results }) // a detailed map of field names and their validation results
+  logger().info({ values }) // current form values
+  logger().info({ errors }) // a map of field names and their first error message
+  logger().info({ results }) // a detailed map of field names and their validation results
 }
 
 const onSubmit = handleSubmit(onSuccess, onInvalidSubmit)
@@ -289,14 +304,31 @@ const onSubmit = handleSubmit(onSuccess, onInvalidSubmit)
 const type = ref<'login' | 'register'>('login')
 const isLoading = ref(false)
 
+handle('log:message', async (event, { value, send }) => {
+  if (value._meta) {
+    const values = Object.entries(value)
+      .filter(([key]) => key !== '_meta')
+      .map(([, v]) => v)
+    console.log('values', values)
+    logger()
+      .getSubLogger({
+        name: 'Main'
+      })
+      .log(value._meta.logLevelId, ...[value._meta.logLevelName, ...values])
+  }
+
+  send({
+    type: 'end',
+    data: undefined
+  })
+})
+
 onMounted(async () => {
   isLoading.value = true
-  await auth.init()
 
   await filesStore.load()
-  console.log('files loaded', filesStore)
   await init()
-  console.log('init done')
+  logger().info('init done')
   // const result = await api.execute('')
   isLoading.value = false
 })

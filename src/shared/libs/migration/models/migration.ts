@@ -77,6 +77,7 @@ export class Migrator<OutputState extends MigrationSchema> {
 
   async migrate(state: MigrationSchema, options?: MigrateOptions): Promise<OutputState> {
     if (options?.debug) {
+      // eslint-disable-next-line no-console
       console.log("Migrating", state.version, "to", this.current);
     }
 

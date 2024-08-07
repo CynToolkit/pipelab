@@ -5,6 +5,7 @@ import { RendererPluginDefinition } from "./libs/plugin-core"
 import { Block } from "./model"
 import { Context } from "@renderer/store/editor"
 import { End } from "./apis"
+import { useLogger } from "./logger"
 
 export const processGraph = async (options: {
   graph: Array<Block>
@@ -19,8 +20,9 @@ export const processGraph = async (options: {
   onNodeEnter: (node: Block) => void
   onNodeExit: (node: Block) => void
 }) => {
+  const { logger } = useLogger()
+
   for (const node of options.graph) {
-    console.log('node', node)
     const rawNode = node
 
     /* if (rawNode.type === 'condition') {
@@ -36,7 +38,7 @@ export const processGraph = async (options: {
       const result = await options.onExecuteItem(node, newParams, options.steps) as End<'condition:execute'>
 
       if ('result' in result) {
-        console.error(result.result)
+        logger().error(result.result)
         options.onNodeExit(rawNode)
         throw new Error('Condition error')
       } else {
@@ -71,19 +73,14 @@ export const processGraph = async (options: {
         context: options.context,
       })
 
-      console.log('newParams', newParams)
-
       const result = await options.onExecuteItem(node, newParams, options.steps) as End<'action:execute'>
 
-      console.log('result', result)
-
       if ('result' in result) {
-        console.error(result.result)
+        logger().error(result.result)
         options.onNodeExit(rawNode)
         throw new Error('Action error')
       }
 
-      console.log('result of action', rawNode, result)
       if ('outputs' in result) {
         if (!options.steps[rawNode.uid]) {
           options.steps[rawNode.uid] = {
@@ -123,17 +120,15 @@ export const processGraph = async (options: {
       options.onNodeExit(rawNode)
     } else if (rawNode.type === 'comment') {
       // pass
-      console.log('pass: ', rawNode.type)
     } else if (rawNode.type === 'event') {
       options.onNodeEnter(rawNode)
       // pass
-      console.log('pass: ', rawNode.type)
       options.onNodeExit(rawNode)
     } else {
-      console.log("Unknown node type", rawNode.type)
+      logger().error("Unknown node type", rawNode.type)
     }
 
-    console.log('steps', options.steps)
+    logger().info('steps', options.steps)
 
   }
   return options

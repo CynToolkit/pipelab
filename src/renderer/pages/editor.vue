@@ -155,6 +155,7 @@ import EditorNodeEvent from '@renderer/components/nodes/EditorNodeEvent.vue'
 import EditorNodeEventEmpty from '@renderer/components/nodes/EditorNodeEventEmpty.vue'
 import { RendererChannels, RendererData, RendererEvents, RendererMessage } from '@main/api'
 import { logger } from '@@/logger'
+import { handle } from '@renderer/composables/handlers'
 
 const route = useRoute()
 
@@ -172,17 +173,12 @@ const { update } = filesStore
 watch(
   id,
   async (newId) => {
-    console.log('newId', newId)
-    console.log('files', files)
     const file = files.value.data[newId]
-
-    console.log('file', file)
 
     if (file && file.type === 'external') {
       const { path: filePath } = file
 
       const fileData = await loadExternalFile(filePath)
-      console.log('fileData', fileData)
 
       if ('content' in fileData) {
         const content = JSON.parse(fileData.content) as SavedFile
@@ -214,15 +210,12 @@ const run = async () => {
     context: {},
     steps: {},
     onNodeEnter: (node) => {
-      console.log('onNodeEnter', node)
       setActiveNode(node)
     },
     onNodeExit: () => {
-      console.log('onNodeExit')
       setActiveNode()
     },
     onExecuteItem: async (node, params, steps) => {
-      console.log('onExecuteItem', node, params, steps)
       /* if (node.type === 'condition') {
         return api.execute('condition:execute', {
           nodeId: node.origin.nodeId,
@@ -237,7 +230,6 @@ const run = async () => {
           params,
           steps
         })
-        console.log('result', result)
         return result
       } else {
         throw new Error('Unhandled type ' + node.type)
@@ -418,37 +410,7 @@ const toggle = (event: any) => {
 
 const showSaveDialog = ref(false)
 
-// renderer handler
-
-export type HandleListenerRendererSendFn<KEY extends RendererChannels> = (events: RendererEvents<KEY>) => void
-
-export type HandleListenerRenderer<KEY extends RendererChannels> = (
-  event: Electron.IpcRendererEvent,
-  data: { value: RendererData<KEY>; send: HandleListenerRendererSendFn<KEY> }
-) => Promise<void>
-
-const handle = <KEY extends RendererChannels>(channel: KEY, listener: HandleListenerRenderer<KEY>) => {
-  return window.electron.ipcRenderer.on(channel, (event, message: RendererMessage) => {
-    console.log('message', message)
-    const { data, requestId } = message
-    // logger.info('received event', requestId)
-    // logger.info('received data', data)
-
-    const send: HandleListenerRendererSendFn<KEY> = (events) => {
-      console.log('event', event)
-      logger.debug('sending', events, 'to', requestId)
-      return window.electron.ipcRenderer.send(requestId, events)
-    }
-
-    return listener(event, {
-      send,
-      value: data
-    })
-  })
-}
-
 handle('dialog:alert', async (event, { value, send }) => {
-  console.log('value', value)
   alert(value.message)
 
   send({

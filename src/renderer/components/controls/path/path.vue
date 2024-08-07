@@ -23,7 +23,7 @@ export default {
 <script lang="ts" setup>
 import { CynControlPath } from '@cyn/controls'
 import { useAPI } from '@renderer/composables/api'
-import { type PropType, toRefs, watch } from 'vue'
+import { type PropType, toRefs } from 'vue'
 
 const props = defineProps({
   data: {
@@ -34,20 +34,7 @@ const props = defineProps({
 
 const { data } = toRefs(props)
 
-watch(
-  data,
-  () => {
-    console.log('--> data', data.value)
-  },
-  {
-    deep: true
-  }
-)
-
 const onChange = (e: Event) => {
-  console.log('data.value', e)
-
-  // @ts-expect-error
   data.value.setValue(e.target.value)
 }
 
@@ -59,12 +46,10 @@ const onClick = async () => {
     async (_, message) => {
       const { type, data } = message
       if (type === 'end') {
-        console.log('end', data)
+        //
       }
     }
   )
-
-  console.log('paths', paths)
 }
 </script>
 

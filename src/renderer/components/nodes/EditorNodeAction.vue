@@ -26,9 +26,9 @@
                 :param="value.params[key]"
                 :param-key="key"
                 :param-definition="paramDefinition"
-                @update:model-value="onValueChanged($event, key.toString())"
                 :value="value"
                 :steps="steps"
+                @update:model-value="onValueChanged($event, key.toString())"
               ></ParamEditor>
             </div>
           </div>
@@ -69,6 +69,7 @@ import DOMPurify from 'dompurify'
 import { makeResolvedParams } from '@renderer/utils/evaluator'
 import { ValidationError } from '@renderer/models/error'
 import AddNodeButton from '../AddNodeButton.vue'
+import { useLogger } from '@@/logger'
 
 const props = defineProps({
   value: {
@@ -105,9 +106,9 @@ const pluginDefinition = computed(() => {
   return getPluginDefinition(value.value.origin.pluginId)
 })
 
-const onValueChanged = (newValue: unknown, paramKey: string) => {
-  console.log('newValue', newValue)
+const { logger } = useLogger()
 
+const onValueChanged = (newValue: unknown, paramKey: string) => {
   setBlockValue(value.value.uid, {
     ...value.value,
     params: {
@@ -139,7 +140,7 @@ const resolvedParams = computedAsync(
   {},
   {
     onError: (error) => {
-      console.error('error', error)
+      logger().error('error', error)
     }
   }
 )
@@ -159,7 +160,7 @@ const subtitle = computedAsync(
   'Loading...',
   {
     onError: (error) => {
-      console.error('error', error)
+      logger().error('error', error)
     }
   }
 )

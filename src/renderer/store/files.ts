@@ -38,14 +38,11 @@ export const useFiles = defineStore('files', () => {
 
   const update = async (callback: (state: Draft<FileRepo>) => void) => {
     files.value = create(files.value, callback)
-    console.log('files.value', files.value)
     await saveConfig(klona(files.value))
   }
 
   const load = async () => {
     const data = await loadConfig()
-
-    console.log('data', data)
 
     if ('version' in data.result) {
       files.value = data.result

@@ -78,6 +78,7 @@ import { asyncComputed, computedAsync } from '@vueuse/core'
 import { WithId } from '@@/utils'
 import { loadExternalFile, loadInternalFile } from '@renderer/utils/config'
 import { SaveLocation } from '@@/save-location'
+import { useLogger } from '@@/logger'
 
 const appStore = useAppStore()
 const { presets } = storeToRefs(appStore)
@@ -98,6 +99,8 @@ const headerSentence = computed(() => {
 
 const api = useAPI()
 
+const { logger } = useLogger()
+
 const fileStore = useFiles()
 const { files } = storeToRefs(fileStore)
 const { update: updateFileStore, remove } = fileStore
@@ -106,8 +109,6 @@ const filesEnhanced = ref<EnhancedFile[]>([])
 
 watchEffect(async () => {
   const entries = Object.entries(files.value.data)
-
-  console.log('entries', entries)
 
   const result: EnhancedFile[] = []
 
@@ -152,18 +153,14 @@ const openFile = async () => {
     async (_, message) => {
       const { type, data } = message
       if (type === 'end') {
-        console.log('end', data)
+        //
       }
     }
   )
 
-  console.log('paths', paths)
-
   if (!paths.canceled) {
     if (paths.filePaths.length === 1) {
       const fileToRead = paths.filePaths[0]
-      console.log('fileToRead', fileToRead)
-
       let newId = nanoid()
 
       const alreadyAddedPaths = Object.entries(files.value.data).map(([id, file]) => {
@@ -201,7 +198,7 @@ const openFile = async () => {
         }
       })
     } else {
-      console.error('Invalid number of paths selected')
+      logger().error('Invalid number of paths selected')
     }
   }
 }
@@ -216,8 +213,6 @@ const newFile = async () => {
 
   const presets = await api.execute('presets:get')
 
-  console.log('presets.newProject.data', presets.newProject.data)
-
   // TODO: choose cloud or local
 
   const paths = await api.execute(
@@ -230,13 +225,13 @@ const newFile = async () => {
     async (_, message) => {
       const { type, data } = message
       if (type === 'end') {
-        console.log('end', data)
+        //
       }
     }
   )
 
   if (paths.canceled) {
-    console.error('Save cancelled')
+    logger().error('Save cancelled')
     return
   }
 
@@ -259,8 +254,6 @@ const newFile = async () => {
 
   // update file store
   updateFileStore((state) => {
-    console.log('state', state)
-
     state.data[id] = {
       lastModified: new Date().toISOString(),
       path,

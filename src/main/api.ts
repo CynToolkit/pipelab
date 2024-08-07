@@ -2,9 +2,11 @@ import { BrowserWindow } from 'electron'
 import { klona } from 'klona'
 import { toRaw } from 'vue'
 
-import { RendererPluginDefinition } from '@cyn/plugin-core'
 import type { Tagged } from 'type-fest'
+import { ILogObjMeta } from 'tslog'
+import { useLogger } from '@@/logger'
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 type Event<TYPE extends string, DATA> = { type: TYPE; data: DATA }
 type EndEvent<DATA> = { type: 'end'; data: DATA }
 
@@ -14,6 +16,11 @@ export type IpcDefinition = {
     // input
     { message: string; buttons?: { title: string; value: string }[] },
     EndEvent<{ answer: string }>
+  ]
+  'log:message': [
+    // input
+    ILogObjMeta,
+    EndEvent<void>
   ]
 }
 
@@ -44,6 +51,7 @@ export type ListenerMain<KEY extends RendererChannels> = (
 ) => Promise<void>
 
 export const usePluginAPI = (browserWindow: BrowserWindow) => {
+  const { logger } = useLogger()
   /**
    * Send an order
    */
@@ -93,8 +101,8 @@ export const usePluginAPI = (browserWindow: BrowserWindow) => {
       try {
         browserWindow.webContents.send(channel, message)
       } catch (e) {
-        console.error(e)
-        console.error(channel, message)
+        logger().error(e)
+        logger().error(channel, message)
       }
     })
   }

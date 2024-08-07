@@ -70,6 +70,7 @@ import PluginIcon from './PluginIcon.vue'
 import { ValidationError } from '@renderer/models/error'
 import AddNodeButton from '../AddNodeButton.vue'
 import { createQuickJs } from '@renderer/utils/quickjs'
+import { useLogger } from '@@/logger'
 
 const props = defineProps({
   value: {
@@ -94,12 +95,13 @@ const props = defineProps({
 
 const { value, steps } = toRefs(props)
 
+const { logger } = useLogger()
+
 const editor = useEditor()
 const { getNodeDefinition, getPluginDefinition, setTriggerValue, addNode, removeTrigger } = editor
 const { activeNode } = storeToRefs(editor)
 
 const nodeDefinition = computed(() => {
-  console.log('value', value)
   const el = getNodeDefinition(value.value.origin.nodeId, value.value.origin.pluginId)
   if (el) {
     return el.node as Event
@@ -112,8 +114,6 @@ const pluginDefinition = computed(() => {
 })
 
 const onValueChanged = (newValue: unknown, paramKey: string) => {
-  console.log('newValue', newValue)
-
   setTriggerValue(value.value.uid, {
     ...value.value,
     params: {
@@ -145,7 +145,7 @@ const resolvedParams = computedAsync(
   {},
   {
     onError: (error) => {
-      console.error('error', error)
+      logger().error('error', error)
     }
   }
 )
@@ -164,7 +164,7 @@ const subtitle = computedAsync(
   'Loading...',
   {
     onError: (error) => {
-      console.error('error', error)
+      logger().error('error', error)
     }
   }
 )

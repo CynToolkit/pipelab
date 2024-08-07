@@ -29,15 +29,15 @@ const props = defineProps({
 
 const { data } = toRefs(props)
 
-watch(
-  data,
-  () => {
-    console.log('--> data', data.value)
-  },
-  {
-    deep: true
-  }
-)
+// watch(
+//   data,
+//   () => {
+//     console.log('--> data', data.value)
+//   },
+//   {
+//     deep: true
+//   }
+// )
 
 // const onChange = (e: Event) => {
 //   console.log('data.value', e)

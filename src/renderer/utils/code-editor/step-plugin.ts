@@ -27,7 +27,6 @@ class PlaceholderWidget extends WidgetType {
 const placeholderMatcher = new MatchDecorator({
   regexp: /(?<full>steps\['(?<node_id>[\w-]+)'\]\['outputs'\]\['(?<output>[\w-]+)'\])/g,
   decoration: (match) => {
-    console.log('match', match)
     const { full, node_id, output } = match.groups ?? {
       full: match.input,
     }
@@ -42,11 +41,9 @@ export const placeholders = ViewPlugin.fromClass(
     placeholders: DecorationSet
     constructor(view: EditorView) {
       this.placeholders = placeholderMatcher.createDeco(view)
-      console.log('this.placeholders', this.placeholders)
     }
     update(update: ViewUpdate) {
       this.placeholders = placeholderMatcher.updateDeco(update, this.placeholders)
-      console.log('this.placeholders', this.placeholders)
     }
   },
   {

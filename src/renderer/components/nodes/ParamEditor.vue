@@ -1,5 +1,5 @@
 <template>
-  <div class="param-editor" @click="onClickInside" v-on-click-outside="onClickOutside">
+  <div v-on-click-outside="onClickOutside" class="param-editor" @click="onClickInside">
     <div class="editor">
       <div class="flex flex-column gap-1 editor-content">
         <div class="label">
@@ -7,8 +7,8 @@
           <label :for="`data-${paramKey}`"
             >{{ paramDefinition.label }}
             <span
-              class="required"
               v-if="!('required' in paramDefinition) || paramDefinition.required === true"
+              class="required"
             >
               *</span
             >
@@ -17,10 +17,10 @@
           <div class="infos">
             <!-- Is valid button -->
             <Button
+              v-tooltip.top="expectedTooltip"
               text
               size="small"
               rounded
-              v-tooltip.top="expectedTooltip"
               :severity="isExpectedValid ? 'success' : 'danger'"
             >
               <template #icon>
@@ -31,11 +31,11 @@
         </div>
 
         <!-- Code editor -->
-        <div class="code-editor" ref="$codeEditorText"></div>
+        <div ref="$codeEditorText" class="code-editor"></div>
 
         <!-- Hint text -->
-        <Skeleton height="20px" v-if="hintText === undefined"></Skeleton>
-        <div v-else class="hint" :class="{ error: isError }" v-dompurify-html="hintText"></div>
+        <Skeleton v-if="hintText === undefined" height="20px"></Skeleton>
+        <div v-else v-dompurify-html="hintText" class="hint" :class="{ error: isError }"></div>
 
         <!-- Floating indicator -->
         <div
@@ -66,17 +66,17 @@
             <!-- Value -->
             <Panel header="Value" toggleable>
               <div class="editor">
-                <div class="boolean" v-if="paramDefinition.control.type === 'boolean'">
+                <div v-if="paramDefinition.control.type === 'boolean'" class="boolean">
                   <SelectButton
                     :model-value="resultValue"
-                    @change="insertEditorReplace($event.value)"
-                    optionLabel="text"
-                    optionValue="value"
+                    option-label="text"
+                    option-value="value"
                     :options="[
                       { text: 'True', value: true },
                       { text: 'False', value: false }
                     ]"
                     aria-labelledby="basic"
+                    @change="insertEditorReplace($event.value)"
                   >
                     <template #option="slotProps">
                       <span>{{ slotProps.option.text }}</span>
@@ -84,19 +84,22 @@
                   </SelectButton>
                   <p v-if="!isValueSimpleBoolean(param)">Value will be overwitten!</p>
                 </div>
-                <div class="path" v-if="paramDefinition.control.type === 'path'">
-                  <Button class="w-full" @click="onChangePathClick(paramDefinition.control.options)">
+                <div v-if="paramDefinition.control.type === 'path'" class="path">
+                  <Button
+                    class="w-full"
+                    @click="onChangePathClick(paramDefinition.control.options)"
+                  >
                     {{ paramDefinition.control.label ?? 'Browse path' }}
                   </Button>
                 </div>
-                <div class="select" v-if="paramDefinition.control.type === 'select'">
+                <div v-if="paramDefinition.control.type === 'select'" class="select">
                   <Listbox
-                    @change="onParamSelectChange"
                     :model-value="param"
                     :options="paramDefinition.control.options.options"
                     filter
-                    optionLabel="label"
+                    option-label="label"
                     class="w-full md:w-56"
+                    @change="onParamSelectChange"
                   />
                 </div>
               </div>
@@ -105,11 +108,11 @@
             <Panel header="Outputs" toggleable>
               <div class="steps-list">
                 <template v-for="(step, stepUid) in steps" :key="stepUid">
-                  <div class="step-item" v-if="Object.keys(step.outputs).length > 0">
+                  <div v-if="Object.keys(step.outputs).length > 0" class="step-item">
                     <div class="step-name">{{ getStepLabel(stepUid) }}</div>
 
                     <div class="step-outputs">
-                      <div class="step-output" v-for="(_output, outputKey) in step.outputs">
+                      <div v-for="(_output, outputKey) in step.outputs" class="step-output">
                         <div
                           class="step"
                           @click="insertEditorEnd(`steps['${stepUid}']['outputs']['${outputKey}']`)"
@@ -169,6 +172,7 @@ import { useEditor } from '@renderer/store/editor'
 import { storeToRefs } from 'pinia'
 import { ListboxChangeEvent } from 'primevue/listbox'
 import type { OpenDialogOptions } from 'electron'
+import { useLogger } from '@@/logger'
 
 type Params = (Action | Condition | Event)['params']
 
@@ -219,8 +223,7 @@ const isValueSimpleBoolean = (str: string | unknown) => {
 }
 
 function myCompletions(context: CompletionContext) {
-  let word = context.matchBefore(/\w*/)
-  console.log('word', word)
+  const word = context.matchBefore(/\w*/)
   if (word) {
     if (word.from == word.to && !context.explicit) return null
     return {
@@ -235,7 +238,7 @@ function myCompletions(context: CompletionContext) {
 }
 
 const regexpLinter = linter((view) => {
-  let diagnostics: Diagnostic[] = []
+  const diagnostics: Diagnostic[] = []
   syntaxTree(view.state)
     .cursor()
     .iterate((node) => {
@@ -269,12 +272,10 @@ const {
 ])
 
 const insertEditorEnd = (str: string | number | boolean) => {
-  console.log('str', str)
   codeEditorTextUpdate(editorTextValue.value + str.toString())
 }
 
 const insertEditorReplace = (str: string | number | boolean) => {
-  console.log('str', str)
   codeEditorTextUpdate(str.toString())
 }
 
@@ -304,7 +305,6 @@ const debounce = <T extends (...args: any[]) => void>(
 }
 
 const resolveHintTextResult = (result: unknown) => {
-  console.log('result', result)
   if (paramDefinition.value.control.type === 'select') {
     const label = paramDefinition.value.control.options.options.find(
       (o) => o.value === result
@@ -316,7 +316,6 @@ const resolveHintTextResult = (result: unknown) => {
   return (result as string).toString()
 }
 
-// @ts-expect-error
 const vm = await createQuickJs()
 
 watchDebounced(
@@ -328,7 +327,6 @@ watchDebounced(
       return
     }
 
-
     try {
       const result = await vm.run(displayString, {
         params: {},
@@ -339,12 +337,12 @@ watchDebounced(
       hintText.value = resolveHintTextResult(result)
       isError.value = false
     } catch (e) {
-      console.error('e', JSON.stringify(e))
+      logger().error('e', JSON.stringify(e))
       if (e instanceof Error) {
         hintText.value = /* e.name + ' ' +  */ e.message
         isError.value = true
       } else {
-        console.error('e', e)
+        logger().error('e', e)
       }
     }
   },
@@ -375,20 +373,15 @@ const onClickOutside = () => {
 }
 
 const onValueChanged = (newValue: string, paramKey: string) => {
-  console.log('param.value', param.value)
-  console.log('newValue', newValue)
-  console.log('paramKey', paramKey)
-
   emit('update:modelValue', newValue)
 }
 
 onCodeEditorTextUpdate((value) => {
-  onValueChanged(value, paramKey.toString())
+  onValueChanged(value, paramKey.value.toString())
 })
 
 const getOutputLabel = (stepUid: string, key: string) => {
   const nodeOrigin = nodes.value.find((n) => n.uid === stepUid)?.origin
-  console.log('nodeOrigin', nodeOrigin)
   if (nodeOrigin) {
     const nodeDef = getNodeDefinition(nodeOrigin.nodeId, nodeOrigin.pluginId).node as Action
     if (nodeDef) {
@@ -401,7 +394,6 @@ const getOutputLabel = (stepUid: string, key: string) => {
 
 const getOutputDescription = (stepUid: string, key: string) => {
   const nodeOrigin = nodes.value.find((n) => n.uid === stepUid)?.origin
-  console.log('nodeOrigin', nodeOrigin)
   if (nodeOrigin) {
     const nodeDef = getNodeDefinition(nodeOrigin.nodeId, nodeOrigin.pluginId).node as Action
     if (nodeDef) {
@@ -427,19 +419,17 @@ const getStepLabel = (key: string) => {
 /** On path selection */
 const api = useAPI()
 
-const onChangePathClick = async (options: OpenDialogOptions) => {
-  const paths = await api.execute(
-    'dialog:showOpenDialog',
-    options,
-    async (_, message) => {
-      const { type, data } = message
-      if (type === 'end') {
-        console.log('end', data)
-      }
-    }
-  )
+const { logger } = useLogger()
 
-  console.log('paths', paths)
+const onChangePathClick = async (options: OpenDialogOptions) => {
+  const paths = await api.execute('dialog:showOpenDialog', options, async (_, message) => {
+    const { type, data } = message
+    if (type === 'end') {
+      logger().info('end', data)
+    }
+  })
+
+  logger().info('paths', paths)
   const p = paths.filePaths[0]
 
   insertEditorEnd(`"${p}"`)

@@ -11,7 +11,16 @@ import {
   Steps
 } from '@@/model'
 import { useAPI } from '@renderer/composables/api'
-import { Action, Condition, RendererPluginDefinition, Event, Loop, CynNode, InputDefinition, RendererNodeDefinition } from '@cyn/plugin-core'
+import {
+  Action,
+  Condition,
+  RendererPluginDefinition,
+  Event,
+  Loop,
+  CynNode,
+  InputDefinition,
+  RendererNodeDefinition
+} from '@cyn/plugin-core'
 import { Variable } from '@cyn/core'
 import { defineStore, storeToRefs } from 'pinia'
 import get from 'get-value'
@@ -25,6 +34,7 @@ import { useRouteParams } from '@vueuse/router'
 import { ValidationError } from '@renderer/models/error'
 import { isRequired } from '@@/validation'
 import { processGraph } from '@@/graph'
+import { useLogger } from '@@/logger'
 
 export type Context = Record<string, unknown>
 
@@ -80,6 +90,8 @@ export const useEditor = defineStore('editor', () => {
   const { presets, pluginDefinitions } = storeToRefs(appStore)
   const { getNodeDefinition, getPluginDefinition } = appStore
 
+  const { logger } = useLogger()
+
   const filesStore = useFiles()
   const { update } = filesStore
   const { files } = storeToRefs(filesStore)
@@ -108,12 +120,6 @@ export const useEditor = defineStore('editor', () => {
 
   const currentFilePointer = computed(() => {
     return files.value.data[id.value]
-  })
-
-  watch(currentFilePointer, () => {
-    console.log('currentFilePointer', currentFilePointer.value)
-  }, {
-    immediate: true
   })
 
   const savedFile = computed(() => {
@@ -145,7 +151,6 @@ export const useEditor = defineStore('editor', () => {
 
     for (const node of blocks.value) {
       const pluginDef = getNodeDefinition(node.origin.nodeId, node.origin.pluginId)
-      console.log('pluginDef', pluginDef)
 
       if (!result[node.uid]) {
         result[node.uid] = {
@@ -158,8 +163,8 @@ export const useEditor = defineStore('editor', () => {
           const outputs = pluginDef.node.outputs
 
           for (const [key, output] of Object.entries(outputs)) {
-            console.log('output', outputs)
-            result[node.uid]['outputs'][key] = `<div class="step">${pluginDef.node.name} → ${output.label}</div>`
+            result[node.uid]['outputs'][key] =
+              `<div class="step">${pluginDef.node.name} → ${output.label}</div>`
           }
         }
       }
@@ -190,17 +195,15 @@ export const useEditor = defineStore('editor', () => {
     variables.value = []
     triggers.value = []
     setActiveNode()
-    console.log('clear')
   }
 
   const errors = computed(() => {
     const editorErrors: Record<string, ValidationError[]> = {}
     for (const block of blocks.value) {
       const blockErrors = validate(block)
-      console.log('blockErrors', blockErrors)
 
       for (const err of blockErrors) {
-        if(!editorErrors[block.uid] ) {
+        if (!editorErrors[block.uid]) {
           editorErrors[block.uid] = []
         }
         editorErrors[block.uid].push(err)
@@ -217,41 +220,41 @@ export const useEditor = defineStore('editor', () => {
       const requiredParams = Object.entries(definition.node?.params ?? {})
       for (const [key, param] of requiredParams) {
         if (isRequired(param) && !(key in block.params)) {
-          console.warn(`Missing required param "${key}" in node "${block.uid}"`)
+          logger().warn(`Missing required param "${key}" in node "${block.uid}"`)
           errors.push({
             type: 'missing',
             param: key
           })
         }
       }
-    // } else if (block.type === 'condition') {
-    //   const definition = getNodeDefinition(block.origin.nodeId, block.origin.pluginId)
-    //   const requiredParams = Object.keys(definition?.params ?? {})
-    //   for (const requiredParam of requiredParams) {
-    //     if (!(requiredParam in block.params)) {
-    //       console.warn(`Missing required param "${requiredParam}" in node "${block.uid}"`)
-    //       errors.push({
-    //         type: 'missing',
-    //         param: requiredParam
-    //       })
-    //     }
-    //   }
+      // } else if (block.type === 'condition') {
+      //   const definition = getNodeDefinition(block.origin.nodeId, block.origin.pluginId)
+      //   const requiredParams = Object.keys(definition?.params ?? {})
+      //   for (const requiredParam of requiredParams) {
+      //     if (!(requiredParam in block.params)) {
+      //       console.warn(`Missing required param "${requiredParam}" in node "${block.uid}"`)
+      //       errors.push({
+      //         type: 'missing',
+      //         param: requiredParam
+      //       })
+      //     }
+      //   }
     } else if (block.type === 'event') {
       //
-    // } else if (block.type === 'loop') {
-    //   const definition = getNodeDefinition(block.origin.nodeId, block.origin.pluginId)
-    //   const requiredParams = Object.keys(definition?.params ?? {})
-    //   for (const requiredParam of requiredParams) {
-    //     if (!(requiredParam in block.params)) {
-    //       console.warn(`Missing required param "${requiredParam}" in node "${block.uid}"`)
-    //       errors.push({
-    //         type: 'missing',
-    //         param: requiredParam
-    //       })
-    //     }
-    //   }
-    // } else if (block.type === 'comment') {
-    //   //
+      // } else if (block.type === 'loop') {
+      //   const definition = getNodeDefinition(block.origin.nodeId, block.origin.pluginId)
+      //   const requiredParams = Object.keys(definition?.params ?? {})
+      //   for (const requiredParam of requiredParams) {
+      //     if (!(requiredParam in block.params)) {
+      //       console.warn(`Missing required param "${requiredParam}" in node "${block.uid}"`)
+      //       errors.push({
+      //         type: 'missing',
+      //         param: requiredParam
+      //       })
+      //     }
+      //   }
+      // } else if (block.type === 'comment') {
+      //   //
     }
     return errors
   }
@@ -261,9 +264,7 @@ export const useEditor = defineStore('editor', () => {
 
     const data = await savedFileMigrator.migrate(input, {
       debug: true
-    });
-
-    console.log('loadSavedFile data', data)
+    })
 
     name.value = data.name
     description.value = data.description
@@ -321,9 +322,6 @@ export const useEditor = defineStore('editor', () => {
 
   const setBlockValue = (nodeId: string, value: Block) => {
     const nodeIndex = blocks.value.findIndex((b) => b.uid === nodeId)
-    console.log('nodeIndex', nodeIndex)
-    console.log('0, nodeIndex', 0, nodeIndex)
-    console.log('nodeIndex + 1, blocks.value.length - 1', nodeIndex + 1, blocks.value.length - 1)
     if (nodeIndex > -1) {
       // replace node
       blocks.value = [
@@ -336,9 +334,6 @@ export const useEditor = defineStore('editor', () => {
 
   const setTriggerValue = (nodeId: string, value: BlockEvent) => {
     const nodeIndex = triggers.value.findIndex((b) => b.uid === nodeId)
-    console.log('nodeIndex', nodeIndex)
-    console.log('0, nodeIndex', 0, nodeIndex)
-    console.log('nodeIndex + 1, triggers.value.length - 1', nodeIndex + 1, triggers.value.length - 1)
     if (nodeIndex > -1) {
       // replace node
       triggers.value = [
@@ -350,9 +345,6 @@ export const useEditor = defineStore('editor', () => {
   }
 
   const addNode = (event: AddNodeEvent) => {
-    console.log('event', event)
-    console.log('nodeDefinitions', nodeDefinitions.value)
-
     const { node: nodeDefinition, path, plugin: pluginDefinition, insertAt } = event
 
     if (nodeDefinition && pluginDefinition) {
@@ -393,15 +385,12 @@ export const useEditor = defineStore('editor', () => {
         }
         addNodeToBlock(node, path, insertAt)
       } */ else {
-        console.error('Unhandled', nodeDefinition)
+        logger().error('Unhandled', nodeDefinition)
       }
     }
   }
 
   const addTrigger = (event: AddTriggerEvent) => {
-    console.log('event', event)
-    console.log('nodeDefinitions', nodeDefinitions.value)
-
     const { trigger: triggerDefinition, path, plugin: pluginDefinition, insertAt } = event
 
     if (triggerDefinition && pluginDefinition) {
@@ -417,22 +406,16 @@ export const useEditor = defineStore('editor', () => {
         }
         addTriggerToBlock(node, path, insertAt)
       } else {
-        console.error('Unhandled', triggerDefinition)
+        logger().error('Unhandled', triggerDefinition)
       }
     }
   }
 
   const addTriggerToBlock = (node: BlockEvent, path: string[], insertAt: number) => {
-    console.log('path', path)
-    console.log('insertAt', insertAt)
     const value = path.length === 0 ? triggers.value : get(triggers.value, path)
-    console.log('value', value)
 
     const firstPart = value.slice(0, insertAt)
     const secondPart = value.slice(insertAt + 1)
-
-    console.log('firstPart', firstPart)
-    console.log('secondPart', secondPart)
 
     const newValue = [
       ...value.slice(0, insertAt),
@@ -441,29 +424,20 @@ export const useEditor = defineStore('editor', () => {
         insertAt // already has +1
       )
     ]
-    console.log('newValue', newValue)
     if (path.length === 0) {
       triggers.value = newValue
     } else {
       set(triggers.value, path, newValue)
     }
 
-    console.log('triggers.value', triggers.value)
-
     return
   }
 
   const addNodeToBlock = (node: Block, path: string[], insertAt: number) => {
-    console.log('path', path)
-    console.log('insertAt', insertAt)
     const value = path.length === 0 ? blocks.value : get(blocks.value, path)
-    console.log('value', value)
 
     const firstPart = value.slice(0, insertAt)
     const secondPart = value.slice(insertAt + 1)
-
-    console.log('firstPart', firstPart)
-    console.log('secondPart', secondPart)
 
     const newValue = [
       ...value.slice(0, insertAt),
@@ -472,14 +446,11 @@ export const useEditor = defineStore('editor', () => {
         insertAt // already has +1
       )
     ]
-    console.log('newValue', newValue)
     if (path.length === 0) {
       blocks.value = newValue
     } else {
       set(blocks.value, path, newValue)
     }
-
-    console.log('blocks.value', blocks.value)
 
     return
   }
@@ -536,7 +507,7 @@ export const useEditor = defineStore('editor', () => {
     processGraph,
     loadPreset,
     isRunning,
-    setIsRunning,
+    setIsRunning
   }
 })
 
