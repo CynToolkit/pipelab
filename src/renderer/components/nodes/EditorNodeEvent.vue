@@ -58,15 +58,18 @@
 
 <script setup lang="ts">
 import { useEditor } from '@renderer/store/editor'
-import { BlockEvent } from '@@/model'
+import { BlockEvent, Steps } from '@@/model'
 import { storeToRefs } from 'pinia'
 import { PropType, computed, ref, toRefs } from 'vue'
 import { computedAsync } from '@vueuse/core'
+import { makeResolvedParams } from '@renderer/utils/evaluator'
 import ParamEditor from './ParamEditor.vue'
 import { Event } from '@cyn/plugin-core'
+import DOMPurify from 'dompurify'
 import PluginIcon from './PluginIcon.vue'
 import { ValidationError } from '@renderer/models/error'
 import AddNodeButton from '../AddNodeButton.vue'
+import { createQuickJs } from '@renderer/utils/quickjs'
 
 const props = defineProps({
   value: {
@@ -78,6 +81,10 @@ const props = defineProps({
     required: true
     // default: () => []
   },
+  steps: {
+    type: Object as PropType<Steps>,
+    required: true
+  },
   errors: {
     type: Object as PropType<ValidationError[]>,
     required: false,
@@ -85,7 +92,7 @@ const props = defineProps({
   }
 })
 
-const { value } = toRefs(props)
+const { value, steps } = toRefs(props)
 
 const editor = useEditor()
 const { getNodeDefinition, getPluginDefinition, setTriggerValue, addNode, removeTrigger } = editor
@@ -116,13 +123,43 @@ const onValueChanged = (newValue: unknown, paramKey: string) => {
   })
 }
 
+const resolvedParams = computedAsync(
+  async () => {
+    return makeResolvedParams(
+      {
+        params: value.value.params,
+        steps: steps.value,
+        context: {},
+        variables: []
+      },
+      (item) => {
+        // console.log('item', item)
+        // const cleanOutput = DOMPurify.sanitize(item)
+        // console.log('cleanOutput', cleanOutput)
+
+        // return `<div class=\"param\">${cleanOutput}</div>`
+        return item
+      }
+    )
+  },
+  {},
+  {
+    onError: (error) => {
+      console.error('error', error)
+    }
+  }
+)
+
 const subtitle = computedAsync(
   async () => {
-    // const result = await engine.parseAndRender(nodeDefinition.value?.displayString ?? '', {
-    //   params: value.value.params
-    // })
-    // return result
-    return 'TODO'
+    const displayString = nodeDefinition.value?.displayString ?? ''
+    const vm = await createQuickJs()
+    const result = await vm.run(displayString, {
+      params: resolvedParams.value,
+      steps: steps.value
+    })
+    const clean = DOMPurify.sanitize(result)
+    return clean
   },
   'Loading...',
   {

@@ -3,6 +3,7 @@ import { logAction, logActionRunner } from "./log.js";
 import { branchCondition, branchConditionRunner } from "./branch.js";
 import { forLoop, ForLoopRunner } from "./for.js";
 import { manualEvent, manualEvaluator } from "./manual.js";
+import { alertAction, alertActionRunner } from "./alert.js";
 
 export default createNodeDefinition({
     id: 'system',
@@ -28,6 +29,10 @@ export default createNodeDefinition({
         {
             node: manualEvent,
             runner: manualEvaluator
+        },
+        {
+            node: alertAction,
+            runner: alertActionRunner,
         }
     ]
 })

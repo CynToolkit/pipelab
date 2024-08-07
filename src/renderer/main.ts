@@ -26,7 +26,6 @@ if (window.isPackaged && process.env.TEST !== 'true') {
     dsn: "https://757630879674735027fa5700162253f7@o45694.ingest.us.sentry.io/4507621723144192",
     debug: true,
     integrations: [
-      // @ts-expect-error
       breadcrumbsIntegration({
         console: false
       })

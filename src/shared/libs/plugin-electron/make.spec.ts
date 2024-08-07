@@ -46,7 +46,8 @@ test('adds 1 + 2 to equal 3', async () => {
         paths: {
           assets: '',
           unpack: ''
-        }
+        },
+        api: undefined,
     })
     console.log('outputs', outputs)
     expect(true).toBe(true)

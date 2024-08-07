@@ -8,7 +8,7 @@ export const manualEvent = createEvent({
   id: ID,
   name: "Manual",
   description: "Start a pipeline manually",
-  displayString: "Start the pipeline manually",
+  displayString: "'Start the pipeline manually'",
   icon: "",
   meta: {},
   params: {},

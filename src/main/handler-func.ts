@@ -15,6 +15,8 @@ import { join } from 'node:path'
 import { HandleListenerSendFn } from './handlers'
 import { assetsPath, unpackPath } from './paths'
 import { logger } from '@@/logger'
+import { BrowserWindow } from 'electron'
+import { usePluginAPI } from './api'
 
 const checkParams = (definitionParams: InputsDefinition, elementParams: any) => {
   // get a list of all required params
@@ -111,6 +113,7 @@ export const handleActionExecute = async (
   nodeId: string,
   pluginId: string,
   params: any,
+  mainWindow: BrowserWindow | undefined,
   { send }: { send: HandleListenerSendFn<'action:execute'> }
 ): Promise<End<'action:execute'>> => {
   const { plugins } = usePlugins()
@@ -144,6 +147,11 @@ export const handleActionExecute = async (
       const _unpackPath = await unpackPath()
 
       const outputs: Record<string | number | symbol, unknown> = {}
+
+      console.log('mainWindow', mainWindow)
+
+      const api = usePluginAPI(mainWindow)
+
       await node.runner({
         inputs: resolvedInputs,
         log: (...args) => {
@@ -162,7 +170,8 @@ export const handleActionExecute = async (
         paths: {
           assets: _assetsPath,
           unpack: _unpackPath
-        }
+        },
+        api,
       })
       return {
         outputs

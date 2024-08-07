@@ -214,7 +214,7 @@ const $codeEditorText = ref<HTMLDivElement>()
 const $floating = ref<HTMLDivElement>()
 const $arrow = ref<HTMLElement>()
 
-const isValueSimpleBoolean = (str: string) => {
+const isValueSimpleBoolean = (str: string | unknown) => {
   return str === 'true' || str === 'false'
 }
 

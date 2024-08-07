@@ -188,10 +188,12 @@ export const registerIPCHandlers = () => {
     })
   })
 
-  handle('action:execute', async (_, { send, value }) => {
+  handle('action:execute', async (event, { send, value }) => {
     const { nodeId, params, pluginId } = value
 
-    const result = await handleActionExecute(nodeId, pluginId, params, {
+    const mainWindow = BrowserWindow.fromWebContents(event.sender)
+
+    const result = await handleActionExecute(nodeId, pluginId, params, mainWindow, {
       send,
     })
 

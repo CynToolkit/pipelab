@@ -18,6 +18,8 @@ import { z } from "zod";
 import { nanoid } from "nanoid";
 import { Nullable } from "vitest";
 import type { OpenDialogOptions } from 'electron'
+import { UseAPI } from "@renderer/composables/api";
+import { UseMainAPI } from "@main/api";
 
 export type PathOptions = {
   filter?: RegExp;
@@ -393,7 +395,8 @@ export type ActionRunnerData<ACTION extends Action> = {
   paths: {
     unpack: string,
     assets: string,
-  }
+  },
+  api: UseMainAPI
 };
 
 export type ActionRunner<ACTION extends Action> = (
