@@ -91,7 +91,7 @@ import Button from 'primevue/button'
 import InputText from 'primevue/inputtext'
 import { useAppStore } from '@renderer/store/app'
 import { CynNode, Event } from '@@/libs/plugin-core'
-import { BlockEvent } from '@@/model'
+import { useLogger } from '@@/logger'
 
 type ButtonProps = InstanceType<typeof Button>['$props']
 
@@ -112,15 +112,13 @@ const { path } = toRefs(props)
 const instance = useEditor()
 const appStore = useAppStore()
 
-const {} = storeToRefs(instance)
-
 const { pluginDefinitions } = storeToRefs(appStore)
-const {} = appStore
-
 const $searchInput = ref<InstanceType<typeof InputText>>()
 
 const visible = ref(false)
 const search = ref('')
+
+const { logger } = useLogger()
 
 watchEffect(() => {
   if (visible.value === true) {
@@ -145,21 +143,21 @@ const onAdd = () => {
   const selection = selected.value
 
   if (!selection) {
-    console.error('cannot find selection')
+    logger().error('cannot find selection')
     return
   }
 
   const def = getPluginDefinition(selection.pluginId)
 
   if (!def) {
-    console.error('cannot find definition')
+    logger().error('cannot find definition')
     return
   }
 
   const trigger = getNodeDefinition(selection.triggerId, selection.pluginId)
 
   if (!trigger) {
-    console.error('cannot find trigger')
+    logger().error('cannot find trigger')
     return
   }
 
@@ -191,7 +189,7 @@ const isNodePicked = (trigger: CynNode, searchedValue: string) => {
 
 // TODO: refactor
 const searchedElements = computed(() => {
-  console.log('pluginDefinitions', pluginDefinitions.value)
+  logger().info('pluginDefinitions', pluginDefinitions.value)
   const searchedValue = search.value.toLowerCase()
 
   return pluginDefinitions.value

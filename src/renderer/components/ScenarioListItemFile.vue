@@ -36,8 +36,6 @@ onMounted(async () => {
     path: path.value
   })
 
-  console.log('data', data)
-
   if ('content' in dataRaw) {
     data.value = JSON.parse(dataRaw.content) as SavedFile
   } else {

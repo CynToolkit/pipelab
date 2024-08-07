@@ -2,7 +2,7 @@ import { app, shell, BrowserWindow, dialog, autoUpdater } from 'electron'
 import { join } from 'path'
 import { platform } from 'os'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
-// @ts-expect-error
+// @ts-expect-error asset
 import icon from '../assets/icon.png?asset'
 import { registerIPCHandlers } from './main/handlers'
 import { usePlugins } from '@@/plugins'
@@ -12,20 +12,20 @@ import { Tray, Menu, nativeImage } from 'electron'
 import { readFile, writeFile, mkdir } from 'fs/promises'
 import { getFinalPlugins } from '@main/utils'
 import { SavedFile } from '@@/model'
-import { handleActionExecute, handleConditionExecute } from '@main/handler-func'
-import { logger } from '@@/logger'
+import { handleActionExecute } from '@main/handler-func'
+import { useLogger } from '@@/logger'
 import * as Sentry from '@sentry/electron/main'
 import { assetsPath } from '@main/paths'
-
-// disable asar throughout the app
 
 const isLinux = platform() === 'linux'
 let tray
 
-logger.info('app.isPackaged', app.isPackaged)
-logger.info('process.env.TEST', process.env.TEST)
-logger.info('process.env.WINEHOMEDIR', process.env.WINEHOMEDIR)
-logger.info('isLinux', isLinux)
+const { logger, setMainWindow } = useLogger()
+
+logger().info('app.isPackaged', app.isPackaged)
+logger().info('process.env.TEST', process.env.TEST)
+logger().info('process.env.WINEHOMEDIR', process.env.WINEHOMEDIR)
+logger().info('isLinux', isLinux)
 
 const isWine = platform() === 'win32' && 'WINEHOMEDIR' in process.env
 
@@ -37,9 +37,7 @@ if (app.isPackaged && process.env.TEST !== 'true' && !isWine) {
 }
 
 const imagePath = join('./assets', 'icon.png')
-let isQuiting = false
-
-console.log('imagePath', imagePath)
+// let isQuiting = false
 
 if (!isLinux && process.env.TEST !== 'true' && require('electron-squirrel-startup')) app.quit()
 
@@ -61,6 +59,8 @@ function createWindow(): void {
     }
   })
 
+  setMainWindow(mainWindow)
+
   if (is.dev) {
     mainWindow.webContents.openDevTools()
   }
@@ -75,7 +75,7 @@ function createWindow(): void {
     mainWindow.hide()
   })
 
-  mainWindow.on('close', function (event) {
+  mainWindow.on('close', function () {
     app.quit()
   })
 
@@ -110,9 +110,9 @@ app.whenReady().then(async () => {
   })
 
   autoUpdater.on('update-downloaded', (event, releaseNotes, releaseName) => {
-    logger.info('releaseNotes', releaseNotes)
-    logger.info('releaseName', releaseName)
-    logger.info('event', event)
+    logger().info('releaseNotes', releaseNotes)
+    logger().info('releaseName', releaseName)
+    logger().info('event', event)
     const dialogOpts: Electron.MessageBoxOptions = {
       type: 'info',
       buttons: ['Restart', 'Later'],
@@ -127,25 +127,25 @@ app.whenReady().then(async () => {
   })
 
   autoUpdater.on('error', (message) => {
-    logger.info('There was a problem updating the application')
-    logger.info(message)
+    logger().info('There was a problem updating the application')
+    logger().info(message)
   })
 
   autoUpdater.on('update-available', () => {
-    logger.info('Found update')
+    logger().info('Found update')
   })
 
   autoUpdater.on('update-not-available', () => {
-    logger.info('No update available')
+    logger().info('No update available')
   })
 
   autoUpdater.on('checking-for-update', (info: any) => {
-    logger.info('checking-for-update', info)
+    logger().info('checking-for-update', info)
   })
 
-  logger.info('app ready')
+  logger().info('app ready')
   autoUpdater.checkForUpdates()
-  logger.info('autoUpdater.getFeedURL()', autoUpdater.getFeedURL())
+  logger().info('autoUpdater.getFeedURL()', autoUpdater.getFeedURL())
 
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.cyn')
@@ -220,11 +220,11 @@ exec "${process.execPath}" "$@"
 
   const { values } = parseArgs(config)
 
-  logger.info('values', values)
+  logger().info('values', values)
 
   // exit if values are passed
   if (Object.keys(values).length > 0) {
-    logger.info('Processing graph...')
+    logger().info('Processing graph...')
 
     const { action, project, output } = values
 
@@ -232,7 +232,7 @@ exec "${process.execPath}" "$@"
       const rawData = await readFile(project, 'utf8')
       const data = JSON.parse(rawData) as SavedFile
 
-      logger.info('data', data)
+      logger().info('data', data)
 
       const { canvas, variables } = data
       const { blocks: nodes } = canvas
@@ -245,22 +245,22 @@ exec "${process.execPath}" "$@"
         steps: {},
         context: {},
         onNodeEnter: (node) => {
-          logger.info('onNodeEnter', node.uid)
+          logger().info('onNodeEnter', node.uid)
         },
         onNodeExit: (node) => {
-          logger.info('onNodeExit', node.uid)
+          logger().info('onNodeExit', node.uid)
         },
-        onExecuteItem: (node, params, steps) => {
+        onExecuteItem: (node, params/* , steps */) => {
           /* if (node.type === 'condition') {
             return handleConditionExecute(node.origin.nodeId, node.origin.pluginId, params, {
               send: (data) => {
-                logger.info('send', data)
+                logger().info('send', data)
               }
             })
           } else  */ if (node.type === 'action') {
             return handleActionExecute(node.origin.nodeId, node.origin.pluginId, params, mainWindow, {
               send: (data) => {
-                logger.info('send', data)
+                logger().info('send', data)
               }
             })
           } else {
@@ -296,7 +296,7 @@ exec "${process.execPath}" "$@"
       label: 'Exit',
       type: 'normal',
       click: () => {
-        isQuiting = true
+        // isQuiting = true
         app.quit()
       }
     }

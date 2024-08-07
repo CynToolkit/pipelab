@@ -112,24 +112,24 @@ export const packageRunner = createActionRunner<typeof packageApp>(
     const { cp } = await import('node:fs/promises')
     const { platform, arch } = await import('process')
     const { fileURLToPath } = await import('url')
-    // @ts-expect-error
+    // @ts-expect-error dfdf
     const __dirname = fileURLToPath(dirname(import.meta.url))
     const { app } = await import('electron')
 
-    console.log('__dirname', __dirname)
-    console.log('process.resourcesPath', process.resourcesPath)
+    log('__dirname', __dirname)
+    log('process.resourcesPath', process.resourcesPath)
 
-    console.log('process.env.NODE_ENV', process.env.NODE_ENV)
+    log('process.env.NODE_ENV', process.env.NODE_ENV)
 
-    console.log('process.cwd()', process.cwd())
-    console.log('app.getAppPath', app.getAppPath())
+    log('process.cwd()', process.cwd())
+    log('app.getAppPath', app.getAppPath())
 
     const modulesPath = join(unpack, 'node_modules')
 
-    console.log('resourcePath', modulesPath)
+    log('resourcePath', modulesPath)
 
     const _pnpm = join(modulesPath, 'pnpm', 'bin', 'pnpm.cjs')
-    console.log('_pnpm', _pnpm)
+    log('_pnpm', _pnpm)
     const pnpm = _pnpm /* .replace('app.asar', 'app.asar.unpacked') */
     // const forge = join(
     //   __dirname,
@@ -160,7 +160,7 @@ export const packageRunner = createActionRunner<typeof packageApp>(
     //   'electron-forge.js'
     // )
 
-    console.log('pnpm', pnpm)
+    log('pnpm', pnpm)
 
     const appFolder = inputs['input-folder']
     log('appFolder', appFolder)
@@ -175,8 +175,8 @@ export const packageRunner = createActionRunner<typeof packageApp>(
     await cp(templateFolder, destinationFolder, {
       recursive: true,
       filter: (src, dest) => {
-        // console.log('src', src)
-        // console.log('dest', dest)
+        // log('src', src)
+        // log('dest', dest)
         return basename(src) !== 'node_modules'
       }
     })
@@ -207,7 +207,7 @@ export const packageRunner = createActionRunner<typeof packageApp>(
     )
 
     try {
-      // console.log({
+      // log({
       //   arch: inputs.arch,
       //   dir: destinationFolder,
       //   interactive: false,
@@ -242,7 +242,7 @@ export const packageRunner = createActionRunner<typeof packageApp>(
         log
       )
 
-      console.log('logs', logs)
+      log('logs', logs)
 
       const outName = outFolderName('app', finalPlatform, finalArch)
 
@@ -250,13 +250,13 @@ export const packageRunner = createActionRunner<typeof packageApp>(
     } catch (e) {
       if (e instanceof Error) {
         if (e.name === 'RequestError') {
-          console.log('Request error')
+          log('Request error')
         }
         if (e.name === 'RequestError') {
-          console.log('Request error')
+          log('Request error')
         }
       }
-      console.error(e)
+      log(e)
     }
   }
 )

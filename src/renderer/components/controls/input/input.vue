@@ -22,7 +22,7 @@ export default {
 
 <script lang="ts" setup>
 import { CynControlInput } from '@cyn/controls'
-import { type PropType, toRefs, watch } from 'vue'
+import { type PropType, toRefs } from 'vue'
 
 const props = defineProps({
   data: {
@@ -33,27 +33,13 @@ const props = defineProps({
 
 const { data } = toRefs(props)
 
-watch(
-  data,
-  () => {
-    console.log('--> data', data.value)
-  },
-  {
-    deep: true,
-    immediate: true
-  }
-)
-
 const onChange = (e: Event) => {
-  console.log('e', e)
   const val =
     data.value.options.type === 'number'
       ? // @ts-expect-error value
         +e.target?.value
       : // @ts-expect-error value
         e.target?.value
-
-  console.log('new value', val)
 
   data.value.options.onInput(val)
 }

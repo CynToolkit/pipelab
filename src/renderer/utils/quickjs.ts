@@ -1,3 +1,5 @@
+import { useLogger } from '@@/logger'
+import { isRenderer } from '@@/validation'
 import {
   newQuickJSWASMModuleFromVariant,
   newVariant,
@@ -16,18 +18,9 @@ class EvaluationError extends Error {
   }
 }
 
-const isRenderer = () => {
-  // running in a web browser
-  if (typeof process === 'undefined') return true
-
-  // node-integration is disabled
-  if (!process) return true
-
-  // @ts-expect-error
-  return process.browser === true || process.title === 'browser'
-};
-
 export const createQuickJs = async () => {
+  const { logger } = useLogger()
+
   let location: string
   if (isRenderer()) {
     location = (await import('@jitl/quickjs-wasmfile-release-sync/wasm?url')).default
@@ -37,8 +30,6 @@ export const createQuickJs = async () => {
     const _dirname = await dirname()
     location = join(_dirname, 'emscripten-module.wasm')
   }
-
-  console.log('location', location)
 
   const variant = newVariant(RELEASE_SYNC, {
     wasmLocation: location
@@ -51,6 +42,7 @@ export const createQuickJs = async () => {
 
     const exposed = {
       console: {
+        // eslint-disable-next-line no-console
         log: console.log
       },
       fmt: {
@@ -76,7 +68,7 @@ export const createQuickJs = async () => {
 
       return result
     } catch (e) {
-      console.error('error', e)
+      logger().error('error', e)
       throw new EvaluationError(e.name, e.message)
     } finally {
       arena.dispose()

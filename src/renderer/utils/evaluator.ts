@@ -3,6 +3,7 @@ import { createQuickJs } from './quickjs'
 import DOMPurify from 'dompurify'
 import { Variable } from '@cyn/core'
 import { fmt } from './fmt'
+import { useLogger } from '@@/logger'
 
 export const makeResolvedParams = async (
   data: {
@@ -13,6 +14,7 @@ export const makeResolvedParams = async (
   },
   onItem: (item: any) => string = (item: any) => item
 ) => {
+  const { logger } = useLogger()
   const vm = await createQuickJs()
 
   const result: Record<string, string> = {}
@@ -28,7 +30,7 @@ export const makeResolvedParams = async (
 
       result[paramName] = outputResult
     } catch (e) {
-      console.error('error', e)
+      logger().error('error', e)
     }
   }
   return result

@@ -4,8 +4,11 @@ import { ref } from "vue";
 import { useAPI } from "@renderer/composables/api";
 import { RendererPluginDefinition } from "@cyn/plugin-core";
 import { Presets } from "@@/apis";
+import { useLogger } from "@@/logger";
 
 export const useAppStore = defineStore('app', () => {
+  const { logger } = useLogger()
+
   /** Presets to load from */
   const presets = ref<Presets>()
 
@@ -23,7 +26,6 @@ export const useAppStore = defineStore('app', () => {
 
     //
     presets.value = await api.execute('presets:get')
-    console.log('presets.value', presets.value)
 
     //
     triggerPresetsLoaded()
@@ -32,7 +34,7 @@ export const useAppStore = defineStore('app', () => {
   const getPluginDefinition = (pluginId: string) => {
     const result = pluginDefinitions.value.find((nodeDef) => {
       if (!pluginId) {
-        console.log('Missing origin: node', pluginId)
+        logger().error('Missing origin: node', pluginId)
       }
       return nodeDef.id === pluginId
     })

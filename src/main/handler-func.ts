@@ -12,9 +12,8 @@ import { randomBytes } from 'node:crypto'
 import { mkdir } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { HandleListenerSendFn } from './handlers'
 import { assetsPath, unpackPath } from './paths'
-import { logger } from '@@/logger'
+import { useLogger } from '@@/logger'
 import { BrowserWindow } from 'electron'
 import { usePluginAPI } from './api'
 
@@ -47,9 +46,10 @@ export const handleConditionExecute = async (
   nodeId: string,
   pluginId: string,
   params: any,
-  { send }: { send: HandleListenerSendFn<'condition:execute'> }
+  // { send }: { send: HandleListenerSendFn<'condition:execute'> }
 ): Promise<End<'condition:execute'>> => {
   const { plugins } = usePlugins()
+  const { logger } = useLogger()
 
   const node = plugins.value
     .find((plugin) => plugin.id === pluginId)
@@ -78,13 +78,13 @@ export const handleConditionExecute = async (
       const value = await node.runner({
         inputs: resolvedInputs,
         log: (...args) => {
-          logger.info(`[${node.node.name}]`, ...args)
+          logger().info(`[${node.node.name}]`, ...args)
         },
         meta: {
           definition: ''
         },
         setMeta: () => {
-          logger.info('set meta defined here')
+          logger().info('set meta defined here')
         },
         cwd: tmp
       })
@@ -93,7 +93,7 @@ export const handleConditionExecute = async (
         value
       }
     } catch (e) {
-      logger.error('e', e)
+      logger().error('e', e)
       return {
         result: {
           ipcError: e
@@ -114,9 +114,10 @@ export const handleActionExecute = async (
   pluginId: string,
   params: any,
   mainWindow: BrowserWindow | undefined,
-  { send }: { send: HandleListenerSendFn<'action:execute'> }
+  // { send }: { send: HandleListenerSendFn<'action:execute'> }
 ): Promise<End<'action:execute'>> => {
   const { plugins } = usePlugins()
+  const { logger } = useLogger()
 
   const node = plugins.value
     .find((plugin) => plugin.id === pluginId)
@@ -141,21 +142,19 @@ export const handleActionExecute = async (
 
       const resolvedInputs = params // await resolveActionInputs(params, node.node, steps)
 
-      logger.info('resolvedInputs', resolvedInputs)
+      logger().info('resolvedInputs', resolvedInputs)
 
       const _assetsPath = await assetsPath()
       const _unpackPath = await unpackPath()
 
       const outputs: Record<string | number | symbol, unknown> = {}
 
-      console.log('mainWindow', mainWindow)
-
       const api = usePluginAPI(mainWindow)
 
       await node.runner({
         inputs: resolvedInputs,
         log: (...args) => {
-          logger.info(`[${node.node.name}]`, ...args)
+          logger().info(`[${node.node.name}]`, ...args)
         },
         setOutput: (key, value) => {
           outputs[key] = value
@@ -164,7 +163,7 @@ export const handleActionExecute = async (
           definition: ''
         },
         setMeta: () => {
-          logger.info('set meta defined here')
+          logger().info('set meta defined here')
         },
         cwd: tmp,
         paths: {
@@ -177,7 +176,7 @@ export const handleActionExecute = async (
         outputs
       }
     } catch (e) {
-      logger.error('[action:execute] e', e)
+      logger().error('[action:execute] e', e)
       return {
         result: {
           ipcError: e

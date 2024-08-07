@@ -1,26 +1,11 @@
 import { Channels, Data, Events, Message } from '@@/apis'
 import { BrowserWindow, app, dialog, ipcMain } from 'electron'
-import { usePlugins } from '@@/plugins'
-import {
-  ActionRunner,
-  ConditionRunner,
-  Condition,
-  InputsDefinition,
-  Action
-} from '../shared/libs/plugin-core'
 import { getFinalPlugins } from './utils'
-import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
-import { randomBytes } from 'node:crypto'
 import { mkdir, writeFile, readFile, access } from 'node:fs/promises'
 import { presets } from './presets/list'
-import { isRequired } from '@@/validation'
 import { handleActionExecute, handleConditionExecute } from './handler-func'
-import { logger } from '@@/logger'
-
-function sleep(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms))
-}
+import { useLogger } from '@@/logger'
 
 export type HandleListenerSendFn<KEY extends Channels> = (events: Events<KEY>) => void
 
@@ -30,6 +15,8 @@ export type HandleListener<KEY extends Channels> = (
 ) => Promise<void>
 
 export const useAPI = () => {
+  const { logger } = useLogger()
+
   const handle = <KEY extends Channels>(channel: KEY, listener: HandleListener<KEY>) => {
     return ipcMain.on(channel, (event, message: Message) => {
       const { data, requestId } = message
@@ -37,7 +24,7 @@ export const useAPI = () => {
       // logger.info('received data', data)
 
       const send: HandleListenerSendFn<KEY> = (events) => {
-        logger.debug('sending', events, 'to', requestId)
+        logger().debug('sending', events, 'to', requestId)
         return event.sender.send(requestId, events)
       }
 
@@ -55,20 +42,21 @@ export const useAPI = () => {
 
 export const registerIPCHandlers = () => {
   const { handle } = useAPI()
+  const { logger } = useLogger()
 
-  logger.info('registering ipc handlers')
+  logger().info('registering ipc handlers')
 
   handle('dialog:showOpenDialog', async (event, { value, send }) => {
     const slash = (await import('slash')).default
 
-    // logger.info('event', event)
-    logger.info('value', value)
-    logger.info('dialog:showOpenDialog')
+    // logger().info('event', event)
+    logger().info('value', value)
+    logger().info('dialog:showOpenDialog')
 
     const mainWindow = BrowserWindow.fromWebContents(event.sender)
 
     if (!mainWindow) {
-      console.error('mainWindow not found')
+      logger().error('mainWindow not found')
       return
     }
 
@@ -84,9 +72,11 @@ export const registerIPCHandlers = () => {
   })
 
   handle('fs:read', async (event, { value, send }) => {
+  const { logger } = useLogger()
+
     // logger.info('event', event)
-    logger.info('value', value)
-    logger.info('fs:read')
+    logger().info('value', value)
+    logger().info('fs:read')
 
     try {
       const data = await readFile(value.path, 'utf-8')
@@ -98,7 +88,7 @@ export const registerIPCHandlers = () => {
         }
       })
     } catch (e) {
-      console.error('e', e)
+      logger().error('e', e)
       send({
         type: 'end',
         data: {
@@ -111,9 +101,10 @@ export const registerIPCHandlers = () => {
   })
 
   handle('fs:write', async (event, { value, send }) => {
+  const { logger } = useLogger()
     // logger.info('event', event)
-    logger.info('value', value)
-    logger.info('fs:read')
+    logger().info('value', value)
+    logger().info('fs:read')
 
     await writeFile(value.path, value.content, 'utf-8')
 
@@ -126,14 +117,16 @@ export const registerIPCHandlers = () => {
   })
 
   handle('dialog:showSaveDialog', async (event, { value, send }) => {
+  const { logger } = useLogger()
+
     // logger.info('event', event)
-    logger.info('value', value)
-    logger.info('dialog:showSaveDialog')
+    logger().info('value', value)
+    logger().info('dialog:showSaveDialog')
 
     const mainWindow = BrowserWindow.fromWebContents(event.sender)
 
     if (!mainWindow) {
-      console.error('mainWindow not found')
+      logger().error('mainWindow not found')
       return
     }
 
@@ -180,12 +173,12 @@ export const registerIPCHandlers = () => {
     })
   })
 
-  handle('condition:execute', async (_, { send, value }) => {
+  handle('condition:execute', async (_, { value }) => {
     const { nodeId, params, pluginId } = value
 
-    await handleConditionExecute(nodeId, pluginId, params, {
+    await handleConditionExecute(nodeId, pluginId, params/* , {
       send,
-    })
+    } */)
   })
 
   handle('action:execute', async (event, { send, value }) => {
@@ -193,11 +186,9 @@ export const registerIPCHandlers = () => {
 
     const mainWindow = BrowserWindow.fromWebContents(event.sender)
 
-    const result = await handleActionExecute(nodeId, pluginId, params, mainWindow, {
-      send,
-    })
+    const result = await handleActionExecute(nodeId, pluginId, params, mainWindow)
 
-    // @ts-expect-error
+    // @ts-expect-error rrr
     await send({
       data: result,
       type: 'end'
@@ -228,7 +219,7 @@ export const registerIPCHandlers = () => {
     try {
       content = await readFile(filesPath, 'utf8')
     } catch (e) {
-      console.error('e', e)
+      logger().error('e', e)
     }
 
     const json = JSON.parse(content)

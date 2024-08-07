@@ -32,18 +32,6 @@ const props = defineProps({
 
 const { data } = toRefs(props)
 
-watch(
-  data,
-  () => {
-    // @ts-expect-error
-    console.log('--> data', data.value.type)
-    console.log('--> data', data.value)
-  },
-  {
-    deep: true
-  }
-)
-
 // const onChange = (e: Event) => {
 //   console.log('data.value', data.value)
 //   // @ts-expect-error

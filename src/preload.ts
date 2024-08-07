@@ -3,8 +3,7 @@ import { electronAPI } from '@electron-toolkit/preload'
 import { version } from '../package.json'
 
 // Custom APIs for renderer
-const api = {
-}
+const api = {}
 
 // TODO: unify window and contextBridge
 
@@ -16,18 +15,17 @@ if (process.contextIsolated) {
     contextBridge.exposeInMainWorld('electron', electronAPI)
     contextBridge.exposeInMainWorld('api', api)
     contextBridge.exposeInMainWorld('version', version)
-    contextBridge.exposeInMainWorld("isPackaged", process.env.NODE_ENV !== "development")
-    contextBridge.exposeInMainWorld("isTest", process.env.TEST === 'true')
+    contextBridge.exposeInMainWorld('isPackaged', process.env.NODE_ENV !== 'development')
+    contextBridge.exposeInMainWorld('isTest', process.env.TEST === 'true')
+    // eslint-disable-next-line no-console
     console.log('process.env.NODE_ENV', process.env.NODE_ENV)
     // contextBridge.exposeInMainWorld('_dirname', __dirname)
-  } catch (error) {
-    console.error(error)
-  }
+  } catch (error) {}
 } else {
   window.electron = electronAPI
   window.api = api
   window.version = version
-  window.isPackaged = process.env.NODE_ENV !== "development"
+  window.isPackaged = process.env.NODE_ENV !== 'development'
   window.isTest = process.env.TEST === 'true'
   // window.__dirname = __dirname
 }

@@ -43,7 +43,7 @@ export const script = async (
       notNowBtn.click()
     })
     .catch(async () => {
-      console.log('notNowBtn.click() failed')
+      log('notNowBtn.click() failed')
     })
 
   // as soon as it appear, without blocking flow
@@ -60,7 +60,7 @@ export const script = async (
       }
     })
     .catch(async () => {
-      console.log('webglErrorButton.click() failed')
+      log('webglErrorButton.click() failed')
     })
 
   if (username && password) {
@@ -77,7 +77,7 @@ export const script = async (
     const response = await tokenPromise
     const jsonResponse = await response.json()
 
-    console.log('jsonResponse', jsonResponse)
+    log('jsonResponse', jsonResponse)
 
     if (jsonResponse.request.status === 'error') {
       await page.close()

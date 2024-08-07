@@ -84,6 +84,7 @@ import { computedAsync } from '@vueuse/core'
 import PluginIcon from './PluginIcon.vue'
 import { Condition } from '@cyn/plugin-core'
 import { ValidationError } from '@renderer/models/error'
+import { useLogger } from '@@/logger'
 
 const props = defineProps({
   value: {
@@ -106,6 +107,8 @@ const { value } = toRefs(props)
 
 const $nodeConditionWrapper = ref<HTMLDivElement>()
 
+const { logger } = useLogger()
+
 const subtitle = computedAsync(
   async () => {
     // const result = await engine.parseAndRender(nodeDefinition.value?.displayString ?? '', {
@@ -117,7 +120,7 @@ const subtitle = computedAsync(
   'Loading...',
   {
     onError: (error) => {
-      console.error('error', error)
+      logger().error('error', error)
     }
   }
 )
@@ -127,9 +130,6 @@ const { getNodeDefinition, setBlockValue, getPluginDefinition } = editor
 const { activeNode } = storeToRefs(editor)
 
 const onValueChanged = (newValue: unknown, paramKey: string) => {
-  console.log('newValue', newValue)
-
-  // @ts-expect-error
   setBlockValue(value.value.uid, {
     ...value.value,
     params: {
