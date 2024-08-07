@@ -8,7 +8,7 @@
     "noImplicitAny": true,
     "baseUrl": ".",
     "outDir": "dist",
-    "moduleResolution": "Bundler",
+    "moduleResolution": "node",
     "inlineSourceMap": true,
     "resolveJsonModule": true,
     "paths": {

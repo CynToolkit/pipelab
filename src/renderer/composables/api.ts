@@ -12,19 +12,22 @@ export type Listener<KEY extends Channels> = (
   data: Events<KEY>
 ) => Promise<void>
 
-export const useAPI = () => {
+export const useAPI = (pipe: {
+  send: (channel: string, ...args: any[]) => void;
+  on: any
+} = window.electron.ipcRenderer) => {
   /**
    * Send an order
    */
   const send = <KEY extends Channels>(channel: KEY, args?: Data<KEY>) =>
-    window.electron.ipcRenderer.send(channel, args)
+    pipe.send(channel, args)
 
   const on = <KEY extends Channels>(
     channel: KEY | string,
     listener: (event: Electron.IpcRendererEvent, data: Events<KEY>) => void
   ) => {
     // console.log('listening for', channel)
-    return window.electron.ipcRenderer.on(channel, listener)
+    return pipe.on(channel, listener)
   }
 
   /**
@@ -54,7 +57,7 @@ export const useAPI = () => {
       })
 
       try {
-        window.electron.ipcRenderer.send(channel, message)
+        pipe.send(channel, message)
       } catch (e) {
         console.error(e)
         console.error(channel, message)
@@ -68,3 +71,5 @@ export const useAPI = () => {
     execute
   }
 }
+
+export type UseAPI = ReturnType<typeof useAPI>

@@ -40,7 +40,8 @@ describe("copy", () => {
       paths: {
         assets: '',
         unpack: ''
-      }
+      },
+      api: undefined,
     });
 
     const data = await readFile(destinationPath, "utf-8");
@@ -83,7 +84,8 @@ describe("copy", () => {
       paths: {
         assets: '',
         unpack: ''
-      }
+      },
+      api: undefined,
     });
 
     const data = await readFile(destinationPath, "utf-8");

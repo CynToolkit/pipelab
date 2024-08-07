@@ -11,7 +11,7 @@ export const logAction = createAction({
   name: "Log",
   description: "Log a message",
   icon: "",
-  displayString: `Log "{{params.message}}"`,
+  displayString: "`Log \"${fmt.param(params.message)}\"`",
   meta: {},
   params: {
     message: {

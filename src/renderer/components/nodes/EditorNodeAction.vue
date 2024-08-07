@@ -68,7 +68,6 @@ import { createQuickJs } from '@renderer/utils/quickjs'
 import DOMPurify from 'dompurify'
 import { makeResolvedParams } from '@renderer/utils/evaluator'
 import { ValidationError } from '@renderer/models/error'
-import { fmt } from '@renderer/utils/fmt'
 import AddNodeButton from '../AddNodeButton.vue'
 
 const props = defineProps({
@@ -145,10 +144,11 @@ const resolvedParams = computedAsync(
   }
 )
 
+const vm = await createQuickJs()
+
 const subtitle = computedAsync(
   async () => {
     const displayString = nodeDefinition.value?.displayString ?? ''
-    const vm = await createQuickJs()
     const result = await vm.run(displayString, {
       params: resolvedParams.value,
       steps: steps.value
@@ -176,7 +176,6 @@ const showSidebar = ref(false)
   display: flex;
   flex-direction: column;
   align-items: center;
-  background-color: white;
 }
 
 .node-action {
@@ -186,6 +185,7 @@ const showSidebar = ref(false)
   border-radius: 4px;
   width: fit-content;
   background-color: white;
+
   box-shadow:
     0 0 #0000,
     0 0 #0000,
@@ -197,7 +197,7 @@ const showSidebar = ref(false)
   }
 
   &.error {
-    background-color: rgba(255, 0, 0, 0.1);
+    background-color: #ffcccc;
   }
 }
 

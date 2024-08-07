@@ -258,7 +258,7 @@ exec "${process.execPath}" "$@"
               }
             })
           } else  */ if (node.type === 'action') {
-            return handleActionExecute(node.origin.nodeId, node.origin.pluginId, params, {
+            return handleActionExecute(node.origin.nodeId, node.origin.pluginId, params, mainWindow, {
               send: (data) => {
                 logger.info('send', data)
               }

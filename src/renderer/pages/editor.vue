@@ -76,7 +76,7 @@
       </div>
       <div class="main">
         <div class="node-editor-wrapper">
-          <EditorNodeEvent v-if="triggers.length > 0" :path="[]" v-for="trigger in triggers" :value="trigger"></EditorNodeEvent>
+          <EditorNodeEvent :steps="stepsDisplay" v-if="triggers.length > 0" :path="[]" v-for="trigger in triggers" :value="trigger"></EditorNodeEvent>
           <EditorNodeEventEmpty v-else :path="[]"></EditorNodeEventEmpty>
 
           <NodesEditor
@@ -153,6 +153,8 @@ import { klona } from 'klona'
 import { loadExternalFile, loadInternalFile, saveExternalFile } from '@renderer/utils/config'
 import EditorNodeEvent from '@renderer/components/nodes/EditorNodeEvent.vue'
 import EditorNodeEventEmpty from '@renderer/components/nodes/EditorNodeEventEmpty.vue'
+import { RendererChannels, RendererData, RendererEvents, RendererMessage } from '@main/api'
+import { logger } from '@@/logger'
 
 const route = useRoute()
 
@@ -415,6 +417,47 @@ const toggle = (event: any) => {
 }
 
 const showSaveDialog = ref(false)
+
+// renderer handler
+
+export type HandleListenerRendererSendFn<KEY extends RendererChannels> = (events: RendererEvents<KEY>) => void
+
+export type HandleListenerRenderer<KEY extends RendererChannels> = (
+  event: Electron.IpcRendererEvent,
+  data: { value: RendererData<KEY>; send: HandleListenerRendererSendFn<KEY> }
+) => Promise<void>
+
+const handle = <KEY extends RendererChannels>(channel: KEY, listener: HandleListenerRenderer<KEY>) => {
+  return window.electron.ipcRenderer.on(channel, (event, message: RendererMessage) => {
+    console.log('message', message)
+    const { data, requestId } = message
+    // logger.info('received event', requestId)
+    // logger.info('received data', data)
+
+    const send: HandleListenerRendererSendFn<KEY> = (events) => {
+      console.log('event', event)
+      logger.debug('sending', events, 'to', requestId)
+      return window.electron.ipcRenderer.send(requestId, events)
+    }
+
+    return listener(event, {
+      send,
+      value: data
+    })
+  })
+}
+
+handle('dialog:alert', async (event, { value, send }) => {
+  console.log('value', value)
+  alert(value.message)
+
+  send({
+    type: 'end',
+    data: {
+      answer: 'ok'
+    }
+  })
+})
 
 tinykeys(window, {
   '$mod+KeyS': (event) => {
