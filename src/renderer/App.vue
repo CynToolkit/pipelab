@@ -309,7 +309,6 @@ handle('log:message', async (event, { value, send }) => {
     const values = Object.entries(value)
       .filter(([key]) => key !== '_meta')
       .map(([, v]) => v)
-    console.log('values', values)
     logger()
       .getSubLogger({
         name: 'Main'
