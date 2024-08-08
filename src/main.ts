@@ -19,6 +19,7 @@ import { assetsPath } from '@main/paths'
 
 const isLinux = platform() === 'linux'
 let tray
+let isReadyToShow = false
 
 const { logger, setMainWindow } = useLogger()
 
@@ -66,8 +67,7 @@ function createWindow(): void {
   }
 
   mainWindow.on('ready-to-show', () => {
-    mainWindow.show()
-    mainWindow.maximize()
+    isReadyToShow = true
   })
 
   mainWindow.on('minimize', function (event: Event) {
@@ -224,6 +224,8 @@ exec "${process.execPath}" "$@"
 
   logger().info('values', values)
 
+  createWindow()
+
   // exit if values are passed
   if (Object.keys(values).length > 0) {
     logger().info('Processing graph...')
@@ -264,7 +266,7 @@ exec "${process.execPath}" "$@"
               node.origin.nodeId,
               node.origin.pluginId,
               params,
-              mainWindow,
+              mainWindow
               // {
               //   send: (data) => {
               //     logger().info('send', data)
@@ -284,8 +286,6 @@ exec "${process.execPath}" "$@"
 
     process.exit(0)
   }
-
-  createWindow()
 
   const icon = nativeImage.createFromPath(imagePath)
   tray = new Tray(icon)
@@ -314,6 +314,15 @@ exec "${process.execPath}" "$@"
   tray.on('click', () => {
     mainWindow.show()
   })
+
+  mainWindow.on('ready-to-show', () => {
+    mainWindow.show()
+    mainWindow.maximize()
+  })
+  if (isReadyToShow) {
+    mainWindow.show()
+    mainWindow.maximize()
+  }
 
   app.on('activate', function () {
     // On macOS it's common to re-create a window in the app when the
