@@ -1,5 +1,6 @@
 import { expect, test } from 'vitest'
 import { unzipRunner } from './unzip.js'
+import { browserWindow } from '@@/tests/helpers.js'
 
 test('adds 1 + 2 to equal 3', async () => {
   const outputs: Record<string, unknown> = {}
@@ -25,7 +26,7 @@ test('adds 1 + 2 to equal 3', async () => {
       unpack: ''
     },
     api: undefined,
-    browserWindow: undefined,
+    browserWindow,
   })
   console.log('outputs', outputs)
   expect(true).toBe(true)

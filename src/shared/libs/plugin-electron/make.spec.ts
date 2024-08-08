@@ -3,6 +3,7 @@ import { makeRunner } from './make.js'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { type fs, vol } from 'memfs'
+import { browserWindow } from '@@/tests/helpers.js'
 
 // ...
 
@@ -48,7 +49,7 @@ test('adds 1 + 2 to equal 3', async () => {
       unpack: ''
     },
     api: undefined,
-    browserWindow: undefined
+    browserWindow
   })
   console.log('outputs', outputs)
   expect(true).toBe(true)

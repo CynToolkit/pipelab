@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest'
 import { copyRunner } from './copy.js'
 import mock from 'mock-fs'
 import { readFile } from 'node:fs/promises'
+import { browserWindow } from '@@/tests/helpers.js'
 
 describe('copy', () => {
   test.only('copy file to file', async () => {
@@ -42,7 +43,7 @@ describe('copy', () => {
         unpack: ''
       },
       api: undefined,
-      browserWindow: undefined
+      browserWindow
     })
 
     const data = await readFile(destinationPath, 'utf-8')
@@ -87,7 +88,7 @@ describe('copy', () => {
         unpack: ''
       },
       api: undefined,
-      browserWindow: undefined
+      browserWindow
     })
 
     const data = await readFile(destinationPath, 'utf-8')
