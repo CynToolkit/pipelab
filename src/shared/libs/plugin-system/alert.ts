@@ -35,7 +35,8 @@ export const alertAction = createAction({
 })
 
 export const alertActionRunner = createActionRunner<typeof alertAction>(
-  async ({ log, inputs, api, setOutput }) => {
+  async ({ log, inputs, api, setOutput, browserWindow }) => {
+    browserWindow.flashFrame(true)
     //    'cancel' | 'ok'
     const _answer = await api.execute('dialog:alert', {
       message: inputs.message

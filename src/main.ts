@@ -178,7 +178,8 @@ ECHO %*
 
 REM Shim Electron as Node.js
 start "" "${process.execPath}" %*
-`)
+`
+    )
   } else {
     const fakeNode = join(shimsPaths, 'node')
 
@@ -191,7 +192,8 @@ export ELECTRON_RUN_AS_NODE=1
 
 # Shim Electron as Node.js
 exec "${process.execPath}" "$@"
-`)
+`
+    )
   }
 
   registerIPCHandlers()
@@ -250,7 +252,7 @@ exec "${process.execPath}" "$@"
         onNodeExit: (node) => {
           logger().info('onNodeExit', node.uid)
         },
-        onExecuteItem: (node, params/* , steps */) => {
+        onExecuteItem: (node, params /* , steps */) => {
           /* if (node.type === 'condition') {
             return handleConditionExecute(node.origin.nodeId, node.origin.pluginId, params, {
               send: (data) => {
@@ -258,11 +260,17 @@ exec "${process.execPath}" "$@"
               }
             })
           } else  */ if (node.type === 'action') {
-            return handleActionExecute(node.origin.nodeId, node.origin.pluginId, params, mainWindow, {
-              send: (data) => {
-                logger().info('send', data)
-              }
-            })
+            return handleActionExecute(
+              node.origin.nodeId,
+              node.origin.pluginId,
+              params,
+              mainWindow,
+              // {
+              //   send: (data) => {
+              //     logger().info('send', data)
+              //   }
+              // }
+            )
           } else {
             throw new Error('Unhandled type ' + node.type)
           }

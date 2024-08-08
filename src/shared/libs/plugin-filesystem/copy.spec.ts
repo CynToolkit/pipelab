@@ -1,95 +1,97 @@
-import { describe, expect, test } from "vitest";
-import { copyRunner } from "./copy.js";
-import mock from "mock-fs";
-import { readFile } from "node:fs/promises";
+import { describe, expect, test } from 'vitest'
+import { copyRunner } from './copy.js'
+import mock from 'mock-fs'
+import { readFile } from 'node:fs/promises'
 
-describe("copy", () => {
-  test.only("copy file to file", async () => {
-    const outputs: Record<string, unknown> = {};
+describe('copy', () => {
+  test.only('copy file to file', async () => {
+    const outputs: Record<string, unknown> = {}
 
-    const sourcePath = "/source/source-file.txt";
-    const sourceContent = "text";
+    const sourcePath = '/source/source-file.txt'
+    const sourceContent = 'text'
 
-    const destinationPath = "/destination/destination-file.txt";
+    const destinationPath = '/destination/destination-file.txt'
     const files = {
       [sourcePath]: sourceContent,
-      "/destination": {},
-    };
+      '/destination': {}
+    }
 
-    mock(files);
+    mock(files)
 
     await copyRunner({
-      cwd: "",
+      cwd: '',
       inputs: {
         from: sourcePath,
         to: destinationPath,
-        recursive: false,
+        recursive: false
       },
       log: (...args) => {
-        console.log(...args);
+        console.log(...args)
       },
       setOutput: (key, value) => {
-        outputs[key] = value;
+        outputs[key] = value
       },
       meta: {
-        definition: "",
+        definition: ''
       },
       setMeta: () => {
-        console.log("set meta defined here");
+        console.log('set meta defined here')
       },
       paths: {
         assets: '',
         unpack: ''
       },
       api: undefined,
-    });
+      browserWindow: undefined
+    })
 
-    const data = await readFile(destinationPath, "utf-8");
+    const data = await readFile(destinationPath, 'utf-8')
 
-    expect(data).toBe(sourceContent);
-  });
+    expect(data).toBe(sourceContent)
+  })
 
   test.only("copy file to file where parent folder doesn't exist", async () => {
-    const outputs: Record<string, unknown> = {};
+    const outputs: Record<string, unknown> = {}
 
-    const sourcePath = "/source/source-file.txt";
-    const sourceContent = "text";
+    const sourcePath = '/source/source-file.txt'
+    const sourceContent = 'text'
 
-    const destinationPath = "/destination/destination-file.txt";
+    const destinationPath = '/destination/destination-file.txt'
     const files = {
-      [sourcePath]: sourceContent,
-    };
+      [sourcePath]: sourceContent
+    }
 
-    mock(files);
+    mock(files)
 
     await copyRunner({
-      cwd: "",
+      cwd: '',
       inputs: {
         from: sourcePath,
         to: destinationPath,
-        recursive: false,
+        recursive: false
       },
       log: (...args) => {
-        console.log(...args);
+        console.log(...args)
       },
       setOutput: (key, value) => {
-        outputs[key] = value;
+        outputs[key] = value
       },
       meta: {
-        definition: "",
+        definition: ''
       },
       setMeta: () => {
-        console.log("set meta defined here");
+        console.log('set meta defined here')
       },
       paths: {
         assets: '',
         unpack: ''
       },
       api: undefined,
-    });
+      browserWindow: undefined
+    })
 
-    const data = await readFile(destinationPath, "utf-8");
+    const data = await readFile(destinationPath, 'utf-8')
 
-    expect(data).toBe(sourceContent);
+    expect(data).toBe(sourceContent)
   })
-});
+})

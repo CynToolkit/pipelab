@@ -41,7 +41,7 @@
               </div>
             </template>
             <template #content="{ closeCallback }">
-              <InputText type="text" v-model="instance.name" />
+              <InputText v-model="instance.name" type="text" />
               <Button text size="small" @click="closeCallback">
                 <template #icon>
                   <i class="mdi mdi-content-save mr-1"></i>
@@ -61,12 +61,12 @@
               <i class="mdi mdi-content-save mr-1"></i>
             </template>
           </Button>
-          <Button label="Run" size="small" @click="run" v-if="!isRunning">
+          <Button v-if="!isRunning" label="Run" size="small" @click="run">
             <template #icon>
               <i class="mdi mdi-play mr-1"></i>
             </template>
           </Button>
-          <Button label="Cancel" size="small" disabled @click="run" v-else>
+          <Button v-else label="Cancel" size="small" disabled @click="run">
             <template #icon>
               <i class="mdi mdi-cancel mr-1"></i>
             </template>
@@ -76,12 +76,18 @@
       </div>
       <div class="main">
         <div class="node-editor-wrapper">
-          <EditorNodeEvent :steps="stepsDisplay" v-if="triggers.length > 0" :path="[]" v-for="trigger in triggers" :value="trigger"></EditorNodeEvent>
+          <EditorNodeEvent
+            v-for="trigger in triggers"
+            v-if="triggers.length > 0"
+            :steps="stepsDisplay"
+            :path="[]"
+            :value="trigger"
+          ></EditorNodeEvent>
           <EditorNodeEventEmpty v-else :path="[]"></EditorNodeEventEmpty>
 
           <NodesEditor
-            :errors="errors"
             v-if="instance"
+            :errors="errors"
             :nodes="nodes"
             :path="[]"
             :steps="stepsDisplay"
@@ -145,7 +151,7 @@ import { SavedFile } from '@@/model'
 import { useAPI } from '@renderer/composables/api'
 import { useAppStore } from '@renderer/store/app'
 import { MenuItem } from 'primevue/menuitem'
-import { useToast } from 'primevue/usetoast';
+import { useToast } from 'primevue/usetoast'
 import { tinykeys } from 'tinykeys'
 import { useRouteParams } from '@vueuse/router'
 import { useFiles } from '@renderer/store/files'
@@ -154,13 +160,22 @@ import { loadExternalFile, loadInternalFile, saveExternalFile } from '@renderer/
 import EditorNodeEvent from '@renderer/components/nodes/EditorNodeEvent.vue'
 import EditorNodeEventEmpty from '@renderer/components/nodes/EditorNodeEventEmpty.vue'
 import { RendererChannels, RendererData, RendererEvents, RendererMessage } from '@main/api'
-import { logger } from '@@/logger'
 import { handle } from '@renderer/composables/handlers'
 
 const route = useRoute()
 
 const instance = useEditor()
-const { nodes, triggers, variables, name, currentFilePointer, errors, stepsDisplay, id, isRunning } = storeToRefs(instance)
+const {
+  nodes,
+  triggers,
+  variables,
+  name,
+  currentFilePointer,
+  errors,
+  stepsDisplay,
+  id,
+  isRunning
+} = storeToRefs(instance)
 const { processGraph, loadPreset, loadSavedFile, setIsRunning } = instance
 
 const app = useAppStore()
@@ -193,8 +208,7 @@ watch(
   }
 )
 
-const toast = useToast();
-
+const toast = useToast()
 
 const run = async () => {
   const instance = useEditor()
@@ -223,7 +237,7 @@ const run = async () => {
           params,
           steps
         })
-      } else  */if (node.type === 'action') {
+      } else  */ if (node.type === 'action') {
         const result = await api.execute('action:execute', {
           nodeId: node.origin.nodeId,
           pluginId: node.origin.pluginId,
