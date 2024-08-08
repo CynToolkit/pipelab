@@ -130,6 +130,7 @@ const { getNodeDefinition, setBlockValue, getPluginDefinition } = editor
 const { activeNode } = storeToRefs(editor)
 
 const onValueChanged = (newValue: unknown, paramKey: string) => {
+  // @ts-expect-error not yet condition type
   setBlockValue(value.value.uid, {
     ...value.value,
     params: {

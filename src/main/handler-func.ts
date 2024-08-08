@@ -119,6 +119,10 @@ export const handleActionExecute = async (
   const { plugins } = usePlugins()
   const { logger } = useLogger()
 
+  mainWindow.setProgressBar(1, {
+    mode: 'indeterminate'
+  })
+
   const node = plugins.value
     .find((plugin) => plugin.id === pluginId)
     ?.nodes.find((node) => node.node.id === nodeId) as
@@ -171,12 +175,19 @@ export const handleActionExecute = async (
           unpack: _unpackPath
         },
         api,
+        browserWindow: mainWindow
+      })
+      mainWindow.setProgressBar(1, {
+        mode: 'normal'
       })
       return {
         outputs
       }
     } catch (e) {
       logger().error('[action:execute] e', e)
+      mainWindow.setProgressBar(1, {
+        mode: 'normal'
+      })
       return {
         result: {
           ipcError: e
@@ -184,6 +195,9 @@ export const handleActionExecute = async (
       }
     }
   } else {
+    mainWindow.setProgressBar(1, {
+      mode: 'normal'
+    })
     return {
       result: {
         ipcError: 'Node not found'

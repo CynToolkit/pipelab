@@ -316,6 +316,7 @@ const resolveHintTextResult = (result: unknown) => {
   return (result as string).toString()
 }
 
+// @ts-expect-error tsconfig
 const vm = await createQuickJs()
 
 watchDebounced(

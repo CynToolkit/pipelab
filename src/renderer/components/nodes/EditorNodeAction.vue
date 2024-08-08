@@ -145,6 +145,7 @@ const resolvedParams = computedAsync(
   }
 )
 
+// @ts-expect-error tsconfig
 const vm = await createQuickJs()
 
 const subtitle = computedAsync(

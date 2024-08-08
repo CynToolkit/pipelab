@@ -1,60 +1,11 @@
-import type {
-  ConditionalPick,
-  IsEqual,
-  Primitive,
-  Promisable,
-} from "type-fest";
-import { match, Pattern } from "ts-pattern";
-import {
-  CynControlBoolean,
-  CynControlCheckbox,
-  CynControlExpression,
-  CynControlInput,
-  CynControlPath,
-  CynControlSelect,
-  CynSelectOption,
-} from "@cyn/controls";
-import { z } from "zod";
-import { nanoid } from "nanoid";
-import { Nullable } from "vitest";
-import type { OpenDialogOptions } from 'electron'
-import { UseAPI } from "@renderer/composables/api";
-import { UseMainAPI } from "@main/api";
+import type { ConditionalPick } from 'type-fest'
+import type { BrowserWindow, OpenDialogOptions } from 'electron'
+import { UseMainAPI } from '@main/api'
 
 export type PathOptions = {
-  filter?: RegExp;
-  type?: "file" | "folder";
-};
-
-export class CynSocket {
-  constructor(name: string, schema: z.ZodTypeAny, def: InputOutputDefinition) {}
+  filter?: RegExp
+  type?: 'file' | 'folder'
 }
-
-export const path = (
-  definition: InputOutputDefinition,
-  options?: PathOptions
-) => {
-  const type = z.string().refine((str) => {
-    if (options?.filter) {
-      return options.filter.test(str);
-    }
-    return true;
-  }, "Invalid path");
-
-  return new CynSocket("path", type, definition);
-};
-export const flow = (definition: InputOutputDefinition) =>
-  new CynSocket("flow", z.any(), definition);
-export const string = (definition: InputOutputDefinition) =>
-  new CynSocket("string", z.string(), definition);
-export const number = (definition: InputOutputDefinition) =>
-  new CynSocket("number", z.number(), definition);
-export const boolean = (definition: InputOutputDefinition) =>
-  new CynSocket("boolean", z.boolean(), definition);
-export const array = (definition: InputOutputDefinition) =>
-  new CynSocket("array", z.array(z.any()), definition);
-export const unknown = (definition: InputOutputDefinition) =>
-  new CynSocket("unknown", z.unknown(), definition);
 
 // export const definitionToSocket = (
 //   definition: InputOutputDefinition,
@@ -105,16 +56,16 @@ export const unknown = (definition: InputOutputDefinition) =>
 // };
 
 export type PropType =
-  | "string"
-  | "number"
-  | "boolean"
-  | "array"
+  | 'string'
+  | 'number'
+  | 'boolean'
+  | 'array'
   | {
-      type: "array";
-      of: PropType;
+      type: 'array'
+      of: PropType
     }
-  | "any"
-  | PropType[];
+  | 'any'
+  | PropType[]
 
 // export type PropTypeToType<T extends PropType> = T extends "string"
 //   ? string
@@ -155,7 +106,7 @@ export type PropType =
 // }>;
 
 export interface ControlTypeBase {
-  type: string;
+  type: string
   // options: {
   // value: any;
   // onChange: (value: any) => void;
@@ -163,35 +114,40 @@ export interface ControlTypeBase {
 }
 
 export interface ControlTypeInput extends ControlTypeBase {
-  type: "input";
+  type: 'input'
   options: {
-    kind: "number" | "text";
+    kind: 'number' | 'text'
     // value: string;
     // onChange: (value: any) => void;
-  };
+  }
 }
 
 export interface ControlTypeExpression extends ControlTypeBase {
-  type: "expression";
+  type: 'expression'
   options: {
     // kind: "number" | "text";
     // value: string;
     // onChange: (value: any) => void;
-  };
+  }
+}
+
+export interface CynSelectOption {
+  label: string
+  value: string
 }
 
 export interface ControlTypeSelect extends ControlTypeBase {
-  type: "select";
+  type: 'select'
   options: {
     // value: string;
-    options: Array<CynSelectOption>;
-    placeholder: string;
+    options: Array<CynSelectOption>
+    placeholder: string
     // onChange: (value: string) => void;
-  };
+  }
 }
 
 export interface ControlTypeBoolean extends ControlTypeBase {
-  type: "boolean";
+  type: 'boolean'
   // options: {
   //   value: boolean;
   //   onChange: (value: boolean) => void;
@@ -199,7 +155,7 @@ export interface ControlTypeBoolean extends ControlTypeBase {
 }
 
 export interface ControlTypeCheckbox extends ControlTypeBase {
-  type: "checkbox";
+  type: 'checkbox'
   // options: {
   //   value: boolean;
   //   onChange: (value: boolean) => void;
@@ -207,13 +163,13 @@ export interface ControlTypeCheckbox extends ControlTypeBase {
 }
 
 export interface ControlTypePath extends ControlTypeBase {
-  type: "path";
-  options: OpenDialogOptions;
+  type: 'path'
+  options: OpenDialogOptions
   label?: string
 }
 
 export interface ControlTypeJSON extends ControlTypeBase {
-  type: "json";
+  type: 'json'
   // options: {
   //   value: string;
   //   onChange: (value: string) => void;
@@ -221,10 +177,10 @@ export interface ControlTypeJSON extends ControlTypeBase {
 }
 
 export interface ControlTypeArray extends ControlTypeBase {
-  type: "array";
+  type: 'array'
   options: {
-    kind: "number" | "text";
-  };
+    kind: 'number' | 'text'
+  }
 }
 
 export type ControlType =
@@ -235,79 +191,79 @@ export type ControlType =
   | ControlTypePath
   | ControlTypeJSON
   | ControlTypeExpression
-  | ControlTypeArray;
+  | ControlTypeArray
 
 export type InputDefinition = {
-  label: string;
-  description?: string;
-  validator?: () => any;
-  required?: boolean;
+  label: string
+  description?: string
+  validator?: () => any
+  required?: boolean
   // validator?: z.ZodTypeAny
-  control: ControlType;
-  value: unknown;
-};
-
-export type InputsDefinition = Record<string, InputDefinition>;
-export type Meta = Record<string, unknown>;
-
-export interface OutputDefinition {
-  label: string;
-  description?: string;
-  // validator: z.ZodTypeAny
-  validator?: (value: any) => any;
-  control?: ControlType;
-  value: unknown;
+  control: ControlType
+  value: unknown
 }
 
-export type OutputsDefinition = Record<string, OutputDefinition>;
+export type InputsDefinition = Record<string, InputDefinition>
+export type Meta = Record<string, unknown>
 
-export type InputOutputDefinition = InputDefinition | OutputDefinition;
+export interface OutputDefinition {
+  label: string
+  description?: string
+  // validator: z.ZodTypeAny
+  validator?: (value: any) => any
+  control?: ControlType
+  value: unknown
+}
+
+export type OutputsDefinition = Record<string, OutputDefinition>
+
+export type InputOutputDefinition = InputDefinition | OutputDefinition
 
 export type IconType =
   | {
-      type: "image";
+      type: 'image'
       /**
        * base64 image
        */
-      image: string;
+      image: string
     }
   | {
-      type: "icon";
-      icon: string;
-    };
+      type: 'icon'
+      icon: string
+    }
 export interface PluginDefinition {
-  id: string;
-  name: string;
-  icon: IconType;
-  description: string;
+  id: string
+  name: string
+  icon: IconType
+  description: string
 }
 
 export type RendererNodeDefinition = {
-  node: CynNode;
-  disabled: boolean | string;
+  node: CynNode
+  disabled: boolean | string
 }
 
 export interface RendererPluginDefinition extends PluginDefinition {
-  nodes: Array<RendererNodeDefinition>;
+  nodes: Array<RendererNodeDefinition>
 }
 
 export interface MainPluginDefinition extends PluginDefinition {
   nodes: {
-    node: CynNode;
-    runner: Runner;
+    node: CynNode
+    runner: Runner
     disabled?: boolean | string
-  }[];
+  }[]
 }
 
 export const createNodeDefinition = (def: MainPluginDefinition) => {
-  return def;
-};
+  return def
+}
 
 export type RunnerCallbackFnArgument<DEF extends MainPluginDefinition> = {
-  done: () => void;
-  id: string;
-  log: (...args: Parameters<(typeof console)["log"]>) => void;
-};
+  done: () => void
+  id: string
+  log: (...args: Parameters<(typeof console)['log']>) => void
+}
 
 // type friendly version of execute
 // export const createRunner = <DEF extends MainPluginDefinition>(
@@ -316,327 +272,301 @@ export type RunnerCallbackFnArgument<DEF extends MainPluginDefinition> = {
 //   return callback;
 // };
 
-export type InputsOutputsDefinition = InputsDefinition | OutputsDefinition;
+export type InputsOutputsDefinition = InputsDefinition | OutputsDefinition
 
-export type GetFlowEntries<T extends InputsOutputsDefinition> = ConditionalPick<
-  T,
-  { type: "flow" }
->;
-export type GetDataEntries<T extends InputsOutputsDefinition> = ConditionalPick<
-  T,
-  { type: "data" }
->;
+export type GetFlowEntries<T extends InputsOutputsDefinition> = ConditionalPick<T, { type: 'flow' }>
+export type GetDataEntries<T extends InputsOutputsDefinition> = ConditionalPick<T, { type: 'data' }>
 
-export type GetFlowKeys<T extends InputsOutputsDefinition> =
-  keyof GetFlowEntries<T>;
-export type GetDataKeys<T extends InputsOutputsDefinition> =
-  keyof GetDataEntries<T>;
+export type GetFlowKeys<T extends InputsOutputsDefinition> = keyof GetFlowEntries<T>
+export type GetDataKeys<T extends InputsOutputsDefinition> = keyof GetDataEntries<T>
 
-export type DataResult = Record<string, any>;
-
-export type RunInput<IO extends MainPluginDefinition> = {
-  forward: () => void;
-};
+export type DataResult = Record<string, any>
 
 export type SetOutputActionFn<T extends Action> = (
-  key: keyof T["outputs"],
-  value: T["outputs"][typeof key]["value"]
-) => void;
+  key: keyof T['outputs'],
+  value: T['outputs'][typeof key]['value']
+) => void
 export type SetOutputLoopFn<T extends Loop> = (
-  key: keyof T["outputs"],
-  value: T["outputs"][typeof key]["value"]
-) => void;
+  key: keyof T['outputs'],
+  value: T['outputs'][typeof key]['value']
+) => void
 export type SetOutputExpressionFn<T extends Expression> = (
-  key: keyof T["outputs"],
-  value: T["outputs"][typeof key]["value"]
-) => void;
+  key: keyof T['outputs'],
+  value: T['outputs'][typeof key]['value']
+) => void
 
 export type ParamsToInput<PARAMS extends InputsDefinition> = {
-  [index in keyof PARAMS]: PARAMS[index]["required"] extends true ? PARAMS[index]["value"] : Nullable<PARAMS[index]["value"]>
-};
+  [index in keyof PARAMS]: PARAMS[index]['required'] extends true
+    ? PARAMS[index]['value']
+    : PARAMS[index]['value'] | null
+}
 
 export interface Action {
-  id: string;
-  type: "action";
-  displayString: string;
-  icon: string;
-  name: string;
-  description: string;
-  params: InputsDefinition;
-  meta: Meta;
-  outputs: OutputsDefinition;
+  id: string
+  type: 'action'
+  displayString: string
+  icon: string
+  name: string
+  description: string
+  params: InputsDefinition
+  meta: Meta
+  outputs: OutputsDefinition
 }
 
 export type ExtractInputsFromAction<ACTION extends Action> = {
-  [index in keyof ACTION["params"]]: ACTION["params"][index]["value"];
-};
+  [index in keyof ACTION['params']]: ACTION['params'][index]['value']
+}
 
 export type ExtractInputsFromCondition<CONDITION extends Condition> = {
-  [index in keyof CONDITION["params"]]: CONDITION["params"][index]["value"];
-};
+  [index in keyof CONDITION['params']]: CONDITION['params'][index]['value']
+}
 export type ExtractInputsFromLoop<LOOP extends Loop> = {
-  [index in keyof LOOP["params"]]: LOOP["params"][index]["value"];
-};
+  [index in keyof LOOP['params']]: LOOP['params'][index]['value']
+}
 export type ExtractInputsFromEvent<EVENT extends Event> = {
-  [index in keyof EVENT["params"]]: EVENT["params"][index]["value"];
-};
+  [index in keyof EVENT['params']]: EVENT['params'][index]['value']
+}
 export type ExtractInputsFromExpression<EXPRESSION extends Expression> = {
-  [index in keyof EXPRESSION["params"]]: EXPRESSION["params"][index]["value"];
-};
+  [index in keyof EXPRESSION['params']]: EXPRESSION['params'][index]['value']
+}
 
 export type ActionRunnerData<ACTION extends Action> = {
-  log: typeof console.log;
-  setOutput: SetOutputActionFn<ACTION>;
+  log: typeof console.log
+  setOutput: SetOutputActionFn<ACTION>
   // inputs: ParamsToInput<ExtractInputsFromAction<ACTION>>,
-  inputs: ExtractInputsFromAction<ACTION>;
-  setMeta: (callback: (data: ACTION["meta"]) => ACTION["meta"]) => void;
-  meta: ACTION["meta"];
-  cwd: string;
+  inputs: ExtractInputsFromAction<ACTION>
+  setMeta: (callback: (data: ACTION['meta']) => ACTION['meta']) => void
+  meta: ACTION['meta']
+  cwd: string
   paths: {
-    unpack: string,
-    assets: string,
-  },
+    unpack: string
+    assets: string
+  }
   api: UseMainAPI
-};
+  browserWindow: BrowserWindow
+}
 
-export type ActionRunner<ACTION extends Action> = (
-  data: ActionRunnerData<ACTION>
-) => Promise<void>;
-export const createActionRunner = <ACTION extends Action>(
-  runner: ActionRunner<ACTION>
-) => runner;
+export type ActionRunner<ACTION extends Action> = (data: ActionRunnerData<ACTION>) => Promise<void>
+export const createActionRunner = <ACTION extends Action>(runner: ActionRunner<ACTION>) => runner
 
 // ---
 
 export interface Condition {
-  id: string;
-  type: "condition";
-  displayString: string;
-  icon: string;
-  name: string;
-  description: string;
-  params: InputsDefinition;
-  meta?: Meta;
+  id: string
+  type: 'condition'
+  displayString: string
+  icon: string
+  name: string
+  description: string
+  params: InputsDefinition
+  meta?: Meta
 }
 export type ConditionRunner<CONDITION extends Condition> = (data: {
-  log: typeof console.log;
-  inputs: ExtractInputsFromCondition<CONDITION>;
-  setMeta: (callback: (data: CONDITION["meta"]) => CONDITION["meta"]) => void;
-  meta: CONDITION["meta"];
-  cwd: string;
-}) => Promise<boolean>;
+  log: typeof console.log
+  inputs: ExtractInputsFromCondition<CONDITION>
+  setMeta: (callback: (data: CONDITION['meta']) => CONDITION['meta']) => void
+  meta: CONDITION['meta']
+  cwd: string
+}) => Promise<boolean>
 export const createConditionRunner = <CONDITION extends Condition>(
   runner: ConditionRunner<CONDITION>
-) => runner;
+) => runner
 
 // ---
 
 export interface Loop {
-  id: string;
-  type: "loop";
-  displayString: string;
-  icon: string;
-  name: string;
-  description: string;
-  params: InputsDefinition;
-  meta?: Meta;
-  outputs: OutputsDefinition;
+  id: string
+  type: 'loop'
+  displayString: string
+  icon: string
+  name: string
+  description: string
+  params: InputsDefinition
+  meta?: Meta
+  outputs: OutputsDefinition
 }
 type LoopRunner<LOOP extends Loop> = (data: {
-  log: typeof console.log;
-  setOutput: SetOutputLoopFn<LOOP>;
-  inputs: ExtractInputsFromLoop<LOOP>;
-  setMeta: (callback: (data: LOOP["meta"]) => LOOP["meta"]) => void;
-  meta: LOOP["meta"];
-  cwd: string;
-}) => Promise<"step" | "exit">;
-export const createLoopRunner = <LOOP extends Loop>(runner: LoopRunner<LOOP>) =>
-  runner;
+  log: typeof console.log
+  setOutput: SetOutputLoopFn<LOOP>
+  inputs: ExtractInputsFromLoop<LOOP>
+  setMeta: (callback: (data: LOOP['meta']) => LOOP['meta']) => void
+  meta: LOOP['meta']
+  cwd: string
+}) => Promise<'step' | 'exit'>
+export const createLoopRunner = <LOOP extends Loop>(runner: LoopRunner<LOOP>) => runner
 
 export interface Expression {
-  id: string;
-  type: "expression";
-  displayString: string;
-  icon: string;
-  name: string;
-  description: string;
-  params: InputsDefinition;
-  meta?: Meta;
-  outputs: OutputsDefinition;
+  id: string
+  type: 'expression'
+  displayString: string
+  icon: string
+  name: string
+  description: string
+  params: InputsDefinition
+  meta?: Meta
+  outputs: OutputsDefinition
 }
 type ExpressionRunner<EXPRESSION extends Expression> = (data: {
-  log: typeof console.log;
-  setOutput: SetOutputExpressionFn<EXPRESSION>;
-  inputs: ExtractInputsFromExpression<EXPRESSION>;
-  setMeta: (callback: (data: EXPRESSION["meta"]) => EXPRESSION["meta"]) => void;
-  meta: EXPRESSION["meta"];
-  cwd: string;
-}) => Promise<string>;
+  log: typeof console.log
+  setOutput: SetOutputExpressionFn<EXPRESSION>
+  inputs: ExtractInputsFromExpression<EXPRESSION>
+  setMeta: (callback: (data: EXPRESSION['meta']) => EXPRESSION['meta']) => void
+  meta: EXPRESSION['meta']
+  cwd: string
+}) => Promise<string>
 export const createExpressionRunner = <EXPRESSION extends Expression>(
   runner: ExpressionRunner<EXPRESSION>
-) => runner;
+) => runner
 
 export interface Event {
-  id: string;
-  type: "event";
-  displayString: string;
-  icon: string;
-  name: string;
-  description: string;
-  params: InputsDefinition;
-  meta?: Meta;
+  id: string
+  type: 'event'
+  displayString: string
+  icon: string
+  name: string
+  description: string
+  params: InputsDefinition
+  meta?: Meta
 }
 type EventRunner<EVENT extends Event> = (data: {
-  log: typeof console.log;
-  inputs: ExtractInputsFromEvent<EVENT>;
-  setMeta: (callback: (data: EVENT["meta"]) => EVENT["meta"]) => void;
-  meta: EVENT["meta"];
-  cwd: string;
-}) => Promise<void>;
-export const createEventRunner = <EVENT extends Event>(
-  runner: EventRunner<EVENT>
-) => runner;
+  log: typeof console.log
+  inputs: ExtractInputsFromEvent<EVENT>
+  setMeta: (callback: (data: EVENT['meta']) => EVENT['meta']) => void
+  meta: EVENT['meta']
+  cwd: string
+}) => Promise<void>
+export const createEventRunner = <EVENT extends Event>(runner: EventRunner<EVENT>) => runner
 
-export type CynNode = Event | Condition | Expression | Action | Loop;
+export type CynNode = Event | Condition | Expression | Action | Loop
 
-export const createDefinition = <T extends MainPluginDefinition>(
-  definition: T
-) => {
-  return definition satisfies T;
-};
+export const createDefinition = <T extends MainPluginDefinition>(definition: T) => {
+  return definition satisfies T
+}
 
-export const createAction = <T extends Omit<Action, "type">>(action: T) => {
+export const createAction = <T extends Omit<Action, 'type'>>(action: T) => {
   return {
     ...action,
-    type: "action",
-  } satisfies Action;
-};
+    type: 'action'
+  } satisfies Action
+}
 
-export const createExpression = <T extends Omit<Expression, "type">>(
-  expression: T
-) => {
+export const createExpression = <T extends Omit<Expression, 'type'>>(expression: T) => {
   return {
     ...expression,
-    type: "expression",
-  } satisfies Expression;
-};
+    type: 'expression'
+  } satisfies Expression
+}
 
-export const createCondition = <T extends Omit<Condition, "type">>(
-  condition: T
-) => {
+export const createCondition = <T extends Omit<Condition, 'type'>>(condition: T) => {
   return {
     ...condition,
-    type: "condition",
-  } satisfies Condition;
-};
+    type: 'condition'
+  } satisfies Condition
+}
 
-export const createLoop = <T extends Omit<Loop, "type">>(loop: T) => {
+export const createLoop = <T extends Omit<Loop, 'type'>>(loop: T) => {
   return {
     ...loop,
-    type: "loop",
-  } satisfies Loop;
-};
+    type: 'loop'
+  } satisfies Loop
+}
 
-export const createEvent = <T extends Omit<Event, "type">>(event: T) => {
+export const createEvent = <T extends Omit<Event, 'type'>>(event: T) => {
   return {
     ...event,
-    type: "event",
-  } satisfies Event;
-};
+    type: 'event'
+  } satisfies Event
+}
 
-export type Runner =
-  | ActionRunner<any>
-  | LoopRunner<any>
-  | EventRunner<any>
-  | ConditionRunner<any>;
+export type Runner = ActionRunner<any> | LoopRunner<any> | EventRunner<any> | ConditionRunner<any>
 
 const a1 = createAction({
-  id: "aaa",
-  name: "AAA",
-  icon: "",
-  displayString: "",
+  id: 'aaa',
+  name: 'AAA',
+  icon: '',
+  displayString: '',
   meta: {},
-  description: "",
+  description: '',
   run: async () => {
     //
   },
   params: {
     aaa: {
-      value: "aaa",
+      value: 'aaa',
       control: {
-        type: "input",
+        type: 'input',
         options: {
-          kind: "text",
-        },
+          kind: 'text'
+        }
       },
-      label: "AAA",
+      label: 'AAA'
     },
     bbb: {
       value: 12,
-      label: "BBB",
+      label: 'BBB',
       control: {
-        type: "input",
+        type: 'input',
         options: {
-          kind: "number",
-        },
-      },
+          kind: 'number'
+        }
+      }
     },
     ccc: {
-      value: ["aaa"],
-      label: "CCC",
+      value: ['aaa'],
+      label: 'CCC',
       control: {
-        type: "select",
+        type: 'select',
         options: {
-          placeholder: "aaa",
+          placeholder: 'aaa',
           options: [
             {
-              label: "AAA",
-              value: "aaa",
-            },
-          ],
-        },
-      },
+              label: 'AAA',
+              value: 'aaa'
+            }
+          ]
+        }
+      }
     },
     ddd: {
-      value: ["a", 12],
-      label: "DDD",
+      value: ['a', 12],
+      label: 'DDD',
       control: {
-        type: "select",
+        type: 'select',
         options: {
-          placeholder: "ddd",
+          placeholder: 'ddd',
           options: [
             {
-              label: "AAA",
-              value: "aaa",
-            },
-          ],
-        },
-      },
-    },
+              label: 'AAA',
+              value: 'aaa'
+            }
+          ]
+        }
+      }
+    }
   },
   outputs: {
     aaa: {
-      value: "string",
-      label: "AAA",
-      validator: (value) => value === "hello" || value == "bye",
+      value: 'string',
+      label: 'AAA',
+      validator: (value) => value === 'hello' || value == 'bye'
     },
     bbb: {
-      label: "BBB",
+      label: 'BBB',
       //   schema: z.number(),
-      value: 12,
+      value: 12
     },
     ccc: {
-      label: "CCC",
+      label: 'CCC',
       //   schema: z.array(z.string()),
-      value: [] as string[],
+      value: [] as string[]
     },
     ddd: {
-      label: "DDD",
-      value: undefined as Array<string | number> | undefined,
-    },
-  },
-});
+      label: 'DDD',
+      value: undefined as Array<string | number> | undefined
+    }
+  }
+})
 
 const sleep = (duration: number) => {
-  return new Promise((resolve) => setTimeout(resolve, duration));
-};
+  return new Promise((resolve) => setTimeout(resolve, duration))
+}

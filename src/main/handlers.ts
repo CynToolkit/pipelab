@@ -72,7 +72,7 @@ export const registerIPCHandlers = () => {
   })
 
   handle('fs:read', async (event, { value, send }) => {
-  const { logger } = useLogger()
+    const { logger } = useLogger()
 
     // logger.info('event', event)
     logger().info('value', value)
@@ -101,7 +101,7 @@ export const registerIPCHandlers = () => {
   })
 
   handle('fs:write', async (event, { value, send }) => {
-  const { logger } = useLogger()
+    const { logger } = useLogger()
     // logger.info('event', event)
     logger().info('value', value)
     logger().info('fs:read')
@@ -117,7 +117,7 @@ export const registerIPCHandlers = () => {
   })
 
   handle('dialog:showSaveDialog', async (event, { value, send }) => {
-  const { logger } = useLogger()
+    const { logger } = useLogger()
 
     // logger.info('event', event)
     logger().info('value', value)
@@ -176,9 +176,13 @@ export const registerIPCHandlers = () => {
   handle('condition:execute', async (_, { value }) => {
     const { nodeId, params, pluginId } = value
 
-    await handleConditionExecute(nodeId, pluginId, params/* , {
+    await handleConditionExecute(
+      nodeId,
+      pluginId,
+      params /* , {
       send,
-    } */)
+    } */
+    )
   })
 
   handle('action:execute', async (event, { send, value }) => {

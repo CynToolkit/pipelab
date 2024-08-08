@@ -13,42 +13,43 @@ vi.mock('node:fs/promises', async () => {
 })
 
 test('adds 1 + 2 to equal 3', async () => {
-    const outputs: Record<string, unknown> = {}
+  const outputs: Record<string, unknown> = {}
 
-    const id = 'ut-electron-build'
-    const tmpDir = join(tmpdir(), id)
+  const id = 'ut-electron-build'
+  const tmpDir = join(tmpdir(), id)
 
-    console.log('tmpDir', tmpDir)
+  console.log('tmpDir', tmpDir)
 
-    const inputFolder = join(process.cwd(), 'fixtures', 'build')
+  const inputFolder = join(process.cwd(), 'fixtures', 'build')
 
-    console.log('inputFolder', inputFolder)
+  console.log('inputFolder', inputFolder)
 
-    await makeRunner({
-        inputs: {
-            "input-folder": inputFolder,
-            arch: undefined,
-            platform: undefined
-        },
-        log: (...args) => {
-            console.log(...args)
-        },
-        setOutput: (key, value) => {
-            outputs[key] = value
-        },
-        meta: {
-            definition: ''
-        },
-        setMeta: () => {
-            console.log('set meta defined here')
-        },
-        cwd: tmpDir,
-        paths: {
-          assets: '',
-          unpack: ''
-        },
-        api: undefined,
-    })
-    console.log('outputs', outputs)
-    expect(true).toBe(true)
+  await makeRunner({
+    inputs: {
+      'input-folder': inputFolder,
+      arch: undefined,
+      platform: undefined
+    },
+    log: (...args) => {
+      console.log(...args)
+    },
+    setOutput: (key, value) => {
+      outputs[key] = value
+    },
+    meta: {
+      definition: ''
+    },
+    setMeta: () => {
+      console.log('set meta defined here')
+    },
+    cwd: tmpDir,
+    paths: {
+      assets: '',
+      unpack: ''
+    },
+    api: undefined,
+    browserWindow: undefined
+  })
+  console.log('outputs', outputs)
+  expect(true).toBe(true)
 }, 120_000)
