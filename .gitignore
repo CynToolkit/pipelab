@@ -97,3 +97,4 @@ sentry.properties
 *.env*
 
 assets/shims
+assets/electron/template/app/src/app

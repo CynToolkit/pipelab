@@ -53,8 +53,9 @@ Tests:
 - Disable step
 - View logs in realtime
 - editor full width (no sidebar)
-✔ ask feedback on the editor (pause, confirm, etc.) @done(24-08-07 07:36)
 - env
+- construct 3 validation url: 402.2 instead of **402-2**
+- electron prepare app bundle: backspace on input doesn't cancel running evaluation resulting in slowdowns
 
 - export Electron ne fonctionne pas
 
