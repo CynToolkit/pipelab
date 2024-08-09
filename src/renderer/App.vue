@@ -305,6 +305,7 @@ const type = ref<'login' | 'register'>('login')
 const isLoading = ref(false)
 
 handle('log:message', async (event, { value, send }) => {
+  // console.log('value._meta', value._meta)
   if (value._meta) {
     const values = Object.entries(value)
       .filter(([key]) => key !== '_meta')

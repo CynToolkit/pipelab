@@ -1,5 +1,5 @@
-const { FusesPlugin } = require('@electron-forge/plugin-fuses');
-const { FuseV1Options, FuseVersion } = require('@electron/fuses');
+const { FusesPlugin } = require('@electron-forge/plugin-fuses')
+const { FuseV1Options, FuseVersion } = require('@electron/fuses')
 
 const CynPlugin = require('./cyn-plugin')
 
@@ -7,21 +7,21 @@ const CynPlugin = require('./cyn-plugin')
  * @type {import('@electron-forge/shared-types').ForgeConfig}
  */
 module.exports = {
-  outDir: "./out",
+  outDir: './out',
   packagerConfig: {
     asar: true,
-    name: "app",
+    name: 'app'
   },
   rebuildConfig: {},
   makers: [
     {
       name: '@electron-forge/maker-squirrel',
-      config: {},
+      config: {}
     },
     {
-      name: '@electron-forge/maker-zip',
+      name: '@electron-forge/maker-zip'
       // platforms: ['darwin'],
-    },
+    }
     // {
     //   name: '@electron-forge/maker-deb',
     //   config: {},
@@ -45,8 +45,8 @@ module.exports = {
       [FuseV1Options.EnableNodeOptionsEnvironmentVariable]: false,
       [FuseV1Options.EnableNodeCliInspectArguments]: false,
       [FuseV1Options.EnableEmbeddedAsarIntegrityValidation]: true,
-      [FuseV1Options.OnlyLoadAppFromAsar]: true,
+      [FuseV1Options.OnlyLoadAppFromAsar]: true
     }),
     new CynPlugin()
-  ],
-};
+  ]
+}
