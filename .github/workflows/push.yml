@@ -29,6 +29,10 @@ jobs:
           node-version: '22.5.1'
           cache: 'pnpm'
 
+      - name: Install setuptools on mac
+        if: matrix.os == 'macos-latest'
+        run: pip install setuptools
+
       - name: Install dependencies
         run: pnpm install
 
