@@ -11,6 +11,9 @@ const getBinName = () => {
   if (platform === 'win32') {
     return `${name}.exe`
   }
+  if (platform === 'darwin') {
+    return `${name}.app/Contents/MacOS/${name}`
+  }
   return name
 }
 
@@ -35,7 +38,6 @@ describe('basic', () => {
     async () => {
       const jsonProject = join(fixtures, 'folder-to-electron.json')
       console.log('jsonProject', jsonProject)
-
 
       try {
         const { exitCode, stdout, stderr } = await execa(
@@ -74,7 +76,6 @@ describe('basic', () => {
     async () => {
       const jsonProject = join(fixtures, 'c3-export.json')
       console.log('jsonProject', jsonProject)
-
 
       try {
         const { exitCode, stdout, stderr } = await execa(
