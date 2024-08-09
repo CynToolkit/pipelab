@@ -13,7 +13,7 @@ jobs:
 
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-latest, windows-latest, macos-latest]
 
     steps:
       - uses: actions/checkout@v4
@@ -75,10 +75,10 @@ jobs:
         with:
           run_install: false
 
-      - name: Use Node.js 22.4
+      - name: Use Node.js 22.5.1
         uses: actions/setup-node@v4
         with:
-          node-version: '22.4'
+          node-version: '22.5.1'
           cache: 'pnpm'
 
       - name: Install dependencies
@@ -88,13 +88,3 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: pnpm electron-forge publish --from-dry-run
-
-    # - name: Release
-    #   uses: softprops/action-gh-release@v2
-    #   with:
-    #     files: |
-    #       artifacts/**/*
-    #     draft: true
-    #     prerelease: true
-    #   env:
-    #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
