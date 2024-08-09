@@ -1,31 +1,31 @@
-import type { ConfigEnv, UserConfig } from 'vite';
-import { defineConfig, loadEnv } from 'vite';
-import { pluginExposeRenderer } from './vite.base.config';
+import type { ConfigEnv, UserConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
+import { pluginExposeRenderer } from './vite.base.config'
 import tsconfigPaths from 'vite-tsconfig-paths'
 import vue from '@vitejs/plugin-vue'
-import Components from 'unplugin-vue-components/vite';
-import { PrimeVueResolver } from '@primevue/auto-import-resolver';
+import Components from 'unplugin-vue-components/vite'
+import { PrimeVueResolver } from '@primevue/auto-import-resolver'
 import vitePluginVueDevtool from 'vite-plugin-vue-devtools'
-import { sentryVitePlugin } from '@sentry/vite-plugin';
+import { sentryVitePlugin } from '@sentry/vite-plugin'
 
 // https://vitejs.dev/config
 export default defineConfig((env) => {
-  const forgeEnv = env as ConfigEnv<'renderer'>;
-  const { root, mode, forgeConfigSelf } = forgeEnv;
-  const name = forgeConfigSelf.name ?? '';
+  const forgeEnv = env as ConfigEnv<'renderer'>
+  const { root, mode, forgeConfigSelf } = forgeEnv
+  const name = forgeConfigSelf.name ?? ''
 
   const environment = loadEnv(env.mode, process.cwd(), '')
+
+  console.log('environment.SUPABASE_URL', environment.SUPABASE_URL)
 
   const plugins = [
     pluginExposeRenderer(name),
     tsconfigPaths(),
     vue(),
     Components({
-      resolvers: [
-        PrimeVueResolver()
-      ]
+      resolvers: [PrimeVueResolver()]
     }),
-    vitePluginVueDevtool(),
+    vitePluginVueDevtool()
     // nodePolyfills(),
   ]
 
@@ -34,9 +34,9 @@ export default defineConfig((env) => {
   if (tag) {
     plugins.push(
       sentryVitePlugin({
-        org: "armaldio",
-        project: "cyn",
-        authToken: environment.SENTRY_AUTH_TOKEN,
+        org: 'armaldio',
+        project: 'cyn',
+        authToken: environment.SENTRY_AUTH_TOKEN
       })
     )
   }
@@ -45,17 +45,22 @@ export default defineConfig((env) => {
     root,
     mode,
     base: './',
+    define: {
+      __SUPABASE_URL__: JSON.stringify(environment.SUPABASE_URL),
+      __SUPABASE_ANON_KEY__: JSON.stringify(environment.SUPABASE_ANON_KEY),
+      __SUPABASE_PROJECT_ID__: JSON.stringify(environment.SUPABASE_PROJECT_ID)
+    },
     build: {
       outDir: `.vite/renderer/${name}`,
-      sourcemap: true,
+      sourcemap: true
     },
     optimizeDeps: {
-      include: ['@codemirror/state', '@codemirror/view'],
+      include: ['@codemirror/state', '@codemirror/view']
     },
     plugins,
     resolve: {
-      preserveSymlinks: true,
+      preserveSymlinks: true
     },
-    clearScreen: false,
-  } as UserConfig;
-});
+    clearScreen: false
+  } as UserConfig
+})
