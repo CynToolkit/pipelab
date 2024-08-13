@@ -4,6 +4,10 @@
     "@changesets/changelog-github",
     { "repo": "CynToolkit/cyn" }
   ],
+  "privatePackages": {
+    "tag": true,
+    "version": true
+  },
   "changelog": "@changesets/changelog-git",
   "commit": false,
   "access": "public",
