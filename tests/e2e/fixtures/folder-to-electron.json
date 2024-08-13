@@ -21,6 +21,7 @@
           "pluginId": "electron"
         },
         "params": {
+          "configuration": "{}",
           "input-folder": "\"./tests/e2e/fixtures/folder-to-electron\""
         }
       }
