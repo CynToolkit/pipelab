@@ -101,6 +101,7 @@
     "zod": "3.23.8"
   },
   "devDependencies": {
+    "@changesets/changelog-github": "0.5.0",
     "@electron-forge/cli": "7.4.0",
     "@electron-forge/maker-deb": "7.4.0",
     "@electron-forge/maker-dmg": "7.4.0",
