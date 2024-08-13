@@ -2,16 +2,14 @@ import { app, BrowserWindow } from 'electron'
 import { join } from 'node:path'
 import serve from 'serve-handler'
 import { createServer } from 'http'
-
-// if (require('electron-squirrel-startup')) {
-//   app.quit()
-// }
+import './custom-main.js'
 
 /**
  *
  * @returns {Promise<number>}
  */
 const createAppServer = () => {
+  // eslint-disable-next-line no-async-promise-executor
   return new Promise(async (resolve) => {
     const dir = app.isPackaged ? join(import.meta.dirname, './app') : './src/app'
 
@@ -44,7 +42,13 @@ const createWindow = async () => {
   await mainWindow.loadURL(`http://localhost:${port}`)
 }
 
+const registerHandlers = async () => {
+  // handlers
+}
+
 app.whenReady().then(async () => {
+  await registerHandlers()
+
   await createWindow()
 
   app.on('activate', async () => {

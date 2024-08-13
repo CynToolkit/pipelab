@@ -51,18 +51,17 @@ https://remixicon.com/
 
 Tests:
 - Disable step
+- Reorder steps
 - View logs in realtime
 - editor full width (no sidebar)
 - env
 - construct 3 validation url: 402.2 instead of **402-2**
 - electron prepare app bundle: backspace on input doesn't cancel running evaluation resulting in slowdowns
-- manage c3 export error: 
-    - missing addon 
+- manage c3 export error:
+    - missing addon
 - handle pipeline error gracefully
-    - restore working ui 
-    - display what happened in dialog 
-- steam upload stuck 
-- handle steamworks 
-- customize electron build 
-- allow running js for electron 
+    - restore working ui
+    - display what happened in dialog
+- steam upload stuck
+- handle steamworks
 

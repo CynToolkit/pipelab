@@ -1,35 +1,51 @@
-import { make, makeRunner } from './make.js'
-import { packageApp, packageRunner } from './package.js'
+import { makeRunner } from './make.js'
+import { packageRunner } from './package.js'
 
 import { createNodeDefinition } from '@cyn/plugin-core'
 import icon from './public/electron.webp'
-
-import { platform } from 'process'
+import { createProps, IDMake, IDPackage } from './forge.js'
+import { configureRunner, props } from './configure.js'
 
 export default createNodeDefinition({
-  description: "Electron",
-  name: "Electron",
-  id: "electron",
+  description: 'Electron',
+  name: 'Electron',
+  id: 'electron',
   icon: {
-    type: "image",
-    image: icon,
+    type: 'image',
+    image: icon
   },
   nodes: [
     // make and package
     {
-      node: make,
-      runner: makeRunner,
+      node: createProps(
+        IDMake,
+        'Create Installer',
+        'Create a distributable installer for your chosen platform',
+        '',
+        "`Build package for ${fmt.param(params['input-folder'], 'primary')}`"
+      ),
+      runner: makeRunner
       // disabled: platform === 'linux' ? 'Electron is not supported on Linux' : undefined
     },
     // package
     {
-      node: packageApp,
-      runner: packageRunner,
+      node: createProps(
+        IDPackage,
+        'Prepare App Bundle',
+        'Gather all necessary files and prepare your app for distribution, creating a platform-specific bundle.',
+        '',
+        "`Package app from ${fmt.param(params['input-folder'], 'primary')}`"
+      ),
+      runner: packageRunner
     },
+    {
+      node: props,
+      runner: configureRunner
+    }
     // make without package
     // {
     //   node: packageApp,
     //   runner: packageRunner,
     // },
-  ],
-});
+  ]
+})
