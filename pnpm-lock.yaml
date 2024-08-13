@@ -12,9 +12,6 @@ importers:
 
   .:
     dependencies:
-      '@changesets/changelog-git':
-        specifier: 0.2.0
-        version: 0.2.0
       '@changesets/cli':
         specifier: 2.27.7
         version: 2.27.7
@@ -205,6 +202,9 @@ importers:
         specifier: 3.23.8
         version: 3.23.8
     devDependencies:
+      '@changesets/changelog-git':
+        specifier: 0.2.0
+        version: 0.2.0
       '@changesets/changelog-github':
         specifier: 0.5.0
         version: 0.5.0(encoding@0.1.13)

@@ -1,9 +1,10 @@
 {
   "$schema": "https://unpkg.com/@changesets/config@3.0.2/schema.json",
-  "changelog": [
+  "_changelog": [
     "@changesets/changelog-github",
     { "repo": "CynToolkit/cyn" }
   ],
+  "changelog": "@changesets/changelog-git",
   "commit": false,
   "access": "public",
   "fixed": [],
