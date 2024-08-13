@@ -5,7 +5,8 @@ export const ID = 'fs:copy'
 export const copy = createAction({
   id: ID,
   name: 'Copy file',
-  displayString: '`Copy ${params.from} to ${params.to}`',
+  displayString:
+    '`Copy ${fmt.param(params.from, "primary")} to ${fmt.param(params.to, "primary")}`',
   params: {
     from: {
       label: 'From',
