@@ -65,3 +65,6 @@ Tests:
 - steam upload stuck
 - handle steamworks
 
+- prepare electron + install package
+- process quickjs in webworker
+- file generation ejs

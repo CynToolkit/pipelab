@@ -19,10 +19,12 @@ export const controlsToType = (control: ControlType) => {
     .with({ type: 'boolean' }, () => 'boolean')
     .with({ type: 'checkbox' }, () => 'boolean')
     .with({ type: 'select' }, () => 'string')
+    .with({ type: 'multi-select' }, () => 'object')
     .with({ type: 'json' }, () => 'object')
     .with({ type: 'expression' }, () => 'string')
     .with({ type: 'array', options: { kind: 'number' } }, () => 'object')
     .with({ type: 'array', options: { kind: 'text' } }, () => 'object')
+    .with({ type: 'electron:configure:v2' }, () => 'object')
     .exhaustive()
 }
 
@@ -35,9 +37,11 @@ export const controlsToIcon = (control: ControlType) => {
     .with({ type: 'boolean' }, () => 'mdi-toggle-switch')
     .with({ type: 'checkbox' }, () => 'mdi-toggle-switch')
     .with({ type: 'select' }, () => 'mdi-alphabetical-variant')
+    .with({ type: 'multi-select' }, () => 'mdi-code-brackets')
     .with({ type: 'json' }, () => 'mdi-code-braces')
     .with({ type: 'expression' }, () => 'mdi-')
     .with({ type: 'array', options: { kind: 'number' } }, () => 'mdi-code-brackets')
     .with({ type: 'array', options: { kind: 'text' } }, () => 'mdi-code-brackets')
+    .with({ type: 'electron:configure:v2' }, () => 'mdi-code-braces')
     .exhaustive()
 }
