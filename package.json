@@ -64,7 +64,6 @@
     "dompurify": "3.1.6",
     "ejs": "3.1.10",
     "electron-squirrel-startup": "1.0.1",
-    "electron-updater": "6.2.1",
     "elkjs": "0.9.3",
     "es-toolkit": "1.13.1",
     "esm": "3.2.25",
