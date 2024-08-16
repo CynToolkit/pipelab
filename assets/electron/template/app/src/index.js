@@ -4,6 +4,13 @@ import serve from 'serve-handler'
 import { createServer } from 'http'
 import './custom-main.js'
 
+<% if (config.enableInProcessGPU) { %>
+app.commandLine.appendSwitch('in-process-gpu')
+<% } %>
+<% if (config.enableDisableRendererBackgrounding) { %>
+app.commandLine.appendSwitch('disable-renderer-backgrounding')
+<% } %>
+
 /**
  *
  * @returns {Promise<number>}
@@ -28,8 +35,13 @@ const createAppServer = () => {
 
 const createWindow = async () => {
   const mainWindow = new BrowserWindow({
-    width: 800,
-    height: 600,
+    width: <%= config.width %>,
+    height: <%= config.height %>,
+    fullscreen: <%= config.fullscreen %>,
+    frame: <%= config.frame %>,
+    transparent: <%= config.transparent %>,
+    toolbar: <%= config.toolbar %>,
+    alwaysOnTop: <%= config.alwaysOnTop %>,
     webPreferences: {
       preload: join(import.meta.dirname, 'preload.js')
     }

@@ -1,11 +1,6 @@
 import { useLogger } from '@@/logger'
 import { isRenderer } from '@@/validation'
-import {
-  newQuickJSWASMModuleFromVariant,
-  newVariant,
-  RELEASE_SYNC,
-  StaticJSValue
-} from 'quickjs-emscripten'
+import { newQuickJSWASMModuleFromVariant, newVariant, RELEASE_SYNC } from 'quickjs-emscripten'
 import { Arena } from 'quickjs-emscripten-sync'
 
 class EvaluationError extends Error {
@@ -47,7 +42,7 @@ export const createQuickJs = async () => {
       },
       fmt: {
         param: (value: string, variant?: 'primary' | 'secondary' | undefined) => {
-          return `<div class=\"param ${variant ? variant : ''}\">${value}</div>`
+          return `<div class="param ${variant ? variant : ''}">${value}</div>`
         }
       },
       ...params
@@ -80,3 +75,6 @@ export const createQuickJs = async () => {
     run
   }
 }
+
+
+export type CreateQuickJSFn = ReturnType<typeof createQuickJs>

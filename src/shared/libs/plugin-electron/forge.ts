@@ -3,6 +3,8 @@ import { ActionRunnerData, createAction, InputsDefinition, runWithLiveLogs } fro
 import type { MakeOptions } from '@electron-forge/core'
 import { ElectronConfiguration } from './model'
 import { writeFile } from 'node:fs/promises'
+import ejs from 'ejs'
+import { merge } from 'ts-deepmerge'
 
 // TODO: https://js.electronforge.io/modules/_electron_forge_core.html
 
@@ -74,7 +76,7 @@ const params = {
   },
   configuration: {
     label: 'Electron configuration',
-    value: {} as ElectronConfiguration,
+    value: {} as Partial<ElectronConfiguration>,
     control: {
       type: 'json'
     }
@@ -155,6 +157,7 @@ export const forge = async (
 
   const templateFolder = join(assets, 'electron', 'template', 'app')
 
+  // copy template to destination
   await cp(templateFolder, destinationFolder, {
     recursive: true,
     filter: (src) => {
@@ -166,15 +169,73 @@ export const forge = async (
 
   const placeAppFolder = join(destinationFolder, 'src', 'app')
 
+  // copy app to template
   await cp(appFolder, placeAppFolder, {
     recursive: true
   })
 
+  const completeConfiguration = merge(inputs.configuration, {
+    alwaysOnTop: false,
+    appBundleId: 'com.cyn.app',
+    appCategoryType: '',
+    appCopyright: 'Copyright © 2024 Cyn',
+    appVersion: '1.0.0',
+    author: 'Cyn',
+    customMainCode: '',
+    description: 'A simple Electron application',
+    electronVersion: '',
+    enableDisableRendererBackgrounding: false,
+    enableInProcessGPU: false,
+    frame: true,
+    fullscreen: false,
+    icon: '',
+    height: 600,
+    name: 'Cyn',
+    toolbar: true,
+    transparent: false,
+    width: 800
+  } satisfies ElectronConfiguration)
+
+  // render forge config
+  ejs.renderFile(
+    join(templateFolder, 'forge.config.cjs'),
+    {
+      config: completeConfiguration
+    },
+    {},
+    (err: Error, str: string) => {
+      writeFile(join(destinationFolder, 'forge.config.cjs'), str, 'utf8')
+    }
+  )
+
+  // index / main
+  ejs.renderFile(
+    join(templateFolder, 'src', 'index.js'),
+    {
+      config: completeConfiguration
+    },
+    {},
+    (err: Error, str: string) => {
+      writeFile(join(destinationFolder, 'src', 'index.js'), str, 'utf8')
+    }
+  )
+
+  // preload
+  ejs.renderFile(
+    join(templateFolder, 'src', 'preload.js'),
+    {
+      config: completeConfiguration
+    },
+    {},
+    (err: Error, str: string) => {
+      writeFile(join(destinationFolder, 'src', 'preload.js'), str, 'utf8')
+    }
+  )
+
+  // copy custom main code
   const destinationFile = join(destinationFolder, 'src', 'custom-main.js')
-  // console.log('inputs.configuration.customMainCode', inputs.configuration.customMainCode)
-  // console.log('destinationFolder', destinationFile)
-  if (inputs.configuration.customMainCode) {
-    await cp(inputs.configuration.customMainCode, destinationFile)
+  if (completeConfiguration.customMainCode) {
+    await cp(completeConfiguration.customMainCode, destinationFile)
   } else {
     await writeFile(destinationFile, 'console.log("No custom main code provided")')
   }
@@ -197,11 +258,11 @@ export const forge = async (
   )
 
   // override electron version
-  if (inputs.configuration.electronVersion && inputs.configuration.electronVersion !== '') {
-    log(`Installing electron@${inputs.configuration.electronVersion}`)
+  if (completeConfiguration.electronVersion && completeConfiguration.electronVersion !== '') {
+    log(`Installing electron@${completeConfiguration.electronVersion}`)
     await runWithLiveLogs(
       process.execPath,
-      [pnpm, 'install', `electron@${inputs.configuration.electronVersion}`],
+      [pnpm, 'install', `electron@${completeConfiguration.electronVersion}`],
       {
         cwd: destinationFolder,
         env: {
@@ -237,7 +298,7 @@ export const forge = async (
 
     if (action === 'package') {
       const outName = outFolderName(
-        'app',
+        completeConfiguration.name,
         finalPlatform as NodeJS.Platform,
         finalArch as NodeJS.Architecture
       )

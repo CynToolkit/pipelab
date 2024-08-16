@@ -41,7 +41,11 @@ export default createNodeDefinition({
     {
       node: props,
       runner: configureRunner
-    }
+    },
+    // {
+    //   node: propsConfigureV2,
+    //   runner: configureV2Runner
+    // }
     // make without package
     // {
     //   node: packageApp,

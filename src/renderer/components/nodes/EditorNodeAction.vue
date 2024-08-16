@@ -1,10 +1,41 @@
 <template>
   <div class="node-action-wrapper">
     <div
+      ref="$node"
       class="node-action"
       :class="{ active: activeNode?.uid === value.uid, error: errors.length > 0 }"
       @click="showSidebar = true"
     >
+      <!--<div v-if="isHovered" class="hover-overlay">
+        <div class="hover-overlay-content">
+          <Button>
+            <template #icon>
+              <i class="mdi mdi-pencil"></i>
+            </template>
+          </Button>
+          <Button>
+            <template #icon>
+              <i class="mdi mdi-trash-can"></i>
+            </template>
+          </Button>
+          <Button>
+            <template #icon>
+              <i class="mdi mdi-content-copy"></i>
+            </template>
+          </Button>
+          <Button>
+            <template #icon>
+              <i class="mdi mdi-arrow-up"></i>
+            </template>
+          </Button>
+          <Button>
+            <template #icon>
+              <i class="mdi mdi-arrow-down"></i>
+            </template>
+          </Button>
+        </div>
+      </div>-->
+
       <div class="vertical">
         <PluginIcon :icon="pluginDefinition?.icon"></PluginIcon>
 
@@ -59,8 +90,8 @@
 import { useEditor } from '@renderer/store/editor'
 import { BlockAction, Steps } from '@@/model'
 import { storeToRefs } from 'pinia'
-import { PropType, computed, ref, toRefs } from 'vue'
-import { computedAsync } from '@vueuse/core'
+import { PropType, computed, ref, shallowRef, toRefs } from 'vue'
+import { watchDebounced } from '@vueuse/core'
 import ParamEditor from './ParamEditor.vue'
 import PluginIcon from './PluginIcon.vue'
 import { Action } from '@cyn/plugin-core'
@@ -69,7 +100,7 @@ import DOMPurify from 'dompurify'
 import { makeResolvedParams } from '@renderer/utils/evaluator'
 import { ValidationError } from '@renderer/models/error'
 import AddNodeButton from '../AddNodeButton.vue'
-import { useLogger } from '@@/logger'
+import { useElementHover } from '@vueuse/core'
 
 const props = defineProps({
   value: {
@@ -94,6 +125,10 @@ const props = defineProps({
 
 const { value, steps } = toRefs(props)
 
+const $node = ref<HTMLDivElement>()
+
+// const isHovered = useElementHover($node)
+
 const editor = useEditor()
 const { getNodeDefinition, setBlockValue, addNode, getPluginDefinition, removeNode } = editor
 const { activeNode } = storeToRefs(editor)
@@ -106,7 +141,6 @@ const pluginDefinition = computed(() => {
   return getPluginDefinition(value.value.origin.pluginId)
 })
 
-const { logger } = useLogger()
 
 const onValueChanged = (newValue: unknown, paramKey: string) => {
   setBlockValue(value.value.uid, {
@@ -118,9 +152,14 @@ const onValueChanged = (newValue: unknown, paramKey: string) => {
   })
 }
 
-const resolvedParams = computedAsync(
+// @ts-expect-error tsconfig
+const vm = await createQuickJs()
+
+const resolvedParams = shallowRef<Record<string, string>>({})
+watchDebounced(
+  [value, steps],
   async () => {
-    return makeResolvedParams(
+    resolvedParams.value = await makeResolvedParams(
       {
         params: value.value.params,
         steps: steps.value,
@@ -134,21 +173,21 @@ const resolvedParams = computedAsync(
 
         // return `<div class=\"param\">${cleanOutput}</div>`
         return item
-      }
+      },
+      vm
     )
   },
-  {},
   {
-    onError: (error) => {
-      logger().error('error', error)
-    }
+    debounce: 500,
+    immediate: true,
+    maxWait: 1000
   }
 )
 
-// @ts-expect-error tsconfig
-const vm = await createQuickJs()
+const subtitle = ref('')
 
-const subtitle = computedAsync(
+watchDebounced(
+  [resolvedParams, steps],
   async () => {
     const displayString = nodeDefinition.value?.displayString ?? ''
     const result = await vm.run(displayString, {
@@ -156,13 +195,12 @@ const subtitle = computedAsync(
       steps: steps.value
     })
     const clean = DOMPurify.sanitize(result)
-    return clean
+    subtitle.value = clean
   },
-  'Loading...',
   {
-    onError: (error) => {
-      logger().error('error', error)
-    }
+    debounce: 500,
+    immediate: true,
+    maxWait: 1000
   }
 )
 
@@ -223,6 +261,25 @@ const showSidebar = ref(false)
       align-items: center;
       gap: 2px;
     }
+  }
+}
+
+.hover-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 10;
+
+  .hover-overlay-content {
+    display: flex;
+    flex-direction: row;
+    gap: 8px;
   }
 }
 </style>

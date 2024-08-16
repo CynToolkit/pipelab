@@ -1,8 +1,6 @@
 import { Steps } from '@@/model'
-import { createQuickJs } from './quickjs'
-import DOMPurify from 'dompurify'
+import { createQuickJs, CreateQuickJSFn } from './quickjs'
 import { Variable } from '@cyn/core'
-import { fmt } from './fmt'
 import { useLogger } from '@@/logger'
 
 export const makeResolvedParams = async (
@@ -12,10 +10,11 @@ export const makeResolvedParams = async (
     variables: Array<Variable>
     context: Record<string, unknown>
   },
-  onItem: (item: any) => string = (item: any) => item
+  onItem: (item: any) => string = (item: any) => item,
+  _vm?: Awaited<CreateQuickJSFn> | undefined
 ) => {
   const { logger } = useLogger()
-  const vm = await createQuickJs()
+  const vm = _vm ?? (await createQuickJs())
 
   const result: Record<string, string> = {}
 

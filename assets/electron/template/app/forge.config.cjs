@@ -10,34 +10,37 @@ module.exports = {
   outDir: './out',
   packagerConfig: {
     asar: true,
-    name: 'app'
+    name: '<%= config.name %>',
+    appBundleId: '<%= config.appBundleId %>',
+    appCopyright: '<%= config.appCopyright %>',
+    appVersion: '<%= config.appVersion %>',
+    // icon: './assets/icon', // file extension is ommited (auto completed by platform: darwin: icns, linux, win32)
+    win32metadata: {
+      CompanyName: '<%= config.author %>',
+      FileDescription: '<%= config.description %>'
+    },
+    appCategoryType: '<%= config.appCategoryType %>',
+    icon: '<%= config.icon %>'
   },
   rebuildConfig: {},
   makers: [
+    {
+      name: '@electron-forge/maker-dmg',
+      config: {}
+    },
     {
       name: '@electron-forge/maker-squirrel',
       config: {}
     },
     {
       name: '@electron-forge/maker-zip'
-      // platforms: ['darwin'],
     }
-    // {
-    //   name: '@electron-forge/maker-deb',
-    //   config: {},
-    // },
-    // {
-    //   name: '@electron-forge/maker-rpm',
-    //   config: {},
-    // },
   ],
   plugins: [
-    // {
-    //   name: '@electron-forge/plugin-auto-unpack-natives',
-    //   config: {},
-    // },
-    // Fuses are used to enable/disable various Electron functionality
-    // at package time, before code signing the application
+    {
+      name: '@electron-forge/plugin-auto-unpack-natives',
+      config: {}
+    },
     new FusesPlugin({
       version: FuseVersion.V1,
       [FuseV1Options.RunAsNode]: false,

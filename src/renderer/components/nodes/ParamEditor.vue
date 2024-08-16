@@ -12,6 +12,13 @@
             >
               *</span
             >
+            <Chip
+              v-for="platform in paramDefinition.platforms"
+              :key="platform"
+              class="platform"
+              :label="platform"
+            >
+            </Chip>
           </label>
 
           <div class="infos">
@@ -92,6 +99,19 @@
                     {{ paramDefinition.control.label ?? 'Browse path' }}
                   </Button>
                 </div>
+                <div
+                  v-if="paramDefinition.control.type === 'electron:configure:v2'"
+                  class="electron:configure:v2"
+                >
+                  <div class="body">
+                    <div class="label">Electron version</div>
+                    <InputText />
+                    <div class="label">Custom main code</div>
+                    <InputText />
+                    <div class="label">Enable steam support</div>
+                    <Checkbox />
+                  </div>
+                </div>
                 <div v-if="paramDefinition.control.type === 'select'" class="select">
                   <Listbox
                     :model-value="param"
@@ -100,6 +120,17 @@
                     option-label="label"
                     class="w-full md:w-56"
                     @change="onParamSelectChange"
+                  />
+                </div>
+                <div v-if="paramDefinition.control.type === 'multi-select'" class="multi-select">
+                  <Listbox
+                    :model-value="param"
+                    :options="paramDefinition.control.options.options"
+                    filter
+                    multiple
+                    option-label="label"
+                    class="w-full md:w-56"
+                    @change="onParamMultiSelectChange"
                   />
                 </div>
               </div>
@@ -112,7 +143,11 @@
                     <div class="step-name">{{ getStepLabel(stepUid) }}</div>
 
                     <div class="step-outputs">
-                      <div v-for="(_output, outputKey) in step.outputs" class="step-output">
+                      <div
+                        v-for="(_output, outputKey) in step.outputs"
+                        :key="outputKey"
+                        class="step-output"
+                      >
                         <div
                           class="step"
                           @click="insertEditorEnd(`steps['${stepUid}']['outputs']['${outputKey}']`)"
@@ -151,22 +186,14 @@ import { createCodeEditor } from '@renderer/utils/code-editor'
 import { createQuickJs } from '@renderer/utils/quickjs'
 import { watchDebounced } from '@vueuse/core'
 import { BlockAction, BlockCondition, BlockEvent, BlockLoop, Steps } from '@@/model'
-import DOMPurify from 'dompurify'
 import { controlsToIcon, controlsToType } from '@renderer/models/controls'
 import { Completion, CompletionContext } from '@codemirror/autocomplete'
 import { javascriptLanguage } from '@codemirror/lang-javascript'
 import vTooltip from 'primevue/tooltip'
 import { syntaxTree } from '@codemirror/language'
 import { linter, Diagnostic } from '@codemirror/lint'
-import {
-  arrow,
-  autoPlacement,
-  autoUpdate,
-  flip,
-  offset,
-  shift,
-  useFloating
-} from '@floating-ui/vue'
+import { debounce } from 'es-toolkit'
+import { arrow, autoUpdate, flip, offset, shift, useFloating } from '@floating-ui/vue'
 import { vOnClickOutside } from '@vueuse/components'
 import { useEditor } from '@renderer/store/editor'
 import { storeToRefs } from 'pinia'
@@ -200,10 +227,10 @@ const props = defineProps({
   }
 })
 
-const { param, paramKey, paramDefinition, steps, value } = toRefs(props)
+const { param, paramKey, paramDefinition, steps } = toRefs(props)
 
 const editor = useEditor()
-const { getNodeDefinition, setBlockValue, addNode, getPluginDefinition } = editor
+const { getNodeDefinition } = editor
 const { nodes } = storeToRefs(editor)
 
 const emit = defineEmits<{
@@ -292,17 +319,17 @@ const { floatingStyles, middlewareData } = useFloating($codeEditorText, $floatin
   whileElementsMounted: autoUpdate
 })
 
-const debounce = <T extends (...args: any[]) => void>(
-  func: T,
-  delay: number
-): ((...args: Parameters<T>) => void) => {
-  let timeoutId: ReturnType<typeof setTimeout>
+// const debounce = <T extends (...args: any[]) => void>(
+//   func: T,
+//   delay: number
+// ): ((...args: Parameters<T>) => void) => {
+//   let timeoutId: ReturnType<typeof setTimeout>
 
-  return (...args: Parameters<T>): void => {
-    clearTimeout(timeoutId)
-    timeoutId = setTimeout(() => func(...args), delay)
-  }
-}
+//   return (...args: Parameters<T>): void => {
+//     clearTimeout(timeoutId)
+//     timeoutId = setTimeout(() => func(...args), delay)
+//   }
+// }
 
 const resolveHintTextResult = (result: unknown) => {
   if (paramDefinition.value.control.type === 'select') {
@@ -377,9 +404,11 @@ const onValueChanged = (newValue: string, paramKey: string) => {
   emit('update:modelValue', newValue)
 }
 
-onCodeEditorTextUpdate((value) => {
-  onValueChanged(value, paramKey.value.toString())
-})
+onCodeEditorTextUpdate(
+  debounce((value) => {
+    onValueChanged(value, paramKey.value.toString())
+  }, 300)
+)
 
 const getOutputLabel = (stepUid: string, key: string) => {
   const nodeOrigin = nodes.value.find((n) => n.uid === stepUid)?.origin
@@ -454,6 +483,14 @@ const expectedTooltip = computed(() => {
 
 const onParamSelectChange = (event: ListboxChangeEvent) => {
   insertEditorEnd(`"${event.value.value}"`)
+}
+
+const onParamMultiSelectChange = (
+  event: Omit<ListboxChangeEvent, 'value'> & { value: { label: string; value: string }[] }
+) => {
+  const data = event.value.map((v) => v.value)
+
+  insertEditorEnd(`${JSON.stringify(data)}`)
 }
 </script>
 

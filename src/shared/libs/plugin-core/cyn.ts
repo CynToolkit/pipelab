@@ -139,10 +139,16 @@ export interface CynSelectOption {
 export interface ControlTypeSelect extends ControlTypeBase {
   type: 'select'
   options: {
-    // value: string;
     options: Array<CynSelectOption>
     placeholder: string
-    // onChange: (value: string) => void;
+  }
+}
+
+export interface ControlTypeMultiSelect extends ControlTypeBase {
+  type: 'multi-select'
+  options: {
+    options: Array<CynSelectOption>
+    placeholder: string
   }
 }
 
@@ -183,15 +189,21 @@ export interface ControlTypeArray extends ControlTypeBase {
   }
 }
 
+export interface ControlTypeElectronConfigureV2 extends ControlTypeBase {
+  type: 'electron:configure:v2'
+}
+
 export type ControlType =
   | ControlTypeInput
   | ControlTypeSelect
+  | ControlTypeMultiSelect
   | ControlTypeBoolean
   | ControlTypeCheckbox
   | ControlTypePath
   | ControlTypeJSON
   | ControlTypeExpression
   | ControlTypeArray
+  | ControlTypeElectronConfigureV2
 
 export type InputDefinition = {
   label: string
@@ -311,6 +323,7 @@ export interface Action {
   params: InputsDefinition
   meta: Meta
   outputs: OutputsDefinition
+  platforms?: NodeJS.Platform[]
 }
 
 export type ExtractInputsFromAction<ACTION extends Action> = {
