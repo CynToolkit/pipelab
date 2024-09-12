@@ -1,7 +1,10 @@
-import { createAction, createActionRunner } from '@cyn/plugin-core'
+import { createAction, createActionRunner, runWithLiveLogs } from '@cyn/plugin-core'
 
-export const FLOW_INPUT_ID = 'steam-flow-input'
-export const FLOW_OUTPUT_ID = 'steam-flow-output'
+// https://github.com/ztgasdf/steampkg?tab=readme-ov-file#account-management
+
+// How to login
+// Do it at least once
+// sdk/tools/ContentBuilder/builder_linux/steamcmd.sh +login User +quit
 
 export const ID = 'steam-upload'
 
@@ -82,7 +85,6 @@ export const uploadToSteamRunner = createActionRunner<typeof uploadToSteam>(
     const { join, dirname } = await import('path')
     const { platform } = await import('os')
     const { chmod, mkdir, writeFile } = await import('fs/promises')
-    const { execa } = await import('execa')
 
     log('uploading to steam')
     const { folder, appId, sdk, depotId, username, description } = inputs
@@ -131,21 +133,50 @@ export const uploadToSteamRunner = createActionRunner<typeof uploadToSteam>(
       builderFolder += '_osx'
     }
 
-    let cmd = 'steamcmd'
+    const cmd = 'steamcmd'
+    let cmdFinal = 'steamcmd'
     if (platform() === 'linux') {
-      cmd += '.sh'
+      cmdFinal += '.sh'
     } else if (platform() === 'darwin') {
-      cmd += '.sh'
+      cmdFinal += '.sh'
     } else if (platform() === 'win32') {
-      cmd += '.exe'
+      cmdFinal += '.exe'
     }
 
-    const steamcmdPath = join(sdk, 'tools', 'ContentBuilder', builderFolder, cmd)
+    const steamcmdPath = join(sdk, 'tools', 'ContentBuilder', builderFolder, cmdFinal)
 
     log('steamcmdPath', steamcmdPath)
 
     if (platform() === 'linux' || platform() === 'darwin') {
-      log('Adding "execute" permissions')
+      if (platform() === 'linux') {
+        log('Adding "execute" permissions to linux binary')
+        const steamcmdBinaryPath = join(
+          sdk,
+          'tools',
+          'ContentBuilder',
+          builderFolder,
+          'linux32',
+          cmd
+        )
+        await chmod(steamcmdBinaryPath, 0o755)
+        const steamcmdBinaryErrorReporterPath = join(
+          sdk,
+          'tools',
+          'ContentBuilder',
+          builderFolder,
+          'linux32',
+          'steamerrorreporter'
+        )
+        await chmod(steamcmdBinaryErrorReporterPath, 0o755)
+      }
+
+      if (platform() === 'darwin') {
+        const steamcmdBinaryPath = join(sdk, 'tools', 'ContentBuilder', builderFolder, cmd)
+        log('Adding "execute" permissions to darwin binary')
+        await chmod(steamcmdBinaryPath, 0o755)
+      }
+
+      log('Adding "execute" permissions to binary')
       await chmod(steamcmdPath, 0o755)
     }
 
@@ -153,10 +184,27 @@ export const uploadToSteamRunner = createActionRunner<typeof uploadToSteam>(
     await writeFile(scriptPath, script, 'utf8')
 
     log('Executing steamcmd')
-    await execa(steamcmdPath, ['+login', username, '+run_app_build', scriptPath, '+quit'], {
-      stdout: 'inherit',
-      stderr: 'inherit'
-    })
+
+    await runWithLiveLogs(
+      steamcmdPath,
+      ['+login', username + '1', '+run_app_build', scriptPath, '+quit'],
+      {},
+      log,
+      {
+        onStdout: (data, subprocess) => {
+          log('data stdout', data)
+          if (data.includes('Cached credentials not found')) {
+            log('You are not logged in to Steam')
+            subprocess.kill()
+          }
+        }
+      }
+    )
+    // // must keep that to not be interactive
+    // await execa(steamcmdPath, ['+login', username, '+run_app_build', scriptPath, '+quit'], {
+    //   stdout: 'inherit',
+    //   stderr: 'inherit'
+    // })
     log('Done uploading')
   }
 )
