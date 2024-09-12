@@ -59,7 +59,7 @@ export const script = async (
 
   log('Waiting for progress dialog')
   await progressDialog.waitFor({
-    timeout: 0,
+    timeout: 0
   })
   log('Got loading progress dialog')
 
@@ -109,9 +109,10 @@ export const script = async (
   log('Waiting for progress dialog to disapear')
   await progressDialog.waitFor({
     state: 'detached',
-    timeout: 0,
+    timeout: 0
   })
   log('Got progress dialog to disapear')
+  clearTimeout(progressInterval)
 
   if (username && password) {
     log('Authenticating')
@@ -160,8 +161,6 @@ export const script = async (
   const finalPath = join(downloadDir, download.suggestedFilename())
   await download.saveAs(finalPath)
   log('File Downloaded')
-
-  clearTimeout(progressInterval)
 
   await page.close()
   return finalPath
