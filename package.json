@@ -32,6 +32,7 @@
     "package": "electron-forge package",
     "make": "electron-forge make",
     "publish": "electron-forge publish",
+    "make-dev-prerelease": "pnpm version prerelease --preid=dev",
     "supa:types": "supabase gen types typescript --project-id $VITE_SUPABASE_PROJECT_ID > src/shared/database.types.ts"
   },
   "dependencies": {
