@@ -1,11 +1,11 @@
-import { makeResolvedParams } from "@renderer/utils/evaluator"
-import { Steps } from "@@/model"
-import { Variable } from "./libs/core"
-import { RendererPluginDefinition } from "./libs/plugin-core"
-import { Block } from "./model"
-import { Context } from "@renderer/store/editor"
-import { End } from "./apis"
-import { useLogger } from "./logger"
+import { makeResolvedParams } from '@renderer/utils/evaluator'
+import { Steps } from '@@/model'
+import { Variable } from './libs/core-app'
+import { RendererPluginDefinition } from './libs/plugin-core'
+import { Block } from './model'
+import { Context } from '@renderer/store/editor'
+import { End } from './apis'
+import { useLogger } from './logger'
 
 export const processGraph = async (options: {
   graph: Array<Block>
@@ -16,7 +16,11 @@ export const processGraph = async (options: {
   steps: Steps
   // context like loopindex
   context: Context
-  onExecuteItem: (node: Block, params: Record<string, unknown>, steps: Steps) => Promise<End<'condition:execute'> | End<'action:execute'>>
+  onExecuteItem: (
+    node: Block,
+    params: Record<string, unknown>,
+    steps: Steps
+  ) => Promise<End<'condition:execute'> | End<'action:execute'>>
   onNodeEnter: (node: Block) => void
   onNodeExit: (node: Block) => void
 }) => {
@@ -70,10 +74,14 @@ export const processGraph = async (options: {
         params: rawNode.params,
         variables: options.variables,
         steps: options.steps,
-        context: options.context,
+        context: options.context
       })
 
-      const result = await options.onExecuteItem(node, newParams, options.steps) as End<'action:execute'>
+      const result = (await options.onExecuteItem(
+        node,
+        newParams,
+        options.steps
+      )) as End<'action:execute'>
 
       if ('result' in result) {
         logger().error(result.result)
@@ -125,11 +133,10 @@ export const processGraph = async (options: {
       // pass
       options.onNodeExit(rawNode)
     } else {
-      logger().error("Unknown node type", rawNode.type)
+      logger().error('Unknown node type', rawNode.type)
     }
 
     logger().info('steps', options.steps)
-
   }
   return options
 }

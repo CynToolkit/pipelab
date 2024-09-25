@@ -59,6 +59,7 @@
     "@vueuse/components": "10.11.0",
     "@vueuse/core": "10.11.0",
     "@vueuse/router": "10.11.0",
+    "@cyn/core": "1.0.0",
     "archiver": "7.0.1",
     "code-tag": "1.2.0",
     "d3-shape": "3.2.0",

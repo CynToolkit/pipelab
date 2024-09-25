@@ -9,7 +9,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
       console.error('IPC invocation error:', error)
       throw error
     }
-  }
+  },
+  isElectron: () => true
 })
+
+contextBridge.exposeInMainWorld('isElectron', true)
 
 console.log('Preload script loaded')

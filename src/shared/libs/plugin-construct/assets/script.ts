@@ -77,7 +77,9 @@ export const script = async (
       timeout: 0
     })
     .then(async () => {
-      await notNowBtn.click()
+      return notNowBtn.click()
+    })
+    .then(() => {
       log('notNowBtn clicked')
     })
     .catch(async () => {
