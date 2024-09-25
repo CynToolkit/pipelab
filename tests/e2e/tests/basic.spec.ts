@@ -61,6 +61,11 @@ describe('basic', () => {
             }
           }
         })
+
+        const output = result.steps['electron-package-node'].outputs.output
+        const outputRun = await execa(join(output, binName), [])
+
+        expect(outputRun.exitCode).toBe(0)
       } catch (e) {
         console.log('e', e)
         throw e

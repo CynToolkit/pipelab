@@ -1,4 +1,4 @@
-import { Variable } from '@cyn/core'
+import { Variable } from '@cyn/core-app'
 import { WithId } from './utils'
 import { SaveLocation } from './save-location'
 import { Simplify } from 'type-fest'

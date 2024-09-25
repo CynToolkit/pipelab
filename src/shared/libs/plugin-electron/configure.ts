@@ -213,6 +213,8 @@ export const props = createAction({
       }
     },
 
+    // Flags
+
     enableInProcessGPU: {
       required: false,
       label: 'Enable in-process GPU',
@@ -227,6 +229,19 @@ export const props = createAction({
       value: false,
       control: {
         type: 'boolean'
+      }
+    },
+
+    // websocket api
+    websocketApi: {
+      required: false,
+      label: 'WebSocket APIs to allow (empty = all)',
+      value: [],
+      control: {
+        type: 'array',
+        options: {
+          kind: 'text'
+        }
       }
     },
 

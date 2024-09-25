@@ -1,6 +1,6 @@
 import { Steps } from '@@/model'
 import { createQuickJs, CreateQuickJSFn } from './quickjs'
-import { Variable } from '@cyn/core'
+import { Variable } from '@cyn/core-app'
 import { useLogger } from '@@/logger'
 
 export const makeResolvedParams = async (

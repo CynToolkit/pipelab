@@ -174,27 +174,32 @@ export const forge = async (
     recursive: true
   })
 
-  const completeConfiguration = merge(inputs.configuration, {
-    alwaysOnTop: false,
-    appBundleId: 'com.cyn.app',
-    appCategoryType: '',
-    appCopyright: 'Copyright © 2024 Cyn',
-    appVersion: '1.0.0',
-    author: 'Cyn',
-    customMainCode: '',
-    description: 'A simple Electron application',
-    electronVersion: '',
-    enableDisableRendererBackgrounding: false,
-    enableInProcessGPU: false,
-    frame: true,
-    fullscreen: false,
-    icon: '',
-    height: 600,
-    name: 'Cyn',
-    toolbar: true,
-    transparent: false,
-    width: 800
-  } satisfies ElectronConfiguration)
+  const completeConfiguration = merge(
+    {
+      alwaysOnTop: false,
+      appBundleId: 'com.cyn.app',
+      appCategoryType: '',
+      appCopyright: 'Copyright © 2024 Cyn',
+      appVersion: '1.0.0',
+      author: 'Cyn',
+      customMainCode: '',
+      description: 'A simple Electron application',
+      electronVersion: '',
+      enableDisableRendererBackgrounding: false,
+      enableInProcessGPU: false,
+      frame: true,
+      fullscreen: false,
+      icon: '',
+      height: 600,
+      name: 'Cyn',
+      toolbar: true,
+      transparent: false,
+      width: 800
+    } satisfies ElectronConfiguration,
+    inputs.configuration
+  )
+
+  log('completeConfiguration', completeConfiguration)
 
   // render forge config
   ejs.renderFile(
@@ -245,7 +250,7 @@ export const forge = async (
   log('Installing packages')
   await runWithLiveLogs(
     process.execPath,
-    [pnpm, 'install'],
+    [pnpm, 'install', '--prefer-offline'],
     {
       cwd: destinationFolder,
       env: {
@@ -262,7 +267,7 @@ export const forge = async (
     log(`Installing electron@${completeConfiguration.electronVersion}`)
     await runWithLiveLogs(
       process.execPath,
-      [pnpm, 'install', `electron@${completeConfiguration.electronVersion}`],
+      [pnpm, 'install', `electron@${completeConfiguration.electronVersion}`, '--prefer-offline'],
       {
         cwd: destinationFolder,
         env: {

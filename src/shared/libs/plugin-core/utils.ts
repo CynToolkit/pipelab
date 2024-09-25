@@ -1,39 +1,50 @@
-import { Options } from "execa";
+import { Options, Subprocess } from 'execa'
 
 export const runWithLiveLogs = async (
   command: string,
   args: string[],
   execaOptions: Options,
   log: typeof console.log,
+  hooks?: {
+    onStdout?: (data: string, subprocess: Subprocess) => void
+    onStderr?: (data: string, subprocess: Subprocess) => void
+    onExit?: (code: number) => void
+  }
 ): Promise<void> => {
-  const { execa } = await import("execa");
+  const { execa } = await import('execa')
   return new Promise((resolve, reject) => {
     log('runWithLiveLogs', command, args, execaOptions)
+    log('command: ', command, args.join(' '))
 
     const subprocess = execa(command, args, {
       ...execaOptions,
-      stdout: "pipe",
-      stderr: "pipe",
-    });
+      stdout: 'pipe',
+      stderr: 'pipe',
+      stdin: 'pipe',
+    })
 
-    subprocess.stdout.on("data", (data: Buffer) => {
-      log(data.toString());
-    });
+    subprocess.stdout.on('data', (data: Buffer) => {
+      log(data.toString())
+      hooks?.onStdout?.(data.toString(), subprocess)
+    })
 
-    subprocess.stderr?.on("data", (data: Buffer) => {
-      log(data.toString());
-    });
+    subprocess.stderr?.on('data', (data: Buffer) => {
+      log(data.toString())
+      hooks?.onStderr?.(data.toString(), subprocess)
+    })
 
-    subprocess.on("error", (error: Error) => {
-      reject(error);
-    });
+    subprocess.on('error', (error: Error) => {
+      return reject(error)
+    })
 
-    subprocess.on("exit", (code: number) => {
+    subprocess.on('exit', (code: number) => {
+      hooks?.onExit?.(code)
+
       if (code === 0) {
-        resolve();
+        return resolve()
       } else {
-        reject(new Error(`Command exited with non-zero code: ${code}`));
+        return reject(new Error(`Command exited with non-zero code: ${code}`))
       }
-    });
-  });
-};
+    })
+  })
+}

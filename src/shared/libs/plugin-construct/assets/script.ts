@@ -1,6 +1,25 @@
 import { Page } from 'playwright'
 import { join } from 'node:path'
 
+const registerInstallButtonListener = (page: Page, log: typeof console.log) => {
+  // as soon as it appear, without blocking flow
+  // accept installing plugins
+  const installDialog = page.locator('#addonConfirmInstallDialog')
+  const installBtn = installDialog.locator('.okButton')
+  installBtn
+    .waitFor({
+      timeout: 0
+    })
+    .then(async () => {
+      await installBtn.click()
+      log('installBtn clicked')
+      registerInstallButtonListener(page, log)
+    })
+    .catch(async () => {
+      log('installBtn.click() failed')
+    })
+}
+
 export const script = async (
   page: Page,
   log: typeof console.log,
@@ -24,7 +43,7 @@ export const script = async (
 
   const [fileChooser] = await Promise.all([
     page.waitForEvent('filechooser'),
-    page.keyboard.press('Control+O')
+    page.keyboard.press('ControlOrMeta+O')
   ])
 
   await fileChooser.setFiles([filePath])
@@ -34,34 +53,68 @@ export const script = async (
   //   timeout: 1000
   // });
 
+  const progressDialog = page.locator('#progressDialog')
+  // <progress class="progressBar" value="0.293996941070648" max="1"></progress>
+  const progessBar = progressDialog.locator('.progressBar')
+
+  log('Waiting for progress dialog')
+  await progressDialog.waitFor({
+    timeout: 0
+  })
+  log('Got loading progress dialog')
+
+  const progressInterval = setInterval(async () => {
+    const text = await progessBar.getAttribute('value')
+    const textAsNumber = parseFloat(text)
+    log('progress', `${textAsNumber * 100}%`)
+  }, 500)
+
   // as soon as it appear, without blocking flow
   // ignore asking for update
   const notNowBtn = page.getByText('Not now')
   notNowBtn
-    .waitFor()
+    .waitFor({
+      timeout: 0
+    })
     .then(async () => {
-      notNowBtn.click()
+      return notNowBtn.click()
+    })
+    .then(() => {
+      log('notNowBtn clicked')
     })
     .catch(async () => {
       log('notNowBtn.click() failed')
     })
+
+  registerInstallButtonListener(page, log)
 
   // as soon as it appear, without blocking flow
   // ignore webgl error
   const okDialog = page.locator('#okDialog')
   const webglErrorButton = okDialog.locator('.okButton')
   webglErrorButton
-    .waitFor()
+    .waitFor({
+      timeout: 0
+    })
     .then(async () => {
       const text = await okDialog.allInnerTexts()
 
       if (text.join().toLowerCase().includes('webgl')) {
         webglErrorButton.click()
+        log('webglErrorButton clicked')
       }
     })
     .catch(async () => {
       log('webglErrorButton.click() failed')
     })
+
+  log('Waiting for progress dialog to disapear')
+  await progressDialog.waitFor({
+    state: 'detached',
+    timeout: 0
+  })
+  log('Got progress dialog to disapear')
+  clearTimeout(progressInterval)
 
   if (username && password) {
     log('Authenticating')

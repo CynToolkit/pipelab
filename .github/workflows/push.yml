@@ -11,6 +11,8 @@ on:
 jobs:
   build-and-test:
     runs-on: ${{ matrix.os }}
+    env:
+      CI: true
 
     strategy:
       matrix:
@@ -51,6 +53,12 @@ jobs:
         continue-on-error: ${{ matrix.os == 'macos-latest' }}
         with:
           run: pnpm test:e2e:raw
+
+      - name: Upload Playwright artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.os }}-playwright
+          path: playwright/**/*
 
       - name: Upload artifacts
         if: success()

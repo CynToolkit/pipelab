@@ -13,6 +13,7 @@
     "lint": "echo \"No linting configured\""
   },
   "devDependencies": {
+    "@cyn/core": "1.0.0",
     "@electron-forge/cli": "7.4.0",
     "@electron-forge/maker-deb": "7.4.0",
     "@electron-forge/maker-dmg": "^7.4.0",
@@ -22,7 +23,7 @@
     "@electron-forge/plugin-auto-unpack-natives": "7.4.0",
     "@electron-forge/plugin-fuses": "7.4.0",
     "@electron/fuses": "1.8.0",
-    "electron": "31.3.1"
+    "electron": "32.1.2"
   },
   "keywords": [],
   "author": {
@@ -32,9 +33,11 @@
   "license": "MIT",
   "dependencies": {
     "@electron-forge/plugin-base": "7.4.0",
-    "@electron/asar": "3.2.10",
-    "electron-serve": "^2.0.0",
+    "@electron/asar": "3.2.13",
+    "electron-serve": "^2.1.1",
     "electron-squirrel-startup": "1.0.1",
-    "serve-handler": "^6.1.5"
+    "execa": "^9.4.0",
+    "serve-handler": "^6.1.5",
+    "ws": "^8.18.0"
   }
 }

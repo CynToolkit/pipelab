@@ -9,7 +9,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
       console.error('IPC invocation error:', error)
       throw error
     }
+  },
+  isElectron: () => true,
+  exit: (code) => {
+    ipcRenderer.send('exit', code)
   }
 })
+
+contextBridge.exposeInMainWorld('isElectron', true)
 
 console.log('Preload script loaded')

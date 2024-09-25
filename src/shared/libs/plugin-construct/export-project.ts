@@ -1,5 +1,6 @@
 import { ExtractInputsFromAction, createAction, createActionRunner } from '@cyn/plugin-core'
 import { exportc3p, sharedParams } from './export-shared.js'
+import { throttle } from 'es-toolkit'
 
 export const ID = 'export-construct-project-folder'
 
@@ -36,7 +37,7 @@ export const exportProjectAction = createAction({
 const zipFolder = async (from: string, to: string, log: typeof console.log) => {
   const archiver = await import('archiver')
 
-  const { createWriteStream, createReadStream } = await import('node:fs')
+  const { createWriteStream } = await import('node:fs')
 
   const output = createWriteStream(to)
   // const input = createReadStream(from);
@@ -45,6 +46,7 @@ const zipFolder = async (from: string, to: string, log: typeof console.log) => {
     zlib: { level: 9 } // Sets the compression level.
   })
 
+  // eslint-disable-next-line no-async-promise-executor
   return new Promise<string>(async (resolve, reject) => {
     // listen for all archive data to be written
     // 'close' event is fired only when a file descriptor is involved
@@ -61,8 +63,12 @@ const zipFolder = async (from: string, to: string, log: typeof console.log) => {
       log('Data has been drained')
     })
 
+    const trottledLog = throttle((text: string) => {
+      log(text)
+    }, 500)
+
     archive.on('progress', (progress: any) => {
-      log(`Progress: ${progress.entries.processed} / ${progress.entries.total} files`)
+      trottledLog(`Progress: ${progress.entries.processed} / ${progress.entries.total} files`)
     })
 
     // archive.on("entry", (entry) => {

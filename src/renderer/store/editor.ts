@@ -21,7 +21,7 @@ import {
   InputDefinition,
   RendererNodeDefinition
 } from '@cyn/plugin-core'
-import { Variable } from '@cyn/core'
+import { Variable } from '@cyn/core-app'
 import { defineStore, storeToRefs } from 'pinia'
 import get from 'get-value'
 import set from 'set-value'
