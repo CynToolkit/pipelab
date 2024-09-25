@@ -43,7 +43,7 @@ export const script = async (
 
   const [fileChooser] = await Promise.all([
     page.waitForEvent('filechooser'),
-    page.keyboard.press('Control+O')
+    page.keyboard.press('ControlOrMeta+O')
   ])
 
   await fileChooser.setFiles([filePath])
