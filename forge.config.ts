@@ -21,11 +21,8 @@ const config: ForgeConfig = {
     new MakerSquirrel({
       name
     }),
-    new MakerZIP({}, ['darwin', 'linux', 'win32']),
-    new MakerDMG({
-      // background: './assets/dmg-background.png',
-      // format: 'ULFO'
-    })
+    new MakerZIP(undefined, ['darwin', 'linux', 'win32']),
+    new MakerDMG()
   ],
   publishers: [
     {
@@ -37,7 +34,7 @@ const config: ForgeConfig = {
         },
         prerelease: true,
         draft: true,
-        generateReleaseNotes: true,
+        generateReleaseNotes: true
       }
     }
   ],
