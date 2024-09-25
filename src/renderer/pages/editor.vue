@@ -15,6 +15,11 @@
     <div class="editor-content">
       <div class="buttons">
         <div class="left">
+          <Button label="Close" :disabled="isRunning" size="small" @click="onCloseRequest">
+            <template #icon>
+              <i class="mdi mdi-close mr-1"></i>
+            </template>
+          </Button>
           <!-- <Button
             type="button"
             @click="toggle"
@@ -79,8 +84,9 @@
           <EditorNodeEvent
             v-for="trigger in triggers"
             v-if="triggers.length > 0"
+            :key="trigger.uid"
             :steps="stepsDisplay"
-            :path="[]"
+            :path="['0']"
             :value="trigger"
           ></EditorNodeEvent>
           <EditorNodeEventEmpty v-else :path="[]"></EditorNodeEventEmpty>
@@ -91,6 +97,7 @@
             :nodes="nodes"
             :path="[]"
             :steps="stepsDisplay"
+            :starting-index="1"
           ></NodesEditor>
           <EditorNodeDummy title="End"></EditorNodeDummy>
         </div>
@@ -146,7 +153,7 @@ import { useEditor } from '@renderer/store/editor'
 import NodesEditor from '@renderer/pages/nodes-editor.vue'
 import EditorNodeDummy from '@renderer/components/nodes/EditorNodeDummy.vue'
 import { storeToRefs } from 'pinia'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { SavedFile } from '@@/model'
 import { useAPI } from '@renderer/composables/api'
 import { useAppStore } from '@renderer/store/app'
@@ -163,6 +170,7 @@ import { RendererChannels, RendererData, RendererEvents, RendererMessage } from 
 import { handle } from '@renderer/composables/handlers'
 
 const route = useRoute()
+const router = useRouter()
 
 const instance = useEditor()
 const {
@@ -270,6 +278,14 @@ const onSaveRequest = async () => {
     throw new Error('TODO')
   }
 }
+
+const onCloseRequest = async () => {
+  console.log('close request')
+  await router.push({
+    name: 'Dashboard'
+  })
+}
+
 // const onSaveRequest = async () => {
 //   if (saveLocation.value) {
 //     if (saveLocation.value.type === 'file') {

@@ -6,7 +6,7 @@
           <!-- @vue-ignore -->
           <EditorNodeAction
             v-if="node.type === 'action'"
-            :path="[...path, index.toString()]"
+            :path="[...path, (startingIndex + index).toString()]"
             :value="node"
             :steps="steps"
             :errors="errors[node.uid]"
@@ -74,6 +74,11 @@ const props = defineProps({
     type: Array as PropType<Record<string, any>>,
     required: false,
     default: () => ({})
+  },
+  startingIndex: {
+    type: Number,
+    required: false,
+    default: 0
   }
 })
 

@@ -433,11 +433,37 @@ export const useEditor = defineStore('editor', () => {
     return
   }
 
-  const addNodeToBlock = (node: Block, path: string[], insertAt: number) => {
-    const value = path.length === 0 ? blocks.value : get(blocks.value, path)
+  // const addNodeToBlock = (node: Block, path: string[], insertAt: number) => {
+  //   console.log('node', node)
+  //   console.log('path', path)
+  //   console.log('insertAt', insertAt)
+  //   const value = path.length === 0 ? blocks.value : get(blocks.value, path)
 
-    const firstPart = value.slice(0, insertAt)
-    const secondPart = value.slice(insertAt + 1)
+  //   const firstPart = value.slice(0, insertAt)
+  //   const secondPart = value.slice(insertAt + 1)
+
+  //   const newValue = [
+  //     ...value.slice(0, insertAt),
+  //     node,
+  //     ...value.slice(
+  //       insertAt // already has +1
+  //     )
+  //   ]
+  //   if (path.length === 0) {
+  //     blocks.value = newValue
+  //   } else {
+  //     set(blocks.value, path, newValue)
+  //   }
+
+  //   return
+  // }
+
+  const addNodeToBlock = (node: Block, path: string[], insertAt: number) => {
+    console.log('node', node)
+    console.log('path', path)
+    console.log('insertAt', insertAt)
+
+    const value = blocks.value
 
     const newValue = [
       ...value.slice(0, insertAt),
@@ -446,11 +472,7 @@ export const useEditor = defineStore('editor', () => {
         insertAt // already has +1
       )
     ]
-    if (path.length === 0) {
-      blocks.value = newValue
-    } else {
-      set(blocks.value, path, newValue)
-    }
+    blocks.value = newValue
 
     return
   }

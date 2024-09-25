@@ -161,7 +161,7 @@ const onAdd = () => {
     return
   }
 
-  const insertAt = Number.parseInt(path.value.pop() ?? '0') + 1
+  const insertAt = Number.parseInt(path.value.pop() ?? '0')
 
   instance.addNode({
     node: node.node,

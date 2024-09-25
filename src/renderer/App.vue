@@ -13,7 +13,7 @@
               </template>
             </Menubar> -->
             <div class="content">
-              <div class="sidebar">
+              <div class="sidebar" :class="{ hidden: route.name === 'Editor' }">
                 <div class="sidebar-title">Cyn</div>
 
                 <div class="list">
@@ -21,7 +21,7 @@
                     <i class="icon pi pi-objects-column"></i>
                     Dashboard
                   </router-link>
-                  <router-link class="list-item" :to="{ name: 'Scenarios' }">
+                  <!-- <router-link class="list-item" :to="{ name: 'Scenarios' }">
                     <i class="icon pi pi-list"></i>
                     Scenarios
                   </router-link>
@@ -32,7 +32,7 @@
                   <router-link class="list-item" :to="{ name: 'Settings' }">
                     <i class="icon pi pi-list"></i>
                     Settings
-                  </router-link>
+                  </router-link> -->
                 </div>
 
                 <div class="account">
@@ -246,6 +246,7 @@ import { toTypedSchema } from '@vee-validate/valibot'
 import { object, pipe, string, email, nonEmpty, minLength, regex } from 'valibot'
 import { handle } from './composables/handlers'
 import { useLogger } from '@@/logger'
+import { useRoute } from 'vue-router'
 
 const appStore = useAppStore()
 const filesStore = useFiles()
@@ -258,6 +259,8 @@ const isAuthModalVisible = ref(false)
 const auth = useAuth()
 
 const { user } = storeToRefs(auth)
+
+const route = useRoute()
 
 const schema = toTypedSchema(
   object({
@@ -351,6 +354,10 @@ onMounted(async () => {
     width: 300px;
     background-color: v-bind(primary);
     color: white;
+
+    &.hidden {
+      display: none;
+    }
 
     .sidebar-title {
       font-size: 2rem;
