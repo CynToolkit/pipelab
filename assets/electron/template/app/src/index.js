@@ -1,6 +1,6 @@
 // @ts-check
 
-import { app, BrowserWindow, dialog } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain } from 'electron'
 import { join } from 'node:path'
 import serve from 'serve-handler'
 import { createServer } from 'http'
@@ -205,7 +205,10 @@ const createWindow = async () => {
 }
 
 const registerHandlers = async () => {
-  // handlers
+  ipcMain.on('exit', (event, code) => {
+    console.log('exit', code)
+    app.exit(code)
+  })
 }
 
 app.whenReady().then(async () => {

@@ -10,7 +10,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
       throw error
     }
   },
-  isElectron: () => true
+  isElectron: () => true,
+  exit: (code) => {
+    ipcRenderer.send('exit', code)
+  }
 })
 
 contextBridge.exposeInMainWorld('isElectron', true)
