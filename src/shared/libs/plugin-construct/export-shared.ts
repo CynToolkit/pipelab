@@ -8,6 +8,8 @@ import {
 } from '@cyn/plugin-core'
 import { script } from './assets/script.js'
 
+const isCI = process.env.CI === 'true' || import.meta.env.CI === 'true'
+
 export const sharedParams = {
   username: {
     label: 'Username',
@@ -108,7 +110,12 @@ export const exportc3p = async <ACTION extends Action>(
   })
 
   const context = await browser.newContext({
-    locale: 'en-US'
+    locale: 'en-US',
+    recordVideo: isCI
+      ? {
+          dir: join(process.cwd(), 'playwright')
+        }
+      : undefined
   })
   await context.clearPermissions()
 
