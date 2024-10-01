@@ -3,7 +3,7 @@ import { WithId } from './utils'
 import { SaveLocation } from './save-location'
 import { Simplify } from 'type-fest'
 import { createMigration, createMigrator, finalVersion, initialVersion } from './libs/migration'
-import { any, array, custom, GenericSchema, InferOutput, lazy, literal, object, record, string, union, variant } from 'valibot'
+import { any, array, boolean, custom, GenericSchema, InferOutput, lazy, literal, object, optional, record, string, union, variant } from 'valibot'
 import type { OmitVersion } from './libs/migration/models/migration'
 
 export type NodeId = string
@@ -23,6 +23,7 @@ export type Origin = InferOutput<typeof OriginValidator>
 const BlockActionValidator = object({
   type: literal('action'),
   uid: string(),
+  disabled: optional(boolean()),
   params: record(string(), any()),
   origin: OriginValidator
 })

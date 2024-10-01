@@ -68,6 +68,13 @@ export const processGraph = async (options: {
       }
       options.onNodeExit(rawNode)
     } else */ if (rawNode.type === 'action') {
+      if (rawNode.disabled === true) {
+        console.warn(
+          `Node ${rawNode.uid} (${rawNode.origin.pluginId}::${rawNode.origin.nodeId}) is disabled`
+        )
+        continue
+      }
+
       options.onNodeEnter(rawNode)
 
       const newParams = await makeResolvedParams({

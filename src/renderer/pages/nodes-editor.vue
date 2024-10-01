@@ -8,6 +8,7 @@
             v-if="node.type === 'action'"
             :path="[...path, (startingIndex + index).toString()]"
             :value="node"
+            :index="index"
             :steps="steps"
             :errors="errors[node.uid]"
           ></EditorNodeAction>
@@ -116,6 +117,3 @@ const { nodes, path } = toRefs(props)
   color: #333;
 }
 </style>
-isConditionDefinition, isEventDefinition, isLoopDefinition, , BlockCondition, BlockEvent,
-BlockLoopimport { nanoid } from 'nanoid' isConditionDefinition, isEventDefinition, isLoopDefinition,
-, BlockCondition, BlockEvent, BlockLoop

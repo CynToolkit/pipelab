@@ -3,38 +3,57 @@
     <div
       ref="$node"
       class="node-action"
-      :class="{ active: activeNode?.uid === value.uid, error: errors.length > 0 }"
-      @click="showSidebar = true"
+      :class="{
+        active: activeNode?.uid === value.uid,
+        error: errors.length > 0,
+        disabled: value.disabled,
+      }"
     >
-      <!--<div v-if="isHovered" class="hover-overlay">
+      <div class="hover-overlay">
         <div class="hover-overlay-content">
-          <Button>
-            <template #icon>
-              <i class="mdi mdi-pencil"></i>
-            </template>
-          </Button>
-          <Button>
-            <template #icon>
-              <i class="mdi mdi-trash-can"></i>
-            </template>
-          </Button>
-          <Button>
-            <template #icon>
-              <i class="mdi mdi-content-copy"></i>
-            </template>
-          </Button>
-          <Button>
-            <template #icon>
-              <i class="mdi mdi-arrow-up"></i>
-            </template>
-          </Button>
-          <Button>
-            <template #icon>
-              <i class="mdi mdi-arrow-down"></i>
-            </template>
-          </Button>
+          <div class="left">
+            <Button @click="swapNodes(index, 'up')">
+              <template #icon>
+                <i class="mdi mdi-arrow-up"></i>
+              </template>
+            </Button>
+            <Button @click="swapNodes(index, 'down')">
+              <template #icon>
+                <i class="mdi mdi-arrow-down"></i>
+              </template>
+            </Button>
+          </div>
+          <div class="center">
+            <Button @click="showSidebar = true">
+              <template #icon>
+                <i class="mdi mdi-pencil"></i>
+              </template>
+            </Button>
+          </div>
+          <div class="right">
+            <Button v-if="value.disabled" @click="enableNode(value)">
+              <template #icon>
+                <i class="mdi mdi-toggle-switch-off-outline"></i>
+              </template>
+            </Button>
+            <Button v-else @click="disableNode(value)">
+              <template #icon>
+                <i class="mdi mdi-toggle-switch"></i>
+              </template>
+            </Button>
+            <Button @click="cloneNode(value, index + 1)">
+              <template #icon>
+                <i class="mdi mdi-content-copy"></i>
+              </template>
+            </Button>
+            <Button @click="removeNode(value.uid)">
+              <template #icon>
+                <i class="mdi mdi-trash-can"></i>
+              </template>
+            </Button>
+          </div>
         </div>
-      </div>-->
+      </div>
 
       <div class="vertical">
         <PluginIcon :icon="pluginDefinition?.icon"></PluginIcon>
@@ -100,11 +119,14 @@ import DOMPurify from 'dompurify'
 import { makeResolvedParams } from '@renderer/utils/evaluator'
 import { ValidationError } from '@renderer/models/error'
 import AddNodeButton from '../AddNodeButton.vue'
-import { useElementHover } from '@vueuse/core'
 
 const props = defineProps({
   value: {
     type: Object as PropType<BlockAction>,
+    required: true
+  },
+  index: {
+    type: Number,
     required: true
   },
   path: {
@@ -130,7 +152,17 @@ const $node = ref<HTMLDivElement>()
 // const isHovered = useElementHover($node)
 
 const editor = useEditor()
-const { getNodeDefinition, setBlockValue, addNode, getPluginDefinition, removeNode } = editor
+const {
+  getNodeDefinition,
+  setBlockValue,
+  addNode,
+  getPluginDefinition,
+  removeNode,
+  swapNodes,
+  cloneNode,
+  disableNode,
+  enableNode,
+} = editor
 const { activeNode } = storeToRefs(editor)
 
 const nodeDefinition = computed(() => {
@@ -140,7 +172,6 @@ const nodeDefinition = computed(() => {
 const pluginDefinition = computed(() => {
   return getPluginDefinition(value.value.origin.pluginId)
 })
-
 
 const onValueChanged = (newValue: unknown, paramKey: string) => {
   setBlockValue(value.value.uid, {
@@ -207,7 +238,7 @@ watchDebounced(
 const showSidebar = ref(false)
 </script>
 
-<style scoped>
+<style scoped lang="scss">
 .condition-branches {
   display: flex;
 }
@@ -224,7 +255,21 @@ const showSidebar = ref(false)
   padding: 16px;
   border-radius: 4px;
   width: fit-content;
+  min-width: 300px;
   background-color: white;
+  display: flex;
+
+  &.disabled {
+    // background-color: #eee;
+    // color: white;
+    opacity: .5;
+  }
+
+  &:hover {
+    .hover-overlay {
+      opacity: 1;
+    }
+  }
 
   box-shadow:
     0 0 #0000,
@@ -268,18 +313,40 @@ const showSidebar = ref(false)
   position: absolute;
   top: 0;
   left: 0;
+  bottom: 0;
+  right: 0;
   width: 100%;
   height: 100%;
   background-color: rgba(0, 0, 0, 0.5);
+  opacity: 0;
   display: flex;
   justify-content: center;
   align-items: center;
   z-index: 10;
+  margin: 0 auto;
+  transition: opacity 0.25s;
 
   .hover-overlay-content {
     display: flex;
     flex-direction: row;
+    justify-content: space-between;
     gap: 8px;
+    width: 100%;
+    margin: 0 8px;
+
+    .left,
+    .center,
+    .right {
+      display: flex;
+      flex-direction: row;
+      justify-content: center;
+      align-items: center;
+      gap: 4px;
+
+      button {
+        // border: 1px solid #5f60b7;
+      }
+    }
   }
 }
 </style>

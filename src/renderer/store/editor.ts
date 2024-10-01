@@ -1,8 +1,7 @@
-import { computed, ref, toRaw, watch } from 'vue'
+import { computed, ref, toRaw } from 'vue'
 import {
   Block,
   BlockAction,
-  BlockComment,
   BlockCondition,
   BlockEvent,
   BlockLoop,
@@ -10,17 +9,7 @@ import {
   savedFileMigrator,
   Steps
 } from '@@/model'
-import { useAPI } from '@renderer/composables/api'
-import {
-  Action,
-  Condition,
-  RendererPluginDefinition,
-  Event,
-  Loop,
-  CynNode,
-  InputDefinition,
-  RendererNodeDefinition
-} from '@cyn/plugin-core'
+import { Action, Condition, Event, Loop, CynNode, RendererNodeDefinition } from '@cyn/plugin-core'
 import { Variable } from '@cyn/core-app'
 import { defineStore, storeToRefs } from 'pinia'
 import get from 'get-value'
@@ -28,13 +17,14 @@ import set from 'set-value'
 import { nanoid } from 'nanoid'
 import { AddNodeEvent, AddTriggerEvent } from '@renderer/components/AddNodeButton.model'
 import { useAppStore } from './app'
-import { SaveLocation } from '@@/save-location'
-import { FileRepo, useFiles } from './files'
+import { useFiles } from './files'
 import { useRouteParams } from '@vueuse/router'
 import { ValidationError } from '@renderer/models/error'
 import { isRequired } from '@@/validation'
 import { processGraph } from '@@/graph'
 import { useLogger } from '@@/logger'
+import { klona } from 'klona'
+import { create } from 'mutative'
 
 export type Context = Record<string, unknown>
 
@@ -344,6 +334,46 @@ export const useEditor = defineStore('editor', () => {
     }
   }
 
+  const swapNodes = (index: number, direction: 'up' | 'down') => {
+    const newIndex = index + (direction === 'up' ? -1 : 1)
+    const output = blocks.value.map((element, _index) =>
+      _index === index
+        ? blocks.value[newIndex]
+        : _index === newIndex
+          ? blocks.value[index]
+          : element
+    )
+    console.log('input', blocks.value)
+    console.log('output', output)
+
+    blocks.value = output
+  }
+
+  const cloneNode = (node: Block, newIndex: number) => {
+    const newNode = klona(node)
+    addNodeToBlock(newNode, [], newIndex)
+  }
+
+  const disableNode = (node: Block) => {
+    blocks.value = create(klona(blocks.value), (draft) => {
+      for (let i = 0; i < draft.length; i += 1) {
+        if (draft[i].uid === node.uid) {
+          draft[i].disabled = true
+        }
+      }
+    })
+  }
+
+  const enableNode = (node: Block) => {
+    blocks.value = create(klona(blocks.value), (draft) => {
+      for (let i = 0; i < draft.length; i += 1) {
+        if (draft[i].uid === node.uid) {
+          draft[i].disabled = false
+        }
+      }
+    })
+  }
+
   const addNode = (event: AddNodeEvent) => {
     const { node: nodeDefinition, path, plugin: pluginDefinition, insertAt } = event
 
@@ -529,7 +559,12 @@ export const useEditor = defineStore('editor', () => {
     processGraph,
     loadPreset,
     isRunning,
-    setIsRunning
+    setIsRunning,
+
+    swapNodes,
+    cloneNode,
+    disableNode,
+    enableNode
   }
 })
 

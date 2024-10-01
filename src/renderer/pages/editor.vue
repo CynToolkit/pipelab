@@ -225,20 +225,21 @@ const run = async () => {
   const { setActiveNode } = instance
 
   setIsRunning(true)
-  await processGraph({
-    graph: klona(nodes.value),
-    definitions: pluginDefinitions.value,
-    variables: variables.value,
-    context: {},
-    steps: {},
-    onNodeEnter: (node) => {
-      setActiveNode(node)
-    },
-    onNodeExit: () => {
-      setActiveNode()
-    },
-    onExecuteItem: async (node, params, steps) => {
-      /* if (node.type === 'condition') {
+  try {
+    await processGraph({
+      graph: klona(nodes.value),
+      definitions: pluginDefinitions.value,
+      variables: variables.value,
+      context: {},
+      steps: {},
+      onNodeEnter: (node) => {
+        setActiveNode(node)
+      },
+      onNodeExit: () => {
+        setActiveNode()
+      },
+      onExecuteItem: async (node, params, steps) => {
+        /* if (node.type === 'condition') {
         return api.execute('condition:execute', {
           nodeId: node.origin.nodeId,
           pluginId: node.origin.pluginId,
@@ -246,26 +247,36 @@ const run = async () => {
           steps
         })
       } else  */ if (node.type === 'action') {
-        const result = await api.execute('action:execute', {
-          nodeId: node.origin.nodeId,
-          pluginId: node.origin.pluginId,
-          params,
-          steps
-        })
-        return result
-      } else {
-        throw new Error('Unhandled type ' + node.type)
+          const result = await api.execute('action:execute', {
+            nodeId: node.origin.nodeId,
+            pluginId: node.origin.pluginId,
+            params,
+            steps
+          })
+          return result
+        } else {
+          throw new Error('Unhandled type ' + node.type)
+        }
       }
-    }
-  })
-  setIsRunning(false)
+    })
 
-  toast.add({
-    summary: 'Execution done',
-    life: 10_000,
-    severity: 'success',
-    detail: 'Your project has been executed successfully'
-  })
+    toast.add({
+      summary: 'Execution done',
+      life: 10_000,
+      severity: 'success',
+      detail: 'Your project has been executed successfully'
+    })
+  } catch (e) {
+    console.error('error while executing process')
+
+    toast.add({
+      summary: 'Execution failed',
+      life: 10_000,
+      severity: 'error',
+      detail: 'Project has encountered an error'
+    })
+  }
+  setIsRunning(false)
 }
 
 const isSaving = ref(false)
