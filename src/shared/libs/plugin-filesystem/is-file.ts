@@ -1,7 +1,7 @@
 import {
     createCondition,
     createConditionRunner,
-  } from "@cyn/plugin-core";
+  } from "@pipelab/plugin-core";
 
   export const ID = "is-file";
 

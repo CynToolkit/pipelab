@@ -301,7 +301,7 @@ const onCloseRequest = async () => {
 //   if (saveLocation.value) {
 //     if (saveLocation.value.type === 'file') {
 //       await saveLocal(saveLocation.value.path)
-//     } else if (saveLocation.value.type === 'cyn-cloud') {
+//     } else if (saveLocation.value.type === 'pipelab-cloud') {
 //       throw new Error('TODO')
 //     }
 //   } else {

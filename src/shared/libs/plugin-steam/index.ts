@@ -1,5 +1,5 @@
 import { uploadToSteam, uploadToSteamRunner } from "./upload-to-steam.js";
-import { createNodeDefinition } from "@cyn/plugin-core";
+import { createNodeDefinition } from "@pipelab/plugin-core";
 import icon from './steam.webp'
 
 export default createNodeDefinition({

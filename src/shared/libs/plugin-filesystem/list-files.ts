@@ -1,4 +1,4 @@
-import { createAction, createActionRunner } from "@cyn/plugin-core";
+import { createAction, createActionRunner } from "@pipelab/plugin-core";
 export const ID = "list-files-node";
 
 export const ListFilesAction = createAction({

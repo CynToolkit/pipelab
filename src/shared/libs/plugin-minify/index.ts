@@ -1,4 +1,4 @@
-import { createAction, createActionRunner } from "@cyn/plugin-core";
+import { createAction, createActionRunner } from "@pipelab/plugin-core";
 
 export const FLOW_INPUT_ID = "minify-flow-input";
 export const FLOW_OUTPUT_ID = "minify-flow-output";

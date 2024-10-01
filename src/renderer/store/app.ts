@@ -2,7 +2,7 @@ import { defineStore } from "pinia";
 import { createEventHook } from "@vueuse/core";
 import { ref } from "vue";
 import { useAPI } from "@renderer/composables/api";
-import { RendererPluginDefinition } from "@cyn/plugin-core";
+import { RendererPluginDefinition } from "@pipelab/plugin-core";
 import { Presets } from "@@/apis";
 import { useLogger } from "@@/logger";
 

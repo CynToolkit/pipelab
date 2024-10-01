@@ -1,5 +1,5 @@
 /**
- * @param {import('@cyn/core').MakeInputOutput<import('@cyn/core').MessageSetTitle, 'input'>} json
+ * @param {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').MessageSetTitle, 'input'>} json
  * @param {import('ws').WebSocket} ws
  * @param {import('electron').BrowserWindow} mainWindow
  */
@@ -7,7 +7,7 @@ export default async (json, ws, mainWindow) => {
   mainWindow.setTitle(json.body.value)
 
   /**
-   * @type {import('@cyn/core').MakeInputOutput<import('@cyn/core').MessageSetTitle, 'output'>}
+   * @type {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').MessageSetTitle, 'output'>}
    */
   const setTitleResult = {
     correlationId: json.correlationId,

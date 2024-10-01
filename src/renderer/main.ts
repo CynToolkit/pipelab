@@ -37,7 +37,7 @@ if (window.isPackaged && process.env.TEST !== 'true') {
 const pinia = createPinia()
 pinia.use(piniaPluginPersistedstate)
 
-const CynPreset = definePreset(Aura, {
+const PipelabPreset = definePreset(Aura, {
   primitive: {
     borderRadius: {
       none: '0',
@@ -704,7 +704,7 @@ app.use(pinia)
 app.use(VueDOMPurifyHTML)
 app.use(PrimeVue, {
   theme: {
-    preset: CynPreset,
+    preset: PipelabPreset,
     options: {
       darkModeSelector: 'light'
     }

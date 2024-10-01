@@ -17,14 +17,14 @@ const getBinName = () => {
   return name
 }
 
-const tmpLogFile = join(tmpdir(), nanoid() + 'cyn-app-test.log.json')
+const tmpLogFile = join(tmpdir(), nanoid() + 'pipelab-app-test.log.json')
 const root = process.cwd()
 
-const binFolder = outFolderName('Cyn', platform, arch)
+const binFolder = outFolderName('Pipelab', platform, arch)
 const binName = getBinName()
 
 const bin = join(root, 'out', binFolder, binName)
-// const bin = '/home/quentin/Projects/cyn-monorepo/out/@cyn-app-win32-x64/@cyn-app.exe'
+// const bin = '/home/quentin/Projects/pipelab-monorepo/out/@pipelab-app-win32-x64/@pipelab-app.exe'
 console.log('bin', bin)
 
 const fixtures = join(root, 'tests/e2e/fixtures')

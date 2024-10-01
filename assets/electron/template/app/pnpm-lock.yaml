@@ -30,7 +30,7 @@ importers:
         specifier: ^8.18.0
         version: 8.18.0
     devDependencies:
-      '@cyn/core':
+      '@pipelab/core':
         specifier: 1.0.0
         version: 1.0.0
       '@electron-forge/cli':
@@ -66,7 +66,7 @@ importers:
 
 packages:
 
-  '@cyn/core@1.0.0':
+  '@pipelab/core@1.0.0':
     resolution: {integrity: sha512-Wz2H30RbT8m72mnorziMOH+E58vgZkO22+zl61bvlXWFdplO3Tzw1DZmyGsmP1/C4JQ8NoR4W6QTOZ/lrGDrGg==}
 
   '@electron-forge/cli@7.4.0':
@@ -1875,7 +1875,7 @@ packages:
 
 snapshots:
 
-  '@cyn/core@1.0.0': {}
+  '@pipelab/core@1.0.0': {}
 
   '@electron-forge/cli@7.4.0(encoding@0.1.13)':
     dependencies:

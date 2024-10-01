@@ -82,7 +82,7 @@ import { storeToRefs } from 'pinia'
 import { computedAsync } from '@vueuse/core'
 import AddNodeButton from '@renderer/components/AddNodeButton.vue'
 import { AddNodeEvent } from '../AddNodeButton.model'
-import { Loop } from '@cyn/plugin-core'
+import { Loop } from '@pipelab/plugin-core'
 import PluginIcon from './PluginIcon.vue'
 import { ValidationError } from '@renderer/models/error'
 

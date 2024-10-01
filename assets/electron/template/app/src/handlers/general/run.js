@@ -1,7 +1,7 @@
 import { execa } from 'execa';
 
 /**
- * @param {import('@cyn/core').MakeInputOutput<import('@cyn/core').MessageRun, 'input'>} json
+ * @param {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').MessageRun, 'input'>} json
  * @param {import('ws').WebSocket} ws
  * @param {import('electron').BrowserWindow} mainWindow
  */
@@ -13,7 +13,7 @@ export default async (json, ws, mainWindow) => {
   const { stderr, stdout } = await exec(json.body.command, json.body.args)
 
   /**
-   * @type {import('@cyn/core').MakeInputOutput<import('@cyn/core').MessageRun, 'output'>}
+   * @type {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').MessageRun, 'output'>}
    */
   const execResult = {
     correlationId: json.correlationId,

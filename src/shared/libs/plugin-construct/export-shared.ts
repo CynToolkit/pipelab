@@ -5,7 +5,7 @@ import {
   InputsDefinition,
   ParamsToInput,
   runWithLiveLogs
-} from '@cyn/plugin-core'
+} from '@pipelab/plugin-core'
 import { script } from './assets/script.js'
 
 const isCI = process.env.CI === 'true' || import.meta.env.CI === 'true'

@@ -33,7 +33,7 @@ importers:
       '@codemirror/view':
         specifier: 6.34.0
         version: 6.34.0
-      '@cyn/core':
+      '@pipelab/core':
         specifier: 1.2.1
         version: 1.2.1
       '@electron-toolkit/preload':
@@ -657,7 +657,7 @@ packages:
     resolution: {integrity: sha512-IchNf6dN4tHoMFIn/7OE8LWZ19Y6q/67Bmf6vnGREv8RSbBVb9LPJxEcnwrcwX6ixSvaiGoomAUvu4YSxXrVgw==}
     engines: {node: '>=12'}
 
-  '@cyn/core@1.2.1':
+  '@pipelab/core@1.2.1':
     resolution: {integrity: sha512-aPBVDPYhrodvN8A8PG5nStGoBzhZl/hcvhFZM3cBPnRqkIvixCWFLF5Q4Ypxw78jmix6G/KQbz8oP/KBWbHkwA==}
 
   '@electron-forge/cli@7.4.0':
@@ -7237,7 +7237,7 @@ snapshots:
     dependencies:
       '@jridgewell/trace-mapping': 0.3.9
 
-  '@cyn/core@1.2.1': {}
+  '@pipelab/core@1.2.1': {}
 
   '@electron-forge/cli@7.4.0(encoding@0.1.13)':
     dependencies:

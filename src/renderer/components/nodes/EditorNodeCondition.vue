@@ -82,7 +82,7 @@ import { BlockCondition } from '@@/model'
 import { storeToRefs } from 'pinia'
 import { computedAsync } from '@vueuse/core'
 import PluginIcon from './PluginIcon.vue'
-import { Condition } from '@cyn/plugin-core'
+import { Condition } from '@pipelab/plugin-core'
 import { ValidationError } from '@renderer/models/error'
 import { useLogger } from '@@/logger'
 

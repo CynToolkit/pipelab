@@ -1,4 +1,4 @@
-export const name = 'Cyn'
+export const name = 'Pipelab'
 
 export const outFolderName = (binName: string, platform: NodeJS.Platform, arch: NodeJS.Architecture) => {
   let platformName = ''

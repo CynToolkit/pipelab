@@ -131,7 +131,7 @@ export interface ControlTypeExpression extends ControlTypeBase {
   }
 }
 
-export interface CynSelectOption {
+export interface PipelabSelectOption {
   label: string
   value: string
 }
@@ -139,7 +139,7 @@ export interface CynSelectOption {
 export interface ControlTypeSelect extends ControlTypeBase {
   type: 'select'
   options: {
-    options: Array<CynSelectOption>
+    options: Array<PipelabSelectOption>
     placeholder: string
   }
 }
@@ -147,7 +147,7 @@ export interface ControlTypeSelect extends ControlTypeBase {
 export interface ControlTypeMultiSelect extends ControlTypeBase {
   type: 'multi-select'
   options: {
-    options: Array<CynSelectOption>
+    options: Array<PipelabSelectOption>
     placeholder: string
   }
 }
@@ -251,7 +251,7 @@ export interface PluginDefinition {
 }
 
 export type RendererNodeDefinition = {
-  node: CynNode
+  node: PipelabNode
   disabled: boolean | string
 }
 
@@ -261,7 +261,7 @@ export interface RendererPluginDefinition extends PluginDefinition {
 
 export interface MainPluginDefinition extends PluginDefinition {
   nodes: {
-    node: CynNode
+    node: PipelabNode
     runner: Runner
     disabled?: boolean | string
   }[]
@@ -450,7 +450,7 @@ type EventRunner<EVENT extends Event> = (data: {
 }) => Promise<void>
 export const createEventRunner = <EVENT extends Event>(runner: EventRunner<EVENT>) => runner
 
-export type CynNode = Event | Condition | Expression | Action | Loop
+export type PipelabNode = Event | Condition | Expression | Action | Loop
 
 export const createDefinition = <T extends MainPluginDefinition>(definition: T) => {
   return definition satisfies T

@@ -1,11 +1,11 @@
 /**
- * @param {import('@cyn/core').MakeInputOutput<import('@cyn/core').MessageEngine, 'input'>} json
+ * @param {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').MessageEngine, 'input'>} json
  * @param {import('ws').WebSocket} ws
  * @param {import('electron').BrowserWindow} mainWindow
  */
 export default async (json, ws, mainWindow) => {
   /**
-   * @type {import('@cyn/core').MakeInputOutput<import('@cyn/core').MessageEngine, 'output'>}
+   * @type {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').MessageEngine, 'output'>}
    */
   const engineResult = {
     correlationId: json.correlationId,

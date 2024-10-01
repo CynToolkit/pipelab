@@ -1,4 +1,4 @@
-import { createAction, createActionRunner, runWithLiveLogs } from '@cyn/plugin-core'
+import { createAction, createActionRunner, runWithLiveLogs } from '@pipelab/plugin-core'
 
 // https://github.com/ztgasdf/steampkg?tab=readme-ov-file#account-management
 

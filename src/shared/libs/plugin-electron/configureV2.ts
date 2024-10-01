@@ -1,4 +1,4 @@
-import { createAction, createActionRunner } from '@cyn/plugin-core'
+import { createAction, createActionRunner } from '@pipelab/plugin-core'
 import { ElectronConfiguration } from './model'
 
 export const propsConfigureV2 = createAction({

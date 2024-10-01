@@ -80,7 +80,7 @@ const createAppServer = (mainWindow) => {
       ws.on('error', console.error);
 
       ws.on('message', async (data) => {
-        /** @type {import('@cyn/core').Message} */
+        /** @type {import('@pipelab/core').Message} */
         const json = JSON.parse(data.toString());
         console.log('received:', json);
 

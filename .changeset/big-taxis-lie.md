@@ -1,5 +1,5 @@
 ---
-'@cyn/app': patch
+'@pipelab/app': patch
 ---
 
 feat(plugin-construct): add throttle zip log

@@ -1,4 +1,4 @@
-import { InputDefinition } from "@cyn/plugin-core"
+import { InputDefinition } from "@pipelab/plugin-core"
 
 export const isRequired = (param: InputDefinition) => {
   return param.required === true || !('required' in param)

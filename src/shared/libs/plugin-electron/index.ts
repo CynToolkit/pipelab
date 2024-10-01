@@ -1,7 +1,7 @@
 import { makeRunner } from './make.js'
 import { packageRunner } from './package.js'
 
-import { createNodeDefinition } from '@cyn/plugin-core'
+import { createNodeDefinition } from '@pipelab/plugin-core'
 import icon from './public/electron.webp'
 import { createProps, IDMake, IDPackage } from './forge.js'
 import { configureRunner, props } from './configure.js'

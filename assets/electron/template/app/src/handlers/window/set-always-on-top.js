@@ -1,5 +1,5 @@
 /**
- * @param {import('@cyn/core').MakeInputOutput<import('@cyn/core').MessageSetAlwaysOnTop, 'input'>} json
+ * @param {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').MessageSetAlwaysOnTop, 'input'>} json
  * @param {import('ws').WebSocket} ws
  * @param {import('electron').BrowserWindow} mainWindow
  */
@@ -7,7 +7,7 @@ export default async (json, ws, mainWindow) => {
   mainWindow.setAlwaysOnTop(true);
 
   /**
-   * @type {import('@cyn/core').MakeInputOutput<import('@cyn/core').MessageSetAlwaysOnTop, 'output'>}
+   * @type {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').MessageSetAlwaysOnTop, 'output'>}
    */
   const setAlwaysOnTopResult = {
     correlationId: json.correlationId,

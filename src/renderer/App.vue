@@ -14,7 +14,7 @@
             </Menubar> -->
             <div class="content">
               <div class="sidebar" :class="{ hidden: route.name === 'Editor' }">
-                <div class="sidebar-title">Cyn</div>
+                <div class="sidebar-title">Pipelab</div>
 
                 <div class="list">
                   <router-link class="list-item" :to="{ name: 'Dashboard' }">

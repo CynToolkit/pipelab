@@ -21,7 +21,7 @@
       "@renderer/*": [
         "./src/renderer/*"
       ],
-      "@cyn/*": [
+      "@pipelab/*": [
         "./src/shared/libs/*"
       ],
     }

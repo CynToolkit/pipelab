@@ -2,7 +2,7 @@
     ☐ To cross compile tauri or electron, I don't want a backend or my own CI
     ☐ The idea is to have confgurations store online on your account
     ☐ On Github Actions or any other CI service, have an action that is
-    ☐ cyn/setup and cyn/run that install all dependencies and that run a config
+    ☐ pipelab/setup and pipelab/run that install all dependencies and that run a config
     ☐ Infos are from the variables: account, pipeline & api key
     ☐ It will run the pipeline as if it was your computer
 

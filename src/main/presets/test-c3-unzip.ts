@@ -1,5 +1,5 @@
 import { PresetFn, SavedFile } from '@@/model'
-import { ExportParams } from '@cyn/plugin-construct'
+import { ExportParams } from '@pipelab/plugin-construct'
 
 export const testC3Unzip: PresetFn = async () => {
   const exportConstructProjectId = 'export-construct-project'

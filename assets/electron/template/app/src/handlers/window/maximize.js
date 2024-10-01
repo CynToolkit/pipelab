@@ -1,5 +1,5 @@
 /**
- * @param {import('@cyn/core').MakeInputOutput<import('@cyn/core').MessageWindowMaximize, 'input'>} json
+ * @param {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').MessageWindowMaximize, 'input'>} json
  * @param {import('ws').WebSocket} ws
  * @param {import('electron').BrowserWindow} mainWindow
  */
@@ -7,7 +7,7 @@ export default async (json, ws, mainWindow) => {
   mainWindow.maximize();
 
   /**
-   * @type {import('@cyn/core').MakeInputOutput<import('@cyn/core').MessageWindowMaximize, 'output'>}
+   * @type {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').MessageWindowMaximize, 'output'>}
    */
   const maximizeResult = {
     correlationId: json.correlationId,

@@ -180,7 +180,7 @@
 <script setup lang="ts">
 import { PropType, computed, ref, toRefs, watch } from 'vue'
 import type { ValueOf } from 'type-fest'
-import { Action, Condition, Event } from '@cyn/plugin-core'
+import { Action, Condition, Event } from '@pipelab/plugin-core'
 import { useAPI } from '@renderer/composables/api'
 import { createCodeEditor } from '@renderer/utils/code-editor'
 import { createQuickJs } from '@renderer/utils/quickjs'

@@ -1,5 +1,5 @@
 /**
- * @param {import('@cyn/core').MakeInputOutput<import('@cyn/core').MessageSetResizable, 'input'>} json
+ * @param {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').MessageSetResizable, 'input'>} json
  * @param {import('ws').WebSocket} ws
  * @param {import('electron').BrowserWindow} mainWindow
  */
@@ -7,7 +7,7 @@ export default async (json, ws, mainWindow) => {
   mainWindow.setResizable(true)
 
   /**
-   * @type {import('@cyn/core').MakeInputOutput<import('@cyn/core').MessageSetResizable, 'output'>}
+   * @type {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').MessageSetResizable, 'output'>}
    */
   const setResizableResult = {
     correlationId: json.correlationId,

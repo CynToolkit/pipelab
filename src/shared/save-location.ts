@@ -16,12 +16,11 @@ export interface SaveLocationExternal {
   }
 }
 
-export interface SaveLocationCynCloud {
-  type: 'cyn-cloud'
+export interface SaveLocationPipelabCloud {
+  type: 'pipelab-cloud'
   // TODO
 }
 
 export type SaveLocation =
   // | SaveLocationInternal
-  | SaveLocationExternal
-  | SaveLocationCynCloud
+  SaveLocationExternal | SaveLocationPipelabCloud

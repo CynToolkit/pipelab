@@ -1,4 +1,4 @@
-# @cyn/app
+# @pipelab/app
 
 ## 1.1.26
 

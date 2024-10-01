@@ -177,11 +177,11 @@ export const forge = async (
   const completeConfiguration = merge(
     {
       alwaysOnTop: false,
-      appBundleId: 'com.cyn.app',
+      appBundleId: 'com.pipelab.app',
       appCategoryType: '',
-      appCopyright: 'Copyright © 2024 Cyn',
+      appCopyright: 'Copyright © 2024 Pipelab',
       appVersion: '1.0.0',
-      author: 'Cyn',
+      author: 'Pipelab',
       customMainCode: '',
       description: 'A simple Electron application',
       electronVersion: '',
@@ -191,7 +191,7 @@ export const forge = async (
       fullscreen: false,
       icon: '',
       height: 600,
-      name: 'Cyn',
+      name: 'Pipelab',
       toolbar: true,
       transparent: false,
       width: 800

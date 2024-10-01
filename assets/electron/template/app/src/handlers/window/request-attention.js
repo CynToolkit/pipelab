@@ -1,5 +1,5 @@
 /**
- * @param {import('@cyn/core').MakeInputOutput<import('@cyn/core').MessageRequestAttention, 'input'>} json
+ * @param {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').MessageRequestAttention, 'input'>} json
  * @param {import('ws').WebSocket} ws
  * @param {import('electron').BrowserWindow} mainWindow
  */
@@ -7,7 +7,7 @@ export default async (json, ws, mainWindow) => {
   mainWindow.flashFrame(true);
 
   /**
-   * @type {import('@cyn/core').MakeInputOutput<import('@cyn/core').MessageRequestAttention, 'output'>}
+   * @type {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').MessageRequestAttention, 'output'>}
    */
   const requestAttentionResult = {
     correlationId: json.correlationId,

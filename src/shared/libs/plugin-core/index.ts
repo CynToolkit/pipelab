@@ -1,4 +1,4 @@
-export * from './cyn.js'
+export * from './pipelab.js'
 
 export * from './create-plugin.js'
 

@@ -1,7 +1,7 @@
 const { FusesPlugin } = require('@electron-forge/plugin-fuses')
 const { FuseV1Options, FuseVersion } = require('@electron/fuses')
 
-const CynPlugin = require('./cyn-plugin')
+const PipelabPlugin = require('./pipelab-plugin')
 
 /**
  * @type {import('@electron-forge/shared-types').ForgeConfig}
@@ -50,6 +50,6 @@ module.exports = {
       [FuseV1Options.EnableEmbeddedAsarIntegrityValidation]: true,
       [FuseV1Options.OnlyLoadAppFromAsar]: true
     }),
-    new CynPlugin()
+    new PipelabPlugin()
   ]
 }

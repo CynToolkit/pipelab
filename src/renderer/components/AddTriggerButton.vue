@@ -90,7 +90,7 @@ import { storeToRefs } from 'pinia'
 import Button from 'primevue/button'
 import InputText from 'primevue/inputtext'
 import { useAppStore } from '@renderer/store/app'
-import { CynNode, Event } from '@@/libs/plugin-core'
+import { PipelabNode, Event } from '@@/libs/plugin-core'
 import { useLogger } from '@@/logger'
 
 type ButtonProps = InstanceType<typeof Button>['$props']
@@ -173,7 +173,7 @@ const onAdd = () => {
   visible.value = false
 }
 
-const isNodePicked = (trigger: CynNode, searchedValue: string) => {
+const isNodePicked = (trigger: PipelabNode, searchedValue: string) => {
   const description = trigger.description.toLowerCase()
   const name = trigger.name.toLowerCase()
 

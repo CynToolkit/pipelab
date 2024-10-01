@@ -3,7 +3,7 @@
 import { writeFile } from 'node:fs/promises'
 
 /**
- * @param {import('@cyn/core').MakeInputOutput<import('@cyn/core').MessageWriteFile, 'input'>} json
+ * @param {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').MessageWriteFile, 'input'>} json
  * @param {import('ws').WebSocket} ws
  * @param {import('electron').BrowserWindow} mainWindow
  */
@@ -13,7 +13,7 @@ export default async (json, ws, mainWindow) => {
   })
 
   /**
-   * @type {import('@cyn/core').MakeInputOutput<import('@cyn/core').MessageWriteFile, 'output'>}
+   * @type {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').MessageWriteFile, 'output'>}
    */
   const writeFileResult = {
     correlationId: json.correlationId,

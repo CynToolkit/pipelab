@@ -30,7 +30,7 @@ const config: ForgeConfig = {
       config: {
         repository: {
           owner: 'CynToolkit',
-          name: 'cyn'
+          name: 'pipelab'
         },
         prerelease: true,
         draft: true,

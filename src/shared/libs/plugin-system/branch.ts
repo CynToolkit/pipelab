@@ -1,4 +1,4 @@
-import { createCondition, createConditionRunner } from '@cyn/plugin-core'
+import { createCondition, createConditionRunner } from '@pipelab/plugin-core'
 
 export const ID = 'branch'
 

@@ -1,4 +1,4 @@
-import { createAction, createActionRunner } from "@cyn/plugin-core";
+import { createAction, createActionRunner } from "@pipelab/plugin-core";
 
 import path from "node:path";
 

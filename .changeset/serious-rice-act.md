@@ -1,5 +1,5 @@
 ---
-'@cyn/app': patch
+'@pipelab/app': patch
 ---
 
 add live logs hooks support

@@ -4,7 +4,7 @@
     <div class="local" v-if="item.saveLocation.type === 'external'">
       {{ item.name }}
     </div>
-    <div class="cloud" v-else-if="item.saveLocation.type === 'cyn-cloud'">
+    <div class="cloud" v-else-if="item.saveLocation.type === 'pipelab-cloud'">
       {{ item.name }}
     </div>
   </div>

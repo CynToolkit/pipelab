@@ -1,6 +1,6 @@
 const { PluginBase } = require('@electron-forge/plugin-base')
 
-module.exports = class CynPlugin extends PluginBase {
+module.exports = class PipelabPlugin extends PluginBase {
   getHooks() {
     return {
       prePackage: [this.prePackage],

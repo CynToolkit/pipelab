@@ -148,7 +148,7 @@ const openFile = async () => {
     {
       title: 'Choose a new path',
       properties: ['openFile'],
-      filters: [{ name: 'Cyn Project', extensions: ['cyn'] }]
+      filters: [{ name: 'Pipelab Project', extensions: ['pipelab'] }]
     },
     async (_, message) => {
       const { type, data } = message
@@ -220,7 +220,7 @@ const newFile = async () => {
     {
       title: 'Choose a new path',
       properties: ['createDirectory', 'showOverwriteConfirmation'],
-      filters: [{ name: 'Cyn Project', extensions: ['cyn'] }]
+      filters: [{ name: 'Pipelab Project', extensions: ['pipelab'] }]
     },
     async (_, message) => {
       const { type, data } = message

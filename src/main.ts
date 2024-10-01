@@ -103,7 +103,7 @@ const { registerBuiltIn } = usePlugins()
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(async () => {
   autoUpdater.setFeedURL({
-    url: 'https://github.com/CynToolkit/cyn/releases/latest/download',
+    url: 'https://github.com/CynToolkit/pipelab/releases/latest/download',
     headers: {
       'Cache-Control': 'no-cache'
     }
@@ -148,7 +148,7 @@ app.whenReady().then(async () => {
   logger().info('autoUpdater.getFeedURL()', autoUpdater.getFeedURL())
 
   // Set app user model id for windows
-  electronApp.setAppUserModelId('com.cyn')
+  electronApp.setAppUserModelId('com.pipelab')
 
   // Default open or close DevTools by F12 in development
   // and ignore CommandOrControl + R in production.
@@ -202,7 +202,7 @@ exec "${process.execPath}" "$@"
 
   const config = {
     options: {
-      /** project: path to file .cyn */
+      /** project: path to file .pipelab */
       project: {
         type: 'string',
         short: 'p'

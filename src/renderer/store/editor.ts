@@ -9,8 +9,8 @@ import {
   savedFileMigrator,
   Steps
 } from '@@/model'
-import { Action, Condition, Event, Loop, CynNode, RendererNodeDefinition } from '@cyn/plugin-core'
-import { Variable } from '@cyn/core-app'
+import { Action, Condition, Event, Loop, PipelabNode, RendererNodeDefinition } from '@pipelab/plugin-core'
+import { Variable } from '@pipelab/core-app'
 import { defineStore, storeToRefs } from 'pinia'
 import get from 'get-value'
 import set from 'set-value'
@@ -29,19 +29,19 @@ import { create } from 'mutative'
 export type Context = Record<string, unknown>
 
 // Definitions
-export const isActionDefinition = (nodeDefinition: CynNode): nodeDefinition is Action => {
+export const isActionDefinition = (nodeDefinition: PipelabNode): nodeDefinition is Action => {
   return nodeDefinition.type === 'action'
 }
 
-export const isConditionDefinition = (nodeDefinition: CynNode): nodeDefinition is Condition => {
+export const isConditionDefinition = (nodeDefinition: PipelabNode): nodeDefinition is Condition => {
   return nodeDefinition.type === 'condition'
 }
 
-export const isEventDefinition = (nodeDefinition: CynNode): nodeDefinition is Event => {
+export const isEventDefinition = (nodeDefinition: PipelabNode): nodeDefinition is Event => {
   return nodeDefinition.type === 'event'
 }
 
-export const isLoopDefinition = (nodeDefinition: CynNode): nodeDefinition is Loop => {
+export const isLoopDefinition = (nodeDefinition: PipelabNode): nodeDefinition is Loop => {
   return nodeDefinition.type === 'loop'
 }
 

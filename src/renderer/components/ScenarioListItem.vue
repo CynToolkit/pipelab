@@ -24,7 +24,7 @@
 import { useAppStore } from '@renderer/store/app'
 import { walker } from '@renderer/utils/graph'
 import { SavedFile } from '@@/model'
-import { IconType } from '@cyn/plugin-core'
+import { IconType } from '@pipelab/plugin-core'
 import { PropType, Ref, ref, toRefs, watchEffect } from 'vue'
 import PluginIcon from './nodes/PluginIcon.vue'
 import { EnhancedFile } from '@@/model'

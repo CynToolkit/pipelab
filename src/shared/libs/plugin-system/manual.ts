@@ -1,4 +1,4 @@
-import { createEvent, createEventRunner } from "@cyn/plugin-core";
+import { createEvent, createEventRunner } from "@pipelab/plugin-core";
 
 export const ID = "manual";
 

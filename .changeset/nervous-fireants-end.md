@@ -1,5 +1,5 @@
 ---
-'@cyn/app': patch
+'@pipelab/app': patch
 ---
 
 fix(app): fix adding node wrong offset

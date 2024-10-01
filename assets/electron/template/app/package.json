@@ -13,7 +13,7 @@
     "lint": "echo \"No linting configured\""
   },
   "devDependencies": {
-    "@cyn/core": "1.0.0",
+    "@pipelab/core": "1.0.0",
     "@electron-forge/cli": "7.4.0",
     "@electron-forge/maker-deb": "7.4.0",
     "@electron-forge/maker-dmg": "^7.4.0",

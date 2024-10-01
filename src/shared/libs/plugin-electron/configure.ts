@@ -1,4 +1,4 @@
-import { createAction, createActionRunner } from '@cyn/plugin-core'
+import { createAction, createActionRunner } from '@pipelab/plugin-core'
 import { ElectronConfiguration } from './model'
 
 export const props = createAction({
@@ -17,7 +17,7 @@ export const props = createAction({
   params: {
     name: {
       label: 'Application name',
-      value: 'Cyn',
+      value: 'Pipelab',
       description: 'The name of the application',
       required: true,
       control: {
@@ -29,7 +29,7 @@ export const props = createAction({
     },
     appBundleId: {
       label: 'Application bundle ID',
-      value: 'com.cyn.app',
+      value: 'com.pipelab.app',
       description: 'The bundle ID of the application',
       required: true,
       control: {
@@ -41,7 +41,7 @@ export const props = createAction({
     },
     appCopyright: {
       label: 'Application copyright',
-      value: 'Copyright © 2023 Cyn',
+      value: 'Copyright © 2024 Pipelab',
       description: 'The copyright of the application',
       required: false,
       control: {
@@ -80,7 +80,7 @@ export const props = createAction({
     },
     author: {
       label: 'Application author',
-      value: 'Cyn',
+      value: 'Pipelab',
       description: 'The author of the application',
       required: true,
       control: {
