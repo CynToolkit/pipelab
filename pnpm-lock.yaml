@@ -33,9 +33,6 @@ importers:
       '@codemirror/view':
         specifier: 6.34.0
         version: 6.34.0
-      '@pipelab/core':
-        specifier: 1.2.1
-        version: 1.2.1
       '@electron-toolkit/preload':
         specifier: 3.0.1
         version: 3.0.1(electron@32.1.2)
@@ -48,6 +45,9 @@ importers:
       '@jitl/quickjs-wasmfile-release-sync':
         specifier: 0.31.0
         version: 0.31.0
+      '@pipelab/core':
+        specifier: 1.2.3
+        version: 1.2.3
       '@primevue/themes':
         specifier: 4.0.7
         version: 4.0.7
@@ -656,9 +656,6 @@ packages:
   '@cspotcode/source-map-support@0.8.1':
     resolution: {integrity: sha512-IchNf6dN4tHoMFIn/7OE8LWZ19Y6q/67Bmf6vnGREv8RSbBVb9LPJxEcnwrcwX6ixSvaiGoomAUvu4YSxXrVgw==}
     engines: {node: '>=12'}
-
-  '@pipelab/core@1.2.1':
-    resolution: {integrity: sha512-aPBVDPYhrodvN8A8PG5nStGoBzhZl/hcvhFZM3cBPnRqkIvixCWFLF5Q4Ypxw78jmix6G/KQbz8oP/KBWbHkwA==}
 
   '@electron-forge/cli@7.4.0':
     resolution: {integrity: sha512-a+zZv3ja/IxkJzNyx4sOHSZv6DPV85S0PEVF6pcRjUpbDL5r+DxjRFsNc0Nq4UIWyFm1nw7RWoPdd9uDst4Tvg==}
@@ -1361,6 +1358,9 @@ packages:
     engines: {node: '>=14'}
     peerDependencies:
       '@opentelemetry/api': ^1.1.0
+
+  '@pipelab/core@1.2.3':
+    resolution: {integrity: sha512-cCJqDbvP253XWZWoeM3fnV0G3CSjsK6nTXB0k0bruXmJ9BPYn3B0jA64hL1/p8a68md/uux/NV8DEevkqBjPJQ==}
 
   '@pkgjs/parseargs@0.11.0':
     resolution: {integrity: sha512-+1VkjdD0QBLPodGrJUeqarH8VAIvQODIbwh9XpP5Syisf7YoQgsJKPNFoqqLQlu+VQ/tVSshMR6loPMn8U+dPg==}
@@ -7237,8 +7237,6 @@ snapshots:
     dependencies:
       '@jridgewell/trace-mapping': 0.3.9
 
-  '@pipelab/core@1.2.1': {}
-
   '@electron-forge/cli@7.4.0(encoding@0.1.13)':
     dependencies:
       '@electron-forge/core': 7.4.0(encoding@0.1.13)
@@ -8320,6 +8318,8 @@ snapshots:
     dependencies:
       '@opentelemetry/api': 1.9.0
       '@opentelemetry/core': 1.25.1(@opentelemetry/api@1.9.0)
+
+  '@pipelab/core@1.2.3': {}
 
   '@pkgjs/parseargs@0.11.0':
     optional: true

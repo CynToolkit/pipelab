@@ -30,9 +30,6 @@ importers:
         specifier: ^8.18.0
         version: 8.18.0
     devDependencies:
-      '@pipelab/core':
-        specifier: 1.0.0
-        version: 1.0.0
       '@electron-forge/cli':
         specifier: 7.4.0
         version: 7.4.0(encoding@0.1.13)
@@ -60,14 +57,14 @@ importers:
       '@electron/fuses':
         specifier: 1.8.0
         version: 1.8.0
+      '@pipelab/core':
+        specifier: 1.2.3
+        version: 1.2.3
       electron:
         specifier: 32.1.2
         version: 32.1.2
 
 packages:
-
-  '@pipelab/core@1.0.0':
-    resolution: {integrity: sha512-Wz2H30RbT8m72mnorziMOH+E58vgZkO22+zl61bvlXWFdplO3Tzw1DZmyGsmP1/C4JQ8NoR4W6QTOZ/lrGDrGg==}
 
   '@electron-forge/cli@7.4.0':
     resolution: {integrity: sha512-a+zZv3ja/IxkJzNyx4sOHSZv6DPV85S0PEVF6pcRjUpbDL5r+DxjRFsNc0Nq4UIWyFm1nw7RWoPdd9uDst4Tvg==}
@@ -240,6 +237,9 @@ packages:
     resolution: {integrity: sha512-mJd2Z5TjYWq/ttPLLGqArdtnC74J6bOzg4rMDnN+p1xTacZ2yPRCk2y0oSWQtygLR9YVQXgOcONrwtnk3JupxQ==}
     engines: {node: ^12.13.0 || ^14.15.0 || >=16.0.0}
     deprecated: This functionality has been moved to @npmcli/fs
+
+  '@pipelab/core@1.2.3':
+    resolution: {integrity: sha512-cCJqDbvP253XWZWoeM3fnV0G3CSjsK6nTXB0k0bruXmJ9BPYn3B0jA64hL1/p8a68md/uux/NV8DEevkqBjPJQ==}
 
   '@sec-ant/readable-stream@0.4.1':
     resolution: {integrity: sha512-831qok9r2t8AlxLko40y2ebgSDhenenCatLVeW/uBtnHPyhHOvG0C7TvfgecV+wHzIm5KUICgzmVpWS+IMEAeg==}
@@ -1875,8 +1875,6 @@ packages:
 
 snapshots:
 
-  '@pipelab/core@1.0.0': {}
-
   '@electron-forge/cli@7.4.0(encoding@0.1.13)':
     dependencies:
       '@electron-forge/core': 7.4.0(encoding@0.1.13)
@@ -2286,6 +2284,8 @@ snapshots:
     dependencies:
       mkdirp: 1.0.4
       rimraf: 3.0.2
+
+  '@pipelab/core@1.2.3': {}
 
   '@sec-ant/readable-stream@0.4.1': {}
 

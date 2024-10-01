@@ -59,7 +59,7 @@
     "@vueuse/components": "11.1.0",
     "@vueuse/core": "11.1.0",
     "@vueuse/router": "11.1.0",
-    "@pipelab/core": "1.2.1",
+    "@pipelab/core": "1.2.3",
     "archiver": "7.0.1",
     "code-tag": "1.2.0",
     "d3-shape": "3.2.0",
