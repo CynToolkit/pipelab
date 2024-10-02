@@ -1,21 +1,24 @@
 <template>
   <div class="scenario">
     <div class="scenario-plugins">
-      <div class="scenario-plugin" v-for="icon in icons">
-        <PluginIcon width="40px" :icon="icon"></PluginIcon>
+      <div class="icons">
+        <div v-for="(icon, index) in icons" :key="index" class="scenario-plugin">
+          <PluginIcon width="40px" :icon="icon"></PluginIcon>
+        </div>
       </div>
-    </div>
-    <div class="name">
-      <div class="title">{{ scenario.content.name }}</div>
-      <div class="description">{{ scenario.content.description }}</div>
-      <div class="description" v-if="scenario.type === 'external'">{{ scenario.path }}</div>
-    </div>
-    <div class="actions">
-      <Button v-if="!noDeleteBtn" label="Delete" severity="danger" @click.stop="onDelete">
+      <Button text v-if="!noDeleteBtn" severity="danger" @click.stop="onDelete" rounded>
         <template #icon>
           <i class="mdi mdi-delete"></i>
         </template>
       </Button>
+    </div>
+    <div class="name">
+      <div class="title">{{ scenario.content.name }}</div>
+      <div class="description">{{ scenario.content.description }}</div>
+      <div v-if="scenario.type === 'external'" class="description">{{ scenario.path }}</div>
+    </div>
+    <div class="actions">
+      <Button label="Open project" @click.stop="onOpen"> </Button>
     </div>
   </div>
 </template>
@@ -36,12 +39,13 @@ const props = defineProps({
   },
   noDeleteBtn: {
     type: Boolean,
-    default: false,
+    default: false
   }
 })
 
 const emit = defineEmits<{
-  'delete': [payload: SavedFile]
+  delete: [payload: SavedFile]
+  open: [payload: SavedFile]
 }>()
 
 const { scenario } = toRefs(props)
@@ -75,19 +79,23 @@ watchEffect(async () => {
 const onDelete = () => {
   emit('delete', scenario.value.content)
 }
+
+const onOpen = () => {
+  emit('open', scenario.value.content)
+}
 </script>
 
 <style lang="scss" scoped>
 .scenario {
-  display: grid;
-  grid-template-columns: calc(48px * 4) 1fr 150px;
+  display: flex;
+  flex-direction: column;
   gap: 8px;
-  cursor: pointer;
   min-height: 66px;
   border: 1px solid #eee;
   margin: 4px;
-  border-radius: 4px;
-  align-items: center;
+  border-radius: 16px;
+  flex: 1 1 0px;
+  overflow: hidden;
 
   &:hover {
     background-color: rgba(150, 150, 150, 0.1);
@@ -101,23 +109,32 @@ const onDelete = () => {
   .name {
     display: flex;
     flex-direction: column;
+    padding: 8px;
   }
 
   .actions {
     display: flex;
     flex-direction: row;
-    margin-right: 8px;
-    justify-content: flex-end;
+    justify-content: center;
+    padding: 8px;
   }
 }
 
 .scenario-plugins {
   display: flex;
   flex-direction: row;
-  border-radius: 4px 0 0 4px;
   background: #eee;
   height: 100%;
   align-items: center;
+  width: 100%;
+  padding: 4px;
+  flex: 1;
+  justify-content: space-between;
+
+  .icons {
+    display: flex;
+    gap: 4px;
+  }
 
   .scenario-plugin {
     display: flex;
@@ -126,6 +143,7 @@ const onDelete = () => {
 
     width: 48px;
     height: 48px;
+    width: 100%;
   }
 }
 </style>

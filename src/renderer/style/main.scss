@@ -52,3 +52,19 @@
   border-radius: 4px;
   cursor: pointer;
 }
+
+.bold {
+  font-weight: 700;
+}
+
+
+.p-button {
+	font-weight: 500;
+}
+
+$sizes: 12, 14, 16, 18, 20, 24, 28, 32, 36, 40, 44, 48, 52, 56, 60, 64, 72, 80, 96 !default;
+@for $i from 1 through length($sizes) {
+  .fs-#{nth($sizes, $i)} {
+    font-size: #{nth($sizes, $i)}px;
+  }
+}

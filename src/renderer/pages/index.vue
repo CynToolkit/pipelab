@@ -1,23 +1,32 @@
 <template>
   <div class="index">
     <div class="header">
-      <div>{{ headerSentence }}</div>
+      <div class="bold title">{{ headerSentence }}</div>
       <div class="button">
-        <Button @click="openFile">
-          <i class="mdi mdi-open-in-app mr-2"></i>
-          Open
-        </Button>
-        <Button @click="newFile">
-          <i class="mdi mdi-plus-circle-outline mr-2"></i>
+        <Button outlined @click="newFile">
+          <i class="mdi mdi-plus-circle-outline mr-2 fs-18"></i>
           New Project
         </Button>
+        <Button outlined @click="openFile">
+          <i class="mdi mdi-folder-open-outline mr-2"></i>
+          Open
+        </Button>
+
+        <Button link class="list-item" @click="toggleAccountMenu">
+          <i class="icon mdi mdi-account fs-24"></i>
+          <!-- {{ user.email }} -->
+        </Button>
+        <!-- <Button link v-else class="list-item" @click="isAuthModalVisible = true" @click="">
+          <i class="icon mdi mdi-account fs-24"></i>
+        </Button> -->
+        <Menu ref="$menu" :model="accountMenuItems" :popup="true" />
       </div>
     </div>
     <div class="content">
       <div class="your-projects">
-        <div class="list-header">Your projects</div>
+        <div class="list-header bold">Your projects</div>
         <div class="scenarios">
-          <div class="no-projects" v-if="filesEnhanced.length === 0">
+          <div v-if="filesEnhanced.length === 0" class="no-projects">
             <div>No projects yet</div>
             <Button @click="newFile">
               <i class="mdi mdi-plus-circle-outline mr-2"></i>
@@ -25,9 +34,10 @@
             </Button>
           </div>
           <ScenarioListItem
-            @click="loadExisting(file.id)"
             v-for="file in filesEnhanced"
+            :key="file.id"
             :scenario="file"
+            @open="loadExisting(file.id)"
             @delete="deleteProject(file.id)"
           >
           </ScenarioListItem>
@@ -58,43 +68,196 @@
         </div>
       </div> -->
     </div>
+
+    <Dialog
+      v-model:visible="isAuthModalVisible"
+      modal
+      :style="{ width: '30vw' }"
+      :breakpoints="{ '1199px': '75vw', '575px': '90vw' }"
+    >
+      <template #header>
+        <div class="flex flex-column w-full">
+          <p class="text-xl text-center">{{ type === 'login' ? 'Login' : 'Register' }}</p>
+        </div>
+      </template>
+
+      <div v-if="type === 'login'" class="login">
+        <div class="grid justify-content-center">
+          <div class="col-12 xl:col-6 w-full">
+            <div class="h-full w-full">
+              <!-- @vue-expect-error -->
+              <form @submit.prevent="handleSubmit">
+                <div class="w-full md:w-10 mx-auto">
+                  <InputText
+                    id="mail"
+                    v-model="emailModel"
+                    v-bind="emailProps"
+                    type="text"
+                    :class="{
+                      'w-full': true
+                    }"
+                    placeholder="Email"
+                    :invalid="!!errors.email"
+                  />
+                  <small v-if="errors.email" id="username-help">
+                    {{ errors.email }}
+                  </small>
+
+                  <div class="mb-2"></div>
+
+                  <Password
+                    id="password1"
+                    v-model="passwordModel"
+                    v-bind="passwordProps"
+                    placeholder="Password"
+                    :toggle-mask="true"
+                    :feedback="false"
+                    :invalid="!!errors.password"
+                    :class="{
+                      'w-full': true
+                    }"
+                    input-class="w-full"
+                  >
+                  </Password>
+
+                  <small v-if="errors.password" class="p-error">
+                    {{ errors.password }}
+                  </small>
+
+                  <div class="mb-2"></div>
+
+                  <div class="flex align-items-center justify-content-between mb-5">
+                    <Button text> Forgot password? </Button>
+                  </div>
+
+                  <Button
+                    type="submit"
+                    label="Sign In"
+                    color="primary"
+                    class="w-full p-3 text-lg mb-2"
+                    @click="onSubmit"
+                  />
+                  <Button
+                    text
+                    label="Don't have an account?"
+                    class="w-full p-3 text-lg"
+                    @click="type = 'register'"
+                  />
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div v-if="type === 'register'" class="login">
+        <div class="grid justify-content-center">
+          <div class="col-12 xl:col-6 w-full">
+            <div class="h-full w-full">
+              <!-- @vue-expect-error -->
+              <form @submit.prevent="handleSubmit">
+                <div class="w-full md:w-10 mx-auto">
+                  <InputText
+                    id="mail"
+                    v-model="emailModel"
+                    v-bind="emailProps"
+                    type="text"
+                    :class="{
+                      'w-full': true
+                    }"
+                    placeholder="Email"
+                    :invalid="!!errors.email"
+                  />
+                  <small v-if="errors.email" id="username-help">
+                    {{ errors.email }}
+                  </small>
+
+                  <div class="mb-2"></div>
+
+                  <Password
+                    id="password1"
+                    v-model="passwordModel"
+                    v-bind="passwordProps"
+                    placeholder="Password"
+                    :toggle-mask="true"
+                    :invalid="!!errors.password"
+                    :class="{
+                      'w-full': true
+                    }"
+                    input-class="w-full"
+                  >
+                    <template #header>
+                      <div class="text-lg font-bold mb-3">Pick a password</div>
+                    </template>
+
+                    <!-- @vue-expect-error -->
+                    <template #footer="sp">
+                      <!-- @vue-expect-error -->
+                      {{ sp.level }}
+                      <Divider />
+                      <ul class="pl-2 ml-2 mt-0 line-height-3">
+                        <li>At least one lowercase</li>
+                        <li>At least one uppercase</li>
+                        <li>At leaset one numeric</li>
+                        <li>Minimum 8 characters</li>
+                      </ul>
+                    </template>
+                  </Password>
+
+                  <small v-if="errors.password" class="p-error">
+                    {{ errors.password }}
+                  </small>
+
+                  <div class="mb-2"></div>
+
+                  <div class="flex align-items-center justify-content-between mb-5">
+                    <Button text> Forgot password? </Button>
+                  </div>
+
+                  <Button
+                    type="submit"
+                    label="Sign Up"
+                    color="primary"
+                    class="w-full p-3 text-lg mb-2"
+                    @click="onSubmit"
+                  />
+                  <Button
+                    text
+                    label="Already have an account?"
+                    class="w-full p-3 text-lg"
+                    @click="type = 'login'"
+                  />
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch, watchEffect } from 'vue'
+import { computed, ref, watchEffect } from 'vue'
 import ScenarioListItem from '@renderer/components/ScenarioListItem.vue'
-import ScenarioListItemRecent from '@renderer/components/ScenarioListItemRecent.vue'
-import { useAppStore } from '@renderer/store/app'
 import { storeToRefs } from 'pinia'
 import { EnhancedFile, SavedFile } from '@@/model'
 import { nanoid } from 'nanoid'
-import { useEditor } from '@renderer/store/editor'
-import { useRouter } from 'vue-router'
-import { Recent, useRecentsStore } from '@renderer/store/recents'
+import { useRoute, useRouter } from 'vue-router'
+import { Recent } from '@renderer/store/recents'
 import { useAPI } from '@renderer/composables/api'
 import { useFiles } from '@renderer/store/files'
-import { asyncComputed, computedAsync } from '@vueuse/core'
-import { WithId } from '@@/utils'
-import { loadExternalFile, loadInternalFile } from '@renderer/utils/config'
-import { SaveLocation } from '@@/save-location'
+import { loadExternalFile } from '@renderer/utils/config'
 import { useLogger } from '@@/logger'
-
-const appStore = useAppStore()
-const { presets } = storeToRefs(appStore)
-
-const editorStore = useEditor()
-const {} = storeToRefs(editorStore)
-const {} = editorStore
-
-const recentStore = useRecentsStore()
-const { recents } = storeToRefs(recentStore)
-const { addRecent } = recentStore
+import { useForm } from 'vee-validate'
+import { email, minLength, nonEmpty, object, pipe, regex, string } from 'valibot'
+import { toTypedSchema } from '@vee-validate/valibot'
+import { useAuth } from '@renderer/store/auth'
+import { MenuItem } from 'primevue/menuitem'
 
 const router = useRouter()
 
 const headerSentence = computed(() => {
-  return `Welcome back!`
+  return `Dashboard`
 })
 
 const api = useAPI()
@@ -235,7 +398,7 @@ const newFile = async () => {
     return
   }
 
-  let path = paths.filePath
+  const path = paths.filePath
 
   const alreadyAddedPaths = Object.entries(files.value.data).map(([id, file]) => {
     if (file.type === 'external') {
@@ -298,20 +461,146 @@ const loadExisting = async (id: string) => {
 const deleteProject = async (id: string) => {
   await remove(id)
 }
+
+const appVersion = ref(window.version)
+const isAuthModalVisible = ref(false)
+const auth = useAuth()
+
+const { user } = storeToRefs(auth)
+
+const route = useRoute()
+
+const schema = toTypedSchema(
+  object({
+    email: pipe(
+      string('An email adress is required'),
+      nonEmpty('Email is required'),
+      email('Invalid email')
+    ),
+    password: pipe(
+      string('A password is required'),
+      nonEmpty('Password is required'),
+      minLength(10, 'Password must be at least 10 characters long'),
+      regex(/[a-z]/, 'Password must contain at least one lowercase letter'),
+      regex(/[A-Z]/, 'Password must contain at least one uppercase letter'),
+      regex(/[0-9]/, 'Password must contain at least one number'),
+      regex(/[!@#$%^&*()_+-=[\]{};':"|<>?,./`~.]/, 'Password must contain at least one symbol')
+    )
+  })
+)
+
+const { defineField, handleSubmit, errors } = useForm({
+  validationSchema: schema
+})
+
+const [emailModel, emailProps] = defineField('email')
+const [passwordModel, passwordProps] = defineField('password')
+
+const onSuccess = async (values: any) => {
+  if (type.value === 'register') {
+    await auth.register(values.email, values.password)
+  } else {
+    await auth.login(values.email, values.password)
+  }
+}
+
+function onInvalidSubmit({ values, errors, results }: any) {
+  logger().info({ values }) // current form values
+  logger().info({ errors }) // a map of field names and their first error message
+  logger().info({ results }) // a detailed map of field names and their validation results
+}
+
+const onSubmit = handleSubmit(onSuccess, onInvalidSubmit)
+
+const type = ref<'login' | 'register'>('login')
+
+const $menu = ref()
+const accountMenuItems = computed(() => {
+  const items = []
+
+  if (auth.user) {
+    items.push(
+      {
+        label: 'Profile',
+        icon: 'mdi mdi-account',
+        disabled: true
+      },
+      {
+        label: 'Team',
+        icon: 'mdi mdi-account-multiple',
+        disabled: true
+      },
+      {
+        label: 'Settings',
+        icon: 'mdi mdi-cog',
+        disabled: true
+      },
+      {
+        separator: true
+      },
+      {
+        label: 'Logout',
+        icon: 'mdi mdi-logout',
+        disabled: true
+      }
+    )
+  } else {
+    items.push({
+      label: 'Login',
+      icon: 'mdi mdi-account',
+      command: (event) => {
+        isAuthModalVisible.value = true
+      }
+    } satisfies MenuItem)
+  }
+
+  items.push(
+    {
+      separator: true
+    },
+    {
+      label: appVersion,
+      icon: 'mdi mdi-information'
+    }
+  )
+
+  const result = [
+    {
+      label: 'Account',
+      icon: 'mdi mdi-account',
+      items
+    }
+  ] satisfies MenuItem
+
+  return result
+})
+
+const toggleAccountMenu = (event: MouseEvent) => {
+  $menu.value.toggle(event)
+}
 </script>
 
 <style scoped>
 .header {
-  font-size: 2rem;
-  margin: 32px 16px 64px 16px;
+  font-size: 1.5rem;
+  line-height: 2rem;
+  margin: 16px 16px 32px 16px;
   display: flex;
   flex-direction: row;
+  align-items: center;
   justify-content: space-between;
+
+  .title {
+    margin-left: 8px;
+  }
 
   .button {
     display: flex;
-    gap: 4px;
+    gap: 8px;
     flex-direction: row;
+    height: 40px;
+
+    font-weight: 500 !important;
   }
 }
 
@@ -319,6 +608,15 @@ const deleteProject = async (id: string) => {
   display: flex;
   flex-direction: column;
   overflow: auto;
+  gap: 16px;
+  padding: 0 16px;
+}
+
+.scenarios {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(4, auto);
+  grid-gap: 20px;
   gap: 16px;
 }
 
@@ -330,8 +628,8 @@ const deleteProject = async (id: string) => {
 }
 
 .list-header {
-  font-size: 1.4rem;
-  margin-bottom: 8px;
+  font-size: 1.8rem;
+  margin-bottom: 16px;
   margin-left: 8px;
 }
 
