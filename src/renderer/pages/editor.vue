@@ -2,20 +2,10 @@
   <div class="editor">
     <Toast position="bottom-center" />
 
-    <!-- <div class="aside">
-      <div>
-        <div>Editor</div>
-      </div>
-      <div>
-        <div>Variables</div>
-        <VariablesEditor v-if="instance"></VariablesEditor>
-      </div>
-    </div> -->
-
     <div class="editor-content">
       <div class="buttons">
         <div class="left">
-          <Button label="Close" :disabled="isRunning" size="small" @click="onCloseRequest">
+          <Button outlined label="Close" :disabled="isRunning" size="small" @click="onCloseRequest">
             <template #icon>
               <i class="mdi mdi-close mr-1"></i>
             </template>
@@ -61,17 +51,17 @@
           </Inplace>
         </div>
         <div class="right">
-          <Button label="Save" :disabled="isRunning" size="small" @click="onSaveRequest">
+          <Button outlined label="Save" :disabled="isRunning" size="small" @click="onSaveRequest">
             <template #icon>
               <i class="mdi mdi-content-save mr-1"></i>
             </template>
           </Button>
-          <Button v-if="!isRunning" label="Run" size="small" @click="run">
+          <Button v-if="!isRunning" outlined label="Run" size="small" @click="run">
             <template #icon>
               <i class="mdi mdi-play mr-1"></i>
             </template>
           </Button>
-          <Button v-else label="Cancel" size="small" disabled @click="run">
+          <Button v-else outlined label="Cancel" size="small" disabled @click="run">
             <template #icon>
               <i class="mdi mdi-cancel mr-1"></i>
             </template>
@@ -79,27 +69,40 @@
           <!-- <Button label="Save" size="small" icon="pi pi-pencil" rounded @click="save"></Button> -->
         </div>
       </div>
-      <div class="main">
-        <div class="node-editor-wrapper">
-          <EditorNodeEvent
-            v-for="trigger in triggers"
-            v-if="triggers.length > 0"
-            :key="trigger.uid"
-            :steps="stepsDisplay"
-            :path="['0']"
-            :value="trigger"
-          ></EditorNodeEvent>
-          <EditorNodeEventEmpty v-else :path="[]"></EditorNodeEventEmpty>
 
-          <NodesEditor
-            v-if="instance"
-            :errors="errors"
-            :nodes="nodes"
-            :path="[]"
-            :steps="stepsDisplay"
-            :starting-index="1"
-          ></NodesEditor>
-          <EditorNodeDummy title="End"></EditorNodeDummy>
+      <div class="editor-wrapper">
+        <div class="aside">
+          <div>
+            <div class="bold">Project Settings</div>
+            <ProjectSettingsEditor v-if="instance"></ProjectSettingsEditor>
+          </div>
+          <div>
+            <div class="bold">Variables</div>
+            <VariablesEditor v-if="instance"></VariablesEditor>
+          </div>
+        </div>
+        <div class="main">
+          <div class="node-editor-wrapper">
+            <EditorNodeEvent
+              v-for="trigger in triggers"
+              v-if="triggers.length > 0"
+              :key="trigger.uid"
+              :steps="stepsDisplay"
+              :path="['0']"
+              :value="trigger"
+            ></EditorNodeEvent>
+            <EditorNodeEventEmpty v-else :path="[]"></EditorNodeEventEmpty>
+
+            <NodesEditor
+              v-if="instance"
+              :errors="errors"
+              :nodes="nodes"
+              :path="[]"
+              :steps="stepsDisplay"
+              :starting-index="1"
+            ></NodesEditor>
+            <EditorNodeDummy title="End"></EditorNodeDummy>
+          </div>
         </div>
       </div>
 
@@ -143,12 +146,41 @@
           ></Button>
         </div>
       </Dialog>-->
+
+      <Dialog
+        v-model:visible="isPromptDialogVisible"
+        modal
+        header="Prompt"
+        :style="{ width: '25rem' }"
+      >
+        <span class="text-surface-500 dark:text-surface-400 block mb-8"
+          >Update your information.</span
+        >
+        <div class="flex items-center gap-4 mb-4">
+          <label for="answer" class="font-semibold w-24">Title</label>
+          <InputText
+            id="answer"
+            v-model="promptDialogAnswer"
+            class="flex-auto"
+            autocomplete="off"
+          />
+        </div>
+        <div class="flex justify-end gap-2">
+          <Button
+            type="button"
+            label="Cancel"
+            severity="secondary"
+            @click="onPromptDialogCancel"
+          ></Button>
+          <Button type="button" label="OK" @click="onPromptDialogOK"></Button>
+        </div>
+      </Dialog>
     </div>
   </div>
 </template>
 
 <script lang="ts" setup>
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useEditor } from '@renderer/store/editor'
 import NodesEditor from '@renderer/pages/nodes-editor.vue'
 import EditorNodeDummy from '@renderer/components/nodes/EditorNodeDummy.vue'
@@ -167,7 +199,9 @@ import { loadExternalFile, loadInternalFile, saveExternalFile } from '@renderer/
 import EditorNodeEvent from '@renderer/components/nodes/EditorNodeEvent.vue'
 import EditorNodeEventEmpty from '@renderer/components/nodes/EditorNodeEventEmpty.vue'
 import { RendererChannels, RendererData, RendererEvents, RendererMessage } from '@main/api'
-import { handle } from '@renderer/composables/handlers'
+import { handle, HandleListenerRendererSendFn } from '@renderer/composables/handlers'
+import VariablesEditor from './variables-editor.vue'
+import ProjectSettingsEditor from './project-settings-editor.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -434,22 +468,7 @@ const api = useAPI()
 //   }
 // }
 
-const pipelineMenu = computed<MenuItem[]>(() => [
-  {
-    label: 'Save',
-    icon: 'pi pi-save',
-    command: () => {
-      onSaveRequest()
-    }
-  }
-])
-
-const menu = ref()
-const toggle = (event: any) => {
-  menu.value.toggle(event)
-}
-
-const showSaveDialog = ref(false)
+// TODO: proper alert and prompt
 
 handle('dialog:alert', async (event, { value, send }) => {
   alert(value.message)
@@ -460,6 +479,39 @@ handle('dialog:alert', async (event, { value, send }) => {
       answer: 'ok'
     }
   })
+})
+
+const isPromptDialogVisible = ref(false)
+const promptDialogAnswer = ref('')
+const onPromptDialogCancel = () => {
+  lastPromptInfos.callback({
+    type: 'end',
+    data: {
+      ipcError: 'cancled'
+    }
+  })
+  isPromptDialogVisible.value = false
+}
+const onPromptDialogOK = () => {
+  lastPromptInfos.callback({
+    type: 'end',
+    data: {
+      answer: promptDialogAnswer.value
+    }
+  })
+  isPromptDialogVisible.value = false
+}
+
+const lastPromptInfos = reactive({
+  callback: undefined as undefined | HandleListenerRendererSendFn<"dialog:prompt">,
+  message: ''
+})
+
+handle('dialog:prompt', async (event, { value, send }) => {
+  lastPromptInfos.message = value.message
+  lastPromptInfos.callback = send
+
+  isPromptDialogVisible.value = true
 })
 
 tinykeys(window, {
@@ -490,6 +542,11 @@ tinykeys(window, {
     width: 100%;
     display: flex;
     flex-direction: column;
+
+    .editor-wrapper {
+      display: flex;
+      flex-direction: row;
+    }
   }
 
   .aside {
@@ -497,7 +554,7 @@ tinykeys(window, {
     border-radius: 16px;
     margin: 8px;
     padding: 16px;
-    min-width: 300px;
+    width: 400px;
 
     background-color: white;
   }

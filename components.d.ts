@@ -7,12 +7,14 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    Avatar: typeof import('primevue/avatar')['default']
     Button: typeof import('primevue/button')['default']
     Checkbox: typeof import('primevue/checkbox')['default']
     Chip: typeof import('primevue/chip')['default']
     Dialog: typeof import('primevue/dialog')['default']
     Divider: typeof import('primevue/divider')['default']
     Drawer: typeof import('primevue/drawer')['default']
+    Fieldset: typeof import('primevue/fieldset')['default']
     IconField: typeof import('primevue/iconfield')['default']
     Inplace: typeof import('primevue/inplace')['default']
     InputIcon: typeof import('primevue/inputicon')['default']

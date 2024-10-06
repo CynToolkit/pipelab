@@ -4,6 +4,7 @@ import { logAction, logActionRunner } from './log.js'
 // import { forLoop, ForLoopRunner } from './for.js'
 import { manualEvent, manualEvaluator } from './manual.js'
 import { alertAction, alertActionRunner } from './alert.js'
+import { promptAction, promptActionRunner } from './prompt.js'
 import { sleepAction, sleepActionRunner } from './sleep.js'
 
 export default createNodeDefinition({
@@ -34,6 +35,10 @@ export default createNodeDefinition({
     {
       node: alertAction,
       runner: alertActionRunner
+    },
+    {
+      node: promptAction,
+      runner: promptActionRunner
     },
     {
       node: sleepAction,

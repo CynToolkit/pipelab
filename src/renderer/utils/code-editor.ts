@@ -1,6 +1,6 @@
 import { readonly, Ref, ref, shallowRef, watch } from 'vue'
 import { EditorView, keymap, lineNumbers, ViewUpdate } from '@codemirror/view'
-import { history, historyKeymap, indentWithTab } from '@codemirror/commands'
+import { history, historyKeymap, indentWithTab, defaultKeymap } from '@codemirror/commands'
 import type { Extension } from '@codemirror/state'
 import { autocompletion } from '@codemirror/autocomplete'
 import { javascript } from '@codemirror/lang-javascript'
@@ -16,31 +16,28 @@ export const createCodeEditor = (
 
   const resolveValue = (raw: string): string => {
     // Parse the raw string to extract step, output, and field
-    const match = raw.match(/steps\['([\w-]+)'\]\['outputs'\]\['([\w-]+)'\]/);
-    if (!match) return `Invalid: ${raw}`;
+    const match = raw.match(/steps\['([\w-]+)'\]\['outputs'\]\['([\w-]+)'\]/)
+    if (!match) return `Invalid: ${raw}`
 
-    const [, step, field] = match;
+    const [, step, field] = match
 
     // Simulate fetching or computing the value dynamically
     // In a real scenario, this might involve API calls, computation, or accessing a state management store
     const simulateDynamicResolution = (step: string, field: string): string => {
       // This is a placeholder. Replace with your actual dynamic resolution logic
-      const timestamp = new Date().toISOString();
-      return `${step}.${field} @ ${timestamp}`;
-    };
+      const timestamp = new Date().toISOString()
+      return `${step}.${field} @ ${timestamp}`
+    }
 
-    return simulateDynamicResolution(step, field);
-  };
+    return simulateDynamicResolution(step, field)
+  }
 
   const createBaseEditor = () => {
     return new EditorView({
       doc: '',
       extensions: [
         lineNumbers(),
-        keymap.of([
-          indentWithTab,
-          ...historyKeymap
-        ]),
+        keymap.of([indentWithTab, ...defaultKeymap, ...historyKeymap]),
         javascript(),
         autocompletion(),
         history(),
@@ -75,6 +72,7 @@ export const createCodeEditor = (
   const internalValue = ref(editor.value.state.doc.toString())
 
   const update = (value: string) => {
+    console.log('value', value)
     if (editor.value.state.doc.toString() === value) {
       return
     }

@@ -6,6 +6,7 @@ import serve from 'serve-handler'
 import { createServer } from 'http'
 import { WebSocketServer } from 'ws';
 import './custom-main.js'
+import mri from 'mri';
 
 // user
 import userFolder from './handlers/user/folder.js'
@@ -52,12 +53,22 @@ function assertUnreachable(x) {
   throw new Error("Didn't expect to get here");
 }
 
-<% if (config.enableInProcessGPU) { %>
-  app.commandLine.appendSwitch('in-process-gpu')
-  <% } %>
+console.log('process.argv', process.argv)
+const argv = process.argv
+const cliArgs = mri(argv, {
+  alias: {
+    u: 'url'
+  },
+});
+
+  //region commandLine Flags
+  <% if (config.enableInProcessGPU) { %>
+    app.commandLine.appendSwitch('in-process-gpu')
+    <% } %>
 <% if (config.enableDisableRendererBackgrounding) { %>
   app.commandLine.appendSwitch('disable-renderer-backgrounding')
   <% } %>
+//endregion
 
 /**
  * @param {BrowserWindow} mainWindow
@@ -197,11 +208,17 @@ const createWindow = async () => {
     }
   })
 
-  const port = await createAppServer(mainWindow)
+  const argUrl = cliArgs.url
+  if (argUrl) {
+    console.log('argUrl', argUrl)
+    await mainWindow.loadURL(argUrl)
+  } else {
+    const port = await createAppServer(mainWindow)
 
-  console.log('port', port)
+    console.log('port', port)
 
-  await mainWindow.loadURL(`http://localhost:${port}`)
+    await mainWindow.loadURL(`http://localhost:${port}`)
+  }
 }
 
 const registerHandlers = async () => {

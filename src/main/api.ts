@@ -17,6 +17,11 @@ export type IpcDefinition = {
     { message: string; buttons?: { title: string; value: string }[] },
     EndEvent<{ answer: string }>
   ]
+  'dialog:prompt': [
+    // input
+    { message: string; buttons?: { title: string; value: string }[] },
+    EndEvent<{ answer: string }>
+  ]
   'log:message': [
     // input
     ILogObjMeta,

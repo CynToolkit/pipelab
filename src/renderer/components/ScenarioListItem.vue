@@ -6,7 +6,7 @@
           <PluginIcon width="40px" :icon="icon"></PluginIcon>
         </div>
       </div>
-      <Button text v-if="!noDeleteBtn" severity="danger" @click.stop="onDelete" rounded>
+      <Button v-if="!noDeleteBtn" text severity="danger" rounded @click.stop="onDelete">
         <template #icon>
           <i class="mdi mdi-delete"></i>
         </template>

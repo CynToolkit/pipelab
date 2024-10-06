@@ -2,5 +2,5 @@
 '@pipelab/app': patch
 ---
 
-add live logs hooks support
-fix steam permission, general improvements & logged out detection
+fix(app): add live logs hooks support
+fix(plugin-steam): fix steam permission, general improvements & logged out detection

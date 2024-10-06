@@ -1,4 +1,4 @@
-import { getBinName, outFolderName } from 'src/constants'
+import { outFolderName } from 'src/constants'
 import { ActionRunnerData, createAction, InputsDefinition, runWithLiveLogs } from '../plugin-core'
 import type { MakeOptions } from '@electron-forge/core'
 import { ElectronConfiguration } from './model'
@@ -10,33 +10,6 @@ import { merge } from 'ts-deepmerge'
 
 export const IDMake = 'electron:make'
 export const IDPackage = 'electron:package'
-export const IDPreview = 'electron:preview'
-
-const paramsInputFolder = {
-  'input-folder': {
-    value: '',
-    label: 'Folder to package',
-    control: {
-      type: 'path',
-      options: {
-        properties: ['openDirectory']
-      }
-    }
-  }
-} satisfies InputsDefinition
-
-const paramsInputURL = {
-  'input-url': {
-    value: '',
-    label: 'URL to preview',
-    control: {
-      type: 'input',
-      options: {
-        kind: 'text'
-      }
-    }
-  }
-} satisfies InputsDefinition
 
 const params = {
   arch: {
@@ -107,6 +80,16 @@ const params = {
     control: {
       type: 'json'
     }
+  },
+  'input-folder': {
+    value: '',
+    label: 'Folder to package',
+    control: {
+      type: 'path',
+      options: {
+        properties: ['openDirectory']
+      }
+    }
   }
 } satisfies InputsDefinition
 
@@ -117,8 +100,7 @@ export const createProps = (
   name: string,
   description: string,
   icon: string,
-  displayString: string,
-  inputType: 'folder' | 'url'
+  displayString: string
 ) =>
   createAction({
     id,
@@ -127,10 +109,7 @@ export const createProps = (
     icon,
     displayString,
     meta: {},
-    params: {
-      ...params,
-      ...(inputType === 'folder' ? paramsInputFolder : paramsInputURL)
-    },
+    params,
     outputs: {
       output: {
         label: 'Output',
@@ -148,7 +127,7 @@ export const createProps = (
 export const forge = async (
   action: 'make' | 'package',
   { cwd, log, inputs, setOutput, paths }: ActionRunnerData<ReturnType<typeof createProps>>
-): Promise<{ folder: string, binary: string | undefined } | undefined> => {
+) => {
   log('Building electron')
 
   const { assets, unpack } = paths
@@ -174,9 +153,7 @@ export const forge = async (
     'dist',
     'electron-forge.js'
   )
-
-  const isUrl = 'input-url' in inputs
-  const isAppFolder = 'input-folder' in inputs
+  const appFolder = inputs['input-folder']
 
   const templateFolder = join(assets, 'electron', 'template', 'app')
 
@@ -192,15 +169,10 @@ export const forge = async (
 
   const placeAppFolder = join(destinationFolder, 'src', 'app')
 
-  // if input is folder, copy folder to destination
-  if (isAppFolder) {
-    const appFolder = inputs['input-folder']
-
-    // copy app to template
-    await cp(appFolder, placeAppFolder, {
-      recursive: true
-    })
-  }
+  // copy app to template
+  await cp(appFolder, placeAppFolder, {
+    recursive: true
+  })
 
   const completeConfiguration = merge(
     {
@@ -233,7 +205,7 @@ export const forge = async (
   ejs.renderFile(
     join(templateFolder, 'forge.config.cjs'),
     {
-      config: completeConfiguration,
+      config: completeConfiguration
     },
     {},
     (err: Error, str: string) => {
@@ -335,21 +307,10 @@ export const forge = async (
         finalPlatform as NodeJS.Platform,
         finalArch as NodeJS.Architecture
       )
-      const binName = getBinName(completeConfiguration.name)
 
-      const output = join(destinationFolder, 'out', outName)
-      setOutput('output', output)
-      return {
-        folder: output,
-        binary: join(output, binName)
-      }
+      setOutput('output', join(destinationFolder, 'out', outName))
     } else {
-      const output = join(destinationFolder, 'out', 'make')
-      setOutput('output', output)
-      return {
-        folder: output,
-        binary: undefined
-      }
+      setOutput('output', join(destinationFolder, 'out', 'make'))
     }
   } catch (e) {
     if (e instanceof Error) {
@@ -361,6 +322,5 @@ export const forge = async (
       }
     }
     log(e)
-    return undefined
   }
 }

@@ -1,3 +1,5 @@
+import { platform } from 'process'
+
 export const name = 'Pipelab'
 
 export const outFolderName = (binName: string, platform: NodeJS.Platform, arch: NodeJS.Architecture) => {
@@ -27,4 +29,14 @@ export const outFolderName = (binName: string, platform: NodeJS.Platform, arch: 
   }
 
   return `${binName}-${platformName}-${archName}`
+}
+
+export const getBinName = (name: string) => {
+  if (platform === 'win32') {
+    return `${name}.exe`
+  }
+  if (platform === 'darwin') {
+    return `${name}.app/Contents/MacOS/${name}`
+  }
+  return name
 }

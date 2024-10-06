@@ -4,24 +4,14 @@ import { join } from 'path'
 import { tmpdir } from 'os'
 import { nanoid } from 'nanoid'
 import { readFile } from 'fs/promises'
-import { name, outFolderName } from '../../../src/constants'
+import { getBinName, name, outFolderName } from '../../../src/constants'
 import { platform, arch } from 'process'
-
-const getBinName = () => {
-  if (platform === 'win32') {
-    return `${name}.exe`
-  }
-  if (platform === 'darwin') {
-    return `${name}.app/Contents/MacOS/${name}`
-  }
-  return name
-}
 
 const tmpLogFile = join(tmpdir(), nanoid() + 'pipelab-app-test.log.json')
 const root = process.cwd()
 
 const binFolder = outFolderName('Pipelab', platform, arch)
-const binName = getBinName()
+const binName = getBinName(name)
 
 const bin = join(root, 'out', binFolder, binName)
 // const bin = '/home/quentin/Projects/pipelab-monorepo/out/@pipelab-app-win32-x64/@pipelab-app.exe'
