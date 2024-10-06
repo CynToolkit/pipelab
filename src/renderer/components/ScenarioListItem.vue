@@ -104,6 +104,10 @@ const onOpen = () => {
   .description {
     font-size: 0.875rem;
     color: #aaa;
+
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .name {

@@ -70,7 +70,7 @@
 
       <Drawer v-model:visible="showSidebar" class="w-full md:w-full lg:w-7 xl:w-5" position="right">
         <template v-if="nodeDefinition">
-          <div class="flex flex-column gap-2">
+          <div class="flex flex-column gap-4">
             <div v-for="(paramDefinition, key) in nodeDefinition.params" :key="key" class="param">
               <ParamEditor
                 :param="value.params[key]"
@@ -141,7 +141,7 @@ const props = defineProps({
   errors: {
     type: Object as PropType<ValidationError[]>,
     required: false,
-    default: () => []
+    default: () => ([])
   }
 })
 
@@ -174,6 +174,7 @@ const pluginDefinition = computed(() => {
 })
 
 const onValueChanged = (newValue: unknown, paramKey: string) => {
+  console.log('onValueChanged', newValue, paramKey)
   setBlockValue(value.value.uid, {
     ...value.value,
     params: {

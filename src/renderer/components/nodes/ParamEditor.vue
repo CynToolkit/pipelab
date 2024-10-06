@@ -27,6 +27,7 @@
               v-tooltip.top="expectedTooltip"
               text
               size="small"
+              class="type-btn"
               rounded
               :severity="isExpectedValid ? 'success' : 'danger'"
             >
@@ -38,11 +39,29 @@
         </div>
 
         <!-- Code editor -->
-        <div ref="$codeEditorText" class="code-editor"></div>
+        <div class="code-editor-wrapper">
+          <div class="code-editor-wrapper-inner">
+            <div v-show="mode === 'editor'" ref="$codeEditorText" class="code-editor"></div>
+            <ParamEditorBody
+              v-show="mode === 'simple'"
+              :model-value="resultValue"
+              :param-definition="paramDefinition"
+              @update:model-value="onParamEditorUpdate"
+              @switch="toggleMode"
+            ></ParamEditorBody>
+          </div>
+          <Button text aria-label="Save" @click="toggleMode">
+            <template #icon>
+              <i class="icon mdi mdi-code-block-braces fs-16"></i>
+            </template>
+          </Button>
+        </div>
 
         <!-- Hint text -->
-        <Skeleton v-if="hintText === undefined" height="20px"></Skeleton>
-        <div v-else v-dompurify-html="hintText" class="hint" :class="{ error: isError }"></div>
+        <template v-if="mode === 'editor'">
+          <Skeleton v-if="hintText === undefined" height="20px"></Skeleton>
+          <div v-else v-dompurify-html="hintText" class="hint" :class="{ error: isError }"></div>
+        </template>
 
         <!-- Floating indicator -->
         <div
@@ -66,75 +85,20 @@
             style="position: absolute; pointer-events: none; top: 100%; left: 32.5px"
           >
             <path stroke="none" d="M0,0 H14 L7,7 Q7,7 7,7 Z"></path>
-            <clipPath id=":r8:"><rect x="0" y="0" width="14" height="14"></rect></clipPath>
+            <clipPath id=":r8:">
+              <rect x="0" y="0" width="14" height="14"></rect>
+            </clipPath>
           </svg>
 
           <div class="helpers">
-            <!-- Value -->
+            <!--<!~~ Value ~~>
             <Panel header="Value" toggleable>
-              <div class="editor">
-                <div v-if="paramDefinition.control.type === 'boolean'" class="boolean">
-                  <SelectButton
-                    :model-value="resultValue"
-                    option-label="text"
-                    option-value="value"
-                    :options="[
-                      { text: 'True', value: true },
-                      { text: 'False', value: false }
-                    ]"
-                    aria-labelledby="basic"
-                    @change="insertEditorReplace($event.value)"
-                  >
-                    <template #option="slotProps">
-                      <span>{{ slotProps.option.text }}</span>
-                    </template>
-                  </SelectButton>
-                  <p v-if="!isValueSimpleBoolean(param)">Value will be overwitten!</p>
-                </div>
-                <div v-if="paramDefinition.control.type === 'path'" class="path">
-                  <Button
-                    class="w-full"
-                    @click="onChangePathClick(paramDefinition.control.options)"
-                  >
-                    {{ paramDefinition.control.label ?? 'Browse path' }}
-                  </Button>
-                </div>
-                <div
-                  v-if="paramDefinition.control.type === 'electron:configure:v2'"
-                  class="electron:configure:v2"
-                >
-                  <div class="body">
-                    <div class="label">Electron version</div>
-                    <InputText />
-                    <div class="label">Custom main code</div>
-                    <InputText />
-                    <div class="label">Enable steam support</div>
-                    <Checkbox />
-                  </div>
-                </div>
-                <div v-if="paramDefinition.control.type === 'select'" class="select">
-                  <Listbox
-                    :model-value="param"
-                    :options="paramDefinition.control.options.options"
-                    filter
-                    option-label="label"
-                    class="w-full md:w-56"
-                    @change="onParamSelectChange"
-                  />
-                </div>
-                <div v-if="paramDefinition.control.type === 'multi-select'" class="multi-select">
-                  <Listbox
-                    :model-value="param"
-                    :options="paramDefinition.control.options.options"
-                    filter
-                    multiple
-                    option-label="label"
-                    class="w-full md:w-56"
-                    @change="onParamMultiSelectChange"
-                  />
-                </div>
-              </div>
-            </Panel>
+              <ParamEditorBody
+                :model-value="resultValue"
+                :param-definition="paramDefinition"
+                @update:model-value="onParamEditorUpdate"
+              ></ParamEditorBody>
+            </Panel>-->
             <!-- Outputs -->
             <Panel header="Outputs" toggleable>
               <div class="steps-list">
@@ -181,7 +145,6 @@
 import { PropType, computed, ref, toRefs, watch } from 'vue'
 import type { ValueOf } from 'type-fest'
 import { Action, Condition, Event } from '@pipelab/plugin-core'
-import { useAPI } from '@renderer/composables/api'
 import { createCodeEditor } from '@renderer/utils/code-editor'
 import { createQuickJs } from '@renderer/utils/quickjs'
 import { watchDebounced } from '@vueuse/core'
@@ -197,16 +160,15 @@ import { arrow, autoUpdate, flip, offset, shift, useFloating } from '@floating-u
 import { vOnClickOutside } from '@vueuse/components'
 import { useEditor } from '@renderer/store/editor'
 import { storeToRefs } from 'pinia'
-import { ListboxChangeEvent } from 'primevue/listbox'
-import type { OpenDialogOptions } from 'electron'
 import { useLogger } from '@@/logger'
+import ParamEditorBody from './ParamEditorBody.vue'
 
 type Params = (Action | Condition | Event)['params']
 
 const props = defineProps({
   param: {
     type: [String, Boolean, Number] as PropType<unknown>,
-    required: true
+    required: false
   },
   paramDefinition: {
     type: Object as PropType<ValueOf<Params>>,
@@ -233,21 +195,22 @@ const editor = useEditor()
 const { getNodeDefinition } = editor
 const { nodes } = storeToRefs(editor)
 
+const mode = ref<'simple' | 'editor'>('simple')
+
+const toggleMode = () => {
+  mode.value = mode.value === 'simple' ? 'editor' : 'simple'
+}
+
 const emit = defineEmits<{
   (event: 'update:modelValue', data: any): void
 }>()
 
 const isError = ref(false)
 const hintText = ref<string>()
-const resultValue = ref<unknown>()
 
 const $codeEditorText = ref<HTMLDivElement>()
 const $floating = ref<HTMLDivElement>()
 const $arrow = ref<HTMLElement>()
-
-const isValueSimpleBoolean = (str: string | unknown) => {
-  return str === 'true' || str === 'false'
-}
 
 function myCompletions(context: CompletionContext) {
   const word = context.matchBefore(/\w*/)
@@ -346,6 +309,13 @@ const resolveHintTextResult = (result: unknown) => {
 // @ts-expect-error tsconfig
 const vm = await createQuickJs()
 
+const resultValue = ref<unknown>()
+
+const onParamEditorUpdate = (value: unknown) => {
+  console.log('value', value)
+  insertEditorReplace(value ? value.toString() : '')
+}
+
 watchDebounced(
   editorTextValue,
   async () => {
@@ -394,19 +364,29 @@ watch(
 
 const isModalDisplayed = ref(false)
 const onClickInside = () => {
-  isModalDisplayed.value = true
+  if (mode.value === 'editor') {
+    isModalDisplayed.value = true
+  }
 }
 const onClickOutside = () => {
   isModalDisplayed.value = false
 }
 
-const onValueChanged = (newValue: string, paramKey: string) => {
+watch(mode, (newValue) => {
+  if (newValue === 'editor') {
+    isModalDisplayed.value = true
+  } else {
+    isModalDisplayed.value = false
+  }
+})
+
+const onValueChanged = (newValue: string) => {
   emit('update:modelValue', newValue)
 }
 
 onCodeEditorTextUpdate(
   debounce((value) => {
-    onValueChanged(value, paramKey.value.toString())
+    onValueChanged(value)
   }, 300)
 )
 
@@ -446,24 +426,7 @@ const getStepLabel = (key: string) => {
   return key
 }
 
-/** On path selection */
-const api = useAPI()
-
 const { logger } = useLogger()
-
-const onChangePathClick = async (options: OpenDialogOptions) => {
-  const paths = await api.execute('dialog:showOpenDialog', options, async (_, message) => {
-    const { type, data } = message
-    if (type === 'end') {
-      logger().info('end', data)
-    }
-  })
-
-  logger().info('paths', paths)
-  const p = paths.filePaths[0]
-
-  insertEditorEnd(`"${p}"`)
-}
 
 const paramType = computed(() => {
   return controlsToType(paramDefinition.value.control)
@@ -480,18 +443,6 @@ const isExpectedValid = computed(() => {
 const expectedTooltip = computed(() => {
   return `Expected: ${paramType.value}, got ${typeof resultValue.value}`
 })
-
-const onParamSelectChange = (event: ListboxChangeEvent) => {
-  insertEditorEnd(`"${event.value.value}"`)
-}
-
-const onParamMultiSelectChange = (
-  event: Omit<ListboxChangeEvent, 'value'> & { value: { label: string; value: string }[] }
-) => {
-  const data = event.value.map((v) => v.value)
-
-  insertEditorEnd(`${JSON.stringify(data)}`)
-}
 </script>
 
 <style scoped lang="scss">
@@ -604,5 +555,22 @@ const onParamMultiSelectChange = (
 
 .required {
   color: red;
+}
+
+.code-editor-wrapper {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+
+  .code-editor-wrapper-inner {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+}
+
+.type-btn {
+  height: 18px !important;
 }
 </style>

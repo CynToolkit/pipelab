@@ -25,14 +25,14 @@
     <div class="content">
       <div class="your-projects">
         <div class="list-header bold">Your projects</div>
+        <div v-if="filesEnhanced.length === 0" class="no-projects">
+          <div>No projects yet</div>
+          <Button @click="newFile">
+            <i class="mdi mdi-plus-circle-outline mr-2"></i>
+            New Project
+          </Button>
+        </div>
         <div class="scenarios">
-          <div v-if="filesEnhanced.length === 0" class="no-projects">
-            <div>No projects yet</div>
-            <Button @click="newFile">
-              <i class="mdi mdi-plus-circle-outline mr-2"></i>
-              New Project
-            </Button>
-          </div>
           <ScenarioListItem
             v-for="file in filesEnhanced"
             :key="file.id"
@@ -614,10 +614,45 @@ const toggleAccountMenu = (event: MouseEvent) => {
 
 .scenarios {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  grid-template-rows: repeat(4, auto);
+  grid-template-columns: repeat(1, 1fr);
+  grid-template-rows: repeat(1, auto);
   grid-gap: 20px;
   gap: 16px;
+}
+
+@media (min-width: 768px) {
+  .scenarios {
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: repeat(1, auto);
+  }
+}
+
+@media (min-width: 1024px) {
+  .scenarios {
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(1, auto);
+  }
+}
+
+@media (min-width: 1280px) {
+  .scenarios {
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-rows: repeat(1, auto);
+  }
+}
+
+@media (min-width: 1536px) {
+  .scenarios {
+    grid-template-columns: repeat(5, 1fr);
+    grid-template-rows: repeat(1, auto);
+  }
+}
+
+@media (min-width: 1920px) {
+  .scenarios {
+    grid-template-columns: repeat(6, 1fr);
+    grid-template-rows: repeat(1, auto);
+  }
 }
 
 .index {
