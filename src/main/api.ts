@@ -8,7 +8,7 @@ import { useLogger } from '@@/logger'
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 type Event<TYPE extends string, DATA> = { type: TYPE; data: DATA }
-type EndEvent<DATA> = { type: 'end'; data: DATA }
+type EndEvent<DATA> = { type: 'end'; data: DATA | { result: { ipcError: string } } }
 
 
 export type IpcDefinition = {

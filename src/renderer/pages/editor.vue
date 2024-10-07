@@ -150,14 +150,10 @@
       <Dialog
         v-model:visible="isPromptDialogVisible"
         modal
-        header="Prompt"
+        :header="lastPromptInfos.message"
         :style="{ width: '25rem' }"
       >
-        <span class="text-surface-500 dark:text-surface-400 block mb-8"
-          >Update your information.</span
-        >
         <div class="flex items-center gap-4 mb-4">
-          <label for="answer" class="font-semibold w-24">Title</label>
           <InputText
             id="answer"
             v-model="promptDialogAnswer"
@@ -180,7 +176,7 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { reactive, ref, watch } from 'vue'
 import { useEditor } from '@renderer/store/editor'
 import NodesEditor from '@renderer/pages/nodes-editor.vue'
 import EditorNodeDummy from '@renderer/components/nodes/EditorNodeDummy.vue'
@@ -189,21 +185,17 @@ import { useRoute, useRouter } from 'vue-router'
 import { SavedFile } from '@@/model'
 import { useAPI } from '@renderer/composables/api'
 import { useAppStore } from '@renderer/store/app'
-import { MenuItem } from 'primevue/menuitem'
 import { useToast } from 'primevue/usetoast'
 import { tinykeys } from 'tinykeys'
-import { useRouteParams } from '@vueuse/router'
 import { useFiles } from '@renderer/store/files'
 import { klona } from 'klona'
-import { loadExternalFile, loadInternalFile, saveExternalFile } from '@renderer/utils/config'
+import { loadExternalFile, saveExternalFile } from '@renderer/utils/config'
 import EditorNodeEvent from '@renderer/components/nodes/EditorNodeEvent.vue'
 import EditorNodeEventEmpty from '@renderer/components/nodes/EditorNodeEventEmpty.vue'
-import { RendererChannels, RendererData, RendererEvents, RendererMessage } from '@main/api'
 import { handle, HandleListenerRendererSendFn } from '@renderer/composables/handlers'
 import VariablesEditor from './variables-editor.vue'
 import ProjectSettingsEditor from './project-settings-editor.vue'
 
-const route = useRoute()
 const router = useRouter()
 
 const instance = useEditor()
@@ -218,7 +210,7 @@ const {
   id,
   isRunning
 } = storeToRefs(instance)
-const { processGraph, loadPreset, loadSavedFile, setIsRunning } = instance
+const { processGraph, loadSavedFile, setIsRunning } = instance
 
 const app = useAppStore()
 const { pluginDefinitions } = storeToRefs(app)
@@ -487,7 +479,9 @@ const onPromptDialogCancel = () => {
   lastPromptInfos.callback({
     type: 'end',
     data: {
-      ipcError: 'cancled'
+      result: {
+        ipcError: 'canceled'
+      }
     }
   })
   isPromptDialogVisible.value = false
@@ -503,7 +497,7 @@ const onPromptDialogOK = () => {
 }
 
 const lastPromptInfos = reactive({
-  callback: undefined as undefined | HandleListenerRendererSendFn<"dialog:prompt">,
+  callback: undefined as undefined | HandleListenerRendererSendFn<'dialog:prompt'>,
   message: ''
 })
 
@@ -537,15 +531,19 @@ tinykeys(window, {
     #e0e4e8b3;
   background-size: 20px 20px;
   // background-position: -19px -19px;
+  height: 100%;
 
   .editor-content {
     width: 100%;
     display: flex;
     flex-direction: column;
+    height: 100%;
 
     .editor-wrapper {
       display: flex;
       flex-direction: row;
+      height: 100%;
+      min-height: 0;
     }
   }
 

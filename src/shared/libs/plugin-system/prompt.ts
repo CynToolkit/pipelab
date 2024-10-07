@@ -47,7 +47,7 @@ export const promptActionRunner = createActionRunner<typeof promptAction>(
     if ('answer' in _answer) {
       setOutput('answer', _answer.answer)
     } else {
-      log('error')
+      throw new Error(_answer.result.ipcError)
     }
   }
 )
