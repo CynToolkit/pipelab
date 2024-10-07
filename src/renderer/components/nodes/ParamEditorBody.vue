@@ -13,7 +13,7 @@
       <InputNumber
         v-else-if="paramDefinition.control.options.kind === 'number'"
         :model-value="modelValueNumber"
-        showButtons
+        show-buttons
         option-label="label"
         class="w-full"
         @update:model-value="onParamInputNumberChange"
@@ -56,6 +56,7 @@
         :model-value="modelValue"
         :options="paramDefinition.control.options.options"
         filter
+        option-value="value"
         option-label="label"
         class="w-full"
         @change="onParamSelectChange"
@@ -72,7 +73,7 @@
         @change="onParamMultiSelectChange"
       />
     </div>
-    <Button class="w-full" v-else @click="onSwitch">Switch tab to edit value</Button>
+    <Button v-else class="w-full" @click="onSwitch">Switch tab to edit value</Button>
   </div>
 </template>
 
@@ -125,7 +126,8 @@ const onChangePathClick = async (options: OpenDialogOptions) => {
 }
 
 const onParamSelectChange = (event: ListboxChangeEvent) => {
-  emit('update:modelValue', `"${event.value.value}"`)
+  console.log('event', event)
+  emit('update:modelValue', `"${event.value}"`)
 }
 
 const onParamInputTextChange = (event: string) => {

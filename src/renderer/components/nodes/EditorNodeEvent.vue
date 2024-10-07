@@ -87,9 +87,9 @@ const props = defineProps({
     required: true
   },
   errors: {
-    type: Object as PropType<ValidationError[]>,
+    type: Object as PropType<Record<string, ValidationError[]>>,
     required: false,
-    default: () => []
+    default: () => ({})
   }
 })
 

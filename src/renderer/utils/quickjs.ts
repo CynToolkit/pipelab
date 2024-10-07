@@ -76,5 +76,4 @@ export const createQuickJs = async () => {
   }
 }
 
-
 export type CreateQuickJSFn = ReturnType<typeof createQuickJs>

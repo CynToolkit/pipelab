@@ -5,7 +5,7 @@
       class="node-action"
       :class="{
         active: activeNode?.uid === value.uid,
-        error: errors.length > 0,
+        error: Object.keys(errors).length > 0,
         disabled: value.disabled,
       }"
     >
@@ -139,9 +139,9 @@ const props = defineProps({
     required: true
   },
   errors: {
-    type: Object as PropType<ValidationError[]>,
+    type: Object as PropType<Record<string, ValidationError[]>>,
     required: false,
-    default: () => ([])
+    default: () => ({})
   }
 })
 

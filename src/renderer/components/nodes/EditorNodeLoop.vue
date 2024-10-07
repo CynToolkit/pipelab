@@ -97,9 +97,9 @@ const props = defineProps({
     // default: () => []
   },
   errors: {
-    type: Object as PropType<ValidationError[]>,
+    type: Object as PropType<Record<string, ValidationError[]>>,
     required: false,
-    default: () => []
+    default: () => ({})
   }
 })
 
@@ -142,7 +142,6 @@ const subtitle = computedAsync(
 const onValueChanged = (newValue: unknown, paramKey: string) => {
   console.log('newValue', newValue)
 
-  // @ts-expect-error
   setBlockValue(value.value.uid, {
     ...value.value,
     params: {

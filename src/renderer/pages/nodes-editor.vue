@@ -10,7 +10,7 @@
             :value="node"
             :index="index"
             :steps="steps"
-            :errors="errors[node.uid]"
+            :errors="errors"
           ></EditorNodeAction>
           <!-- <EditorNodeCondition
             v-if="node.type === 'condition'"
@@ -34,23 +34,14 @@
 </template>
 
 <script setup lang="ts">
-import { useEditor } from '@renderer/store/editor'
 import EditorNodeAction from '@renderer/components/nodes/EditorNodeAction.vue'
-import EditorNodeCondition from '@renderer/components/nodes/EditorNodeCondition.vue'
-import EditorNodeEvent from '@renderer/components/nodes/EditorNodeEvent.vue'
-import EditorNodeLoop from '@renderer/components/nodes/EditorNodeLoop.vue'
+// import EditorNodeCondition from '@renderer/components/nodes/EditorNodeCondition.vue'
+// import EditorNodeEvent from '@renderer/components/nodes/EditorNodeEvent.vue'
+// import EditorNodeLoop from '@renderer/components/nodes/EditorNodeLoop.vue'
 
 import { PropType, toRefs } from 'vue'
-import { storeToRefs } from 'pinia'
-import { useAppStore } from '@renderer/store/app'
 import { Block, Steps } from '@@/model'
-
-const instance = useEditor()
-const { } = storeToRefs(instance)
-const { addNode } = instance
-
-const appStore = useAppStore()
-const { } = instance
+import { ValidationError } from '@renderer/models/error';
 
 const props = defineProps({
   nodes: {
@@ -72,7 +63,7 @@ const props = defineProps({
     // default: () => []
   },
   errors: {
-    type: Array as PropType<Record<string, any>>,
+    type: Object as PropType<Record<string, ValidationError[]>>,
     required: false,
     default: () => ({})
   },

@@ -590,7 +590,7 @@ tinykeys(window, {
   display: flex;
   flex-direction: column;
   overflow: auto;
-  padding: 128px 0;
+  padding: 64px 0;
 
   .node-editor-wrapper {
     margin: 16px;

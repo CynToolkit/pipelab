@@ -313,7 +313,7 @@ const resultValue = ref<unknown>()
 
 const onParamEditorUpdate = (value: unknown) => {
   console.log('value', value)
-  insertEditorReplace(value ? value.toString() : '')
+  insertEditorReplace(value !== undefined ? value.toString() : '')
 }
 
 watchDebounced(
