@@ -1,6 +1,5 @@
 import {
   Action,
-  ActionRunner,
   ActionRunnerData,
   InputsDefinition,
   ParamsToInput,
@@ -9,6 +8,7 @@ import {
 import { script } from './assets/script.js'
 import v from 'valibot'
 
+// @ts-expect-error import.meta
 const isCI = process.env.CI === 'true' || import.meta.env.CI === 'true'
 
 export const sharedParams = {
@@ -150,6 +150,7 @@ export const exportc3p = async <ACTION extends Action>(
   setOutput('folder', result)
 }
 
-export const constructVersionValidator = (options) => {
+export const constructVersionValidator = (options: any) => {
+  void options
   return v.pipe(v.string(), v.regex(/^\d+(-\d+)?$/, 'Invalid version'))
 }

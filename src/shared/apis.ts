@@ -3,7 +3,18 @@ import type { Tagged } from 'type-fest'
 import { Preset, Steps } from './model'
 
 type Event<TYPE extends string, DATA> = { type: TYPE; data: DATA }
-type EndEvent<DATA> = { type: 'end'; data: DATA }
+type EndEvent<DATA> = {
+  type: 'end'
+  data:
+    | {
+        type: 'success'
+        result: DATA
+      }
+    | {
+        type: 'error'
+        ipcError: string
+      }
+}
 
 export type Presets = Record<string, { data: Preset }>
 

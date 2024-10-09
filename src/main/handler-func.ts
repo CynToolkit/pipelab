@@ -89,22 +89,23 @@ export const handleConditionExecute = async (
         cwd: tmp
       })
       return {
-        outputs,
-        value
+        type: 'success',
+        result: {
+          outputs,
+          value
+        }
       }
     } catch (e) {
       logger().error('e', e)
       return {
-        result: {
-          ipcError: e
-        }
+        type: 'error',
+        ipcError: e
       }
     }
   } else {
     return {
-      result: {
-        ipcError: 'Node not found'
-      }
+      type: 'error',
+      ipcError: 'Node not found'
     }
   }
 }
@@ -181,7 +182,10 @@ export const handleActionExecute = async (
         mode: 'normal'
       })
       return {
-        outputs
+        type: 'success',
+        result: {
+          outputs
+        }
       }
     } catch (e) {
       logger().error('[action:execute] e', e)
@@ -189,9 +193,8 @@ export const handleActionExecute = async (
         mode: 'normal'
       })
       return {
-        result: {
-          ipcError: e
-        }
+        type: 'error',
+        ipcError: e
       }
     }
   } else {
@@ -199,9 +202,8 @@ export const handleActionExecute = async (
       mode: 'normal'
     })
     return {
-      result: {
-        ipcError: 'Node not found'
-      }
+      type: 'error',
+      ipcError: 'Node not found'
     }
   }
 }

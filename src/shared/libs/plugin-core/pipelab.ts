@@ -214,6 +214,7 @@ export type InputDefinition = {
   // validator?: z.ZodTypeAny
   control: ControlType
   value: unknown
+  platforms?: NodeJS.Platform[]
 }
 
 export type InputsDefinition = Record<string, InputDefinition>
@@ -277,7 +278,7 @@ export const createNodeDefinition = (def: MainPluginDefinition) => {
   return def
 }
 
-export type RunnerCallbackFnArgument<DEF extends MainPluginDefinition> = {
+export type RunnerCallbackFnArgument = {
   done: () => void
   id: string
   log: (...args: Parameters<(typeof console)['log']>) => void

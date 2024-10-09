@@ -2,7 +2,7 @@ import { expect, test, vi } from 'vitest'
 import { makeRunner } from './make.js'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { type fs, vol } from 'memfs'
+import { type fs } from 'memfs'
 import { browserWindow } from '@@/tests/helpers.js'
 
 // ...
@@ -28,6 +28,7 @@ test('adds 1 + 2 to equal 3', async () => {
   await makeRunner({
     inputs: {
       'input-folder': inputFolder,
+      configuration: {},
       arch: undefined,
       platform: undefined
     },

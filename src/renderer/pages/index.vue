@@ -19,6 +19,7 @@
         <!-- <Button link v-else class="list-item" @click="isAuthModalVisible = true" @click="">
           <i class="icon mdi mdi-account fs-24"></i>
         </Button> -->
+        <!-- @vue-expect-error -->
         <Menu ref="$menu" :model="accountMenuItems" :popup="true" />
       </div>
     </div>
@@ -242,8 +243,7 @@ import ScenarioListItem from '@renderer/components/ScenarioListItem.vue'
 import { storeToRefs } from 'pinia'
 import { EnhancedFile, SavedFile } from '@@/model'
 import { nanoid } from 'nanoid'
-import { useRoute, useRouter } from 'vue-router'
-import { Recent } from '@renderer/store/recents'
+import { useRouter } from 'vue-router'
 import { useAPI } from '@renderer/composables/api'
 import { useFiles } from '@renderer/store/files'
 import { loadExternalFile } from '@renderer/utils/config'
@@ -278,7 +278,14 @@ watchEffect(async () => {
   for (const [id, file] of entries) {
     let fileContent: string
     if (file.type === 'external') {
-      const result = await loadExternalFile(file.path)
+      const resultLoad = await loadExternalFile(file.path)
+
+      if (resultLoad.type === 'error') {
+        throw new Error(resultLoad.ipcError)
+      }
+
+      const result = resultLoad.result
+
       if ('content' in result) {
         fileContent = result.content
       } else {
@@ -306,7 +313,7 @@ watchEffect(async () => {
 })
 
 const openFile = async () => {
-  const paths = await api.execute(
+  const pathsResult = await api.execute(
     'dialog:showOpenDialog',
     {
       title: 'Choose a new path',
@@ -314,12 +321,18 @@ const openFile = async () => {
       filters: [{ name: 'Pipelab Project', extensions: ['pipelab'] }]
     },
     async (_, message) => {
-      const { type, data } = message
+      const { type } = message
       if (type === 'end') {
         //
       }
     }
   )
+
+  if (pathsResult.type === 'error') {
+    throw new Error(pathsResult.ipcError)
+  }
+
+  const paths = pathsResult.result
 
   if (!paths.canceled) {
     if (paths.filePaths.length === 1) {
@@ -374,7 +387,13 @@ const openFile = async () => {
 const newFile = async () => {
   let id = nanoid()
 
-  const presets = await api.execute('presets:get')
+  const presetsResult = await api.execute('presets:get')
+
+  if (presetsResult.type === 'error') {
+    throw new Error(presetsResult.ipcError)
+  }
+
+  const presets = presetsResult.result
 
   // TODO: choose cloud or local
 
@@ -386,19 +405,23 @@ const newFile = async () => {
       filters: [{ name: 'Pipelab Project', extensions: ['pipelab'] }]
     },
     async (_, message) => {
-      const { type, data } = message
+      const { type } = message
       if (type === 'end') {
         //
       }
     }
   )
 
-  if (paths.canceled) {
+  if (paths.type === 'error') {
+    throw new Error(paths.ipcError)
+  }
+
+  if (paths.result.canceled) {
     logger().error('Save cancelled')
     return
   }
 
-  const path = paths.filePath
+  const path = paths.result.filePath
 
   const alreadyAddedPaths = Object.entries(files.value.data).map(([id, file]) => {
     if (file.type === 'external') {
@@ -443,12 +466,6 @@ const newFile = async () => {
   })
 }
 
-const loadRecent = (recent: Recent) => {
-  void recent
-  // TODO:
-  // return load()
-}
-
 const loadExisting = async (id: string) => {
   await router.push({
     name: 'Editor',
@@ -465,10 +482,6 @@ const deleteProject = async (id: string) => {
 const appVersion = ref(window.version)
 const isAuthModalVisible = ref(false)
 const auth = useAuth()
-
-const { user } = storeToRefs(auth)
-
-const route = useRoute()
 
 const schema = toTypedSchema(
   object({
@@ -548,7 +561,7 @@ const accountMenuItems = computed(() => {
     items.push({
       label: 'Login',
       icon: 'mdi mdi-account',
-      command: (event) => {
+      command: () => {
         isAuthModalVisible.value = true
       }
     } satisfies MenuItem)

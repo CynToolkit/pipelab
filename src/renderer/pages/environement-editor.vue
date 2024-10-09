@@ -1,20 +1,26 @@
 <template>
-  <div class="variables-editor">
-    <template v-for="variable in variables" :key="variable.id">
-      <div class="variable-wrapper" @click="editVariable(variable.id)">
-        <div class="variable">
-          <div class="title">{{ variable.name }}</div>
-          <div class="subtitle">{{ variable.description }}</div>
-          <div class="content">{{ variable.value }}</div>
+  <div class="environements-editor">
+    <template v-for="environement in environements" :key="environement.id">
+      <div class="environement-wrapper" @click="editVariable(environement.id)">
+        <div class="environement">
+          <div class="title">{{ environement.name }}</div>
+          <div class="subtitle">{{ environement.description }}</div>
+          <div class="content">{{ environement.value }}</div>
         </div>
       </div>
     </template>
-    <Button class="add-btn" label="Add variable" icon="pi pi-plus" @click="addVariable"></Button>
+    <Button
+      disabled
+      class="add-btn"
+      label="Add environement"
+      icon="pi pi-plus"
+      @click="addVariable"
+    ></Button>
 
     <Dialog
       v-model:visible="isNewVariableDialogVisible"
       modal
-      header="Add variable"
+      header="Add environement"
       :style="{ width: '25rem' }"
     >
       <div class="flex flex-column gap-2 mb-4">
@@ -55,12 +61,11 @@
 import { useEditor } from '@renderer/store/editor'
 import { createCodeEditor } from '@renderer/utils/code-editor'
 import { nanoid } from 'nanoid'
-import { javascriptLanguage } from '@codemirror/lang-javascript'
 import { storeToRefs } from 'pinia'
 import { ref } from 'vue'
 
 const instance = useEditor()
-const { variables } = storeToRefs(instance)
+const { environements } = storeToRefs(instance)
 const {
   addVariable: instanceAddVariable,
   updateVariable: instanceUpdateVariable,
@@ -118,7 +123,7 @@ const remVariable = (id: string) => {
 
 const mode = ref<'create' | 'edit'>('create')
 const editVariable = (id: string) => {
-  const foundVar = variables.value.find((x) => x.id === id)
+  const foundVar = environements.value.find((x) => x.id === id)
   if (foundVar) {
     codeEditorTextUpdate(foundVar.value)
     name.value = foundVar.name
@@ -131,14 +136,14 @@ const editVariable = (id: string) => {
 </script>
 
 <style scoped lang="scss">
-.variables-editor {
+.environements-editor {
   margin: 16px;
   display: flex;
   flex-direction: column;
   overflow: auto;
 }
 
-.variable {
+.environement {
   border: 1px solid #c2c9d1;
   padding: 16px;
   // margin: 4px;
@@ -146,7 +151,7 @@ const editVariable = (id: string) => {
   width: fit-content;
 }
 
-.variable {
+.environement {
   border: 1px solid #c2c9d1;
   padding: 16px;
   border-radius: 4px;
@@ -158,7 +163,7 @@ const editVariable = (id: string) => {
   height: 32px;
 }
 
-.variable-wrapper {
+.environement-wrapper {
   display: flex;
   flex-direction: column;
   justify-content: center;

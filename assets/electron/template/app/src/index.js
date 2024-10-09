@@ -1,12 +1,14 @@
 // @ts-check
 
-import { app, BrowserWindow, dialog, ipcMain } from 'electron'
+import { app, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'node:path'
+// @ts-expect-error no types
 import serve from 'serve-handler'
 import { createServer } from 'http'
-import { WebSocketServer } from 'ws';
+import { WebSocketServer } from 'ws'
 import './custom-main.js'
-import mri from 'mri';
+import mri from 'mri'
+import config from '../config.cjs'
 
 // user
 import userFolder from './handlers/user/folder.js'
@@ -50,7 +52,7 @@ import showInExplorer from './handlers/general/open-in-explorer.js'
  * @returns {never}
  */
 function assertUnreachable(x) {
-  throw new Error("Didn't expect to get here");
+  throw new Error("Didn't expect to get here")
 }
 
 console.log('process.argv', process.argv)
@@ -58,16 +60,16 @@ const argv = process.argv
 const cliArgs = mri(argv, {
   alias: {
     u: 'url'
-  },
-});
+  }
+})
 
-  //region commandLine Flags
-  <% if (config.enableInProcessGPU) { %>
-    app.commandLine.appendSwitch('in-process-gpu')
-    <% } %>
-<% if (config.enableDisableRendererBackgrounding) { %>
+//region commandLine Flags
+if (config.enableInProcessGPU) {
+  app.commandLine.appendSwitch('in-process-gpu')
+}
+if (config.enableDisableRendererBackgrounding) {
   app.commandLine.appendSwitch('disable-renderer-backgrounding')
-  <% } %>
+}
 //endregion
 
 /**
@@ -77,6 +79,7 @@ const cliArgs = mri(argv, {
 const createAppServer = (mainWindow) => {
   // eslint-disable-next-line no-async-promise-executor
   return new Promise(async (resolve) => {
+    // @ts-expect-error import.meta
     const dir = app.isPackaged ? join(import.meta.dirname, './app') : './src/app'
 
     const server = createServer((req, res) => {
@@ -86,124 +89,141 @@ const createAppServer = (mainWindow) => {
       })
     })
 
-    const wss = new WebSocketServer({ server });
+    const wss = new WebSocketServer({ server })
     wss.on('connection', function connection(ws) {
-      ws.on('error', console.error);
+      ws.on('error', console.error)
 
       ws.on('message', async (data) => {
         /** @type {import('@pipelab/core').Message} */
-        const json = JSON.parse(data.toString());
-        console.log('received:', json);
+        const json = JSON.parse(data.toString())
+        console.log('received:', json)
 
         switch (json.url) {
           case '/paths':
             await userFolder(json, ws, mainWindow)
-            break;
+            break
 
           case '/fs/file/write':
             await fsWrite(json, ws, mainWindow)
-            break;
+            break
 
           case '/fs/file/read':
             await fsRead(json, ws, mainWindow)
-            break;
+            break
 
           case '/fs/folder/create':
             await fsFolderCreate(json, ws, mainWindow)
-            break;
+            break
 
           case '/window/maximize':
             windowMaximize(json, ws, mainWindow)
-            break;
+            break
 
           case '/window/minimize':
             windowMinimize(json, ws, mainWindow)
-            break;
+            break
           case '/window/request-attention':
             windowRequestAttention(json, ws, mainWindow)
-            break;
+            break
           case '/window/restore':
             windowRestore(json, ws, mainWindow)
-            break;
+            break
           case '/dialog/folder':
             dialogFolder(json, ws, mainWindow)
-            break;
+            break
           case '/dialog/open':
             dialogOpen(json, ws, mainWindow)
-            break;
+            break
           case '/dialog/save':
             dialogSave(json, ws, mainWindow)
-            break;
+            break
           case '/window/set-always-on-top':
             windowSetAlwaysOnTop(json, ws, mainWindow)
-            break;
+            break
           case '/window/set-height':
             windowSetHeight(json, ws, mainWindow)
-            break;
+            break
           case '/window/set-maximum-size':
             windowSetMaximumSize(json, ws, mainWindow)
-            break;
+            break
           case '/window/set-minimum-size':
             windowSetMinimumSize(json, ws, mainWindow)
-            break;
+            break
           case '/window/set-resizable':
             windowSetResizable(json, ws, mainWindow)
-            break;
+            break
           case '/window/set-title':
             windowSetTitle(json, ws, mainWindow)
-            break;
+            break
           case '/window/set-width':
             windowSetWidth(json, ws, mainWindow)
-            break;
+            break
           case '/window/set-x':
             windowSetX(json, ws, mainWindow)
-            break;
+            break
           case '/window/set-y':
             windowSetY(json, ws, mainWindow)
-            break;
+            break
           case '/window/show-dev-tools':
             windowShowDevTools(json, ws, mainWindow)
-            break;
+            break
           case '/window/unmaximize':
             windowUnmaximize(json, ws, mainWindow)
-            break;
+            break
           case '/engine':
             engine(json, ws, mainWindow)
             break
           case '/open':
             open(json, ws, mainWindow)
-            break;
+            break
           case '/show-in-explorer':
             showInExplorer(json, ws, mainWindow)
-            break;
+            break
           case '/run':
             run(json, ws, mainWindow)
-            break;
+            break
+          case '/fs/copy':
+            throw new Error('Not implemented')
+          case '/fs/delete':
+            throw new Error('Not implemented')
+          case '/fs/exist':
+            throw new Error('Not implemented')
+          case '/fs/file/append':
+            throw new Error('Not implemented')
+          case '/fs/list':
+            throw new Error('Not implemented')
+          case '/fs/move':
+            throw new Error('Not implemented')
+
           default:
             console.log('unsupported', data)
             assertUnreachable(json)
-            break;
+            break
         }
-      });
-    });
+      })
+    })
 
     server.listen(31753, () => {
-      const port = server.address().port
-      return resolve(port)
+      const adress = server.address()
+      if (adress && typeof adress !== 'string') {
+        return resolve(adress.port)
+      }
+      throw new Error('Unable to bind server: adress is not an object')
     })
   })
 }
 
 const createWindow = async () => {
   const mainWindow = new BrowserWindow({
-    width: <%= config.width %>,
-    height: <%= config.height %>,
-    fullscreen: <%= config.fullscreen %>,
-    frame: <%= config.frame %>,
-    transparent: <%= config.transparent %>,
-    toolbar: <%= config.toolbar %>,
-    alwaysOnTop: <%= config.alwaysOnTop %>,
+    width: config.width,
+    height: config.height,
+    fullscreen: config.fullscreen,
+    frame: config.frame,
+    transparent: config.transparent,
+    // toolbar: config.toolbar,
+    alwaysOnTop: config.alwaysOnTop,
     webPreferences: {
+      // @ts-expect-error import.meta
       preload: join(import.meta.dirname, 'preload.js')
     }
   })

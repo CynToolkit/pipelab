@@ -78,6 +78,7 @@
                 :param-definition="paramDefinition"
                 :value="value"
                 :steps="steps"
+                :variables="variables"
                 @update:model-value="onValueChanged($event, key.toString())"
               ></ParamEditor>
             </div>
@@ -119,6 +120,8 @@ import DOMPurify from 'dompurify'
 import { makeResolvedParams } from '@renderer/utils/evaluator'
 import { ValidationError } from '@renderer/models/error'
 import AddNodeButton from '../AddNodeButton.vue'
+import { variableToFormattedVariable } from '@renderer/composables/variables'
+import { Variable } from '@@/libs/core-app'
 
 const props = defineProps({
   value: {
@@ -162,6 +165,7 @@ const {
   cloneNode,
   disableNode,
   enableNode,
+  variables,
 } = editor
 const { activeNode } = storeToRefs(editor)
 
@@ -187,6 +191,19 @@ const onValueChanged = (newValue: unknown, paramKey: string) => {
 // @ts-expect-error tsconfig
 const vm = await createQuickJs()
 
+const variablesDisplay = computed(() => {
+  const result: Variable[] = []
+  for (const variable of variables) {
+    result.push({
+      id: variable.id,
+      description: variable.description,
+      name: `<div class="step">@${variable.name}</div>`,
+      value: `<div class="variable">@${variable.name}</div>`
+    })
+  }
+  return result
+})
+
 const resolvedParams = shallowRef<Record<string, string>>({})
 watchDebounced(
   [value, steps],
@@ -196,10 +213,10 @@ watchDebounced(
         params: value.value.params,
         steps: steps.value,
         context: {},
-        variables: []
+        variables: variablesDisplay.value,
       },
       (item) => {
-        // console.log('item', item)
+        console.log('item', item)
         // const cleanOutput = DOMPurify.sanitize(item)
         // console.log('cleanOutput', cleanOutput)
 

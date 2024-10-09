@@ -21,11 +21,23 @@ export const useAppStore = defineStore('app', () => {
 
   const init = async () => {
     //
-    const { nodes: nodeDefs } = await api.execute('nodes:get')
+    const nodeGetResult = await api.execute('nodes:get')
+
+    if (nodeGetResult.type === 'error') {
+      throw new Error(nodeGetResult.ipcError)
+    }
+
+    const { result } = nodeGetResult
+    const { nodes: nodeDefs } = result
+
     pluginDefinitions.value = nodeDefs
 
     //
-    presets.value = await api.execute('presets:get')
+    const presentResult = await api.execute('presets:get')
+    if (presentResult.type === 'error') {
+      throw new Error(presentResult.ipcError)
+    }
+    presets.value = presentResult.result
 
     //
     triggerPresetsLoaded()

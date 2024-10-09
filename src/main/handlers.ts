@@ -65,8 +65,11 @@ export const registerIPCHandlers = () => {
     send({
       type: 'end',
       data: {
-        filePaths: filePaths.map((f) => slash(f)),
-        canceled
+        type: 'success',
+        result: {
+          filePaths: filePaths.map((f) => slash(f)),
+          canceled
+        }
       }
     })
   })
@@ -84,7 +87,10 @@ export const registerIPCHandlers = () => {
       send({
         type: 'end',
         data: {
-          content: data
+          type: 'success',
+          result: {
+            content: data
+          }
         }
       })
     } catch (e) {
@@ -92,9 +98,8 @@ export const registerIPCHandlers = () => {
       send({
         type: 'end',
         data: {
-          result: {
-            ipcError: 'Unable to read file'
-          }
+          type: 'error',
+          ipcError: 'Unable to read file'
         }
       })
     }
@@ -111,7 +116,10 @@ export const registerIPCHandlers = () => {
     send({
       type: 'end',
       data: {
-        ok: true
+        type: 'success',
+        result: {
+          ok: true
+        }
       }
     })
   })
@@ -135,8 +143,11 @@ export const registerIPCHandlers = () => {
     send({
       type: 'end',
       data: {
-        filePath,
-        canceled
+        type: 'success',
+        result: {
+          filePath,
+          canceled
+        }
       }
     })
   })
@@ -153,7 +164,10 @@ export const registerIPCHandlers = () => {
     send({
       type: 'end',
       data: {
-        nodes: finalPlugins
+        type: 'success',
+        result: {
+          nodes: finalPlugins
+        }
       }
     })
   })
@@ -169,7 +183,10 @@ export const registerIPCHandlers = () => {
 
     send({
       type: 'end',
-      data: presetData
+      data: {
+        type: 'success',
+        result: presetData
+      }
     })
   })
 
@@ -192,7 +209,6 @@ export const registerIPCHandlers = () => {
 
     const result = await handleActionExecute(nodeId, pluginId, params, mainWindow)
 
-    // @ts-expect-error rrr
     await send({
       data: result,
       type: 'end'
@@ -205,8 +221,11 @@ export const registerIPCHandlers = () => {
     send({
       type: 'end',
       data: {
+        type: 'success',
         result: {
-          userData
+          result: {
+            userData
+          }
         }
       }
     })
@@ -231,7 +250,10 @@ export const registerIPCHandlers = () => {
     send({
       type: 'end',
       data: {
-        result: json
+        type: 'success',
+        result: {
+          result: json
+        }
       }
     })
   })
@@ -261,7 +283,10 @@ export const registerIPCHandlers = () => {
     send({
       type: 'end',
       data: {
-        result: 'ok'
+        type: 'success',
+        result: {
+          result: 'ok'
+        }
       }
     })
   })

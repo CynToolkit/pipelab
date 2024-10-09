@@ -1,7 +1,11 @@
+// @ts-check
+
 const { FusesPlugin } = require('@electron-forge/plugin-fuses')
 const { FuseV1Options, FuseVersion } = require('@electron/fuses')
 
-const PipelabPlugin = require('./pipelab-plugin')
+const PipelabPlugin = require('./pipelab-plugin.cjs')
+
+const config = require('./config.cjs')
 
 /**
  * @type {import('@electron-forge/shared-types').ForgeConfig}
@@ -10,17 +14,17 @@ module.exports = {
   outDir: './out',
   packagerConfig: {
     asar: true,
-    name: '<%= config.name %>',
-    appBundleId: '<%= config.appBundleId %>',
-    appCopyright: '<%= config.appCopyright %>',
-    appVersion: '<%= config.appVersion %>',
+    name: config.name,
+    appBundleId: config.appBundleId,
+    appCopyright: config.appCopyright,
+    appVersion: config.appVersion,
     // icon: './assets/icon', // file extension is ommited (auto completed by platform: darwin: icns, linux, win32)
     win32metadata: {
-      CompanyName: '<%= config.author %>',
-      FileDescription: '<%= config.description %>'
+      CompanyName: config.author,
+      FileDescription: config.description
     },
-    appCategoryType: '<%= config.appCategoryType %>',
-    icon: '<%= config.icon %>'
+    appCategoryType: config.appCategoryType,
+    icon: config.icon
   },
   rebuildConfig: {},
   makers: [

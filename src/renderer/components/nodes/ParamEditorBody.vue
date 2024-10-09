@@ -112,12 +112,18 @@ const api = useAPI()
 const { logger } = useLogger()
 
 const onChangePathClick = async (options: OpenDialogOptions) => {
-  const paths = await api.execute('dialog:showOpenDialog', options, async (_, message) => {
+  const pathsResponse = await api.execute('dialog:showOpenDialog', options, async (_, message) => {
     const { type, data } = message
     if (type === 'end') {
       logger().info('end', data)
     }
   })
+
+  if (pathsResponse.type === 'error') {
+    throw new Error(pathsResponse.ipcError)
+  }
+
+  const paths = pathsResponse.result
 
   logger().info('paths', paths)
   const p = paths.filePaths[0]
@@ -163,7 +169,7 @@ const modelValueString = computed(() => {
 })
 
 const modelValueNumber = computed<number | undefined>(() => {
-  return modelValue.value
+  return Number.parseInt(modelValueString.value)
 })
 
 const onSwitch = () => {

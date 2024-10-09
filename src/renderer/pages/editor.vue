@@ -80,6 +80,10 @@
             <div class="bold">Variables</div>
             <VariablesEditor v-if="instance"></VariablesEditor>
           </div>
+          <div>
+            <div class="bold">Environement</div>
+            <EnvironementEditor v-if="instance"></EnvironementEditor>
+          </div>
         </div>
         <div class="main">
           <div class="node-editor-wrapper">
@@ -181,7 +185,7 @@ import { useEditor } from '@renderer/store/editor'
 import NodesEditor from '@renderer/pages/nodes-editor.vue'
 import EditorNodeDummy from '@renderer/components/nodes/EditorNodeDummy.vue'
 import { storeToRefs } from 'pinia'
-import { useRoute, useRouter } from 'vue-router'
+import { useRouter } from 'vue-router'
 import { SavedFile } from '@@/model'
 import { useAPI } from '@renderer/composables/api'
 import { useAppStore } from '@renderer/store/app'
@@ -194,6 +198,7 @@ import EditorNodeEvent from '@renderer/components/nodes/EditorNodeEvent.vue'
 import EditorNodeEventEmpty from '@renderer/components/nodes/EditorNodeEventEmpty.vue'
 import { handle, HandleListenerRendererSendFn } from '@renderer/composables/handlers'
 import VariablesEditor from './variables-editor.vue'
+import EnvironementEditor from './environement-editor.vue'
 import ProjectSettingsEditor from './project-settings-editor.vue'
 
 const router = useRouter()
@@ -227,7 +232,13 @@ watch(
     if (file && file.type === 'external') {
       const { path: filePath } = file
 
-      const fileData = await loadExternalFile(filePath)
+      const fileDataResult = await loadExternalFile(filePath)
+
+      if (fileDataResult.type === 'error') {
+        throw new Error(fileDataResult.ipcError)
+      }
+
+      const fileData = fileDataResult.result
 
       if ('content' in fileData) {
         const content = JSON.parse(fileData.content) as SavedFile
@@ -305,7 +316,7 @@ const run = async () => {
   setIsRunning(false)
 }
 
-const isSaving = ref(false)
+// const isSaving = ref(false)
 
 const onSaveRequest = async () => {
   if (currentFilePointer.value.type === 'external') {
@@ -362,27 +373,27 @@ const onCloseRequest = async () => {
 //   showSaveDialog.value = false
 // }
 
-const saveOptions = [
-  {
-    id: 'local',
-    title: 'Local file',
-    subtitle: 'Save on your own computer',
-    icon: 'mdi-file-document-outline'
-  },
-  {
-    id: 'cloud',
-    title: 'Cloud',
-    subtitle: 'Securely save online',
-    icon: 'mdi-cloud-arrow-up-outline',
-    disabled: true
-  }
-] as const
+// const saveOptions = [
+//   {
+//     id: 'local',
+//     title: 'Local file',
+//     subtitle: 'Save on your own computer',
+//     icon: 'mdi-file-document-outline'
+//   },
+//   {
+//     id: 'cloud',
+//     title: 'Cloud',
+//     subtitle: 'Securely save online',
+//     icon: 'mdi-cloud-arrow-up-outline',
+//     disabled: true
+//   }
+// ] as const
 
-const saveOption = ref<(typeof saveOptions)[number]>()
+// const saveOption = ref<(typeof saveOptions)[number]>()
 
-const saveCloud = () => {
-  throw new Error('TODO')
-}
+// const saveCloud = () => {
+//   throw new Error('TODO')
+// }
 
 const saveLocal = async (path: string) => {
   const result: SavedFile = {
@@ -395,6 +406,8 @@ const saveLocal = async (path: string) => {
     },
     variables: variables.value
   }
+
+  console.log('result', result)
 
   await saveExternalFile(path, result)
 
@@ -412,7 +425,7 @@ const saveLocal = async (path: string) => {
   })
 }
 
-const api = useAPI()
+// const api = useAPI()
 
 // const load = async () => {
 //   const paths = await api.execute(
@@ -468,7 +481,10 @@ handle('dialog:alert', async (event, { value, send }) => {
   send({
     type: 'end',
     data: {
-      answer: 'ok'
+      type: 'success',
+      result: {
+        answer: 'ok'
+      }
     }
   })
 })
@@ -479,9 +495,8 @@ const onPromptDialogCancel = () => {
   lastPromptInfos.callback({
     type: 'end',
     data: {
-      result: {
-        ipcError: 'canceled'
-      }
+      type: 'error',
+      ipcError: 'canceled'
     }
   })
   isPromptDialogVisible.value = false
@@ -490,7 +505,10 @@ const onPromptDialogOK = () => {
   lastPromptInfos.callback({
     type: 'end',
     data: {
-      answer: promptDialogAnswer.value
+      type: 'success',
+      result: {
+        answer: promptDialogAnswer.value
+      }
     }
   })
   isPromptDialogVisible.value = false

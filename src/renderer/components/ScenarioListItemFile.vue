@@ -1,10 +1,10 @@
 <template>
   <div v-if="isLoading"><Skeleton width="10rem" height="1rem"></Skeleton></div>
-  <!-- @vue-ignore -->
+  <!-- @vue-expect-error -->
   <ScenarioListItem
-    @click="emit('click', data)"
-    :scenario="data"
     v-else-if="data"
+    :scenario="data"
+    @click="emit('click', data)"
   ></ScenarioListItem>
 </template>
 
@@ -32,9 +32,15 @@ const data = ref<SavedFile>()
 const isLoading = ref(true)
 
 onMounted(async () => {
-  const dataRaw = await api.execute('fs:read', {
+  const dataRawResult = await api.execute('fs:read', {
     path: path.value
   })
+
+  if (dataRawResult.type === 'error') {
+    throw new Error(dataRawResult.ipcError)
+  }
+
+  const dataRaw = dataRawResult.result
 
   if ('content' in dataRaw) {
     data.value = JSON.parse(dataRaw.content) as SavedFile

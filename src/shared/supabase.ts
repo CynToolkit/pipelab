@@ -6,7 +6,4 @@ if (!__SUPABASE_URL__ || !__SUPABASE_ANON_KEY__) {
   throw new Error('Supabase environment variables are not configured.')
 }
 
-export const supabase = createClient<Database>(
-  __SUPABASE_URL__,
-  __SUPABASE_ANON_KEY__
-)
+export const supabase = createClient<Database>(__SUPABASE_URL__, __SUPABASE_ANON_KEY__)

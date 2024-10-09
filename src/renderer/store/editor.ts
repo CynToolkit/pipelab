@@ -1,4 +1,4 @@
-import { computed, ref, toRaw } from 'vue'
+import { computed, ref } from 'vue'
 import {
   Block,
   BlockAction,
@@ -9,7 +9,14 @@ import {
   savedFileMigrator,
   Steps
 } from '@@/model'
-import { Action, Condition, Event, Loop, PipelabNode, RendererNodeDefinition } from '@pipelab/plugin-core'
+import {
+  Action,
+  Condition,
+  Event,
+  Loop,
+  PipelabNode,
+  RendererNodeDefinition
+} from '@pipelab/plugin-core'
 import { Variable } from '@pipelab/core-app'
 import { defineStore, storeToRefs } from 'pinia'
 import get from 'get-value'
@@ -83,7 +90,6 @@ export const useEditor = defineStore('editor', () => {
   const { logger } = useLogger()
 
   const filesStore = useFiles()
-  const { update } = filesStore
   const { files } = storeToRefs(filesStore)
 
   const id = useRouteParams<string>('id')
@@ -105,6 +111,9 @@ export const useEditor = defineStore('editor', () => {
   /** All the variables of the editor */
   const variables = ref<Array<Variable>>([])
 
+  /** All the environement variables supported for the editor */
+  const environements = ref<Array<any>>([])
+
   /** The API helper */
   // const api = useAPI()
 
@@ -112,18 +121,18 @@ export const useEditor = defineStore('editor', () => {
     return files.value.data[id.value]
   })
 
-  const savedFile = computed(() => {
-    return {
-      version: '2.0.0',
-      name: toRaw(name.value),
-      description: '',
-      canvas: {
-        blocks: toRaw(blocks.value),
-        triggers: toRaw(triggers.value)
-      },
-      variables: toRaw(variables.value)
-    } satisfies SavedFile
-  })
+  // const savedFile = computed(() => {
+  //   return {
+  //     version: '2.0.0',
+  //     name: toRaw(name.value),
+  //     description: '',
+  //     canvas: {
+  //       blocks: toRaw(blocks.value),
+  //       triggers: toRaw(triggers.value)
+  //     },
+  //     variables: toRaw(variables.value)
+  //   } satisfies SavedFile
+  // })
 
   // watchEffect(async () => {
   //   if (id.value === undefined) {
@@ -444,8 +453,8 @@ export const useEditor = defineStore('editor', () => {
   const addTriggerToBlock = (node: BlockEvent, path: string[], insertAt: number) => {
     const value = path.length === 0 ? triggers.value : get(triggers.value, path)
 
-    const firstPart = value.slice(0, insertAt)
-    const secondPart = value.slice(insertAt + 1)
+    // const firstPart = value.slice(0, insertAt)
+    // const secondPart = value.slice(insertAt + 1)
 
     const newValue = [
       ...value.slice(0, insertAt),
@@ -511,6 +520,27 @@ export const useEditor = defineStore('editor', () => {
     variables.value.push(variable)
   }
 
+  const removeVariable = (id: string) => {
+    const index = variables.value.findIndex((x) => x.id === id)
+    variables.value = [
+      ...variables.value.slice(0, index),
+      ...variables.value.slice(index + 1, undefined)
+    ]
+  }
+
+  const updateVariable = (variable: Variable) => {
+    variables.value = create(variables.value, (draft) => {
+      console.log('draft', draft)
+      for (let i = 0; i < draft.length; i += 1) {
+        console.log('draft[i]', draft[i])
+        if (draft[i].id === variable.id) {
+          draft[i] = klona(variable)
+        }
+      }
+      return draft
+    })
+  }
+
   const loadPreset = async (preset: string) => {
     if (!presets.value) {
       throw new Error('No presets')
@@ -528,6 +558,7 @@ export const useEditor = defineStore('editor', () => {
     nodes: blocks,
     triggers,
     variables,
+    environements,
     nodeDefinitions,
     activeNode,
     name,
@@ -554,6 +585,8 @@ export const useEditor = defineStore('editor', () => {
     addTriggerToBlock,
 
     addVariable,
+    updateVariable,
+    removeVariable,
     getPluginDefinition,
     getNodeDefinition,
     processGraph,

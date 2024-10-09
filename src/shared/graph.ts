@@ -90,25 +90,25 @@ export const processGraph = async (options: {
         options.steps
       )) as End<'action:execute'>
 
-      if ('result' in result) {
-        logger().error(result.result)
+      if (result.type === 'error') {
+        logger().error(result.ipcError)
         options.onNodeExit(rawNode)
         throw new Error('Action error')
       }
 
-      if ('outputs' in result) {
+      if (result.type === 'success') {
         if (!options.steps[rawNode.uid]) {
           options.steps[rawNode.uid] = {
             outputs: {}
           }
         }
-        options.steps[rawNode.uid].outputs = result.outputs
+        options.steps[rawNode.uid].outputs = result.result.outputs
       }
       options.onNodeExit(rawNode)
     } else if (rawNode.type === 'loop') {
       options.onNodeEnter(rawNode)
 
-      const context = {}
+      // const context = {}
 
       // const arrayToLoopOn = await evaluate(rawNode.params.value, context)
 

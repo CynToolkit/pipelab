@@ -130,6 +130,21 @@
                 </template>
               </div>
             </Panel>
+            <Panel header="Variables" toggleable>
+              <div class="variables-list">
+                <div
+                  class="variable"
+                  v-for="(variable, variableIndex) in variables"
+                  :key="variableIndex"
+                  @click="insertEditorEnd(`variables['${variable.id}']`)"
+                >
+                  <div class="variable-name">{{ variable.name }}</div>
+                  <div class="variable-description">
+                    {{ variable.description }}
+                  </div>
+                </div>
+              </div>
+            </Panel>
           </div>
         </div>
       </div>
@@ -162,6 +177,8 @@ import { useEditor } from '@renderer/store/editor'
 import { storeToRefs } from 'pinia'
 import { useLogger } from '@@/logger'
 import ParamEditorBody from './ParamEditorBody.vue'
+import { Variable } from '@@/libs/core-app'
+import { variableToFormattedVariable } from '@renderer/composables/variables'
 
 type Params = (Action | Condition | Event)['params']
 
@@ -186,10 +203,14 @@ const props = defineProps({
   steps: {
     type: Object as PropType<Steps>,
     required: true
+  },
+  variables: {
+    type: Object as PropType<Variable[]>,
+    required: true
   }
 })
 
-const { param, paramKey, paramDefinition, steps } = toRefs(props)
+const { param, paramKey, paramDefinition, steps, variables } = toRefs(props)
 
 const editor = useEditor()
 const { getNodeDefinition } = editor
@@ -211,6 +232,10 @@ const hintText = ref<string>()
 const $codeEditorText = ref<HTMLDivElement>()
 const $floating = ref<HTMLDivElement>()
 const $arrow = ref<HTMLElement>()
+
+const formattedVariables = computed(() => {
+  return variableToFormattedVariable(variables.value)
+})
 
 function myCompletions(context: CompletionContext) {
   const word = context.matchBefore(/\w*/)
@@ -329,7 +354,8 @@ watchDebounced(
       const result = await vm.run(displayString, {
         params: {},
         // params: resolvedParams.value,
-        steps: steps.value
+        steps: steps.value,
+        variables: formattedVariables.value,
       })
       resultValue.value = result
       hintText.value = resolveHintTextResult(result)
@@ -572,5 +598,14 @@ const expectedTooltip = computed(() => {
 
 .type-btn {
   height: 18px !important;
+}
+
+.variable-list {
+  .variable {
+    &:hover {
+      cursor: pointer;
+      background-color: #f5f5f5;
+    }
+  }
 }
 </style>

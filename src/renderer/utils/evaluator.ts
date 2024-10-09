@@ -2,6 +2,7 @@ import { Steps } from '@@/model'
 import { createQuickJs, CreateQuickJSFn } from './quickjs'
 import { Variable } from '@pipelab/core-app'
 import { useLogger } from '@@/logger'
+import { variableToFormattedVariable } from '@renderer/composables/variables'
 
 export const makeResolvedParams = async (
   data: {
@@ -22,7 +23,8 @@ export const makeResolvedParams = async (
     try {
       const output = await vm.run(param, {
         steps: data.steps,
-        params: {}
+        params: {},
+        variables: variableToFormattedVariable(data.variables)
       })
 
       const outputResult = onItem(output)

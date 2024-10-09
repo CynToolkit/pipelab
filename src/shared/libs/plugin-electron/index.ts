@@ -4,7 +4,14 @@ import { previewRunner } from './preview.js'
 
 import { createNodeDefinition } from '@pipelab/plugin-core'
 import icon from './public/electron.webp'
-import { createProps, IDMake, IDPackage, IDPreview } from './forge.js'
+import {
+  createMakeProps,
+  createPackageProps,
+  createPreviewProps,
+  IDMake,
+  IDPackage,
+  IDPreview
+} from './forge.js'
 import { configureRunner, props } from './configure.js'
 
 export default createNodeDefinition({
@@ -18,44 +25,41 @@ export default createNodeDefinition({
   nodes: [
     // make and package
     {
-      node: createProps(
+      node: createMakeProps(
         IDMake,
         'Create Installer',
         'Create a distributable installer for your chosen platform',
         '',
-        "`Build package for ${fmt.param(params['input-folder'], 'primary')}`",
-        'folder'
+        "`Build package for ${fmt.param(params['input-folder'], 'primary')}`"
       ),
       runner: makeRunner
       // disabled: platform === 'linux' ? 'Electron is not supported on Linux' : undefined
     },
     // package
     {
-      node: createProps(
+      node: createPackageProps(
         IDPackage,
         'Prepare App Bundle',
         'Gather all necessary files and prepare your app for distribution, creating a platform-specific bundle.',
         '',
         "`Package app from ${fmt.param(params['input-folder'], 'primary')}`",
-        'folder'
       ),
       runner: packageRunner
     },
     {
-      node: createProps(
+      node: createPreviewProps(
         IDPreview,
         'Preview app',
         'Package and preview your app from an URL',
         '',
         "`Preview app from ${fmt.param(params['input-url'], 'primary')}`",
-        'url'
       ),
       runner: previewRunner
     },
     {
       node: props,
       runner: configureRunner
-    },
+    }
     // {
     //   node: propsConfigureV2,
     //   runner: configureV2Runner
