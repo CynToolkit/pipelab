@@ -1,41 +1,34 @@
-import * as semver from 'semver';
-import { coerce } from 'semver';
-import { objectKeys } from '../utils/object-keys';
+import * as semver from 'semver'
+import { coerce } from 'semver'
+import { objectKeys } from '../utils/object-keys'
 
-export type Awaitable<T> = Promise<T> | T;
+export type Awaitable<T> = Promise<T> | T
 
-export type MigrationFn<From, To> = (state: From, targetVersion: string) => Awaitable<To>;
+export type MigrationFn<From, To> = (state: From, targetVersion: string) => Awaitable<To>
 
 export type MigrateOptions = {
   debug?: boolean
+  stopAt?: SemVer
 }
 
 export interface MigrationSchema {
-  version: SemVer;
+  version: SemVer
 }
 
-export type OmitVersion<T> = Omit<T, keyof MigrationSchema>;
+export type OmitVersion<T> = Omit<T, keyof MigrationSchema>
 
-export type SemVer = `${number}.${number}.${number}`;
+export type SemVer = `${number}.${number}.${number}`
 
-export interface MigrationClass<
-    Down,
-    Current,
-    Up,
-> {
-  version: SemVer;
-  up: MigrationFn<Current, Up>;
-  down: MigrationFn<Current, Down>;
+export interface MigrationClass<Down, Current, Up> {
+  version: SemVer
+  up: MigrationFn<Current, Up>
+  down: MigrationFn<Current, Down>
 }
 
-export interface MigrationObjInput<
-  Down,
-  Current,
-  Up,
-> {
-  version: SemVer;
-  up: MigrationFn<OmitVersion<Current>, OmitVersion<Up>>;
-  down: MigrationFn<OmitVersion<Current>, OmitVersion<Down>>;
+export interface MigrationObjInput<Down, Current, Up> {
+  version: SemVer
+  up: MigrationFn<OmitVersion<Current>, OmitVersion<Up>>
+  down: MigrationFn<OmitVersion<Current>, OmitVersion<Down>>
 }
 
 export interface MigratorConfig {
@@ -44,98 +37,109 @@ export interface MigratorConfig {
 }
 
 export class Migrator<OutputState extends MigrationSchema> {
-  current: SemVer;
+  current: SemVer
 
-  migrations: Record<SemVer, MigrationClass<any, any, any>> = {};
+  migrations: Record<SemVer, MigrationClass<any, any, any>> = {}
 
-  coerce: boolean;
+  coerce: boolean
 
   constructor(config: MigratorConfig) {
     config.migrations.forEach((migration) => {
-      this.migrations[migration.version] = migration;
-    });
+      this.migrations[migration.version] = migration
+    })
 
-    const versions = this.getVersions();
-    this.current = versions[versions.length - 1];
+    const versions = this.getVersions()
+    this.current = versions[versions.length - 1]
 
-    this.coerce = config?.coerce ?? true;
+    this.coerce = config?.coerce ?? true
   }
 
   getVersions() {
-    const keys = objectKeys(this.migrations);
-    const versions = semver.sort(keys);
-    return versions;
+    const keys = objectKeys(this.migrations)
+    const versions = semver.sort(keys)
+    return versions
   }
 
   async migrateUp(state: MigrationSchema) {
-    return this.migrateDirection(state, 'up');
+    return this.migrateDirection(state, 'up')
   }
 
   async migrateDown(state: MigrationSchema) {
-    return this.migrateDirection(state, 'down');
+    return this.migrateDirection(state, 'down')
   }
 
   async migrate(state: MigrationSchema, options?: MigrateOptions): Promise<OutputState> {
     if (options?.debug) {
       // eslint-disable-next-line no-console
-      console.log("Migrating", state.version, "to", this.current);
+      console.log('Migrating', state.version, 'to', this.current)
     }
 
-    const stateVersion = this.tryCoerce(state.version);
+    const stateVersion = this.tryCoerce(state.version)
     if (this.current === stateVersion) {
-      return state as unknown as OutputState;
+      return state as unknown as OutputState
     }
 
-    let finalState = structuredClone(state);
+    let finalState = structuredClone(state)
 
-    while (this.needMigration(finalState.version)) {
-      // eslint-disable-next-line no-await-in-loop
-      finalState = await this.migrateUp(finalState);
+    const stopAt = this.tryCoerce(options?.stopAt ?? this.current)
+
+    while (
+      this.needMigration(finalState.version) &&
+      semver.lte(this.tryCoerce(finalState.version), stopAt)
+    ) {
+      console.log('current version', finalState.version)
+      finalState = await this.migrateUp(finalState)
+      if (stopAt) {
+        console.log('stopAt', stopAt)
+        console.log('continue ?', semver.lte(this.tryCoerce(finalState.version), stopAt))
+      }
     }
 
-    return finalState as unknown as OutputState;
+    return finalState as unknown as OutputState
   }
 
   async migrateDirection(state: MigrationSchema, type: 'up' | 'down') {
-    const newVersion = this.tryCoerce(state.version);
-    let finalState = structuredClone(state);
+    const newVersion = this.tryCoerce(state.version)
+    let finalState = structuredClone(state)
 
-    const versions = this.getVersions();
-    const targetVersionIndex = versions.findIndex((version) => version === newVersion);
-    const targetVersion = versions[targetVersionIndex];
+    const versions = this.getVersions()
+    const targetVersionIndex = versions.findIndex((version) => version === newVersion)
+    const targetVersion = versions[targetVersionIndex]
 
-    const sign = type === 'up' ? 1 : -1;
+    const sign = type === 'up' ? 1 : -1
 
-    let nextVersion;
-    const found = versions[targetVersionIndex + (1 * sign)];
+    let nextVersion
+    const found = versions[targetVersionIndex + 1 * sign]
     if (found) {
-      nextVersion = found;
+      nextVersion = found
     } else {
-      nextVersion = this.current;
+      nextVersion = this.current
     }
 
-    const keys = this.getVersions();
+    const keys = this.getVersions()
 
     if (!keys.includes(newVersion)) {
-      throw new Error(`Target migration "${newVersion}" not defined in migrations definition\nSupported versions includes: [${keys.join(', ')}]`);
+      throw new Error(
+        `Target migration "${newVersion}" not defined in migrations definition\nSupported versions includes: [${keys.join(', ')}]`
+      )
     }
 
-    const migration = this.migrations[targetVersion];
+    const migration = this.migrations[targetVersion]
     if (migration) {
-      finalState = await migration[type](finalState, nextVersion) as MigrationSchema;
+      finalState = (await migration[type](finalState, nextVersion)) as MigrationSchema
     } else {
-      throw new Error(`Migration for version ${targetVersion} not found`);
+      throw new Error(`Migration for version ${targetVersion} not found`)
     }
 
-    return finalState;
+    return finalState
   }
 
   tryCoerce(version: SemVer) {
-    return this.coerce ? coerce(version)?.version as SemVer | undefined ?? version : version;
+    return this.coerce ? ((coerce(version)?.version as SemVer | undefined) ?? version) : version
   }
 
   needMigration(version: SemVer) {
-    const newVersion = this.tryCoerce(version);
-    return semver.lt(newVersion, this.current);
+    const newVersion = this.tryCoerce(version)
+    return semver.lt(newVersion, this.current)
   }
 }

@@ -43,7 +43,7 @@ https://remixicon.com/
 ---
 
 Tests:
-- Switch securely from "editor" to "simple" + remember last editor
+- Switch securely from "editor" to "simple" + remember last editor @started(24-10-10 07:40)
 - View logs in realtime
 - env (= copy variables)
 - handle pipeline error gracefully

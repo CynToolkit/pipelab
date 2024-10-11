@@ -3,7 +3,22 @@ import { WithId } from './utils'
 import { SaveLocation } from './save-location'
 import { Simplify } from 'type-fest'
 import { createMigration, createMigrator, finalVersion, initialVersion } from './libs/migration'
-import { any, array, boolean, custom, GenericSchema, InferOutput, lazy, literal, object, optional, record, string, union, variant } from 'valibot'
+import {
+  any,
+  array,
+  boolean,
+  custom,
+  GenericSchema,
+  InferOutput,
+  lazy,
+  literal,
+  object,
+  optional,
+  record,
+  string,
+  union,
+  variant
+} from 'valibot'
 import type { OmitVersion } from './libs/migration/models/migration'
 
 export type NodeId = string
@@ -25,6 +40,22 @@ const BlockActionValidator = object({
   uid: string(),
   disabled: optional(boolean()),
   params: record(string(), any()),
+  origin: OriginValidator
+})
+
+export const EditorParamValidatorV3 = union([literal('simple'), literal('editor')])
+export type EditorParam = InferOutput<typeof EditorParamValidatorV3>
+const BlockActionValidatorV3 = object({
+  type: literal('action'),
+  uid: string(),
+  disabled: optional(boolean()),
+  params: record(
+    string(),
+    object({
+      editor: EditorParamValidatorV3,
+      value: any()
+    })
+  ),
   origin: OriginValidator
 })
 
@@ -78,20 +109,28 @@ const BlockCommentValidator = object({
 const BlockValidatorV1 = variant('type', [
   BlockActionValidator,
   // BlockConditionValidator,
-  BlockEventValidator,
+  BlockEventValidator
   // BlockLoopValidator,
   // BlockCommentValidator
 ])
 
 const BlockValidatorV2 = variant('type', [
-  BlockActionValidator,
+  BlockActionValidator
   // BlockConditionValidator,
   // BlockEventValidator,
   // BlockLoopValidator,
   // BlockCommentValidator
 ])
 
-const BlockValidator = BlockValidatorV2
+const BlockValidatorV3 = variant('type', [
+  BlockActionValidatorV3
+  // BlockConditionValidator,
+  // BlockEventValidator,
+  // BlockLoopValidator,
+  // BlockCommentValidator
+])
+
+const BlockValidator = BlockValidatorV3
 
 export type BlockAction = Simplify<InferOutput<typeof BlockActionValidator>>
 export type BlockCondition = InferOutput<typeof BlockConditionValidator>
@@ -107,6 +146,11 @@ const CanvasValidatorV1 = object({
 
 const CanvasValidatorV2 = object({
   blocks: array(BlockValidatorV2),
+  triggers: array(BlockEventValidator)
+})
+
+const CanvasValidatorV3 = object({
+  blocks: array(BlockValidatorV3),
   triggers: array(BlockEventValidator)
 })
 
@@ -128,9 +172,18 @@ export const SavedFileValidatorV2 = object({
   variables: array(VariableValidatorV1)
 })
 
+export const SavedFileValidatorV3 = object({
+  version: literal('3.0.0'),
+  name: string(),
+  description: string(),
+  canvas: CanvasValidatorV3,
+  variables: array(VariableValidatorV1)
+})
+
 export type SavedFileV1 = InferOutput<typeof SavedFileValidatorV1>
 export type SavedFileV2 = InferOutput<typeof SavedFileValidatorV2>
-export type SavedFile = SavedFileV2
+export type SavedFileV3 = InferOutput<typeof SavedFileValidatorV3>
+export type SavedFile = SavedFileV3
 
 export const savedFileMigrator = createMigrator<SavedFile>({
   migrations: [
@@ -143,7 +196,7 @@ export const savedFileMigrator = createMigrator<SavedFile>({
         const newBlocks: Array<Block> = []
 
         for (const block of blocks) {
-          if (block.type === "event") {
+          if (block.type === 'event') {
             // add to triggers
             triggers.push(block)
           } else {
@@ -155,26 +208,35 @@ export const savedFileMigrator = createMigrator<SavedFile>({
         return {
           canvas: {
             blocks: newBlocks,
-            triggers: triggers,
+            triggers: triggers
           },
           description: state.description,
           name: state.name,
-          variables: state.variables,
-        } satisfies OmitVersion<SavedFileV2>;
+          variables: state.variables
+        } satisfies OmitVersion<SavedFileV2>
       },
-      down: initialVersion,
+      down: initialVersion
     }),
     createMigration<SavedFileV1, SavedFileV2, never>({
       version: '2.0.0',
-      up: finalVersion,
-      down: (state) => {
-        throw new Error('Migration down not implemented')
+      up: (state) => {
+        return state
       },
+      down: () => {
+        throw new Error('Migration down not implemented')
+      }
     }),
-  ],
-});
+    createMigration<SavedFileV1, SavedFileV2, never>({
+      version: '3.0.0',
+      up: finalVersion,
+      down: () => {
+        throw new Error('Migration down not implemented')
+      }
+    })
+  ]
+})
 
-export type PresetFn = () => Promise<{ data: SavedFile; }>
+export type PresetFn = () => Promise<{ data: SavedFile }>
 export type Preset = SavedFile
 
 export type Steps = Record<

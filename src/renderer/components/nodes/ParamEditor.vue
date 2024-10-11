@@ -163,7 +163,7 @@ import { Action, Condition, Event } from '@pipelab/plugin-core'
 import { createCodeEditor } from '@renderer/utils/code-editor'
 import { createQuickJs } from '@renderer/utils/quickjs'
 import { watchDebounced } from '@vueuse/core'
-import { BlockAction, BlockCondition, BlockEvent, BlockLoop, Steps } from '@@/model'
+import { BlockAction, BlockCondition, BlockEvent, BlockLoop, EditorParam, Steps } from '@@/model'
 import { controlsToIcon, controlsToType } from '@renderer/models/controls'
 import { Completion, CompletionContext } from '@codemirror/autocomplete'
 import { javascriptLanguage } from '@codemirror/lang-javascript'
@@ -216,7 +216,7 @@ const editor = useEditor()
 const { getNodeDefinition } = editor
 const { nodes } = storeToRefs(editor)
 
-const mode = ref<'simple' | 'editor'>('simple')
+const mode = ref<EditorParam>('simple')
 
 const toggleMode = () => {
   mode.value = mode.value === 'simple' ? 'editor' : 'simple'
