@@ -3,7 +3,6 @@ import { ActionRunnerData, createAction, InputsDefinition, runWithLiveLogs } fro
 import type { MakeOptions } from '@electron-forge/core'
 import { ElectronConfiguration } from './model'
 import { writeFile } from 'node:fs/promises'
-import ejs from 'ejs'
 import { merge } from 'ts-deepmerge'
 
 // TODO: https://js.electronforge.io/modules/_electron_forge_core.html
@@ -202,40 +201,40 @@ export const forge = async (
   log('completeConfiguration', completeConfiguration)
 
   // render forge config
-  ejs.renderFile(
-    join(templateFolder, 'forge.config.cjs'),
-    {
-      config: completeConfiguration
-    },
-    {},
-    (err: Error, str: string) => {
-      writeFile(join(destinationFolder, 'forge.config.cjs'), str, 'utf8')
-    }
-  )
+  // ejs.renderFile(
+  //   join(templateFolder, 'forge.config.cjs'),
+  //   {
+  //     config: completeConfiguration
+  //   },
+  //   {},
+  //   (err: Error, str: string) => {
+  //     writeFile(join(destinationFolder, 'forge.config.cjs'), str, 'utf8')
+  //   }
+  // )
 
-  // index / main
-  ejs.renderFile(
-    join(templateFolder, 'src', 'index.js'),
-    {
-      config: completeConfiguration
-    },
-    {},
-    (err: Error, str: string) => {
-      writeFile(join(destinationFolder, 'src', 'index.js'), str, 'utf8')
-    }
-  )
+  // // index / main
+  // ejs.renderFile(
+  //   join(templateFolder, 'src', 'index.js'),
+  //   {
+  //     config: completeConfiguration
+  //   },
+  //   {},
+  //   (err: Error, str: string) => {
+  //     writeFile(join(destinationFolder, 'src', 'index.js'), str, 'utf8')
+  //   }
+  // )
 
-  // preload
-  ejs.renderFile(
-    join(templateFolder, 'src', 'preload.js'),
-    {
-      config: completeConfiguration
-    },
-    {},
-    (err: Error, str: string) => {
-      writeFile(join(destinationFolder, 'src', 'preload.js'), str, 'utf8')
-    }
-  )
+  // // preload
+  // ejs.renderFile(
+  //   join(templateFolder, 'src', 'preload.js'),
+  //   {
+  //     config: completeConfiguration
+  //   },
+  //   {},
+  //   (err: Error, str: string) => {
+  //     writeFile(join(destinationFolder, 'src', 'preload.js'), str, 'utf8')
+  //   }
+  // )
 
   // copy custom main code
   const destinationFile = join(destinationFolder, 'src', 'custom-main.js')

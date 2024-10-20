@@ -7,7 +7,7 @@ export const ID = 'export-construct-project-folder'
 export const exportProjectAction = createAction({
   id: ID,
   name: 'Export folder',
-  displayString: "`Export projet ${params.version ? `r${params.version}` : ''}`",
+  displayString: "`Export project ${params.version ? `r${params.version}` : ''}`",
   meta: {},
   params: {
     folder: {

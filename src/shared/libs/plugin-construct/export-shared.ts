@@ -1,13 +1,14 @@
 import {
   Action,
-  ActionRunner,
   ActionRunnerData,
   InputsDefinition,
   ParamsToInput,
   runWithLiveLogs
 } from '@pipelab/plugin-core'
 import { script } from './assets/script.js'
+import v from 'valibot'
 
+// @ts-expect-error import.meta
 const isCI = process.env.CI === 'true' || import.meta.env.CI === 'true'
 
 export const sharedParams = {
@@ -39,7 +40,8 @@ export const sharedParams = {
     control: {
       type: 'input',
       options: {
-        kind: 'text'
+        kind: 'text',
+        validator: 'construct-version'
       }
     },
     value: undefined as string | undefined
@@ -146,4 +148,9 @@ export const exportc3p = async <ACTION extends Action>(
   log('setting output result to ', result)
 
   setOutput('folder', result)
+}
+
+export const constructVersionValidator = (options: any) => {
+  void options
+  return v.pipe(v.string(), v.regex(/^\d+(-\d+)?$/, 'Invalid version'))
 }

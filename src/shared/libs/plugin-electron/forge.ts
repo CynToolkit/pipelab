@@ -1,10 +1,16 @@
 import { getBinName, outFolderName } from 'src/constants'
-import { ActionRunnerData, createAction, InputsDefinition, runWithLiveLogs } from '../plugin-core'
+import {
+  ActionRunnerData,
+  createAction,
+  InputsDefinition,
+  OutputsDefinition,
+  runWithLiveLogs
+} from '../plugin-core'
 import type { MakeOptions } from '@electron-forge/core'
 import { ElectronConfiguration } from './model'
 import { writeFile } from 'node:fs/promises'
-import ejs from 'ejs'
 import { merge } from 'ts-deepmerge'
+import { app } from 'electron'
 
 // TODO: https://js.electronforge.io/modules/_electron_forge_core.html
 
@@ -110,15 +116,27 @@ const params = {
   }
 } satisfies InputsDefinition
 
+const outputs = {
+  output: {
+    label: 'Output',
+    value: '',
+    control: {
+      type: 'path',
+      options: {
+        properties: ['openDirectory']
+      }
+    }
+  }
+} satisfies OutputsDefinition
+
 // type Inputs = ParamsToInput<typeof params>
 
-export const createProps = (
+export const createMakeProps = (
   id: string,
   name: string,
   description: string,
   icon: string,
-  displayString: string,
-  inputType: 'folder' | 'url'
+  displayString: string
 ) =>
   createAction({
     id,
@@ -129,26 +147,68 @@ export const createProps = (
     meta: {},
     params: {
       ...params,
-      ...(inputType === 'folder' ? paramsInputFolder : paramsInputURL)
+      ...paramsInputFolder
     },
-    outputs: {
-      output: {
-        label: 'Output',
-        value: '',
-        control: {
-          type: 'path',
-          options: {
-            properties: ['openDirectory']
-          }
-        }
-      }
-    }
+    outputs
+  })
+
+export const createPackageProps = (
+  id: string,
+  name: string,
+  description: string,
+  icon: string,
+  displayString: string
+) =>
+  createAction({
+    id,
+    name,
+    description,
+    icon,
+    displayString,
+    meta: {},
+    params: {
+      ...params,
+      ...paramsInputFolder
+    },
+    outputs: outputs
+  })
+
+export const createPreviewProps = (
+  id: string,
+  name: string,
+  description: string,
+  icon: string,
+  displayString: string
+) =>
+  createAction({
+    id,
+    name,
+    description,
+    icon,
+    displayString,
+    meta: {},
+    params: {
+      ...params,
+      ...paramsInputURL
+    },
+    outputs: outputs
   })
 
 export const forge = async (
   action: 'make' | 'package',
-  { cwd, log, inputs, setOutput, paths }: ActionRunnerData<ReturnType<typeof createProps>>
-): Promise<{ folder: string, binary: string | undefined } | undefined> => {
+  appFolder: string | undefined,
+  {
+    cwd,
+    log,
+    inputs,
+    setOutput,
+    paths
+  }: ActionRunnerData<
+    | ReturnType<typeof createMakeProps>
+    | ReturnType<typeof createPackageProps>
+    | ReturnType<typeof createPreviewProps>
+  >
+): Promise<{ folder: string; binary: string | undefined } | undefined> => {
   log('Building electron')
 
   const { assets, unpack } = paths
@@ -175,9 +235,6 @@ export const forge = async (
     'electron-forge.js'
   )
 
-  const isUrl = 'input-url' in inputs
-  const isAppFolder = 'input-folder' in inputs
-
   const templateFolder = join(assets, 'electron', 'template', 'app')
 
   // copy template to destination
@@ -193,9 +250,7 @@ export const forge = async (
   const placeAppFolder = join(destinationFolder, 'src', 'app')
 
   // if input is folder, copy folder to destination
-  if (isAppFolder) {
-    const appFolder = inputs['input-folder']
-
+  if (appFolder) {
     // copy app to template
     await cp(appFolder, placeAppFolder, {
       recursive: true
@@ -225,44 +280,50 @@ export const forge = async (
       width: 800
     } satisfies ElectronConfiguration,
     inputs.configuration
-  )
+  ) as ElectronConfiguration
 
   log('completeConfiguration', completeConfiguration)
 
   // render forge config
-  ejs.renderFile(
-    join(templateFolder, 'forge.config.cjs'),
-    {
-      config: completeConfiguration,
-    },
-    {},
-    (err: Error, str: string) => {
-      writeFile(join(destinationFolder, 'forge.config.cjs'), str, 'utf8')
-    }
-  )
+  // ejs.renderFile(
+  //   join(templateFolder, 'forge.config.cjs'),
+  //   {
+  //     config: completeConfiguration,
+  //   },
+  //   {},
+  //   (err: Error, str: string) => {
+  //     writeFile(join(destinationFolder, 'forge.config.cjs'), str, 'utf8')
+  //   }
+  // )
 
   // index / main
-  ejs.renderFile(
-    join(templateFolder, 'src', 'index.js'),
-    {
-      config: completeConfiguration
-    },
-    {},
-    (err: Error, str: string) => {
-      writeFile(join(destinationFolder, 'src', 'index.js'), str, 'utf8')
-    }
-  )
+  // ejs.renderFile(
+  //   join(templateFolder, 'src', 'index.js'),
+  //   {
+  //     config: completeConfiguration
+  //   },
+  //   {},
+  //   (err: Error, str: string) => {
+  //     writeFile(join(destinationFolder, 'src', 'index.js'), str, 'utf8')
+  //   }
+  // )
 
   // preload
-  ejs.renderFile(
-    join(templateFolder, 'src', 'preload.js'),
-    {
-      config: completeConfiguration
-    },
-    {},
-    (err: Error, str: string) => {
-      writeFile(join(destinationFolder, 'src', 'preload.js'), str, 'utf8')
-    }
+  // ejs.renderFile(
+  //   join(templateFolder, 'src', 'preload.js'),
+  //   {
+  //     config: completeConfiguration
+  //   },
+  //   {},
+  //   (err: Error, str: string) => {
+  //     writeFile(join(destinationFolder, 'src', 'preload.js'), str, 'utf8')
+  //   }
+  // )
+
+  writeFile(
+    join(destinationFolder, 'config.cjs'),
+    `module.exports = ${JSON.stringify(completeConfiguration, undefined, 2)}`,
+    'utf8'
   )
 
   // copy custom main code
@@ -275,6 +336,10 @@ export const forge = async (
 
   const shimsPaths = join(assets, 'shims')
 
+  const userData = app.getPath('userData')
+
+  const pnpmHome = join(userData, 'config', 'pnpm')
+
   log('Installing packages')
   await runWithLiveLogs(
     process.execPath,
@@ -284,7 +349,8 @@ export const forge = async (
       env: {
         // DEBUG: '*',
         ELECTRON_RUN_AS_NODE: '1',
-        PATH: `${shimsPaths}${delimiter}${process.env.PATH}`
+        PATH: `${shimsPaths}${delimiter}${process.env.PATH}`,
+        PNPM_HOME: pnpmHome
       }
     },
     log
@@ -301,7 +367,8 @@ export const forge = async (
         env: {
           // DEBUG: '*',
           ELECTRON_RUN_AS_NODE: '1',
-          PATH: `${shimsPaths}${delimiter}${process.env.PATH}`
+          PATH: `${shimsPaths}${delimiter}${process.env.PATH}`,
+          PNPM_HOME: pnpmHome
         }
       },
       log

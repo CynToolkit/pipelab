@@ -1,8 +1,7 @@
 <template>
   <div class="projects-editor">
     <div class="flex items-center">
-      <Checkbox v-model="pizza" input-id="ingredient1" name="pizza" value="Cheese" />
-      <label for="ingredient1" class="ml-2"> Cheese </label>
+      <label for="ingredient1" class="ml-2"> No project settings </label>
     </div>
   </div>
 </template>

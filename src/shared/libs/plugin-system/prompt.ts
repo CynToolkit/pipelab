@@ -42,12 +42,12 @@ export const promptActionRunner = createActionRunner<typeof promptAction>(
       message: inputs.message
     })
 
-    console.log('_answer', _answer)
+    log('_answer', _answer)
 
-    if ('answer' in _answer) {
-      setOutput('answer', _answer.answer)
+    if (_answer.type === 'success') {
+      setOutput('answer', _answer.result.answer)
     } else {
-      log('error')
+      throw new Error(_answer.ipcError)
     }
   }
 )

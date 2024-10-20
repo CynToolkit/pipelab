@@ -5,7 +5,7 @@
       class="node-action"
       :class="{
         active: activeNode?.uid === value.uid,
-        error: errors.length > 0,
+        error: Object.keys(errors).length > 0,
         disabled: value.disabled,
       }"
     >
@@ -70,7 +70,7 @@
 
       <Drawer v-model:visible="showSidebar" class="w-full md:w-full lg:w-7 xl:w-5" position="right">
         <template v-if="nodeDefinition">
-          <div class="flex flex-column gap-2">
+          <div class="flex flex-column gap-4">
             <div v-for="(paramDefinition, key) in nodeDefinition.params" :key="key" class="param">
               <ParamEditor
                 :param="value.params[key]"
@@ -78,6 +78,7 @@
                 :param-definition="paramDefinition"
                 :value="value"
                 :steps="steps"
+                :variables="variables"
                 @update:model-value="onValueChanged($event, key.toString())"
               ></ParamEditor>
             </div>
@@ -119,6 +120,8 @@ import DOMPurify from 'dompurify'
 import { makeResolvedParams } from '@renderer/utils/evaluator'
 import { ValidationError } from '@renderer/models/error'
 import AddNodeButton from '../AddNodeButton.vue'
+import { Variable } from '@@/libs/core-app'
+import { ValueOf } from 'type-fest'
 
 const props = defineProps({
   value: {
@@ -139,9 +142,9 @@ const props = defineProps({
     required: true
   },
   errors: {
-    type: Object as PropType<ValidationError[]>,
+    type: Object as PropType<Record<string, ValidationError[]>>,
     required: false,
-    default: () => []
+    default: () => ({})
   }
 })
 
@@ -162,6 +165,7 @@ const {
   cloneNode,
   disableNode,
   enableNode,
+  variables,
 } = editor
 const { activeNode } = storeToRefs(editor)
 
@@ -173,7 +177,10 @@ const pluginDefinition = computed(() => {
   return getPluginDefinition(value.value.origin.pluginId)
 })
 
-const onValueChanged = (newValue: unknown, paramKey: string) => {
+type Param = ValueOf<BlockAction['params']>
+
+const onValueChanged = (newValue: Param, paramKey: string) => {
+  console.log('newValue', newValue)
   setBlockValue(value.value.uid, {
     ...value.value,
     params: {
@@ -186,6 +193,19 @@ const onValueChanged = (newValue: unknown, paramKey: string) => {
 // @ts-expect-error tsconfig
 const vm = await createQuickJs()
 
+const variablesDisplay = computed(() => {
+  const result: Variable[] = []
+  for (const variable of variables) {
+    result.push({
+      id: variable.id,
+      description: variable.description,
+      name: `<div class="step">@${variable.name}</div>`,
+      value: `<div class="variable">@${variable.name}</div>`
+    })
+  }
+  return result
+})
+
 const resolvedParams = shallowRef<Record<string, string>>({})
 watchDebounced(
   [value, steps],
@@ -195,10 +215,9 @@ watchDebounced(
         params: value.value.params,
         steps: steps.value,
         context: {},
-        variables: []
+        variables: variablesDisplay.value,
       },
       (item) => {
-        // console.log('item', item)
         // const cleanOutput = DOMPurify.sanitize(item)
         // console.log('cleanOutput', cleanOutput)
 

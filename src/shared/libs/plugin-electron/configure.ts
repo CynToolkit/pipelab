@@ -243,7 +243,7 @@ export const props = createAction({
           kind: 'text'
         }
       }
-    },
+    }
 
     // integrations
 

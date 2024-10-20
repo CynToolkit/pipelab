@@ -1,4 +1,4 @@
-import { describe, beforeEach } from 'vitest'
+import { describe, beforeEach, expect, it } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 // import { useAPI } from '@renderer/composables/api'
 
@@ -25,6 +25,10 @@ describe('editor store', () => {
 
     // editor = useEditor()
     // editor.initialization()
+  })
+
+  it('dummy', () => {
+    expect(1).toBe(1)
   })
 
   // describe('node insertion', () => {

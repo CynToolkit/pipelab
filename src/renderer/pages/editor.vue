@@ -80,6 +80,10 @@
             <div class="bold">Variables</div>
             <VariablesEditor v-if="instance"></VariablesEditor>
           </div>
+          <div>
+            <div class="bold">Environement</div>
+            <EnvironementEditor v-if="instance"></EnvironementEditor>
+          </div>
         </div>
         <div class="main">
           <div class="node-editor-wrapper">
@@ -150,14 +154,10 @@
       <Dialog
         v-model:visible="isPromptDialogVisible"
         modal
-        header="Prompt"
+        :header="lastPromptInfos.message"
         :style="{ width: '25rem' }"
       >
-        <span class="text-surface-500 dark:text-surface-400 block mb-8"
-          >Update your information.</span
-        >
         <div class="flex items-center gap-4 mb-4">
-          <label for="answer" class="font-semibold w-24">Title</label>
           <InputText
             id="answer"
             v-model="promptDialogAnswer"
@@ -180,30 +180,27 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { reactive, ref, watch } from 'vue'
 import { useEditor } from '@renderer/store/editor'
 import NodesEditor from '@renderer/pages/nodes-editor.vue'
 import EditorNodeDummy from '@renderer/components/nodes/EditorNodeDummy.vue'
 import { storeToRefs } from 'pinia'
-import { useRoute, useRouter } from 'vue-router'
+import { useRouter } from 'vue-router'
 import { SavedFile } from '@@/model'
 import { useAPI } from '@renderer/composables/api'
 import { useAppStore } from '@renderer/store/app'
-import { MenuItem } from 'primevue/menuitem'
 import { useToast } from 'primevue/usetoast'
 import { tinykeys } from 'tinykeys'
-import { useRouteParams } from '@vueuse/router'
 import { useFiles } from '@renderer/store/files'
 import { klona } from 'klona'
-import { loadExternalFile, loadInternalFile, saveExternalFile } from '@renderer/utils/config'
+import { loadExternalFile, saveExternalFile } from '@renderer/utils/config'
 import EditorNodeEvent from '@renderer/components/nodes/EditorNodeEvent.vue'
 import EditorNodeEventEmpty from '@renderer/components/nodes/EditorNodeEventEmpty.vue'
-import { RendererChannels, RendererData, RendererEvents, RendererMessage } from '@main/api'
 import { handle, HandleListenerRendererSendFn } from '@renderer/composables/handlers'
 import VariablesEditor from './variables-editor.vue'
+import EnvironementEditor from './environement-editor.vue'
 import ProjectSettingsEditor from './project-settings-editor.vue'
 
-const route = useRoute()
 const router = useRouter()
 
 const instance = useEditor()
@@ -218,7 +215,7 @@ const {
   id,
   isRunning
 } = storeToRefs(instance)
-const { processGraph, loadPreset, loadSavedFile, setIsRunning } = instance
+const { processGraph, loadSavedFile, setIsRunning } = instance
 
 const app = useAppStore()
 const { pluginDefinitions } = storeToRefs(app)
@@ -235,7 +232,13 @@ watch(
     if (file && file.type === 'external') {
       const { path: filePath } = file
 
-      const fileData = await loadExternalFile(filePath)
+      const fileDataResult = await loadExternalFile(filePath)
+
+      if (fileDataResult.type === 'error') {
+        throw new Error(fileDataResult.ipcError)
+      }
+
+      const fileData = fileDataResult.result
 
       if ('content' in fileData) {
         const content = JSON.parse(fileData.content) as SavedFile
@@ -313,7 +316,7 @@ const run = async () => {
   setIsRunning(false)
 }
 
-const isSaving = ref(false)
+// const isSaving = ref(false)
 
 const onSaveRequest = async () => {
   if (currentFilePointer.value.type === 'external') {
@@ -370,31 +373,31 @@ const onCloseRequest = async () => {
 //   showSaveDialog.value = false
 // }
 
-const saveOptions = [
-  {
-    id: 'local',
-    title: 'Local file',
-    subtitle: 'Save on your own computer',
-    icon: 'mdi-file-document-outline'
-  },
-  {
-    id: 'cloud',
-    title: 'Cloud',
-    subtitle: 'Securely save online',
-    icon: 'mdi-cloud-arrow-up-outline',
-    disabled: true
-  }
-] as const
+// const saveOptions = [
+//   {
+//     id: 'local',
+//     title: 'Local file',
+//     subtitle: 'Save on your own computer',
+//     icon: 'mdi-file-document-outline'
+//   },
+//   {
+//     id: 'cloud',
+//     title: 'Cloud',
+//     subtitle: 'Securely save online',
+//     icon: 'mdi-cloud-arrow-up-outline',
+//     disabled: true
+//   }
+// ] as const
 
-const saveOption = ref<(typeof saveOptions)[number]>()
+// const saveOption = ref<(typeof saveOptions)[number]>()
 
-const saveCloud = () => {
-  throw new Error('TODO')
-}
+// const saveCloud = () => {
+//   throw new Error('TODO')
+// }
 
 const saveLocal = async (path: string) => {
   const result: SavedFile = {
-    version: '2.0.0',
+    version: '3.0.0',
     name: name.value,
     description: '',
     canvas: {
@@ -403,6 +406,8 @@ const saveLocal = async (path: string) => {
     },
     variables: variables.value
   }
+
+  console.log('result', result)
 
   await saveExternalFile(path, result)
 
@@ -420,7 +425,7 @@ const saveLocal = async (path: string) => {
   })
 }
 
-const api = useAPI()
+// const api = useAPI()
 
 // const load = async () => {
 //   const paths = await api.execute(
@@ -476,7 +481,10 @@ handle('dialog:alert', async (event, { value, send }) => {
   send({
     type: 'end',
     data: {
-      answer: 'ok'
+      type: 'success',
+      result: {
+        answer: 'ok'
+      }
     }
   })
 })
@@ -487,7 +495,8 @@ const onPromptDialogCancel = () => {
   lastPromptInfos.callback({
     type: 'end',
     data: {
-      ipcError: 'cancled'
+      type: 'error',
+      ipcError: 'canceled'
     }
   })
   isPromptDialogVisible.value = false
@@ -496,14 +505,17 @@ const onPromptDialogOK = () => {
   lastPromptInfos.callback({
     type: 'end',
     data: {
-      answer: promptDialogAnswer.value
+      type: 'success',
+      result: {
+        answer: promptDialogAnswer.value
+      }
     }
   })
   isPromptDialogVisible.value = false
 }
 
 const lastPromptInfos = reactive({
-  callback: undefined as undefined | HandleListenerRendererSendFn<"dialog:prompt">,
+  callback: undefined as undefined | HandleListenerRendererSendFn<'dialog:prompt'>,
   message: ''
 })
 
@@ -537,15 +549,19 @@ tinykeys(window, {
     #e0e4e8b3;
   background-size: 20px 20px;
   // background-position: -19px -19px;
+  height: 100%;
 
   .editor-content {
     width: 100%;
     display: flex;
     flex-direction: column;
+    height: 100%;
 
     .editor-wrapper {
       display: flex;
       flex-direction: row;
+      height: 100%;
+      min-height: 0;
     }
   }
 
@@ -592,7 +608,7 @@ tinykeys(window, {
   display: flex;
   flex-direction: column;
   overflow: auto;
-  padding: 128px 0;
+  padding: 64px 0;
 
   .node-editor-wrapper {
     margin: 16px;

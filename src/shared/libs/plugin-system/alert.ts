@@ -43,7 +43,7 @@ export const alertActionRunner = createActionRunner<typeof alertAction>(
     })
 
     if ('content' in _answer) {
-      setOutput('answer', _answer.answer)
+      setOutput('answer', _answer.content.toString())
     } else {
       log('error')
     }

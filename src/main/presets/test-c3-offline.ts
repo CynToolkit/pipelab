@@ -5,7 +5,7 @@ export const testC3Offline: PresetFn = async () => {
   const steamUpload = 'steam-upload-node'
 
   const data: SavedFile = {
-    version: '2.0.0',
+    version: '3.0.0',
     variables: [],
     name: 'C3 test without export',
     description: 'C3 test without export',
@@ -30,7 +30,10 @@ export const testC3Offline: PresetFn = async () => {
             pluginId: 'electron'
           },
           params: {
-            'input-folder': `/home/quentin/Documents/Cyn Assets/app`,
+            'input-folder':  {
+              editor: 'editor',
+              value: `/home/quentin/Documents/Cyn Assets/app`
+            },
             arch: undefined,
             platform: undefined
           }
@@ -43,11 +46,26 @@ export const testC3Offline: PresetFn = async () => {
             pluginId: 'steam'
           },
           params: {
-            folder: `{{ steps['${packageWithElecton}']['outputs']['output'] }}`,
-            appId: '3047200',
-            depotId: '3047201',
-            sdk: '/home/quentin/Documents/steamworkssdk/sdk',
-            username: 'armaldio'
+            folder: {
+              editor: 'editor',
+              value: `{{ steps['${packageWithElecton}']['outputs']['output'] }}`,
+            },
+            appId: {
+              editor: 'editor',
+              value: '3047200',
+            },
+            depotId: {
+              editor: 'editor',
+              value: '3047201',
+            },
+            sdk: {
+              editor: 'editor',
+              value: '/home/quentin/Documents/steamworkssdk/sdk',
+            },
+            username: {
+              editor: 'editor',
+              value: 'armaldio',
+            },
           }
         }
       ]
