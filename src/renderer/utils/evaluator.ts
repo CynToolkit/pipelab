@@ -1,4 +1,4 @@
-import { Steps } from '@@/model'
+import { BlockAction, Steps } from '@@/model'
 import { createQuickJs, CreateQuickJSFn } from './quickjs'
 import { Variable } from '@pipelab/core-app'
 import { useLogger } from '@@/logger'
@@ -6,7 +6,7 @@ import { variableToFormattedVariable } from '@renderer/composables/variables'
 
 export const makeResolvedParams = async (
   data: {
-    params: Record<string, any>
+    params: BlockAction['params']
     steps: Steps
     variables: Array<Variable>
     context: Record<string, unknown>
@@ -21,7 +21,7 @@ export const makeResolvedParams = async (
 
   for (const [paramName, param] of Object.entries(data.params)) {
     try {
-      const output = await vm.run(param, {
+      const output = await vm.run(param.value.toString(), {
         steps: data.steps,
         params: {},
         variables: variableToFormattedVariable(data.variables)

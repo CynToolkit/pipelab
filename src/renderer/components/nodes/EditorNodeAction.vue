@@ -120,8 +120,8 @@ import DOMPurify from 'dompurify'
 import { makeResolvedParams } from '@renderer/utils/evaluator'
 import { ValidationError } from '@renderer/models/error'
 import AddNodeButton from '../AddNodeButton.vue'
-import { variableToFormattedVariable } from '@renderer/composables/variables'
 import { Variable } from '@@/libs/core-app'
+import { ValueOf } from 'type-fest'
 
 const props = defineProps({
   value: {
@@ -177,8 +177,10 @@ const pluginDefinition = computed(() => {
   return getPluginDefinition(value.value.origin.pluginId)
 })
 
-const onValueChanged = (newValue: unknown, paramKey: string) => {
-  console.log('onValueChanged', newValue, paramKey)
+type Param = ValueOf<BlockAction['params']>
+
+const onValueChanged = (newValue: Param, paramKey: string) => {
+  console.log('newValue', newValue)
   setBlockValue(value.value.uid, {
     ...value.value,
     params: {
@@ -216,7 +218,6 @@ watchDebounced(
         variables: variablesDisplay.value,
       },
       (item) => {
-        console.log('item', item)
         // const cleanOutput = DOMPurify.sanitize(item)
         // console.log('cleanOutput', cleanOutput)
 

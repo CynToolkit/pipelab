@@ -72,7 +72,7 @@ export const createCodeEditor = (
   const internalValue = ref(editor.value.state.doc.toString())
 
   const update = (value: string) => {
-    console.log('value', value)
+    console.log('value to put inside text editor', value)
     if (editor.value.state.doc.toString() === value) {
       return
     }

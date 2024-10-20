@@ -18,7 +18,7 @@ export const processGraph = async (options: {
   context: Context
   onExecuteItem: (
     node: Block,
-    params: Record<string, unknown>,
+    params: Record<string, string>,
     steps: Steps
   ) => Promise<End<'condition:execute'> | End<'action:execute'>>
   onNodeEnter: (node: Block) => void

@@ -17,6 +17,7 @@ import {
   record,
   string,
   union,
+  unknown,
   variant
 } from 'valibot'
 import type { OmitVersion } from './libs/migration/models/migration'
@@ -35,7 +36,7 @@ export const OriginValidator = object({
 
 export type Origin = InferOutput<typeof OriginValidator>
 
-const BlockActionValidator = object({
+const BlockActionValidatorV1 = object({
   type: literal('action'),
   uid: string(),
   disabled: optional(boolean()),
@@ -53,7 +54,7 @@ const BlockActionValidatorV3 = object({
     string(),
     object({
       editor: EditorParamValidatorV3,
-      value: any()
+      value: unknown()
     })
   ),
   origin: OriginValidator
@@ -107,7 +108,7 @@ const BlockCommentValidator = object({
 })
 
 const BlockValidatorV1 = variant('type', [
-  BlockActionValidator,
+  BlockActionValidatorV1,
   // BlockConditionValidator,
   BlockEventValidator
   // BlockLoopValidator,
@@ -115,7 +116,7 @@ const BlockValidatorV1 = variant('type', [
 ])
 
 const BlockValidatorV2 = variant('type', [
-  BlockActionValidator
+  BlockActionValidatorV1
   // BlockConditionValidator,
   // BlockEventValidator,
   // BlockLoopValidator,
@@ -132,13 +133,13 @@ const BlockValidatorV3 = variant('type', [
 
 const BlockValidator = BlockValidatorV3
 
-export type BlockAction = Simplify<InferOutput<typeof BlockActionValidator>>
+export type BlockAction = Simplify<InferOutput<typeof BlockActionValidatorV3>>
 export type BlockCondition = InferOutput<typeof BlockConditionValidator>
 export type BlockLoop = InferOutput<typeof BlockLoopValidator>
 export type BlockEvent = InferOutput<typeof BlockEventValidator>
 export type BlockComment = InferOutput<typeof BlockCommentValidator>
 
-export type Block = InferOutput<typeof BlockValidatorV2>
+export type Block = InferOutput<typeof BlockValidatorV3>
 
 const CanvasValidatorV1 = object({
   blocks: array(BlockValidatorV1)
@@ -217,16 +218,52 @@ export const savedFileMigrator = createMigrator<SavedFile>({
       },
       down: initialVersion
     }),
-    createMigration<SavedFileV1, SavedFileV2, never>({
+    createMigration<SavedFileV1, SavedFileV2, SavedFileV3>({
       version: '2.0.0',
       up: (state) => {
-        return state
+        const { canvas, ...rest } = state
+        const { blocks, triggers } = canvas
+
+        const newBlocks: SavedFileV2['canvas']['blocks'] = []
+
+        for (const block of blocks) {
+          const newParams: SavedFileV2['canvas']['blocks'][number]['params'] = {}
+
+          for (const data of Object.entries(block.params)) {
+            console.log('data', data)
+            if (data === undefined) {
+              newParams[key] = {
+                editor: 'editor',
+                value
+              }
+            } else {
+              const [key, value] = data
+              newParams[key] = {
+                editor: 'editor',
+                value
+              }
+            }
+          }
+
+          newBlocks.push({
+            ...block,
+            params: newParams
+          })
+        }
+
+        return {
+          ...rest,
+          canvas: {
+            triggers,
+            blocks: newBlocks
+          }
+        } satisfies OmitVersion<SavedFileV2>
       },
       down: () => {
         throw new Error('Migration down not implemented')
       }
     }),
-    createMigration<SavedFileV1, SavedFileV2, never>({
+    createMigration<SavedFileV2, SavedFileV3, never>({
       version: '3.0.0',
       up: finalVersion,
       down: () => {

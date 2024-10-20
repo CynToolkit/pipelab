@@ -1,6 +1,7 @@
 import * as semver from 'semver'
 import { coerce } from 'semver'
 import { objectKeys } from '../utils/object-keys'
+import { klona } from 'klona'
 
 export type Awaitable<T> = Promise<T> | T
 
@@ -69,30 +70,65 @@ export class Migrator<OutputState extends MigrationSchema> {
   }
 
   async migrate(state: MigrationSchema, options?: MigrateOptions): Promise<OutputState> {
+    // Coerce the current and target versions
+    const currentVersion = this.tryCoerce(state.version)
+    const targetVersion = this.tryCoerce(options?.stopAt ?? this.current)
+
+    // Debug logging
     if (options?.debug) {
-      // eslint-disable-next-line no-console
-      console.log('Migrating', state.version, 'to', this.current)
+      console.log('Migrating', currentVersion, 'to', targetVersion)
     }
 
-    const stateVersion = this.tryCoerce(state.version)
-    if (this.current === stateVersion) {
-      return state as unknown as OutputState
+    // Create a deep clone of the initial state
+    let finalState = klona(state)
+
+    // Get all available versions
+    const versions = this.getVersions()
+    const currentIndex = versions.indexOf(currentVersion)
+    const targetIndex = versions.indexOf(targetVersion)
+
+    // Check if versions are valid
+    if (currentIndex === -1) {
+      throw new Error(`Current version "${currentVersion}" not found in migrations`)
+    }
+    if (targetIndex === -1) {
+      throw new Error(`Target version "${targetVersion}" not found in migrations`)
     }
 
-    let finalState = structuredClone(state)
+    // Determine migration direction
+    const isUpgrade = currentIndex < targetIndex
 
-    const stopAt = this.tryCoerce(options?.stopAt ?? this.current)
+    // Create migration range
+    const migrationRange = isUpgrade
+      ? versions.slice(currentIndex + 1, targetIndex + 1)
+      : versions.slice(targetIndex, currentIndex).reverse()
 
-    while (
-      this.needMigration(finalState.version) &&
-      semver.lte(this.tryCoerce(finalState.version), stopAt)
-    ) {
-      console.log('current version', finalState.version)
-      finalState = await this.migrateUp(finalState)
-      if (stopAt) {
-        console.log('stopAt', stopAt)
-        console.log('continue ?', semver.lte(this.tryCoerce(finalState.version), stopAt))
+    console.log('migrationRange', migrationRange)
+
+    // Perform migrations
+    for (const version of migrationRange) {
+      if (options?.debug) {
+        console.log('Current version:', finalState.version)
       }
+
+      const migration = this.migrations[version]
+      const direction = isUpgrade ? 'up' : 'down'
+      const nextVersion = isUpgrade
+        ? versions[versions.indexOf(version) + 1] || targetVersion
+        : versions[versions.indexOf(version) - 1] || targetVersion
+
+      console.log('nextVersion', nextVersion)
+
+      finalState = await migration[direction](finalState, nextVersion)
+      finalState.version = version
+
+      if (options?.debug) {
+        console.log('Migrated to version:', finalState.version)
+        console.log('----')
+      }
+
+      // Safety check: stop if we've reached the target version
+      if (version === targetVersion) break
     }
 
     return finalState as unknown as OutputState

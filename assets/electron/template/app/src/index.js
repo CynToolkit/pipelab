@@ -16,6 +16,7 @@ import userFolder from './handlers/user/folder.js'
 // fs
 import fsWrite from './handlers/fs/write.js'
 import fsRead from './handlers/fs/read.js'
+import fsReadBinary from './handlers/fs/read-binary.js'
 import fsFolderCreate from './handlers/fs/folder-create.js'
 
 // window
@@ -48,19 +49,30 @@ import showInExplorer from './handlers/general/open-in-explorer.js'
 
 /**
  * Assert switch is exhaustive
- * @param {never} x
+ * @param {never} _x
  * @returns {never}
  */
-function assertUnreachable(x) {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function assertUnreachable(_x) {
   throw new Error("Didn't expect to get here")
 }
 
 console.log('process.argv', process.argv)
 const argv = process.argv
+
+/**
+ * @typedef {Object} Args
+ *
+ * @property {string} url
+ * @property {boolean} no-window
+*/
+
+/** @type {mri.Argv<Args>} */
 const cliArgs = mri(argv, {
   alias: {
-    u: 'url'
-  }
+    u: 'url',
+  },
+  boolean: ['no-window'],
 })
 
 //region commandLine Flags
@@ -109,6 +121,10 @@ const createAppServer = (mainWindow) => {
 
           case '/fs/file/read':
             await fsRead(json, ws, mainWindow)
+            break
+
+          case '/fs/file/read/binary':
+            await fsReadBinary(json, ws, mainWindow)
             break
 
           case '/fs/folder/create':
@@ -214,6 +230,10 @@ const createAppServer = (mainWindow) => {
 }
 
 const createWindow = async () => {
+  const argUrl = cliArgs.url
+  const noWindow = cliArgs['no-window']
+
+  // If there is a window
   const mainWindow = new BrowserWindow({
     width: config.width,
     height: config.height,
@@ -228,16 +248,15 @@ const createWindow = async () => {
     }
   })
 
-  const argUrl = cliArgs.url
   if (argUrl) {
     console.log('argUrl', argUrl)
-    await mainWindow.loadURL(argUrl)
+    await mainWindow?.loadURL(argUrl)
   } else {
     const port = await createAppServer(mainWindow)
 
     console.log('port', port)
 
-    await mainWindow.loadURL(`http://localhost:${port}`)
+    await mainWindow?.loadURL(`http://localhost:${port}`)
   }
 }
 

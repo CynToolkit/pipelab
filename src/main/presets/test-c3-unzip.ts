@@ -1,5 +1,4 @@
 import { PresetFn, SavedFile } from '@@/model'
-import { ExportParams } from '@pipelab/plugin-construct'
 
 export const testC3Unzip: PresetFn = async () => {
   const exportConstructProjectId = 'export-construct-project'
@@ -8,7 +7,7 @@ export const testC3Unzip: PresetFn = async () => {
   const steamUpload = 'steam-upload-node'
 
   const data: SavedFile = {
-    version: '2.0.0',
+    version: '3.0.0',
     name: 'From Construct to Steam',
     description: 'Export from Construct, package with Electron, then upload to Steam',
     variables: [],
@@ -22,7 +21,7 @@ export const testC3Unzip: PresetFn = async () => {
           },
           uid: 'manual-start',
           params: {}
-        },
+        }
       ],
       blocks: [
         {
@@ -33,12 +32,27 @@ export const testC3Unzip: PresetFn = async () => {
             pluginId: 'construct'
           },
           params: {
-            file: `'/home/armaldio/Téléchargements/test.c3p'`,
-            username: "\"a\"",
-            password: "\"a\"",
-            version: '\"395\"',
-            headless: true
-          } satisfies ExportParams
+            file: {
+              editor: 'editor',
+              value: `'/home/armaldio/Téléchargements/test.c3p'`
+            },
+            username: {
+              editor: 'editor',
+              value: '"a"'
+            },
+            password: {
+              editor: 'editor',
+              value: '"a"'
+            },
+            version: {
+              editor: 'editor',
+              value: '"395"'
+            },
+            headless: {
+              editor: 'editor',
+              value: true
+            }
+          }
         },
         {
           uid: unzipFileId,
@@ -48,7 +62,10 @@ export const testC3Unzip: PresetFn = async () => {
             pluginId: 'filesystem'
           },
           params: {
-            file: `steps['${exportConstructProjectId}']['outputs']['folder']`
+            file: {
+              editor: 'editor',
+              value: `steps['${exportConstructProjectId}']['outputs']['folder']`
+            }
           }
         },
         {
@@ -59,7 +76,10 @@ export const testC3Unzip: PresetFn = async () => {
             pluginId: 'electron'
           },
           params: {
-            'input-folder': `steps['${unzipFileId}']['outputs']['output']`,
+            'input-folder': {
+              editor: 'editor',
+              value: `steps['${unzipFileId}']['outputs']['output']`
+            },
             arch: undefined,
             platform: undefined
           }
@@ -72,11 +92,26 @@ export const testC3Unzip: PresetFn = async () => {
             pluginId: 'steam'
           },
           params: {
-            folder: `steps['${packageWithElecton}']['outputs']['output']`,
-            appId: "'3047200'",
-            depotId: "'3047201'",
-            sdk: "'/home/armaldio/Documents/steamworkssdk/sdk'",
-            username: "'armaldio'"
+            folder: {
+              editor: 'editor',
+              value: `steps['${packageWithElecton}']['outputs']['output']`
+            },
+            appId: {
+              editor: 'editor',
+              value: "'3047200'"
+            },
+            depotId: {
+              editor: 'editor',
+              value: "'3047201'"
+            },
+            sdk: {
+              editor: 'editor',
+              value: "'/home/armaldio/Documents/steamworkssdk/sdk'"
+            },
+            username: {
+              editor: 'editor',
+              value: "'armaldio'"
+            }
           }
         }
       ]

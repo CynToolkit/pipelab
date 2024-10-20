@@ -265,6 +265,8 @@ export const useEditor = defineStore('editor', () => {
       debug: true
     })
 
+    console.log('data', data)
+
     name.value = data.name
     description.value = data.description
 

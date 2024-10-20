@@ -4,6 +4,7 @@ import renderer from './vite.renderer.config.mjs'
 export default defineConfig((configEnv) => {
   const baseConfig = renderer({
     ...configEnv,
+    // @ts-expect-error forgeConfigSelf
     forgeConfigSelf: {
       name: 'Tests'
     }

@@ -15,7 +15,8 @@ describe('model', () => {
             params: {
               aaa: {
                 foo: 'bar'
-              }
+              },
+              nodata: undefined
             },
             type: 'action',
             uid: 'aaa',
@@ -114,7 +115,8 @@ describe('model', () => {
             params: {
               aaa: {
                 foo: 'bar'
-              }
+              },
+              nodata: undefined
             },
             type: 'action',
             uid: 'aaa'
@@ -165,10 +167,14 @@ describe('model', () => {
             },
             params: {
               aaa: {
-                editor: 'simple',
+                editor: 'editor',
                 value: {
                   foo: 'bar'
                 }
+              },
+              nodata: {
+                editor: 'editor',
+                value: undefined
               }
             },
             type: 'action',

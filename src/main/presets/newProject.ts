@@ -4,7 +4,7 @@ export const newProjectPreset: PresetFn = async () => {
   const startId = 'manual-start'
 
   const data: SavedFile = {
-    version: '2.0.0',
+    version: '3.0.0',
     name: 'New project',
     description: 'New project',
     variables: [],

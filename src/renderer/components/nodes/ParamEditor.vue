@@ -41,9 +41,9 @@
         <!-- Code editor -->
         <div class="code-editor-wrapper">
           <div class="code-editor-wrapper-inner">
-            <div v-show="mode === 'editor'" ref="$codeEditorText" class="code-editor"></div>
+            <div v-show="param.editor === 'editor'" ref="$codeEditorText" class="code-editor"></div>
             <ParamEditorBody
-              v-show="mode === 'simple'"
+              v-show="param.editor === 'simple'"
               :model-value="resultValue"
               :param-definition="paramDefinition"
               @update:model-value="onParamEditorUpdate"
@@ -58,7 +58,7 @@
         </div>
 
         <!-- Hint text -->
-        <template v-if="mode === 'editor'">
+        <template v-if="param.editor === 'editor'">
           <Skeleton v-if="hintText === undefined" height="20px"></Skeleton>
           <div v-else v-dompurify-html="hintText" class="hint" :class="{ error: isError }"></div>
         </template>
@@ -133,9 +133,9 @@
             <Panel header="Variables" toggleable>
               <div class="variables-list">
                 <div
-                  class="variable"
                   v-for="(variable, variableIndex) in variables"
                   :key="variableIndex"
+                  class="variable"
                   @click="insertEditorEnd(`variables['${variable.id}']`)"
                 >
                   <div class="variable-name">{{ variable.name }}</div>
@@ -163,13 +163,11 @@ import { Action, Condition, Event } from '@pipelab/plugin-core'
 import { createCodeEditor } from '@renderer/utils/code-editor'
 import { createQuickJs } from '@renderer/utils/quickjs'
 import { watchDebounced } from '@vueuse/core'
-import { BlockAction, BlockCondition, BlockEvent, BlockLoop, EditorParam, Steps } from '@@/model'
+import { BlockAction, BlockCondition, BlockEvent, BlockLoop, Steps } from '@@/model'
 import { controlsToIcon, controlsToType } from '@renderer/models/controls'
 import { Completion, CompletionContext } from '@codemirror/autocomplete'
 import { javascriptLanguage } from '@codemirror/lang-javascript'
 import vTooltip from 'primevue/tooltip'
-import { syntaxTree } from '@codemirror/language'
-import { linter, Diagnostic } from '@codemirror/lint'
 import { debounce } from 'es-toolkit'
 import { arrow, autoUpdate, flip, offset, shift, useFloating } from '@floating-ui/vue'
 import { vOnClickOutside } from '@vueuse/components'
@@ -181,10 +179,11 @@ import { Variable } from '@@/libs/core-app'
 import { variableToFormattedVariable } from '@renderer/composables/variables'
 
 type Params = (Action | Condition | Event)['params']
+type Param = ValueOf<BlockAction['params']>
 
 const props = defineProps({
   param: {
-    type: [String, Boolean, Number] as PropType<unknown>,
+    type: Object as PropType<Param>,
     required: false
   },
   paramDefinition: {
@@ -212,18 +211,34 @@ const props = defineProps({
 
 const { param, paramKey, paramDefinition, steps, variables } = toRefs(props)
 
+watch(
+  () => param.value,
+  (newParam) => {
+    console.log('-----> watching new param', newParam)
+    console.log('-----> watching new param', paramKey.value)
+    console.log('-----> watching new param', paramDefinition.value)
+    console.log('-----')
+    console.log('')
+  },
+  {
+    immediate: true,
+    deep: true
+  }
+)
+
 const editor = useEditor()
 const { getNodeDefinition } = editor
 const { nodes } = storeToRefs(editor)
 
-const mode = ref<EditorParam>('simple')
-
 const toggleMode = () => {
-  mode.value = mode.value === 'simple' ? 'editor' : 'simple'
+  emit('update:modelValue', {
+    editor: param.value.editor === 'simple' ? 'editor' : 'simple',
+    value: param.value.value
+  })
 }
 
 const emit = defineEmits<{
-  (event: 'update:modelValue', data: any): void
+  (event: 'update:modelValue', data: Param): void
 }>()
 
 const isError = ref(false)
@@ -252,29 +267,29 @@ function myCompletions(context: CompletionContext) {
   }
 }
 
-const regexpLinter = linter((view) => {
-  const diagnostics: Diagnostic[] = []
-  syntaxTree(view.state)
-    .cursor()
-    .iterate((node) => {
-      if (node.name == 'RegExp')
-        diagnostics.push({
-          from: node.from,
-          to: node.to,
-          severity: 'warning',
-          message: 'Regular expressions are FORBIDDEN',
-          actions: [
-            {
-              name: 'Remove',
-              apply(view, from, to) {
-                view.dispatch({ changes: { from, to } })
-              }
-            }
-          ]
-        })
-    })
-  return diagnostics
-})
+// const regexpLinter = linter((view) => {
+//   const diagnostics: Diagnostic[] = []
+//   syntaxTree(view.state)
+//     .cursor()
+//     .iterate((node) => {
+//       if (node.name == 'RegExp')
+//         diagnostics.push({
+//           from: node.from,
+//           to: node.to,
+//           severity: 'warning',
+//           message: 'Regular expressions are FORBIDDEN',
+//           actions: [
+//             {
+//               name: 'Remove',
+//               apply(view, from, to) {
+//                 view.dispatch({ changes: { from, to } })
+//               }
+//             }
+//           ]
+//         })
+//     })
+//   return diagnostics
+// })
 
 const {
   update: codeEditorTextUpdate,
@@ -355,7 +370,7 @@ watchDebounced(
         params: {},
         // params: resolvedParams.value,
         steps: steps.value,
-        variables: formattedVariables.value,
+        variables: formattedVariables.value
       })
       resultValue.value = result
       hintText.value = resolveHintTextResult(result)
@@ -380,7 +395,7 @@ watch(
   param,
   (newValue) => {
     if (newValue) {
-      codeEditorTextUpdate((newValue as string).toString())
+      codeEditorTextUpdate((newValue.value as string).toString())
     }
   },
   {
@@ -390,7 +405,7 @@ watch(
 
 const isModalDisplayed = ref(false)
 const onClickInside = () => {
-  if (mode.value === 'editor') {
+  if (param.value.editor === 'editor') {
     isModalDisplayed.value = true
   }
 }
@@ -398,21 +413,35 @@ const onClickOutside = () => {
   isModalDisplayed.value = false
 }
 
-watch(mode, (newValue) => {
-  if (newValue === 'editor') {
-    isModalDisplayed.value = true
-  } else {
-    isModalDisplayed.value = false
-  }
-})
+watch(
+  () => param.value.editor,
+  (newValue) => {
+    if (newValue === 'editor') {
+      isModalDisplayed.value = true
+    } else {
+      isModalDisplayed.value = false
+    }
 
-const onValueChanged = (newValue: string) => {
+    onValueChanged({
+      editor: newValue,
+      value: param.value.value
+      // value
+    })
+  }
+)
+
+const onValueChanged = (newValue: Param) => {
+  console.log('on value changed', newValue)
   emit('update:modelValue', newValue)
 }
 
 onCodeEditorTextUpdate(
   debounce((value) => {
-    onValueChanged(value)
+    console.log('onCodeEditorTextUpdate', value)
+    onValueChanged({
+      editor: param.value.editor,
+      value
+    })
   }, 300)
 )
 

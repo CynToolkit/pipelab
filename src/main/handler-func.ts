@@ -16,8 +16,9 @@ import { assetsPath, unpackPath } from './paths'
 import { useLogger } from '@@/logger'
 import { BrowserWindow } from 'electron'
 import { usePluginAPI } from './api'
+import { BlockCondition } from '@@/model'
 
-const checkParams = (definitionParams: InputsDefinition, elementParams: any) => {
+const checkParams = (definitionParams: InputsDefinition, elementParams: Record<string, string>) => {
   // get a list of all required params
   let expected = Object.keys(definitionParams)
 
@@ -45,7 +46,7 @@ const checkParams = (definitionParams: InputsDefinition, elementParams: any) => 
 export const handleConditionExecute = async (
   nodeId: string,
   pluginId: string,
-  params: any,
+  params: BlockCondition['params'],
   // { send }: { send: HandleListenerSendFn<'condition:execute'> }
 ): Promise<End<'condition:execute'>> => {
   const { plugins } = usePlugins()
@@ -113,7 +114,7 @@ export const handleConditionExecute = async (
 export const handleActionExecute = async (
   nodeId: string,
   pluginId: string,
-  params: any,
+  params: Record<string, string>,
   mainWindow: BrowserWindow | undefined,
   // { send }: { send: HandleListenerSendFn<'action:execute'> }
 ): Promise<End<'action:execute'>> => {

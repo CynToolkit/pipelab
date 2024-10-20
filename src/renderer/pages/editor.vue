@@ -397,7 +397,7 @@ const onCloseRequest = async () => {
 
 const saveLocal = async (path: string) => {
   const result: SavedFile = {
-    version: '2.0.0',
+    version: '3.0.0',
     name: name.value,
     description: '',
     canvas: {
