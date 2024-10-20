@@ -7,7 +7,7 @@ export const exportAction = createAction({
   id: ID,
   name: 'Export .c3p',
   displayString:
-    "`Export projet ${fmt.param(params.file, 'primary')} ${params.version ? `r${params.version}` : ''}`",
+    "`Export project ${fmt.param(params.file, 'primary', 'No path selected')} ${params.version ? `r${params.version}` : ''}`",
   meta: {},
   params: {
     file: {

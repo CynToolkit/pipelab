@@ -232,10 +232,7 @@ export const savedFileMigrator = createMigrator<SavedFile>({
           for (const data of Object.entries(block.params)) {
             console.log('data', data)
             if (data === undefined) {
-              newParams[key] = {
-                editor: 'editor',
-                value
-              }
+              throw new Error("Can't migrate block with undefined params")
             } else {
               const [key, value] = data
               newParams[key] = {

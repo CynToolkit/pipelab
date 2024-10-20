@@ -390,6 +390,18 @@ export const useEditor = defineStore('editor', () => {
 
     if (nodeDefinition && pluginDefinition) {
       if (isActionDefinition(nodeDefinition)) {
+        console.log('nodeDefinition', nodeDefinition)
+
+        const createParams: BlockAction['params'] = {}
+        for (const [key, param] of Object.entries(nodeDefinition.params)) {
+          createParams[key] = {
+            editor: 'simple',
+            value: param.value
+          }
+        }
+
+        console.log('createParams', createParams)
+
         const node: BlockAction = {
           uid: nanoid(),
           type: nodeDefinition.type,
@@ -397,7 +409,7 @@ export const useEditor = defineStore('editor', () => {
             nodeId: nodeDefinition.id,
             pluginId: pluginDefinition.id
           },
-          params: {}
+          params: createParams
         }
         addNodeToBlock(node, path, insertAt)
       } /* else if (isConditionDefinition(nodeDefinition)) {

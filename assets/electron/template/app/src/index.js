@@ -1,6 +1,6 @@
 // @ts-check
 
-import { app, BrowserWindow, ipcMain } from 'electron'
+import { app, BrowserWindow, ipcMain, session } from 'electron'
 import { join } from 'node:path'
 // @ts-expect-error no types
 import serve from 'serve-handler'
@@ -18,6 +18,8 @@ import fsWrite from './handlers/fs/write.js'
 import fsRead from './handlers/fs/read.js'
 import fsReadBinary from './handlers/fs/read-binary.js'
 import fsFolderCreate from './handlers/fs/folder-create.js'
+import fsList from './handlers/fs/list.js'
+import fsFileSize from './handlers/fs/file-size.js'
 
 // window
 import windowMaximize from './handlers/window/maximize.js'
@@ -65,14 +67,13 @@ const argv = process.argv
  *
  * @property {string} url
  * @property {boolean} no-window
-*/
+ */
 
 /** @type {mri.Argv<Args>} */
 const cliArgs = mri(argv, {
   alias: {
-    u: 'url',
-  },
-  boolean: ['no-window'],
+    u: 'url'
+  }
 })
 
 //region commandLine Flags
@@ -106,6 +107,7 @@ const createAppServer = (mainWindow) => {
       ws.on('error', console.error)
 
       ws.on('message', async (data) => {
+        //region Message handlers
         /** @type {import('@pipelab/core').Message} */
         const json = JSON.parse(data.toString())
         console.log('received:', json)
@@ -207,7 +209,11 @@ const createAppServer = (mainWindow) => {
           case '/fs/file/append':
             throw new Error('Not implemented')
           case '/fs/list':
-            throw new Error('Not implemented')
+            fsList(json, ws, mainWindow)
+            break
+          case '/fs/file/size':
+            fsFileSize(json, ws, mainWindow)
+            break
           case '/fs/move':
             throw new Error('Not implemented')
 
@@ -231,7 +237,6 @@ const createAppServer = (mainWindow) => {
 
 const createWindow = async () => {
   const argUrl = cliArgs.url
-  const noWindow = cliArgs['no-window']
 
   // If there is a window
   const mainWindow = new BrowserWindow({
@@ -246,6 +251,11 @@ const createWindow = async () => {
       // @ts-expect-error import.meta
       preload: join(import.meta.dirname, 'preload.js')
     }
+  })
+
+  // Clear service workers to prevent old versions of the app
+  await session.defaultSession.clearStorageData({
+    storages: ['serviceworkers']
   })
 
   if (argUrl) {

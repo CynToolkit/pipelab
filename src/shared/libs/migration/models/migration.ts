@@ -100,7 +100,7 @@ export class Migrator<OutputState extends MigrationSchema> {
 
     // Create migration range
     const migrationRange = isUpgrade
-      ? versions.slice(currentIndex + 1, targetIndex + 1)
+      ? versions.slice(currentIndex, targetIndex)
       : versions.slice(targetIndex, currentIndex).reverse()
 
     console.log('migrationRange', migrationRange)
