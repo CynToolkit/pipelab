@@ -3,7 +3,7 @@ import { execa } from 'execa'
 import { join } from 'path'
 import { tmpdir } from 'os'
 import { nanoid } from 'nanoid'
-import { readFile } from 'fs/promises'
+import { readFile, writeFile } from 'fs/promises'
 import { getBinName, name, outFolderName } from '../../../src/constants'
 import { platform, arch } from 'process'
 
@@ -69,8 +69,14 @@ describe('basic', () => {
   it(
     'export c3',
     async () => {
-      const jsonProject = join(fixtures, 'c3-export.json')
-      console.log('jsonProject', jsonProject)
+      const { testC3Unzip: project } = await import('../../../src/main/presets/test-c3-unzip')
+      // const jsonProject = join(fixtures, 'c3-export.json')
+      const jsonProjectData = JSON.stringify(project)
+      console.log('jsonProjectData', jsonProjectData)
+
+      const jsonProject = join(tmpdir(), nanoid(), 'c3-export.json')
+
+      await writeFile(jsonProject, jsonProjectData)
 
       try {
         const { exitCode, stdout, stderr } = await execa(

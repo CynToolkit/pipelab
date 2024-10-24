@@ -130,7 +130,7 @@ const resolvedParams = computedAsync(
         params: value.value.params,
         steps: steps.value,
         context: {},
-        variables: []
+        variables: {}
       },
       (item) => {
         // console.log('item', item)

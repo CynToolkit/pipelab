@@ -6,6 +6,8 @@ import { Block } from './model'
 import { Context } from '@renderer/store/editor'
 import { End } from './apis'
 import { useLogger } from './logger'
+import { variableToFormattedVariable } from '@renderer/composables/variables'
+import { createQuickJs } from '@renderer/utils/quickjs'
 
 export const processGraph = async (options: {
   graph: Array<Block>
@@ -77,9 +79,14 @@ export const processGraph = async (options: {
 
       options.onNodeEnter(rawNode)
 
+      const vm = await createQuickJs()
+
+      const variables = await variableToFormattedVariable(vm, options.variables)
+      console.log('variables', variables)
+
       const newParams = await makeResolvedParams({
         params: rawNode.params,
-        variables: options.variables,
+        variables,
         steps: options.steps,
         context: options.context
       })

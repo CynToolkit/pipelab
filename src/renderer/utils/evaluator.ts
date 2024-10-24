@@ -8,7 +8,7 @@ export const makeResolvedParams = async (
   data: {
     params: BlockAction['params']
     steps: Steps
-    variables: Array<Variable>
+    variables: Record<string, string>
     context: Record<string, unknown>
   },
   onItem: (item: any) => string = (item: any) => item,
@@ -21,10 +21,13 @@ export const makeResolvedParams = async (
 
   for (const [paramName, param] of Object.entries(data.params)) {
     try {
-      const output = await vm.run(param.value.toString(), {
+      const parameterCodeValue = (param.value ?? '').toString()
+
+      console.log('parameterCodeValue', parameterCodeValue)
+      const output = await vm.run(parameterCodeValue, {
         steps: data.steps,
         params: {},
-        variables: variableToFormattedVariable(data.variables)
+        variables: data.variables
       })
 
       const outputResult = onItem(output)
@@ -34,5 +37,6 @@ export const makeResolvedParams = async (
       logger().error('error', e)
     }
   }
+  console.log('result', result)
   return result
 }

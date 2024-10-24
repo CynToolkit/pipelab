@@ -164,10 +164,9 @@ const {
   swapNodes,
   cloneNode,
   disableNode,
-  enableNode,
-  variables,
+  enableNode
 } = editor
-const { activeNode } = storeToRefs(editor)
+const { activeNode, variables } = storeToRefs(editor)
 
 const nodeDefinition = computed(() => {
   return getNodeDefinition(value.value.origin.nodeId, value.value.origin.pluginId).node as Action
@@ -180,7 +179,6 @@ const pluginDefinition = computed(() => {
 type Param = ValueOf<BlockAction['params']>
 
 const onValueChanged = (newValue: Param, paramKey: string) => {
-  console.log('newValue', newValue)
   setBlockValue(value.value.uid, {
     ...value.value,
     params: {
@@ -194,22 +192,23 @@ const onValueChanged = (newValue: Param, paramKey: string) => {
 const vm = await createQuickJs()
 
 const variablesDisplay = computed(() => {
-  const result: Variable[] = []
-  for (const variable of variables) {
-    result.push({
-      id: variable.id,
-      description: variable.description,
-      name: `<div class="step">@${variable.name}</div>`,
-      value: `<div class="variable">@${variable.name}</div>`
-    })
+  const result: Record<string, string> = {}
+  for (const variable of variables.value) {
+    result[variable.id] = `<div class="variable">@${variable.name}</div>`
   }
   return result
 })
 
 const resolvedParams = shallowRef<Record<string, string>>({})
 watchDebounced(
-  [value, steps],
+  [value, steps, variablesDisplay],
   async () => {
+
+    // const variables = await variableToFormattedVariable(vm, data.variables)
+    // console.log('variables', variables)
+
+    console.log('variablesDisplay', variablesDisplay)
+
     resolvedParams.value = await makeResolvedParams(
       {
         params: value.value.params,

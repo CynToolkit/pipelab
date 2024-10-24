@@ -2,6 +2,7 @@ import { useLogger } from '@@/logger'
 import { isRenderer } from '@@/validation'
 import { newQuickJSWASMModuleFromVariant, newVariant, RELEASE_SYNC } from 'quickjs-emscripten'
 import { Arena } from 'quickjs-emscripten-sync'
+import { fmt } from './fmt'
 
 class EvaluationError extends Error {
   constructor(
@@ -14,6 +15,7 @@ class EvaluationError extends Error {
 }
 
 export const createQuickJs = async () => {
+  // TODO: could improve
   const { logger } = useLogger()
 
   let location: string
@@ -40,11 +42,7 @@ export const createQuickJs = async () => {
         // eslint-disable-next-line no-console
         log: console.log
       },
-      fmt: {
-        param: (value: string, variant?: 'primary' | 'secondary' | undefined) => {
-          return `<div class="param ${variant ? variant : ''}">${value}</div>`
-        }
-      },
+      fmt,
       ...params
     }
     arena.expose(exposed)

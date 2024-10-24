@@ -18,6 +18,7 @@ import VueDOMPurifyHTML from 'vue-dompurify-html'
 import { init } from '@sentry/electron/renderer'
 import { breadcrumbsIntegration, init as vueInit } from '@sentry/vue'
 import ToastService from 'primevue/toastservice'
+import ConfirmationService from 'primevue/confirmationservice'
 
 let bugsnagVue: any
 if (window.isPackaged && process.env.TEST !== 'true') {
@@ -129,6 +130,7 @@ app.use(PrimeVue, {
   }
 })
 app.use(ToastService)
+app.use(ConfirmationService)
 
 if (bugsnagVue) {
   app.use(bugsnagVue)

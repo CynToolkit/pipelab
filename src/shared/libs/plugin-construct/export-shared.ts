@@ -16,6 +16,7 @@ export const sharedParams = {
     label: 'Username',
     value: '',
     required: false,
+    description: 'Your Construct username',
     control: {
       type: 'input',
       options: {
@@ -24,6 +25,7 @@ export const sharedParams = {
     }
   },
   password: {
+    description: 'Your Construct password',
     control: {
       type: 'input',
       options: {
@@ -35,6 +37,7 @@ export const sharedParams = {
     label: 'Password'
   },
   version: {
+    description: 'The Construct version you want to use',
     label: 'Version',
     required: false,
     control: {
@@ -47,6 +50,7 @@ export const sharedParams = {
     value: undefined as string | undefined
   },
   headless: {
+    description: 'Whether to show the browser while export',
     required: false,
     control: {
       type: 'boolean'

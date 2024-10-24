@@ -35,7 +35,7 @@
     </div>
     <div v-else-if="paramDefinition.control.type === 'path'" class="path">
       <Button class="w-full" @click="onChangePathClick(paramDefinition.control.options)">
-        {{ paramDefinition.control.label ?? 'Browse path' }}
+        {{ modelValue ? modelValue : (paramDefinition.control.label ?? 'Browse path') }}
       </Button>
     </div>
     <div

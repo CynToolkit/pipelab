@@ -4,27 +4,40 @@
       <div class="flex flex-column gap-1 editor-content">
         <div class="label">
           <!-- Label -->
-          <label :for="`data-${paramKey}`"
-            >{{ paramDefinition.label }}
+          <label :for="`data-${paramKey}`">
+            <span>{{ paramDefinition.label }}</span>
+            <!-- Required -->
             <span
               v-if="!('required' in paramDefinition) || paramDefinition.required === true"
               class="required"
             >
-              *</span
-            >
+              *
+            </span>
+            <!-- Tooltip -->
+            <span v-if="paramDefinition.description" class="tooltip">
+              <i v-tooltip="paramDefinition.description" class="mdi mdi-help-circle tooltip-icon" />
+            </span>
+            <!-- Platforms -->
             <Chip
               v-for="platform in paramDefinition.platforms"
               :key="platform"
+              v-tooltip="`This field is only applicable to the ${platform} platform`"
               class="platform"
               :label="platform"
             >
             </Chip>
           </label>
 
+          <div class="debug">
+            <pre>editorTextValue: {{ editorTextValue }}</pre>
+            <pre>simpleInputValue: {{ simpleInputValue }}</pre>
+            <pre>param.value.value: {{ param.value }}</pre>
+          </div>
+
           <div class="infos">
             <!-- Is valid button -->
             <Button
-              v-tooltip.top="expectedTooltip"
+              v-tooltip="expectedTooltip"
               text
               size="small"
               class="type-btn"
@@ -44,13 +57,31 @@
             <div v-show="param.editor === 'editor'" ref="$codeEditorText" class="code-editor"></div>
             <ParamEditorBody
               v-show="param.editor === 'simple'"
-              :model-value="resultValue"
+              :model-value="simpleInputValue"
               :param-definition="paramDefinition"
               @update:model-value="onParamEditorUpdate"
               @switch="toggleMode"
             ></ParamEditorBody>
           </div>
-          <Button text aria-label="Save" @click="toggleMode">
+          <ConfirmPopup></ConfirmPopup>
+          <Button
+            v-if="param.editor === 'editor'"
+            v-tooltip="'Switch to simple mode'"
+            text
+            aria-label="Toggle mode"
+            @click="toggleMode"
+          >
+            <template #icon>
+              <i class="icon mdi mdi-text fs-16"></i>
+            </template>
+          </Button>
+          <Button
+            v-else
+            v-tooltip="'Switch to editor mode'"
+            text
+            aria-label="Toggle mode"
+            @click="toggleMode"
+          >
             <template #icon>
               <i class="icon mdi mdi-code-block-braces fs-16"></i>
             </template>
@@ -94,7 +125,7 @@
             <!--<!~~ Value ~~>
             <Panel header="Value" toggleable>
               <ParamEditorBody
-                :model-value="resultValue"
+                :model-value="simpleInputValue"
                 :param-definition="paramDefinition"
                 @update:model-value="onParamEditorUpdate"
               ></ParamEditorBody>
@@ -162,13 +193,12 @@ import type { ValueOf } from 'type-fest'
 import { Action, Condition, Event } from '@pipelab/plugin-core'
 import { createCodeEditor } from '@renderer/utils/code-editor'
 import { createQuickJs } from '@renderer/utils/quickjs'
-import { watchDebounced } from '@vueuse/core'
 import { BlockAction, BlockCondition, BlockEvent, BlockLoop, Steps } from '@@/model'
 import { controlsToIcon, controlsToType } from '@renderer/models/controls'
 import { Completion, CompletionContext } from '@codemirror/autocomplete'
 import { javascriptLanguage } from '@codemirror/lang-javascript'
 import vTooltip from 'primevue/tooltip'
-import { debounce } from 'es-toolkit'
+import { throttle } from 'es-toolkit'
 import { arrow, autoUpdate, flip, offset, shift, useFloating } from '@floating-ui/vue'
 import { vOnClickOutside } from '@vueuse/components'
 import { useEditor } from '@renderer/store/editor'
@@ -177,6 +207,11 @@ import { useLogger } from '@@/logger'
 import ParamEditorBody from './ParamEditorBody.vue'
 import { Variable } from '@@/libs/core-app'
 import { variableToFormattedVariable } from '@renderer/composables/variables'
+import { useConfirm } from 'primevue/useconfirm'
+import { computedAsync } from '@vueuse/core'
+
+// @ts-expect-error tsconfig
+const vm = await createQuickJs()
 
 type Params = (Action | Condition | Event)['params']
 type Param = ValueOf<BlockAction['params']>
@@ -211,30 +246,54 @@ const props = defineProps({
 
 const { param, paramKey, paramDefinition, steps, variables } = toRefs(props)
 
-watch(
-  () => param.value,
-  (newParam) => {
-    console.log('-----> watching new param', newParam)
-    console.log('-----> watching new param', paramKey.value)
-    console.log('-----> watching new param', paramDefinition.value)
-    console.log('-----')
-    console.log('')
-  },
-  {
-    immediate: true,
-    deep: true
-  }
-)
+const confirm = useConfirm()
 
 const editor = useEditor()
 const { getNodeDefinition } = editor
 const { nodes } = storeToRefs(editor)
 
-const toggleMode = () => {
-  emit('update:modelValue', {
-    editor: param.value.editor === 'simple' ? 'editor' : 'simple',
-    value: param.value.value
+const confirmSwitchMode = (event: MouseEvent) => {
+  return new Promise<boolean>((resolve) => {
+    confirm.require({
+      target: event.currentTarget,
+      message:
+        'Switching back to simple mode will delete all your changes. Are you sure you want to continue?',
+      icon: 'pi pi-exclamation-triangle',
+      rejectProps: {
+        label: 'Cancel',
+        severity: 'secondary',
+        outlined: true
+      },
+      acceptProps: {
+        label: 'Switch to simple mode'
+      },
+      accept: () => {
+        return resolve(true) // Resolve the promise with true when the user accepts
+      },
+      reject: () => {
+        return resolve(false) // Resolve the promise with false when the user rejects
+      }
+    })
   })
+}
+
+const toggleMode = async (event: MouseEvent) => {
+  const target = param.value.editor === 'simple' ? 'editor' : 'simple'
+  let answer = true
+  let targetValue = param.value.value
+  if (target === 'simple') {
+    event.preventDefault()
+
+    answer = await confirmSwitchMode(event)
+    targetValue = paramDefinition.value.value
+  }
+
+  if (answer === true) {
+    emit('update:modelValue', {
+      editor: target,
+      value: targetValue
+    })
+  }
 }
 
 const emit = defineEmits<{
@@ -248,9 +307,11 @@ const $codeEditorText = ref<HTMLDivElement>()
 const $floating = ref<HTMLDivElement>()
 const $arrow = ref<HTMLElement>()
 
-const formattedVariables = computed(() => {
-  return variableToFormattedVariable(variables.value)
-})
+const { logger } = useLogger()
+
+const formattedVariables = () => {
+  return variableToFormattedVariable(vm, variables.value)
+}
 
 function myCompletions(context: CompletionContext) {
   const word = context.matchBefore(/\w*/)
@@ -301,6 +362,63 @@ const {
   })
 ])
 
+const doCodeEditorUpdate = throttle(async (newValue) => {
+  const displayString = newValue ?? ''
+
+  try {
+    const variables = await formattedVariables()
+    console.log('displayString', displayString)
+    console.log('variables', variables)
+    const result = await vm.run(displayString, {
+      params: {},
+      // params: resolvedParams.value,
+      steps: steps.value,
+      variables
+    })
+    simpleInputValue.value = result
+    hintText.value = resolveHintTextResult(result)
+    isError.value = false
+
+    // update on code editor text change
+    emit('update:modelValue', {
+      editor: param.value.editor,
+      value: newValue
+    })
+  } catch (e) {
+    console.error(e)
+    logger().error('e', JSON.stringify(e))
+    if (e instanceof Error) {
+      hintText.value = /* e.name + ' ' +  */ e.message
+      isError.value = true
+    } else {
+      logger().error('e', e)
+    }
+  }
+}, 500)
+
+// near definition to be the first to trigger
+onCodeEditorTextUpdate(async (newValue) => {
+  doCodeEditorUpdate(newValue)
+})
+
+watch(
+  () => param.value,
+  () => {
+    // initial value setting
+    const newValue = param.value
+    if (newValue) {
+      if (newValue.value === undefined || newValue.value === null) {
+        codeEditorTextUpdate('')
+      } else {
+        codeEditorTextUpdate((newValue.value as string).toString())
+      }
+    }
+  },
+  {
+    immediate: true
+  }
+)
+
 const insertEditorEnd = (str: string | number | boolean) => {
   codeEditorTextUpdate(editorTextValue.value + str.toString())
 }
@@ -335,6 +453,7 @@ const { floatingStyles, middlewareData } = useFloating($codeEditorText, $floatin
 // }
 
 const resolveHintTextResult = (result: unknown) => {
+  console.log('result', result)
   if (paramDefinition.value.control.type === 'select') {
     const label = paramDefinition.value.control.options.options.find(
       (o) => o.value === result
@@ -343,65 +462,14 @@ const resolveHintTextResult = (result: unknown) => {
       return label
     }
   }
-  return (result as string).toString()
+  return ((result as string | undefined) ?? '').toString()
 }
 
-// @ts-expect-error tsconfig
-const vm = await createQuickJs()
-
-const resultValue = ref<unknown>()
+const simpleInputValue = ref<unknown>()
 
 const onParamEditorUpdate = (value: unknown) => {
-  console.log('value', value)
   insertEditorReplace(value !== undefined ? value.toString() : '')
 }
-
-watchDebounced(
-  editorTextValue,
-  async () => {
-    const displayString = editorTextValue.value
-
-    if (!displayString) {
-      return
-    }
-
-    try {
-      const result = await vm.run(displayString, {
-        params: {},
-        // params: resolvedParams.value,
-        steps: steps.value,
-        variables: formattedVariables.value
-      })
-      resultValue.value = result
-      hintText.value = resolveHintTextResult(result)
-      isError.value = false
-    } catch (e) {
-      logger().error('e', JSON.stringify(e))
-      if (e instanceof Error) {
-        hintText.value = /* e.name + ' ' +  */ e.message
-        isError.value = true
-      } else {
-        logger().error('e', e)
-      }
-    }
-  },
-  {
-    debounce: 300,
-    immediate: true
-  }
-)
-
-watch(
-  param,
-  (newValue) => {
-    if (newValue) {
-      codeEditorTextUpdate((newValue.value as string).toString())
-    }
-  },
-  {
-    immediate: true
-  }
-)
 
 const isModalDisplayed = ref(false)
 const onClickInside = () => {
@@ -421,28 +489,7 @@ watch(
     } else {
       isModalDisplayed.value = false
     }
-
-    onValueChanged({
-      editor: newValue,
-      value: param.value.value
-      // value
-    })
   }
-)
-
-const onValueChanged = (newValue: Param) => {
-  console.log('on value changed', newValue)
-  emit('update:modelValue', newValue)
-}
-
-onCodeEditorTextUpdate(
-  debounce((value) => {
-    console.log('onCodeEditorTextUpdate', value)
-    onValueChanged({
-      editor: param.value.editor,
-      value
-    })
-  }, 300)
 )
 
 const getOutputLabel = (stepUid: string, key: string) => {
@@ -481,8 +528,6 @@ const getStepLabel = (key: string) => {
   return key
 }
 
-const { logger } = useLogger()
-
 const paramType = computed(() => {
   return controlsToType(paramDefinition.value.control)
 })
@@ -492,11 +537,11 @@ const paramIcon = computed(() => {
 })
 
 const isExpectedValid = computed(() => {
-  return paramType.value === typeof resultValue.value
+  return paramType.value === typeof simpleInputValue.value
 })
 
 const expectedTooltip = computed(() => {
-  return `Expected: ${paramType.value}, got ${typeof resultValue.value}`
+  return `Expected: ${paramType.value}, got ${typeof simpleInputValue.value}`
 })
 </script>
 
@@ -636,5 +681,11 @@ const expectedTooltip = computed(() => {
       background-color: #f5f5f5;
     }
   }
+}
+
+.tooltip-icon {
+  font-size: 12px;
+  color: grey;
+  margin-left: 4px;
 }
 </style>
