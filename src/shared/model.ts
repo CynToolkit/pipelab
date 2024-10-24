@@ -230,7 +230,6 @@ export const savedFileMigrator = createMigrator<SavedFile>({
           const newParams: SavedFileV2['canvas']['blocks'][number]['params'] = {}
 
           for (const data of Object.entries(block.params)) {
-            console.log('data', data)
             if (data === undefined) {
               throw new Error("Can't migrate block with undefined params")
             } else {
@@ -260,7 +259,7 @@ export const savedFileMigrator = createMigrator<SavedFile>({
         throw new Error('Migration down not implemented')
       }
     }),
-    createMigration<SavedFileV2, SavedFileV3, never>({
+    createMigration<SavedFileV2, SavedFileV3, SavedFileV3>({
       version: '3.0.0',
       up: finalVersion,
       down: () => {

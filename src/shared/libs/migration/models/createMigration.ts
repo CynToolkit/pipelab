@@ -15,8 +15,6 @@ export function createMigration<
   return {
     version: migration.version,
     up: async (state, nextVersion) => {
-      console.log('createMigration state', state)
-      console.log('createMigration nextVersion', nextVersion)
       const newState = (await migration.up(state, nextVersion)) as unknown as Up
       newState.version = nextVersion as SemVer
       return newState
@@ -36,6 +34,10 @@ export const initialVersion = () => {
 export const finalVersion = () => {
   throw new Error('Unable to go up on the final version!')
 }
+
+// export const finalVersion = <T>(state: T) => {
+//   return state
+// }
 
 /**
  * @deprecated

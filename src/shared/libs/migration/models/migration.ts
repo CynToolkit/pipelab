@@ -9,7 +9,7 @@ export type MigrationFn<From, To> = (state: From, targetVersion: string) => Awai
 
 export type MigrateOptions = {
   debug?: boolean
-  stopAt?: SemVer
+  target?: SemVer
 }
 
 export interface MigrationSchema {
@@ -51,43 +51,27 @@ export class Migrator<OutputState extends MigrationSchema> {
 
     const versions = this.getVersions()
     this.current = versions[versions.length - 1]
-
     this.coerce = config?.coerce ?? true
   }
 
   getVersions() {
     const keys = objectKeys(this.migrations)
-    const versions = semver.sort(keys)
-    return versions
-  }
-
-  async migrateUp(state: MigrationSchema) {
-    return this.migrateDirection(state, 'up')
-  }
-
-  async migrateDown(state: MigrationSchema) {
-    return this.migrateDirection(state, 'down')
+    return semver.sort(keys)
   }
 
   async migrate(state: MigrationSchema, options?: MigrateOptions): Promise<OutputState> {
-    // Coerce the current and target versions
     const currentVersion = this.tryCoerce(state.version)
-    const targetVersion = this.tryCoerce(options?.stopAt ?? this.current)
+    const targetVersion = this.tryCoerce(options?.target ?? this.current)
 
-    // Debug logging
     if (options?.debug) {
-      console.log('Migrating', currentVersion, 'to', targetVersion)
+      console.log('Migrating from', currentVersion, 'to', targetVersion)
     }
 
-    // Create a deep clone of the initial state
-    let finalState = klona(state)
-
-    // Get all available versions
+    let finalState = klona(state) as any // Using any here because we'll be transforming between versions
     const versions = this.getVersions()
     const currentIndex = versions.indexOf(currentVersion)
     const targetIndex = versions.indexOf(targetVersion)
 
-    // Check if versions are valid
     if (currentIndex === -1) {
       throw new Error(`Current version "${currentVersion}" not found in migrations`)
     }
@@ -95,82 +79,51 @@ export class Migrator<OutputState extends MigrationSchema> {
       throw new Error(`Target version "${targetVersion}" not found in migrations`)
     }
 
-    // Determine migration direction
+    // If we're already at the target version, return the state
+    if (currentIndex === targetIndex) {
+      return finalState as OutputState
+    }
+
+    // Get the migration path
     const isUpgrade = currentIndex < targetIndex
-
-    // Create migration range
-    const migrationRange = isUpgrade
-      ? versions.slice(currentIndex, targetIndex)
-      : versions.slice(targetIndex, currentIndex).reverse()
-
-    console.log('migrationRange', migrationRange)
+    const increment = isUpgrade ? 1 : -1
+    const direction = isUpgrade ? 'up' : 'down'
 
     // Perform migrations
-    for (const version of migrationRange) {
-      if (options?.debug) {
-        console.log('Current version:', finalState.version)
-      }
-
-      const migration = this.migrations[version]
-      const direction = isUpgrade ? 'up' : 'down'
-      const nextVersion = isUpgrade
-        ? versions[versions.indexOf(version) + 1] || targetVersion
-        : versions[versions.indexOf(version) - 1] || targetVersion
-
-      console.log('nextVersion', nextVersion)
-
-      finalState = await migration[direction](finalState, nextVersion)
-      finalState.version = version
+    for (let i = currentIndex; isUpgrade ? i < targetIndex : i > targetIndex; i += increment) {
+      const currentVersion = versions[i]
+      const nextVersion = versions[i + increment]
 
       if (options?.debug) {
-        console.log('Migrated to version:', finalState.version)
-        console.log('----')
+        console.log('\tMigrating to version:', nextVersion)
       }
 
-      // Safety check: stop if we've reached the target version
-      if (version === targetVersion) break
+      // For upgrades, use current version's migration
+      // For downgrades, use previous version's migration
+      const migrationVersion = currentVersion
+      const migration = this.migrations[migrationVersion]
+
+      // Remove version before migration
+      const { version: _, ...stateWithoutVersion } = finalState
+
+      // Perform migration
+      const migratedState = await migration[direction](stateWithoutVersion, currentVersion)
+
+      // Add new version
+      finalState = {
+        ...migratedState,
+        version: nextVersion
+      }
+
+      if (options?.debug) {
+        console.log('\tMigrated state:', finalState)
+      }
     }
 
-    return finalState as unknown as OutputState
+    return finalState as OutputState
   }
 
-  async migrateDirection(state: MigrationSchema, type: 'up' | 'down') {
-    const newVersion = this.tryCoerce(state.version)
-    let finalState = structuredClone(state)
-
-    const versions = this.getVersions()
-    const targetVersionIndex = versions.findIndex((version) => version === newVersion)
-    const targetVersion = versions[targetVersionIndex]
-
-    const sign = type === 'up' ? 1 : -1
-
-    let nextVersion
-    const found = versions[targetVersionIndex + 1 * sign]
-    if (found) {
-      nextVersion = found
-    } else {
-      nextVersion = this.current
-    }
-
-    const keys = this.getVersions()
-
-    if (!keys.includes(newVersion)) {
-      throw new Error(
-        `Target migration "${newVersion}" not defined in migrations definition\nSupported versions includes: [${keys.join(', ')}]`
-      )
-    }
-
-    const migration = this.migrations[targetVersion]
-    if (migration) {
-      finalState = (await migration[type](finalState, nextVersion)) as MigrationSchema
-    } else {
-      throw new Error(`Migration for version ${targetVersion} not found`)
-    }
-
-    return finalState
-  }
-
-  tryCoerce(version: SemVer) {
+  tryCoerce(version: SemVer): SemVer {
     return this.coerce ? ((coerce(version)?.version as SemVer | undefined) ?? version) : version
   }
 

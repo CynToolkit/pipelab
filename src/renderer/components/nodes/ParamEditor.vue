@@ -208,7 +208,7 @@ import ParamEditorBody from './ParamEditorBody.vue'
 import { Variable } from '@@/libs/core-app'
 import { variableToFormattedVariable } from '@renderer/composables/variables'
 import { useConfirm } from 'primevue/useconfirm'
-import { computedAsync } from '@vueuse/core'
+import { klona } from 'klona'
 
 // @ts-expect-error tsconfig
 const vm = await createQuickJs()
@@ -280,7 +280,7 @@ const confirmSwitchMode = (event: MouseEvent) => {
 const toggleMode = async (event: MouseEvent) => {
   const target = param.value.editor === 'simple' ? 'editor' : 'simple'
   let answer = true
-  let targetValue = param.value.value
+  let targetValue = klona(param.value.value)
   if (target === 'simple') {
     event.preventDefault()
 
@@ -405,7 +405,7 @@ watch(
   () => param.value,
   () => {
     // initial value setting
-    const newValue = param.value
+    const newValue = klona(param.value)
     if (newValue) {
       if (newValue.value === undefined || newValue.value === null) {
         codeEditorTextUpdate('')

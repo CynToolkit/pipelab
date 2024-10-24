@@ -51,7 +51,7 @@ describe('model', () => {
 
     const v2 = await savedFileMigrator.migrate(v1, {
       debug: true,
-      stopAt: '2.0.0'
+      target: '2.0.0'
     })
 
     expect(v2).toStrictEqual({
@@ -66,7 +66,8 @@ describe('model', () => {
             params: {
               aaa: {
                 foo: 'bar'
-              }
+              },
+              nodata: undefined
             },
             type: 'action',
             uid: 'aaa'
@@ -153,7 +154,7 @@ describe('model', () => {
 
     const v3 = await savedFileMigrator.migrate(v2, {
       debug: true,
-      stopAt: '3.0.0'
+      target: '3.0.0'
     })
 
     expect(v3).toStrictEqual({
