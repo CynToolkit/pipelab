@@ -76,6 +76,8 @@ describe('basic', () => {
 
       const jsonProject = join(tmpdir(), nanoid(), 'c3-export.json')
 
+      console.log('jsonProject', jsonProject)
+
       await writeFile(jsonProject, jsonProjectData)
 
       try {

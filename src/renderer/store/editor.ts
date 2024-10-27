@@ -7,6 +7,7 @@ import {
   BlockLoop,
   SavedFile,
   savedFileMigrator,
+  SavedFileValidator,
   Steps
 } from '@@/model'
 import {
@@ -32,6 +33,7 @@ import { processGraph } from '@@/graph'
 import { useLogger } from '@@/logger'
 import { klona } from 'klona'
 import { create } from 'mutative'
+import { parse } from 'valibot'
 
 export type Context = Record<string, unknown>
 
@@ -226,6 +228,7 @@ export const useEditor = defineStore('editor', () => {
           })
         }
       }
+
       // } else if (block.type === 'condition') {
       //   const definition = getNodeDefinition(block.origin.nodeId, block.origin.pluginId)
       //   const requiredParams = Object.keys(definition?.params ?? {})
@@ -265,21 +268,40 @@ export const useEditor = defineStore('editor', () => {
       debug: true
     })
 
-    console.log('data', data)
+    // ensure all params are there
+    const finalData = create(data, (draft) => {
+      for (const block of draft.canvas.blocks) {
+        const definition = getNodeDefinition(block.origin.nodeId, block.origin.pluginId)
+        if (definition) {
+          const params = definition.node.params
+          for (const param of Object.keys(params)) {
+            if (!(param in block.params)) {
+              console.warn("adding mising param", param)
+              block.params[param] = {
+                editor: 'editor',
+                value: params[param].value
+              }
+            }
+          }
+        }
+      }
+    })
 
-    name.value = data.name
-    description.value = data.description
+    await parse(SavedFileValidator, finalData)
 
-    for (const variable of data.variables) {
+    name.value = finalData.name
+    description.value = finalData.description
+
+    for (const variable of finalData.variables) {
       addVariable(variable)
     }
 
-    for (const block of data.canvas.blocks) {
+    for (const block of finalData.canvas.blocks) {
       blocks.value.push(block)
       validate(block)
     }
 
-    for (const trigger of data.canvas.triggers) {
+    for (const trigger of finalData.canvas.triggers) {
       triggers.value.push(trigger)
       validate(trigger)
     }

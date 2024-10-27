@@ -34,7 +34,8 @@
     "make": "electron-forge make",
     "publish": "electron-forge publish",
     "make-dev-prerelease": "pnpm version prerelease --preid=dev",
-    "supa:types": "supabase gen types typescript --project-id $VITE_SUPABASE_PROJECT_ID > src/shared/database.types.ts"
+    "supa:types": "supabase gen types typescript --project-id $VITE_SUPABASE_PROJECT_ID > src/shared/database.types.ts",
+    "migrate-file": "pnpm tsx scripts/migrate-file.mts"
   },
   "dependencies": {
     "@changesets/cli": "2.27.9",

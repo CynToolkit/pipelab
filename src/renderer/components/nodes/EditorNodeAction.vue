@@ -207,8 +207,6 @@ watchDebounced(
     // const variables = await variableToFormattedVariable(vm, data.variables)
     // console.log('variables', variables)
 
-    console.log('variablesDisplay', variablesDisplay)
-
     resolvedParams.value = await makeResolvedParams(
       {
         params: value.value.params,

@@ -185,6 +185,7 @@ export type SavedFileV1 = InferOutput<typeof SavedFileValidatorV1>
 export type SavedFileV2 = InferOutput<typeof SavedFileValidatorV2>
 export type SavedFileV3 = InferOutput<typeof SavedFileValidatorV3>
 export type SavedFile = SavedFileV3
+export const SavedFileValidator = SavedFileValidatorV3
 
 export const savedFileMigrator = createMigrator<SavedFile>({
   migrations: [

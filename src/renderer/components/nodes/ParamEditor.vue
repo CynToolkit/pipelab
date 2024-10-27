@@ -28,11 +28,11 @@
             </Chip>
           </label>
 
-          <div class="debug">
+          <!-- <div class="debug">
             <pre>editorTextValue: {{ editorTextValue }}</pre>
             <pre>simpleInputValue: {{ simpleInputValue }}</pre>
             <pre>param.value.value: {{ param.value }}</pre>
-          </div>
+          </div> -->
 
           <div class="infos">
             <!-- Is valid button -->
@@ -49,6 +49,10 @@
               </template>
             </Button>
           </div>
+        </div>
+
+        <div v-if="param === undefined">
+          Oops
         </div>
 
         <!-- Code editor -->
@@ -188,7 +192,7 @@
 </template>
 
 <script setup lang="ts">
-import { PropType, computed, ref, toRefs, watch } from 'vue'
+import { computed, ref, toRefs, watch } from 'vue'
 import type { ValueOf } from 'type-fest'
 import { Action, Condition, Event } from '@pipelab/plugin-core'
 import { createCodeEditor } from '@renderer/utils/code-editor'
@@ -216,35 +220,47 @@ const vm = await createQuickJs()
 type Params = (Action | Condition | Event)['params']
 type Param = ValueOf<BlockAction['params']>
 
-const props = defineProps({
-  param: {
-    type: Object as PropType<Param>,
-    required: false
-  },
-  paramDefinition: {
-    type: Object as PropType<ValueOf<Params>>,
-    required: true
-  },
-  paramKey: {
-    type: [String, Number],
-    required: true
-  },
+const props = defineProps<{
+  param: Param | undefined;
+  paramDefinition: ValueOf<Params>,
+  paramKey: string | number
 
-  value: {
-    type: Object as PropType<BlockAction | BlockEvent | BlockCondition | BlockLoop>,
-    required: true
-  },
-  steps: {
-    type: Object as PropType<Steps>,
-    required: true
-  },
-  variables: {
-    type: Object as PropType<Variable[]>,
-    required: true
-  }
-})
+  value: BlockAction | BlockEvent | BlockCondition | BlockLoop
+  steps: Steps
+  variables: Variable[]
+}>()
 
-const { param, paramKey, paramDefinition, steps, variables } = toRefs(props)
+// const props = defineProps({
+//   param: {
+//     type: Object as PropType<Param>,
+//     required: false,
+//     default: undefined,
+//   },
+//   paramDefinition: {
+//     type: Object as PropType<ValueOf<Params>>,
+//     required: true
+//   },
+//   paramKey: {
+//     type: [String, Number],
+//     required: true
+//   },
+
+//   value: {
+//     type: Object as PropType<BlockAction | BlockEvent | BlockCondition | BlockLoop>,
+//     required: true
+//   },
+//   steps: {
+//     type: Object as PropType<Steps>,
+//     required: true
+//   },
+//   variables: {
+//     type: Object as PropType<Variable[]>,
+//     required: true
+//   }
+// })
+
+const { paramKey, paramDefinition, steps, variables } = toRefs(props)
+const { param } = toRefs(props)
 
 const confirm = useConfirm()
 
@@ -278,9 +294,9 @@ const confirmSwitchMode = (event: MouseEvent) => {
 }
 
 const toggleMode = async (event: MouseEvent) => {
-  const target = param.value.editor === 'simple' ? 'editor' : 'simple'
+  const target = param.value?.editor === 'simple' ? 'editor' : 'simple'
   let answer = true
-  let targetValue = klona(param.value.value)
+  let targetValue = klona(param.value?.value)
   if (target === 'simple') {
     event.preventDefault()
 
@@ -381,7 +397,7 @@ const doCodeEditorUpdate = throttle(async (newValue) => {
 
     // update on code editor text change
     emit('update:modelValue', {
-      editor: param.value.editor,
+      editor: param.value?.editor,
       value: newValue
     })
   } catch (e) {
@@ -473,7 +489,7 @@ const onParamEditorUpdate = (value: unknown) => {
 
 const isModalDisplayed = ref(false)
 const onClickInside = () => {
-  if (param.value.editor === 'editor') {
+  if (param.value?.editor === 'editor') {
     isModalDisplayed.value = true
   }
 }
@@ -482,7 +498,7 @@ const onClickOutside = () => {
 }
 
 watch(
-  () => param.value.editor,
+  () => param.value?.editor,
   (newValue) => {
     if (newValue === 'editor') {
       isModalDisplayed.value = true

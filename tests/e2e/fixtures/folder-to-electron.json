@@ -1,9 +1,9 @@
 {
-  "version": "1.0.0",
-  "name": "Folder to Electron",
   "description": "",
+  "name": "Folder to Electron",
+  "variables": [],
   "canvas": {
-    "blocks": [
+    "triggers": [
       {
         "type": "event",
         "origin": {
@@ -12,7 +12,9 @@
         },
         "uid": "manual-start",
         "params": {}
-      },
+      }
+    ],
+    "blocks": [
       {
         "uid": "electron-package-node",
         "type": "action",
@@ -21,11 +23,17 @@
           "pluginId": "electron"
         },
         "params": {
-          "configuration": "{}",
-          "input-folder": "\"./tests/e2e/fixtures/folder-to-electron\""
+          "configuration": {
+            "editor": "editor",
+            "value": "{}"
+          },
+          "input-folder": {
+            "editor": "editor",
+            "value": "\"./tests/e2e/fixtures/folder-to-electron\""
+          }
         }
       }
     ]
   },
-  "variables": []
+  "version": "3.0.0"
 }
