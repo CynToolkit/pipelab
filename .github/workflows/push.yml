@@ -50,7 +50,6 @@ jobs:
 
       - name: Run tests
         uses: coactions/setup-xvfb@v1
-        continue-on-error: ${{ matrix.os == 'macos-latest' }}
         with:
           run: pnpm test:e2e:raw
 

@@ -11,3 +11,9 @@ A visual tool to create task automation workflows.
 - Automate repetitive tasks
 
 # Getting Started
+
+# Making a release
+```
+pnpm changeset version
+pnpm changeset tag
+```
