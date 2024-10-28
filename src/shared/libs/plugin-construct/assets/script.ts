@@ -20,6 +20,29 @@ const registerInstallButtonListener = (page: Page, log: typeof console.log) => {
     })
 }
 
+const registerWebglErrorListener = (page: Page, log: typeof console.log) => {
+  // as soon as it appear, without blocking flow
+  // ignore webgl error
+  const okDialog = page.locator('#okDialog')
+  const webglErrorButton = okDialog.locator('.okButton')
+  webglErrorButton
+    .waitFor({
+      timeout: 0
+    })
+    .then(async () => {
+      const text = await okDialog.allInnerTexts()
+
+      if (text.join().toLowerCase().includes('webgl')) {
+        webglErrorButton.click()
+        log('webglErrorButton clicked')
+        registerWebglErrorListener(page, log)
+      }
+    })
+    .catch(async () => {
+      log('webglErrorButton.click() failed')
+    })
+}
+
 export const script = async (
   page: Page,
   log: typeof console.log,
@@ -87,26 +110,7 @@ export const script = async (
     })
 
   registerInstallButtonListener(page, log)
-
-  // as soon as it appear, without blocking flow
-  // ignore webgl error
-  const okDialog = page.locator('#okDialog')
-  const webglErrorButton = okDialog.locator('.okButton')
-  webglErrorButton
-    .waitFor({
-      timeout: 0
-    })
-    .then(async () => {
-      const text = await okDialog.allInnerTexts()
-
-      if (text.join().toLowerCase().includes('webgl')) {
-        webglErrorButton.click()
-        log('webglErrorButton clicked')
-      }
-    })
-    .catch(async () => {
-      log('webglErrorButton.click() failed')
-    })
+  registerWebglErrorListener(page, log)
 
   log('Waiting for progress dialog to disapear')
   await progressDialog.waitFor({
