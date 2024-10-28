@@ -50,7 +50,7 @@ export const testC3Unzip: PresetFn = async () => {
             },
             headless: {
               editor: 'editor',
-              value: true
+              value: false
             }
           }
         },

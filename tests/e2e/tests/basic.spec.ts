@@ -1,9 +1,9 @@
 import { it, expect, describe, vi } from 'vitest'
 import { execa } from 'execa'
-import { join } from 'path'
+import { dirname, join } from 'path'
 import { tmpdir } from 'os'
 import { nanoid } from 'nanoid'
-import { readFile, writeFile } from 'fs/promises'
+import { mkdir, readFile, writeFile } from 'fs/promises'
 import { getBinName, name, outFolderName } from '../../../src/constants'
 import { platform, arch } from 'process'
 
@@ -69,16 +69,26 @@ describe('basic', () => {
   it(
     'export c3',
     async () => {
-      const { testC3Unzip: project } = await import('../../../src/main/presets/test-c3-unzip')
-      // const jsonProject = join(fixtures, 'c3-export.json')
-      const jsonProjectData = JSON.stringify(project)
-      console.log('jsonProjectData', jsonProjectData)
+      // const { testC3Unzip } = await import('../../../src/main/presets/test-c3-unzip')
 
-      const jsonProject = join(tmpdir(), nanoid(), 'c3-export.json')
+      // const project = await testC3Unzip()
 
-      console.log('jsonProject', jsonProject)
+      // console.log('project', project)
+      // // const jsonProject = join(fixtures, 'c3-export.json')
+      // const jsonProjectData = JSON.stringify(project.data)
+      // console.log('jsonProjectData', jsonProjectData)
 
-      await writeFile(jsonProject, jsonProjectData)
+      // const jsonProject = join(tmpdir(), nanoid(), 'c3-export.json')
+
+      // await mkdir(dirname(jsonProject), {
+      //   recursive: true,
+      // })
+
+      // console.log('jsonProject', jsonProject)
+
+      // await writeFile(jsonProject, jsonProjectData)
+
+      const jsonProject = join(fixtures, 'c3-export.json')
 
       try {
         const { exitCode, stdout, stderr } = await execa(
