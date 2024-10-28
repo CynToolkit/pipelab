@@ -117,6 +117,7 @@ export interface ControlTypeInput extends ControlTypeBase {
   type: 'input'
   options: {
     kind: 'number' | 'text'
+    validator?: string
     // value: string;
     // onChange: (value: any) => void;
   }
@@ -213,6 +214,7 @@ export type InputDefinition = {
   // validator?: z.ZodTypeAny
   control: ControlType
   value: unknown
+  platforms?: NodeJS.Platform[]
 }
 
 export type InputsDefinition = Record<string, InputDefinition>
@@ -265,13 +267,18 @@ export interface MainPluginDefinition extends PluginDefinition {
     runner: Runner
     disabled?: boolean | string
   }[]
+  validators?: Array<{
+    id: string
+    description: string
+    validator: (options: any) => any
+  }>
 }
 
 export const createNodeDefinition = (def: MainPluginDefinition) => {
   return def
 }
 
-export type RunnerCallbackFnArgument<DEF extends MainPluginDefinition> = {
+export type RunnerCallbackFnArgument = {
   done: () => void
   id: string
   log: (...args: Parameters<(typeof console)['log']>) => void
@@ -373,6 +380,7 @@ export interface Condition {
   description: string
   params: InputsDefinition
   meta?: Meta
+  platforms?: NodeJS.Platform[]
 }
 export type ConditionRunner<CONDITION extends Condition> = (data: {
   log: typeof console.log
@@ -440,6 +448,7 @@ export interface Event {
   description: string
   params: InputsDefinition
   meta?: Meta
+  platforms?: NodeJS.Platform[]
 }
 type EventRunner<EVENT extends Event> = (data: {
   log: typeof console.log

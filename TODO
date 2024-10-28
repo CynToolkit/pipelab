@@ -13,15 +13,8 @@ https://github.com/xyflow/awesome-node-based-uis
 https://github.com/CatalystCode/windows-registry-node
 https://github.com/tympanix/electron-regedit
 
-
-code editor:
-    one line: export default, expression only
-    multi line: can be complex data, must return value
-
 ☐ Target:
     Stage 1:
-        pipecanvas.com
-        pipelayn
         ☐ Autosave
         ☐ Optimize/minimize images
             ☐ https://www.google.com/search?q=sharp+lossless+compression+png&client=firefox-b-d&sxsrf=AB5stBg5O1Uihp_JBHyJnrcJEeF5sm2ZAg%3A1690961809752&ei=kQfKZImzLc2JkdUPqKWVkAs&ved=0ahUKEwjJv_7Pu72AAxXNRKQEHahSBbIQ4dUDCA4&uact=5&oq=sharp+lossless+compression+png&gs_lp=Egxnd3Mtd2l6LXNlcnAiHnNoYXJwIGxvc3NsZXNzIGNvbXByZXNzaW9uIHBuZzIKEAAYRxjWBBiwAzIKEAAYRxjWBBiwAzIKEAAYRxjWBBiwAzIKEAAYRxjWBBiwAzIKEAAYRxjWBBiwAzIKEAAYRxjWBBiwAzIKEAAYRxjWBBiwAzIKEAAYRxjWBBiwA0i5GVDSBFixGHABeAGQAQCYAQCgAQCqAQC4AQPIAQD4AQHiAwQYACBBiAYBkAYI&sclient=gws-wiz-serp
@@ -50,21 +43,14 @@ https://remixicon.com/
 ---
 
 Tests:
-- Disable step
-- Reorder steps
+✔ Switch securely from "editor" to "simple" + remember last editor @started(24-10-10 07:40) @done(24-10-24 07:33) @lasted(1w6d23h53m36s)
 - View logs in realtime
-- editor full width (no sidebar)
-- env
-- construct 3 validation url: 402.2 instead of **402-2**
-- electron prepare app bundle: backspace on input doesn't cancel running evaluation resulting in slowdowns
-- manage c3 export error:
-    - missing addon
+- env (= copy variables)
 - handle pipeline error gracefully
-    - restore working ui
     - display what happened in dialog
-- steam upload stuck
 - handle steamworks
 
 - prepare electron + install package
 - process quickjs in webworker
-- file generation ejs
+
+

@@ -8,8 +8,18 @@ import { useLogger } from '@@/logger'
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 type Event<TYPE extends string, DATA> = { type: TYPE; data: DATA }
-type EndEvent<DATA> = { type: 'end'; data: DATA }
-
+type EndEvent<DATA> = {
+  type: 'end'
+  data:
+    | {
+        type: 'success'
+        result: DATA
+      }
+    | {
+        type: 'error'
+        ipcError: string
+      }
+}
 
 export type IpcDefinition = {
   'dialog:alert': [
@@ -32,7 +42,10 @@ export type IpcDefinition = {
 export type RendererChannels = keyof IpcDefinition
 export type RendererData<KEY extends RendererChannels> = IpcDefinition[KEY][0]
 export type RendererEvents<KEY extends RendererChannels> = IpcDefinition[KEY][1]
-export type RendererEnd<KEY extends RendererChannels> = Extract<IpcDefinition[KEY][1], { type: 'end' }>['data']
+export type RendererEnd<KEY extends RendererChannels> = Extract<
+  IpcDefinition[KEY][1],
+  { type: 'end' }
+>['data']
 
 export type RendererMessage = {
   // the channel to communicate
@@ -43,7 +56,9 @@ export type RequestId = Tagged<string, 'request-id'>
 
 // type Output = End<'fs:openFolder'>
 
-export type HandleListenerSendFn<KEY extends RendererChannels> = (events: RendererEvents<KEY>) => void
+export type HandleListenerSendFn<KEY extends RendererChannels> = (
+  events: RendererEvents<KEY>
+) => void
 
 export type HandleListener<KEY extends RendererChannels> = (
   event: Electron.IpcMainInvokeEvent,

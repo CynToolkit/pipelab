@@ -97,9 +97,9 @@ const props = defineProps({
     // default: () => []
   },
   errors: {
-    type: Object as PropType<ValidationError[]>,
+    type: Object as PropType<Record<string, ValidationError[]>>,
     required: false,
-    default: () => []
+    default: () => ({})
   }
 })
 
@@ -110,7 +110,7 @@ const emit = defineEmits<{
 const { value } = toRefs(props)
 
 const editor = useEditor()
-const { getNodeDefinition, setBlockValue, getPluginDefinition } = editor
+const { getNodeDefinition, getPluginDefinition } = editor
 const { activeNode } = storeToRefs(editor)
 
 const showSidebar = ref(false)
@@ -142,14 +142,15 @@ const subtitle = computedAsync(
 const onValueChanged = (newValue: unknown, paramKey: string) => {
   console.log('newValue', newValue)
 
-  // @ts-expect-error
-  setBlockValue(value.value.uid, {
-    ...value.value,
-    params: {
-      ...value.value.params,
-      [paramKey]: newValue
-    }
-  })
+  throw new Error('Not implemented')
+
+  // setBlockValue(value.value.uid, {
+  //   ...value.value,
+  //   params: {
+  //     ...value.value.params,
+  //     [paramKey]: newValue
+  //   }
+  // })
 }
 </script>
 

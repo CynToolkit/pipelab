@@ -1,7 +1,7 @@
 <template>
   <div class="variables-editor">
     <template v-for="variable in variables" :key="variable.id">
-      <div class="variable-wrapper">
+      <div class="variable-wrapper" @click="editVariable(variable.id)">
         <div class="variable">
           <div class="title">{{ variable.name }}</div>
           <div class="subtitle">{{ variable.description }}</div>
@@ -39,6 +39,13 @@
           @click="isNewVariableDialogVisible = false"
         ></Button>
         <Button type="button" label="Save" @click="onSave"></Button>
+        <Button
+          v-if="mode === 'edit' && dialogId"
+          class="del-btn"
+          label="Delete"
+          icon="pi pi-trash"
+          @click="remVariable(dialogId)"
+        ></Button>
       </div>
     </Dialog>
   </div>
@@ -54,7 +61,11 @@ import { ref } from 'vue'
 
 const instance = useEditor()
 const { variables } = storeToRefs(instance)
-const { addVariable: instanceAddVariable } = instance
+const {
+  addVariable: instanceAddVariable,
+  updateVariable: instanceUpdateVariable,
+  removeVariable: instanceRemoveVariable
+} = instance
 
 const isNewVariableDialogVisible = ref(false)
 
@@ -76,15 +87,45 @@ const {
 const onSave = () => {
   isNewVariableDialogVisible.value = false
 
-  instanceAddVariable({
-    id: nanoid(),
-    value: editorTextValue.value,
-    description: description.value,
-    name: name.value
-  })
+  if (mode.value === 'create') {
+    instanceAddVariable({
+      id: nanoid(),
+      value: editorTextValue.value,
+      description: description.value,
+      name: name.value
+    })
+  } else {
+    instanceUpdateVariable({
+      id: dialogId.value,
+      value: editorTextValue.value,
+      description: description.value,
+      name: name.value
+    })
+  }
 }
 
+const dialogId = ref<string>()
+
 const addVariable = () => {
+  isNewVariableDialogVisible.value = true
+  mode.value = 'create'
+}
+
+const remVariable = (id: string) => {
+  isNewVariableDialogVisible.value = false
+  instanceRemoveVariable(id)
+}
+
+const mode = ref<'create' | 'edit'>('create')
+const editVariable = (id: string) => {
+  const foundVar = variables.value.find((x) => x.id === id)
+  if (foundVar) {
+    codeEditorTextUpdate(foundVar.value)
+    name.value = foundVar.name
+    description.value = foundVar.description
+    mode.value = 'edit'
+    dialogId.value = foundVar.id
+  }
   isNewVariableDialogVisible.value = true
 }
 </script>

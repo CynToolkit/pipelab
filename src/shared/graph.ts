@@ -6,6 +6,8 @@ import { Block } from './model'
 import { Context } from '@renderer/store/editor'
 import { End } from './apis'
 import { useLogger } from './logger'
+import { variableToFormattedVariable } from '@renderer/composables/variables'
+import { createQuickJs } from '@renderer/utils/quickjs'
 
 export const processGraph = async (options: {
   graph: Array<Block>
@@ -18,7 +20,7 @@ export const processGraph = async (options: {
   context: Context
   onExecuteItem: (
     node: Block,
-    params: Record<string, unknown>,
+    params: Record<string, string>,
     steps: Steps
   ) => Promise<End<'condition:execute'> | End<'action:execute'>>
   onNodeEnter: (node: Block) => void
@@ -77,9 +79,14 @@ export const processGraph = async (options: {
 
       options.onNodeEnter(rawNode)
 
+      const vm = await createQuickJs()
+
+      const variables = await variableToFormattedVariable(vm, options.variables)
+      console.log('variables', variables)
+
       const newParams = await makeResolvedParams({
         params: rawNode.params,
-        variables: options.variables,
+        variables,
         steps: options.steps,
         context: options.context
       })
@@ -90,25 +97,25 @@ export const processGraph = async (options: {
         options.steps
       )) as End<'action:execute'>
 
-      if ('result' in result) {
-        logger().error(result.result)
+      if (result.type === 'error') {
+        logger().error(result.ipcError)
         options.onNodeExit(rawNode)
         throw new Error('Action error')
       }
 
-      if ('outputs' in result) {
+      if (result.type === 'success') {
         if (!options.steps[rawNode.uid]) {
           options.steps[rawNode.uid] = {
             outputs: {}
           }
         }
-        options.steps[rawNode.uid].outputs = result.outputs
+        options.steps[rawNode.uid].outputs = result.result.outputs
       }
       options.onNodeExit(rawNode)
     } else if (rawNode.type === 'loop') {
       options.onNodeEnter(rawNode)
 
-      const context = {}
+      // const context = {}
 
       // const arrayToLoopOn = await evaluate(rawNode.params.value, context)
 

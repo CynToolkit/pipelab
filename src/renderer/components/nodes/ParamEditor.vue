@@ -4,29 +4,43 @@
       <div class="flex flex-column gap-1 editor-content">
         <div class="label">
           <!-- Label -->
-          <label :for="`data-${paramKey}`"
-            >{{ paramDefinition.label }}
+          <label :for="`data-${paramKey}`">
+            <span>{{ paramDefinition.label }}</span>
+            <!-- Required -->
             <span
               v-if="!('required' in paramDefinition) || paramDefinition.required === true"
               class="required"
             >
-              *</span
-            >
+              *
+            </span>
+            <!-- Tooltip -->
+            <span v-if="paramDefinition.description" class="tooltip">
+              <i v-tooltip="paramDefinition.description" class="mdi mdi-help-circle tooltip-icon" />
+            </span>
+            <!-- Platforms -->
             <Chip
               v-for="platform in paramDefinition.platforms"
               :key="platform"
+              v-tooltip="`This field is only applicable to the ${platform} platform`"
               class="platform"
               :label="platform"
             >
             </Chip>
           </label>
 
+          <!-- <div class="debug">
+            <pre>editorTextValue: {{ editorTextValue }}</pre>
+            <pre>simpleInputValue: {{ simpleInputValue }}</pre>
+            <pre>param.value.value: {{ param.value }}</pre>
+          </div> -->
+
           <div class="infos">
             <!-- Is valid button -->
             <Button
-              v-tooltip.top="expectedTooltip"
+              v-tooltip="expectedTooltip"
               text
               size="small"
+              class="type-btn"
               rounded
               :severity="isExpectedValid ? 'success' : 'danger'"
             >
@@ -37,12 +51,52 @@
           </div>
         </div>
 
+        <div v-if="param === undefined">
+          Oops
+        </div>
+
         <!-- Code editor -->
-        <div ref="$codeEditorText" class="code-editor"></div>
+        <div class="code-editor-wrapper">
+          <div class="code-editor-wrapper-inner">
+            <div v-show="param.editor === 'editor'" ref="$codeEditorText" class="code-editor"></div>
+            <ParamEditorBody
+              v-show="param.editor === 'simple'"
+              :model-value="simpleInputValue"
+              :param-definition="paramDefinition"
+              @update:model-value="onParamEditorUpdate"
+              @switch="toggleMode"
+            ></ParamEditorBody>
+          </div>
+          <ConfirmPopup></ConfirmPopup>
+          <Button
+            v-if="param.editor === 'editor'"
+            v-tooltip="'Switch to simple mode'"
+            text
+            aria-label="Toggle mode"
+            @click="toggleMode"
+          >
+            <template #icon>
+              <i class="icon mdi mdi-text fs-16"></i>
+            </template>
+          </Button>
+          <Button
+            v-else
+            v-tooltip="'Switch to editor mode'"
+            text
+            aria-label="Toggle mode"
+            @click="toggleMode"
+          >
+            <template #icon>
+              <i class="icon mdi mdi-code-block-braces fs-16"></i>
+            </template>
+          </Button>
+        </div>
 
         <!-- Hint text -->
-        <Skeleton v-if="hintText === undefined" height="20px"></Skeleton>
-        <div v-else v-dompurify-html="hintText" class="hint" :class="{ error: isError }"></div>
+        <template v-if="param.editor === 'editor'">
+          <Skeleton v-if="hintText === undefined" height="20px"></Skeleton>
+          <div v-else v-dompurify-html="hintText" class="hint" :class="{ error: isError }"></div>
+        </template>
 
         <!-- Floating indicator -->
         <div
@@ -66,75 +120,20 @@
             style="position: absolute; pointer-events: none; top: 100%; left: 32.5px"
           >
             <path stroke="none" d="M0,0 H14 L7,7 Q7,7 7,7 Z"></path>
-            <clipPath id=":r8:"><rect x="0" y="0" width="14" height="14"></rect></clipPath>
+            <clipPath id=":r8:">
+              <rect x="0" y="0" width="14" height="14"></rect>
+            </clipPath>
           </svg>
 
           <div class="helpers">
-            <!-- Value -->
+            <!--<!~~ Value ~~>
             <Panel header="Value" toggleable>
-              <div class="editor">
-                <div v-if="paramDefinition.control.type === 'boolean'" class="boolean">
-                  <SelectButton
-                    :model-value="resultValue"
-                    option-label="text"
-                    option-value="value"
-                    :options="[
-                      { text: 'True', value: true },
-                      { text: 'False', value: false }
-                    ]"
-                    aria-labelledby="basic"
-                    @change="insertEditorReplace($event.value)"
-                  >
-                    <template #option="slotProps">
-                      <span>{{ slotProps.option.text }}</span>
-                    </template>
-                  </SelectButton>
-                  <p v-if="!isValueSimpleBoolean(param)">Value will be overwitten!</p>
-                </div>
-                <div v-if="paramDefinition.control.type === 'path'" class="path">
-                  <Button
-                    class="w-full"
-                    @click="onChangePathClick(paramDefinition.control.options)"
-                  >
-                    {{ paramDefinition.control.label ?? 'Browse path' }}
-                  </Button>
-                </div>
-                <div
-                  v-if="paramDefinition.control.type === 'electron:configure:v2'"
-                  class="electron:configure:v2"
-                >
-                  <div class="body">
-                    <div class="label">Electron version</div>
-                    <InputText />
-                    <div class="label">Custom main code</div>
-                    <InputText />
-                    <div class="label">Enable steam support</div>
-                    <Checkbox />
-                  </div>
-                </div>
-                <div v-if="paramDefinition.control.type === 'select'" class="select">
-                  <Listbox
-                    :model-value="param"
-                    :options="paramDefinition.control.options.options"
-                    filter
-                    option-label="label"
-                    class="w-full md:w-56"
-                    @change="onParamSelectChange"
-                  />
-                </div>
-                <div v-if="paramDefinition.control.type === 'multi-select'" class="multi-select">
-                  <Listbox
-                    :model-value="param"
-                    :options="paramDefinition.control.options.options"
-                    filter
-                    multiple
-                    option-label="label"
-                    class="w-full md:w-56"
-                    @change="onParamMultiSelectChange"
-                  />
-                </div>
-              </div>
-            </Panel>
+              <ParamEditorBody
+                :model-value="simpleInputValue"
+                :param-definition="paramDefinition"
+                @update:model-value="onParamEditorUpdate"
+              ></ParamEditorBody>
+            </Panel>-->
             <!-- Outputs -->
             <Panel header="Outputs" toggleable>
               <div class="steps-list">
@@ -166,6 +165,21 @@
                 </template>
               </div>
             </Panel>
+            <Panel header="Variables" toggleable>
+              <div class="variables-list">
+                <div
+                  v-for="(variable, variableIndex) in variables"
+                  :key="variableIndex"
+                  class="variable"
+                  @click="insertEditorEnd(`variables['${variable.id}']`)"
+                >
+                  <div class="variable-name">{{ variable.name }}</div>
+                  <div class="variable-description">
+                    {{ variable.description }}
+                  </div>
+                </div>
+              </div>
+            </Panel>
           </div>
         </div>
       </div>
@@ -178,75 +192,141 @@
 </template>
 
 <script setup lang="ts">
-import { PropType, computed, ref, toRefs, watch } from 'vue'
+import { computed, ref, toRefs, watch } from 'vue'
 import type { ValueOf } from 'type-fest'
 import { Action, Condition, Event } from '@pipelab/plugin-core'
-import { useAPI } from '@renderer/composables/api'
 import { createCodeEditor } from '@renderer/utils/code-editor'
 import { createQuickJs } from '@renderer/utils/quickjs'
-import { watchDebounced } from '@vueuse/core'
 import { BlockAction, BlockCondition, BlockEvent, BlockLoop, Steps } from '@@/model'
 import { controlsToIcon, controlsToType } from '@renderer/models/controls'
 import { Completion, CompletionContext } from '@codemirror/autocomplete'
 import { javascriptLanguage } from '@codemirror/lang-javascript'
 import vTooltip from 'primevue/tooltip'
-import { syntaxTree } from '@codemirror/language'
-import { linter, Diagnostic } from '@codemirror/lint'
-import { debounce } from 'es-toolkit'
+import { throttle } from 'es-toolkit'
 import { arrow, autoUpdate, flip, offset, shift, useFloating } from '@floating-ui/vue'
 import { vOnClickOutside } from '@vueuse/components'
 import { useEditor } from '@renderer/store/editor'
 import { storeToRefs } from 'pinia'
-import { ListboxChangeEvent } from 'primevue/listbox'
-import type { OpenDialogOptions } from 'electron'
 import { useLogger } from '@@/logger'
+import ParamEditorBody from './ParamEditorBody.vue'
+import { Variable } from '@@/libs/core-app'
+import { variableToFormattedVariable } from '@renderer/composables/variables'
+import { useConfirm } from 'primevue/useconfirm'
+import { klona } from 'klona'
+
+// @ts-expect-error tsconfig
+const vm = await createQuickJs()
 
 type Params = (Action | Condition | Event)['params']
+type Param = ValueOf<BlockAction['params']>
 
-const props = defineProps({
-  param: {
-    type: [String, Boolean, Number] as PropType<unknown>,
-    required: true
-  },
-  paramDefinition: {
-    type: Object as PropType<ValueOf<Params>>,
-    required: true
-  },
-  paramKey: {
-    type: [String, Number],
-    required: true
-  },
+const props = defineProps<{
+  param: Param | undefined;
+  paramDefinition: ValueOf<Params>,
+  paramKey: string | number
 
-  value: {
-    type: Object as PropType<BlockAction | BlockEvent | BlockCondition | BlockLoop>,
-    required: true
-  },
-  steps: {
-    type: Object as PropType<Steps>,
-    required: true
-  }
-})
+  value: BlockAction | BlockEvent | BlockCondition | BlockLoop
+  steps: Steps
+  variables: Variable[]
+}>()
 
-const { param, paramKey, paramDefinition, steps } = toRefs(props)
+// const props = defineProps({
+//   param: {
+//     type: Object as PropType<Param>,
+//     required: false,
+//     default: undefined,
+//   },
+//   paramDefinition: {
+//     type: Object as PropType<ValueOf<Params>>,
+//     required: true
+//   },
+//   paramKey: {
+//     type: [String, Number],
+//     required: true
+//   },
+
+//   value: {
+//     type: Object as PropType<BlockAction | BlockEvent | BlockCondition | BlockLoop>,
+//     required: true
+//   },
+//   steps: {
+//     type: Object as PropType<Steps>,
+//     required: true
+//   },
+//   variables: {
+//     type: Object as PropType<Variable[]>,
+//     required: true
+//   }
+// })
+
+const { paramKey, paramDefinition, steps, variables } = toRefs(props)
+const { param } = toRefs(props)
+
+const confirm = useConfirm()
 
 const editor = useEditor()
 const { getNodeDefinition } = editor
 const { nodes } = storeToRefs(editor)
 
+const confirmSwitchMode = (event: MouseEvent) => {
+  return new Promise<boolean>((resolve) => {
+    confirm.require({
+      target: event.currentTarget,
+      message:
+        'Switching back to simple mode will delete all your changes. Are you sure you want to continue?',
+      icon: 'pi pi-exclamation-triangle',
+      rejectProps: {
+        label: 'Cancel',
+        severity: 'secondary',
+        outlined: true
+      },
+      acceptProps: {
+        label: 'Switch to simple mode'
+      },
+      accept: () => {
+        return resolve(true) // Resolve the promise with true when the user accepts
+      },
+      reject: () => {
+        return resolve(false) // Resolve the promise with false when the user rejects
+      }
+    })
+  })
+}
+
+const toggleMode = async (event: MouseEvent) => {
+  const target = param.value?.editor === 'simple' ? 'editor' : 'simple'
+  let answer = true
+  let targetValue = klona(param.value?.value)
+  if (target === 'simple') {
+    event.preventDefault()
+
+    answer = await confirmSwitchMode(event)
+    targetValue = paramDefinition.value.value
+  }
+
+  if (answer === true) {
+    emit('update:modelValue', {
+      editor: target,
+      value: targetValue
+    })
+  }
+}
+
 const emit = defineEmits<{
-  (event: 'update:modelValue', data: any): void
+  (event: 'update:modelValue', data: Param): void
 }>()
 
 const isError = ref(false)
 const hintText = ref<string>()
-const resultValue = ref<unknown>()
 
 const $codeEditorText = ref<HTMLDivElement>()
 const $floating = ref<HTMLDivElement>()
 const $arrow = ref<HTMLElement>()
 
-const isValueSimpleBoolean = (str: string | unknown) => {
-  return str === 'true' || str === 'false'
+const { logger } = useLogger()
+
+const formattedVariables = () => {
+  return variableToFormattedVariable(vm, variables.value)
 }
 
 function myCompletions(context: CompletionContext) {
@@ -264,29 +344,29 @@ function myCompletions(context: CompletionContext) {
   }
 }
 
-const regexpLinter = linter((view) => {
-  const diagnostics: Diagnostic[] = []
-  syntaxTree(view.state)
-    .cursor()
-    .iterate((node) => {
-      if (node.name == 'RegExp')
-        diagnostics.push({
-          from: node.from,
-          to: node.to,
-          severity: 'warning',
-          message: 'Regular expressions are FORBIDDEN',
-          actions: [
-            {
-              name: 'Remove',
-              apply(view, from, to) {
-                view.dispatch({ changes: { from, to } })
-              }
-            }
-          ]
-        })
-    })
-  return diagnostics
-})
+// const regexpLinter = linter((view) => {
+//   const diagnostics: Diagnostic[] = []
+//   syntaxTree(view.state)
+//     .cursor()
+//     .iterate((node) => {
+//       if (node.name == 'RegExp')
+//         diagnostics.push({
+//           from: node.from,
+//           to: node.to,
+//           severity: 'warning',
+//           message: 'Regular expressions are FORBIDDEN',
+//           actions: [
+//             {
+//               name: 'Remove',
+//               apply(view, from, to) {
+//                 view.dispatch({ changes: { from, to } })
+//               }
+//             }
+//           ]
+//         })
+//     })
+//   return diagnostics
+// })
 
 const {
   update: codeEditorTextUpdate,
@@ -297,6 +377,63 @@ const {
     autocomplete: myCompletions
   })
 ])
+
+const doCodeEditorUpdate = throttle(async (newValue) => {
+  const displayString = newValue ?? ''
+
+  try {
+    const variables = await formattedVariables()
+    console.log('displayString', displayString)
+    console.log('variables', variables)
+    const result = await vm.run(displayString, {
+      params: {},
+      // params: resolvedParams.value,
+      steps: steps.value,
+      variables
+    })
+    simpleInputValue.value = result
+    hintText.value = resolveHintTextResult(result)
+    isError.value = false
+
+    // update on code editor text change
+    emit('update:modelValue', {
+      editor: param.value?.editor,
+      value: newValue
+    })
+  } catch (e) {
+    console.error(e)
+    logger().error('e', JSON.stringify(e))
+    if (e instanceof Error) {
+      hintText.value = /* e.name + ' ' +  */ e.message
+      isError.value = true
+    } else {
+      logger().error('e', e)
+    }
+  }
+}, 500)
+
+// near definition to be the first to trigger
+onCodeEditorTextUpdate(async (newValue) => {
+  doCodeEditorUpdate(newValue)
+})
+
+watch(
+  () => param.value,
+  () => {
+    // initial value setting
+    const newValue = klona(param.value)
+    if (newValue) {
+      if (newValue.value === undefined || newValue.value === null) {
+        codeEditorTextUpdate('')
+      } else {
+        codeEditorTextUpdate((newValue.value as string).toString())
+      }
+    }
+  },
+  {
+    immediate: true
+  }
+)
 
 const insertEditorEnd = (str: string | number | boolean) => {
   codeEditorTextUpdate(editorTextValue.value + str.toString())
@@ -332,6 +469,7 @@ const { floatingStyles, middlewareData } = useFloating($codeEditorText, $floatin
 // }
 
 const resolveHintTextResult = (result: unknown) => {
+  console.log('result', result)
   if (paramDefinition.value.control.type === 'select') {
     const label = paramDefinition.value.control.options.options.find(
       (o) => o.value === result
@@ -340,74 +478,34 @@ const resolveHintTextResult = (result: unknown) => {
       return label
     }
   }
-  return (result as string).toString()
+  return ((result as string | undefined) ?? '').toString()
 }
 
-// @ts-expect-error tsconfig
-const vm = await createQuickJs()
+const simpleInputValue = ref<unknown>()
 
-watchDebounced(
-  editorTextValue,
-  async () => {
-    const displayString = editorTextValue.value
-
-    if (!displayString) {
-      return
-    }
-
-    try {
-      const result = await vm.run(displayString, {
-        params: {},
-        // params: resolvedParams.value,
-        steps: steps.value
-      })
-      resultValue.value = result
-      hintText.value = resolveHintTextResult(result)
-      isError.value = false
-    } catch (e) {
-      logger().error('e', JSON.stringify(e))
-      if (e instanceof Error) {
-        hintText.value = /* e.name + ' ' +  */ e.message
-        isError.value = true
-      } else {
-        logger().error('e', e)
-      }
-    }
-  },
-  {
-    debounce: 300,
-    immediate: true
-  }
-)
-
-watch(
-  param,
-  (newValue) => {
-    if (newValue) {
-      codeEditorTextUpdate((newValue as string).toString())
-    }
-  },
-  {
-    immediate: true
-  }
-)
+const onParamEditorUpdate = (value: unknown) => {
+  insertEditorReplace(value !== undefined ? value.toString() : '')
+}
 
 const isModalDisplayed = ref(false)
 const onClickInside = () => {
-  isModalDisplayed.value = true
+  if (param.value?.editor === 'editor') {
+    isModalDisplayed.value = true
+  }
 }
 const onClickOutside = () => {
   isModalDisplayed.value = false
 }
 
-const onValueChanged = (newValue: string, paramKey: string) => {
-  emit('update:modelValue', newValue)
-}
-
-onCodeEditorTextUpdate(
-  debounce((value) => {
-    onValueChanged(value, paramKey.value.toString())
-  }, 300)
+watch(
+  () => param.value?.editor,
+  (newValue) => {
+    if (newValue === 'editor') {
+      isModalDisplayed.value = true
+    } else {
+      isModalDisplayed.value = false
+    }
+  }
 )
 
 const getOutputLabel = (stepUid: string, key: string) => {
@@ -446,25 +544,6 @@ const getStepLabel = (key: string) => {
   return key
 }
 
-/** On path selection */
-const api = useAPI()
-
-const { logger } = useLogger()
-
-const onChangePathClick = async (options: OpenDialogOptions) => {
-  const paths = await api.execute('dialog:showOpenDialog', options, async (_, message) => {
-    const { type, data } = message
-    if (type === 'end') {
-      logger().info('end', data)
-    }
-  })
-
-  logger().info('paths', paths)
-  const p = paths.filePaths[0]
-
-  insertEditorEnd(`"${p}"`)
-}
-
 const paramType = computed(() => {
   return controlsToType(paramDefinition.value.control)
 })
@@ -474,24 +553,12 @@ const paramIcon = computed(() => {
 })
 
 const isExpectedValid = computed(() => {
-  return paramType.value === typeof resultValue.value
+  return paramType.value === typeof simpleInputValue.value
 })
 
 const expectedTooltip = computed(() => {
-  return `Expected: ${paramType.value}, got ${typeof resultValue.value}`
+  return `Expected: ${paramType.value}, got ${typeof simpleInputValue.value}`
 })
-
-const onParamSelectChange = (event: ListboxChangeEvent) => {
-  insertEditorEnd(`"${event.value.value}"`)
-}
-
-const onParamMultiSelectChange = (
-  event: Omit<ListboxChangeEvent, 'value'> & { value: { label: string; value: string }[] }
-) => {
-  const data = event.value.map((v) => v.value)
-
-  insertEditorEnd(`${JSON.stringify(data)}`)
-}
 </script>
 
 <style scoped lang="scss">
@@ -604,5 +671,37 @@ const onParamMultiSelectChange = (
 
 .required {
   color: red;
+}
+
+.code-editor-wrapper {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+
+  .code-editor-wrapper-inner {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+}
+
+.type-btn {
+  height: 18px !important;
+}
+
+.variable-list {
+  .variable {
+    &:hover {
+      cursor: pointer;
+      background-color: #f5f5f5;
+    }
+  }
+}
+
+.tooltip-icon {
+  font-size: 12px;
+  color: grey;
+  margin-left: 4px;
 }
 </style>

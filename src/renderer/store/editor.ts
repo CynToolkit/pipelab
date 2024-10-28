@@ -1,4 +1,4 @@
-import { computed, ref, toRaw } from 'vue'
+import { computed, ref } from 'vue'
 import {
   Block,
   BlockAction,
@@ -7,9 +7,17 @@ import {
   BlockLoop,
   SavedFile,
   savedFileMigrator,
+  SavedFileValidator,
   Steps
 } from '@@/model'
-import { Action, Condition, Event, Loop, PipelabNode, RendererNodeDefinition } from '@pipelab/plugin-core'
+import {
+  Action,
+  Condition,
+  Event,
+  Loop,
+  PipelabNode,
+  RendererNodeDefinition
+} from '@pipelab/plugin-core'
 import { Variable } from '@pipelab/core-app'
 import { defineStore, storeToRefs } from 'pinia'
 import get from 'get-value'
@@ -25,6 +33,7 @@ import { processGraph } from '@@/graph'
 import { useLogger } from '@@/logger'
 import { klona } from 'klona'
 import { create } from 'mutative'
+import { parse } from 'valibot'
 
 export type Context = Record<string, unknown>
 
@@ -83,7 +92,6 @@ export const useEditor = defineStore('editor', () => {
   const { logger } = useLogger()
 
   const filesStore = useFiles()
-  const { update } = filesStore
   const { files } = storeToRefs(filesStore)
 
   const id = useRouteParams<string>('id')
@@ -105,6 +113,9 @@ export const useEditor = defineStore('editor', () => {
   /** All the variables of the editor */
   const variables = ref<Array<Variable>>([])
 
+  /** All the environement variables supported for the editor */
+  const environements = ref<Array<any>>([])
+
   /** The API helper */
   // const api = useAPI()
 
@@ -112,18 +123,18 @@ export const useEditor = defineStore('editor', () => {
     return files.value.data[id.value]
   })
 
-  const savedFile = computed(() => {
-    return {
-      version: '2.0.0',
-      name: toRaw(name.value),
-      description: '',
-      canvas: {
-        blocks: toRaw(blocks.value),
-        triggers: toRaw(triggers.value)
-      },
-      variables: toRaw(variables.value)
-    } satisfies SavedFile
-  })
+  // const savedFile = computed(() => {
+  //   return {
+  //     version: '2.0.0',
+  //     name: toRaw(name.value),
+  //     description: '',
+  //     canvas: {
+  //       blocks: toRaw(blocks.value),
+  //       triggers: toRaw(triggers.value)
+  //     },
+  //     variables: toRaw(variables.value)
+  //   } satisfies SavedFile
+  // })
 
   // watchEffect(async () => {
   //   if (id.value === undefined) {
@@ -217,6 +228,7 @@ export const useEditor = defineStore('editor', () => {
           })
         }
       }
+
       // } else if (block.type === 'condition') {
       //   const definition = getNodeDefinition(block.origin.nodeId, block.origin.pluginId)
       //   const requiredParams = Object.keys(definition?.params ?? {})
@@ -256,19 +268,40 @@ export const useEditor = defineStore('editor', () => {
       debug: true
     })
 
-    name.value = data.name
-    description.value = data.description
+    // ensure all params are there
+    const finalData = create(data, (draft) => {
+      for (const block of draft.canvas.blocks) {
+        const definition = getNodeDefinition(block.origin.nodeId, block.origin.pluginId)
+        if (definition) {
+          const params = definition.node.params
+          for (const param of Object.keys(params)) {
+            if (!(param in block.params)) {
+              console.warn("adding mising param", param)
+              block.params[param] = {
+                editor: 'editor',
+                value: params[param].value
+              }
+            }
+          }
+        }
+      }
+    })
 
-    for (const variable of data.variables) {
+    await parse(SavedFileValidator, finalData)
+
+    name.value = finalData.name
+    description.value = finalData.description
+
+    for (const variable of finalData.variables) {
       addVariable(variable)
     }
 
-    for (const block of data.canvas.blocks) {
+    for (const block of finalData.canvas.blocks) {
       blocks.value.push(block)
       validate(block)
     }
 
-    for (const trigger of data.canvas.triggers) {
+    for (const trigger of finalData.canvas.triggers) {
       triggers.value.push(trigger)
       validate(trigger)
     }
@@ -379,6 +412,18 @@ export const useEditor = defineStore('editor', () => {
 
     if (nodeDefinition && pluginDefinition) {
       if (isActionDefinition(nodeDefinition)) {
+        console.log('nodeDefinition', nodeDefinition)
+
+        const createParams: BlockAction['params'] = {}
+        for (const [key, param] of Object.entries(nodeDefinition.params)) {
+          createParams[key] = {
+            editor: 'simple',
+            value: param.value
+          }
+        }
+
+        console.log('createParams', createParams)
+
         const node: BlockAction = {
           uid: nanoid(),
           type: nodeDefinition.type,
@@ -386,7 +431,7 @@ export const useEditor = defineStore('editor', () => {
             nodeId: nodeDefinition.id,
             pluginId: pluginDefinition.id
           },
-          params: {}
+          params: createParams
         }
         addNodeToBlock(node, path, insertAt)
       } /* else if (isConditionDefinition(nodeDefinition)) {
@@ -444,8 +489,8 @@ export const useEditor = defineStore('editor', () => {
   const addTriggerToBlock = (node: BlockEvent, path: string[], insertAt: number) => {
     const value = path.length === 0 ? triggers.value : get(triggers.value, path)
 
-    const firstPart = value.slice(0, insertAt)
-    const secondPart = value.slice(insertAt + 1)
+    // const firstPart = value.slice(0, insertAt)
+    // const secondPart = value.slice(insertAt + 1)
 
     const newValue = [
       ...value.slice(0, insertAt),
@@ -511,6 +556,27 @@ export const useEditor = defineStore('editor', () => {
     variables.value.push(variable)
   }
 
+  const removeVariable = (id: string) => {
+    const index = variables.value.findIndex((x) => x.id === id)
+    variables.value = [
+      ...variables.value.slice(0, index),
+      ...variables.value.slice(index + 1, undefined)
+    ]
+  }
+
+  const updateVariable = (variable: Variable) => {
+    variables.value = create(variables.value, (draft) => {
+      console.log('draft', draft)
+      for (let i = 0; i < draft.length; i += 1) {
+        console.log('draft[i]', draft[i])
+        if (draft[i].id === variable.id) {
+          draft[i] = klona(variable)
+        }
+      }
+      return draft
+    })
+  }
+
   const loadPreset = async (preset: string) => {
     if (!presets.value) {
       throw new Error('No presets')
@@ -528,6 +594,7 @@ export const useEditor = defineStore('editor', () => {
     nodes: blocks,
     triggers,
     variables,
+    environements,
     nodeDefinitions,
     activeNode,
     name,
@@ -554,6 +621,8 @@ export const useEditor = defineStore('editor', () => {
     addTriggerToBlock,
 
     addVariable,
+    updateVariable,
+    removeVariable,
     getPluginDefinition,
     getNodeDefinition,
     processGraph,

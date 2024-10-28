@@ -3,7 +3,18 @@ import type { Tagged } from 'type-fest'
 import { Preset, Steps } from './model'
 
 type Event<TYPE extends string, DATA> = { type: TYPE; data: DATA }
-type EndEvent<DATA> = { type: 'end'; data: DATA }
+type EndEvent<DATA> = {
+  type: 'end'
+  data:
+    | {
+        type: 'success'
+        result: DATA
+      }
+    | {
+        type: 'error'
+        ipcError: string
+      }
+}
 
 export type Presets = Record<string, { data: Preset }>
 
@@ -11,7 +22,7 @@ export type IpcDefinition = {
   'fs:read': [
     // input
     { path: string },
-    EndEvent<{ content: string }> | EndEvent<{ result: any }>
+    EndEvent<{ content: string }>
   ]
   'fs:write': [
     // input
@@ -44,7 +55,6 @@ export type IpcDefinition = {
       | Event<'progress', unknown>
       | Event<'progress', unknown>
       | EndEvent<{ outputs: Record<string, unknown> }>
-      | EndEvent<{ result: any }>
     )
   ]
   'condition:execute': [
@@ -58,7 +68,6 @@ export type IpcDefinition = {
       | Event<'progress', unknown>
       | Event<'progress', unknown>
       | EndEvent<{ outputs: Record<string, unknown>; value: boolean }>
-      | EndEvent<{ result: any }>
     )
   ]
   'constants:get': [void, EndEvent<{ result: { userData: string } }>]

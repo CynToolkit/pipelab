@@ -1,13 +1,14 @@
 import {
   Action,
-  ActionRunner,
   ActionRunnerData,
   InputsDefinition,
   ParamsToInput,
   runWithLiveLogs
 } from '@pipelab/plugin-core'
 import { script } from './assets/script.js'
+import v from 'valibot'
 
+// @ts-expect-error import.meta
 const isCI = process.env.CI === 'true' || import.meta.env.CI === 'true'
 
 export const sharedParams = {
@@ -15,6 +16,7 @@ export const sharedParams = {
     label: 'Username',
     value: '',
     required: false,
+    description: 'Your Construct username',
     control: {
       type: 'input',
       options: {
@@ -23,6 +25,7 @@ export const sharedParams = {
     }
   },
   password: {
+    description: 'Your Construct password',
     control: {
       type: 'input',
       options: {
@@ -34,17 +37,20 @@ export const sharedParams = {
     label: 'Password'
   },
   version: {
+    description: 'The Construct version you want to use',
     label: 'Version',
     required: false,
     control: {
       type: 'input',
       options: {
-        kind: 'text'
+        kind: 'text',
+        validator: 'construct-version'
       }
     },
     value: undefined as string | undefined
   },
   headless: {
+    description: 'Whether to show the browser while export',
     required: false,
     control: {
       type: 'boolean'
@@ -146,4 +152,9 @@ export const exportc3p = async <ACTION extends Action>(
   log('setting output result to ', result)
 
   setOutput('folder', result)
+}
+
+export const constructVersionValidator = (options: any) => {
+  void options
+  return v.pipe(v.string(), v.regex(/^\d+(-\d+)?$/, 'Invalid version'))
 }

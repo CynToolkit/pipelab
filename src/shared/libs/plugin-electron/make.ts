@@ -1,6 +1,11 @@
 import { createActionRunner } from '@pipelab/plugin-core'
-import { forge, createProps } from './forge'
+import { forge, createMakeProps } from './forge'
 
-export const makeRunner = createActionRunner<ReturnType<typeof createProps>>(async (options) => {
-  await forge('make', options)
-})
+export const makeRunner = createActionRunner<ReturnType<typeof createMakeProps>>(
+  async (options) => {
+    const appFolder = options.inputs['input-folder']
+
+    // @ts-expect-error options is not really compatible
+    await forge('make', appFolder, options)
+  }
+)

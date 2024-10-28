@@ -28,7 +28,7 @@ import { useAppStore } from '@renderer/store/app'
 import { walker } from '@renderer/utils/graph'
 import { SavedFile } from '@@/model'
 import { IconType } from '@pipelab/plugin-core'
-import { PropType, Ref, ref, toRefs, watchEffect } from 'vue'
+import { PropType, ref, toRefs, watchEffect } from 'vue'
 import PluginIcon from './nodes/PluginIcon.vue'
 import { EnhancedFile } from '@@/model'
 
@@ -104,6 +104,10 @@ const onOpen = () => {
   .description {
     font-size: 0.875rem;
     color: #aaa;
+
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .name {

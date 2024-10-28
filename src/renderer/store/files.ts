@@ -1,6 +1,6 @@
 import { SavedFile } from "@@/model";
 import { defineStore } from "pinia";
-import { readonly, ref } from "vue";
+import { ref } from "vue";
 import { Draft, create } from 'mutative'
 import { createConfig } from "@renderer/utils/config";
 import { klona } from 'klona'
@@ -16,7 +16,7 @@ export interface FileRepo {
 }
 
 export const useFile = (name: string) => {
-  const file = ref<File>()
+  // const file = ref<File>()
 
   const { load, save } = createConfig<Record<string, File>>(name)
 
@@ -44,8 +44,8 @@ export const useFiles = defineStore('files', () => {
   const load = async () => {
     const data = await loadConfig()
 
-    if ('version' in data.result) {
-      files.value = data.result
+    if (data.type === 'success') {
+      files.value = data.result.result
     } else {
       files.value = defaultFileRepo
     }
