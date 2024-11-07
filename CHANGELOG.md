@@ -1,5 +1,11 @@
 # @pipelab/app
 
+## 1.4.4
+
+### Patch Changes
+
+- a2489dd: fix electron configuration
+
 ## 1.4.3
 
 ### Patch Changes
