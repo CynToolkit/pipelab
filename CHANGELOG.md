@@ -1,5 +1,11 @@
 # @pipelab/app
 
+## 1.4.5
+
+### Patch Changes
+
+- 3ea4f00: fix tests
+
 ## 1.4.4
 
 ### Patch Changes
