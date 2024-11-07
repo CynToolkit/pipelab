@@ -1,4 +1,4 @@
-import { computed, ref } from 'vue'
+import { computed, ref, toRaw } from 'vue'
 import {
   Block,
   BlockAction,
@@ -427,7 +427,7 @@ export const useEditor = defineStore('editor', () => {
         const createParams: BlockAction['params'] = {}
         for (const [key, param] of Object.entries(nodeDefinition.params)) {
           // ensure the value is converted to code expression
-          let val = param.value
+          let val = klona(toRaw(param.value))
           if (typeof val === 'string') {
             val = `"${val}"`
           }

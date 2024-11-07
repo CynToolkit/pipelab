@@ -30,7 +30,7 @@ export default createNodeDefinition({
         'Create Installer',
         'Create a distributable installer for your chosen platform',
         '',
-        "`Build package for ${fmt.param(params['input-folder'], 'primary')}`"
+        "`Build package for ${fmt.param(params['input-folder'], 'primary', 'Input folder not set')}`"
       ),
       runner: makeRunner
       // disabled: platform === 'linux' ? 'Electron is not supported on Linux' : undefined
@@ -42,7 +42,7 @@ export default createNodeDefinition({
         'Prepare App Bundle',
         'Gather all necessary files and prepare your app for distribution, creating a platform-specific bundle.',
         '',
-        "`Package app from ${fmt.param(params['input-folder'], 'primary')}`",
+        "`Package app from ${fmt.param(params['input-folder'], 'primary', 'Input folder not set')}`",
       ),
       runner: packageRunner
     },
@@ -52,7 +52,7 @@ export default createNodeDefinition({
         'Preview app',
         'Package and preview your app from an URL',
         '',
-        "`Preview app from ${fmt.param(params['input-url'], 'primary')}`",
+        "`Preview app from ${fmt.param(params['input-url'], 'primary', 'Input folder not set')}`",
       ),
       runner: previewRunner
     },
