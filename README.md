@@ -74,3 +74,9 @@ graph TD
     class DesktopApp,PipelabPlugin,SteamPlugin,CoreMessaging pipelab;
     class SteamPlugin,Godot,GDevelop,Tauri,Webview,Itch,Poki todo;
 ```
+
+# Development
+## Enable source maps
+```bash
+NODE_OPTIONS=--enable-source-maps pnpm xxx
+```
