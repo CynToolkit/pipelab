@@ -13,7 +13,7 @@ export const uploadToSteam = createAction({
   name: 'Upload to Steam',
   description: 'Upload a folder to Steam',
   icon: '',
-  displayString: '`Upload ${params.folder} to steam`',
+  displayString: "`Upload ${fmt.param(params['folder'], 'primary')} to steam`",
   meta: {},
   params: {
     sdk: {

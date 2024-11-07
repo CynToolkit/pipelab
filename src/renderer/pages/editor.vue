@@ -213,9 +213,10 @@ const {
   errors,
   stepsDisplay,
   id,
-  isRunning
+  logLines,
+  isRunning,
 } = storeToRefs(instance)
-const { processGraph, loadSavedFile, setIsRunning } = instance
+const { processGraph, loadSavedFile, setIsRunning, pushLine } = instance
 
 const app = useAppStore()
 const { pluginDefinitions } = storeToRefs(app)
@@ -284,12 +285,22 @@ const run = async () => {
           steps
         })
       } else  */ if (node.type === 'action') {
-          const result = await api.execute('action:execute', {
-            nodeId: node.origin.nodeId,
-            pluginId: node.origin.pluginId,
-            params,
-            steps
-          })
+          const result = await api.execute(
+            'action:execute',
+            {
+              nodeId: node.origin.nodeId,
+              pluginId: node.origin.pluginId,
+              params,
+              steps
+            },
+            async (event, data) => {
+              console.log('event', event)
+              console.log('data', data)
+              if (data.type === 'log') {
+                pushLine(node.uid, data.data)
+              }
+            }
+          )
           return result
         } else {
           throw new Error('Unhandled type ' + node.type)

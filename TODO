@@ -43,13 +43,13 @@ https://remixicon.com/
 ---
 
 Tests:
-- View logs in realtime
-- env (= copy variables)
-- handle pipeline error gracefully
-    - display what happened in dialog
-- handle steamworks
+☐ View logs in realtime: started
+☐ env (= copy variables)
+☐ handle pipeline error gracefully
+    ☐ display what happened in dialog
+☐ handle steamworks
 
-- prepare electron + install package
-- process quickjs in webworker
+☐ prepare electron + install package
+☐ process quickjs in webworker
 
 

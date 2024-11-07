@@ -3,7 +3,7 @@
 }
 
 .subtitle .param {
-  flex: 1 0 auto;
+  // flex: 1 0 auto;
 }
 
 .editor .subtitle .param {
@@ -66,6 +66,11 @@
   margin: 2px;
   border-radius: 4px;
   cursor: pointer;
+}
+
+.step-missing {
+  color: red;
+  font-weight: bold;
 }
 
 .bold {

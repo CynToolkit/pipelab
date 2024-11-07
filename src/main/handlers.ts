@@ -140,6 +140,9 @@ export const registerIPCHandlers = () => {
 
     const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, value)
 
+    console.log('canceled', canceled)
+    console.log('filePath', filePath)
+
     send({
       type: 'end',
       data: {
@@ -207,7 +210,7 @@ export const registerIPCHandlers = () => {
 
     const mainWindow = BrowserWindow.fromWebContents(event.sender)
 
-    const result = await handleActionExecute(nodeId, pluginId, params, mainWindow)
+    const result = await handleActionExecute(nodeId, pluginId, params, mainWindow, send)
 
     await send({
       data: result,
@@ -231,12 +234,29 @@ export const registerIPCHandlers = () => {
     })
   })
 
+  const ensure = async (filesPath: string) => {
+    // create parent folder
+    await mkdir(dirname(filesPath), {
+      recursive: true
+    })
+
+    // ensure file exist
+    try {
+      await access(filesPath)
+    } catch {
+      // File doesn't exist, create it
+      await writeFile(filesPath, '{}') // json
+    }
+  }
+
   handle('config:load', async (_, { send, value }) => {
     const { config } = value
 
     const userData = app.getPath('userData')
 
     const filesPath = join(userData, 'config', config + '.json')
+
+    await ensure(filesPath)
 
     let content = '{}'
     try {
@@ -265,18 +285,7 @@ export const registerIPCHandlers = () => {
 
     const filesPath = join(userData, 'config', config + '.json')
 
-    // create parent folder
-    await mkdir(dirname(filesPath), {
-      recursive: true
-    })
-
-    // ensure file exist
-    try {
-      await access(filesPath)
-    } catch {
-      // File doesn't exist, create it
-      await writeFile(filesPath, '{}') // json
-    }
+    await ensure(filesPath)
 
     await writeFile(filesPath, data, 'utf8')
 

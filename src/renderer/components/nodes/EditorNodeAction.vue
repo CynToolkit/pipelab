@@ -6,10 +6,11 @@
       :class="{
         active: activeNode?.uid === value.uid,
         error: Object.keys(errors).length > 0,
-        disabled: value.disabled,
+        disabled: value.disabled
       }"
+      @click="showSidebar = true"
     >
-      <div class="hover-overlay">
+      <!-- <div class="hover-overlay">
         <div class="hover-overlay-content">
           <div class="left">
             <Button @click="swapNodes(index, 'up')">
@@ -53,7 +54,7 @@
             </Button>
           </div>
         </div>
-      </div>
+      </div> -->
 
       <div class="vertical">
         <PluginIcon :icon="pluginDefinition?.icon"></PluginIcon>
@@ -65,7 +66,41 @@
           <div class="subtitle" v-html="subtitle"></div>
         </div>
 
-        <span class="type-icon pi pi-play"></span>
+        <div class="actions">
+          <Button
+            type="button"
+            icon="pi pi-ellipsis-v"
+            size="small"
+            text
+            aria-haspopup="true"
+            class="small-btn"
+            aria-controls="overlay_menu"
+            @click.stop.prevent="toggle"
+          />
+          <Menu id="overlay_menu" ref="menu" :model="items" :popup="true">
+            <template #itemicon="{ item }">
+              <i class="mdi" :class="[item.icon]"></i>
+            </template>
+          </Menu>
+
+          <Button
+            v-if="hasErrored"
+            class="small-btn"
+            icon="pi pi-exclamation-triangle"
+            size="small"
+            text
+            @click.stop.prevent="isLogDialogOpened = true"
+          />
+          <Button
+            v-else-if="hasLines"
+            class="small-btn"
+            icon="pi pi-exclamation-triangle"
+            size="small"
+            text
+            @click.stop.prevent="isLogDialogOpened = true"
+          />
+        </div>
+        <!-- <span class="type-icon pi pi-play"></span> -->
       </div>
 
       <Drawer v-model:visible="showSidebar" class="w-full md:w-full lg:w-7 xl:w-5" position="right">
@@ -103,6 +138,25 @@
       :path="path"
       @add-node="addNode"
     ></AddNodeButton>
+
+    <Dialog
+      v-model:visible="isLogDialogOpened"
+      modal
+      :style="{ width: '80vw' }"
+      :breakpoints="{ '575px': '90vw' }"
+    >
+      <template #header>
+        <div class="flex flex-column w-full">
+          <p class="text-xl text-center">Logs</p>
+        </div>
+      </template>
+
+      <div class="logs">
+        <div v-for="(line, index) of nodeLogLines" :key="index" class="line">
+          <div v-for="(cell, index2) of line" :key="index2" class="cell">{{ cell }}</div>
+        </div>
+      </div>
+    </Dialog>
   </div>
 </template>
 
@@ -120,8 +174,8 @@ import DOMPurify from 'dompurify'
 import { makeResolvedParams } from '@renderer/utils/evaluator'
 import { ValidationError } from '@renderer/models/error'
 import AddNodeButton from '../AddNodeButton.vue'
-import { Variable } from '@@/libs/core-app'
 import { ValueOf } from 'type-fest'
+import { MenuItem } from 'primevue/menuitem'
 
 const props = defineProps({
   value: {
@@ -148,7 +202,126 @@ const props = defineProps({
   }
 })
 
-const { value, steps } = toRefs(props)
+const menu = ref()
+const { value, steps, index } = toRefs(props)
+
+const isLogDialogOpened = ref(false)
+
+/*
+<div class="left">
+  <Button @click="swapNodes(index, 'up')">
+    <template #icon>
+      <i class="mdi mdi-arrow-up"></i>
+    </template>
+  </Button>
+  <Button @click="swapNodes(index, 'down')">
+    <template #icon>
+      <i class="mdi mdi-arrow-down"></i>
+    </template>
+  </Button>
+</div>
+<div class="center">
+  <Button @click="showSidebar = true">
+    <template #icon>
+      <i class="mdi mdi-pencil"></i>
+    </template>
+  </Button>
+</div>
+<div class="right">
+  <Button v-if="value.disabled" @click="enableNode(value)">
+    <template #icon>
+      <i class="mdi mdi-toggle-switch-off-outline"></i>
+    </template>
+  </Button>
+  <Button v-else @click="disableNode(value)">
+    <template #icon>
+      <i class="mdi mdi-toggle-switch"></i>
+    </template>
+  </Button>
+  <Button @click="cloneNode(value, index + 1)">
+    <template #icon>
+      <i class="mdi mdi-content-copy"></i>
+    </template>
+  </Button>
+  <Button @click="removeNode(value.uid)">
+    <template #icon>
+      <i class="mdi mdi-trash-can"></i>
+    </template>
+  </Button>
+</div>
+          */
+const items = computed<MenuItem[]>(() => [
+  {
+    label: 'Options',
+    items: [
+      {
+        label: 'Edit',
+        icon: 'mdi-pencil',
+        command: () => {
+          showSidebar.value = true
+        }
+      },
+      {
+        separator: true
+      },
+      {
+        label: 'Move up',
+        icon: 'mdi-arrow-up',
+        command: () => {
+          swapNodes(index.value, 'up')
+        }
+      },
+      {
+        label: 'Move down',
+        icon: 'mdi-arrow-down',
+        command: () => {
+          swapNodes(index.value, 'down')
+        }
+      },
+      {
+        separator: true
+      },
+      {
+        label: 'Enable',
+        icon: 'mdi-toggle-switch-off-outline',
+        visible: value.value.disabled,
+        command: () => {
+          enableNode(value.value)
+        }
+      },
+      {
+        label: 'Disable',
+        icon: 'mdi-toggle-switch',
+        visible: !value.value.disabled,
+        command: () => {
+          disableNode(value.value)
+        }
+      },
+      {
+        label: 'Duplicate',
+        icon: 'mdi-content-copy',
+        command: () => {
+          cloneNode(value.value, index.value + 1)
+        }
+      },
+      {
+        separator: true
+      },
+      {
+        label: 'Delete',
+        icon: 'mdi-trash-can',
+        class: 'danger',
+        command: () => {
+          removeNode(value.value.uid)
+        }
+      }
+    ]
+  }
+])
+
+const toggle = (event: MouseEvent) => {
+  menu.value.toggle(event)
+}
 
 const $node = ref<HTMLDivElement>()
 
@@ -166,7 +339,7 @@ const {
   disableNode,
   enableNode
 } = editor
-const { activeNode, variables } = storeToRefs(editor)
+const { activeNode, variables, logLines } = storeToRefs(editor)
 
 const nodeDefinition = computed(() => {
   return getNodeDefinition(value.value.origin.nodeId, value.value.origin.pluginId).node as Action
@@ -203,7 +376,6 @@ const resolvedParams = shallowRef<Record<string, string>>({})
 watchDebounced(
   [value, steps, variablesDisplay],
   async () => {
-
     // const variables = await variableToFormattedVariable(vm, data.variables)
     // console.log('variables', variables)
 
@@ -212,7 +384,7 @@ watchDebounced(
         params: value.value.params,
         steps: steps.value,
         context: {},
-        variables: variablesDisplay.value,
+        variables: variablesDisplay.value
       },
       (item) => {
         // const cleanOutput = DOMPurify.sanitize(item)
@@ -252,6 +424,22 @@ watchDebounced(
 )
 
 const showSidebar = ref(false)
+
+const nodeLogLines = computed(() => {
+  const item = logLines.value[value.value.uid]
+  if (item) {
+    return item
+  }
+  return []
+})
+
+const hasLines = computed(() => {
+  return nodeLogLines.value.length > 0
+})
+
+const hasErrored = computed(() => {
+  return false
+})
 </script>
 
 <style scoped lang="scss">
@@ -266,9 +454,10 @@ const showSidebar = ref(false)
 }
 
 .node-action {
+  cursor: pointer;
   position: relative;
   border: 1px solid #c2c9d1;
-  padding: 16px;
+  padding: 4px 16px 4px 16px;
   border-radius: 4px;
   width: fit-content;
   min-width: 300px;
@@ -278,7 +467,7 @@ const showSidebar = ref(false)
   &.disabled {
     // background-color: #eee;
     // color: white;
-    opacity: .5;
+    opacity: 0.5;
   }
 
   &:hover {
@@ -307,21 +496,34 @@ const showSidebar = ref(false)
   flex-direction: row;
   gap: 16px;
   align-items: center;
+  width: 100%;
 
   .content {
     display: flex;
     flex-direction: column;
     justify-content: center;
+    flex: 1;
+    padding: 12px;
+
+    .title {
+      font-size: 1.2rem;
+    }
 
     .subtitle {
-      font-size: 0.75rem;
+      font-size: 1rem;
       color: #999;
       height: 32px;
       flex: 1;
       display: flex;
+      flex-wrap: wrap;
       align-items: center;
       gap: 2px;
     }
+  }
+
+  .actions {
+    display: flex;
+    flex-direction: column;
   }
 }
 
@@ -362,6 +564,26 @@ const showSidebar = ref(false)
       button {
         // border: 1px solid #5f60b7;
       }
+    }
+  }
+}
+
+.small-btn {
+  // --p-button-padding-y: 0;
+  // --p-button-sm-padding-y: 0;
+}
+
+.danger {
+  color: red;
+}
+
+.logs {
+  .line {
+    display: flex;
+    gap: 4px;
+
+    .cell {
+      flex: 0 0 auto;
     }
   }
 }

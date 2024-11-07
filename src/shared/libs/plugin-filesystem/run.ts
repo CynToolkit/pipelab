@@ -11,6 +11,7 @@ export const run = createAction({
   // displayString: displayString,
   params: {
     command: {
+      description: 'The command to run',
       label: 'Command',
       value: '',
       control: {
@@ -21,6 +22,7 @@ export const run = createAction({
       }
     },
     parameters: {
+      description: "The command's parameters",
       label: 'Arguments',
       value: [],
       control: {

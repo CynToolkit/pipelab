@@ -6,7 +6,7 @@ import { autocompletion } from '@codemirror/autocomplete'
 import { javascript } from '@codemirror/lang-javascript'
 import { createEventHook } from '@vueuse/core'
 import { tomorrow } from 'thememirror'
-import { placeholders } from './code-editor/step-plugin'
+import { stepsPlaceholders } from './code-editor/step-plugin'
 
 export const createCodeEditor = (
   element: Ref<HTMLDivElement | undefined>,
@@ -41,7 +41,6 @@ export const createCodeEditor = (
         javascript(),
         autocompletion(),
         history(),
-        placeholders,
         tomorrow,
         EditorView.updateListener.of((v: ViewUpdate) => {
           if (v.docChanged) {
