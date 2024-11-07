@@ -24,7 +24,9 @@ export const makeResolvedParams = async (
       const output = await vm.run(parameterCodeValue, {
         steps: data.steps,
         params: {},
-        variables: data.variables
+        variables: data.variables,
+        extraCode: `
+        `
       })
 
       const outputResult = onItem(output)
@@ -32,6 +34,7 @@ export const makeResolvedParams = async (
       result[paramName] = outputResult
     } catch (e) {
       logger().error('error', e)
+      result[paramName] = ''
     }
   }
   return result

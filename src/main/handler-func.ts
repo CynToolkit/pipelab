@@ -17,6 +17,7 @@ import { useLogger } from '@@/logger'
 import { BrowserWindow } from 'electron'
 import { usePluginAPI } from './api'
 import { BlockCondition } from '@@/model'
+import { HandleListenerSendFn } from './handlers'
 
 const checkParams = (definitionParams: InputsDefinition, elementParams: Record<string, string>) => {
   // get a list of all required params
@@ -46,7 +47,7 @@ const checkParams = (definitionParams: InputsDefinition, elementParams: Record<s
 export const handleConditionExecute = async (
   nodeId: string,
   pluginId: string,
-  params: BlockCondition['params'],
+  params: BlockCondition['params']
   // { send }: { send: HandleListenerSendFn<'condition:execute'> }
 ): Promise<End<'condition:execute'>> => {
   const { plugins } = usePlugins()
@@ -116,7 +117,7 @@ export const handleActionExecute = async (
   pluginId: string,
   params: Record<string, string>,
   mainWindow: BrowserWindow | undefined,
-  // { send }: { send: HandleListenerSendFn<'action:execute'> }
+  send: HandleListenerSendFn<'action:execute'>
 ): Promise<End<'action:execute'>> => {
   const { plugins } = usePlugins()
   const { logger } = useLogger()
@@ -160,7 +161,12 @@ export const handleActionExecute = async (
       await node.runner({
         inputs: resolvedInputs,
         log: (...args) => {
-          logger().info(`[${node.node.name}]`, ...args)
+          const logArgs = [`[${node.node.name}]`, ...args]
+          logger().info(...logArgs)
+          send({
+            type: 'log',
+            data: logArgs
+          })
         },
         setOutput: (key, value) => {
           outputs[key] = value

@@ -43,14 +43,13 @@ https://remixicon.com/
 ---
 
 Tests:
-✔ Switch securely from "editor" to "simple" + remember last editor @started(24-10-10 07:40) @done(24-10-24 07:33) @lasted(1w6d23h53m36s)
-- View logs in realtime
-- env (= copy variables)
-- handle pipeline error gracefully
-    - display what happened in dialog
-- handle steamworks
+☐ View logs in realtime: started
+☐ env (= copy variables)
+☐ handle pipeline error gracefully
+    ☐ display what happened in dialog
+☐ handle steamworks
 
-- prepare electron + install package
-- process quickjs in webworker
+☐ prepare electron + install package
+☐ process quickjs in webworker
 
 

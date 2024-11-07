@@ -116,8 +116,18 @@ export const useEditor = defineStore('editor', () => {
   /** All the environement variables supported for the editor */
   const environements = ref<Array<any>>([])
 
+  /** All log lines relative to their plugin instance */
+  const logLines = ref<Record<string, unknown[][]>>({})
+
   /** The API helper */
   // const api = useAPI()
+
+  const pushLine = (nodeUid: string, data: unknown[]) => {
+    if (!logLines.value[nodeUid]) {
+      logLines.value[nodeUid] = []
+    }
+    logLines.value[nodeUid].push(data)
+  }
 
   const currentFilePointer = computed(() => {
     return files.value.data[id.value]
@@ -165,7 +175,7 @@ export const useEditor = defineStore('editor', () => {
 
           for (const [key, output] of Object.entries(outputs)) {
             result[node.uid]['outputs'][key] =
-              `<div class="step">${pluginDef.node.name} → ${output.label}</div>`
+              `<span class="step">${pluginDef.node.name} → ${output.label}</span>`
           }
         }
       }
@@ -416,9 +426,15 @@ export const useEditor = defineStore('editor', () => {
 
         const createParams: BlockAction['params'] = {}
         for (const [key, param] of Object.entries(nodeDefinition.params)) {
+          // ensure the value is converted to code expression
+          let val = param.value
+          if (typeof val === 'string') {
+            val = `"${val}"`
+          }
+
           createParams[key] = {
             editor: 'simple',
-            value: param.value
+            value: val
           }
         }
 
@@ -605,6 +621,9 @@ export const useEditor = defineStore('editor', () => {
     stepsDisplay,
 
     currentFilePointer,
+
+    pushLine,
+    logLines,
 
     setActiveNode,
     setBlockValue,

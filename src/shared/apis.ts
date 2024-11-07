@@ -2,7 +2,7 @@ import { RendererPluginDefinition } from '@pipelab/plugin-core'
 import type { Tagged } from 'type-fest'
 import { Preset, Steps } from './model'
 
-type Event<TYPE extends string, DATA> = { type: TYPE; data: DATA }
+type Event<TYPE extends string, DATA> = { type: TYPE; data: DATA } | { type: 'log'; data: unknown[] }
 type EndEvent<DATA> = {
   type: 'end'
   data:

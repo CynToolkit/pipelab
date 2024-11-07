@@ -1,5 +1,14 @@
 # @pipelab/app
 
+## 1.4.3
+
+### Patch Changes
+
+- improvements
+  add log support
+  fix config loading
+  fix step placeholder in parameter editor
+
 ## 1.4.1
 
 ### Patch Changes

@@ -213,6 +213,7 @@ import { Variable } from '@@/libs/core-app'
 import { variableToFormattedVariable } from '@renderer/composables/variables'
 import { useConfirm } from 'primevue/useconfirm'
 import { klona } from 'klona'
+import { stepsPlaceholders } from '@renderer/utils/code-editor/step-plugin'
 
 // @ts-expect-error tsconfig
 const vm = await createQuickJs()
@@ -259,8 +260,7 @@ const props = defineProps<{
 //   }
 // })
 
-const { paramKey, paramDefinition, steps, variables } = toRefs(props)
-const { param } = toRefs(props)
+const { paramKey, paramDefinition, steps, variables, param } = toRefs(props)
 
 const confirm = useConfirm()
 
@@ -375,7 +375,12 @@ const {
 } = createCodeEditor($codeEditorText, [
   javascriptLanguage.data.of({
     autocomplete: myCompletions
-  })
+  }),
+  stepsPlaceholders({
+    param,
+    steps,
+    variables,
+  }),
 ])
 
 const doCodeEditorUpdate = throttle(async (newValue) => {
