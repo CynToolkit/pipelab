@@ -1,5 +1,7 @@
 # Pipelab
 
+![logo](./readme/full_white_bg_black_text.png)
+
 ## What is Pipelab?
 
 A visual tool to create task automation workflows.
