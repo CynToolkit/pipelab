@@ -5,6 +5,17 @@
       "version": "22.4"
     },
     "ghcr.io/devcontainers-contrib/features/corepack:1": {},
-    "ghcr.io/devcontainers-contrib/features/tsx:1": {}
+    "ghcr.io/devcontainers-contrib/features/tsx:1": {},
+    "ghcr.io/sebst/devcontainer-features/desktop-novnc:0": {},
+    "ghcr.io/sebst/devcontainer-features/desktop-fluxbox:0": {},
+    "ghcr.io/devcontainers/features/desktop-lite:1": {}
+  },
+  "forwardPorts": [
+    6080
+  ],
+  "portsAttributes": {
+    "6080": {
+      "label": "desktop"
+    }
   }
 }
