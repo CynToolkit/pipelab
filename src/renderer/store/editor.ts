@@ -228,6 +228,14 @@ export const useEditor = defineStore('editor', () => {
     const errors: ValidationError[] = []
     if (block.type === 'action') {
       const definition = getNodeDefinition(block.origin.nodeId, block.origin.pluginId)
+      if (!definition) {
+        errors.push({
+          type: 'missing',
+          param: block.origin.nodeId + ':' + block.origin.pluginId
+        })
+        logger().warn(`Missing required node "${block.origin.nodeId}:${block.origin.pluginId}"`)
+        return errors
+      }
       const requiredParams = Object.entries(definition.node?.params ?? {})
       for (const [key, param] of requiredParams) {
         if (isRequired(param) && !(key in block.params)) {

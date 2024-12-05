@@ -27,6 +27,7 @@ export const newProjectPreset: PresetFn = async () => {
   }
 
   return {
-    data
+    data,
+    hightlight: true
   }
 }

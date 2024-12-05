@@ -13,10 +13,10 @@ export const presets = async () => {
   const testC3UnzipVal = await testC3Unzip()
   const testC3OfflineVal = await testC3Offline()
   return {
+    newProject: newProjectVal,
     demo: demoPresetVal,
     if: ifPresetVal,
     loop: loopPresetVal,
-    newProject: newProjectVal,
     testC3Unzip: testC3UnzipVal,
     testC3Offline: testC3OfflineVal,
   }
