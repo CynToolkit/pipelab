@@ -270,7 +270,7 @@ export const savedFileMigrator = createMigrator<SavedFile>({
   ]
 })
 
-export type PresetFn = () => Promise<{ data: SavedFile }>
+export type PresetFn = () => Promise<{ data: SavedFile; hightlight?: boolean }>
 export type Preset = SavedFile
 
 export type Steps = Record<

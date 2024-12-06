@@ -52,4 +52,5 @@ Tests:
 ☐ prepare electron + install package
 ☐ process quickjs in webworker
 
-
+Electron not working anymore ?
+Electron Export need platform and arch now ??

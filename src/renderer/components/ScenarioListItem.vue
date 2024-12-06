@@ -26,7 +26,7 @@
 <script lang="ts" setup>
 import { useAppStore } from '@renderer/store/app'
 import { walker } from '@renderer/utils/graph'
-import { SavedFile } from '@@/model'
+import { Origin, SavedFile } from '@@/model'
 import { IconType } from '@pipelab/plugin-core'
 import { PropType, ref, toRefs, watchEffect } from 'vue'
 import PluginIcon from './nodes/PluginIcon.vue'
@@ -53,14 +53,17 @@ const { scenario } = toRefs(props)
 const appStore = useAppStore()
 const { getPluginDefinition } = appStore
 
-const icons = ref<IconType[]>([])
+const icons = ref<(IconType & { origin: Origin })[]>([])
 
 watchEffect(async () => {
-  const newIcons: IconType[] = []
+  const newIcons: (IconType & { origin: Origin })[] = []
   await walker(scenario.value.content.canvas.blocks, async (node) => {
     const def = getPluginDefinition(node.origin.pluginId)
     if (def) {
-      newIcons.push(def.icon)
+      newIcons.push({
+        origin: node.origin,
+        ...def.icon
+      })
     }
   })
   if (newIcons.length > 4) {
@@ -68,12 +71,19 @@ watchEffect(async () => {
       ...newIcons.slice(0, 3),
       {
         type: 'icon',
-        icon: 'mdi-plus'
+        icon: 'mdi-plus',
+        origin: {
+          nodeId: '0',
+          pluginId: '0'
+        }
       }
     ]
   } else {
     icons.value = newIcons
   }
+
+  console.log('icons.value', icons.value)
+  icons.value = icons.value.filter(x => icons.value.map(y => y.origin).indexOf(x) >= 0)
 })
 
 const onDelete = () => {

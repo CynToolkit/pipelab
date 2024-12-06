@@ -266,12 +266,10 @@ exec "${process.execPath}" "$@"
               node.origin.nodeId,
               node.origin.pluginId,
               params,
-              mainWindow
-              // {
-              //   send: (data) => {
-              //     logger().info('send', data)
-              //   }
-              // }
+              mainWindow,
+              (data) => {
+                logger().info('send', data)
+              }
             )
           } else {
             throw new Error('Unhandled type ' + node.type)

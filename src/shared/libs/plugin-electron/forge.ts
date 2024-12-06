@@ -109,7 +109,7 @@ const params = {
   },
   configuration: {
     label: 'Electron configuration',
-    value: {} as Partial<ElectronConfiguration>,
+    value: undefined as Partial<ElectronConfiguration> | undefined,
     control: {
       type: 'json'
     }
