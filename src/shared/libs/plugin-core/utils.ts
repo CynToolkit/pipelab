@@ -34,10 +34,29 @@ export const runWithLiveLogs = async (
     })
 
     subprocess.on('error', (error: Error) => {
+      log('error', error)
       return reject(error)
     })
 
+    subprocess.on('close', (code: number) => {
+      log('close', code)
+      hooks?.onExit?.(code)
+
+      if (code === 0) {
+        return resolve()
+      } else {
+        return reject(new Error(`Command exited with non-zero code: ${code}`))
+      }
+    })
+
+    subprocess.on('disconnect', () => {
+      log('disconnect')
+      hooks?.onExit?.(0)
+      return resolve()
+    })
+
     subprocess.on('exit', (code: number) => {
+      log('exit', code)
       hooks?.onExit?.(code)
 
       if (code === 0) {

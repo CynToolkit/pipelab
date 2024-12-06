@@ -342,7 +342,11 @@ const {
 const { activeNode, variables, logLines } = storeToRefs(editor)
 
 const nodeDefinition = computed(() => {
-  return getNodeDefinition(value.value.origin.nodeId, value.value.origin.pluginId).node as Action
+  const def = getNodeDefinition(value.value.origin.nodeId, value.value.origin.pluginId)
+  if (def) {
+    return def.node as Action
+  }
+  return undefined
 })
 
 const pluginDefinition = computed(() => {

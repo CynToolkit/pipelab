@@ -71,6 +71,60 @@
     </div>
 
     <Dialog
+      v-model:visible="isNewProjectModalVisible"
+      modal
+      :style="{ width: '75vw' }"
+      :breakpoints="{ '575px': '90vw' }"
+    >
+      <template #header>
+        <div class="flex flex-column w-full">
+          <p class="text-xl text-center">New Project</p>
+        </div>
+      </template>
+
+      <div class="new-project">
+        <div class="grid justify-content-center">
+          <div class="col-12 xl:col-6 w-full">
+            <div class="h-full w-full">
+              <label>
+                Storage
+                <Select
+                  v-model="newProjectType"
+                  class="w-full"
+                  option-label="label"
+                  option-value="value"
+                  :options="newProjectTypes"
+                >
+                </Select>
+              </label>
+
+              <div class="location" v-if="newProjectType === 'local'">
+                <FileInput>azazaza</FileInput>
+              </div>
+
+              <div class="presets">
+                <div
+                  v-for="(preset, key) of newProjectPresets"
+                  :key="key"
+                  :class="{ active: newProjectPreset === key, highlight: preset.hightlight }"
+                  class="preset"
+                  @click="newProjectPreset = key"
+                >
+                  <h3>{{ preset.data.name }}</h3>
+                  <div>{{ preset.data.description }}</div>
+                </div>
+              </div>
+
+              <div class="buttons">
+                <Button @click="onNewFileCreation">Create project</Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Dialog>
+
+    <Dialog
       v-model:visible="isAuthModalVisible"
       modal
       :style="{ width: '30vw' }"
@@ -253,6 +307,7 @@ import { email, minLength, nonEmpty, object, pipe, regex, string } from 'valibot
 import { toTypedSchema } from '@vee-validate/valibot'
 import { useAuth } from '@renderer/store/auth'
 import { MenuItem } from 'primevue/menuitem'
+import { Presets } from '@@/apis'
 
 const router = useRouter()
 
@@ -318,7 +373,7 @@ const openFile = async () => {
     {
       title: 'Choose a new path',
       properties: ['openFile'],
-      filters: [{ name: 'Pipelab Project', extensions: ['pipelab'] }]
+      filters: [{ name: 'Pipelab Project', extensions: ['plb'] }]
     },
     async (_, message) => {
       const { type } = message
@@ -379,21 +434,53 @@ const openFile = async () => {
   }
 }
 
+const newProjectType = ref()
+const newProjectTypes = ref([
+  {
+    label: 'Local',
+    value: 'local',
+    description: 'Store project locally',
+    icon: ''
+  },
+  {
+    label: 'Cloud',
+    value: 'cloud',
+    icon: '',
+    disabled: true,
+    description: 'Store project on the cloud'
+  }
+])
+
+const newProjectPreset = ref<string>()
+const newProjectPresets = ref<Presets>({})
+
 /**
  * Create a new project
  * save it to the repo
  * and save it to user location
  */
 const newFile = async () => {
-  let id = nanoid()
-
+  // find presets
   const presetsResult = await api.execute('presets:get')
 
   if (presetsResult.type === 'error') {
     throw new Error(presetsResult.ipcError)
   }
 
-  const presets = presetsResult.result
+  newProjectPresets.value = presetsResult.result
+
+  // show dialog
+  isNewProjectModalVisible.value = true
+}
+
+const onNewFileCreation = async () => {
+  let id = nanoid()
+
+  const preset = newProjectPresets.value[newProjectPreset.value].data
+
+  if (!preset) {
+    throw new Error('Invalid preset')
+  }
 
   // TODO: choose cloud or local
 
@@ -402,7 +489,7 @@ const newFile = async () => {
     {
       title: 'Choose a new path',
       properties: ['createDirectory', 'showOverwriteConfirmation'],
-      filters: [{ name: 'Pipelab Project', extensions: ['pipelab'] }]
+      filters: [{ name: 'Pipelab Project', extensions: ['plb'] }]
     },
     async (_, message) => {
       const { type } = message
@@ -455,7 +542,7 @@ const newFile = async () => {
   // write file
   await api.execute('fs:write', {
     path,
-    content: JSON.stringify(presets.newProject.data)
+    content: JSON.stringify(preset)
   })
 
   await router.push({
@@ -481,6 +568,7 @@ const deleteProject = async (id: string) => {
 
 const appVersion = ref(window.version)
 const isAuthModalVisible = ref(false)
+const isNewProjectModalVisible = ref(false)
 const auth = useAuth()
 
 const schema = toTypedSchema(
@@ -688,5 +776,47 @@ const toggleAccountMenu = (event: MouseEvent) => {
   justify-content: center;
   gap: 8px;
   margin-top: 32px;
+}
+
+.presets {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+  margin-top: 8px;
+
+  .preset {
+    border: 1px solid #eee;
+    overflow: hidden;
+    border-radius: 8px;
+    padding: 8px;
+
+    &:hover {
+      cursor: pointer;
+      background-color: #eee;
+      border: 1px solid #aaa;
+    }
+
+    &.highlight {
+      border: 1px solid #ffff00;
+    }
+
+    &.active {
+      cursor: pointer;
+      background-color: #eee;
+      border: 1px solid #0000ff;
+    }
+  }
+}
+
+@media screen and (width < 1280px) {
+  .presets {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media screen and (width < 960px) {
+  .presets {
+    grid-template-columns: 1fr;
+  }
 }
 </style>
