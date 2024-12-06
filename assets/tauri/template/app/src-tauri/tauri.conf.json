@@ -7,7 +7,7 @@
     "beforeDevCommand": "pnpm dev",
     "devUrl": "http://localhost:1420",
     "beforeBuildCommand": "pnpm build",
-    "frontendDist": "../src/app"
+    "frontendDist": "../dist"
   },
   "app": {
     "withGlobalTauri": true,
@@ -16,7 +16,7 @@
         "title": "tauri",
         "width": 800,
         "height": 600,
-        "fullscreen": true,
+        "fullscreen": false,
         "transparent": true
       }
     ],
