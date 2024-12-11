@@ -9,10 +9,7 @@ use steamworks::Client;
 use steamworks::FriendFlags;
 use steamworks::PersonaStateChange;
 use tauri::WebviewWindow;
-use tauri::{
-    async_runtime, Emitter, LogicalPosition, LogicalSize, Manager, RunEvent, WebviewUrl,
-    WindowEvent,
-};
+use tauri::{async_runtime, Emitter, Manager, RunEvent, WindowEvent};
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::sync::oneshot;
 use warp::Filter;
@@ -79,7 +76,7 @@ fn vs_main(@builtin(vertex_index) vertex_index: u32) -> @builtin(position) vec4<
 @fragment
 fn fs_main() -> @location(0) vec4<f32> {
     // Output a solid color
-    return vec4<f32>(1.0, 1.0, 1.0, 1.0); // Green
+    return vec4<f32>(0.0, 1.0, 0.0, 0.5); // Green
 }
 
     "#,
@@ -208,38 +205,7 @@ async fn websocket_server(tx: Sender<String>, mut rx: Receiver<String>) {
 fn setup_wgpu_overlay(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     println!("Webgpu rendering");
 
-    // let window = app.get_webview_window("main").unwrap();
-    let _window = tauri::window::WindowBuilder::new(app, "main")
-        .inner_size(800.0, 600.0)
-        .build()?;
-
-    let _webview1 = _window.add_child(
-        tauri::webview::WebviewBuilder::new("main1", WebviewUrl::App(Default::default()))
-            .auto_resize(),
-        LogicalPosition::new(0., 0.),
-        LogicalSize::new(800.0, 800.0 / 2.),
-    )?;
-    let _webview2 = _window.add_child(
-        tauri::webview::WebviewBuilder::new("main2", WebviewUrl::App(Default::default()))
-            .auto_resize()
-            .transparent(true),
-        LogicalPosition::new(0., 800.0 / 2.),
-        LogicalSize::new(800.0, 800.0 / 2.),
-    )?;
-
-    println!("enumerating");
-    for (key, value) in _window.windows().iter() {
-      println!("window {:?} {:?}", key, value);
-    }
-    println!("enumerating done");
-
-    let window = _window.get_webview_window("main").unwrap();
-
-    println!("1: {:?}", _webview1.get_webview_window("main1").unwrap());
-    println!("1: {:?}", _webview1.get_webview_window("main2").unwrap());
-    println!("2: {:?}", _webview2.get_webview_window("main1").unwrap());
-    println!("2: {:?}", _webview2.get_webview_window("main2").unwrap());
-
+    let window = app.get_webview_window("main").unwrap();
     let size = window.inner_size()?;
 
     // Create a WgpuState (containing the device, instance, adapter etc.)
@@ -270,33 +236,33 @@ fn setup_wgpu_overlay(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Er
                     continue;
                 }
             };
-            let view = output
-                .texture
-                .create_view(&wgpu::TextureViewDescriptor::default());
+            // let view = output
+            //     .texture
+            //     .create_view(&wgpu::TextureViewDescriptor::default());
 
-            let mut encoder = wgpu_state
-                .device
-                .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
-            {
-                let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                    label: None,
-                    color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                        view: &view,
-                        resolve_target: None,
-                        ops: wgpu::Operations {
-                            load: wgpu::LoadOp::Clear(wgpu::Color::RED),
-                            store: wgpu::StoreOp::Store,
-                        },
-                    })],
-                    depth_stencil_attachment: None,
-                    timestamp_writes: None,
-                    occlusion_query_set: None,
-                });
-                rpass.set_pipeline(&wgpu_state.render_pipeline);
-                rpass.draw(0..3, 0..1);
-            }
+            // let mut encoder = wgpu_state
+            //     .device
+            //     .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
+            // {
+            //     let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            //         label: None,
+            //         color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+            //             view: &view,
+            //             resolve_target: None,
+            //             ops: wgpu::Operations {
+            //                 load: wgpu::LoadOp::Clear(wgpu::Color::GREEN),
+            //                 store: wgpu::StoreOp::Store,
+            //             },
+            //         })],
+            //         depth_stencil_attachment: None,
+            //         timestamp_writes: None,
+            //         occlusion_query_set: None,
+            //     });
+            //     rpass.set_pipeline(&wgpu_state.render_pipeline);
+            //     rpass.draw(0..3, 0..1);
+            // }
 
-            wgpu_state.queue.submit(Some(encoder.finish()));
+            // wgpu_state.queue.submit(Some(encoder.finish()));
 
             // Read the texture data before calling present
             let width = output.texture.size().width as usize;
