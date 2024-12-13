@@ -65,7 +65,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
 listen('frame-data', (event) => {
   const data = event.payload
-  console.log('data', data)
+  // console.log('data', data)
   // Process the frame data (e.g., create an ImageData object and draw it on a canvas)
   const canvas = document.getElementById('wgpuCanvas') as HTMLCanvasElement | null
   if (!canvas) {
@@ -78,6 +78,6 @@ listen('frame-data', (event) => {
     return
   }
   const imageData = new ImageData(new Uint8ClampedArray(data), canvas.width, canvas.height)
-  console.log('imageData', imageData)
+  // console.log('imageData', imageData)
   ctx.putImageData(imageData, 0, 0)
 })
