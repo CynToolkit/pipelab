@@ -43,6 +43,25 @@ const registerWebglErrorListener = (page: Page, log: typeof console.log) => {
     })
 }
 
+const registerMissingAddonErrorListener = (page: Page, log: typeof console.log) => {
+  // as soon as it appear, without blocking flow
+  // ignore missing addon and throw
+  const okDialog = page.locator('#missingAddonsDialog')
+  const webglErrorButton = okDialog.locator('.okButton')
+  webglErrorButton
+    .waitFor({
+      timeout: 0
+    })
+    .then(async () => {
+      page.close({
+        reason: 'Missing adddon. You should bundle addons with  your project'
+      })
+    })
+    .catch(async () => {
+      log('webglErrorButton.click() failed')
+    })
+}
+
 export const script = async (
   page: Page,
   log: typeof console.log,
@@ -111,6 +130,7 @@ export const script = async (
 
   registerInstallButtonListener(page, log)
   registerWebglErrorListener(page, log)
+  registerMissingAddonErrorListener(page, log)
 
   log('Waiting for progress dialog to disapear')
   await progressDialog.waitFor({

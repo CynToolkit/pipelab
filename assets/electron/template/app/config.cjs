@@ -21,6 +21,7 @@
  * @property {string} description
  * @property {string} appCategoryType
  * @property {string} icon
+ * @property {boolean} enableSteamSupport
  */
 
 /** @type {Config} */
@@ -43,7 +44,8 @@ const config = {
   name: 'Pipelab',
   toolbar: true,
   transparent: false,
-  width: 800
+  width: 800,
+  enableSteamSupport: false,
 }
 
 module.exports = config

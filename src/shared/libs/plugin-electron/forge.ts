@@ -215,7 +215,7 @@ export const forge = async (
 
   const { join, basename, delimiter } = await import('node:path')
   const { cp } = await import('node:fs/promises')
-  const { arch, platform } = await import('process')
+  const { arch, platform } = await import('os')
   // const { fileURLToPath } = await import('url')
   // const __dirname = fileURLToPath(dirname(import.meta.url))
   // const { app } = await import('electron')
@@ -277,7 +277,8 @@ export const forge = async (
       name: 'Pipelab',
       toolbar: true,
       transparent: false,
-      width: 800
+      width: 800,
+      enableSteamSupport: false,
     } satisfies ElectronConfiguration,
     inputs.configuration
   ) as ElectronConfiguration
@@ -375,9 +376,14 @@ export const forge = async (
     )
   }
 
+  const inputPlatform = inputs.platform === '' ? undefined : inputs.platform
+  const inputArch = inputs.arch === '' ? undefined : inputs.arch
+
   try {
-    const finalPlatform = inputs.platform ?? platform ?? ''
-    const finalArch = inputs.arch ?? arch ?? ''
+    console.log('typeof inputs.platform', typeof inputs.platform)
+    const finalPlatform = inputPlatform ?? platform() ?? ''
+    console.log('finalPlatform', finalPlatform)
+    const finalArch = inputArch ?? arch() ?? ''
 
     const logs = await runWithLiveLogs(
       process.execPath,

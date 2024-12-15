@@ -243,18 +243,18 @@ export const props = createAction({
           kind: 'text'
         }
       }
-    }
+    },
 
     // integrations
 
-    // enableSteamSupport: {
-    //   required: false,
-    //   label: 'Enable steam support',
-    //   value: false,
-    //   control: {
-    //     type: 'boolean'
-    //   }
-    // }
+    enableSteamSupport: {
+      required: false,
+      label: 'Enable steam support',
+      value: false,
+      control: {
+        type: 'boolean'
+      }
+    }
   }
 })
 
