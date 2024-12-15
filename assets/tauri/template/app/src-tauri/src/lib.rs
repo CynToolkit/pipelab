@@ -1,4 +1,5 @@
 use futures_util::StreamExt;
+use wgpu::rwh::HasWindowHandle;
 use std::env;
 use std::error::Error;
 use std::net::SocketAddr;
@@ -8,7 +9,7 @@ use steamworks::AppId;
 use steamworks::Client;
 use steamworks::FriendFlags;
 use steamworks::PersonaStateChange;
-use tauri::WebviewWindow;
+use tauri::{WebviewWindow, Window};
 use tauri::{
     async_runtime, Emitter, LogicalPosition, LogicalSize, Manager, RunEvent, WebviewUrl,
     WindowEvent,
@@ -16,6 +17,7 @@ use tauri::{
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::sync::oneshot;
 use warp::Filter;
+use wgpu::SurfaceTarget;
 
 pub struct WgpuState<'win> {
     pub queue: wgpu::Queue,
@@ -26,7 +28,8 @@ pub struct WgpuState<'win> {
 }
 
 impl WgpuState<'_> {
-    pub async fn new(window: WebviewWindow) -> Self {
+    pub async fn new(window: Window) -> Self
+    {
         let size = window.inner_size().unwrap();
         let instance = wgpu::Instance::default();
         let surface = instance.create_surface(window).unwrap();
@@ -79,7 +82,7 @@ fn vs_main(@builtin(vertex_index) vertex_index: u32) -> @builtin(position) vec4<
 @fragment
 fn fs_main() -> @location(0) vec4<f32> {
     // Output a solid color
-    return vec4<f32>(1.0, 1.0, 1.0, 1.0); // Green
+    return vec4<f32>(1.0, 1.0, 1.0, 0.1); // Green
 }
 
     "#,
@@ -211,40 +214,27 @@ fn setup_wgpu_overlay(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Er
     // let window = app.get_webview_window("main").unwrap();
     let _window = tauri::window::WindowBuilder::new(app, "main")
         .inner_size(800.0, 600.0)
+        .transparent(true)
         .build()?;
 
     let _webview1 = _window.add_child(
         tauri::webview::WebviewBuilder::new("main1", WebviewUrl::App(Default::default()))
+            .transparent(true)
             .auto_resize(),
         LogicalPosition::new(0., 0.),
-        LogicalSize::new(800.0, 800.0 / 2.),
+        LogicalSize::new(800.0, 580.0),
     )?;
-    let _webview2 = _window.add_child(
-        tauri::webview::WebviewBuilder::new("main2", WebviewUrl::App(Default::default()))
-            .auto_resize()
-            .transparent(true),
-        LogicalPosition::new(0., 800.0 / 2.),
-        LogicalSize::new(800.0, 800.0 / 2.),
-    )?;
-
-    println!("enumerating");
-    for (key, value) in _window.windows().iter() {
-      println!("window {:?} {:?}", key, value);
-    }
-    println!("enumerating done");
-
-    let window = _window.get_webview_window("main").unwrap();
-
-    println!("1: {:?}", _webview1.get_webview_window("main1").unwrap());
-    println!("1: {:?}", _webview1.get_webview_window("main2").unwrap());
-    println!("2: {:?}", _webview2.get_webview_window("main1").unwrap());
-    println!("2: {:?}", _webview2.get_webview_window("main2").unwrap());
-
-    let size = window.inner_size()?;
+    // let _webview2 = _window.add_child(
+    //     tauri::webview::WebviewBuilder::new("main2", WebviewUrl::App(Default::default()))
+    //         .auto_resize()
+    //         .transparent(true),
+    //     LogicalPosition::new(0., 800.0 / 2.),
+    //     LogicalSize::new(800.0, 800.0 / 2.),
+    // )?;
 
     // Create a WgpuState (containing the device, instance, adapter etc.)
     // And store it in the state
-    let wgpu_state = async_runtime::block_on(WgpuState::new(window));
+    let wgpu_state = async_runtime::block_on(WgpuState::new(_window));
     app.manage(Arc::new(wgpu_state));
 
     let app_handle = app.app_handle().clone();
@@ -346,6 +336,12 @@ fn setup_wgpu_overlay(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Er
             );
             wgpu_state.queue.submit(Some(encoder.finish()));
 
+            let unaligned_width = output.texture.size().width as usize;
+            let height = output.texture.size().height as usize;
+
+            // present first, so steam can hook into it and put his data
+            output.present();
+
             /** Export frame */
             // Map the buffer to read the data
             // println!("buffer {:?}", staging_buffer);
@@ -359,9 +355,6 @@ fn setup_wgpu_overlay(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Er
             wgpu_state.device.poll(wgpu::Maintain::Wait);
 
             receiver.await;
-
-            let unaligned_width = output.texture.size().width as usize;
-            let height = output.texture.size().height as usize;
 
             let data = buffer_slice.get_mapped_range();
             let image_data = data.to_vec(); // Copy buffer data to a Vec<u8>.
@@ -393,14 +386,14 @@ fn setup_wgpu_overlay(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Er
             // println!("Expected 1920000");
 
             // Send the data to the webview
-            let window = app_handle.get_webview_window("main").unwrap();
+            let window = app_handle.get_window("main").unwrap();
             if let Err(e) = window.emit("frame-data", reconstructed_data) {
                 eprintln!("Failed to emit data: {:?}", e);
             }
 
             /** End */
             // Now call present
-            output.present();
+            // output.present();
 
             println!("Frame rendered in: {}ms", t.elapsed().as_millis());
         }
