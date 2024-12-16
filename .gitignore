@@ -101,3 +101,12 @@ assets/electron/template/app/src/app
 playwright/**/*
 assets/tauri/template/app/app
 assets/tauri/template/app/src-tauri/steam_*
+
+# Turborepo
+turbo
+
+# Monorepo specific
+apps/**/node_modules
+packages/**/node_modules
+libs/**/node_modules
+tools/**/node_modules

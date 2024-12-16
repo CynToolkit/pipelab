@@ -46,12 +46,12 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
           SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
-        run: pnpm electron-forge publish --dry-run
+        run: pnpm turbo run build --filter=apps/electron-forge
 
       - name: Run tests
         uses: coactions/setup-xvfb@v1
         with:
-          run: pnpm test:e2e:raw
+          run: pnpm turbo run test:e2e:raw
 
       - name: Upload Playwright artifacts
         uses: actions/upload-artifact@v4
@@ -104,4 +104,4 @@ jobs:
       - name: Publish release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: pnpm electron-forge publish --from-dry-run
+        run: pnpm turbo run publish --filter=apps/electron-forge
