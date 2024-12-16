@@ -87,36 +87,50 @@
           <div class="col-12 xl:col-6 w-full">
             <div class="h-full w-full">
               <label>
+                Project Name
+                <InputText v-model="newProjectName" class="w-full"> </InputText>
+              </label>
+
+              <label>
                 Storage
                 <Select
                   v-model="newProjectType"
                   class="w-full"
                   option-label="label"
                   option-value="value"
+                  option-disabled="disabled"
                   :options="newProjectTypes"
                 >
                 </Select>
               </label>
 
-              <div class="location" v-if="newProjectType === 'local'">
-                <FileInput>azazaza</FileInput>
+              <div v-if="newProjectType === 'local'" class="location">
+                <FileInput v-model="newProjectLocalLocation"></FileInput>
               </div>
 
               <div class="presets">
                 <div
                   v-for="(preset, key) of newProjectPresets"
                   :key="key"
-                  :class="{ active: newProjectPreset === key, highlight: preset.hightlight }"
+                  :class="{ active: newProjectPreset === key }"
                   class="preset"
                   @click="newProjectPreset = key"
                 >
-                  <h3>{{ preset.data.name }}</h3>
+                  <div class="preset-title">{{ preset.data.name }}</div>
                   <div>{{ preset.data.description }}</div>
+                  <div v-if="preset.hightlight" class="highlight-icon">
+                    <i class="mdi mdi-star-circle-outline mr-2 fs-24"></i>
+                  </div>
+                  <div v-if="newProjectPreset === key" class="selection-icon">
+                    <i class="mdi mdi-check-circle mr-2 fs-24"></i>
+                  </div>
                 </div>
               </div>
 
               <div class="buttons">
-                <Button @click="onNewFileCreation">Create project</Button>
+                <Button :disabled="!canCreateproject" @click="onNewFileCreation"
+                  >Create project</Button
+                >
               </div>
             </div>
           </div>
@@ -308,6 +322,8 @@ import { toTypedSchema } from '@vee-validate/valibot'
 import { useAuth } from '@renderer/store/auth'
 import { MenuItem } from 'primevue/menuitem'
 import { Presets } from '@@/apis'
+import FileInput from '@renderer/components/FileInput.vue'
+import { PROJECT_EXTENSION } from '@renderer/models/constants'
 
 const router = useRouter()
 
@@ -324,6 +340,15 @@ const { files } = storeToRefs(fileStore)
 const { update: updateFileStore, remove } = fileStore
 
 const filesEnhanced = ref<EnhancedFile[]>([])
+
+const canCreateproject = computed(() => {
+  return (
+    newProjectType.value !== undefined &&
+    newProjectPreset.value !== undefined &&
+    (newProjectType.value === 'cloud' ||
+      (newProjectType.value === 'local' && newProjectLocalLocation.value !== undefined))
+  )
+})
 
 watchEffect(async () => {
   const entries = Object.entries(files.value.data)
@@ -373,7 +398,7 @@ const openFile = async () => {
     {
       title: 'Choose a new path',
       properties: ['openFile'],
-      filters: [{ name: 'Pipelab Project', extensions: ['plb'] }]
+      filters: [{ name: 'Pipelab Project', extensions: [PROJECT_EXTENSION] }]
     },
     async (_, message) => {
       const { type } = message
@@ -434,6 +459,8 @@ const openFile = async () => {
   }
 }
 
+const newProjectName = ref()
+
 const newProjectType = ref()
 const newProjectTypes = ref([
   {
@@ -453,6 +480,8 @@ const newProjectTypes = ref([
 
 const newProjectPreset = ref<string>()
 const newProjectPresets = ref<Presets>({})
+
+const newProjectLocalLocation = ref<string>()
 
 /**
  * Create a new project
@@ -482,34 +511,6 @@ const onNewFileCreation = async () => {
     throw new Error('Invalid preset')
   }
 
-  // TODO: choose cloud or local
-
-  const paths = await api.execute(
-    'dialog:showSaveDialog',
-    {
-      title: 'Choose a new path',
-      properties: ['createDirectory', 'showOverwriteConfirmation'],
-      filters: [{ name: 'Pipelab Project', extensions: ['plb'] }]
-    },
-    async (_, message) => {
-      const { type } = message
-      if (type === 'end') {
-        //
-      }
-    }
-  )
-
-  if (paths.type === 'error') {
-    throw new Error(paths.ipcError)
-  }
-
-  if (paths.result.canceled) {
-    logger().error('Save cancelled')
-    return
-  }
-
-  const path = paths.result.filePath
-
   const alreadyAddedPaths = Object.entries(files.value.data).map(([id, file]) => {
     if (file.type === 'external') {
       return {
@@ -519,7 +520,7 @@ const onNewFileCreation = async () => {
     }
   })
 
-  const foundExisting = alreadyAddedPaths.find((x) => x.path === path)
+  const foundExisting = alreadyAddedPaths.find((x) => x.path === newProjectLocalLocation.value)
 
   if (foundExisting && foundExisting.type === 'external') {
     id = foundExisting.id
@@ -529,7 +530,7 @@ const onNewFileCreation = async () => {
   updateFileStore((state) => {
     state.data[id] = {
       lastModified: new Date().toISOString(),
-      path,
+      path: newProjectLocalLocation.value,
       summary: {
         description: '',
         name: '',
@@ -541,7 +542,7 @@ const onNewFileCreation = async () => {
 
   // write file
   await api.execute('fs:write', {
-    path,
+    path: newProjectLocalLocation.value,
     content: JSON.stringify(preset)
   })
 
@@ -782,13 +783,16 @@ const toggleAccountMenu = (event: MouseEvent) => {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
   gap: 8px;
-  margin-top: 8px;
+  margin-top: 16px;
+  margin-bottom: 16px;
 
   .preset {
     border: 1px solid #eee;
     overflow: hidden;
     border-radius: 8px;
     padding: 8px;
+    position: relative;
+    height: 100px;
 
     &:hover {
       cursor: pointer;
@@ -800,10 +804,28 @@ const toggleAccountMenu = (event: MouseEvent) => {
       border: 1px solid #ffff00;
     }
 
+    .preset-title {
+      font-size: 1.2rem;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .highlight-icon {
+      position: absolute;
+      right: 4px;
+      top: 8px;
+    }
+
+    .selection-icon {
+      position: absolute;
+      right: 4px;
+      bottom: 8px;
+    }
+
     &.active {
       cursor: pointer;
       background-color: #eee;
-      border: 1px solid #0000ff;
+      outline: 2px solid #000;
     }
   }
 }

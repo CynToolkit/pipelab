@@ -253,8 +253,8 @@ export const savedFileMigrator = createMigrator<SavedFile>({
           canvas: {
             triggers,
             blocks: newBlocks
-          }
-        } satisfies OmitVersion<SavedFileV2>
+          },
+        } satisfies OmitVersion<SavedFileV3>
       },
       down: () => {
         throw new Error('Migration down not implemented')

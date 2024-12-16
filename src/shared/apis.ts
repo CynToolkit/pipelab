@@ -16,7 +16,7 @@ type EndEvent<DATA> = {
       }
 }
 
-export type Presets = Record<string, { data: Preset }>
+export type Presets = Record<string, { data: Preset; hightlight: boolean }>
 
 export type IpcDefinition = {
   'fs:read': [
