@@ -1,5 +1,16 @@
 # @pipelab/app
 
+## 1.4.6
+
+### Patch Changes
+
+- 94778b9: improvements
+  add log support
+  fix config loading
+  fix step placeholder in parameter editor
+  improved new project creation
+  add steam & steam overlay support
+
 ## 1.4.5
 
 ### Patch Changes
