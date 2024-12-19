@@ -7,19 +7,11 @@
     "beforeDevCommand": "pnpm dev",
     "devUrl": "http://localhost:1420",
     "beforeBuildCommand": "pnpm build",
-    "frontendDist": "../src/app"
+    "frontendDist": "../dist"
   },
   "app": {
     "withGlobalTauri": true,
-    "windows": [
-      {
-        "title": "tauri",
-        "width": 800,
-        "height": 600,
-        "fullscreen": true,
-        "transparent": true
-      }
-    ],
+    "windows": [],
     "security": {
       "csp": null
     }
@@ -33,11 +25,6 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ],
-    "resources": [
-      "steam_api64.dll",
-      "steam_api64.lib",
-      "steam_appid.txt"
     ]
   }
 }

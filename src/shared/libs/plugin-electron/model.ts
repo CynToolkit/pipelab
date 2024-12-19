@@ -18,6 +18,5 @@ export type ElectronConfiguration = {
   enableDisableRendererBackgrounding: boolean
   icon: string
   appCategoryType: string
-
-  // steamSupport: boolean
+  enableSteamSupport: boolean
 }

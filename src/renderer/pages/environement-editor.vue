@@ -1,18 +1,18 @@
 <template>
-  <div class="environements-editor">
-    <template v-for="environement in environements" :key="environement.id">
-      <div class="environement-wrapper" @click="editVariable(environement.id)">
-        <div class="environement">
-          <div class="title">{{ environement.name }}</div>
-          <div class="subtitle">{{ environement.description }}</div>
-          <div class="content">{{ environement.value }}</div>
+  <div class="environnements-editor">
+    <template v-for="environnement in environnements" :key="environnement.id">
+      <div class="environnement-wrapper" @click="editVariable(environnement.id)">
+        <div class="environnement">
+          <div class="title">{{ environnement.name }}</div>
+          <div class="subtitle">{{ environnement.description }}</div>
+          <div class="content">{{ environnement.value }}</div>
         </div>
       </div>
     </template>
     <Button
       disabled
       class="add-btn"
-      label="Add environement"
+      label="Add environnement"
       icon="pi pi-plus"
       @click="addVariable"
     ></Button>
@@ -20,7 +20,7 @@
     <Dialog
       v-model:visible="isNewVariableDialogVisible"
       modal
-      header="Add environement"
+      header="Add environnement"
       :style="{ width: '25rem' }"
     >
       <div class="flex flex-column gap-2 mb-4">
@@ -65,7 +65,7 @@ import { storeToRefs } from 'pinia'
 import { ref } from 'vue'
 
 const instance = useEditor()
-const { environements } = storeToRefs(instance)
+const { environnements } = storeToRefs(instance)
 const {
   addVariable: instanceAddVariable,
   updateVariable: instanceUpdateVariable,
@@ -123,7 +123,7 @@ const remVariable = (id: string) => {
 
 const mode = ref<'create' | 'edit'>('create')
 const editVariable = (id: string) => {
-  const foundVar = environements.value.find((x) => x.id === id)
+  const foundVar = environnements.value.find((x) => x.id === id)
   if (foundVar) {
     codeEditorTextUpdate(foundVar.value)
     name.value = foundVar.name
@@ -136,14 +136,14 @@ const editVariable = (id: string) => {
 </script>
 
 <style scoped lang="scss">
-.environements-editor {
+.environnements-editor {
   margin: 16px;
   display: flex;
   flex-direction: column;
   overflow: auto;
 }
 
-.environement {
+.environnement {
   border: 1px solid #c2c9d1;
   padding: 16px;
   // margin: 4px;
@@ -151,7 +151,7 @@ const editVariable = (id: string) => {
   width: fit-content;
 }
 
-.environement {
+.environnement {
   border: 1px solid #c2c9d1;
   padding: 16px;
   border-radius: 4px;
@@ -163,7 +163,7 @@ const editVariable = (id: string) => {
   height: 32px;
 }
 
-.environement-wrapper {
+.environnement-wrapper {
   display: flex;
   flex-direction: column;
   justify-content: center;

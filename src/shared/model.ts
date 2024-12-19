@@ -253,8 +253,8 @@ export const savedFileMigrator = createMigrator<SavedFile>({
           canvas: {
             triggers,
             blocks: newBlocks
-          }
-        } satisfies OmitVersion<SavedFileV2>
+          },
+        } satisfies OmitVersion<SavedFileV3>
       },
       down: () => {
         throw new Error('Migration down not implemented')
@@ -270,8 +270,9 @@ export const savedFileMigrator = createMigrator<SavedFile>({
   ]
 })
 
-export type PresetFn = () => Promise<{ data: SavedFile; hightlight?: boolean }>
 export type Preset = SavedFile
+export type PresetResult = { data: SavedFile; hightlight?: boolean; disabled?: boolean }
+export type PresetFn = () => Promise<PresetResult>
 
 export type Steps = Record<
   string,

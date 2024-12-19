@@ -8,11 +8,10 @@ use steamworks::AppId;
 use steamworks::Client;
 use steamworks::FriendFlags;
 use steamworks::PersonaStateChange;
-use tauri::Window;
-use tauri::{
-    async_runtime, LogicalPosition, LogicalSize, Manager, RunEvent, WebviewUrl, WindowEvent,
-};
+use tauri::WebviewWindow;
+use tauri::{async_runtime, Emitter, Manager, RunEvent, WindowEvent};
 use tokio::sync::mpsc::{Receiver, Sender};
+use tokio::sync::oneshot;
 use warp::Filter;
 
 pub struct WgpuState<'win> {
@@ -23,20 +22,11 @@ pub struct WgpuState<'win> {
     pub config: Mutex<wgpu::SurfaceConfiguration>,
 }
 
-impl<'win> WgpuState<'win> {
-    pub async fn new(window: Window) -> Self {
+impl WgpuState<'_> {
+    pub async fn new(window: WebviewWindow) -> Self {
         let size = window.inner_size().unwrap();
         let instance = wgpu::Instance::default();
         let surface = instance.create_surface(window).unwrap();
-
-        let adapters = instance.enumerate_adapters(wgpu::Backends::all()); // Enumerate all backends
-
-        println!("Available wgpu backends:");
-        for adapter in adapters {
-            let info = adapter.get_info();
-            println!("- {:?}: {:?}", info.backend, info.name);
-        }
-
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
                 power_preference: wgpu::PowerPreference::default(),
@@ -86,7 +76,7 @@ fn vs_main(@builtin(vertex_index) vertex_index: u32) -> @builtin(position) vec4<
 @fragment
 fn fs_main() -> @location(0) vec4<f32> {
     // Output a solid color
-    return vec4<f32>(1.0, 0.0, 0.0, 0.5); // Green
+    return vec4<f32>(0.0, 1.0, 0.0, 0.5); // Green
 }
 
     "#,
@@ -127,20 +117,6 @@ fn fs_main() -> @location(0) vec4<f32> {
             multisample: wgpu::MultisampleState::default(),
             multiview: None,
         });
-
-        if swapchain_capabilities
-            .alpha_modes
-            .contains(&wgpu::CompositeAlphaMode::PreMultiplied)
-        {
-            println!("PreMultiplied alpha mode is supported!");
-        } else if swapchain_capabilities
-            .alpha_modes
-            .contains(&wgpu::CompositeAlphaMode::Opaque)
-        {
-            println!("Only Opaque alpha mode is supported. Transparency will not work.");
-        } else {
-            println!("No known alpha modes are supported.");
-        }
 
         let alpha_mode = if swapchain_capabilities
             .alpha_modes
@@ -229,51 +205,172 @@ async fn websocket_server(tx: Sender<String>, mut rx: Receiver<String>) {
 fn setup_wgpu_overlay(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     println!("Webgpu rendering");
 
-    // let window = app.get_webview_window("main").unwrap();
-    let _window = tauri::window::WindowBuilder::new(app, "main")
-        .inner_size(800.0, 600.0)
-        .transparent(true)
-        .build()?;
-    let overlay = tauri::window::WindowBuilder::new(app, "overlay")
-        .parent(&_window)
-        .unwrap()
-        .inner_size(800.0, 600.0)
-        .transparent(true)
-        .always_on_top(true)
-        .build()?;
-    overlay.set_resizable(false);
-    overlay.set_maximizable(false);
-    overlay.set_minimizable(false);
-    overlay.set_closable(false);
-    overlay.set_decorations(false);
-    overlay.set_ignore_cursor_events(true);
+    let window = app.get_webview_window("main").unwrap();
+    let size = window.inner_size()?;
 
-    let _overlay = Arc::new(Mutex::new(overlay));
+    // Create a WgpuState (containing the device, instance, adapter etc.)
+    // And store it in the state
+    let wgpu_state = async_runtime::block_on(WgpuState::new(window));
+    app.manage(Arc::new(wgpu_state));
 
-    let _webview1 = _window.add_child(
-        tauri::webview::WebviewBuilder::new("main1", WebviewUrl::App(Default::default()))
-            .transparent(true)
-            .auto_resize(),
-        LogicalPosition::new(0., 0.),
-        LogicalSize::new(800.0, 600.0),
-    )?;
+    let app_handle = app.app_handle().clone();
 
-    // let _webview2 = app
-    //     .get_window("overlay")
-    //     .expect("Overlay window not found")
-    //     .add_child(
-    //         tauri::webview::WebviewBuilder::new("overlay1", WebviewUrl::App(Default::default()))
-    //             .transparent(true)
-    //             .auto_resize(),
-    //         LogicalPosition::new(0., 0.),
-    //         LogicalSize::new(800.0, 600.0),
-    //     )?;
+    async_runtime::spawn(async move {
+        let wgpu_state = app_handle.state::<Arc<WgpuState>>();
 
-    let overlay_window = app.get_window("overlay").expect("Overlay window not found");
+        while true {
+            let t = Instant::now();
 
-    let wgpu_state = async_runtime::block_on(WgpuState::new(overlay_window));
-    let wgpu_state = Arc::new(wgpu_state); // Make wgpu_state Arc<T>
-    app.manage(wgpu_state.clone()); // Store a clone in app state
+            let output = match wgpu_state.surface.get_current_texture() {
+                Ok(output) => output,
+                Err(wgpu::SurfaceError::Lost) => {
+                    println!("Surface lost, recreating surface...");
+                    continue;
+                }
+                Err(wgpu::SurfaceError::OutOfMemory) => {
+                    eprintln!("Out of memory error");
+                    continue;
+                }
+                Err(e) => {
+                    eprintln!("Failed to acquire next swap chain texture: {:?}", e);
+                    continue;
+                }
+            };
+            // let view = output
+            //     .texture
+            //     .create_view(&wgpu::TextureViewDescriptor::default());
+
+            // let mut encoder = wgpu_state
+            //     .device
+            //     .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
+            // {
+            //     let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            //         label: None,
+            //         color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+            //             view: &view,
+            //             resolve_target: None,
+            //             ops: wgpu::Operations {
+            //                 load: wgpu::LoadOp::Clear(wgpu::Color::GREEN),
+            //                 store: wgpu::StoreOp::Store,
+            //             },
+            //         })],
+            //         depth_stencil_attachment: None,
+            //         timestamp_writes: None,
+            //         occlusion_query_set: None,
+            //     });
+            //     rpass.set_pipeline(&wgpu_state.render_pipeline);
+            //     rpass.draw(0..3, 0..1);
+            // }
+
+            // wgpu_state.queue.submit(Some(encoder.finish()));
+
+            // Read the texture data before calling present
+            let width = output.texture.size().width as usize;
+            let height = output.texture.size().height as usize;
+            let bytes_per_pixel = 4; // RGBA8 format
+            let unaligned_bytes_per_row = width * bytes_per_pixel;
+            let aligned_bytes_per_row = ((unaligned_bytes_per_row + 255) / 256) * 256;
+            let buffer_size = aligned_bytes_per_row * output.texture.size().height as usize;
+
+            println!(
+                "Texture size: width={}, height={}",
+                output.texture.size().width,
+                output.texture.size().height
+            );
+
+            let buffer_desc = wgpu::BufferDescriptor {
+                label: Some("Staging Buffer"),
+                size: buffer_size as wgpu::BufferAddress,
+                usage: wgpu::BufferUsages::MAP_READ | wgpu::BufferUsages::COPY_DST,
+                mapped_at_creation: false,
+            };
+            let staging_buffer = wgpu_state.device.create_buffer(&buffer_desc);
+
+            let mut encoder = wgpu_state
+                .device
+                .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
+            encoder.copy_texture_to_buffer(
+                wgpu::ImageCopyTexture {
+                    texture: &output.texture,
+                    mip_level: 0,
+                    origin: wgpu::Origin3d::ZERO,
+                    aspect: wgpu::TextureAspect::All,
+                },
+                wgpu::ImageCopyBuffer {
+                    buffer: &staging_buffer,
+                    layout: wgpu::ImageDataLayout {
+                        offset: 0,
+                        bytes_per_row: Some(aligned_bytes_per_row as u32),
+                        rows_per_image: Some(output.texture.size().height),
+                    },
+                },
+                wgpu::Extent3d {
+                    width: output.texture.size().width,
+                    height: output.texture.size().height,
+                    depth_or_array_layers: 1,
+                },
+            );
+            wgpu_state.queue.submit(Some(encoder.finish()));
+
+            /** Export frame */
+            // Map the buffer to read the data
+            // println!("buffer {:?}", staging_buffer);
+
+            // Map the staging buffer to read the data
+            let buffer_slice = staging_buffer.slice(..);
+            let (sender, receiver) = futures::channel::oneshot::channel();
+            buffer_slice.map_async(wgpu::MapMode::Read, move |result| {
+                sender.send(result).unwrap();
+            });
+            wgpu_state.device.poll(wgpu::Maintain::Wait);
+
+            receiver.await;
+
+            let unaligned_width = output.texture.size().width as usize;
+            let height = output.texture.size().height as usize;
+
+            let data = buffer_slice.get_mapped_range();
+            let image_data = data.to_vec(); // Copy buffer data to a Vec<u8>.
+            drop(data); // Release the buffer mapping.
+
+            // println!("image_data {:?}", image_data);
+
+            let mut reconstructed_data = Vec::with_capacity(unaligned_bytes_per_row * height);
+
+            for row in 0..height {
+                let start = row * aligned_bytes_per_row;
+                let end = start + unaligned_bytes_per_row; // Only take the valid portion
+                reconstructed_data.extend_from_slice(&image_data[start..end]);
+            }
+
+            assert_eq!(reconstructed_data.len(), unaligned_bytes_per_row * height);
+            println!("Reconstructed data size: {}", reconstructed_data.len());
+
+            // println!(
+            //     "image_data {:?}, expected {:?}",
+            //     image_data.len(),
+            //     aligned_bytes_per_row * height
+            // );
+            // println!(
+            //     "reconstructed_data {:?}, expected {:?}",
+            //     reconstructed_data.len(),
+            //     aligned_bytes_per_row * height
+            // );
+            // println!("Expected 1920000");
+
+            // Send the data to the webview
+            let window = app_handle.get_webview_window("main").unwrap();
+            if let Err(e) = window.emit("frame-data", reconstructed_data) {
+                eprintln!("Failed to emit data: {:?}", e);
+            }
+
+            /** End */
+            // Now call present
+            output.present();
+
+            println!("Frame rendered in: {}ms", t.elapsed().as_millis());
+        }
+    });
 
     Ok(())
 }
@@ -344,95 +441,9 @@ pub fn run() {
                 event: WindowEvent::Resized(size),
                 ..
             } => {
-                let wgpu_state = app_handle.state::<Arc<WgpuState>>();
-                let mut config = wgpu_state.config.lock().unwrap();
-                config.width = size.width;
-                config.height = size.height;
-                wgpu_state.surface.configure(&wgpu_state.device, &config);
+                //
             }
-            RunEvent::MainEventsCleared => {
-                let wgpu_state = app_handle.state::<Arc<WgpuState>>();
-                let overlay = app_handle
-                    .get_window("overlay")
-                    .expect("Overlay window not found");
-                let _window = app_handle.get_window("main").unwrap();
-
-                let window_position = _window.inner_position().unwrap();
-                let window_position2 = _window.outer_position().unwrap();
-                let window_size = _window.inner_size().unwrap();
-                let window_size2 = _window.outer_size().unwrap();
-
-                println!("inner_position {:?}", window_position);
-                println!("outer_position {:?}", window_position2);
-                println!("inner_size {:?}", window_size);
-                println!("outer_size {:?}", window_size2);
-
-                let offsetU = 100 as u32;
-                let offsetI = 100 as i32;
-
-                overlay
-                    .set_position(LogicalPosition::new(
-                        window_position.x + offsetI,
-                        window_position.y + offsetI,
-                    ))
-                    .unwrap();
-                // overlay.set_position(window_position).unwrap();
-                overlay
-                    .set_size(LogicalSize::new(
-                        window_size.width - offsetU,
-                        window_size.height - offsetU,
-                    ))
-                    .unwrap();
-                // overlay.set_size(window_size).unwrap();
-
-                let t = Instant::now();
-
-                let output = match wgpu_state.surface.get_current_texture() {
-                    Ok(output) => output,
-                    Err(wgpu::SurfaceError::Lost) => {
-                        eprintln!("Surface lost, recreating surface...");
-                        return ();
-                    }
-                    Err(wgpu::SurfaceError::OutOfMemory) => {
-                        eprintln!("Out of memory error");
-                        return ();
-                    }
-                    Err(e) => {
-                        eprintln!("Failed to acquire next swap chain texture: {:?}", e);
-                        return ();
-                    }
-                };
-                let view = output
-                    .texture
-                    .create_view(&wgpu::TextureViewDescriptor::default());
-
-                let mut encoder = wgpu_state
-                    .device
-                    .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
-                {
-                    let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                        label: None,
-                        color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                            view: &view,
-                            resolve_target: None,
-                            ops: wgpu::Operations {
-                                load: wgpu::LoadOp::Clear(wgpu::Color::RED),
-                                store: wgpu::StoreOp::Store,
-                            },
-                        })],
-                        depth_stencil_attachment: None,
-                        timestamp_writes: None,
-                        occlusion_query_set: None,
-                    });
-                    rpass.set_pipeline(&wgpu_state.render_pipeline);
-                    rpass.draw(0..3, 0..1);
-                }
-
-                wgpu_state.queue.submit(Some(encoder.finish()));
-                // output.present();
-
-                println!("Frame rendered in: {}ms", t.elapsed().as_millis());
-            }
+            RunEvent::MainEventsCleared => {}
             _ => (),
         });
 }

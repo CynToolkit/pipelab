@@ -19,5 +19,5 @@ export type TauriConfiguration = {
   icon: string
   appCategoryType: string
 
-  // steamSupport: boolean
+  // enableSteamSupport: boolean
 }

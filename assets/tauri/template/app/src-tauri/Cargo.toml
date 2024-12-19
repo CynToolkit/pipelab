@@ -7,6 +7,9 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[profile.dev]
+opt-level = 0 # Optimize for size
+
 [lib]
 # The `_lib` suffix may seem redundant but it is necessary
 # to make the lib name unique and wouldn't conflict with the bin name.
@@ -32,11 +35,13 @@ futures = "0.3.31"
 
 tauri-plugin-devtools = "2.0.0"
 
-wgpu = "0.19"
+wgpu = "0.20"
 winit = "0.30.5"
-env_logger = "0.9"
+# env_logger = "0.9"
 log = "0.4"
-pollster = "0.4.0"
-raw-window-handle = "0.5.2"
+# pollster = "0.4.0"
+# raw-window-handle = "0.5.2"
 steamworks = "0.11.0"
 tauri-plugin-fs = "2"
+# bytemuck = { version = "1.20.0", features = ["derive"] }
+image = "0.24"

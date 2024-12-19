@@ -214,7 +214,7 @@ const {
   stepsDisplay,
   id,
   logLines,
-  isRunning,
+  isRunning
 } = storeToRefs(instance)
 const { processGraph, loadSavedFile, setIsRunning, pushLine } = instance
 
@@ -315,14 +315,15 @@ const run = async () => {
       detail: 'Your project has been executed successfully'
     })
   } catch (e) {
-    console.error('error while executing process')
-
-    toast.add({
-      summary: 'Execution failed',
-      life: 10_000,
-      severity: 'error',
-      detail: 'Project has encountered an error'
-    })
+    console.error('error while executing process', e)
+    if (e instanceof Error) {
+      toast.add({
+        summary: 'Execution failed',
+        life: 10_000,
+        severity: 'error',
+        detail: 'Project has encountered an error: ' + e.message
+      })
+    }
   }
   setIsRunning(false)
 }

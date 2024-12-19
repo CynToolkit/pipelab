@@ -14,6 +14,8 @@ use tauri::{
 };
 use tokio::sync::mpsc::{Receiver, Sender};
 use warp::Filter;
+use image::{ImageBuffer, Rgba};
+
 
 pub struct WgpuState<'win> {
     pub queue: wgpu::Queue,
@@ -21,6 +23,8 @@ pub struct WgpuState<'win> {
     pub surface: wgpu::Surface<'win>,
     pub render_pipeline: wgpu::RenderPipeline,
     pub config: Mutex<wgpu::SurfaceConfiguration>,
+    pub webview_texture: Option<wgpu::Texture>, // Add this field
+
 }
 
 impl<'win> WgpuState<'win> {
@@ -86,7 +90,7 @@ fn vs_main(@builtin(vertex_index) vertex_index: u32) -> @builtin(position) vec4<
 @fragment
 fn fs_main() -> @location(0) vec4<f32> {
     // Output a solid color
-    return vec4<f32>(1.0, 0.0, 0.0, 0.5); // Green
+    return vec4<f32>(0.0, 0.0, 0.0, 0.0); // Green
 }
 
     "#,
@@ -170,8 +174,54 @@ fn fs_main() -> @location(0) vec4<f32> {
             surface,
             render_pipeline,
             config: Mutex::new(config),
+            webview_texture: None, // Initialize as None
         }
     }
+}
+
+fn render_webview(
+  render_pass: &mut wgpu::RenderPass,
+  window: &tauri::Window,
+  device: &wgpu::Device,
+  queue: &wgpu::Queue,
+  wgpu_state: &mut WgpuState,
+) {
+  if let Ok(png) = window.get_webview("main1").unwrap().capture(). {
+      let image = image::load_from_memory(&png).unwrap();
+      let rgba = image.to_rgba8();
+      let (width, height) = rgba.dimensions();
+      let texture_size = wgpu::Extent3d {
+          width,
+          height,
+          depth_or_array_layers: 1,
+      };
+      let texture = device.create_texture(&wgpu::TextureDescriptor {
+          size: texture_size,
+          mip_level_count: 1,
+          sample_count: 1,
+          dimension: wgpu::TextureDimension::D2,
+          format: wgpu::TextureFormat::Rgba8UnormSrgb,
+          usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+          label: Some("webview_texture"),
+          view_formats: &[],
+      });
+      queue.write_texture(
+          wgpu::ImageCopyTexture {
+              texture: &texture,
+              mip_level: 0,
+              origin: wgpu::Origin3d::ZERO,
+              aspect: wgpu::TextureAspect::All,
+          },
+          &rgba,
+          wgpu::ImageDataLayout {
+              offset: 0,
+              bytes_per_row: Some(4 * width),
+              rows_per_image: Some(height),
+          },
+          texture_size,
+      );
+      wgpu_state.webview_texture = Some(texture); // Update the texture
+  }
 }
 
 #[tauri::command]
@@ -234,21 +284,6 @@ fn setup_wgpu_overlay(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Er
         .inner_size(800.0, 600.0)
         .transparent(true)
         .build()?;
-    let overlay = tauri::window::WindowBuilder::new(app, "overlay")
-        .parent(&_window)
-        .unwrap()
-        .inner_size(800.0, 600.0)
-        .transparent(true)
-        .always_on_top(true)
-        .build()?;
-    overlay.set_resizable(false);
-    overlay.set_maximizable(false);
-    overlay.set_minimizable(false);
-    overlay.set_closable(false);
-    overlay.set_decorations(false);
-    overlay.set_ignore_cursor_events(true);
-
-    let _overlay = Arc::new(Mutex::new(overlay));
 
     let _webview1 = _window.add_child(
         tauri::webview::WebviewBuilder::new("main1", WebviewUrl::App(Default::default()))
@@ -258,20 +293,7 @@ fn setup_wgpu_overlay(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Er
         LogicalSize::new(800.0, 600.0),
     )?;
 
-    // let _webview2 = app
-    //     .get_window("overlay")
-    //     .expect("Overlay window not found")
-    //     .add_child(
-    //         tauri::webview::WebviewBuilder::new("overlay1", WebviewUrl::App(Default::default()))
-    //             .transparent(true)
-    //             .auto_resize(),
-    //         LogicalPosition::new(0., 0.),
-    //         LogicalSize::new(800.0, 600.0),
-    //     )?;
-
-    let overlay_window = app.get_window("overlay").expect("Overlay window not found");
-
-    let wgpu_state = async_runtime::block_on(WgpuState::new(overlay_window));
+    let wgpu_state = async_runtime::block_on(WgpuState::new(_window));
     let wgpu_state = Arc::new(wgpu_state); // Make wgpu_state Arc<T>
     app.manage(wgpu_state.clone()); // Store a clone in app state
 
@@ -352,38 +374,7 @@ pub fn run() {
             }
             RunEvent::MainEventsCleared => {
                 let wgpu_state = app_handle.state::<Arc<WgpuState>>();
-                let overlay = app_handle
-                    .get_window("overlay")
-                    .expect("Overlay window not found");
                 let _window = app_handle.get_window("main").unwrap();
-
-                let window_position = _window.inner_position().unwrap();
-                let window_position2 = _window.outer_position().unwrap();
-                let window_size = _window.inner_size().unwrap();
-                let window_size2 = _window.outer_size().unwrap();
-
-                println!("inner_position {:?}", window_position);
-                println!("outer_position {:?}", window_position2);
-                println!("inner_size {:?}", window_size);
-                println!("outer_size {:?}", window_size2);
-
-                let offsetU = 100 as u32;
-                let offsetI = 100 as i32;
-
-                overlay
-                    .set_position(LogicalPosition::new(
-                        window_position.x + offsetI,
-                        window_position.y + offsetI,
-                    ))
-                    .unwrap();
-                // overlay.set_position(window_position).unwrap();
-                overlay
-                    .set_size(LogicalSize::new(
-                        window_size.width - offsetU,
-                        window_size.height - offsetU,
-                    ))
-                    .unwrap();
-                // overlay.set_size(window_size).unwrap();
 
                 let t = Instant::now();
 
@@ -416,7 +407,7 @@ pub fn run() {
                             view: &view,
                             resolve_target: None,
                             ops: wgpu::Operations {
-                                load: wgpu::LoadOp::Clear(wgpu::Color::RED),
+                                load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
                                 store: wgpu::StoreOp::Store,
                             },
                         })],
@@ -424,6 +415,7 @@ pub fn run() {
                         timestamp_writes: None,
                         occlusion_query_set: None,
                     });
+                    render_webview(&mut rpass, &_window, &wgpu_state.device, &wgpu_state.queue, wgpu_state);
                     rpass.set_pipeline(&wgpu_state.render_pipeline);
                     rpass.draw(0..3, 0..1);
                 }

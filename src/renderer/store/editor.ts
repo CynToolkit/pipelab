@@ -113,8 +113,8 @@ export const useEditor = defineStore('editor', () => {
   /** All the variables of the editor */
   const variables = ref<Array<Variable>>([])
 
-  /** All the environement variables supported for the editor */
-  const environements = ref<Array<any>>([])
+  /** All the environnement variables supported for the editor */
+  const environnements = ref<Array<any>>([])
 
   /** All log lines relative to their plugin instance */
   const logLines = ref<Record<string, unknown[][]>>({})
@@ -435,7 +435,7 @@ export const useEditor = defineStore('editor', () => {
         const createParams: BlockAction['params'] = {}
         for (const [key, param] of Object.entries(nodeDefinition.params)) {
           // ensure the value is converted to code expression
-          let val = klona(toRaw(param.value))
+          let val = param.value
           if (typeof val === 'string') {
             val = `"${val}"`
           }
@@ -618,7 +618,7 @@ export const useEditor = defineStore('editor', () => {
     nodes: blocks,
     triggers,
     variables,
-    environements,
+    environnements,
     nodeDefinitions,
     activeNode,
     name,
