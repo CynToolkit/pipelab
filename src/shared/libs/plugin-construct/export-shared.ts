@@ -137,21 +137,25 @@ export const exportc3p = async <ACTION extends Action>(
   })
   // ---------------------------------
 
-  const result = await script(
-    page,
-    log,
-    file,
-    newInputs.username,
-    newInputs.password,
-    version,
-    downloadDir
-  )
+  try {
+    const result = await script(
+      page,
+      log,
+      file,
+      newInputs.username,
+      newInputs.password,
+      version,
+      downloadDir
+    )
 
-  await browser.close()
+    await browser.close()
 
-  log('setting output result to ', result)
+    log('setting output result to ', result)
 
-  setOutput('folder', result)
+    setOutput('folder', result)
+  } catch (e) {
+    throw e
+  }
 }
 
 export const constructVersionValidator = (options: any) => {

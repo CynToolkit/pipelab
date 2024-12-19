@@ -100,7 +100,7 @@ export const processGraph = async (options: {
       if (result.type === 'error') {
         logger().error(result.ipcError)
         options.onNodeExit(rawNode)
-        throw new Error('Action error')
+        throw new Error('Action error: ' + result.ipcError)
       }
 
       if (result.type === 'success') {

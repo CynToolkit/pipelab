@@ -5,8 +5,8 @@ export const newProjectPreset: PresetFn = async () => {
 
   const data: SavedFile = {
     version: '3.0.0',
-    name: 'New project',
-    description: 'New project',
+    name: 'Empty project',
+    description: 'A default project with no tasks added',
     variables: [],
     canvas: {
       triggers: [
@@ -27,6 +27,7 @@ export const newProjectPreset: PresetFn = async () => {
   }
 
   return {
-    data
+    data,
+    hightlight: true,
   }
 }

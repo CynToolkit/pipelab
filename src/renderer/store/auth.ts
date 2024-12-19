@@ -24,6 +24,7 @@ export const useAuth = defineStore('auth', () => {
   })
 
   const init = async () => {
+    console.log('init auth')
     try {
       const {
         data: { user: supaUser }
@@ -36,11 +37,14 @@ export const useAuth = defineStore('auth', () => {
   }
 
   const login = async (email: string, password: string) => {
-    const { data: user } = await supabase.auth.signInWithPassword({ email, password })
+    const { data } = await supabase.auth.signInWithPassword({ email, password })
+
+    user.value = data.user
   }
 
   const register = async (email: string, password: string) => {
-    const { data: user } = await supabase.auth.signUp({ email, password })
+    const { data } = await supabase.auth.signUp({ email, password })
+    user.value = data.user
   }
 
   return {

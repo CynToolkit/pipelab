@@ -9,6 +9,7 @@ import { WebSocketServer } from 'ws'
 import './custom-main.js'
 import mri from 'mri'
 import config from '../config.cjs'
+import steamworks from 'steamworks.js'
 
 // user
 import userFolder from './handlers/user/folder.js'
@@ -49,6 +50,9 @@ import run from './handlers/general/run.js'
 import open from './handlers/general/open.js'
 import showInExplorer from './handlers/general/open-in-explorer.js'
 
+// steam raw
+import steamRaw from './handlers/steam/raw.js'
+
 /**
  * Assert switch is exhaustive
  * @param {never} _x
@@ -85,6 +89,22 @@ if (config.enableDisableRendererBackgrounding) {
 }
 //endregion
 
+//region Steam
+
+let client
+console.log('config.enableSteamSupport', config.enableSteamSupport)
+if (config.enableSteamSupport) {
+  console.log('steamworks', steamworks)
+  try {
+    client = steamworks.init(480)
+    console.log('client', client)
+    console.log(client.localplayer.getName())
+  } catch (e) {
+    console.error('e', e)
+  }
+}
+//endregion
+
 /**
  * @param {BrowserWindow} mainWindow
  * @returns {Promise<number>}
@@ -98,7 +118,13 @@ const createAppServer = (mainWindow) => {
     const server = createServer((req, res) => {
       return serve(req, res, {
         maxAge: 0,
-        public: dir
+        public: dir,
+        rewrites: [
+          {
+            source: 'sw.js',
+            destination: 'index.html'
+          }
+        ]
       })
     })
 
@@ -134,71 +160,71 @@ const createAppServer = (mainWindow) => {
             break
 
           case '/window/maximize':
-            windowMaximize(json, ws, mainWindow)
+            await windowMaximize(json, ws, mainWindow)
             break
 
           case '/window/minimize':
-            windowMinimize(json, ws, mainWindow)
+            await windowMinimize(json, ws, mainWindow)
             break
           case '/window/request-attention':
-            windowRequestAttention(json, ws, mainWindow)
+            await windowRequestAttention(json, ws, mainWindow)
             break
           case '/window/restore':
-            windowRestore(json, ws, mainWindow)
+            await windowRestore(json, ws, mainWindow)
             break
           case '/dialog/folder':
-            dialogFolder(json, ws, mainWindow)
+            await dialogFolder(json, ws, mainWindow)
             break
           case '/dialog/open':
-            dialogOpen(json, ws, mainWindow)
+            await dialogOpen(json, ws, mainWindow)
             break
           case '/dialog/save':
-            dialogSave(json, ws, mainWindow)
+            await dialogSave(json, ws, mainWindow)
             break
           case '/window/set-always-on-top':
-            windowSetAlwaysOnTop(json, ws, mainWindow)
+            await windowSetAlwaysOnTop(json, ws, mainWindow)
             break
           case '/window/set-height':
-            windowSetHeight(json, ws, mainWindow)
+            await windowSetHeight(json, ws, mainWindow)
             break
           case '/window/set-maximum-size':
-            windowSetMaximumSize(json, ws, mainWindow)
+            await windowSetMaximumSize(json, ws, mainWindow)
             break
           case '/window/set-minimum-size':
-            windowSetMinimumSize(json, ws, mainWindow)
+            await windowSetMinimumSize(json, ws, mainWindow)
             break
           case '/window/set-resizable':
-            windowSetResizable(json, ws, mainWindow)
+            await windowSetResizable(json, ws, mainWindow)
             break
           case '/window/set-title':
-            windowSetTitle(json, ws, mainWindow)
+            await windowSetTitle(json, ws, mainWindow)
             break
           case '/window/set-width':
-            windowSetWidth(json, ws, mainWindow)
+            await windowSetWidth(json, ws, mainWindow)
             break
           case '/window/set-x':
-            windowSetX(json, ws, mainWindow)
+            await windowSetX(json, ws, mainWindow)
             break
           case '/window/set-y':
-            windowSetY(json, ws, mainWindow)
+            await windowSetY(json, ws, mainWindow)
             break
           case '/window/show-dev-tools':
-            windowShowDevTools(json, ws, mainWindow)
+            await windowShowDevTools(json, ws, mainWindow)
             break
           case '/window/unmaximize':
-            windowUnmaximize(json, ws, mainWindow)
+            await windowUnmaximize(json, ws, mainWindow)
             break
           case '/engine':
-            engine(json, ws, mainWindow)
+            await engine(json, ws, mainWindow)
             break
           case '/open':
-            open(json, ws, mainWindow)
+            await open(json, ws, mainWindow)
             break
           case '/show-in-explorer':
-            showInExplorer(json, ws, mainWindow)
+            await showInExplorer(json, ws, mainWindow)
             break
           case '/run':
-            run(json, ws, mainWindow)
+            await run(json, ws, mainWindow)
             break
           case '/fs/copy':
             throw new Error('Not implemented')
@@ -209,13 +235,16 @@ const createAppServer = (mainWindow) => {
           case '/fs/file/append':
             throw new Error('Not implemented')
           case '/fs/list':
-            fsList(json, ws, mainWindow)
+            await fsList(json, ws, mainWindow)
             break
           case '/fs/file/size':
-            fsFileSize(json, ws, mainWindow)
+            await fsFileSize(json, ws, mainWindow)
             break
           case '/fs/move':
             throw new Error('Not implemented')
+          case '/steam/raw':
+            await steamRaw(json, ws, client)
+            break
 
           default:
             console.log('unsupported', data)
@@ -294,3 +323,8 @@ app.on('window-all-closed', () => {
     app.quit()
   }
 })
+
+if (config.enableSteamSupport) {
+  console.log('Enabling steam overlay support')
+  steamworks.electronEnableSteamOverlay()
+}

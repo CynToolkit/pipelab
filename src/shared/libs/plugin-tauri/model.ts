@@ -1,9 +1,9 @@
-export type ElectronConfiguration = {
+export type TauriConfiguration = {
   name: string
   appBundleId: string
   appCopyright: string
   appVersion: string
-  electronVersion: string
+  tauriVersion: string
   customMainCode: string
   author: string
   description: string
@@ -19,5 +19,5 @@ export type ElectronConfiguration = {
   icon: string
   appCategoryType: string
 
-  // steamSupport: boolean
+  // enableSteamSupport: boolean
 }

@@ -1,17 +1,17 @@
 import { createAction, createActionRunner } from '@pipelab/plugin-core'
-import { ElectronConfiguration } from './model'
+import { TauriConfiguration } from './model'
 
 export const props = createAction({
-  id: 'electron:configure',
-  description: 'Configure electron',
-  displayString: "'Configure Electron'",
+  id: 'tauri:configure',
+  description: 'Configure tauri',
+  displayString: "'Configure Tauri'",
   icon: '',
   meta: {},
-  name: 'Configure Electron',
+  name: 'Configure Tauri',
   outputs: {
     configuration: {
       label: 'Configuration',
-      value: {} as Partial<ElectronConfiguration>
+      value: {} as Partial<TauriConfiguration>
     }
   },
   params: {
@@ -92,7 +92,7 @@ export const props = createAction({
     },
     description: {
       label: 'Application description',
-      value: 'A simple Electron application',
+      value: 'A simple Tauri application',
       description: 'The description of the application',
       required: false,
       control: {
@@ -188,10 +188,10 @@ export const props = createAction({
       }
     },
 
-    electronVersion: {
+    tauriVersion: {
       value: '',
-      label: 'Electron version',
-      description: 'The version of Electron to use',
+      label: 'Tauri version',
+      description: 'The version of Tauri to use',
       required: false,
       control: {
         type: 'input',
@@ -243,7 +243,7 @@ export const props = createAction({
           kind: 'text'
         }
       }
-    },
+    }
 
     // integrations
 

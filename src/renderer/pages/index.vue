@@ -71,6 +71,77 @@
     </div>
 
     <Dialog
+      v-model:visible="isNewProjectModalVisible"
+      modal
+      :style="{ width: '75vw' }"
+      :breakpoints="{ '575px': '90vw' }"
+    >
+      <template #header>
+        <div class="flex flex-column w-full">
+          <p class="text-xl text-center">New Project</p>
+        </div>
+      </template>
+
+      <div class="new-project">
+        <div class="grid justify-content-center">
+          <div class="col-12 xl:col-6 w-full">
+            <div class="h-full w-full">
+              <div class="mb-1">Project Name</div>
+              <div class="mb-2">
+                <InputText v-model="newProjectName" class="w-full"> </InputText>
+              </div>
+
+              <div class="mb-1">Storage</div>
+              <div class="mb-2">
+                <Select
+                  v-model="newProjectType"
+                  class="w-full"
+                  option-label="label"
+                  option-value="value"
+                  option-disabled="disabled"
+                  :options="newProjectTypes"
+                >
+                </Select>
+              </div>
+
+              <div v-if="newProjectType === 'local'" class="location">
+                <FileInput
+                  v-model="newProjectLocalLocation"
+                  :default-path="newProjectNamePathified"
+                ></FileInput>
+              </div>
+
+              <div class="presets">
+                <div
+                  v-for="(preset, key) of newProjectPresets"
+                  :key="key"
+                  :class="{ active: newProjectPreset === key, disabled: preset.disabled }"
+                  class="preset"
+                  @click="newProjectPreset = key"
+                >
+                  <div class="preset-title">{{ preset.data.name }}</div>
+                  <div>{{ preset.data.description }}</div>
+                  <div v-if="preset.hightlight" class="highlight-icon">
+                    <i class="mdi mdi-star-circle-outline mr-2 fs-24"></i>
+                  </div>
+                  <div v-if="newProjectPreset === key" class="selection-icon">
+                    <i class="mdi mdi-check-circle mr-2 fs-24"></i>
+                  </div>
+                </div>
+              </div>
+
+              <div class="buttons">
+                <Button :disabled="!canCreateproject" @click="onNewFileCreation"
+                  >Create project</Button
+                >
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Dialog>
+
+    <Dialog
       v-model:visible="isAuthModalVisible"
       modal
       :style="{ width: '30vw' }"
@@ -238,10 +309,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watchEffect } from 'vue'
+import { computed, onMounted, ref, watchEffect } from 'vue'
 import ScenarioListItem from '@renderer/components/ScenarioListItem.vue'
 import { storeToRefs } from 'pinia'
-import { EnhancedFile, SavedFile } from '@@/model'
+import { EnhancedFile, SavedFile, Preset } from '@@/model'
 import { nanoid } from 'nanoid'
 import { useRouter } from 'vue-router'
 import { useAPI } from '@renderer/composables/api'
@@ -253,6 +324,10 @@ import { email, minLength, nonEmpty, object, pipe, regex, string } from 'valibot
 import { toTypedSchema } from '@vee-validate/valibot'
 import { useAuth } from '@renderer/store/auth'
 import { MenuItem } from 'primevue/menuitem'
+import { Presets } from '@@/apis'
+import FileInput from '@renderer/components/FileInput.vue'
+import { PROJECT_EXTENSION } from '@renderer/models/constants'
+import { kebabCase } from 'change-case'
 
 const router = useRouter()
 
@@ -269,6 +344,20 @@ const { files } = storeToRefs(fileStore)
 const { update: updateFileStore, remove } = fileStore
 
 const filesEnhanced = ref<EnhancedFile[]>([])
+
+const canCreateproject = computed(() => {
+  return (
+    newProjectType.value !== undefined &&
+    newProjectPreset.value !== undefined &&
+    newProjectName.value !== undefined &&
+    (newProjectType.value === 'cloud' ||
+      (newProjectType.value === 'local' && newProjectLocalLocation.value !== undefined))
+  )
+})
+
+onMounted(async () => {
+  await auth.init()
+})
 
 watchEffect(async () => {
   const entries = Object.entries(files.value.data)
@@ -318,7 +407,7 @@ const openFile = async () => {
     {
       title: 'Choose a new path',
       properties: ['openFile'],
-      filters: [{ name: 'Pipelab Project', extensions: ['pipelab'] }]
+      filters: [{ name: 'Pipelab Project', extensions: [PROJECT_EXTENSION] }]
     },
     async (_, message) => {
       const { type } = message
@@ -379,49 +468,60 @@ const openFile = async () => {
   }
 }
 
+const newProjectName = ref()
+const newProjectNamePathified = computed(() => {
+  return kebabCase(newProjectName.value)
+})
+
+const newProjectType = ref()
+const newProjectTypes = ref([
+  {
+    label: 'Local',
+    value: 'local',
+    description: 'Store project locally',
+    icon: ''
+  },
+  {
+    label: 'Cloud',
+    value: 'cloud',
+    icon: '',
+    disabled: true,
+    description: 'Store project on the cloud'
+  }
+])
+
+const newProjectPreset = ref<string>()
+const newProjectPresets = ref<Presets>({})
+
+const newProjectLocalLocation = ref<string>()
+
 /**
  * Create a new project
  * save it to the repo
  * and save it to user location
  */
 const newFile = async () => {
-  let id = nanoid()
-
+  // find presets
   const presetsResult = await api.execute('presets:get')
 
   if (presetsResult.type === 'error') {
     throw new Error(presetsResult.ipcError)
   }
 
-  const presets = presetsResult.result
+  newProjectPresets.value = presetsResult.result
 
-  // TODO: choose cloud or local
+  // show dialog
+  isNewProjectModalVisible.value = true
+}
 
-  const paths = await api.execute(
-    'dialog:showSaveDialog',
-    {
-      title: 'Choose a new path',
-      properties: ['createDirectory', 'showOverwriteConfirmation'],
-      filters: [{ name: 'Pipelab Project', extensions: ['pipelab'] }]
-    },
-    async (_, message) => {
-      const { type } = message
-      if (type === 'end') {
-        //
-      }
-    }
-  )
+const onNewFileCreation = async () => {
+  let id = nanoid()
 
-  if (paths.type === 'error') {
-    throw new Error(paths.ipcError)
+  const preset = newProjectPresets.value[newProjectPreset.value].data
+
+  if (!preset) {
+    throw new Error('Invalid preset')
   }
-
-  if (paths.result.canceled) {
-    logger().error('Save cancelled')
-    return
-  }
-
-  const path = paths.result.filePath
 
   const alreadyAddedPaths = Object.entries(files.value.data).map(([id, file]) => {
     if (file.type === 'external') {
@@ -432,7 +532,7 @@ const newFile = async () => {
     }
   })
 
-  const foundExisting = alreadyAddedPaths.find((x) => x.path === path)
+  const foundExisting = alreadyAddedPaths.find((x) => x.path === newProjectLocalLocation.value)
 
   if (foundExisting && foundExisting.type === 'external') {
     id = foundExisting.id
@@ -442,20 +542,26 @@ const newFile = async () => {
   updateFileStore((state) => {
     state.data[id] = {
       lastModified: new Date().toISOString(),
-      path,
+      path: newProjectLocalLocation.value,
       summary: {
         description: '',
-        name: '',
+        name: newProjectName.value,
         plugins: []
       },
       type: 'external'
     }
   })
 
+  const updatedPreset: Preset = {
+    ...preset,
+    name: newProjectName.value,
+    description: ''
+  } satisfies Preset
+
   // write file
   await api.execute('fs:write', {
-    path,
-    content: JSON.stringify(presets.newProject.data)
+    path: newProjectLocalLocation.value,
+    content: JSON.stringify(updatedPreset)
   })
 
   await router.push({
@@ -481,7 +587,9 @@ const deleteProject = async (id: string) => {
 
 const appVersion = ref(window.version)
 const isAuthModalVisible = ref(false)
+const isNewProjectModalVisible = ref(false)
 const auth = useAuth()
+const { user } = storeToRefs(auth)
 
 const schema = toTypedSchema(
   object({
@@ -531,7 +639,7 @@ const $menu = ref()
 const accountMenuItems = computed(() => {
   const items = []
 
-  if (auth.user) {
+  if (user.value) {
     items.push(
       {
         label: 'Profile',
@@ -688,5 +796,73 @@ const toggleAccountMenu = (event: MouseEvent) => {
   justify-content: center;
   gap: 8px;
   margin-top: 32px;
+}
+
+.presets {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+  margin-top: 16px;
+  margin-bottom: 16px;
+
+  .preset {
+    border: 1px solid #eee;
+    overflow: hidden;
+    border-radius: 8px;
+    padding: 8px;
+    position: relative;
+    height: 100px;
+
+    &:hover {
+      cursor: pointer;
+      background-color: #eee;
+      border: 1px solid #aaa;
+    }
+
+    &.highlight {
+      border: 1px solid #ffff00;
+    }
+
+    .preset-title {
+      font-size: 1.2rem;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .highlight-icon {
+      position: absolute;
+      right: 4px;
+      top: 8px;
+    }
+
+    .selection-icon {
+      position: absolute;
+      right: 4px;
+      bottom: 8px;
+    }
+
+    &.active {
+      cursor: pointer;
+      background-color: #eee;
+      outline: 2px solid #000;
+    }
+
+    &.disabled {
+      pointer-events: none;
+      opacity: 0.75;
+    }
+  }
+}
+
+@media screen and (width < 1280px) {
+  .presets {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media screen and (width < 960px) {
+  .presets {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

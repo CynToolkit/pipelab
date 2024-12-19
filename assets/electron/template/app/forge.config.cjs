@@ -13,7 +13,9 @@ const config = require('./config.cjs')
 module.exports = {
   outDir: './out',
   packagerConfig: {
-    asar: true,
+    asar: {
+      unpack: "*.{node,dll,so,lib,dylib}"
+    },
     name: config.name,
     appBundleId: config.appBundleId,
     appCopyright: config.appCopyright,
@@ -41,10 +43,11 @@ module.exports = {
     }
   ],
   plugins: [
-    {
-      name: '@electron-forge/plugin-auto-unpack-natives',
-      config: {}
-    },
+    // {
+    //   name: '@electron-forge/plugin-auto-unpack-natives',
+    //   config: {
+    //   }
+    // },
     new FusesPlugin({
       version: FuseVersion.V1,
       [FuseV1Options.RunAsNode]: false,
