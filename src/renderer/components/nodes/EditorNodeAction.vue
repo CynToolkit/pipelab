@@ -137,7 +137,8 @@
       class="add-btn"
       :path="path"
       @add-node="addNode"
-    ></AddNodeButton>
+    >
+    </AddNodeButton>
 
     <Dialog
       v-model:visible="isLogDialogOpened"
@@ -455,6 +456,7 @@ const hasErrored = computed(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
+  position: relative;
 }
 
 .node-action {
@@ -467,6 +469,21 @@ const hasErrored = computed(() => {
   min-width: 300px;
   background-color: white;
   display: flex;
+
+  /*
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border: 4px solid green;
+    border-radius: 4px;
+    transition: all 0.5s;
+    animation: clippath 3s infinite linear;
+  }
+  */
 
   &.disabled {
     // background-color: #eee;
@@ -486,8 +503,7 @@ const hasErrored = computed(() => {
     0 0 22px rgba(186, 186, 191, 0.3);
 
   &.active {
-    outline: 1px solid red;
-    outline-offset: 3px;
+    border: 1px solid blue;
   }
 
   &.error {
@@ -589,6 +605,23 @@ const hasErrored = computed(() => {
     .cell {
       flex: 0 0 auto;
     }
+  }
+}
+
+@keyframes clippath {
+  0%,
+  100% {
+    clip-path: inset(0 0 95% 0);
+  }
+
+  25% {
+    clip-path: inset(0 95% 0 0);
+  }
+  50% {
+    clip-path: inset(95% 0 0 0);
+  }
+  75% {
+    clip-path: inset(0 0 0 95%);
   }
 }
 </style>

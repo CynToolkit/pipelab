@@ -86,13 +86,13 @@
         <div class="grid justify-content-center">
           <div class="col-12 xl:col-6 w-full">
             <div class="h-full w-full">
-              <label>
-                Project Name
+              <div class="mb-1">Project Name</div>
+              <div class="mb-2">
                 <InputText v-model="newProjectName" class="w-full"> </InputText>
-              </label>
+              </div>
 
-              <label>
-                Storage
+              <div class="mb-1">Storage</div>
+              <div class="mb-2">
                 <Select
                   v-model="newProjectType"
                   class="w-full"
@@ -102,17 +102,20 @@
                   :options="newProjectTypes"
                 >
                 </Select>
-              </label>
+              </div>
 
               <div v-if="newProjectType === 'local'" class="location">
-                <FileInput v-model="newProjectLocalLocation"></FileInput>
+                <FileInput
+                  v-model="newProjectLocalLocation"
+                  :default-path="newProjectNamePathified"
+                ></FileInput>
               </div>
 
               <div class="presets">
                 <div
                   v-for="(preset, key) of newProjectPresets"
                   :key="key"
-                  :class="{ active: newProjectPreset === key }"
+                  :class="{ active: newProjectPreset === key, disabled: preset.disabled }"
                   class="preset"
                   @click="newProjectPreset = key"
                 >
@@ -306,10 +309,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watchEffect } from 'vue'
+import { computed, onMounted, ref, watchEffect } from 'vue'
 import ScenarioListItem from '@renderer/components/ScenarioListItem.vue'
 import { storeToRefs } from 'pinia'
-import { EnhancedFile, SavedFile } from '@@/model'
+import { EnhancedFile, SavedFile, Preset } from '@@/model'
 import { nanoid } from 'nanoid'
 import { useRouter } from 'vue-router'
 import { useAPI } from '@renderer/composables/api'
@@ -324,6 +327,7 @@ import { MenuItem } from 'primevue/menuitem'
 import { Presets } from '@@/apis'
 import FileInput from '@renderer/components/FileInput.vue'
 import { PROJECT_EXTENSION } from '@renderer/models/constants'
+import { kebabCase } from 'change-case'
 
 const router = useRouter()
 
@@ -345,9 +349,14 @@ const canCreateproject = computed(() => {
   return (
     newProjectType.value !== undefined &&
     newProjectPreset.value !== undefined &&
+    newProjectName.value !== undefined &&
     (newProjectType.value === 'cloud' ||
       (newProjectType.value === 'local' && newProjectLocalLocation.value !== undefined))
   )
+})
+
+onMounted(async () => {
+  await auth.init()
 })
 
 watchEffect(async () => {
@@ -460,6 +469,9 @@ const openFile = async () => {
 }
 
 const newProjectName = ref()
+const newProjectNamePathified = computed(() => {
+  return kebabCase(newProjectName.value)
+})
 
 const newProjectType = ref()
 const newProjectTypes = ref([
@@ -533,17 +545,23 @@ const onNewFileCreation = async () => {
       path: newProjectLocalLocation.value,
       summary: {
         description: '',
-        name: '',
+        name: newProjectName.value,
         plugins: []
       },
       type: 'external'
     }
   })
 
+  const updatedPreset: Preset = {
+    ...preset,
+    name: newProjectName.value,
+    description: ''
+  } satisfies Preset
+
   // write file
   await api.execute('fs:write', {
     path: newProjectLocalLocation.value,
-    content: JSON.stringify(preset)
+    content: JSON.stringify(updatedPreset)
   })
 
   await router.push({
@@ -571,6 +589,7 @@ const appVersion = ref(window.version)
 const isAuthModalVisible = ref(false)
 const isNewProjectModalVisible = ref(false)
 const auth = useAuth()
+const { user } = storeToRefs(auth)
 
 const schema = toTypedSchema(
   object({
@@ -620,7 +639,7 @@ const $menu = ref()
 const accountMenuItems = computed(() => {
   const items = []
 
-  if (auth.user) {
+  if (user.value) {
     items.push(
       {
         label: 'Profile',
@@ -826,6 +845,11 @@ const toggleAccountMenu = (event: MouseEvent) => {
       cursor: pointer;
       background-color: #eee;
       outline: 2px solid #000;
+    }
+
+    &.disabled {
+      pointer-events: none;
+      opacity: 0.75;
     }
   }
 }

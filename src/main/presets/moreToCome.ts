@@ -1,12 +1,12 @@
 import { PresetFn, SavedFile } from '@@/model'
 
-export const newProjectPreset: PresetFn = async () => {
+export const moreToCome: PresetFn = async () => {
   const startId = 'manual-start'
 
   const data: SavedFile = {
     version: '3.0.0',
-    name: 'Empty project',
-    description: 'A default project with no tasks added',
+    name: 'More to come!',
+    description: 'Do not hesitate to suggest templates you would see here',
     variables: [],
     canvas: {
       triggers: [
@@ -28,6 +28,7 @@ export const newProjectPreset: PresetFn = async () => {
 
   return {
     data,
-    hightlight: true,
+    disabled: true,
+    hightlight: false
   }
 }

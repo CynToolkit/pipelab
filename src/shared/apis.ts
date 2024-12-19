@@ -1,6 +1,6 @@
 import { RendererPluginDefinition } from '@pipelab/plugin-core'
 import type { Tagged } from 'type-fest'
-import { Preset, Steps } from './model'
+import { Preset, PresetResult, Steps } from './model'
 
 type Event<TYPE extends string, DATA> = { type: TYPE; data: DATA } | { type: 'log'; data: unknown[] }
 type EndEvent<DATA> = {
@@ -16,7 +16,7 @@ type EndEvent<DATA> = {
       }
 }
 
-export type Presets = Record<string, { data: Preset; hightlight: boolean }>
+export type Presets = Record<string, PresetResult>
 
 export type IpcDefinition = {
   'fs:read': [

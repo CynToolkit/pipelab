@@ -27,7 +27,7 @@ https://github.com/tympanix/electron-regedit
         ☐ Godot export
         ☐ Package to playable ad
         ☐ Package as discord activity
-        ☐ Load sensible datas from environement variables for security purposes
+        ☐ Load sensible datas from environnement variables for security purposes
         ☐ Command palette
         ☐ Undo/Redo
         ☐ Upload to
@@ -47,10 +47,4 @@ Tests:
 ☐ env (= copy variables)
 ☐ handle pipeline error gracefully
     ☐ display what happened in dialog
-☐ handle steamworks
-
-☐ prepare electron + install package
 ☐ process quickjs in webworker
-
-Electron not working anymore ?
-Electron Export need platform and arch now ??

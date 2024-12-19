@@ -11,8 +11,7 @@
   },
   "app": {
     "withGlobalTauri": true,
-    "windows": [
-    ],
+    "windows": [],
     "security": {
       "csp": null
     }
@@ -26,11 +25,6 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ],
-    "resources": [
-      "steam_api64.dll",
-      "steam_api64.lib",
-      "steam_appid.txt"
     ]
   }
 }

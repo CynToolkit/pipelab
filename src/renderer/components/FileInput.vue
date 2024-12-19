@@ -16,17 +16,21 @@ import { useAPI } from '@renderer/composables/api'
 import InputText from 'primevue/inputtext'
 import { extname } from 'path-browserify'
 import { PROJECT_EXTENSION } from '@renderer/models/constants'
+import { toRefs } from 'vue'
 
 const { logger } = useLogger()
 const api = useAPI()
 
-defineProps<{
+const props = defineProps<{
   modelValue: string | undefined
+  defaultPath: string | undefined
 }>()
 
 const emit = defineEmits<{
   'update:model-value': [data: string]
 }>()
+
+const { defaultPath } = toRefs(props)
 
 const hasExtension = (path: string) => {
   return extname(path) === `.${PROJECT_EXTENSION}`
@@ -38,7 +42,8 @@ const pickLocation = async () => {
     {
       title: 'Choose a new path',
       properties: ['createDirectory', 'showOverwriteConfirmation'],
-      filters: [{ name: 'Pipelab Project', extensions: [PROJECT_EXTENSION] }]
+      filters: [{ name: 'Pipelab Project', extensions: [PROJECT_EXTENSION] }],
+      defaultPath: defaultPath.value
     },
     async (_, message) => {
       const { type } = message
