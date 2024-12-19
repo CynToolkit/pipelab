@@ -279,6 +279,7 @@ export const forge = async (
       transparent: false,
       width: 800,
       enableSteamSupport: false,
+      steamGameId: 480
     } satisfies ElectronConfiguration,
     inputs.configuration
   ) as ElectronConfiguration

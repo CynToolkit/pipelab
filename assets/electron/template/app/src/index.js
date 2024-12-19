@@ -96,7 +96,7 @@ console.log('config.enableSteamSupport', config.enableSteamSupport)
 if (config.enableSteamSupport) {
   console.log('steamworks', steamworks)
   try {
-    client = steamworks.init(480)
+    client = steamworks.init(config.steamGameId)
     console.log('client', client)
     console.log(client.localplayer.getName())
   } catch (e) {
@@ -274,13 +274,16 @@ const createWindow = async () => {
     fullscreen: config.fullscreen,
     frame: config.frame,
     transparent: config.transparent,
-    // toolbar: config.toolbar,
     alwaysOnTop: config.alwaysOnTop,
     webPreferences: {
       // @ts-expect-error import.meta
       preload: join(import.meta.dirname, 'preload.js')
     }
   })
+
+  if (!config.toolbar) {
+    mainWindow.setMenu(null)
+  }
 
   // Clear service workers to prevent old versions of the app
   await session.defaultSession.clearStorageData({

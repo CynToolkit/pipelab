@@ -22,6 +22,7 @@
  * @property {string} appCategoryType
  * @property {string} icon
  * @property {boolean} enableSteamSupport
+ * @property {number} steamGameId
  */
 
 /** @type {Config} */
@@ -46,6 +47,7 @@ const config = {
   transparent: false,
   width: 800,
   enableSteamSupport: false,
+  steamGameId: 480
 }
 
 module.exports = config

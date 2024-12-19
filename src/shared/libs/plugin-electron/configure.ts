@@ -250,9 +250,22 @@ export const props = createAction({
     enableSteamSupport: {
       required: false,
       label: 'Enable steam support',
+      description: 'Whether to enable Steam support',
       value: false,
       control: {
         type: 'boolean'
+      }
+    },
+    steamGameId: {
+      required: false,
+      label: 'Steam game ID',
+      description: 'The Steam game ID',
+      value: '',
+      control: {
+        type: 'input',
+        options: {
+          kind: 'number'
+        }
       }
     }
   }

@@ -19,4 +19,5 @@ export type ElectronConfiguration = {
   icon: string
   appCategoryType: string
   enableSteamSupport: boolean
+  steamGameId: number
 }
