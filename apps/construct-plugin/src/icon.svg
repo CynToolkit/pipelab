@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   width="100%"
+   height="100%"
+   viewBox="0 0 512 512"
+   version="1.1"
+   xml:space="preserve"
+   style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:2;"
+   id="svg1"
+   sodipodi:docname="pipelab_color_logo.svg"
+   inkscape:version="1.4 (86a8ad7, 2024-10-11)"
+   inkscape:export-filename="..\Exported Assets\discord_white_white.png"
+   inkscape:export-xdpi="96"
+   inkscape:export-ydpi="96"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg"><defs
+   id="defs1" /><sodipodi:namedview
+   id="namedview1"
+   pagecolor="#ffffff"
+   bordercolor="#000000"
+   borderopacity="0.25"
+   inkscape:showpageshadow="2"
+   inkscape:pageopacity="0.0"
+   inkscape:pagecheckerboard="0"
+   inkscape:deskcolor="#d1d1d1"
+   inkscape:zoom="0.5"
+   inkscape:cx="46"
+   inkscape:cy="121"
+   inkscape:window-width="1920"
+   inkscape:window-height="1009"
+   inkscape:window-x="-8"
+   inkscape:window-y="-8"
+   inkscape:window-maximized="1"
+   inkscape:current-layer="layer1"
+   inkscape:export-bgcolor="#ffffffff" />
+
+<g
+   inkscape:groupmode="layer"
+   id="layer1"
+   inkscape:label="white bg"><rect
+     style="fill:#ffffff;fill-opacity:1;stroke-width:0.999292"
+     id="rect1"
+     width="256.34775"
+     height="336.5726"
+     x="127.82494"
+     y="119.91077" /><rect
+     style="clip-rule:evenodd;fill:#ffffff;fill-opacity:1;fill-rule:evenodd;stroke-width:0.792564;stroke-linejoin:round;stroke-miterlimit:2"
+     id="rect1-8"
+     width="320.39651"
+     height="169.39778"
+     x="92.718712"
+     y="118.88971" /></g><path
+   id="pipelab_logo"
+   d="M127.829,423.067L127.829,456.49C61.22,414.052 17,339.537 17,254.775C17,122.868 124.092,15.775 256,15.775C387.908,15.775 495,122.868 495,254.775C495,339.537 450.78,414.052 384.171,456.49L384.171,305.272L239.554,305.272C172.358,305.272 127.829,360.368 127.829,423.067ZM117.607,125.101L394.393,125.101C404.118,125.101 412.014,132.996 412.014,142.721L412.014,254.317C412.014,264.042 404.118,271.938 394.393,271.938L117.607,271.938C107.882,271.938 99.986,264.042 99.986,254.317L99.986,142.721C99.986,132.996 107.882,125.101 117.607,125.101Z"
+   style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:2;fill:rgb(79, 70, 229)" /></svg>

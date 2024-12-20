@@ -1,0 +1,109 @@
+name: Build and Release
+on:
+  push:
+    tags:
+      - '**'
+    branches:
+      - main
+
+jobs:
+  build-and-release:
+    permissions:
+      contents: write
+      discussions: write
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: pnpm/action-setup@v4
+
+      - name: Install dependencies and build
+        run: |
+          pnpm install
+          pnpm run build
+
+      - name: Auto Generate Documentation
+        run: |
+          pnpm run doc
+
+      - name: Commit Documentation
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "GitHub Actions"
+          if [[ -n $(git status -s) ]]; then
+            git add README.md
+            git commit -m "Update Readme.md"
+          else
+            echo "No changes to commit"
+          fi
+
+      - name: Push Documentation
+        uses: ad-m/github-push-action@master
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          branch: main
+
+      - name: Get last modified file
+        id: getfile
+        run: |
+          last_modified_file=$(ls -Art dist | tail -n 1)
+          echo "Last modified file: $last_modified_file"
+          echo "filename=$last_modified_file" >> $GITHUB_OUTPUT
+          version=$(echo $last_modified_file | sed -n 's/.*-\([0-9.]*\).c3addon/\1/p')
+          echo "Last modified file version: $version"
+          echo "version=$version" >> $GITHUB_OUTPUT
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: dist/**/*
+
+      - name: Check if variables are set
+        id: check
+        run: |
+          publish=true
+          if [[ -z "${{ secrets.C3_AUTH_USER }}" ]]; then
+            echo "C3 AUTH_USER is not set. skip publishing."
+            publish=false
+          fi
+          if [[ -z "${{ secrets.C3_AUTH_PASSWORD }}" ]]; then
+            echo "C3 AUTH_PASSWORD is not set. skip publishing."
+            publish=false
+          fi
+          echo "publish=$publish" >> $GITHUB_OUTPUT
+
+      - name: Install publish dependencies
+        if: steps.check.outputs.publish == 'true'
+        run: |
+          npm install -g c3addon
+
+      - name: Get Addon Url
+        if: steps.check.outputs.publish == 'true'
+        id: url
+        run: |
+          url=$(grep -oP 'addonUrl:\s?"\K[^"]*' src/pluginConfig.js | cut -d '"' -f 1)
+          echo "Addon Url: $url"
+          if [[ -z "$url" ]]; then
+            echo "Addon Url is not set. skip publishing."
+            exit 1
+          fi
+          echo "url=$url" >> $GITHUB_OUTPUT
+
+      - name: Publish to Construct 3
+        if: steps.check.outputs.publish == 'true'
+        run: |
+          c3addon publish \
+            --addonUrl '${{steps.url.outputs.url}}' \
+            --authUser ${{ secrets.C3_AUTH_USER }} \
+            --authPassword ${{ secrets.C3_AUTH_PASSWORD }} \
+            --uploadFile dist/${{ steps.getfile.outputs.filename }} \
+            --version ${{ steps.getfile.outputs.version }} \
+            --releaseNotes 'Released via GitHub Actions'

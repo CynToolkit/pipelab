@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8" />
+  <title>Pipelab</title>
+  <!-- https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP -->
+  <meta
+    http-equiv="Content-Security-Policy"
+    content="
+        default-src 'self';
+        script-src 'self' 'unsafe-eval';
+        img-src 'self' data:;
+        style-src 'self' 'unsafe-inline';
+        style-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com;
+        font-src 'self' https://fonts.gstatic.com;
+        connect-src 'self' https://*.supabase.co;
+      "
+  />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Geist:wght@100..900&family=Public+Sans:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
+
+  <style>
+    html,
+    body,
+    #app {
+      border: none;
+      margin: 0;
+      padding: 0;
+      height: 100%;
+    }
+
+    html {
+      font-family: "DM Sans", serif;
+      font-optical-sizing: auto;
+      font-weight: 500;
+      font-style: normal;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="app"></div>
+  <script
+    type="module"
+    src="/src/renderer.ts"
+  ></script>
+</body>
+
+</html>

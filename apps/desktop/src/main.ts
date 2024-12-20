@@ -37,7 +37,7 @@ if (app.isPackaged && process.env.TEST !== 'true' && !isWine) {
   })
 }
 
-const imagePath = join('./assets', 'icon.png')
+const imagePath = join('./assets', 'discord_white.png')
 // let isQuiting = false
 
 if (!isLinux && process.env.TEST !== 'true' && require('electron-squirrel-startup')) app.quit()

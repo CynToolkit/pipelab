@@ -1,0 +1,35 @@
+{
+  "dependencies": {
+    "@pipelab/core": "1.3.0",
+    "adm-zip": "0.5.16",
+    "chokidar": "4.0.1",
+    "cors": "2.8.5",
+    "express": "4.21.1",
+    "inquirer": "12.0.0"
+  },
+  "name": "@pipelab/construct-plugin",
+  "description": "Pipelab construct plugin",
+  "version": "1.2.0",
+  "packageManager": "pnpm@9.10.0",
+  "type": "module",
+  "scripts": {
+    "build": "node build.js --buildWrapperExtension",
+    "dev": "node dev.js",
+    "doc": "node doc.js",
+    "validate": "node validate.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/CynToolkit/construct-plugin"
+  },
+  "author": "",
+  "license": "LICENSE.md",
+  "bugs": {
+    "url": "https://github.com/CynToolkit/construct-plugin/issues"
+  },
+  "homepage": "https://github.com/CynToolkit/construct-plugin#readme",
+  "devDependencies": {
+    "c3ide2-types": "1.0.1",
+    "electron": "33.0.2"
+  }
+}
