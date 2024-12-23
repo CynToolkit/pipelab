@@ -25,7 +25,8 @@ export const sharedParams = {
     }
   },
   password: {
-    description: 'Your Construct password',
+    description:
+      'Your Construct password. Will only be used locally to automate the export on Construct website via a local browser. Will not be sent to any server.',
     control: {
       type: 'input',
       options: {

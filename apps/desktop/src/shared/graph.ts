@@ -9,6 +9,22 @@ import { useLogger } from './logger'
 import { variableToFormattedVariable } from '@renderer/composables/variables'
 import { createQuickJs } from '@renderer/utils/quickjs'
 
+const getPluginDefinition = (pluginId: string, definitions: Array<RendererPluginDefinition>) => {
+  const result = definitions.find((nodeDef) => {
+    return nodeDef.id === pluginId
+  })
+  return result
+}
+
+const getNodeDefinition = (nodeId: string, pluginId: string, definitions: Array<RendererPluginDefinition>) => {
+  // const getNodeDefinition = <T extends Block>(node: T extends Block ? T : never) => {
+  const plugin = getPluginDefinition(pluginId, definitions)
+  if (plugin) {
+    return plugin.nodes.find((pluginNode) => pluginNode.node.id === nodeId)
+  }
+  return undefined
+}
+
 export const processGraph = async (options: {
   graph: Array<Block>
   definitions: Array<RendererPluginDefinition>
@@ -30,6 +46,8 @@ export const processGraph = async (options: {
 
   for (const node of options.graph) {
     const rawNode = node
+    const pluginDefinition = getPluginDefinition(node.origin.pluginId, options.definitions)
+    const nodeDefinition = getNodeDefinition(node.origin.nodeId, node.origin.pluginId, options.definitions)
 
     /* if (rawNode.type === 'condition') {
       options.onNodeEnter(rawNode)
@@ -100,7 +118,7 @@ export const processGraph = async (options: {
       if (result.type === 'error') {
         logger().error(result.ipcError)
         options.onNodeExit(rawNode)
-        throw new Error('Action error: ' + result.ipcError)
+        throw new Error(`"${nodeDefinition.node.name}" action error: ${result.ipcError}`)
       }
 
       if (result.type === 'success') {

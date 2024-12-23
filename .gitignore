@@ -101,3 +101,6 @@ assets/electron/template/app/src/app
 playwright/**/*
 assets/tauri/template/app/app
 assets/tauri/template/app/src-tauri/steam_*
+.turbo
+assets/tauri/template/app/dist/
+assets/tauri/template/app/src-tauri/gen/

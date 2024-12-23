@@ -1,6 +1,6 @@
 {
   "dependencies": {
-    "@pipelab/core": "1.3.0",
+    "@pipelab/core": "workspace:*",
     "adm-zip": "0.5.16",
     "chokidar": "4.0.1",
     "cors": "2.8.5",
