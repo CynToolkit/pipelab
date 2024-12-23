@@ -104,3 +104,4 @@ assets/tauri/template/app/src-tauri/steam_*
 .turbo
 assets/tauri/template/app/dist/
 assets/tauri/template/app/src-tauri/gen/
+*timestamp-*

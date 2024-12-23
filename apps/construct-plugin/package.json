@@ -30,6 +30,7 @@
   "homepage": "https://github.com/CynToolkit/construct-plugin#readme",
   "devDependencies": {
     "c3ide2-types": "1.0.1",
-    "electron": "33.0.2"
+    "electron": "33.0.2",
+    "pnpm": "9.12.2"
   }
 }
