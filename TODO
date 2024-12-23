@@ -54,11 +54,10 @@ Edge case: old version of the app vs new version of c3p
 Activate save only when needed
 Active cancel button to not be locked out
 Simple mode: also allow to pick variables & such
-Steam ID: NaN
 QuickJS: memory leak, open close action
 Add own timers for electorn export & such
 si tu appuies sur New Project, puis que tu selectionne direct le dropdown pour choisir Local/Cloud, ça ferme le popup et c'est impossible de rappuyer sur New Project
-Electron configuration: Cannot convert underined or null to object
 C3 Preview ne fonctionne pas
 Steam achievement test c3 example
 Itch plugin
+Filesystem plugin: overwrite parameter + better sentences/descriptions

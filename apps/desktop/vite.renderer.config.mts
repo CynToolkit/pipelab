@@ -7,6 +7,13 @@ import Components from 'unplugin-vue-components/vite'
 import { PrimeVueResolver } from '@primevue/auto-import-resolver'
 import vitePluginVueDevtool from 'vite-plugin-vue-devtools'
 import { sentryVitePlugin } from '@sentry/vite-plugin'
+import packageConfig from './package.json' with { type: 'json' }
+
+const codemirrorDeps = Object.entries(packageConfig.dependencies)
+  .map(([key, value]) => {
+    return key
+  })
+  .filter((predicate) => predicate.startsWith('@codemirror/'))
 
 // https://vitejs.dev/config
 export default defineConfig((env) => {
@@ -53,14 +60,22 @@ export default defineConfig((env) => {
     },
     build: {
       outDir: `.vite/renderer/${name}`,
-      sourcemap: true
+      sourcemap: true,
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            codemirror: codemirrorDeps
+          }
+        }
+      }
     },
     optimizeDeps: {
-      include: ['@codemirror/state', '@codemirror/view']
+      exclude: [...codemirrorDeps]
     },
     plugins,
     resolve: {
-      preserveSymlinks: true
+      preserveSymlinks: true,
+      dedupe: [...codemirrorDeps]
     },
     clearScreen: false
   } as UserConfig

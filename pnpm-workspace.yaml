@@ -1,3 +1,6 @@
 packages:
   - 'apps/*'
   - 'libs/*'
+
+# public-hoist-pattern:
+#   - '@codemirror/*'
