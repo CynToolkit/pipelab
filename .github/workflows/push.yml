@@ -130,32 +130,32 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        steps:
-        - name: Package application
-          env:
-            SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-            SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-            SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-            SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
-          run: pnpm turbo publish:dry
+    steps:
+    - name: Package application
+      env:
+        SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+        SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+        SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+      run: pnpm turbo publish:dry
 
-        - name: Run tests
-          uses: coactions/setup-xvfb@v1
-          with:
-            run: pnpm turbo test:e2e:raw
+    - name: Run tests
+      uses: coactions/setup-xvfb@v1
+      with:
+        run: pnpm turbo test:e2e:raw
 
-        - name: Upload Playwright artifacts
-          uses: actions/upload-artifact@v4
-          with:
-            name: ${{ matrix.os }}-playwright
-            path: apps/desktop/playwright/**/*
+    - name: Upload Playwright artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ matrix.os }}-playwright
+        path: apps/desktop/playwright/**/*
 
-        - name: Upload artifacts
-          if: success()
-          uses: actions/upload-artifact@v4
-          with:
-            name: ${{ matrix.os }}-out
-            path: apps/desktop/out/**/*
+    - name: Upload artifacts
+      if: success()
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ matrix.os }}-out
+        path: apps/desktop/out/**/*
 
   publish-core-to-npm:
     needs: install
