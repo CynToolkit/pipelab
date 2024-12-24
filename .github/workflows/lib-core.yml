@@ -21,10 +21,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22.x"
-      - uses: pnpm/action-setup@v4
-      - run: pnpm install
-      - run: pnpm build --filter=@pipelab/core
-      - run: pnpm test
+      - run: yarn install
+      - run: yarn turbo build --filter=@pipelab/core
+      # - run: yarn test
 
   # publish to npm
   publish-npm:
@@ -36,11 +35,9 @@ jobs:
         with:
           node-version: "22.x"
           registry-url: https://registry.npmjs.org/
-      - uses: pnpm/action-setup@v4
-      - run: pnpm install
-      - run: pnpm build --filter=@pipelab/core
-      # - run: pnpm run test
-      - run: cd libs/core && pnpm publish
+      - run: yarn install
+      - run: yarn turbo build --filter=@pipelab/core
+      - run: cd libs/core && yarn publish
         if: github.ref == 'refs/tags/v*'
         env:
           NODE_AUTH_TOKEN: ${{secrets.PUBLISH_NPM_TOKEN}}

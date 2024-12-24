@@ -22,16 +22,14 @@ jobs:
         with:
           node-version: 22
 
-      - uses: pnpm/action-setup@v4
-
       - name: Install dependencies and build
         run: |
-          pnpm install
-          pnpm build --filter=@pipelab/construct-plugin
+          yarn install
+          yarn turbo build --filter=@pipelab/construct-plugin
 
       # - name: Auto Generate Documentation
       #   run: |
-      #     pnpm run doc
+      #     yarn run doc
 
       # - name: Commit Documentation
       #   run: |

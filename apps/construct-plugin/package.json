@@ -10,7 +10,6 @@
   "name": "@pipelab/construct-plugin",
   "description": "Pipelab construct plugin",
   "version": "1.2.0",
-  "packageManager": "pnpm@9.10.0",
   "type": "module",
   "scripts": {
     "build": "node build.js --buildWrapperExtension",
