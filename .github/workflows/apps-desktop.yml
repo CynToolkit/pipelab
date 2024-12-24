@@ -28,6 +28,9 @@ jobs:
         with:
           node-version: '22.5.1'
 
+      - name: Enable Corepack
+        run: corepack enable
+
       - name: Set up Python 3.10
         uses: actions/setup-python@v5
         with:
@@ -90,6 +93,9 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22.5.1'
+
+      - name: Enable Corepack
+        run: corepack enable
 
       - name: Install dependencies
         run: yarn install --prod=false
