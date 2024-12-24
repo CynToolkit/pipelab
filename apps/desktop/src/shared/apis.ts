@@ -1,4 +1,4 @@
-import { RendererPluginDefinition } from '@pipelab/plugin-core'
+import { RendererPluginDefinition } from '@plugins/plugin-core'
 import type { Tagged } from 'type-fest'
 import { Preset, PresetResult, Steps } from './model'
 

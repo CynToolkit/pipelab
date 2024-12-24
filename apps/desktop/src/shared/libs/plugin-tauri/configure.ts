@@ -1,4 +1,4 @@
-import { createAction, createActionRunner } from '@pipelab/plugin-core'
+import { createAction, createActionRunner } from '@plugins/plugin-core'
 import { TauriConfiguration } from './model'
 
 export const props = createAction({

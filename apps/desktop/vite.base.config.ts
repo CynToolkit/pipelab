@@ -2,16 +2,27 @@ import { builtinModules } from 'node:module'
 import type { AddressInfo } from 'node:net'
 import { loadEnv, type ConfigEnv, type Plugin, type UserConfig } from 'vite'
 import pkg from './package.json'
+import path from 'node:path'
 
 export const builtins = ['electron', ...builtinModules.map((m) => [m, `node:${m}`]).flat()]
 
+const deps = Object
+  .keys('dependencies' in pkg ? (pkg.dependencies as Record<string, unknown>) : {})
+  .filter((dep) => !dep.startsWith('@pipelab'))
+
 export const external = [
   ...builtins,
-  ...Object.keys('dependencies' in pkg ? (pkg.dependencies as Record<string, unknown>) : {})
+  ...deps
 ]
+
+console.log('deps', deps)
 
 export function getBuildConfig(env: ConfigEnv<'build'>): UserConfig {
   const { root, mode, command } = env
+
+  const pipelabCorePath = path.resolve(`${root}/../../libs/core`)
+
+  console.log('pipelabCorePath', pipelabCorePath)
 
   return {
     root,
@@ -24,7 +35,15 @@ export function getBuildConfig(env: ConfigEnv<'build'>): UserConfig {
       watch: command === 'serve' ? {} : null,
       minify: command === 'build'
     },
-    clearScreen: false
+    clearScreen: false,
+    // optimizeDeps: {
+    //   include: ['@pipelab/core'],
+    // },
+    // resolve: {
+    //   alias: {
+    //     '@pipelab/core': pipelabCorePath
+    //   }
+    // }
   }
 }
 

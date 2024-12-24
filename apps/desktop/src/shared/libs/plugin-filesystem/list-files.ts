@@ -1,4 +1,4 @@
-import { createAction, createActionRunner } from "@pipelab/plugin-core";
+import { createAction, createActionRunner } from "@plugins/plugin-core";
 export const ID = "list-files-node";
 
 export const ListFilesAction = createAction({

@@ -1,10 +1,12 @@
 {
 	"name": "pipelab",
 	"private": true,
-	"workspaces": [
-		"apps/*",
-		"libs/*"
-	],
+	"workspaces": {
+		"packages": [
+			"apps/*",
+			"libs/*"
+		]
+	},
 	"scripts": {
 		"build": "turbo build",
 		"dev": "turbo dev",

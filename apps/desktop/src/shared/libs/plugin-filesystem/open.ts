@@ -1,4 +1,4 @@
-import { createAction, createActionRunner } from '@pipelab/plugin-core'
+import { createAction, createActionRunner } from '@plugins/plugin-core'
 // import displayString from './displayStringRun.lua?raw'
 
 export const ID = 'fs:open-in-explorer'

@@ -6,7 +6,8 @@
       "dependsOn": ["^build"]
     },
     "test:e2e:raw": {
-      "dependsOn": ["^build"]
+    },
+    "package": {
     },
     "lint": {
       "dependsOn": ["^lint"]
@@ -15,7 +16,6 @@
       "dependsOn": ["^check-types"]
     },
     "release:dry": {
-      "dependsOn": ["^build"]
     },
     "release": {
     },

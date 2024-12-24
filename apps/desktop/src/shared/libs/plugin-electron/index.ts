@@ -2,7 +2,7 @@ import { makeRunner } from './make.js'
 import { packageRunner } from './package.js'
 import { previewRunner } from './preview.js'
 
-import { createNodeDefinition } from '@pipelab/plugin-core'
+import { createNodeDefinition } from '@plugins/plugin-core'
 import icon from './public/electron.webp'
 import {
   createMakeProps,

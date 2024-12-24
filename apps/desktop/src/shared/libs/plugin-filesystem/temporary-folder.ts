@@ -1,4 +1,4 @@
-// import { ComputeOutput, Context, CynNode, IODef, createDefinition, path, schema } from '@pipelab/plugin-core';
+// import { ComputeOutput, Context, CynNode, IODef, createDefinition, path, schema } from '@plugins/plugin-core';
 // import { nanoid } from 'nanoid'
 
 // export const ID = 'temporary-folder'

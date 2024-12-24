@@ -1252,6 +1252,18 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@electron-forge/shared-types@npm:^7.6.0":
+  version: 7.6.0
+  resolution: "@electron-forge/shared-types@npm:7.6.0"
+  dependencies:
+    "@electron-forge/tracer": "npm:7.6.0"
+    "@electron/packager": "npm:^18.3.5"
+    "@electron/rebuild": "npm:^3.7.0"
+    listr2: "npm:^7.0.2"
+  checksum: 10c0/4b26ee8bae88d9c62fd2195c16a0a164276a3d4e1733354c455ef7a06ea0b552ce46a49ef9edc8e690eb1ad2394308c3db4805282ef9010a82c81d45a79833d6
+  languageName: node
+  linkType: hard
+
 "@electron-forge/template-base@npm:7.4.0":
   version: 7.4.0
   resolution: "@electron-forge/template-base@npm:7.4.0"
@@ -1315,6 +1327,15 @@ __metadata:
   dependencies:
     chrome-trace-event: "npm:^1.0.3"
   checksum: 10c0/53150c28d5a568ee2ac544db86d63b440e179775e51c447df89d9b23ab3f190ab9ec2786cb2a22fd72229e1768d5127fe71c983ee193bda87c13ae4395612277
+  languageName: node
+  linkType: hard
+
+"@electron-forge/tracer@npm:7.6.0":
+  version: 7.6.0
+  resolution: "@electron-forge/tracer@npm:7.6.0"
+  dependencies:
+    chrome-trace-event: "npm:^1.0.3"
+  checksum: 10c0/bc680f6eb75ae4146ebf4d10034004e28d492c290af402bb30512131eaeedb48176d399af4d0019ad5c17d315c3d5d091788d85d0073e826971f3505a4484fdb
   languageName: node
   linkType: hard
 
@@ -1470,7 +1491,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@electron/packager@npm:^18.3.1":
+"@electron/packager@npm:^18.3.1, @electron/packager@npm:^18.3.5":
   version: 18.3.6
   resolution: "@electron/packager@npm:18.3.6"
   dependencies:
@@ -1499,7 +1520,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@electron/rebuild@npm:^3.2.10":
+"@electron/rebuild@npm:^3.2.10, @electron/rebuild@npm:^3.7.0":
   version: 3.7.1
   resolution: "@electron/rebuild@npm:3.7.1"
   dependencies:
@@ -3388,6 +3409,7 @@ __metadata:
     "@electron-forge/plugin-fuses": "npm:7.4.0"
     "@electron-forge/plugin-vite": "npm:7.4.0"
     "@electron-forge/publisher-github": "npm:7.4.0"
+    "@electron-forge/shared-types": "npm:^7.6.0"
     "@electron-toolkit/preload": "npm:3.0.1"
     "@electron-toolkit/tsconfig": "npm:1.0.1"
     "@electron-toolkit/utils": "npm:3.0.0"

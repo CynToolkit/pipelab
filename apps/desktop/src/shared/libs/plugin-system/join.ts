@@ -1,7 +1,7 @@
 import {
   createExpression,
   createExpressionRunner,
-} from "@pipelab/plugin-core";
+} from "@plugins/plugin-core";
 
 export const ID = "join";
 

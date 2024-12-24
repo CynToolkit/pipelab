@@ -1,4 +1,4 @@
-import { createNodeDefinition } from '@pipelab/plugin-core'
+import { createNodeDefinition } from '@plugins/plugin-core'
 import { exportAction, ExportActionRunner } from './export-c3p.js'
 import { exportProjectAction, ExportProjectActionRunner } from './export-project.js'
 import icon from './assets/construct.webp'

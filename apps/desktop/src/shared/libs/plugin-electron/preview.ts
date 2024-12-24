@@ -1,4 +1,4 @@
-import { createActionRunner, runWithLiveLogs } from '@pipelab/plugin-core'
+import { createActionRunner, runWithLiveLogs } from '@plugins/plugin-core'
 import { createPreviewProps, forge } from './forge'
 
 export const previewRunner = createActionRunner<ReturnType<typeof createPreviewProps>>(

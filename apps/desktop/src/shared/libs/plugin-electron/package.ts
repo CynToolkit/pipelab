@@ -1,4 +1,4 @@
-import { createActionRunner } from '@pipelab/plugin-core'
+import { createActionRunner } from '@plugins/plugin-core'
 import { createPackageProps, forge } from './forge'
 
 export const packageRunner = createActionRunner<ReturnType<typeof createPackageProps>>(

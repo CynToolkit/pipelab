@@ -1,4 +1,4 @@
-import { Meta, createLoop, createLoopRunner } from "@pipelab/plugin-core";
+import { Meta, createLoop, createLoopRunner } from "@plugins/plugin-core";
 
 export const ID = "for";
 

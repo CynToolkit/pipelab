@@ -194,7 +194,7 @@
 <script setup lang="ts">
 import { computed, ref, toRefs, watch } from 'vue'
 import type { ValueOf } from 'type-fest'
-import { Action, Condition, Event } from '@pipelab/plugin-core'
+import { Action, Condition, Event } from '@plugins/plugin-core'
 import { createCodeEditor } from '@renderer/utils/code-editor'
 import { createQuickJs } from '@renderer/utils/quickjs'
 import { BlockAction, BlockCondition, BlockEvent, BlockLoop, Steps } from '@@/model'

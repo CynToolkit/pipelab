@@ -44,6 +44,7 @@
     "@codemirror/lint": "6.8.2",
     "@codemirror/state": "6.4.1",
     "@codemirror/view": "6.34.0",
+    "@electron-forge/shared-types": "^7.6.0",
     "@electron-toolkit/preload": "3.0.1",
     "@electron-toolkit/utils": "3.0.0",
     "@floating-ui/vue": "1.1.5",

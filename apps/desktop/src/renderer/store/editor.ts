@@ -17,7 +17,7 @@ import {
   Loop,
   PipelabNode,
   RendererNodeDefinition
-} from '@pipelab/plugin-core'
+} from '@plugins/plugin-core'
 import { Variable } from '@pipelab/core-app'
 import { defineStore, storeToRefs } from 'pinia'
 import get from 'get-value'

@@ -1,4 +1,4 @@
-import { ExtractInputsFromAction, createAction, createActionRunner } from '@pipelab/plugin-core'
+import { ExtractInputsFromAction, createAction, createActionRunner } from '@plugins/plugin-core'
 import { exportc3p, sharedParams } from './export-shared.js'
 
 export const ID = 'export-construct-project'

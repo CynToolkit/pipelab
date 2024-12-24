@@ -1,4 +1,4 @@
-import { createNodeDefinition } from '@pipelab/plugin-core'
+import { createNodeDefinition } from '@plugins/plugin-core'
 import { logAction, logActionRunner } from './log.js'
 // import { branchCondition, branchConditionRunner } from './branch.js'
 // import { forLoop, ForLoopRunner } from './for.js'

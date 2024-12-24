@@ -1,4 +1,4 @@
-import { createCondition, createConditionRunner } from '@pipelab/plugin-core'
+import { createCondition, createConditionRunner } from '@plugins/plugin-core'
 
 export const ID = 'branch'
 

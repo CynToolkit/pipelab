@@ -1,4 +1,4 @@
-import { createNodeDefinition } from "@pipelab/plugin-core";
+import { createNodeDefinition } from "@plugins/plugin-core";
 import { ListFilesAction, ListFilesActionRun } from './list-files.js'
 import { isFileCondition, isFileRunner } from './is-file.js'
 import { zipRunner, zip } from './zip.js'

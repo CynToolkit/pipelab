@@ -4,7 +4,7 @@ import {
   InputsDefinition,
   ParamsToInput,
   runWithLiveLogs
-} from '@pipelab/plugin-core'
+} from '@plugins/plugin-core'
 import { script } from './assets/script.js'
 import v from 'valibot'
 
