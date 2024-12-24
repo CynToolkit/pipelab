@@ -49,12 +49,12 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
           SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
-        run: yarn turbo publish:dry
+        run: yarn turbo release:dry  --filter=@pipelab/app
 
       - name: Run tests
         uses: coactions/setup-xvfb@v1
         with:
-          run: cd apps/desktop && yarn test:e2e:raw
+          run: yarn turbo test:e2e:raw --filter=@pipelab/app
 
       - name: Upload Playwright artifacts
         uses: actions/upload-artifact@v4
@@ -104,4 +104,4 @@ jobs:
       - name: Publish release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: cd apps/desktop && yarn electron-forge publish --from-dry-run
+        run: yarn turbo release

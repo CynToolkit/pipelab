@@ -6,7 +6,8 @@
   "type": "module",
   "scripts": {
     "build": "tsc",
-    "test": "echo 0"
+    "test": "echo 0",
+    "release": "yarn npm publish"
   },
   "files": [
     "dist"

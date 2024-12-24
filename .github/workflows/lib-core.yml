@@ -8,29 +8,14 @@ on:
     branches:
       - "**"
 
-jobs:
-  build:
+jobs:  # publish to npm
+  build-and-publish-npm:
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       id-token: write
       packages: write
       attestations: write
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22.x"
-      - name: Enable Corepack
-        run: corepack enable
-      - run: yarn install
-      - run: yarn turbo build --filter=@pipelab/core
-      # - run: yarn test
-
-  # publish to npm
-  publish-npm:
-    needs: build
-    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -41,25 +26,8 @@ jobs:
         run: corepack enable
       - run: yarn install
       - run: yarn turbo build --filter=@pipelab/core
-      - run: cd libs/core && yarn publish
+      # - run: yarn turbo test --filter=@pipelab/core
+      - run: yarn turbo release --filter=@pipelab/core
         if: github.ref == 'refs/tags/v*'
         env:
           NODE_AUTH_TOKEN: ${{secrets.PUBLISH_NPM_TOKEN}}
-
-  # publish to gpr
-  # publish-gpr:
-  #   needs: build
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - uses: actions/setup-node@v4
-  #       with:
-  #         node-version: "22.x"
-  #         registry-url: https://npm.pkg.github.com/
-  #         scope: "@cyn"
-  #     - uses: pnpm/action-setup@v4
-  #     - run: pnpm install
-  #     - run: pnpm run build
-  #     - run: pnpm publish
-  #       env:
-  #         NODE_AUTH_TOKEN: ${{secrets.PUBLISH_GITHUB_TOKEN}}

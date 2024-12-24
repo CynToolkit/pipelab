@@ -31,8 +31,8 @@
     "build:linux": "npm run build:no-check && electron-builder --linux --config",
     "package": "electron-forge package",
     "make": "electron-forge make",
-    "publish": "electron-forge publish",
-    "publish:dry": "electron-forge publish --dry-run",
+    "release": "electron-forge publish --from-dry-run",
+    "release:dry": "electron-forge publish --dry-run",
     "make-dev-prerelease": "yarn version prerelease --preid=dev",
     "supa:types": "supabase gen types typescript --project-id $VITE_SUPABASE_PROJECT_ID > src/shared/database.types.ts",
     "migrate-file": "yarn tsx scripts/migrate-file.mts"
