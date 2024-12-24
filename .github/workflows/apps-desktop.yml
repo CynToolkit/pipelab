@@ -51,25 +51,25 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
           SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
-        run: pnpm electron-forge publish --dry-run
+        run: cd apps/desktop && pnpm electron-forge publish --dry-run
 
       - name: Run tests
         uses: coactions/setup-xvfb@v1
         with:
-          run: pnpm test:e2e:raw
+          run: cd apps/desktop && pnpm test:e2e:raw
 
       - name: Upload Playwright artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.os }}-playwright
-          path: playwright/**/*
+          path: apps/desktop/playwright/**/*
 
       - name: Upload artifacts
         if: success()
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.os }}-out
-          path: out/**/*
+          path: apps/desktop/out/**/*
 
   release:
     permissions:
@@ -90,7 +90,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: ${{ matrix.os }}-out
-          path: out
+          path: apps/desktop/out
 
       - uses: pnpm/action-setup@v4
         name: Install pnpm
@@ -109,4 +109,4 @@ jobs:
       - name: Publish release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: pnpm electron-forge publish --from-dry-run
+        run: cd apps/desktop && pnpm electron-forge publish --from-dry-run
