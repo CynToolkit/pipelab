@@ -22,7 +22,7 @@ const config: ForgeConfig = {
       name
     }),
     new MakerZIP(undefined, ['darwin', 'linux', 'win32']),
-    new MakerDMG()
+    // new MakerDMG()
   ],
   publishers: [
     {

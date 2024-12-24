@@ -12,6 +12,7 @@ on:
 
 jobs:
   build-and-test:
+    if: always()
     runs-on: ${{ matrix.os }}
     env:
       CI: true
