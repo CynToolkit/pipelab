@@ -43,7 +43,7 @@ jobs:
         run: pnpm install
 
       - name: Build app deps
-        run: pnpm turbo run build --filter=...@pipelab/app^
+        run: pnpm turbo run build --filter=@pipelab/app^...
 
       - name: Package application
         env:
