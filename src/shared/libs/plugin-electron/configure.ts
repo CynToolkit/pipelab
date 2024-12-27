@@ -260,7 +260,7 @@ export const props = createAction({
       required: false,
       label: 'Steam game ID',
       description: 'The Steam game ID',
-      value: '',
+      value: 480,
       control: {
         type: 'input',
         options: {

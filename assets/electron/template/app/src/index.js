@@ -285,10 +285,14 @@ const createWindow = async () => {
     mainWindow.setMenu(null)
   }
 
-  // Clear service workers to prevent old versions of the app
-  await session.defaultSession.clearStorageData({
-    storages: ['serviceworkers']
-  })
+  try {
+    // Clear service workers to prevent old versions of the app
+    await session.defaultSession.clearStorageData({
+      storages: ['serviceworkers']
+    })
+  } catch (e) {
+    console.error('Error clearing service workers', e)
+  }
 
   if (argUrl) {
     console.log('argUrl', argUrl)
