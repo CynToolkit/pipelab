@@ -187,7 +187,7 @@ export const uploadToSteamRunner = createActionRunner<typeof uploadToSteam>(
 
     await runWithLiveLogs(
       steamcmdPath,
-      ['+login', username + '1', '+run_app_build', scriptPath, '+quit'],
+      ['+login', username, '+run_app_build', scriptPath, '+quit'],
       {},
       log,
       {
