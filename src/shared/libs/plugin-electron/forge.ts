@@ -213,6 +213,10 @@ export const forge = async (
 
   const { assets, unpack } = paths
 
+  if (!inputs.configuration) {
+    throw new Error('Missing electron configuration')
+  }
+
   const { join, basename, delimiter } = await import('node:path')
   const { cp } = await import('node:fs/promises')
   const { arch, platform } = await import('os')

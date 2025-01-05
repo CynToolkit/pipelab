@@ -46,8 +46,8 @@ importers:
         specifier: 0.31.0
         version: 0.31.0
       '@pipelab/core':
-        specifier: 1.3.0
-        version: 1.3.0
+        specifier: 1.3.2
+        version: 1.3.2
       '@primevue/themes':
         specifier: 4.1.1
         version: 4.1.1
@@ -1653,8 +1653,8 @@ packages:
     resolution: {integrity: sha512-HNjmfLQEVRZmHRET336f20H/8kOozUGwk7yajvsonjNxbj2wBTK1WsQuHkD5yYh9RxFGL2EyDHryOihOwUoKDA==}
     engines: {node: '>= 10.0.0'}
 
-  '@pipelab/core@1.3.0':
-    resolution: {integrity: sha512-f5e6rT8mAAb5aZxUc+5WMcfYB5XMhFvvhqvwdcDuKsxHU5AzvTED9oqiOhYdU5DT7IQkrpi95GkhqcQNkuYVQg==}
+  '@pipelab/core@1.3.2':
+    resolution: {integrity: sha512-WH7M4GU9yqp3/jW/7kpAmJtMsjajuEu0BH6wc6SXDthw+kH00BmkG5V3K4eHB5vMCuw2ZL5B6hVPz+rbCPtj/g==}
 
   '@pkgjs/parseargs@0.11.0':
     resolution: {integrity: sha512-+1VkjdD0QBLPodGrJUeqarH8VAIvQODIbwh9XpP5Syisf7YoQgsJKPNFoqqLQlu+VQ/tVSshMR6loPMn8U+dPg==}
@@ -8895,7 +8895,7 @@ snapshots:
       '@parcel/watcher-win32-ia32': 2.4.1
       '@parcel/watcher-win32-x64': 2.4.1
 
-  '@pipelab/core@1.3.0': {}
+  '@pipelab/core@1.3.2': {}
 
   '@pkgjs/parseargs@0.11.0':
     optional: true

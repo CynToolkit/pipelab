@@ -91,6 +91,7 @@ if (config.enableDisableRendererBackgrounding) {
 
 //region Steam
 
+/** @type {import('steamworks.js').Client} */
 let client
 console.log('config.enableSteamSupport', config.enableSteamSupport)
 if (config.enableSteamSupport) {
@@ -138,118 +139,131 @@ const createAppServer = (mainWindow) => {
         const json = JSON.parse(data.toString())
         console.log('received:', json)
 
-        switch (json.url) {
-          case '/paths':
-            await userFolder(json, ws, mainWindow)
-            break
+        try {
+          switch (json.url) {
+            case '/paths':
+              await userFolder(json, ws, mainWindow)
+              break
 
-          case '/fs/file/write':
-            await fsWrite(json, ws, mainWindow)
-            break
+            case '/fs/file/write':
+              await fsWrite(json, ws, mainWindow)
+              break
 
-          case '/fs/file/read':
-            await fsRead(json, ws, mainWindow)
-            break
+            case '/fs/file/read':
+              await fsRead(json, ws, mainWindow)
+              break
 
-          case '/fs/file/read/binary':
-            await fsReadBinary(json, ws, mainWindow)
-            break
+            case '/fs/file/read/binary':
+              await fsReadBinary(json, ws, mainWindow)
+              break
 
-          case '/fs/folder/create':
-            await fsFolderCreate(json, ws, mainWindow)
-            break
+            case '/fs/folder/create':
+              await fsFolderCreate(json, ws, mainWindow)
+              break
 
-          case '/window/maximize':
-            await windowMaximize(json, ws, mainWindow)
-            break
+            case '/window/maximize':
+              await windowMaximize(json, ws, mainWindow)
+              break
 
-          case '/window/minimize':
-            await windowMinimize(json, ws, mainWindow)
-            break
-          case '/window/request-attention':
-            await windowRequestAttention(json, ws, mainWindow)
-            break
-          case '/window/restore':
-            await windowRestore(json, ws, mainWindow)
-            break
-          case '/dialog/folder':
-            await dialogFolder(json, ws, mainWindow)
-            break
-          case '/dialog/open':
-            await dialogOpen(json, ws, mainWindow)
-            break
-          case '/dialog/save':
-            await dialogSave(json, ws, mainWindow)
-            break
-          case '/window/set-always-on-top':
-            await windowSetAlwaysOnTop(json, ws, mainWindow)
-            break
-          case '/window/set-height':
-            await windowSetHeight(json, ws, mainWindow)
-            break
-          case '/window/set-maximum-size':
-            await windowSetMaximumSize(json, ws, mainWindow)
-            break
-          case '/window/set-minimum-size':
-            await windowSetMinimumSize(json, ws, mainWindow)
-            break
-          case '/window/set-resizable':
-            await windowSetResizable(json, ws, mainWindow)
-            break
-          case '/window/set-title':
-            await windowSetTitle(json, ws, mainWindow)
-            break
-          case '/window/set-width':
-            await windowSetWidth(json, ws, mainWindow)
-            break
-          case '/window/set-x':
-            await windowSetX(json, ws, mainWindow)
-            break
-          case '/window/set-y':
-            await windowSetY(json, ws, mainWindow)
-            break
-          case '/window/show-dev-tools':
-            await windowShowDevTools(json, ws, mainWindow)
-            break
-          case '/window/unmaximize':
-            await windowUnmaximize(json, ws, mainWindow)
-            break
-          case '/engine':
-            await engine(json, ws, mainWindow)
-            break
-          case '/open':
-            await open(json, ws, mainWindow)
-            break
-          case '/show-in-explorer':
-            await showInExplorer(json, ws, mainWindow)
-            break
-          case '/run':
-            await run(json, ws, mainWindow)
-            break
-          case '/fs/copy':
-            throw new Error('Not implemented')
-          case '/fs/delete':
-            throw new Error('Not implemented')
-          case '/fs/exist':
-            throw new Error('Not implemented')
-          case '/fs/file/append':
-            throw new Error('Not implemented')
-          case '/fs/list':
-            await fsList(json, ws, mainWindow)
-            break
-          case '/fs/file/size':
-            await fsFileSize(json, ws, mainWindow)
-            break
-          case '/fs/move':
-            throw new Error('Not implemented')
-          case '/steam/raw':
-            await steamRaw(json, ws, client)
-            break
+            case '/window/minimize':
+              await windowMinimize(json, ws, mainWindow)
+              break
+            case '/window/request-attention':
+              await windowRequestAttention(json, ws, mainWindow)
+              break
+            case '/window/restore':
+              await windowRestore(json, ws, mainWindow)
+              break
+            case '/dialog/folder':
+              await dialogFolder(json, ws, mainWindow)
+              break
+            case '/dialog/open':
+              await dialogOpen(json, ws, mainWindow)
+              break
+            case '/dialog/save':
+              await dialogSave(json, ws, mainWindow)
+              break
+            case '/window/set-always-on-top':
+              await windowSetAlwaysOnTop(json, ws, mainWindow)
+              break
+            case '/window/set-height':
+              await windowSetHeight(json, ws, mainWindow)
+              break
+            case '/window/set-maximum-size':
+              await windowSetMaximumSize(json, ws, mainWindow)
+              break
+            case '/window/set-minimum-size':
+              await windowSetMinimumSize(json, ws, mainWindow)
+              break
+            case '/window/set-resizable':
+              await windowSetResizable(json, ws, mainWindow)
+              break
+            case '/window/set-title':
+              await windowSetTitle(json, ws, mainWindow)
+              break
+            case '/window/set-width':
+              await windowSetWidth(json, ws, mainWindow)
+              break
+            case '/window/set-x':
+              await windowSetX(json, ws, mainWindow)
+              break
+            case '/window/set-y':
+              await windowSetY(json, ws, mainWindow)
+              break
+            case '/window/show-dev-tools':
+              await windowShowDevTools(json, ws, mainWindow)
+              break
+            case '/window/unmaximize':
+              await windowUnmaximize(json, ws, mainWindow)
+              break
+            case '/engine':
+              await engine(json, ws, mainWindow)
+              break
+            case '/open':
+              await open(json, ws, mainWindow)
+              break
+            case '/show-in-explorer':
+              await showInExplorer(json, ws, mainWindow)
+              break
+            case '/run':
+              await run(json, ws, mainWindow)
+              break
+            case '/fs/copy':
+              throw new Error('Not implemented')
+            case '/fs/delete':
+              throw new Error('Not implemented')
+            case '/fs/exist':
+              throw new Error('Not implemented')
+            case '/fs/file/append':
+              throw new Error('Not implemented')
+            case '/fs/list':
+              await fsList(json, ws, mainWindow)
+              break
+            case '/fs/file/size':
+              await fsFileSize(json, ws, mainWindow)
+              break
+            case '/fs/move':
+              throw new Error('Not implemented')
+            case '/steam/raw':
+              await steamRaw(json, ws, client)
+              break
 
-          default:
-            console.log('unsupported', data)
-            assertUnreachable(json)
-            break
+            default:
+              console.log('unsupported', data)
+              assertUnreachable(json)
+              break
+          }
+        } catch (e) {
+          console.error('e', e)
+          ws.send(
+            JSON.stringify({
+              url: json.url,
+              correlationId: json.correlationId,
+              body: {
+                error: e.message
+              }
+            })
+          )
         }
       })
     })
@@ -296,6 +310,10 @@ const createWindow = async () => {
 
   if (argUrl) {
     console.log('argUrl', argUrl)
+    const port = await createAppServer(mainWindow)
+
+    console.log('port', port)
+
     await mainWindow?.loadURL(argUrl)
   } else {
     const port = await createAppServer(mainWindow)

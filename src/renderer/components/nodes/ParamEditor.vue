@@ -196,7 +196,7 @@ import { computed, ref, toRefs, watch } from 'vue'
 import type { ValueOf } from 'type-fest'
 import { Action, Condition, Event } from '@pipelab/plugin-core'
 import { createCodeEditor } from '@renderer/utils/code-editor'
-import { createQuickJs } from '@renderer/utils/quickjs'
+import { CreateQuickJSFn } from '@renderer/utils/quickjs'
 import { BlockAction, BlockCondition, BlockEvent, BlockLoop, Steps } from '@@/model'
 import { controlsToIcon, controlsToType } from '@renderer/models/controls'
 import { Completion, CompletionContext } from '@codemirror/autocomplete'
@@ -216,8 +216,6 @@ import { klona } from 'klona'
 import { stepsPlaceholders } from '@renderer/utils/code-editor/step-plugin'
 
 // @ts-expect-error tsconfig
-const vm = await createQuickJs()
-
 type Params = (Action | Condition | Event)['params']
 type Param = ValueOf<BlockAction['params']>
 
@@ -229,6 +227,7 @@ const props = defineProps<{
   value: BlockAction | BlockEvent | BlockCondition | BlockLoop
   steps: Steps
   variables: Variable[]
+  vm: Awaited<CreateQuickJSFn>
 }>()
 
 // const props = defineProps({
@@ -260,7 +259,7 @@ const props = defineProps<{
 //   }
 // })
 
-const { paramKey, paramDefinition, steps, variables, param } = toRefs(props)
+const { paramKey, paramDefinition, steps, variables, param, vm } = toRefs(props)
 
 const confirm = useConfirm()
 
@@ -326,7 +325,7 @@ const $arrow = ref<HTMLElement>()
 const { logger } = useLogger()
 
 const formattedVariables = () => {
-  return variableToFormattedVariable(vm, variables.value)
+  return variableToFormattedVariable(vm.value, variables.value)
 }
 
 function myCompletions(context: CompletionContext) {
@@ -390,7 +389,7 @@ const doCodeEditorUpdate = throttle(async (newValue) => {
     const variables = await formattedVariables()
     console.log('displayString', displayString)
     console.log('variables', variables)
-    const result = await vm.run(displayString, {
+    const result = await vm.value.run(displayString, {
       params: {},
       // params: resolvedParams.value,
       steps: steps.value,

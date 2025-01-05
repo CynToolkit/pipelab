@@ -8,7 +8,6 @@ import { registerIPCHandlers } from './main/handlers'
 import { usePlugins } from '@@/plugins'
 import { parseArgs, ParseArgsConfig } from 'node:util'
 import { processGraph } from '@@/graph'
-import { Tray, Menu, nativeImage } from 'electron'
 import { readFile, writeFile, mkdir } from 'fs/promises'
 import { getFinalPlugins } from '@main/utils'
 import { SavedFile } from '@@/model'
@@ -18,7 +17,7 @@ import * as Sentry from '@sentry/electron/main'
 import { assetsPath } from '@main/paths'
 
 const isLinux = platform() === 'linux'
-let tray
+// let tray
 let isReadyToShow = false
 
 const { logger, setMainWindow } = useLogger()
@@ -37,7 +36,7 @@ if (app.isPackaged && process.env.TEST !== 'true' && !isWine) {
   })
 }
 
-const imagePath = join('./assets', 'icon.png')
+const imagePath = join('./assets', 'discord_white.png')
 // let isQuiting = false
 
 if (!isLinux && process.env.TEST !== 'true' && require('electron-squirrel-startup')) app.quit()
@@ -70,17 +69,14 @@ function createWindow(): void {
     isReadyToShow = true
   })
 
-  mainWindow.on('minimize', function (event: Event) {
-    event.preventDefault()
-    mainWindow.hide()
-  })
+  // TODO: only if minimize to tray enabled
+  // mainWindow.on('minimize', function (event: Event) {
+  //   event.preventDefault()
+  //   mainWindow.hide()
+  // })
 
   mainWindow.on('close', function () {
     app.quit()
-  })
-
-  mainWindow.on('minimize', function () {
-    mainWindow.hide()
   })
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
@@ -285,33 +281,33 @@ exec "${process.execPath}" "$@"
     process.exit(0)
   }
 
-  const icon = nativeImage.createFromPath(imagePath)
-  tray = new Tray(icon)
-  const contextMenu = Menu.buildFromTemplate([
-    {
-      label: 'Open',
-      type: 'normal',
-      click: () => {
-        if (mainWindow) {
-          mainWindow.show()
-        }
-      }
-    },
-    { type: 'separator' },
-    {
-      label: 'Exit',
-      type: 'normal',
-      click: () => {
-        // isQuiting = true
-        app.quit()
-      }
-    }
-  ])
+  // const icon = nativeImage.createFromPath(imagePath)
+  // tray = new Tray(icon)
+  // const contextMenu = Menu.buildFromTemplate([
+  //   {
+  //     label: 'Open',
+  //     type: 'normal',
+  //     click: () => {
+  //       if (mainWindow) {
+  //         mainWindow.show()
+  //       }
+  //     }
+  //   },
+  //   { type: 'separator' },
+  //   {
+  //     label: 'Exit',
+  //     type: 'normal',
+  //     click: () => {
+  //       // isQuiting = true
+  //       app.quit()
+  //     }
+  //   }
+  // ])
 
-  tray.setContextMenu(contextMenu)
-  tray.on('click', () => {
-    mainWindow.show()
-  })
+  // tray.setContextMenu(contextMenu)
+  // tray.on('click', () => {
+  //   mainWindow.show()
+  // })
 
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()

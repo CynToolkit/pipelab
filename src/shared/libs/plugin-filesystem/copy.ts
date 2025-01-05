@@ -4,7 +4,7 @@ export const ID = 'fs:copy'
 
 export const copy = createAction({
   id: ID,
-  name: 'Copy file',
+  name: 'Copy file/folder',
   displayString:
     '`Copy ${fmt.param(params.from, "primary")} to ${fmt.param(params.to, "primary")}`',
   params: {
@@ -34,6 +34,13 @@ export const copy = createAction({
       control: {
         type: 'boolean'
       }
+    },
+    overwrite: {
+      label: 'Overwrite',
+      value: true,
+      control: {
+        type: 'boolean'
+      }
     }
   },
 
@@ -51,17 +58,20 @@ export const copyRunner = createActionRunner<typeof copy>(async ({ log, inputs }
   const to = inputs.to
 
   if (!from) {
+    log('From', from)
     throw new Error('Missing source')
   }
 
   if (!to) {
+    log('To', to)
     throw new Error('Missing destination')
   }
 
   try {
     process.noAsar = true
     await cp(from, to, {
-      recursive: inputs.recursive
+      recursive: inputs.recursive,
+      force: inputs.overwrite,
     })
     process.noAsar = false
   } catch (e) {

@@ -185,21 +185,50 @@ export const uploadToSteamRunner = createActionRunner<typeof uploadToSteam>(
 
     log('Executing steamcmd')
 
-    await runWithLiveLogs(
-      steamcmdPath,
-      ['+login', username, '+run_app_build', scriptPath, '+quit'],
-      {},
-      log,
-      {
-        onStdout: (data, subprocess) => {
-          log('data stdout', data)
-          if (data.includes('Cached credentials not found')) {
-            log('You are not logged in to Steam')
-            subprocess.kill()
+    let error: string = ''
+
+    try {
+      await runWithLiveLogs(
+        steamcmdPath,
+        ['+login', username, '+run_app_build', scriptPath, '+quit'],
+        {},
+        log,
+        {
+          onStdout: (data, subprocess) => {
+            log('data stdout', data)
+
+            // TODO: handle password input dynamically
+            if (data.includes('Cached credentials not found')) {
+              error = 'LOGGED_OUT'
+
+              subprocess.kill()
+            }
           }
         }
+      )
+    } catch (e) {
+      console.error(e)
+      if (!error) {
+        error = 'UNKNOWN'
       }
-    )
+    }
+
+    console.warn('error', error)
+
+    if (error) {
+      if (error === 'LOGGED_OUT') {
+        log('You are not logged in to Steam')
+        log('To log in, run command below:')
+        log(`"${steamcmdPath}" +login ${username} +quit`)
+        throw new Error(
+          'You are not logged in to Steam\nTo log in, run command below:\n' +
+            `"${steamcmdPath}" +login ${username} +quit`
+        )
+      } else {
+        throw new Error('Unknown error')
+      }
+    }
+
     // // must keep that to not be interactive
     // await execa(steamcmdPath, ['+login', username, '+run_app_build', scriptPath, '+quit'], {
     //   stdout: 'inherit',

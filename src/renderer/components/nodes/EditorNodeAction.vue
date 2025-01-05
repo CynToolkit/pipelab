@@ -115,6 +115,7 @@
                 :steps="steps"
                 :variables="variables"
                 @update:model-value="onValueChanged($event, key.toString())"
+                :vm="vm"
               ></ParamEditor>
             </div>
           </div>

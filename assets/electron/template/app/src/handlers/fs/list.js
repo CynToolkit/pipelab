@@ -1,6 +1,7 @@
 // @ts-check
 
 import { readdir } from 'node:fs/promises'
+import { join } from 'node:path'
 
 /**
  * @param {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').MessageListFiles, 'input'>} json
@@ -9,8 +10,11 @@ import { readdir } from 'node:fs/promises'
  */
 export default async (json, ws, mainWindow) => {
   const file = await readdir(json.body.path, {
-    withFileTypes: true
+    withFileTypes: true,
+    recursive: json.body.recursive
   })
+
+  console.log('file', file)
 
   /**
    * @type {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').MessageListFiles, 'output'>}
@@ -22,7 +26,9 @@ export default async (json, ws, mainWindow) => {
       success: true,
       list: file.map((x) => ({
         type: x.isDirectory() ? 'folder' : 'file',
-        name: x.name
+        name: x.name,
+        parent: x.parentPath,
+        path: join(x.parentPath, x.name)
       }))
     }
   }
