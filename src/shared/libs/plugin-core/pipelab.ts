@@ -155,10 +155,9 @@ export interface ControlTypeMultiSelect extends ControlTypeBase {
 
 export interface ControlTypeBoolean extends ControlTypeBase {
   type: 'boolean'
-  // options: {
-  //   value: boolean;
-  //   onChange: (value: boolean) => void;
-  // };
+  // options?: {
+  //   allowAuto?: boolean
+  // }
 }
 
 export interface ControlTypeCheckbox extends ControlTypeBase {

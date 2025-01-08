@@ -272,6 +272,7 @@ export const forge = async (
       customMainCode: '',
       description: 'A simple Electron application',
       electronVersion: '',
+      disableAsarPackaging: false,
       enableDisableRendererBackgrounding: false,
       enableInProcessGPU: false,
       frame: true,

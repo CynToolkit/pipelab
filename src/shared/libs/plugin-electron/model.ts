@@ -4,6 +4,7 @@ export type ElectronConfiguration = {
   appCopyright: string
   appVersion: string
   electronVersion: string
+  disableAsarPackaging: boolean
   customMainCode: string
   author: string
   description: string

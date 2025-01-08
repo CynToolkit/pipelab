@@ -212,6 +212,15 @@ export const props = createAction({
         label: 'Path to a file containing custom main code'
       }
     },
+    disableAsarPackaging: {
+      required: true,
+      label: 'Disable ASAR packaging',
+      value: false,
+      control: {
+        type: 'boolean'
+      },
+      description: 'Whether to to disable packaging project files in a single binary or not',
+    },
 
     // Flags
 

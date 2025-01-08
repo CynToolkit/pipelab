@@ -252,25 +252,7 @@ export const forge = async (
 
   const completeConfiguration = merge(
     {
-      alwaysOnTop: false,
-      appBundleId: 'com.pipelab.app',
-      appCategoryType: '',
-      appCopyright: 'Copyright © 2024 Pipelab',
-      appVersion: '1.0.0',
-      author: 'Pipelab',
-      customMainCode: '',
-      description: 'A simple tauri application',
-      tauriVersion: '',
-      enableDisableRendererBackgrounding: false,
-      enableInProcessGPU: false,
-      frame: true,
-      fullscreen: false,
-      icon: '',
-      height: 600,
-      name: 'Pipelab',
-      toolbar: true,
-      transparent: false,
-      width: 800
+      name: 'Pipelab'
     } satisfies TauriConfiguration,
     inputs.configuration
   ) as TauriConfiguration
@@ -284,12 +266,12 @@ export const forge = async (
   )
 
   // copy custom main code
-  const destinationFile = join(destinationFolder, 'src', 'custom-main.js')
-  if (completeConfiguration.customMainCode) {
-    await cp(completeConfiguration.customMainCode, destinationFile)
-  } else {
-    await writeFile(destinationFile, 'console.log("No custom main code provided")')
-  }
+  // const destinationFile = join(destinationFolder, 'src', 'custom-main.js')
+  // if (completeConfiguration.customMainCode) {
+  //   await cp(completeConfiguration.customMainCode, destinationFile)
+  // } else {
+  //   await writeFile(destinationFile, 'console.log("No custom main code provided")')
+  // }
 
   const shimsPaths = join(assets, 'shims')
 

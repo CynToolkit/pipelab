@@ -13,9 +13,12 @@ const config = require('./config.cjs')
 module.exports = {
   outDir: './out',
   packagerConfig: {
-    asar: {
-      unpack: "*.{node,dll,so,lib,dylib}"
-    },
+    asar: config.disableAsarPackaging
+      ? false
+      : {
+          // by default, unpack node, and libs files
+          unpack: '*.{node,dll,so,lib,dylib}'
+        },
     name: config.name,
     appBundleId: config.appBundleId,
     appCopyright: config.appCopyright,
