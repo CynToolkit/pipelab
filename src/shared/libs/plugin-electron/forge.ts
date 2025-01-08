@@ -393,7 +393,7 @@ export const forge = async (
 
     const logs = await runWithLiveLogs(
       process.execPath,
-      [forge, action, '--', '--arch', finalArch, '--platform', finalPlatform],
+      [forge, action, /* '--', */ '--arch', finalArch, '--platform', finalPlatform],
       {
         cwd: destinationFolder,
         env: {
