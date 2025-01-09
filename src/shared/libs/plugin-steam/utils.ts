@@ -20,8 +20,6 @@ export const checkSteamAuth = async (options: Options) => {
       options.context.log,
       {
         onStdout: (data, subprocess) => {
-          options.context.log('data stdout', data)
-
           // TODO: handle password input dynamically
           if (data.includes('Cached credentials not found')) {
             error = 'LOGGED_OUT'
@@ -38,8 +36,6 @@ export const checkSteamAuth = async (options: Options) => {
     }
   }
 
-  console.warn('error', error)
-
   if (error) {
     return {
       success: false,
@@ -49,5 +45,30 @@ export const checkSteamAuth = async (options: Options) => {
 
   return {
     success: true
+  }
+}
+
+export const openExternalTerminal = async (command: string, args: string[] = [], options = {}) => {
+  const { execa } = await import('execa')
+  const os = await import('os')
+
+  const platform = os.platform()
+
+  try {
+    if (platform === 'darwin') {
+      // macOS
+      await execa('open', ['-a', 'Terminal', command, ...args], options)
+    } else if (platform === 'linux') {
+      // Linux
+      const terminal = process.env.TERMINAL ?? process.env.TERM ?? 'xterm'
+      await execa(terminal, ['-e', command, ...args], options)
+    } else if (platform === 'win32') {
+      // Windows
+      await execa('cmd', ['/c', command, ...args], options)
+    } else {
+      throw new Error('Unsupported platform:' + platform)
+    }
+  } catch (error) {
+    throw new Error('Error opening terminal:' + error.message)
   }
 }

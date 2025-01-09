@@ -1,5 +1,5 @@
 import { createAction, createActionRunner, runWithLiveLogs } from '@pipelab/plugin-core'
-import { checkSteamAuth } from './utils'
+import { checkSteamAuth, openExternalTerminal } from './utils'
 
 // https://github.com/ztgasdf/steampkg?tab=readme-ov-file#account-management
 
@@ -196,22 +196,19 @@ export const uploadToSteamRunner = createActionRunner<typeof uploadToSteam>(
     console.log('isAuthenticated', isAuthenticated)
 
     if (isAuthenticated.success === false) {
-      await execa({
-        detached: true,
-        stdio: 'inherit'
-      })`echo Enter your password && read password`
-      // console.log('isAuthenticated.error', isAuthenticated.error)
-      // if (error === 'LOGGED_OUT') {
-      //   options.context.log('You are not logged in to Steam')
-      //   options.context.log('To log in, run command below:')
-      //   options.context.log(`"${options.steamcmdPath}" +login ${options.username} +quit`)
-      //   throw new Error(
-      //     'You are not logged in to Steam\nTo log in, run command below:\n' +
-      //       `"${options.steamcmdPath}" +login ${options.username} +quit`
-      //   )
-      // } else {
-      //   throw new Error('Unknown error: ' + isAuthenticated.error)
-      // }
+      console.log('OPEN STEAM AUTH')
+      await openExternalTerminal(steamcmdPath, ['+login', username, '+quit'])
+      const isAuthenticatedNow = await checkSteamAuth({
+        context: {
+          log
+        },
+        scriptPath,
+        steamcmdPath,
+        username
+      })
+      if (isAuthenticatedNow.success === false) {
+        throw new Error('Not authenticated')
+      }
     }
 
     log('Writing script')
@@ -219,26 +216,13 @@ export const uploadToSteamRunner = createActionRunner<typeof uploadToSteam>(
 
     log('Executing steamcmd')
 
-    let error: string = ''
-
+    // SHould be authed here
     try {
       await runWithLiveLogs(
         steamcmdPath,
         ['+login', username, '+run_app_build', scriptPath, '+quit'],
         {},
         log,
-        {
-          onStdout: (data, subprocess) => {
-            log('data stdout', data)
-
-            // TODO: handle password input dynamically
-            if (data.includes('Cached credentials not found')) {
-              error = 'LOGGED_OUT'
-
-              subprocess.kill()
-            }
-          }
-        }
       )
     } catch (e) {
       if (e instanceof Error) {
