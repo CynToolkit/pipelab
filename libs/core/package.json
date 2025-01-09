@@ -7,7 +7,7 @@
   "scripts": {
     "build": "tsc",
     "test": "echo 0",
-    "release": "yarn npm publish"
+    "release": "pnpm npm publish"
   },
   "files": [
     "dist"

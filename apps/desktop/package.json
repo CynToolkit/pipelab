@@ -18,11 +18,11 @@
     "typecheck": "npm run typecheck:node && npm run typecheck:web",
     "start": "electron-forge start",
     "start:args": "electron-forge start -- --project ./tests/e2e/fixtures/folder-to-electron.json --action run",
-    "dev": "yarn start",
+    "dev": "pnpm start",
     "test:unit": "vitest run -c vitest.config.mts",
     "test:unit:watch": "vitest watch -c vitest.config.mts",
     "test:e2e:raw": "vitest run -c tests/e2e/vitest.config.ts",
-    "test:e2e:local": "yarn package && yarn test:e2e:raw",
+    "test:e2e:local": "pnpm package && pnpm test:e2e:raw",
     "test:e2e:pw": "echo 1",
     "build": "npm run typecheck && electron-vite build",
     "build:no-check": "electron-vite build",
@@ -33,9 +33,9 @@
     "make": "electron-forge make",
     "release": "electron-forge publish --from-dry-run",
     "release:dry": "electron-forge publish --dry-run",
-    "make-dev-prerelease": "yarn version prerelease --preid=dev",
+    "make-dev-prerelease": "pnpm version prerelease --preid=dev",
     "supa:types": "supabase gen types typescript --project-id $VITE_SUPABASE_PROJECT_ID > src/shared/database.types.ts",
-    "migrate-file": "yarn tsx scripts/migrate-file.mts"
+    "migrate-file": "pnpm tsx scripts/migrate-file.mts"
   },
   "dependencies": {
     "@codemirror/autocomplete": "6.18.1",

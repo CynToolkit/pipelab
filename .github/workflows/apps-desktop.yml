@@ -38,10 +38,10 @@ jobs:
           python-version: '3.10'
 
       - name: Install dependencies
-        run: yarn install
+        run: pnpm install
 
       - name: Build app deps
-        run: yarn turbo run build --filter=@pipelab/app^...
+        run: pnpm turbo run build --filter=@pipelab/app^...
 
       - name: Package application
         env:
@@ -49,12 +49,12 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
           SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
-        run: yarn turbo release:dry  --filter=@pipelab/app
+        run: pnpm turbo release:dry  --filter=@pipelab/app
 
       - name: Run tests
         uses: coactions/setup-xvfb@v1
         with:
-          run: yarn turbo test:e2e:raw --filter=@pipelab/app
+          run: pnpm turbo test:e2e:raw --filter=@pipelab/app
 
       - name: Upload Playwright artifacts
         uses: actions/upload-artifact@v4
@@ -99,9 +99,9 @@ jobs:
         run: corepack enable
 
       - name: Install dependencies
-        run: yarn install --prod=false
+        run: pnpm install --prod=false
 
       - name: Publish release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: yarn turbo release
+        run: pnpm turbo release

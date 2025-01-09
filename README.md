@@ -16,8 +16,8 @@ A visual tool to create task automation workflows.
 
 # Making a release
 ```
-yarn changeset version
-yarn changeset tag
+pnpm changeset version
+pnpm changeset tag
 ```
 
 # Architecture
@@ -80,5 +80,5 @@ graph TD
 # Development
 ## Enable source maps
 ```bash
-NODE_OPTIONS=--enable-source-maps yarn xxx
+NODE_OPTIONS=--enable-source-maps pnpm xxx
 ```

@@ -61,3 +61,6 @@ C3 Preview ne fonctionne pas
 Steam achievement test c3 example
 Itch plugin
 Filesystem plugin: overwrite parameter + better sentences/descriptions
+
+Convert dektop app to web app + node backend
+Communication via rest api (for now) or websocket

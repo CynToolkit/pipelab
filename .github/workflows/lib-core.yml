@@ -24,10 +24,10 @@ jobs:  # publish to npm
           registry-url: https://registry.npmjs.org/
       - name: Enable Corepack
         run: corepack enable
-      - run: yarn install
-      - run: yarn turbo build --filter=@pipelab/core
-      # - run: yarn turbo test --filter=@pipelab/core
-      - run: yarn turbo release --filter=@pipelab/core
+      - run: pnpm install
+      - run: pnpm turbo build --filter=@pipelab/core
+      # - run: pnpm turbo test --filter=@pipelab/core
+      - run: pnpm turbo release --filter=@pipelab/core
         if: github.ref == 'refs/tags/v*'
         env:
           NODE_AUTH_TOKEN: ${{secrets.PUBLISH_NPM_TOKEN}}

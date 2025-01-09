@@ -27,12 +27,12 @@ jobs:
 
       - name: Install dependencies and build
         run: |
-          yarn install
-          yarn turbo build --filter=@pipelab/construct-plugin
+          pnpm install
+          pnpm turbo build --filter=@pipelab/construct-plugin
 
       # - name: Auto Generate Documentation
       #   run: |
-      #     yarn run doc
+      #     pnpm run doc
 
       # - name: Commit Documentation
       #   run: |
