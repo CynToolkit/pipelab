@@ -1,4 +1,5 @@
 import { createAction, createActionRunner, runWithLiveLogs } from '@pipelab/plugin-core'
+import { checkSteamAuth } from './utils'
 
 // https://github.com/ztgasdf/steampkg?tab=readme-ov-file#account-management
 
@@ -85,6 +86,8 @@ export const uploadToSteamRunner = createActionRunner<typeof uploadToSteam>(
     const { join, dirname } = await import('path')
     const { platform } = await import('os')
     const { chmod, mkdir, writeFile } = await import('fs/promises')
+    // for esm
+    const { execa } = await import('execa')
 
     log('uploading to steam')
     const { folder, appId, sdk, depotId, username, description } = inputs
@@ -180,6 +183,37 @@ export const uploadToSteamRunner = createActionRunner<typeof uploadToSteam>(
       await chmod(steamcmdPath, 0o755)
     }
 
+    // check for steam authentication
+    const isAuthenticated = await checkSteamAuth({
+      context: {
+        log
+      },
+      scriptPath,
+      steamcmdPath,
+      username
+    })
+
+    console.log('isAuthenticated', isAuthenticated)
+
+    if (isAuthenticated.success === false) {
+      await execa({
+        detached: true,
+        stdio: 'inherit'
+      })`echo Enter your password && read password`
+      // console.log('isAuthenticated.error', isAuthenticated.error)
+      // if (error === 'LOGGED_OUT') {
+      //   options.context.log('You are not logged in to Steam')
+      //   options.context.log('To log in, run command below:')
+      //   options.context.log(`"${options.steamcmdPath}" +login ${options.username} +quit`)
+      //   throw new Error(
+      //     'You are not logged in to Steam\nTo log in, run command below:\n' +
+      //       `"${options.steamcmdPath}" +login ${options.username} +quit`
+      //   )
+      // } else {
+      //   throw new Error('Unknown error: ' + isAuthenticated.error)
+      // }
+    }
+
     log('Writing script')
     await writeFile(scriptPath, script, 'utf8')
 
@@ -207,33 +241,14 @@ export const uploadToSteamRunner = createActionRunner<typeof uploadToSteam>(
         }
       )
     } catch (e) {
-      console.error(e)
-      if (!error) {
-        error = 'UNKNOWN'
-      }
-    }
-
-    console.warn('error', error)
-
-    if (error) {
-      if (error === 'LOGGED_OUT') {
-        log('You are not logged in to Steam')
-        log('To log in, run command below:')
-        log(`"${steamcmdPath}" +login ${username} +quit`)
-        throw new Error(
-          'You are not logged in to Steam\nTo log in, run command below:\n' +
-            `"${steamcmdPath}" +login ${username} +quit`
-        )
+      if (e instanceof Error) {
+        console.error(e)
+        throw new Error('Error:' + e.message)
       } else {
-        throw new Error('Unknown error')
+        throw new Error('unknwon error')
       }
     }
 
-    // // must keep that to not be interactive
-    // await execa(steamcmdPath, ['+login', username, '+run_app_build', scriptPath, '+quit'], {
-    //   stdout: 'inherit',
-    //   stderr: 'inherit'
-    // })
     log('Done uploading')
   }
 )
