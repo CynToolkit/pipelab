@@ -1,5 +1,6 @@
 import { Page } from 'playwright'
-import { join } from 'node:path'
+import { join, extname } from 'node:path'
+import { readdir } from 'node:fs/promises'
 
 const registerInstallButtonListener = (page: Page, log: typeof console.log) => {
   // as soon as it appear, without blocking flow
@@ -71,7 +72,7 @@ const registerMissingAddonErrorListener = (page: Page, log: typeof console.log) 
       timeout: 0
     })
     .then(async () => {
-      throw new Error("Missing addon. You should bundle addons with your project")
+      throw new Error('Missing addon. You should bundle addons with your project')
     })
     .catch(async () => {
       log('webglErrorButton.click() failed')
@@ -85,7 +86,8 @@ export const script = async (
   username: string | undefined,
   password: string | undefined,
   version: string | undefined,
-  downloadDir: string
+  downloadDir: string,
+  // addonsFolder: string | undefined
 ) => {
   let url = 'https://editor.construct.net/'
   if (version) {
@@ -98,6 +100,42 @@ export const script = async (
   // const serviceworker = await serviceWorkerPromise;
   await page.getByText('No thanks, not now').click()
   log('Clicked No thanks button')
+
+  // if (addonsFolder) {
+  //   const _files = await readdir(addonsFolder)
+  //   const addonFiles = _files
+  //     .filter((x) => extname(x) === '.c3addon')
+  //     .map((x) => join(addonsFolder, x))
+  //   console.log('addonFiles', addonFiles)
+
+  //   await page.pause()
+  //   await page.getByRole('button', { name: 'Menu' }).click();
+  //   await page.mouse.move(30, 150)
+  //   await page.mouse.move(150, 100)
+  //   await page.mouse.click(150, 100);
+
+  //   const [fileChooserAddons] = await Promise.all([
+  //     page.waitForEvent('filechooser'),
+  //     await page.getByRole('button', { name: 'Install new addon...' }).click()
+  //   ])
+
+  //   await fileChooserAddons.setFiles(addonFiles)
+
+  //   // await page.pause()
+  //   // if (addonFiles.length > 0) {
+  //   //   for (let i = 0; i < addonFiles.length - 1; i += 1) {
+  //   //     const [fileChooser] = await Promise.all([
+  //   //       page.waitForEvent('filechooser'),
+  //   //       page.keyboard.press('ControlOrMeta+O')
+  //   //     ])
+
+  //   //     await fileChooser.setFiles(addonFiles[i])
+  //   //     log('Set addon files', addonFiles[i])
+
+  //   //     await page.pause()
+  //   //   }
+  //   // }
+  // }
 
   const [fileChooser] = await Promise.all([
     page.waitForEvent('filechooser'),
@@ -193,10 +231,9 @@ export const script = async (
     .click()
   log('"Web" clicked')
 
-
   await page.locator('#exportSelectPlatformDialog').getByRole('button', { name: 'Next' }).click()
 
-  await page.getByLabel('Offline support').uncheck();
+  await page.getByLabel('Offline support').uncheck()
   log('Disabled offline support')
 
   await page.locator('#exportStandardOptionsDialog').getByRole('button', { name: 'Next' }).click()

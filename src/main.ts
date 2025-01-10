@@ -212,6 +212,9 @@ exec "${process.execPath}" "$@"
       output: {
         type: 'string',
         short: 'o'
+      },
+      inspect: {
+        type: 'boolean'
       }
     }
   } satisfies ParseArgsConfig
@@ -221,6 +224,8 @@ exec "${process.execPath}" "$@"
   logger().info('values', values)
 
   createWindow()
+
+  delete values['inspect']
 
   // exit if values are passed
   if (Object.keys(values).length > 0) {

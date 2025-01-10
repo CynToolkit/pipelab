@@ -69,8 +69,21 @@ export const sharedParams = {
       }
     },
     value: 120,
-    label: 'Tiemout'
-  }
+    label: 'Timeout'
+  },
+  // addonsFolder: {
+  //   description: 'Folder containing addons to import in the editor',
+  //   required: false,
+  //   control: {
+  //     type: 'path',
+  //     options: {
+  //       buttonLabel: 'Addons folder',
+  //       properties: ['openDirectory']
+  //     }
+  //   },
+  //   value: '',
+  //   label: 'Addons folder'
+  // }
 } satisfies InputsDefinition
 
 type Inputs = ParamsToInput<typeof sharedParams>
@@ -80,6 +93,8 @@ export const exportc3p = async <ACTION extends Action>(
   { cwd, log, inputs, setOutput, paths }: ActionRunnerData<ACTION>
 ) => {
   const newInputs = inputs as Inputs
+
+  // const { addonsFolder } = newInputs
 
   const playwright = await import('playwright')
   const { join } = await import('node:path')
@@ -115,11 +130,7 @@ export const exportc3p = async <ACTION extends Action>(
 
   log('newInputs', newInputs)
 
-  // must run in firefox because otherwise
-  // the local file system access api of chrome take precedence
-  // https://github.com/microsoft/playwright/issues/18267
   const browserInstance = playwright[browserName]
-  // const { firefox } = playwright;
 
   const version = newInputs.version
   const headless = newInputs.headless
@@ -160,17 +171,19 @@ export const exportc3p = async <ACTION extends Action>(
       newInputs.username,
       newInputs.password,
       version,
-      downloadDir
+      downloadDir,
+      // addonsFolder,
     )
 
     log('setting output result to ', result)
 
     setOutput('folder', result)
   } catch (e) {
-    log('no result, crashed')
+    log('error, no result, crashed', e)
     throw new Error('ConstructExport failed: ' + e.message)
   } finally {
-    await browser.close()
+    await context.browser().close()
+    await context.close()
   }
 }
 

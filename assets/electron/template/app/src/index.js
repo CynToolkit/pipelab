@@ -111,24 +111,28 @@ if (config.enableSteamSupport) {
  * @param {BrowserWindow} mainWindow
  * @returns {Promise<number>}
  */
-const createAppServer = (mainWindow) => {
+const createAppServer = (mainWindow, serveStatic = true) => {
   // eslint-disable-next-line no-async-promise-executor
   return new Promise(async (resolve) => {
     // @ts-expect-error import.meta
     const dir = app.isPackaged ? join(import.meta.dirname, './app') : './src/app'
 
-    const server = createServer((req, res) => {
-      return serve(req, res, {
-        maxAge: 0,
-        public: dir,
-        rewrites: [
-          {
-            source: 'sw.js',
-            destination: 'index.html'
-          }
-        ]
+    const server = createServer()
+
+    if (serveStatic) {
+      server.on('request', (req, res) => {
+        return serve(req, res, {
+          maxAge: 0,
+          public: dir,
+          rewrites: [
+            {
+              source: 'sw.js',
+              destination: 'index.html'
+            }
+          ]
+        })
       })
-    })
+    }
 
     const wss = new WebSocketServer({ server })
     wss.on('connection', function connection(ws) {
@@ -315,11 +319,12 @@ const createWindow = async () => {
 
   if (argUrl) {
     console.log('argUrl', argUrl)
-    const port = await createAppServer(mainWindow)
+    const port = await createAppServer(mainWindow, false)
 
     console.log('port', port)
 
     await mainWindow?.loadURL(argUrl)
+    console.log('URL loaded')
   } else {
     const port = await createAppServer(mainWindow)
 
@@ -327,6 +332,8 @@ const createWindow = async () => {
 
     await mainWindow?.loadURL(`http://localhost:${port}`)
   }
+
+  return mainWindow
 }
 
 const registerHandlers = async () => {
@@ -339,7 +346,9 @@ const registerHandlers = async () => {
 app.whenReady().then(async () => {
   await registerHandlers()
 
-  await createWindow()
+  const mainWindow = await createWindow()
+
+  mainWindow.show()
 
   app.on('activate', async () => {
     if (BrowserWindow.getAllWindows().length === 0) {

@@ -33,7 +33,8 @@ const checkParams = (definitionParams: InputsDefinition, elementParams: Record<s
       // remove from expected
       expected = expected.filter((x) => x !== param)
     } else {
-      throw new Error('Unexpected param "' + param + '"')
+      // throw new Error('Unexpected param "' + param + '"')
+      console.warn('Unexpected param "' + param + '"')
     }
   }
 
