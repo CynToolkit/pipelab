@@ -42,6 +42,24 @@ const registerWebglErrorListener = (page: Page, log: typeof console.log) => {
       log('webglErrorButton.click() failed')
     })
 }
+const registerDeprecatedFeatures = (page: Page, log: typeof console.log) => {
+  // as soon as it appear, without blocking flow
+  // ignore deprecated feature
+  const deprecatedFeaturesDialog = page.locator('#deprecatedFeaturesDialog')
+  const okButton = deprecatedFeaturesDialog.locator('.okButton')
+  okButton
+    .waitFor({
+      timeout: 0
+    })
+    .then(async () => {
+      await okButton.click()
+      log('okButton clicked')
+      registerDeprecatedFeatures(page, log)
+    })
+    .catch(async () => {
+      log('okButton.click() failed')
+    })
+}
 
 const registerMissingAddonErrorListener = (page: Page, log: typeof console.log) => {
   // as soon as it appear, without blocking flow
@@ -53,9 +71,7 @@ const registerMissingAddonErrorListener = (page: Page, log: typeof console.log) 
       timeout: 0
     })
     .then(async () => {
-      page.close({
-        reason: 'Missing adddon. You should bundle addons with  your project'
-      })
+      throw new Error("Missing addon. You should bundle addons with your project")
     })
     .catch(async () => {
       log('webglErrorButton.click() failed')
@@ -108,7 +124,8 @@ export const script = async (
   const progressInterval = setInterval(async () => {
     const text = await progessBar.getAttribute('value')
     const textAsNumber = parseFloat(text)
-    log('progress', `${textAsNumber * 100}%`)
+    const finalText = Number.isNaN(textAsNumber) ? 0 : textAsNumber
+    log('progress', `${finalText * 100}%`)
   }, 500)
 
   // as soon as it appear, without blocking flow
@@ -131,6 +148,7 @@ export const script = async (
   registerInstallButtonListener(page, log)
   registerWebglErrorListener(page, log)
   registerMissingAddonErrorListener(page, log)
+  registerDeprecatedFeatures(page, log)
 
   log('Waiting for progress dialog to disapear')
   await progressDialog.waitFor({
@@ -174,8 +192,13 @@ export const script = async (
     .locator('ui-icon')
     .click()
   log('"Web" clicked')
+
+
   await page.locator('#exportSelectPlatformDialog').getByRole('button', { name: 'Next' }).click()
-  log('"Next" clicked')
+
+  await page.getByLabel('Offline support').uncheck();
+  log('Disabled offline support')
+
   await page.locator('#exportStandardOptionsDialog').getByRole('button', { name: 'Next' }).click()
   log('"Next" clicked')
   const downloadPromise = page.waitForEvent('download')

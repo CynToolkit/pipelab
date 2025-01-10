@@ -1,4 +1,5 @@
 import { app } from 'electron'
+import { join } from 'path';
 
 /**
  * @param {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').MessagePaths, 'input'>} json
@@ -14,6 +15,8 @@ export default (json, ws, mainWindow) => {
 
     if (name === 'app') {
       folder = app.getAppPath();
+    } else if (name === 'project') {
+      folder = join(app.getAppPath(), 'src', 'app'); // path to construct files
     } else {
       folder = app.getPath(name);
     }

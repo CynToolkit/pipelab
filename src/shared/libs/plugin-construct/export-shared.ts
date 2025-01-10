@@ -58,6 +58,18 @@ export const sharedParams = {
     },
     value: false,
     label: 'Start headless'
+  },
+  timeout: {
+    description: "The timeout (in seconds) to close the browser if it's stuck",
+    required: false,
+    control: {
+      type: 'input',
+      options: {
+        kind: 'number'
+      }
+    },
+    value: 120,
+    label: 'Tiemout'
   }
 } satisfies InputsDefinition
 
@@ -128,6 +140,8 @@ export const exportc3p = async <ACTION extends Action>(
 
   const page = await context.newPage()
 
+  page.setDefaultTimeout(newInputs.timeout * 1000)
+
   // this exact sequn=ence make it work
   await page.addInitScript(() => {
     // @ts-expect-error dds
@@ -149,13 +163,14 @@ export const exportc3p = async <ACTION extends Action>(
       downloadDir
     )
 
-    await browser.close()
-
     log('setting output result to ', result)
 
     setOutput('folder', result)
   } catch (e) {
-    throw e
+    log('no result, crashed')
+    throw new Error('ConstructExport failed: ' + e.message)
+  } finally {
+    await browser.close()
   }
 }
 

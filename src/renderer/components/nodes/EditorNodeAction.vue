@@ -286,7 +286,7 @@ const items = computed<MenuItem[]>(() => [
       {
         label: 'Enable',
         icon: 'mdi-toggle-switch-off-outline',
-        visible: value.value.disabled,
+        visible: !!value.value.disabled,
         command: () => {
           enableNode(value.value)
         }

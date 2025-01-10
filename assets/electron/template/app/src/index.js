@@ -1,6 +1,6 @@
 // @ts-check
 
-import { app, BrowserWindow, ipcMain, session } from 'electron'
+import { app, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'node:path'
 // @ts-expect-error no types
 import serve from 'serve-handler'
@@ -38,6 +38,7 @@ import windowSetX from './handlers/window/set-x.js'
 import windowSetY from './handlers/window/set-y.js'
 import windowShowDevTools from './handlers/window/show-dev-tools.js'
 import windowUnmaximize from './handlers/window/unmaximize.js'
+import windowSetFullscreen from './handlers/window/set-fullscreen.js'
 
 // dialog
 import dialogFolder from './handlers/dialog/folder.js'
@@ -216,6 +217,9 @@ const createAppServer = (mainWindow) => {
             case '/window/unmaximize':
               await windowUnmaximize(json, ws, mainWindow)
               break
+            case '/window/set-fullscreen':
+              await windowSetFullscreen(json, ws, mainWindow)
+              break
             case '/engine':
               await engine(json, ws, mainWindow)
               break
@@ -299,14 +303,15 @@ const createWindow = async () => {
     mainWindow.setMenu(null)
   }
 
-  try {
-    // Clear service workers to prevent old versions of the app
-    await session.defaultSession.clearStorageData({
-      storages: ['serviceworkers']
-    })
-  } catch (e) {
-    console.error('Error clearing service workers', e)
-  }
+  // It's better to export apps without service worker support
+  // try {
+  //   // Clear service workers to prevent old versions of the app
+  //   await session.defaultSession.clearStorageData({
+  //     storages: ['serviceworkers']
+  //   })
+  // } catch (e) {
+  //   console.error('Error clearing service workers', e)
+  // }
 
   if (argUrl) {
     console.log('argUrl', argUrl)

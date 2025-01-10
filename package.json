@@ -10,7 +10,7 @@
     "url": "https://github.com/CynToolkit/pipelab.git"
   },
   "homepage": "https://pipelayn.com",
-  "packageManager": "pnpm@9.12.0",
+  "packageManager": "pnpm@9.15.3",
   "scripts": {
     "format": "prettier --write .",
     "lint": "eslint .",
@@ -38,7 +38,7 @@
     "migrate-file": "pnpm tsx scripts/migrate-file.mts"
   },
   "dependencies": {
-    "@changesets/cli": "2.27.9",
+    "@changesets/cli": "2.27.11",
     "@codemirror/autocomplete": "6.18.1",
     "@codemirror/commands": "6.6.2",
     "@codemirror/lang-liquid": "6.2.1",
@@ -49,7 +49,7 @@
     "@electron-toolkit/utils": "3.0.0",
     "@floating-ui/vue": "1.1.5",
     "@jitl/quickjs-wasmfile-release-sync": "0.31.0",
-    "@pipelab/core": "1.3.2",
+    "@pipelab/core": "1.3.3",
     "@primevue/themes": "4.1.1",
     "@sentry/electron": "5.4.0",
     "@sentry/vue": "8.32.0",
