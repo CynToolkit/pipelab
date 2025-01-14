@@ -21,6 +21,7 @@ import fsReadBinary from './handlers/fs/read-binary.js'
 import fsFolderCreate from './handlers/fs/folder-create.js'
 import fsList from './handlers/fs/list.js'
 import fsFileSize from './handlers/fs/file-size.js'
+import fsExist from './handlers/fs/exist.js'
 
 // window
 import windowMaximize from './handlers/window/maximize.js'
@@ -241,7 +242,8 @@ const createAppServer = (mainWindow, serveStatic = true) => {
             case '/fs/delete':
               throw new Error('Not implemented')
             case '/fs/exist':
-              throw new Error('Not implemented')
+              await fsExist(json, ws)
+              break
             case '/fs/file/append':
               throw new Error('Not implemented')
             case '/fs/list':
