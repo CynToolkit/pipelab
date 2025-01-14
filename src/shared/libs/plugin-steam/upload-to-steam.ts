@@ -86,8 +86,6 @@ export const uploadToSteamRunner = createActionRunner<typeof uploadToSteam>(
     const { join, dirname } = await import('path')
     const { platform } = await import('os')
     const { chmod, mkdir, writeFile } = await import('fs/promises')
-    // for esm
-    const { execa } = await import('execa')
 
     log('uploading to steam')
     const { folder, appId, sdk, depotId, username, description } = inputs
@@ -193,10 +191,10 @@ export const uploadToSteamRunner = createActionRunner<typeof uploadToSteam>(
       username
     })
 
-    console.log('isAuthenticated', isAuthenticated)
+    log('isAuthenticated', isAuthenticated)
 
     if (isAuthenticated.success === false) {
-      console.log('OPEN STEAM AUTH')
+      log('OPEN STEAM AUTH terminal')
       await openExternalTerminal(steamcmdPath, ['+login', username, '+quit'])
       const isAuthenticatedNow = await checkSteamAuth({
         context: {
@@ -222,7 +220,7 @@ export const uploadToSteamRunner = createActionRunner<typeof uploadToSteam>(
         steamcmdPath,
         ['+login', username, '+run_app_build', scriptPath, '+quit'],
         {},
-        log,
+        log
       )
     } catch (e) {
       if (e instanceof Error) {

@@ -1,4 +1,4 @@
-import { runWithLiveLogs } from '../plugin-core'
+import { runWithLiveLogsPTY } from '../plugin-core'
 
 export type Options = {
   steamcmdPath: string
@@ -13,7 +13,7 @@ export const checkSteamAuth = async (options: Options) => {
   let error: 'LOGGED_OUT' | 'UNKNOWN' | undefined = undefined
 
   try {
-    await runWithLiveLogs(
+    await runWithLiveLogsPTY(
       options.steamcmdPath,
       ['+login', options.username, '+quit'],
       {},

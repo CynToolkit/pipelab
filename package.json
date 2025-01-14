@@ -49,6 +49,7 @@
     "@electron-toolkit/utils": "3.0.0",
     "@floating-ui/vue": "1.1.5",
     "@jitl/quickjs-wasmfile-release-sync": "0.31.0",
+    "@lydell/node-pty": "1.0.3",
     "@pipelab/core": "1.3.3",
     "@primevue/themes": "4.1.1",
     "@sentry/electron": "5.4.0",
