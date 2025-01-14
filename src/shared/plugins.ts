@@ -8,8 +8,9 @@ const builtInPlugins = async () => {
       (await import('../shared/libs/plugin-filesystem')).default,
       (await import('../shared/libs/plugin-system')).default,
       (await import('../shared/libs/plugin-steam')).default,
+      (await import('../shared/libs/plugin-itch')).default,
       (await import('../shared/libs/plugin-electron')).default,
-      (await import('../shared/libs/plugin-tauri')).default
+      // (await import('../shared/libs/plugin-tauri')).default
     ])
   ).flat()
 }
