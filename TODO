@@ -64,5 +64,3 @@ Filesystem plugin: overwrite parameter + better sentences/descriptions
 
 Convert dektop app to web app + node backend
 Communication via rest api (for now) or websocket
-
-yin: test c3p need manual exporting instead of automated because of bundled addons
