@@ -273,6 +273,7 @@ export const forge = async (
       description: 'A simple Electron application',
       electronVersion: '',
       disableAsarPackaging: false,
+      enableExtraLogging: false,
       enableDisableRendererBackgrounding: false,
       enableInProcessGPU: false,
       frame: true,
@@ -397,10 +398,11 @@ export const forge = async (
       {
         cwd: destinationFolder,
         env: {
-          // DEBUG: '*',
+          DEBUG: completeConfiguration.enableExtraLogging ? '*' : '',
           ELECTRON_NO_ASAR: '1',
           ELECTRON_RUN_AS_NODE: '1',
-          PATH: `${shimsPaths}${delimiter}${process.env.PATH}`
+          PATH: `${shimsPaths}${delimiter}${process.env.PATH}`,
+          // DEBUG: "electron-packager"
         }
       },
       log,

@@ -108,7 +108,7 @@
             <EditorNodeDummy title="End"></EditorNodeDummy>
           </div>
         </div>
-        <div class="aside">
+        <!-- <div class="aside">
           <p class="m-0">
             Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor
             incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud
@@ -117,14 +117,14 @@
             Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt
             mollit anim id est laborum.
           </p>
-        </div>
+        </div> -->
       </div>
 
       <div class="bottom" :class="{ expanded: bottomExpanded }">
         <div class="header" @click="toggleLogsWindow">
-          <div class="ml-4">Logs</div>
+          <div class="ml-2 h3">Logs</div>
           <div class="actions">
-            <Button text @click="toggleLogsWindow">
+            <Button text>
               <template #icon>
                 <i
                   class="mdi mr-1"
@@ -142,20 +142,37 @@
               collapse-icon="pi pi-minus"
               class="accordion"
             >
-              <AccordionPanel v-for="(log, key) in logLines" :key="key" :value="key">
+              <AccordionPanel
+                v-for="(log, key) in logLines"
+                :key="key"
+                class="accordion-panel"
+                :value="key"
+              >
                 <AccordionHeader>
                   <span class="flex items-center gap-2 w-full">
+                    <i
+                      class="mdi mr-1"
+                      :class="{
+                        'mdi-check-circle': nodeStatuses[key] === 'done',
+                        'mdi-close-circle': nodeStatuses[key] === 'error',
+                        'mdi-progress-question': nodeStatuses[key] === 'idle',
+                        'mdi-cog': nodeStatuses[key] === 'running',
+                        'rotate': nodeStatuses[key] === 'running'
+                      }"
+                    ></i>
                     <span class="font-bold whitespace-nowrap">{{ keyToNodeName(key) }}</span>
                   </span>
                 </AccordionHeader>
                 <AccordionContent class="content">
                   <!-- <ScrollPanel style="width: 100%; height: 300px"> -->
-                  <div v-for="(line, index) of log" :key="index" class="line">
-                    <!-- <span class="line-indicator">{{ index }}.</span> -->
-                    <span v-for="(cell, index2) of line" :key="index2" class="cell">
-                      {{ cell }}
-                    </span>
-                  </div>
+                  <!-- <span class="line-indicator">{{ index }}.</span> -->
+                  <!-- <span
+                      v-for="(cell, index2) of line"
+                      :key="index2"
+                      class="cell"
+                      v-html="cell"
+                    ></span> -->
+                  <div v-for="(line, index) of log" :key="index" class="line" v-html="line"></div>
                   <!-- </ScrollPanel> -->
                 </AccordionContent>
               </AccordionPanel>
@@ -218,8 +235,11 @@ import VariablesEditor from './variables-editor.vue'
 import EnvironementEditor from './environement-editor.vue'
 import ProjectSettingsEditor from './project-settings-editor.vue'
 import { format } from 'date-fns'
+import { FancyAnsi, hasAnsi } from 'fancy-ansi'
 
 const router = useRouter()
+
+const fancyAnsi = new FancyAnsi()
 
 const instance = useEditor()
 const {
@@ -232,6 +252,7 @@ const {
   stepsDisplay,
   id,
   logLines,
+  nodeStatuses,
   isRunning
 } = storeToRefs(instance)
 const { processGraph, loadSavedFile, setIsRunning, pushLine, clearLogs, getNodeDefinition } =
@@ -296,6 +317,7 @@ const run = async () => {
   const api = useAPI()
 
   const { setActiveNode } = instance
+  const { activeNode } = storeToRefs(instance)
 
   setIsRunning(true)
   clearLogs()
@@ -313,6 +335,7 @@ const run = async () => {
         setActiveNode()
       },
       onExecuteItem: async (node, params, steps) => {
+        nodeStatuses.value[node.uid] = 'running'
         /* if (node.type === 'condition') {
         return api.execute('condition:execute', {
           nodeId: node.origin.nodeId,
@@ -335,13 +358,50 @@ const run = async () => {
               // console.log('event', event)
               // console.log('data', data)
               if (data.type === 'log') {
-                pushLine(node.uid, [
-                  format(data.data.time, 'dd/MM/yyyy - hh:mm:ss'),
-                  ...data.data.message
-                ])
+                const lines = data.data.message.join(' ')
+
+                const splittedInnerLines = lines.split('\n')
+
+                for (const l of splittedInnerLines
+                  .map((x) => x.trim())
+                  .filter((x) => !!x)
+                  .filter((x) => x !== '')) {
+                  let content = ''
+
+                  if (hasAnsi(l)) {
+                    content += fancyAnsi.toHtml(l)
+                  } else {
+                    content += l
+                  }
+
+                  pushLine(
+                    node.uid,
+                    [format(data.data.time, 'dd/MM/yyyy - hh:mm:ss'), content].join(' ')
+                  )
+                }
+
+                // const content = data.data.message.map((x) => {
+                //   const linesInlines = x.split('\n')
+                //   console.log('linesInlines', linesInlines)
+                //   let final = ''
+                //   for (const l of linesInlines) {
+                //     if (hasAnsi(l)) {
+                //       final += fancyAnsi.toHtml(l)
+                //     } else {
+                //       final += l
+                //     }
+                //   }
+                //   return final
+                // })
+                // console.log('content', content)
+                // pushLine(
+                //   node.uid,
+                //   [format(data.data.time, 'dd/MM/yyyy - hh:mm:ss'), content].join(' ')
+                // )
               }
             }
           )
+          nodeStatuses.value[node.uid] = 'done'
           return result
         } else {
           throw new Error('Unhandled type ' + node.type)
@@ -356,6 +416,8 @@ const run = async () => {
       detail: 'Your project has been executed successfully'
     })
   } catch (e) {
+    nodeStatuses.value[activeNode.value.uid] = 'error'
+
     console.error('error while executing process', e)
     if (e instanceof Error) {
       toast.add({
@@ -366,6 +428,7 @@ const run = async () => {
       })
     }
   }
+  setActiveNode()
   setIsRunning(false)
 }
 
@@ -665,6 +728,8 @@ tinykeys(window, {
       width: 100%;
       min-height: 0;
 
+      font-family: 'Geist Mono', serif;
+
       .card {
         width: 100%;
         height: 100%;
@@ -672,6 +737,7 @@ tinykeys(window, {
     }
 
     .header {
+      cursor: pointer;
       width: 100%;
       display: flex;
       justify-content: space-between;
@@ -682,9 +748,18 @@ tinykeys(window, {
     }
 
     .accordion {
+      height: 100%;
+      overflow: auto;
+
+      .accordion-panel {
+        // height: 100%;
+      }
+
       .content {
         :deep(.p-accordioncontent-content) {
           width: 100%;
+          height: 100%;
+          overflow: auto;
         }
         // max-height: 300px;
       }
@@ -692,6 +767,7 @@ tinykeys(window, {
         display: flex;
         flex-wrap: wrap;
         gap: 4px;
+        overflow-wrap: anywhere;
 
         .cell {
           // flex: 1 1 auto;
@@ -763,5 +839,10 @@ tinykeys(window, {
     font-size: 0.75rem;
     color: #aaa;
   }
+}
+
+.h3 {
+  // font-size: 1.2rem;
+  font-weight: 700;
 }
 </style>

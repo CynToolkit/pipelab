@@ -17,33 +17,33 @@ module.exports = class PipelabPlugin extends PluginBase {
   }
 
   prePackage() {
-    console.log('running prePackage hook')
+    // console.log('running prePackage hook')
   }
   generateAssets() {
-    console.log('running generateAssets hook')
+    // console.log('running generateAssets hook')
   }
   postStart() {
-    console.log('running postStart hook')
+    // console.log('running postStart hook')
   }
   packageAfterCopy() {
-    console.log('running packageAfterCopy hook')
+    // console.log('running packageAfterCopy hook')
   }
   packageAfterPrune() {
-    console.log('running packageAfterPrune hook')
+    // console.log('running packageAfterPrune hook')
   }
   packageAfterExtract() {
-    console.log('running packageAfterExtract hook')
+    // console.log('running packageAfterExtract hook')
   }
   postPackage() {
-    console.log('running postPackage hook')
+    // console.log('running postPackage hook')
   }
   preMake() {
-    console.log('running preMake hook')
+    // console.log('running preMake hook')
   }
   postMake() {
-    console.log('running postMake hook')
+    // console.log('running postMake hook')
   }
   readPackageJson() {
-    console.log('running readPackageJson hook')
+    // console.log('running readPackageJson hook')
   }
 }

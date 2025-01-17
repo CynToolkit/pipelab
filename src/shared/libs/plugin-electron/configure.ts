@@ -219,7 +219,16 @@ export const props = createAction({
       control: {
         type: 'boolean'
       },
-      description: 'Whether to to disable packaging project files in a single binary or not',
+      description: 'Whether to disable packaging project files in a single binary or not',
+    },
+    enableExtraLogging: {
+      required: true,
+      label: 'Enable extra logging',
+      value: false,
+      control: {
+        type: 'boolean'
+      },
+      description: 'Whether to enable extra logging of internal tools while bundling',
     },
 
     // Flags

@@ -182,7 +182,7 @@ export const exportc3p = async <ACTION extends Action>(
     log('error, no result, crashed', e)
     throw new Error('ConstructExport failed: ' + e.message)
   } finally {
-    await context.browser().close()
+    // await context.browser().close()
     await context.close()
   }
 }

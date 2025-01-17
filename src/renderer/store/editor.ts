@@ -84,6 +84,8 @@ export type BlockToNode<T extends Block> = T['type'] extends 'action'
         ? Loop
         : never
 
+export type Status = 'idle' | 'running' | 'error' | 'canceled' | 'done'
+
 export const useEditor = defineStore('editor', () => {
   const appStore = useAppStore()
   const { presets, pluginDefinitions } = storeToRefs(appStore)
@@ -117,12 +119,14 @@ export const useEditor = defineStore('editor', () => {
   const environnements = ref<Array<any>>([])
 
   /** All log lines relative to their plugin instance */
-  const logLines = ref<Record<string, unknown[][]>>({})
+  const logLines = ref<Record<string, unknown[]>>({})
+
+  const nodeStatuses = ref<Record<string, Status>>({})
 
   /** The API helper */
   // const api = useAPI()
 
-  const pushLine = (nodeUid: string, data: unknown[]) => {
+  const pushLine = (nodeUid: string, data: string) => {
     if (!logLines.value[nodeUid]) {
       logLines.value[nodeUid] = []
     }
@@ -637,6 +641,8 @@ export const useEditor = defineStore('editor', () => {
     pushLine,
     clearLogs,
     logLines,
+
+    nodeStatuses,
 
     setActiveNode,
     setBlockValue,
