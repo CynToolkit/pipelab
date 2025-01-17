@@ -56,10 +56,14 @@ Active cancel button to not be locked out
 Simple mode: also allow to pick variables & such
 QuickJS: memory leak, open close action
 Add own timers for electorn export & such
-si tu appuies sur New Project, puis que tu selectionne direct le dropdown pour choisir Local/Cloud, ça ferme le popup et c'est impossible de rappuyer sur New Project
 C3 Preview ne fonctionne pas
 Steam achievement test c3 example
 Filesystem plugin: overwrite parameter + better sentences/descriptions
 
 Convert dektop app to web app + node backend
 Communication via rest api (for now) or websocket
+
+vérifier que le fichier custom main existe sinon ca lance une erreur
+https://playwright.dev/docs/browsers#opt-in-to-new-headless-mode
+Docs sur Electron
+Docs sur les logs

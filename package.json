@@ -98,6 +98,7 @@
     "semver": "7.6.3",
     "set-value": "4.1.0",
     "slash": "5.1.0",
+    "string-strip-html": "13.4.8",
     "thememirror": "2.0.1",
     "tinykeys": "2.1.0",
     "ts-deepmerge": "7.0.1",

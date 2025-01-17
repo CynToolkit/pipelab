@@ -1,11 +1,17 @@
 <template>
   <div class="add-button-wrapper">
     <div class="vl"></div>
-    <Button v-bind="buttonProps" class="add-btn" size="small" @click="addNode"></Button>
+    <Button
+      :disabled="isRunning"
+      v-bind="buttonProps"
+      class="add-btn"
+      size="small"
+      @click="addNode"
+    ></Button>
     <!-- <pre>{{ path }}</pre> -->
     <div class="vl"></div>
 
-    <Dialog :closable="false" v-model:visible="visible" modal header="" :style="{ width: '75%' }">
+    <Dialog v-model:visible="visible" :closable="false" modal header="" :style="{ width: '75%' }">
       <template #header>
         <div class="flex flex-column w-full">
           <p class="text-xl">Add plugin</p>
@@ -43,8 +49,8 @@
                 v-for="node in plugin.nodes"
                 :key="node.node.id"
                 class="flex node-item"
-                @click="selected = { nodeId: node.node.id, pluginId: plugin.id }"
                 :disabled="node.disabled"
+                @click="selected = { nodeId: node.node.id, pluginId: plugin.id }"
               >
                 <a
                   class="element flex align-items-center p-3 border-round w-full transition-colors transition-duration-150 cursor-pointer"
@@ -57,7 +63,11 @@
                   <span class="flex flex-column">
                     <span class="font-bold mb-1"> {{ node.node.name }}</span>
                     <span class="m-0 text-secondary"> {{ node.node.description }}</span>
-                    <span class="m-0 text-secondary font-bold" v-if="typeof node.disabled === 'string'">{{ node.disabled }}</span>
+                    <span
+                      v-if="typeof node.disabled === 'string'"
+                      class="m-0 text-secondary font-bold"
+                      >{{ node.disabled }}</span
+                    >
                   </span>
                 </a>
               </li>
@@ -104,10 +114,15 @@ const props = defineProps({
   path: {
     type: Array as PropType<string[]>,
     required: true
+  },
+  isRunning: {
+    type: Boolean,
+    required: false,
+    default: false
   }
 })
 
-const { path } = toRefs(props)
+const { path, isRunning } = toRefs(props)
 
 const instance = useEditor()
 const appStore = useAppStore()
@@ -131,7 +146,9 @@ watchEffect(() => {
 const selected = ref<{ nodeId: string; pluginId: string }>()
 
 const addNode = () => {
-  visible.value = true
+  if (!isRunning.value) {
+    visible.value = true
+  }
 }
 
 const editor = useEditor()

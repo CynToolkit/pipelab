@@ -6,9 +6,9 @@
       :class="{
         active: activeNode?.uid === value.uid,
         error: Object.keys(errors).length > 0,
-        disabled: value.disabled
+        disabled: value.disabled || isRunning
       }"
-      @click="showSidebar = true"
+      @click="onNodeClick"
     >
       <!-- <div class="hover-overlay">
         <div class="hover-overlay-content">
@@ -105,8 +105,8 @@
                 :value="value"
                 :steps="steps"
                 :variables="variables"
-                @update:model-value="onValueChanged($event, key.toString())"
                 :vm="vm"
+                @update:model-value="onValueChanged($event, key.toString())"
               ></ParamEditor>
             </div>
           </div>
@@ -128,6 +128,7 @@
       :button-props="{ size: 'small', icon: 'pi pi-plus' }"
       class="add-btn"
       :path="path"
+      :is-running="isRunning"
       @add-node="addNode"
     >
     </AddNodeButton>
@@ -173,11 +174,16 @@ const props = defineProps({
     type: Object as PropType<Record<string, ValidationError[]>>,
     required: false,
     default: () => ({})
+  },
+  isRunning: {
+    type: Boolean,
+    required: false,
+    default: false
   }
 })
 
 const menu = ref()
-const { value, steps, index } = toRefs(props)
+const { value, steps, index, isRunning } = toRefs(props)
 
 /*
 <div class="left">
@@ -292,7 +298,9 @@ const items = computed<MenuItem[]>(() => [
 ])
 
 const toggle = (event: MouseEvent) => {
-  menu.value.toggle(event)
+  if (!isRunning.value) {
+    menu.value.toggle(event)
+  }
 }
 
 const $node = ref<HTMLDivElement>()
@@ -400,6 +408,12 @@ watchDebounced(
 )
 
 const showSidebar = ref(false)
+
+const onNodeClick = () => {
+  if (!isRunning.value) {
+    showSidebar.value = true
+  }
+}
 
 const hasErrored = computed(() => {
   return false

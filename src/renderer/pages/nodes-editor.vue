@@ -11,6 +11,7 @@
             :index="index"
             :steps="steps"
             :errors="errors"
+            :is-running="isRunning"
           ></EditorNodeAction>
           <!-- <EditorNodeCondition
             v-if="node.type === 'condition'"
@@ -41,7 +42,7 @@ import EditorNodeAction from '@renderer/components/nodes/EditorNodeAction.vue'
 
 import { PropType, toRefs } from 'vue'
 import { Block, Steps } from '@@/model'
-import { ValidationError } from '@renderer/models/error';
+import { ValidationError } from '@renderer/models/error'
 
 const props = defineProps({
   nodes: {
@@ -55,7 +56,7 @@ const props = defineProps({
   },
   steps: {
     type: Object as PropType<Steps>,
-    required: true,
+    required: true
   },
   path: {
     type: Array as PropType<string[]>,
@@ -71,11 +72,15 @@ const props = defineProps({
     type: Number,
     required: false,
     default: 0
+  },
+  isRunning: {
+    type: Boolean,
+    required: false,
+    default: false
   }
 })
 
 const { nodes, path } = toRefs(props)
-
 </script>
 
 <style scoped lang="scss">

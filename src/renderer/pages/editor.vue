@@ -104,6 +104,7 @@
               :path="[]"
               :steps="stepsDisplay"
               :starting-index="1"
+              :is-running="isRunning"
             ></NodesEditor>
             <EditorNodeDummy title="End"></EditorNodeDummy>
           </div>
@@ -122,8 +123,25 @@
 
       <div class="bottom" :class="{ expanded: bottomExpanded }">
         <div class="header" @click="toggleLogsWindow">
-          <div class="ml-2 h3">Logs</div>
+          <div class="ml-2 h3 logs-header">
+            <div>Logs</div>
+            <div v-if="isRunning" class="logs-animated">
+              <div
+                v-for="log in quickLogs"
+                :key="log.id"
+                class="log-entry"
+                :class="{ 'slide-out': log.isExiting, 'slide-in': !log.isExiting }"
+              >
+                <span v-html="log.text"></span>
+              </div>
+            </div>
+          </div>
           <div class="actions">
+            <Button v-tooltip.top="'Export log'" text @click.stop="exportLog">
+              <template #icon>
+                <i class="mdi mr-1 mdi-file-export"></i>
+              </template>
+            </Button>
             <Button text>
               <template #icon>
                 <i
@@ -157,7 +175,7 @@
                         'mdi-close-circle': nodeStatuses[key] === 'error',
                         'mdi-progress-question': nodeStatuses[key] === 'idle',
                         'mdi-cog': nodeStatuses[key] === 'running',
-                        'rotate': nodeStatuses[key] === 'running'
+                        rotate: nodeStatuses[key] === 'running'
                       }"
                     ></i>
                     <span class="font-bold whitespace-nowrap">{{ keyToNodeName(key) }}</span>
@@ -236,6 +254,9 @@ import EnvironementEditor from './environement-editor.vue'
 import ProjectSettingsEditor from './project-settings-editor.vue'
 import { format } from 'date-fns'
 import { FancyAnsi, hasAnsi } from 'fancy-ansi'
+import Tooltip from 'primevue/tooltip'
+import { watchThrottled } from '@vueuse/core'
+import { stripHtml } from 'string-strip-html'
 
 const router = useRouter()
 
@@ -264,6 +285,8 @@ const { pluginDefinitions } = storeToRefs(app)
 const filesStore = useFiles()
 const { files } = storeToRefs(filesStore)
 const { update } = filesStore
+
+const quickLogs = ref([])
 
 const keyToNodeName = (key: string) => {
   const foundNode = nodes.value.find((x) => x.uid === key)
@@ -312,13 +335,12 @@ const toast = useToast()
 
 const currentLogAccordion = ref()
 
+const api = useAPI()
+
+const { setActiveNode } = instance
+const { activeNode } = storeToRefs(instance)
+
 const run = async () => {
-  const instance = useEditor()
-  const api = useAPI()
-
-  const { setActiveNode } = instance
-  const { activeNode } = storeToRefs(instance)
-
   setIsRunning(true)
   clearLogs()
   try {
@@ -647,12 +669,76 @@ const toggleLogsWindow = () => {
   bottomExpanded.value = !bottomExpanded.value
 }
 
+watchThrottled(
+  logLines,
+  async () => {
+    if (!activeNode.value) {
+      return
+    }
+
+    const currentLogItem = logLines.value[activeNode.value.uid] ?? []
+    const lastLine = currentLogItem.length - 1
+
+    if (lastLine < 0) {
+      return
+    }
+
+    quickLogs.value = [
+      ...quickLogs.value.map((log) => ({ ...log, isExiting: true })),
+      {
+        id: Date.now(),
+        text: logLines.value[activeNode.value.uid][lastLine],
+        isExiting: false
+      }
+    ]
+
+    await sleep(1000)
+
+    quickLogs.value = quickLogs.value.filter((log) => !log.isExiting)
+  },
+  {
+    throttle: 1000,
+    deep: true
+  }
+)
+
+const exportLog = async () => {
+  const logPaths = await api.execute('dialog:showSaveDialog', {
+    defaultPath: `pipelab-${instance.id}.log`
+  })
+
+  const myLines = Object.entries(logLines.value)
+  let html = ''
+  for (const [key, value] of myLines) {
+    html += `${key}\n`
+    for (const val of value) {
+      html += `${'\t'.repeat(2)}${stripHtml(val).result}\n`
+    }
+    html += `\n`
+  }
+
+  const content = html
+
+  if (logPaths.type === 'success') {
+    if (logPaths.result.filePath) {
+      await api.execute('fs:write', {
+        path: logPaths.result.filePath,
+        content
+      })
+    }
+  }
+}
+
 tinykeys(window, {
   '$mod+KeyS': (event) => {
     event.preventDefault()
     onSaveRequest()
   }
 })
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
 </script>
 
 <style scoped lang="scss">
@@ -844,5 +930,54 @@ tinykeys(window, {
 .h3 {
   // font-size: 1.2rem;
   font-weight: 700;
+}
+
+.logs-header {
+  display: flex;
+  flex-direction: row;
+  flex: 1;
+
+  .logs-animated {
+    width: 100%;
+    padding: 0 16px;
+    opacity: 0.3;
+  }
+}
+
+// .log-entry {
+//   position: absolute;
+//   width: 100%;
+//   left: 48px;
+//   padding: 0 1.5rem;
+// }
+
+@keyframes slide-in {
+  0% {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slide-out {
+  0% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+}
+
+.slide-in {
+  animation: slide-in 500ms forwards;
+}
+
+.slide-out {
+  animation: slide-out 500ms forwards;
 }
 </style>
