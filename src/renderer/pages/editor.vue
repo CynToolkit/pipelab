@@ -108,48 +108,61 @@
             <EditorNodeDummy title="End"></EditorNodeDummy>
           </div>
         </div>
+        <div class="aside">
+          <p class="m-0">
+            Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor
+            incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud
+            exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure
+            dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.
+            Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt
+            mollit anim id est laborum.
+          </p>
+        </div>
       </div>
 
-      <!--<Dialog
-        v-model:visible="showSaveDialog"
-        modal
-        header="Choose location"
-        :style="{ width: '50%' }"
-      >
-        <!~~ @vue-expect-error ~~>
-        <Listbox
-          v-model="saveOption"
-          :options="saveOptions"
-          optionLabel="name"
-          class="w-full"
-          optionDisabled="disabled"
-        >
-          <template #option="slotProps">
-            <div class="item" :class="{ disabled: slotProps.option.disabled }">
-              <i class="icon mdi" :class="{ [slotProps.option.icon]: true }"></i>
-              <div>
-                <div class="title">{{ slotProps.option.title }}</div>
-                <div class="subtitle">{{ slotProps.option.subtitle }}</div>
-              </div>
-            </div>
-          </template>
-        </Listbox>
-        <div class="flex justify-content-end gap-2 mt-2">
-          <Button
-            type="button"
-            label="Cancel"
-            severity="secondary"
-            @click="showSaveDialog = false"
-          ></Button>
-          <Button
-            :disabled="!saveOption"
-            type="button"
-            label="Save"
-            :loading="isSaving"
-            @click="onSaveCallback"
-          ></Button>
+      <div class="bottom" :class="{ expanded: bottomExpanded }">
+        <div class="header" @click="toggleLogsWindow">
+          <div class="ml-4">Logs</div>
+          <div class="actions">
+            <Button text @click="toggleLogsWindow">
+              <template #icon>
+                <i
+                  class="mdi mr-1"
+                  :class="{ 'mdi-minus': bottomExpanded, 'mdi-plus': !bottomExpanded }"
+                ></i>
+              </template>
+            </Button>
+          </div>
         </div>
-      </Dialog>-->
+        <div v-if="bottomExpanded" class="logs">
+          <div v-if="Object.keys(logLines).length > 0" class="card">
+            <Accordion
+              :value="currentLogAccordion"
+              expand-icon="pi pi-plus"
+              collapse-icon="pi pi-minus"
+              class="accordion"
+            >
+              <AccordionPanel v-for="(log, key) in logLines" :key="key" :value="key">
+                <AccordionHeader>
+                  <span class="flex items-center gap-2 w-full">
+                    <span class="font-bold whitespace-nowrap">{{ keyToNodeName(key) }}</span>
+                  </span>
+                </AccordionHeader>
+                <AccordionContent class="content">
+                  <!-- <ScrollPanel style="width: 100%; height: 300px"> -->
+                  <div v-for="(line, index) of log" :key="index" class="line">
+                    <!-- <span class="line-indicator">{{ index }}.</span> -->
+                    <span v-for="(cell, index2) of line" :key="index2" class="cell">
+                      {{ cell }}
+                    </span>
+                  </div>
+                  <!-- </ScrollPanel> -->
+                </AccordionContent>
+              </AccordionPanel>
+            </Accordion>
+          </div>
+        </div>
+      </div>
 
       <Dialog
         v-model:visible="isPromptDialogVisible"
@@ -181,6 +194,10 @@
 
 <script lang="ts" setup>
 import { reactive, ref, watch } from 'vue'
+import Accordion from 'primevue/accordion'
+import AccordionPanel from 'primevue/accordionpanel'
+import AccordionHeader from 'primevue/accordionheader'
+import AccordionContent from 'primevue/accordioncontent'
 import { useEditor } from '@renderer/store/editor'
 import NodesEditor from '@renderer/pages/nodes-editor.vue'
 import EditorNodeDummy from '@renderer/components/nodes/EditorNodeDummy.vue'
@@ -200,6 +217,7 @@ import { handle, HandleListenerRendererSendFn } from '@renderer/composables/hand
 import VariablesEditor from './variables-editor.vue'
 import EnvironementEditor from './environement-editor.vue'
 import ProjectSettingsEditor from './project-settings-editor.vue'
+import { format } from 'date-fns'
 
 const router = useRouter()
 
@@ -216,7 +234,8 @@ const {
   logLines,
   isRunning
 } = storeToRefs(instance)
-const { processGraph, loadSavedFile, setIsRunning, pushLine } = instance
+const { processGraph, loadSavedFile, setIsRunning, pushLine, clearLogs, getNodeDefinition } =
+  instance
 
 const app = useAppStore()
 const { pluginDefinitions } = storeToRefs(app)
@@ -224,6 +243,20 @@ const { pluginDefinitions } = storeToRefs(app)
 const filesStore = useFiles()
 const { files } = storeToRefs(filesStore)
 const { update } = filesStore
+
+const keyToNodeName = (key: string) => {
+  const foundNode = nodes.value.find((x) => x.uid === key)
+  const node = getNodeDefinition(foundNode.origin.nodeId, foundNode.origin.pluginId)
+  return node.node.name ?? key
+}
+
+// const nodeLogLines = computed(() => {
+//   const item = logLines.value[value.value.uid]
+//   if (item) {
+//     return item
+//   }
+//   return []
+// })
 
 watch(
   id,
@@ -256,6 +289,8 @@ watch(
 
 const toast = useToast()
 
+const currentLogAccordion = ref()
+
 const run = async () => {
   const instance = useEditor()
   const api = useAPI()
@@ -263,6 +298,7 @@ const run = async () => {
   const { setActiveNode } = instance
 
   setIsRunning(true)
+  clearLogs()
   try {
     await processGraph({
       graph: klona(nodes.value),
@@ -284,7 +320,9 @@ const run = async () => {
           params,
           steps
         })
-      } else  */ if (node.type === 'action') {
+      } else  */
+        currentLogAccordion.value = node.uid
+        if (node.type === 'action') {
           const result = await api.execute(
             'action:execute',
             {
@@ -294,10 +332,13 @@ const run = async () => {
               steps
             },
             async (event, data) => {
-              console.log('event', event)
-              console.log('data', data)
+              // console.log('event', event)
+              // console.log('data', data)
               if (data.type === 'log') {
-                pushLine(node.uid, data.data)
+                pushLine(node.uid, [
+                  format(data.data.time, 'dd/MM/yyyy - hh:mm:ss'),
+                  ...data.data.message
+                ])
               }
             }
           )
@@ -538,6 +579,11 @@ handle('dialog:prompt', async (event, { value, send }) => {
   isPromptDialogVisible.value = true
 })
 
+const bottomExpanded = ref(false)
+const toggleLogsWindow = () => {
+  bottomExpanded.value = !bottomExpanded.value
+}
+
 tinykeys(window, {
   '$mod+KeyS': (event) => {
     event.preventDefault()
@@ -549,7 +595,7 @@ tinykeys(window, {
 <style scoped lang="scss">
 .editor {
   height: 100%;
-  width: 100%;
+  width: 100vw;
   display: flex;
   flex-direction: row;
   position: relative;
@@ -567,7 +613,7 @@ tinykeys(window, {
     width: 100%;
     display: flex;
     flex-direction: column;
-    height: 100%;
+    height: calc(100% - 80px);
 
     .editor-wrapper {
       display: flex;
@@ -585,6 +631,73 @@ tinykeys(window, {
     width: 400px;
 
     background-color: white;
+  }
+
+  .bottom {
+    position: absolute;
+    left: 0px;
+    right: 0px;
+    bottom: 0px;
+
+    margin: 8px;
+    padding: 8px;
+    background-color: white;
+    border-radius: 16px;
+    border: 1px solid #ddd;
+    border-radius: 16px;
+    height: 64px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+
+    transition:
+      height 0.3s ease,
+      box-shadow 0.3s ease;
+
+    &.expanded {
+      height: 50%;
+      box-shadow: 0px 0px 25px 5px rgba(0, 0, 0, 0.1);
+    }
+
+    .logs {
+      height: 100%;
+      width: 100%;
+      min-height: 0;
+
+      .card {
+        width: 100%;
+        height: 100%;
+      }
+    }
+
+    .header {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .actions {
+    }
+
+    .accordion {
+      .content {
+        :deep(.p-accordioncontent-content) {
+          width: 100%;
+        }
+        // max-height: 300px;
+      }
+      .line {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+
+        .cell {
+          // flex: 1 1 auto;
+        }
+      }
+    }
   }
 
   .buttons {

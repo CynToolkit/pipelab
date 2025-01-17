@@ -129,6 +129,10 @@ export const useEditor = defineStore('editor', () => {
     logLines.value[nodeUid].push(data)
   }
 
+  const clearLogs = () => {
+    logLines.value = {}
+  }
+
   const currentFilePointer = computed(() => {
     return files.value.data[id.value]
   })
@@ -631,6 +635,7 @@ export const useEditor = defineStore('editor', () => {
     currentFilePointer,
 
     pushLine,
+    clearLogs,
     logLines,
 
     setActiveNode,

@@ -100,6 +100,7 @@
                   option-value="value"
                   option-disabled="disabled"
                   :options="newProjectTypes"
+                  :disabled="newProjectName.length === 0"
                 >
                 </Select>
               </div>
@@ -470,7 +471,7 @@ const openFile = async () => {
   }
 }
 
-const newProjectName = ref()
+const newProjectName = ref('')
 const newProjectNamePathified = computed(() => {
   return kebabCase(newProjectName.value)
 })

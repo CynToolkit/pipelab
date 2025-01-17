@@ -289,7 +289,7 @@ export const forge = async (
     inputs.configuration
   ) as ElectronConfiguration
 
-  log('completeConfiguration', completeConfiguration)
+  console.log('completeConfiguration', completeConfiguration)
 
   // render forge config
   // ejs.renderFile(
@@ -403,10 +403,16 @@ export const forge = async (
           PATH: `${shimsPaths}${delimiter}${process.env.PATH}`
         }
       },
-      log
+      log,
+      {
+        onStderr(data, subprocess) {
+          log(data)
+        },
+        onStdout(data, subprocess) {
+          log(data)
+        }
+      }
     )
-
-    log('logs', logs)
 
     if (action === 'package') {
       const outName = outFolderName(

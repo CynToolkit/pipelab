@@ -1,20 +1,16 @@
 import { uploadToItch, uploadToItchRunner } from './export'
 
 import { createNodeDefinition } from '@pipelab/plugin-core'
-// import icon from './public/itch.webp'
+import icon from './assets/itch-icon.webp'
 
 export default createNodeDefinition({
   description: 'Itch.io',
   name: 'Itch.io',
   id: 'itch.io',
   icon: {
-    type: 'icon',
-    icon: 'mdi-home'
+    type: 'image',
+    image: icon
   },
-  // icon: {
-  //   type: 'image',
-  //   image: icon
-  // },
   nodes: [
     // make and package
     {

@@ -16,8 +16,7 @@ export const runWithLiveLogs = async (
 ): Promise<void> => {
   const { execa } = await import('execa')
   return new Promise((resolve, reject) => {
-    log('runWithLiveLogs', command, args, execaOptions)
-    log('command: ', command, args.join(' '))
+    console.log('command: ', command, args.join(' '))
 
     const subprocess = execa(command, args, {
       ...execaOptions,
@@ -35,12 +34,12 @@ export const runWithLiveLogs = async (
     })
 
     subprocess.on('error', (error: Error) => {
-      log('error', error)
+      console.log('error', error)
       return reject(error)
     })
 
     subprocess.on('close', (code: number) => {
-      log('close', code)
+      console.log('close', code)
       hooks?.onExit?.(code)
 
       if (code === 0) {
@@ -51,13 +50,13 @@ export const runWithLiveLogs = async (
     })
 
     subprocess.on('disconnect', () => {
-      log('disconnect')
+      console.log('disconnect')
       hooks?.onExit?.(0)
       return resolve()
     })
 
     subprocess.on('exit', (code: number) => {
-      log('exit', code)
+      console.log('exit', code)
       hooks?.onExit?.(code)
 
       if (code === 0) {
@@ -82,8 +81,7 @@ export const runWithLiveLogsPTY = async (
 ): Promise<void> => {
   const { spawn } = await import('@lydell/node-pty')
   return new Promise((resolve, reject) => {
-    log('runWithLiveLogsPTY', command, args, ptyOptions)
-    log('command: ', command, args.join(' '))
+    console.log('command: ', command, args.join(' '))
 
     const subprocess = spawn(command, args, ptyOptions)
 
@@ -92,7 +90,7 @@ export const runWithLiveLogsPTY = async (
     })
 
     subprocess.onExit(({ exitCode, signal }) => {
-      log('exit', exitCode)
+      console.log('exit', exitCode)
       hooks?.onExit?.(exitCode)
 
       if (exitCode === 0) {

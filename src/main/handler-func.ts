@@ -162,11 +162,16 @@ export const handleActionExecute = async (
       await node.runner({
         inputs: resolvedInputs,
         log: (...args) => {
-          const logArgs = [`[${node.node.name}]`, ...args]
+          const decorator = `[${node.node.name}]`
+          const logArgs = [decorator, ...args]
           logger().info(...logArgs)
           send({
             type: 'log',
-            data: logArgs
+            data: {
+              decorator,
+              time: Date.now(),
+              message: args
+            }
           })
         },
         setOutput: (key, value) => {

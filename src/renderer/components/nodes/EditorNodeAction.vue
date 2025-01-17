@@ -89,15 +89,6 @@
             icon="pi pi-exclamation-triangle"
             size="small"
             text
-            @click.stop.prevent="isLogDialogOpened = true"
-          />
-          <Button
-            v-else-if="hasLines"
-            class="small-btn"
-            icon="pi pi-exclamation-triangle"
-            size="small"
-            text
-            @click.stop.prevent="isLogDialogOpened = true"
           />
         </div>
         <!-- <span class="type-icon pi pi-play"></span> -->
@@ -140,25 +131,6 @@
       @add-node="addNode"
     >
     </AddNodeButton>
-
-    <Dialog
-      v-model:visible="isLogDialogOpened"
-      modal
-      :style="{ width: '80vw' }"
-      :breakpoints="{ '575px': '90vw' }"
-    >
-      <template #header>
-        <div class="flex flex-column w-full">
-          <p class="text-xl text-center">Logs</p>
-        </div>
-      </template>
-
-      <div class="logs">
-        <div v-for="(line, index) of nodeLogLines" :key="index" class="line">
-          <div v-for="(cell, index2) of line" :key="index2" class="cell">{{ cell }}</div>
-        </div>
-      </div>
-    </Dialog>
   </div>
 </template>
 
@@ -206,8 +178,6 @@ const props = defineProps({
 
 const menu = ref()
 const { value, steps, index } = toRefs(props)
-
-const isLogDialogOpened = ref(false)
 
 /*
 <div class="left">
@@ -341,7 +311,7 @@ const {
   disableNode,
   enableNode
 } = editor
-const { activeNode, variables, logLines } = storeToRefs(editor)
+const { activeNode, variables } = storeToRefs(editor)
 
 const nodeDefinition = computed(() => {
   const def = getNodeDefinition(value.value.origin.nodeId, value.value.origin.pluginId)
@@ -431,18 +401,6 @@ watchDebounced(
 
 const showSidebar = ref(false)
 
-const nodeLogLines = computed(() => {
-  const item = logLines.value[value.value.uid]
-  if (item) {
-    return item
-  }
-  return []
-})
-
-const hasLines = computed(() => {
-  return nodeLogLines.value.length > 0
-})
-
 const hasErrored = computed(() => {
   return false
 })
@@ -466,8 +424,8 @@ const hasErrored = computed(() => {
   border: 1px solid #c2c9d1;
   padding: 4px 16px 4px 16px;
   border-radius: 4px;
-  width: fit-content;
-  min-width: 300px;
+  // width: fit-content;
+  // min-width: 300px;
   background-color: white;
   display: flex;
 
@@ -596,17 +554,6 @@ const hasErrored = computed(() => {
 
 .danger {
   color: red;
-}
-
-.logs {
-  .line {
-    display: flex;
-    gap: 4px;
-
-    .cell {
-      flex: 0 0 auto;
-    }
-  }
 }
 
 @keyframes clippath {
