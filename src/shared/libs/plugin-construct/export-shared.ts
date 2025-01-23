@@ -7,6 +7,7 @@ import {
 } from '@pipelab/plugin-core'
 import { script } from './assets/script.js'
 import v from 'valibot'
+import { BrowserContext } from 'playwright'
 
 // @ts-expect-error import.meta
 const isCI = process.env.CI === 'true' || import.meta.env.CI === 'true'
@@ -70,7 +71,7 @@ export const sharedParams = {
     },
     value: 120,
     label: 'Timeout'
-  },
+  }
   // addonsFolder: {
   //   description: 'Folder containing addons to import in the editor',
   //   required: false,
@@ -90,8 +91,16 @@ type Inputs = ParamsToInput<typeof sharedParams>
 
 export const exportc3p = async <ACTION extends Action>(
   file: string,
-  { cwd, log, inputs, setOutput, paths }: ActionRunnerData<ACTION>
+  { cwd, log, inputs, setOutput, paths, abortSignal }: ActionRunnerData<ACTION>
 ) => {
+  let context: BrowserContext | undefined = undefined
+
+  abortSignal.addEventListener('abort', () => {
+    console.error('aborted')
+
+    context?.close()
+  })
+  console.log('event listening')
   const newInputs = inputs as Inputs
 
   // const { addonsFolder } = newInputs
@@ -111,24 +120,34 @@ export const exportc3p = async <ACTION extends Action>(
   // const a = await playwrightServer.installBrowsersForNpmInstall([
   //   browserName,
   // ]);
+  log('Downloading browser')
   await runWithLiveLogs(
     execPath,
     [join(modulesPath, 'playwright', 'cli.js'), 'install', browserName],
     {
       env: {
         ELECTRON_RUN_AS_NODE: '1'
+      },
+      cancelSignal: abortSignal,
+    },
+    log,
+    {
+      onStdout(data) {
+        log(data)
+      },
+      onStderr(data) {
+        log(data)
       }
     },
-    log
   )
 
   const downloadDir = join(cwd, 'playwright')
 
-  log('downloadDir', downloadDir)
+  log('Browser downloaded to', downloadDir)
 
-  log('exporting construct project')
+  log('Exporting construct project')
 
-  log('newInputs', newInputs)
+  console.log('newInputs', newInputs)
 
   const browserInstance = playwright[browserName]
 
@@ -139,7 +158,7 @@ export const exportc3p = async <ACTION extends Action>(
     headless: headless
   })
 
-  const context = await browser.newContext({
+  context = await browser.newContext({
     locale: 'en-US',
     recordVideo: isCI
       ? {
@@ -159,7 +178,7 @@ export const exportc3p = async <ACTION extends Action>(
     delete self.showOpenFilePicker
   })
   page.on('filechooser', (worker) => {
-    log('filechooser created: ' + worker.page.name)
+    console.log('filechooser created: ' + worker.page.name)
   })
   // ---------------------------------
 
@@ -171,11 +190,11 @@ export const exportc3p = async <ACTION extends Action>(
       newInputs.username,
       newInputs.password,
       version,
-      downloadDir,
+      downloadDir
       // addonsFolder,
     )
 
-    log('setting output result to ', result)
+    log('Setting output result to ', result)
 
     setOutput('folder', result)
   } catch (e) {

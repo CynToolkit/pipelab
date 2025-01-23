@@ -204,18 +204,72 @@ export const registerIPCHandlers = () => {
     } */
     )
   })
+  let abortControllerGraph: undefined | AbortController = undefined
+
+  const effectiveActionExecute = async (
+    nodeId: string,
+    pluginId: string,
+    params: Record<string, string>,
+    mainWindow: BrowserWindow | undefined,
+    send: HandleListenerSendFn<'action:execute'>
+  ) => {
+    try {
+      // Listen to the abort signal and trigger rejection.
+
+      const result = await handleActionExecute(
+        nodeId,
+        pluginId,
+        params,
+        mainWindow,
+        send,
+        abortControllerGraph.signal
+      )
+
+      await send({
+        data: result,
+        type: 'end'
+      })
+    } catch (e) {
+      // Catch any error and propagate it.
+      console.error('Error during action execution:', e)
+      await send({
+        type: 'end',
+        data: {
+          ipcError: e instanceof Error ? e.message : 'Unknown error',
+          type: 'error'
+        }
+      })
+    } finally {
+      console.log('action execution done, either ok or ko')
+    }
+  }
 
   handle('action:execute', async (event, { send, value }) => {
     const { nodeId, params, pluginId } = value
 
     const mainWindow = BrowserWindow.fromWebContents(event.sender)
+    abortControllerGraph = new AbortController()
 
-    const result = await handleActionExecute(nodeId, pluginId, params, mainWindow, send)
-
-    await send({
-      data: result,
-      type: 'end'
+    const signalPromise = new Promise((resolve, reject) => {
+      abortControllerGraph.signal.addEventListener('abort', async (ev) => {
+        console.log('ev', ev)
+        await send({
+          type: 'end',
+          data: {
+            ipcError: 'Action aborted',
+            type: 'error'
+          }
+        })
+        return reject(new Error('Action interrupted: ' + (ev.reason || 'Unknown reason')))
+      })
     })
+
+    console.log('race started')
+
+    await Promise.race([
+      signalPromise,
+      effectiveActionExecute(nodeId, pluginId, params, mainWindow, send)
+    ])
   })
 
   handle('constants:get', async (_, { send }) => {
@@ -289,6 +343,19 @@ export const registerIPCHandlers = () => {
 
     await writeFile(filesPath, data, 'utf8')
 
+    send({
+      type: 'end',
+      data: {
+        type: 'success',
+        result: {
+          result: 'ok'
+        }
+      }
+    })
+  })
+
+  handle('action:cancel', async (_, { send }) => {
+    abortControllerGraph.abort('Interrupted by user')
     send({
       type: 'end',
       data: {

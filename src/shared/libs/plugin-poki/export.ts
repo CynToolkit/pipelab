@@ -59,7 +59,7 @@ export const uploadToPoki = createAction({
 })
 
 export const uploadToPokiRunner = createActionRunner<typeof uploadToPoki>(
-  async ({ log, inputs, cwd, paths }) => {
+  async ({ log, inputs, cwd, paths, abortSignal }) => {
     const { app } = await import('electron')
     const { join, dirname } = await import('node:path')
     const { mkdir, access, chmod, writeFile } = await import('node:fs/promises')
@@ -90,7 +90,8 @@ export const uploadToPokiRunner = createActionRunner<typeof uploadToPoki>(
       poki,
       ['upload', '--name', inputs.name, '--notes', inputs.notes],
       {
-        cwd: inputs['input-folder']
+        cwd: inputs['input-folder'],
+        cancelSignal: abortSignal,
       },
       log,
       {

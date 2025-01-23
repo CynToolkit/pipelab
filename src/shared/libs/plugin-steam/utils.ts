@@ -1,4 +1,5 @@
 import { runWithLiveLogsPTY } from '../plugin-core'
+import { Options as ExecaOptions } from 'execa'
 
 export type Options = {
   steamcmdPath: string
@@ -6,6 +7,7 @@ export type Options = {
   scriptPath: string
   context: {
     log: typeof console.log
+    abortSignal: AbortSignal
   }
 }
 
@@ -27,7 +29,8 @@ export const checkSteamAuth = async (options: Options) => {
             subprocess.kill()
           }
         }
-      }
+      },
+      options.context.abortSignal,
     )
   } catch (e) {
     console.error('e', e)
@@ -48,7 +51,11 @@ export const checkSteamAuth = async (options: Options) => {
   }
 }
 
-export const openExternalTerminal = async (command: string, args: string[] = [], options = {}) => {
+export const openExternalTerminal = async (
+  command: string,
+  args: string[] = [],
+  options: ExecaOptions = {},
+) => {
   const { execa } = await import('execa')
   const os = await import('os')
 

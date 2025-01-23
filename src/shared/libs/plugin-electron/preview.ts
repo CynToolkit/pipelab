@@ -12,7 +12,14 @@ export const previewRunner = createActionRunner<ReturnType<typeof createPreviewP
     const output = await forge('package', undefined, options)
     options.log('Opening preview', output)
     options.log('Opening url', url)
-    await runWithLiveLogs(output.binary, ['--url', url], {}, options.log)
+    await runWithLiveLogs(
+      output.binary,
+      ['--url', url],
+      {
+        cancelSignal: options.abortSignal
+      },
+      options.log
+    )
     return
   }
 )

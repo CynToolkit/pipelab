@@ -89,7 +89,7 @@ export const uploadToItch = createAction({
 })
 
 export const uploadToItchRunner = createActionRunner<typeof uploadToItch>(
-  async ({ log, inputs, cwd }) => {
+  async ({ log, inputs, cwd, abortSignal }) => {
     const { app } = await import('electron')
     const { join, dirname } = await import('node:path')
     const { mkdir, access, chmod } = await import('node:fs/promises')
@@ -152,11 +152,16 @@ export const uploadToItchRunner = createActionRunner<typeof uploadToItch>(
     console.log('url', url)
 
     if (alreadyExist === false) {
-      await downloadFile(url, butlerTmpZipFile, {
-        onProgress: ({ progress }) => {
-          log(`Downloading itch.io butler: ${progress.toFixed(2)}%`)
-        }
-      })
+      await downloadFile(
+        url,
+        butlerTmpZipFile,
+        {
+          onProgress: ({ progress }) => {
+            log(`Downloading itch.io butler: ${progress.toFixed(2)}%`)
+          }
+        },
+        abortSignal
+      )
       const zip = new StreamZip.default.async({ file: butlerTmpZipFile })
 
       const bytes = await zip.extract(null, dirname(butlerPath))
@@ -180,7 +185,8 @@ export const uploadToItchRunner = createActionRunner<typeof uploadToItch>(
       {
         env: {
           BUTLER_API_KEY: inputs['api-key']
-        }
+        },
+        cancelSignal: abortSignal
       },
       log,
       {
@@ -198,7 +204,7 @@ export const uploadToItchRunner = createActionRunner<typeof uploadToItch>(
             }
           }
         }
-      }
+      },
     )
 
     log('Uploaded to itch')

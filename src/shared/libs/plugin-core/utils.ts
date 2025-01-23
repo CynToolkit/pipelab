@@ -77,13 +77,17 @@ export const runWithLiveLogsPTY = async (
     onStdout?: (data: string, subprocess: IPty) => void
     onStderr?: (data: string, subprocess: IPty) => void
     onExit?: (code: number) => void
-  }
+    onCreated?: (subprocess: IPty) => void
+  },
+  abortSignal?: AbortSignal
 ): Promise<void> => {
   const { spawn } = await import('@lydell/node-pty')
   return new Promise((resolve, reject) => {
     console.log('command: ', command, args.join(' '))
 
     const subprocess = spawn(command, args, ptyOptions)
+
+    hooks.onCreated?.(subprocess)
 
     subprocess.onData((data) => {
       hooks?.onStdout?.(data.toString(), subprocess)
@@ -116,10 +120,13 @@ export interface Hooks {
 export const downloadFile = async (
   url: string,
   localPath: string,
-  hooks?: Hooks
+  hooks?: Hooks,
+  abortSignal?: AbortSignal
 ): Promise<void> => {
   // Fetch the resource
-  const response = await fetch(url)
+  const response = await fetch(url, {
+    signal: abortSignal
+  })
 
   // Check if the fetch was successful
   if (!response.ok) {

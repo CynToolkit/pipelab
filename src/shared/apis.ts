@@ -76,7 +76,7 @@ export type IpcDefinition = {
 
   'config:load': [{ config: string }, EndEvent<{ result: any }>]
   'config:save': [{ data: string; config: string }, EndEvent<{ result: 'ok' }>]
-  log: [{ data: string; config: string }, EndEvent<{ result: 'ok' }>]
+  'action:cancel': [void, EndEvent<{ result: 'ok' | 'ko' }>]
 }
 
 export type Channels = keyof IpcDefinition

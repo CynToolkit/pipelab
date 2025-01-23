@@ -202,7 +202,8 @@ export const forge = async (
     log,
     inputs,
     setOutput,
-    paths
+    paths,
+    abortSignal
   }: ActionRunnerData<
     | ReturnType<typeof createMakeProps>
     | ReturnType<typeof createPackageProps>
@@ -292,42 +293,6 @@ export const forge = async (
 
   console.log('completeConfiguration', completeConfiguration)
 
-  // render forge config
-  // ejs.renderFile(
-  //   join(templateFolder, 'forge.config.cjs'),
-  //   {
-  //     config: completeConfiguration,
-  //   },
-  //   {},
-  //   (err: Error, str: string) => {
-  //     writeFile(join(destinationFolder, 'forge.config.cjs'), str, 'utf8')
-  //   }
-  // )
-
-  // index / main
-  // ejs.renderFile(
-  //   join(templateFolder, 'src', 'index.js'),
-  //   {
-  //     config: completeConfiguration
-  //   },
-  //   {},
-  //   (err: Error, str: string) => {
-  //     writeFile(join(destinationFolder, 'src', 'index.js'), str, 'utf8')
-  //   }
-  // )
-
-  // preload
-  // ejs.renderFile(
-  //   join(templateFolder, 'src', 'preload.js'),
-  //   {
-  //     config: completeConfiguration
-  //   },
-  //   {},
-  //   (err: Error, str: string) => {
-  //     writeFile(join(destinationFolder, 'src', 'preload.js'), str, 'utf8')
-  //   }
-  // )
-
   writeFile(
     join(destinationFolder, 'config.cjs'),
     `module.exports = ${JSON.stringify(completeConfiguration, undefined, 2)}`,
@@ -339,7 +304,9 @@ export const forge = async (
   if (completeConfiguration.customMainCode) {
     await cp(completeConfiguration.customMainCode, destinationFile)
   } else {
-    await writeFile(destinationFile, 'console.log("No custom main code provided")')
+    await writeFile(destinationFile, 'console.log("No custom main code provided")', {
+      signal: abortSignal
+    })
   }
 
   const shimsPaths = join(assets, 'shims')
@@ -359,9 +326,18 @@ export const forge = async (
         ELECTRON_RUN_AS_NODE: '1',
         PATH: `${shimsPaths}${delimiter}${process.env.PATH}`,
         PNPM_HOME: pnpmHome
-      }
+      },
+      cancelSignal: abortSignal
     },
-    log
+    log,
+    {
+      onStderr(data, subprocess) {
+        log(data)
+      },
+      onStdout(data, subprocess) {
+        log(data)
+      }
+    }
   )
 
   // override electron version
@@ -377,9 +353,18 @@ export const forge = async (
           ELECTRON_RUN_AS_NODE: '1',
           PATH: `${shimsPaths}${delimiter}${process.env.PATH}`,
           PNPM_HOME: pnpmHome
-        }
+        },
+        cancelSignal: abortSignal
       },
-      log
+      log,
+      {
+        onStderr(data, subprocess) {
+          log(data)
+        },
+        onStdout(data, subprocess) {
+          log(data)
+        }
+      }
     )
   }
 
@@ -401,9 +386,10 @@ export const forge = async (
           DEBUG: completeConfiguration.enableExtraLogging ? '*' : '',
           ELECTRON_NO_ASAR: '1',
           ELECTRON_RUN_AS_NODE: '1',
-          PATH: `${shimsPaths}${delimiter}${process.env.PATH}`,
+          PATH: `${shimsPaths}${delimiter}${process.env.PATH}`
           // DEBUG: "electron-packager"
-        }
+        },
+        cancelSignal: abortSignal
       },
       log,
       {

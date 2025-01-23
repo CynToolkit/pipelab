@@ -1,6 +1,5 @@
 import { Page } from 'playwright'
-import { join, extname } from 'node:path'
-import { readdir } from 'node:fs/promises'
+import { join } from 'node:path'
 
 const registerInstallButtonListener = (page: Page, log: typeof console.log) => {
   // as soon as it appear, without blocking flow

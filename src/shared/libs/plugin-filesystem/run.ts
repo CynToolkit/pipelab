@@ -1,5 +1,4 @@
-import { createAction, createActionRunner } from '@pipelab/plugin-core'
-// import displayString from './displayStringRun.lua?raw'
+import { createAction, createActionRunner, runWithLiveLogsPTY } from '@pipelab/plugin-core'
 
 export const ID = 'fs:run'
 
@@ -58,28 +57,47 @@ export const run = createAction({
   meta: {}
 })
 
-export const runRunner = createActionRunner<typeof run>(async ({ log, inputs, setOutput }) => {
-  const { execa, ExecaError } = await import('execa')
+export const runRunner = createActionRunner<typeof run>(
+  async ({ log, inputs, setOutput, abortSignal }) => {
+    const str = `${inputs.command} ${inputs.parameters.join(' ')}`
 
-  const str = `${inputs.command} ${inputs.parameters.join(' ')}`
+    log(`Running ${str}`)
 
-  log(`Running ${str}`)
+    let stdout: string = ''
+    let stderr: string = ''
+    let exitCode: number = 0
+    const durationMs: number = 0
 
-  try {
-    const result = await execa`${str}`
+    try {
+      await runWithLiveLogsPTY(inputs.command, inputs.parameters, {}, log, {
+        onStdout: (data) => {
+          stdout += data.toString()
+        },
+        onStderr: (data) => {
+          stderr += data.toString()
+        },
+        onExit(code) {
+          exitCode = code
+        },
+        onCreated(subprocess) {
+          abortSignal.addEventListener('abort', () => {
+            subprocess.kill()
+          })
+        }
+      })
 
-    const { exitCode, durationMs, stderr, stdout } = result
-
-    setOutput('exitCode', exitCode === undefined ? -1 : exitCode)
-    setOutput('stdout', stdout)
-    setOutput('stderr', stderr)
-    setOutput('duration', durationMs)
-  } catch (error) {
-    if (error instanceof ExecaError) {
-      setOutput('exitCode', error.exitCode === undefined ? -1 : error.exitCode)
-      setOutput('stdout', error.stdout ?? '')
-      setOutput('stderr', error.stderr ?? '')
-      setOutput('duration', error.durationMs ?? 0)
+      setOutput('exitCode', exitCode === undefined ? -1 : exitCode)
+      setOutput('stdout', stdout)
+      setOutput('stderr', stderr)
+      setOutput('duration', durationMs)
+    } catch (error) {
+      console.log('error', error)
+      if (error /*  instanceof ExecaError */) {
+        setOutput('exitCode', error.exitCode === undefined ? -1 : error.exitCode)
+        setOutput('stdout', error.stdout ?? '')
+        setOutput('stderr', error.stderr ?? '')
+        setOutput('duration', error.durationMs ?? 0)
+      }
     }
   }
-})
+)

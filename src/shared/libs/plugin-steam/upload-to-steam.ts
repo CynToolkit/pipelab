@@ -82,7 +82,7 @@ export const uploadToSteam = createAction({
 })
 
 export const uploadToSteamRunner = createActionRunner<typeof uploadToSteam>(
-  async ({ log, inputs, cwd }) => {
+  async ({ log, inputs, cwd, abortSignal }) => {
     const { join, dirname } = await import('path')
     const { platform } = await import('os')
     const { chmod, mkdir, writeFile } = await import('fs/promises')
@@ -184,7 +184,8 @@ export const uploadToSteamRunner = createActionRunner<typeof uploadToSteam>(
     // check for steam authentication
     const isAuthenticated = await checkSteamAuth({
       context: {
-        log
+        log,
+        abortSignal,
       },
       scriptPath,
       steamcmdPath,
@@ -195,10 +196,13 @@ export const uploadToSteamRunner = createActionRunner<typeof uploadToSteam>(
 
     if (isAuthenticated.success === false) {
       log('OPEN STEAM AUTH terminal')
-      await openExternalTerminal(steamcmdPath, ['+login', username, '+quit'])
+      await openExternalTerminal(steamcmdPath, ['+login', username, '+quit'], {
+        cancelSignal: abortSignal,
+      })
       const isAuthenticatedNow = await checkSteamAuth({
         context: {
-          log
+          log,
+          abortSignal,
         },
         scriptPath,
         steamcmdPath,
@@ -210,7 +214,10 @@ export const uploadToSteamRunner = createActionRunner<typeof uploadToSteam>(
     }
 
     log('Writing script')
-    await writeFile(scriptPath, script, 'utf8')
+    await writeFile(scriptPath, script, {
+      encoding: 'utf8',
+      signal: abortSignal
+    })
 
     log('Executing steamcmd')
 
@@ -219,7 +226,9 @@ export const uploadToSteamRunner = createActionRunner<typeof uploadToSteam>(
       await runWithLiveLogs(
         steamcmdPath,
         ['+login', username, '+run_app_build', scriptPath, '+quit'],
-        {},
+        {
+          cancelSignal: abortSignal,
+        },
         log
       )
     } catch (e) {

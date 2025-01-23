@@ -363,6 +363,7 @@ export type ActionRunnerData<ACTION extends Action> = {
   }
   api: UseMainAPI
   browserWindow: BrowserWindow
+  abortSignal: AbortSignal
 }
 
 export type ActionRunner<ACTION extends Action> = (data: ActionRunnerData<ACTION>) => Promise<void>

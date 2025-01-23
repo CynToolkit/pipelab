@@ -33,31 +33,27 @@ export const unzip = createAction({
 export const unzipRunner = createActionRunner<typeof unzip>(
   async ({ log, inputs, setOutput, cwd }) => {
     const StreamZip = await import('node-stream-zip')
-    const fs = await import('node:fs')
     const { join } = await import('node:path')
 
-    log('')
+    console.log('inputs', inputs)
 
-    log('inputs', inputs)
-
-    log('inputs.file', inputs.file)
+    console.log('inputs.file', inputs.file)
     const file = inputs.file
-    log('file', file)
+    console.log('file', file)
     const output = join(cwd)
 
-    log('file', file)
-    log('output', output)
+    console.log('file', file)
+    console.log('output', output)
+
+    log('Unzip file', inputs.file, 'to', output)
 
     const zip = new StreamZip.default.async({ file })
 
     const bytes = await zip.extract(null, output)
     await zip.close()
 
-    log('bytes', bytes)
+    console.log('bytes', bytes)
 
-    // const files = response;
-
-    // log("-- setValue('paths')");
     setOutput('output', output)
   }
 )

@@ -202,7 +202,8 @@ export const forge = async (
     log,
     inputs,
     setOutput,
-    paths
+    paths,
+    abortSignal,
   }: ActionRunnerData<
     | ReturnType<typeof createMakeProps>
     | ReturnType<typeof createPackageProps>
@@ -290,7 +291,8 @@ export const forge = async (
         ELECTRON_RUN_AS_NODE: '1',
         PATH: `${shimsPaths}${delimiter}${process.env.PATH}`,
         PNPM_HOME: pnpmHome
-      }
+      },
+      cancelSignal: abortSignal
     },
     log,
     {

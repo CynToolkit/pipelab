@@ -59,6 +59,8 @@ Add own timers for electorn export & such
 C3 Preview ne fonctionne pas
 Steam achievement test c3 example
 Filesystem plugin: overwrite parameter + better sentences/descriptions
+cancel running
+cleanup temp directories
 
 Convert dektop app to web app + node backend
 Communication via rest api (for now) or websocket

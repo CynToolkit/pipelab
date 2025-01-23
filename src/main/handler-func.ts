@@ -118,7 +118,8 @@ export const handleActionExecute = async (
   pluginId: string,
   params: Record<string, string>,
   mainWindow: BrowserWindow | undefined,
-  send: HandleListenerSendFn<'action:execute'>
+  send: HandleListenerSendFn<'action:execute'>,
+  abortSignal: AbortSignal
 ): Promise<End<'action:execute'>> => {
   const { plugins } = usePlugins()
   const { logger } = useLogger()
@@ -189,7 +190,8 @@ export const handleActionExecute = async (
           unpack: _unpackPath
         },
         api,
-        browserWindow: mainWindow
+        browserWindow: mainWindow,
+        abortSignal,
       })
       mainWindow.setProgressBar(1, {
         mode: 'normal'

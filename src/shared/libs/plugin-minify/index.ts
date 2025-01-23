@@ -1,32 +1,25 @@
-import { createAction, createActionRunner } from "@pipelab/plugin-core";
+import { minifyCode, minifyCodeRunner } from './code'
+import { minifyImages, minifyImagesRunner } from './images'
 
-export const FLOW_INPUT_ID = "minify-flow-input";
-export const FLOW_OUTPUT_ID = "minify-flow-output";
-export const ID = "minify-js-node";
+import { createNodeDefinition } from '@pipelab/plugin-core'
 
-export const minifyImage = createAction({
-  id: ID,
-  name: "Minify",
-  description: "",
-  icon: "",
-  displayString: "TODO",
-  meta: {},
-  params: {
-    file: {
-      value: '',
-      label: "Fichier",
-      control: {
-        type: 'path',
-        options: {
-          properties: ['openFile']
-        }
-      }
+export default createNodeDefinition({
+  description: 'Minify and compress code and images',
+  name: 'Minifyer',
+  id: 'poki',
+  icon: {
+    type: 'icon',
+    icon: 'mdi-zip-box'
+  },
+  nodes: [
+    // make and package
+    {
+      node: minifyCode,
+      runner: minifyCodeRunner
     },
-  },
-  outputs: {
-  },
-});
-
-export const minifyImageRunner = createActionRunner(async ({ log }) => {
-  log("minifying");
-});
+    {
+      node: minifyImages,
+      runner: minifyImagesRunner
+    }
+  ]
+})

@@ -61,7 +61,7 @@
               <i class="mdi mdi-play mr-1"></i>
             </template>
           </Button>
-          <Button v-else outlined label="Cancel" size="small" disabled @click="run">
+          <Button v-else outlined label="Cancel" size="small" @click="cancel">
             <template #icon>
               <i class="mdi mdi-cancel mr-1"></i>
             </template>
@@ -294,14 +294,6 @@ const keyToNodeName = (key: string) => {
   return node.node.name ?? key
 }
 
-// const nodeLogLines = computed(() => {
-//   const item = logLines.value[value.value.uid]
-//   if (item) {
-//     return item
-//   }
-//   return []
-// })
-
 watch(
   id,
   async (newId) => {
@@ -339,6 +331,10 @@ const api = useAPI()
 
 const { setActiveNode } = instance
 const { activeNode } = storeToRefs(instance)
+
+const cancel = async () => {
+  await api.execute('action:cancel')
+}
 
 const run = async () => {
   setIsRunning(true)
@@ -401,25 +397,6 @@ const run = async () => {
                     [format(data.data.time, 'dd/MM/yyyy - hh:mm:ss'), content].join(' ')
                   )
                 }
-
-                // const content = data.data.message.map((x) => {
-                //   const linesInlines = x.split('\n')
-                //   console.log('linesInlines', linesInlines)
-                //   let final = ''
-                //   for (const l of linesInlines) {
-                //     if (hasAnsi(l)) {
-                //       final += fancyAnsi.toHtml(l)
-                //     } else {
-                //       final += l
-                //     }
-                //   }
-                //   return final
-                // })
-                // console.log('content', content)
-                // pushLine(
-                //   node.uid,
-                //   [format(data.data.time, 'dd/MM/yyyy - hh:mm:ss'), content].join(' ')
-                // )
               }
             }
           )
@@ -472,67 +449,6 @@ const onCloseRequest = async () => {
   })
 }
 
-// const onSaveRequest = async () => {
-//   if (saveLocation.value) {
-//     if (saveLocation.value.type === 'file') {
-//       await saveLocal(saveLocation.value.path)
-//     } else if (saveLocation.value.type === 'pipelab-cloud') {
-//       throw new Error('TODO')
-//     }
-//   } else {
-//     showSaveDialog.value = true
-//   }
-// }
-
-// const onSaveCallback = async () => {
-//   isSaving.value = true
-
-//   await saveLocal()
-
-//   isSaving.value = false
-// }
-
-// const onSaveCallback = async () => {
-//   isSaving.value = true
-
-//   if (!saveOption.value) {
-//     return
-//   }
-
-//   console.log('saveOption.value.id', saveOption.value.id)
-
-//   if (saveOption.value.id === 'local') {
-//     await saveLocal()
-//   } else if (saveOption.value.id === 'cloud') {
-//     await saveCloud()
-//   }
-
-//   isSaving.value = false
-//   showSaveDialog.value = false
-// }
-
-// const saveOptions = [
-//   {
-//     id: 'local',
-//     title: 'Local file',
-//     subtitle: 'Save on your own computer',
-//     icon: 'mdi-file-document-outline'
-//   },
-//   {
-//     id: 'cloud',
-//     title: 'Cloud',
-//     subtitle: 'Securely save online',
-//     icon: 'mdi-cloud-arrow-up-outline',
-//     disabled: true
-//   }
-// ] as const
-
-// const saveOption = ref<(typeof saveOptions)[number]>()
-
-// const saveCloud = () => {
-//   throw new Error('TODO')
-// }
-
 const saveLocal = async (path: string) => {
   const result: SavedFile = {
     version: '3.0.0',
@@ -562,54 +478,6 @@ const saveLocal = async (path: string) => {
     body: 'Your project has be saved successfully'
   })
 }
-
-// const api = useAPI()
-
-// const load = async () => {
-//   const paths = await api.execute(
-//     'dialog:showOpenDialog',
-//     { title: 'Choose a new path', properties: ['openFile'] },
-//     async (_, message) => {
-//       const { type, data } = message
-//       if (type === 'end') {
-//         console.log('end', data)
-//       }
-//     }
-//   )
-
-//   console.log('paths', paths)
-
-//   if (!paths.canceled) {
-//     if (paths.filePaths.length === 1) {
-//       const fileToRead = paths.filePaths[0]
-//       console.log('fileToRead', fileToRead)
-
-//       const response = await api.execute('fs:read', { path: fileToRead }, async (_, message) => {
-//         const { type, data } = message
-//         if (type === 'end') {
-//           console.log('end', data)
-//         }
-//       })
-
-//       console.log('response', response)
-
-//       const json = JSON.parse(response.content)
-
-//       instance.clear()
-//       await instance.loadSavedFile(json)
-//     } else {
-//       console.error('Invalid number of paths selected')
-//     }
-//   }
-// }
-
-// const clear = async () => {
-//   instance.clear()
-//   const defaultPreset = presets.value?.['newProject']
-//   if (defaultPreset) {
-//     await instance.loadSavedFile(defaultPreset.data)
-//   }
-// }
 
 // TODO: proper alert and prompt
 
