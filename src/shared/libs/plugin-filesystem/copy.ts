@@ -41,6 +41,14 @@ export const copy = createAction({
       control: {
         type: 'boolean'
       }
+    },
+    cleanup: {
+      label: 'Cleanup',
+      description: 'Whether to delete the original file/folder',
+      value: true,
+      control: {
+        type: 'boolean'
+      }
     }
   },
 
@@ -51,11 +59,13 @@ export const copy = createAction({
 })
 
 export const copyRunner = createActionRunner<typeof copy>(async ({ log, inputs }) => {
-  const { cp } = await import('node:fs/promises')
+  const { cp, mkdir, rm } = await import('node:fs/promises')
   log('')
 
   const from = inputs.from
   const to = inputs.to
+
+  log('Copying', from, 'to', to, 'recursive', inputs.recursive, 'overwrite', inputs.overwrite)
 
   if (!from) {
     log('From', from)
@@ -67,13 +77,24 @@ export const copyRunner = createActionRunner<typeof copy>(async ({ log, inputs }
     throw new Error('Missing destination')
   }
 
+  if (inputs.cleanup) {
+    try {
+      log('Cleaning up', to)
+      await rm(to, { recursive: true })
+      await mkdir(to, { recursive: true })
+    } catch (e) {
+      log('Error backing up file', e)
+    }
+  }
+
   try {
     process.noAsar = true
     await cp(from, to, {
       recursive: inputs.recursive,
-      force: inputs.overwrite,
+      force: inputs.overwrite
     })
     process.noAsar = false
+    log('Copied', from, 'to', to)
   } catch (e) {
     log('Error copying file', e)
   }
