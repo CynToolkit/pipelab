@@ -60,6 +60,8 @@ typings/
 # dotenv environment variables file
 .env
 .env.test
+.env.local
+
 
 # parcel-bundler cache (https://parceljs.org/)
 .cache
@@ -92,9 +94,6 @@ typings/
 out/
 
 sentry.properties
-
-
-*.env*
 
 assets/shims
 assets/electron/template/app/src/app

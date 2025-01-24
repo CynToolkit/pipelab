@@ -69,3 +69,6 @@ vérifier que le fichier custom main existe sinon ca lance une erreur
 https://playwright.dev/docs/browsers#opt-in-to-new-headless-mode
 Docs sur Electron
 Docs sur les logs
+
+Support path `.local/share`: https://www.construct.net/en/make-games/manuals/construct-3/plugin-reference/filesystem
+Personalize tmp folder
