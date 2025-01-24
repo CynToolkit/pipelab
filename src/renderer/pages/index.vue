@@ -69,6 +69,10 @@
         </div>
       </div> -->
     </div>
+    <div class="footer">
+      <div class="update-status">{{ updateStatusText }}</div>
+      <div class="version-text">{{ appVersion }}</div>
+    </div>
 
     <Dialog
       v-model:visible="isNewProjectModalVisible"
@@ -329,6 +333,8 @@ import { Presets } from '@@/apis'
 import FileInput from '@renderer/components/FileInput.vue'
 import { PROJECT_EXTENSION } from '@renderer/models/constants'
 import { kebabCase } from 'change-case'
+import { handle } from '@renderer/composables/handlers'
+import { UpdateStatus } from '@main/api'
 
 const router = useRouter()
 
@@ -345,6 +351,25 @@ const { files } = storeToRefs(fileStore)
 const { update: updateFileStore, remove } = fileStore
 
 const filesEnhanced = ref<EnhancedFile[]>([])
+
+const updateStatus = ref<UpdateStatus>('update-not-available')
+
+const updateStatusText = computed(() => {
+  switch (updateStatus.value) {
+    case 'update-not-available':
+      return ''
+    case 'update-available':
+      return 'Update available, downloading...'
+    case 'update-downloaded':
+      return 'Update downloaded'
+    case 'checking-for-update':
+      return 'Checking for update...'
+    case 'error':
+      return 'Error'
+    default:
+      return ''
+  }
+})
 
 const canCreateproject = computed(() => {
   return (
@@ -702,6 +727,13 @@ const accountMenuItems = computed(() => {
 const toggleAccountMenu = (event: MouseEvent) => {
   $menu.value.toggle(event)
 }
+
+handle('update:set-status', async (event, { value, send }) => {
+  console.log('event', event)
+  console.log('value', value)
+
+  updateStatus.value = value.status
+})
 </script>
 
 <style scoped>
@@ -867,5 +899,17 @@ const toggleAccountMenu = (event: MouseEvent) => {
   .presets {
     grid-template-columns: 1fr;
   }
+}
+
+.footer {
+  height: 24px;
+  background-color: #eee;
+  border-top: 1px solid #ddd;
+  display: flex;
+  flex-direction: row;
+  justify-content: end;
+  align-items: center;
+  font-size: 12px;
+  padding: 0 8px;
 }
 </style>

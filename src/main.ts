@@ -15,6 +15,7 @@ import { handleActionExecute } from '@main/handler-func'
 import { useLogger } from '@@/logger'
 import * as Sentry from '@sentry/electron/main'
 import { assetsPath } from '@main/paths'
+import { usePluginAPI } from '@main/api'
 
 const isLinux = platform() === 'linux'
 // let tray
@@ -39,8 +40,16 @@ if (app.isPackaged && process.env.TEST !== 'true' && !isWine) {
 const imagePath = join('./assets', 'discord_white.png')
 // let isQuiting = false
 
-if (!isLinux && process.env.TEST !== 'true' && require('electron-squirrel-startup')) app.quit()
+if (
+  !isLinux &&
+  process.env.TEST !== 'true' &&
+  app.isPackaged &&
+  require('electron-squirrel-startup')
+) {
+  app.quit()
+}
 
+let api
 let mainWindow: BrowserWindow | undefined
 
 function createWindow(): void {
@@ -60,6 +69,8 @@ function createWindow(): void {
   })
 
   setMainWindow(mainWindow)
+
+  api = usePluginAPI(mainWindow)
 
   if (is.dev) {
     mainWindow.webContents.openDevTools()
@@ -106,6 +117,9 @@ app.whenReady().then(async () => {
   })
 
   autoUpdater.on('update-downloaded', (event, releaseNotes, releaseName) => {
+    api?.execute('update:set-status', {
+      status: 'update-downloaded'
+    })
     logger().info('releaseNotes', releaseNotes)
     logger().info('releaseName', releaseName)
     logger().info('event', event)
@@ -123,24 +137,35 @@ app.whenReady().then(async () => {
   })
 
   autoUpdater.on('error', (message) => {
+    api?.execute('update:set-status', {
+      status: 'error'
+    })
     logger().info('There was a problem updating the application')
     logger().info(message)
   })
 
   autoUpdater.on('update-available', () => {
+    api?.execute('update:set-status', {
+      status: 'update-available'
+    })
     logger().info('Found update')
   })
 
   autoUpdater.on('update-not-available', () => {
+    api?.execute('update:set-status', {
+      status: 'update-not-available'
+    })
     logger().info('No update available')
   })
 
   autoUpdater.on('checking-for-update', (info: any) => {
+    api?.execute('update:set-status', {
+      status: 'checking-for-update'
+    })
     logger().info('checking-for-update', info)
   })
 
   logger().info('app ready')
-  autoUpdater.checkForUpdates()
   logger().info('autoUpdater.getFeedURL()', autoUpdater.getFeedURL())
 
   // Set app user model id for windows
@@ -270,7 +295,8 @@ exec "${process.execPath}" "$@"
               mainWindow,
               (data) => {
                 logger().info('send', data)
-              }
+              },
+              new AbortController().signal
             )
           } else {
             throw new Error('Unhandled type ' + node.type)
@@ -317,6 +343,11 @@ exec "${process.execPath}" "$@"
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
     mainWindow.maximize()
+
+    setTimeout(() => {
+      autoUpdater.checkForUpdates()
+      console.log('checkForUpdates')
+    }, 10000)
   })
   if (isReadyToShow) {
     mainWindow.show()

@@ -6,6 +6,13 @@ import type { Tagged } from 'type-fest'
 import { ILogObjMeta } from 'tslog'
 import { useLogger } from '@@/logger'
 
+export type UpdateStatus =
+  | 'update-available'
+  | 'update-downloaded'
+  | 'checking-for-update'
+  | 'update-not-available'
+  | 'error'
+
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 type Event<TYPE extends string, DATA> = { type: TYPE; data: DATA }
 type EndEvent<DATA> = {
@@ -35,6 +42,13 @@ export type IpcDefinition = {
   'log:message': [
     // input
     ILogObjMeta,
+    EndEvent<void>
+  ]
+  'update:set-status': [
+    // input
+    {
+      status: UpdateStatus
+    },
     EndEvent<void>
   ]
 }
