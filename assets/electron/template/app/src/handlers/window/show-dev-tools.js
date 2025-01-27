@@ -4,7 +4,11 @@
  * @param {import('electron').BrowserWindow} mainWindow
  */
 export default async (json, ws, mainWindow) => {
-  mainWindow.webContents.openDevTools()
+  if (json.body.value === true) {
+    mainWindow.webContents.openDevTools()
+  } else {
+    mainWindow.webContents.closeDevTools()
+  }
 
   /**
    * @type {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').MessageShowDevTools, 'output'>}
