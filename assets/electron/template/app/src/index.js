@@ -1,6 +1,6 @@
 // @ts-check
 
-import { app, BrowserWindow, ipcMain } from 'electron'
+import { app, BrowserWindow, ipcMain, shell } from 'electron'
 import { join } from 'node:path'
 // @ts-expect-error no types
 import serve from 'serve-handler'
@@ -334,6 +334,12 @@ const createWindow = async () => {
 
     await mainWindow?.loadURL(`http://localhost:${port}`)
   }
+
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    // Open the URL in the default browser
+    shell.openExternal(url)
+    return { action: 'deny' } // Prevent Electron from creating a new window
+  })
 
   return mainWindow
 }
