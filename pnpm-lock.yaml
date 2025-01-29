@@ -316,6 +316,9 @@ importers:
       '@types/path-browserify':
         specifier: 1.0.3
         version: 1.0.3
+      '@types/semver':
+        specifier: 7.5.8
+        version: 7.5.8
       '@typescript-eslint/parser':
         specifier: 8.11.0
         version: 8.11.0(eslint@9.13.0(jiti@2.4.2))(typescript@5.6.3)
@@ -2468,6 +2471,9 @@ packages:
 
   '@types/responselike@1.0.3':
     resolution: {integrity: sha512-H/+L+UkTV33uf49PH5pCAUBVPNj2nDBXTN+qS1dOwyyg24l3CcicicCA7ca+HMvJBZcFgl5r8e+RR6elsb4Lyw==}
+
+  '@types/semver@7.5.8':
+    resolution: {integrity: sha512-I8EUhyrgfLrcTkzV3TSsGyl1tSuPrEDzr0yd5m90UgNxQkyDXULk3b6MlQqTCpZpNtWe1K0hzclnZkTcLBe2UQ==}
 
   '@types/shimmer@1.2.0':
     resolution: {integrity: sha512-UE7oxhQLLd9gub6JKIAhDq06T0F6FnztwMNRvYgjeQSBeMc1ZG/tA47EwfduvkuQS8apbkM/lpLpWsaCeYsXVg==}
@@ -10135,6 +10141,8 @@ snapshots:
   '@types/responselike@1.0.3':
     dependencies:
       '@types/node': 22.7.9
+
+  '@types/semver@7.5.8': {}
 
   '@types/shimmer@1.2.0': {}
 

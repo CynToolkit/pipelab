@@ -2,6 +2,16 @@ import * as semver from 'semver'
 import { coerce } from 'semver'
 import { objectKeys } from '../utils/object-keys'
 import { klona } from 'klona'
+import {
+  custom,
+  InferInput,
+  InferOutput,
+  object,
+  optional,
+  string,
+  BaseSchema,
+  ObjectEntries
+} from 'valibot'
 
 export type Awaitable<T> = Promise<T> | T
 
@@ -12,9 +22,23 @@ export type MigrateOptions = {
   target?: SemVer
 }
 
-export interface MigrationSchema {
-  version: SemVer
-}
+const SemverValidator = custom<SemVer>((input) =>
+  typeof input === 'string' ? /^\d+\.\d+\.\d+$/.test(input) : false
+)
+
+export const SemverVersionValidator = optional(SemverValidator, '1.0.0')
+
+export const MigrationSchemaValidator = object({
+  version: SemverVersionValidator
+})
+
+export const createVersionSchema = <OBJECTENTRIES extends ObjectEntries>(schema: OBJECTENTRIES) =>
+  object({
+    version: SemverVersionValidator,
+    ...schema
+  })
+
+export type MigrationSchema = InferOutput<typeof MigrationSchemaValidator>
 
 export type OmitVersion<T> = Omit<T, keyof MigrationSchema>
 

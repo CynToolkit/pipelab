@@ -75,6 +75,21 @@
     </div>
 
     <Dialog
+      v-model:visible="isSettingsModalVisible"
+      modal
+      :style="{ width: '75vw', height: '80%' }"
+      :breakpoints="{ '575px': '90vw' }"
+    >
+      <template #header>
+        <div class="flex flex-column w-full">
+          <p class="text-xl text-center">Settings</p>
+        </div>
+      </template>
+
+      <Settings></Settings>
+    </Dialog>
+
+    <Dialog
       v-model:visible="isNewProjectModalVisible"
       modal
       :style="{ width: '75vw' }"
@@ -335,6 +350,7 @@ import { PROJECT_EXTENSION } from '@renderer/models/constants'
 import { kebabCase } from 'change-case'
 import { handle } from '@renderer/composables/handlers'
 import { UpdateStatus } from '@main/api'
+import Settings from '@renderer/components/Settings.vue'
 
 const router = useRouter()
 
@@ -616,6 +632,7 @@ const deleteProject = async (id: string) => {
 const appVersion = ref(window.version)
 const isAuthModalVisible = ref(false)
 const isNewProjectModalVisible = ref(false)
+const isSettingsModalVisible = ref(true)
 const auth = useAuth()
 const { user } = storeToRefs(auth)
 
@@ -718,6 +735,13 @@ const accountMenuItems = computed(() => {
       label: 'Account',
       icon: 'mdi mdi-account',
       items
+    },
+    {
+      separator: true
+    },
+    {
+      label: 'Settings',
+      icon: 'mdi mdi-cog',
     }
   ] satisfies MenuItem
 
