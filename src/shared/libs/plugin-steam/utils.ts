@@ -22,6 +22,7 @@ export const checkSteamAuth = async (options: Options) => {
       options.context.log,
       {
         onStdout: (data, subprocess) => {
+          options.context.log('[Steam Cmd]', data)
           // TODO: handle password input dynamically
           if (data.includes('Cached credentials not found')) {
             error = 'LOGGED_OUT'
@@ -71,7 +72,7 @@ export const openExternalTerminal = async (
       await execa(terminal, ['-e', command, ...args], options)
     } else if (platform === 'win32') {
       // Windows
-      await execa('cmd', ['/c', command, ...args], options)
+      await execa('cmd.exe', ['/c', 'start', 'cmd.exe', '/c', command, ...args], options)
     } else {
       throw new Error('Unsupported platform:' + platform)
     }

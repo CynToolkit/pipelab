@@ -632,7 +632,7 @@ const deleteProject = async (id: string) => {
 const appVersion = ref(window.version)
 const isAuthModalVisible = ref(false)
 const isNewProjectModalVisible = ref(false)
-const isSettingsModalVisible = ref(true)
+const isSettingsModalVisible = ref(false)
 const auth = useAuth()
 const { user } = storeToRefs(auth)
 

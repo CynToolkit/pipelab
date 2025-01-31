@@ -87,10 +87,8 @@ export const uploadToSteamRunner = createActionRunner<typeof uploadToSteam>(
     const { platform } = await import('os')
     const { chmod, mkdir, writeFile } = await import('fs/promises')
 
-    log('uploading to steam')
     const { folder, appId, sdk, depotId, username, description } = inputs
-
-    log('folder', folder)
+    log(`uploading "${folder}" to steam`)
 
     const buildOutput = join(cwd, 'steam', 'output')
     const scriptPath = join(cwd, 'steam', 'script.vdf')
@@ -125,7 +123,7 @@ export const uploadToSteamRunner = createActionRunner<typeof uploadToSteam>(
 	}
 }`
 
-    log('script', script)
+    console.log('script', script)
 
     let builderFolder = 'builder'
     if (platform() === 'linux') {
@@ -146,7 +144,7 @@ export const uploadToSteamRunner = createActionRunner<typeof uploadToSteam>(
 
     const steamcmdPath = join(sdk, 'tools', 'ContentBuilder', builderFolder, cmdFinal)
 
-    log('steamcmdPath', steamcmdPath)
+    console.log('steamcmdPath', steamcmdPath)
 
     if (platform() === 'linux' || platform() === 'darwin') {
       if (platform() === 'linux') {
@@ -192,10 +190,10 @@ export const uploadToSteamRunner = createActionRunner<typeof uploadToSteam>(
       username
     })
 
-    log('isAuthenticated', isAuthenticated)
+    log('isAuthenticated', JSON.stringify(isAuthenticated))
 
     if (isAuthenticated.success === false) {
-      log('OPEN STEAM AUTH terminal')
+      log('Opening terminal with interactive login')
       await openExternalTerminal(steamcmdPath, ['+login', username, '+quit'], {
         cancelSignal: abortSignal,
       })

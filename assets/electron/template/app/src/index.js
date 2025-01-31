@@ -278,7 +278,7 @@ const createAppServer = (mainWindow, serveStatic = true) => {
       })
     })
 
-    server.listen(31753, () => {
+    server.listen(31753, '127.0.0.1', () => {
       const adress = server.address()
       if (adress && typeof adress !== 'string') {
         return resolve(adress.port)

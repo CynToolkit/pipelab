@@ -8,7 +8,7 @@ export const uploadToPoki = createAction({
   description: '',
   icon: '',
   displayString:
-    "`Upload ${fmt.param(params['input-folder'], 'primary', 'No path selected')} to ${fmt.param(params['user'], 'primary', 'No project')}/${fmt.param(params['project'], 'primary', 'No project')}:${fmt.param(params['channel'], 'primary', 'No channel')}`",
+    "`Upload ${fmt.param(params['input-folder'], 'primary', 'No path selected')} to ${fmt.param(params['project'], 'primary', 'No project')} poki game (${fmt.param(params['name'], 'primary', 'No version name')})`",
   meta: {},
   params: {
     'input-folder': {
@@ -59,16 +59,23 @@ export const uploadToPoki = createAction({
 })
 
 export const uploadToPokiRunner = createActionRunner<typeof uploadToPoki>(
-  async ({ log, inputs, cwd, paths, abortSignal }) => {
-    const { app } = await import('electron')
-    const { join, dirname } = await import('node:path')
-    const { mkdir, access, chmod, writeFile } = await import('node:fs/promises')
+  async ({ log, inputs, paths, abortSignal, cwd }) => {
+    const { join } = await import('node:path')
+    const { writeFile , cp, mkdir } = await import('node:fs/promises')
+    const { shell } = await import('electron')
 
     const { unpack } = paths
     const modulesPath = join(unpack, 'node_modules')
     const poki = join(modulesPath, '@poki', 'cli', 'bin', 'index.js')
 
-    const pokiJsonPath = join(inputs['input-folder'], 'poki.json')
+    const dist = join(cwd, 'dist')
+
+    await mkdir(dist, { recursive: true })
+    await cp(inputs['input-folder'], dist, {
+      recursive: true
+    })
+
+    const pokiJsonPath = join(cwd, 'poki.json')
 
     // create file at the same place the folder to upload
     await writeFile(
@@ -76,7 +83,7 @@ export const uploadToPokiRunner = createActionRunner<typeof uploadToPoki>(
       JSON.stringify(
         {
           game_id: inputs.project,
-          build_dir: '.'
+          build_dir: 'dist'
         },
         undefined,
         2
@@ -84,13 +91,15 @@ export const uploadToPokiRunner = createActionRunner<typeof uploadToPoki>(
       'utf-8'
     )
 
+    await shell.openPath(cwd)
+
     // TODO: needs auth
 
     await runWithLiveLogs(
       poki,
       ['upload', '--name', inputs.name, '--notes', inputs.notes],
       {
-        cwd: inputs['input-folder'],
+        cwd,
         cancelSignal: abortSignal,
       },
       log,

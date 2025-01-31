@@ -3,6 +3,15 @@ import { IPty, type IPtyForkOptions, type IWindowsPtyForkOptions } from '@lydell
 import { createWriteStream } from 'fs'
 import { pipeline } from 'stream/promises'
 
+export const fileExists = async (path: string): Promise<boolean> => {
+  try {
+    await import('fs/promises').then(({ access }) => access(path))
+    return true
+  } catch {
+    return false
+  }
+}
+
 export const runWithLiveLogs = async (
   command: string,
   args: string[],

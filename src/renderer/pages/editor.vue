@@ -238,7 +238,7 @@ import NodesEditor from '@renderer/pages/nodes-editor.vue'
 import EditorNodeDummy from '@renderer/components/nodes/EditorNodeDummy.vue'
 import { storeToRefs } from 'pinia'
 import { useRouter } from 'vue-router'
-import { SavedFile } from '@@/model'
+import { BlockAction, BlockCondition, BlockLoop, SavedFile } from '@@/model'
 import { useAPI } from '@renderer/composables/api'
 import { useAppStore } from '@renderer/store/app'
 import { useToast } from 'primevue/usetoast'
@@ -332,6 +332,8 @@ const api = useAPI()
 const { setActiveNode } = instance
 const { activeNode } = storeToRefs(instance)
 
+const lastActiveNode = ref<BlockAction | BlockCondition | BlockLoop>()
+
 const cancel = async () => {
   await api.execute('action:cancel')
 }
@@ -348,6 +350,7 @@ const run = async () => {
       steps: {},
       onNodeEnter: (node) => {
         setActiveNode(node)
+        lastActiveNode.value = node
       },
       onNodeExit: () => {
         setActiveNode()
@@ -415,7 +418,7 @@ const run = async () => {
       detail: 'Your project has been executed successfully'
     })
   } catch (e) {
-    nodeStatuses.value[activeNode.value.uid] = 'error'
+    nodeStatuses.value[lastActiveNode.value.uid] = 'error'
 
     console.error('error while executing process', e)
     if (e instanceof Error) {
