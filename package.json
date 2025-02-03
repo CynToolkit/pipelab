@@ -1,6 +1,6 @@
 {
   "name": "@pipelab/app",
-  "version": "1.10.2",
+  "version": "1.11.0-0",
   "description": "-",
   "main": ".vite/build/main.js",
   "author": "Armaldio",
