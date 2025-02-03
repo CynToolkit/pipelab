@@ -102,7 +102,7 @@ export const uploadToSteamRunner = createActionRunner<typeof uploadToSteam>(
   async ({ log, inputs, cwd, abortSignal }) => {
     const { join, dirname, basename } = await import('path')
     const { platform } = await import('os')
-    const { chmod, mkdir, writeFile } = await import('fs/promises')
+    const { chmod, mkdir, writeFile, cp } = await import('fs/promises')
 
     const { folder, appId, sdk, depotId, username, description, enableDRM, binaryToPatch } = inputs
     log(`uploading "${folder}" to steam`)
@@ -243,8 +243,10 @@ export const uploadToSteamRunner = createActionRunner<typeof uploadToSteam>(
         log('filename', filename)
         const directoryName = dirname(binaryToPatch)
         log('directoryName', directoryName)
-        const replacedName = join(directoryName, 'drm_' + filename)
-        log('replacedName', replacedName)
+        const originalBinary = join(directoryName, 'original_' + filename)
+        log('originalBinary', originalBinary)
+
+        await cp(binaryToPatch, originalBinary)
 
         await runWithLiveLogsPTY(
           steamcmdPath,
@@ -253,8 +255,8 @@ export const uploadToSteamRunner = createActionRunner<typeof uploadToSteam>(
             username,
             '+drm_wrap',
             appId,
+            originalBinary,
             binaryToPatch,
-            replacedName,
             'drmtoolp',
             '38',
             '+run_app_build',
