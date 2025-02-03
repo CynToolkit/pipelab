@@ -5,6 +5,7 @@ export type ElectronConfiguration = {
   appVersion: string
   electronVersion: string
   disableAsarPackaging: boolean
+  forceHighPerformanceGpu: boolean
   enableExtraLogging: boolean
   customMainCode: string
   author: string

@@ -409,7 +409,7 @@ watchEffect(async () => {
   for (const [id, file] of entries) {
     let fileContent: string
     if (file.type === 'external') {
-      console.log('loading file', file.path)
+      // console.log('loading file', file.path)
       const resultLoad = await loadExternalFile(file.path)
 
       if (resultLoad.type === 'error') {

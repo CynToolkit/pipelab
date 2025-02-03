@@ -249,6 +249,14 @@ export const props = createAction({
         type: 'boolean'
       }
     },
+    forceHighPerformanceGpu: {
+      required: false,
+      label: 'Force high performance GPU',
+      value: false,
+      control: {
+        type: 'boolean'
+      }
+    },
 
     // websocket api
     websocketApi: {

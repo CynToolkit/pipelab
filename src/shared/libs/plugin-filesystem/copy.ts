@@ -52,13 +52,24 @@ export const copy = createAction({
     }
   },
 
-  outputs: {},
+  outputs: {
+    output: {
+      label: 'Output',
+      value: '',
+      description: 'The copied file/folder'
+    },
+    input: {
+      label: 'Input',
+      value: '',
+      description: 'The original file/folder'
+    }
+  },
   description: 'Copy a file or a folder from one location to another',
   icon: '',
   meta: {}
 })
 
-export const copyRunner = createActionRunner<typeof copy>(async ({ log, inputs }) => {
+export const copyRunner = createActionRunner<typeof copy>(async ({ log, inputs, setOutput }) => {
   const { cp, mkdir, rm } = await import('node:fs/promises')
   log('')
 
@@ -95,6 +106,8 @@ export const copyRunner = createActionRunner<typeof copy>(async ({ log, inputs }
       force: inputs.overwrite
     })
     process.noAsar = false
+    setOutput('output', to)
+    setOutput('input', from)
     log('Copied', from, 'to', to)
   } catch (e) {
     log('Error copying file', e)

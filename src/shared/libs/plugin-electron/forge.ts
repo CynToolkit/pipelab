@@ -301,6 +301,7 @@ export const forge = async (
       description: 'A simple Electron application',
       electronVersion: '',
       disableAsarPackaging: false,
+      forceHighPerformanceGpu: false,
       enableExtraLogging: false,
       enableDisableRendererBackgrounding: false,
       enableInProcessGPU: false,

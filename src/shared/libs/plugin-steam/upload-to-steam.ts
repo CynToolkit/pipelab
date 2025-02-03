@@ -1,4 +1,4 @@
-import { createAction, createActionRunner, runWithLiveLogs } from '@pipelab/plugin-core'
+import { createAction, createActionRunner, runWithLiveLogsPTY } from '@pipelab/plugin-core'
 import { checkSteamAuth, openExternalTerminal } from './utils'
 
 // https://github.com/ztgasdf/steampkg?tab=readme-ov-file#account-management
@@ -76,6 +76,23 @@ export const uploadToSteam = createAction({
           properties: ['openDirectory']
         }
       }
+    },
+    enableDRM: {
+      value: false,
+      label: 'Enable DRM',
+      control: {
+        type: 'boolean'
+      }
+    },
+    binaryToPatch: {
+      value: '',
+      label: 'Binary to patch',
+      control: {
+        type: 'path',
+        options: {
+          properties: ['openFile']
+        }
+      }
     }
   },
   outputs: {}
@@ -83,11 +100,11 @@ export const uploadToSteam = createAction({
 
 export const uploadToSteamRunner = createActionRunner<typeof uploadToSteam>(
   async ({ log, inputs, cwd, abortSignal }) => {
-    const { join, dirname } = await import('path')
+    const { join, dirname, basename } = await import('path')
     const { platform } = await import('os')
     const { chmod, mkdir, writeFile } = await import('fs/promises')
 
-    const { folder, appId, sdk, depotId, username, description } = inputs
+    const { folder, appId, sdk, depotId, username, description, enableDRM, binaryToPatch } = inputs
     log(`uploading "${folder}" to steam`)
 
     const buildOutput = join(cwd, 'steam', 'output')
@@ -183,7 +200,7 @@ export const uploadToSteamRunner = createActionRunner<typeof uploadToSteam>(
     const isAuthenticated = await checkSteamAuth({
       context: {
         log,
-        abortSignal,
+        abortSignal
       },
       scriptPath,
       steamcmdPath,
@@ -195,12 +212,12 @@ export const uploadToSteamRunner = createActionRunner<typeof uploadToSteam>(
     if (isAuthenticated.success === false) {
       log('Opening terminal with interactive login')
       await openExternalTerminal(steamcmdPath, ['+login', username, '+quit'], {
-        cancelSignal: abortSignal,
+        cancelSignal: abortSignal
       })
       const isAuthenticatedNow = await checkSteamAuth({
         context: {
           log,
-          abortSignal,
+          abortSignal
         },
         scriptPath,
         steamcmdPath,
@@ -219,16 +236,60 @@ export const uploadToSteamRunner = createActionRunner<typeof uploadToSteam>(
 
     log('Executing steamcmd')
 
-    // SHould be authed here
+    // Should be authed here
     try {
-      await runWithLiveLogs(
-        steamcmdPath,
-        ['+login', username, '+run_app_build', scriptPath, '+quit'],
-        {
-          cancelSignal: abortSignal,
-        },
-        log
-      )
+      if (enableDRM) {
+        const filename = basename(binaryToPatch)
+        log('filename', filename)
+        const directoryName = dirname(binaryToPatch)
+        log('directoryName', directoryName)
+        const replacedName = join(directoryName, 'drm_' + filename)
+        log('replacedName', replacedName)
+
+        await runWithLiveLogsPTY(
+          steamcmdPath,
+          [
+            '+login',
+            username,
+            '+drm_wrap',
+            appId,
+            binaryToPatch,
+            replacedName,
+            'drmtoolp',
+            '38',
+            '+run_app_build',
+            scriptPath,
+            '+quit'
+          ],
+          { },
+          log,
+          {
+            onStdout: (data) => {
+              log('[steamcmd]', data)
+            },
+            onStderr: (data) => {
+              log('[steamcmd]', data)
+            }
+          },
+          abortSignal
+        )
+      } else {
+        await runWithLiveLogsPTY(
+          steamcmdPath,
+          ['+login', username, '+run_app_build', scriptPath, '+quit'],
+          {},
+          log,
+          {
+            onStdout: (data) => {
+              log('[steamcmd]', data)
+            },
+            onStderr: (data) => {
+              log('[steamcmd]', data)
+            }
+          },
+          abortSignal
+        )
+      }
     } catch (e) {
       if (e instanceof Error) {
         console.error(e)

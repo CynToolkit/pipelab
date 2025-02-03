@@ -82,8 +82,9 @@ watchEffect(async () => {
     icons.value = newIcons
   }
 
-  console.log('icons.value', icons.value)
-  icons.value = icons.value.filter(x => icons.value.map(y => y.origin).indexOf(x) >= 0)
+  // console.log('icons.value', icons.value)
+  // icons.value = icons.value.filter((x) => icons.value.map((y) => y.origin).indexOf(x) >= 0)
+  // console.log('icons.value', icons.value)
 })
 
 const onDelete = () => {

@@ -141,7 +141,7 @@ app.whenReady().then(async () => {
       status: 'error'
     })
     logger().info('There was a problem updating the application')
-    logger().info(message)
+    console.log(message)
   })
 
   autoUpdater.on('update-available', () => {

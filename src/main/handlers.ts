@@ -78,8 +78,8 @@ export const registerIPCHandlers = () => {
     const { logger } = useLogger()
 
     // logger.info('event', event)
-    logger().info('value', value)
-    logger().info('fs:read')
+    // logger().info('value', value)
+    // logger().info('fs:read')
 
     try {
       const data = await readFile(value.path, 'utf-8')

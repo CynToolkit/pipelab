@@ -89,6 +89,9 @@ if (config.enableInProcessGPU) {
 if (config.enableDisableRendererBackgrounding) {
   app.commandLine.appendSwitch('disable-renderer-backgrounding')
 }
+if (config.forceHighPerformanceGpu) {
+  app.commandLine.appendSwitch('force-high-performance-gpu')
+}
 //endregion
 
 //region Steam

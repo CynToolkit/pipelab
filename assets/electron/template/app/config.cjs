@@ -22,6 +22,7 @@
  * @property {string} appCategoryType
  * @property {string} icon
  * @property {boolean} disableAsarPackaging
+ * @property {boolean} forceHighPerformanceGpu
  * @property {boolean} enableExtraLogging
  * @property {boolean} enableSteamSupport
  * @property {number} steamGameId
@@ -39,6 +40,7 @@ const config = {
   description: 'A simple Electron application',
   electronVersion: '',
   disableAsarPackaging: false,
+  forceHighPerformanceGpu: false,
   enableExtraLogging: false,
   enableDisableRendererBackgrounding: false,
   enableInProcessGPU: false,

@@ -11,6 +11,7 @@ const builtInPlugins = async () => {
       (await import('../shared/libs/plugin-itch')).default,
       (await import('../shared/libs/plugin-electron')).default,
       (await import('../shared/libs/plugin-poki')).default,
+      (await import('../shared/libs/plugin-nvpatch')).default,
       // (await import('../shared/libs/plugin-tauri')).default
     ])
   ).flat()
