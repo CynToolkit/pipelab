@@ -14,12 +14,14 @@ const config: ForgeConfig = {
     },
     // asar: false,
     extraResource: ['.vite/build/assets'],
-    name
+    name,
+    icon: 'assets/build/icon',
   },
   rebuildConfig: {},
   makers: [
     new MakerSquirrel({
-      name
+      name,
+      setupIcon: 'assets/build/icon.ico'
     }),
     new MakerZIP(undefined, ['darwin', 'linux', 'win32']),
     new MakerDMG()
