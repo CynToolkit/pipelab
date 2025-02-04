@@ -257,6 +257,7 @@ import { FancyAnsi, hasAnsi } from 'fancy-ansi'
 import Tooltip from 'primevue/tooltip'
 import { watchThrottled } from '@vueuse/core'
 import { stripHtml } from 'string-strip-html'
+import posthog from 'posthog-js'
 
 const router = useRouter()
 
@@ -287,6 +288,12 @@ const { files } = storeToRefs(filesStore)
 const { update } = filesStore
 
 const quickLogs = ref([])
+
+const keyToNodePluginId = (key: string) => {
+  const foundNode = nodes.value.find((x) => x.uid === key)
+  const node = getNodeDefinition(foundNode.origin.nodeId, foundNode.origin.pluginId)
+  return node.node.name ?? key
+}
 
 const keyToNodeName = (key: string) => {
   const foundNode = nodes.value.find((x) => x.uid === key)
@@ -339,6 +346,8 @@ const cancel = async () => {
 }
 
 const run = async () => {
+  posthog.capture('run_started')
+
   setIsRunning(true)
   clearLogs()
   try {
@@ -356,6 +365,11 @@ const run = async () => {
         setActiveNode()
       },
       onExecuteItem: async (node, params, steps) => {
+        posthog.capture(`node_executed`, {
+          origin_node_id: node.origin.nodeId,
+          origin_plugin_id: node.origin.pluginId
+        })
+
         nodeStatuses.value[node.uid] = 'running'
         /* if (node.type === 'condition') {
         return api.execute('condition:execute', {
@@ -403,6 +417,10 @@ const run = async () => {
               }
             }
           )
+          posthog.capture(`node_sucess`, {
+            origin_node_id: lastActiveNode.value.origin.nodeId,
+            origin_plugin_id: lastActiveNode.value.origin.pluginId
+          })
           nodeStatuses.value[node.uid] = 'done'
           return result
         } else {
@@ -419,6 +437,11 @@ const run = async () => {
     })
   } catch (e) {
     nodeStatuses.value[lastActiveNode.value.uid] = 'error'
+
+    posthog.capture(`node_errored`, {
+      origin_node_id: lastActiveNode.value.origin.nodeId,
+      origin_plugin_id: lastActiveNode.value.origin.pluginId
+    })
 
     console.error('error while executing process', e)
     if (e instanceof Error) {

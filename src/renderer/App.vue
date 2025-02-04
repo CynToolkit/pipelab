@@ -37,6 +37,7 @@ import { primary, primaryDarken1, primaryDarken2 } from './style/main'
 import { useFiles } from './store/files'
 import { handle } from './composables/handlers'
 import { useLogger } from '@@/logger'
+import posthog from "posthog-js";
 
 const appStore = useAppStore()
 const filesStore = useFiles()

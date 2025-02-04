@@ -93,6 +93,8 @@
     "playwright-core": "1.48.1",
     "pnpm": "9.12.2",
     "polished": "4.3.1",
+    "posthog-js": "1.215.0",
+    "posthog-node": "4.4.1",
     "primeicons": "7.0.0",
     "primevue": "4.1.1",
     "quickjs-emscripten": "0.31.0",

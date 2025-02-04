@@ -16,6 +16,21 @@ import { useLogger } from '@@/logger'
 import * as Sentry from '@sentry/electron/main'
 import { assetsPath } from '@main/paths'
 import { usePluginAPI } from '@main/api'
+import { PostHog } from 'posthog-node'
+
+const postHogApiKey = __POSTHOG_API_KEY__
+
+console.log('postHogApiKey', postHogApiKey)
+
+if (!postHogApiKey) {
+  throw new Error('POSTHOG_API_KEY is required')
+}
+
+const client = new PostHog(postHogApiKey, {
+  api_host: 'https://eu.i.posthog.com',
+  // api_host: 'https://eu.i.posthog.com',
+  person_profiles: 'always'
+})
 
 const isLinux = platform() === 'linux'
 // let tray
@@ -364,11 +379,9 @@ exec "${process.execPath}" "$@"
 // Quit when all windows are closed, except on macOS. There, it's common
 // for applications and their menu bar to stay active until the user quits
 // explicitly with Cmd + Q.
-app.on('window-all-closed', () => {
+app.on('window-all-closed', async () => {
   if (process.platform !== 'darwin') {
+    await client.shutdown()
     app.quit()
   }
 })
-
-// In this file you can include the rest of your app"s specific main process
-// code. You can also put them in separate files and require them here.
