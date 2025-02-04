@@ -64,7 +64,7 @@ export const NVPatchRunner = createActionRunner<typeof NVPatch>(
 
     const nvpatch = resolve(join(process.env.USERPROFILE, '.dotnet', 'tools', 'nvpatch.exe'))
 
-    console.log('nvpatch', nvpatch)
+    log('Trying nvpatch from', nvpatch)
 
     await runWithLiveLogs(
       nvpatch,
@@ -74,5 +74,6 @@ export const NVPatchRunner = createActionRunner<typeof NVPatch>(
       },
       log
     )
+    log('nvpatch done')
   }
 )
