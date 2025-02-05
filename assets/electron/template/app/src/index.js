@@ -20,6 +20,9 @@ import fsRead from './handlers/fs/read.js'
 import fsReadBinary from './handlers/fs/read-binary.js'
 import fsFolderCreate from './handlers/fs/folder-create.js'
 import fsList from './handlers/fs/list.js'
+import fsMove from './handlers/fs/move.js'
+import fsDelete from './handlers/fs/delete.js'
+import fsCopy from './handlers/fs/copy.js'
 import fsFileSize from './handlers/fs/file-size.js'
 import fsExist from './handlers/fs/exist.js'
 
@@ -96,7 +99,7 @@ if (config.forceHighPerformanceGpu) {
 
 //region Steam
 
-/** @type {import('steamworks.js').Client} */
+/** @type {Omit<import('steamworks.js').Client, "init" | "runCallbacks">} */
 let client
 console.log('config.enableSteamSupport', config.enableSteamSupport)
 if (config.enableSteamSupport) {
@@ -155,7 +158,7 @@ const createAppServer = (mainWindow, serveStatic = true) => {
               break
 
             case '/fs/file/write':
-              await fsWrite(json, ws, mainWindow)
+              await fsWrite(json, ws)
               break
 
             case '/fs/file/read':
@@ -241,14 +244,14 @@ const createAppServer = (mainWindow, serveStatic = true) => {
               await run(json, ws, mainWindow)
               break
             case '/fs/copy':
-              throw new Error('Not implemented')
+              await fsCopy(json, ws)
+              break;
             case '/fs/delete':
-              throw new Error('Not implemented')
+              await fsDelete(json, ws)
+              break;
             case '/fs/exist':
               await fsExist(json, ws)
               break
-            case '/fs/file/append':
-              throw new Error('Not implemented')
             case '/fs/list':
               await fsList(json, ws, mainWindow)
               break
@@ -256,7 +259,8 @@ const createAppServer = (mainWindow, serveStatic = true) => {
               await fsFileSize(json, ws, mainWindow)
               break
             case '/fs/move':
-              throw new Error('Not implemented')
+              await fsMove(json, ws)
+              break
             case '/steam/raw':
               await steamRaw(json, ws, client)
               break

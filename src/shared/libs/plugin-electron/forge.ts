@@ -219,27 +219,29 @@ export const forge = async (
 
   log('Building electron')
 
-  const indexExist = await fileExists(join(appFolder, 'index.html'))
-  const swExist = await fileExists(join(appFolder, 'sw.js'))
-  const offlineJSON = await fileExists(join(appFolder, 'offline.json'))
-  const dataJSON = await fileExists(join(appFolder, 'data.json'))
-  const scriptsFolder = await fileExists(join(appFolder, 'scripts'))
-  const workermainJs = await fileExists(join(appFolder, 'workermain.js'))
+  if (appFolder) {
+    const indexExist = await fileExists(join(appFolder, 'index.html'))
+    const swExist = await fileExists(join(appFolder, 'sw.js'))
+    const offlineJSON = await fileExists(join(appFolder, 'offline.json'))
+    const dataJSON = await fileExists(join(appFolder, 'data.json'))
+    const scriptsFolder = await fileExists(join(appFolder, 'scripts'))
+    const workermainJs = await fileExists(join(appFolder, 'workermain.js'))
 
-  if (!indexExist) {
-    throw new Error('The input folder does not contain an index.html file')
-  }
+    if (!indexExist) {
+      throw new Error('The input folder does not contain an index.html file')
+    }
 
-  if (swExist || dataJSON || workermainJs || scriptsFolder) {
-    detectedRuntime = 'construct'
-  }
+    if (swExist || dataJSON || workermainJs || scriptsFolder) {
+      detectedRuntime = 'construct'
+    }
 
-  console.log('Detected runtime', detectedRuntime)
+    console.log('Detected runtime', detectedRuntime)
 
-  if (detectedRuntime === 'construct' && offlineJSON && swExist) {
-    throw new Error(
-      'Construct runtime detected, please disable offline capabilties when using HTML5 export. Offline is already supported by default.'
-    )
+    if (detectedRuntime === 'construct' && offlineJSON && swExist) {
+      throw new Error(
+        'Construct runtime detected, please disable offline capabilties when using HTML5 export. Offline is already supported by default.'
+      )
+    }
   }
 
   const { assets, unpack } = paths
