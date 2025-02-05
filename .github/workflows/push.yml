@@ -63,6 +63,7 @@ jobs:
         run: pnpm electron-forge publish --dry-run
 
       - name: Disable AppArmor restriction
+        if: matrix.os == 'ubuntu-latest'
         run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
 
       - name: Run tests
