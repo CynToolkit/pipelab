@@ -62,6 +62,9 @@ jobs:
           POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
         run: pnpm electron-forge publish --dry-run
 
+      - name: Disable AppArmor restriction
+        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+
       - name: Run tests
         uses: coactions/setup-xvfb@v1
         # continue-on-error: true
