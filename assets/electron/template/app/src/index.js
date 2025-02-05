@@ -154,7 +154,7 @@ const createAppServer = (mainWindow, serveStatic = true) => {
         try {
           switch (json.url) {
             case '/paths':
-              await userFolder(json, ws, mainWindow)
+              await userFolder(json, ws, config)
               break
 
             case '/fs/file/write':

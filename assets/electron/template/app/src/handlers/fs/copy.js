@@ -1,12 +1,16 @@
 // @ts-check
 
-import { cp } from 'node:fs/promises'
+import { cp, mkdir } from 'node:fs/promises'
+import { dirname } from 'node:path'
 
 /**
  * @param {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').MessageCopyFile, 'input'>} json
  * @param {import('ws').WebSocket} ws
  */
 export default async (json, ws) => {
+  const destDirName = dirname(json.body.destination)
+  await mkdir(destDirName, { recursive: true })
+
   await cp(json.body.source, json.body.destination, {
     force: json.body.overwrite
   })

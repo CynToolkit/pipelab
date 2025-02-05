@@ -32,6 +32,9 @@ importers:
       serve-handler:
         specifier: ^6.1.5
         version: 6.1.6
+      slash:
+        specifier: ^5.1.0
+        version: 5.1.0
       steamworks.js:
         specifier: 0.4.0
         version: 0.4.0
@@ -67,8 +70,8 @@ importers:
         specifier: 1.8.0
         version: 1.8.0
       '@pipelab/core':
-        specifier: 1.4.3
-        version: 1.4.3
+        specifier: 1.4.4
+        version: 1.4.4
       electron:
         specifier: 34.0.2
         version: 34.0.2
@@ -241,8 +244,8 @@ packages:
     engines: {node: ^12.13.0 || ^14.15.0 || >=16.0.0}
     deprecated: This functionality has been moved to @npmcli/fs
 
-  '@pipelab/core@1.4.3':
-    resolution: {integrity: sha512-WWLQTlswyQ38mjxmWjydnJfWykvlUb6Y/lShbkenQFekUIugkd9rFpwat312WKWH+ZYTDACKwXW2SjT4JYNmAg==}
+  '@pipelab/core@1.4.4':
+    resolution: {integrity: sha512-DDAj17V+dVc77YI79YqzCAxUuBescDV4zRST6L5qNLAEUby0QvHqkvzeLuAa5sebAECe4OrWCO46uL7ZLYSffA==}
 
   '@sec-ant/readable-stream@0.4.1':
     resolution: {integrity: sha512-831qok9r2t8AlxLko40y2ebgSDhenenCatLVeW/uBtnHPyhHOvG0C7TvfgecV+wHzIm5KUICgzmVpWS+IMEAeg==}
@@ -1556,6 +1559,10 @@ packages:
     resolution: {integrity: sha512-bzyZ1e88w9O1iNJbKnOlvYTrWPDl46O1bG0D3XInv+9tkPrxrN8jUUTiFlDkkmKWgn1M6CfIA13SuGqOa9Korw==}
     engines: {node: '>=14'}
 
+  slash@5.1.0:
+    resolution: {integrity: sha512-ZA6oR3T/pEyuqwMgAKT0/hAv8oAXckzbkmR0UkUosQ+Mc4RxGoJkRmwHgHufaenlyAgE1Mxgpdcrf75y6XcnDg==}
+    engines: {node: '>=14.16'}
+
   slice-ansi@5.0.0:
     resolution: {integrity: sha512-FC+lgizVPfie0kkhqUScwRu1O/lF6NOgJmlCgK+/LYxDCTk8sGelYaHDhFcDN+Sn3Cv+3VSa4Byeo+IMCzpMgQ==}
     engines: {node: '>=12'}
@@ -2238,7 +2245,7 @@ snapshots:
       mkdirp: 1.0.4
       rimraf: 3.0.2
 
-  '@pipelab/core@1.4.3': {}
+  '@pipelab/core@1.4.4': {}
 
   '@sec-ant/readable-stream@0.4.1': {}
 
@@ -3651,6 +3658,8 @@ snapshots:
   signal-exit@3.0.7: {}
 
   signal-exit@4.1.0: {}
+
+  slash@5.1.0: {}
 
   slice-ansi@5.0.0:
     dependencies:

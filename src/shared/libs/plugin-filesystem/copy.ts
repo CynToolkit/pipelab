@@ -94,7 +94,7 @@ export const copyRunner = createActionRunner<typeof copy>(async ({ log, inputs, 
       await rm(to, { recursive: true, force: true })
       await mkdir(to, { recursive: true })
     } catch (e) {
-      log('Error backing up file', e)
+      log('Error cleaning up file', e)
       throw e
     }
   }

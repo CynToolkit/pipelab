@@ -214,6 +214,7 @@ export const forge = async (
   const { join, basename, delimiter } = await import('node:path')
   const { cp } = await import('node:fs/promises')
   const { arch, platform } = await import('os')
+  const { kebabCase } = await import('change-case')
 
   let detectedRuntime: 'construct' | 'godot' | undefined = undefined
 
@@ -345,6 +346,43 @@ export const forge = async (
 
   const pnpmHome = join(userData, 'config', 'pnpm')
 
+  const sanitizedName = kebabCase(completeConfiguration.name)
+  log('Setting name to', sanitizedName)
+  await runWithLiveLogs(
+    pnpm,
+    ['pkg', 'set', 'name=' + sanitizedName],
+    {
+      cwd: destinationFolder
+    },
+    log,
+    {
+      onStderr(data) {
+        log(data)
+      },
+      onStdout(data) {
+        log(data)
+      }
+    }
+  )
+
+  log('Setting productName to', completeConfiguration.name)
+  await runWithLiveLogs(
+    pnpm,
+    ['pkg', 'set', 'productName=' + completeConfiguration.name],
+    {
+      cwd: destinationFolder
+    },
+    log,
+    {
+      onStderr(data) {
+        log(data)
+      },
+      onStdout(data) {
+        log(data)
+      }
+    }
+  )
+
   log('Installing packages')
   await runWithLiveLogs(
     process.execPath,
@@ -361,10 +399,10 @@ export const forge = async (
     },
     log,
     {
-      onStderr(data, subprocess) {
+      onStderr(data) {
         log(data)
       },
-      onStdout(data, subprocess) {
+      onStdout(data) {
         log(data)
       }
     }
@@ -388,10 +426,10 @@ export const forge = async (
       },
       log,
       {
-        onStderr(data, subprocess) {
+        onStderr(data) {
           log(data)
         },
-        onStdout(data, subprocess) {
+        onStdout(data) {
           log(data)
         }
       }
@@ -407,7 +445,7 @@ export const forge = async (
     console.log('finalPlatform', finalPlatform)
     const finalArch = inputArch ?? arch() ?? ''
 
-    const logs = await runWithLiveLogs(
+    await runWithLiveLogs(
       process.execPath,
       [forge, action, /* '--', */ '--arch', finalArch, '--platform', finalPlatform],
       {
@@ -423,10 +461,10 @@ export const forge = async (
       },
       log,
       {
-        onStderr(data, subprocess) {
+        onStderr(data) {
           log(data)
         },
-        onStdout(data, subprocess) {
+        onStdout(data) {
           log(data)
         }
       }

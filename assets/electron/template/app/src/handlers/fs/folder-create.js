@@ -5,9 +5,8 @@ import { mkdir } from 'node:fs/promises'
 /**
  * @param {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').MessageCreateFolder, 'input'>} json
  * @param {import('ws').WebSocket} ws
- * @param {import('electron').BrowserWindow} mainWindow
  */
-export default async (json, ws, mainWindow) => {
+export default async (json, ws) => {
   await mkdir(json.body.path, {
     recursive: json.body.recursive,
   })
