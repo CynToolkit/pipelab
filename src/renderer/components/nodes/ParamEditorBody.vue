@@ -5,6 +5,7 @@
         v-if="paramDefinition.control.options.kind === 'text'"
         :model-value="modelValueString"
         filter
+        :placeholder="paramDefinition.control.options.placeholder"
         multiple
         option-label="label"
         class="w-full"
@@ -16,7 +17,7 @@
         show-buttons
         option-label="label"
         class="w-full"
-        @update:model-value="onParamInputNumberChange"
+        @input="onParamInputNumberChange"
       />
     </div>
     <div v-else-if="paramDefinition.control.type === 'boolean'" class="boolean">
@@ -86,6 +87,7 @@ import { useLogger } from '@@/logger'
 import type { OpenDialogOptions } from 'electron'
 import { SelectButtonChangeEvent } from 'primevue/selectbutton'
 import { ListboxChangeEvent } from 'primevue/listbox'
+import { InputNumberInputEvent } from 'primevue/inputnumber'
 
 type Params = (Action | Condition | Event)['params']
 
@@ -140,8 +142,13 @@ const onParamInputTextChange = (event: string) => {
   emit('update:modelValue', `"${event}"`)
 }
 
-const onParamInputNumberChange = (event: number) => {
-  emit('update:modelValue', event)
+// const onParamInputNumberChange = (event: number) => {
+//   console.log('event', event)
+//   emit('update:modelValue', event)
+// }
+const onParamInputNumberChange = (event: InputNumberInputEvent) => {
+  console.log('event', event)
+  emit('update:modelValue', event.value)
 }
 
 const onParamMultiSelectChange = (

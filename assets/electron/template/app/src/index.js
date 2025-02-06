@@ -1,7 +1,7 @@
 // @ts-check
 
 import { app, BrowserWindow, ipcMain, shell } from 'electron'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 // @ts-expect-error no types
 import serve from 'serve-handler'
 import { createServer } from 'http'
@@ -57,6 +57,7 @@ import showInExplorer from './handlers/general/open-in-explorer.js'
 
 // steam raw
 import steamRaw from './handlers/steam/raw.js'
+import { getAppName } from './utils.js'
 
 /**
  * Assert switch is exhaustive
@@ -113,6 +114,13 @@ if (config.enableSteamSupport) {
   }
 }
 //endregion
+
+const userData = app.getPath('userData')
+const userDataDirname = dirname(userData)
+const appNameFolder = getAppName(config)
+const sessionDataPath = join(userDataDirname, `cache_${appNameFolder}`)
+console.log('sessionDataPath', sessionDataPath)
+app.setPath('userData', sessionDataPath)
 
 /**
  * @param {BrowserWindow} mainWindow

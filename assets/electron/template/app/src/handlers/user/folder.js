@@ -2,8 +2,9 @@
 
 import { app } from 'electron'
 import { join } from 'path'
-import pkg from '../../../package.json' with { type: "json" };
+
 import slash from 'slash';
+import { getAppName } from '../../utils.js';
 
 /**
  * @param {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').MessagePaths, 'input'>} json
@@ -14,25 +15,15 @@ export default (json, ws, config) => {
   try {
     const name = json.body.name
 
-    const platform = process.platform
-
     let folder
 
     const { env } = process
-
     //      windows       linux
     const { LOCALAPPDATA, XDG_DATA_HOME } = env
     const appData = app.getPath('appData')
     const localAppData = LOCALAPPDATA ?? XDG_DATA_HOME ?? appData
 
-    let appNameFolder = config.name
-    if (platform === 'win32') {
-      appNameFolder = config.name ?? pkg.productName ?? pkg.name
-    } else if (platform === 'darwin') {
-      appNameFolder = config.name
-    } else if (platform === 'linux') {
-      appNameFolder = config.appBundleId
-    }
+    const appNameFolder = getAppName(config)
 
     const localUserData = join(localAppData, appNameFolder)
 

@@ -118,6 +118,7 @@ export interface ControlTypeInput extends ControlTypeBase {
   options: {
     kind: 'number' | 'text'
     validator?: string
+    placeholder?: string
     // value: string;
     // onChange: (value: any) => void;
   }

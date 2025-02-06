@@ -35,7 +35,8 @@ export const props = createAction({
       control: {
         type: 'input',
         options: {
-          kind: 'text'
+          kind: 'text',
+          placeholder: 'com.company.appname'
         }
       }
     },
