@@ -19,13 +19,15 @@ export default (json, ws, config) => {
 
     const { env } = process
     //      windows       linux
-    const { LOCALAPPDATA, XDG_DATA_HOME } = env
-    const appData = app.getPath('appData')
-    const localAppData = LOCALAPPDATA ?? XDG_DATA_HOME ?? appData
+    const { APPDATA, LOCALAPPDATA, XDG_DATA_HOME, XDG_CONFIG_HOME } = env
+    const appDataBackup = app.getPath('appData')
+    const localAppData = LOCALAPPDATA ?? XDG_DATA_HOME ?? appDataBackup
+    const appData = APPDATA ?? XDG_CONFIG_HOME ?? appDataBackup
 
     const appNameFolder = getAppName(config)
 
     const localUserData = join(localAppData, appNameFolder)
+    const userData = join(appData, appNameFolder)
 
     if (name === 'app') {
       folder = app.getAppPath()
@@ -35,6 +37,8 @@ export default (json, ws, config) => {
       folder = localAppData
     } else if (name === 'localUserData') {
       folder = localUserData
+    } else if (name === 'userData') {
+      folder = userData
     } else {
       folder = app.getPath(name)
     }
