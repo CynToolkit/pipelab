@@ -359,10 +359,12 @@ exec "${process.execPath}" "$@"
     mainWindow.show()
     mainWindow.maximize()
 
-    setTimeout(() => {
-      autoUpdater.checkForUpdates()
-      console.log('checkForUpdates')
-    }, 10000)
+    if (app.isPackaged) {
+      setTimeout(() => {
+        autoUpdater.checkForUpdates()
+        console.log('checkForUpdates')
+      }, 10000)
+    }
   })
   if (isReadyToShow) {
     mainWindow.show()

@@ -1,5 +1,6 @@
 <template>
   <div class="index">
+    <Toast />
     <div class="header">
       <div class="bold title">{{ headerSentence }}</div>
       <div class="button">
@@ -351,6 +352,8 @@ import { kebabCase } from 'change-case'
 import { handle } from '@renderer/composables/handlers'
 import { UpdateStatus } from '@main/api'
 import Settings from '@renderer/components/Settings.vue'
+import { useToast } from 'primevue/usetoast'
+import { supabase } from '@@/supabase'
 
 const router = useRouter()
 
@@ -395,10 +398,6 @@ const canCreateproject = computed(() => {
     (newProjectType.value === 'cloud' ||
       (newProjectType.value === 'local' && newProjectLocalLocation.value !== undefined))
   )
-})
-
-onMounted(async () => {
-  await auth.init()
 })
 
 watchEffect(async () => {
@@ -663,12 +662,39 @@ const [emailModel, emailProps] = defineField('email')
 const [passwordModel, passwordProps] = defineField('password')
 
 const onSuccess = async (values: any) => {
-  if (type.value === 'register') {
-    await auth.register(values.email, values.password)
-  } else {
-    await auth.login(values.email, values.password)
+  try {
+    if (type.value === 'register') {
+      const { error } = await auth.register(values.email, values.password)
+      if (error) {
+        toast.add({
+          severity: 'error',
+          summary: 'Failed to register',
+          detail: 'Message Content',
+          life: 3000
+        })
+      } else {
+        isAuthModalVisible.value = false
+      }
+    } else {
+      const { error } = await auth.login(values.email, values.password)
+      if (error) {
+        toast.add({
+          severity: 'error',
+          summary: 'Failed to login',
+          detail: 'Message Content',
+          life: 3000
+        })
+      } else {
+        isAuthModalVisible.value = false
+      }
+    }
+  } catch (error) {
+    console.log('error', error)
+    toast.add({ severity: 'info', summary: 'Info', detail: 'Message Content', life: 3000 })
   }
 }
+
+const toast = useToast()
 
 function onInvalidSubmit({ values, errors, results }: any) {
   logger().info({ values }) // current form values
@@ -680,12 +706,21 @@ const onSubmit = handleSubmit(onSuccess, onInvalidSubmit)
 
 const type = ref<'login' | 'register'>('login')
 
+const logout = async () => {
+  await supabase.auth.signOut()
+}
+
 const $menu = ref()
 const accountMenuItems = computed(() => {
   const items = []
 
-  if (user.value) {
+  if (user.value && user.value.is_anonymous === false) {
     items.push(
+      {
+        label: user.value.email,
+        icon: 'mdi mdi-email',
+        disabled: true
+      },
       {
         label: 'Profile',
         icon: 'mdi mdi-account',
@@ -707,7 +742,10 @@ const accountMenuItems = computed(() => {
       {
         label: 'Logout',
         icon: 'mdi mdi-logout',
-        disabled: true
+        disabled: false,
+        command: async () => {
+          await logout()
+        }
       }
     )
   } else {
@@ -741,7 +779,7 @@ const accountMenuItems = computed(() => {
     },
     {
       label: 'Settings',
-      icon: 'mdi mdi-cog',
+      icon: 'mdi mdi-cog'
     }
   ] satisfies MenuItem
 
