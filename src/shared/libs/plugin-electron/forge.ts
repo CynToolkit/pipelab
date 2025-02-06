@@ -212,7 +212,7 @@ export const forge = async (
   >
 ): Promise<{ folder: string; binary: string | undefined } | undefined> => {
   const { join, basename, delimiter } = await import('node:path')
-  const { cp } = await import('node:fs/promises')
+  const { cp, readFile, writeFile } = await import('node:fs/promises')
   const { arch, platform } = await import('os')
   const { kebabCase } = await import('change-case')
 
@@ -346,42 +346,18 @@ export const forge = async (
 
   const pnpmHome = join(userData, 'config', 'pnpm')
 
-  const sanitizedName = kebabCase(completeConfiguration.name)
-  log('Setting name to', sanitizedName)
-  await runWithLiveLogs(
-    pnpm,
-    ['pkg', 'set', 'name=' + sanitizedName],
-    {
-      cwd: destinationFolder
-    },
-    log,
-    {
-      onStderr(data) {
-        log(data)
-      },
-      onStdout(data) {
-        log(data)
-      }
-    }
-  )
+  const pkgJSONPath = join(destinationFolder, 'package.json')
 
+  const sanitizedName = kebabCase(completeConfiguration.name)
+
+  const pkgJSONContent = await readFile(pkgJSONPath, 'utf8')
+
+  const pkgJSON = JSON.parse(pkgJSONContent)
+  log('Setting name to', sanitizedName)
+  pkgJSON.name = sanitizedName
   log('Setting productName to', completeConfiguration.name)
-  await runWithLiveLogs(
-    pnpm,
-    ['pkg', 'set', 'productName=' + completeConfiguration.name],
-    {
-      cwd: destinationFolder
-    },
-    log,
-    {
-      onStderr(data) {
-        log(data)
-      },
-      onStdout(data) {
-        log(data)
-      }
-    }
-  )
+  pkgJSON.productName = completeConfiguration.name
+  await writeFile(pkgJSONPath, JSON.stringify(pkgJSON, null, 2))
 
   log('Installing packages')
   await runWithLiveLogs(

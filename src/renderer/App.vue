@@ -37,11 +37,16 @@ import { primary, primaryDarken1, primaryDarken2 } from './style/main'
 import { useFiles } from './store/files'
 import { handle } from './composables/handlers'
 import { useLogger } from '@@/logger'
-import posthog from "posthog-js";
+import posthog from 'posthog-js'
+import { useAuth } from '@renderer/store/auth'
+import { storeToRefs } from 'pinia'
 
 const appStore = useAppStore()
 const filesStore = useFiles()
 const { logger } = useLogger()
+const authStore = useAuth()
+const { loginAnonymous, init: authInit } = authStore
+const { user } = storeToRefs(authStore)
 
 const { init } = appStore
 const isLoading = ref(false)
@@ -70,8 +75,15 @@ onMounted(async () => {
 
   await filesStore.load()
   await init()
+  await authInit()
   logger().info('init done')
   // const result = await api.execute('')
+
+  if (posthog.isFeatureEnabled('anonymous-sign-in')) {
+    console.log('anonymous-sign-in enabled')
+    await loginAnonymous()
+  }
+
   isLoading.value = false
 })
 </script>

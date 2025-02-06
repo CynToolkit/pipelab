@@ -42,6 +42,16 @@ export const useAuth = defineStore('auth', () => {
     user.value = data.user
   }
 
+  const loginAnonymous = async () => {
+    if (user.value) {
+      console.log('user already authenticated')
+      return
+    }
+    const { data } = await supabase.auth.signInAnonymously();
+
+    user.value = data.user
+  }
+
   const register = async (email: string, password: string) => {
     const { data } = await supabase.auth.signUp({ email, password })
     user.value = data.user
@@ -52,6 +62,7 @@ export const useAuth = defineStore('auth', () => {
 
     init,
     login,
-    register
+    register,
+    loginAnonymous,
   }
 })
