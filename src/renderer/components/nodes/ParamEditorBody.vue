@@ -74,7 +74,7 @@
         @change="onParamMultiSelectChange"
       />
     </div>
-    <Button v-else class="w-full" @click="onSwitch">Switch tab to edit value</Button>
+    <Button v-else class="w-full" @click="onSwitch">Switch to editor to edit value</Button>
   </div>
 </template>
 

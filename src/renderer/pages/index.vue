@@ -408,11 +408,26 @@ watchEffect(async () => {
   for (const [id, file] of entries) {
     let fileContent: string
     if (file.type === 'external') {
-      // console.log('loading file', file.path)
       const resultLoad = await loadExternalFile(file.path)
 
       if (resultLoad.type === 'error') {
         console.error('Unable to load file', resultLoad.ipcError)
+        const [id] = Object.entries(files.value.data).find(([, value]) => {
+          if (value.type === 'internal') {
+            if (value.path === file.path) {
+              return true
+            }
+          } else if (value.type === 'external') {
+            if (value.path === file.path) {
+              return true
+            }
+          }
+          return false
+        })
+        console.log('id', id)
+        updateFileStore((state) => {
+          delete state.data[id]
+        })
         continue
       }
 

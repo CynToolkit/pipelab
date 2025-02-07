@@ -1,4 +1,4 @@
-import { createAction, createActionRunner, runWithLiveLogsPTY } from '@pipelab/plugin-core'
+import { createAction, createActionRunner, createPathParam, createStringParam, runWithLiveLogsPTY } from '@pipelab/plugin-core'
 import { checkSteamAuth, openExternalTerminal } from './utils'
 
 // https://github.com/ztgasdf/steampkg?tab=readme-ov-file#account-management
@@ -17,8 +17,7 @@ export const uploadToSteam = createAction({
   displayString: "`Upload ${fmt.param(params['folder'], 'primary')} to steam`",
   meta: {},
   params: {
-    sdk: {
-      value: '',
+    sdk: createPathParam('', {
       label: 'Steam Sdk path',
       control: {
         type: 'path',
@@ -26,49 +25,20 @@ export const uploadToSteam = createAction({
           properties: ['openDirectory']
         }
       }
-    },
-    username: {
-      value: '',
+    }),
+    username: createStringParam('', {
       label: 'Steam username',
-      control: {
-        type: 'input',
-        options: {
-          kind: 'text'
-        }
-      }
-    },
-    appId: {
-      value: '',
+    }),
+    appId: createStringParam('', {
       label: 'App Id',
-      control: {
-        type: 'input',
-        options: {
-          kind: 'text'
-        }
-      }
-    },
-    depotId: {
-      value: '',
+    }),
+    depotId: createStringParam('', {
       label: 'Depot Id',
-      control: {
-        type: 'input',
-        options: {
-          kind: 'text'
-        }
-      }
-    },
-    description: {
+    }),
+    description: createStringParam('', {
       label: 'Description',
-      value: '',
-      control: {
-        type: 'input',
-        options: {
-          kind: 'text'
-        }
-      }
-    },
-    folder: {
-      value: '',
+    }),
+    folder: createPathParam('', {
       label: 'Folder to upload',
       control: {
         type: 'path',
@@ -76,7 +46,7 @@ export const uploadToSteam = createAction({
           properties: ['openDirectory']
         }
       }
-    },
+    }),
     enableDRM: {
       value: false,
       label: 'Enable DRM',
@@ -84,8 +54,7 @@ export const uploadToSteam = createAction({
         type: 'boolean'
       }
     },
-    binaryToPatch: {
-      value: '',
+    binaryToPatch: createPathParam('', {
       label: 'Binary to patch',
       control: {
         type: 'path',
@@ -93,7 +62,7 @@ export const uploadToSteam = createAction({
           properties: ['openFile']
         }
       }
-    }
+    })
   },
   outputs: {}
 })

@@ -1,4 +1,4 @@
-import { createAction, createActionRunner, runWithLiveLogsPTY } from '@pipelab/plugin-core'
+import { createAction, createActionRunner, createStringParam, runWithLiveLogsPTY } from '@pipelab/plugin-core'
 
 export const ID = 'fs:run'
 
@@ -9,17 +9,10 @@ export const run = createAction({
     "`Invoke ${fmt.param(params.command, 'primary')} ${(params.parameters ?? []).map(x => { console.log('x', x); return fmt.param(x) }).join(' ')}`",
   // displayString: displayString,
   params: {
-    command: {
+    command: createStringParam('', {
       description: 'The command to run',
       label: 'Command',
-      value: '',
-      control: {
-        type: 'input',
-        options: {
-          kind: 'text'
-        }
-      }
-    },
+    }),
     parameters: {
       description: "The command's parameters",
       label: 'Arguments',

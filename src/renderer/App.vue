@@ -79,11 +79,6 @@ onMounted(async () => {
   logger().info('init done')
   // const result = await api.execute('')
 
-  if (posthog.isFeatureEnabled('anonymous-sign-in')) {
-    console.log('anonymous-sign-in enabled')
-    await loginAnonymous()
-  }
-
   isLoading.value = false
 })
 </script>

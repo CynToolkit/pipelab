@@ -1,4 +1,4 @@
-import { createAction, createActionRunner } from '@pipelab/plugin-core'
+import { createAction, createActionRunner, createStringParam } from '@pipelab/plugin-core'
 
 export const ID = 'system:alert'
 
@@ -14,16 +14,9 @@ export const alertAction = createAction({
   displayString: "`Alert ${fmt.param(params.message ?? 'No message')}`",
   meta: {},
   params: {
-    message: {
-      value: '',
+    message: createStringParam('', {
       label: 'Message',
-      control: {
-        type: 'input',
-        options: {
-          kind: 'text'
-        }
-      }
-    }
+    })
   },
 
   outputs: {

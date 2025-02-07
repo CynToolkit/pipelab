@@ -1,4 +1,4 @@
-import { createAction, createActionRunner } from '@pipelab/plugin-core'
+import { createAction, createActionRunner, createPathParam } from '@pipelab/plugin-core'
 
 export const ID = 'fs:copy'
 
@@ -8,26 +8,24 @@ export const copy = createAction({
   displayString:
     '`Copy ${fmt.param(params.from, "primary")} to ${fmt.param(params.to, "primary")}`',
   params: {
-    from: {
+    from: createPathParam('', {
       label: 'From',
-      value: '',
       control: {
         type: 'path',
         options: {
           properties: ['openFile', 'openDirectory']
         }
       }
-    },
-    to: {
+    }),
+    to: createPathParam('', {
       label: 'To',
-      value: '',
       control: {
         type: 'path',
         options: {
           properties: ['openFile', 'openDirectory', 'createDirectory', 'promptToCreate']
         }
       }
-    },
+    }),
     recursive: {
       label: 'Recursive',
       value: true,
@@ -91,8 +89,10 @@ export const copyRunner = createActionRunner<typeof copy>(async ({ log, inputs, 
   if (inputs.cleanup) {
     try {
       log('Cleaning up', to)
-      await rm(to, { recursive: true, force: true })
+      process.noAsar = true
+      await rm(to, { recursive: true, force: true, maxRetries: 3 })
       await mkdir(to, { recursive: true })
+      process.noAsar = false
     } catch (e) {
       log('Error cleaning up file', e)
       throw e

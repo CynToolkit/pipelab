@@ -1,5 +1,4 @@
-import { createAction, createActionRunner } from '@pipelab/plugin-core'
-import { ElectronConfiguration } from './model'
+import { createAction, createActionRunner, createNumberParam, createPathParam, createStringParam } from '@pipelab/plugin-core'
 
 export const props = createAction({
   id: 'electron:configure',
@@ -11,62 +10,32 @@ export const props = createAction({
   outputs: {
     configuration: {
       label: 'Configuration',
-      value: {} as Partial<ElectronConfiguration>
+      value: {} as Partial<ElectronAppConfig.Config>
     }
   },
   params: {
-    name: {
+    name: createStringParam('Pipelab', {
       label: 'Application name',
-      value: 'Pipelab',
       description: 'The name of the application',
       required: true,
-      control: {
-        type: 'input',
-        options: {
-          kind: 'text'
-        }
-      }
-    },
-    appBundleId: {
+    }),
+    appBundleId: createStringParam('com.pipelab.app', {
       label: 'Application bundle ID',
-      value: 'com.pipelab.app',
       description: 'The bundle ID of the application',
       required: true,
-      control: {
-        type: 'input',
-        options: {
-          kind: 'text',
-          placeholder: 'com.company.appname'
-        }
-      }
-    },
-    appCopyright: {
+    }),
+    appCopyright: createStringParam('Copyright © 2024 Pipelab', {
       label: 'Application copyright',
-      value: 'Copyright © 2024 Pipelab',
       description: 'The copyright of the application',
       required: false,
-      control: {
-        type: 'input',
-        options: {
-          kind: 'text'
-        }
-      }
-    },
-    appVersion: {
+    }),
+    appVersion: createStringParam('1.0.0', {
       label: 'Application version',
-      value: '1.0.0',
       description: 'The version of the application',
       required: true,
-      control: {
-        type: 'input',
-        options: {
-          kind: 'text'
-        }
-      }
-    },
-    icon: {
+    }),
+    icon: createPathParam('', {
       label: 'Application icon',
-      value: '',
       description: 'The icon of the application',
       required: false,
       control: {
@@ -78,71 +47,36 @@ export const props = createAction({
         },
         label: 'Path to an image file'
       }
-    },
-    author: {
+    }),
+    author: createStringParam('Pipelab', {
       label: 'Application author',
-      value: 'Pipelab',
       description: 'The author of the application',
       required: true,
-      control: {
-        type: 'input',
-        options: {
-          kind: 'text'
-        }
-      }
-    },
-    description: {
+    }),
+    description: createStringParam('A simple Electron application', {
       label: 'Application description',
-      value: 'A simple Electron application',
       description: 'The description of the application',
       required: false,
-      control: {
-        type: 'input',
-        options: {
-          kind: 'text'
-        }
-      }
-    },
+    }),
 
-    appCategoryType: {
+    appCategoryType: createStringParam('public.app-category.developer-tools', {
       platforms: ['darwin'],
       label: 'Application category type',
-      value: 'public.app-category.developer-tools',
       description: 'The category type of the application',
       required: false,
-      control: {
-        type: 'input',
-        options: {
-          kind: 'text'
-        }
-      }
-    },
+    }),
 
     // window
-    width: {
+    width: createNumberParam(800, {
       label: 'Window width',
-      value: 800,
       description: 'The width of the window',
       required: false,
-      control: {
-        type: 'input',
-        options: {
-          kind: 'number'
-        }
-      }
-    },
-    height: {
+    }),
+    height: createNumberParam(600, {
       label: 'Window height',
-      value: 600,
       description: 'The height of the window',
       required: false,
-      control: {
-        type: 'input',
-        options: {
-          kind: 'number'
-        }
-      }
-    },
+    }),
     fullscreen: {
       label: 'Fullscreen',
       value: false,
@@ -189,22 +123,14 @@ export const props = createAction({
       }
     },
 
-    electronVersion: {
-      value: '',
+    electronVersion: createStringParam('', {
       label: 'Electron version',
       description: 'The version of Electron to use',
       required: false,
-      control: {
-        type: 'input',
-        options: {
-          kind: 'text'
-        }
-      }
-    },
-    customMainCode: {
+    }),
+    customMainCode: createPathParam('', {
       required: false,
       label: 'Custom main code',
-      value: '',
       control: {
         type: 'path',
         options: {
@@ -212,7 +138,7 @@ export const props = createAction({
         },
         label: 'Path to a file containing custom main code'
       }
-    },
+    }),
     disableAsarPackaging: {
       required: true,
       label: 'Disable ASAR packaging',
@@ -220,7 +146,7 @@ export const props = createAction({
       control: {
         type: 'boolean'
       },
-      description: 'Whether to disable packaging project files in a single binary or not',
+      description: 'Whether to disable packaging project files in a single binary or not'
     },
     enableExtraLogging: {
       required: true,
@@ -229,7 +155,16 @@ export const props = createAction({
       control: {
         type: 'boolean'
       },
-      description: 'Whether to enable extra logging of internal tools while bundling',
+      description: 'Whether to enable extra logging of internal tools while bundling'
+    },
+    clearServiceWorkerOnBoot: {
+      required: false,
+      label: 'Clear service worker on boot',
+      value: false,
+      control: {
+        type: 'boolean'
+      },
+      description: 'Whether to clear service worker on boot'
     },
 
     // Flags
@@ -259,11 +194,26 @@ export const props = createAction({
       }
     },
 
-    // websocket api
+    // websocket apis
     websocketApi: {
       required: false,
       label: 'WebSocket APIs to allow (empty = all)',
-      value: [],
+      value: '[]',
+      control: {
+        type: 'array',
+        options: {
+          kind: 'text'
+        }
+      }
+    },
+    ignore: {
+      required: false,
+      label: 'Folders to ignore',
+      description:
+        'An array of string or Regex that allow ignoring certain files or folders from being packaged',
+      value: `[
+  // use 'src/app/' as starting point
+]`,
       control: {
         type: 'array',
         options: {
@@ -283,18 +233,11 @@ export const props = createAction({
         type: 'boolean'
       }
     },
-    steamGameId: {
+    steamGameId: createNumberParam(480, {
       required: false,
       label: 'Steam game ID',
       description: 'The Steam game ID',
-      value: 480,
-      control: {
-        type: 'input',
-        options: {
-          kind: 'number'
-        }
-      }
-    }
+    })
   }
 })
 

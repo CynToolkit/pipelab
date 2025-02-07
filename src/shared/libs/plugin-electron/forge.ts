@@ -2,14 +2,14 @@ import { getBinName, outFolderName } from 'src/constants'
 import {
   ActionRunnerData,
   createAction,
+  createPathParam,
+  createStringParam,
   fileExists,
   InputsDefinition,
   OutputsDefinition,
   runWithLiveLogs
 } from '../plugin-core'
 import type { MakeOptions } from '@electron-forge/core'
-import { ElectronConfiguration } from './model'
-import { writeFile } from 'node:fs/promises'
 import { merge } from 'ts-deepmerge'
 import { app } from 'electron'
 
@@ -20,8 +20,7 @@ export const IDPackage = 'electron:package'
 export const IDPreview = 'electron:preview'
 
 const paramsInputFolder = {
-  'input-folder': {
-    value: '',
+  'input-folder': createPathParam('', {
     label: 'Folder to package',
     control: {
       type: 'path',
@@ -29,20 +28,13 @@ const paramsInputFolder = {
         properties: ['openDirectory']
       }
     }
-  }
+  })
 } satisfies InputsDefinition
 
 const paramsInputURL = {
-  'input-url': {
-    value: '',
+  'input-url': createStringParam('', {
     label: 'URL to preview',
-    control: {
-      type: 'input',
-      options: {
-        kind: 'text'
-      }
-    }
-  }
+  })
 } satisfies InputsDefinition
 
 const params = {
@@ -110,7 +102,7 @@ const params = {
   },
   configuration: {
     label: 'Electron configuration',
-    value: undefined as Partial<ElectronConfiguration> | undefined,
+    value: undefined as Partial<ElectronAppConfig.Config> | undefined,
     control: {
       type: 'json'
     }
@@ -306,6 +298,7 @@ export const forge = async (
       disableAsarPackaging: false,
       forceHighPerformanceGpu: false,
       enableExtraLogging: false,
+      clearServiceWorkerOnBoot: false,
       enableDisableRendererBackgrounding: false,
       enableInProcessGPU: false,
       frame: true,
@@ -317,10 +310,11 @@ export const forge = async (
       transparent: false,
       width: 800,
       enableSteamSupport: false,
-      steamGameId: 480
-    } satisfies ElectronConfiguration,
+      steamGameId: 480,
+      ignore: []
+    } satisfies ElectronAppConfig.Config,
     inputs.configuration
-  ) as ElectronConfiguration
+  ) as ElectronAppConfig.Config
 
   console.log('completeConfiguration', completeConfiguration)
 

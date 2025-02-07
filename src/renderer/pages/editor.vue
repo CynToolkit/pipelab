@@ -835,6 +835,10 @@ function sleep(ms: number) {
     width: 100%;
     padding: 0 16px;
     opacity: 0.3;
+
+    .log-entry {
+      position: absolute;
+    }
   }
 }
 

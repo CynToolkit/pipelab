@@ -1,54 +1,49 @@
-import { createAction, createActionRunner } from "@pipelab/plugin-core";
+import { createAction, createActionRunner, createPathParam } from '@pipelab/plugin-core'
 
-import path from "node:path";
+export const ID = 'zip-node'
 
-export const ID = "zip-node";
-
-export type MaybeArray<T> = T | T[];
+export type MaybeArray<T> = T | T[]
 
 export const getValue = <T>(array: MaybeArray<T>): T => {
   if (Array.isArray(array)) {
-    return array[0];
+    return array[0]
   } else {
-    return array;
+    return array
   }
-};
+}
 
 export const zip = createAction({
   id: ID,
-  name: "Zip",
+  name: 'Zip',
   displayString: `Zip folder "{{ params.folder }}"`,
   params: {
-    folder: {
+    folder: createPathParam('', {
       control: {
         type: 'path',
         options: {
           properties: ['openDirectory']
         }
       },
-      value: '',
-      label: "Folder",
-    },
-
+      label: 'Folder'
+    })
   },
 
   outputs: {
     path: {
       value: '',
-      label: "Path",
-    },
+      label: 'Path'
+    }
   },
-  description: "Zip a folder into a .zip file",
-  icon: "",
-  meta: {},
-});
-
+  description: 'Zip a folder into a .zip file',
+  icon: '',
+  meta: {}
+})
 
 export const zipRunner = createActionRunner<typeof zip>(async ({ log, inputs, setOutput }) => {
-  const fs = await import("node:fs/promises");
-  const readdir = fs.readdir;
+  const fs = await import('node:fs/promises')
+  const readdir = fs.readdir
 
-  log("TODO");
+  log('TODO')
 
   // log("inputs", inputs);
 

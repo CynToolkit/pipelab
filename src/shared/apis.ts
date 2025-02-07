@@ -26,6 +26,11 @@ export type IpcDefinition = {
     { path: string },
     EndEvent<{ content: string }>
   ]
+  'fs:remove': [
+    // input
+    { path: string },
+    EndEvent<boolean>
+  ]
   'fs:write': [
     // input
     {

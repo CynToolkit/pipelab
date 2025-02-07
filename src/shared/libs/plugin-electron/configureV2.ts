@@ -1,5 +1,4 @@
 import { createAction, createActionRunner } from '@pipelab/plugin-core'
-import { ElectronConfiguration } from './model'
 
 export const propsConfigureV2 = createAction({
   id: 'electron:configure:v2',
@@ -11,13 +10,13 @@ export const propsConfigureV2 = createAction({
   outputs: {
     configuration: {
       label: 'Configuration',
-      value: {} as ElectronConfiguration
+      value: {} as ElectronAppConfig.Config
     }
   },
   params: {
     configuration: {
       label: 'Configuration',
-      value: {} as ElectronConfiguration,
+      value: {} as ElectronAppConfig.Config,
       description: 'The configuration of Electron',
       control: {
         type: 'electron:configure:v2'

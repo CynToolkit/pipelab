@@ -1,4 +1,4 @@
-import { ExtractInputsFromAction, createAction, createActionRunner } from '@pipelab/plugin-core'
+import { ExtractInputsFromAction, createAction, createActionRunner, createPathParam } from '@pipelab/plugin-core'
 import { exportc3p, sharedParams } from './export-shared.js'
 
 export const ID = 'export-construct-project'
@@ -10,9 +10,8 @@ export const exportAction = createAction({
     "`Export project ${fmt.param(params.file, 'primary', 'No path selected')} ${params.version ? `r${params.version}` : ''}`",
   meta: {},
   params: {
-    file: {
+    file: createPathParam('', {
       label: 'File (.c3p)',
-      value: '',
       control: {
         type: 'path',
         label: 'Pick a file (.c3p)',
@@ -23,12 +22,27 @@ export const exportAction = createAction({
           message: 'bbbb'
         }
       }
-    },
+    }),
     ...sharedParams
   },
   outputs: {
     folder: {
       type: 'path',
+      deprecated: true,
+      value: undefined as undefined | string,
+      label: 'Exported zip'
+      // schema: schema.string()
+    },
+    parentFolder: {
+      type: 'path',
+      deprecated: false,
+      value: undefined as undefined | string,
+      label: 'Path to parent folder of exported zip'
+      // schema: schema.string()
+    },
+    zipFile: {
+      type: 'path',
+      deprecated: false,
       value: undefined as undefined | string,
       label: 'Exported zip'
       // schema: schema.string()

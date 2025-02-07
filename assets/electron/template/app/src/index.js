@@ -1,6 +1,6 @@
 // @ts-check
 
-import { app, BrowserWindow, ipcMain, shell } from 'electron'
+import { app, BrowserWindow, ipcMain, session, shell } from 'electron'
 import { dirname, join } from 'node:path'
 // @ts-expect-error no types
 import serve from 'serve-handler'
@@ -253,10 +253,10 @@ const createAppServer = (mainWindow, serveStatic = true) => {
               break
             case '/fs/copy':
               await fsCopy(json, ws)
-              break;
+              break
             case '/fs/delete':
               await fsDelete(json, ws)
-              break;
+              break
             case '/fs/exist':
               await fsExist(json, ws)
               break
@@ -324,15 +324,18 @@ const createWindow = async () => {
     mainWindow.setMenu(null)
   }
 
-  // It's better to export apps without service worker support
-  // try {
-  //   // Clear service workers to prevent old versions of the app
-  //   await session.defaultSession.clearStorageData({
-  //     storages: ['serviceworkers']
-  //   })
-  // } catch (e) {
-  //   console.error('Error clearing service workers', e)
-  // }
+  if (config.clearServiceWorkerOnBoot) {
+    // It's better to export apps without service worker support
+    // only use when needed
+    try {
+      // Clear service workers to prevent old versions of the app
+      await session.defaultSession.clearStorageData({
+        storages: ['serviceworkers']
+      })
+    } catch (e) {
+      console.error('Error clearing service workers', e)
+    }
+  }
 
   if (argUrl) {
     console.log('argUrl', argUrl)

@@ -9,7 +9,7 @@ import { getAppName } from '../../utils.js';
 /**
  * @param {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').MessagePaths, 'input'>} json
  * @param {import('ws').WebSocket} ws
- * @param {AppConfig.Config} config
+ * @param {ElectronAppConfig.Config} config
  */
 export default (json, ws, config) => {
   try {

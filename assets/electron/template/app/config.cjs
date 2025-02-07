@@ -1,7 +1,7 @@
 // THIS IS STUB DEFINITION
 // WILL BE REPLACED ON BUILD
 
-/** @type {AppConfig.Config} */
+/** @type {ElectronAppConfig.Config} */
 const config = {
   alwaysOnTop: false,
   appBundleId: 'com.pipelab.app',
@@ -15,6 +15,7 @@ const config = {
   disableAsarPackaging: false,
   forceHighPerformanceGpu: false,
   enableExtraLogging: false,
+  clearServiceWorkerOnBoot: false,
   enableDisableRendererBackgrounding: false,
   enableInProcessGPU: false,
   frame: true,
@@ -26,6 +27,7 @@ const config = {
   transparent: false,
   width: 800,
   enableSteamSupport: false,
+  ignore: [],
   steamGameId: 480
 }
 

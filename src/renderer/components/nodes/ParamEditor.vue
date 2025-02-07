@@ -51,9 +51,7 @@
           </div>
         </div>
 
-        <div v-if="param === undefined">
-          Oops
-        </div>
+        <div v-if="param === undefined">Oops</div>
 
         <!-- Code editor -->
         <div class="code-editor-wrapper">
@@ -151,7 +149,9 @@
                           class="step"
                           @click="insertEditorEnd(`steps['${stepUid}']['outputs']['${outputKey}']`)"
                         >
-                          {{ getOutputLabel(stepUid, outputKey) }}
+                          <span :class="{ deprecated: isOutputDeprecated(stepUid, outputKey) }">{{
+                            getOutputLabel(stepUid, outputKey)
+                          }}</span>
                         </div>
                         <div
                           class="step-description"
@@ -220,8 +220,8 @@ type Params = (Action | Condition | Event)['params']
 type Param = ValueOf<BlockAction['params']>
 
 const props = defineProps<{
-  param: Param | undefined;
-  paramDefinition: ValueOf<Params>,
+  param: Param | undefined
+  paramDefinition: ValueOf<Params>
   paramKey: string | number
 
   value: BlockAction | BlockEvent | BlockCondition | BlockLoop
@@ -378,8 +378,8 @@ const {
   stepsPlaceholders({
     param,
     steps,
-    variables,
-  }),
+    variables
+  })
 ])
 
 const doCodeEditorUpdate = throttle(async (newValue) => {
@@ -523,6 +523,17 @@ const getOutputLabel = (stepUid: string, key: string) => {
   }
   return key
 }
+const isOutputDeprecated = (stepUid: string, key: string) => {
+  const nodeOrigin = nodes.value.find((n) => n.uid === stepUid)?.origin
+  if (nodeOrigin) {
+    const nodeDef = getNodeDefinition(nodeOrigin.nodeId, nodeOrigin.pluginId).node as Action
+    if (nodeDef) {
+      return nodeDef.outputs[key]?.deprecated ?? false
+    }
+    return key
+  }
+  return key
+}
 
 const getOutputDescription = (stepUid: string, key: string) => {
   const nodeOrigin = nodes.value.find((n) => n.uid === stepUid)?.origin
@@ -658,6 +669,10 @@ const expectedTooltip = computed(() => {
 
       .step {
         cursor: pointer;
+
+        .deprecated {
+          text-decoration: line-through;
+        }
       }
 
       .step-description {

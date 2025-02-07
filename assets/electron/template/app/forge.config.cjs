@@ -29,7 +29,8 @@ module.exports = {
       FileDescription: config.description
     },
     appCategoryType: config.appCategoryType,
-    icon: config.icon
+    icon: config.icon,
+    ignore: config.ignore
   },
   rebuildConfig: {},
   makers: [

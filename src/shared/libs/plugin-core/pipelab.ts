@@ -206,13 +206,13 @@ export type ControlType =
   | ControlTypeArray
   | ControlTypeElectronConfigureV2
 
-export type InputDefinition = {
+export type InputDefinition<T extends ControlType = ControlType> = {
   label: string
   description?: string
   validator?: () => any
   required?: boolean
   // validator?: z.ZodTypeAny
-  control: ControlType
+  control: T
   value: unknown
   platforms?: NodeJS.Platform[]
 }
@@ -223,6 +223,7 @@ export type Meta = Record<string, unknown>
 export interface OutputDefinition {
   label: string
   description?: string
+  deprecated?: boolean
   // validator: z.ZodTypeAny
   validator?: (value: any) => any
   control?: ControlType
@@ -471,6 +472,55 @@ export const createAction = <T extends Omit<Action, 'type'>>(action: T) => {
     ...action,
     type: 'action'
   } satisfies Action
+}
+
+export const createStringParam = (
+  value: string,
+  definition: Omit<InputDefinition<ControlTypeInput>, 'value' | 'control'>
+) => {
+  return {
+    ...definition,
+    control: {
+      type: 'input',
+      options: {
+        kind: 'text'
+      }
+    },
+    value: `"${value}"`
+  } satisfies InputDefinition<ControlTypeInput>
+}
+
+export const createPathParam = (
+  value: string | undefined,
+  definition: Omit<InputDefinition<ControlTypePath>, 'value'>
+) => {
+  return {
+    ...definition,
+    value: value ? `"${value}"` : value
+  } satisfies InputDefinition<ControlTypePath>
+}
+
+export const createNumberParam = (
+  value: number,
+  definition: Omit<InputDefinition<ControlTypeInput>, 'value' | 'control'>
+) => {
+  return {
+    ...definition,
+    control: {
+      type: 'input',
+      options: {
+        kind: 'number'
+      }
+    },
+    value
+  } satisfies InputDefinition<ControlTypeInput>
+}
+
+export const createRawParam = <T>(value: T, definition: Omit<InputDefinition, 'value'>) => {
+  return {
+    ...definition,
+    value
+  }
 }
 
 export const createExpression = <T extends Omit<Expression, 'type'>>(expression: T) => {

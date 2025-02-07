@@ -1,7 +1,7 @@
 import pkg from '../package.json' with { type: "json" };
 
 /**
- * @param {AppConfig.Config} config
+ * @param {ElectronAppConfig.Config} config
  */
 export const getAppName = (config) => {
   const platform = process.platform

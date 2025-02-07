@@ -302,9 +302,13 @@ export const useEditor = defineStore('editor', () => {
           const params = definition.node.params
           for (const param of Object.keys(params)) {
             if (!(param in block.params)) {
-              console.warn("adding mising param", param)
+              console.log('params[param]', params[param])
+              console.warn('adding mising param', param, {
+                editor: 'simple',
+                value: params[param].value
+              })
               block.params[param] = {
-                editor: 'editor',
+                editor: 'simple',
                 value: params[param].value
               }
             }
@@ -443,10 +447,7 @@ export const useEditor = defineStore('editor', () => {
         const createParams: BlockAction['params'] = {}
         for (const [key, param] of Object.entries(nodeDefinition.params)) {
           // ensure the value is converted to code expression
-          let val = param.value
-          if (typeof val === 'string') {
-            val = `"${val}"`
-          }
+          const val = param.value
 
           createParams[key] = {
             editor: 'simple',

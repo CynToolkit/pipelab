@@ -1,7 +1,7 @@
 import {
   createAction,
   createActionRunner,
-  downloadFile,
+  createPathParam,
   runWithLiveLogs
 } from '@pipelab/plugin-core'
 
@@ -15,16 +15,15 @@ export const NVPatch = createAction({
   displayString: "`Patch binary ${fmt.param(params['input'], 'primary')}`",
   meta: {},
   params: {
-    input: {
+    input: createPathParam('', {
       label: 'File to patch',
-      value: '',
       control: {
         type: 'path',
         options: {
           properties: ['openFile']
         }
       }
-    }
+    })
   },
   outputs: {}
 })

@@ -1,4 +1,4 @@
-import { createAction, createActionRunner } from '@pipelab/plugin-core'
+import { createAction, createActionRunner, createPathParam } from '@pipelab/plugin-core'
 
 export const ID = 'minify:images'
 
@@ -10,16 +10,15 @@ export const minifyImages = createAction({
   displayString: '`Minify`',
   meta: {},
   params: {
-    'input-folder': {
+    'input-folder': createPathParam('', {
       label: 'Folder to Upload',
-      value: '',
       control: {
         type: 'path',
         options: {
           properties: ['openDirectory']
         }
       }
-    }
+    })
   },
   outputs: {}
 })
