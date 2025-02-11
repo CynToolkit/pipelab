@@ -8,12 +8,14 @@ import {
   array,
   boolean,
   custom,
+  description,
   GenericSchema,
   InferOutput,
   lazy,
   literal,
   object,
   optional,
+  pipe,
   record,
   string,
   union,
@@ -49,6 +51,7 @@ export type EditorParam = InferOutput<typeof EditorParamValidatorV3>
 const BlockActionValidatorV3 = object({
   type: literal('action'),
   uid: string(),
+  name: pipe(optional(string()), description('A custom name provided by the user')),
   disabled: optional(boolean()),
   params: record(
     string(),
@@ -253,7 +256,7 @@ export const savedFileMigrator = createMigrator<SavedFile>({
           canvas: {
             triggers,
             blocks: newBlocks
-          },
+          }
         } satisfies OmitVersion<SavedFileV3>
       },
       down: () => {

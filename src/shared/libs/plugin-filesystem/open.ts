@@ -6,7 +6,7 @@ export const ID = 'fs:open-in-explorer'
 export const openInExplorer = createAction({
   id: ID,
   name: 'Open path in explorer',
-  displayString: "`Open ${fmt.param(params.path, 'primary')} in explorer`",
+  displayString: "`Open ${fmt.param(params.path, 'primary', 'No path set')} in explorer`",
   params: {
     path: createPathParam('', {
       label: 'Path',

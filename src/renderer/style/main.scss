@@ -9,8 +9,8 @@
 .editor .subtitle .param {
   border: 1px solid #ccc;
   background-color: #ddd;
-  padding: 4px;
-  margin: 4px;
+  padding: 2px 4px;
+  margin: 2px 4px;
   border-radius: 4px;
   cursor: pointer;
   display: flex;
@@ -32,15 +32,16 @@
   }
 
   .step {
-    border: 1px solid #ccc;
-    background-color: #ddd;
-    padding: 4px;
-    margin: 2px;
+    // border: 1px solid #ccc;
+    // background-color: #ddd;
+    // padding: 4px;
+    // margin: 2px;
     border-radius: 4px;
     cursor: pointer;
     display: flex;
     flex-direction: row;
     gap: 4px;
+    color: rgb(0, 99, 8);
   }
 
   .variable {

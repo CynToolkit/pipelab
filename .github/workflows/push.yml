@@ -47,12 +47,6 @@ jobs:
       - name: logs
         run: ls node_modules/@lydell
 
-      - name: Install dependencies
-        run: pnpm install -f
-
-      - name: logs
-        run: ls node_modules/@lydell
-
       - name: Package application
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}

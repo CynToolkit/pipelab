@@ -5,7 +5,7 @@ import { dirname, join } from 'node:path'
 // @ts-expect-error no types
 import serve from 'serve-handler'
 import { createServer } from 'http'
-import { WebSocketServer } from 'ws'
+import { WebSocketServer, WebSocket } from 'ws'
 import './custom-main.js'
 import mri from 'mri'
 import config from '../config.cjs'
@@ -69,6 +69,13 @@ function assertUnreachable(_x) {
   throw new Error("Didn't expect to get here")
 }
 
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught Exception:', error)
+})
+process.on('unhandledRejection', (reason) => {
+  console.error('Unhandled Promise Rejection:', reason)
+})
+
 console.log('process.argv', process.argv)
 const argv = process.argv
 
@@ -123,6 +130,22 @@ console.log('sessionDataPath', sessionDataPath)
 app.setPath('userData', sessionDataPath)
 
 /**
+ * @type {Set<import('ws').WebSocket>}
+ */
+const clients = new Set()
+
+/**
+ * @param {string} message
+ */
+const broadcastMessage = (message) => {
+  for (const client of clients) {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(message)
+    }
+  }
+}
+
+/**
  * @param {BrowserWindow} mainWindow
  * @returns {Promise<number>}
  */
@@ -151,6 +174,8 @@ const createAppServer = (mainWindow, serveStatic = true) => {
 
     const wss = new WebSocketServer({ server })
     wss.on('connection', function connection(ws) {
+      clients.add(ws)
+
       ws.on('error', console.error)
 
       ws.on('message', async (data) => {
@@ -178,7 +203,7 @@ const createAppServer = (mainWindow, serveStatic = true) => {
               break
 
             case '/fs/folder/create':
-              await fsFolderCreate(json, ws, mainWindow)
+              await fsFolderCreate(json, ws)
               break
 
             case '/window/maximize':
@@ -272,6 +297,9 @@ const createAppServer = (mainWindow, serveStatic = true) => {
             case '/steam/raw':
               await steamRaw(json, ws, client)
               break
+            case '/window/fullscreen-state':
+              // sent the other way around
+              break
 
             default:
               console.log('unsupported', data)
@@ -290,6 +318,10 @@ const createAppServer = (mainWindow, serveStatic = true) => {
             })
           )
         }
+      })
+
+      ws.on('close', () => {
+        clients.delete(ws)
       })
     })
 
@@ -352,6 +384,32 @@ const createWindow = async () => {
 
     await mainWindow?.loadURL(`http://localhost:${port}`)
   }
+
+  mainWindow.on('enter-full-screen', () => {
+    /**
+     * @type {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').FullscreenState, 'input'>}
+     */
+    const order = {
+      url: '/window/fullscreen-state',
+      body: {
+        state: 'fullscreen'
+      }
+    }
+    broadcastMessage(JSON.stringify(order))
+  })
+
+  mainWindow.on('leave-full-screen', () => {
+    /**
+     * @type {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').FullscreenState, 'input'>}
+     */
+    const order = {
+      url: '/window/fullscreen-state',
+      body: {
+        state: 'normal'
+      }
+    }
+    broadcastMessage(JSON.stringify(order))
+  })
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     // Open the URL in the default browser

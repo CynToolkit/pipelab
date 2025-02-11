@@ -6,6 +6,10 @@
       v-bind="buttonProps"
       class="add-btn"
       size="small"
+      :pt="{
+        root: { style: { fontSize: '10px', width: '24px', height: '24px' } },
+        icon: { style: { fontSize: '10px' } }
+      }"
       @click="addNode"
     ></Button>
     <!-- <pre>{{ path }}</pre> -->
@@ -30,12 +34,7 @@
             <ul class="node list-none p-0 m-0">
               <li class="flex align-items-center mb-3">
                 <span class="mr-3">
-                  <img v-if="plugin.icon.type === 'image'" width="32" :src="plugin.icon.image" />
-                  <i
-                    v-else-if="plugin.icon.type === 'icon'"
-                    style="font-size: 2rem"
-                    :class="{ 'node-icon': true, mdi: true, [plugin.icon.icon]: true }"
-                  />
+                  <PluginIcon width="32px" :icon="plugin.icon" />
 
                   <!-- <img v-if="plugin.icon" width="24" class="w-2rem h-2rem" :src="plugin.icon" />
                   <i v-else class="pi pi-circle" style="font-size: 2rem"></i> -->
@@ -102,6 +101,7 @@ import InputText from 'primevue/inputtext'
 import { useAppStore } from '@renderer/store/app'
 import { PipelabNode } from '@@/libs/plugin-core'
 import { useLogger } from '@@/logger'
+import PluginIcon from './nodes/PluginIcon.vue'
 
 type ButtonProps = InstanceType<typeof Button>['$props']
 
@@ -239,7 +239,7 @@ const searchedElements = computed(() => {
 
 .vl {
   border-left: 2px solid #c2c9d1;
-  height: 32px;
+  height: 8px;
 }
 
 .content {

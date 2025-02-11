@@ -2,6 +2,7 @@ import {
   Action,
   ActionRunnerData,
   createNumberParam,
+  createPasswordParam,
   createPathParam,
   createStringParam,
   InputsDefinition,
@@ -32,11 +33,11 @@ export const sharedParams = {
     required: false,
     description: 'Your Construct username',
   }),
-  password: createStringParam('', {
+  password: createPasswordParam('', {
     description:
       'Your Construct password. Will only be used locally to automate the export on Construct website via a local browser. Will not be sent to any server.',
     required: false,
-    label: 'Password'
+    label: 'Password',
   }),
   version: createStringParam('', {
     description: 'The Construct version you want to use',

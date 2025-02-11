@@ -1,10 +1,6 @@
 <template>
   <div v-if="!icon" :style="{ width }"></div>
-  <img
-    v-else-if="icon.type === 'image'"
-    :style="{ width: width }"
-    :src="icon.image"
-  />
+  <img v-else-if="icon.type === 'image'" :style="{ width: width }" :src="icon.image" />
   <i
     v-else-if="icon.type === 'icon'"
     :style="{ 'font-size': width, width, display: 'flex', color }"
@@ -13,13 +9,13 @@
 </template>
 
 <script lang="ts" setup>
-import { IconType } from '@pipelab/plugin-core';
-import { PropType } from 'vue';
+import { IconType } from '@pipelab/plugin-core'
+import { PropType } from 'vue'
 
 defineProps({
   icon: {
     type: Object as PropType<IconType | undefined>,
-    required: true,
+    required: true
   },
   width: {
     type: [String, Number] as PropType<string | number>,
@@ -34,6 +30,4 @@ defineProps({
 })
 </script>
 
-<style lang="scss" scoped>
-
-</style>
+<style lang="scss" scoped></style>

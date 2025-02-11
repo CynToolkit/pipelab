@@ -1,16 +1,31 @@
 <template>
   <div class="editor">
     <div v-if="paramDefinition.control.type === 'input'" class="input">
-      <InputText
-        v-if="paramDefinition.control.options.kind === 'text'"
-        :model-value="modelValueString"
-        filter
-        :placeholder="paramDefinition.control.options.placeholder"
-        multiple
-        option-label="label"
-        class="w-full"
-        @update:model-value="onParamInputTextChange"
-      />
+      <template v-if="paramDefinition.control.options.kind === 'text'">
+        <Password
+          v-if="paramDefinition.control.options.password"
+          :model-value="modelValueString"
+          :placeholder="paramDefinition.control.options.placeholder"
+          :toggle-mask="true"
+          :feedback="false"
+          :class="{
+            'w-full': true
+          }"
+          input-class="w-full"
+          @update:model-value="onParamInputTextChange"
+        >
+        </Password>
+        <InputText
+          v-else
+          :model-value="modelValueString"
+          filter
+          :placeholder="paramDefinition.control.options.placeholder"
+          multiple
+          option-label="label"
+          class="w-full"
+          @update:model-value="onParamInputTextChange"
+        />
+      </template>
       <InputNumber
         v-else-if="paramDefinition.control.options.kind === 'number'"
         :model-value="modelValueNumber"

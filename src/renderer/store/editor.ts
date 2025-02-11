@@ -182,6 +182,11 @@ export const useEditor = defineStore('editor', () => {
           const outputs = pluginDef.node.outputs
 
           for (const [key, output] of Object.entries(outputs)) {
+            /*
+            <i
+              class="mdi mdi-play-circle"
+              />
+            */
             result[node.uid]['outputs'][key] =
               `<span class="step">${pluginDef.node.name} → ${output.label}</span>`
           }

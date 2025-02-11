@@ -24,13 +24,13 @@
           <Menu ref="menu" id="overlay_menu" :model="pipelineMenu" :popup="true" /> -->
         </div>
         <div class="center">
-          <Inplace>
+          <Inplace :pt="{ display: { style: { padding: '4px' } } }">
             <template #display>
               <div class="flex flex-row align-items-center">
                 <div>{{ instance.name }}</div>
-                <Button text size="small">
+                <Button text size="small" class="ml-1">
                   <template #icon>
-                    <i class="mdi mdi-pencil mr-1"></i>
+                    <i class="mdi mdi-pencil"></i>
                   </template>
                 </Button>
               </div>

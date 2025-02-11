@@ -119,6 +119,7 @@ export interface ControlTypeInput extends ControlTypeBase {
     kind: 'number' | 'text'
     validator?: string
     placeholder?: string
+    password?: boolean
     // value: string;
     // onChange: (value: any) => void;
   }
@@ -484,6 +485,22 @@ export const createStringParam = (
       type: 'input',
       options: {
         kind: 'text'
+      }
+    },
+    value: `"${value}"`
+  } satisfies InputDefinition<ControlTypeInput>
+}
+export const createPasswordParam = (
+  value: string,
+  definition: Omit<InputDefinition<ControlTypeInput>, 'value' | 'control'>
+) => {
+  return {
+    ...definition,
+    control: {
+      type: 'input',
+      options: {
+        kind: 'text',
+        password: true
       }
     },
     value: `"${value}"`

@@ -473,7 +473,6 @@ const { floatingStyles, middlewareData } = useFloating($codeEditorText, $floatin
 // }
 
 const resolveHintTextResult = (result: unknown) => {
-  console.log('result', result)
   if (paramDefinition.value.control.type === 'select') {
     const label = paramDefinition.value.control.options.options.find(
       (o) => o.value === result
