@@ -2,10 +2,22 @@
 
 const { FusesPlugin } = require('@electron-forge/plugin-fuses')
 const { FuseV1Options, FuseVersion } = require('@electron/fuses')
+const { join } = require('path')
 
 const PipelabPlugin = require('./pipelab-plugin.cjs')
 
 const config = require('./config.cjs')
+
+let unpackFilter = ''
+const platform = process.platform
+
+if (platform === 'win32') {
+  unpackFilter = join('**', 'steamworks.js', 'dist', 'win64', '*.{node,dll}')
+} else if (platform === 'darwin') {
+  unpackFilter = join('**', 'steamworks.js', 'dist', 'win64', '*.{node,dylib}')
+} else if (platform === 'linux') {
+  unpackFilter = join('**', 'steamworks.js', 'dist', 'win64', '*{node,so,lib}')
+}
 
 /**
  * @type {import('@electron-forge/shared-types').ForgeConfig}
@@ -16,8 +28,7 @@ module.exports = {
     asar: config.disableAsarPackaging
       ? false
       : {
-          // by default, unpack node, and libs files
-          unpack: '*.{node,dll,so,lib,dylib}'
+          unpack: unpackFilter
         },
     name: config.name,
     appBundleId: config.appBundleId,

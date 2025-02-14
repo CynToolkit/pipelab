@@ -7,9 +7,8 @@ import slash from 'slash'
 /**
  * @param {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').MessageListFiles, 'input'>} json
  * @param {import('ws').WebSocket} ws
- * @param {import('electron').BrowserWindow} mainWindow
  */
-export default async (json, ws, mainWindow) => {
+export default async (json, ws) => {
   const file = await readdir(json.body.path, {
     withFileTypes: true,
     recursive: json.body.recursive
@@ -33,6 +32,5 @@ export default async (json, ws, mainWindow) => {
       }))
     }
   }
-  console.log('result', readFileResult)
   ws.send(JSON.stringify(readFileResult))
 }

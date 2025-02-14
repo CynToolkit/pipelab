@@ -41,6 +41,7 @@
             :scenario="file"
             @open="loadExisting(file.id)"
             @delete="deleteProject(file.id)"
+            @duplicate="duplicateProject"
           >
           </ScenarioListItem>
         </div>
@@ -133,26 +134,43 @@
               </div>
 
               <div class="presets">
-                <div
-                  v-for="(preset, key) of newProjectPresets"
-                  :key="key"
-                  :class="{ active: newProjectPreset === key, disabled: preset.disabled }"
-                  class="preset"
-                  @click="newProjectPreset = key"
-                >
-                  <div class="preset-title">{{ preset.data.name }}</div>
-                  <div>{{ preset.data.description }}</div>
-                  <div v-if="preset.hightlight" class="highlight-icon">
-                    <i class="mdi mdi-star-circle-outline mr-2 fs-24"></i>
-                  </div>
-                  <div v-if="newProjectPreset === key" class="selection-icon">
-                    <i class="mdi mdi-check-circle mr-2 fs-24"></i>
+                <div v-if="newProjectData">
+                  <div :class="{ active: true }" class="preset">
+                    <div class="preset-title">{{ newProjectData.name }}</div>
+                    <div>{{ newProjectData.description }}</div>
+                    <div class="selection-icon">
+                      <i class="mdi mdi-check-circle mr-2 fs-24"></i>
+                    </div>
                   </div>
                 </div>
+                <template v-else>
+                  <div
+                    v-for="(preset, key) of newProjectPresets"
+                    :key="key"
+                    :class="{ active: newProjectPreset === key, disabled: preset.disabled }"
+                    class="preset"
+                    @click="newProjectPreset = key"
+                  >
+                    <div class="preset-title">{{ preset.data.name }}</div>
+                    <div>{{ preset.data.description }}</div>
+                    <div v-if="preset.hightlight" class="highlight-icon">
+                      <i class="mdi mdi-star-circle-outline mr-2 fs-24"></i>
+                    </div>
+                    <div v-if="newProjectPreset === key" class="selection-icon">
+                      <i class="mdi mdi-check-circle mr-2 fs-24"></i>
+                    </div>
+                  </div>
+                </template>
               </div>
 
               <div class="buttons">
-                <Button :disabled="!canCreateproject" @click="onNewFileCreation"
+                <Button
+                  v-if="newProjectData"
+                  :disabled="!canCreateproject"
+                  @click="onNewFileCreation(newProjectData)"
+                  >Duplicate project</Button
+                >
+                <Button v-else :disabled="!canCreateproject" @click="onNewFileCreation()"
                   >Create project</Button
                 >
               </div>
@@ -330,7 +348,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watchEffect } from 'vue'
+import { computed, ref, watchEffect } from 'vue'
 import ScenarioListItem from '@renderer/components/ScenarioListItem.vue'
 import { storeToRefs } from 'pinia'
 import { EnhancedFile, SavedFile, Preset } from '@@/model'
@@ -391,6 +409,14 @@ const updateStatusText = computed(() => {
 })
 
 const canCreateproject = computed(() => {
+  if (newProjectData.value) {
+    return (
+      newProjectType.value !== undefined &&
+      newProjectName.value !== undefined &&
+      (newProjectType.value === 'cloud' ||
+        (newProjectType.value === 'local' && newProjectLocalLocation.value !== undefined))
+    )
+  }
   return (
     newProjectType.value !== undefined &&
     newProjectPreset.value !== undefined &&
@@ -552,6 +578,7 @@ const newProjectPreset = ref<string>()
 const newProjectPresets = ref<Presets>({})
 
 const newProjectLocalLocation = ref<string>()
+const newProjectData = ref<SavedFile>()
 
 /**
  * Create a new project
@@ -572,10 +599,10 @@ const newFile = async () => {
   isNewProjectModalVisible.value = true
 }
 
-const onNewFileCreation = async () => {
+const onNewFileCreation = async (
+  preset: SavedFile = newProjectPresets.value[newProjectPreset.value].data
+) => {
   let id = nanoid()
-
-  const preset = newProjectPresets.value[newProjectPreset.value].data
 
   if (!preset) {
     throw new Error('Invalid preset')
@@ -641,6 +668,13 @@ const loadExisting = async (id: string) => {
 
 const deleteProject = async (id: string) => {
   await remove(id)
+}
+
+const duplicateProject = async (file: SavedFile) => {
+  console.log('file', file)
+  newProjectName.value = file.name + ' (copy)'
+  newProjectData.value = file
+  isNewProjectModalVisible.value = true
 }
 
 const appVersion = ref(window.version)

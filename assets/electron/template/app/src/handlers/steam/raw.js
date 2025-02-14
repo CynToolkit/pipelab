@@ -22,6 +22,5 @@ export default async (json, ws, client) => {
       success: true
     }
   };
-  console.log('result', steamResult)
   ws.send(JSON.stringify(steamResult));
 }

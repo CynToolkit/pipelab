@@ -5,7 +5,6 @@ import { unlink } from 'node:fs/promises'
 /**
  * @param {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').MessageDelete, 'input'>} json
  * @param {import('ws').WebSocket} ws
- * @param {import('electron').BrowserWindow} mainWindow
  */
 export default async (json, ws) => {
   await unlink(json.body.path)
@@ -20,6 +19,5 @@ export default async (json, ws) => {
       success: true,
     }
   }
-  console.log('result', readFileResult)
   ws.send(JSON.stringify(readFileResult))
 }

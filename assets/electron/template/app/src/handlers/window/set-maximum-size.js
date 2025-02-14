@@ -16,6 +16,5 @@ export default async (json, ws, mainWindow) => {
       success: true
     }
   }
-  console.log('result', setMaximumSizeResult)
   ws.send(JSON.stringify(setMaximumSizeResult));
 }

@@ -3,9 +3,8 @@ import { dialog } from 'electron'
 /**
  * @param {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').MessageShowFolderDialog, 'input'>} json
  * @param {import('ws').WebSocket} ws
- * @param {import('electron').BrowserWindow} mainWindow
  */
-export default async (json, ws, mainWindow) => {
+export default async (json, ws) => {
   const openFolderDialogResponse = await dialog.showOpenDialog({
     properties: ['openDirectory', 'createDirectory']
   })
@@ -22,6 +21,5 @@ export default async (json, ws, mainWindow) => {
       paths: openFolderDialogResponse.filePaths
     }
   }
-  console.log('result', dialogOpenResult)
-  ws.send(JSON.stringify(dialogOpenResult));
+  ws.send(JSON.stringify(dialogOpenResult))
 }

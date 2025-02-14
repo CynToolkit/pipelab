@@ -71,7 +71,7 @@
       </div>
 
       <div class="editor-wrapper">
-        <div class="aside">
+        <!-- <div class="aside">
           <div>
             <div class="bold">Project Settings</div>
             <ProjectSettingsEditor v-if="instance"></ProjectSettingsEditor>
@@ -84,7 +84,7 @@
             <div class="bold">Environement</div>
             <EnvironementEditor v-if="instance"></EnvironementEditor>
           </div>
-        </div>
+        </div> -->
         <div class="main">
           <div class="node-editor-wrapper">
             <EditorNodeEvent

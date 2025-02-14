@@ -16,6 +16,5 @@ export default async (json, ws, mainWindow) => {
       success: true
     }
   }
-  console.log('result', requestAttentionResult)
   ws.send(JSON.stringify(requestAttentionResult));
 }

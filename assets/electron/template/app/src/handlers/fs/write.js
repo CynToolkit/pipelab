@@ -26,6 +26,5 @@ export default async (json, ws) => {
       success: true
     }
   }
-  console.log('result', writeFileResult)
   ws.send(JSON.stringify(writeFileResult))
 }

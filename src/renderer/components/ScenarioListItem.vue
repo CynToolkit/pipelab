@@ -6,11 +6,21 @@
           <PluginIcon width="40px" :icon="icon"></PluginIcon>
         </div>
       </div>
-      <Button v-if="!noDeleteBtn" text severity="danger" rounded @click.stop="onDelete">
-        <template #icon>
-          <i class="mdi mdi-delete"></i>
-        </template>
-      </Button>
+      <div class="buttons">
+        <ButtonGroup>
+          <!-- Duplicate button -->
+          <Button size="small" severity="info" @click.stop="onDuplicate">
+            <template #icon>
+              <i class="mdi mdi-content-copy"></i>
+            </template>
+          </Button>
+          <Button v-if="!noDeleteBtn" size="small" severity="danger" @click.stop="onDelete">
+            <template #icon>
+              <i class="mdi mdi-delete"></i>
+            </template>
+          </Button>
+        </ButtonGroup>
+      </div>
     </div>
     <div class="name">
       <div class="title">{{ scenario.content.name }}</div>
@@ -28,9 +38,10 @@ import { useAppStore } from '@renderer/store/app'
 import { walker } from '@renderer/utils/graph'
 import { Origin, SavedFile } from '@@/model'
 import { IconType } from '@pipelab/plugin-core'
-import { PropType, ref, toRefs, watchEffect } from 'vue'
+import { PropType, ref, toRaw, toRefs, watchEffect } from 'vue'
 import PluginIcon from './nodes/PluginIcon.vue'
 import { EnhancedFile } from '@@/model'
+import { klona } from 'klona'
 
 const props = defineProps({
   scenario: {
@@ -46,6 +57,7 @@ const props = defineProps({
 const emit = defineEmits<{
   delete: [payload: SavedFile]
   open: [payload: SavedFile]
+  duplicate: [payload: SavedFile]
 }>()
 
 const { scenario } = toRefs(props)
@@ -89,6 +101,12 @@ watchEffect(async () => {
 
 const onDelete = () => {
   emit('delete', scenario.value.content)
+}
+
+const onDuplicate = () => {
+  console.log('scenario.value', scenario.value)
+  console.log('scenario.value', scenario.value.content)
+  emit('duplicate', scenario.value.content)
 }
 
 const onOpen = () => {
@@ -149,6 +167,10 @@ const onOpen = () => {
   .icons {
     display: flex;
     gap: 4px;
+  }
+
+  .buttons {
+    margin-right: 6px;
   }
 
   .scenario-plugin {

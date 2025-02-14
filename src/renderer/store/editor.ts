@@ -188,7 +188,7 @@ export const useEditor = defineStore('editor', () => {
               />
             */
             result[node.uid]['outputs'][key] =
-              `<span class="step">${pluginDef.node.name} → ${output.label}</span>`
+              `<span class="step">${node.name ?? pluginDef.node.name} → ${output.label}</span>`
           }
         }
       }

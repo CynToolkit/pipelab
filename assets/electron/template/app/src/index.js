@@ -111,6 +111,13 @@ if (config.forceHighPerformanceGpu) {
 let client
 console.log('config.enableSteamSupport', config.enableSteamSupport)
 if (config.enableSteamSupport) {
+  // const isNecessary = steamworks.restartAppIfNecessary(config.steamGameId)
+  // console.log('isNecessary', isNecessary)
+
+  // if (isNecessary) {
+
+  // }
+
   console.log('steamworks', steamworks)
   try {
     client = steamworks.init(config.steamGameId)
@@ -195,11 +202,11 @@ const createAppServer = (mainWindow, serveStatic = true) => {
               break
 
             case '/fs/file/read':
-              await fsRead(json, ws, mainWindow)
+              await fsRead(json, ws)
               break
 
             case '/fs/file/read/binary':
-              await fsReadBinary(json, ws, mainWindow)
+              await fsReadBinary(json, ws)
               break
 
             case '/fs/folder/create':
@@ -220,13 +227,13 @@ const createAppServer = (mainWindow, serveStatic = true) => {
               await windowRestore(json, ws, mainWindow)
               break
             case '/dialog/folder':
-              await dialogFolder(json, ws, mainWindow)
+              await dialogFolder(json, ws)
               break
             case '/dialog/open':
-              await dialogOpen(json, ws, mainWindow)
+              await dialogOpen(json, ws)
               break
             case '/dialog/save':
-              await dialogSave(json, ws, mainWindow)
+              await dialogSave(json, ws)
               break
             case '/window/set-always-on-top':
               await windowSetAlwaysOnTop(json, ws, mainWindow)
@@ -265,16 +272,16 @@ const createAppServer = (mainWindow, serveStatic = true) => {
               await windowSetFullscreen(json, ws, mainWindow)
               break
             case '/engine':
-              await engine(json, ws, mainWindow)
+              await engine(json, ws)
               break
             case '/open':
-              await open(json, ws, mainWindow)
+              await open(json, ws)
               break
             case '/show-in-explorer':
-              await showInExplorer(json, ws, mainWindow)
+              await showInExplorer(json, ws)
               break
             case '/run':
-              await run(json, ws, mainWindow)
+              await run(json, ws)
               break
             case '/fs/copy':
               await fsCopy(json, ws)
@@ -286,10 +293,10 @@ const createAppServer = (mainWindow, serveStatic = true) => {
               await fsExist(json, ws)
               break
             case '/fs/list':
-              await fsList(json, ws, mainWindow)
+              await fsList(json, ws)
               break
             case '/fs/file/size':
-              await fsFileSize(json, ws, mainWindow)
+              await fsFileSize(json, ws)
               break
             case '/fs/move':
               await fsMove(json, ws)

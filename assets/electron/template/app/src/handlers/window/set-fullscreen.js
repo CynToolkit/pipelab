@@ -22,6 +22,5 @@ export default async (json, ws, mainWindow) => {
       success: true
     }
   }
-  console.log('result', showsetFullscreenResult)
   ws.send(JSON.stringify(showsetFullscreenResult));
 }

@@ -53,7 +53,6 @@ export default (json, ws, config) => {
         data: slash(folder)
       }
     }
-    console.log('result', userFolderResult)
     ws.send(JSON.stringify(userFolderResult))
   } catch (e) {
     console.error('e', e)
@@ -67,7 +66,6 @@ export default (json, ws, config) => {
         error: e.message
       }
     }
-    console.log('result', userFolderResult)
     ws.send(JSON.stringify(userFolderResult))
   }
 }

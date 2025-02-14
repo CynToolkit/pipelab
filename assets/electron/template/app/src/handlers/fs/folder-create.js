@@ -21,6 +21,5 @@ export default async (json, ws) => {
       success: true
     }
   }
-  console.log('result', folderCreateResult)
   ws.send(JSON.stringify(folderCreateResult))
 }

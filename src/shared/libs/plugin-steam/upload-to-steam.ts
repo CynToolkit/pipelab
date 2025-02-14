@@ -1,4 +1,11 @@
-import { createAction, createActionRunner, createPathParam, createStringParam, runWithLiveLogsPTY } from '@pipelab/plugin-core'
+import {
+  createAction,
+  createActionRunner,
+  createPathParam,
+  createStringParam,
+  fileExists,
+  runWithLiveLogsPTY
+} from '@pipelab/plugin-core'
 import { checkSteamAuth, openExternalTerminal } from './utils'
 
 // https://github.com/ztgasdf/steampkg?tab=readme-ov-file#account-management
@@ -27,16 +34,16 @@ export const uploadToSteam = createAction({
       }
     }),
     username: createStringParam('', {
-      label: 'Steam username',
+      label: 'Steam username'
     }),
     appId: createStringParam('', {
-      label: 'App Id',
+      label: 'App Id'
     }),
     depotId: createStringParam('', {
-      label: 'Depot Id',
+      label: 'Depot Id'
     }),
     description: createStringParam('', {
-      label: 'Description',
+      label: 'Description'
     }),
     folder: createPathParam('', {
       label: 'Folder to upload',
@@ -75,6 +82,11 @@ export const uploadToSteamRunner = createActionRunner<typeof uploadToSteam>(
 
     const { folder, appId, sdk, depotId, username, description, enableDRM, binaryToPatch } = inputs
     log(`uploading "${folder}" to steam`)
+
+    const isSDKExisting = await fileExists(sdk)
+    if (!isSDKExisting) {
+      throw new Error(`You must enter a valid path to the Steam SDK`)
+    }
 
     const buildOutput = join(cwd, 'steam', 'output')
     const scriptPath = join(cwd, 'steam', 'script.vdf')
@@ -232,7 +244,7 @@ export const uploadToSteamRunner = createActionRunner<typeof uploadToSteam>(
             scriptPath,
             '+quit'
           ],
-          { },
+          {},
           log,
           {
             onStdout: (data) => {

@@ -39,7 +39,7 @@ export default createNodeDefinition({
     {
       node: createPackageProps(
         IDPackage,
-        'Prepare App Bundle',
+        'Package app',
         'Gather all necessary files and prepare your app for distribution, creating a platform-specific bundle.',
         '',
         "`Package app from ${fmt.param(params['input-folder'], 'primary', 'Input folder not set')}`",

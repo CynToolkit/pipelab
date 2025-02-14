@@ -16,6 +16,5 @@ export default async (json, ws, mainWindow) => {
       success: true
     }
   }
-  console.log('result', setAlwaysOnTopResult)
   ws.send(JSON.stringify(setAlwaysOnTopResult));
 }

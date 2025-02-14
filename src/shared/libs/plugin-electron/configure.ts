@@ -142,7 +142,7 @@ export const props = createAction({
     disableAsarPackaging: {
       required: true,
       label: 'Disable ASAR packaging',
-      value: false,
+      value: true,
       control: {
         type: 'boolean'
       },
