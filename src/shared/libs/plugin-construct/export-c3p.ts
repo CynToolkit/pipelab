@@ -1,4 +1,10 @@
-import { ExtractInputsFromAction, createAction, createActionRunner, createPathParam } from '@pipelab/plugin-core'
+import {
+  ExtractInputsFromAction,
+  createAction,
+  createActionRunner,
+  createPathParam,
+  fileExists
+} from '@pipelab/plugin-core'
 import { exportc3p, sharedParams } from './export-shared.js'
 
 export const ID = 'export-construct-project'
@@ -54,6 +60,12 @@ export const exportAction = createAction({
 
 export const ExportActionRunner = createActionRunner<typeof exportAction>(async (options) => {
   const file = options.inputs.file
+
+  const c3pFileExists = await fileExists(file)
+
+  if (!c3pFileExists) {
+    throw new Error('You must specify a valid .c3p file')
+  }
 
   await exportc3p(file, options)
   options.log('exportc3p done')

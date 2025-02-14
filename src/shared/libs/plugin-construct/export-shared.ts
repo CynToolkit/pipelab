@@ -31,18 +31,18 @@ export const sharedParams = {
   username: createStringParam('', {
     label: 'Username',
     required: false,
-    description: 'Your Construct username',
+    description: 'Your Construct username'
   }),
   password: createPasswordParam('', {
     description:
       'Your Construct password. Will only be used locally to automate the export on Construct website via a local browser. Will not be sent to any server.',
     required: false,
-    label: 'Password',
+    label: 'Password'
   }),
   version: createStringParam('', {
     description: 'The Construct version you want to use',
     label: 'Version',
-    required: false,
+    required: false
   }),
   headless: {
     description: 'Whether to show the browser while export',
@@ -71,7 +71,8 @@ export const sharedParams = {
   // },
   customProfile: createPathParam(undefined, {
     required: false,
-    description: 'Use your own profile (X:\\Users\\XXX\\AppData\\Local\\Google\\Chrome\\User Data)',
+    description:
+      'Use your own profile (X:\\Users\\XXX\\AppData\\Local\\Google\\Chrome\\User Data). Usefull if you want to reuse plugins installed in your current browser',
     control: {
       type: 'path',
       options: {
