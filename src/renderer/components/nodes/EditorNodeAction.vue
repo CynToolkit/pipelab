@@ -19,6 +19,20 @@
               {{ title }}
             </div>
             <div v-if="value.name" class="original-title">{{ nodeDefinition.name }}</div>
+            <Button
+              v-if="nodeDefinition.deprecated"
+              v-tooltip="
+                nodeDefinition.deprecatedMessage ??
+                'This module is deprecated. You should not use it anymore.'
+              "
+              size="small"
+              :pt="{
+                root: { style: { padding: '0 4px' } }
+              }"
+              class="deprecated-string"
+            >
+              {{ 'Deprecated' }}
+            </Button>
           </div>
           <div v-if="subtitle" class="subtitle" v-html="subtitle"></div>
           <Skeleton v-else width="300px" height="28px"></Skeleton>
@@ -109,6 +123,7 @@ import { ValidationError } from '@renderer/models/error'
 import AddNodeButton from '../AddNodeButton.vue'
 import { ValueOf } from 'type-fest'
 import { MenuItem } from 'primevue/menuitem'
+import { padding } from 'polished'
 
 const props = defineProps({
   value: {
@@ -435,9 +450,14 @@ const hasErrored = computed(() => {
       align-items: baseline;
       gap: 16px;
 
+      .deprecated-string {
+        font-size: 0.8rem;
+        opacity: 0.6;
+      }
+
       .original-title {
         font-size: 0.8rem;
-        color: #999
+        color: #999;
       }
     }
 

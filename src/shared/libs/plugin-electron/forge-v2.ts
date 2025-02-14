@@ -2,8 +2,6 @@ import { getBinName, outFolderName } from 'src/constants'
 import {
   ActionRunnerData,
   createAction,
-  createArray,
-  createNumberParam,
   createPathParam,
   createStringParam,
   fileExists,
@@ -12,14 +10,13 @@ import {
   runWithLiveLogs
 } from '../plugin-core'
 import type { MakeOptions } from '@electron-forge/core'
-
+import { merge } from 'ts-deepmerge'
 import { app } from 'electron'
 
 // TODO: https://js.electronforge.io/modules/_electron_forge_core.html
 
 export const IDMake = 'electron:make'
 export const IDPackage = 'electron:package'
-export const IDPackageV2 = 'electron:package:v2'
 export const IDPreview = 'electron:preview'
 
 const paramsInputFolder = {
@@ -36,7 +33,7 @@ const paramsInputFolder = {
 
 const paramsInputURL = {
   'input-url': createStringParam('', {
-    label: 'URL to preview'
+    label: 'URL to preview',
   })
 } satisfies InputsDefinition
 
@@ -112,235 +109,6 @@ const params = {
   }
 } satisfies InputsDefinition
 
-export const configureParams = {
-  name: createStringParam('Pipelab', {
-    label: 'Application name',
-    description: 'The name of the application',
-    required: true
-  }),
-  appBundleId: createStringParam('com.pipelab.app', {
-    label: 'Application bundle ID',
-    description: 'The bundle ID of the application',
-    required: true
-  }),
-  appCopyright: createStringParam('Copyright © 2024 Pipelab', {
-    label: 'Application copyright',
-    description: 'The copyright of the application',
-    required: false
-  }),
-  appVersion: createStringParam('1.0.0', {
-    label: 'Application version',
-    description: 'The version of the application',
-    required: true
-  }),
-  icon: createPathParam('', {
-    label: 'Application icon',
-    description: 'The icon of the application',
-    required: false,
-    control: {
-      type: 'path',
-      options: {
-        filters: [
-          { name: 'Image', extensions: ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'ico', 'icns'] }
-        ]
-      },
-      label: 'Path to an image file'
-    }
-  }),
-  author: createStringParam('Pipelab', {
-    label: 'Application author',
-    description: 'The author of the application',
-    required: true
-  }),
-  description: createStringParam('A simple Electron application', {
-    label: 'Application description',
-    description: 'The description of the application',
-    required: false
-  }),
-
-  appCategoryType: createStringParam('public.app-category.developer-tools', {
-    platforms: ['darwin'],
-    label: 'Application category type',
-    description: 'The category type of the application',
-    required: false
-  }),
-
-  // window
-  width: createNumberParam(800, {
-    label: 'Window width',
-    description: 'The width of the window',
-    required: false
-  }),
-  height: createNumberParam(600, {
-    label: 'Window height',
-    description: 'The height of the window',
-    required: false
-  }),
-  fullscreen: {
-    label: 'Fullscreen',
-    value: false,
-    description: 'Whether to start the application in fullscreen mode',
-    required: false,
-    control: {
-      type: 'boolean'
-    }
-  },
-  frame: {
-    label: 'Frame',
-    value: true,
-    description: 'Whether to show the window frame',
-    required: false,
-    control: {
-      type: 'boolean'
-    }
-  },
-  transparent: {
-    label: 'Transparent',
-    value: false,
-    description: 'Whether to make the window transparent',
-    required: false,
-    control: {
-      type: 'boolean'
-    }
-  },
-  toolbar: {
-    label: 'Toolbar',
-    value: true,
-    description: 'Whether to show the toolbar',
-    required: false,
-    control: {
-      type: 'boolean'
-    }
-  },
-  alwaysOnTop: {
-    label: 'Always on top',
-    value: false,
-    description: 'Whether to always keep the window on top',
-    required: false,
-    control: {
-      type: 'boolean'
-    }
-  },
-
-  electronVersion: createStringParam('', {
-    label: 'Electron version',
-    description: 'The version of Electron to use',
-    required: false
-  }),
-  customMainCode: createPathParam('', {
-    required: false,
-    label: 'Custom main code',
-    control: {
-      type: 'path',
-      options: {
-        filters: [{ name: 'JavaScript', extensions: ['js'] }]
-      },
-      label: 'Path to a file containing custom main code'
-    }
-  }),
-  disableAsarPackaging: {
-    required: true,
-    label: 'Disable ASAR packaging',
-    value: true,
-    control: {
-      type: 'boolean'
-    },
-    description: 'Whether to disable packaging project files in a single binary or not'
-  },
-  enableExtraLogging: {
-    required: true,
-    label: 'Enable extra logging',
-    value: false,
-    control: {
-      type: 'boolean'
-    },
-    description: 'Whether to enable extra logging of internal tools while bundling'
-  },
-  clearServiceWorkerOnBoot: {
-    required: false,
-    label: 'Clear service worker on boot',
-    value: false,
-    control: {
-      type: 'boolean'
-    },
-    description: 'Whether to clear service worker on boot'
-  },
-
-  // Flags
-
-  enableInProcessGPU: {
-    required: false,
-    label: 'Enable in-process GPU',
-    value: false,
-    control: {
-      type: 'boolean'
-    }
-  },
-  enableDisableRendererBackgrounding: {
-    required: false,
-    label: 'Disable renderer backgrounding',
-    value: false,
-    control: {
-      type: 'boolean'
-    }
-  },
-  forceHighPerformanceGpu: {
-    required: false,
-    label: 'Force high performance GPU',
-    value: false,
-    control: {
-      type: 'boolean'
-    }
-  },
-
-  // websocket apis
-  websocketApi: {
-    required: false,
-    label: 'WebSocket APIs to allow (empty = all)',
-    value: '[]',
-    control: {
-      type: 'array',
-      options: {
-        kind: 'text'
-      }
-    }
-  },
-  ignore: createArray<(string | RegExp)[]>(
-    `[
-  // use 'src/app/' as starting point
-]`,
-    {
-      required: false,
-      label: 'Folders to ignore',
-      description:
-        'An array of string or Regex that allow ignoring certain files or folders from being packaged',
-      control: {
-        type: 'array',
-        options: {
-          kind: 'text'
-        }
-      }
-    }
-  ),
-
-  // integrations
-
-  enableSteamSupport: {
-    required: false,
-    label: 'Enable steam support',
-    description: 'Whether to enable Steam support',
-    value: false,
-    control: {
-      type: 'boolean'
-    }
-  },
-  steamGameId: createNumberParam(480, {
-    required: false,
-    label: 'Steam game ID',
-    description: 'The Steam game ID'
-  })
-} satisfies InputsDefinition
-
 const outputs = {
   output: {
     label: 'Output',
@@ -397,30 +165,6 @@ export const createPackageProps = (
     },
     outputs: outputs
   })
-export const createPackageV2Props = (
-  id: string,
-  name: string,
-  description: string,
-  icon: string,
-  displayString: string
-) => {
-  const { arch, platform } = params
-  return createAction({
-    id,
-    name,
-    description,
-    icon,
-    displayString,
-    meta: {},
-    params: {
-      arch,
-      platform,
-      ...paramsInputFolder,
-      ...configureParams
-    },
-    outputs: outputs
-  })
-}
 
 export const createPreviewProps = (
   id: string,
@@ -443,7 +187,7 @@ export const createPreviewProps = (
     outputs: outputs
   })
 
-export const forge = async (
+export const forgeV2 = async (
   action: 'make' | 'package',
   appFolder: string | undefined,
   {
@@ -457,8 +201,7 @@ export const forge = async (
     | ReturnType<typeof createMakeProps>
     | ReturnType<typeof createPackageProps>
     | ReturnType<typeof createPreviewProps>
-  >,
-  completeConfiguration: ElectronAppConfig.Config
+  >
 ): Promise<{ folder: string; binary: string | undefined } | undefined> => {
   const { join, basename, delimiter } = await import('node:path')
   const { cp, readFile, writeFile } = await import('node:fs/promises')
@@ -495,6 +238,10 @@ export const forge = async (
   }
 
   const { assets, unpack } = paths
+
+  if (!inputs.configuration) {
+    throw new Error('Missing electron configuration')
+  }
 
   // const { fileURLToPath } = await import('url')
   // const __dirname = fileURLToPath(dirname(import.meta.url))
@@ -536,6 +283,40 @@ export const forge = async (
       recursive: true
     })
   }
+
+  const completeConfiguration = merge(
+    {
+      alwaysOnTop: false,
+      appBundleId: 'com.pipelab.app',
+      appCategoryType: '',
+      appCopyright: 'Copyright © 2024 Pipelab',
+      appVersion: '1.0.0',
+      author: 'Pipelab',
+      customMainCode: '',
+      description: 'A simple Electron application',
+      electronVersion: '',
+      disableAsarPackaging: true,
+      forceHighPerformanceGpu: false,
+      enableExtraLogging: false,
+      clearServiceWorkerOnBoot: false,
+      enableDisableRendererBackgrounding: false,
+      enableInProcessGPU: false,
+      frame: true,
+      fullscreen: false,
+      icon: '',
+      height: 600,
+      name: 'Pipelab',
+      toolbar: true,
+      transparent: false,
+      width: 800,
+      enableSteamSupport: false,
+      steamGameId: 480,
+      ignore: []
+    } satisfies ElectronAppConfig.Config,
+    inputs.configuration
+  ) as ElectronAppConfig.Config
+
+  console.log('completeConfiguration', completeConfiguration)
 
   writeFile(
     join(destinationFolder, 'config.cjs'),

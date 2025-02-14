@@ -257,6 +257,7 @@ export interface PluginDefinition {
 export type RendererNodeDefinition = {
   node: PipelabNode
   disabled: boolean | string
+  advanced: boolean | string
 }
 
 export interface RendererPluginDefinition extends PluginDefinition {
@@ -268,6 +269,7 @@ export interface MainPluginDefinition extends PluginDefinition {
     node: PipelabNode
     runner: Runner
     disabled?: boolean | string
+    advanced?: boolean
   }[]
   validators?: Array<{
     id: string
@@ -325,6 +327,7 @@ export type ParamsToInput<PARAMS extends InputsDefinition> = {
 export interface Action {
   id: string
   type: 'action'
+  version?: number
   displayString: string
   icon: string
   name: string
@@ -333,6 +336,8 @@ export interface Action {
   meta: Meta
   outputs: OutputsDefinition
   platforms?: NodeJS.Platform[]
+  deprecated?: boolean
+  deprecatedMessage?: string
 }
 
 export type ExtractInputsFromAction<ACTION extends Action> = {
@@ -377,6 +382,7 @@ export const createActionRunner = <ACTION extends Action>(runner: ActionRunner<A
 export interface Condition {
   id: string
   type: 'condition'
+  version?: number
   displayString: string
   icon: string
   name: string
@@ -401,6 +407,7 @@ export const createConditionRunner = <CONDITION extends Condition>(
 export interface Loop {
   id: string
   type: 'loop'
+  version?: number
   displayString: string
   icon: string
   name: string
@@ -423,6 +430,7 @@ export interface Expression {
   id: string
   type: 'expression'
   displayString: string
+  version?: number
   icon: string
   name: string
   description: string
@@ -445,6 +453,7 @@ export const createExpressionRunner = <EXPRESSION extends Expression>(
 export interface Event {
   id: string
   type: 'event'
+  version?: number
   displayString: string
   icon: string
   name: string
@@ -515,6 +524,15 @@ export const createPathParam = (
     ...definition,
     value: value ? `"${value}"` : value
   } satisfies InputDefinition<ControlTypePath>
+}
+export const createArray = <T extends unknown[]>(
+  value: string | Array<unknown>,
+  definition: Omit<InputDefinition<ControlTypeArray>, 'value'>
+) => {
+  return {
+    ...definition,
+    value: (Array.isArray(value) ? `"${value}"` : value) as unknown as T
+  } satisfies InputDefinition<ControlTypeArray>
 }
 
 export const createNumberParam = (

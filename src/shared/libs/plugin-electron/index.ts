@@ -7,12 +7,15 @@ import icon from './public/electron.webp'
 import {
   createMakeProps,
   createPackageProps,
+  createPackageV2Props,
   createPreviewProps,
   IDMake,
   IDPackage,
+  IDPackageV2,
   IDPreview
 } from './forge.js'
 import { configureRunner, props } from './configure.js'
+import { packageV2Runner } from './package-v2.js'
 
 export default createNodeDefinition({
   description: 'Electron',
@@ -44,7 +47,19 @@ export default createNodeDefinition({
         '',
         "`Package app from ${fmt.param(params['input-folder'], 'primary', 'Input folder not set')}`",
       ),
-      runner: packageRunner
+      runner: packageRunner,
+      advanced: true
+    },
+    // package v2
+    {
+      node: createPackageV2Props(
+        IDPackageV2,
+        'Package app with configuration',
+        'Gather all necessary files and prepare your app for distribution, creating a platform-specific bundle.',
+        '',
+        "`Package app from ${fmt.param(params['input-folder'], 'primary', 'Input folder not set')}`",
+      ),
+      runner: packageV2Runner
     },
     {
       node: createPreviewProps(

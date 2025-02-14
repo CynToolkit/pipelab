@@ -16,10 +16,11 @@ export const getFinalPlugins = () => {
 
     // send without runner
     for (const element of plugin.nodes) {
-      const { node, disabled } = element
+      const { node, disabled, advanced } = element
       finalNodes.push({
         node,
-        disabled,
+        disabled: disabled ?? false,
+        advanced: advanced ?? false
       })
     }
 

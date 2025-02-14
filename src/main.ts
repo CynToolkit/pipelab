@@ -16,21 +16,20 @@ import { useLogger } from '@@/logger'
 import * as Sentry from '@sentry/electron/main'
 import { assetsPath } from '@main/paths'
 import { usePluginAPI } from '@main/api'
-import { PostHog } from 'posthog-node'
+// import { PostHog } from 'posthog-node'
 
-const postHogApiKey = __POSTHOG_API_KEY__
+// const postHogApiKey = __POSTHOG_API_KEY__
 
-console.log('postHogApiKey', postHogApiKey)
-
-if (!postHogApiKey) {
-  throw new Error('POSTHOG_API_KEY is required')
-}
-
-const client = new PostHog(postHogApiKey, {
-  api_host: 'https://eu.i.posthog.com',
-  // api_host: 'https://eu.i.posthog.com',
-  person_profiles: 'always'
-})
+// let client: PostHog | undefined
+// if (postHogApiKey && app.isPackaged && process.env.TEST !== 'true') {
+//   client = new PostHog(postHogApiKey, {
+//     // @ts-expect-error ???
+//     api_host: 'https://eu.i.posthog.com',
+//     person_profiles: 'always'
+//   })
+// } else {
+//   console.error('POSTHOG_API_KEY is required')
+// }
 
 const isLinux = platform() === 'linux'
 // let tray
@@ -64,7 +63,7 @@ if (
   app.quit()
 }
 
-let api
+let api: any
 let mainWindow: BrowserWindow | undefined
 
 function createWindow(): void {
