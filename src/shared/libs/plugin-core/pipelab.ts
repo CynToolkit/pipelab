@@ -211,7 +211,7 @@ export type InputDefinition<T extends ControlType = ControlType> = {
   label: string
   description?: string
   validator?: () => any
-  required?: boolean
+  required: boolean
   // validator?: z.ZodTypeAny
   control: T
   value: unknown

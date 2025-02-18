@@ -139,19 +139,19 @@ export const c3toSteamPreset: PresetFn = async () => {
             },
             frame: {
               editor: 'simple',
-              value: true
+              value: 'true'
             },
             transparent: {
               editor: 'simple',
-              value: false
+              value: 'false'
             },
             toolbar: {
               editor: 'simple',
-              value: true
+              value: 'true'
             },
             alwaysOnTop: {
               editor: 'simple',
-              value: false
+              value: 'false'
             },
             electronVersion: {
               editor: 'simple',
@@ -163,27 +163,27 @@ export const c3toSteamPreset: PresetFn = async () => {
             },
             disableAsarPackaging: {
               editor: 'simple',
-              value: true
+              value: 'true'
             },
             enableExtraLogging: {
               editor: 'simple',
-              value: false
+              value: 'false'
             },
             clearServiceWorkerOnBoot: {
               editor: 'simple',
-              value: false
+              value: 'false'
             },
             enableInProcessGPU: {
               editor: 'simple',
-              value: false
+              value: 'false'
             },
             enableDisableRendererBackgrounding: {
               editor: 'simple',
-              value: false
+              value: 'false'
             },
             forceHighPerformanceGpu: {
               editor: 'simple',
-              value: false
+              value: 'false'
             },
             websocketApi: {
               editor: 'simple',

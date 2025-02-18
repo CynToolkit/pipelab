@@ -15,13 +15,32 @@ export const getValue = <T>(array: MaybeArray<T>): T => {
 export const zip = createAction({
   id: ID,
   name: 'Zip',
-  displayString: `Zip folder "{{ params.folder }}"`,
+  displayString:
+    '`Zip ${fmt.param(params.folder, "primary", "No folder specified")} to ${fmt.param(params.output, "secondary", "No output specified")}`',
   params: {
     folder: createPathParam('', {
+      required: true,
       control: {
         type: 'path',
         options: {
           properties: ['openDirectory']
+        }
+      },
+      label: 'Folder'
+    }),
+    output: createPathParam('', {
+      required: true,
+      control: {
+        type: 'path',
+        options: {
+          properties: ['openFile', 'promptToCreate'],
+          // must be zip file
+          filters: [
+            {
+              extensions: ['zip'],
+              name: 'Zip file'
+            }
+          ]
         }
       },
       label: 'Folder'
@@ -39,30 +58,76 @@ export const zip = createAction({
   meta: {}
 })
 
-export const zipRunner = createActionRunner<typeof zip>(async ({ log, inputs, setOutput }) => {
-  const fs = await import('node:fs/promises')
-  const readdir = fs.readdir
+export const zipRunner = createActionRunner<typeof zip>(
+  async ({ log, inputs, setOutput, abortSignal }) => {
+    const { createWriteStream } = await import('node:fs')
+    const { default: archiver } = await import('archiver')
 
-  log('TODO')
+    abortSignal.addEventListener('abort', () => {
+      throw new Error('Aborted')
+    })
 
-  // log("inputs", inputs);
+    const output = createWriteStream(inputs.output)
 
-  // const folder = getValue(inputs.folder);
+    const archive = archiver('zip', {
+      zlib: { level: 9 } // Sets the compression level.
+    })
 
-  // log("folder", folder);
+    return new Promise((resolve, reject) => {
+      output.on('close', function () {
+        console.log(archive.pointer() + ' total bytes')
+        console.log('archiver has been finalized and the output file descriptor has closed.')
 
-  // const response = await readdir(folder, {
-  //   withFileTypes: true,
-  //   recursive,
-  // });
+        setOutput('path', inputs.output)
+        resolve()
+      })
 
-  // log("response", response);
+      output.on('end', function () {
+        console.log('Data has been drained')
+      })
 
-  // const files = response;
+      archive.on('warning', function (err) {
+        if (err.code === 'ENOENT') {
+          console.log('Archiver warning: ENOENT')
+        } else {
+          reject(err)
+        }
+      })
 
-  // log("-- setValue('paths')");
-  // setOutput(
-  //   "paths",
-  //   files.map((x) => path.join(x.path, x.name))
-  // );
-})
+      archive.on('error', function (err) {
+        reject(err)
+      })
+
+      // archive.on('data', function (data) {
+      //   log('data', data)
+      // })
+      // archive.on('progress', function (data) {
+      //   /* {
+      //     entries:
+      //      {
+      //        total: 5012,
+      //        processed: 5012
+      //      },
+      //     fs:
+      //      {
+      //        totalBytes: 318794388,
+      //        processedBytes: 318794388
+      //      }
+      //   } */
+      //   // log('progress', data.entries.processed + '/' + data.entries.total)
+      // })
+      archive.on('entry', function (data) {
+        log('Adding', data.name)
+      })
+      archive.on('finish', function () {
+        log('finish')
+      })
+
+      archive.pipe(output)
+
+      archive.directory(inputs.folder, false)
+
+      archive.finalize()
+    })
+  }
+)

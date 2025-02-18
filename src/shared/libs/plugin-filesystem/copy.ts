@@ -10,6 +10,7 @@ export const copy = createAction({
   params: {
     from: createPathParam('', {
       label: 'From',
+      required: true,
       control: {
         type: 'path',
         options: {
@@ -19,6 +20,7 @@ export const copy = createAction({
     }),
     to: createPathParam('', {
       label: 'To',
+      required: true,
       control: {
         type: 'path',
         options: {
@@ -28,6 +30,7 @@ export const copy = createAction({
     }),
     recursive: {
       label: 'Recursive',
+      required: true,
       value: true,
       control: {
         type: 'boolean'
@@ -35,6 +38,7 @@ export const copy = createAction({
     },
     overwrite: {
       label: 'Overwrite',
+      required: true,
       value: true,
       control: {
         type: 'boolean'
@@ -42,6 +46,7 @@ export const copy = createAction({
     },
     cleanup: {
       label: 'Cleanup',
+      required: true,
       description: 'Whether to delete the original file/folder',
       value: true,
       control: {

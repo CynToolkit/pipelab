@@ -17,6 +17,7 @@ export const exportProjectAction = createAction({
   meta: {},
   params: {
     folder: createPathParam('', {
+      required: true,
       label: 'Folder',
       control: {
         type: 'path',

@@ -16,6 +16,7 @@ export const NVPatch = createAction({
   meta: {},
   params: {
     input: createPathParam('', {
+      required: true,
       label: 'File to patch',
       control: {
         type: 'path',

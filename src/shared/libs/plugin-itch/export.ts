@@ -36,6 +36,7 @@ export const uploadToItch = createAction({
   meta: {},
   params: {
     'input-folder': createPathParam('', {
+      required: true,
       label: 'Folder to Upload',
       control: {
         type: 'path',
@@ -45,15 +46,19 @@ export const uploadToItch = createAction({
       }
     }),
     user: createStringParam('', {
+      required: true,
       label: 'User',
     }),
     project: createStringParam('', {
+      required: true,
       label: 'Project',
     }),
     channel: createStringParam('', {
+      required: true,
       label: 'Channel',
     }),
     'api-key': createStringParam('', {
+      required: true,
       label: 'API key',
     })
   },

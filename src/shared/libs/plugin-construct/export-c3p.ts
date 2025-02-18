@@ -18,6 +18,7 @@ export const exportAction = createAction({
   params: {
     file: createPathParam('', {
       label: 'File (.c3p)',
+      required: true,
       control: {
         type: 'path',
         label: 'Pick a file (.c3p)',

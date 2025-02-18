@@ -5,7 +5,7 @@
       class="node-action"
       :class="{
         active: activeNode?.uid === value.uid,
-        error: Object.keys(errors).length > 0,
+        error: hasErrors,
         disabled: value.disabled || isRunning
       }"
       @click="onNodeClick"
@@ -156,7 +156,7 @@ const props = defineProps({
 })
 
 const menu = ref()
-const { value, steps, index, isRunning } = toRefs(props)
+const { value, steps, index, isRunning, errors } = toRefs(props)
 
 const items = computed<MenuItem[]>(() => [
   {
@@ -264,6 +264,14 @@ const pluginDefinition = computed(() => {
 })
 
 type Param = ValueOf<BlockAction['params']>
+
+const hasErrors = computed(() => {
+  const innerErrors = errors.value[value.value.uid]
+  if (innerErrors) {
+    return Object.keys(innerErrors).length > 0
+  }
+  return false
+})
 
 const handleInput = (newValue: InputEvent) => {
   const content = (newValue.target as HTMLDivElement)?.textContent

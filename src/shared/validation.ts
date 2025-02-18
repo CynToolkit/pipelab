@@ -1,7 +1,7 @@
 import { InputDefinition } from "@pipelab/plugin-core"
 
 export const isRequired = (param: InputDefinition) => {
-  return param.required === true || !('required' in param)
+  return param.required === true
 }
 
 export const isRenderer = () => {

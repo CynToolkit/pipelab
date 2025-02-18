@@ -21,6 +21,7 @@ export const IDPreview = 'electron:preview'
 
 const paramsInputFolder = {
   'input-folder': createPathParam('', {
+    required: true,
     label: 'Folder to package',
     control: {
       type: 'path',
@@ -34,6 +35,7 @@ const paramsInputFolder = {
 const paramsInputURL = {
   'input-url': createStringParam('', {
     label: 'URL to preview',
+    required: true,
   })
 } satisfies InputsDefinition
 
@@ -103,6 +105,7 @@ const params = {
   configuration: {
     label: 'Electron configuration',
     value: undefined as Partial<ElectronAppConfig.Config> | undefined,
+    required: true,
     control: {
       type: 'json'
     }

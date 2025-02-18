@@ -9,6 +9,7 @@ export const openInExplorer = createAction({
   displayString: "`Open ${fmt.param(params.path, 'primary', 'No path set')} in explorer`",
   params: {
     path: createPathParam('', {
+      required: true,
       label: 'Path',
       control: {
         type: 'path',

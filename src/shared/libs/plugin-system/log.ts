@@ -15,6 +15,7 @@ export const logAction = createAction({
   meta: {},
   params: {
     message: createStringParam('', {
+      required: true,
       label: 'Message'
     })
   },

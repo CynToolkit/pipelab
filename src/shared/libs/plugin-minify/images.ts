@@ -11,6 +11,7 @@ export const minifyImages = createAction({
   meta: {},
   params: {
     'input-folder': createPathParam('', {
+      required: true,
       label: 'Folder to Upload',
       control: {
         type: 'path',

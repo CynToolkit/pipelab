@@ -73,7 +73,8 @@ export default createNodeDefinition({
     },
     {
       node: props,
-      runner: configureRunner
+      runner: configureRunner,
+      advanced: true
     }
     // {
     //   node: propsConfigureV2,

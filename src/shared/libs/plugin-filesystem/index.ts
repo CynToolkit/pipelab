@@ -1,4 +1,4 @@
-import { createNodeDefinition } from "@pipelab/plugin-core";
+import { createNodeDefinition } from '@pipelab/plugin-core'
 import { ListFilesAction, ListFilesActionRun } from './list-files.js'
 import { isFileCondition, isFileRunner } from './is-file.js'
 import { zipRunner, zip } from './zip.js'
@@ -8,41 +8,41 @@ import { run, runRunner } from './run.js'
 import { openInExplorer, openInExplorerRunner } from './open.js'
 
 export default createNodeDefinition({
-    description: 'Filesystem',
-    id: 'filesystem',
-    name: 'Filesystem',
-    icon: {
-        type: 'icon',
-        icon: 'mdi-folder-zip-outline',
+  description: 'Filesystem',
+  id: 'filesystem',
+  name: 'Filesystem',
+  icon: {
+    type: 'icon',
+    icon: 'mdi-folder-zip-outline'
+  },
+  nodes: [
+    // {
+    //     node: ListFilesAction,
+    //     runner: ListFilesActionRun
+    // },
+    // {
+    //     node: isFileCondition,
+    //     runner: isFileRunner
+    // },
+    {
+      node: zip,
+      runner: zipRunner
     },
-    nodes: [
-        {
-            node: ListFilesAction,
-            runner: ListFilesActionRun
-        },
-        // {
-        //     node: isFileCondition,
-        //     runner: isFileRunner
-        // },
-        {
-            node: zip,
-            runner: zipRunner
-        },
-        {
-            node: unzip,
-            runner: unzipRunner
-        },
-        {
-            node: copy,
-            runner: copyRunner
-        },
-        {
-            node: run,
-            runner: runRunner
-        },
-        {
-            node: openInExplorer,
-            runner: openInExplorerRunner
-        }
-    ]
+    {
+      node: unzip,
+      runner: unzipRunner
+    },
+    {
+      node: copy,
+      runner: copyRunner
+    },
+    {
+      node: run,
+      runner: runRunner
+    },
+    {
+      node: openInExplorer,
+      runner: openInExplorerRunner
+    }
+  ]
 })

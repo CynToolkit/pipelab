@@ -8,6 +8,7 @@ export const unzip = createAction({
   displayString: '`Unzip ${fmt.param(params.file, "primary", "No file specified")}`',
   params: {
     file: createPathParam('', {
+      required: true,
       control: {
         type: 'path',
         options: {

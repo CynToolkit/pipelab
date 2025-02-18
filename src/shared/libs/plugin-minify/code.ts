@@ -11,6 +11,7 @@ export const minifyCode = createAction({
   meta: {},
   params: {
     'input-folder': createPathParam('', {
+      required: true,
       label: 'Folder to compress',
       control: {
         type: 'path',

@@ -25,6 +25,7 @@ export const uploadToSteam = createAction({
   meta: {},
   params: {
     sdk: createPathParam('', {
+      required: true,
       label: 'Steam Sdk path',
       control: {
         type: 'path',
@@ -34,18 +35,23 @@ export const uploadToSteam = createAction({
       }
     }),
     username: createStringParam('', {
+      required: true,
       label: 'Steam username'
     }),
     appId: createStringParam('', {
+      required: true,
       label: 'App Id'
     }),
     depotId: createStringParam('', {
+      required: true,
       label: 'Depot Id'
     }),
     description: createStringParam('', {
+      required: true,
       label: 'Description'
     }),
     folder: createPathParam('', {
+      required: true,
       label: 'Folder to upload',
       control: {
         type: 'path',
@@ -53,23 +59,23 @@ export const uploadToSteam = createAction({
           properties: ['openDirectory']
         }
       }
-    }),
-    enableDRM: {
-      value: false,
-      label: 'Enable DRM',
-      control: {
-        type: 'boolean'
-      }
-    },
-    binaryToPatch: createPathParam('', {
-      label: 'Binary to patch',
-      control: {
-        type: 'path',
-        options: {
-          properties: ['openFile']
-        }
-      }
     })
+    // enableDRM: {
+    //   value: false,
+    //   label: 'Enable DRM',
+    //   control: {
+    //     type: 'boolean'
+    //   }
+    // },
+    // binaryToPatch: createPathParam('', {
+    //   label: 'Binary to patch',
+    //   control: {
+    //     type: 'path',
+    //     options: {
+    //       properties: ['openFile']
+    //     }
+    //   }
+    // })
   },
   outputs: {}
 })
@@ -80,7 +86,7 @@ export const uploadToSteamRunner = createActionRunner<typeof uploadToSteam>(
     const { platform } = await import('os')
     const { chmod, mkdir, writeFile, cp } = await import('fs/promises')
 
-    const { folder, appId, sdk, depotId, username, description, enableDRM, binaryToPatch } = inputs
+    const { folder, appId, sdk, depotId, username, description } = inputs
     log(`uploading "${folder}" to steam`)
 
     const isSDKExisting = await fileExists(sdk)
@@ -219,60 +225,21 @@ export const uploadToSteamRunner = createActionRunner<typeof uploadToSteam>(
 
     // Should be authed here
     try {
-      if (enableDRM) {
-        const filename = basename(binaryToPatch)
-        log('filename', filename)
-        const directoryName = dirname(binaryToPatch)
-        log('directoryName', directoryName)
-        const originalBinary = join(directoryName, 'original_' + filename)
-        log('originalBinary', originalBinary)
-
-        await cp(binaryToPatch, originalBinary)
-
-        await runWithLiveLogsPTY(
-          steamcmdPath,
-          [
-            '+login',
-            username,
-            '+drm_wrap',
-            appId,
-            originalBinary,
-            binaryToPatch,
-            'drmtoolp',
-            '38',
-            '+run_app_build',
-            scriptPath,
-            '+quit'
-          ],
-          {},
-          log,
-          {
-            onStdout: (data) => {
-              log('[steamcmd]', data)
-            },
-            onStderr: (data) => {
-              log('[steamcmd]', data)
-            }
+      await runWithLiveLogsPTY(
+        steamcmdPath,
+        ['+login', username, '+run_app_build', scriptPath, '+quit'],
+        {},
+        log,
+        {
+          onStdout: (data) => {
+            log('[steamcmd]', data)
           },
-          abortSignal
-        )
-      } else {
-        await runWithLiveLogsPTY(
-          steamcmdPath,
-          ['+login', username, '+run_app_build', scriptPath, '+quit'],
-          {},
-          log,
-          {
-            onStdout: (data) => {
-              log('[steamcmd]', data)
-            },
-            onStderr: (data) => {
-              log('[steamcmd]', data)
-            }
-          },
-          abortSignal
-        )
-      }
+          onStderr: (data) => {
+            log('[steamcmd]', data)
+          }
+        },
+        abortSignal
+      )
     } catch (e) {
       if (e instanceof Error) {
         console.error(e)

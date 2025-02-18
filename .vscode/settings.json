@@ -39,5 +39,8 @@
     },
     "[vue]": {
         "editor.defaultFormatter": "Vue.volar"
+    },
+    "debug.javascript.defaultRuntimeExecutable": {
+        "pwa-node": "c:\\users\\quent\\appdata\\local\\mise\\shims\\node"
     }
 }

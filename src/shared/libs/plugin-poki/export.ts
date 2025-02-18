@@ -12,6 +12,7 @@ export const uploadToPoki = createAction({
   meta: {},
   params: {
     'input-folder': createPathParam('', {
+      required: true,
       label: 'Folder to Upload',
       control: {
         type: 'path',
@@ -21,14 +22,17 @@ export const uploadToPoki = createAction({
       }
     }),
     project: createStringParam('', {
+      required: true,
       label: 'Project',
       description: 'This is you Poki game id',
     }),
     name: createStringParam('', {
+      required: true,
       label: 'Version name',
       description: 'This is the name of the version',
     }),
     notes: createStringParam('', {
+      required: true,
       label: 'Version notes',
       description: 'These are notes you want to specify with  your version',
     })

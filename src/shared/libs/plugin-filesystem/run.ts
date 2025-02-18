@@ -10,10 +10,12 @@ export const run = createAction({
   // displayString: displayString,
   params: {
     command: createStringParam('', {
+      required: true,
       description: 'The command to run',
       label: 'Command',
     }),
     parameters: {
+      required: true,
       description: "The command's parameters",
       label: 'Arguments',
       value: [],

@@ -15,6 +15,7 @@ export const alertAction = createAction({
   meta: {},
   params: {
     message: createStringParam('', {
+      required: true,
       label: 'Message',
     })
   },

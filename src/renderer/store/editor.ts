@@ -251,7 +251,10 @@ export const useEditor = defineStore('editor', () => {
       }
       const requiredParams = Object.entries(definition.node?.params ?? {})
       for (const [key, param] of requiredParams) {
-        if (isRequired(param) && !(key in block.params)) {
+        if (
+          (isRequired(param) && !(key in block.params)) ||
+          (isRequired(param) && !block.params[key].value)
+        ) {
           logger().warn(`Missing required param "${key}" in node "${block.uid}"`)
           errors.push({
             type: 'missing',
