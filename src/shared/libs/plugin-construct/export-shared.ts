@@ -22,9 +22,9 @@ const isCI = process.env.CI === 'true' || import.meta.env.CI === 'true'
 
 let baseProfile
 if (platform === 'win32') {
-  baseProfile = join(LOCALAPPDATA, 'Google', 'Chrome', 'User Data')
+  baseProfile = join(LOCALAPPDATA ?? '', 'Google', 'Chrome', 'User Data')
 } else if (platform === 'linux' || platform === 'darwin') {
-  baseProfile = join(XDG_CONFIG_HOME, 'google-chrome')
+  baseProfile = join(XDG_CONFIG_HOME ?? '', 'google-chrome')
 }
 
 export const sharedParams = {

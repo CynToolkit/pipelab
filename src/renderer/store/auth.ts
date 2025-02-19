@@ -74,7 +74,15 @@ export const useAuth = defineStore('auth', () => {
   }
 
   const register = (email: string, password: string) => {
-    return supabase.auth.updateUser({ email, password })
+    const result = supabase.auth.updateUser({ email, password })
+
+    /* await supabase.functions.invoke('webhook-post-account-creation', {
+      body: {
+        email,
+        password,
+      },
+    }) */
+    return result
   }
 
   return {
@@ -82,6 +90,6 @@ export const useAuth = defineStore('auth', () => {
     authState,
     init,
     login,
-    register,
+    register
   }
 })
