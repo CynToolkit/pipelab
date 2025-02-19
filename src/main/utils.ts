@@ -1,5 +1,8 @@
 import { usePlugins } from '@@/plugins'
 import { RendererPluginDefinition } from '../shared/libs/plugin-core'
+import { access, mkdir, mkdtemp, realpath, writeFile } from 'node:fs/promises'
+import { dirname, join } from 'node:path'
+import { tmpdir } from 'node:os'
 
 export const getFinalPlugins = () => {
   const { plugins } = usePlugins()
@@ -31,4 +34,25 @@ export const getFinalPlugins = () => {
   }
 
   return finalPlugins
+}
+
+export const ensure = async (filesPath: string, defaultContent = '{}') => {
+  // create parent folder
+  await mkdir(dirname(filesPath), {
+    recursive: true
+  })
+
+  // ensure file exist
+  try {
+    await access(filesPath)
+  } catch {
+    // File doesn't exist, create it
+    await writeFile(filesPath, defaultContent) // json
+  }
+}
+
+export const generateTempFolder = async (base = tmpdir()) => {
+  const realPath = await realpath(base)
+  console.log('join', join(realPath, 'pipelab-'))
+  return mkdtemp(join(realPath, 'pipelab-'))
 }

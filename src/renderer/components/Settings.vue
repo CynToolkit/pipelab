@@ -1,7 +1,7 @@
 <template>
   <div class="card">
-    <Tabs value="0" class="tabs">
-      <TabList :pt="{ tabList: { class: 'tablist' } }">
+    <Tabs value="0">
+      <TabList>
         <Tab value="0">General</Tab>
         <Tab value="1">Storage</Tab>
         <Tab value="2">Integrations</Tab>
@@ -10,31 +10,39 @@
       <TabPanels>
         <!-- General Tab -->
         <TabPanel value="0">
-          <p class="m-0">No settings yet</p>
+          <div class="general-settings">
+            <div class="field">
+              <div class="field-switch">
+                <ToggleSwitch :disabled="!settingsRef" aria-label="asdsdsd" input-id="app-theme" :model-value="false" />
+                <label for="app-theme" class="label">Dark theme</label>
+              </div>
+            </div>
+          </div>
         </TabPanel>
 
         <!-- Storage Tab -->
         <TabPanel value="1">
           <div class="storage-settings">
-            <h3>Cache Folder</h3>
-            <p>Manage where the app stores temporary and cache files.</p>
             <div class="field">
-              <label for="cache-folder" class="label">Current Cache Folder:</label>
+              <label for="cache-folder" class="label">Pipeline Cache Folder:</label>
               <InputGroup>
                 <InputText
-                  id="cache-folder"
-                  v-model="cacheFolder"
+                :disabled="!settingsRef"
+                  :model-value="cacheFolder"
+                  @update:model-value="updateCacheFolder"
+                  input-id="cache-folder"
                   readonly
                   type="text"
                   class="input"
                   placeholder="Enter or browse for a folder"
                 />
-                <Button class="btn" @click="browseCacheFolder">Browse</Button>
+                <Button :disabled="!settingsRef" class="btn" @click="browseCacheFolder">Browse</Button>
               </InputGroup>
+              <p class="description">Manage where the app stores temporary and cache files.</p>
             </div>
             <div class="actions">
-              <Button class="btn danger" @click="clearCache">Clear Cache</Button>
-              <Button class="btn" @click="resetCacheFolder">Reset to Default</Button>
+              <Button :disabled="!settingsRef" class="btn danger" @click="clearCache">Clear Cache</Button>
+              <Button :disabled="!settingsRef" class="btn" @click="resetCacheFolder">Reset to Default</Button>
             </div>
           </div>
         </TabPanel>
@@ -59,47 +67,70 @@ import TabList from 'primevue/tablist'
 import Tab from 'primevue/tab'
 import TabPanels from 'primevue/tabpanels'
 import TabPanel from 'primevue/tabpanel'
-import { ref } from 'vue'
-import { useAppSettings } from '@main/configuration'
-import { onMounted } from 'vue'
+import { computed } from 'vue'
+import { useAppSettings } from '@renderer/store/settings'
+import { useAPI } from '@renderer/composables/api'
+import { storeToRefs } from 'pinia'
 
 const appSettings = useAppSettings()
+const api = useAPI()
 
-const settingsRef = ref({})
+const { settings: settingsRef } = storeToRefs(appSettings)
 
-const cacheFolder = ref('/tmp') // Default cache folder
-
-onMounted(async () => {
-  const settingsResult = await appSettings.load()
-  if (settingsResult.type === 'success') {
-    settingsRef.value = settingsResult.result.result
-    console.log('settings', settingsRef.value)
-  }
+const cacheFolder = computed(() => {
+  return settingsRef.value?.cacheFolder
 })
 
-const browseCacheFolder = () => {
-  console.log('Browse for a new cache folder')
-  // Add logic to open a file picker or directory chooser
+const updateCacheFolder = (value: string) => {
+  return appSettings.updateSettings({
+    ...settingsRef.value,
+    cacheFolder: value
+  })
+}
+
+const browseCacheFolder = async () => {
+  const newPath = await api.execute('dialog:showOpenDialog', {
+    title: 'Select Cache Folder',
+    defaultPath: cacheFolder.value,
+    properties: ['openDirectory']
+  })
+
+  console.log('newPath', newPath)
+
+  if (newPath.type === 'success') {
+    await updateCacheFolder(newPath.result.filePaths[0])
+  } else {
+    console.log('Error selecting cache folder', newPath)
+  }
 }
 const clearCache = () => {
   console.log('Cache cleared')
-  // Add logic to clear the cache
 }
 const resetCacheFolder = () => {
-  cacheFolder.value = '/tmp'
   console.log('Cache folder reset to default: /tmp')
 }
 </script>
 
 <style lang="scss" scoped>
 .field {
-  margin-bottom: 1rem;
-  display: flex;
-  align-items: center;
-
   .label {
     margin-right: 1rem;
     font-weight: bold;
+  }
+
+  .description {
+    opacity: 0.8;
+    margin-top: 0.5rem;
+    font-size: 0.8rem;
+  }
+
+  .field-switch {
+    display: flex;
+    align-items: center;
+
+    .label {
+      margin-left: 0.5rem;
+    }
   }
 }
 

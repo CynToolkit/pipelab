@@ -37,16 +37,19 @@ import { primary, primaryDarken1, primaryDarken2 } from './style/main'
 import { useFiles } from './store/files'
 import { handle } from './composables/handlers'
 import { useLogger } from '@@/logger'
-import posthog from 'posthog-js'
 import { useAuth } from '@renderer/store/auth'
 import { storeToRefs } from 'pinia'
+import { useAppSettings } from './store/settings'
 
 const appStore = useAppStore()
 const filesStore = useFiles()
+const settingsStore = useAppSettings()
 const { logger } = useLogger()
 const authStore = useAuth()
 const { loginAnonymous, init: authInit } = authStore
 const { user } = storeToRefs(authStore)
+const { settings, } = storeToRefs(settingsStore)
+const { init: initSettings } = settingsStore
 
 const { init } = appStore
 const isLoading = ref(false)
@@ -75,9 +78,12 @@ onMounted(async () => {
 
   await filesStore.load()
   await init()
+  await initSettings()
   await authInit()
   logger().info('init done')
   // const result = await api.execute('')
+
+  console.log('settings', settings.value)
 
   isLoading.value = false
 })

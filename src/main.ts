@@ -17,6 +17,7 @@ import * as Sentry from '@sentry/electron/main'
 import { assetsPath } from '@main/paths'
 import { usePluginAPI } from '@main/api'
 // import { PostHog } from 'posthog-node'
+import { setupConfig } from '@main/config'
 
 // const postHogApiKey = __POSTHOG_API_KEY__
 
@@ -230,6 +231,12 @@ exec "${process.execPath}" "$@"
 `
     )
   }
+
+  const settingsG = await setupConfig()
+
+  const settings = await settingsG.getConfig()
+
+  console.log('settings', settings)
 
   registerIPCHandlers()
   await registerBuiltIn()

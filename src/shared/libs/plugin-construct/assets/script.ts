@@ -175,7 +175,7 @@ export const script = async (
   //   // }
   // }
 
-  await page.waitForTimeout(1000)
+  await page.waitForTimeout(2000)
   log('after wait')
 
   const [fileChooser] = await Promise.all([
@@ -184,6 +184,7 @@ export const script = async (
   ])
   log('filechooser')
 
+  console.log('filePath', filePath)
   await fileChooser.setFiles([filePath])
   log('Set file')
 

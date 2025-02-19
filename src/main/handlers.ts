@@ -1,11 +1,12 @@
 import { Channels, Data, Events, Message } from '@@/apis'
 import { BrowserWindow, app, dialog, ipcMain } from 'electron'
-import { getFinalPlugins } from './utils'
-import { dirname, join } from 'node:path'
-import { mkdir, writeFile, readFile, access } from 'node:fs/promises'
+import { ensure, getFinalPlugins } from './utils'
+import { join } from 'node:path'
+import { writeFile, readFile } from 'node:fs/promises'
 import { presets } from './presets/list'
 import { handleActionExecute, handleConditionExecute } from './handler-func'
 import { useLogger } from '@@/logger'
+import { setupConfig } from './config'
 
 export type HandleListenerSendFn<KEY extends Channels> = (events: Events<KEY>) => void
 
@@ -288,21 +289,6 @@ export const registerIPCHandlers = () => {
     })
   })
 
-  const ensure = async (filesPath: string) => {
-    // create parent folder
-    await mkdir(dirname(filesPath), {
-      recursive: true
-    })
-
-    // ensure file exist
-    try {
-      await access(filesPath)
-    } catch {
-      // File doesn't exist, create it
-      await writeFile(filesPath, '{}') // json
-    }
-  }
-
   handle('config:load', async (_, { send, value }) => {
     const { config } = value
 
@@ -327,6 +313,36 @@ export const registerIPCHandlers = () => {
         type: 'success',
         result: {
           result: json
+        }
+      }
+    })
+  })
+
+  handle('settings:load', async (_, { send }) => {
+    const settingsG = await setupConfig()
+    const settings = await settingsG.getConfig()
+
+    send({
+      type: 'end',
+      data: {
+        type: 'success',
+        result: {
+          result: settings
+        }
+      }
+    })
+  })
+
+  handle('settings:save', async (_, { send, value }) => {
+    const settingsG = await setupConfig()
+    const settings = await settingsG.setConfig(value)
+
+    send({
+      type: 'end',
+      data: {
+        type: 'success',
+        result: {
+          result: settings === true ? 'ok' : 'ko'
         }
       }
     })

@@ -18,6 +18,8 @@ import { BrowserWindow } from 'electron'
 import { usePluginAPI } from './api'
 import { BlockCondition } from '@@/model'
 import { HandleListenerSendFn } from './handlers'
+import { generateTempFolder } from './utils'
+import { setupConfig } from './config'
 
 const checkParams = (definitionParams: InputsDefinition, elementParams: Record<string, string>) => {
   // get a list of all required params
@@ -64,9 +66,9 @@ export const handleConditionExecute = async (
     | undefined
 
   if (node) {
-    const id = randomBytes(24).toString('hex')
-    const tmp = join(tmpdir(), id)
-    // const tmp = join(tmpdir(), nanoid())
+    const _settings = await setupConfig()
+    const settings = await _settings.getConfig()
+    const tmp = await generateTempFolder(settings.cacheFolder)
 
     await mkdir(tmp, {
       recursive: true
@@ -139,9 +141,9 @@ export const handleActionExecute = async (
 
   if (node) {
     try {
-      const id = randomBytes(24).toString('hex')
-      const tmp = join(tmpdir(), id)
-      // const tmp = join(tmpdir(), nanoid())
+      const _settings = await setupConfig()
+      const settings = await _settings.getConfig()
+      const tmp = await generateTempFolder(settings.cacheFolder)
 
       await mkdir(tmp, {
         recursive: true

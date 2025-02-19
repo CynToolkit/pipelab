@@ -1,6 +1,6 @@
 import { describe, test, expect, beforeAll, beforeEach, afterEach, vi } from 'vitest'
 import { createMigration, final, finalVersion, initial, initialVersion } from './createMigration'
-import { createMigrator } from './createMigrator'
+import { createMigrator, MigratorFactory } from './createMigrator'
 import { Migrator, MigrationSchema } from './migration'
 import { z } from 'zod'
 
@@ -27,10 +27,10 @@ interface V4 extends MigrationSchema {
   dummy: string
 }
 
-// const outputV1: V1 = {
-//   dummyV1: 'aaa',
-//   version: '1.0.0',
-// };
+const outputV1: V1 = {
+  dummyV1: 'aaa',
+  version: '1.0.0',
+};
 
 const outputV2: V2 = {
   dummyV2: 'aaa',
@@ -50,7 +50,8 @@ const outputV4: V4 = {
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
 describe('migrator', () => {
-  let migratorInstance: Migrator<V4>
+  let migratorInstance: MigratorFactory<V1, V4>
+  let migratorMigrations: Migrator<V1, V4>
   beforeAll(() => {
     // migratorInstance = createMigrator<V4>({
     //   migrations: [
@@ -81,11 +82,10 @@ describe('migrator', () => {
     //   ],
     // });
 
-    migratorInstance = createMigrator<V4>({
+    migratorInstance = createMigrator<V1, V4>()
+    migratorMigrations = migratorInstance.createMigrations({
+      defaultValue: outputV1,
       migrations: [
-        // initial<V1, V2>('1.0.0', (state) => ({
-        //   dummyV2: state.dummyV1,
-        // })),
         createMigration<never, V1, V2>({
           version: '1.0.0',
           up: (state) => ({
@@ -123,20 +123,20 @@ describe('migrator', () => {
   })
 
   test('should not need migration', () => {
-    expect(migratorInstance.needMigration('4.0.0')).toBe(false)
-    expect(migratorInstance.needMigration('5.0.0')).toBe(false)
-    expect(migratorInstance.needMigration('4.1.0')).toBe(false)
-    expect(migratorInstance.needMigration('4.0.1')).toBe(false)
-    expect(migratorInstance.needMigration('5.0.1')).toBe(false)
+    expect(migratorMigrations.needMigration('4.0.0')).toBe(false)
+    expect(migratorMigrations.needMigration('5.0.0')).toBe(false)
+    expect(migratorMigrations.needMigration('4.1.0')).toBe(false)
+    expect(migratorMigrations.needMigration('4.0.1')).toBe(false)
+    expect(migratorMigrations.needMigration('5.0.1')).toBe(false)
   })
 
   test('should need migration', () => {
-    expect(migratorInstance.needMigration('0.0.0')).toBe(true)
-    expect(migratorInstance.needMigration('0.1.0')).toBe(true)
-    expect(migratorInstance.needMigration('0.0.1')).toBe(true)
-    expect(migratorInstance.needMigration('1.0.1')).toBe(true)
-    expect(migratorInstance.needMigration('2.3.1')).toBe(true)
-    expect(migratorInstance.needMigration('3.4.1')).toBe(true)
+    expect(migratorMigrations.needMigration('0.0.0')).toBe(true)
+    expect(migratorMigrations.needMigration('0.1.0')).toBe(true)
+    expect(migratorMigrations.needMigration('0.0.1')).toBe(true)
+    expect(migratorMigrations.needMigration('1.0.1')).toBe(true)
+    expect(migratorMigrations.needMigration('2.3.1')).toBe(true)
+    expect(migratorMigrations.needMigration('3.4.1')).toBe(true)
   })
 
   test('should migrate', async () => {
@@ -144,7 +144,7 @@ describe('migrator', () => {
       dummyV1: 'aaa',
       version: '1.0.0'
     }
-    const result = await migratorInstance.migrate(input)
+    const result = await migratorMigrations.migrate(input)
     expect(result).toStrictEqual(outputV4)
   })
 
@@ -153,7 +153,7 @@ describe('migrator', () => {
       dummy: 'aaa',
       version: '4.0.0'
     }
-    const result = await migratorInstance.migrate(input)
+    const result = await migratorMigrations.migrate(input)
     expect(result).toStrictEqual(outputV4)
   })
 
@@ -162,7 +162,7 @@ describe('migrator', () => {
       dummy: 'aaa',
       version: '4.0.0'
     }
-    return expect(migratorInstance.migrate(input)).resolves.toStrictEqual(outputV4)
+    return expect(migratorMigrations.migrate(input)).resolves.toStrictEqual(outputV4)
   })
 
   test('should downgrade', async () => {
@@ -170,17 +170,17 @@ describe('migrator', () => {
       dummy: 'aaa',
       version: '4.0.0'
     }
-    const result = await migratorInstance.migrate(input)
+    const result = await migratorMigrations.migrate(input)
     expect(result).toEqual(outputV4)
-    const resultDown = await migratorInstance.migrate(result, {
+    const resultDown = await migratorMigrations.migrate(result, {
       target: '3.0.0'
     })
     expect(resultDown).toEqual(outputV3)
-    const resultDown2 = await migratorInstance.migrate(resultDown, {
+    const resultDown2 = await migratorMigrations.migrate(resultDown, {
       target: '2.0.0'
     })
     expect(resultDown2).toEqual(outputV2)
-    const resultUp = await migratorInstance.migrate(resultDown2, {
+    const resultUp = await migratorMigrations.migrate(resultDown2, {
       target: '3.0.0'
     })
     expect(resultUp).toEqual(outputV3)
@@ -192,7 +192,7 @@ describe('migrator', () => {
       version: '1.2.0'
     }
 
-    const badMigratorInstance = createMigrator<V4>({
+    const badMigratorInstance = createMigrator<V1, V4>().createMigrations({
       migrations: [
         initial<V1, V2>('1.0.0', (state) => ({
           dummyV2: state.dummyV1
@@ -212,7 +212,7 @@ describe('migrator', () => {
       version: '1.2.0'
     }
 
-    const badMigratorInstance = createMigrator<V4>({
+    const badMigratorInstance = createMigrator<V1, V4>().createMigrations({
       migrations: [
         initial<V1, V2>('1.0.0', (state) => ({
           dummyV2: state.dummyV1
@@ -233,7 +233,7 @@ describe('migrator', () => {
       version: '1'
     }
 
-    const migrator = createMigrator<V2>({
+    const migrator = createMigrator<V1, V4>().createMigrations({
       migrations: [
         createMigration<never, V1, V2>({
           version: '1.0.0',
@@ -264,7 +264,7 @@ describe('migrator', () => {
       version: '1'
     }
 
-    const migrator = createMigrator<V2>({
+    const migrator = createMigrator<V1, V2>().createMigrations({
       migrations: [
         createMigration<never, V1, V2>({
           version: '1.0.0',
@@ -304,7 +304,7 @@ describe('async', () => {
       version: '1.0.0'
     }
 
-    const migrator = createMigrator<V2>({
+    const migrator = createMigrator<V1, V2>().createMigrations({
       migrations: [
         createMigration<never, V1, V2>({
           version: '1.0.0',

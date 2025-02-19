@@ -781,11 +781,6 @@ const accountMenuItems = computed(() => {
         disabled: true
       },
       {
-        label: 'Settings',
-        icon: 'mdi mdi-cog',
-        disabled: true
-      },
-      {
         separator: true
       },
       {
@@ -828,7 +823,12 @@ const accountMenuItems = computed(() => {
     },
     {
       label: 'Settings',
-      icon: 'mdi mdi-cog'
+      icon: 'mdi mdi-cog',
+      disabled: false,
+      command: () => {
+        console.log('Settings')
+        isSettingsModalVisible.value = true
+      }
     }
   ] satisfies MenuItem
 
