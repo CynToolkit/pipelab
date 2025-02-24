@@ -246,6 +246,7 @@
                     label="Sign In"
                     color="primary"
                     class="w-full p-3 text-lg mb-2"
+                    :loading="authState === 'LOADING'"
                     @click="onSubmit"
                   />
                   <Button
@@ -329,6 +330,7 @@
                     label="Sign Up"
                     color="primary"
                     class="w-full p-3 text-lg mb-2"
+                    :loading="authState === 'LOADING'"
                     @click="onSubmit"
                   />
                   <Button
@@ -682,7 +684,7 @@ const isAuthModalVisible = ref(false)
 const isNewProjectModalVisible = ref(false)
 const isSettingsModalVisible = ref(false)
 const auth = useAuth()
-const { user } = storeToRefs(auth)
+const { user, authState } = storeToRefs(auth)
 
 const schema = toTypedSchema(
   object({
@@ -715,10 +717,11 @@ const onSuccess = async (values: any) => {
     if (type.value === 'register') {
       const { error } = await auth.register(values.email, values.password)
       if (error) {
+        console.log('error', error)
         toast.add({
           severity: 'error',
           summary: 'Failed to register',
-          detail: 'Message Content',
+          detail: error.message,
           life: 3000
         })
       } else {
@@ -727,10 +730,11 @@ const onSuccess = async (values: any) => {
     } else {
       const { error } = await auth.login(values.email, values.password)
       if (error) {
+        console.log('error', error)
         toast.add({
           severity: 'error',
           summary: 'Failed to login',
-          detail: 'Message Content',
+          detail: error.message,
           life: 3000
         })
       } else {
@@ -739,7 +743,7 @@ const onSuccess = async (values: any) => {
     }
   } catch (error) {
     console.log('error', error)
-    toast.add({ severity: 'info', summary: 'Info', detail: 'Message Content', life: 3000 })
+    toast.add({ severity: 'info', summary: 'Info', detail: error, life: 3000 })
   }
 }
 
@@ -756,7 +760,7 @@ const onSubmit = handleSubmit(onSuccess, onInvalidSubmit)
 const type = ref<'login' | 'register'>('login')
 
 const logout = async () => {
-  await supabase.auth.signOut()
+  await auth.logout()
 }
 
 const $menu = ref()

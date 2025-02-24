@@ -80,6 +80,7 @@ onMounted(async () => {
   await init()
   await initSettings()
   await authInit()
+
   logger().info('init done')
   // const result = await api.execute('')
 

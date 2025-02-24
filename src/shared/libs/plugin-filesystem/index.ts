@@ -4,6 +4,7 @@ import { isFileCondition, isFileRunner } from './is-file.js'
 import { zipRunner, zip } from './zip.js'
 import { unzipRunner, unzip } from './unzip.js'
 import { copy, copyRunner } from './copy.js'
+import { remove, removeRunner } from './remove.js'
 import { run, runRunner } from './run.js'
 import { openInExplorer, openInExplorerRunner } from './open.js'
 
@@ -35,6 +36,10 @@ export default createNodeDefinition({
     {
       node: copy,
       runner: copyRunner
+    },
+    {
+      node: remove,
+      runner: removeRunner
     },
     {
       node: run,

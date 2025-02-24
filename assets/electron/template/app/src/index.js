@@ -118,10 +118,8 @@ if (config.enableSteamSupport) {
 
   // }
 
-  console.log('steamworks', steamworks)
   try {
     client = steamworks.init(config.steamGameId)
-    console.log('client', client)
     console.log(client.localplayer.getName())
   } catch (e) {
     console.error('e', e)
@@ -359,6 +357,10 @@ const createWindow = async () => {
     }
   })
 
+  if (!mainWindow) {
+    throw new Error('Unable to create window')
+  }
+
   if (!config.toolbar) {
     mainWindow.setMenu(null)
   }
@@ -380,16 +382,17 @@ const createWindow = async () => {
     console.log('argUrl', argUrl)
     const port = await createAppServer(mainWindow, false)
 
-    console.log('port', port)
+    // console.log('port', port)
 
     await mainWindow?.loadURL(argUrl)
     console.log('URL loaded')
   } else {
     const port = await createAppServer(mainWindow)
 
-    console.log('port', port)
+    // console.log('port', port)
 
     await mainWindow?.loadURL(`http://localhost:${port}`)
+    console.log('URL loaded')
   }
 
   mainWindow.on('enter-full-screen', () => {
@@ -418,7 +421,7 @@ const createWindow = async () => {
     broadcastMessage(JSON.stringify(order))
   })
 
-  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+  mainWindow.webContents?.setWindowOpenHandler(({ url }) => {
     // Open the URL in the default browser
     shell.openExternal(url)
     return { action: 'deny' } // Prevent Electron from creating a new window
