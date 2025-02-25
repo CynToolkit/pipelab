@@ -10,16 +10,18 @@ import { name } from './src/constants'
 const config: ForgeConfig = {
   packagerConfig: {
     asar: {
-      // unpack: '**/node_modules/{pnpm,@electron-forge,playwright}/**/*'
+      // unpack: '*.{node,dll,so,lib,dylib,exe}'
     },
     // asar: false,
     extraResource: ['.vite/build/assets'],
-    name
+    name,
+    icon: 'assets/build/icon',
   },
   rebuildConfig: {},
   makers: [
     new MakerSquirrel({
-      name
+      name,
+      setupIcon: 'assets/build/icon.ico'
     }),
     new MakerZIP(undefined, ['darwin', 'linux', 'win32']),
     new MakerDMG()

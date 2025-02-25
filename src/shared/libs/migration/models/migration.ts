@@ -2,16 +2,7 @@ import * as semver from 'semver'
 import { coerce } from 'semver'
 import { objectKeys } from '../utils/object-keys'
 import { klona } from 'klona'
-import {
-  custom,
-  InferInput,
-  InferOutput,
-  object,
-  optional,
-  string,
-  BaseSchema,
-  ObjectEntries
-} from 'valibot'
+import { custom, InferOutput, object, ObjectEntries } from 'valibot'
 
 export type Awaitable<T> = Promise<T> | T
 
@@ -26,7 +17,8 @@ const SemverValidator = custom<SemVer>((input) =>
   typeof input === 'string' ? /^\d+\.\d+\.\d+$/.test(input) : false
 )
 
-export const SemverVersionValidator = optional(SemverValidator, '1.0.0')
+export const SemverVersionValidator = SemverValidator
+// export const SemverVersionValidator = optional(SemverValidator, '1.0.0')
 
 export const MigrationSchemaValidator = object({
   version: SemverVersionValidator
@@ -34,7 +26,6 @@ export const MigrationSchemaValidator = object({
 
 export const createVersionSchema = <OBJECTENTRIES extends ObjectEntries>(schema: OBJECTENTRIES) =>
   object({
-    version: SemverVersionValidator,
     ...schema
   })
 
@@ -56,22 +47,26 @@ export interface MigrationObjInput<Down, Current, Up> {
   down: MigrationFn<OmitVersion<Current>, OmitVersion<Down>>
 }
 
-export interface MigratorConfig {
+export interface MigratorConfig<InitialState, FinalState> {
   migrations: MigrationClass<any, any, any>[]
   coerce?: boolean
+  defaultValue?: InitialState
 }
 
-export class Migrator<OutputState extends MigrationSchema> {
+export class Migrator<InitialState extends MigrationSchema, OutputState extends MigrationSchema> {
   current: SemVer
 
   migrations: Record<SemVer, MigrationClass<any, any, any>> = {}
 
   coerce: boolean
+  defaultValue: InitialState
 
-  constructor(config: MigratorConfig) {
+  constructor(config: MigratorConfig<InitialState, OutputState>) {
     config.migrations.forEach((migration) => {
       this.migrations[migration.version] = migration
     })
+
+    this.defaultValue = config?.defaultValue ?? {} as InitialState
 
     const versions = this.getVersions()
     this.current = versions[versions.length - 1]
@@ -83,7 +78,9 @@ export class Migrator<OutputState extends MigrationSchema> {
     return semver.sort(keys)
   }
 
-  async migrate(state: MigrationSchema, options?: MigrateOptions): Promise<OutputState> {
+  async migrate(_state: MigrationSchema | undefined, options?: MigrateOptions): Promise<OutputState> {
+    const state = _state ?? this.defaultValue
+    console.log('state', state)
     const currentVersion = this.tryCoerce(state.version)
     const targetVersion = this.tryCoerce(options?.target ?? this.current)
 

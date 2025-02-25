@@ -1,11 +1,11 @@
 // @ts-check
 
-import { app, BrowserWindow, ipcMain, shell } from 'electron'
-import { join } from 'node:path'
+import { app, BrowserWindow, ipcMain, session, shell } from 'electron'
+import { dirname, join } from 'node:path'
 // @ts-expect-error no types
 import serve from 'serve-handler'
 import { createServer } from 'http'
-import { WebSocketServer } from 'ws'
+import { WebSocketServer, WebSocket } from 'ws'
 import './custom-main.js'
 import mri from 'mri'
 import config from '../config.cjs'
@@ -20,6 +20,9 @@ import fsRead from './handlers/fs/read.js'
 import fsReadBinary from './handlers/fs/read-binary.js'
 import fsFolderCreate from './handlers/fs/folder-create.js'
 import fsList from './handlers/fs/list.js'
+import fsMove from './handlers/fs/move.js'
+import fsDelete from './handlers/fs/delete.js'
+import fsCopy from './handlers/fs/copy.js'
 import fsFileSize from './handlers/fs/file-size.js'
 import fsExist from './handlers/fs/exist.js'
 
@@ -54,6 +57,7 @@ import showInExplorer from './handlers/general/open-in-explorer.js'
 
 // steam raw
 import steamRaw from './handlers/steam/raw.js'
+import { getAppName } from './utils.js'
 
 /**
  * Assert switch is exhaustive
@@ -64,6 +68,13 @@ import steamRaw from './handlers/steam/raw.js'
 function assertUnreachable(_x) {
   throw new Error("Didn't expect to get here")
 }
+
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught Exception:', error)
+})
+process.on('unhandledRejection', (reason) => {
+  console.error('Unhandled Promise Rejection:', reason)
+})
 
 console.log('process.argv', process.argv)
 const argv = process.argv
@@ -89,24 +100,58 @@ if (config.enableInProcessGPU) {
 if (config.enableDisableRendererBackgrounding) {
   app.commandLine.appendSwitch('disable-renderer-backgrounding')
 }
+if (config.forceHighPerformanceGpu) {
+  app.commandLine.appendSwitch('force-high-performance-gpu')
+}
 //endregion
 
 //region Steam
 
-/** @type {import('steamworks.js').Client} */
+/** @type {Omit<import('steamworks.js').Client, "init" | "runCallbacks">} */
 let client
 console.log('config.enableSteamSupport', config.enableSteamSupport)
 if (config.enableSteamSupport) {
-  console.log('steamworks', steamworks)
+  // const isNecessary = steamworks.restartAppIfNecessary(config.steamGameId)
+  // console.log('isNecessary', isNecessary)
+
+  // if (isNecessary) {
+
+  // }
+
   try {
     client = steamworks.init(config.steamGameId)
-    console.log('client', client)
     console.log(client.localplayer.getName())
   } catch (e) {
     console.error('e', e)
   }
 }
 //endregion
+
+const userData = app.getPath('userData')
+const userDataDirname = dirname(userData)
+const appNameFolder = getAppName(config)
+const sessionDataPath = join(userDataDirname, `cache_${appNameFolder}`)
+console.log('sessionDataPath', sessionDataPath)
+app.setPath('userData', sessionDataPath)
+
+/**
+ * @type {Set<import('ws').WebSocket>}
+ */
+const clients = new Set()
+
+/**
+ * @param {string} message
+ */
+const broadcastMessage = (message) => {
+  for (const client of clients) {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(message)
+    }
+  }
+}
+
+// @ts-expect-error import.meta
+const dir = app.isPackaged ? join(import.meta.dirname, './app') : './src/app'
 
 /**
  * @param {BrowserWindow} mainWindow
@@ -115,28 +160,21 @@ if (config.enableSteamSupport) {
 const createAppServer = (mainWindow, serveStatic = true) => {
   // eslint-disable-next-line no-async-promise-executor
   return new Promise(async (resolve) => {
-    // @ts-expect-error import.meta
-    const dir = app.isPackaged ? join(import.meta.dirname, './app') : './src/app'
-
     const server = createServer()
 
     if (serveStatic) {
       server.on('request', (req, res) => {
         return serve(req, res, {
           maxAge: 0,
-          public: dir,
-          rewrites: [
-            {
-              source: 'sw.js',
-              destination: 'index.html'
-            }
-          ]
+          public: dir
         })
       })
     }
 
     const wss = new WebSocketServer({ server })
     wss.on('connection', function connection(ws) {
+      clients.add(ws)
+
       ws.on('error', console.error)
 
       ws.on('message', async (data) => {
@@ -148,23 +186,23 @@ const createAppServer = (mainWindow, serveStatic = true) => {
         try {
           switch (json.url) {
             case '/paths':
-              await userFolder(json, ws, mainWindow)
+              await userFolder(json, ws, config)
               break
 
             case '/fs/file/write':
-              await fsWrite(json, ws, mainWindow)
+              await fsWrite(json, ws)
               break
 
             case '/fs/file/read':
-              await fsRead(json, ws, mainWindow)
+              await fsRead(json, ws)
               break
 
             case '/fs/file/read/binary':
-              await fsReadBinary(json, ws, mainWindow)
+              await fsReadBinary(json, ws)
               break
 
             case '/fs/folder/create':
-              await fsFolderCreate(json, ws, mainWindow)
+              await fsFolderCreate(json, ws)
               break
 
             case '/window/maximize':
@@ -181,13 +219,13 @@ const createAppServer = (mainWindow, serveStatic = true) => {
               await windowRestore(json, ws, mainWindow)
               break
             case '/dialog/folder':
-              await dialogFolder(json, ws, mainWindow)
+              await dialogFolder(json, ws)
               break
             case '/dialog/open':
-              await dialogOpen(json, ws, mainWindow)
+              await dialogOpen(json, ws)
               break
             case '/dialog/save':
-              await dialogSave(json, ws, mainWindow)
+              await dialogSave(json, ws)
               break
             case '/window/set-always-on-top':
               await windowSetAlwaysOnTop(json, ws, mainWindow)
@@ -226,36 +264,40 @@ const createAppServer = (mainWindow, serveStatic = true) => {
               await windowSetFullscreen(json, ws, mainWindow)
               break
             case '/engine':
-              await engine(json, ws, mainWindow)
+              await engine(json, ws)
               break
             case '/open':
-              await open(json, ws, mainWindow)
+              await open(json, ws)
               break
             case '/show-in-explorer':
-              await showInExplorer(json, ws, mainWindow)
+              await showInExplorer(json, ws)
               break
             case '/run':
-              await run(json, ws, mainWindow)
+              await run(json, ws)
               break
             case '/fs/copy':
-              throw new Error('Not implemented')
+              await fsCopy(json, ws)
+              break
             case '/fs/delete':
-              throw new Error('Not implemented')
+              await fsDelete(json, ws)
+              break
             case '/fs/exist':
               await fsExist(json, ws)
               break
-            case '/fs/file/append':
-              throw new Error('Not implemented')
             case '/fs/list':
-              await fsList(json, ws, mainWindow)
+              await fsList(json, ws)
               break
             case '/fs/file/size':
-              await fsFileSize(json, ws, mainWindow)
+              await fsFileSize(json, ws)
               break
             case '/fs/move':
-              throw new Error('Not implemented')
+              await fsMove(json, ws)
+              break
             case '/steam/raw':
               await steamRaw(json, ws, client)
+              break
+            case '/window/fullscreen-state':
+              // sent the other way around
               break
 
             default:
@@ -275,6 +317,10 @@ const createAppServer = (mainWindow, serveStatic = true) => {
             })
           )
         }
+      })
+
+      ws.on('close', () => {
+        clients.delete(ws)
       })
     })
 
@@ -299,43 +345,76 @@ const createWindow = async () => {
     frame: config.frame,
     transparent: config.transparent,
     alwaysOnTop: config.alwaysOnTop,
+    icon: config.icon,
     webPreferences: {
       // @ts-expect-error import.meta
       preload: join(import.meta.dirname, 'preload.js')
     }
   })
 
+  if (!mainWindow) {
+    throw new Error('Unable to create window')
+  }
+
   if (!config.toolbar) {
     mainWindow.setMenu(null)
   }
 
-  // It's better to export apps without service worker support
-  // try {
-  //   // Clear service workers to prevent old versions of the app
-  //   await session.defaultSession.clearStorageData({
-  //     storages: ['serviceworkers']
-  //   })
-  // } catch (e) {
-  //   console.error('Error clearing service workers', e)
-  // }
+  if (config.clearServiceWorkerOnBoot) {
+    // It's better to export apps without service worker support
+    // only use when needed
+    try {
+      // Clear service workers to prevent old versions of the app
+      await session.defaultSession.clearStorageData({
+        storages: ['serviceworkers']
+      })
+    } catch (e) {
+      console.error('Error clearing service workers', e)
+    }
+  }
 
   if (argUrl) {
     console.log('argUrl', argUrl)
     const port = await createAppServer(mainWindow, false)
 
-    console.log('port', port)
+    // console.log('port', port)
 
     await mainWindow?.loadURL(argUrl)
     console.log('URL loaded')
   } else {
     const port = await createAppServer(mainWindow)
 
-    console.log('port', port)
-
     await mainWindow?.loadURL(`http://localhost:${port}`)
+    console.log('URL loaded')
   }
 
-  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+  mainWindow.on('enter-full-screen', () => {
+    /**
+     * @type {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').FullscreenState, 'input'>}
+     */
+    const order = {
+      url: '/window/fullscreen-state',
+      body: {
+        state: 'fullscreen'
+      }
+    }
+    broadcastMessage(JSON.stringify(order))
+  })
+
+  mainWindow.on('leave-full-screen', () => {
+    /**
+     * @type {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').FullscreenState, 'input'>}
+     */
+    const order = {
+      url: '/window/fullscreen-state',
+      body: {
+        state: 'normal'
+      }
+    }
+    broadcastMessage(JSON.stringify(order))
+  })
+
+  mainWindow.webContents?.setWindowOpenHandler(({ url }) => {
     // Open the URL in the default browser
     shell.openExternal(url)
     return { action: 'deny' } // Prevent Electron from creating a new window

@@ -1,22 +1,22 @@
-import { createAction, createActionRunner } from '@pipelab/plugin-core'
+import { createAction, createActionRunner, createPathParam } from '@pipelab/plugin-core'
 
 export const ID = 'unzip-file-node'
 
 export const unzip = createAction({
   id: ID,
   name: 'Unzip file',
-  displayString: '`Unzip ${fmt.param(params.file, "primary")}`',
+  displayString: '`Unzip ${fmt.param(params.file, "primary", "No file specified")}`',
   params: {
-    file: {
+    file: createPathParam('', {
+      required: true,
       control: {
         type: 'path',
         options: {
           properties: ['openFile']
         }
       },
-      value: '',
       label: 'File'
-    }
+    })
   },
 
   outputs: {

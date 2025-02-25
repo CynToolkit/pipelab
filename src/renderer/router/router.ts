@@ -34,11 +34,6 @@ const routes: RouterOptions['routes'] = [
     name: 'Team',
     component: () => import('../pages/team.vue'),
   },
-  {
-    path: '/settings',
-    name: 'Settings',
-    component: () => import('../pages/settings.vue'),
-  },
 ]
 
 export const router = createRouter({

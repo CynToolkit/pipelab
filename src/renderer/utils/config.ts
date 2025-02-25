@@ -1,6 +1,5 @@
-import { useAPI } from "@renderer/composables/api"
-import { klona } from "klona"
-import { toRaw } from "vue"
+import { useAPI } from '@renderer/composables/api'
+import { klona } from 'klona'
 
 export const loadInternalFile = (name: string) => {
   const api = useAPI()
@@ -23,7 +22,7 @@ export const loadExternalFile = (path: string) => {
   const api = useAPI()
 
   return api.execute('fs:read', {
-    path,
+    path
   })
 }
 
@@ -54,6 +53,6 @@ export const createConfig = <T>(config: string) => {
 
   return {
     save,
-    load,
+    load
   }
 }

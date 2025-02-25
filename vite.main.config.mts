@@ -10,9 +10,6 @@ export default defineConfig((env) => {
   const forgeEnv = env as ConfigEnv<'build'>
   const { forgeConfigSelf } = forgeEnv
   const define = getBuildDefine(forgeEnv)
-
-  console.log('env.mode', env.mode)
-
   const environment = loadEnv(env.mode, process.cwd(), '')
 
   const plugins = [
@@ -58,7 +55,10 @@ export default defineConfig((env) => {
       }
     },
     plugins,
-    define,
+    define: {
+      ...define,
+      __POSTHOG_API_KEY__: JSON.stringify(environment.POSTHOG_API_KEY)
+    },
     resolve: {
       // Load the Node.js entry.
       mainFields: ['module', 'jsnext:main', 'jsnext']

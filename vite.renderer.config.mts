@@ -49,7 +49,8 @@ export default defineConfig((env) => {
     define: {
       __SUPABASE_URL__: JSON.stringify(environment.SUPABASE_URL),
       __SUPABASE_ANON_KEY__: JSON.stringify(environment.SUPABASE_ANON_KEY),
-      __SUPABASE_PROJECT_ID__: JSON.stringify(environment.SUPABASE_PROJECT_ID)
+      __SUPABASE_PROJECT_ID__: JSON.stringify(environment.SUPABASE_PROJECT_ID),
+      __POSTHOG_API_KEY__: JSON.stringify(environment.POSTHOG_API_KEY)
     },
     build: {
       outDir: `.vite/renderer/${name}`,

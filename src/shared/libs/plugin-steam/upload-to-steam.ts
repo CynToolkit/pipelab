@@ -1,4 +1,11 @@
-import { createAction, createActionRunner, runWithLiveLogs } from '@pipelab/plugin-core'
+import {
+  createAction,
+  createActionRunner,
+  createPathParam,
+  createStringParam,
+  fileExists,
+  runWithLiveLogsPTY
+} from '@pipelab/plugin-core'
 import { checkSteamAuth, openExternalTerminal } from './utils'
 
 // https://github.com/ztgasdf/steampkg?tab=readme-ov-file#account-management
@@ -17,8 +24,8 @@ export const uploadToSteam = createAction({
   displayString: "`Upload ${fmt.param(params['folder'], 'primary')} to steam`",
   meta: {},
   params: {
-    sdk: {
-      value: '',
+    sdk: createPathParam('', {
+      required: true,
       label: 'Steam Sdk path',
       control: {
         type: 'path',
@@ -26,49 +33,25 @@ export const uploadToSteam = createAction({
           properties: ['openDirectory']
         }
       }
-    },
-    username: {
-      value: '',
-      label: 'Steam username',
-      control: {
-        type: 'input',
-        options: {
-          kind: 'text'
-        }
-      }
-    },
-    appId: {
-      value: '',
-      label: 'App Id',
-      control: {
-        type: 'input',
-        options: {
-          kind: 'text'
-        }
-      }
-    },
-    depotId: {
-      value: '',
-      label: 'Depot Id',
-      control: {
-        type: 'input',
-        options: {
-          kind: 'text'
-        }
-      }
-    },
-    description: {
-      label: 'Description',
-      value: '',
-      control: {
-        type: 'input',
-        options: {
-          kind: 'text'
-        }
-      }
-    },
-    folder: {
-      value: '',
+    }),
+    username: createStringParam('', {
+      required: true,
+      label: 'Steam username'
+    }),
+    appId: createStringParam('', {
+      required: true,
+      label: 'App Id'
+    }),
+    depotId: createStringParam('', {
+      required: true,
+      label: 'Depot Id'
+    }),
+    description: createStringParam('', {
+      required: true,
+      label: 'Description'
+    }),
+    folder: createPathParam('', {
+      required: true,
       label: 'Folder to upload',
       control: {
         type: 'path',
@@ -76,19 +59,40 @@ export const uploadToSteam = createAction({
           properties: ['openDirectory']
         }
       }
-    }
+    })
+    // enableDRM: {
+    //   value: false,
+    //   label: 'Enable DRM',
+    //   control: {
+    //     type: 'boolean'
+    //   }
+    // },
+    // binaryToPatch: createPathParam('', {
+    //   label: 'Binary to patch',
+    //   control: {
+    //     type: 'path',
+    //     options: {
+    //       properties: ['openFile']
+    //     }
+    //   }
+    // })
   },
   outputs: {}
 })
 
 export const uploadToSteamRunner = createActionRunner<typeof uploadToSteam>(
   async ({ log, inputs, cwd, abortSignal }) => {
-    const { join, dirname } = await import('path')
+    const { join, dirname, basename } = await import('path')
     const { platform } = await import('os')
-    const { chmod, mkdir, writeFile } = await import('fs/promises')
+    const { chmod, mkdir, writeFile, cp } = await import('fs/promises')
 
     const { folder, appId, sdk, depotId, username, description } = inputs
     log(`uploading "${folder}" to steam`)
+
+    const isSDKExisting = await fileExists(sdk)
+    if (!isSDKExisting) {
+      throw new Error(`You must enter a valid path to the Steam SDK`)
+    }
 
     const buildOutput = join(cwd, 'steam', 'output')
     const scriptPath = join(cwd, 'steam', 'script.vdf')
@@ -183,7 +187,7 @@ export const uploadToSteamRunner = createActionRunner<typeof uploadToSteam>(
     const isAuthenticated = await checkSteamAuth({
       context: {
         log,
-        abortSignal,
+        abortSignal
       },
       scriptPath,
       steamcmdPath,
@@ -195,12 +199,12 @@ export const uploadToSteamRunner = createActionRunner<typeof uploadToSteam>(
     if (isAuthenticated.success === false) {
       log('Opening terminal with interactive login')
       await openExternalTerminal(steamcmdPath, ['+login', username, '+quit'], {
-        cancelSignal: abortSignal,
+        cancelSignal: abortSignal
       })
       const isAuthenticatedNow = await checkSteamAuth({
         context: {
           log,
-          abortSignal,
+          abortSignal
         },
         scriptPath,
         steamcmdPath,
@@ -219,15 +223,22 @@ export const uploadToSteamRunner = createActionRunner<typeof uploadToSteam>(
 
     log('Executing steamcmd')
 
-    // SHould be authed here
+    // Should be authed here
     try {
-      await runWithLiveLogs(
+      await runWithLiveLogsPTY(
         steamcmdPath,
         ['+login', username, '+run_app_build', scriptPath, '+quit'],
+        {},
+        log,
         {
-          cancelSignal: abortSignal,
+          onStdout: (data) => {
+            log('[steamcmd]', data)
+          },
+          onStderr: (data) => {
+            log('[steamcmd]', data)
+          }
         },
-        log
+        abortSignal
       )
     } catch (e) {
       if (e instanceof Error) {

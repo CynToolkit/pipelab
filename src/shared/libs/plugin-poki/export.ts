@@ -1,4 +1,4 @@
-import { createAction, createActionRunner, runWithLiveLogs } from '@pipelab/plugin-core'
+import { createAction, createActionRunner, createPathParam, createStringParam, runWithLiveLogs } from '@pipelab/plugin-core'
 
 export const ID = 'poki-upload'
 
@@ -11,49 +11,31 @@ export const uploadToPoki = createAction({
     "`Upload ${fmt.param(params['input-folder'], 'primary', 'No path selected')} to ${fmt.param(params['project'], 'primary', 'No project')} poki game (${fmt.param(params['name'], 'primary', 'No version name')})`",
   meta: {},
   params: {
-    'input-folder': {
+    'input-folder': createPathParam('', {
+      required: true,
       label: 'Folder to Upload',
-      value: '',
       control: {
         type: 'path',
         options: {
           properties: ['openDirectory']
         }
       }
-    },
-    project: {
+    }),
+    project: createStringParam('', {
+      required: true,
       label: 'Project',
       description: 'This is you Poki game id',
-      value: '',
-      control: {
-        type: 'input',
-        options: {
-          kind: 'text'
-        }
-      }
-    },
-    name: {
+    }),
+    name: createStringParam('', {
+      required: true,
       label: 'Version name',
       description: 'This is the name of the version',
-      value: '',
-      control: {
-        type: 'input',
-        options: {
-          kind: 'text'
-        }
-      }
-    },
-    notes: {
+    }),
+    notes: createStringParam('', {
+      required: true,
       label: 'Version notes',
       description: 'These are notes you want to specify with  your version',
-      value: '',
-      control: {
-        type: 'input',
-        options: {
-          kind: 'text'
-        }
-      }
-    }
+    })
   },
   outputs: {}
 })

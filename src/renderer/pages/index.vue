@@ -1,5 +1,6 @@
 <template>
   <div class="index">
+    <Toast />
     <div class="header">
       <div class="bold title">{{ headerSentence }}</div>
       <div class="button">
@@ -40,6 +41,7 @@
             :scenario="file"
             @open="loadExisting(file.id)"
             @delete="deleteProject(file.id)"
+            @duplicate="duplicateProject"
           >
           </ScenarioListItem>
         </div>
@@ -132,26 +134,43 @@
               </div>
 
               <div class="presets">
-                <div
-                  v-for="(preset, key) of newProjectPresets"
-                  :key="key"
-                  :class="{ active: newProjectPreset === key, disabled: preset.disabled }"
-                  class="preset"
-                  @click="newProjectPreset = key"
-                >
-                  <div class="preset-title">{{ preset.data.name }}</div>
-                  <div>{{ preset.data.description }}</div>
-                  <div v-if="preset.hightlight" class="highlight-icon">
-                    <i class="mdi mdi-star-circle-outline mr-2 fs-24"></i>
-                  </div>
-                  <div v-if="newProjectPreset === key" class="selection-icon">
-                    <i class="mdi mdi-check-circle mr-2 fs-24"></i>
+                <div v-if="newProjectData">
+                  <div :class="{ active: true }" class="preset">
+                    <div class="preset-title">{{ newProjectData.name }}</div>
+                    <div>{{ newProjectData.description }}</div>
+                    <div class="selection-icon">
+                      <i class="mdi mdi-check-circle mr-2 fs-24"></i>
+                    </div>
                   </div>
                 </div>
+                <template v-else>
+                  <div
+                    v-for="(preset, key) of newProjectPresets"
+                    :key="key"
+                    :class="{ active: newProjectPreset === key, disabled: preset.disabled }"
+                    class="preset"
+                    @click="newProjectPreset = key"
+                  >
+                    <div class="preset-title">{{ preset.data.name }}</div>
+                    <div>{{ preset.data.description }}</div>
+                    <div v-if="preset.hightlight" class="highlight-icon">
+                      <i class="mdi mdi-star-circle-outline mr-2 fs-24"></i>
+                    </div>
+                    <div v-if="newProjectPreset === key" class="selection-icon">
+                      <i class="mdi mdi-check-circle mr-2 fs-24"></i>
+                    </div>
+                  </div>
+                </template>
               </div>
 
               <div class="buttons">
-                <Button :disabled="!canCreateproject" @click="onNewFileCreation"
+                <Button
+                  v-if="newProjectData"
+                  :disabled="!canCreateproject"
+                  @click="onNewFileCreation(newProjectData)"
+                  >Duplicate project</Button
+                >
+                <Button v-else :disabled="!canCreateproject" @click="onNewFileCreation()"
                   >Create project</Button
                 >
               </div>
@@ -227,6 +246,7 @@
                     label="Sign In"
                     color="primary"
                     class="w-full p-3 text-lg mb-2"
+                    :loading="authState === 'LOADING'"
                     @click="onSubmit"
                   />
                   <Button
@@ -310,6 +330,7 @@
                     label="Sign Up"
                     color="primary"
                     class="w-full p-3 text-lg mb-2"
+                    :loading="authState === 'LOADING'"
                     @click="onSubmit"
                   />
                   <Button
@@ -329,7 +350,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watchEffect } from 'vue'
+import { computed, ref, watchEffect } from 'vue'
 import ScenarioListItem from '@renderer/components/ScenarioListItem.vue'
 import { storeToRefs } from 'pinia'
 import { EnhancedFile, SavedFile, Preset } from '@@/model'
@@ -351,6 +372,8 @@ import { kebabCase } from 'change-case'
 import { handle } from '@renderer/composables/handlers'
 import { UpdateStatus } from '@main/api'
 import Settings from '@renderer/components/Settings.vue'
+import { useToast } from 'primevue/usetoast'
+import { supabase } from '@@/supabase'
 
 const router = useRouter()
 
@@ -388,6 +411,14 @@ const updateStatusText = computed(() => {
 })
 
 const canCreateproject = computed(() => {
+  if (newProjectData.value) {
+    return (
+      newProjectType.value !== undefined &&
+      newProjectName.value !== undefined &&
+      (newProjectType.value === 'cloud' ||
+        (newProjectType.value === 'local' && newProjectLocalLocation.value !== undefined))
+    )
+  }
   return (
     newProjectType.value !== undefined &&
     newProjectPreset.value !== undefined &&
@@ -395,10 +426,6 @@ const canCreateproject = computed(() => {
     (newProjectType.value === 'cloud' ||
       (newProjectType.value === 'local' && newProjectLocalLocation.value !== undefined))
   )
-})
-
-onMounted(async () => {
-  await auth.init()
 })
 
 watchEffect(async () => {
@@ -409,11 +436,26 @@ watchEffect(async () => {
   for (const [id, file] of entries) {
     let fileContent: string
     if (file.type === 'external') {
-      console.log('loading file', file.path)
       const resultLoad = await loadExternalFile(file.path)
 
       if (resultLoad.type === 'error') {
         console.error('Unable to load file', resultLoad.ipcError)
+        const [id] = Object.entries(files.value.data).find(([, value]) => {
+          if (value.type === 'internal') {
+            if (value.path === file.path) {
+              return true
+            }
+          } else if (value.type === 'external') {
+            if (value.path === file.path) {
+              return true
+            }
+          }
+          return false
+        })
+        console.log('id', id)
+        updateFileStore((state) => {
+          delete state.data[id]
+        })
         continue
       }
 
@@ -538,6 +580,7 @@ const newProjectPreset = ref<string>()
 const newProjectPresets = ref<Presets>({})
 
 const newProjectLocalLocation = ref<string>()
+const newProjectData = ref<SavedFile>()
 
 /**
  * Create a new project
@@ -558,10 +601,10 @@ const newFile = async () => {
   isNewProjectModalVisible.value = true
 }
 
-const onNewFileCreation = async () => {
+const onNewFileCreation = async (
+  preset: SavedFile = newProjectPresets.value[newProjectPreset.value].data
+) => {
   let id = nanoid()
-
-  const preset = newProjectPresets.value[newProjectPreset.value].data
 
   if (!preset) {
     throw new Error('Invalid preset')
@@ -629,12 +672,19 @@ const deleteProject = async (id: string) => {
   await remove(id)
 }
 
+const duplicateProject = async (file: SavedFile) => {
+  console.log('file', file)
+  newProjectName.value = file.name + ' (copy)'
+  newProjectData.value = file
+  isNewProjectModalVisible.value = true
+}
+
 const appVersion = ref(window.version)
 const isAuthModalVisible = ref(false)
 const isNewProjectModalVisible = ref(false)
 const isSettingsModalVisible = ref(false)
 const auth = useAuth()
-const { user } = storeToRefs(auth)
+const { user, authState } = storeToRefs(auth)
 
 const schema = toTypedSchema(
   object({
@@ -663,12 +713,41 @@ const [emailModel, emailProps] = defineField('email')
 const [passwordModel, passwordProps] = defineField('password')
 
 const onSuccess = async (values: any) => {
-  if (type.value === 'register') {
-    await auth.register(values.email, values.password)
-  } else {
-    await auth.login(values.email, values.password)
+  try {
+    if (type.value === 'register') {
+      const { error } = await auth.register(values.email, values.password)
+      if (error) {
+        console.log('error', error)
+        toast.add({
+          severity: 'error',
+          summary: 'Failed to register',
+          detail: error.message,
+          life: 3000
+        })
+      } else {
+        isAuthModalVisible.value = false
+      }
+    } else {
+      const { error } = await auth.login(values.email, values.password)
+      if (error) {
+        console.log('error', error)
+        toast.add({
+          severity: 'error',
+          summary: 'Failed to login',
+          detail: error.message,
+          life: 3000
+        })
+      } else {
+        isAuthModalVisible.value = false
+      }
+    }
+  } catch (error) {
+    console.log('error', error)
+    toast.add({ severity: 'info', summary: 'Info', detail: error, life: 3000 })
   }
 }
+
+const toast = useToast()
 
 function onInvalidSubmit({ values, errors, results }: any) {
   logger().info({ values }) // current form values
@@ -680,12 +759,21 @@ const onSubmit = handleSubmit(onSuccess, onInvalidSubmit)
 
 const type = ref<'login' | 'register'>('login')
 
+const logout = async () => {
+  await auth.logout()
+}
+
 const $menu = ref()
 const accountMenuItems = computed(() => {
   const items = []
 
-  if (user.value) {
+  if (user.value && user.value.is_anonymous === false) {
     items.push(
+      {
+        label: user.value.email,
+        icon: 'mdi mdi-email',
+        disabled: true
+      },
       {
         label: 'Profile',
         icon: 'mdi mdi-account',
@@ -697,17 +785,15 @@ const accountMenuItems = computed(() => {
         disabled: true
       },
       {
-        label: 'Settings',
-        icon: 'mdi mdi-cog',
-        disabled: true
-      },
-      {
         separator: true
       },
       {
         label: 'Logout',
         icon: 'mdi mdi-logout',
-        disabled: true
+        disabled: false,
+        command: async () => {
+          await logout()
+        }
       }
     )
   } else {
@@ -742,6 +828,11 @@ const accountMenuItems = computed(() => {
     {
       label: 'Settings',
       icon: 'mdi mdi-cog',
+      disabled: false,
+      command: () => {
+        console.log('Settings')
+        isSettingsModalVisible.value = true
+      }
     }
   ] satisfies MenuItem
 

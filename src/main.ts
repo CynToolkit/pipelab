@@ -16,6 +16,21 @@ import { useLogger } from '@@/logger'
 import * as Sentry from '@sentry/electron/main'
 import { assetsPath } from '@main/paths'
 import { usePluginAPI } from '@main/api'
+// import { PostHog } from 'posthog-node'
+import { setupConfig } from '@main/config'
+
+// const postHogApiKey = __POSTHOG_API_KEY__
+
+// let client: PostHog | undefined
+// if (postHogApiKey && app.isPackaged && process.env.TEST !== 'true') {
+//   client = new PostHog(postHogApiKey, {
+//     // @ts-expect-error ???
+//     api_host: 'https://eu.i.posthog.com',
+//     person_profiles: 'always'
+//   })
+// } else {
+//   console.error('POSTHOG_API_KEY is required')
+// }
 
 const isLinux = platform() === 'linux'
 // let tray
@@ -37,7 +52,7 @@ if (app.isPackaged && process.env.TEST !== 'true' && !isWine) {
   })
 }
 
-const imagePath = join('./assets', 'discord_white.png')
+const imagePath = join('./assets', 'build', 'icon.png')
 // let isQuiting = false
 
 if (
@@ -49,7 +64,7 @@ if (
   app.quit()
 }
 
-let api
+let api: any
 let mainWindow: BrowserWindow | undefined
 
 function createWindow(): void {
@@ -60,11 +75,10 @@ function createWindow(): void {
     show: false,
     icon: imagePath,
     autoHideMenuBar: true,
-    ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, 'preload.js'),
       sandbox: false,
-      devTools: true // is.dev
+      devTools: is.dev
     }
   })
 
@@ -141,7 +155,7 @@ app.whenReady().then(async () => {
       status: 'error'
     })
     logger().info('There was a problem updating the application')
-    logger().info(message)
+    console.log(message)
   })
 
   autoUpdater.on('update-available', () => {
@@ -216,6 +230,12 @@ exec "${process.execPath}" "$@"
 `
     )
   }
+
+  const settingsG = await setupConfig()
+
+  const settings = await settingsG.getConfig()
+
+  console.log('settings', settings)
 
   registerIPCHandlers()
   await registerBuiltIn()
@@ -344,10 +364,12 @@ exec "${process.execPath}" "$@"
     mainWindow.show()
     mainWindow.maximize()
 
-    setTimeout(() => {
-      autoUpdater.checkForUpdates()
-      console.log('checkForUpdates')
-    }, 10000)
+    if (app.isPackaged) {
+      setTimeout(() => {
+        autoUpdater.checkForUpdates()
+        console.log('checkForUpdates')
+      }, 10000)
+    }
   })
   if (isReadyToShow) {
     mainWindow.show()
@@ -364,11 +386,9 @@ exec "${process.execPath}" "$@"
 // Quit when all windows are closed, except on macOS. There, it's common
 // for applications and their menu bar to stay active until the user quits
 // explicitly with Cmd + Q.
-app.on('window-all-closed', () => {
+app.on('window-all-closed', async () => {
   if (process.platform !== 'darwin') {
+    await client.shutdown()
     app.quit()
   }
 })
-
-// In this file you can include the rest of your app"s specific main process
-// code. You can also put them in separate files and require them here.

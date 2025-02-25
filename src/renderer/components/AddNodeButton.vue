@@ -6,6 +6,10 @@
       v-bind="buttonProps"
       class="add-btn"
       size="small"
+      :pt="{
+        root: { style: { fontSize: '10px', width: '24px', height: '24px' } },
+        icon: { style: { fontSize: '10px' } }
+      }"
       @click="addNode"
     ></Button>
     <!-- <pre>{{ path }}</pre> -->
@@ -30,12 +34,7 @@
             <ul class="node list-none p-0 m-0">
               <li class="flex align-items-center mb-3">
                 <span class="mr-3">
-                  <img v-if="plugin.icon.type === 'image'" width="32" :src="plugin.icon.image" />
-                  <i
-                    v-else-if="plugin.icon.type === 'icon'"
-                    style="font-size: 2rem"
-                    :class="{ 'node-icon': true, mdi: true, [plugin.icon.icon]: true }"
-                  />
+                  <PluginIcon width="32px" :icon="plugin.icon" />
 
                   <!-- <img v-if="plugin.icon" width="24" class="w-2rem h-2rem" :src="plugin.icon" />
                   <i v-else class="pi pi-circle" style="font-size: 2rem"></i> -->
@@ -45,46 +44,56 @@
                   <!-- <span class="text-secondary">Administrator</span> -->
                 </div>
               </li>
-              <li
-                v-for="node in plugin.nodes"
-                :key="node.node.id"
-                class="flex node-item"
-                :disabled="node.disabled"
-                @click="selected = { nodeId: node.node.id, pluginId: plugin.id }"
-              >
-                <a
-                  class="element flex align-items-center p-3 border-round w-full transition-colors transition-duration-150 cursor-pointer"
-                  style="border-radius: '10px'"
-                  :class="{
-                    selected: selected?.nodeId === node.node.id && selected.pluginId === plugin.id
-                  }"
+              <template v-for="node in plugin.nodes" :key="node.node.id">
+                <li
+                  v-if="shouldShowNode(node)"
+                  class="flex node-item"
+                  @click="selected = { nodeId: node.node.id, pluginId: plugin.id }"
                 >
-                  <i class="pi pi-home text-xl mr-3"></i>
-                  <span class="flex flex-column">
-                    <span class="font-bold mb-1"> {{ node.node.name }}</span>
-                    <span class="m-0 text-secondary"> {{ node.node.description }}</span>
-                    <span
-                      v-if="typeof node.disabled === 'string'"
-                      class="m-0 text-secondary font-bold"
-                      >{{ node.disabled }}</span
-                    >
-                  </span>
-                </a>
-              </li>
+                  <a
+                    class="element flex align-items-center p-3 border-round w-full transition-colors transition-duration-150 cursor-pointer"
+                    style="border-radius: '10px'"
+                    :class="{
+                      selected: selected?.nodeId === node.node.id && selected.pluginId === plugin.id
+                    }"
+                  >
+                    <i class="pi pi-home text-xl mr-3"></i>
+                    <span class="flex flex-column">
+                      <span class="font-bold mb-1">
+                        <span>{{ node.node.name }}</span>
+                        <span v-if="node.node.version"> (v{{ node.node.version }})</span>
+                      </span>
+                      <span class="m-0 text-secondary"> {{ node.node.description }}</span>
+                      <span
+                        v-if="typeof node.disabled === 'string'"
+                        class="m-0 text-secondary font-bold"
+                        >{{ node.disabled }}</span
+                      >
+                    </span>
+                  </a>
+                </li></template
+              >
             </ul>
           </div>
         </div>
       </div>
 
       <template #footer>
-        <div class="flex justify-content-end gap-2 mt-4">
-          <Button
-            type="button"
-            label="Cancel"
-            severity="secondary"
-            @click="visible = false"
-          ></Button>
-          <Button type="button" label="Ajouter" @click="onAdd"></Button>
+        <div class="footer pt-4">
+          <div class="flex justify-content-start gap-2">
+            <Checkbox id="advanced-nodes-checkbox" v-model="displayAdvancedNodes" :binary="true" />
+            <label for="advanced-nodes-checkbox"> Display advanced nodes </label>
+          </div>
+
+          <div class="flex justify-content-end gap-2">
+            <Button
+              type="button"
+              label="Cancel"
+              severity="secondary"
+              @click="visible = false"
+            ></Button>
+            <Button type="button" label="Ajouter" @click="onAdd"></Button>
+          </div>
         </div>
       </template>
     </Dialog>
@@ -100,8 +109,9 @@ import { storeToRefs } from 'pinia'
 import Button from 'primevue/button'
 import InputText from 'primevue/inputtext'
 import { useAppStore } from '@renderer/store/app'
-import { PipelabNode } from '@@/libs/plugin-core'
+import { PipelabNode, RendererNodeDefinition } from '@@/libs/plugin-core'
 import { useLogger } from '@@/logger'
+import PluginIcon from './nodes/PluginIcon.vue'
 
 type ButtonProps = InstanceType<typeof Button>['$props']
 
@@ -132,6 +142,7 @@ const $searchInput = ref<InstanceType<typeof InputText>>()
 
 const visible = ref(false)
 const search = ref('')
+const displayAdvancedNodes = ref(false)
 
 watchEffect(() => {
   if (visible.value === true) {
@@ -142,6 +153,18 @@ watchEffect(() => {
     }
   }
 })
+
+const shouldShowNode = (node: RendererNodeDefinition) => {
+  if (node.advanced && displayAdvancedNodes.value) {
+    return true
+  } else if (node.advanced && !displayAdvancedNodes.value ) {
+    return false
+  } else if (node.disabled) {
+    return false
+  } else {
+    return true
+  }
+}
 
 const selected = ref<{ nodeId: string; pluginId: string }>()
 
@@ -239,7 +262,7 @@ const searchedElements = computed(() => {
 
 .vl {
   border-left: 2px solid #c2c9d1;
-  height: 32px;
+  height: 8px;
 }
 
 .content {
@@ -291,5 +314,13 @@ const searchedElements = computed(() => {
     color: var(--p-primary-contrast-color);
     background-color: var(--p-primary-color);
   }
+}
+
+.footer {
+  border-top: 1px solid #c2c9d1;
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  align-items: baseline;
 }
 </style>

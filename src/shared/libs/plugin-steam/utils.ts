@@ -31,7 +31,7 @@ export const checkSteamAuth = async (options: Options) => {
           }
         }
       },
-      options.context.abortSignal,
+      options.context.abortSignal
     )
   } catch (e) {
     console.error('e', e)
@@ -56,27 +56,46 @@ export const openExternalTerminal = async (
   command: string,
   args: string[] = [],
   options: ExecaOptions = {},
+  keepOpen = false
 ) => {
   const { execa } = await import('execa')
   const os = await import('os')
 
-  const platform = os.platform()
+  const platform = process.platform
 
-  try {
-    if (platform === 'darwin') {
-      // macOS
-      await execa('open', ['-a', 'Terminal', command, ...args], options)
-    } else if (platform === 'linux') {
-      // Linux
-      const terminal = process.env.TERMINAL ?? process.env.TERM ?? 'xterm'
-      await execa(terminal, ['-e', command, ...args], options)
-    } else if (platform === 'win32') {
-      // Windows
-      await execa('cmd.exe', ['/c', 'start', 'cmd.exe', '/c', command, ...args], options)
-    } else {
-      throw new Error('Unsupported platform:' + platform)
-    }
-  } catch (error) {
-    throw new Error('Error opening terminal:' + error.message)
+  if (platform === 'darwin') {
+    // macOS: open in Terminal.app
+    return execa('open', ['-a', 'Terminal', command, ...args], options)
+  } else if (platform === 'linux') {
+    // Linux: use $TERMINAL, $TERM, or fallback to xterm
+    const terminal = process.env.TERMINAL ?? process.env.TERM ?? 'xterm'
+    return execa(terminal, ['-e', command, ...args], options)
+  } else if (platform === 'win32') {
+    // Windows: try PowerShell by default, fallback to CMD if needed
+    // try {
+    //   console.log('verifying')
+    //   // Try a harmless PowerShell command. We ignore stdio.
+    //   await execa(
+    //     'powershell.exe',
+    //     ['-Command', 'Write-Output "PowerShell available"; exit'],
+    //     {
+    //       all: true
+    //     }
+    //   )
+    //   return execa(
+    //     'cmd.exe',
+    //     [keepOpen ? '/k' : '/c', 'start', 'powershell.exe', '-Command', command, ...args],
+    //     options
+    //   )
+    // } catch (error) {
+    // Oops! No PowerShell? Fallback to CMD.
+    return execa(
+      'cmd.exe',
+      [keepOpen ? '/k' : '/c', 'start', 'cmd.exe', '/c', command, ...args],
+      options
+    )
+    // }
+  } else {
+    throw new Error('Unsupported platform: ' + platform)
   }
 }

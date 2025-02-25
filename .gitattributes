@@ -1,1 +1,12 @@
 * text eol=lf
+*.icns binary
+*.ico binary
+*.pdf binary
+*.jpg binary
+*.jpeg binary
+*.png binary
+*.gif binary
+*.tiff binary
+*.bmp binary
+*.webp binary
+*.c3p binary

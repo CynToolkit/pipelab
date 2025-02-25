@@ -1,4 +1,4 @@
-import { createAction, createActionRunner } from '@pipelab/plugin-core'
+import { createAction, createActionRunner, createNumberParam } from '@pipelab/plugin-core'
 
 export const ID = 'system:sleep'
 
@@ -10,16 +10,10 @@ export const sleepAction = createAction({
   displayString: '`Wait for ${fmt.param(params.duration)}ms`',
   meta: {},
   params: {
-    duration: {
-      value: 2000,
+    duration: createNumberParam(2000, {
+      required: true,
       label: 'Duration',
-      control: {
-        type: 'input',
-        options: {
-          kind: 'number'
-        }
-      }
-    }
+    })
   },
 
   outputs: {}

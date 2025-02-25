@@ -1,6 +1,8 @@
 import {
   createAction,
   createActionRunner,
+  createPathParam,
+  createStringParam,
   downloadFile,
   runWithLiveLogs
 } from '@pipelab/plugin-core'
@@ -33,57 +35,32 @@ export const uploadToItch = createAction({
     "`Upload ${fmt.param(params['input-folder'], 'primary', 'No path selected')} to ${fmt.param(params['user'], 'primary', 'No project')}/${fmt.param(params['project'], 'primary', 'No project')}:${fmt.param(params['channel'], 'primary', 'No channel')}`",
   meta: {},
   params: {
-    'input-folder': {
+    'input-folder': createPathParam('', {
+      required: true,
       label: 'Folder to Upload',
-      value: '',
       control: {
         type: 'path',
         options: {
           properties: ['openDirectory']
         }
       }
-    },
-    user: {
+    }),
+    user: createStringParam('', {
+      required: true,
       label: 'User',
-      value: '',
-      control: {
-        type: 'input',
-        options: {
-          kind: 'text'
-        }
-      }
-    },
-    project: {
+    }),
+    project: createStringParam('', {
+      required: true,
       label: 'Project',
-      value: '',
-      control: {
-        type: 'input',
-        options: {
-          kind: 'text'
-        }
-      }
-    },
-    channel: {
+    }),
+    channel: createStringParam('', {
+      required: true,
       label: 'Channel',
-      value: '',
-      control: {
-        type: 'input',
-        options: {
-          kind: 'text'
-        }
-      }
-    },
-    'api-key': {
+    }),
+    'api-key': createStringParam('', {
+      required: true,
       label: 'API key',
-      value: '',
-      control: {
-        type: 'input',
-        options: {
-          kind: 'text',
-          hideChars: true
-        }
-      }
-    }
+    })
   },
   outputs: {}
 })

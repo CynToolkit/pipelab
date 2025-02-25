@@ -1,24 +1,46 @@
+// @ts-check
+
 import { app } from 'electron'
-import { join } from 'path';
+import { join } from 'path'
+
+import slash from 'slash';
+import { getAppName } from '../../utils.js';
 
 /**
  * @param {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').MessagePaths, 'input'>} json
  * @param {import('ws').WebSocket} ws
- * @param {import('electron').BrowserWindow} mainWindow
+ * @param {ElectronAppConfig.Config} config
  */
-export default (json, ws, mainWindow) => {
+export default (json, ws, config) => {
   try {
-    /** @type {Parameters<typeof app.getPath>[0] | 'app'} */
-    const name = json.body.name;
+    const name = json.body.name
 
-    let folder;
+    let folder
+
+    const { env } = process
+    //      windows       linux
+    const { APPDATA, LOCALAPPDATA, XDG_DATA_HOME, XDG_CONFIG_HOME } = env
+    const appDataBackup = app.getPath('appData')
+    const localAppData = LOCALAPPDATA ?? XDG_DATA_HOME ?? appDataBackup
+    const appData = APPDATA ?? XDG_CONFIG_HOME ?? appDataBackup
+
+    const appNameFolder = getAppName(config)
+
+    const localUserData = join(localAppData, appNameFolder)
+    const userData = join(appData, appNameFolder)
 
     if (name === 'app') {
-      folder = app.getAppPath();
+      folder = app.getAppPath()
     } else if (name === 'project') {
-      folder = join(app.getAppPath(), 'src', 'app'); // path to construct files
+      folder = join(app.getAppPath(), 'src', 'app') // path to construct files
+    } else if (name === 'localAppData') {
+      folder = localAppData
+    } else if (name === 'localUserData') {
+      folder = localUserData
+    } else if (name === 'userData') {
+      folder = userData
     } else {
-      folder = app.getPath(name);
+      folder = app.getPath(name)
     }
 
     /**
@@ -28,11 +50,10 @@ export default (json, ws, mainWindow) => {
       url: json.url,
       correlationId: json.correlationId,
       body: {
-        data: folder
+        data: slash(folder)
       }
-    };
-    console.log('result', userFolderResult)
-    ws.send(JSON.stringify(userFolderResult));
+    }
+    ws.send(JSON.stringify(userFolderResult))
   } catch (e) {
     console.error('e', e)
     /**
@@ -44,8 +65,7 @@ export default (json, ws, mainWindow) => {
       body: {
         error: e.message
       }
-    };
-    console.log('result', userFolderResult)
-    ws.send(JSON.stringify(userFolderResult));
+    }
+    ws.send(JSON.stringify(userFolderResult))
   }
 }

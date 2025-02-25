@@ -1,4 +1,4 @@
-import { computed, ref, toRaw } from 'vue'
+import { computed, ref } from 'vue'
 import {
   Block,
   BlockAction,
@@ -182,8 +182,13 @@ export const useEditor = defineStore('editor', () => {
           const outputs = pluginDef.node.outputs
 
           for (const [key, output] of Object.entries(outputs)) {
+            /*
+            <i
+              class="mdi mdi-play-circle"
+              />
+            */
             result[node.uid]['outputs'][key] =
-              `<span class="step">${pluginDef.node.name} → ${output.label}</span>`
+              `<span class="step">${node.name ?? pluginDef.node.name} → ${output.label}</span>`
           }
         }
       }
@@ -246,7 +251,10 @@ export const useEditor = defineStore('editor', () => {
       }
       const requiredParams = Object.entries(definition.node?.params ?? {})
       for (const [key, param] of requiredParams) {
-        if (isRequired(param) && !(key in block.params)) {
+        if (
+          (isRequired(param) && !(key in block.params)) ||
+          (isRequired(param) && !block.params[key].value)
+        ) {
           logger().warn(`Missing required param "${key}" in node "${block.uid}"`)
           errors.push({
             type: 'missing',
@@ -302,9 +310,13 @@ export const useEditor = defineStore('editor', () => {
           const params = definition.node.params
           for (const param of Object.keys(params)) {
             if (!(param in block.params)) {
-              console.warn("adding mising param", param)
+              console.log('params[param]', params[param])
+              console.warn('adding mising param', param, {
+                editor: 'simple',
+                value: params[param].value
+              })
               block.params[param] = {
-                editor: 'editor',
+                editor: 'simple',
                 value: params[param].value
               }
             }
@@ -410,6 +422,7 @@ export const useEditor = defineStore('editor', () => {
 
   const cloneNode = (node: Block, newIndex: number) => {
     const newNode = klona(node)
+    newNode.uid = nanoid()
     addNodeToBlock(newNode, [], newIndex)
   }
 
@@ -443,10 +456,7 @@ export const useEditor = defineStore('editor', () => {
         const createParams: BlockAction['params'] = {}
         for (const [key, param] of Object.entries(nodeDefinition.params)) {
           // ensure the value is converted to code expression
-          let val = param.value
-          if (typeof val === 'string') {
-            val = `"${val}"`
-          }
+          const val = param.value
 
           createParams[key] = {
             editor: 'simple',

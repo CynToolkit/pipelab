@@ -1,22 +1,38 @@
 <template>
   <div class="editor">
     <div v-if="paramDefinition.control.type === 'input'" class="input">
-      <InputText
-        v-if="paramDefinition.control.options.kind === 'text'"
-        :model-value="modelValueString"
-        filter
-        multiple
-        option-label="label"
-        class="w-full"
-        @update:model-value="onParamInputTextChange"
-      />
+      <template v-if="paramDefinition.control.options.kind === 'text'">
+        <Password
+          v-if="paramDefinition.control.options.password"
+          :model-value="modelValueString"
+          :placeholder="paramDefinition.control.options.placeholder"
+          :toggle-mask="true"
+          :feedback="false"
+          :class="{
+            'w-full': true
+          }"
+          input-class="w-full"
+          @update:model-value="onParamInputTextChange"
+        >
+        </Password>
+        <InputText
+          v-else
+          :model-value="modelValueString"
+          filter
+          :placeholder="paramDefinition.control.options.placeholder"
+          multiple
+          option-label="label"
+          class="w-full"
+          @update:model-value="onParamInputTextChange"
+        />
+      </template>
       <InputNumber
         v-else-if="paramDefinition.control.options.kind === 'number'"
         :model-value="modelValueNumber"
         show-buttons
         option-label="label"
         class="w-full"
-        @update:model-value="onParamInputNumberChange"
+        @input="onParamInputNumberChange"
       />
     </div>
     <div v-else-if="paramDefinition.control.type === 'boolean'" class="boolean">
@@ -73,7 +89,7 @@
         @change="onParamMultiSelectChange"
       />
     </div>
-    <Button v-else class="w-full" @click="onSwitch">Switch tab to edit value</Button>
+    <Button v-else class="w-full" @click="onSwitch">Switch to editor to edit value</Button>
   </div>
 </template>
 
@@ -86,6 +102,7 @@ import { useLogger } from '@@/logger'
 import type { OpenDialogOptions } from 'electron'
 import { SelectButtonChangeEvent } from 'primevue/selectbutton'
 import { ListboxChangeEvent } from 'primevue/listbox'
+import { InputNumberInputEvent } from 'primevue/inputnumber'
 
 type Params = (Action | Condition | Event)['params']
 
@@ -140,8 +157,13 @@ const onParamInputTextChange = (event: string) => {
   emit('update:modelValue', `"${event}"`)
 }
 
-const onParamInputNumberChange = (event: number) => {
-  emit('update:modelValue', event)
+// const onParamInputNumberChange = (event: number) => {
+//   console.log('event', event)
+//   emit('update:modelValue', event)
+// }
+const onParamInputNumberChange = (event: InputNumberInputEvent) => {
+  console.log('event', event)
+  emit('update:modelValue', event.value)
 }
 
 const onParamMultiSelectChange = (

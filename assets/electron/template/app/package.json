@@ -22,8 +22,8 @@
     "@electron-forge/plugin-auto-unpack-natives": "7.4.0",
     "@electron-forge/plugin-fuses": "7.4.0",
     "@electron/fuses": "1.8.0",
-    "@pipelab/core": "1.3.3",
-    "electron": "32.1.2"
+    "@pipelab/core": "1.4.4",
+    "electron": "34.0.2"
   },
   "keywords": [],
   "author": {
@@ -37,9 +37,11 @@
     "electron-serve": "^2.1.1",
     "electron-squirrel-startup": "1.0.1",
     "execa": "^9.4.0",
+    "move-file": "^3.1.0",
     "mri": "1.2.0",
     "serve-handler": "^6.1.5",
-    "ws": "^8.18.0",
-    "steamworks.js": "0.4.0"
+    "slash": "^5.1.0",
+    "steamworks.js": "0.4.0",
+    "ws": "^8.18.0"
   }
 }

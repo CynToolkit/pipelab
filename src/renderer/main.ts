@@ -6,7 +6,6 @@ import { createPinia } from 'pinia'
 import piniaPluginPersistedstate from 'pinia-plugin-persistedstate'
 
 import PrimeVue from 'primevue/config'
-import Aura from '@primevue/themes/nora'
 import Lara from '@primevue/themes/lara'
 import 'primeicons/primeicons.css'
 import 'primeflex/primeflex.css'
@@ -19,8 +18,9 @@ import { init } from '@sentry/electron/renderer'
 import { breadcrumbsIntegration, init as vueInit } from '@sentry/vue'
 import ToastService from 'primevue/toastservice'
 import ConfirmationService from 'primevue/confirmationservice'
+import posthogPlugin from './plugins/posthog' //import the plugin.
+import posthog from 'posthog-js'
 
-let bugsnagVue: any
 if (window.isPackaged && process.env.TEST !== 'true') {
   init(
     {
@@ -29,6 +29,11 @@ if (window.isPackaged && process.env.TEST !== 'true') {
       integrations: [
         breadcrumbsIntegration({
           console: false
+        }),
+        posthog.sentryIntegration({
+          organization: 'armaldio',
+          projectId: 4507621723144192,
+          severityAllowList: ['error', 'info'] // optional: here is set to handle captureMessage (info) and captureException (error)
         })
       ]
     },
@@ -131,9 +136,8 @@ app.use(PrimeVue, {
 })
 app.use(ToastService)
 app.use(ConfirmationService)
-
-if (bugsnagVue) {
-  app.use(bugsnagVue)
+if (window.isPackaged && process.env.TEST !== 'true') {
+  app.use(posthogPlugin)
 }
 
 app.mount('#app')

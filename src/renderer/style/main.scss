@@ -1,3 +1,4 @@
+@use "sass:list";
 .node-icon {
   font-size: 40px;
 }
@@ -9,8 +10,8 @@
 .editor .subtitle .param {
   border: 1px solid #ccc;
   background-color: #ddd;
-  padding: 4px;
-  margin: 4px;
+  padding: 2px 4px;
+  margin: 2px 4px;
   border-radius: 4px;
   cursor: pointer;
   display: flex;
@@ -32,15 +33,16 @@
   }
 
   .step {
-    border: 1px solid #ccc;
-    background-color: #ddd;
-    padding: 4px;
-    margin: 2px;
+    // border: 1px solid #ccc;
+    // background-color: #ddd;
+    // padding: 4px;
+    // margin: 2px;
     border-radius: 4px;
     cursor: pointer;
     display: flex;
     flex-direction: row;
     gap: 4px;
+    color: rgb(0, 99, 8);
   }
 
   .variable {
@@ -83,9 +85,9 @@
 }
 
 $sizes: 12, 14, 16, 18, 20, 24, 28, 32, 36, 40, 44, 48, 52, 56, 60, 64, 72, 80, 96 !default;
-@for $i from 1 through length($sizes) {
-  .fs-#{nth($sizes, $i)} {
-    font-size: #{nth($sizes, $i)}px;
+@for $i from 1 through list.length($sizes) {
+  .fs-#{list.nth($sizes, $i)} {
+    font-size: #{list.nth($sizes, $i)}px;
   }
 }
 

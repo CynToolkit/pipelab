@@ -5,7 +5,7 @@
     <!-- <pre>{{ path }}</pre> -->
     <div class="vl"></div>
 
-    <Dialog :closable="false" v-model:visible="visible" modal header="" :style="{ width: '75%' }">
+    <Dialog v-model:visible="visible" :closable="false" modal header="" :style="{ width: '75%' }">
       <template #header>
         <div class="flex flex-column w-full">
           <p class="text-xl">Add trigger</p>
@@ -39,28 +39,35 @@
                   <!-- <span class="text-secondary">Administrator</span> -->
                 </div>
               </li>
-              <li
-                v-for="trigger in plugin.triggers"
-                :key="trigger.node.id"
-                class="flex trigger-item"
-                @click="selected = { triggerId: trigger.node.id, pluginId: plugin.id }"
-                :disabled="trigger.disabled"
-              >
-                <a
-                  class="element flex align-items-center p-3 border-round w-full transition-colors transition-duration-150 cursor-pointer"
-                  style="border-radius: '10px'"
-                  :class="{
-                    selected: selected?.triggerId === trigger.node.id && selected.pluginId === plugin.id
-                  }"
+              <template v-for="trigger in plugin.triggers">
+                <li
+                  v-if="!trigger.disabled"
+                  :key="trigger.node.id"
+                  class="flex trigger-item"
+                  :disabled="trigger.disabled"
+                  @click="selected = { triggerId: trigger.node.id, pluginId: plugin.id }"
                 >
-                  <i class="pi pi-home text-xl mr-3"></i>
-                  <span class="flex flex-column">
-                    <span class="font-bold mb-1"> {{ trigger.node.name }}</span>
-                    <span class="m-0 text-secondary"> {{ trigger.node.description }}</span>
-                    <span class="m-0 text-secondary font-bold" v-if="typeof trigger.disabled === 'string'">{{ trigger.disabled }}</span>
-                  </span>
-                </a>
-              </li>
+                  <a
+                    class="element flex align-items-center p-3 border-round w-full transition-colors transition-duration-150 cursor-pointer"
+                    style="border-radius: '10px'"
+                    :class="{
+                      selected:
+                        selected?.triggerId === trigger.node.id && selected.pluginId === plugin.id
+                    }"
+                  >
+                    <i class="pi pi-home text-xl mr-3"></i>
+                    <span class="flex flex-column">
+                      <span class="font-bold mb-1"> {{ trigger.node.name }}</span>
+                      <span class="m-0 text-secondary"> {{ trigger.node.description }}</span>
+                      <span
+                        v-if="typeof trigger.disabled === 'string'"
+                        class="m-0 text-secondary font-bold"
+                        >{{ trigger.disabled }}</span
+                      >
+                    </span>
+                  </a>
+                </li>
+              </template>
             </ul>
           </div>
         </div>

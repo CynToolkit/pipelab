@@ -16,7 +16,6 @@ export default async (json, ws, mainWindow) => {
       success: true
     }
   }
-  console.log('result', minimizeResult)
   ws.send(JSON.stringify(minimizeResult));
 
 }

@@ -108,7 +108,9 @@ describe('basic', () => {
         expect(result.steps).toEqual({
           'export-construct-project': {
             outputs: {
-              folder: expect.any(String)
+              folder: expect.any(String),
+              parentFolder: expect.any(String),
+              zipFile: expect.any(String),
             }
           }
         })

@@ -17,6 +17,5 @@ export default async (json, ws, mainWindow) => {
       success: true
     }
   }
-  console.log('result', setXResult)
   ws.send(JSON.stringify(setXResult));
 }

@@ -3,9 +3,8 @@ import { execa } from 'execa';
 /**
  * @param {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').MessageRun, 'input'>} json
  * @param {import('ws').WebSocket} ws
- * @param {import('electron').BrowserWindow} mainWindow
  */
-export default async (json, ws, mainWindow) => {
+export default async (json, ws) => {
   const exec = execa({
     cwd: json.body.cwd,
     env: json.body.env,
@@ -24,6 +23,5 @@ export default async (json, ws, mainWindow) => {
       stderr,
     }
   }
-  console.log('result', execResult)
   ws.send(JSON.stringify(execResult));
 }

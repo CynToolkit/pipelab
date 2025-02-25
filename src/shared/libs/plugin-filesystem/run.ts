@@ -1,4 +1,10 @@
-import { createAction, createActionRunner, runWithLiveLogsPTY } from '@pipelab/plugin-core'
+import {
+  createAction,
+  createActionRunner,
+  createPathParam,
+  createStringParam,
+  runWithLiveLogs,
+} from '@pipelab/plugin-core'
 
 export const ID = 'fs:run'
 
@@ -9,18 +15,13 @@ export const run = createAction({
     "`Invoke ${fmt.param(params.command, 'primary')} ${(params.parameters ?? []).map(x => { console.log('x', x); return fmt.param(x) }).join(' ')}`",
   // displayString: displayString,
   params: {
-    command: {
+    command: createStringParam('', {
+      required: true,
       description: 'The command to run',
-      label: 'Command',
-      value: '',
-      control: {
-        type: 'input',
-        options: {
-          kind: 'text'
-        }
-      }
-    },
+      label: 'Command'
+    }),
     parameters: {
+      required: true,
       description: "The command's parameters",
       label: 'Arguments',
       value: [],
@@ -29,6 +30,26 @@ export const run = createAction({
         options: {
           kind: 'text'
         }
+      }
+    },
+    workingDirectory: createPathParam('', {
+      required: false,
+      description: 'The directory to run the command in. Default to current task directory',
+      label: 'Working directory',
+      control: {
+        type: 'path',
+        options: {
+          properties: ['createDirectory', 'openDirectory']
+        }
+      }
+    }),
+    stopOnError: {
+      required: false,
+      description: 'Stop the task if the command fails',
+      label: 'Stop on error',
+      value: false,
+      control: {
+        type: 'boolean'
       }
     }
   },
@@ -68,31 +89,45 @@ export const runRunner = createActionRunner<typeof run>(
     let exitCode: number = 0
     const durationMs: number = 0
 
+    const wd = inputs.workingDirectory ?? process.cwd()
+    log(`Working directory: ${wd}`)
+
     try {
-      await runWithLiveLogsPTY(inputs.command, inputs.parameters, {}, log, {
-        onStdout: (data) => {
-          stdout += data.toString()
+      await runWithLiveLogs(
+        inputs.command,
+        inputs.parameters,
+        {
+          cwd: wd,
+          cancelSignal: abortSignal
         },
-        onStderr: (data) => {
-          stderr += data.toString()
-        },
-        onExit(code) {
-          exitCode = code
-        },
-        onCreated(subprocess) {
-          abortSignal.addEventListener('abort', () => {
-            subprocess.kill()
-          })
+        log,
+        {
+          onStdout: (data) => {
+            stdout += data.toString()
+            log(data.toString())
+          },
+          onStderr: (data) => {
+            stderr += data.toString()
+            log(data.toString())
+          },
+          onExit(code) {
+            exitCode = code
+          }
         }
-      })
+      )
 
       setOutput('exitCode', exitCode === undefined ? -1 : exitCode)
       setOutput('stdout', stdout)
       setOutput('stderr', stderr)
       setOutput('duration', durationMs)
+      if ((exitCode > 0 || exitCode === undefined) && inputs.stopOnError === true) {
+        throw new Error(`Command failed with exit code ${exitCode}`)
+      }
     } catch (error) {
       console.log('error', error)
-      if (error /*  instanceof ExecaError */) {
+      if (inputs.stopOnError === true) {
+        throw error
+      } else if (error /*  instanceof ExecaError */) {
         setOutput('exitCode', error.exitCode === undefined ? -1 : error.exitCode)
         setOutput('stdout', error.stdout ?? '')
         setOutput('stderr', error.stderr ?? '')

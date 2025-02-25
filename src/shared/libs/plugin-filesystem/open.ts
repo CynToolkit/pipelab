@@ -1,4 +1,4 @@
-import { createAction, createActionRunner } from '@pipelab/plugin-core'
+import { createAction, createActionRunner, createPathParam } from '@pipelab/plugin-core'
 // import displayString from './displayStringRun.lua?raw'
 
 export const ID = 'fs:open-in-explorer'
@@ -6,18 +6,18 @@ export const ID = 'fs:open-in-explorer'
 export const openInExplorer = createAction({
   id: ID,
   name: 'Open path in explorer',
-  displayString: "`Open ${fmt.param(params.path, 'primary')} in explorer`",
+  displayString: "`Open ${fmt.param(params.path, 'primary', 'No path set')} in explorer`",
   params: {
-    path: {
+    path: createPathParam('', {
+      required: true,
       label: 'Path',
-      value: '',
       control: {
         type: 'path',
         options: {
           properties: ['openDirectory', 'openFile']
         }
       }
-    }
+    })
   },
 
   outputs: {

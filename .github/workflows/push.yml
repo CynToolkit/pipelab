@@ -4,8 +4,11 @@ on:
   push:
     tags:
       - '*'
+    branches:
+      - main
+      - develop
   pull_request:
-    branches: [main]
+    branches: [main, develop]
   merge_group:
 
 jobs:
@@ -41,27 +44,38 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
+      - name: logs
+        run: ls node_modules/@lydell
+
       - name: Package application
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
           SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+          POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
         run: pnpm electron-forge publish --dry-run
 
-      # - name: Run tests
-      #   uses: coactions/setup-xvfb@v1
-      #   with:
-      #     run: pnpm test:e2e:raw
+      - name: Disable AppArmor restriction
+        if: matrix.os == 'ubuntu-latest'
+        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
 
-      # - name: Upload Playwright artifacts
-      #   uses: actions/upload-artifact@v4
-      #   with:
-      #     name: ${{ matrix.os }}-playwright
-      #     path: playwright/**/*
+      - name: Run tests
+        uses: coactions/setup-xvfb@v1
+        # continue-on-error: true
+        with:
+          run: pnpm test:e2e:raw
+
+      - name: Upload Playwright artifacts
+        # continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.os }}-playwright
+          path: playwright/**/*
 
       - name: Upload artifacts
         if: success()
+        # continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.os }}-out

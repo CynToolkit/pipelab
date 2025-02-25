@@ -1,7 +1,7 @@
 /**
  * @param {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').SteamRaw, 'input'>} json
  * @param {import('ws').WebSocket} ws
- * @param {import('steamworks.js').Client} client
+ * @param {Omit<import('steamworks.js').Client, "init" | "runCallbacks">} client
  */
 export default async (json, ws, client) => {
   console.log('json', json)
@@ -22,6 +22,5 @@ export default async (json, ws, client) => {
       success: true
     }
   };
-  console.log('result', steamResult)
   ws.send(JSON.stringify(steamResult));
 }

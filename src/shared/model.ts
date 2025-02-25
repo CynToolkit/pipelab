@@ -8,12 +8,14 @@ import {
   array,
   boolean,
   custom,
+  description,
   GenericSchema,
   InferOutput,
   lazy,
   literal,
   object,
   optional,
+  pipe,
   record,
   string,
   union,
@@ -49,6 +51,7 @@ export type EditorParam = InferOutput<typeof EditorParamValidatorV3>
 const BlockActionValidatorV3 = object({
   type: literal('action'),
   uid: string(),
+  name: pipe(optional(string()), description('A custom name provided by the user')),
   disabled: optional(boolean()),
   params: record(
     string(),
@@ -187,7 +190,19 @@ export type SavedFileV3 = InferOutput<typeof SavedFileValidatorV3>
 export type SavedFile = SavedFileV3
 export const SavedFileValidator = SavedFileValidatorV3
 
-export const savedFileMigrator = createMigrator<SavedFile>({
+const savedFileMigratorr = createMigrator<SavedFileV1, SavedFile>()
+const defaultValue = savedFileMigratorr.createDefault({
+  canvas: {
+    blocks: []
+  },
+  description: '',
+  name: '',
+  variables: [],
+  version: '1.0.0'
+})
+
+export const savedFileMigrator = savedFileMigratorr.createMigrations({
+  defaultValue,
   migrations: [
     createMigration<never, SavedFileV1, SavedFileV2>({
       version: '1.0.0',
@@ -253,7 +268,7 @@ export const savedFileMigrator = createMigrator<SavedFile>({
           canvas: {
             triggers,
             blocks: newBlocks
-          },
+          }
         } satisfies OmitVersion<SavedFileV3>
       },
       down: () => {

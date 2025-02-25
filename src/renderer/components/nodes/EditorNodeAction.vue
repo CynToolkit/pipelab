@@ -5,65 +5,37 @@
       class="node-action"
       :class="{
         active: activeNode?.uid === value.uid,
-        error: Object.keys(errors).length > 0,
+        error: hasErrors,
         disabled: value.disabled || isRunning
       }"
       @click="onNodeClick"
     >
-      <!-- <div class="hover-overlay">
-        <div class="hover-overlay-content">
-          <div class="left">
-            <Button @click="swapNodes(index, 'up')">
-              <template #icon>
-                <i class="mdi mdi-arrow-up"></i>
-              </template>
-            </Button>
-            <Button @click="swapNodes(index, 'down')">
-              <template #icon>
-                <i class="mdi mdi-arrow-down"></i>
-              </template>
-            </Button>
-          </div>
-          <div class="center">
-            <Button @click="showSidebar = true">
-              <template #icon>
-                <i class="mdi mdi-pencil"></i>
-              </template>
-            </Button>
-          </div>
-          <div class="right">
-            <Button v-if="value.disabled" @click="enableNode(value)">
-              <template #icon>
-                <i class="mdi mdi-toggle-switch-off-outline"></i>
-              </template>
-            </Button>
-            <Button v-else @click="disableNode(value)">
-              <template #icon>
-                <i class="mdi mdi-toggle-switch"></i>
-              </template>
-            </Button>
-            <Button @click="cloneNode(value, index + 1)">
-              <template #icon>
-                <i class="mdi mdi-content-copy"></i>
-              </template>
-            </Button>
-            <Button @click="removeNode(value.uid)">
-              <template #icon>
-                <i class="mdi mdi-trash-can"></i>
-              </template>
-            </Button>
-          </div>
-        </div>
-      </div> -->
-
       <div class="vertical">
-        <PluginIcon :icon="pluginDefinition?.icon"></PluginIcon>
+        <PluginIcon width="32px" :icon="pluginDefinition?.icon"></PluginIcon>
 
         <div class="content">
           <div class="title">
-            <span class="">{{ nodeDefinition?.name }}</span>
+            <div spellcheck="false" contenteditable="true" @click.stop @input="handleInput">
+              {{ title }}
+            </div>
+            <div v-if="value.name" class="original-title">{{ nodeDefinition.name }}</div>
+            <Button
+              v-if="nodeDefinition.deprecated"
+              v-tooltip="
+                nodeDefinition.deprecatedMessage ??
+                'This module is deprecated. You should not use it anymore.'
+              "
+              size="small"
+              :pt="{
+                root: { style: { padding: '0 4px' } }
+              }"
+              class="deprecated-string"
+            >
+              {{ 'Deprecated' }}
+            </Button>
           </div>
-          <div class="subtitle" v-html="subtitle"></div>
+          <div v-if="subtitle" class="subtitle" v-html="subtitle"></div>
+          <Skeleton v-else width="300px" height="28px"></Skeleton>
         </div>
 
         <div class="actions">
@@ -151,6 +123,7 @@ import { ValidationError } from '@renderer/models/error'
 import AddNodeButton from '../AddNodeButton.vue'
 import { ValueOf } from 'type-fest'
 import { MenuItem } from 'primevue/menuitem'
+import { padding } from 'polished'
 
 const props = defineProps({
   value: {
@@ -183,51 +156,8 @@ const props = defineProps({
 })
 
 const menu = ref()
-const { value, steps, index, isRunning } = toRefs(props)
+const { value, steps, index, isRunning, errors } = toRefs(props)
 
-/*
-<div class="left">
-  <Button @click="swapNodes(index, 'up')">
-    <template #icon>
-      <i class="mdi mdi-arrow-up"></i>
-    </template>
-  </Button>
-  <Button @click="swapNodes(index, 'down')">
-    <template #icon>
-      <i class="mdi mdi-arrow-down"></i>
-    </template>
-  </Button>
-</div>
-<div class="center">
-  <Button @click="showSidebar = true">
-    <template #icon>
-      <i class="mdi mdi-pencil"></i>
-    </template>
-  </Button>
-</div>
-<div class="right">
-  <Button v-if="value.disabled" @click="enableNode(value)">
-    <template #icon>
-      <i class="mdi mdi-toggle-switch-off-outline"></i>
-    </template>
-  </Button>
-  <Button v-else @click="disableNode(value)">
-    <template #icon>
-      <i class="mdi mdi-toggle-switch"></i>
-    </template>
-  </Button>
-  <Button @click="cloneNode(value, index + 1)">
-    <template #icon>
-      <i class="mdi mdi-content-copy"></i>
-    </template>
-  </Button>
-  <Button @click="removeNode(value.uid)">
-    <template #icon>
-      <i class="mdi mdi-trash-can"></i>
-    </template>
-  </Button>
-</div>
-          */
 const items = computed<MenuItem[]>(() => [
   {
     label: 'Options',
@@ -335,6 +265,23 @@ const pluginDefinition = computed(() => {
 
 type Param = ValueOf<BlockAction['params']>
 
+const hasErrors = computed(() => {
+  const innerErrors = errors.value[value.value.uid]
+  if (innerErrors) {
+    return Object.keys(innerErrors).length > 0
+  }
+  return false
+})
+
+const handleInput = (newValue: InputEvent) => {
+  const content = (newValue.target as HTMLDivElement)?.textContent
+  console.log('content', content)
+  setBlockValue(value.value.uid, {
+    ...value.value,
+    name: content
+  })
+}
+
 const onValueChanged = (newValue: Param, paramKey: string) => {
   setBlockValue(value.value.uid, {
     ...value.value,
@@ -388,6 +335,12 @@ watchDebounced(
 )
 
 const subtitle = ref('')
+
+const title = computed(() => {
+  console.log('value.value', value.value.name)
+  console.log('nodeDefinition.value?.name', nodeDefinition.value?.name)
+  return value.value.name ?? nodeDefinition.value?.name ?? ''
+})
 
 watchDebounced(
   [resolvedParams, steps],
@@ -496,16 +449,30 @@ const hasErrored = computed(() => {
     flex-direction: column;
     justify-content: center;
     flex: 1;
-    padding: 12px;
+    padding: 4px 0;
 
     .title {
-      font-size: 1.2rem;
+      cursor: text;
+      font-size: 1rem;
+      display: flex;
+      align-items: baseline;
+      gap: 16px;
+
+      .deprecated-string {
+        font-size: 0.8rem;
+        opacity: 0.6;
+      }
+
+      .original-title {
+        font-size: 0.8rem;
+        color: #999;
+      }
     }
 
     .subtitle {
-      font-size: 1rem;
+      font-size: 0.8rem;
       color: #999;
-      height: 32px;
+      min-height: 28px;
       flex: 1;
       display: flex;
       flex-wrap: wrap;

@@ -20,6 +20,25 @@ const registerInstallButtonListener = (page: Page, log: typeof console.log) => {
     })
 }
 
+const registerSaveLoginExpiredistener = (page: Page, log: typeof console.log) => {
+  // as soon as it appear, without blocking flow
+  // accept installing plugins
+  const installDialog = page.locator('#confirmDialog')
+  const cancelBtn = installDialog.locator('.cancelConfirmButton')
+  cancelBtn
+    .waitFor({
+      timeout: 0
+    })
+    .then(async () => {
+      await cancelBtn.click()
+      log('cancelBtn clicked')
+      registerSaveLoginExpiredistener(page, log)
+    })
+    .catch(async () => {
+      log('cancelBtn.click() failed')
+    })
+}
+
 const registerWebglErrorListener = (page: Page, log: typeof console.log) => {
   // as soon as it appear, without blocking flow
   // ignore webgl error
@@ -47,6 +66,24 @@ const registerDeprecatedFeatures = (page: Page, log: typeof console.log) => {
   // ignore deprecated feature
   const deprecatedFeaturesDialog = page.locator('#deprecatedFeaturesDialog')
   const okButton = deprecatedFeaturesDialog.locator('.okButton')
+  okButton
+    .waitFor({
+      timeout: 0
+    })
+    .then(async () => {
+      await okButton.click()
+      log('okButton clicked')
+      registerDeprecatedFeatures(page, log)
+    })
+    .catch(async () => {
+      log('okButton.click() failed')
+    })
+}
+const registerWelcomeToConstructListener = (page: Page, log: typeof console.log) => {
+  // as soon as it appear, without blocking flow
+  // ignore deprecated feature
+  const welcomeTourDialog = page.locator('#welcomeTourDialog')
+  const okButton = welcomeTourDialog.locator('.noThanksLink')
   okButton
     .waitFor({
       timeout: 0
@@ -95,10 +132,12 @@ export const script = async (
   log('Navigating to URL', url)
   // const serviceWorkerPromise = page.waitForEvent("serviceworker");
   await page.goto(url)
+  log('after navigating')
 
   // const serviceworker = await serviceWorkerPromise;
-  await page.getByText('No thanks, not now').click()
-  log('Clicked No thanks button')
+  registerWelcomeToConstructListener(page, log)
+
+  log('after event')
 
   // if (addonsFolder) {
   //   const _files = await readdir(addonsFolder)
@@ -136,11 +175,16 @@ export const script = async (
   //   // }
   // }
 
+  await page.waitForTimeout(2000)
+  log('after wait')
+
   const [fileChooser] = await Promise.all([
     page.waitForEvent('filechooser'),
     page.keyboard.press('ControlOrMeta+O')
   ])
+  log('filechooser')
 
+  console.log('filePath', filePath)
   await fileChooser.setFiles([filePath])
   log('Set file')
 
@@ -186,6 +230,7 @@ export const script = async (
   registerWebglErrorListener(page, log)
   registerMissingAddonErrorListener(page, log)
   registerDeprecatedFeatures(page, log)
+  registerSaveLoginExpiredistener(page, log)
 
   log('Waiting for progress dialog to disapear')
   await progressDialog.waitFor({

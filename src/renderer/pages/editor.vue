@@ -24,13 +24,13 @@
           <Menu ref="menu" id="overlay_menu" :model="pipelineMenu" :popup="true" /> -->
         </div>
         <div class="center">
-          <Inplace>
+          <Inplace :pt="{ display: { style: { padding: '4px' } } }">
             <template #display>
               <div class="flex flex-row align-items-center">
                 <div>{{ instance.name }}</div>
-                <Button text size="small">
+                <Button text size="small" class="ml-1">
                   <template #icon>
-                    <i class="mdi mdi-pencil mr-1"></i>
+                    <i class="mdi mdi-pencil"></i>
                   </template>
                 </Button>
               </div>
@@ -71,7 +71,7 @@
       </div>
 
       <div class="editor-wrapper">
-        <div class="aside">
+        <!-- <div class="aside">
           <div>
             <div class="bold">Project Settings</div>
             <ProjectSettingsEditor v-if="instance"></ProjectSettingsEditor>
@@ -84,7 +84,7 @@
             <div class="bold">Environement</div>
             <EnvironementEditor v-if="instance"></EnvironementEditor>
           </div>
-        </div>
+        </div> -->
         <div class="main">
           <div class="node-editor-wrapper">
             <EditorNodeEvent
@@ -257,6 +257,7 @@ import { FancyAnsi, hasAnsi } from 'fancy-ansi'
 import Tooltip from 'primevue/tooltip'
 import { watchThrottled } from '@vueuse/core'
 import { stripHtml } from 'string-strip-html'
+import posthog from 'posthog-js'
 
 const router = useRouter()
 
@@ -287,6 +288,12 @@ const { files } = storeToRefs(filesStore)
 const { update } = filesStore
 
 const quickLogs = ref([])
+
+const keyToNodePluginId = (key: string) => {
+  const foundNode = nodes.value.find((x) => x.uid === key)
+  const node = getNodeDefinition(foundNode.origin.nodeId, foundNode.origin.pluginId)
+  return node.node.name ?? key
+}
 
 const keyToNodeName = (key: string) => {
   const foundNode = nodes.value.find((x) => x.uid === key)
@@ -339,6 +346,8 @@ const cancel = async () => {
 }
 
 const run = async () => {
+  posthog.capture('run_started')
+
   setIsRunning(true)
   clearLogs()
   try {
@@ -356,6 +365,11 @@ const run = async () => {
         setActiveNode()
       },
       onExecuteItem: async (node, params, steps) => {
+        posthog.capture(`node_executed`, {
+          origin_node_id: node.origin.nodeId,
+          origin_plugin_id: node.origin.pluginId
+        })
+
         nodeStatuses.value[node.uid] = 'running'
         /* if (node.type === 'condition') {
         return api.execute('condition:execute', {
@@ -403,6 +417,10 @@ const run = async () => {
               }
             }
           )
+          posthog.capture(`node_sucess`, {
+            origin_node_id: lastActiveNode.value.origin.nodeId,
+            origin_plugin_id: lastActiveNode.value.origin.pluginId
+          })
           nodeStatuses.value[node.uid] = 'done'
           return result
         } else {
@@ -419,6 +437,11 @@ const run = async () => {
     })
   } catch (e) {
     nodeStatuses.value[lastActiveNode.value.uid] = 'error'
+
+    posthog.capture(`node_errored`, {
+      origin_node_id: lastActiveNode.value.origin.nodeId,
+      origin_plugin_id: lastActiveNode.value.origin.pluginId
+    })
 
     console.error('error while executing process', e)
     if (e instanceof Error) {
@@ -812,6 +835,10 @@ function sleep(ms: number) {
     width: 100%;
     padding: 0 16px;
     opacity: 0.3;
+
+    .log-entry {
+      position: absolute;
+    }
   }
 }
 

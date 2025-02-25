@@ -1,4 +1,4 @@
-import { createAction, createActionRunner } from '@pipelab/plugin-core'
+import { createAction, createActionRunner, createPathParam } from '@pipelab/plugin-core'
 
 export const ID = 'fs:copy'
 
@@ -8,28 +8,29 @@ export const copy = createAction({
   displayString:
     '`Copy ${fmt.param(params.from, "primary")} to ${fmt.param(params.to, "primary")}`',
   params: {
-    from: {
+    from: createPathParam('', {
       label: 'From',
-      value: '',
+      required: true,
       control: {
         type: 'path',
         options: {
           properties: ['openFile', 'openDirectory']
         }
       }
-    },
-    to: {
+    }),
+    to: createPathParam('', {
       label: 'To',
-      value: '',
+      required: true,
       control: {
         type: 'path',
         options: {
           properties: ['openFile', 'openDirectory', 'createDirectory', 'promptToCreate']
         }
       }
-    },
+    }),
     recursive: {
       label: 'Recursive',
+      required: true,
       value: true,
       control: {
         type: 'boolean'
@@ -37,6 +38,7 @@ export const copy = createAction({
     },
     overwrite: {
       label: 'Overwrite',
+      required: true,
       value: true,
       control: {
         type: 'boolean'
@@ -44,6 +46,7 @@ export const copy = createAction({
     },
     cleanup: {
       label: 'Cleanup',
+      required: true,
       description: 'Whether to delete the original file/folder',
       value: true,
       control: {
@@ -52,13 +55,24 @@ export const copy = createAction({
     }
   },
 
-  outputs: {},
+  outputs: {
+    output: {
+      label: 'Output',
+      value: '',
+      description: 'The copied file/folder'
+    },
+    input: {
+      label: 'Input',
+      value: '',
+      description: 'The original file/folder'
+    }
+  },
   description: 'Copy a file or a folder from one location to another',
   icon: '',
   meta: {}
 })
 
-export const copyRunner = createActionRunner<typeof copy>(async ({ log, inputs }) => {
+export const copyRunner = createActionRunner<typeof copy>(async ({ log, inputs, setOutput }) => {
   const { cp, mkdir, rm } = await import('node:fs/promises')
   log('')
 
@@ -80,10 +94,12 @@ export const copyRunner = createActionRunner<typeof copy>(async ({ log, inputs }
   if (inputs.cleanup) {
     try {
       log('Cleaning up', to)
-      await rm(to, { recursive: true, force: true })
+      process.noAsar = true
+      await rm(to, { recursive: true, force: true, maxRetries: 3 })
       await mkdir(to, { recursive: true })
+      process.noAsar = false
     } catch (e) {
-      log('Error backing up file', e)
+      log('Error cleaning up file', e)
       throw e
     }
   }
@@ -95,6 +111,8 @@ export const copyRunner = createActionRunner<typeof copy>(async ({ log, inputs }
       force: inputs.overwrite
     })
     process.noAsar = false
+    setOutput('output', to)
+    setOutput('input', from)
     log('Copied', from, 'to', to)
   } catch (e) {
     log('Error copying file', e)
