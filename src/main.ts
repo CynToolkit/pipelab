@@ -52,7 +52,7 @@ if (app.isPackaged && process.env.TEST !== 'true' && !isWine) {
   })
 }
 
-const imagePath = join('./assets', 'discord_white.png')
+const imagePath = join('./assets', 'build', 'icon.png')
 // let isQuiting = false
 
 if (
@@ -75,11 +75,10 @@ function createWindow(): void {
     show: false,
     icon: imagePath,
     autoHideMenuBar: true,
-    ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, 'preload.js'),
       sandbox: false,
-      devTools: true // is.dev
+      devTools: is.dev
     }
   })
 

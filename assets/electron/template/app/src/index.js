@@ -150,6 +150,9 @@ const broadcastMessage = (message) => {
   }
 }
 
+// @ts-expect-error import.meta
+const dir = app.isPackaged ? join(import.meta.dirname, './app') : './src/app'
+
 /**
  * @param {BrowserWindow} mainWindow
  * @returns {Promise<number>}
@@ -157,22 +160,13 @@ const broadcastMessage = (message) => {
 const createAppServer = (mainWindow, serveStatic = true) => {
   // eslint-disable-next-line no-async-promise-executor
   return new Promise(async (resolve) => {
-    // @ts-expect-error import.meta
-    const dir = app.isPackaged ? join(import.meta.dirname, './app') : './src/app'
-
     const server = createServer()
 
     if (serveStatic) {
       server.on('request', (req, res) => {
         return serve(req, res, {
           maxAge: 0,
-          public: dir,
-          rewrites: [
-            {
-              source: 'sw.js',
-              destination: 'index.html'
-            }
-          ]
+          public: dir
         })
       })
     }
@@ -351,6 +345,7 @@ const createWindow = async () => {
     frame: config.frame,
     transparent: config.transparent,
     alwaysOnTop: config.alwaysOnTop,
+    icon: config.icon,
     webPreferences: {
       // @ts-expect-error import.meta
       preload: join(import.meta.dirname, 'preload.js')
@@ -388,8 +383,6 @@ const createWindow = async () => {
     console.log('URL loaded')
   } else {
     const port = await createAppServer(mainWindow)
-
-    // console.log('port', port)
 
     await mainWindow?.loadURL(`http://localhost:${port}`)
     console.log('URL loaded')

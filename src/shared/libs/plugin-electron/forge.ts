@@ -38,7 +38,7 @@ const paramsInputFolder = {
 const paramsInputURL = {
   'input-url': createStringParam('', {
     label: 'URL to preview',
-    required: true,
+    required: true
   })
 } satisfies InputsDefinition
 
@@ -138,7 +138,7 @@ export const configureParams = {
   }),
   icon: createPathParam('', {
     label: 'Application icon',
-    description: 'The icon of the application',
+    description: 'The icon of the application. macOS: .icns. Windows: .ico',
     required: false,
     control: {
       type: 'path',
@@ -242,7 +242,7 @@ export const configureParams = {
     }
   }),
   disableAsarPackaging: {
-    required: true,
+    required: false,
     label: 'Disable ASAR packaging',
     value: true,
     control: {
@@ -251,7 +251,7 @@ export const configureParams = {
     description: 'Whether to disable packaging project files in a single binary or not'
   },
   enableExtraLogging: {
-    required: true,
+    required: false,
     label: 'Enable extra logging',
     value: false,
     control: {
@@ -274,6 +274,8 @@ export const configureParams = {
   enableInProcessGPU: {
     required: false,
     label: 'Enable in-process GPU',
+    description:
+      'When enabled, the GPU process runs inside the main browser process instead of a separate one. This can reduce overhead but may lead to instability or crashes if the GPU process fails.',
     value: false,
     control: {
       type: 'boolean'
@@ -281,6 +283,8 @@ export const configureParams = {
   },
   enableDisableRendererBackgrounding: {
     required: false,
+    description:
+      'Enabling this prevents background tabs from being throttled, which can be useful for web apps that need continuous performance.',
     label: 'Disable renderer backgrounding',
     value: false,
     control: {
@@ -289,6 +293,8 @@ export const configureParams = {
   },
   forceHighPerformanceGpu: {
     required: false,
+    description:
+      'Enabling this forces the app to always use the high-performance GPU, which can improve rendering but may increase power consumption.',
     label: 'Force high performance GPU',
     value: false,
     control: {

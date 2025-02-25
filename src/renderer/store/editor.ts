@@ -422,6 +422,7 @@ export const useEditor = defineStore('editor', () => {
 
   const cloneNode = (node: Block, newIndex: number) => {
     const newNode = klona(node)
+    newNode.uid = nanoid()
     addNodeToBlock(newNode, [], newIndex)
   }
 
