@@ -2,11 +2,11 @@
   <div class="card">
     <Tabs value="0">
       <TabList>
-        <Tab value="0">General</Tab>
-        <Tab value="1">Storage</Tab>
-        <Tab value="2">Integrations</Tab>
-        <Tab value="3">Advanced</Tab>
-        <Tab v-if="user.is_anonymous === false" value="4">Billing</Tab>
+        <Tab value="0">{{ t('settings.tabs.general') }}</Tab>
+        <Tab value="1">{{ t('settings.tabs.storage') }}</Tab>
+        <Tab value="2">{{ t('settings.tabs.integrations') }}</Tab>
+        <Tab value="3">{{ t('settings.tabs.advanced') }}</Tab>
+        <Tab v-if="user.is_anonymous === false" value="4">{{ t('settings.tabs.billing') }}</Tab>
       </TabList>
       <TabPanels>
         <!-- General Tab -->
@@ -20,7 +20,23 @@
                   input-id="app-theme"
                   :model-value="false"
                 />
-                <label for="app-theme" class="label">Dark theme</label>
+                <label for="app-theme" class="label">{{ t('settings.darkTheme') }}</label>
+              </div>
+            </div>
+            <div class="field">
+              <div class="field-switch">
+                <div class="locale-changer">
+                  <select v-model="$i18n.locale">
+                    <option
+                      v-for="locale in $i18n.availableLocales"
+                      :key="`locale-${locale}`"
+                      :value="locale"
+                    >
+                      {{ locale }}
+                    </option>
+                  </select>
+                </div>
+                <label for="app-theme" class="label">Language</label>
               </div>
             </div>
           </div>
@@ -122,6 +138,15 @@ import { supabase } from '@@/supabase'
 import { useAuth } from '@renderer/store/auth'
 
 import { format } from 'date-fns'
+import { useI18n } from 'vue-i18n'
+import { MessageSchema } from '@@/i18n-utils'
+
+const { t } = useI18n<
+  {
+    message: MessageSchema
+  },
+  'en-US'
+>()
 
 const appSettings = useAppSettings()
 const api = useAPI()
