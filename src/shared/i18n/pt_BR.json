@@ -1,0 +1,17 @@
+{
+  "settings": {
+    "darkTheme": "Tema escuro",
+    "language": "Idioma",
+    "languageOptions": {
+      "en": "Inglês",
+      "fr": "Francês"
+    },
+    "tabs": {
+      "general": "Geral",
+      "storage": "Armazenagem",
+      "integrations": "Integrações",
+      "advanced": "Avançado",
+      "billing": "Pagamento"
+    }
+  }
+}

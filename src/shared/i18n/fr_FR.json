@@ -8,10 +8,10 @@
     },
     "tabs": {
       "general": "Général",
-      "advanced": "Avancé",
-      "billing": "Facturation",
+      "storage": "Stockage",
       "integrations": "Intégrations",
-      "storage": "Stockage"
+      "advanced": "Avancé",
+      "billing": "Facturation"
     }
   }
 }
