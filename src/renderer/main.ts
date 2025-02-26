@@ -4,6 +4,7 @@ import { router } from './router/router'
 
 import { createPinia } from 'pinia'
 import piniaPluginPersistedstate from 'pinia-plugin-persistedstate'
+import { createI18n } from 'vue-i18n'
 
 import PrimeVue from 'primevue/config'
 import Lara from '@primevue/themes/lara'
@@ -20,6 +21,7 @@ import ToastService from 'primevue/toastservice'
 import ConfirmationService from 'primevue/confirmationservice'
 import posthogPlugin from './plugins/posthog' //import the plugin.
 import posthog from 'posthog-js'
+import { en_US, fr_FR, MessageSchema } from '@@/i18n-utils'
 
 if (window.isPackaged && process.env.TEST !== 'true') {
   init(
@@ -40,6 +42,16 @@ if (window.isPackaged && process.env.TEST !== 'true') {
     vueInit
   )
 }
+
+const i18n = createI18n<[MessageSchema], 'en-US' | 'fr-FR'>({
+  legacy: false,
+  locale: 'en-US',
+  fallbackLocale: 'en-US',
+  messages: {
+    'en-US': en_US,
+    'fr-FR': fr_FR
+  }
+})
 
 const pinia = createPinia()
 pinia.use(piniaPluginPersistedstate)
@@ -139,5 +151,6 @@ app.use(ConfirmationService)
 if (window.isPackaged && process.env.TEST !== 'true') {
   app.use(posthogPlugin)
 }
+app.use(i18n)
 
 app.mount('#app')

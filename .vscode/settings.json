@@ -42,5 +42,9 @@
     },
     "debug.javascript.defaultRuntimeExecutable": {
         "pwa-node": "c:\\users\\quent\\appdata\\local\\mise\\shims\\node"
-    }
+    },
+    "i18n-ally.localesPaths": [
+        "src/shared/i18n"
+    ],
+    "i18n-ally.keystyle": "nested"
 }
