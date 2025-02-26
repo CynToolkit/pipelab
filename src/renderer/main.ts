@@ -23,7 +23,7 @@ import posthogPlugin from './plugins/posthog' //import the plugin.
 import posthog from 'posthog-js'
 import { en_US, fr_FR, MessageSchema } from '@@/i18n-utils'
 
-if (window.isPackaged && process.env.TEST !== 'true') {
+if (window.isPackaged && !window.isTest && !window.isCI) {
   init(
     {
       dsn: 'https://757630879674735027fa5700162253f7@o45694.ingest.us.sentry.io/4507621723144192',

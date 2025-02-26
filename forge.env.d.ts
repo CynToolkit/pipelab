@@ -22,6 +22,7 @@ declare global {
     api: any
     isPackaged: boolean
     isTest: boolean
+    isCI: boolean
   }
 
   type VitePluginConfig = ConstructorParameters<

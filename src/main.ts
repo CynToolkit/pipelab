@@ -16,22 +16,8 @@ import { useLogger } from '@@/logger'
 import * as Sentry from '@sentry/electron/main'
 import { assetsPath } from '@main/paths'
 import { usePluginAPI } from '@main/api'
-// import { PostHog } from 'posthog-node'
 import { setupConfig } from '@main/config'
 import { resolve } from 'node:path'
-
-// const postHogApiKey = __POSTHOG_API_KEY__
-
-// let client: PostHog | undefined
-// if (postHogApiKey && app.isPackaged && process.env.TEST !== 'true') {
-//   client = new PostHog(postHogApiKey, {
-//     // @ts-expect-error ???
-//     api_host: 'https://eu.i.posthog.com',
-//     person_profiles: 'always'
-//   })
-// } else {
-//   console.error('POSTHOG_API_KEY is required')
-// }
 
 const isLinux = platform() === 'linux'
 // let tray
@@ -46,7 +32,10 @@ logger().info('isLinux', isLinux)
 
 const isWine = platform() === 'win32' && 'WINEHOMEDIR' in process.env
 
-if (app.isPackaged && process.env.TEST !== 'true' && !isWine) {
+// @ts-expect-error import.meta
+const isCI = process.env.CI === 'true' || import.meta.env.CI === 'true'
+
+if (app.isPackaged && process.env.TEST !== 'true' && !isWine && !isCI) {
   Sentry.init({
     dsn: 'https://757630879674735027fa5700162253f7@o45694.ingest.us.sentry.io/4507621723144192',
     debug: true
