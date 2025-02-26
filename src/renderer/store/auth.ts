@@ -11,16 +11,15 @@ export type AuthStateType =
   | 'SIGNED_IN'
   | 'SIGNED_OUT'
   | 'ERROR'
-  | 'ANONYMOUS' // Anonymously signed in
+  | 'AWAITING_VALIDATION'
   | 'LOADING' // Authentication action in progress
 
 export const useAuth = defineStore('auth', () => {
   const logger = useLogger()
-  const user = shallowRef<User | null>(null)
+  const user = shallowRef<User>()
   const authState = ref<AuthStateType>('INITIALIZING') as Ref<AuthStateType> // Start in INITIALIZING state
-  const isSigningInAnonymously = ref(false)
   const isAuthenticating = ref(false) // Track loading state for auth actions
-  const errorMessage = ref<string | null>(null) // For storing error messages to display to the user
+  const errorMessage = ref<string>() // For storing error messages to display to the user
   const subscriptions = ref<any[]>([]) // Store user subscriptions
 
   const setAuthState = (state: AuthStateType) => {
@@ -32,38 +31,8 @@ export const useAuth = defineStore('auth', () => {
     errorMessage.value = null
   }
 
-  const signInAnonymously = async (): Promise<User | null> => {
-    if (isSigningInAnonymously.value || isAuthenticating.value) {
-      logger.logger().debug('[Auth] Anonymous sign-in already in progress or authenticating.')
-      return user.value // Return current user to avoid breaking promise flow
-    }
-
-    isSigningInAnonymously.value = true
-    isAuthenticating.value = true
-    setAuthState('LOADING')
-    clearError()
-
-    try {
-      const { data, error } = await supabase.auth.signInAnonymously()
-      if (error) {
-        logger.logger().error('[Auth] Anonymous sign-in error:', error)
-        setAuthState('ERROR')
-        errorMessage.value = 'Failed to sign in anonymously.'
-        return null
-      } else {
-        logger.logger().info('[Auth] Signed in anonymously:', data?.user?.id)
-        user.value = data?.user || null
-        setAuthState('ANONYMOUS') // Use ANONYMOUS state
-        return data.user
-      }
-    } finally {
-      isSigningInAnonymously.value = false
-      isAuthenticating.value = false
-    }
-  }
-
   const fetchSubscription = async () => {
-    if (!user.value?.is_anonymous) {
+    if (user.value) {
       if (user.value.email) {
         const result = await supabase.functions.invoke('polar-user-plan')
         if (result.data) {
@@ -105,7 +74,7 @@ export const useAuth = defineStore('auth', () => {
               'anonymous:',
               session.user.is_anonymous
             )
-          posthog.identify(session.user.id, { is_anonymous: session.user.is_anonymous || false })
+          // posthog.identify(session.user.id, { is_anonymous: session.user.is_anonymous || false })
           user.value = session.user
           setAuthState('SIGNED_IN')
         } else {
@@ -153,7 +122,6 @@ export const useAuth = defineStore('auth', () => {
         logger
           .logger()
           .info('[Auth] Falling back to anonymous sign-in due to initial user fetch error.')
-        await signInAnonymously() // Directly call anonymous sign-in in init if getUser fails.
       } else if (data.user) {
         logger.logger().info('[Auth] Found existing user during init:', data.user.id)
         user.value = data.user
@@ -161,7 +129,6 @@ export const useAuth = defineStore('auth', () => {
         fetchSubscription()
       } else {
         logger.logger().info('[Auth] No user found during init, signing in anonymously...')
-        await signInAnonymously() // Directly call anonymous sign-in in init if no user session exists.
       }
     } catch (e) {
       logger.logger().error('[Auth] Unexpected error during init:', e)
@@ -211,7 +178,7 @@ export const useAuth = defineStore('auth', () => {
     setAuthState('LOADING')
     clearError()
     try {
-      const registerResponse = await supabase.auth.updateUser({ email, password }) // Use signUp for registration
+      const registerResponse = await supabase.auth.signUp({ email, password }) // Use signUp for registration
       console.log('registerResponse', registerResponse)
       const { data, error } = registerResponse
       if (error) {
@@ -220,17 +187,9 @@ export const useAuth = defineStore('auth', () => {
         errorMessage.value = 'Failed to register. Please try again.'
         return registerResponse
       } else {
+        // an email is sent, you must validate it
         logger.logger().info('[Auth] Registered new user:', data.user.id)
-
-        // Example webhook call - adjust payload as needed for signUp response
-        await supabase.functions.invoke('webhook-post-account-creation', {
-          body: {
-            id: data.user.id // Use data.user.id from signUp response
-          }
-        })
-        user.value = data.user
-        setAuthState('SIGNED_IN')
-        fetchSubscription()
+        setAuthState('AWAITING_VALIDATION')
         return registerResponse
       }
     } finally {
@@ -269,7 +228,6 @@ export const useAuth = defineStore('auth', () => {
 
     clearError,
     init, // Keep init for explicit re-initialization if needed, though generally called once on app start.
-    signInAnonymously,
     login,
     register,
     logout

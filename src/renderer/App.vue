@@ -46,8 +46,7 @@ const filesStore = useFiles()
 const settingsStore = useAppSettings()
 const { logger } = useLogger()
 const authStore = useAuth()
-const { loginAnonymous, init: authInit } = authStore
-const { user } = storeToRefs(authStore)
+const { init: authInit } = authStore
 const { settings, } = storeToRefs(settingsStore)
 const { init: initSettings } = settingsStore
 

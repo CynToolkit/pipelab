@@ -6,7 +6,7 @@
         <Tab value="1">{{ t('settings.tabs.storage') }}</Tab>
         <Tab value="2">{{ t('settings.tabs.integrations') }}</Tab>
         <Tab value="3">{{ t('settings.tabs.advanced') }}</Tab>
-        <Tab v-if="user.is_anonymous === false" value="4">{{ t('settings.tabs.billing') }}</Tab>
+        <Tab v-if="user" value="4">{{ t('settings.tabs.billing') }}</Tab>
       </TabList>
       <TabPanels>
         <!-- General Tab -->

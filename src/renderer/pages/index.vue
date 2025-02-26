@@ -726,6 +726,12 @@ const onSuccess = async (values: any) => {
         })
       } else {
         isAuthModalVisible.value = false
+        toast.add({
+          severity: 'success',
+          summary: 'Sucessfully registered',
+          detail: 'A confirmation e-mail has been sent',
+          life: 3000
+        })
       }
     } else {
       const { error } = await auth.login(values.email, values.password)
@@ -739,6 +745,12 @@ const onSuccess = async (values: any) => {
         })
       } else {
         isAuthModalVisible.value = false
+        toast.add({
+          severity: 'success',
+          summary: 'Sucessfully logged in',
+          detail: 'Welcome back!',
+          life: 3000
+        })
       }
     }
   } catch (error) {
@@ -767,7 +779,7 @@ const $menu = ref()
 const accountMenuItems = computed(() => {
   const items = []
 
-  if (user.value && user.value.is_anonymous === false) {
+  if (user.value) {
     items.push(
       {
         label: user.value.email,
@@ -798,7 +810,7 @@ const accountMenuItems = computed(() => {
     )
   } else {
     items.push({
-      label: 'Login',
+      label: 'Login / Register',
       icon: 'mdi mdi-account',
       command: () => {
         isAuthModalVisible.value = true

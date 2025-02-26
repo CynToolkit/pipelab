@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, dialog, autoUpdater } from 'electron'
+import { app, shell, BrowserWindow, dialog, autoUpdater, protocol } from 'electron'
 import { join } from 'path'
 import { platform } from 'os'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
@@ -18,6 +18,7 @@ import { assetsPath } from '@main/paths'
 import { usePluginAPI } from '@main/api'
 // import { PostHog } from 'posthog-node'
 import { setupConfig } from '@main/config'
+import { resolve } from 'node:path'
 
 // const postHogApiKey = __POSTHOG_API_KEY__
 
@@ -119,10 +120,40 @@ function createWindow(): void {
 
 const { registerBuiltIn } = usePlugins()
 
-// This method will be called when Electron has finished
-// initialization and is ready to create browser windows.
-// Some APIs can only be used after this event occurs.
+if (is.dev && process.platform === 'win32') {
+  app.setAsDefaultProtocolClient('pipelab', process.execPath, [resolve(process.argv[1])])
+} else {
+  app.setAsDefaultProtocolClient('pipelab')
+}
+
+function handleProtocolUrl(url) {
+  if (!url || !url.startsWith('pipelab://')) return
+
+  // Parse the URL
+  const urlObj = new URL(url)
+  const path = urlObj.pathname.replace(/^\/+/, '')
+
+  if (path === 'open') {
+    // Handle pipelab://open
+    console.log('Opening the app')
+    // Your code to handle opening specific app view
+  } else if (path === 'run') {
+    // Handle pipelab://run?id=xxx
+    const id = urlObj.searchParams.get('id')
+    if (id) {
+      console.log(`Running command with ID: ${id}`)
+      // Your code to execute something with the ID
+    }
+  }
+}
+
 app.whenReady().then(async () => {
+  protocol.handle('pipelab', async (request) => {
+    const url = request.url
+    console.log('handle url', url)
+    await handleProtocolUrl(url)
+  })
+
   autoUpdater.setFeedURL({
     url: 'https://github.com/CynToolkit/pipelab/releases/latest/download',
     headers: {
