@@ -2,8 +2,6 @@ import { app, shell, BrowserWindow, dialog, autoUpdater, protocol } from 'electr
 import { join } from 'path'
 import { platform } from 'os'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
-// @ts-expect-error asset
-import icon from '../assets/icon.png?asset'
 import { registerIPCHandlers } from './main/handlers'
 import { usePlugins } from '@@/plugins'
 import { parseArgs, ParseArgsConfig } from 'node:util'
@@ -42,7 +40,16 @@ if (app.isPackaged && process.env.TEST !== 'true' && !isWine && !isCI) {
   })
 }
 
-const imagePath = join('./assets', 'build', 'icon.png')
+let ext = '.png'
+if (platform() === 'linux') {
+  ext = '.png'
+} else if (platform() === 'win32') {
+  ext = '.ico'
+} else if (platform() === 'darwin') {
+  ext = '.icns'
+}
+
+const imagePath = join('./assets', 'build', `icon${ext}`)
 // let isQuiting = false
 
 if (

@@ -70,8 +70,8 @@ importers:
         specifier: 1.8.0
         version: 1.8.0
       '@pipelab/core':
-        specifier: 1.4.4
-        version: 1.4.4
+        specifier: 1.4.7
+        version: 1.4.7
       electron:
         specifier: 34.0.2
         version: 34.0.2
@@ -244,8 +244,8 @@ packages:
     engines: {node: ^12.13.0 || ^14.15.0 || >=16.0.0}
     deprecated: This functionality has been moved to @npmcli/fs
 
-  '@pipelab/core@1.4.4':
-    resolution: {integrity: sha512-DDAj17V+dVc77YI79YqzCAxUuBescDV4zRST6L5qNLAEUby0QvHqkvzeLuAa5sebAECe4OrWCO46uL7ZLYSffA==}
+  '@pipelab/core@1.4.7':
+    resolution: {integrity: sha512-J6PumPgpPzxlkTj3zrKtrb8Yn7H0IiTxVpHRfYyXEQJItatrhElW9LVucQcQ+Z1dq/hbQcZWs7075ZRU9zYr1g==}
 
   '@sec-ant/readable-stream@0.4.1':
     resolution: {integrity: sha512-831qok9r2t8AlxLko40y2ebgSDhenenCatLVeW/uBtnHPyhHOvG0C7TvfgecV+wHzIm5KUICgzmVpWS+IMEAeg==}
@@ -2245,7 +2245,7 @@ snapshots:
       mkdirp: 1.0.4
       rimraf: 3.0.2
 
-  '@pipelab/core@1.4.4': {}
+  '@pipelab/core@1.4.7': {}
 
   '@sec-ant/readable-stream@0.4.1': {}
 

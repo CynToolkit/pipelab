@@ -22,7 +22,7 @@
     "@electron-forge/plugin-auto-unpack-natives": "7.4.0",
     "@electron-forge/plugin-fuses": "7.4.0",
     "@electron/fuses": "1.8.0",
-    "@pipelab/core": "1.4.4",
+    "@pipelab/core": "1.4.7",
     "electron": "34.0.2"
   },
   "keywords": [],

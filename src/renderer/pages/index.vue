@@ -374,6 +374,7 @@ import { UpdateStatus } from '@main/api'
 import Settings from '@renderer/components/Settings.vue'
 import { useToast } from 'primevue/usetoast'
 import { supabase } from '@@/supabase'
+import posthog from 'posthog-js'
 
 const router = useRouter()
 
@@ -685,6 +686,10 @@ const isNewProjectModalVisible = ref(false)
 const isSettingsModalVisible = ref(false)
 const auth = useAuth()
 const { user, authState } = storeToRefs(auth)
+
+posthog.register({
+  'app-version': appVersion.value
+})
 
 const schema = toTypedSchema(
   object({

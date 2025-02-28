@@ -59,6 +59,8 @@ import showInExplorer from './handlers/general/open-in-explorer.js'
 import steamRaw from './handlers/steam/raw.js'
 import { getAppName } from './utils.js'
 
+import infos from './handlers/general/infos.js'
+
 /**
  * Assert switch is exhaustive
  * @param {never} _x
@@ -299,6 +301,9 @@ const createAppServer = (mainWindow, serveStatic = true) => {
             case '/window/fullscreen-state':
               // sent the other way around
               break
+            case '/infos':
+              await infos(json, ws)
+              break
 
             default:
               console.log('unsupported', data)
@@ -312,6 +317,7 @@ const createAppServer = (mainWindow, serveStatic = true) => {
               url: json.url,
               correlationId: json.correlationId,
               body: {
+                success: false,
                 error: e.message
               }
             })
@@ -375,7 +381,7 @@ const createWindow = async () => {
 
   if (argUrl) {
     console.log('argUrl', argUrl)
-    const port = await createAppServer(mainWindow, false)
+    await createAppServer(mainWindow, false)
 
     // console.log('port', port)
 
