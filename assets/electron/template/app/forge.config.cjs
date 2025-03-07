@@ -14,9 +14,9 @@ const platform = process.platform
 if (platform === 'win32') {
   unpackFilter = join('**', 'steamworks.js', 'dist', 'win64', '*.{node,dll}')
 } else if (platform === 'darwin') {
-  unpackFilter = join('**', 'steamworks.js', 'dist', 'win64', '*.{node,dylib}')
+  unpackFilter = join('**', 'steamworks.js', 'dist', 'osx', '*.{node,dylib}')
 } else if (platform === 'linux') {
-  unpackFilter = join('**', 'steamworks.js', 'dist', 'win64', '*{node,so,lib}')
+  unpackFilter = join('**', 'steamworks.js', 'dist', 'linux64', '*.{node,so,lib}')
 }
 
 /**
