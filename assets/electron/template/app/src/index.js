@@ -1,6 +1,6 @@
 // @ts-check
 
-import { app, BrowserWindow, ipcMain, session, shell } from 'electron'
+import { app, BrowserWindow, ipcMain, safeStorage, session, shell } from 'electron'
 import { dirname, join } from 'node:path'
 // @ts-expect-error no types
 import serve from 'serve-handler'
@@ -70,6 +70,8 @@ import infos from './handlers/general/infos.js'
 function assertUnreachable(_x) {
   throw new Error("Didn't expect to get here")
 }
+
+safeStorage.setUsePlainTextEncryption(true)
 
 process.on('uncaughtException', (error) => {
   console.error('Uncaught Exception:', error)
