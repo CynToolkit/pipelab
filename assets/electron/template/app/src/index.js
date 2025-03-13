@@ -115,6 +115,9 @@ if (config.forceHighPerformanceGpu) {
 let client
 console.log('config.enableSteamSupport', config.enableSteamSupport)
 if (config.enableSteamSupport) {
+  app.commandLine.appendSwitch('in-process-gpu')
+  app.commandLine.appendSwitch('disable-direct-composition')
+
   // const isNecessary = steamworks.restartAppIfNecessary(config.steamGameId)
   // console.log('isNecessary', isNecessary)
 
