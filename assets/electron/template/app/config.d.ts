@@ -26,5 +26,6 @@ declare namespace ElectronAppConfig {
     enableSteamSupport: boolean
     ignore: (string | RegExp)[]
     steamGameId: number
+    openDevtoolsOnStart: boolean
   }
 }

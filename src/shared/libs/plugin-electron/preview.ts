@@ -40,7 +40,8 @@ export const previewRunner = createActionRunner<ReturnType<typeof createPreviewP
         width: 800,
         enableSteamSupport: false,
         steamGameId: 480,
-        ignore: []
+        ignore: [],
+        openDevtoolsOnStart: false,
       } satisfies ElectronAppConfig.Config,
       options.inputs.configuration
     ) as ElectronAppConfig.Config

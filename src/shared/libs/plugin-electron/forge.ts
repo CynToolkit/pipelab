@@ -3,6 +3,7 @@ import {
   ActionRunnerData,
   createAction,
   createArray,
+  createBooleanParam,
   createNumberParam,
   createPathParam,
   createStringParam,
@@ -268,6 +269,11 @@ export const configureParams = {
     },
     description: 'Whether to clear service worker on boot'
   },
+  openDevtoolsOnStart: createBooleanParam(false, {
+    label: 'Open devtools on app start',
+    required: false,
+    description: 'Whether to open devtools on app start'
+  }),
 
   // Flags
 
@@ -347,7 +353,8 @@ export const configureParams = {
     required: false,
     label: 'Steam game ID',
     description: 'The Steam game ID'
-  })
+  }),
+
 } satisfies InputsDefinition
 
 const outputs = {

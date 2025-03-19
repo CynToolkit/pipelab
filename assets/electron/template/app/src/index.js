@@ -371,6 +371,10 @@ const createWindow = async () => {
     mainWindow.setMenu(null)
   }
 
+  if (config.openDevtoolsOnStart) {
+    mainWindow.webContents.openDevTools()
+  }
+
   if (config.clearServiceWorkerOnBoot) {
     // It's better to export apps without service worker support
     // only use when needed

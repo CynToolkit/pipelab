@@ -18,6 +18,7 @@ const config = {
   clearServiceWorkerOnBoot: false,
   enableDisableRendererBackgrounding: false,
   enableInProcessGPU: false,
+  openDevtoolsOnStart: false,
   frame: true,
   fullscreen: false,
   icon: '',

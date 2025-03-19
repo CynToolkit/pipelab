@@ -34,7 +34,8 @@ export const packageV2Runner = createActionRunner<ReturnType<typeof createPackag
         width: 800,
         enableSteamSupport: false,
         steamGameId: 480,
-        ignore: []
+        ignore: [],
+        openDevtoolsOnStart: false,
       } satisfies ElectronAppConfig.Config,
       {
         alwaysOnTop: options.inputs['alwaysOnTop'],
@@ -63,6 +64,7 @@ export const packageV2Runner = createActionRunner<ReturnType<typeof createPackag
         enableSteamSupport: options.inputs['enableSteamSupport'],
         steamGameId: options.inputs['steamGameId'],
         ignore: options.inputs['ignore'],
+        openDevtoolsOnStart: options.inputs["openDevtoolsOnStart"],
       } satisfies ElectronAppConfig.Config
     ) as ElectronAppConfig.Config
 

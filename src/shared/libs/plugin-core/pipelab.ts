@@ -551,6 +551,19 @@ export const createNumberParam = (
   } satisfies InputDefinition<ControlTypeInput>
 }
 
+export const createBooleanParam = (
+  value: boolean,
+  definition: Omit<InputDefinition<ControlTypeBoolean>, 'value' | 'control'>
+) => {
+  return {
+    ...definition,
+    control: {
+      type: 'boolean',
+    },
+    value
+  } satisfies InputDefinition<ControlTypeBoolean>
+}
+
 export const createRawParam = <T>(value: T, definition: Omit<InputDefinition, 'value'>) => {
   return {
     ...definition,

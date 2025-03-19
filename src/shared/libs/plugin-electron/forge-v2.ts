@@ -314,7 +314,8 @@ export const forgeV2 = async (
       width: 800,
       enableSteamSupport: false,
       steamGameId: 480,
-      ignore: []
+      ignore: [],
+      openDevtoolsOnStart: false,
     } satisfies ElectronAppConfig.Config,
     inputs.configuration
   ) as ElectronAppConfig.Config
