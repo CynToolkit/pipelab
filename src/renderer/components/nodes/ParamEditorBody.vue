@@ -32,6 +32,7 @@
         show-buttons
         option-label="label"
         class="w-full"
+        :format="false"
         @input="onParamInputNumberChange"
       />
     </div>
