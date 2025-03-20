@@ -34,6 +34,8 @@ export const packageV2Runner = createActionRunner<ReturnType<typeof createPackag
         width: 800,
         enableSteamSupport: false,
         steamGameId: 480,
+        enableDiscordSupport: false,
+        discordAppId: '',
         ignore: [],
         openDevtoolsOnStart: false,
       } satisfies ElectronAppConfig.Config,
@@ -65,6 +67,8 @@ export const packageV2Runner = createActionRunner<ReturnType<typeof createPackag
         steamGameId: options.inputs['steamGameId'],
         ignore: options.inputs['ignore'],
         openDevtoolsOnStart: options.inputs["openDevtoolsOnStart"],
+        enableDiscordSupport: options.inputs['enableDiscordSupport'],
+        discordAppId: options.inputs['discordAppId'],
       } satisfies ElectronAppConfig.Config
     ) as ElectronAppConfig.Config
 

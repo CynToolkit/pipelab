@@ -354,6 +354,20 @@ export const configureParams = {
     label: 'Steam game ID',
     description: 'The Steam game ID'
   }),
+  enableDiscordSupport: {
+    required: false,
+    label: 'Enable Discord support',
+    description: 'Whether to enable Discord support',
+    value: false,
+    control: {
+      type: 'boolean'
+    }
+  },
+  discordAppId: createStringParam('', {
+    required: false,
+    label: 'Discord application ID',
+    description: 'The Discord application ID'
+  }),
 
 } satisfies InputsDefinition
 

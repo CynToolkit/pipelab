@@ -28,8 +28,10 @@ const config = {
   transparent: false,
   width: 800,
   enableSteamSupport: false,
+  steamGameId: 480,
+  enableDiscordSupport: false,
+  discordAppId: '',
   ignore: [],
-  steamGameId: 480
 }
 
 module.exports = config

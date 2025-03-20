@@ -4,6 +4,9 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+overrides:
+  discord-rpc>register-scheme: '-'
+
 importers:
 
   .:
@@ -14,6 +17,9 @@ importers:
       '@electron/asar':
         specifier: 3.2.13
         version: 3.2.13
+      discord-rpc:
+        specifier: ^4.0.1
+        version: 4.0.1(encoding@0.1.13)
       electron-serve:
         specifier: ^2.1.1
         version: 2.1.1
@@ -30,7 +36,7 @@ importers:
         specifier: 1.2.0
         version: 1.2.0
       serve-handler:
-        specifier: ^6.1.5
+        specifier: ^6.1.6
         version: 6.1.6
       slash:
         specifier: ^5.1.0
@@ -39,8 +45,8 @@ importers:
         specifier: 0.4.0
         version: 0.4.0
       ws:
-        specifier: ^8.18.0
-        version: 8.18.0
+        specifier: ^8.18.1
+        version: 8.18.1
     devDependencies:
       '@electron-forge/cli':
         specifier: 7.4.0
@@ -70,8 +76,8 @@ importers:
         specifier: 1.8.0
         version: 1.8.0
       '@pipelab/core':
-        specifier: 1.4.7
-        version: 1.4.7
+        specifier: 1.4.8
+        version: 1.4.8
       electron:
         specifier: 34.0.2
         version: 34.0.2
@@ -244,8 +250,8 @@ packages:
     engines: {node: ^12.13.0 || ^14.15.0 || >=16.0.0}
     deprecated: This functionality has been moved to @npmcli/fs
 
-  '@pipelab/core@1.4.7':
-    resolution: {integrity: sha512-J6PumPgpPzxlkTj3zrKtrb8Yn7H0IiTxVpHRfYyXEQJItatrhElW9LVucQcQ+Z1dq/hbQcZWs7075ZRU9zYr1g==}
+  '@pipelab/core@1.4.8':
+    resolution: {integrity: sha512-yCn9h6MnaoVgXEaA+nuOa4FPOJ94817jADhjo2xDjh2S2cHq4xr/mzP3ys/gRnvvKm0NrENx98iLh3/ANqQTcg==}
 
   '@sec-ant/readable-stream@0.4.1':
     resolution: {integrity: sha512-831qok9r2t8AlxLko40y2ebgSDhenenCatLVeW/uBtnHPyhHOvG0C7TvfgecV+wHzIm5KUICgzmVpWS+IMEAeg==}
@@ -284,8 +290,8 @@ packages:
   '@types/minimatch@5.1.2':
     resolution: {integrity: sha512-K0VQKziLUWkVKiRVrx4a40iPaxTUefQmjtkQofBkYRcoaaL/8rhwDWww9qWbrgicNOgnpIsMxyNIUM4+n6dUIA==}
 
-  '@types/node@20.17.12':
-    resolution: {integrity: sha512-vo/wmBgMIiEA23A/knMfn/cf37VnuF52nZh5ZoW0GWt4e4sxNquibrMRJ7UQsA06+MBx9r/H1jsI9grYjQCQlw==}
+  '@types/node@20.17.24':
+    resolution: {integrity: sha512-d7fGCyB96w9BnWQrOsJtpyiSaBcAYYr75bnK6ZRjDbql2cGLj/3GsL5OYmLPNq76l7Gf2q4Rv9J2o6h5CrD9sA==}
 
   '@types/node@22.10.5':
     resolution: {integrity: sha512-F8Q+SeGimwOo86fiovQh8qiXfFEh2/ocYv7tU5pJ3EXMSSxk1Joj5wefpFK2fHTf/N6HKGSxIDBT9f3gCxXPkQ==}
@@ -551,6 +557,9 @@ packages:
 
   dir-compare@4.2.0:
     resolution: {integrity: sha512-2xMCmOoMrdQIPHdsTawECdNPwlVFB9zGcz3kuhmBO6U3oU+UQjsue0i8ayLKpgBcm+hcXPMVSGUN9d+pvJ6+VQ==}
+
+  discord-rpc@4.0.1:
+    resolution: {integrity: sha512-HOvHpbq5STRZJjQIBzwoKnQ0jHplbEWFWlPDwXXKm/bILh4nzjcg7mNqll0UY7RsjFoaXA7e/oYb/4lvpda2zA==}
 
   ds-store@0.1.6:
     resolution: {integrity: sha512-kY21M6Lz+76OS3bnCzjdsJSF7LBpLYGCVfavW8TgQD2XkcqIZ86W0y9qUDZu6fp7SIZzqosMDW2zi7zVFfv4hw==}
@@ -1781,8 +1790,20 @@ packages:
   wrappy@1.0.2:
     resolution: {integrity: sha512-l4Sp/DRseor9wL6EvV2+TuQn63dMkPjZ/sp9XkghTEbV9KlPS1xUsZ3u7/IQO4wxtcFB4bgpQPRcR3QCvezPcQ==}
 
-  ws@8.18.0:
-    resolution: {integrity: sha512-8VbfWfHLbbwu3+N6OKsOMpBdT4kXPDDB9cJk2bJ6mh9ucxdlnNvH1e+roYkKmN9Nxw2yjz7VzeO9oOz2zJ04Pw==}
+  ws@7.5.10:
+    resolution: {integrity: sha512-+dbF1tHwZpXcbOJdVOkzLDxZP1ailvSxM6ZweXTegylPny803bFhA+vqBYw4s31NSAk4S2Qz+AKXK9a4wkdjcQ==}
+    engines: {node: '>=8.3.0'}
+    peerDependencies:
+      bufferutil: ^4.0.1
+      utf-8-validate: ^5.0.2
+    peerDependenciesMeta:
+      bufferutil:
+        optional: true
+      utf-8-validate:
+        optional: true
+
+  ws@8.18.1:
+    resolution: {integrity: sha512-RKW2aJZMXeMxVpnZ6bck+RswznaxmzdULiBr6KY7XkTnW8uvt0iT9H5DkHUChXrc+uurzwa0rVI16n/Xzjdz1w==}
     engines: {node: '>=10.0.0'}
     peerDependencies:
       bufferutil: ^4.0.1
@@ -2245,7 +2266,7 @@ snapshots:
       mkdirp: 1.0.4
       rimraf: 3.0.2
 
-  '@pipelab/core@1.4.7': {}
+  '@pipelab/core@1.4.8': {}
 
   '@sec-ant/readable-stream@0.4.1': {}
 
@@ -2284,7 +2305,7 @@ snapshots:
 
   '@types/minimatch@5.1.2': {}
 
-  '@types/node@20.17.12':
+  '@types/node@20.17.24':
     dependencies:
       undici-types: 6.19.8
 
@@ -2568,6 +2589,15 @@ snapshots:
       minimatch: 3.1.2
       p-limit: 3.1.0
 
+  discord-rpc@4.0.1(encoding@0.1.13):
+    dependencies:
+      node-fetch: 2.7.0(encoding@0.1.13)
+      ws: 7.5.10
+    transitivePeerDependencies:
+      - bufferutil
+      - encoding
+      - utf-8-validate
+
   ds-store@0.1.6:
     dependencies:
       bplist-creator: 0.0.8
@@ -2655,7 +2685,7 @@ snapshots:
   electron@34.0.2:
     dependencies:
       '@electron/get': 2.0.3
-      '@types/node': 20.17.12
+      '@types/node': 20.17.24
       extract-zip: 2.0.1
     transitivePeerDependencies:
       - supports-color
@@ -3881,7 +3911,9 @@ snapshots:
 
   wrappy@1.0.2: {}
 
-  ws@8.18.0: {}
+  ws@7.5.10: {}
+
+  ws@8.18.1: {}
 
   xmlbuilder@15.1.1: {}
 

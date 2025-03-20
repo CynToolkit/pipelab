@@ -37,6 +37,8 @@ export const makeRunner = createActionRunner<ReturnType<typeof createMakeProps>>
         width: 800,
         enableSteamSupport: false,
         steamGameId: 480,
+        enableDiscordSupport: false,
+        discordAppId: '',
         ignore: [],
         openDevtoolsOnStart: false,
       } satisfies ElectronAppConfig.Config,

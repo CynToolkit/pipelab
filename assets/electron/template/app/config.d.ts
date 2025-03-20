@@ -23,9 +23,14 @@ declare namespace ElectronAppConfig {
     forceHighPerformanceGpu: boolean
     enableExtraLogging: boolean
     clearServiceWorkerOnBoot: boolean
+
     enableSteamSupport: boolean
-    ignore: (string | RegExp)[]
     steamGameId: number
+
+    enableDiscordSupport: boolean
+    discordAppId: string
+
+    ignore: (string | RegExp)[]
     openDevtoolsOnStart: boolean
   }
 }

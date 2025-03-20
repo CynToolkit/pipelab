@@ -7,6 +7,7 @@
   "main": "src/index.js",
   "scripts": {
     "start": "electron-forge start",
+    "start:url": "electron-forge start -- --url=https://google.com",
     "package": "electron-forge package",
     "make": "electron-forge make",
     "publish": "electron-forge publish",
@@ -22,7 +23,7 @@
     "@electron-forge/plugin-auto-unpack-natives": "7.4.0",
     "@electron-forge/plugin-fuses": "7.4.0",
     "@electron/fuses": "1.8.0",
-    "@pipelab/core": "1.4.7",
+    "@pipelab/core": "1.4.8",
     "electron": "34.0.2"
   },
   "keywords": [],
@@ -34,14 +35,20 @@
   "dependencies": {
     "@electron-forge/plugin-base": "7.4.0",
     "@electron/asar": "3.2.13",
+    "discord-rpc": "^4.0.1",
     "electron-serve": "^2.1.1",
     "electron-squirrel-startup": "1.0.1",
     "execa": "^9.4.0",
     "move-file": "^3.1.0",
     "mri": "1.2.0",
-    "serve-handler": "^6.1.5",
+    "serve-handler": "^6.1.6",
     "slash": "^5.1.0",
     "steamworks.js": "0.4.0",
-    "ws": "^8.18.0"
+    "ws": "^8.18.1"
+  },
+  "pnpm": {
+    "overrides": {
+      "discord-rpc>register-scheme": "-"
+    }
   }
 }

@@ -10,6 +10,7 @@ import './custom-main.js'
 import mri from 'mri'
 import config from '../config.cjs'
 import steamworks from 'steamworks.js'
+import DiscordRPC from 'discord-rpc'
 
 // user
 import userFolder from './handlers/user/folder.js'
@@ -57,6 +58,10 @@ import showInExplorer from './handlers/general/open-in-explorer.js'
 
 // steam raw
 import steamRaw from './handlers/steam/raw.js'
+
+// discord set activity
+import discordSetActivity from './handlers/discord/set-activity.js'
+
 import { getAppName } from './utils.js'
 
 import infos from './handlers/general/infos.js'
@@ -96,6 +101,14 @@ const cliArgs = mri(argv, {
     u: 'url'
   }
 })
+
+/** @type {undefined | Object} */
+let rpc
+if (config.enableDiscordSupport) {
+  DiscordRPC.register(config.discordAppId);
+  rpc = new DiscordRPC.Client({ transport: 'ipc' });
+  console.log('rpc', rpc)
+}
 
 //region commandLine Flags
 if (config.enableInProcessGPU) {
@@ -303,6 +316,9 @@ const createAppServer = (mainWindow, serveStatic = true) => {
             case '/steam/raw':
               await steamRaw(json, ws, client)
               break
+            case '/discord/set-activity':
+              await discordSetActivity(json, ws, mainWindow, rpc)
+              break
             case '/window/fullscreen-state':
               // sent the other way around
               break
@@ -445,10 +461,31 @@ const registerHandlers = async () => {
   })
 }
 
+const rpcLogin = async () => {
+  return new Promise((resolve, reject) => {
+    rpc.on('ready', () => {
+      console.log('rpc  ready')
+      return resolve(rpc)
+    });
+
+    rpc.login({ clientId: config.discordAppId }).catch((e) => {
+      return reject(e)
+    });
+  })
+}
+
 app.whenReady().then(async () => {
   await registerHandlers()
 
   const mainWindow = await createWindow()
+
+  if (config.enableDiscordSupport && rpc) {
+    try {
+      await rpcLogin()
+    } catch (e) {
+      console.error('e', e)
+    }
+  }
 
   mainWindow.show()
 
