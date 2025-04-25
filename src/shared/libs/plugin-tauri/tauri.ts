@@ -498,9 +498,15 @@ export const tauri = async (
   tauriConfJSON.version = completeConfiguration.appVersion
   log('Setting identifier to', completeConfiguration.appBundleId)
   tauriConfJSON.identifier = completeConfiguration.appBundleId
-  log('Setting build.devUrl to', appFolder)
-  tauriConfJSON.build.devUrl = appFolder
-  await writeFile(tauriConfJSONPath, JSON.stringify(tauriConfJSON, null, 2))
+  if (action === 'preview') {
+    log('Setting build.devUrl to', appFolder)
+    tauriConfJSON.build.devUrl = appFolder
+    await writeFile(tauriConfJSONPath, JSON.stringify(tauriConfJSON, null, 2))
+  } else {
+    log('Setting build.frontendDist to', appFolder)
+    tauriConfJSON.build.frontendDist = appFolder
+    await writeFile(tauriConfJSONPath, JSON.stringify(tauriConfJSON, null, 2))
+  }
 
   log('Installing packages')
   await runWithLiveLogs(
@@ -581,40 +587,46 @@ export const tauri = async (
 
     const target = `${tauriArch}-${tauriPlatform}`
 
+    const cargoBinName = process.platform === 'win32' ? 'cargo.exe' : 'cargo'
+
     const home = app.getPath('home')
     const cargoDir = join(home, '.cargo')
     const cargoBinDir = join(cargoDir, 'bin')
-    const cargo = join(cargoBinDir, 'cargo.exe')
+    const cargo = join(cargoBinDir, cargoBinName)
 
     log('cargoDir', cargoDir)
     log('cargoBinDir', cargoBinDir)
-
-    log(
-      'join(destinationFolder, "node_modules/@tauri-apps/cli/tauri.js")',
-      join(destinationFolder, 'node_modules/@tauri-apps/cli/tauri.js')
-    )
-
-    // await cp(
-    //   'C:/Users/quent/Documents/Projets/pipelab/app/assets/tauri/template/app/node_modules/@tauri-apps/cli/tauri.js',
-    //   join(destinationFolder, 'node_modules/@tauri-apps/cli/tauri.js')
-    // )
-
-    /*
-    await runWithLiveLogs(
-      // pnpm,
-      // process.execPath,
-      // 'powershell.exe',
-      // tauri,
-      tauri,
-
-      ['build', '--verbose', '--', '--target', target],
-      // [pnpm, 'tauri', 'build', '--', '--target', target],
-    */
+    console.log('cargo', cargo)
 
     log('destinationFolder', destinationFolder)
 
     const cargoTargetDir = join(cache, 'cargo', 'target', completeConfiguration.appBundleId)
     const cargoOutputPath = join(cargoTargetDir, target, 'release')
+ 
+    await runWithLiveLogs(
+      cargo,
+      ['install', 'tauri-cli', '--version', '^2.0.0', '--locked'],
+      {
+        cwd: join(destinationFolder, 'src-tauri'),
+        env: {
+          DEBUG: completeConfiguration.enableExtraLogging ? '*' : '',
+          ELECTRON_NO_ASAR: '1',
+          CARGO_TARGET_DIR: cargoTargetDir,
+          PATH: `${cargoBinDir}${delimiter}${dirname(node)}${delimiter}${process.env.PATH}`
+        },
+        cancelSignal: abortSignal
+      },
+      log,
+      {
+        onStderr(data) {
+          log(data)
+        },
+        onStdout(data) {
+          log(data)
+        }
+      }
+    )
+
 
     if (action === 'preview') {
       await runWithLiveLogs(
