@@ -1,438 +1,590 @@
-use futures_util::StreamExt;
-use std::env;
-use std::error::Error;
-use std::net::SocketAddr;
-use std::sync::Arc;
-use std::{borrow::Cow, sync::Mutex, time::Instant};
-use steamworks::AppId;
-use steamworks::Client;
-use steamworks::FriendFlags;
-use steamworks::PersonaStateChange;
-use tauri::Window;
-use tauri::{
-    async_runtime, LogicalPosition, LogicalSize, Manager, RunEvent, WebviewUrl, WindowEvent,
+use futures_util::{
+    stream::{SplitSink, SplitStream},
+    SinkExt, StreamExt,
 };
-use tokio::sync::mpsc::{Receiver, Sender};
-use warp::Filter;
+use serde::{Deserialize, Serialize};
+use serde_json::Value; // Using Value for flexibility in body initially
+use std::{net::SocketAddr, sync::Arc};
+use tauri::{
+    async_runtime, webview::WebviewWindowBuilder, AppHandle, Manager, Runtime, WebviewUrl,
+};
+use tokio::{
+    net::{TcpListener, TcpStream},
+    sync::Mutex, // Using Mutex for the writer part
+};
+use tokio_tungstenite::{accept_async, tungstenite::Message, WebSocketStream};
+// Note: Removed `use anyhow::{Error};` as it's unused when using anyhow::Result<()>
 
-pub struct WgpuState<'win> {
-    pub queue: wgpu::Queue,
-    pub device: wgpu::Device,
-    pub surface: wgpu::Surface<'win>,
-    pub render_pipeline: wgpu::RenderPipeline,
-    pub config: Mutex<wgpu::SurfaceConfiguration>,
+// --- Message Structures ---
+
+/// Generic structure for incoming WebSocket messages
+#[derive(Deserialize, Debug)]
+struct IncomingMessage {
+    url: String,
+    #[serde(rename = "correlationId")] // Match JS naming
+    correlation_id: Option<String>, // Optional correlation ID
+    body: Option<Value>, // Use Option<Value> to handle cases where body might be missing
 }
 
-impl<'win> WgpuState<'win> {
-    pub async fn new(window: Window) -> Self {
-        let size = window.inner_size().unwrap();
-        let instance = wgpu::Instance::default();
-        let surface = instance.create_surface(window).unwrap();
-
-        let adapters = instance.enumerate_adapters(wgpu::Backends::all()); // Enumerate all backends
-
-        println!("Available wgpu backends:");
-        for adapter in adapters {
-            let info = adapter.get_info();
-            println!("- {:?}: {:?}", info.backend, info.name);
-        }
-
-        let adapter = instance
-            .request_adapter(&wgpu::RequestAdapterOptions {
-                power_preference: wgpu::PowerPreference::default(),
-                force_fallback_adapter: false,
-                compatible_surface: Some(&surface),
-            })
-            .await
-            .expect("Failed to find an appropriate adapter");
-
-        let (device, queue) = adapter
-            .request_device(
-                &wgpu::DeviceDescriptor {
-                    label: None,
-                    required_features: wgpu::Features::empty(),
-                    required_limits: wgpu::Limits::downlevel_webgl2_defaults()
-                        .using_resolution(adapter.limits()),
-                },
-                None,
-            )
-            .await
-            .expect("Failed to create device");
-
-        let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: None,
-            source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(
-                r#"
-@vertex
-fn vs_main(@builtin(vertex_index) vertex_index: u32) -> @builtin(position) vec4<f32> {
-    var position: vec4<f32>;
-    switch (vertex_index) {
-        case 0u: {
-            position = vec4<f32>(-1.0, -1.0, 0.0, 1.0); // Bottom-left
-        }
-        case 1u: {
-            position = vec4<f32>( 1.0, -1.0, 0.0, 1.0); // Bottom-right
-        }
-        case 2u: {
-            position = vec4<f32>( 0.0,  1.0, 0.0, 1.0); // Top-center
-        }
-        default: {
-            position = vec4<f32>(0.0, 0.0, 0.0, 1.0); // Default case (should not be reached)
-        }
-    }
-    return position;
+/// Generic structure for outgoing WebSocket responses
+#[derive(Serialize, Debug)]
+struct ResponseMessage<T: Serialize> {
+    url: String,
+    #[serde(rename = "correlationId")]
+    correlation_id: Option<String>, // Echo back the correlation ID
+    body: T, // Generic body for success or error
 }
 
-@fragment
-fn fs_main() -> @location(0) vec4<f32> {
-    // Output a solid color
-    return vec4<f32>(1.0, 0.0, 0.0, 0.5); // Green
+/// Example structure for a success response body
+#[derive(Serialize, Debug)]
+struct SuccessBody<T: Serialize> {
+    success: bool,
+    #[serde(skip_serializing_if = "Option::is_none")] // Don't serialize data if it's None
+    data: Option<T>, // Make data optional for responses that don't need it
 }
 
-    "#,
-            )),
-        });
+/// Example structure for an error response body
+#[derive(Serialize, Debug)]
+struct ErrorBody {
+    success: bool,
+    error: String,
+}
 
-        let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: None,
-            push_constant_ranges: &[],
-            bind_group_layouts: &[],
-        });
+// --- WebSocket Handling ---
 
-        let swapchain_capabilities = surface.get_capabilities(&adapter);
-        println!("swapchain_capabilities {:?}", swapchain_capabilities);
-        let swapchain_format = swapchain_capabilities.formats[0];
+/// Handles an individual WebSocket connection
+async fn handle_websocket<R: Runtime>(
+    stream: TcpStream,
+    app_handle: AppHandle<R>, // Pass AppHandle for Tauri interaction
+) {
+    let addr = stream
+        .peer_addr()
+        .expect("Connected stream should have peer address");
+    println!("New WebSocket connection from: {}", addr);
 
-        let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: None,
-            layout: Some(&pipeline_layout),
-            vertex: wgpu::VertexState {
-                module: &shader,
-                entry_point: "vs_main",
-                buffers: &[],
-                compilation_options: wgpu::PipelineCompilationOptions::default(),
-            },
-            fragment: Some(wgpu::FragmentState {
-                module: &shader,
-                entry_point: "fs_main",
-                targets: &[Some(wgpu::ColorTargetState {
-                    format: swapchain_format,
-                    blend: Some(wgpu::BlendState::ALPHA_BLENDING),
-                    write_mask: wgpu::ColorWrites::ALL,
-                })],
-                compilation_options: wgpu::PipelineCompilationOptions::default(),
-            }),
-            primitive: wgpu::PrimitiveState::default(),
-            depth_stencil: None,
-            multisample: wgpu::MultisampleState::default(),
-            multiview: None,
-        });
-
-        if swapchain_capabilities
-            .alpha_modes
-            .contains(&wgpu::CompositeAlphaMode::PreMultiplied)
-        {
-            println!("PreMultiplied alpha mode is supported!");
-        } else if swapchain_capabilities
-            .alpha_modes
-            .contains(&wgpu::CompositeAlphaMode::Opaque)
-        {
-            println!("Only Opaque alpha mode is supported. Transparency will not work.");
-        } else {
-            println!("No known alpha modes are supported.");
+    match accept_async(stream).await {
+        Ok(ws_stream) => {
+            println!("WebSocket connection established: {}", addr);
+            let (write, read) = ws_stream.split();
+            let writer = Arc::new(Mutex::new(write));
+            process_messages(read, writer.clone(), app_handle, addr).await;
+            println!("WebSocket connection closed: {}", addr);
         }
-
-        let alpha_mode = if swapchain_capabilities
-            .alpha_modes
-            .contains(&wgpu::CompositeAlphaMode::PreMultiplied)
-        {
-            wgpu::CompositeAlphaMode::PreMultiplied
-        } else {
-            swapchain_capabilities.alpha_modes[0]
-        };
-
-        let config = wgpu::SurfaceConfiguration {
-            width: size.width,
-            height: size.height,
-            format: swapchain_format,
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
-            present_mode: wgpu::PresentMode::Fifo,
-            alpha_mode,
-            view_formats: vec![],
-            desired_maximum_frame_latency: 2,
-        };
-
-        surface.configure(&device, &config);
-
-        Self {
-            device,
-            queue,
-            surface,
-            render_pipeline,
-            config: Mutex::new(config),
+        Err(e) => {
+            eprintln!("Error during WebSocket handshake for {}: {}", addr, e);
         }
     }
 }
 
-#[tauri::command]
-fn showOverlay() {
-    println!("Showing overlay");
-    match Client::init_app(480) {
-        Ok((client, _single)) => {
-            println!("Client created");
-            client.friends().activate_game_overlay("hey");
-            println!("Overlay shown");
-        }
-        Err(e) => eprintln!("Failed to initialize Steam client: {:?}", e),
-    }
-}
+/// Processes messages received from a single client
+async fn process_messages<R: Runtime>(
+    mut read: SplitStream<WebSocketStream<TcpStream>>,
+    writer: Arc<Mutex<SplitSink<WebSocketStream<TcpStream>, Message>>>,
+    app_handle: AppHandle<R>,
+    addr: SocketAddr,
+) {
+    while let Some(message_result) = read.next().await {
+        match message_result {
+            Ok(msg) => {
+                match msg {
+                    Message::Text(text) => {
+                        println!("Received text from {}: {}", addr, text);
+                        match serde_json::from_str::<IncomingMessage>(&text) {
+                            Ok(parsed_message) => {
+                                let writer_clone = writer.clone();
+                                let app_handle_clone = app_handle.clone();
+                                let url = parsed_message.url.clone();
+                                let correlation_id = parsed_message.correlation_id.clone();
 
-async fn websocket_server(tx: Sender<String>, mut rx: Receiver<String>) {
-    let addr = SocketAddr::from(([127, 0, 0, 1], 31753));
-
-    // WebSocket upgrade
-    let ws_route = warp::path::end()
-        .and(warp::ws())
-        .map(move |ws: warp::ws::Ws| {
-            let tx = tx.clone();
-            ws.on_upgrade(move |websocket| async move {
-                let (mut ws_tx, mut ws_rx) = websocket.split();
-
-                // Forward messages to the sender
-                while let Some(result) = ws_rx.next().await {
-                    if let Ok(msg) = result {
-                        if let Ok(text) = msg.to_str() {
-                            println!("Received WebSocket message: {}", text);
-                            if tx.send(text.to_string()).await.is_err() {
-                                eprintln!("Failed to send message to channel");
-                                break;
+                                tokio::spawn(async move {
+                                    let writer_for_route = writer_clone.clone();
+                                    // Using anyhow::Result allows easy error propagation with `?`
+                                    if let Err(e) = route_message(
+                                        parsed_message,
+                                        writer_for_route,
+                                        app_handle_clone,
+                                    )
+                                    .await
+                                    {
+                                        eprintln!(
+                                            "Error handling message for url '{}': {}",
+                                            url, e
+                                        );
+                                        let error_response = ResponseMessage {
+                                            url,
+                                            correlation_id,
+                                            body: ErrorBody {
+                                                success: false,
+                                                error: e.to_string(),
+                                            },
+                                        };
+                                        if let Ok(json_response) =
+                                            serde_json::to_string(&error_response)
+                                        {
+                                            let mut w = writer_clone.lock().await;
+                                            if let Err(send_err) =
+                                                w.send(Message::Text(json_response)).await
+                                            {
+                                                eprintln!(
+                                                    "Failed to send error response: {}",
+                                                    send_err
+                                                );
+                                            }
+                                        }
+                                    }
+                                });
+                            }
+                            Err(e) => {
+                                eprintln!(
+                                    "Failed to parse JSON from {}: {}. Message: {}",
+                                    addr, e, text
+                                );
+                                let response = ResponseMessage {
+                                    url: "unknown".to_string(),
+                                    correlation_id: None,
+                                    body: ErrorBody {
+                                        success: false,
+                                        error: format!("Invalid JSON format: {}", e),
+                                    },
+                                };
+                                if let Ok(json_response) = serde_json::to_string(&response) {
+                                    let mut w = writer.lock().await;
+                                    if let Err(send_err) =
+                                        w.send(Message::Text(json_response)).await
+                                    {
+                                        eprintln!(
+                                            "Failed to send parse error response: {}",
+                                            send_err
+                                        );
+                                    }
+                                }
                             }
                         }
                     }
+                    Message::Binary(_) => println!("Received binary data from {} (ignored)", addr),
+                    Message::Ping(ping_data) => {
+                        println!("Received Ping from {}", addr);
+                        let mut w = writer.lock().await;
+                        if let Err(e) = w.send(Message::Pong(ping_data)).await {
+                            eprintln!("Failed to send Pong: {}", e);
+                        }
+                    }
+                    Message::Pong(_) => println!("Received Pong from {}", addr),
+                    Message::Close(_) => {
+                        println!("Received Close frame from {}", addr);
+                        break;
+                    }
+                    Message::Frame(_) => println!("Received raw Frame from {} (ignored)", addr),
                 }
-            })
-        });
-
-    let routes = ws_route;
-
-    // Spawn HTTP server
-    tokio::spawn(warp::serve(routes).run(addr));
-    println!("WebSocket server running on ws://{}", addr);
-
-    // Process messages from the receiver
-    while let Some(message) = rx.recv().await {
-        println!("Processing message: {}", message);
-        // Handle messages as needed
+            }
+            Err(e) => {
+                eprintln!("WebSocket error reading message from {}: {}", addr, e);
+                break;
+            }
+        }
     }
 }
 
-fn setup_wgpu_overlay(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
-    println!("Webgpu rendering");
+/// Routes the parsed message to the appropriate handler
+// --- Fix: Changed return type to anyhow::Result<()> ---
+async fn route_message<R: Runtime>(
+    message: IncomingMessage,
+    writer: Arc<Mutex<SplitSink<WebSocketStream<TcpStream>, Message>>>,
+    app_handle: AppHandle<R>,
+) -> anyhow::Result<()> {
+    // Use anyhow::Result for easier error handling
+    println!("Routing message for URL: {}", message.url);
 
-    // let window = app.get_webview_window("main").unwrap();
-    let _window = tauri::window::WindowBuilder::new(app, "main")
-        .inner_size(800.0, 600.0)
-        .transparent(true)
-        .build()?;
-    let overlay = tauri::window::WindowBuilder::new(app, "overlay")
-        .parent(&_window)
-        .unwrap()
-        .inner_size(800.0, 600.0)
-        .transparent(true)
-        .always_on_top(true)
-        .build()?;
-    overlay.set_resizable(false);
-    overlay.set_maximizable(false);
-    overlay.set_minimizable(false);
-    overlay.set_closable(false);
-    overlay.set_decorations(false);
-    overlay.set_ignore_cursor_events(true);
+    match message.url.as_str() {
+        "/paths" => handle_paths(message, writer, app_handle).await?,
+        "/fs/file/write" => handle_fs_write(message, writer, app_handle).await?,
+        "/window/maximize" => handle_window_maximize(message, writer, app_handle).await?,
+        "/fs/file/read" => handle_not_implemented(message, writer).await?,
+        "/fs/file/read/binary" => handle_not_implemented(message, writer).await?,
+        "/fs/folder/create" => handle_not_implemented(message, writer).await?,
+        "/window/minimize" => handle_window_minimize(message, writer, app_handle).await?,
+        "/window/request-attention" => handle_not_implemented(message, writer).await?,
+        "/window/restore" => handle_window_restore(message, writer, app_handle).await?,
+        "/dialog/folder" => handle_not_implemented(message, writer).await?,
+        "/dialog/open" => handle_not_implemented(message, writer).await?,
+        "/dialog/save" => handle_not_implemented(message, writer).await?,
+        "/window/set-always-on-top" => handle_not_implemented(message, writer).await?,
+        "/window/set-height" => handle_not_implemented(message, writer).await?,
+        "/window/set-maximum-size" => handle_not_implemented(message, writer).await?,
+        "/window/set-minimum-size" => handle_not_implemented(message, writer).await?,
+        "/window/set-resizable" => handle_not_implemented(message, writer).await?,
+        "/window/set-title" => handle_not_implemented(message, writer).await?,
+        "/window/set-width" => handle_not_implemented(message, writer).await?,
+        "/window/set-x" => handle_not_implemented(message, writer).await?,
+        "/window/set-y" => handle_not_implemented(message, writer).await?,
+        "/window/show-dev-tools" => handle_not_implemented(message, writer).await?,
+        "/window/unmaximize" => handle_window_unmaximize(message, writer, app_handle).await?,
+        "/window/set-fullscreen" => handle_not_implemented(message, writer).await?,
+        "/engine" => handle_engine(message, writer).await?,
+        "/open" => handle_not_implemented(message, writer).await?,
+        "/show-in-explorer" => handle_not_implemented(message, writer).await?,
+        "/run" => handle_not_implemented(message, writer).await?,
+        "/fs/copy" => handle_not_implemented(message, writer).await?,
+        "/fs/delete" => handle_not_implemented(message, writer).await?,
+        "/fs/exist" => handle_not_implemented(message, writer).await?,
+        "/fs/list" => handle_not_implemented(message, writer).await?,
+        "/fs/file/size" => handle_not_implemented(message, writer).await?,
+        "/fs/move" => handle_not_implemented(message, writer).await?,
+        "/steam/raw" => handle_not_implemented(message, writer).await?,
+        "/discord/set-activity" => handle_not_implemented(message, writer).await?,
+        "/infos" => handle_not_implemented(message, writer).await?,
 
-    let _overlay = Arc::new(Mutex::new(overlay));
-
-    let _webview1 = _window.add_child(
-        tauri::webview::WebviewBuilder::new("main1", WebviewUrl::App(Default::default()))
-            .transparent(true)
-            .auto_resize(),
-        LogicalPosition::new(0., 0.),
-        LogicalSize::new(800.0, 600.0),
-    )?;
-
-    // let _webview2 = app
-    //     .get_window("overlay")
-    //     .expect("Overlay window not found")
-    //     .add_child(
-    //         tauri::webview::WebviewBuilder::new("overlay1", WebviewUrl::App(Default::default()))
-    //             .transparent(true)
-    //             .auto_resize(),
-    //         LogicalPosition::new(0., 0.),
-    //         LogicalSize::new(800.0, 600.0),
-    //     )?;
-
-    let overlay_window = app.get_window("overlay").expect("Overlay window not found");
-
-    let wgpu_state = async_runtime::block_on(WgpuState::new(overlay_window));
-    let wgpu_state = Arc::new(wgpu_state); // Make wgpu_state Arc<T>
-    app.manage(wgpu_state.clone()); // Store a clone in app state
-
+        _ => {
+            println!("Received unhandled URL: {}", message.url);
+            let response = ResponseMessage {
+                url: message.url.clone(),
+                correlation_id: message.correlation_id.clone(),
+                body: ErrorBody {
+                    success: false,
+                    error: format!("Unhandled URL: {}", message.url),
+                },
+            };
+            let json_response = serde_json::to_string(&response)?;
+            let mut w = writer.lock().await;
+            w.send(Message::Text(json_response)).await?;
+        }
+    }
     Ok(())
 }
 
-async fn setup_app<'a>(app: &'a mut tauri::App) -> Result<(), Box<dyn Error>> {
-    // Setup HTTP + WebSocket server
-    let (tx, rx) = tokio::sync::mpsc::channel::<String>(32);
+// --- Example Handler Implementations (Stubs) ---
 
-    tokio::spawn(async move {
-        websocket_server(tx, rx).await;
+// --- Fix: Changed return type for all handlers to anyhow::Result<()> ---
+
+async fn handle_not_implemented(
+    message: IncomingMessage,
+    writer: Arc<Mutex<SplitSink<WebSocketStream<TcpStream>, Message>>>,
+) -> anyhow::Result<()> {
+    // Use anyhow::Result
+    println!("Handler not implemented for URL: {}", message.url);
+    let response = ResponseMessage {
+        url: message.url.clone(),
+        correlation_id: message.correlation_id.clone(),
+        body: ErrorBody {
+            success: false,
+            error: format!("Feature not implemented: {}", message.url),
+        },
+    };
+    let json_response = serde_json::to_string(&response)?;
+    let mut w = writer.lock().await;
+    w.send(Message::Text(json_response)).await?;
+    Ok(())
+}
+
+async fn handle_engine(
+    message: IncomingMessage,
+    writer: Arc<Mutex<SplitSink<WebSocketStream<TcpStream>, Message>>>,
+) -> anyhow::Result<()> {
+    // Use anyhow::Result
+    println!(
+        "Handling /engine request. Body (if any): {:?}",
+        message.body
+    );
+    let response = ResponseMessage {
+        url: message.url.clone(),
+        correlation_id: message.correlation_id.clone(),
+        body: SuccessBody {
+            success: true,
+            data: Option::<()>::None,
+        },
+    };
+    let json_response = serde_json::to_string(&response)?;
+    let mut w = writer.lock().await;
+    w.send(Message::Text(json_response)).await?;
+    Ok(())
+}
+
+async fn handle_paths<R: Runtime>(
+    message: IncomingMessage,
+    writer: Arc<Mutex<SplitSink<WebSocketStream<TcpStream>, Message>>>,
+    app_handle: AppHandle<R>,
+) -> anyhow::Result<()> {
+    // Use anyhow::Result
+    println!("Handling /paths request. Body (if any): {:?}", message.body);
+
+    // --- Fix: Use ok_or_else correctly on Option ---
+    // let user_data_path = app_handle.path().app_data_dir()
+    //     .ok_or_else(|| anyhow::anyhow!("Could not get app data dir"))?; // ok_or_else is called on Option<PathBuf>
+    // let documents_path = dirs::document_dir()
+    //     .ok_or_else(|| anyhow::anyhow!("Could not get documents dir"))?; // ok_or_else is called on Option<PathBuf>
+
+    let data = serde_json::json!({
+        "appData": "data", // user_data_path,
+        "documents": "data", // documents_path,
     });
 
+    let response = ResponseMessage {
+        url: message.url.clone(),
+        correlation_id: message.correlation_id.clone(),
+        body: SuccessBody {
+            success: true,
+            data: Some(data),
+        },
+    };
+    let json_response = serde_json::to_string(&response)?;
+    let mut w = writer.lock().await;
+    w.send(Message::Text(json_response)).await?;
     Ok(())
 }
+
+async fn handle_fs_write<R: Runtime>(
+    message: IncomingMessage,
+    writer: Arc<Mutex<SplitSink<WebSocketStream<TcpStream>, Message>>>,
+    _app_handle: AppHandle<R>,
+) -> anyhow::Result<()> {
+    // Use anyhow::Result
+    println!("Handling /fs/file/write request.");
+
+    let body_value = message
+        .body
+        .ok_or_else(|| anyhow::anyhow!("Missing request body for /fs/file/write"))?;
+    let path = body_value
+        .get("path")
+        .and_then(Value::as_str)
+        .ok_or_else(|| anyhow::anyhow!("Missing 'path' field in body"))?;
+    let content = body_value
+        .get("content")
+        .and_then(Value::as_str)
+        .ok_or_else(|| anyhow::anyhow!("Missing 'content' field in body"))?;
+
+    println!(
+        "Attempting to write to path: '{}', Content length: {}",
+        path,
+        content.len()
+    );
+    // tokio::fs::write(path, content).await?; // Add actual file writing logic here
+
+    let response = ResponseMessage {
+        url: message.url.clone(),
+        correlation_id: message.correlation_id.clone(),
+        body: SuccessBody {
+            success: true,
+            data: Option::<()>::None,
+        },
+    };
+    let json_response = serde_json::to_string(&response)?;
+    let mut w = writer.lock().await;
+    w.send(Message::Text(json_response)).await?;
+    Ok(())
+}
+
+async fn handle_window_maximize<R: Runtime>(
+    message: IncomingMessage,
+    writer: Arc<Mutex<SplitSink<WebSocketStream<TcpStream>, Message>>>,
+    app_handle: AppHandle<R>,
+) -> anyhow::Result<()> {
+    // Use anyhow::Result
+    println!("Handling /window/maximize request");
+    match app_handle.get_webview_window("main") {
+        Some(window) => {
+            #[cfg(desktop)] // This block only compiles on desktop targets
+            {
+                window.maximize()?; // This call is safe here
+                println!("Window 'main' maximized.");
+            }
+            #[cfg(mobile)] // This block only compiles on mobile targets
+            {
+                // On mobile, maximize doesn't exist/make sense in the same way.
+                println!("Window maximize is not supported on mobile. Returning error.");
+                // Return an error indicating the operation is not supported on this platform.
+                return Err(anyhow::anyhow!(
+                    "Window maximize is not supported on this platform"
+                ));
+            }
+
+            let response = ResponseMessage {
+                url: message.url.clone(),
+                correlation_id: message.correlation_id.clone(),
+                body: SuccessBody {
+                    success: true,
+                    data: Option::<()>::None,
+                },
+            };
+            let json_response = serde_json::to_string(&response)?;
+            let mut w = writer.lock().await;
+            w.send(Message::Text(json_response)).await?;
+        }
+        None => {
+            return Err(anyhow::anyhow!("Main window not found")); // Return anyhow error
+        }
+    }
+    Ok(())
+}
+
+async fn handle_window_minimize<R: Runtime>(
+    message: IncomingMessage,
+    writer: Arc<Mutex<SplitSink<WebSocketStream<TcpStream>, Message>>>,
+    app_handle: AppHandle<R>,
+) -> anyhow::Result<()> {
+    // Use anyhow::Result
+    println!("Handling /window/minimize request");
+    match app_handle.get_webview_window("main") {
+        Some(window) => {
+            #[cfg(desktop)]
+            {
+                window.minimize()?;
+                println!("Window 'main' minimized.");
+            }
+            #[cfg(mobile)]
+            {
+                println!("Window minimize is not supported on mobile. Returning error.");
+                return Err(anyhow::anyhow!(
+                    "Window minimize is not supported on this platform"
+                ));
+            }
+            let response = ResponseMessage {
+                url: message.url.clone(),
+                correlation_id: message.correlation_id.clone(),
+                body: SuccessBody {
+                    success: true,
+                    data: Option::<()>::None,
+                },
+            };
+            let json_response = serde_json::to_string(&response)?;
+            let mut w = writer.lock().await;
+            w.send(Message::Text(json_response)).await?;
+        }
+        None => {
+            return Err(anyhow::anyhow!("Main window not found"));
+        }
+    }
+    Ok(())
+}
+
+async fn handle_window_restore<R: Runtime>(
+    message: IncomingMessage,
+    writer: Arc<Mutex<SplitSink<WebSocketStream<TcpStream>, Message>>>,
+    app_handle: AppHandle<R>,
+) -> anyhow::Result<()> {
+    // Use anyhow::Result
+    println!("Handling /window/restore request");
+    match app_handle.get_webview_window("main") {
+        Some(window) => {
+            #[cfg(desktop)]
+            {
+                if window.is_maximized()? {
+                    window.unmaximize()?;
+                }
+                window.set_focus()?;
+                if !window.is_visible()? {
+                    window.show()?;
+                }
+                println!("Window 'main' restored (attempted).");
+            }
+            #[cfg(mobile)]
+            {
+                println!("Window restore is not supported on mobile. Returning error.");
+                return Err(anyhow::anyhow!(
+                    "Window restore is not supported on this platform"
+                ));
+            }
+
+            let response = ResponseMessage {
+                url: message.url.clone(),
+                correlation_id: message.correlation_id.clone(),
+                body: SuccessBody {
+                    success: true,
+                    data: Option::<()>::None,
+                },
+            };
+            let json_response = serde_json::to_string(&response)?;
+            let mut w = writer.lock().await;
+            w.send(Message::Text(json_response)).await?;
+        }
+        None => {
+            return Err(anyhow::anyhow!("Main window not found"));
+        }
+    }
+    Ok(())
+}
+
+async fn handle_window_unmaximize<R: Runtime>(
+    message: IncomingMessage,
+    writer: Arc<Mutex<SplitSink<WebSocketStream<TcpStream>, Message>>>,
+    app_handle: AppHandle<R>,
+) -> anyhow::Result<()> {
+    // Use anyhow::Result
+    println!("Handling /window/unmaximize request");
+    match app_handle.get_webview_window("main") {
+        Some(window) => {
+            #[cfg(desktop)]
+            {
+                window.unmaximize()?; // <-- Your original line, now conditional
+                println!("Window 'main' unmaximized.");
+            }
+            #[cfg(mobile)]
+            {
+                println!("Window unmaximize is not supported on mobile. Returning error.");
+                return Err(anyhow::anyhow!(
+                    "Window unmaximize is not supported on this platform"
+                ));
+            }
+            let response = ResponseMessage {
+                url: message.url.clone(),
+                correlation_id: message.correlation_id.clone(),
+                body: SuccessBody {
+                    success: true,
+                    data: Option::<()>::None,
+                },
+            };
+            let json_response = serde_json::to_string(&response)?;
+            let mut w = writer.lock().await;
+            w.send(Message::Text(json_response)).await?;
+        }
+        None => {
+            return Err(anyhow::anyhow!("Main window not found"));
+        }
+    }
+    Ok(())
+}
+
+// --- WebSocket Server ---
+
+async fn start_websocket_server<R: Runtime>(app_handle: AppHandle<R>) {
+    let addr = SocketAddr::from(([127, 0, 0, 1], 31753));
+    let listener = match TcpListener::bind(&addr).await {
+        Ok(l) => l,
+        Err(e) => {
+            eprintln!("Failed to bind WebSocket server to {}: {}", addr, e);
+            return;
+        }
+    };
+    println!("WebSocket server running on ws://{}", addr);
+
+    loop {
+        match listener.accept().await {
+            Ok((stream, _)) => {
+                let app_handle_clone = app_handle.clone();
+                tokio::spawn(async move {
+                    handle_websocket(stream, app_handle_clone).await;
+                });
+            }
+            Err(e) => {
+                eprintln!("Failed to accept incoming connection: {}", e);
+                tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+            }
+        }
+    }
+}
+
+// --- Tauri Setup ---
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let init = match Client::init_app(480) {
-        Ok(val) => {
-            let (client, single) = val;
-            let _cb = client.register_callback(|p: PersonaStateChange| {
-                println!("Got callback: {:?}", p);
+    tauri::Builder::default()
+        .setup(move |app| {
+            let app_handle = app.handle().clone();
+            async_runtime::spawn(async move {
+                start_websocket_server(app_handle).await;
             });
 
-            let utils = client.utils();
-            println!("Utils:");
-            println!("AppId: {:?}", utils.app_id());
-            println!("UI Language: {}", utils.ui_language());
-
-            let apps = client.apps();
-            println!("Apps");
-            println!("IsInstalled(480): {}", apps.is_app_installed(AppId(480)));
-            println!("InstallDir(480): {}", apps.app_install_dir(AppId(480)));
-            println!("BuildId: {}", apps.app_build_id());
-            println!("AppOwner: {:?}", apps.app_owner());
-            println!("Langs: {:?}", apps.available_game_languages());
-            println!("Lang: {}", apps.current_game_language());
-            println!("Beta: {:?}", apps.current_beta_name());
-
-            let friends = client.friends();
-            println!("Friends");
-            let list = friends.get_friends(FriendFlags::IMMEDIATE);
-            println!("{:?}", list);
-            for f in &list {
-                println!("Friend: {:?} - {}({:?})", f.id(), f.name(), f.state());
-                friends.request_user_information(f.id(), true);
-            }
-        }
-        Err(err) => {
-            println!("Error {}", err);
-        }
-    };
-
-    tauri::Builder::default()
-        .plugin(tauri_plugin_fs::init())
-        .setup(move |app| {
-            println!("setup");
-            let _ = setup_wgpu_overlay(app);
-            setup_app(app);
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![showOverlay])
-        .build(tauri::generate_context!())
-        .expect("error while running tauri application")
-        .run(|app_handle, event| match event {
-            RunEvent::WindowEvent {
-                label: _,
-                event: WindowEvent::Resized(size),
-                ..
-            } => {
-                let wgpu_state = app_handle.state::<Arc<WgpuState>>();
-                let mut config = wgpu_state.config.lock().unwrap();
-                config.width = size.width;
-                config.height = size.height;
-                wgpu_state.surface.configure(&wgpu_state.device, &config);
-            }
-            RunEvent::MainEventsCleared => {
-                let wgpu_state = app_handle.state::<Arc<WgpuState>>();
-                let overlay = app_handle
-                    .get_window("overlay")
-                    .expect("Overlay window not found");
-                let _window = app_handle.get_window("main").unwrap();
-
-                let window_position = _window.inner_position().unwrap();
-                let window_position2 = _window.outer_position().unwrap();
-                let window_size = _window.inner_size().unwrap();
-                let window_size2 = _window.outer_size().unwrap();
-
-                println!("inner_position {:?}", window_position);
-                println!("outer_position {:?}", window_position2);
-                println!("inner_size {:?}", window_size);
-                println!("outer_size {:?}", window_size2);
-
-                let offsetU = 100 as u32;
-                let offsetI = 100 as i32;
-
-                overlay
-                    .set_position(LogicalPosition::new(
-                        window_position.x + offsetI,
-                        window_position.y + offsetI,
-                    ))
-                    .unwrap();
-                // overlay.set_position(window_position).unwrap();
-                overlay
-                    .set_size(LogicalSize::new(
-                        window_size.width - offsetU,
-                        window_size.height - offsetU,
-                    ))
-                    .unwrap();
-                // overlay.set_size(window_size).unwrap();
-
-                let t = Instant::now();
-
-                let output = match wgpu_state.surface.get_current_texture() {
-                    Ok(output) => output,
-                    Err(wgpu::SurfaceError::Lost) => {
-                        eprintln!("Surface lost, recreating surface...");
-                        return ();
-                    }
-                    Err(wgpu::SurfaceError::OutOfMemory) => {
-                        eprintln!("Out of memory error");
-                        return ();
-                    }
-                    Err(e) => {
-                        eprintln!("Failed to acquire next swap chain texture: {:?}", e);
-                        return ();
-                    }
-                };
-                let view = output
-                    .texture
-                    .create_view(&wgpu::TextureViewDescriptor::default());
-
-                let mut encoder = wgpu_state
-                    .device
-                    .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
-                {
-                    let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                        label: None,
-                        color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                            view: &view,
-                            resolve_target: None,
-                            ops: wgpu::Operations {
-                                load: wgpu::LoadOp::Clear(wgpu::Color::RED),
-                                store: wgpu::StoreOp::Store,
-                            },
-                        })],
-                        depth_stencil_attachment: None,
-                        timestamp_writes: None,
-                        occlusion_query_set: None,
-                    });
-                    rpass.set_pipeline(&wgpu_state.render_pipeline);
-                    rpass.draw(0..3, 0..1);
-                }
-
-                wgpu_state.queue.submit(Some(encoder.finish()));
-                // output.present();
-
-                println!("Frame rendered in: {}ms", t.elapsed().as_millis());
-            }
-            _ => (),
-        });
+        .run(tauri::generate_context!())
+        .expect("error while running tauri application");
 }

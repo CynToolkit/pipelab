@@ -435,6 +435,7 @@ const run = async () => {
       severity: 'success',
       detail: 'Your project has been executed successfully'
     })
+    posthog.capture('run_succeed')
   } catch (e) {
     nodeStatuses.value[lastActiveNode.value.uid] = 'error'
 
@@ -452,6 +453,7 @@ const run = async () => {
         detail: 'Project has encountered an error: ' + e.message
       })
     }
+    posthog.capture('run_errored')
   }
   setActiveNode()
   setIsRunning(false)

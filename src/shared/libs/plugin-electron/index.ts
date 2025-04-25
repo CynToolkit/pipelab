@@ -39,6 +39,7 @@ export default createNodeDefinition({
       // disabled: platform === 'linux' ? 'Electron is not supported on Linux' : undefined
     },
     // package
+    // v1
     {
       node: createPackageProps(
         IDPackage,
@@ -46,11 +47,11 @@ export default createNodeDefinition({
         'Gather all necessary files and prepare your app for distribution, creating a platform-specific bundle.',
         '',
         "`Package app from ${fmt.param(params['input-folder'], 'primary', 'Input folder not set')}`",
+        true
       ),
       runner: packageRunner,
-      advanced: true
     },
-    // package v2
+    // v2
     {
       node: createPackageV2Props(
         IDPackageV2,
@@ -58,8 +59,13 @@ export default createNodeDefinition({
         'Gather all necessary files and prepare your app for distribution, creating a platform-specific bundle.',
         '',
         "`Package app from ${fmt.param(params['input-folder'], 'primary', 'Input folder not set')}`",
+        false,
+        false,
+        undefined,
+        false,
+        false
       ),
-      runner: packageV2Runner
+      runner: packageV2Runner,
     },
     {
       node: createPreviewProps(
@@ -74,7 +80,6 @@ export default createNodeDefinition({
     {
       node: props,
       runner: configureRunner,
-      advanced: true
     }
     // {
     //   node: propsConfigureV2,

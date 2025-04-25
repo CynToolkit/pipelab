@@ -8,18 +8,16 @@ import {
 } from '@@/libs/plugin-core'
 import { usePlugins } from '@@/plugins'
 import { isRequired } from '@@/validation'
-import { randomBytes } from 'node:crypto'
 import { mkdir } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
 import { assetsPath, unpackPath } from './paths'
 import { useLogger } from '@@/logger'
 import { BrowserWindow } from 'electron'
 import { usePluginAPI } from './api'
 import { BlockCondition } from '@@/model'
 import { HandleListenerSendFn } from './handlers'
-import { generateTempFolder } from './utils'
+import { ensureNodeJS, generateTempFolder } from './utils'
 import { setupConfig } from './config'
+import { join } from 'node:path'
 
 const checkParams = (definitionParams: InputsDefinition, elementParams: Record<string, string>) => {
   // get a list of all required params
@@ -143,7 +141,10 @@ export const handleActionExecute = async (
     try {
       const _settings = await setupConfig()
       const settings = await _settings.getConfig()
+      console.log('settings.cacheFolder', settings.cacheFolder)
+
       const tmp = await generateTempFolder(settings.cacheFolder)
+      console.log('tmp', tmp)
 
       await mkdir(tmp, {
         recursive: true
@@ -157,6 +158,11 @@ export const handleActionExecute = async (
 
       const _assetsPath = await assetsPath()
       const _unpackPath = await unpackPath()
+
+      const nodePath = await ensureNodeJS()
+
+      const modulesPath = join(_unpackPath, 'node_modules')
+      const pnpm = join(modulesPath, 'pnpm', 'bin', 'pnpm.cjs')
 
       const outputs: Record<string | number | symbol, unknown> = {}
 
@@ -189,11 +195,14 @@ export const handleActionExecute = async (
         cwd: tmp,
         paths: {
           assets: _assetsPath,
-          unpack: _unpackPath
+          unpack: _unpackPath,
+          cache: settings.cacheFolder,
+          node: nodePath,
+          pnpm
         },
         api,
         browserWindow: mainWindow,
-        abortSignal,
+        abortSignal
       })
       mainWindow.setProgressBar(1, {
         mode: 'normal'

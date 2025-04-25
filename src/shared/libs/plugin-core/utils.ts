@@ -160,7 +160,7 @@ export const downloadFile = async (
     transform(chunk, controller) {
       downloadedSize += chunk.length
       const progress = (downloadedSize / totalSize) * 100
-      if (hooks.onProgress) {
+      if (hooks?.onProgress) {
         hooks.onProgress({
           progress,
           downloadedSize

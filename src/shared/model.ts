@@ -1,7 +1,7 @@
 import { Variable } from '@pipelab/core-app'
 import { WithId } from './utils'
 import { SaveLocation } from './save-location'
-import { Simplify } from 'type-fest'
+import type { Simplify } from 'type-fest'
 import { createMigration, createMigrator, finalVersion, initialVersion } from './libs/migration'
 import {
   any,

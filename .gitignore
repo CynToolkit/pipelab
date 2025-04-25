@@ -100,4 +100,6 @@ assets/electron/template/app/src/app
 playwright/**/*
 assets/tauri/template/app/app
 assets/tauri/template/app/src-tauri/steam_*
+assets/tauri/template/app/src/app
 .vscode
+.idea

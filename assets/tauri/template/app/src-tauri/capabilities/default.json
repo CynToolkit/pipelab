@@ -7,10 +7,6 @@
   ],
   "permissions": [
     "core:default",
-    "shell:allow-open",
-    {
-      "identifier": "fs:scope",
-      "allow": [{ "path": "$APPDATA" }, { "path": "$APPDATA/**" }, { "path": "$RUNTIME" }]
-    }
+    "opener:default"
   ]
 }

@@ -13,7 +13,8 @@ const config: ForgeConfig = {
       // unpack: '*.{node,dll,so,lib,dylib,exe}'
     },
     // asar: false,
-    extraResource: ['.vite/build/assets'],
+    extraResource: ['assets'],
+    // extraResource: ['.vite/build/assets'],
     name,
     icon: 'assets/build/icon',
   },

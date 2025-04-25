@@ -1,5 +1,7 @@
 import { createActionRunner, runWithLiveLogs } from '@pipelab/plugin-core'
-import { createPreviewProps, forge } from './forge'
+import { createPreviewProps, tauri } from './tauri'
+import { merge } from 'ts-deepmerge'
+import { defaultTauriConfig } from './utils'
 
 export const previewRunner = createActionRunner<ReturnType<typeof createPreviewProps>>(
   async (options) => {
@@ -8,11 +10,40 @@ export const previewRunner = createActionRunner<ReturnType<typeof createPreviewP
       throw new Error("URL can't be empty")
     }
 
-    // @ts-expect-error options is not really compatible
-    const output = await forge('package', undefined, options)
-    options.log('Opening preview', output)
-    options.log('Opening url', url)
-    await runWithLiveLogs(output.binary, ['--url', url], {}, options.log)
+    if (!options.inputs.configuration) {
+      throw new Error('Missing tauri configuration')
+    }
+
+    const completeConfiguration = merge(defaultTauriConfig, {
+      alwaysOnTop: options.inputs.configuration['alwaysOnTop'],
+      appBundleId: options.inputs.configuration['appBundleId'],
+      appCategoryType: options.inputs.configuration['appCategoryType'],
+      appCopyright: options.inputs.configuration['appCopyright'],
+      appVersion: options.inputs.configuration['appVersion'],
+      author: options.inputs.configuration['author'],
+      description: options.inputs.configuration['description'],
+      tauriVersion: options.inputs.configuration['tauriVersion'],
+      enableExtraLogging: options.inputs.configuration['enableExtraLogging'],
+      clearServiceWorkerOnBoot: options.inputs.configuration['clearServiceWorkerOnBoot'],
+      frame: options.inputs.configuration['frame'],
+      fullscreen: options.inputs.configuration['fullscreen'],
+      icon: options.inputs.configuration['icon'],
+      height: options.inputs.configuration['height'],
+      name: options.inputs.configuration['name'],
+      toolbar: options.inputs.configuration['toolbar'],
+      transparent: options.inputs.configuration['transparent'],
+      width: options.inputs.configuration['width'],
+      enableSteamSupport: options.inputs.configuration['enableSteamSupport'],
+      steamGameId: options.inputs.configuration['steamGameId'],
+      ignore: options.inputs.configuration['ignore'],
+      openDevtoolsOnStart: options.inputs.configuration['openDevtoolsOnStart'],
+      enableDiscordSupport: options.inputs.configuration['enableDiscordSupport'],
+      discordAppId: options.inputs.configuration['discordAppId']
+    } satisfies DesktopApp.Tauri) as DesktopApp.Tauri
+
+    console.log('completeConfiguration', completeConfiguration)
+
+    await tauri('preview', url, options, completeConfiguration)
     return
   }
 )

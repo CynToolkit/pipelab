@@ -9,7 +9,7 @@ import {
   ViewUpdate,
   WidgetType
 } from '@codemirror/view'
-import { ValueOf } from 'type-fest'
+import type { ValueOf } from 'type-fest'
 import { Ref } from 'vue'
 
 class PlaceholderWidget extends WidgetType {

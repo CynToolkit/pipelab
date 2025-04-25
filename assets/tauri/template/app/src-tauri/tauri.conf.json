@@ -1,17 +1,23 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "tauri",
+  "productName": "app",
   "version": "0.1.0",
-  "identifier": "com.tauri.app",
+  "identifier": "xyz.armaldio.app",
   "build": {
-    "beforeDevCommand": "pnpm dev",
+    "beforeDevCommand": "echo 1",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "pnpm build",
-    "frontendDist": "../dist"
+    "beforeBuildCommand": "echo 1",
+    "frontendDist": "../src/app"
   },
   "app": {
     "withGlobalTauri": true,
-    "windows": [],
+    "windows": [
+      {
+        "title": "App",
+        "width": 800,
+        "height": 600
+      }
+    ],
     "security": {
       "csp": null
     }

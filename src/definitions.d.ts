@@ -1,12 +1,9 @@
-declare namespace ElectronAppConfig {
+declare namespace DesktopApp {
   interface Config {
-    enableInProcessGPU: boolean
-    enableDisableRendererBackgrounding: boolean
     width: number
     height: number
     fullscreen: boolean
     frame: boolean
-    customMainCode: string
     transparent: boolean
     toolbar: boolean
     alwaysOnTop: boolean
@@ -16,11 +13,8 @@ declare namespace ElectronAppConfig {
     appVersion: string
     author: string
     description: string
-    electronVersion: string
     appCategoryType: string
     icon: string
-    disableAsarPackaging: boolean
-    forceHighPerformanceGpu: boolean
     enableExtraLogging: boolean
     clearServiceWorkerOnBoot: boolean
 
@@ -33,4 +27,19 @@ declare namespace ElectronAppConfig {
     ignore: (string | RegExp)[]
     openDevtoolsOnStart: boolean
   }
+
+  interface Electron extends Config {
+    enableInProcessGPU: boolean
+    enableDisableRendererBackgrounding: boolean
+    customMainCode: string
+    electronVersion: string
+    disableAsarPackaging: boolean
+    forceHighPerformanceGpu: boolean
+    clearServiceWorkerOnBoot: boolean
+  }
+
+  interface Tauri extends Config {
+    tauriVersion: string
+
+   }
 }

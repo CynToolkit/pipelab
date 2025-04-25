@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, dialog, autoUpdater, protocol } from 'electron'
+import { app, shell, BrowserWindow, dialog, autoUpdater, protocol, screen } from 'electron'
 import { join } from 'path'
 import { platform } from 'os'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
@@ -65,6 +65,19 @@ let api: any
 let mainWindow: BrowserWindow | undefined
 
 function createWindow(): void {
+  const displays = screen.getAllDisplays()
+  const externalDisplay = displays.find((display) => {
+    return display.bounds.x !== 0 || display.bounds.y !== 0
+  })
+
+  const position =
+    externalDisplay && is.dev
+      ? {
+          x: externalDisplay.bounds.x + 50,
+          y: externalDisplay.bounds.y + 50
+        }
+      : {}
+
   // Create the browser window.
   mainWindow = new BrowserWindow({
     width: 1280,
@@ -72,6 +85,7 @@ function createWindow(): void {
     show: false,
     icon: imagePath,
     autoHideMenuBar: true,
+    ...position,
     webPreferences: {
       preload: join(__dirname, 'preload.js'),
       sandbox: false,
@@ -122,7 +136,7 @@ if (is.dev && process.platform === 'win32') {
   app.setAsDefaultProtocolClient('pipelab')
 }
 
-function handleProtocolUrl(url) {
+function handleProtocolUrl(url: string) {
   if (!url || !url.startsWith('pipelab://')) return
 
   // Parse the URL
@@ -223,40 +237,6 @@ app.whenReady().then(async () => {
   const shimsPaths = join(assets, 'shims')
 
   await mkdir(shimsPaths, { recursive: true })
-
-  if (platform() === 'win32') {
-    const fakeNode = join(shimsPaths, 'node.bat')
-
-    await writeFile(
-      fakeNode,
-      `REM @echo off
-
-echo "Running fake node"
-
-REM Set the environment variable to run Electron as Node.js
-set ELECTRON_RUN_AS_NODE=1
-
-ECHO %*
-
-REM Shim Electron as Node.js
-start "" "${process.execPath}" %*
-`
-    )
-  } else {
-    const fakeNode = join(shimsPaths, 'node')
-
-    await writeFile(
-      fakeNode,
-      `#!/bin/bash
-
-# Set the environment variable to run Electron as Node.js
-export ELECTRON_RUN_AS_NODE=1
-
-# Shim Electron as Node.js
-exec "${process.execPath}" "$@"
-`
-    )
-  }
 
   const settingsG = await setupConfig()
 

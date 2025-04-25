@@ -1,6 +1,7 @@
 import { createActionRunner } from '@pipelab/plugin-core'
 import { forge, createMakeProps } from './forge'
 import { merge } from 'ts-deepmerge'
+import { defaultElectronConfig } from './utils'
 
 export const makeRunner = createActionRunner<ReturnType<typeof createMakeProps>>(
   async (options) => {
@@ -11,39 +12,9 @@ export const makeRunner = createActionRunner<ReturnType<typeof createMakeProps>>
     }
 
     const completeConfiguration = merge(
-      {
-        alwaysOnTop: false,
-        appBundleId: 'com.pipelab.app',
-        appCategoryType: '',
-        appCopyright: 'Copyright © 2024 Pipelab',
-        appVersion: '1.0.0',
-        author: 'Pipelab',
-        customMainCode: '',
-        description: 'A simple Electron application',
-        electronVersion: '',
-        disableAsarPackaging: true,
-        forceHighPerformanceGpu: false,
-        enableExtraLogging: false,
-        clearServiceWorkerOnBoot: false,
-        enableDisableRendererBackgrounding: false,
-        enableInProcessGPU: false,
-        frame: true,
-        fullscreen: false,
-        icon: '',
-        height: 600,
-        name: 'Pipelab',
-        toolbar: true,
-        transparent: false,
-        width: 800,
-        enableSteamSupport: false,
-        steamGameId: 480,
-        enableDiscordSupport: false,
-        discordAppId: '',
-        ignore: [],
-        openDevtoolsOnStart: false,
-      } satisfies ElectronAppConfig.Config,
+      defaultElectronConfig,
       options.inputs.configuration
-    ) as ElectronAppConfig.Config
+    ) as DesktopApp.Electron
 
     await forge('make', appFolder, options, completeConfiguration)
   }

@@ -65,9 +65,9 @@
                       </span>
                       <span class="m-0 text-secondary"> {{ node.node.description }}</span>
                       <span
-                        v-if="typeof node.disabled === 'string'"
+                        v-if="typeof node.node.disabled === 'string'"
                         class="m-0 text-secondary font-bold"
-                        >{{ node.disabled }}</span
+                        >{{ node.node.disabled }}</span
                       >
                     </span>
                   </a>
@@ -155,11 +155,11 @@ watchEffect(() => {
 })
 
 const shouldShowNode = (node: RendererNodeDefinition) => {
-  if (node.advanced && displayAdvancedNodes.value) {
+  if (node.node.advanced && displayAdvancedNodes.value) {
     return true
-  } else if (node.advanced && !displayAdvancedNodes.value ) {
+  } else if (node.node.advanced && !displayAdvancedNodes.value ) {
     return false
-  } else if (node.disabled) {
+  } else if (node.node.disabled) {
     return false
   } else {
     return true

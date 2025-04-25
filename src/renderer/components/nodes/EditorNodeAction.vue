@@ -10,6 +10,10 @@
       }"
       @click="onNodeClick"
     >
+      <div class="update-indicator" v-if="nodeDefinition?.updateAvailable">
+        <i class="mdi mdi-update" v-tooltip="{ value: 'Update available' }" label="Save" />
+      </div>
+
       <div class="vertical">
         <PluginIcon width="32px" :icon="pluginDefinition?.icon"></PluginIcon>
 
@@ -20,7 +24,7 @@
             </div>
             <div v-if="value.name" class="original-title">{{ nodeDefinition.name }}</div>
             <Button
-              v-if="nodeDefinition.deprecated"
+              v-if="nodeDefinition?.deprecated"
               v-tooltip="
                 nodeDefinition.deprecatedMessage ??
                 'This module is deprecated. You should not use it anymore.'
@@ -115,15 +119,13 @@ import { PropType, computed, ref, shallowRef, toRefs } from 'vue'
 import { watchDebounced } from '@vueuse/core'
 import ParamEditor from './ParamEditor.vue'
 import PluginIcon from './PluginIcon.vue'
-import { Action } from '@pipelab/plugin-core'
 import { createQuickJs } from '@renderer/utils/quickjs'
 import DOMPurify from 'dompurify'
 import { makeResolvedParams } from '@renderer/utils/evaluator'
 import { ValidationError } from '@renderer/models/error'
 import AddNodeButton from '../AddNodeButton.vue'
-import { ValueOf } from 'type-fest'
+import type { ValueOf } from 'type-fest'
 import { MenuItem } from 'primevue/menuitem'
-import { padding } from 'polished'
 
 const props = defineProps({
   value: {
@@ -254,7 +256,7 @@ const { activeNode, variables } = storeToRefs(editor)
 const nodeDefinition = computed(() => {
   const def = getNodeDefinition(value.value.origin.nodeId, value.value.origin.pluginId)
   if (def) {
-    return def.node as Action
+    return def.node
   }
   return undefined
 })
@@ -533,6 +535,20 @@ const hasErrored = computed(() => {
   // --p-button-sm-padding-y: 0;
 }
 
+.update-indicator {
+  position: absolute;
+  top: -3px;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 10;
+  margin: 0 auto;
+  transition: opacity 0.25s;
+  font-size: 22px;
+  z-index: 1;
+}
+
 .danger {
   color: red;
 }
@@ -546,9 +562,11 @@ const hasErrored = computed(() => {
   25% {
     clip-path: inset(0 95% 0 0);
   }
+
   50% {
     clip-path: inset(95% 0 0 0);
   }
+
   75% {
     clip-path: inset(0 0 0 95%);
   }

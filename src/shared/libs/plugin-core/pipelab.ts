@@ -256,8 +256,6 @@ export interface PluginDefinition {
 
 export type RendererNodeDefinition = {
   node: PipelabNode
-  disabled: boolean | string
-  advanced: boolean | string
 }
 
 export interface RendererPluginDefinition extends PluginDefinition {
@@ -265,12 +263,9 @@ export interface RendererPluginDefinition extends PluginDefinition {
 }
 
 export interface MainPluginDefinition extends PluginDefinition {
-  nodes: {
-    node: PipelabNode
+  nodes: ({
     runner: Runner
-    disabled?: boolean | string
-    advanced?: boolean
-  }[]
+  } & RendererNodeDefinition)[]
   validators?: Array<{
     id: string
     description: string
@@ -324,7 +319,13 @@ export type ParamsToInput<PARAMS extends InputsDefinition> = {
     : PARAMS[index]['value'] | null
 }
 
-export interface Action {
+export interface BaseNode {
+  disabled?: boolean | string
+  advanced?: boolean | string
+  updateAvailable?: boolean | string
+}
+
+export interface Action extends BaseNode {
   id: string
   type: 'action'
   version?: number
@@ -368,6 +369,9 @@ export type ActionRunnerData<ACTION extends Action> = {
   paths: {
     unpack: string
     assets: string
+    cache: string
+    pnpm: string
+    node: string
   }
   api: UseMainAPI
   browserWindow: BrowserWindow
@@ -379,7 +383,7 @@ export const createActionRunner = <ACTION extends Action>(runner: ActionRunner<A
 
 // ---
 
-export interface Condition {
+export interface Condition extends BaseNode {
   id: string
   type: 'condition'
   version?: number
@@ -404,7 +408,7 @@ export const createConditionRunner = <CONDITION extends Condition>(
 
 // ---
 
-export interface Loop {
+export interface Loop extends BaseNode {
   id: string
   type: 'loop'
   version?: number
@@ -426,7 +430,7 @@ type LoopRunner<LOOP extends Loop> = (data: {
 }) => Promise<'step' | 'exit'>
 export const createLoopRunner = <LOOP extends Loop>(runner: LoopRunner<LOOP>) => runner
 
-export interface Expression {
+export interface Expression extends BaseNode {
   id: string
   type: 'expression'
   displayString: string
@@ -450,7 +454,7 @@ export const createExpressionRunner = <EXPRESSION extends Expression>(
   runner: ExpressionRunner<EXPRESSION>
 ) => runner
 
-export interface Event {
+export interface Event extends BaseNode {
   id: string
   type: 'event'
   version?: number
@@ -558,7 +562,7 @@ export const createBooleanParam = (
   return {
     ...definition,
     control: {
-      type: 'boolean',
+      type: 'boolean'
     },
     value
   } satisfies InputDefinition<ControlTypeBoolean>

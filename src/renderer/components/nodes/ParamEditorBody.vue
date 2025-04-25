@@ -96,7 +96,7 @@
 
 <script lang="ts" setup>
 import { Action, Condition, Event } from '@pipelab/plugin-core'
-import { ValueOf } from 'type-fest'
+import type { ValueOf } from 'type-fest'
 import { computed, PropType, toRefs } from 'vue'
 import { useAPI } from '@renderer/composables/api'
 import { useLogger } from '@@/logger'

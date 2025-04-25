@@ -118,10 +118,8 @@ export const exportc3p = async <ACTION extends Action>(
   const { join, dirname } = await import('node:path')
   const { cp, mkdir } = await import('node:fs/promises')
 
-  const { unpack } = paths
+  const { unpack, node } = paths
   const modulesPath = join(unpack, 'node_modules')
-
-  const execPath = process.execPath
 
   // const playwrightServer = await import("playwright-core/lib/server");
 
@@ -132,12 +130,10 @@ export const exportc3p = async <ACTION extends Action>(
   // ]);
   log('Downloading browser')
   await runWithLiveLogs(
-    execPath,
+    node,
     [join(modulesPath, 'playwright', 'cli.js'), 'install', browserName],
     {
-      env: {
-        ELECTRON_RUN_AS_NODE: '1'
-      },
+      env: {},
       cancelSignal: abortSignal
     },
     log,

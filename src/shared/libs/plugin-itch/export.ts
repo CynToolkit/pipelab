@@ -1,3 +1,4 @@
+import { extractZip } from '@main/utils'
 import {
   createAction,
   createActionRunner,
@@ -47,19 +48,19 @@ export const uploadToItch = createAction({
     }),
     user: createStringParam('', {
       required: true,
-      label: 'User',
+      label: 'User'
     }),
     project: createStringParam('', {
       required: true,
-      label: 'Project',
+      label: 'Project'
     }),
     channel: createStringParam('', {
       required: true,
-      label: 'Channel',
+      label: 'Channel'
     }),
     'api-key': createStringParam('', {
       required: true,
-      label: 'API key',
+      label: 'API key'
     })
   },
   outputs: {}
@@ -139,12 +140,14 @@ export const uploadToItchRunner = createActionRunner<typeof uploadToItch>(
         },
         abortSignal
       )
-      const zip = new StreamZip.default.async({ file: butlerTmpZipFile })
+      // const zip = new StreamZip.default.async({ file: butlerTmpZipFile })
 
-      const bytes = await zip.extract(null, dirname(butlerPath))
-      await zip.close()
+      // const bytes = await zip.extract(null, dirname(butlerPath))
+      // await zip.close()
 
-      log('bytes', bytes)
+      await extractZip(butlerTmpZipFile, dirname(butlerPath))
+
+      // log('bytes', bytes)
     }
 
     await chmod(butlerPath, 0o755)
@@ -181,7 +184,7 @@ export const uploadToItchRunner = createActionRunner<typeof uploadToItch>(
             }
           }
         }
-      },
+      }
     )
 
     log('Uploaded to itch')

@@ -41,10 +41,10 @@
               </li>
               <template v-for="trigger in plugin.triggers">
                 <li
-                  v-if="!trigger.disabled"
+                  v-if="!trigger.node.disabled"
                   :key="trigger.node.id"
                   class="flex trigger-item"
-                  :disabled="trigger.disabled"
+                  :disabled="trigger.node.disabled"
                   @click="selected = { triggerId: trigger.node.id, pluginId: plugin.id }"
                 >
                   <a
@@ -60,9 +60,9 @@
                       <span class="font-bold mb-1"> {{ trigger.node.name }}</span>
                       <span class="m-0 text-secondary"> {{ trigger.node.description }}</span>
                       <span
-                        v-if="typeof trigger.disabled === 'string'"
+                        v-if="typeof trigger.node.disabled === 'string'"
                         class="m-0 text-secondary font-bold"
-                        >{{ trigger.disabled }}</span
+                        >{{ trigger.node.disabled }}</span
                       >
                     </span>
                   </a>

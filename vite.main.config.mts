@@ -18,10 +18,6 @@ export default defineConfig((env) => {
     viteStaticCopy({
       targets: [
         {
-          src: 'assets',
-          dest: '.'
-        },
-        {
           src: 'node_modules/@jitl/quickjs-wasmfile-release-sync/dist/emscripten-module.wasm',
           dest: '.'
         }

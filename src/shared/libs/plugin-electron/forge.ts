@@ -7,20 +7,21 @@ import {
   createNumberParam,
   createPathParam,
   createStringParam,
-  fileExists,
   InputsDefinition,
   OutputsDefinition,
   runWithLiveLogs
 } from '../plugin-core'
-import type { MakeOptions } from '@electron-forge/core'
 
 import { app } from 'electron'
+import { detectRuntime } from '@@/plugins'
+import { dirname } from 'node:path'
 
 // TODO: https://js.electronforge.io/modules/_electron_forge_core.html
 
 export const IDMake = 'electron:make'
 export const IDPackage = 'electron:package'
 export const IDPackageV2 = 'electron:package:v2'
+export const IDPackageV3 = 'electron:package:v3'
 export const IDPreview = 'electron:preview'
 
 const paramsInputFolder = {
@@ -45,7 +46,7 @@ const paramsInputURL = {
 
 const params = {
   arch: {
-    value: '' as MakeOptions['arch'],
+    value: '' as NodeJS.Architecture | '', // MakeOptions['arch'],
     label: 'Architecture',
     required: false,
     control: {
@@ -82,7 +83,7 @@ const params = {
     }
   },
   platform: {
-    value: '' as MakeOptions['platform'],
+    value: '' as NodeJS.Platform | '', // MakeOptions['platform'],
     label: 'Platform',
     required: false,
     control: {
@@ -108,7 +109,7 @@ const params = {
   },
   configuration: {
     label: 'Electron configuration',
-    value: undefined as Partial<ElectronAppConfig.Config> | undefined,
+    value: undefined as Partial<DesktopApp.Electron> | undefined,
     required: true,
     control: {
       type: 'json'
@@ -228,7 +229,8 @@ export const configureParams = {
 
   electronVersion: createStringParam('', {
     label: 'Electron version',
-    description: 'The version of Electron to use',
+    description:
+      'The version of Electron to use. If no version specified, it will use the latest one.',
     required: false
   }),
   customMainCode: createPathParam('', {
@@ -367,8 +369,7 @@ export const configureParams = {
     required: false,
     label: 'Discord application ID',
     description: 'The Discord application ID'
-  }),
-
+  })
 } satisfies InputsDefinition
 
 const outputs = {
@@ -412,7 +413,12 @@ export const createPackageProps = (
   name: string,
   description: string,
   icon: string,
-  displayString: string
+  displayString: string,
+  advanced?: boolean,
+  deprecated?: boolean,
+  deprecatedMessage?: string,
+  disabled?: false,
+  updateAvailable?: boolean
 ) =>
   createAction({
     id,
@@ -421,6 +427,11 @@ export const createPackageProps = (
     icon,
     displayString,
     meta: {},
+    advanced,
+    deprecated,
+    deprecatedMessage,
+    disabled,
+    updateAvailable,
     params: {
       ...params,
       ...paramsInputFolder
@@ -432,7 +443,12 @@ export const createPackageV2Props = (
   name: string,
   description: string,
   icon: string,
-  displayString: string
+  displayString: string,
+  advanced?: boolean,
+  deprecated?: boolean,
+  deprecatedMessage?: string,
+  disabled?: false,
+  updateAvailable?: boolean
 ) => {
   const { arch, platform } = params
   return createAction({
@@ -442,6 +458,11 @@ export const createPackageV2Props = (
     icon,
     displayString,
     meta: {},
+    advanced,
+    deprecated,
+    deprecatedMessage,
+    disabled,
+    updateAvailable,
     params: {
       arch,
       platform,
@@ -474,7 +495,7 @@ export const createPreviewProps = (
   })
 
 export const forge = async (
-  action: 'make' | 'package',
+  action: 'make' | 'package' | 'preview',
   appFolder: string | undefined,
   {
     cwd,
@@ -486,45 +507,23 @@ export const forge = async (
   }: ActionRunnerData<
     | ReturnType<typeof createMakeProps>
     | ReturnType<typeof createPackageProps>
+    | ReturnType<typeof createPackageV2Props>
     | ReturnType<typeof createPreviewProps>
   >,
-  completeConfiguration: ElectronAppConfig.Config
+  completeConfiguration: DesktopApp.Electron
 ): Promise<{ folder: string; binary: string | undefined } | undefined> => {
   const { join, basename, delimiter } = await import('node:path')
   const { cp, readFile, writeFile } = await import('node:fs/promises')
   const { arch, platform } = await import('os')
   const { kebabCase } = await import('change-case')
 
-  let detectedRuntime: 'construct' | 'godot' | undefined = undefined
-
   log('Building electron')
 
-  if (appFolder) {
-    const indexExist = await fileExists(join(appFolder, 'index.html'))
-    const swExist = await fileExists(join(appFolder, 'sw.js'))
-    const offlineJSON = await fileExists(join(appFolder, 'offline.json'))
-    const dataJSON = await fileExists(join(appFolder, 'data.json'))
-    const scriptsFolder = await fileExists(join(appFolder, 'scripts'))
-    const workermainJs = await fileExists(join(appFolder, 'workermain.js'))
-
-    if (!indexExist) {
-      throw new Error('The input folder does not contain an index.html file')
-    }
-
-    if (swExist || dataJSON || workermainJs || scriptsFolder) {
-      detectedRuntime = 'construct'
-    }
-
-    console.log('Detected runtime', detectedRuntime)
-
-    if (detectedRuntime === 'construct' && offlineJSON && swExist) {
-      throw new Error(
-        'Construct runtime detected, please disable offline capabilties when using HTML5 export. Offline is already supported by default.'
-      )
-    }
+  if (action !== 'preview') {
+    await detectRuntime(appFolder)
   }
 
-  const { assets, unpack } = paths
+  const { assets, unpack, node } = paths
 
   // const { fileURLToPath } = await import('url')
   // const __dirname = fileURLToPath(dirname(import.meta.url))
@@ -560,7 +559,7 @@ export const forge = async (
   const placeAppFolder = join(destinationFolder, 'src', 'app')
 
   // if input is folder, copy folder to destination
-  if (appFolder) {
+  if (appFolder && action !== 'preview') {
     // copy app to template
     await cp(appFolder, placeAppFolder, {
       recursive: true
@@ -604,14 +603,13 @@ export const forge = async (
 
   log('Installing packages')
   await runWithLiveLogs(
-    process.execPath,
+    node,
     [pnpm, 'install', '--prefer-offline'],
     {
       cwd: destinationFolder,
       env: {
         // DEBUG: '*',
-        ELECTRON_RUN_AS_NODE: '1',
-        PATH: `${shimsPaths}${delimiter}${process.env.PATH}`,
+        PATH: `${dirname(node)}${delimiter}${process.env.PATH}`,
         PNPM_HOME: pnpmHome
       },
       cancelSignal: abortSignal
@@ -631,14 +629,13 @@ export const forge = async (
   if (completeConfiguration.electronVersion && completeConfiguration.electronVersion !== '') {
     log(`Installing electron@${completeConfiguration.electronVersion}`)
     await runWithLiveLogs(
-      process.execPath,
+      node,
       [pnpm, 'install', `electron@${completeConfiguration.electronVersion}`, '--prefer-offline'],
       {
         cwd: destinationFolder,
         env: {
           // DEBUG: '*',
-          ELECTRON_RUN_AS_NODE: '1',
-          PATH: `${shimsPaths}${delimiter}${process.env.PATH}`,
+          PATH: `${dirname(node)}${delimiter}${process.env.PATH}`,
           PNPM_HOME: pnpmHome
         },
         cancelSignal: abortSignal
@@ -659,21 +656,20 @@ export const forge = async (
   const inputArch = inputs.arch === '' ? undefined : inputs.arch
 
   try {
-    console.log('typeof inputs.platform', typeof inputs.platform)
+    log('typeof inputs.platform', typeof inputs.platform)
     const finalPlatform = inputPlatform ?? platform() ?? ''
-    console.log('finalPlatform', finalPlatform)
+    log('finalPlatform', finalPlatform)
     const finalArch = inputArch ?? arch() ?? ''
 
     await runWithLiveLogs(
-      process.execPath,
+      node,
       [forge, action, /* '--', */ '--arch', finalArch, '--platform', finalPlatform],
       {
         cwd: destinationFolder,
         env: {
           DEBUG: completeConfiguration.enableExtraLogging ? '*' : '',
           ELECTRON_NO_ASAR: '1',
-          ELECTRON_RUN_AS_NODE: '1',
-          PATH: `${shimsPaths}${delimiter}${process.env.PATH}`
+          PATH: `${dirname(node)}${delimiter}${process.env.PATH}`
           // DEBUG: "electron-packager"
         },
         cancelSignal: abortSignal

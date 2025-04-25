@@ -1,18 +1,18 @@
 import { makeRunner } from './make.js'
-import { packageRunner } from './package.js'
 import { previewRunner } from './preview.js'
 
 import { createNodeDefinition } from '@pipelab/plugin-core'
 import icon from './public/tauri.webp'
 import {
   createMakeProps,
-  createPackageProps,
+  createPackageV2Props,
   createPreviewProps,
   IDMake,
-  IDPackage,
+  IDPackageV2,
   IDPreview
-} from './forge.js'
+} from './tauri.js'
 import { configureRunner, props } from './configure.js'
+import { packageV2Runner } from './package.js'
 
 export default createNodeDefinition({
   description: 'Tauri',
@@ -33,18 +33,22 @@ export default createNodeDefinition({
         "`Build package for ${fmt.param(params['input-folder'], 'primary', 'Input folder not set')}`"
       ),
       runner: makeRunner
-      // disabled: platform === 'linux' ? 'Electron is not supported on Linux' : undefined
+      // disabled: platform === 'linux' ? 'Tauri is not supported on Linux' : undefined
     },
-    // package
     {
-      node: createPackageProps(
-        IDPackage,
-        'Prepare App Bundle',
+      node: createPackageV2Props(
+        IDPackageV2,
+        'Package app with configuration',
         'Gather all necessary files and prepare your app for distribution, creating a platform-specific bundle.',
         '',
         "`Package app from ${fmt.param(params['input-folder'], 'primary', 'Input folder not set')}`",
+        false,
+        false,
+        undefined,
+        false,
+        false
       ),
-      runner: packageRunner
+      runner: packageV2Runner,
     },
     {
       node: createPreviewProps(
@@ -58,16 +62,7 @@ export default createNodeDefinition({
     },
     {
       node: props,
-      runner: configureRunner
+      runner: configureRunner,
     }
-    // {
-    //   node: propsConfigureV2,
-    //   runner: configureV2Runner
-    // }
-    // make without package
-    // {
-    //   node: packageApp,
-    //   runner: packageRunner,
-    // },
   ]
 })

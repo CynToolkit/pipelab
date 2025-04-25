@@ -8,10 +8,11 @@ export const props = createAction({
   icon: '',
   meta: {},
   name: 'Configure Electron',
+  advanced: true,
   outputs: {
     configuration: {
       label: 'Configuration',
-      value: {} as Partial<ElectronAppConfig.Config>
+      value: {} as Partial<DesktopApp.Electron>
     }
   },
   params: configureParams
