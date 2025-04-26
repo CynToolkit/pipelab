@@ -14,7 +14,9 @@ export default defineConfig((env) => {
 
   const plugins = [
     pluginHotRestart('restart'),
-    tsconfigPaths(),
+    tsconfigPaths({
+      projects: ['./tsconfig.json']
+    }),
     viteStaticCopy({
       targets: [
         {

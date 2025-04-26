@@ -28,8 +28,9 @@
   },
   "exclude": [
     "node_modules",
-    "src-tauri",
+    "./assets/tauri/template/app/src-tauri",
     "dist",
     "out",
+    "./assets"
   ]
 }

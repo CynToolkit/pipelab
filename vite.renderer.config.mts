@@ -21,7 +21,9 @@ export default defineConfig((env) => {
 
   const plugins = [
     pluginExposeRenderer(name),
-    tsconfigPaths(),
+    tsconfigPaths({
+      projects: ['./tsconfig.json']
+    }),
     vue(),
     Components({
       resolvers: [PrimeVueResolver()]
