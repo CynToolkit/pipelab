@@ -9,10 +9,10 @@ import { name } from './src/constants'
 
 const config: ForgeConfig = {
   packagerConfig: {
-    asar: {
-      // unpack: '*.{node,dll,so,lib,dylib,exe}'
-    },
-    // asar: false,
+    // asar: {
+    //   // unpack: '*.{node,dll,so,lib,dylib,exe}'
+    // },
+    asar: false,
     extraResource: ['assets'],
     // extraResource: ['.vite/build/assets'],
     name,
