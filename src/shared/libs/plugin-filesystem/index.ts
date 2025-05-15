@@ -2,6 +2,7 @@ import { createNodeDefinition } from '@pipelab/plugin-core'
 import { ListFilesAction, ListFilesActionRun } from './list-files.js'
 import { isFileCondition, isFileRunner } from './is-file.js'
 import { zipRunner, zip } from './zip.js'
+import { zipV2Runner, zipV2 } from './zip-v2.js'
 import { unzipRunner, unzip } from './unzip.js'
 import { copy, copyRunner } from './copy.js'
 import { remove, removeRunner } from './remove.js'
@@ -28,6 +29,10 @@ export default createNodeDefinition({
     {
       node: zip,
       runner: zipRunner
+    },
+    {
+      node: zipV2,
+      runner: zipV2Runner
     },
     {
       node: unzip,

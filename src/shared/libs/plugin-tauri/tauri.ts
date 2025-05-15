@@ -602,7 +602,7 @@ export const tauri = async (
 
     const cargoTargetDir = join(cache, 'cargo', 'target', completeConfiguration.appBundleId)
     const cargoOutputPath = join(cargoTargetDir, target, 'release')
- 
+
     await runWithLiveLogs(
       cargo,
       ['install', 'tauri-cli', '--version', '^2.0.0', '--locked'],
@@ -627,7 +627,6 @@ export const tauri = async (
       }
     )
 
-
     if (action === 'preview') {
       await runWithLiveLogs(
         cargo,
@@ -637,7 +636,7 @@ export const tauri = async (
           env: {
             DEBUG: completeConfiguration.enableExtraLogging ? '*' : '',
             ELECTRON_NO_ASAR: '1',
-            CARGO_TARGET_DIR: cargoTargetDir,
+            // CARGO_TARGET_DIR: cargoTargetDir,
             PATH: `${cargoBinDir}${delimiter}${dirname(node)}${delimiter}${process.env.PATH}`
           },
           cancelSignal: abortSignal
@@ -661,7 +660,31 @@ export const tauri = async (
           env: {
             DEBUG: completeConfiguration.enableExtraLogging ? '*' : '',
             ELECTRON_NO_ASAR: '1',
-            CARGO_TARGET_DIR: cargoTargetDir,
+            // CARGO_TARGET_DIR: cargoTargetDir,
+            PATH: `${cargoBinDir}${delimiter}${dirname(node)}${delimiter}${process.env.PATH}`
+          },
+          cancelSignal: abortSignal
+        },
+        log,
+        {
+          onStderr(data) {
+            log(data)
+          },
+          onStdout(data) {
+            log(data)
+          }
+        }
+      )
+
+      await runWithLiveLogs(
+        cargo,
+        ['tauri', 'bundle', 'appimage,deb,msi,dmg'],
+        {
+          cwd: join(destinationFolder, 'src-tauri'),
+          env: {
+            DEBUG: completeConfiguration.enableExtraLogging ? '*' : '',
+            ELECTRON_NO_ASAR: '1',
+            // CARGO_TARGET_DIR: cargoTargetDir,
             PATH: `${cargoBinDir}${delimiter}${dirname(node)}${delimiter}${process.env.PATH}`
           },
           cancelSignal: abortSignal

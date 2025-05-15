@@ -16,7 +16,7 @@ const config: ForgeConfig = {
     extraResource: ['assets'],
     // extraResource: ['.vite/build/assets'],
     name,
-    icon: 'assets/build/icon',
+    icon: 'assets/build/icon'
   },
   rebuildConfig: {},
   makers: [

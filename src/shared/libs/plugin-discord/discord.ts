@@ -43,7 +43,13 @@ export const configureParams = {
   })
 } satisfies InputsDefinition
 
-const outputs = {} satisfies OutputsDefinition
+const outputs = {
+  outputDir: {
+    label: 'Output folder',
+    value: '',
+    description: 'The folder where the packaged application is located'
+  }
+} satisfies OutputsDefinition
 
 export const createPackageProps = (
   id: string,
@@ -73,7 +79,9 @@ export const createPackageProps = (
       ...paramsInputFolder,
       ...configureParams
     },
-    outputs: outputs
+    outputs: {
+      outputDir: outputs.outputDir
+    }
   })
 }
 
@@ -100,7 +108,9 @@ export const createPreviewProps = (
         description: 'The hostname to use for the preview'
       })
     },
-    outputs: outputs
+    outputs: {
+      // ...outputs.outputDir
+    }
   })
 
 const createAppServer = async (folder: string) => {

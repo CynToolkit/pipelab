@@ -1,6 +1,6 @@
 import { createAction, createActionRunner, createPathParam } from '@pipelab/plugin-core'
 
-export const ID = 'zip-node'
+export const ID = 'zip-v2-node'
 
 export type MaybeArray<T> = T | T[]
 
@@ -12,12 +12,10 @@ export const getValue = <T>(array: MaybeArray<T>): T => {
   }
 }
 
-export const zip = createAction({
+export const zipV2 = createAction({
   id: ID,
   name: 'Zip',
-  updateAvailable: true,
-  displayString:
-    '`Zip ${fmt.param(params.folder, "primary", "No folder specified")} to ${fmt.param(params.output, "secondary", "No output specified")}`',
+  displayString: '`Zip ${fmt.param(params.folder, "primary", "No folder specified")}`',
   params: {
     folder: createPathParam('', {
       required: true,
@@ -25,23 +23,6 @@ export const zip = createAction({
         type: 'path',
         options: {
           properties: ['openDirectory']
-        }
-      },
-      label: 'Folder'
-    }),
-    output: createPathParam('', {
-      required: true,
-      control: {
-        type: 'path',
-        options: {
-          properties: ['openFile', 'promptToCreate'],
-          // must be zip file
-          filters: [
-            {
-              extensions: ['zip'],
-              name: 'Zip file'
-            }
-          ]
         }
       },
       label: 'Folder'
@@ -59,16 +40,22 @@ export const zip = createAction({
   meta: {}
 })
 
-export const zipRunner = createActionRunner<typeof zip>(
-  async ({ log, inputs, setOutput, abortSignal }) => {
+export const zipV2Runner = createActionRunner<typeof zipV2>(
+  async ({ log, inputs, setOutput, abortSignal, paths }) => {
     const { createWriteStream } = await import('node:fs')
+    const { join } = await import('path')
     const { default: archiver } = await import('archiver')
 
     abortSignal.addEventListener('abort', () => {
       throw new Error('Aborted')
     })
 
-    const output = createWriteStream(inputs.output)
+    const outputDir = paths.cache
+    const outputFile = join(outputDir, 'output.zip')
+
+    console.log('outputFile', outputFile)
+
+    const output = createWriteStream(outputFile)
 
     const archive = archiver('zip', {
       zlib: { level: 9 } // Sets the compression level.
@@ -79,7 +66,7 @@ export const zipRunner = createActionRunner<typeof zip>(
         console.log(archive.pointer() + ' total bytes')
         console.log('archiver has been finalized and the output file descriptor has closed.')
 
-        setOutput('path', inputs.output)
+        setOutput('path', outputFile)
         resolve()
       })
 

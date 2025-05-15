@@ -5,10 +5,5 @@ export default defineNitroConfig({
   runtimeConfig: {
     discordClientId: '',
     discordClientSecret: ''
-  },
-  storage: {
-    cache: {
-      driver: 'null'
-    }
   }
 })

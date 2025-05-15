@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
+  <title>Document</title>
+  <style>
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      overflow: hidden;
+    }
+  </style>
+
+  <script type="module">
+    import { DiscordSDK } from "https://unpkg.com/@discord/embedded-app-sdk@2.0.0/output/index.mjs"
+    const discordSdk = new DiscordSDK("1357217738241736724");
+
+    // Bootstrapping the SDK
+    await discordSdk.ready();
+    const { user } = await discordSdk.commands.authorize({ client_id: "1357217738241736724", scopes: ["identify"] });
+    console.log("Logged in user:", user);
+  </script>
+</head>
+
+<body>
+  <iframe
+    src="./.proxy/index.html"
+    frameborder="0"
+    width="100%"
+    height="100%"
+  ></iframe>
+</body>
+
+</html>

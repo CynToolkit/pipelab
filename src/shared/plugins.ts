@@ -1,21 +1,26 @@
 import { shallowRef } from 'vue'
 import { createNodeDefinition } from '../shared/libs/plugin-core'
+import { is } from '@electron-toolkit/utils'
 
 const builtInPlugins = async () => {
-  return (
-    await Promise.all([
-      (await import('./libs/plugin-construct')).default,
-      (await import('./libs/plugin-filesystem')).default,
-      (await import('./libs/plugin-system')).default,
-      (await import('./libs/plugin-steam')).default,
-      (await import('./libs/plugin-itch')).default,
-      (await import('./libs/plugin-electron')).default,
-      (await import('./libs/plugin-tauri')).default,
-      (await import('./libs/plugin-discord')).default,
-      (await import('./libs/plugin-poki')).default,
-      (await import('./libs/plugin-nvpatch')).default
-    ])
-  ).flat()
+  const base = [
+    (await import('./libs/plugin-construct')).default,
+    (await import('./libs/plugin-filesystem')).default,
+    (await import('./libs/plugin-system')).default,
+    (await import('./libs/plugin-steam')).default,
+    (await import('./libs/plugin-itch')).default,
+    (await import('./libs/plugin-electron')).default,
+    (await import('./libs/plugin-discord')).default,
+    (await import('./libs/plugin-poki')).default,
+    (await import('./libs/plugin-nvpatch')).default
+  ]
+
+  if (is.dev) {
+    base.push((await import('./libs/plugin-tauri')).default)
+    base.push((await import('./libs/plugin-netlify')).default)
+  }
+
+  return (await Promise.all([...base])).flat()
 }
 
 type Plugin = ReturnType<typeof createNodeDefinition>
