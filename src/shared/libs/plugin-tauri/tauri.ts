@@ -611,7 +611,7 @@ export const tauri = async (
         env: {
           DEBUG: completeConfiguration.enableExtraLogging ? '*' : '',
           ELECTRON_NO_ASAR: '1',
-          CARGO_TARGET_DIR: cargoTargetDir,
+          // CARGO_TARGET_DIR: cargoTargetDir,
           PATH: `${cargoBinDir}${delimiter}${dirname(node)}${delimiter}${process.env.PATH}`
         },
         cancelSignal: abortSignal
@@ -636,6 +636,7 @@ export const tauri = async (
           env: {
             DEBUG: completeConfiguration.enableExtraLogging ? '*' : '',
             ELECTRON_NO_ASAR: '1',
+            // CARGO_TARGET_DIR: cargoTargetDir,
             // CARGO_TARGET_DIR: cargoTargetDir,
             PATH: `${cargoBinDir}${delimiter}${dirname(node)}${delimiter}${process.env.PATH}`
           },
@@ -699,6 +700,30 @@ export const tauri = async (
           }
         }
       )
+
+      // await runWithLiveLogs(
+      //   cargo,
+      //   ['tauri', 'bundle', '--target', target, '--bundles', 'appimage,deb'],
+      //   {
+      //     cwd: join(destinationFolder, 'src-tauri'),
+      //     env: {
+      //       DEBUG: completeConfiguration.enableExtraLogging ? '*' : '',
+      //       ELECTRON_NO_ASAR: '1',
+      //       // CARGO_TARGET_DIR: cargoTargetDir,
+      //       PATH: `${cargoBinDir}${delimiter}${dirname(node)}${delimiter}${process.env.PATH}`
+      //     },
+      //     cancelSignal: abortSignal
+      //   },
+      //   log,
+      //   {
+      //     onStderr(data) {
+      //       log(data)
+      //     },
+      //     onStdout(data) {
+      //       log(data)
+      //     }
+      //   }
+      // )
     }
 
     if (action === 'package') {

@@ -347,7 +347,7 @@ DISCORD_CLIENT_SECRET=yJ4vRnzDtKAqg2Le3_Sap2CqHybkTp2U`,
       await Promise.allSettled([
         runWithLiveLogs(
           node,
-          [nitro, 'dev'],
+          [pnpm, 'dlx', 'nitropack', 'dev'],
           {
             cwd: destinationFolder,
             env: {
