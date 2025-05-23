@@ -25,7 +25,7 @@ const config: ForgeConfig = {
       setupIcon: 'assets/build/icon.ico'
     }),
     new MakerZIP(undefined, ['darwin', 'linux', 'win32']),
-    new MakerDMG()
+    // new MakerDMG()
   ],
   publishers: [
     {
