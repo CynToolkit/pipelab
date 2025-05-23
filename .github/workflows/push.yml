@@ -47,6 +47,9 @@ jobs:
       - name: logs
         run: ls node_modules/@lydell
 
+      - name: rebuild
+        run: npm rebuild
+
       - name: Package application
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
