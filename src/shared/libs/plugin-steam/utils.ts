@@ -65,7 +65,9 @@ export const openExternalTerminal = async (
 
   if (platform === 'darwin') {
     // macOS: open in Terminal.app
-    return execa('open', ['-a', 'Terminal', command, ...args], options)
+    const escapedArgs = args.map(arg => `'${arg.replace(/'/g, "'\\''")}'`).join(' ');
+    const commandString = `${command} ${escapedArgs}`;
+    return execa('osascript', ['-e', 'tell application "Terminal" to activate', '-e', `tell application "Terminal" to do script "${commandString.replace(/"/g, '\\"')}"`], options)
   } else if (platform === 'linux') {
     // Linux: use $TERMINAL, $TERM, or fallback to xterm
     const terminal = process.env.TERMINAL ?? process.env.TERM ?? 'xterm'

@@ -198,6 +198,22 @@ export const uploadToSteamRunner = createActionRunner<typeof uploadToSteam>(
 
     if (isAuthenticated.success === false) {
       log('Opening terminal with interactive login')
+      // MANUAL TEST FOR MACOS STEAM LOGIN
+      // Purpose: To manually verify that the interactive Steam login prompt works correctly on macOS after the openExternalTerminal fix.
+      // Environment: macOS
+      // Prerequisites:
+      //   - Valid Steam SDK path configured.
+      //   - A Steam account for testing.
+      // Steps to Test:
+      //   - Trigger a Steam upload process that requires interactive login (e.g., by ensuring no valid cached credentials exist for the test user).
+      //   - When the process attempts to open the terminal for login:
+      //       - Observe that a new Terminal.app window opens.
+      //       - Check the command executed in the new terminal window.
+      // Expected Behavior:
+      //   - The Terminal window should display the steamcmd.sh interactive login prompt.
+      //   - The command used to launch steamcmd.sh (visible if you inspect the terminal or through activity monitor) should correctly show the path to steamcmd.sh followed by arguments like '+login <username> +quit', with each argument properly distinct and not misinterpreted as part of a file path.
+      //   - The user should be able to attempt to log in via this prompt.
+      // Verification: The key is that the command and its arguments are correctly passed to steamcmd.sh within the new terminal session, unlike the previous behavior indicated by the user's error log.
       await openExternalTerminal(steamcmdPath, ['+login', username, '+quit'], {
         cancelSignal: abortSignal
       })
