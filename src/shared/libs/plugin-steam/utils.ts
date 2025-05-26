@@ -65,7 +65,11 @@ export const openExternalTerminal = async (
 
   if (platform === 'darwin') {
     // macOS: open in Terminal.app
-    return execa('open', ['-a', 'Terminal', command, ...args], options)
+    return execa(
+      'osascript',
+      ['-e', `tell app "Terminal" to do script "${command} ${args.join(' ')}"`],
+      options
+    )
   } else if (platform === 'linux') {
     // Linux: use $TERMINAL, $TERM, or fallback to xterm
     const terminal = process.env.TERMINAL ?? process.env.TERM ?? 'xterm'
