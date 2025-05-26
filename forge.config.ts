@@ -16,7 +16,11 @@ const config: ForgeConfig = {
     extraResource: ['assets'],
     // extraResource: ['.vite/build/assets'],
     name,
-    icon: 'assets/build/icon'
+    icon: 'assets/build/icon',
+    extendInfo: {
+      NSAppleEventsUsageDescription:
+        'This app need to run commands through Terminal for specific tasks such as steamcmd.sh.'
+    }
   },
   rebuildConfig: {},
   makers: [
