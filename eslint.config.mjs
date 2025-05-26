@@ -26,7 +26,7 @@ export default [
     files: ['**/src/**/*.ts', '**/src/**/*.vue'],
 
     rules: {
-      'no-console': ['error']
+      'no-console': [process.env.NODE_ENV === "production" ? "error" : "warn"]
     }
   },
   {
