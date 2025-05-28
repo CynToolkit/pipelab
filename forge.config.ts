@@ -27,12 +27,12 @@ const config: ForgeConfig = {
       teamId: process.env.APPLE_TEAM_ID
     },
     osxSign: {
-      optionsForFile: (filePath) => {
-        console.log('filePath', filePath)
-        return {
-          entitlements: 'assets/build/entitlements.mac.plist'
-        }
-      }
+      // optionsForFile: (filePath) => {
+      //   console.log('filePath', filePath)
+      //   return {
+      //     entitlements: 'assets/build/entitlements.mac.plist'
+      //   }
+      // }
     }
   },
   rebuildConfig: {},
