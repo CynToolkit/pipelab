@@ -50,6 +50,11 @@ jobs:
       - name: rebuild
         run: npm rebuild
 
+      - name: debug
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+        run: echo $APPLE_ID
+
       - name: Package application
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
@@ -60,7 +65,7 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: pnpm electron-forge publish --dry-run
+        run: DEBUG=* pnpm electron-forge publish --dry-run
 
       - name: Disable AppArmor restriction
         if: matrix.os == 'ubuntu-latest'
