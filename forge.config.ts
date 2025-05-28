@@ -20,6 +20,19 @@ const config: ForgeConfig = {
     extendInfo: {
       NSAppleEventsUsageDescription:
         'This app need to run commands through Terminal for specific tasks such as steamcmd.sh.'
+    },
+    osxNotarize: {
+      appleId: process.env.APPLE_ID,
+      appleIdPassword: process.env.APPLE_ID_PASSWORD,
+      teamId: process.env.APPLE_TEAM_ID
+    },
+    osxSign: {
+      optionsForFile: (filePath) => {
+        console.log('filePath', filePath)
+        return {
+          entitlements: 'assets/build/entitlements.mac.plist'
+        }
+      }
     }
   },
   rebuildConfig: {},
