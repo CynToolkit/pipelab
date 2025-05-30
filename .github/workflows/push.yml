@@ -87,6 +87,7 @@ jobs:
           p12-password: ${{ secrets.CERTIFICATE_OSX_APPLICATION_PASSWORD }}
 
       - name: Verify Imported Identities
+        if: matrix.os == 'macos-latest'
         run: security find-identity -p codesigning -v
 
       - name: Package application
