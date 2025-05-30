@@ -29,16 +29,13 @@ const config: ForgeConfig = {
     },
     osxSign: {
       strictVerify: false,
-      // @ts-expect-error sdsdsd
-      entitlements: 'assets/build/entitlements.mac.plist',
-      'entitlements-inherit': 'assets/build/entitlements.mac.plist',
       identity: `Developer ID Application: Quentin Goinaud (${process.env.APPLE_TEAM_ID})`,
       optionsForFile: (filePath) => {
         console.log('filePath', filePath)
         return {
-          'entitlements-inherit': 'assets/build/entitlements.mac.plist',
-          entitlements: 'assets/build/entitlements.mac.plist',
-          additionalArguments: ['--deep']
+          'entitlements-inherit': './assets/build/entitlements.mac.plist',
+          entitlements: './assets/build/entitlements.mac.plist',
+          additionalArguments: ['--deep', '--verbose=4']
         }
       }
     }
@@ -101,5 +98,7 @@ const config: ForgeConfig = {
     })
   ]
 }
+
+console.log('forge config', config)
 
 export default config
