@@ -64,9 +64,6 @@ jobs:
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
           SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
           POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: pnpm electron-forge publish --dry-run
 
       # - name: Add MacOS certs
@@ -89,6 +86,12 @@ jobs:
       - name: Verify Imported Identities
         if: matrix.os == 'macos-latest'
         run: security find-identity -p codesigning -v
+
+      - name: List assets/build contents
+        run: ls -la assets/build
+
+      - name: Display entitlements.mac.plist content
+        run: cat assets/build/entitlements.mac.plist
 
       - name: Package application
         if: matrix.os == 'macos-latest'

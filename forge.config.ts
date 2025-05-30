@@ -31,14 +31,17 @@ const config: ForgeConfig = {
       // @ts-expect-error sdsdsd
       hardenedRuntime: true,
       gatekeeperAssess: false,
-      entitlements: 'assets/build/entitlements.mac.plist',
-      'entitlements-inherit': 'assets/build/entitlements.mac.plist',
+      // entitlements: 'assets/build/entitlements.mac.plist',
+      // 'entitlements-inherit': 'assets/build/entitlements.mac.plist',
       identity: `Developer ID Application: Quentin Goinaud (${process.env.APPLE_TEAM_ID})`,
       optionsForFile: (filePath) => {
         console.log('filePath', filePath)
         // Only return specific options if you have a reason to vary them for sub-components
         // For the main app, the top-level settings apply.
-        return {} // Return an empty object if no specific options are needed for individual files
+        return {
+          hardenedRuntime: true,
+          gatekeeperAssess: false
+        } // Return an empty object if no specific options are needed for individual files
       }
     }
   },
