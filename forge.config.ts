@@ -28,6 +28,7 @@ const config: ForgeConfig = {
       teamId: process.env.APPLE_TEAM_ID
     },
     osxSign: {
+      strictVerify: false,
       // @ts-expect-error sdsdsd
       entitlements: 'assets/build/entitlements.mac.plist',
       'entitlements-inherit': 'assets/build/entitlements.mac.plist',
@@ -36,7 +37,8 @@ const config: ForgeConfig = {
         console.log('filePath', filePath)
         return {
           'entitlements-inherit': 'assets/build/entitlements.mac.plist',
-          entitlements: 'assets/build/entitlements.mac.plist'
+          entitlements: 'assets/build/entitlements.mac.plist',
+          additionalArguments: ['--deep']
         }
       }
     }
