@@ -6,7 +6,7 @@ import { FusesPlugin } from '@electron-forge/plugin-fuses'
 import { MakerDMG } from '@electron-forge/maker-dmg'
 import { FuseV1Options, FuseVersion } from '@electron/fuses'
 import { name } from './src/constants'
-
+/** @type {*} */
 const config: ForgeConfig = {
   packagerConfig: {
     appBundleId: 'app.pipelab.desktop',
