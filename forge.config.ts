@@ -30,13 +30,14 @@ const config: ForgeConfig = {
       // entitlements: 'assets/build/entitlements.mac.plist',
       // 'entitlements-inherit': 'assets/build/entitlements.mac.plist',
       // 'gatekeeper-assess': false,
-      identity: `Developer ID Application: Quentin Goinaud (${process.env.APPLE_TEAM_ID})`
-      // optionsForFile: (filePath) => {
-      //   console.log('filePath', filePath)
-      //   return {
-      //     entitlements: 'assets/build/entitlements.mac.plist'
-      //   }
-      // }
+      identity: `Developer ID Application: Quentin Goinaud (${process.env.APPLE_TEAM_ID})`,
+      optionsForFile: (filePath) => {
+        console.log('filePath', filePath)
+        return {
+          entitlements: 'assets/build/entitlements.mac.plist',
+          hardenedRuntime: true
+        }
+      }
     }
   },
   rebuildConfig: {},
