@@ -81,6 +81,7 @@ jobs:
         # from secrets and imports it into a temporary keychain.
         # This action often handles the secure handling of the p12.
         uses: apple-actions/import-codesign-certs@v3 # Using a reliable action
+        if: matrix.os == 'macos-latest'
         with:
           p12-file-base64: ${{ secrets.CERTIFICATE_OSX_APPLICATION }}
           p12-password: ${{ secrets.CERTIFICATE_OSX_APPLICATION_PASSWORD }}
