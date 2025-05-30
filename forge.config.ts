@@ -9,6 +9,7 @@ import { name } from './src/constants'
 
 const config: ForgeConfig = {
   packagerConfig: {
+    appBundleId: 'app.pipelab.desktop',
     // asar: {
     //   // unpack: '*.{node,dll,so,lib,dylib,exe}'
     // },
@@ -27,16 +28,17 @@ const config: ForgeConfig = {
       teamId: process.env.APPLE_TEAM_ID
     },
     osxSign: {
-      // entitlements: 'assets/build/entitlements.mac.plist',
-      // 'entitlements-inherit': 'assets/build/entitlements.mac.plist',
-      // 'gatekeeper-assess': false,
+      // @ts-expect-error sdsdsd
+      hardenedRuntime: true,
+      gatekeeperAssess: false,
+      entitlements: 'assets/build/entitlements.mac.plist',
+      'entitlements-inherit': 'assets/build/entitlements.mac.plist',
       identity: `Developer ID Application: Quentin Goinaud (${process.env.APPLE_TEAM_ID})`,
       optionsForFile: (filePath) => {
         console.log('filePath', filePath)
-        return {
-          entitlements: 'assets/build/entitlements.mac.plist',
-          hardenedRuntime: true
-        }
+        // Only return specific options if you have a reason to vary them for sub-components
+        // For the main app, the top-level settings apply.
+        return {} // Return an empty object if no specific options are needed for individual files
       }
     }
   },
