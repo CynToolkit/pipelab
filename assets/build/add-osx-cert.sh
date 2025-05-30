@@ -19,6 +19,8 @@ security unlock-keychain -p actions $KEY_CHAIN
 
 security import $CERTIFICATE_P12 -k $KEY_CHAIN -P $CERTIFICATE_OSX_APPLICATION_PASSWORD -T /usr/bin/codesign
 
+security list-keychains -s $KEY_CHAIN
+
 security set-key-partition-list -S apple-tool:,apple: -s -k actions $KEY_CHAIN
 
 # remove certs
