@@ -30,8 +30,7 @@ const config: ForgeConfig = {
       // entitlements: 'assets/build/entitlements.mac.plist',
       // 'entitlements-inherit': 'assets/build/entitlements.mac.plist',
       // 'gatekeeper-assess': false,
-      // hardenedRuntime: true,
-      identity: 'Developer ID Application: Pipelab (contact@pipelab.app)'
+      // identity: 'Developer ID Application: Pipelab (contact@pipelab.app)'
       // optionsForFile: (filePath) => {
       //   console.log('filePath', filePath)
       //   return {
