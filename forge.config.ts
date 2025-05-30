@@ -33,7 +33,7 @@ const config: ForgeConfig = {
       gatekeeperAssess: false,
       entitlements: 'assets/build/entitlements.mac.plist',
       'entitlements-inherit': 'assets/build/entitlements.mac.plist',
-      identity: `Developer ID Application: Armaldio (${process.env.APPLE_TEAM_ID})`,
+      identity: `Developer ID Application: Quentin Goinaud (${process.env.APPLE_TEAM_ID})`,
       optionsForFile: (filePath) => {
         console.log('filePath', filePath)
         // Only return specific options if you have a reason to vary them for sub-components
