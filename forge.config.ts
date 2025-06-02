@@ -48,6 +48,9 @@ const config: ForgeConfig = {
     }),
     new MakerZIP(undefined, ['darwin', 'linux', 'win32']),
     new MakerDMG()
+    // new MakerPKG({
+    //   identity: "Mac Installer Submission: xxxxxxxx", // optional
+    // }),
   ],
   publishers: [
     {
