@@ -4,17 +4,17 @@
   <dict>
     <!-- Essential for Electron/Node/V8 internals -->
     <key>com.apple.security.cs.allow-jit</key>
-    <true />
+    <true/>
     <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
-    <true />
+    <true/>
     <key>com.apple.security.cs.disable-library-validation</key>
-    <true />
+    <true/>
     <key>com.apple.security.cs.allow-dyld-environment-variables</key>
-    <true />
+    <true/>
 
     <!-- Allow the app to send Apple Events (osascript, etc.) -->
     <key>com.apple.security.automation.apple-events</key>
-    <true />
+    <true/>
     <key>com.apple.security.scripting-targets</key>
     <dict>
       <!-- Wildcard lets you avoid specifying every single target manually -->
