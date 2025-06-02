@@ -1,6 +1,6 @@
 import type { ConfigEnv, UserConfig } from 'vite'
 import { defineConfig, loadEnv, mergeConfig } from 'vite'
-import { getBuildConfig, getBuildDefine, external, pluginHotRestart } from './vite.base.config'
+import { getBuildConfig, getBuildDefine, external, pluginHotRestart } from './vite.base.config.mjs'
 import tsconfigPaths from 'vite-tsconfig-paths'
 import { viteStaticCopy } from 'vite-plugin-static-copy'
 import { sentryVitePlugin } from '@sentry/vite-plugin'

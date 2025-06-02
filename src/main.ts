@@ -16,6 +16,7 @@ import { assetsPath } from '@main/paths'
 import { usePluginAPI } from '@main/api'
 import { setupConfig } from '@main/config'
 import { resolve } from 'node:path'
+import Squirrel from 'electron-squirrel-startup'
 
 const isLinux = platform() === 'linux'
 // let tray
@@ -56,7 +57,8 @@ if (
   !isLinux &&
   process.env.TEST !== 'true' &&
   app.isPackaged &&
-  require('electron-squirrel-startup')
+  Squirrel
+  // require('electron-squirrel-startup')
 ) {
   app.quit()
 }

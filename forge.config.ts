@@ -34,8 +34,7 @@ const config: ForgeConfig = {
         console.log('filePath', filePath)
         return {
           'entitlements-inherit': './assets/build/entitlements.mac.plist',
-          entitlements: './assets/build/entitlements.mac.plist',
-          additionalArguments: ['--deep', '--verbose=4']
+          entitlements: './assets/build/entitlements.mac.plist'
         }
       }
     }
@@ -78,7 +77,7 @@ const config: ForgeConfig = {
         },
         {
           entry: 'src/preload.ts',
-          config: 'vite.preload.config.ts'
+          config: 'vite.preload.config.mts'
         }
       ],
       renderer: [

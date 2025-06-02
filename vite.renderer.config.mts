@@ -1,6 +1,6 @@
 import type { ConfigEnv, UserConfig } from 'vite'
 import { defineConfig, loadEnv } from 'vite'
-import { pluginExposeRenderer } from './vite.base.config'
+import { pluginExposeRenderer } from './vite.base.config.mjs'
 import tsconfigPaths from 'vite-tsconfig-paths'
 import vue from '@vitejs/plugin-vue'
 import Components from 'unplugin-vue-components/vite'

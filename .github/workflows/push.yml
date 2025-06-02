@@ -96,7 +96,7 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: DEBUG=* pnpm electron-forge publish --dry-run
+        run: DEBUG=electron-osx-sign* pnpm electron-forge publish --dry-run
 
       - name: Disable AppArmor restriction
         if: matrix.os == 'ubuntu-latest'
