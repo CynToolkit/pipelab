@@ -78,9 +78,11 @@ jobs:
         run: security find-identity -p codesigning -v
 
       - name: List assets/build contents
+        if: matrix.os == 'macos-latest'
         run: ls -la assets/build
 
       - name: Display entitlements.mac.plist content
+        if: matrix.os == 'macos-latest'
         run: cat assets/build/entitlements.mac.plist
 
       - name: Package application
