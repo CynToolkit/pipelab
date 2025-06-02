@@ -25,6 +25,9 @@ console.log('tmpLogFile', tmpLogFile)
 describe('basic', () => {
   it(
     'package folder to electron',
+    {
+      timeout: 60_000
+    },
     async () => {
       const jsonProject = join(fixtures, 'folder-to-electron.json')
       console.log('jsonProject', jsonProject)
@@ -60,14 +63,14 @@ describe('basic', () => {
         console.log('e', e)
         throw e
       }
-    },
-    {
-      timeout: 60_000
     }
   )
 
   it(
     'export c3',
+    {
+      timeout: 60_000
+    },
     async () => {
       // const { testC3Unzip } = await import('../../../src/main/presets/test-c3-unzip')
 
@@ -110,7 +113,7 @@ describe('basic', () => {
             outputs: {
               folder: expect.any(String),
               parentFolder: expect.any(String),
-              zipFile: expect.any(String),
+              zipFile: expect.any(String)
             }
           }
         })
@@ -118,9 +121,6 @@ describe('basic', () => {
         console.log('e', e)
         throw e
       }
-    },
-    {
-      timeout: 60_000
     }
   )
 })
