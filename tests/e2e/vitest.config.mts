@@ -6,6 +6,6 @@ export default defineConfig({
     environment: 'node',
     reporters: process.env.GITHUB_ACTIONS
       ? ['hanging-process', 'github-actions', 'default']
-      : ['hanging-process', 'default'],
+      : ['hanging-process', 'default']
   }
 })
