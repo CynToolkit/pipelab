@@ -10,7 +10,7 @@
     "url": "https://github.com/CynToolkit/pipelab.git"
   },
   "homepage": "https://pipelab.app",
-  "packageManager": "pnpm@9.15.3",
+  "packageManager": "pnpm@10.11.0",
   "scripts": {
     "format": "prettier --write .",
     "lint": "eslint .",
