@@ -297,44 +297,49 @@ app.whenReady().then(async () => {
       const { blocks: nodes } = canvas
       const pluginDefinitions = getFinalPlugins()
 
-      const result = await processGraph({
-        graph: nodes,
-        definitions: pluginDefinitions,
-        variables: variables,
-        steps: {},
-        context: {},
-        onNodeEnter: (node) => {
-          logger().info('onNodeEnter', node.uid)
-        },
-        onNodeExit: (node) => {
-          logger().info('onNodeExit', node.uid)
-        },
-        onExecuteItem: (node, params /* , steps */) => {
-          /* if (node.type === 'condition') {
+      try {
+        const result = await processGraph({
+          graph: nodes,
+          definitions: pluginDefinitions,
+          variables: variables,
+          steps: {},
+          context: {},
+          onNodeEnter: (node) => {
+            logger().info('onNodeEnter', node.uid)
+          },
+          onNodeExit: (node) => {
+            logger().info('onNodeExit', node.uid)
+          },
+          onExecuteItem: (node, params /* , steps */) => {
+            /* if (node.type === 'condition') {
             return handleConditionExecute(node.origin.nodeId, node.origin.pluginId, params, {
               send: (data) => {
                 logger().info('send', data)
               }
             })
           } else  */ if (node.type === 'action') {
-            return handleActionExecute(
-              node.origin.nodeId,
-              node.origin.pluginId,
-              params,
-              mainWindow,
-              (data) => {
-                logger().info('send', data)
-              },
-              new AbortController().signal
-            )
-          } else {
-            throw new Error('Unhandled type ' + node.type)
+              return handleActionExecute(
+                node.origin.nodeId,
+                node.origin.pluginId,
+                params,
+                mainWindow,
+                (data) => {
+                  console.log('send', data)
+                  logger().info('send', data)
+                },
+                new AbortController().signal
+              )
+            } else {
+              throw new Error('Unhandled type ' + node.type)
+            }
           }
-        }
-      })
+        })
 
-      if (output) {
-        await writeFile(output, JSON.stringify(result, null, 2), 'utf8')
+        if (output) {
+          await writeFile(output, JSON.stringify(result, null, 2), 'utf8')
+        }
+      } catch (e) {
+        console.error('error while executing process', e)
       }
     }
 

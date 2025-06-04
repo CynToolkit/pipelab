@@ -10,7 +10,7 @@ import {
   runWithLiveLogs
 } from '@pipelab/plugin-core'
 import { script } from './assets/script.js'
-import v from 'valibot'
+import * as v from 'valibot'
 import { BrowserContext } from 'playwright'
 import { join } from 'node:path'
 

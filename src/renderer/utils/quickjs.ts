@@ -62,7 +62,7 @@ export const createQuickJs = async () => {
       return result
     } catch (e) {
       logger().error('error', e)
-      logger().error("Final code was", finalCode)
+      logger().error('Final code was', finalCode)
       throw new EvaluationError(e.name, e.message)
     } finally {
       arena.dispose()
