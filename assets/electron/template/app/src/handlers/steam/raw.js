@@ -9,7 +9,24 @@ export default async (json, ws, client) => {
   const { body } = json
   const { args, method, namespace } = body
 
-  const result = await client[namespace][method](...args)
+  let result = await client[namespace][method](...args)
+
+  if (namespace === 'localplayer' && method === 'getSteamId') {
+    console.log('result', result)
+    // handle bigint to string
+    /**
+     * @type {{
+      steamId64: bigint,
+      steamId32: string,
+      accountId: number
+    }}
+     */
+    result = {
+      steamId64: result.steamId64.toString(),
+      steamId32: result.steamId32,
+      accountId: result.accountId
+    }
+  }
 
   /**
    * @type {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').SteamRaw, 'output'>}

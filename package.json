@@ -10,7 +10,7 @@
     "url": "https://github.com/CynToolkit/pipelab.git"
   },
   "homepage": "https://pipelab.app",
-  "packageManager": "pnpm@9.15.4",
+  "packageManager": "pnpm@10.11.1",
   "scripts": {
     "format": "prettier --write .",
     "lint": "eslint .",
@@ -19,7 +19,7 @@
     "typecheck": "npm run typecheck:node && npm run typecheck:web",
     "start": "electron-forge start",
     "start:args": "electron-forge start -- --project ./tests/e2e/fixtures/folder-to-electron.json --action run",
-    "dev": "pnpx cross-env NODE_OPTIONS=--enable-source-maps ",
+    "dev": "pnpx cross-env NODE_OPTIONS=--enable-source-maps pnpm start",
     "_dev": "pnpm start",
     "test:unit": "vitest run -c vitest.config.mts",
     "test:unit:watch": "vitest watch -c vitest.config.mts",

@@ -49,6 +49,10 @@
   "pnpm": {
     "overrides": {
       "discord-rpc>register-scheme": "-"
-    }
+    },
+    "onlyBuiltDependencies": [
+      "electron",
+      "electron-winstaller"
+    ]
   }
 }
