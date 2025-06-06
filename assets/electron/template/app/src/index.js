@@ -498,7 +498,7 @@ app.whenReady().then(async () => {
 
 app.on('window-all-closed', async () => {
   if (process.platform !== 'darwin') {
-    await client.shutdown()
+    // await client.shutdown()
     app.quit()
   }
 })
