@@ -10,14 +10,11 @@ import { sentryVitePlugin } from '@sentry/vite-plugin'
 
 // https://vitejs.dev/config
 export default defineConfig((env) => {
-  console.log('env', env)
   const forgeEnv = env as ConfigEnv<'renderer'>
   const { root, mode, forgeConfigSelf } = forgeEnv
   const name = forgeConfigSelf.name ?? ''
 
   const environment = loadEnv(env.mode, process.cwd(), '')
-
-  console.log('environment.SUPABASE_URL', environment.SUPABASE_URL)
 
   const plugins = [
     pluginExposeRenderer(name),
@@ -33,7 +30,6 @@ export default defineConfig((env) => {
   ]
 
   const tag = process.env.GITHUB_REF?.includes('refs/tags/')
-  console.log('tag', tag)
   if (tag) {
     plugins.push(
       sentryVitePlugin({

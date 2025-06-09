@@ -6,6 +6,8 @@ import { FusesPlugin } from '@electron-forge/plugin-fuses'
 import { MakerDMG } from '@electron-forge/maker-dmg'
 import { FuseV1Options, FuseVersion } from '@electron/fuses'
 import { name } from './src/constants'
+import * as fs from 'fs-extra'
+import * as path from 'path'
 /** @type {*} */
 const config: ForgeConfig = {
   packagerConfig: {
@@ -65,6 +67,36 @@ const config: ForgeConfig = {
       }
     }
   ],
+  hooks: {
+    packageAfterCopy: async (forgeConfig, buildPath, electronVersion, platform, arch) => {
+      console.log('INFO: Running packageAfterCopy hook...');
+      const projectRoot = path.resolve(__dirname);
+      const packagesToCopy = [
+        '@esbuild',
+        '@lydell'
+      ];
+
+      for (const packageName of packagesToCopy) {
+        const srcDir = path.join(projectRoot, 'node_modules', packageName);
+        const destDir = path.join(buildPath, 'node_modules', packageName);
+
+        try {
+          if (await fs.pathExists(srcDir)) {
+            console.log(`INFO: Copying ${srcDir} to ${destDir}`);
+            await fs.copy(srcDir, destDir, { overwrite: true });
+            console.log(`INFO: Successfully copied ${packageName}.`);
+          } else {
+            console.warn(`WARN: Source directory ${srcDir} does not exist. Skipping copy for ${packageName}.`);
+          }
+        } catch (err) {
+          console.error(`ERROR: Failed to copy ${packageName}:`, err);
+          // Optionally, re-throw the error if this should halt the build
+          // throw err;
+        }
+      }
+      console.log('INFO: packageAfterCopy hook finished.');
+    }
+  },
   plugins: [
     new VitePlugin({
       // `build` can specify multiple entry builds, which can be Main process, Preload scripts, Worker process, etc.
@@ -100,7 +132,5 @@ const config: ForgeConfig = {
     })
   ]
 }
-
-console.log('forge config', config)
 
 export default config
