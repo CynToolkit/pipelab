@@ -65,11 +65,33 @@ export const openExternalTerminal = async (
 
   if (platform === 'darwin') {
     // macOS: open in Terminal.app
-    return execa(
-      'osascript',
-      ['-e', `tell app "Terminal" to do script "${command} ${args.join(' ')}"`],
-      options
-    )
+    const shellCommand = `${command} ${args.join(' ')}`;
+    // Escape for AppleScript string literal
+    const escapedShellCommand = shellCommand
+      .replace(/\\/g, '\\\\') // Must escape backslashes first
+      .replace(/"/g, '\\"'); // Then escape double quotes
+
+    let osaScript: string;
+    if (keepOpen) {
+      // If keepOpen is true, just run the command and leave the terminal open.
+      // Added activate to bring Terminal to front.
+      osaScript = `tell application "Terminal"\nactivate\ndo script "${escapedShellCommand}"\nend tell`;
+    } else {
+      // If keepOpen is false (default), run the command, wait for it to finish, then close the tab.
+      osaScript = `tell application "Terminal"
+    activate
+    set targetTab to do script "${escapedShellCommand}"
+    -- Wait for the command to complete by checking the 'busy' status of the tab
+    delay 0.5 -- Initial delay to allow the process to start and tab to become busy
+    repeat while busy of targetTab
+        delay 0.5 -- Check every 0.5 seconds
+    end repeat
+    -- Command has finished, now close the tab
+    close targetTab
+end tell`;
+    }
+
+    return execa('osascript', ['-e', osaScript], options);
   } else if (platform === 'linux') {
     // Linux: use $TERMINAL, $TERM, or fallback to xterm
     const terminal = process.env.TERMINAL ?? process.env.TERM ?? 'xterm'
