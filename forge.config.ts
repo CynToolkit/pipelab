@@ -60,7 +60,7 @@ const config: ForgeConfig = {
           name: 'pipelab'
         },
         prerelease: true,
-        draft: true,
+        draft: false,
         generateReleaseNotes: true
       }
     }

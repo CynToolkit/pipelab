@@ -15,6 +15,7 @@ import {
 import { app } from 'electron'
 import { detectRuntime } from '@@/plugins'
 import { dirname } from 'node:path'
+import * as esbuild from 'esbuild'
 
 // TODO: https://js.electronforge.io/modules/_electron_forge_core.html
 
@@ -516,7 +517,6 @@ export const forge = async (
   const { cp, readFile, writeFile, rm } = await import('node:fs/promises')
   const { arch, platform } = await import('os')
   const { kebabCase } = await import('change-case')
-  const esbuild = (await import('esbuild')).default
   const semver = (await import('semver')).default
 
   log('Building electron')

@@ -47,24 +47,11 @@ jobs:
       - name: logs
         run: ls node_modules/@lydell
 
+      - name: logs
+        run: ls node_modules/@esbuild
+
       - name: rebuild
         run: npm rebuild
-
-      - name: debug
-        if: matrix.os == 'macos-latest'
-        env:
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-        run: echo ${{secrets.APPLE_ID}} | sed 's/./& /g'
-
-      - name: Package application
-        if: matrix.os != 'macos-latest'
-        env:
-          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
-          POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
-        run: pnpm electron-forge publish --dry-run
 
       - name: Import Apple Code Signing Certificate
         uses: apple-actions/import-codesign-certs@v3 # Using a reliable action
@@ -73,20 +60,7 @@ jobs:
           p12-file-base64: ${{ secrets.CERTIFICATE_OSX_APPLICATION }}
           p12-password: ${{ secrets.CERTIFICATE_OSX_APPLICATION_PASSWORD }}
 
-      - name: Verify Imported Identities
-        if: matrix.os == 'macos-latest'
-        run: security find-identity -p codesigning -v
-
-      - name: List assets/build contents
-        if: matrix.os == 'macos-latest'
-        run: ls -la assets/build
-
-      - name: Display entitlements.mac.plist content
-        if: matrix.os == 'macos-latest'
-        run: cat assets/build/entitlements.mac.plist
-
       - name: Package application
-        if: matrix.os == 'macos-latest'
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -96,7 +70,7 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: DEBUG=electron-osx-sign*,electron-notarize* pnpm electron-forge publish --dry-run
+        run: pnpm electron-forge publish --dry-run
 
       - name: Disable AppArmor restriction
         if: matrix.os == 'ubuntu-latest'
