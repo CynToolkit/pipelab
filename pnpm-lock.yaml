@@ -129,6 +129,9 @@ importers:
       es-toolkit:
         specifier: 1.25.2
         version: 1.25.2
+      esbuild:
+        specifier: 0.25.5
+        version: 0.25.5
       esm:
         specifier: 3.2.25
         version: 3.2.25

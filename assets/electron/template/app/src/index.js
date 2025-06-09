@@ -66,6 +66,8 @@ import { getAppName } from './utils.js'
 
 import infos from './handlers/general/infos.js'
 
+import semver from 'semver'
+
 /**
  * Assert switch is exhaustive
  * @param {never} _x
@@ -122,6 +124,9 @@ if (config.forceHighPerformanceGpu) {
 }
 //endregion
 
+const hasElectronVersion = config.electronVersion !== undefined && config.electronVersion !== ''
+const isCJSOnly = hasElectronVersion && semver.lt(semver.coerce(config.electronVersion) || '0.0.0', '28.0.0')
+
 //region Steam
 
 /** @type {Omit<import('steamworks.js').Client, "init" | "runCallbacks">} */
@@ -170,8 +175,10 @@ const broadcastMessage = (message) => {
   }
 }
 
-// @ts-expect-error import.meta
-const dir = app.isPackaged ? join(import.meta.dirname, './app') : './src/app'
+
+
+const metaDirname = isCJSOnly ? __dirname : import.meta.dirname
+const dir = app.isPackaged ? join(metaDirname, './app') : './src/app'
 
 /**
  * @param {BrowserWindow} mainWindow
@@ -185,7 +192,17 @@ const createAppServer = (mainWindow, serveStatic = true) => {
     if (serveStatic) {
       server.on('request', (req, res) => {
         return serve(req, res, {
-          maxAge: 0,
+          headers: [
+            {
+              source: '**/*',
+              headers: [
+                {
+                  key: 'Cache-Control',
+                  value: 'no-cache'
+                }
+              ]
+            }
+          ],
           public: dir
         })
       })
@@ -374,8 +391,7 @@ const createWindow = async () => {
     alwaysOnTop: config.alwaysOnTop,
     icon: config.icon,
     webPreferences: {
-      // @ts-expect-error import.meta
-      preload: join(import.meta.dirname, 'preload.js')
+      preload: join(metaDirname, 'preload.js')
     }
   })
 

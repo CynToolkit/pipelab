@@ -513,9 +513,11 @@ export const forge = async (
   completeConfiguration: DesktopApp.Electron
 ): Promise<{ folder: string; binary: string | undefined } | undefined> => {
   const { join, basename, delimiter } = await import('node:path')
-  const { cp, readFile, writeFile } = await import('node:fs/promises')
+  const { cp, readFile, writeFile, rm } = await import('node:fs/promises')
   const { arch, platform } = await import('os')
   const { kebabCase } = await import('change-case')
+  const esbuild = (await import('esbuild')).default
+  const semver = (await import('semver')).default
 
   log('Building electron')
 
@@ -556,49 +558,29 @@ export const forge = async (
     }
   })
 
-  const placeAppFolder = join(destinationFolder, 'src', 'app')
-
-  // if input is folder, copy folder to destination
-  if (appFolder && action !== 'preview') {
-    // copy app to template
-    await cp(appFolder, placeAppFolder, {
-      recursive: true
-    })
-  }
-
-  writeFile(
-    join(destinationFolder, 'config.cjs'),
-    `module.exports = ${JSON.stringify(completeConfiguration, undefined, 2)}`,
-    'utf8'
-  )
-
-  // copy custom main code
-  const destinationFile = join(destinationFolder, 'src', 'custom-main.js')
-  if (completeConfiguration.customMainCode) {
-    await cp(completeConfiguration.customMainCode, destinationFile)
-  } else {
-    await writeFile(destinationFile, 'console.log("No custom main code provided")', {
-      signal: abortSignal
-    })
-  }
-
-  const shimsPaths = join(assets, 'shims')
-
-  const userData = app.getPath('userData')
-
-  const pnpmHome = join(userData, 'config', 'pnpm')
-
   const pkgJSONPath = join(destinationFolder, 'package.json')
-
+  const pkgJSONContent = await readFile(pkgJSONPath, 'utf8')
+  const userData = app.getPath('userData')
+  const pnpmHome = join(userData, 'config', 'pnpm')
   const sanitizedName = kebabCase(completeConfiguration.name)
 
-  const pkgJSONContent = await readFile(pkgJSONPath, 'utf8')
-
+  const hasElectronVersion = completeConfiguration.electronVersion !== undefined && completeConfiguration.electronVersion !== ''
+  const isCJSOnly = hasElectronVersion && semver.lt(semver.coerce(completeConfiguration.electronVersion) || '0.0.0', '28.0.0')
+  
   const pkgJSON = JSON.parse(pkgJSONContent)
   log('Setting name to', sanitizedName)
   pkgJSON.name = sanitizedName
   log('Setting productName to', completeConfiguration.name)
   pkgJSON.productName = completeConfiguration.name
+
+  if (isCJSOnly) { 
+    log('Setting type to', 'commonjs')
+    pkgJSON.type = 'commonjs'
+  } else {
+    log('Setting type to', 'module')
+    pkgJSON.type = 'module'
+  }
+
   await writeFile(pkgJSONPath, JSON.stringify(pkgJSON, null, 2))
 
   log('Installing packages')
@@ -624,7 +606,7 @@ export const forge = async (
       }
     }
   )
-
+  
   // override electron version
   if (completeConfiguration.electronVersion && completeConfiguration.electronVersion !== '') {
     log(`Installing electron@${completeConfiguration.electronVersion}`)
@@ -650,6 +632,96 @@ export const forge = async (
         }
       }
     )
+  }
+
+  if (isCJSOnly) {
+    log(`Installing execa@8`)
+    await runWithLiveLogs(
+      node,
+      [pnpm, 'install', `execa@8`, '--prefer-offline'],
+      {
+        cwd: destinationFolder,
+        env: {
+          // DEBUG: '*',
+          PATH: `${dirname(node)}${delimiter}${process.env.PATH}`,
+          PNPM_HOME: pnpmHome
+        },
+        cancelSignal: abortSignal
+      },
+      log,
+      {
+        onStderr(data) {
+          log(data)
+        },
+        onStdout(data) {
+          log(data)
+        }
+      }
+    )
+  }
+
+  writeFile(
+    join(destinationFolder, 'config.cjs'),
+    `module.exports = ${JSON.stringify(completeConfiguration, undefined, 2)}`,
+    'utf8'
+  )
+
+  // copy custom main code
+  const destinationFile = join(destinationFolder, 'src', 'custom-main.js')
+  if (completeConfiguration.customMainCode) {
+    await cp(completeConfiguration.customMainCode, destinationFile)
+  } else {
+    await writeFile(destinationFile, 'console.log("No custom main code provided")', {
+      signal: abortSignal
+    })
+  }
+
+  if (isCJSOnly) {
+    /* ESBUILD transpilation */
+    const external = ['electron', 'steamworks.js', 'electron', 'node:*', 'http', 'node:stream']
+    await esbuild.build({
+      entryPoints: [join(destinationFolder, 'src', 'index.js')],
+      bundle: true,
+      write: true,
+      format: 'cjs',
+      platform: 'node',
+      external,
+      outfile: join(destinationFolder, 'dist', 'index.js'),
+    })
+    await esbuild.build({
+      entryPoints: [join(destinationFolder, 'src', 'preload.js')],
+      bundle: true,
+      platform: 'node',
+      external,
+      format: 'cjs',
+      write: true,
+      outfile: join(destinationFolder, 'dist', 'preload.js'),
+    })
+    await esbuild.build({
+      entryPoints: [join(destinationFolder, 'src', 'custom-main.js')],
+      bundle: true,
+      platform: 'node',
+      external,
+      format: 'cjs',
+      write: true,
+      outfile: join(destinationFolder, 'dist', 'custom-main.js'),
+    })
+    await rm(join(destinationFolder, 'src'), { recursive: true })
+    await cp(join(destinationFolder, 'dist'), join(destinationFolder, 'src'), {
+      recursive: true,
+    })
+    await rm(join(destinationFolder, 'dist'), { recursive: true })
+    /* ESBUILD transpilation */
+  }
+
+  const placeAppFolder = join(destinationFolder, 'src', 'app')
+
+  // if input is folder, copy folder to destination
+  if (appFolder && action !== 'preview') {
+    // copy app to template
+    await cp(appFolder, placeAppFolder, {
+      recursive: true
+    })
   }
 
   const inputPlatform = inputs.platform === '' ? undefined : inputs.platform
