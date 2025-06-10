@@ -50,7 +50,7 @@ const config: ForgeConfig = {
     new MakerZIP(undefined, ['linux', 'win32']),
     new MakerDMG(),
     new MakerPKG({
-      identity: `Developer ID Application: Quentin Goinaud (${process.env.APPLE_TEAM_ID})`,
+      identity: `Distribution: Quentin Goinaud (${process.env.APPLE_TEAM_ID})`,
     }),
   ],
   publishers: [
