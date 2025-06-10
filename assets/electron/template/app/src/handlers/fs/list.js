@@ -24,12 +24,17 @@ export default async (json, ws) => {
     url: json.url,
     body: {
       success: true,
-      list: file.map((x) => ({
-        type: x.isDirectory() ? 'folder' : 'file',
-        name: x.name,
-        parent: slash(x.parentPath),
-        path: slash(join(x.parentPath, x.name))
-      }))
+      list: file.map((x) => {
+        // support older electron versions
+        const parentPath = x.parentPath ?? x.path ?? json.body.path
+
+        return ({
+          type: x.isDirectory() ? 'folder' : 'file',
+          name: x.name,
+          parent: slash(parentPath),
+          path: slash(join(parentPath, x.name))
+        })
+      })
     }
   }
   ws.send(JSON.stringify(readFileResult))
