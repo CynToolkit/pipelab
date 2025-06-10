@@ -47,11 +47,11 @@ const config: ForgeConfig = {
       name,
       setupIcon: 'assets/build/icon.ico'
     }),
-    new MakerZIP(undefined, ['darwin', 'linux', 'win32']),
+    new MakerZIP(undefined, ['linux', 'win32']),
     new MakerDMG(),
-    // new MakerPKG({
-    //   identity: `Developer ID Application: Quentin Goinaud (${process.env.APPLE_TEAM_ID})`,
-    // }),
+    new MakerPKG({
+      identity: `Developer ID Application: Quentin Goinaud (${process.env.APPLE_TEAM_ID})`,
+    }),
   ],
   publishers: [
     {
