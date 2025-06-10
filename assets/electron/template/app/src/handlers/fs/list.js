@@ -4,11 +4,13 @@ import { readdir } from 'node:fs/promises'
 import { join, dirname, relative } from 'node:path'
 import slash from 'slash'
 
+
+
 /**
  * @param {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').MessageListFiles, 'input'>} json
  * @param {import('ws').WebSocket} ws
  */
-export default async (json, ws) => {
+export default async (json, ws) => { 
   // Custom recursive directory listing for Node 18 compatibility
   async function listDirRecursive(dir, parentPath) {
     let results = [];
@@ -16,7 +18,7 @@ export default async (json, ws) => {
     for (const entry of entries) {
       const fullpath = join(dir, entry.name);
       const type = entry.isDirectory() ? 'directory' : 'file';
-      const relPath = slash(relative(json.body.path, fullpath));
+      const relPath = slash(fullpath);
       results.push({
         type,
         name: entry.name,
