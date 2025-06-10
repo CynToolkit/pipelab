@@ -100,10 +100,10 @@ jobs:
         # continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.os }}-out
+          name: ${{ matrix.os }}-${{ matrix.arch }}-out
           path: out/**/*
 
-  release:
+  release:  
     permissions:
       contents: write
       discussions: write
@@ -127,7 +127,7 @@ jobs:
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
-          name: ${{ matrix.os }}-out
+          name: ${{ matrix.os }}-${{ matrix.arch }}-out
           path: out
 
       - uses: pnpm/action-setup@v4
