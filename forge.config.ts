@@ -4,6 +4,7 @@ import { MakerZIP } from '@electron-forge/maker-zip'
 import { VitePlugin } from '@electron-forge/plugin-vite'
 import { FusesPlugin } from '@electron-forge/plugin-fuses'
 import { MakerDMG } from '@electron-forge/maker-dmg'
+import { MakerPKG } from '@electron-forge/maker-pkg'
 import { FuseV1Options, FuseVersion } from '@electron/fuses'
 import { name } from './src/constants'
 import * as fs from 'fs-extra'
@@ -48,10 +49,8 @@ const config: ForgeConfig = {
       setupIcon: 'assets/build/icon.ico'
     }),
     new MakerZIP(undefined, ['darwin', 'linux', 'win32']),
-    new MakerDMG()
-    // new MakerPKG({
-    //   identity: "Mac Installer Submission: xxxxxxxx", // optional
-    // }),
+    new MakerDMG(),
+    new MakerPKG(),
   ],
   publishers: [
     {
