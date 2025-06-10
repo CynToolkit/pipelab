@@ -1,7 +1,7 @@
 // @ts-check
 
 import { readdir } from 'node:fs/promises'
-import { join } from 'node:path'
+import { join, dirname, relative } from 'node:path'
 import slash from 'slash'
 
 /**
@@ -9,12 +9,40 @@ import slash from 'slash'
  * @param {import('ws').WebSocket} ws
  */
 export default async (json, ws) => {
-  const file = await readdir(json.body.path, {
-    withFileTypes: true,
-    recursive: json.body.recursive
-  })
+  // Custom recursive directory listing for Node 18 compatibility
+  async function listDirRecursive(dir, parentPath) {
+    let results = [];
+    const entries = await readdir(dir, { withFileTypes: true });
+    for (const entry of entries) {
+      const fullpath = join(dir, entry.name);
+      const type = entry.isDirectory() ? 'directory' : 'file';
+      const relPath = slash(relative(json.body.path, fullpath));
+      results.push({
+        type,
+        name: entry.name,
+        parent: slash(parentPath),
+        path: relPath
+      });
+      if (entry.isDirectory()) {
+        const subResults = await listDirRecursive(fullpath, fullpath);
+        results = results.concat(subResults);
+      }
+    }
+    return results;
+  }
 
-  console.log('file', file)
+  let fileList = [];
+  try {
+    fileList = await listDirRecursive(json.body.path, dirname(json.body.path));
+  } catch (err) {
+    console.error('Error listing files:', err);
+    ws.send(JSON.stringify({
+      correlationId: json.correlationId,
+      url: json.url,
+      body: { success: false, error: err.message }
+    }));
+    return;
+  }
 
   /**
    * @type {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').MessageListFiles, 'output'>}
@@ -24,18 +52,8 @@ export default async (json, ws) => {
     url: json.url,
     body: {
       success: true,
-      list: file.map((x) => {
-        // support older electron versions
-        const parentPath = x.parentPath ?? x.path ?? json.body.path
-
-        return ({
-          type: x.isDirectory() ? 'folder' : 'file',
-          name: x.name,
-          parent: slash(parentPath),
-          path: slash(join(parentPath, x.name))
-        })
-      })
+      list: fileList
     }
-  }
-  ws.send(JSON.stringify(readFileResult))
+  };
+  ws.send(JSON.stringify(readFileResult));
 }
