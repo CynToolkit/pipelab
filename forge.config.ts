@@ -34,7 +34,6 @@ const config: ForgeConfig = {
       strictVerify: false,
       identity: `Developer ID Application: Quentin Goinaud (${process.env.APPLE_TEAM_ID})`,
       optionsForFile: (filePath) => {
-        console.log('filePath', filePath)
         return {
           'entitlements-inherit': './assets/build/entitlements.mac.plist',
           entitlements: './assets/build/entitlements.mac.plist'
@@ -50,7 +49,9 @@ const config: ForgeConfig = {
     }),
     new MakerZIP(undefined, ['darwin', 'linux', 'win32']),
     new MakerDMG(),
-    new MakerPKG(),
+    new MakerPKG({
+      identity: `Developer ID Application: Quentin Goinaud (${process.env.APPLE_TEAM_ID})`,
+    }),
   ],
   publishers: [
     {
