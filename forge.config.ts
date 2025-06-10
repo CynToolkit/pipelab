@@ -49,9 +49,10 @@ const config: ForgeConfig = {
     }),
     new MakerZIP(undefined, ['linux', 'win32']),
     new MakerDMG(),
-    new MakerPKG({
-      identity: `Distribution: Quentin Goinaud (${process.env.APPLE_TEAM_ID})`,
-    }),
+    // TODO: need to regenerate the certificate
+    // new MakerPKG({
+    //   identity: `Developer ID Installer: Quentin Goinaud (${process.env.APPLE_TEAM_ID})`,
+    // }),
   ],
   publishers: [
     {
