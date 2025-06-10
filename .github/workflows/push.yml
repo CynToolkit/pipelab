@@ -11,16 +11,6 @@ on:
     branches: [main, develop]
   merge_group:
 
-x-matrix: &build_matrix
-  os: [ubuntu-latest, windows-latest, macos-latest]
-  arch: [x64, arm64]
-
-x-exclude: &exclude_matrix
-  - os: ubuntu-latest
-    arch: arm64
-  - os: windows-latest
-    arch: arm64
-
 jobs:
   build-and-test:
     runs-on: ${{ matrix.os }}
@@ -29,9 +19,13 @@ jobs:
 
     strategy:
       matrix:
-        <<: *build_matrix
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        arch: [x64, arm64]
       exclude:
-        <<: *exclude_matrix
+        - os: ubuntu-latest
+          arch: arm64
+        - os: windows-latest
+          arch: arm64
 
     steps:
       - uses: actions/checkout@v4
@@ -118,9 +112,13 @@ jobs:
 
     strategy:
       matrix:
-        <<: *build_matrix
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        arch: [x64, arm64]
       exclude:
-        <<: *exclude_matrix
+        - os: ubuntu-latest
+          arch: arm64
+        - os: windows-latest
+          arch: arm64
     if: startsWith(github.ref, 'refs/tags/')
 
     steps:
