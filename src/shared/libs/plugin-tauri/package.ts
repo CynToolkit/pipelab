@@ -31,7 +31,8 @@ export const packageV2Runner = createActionRunner<ReturnType<typeof createPackag
       ignore: options.inputs['ignore'],
       openDevtoolsOnStart: options.inputs['openDevtoolsOnStart'],
       enableDiscordSupport: options.inputs['enableDiscordSupport'],
-      discordAppId: options.inputs['discordAppId']
+      discordAppId: options.inputs['discordAppId'],
+      customPackages: options.inputs['customPackages']
     } satisfies DesktopApp.Tauri) as DesktopApp.Tauri
 
     console.log('completeConfiguration', completeConfiguration)

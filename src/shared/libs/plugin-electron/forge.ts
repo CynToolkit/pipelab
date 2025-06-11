@@ -163,6 +163,19 @@ export const configureParams = {
     description: 'The description of the application',
     required: false
   }),
+  customPackages: createArray<string[]>(`[
+  // e.g. "lodash" or "express@4.17.1"
+]`, {
+    label: 'Custom npm packages',
+    description: 'A list of additional npm packages to install (format: "package" or "package@version")',
+    required: false,
+    control: {
+      type: 'array',
+      options: {
+        kind: 'text',
+      }
+    }
+  }),
 
   appCategoryType: createStringParam('public.app-category.developer-tools', {
     platforms: ['darwin'],
@@ -607,6 +620,33 @@ export const forge = async (
     }
   )
   
+  // install user-defined custom packages
+  if (Array.isArray(completeConfiguration.customPackages) && completeConfiguration.customPackages.length > 0) {
+    log(`Installing custom packages: ${completeConfiguration.customPackages.join(', ')}`)
+    await runWithLiveLogs(
+      node,
+      [pnpm, 'install', ...completeConfiguration.customPackages, '--prefer-offline'],
+      {
+        cwd: destinationFolder,
+        env: {
+          // DEBUG: '*',
+          PATH: `${dirname(node)}${delimiter}${process.env.PATH}`,
+          PNPM_HOME: pnpmHome
+        },
+        cancelSignal: abortSignal
+      },
+      log,
+      {
+        onStderr(data) {
+          log(data)
+        },
+        onStdout(data) {
+          log(data)
+        }
+      }
+    )
+  }
+
   // override electron version
   if (completeConfiguration.electronVersion && completeConfiguration.electronVersion !== '') {
     log(`Installing electron@${completeConfiguration.electronVersion}`)

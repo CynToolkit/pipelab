@@ -26,6 +26,11 @@ declare namespace DesktopApp {
 
     ignore: (string | RegExp)[]
     openDevtoolsOnStart: boolean
+
+    /**
+     * User-defined npm packages to install (format: "package[@version]")
+     */
+    customPackages?: string[]
   }
 
   interface Electron extends Config {

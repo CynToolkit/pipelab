@@ -37,7 +37,8 @@ export const packageV2Runner = createActionRunner<ReturnType<typeof createPackag
       ignore: options.inputs['ignore'],
       openDevtoolsOnStart: options.inputs['openDevtoolsOnStart'],
       enableDiscordSupport: options.inputs['enableDiscordSupport'],
-      discordAppId: options.inputs['discordAppId']
+      discordAppId: options.inputs['discordAppId'],
+      customPackages: options.inputs['customPackages']
     } satisfies DesktopApp.Electron) as DesktopApp.Electron
 
     options.log('completeConfiguration', completeConfiguration)
