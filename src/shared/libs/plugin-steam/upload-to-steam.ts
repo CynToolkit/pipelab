@@ -7,6 +7,7 @@ import {
   runWithLiveLogsPTY
 } from '@pipelab/plugin-core'
 import { checkSteamAuth, openExternalTerminal } from './utils'
+import { ExternalCommandError } from '../plugin-core/custom-errors'
 
 // https://github.com/ztgasdf/steampkg?tab=readme-ov-file#account-management
 
@@ -88,6 +89,10 @@ export const uploadToSteamRunner = createActionRunner<typeof uploadToSteam>(
 
     const { folder, appId, sdk, depotId, username, description } = inputs
     log(`uploading "${folder}" to steam`)
+
+    const errorMap = {
+      6: `No connection to content server. Your depot id (${depotId}) may be invalid`
+    }
 
     const isSDKExisting = await fileExists(sdk)
     if (!isSDKExisting) {
@@ -241,7 +246,11 @@ export const uploadToSteamRunner = createActionRunner<typeof uploadToSteam>(
         abortSignal
       )
     } catch (e) {
-      if (e instanceof Error) {
+      if (e instanceof ExternalCommandError) {
+        const code = e.code as keyof typeof errorMap
+        const message = (code in errorMap) ? errorMap[code] : 'SteamCmd error:' + e.code + ' ' + e.message
+        throw new Error(message)
+      } else if (e instanceof Error) {
         console.error(e)
         throw new Error('Error:' + e.message)
       } else {

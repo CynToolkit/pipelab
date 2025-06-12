@@ -65,7 +65,7 @@ export const openExternalTerminal = async (
 
   if (platform === 'darwin') {
     // macOS: open in Terminal.app
-    const shellCommand = `${command} ${args.join(' ')}`;
+    const shellCommand = `${command} ${args.join(' ')}; echo "You can now close this window"`;
     // Escape for AppleScript string literal
     const escapedShellCommand = shellCommand
       .replace(/\\/g, '\\\\') // Must escape backslashes first
@@ -86,8 +86,6 @@ export const openExternalTerminal = async (
     repeat while busy of targetTab
         delay 0.5 -- Check every 0.5 seconds
     end repeat
-    -- Command has finished, now close the tab
-    close targetTab
 end tell`;
     }
 

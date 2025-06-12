@@ -2,6 +2,7 @@ import { Options, Subprocess } from 'execa'
 import { IPty, type IPtyForkOptions, type IWindowsPtyForkOptions } from '@lydell/node-pty'
 import { createWriteStream } from 'fs'
 import { pipeline } from 'stream/promises'
+import { ExternalCommandError } from './custom-errors'
 
 export const fileExists = async (path: string): Promise<boolean> => {
   try {
@@ -77,6 +78,8 @@ export const runWithLiveLogs = async (
   })
 }
 
+
+
 export const runWithLiveLogsPTY = async (
   command: string,
   args: string[],
@@ -109,7 +112,7 @@ export const runWithLiveLogsPTY = async (
       if (exitCode === 0) {
         return resolve()
       } else {
-        return reject(new Error(`Command exited with non-zero exitCode: ${exitCode}`))
+        return reject(new ExternalCommandError(`Command exited with non-zero exitCode: ${exitCode}`, exitCode))
       }
     })
   })

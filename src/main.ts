@@ -75,9 +75,9 @@ function createWindow(): void {
   const position =
     externalDisplay && is.dev
       ? {
-          x: externalDisplay.bounds.x + 50,
-          y: externalDisplay.bounds.y + 50
-        }
+        x: externalDisplay.bounds.x + 50,
+        y: externalDisplay.bounds.y + 50
+      }
       : {}
 
   // Create the browser window.
@@ -166,64 +166,66 @@ app.whenReady().then(async () => {
     await handleProtocolUrl(url)
   })
 
-  autoUpdater.setFeedURL({
-    url: 'https://github.com/CynToolkit/pipelab/releases/latest/download',
-    headers: {
-      'Cache-Control': 'no-cache'
-    }
-  })
-
-  autoUpdater.on('update-downloaded', (event, releaseNotes, releaseName) => {
-    api?.execute('update:set-status', {
-      status: 'update-downloaded'
+  if (!is.dev) {
+    autoUpdater.setFeedURL({
+      url: 'https://github.com/CynToolkit/pipelab/releases/latest/download',
+      headers: {
+        'Cache-Control': 'no-cache'
+      }
     })
-    logger().info('releaseNotes', releaseNotes)
-    logger().info('releaseName', releaseName)
-    logger().info('event', event)
-    const dialogOpts: Electron.MessageBoxOptions = {
-      type: 'info',
-      buttons: ['Restart', 'Later'],
-      title: 'Application Update',
-      message: process.platform === 'win32' ? releaseNotes : releaseName,
-      detail: 'A new version has been downloaded. Restart the application to apply the updates.'
-    }
 
-    dialog.showMessageBox(dialogOpts).then((returnValue) => {
-      if (returnValue.response === 0) autoUpdater.quitAndInstall()
-    })
-  })
+    autoUpdater.on('update-downloaded', (event, releaseNotes, releaseName) => {
+      api?.execute('update:set-status', {
+        status: 'update-downloaded'
+      })
+      logger().info('releaseNotes', releaseNotes)
+      logger().info('releaseName', releaseName)
+      logger().info('event', event)
+      const dialogOpts: Electron.MessageBoxOptions = {
+        type: 'info',
+        buttons: ['Restart', 'Later'],
+        title: 'Application Update',
+        message: process.platform === 'win32' ? releaseNotes : releaseName,
+        detail: 'A new version has been downloaded. Restart the application to apply the updates.'
+      }
 
-  autoUpdater.on('error', (message) => {
-    api?.execute('update:set-status', {
-      status: 'error'
+      dialog.showMessageBox(dialogOpts).then((returnValue) => {
+        if (returnValue.response === 0) autoUpdater.quitAndInstall()
+      })
     })
-    logger().info('There was a problem updating the application')
-    console.log(message)
-  })
 
-  autoUpdater.on('update-available', () => {
-    api?.execute('update:set-status', {
-      status: 'update-available'
+    autoUpdater.on('error', (message) => {
+      api?.execute('update:set-status', {
+        status: 'error'
+      })
+      logger().info('There was a problem updating the application')
+      console.log(message)
     })
-    logger().info('Found update')
-  })
 
-  autoUpdater.on('update-not-available', () => {
-    api?.execute('update:set-status', {
-      status: 'update-not-available'
+    autoUpdater.on('update-available', () => {
+      api?.execute('update:set-status', {
+        status: 'update-available'
+      })
+      logger().info('Found update')
     })
-    logger().info('No update available')
-  })
 
-  autoUpdater.on('checking-for-update', (info: any) => {
-    api?.execute('update:set-status', {
-      status: 'checking-for-update'
+    autoUpdater.on('update-not-available', () => {
+      api?.execute('update:set-status', {
+        status: 'update-not-available'
+      })
+      logger().info('No update available')
     })
-    logger().info('checking-for-update', info)
-  })
+
+    autoUpdater.on('checking-for-update', (info: any) => {
+      api?.execute('update:set-status', {
+        status: 'checking-for-update'
+      })
+      logger().info('checking-for-update', info)
+    })
+    logger().info('autoUpdater.getFeedURL()', autoUpdater.getFeedURL())
+  }
 
   logger().info('app ready')
-  logger().info('autoUpdater.getFeedURL()', autoUpdater.getFeedURL())
 
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.pipelab')
