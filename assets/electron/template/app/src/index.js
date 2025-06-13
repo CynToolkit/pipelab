@@ -122,6 +122,9 @@ if (config.enableDisableRendererBackgrounding) {
 if (config.forceHighPerformanceGpu) {
   app.commandLine.appendSwitch('force-high-performance-gpu')
 }
+
+// Fix stea remote play together
+app.commandLine.appendSwitch("disable-features", "AudioServiceOutOfProcess");
 //endregion
 
 const hasElectronVersion = config.electronVersion !== undefined && config.electronVersion !== ''
