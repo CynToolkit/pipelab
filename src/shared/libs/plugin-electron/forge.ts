@@ -577,6 +577,15 @@ export const forge = async (
   const pnpmHome = join(userData, 'config', 'pnpm')
   const sanitizedName = kebabCase(completeConfiguration.name)
 
+  const originalIconPath = completeConfiguration.icon
+  const iconFilename = basename(completeConfiguration.icon)
+  const newIconPath = join(destinationFolder, iconFilename)
+  const relativeIconPath = join('./', 'build', iconFilename)
+  const relativeIconPath1 = join('./', iconFilename)
+
+  log('relativeIconPath', relativeIconPath)
+  log('relativeIconPath1', relativeIconPath1)
+
   const hasElectronVersion = completeConfiguration.electronVersion !== undefined && completeConfiguration.electronVersion !== ''
   const isCJSOnly = hasElectronVersion && semver.lt(semver.coerce(completeConfiguration.electronVersion) || '0.0.0', '28.0.0')
   
@@ -585,6 +594,14 @@ export const forge = async (
   pkgJSON.name = sanitizedName
   log('Setting productName to', completeConfiguration.name)
   pkgJSON.productName = completeConfiguration.name
+
+  completeConfiguration.icon = relativeIconPath1
+
+  writeFile(
+    join(destinationFolder, 'config.cjs'),
+    `module.exports = ${JSON.stringify(completeConfiguration, undefined, 2)}`,
+    'utf8'
+  )
 
   if (isCJSOnly) { 
     log('Setting type to', 'commonjs')
@@ -700,11 +717,11 @@ export const forge = async (
     )
   }
 
-  writeFile(
-    join(destinationFolder, 'config.cjs'),
-    `module.exports = ${JSON.stringify(completeConfiguration, undefined, 2)}`,
-    'utf8'
-  )
+
+  // copy icon 
+  if (completeConfiguration.icon) {
+    await cp(originalIconPath, newIconPath)
+  }
 
   // copy custom main code
   const destinationFile = join(destinationFolder, 'src', 'custom-main.js')
