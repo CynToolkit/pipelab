@@ -395,7 +395,8 @@ const createWindow = async () => {
     icon: config.icon,
     webPreferences: {
       preload: join(metaDirname, 'preload.js')
-    }
+    },
+    show: false,
   })
 
   if (!mainWindow) {
@@ -496,7 +497,15 @@ const rpcLogin = async () => {
 app.whenReady().then(async () => {
   await registerHandlers()
 
+  if (config.enableSteamSupport) {
+    console.log('Enabling steam overlay support')
+    steamworks.electronEnableSteamOverlay()
+  }
+  
   const mainWindow = await createWindow()
+
+
+  mainWindow.show()
 
   if (config.enableDiscordSupport && rpc) {
     try {
@@ -505,8 +514,6 @@ app.whenReady().then(async () => {
       console.error('e', e)
     }
   }
-
-  mainWindow.show()
 
   app.on('activate', async () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -521,8 +528,3 @@ app.on('window-all-closed', async () => {
     app.quit()
   }
 })
-
-if (config.enableSteamSupport) {
-  console.log('Enabling steam overlay support')
-  steamworks.electronEnableSteamOverlay()
-}
