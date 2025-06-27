@@ -2,7 +2,7 @@ import { useLogger } from '@@/logger' // Assuming path is correct
 import { supabase } from '@@/supabase' // Assuming path is correct
 import { User, UserResponse } from '@supabase/supabase-js'
 import { defineStore } from 'pinia'
-import { readonly, Ref, ref, shallowRef } from 'vue'
+import { computed, readonly, Ref, ref, shallowRef } from 'vue'
 import posthog from 'posthog-js'
 
 // Define a more comprehensive AuthStateType
@@ -21,6 +21,22 @@ export const useAuth = defineStore('auth', () => {
   const isAuthenticating = ref(false) // Track loading state for auth actions
   const errorMessage = ref<string>() // For storing error messages to display to the user
   const subscriptions = ref<any[]>([]) // Store user subscriptions
+
+  const isAuthModalVisible = ref(false)
+  const authModalTitle = ref<string>()
+  const authModalSubTitle = ref<string>()
+
+  const displayAuthModal = (title?: string, subtitle?: string) => {
+    isAuthModalVisible.value = true
+    authModalTitle.value = title
+    authModalSubTitle.value = subtitle
+  }
+
+  const hideAuthModal = () => {
+    isAuthModalVisible.value = false
+    authModalTitle.value = undefined
+    authModalSubTitle.value = undefined
+  }
 
   const setAuthState = (state: AuthStateType) => {
     authState.value = state
@@ -219,9 +235,12 @@ export const useAuth = defineStore('auth', () => {
   // Call init immediately when the store is created to check initial auth state
   init()
 
+  const isLoggedIn = computed(() => authState.value === 'SIGNED_IN')
+
   return {
     user,
     authState,
+    isLoggedIn,
     isAuthenticating,
     errorMessage,
     subscriptions: readonly(subscriptions),
@@ -230,6 +249,12 @@ export const useAuth = defineStore('auth', () => {
     init, // Keep init for explicit re-initialization if needed, though generally called once on app start.
     login,
     register,
-    logout
+    logout,
+
+    displayAuthModal,
+    hideAuthModal,
+    isAuthModalVisible,
+    authModalTitle,
+    authModalSubTitle,
   }
 })

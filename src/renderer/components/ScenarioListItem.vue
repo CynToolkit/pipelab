@@ -1,36 +1,6 @@
 <template>
-  <div class="scenario">
-    <div class="scenario-plugins">
-      <div class="icons">
-        <div v-for="(icon, index) in icons" :key="index" class="scenario-plugin">
-          <PluginIcon width="40px" :icon="icon"></PluginIcon>
-        </div>
-      </div>
-      <div class="buttons">
-        <ButtonGroup>
-          <!-- Duplicate button -->
-          <Button size="small" severity="info" @click.stop="onDuplicate">
-            <template #icon>
-              <i class="mdi mdi-content-copy"></i>
-            </template>
-          </Button>
-          <Button v-if="!noDeleteBtn" size="small" severity="danger" @click.stop="onDelete">
-            <template #icon>
-              <i class="mdi mdi-delete"></i>
-            </template>
-          </Button>
-        </ButtonGroup>
-      </div>
-    </div>
-    <div class="name">
-      <div class="title">{{ scenario.content.name }}</div>
-      <div class="description">{{ scenario.content.description }}</div>
-      <div v-if="scenario.type === 'external'" class="description">{{ scenario.path }}</div>
-    </div>
-    <div class="actions">
-      <Button label="Open project" @click.stop="onOpen"> </Button>
-    </div>
-  </div>
+  <!-- ScenarioListItem is now unused. All scenario display logic is in index.vue DataTable. -->
+  <div></div>
 </template>
 
 <script lang="ts" setup>

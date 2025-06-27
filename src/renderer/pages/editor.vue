@@ -1,229 +1,250 @@
 <template>
-  <div class="editor">
+  <div class="editor-page">
     <Toast position="bottom-center" />
 
-    <div class="editor-content">
-      <div class="buttons">
-        <div class="left">
-          <Button outlined label="Close" :disabled="isRunning" size="small" @click="onCloseRequest">
-            <template #icon>
-              <i class="mdi mdi-close mr-1"></i>
-            </template>
-          </Button>
-          <!-- <Button
-            type="button"
-            @click="toggle"
-            aria-haspopup="true"
-            aria-controls="overlay_menu"
-            label="Project"
-          >
-            <template #icon>
-              <i class="mdi mdi-list-status mr-2"></i>
-            </template>
-          </Button>
-          <Menu ref="menu" id="overlay_menu" :model="pipelineMenu" :popup="true" /> -->
-        </div>
-        <div class="center">
-          <Inplace :pt="{ display: { style: { padding: '4px' } } }">
-            <template #display>
-              <div class="flex flex-row align-items-center">
-                <div>{{ instance.name }}</div>
-                <Button text size="small" class="ml-1">
+    <Layout>
+      <div class="editor">
+        <div class="editor-content">
+          <div class="buttons">
+            <div class="left">
+              <Button
+                outlined
+                label="Close"
+                :disabled="isRunning"
+                size="small"
+                @click="onCloseRequest"
+              >
+                <template #icon>
+                  <i class="mdi mdi-close mr-1"></i>
+                </template>
+              </Button>
+              <!-- <Button
+              type="button"
+              @click="toggle"
+              aria-haspopup="true"
+              aria-controls="overlay_menu"
+              label="Project"
+            >
+              <template #icon>
+                <i class="mdi mdi-list-status mr-2"></i>
+              </template>
+            </Button>
+            <Menu ref="menu" id="overlay_menu" :model="pipelineMenu" :popup="true" /> -->
+            </div>
+            <div class="center">
+              <Inplace :pt="{ display: { style: { padding: '4px' } } }">
+                <template #display>
+                  <div class="flex flex-row align-items-center">
+                    <div>{{ instance.name }}</div>
+                    <Button text size="small" class="ml-1">
+                      <template #icon>
+                        <i class="mdi mdi-pencil"></i>
+                      </template>
+                    </Button>
+                  </div>
+                </template>
+                <template #content="{ closeCallback }">
+                  <InputText v-model="instance.name" type="text" />
+                  <Button text size="small" @click="closeCallback">
+                    <template #icon>
+                      <i class="mdi mdi-content-save mr-1"></i>
+                    </template>
+                  </Button>
+                  <!-- <Button text size="small" @click="closeCallback">
                   <template #icon>
-                    <i class="mdi mdi-pencil"></i>
+                    <i class="mdi mdi-close mr-1"></i>
                   </template>
-                </Button>
-              </div>
-            </template>
-            <template #content="{ closeCallback }">
-              <InputText v-model="instance.name" type="text" />
-              <Button text size="small" @click="closeCallback">
+                </Button> -->
+                </template>
+              </Inplace>
+            </div>
+            <div class="right">
+              <Button
+                outlined
+                label="Save"
+                :disabled="isRunning"
+                size="small"
+                @click="onSaveRequest"
+              >
                 <template #icon>
                   <i class="mdi mdi-content-save mr-1"></i>
                 </template>
               </Button>
-              <!-- <Button text size="small" @click="closeCallback">
+              <Button v-if="!isRunning" outlined label="Run" size="small" @click="run">
                 <template #icon>
-                  <i class="mdi mdi-close mr-1"></i>
+                  <i class="mdi mdi-play mr-1"></i>
                 </template>
-              </Button> -->
-            </template>
-          </Inplace>
-        </div>
-        <div class="right">
-          <Button outlined label="Save" :disabled="isRunning" size="small" @click="onSaveRequest">
-            <template #icon>
-              <i class="mdi mdi-content-save mr-1"></i>
-            </template>
-          </Button>
-          <Button v-if="!isRunning" outlined label="Run" size="small" @click="run">
-            <template #icon>
-              <i class="mdi mdi-play mr-1"></i>
-            </template>
-          </Button>
-          <Button v-else outlined label="Cancel" size="small" @click="cancel">
-            <template #icon>
-              <i class="mdi mdi-cancel mr-1"></i>
-            </template>
-          </Button>
-          <!-- <Button label="Save" size="small" icon="pi pi-pencil" rounded @click="save"></Button> -->
-        </div>
-      </div>
+              </Button>
+              <Button v-else outlined label="Cancel" size="small" @click="cancel">
+                <template #icon>
+                  <i class="mdi mdi-cancel mr-1"></i>
+                </template>
+              </Button>
+              <!-- <Button label="Save" size="small" icon="pi pi-pencil" rounded @click="save"></Button> -->
+            </div>
+          </div>
 
-      <div class="editor-wrapper">
-        <!-- <div class="aside">
-          <div>
-            <div class="bold">Project Settings</div>
-            <ProjectSettingsEditor v-if="instance"></ProjectSettingsEditor>
-          </div>
-          <div>
-            <div class="bold">Variables</div>
-            <VariablesEditor v-if="instance"></VariablesEditor>
-          </div>
-          <div>
-            <div class="bold">Environement</div>
-            <EnvironementEditor v-if="instance"></EnvironementEditor>
-          </div>
-        </div> -->
-        <div class="main">
-          <div class="node-editor-wrapper">
-            <EditorNodeEvent
-              v-for="trigger in triggers"
-              v-if="triggers.length > 0"
-              :key="trigger.uid"
-              :steps="stepsDisplay"
-              :path="['0']"
-              :value="trigger"
-            ></EditorNodeEvent>
-            <EditorNodeEventEmpty v-else :path="[]"></EditorNodeEventEmpty>
+          <div class="editor-wrapper">
+            <!-- <div class="aside">
+            <div>
+              <div class="bold">Project Settings</div>
+              <ProjectSettingsEditor v-if="instance"></ProjectSettingsEditor>
+            </div>
+            <div>
+              <div class="bold">Variables</div>
+              <VariablesEditor v-if="instance"></VariablesEditor>
+            </div>
+            <div>
+              <div class="bold">Environement</div>
+              <EnvironementEditor v-if="instance"></EnvironementEditor>
+            </div>
+          </div> -->
+            <div class="main">
+              <div class="node-editor-wrapper">
+                <EditorNodeEvent
+                  v-for="trigger in triggers"
+                  v-if="triggers.length > 0"
+                  :key="trigger.uid"
+                  :steps="stepsDisplay"
+                  :path="['0']"
+                  :value="trigger"
+                ></EditorNodeEvent>
+                <EditorNodeEventEmpty v-else :path="[]"></EditorNodeEventEmpty>
 
-            <NodesEditor
-              v-if="instance"
-              :errors="errors"
-              :nodes="nodes"
-              :path="[]"
-              :steps="stepsDisplay"
-              :starting-index="1"
-              :is-running="isRunning"
-            ></NodesEditor>
-            <EditorNodeDummy title="End"></EditorNodeDummy>
+                <NodesEditor
+                  v-if="instance"
+                  :errors="errors"
+                  :nodes="nodes"
+                  :path="[]"
+                  :steps="stepsDisplay"
+                  :starting-index="1"
+                  :is-running="isRunning"
+                ></NodesEditor>
+                <EditorNodeDummy title="End"></EditorNodeDummy>
+              </div>
+            </div>
+            <!-- <div class="aside">
+            <p class="m-0">
+              Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor
+              incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud
+              exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure
+              dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.
+              Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt
+              mollit anim id est laborum.
+            </p>
+          </div> -->
           </div>
-        </div>
-        <!-- <div class="aside">
-          <p class="m-0">
-            Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor
-            incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud
-            exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure
-            dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.
-            Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt
-            mollit anim id est laborum.
-          </p>
-        </div> -->
-      </div>
 
-      <div class="bottom" :class="{ expanded: bottomExpanded }">
-        <div class="header" @click="toggleLogsWindow">
-          <div class="ml-2 h3 logs-header">
-            <div>Logs</div>
-            <div v-if="isRunning" class="logs-animated">
-              <div
-                v-for="log in quickLogs"
-                :key="log.id"
-                class="log-entry"
-                :class="{ 'slide-out': log.isExiting, 'slide-in': !log.isExiting }"
-              >
-                <span v-html="log.text"></span>
+          <div class="bottom" :class="{ expanded: bottomExpanded }">
+            <div class="header" @click="toggleLogsWindow">
+              <div class="ml-2 h3 logs-header">
+                <div>Logs</div>
+                <div v-if="isRunning" class="logs-animated">
+                  <div
+                    v-for="log in quickLogs"
+                    :key="log.id"
+                    class="log-entry"
+                    :class="{ 'slide-out': log.isExiting, 'slide-in': !log.isExiting }"
+                  >
+                    <span v-html="log.text"></span>
+                  </div>
+                </div>
+              </div>
+              <div class="actions">
+                <Button v-tooltip.top="'Export log'" text @click.stop="exportLog">
+                  <template #icon>
+                    <i class="mdi mr-1 mdi-file-export"></i>
+                  </template>
+                </Button>
+                <Button text>
+                  <template #icon>
+                    <i
+                      class="mdi mr-1"
+                      :class="{ 'mdi-minus': bottomExpanded, 'mdi-plus': !bottomExpanded }"
+                    ></i>
+                  </template>
+                </Button>
+              </div>
+            </div>
+            <div v-if="bottomExpanded" class="logs">
+              <div v-if="Object.keys(logLines).length > 0" class="card">
+                <Accordion
+                  :value="currentLogAccordion"
+                  expand-icon="pi pi-plus"
+                  collapse-icon="pi pi-minus"
+                  class="accordion"
+                >
+                  <AccordionPanel
+                    v-for="(log, key) in logLines"
+                    :key="key"
+                    class="accordion-panel"
+                    :value="key"
+                  >
+                    <AccordionHeader>
+                      <span class="flex items-center gap-2 w-full">
+                        <i
+                          class="mdi mr-1"
+                          :class="{
+                            'mdi-check-circle': nodeStatuses[key] === 'done',
+                            'mdi-close-circle': nodeStatuses[key] === 'error',
+                            'mdi-progress-question': nodeStatuses[key] === 'idle',
+                            'mdi-cog': nodeStatuses[key] === 'running',
+                            rotate: nodeStatuses[key] === 'running'
+                          }"
+                        ></i>
+                        <span class="font-bold whitespace-nowrap">{{ keyToNodeName(key) }}</span>
+                      </span>
+                    </AccordionHeader>
+                    <AccordionContent class="content">
+                      <!-- <ScrollPanel style="width: 100%; height: 300px"> -->
+                      <!-- <span class="line-indicator">{{ index }}.</span> -->
+                      <!-- <span
+                        v-for="(cell, index2) of line"
+                        :key="index2"
+                        class="cell"
+                        v-html="cell"
+                      ></span> -->
+                      <div
+                        v-for="(line, index) of log"
+                        :key="index"
+                        class="line"
+                        v-html="line"
+                      ></div>
+                      <!-- </ScrollPanel> -->
+                    </AccordionContent>
+                  </AccordionPanel>
+                </Accordion>
               </div>
             </div>
           </div>
-          <div class="actions">
-            <Button v-tooltip.top="'Export log'" text @click.stop="exportLog">
-              <template #icon>
-                <i class="mdi mr-1 mdi-file-export"></i>
-              </template>
-            </Button>
-            <Button text>
-              <template #icon>
-                <i
-                  class="mdi mr-1"
-                  :class="{ 'mdi-minus': bottomExpanded, 'mdi-plus': !bottomExpanded }"
-                ></i>
-              </template>
-            </Button>
-          </div>
-        </div>
-        <div v-if="bottomExpanded" class="logs">
-          <div v-if="Object.keys(logLines).length > 0" class="card">
-            <Accordion
-              :value="currentLogAccordion"
-              expand-icon="pi pi-plus"
-              collapse-icon="pi pi-minus"
-              class="accordion"
-            >
-              <AccordionPanel
-                v-for="(log, key) in logLines"
-                :key="key"
-                class="accordion-panel"
-                :value="key"
-              >
-                <AccordionHeader>
-                  <span class="flex items-center gap-2 w-full">
-                    <i
-                      class="mdi mr-1"
-                      :class="{
-                        'mdi-check-circle': nodeStatuses[key] === 'done',
-                        'mdi-close-circle': nodeStatuses[key] === 'error',
-                        'mdi-progress-question': nodeStatuses[key] === 'idle',
-                        'mdi-cog': nodeStatuses[key] === 'running',
-                        rotate: nodeStatuses[key] === 'running'
-                      }"
-                    ></i>
-                    <span class="font-bold whitespace-nowrap">{{ keyToNodeName(key) }}</span>
-                  </span>
-                </AccordionHeader>
-                <AccordionContent class="content">
-                  <!-- <ScrollPanel style="width: 100%; height: 300px"> -->
-                  <!-- <span class="line-indicator">{{ index }}.</span> -->
-                  <!-- <span
-                      v-for="(cell, index2) of line"
-                      :key="index2"
-                      class="cell"
-                      v-html="cell"
-                    ></span> -->
-                  <div v-for="(line, index) of log" :key="index" class="line" v-html="line"></div>
-                  <!-- </ScrollPanel> -->
-                </AccordionContent>
-              </AccordionPanel>
-            </Accordion>
-          </div>
+
+          <Dialog
+            v-model:visible="isPromptDialogVisible"
+            modal
+            :header="lastPromptInfos.message"
+            :style="{ width: '25rem' }"
+          >
+            <div class="flex items-center gap-4 mb-4">
+              <InputText
+                id="answer"
+                v-model="promptDialogAnswer"
+                class="flex-auto"
+                autocomplete="off"
+              />
+            </div>
+            <div class="flex justify-end gap-2">
+              <Button
+                type="button"
+                label="Cancel"
+                severity="secondary"
+                @click="onPromptDialogCancel"
+              ></Button>
+              <Button type="button" label="OK" @click="onPromptDialogOK"></Button>
+            </div>
+          </Dialog>
         </div>
       </div>
-
-      <Dialog
-        v-model:visible="isPromptDialogVisible"
-        modal
-        :header="lastPromptInfos.message"
-        :style="{ width: '25rem' }"
-      >
-        <div class="flex items-center gap-4 mb-4">
-          <InputText
-            id="answer"
-            v-model="promptDialogAnswer"
-            class="flex-auto"
-            autocomplete="off"
-          />
-        </div>
-        <div class="flex justify-end gap-2">
-          <Button
-            type="button"
-            label="Cancel"
-            severity="secondary"
-            @click="onPromptDialogCancel"
-          ></Button>
-          <Button type="button" label="OK" @click="onPromptDialogOK"></Button>
-        </div>
-      </Dialog>
-    </div>
+    </Layout>
   </div>
 </template>
 
@@ -258,6 +279,8 @@ import Tooltip from 'primevue/tooltip'
 import { watchThrottled } from '@vueuse/core'
 import { stripHtml } from 'string-strip-html'
 import posthog from 'posthog-js'
+import Layout from '@renderer/components/Layout.vue'
+import { useAuth } from '@renderer/store/auth'
 
 const router = useRouter()
 
@@ -286,6 +309,9 @@ const { pluginDefinitions } = storeToRefs(app)
 const filesStore = useFiles()
 const { files } = storeToRefs(filesStore)
 const { update } = filesStore
+
+const authStore = useAuth()
+const { isLoggedIn } = storeToRefs(authStore)
 
 const quickLogs = ref([])
 
@@ -346,6 +372,11 @@ const cancel = async () => {
 }
 
 const run = async () => {
+  if (!isLoggedIn.value) {
+    authStore.displayAuthModal('Welcome back!', 'Please log in to run a scenario')
+    return
+  }
+
   posthog.capture('run_started')
 
   setIsRunning(true)

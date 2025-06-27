@@ -18,7 +18,7 @@
     <Dialog v-model:visible="visible" :closable="false" modal header="" :style="{ width: '75%' }">
       <template #header>
         <div class="flex flex-column w-full">
-          <p class="text-xl">Add plugin</p>
+          <div class="text-xl">Add plugin</div>
           <div class="search">
             <IconField class="search-field" icon-position="left">
               <InputIcon class="pi pi-search"> </InputIcon>
@@ -157,7 +157,7 @@ watchEffect(() => {
 const shouldShowNode = (node: RendererNodeDefinition) => {
   if (node.node.advanced && displayAdvancedNodes.value) {
     return true
-  } else if (node.node.advanced && !displayAdvancedNodes.value ) {
+  } else if (node.node.advanced && !displayAdvancedNodes.value) {
     return false
   } else if (node.node.disabled) {
     return false
