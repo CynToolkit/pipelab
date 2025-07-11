@@ -108,6 +108,9 @@ importers:
       code-tag:
         specifier: 1.2.0
         version: 1.2.0
+      confbox:
+        specifier: 0.2.2
+        version: 0.2.2
       d3-shape:
         specifier: 3.2.0
         version: 3.2.0

@@ -86,19 +86,19 @@
 
           <div class="editor-wrapper">
             <!-- <div class="aside">
-            <div>
-              <div class="bold">Project Settings</div>
-              <ProjectSettingsEditor v-if="instance"></ProjectSettingsEditor>
-            </div>
-            <div>
-              <div class="bold">Variables</div>
-              <VariablesEditor v-if="instance"></VariablesEditor>
-            </div>
-            <div>
-              <div class="bold">Environement</div>
-              <EnvironementEditor v-if="instance"></EnvironementEditor>
-            </div>
-          </div> -->
+              <div>
+                <div class="bold">Project Settings</div>
+                <ProjectSettingsEditor v-if="instance"></ProjectSettingsEditor>
+              </div>
+              <div>
+                <div class="bold">Variables</div>
+                <VariablesEditor v-if="instance"></VariablesEditor>
+              </div>
+              <div>
+                <div class="bold">Environement</div>
+                <EnvironementEditor v-if="instance"></EnvironementEditor>
+              </div>
+            </div> -->
             <div class="main">
               <div class="node-editor-wrapper">
                 <EditorNodeEvent
@@ -124,15 +124,55 @@
               </div>
             </div>
             <!-- <div class="aside">
-            <p class="m-0">
-              Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor
-              incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud
-              exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure
-              dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.
-              Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt
-              mollit anim id est laborum.
-            </p>
-          </div> -->
+              <p class="m-0">
+                Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor
+                incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud
+                exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure
+                dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.
+                Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt
+                mollit anim id est laborum.
+              </p>
+            </div> -->
+            <div class="drawer right" v-if="selectedNode">
+              <div class="flex justify-content-between align-items-center flex-wrap">
+                <div class="text-bold text-xl">
+                  {{ selectedNode?.name ?? nodeDefinition?.name }}
+                </div>
+                <Button
+                  icon="pi pi-times"
+                  class="flex"
+                  @click="setSelectedNode(undefined)"
+                  size="small"
+                ></Button>
+              </div>
+              <div class="flex flex-column gap-4" v-if="nodeDefinition">
+                <div
+                  v-for="(paramDefinition, key) in nodeDefinition.params"
+                  :key="key"
+                  class="param"
+                >
+                  <ParamEditor
+                    :param="selectedNode.params[key]"
+                    :param-key="key"
+                    :param-definition="paramDefinition"
+                    :value="selectedNode"
+                    :steps="stepsDisplay"
+                    :variables="variables"
+                    :vm="vm"
+                    @update:model-value="onValueChanged($event, key.toString())"
+                  ></ParamEditor>
+                </div>
+              </div>
+              <div class="flex items-center gap-2">
+                <Button
+                  label="Delete"
+                  icon="pi pi-trash"
+                  class="flex-auto"
+                  severity="danger"
+                  @click="removeNode(selectedNode.uid)"
+                ></Button>
+              </div>
+            </div>
           </div>
 
           <div class="bottom" :class="{ expanded: bottomExpanded }">
@@ -249,7 +289,7 @@
 </template>
 
 <script lang="ts" setup>
-import { reactive, ref, watch } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import Accordion from 'primevue/accordion'
 import AccordionPanel from 'primevue/accordionpanel'
 import AccordionHeader from 'primevue/accordionheader'
@@ -281,6 +321,15 @@ import { stripHtml } from 'string-strip-html'
 import posthog from 'posthog-js'
 import Layout from '@renderer/components/Layout.vue'
 import { useAuth } from '@renderer/store/auth'
+import { value } from 'valibot'
+import { ValueOf } from 'type-fest'
+import { createQuickJs } from '@renderer/utils/quickjs'
+import ParamEditor from '@renderer/components/nodes/ParamEditor.vue'
+
+// @ts-expect-error tsconfig
+const vm = await createQuickJs()
+
+type Param = ValueOf<BlockAction['params']>
 
 const router = useRouter()
 
@@ -298,10 +347,21 @@ const {
   id,
   logLines,
   nodeStatuses,
-  isRunning
+  isRunning,
+  selectedNode
 } = storeToRefs(instance)
-const { processGraph, loadSavedFile, setIsRunning, pushLine, clearLogs, getNodeDefinition } =
-  instance
+const {
+  processGraph,
+  loadSavedFile,
+  setIsRunning,
+  pushLine,
+  clearLogs,
+  getNodeDefinition,
+  getPluginDefinition,
+  removeNode,
+  setBlockValue,
+  setSelectedNode
+} = instance
 
 const app = useAppStore()
 const { pluginDefinitions } = storeToRefs(app)
@@ -393,7 +453,7 @@ const run = async () => {
         lastActiveNode.value = node
       },
       onNodeExit: () => {
-        setActiveNode()
+        setActiveNode(undefined)
       },
       onExecuteItem: async (node, params, steps) => {
         posthog.capture(`node_executed`, {
@@ -486,7 +546,7 @@ const run = async () => {
     }
     posthog.capture('run_errored')
   }
-  setActiveNode()
+  setActiveNode(undefined)
   setIsRunning(false)
 }
 
@@ -639,7 +699,7 @@ const exportLog = async () => {
   for (const [key, value] of myLines) {
     html += `${key}\n`
     for (const val of value) {
-      html += `${'\t'.repeat(2)}${stripHtml(val).result}\n`
+      html += `${'\t'.repeat(2)}${stripHtml(val.toString()).result}\n`
     }
     html += `\n`
   }
@@ -665,6 +725,34 @@ tinykeys(window, {
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+const nodeDefinition = computed(() => {
+  if (!selectedNode.value) {
+    return undefined
+  }
+  const def = getNodeDefinition(
+    selectedNode.value.origin.nodeId,
+    selectedNode.value.origin.pluginId
+  )
+  if (def) {
+    return def.node
+  }
+  return undefined
+})
+
+const pluginDefinition = computed(() => {
+  return getPluginDefinition(selectedNode.value.origin.pluginId)
+})
+
+const onValueChanged = (newValue: Param, paramKey: string) => {
+  setBlockValue(selectedNode.value.uid, {
+    ...selectedNode.value,
+    params: {
+      ...selectedNode.value.params,
+      [paramKey]: newValue
+    }
+  })
 }
 </script>
 
@@ -881,6 +969,20 @@ function sleep(ms: number) {
 //   left: 48px;
 //   padding: 0 1.5rem;
 // }
+
+.drawer {
+  display: flex;
+  flex-direction: column;
+  background-color: white;
+  padding: 16px;
+  border-left: 1px solid #ddd;
+  overflow: auto;
+  gap: 16px;
+  width: 600px;
+
+  .right {
+  }
+}
 
 @keyframes slide-in {
   0% {

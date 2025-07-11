@@ -71,6 +71,7 @@
     "archiver": "7.0.1",
     "change-case": "5.4.4",
     "code-tag": "1.2.0",
+    "confbox": "0.2.2",
     "d3-shape": "3.2.0",
     "date-fns": "4.1.0",
     "dompurify": "3.1.7",

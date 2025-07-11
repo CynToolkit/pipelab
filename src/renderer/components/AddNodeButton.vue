@@ -15,14 +15,27 @@
     <!-- <pre>{{ path }}</pre> -->
     <div class="vl"></div>
 
-    <Dialog v-model:visible="visible" :closable="false" modal header="" :style="{ width: '75%' }">
+    <Dialog
+      v-model:visible="visible"
+      :closable="false"
+      modal
+      header=""
+      :style="{ width: '60%', maxWidth: '800px' }"
+      :contentStyle="{ padding: '1rem' }"
+      :breakpoints="{ '960px': '75vw', '641px': '90vw' }"
+    >
       <template #header>
         <div class="flex flex-column w-full">
           <div class="text-xl">Add plugin</div>
-          <div class="search">
-            <IconField class="search-field" icon-position="left">
+          <div class="search w-full">
+            <IconField class="search-field w-full" icon-position="left">
               <InputIcon class="pi pi-search"> </InputIcon>
-              <InputText ref="$searchInput" v-model="search" placeholder="Search" />
+              <InputText
+                ref="$searchInput"
+                v-model="search"
+                placeholder="Search..."
+                class="w-full"
+              />
             </IconField>
           </div>
         </div>
@@ -51,25 +64,29 @@
                   @click="selected = { nodeId: node.node.id, pluginId: plugin.id }"
                 >
                   <a
-                    class="element flex align-items-center p-3 border-round w-full transition-colors transition-duration-150 cursor-pointer"
-                    style="border-radius: '10px'"
+                    class="element"
                     :class="{
                       selected: selected?.nodeId === node.node.id && selected.pluginId === plugin.id
                     }"
                   >
-                    <i class="pi pi-home text-xl mr-3"></i>
-                    <span class="flex flex-column">
-                      <span class="font-bold mb-1">
-                        <span>{{ node.node.name }}</span>
-                        <span v-if="node.node.version"> (v{{ node.node.version }})</span>
+                    <i class="pi" :class="node.node.icon || 'pi-box'"></i>
+                    <div class="node-details">
+                      <span class="node-name">
+                        {{ node.node.name }}
+                        <span v-if="node.node.version" class="version"
+                          >v{{ node.node.version }}</span
+                        >
                       </span>
-                      <span class="m-0 text-secondary"> {{ node.node.description }}</span>
+                      <p v-if="node.node.description" class="node-description">
+                        {{ node.node.description }}
+                      </p>
                       <span
                         v-if="typeof node.node.disabled === 'string'"
-                        class="m-0 text-secondary font-bold"
-                        >{{ node.node.disabled }}</span
+                        class="text-xs text-warning mt-1 block"
                       >
-                    </span>
+                        {{ node.node.disabled }}
+                      </span>
+                    </div>
                   </a>
                 </li></template
               >
@@ -214,41 +231,42 @@ const onAdd = () => {
 }
 
 const isNodePicked = (node: PipelabNode, searchedValue: string) => {
-  const description = node.description.toLowerCase()
-  const name = node.name.toLowerCase()
-
   if (node.type !== 'action') {
     return false
   }
 
-  if (description.includes(searchedValue) || name.includes(searchedValue)) {
-    return true
-  }
-  return false
+  if (!searchedValue) return true
+
+  const searchTerms = searchedValue.toLowerCase().split(/\s+/)
+  const description = node.description?.toLowerCase() || ''
+  const name = node.name.toLowerCase()
+  const tags = node.tags?.map((tag) => tag.toLowerCase()) || []
+  const allText = `${name} ${description} ${tags.join(' ')}`
+
+  return searchTerms.every(
+    (term) => allText.includes(term) || term.split('').every((char) => allText.includes(char))
+  )
 }
 
-// TODO: refactor
 const searchedElements = computed(() => {
-  logger().info('pluginDefinitions', pluginDefinitions.value)
-  const searchedValue = search.value.toLowerCase()
+  const searchedValue = search.value.trim()
 
   return pluginDefinitions.value
+    .map((def) => ({
+      ...def,
+      nodes: def.nodes.filter((node) => isNodePicked(node.node, searchedValue))
+    }))
     .filter((def) => {
-      const description = def.description.toLowerCase()
-      const name = def.name.toLowerCase()
+      if (!searchedValue) return true
 
-      const someNodeMatch = def.nodes.some((node) => isNodePicked(node.node, searchedValue))
+      const defName = def.name.toLowerCase()
+      const defDescription = (def.description || '').toLowerCase()
+      const searchTerms = searchedValue.toLowerCase().split(/\s+/)
 
-      if (description.includes(searchedValue) || name.includes(searchedValue) || someNodeMatch) {
-        return true
-      }
-      return false
-    })
-    .map((def) => {
-      return {
-        ...def,
-        nodes: def.nodes.filter((node) => isNodePicked(node.node, searchedValue))
-      }
+      return searchTerms.every(
+        (term) =>
+          defName.includes(term) || defDescription.includes(term) || def.nodes.some(() => true) // Keep if any nodes matched
+      )
     })
 })
 </script>
@@ -278,41 +296,160 @@ const searchedElements = computed(() => {
 }
 
 .list {
-  margin: 24px 8px;
+  margin: 8px 0;
+  max-height: 60vh;
+  overflow-y: auto;
+  padding-right: 4px;
 
   .plugin {
-    margin-top: 24px;
+    margin: 8px 0;
+
+    &:first-child {
+      margin-top: 0;
+    }
+  }
+
+  /* Custom scrollbar */
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: var(--surface-100);
+    border-radius: 3px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: var(--surface-300);
+    border-radius: 3px;
+
+    &:hover {
+      background: var(--surface-400);
+    }
   }
 }
 
 .triggers {
-  margin: 8px;
-  display: grid;
-  grid-template-columns: 4fr;
-  gap: 4px;
-
   .node {
-    flex: 1;
-
     .node-item {
       cursor: pointer;
+      padding: 0;
+      margin: 2px 0;
+      border-radius: 4px;
+      transition: all 0.15s ease;
 
       &[disabled] {
         pointer-events: none;
-        color: grey;
+        opacity: 0.5;
+      }
+
+      .element {
+        padding: 8px 12px;
+        border-radius: 6px;
+        border: 1px solid transparent;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+
+        .font-bold {
+          font-size: 0.9rem;
+          line-height: 1.2;
+        }
+
+        .text-secondary {
+          font-size: 0.8rem;
+          line-height: 1.2;
+          opacity: 0.8;
+        }
       }
     }
   }
 }
 
 .element {
-  &:hover {
-    // color: var(--p-primary-contrast-color);
-    background-color: var(--p-surface-200);
+  display: flex;
+  align-items: flex-start;
+  padding: 0.5rem 0.75rem;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+  width: 100%;
+
+  i {
+    margin-top: 2px;
+    font-size: 1rem;
+    margin-right: 0.75rem;
+    color: var(--p-text-color-secondary);
+    transition: all 0.2s ease;
   }
+
+  .node-details {
+    flex: 1;
+    min-width: 0;
+
+    .node-name {
+      font-weight: 500;
+      margin-bottom: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      transition: color 0.2s ease;
+
+      .version {
+        opacity: 0.7;
+        font-size: 0.85em;
+        margin-left: 4px;
+      }
+    }
+
+    .node-description {
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      font-size: 0.85rem;
+      line-height: 1.3;
+      color: var(--p-text-color-secondary);
+      margin: 0;
+      max-height: 2.6em;
+    }
+  }
+
+  &:hover {
+    background-color: var(--p-surface-100);
+    border-color: var(--p-surface-200);
+
+    .node-description {
+      color: var(--p-text-color);
+    }
+
+    .node-name {
+      color: var(--p-primary-color);
+    }
+  }
+
+  &:active {
+    transform: translateY(0);
+    transition-duration: 0.1s;
+  }
+
   &.selected {
-    color: var(--p-primary-contrast-color);
-    background-color: var(--p-primary-color);
+    width: 100%;
+    color: var(--p-primary-color-text);
+    background-color: var(--p-surface-300);
+    border-color: var(--p-primary-color);
+
+    .node-details {
+      .node-name {
+        font-weight: 600;
+      }
+    }
+
+    i {
+      color: var(--p-primary-color-text);
+    }
+
+    &:hover {
+      border-color: var(--p-primary-color);
+    }
   }
 }
 

@@ -6,7 +6,8 @@
       :class="{
         active: activeNode?.uid === value.uid,
         error: hasErrors,
-        disabled: value.disabled || isRunning
+        disabled: value.disabled || isRunning,
+        selected: isNodeSelected
       }"
       @click="onNodeClick"
     >
@@ -70,7 +71,7 @@
         <!-- <span class="type-icon pi pi-play"></span> -->
       </div>
 
-      <Drawer v-model:visible="showSidebar" class="w-full md:w-full lg:w-7 xl:w-5" position="right">
+      <!-- <Drawer v-model:visible="showSidebar" class="w-full md:w-full lg:w-7 xl:w-5" position="right">
         <template v-if="nodeDefinition">
           <div class="flex flex-column gap-4">
             <div v-for="(paramDefinition, key) in nodeDefinition.params" :key="key" class="param">
@@ -98,7 +99,7 @@
             ></Button>
           </div>
         </template>
-      </Drawer>
+      </Drawer> -->
     </div>
     <AddNodeButton
       :button-props="{ size: 'small', icon: 'pi pi-plus' }"
@@ -241,29 +242,18 @@ const $node = ref<HTMLDivElement>()
 
 const editor = useEditor()
 const {
-  getNodeDefinition,
   setBlockValue,
   addNode,
-  getPluginDefinition,
   removeNode,
   swapNodes,
   cloneNode,
   disableNode,
-  enableNode
+  enableNode,
+  getNodeDefinition,
+  getPluginDefinition,
+  setSelectedNode
 } = editor
-const { activeNode, variables } = storeToRefs(editor)
-
-const nodeDefinition = computed(() => {
-  const def = getNodeDefinition(value.value.origin.nodeId, value.value.origin.pluginId)
-  if (def) {
-    return def.node
-  }
-  return undefined
-})
-
-const pluginDefinition = computed(() => {
-  return getPluginDefinition(value.value.origin.pluginId)
-})
+const { activeNode, variables, selectedNode } = storeToRefs(editor)
 
 type Param = ValueOf<BlockAction['params']>
 
@@ -338,6 +328,18 @@ watchDebounced(
 
 const subtitle = ref('')
 
+const nodeDefinition = computed(() => {
+  const def = getNodeDefinition(value.value.origin.nodeId, value.value.origin.pluginId)
+  if (def) {
+    return def.node
+  }
+  return undefined
+})
+
+const pluginDefinition = computed(() => {
+  return getPluginDefinition(value.value.origin.pluginId)
+})
+
 const title = computed(() => {
   console.log('value.value', value.value.name)
   console.log('nodeDefinition.value?.name', nodeDefinition.value?.name)
@@ -367,8 +369,13 @@ const showSidebar = ref(false)
 const onNodeClick = () => {
   if (!isRunning.value) {
     showSidebar.value = true
+    setSelectedNode(value.value)
   }
 }
+
+const isNodeSelected = computed(() => {
+  return selectedNode.value?.uid === value.value.uid
+})
 
 const hasErrored = computed(() => {
   return false
@@ -437,6 +444,10 @@ const hasErrored = computed(() => {
   &.error {
     background-color: #ffcccc;
   }
+
+  &.selected {
+    border: 1px solid blue;
+  }
 }
 
 .vertical {
@@ -459,6 +470,7 @@ const hasErrored = computed(() => {
       display: flex;
       align-items: baseline;
       gap: 16px;
+      width: fit-content;
 
       .deprecated-string {
         font-size: 0.8rem;

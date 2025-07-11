@@ -337,11 +337,16 @@ app.whenReady().then(async () => {
           }
         })
 
+        console.log('got an output', output)
+
         if (output) {
           await writeFile(output, JSON.stringify(result, null, 2), 'utf8')
         }
       } catch (e) {
         console.error('error while executing process', e)
+        if (output) {
+          await writeFile(output, JSON.stringify({ error: e.message }, null, 2), 'utf8')
+        }
       }
     }
 

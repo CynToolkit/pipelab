@@ -3,3 +3,18 @@ node = "22"
 
 [env]
 _.file = '.env'
+
+[tasks.install]
+run = "pnpm install"
+
+[tasks.dev]
+run = "pnpm dev"
+depends = ["install"]
+
+[tasks.package]
+run = "pnpm package"
+depends = ["install"]
+
+[tasks.test-e2e-local]
+run = "pnpm test:e2e:raw"
+depends = ["package"]

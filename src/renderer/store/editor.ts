@@ -198,8 +198,13 @@ export const useEditor = defineStore('editor', () => {
   })
 
   const activeNode = ref<BlockAction | BlockCondition | BlockLoop>()
-  const setActiveNode = (node?: BlockAction | BlockCondition | BlockLoop | undefined) => {
+  const setActiveNode = (node: BlockAction | BlockCondition | BlockLoop | undefined) => {
     activeNode.value = node
+  }
+
+  const selectedNode = ref<BlockAction | BlockCondition | BlockLoop>()
+  const setSelectedNode = (node: BlockAction | BlockCondition | BlockLoop | undefined) => {
+    selectedNode.value = node
   }
 
   /** All the plugins's node definitions */
@@ -218,7 +223,8 @@ export const useEditor = defineStore('editor', () => {
     blocks.value = []
     variables.value = []
     triggers.value = []
-    setActiveNode()
+    setActiveNode(undefined)
+    setSelectedNode(undefined)
   }
 
   const errors = computed(() => {
@@ -639,6 +645,7 @@ export const useEditor = defineStore('editor', () => {
     environnements,
     nodeDefinitions,
     activeNode,
+    selectedNode,
     name,
     id,
     description,
@@ -655,6 +662,7 @@ export const useEditor = defineStore('editor', () => {
     nodeStatuses,
 
     setActiveNode,
+    setSelectedNode,
     setBlockValue,
     setTriggerValue,
     removeNode,

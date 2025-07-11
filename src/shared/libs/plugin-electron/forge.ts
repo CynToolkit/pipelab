@@ -163,19 +163,23 @@ export const configureParams = {
     description: 'The description of the application',
     required: false
   }),
-  customPackages: createArray<string[]>(`[
+  customPackages: createArray<string[]>(
+    `[
   // e.g. "lodash" or "express@4.17.1"
-]`, {
-    label: 'Custom npm packages',
-    description: 'A list of additional npm packages to install (format: "package" or "package@version")',
-    required: false,
-    control: {
-      type: 'array',
-      options: {
-        kind: 'text',
+]`,
+    {
+      label: 'Custom npm packages',
+      description:
+        'A list of additional npm packages to install (format: "package" or "package@version")',
+      required: false,
+      control: {
+        type: 'array',
+        options: {
+          kind: 'text'
+        }
       }
     }
-  }),
+  ),
 
   appCategoryType: createStringParam('public.app-category.developer-tools', {
     platforms: ['darwin'],
@@ -540,6 +544,8 @@ export const forge = async (
 
   const { assets, unpack, node } = paths
 
+  console.log('assets', assets)
+
   // const { fileURLToPath } = await import('url')
   // const __dirname = fileURLToPath(dirname(import.meta.url))
   // const { app } = await import('electron')
@@ -560,16 +566,20 @@ export const forge = async (
   )
 
   const templateFolder = join(assets, 'electron', 'template', 'app')
+  console.log('templateFolder', templateFolder)
+  console.log('destinationFolder', destinationFolder)
 
   // copy template to destination
   await cp(templateFolder, destinationFolder, {
     recursive: true,
     filter: (src) => {
-      // log('src', src)
-      // log('dest', dest)
+      // console.log('src', src)
+      // console.log('dest', dest)
       return basename(src) !== 'node_modules'
     }
   })
+
+  console.log('copy done')
 
   const pkgJSONPath = join(destinationFolder, 'package.json')
   const pkgJSONContent = await readFile(pkgJSONPath, 'utf8')
@@ -578,17 +588,22 @@ export const forge = async (
   const sanitizedName = kebabCase(completeConfiguration.name)
 
   const originalIconPath = completeConfiguration.icon
-  const iconFilename = basename(completeConfiguration.icon)
-  const newIconPath = join(destinationFolder, iconFilename)
-  const relativeIconPath = join('./', 'build', iconFilename)
-  const relativeIconPath1 = join('./', iconFilename)
+  const hasIcon = completeConfiguration.icon !== undefined && completeConfiguration.icon !== ''
+  const iconFilename = hasIcon ? basename(completeConfiguration.icon) : ''
+  const newIconPath = hasIcon ? join(destinationFolder, iconFilename) : ''
+  const relativeIconPath = hasIcon ? join('./', 'build', iconFilename) : ''
+  const relativeIconPath1 = hasIcon ? join('./', iconFilename) : ''
 
   log('relativeIconPath', relativeIconPath)
   log('relativeIconPath1', relativeIconPath1)
 
-  const hasElectronVersion = completeConfiguration.electronVersion !== undefined && completeConfiguration.electronVersion !== ''
-  const isCJSOnly = hasElectronVersion && semver.lt(semver.coerce(completeConfiguration.electronVersion) || '0.0.0', '28.0.0')
-  
+  const hasElectronVersion =
+    completeConfiguration.electronVersion !== undefined &&
+    completeConfiguration.electronVersion !== ''
+  const isCJSOnly =
+    hasElectronVersion &&
+    semver.lt(semver.coerce(completeConfiguration.electronVersion) || '0.0.0', '28.0.0')
+
   const pkgJSON = JSON.parse(pkgJSONContent)
   log('Setting name to', sanitizedName)
   pkgJSON.name = sanitizedName
@@ -603,7 +618,7 @@ export const forge = async (
     'utf8'
   )
 
-  if (isCJSOnly) { 
+  if (isCJSOnly) {
     log('Setting type to', 'commonjs')
     pkgJSON.type = 'commonjs'
   } else {
@@ -636,9 +651,14 @@ export const forge = async (
       }
     }
   )
-  
+
+  console.log('done install')
+
   // install user-defined custom packages
-  if (Array.isArray(completeConfiguration.customPackages) && completeConfiguration.customPackages.length > 0) {
+  if (
+    Array.isArray(completeConfiguration.customPackages) &&
+    completeConfiguration.customPackages.length > 0
+  ) {
     log(`Installing custom packages: ${completeConfiguration.customPackages.join(', ')}`)
     await runWithLiveLogs(
       node,
@@ -717,9 +737,10 @@ export const forge = async (
     )
   }
 
+  console.log('completeConfiguration.icon', completeConfiguration.icon)
 
-  // copy icon 
-  if (completeConfiguration.icon) {
+  // copy icon
+  if (hasIcon) {
     await cp(originalIconPath, newIconPath)
   }
 
@@ -743,7 +764,7 @@ export const forge = async (
       format: 'cjs',
       platform: 'node',
       external,
-      outfile: join(destinationFolder, 'dist', 'index.js'),
+      outfile: join(destinationFolder, 'dist', 'index.js')
     })
     await esbuild.build({
       entryPoints: [join(destinationFolder, 'src', 'preload.js')],
@@ -752,7 +773,7 @@ export const forge = async (
       external,
       format: 'cjs',
       write: true,
-      outfile: join(destinationFolder, 'dist', 'preload.js'),
+      outfile: join(destinationFolder, 'dist', 'preload.js')
     })
     await esbuild.build({
       entryPoints: [join(destinationFolder, 'src', 'custom-main.js')],
@@ -761,11 +782,11 @@ export const forge = async (
       external,
       format: 'cjs',
       write: true,
-      outfile: join(destinationFolder, 'dist', 'custom-main.js'),
+      outfile: join(destinationFolder, 'dist', 'custom-main.js')
     })
     await rm(join(destinationFolder, 'src'), { recursive: true })
     await cp(join(destinationFolder, 'dist'), join(destinationFolder, 'src'), {
-      recursive: true,
+      recursive: true
     })
     await rm(join(destinationFolder, 'dist'), { recursive: true })
     /* ESBUILD transpilation */

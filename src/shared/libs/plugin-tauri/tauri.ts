@@ -14,6 +14,7 @@ import {
 import { detectRuntime } from '@@/plugins'
 import { app } from 'electron'
 import { dirname } from 'node:path'
+import { existsSync } from 'node:fs'
 
 // TODO: https://js.electronforge.io/modules/_electron_forge_core.html
 
@@ -325,6 +326,16 @@ const outputs = {
         properties: ['openDirectory']
       }
     }
+  },
+  binary: {
+    label: 'Binary',
+    value: '',
+    control: {
+      type: 'path',
+      options: {
+        properties: ['openFile']
+      }
+    }
   }
 } satisfies OutputsDefinition
 
@@ -424,6 +435,7 @@ export const tauri = async (
   const { cp, readFile, writeFile } = await import('node:fs/promises')
   const { arch, platform } = await import('os')
   const { kebabCase } = await import('change-case')
+  const { parseTOML, stringifyTOML } = await import('confbox')
 
   console.log('appFolder', appFolder)
 
@@ -479,6 +491,7 @@ export const tauri = async (
   const sanitizedName = kebabCase(completeConfiguration.name)
 
   // package.json update
+  log('Package.json update')
   const pkgJSONPath = join(destinationFolder, 'package.json')
   const pkgJSONContent = await readFile(pkgJSONPath, 'utf8')
   const pkgJSON = JSON.parse(pkgJSONContent)
@@ -488,7 +501,21 @@ export const tauri = async (
   pkgJSON.productName = completeConfiguration.name
   await writeFile(pkgJSONPath, JSON.stringify(pkgJSON, null, 2))
 
+  // Cargo.toml update
+  log('Cargo.toml update')
+  const cargoTomlPath = join(destinationFolder, 'src-tauri', 'Cargo.toml')
+  const cargoTomlContent = await readFile(cargoTomlPath, 'utf8')
+  const cargoToml = parseTOML(cargoTomlContent) as { name: string; version: string }
+  log('Setting name to', sanitizedName)
+  console.log('cargoToml', cargoToml)
+  cargoToml.name = sanitizedName
+  log('Setting version to', completeConfiguration.appVersion)
+  cargoToml.version = completeConfiguration.appVersion
+  console.log('cargoToml', stringifyTOML(cargoToml))
+  await writeFile(cargoTomlPath, stringifyTOML(cargoToml))
+
   // tauri.conf.json update
+  log('Tauri.conf.json update')
   const tauriConfJSONPath = join(destinationFolder, 'src-tauri', 'tauri.conf.json')
   const tauriConfJSONContent = await readFile(tauriConfJSONPath, 'utf8')
   const tauriConfJSON = JSON.parse(tauriConfJSONContent)
@@ -589,12 +616,26 @@ export const tauri = async (
 
     const cargoBinName = process.platform === 'win32' ? 'cargo.exe' : 'cargo'
 
-    const home = app.getPath('home')
-    const cargoDir = join(home, '.cargo')
-    const cargoBinDir = join(cargoDir, 'bin')
-    const cargo = join(cargoBinDir, cargoBinName)
+    let cargo: string, cargoBinDir: string
 
-    log('cargoDir', cargoDir)
+    if (process.platform === 'win32') {
+      cargoBinDir = process.env.RUSTUP_HOME || join(app.getPath('home'), '.rustup')
+    } else if (process.platform === 'linux') {
+      const { execa } = await import('execa')
+      const whichCargo = await execa('which', ['cargo'])
+      console.log('whichCargo', whichCargo)
+      cargo = whichCargo.stdout
+      cargoBinDir = dirname(cargo)
+    } else if (process.platform === 'darwin') {
+      cargoBinDir = process.env.RUSTUP_HOME || join(app.getPath('home'), '.cargo')
+    }
+
+    cargo = join(cargoBinDir, cargoBinName)
+
+    if (!existsSync(cargo)) {
+      throw new Error('Cargo not found. Please install it first')
+    }
+
     log('cargoBinDir', cargoBinDir)
     console.log('cargo', cargo)
 
@@ -603,6 +644,10 @@ export const tauri = async (
     const cargoTargetDir = join(cache, 'cargo', 'target', completeConfiguration.appBundleId)
     const cargoOutputPath = join(cargoTargetDir, target, 'release')
 
+    log('cargoTargetDir', cargoTargetDir)
+    log('cargoOutputPath', cargoOutputPath)
+
+    // by default add the tauri cli
     await runWithLiveLogs(
       cargo,
       ['install', 'tauri-cli', '--version', '^2.0.0', '--locked'],
@@ -611,7 +656,7 @@ export const tauri = async (
         env: {
           DEBUG: completeConfiguration.enableExtraLogging ? '*' : '',
           ELECTRON_NO_ASAR: '1',
-          // CARGO_TARGET_DIR: cargoTargetDir,
+          CARGO_TARGET_DIR: cargoTargetDir,
           PATH: `${cargoBinDir}${delimiter}${dirname(node)}${delimiter}${process.env.PATH}`
         },
         cancelSignal: abortSignal
@@ -627,6 +672,7 @@ export const tauri = async (
       }
     )
 
+    // if preview, run tauri dev
     if (action === 'preview') {
       await runWithLiveLogs(
         cargo,
@@ -636,8 +682,7 @@ export const tauri = async (
           env: {
             DEBUG: completeConfiguration.enableExtraLogging ? '*' : '',
             ELECTRON_NO_ASAR: '1',
-            // CARGO_TARGET_DIR: cargoTargetDir,
-            // CARGO_TARGET_DIR: cargoTargetDir,
+            CARGO_TARGET_DIR: cargoTargetDir,
             PATH: `${cargoBinDir}${delimiter}${dirname(node)}${delimiter}${process.env.PATH}`
           },
           cancelSignal: abortSignal
@@ -653,6 +698,7 @@ export const tauri = async (
         }
       )
     } else {
+      // otherwise build, but don't bundle
       await runWithLiveLogs(
         cargo,
         ['tauri', 'build', '--target', target, '--no-bundle'],
@@ -661,7 +707,7 @@ export const tauri = async (
           env: {
             DEBUG: completeConfiguration.enableExtraLogging ? '*' : '',
             ELECTRON_NO_ASAR: '1',
-            // CARGO_TARGET_DIR: cargoTargetDir,
+            CARGO_TARGET_DIR: cargoTargetDir,
             PATH: `${cargoBinDir}${delimiter}${dirname(node)}${delimiter}${process.env.PATH}`
           },
           cancelSignal: abortSignal
@@ -677,65 +723,49 @@ export const tauri = async (
         }
       )
 
-      await runWithLiveLogs(
-        cargo,
-        ['tauri', 'bundle', 'appimage,deb,msi,dmg'],
-        {
-          cwd: join(destinationFolder, 'src-tauri'),
-          env: {
-            DEBUG: completeConfiguration.enableExtraLogging ? '*' : '',
-            ELECTRON_NO_ASAR: '1',
-            // CARGO_TARGET_DIR: cargoTargetDir,
-            PATH: `${cargoBinDir}${delimiter}${dirname(node)}${delimiter}${process.env.PATH}`
+      // if make, bundle
+      if (action === 'make') {
+        await runWithLiveLogs(
+          cargo,
+          // TODO: https://v2.tauri.app/fr/distribute/#bundling
+          ['tauri', 'bundle', '--', '--bundles', 'appimage'],
+          {
+            cwd: join(destinationFolder, 'src-tauri'),
+            env: {
+              DEBUG: completeConfiguration.enableExtraLogging ? '*' : '',
+              ELECTRON_NO_ASAR: '1',
+              CARGO_TARGET_DIR: cargoTargetDir,
+              PATH: `${cargoBinDir}${delimiter}${dirname(node)}${delimiter}${process.env.PATH}`
+            },
+            cancelSignal: abortSignal
           },
-          cancelSignal: abortSignal
-        },
-        log,
-        {
-          onStderr(data) {
-            log(data)
-          },
-          onStdout(data) {
-            log(data)
+          log,
+          {
+            onStderr(data) {
+              log(data)
+            },
+            onStdout(data) {
+              log(data)
+            }
           }
-        }
-      )
-
-      // await runWithLiveLogs(
-      //   cargo,
-      //   ['tauri', 'bundle', '--target', target, '--bundles', 'appimage,deb'],
-      //   {
-      //     cwd: join(destinationFolder, 'src-tauri'),
-      //     env: {
-      //       DEBUG: completeConfiguration.enableExtraLogging ? '*' : '',
-      //       ELECTRON_NO_ASAR: '1',
-      //       // CARGO_TARGET_DIR: cargoTargetDir,
-      //       PATH: `${cargoBinDir}${delimiter}${dirname(node)}${delimiter}${process.env.PATH}`
-      //     },
-      //     cancelSignal: abortSignal
-      //   },
-      //   log,
-      //   {
-      //     onStderr(data) {
-      //       log(data)
-      //     },
-      //     onStdout(data) {
-      //       log(data)
-      //     }
-      //   }
-      // )
+        )
+      }
     }
 
     if (action === 'package') {
-      const binName = getBinName(completeConfiguration.name)
+      const binName = getBinName(sanitizedName)
 
       log('cargoOutputPath', cargoOutputPath)
 
       setOutput('output', cargoOutputPath)
+      setOutput('binary', join(cargoOutputPath, binName))
       return {
         folder: cargoOutputPath,
         binary: join(cargoOutputPath, binName)
       }
+    } else if (action === 'make') {
+      // TODO:
+      throw new Error('Unsupported action')
     } else if (action === 'preview') {
       // continue
     } else {
@@ -755,6 +785,7 @@ export const tauri = async (
       if (e.name === 'RequestError') {
         log('Request error')
       }
+      throw e
     }
     log(e)
     return undefined
