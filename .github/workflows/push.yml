@@ -81,29 +81,28 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
 
-      # - name: Run tests
-      #   uses: coactions/setup-xvfb@v1
-      #   if: matrix.os == 'ubuntu-latest'
-      #   # continue-on-error: true
-      #   with:
-      #     run: pnpm test:e2e:raw
+      - name: Run tests
+        uses: coactions/setup-xvfb@v1
+        continue-on-error: true
+        with:
+          run: pnpm test:e2e:raw
 
-      # - name: Upload Playwright artifacts
-      #   # continue-on-error: true
-      #   uses: actions/upload-artifact@v4
-      #   with:
-      #     name: ${{ matrix.os }}-playwright
-      #     path: playwright/**/*
+      - name: Upload Playwright artifacts
+        uses: actions/upload-artifact@v4
+        continue-on-error: true
+        with:
+          name: ${{ matrix.os }}-playwright
+          path: playwright/**/*
 
       - name: Upload artifacts
         if: success()
-        # continue-on-error: true
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.os }}-${{ matrix.arch }}-out
           path: out/**/*
 
-  release:  
+  release:
     permissions:
       contents: write
       discussions: write
