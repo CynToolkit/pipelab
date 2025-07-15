@@ -55,6 +55,7 @@ import engine from './handlers/general/engine.js'
 import run from './handlers/general/run.js'
 import open from './handlers/general/open.js'
 import showInExplorer from './handlers/general/open-in-explorer.js'
+import exit from './handlers/general/exit.js'
 
 // steam raw
 import steamRaw from './handlers/steam/raw.js'
@@ -107,8 +108,8 @@ const cliArgs = mri(argv, {
 /** @type {undefined | Object} */
 let rpc
 if (config.enableDiscordSupport) {
-  DiscordRPC.register(config.discordAppId);
-  rpc = new DiscordRPC.Client({ transport: 'ipc' });
+  DiscordRPC.register(config.discordAppId)
+  rpc = new DiscordRPC.Client({ transport: 'ipc' })
   console.log('rpc', rpc)
 }
 
@@ -124,11 +125,12 @@ if (config.forceHighPerformanceGpu) {
 }
 
 // Fix stea remote play together
-app.commandLine.appendSwitch("disable-features", "AudioServiceOutOfProcess");
+app.commandLine.appendSwitch('disable-features', 'AudioServiceOutOfProcess')
 //endregion
 
 const hasElectronVersion = config.electronVersion !== undefined && config.electronVersion !== ''
-const isCJSOnly = hasElectronVersion && semver.lt(semver.coerce(config.electronVersion) || '0.0.0', '28.0.0')
+const isCJSOnly =
+  hasElectronVersion && semver.lt(semver.coerce(config.electronVersion) || '0.0.0', '28.0.0')
 
 //region Steam
 
@@ -177,8 +179,6 @@ const broadcastMessage = (message) => {
     }
   }
 }
-
-
 
 const metaDirname = isCJSOnly ? __dirname : import.meta.dirname
 const dir = app.isPackaged ? join(metaDirname, './app') : './src/app'
@@ -339,6 +339,9 @@ const createAppServer = (mainWindow, serveStatic = true) => {
             case '/discord/set-activity':
               await discordSetActivity(json, ws, mainWindow, rpc)
               break
+            case '/exit':
+              await exit(json, ws)
+              break
             case '/window/fullscreen-state':
               // sent the other way around
               break
@@ -396,7 +399,7 @@ const createWindow = async () => {
     webPreferences: {
       preload: join(metaDirname, 'preload.js')
     },
-    show: false,
+    show: false
   })
 
   if (!mainWindow) {
@@ -486,11 +489,11 @@ const rpcLogin = async () => {
     rpc.on('ready', () => {
       console.log('rpc  ready')
       return resolve(rpc)
-    });
+    })
 
     rpc.login({ clientId: config.discordAppId }).catch((e) => {
       return reject(e)
-    });
+    })
   })
 }
 
@@ -501,9 +504,8 @@ app.whenReady().then(async () => {
     console.log('Enabling steam overlay support')
     steamworks.electronEnableSteamOverlay()
   }
-  
-  const mainWindow = await createWindow()
 
+  const mainWindow = await createWindow()
 
   mainWindow.show()
 

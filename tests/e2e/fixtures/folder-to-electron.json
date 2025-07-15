@@ -3,6 +3,154 @@
   "name": "Folder to Electron",
   "variables": [],
   "canvas": {
+    "blocks": [
+      {
+        "uid": "electron-package-node",
+        "type": "action",
+        "origin": {
+          "nodeId": "electron:package:v2",
+          "pluginId": "electron"
+        },
+        "params": {
+          "arch": {
+            "editor": "simple",
+            "value": ""
+          },
+          "platform": {
+            "editor": "simple",
+            "value": ""
+          },
+          "input-folder": {
+            "editor": "simple",
+            "value": "\"./tests/e2e/fixtures/html-export\""
+          },
+          "name": {
+            "editor": "simple",
+            "value": "\"Pipelab\""
+          },
+          "appBundleId": {
+            "editor": "simple",
+            "value": "\"com.pipelab.app\""
+          },
+          "appCopyright": {
+            "editor": "simple",
+            "value": "\"Copyright © 2024 Pipelab\""
+          },
+          "appVersion": {
+            "editor": "simple",
+            "value": "\"1.0.0\""
+          },
+          "icon": {
+            "editor": "simple",
+            "value": ""
+          },
+          "author": {
+            "editor": "simple",
+            "value": "\"Pipelab\""
+          },
+          "description": {
+            "editor": "simple",
+            "value": "\"A sample application\""
+          },
+          "appCategoryType": {
+            "editor": "simple",
+            "value": "\"public.app-category.developer-tools\""
+          },
+          "width": {
+            "editor": "simple",
+            "value": 800
+          },
+          "height": {
+            "editor": "simple",
+            "value": 600
+          },
+          "fullscreen": {
+            "editor": "simple",
+            "value": "false"
+          },
+          "frame": {
+            "editor": "simple",
+            "value": "true"
+          },
+          "transparent": {
+            "editor": "simple",
+            "value": "false"
+          },
+          "toolbar": {
+            "editor": "simple",
+            "value": "false"
+          },
+          "alwaysOnTop": {
+            "editor": "simple",
+            "value": "false"
+          },
+          "electronVersion": {
+            "editor": "simple",
+            "value": ""
+          },
+          "customMainCode": {
+            "editor": "simple",
+            "value": ""
+          },
+          "disableAsarPackaging": {
+            "editor": "simple",
+            "value": "true"
+          },
+          "enableExtraLogging": {
+            "editor": "simple",
+            "value": "false"
+          },
+          "clearServiceWorkerOnBoot": {
+            "editor": "simple",
+            "value": "false"
+          },
+          "enableInProcessGPU": {
+            "editor": "simple",
+            "value": "false"
+          },
+          "enableDisableRendererBackgrounding": {
+            "editor": "simple",
+            "value": "false"
+          },
+          "forceHighPerformanceGpu": {
+            "editor": "simple",
+            "value": "false"
+          },
+          "websocketApi": {
+            "editor": "simple",
+            "value": "[]"
+          },
+          "ignore": {
+            "editor": "simple",
+            "value": "[\n  // use 'src/app/' as starting point\n]"
+          },
+          "enableSteamSupport": {
+            "editor": "simple",
+            "value": "true"
+          },
+          "steamGameId": {
+            "editor": "simple",
+            "value": ""
+          },
+          "openDevtoolsOnStart": {
+            "editor": "simple",
+            "value": false
+          },
+          "enableDiscordSupport": {
+            "editor": "simple",
+            "value": false
+          },
+          "discordAppId": {
+            "editor": "simple",
+            "value": ""
+          },
+          "customPackages": {
+            "editor": "editor",
+            "value": "[\n]"
+          }
+        }
+      }
+    ],
     "triggers": [
       {
         "type": "event",
@@ -12,26 +160,6 @@
         },
         "uid": "manual-start",
         "params": {}
-      }
-    ],
-    "blocks": [
-      {
-        "uid": "electron-package-node",
-        "type": "action",
-        "origin": {
-          "nodeId": "electron:package",
-          "pluginId": "electron"
-        },
-        "params": {
-          "configuration": {
-            "editor": "editor",
-            "value": "{}"
-          },
-          "input-folder": {
-            "editor": "editor",
-            "value": "\"./tests/e2e/fixtures/folder-to-electron\""
-          }
-        }
       }
     ]
   },

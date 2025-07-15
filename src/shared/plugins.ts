@@ -12,11 +12,11 @@ const builtInPlugins = async () => {
     (await import('./libs/plugin-electron')).default,
     (await import('./libs/plugin-discord')).default,
     (await import('./libs/plugin-poki')).default,
-    (await import('./libs/plugin-nvpatch')).default
+    (await import('./libs/plugin-nvpatch')).default,
+    (await import('./libs/plugin-tauri')).default
   ]
 
   if (is.dev) {
-    base.push((await import('./libs/plugin-tauri')).default)
     base.push((await import('./libs/plugin-netlify')).default)
   }
 

@@ -45,6 +45,8 @@ describe('basic', () => {
 
         const result = JSON.parse(await readFile(tmpLogFile, 'utf8'))
 
+        console.log('result', result)
+
         expect(exitCode).toBe(0)
         expect(result.steps).toBeDefined()
         expect(result.steps).toEqual({
@@ -57,6 +59,56 @@ describe('basic', () => {
 
         const output = result.steps['electron-package-node'].outputs.output
         const outputRun = await execa(join(output, binName), [])
+
+        expect(outputRun.exitCode).toBe(0)
+      } catch (e) {
+        console.log('e', e)
+        throw e
+      }
+    }
+  )
+
+  it(
+    'package folder to tauri',
+    {
+      timeout: 120_000
+    },
+    async () => {
+      const jsonProject = join(fixtures, 'folder-to-tauri.json')
+      console.log('jsonProject', jsonProject)
+
+      try {
+        const { exitCode, stdout, stderr } = await execa(
+          bin,
+          ['--', '--project', jsonProject, '--action', 'run', '--output', tmpLogFile],
+          {
+            stdout: ['pipe', 'inherit'],
+            stderr: ['pipe', 'inherit'],
+            env: {}
+          }
+        )
+
+        const result = JSON.parse(await readFile(tmpLogFile, 'utf8'))
+
+        console.log('result', result)
+
+        const binary = result.steps['tauri-package-node']?.outputs?.binary
+
+        console.log('binary', binary)
+
+        expect(exitCode).toBe(0)
+        expect(binary).toBeDefined()
+        expect(result.steps).toBeDefined()
+        expect(result.steps).toEqual({
+          'tauri-package-node': {
+            outputs: {
+              output: expect.any(String),
+              binary: expect.any(String)
+            }
+          }
+        })
+
+        const outputRun = await execa(binary, [])
 
         expect(outputRun.exitCode).toBe(0)
       } catch (e) {

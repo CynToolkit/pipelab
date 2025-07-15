@@ -529,11 +529,12 @@ export const tauri = async (
     log('Setting build.devUrl to', appFolder)
     tauriConfJSON.build.devUrl = appFolder
     await writeFile(tauriConfJSONPath, JSON.stringify(tauriConfJSON, null, 2))
-  } else {
+  }
+  /* else {
     log('Setting build.frontendDist to', appFolder)
     tauriConfJSON.build.frontendDist = appFolder
     await writeFile(tauriConfJSONPath, JSON.stringify(tauriConfJSON, null, 2))
-  }
+  } */
 
   log('Installing packages')
   await runWithLiveLogs(

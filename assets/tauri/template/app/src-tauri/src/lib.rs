@@ -233,6 +233,7 @@ async fn route_message<R: Runtime>(
         "/steam/raw" => handle_not_implemented(message, writer).await?,
         "/discord/set-activity" => handle_not_implemented(message, writer).await?,
         "/infos" => handle_not_implemented(message, writer).await?,
+        "/exit" => handle_exit(message, writer, app_handle).await?,
 
         _ => {
             println!("Received unhandled URL: {}", message.url);
@@ -540,6 +541,31 @@ async fn handle_window_unmaximize<R: Runtime>(
             return Err(anyhow::anyhow!("Main window not found"));
         }
     }
+    Ok(())
+}
+
+async fn handle_exit<R: Runtime>(
+    message: IncomingMessage,
+    writer: Arc<Mutex<SplitSink<WebSocketStream<TcpStream>, Message>>>,
+    app_handle: AppHandle<R>,
+) -> anyhow::Result<()> {
+    // Use anyhow::Result
+    println!("Handling /exit request");
+    let response = ResponseMessage {
+        url: message.url.clone(),
+        correlation_id: message.correlation_id.clone(),
+        body: SuccessBody {
+            success: true,
+            data: Option::<()>::None,
+        },
+    };
+    let json_response = serde_json::to_string(&response)?;
+    let mut w = writer.lock().await;
+    w.send(Message::Text(json_response)).await?;
+
+    app_handle.exit(0);
+    // TODO: support exit code
+    // app_handle.exit(message.body.code);
     Ok(())
 }
 
