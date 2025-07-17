@@ -1,6 +1,7 @@
 import { usePlugins } from '@@/plugins'
 import { downloadFile, Hooks, RendererPluginDefinition } from '../shared/libs/plugin-core'
 import { access, chmod, mkdir, mkdtemp, realpath, rm, unlink, writeFile } from 'node:fs/promises'
+import { tempFolderTracker } from './temp-tracker'
 import { dirname, join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { app } from 'electron'
@@ -61,7 +62,12 @@ export const generateTempFolder = async (base = tmpdir()) => {
   })
   const realPath = await realpath(base)
   console.log('join', join(realPath, 'pipelab-'))
-  return mkdtemp(join(realPath, 'pipelab-'))
+  const tempFolder = await mkdtemp(join(realPath, 'pipelab-'))
+  
+  // Track the created temporary folder
+  tempFolderTracker.track(tempFolder)
+  
+  return tempFolder
 }
 
 /**

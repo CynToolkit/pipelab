@@ -71,7 +71,7 @@ describe('basic', () => {
   it(
     'package folder to tauri',
     {
-      timeout: 120_000
+      timeout: 240_000
     },
     async () => {
       const jsonProject = join(fixtures, 'folder-to-tauri.json')

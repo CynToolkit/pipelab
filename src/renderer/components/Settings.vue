@@ -64,13 +64,29 @@
               </InputGroup>
               <p class="description">Manage where the app stores temporary and cache files.</p>
             </div>
-            <div class="actions">
+            <div class="field actions">
               <Button :disabled="!settingsRef" class="btn danger" @click="clearCache"
                 >Clear Cache</Button
               >
               <Button :disabled="!settingsRef" class="btn" @click="resetCacheFolder"
                 >Reset to Default</Button
               >
+            </div>
+            <div class="field">
+              <div class="field-switch">
+                <ToggleSwitch
+                  :disabled="!settingsRef"
+                  input-id="clear-temp-folders"
+                  :model-value="settingsRef?.clearTemporaryFoldersOnPipelineEnd || false"
+                  @update:model-value="updateClearTemporaryFoldersOnPipelineEnd"
+                />
+                <label for="clear-temp-folders" class="label">
+                  {{ t('settings.clearTempFolders') }}
+                </label>
+              </div>
+              <p class="description">
+                {{ t('settings.clearTempFoldersDescription') }}
+              </p>
             </div>
           </div>
         </TabPanel>
@@ -163,6 +179,13 @@ const updateCacheFolder = (value: string) => {
   return appSettings.updateSettings({
     ...settingsRef.value,
     cacheFolder: value
+  })
+}
+
+const updateClearTemporaryFoldersOnPipelineEnd = (value: boolean) => {
+  return appSettings.updateSettings({
+    ...settingsRef.value,
+    clearTemporaryFoldersOnPipelineEnd: value
   })
 }
 

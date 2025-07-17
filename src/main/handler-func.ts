@@ -18,6 +18,7 @@ import { HandleListenerSendFn } from './handlers'
 import { ensureNodeJS, generateTempFolder } from './utils'
 import { setupConfig } from './config'
 import { join } from 'node:path'
+import { tempFolderTracker } from './temp-tracker'
 
 const checkParams = (definitionParams: InputsDefinition, elementParams: Record<string, string>) => {
   // get a list of all required params
@@ -63,52 +64,61 @@ export const handleConditionExecute = async (
       }
     | undefined
 
-  if (node) {
-    const _settings = await setupConfig()
-    const settings = await _settings.getConfig()
-    const tmp = await generateTempFolder(settings.cacheFolder)
-
-    await mkdir(tmp, {
-      recursive: true
-    })
-
-    checkParams(node.node.params, params)
-
-    const resolvedInputs = params // await resolveConditionInputs(params, node.node, steps)
-
-    try {
-      const outputs = {}
-      const value = await node.runner({
-        inputs: resolvedInputs,
-        log: (...args) => {
-          logger().info(`[${node.node.name}]`, ...args)
-        },
-        meta: {
-          definition: ''
-        },
-        setMeta: () => {
-          logger().info('set meta defined here')
-        },
-        cwd: tmp
-      })
-      return {
-        type: 'success',
-        result: {
-          outputs,
-          value
-        }
-      }
-    } catch (e) {
-      logger().error('e', e)
-      return {
-        type: 'error',
-        ipcError: e
-      }
-    }
-  } else {
+  if (!node) {
     return {
       type: 'error',
       ipcError: 'Node not found'
+    }
+  }
+
+  const _settings = await setupConfig()
+  const config = await _settings.getConfig()
+  const tmp = await generateTempFolder(config.cacheFolder)
+
+  await mkdir(tmp, {
+    recursive: true
+  })
+
+  try {
+    checkParams(node.node.params, params)
+    const resolvedInputs = params // await resolveConditionInputs(params, node.node, steps)
+
+    const result = await node.runner({
+      inputs: resolvedInputs,
+      log: (...args) => {
+        logger().info(`[${node.node.name}]`, ...args)
+      },
+      meta: {
+        definition: ''
+      },
+      setMeta: () => {
+        logger().info('set meta defined here')
+      },
+      cwd: tmp
+    })
+
+    // Clean up temporary folders on success if setting is enabled
+    if (config.clearTemporaryFoldersOnPipelineEnd) {
+      await tempFolderTracker.cleanup()
+    }
+
+    return {
+      type: 'success',
+      result: {
+        outputs: {},
+        value: result
+      }
+    }
+  } catch (e) {
+    // Clean up temporary folders on error if setting is enabled
+    if (config.clearTemporaryFoldersOnPipelineEnd) {
+      await tempFolderTracker.cleanup()
+    }
+
+    logger().error('Error in condition execution:', e)
+    return {
+      type: 'error',
+      ipcError: e
     }
   }
 }
@@ -123,8 +133,10 @@ export const handleActionExecute = async (
 ): Promise<End<'action:execute'>> => {
   const { plugins } = usePlugins()
   const { logger } = useLogger()
+  const settings = await setupConfig()
+  const config = await settings.getConfig()
 
-  mainWindow.setProgressBar(1, {
+  mainWindow?.setProgressBar(1, {
     mode: 'indeterminate'
   })
 
@@ -137,99 +149,89 @@ export const handleActionExecute = async (
       }
     | undefined
 
-  if (node) {
-    try {
-      const _settings = await setupConfig()
-      const settings = await _settings.getConfig()
-      console.log('settings.cacheFolder', settings.cacheFolder)
-
-      const tmp = await generateTempFolder(settings.cacheFolder)
-      console.log('tmp', tmp)
-
-      await mkdir(tmp, {
-        recursive: true
-      })
-
-      checkParams(node.node.params, params)
-
-      const resolvedInputs = params // await resolveActionInputs(params, node.node, steps)
-
-      logger().info('resolvedInputs', resolvedInputs)
-
-      const _assetsPath = await assetsPath()
-      const _unpackPath = await unpackPath()
-
-      const nodePath = await ensureNodeJS()
-
-      const modulesPath = join(_unpackPath, 'node_modules')
-      const pnpm = join(modulesPath, 'pnpm', 'bin', 'pnpm.cjs')
-
-      const outputs: Record<string | number | symbol, unknown> = {}
-
-      const api = usePluginAPI(mainWindow)
-
-      await node.runner({
-        inputs: resolvedInputs,
-        log: (...args) => {
-          const decorator = `[${node.node.name}]`
-          const logArgs = [decorator, ...args]
-          logger().info(...logArgs)
-          send({
-            type: 'log',
-            data: {
-              decorator,
-              time: Date.now(),
-              message: args
-            }
-          })
-        },
-        setOutput: (key, value) => {
-          outputs[key] = value
-        },
-        meta: {
-          definition: ''
-        },
-        setMeta: () => {
-          logger().info('set meta defined here')
-        },
-        cwd: tmp,
-        paths: {
-          assets: _assetsPath,
-          unpack: _unpackPath,
-          cache: settings.cacheFolder,
-          node: nodePath,
-          pnpm
-        },
-        api,
-        browserWindow: mainWindow,
-        abortSignal
-      })
-      mainWindow.setProgressBar(1, {
-        mode: 'normal'
-      })
-      return {
-        type: 'success',
-        result: {
-          outputs
-        }
-      }
-    } catch (e) {
-      logger().error('[action:execute] e', e)
-      mainWindow.setProgressBar(1, {
-        mode: 'normal'
-      })
-      return {
-        type: 'error',
-        ipcError: e
-      }
-    }
-  } else {
-    mainWindow.setProgressBar(1, {
-      mode: 'normal'
-    })
+  if (!node) {
+    mainWindow?.setProgressBar(1, { mode: 'normal' })
     return {
       type: 'error',
       ipcError: 'Node not found'
+    }
+  }
+
+  const tmp = await generateTempFolder(config.cacheFolder)
+  const _assetsPath = await assetsPath()
+  const _unpackPath = await unpackPath()
+  const nodePath = await ensureNodeJS()
+  const modulesPath = join(_unpackPath, 'node_modules')
+  const pnpm = join(modulesPath, 'pnpm', 'bin', 'pnpm.cjs')
+  const outputs: Record<string, unknown> = {}
+  const api = usePluginAPI(mainWindow)
+
+  try {
+    await mkdir(tmp, { recursive: true })
+    checkParams(node.node.params, params)
+    const resolvedInputs = params // await resolveActionInputs(params, node.node, steps)
+    logger().info('resolvedInputs', resolvedInputs)
+
+    await node.runner({
+      inputs: resolvedInputs,
+      log: (...args) => {
+        const decorator = `[${node.node.name}]`
+        const logArgs = [decorator, ...args]
+        logger().info(...logArgs)
+        send({
+          type: 'log',
+          data: {
+            decorator,
+            time: Date.now(),
+            message: args
+          }
+        })
+      },
+      setOutput: (key: string, value: unknown) => {
+        outputs[key] = value
+      },
+      meta: {
+        definition: ''
+      },
+      setMeta: () => {
+        logger().info('set meta defined here')
+      },
+      cwd: tmp,
+      paths: {
+        assets: _assetsPath,
+        unpack: _unpackPath,
+        cache: config.cacheFolder,
+        node: nodePath,
+        pnpm
+      },
+      api,
+      browserWindow: mainWindow,
+      abortSignal
+    })
+
+    // Clean up temporary folders on success if setting is enabled
+    if (config.clearTemporaryFoldersOnPipelineEnd) {
+      await tempFolderTracker.cleanup()
+    }
+
+    mainWindow?.setProgressBar(1, { mode: 'normal' })
+
+    return {
+      type: 'success',
+      result: { outputs }
+    }
+  } catch (e) {
+    // Clean up temporary folders on error if setting is enabled
+    if (config.clearTemporaryFoldersOnPipelineEnd) {
+      await tempFolderTracker.cleanup()
+    }
+
+    logger().error('Error in action execution:', e)
+    mainWindow?.setProgressBar(1, { mode: 'normal' })
+
+    return {
+      type: 'error',
+      ipcError: e
     }
   }
 }
