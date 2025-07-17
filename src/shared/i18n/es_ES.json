@@ -14,6 +14,6 @@
       "billing": "Billing"
     },
     "clearTempFolders": "Automatically clean up temporary files",
-    "clearTempFoldersDescription": "When enabled, all temporary files created during pipeline execution will be automatically deleted after the pipeline completes. This helps save disk space but you may need to copy artifacts yourself to preserve them."
+    "clearTempFoldersDescription": "Cuando está habilitado, todos los archivos temporales creados durante la ejecución del pipeline se eliminarán automáticamente después de que el pipeline se complete. Esto ayuda a ahorrar espacio en el disco, pero puede que necesite copiar los artefactos usted mismo para preservarlos."
   }
 }
