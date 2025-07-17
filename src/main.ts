@@ -17,6 +17,7 @@ import { usePluginAPI } from '@main/api'
 import { setupConfig } from '@main/config'
 import { resolve } from 'node:path'
 import Squirrel from 'electron-squirrel-startup'
+import { tempFolderTracker } from '@main/temp-tracker'
 
 const isLinux = platform() === 'linux'
 // let tray
@@ -75,9 +76,9 @@ function createWindow(): void {
   const position =
     externalDisplay && is.dev
       ? {
-        x: externalDisplay.bounds.x + 50,
-        y: externalDisplay.bounds.y + 50
-      }
+          x: externalDisplay.bounds.x + 50,
+          y: externalDisplay.bounds.y + 50
+        }
       : {}
 
   // Create the browser window.
@@ -341,6 +342,11 @@ app.whenReady().then(async () => {
 
         if (output) {
           await writeFile(output, JSON.stringify(result, null, 2), 'utf8')
+        }
+
+        // Clean up temporary folders on success if setting is enabled
+        if (settings.clearTemporaryFoldersOnPipelineEnd) {
+          await tempFolderTracker.cleanup()
         }
       } catch (e) {
         console.error('error while executing process', e)

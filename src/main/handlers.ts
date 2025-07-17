@@ -2,11 +2,11 @@ import { Channels, Data, Events, Message } from '@@/apis'
 import { BrowserWindow, app, dialog, ipcMain } from 'electron'
 import { ensure, getFinalPlugins } from './utils'
 import { join } from 'node:path'
-import { writeFile, readFile } from 'node:fs/promises'
+import { writeFile, readFile, rm } from 'node:fs/promises'
 import { presets } from './presets/list'
 import { handleActionExecute, handleConditionExecute } from './handler-func'
 import { useLogger } from '@@/logger'
-import { setupConfig } from './config'
+import { getDefaultAppSettingsMigrated, setupConfig } from './config'
 
 export type HandleListenerSendFn<KEY extends Channels> = (events: Events<KEY>) => void
 
@@ -113,6 +113,39 @@ export const registerIPCHandlers = () => {
     logger().info('fs:read')
 
     await writeFile(value.path, value.content, 'utf-8')
+
+    send({
+      type: 'end',
+      data: {
+        type: 'success',
+        result: {
+          ok: true
+        }
+      }
+    })
+  })
+
+  handle('fs:rm', async (event, { value, send }) => {
+    const { logger } = useLogger()
+    logger().info('value', value)
+    logger().info('fs:rm')
+
+    try {
+      await rm(value.path, {
+        recursive: value.recursive,
+        force: value.force
+      })
+    } catch (e) {
+      logger().error('e', e)
+      send({
+        type: 'end',
+        data: {
+          type: 'error',
+          ipcError: 'Unable to remove file'
+        }
+      })
+      return
+    }
 
     send({
       type: 'end',
@@ -343,6 +376,32 @@ export const registerIPCHandlers = () => {
         type: 'success',
         result: {
           result: settings === true ? 'ok' : 'ko'
+        }
+      }
+    })
+  })
+
+  handle('settings:reset', async (event, { value, send }) => {
+    const { logger } = useLogger()
+    logger().info('value', value)
+    logger().info('settings:reset')
+
+    const settingsG = await setupConfig()
+    const settings = await settingsG.getConfig()
+
+    const migratedSettings = await getDefaultAppSettingsMigrated()
+
+    await settingsG.setConfig({
+      ...settings,
+      [value.key]: migratedSettings[value.key]
+    })
+
+    send({
+      type: 'end',
+      data: {
+        type: 'success',
+        result: {
+          result: 'ok'
         }
       }
     })

@@ -97,11 +97,6 @@ export const handleConditionExecute = async (
       cwd: tmp
     })
 
-    // Clean up temporary folders on success if setting is enabled
-    if (config.clearTemporaryFoldersOnPipelineEnd) {
-      await tempFolderTracker.cleanup()
-    }
-
     return {
       type: 'success',
       result: {
@@ -110,11 +105,6 @@ export const handleConditionExecute = async (
       }
     }
   } catch (e) {
-    // Clean up temporary folders on error if setting is enabled
-    if (config.clearTemporaryFoldersOnPipelineEnd) {
-      await tempFolderTracker.cleanup()
-    }
-
     logger().error('Error in condition execution:', e)
     return {
       type: 'error',
@@ -209,23 +199,13 @@ export const handleActionExecute = async (
       abortSignal
     })
 
-    // Clean up temporary folders on success if setting is enabled
-    if (config.clearTemporaryFoldersOnPipelineEnd) {
-      await tempFolderTracker.cleanup()
-    }
-
     mainWindow?.setProgressBar(1, { mode: 'normal' })
 
     return {
       type: 'success',
-      result: { outputs }
+      result: { outputs, tmp }
     }
   } catch (e) {
-    // Clean up temporary folders on error if setting is enabled
-    if (config.clearTemporaryFoldersOnPipelineEnd) {
-      await tempFolderTracker.cleanup()
-    }
-
     logger().error('Error in action execution:', e)
     mainWindow?.setProgressBar(1, { mode: 'normal' })
 

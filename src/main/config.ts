@@ -36,8 +36,10 @@ export const AppSettingsValidator = AppSettingsValidatorV3
 
 const migrator = createMigrator<AppConfigV1, AppConfig>()
 
+const defaultCacheFolder = join(tmpdir(), 'pipelab')
+
 export const defaultAppSettings = migrator.createDefault({
-  cacheFolder: tmpdir(),
+  cacheFolder: defaultCacheFolder,
   theme: 'light',
   version: '1.0.0'
 })
@@ -114,6 +116,8 @@ export const appSettingsMigrator = migrator.createMigrations({
     // })
   ]
 })
+
+export const getDefaultAppSettingsMigrated = () => appSettingsMigrator.migrate(defaultAppSettings)
 
 export const setupConfig = async () => {
   const userData = app.getPath('userData')

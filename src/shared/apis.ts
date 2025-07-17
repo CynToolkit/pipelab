@@ -1,7 +1,7 @@
 import { RendererPluginDefinition } from '@pipelab/plugin-core'
 import type { Tagged } from 'type-fest'
 import { PresetResult, Steps } from './model'
-import { AppConfig } from '@main/config';
+import { AppConfig } from '@main/config'
 
 type Event<TYPE extends string, DATA> =
   | { type: TYPE; data: DATA }
@@ -40,6 +40,20 @@ export type IpcDefinition = {
     },
     EndEvent<{ ok: boolean }>
   ]
+  'fs:rm': [
+    // input
+    {
+      path: string
+      recursive: boolean
+      force: boolean
+    },
+    EndEvent<{ ok: boolean }>
+  ]
+  'settings:reset': [
+    // input
+    { key: keyof AppConfig },
+    EndEvent<{ result: string }>
+  ]
   'dialog:showOpenDialog': [
     // input
     Electron.OpenDialogOptions,
@@ -62,7 +76,7 @@ export type IpcDefinition = {
     (
       | Event<'progress', unknown>
       | Event<'progress', unknown>
-      | EndEvent<{ outputs: Record<string, unknown> }>
+      | EndEvent<{ outputs: Record<string, unknown>; tmp: string }>
     )
   ]
   'condition:execute': [

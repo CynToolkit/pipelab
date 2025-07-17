@@ -65,7 +65,7 @@
               <p class="description">Manage where the app stores temporary and cache files.</p>
             </div>
             <div class="field actions">
-              <Button :disabled="!settingsRef" class="btn danger" @click="clearCache"
+              <Button :disabled="!settingsRef || true" class="btn danger" @click="clearCache"
                 >Clear Cache</Button
               >
               <Button :disabled="!settingsRef" class="btn" @click="resetCacheFolder"
@@ -204,11 +204,38 @@ const browseCacheFolder = async () => {
     console.log('Error selecting cache folder', newPath)
   }
 }
-const clearCache = () => {
-  console.log('Cache cleared')
+const clearCache = async () => {
+  if (!settingsRef.value?.cacheFolder) return
+
+  try {
+    // Clear the cache folder contents
+    await api.execute('fs:rm', {
+      path: settingsRef.value.cacheFolder,
+      recursive: true,
+      force: true
+    })
+
+    // Show success message
+    // You might want to replace this with a toast notification component if available
+    alert('Cache cleared successfully')
+  } catch (error) {
+    console.error('Failed to clear cache:', error)
+    alert(`Failed to clear cache: ${error.message}`)
+  }
 }
-const resetCacheFolder = () => {
-  console.log('Cache folder reset to default: /tmp')
+
+const resetCacheFolder = async () => {
+  try {
+    // Reset to default cache folder (system temp directory)
+    await appSettings.reset('cacheFolder')
+
+    // Show success message
+    // You might want to replace this with a toast notification component if available
+    alert(`Cache folder reset to default`)
+  } catch (error) {
+    console.error('Failed to reset cache folder:', error)
+    alert(`Failed to reset cache folder: ${error.message}`)
+  }
 }
 
 const openBillingPortal = async () => {

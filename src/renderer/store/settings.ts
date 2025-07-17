@@ -8,6 +8,10 @@ export const useAppSettings = defineStore('settings', () => {
   const settings = ref<AppConfig>()
 
   const init = async () => {
+    await load()
+  }
+
+  const load = async () => {
     const result = await api.execute('settings:load')
     if (result.type === 'error') {
       console.error(result)
@@ -22,7 +26,16 @@ export const useAppSettings = defineStore('settings', () => {
     if (result.type === 'error') {
       console.error(result)
     }
+    await load()
   }
 
-  return { init, updateSettings, settings: readonly(settings) }
+  const reset = async (key: keyof AppConfig) => {
+    const result = await api.execute('settings:reset', { key })
+    if (result.type === 'error') {
+      console.error(result)
+    }
+    await load()
+  }
+
+  return { init, updateSettings, settings: readonly(settings), reset, load }
 })

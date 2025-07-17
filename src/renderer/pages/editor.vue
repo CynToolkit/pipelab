@@ -325,6 +325,7 @@ import { value } from 'valibot'
 import { ValueOf } from 'type-fest'
 import { createQuickJs } from '@renderer/utils/quickjs'
 import ParamEditor from '@renderer/components/nodes/ParamEditor.vue'
+import { useAppSettings } from '@renderer/store/settings'
 
 // @ts-expect-error tsconfig
 const vm = await createQuickJs()
@@ -372,6 +373,9 @@ const { update } = filesStore
 
 const authStore = useAuth()
 const { isLoggedIn } = storeToRefs(authStore)
+
+const appSettings = useAppSettings()
+const { settings: settingsRef } = storeToRefs(appSettings)
 
 const quickLogs = ref([])
 
@@ -441,6 +445,9 @@ const run = async () => {
 
   setIsRunning(true)
   clearLogs()
+
+  const collectedTmpPaths: string[] = []
+
   try {
     await processGraph({
       graph: klona(nodes.value),
@@ -513,12 +520,30 @@ const run = async () => {
             origin_plugin_id: lastActiveNode.value.origin.pluginId
           })
           nodeStatuses.value[node.uid] = 'done'
+
+          console.log('result', result)
+
+          if (result.type === 'success') {
+            collectedTmpPaths.push(result.result.tmp)
+          }
+
           return result
         } else {
           throw new Error('Unhandled type ' + node.type)
         }
       }
     })
+
+    // Clean up temporary folders on success if setting is enabled
+    if (settingsRef.value.clearTemporaryFoldersOnPipelineEnd) {
+      for (const path of collectedTmpPaths) {
+        await api.execute('fs:rm', {
+          path,
+          recursive: true,
+          force: false
+        })
+      }
+    }
 
     toast.add({
       summary: 'Execution done',
