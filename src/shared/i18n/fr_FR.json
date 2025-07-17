@@ -12,6 +12,8 @@
       "integrations": "Intégrations",
       "advanced": "Avancé",
       "billing": "Facturation"
-    }
+    },
+    "clearTempFolders": "Automatically clean up temporary files",
+    "clearTempFoldersDescription": "When enabled, all temporary files created during pipeline execution will be automatically deleted after the pipeline completes. This helps save disk space but you may need to copy artifacts yourself to preserve them."
   }
 }
