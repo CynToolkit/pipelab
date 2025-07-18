@@ -1,17 +1,20 @@
 import { createRouter, createWebHashHistory, RouterOptions } from 'vue-router'
+import { i18n } from '../i18n'
+
+const { t } = i18n.global
 
 const routes: RouterOptions['routes'] = [
   {
     path: '/',
     name: 'Home',
-    redirect: "Dashboard",
+    redirect: 'Dashboard'
   },
   {
     path: '/dashboard',
     component: () => import('../pages/index.vue'),
     name: 'Dashboard',
     meta: {
-      title: 'Dashboard'
+      title: t('headers.dashboard')
     }
   },
   {
@@ -19,18 +22,16 @@ const routes: RouterOptions['routes'] = [
     name: 'Scenarios',
     component: () => import('../pages/scenarios.vue'),
     meta: {
-      title: 'Scenarios'
+      title: t('headers.scenarios')
     },
-    children: [
-
-    ]
+    children: []
   },
   {
     path: '/scenarios/editor/:id',
     name: 'Editor',
     component: () => import('../pages/editor.vue'),
     meta: {
-      title: 'Editor'
+      title: t('headers.editor')
     }
   },
   {
@@ -38,7 +39,7 @@ const routes: RouterOptions['routes'] = [
     name: 'Billing',
     component: () => import('../pages/editor.vue'),
     meta: {
-      title: 'Billing'
+      title: t('headers.billing')
     }
   },
   {
@@ -46,9 +47,9 @@ const routes: RouterOptions['routes'] = [
     name: 'Team',
     component: () => import('../pages/team.vue'),
     meta: {
-      title: 'Team'
+      title: t('headers.team')
     }
-  },
+  }
 ]
 
 export const router = createRouter({

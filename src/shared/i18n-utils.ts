@@ -6,4 +6,5 @@ import es_ES from './i18n/es_ES.json'
 import de_DE from './i18n/de_DE.json'
 
 type MessageSchema = typeof en_US
+export type Locales = 'en-US' | 'fr-FR' | 'pt-BR' | 'zh-CN' | 'es-ES' | 'de-DE'
 export { MessageSchema, en_US, fr_FR, pt_BR, zh_CN, es_ES, de_DE }

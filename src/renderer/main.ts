@@ -21,7 +21,7 @@ import ToastService from 'primevue/toastservice'
 import ConfirmationService from 'primevue/confirmationservice'
 import posthogPlugin from './plugins/posthog' //import the plugin.
 import posthog from 'posthog-js'
-import { en_US, fr_FR, pt_BR, zh_CN, es_ES, de_DE, MessageSchema } from '@@/i18n-utils'
+import { i18n } from './i18n'
 
 if (window.isPackaged && !window.isTest && !window.isCI) {
   init(
@@ -42,22 +42,6 @@ if (window.isPackaged && !window.isTest && !window.isCI) {
     vueInit
   )
 }
-
-const i18n = createI18n<[MessageSchema], 'en-US' | 'fr-FR' | 'pt-BR' | 'zh-CN' | 'es-ES' | 'de-DE'>(
-  {
-    legacy: false,
-    locale: 'en-US',
-    fallbackLocale: 'en-US',
-    messages: {
-      'en-US': en_US,
-      'fr-FR': fr_FR as MessageSchema,
-      'pt-BR': pt_BR as MessageSchema,
-      'zh-CN': zh_CN as MessageSchema,
-      'es-ES': es_ES as MessageSchema,
-      'de-DE': de_DE as MessageSchema
-    }
-  }
-)
 
 const pinia = createPinia()
 pinia.use(piniaPluginPersistedstate)

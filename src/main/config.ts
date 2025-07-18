@@ -27,12 +27,28 @@ export const AppSettingsValidatorV3 = createVersionSchema({
   clearTemporaryFoldersOnPipelineEnd: boolean()
 })
 
+export const AppSettingsValidatorV4 = createVersionSchema({
+  cacheFolder: string(),
+  theme: union([literal('light'), literal('dark')]),
+  version: literal('4.0.0'),
+  clearTemporaryFoldersOnPipelineEnd: boolean(),
+  locale: union([
+    literal('en-US'),
+    literal('fr-FR'),
+    literal('pt-BR'),
+    literal('zh-CN'),
+    literal('es-ES'),
+    literal('de-DE')
+  ])
+})
+
 export type AppConfigV1 = InferInput<typeof AppSettingsValidatorV1>
 export type AppConfigV2 = InferInput<typeof AppSettingsValidatorV2>
 export type AppConfigV3 = InferInput<typeof AppSettingsValidatorV3>
+export type AppConfigV4 = InferInput<typeof AppSettingsValidatorV4>
 
-export type AppConfig = AppConfigV3
-export const AppSettingsValidator = AppSettingsValidatorV3
+export type AppConfig = AppConfigV4
+export const AppSettingsValidator = AppSettingsValidatorV4
 
 const migrator = createMigrator<AppConfigV1, AppConfig>()
 
@@ -64,11 +80,23 @@ export const appSettingsMigrator = migrator.createMigrations({
         throw new Error("Can't migrate down from 2.0.0")
       }
     }),
-    createMigration<AppConfigV2, AppConfigV3, never>({
+    createMigration<AppConfigV2, AppConfigV3, AppConfigV4>({
       version: '3.0.0',
+      up: (state) => ({
+        ...state,
+        locale: 'en-US' as const // Default locale for existing users
+      }),
+      down: (state) => {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { locale, ...rest } = state as AppConfigV4
+        return rest as unknown as AppConfigV3
+      }
+    }),
+    createMigration<AppConfigV3, AppConfigV4, never>({
+      version: '4.0.0',
       up: finalVersion,
       down: () => {
-        throw new Error("Can't migrate down from 3.0.0")
+        throw new Error("Can't migrate down from 4.0.0")
       }
     })
     // createMigration<SavedFileV1, SavedFileV2, SavedFileV3>({

@@ -24,19 +24,27 @@
               </div>
             </div>
             <div class="field">
+              <label for="app-theme" class="label">Language</label>
               <div class="field-switch">
                 <div class="locale-changer">
-                  <select v-model="$i18n.locale">
-                    <option
-                      v-for="locale in $i18n.availableLocales"
-                      :key="`locale-${locale}`"
-                      :value="locale"
-                    >
-                      {{ locale }}
-                    </option>
-                  </select>
+                  <Select
+                    :options="$i18n.availableLocales"
+                    v-model="currentLocale"
+                    class="w-full p-2 border rounded"
+                  >
+                    <template #option="slotProps">
+                      <div class="flex items-center">
+                        <div>{{ $t('settings.languageOptions.' + slotProps.option) }}</div>
+                      </div>
+                    </template>
+
+                    <template #value="slotProps">
+                      <div class="flex items-center">
+                        <div>{{ $t('settings.languageOptions.' + slotProps.value) }}</div>
+                      </div>
+                    </template>
+                  </Select>
                 </div>
-                <label for="app-theme" class="label">Language</label>
               </div>
             </div>
           </div>
@@ -155,13 +163,14 @@ import { useAuth } from '@renderer/store/auth'
 
 import { format } from 'date-fns'
 import { useI18n } from 'vue-i18n'
-import { MessageSchema } from '@@/i18n-utils'
+import { Locales, MessageSchema } from '@@/i18n-utils'
+import { watch } from 'vue'
 
-const { t } = useI18n<
+const { t, locale } = useI18n<
   {
     message: MessageSchema
   },
-  'en-US'
+  Locales
 >()
 
 const appSettings = useAppSettings()
@@ -188,6 +197,27 @@ const updateClearTemporaryFoldersOnPipelineEnd = (value: boolean) => {
     clearTemporaryFoldersOnPipelineEnd: value
   })
 }
+
+const currentLocale = computed({
+  get: () => (settingsRef.value?.locale as string) || 'en-US',
+  set: (value: string) => {
+    appSettings.updateSettings({
+      ...settingsRef.value,
+      locale: value as Locales
+    })
+  }
+})
+
+// Update i18n locale when settings change
+watch(
+  () => settingsRef.value?.locale,
+  (newLocale) => {
+    if (newLocale) {
+      locale.value = newLocale
+    }
+  },
+  { immediate: true }
+)
 
 const browseCacheFolder = async () => {
   const newPath = await api.execute('dialog:showOpenDialog', {

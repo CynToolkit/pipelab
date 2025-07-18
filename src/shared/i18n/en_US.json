@@ -3,8 +3,12 @@
     "darkTheme": "Dark theme",
     "language": "Language",
     "languageOptions": {
-      "en": "English",
-      "fr": "French"
+      "en-US": "English",
+      "fr-FR": "French",
+      "pt-BR": "Portuguese",
+      "zh-CN": "Chinese",
+      "es-ES": "Spanish",
+      "de-DE": "German"
     },
     "tabs": {
       "general": "General",
@@ -15,5 +19,12 @@
     },
     "clearTempFolders": "Automatically clean up temporary files",
     "clearTempFoldersDescription": "When enabled, all temporary files created during pipeline execution will be automatically deleted after the pipeline completes. This helps save disk space but you may need to copy artifacts yourself to preserve them."
+  },
+  "headers": {
+    "dashboard": "Dashboard",
+    "scenarios": "Scenarios",
+    "editor": "Editor",
+    "billing": "Billing",
+    "team": "Team"
   }
 }
