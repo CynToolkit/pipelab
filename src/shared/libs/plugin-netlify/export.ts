@@ -37,7 +37,7 @@ export const uploadToNetlify = createAction({
   description: '',
   icon: '',
   displayString:
-    "`Upload ${fmt.param(params['input-folder'], 'primary', 'No path selected')} to ${fmt.param(params['user'], 'primary', 'No project')}/${fmt.param(params['project'], 'primary', 'No project')}:${fmt.param(params['channel'], 'primary', 'No channel')}`",
+    "`Upload ${fmt.param(params['input-folder'], 'primary', 'No path selected')} to ${fmt.param(params['site'], 'primary', 'No site')}`",
   meta: {},
   params: {
     'input-folder': createPathParam('', {

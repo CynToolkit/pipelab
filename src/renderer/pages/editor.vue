@@ -9,7 +9,7 @@
             <div class="left">
               <Button
                 outlined
-                label="$t('base.close')"
+                :label="t('base.close')"
                 :disabled="isRunning"
                 size="small"
                 @click="onCloseRequest"
@@ -61,7 +61,7 @@
             <div class="right">
               <Button
                 outlined
-                label="$t('base.save')"
+                :label="t('base.save')"
                 :disabled="isRunning"
                 size="small"
                 @click="onSaveRequest"
@@ -70,12 +70,12 @@
                   <i class="mdi mdi-content-save mr-1"></i>
                 </template>
               </Button>
-              <Button v-if="!isRunning" outlined label="$t('base.run')" size="small" @click="run">
+              <Button v-if="!isRunning" outlined :label="t('base.run')" size="small" @click="run">
                 <template #icon>
                   <i class="mdi mdi-play mr-1"></i>
                 </template>
               </Button>
-              <Button v-else outlined label="$t('base.cancel')" size="small" @click="cancel">
+              <Button v-else outlined :label="t('base.cancel')" size="small" @click="cancel">
                 <template #icon>
                   <i class="mdi mdi-cancel mr-1"></i>
                 </template>
@@ -120,7 +120,7 @@
                   :starting-index="1"
                   :is-running="isRunning"
                 ></NodesEditor>
-                <EditorNodeDummy title="$t('base.end')"></EditorNodeDummy>
+                <EditorNodeDummy :title="t('base.end')"></EditorNodeDummy>
               </div>
             </div>
             <!-- <div class="aside">
@@ -165,7 +165,7 @@
               </div>
               <div class="flex items-center gap-2">
                 <Button
-                  label="$t('base.delete')"
+                  :label="t('base.delete')"
                   icon="pi pi-trash"
                   class="flex-auto"
                   severity="danger"
@@ -178,7 +178,7 @@
           <div class="bottom" :class="{ expanded: bottomExpanded }">
             <div class="header" @click="toggleLogsWindow">
               <div class="ml-2 h3 logs-header">
-                <div>{{ $t('base.logs') }}</div>
+                <div>{{ t('base.logs') }}</div>
                 <div v-if="isRunning" class="logs-animated">
                   <div
                     v-for="log in quickLogs"
@@ -275,11 +275,11 @@
             <div class="flex justify-end gap-2">
               <Button
                 type="button"
-                label="$t('base.cancel')"
+                :label="t('base.cancel')"
                 severity="secondary"
                 @click="onPromptDialogCancel"
               ></Button>
-              <Button type="button" label="$t('base.ok')" @click="onPromptDialogOK"></Button>
+              <Button type="button" :label="t('base.ok')" @click="onPromptDialogOK"></Button>
             </div>
           </Dialog>
         </div>

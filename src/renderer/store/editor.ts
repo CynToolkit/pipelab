@@ -202,9 +202,15 @@ export const useEditor = defineStore('editor', () => {
     activeNode.value = node
   }
 
-  const selectedNode = ref<BlockAction | BlockCondition | BlockLoop>()
+  const selectedNodeUid = ref<string | undefined>()
+  const selectedNode = computed(() => {
+    if (!selectedNodeUid.value) {
+      return undefined
+    }
+    return blocks.value.find((x) => x.uid === selectedNodeUid.value)
+  })
   const setSelectedNode = (node: BlockAction | BlockCondition | BlockLoop | undefined) => {
-    selectedNode.value = node
+    selectedNodeUid.value = node?.uid
   }
 
   /** All the plugins's node definitions */
