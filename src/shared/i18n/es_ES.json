@@ -26,5 +26,49 @@
     "editor": "Editor",
     "billing": "Billing",
     "team": "Team"
+  },
+  "base": {
+    "close": "Close",
+    "save": "Save",
+    "run": "Run",
+    "cancel": "Cancel",
+    "end": "End",
+    "delete": "Delete",
+    "logs": "Logs",
+    "ok": "OK"
+  },
+  "editor": {
+    "invalid-file-content": "Invalid file content",
+    "welcome-back": "Welcome back!",
+    "please-log-in-to-run-a-scenario": "Please log in to run a scenario",
+    "execution-done": "Execution done",
+    "your-project-has-been-executed-successfully": "Your project has been executed successfully",
+    "execution-failed": "Execution failed",
+    "project-has-encountered-an-error": "Project has encountered an error:",
+    "project-saved": "Project saved",
+    "your-project-has-be-saved-successfully": "Your project has be saved successfully"
+  },
+  "home": {
+    "invalid-preset": "Invalid preset",
+    "store-project-on-the-cloud": "Store project on the cloud",
+    "cloud": "Cloud",
+    "store-project-locally": "Store project locally",
+    "local": "Local",
+    "invalid-number-of-paths-selected": "Invalid number of paths selected",
+    "pipelab-project": "Pipelab Project",
+    "choose-a-new-path": "Choose a new path",
+    "invalid-file-type": "Invalid file type",
+    "create-project": "Create project",
+    "duplicate-project": "Duplicate project",
+    "project-name": "Project Name",
+    "new-project-1": "New Project",
+    "open": "Open",
+    "new-project-0": "New Project",
+    "your-projects": "Your projects",
+    "new-project": "New Project",
+    "no-projects-yet": "No projects yet"
+  },
+  "scenarios": {
+    "scenarios": "Scenarios"
   }
 }
