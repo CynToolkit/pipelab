@@ -9,7 +9,7 @@
             <div class="left">
               <Button
                 outlined
-                label="Close"
+                label="$t('base.close')"
                 :disabled="isRunning"
                 size="small"
                 @click="onCloseRequest"
@@ -61,7 +61,7 @@
             <div class="right">
               <Button
                 outlined
-                label="Save"
+                label="$t('base.save')"
                 :disabled="isRunning"
                 size="small"
                 @click="onSaveRequest"
@@ -70,12 +70,12 @@
                   <i class="mdi mdi-content-save mr-1"></i>
                 </template>
               </Button>
-              <Button v-if="!isRunning" outlined label="Run" size="small" @click="run">
+              <Button v-if="!isRunning" outlined label="$t('base.run')" size="small" @click="run">
                 <template #icon>
                   <i class="mdi mdi-play mr-1"></i>
                 </template>
               </Button>
-              <Button v-else outlined label="Cancel" size="small" @click="cancel">
+              <Button v-else outlined label="$t('base.cancel')" size="small" @click="cancel">
                 <template #icon>
                   <i class="mdi mdi-cancel mr-1"></i>
                 </template>
@@ -120,7 +120,7 @@
                   :starting-index="1"
                   :is-running="isRunning"
                 ></NodesEditor>
-                <EditorNodeDummy title="End"></EditorNodeDummy>
+                <EditorNodeDummy title="$t('base.end')"></EditorNodeDummy>
               </div>
             </div>
             <!-- <div class="aside">
@@ -165,7 +165,7 @@
               </div>
               <div class="flex items-center gap-2">
                 <Button
-                  label="Delete"
+                  label="$t('base.delete')"
                   icon="pi pi-trash"
                   class="flex-auto"
                   severity="danger"
@@ -178,7 +178,7 @@
           <div class="bottom" :class="{ expanded: bottomExpanded }">
             <div class="header" @click="toggleLogsWindow">
               <div class="ml-2 h3 logs-header">
-                <div>Logs</div>
+                <div>{{ $t('base.logs') }}</div>
                 <div v-if="isRunning" class="logs-animated">
                   <div
                     v-for="log in quickLogs"
@@ -275,11 +275,11 @@
             <div class="flex justify-end gap-2">
               <Button
                 type="button"
-                label="Cancel"
+                label="$t('base.cancel')"
                 severity="secondary"
                 @click="onPromptDialogCancel"
               ></Button>
-              <Button type="button" label="OK" @click="onPromptDialogOK"></Button>
+              <Button type="button" label="$t('base.ok')" @click="onPromptDialogOK"></Button>
             </div>
           </Dialog>
         </div>
@@ -326,6 +326,7 @@ import { ValueOf } from 'type-fest'
 import { createQuickJs } from '@renderer/utils/quickjs'
 import ParamEditor from '@renderer/components/nodes/ParamEditor.vue'
 import { useAppSettings } from '@renderer/store/settings'
+import { useI18n } from 'vue-i18n'
 
 // @ts-expect-error tsconfig
 const vm = await createQuickJs()
@@ -364,6 +365,7 @@ const {
   setSelectedNode
 } = instance
 
+const { t } = useI18n()
 const app = useAppStore()
 const { pluginDefinitions } = storeToRefs(app)
 
@@ -411,7 +413,7 @@ watch(
         const content = JSON.parse(fileData.content) as SavedFile
         await loadSavedFile(content)
       } else {
-        throw new Error('Invalid file content')
+        throw new Error(t('editor.invalid-file-content'))
       }
     }
   },
@@ -437,7 +439,10 @@ const cancel = async () => {
 
 const run = async () => {
   if (!isLoggedIn.value) {
-    authStore.displayAuthModal('Welcome back!', 'Please log in to run a scenario')
+    authStore.displayAuthModal(
+      t('editor.welcome-back'),
+      t('editor.please-log-in-to-run-a-scenario')
+    )
     return
   }
 
@@ -546,10 +551,10 @@ const run = async () => {
     }
 
     toast.add({
-      summary: 'Execution done',
+      summary: t('editor.execution-done'),
       life: 10_000,
       severity: 'success',
-      detail: 'Your project has been executed successfully'
+      detail: t('editor.your-project-has-been-executed-successfully')
     })
     posthog.capture('run_succeed')
   } catch (e) {
@@ -563,10 +568,10 @@ const run = async () => {
     console.error('error while executing process', e)
     if (e instanceof Error) {
       toast.add({
-        summary: 'Execution failed',
+        summary: t('editor.execution-failed'),
         life: 10_000,
         severity: 'error',
-        detail: 'Project has encountered an error: ' + e.message
+        detail: t('editor.project-has-encountered-an-error') + e.message
       })
     }
     posthog.capture('run_errored')
@@ -618,8 +623,8 @@ const saveLocal = async (path: string) => {
     }
   })
 
-  new Notification('Project saved', {
-    body: 'Your project has be saved successfully'
+  new Notification(t('editor.project-saved'), {
+    body: t('editor.your-project-has-be-saved-successfully')
   })
 }
 

@@ -4,6 +4,7 @@ import { User, UserResponse } from '@supabase/supabase-js'
 import { defineStore } from 'pinia'
 import { computed, readonly, Ref, ref, shallowRef } from 'vue'
 import posthog from 'posthog-js'
+import { email } from 'valibot'
 
 // Define a more comprehensive AuthStateType
 export type AuthStateType =
@@ -66,13 +67,25 @@ export const useAuth = defineStore('auth', () => {
   supabase.auth.onAuthStateChange((event, session) => {
     // Removed async to make it fully synchronous event handler as we are not initiating async actions inside
     logger.logger().debug('[Auth Change] Event:', event)
-    logger.logger().debug('[Auth Change] User ID:', session?.user?.id)
+    logger
+      .logger()
+      .debug(
+        '[Auth Change] User ID:',
+        session?.user?.id,
+        'is_anonymous:',
+        session?.user?.is_anonymous,
+        'email:',
+        session?.user?.email
+      )
 
     switch (event) {
       case 'SIGNED_IN':
         if (session?.user) {
           user.value = session.user
-          posthog.identify(session.user.id)
+          posthog.identify(session.user.id, {
+            email: session.user.email,
+            is_anonymous: session.user.is_anonymous || false
+          })
           setAuthState('SIGNED_IN')
         }
         break
@@ -84,13 +97,18 @@ export const useAuth = defineStore('auth', () => {
         if (session?.user) {
           logger
             .logger()
-            .info(
-              '[Auth] User already authenticated on initial session:',
-              session.user.id,
-              'anonymous:',
-              session.user.is_anonymous
+            .debug(
+              '[Auth Change] User ID:',
+              session?.user?.id,
+              'is_anonymous:',
+              session?.user?.is_anonymous,
+              'email:',
+              session?.user?.email
             )
-          // posthog.identify(session.user.id, { is_anonymous: session.user.is_anonymous || false })
+          posthog.identify(session.user.id, {
+            email: session.user.email,
+            is_anonymous: session.user.is_anonymous || false
+          })
           user.value = session.user
           setAuthState('SIGNED_IN')
         } else {
@@ -105,6 +123,7 @@ export const useAuth = defineStore('auth', () => {
       case 'SIGNED_OUT':
         logger.logger().info('[Auth] Signed out event.')
         user.value = null
+        posthog.reset()
         setAuthState('SIGNED_OUT')
         // No signInAnonymously() here. Let the app handle anonymous sign-in separately if needed after sign-out, or rely on initial sign-in on next load.
         break
@@ -139,12 +158,26 @@ export const useAuth = defineStore('auth', () => {
           .logger()
           .info('[Auth] Falling back to anonymous sign-in due to initial user fetch error.')
       } else if (data.user) {
-        logger.logger().info('[Auth] Found existing user during init:', data.user.id)
+        logger
+          .logger()
+          .info(
+            '[Auth] Found existing user during init:',
+            data.user.id,
+            'anonymous:',
+            data.user.is_anonymous,
+            'email:',
+            data.user.email
+          )
+        posthog.identify(data.user.id, {
+          email: data.user.email,
+          is_anonymous: data.user.is_anonymous || false
+        })
         user.value = data.user
         setAuthState('SIGNED_IN')
         fetchSubscription()
       } else {
         logger.logger().info('[Auth] No user found during init, signing in anonymously...')
+        posthog.identify()
       }
     } catch (e) {
       logger.logger().error('[Auth] Unexpected error during init:', e)
@@ -255,6 +288,6 @@ export const useAuth = defineStore('auth', () => {
     hideAuthModal,
     isAuthModalVisible,
     authModalTitle,
-    authModalSubTitle,
+    authModalSubTitle
   }
 })

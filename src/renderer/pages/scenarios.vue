@@ -4,13 +4,13 @@
       {{ headerSentence }}
     </div>
     <div class="content">
-      Scenarios
+      {{ $t('scenarios.scenarios') }}
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed } from 'vue'
 const headerSentence = computed(() => {
   return `Welcome back!`
 })

@@ -455,7 +455,7 @@ export const tauri = async (
   await cp(templateFolder, destinationFolder, {
     recursive: true,
     filter: (src) => {
-      log('src', src)
+      // log('src', src)
       // log('dest', dest)
       // TODO: support other oses
       return (
@@ -648,6 +648,8 @@ export const tauri = async (
     log('cargoTargetDir', cargoTargetDir)
     log('cargoOutputPath', cargoOutputPath)
 
+    log('Starting compiling')
+
     // by default add the tauri cli
     await runWithLiveLogs(
       cargo,
@@ -665,10 +667,16 @@ export const tauri = async (
       log,
       {
         onStderr(data) {
-          log(data)
+          // on ci, do not log
+          if (!process.env.CI) {
+            log(data)
+          }
         },
         onStdout(data) {
-          log(data)
+          // on ci, do not log
+          if (!process.env.CI) {
+            log(data)
+          }
         }
       }
     )
@@ -716,10 +724,16 @@ export const tauri = async (
         log,
         {
           onStderr(data) {
-            log(data)
+            // on ci, do not log
+            if (!process.env.CI) {
+              log(data)
+            }
           },
           onStdout(data) {
-            log(data)
+            // on ci, do not log
+            if (!process.env.CI) {
+              log(data)
+            }
           }
         }
       )

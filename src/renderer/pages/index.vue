@@ -4,10 +4,10 @@
     <Layout>
       <div class="your-projects">
         <div v-if="filesEnhanced.length === 0" class="no-projects">
-          <div>No projects yet</div>
+          <div>{{ $t('home.no-projects-yet') }}</div>
           <Button @click="newFile">
             <i class="mdi mdi-plus-circle-outline mr-2"></i>
-            New Project
+            {{ $t('home.new-project') }}
           </Button>
         </div>
         <div class="your-projects__table">
@@ -20,16 +20,16 @@
           >
             <template #header>
               <div class="flex justify-content-between">
-                <div class="list-header bold">Your projects</div>
+                <div class="list-header bold">{{ $t('home.your-projects') }}</div>
 
                 <div class="flex justify-content-end gap-2">
                   <Button @click="newFile">
                     <i class="mdi mdi-plus-circle-outline mr-2"></i>
-                    New Project
+                    {{ $t('home.new-project-0') }}
                   </Button>
                   <Button outlined @click="openFile">
                     <i class="mdi mdi-folder-open-outline mr-2"></i>
-                    Open
+                    {{ $t('home.open') }}
                   </Button>
                 </div>
               </div>
@@ -120,7 +120,7 @@
     >
       <template #header>
         <div class="flex flex-column w-full">
-          <p class="text-xl text-center">New Project</p>
+          <p class="text-xl text-center">{{ $t('home.new-project-1') }}</p>
         </div>
       </template>
 
@@ -128,12 +128,12 @@
         <div class="grid justify-content-center">
           <div class="col-12 xl:col-6 w-full">
             <div class="h-full w-full">
-              <div class="mb-1">Project Name</div>
+              <div class="mb-1">{{ $t('home.project-name') }}</div>
               <div class="mb-2">
                 <InputText v-model="newProjectName" class="w-full"> </InputText>
               </div>
 
-              <div class="mb-1">Storage</div>
+              <div class="mb-1">{{ $t('settings.tabs.storage') }}</div>
               <div class="mb-2">
                 <Select
                   v-model="newProjectType"
@@ -189,11 +189,11 @@
                   v-if="newProjectData"
                   :disabled="!canCreateproject"
                   @click="onNewFileCreation(newProjectData)"
-                  >Duplicate project</Button
+                  >{{ $t('home.duplicate-project') }}</Button
                 >
-                <Button v-else :disabled="!canCreateproject" @click="onNewFileCreation()"
-                  >Create project</Button
-                >
+                <Button v-else :disabled="!canCreateproject" @click="onNewFileCreation()">{{
+                  $t('home.create-project')
+                }}</Button>
               </div>
             </div>
           </div>
@@ -221,6 +221,7 @@ import { kebabCase } from 'change-case'
 import PluginIcon from '../components/nodes/PluginIcon.vue'
 import { useAppStore } from '@renderer/store/app'
 import Layout from '../components/Layout.vue'
+import { useI18n } from 'vue-i18n'
 
 const router = useRouter()
 const api = useAPI()
@@ -272,6 +273,8 @@ const canCreateproject = computed(() => {
   )
 })
 
+const { t } = useI18n()
+
 watchEffect(async () => {
   const entries = Object.entries(files.value.data)
 
@@ -308,10 +311,10 @@ watchEffect(async () => {
       if ('content' in result) {
         fileContent = result.content
       } else {
-        throw new Error('Invalid file content')
+        throw new Error(t('editor.invalid-file-content'))
       }
     } else {
-      throw new Error('Invalid file type')
+      throw new Error(t('home.invalid-file-type'))
     }
 
     const content = JSON.parse(fileContent) as SavedFile
@@ -335,9 +338,9 @@ const openFile = async () => {
   const pathsResult = await api.execute(
     'dialog:showOpenDialog',
     {
-      title: 'Choose a new path',
+      title: t('home.choose-a-new-path'),
       properties: ['openFile'],
-      filters: [{ name: 'Pipelab Project', extensions: [PROJECT_EXTENSION] }]
+      filters: [{ name: t('home.pipelab-project'), extensions: [PROJECT_EXTENSION] }]
     },
     async (_, message) => {
       const { type } = message
@@ -387,13 +390,13 @@ const openFile = async () => {
       })
 
       await router.push({
-        name: 'Editor',
+        name: t('headers.editor'),
         params: {
           id: newId
         }
       })
     } else {
-      logger().error('Invalid number of paths selected')
+      console.error(t('home.invalid-number-of-paths-selected'))
     }
   }
 }
@@ -406,17 +409,17 @@ const newProjectNamePathified = computed(() => {
 const newProjectType = ref()
 const newProjectTypes = ref([
   {
-    label: 'Local',
+    label: t('home.local'),
     value: 'local',
-    description: 'Store project locally',
+    description: t('home.store-project-locally'),
     icon: ''
   },
   {
-    label: 'Cloud',
+    label: t('home.cloud'),
     value: 'cloud',
     icon: '',
     disabled: true,
-    description: 'Store project on the cloud'
+    description: t('home.store-project-on-the-cloud')
   }
 ])
 
@@ -451,7 +454,7 @@ const onNewFileCreation = async (
   let id = nanoid()
 
   if (!preset) {
-    throw new Error('Invalid preset')
+    throw new Error(t('home.invalid-preset'))
   }
 
   const alreadyAddedPaths = Object.entries(files.value.data).map(([id, file]) => {
@@ -496,7 +499,7 @@ const onNewFileCreation = async (
   })
 
   await router.push({
-    name: 'Editor',
+    name: t('headers.editor'),
     params: {
       id
     }
@@ -505,7 +508,7 @@ const onNewFileCreation = async (
 
 const loadExisting = async (id: string) => {
   await router.push({
-    name: 'Editor',
+    name: t('headers.editor'),
     params: {
       id
     }
