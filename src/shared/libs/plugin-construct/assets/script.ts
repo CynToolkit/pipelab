@@ -122,12 +122,12 @@ export const script = async (
   username: string | undefined,
   password: string | undefined,
   version: string | undefined,
-  downloadDir: string,
+  downloadDir: string
   // addonsFolder: string | undefined
 ) => {
   let url = 'https://editor.construct.net/'
   if (version) {
-    url += `r${version}`
+    url += version
   }
   log('Navigating to URL', url)
   // const serviceWorkerPromise = page.waitForEvent("serviceworker");

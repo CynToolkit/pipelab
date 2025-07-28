@@ -150,7 +150,7 @@
                         <li>At least one lowercase</li>
                         <li>At least one uppercase</li>
                         <li>At leaset one numeric</li>
-                        <li>Minimum 8 characters</li>
+                        <li>Minimum 10 characters</li>
                       </ul>
                     </template>
                   </Password>

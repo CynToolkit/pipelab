@@ -157,7 +157,11 @@ export const exportc3p = async <ACTION extends Action>(
 
   const browserInstance = playwright[browserName]
 
-  const version = newInputs.version
+  let version = newInputs.version
+  // if version is full digit, prepend "r", otherwise, use as is
+  if (version && /^\d+$/.test(version)) {
+    version = `r${version}`
+  }
   const headless = newInputs.headless
 
   // if (newInputs.customBrowser && !newInputs.customProfile) {
