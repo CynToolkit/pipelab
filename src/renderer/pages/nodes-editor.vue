@@ -43,6 +43,11 @@ import EditorNodeAction from '@renderer/components/nodes/EditorNodeAction.vue'
 import { PropType, toRefs } from 'vue'
 import { Block, Steps } from '@@/model'
 import { ValidationError } from '@renderer/models/error'
+import { useEditor } from '@renderer/store/editor'
+import { storeToRefs } from 'pinia'
+
+const editor = useEditor()
+const { steps } = storeToRefs(editor)
 
 const props = defineProps({
   nodes: {
@@ -53,10 +58,6 @@ const props = defineProps({
     type: Boolean,
     default: true,
     required: false
-  },
-  steps: {
-    type: Object as PropType<Steps>,
-    required: true
   },
   path: {
     type: Array as PropType<string[]>,

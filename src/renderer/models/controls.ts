@@ -25,6 +25,7 @@ export const controlsToType = (control: ControlType) => {
     .with({ type: 'array', options: { kind: 'number' } }, () => 'object')
     .with({ type: 'array', options: { kind: 'text' } }, () => 'object')
     .with({ type: 'electron:configure:v2' }, () => 'object')
+    .with({ type: 'netlify-site' }, () => 'string')
     .exhaustive()
 }
 
@@ -43,5 +44,6 @@ export const controlsToIcon = (control: ControlType) => {
     .with({ type: 'array', options: { kind: 'number' } }, () => 'mdi-code-brackets')
     .with({ type: 'array', options: { kind: 'text' } }, () => 'mdi-code-brackets')
     .with({ type: 'electron:configure:v2' }, () => 'mdi-code-braces')
+    .with({ type: 'netlify-site' }, () => 'mdi-code-braces')
     .exhaustive()
 }

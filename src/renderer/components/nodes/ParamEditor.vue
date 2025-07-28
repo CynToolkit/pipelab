@@ -63,6 +63,7 @@
               :param-definition="paramDefinition"
               @update:model-value="onParamEditorUpdate"
               @switch="toggleMode"
+              :value="value"
             ></ParamEditorBody>
           </div>
           <ConfirmPopup></ConfirmPopup>
@@ -215,7 +216,6 @@ import { useConfirm } from 'primevue/useconfirm'
 import { klona } from 'klona'
 import { stepsPlaceholders } from '@renderer/utils/code-editor/step-plugin'
 
-// @ts-expect-error tsconfig
 type Params = (Action | Condition | Event)['params']
 type Param = ValueOf<BlockAction['params']>
 
@@ -227,7 +227,6 @@ const props = defineProps<{
   value: BlockAction | BlockEvent | BlockCondition | BlockLoop
   steps: Steps
   variables: Variable[]
-  vm: Awaited<CreateQuickJSFn>
 }>()
 
 // const props = defineProps({
@@ -259,13 +258,13 @@ const props = defineProps<{
 //   }
 // })
 
-const { paramKey, paramDefinition, steps, variables, param, vm } = toRefs(props)
+const { paramKey, paramDefinition, steps, variables, param } = toRefs(props)
 
 const confirm = useConfirm()
 
 const editor = useEditor()
 const { getNodeDefinition } = editor
-const { nodes } = storeToRefs(editor)
+const { nodes, vm } = storeToRefs(editor)
 
 const confirmSwitchMode = (event: MouseEvent) => {
   return new Promise<boolean>((resolve) => {

@@ -1,6 +1,7 @@
 import type { ConditionalPick } from 'type-fest'
 import type { BrowserWindow, OpenDialogOptions } from 'electron'
 import { UseMainAPI } from '@main/api'
+import { BlockAction, BlockCondition, BlockEvent, BlockLoop } from '@@/model'
 
 export type PathOptions = {
   filter?: RegExp
@@ -134,6 +135,15 @@ export interface ControlTypeExpression extends ControlTypeBase {
   }
 }
 
+export interface ControlTypeNetlifySite extends ControlTypeBase {
+  type: 'netlify-site'
+  options: {
+    allowCreate?: boolean
+    placeholder?: string
+    tokenKey: string
+  }
+}
+
 export interface PipelabSelectOption {
   label: string
   value: string
@@ -204,6 +214,7 @@ export type ControlType =
   | ControlTypePath
   | ControlTypeJSON
   | ControlTypeExpression
+  | ControlTypeNetlifySite
   | ControlTypeArray
   | ControlTypeElectronConfigureV2
 
@@ -216,6 +227,10 @@ export type InputDefinition<T extends ControlType = ControlType> = {
   control: T
   value: unknown
   platforms?: NodeJS.Platform[]
+  onNodeUpdate?: (
+    value: BlockAction | BlockEvent | BlockCondition | BlockLoop,
+    settings: InputDefinition<T>
+  ) => void
 }
 
 export type InputsDefinition = Record<string, InputDefinition>
@@ -537,6 +552,25 @@ export const createArray = <T extends unknown[]>(
     ...definition,
     value: (Array.isArray(value) ? `"${value}"` : value) as unknown as T
   } satisfies InputDefinition<ControlTypeArray>
+}
+
+export const createNetlifySiteParam = (
+  value: string,
+  tokenKey: string,
+  definition: Omit<InputDefinition<ControlTypeNetlifySite>, 'value' | 'control'>
+) => {
+  return {
+    ...definition,
+    control: {
+      type: 'netlify-site',
+      options: {
+        allowCreate: true,
+        placeholder: 'Select a site',
+        tokenKey
+      }
+    },
+    value: `"${value}"`
+  } satisfies InputDefinition<ControlTypeNetlifySite>
 }
 
 export const createNumberParam = (

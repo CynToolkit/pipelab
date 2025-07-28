@@ -1,4 +1,4 @@
-import { computed, ref } from 'vue'
+import { computed, ref, shallowRef } from 'vue'
 import {
   Block,
   BlockAction,
@@ -33,7 +33,10 @@ import { processGraph } from '@@/graph'
 import { useLogger } from '@@/logger'
 import { klona } from 'klona'
 import { create } from 'mutative'
-import { parse } from 'valibot'
+import { parse, value } from 'valibot'
+import { watchDebounced } from '@vueuse/core'
+import { makeResolvedParams } from '@renderer/utils/evaluator'
+import { createQuickJs } from '@renderer/utils/quickjs'
 
 export type Context = Record<string, unknown>
 
@@ -644,6 +647,59 @@ export const useEditor = defineStore('editor', () => {
     }
   }
 
+  const variablesDisplay = computed(() => {
+    const result: Record<string, string> = {}
+    for (const variable of variables.value) {
+      result[variable.id] = `<div class="variable">@${variable.name}</div>`
+    }
+    return result
+  })
+
+  const vm = shallowRef()
+  createQuickJs().then((_vm) => {
+    vm.value = _vm
+  })
+
+  const resolvedParams = ref<Record<string, Record<string, unknown>>>({})
+  watchDebounced(
+    [blocks, stepsDisplay, variablesDisplay],
+    async () => {
+      console.log('blocks.value', blocks.value)
+      console.log('stepsDisplay.value', stepsDisplay.value)
+      console.log('variablesDisplay.value', variablesDisplay.value)
+
+      for (const block of blocks.value) {
+        if (block.type === 'action') {
+          const resolved = await makeResolvedParams(
+            {
+              params: block.params,
+              steps: stepsDisplay.value,
+              context: {},
+              variables: variablesDisplay.value
+            },
+            (item) => {
+              // const cleanOutput = DOMPurify.sanitize(item)
+              // console.log('cleanOutput', cleanOutput)
+
+              // return `<div class="param">${cleanOutput}</div>`
+              return item
+            },
+            vm.value
+          )
+          resolvedParams.value[block.uid] = resolved
+        }
+      }
+
+      console.log('resolvedParams.value', resolvedParams.value)
+    },
+    {
+      debounce: 200,
+      immediate: true,
+      maxWait: 500,
+      deep: true
+    }
+  )
+
   return {
     nodes: blocks,
     triggers,
@@ -695,7 +751,11 @@ export const useEditor = defineStore('editor', () => {
     swapNodes,
     cloneNode,
     disableNode,
-    enableNode
+    enableNode,
+
+    vm,
+    resolvedParams,
+    steps: stepsDisplay
   }
 })
 

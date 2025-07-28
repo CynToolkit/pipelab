@@ -2,6 +2,7 @@ import { extractZip, zipFolder } from '@main/utils'
 import {
   createAction,
   createActionRunner,
+  createNetlifySiteParam,
   createPathParam,
   createStringParam,
   downloadFile,
@@ -54,7 +55,7 @@ export const uploadToNetlify = createAction({
       required: true,
       label: 'Token'
     }),
-    site: createStringParam('', {
+    site: createNetlifySiteParam('', 'token', {
       required: true,
       label: 'Site'
     })

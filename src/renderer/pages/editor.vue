@@ -158,7 +158,6 @@
                     :value="selectedNode"
                     :steps="stepsDisplay"
                     :variables="variables"
-                    :vm="vm"
                     @update:model-value="onValueChanged($event, key.toString())"
                   ></ParamEditor>
                 </div>
@@ -327,9 +326,6 @@ import { createQuickJs } from '@renderer/utils/quickjs'
 import ParamEditor from '@renderer/components/nodes/ParamEditor.vue'
 import { useAppSettings } from '@renderer/store/settings'
 import { useI18n } from 'vue-i18n'
-
-// @ts-expect-error tsconfig
-const vm = await createQuickJs()
 
 type Param = ValueOf<BlockAction['params']>
 

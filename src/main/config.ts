@@ -145,7 +145,14 @@ export const appSettingsMigrator = migrator.createMigrations({
   ]
 })
 
-export const getDefaultAppSettingsMigrated = () => appSettingsMigrator.migrate(defaultAppSettings)
+export const getDefaultAppSettingsMigrated = () => {
+  try {
+    return appSettingsMigrator.migrate(defaultAppSettings)
+  } catch (e) {
+    console.error('Error migrating default app settings', e)
+    return defaultAppSettings
+  }
+}
 
 export const setupConfig = async () => {
   const userData = app.getPath('userData')
@@ -175,10 +182,15 @@ export const setupConfig = async () => {
 
       logger().info('content', content)
 
-      const json = await appSettingsMigrator.migrate(
-        content === undefined ? content : JSON.parse(content),
-        { debug: true }
-      )
+      let json = undefined
+      try {
+        json = await appSettingsMigrator.migrate(
+          content === undefined ? content : JSON.parse(content),
+          { debug: true }
+        )
+      } catch (e) {
+        logger().error('e', e)
+      }
 
       logger().info('json', json)
 

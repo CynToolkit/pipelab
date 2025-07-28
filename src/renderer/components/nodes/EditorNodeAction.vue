@@ -142,10 +142,6 @@ const props = defineProps({
     required: true
     // default: () => []
   },
-  steps: {
-    type: Object as PropType<Steps>,
-    required: true
-  },
   errors: {
     type: Object as PropType<Record<string, ValidationError[]>>,
     required: false,
@@ -159,7 +155,7 @@ const props = defineProps({
 })
 
 const menu = ref()
-const { value, steps, index, isRunning, errors } = toRefs(props)
+const { value, index, isRunning, errors } = toRefs(props)
 
 const items = computed<MenuItem[]>(() => [
   {
@@ -169,7 +165,7 @@ const items = computed<MenuItem[]>(() => [
         label: 'Edit',
         icon: 'mdi-pencil',
         command: () => {
-          showSidebar.value = true
+          onNodeClick()
         }
       },
       {
@@ -253,7 +249,7 @@ const {
   getPluginDefinition,
   setSelectedNode
 } = editor
-const { activeNode, variables, selectedNode } = storeToRefs(editor)
+const { activeNode, variables, selectedNode, resolvedParams, steps, vm } = storeToRefs(editor)
 
 type Param = ValueOf<BlockAction['params']>
 
@@ -284,48 +280,6 @@ const onValueChanged = (newValue: Param, paramKey: string) => {
   })
 }
 
-// @ts-expect-error tsconfig
-const vm = await createQuickJs()
-
-const variablesDisplay = computed(() => {
-  const result: Record<string, string> = {}
-  for (const variable of variables.value) {
-    result[variable.id] = `<div class="variable">@${variable.name}</div>`
-  }
-  return result
-})
-
-const resolvedParams = shallowRef<Record<string, string>>({})
-watchDebounced(
-  [value, steps, variablesDisplay],
-  async () => {
-    // const variables = await variableToFormattedVariable(vm, data.variables)
-    // console.log('variables', variables)
-
-    resolvedParams.value = await makeResolvedParams(
-      {
-        params: value.value.params,
-        steps: steps.value,
-        context: {},
-        variables: variablesDisplay.value
-      },
-      (item) => {
-        // const cleanOutput = DOMPurify.sanitize(item)
-        // console.log('cleanOutput', cleanOutput)
-
-        // return `<div class=\"param\">${cleanOutput}</div>`
-        return item
-      },
-      vm
-    )
-  },
-  {
-    debounce: 500,
-    immediate: true,
-    maxWait: 1000
-  }
-)
-
 const subtitle = ref('')
 
 const nodeDefinition = computed(() => {
@@ -349,9 +303,13 @@ const title = computed(() => {
 watchDebounced(
   [resolvedParams, steps],
   async () => {
+    if (!vm.value) {
+      return
+    }
+
     const displayString = nodeDefinition.value?.displayString ?? ''
-    const result = await vm.run(displayString, {
-      params: resolvedParams.value,
+    const result = await vm.value.run(displayString, {
+      params: resolvedParams.value[value.value.uid],
       steps: steps.value
     })
     const clean = DOMPurify.sanitize(result)
