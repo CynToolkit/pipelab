@@ -327,7 +327,6 @@ app.whenReady().then(async () => {
                 params,
                 mainWindow,
                 (data) => {
-                  console.log('send', data)
                   logger().info('send', data)
                 },
                 new AbortController().signal
