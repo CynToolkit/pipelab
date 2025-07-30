@@ -15,7 +15,6 @@ import { detectRuntime } from '@@/plugins'
 import { app } from 'electron'
 import { dirname, join } from 'node:path'
 import { existsSync } from 'node:fs'
-import { execa } from 'execa'
 
 /**
  * Searches for common cargo paths and resolves to a valid cargo executable path
@@ -24,6 +23,7 @@ import { execa } from 'execa'
  */
 async function resolveCargoPath(): Promise<string> {
   const { platform } = await import('os')
+  const { execa } = await import('execa')
   const cargoBinName = platform() === 'win32' ? 'cargo.exe' : 'cargo'
 
   // Common cargo paths by platform
