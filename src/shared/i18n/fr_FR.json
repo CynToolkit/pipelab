@@ -4,7 +4,7 @@
     "language": "Langue",
     "languageOptions": {
       "en-US": "English",
-      "fr-FR": "French",
+      "fr-FR": "Français",
       "pt-BR": "Portuguese",
       "zh-CN": "Chinese",
       "es-ES": "Spanish",
@@ -21,10 +21,54 @@
     "clearTempFoldersDescription": "Lorsque cette option est activée, tous les fichiers temporaires créés lors de l'exécution du pipeline seront automatiquement supprimés une fois le pipeline terminé. Cela permet d'économiser de l'espace disque, mais vous devrez peut-être copier vous-même des artefacts pour les préserver."
   },
   "headers": {
-    "dashboard": "Dashboard",
-    "scenarios": "Scenarios",
-    "editor": "Editor",
-    "billing": "Billing",
-    "team": "Team"
+    "dashboard": "Tableau de bord",
+    "scenarios": "Scénarios",
+    "editor": "Éditeur",
+    "billing": "Facturation",
+    "team": "Équipe"
+  },
+  "base": {
+    "close": "Fermer",
+    "save": "Enregistrer",
+    "run": "Exécuter",
+    "cancel": "Annuler",
+    "end": "Fin",
+    "delete": "Supprimer",
+    "logs": "Logs",
+    "ok": "OK"
+  },
+  "editor": {
+    "invalid-file-content": "Contenu du fichier invalide",
+    "welcome-back": "Bon retour parmi nous !",
+    "please-log-in-to-run-a-scenario": "Veuillez vous connecter pour exécuter un scénario",
+    "execution-done": "Exécution terminée",
+    "your-project-has-been-executed-successfully": "Votre projet a été exécuté avec succès",
+    "execution-failed": "Échec de l'exécution",
+    "project-has-encountered-an-error": "Le projet a rencontré une erreur :",
+    "project-saved": "Projet enregistré",
+    "your-project-has-be-saved-successfully": "Votre projet a été enregistré avec succès"
+  },
+  "home": {
+    "invalid-preset": "Préréglage non valide",
+    "store-project-on-the-cloud": "Enregistrer le projet en ligne",
+    "cloud": "En ligne",
+    "store-project-locally": "Enregistrer le projet localement",
+    "local": "Local",
+    "invalid-number-of-paths-selected": "Nombre non valide de chemins sélectionnés",
+    "pipelab-project": "Projet Pipelab",
+    "choose-a-new-path": "Choisissez un nouveau chemin",
+    "invalid-file-type": "Type de fichier invalide",
+    "create-project": "Créer un projet",
+    "duplicate-project": "Dupliquer le projet",
+    "project-name": "Nom du projet",
+    "new-project-1": "Nouveau projet",
+    "open": "Ouvrir",
+    "new-project-0": "Nouveau projet",
+    "your-projects": "Vos projets",
+    "new-project": "Nouveau projet",
+    "no-projects-yet": "Aucun projet jusqu’à présent"
+  },
+  "scenarios": {
+    "scenarios": "Scénarios"
   }
 }
