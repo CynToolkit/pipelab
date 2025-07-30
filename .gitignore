@@ -103,3 +103,6 @@ assets/tauri/template/app/src-tauri/steam_*
 assets/tauri/template/app/src/app
 .vscode
 .idea
+
+# Local Netlify folder
+.netlify

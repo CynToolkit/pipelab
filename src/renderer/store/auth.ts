@@ -82,6 +82,7 @@ export const useAuth = defineStore('auth', () => {
       case 'SIGNED_IN':
         if (session?.user) {
           user.value = session.user
+          console.log('Session', session)
           posthog.identify(session.user.id, {
             email: session.user.email,
             is_anonymous: session.user.is_anonymous || false
@@ -105,6 +106,7 @@ export const useAuth = defineStore('auth', () => {
               'email:',
               session?.user?.email
             )
+          console.log('Session', session)
           posthog.identify(session.user.id, {
             email: session.user.email,
             is_anonymous: session.user.is_anonymous || false
@@ -132,10 +134,12 @@ export const useAuth = defineStore('auth', () => {
           user.value = session.user // Refresh user data on update
         }
         break
+      case 'TOKEN_REFRESHED':
+        break
       default:
         logger.logger().warn('[Auth] Unhandled auth event:', event)
-        setAuthState('SIGNED_OUT') // Fallback to signed out for unhandled events
-        user.value = null
+        // setAuthState('SIGNED_OUT') // Fallback to signed out for unhandled events
+        // user.value = null
         // No signInAnonymously() here. Similar to SIGNED_OUT, handle anonymous sign-in outside if needed.
         break
     }
@@ -168,6 +172,7 @@ export const useAuth = defineStore('auth', () => {
             'email:',
             data.user.email
           )
+        console.log('Session', data)
         posthog.identify(data.user.id, {
           email: data.user.email,
           is_anonymous: data.user.is_anonymous || false

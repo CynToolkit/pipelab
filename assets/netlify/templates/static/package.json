@@ -1,0 +1,9 @@
+{
+  "private": true,
+  "scripts": {
+    "build": "echo \"No build\""
+  },
+  "devDependencies": {
+    "netlify-cli": "^23.0.0"
+  }
+}

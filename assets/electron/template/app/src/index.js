@@ -502,7 +502,11 @@ app.whenReady().then(async () => {
 
   if (config.enableSteamSupport) {
     console.log('Enabling steam overlay support')
-    steamworks.electronEnableSteamOverlay()
+    try {
+      steamworks.electronEnableSteamOverlay()
+    } catch (e) {
+      console.error('e', e)
+    }
   }
 
   const mainWindow = await createWindow()

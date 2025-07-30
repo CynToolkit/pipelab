@@ -1,4 +1,4 @@
-import { extractZip, zipFolder } from '@main/utils'
+import { ensure, extractZip, zipFolder } from '@main/utils'
 import {
   createAction,
   createActionRunner,
@@ -6,12 +6,13 @@ import {
   createPathParam,
   createStringParam,
   downloadFile,
+  fileExists,
   runWithLiveLogs
 } from '@pipelab/plugin-core'
 import { app, shell } from 'electron'
 import { createReadStream } from 'node:fs'
 import { cp, mkdir, rm, writeFile } from 'node:fs/promises'
-import { delimiter, dirname, join } from 'node:path'
+import { delimiter, dirname, join, basename } from 'node:path'
 
 export const ID = 'netlify-upload'
 
@@ -67,7 +68,7 @@ export const uploadToNetlifyRunner = createActionRunner<typeof uploadToNetlify>(
   async ({ log, inputs, cwd, abortSignal, paths }) => {
     log('Uploading to netlify')
 
-    const { pnpm, node } = paths
+    const { pnpm, node, assets } = paths
 
     const userData = app.getPath('userData')
     const pnpmHome = join(userData, 'config', 'pnpm')
@@ -86,27 +87,49 @@ export const uploadToNetlifyRunner = createActionRunner<typeof uploadToNetlify>(
       throw new Error('Site does not exist')
     }
 
-    const buildDir = join(cwd, 'build')
+    const appFolder = inputs['input-folder']
 
-    await cp(inputs['input-folder'], buildDir, {
-      recursive: true
+    // 1. Prepare input folder with temmplate
+    // Assume input folder is always a static site
+    const destinationFolder = join(cwd)
+    const templateFolder = join(assets, 'netlify', 'templates', 'static')
+
+    // copy template to destination
+    await cp(templateFolder, destinationFolder, {
+      recursive: true,
+      filter: (src) => {
+        return basename(src) !== 'node_modules'
+      }
     })
+    const placeAppFolder = join(destinationFolder, 'dist')
+    if (appFolder) {
+      // copy app to template
+      await cp(appFolder, placeAppFolder, {
+        recursive: true
+      })
+    }
 
-    const netlifyDir = join(buildDir, '.netlify')
+    // 2. Ensure correct configuration
+    const packageJsonPath = join(appFolder, 'package.json')
+    const packageJson = await fileExists(packageJsonPath)
+    if (!packageJson) {
+      throw new Error('No package.json found in input folder')
+    }
+
+    const netlifyDir = join(destinationFolder, '.netlify')
     const netlifyState = join(netlifyDir, 'state.json')
 
     await mkdir(netlifyDir, { recursive: true })
 
     await writeFile(netlifyState, `{ "siteId": "${inputs.site}" }`, 'utf-8')
 
-    shell.openExternal(cwd)
-
+    // 3. Package installation
     log('Installing packages')
     await runWithLiveLogs(
       node,
       [pnpm, 'install', '--prefer-offline'],
       {
-        cwd: buildDir,
+        cwd: destinationFolder,
         env: {
           // DEBUG: '*',
           PATH: `${dirname(node)}${delimiter}${process.env.PATH}`,
@@ -124,6 +147,33 @@ export const uploadToNetlifyRunner = createActionRunner<typeof uploadToNetlify>(
         }
       }
     )
+
+    // 4. netlify deploy
+    await runWithLiveLogs(
+      node,
+      [pnpm, '--package', 'netlify-cli', 'dlx', 'netlify', 'deploy', '--prod'],
+      {
+        cwd: destinationFolder,
+        env: {
+          // DEBUG: '*',
+          PATH: `${dirname(node)}${delimiter}${process.env.PATH}`,
+          PNPM_HOME: pnpmHome,
+          NETLIFY_AUTH_TOKEN: inputs.token
+        },
+        cancelSignal: abortSignal
+      },
+      log,
+      {
+        onStderr(data) {
+          log(data)
+        },
+        onStdout(data) {
+          log(data)
+        }
+      }
+    )
+
+    // ensure input folder have a package.json
 
     // await runWithLiveLogs(
     //   node,
@@ -147,28 +197,29 @@ export const uploadToNetlifyRunner = createActionRunner<typeof uploadToNetlify>(
     //     }
     //   }
     // )
-    await runWithLiveLogs(
-      node,
-      [pnpm, '--package', 'netlify-cli', 'dlx', 'netlify', 'build'],
-      {
-        cwd: buildDir,
-        env: {
-          // DEBUG: '*',
-          PATH: `${dirname(node)}${delimiter}${process.env.PATH}`,
-          PNPM_HOME: pnpmHome
-        },
-        cancelSignal: abortSignal
-      },
-      log,
-      {
-        onStderr(data) {
-          log(data)
-        },
-        onStdout(data) {
-          log(data)
-        }
-      }
-    )
+    // await runWithLiveLogs(
+    //   node,
+    //   [pnpm, '--package', 'netlify-cli', 'dlx', 'netlify', 'build'],
+    //   {
+    //     cwd: buildDir,
+    //     env: {
+    //       // DEBUG: '*',
+    //       PATH: `${dirname(node)}${delimiter}${process.env.PATH}`,
+    //       PNPM_HOME: pnpmHome,
+    //       NETLIFY_AUTH_TOKEN: inputs.token
+    //     },
+    //     cancelSignal: abortSignal
+    //   },
+    //   log,
+    //   {
+    //     onStderr(data) {
+    //       log(data)
+    //     },
+    //     onStdout(data) {
+    //       log(data)
+    //     }
+    //   }
+    // )
 
     // const distDir = join(buildDir, 'dist')
 
@@ -190,28 +241,29 @@ export const uploadToNetlifyRunner = createActionRunner<typeof uploadToNetlify>(
     //
     // const deploy = await result.json()
 
-    await runWithLiveLogs(
-      node,
-      [pnpm, '--package', 'netlify-cli', 'dlx', 'netlify', 'deploy', '--prod'],
-      {
-        cwd: buildDir,
-        env: {
-          // DEBUG: '*',
-          PATH: `${dirname(node)}${delimiter}${process.env.PATH}`,
-          PNPM_HOME: pnpmHome
-        },
-        cancelSignal: abortSignal
-      },
-      log,
-      {
-        onStderr(data) {
-          log(data)
-        },
-        onStdout(data) {
-          log(data)
-        }
-      }
-    )
+    // await runWithLiveLogs(
+    //   node,
+    //   [pnpm, '--package', 'netlify-cli', 'dlx', 'netlify', 'deploy', '--prod'],
+    //   {
+    //     cwd: buildDir,
+    //     env: {
+    //       // DEBUG: '*',
+    //       PATH: `${dirname(node)}${delimiter}${process.env.PATH}`,
+    //       PNPM_HOME: pnpmHome,
+    //       NETLIFY_AUTH_TOKEN: inputs.token
+    //     },
+    //     cancelSignal: abortSignal
+    //   },
+    //   log,
+    //   {
+    //     onStderr(data) {
+    //       log(data)
+    //     },
+    //     onStdout(data) {
+    //       log(data)
+    //     }
+    //   }
+    // )
 
     // log('Deployed to netlify', deploy)
 
