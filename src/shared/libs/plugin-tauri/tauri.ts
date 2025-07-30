@@ -13,8 +13,82 @@ import {
 } from '../plugin-core'
 import { detectRuntime } from '@@/plugins'
 import { app } from 'electron'
-import { dirname } from 'node:path'
+import { dirname, join } from 'node:path'
 import { existsSync } from 'node:fs'
+import { execa } from 'execa'
+
+/**
+ * Searches for common cargo paths and resolves to a valid cargo executable path
+ * @returns The path to the cargo executable
+ * @throws Error if cargo cannot be found
+ */
+async function resolveCargoPath(): Promise<string> {
+  const { platform } = await import('os')
+  const cargoBinName = platform() === 'win32' ? 'cargo.exe' : 'cargo'
+
+  // Common cargo paths by platform
+  const commonPaths: string[] = []
+  const currentPlatform = platform()
+
+  // Helper function to add paths if they exist
+  const addIfExists = (path: string) => {
+    if (existsSync(path)) {
+      commonPaths.push(path)
+    }
+  }
+
+  const rustupHome = process.env.RUSTUP_HOME || join(app.getPath('home'), '.rustup')
+  const cargoHome = process.env.CARGO_HOME || join(app.getPath('home'), '.cargo')
+
+  if (currentPlatform === 'win32') {
+    // Windows paths
+    addIfExists(
+      join(rustupHome, 'toolchains', 'stable-x86_64-pc-windows-msvc', 'bin', cargoBinName)
+    )
+    addIfExists(
+      join(rustupHome, 'toolchains', 'nightly-x86_64-pc-windows-msvc', 'bin', cargoBinName)
+    )
+    addIfExists(join(cargoHome, 'bin', cargoBinName))
+  } else if (currentPlatform === 'linux') {
+    // Linux paths
+    addIfExists(
+      join(rustupHome, 'toolchains', 'stable-x86_64-unknown-linux-gnu', 'bin', cargoBinName)
+    )
+    addIfExists(
+      join(rustupHome, 'toolchains', 'nightly-x86_64-unknown-linux-gnu', 'bin', cargoBinName)
+    )
+    addIfExists(join(cargoHome, 'bin', cargoBinName))
+    addIfExists('/usr/bin/cargo')
+    addIfExists('/usr/local/bin/cargo')
+  } else if (currentPlatform === 'darwin') {
+    // macOS paths
+    addIfExists(join(rustupHome, 'toolchains', 'stable-x86_64-apple-darwin', 'bin', cargoBinName))
+    addIfExists(join(rustupHome, 'toolchains', 'nightly-x86_64-apple-darwin', 'bin', cargoBinName))
+    addIfExists(join(cargoHome, 'bin', cargoBinName))
+    addIfExists('/usr/local/bin/cargo')
+    addIfExists('/opt/homebrew/bin/cargo')
+  }
+
+  // Return first existing path found
+  if (commonPaths.length > 0) {
+    return commonPaths[0]
+  }
+
+  // Fallback: try to find cargo using system tools on Unix systems
+  if (currentPlatform !== 'win32') {
+    try {
+      const whichResult = await execa('which', ['cargo'])
+      const cargoPath = whichResult.stdout.trim()
+      if (cargoPath && existsSync(cargoPath)) {
+        return cargoPath
+      }
+    } catch {
+      // Ignore errors from which command
+    }
+  }
+
+  throw new Error('Cargo not found. Please install it first')
+}
 
 // TODO: https://js.electronforge.io/modules/_electron_forge_core.html
 
@@ -615,27 +689,9 @@ export const tauri = async (
 
     const target = `${tauriArch}-${tauriPlatform}`
 
-    const cargoBinName = process.platform === 'win32' ? 'cargo.exe' : 'cargo'
-
-    let cargo: string, cargoBinDir: string
-
-    if (process.platform === 'win32') {
-      cargoBinDir = process.env.RUSTUP_HOME || join(app.getPath('home'), '.rustup')
-    } else if (process.platform === 'linux') {
-      const { execa } = await import('execa')
-      const whichCargo = await execa('which', ['cargo'])
-      console.log('whichCargo', whichCargo)
-      cargo = whichCargo.stdout
-      cargoBinDir = dirname(cargo)
-    } else if (process.platform === 'darwin') {
-      cargoBinDir = process.env.RUSTUP_HOME || join(app.getPath('home'), '.cargo')
-    }
-
-    cargo = join(cargoBinDir, cargoBinName)
-
-    if (!existsSync(cargo)) {
-      throw new Error('Cargo not found. Please install it first')
-    }
+    // Resolve cargo path using the new function
+    const cargo = await resolveCargoPath()
+    const cargoBinDir = dirname(cargo)
 
     log('cargoBinDir', cargoBinDir)
     console.log('cargo', cargo)
