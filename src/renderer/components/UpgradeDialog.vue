@@ -49,9 +49,7 @@
       </template>
     </div>
 
-    <div class="dialog-footer">
-      <button class="close-button" @click="closeDialog">Close</button>
-    </div>
+    <div class="dialog-footer"></div>
   </div>
 </template>
 
