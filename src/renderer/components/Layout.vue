@@ -13,8 +13,14 @@
       <slot></slot>
     </div>
     <div class="footer">
-      <div class="update-status">{{ updateStatusText }}</div>
-      <div class="version-text">{{ appVersion }}</div>
+      <div>
+        <UpgradeNowButton v-if="!isLoadingSubscriptions" @open-upgrade-dialog="openUpgradeDialog" />
+      </div>
+
+      <div>
+        <div class="update-status">{{ updateStatusText }}</div>
+        <div class="version-text">{{ appVersion }}</div>
+      </div>
     </div>
 
     <Dialog
@@ -201,6 +207,14 @@
 
       <Settings></Settings>
     </Dialog>
+    <Dialog
+      v-model:visible="isUpgradeDialogVisible"
+      modal
+      :style="{ width: '50vw' }"
+      :breakpoints="{ '575px': '90vw' }"
+    >
+      <UpgradeDialog @close="closeUpgradeDialog" />
+    </Dialog>
   </div>
 </template>
 
@@ -210,9 +224,12 @@ import { useAuth } from '@renderer/store/auth'
 import { MenuItem } from 'primevue/menuitem'
 import { useLogger } from '@@/logger'
 import Settings from '@renderer/components/Settings.vue'
+import UpgradeNowButton from '@renderer/components/UpgradeNowButton.vue'
+import UpgradeDialog from '@renderer/components/UpgradeDialog.vue'
 import { useToast } from 'primevue/usetoast'
 import Menu from 'primevue/menu'
 import Button from 'primevue/button'
+import Dialog from 'primevue/dialog'
 import { UpdateStatus } from '@main/api'
 import { email, minLength, nonEmpty, object, pipe, regex, string } from 'valibot'
 import { toTypedSchema } from '@vee-validate/valibot'
@@ -267,8 +284,24 @@ const logout = async () => {
 }
 
 const auth = useAuth()
-const { user, authState, isAuthModalVisible, authModalTitle, authModalSubTitle } = storeToRefs(auth)
+const {
+  user,
+  authState,
+  isAuthModalVisible,
+  authModalTitle,
+  authModalSubTitle,
+  isLoadingSubscriptions
+} = storeToRefs(auth)
 const isSettingsModalVisible = ref(false)
+const isUpgradeDialogVisible = ref(false)
+
+const openUpgradeDialog = () => {
+  isUpgradeDialogVisible.value = true
+}
+
+const closeUpgradeDialog = () => {
+  isUpgradeDialogVisible.value = false
+}
 
 const accountMenuItems = computed(() => {
   const items: MenuItem[] = []
@@ -475,7 +508,7 @@ const onSubmit = handleSubmit(onSuccess, onInvalidSubmit)
     border-top: 1px solid #ddd;
     display: flex;
     flex-direction: row;
-    justify-content: end;
+    justify-content: space-between;
     align-items: center;
     font-size: 12px;
     padding: 0 8px;

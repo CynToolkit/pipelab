@@ -54,6 +54,7 @@
     "@lydell/node-pty-win32-x64": "1.1.0",
     "@pipelab/core": "1.4.9",
     "@poki/cli": "0.1.16",
+    "@polar-sh/sdk": "0.34.8",
     "@primevue/themes": "4.1.1",
     "@sentry/electron": "5.4.0",
     "@sentry/vue": "8.32.0",

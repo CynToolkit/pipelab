@@ -5,6 +5,7 @@ import { defineStore } from 'pinia'
 import { computed, readonly, Ref, ref, shallowRef } from 'vue'
 import posthog from 'posthog-js'
 import { email } from 'valibot'
+import { Subscription } from '@polar-sh/sdk/dist/commonjs/models/components/subscription'
 
 // Define a more comprehensive AuthStateType
 export type AuthStateType =
@@ -21,7 +22,7 @@ export const useAuth = defineStore('auth', () => {
   const authState = ref<AuthStateType>('INITIALIZING') as Ref<AuthStateType> // Start in INITIALIZING state
   const isAuthenticating = ref(false) // Track loading state for auth actions
   const errorMessage = ref<string>() // For storing error messages to display to the user
-  const subscriptions = ref<any[]>([]) // Store user subscriptions
+  const subscriptions = ref<Subscription[]>([]) // Store user subscriptions
 
   const isAuthModalVisible = ref(false)
   const authModalTitle = ref<string>()
@@ -49,12 +50,17 @@ export const useAuth = defineStore('auth', () => {
   }
 
   const fetchSubscription = async () => {
+    isLoadingSubscriptions.value = true
     if (user.value) {
       if (user.value.email) {
-        const result = await supabase.functions.invoke('polar-user-plan')
-        if (result.data) {
-          console.log('result', result)
-          subscriptions.value = result.data.subscriptions
+        try {
+          const result = await supabase.functions.invoke('polar-user-plan')
+          if (result.data) {
+            console.log('result', result)
+            subscriptions.value = result.data.subscriptions
+          }
+        } catch (error) {
+          console.error('Failed to fetch subscription:', error)
         }
       } else {
         console.warn('User email is not available, skipping subscription fetch.')
@@ -62,6 +68,7 @@ export const useAuth = defineStore('auth', () => {
     } else {
       console.warn('User is anonymous, skipping subscription fetch.')
     }
+    isLoadingSubscriptions.value = false
   }
 
   supabase.auth.onAuthStateChange((event, session) => {
@@ -275,6 +282,18 @@ export const useAuth = defineStore('auth', () => {
 
   const isLoggedIn = computed(() => authState.value === 'SIGNED_IN')
 
+  const benefits = {
+    'cloud-save': '16955d3e-3e0f-4574-9093-87a32edf237c'
+  }
+
+  const hasBenefit = (benefit: keyof typeof benefits) => {
+    return subscriptions.value.some((sub) =>
+      sub.product.benefits.map((b) => b.id).includes(benefits[benefit])
+    )
+  }
+
+  const isLoadingSubscriptions = ref(true)
+
   return {
     user,
     authState,
@@ -282,6 +301,8 @@ export const useAuth = defineStore('auth', () => {
     isAuthenticating,
     errorMessage,
     subscriptions: readonly(subscriptions),
+    isLoadingSubscriptions,
+    hasBenefit,
 
     clearError,
     init, // Keep init for explicit re-initialization if needed, though generally called once on app start.

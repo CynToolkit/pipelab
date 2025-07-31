@@ -116,17 +116,25 @@
               <Card class="subscription">
                 <template #title>{{ subscription.product.name }}</template>
                 <template #content>
-                  <div>
+                  <div class="subscription-details">
                     <div class="subscription-price">
-                      <span class="currency">{{ subscription.price.priceCurrency }}</span>
-                      {{ subscription.price.priceAmount / 100 }} /
-                      {{ subscription.price.recurringInterval }}
+                      <span class="currency">{{ subscription.currency }}</span>
+                      {{ (subscription.amount / 100).toFixed(2) }} /
+                      {{ subscription.recurringInterval }}
                     </div>
-                    <div class="subscription-period-start">
-                      Start: {{ format(subscription.currentPeriodStart, 'yyyy-MM-dd') }}
-                    </div>
-                    <div class="subscription-period-end">
-                      Renew: {{ format(subscription.currentPeriodEnd, 'yyyy-MM-dd') }}
+                    <div class="subscription-dates">
+                      <div class="subscription-date-item">
+                        <span class="date-label">Start Date:</span>
+                        <span class="date-value">{{
+                          format(subscription.currentPeriodStart, 'MMM dd, yyyy')
+                        }}</span>
+                      </div>
+                      <div class="subscription-date-item">
+                        <span class="date-label">Renewal Date:</span>
+                        <span class="date-value">{{
+                          format(subscription.currentPeriodEnd, 'MMM dd, yyyy')
+                        }}</span>
+                      </div>
                     </div>
                   </div>
                 </template>
@@ -134,12 +142,14 @@
             </div>
           </template>
 
-          <Button v-if="subscriptions.length > 0" class="btn" @click="openBillingPortal"
-            >Manage Subscription</Button
+          <Button
+            v-if="subscriptions.length > 0"
+            class="btn manage-subscription-btn"
+            @click="openBillingPortal"
           >
-          <Button v-if="subscriptions.length === 0" class="btn" @click="startCheckout"
-            >Subscribe</Button
-          >
+            Manage Subscription
+          </Button>
+          <UpgradeDialog v-if="subscriptions.length === 0" />
         </TabPanel>
       </TabPanels>
     </Tabs>
@@ -153,13 +163,14 @@ import Tab from 'primevue/tab'
 import Card from 'primevue/card'
 import TabPanels from 'primevue/tabpanels'
 import TabPanel from 'primevue/tabpanel'
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useAppSettings } from '@renderer/store/settings'
 import { useAPI } from '@renderer/composables/api'
 import { storeToRefs } from 'pinia'
 import Button from 'primevue/button'
 import { supabase } from '@@/supabase'
 import { useAuth } from '@renderer/store/auth'
+import UpgradeDialog from '@renderer/components/UpgradeDialog.vue'
 
 import { format } from 'date-fns'
 import { useI18n } from 'vue-i18n'
@@ -311,9 +322,46 @@ const startCheckout = async () => {
   }
 }
 
-.subscription-price {
-  .currency {
-    text-transform: uppercase;
+.subscription-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+
+  .subscription-price {
+    font-size: 1.1rem;
+    font-weight: 600;
+
+    .currency {
+      text-transform: uppercase;
+      margin-right: 0.25rem;
+    }
   }
+
+  .subscription-dates {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    font-size: 0.9rem;
+
+    .subscription-date-item {
+      display: flex;
+      justify-content: space-between;
+
+      .date-label {
+        font-weight: 500;
+        color: #666;
+      }
+
+      .date-value {
+        font-weight: 600;
+        color: #333;
+      }
+    }
+  }
+}
+
+.manage-subscription-btn {
+  margin-top: 1rem;
+  width: 100%;
 }
 </style>

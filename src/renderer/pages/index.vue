@@ -139,11 +139,27 @@
                   v-model="newProjectType"
                   class="w-full"
                   option-label="label"
-                  option-value="value"
                   option-disabled="disabled"
                   :options="newProjectTypes"
                   :disabled="newProjectName.length === 0"
                 >
+                  <template #option="{ option }: { option: Item }">
+                    <div class="w-full flex align-items-center justify-content-between gap-2">
+                      <div class="flex align-items-center gap-2">
+                        <i v-if="option.icon" :class="option.icon"></i>
+                        <span>{{ option.label }}</span>
+                      </div>
+                      <div v-if="option.isPremium" class="premium-icon">
+                        <i class="mdi mdi-crown ml-2"></i>
+                      </div>
+                    </div>
+                  </template>
+                  <template #value="{ value }: { value: Item | undefined }">
+                    <div class="flex align-items-center gap-2" v-if="value">
+                      <i v-if="value.icon" :class="value.icon"></i>
+                      <span>{{ value.label }}</span>
+                    </div>
+                  </template>
                 </Select>
               </div>
 
@@ -222,6 +238,7 @@ import PluginIcon from '../components/nodes/PluginIcon.vue'
 import { useAppStore } from '@renderer/store/app'
 import Layout from '../components/Layout.vue'
 import { useI18n } from 'vue-i18n'
+import { useAuth } from '@renderer/store/auth'
 
 const router = useRouter()
 const api = useAPI()
@@ -406,22 +423,36 @@ const newProjectNamePathified = computed(() => {
   return kebabCase(newProjectName.value)
 })
 
+type Item = {
+  label: string
+  value: string
+  description: string
+  icon: string
+  disabled?: boolean
+  isPremium?: boolean
+}
+
+const { hasBenefit } = useAuth()
+
 const newProjectType = ref()
-const newProjectTypes = ref([
-  {
-    label: t('home.local'),
-    value: 'local',
-    description: t('home.store-project-locally'),
-    icon: ''
-  },
-  {
-    label: t('home.cloud'),
-    value: 'cloud',
-    icon: '',
-    disabled: true,
-    description: t('home.store-project-on-the-cloud')
-  }
-])
+const newProjectTypes = computed<Item[]>(() => {
+  return [
+    {
+      label: t('home.local'),
+      value: 'local',
+      description: t('home.store-project-locally'),
+      icon: 'mdi mdi-folder'
+    },
+    {
+      label: t('home.cloud'),
+      value: 'cloud',
+      icon: 'mdi mdi-cloud',
+      disabled: !hasBenefit('cloud-save'),
+      isPremium: true,
+      description: t('home.store-project-on-the-cloud')
+    }
+  ]
+})
 
 const newProjectPreset = ref<string>()
 const newProjectPresets = ref<Presets>({})
