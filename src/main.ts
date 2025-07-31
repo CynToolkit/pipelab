@@ -327,8 +327,10 @@ app.whenReady().then(async () => {
                 params,
                 mainWindow,
                 (data) => {
+                  if (!isCI) {
+                    logger().info('send', data)
+                  }
                   console.log('send', data)
-                  logger().info('send', data)
                 },
                 new AbortController().signal
               )
