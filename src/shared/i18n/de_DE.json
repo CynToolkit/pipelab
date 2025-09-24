@@ -18,7 +18,20 @@
       "billing": "Billing"
     },
     "clearTempFolders": "Automatically clean up temporary files",
-    "clearTempFoldersDescription": "Wenn aktiviert, werden alle temporären Dateien, die während der Pipeline-Ausführung erstellt wurden, automatisch gelöscht, nachdem die Pipeline abgeschlossen ist. Dies hilft, Speicherplatz auf der Festplatte zu sparen, aber möglicherweise müssen Sie selbst Artefakte kopieren, um sie zu bewahren."
+    "clearTempFoldersDescription": "Wenn aktiviert, werden alle temporären Dateien, die während der Pipeline-Ausführung erstellt wurden, automatisch gelöscht, nachdem die Pipeline abgeschlossen ist. Dies hilft, Speicherplatz auf der Festplatte zu sparen, aber möglicherweise müssen Sie selbst Artefakte kopieren, um sie zu bewahren.",
+    "pipeline-cache-folder": "Pipeline Cache Folder:",
+    "enter-or-browse-for-a-folder": "Enter or browse for a folder",
+    "browse": "Browse",
+    "manage-where-the-app-stores-temporary-and-cache-files": "Manage where the app stores temporary and cache files.",
+    "clear-cache": "Clear cache",
+    "reset-to-default": "Reset to default",
+    "manage-subscription": "Manage Subscription",
+    "renewal-date": "Renewal Date",
+    "start-date": "Start Date:",
+    "cache-cleared-successfully": "Cache cleared successfully",
+    "failed-to-clear-cache-error-message": "Failed to clear cache: {0}",
+    "failed-to-reset-cache-folder-error-message": "Failed to reset cache folder: {0}",
+    "select-cache-folder": "Select Cache Folder"
   },
   "headers": {
     "dashboard": "Dashboard",
