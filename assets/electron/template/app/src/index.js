@@ -9,7 +9,7 @@ import { WebSocketServer, WebSocket } from 'ws'
 import './custom-main.js'
 import mri from 'mri'
 import config from '../config.cjs'
-import steamworks from 'steamworks.js'
+import steamworks from '@armaldio/steamworks.js'
 import DiscordRPC from 'discord-rpc'
 
 // user
@@ -59,6 +59,8 @@ import exit from './handlers/general/exit.js'
 
 // steam raw
 import steamRaw from './handlers/steam/raw.js'
+import steamUploadScore from './handlers/steam/uploadScore.js'
+import steamDownloadScore from './handlers/steam/downloadScore.js'
 
 // discord set activity
 import discordSetActivity from './handlers/discord/set-activity.js'
@@ -134,7 +136,7 @@ const isCJSOnly =
 
 //region Steam
 
-/** @type {Omit<import('steamworks.js').Client, "init" | "runCallbacks">} */
+/** @type {Omit<import('@armaldio/steamworks.js').Client, "init" | "runCallbacks">} */
 let client
 console.log('config.enableSteamSupport', config.enableSteamSupport)
 if (config.enableSteamSupport) {
@@ -202,6 +204,10 @@ const createAppServer = (mainWindow, serveStatic = true) => {
                 {
                   key: 'Cache-Control',
                   value: 'no-cache'
+                },
+                {
+                  key: 'Access-Control-Allow-Origin',
+                  value: '*'
                 }
               ]
             }
@@ -335,6 +341,12 @@ const createAppServer = (mainWindow, serveStatic = true) => {
               break
             case '/steam/raw':
               await steamRaw(json, ws, client)
+              break
+            case '/steam/leaderboard/upload-score':
+              await steamUploadScore(json, ws, client)
+              break
+            case '/steam/leaderboard/download-score':
+              await steamDownloadScore(json, ws, client)
               break
             case '/discord/set-activity':
               await discordSetActivity(json, ws, mainWindow, rpc)

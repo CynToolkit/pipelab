@@ -11,6 +11,9 @@ importers:
 
   .:
     dependencies:
+      '@armaldio/steamworks.js':
+        specifier: 0.7.0
+        version: 0.7.0
       '@electron-forge/plugin-base':
         specifier: 7.4.0
         version: 7.4.0
@@ -44,9 +47,6 @@ importers:
       slash:
         specifier: ^5.1.0
         version: 5.1.0
-      steamworks.js:
-        specifier: 0.4.0
-        version: 0.4.0
       ws:
         specifier: ^8.18.1
         version: 8.18.1
@@ -86,6 +86,10 @@ importers:
         version: 34.0.2
 
 packages:
+
+  '@armaldio/steamworks.js@0.7.0':
+    resolution: {integrity: sha512-5OJZOxRCWq2oKJ3HbsaHtngNwcPu52wdHRDOnk6DqgM9ia60hzXVjD7B88pieaP+xayx60dWwpSPF0GWrMMUsA==}
+    engines: {node: '>= 14'}
 
   '@electron-forge/cli@7.4.0':
     resolution: {integrity: sha512-a+zZv3ja/IxkJzNyx4sOHSZv6DPV85S0PEVF6pcRjUpbDL5r+DxjRFsNc0Nq4UIWyFm1nw7RWoPdd9uDst4Tvg==}
@@ -1617,10 +1621,6 @@ packages:
     resolution: {integrity: sha512-o57Wcn66jMQvfHG1FlYbWeZWW/dHZhJXjpIcTfXldXEk5nz5lStPo3mK0OJQfGR3RbZUlbISexbljkJzuEj/8Q==}
     engines: {node: ^12.13.0 || ^14.15.0 || >=16.0.0}
 
-  steamworks.js@0.4.0:
-    resolution: {integrity: sha512-O5TTRs7ucCRql4IA/kYUIQYeghTsXqf3rAm81sC22RDId264LQYqQjuaMEUSqL60I5LdULiGu0W2/A+ZDcKBKA==}
-    engines: {node: '>= 14'}
-
   stream-buffers@2.2.0:
     resolution: {integrity: sha512-uyQK/mx5QjHun80FLJTfaWE7JtwfRMKBLkMne6udYOmvH0CawotVa7TfgYHzAnpphn4+TweIx1QKMnRIbipmUg==}
     engines: {node: '>= 0.10.0'}
@@ -1865,6 +1865,10 @@ packages:
     engines: {node: '>=18'}
 
 snapshots:
+
+  '@armaldio/steamworks.js@0.7.0':
+    dependencies:
+      '@types/node': 22.10.5
 
   '@electron-forge/cli@7.4.0(encoding@0.1.13)':
     dependencies:
@@ -3740,10 +3744,6 @@ snapshots:
   ssri@9.0.1:
     dependencies:
       minipass: 3.3.6
-
-  steamworks.js@0.4.0:
-    dependencies:
-      '@types/node': 22.10.5
 
   stream-buffers@2.2.0:
     optional: true

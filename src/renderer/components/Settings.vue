@@ -24,7 +24,7 @@
               </div>
             </div>
             <div class="field">
-              <label for="app-theme" class="label">Language</label>
+              <label for="app-theme" class="label">{{ $t('settings.language') }}</label>
               <div class="field-switch">
                 <div class="locale-changer">
                   <Select
@@ -54,7 +54,9 @@
         <TabPanel value="1">
           <div class="storage-settings">
             <div class="field">
-              <label for="cache-folder" class="label">Pipeline Cache Folder:</label>
+              <label for="cache-folder" class="label">{{
+                $t('settings.pipeline-cache-folder')
+              }}</label>
               <InputGroup>
                 <InputText
                   :disabled="!settingsRef"
@@ -63,22 +65,24 @@
                   readonly
                   type="text"
                   class="input"
-                  placeholder="Enter or browse for a folder"
+                  :placeholder="$t('settings.enter-or-browse-for-a-folder')"
                   @update:model-value="updateCacheFolder"
                 />
-                <Button :disabled="!settingsRef" class="btn" @click="browseCacheFolder"
-                  >Browse</Button
-                >
+                <Button :disabled="!settingsRef" class="btn" @click="browseCacheFolder">{{
+                  $t('settings.browse')
+                }}</Button>
               </InputGroup>
-              <p class="description">Manage where the app stores temporary and cache files.</p>
+              <p class="description">
+                {{ $t('settings.manage-where-the-app-stores-temporary-and-cache-files') }}
+              </p>
             </div>
             <div class="field actions">
-              <Button :disabled="!settingsRef || true" class="btn danger" @click="clearCache"
-                >Clear Cache</Button
-              >
-              <Button :disabled="!settingsRef" class="btn" @click="resetCacheFolder"
-                >Reset to Default</Button
-              >
+              <Button :disabled="!settingsRef || true" class="btn danger" @click="clearCache">{{
+                $t('settings.clear-cache')
+              }}</Button>
+              <Button :disabled="!settingsRef" class="btn" @click="resetCacheFolder">{{
+                $t('settings.reset-to-default')
+              }}</Button>
             </div>
             <div class="field">
               <div class="field-switch">
@@ -124,13 +128,13 @@
                     </div>
                     <div class="subscription-dates">
                       <div class="subscription-date-item">
-                        <span class="date-label">Start Date:</span>
+                        <span class="date-label">{{ $t('settings.start-date') }}</span>
                         <span class="date-value">{{
                           format(subscription.currentPeriodStart, 'MMM dd, yyyy')
                         }}</span>
                       </div>
                       <div class="subscription-date-item">
-                        <span class="date-label">Renewal Date:</span>
+                        <span class="date-label">{{ $t('settings.renewal-date') }}</span>
                         <span class="date-value">{{
                           format(subscription.currentPeriodEnd, 'MMM dd, yyyy')
                         }}</span>
@@ -147,7 +151,7 @@
             class="btn manage-subscription-btn"
             @click="openBillingPortal"
           >
-            Manage Subscription
+            {{ $t('settings.manage-subscription') }}
           </Button>
           <UpgradeDialog v-if="subscriptions.length === 0" />
         </TabPanel>
@@ -232,7 +236,7 @@ watch(
 
 const browseCacheFolder = async () => {
   const newPath = await api.execute('dialog:showOpenDialog', {
-    title: 'Select Cache Folder',
+    title: t('settings.select-cache-folder'),
     defaultPath: cacheFolder.value,
     properties: ['openDirectory']
   })
@@ -258,10 +262,10 @@ const clearCache = async () => {
 
     // Show success message
     // You might want to replace this with a toast notification component if available
-    alert('Cache cleared successfully')
+    alert(t('settings.cache-cleared-successfully'))
   } catch (error) {
     console.error('Failed to clear cache:', error)
-    alert(`Failed to clear cache: ${error.message}`)
+    alert(t('settings.failed-to-clear-cache-error-message', [error.message]))
   }
 }
 
@@ -275,7 +279,7 @@ const resetCacheFolder = async () => {
     alert(`Cache folder reset to default`)
   } catch (error) {
     console.error('Failed to reset cache folder:', error)
-    alert(`Failed to reset cache folder: ${error.message}`)
+    alert(t('settings.failed-to-reset-cache-folder-error-message', [error.message]))
   }
 }
 

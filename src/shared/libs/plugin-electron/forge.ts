@@ -756,7 +756,14 @@ export const forge = async (
 
   if (isCJSOnly) {
     /* ESBUILD transpilation */
-    const external = ['electron', 'steamworks.js', 'electron', 'node:*', 'http', 'node:stream']
+    const external = [
+      'electron',
+      '@armaldio/steamworks.js',
+      'electron',
+      'node:*',
+      'http',
+      'node:stream'
+    ]
     await esbuild.build({
       entryPoints: [join(destinationFolder, 'src', 'index.js')],
       bundle: true,

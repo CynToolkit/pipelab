@@ -20,8 +20,8 @@ module.exports = {
     asar: config.disableAsarPackaging
       ? false
       : {
-          unpack: unpackFilter
-        },
+        unpack: unpackFilter
+      },
     name: config.name,
     appBundleId: config.appBundleId,
     appCopyright: config.appCopyright,
