@@ -16,7 +16,7 @@
             data-key="id"
             class="w-full h-full"
             :scrollable="true"
-            scrollHeight="flex"
+            scroll-height="flex"
           >
             <template #header>
               <div class="flex justify-content-between">
@@ -25,7 +25,7 @@
                 <div class="flex justify-content-end gap-2">
                   <Button @click="newFile">
                     <i class="mdi mdi-plus-circle-outline mr-2"></i>
-                    {{ $t('home.new-project-0') }}
+                    {{ $t('home.new-project') }}
                   </Button>
                   <Button outlined @click="openFile">
                     <i class="mdi mdi-folder-open-outline mr-2"></i>
@@ -59,8 +59,8 @@
                   <Button
                     size="small"
                     severity="info"
-                    @click.stop="duplicateProject(data)"
                     class="p-button-outlined"
+                    @click.stop="duplicateProject(data)"
                   >
                     <template #icon><i class="mdi mdi-content-copy"></i></template>
                   </Button>
@@ -68,15 +68,15 @@
                     v-if="!data.noDeleteBtn"
                     size="small"
                     severity="danger"
-                    @click.stop="deleteProject(data.id)"
                     class="p-button-outlined"
+                    @click.stop="deleteProject(data.id)"
                   >
                     <template #icon><i class="mdi mdi-delete"></i></template>
                   </Button>
                   <Button
                     size="small"
-                    @click.stop="loadExisting(data.id)"
                     class="p-button-outlined"
+                    @click.stop="loadExisting(data.id)"
                   >
                     <template #icon><i class="mdi mdi-folder-open"></i></template>
                   </Button>
@@ -120,7 +120,7 @@
     >
       <template #header>
         <div class="flex flex-column w-full">
-          <p class="text-xl text-center">{{ $t('home.new-project-1') }}</p>
+          <p class="text-xl text-center">{{ $t('home.new-project') }}</p>
         </div>
       </template>
 
@@ -155,7 +155,7 @@
                     </div>
                   </template>
                   <template #value="{ value }: { value: Item | undefined }">
-                    <div class="flex align-items-center gap-2" v-if="value">
+                    <div v-if="value" class="flex align-items-center gap-2">
                       <i v-if="value.icon" :class="value.icon"></i>
                       <span>{{ value.label }}</span>
                     </div>
