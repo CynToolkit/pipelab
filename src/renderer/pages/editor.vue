@@ -289,6 +289,8 @@
 
 <script lang="ts" setup>
 import { computed, reactive, ref, watch } from 'vue'
+import { nanoid } from 'nanoid'
+import type { Pipeline, PipelineStep } from '@@/types'
 import Accordion from 'primevue/accordion'
 import AccordionPanel from 'primevue/accordionpanel'
 import AccordionHeader from 'primevue/accordionheader'
@@ -449,6 +451,13 @@ const run = async () => {
 
   const collectedTmpPaths: string[] = []
 
+  const pipelineData: Pipeline = {
+    id: nanoid(),
+    status: 'Running',
+    steps: [],
+    artifacts: []
+  }
+
   try {
     await processGraph({
       graph: klona(nodes.value),
@@ -470,14 +479,16 @@ const run = async () => {
         })
 
         nodeStatuses.value[node.uid] = 'running'
-        /* if (node.type === 'condition') {
-        return api.execute('condition:execute', {
-          nodeId: node.origin.nodeId,
-          pluginId: node.origin.pluginId,
-          params,
-          steps
-        })
-      } else  */
+
+        const stepData: PipelineStep = {
+          id: node.uid,
+          name: keyToNodeName(node.uid),
+          status: 'Running',
+          logs: '',
+          artifacts: []
+        }
+        pipelineData.steps.push(stepData)
+
         currentLogAccordion.value = node.uid
         if (node.type === 'action') {
           const result = await api.execute(
@@ -493,7 +504,7 @@ const run = async () => {
               // console.log('data', data)
               if (data.type === 'log') {
                 const lines = data.data.message.join(' ')
-
+                stepData.logs += lines + '\n'
                 const splittedInnerLines = lines.split('\n')
 
                 for (const l of splittedInnerLines
@@ -516,6 +527,7 @@ const run = async () => {
               }
             }
           )
+          stepData.status = 'Success'
           posthog.capture(`node_sucess`, {
             origin_node_id: lastActiveNode.value.origin.nodeId,
             origin_plugin_id: lastActiveNode.value.origin.pluginId
@@ -546,6 +558,9 @@ const run = async () => {
       }
     }
 
+    pipelineData.status = 'Success'
+    await api.execute('builds:save', { build: pipelineData })
+
     toast.add({
       summary: t('editor.execution-done'),
       life: 10_000,
@@ -570,6 +585,13 @@ const run = async () => {
         detail: t('editor.project-has-encountered-an-error') + e.message
       })
     }
+
+    const lastStep = pipelineData.steps.at(-1)
+    if (lastStep) {
+      lastStep.status = 'Failed'
+    }
+    pipelineData.status = 'Failed'
+    await api.execute('builds:save', { build: pipelineData })
     posthog.capture('run_errored')
   }
   setActiveNode(undefined)

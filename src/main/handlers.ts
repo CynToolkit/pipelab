@@ -8,6 +8,7 @@ import { presets } from './presets/list'
 import { handleActionExecute, handleConditionExecute } from './handler-func'
 import { useLogger } from '@@/logger'
 import { getDefaultAppSettingsMigrated, setupConfig } from './config'
+import { setupBuilds } from './builds'
 
 export type HandleListenerSendFn<KEY extends Channels> = (events: Events<KEY>) => void
 
@@ -444,31 +445,28 @@ export const registerIPCHandlers = () => {
   })
 
   handle('builds:get', async (_, { send }) => {
-    // TODO: Replace with real data from a database or other source
-    const mockBuilds: Pipeline[] = [
-      {
-        id: '1',
-        status: 'Success',
-        steps: [{ id: '1', name: 'Build', status: 'Success', logs: 'Build logs...', artifacts: [] }],
-        artifacts: [{ id: '1', name: 'build.zip', url: '#' }]
-      },
-      {
-        id: '2',
-        status: 'Failed',
-        steps: [
-          { id: '1', name: 'Build', status: 'Success', logs: 'Build logs...', artifacts: [] },
-          { id: '2', name: 'Test', status: 'Failed', logs: 'Test logs...', artifacts: [] }
-        ],
-        artifacts: []
-      }
-    ]
-
+    const { getBuilds } = await setupBuilds()
+    const builds = await getBuilds()
     send({
       type: 'end',
       data: {
         type: 'success',
         result: {
-          builds: mockBuilds
+          builds
+        }
+      }
+    })
+  })
+
+  handle('builds:save', async (_, { value, send }) => {
+    const { saveBuild } = await setupBuilds()
+    const result = await saveBuild(value.build)
+    send({
+      type: 'end',
+      data: {
+        type: 'success',
+        result: {
+          ok: result
         }
       }
     })

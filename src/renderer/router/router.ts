@@ -35,6 +35,14 @@ const routes: RouterOptions['routes'] = [
     }
   },
   {
+    path: '/billing',
+    name: 'Billing',
+    component: () => import('../pages/editor.vue'),
+    meta: {
+      title: t('headers.billing')
+    }
+  },
+  {
     path: '/team',
     name: 'Team',
     component: () => import('../pages/team.vue'),
@@ -59,13 +67,13 @@ export const router = createRouter({
 })
 
 router.beforeEach((to, from, next) => {
-  // const userStore = useUserStore()
+  const userStore = useUserStore()
 
-  // const hasPaidBenefit = userStore.benefits?.some((benefit: string) => benefit === 'paid_user')
+  const hasPaidBenefit = userStore.benefits?.some((benefit: string) => benefit === 'paid_user')
 
-  // if (to.meta.requiresAuth && !hasPaidBenefit) {
-  //   next({ name: 'Billing' })
-  // } else {
-  next()
-  // }
+  if (to.meta.requiresAuth && !hasPaidBenefit) {
+    next({ name: 'Billing' })
+  } else {
+    next()
+  }
 })

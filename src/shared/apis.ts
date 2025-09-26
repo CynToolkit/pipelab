@@ -101,6 +101,7 @@ export type IpcDefinition = {
   'settings:load': [never, EndEvent<{ result: AppConfig }>]
   'settings:save': [AppConfig, EndEvent<{ result: 'ok' | 'ko' }>]
   'builds:get': [void, EndEvent<{ builds: Pipeline[] }>]
+  'builds:save': [{ build: Pipeline }, EndEvent<{ ok: boolean }>]
 }
 
 export type Channels = keyof IpcDefinition
