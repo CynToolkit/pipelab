@@ -38,7 +38,8 @@
     "scenarios": "Scenarios",
     "editor": "Editor",
     "billing": "Billing",
-    "team": "Team"
+    "team": "Team",
+    "buildHistory": "Build history"
   },
   "base": {
     "close": "Close",

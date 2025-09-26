@@ -1,6 +1,6 @@
 import { createRouter, createWebHashHistory, RouterOptions } from 'vue-router'
 import { i18n } from '../i18n'
-
+import useUserStore from '@renderer/store/user'
 const { t } = i18n.global
 
 const routes: RouterOptions['routes'] = [
@@ -49,10 +49,31 @@ const routes: RouterOptions['routes'] = [
     meta: {
       title: t('headers.team')
     }
+  },
+  {
+    path: '/build-history',
+    name: 'BuildHistory',
+    component: () => import('../pages/build-history.vue'),
+    meta: {
+      title: t('headers.buildHistory'),
+      requiresAuth: true
+    }
   }
 ]
 
 export const router = createRouter({
   history: createWebHashHistory(),
   routes
+})
+
+router.beforeEach((to, from, next) => {
+  const userStore = useUserStore()
+
+  const hasPaidBenefit = userStore.benefits?.some((benefit: string) => benefit === 'paid_user')
+
+  if (to.meta.requiresAuth && !hasPaidBenefit) {
+    next({ name: 'Billing' })
+  } else {
+    next()
+  }
 })

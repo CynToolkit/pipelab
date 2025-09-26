@@ -2,6 +2,7 @@ import { RendererPluginDefinition } from '@pipelab/plugin-core'
 import type { Tagged } from 'type-fest'
 import { PresetResult, Steps } from './model'
 import { AppConfig } from '@main/config'
+import { Pipeline } from './types'
 
 type Event<TYPE extends string, DATA> =
   | { type: TYPE; data: DATA }
@@ -99,6 +100,7 @@ export type IpcDefinition = {
   'action:cancel': [void, EndEvent<{ result: 'ok' | 'ko' }>]
   'settings:load': [never, EndEvent<{ result: AppConfig }>]
   'settings:save': [AppConfig, EndEvent<{ result: 'ok' | 'ko' }>]
+  'builds:get': [void, EndEvent<{ builds: Pipeline[] }>]
 }
 
 export type Channels = keyof IpcDefinition

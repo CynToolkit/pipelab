@@ -1,4 +1,5 @@
 import { Channels, Data, Events, Message } from '@@/apis'
+import { Pipeline } from '@@/types'
 import { BrowserWindow, app, dialog, ipcMain } from 'electron'
 import { ensure, getFinalPlugins } from './utils'
 import { join } from 'node:path'
@@ -437,6 +438,37 @@ export const registerIPCHandlers = () => {
         type: 'success',
         result: {
           result: 'ok'
+        }
+      }
+    })
+  })
+
+  handle('builds:get', async (_, { send }) => {
+    // TODO: Replace with real data from a database or other source
+    const mockBuilds: Pipeline[] = [
+      {
+        id: '1',
+        status: 'Success',
+        steps: [{ id: '1', name: 'Build', status: 'Success', logs: 'Build logs...', artifacts: [] }],
+        artifacts: [{ id: '1', name: 'build.zip', url: '#' }]
+      },
+      {
+        id: '2',
+        status: 'Failed',
+        steps: [
+          { id: '1', name: 'Build', status: 'Success', logs: 'Build logs...', artifacts: [] },
+          { id: '2', name: 'Test', status: 'Failed', logs: 'Test logs...', artifacts: [] }
+        ],
+        artifacts: []
+      }
+    ]
+
+    send({
+      type: 'end',
+      data: {
+        type: 'success',
+        result: {
+          builds: mockBuilds
         }
       }
     })
