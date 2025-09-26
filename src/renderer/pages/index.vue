@@ -31,6 +31,12 @@
                     <i class="mdi mdi-folder-open-outline mr-2"></i>
                     {{ $t('home.open') }}
                   </Button>
+                  <Button v-slot="slotProps" as-child>
+                    <RouterLink :to="{ name: 'BuildHistory' }" :class="slotProps.class">
+                      <i class="mdi mdi-folder-open-outline mr-2"></i>
+                      {{ $t('home.open') }}
+                    </RouterLink>
+                  </Button>
                 </div>
               </div>
             </template>
