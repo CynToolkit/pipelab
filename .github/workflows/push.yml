@@ -49,17 +49,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
-      - name: logs
-        run: ls node_modules/@lydell
-
-      - name: logs
-        run: ls node_modules/@esbuild
-
       - name: rebuild
         run: npm rebuild
 
       - name: Import Apple Code Signing Certificate
-        uses: apple-actions/import-codesign-certs@v3 # Using a reliable action
+        uses: apple-actions/import-codesign-certs@v3
         if: matrix.os == 'macos-latest'
         with:
           p12-file-base64: ${{ secrets.CERTIFICATE_OSX_APPLICATION }}
@@ -96,7 +90,7 @@ jobs:
 
       - name: windows workaround
         if: matrix.os == 'windows-latest'
-        run: rm -rf out/Pipelab-win32-x64/resources/app/node_modules
+        run: rd -r "out/Pipelab-win32-x64/resources/app/node_modules"
 
       - name: Upload artifacts
         if: success()
