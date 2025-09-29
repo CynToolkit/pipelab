@@ -126,9 +126,8 @@ jobs:
       - name: Download artifacts
         uses: actions/download-artifact@v5
         with:
-          # name: ${{ matrix.os }}-${{ matrix.arch }}-out
+          name: artifact-${{ matrix.os }}-${{ matrix.arch }}-out
           path: out
-          pattern: artifact-*
 
       - uses: pnpm/action-setup@v4
         name: Install pnpm
