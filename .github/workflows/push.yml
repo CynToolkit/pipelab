@@ -123,6 +123,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Set open files limit
+        run: |
+          sudo prlimit --pid $$ --nofile=500000:500000
+
       - name: Download artifacts
         uses: actions/download-artifact@v5
         with:
