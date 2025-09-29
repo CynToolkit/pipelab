@@ -94,6 +94,10 @@ jobs:
           name: ${{ matrix.os }}-playwright
           path: playwright/**/*
 
+      - name: windows workaround
+        if: matrix.os == 'windows-latest'
+        run: rm -rf out/Pipelab-win32-x64/resources/app/node_modules
+
       - name: Upload artifacts
         if: success()
         continue-on-error: true
@@ -123,10 +127,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set open files limit
-        run: |
-          sudo prlimit --pid $$ --nofile=500000:500000
-
       - name: Download artifacts
         uses: actions/download-artifact@v5
         with:
@@ -146,6 +146,10 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --prod=false
+
+      - name: windows workaround
+        if: matrix.os == 'windows-latest'
+        run: cd out/Pipelab-win32-x64/resources/app/node_modules && pnpm i
 
       - name: Publish release
         env:
