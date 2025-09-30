@@ -143,15 +143,19 @@ jobs:
 
       - name: windows workaround
         if: matrix.os == 'windows-latest'
-        run: echo %cd%
-
-      - name: windows workaround
-        if: matrix.os == 'windows-latest'
         run: dir
 
       - name: windows workaround
         if: matrix.os == 'windows-latest'
-        run: cd out/Pipelab-win32-x64/resources/app/node_modules && pnpm i
+        run: cd out && dir
+
+      - name: windows workaround
+        if: matrix.os == 'windows-latest'
+        run: cd Pipelab-win32-x64 && dir
+
+      - name: windows workaround
+        if: matrix.os == 'windows-latest'
+        run: cd resources && dir
 
       - name: Publish release
         env:
