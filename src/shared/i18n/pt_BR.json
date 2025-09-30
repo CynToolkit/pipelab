@@ -18,7 +18,20 @@
       "billing": "Pagamento"
     },
     "clearTempFolders": "Automatically clean up temporary files",
-    "clearTempFoldersDescription": "When enabled, all temporary files created during pipeline execution will be automatically deleted after the pipeline completes. This helps save disk space but you may need to copy artifacts yourself to preserve them."
+    "clearTempFoldersDescription": "When enabled, all temporary files created during pipeline execution will be automatically deleted after the pipeline completes. This helps save disk space but you may need to copy artifacts yourself to preserve them.",
+    "pipeline-cache-folder": "Pipeline Cache Folder:",
+    "enter-or-browse-for-a-folder": "Enter or browse for a folder",
+    "browse": "Browse",
+    "manage-where-the-app-stores-temporary-and-cache-files": "Manage where the app stores temporary and cache files.",
+    "clear-cache": "Clear cache",
+    "reset-to-default": "Reset to default",
+    "manage-subscription": "Manage Subscription",
+    "renewal-date": "Renewal Date",
+    "start-date": "Start Date:",
+    "cache-cleared-successfully": "Cache cleared successfully",
+    "failed-to-clear-cache-error-message": "Failed to clear cache: {0}",
+    "failed-to-reset-cache-folder-error-message": "Failed to reset cache folder: {0}",
+    "select-cache-folder": "Select Cache Folder"
   },
   "headers": {
     "dashboard": "Dashboard",
