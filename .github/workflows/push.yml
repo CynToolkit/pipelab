@@ -143,22 +143,6 @@ jobs:
 
       - name: windows workaround
         if: matrix.os == 'windows-latest'
-        run: cd out && dir
-
-      - name: windows workaround
-        if: matrix.os == 'windows-latest'
-        run: cd out/Pipelab-win32-x64 && dir
-
-      - name: windows workaround
-        if: matrix.os == 'windows-latest'
-        run: cd out/Pipelab-win32-x64/resources && dir
-
-      - name: windows workaround
-        if: matrix.os == 'windows-latest'
-        run: cd out/Pipelab-win32-x64/resources/app && dir
-
-      - name: windows workaround
-        if: matrix.os == 'windows-latest'
         run: cd out/Pipelab-win32-x64/resources/app && pnpm i
 
       - name: Publish release
