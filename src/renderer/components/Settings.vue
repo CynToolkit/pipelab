@@ -3,10 +3,9 @@
     <Tabs value="0">
       <TabList>
         <Tab value="0">{{ t('settings.tabs.general') }}</Tab>
-        <Tab value="1">{{ t('settings.tabs.storage') }}</Tab>
-        <Tab value="2">{{ t('settings.tabs.integrations') }}</Tab>
-        <Tab value="3">{{ t('settings.tabs.advanced') }}</Tab>
-        <Tab v-if="user" value="4">{{ t('settings.tabs.billing') }}</Tab>
+        <Tab value="1">{{ t('settings.tabs.integrations') }}</Tab>
+        <Tab value="2">{{ t('settings.tabs.advanced') }}</Tab>
+        <Tab v-if="user" value="3">{{ t('settings.tabs.billing') }}</Tab>
       </TabList>
       <TabPanels>
         <!-- General Tab -->
@@ -28,8 +27,8 @@
               <div class="field-switch">
                 <div class="locale-changer">
                   <Select
-                    :options="$i18n.availableLocales"
                     v-model="currentLocale"
+                    :options="$i18n.availableLocales"
                     class="w-full p-2 border rounded"
                   >
                     <template #option="slotProps">
@@ -50,71 +49,18 @@
           </div>
         </TabPanel>
 
-        <!-- Storage Tab -->
-        <TabPanel value="1">
-          <div class="storage-settings">
-            <div class="field">
-              <label for="cache-folder" class="label">{{
-                $t('settings.pipeline-cache-folder')
-              }}</label>
-              <InputGroup>
-                <InputText
-                  :disabled="!settingsRef"
-                  :model-value="cacheFolder"
-                  input-id="cache-folder"
-                  readonly
-                  type="text"
-                  class="input"
-                  :placeholder="$t('settings.enter-or-browse-for-a-folder')"
-                  @update:model-value="updateCacheFolder"
-                />
-                <Button :disabled="!settingsRef" class="btn" @click="browseCacheFolder">{{
-                  $t('settings.browse')
-                }}</Button>
-              </InputGroup>
-              <p class="description">
-                {{ $t('settings.manage-where-the-app-stores-temporary-and-cache-files') }}
-              </p>
-            </div>
-            <div class="field actions">
-              <Button :disabled="!settingsRef || true" class="btn danger" @click="clearCache">{{
-                $t('settings.clear-cache')
-              }}</Button>
-              <Button :disabled="!settingsRef" class="btn" @click="resetCacheFolder">{{
-                $t('settings.reset-to-default')
-              }}</Button>
-            </div>
-            <div class="field">
-              <div class="field-switch">
-                <ToggleSwitch
-                  :disabled="!settingsRef"
-                  input-id="clear-temp-folders"
-                  :model-value="settingsRef?.clearTemporaryFoldersOnPipelineEnd || false"
-                  @update:model-value="updateClearTemporaryFoldersOnPipelineEnd"
-                />
-                <label for="clear-temp-folders" class="label">
-                  {{ t('settings.clearTempFolders') }}
-                </label>
-              </div>
-              <p class="description">
-                {{ t('settings.clearTempFoldersDescription') }}
-              </p>
-            </div>
-          </div>
-        </TabPanel>
-
         <!-- Integration Tab -->
-        <TabPanel value="2">
+        <TabPanel value="1">
           <p class="m-0">No settings yet</p>
         </TabPanel>
 
         <!-- Advanced Tab -->
-        <TabPanel value="3">
+        <TabPanel value="2">
           <p class="m-0">No settings yet</p>
         </TabPanel>
 
         <!-- Billing Tab -->
-        <TabPanel value="4">
+        <TabPanel value="3">
           <template v-for="subscription in subscriptions" :key="subscription.id">
             <div v-if="subscription.status === 'active'" :key="subscription.id">
               <Card class="subscription">
@@ -167,9 +113,8 @@ import Tab from 'primevue/tab'
 import Card from 'primevue/card'
 import TabPanels from 'primevue/tabpanels'
 import TabPanel from 'primevue/tabpanel'
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import { useAppSettings } from '@renderer/store/settings'
-import { useAPI } from '@renderer/composables/api'
 import { storeToRefs } from 'pinia'
 import Button from 'primevue/button'
 import { supabase } from '@@/supabase'
@@ -189,29 +134,10 @@ const { t, locale } = useI18n<
 >()
 
 const appSettings = useAppSettings()
-const api = useAPI()
 const authStore = useAuth()
 
 const { settings: settingsRef } = storeToRefs(appSettings)
 const { subscriptions, user } = storeToRefs(authStore)
-
-const cacheFolder = computed(() => {
-  return settingsRef.value?.cacheFolder
-})
-
-const updateCacheFolder = (value: string) => {
-  return appSettings.updateSettings({
-    ...settingsRef.value,
-    cacheFolder: value
-  })
-}
-
-const updateClearTemporaryFoldersOnPipelineEnd = (value: boolean) => {
-  return appSettings.updateSettings({
-    ...settingsRef.value,
-    clearTemporaryFoldersOnPipelineEnd: value
-  })
-}
 
 const currentLocale = computed({
   get: () => (settingsRef.value?.locale as string) || 'en-US',
@@ -234,64 +160,10 @@ watch(
   { immediate: true }
 )
 
-const browseCacheFolder = async () => {
-  const newPath = await api.execute('dialog:showOpenDialog', {
-    title: t('settings.select-cache-folder'),
-    defaultPath: cacheFolder.value,
-    properties: ['openDirectory']
-  })
-
-  console.log('newPath', newPath)
-
-  if (newPath.type === 'success') {
-    await updateCacheFolder(newPath.result.filePaths[0])
-  } else {
-    console.log('Error selecting cache folder', newPath)
-  }
-}
-const clearCache = async () => {
-  if (!settingsRef.value?.cacheFolder) return
-
-  try {
-    // Clear the cache folder contents
-    await api.execute('fs:rm', {
-      path: settingsRef.value.cacheFolder,
-      recursive: true,
-      force: true
-    })
-
-    // Show success message
-    // You might want to replace this with a toast notification component if available
-    alert(t('settings.cache-cleared-successfully'))
-  } catch (error) {
-    console.error('Failed to clear cache:', error)
-    alert(t('settings.failed-to-clear-cache-error-message', [error.message]))
-  }
-}
-
-const resetCacheFolder = async () => {
-  try {
-    // Reset to default cache folder (system temp directory)
-    await appSettings.reset('cacheFolder')
-
-    // Show success message
-    // You might want to replace this with a toast notification component if available
-    alert(`Cache folder reset to default`)
-  } catch (error) {
-    console.error('Failed to reset cache folder:', error)
-    alert(t('settings.failed-to-reset-cache-folder-error-message', [error.message]))
-  }
-}
-
 const openBillingPortal = async () => {
   const result = await supabase.functions.invoke('customer-portal')
   console.log('result', result)
   window.open(result.data.customerPortal)
-}
-const startCheckout = async () => {
-  const result = await supabase.functions.invoke('checkout')
-  console.log('result', result)
-  window.open(result.data.checkoutURL)
 }
 </script>
 

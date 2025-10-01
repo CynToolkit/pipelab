@@ -1,15 +1,20 @@
 import { usePlugins } from '@@/plugins'
 import { downloadFile, Hooks, RendererPluginDefinition } from '../shared/libs/plugin-core'
 import { access, chmod, mkdir, mkdtemp, realpath, rm, unlink, writeFile } from 'node:fs/promises'
-import { tempFolderTracker } from './temp-tracker'
 import { dirname, join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { app } from 'electron'
+import { app, BrowserWindow } from 'electron'
 import * as zlib from 'zlib' // For gunzip (used with tar.gz)
 import * as tar from 'tar' // Library for tar extraction
 import * as yauzl from 'yauzl' // Library for zip extraction
 import { constants, createReadStream, createWriteStream } from 'node:fs'
 import { throttle } from 'es-toolkit'
+import { processGraph } from '@@/graph'
+import { handleActionExecute } from './handler-func'
+import { useLogger } from '@@/logger'
+import { buildHistoryStorage } from './handlers/build-history'
+import type { BuildHistoryEntry } from '@@/build-history'
+import type { Variable } from '@pipelab/core-app'
 
 export const getFinalPlugins = () => {
   const { plugins } = usePlugins()
@@ -63,10 +68,7 @@ export const generateTempFolder = async (base = tmpdir()) => {
   const realPath = await realpath(base)
   console.log('join', join(realPath, 'pipelab-'))
   const tempFolder = await mkdtemp(join(realPath, 'pipelab-'))
-  
-  // Track the created temporary folder
-  tempFolderTracker.track(tempFolder)
-  
+
   return tempFolder
 }
 
@@ -403,4 +405,157 @@ export const zipFolder = async (from: string, to: string, log: typeof console.lo
     log('to', to)
     archive.finalize()
   })
+}
+
+// @ts-expect-error import.meta
+const isCI = process.env.CI === 'true' || import.meta.env.CI === 'true'
+
+export interface GraphExecutionOptions {
+  /** The graph nodes to execute */
+  graph: any[]
+  /** Variables for the execution */
+  variables: Variable[]
+  /** Project information */
+  projectName?: string
+  projectPath?: string
+  /** Main window for action execution */
+  mainWindow?: BrowserWindow
+  /** Logger function for node events */
+  onNodeEnter?: (node: any) => void
+  onNodeExit?: (node: any) => void
+  /** Log handler function */
+  onLog?: (data: any, node?: any) => void
+  /** Abort signal for cancellation */
+  abortSignal?: AbortSignal
+  /** Optional output file path for CLI usage */
+  outputPath?: string
+}
+
+/**
+ * Unified function for executing processGraph with build history tracking
+ * Used by both CLI (main.ts) and IPC handler (handlers.ts) implementations
+ */
+export const executeGraphWithHistory = async (options: GraphExecutionOptions) => {
+  const { logger } = useLogger()
+  const {
+    graph,
+    variables,
+    projectName,
+    projectPath,
+    mainWindow,
+    onNodeEnter,
+    onNodeExit,
+    onLog,
+    abortSignal,
+    outputPath
+  } = options
+
+  // Create build history entry for this pipeline execution
+  const buildId = `build-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+  const buildEntry: BuildHistoryEntry = {
+    id: buildId,
+    projectId: projectPath || 'unknown',
+    projectName: projectName || 'Unnamed Pipeline',
+    projectPath: projectPath || 'unknown',
+    status: 'running',
+    startTime: Date.now(),
+    steps: [],
+    totalSteps: graph.length,
+    completedSteps: 0,
+    failedSteps: 0,
+    cancelledSteps: 0,
+    logs: [],
+    createdAt: Date.now(),
+    updatedAt: Date.now()
+  }
+
+  // Save initial build history entry
+  try {
+    await buildHistoryStorage.save(buildEntry)
+    logger().info(`Build history entry created: ${buildId}`)
+  } catch (error) {
+    logger().error('Failed to save initial build history entry:', error)
+  }
+
+  try {
+    const pluginDefinitions = getFinalPlugins()
+
+    const result = await processGraph({
+      graph,
+      definitions: pluginDefinitions,
+      variables,
+      steps: {},
+      context: {},
+      onNodeEnter: (node) => {
+        logger().info('onNodeEnter', node.uid)
+        onNodeEnter?.(node)
+      },
+      onNodeExit: (node) => {
+        logger().info('onNodeExit', node.uid)
+        onNodeExit?.(node)
+      },
+      onExecuteItem: (node, params) => {
+        if (node.type === 'action') {
+          return handleActionExecute(
+            node.origin.nodeId,
+            node.origin.pluginId,
+            params,
+            mainWindow,
+            (data) => {
+              if (!isCI) {
+                logger().info('send', data)
+              }
+              onLog?.(data)
+            },
+            abortSignal || new AbortController().signal
+          )
+        } else {
+          throw new Error('Unhandled type ' + node.type)
+        }
+      }
+    })
+
+    // Update build history entry as completed
+    buildEntry.status = 'completed'
+    buildEntry.endTime = Date.now()
+    buildEntry.duration = buildEntry.endTime - buildEntry.startTime
+    buildEntry.completedSteps = graph.length
+    buildEntry.updatedAt = Date.now()
+
+    await buildHistoryStorage.save(buildEntry)
+    logger().info(`Build history entry updated as completed: ${buildId}`)
+
+    // Handle output file for CLI usage
+    if (outputPath) {
+      const fs = await import('fs/promises')
+      await fs.writeFile(outputPath, JSON.stringify(result, null, 2), 'utf8')
+    }
+
+    return { result, buildId }
+  } catch (e) {
+    // Update build history entry as failed
+    buildEntry.status = 'failed'
+    buildEntry.endTime = Date.now()
+    buildEntry.duration = buildEntry.endTime - buildEntry.startTime
+    buildEntry.error = {
+      message: e instanceof Error ? e.message : 'Unknown error',
+      timestamp: Date.now()
+    }
+    buildEntry.updatedAt = Date.now()
+
+    await buildHistoryStorage.save(buildEntry)
+    logger().info(`Build history entry updated as failed: ${buildId}`)
+
+    // Handle error output file for CLI usage
+    if (outputPath) {
+      const fs = await import('fs/promises')
+      await fs.writeFile(
+        outputPath,
+        JSON.stringify({ error: (e as Error).message }, null, 2),
+        'utf8'
+      )
+    }
+
+    throw e
+  }
 }

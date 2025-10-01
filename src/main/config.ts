@@ -2,36 +2,29 @@ import { createMigration, createMigrator, finalVersion, initialVersion } from '@
 import { createVersionSchema, OmitVersion } from '@@/libs/migration/models/migration'
 import { app } from 'electron'
 import { join } from 'node:path'
-import { string, union, literal, InferInput, boolean } from 'valibot'
+import { union, literal, InferInput } from 'valibot'
 import { ensure } from './utils'
 import { readFile, writeFile } from 'node:fs/promises'
 import { useLogger } from '@@/logger'
-import { tmpdir } from 'node:os'
 
 export const AppSettingsValidatorV1 = createVersionSchema({
-  cacheFolder: string(),
   theme: union([literal('light'), literal('dark')]),
   version: literal('1.0.0')
 })
 
 export const AppSettingsValidatorV2 = createVersionSchema({
-  cacheFolder: string(),
   theme: union([literal('light'), literal('dark')]),
   version: literal('2.0.0')
 })
 
 export const AppSettingsValidatorV3 = createVersionSchema({
-  cacheFolder: string(),
   theme: union([literal('light'), literal('dark')]),
-  version: literal('3.0.0'),
-  clearTemporaryFoldersOnPipelineEnd: boolean()
+  version: literal('3.0.0')
 })
 
 export const AppSettingsValidatorV4 = createVersionSchema({
-  cacheFolder: string(),
   theme: union([literal('light'), literal('dark')]),
   version: literal('4.0.0'),
-  clearTemporaryFoldersOnPipelineEnd: boolean(),
   locale: union([
     literal('en-US'),
     literal('fr-FR'),
@@ -52,10 +45,7 @@ export const AppSettingsValidator = AppSettingsValidatorV4
 
 const migrator = createMigrator<AppConfigV1, AppConfig>()
 
-const defaultCacheFolder = join(tmpdir(), 'pipelab')
-
 export const defaultAppSettings = migrator.createDefault({
-  cacheFolder: defaultCacheFolder,
   theme: 'light',
   version: '1.0.0'
 })
@@ -70,12 +60,7 @@ export const appSettingsMigrator = migrator.createMigrations({
     }),
     createMigration<AppConfigV1, AppConfigV2, AppConfigV3>({
       version: '2.0.0',
-      up: (state) => {
-        return {
-          ...state,
-          clearTemporaryFoldersOnPipelineEnd: false
-        } satisfies OmitVersion<AppConfigV3>
-      },
+      up: (state) => state satisfies OmitVersion<AppConfigV3>,
       down: () => {
         throw new Error("Can't migrate down from 2.0.0")
       }

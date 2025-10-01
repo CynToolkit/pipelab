@@ -283,7 +283,8 @@ export const useAuth = defineStore('auth', () => {
   const isLoggedIn = computed(() => authState.value === 'SIGNED_IN')
 
   const benefits = {
-    'cloud-save': '16955d3e-3e0f-4574-9093-87a32edf237c'
+    'cloud-save': '16955d3e-3e0f-4574-9093-87a32edf237c',
+    'build-history': 'b77e9800-8302-4581-8df3-6f1b979acef5'
   }
 
   const hasBenefit = (benefit: keyof typeof benefits) => {

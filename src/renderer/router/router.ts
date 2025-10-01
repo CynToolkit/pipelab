@@ -49,6 +49,14 @@ const routes: RouterOptions['routes'] = [
     meta: {
       title: t('headers.team')
     }
+  },
+  {
+    path: '/build-history',
+    name: 'BuildHistory',
+    component: () => import('../pages/BuildHistoryPage.vue'),
+    meta: {
+      title: 'Build History'
+    }
   }
 ]
 

@@ -2,6 +2,13 @@ import { RendererPluginDefinition } from '@pipelab/plugin-core'
 import type { Tagged } from 'type-fest'
 import { PresetResult, Steps } from './model'
 import { AppConfig } from '@main/config'
+import {
+  BuildHistoryEntry,
+  BuildHistoryQuery,
+  BuildHistoryResponse,
+  BuildHistoryConfig,
+  RetentionPolicy
+} from './build-history'
 
 type Event<TYPE extends string, DATA> =
   | { type: TYPE; data: DATA }
@@ -16,6 +23,7 @@ type EndEvent<DATA> = {
     | {
         type: 'error'
         ipcError: string
+        code?: string
       }
 }
 
@@ -99,6 +107,45 @@ export type IpcDefinition = {
   'action:cancel': [void, EndEvent<{ result: 'ok' | 'ko' }>]
   'settings:load': [never, EndEvent<{ result: AppConfig }>]
   'settings:save': [AppConfig, EndEvent<{ result: 'ok' | 'ko' }>]
+
+  // Build History APIs
+  'build-history:save': [{ entry: BuildHistoryEntry }, EndEvent<{ result: 'ok' | 'ko' }>]
+  'build-history:get': [{ id: string }, EndEvent<{ entry?: BuildHistoryEntry }>]
+  'build-history:get-all': [{ query?: BuildHistoryQuery }, EndEvent<BuildHistoryResponse>]
+  'build-history:update': [
+    { id: string; updates: Partial<BuildHistoryEntry> },
+    EndEvent<{ result: 'ok' | 'ko' }>
+  ]
+  'build-history:delete': [{ id: string }, EndEvent<{ result: 'ok' | 'ko' }>]
+  'build-history:delete-by-project': [{ projectId: string }, EndEvent<{ result: 'ok' | 'ko' }>]
+  'build-history:clear': [void, EndEvent<{ result: 'ok' | 'ko' }>]
+  'build-history:get-storage-info': [
+    void,
+    EndEvent<{
+      totalEntries: number
+      totalSize: number
+      oldestEntry?: number
+      newestEntry?: number
+    }>
+  ]
+  'build-history:configure': [
+    { config: Partial<BuildHistoryConfig> },
+    EndEvent<{ result: 'ok' | 'ko' }>
+  ]
+  'graph:execute': [
+    {
+      graph: any[]
+      variables: any[]
+      projectName?: string
+      projectPath?: string
+    },
+    (
+      | { type: 'node-enter'; data: { nodeUid: string; nodeName: string } }
+      | { type: 'node-exit'; data: { nodeUid: string; nodeName: string } }
+      | { type: 'node-log'; data: { nodeUid: string; logData: any } }
+      | EndEvent<{ result: any; buildId: string }>
+    )
+  ]
 }
 
 export type Channels = keyof IpcDefinition

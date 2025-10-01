@@ -5,11 +5,9 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { registerIPCHandlers } from './main/handlers'
 import { usePlugins } from '@@/plugins'
 import { parseArgs, ParseArgsConfig } from 'node:util'
-import { processGraph } from '@@/graph'
 import { readFile, writeFile, mkdir } from 'fs/promises'
-import { getFinalPlugins } from '@main/utils'
+import { executeGraphWithHistory } from '@main/utils'
 import { SavedFile } from '@@/model'
-import { handleActionExecute } from '@main/handler-func'
 import { useLogger } from '@@/logger'
 import * as Sentry from '@sentry/electron/main'
 import { assetsPath } from '@main/paths'
@@ -17,7 +15,6 @@ import { usePluginAPI } from '@main/api'
 import { setupConfig } from '@main/config'
 import { resolve } from 'node:path'
 import Squirrel from 'electron-squirrel-startup'
-import { tempFolderTracker } from '@main/temp-tracker'
 
 const isLinux = platform() === 'linux'
 // let tray
@@ -298,62 +295,34 @@ app.whenReady().then(async () => {
 
       const { canvas, variables } = data
       const { blocks: nodes } = canvas
-      const pluginDefinitions = getFinalPlugins()
 
       try {
-        const result = await processGraph({
+        await executeGraphWithHistory({
           graph: nodes,
-          definitions: pluginDefinitions,
           variables: variables,
-          steps: {},
-          context: {},
+          projectName: data.name || 'Unnamed Pipeline',
+          projectPath: project,
+          mainWindow: mainWindow,
           onNodeEnter: (node) => {
             logger().info('onNodeEnter', node.uid)
           },
           onNodeExit: (node) => {
             logger().info('onNodeExit', node.uid)
           },
-          onExecuteItem: (node, params /* , steps */) => {
-            /* if (node.type === 'condition') {
-            return handleConditionExecute(node.origin.nodeId, node.origin.pluginId, params, {
-              send: (data) => {
-                logger().info('send', data)
-              }
-            })
-          } else  */ if (node.type === 'action') {
-              return handleActionExecute(
-                node.origin.nodeId,
-                node.origin.pluginId,
-                params,
-                mainWindow,
-                (data) => {
-                  if (!isCI) {
-                    logger().info('send', data)
-                  }
-                  console.log('send', data)
-                },
-                new AbortController().signal
-              )
-            } else {
-              throw new Error('Unhandled type ' + node.type)
+          onLog: (data) => {
+            if (!isCI) {
+              logger().info('send', data)
             }
-          }
+            console.log('send', data)
+          },
+          outputPath: output
         })
 
         console.log('got an output', output)
-
-        if (output) {
-          await writeFile(output, JSON.stringify(result, null, 2), 'utf8')
-        }
-
-        // Clean up temporary folders on success if setting is enabled
-        if (settings.clearTemporaryFoldersOnPipelineEnd) {
-          await tempFolderTracker.cleanup()
-        }
       } catch (e) {
         console.error('error while executing process', e)
         if (output) {
-          await writeFile(output, JSON.stringify({ error: e.message }, null, 2), 'utf8')
+          await writeFile(output, JSON.stringify({ error: (e as Error).message }, null, 2), 'utf8')
         }
       }
     }
@@ -417,7 +386,6 @@ app.whenReady().then(async () => {
 // explicitly with Cmd + Q.
 app.on('window-all-closed', async () => {
   if (process.platform !== 'darwin') {
-    await client.shutdown()
     app.quit()
   }
 })

@@ -16,9 +16,8 @@ import { usePluginAPI } from './api'
 import { BlockCondition } from '@@/model'
 import { HandleListenerSendFn } from './handlers'
 import { ensureNodeJS, generateTempFolder } from './utils'
-import { setupConfig } from './config'
 import { join } from 'node:path'
-import { tempFolderTracker } from './temp-tracker'
+import { tmpdir } from 'node:os'
 
 const checkParams = (definitionParams: InputsDefinition, elementParams: Record<string, string>) => {
   // get a list of all required params
@@ -71,9 +70,7 @@ export const handleConditionExecute = async (
     }
   }
 
-  const _settings = await setupConfig()
-  const config = await _settings.getConfig()
-  const tmp = await generateTempFolder(config.cacheFolder)
+  const tmp = await generateTempFolder(tmpdir())
 
   await mkdir(tmp, {
     recursive: true
@@ -123,8 +120,6 @@ export const handleActionExecute = async (
 ): Promise<End<'action:execute'>> => {
   const { plugins } = usePlugins()
   const { logger } = useLogger()
-  const settings = await setupConfig()
-  const config = await settings.getConfig()
 
   mainWindow?.setProgressBar(1, {
     mode: 'indeterminate'
@@ -147,7 +142,7 @@ export const handleActionExecute = async (
     }
   }
 
-  const tmp = await generateTempFolder(config.cacheFolder)
+  const tmp = await generateTempFolder(tmpdir())
   const _assetsPath = await assetsPath()
   const _unpackPath = await unpackPath()
   const nodePath = await ensureNodeJS()
@@ -190,7 +185,7 @@ export const handleActionExecute = async (
       paths: {
         assets: _assetsPath,
         unpack: _unpackPath,
-        cache: config.cacheFolder,
+        cache: tmpdir(),
         node: nodePath,
         pnpm
       },

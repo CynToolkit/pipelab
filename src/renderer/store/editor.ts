@@ -29,7 +29,6 @@ import { useFiles } from './files'
 import { useRouteParams } from '@vueuse/router'
 import { ValidationError } from '@renderer/models/error'
 import { isRequired } from '@@/validation'
-import { processGraph } from '@@/graph'
 import { useLogger } from '@@/logger'
 import { klona } from 'klona'
 import { create } from 'mutative'
@@ -743,7 +742,6 @@ export const useEditor = defineStore('editor', () => {
     removeVariable,
     getPluginDefinition,
     getNodeDefinition,
-    processGraph,
     loadPreset,
     isRunning,
     setIsRunning,

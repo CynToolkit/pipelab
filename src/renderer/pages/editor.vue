@@ -133,7 +133,7 @@
                 mollit anim id est laborum.
               </p>
             </div> -->
-            <div class="drawer right" v-if="selectedNode">
+            <div v-if="selectedNode" class="drawer right">
               <div class="flex justify-content-between align-items-center flex-wrap">
                 <div class="text-bold text-xl">
                   {{ selectedNode?.name ?? nodeDefinition?.name }}
@@ -141,11 +141,11 @@
                 <Button
                   icon="pi pi-times"
                   class="flex"
-                  @click="setSelectedNode(undefined)"
                   size="small"
+                  @click="setSelectedNode(undefined)"
                 ></Button>
               </div>
-              <div class="flex flex-column gap-4" v-if="nodeDefinition">
+              <div v-if="nodeDefinition" class="flex flex-column gap-4">
                 <div
                   v-for="(paramDefinition, key) in nodeDefinition.params"
                   :key="key"
@@ -324,7 +324,6 @@ import { value } from 'valibot'
 import { ValueOf } from 'type-fest'
 import { createQuickJs } from '@renderer/utils/quickjs'
 import ParamEditor from '@renderer/components/nodes/ParamEditor.vue'
-import { useAppSettings } from '@renderer/store/settings'
 import { useI18n } from 'vue-i18n'
 
 type Param = ValueOf<BlockAction['params']>
@@ -349,7 +348,6 @@ const {
   selectedNode
 } = storeToRefs(instance)
 const {
-  processGraph,
   loadSavedFile,
   setIsRunning,
   pushLine,
@@ -371,9 +369,6 @@ const { update } = filesStore
 
 const authStore = useAuth()
 const { isLoggedIn } = storeToRefs(authStore)
-
-const appSettings = useAppSettings()
-const { settings: settingsRef } = storeToRefs(appSettings)
 
 const quickLogs = ref([])
 
@@ -450,99 +445,68 @@ const run = async () => {
   const collectedTmpPaths: string[] = []
 
   try {
-    await processGraph({
-      graph: klona(nodes.value),
-      definitions: pluginDefinitions.value,
-      variables: variables.value,
-      context: {},
-      steps: {},
-      onNodeEnter: (node) => {
-        setActiveNode(node)
-        lastActiveNode.value = node
+    const result = await api.execute(
+      'graph:execute',
+      {
+        graph: klona(nodes.value),
+        variables: variables.value,
+        projectName: name.value,
+        projectPath:
+          currentFilePointer.value.type === 'external' ? currentFilePointer.value.path : undefined
       },
-      onNodeExit: () => {
-        setActiveNode(undefined)
-      },
-      onExecuteItem: async (node, params, steps) => {
-        posthog.capture(`node_executed`, {
-          origin_node_id: node.origin.nodeId,
-          origin_plugin_id: node.origin.pluginId
-        })
-
-        nodeStatuses.value[node.uid] = 'running'
-        /* if (node.type === 'condition') {
-        return api.execute('condition:execute', {
-          nodeId: node.origin.nodeId,
-          pluginId: node.origin.pluginId,
-          params,
-          steps
-        })
-      } else  */
-        currentLogAccordion.value = node.uid
-        if (node.type === 'action') {
-          const result = await api.execute(
-            'action:execute',
-            {
-              nodeId: node.origin.nodeId,
-              pluginId: node.origin.pluginId,
-              params,
-              steps
-            },
-            async (event, data) => {
-              // console.log('event', event)
-              // console.log('data', data)
-              if (data.type === 'log') {
-                const lines = data.data.message.join(' ')
-
-                const splittedInnerLines = lines.split('\n')
-
-                for (const l of splittedInnerLines
-                  .map((x) => x.trim())
-                  .filter((x) => !!x)
-                  .filter((x) => x !== '')) {
-                  let content = ''
-
-                  if (hasAnsi(l)) {
-                    content += fancyAnsi.toHtml(l)
-                  } else {
-                    content += l
-                  }
-
-                  pushLine(
-                    node.uid,
-                    [format(data.data.time, 'dd/MM/yyyy - hh:mm:ss'), content].join(' ')
-                  )
-                }
-              }
-            }
-          )
-          posthog.capture(`node_sucess`, {
-            origin_node_id: lastActiveNode.value.origin.nodeId,
-            origin_plugin_id: lastActiveNode.value.origin.pluginId
-          })
-          nodeStatuses.value[node.uid] = 'done'
-
-          console.log('result', result)
-
-          if (result.type === 'success') {
-            collectedTmpPaths.push(result.result.tmp)
+      async (event, data) => {
+        if (data.type === 'node-enter') {
+          const node = nodes.value.find((n) => n.uid === data.data.nodeUid)
+          if (node) {
+            setActiveNode(node)
+            lastActiveNode.value = node
+            nodeStatuses.value[node.uid] = 'running'
+            currentLogAccordion.value = node.uid
           }
+        } else if (data.type === 'node-exit') {
+          const node = nodes.value.find((n) => n.uid === data.data.nodeUid)
+          if (node) {
+            setActiveNode(undefined)
+            nodeStatuses.value[node.uid] = 'done'
+          }
+        } else if (data.type === 'node-log') {
+          const { nodeUid, logData } = data.data
+          if (logData.type === 'log') {
+            const lines = logData.data.message.join(' ')
 
-          return result
-        } else {
-          throw new Error('Unhandled type ' + node.type)
+            const splittedInnerLines = lines.split('\n')
+
+            for (const l of splittedInnerLines
+              .map((x) => x.trim())
+              .filter((x) => !!x)
+              .filter((x) => x !== '')) {
+              let content = ''
+
+              if (hasAnsi(l)) {
+                content += fancyAnsi.toHtml(l)
+              } else {
+                content += l
+              }
+
+              pushLine(
+                nodeUid,
+                [format(logData.data.time, 'dd/MM/yyyy - hh:mm:ss'), content].join(' ')
+              )
+            }
+          }
         }
       }
-    })
+    )
 
-    // Clean up temporary folders on success if setting is enabled
-    if (settingsRef.value.clearTemporaryFoldersOnPipelineEnd) {
-      for (const path of collectedTmpPaths) {
-        await api.execute('fs:rm', {
-          path,
-          recursive: true,
-          force: false
-        })
+    if (result.type === 'success') {
+      posthog.capture(`node_sucess`, {
+        origin_node_id: lastActiveNode.value.origin.nodeId,
+        origin_plugin_id: lastActiveNode.value.origin.pluginId
+      })
+
+      // Mark all nodes as done since execution completed successfully
+      for (const node of nodes.value) {
+        nodeStatuses.value[node.uid] = 'done'
       }
     }
 
@@ -554,12 +518,15 @@ const run = async () => {
     })
     posthog.capture('run_succeed')
   } catch (e) {
-    nodeStatuses.value[lastActiveNode.value.uid] = 'error'
+    // Find the last active node and mark it as error
+    if (lastActiveNode.value) {
+      nodeStatuses.value[lastActiveNode.value.uid] = 'error'
 
-    posthog.capture(`node_errored`, {
-      origin_node_id: lastActiveNode.value.origin.nodeId,
-      origin_plugin_id: lastActiveNode.value.origin.pluginId
-    })
+      posthog.capture(`node_errored`, {
+        origin_node_id: lastActiveNode.value.origin.nodeId,
+        origin_plugin_id: lastActiveNode.value.origin.pluginId
+      })
+    }
 
     console.error('error while executing process', e)
     if (e instanceof Error) {

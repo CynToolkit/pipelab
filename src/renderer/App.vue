@@ -47,23 +47,66 @@ const settingsStore = useAppSettings()
 const { logger } = useLogger()
 const authStore = useAuth()
 const { init: authInit } = authStore
-const { settings, } = storeToRefs(settingsStore)
+const { settings } = storeToRefs(settingsStore)
 const { init: initSettings } = settingsStore
 
 const { init } = appStore
 const isLoading = ref(false)
 
 handle('log:message', async (event, { value, send }) => {
-  // console.log('value._meta', value._meta)
-  if (value._meta) {
-    const values = Object.entries(value)
-      .filter(([key]) => key !== '_meta')
-      .map(([, v]) => v)
-    logger()
-      .getSubLogger({
-        name: 'Main'
-      })
-      .log(value._meta.logLevelId, ...[value._meta.logLevelName, ...values])
+  console.log('log:message: Received value:', {
+    value,
+    type: typeof value,
+    hasValue: !!value,
+    isObject: typeof value === 'object',
+    hasMeta: value?._meta,
+    metaType: typeof value?._meta
+  })
+
+  // Validate that value exists and is an object before accessing properties
+  if (!value || typeof value !== 'object') {
+    console.warn('log:message: Invalid value received:', {
+      value,
+      type: typeof value,
+      hasValue: !!value
+    })
+    send({
+      type: 'end',
+      data: undefined
+    })
+    return
+  }
+
+  // Check if the value has _meta property before accessing it
+  if (
+    value &&
+    value._meta &&
+    typeof value._meta === 'object' &&
+    value._meta.logLevelId !== undefined
+  ) {
+    try {
+      const values = Object.entries(value)
+        .filter(([key]) => key !== '_meta')
+        .map(([, v]) => v)
+
+      // Filter out undefined values to prevent tslog errors
+      const filteredValues = values.filter((v) => v !== undefined)
+      const logLevelName = value._meta.logLevelName || 'LOG'
+
+      logger()
+        .getSubLogger({
+          name: 'Main'
+        })
+        .log(value._meta.logLevelId, ...[logLevelName, ...filteredValues])
+    } catch (error) {
+      console.error('log:message: Error processing log message:', error)
+    }
+  } else {
+    console.warn('log:message: Value missing _meta property or _meta is not an object:', {
+      hasMeta: !!value._meta,
+      metaType: typeof value._meta,
+      valueKeys: Object.keys(value || {})
+    })
   }
 
   send({

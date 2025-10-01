@@ -40,6 +40,9 @@
     "billing": "Billing",
     "team": "Team"
   },
+  "navigation": {
+    "build-history": "Build History"
+  },
   "base": {
     "close": "Close",
     "save": "Save",

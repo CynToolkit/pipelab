@@ -2,6 +2,20 @@
   <div class="layout">
     <div class="header">
       <div class="bold title">{{ headerSentence }}</div>
+      <div class="navigation">
+        <Button
+          v-if="hasBuildHistoryAccess"
+          link
+          class="nav-button"
+          :class="{ active: isBuildHistoryRoute }"
+          :aria-label="$t('navigation.build-history')"
+          role="menuitem"
+          @click="navigateToBuildHistory"
+        >
+          <i class="icon mdi mdi-history fs-20"></i>
+          <span class="nav-text">{{ $t('navigation.build-history') }}</span>
+        </Button>
+      </div>
       <div class="button">
         <Button link class="list-item" @click="toggleAccountMenu">
           <i class="icon mdi mdi-account fs-24"></i>
@@ -238,17 +252,29 @@ import posthog from 'posthog-js'
 import { storeToRefs } from 'pinia'
 import { handle } from '@renderer/composables/handlers'
 import { useForm } from 'vee-validate'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 
 const { logger } = useLogger()
+const route = useRoute()
+const router = useRouter()
 
 const $menu = ref()
-
-const route = useRoute()
 
 const headerSentence = computed(() => {
   return route.meta?.title as string
 })
+
+const hasBuildHistoryAccess = computed(() => {
+  return auth.hasBenefit('cloud-save')
+})
+
+const isBuildHistoryRoute = computed(() => {
+  return route.name === 'BuildHistory'
+})
+
+const navigateToBuildHistory = () => {
+  router.push({ name: 'BuildHistory' })
+}
 
 const updateStatus = ref<UpdateStatus>('update-not-available')
 
@@ -496,10 +522,84 @@ const onSubmit = handleSubmit(onSuccess, onInvalidSubmit)
       margin-left: 12px;
     }
 
+    .navigation {
+      display: flex;
+      align-items: center;
+
+      .nav-button {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 16px;
+        font-size: 1rem;
+        color: var(--text-color);
+        text-decoration: none;
+        border-radius: 6px;
+        transition: all 0.2s ease;
+        cursor: pointer;
+
+        .icon {
+          opacity: 0.8;
+        }
+
+        .nav-text {
+          font-weight: 500;
+        }
+
+        &:hover {
+          background-color: var(--surface-hover);
+          color: var(--primary-color);
+
+          .icon {
+            opacity: 1;
+          }
+        }
+
+        &.active {
+          background-color: var(--primary-color);
+          color: var(--primary-color-text);
+
+          .icon {
+            opacity: 1;
+          }
+        }
+
+        @media (max-width: 768px) {
+          padding: 6px 12px;
+
+          .nav-text {
+            display: none;
+          }
+
+          .icon {
+            margin-right: 0;
+          }
+        }
+      }
+    }
+
     .button {
       display: flex;
       gap: 8px;
       align-items: center;
+    }
+
+    @media (max-width: 768px) {
+      .navigation {
+        order: 2;
+      }
+
+      .button {
+        order: 3;
+      }
+
+      .title {
+        order: 1;
+        flex: 1;
+        margin-left: 0;
+        margin-right: 0;
+        text-align: center;
+      }
     }
   }
 
