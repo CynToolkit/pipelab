@@ -18,7 +18,7 @@
           <div class="build-meta">
             <div class="meta-item">
               <label>Project ID:</label>
-              <span>{{ entry.projectId }}</span>
+              <span>{{ entry.pipelineId }}</span>
             </div>
             <div class="meta-item">
               <label>Started:</label>

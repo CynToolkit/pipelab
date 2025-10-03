@@ -117,7 +117,6 @@ export type IpcDefinition = {
     EndEvent<{ result: 'ok' | 'ko' }>
   ]
   'build-history:delete': [{ id: string }, EndEvent<{ result: 'ok' | 'ko' }>]
-  'build-history:delete-by-project': [{ projectId: string }, EndEvent<{ result: 'ok' | 'ko' }>]
   'build-history:clear': [void, EndEvent<{ result: 'ok' | 'ko' }>]
   'build-history:get-storage-info': [
     void,
@@ -136,6 +135,7 @@ export type IpcDefinition = {
     {
       graph: any[]
       variables: any[]
+      pipelineId?: string
       projectName?: string
       projectPath?: string
     },

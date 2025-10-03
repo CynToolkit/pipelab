@@ -62,7 +62,8 @@
     "execution-failed": "Execution failed",
     "project-has-encountered-an-error": "Project has encountered an error:",
     "project-saved": "Project saved",
-    "your-project-has-be-saved-successfully": "Your project has be saved successfully"
+    "your-project-has-be-saved-successfully": "Your project has be saved successfully",
+    "view-history": "Scenario history"
   },
   "home": {
     "invalid-preset": "Invalid preset",

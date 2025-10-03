@@ -68,15 +68,6 @@ export const useBuildHistory = defineStore('build-history', () => {
       }
     },
 
-    async deleteByProject(projectId: string): Promise<void> {
-      const result = await api.execute('build-history:delete-by-project', {
-        projectId
-      })
-      if (result.type === 'error') {
-        throw new Error(result.ipcError || 'Failed to delete build history entries for project')
-      }
-    },
-
     async clear(): Promise<void> {
       const result = await api.execute('build-history:clear')
       if (result.type === 'error') {
@@ -113,8 +104,9 @@ export const useBuildHistory = defineStore('build-history', () => {
     | undefined
   >()
 
-  // Simplified state - just current pipeline filter
+  // Filtering state
   const currentPipelineId = ref<string | undefined>()
+  const currentScenarioId = ref<string | undefined>()
 
   // Computed
   const hasEntries = computed(() => entries.value.length > 0)
@@ -132,6 +124,7 @@ export const useBuildHistory = defineStore('build-history', () => {
 
   // Actions
   const loadEntries = async (query?: BuildHistoryQuery): Promise<void> => {
+    console.trace('query', query)
     isLoading.value = true
 
     // Check authorization before attempting to load
@@ -287,35 +280,6 @@ export const useBuildHistory = defineStore('build-history', () => {
     }
   }
 
-  const deleteByProject = async (projectId: string): Promise<void> => {
-    isLoading.value = true
-
-    // Check authorization before attempting to delete
-    if (!canUseHistory.value) {
-      isLoading.value = false
-      return
-    }
-
-    try {
-      await buildHistoryAPI.deleteByProject(projectId)
-
-      // Remove all entries for this project from local state
-      entries.value = entries.value.filter((e) => e.projectId !== projectId)
-
-      // Clear current entry if it's from this project
-      if (currentEntry.value?.projectId === projectId) {
-        currentEntry.value = undefined
-      }
-    } catch (err) {
-      const errorMessage =
-        err instanceof Error ? err.message : 'Failed to delete build history entries for project'
-      setError(errorMessage)
-      throw err
-    } finally {
-      isLoading.value = false
-    }
-  }
-
   const clearHistory = async (): Promise<void> => {
     isLoading.value = true
 
@@ -361,8 +325,13 @@ export const useBuildHistory = defineStore('build-history', () => {
     currentPipelineId.value = undefined
   }
 
-  // Initialize - load entries on store creation
-  loadEntries()
+  const setCurrentScenario = (scenarioId: string | undefined): void => {
+    currentScenarioId.value = scenarioId
+  }
+
+  const clearCurrentScenario = (): void => {
+    currentScenarioId.value = undefined
+  }
 
   return {
     // State
@@ -379,6 +348,7 @@ export const useBuildHistory = defineStore('build-history', () => {
 
     // Pipeline filtering
     currentPipelineId: readonly(currentPipelineId),
+    currentScenarioId: readonly(currentScenarioId),
 
     // Actions
     loadEntries,
@@ -386,11 +356,12 @@ export const useBuildHistory = defineStore('build-history', () => {
     saveEntry,
     updateEntry,
     deleteEntry,
-    deleteByProject,
     clearHistory,
     refreshStorageInfo,
     setCurrentPipeline,
     clearCurrentPipeline,
+    setCurrentScenario,
+    clearCurrentScenario,
 
     // Query builder
     buildQuery

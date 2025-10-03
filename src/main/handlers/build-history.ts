@@ -62,7 +62,7 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
 
   async save(entry: BuildHistoryEntry): Promise<void> {
     try {
-      const entries = await this.loadPipelineHistory(entry.projectId)
+      const entries = await this.loadPipelineHistory(entry.pipelineId)
       const existingIndex = entries.findIndex((e) => e.id === entry.id)
 
       if (existingIndex >= 0) {
@@ -71,10 +71,10 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
         entries.push(entry)
       }
 
-      await this.savePipelineHistory(entry.projectId, entries)
+      await this.savePipelineHistory(entry.pipelineId, entries)
       this.logger
         .logger()
-        .info(`Saved build history entry: ${entry.id} for pipeline: ${entry.projectId}`)
+        .info(`Saved build history entry: ${entry.id} for pipeline: ${entry.pipelineId}`)
     } catch (error) {
       this.logger.logger().error('Failed to save build history entry:', error)
       throw new Error(`Failed to save build history entry: ${error}`)
@@ -183,25 +183,6 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
     } catch (error) {
       this.logger.logger().error(`Failed to delete build history entry ${id}:`, error)
       throw new Error(`Failed to delete build history entry: ${error}`)
-    }
-  }
-
-  async deleteByProject(projectId: string): Promise<void> {
-    try {
-      const entries = await this.loadPipelineHistory(projectId)
-      const deletedCount = entries.length
-
-      // Save empty array to clear the pipeline history
-      await this.savePipelineHistory(projectId, [])
-
-      this.logger
-        .logger()
-        .info(`Deleted ${deletedCount} build history entries for pipeline: ${projectId}`)
-    } catch (error) {
-      this.logger
-        .logger()
-        .error(`Failed to delete build history entries for pipeline ${projectId}:`, error)
-      throw new Error(`Failed to delete build history entries for pipeline: ${error}`)
     }
   }
 

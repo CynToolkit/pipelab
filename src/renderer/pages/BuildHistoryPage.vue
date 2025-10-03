@@ -25,7 +25,7 @@
             label="Refresh"
             severity="secondary"
             :loading="buildHistoryStore.isLoading"
-            @click="refreshHistory"
+            @click="onRefreshHistory"
           >
             <i class="pi pi-refresh"></i>
           </Button>
@@ -43,7 +43,7 @@
     </div>
 
     <!-- Loading state -->
-    <div v-if="authStore.isLoadingSubscriptions" class="loading-state">
+    <div v-if="true && authStore.isLoadingSubscriptions" class="loading-state">
       <ProgressSpinner />
       <p>Loading build history...</p>
     </div>
@@ -143,7 +143,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useConfirm } from 'primevue/useconfirm'
 import { useBuildHistory } from '../store/build-history'
@@ -172,8 +172,8 @@ const exportStatus = ref('')
 
 const totalCount = computed(() => buildHistoryStore.storageInfo?.totalEntries || 0)
 
-const projectId = computed(() => {
-  return (route.params.projectId as string) || null
+const pipelineId = computed(() => {
+  return (route.params.pipelineId as string) || null
 })
 
 // Methods
@@ -192,14 +192,6 @@ const formatSize = (bytes: number): string => {
   }
 
   return `${size.toFixed(1)} ${units[unitIndex]}`
-}
-
-const refreshHistory = async () => {
-  try {
-    await buildHistoryStore.loadEntries()
-  } catch (error) {
-    console.error('Failed to refresh build history:', error)
-  }
 }
 
 const onViewDetails = (entry: BuildHistoryEntry) => {
@@ -324,12 +316,22 @@ const loadBuildHistory = async (): Promise<void> => {
   console.log('buildHistoryStore.canUseHistory', buildHistoryStore.canUseHistory)
   if (buildHistoryStore.canUseHistory) {
     try {
-      await buildHistoryStore.loadEntries()
+      // Build query with current route parameters
+      const query = {
+        pipelineId: pipelineId.value || undefined
+      }
+      console.log('query', query)
+      await buildHistoryStore.loadEntries(query)
       await buildHistoryStore.refreshStorageInfo()
     } catch (error) {
       console.error('Failed to load build history after auth change:', error)
     }
   }
+}
+
+function onRefreshHistory() {
+  console.log('onRefreshHistory')
+  loadBuildHistory()
 }
 
 authStore.onSubscriptionChanged(async ({ subscriptions }) => {

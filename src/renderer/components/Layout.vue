@@ -2,20 +2,6 @@
   <div class="layout">
     <div class="header">
       <div class="bold title">{{ headerSentence }}</div>
-      <div class="navigation">
-        <Button
-          v-if="hasBuildHistoryAccess"
-          link
-          class="nav-button"
-          :class="{ active: isBuildHistoryRoute }"
-          :aria-label="$t('navigation.build-history')"
-          role="menuitem"
-          @click="navigateToBuildHistory"
-        >
-          <i class="icon mdi mdi-history fs-20"></i>
-          <span class="nav-text">{{ $t('navigation.build-history') }}</span>
-        </Button>
-      </div>
       <div class="button">
         <Button link class="list-item" @click="toggleAccountMenu">
           <i class="icon mdi mdi-account fs-24"></i>
@@ -253,8 +239,10 @@ import { storeToRefs } from 'pinia'
 import { handle } from '@renderer/composables/handlers'
 import { useForm } from 'vee-validate'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 
 const { logger } = useLogger()
+const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 
@@ -269,12 +257,54 @@ const hasBuildHistoryAccess = computed(() => {
 })
 
 const isBuildHistoryRoute = computed(() => {
+  return route.name === 'BuildHistory' || route.name === 'BuildHistory'
+})
+
+const isScenarioFilteredRoute = computed(() => {
   return route.name === 'BuildHistory'
 })
 
+const getBuildHistoryText = () => {
+  if (isScenarioFilteredRoute.value) {
+    return t('navigation.build-history-scenario')
+  }
+  return t('navigation.build-history')
+}
+
+const getBuildHistoryLabel = () => {
+  if (isScenarioFilteredRoute.value) {
+    return t('navigation.build-history-scenario-description')
+  }
+  return t('navigation.build-history-description')
+}
+
 const navigateToBuildHistory = () => {
   console.log('route', route)
-  router.push({ name: 'BuildHistory', params: { projectId: route.params.projectId } })
+
+  // If we're already on a build history route, toggle between general and scenario-filtered
+  if (isBuildHistoryRoute.value) {
+    if (isScenarioFilteredRoute.value) {
+      // Switch to general build history
+      router.push({
+        name: 'BuildHistory',
+        params: { pipelineId: route.params.pipelineId }
+      })
+    } else {
+      // Try to switch to scenario-filtered if we have scenario context
+      const currentPipelineId = route.params.pipelineId
+      if (currentPipelineId) {
+        router.push({
+          name: 'BuildHistory',
+          params: {
+            pipelineId: currentPipelineId
+          }
+        })
+      }
+    }
+  } else {
+    // Navigate to general build history
+    router.push({ name: 'BuildHistory' })
+  }
 }
 
 const updateStatus = ref<UpdateStatus>('update-not-available')
@@ -562,6 +592,17 @@ const onSubmit = handleSubmit(onSuccess, onInvalidSubmit)
 
           .icon {
             opacity: 1;
+          }
+        }
+
+        &.scenario-filtered {
+          .nav-text {
+            font-weight: 600;
+          }
+
+          .scenario-indicator {
+            opacity: 0.8;
+            margin-left: 4px;
           }
         }
 

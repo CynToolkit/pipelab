@@ -30,7 +30,7 @@ export interface LogEntry {
 
 export interface BuildHistoryEntry {
   id: string
-  projectId: string
+  pipelineId: string
   projectName: string
   projectPath: string
   status: 'running' | 'completed' | 'failed' | 'cancelled'
@@ -51,7 +51,7 @@ export interface BuildHistoryEntry {
   updatedAt: number
 }
 
-// Simplified query interface - just pipeline filtering
+// Query interface supporting both pipeline and scenario filtering
 export interface BuildHistoryQuery {
   pipelineId?: string
 }
@@ -69,7 +69,6 @@ export interface IBuildHistoryStorage {
   getByPipeline(pipelineId: string): Promise<BuildHistoryEntry[]>
   update(id: string, updates: Partial<BuildHistoryEntry>): Promise<void>
   delete(id: string): Promise<void>
-  deleteByProject(projectId: string): Promise<void>
   clear(): Promise<void>
   getStorageInfo(): Promise<{
     totalEntries: number
@@ -77,33 +76,6 @@ export interface IBuildHistoryStorage {
     oldestEntry?: number
     newestEntry?: number
   }>
-}
-
-// Global index for fast lookups
-export interface BuildHistoryIndex {
-  version: string
-  lastUpdated: number
-  entries: Record<
-    string,
-    {
-      id: string
-      projectId: string
-      projectName: string
-      status: BuildHistoryEntry['status']
-      startTime: number
-      endTime?: number
-      createdAt: number
-    }
-  >
-  projects: Record<
-    string,
-    {
-      id: string
-      name: string
-      lastBuild?: number
-      totalBuilds: number
-    }
-  >
 }
 
 // Retention policy configuration

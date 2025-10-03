@@ -18,6 +18,18 @@
                   <i class="mdi mdi-close mr-1"></i>
                 </template>
               </Button>
+              <Button
+                v-if="hasBuildHistoryAccess"
+                outlined
+                :label="t('editor.view-history')"
+                :disabled="isRunning"
+                size="small"
+                @click="navigateToBuildHistory"
+              >
+                <template #icon>
+                  <i class="mdi mdi-history mr-1"></i>
+                </template>
+              </Button>
               <!-- <Button
               type="button"
               @click="toggle"
@@ -325,6 +337,7 @@ import { ValueOf } from 'type-fest'
 import { createQuickJs } from '@renderer/utils/quickjs'
 import ParamEditor from '@renderer/components/nodes/ParamEditor.vue'
 import { useI18n } from 'vue-i18n'
+import { pipeline } from 'stream'
 
 type Param = ValueOf<BlockAction['params']>
 
@@ -369,6 +382,11 @@ const { update } = filesStore
 
 const authStore = useAuth()
 const { isLoggedIn } = storeToRefs(authStore)
+
+// Build history access
+const hasBuildHistoryAccess = computed(() => {
+  return authStore.hasBenefit('cloud-save')
+})
 
 const quickLogs = ref([])
 
@@ -449,6 +467,7 @@ const run = async () => {
       'graph:execute',
       {
         graph: klona(nodes.value),
+        pipelineId: id.value,
         variables: variables.value,
         projectName: name.value,
         projectPath:
@@ -560,6 +579,19 @@ const onCloseRequest = async () => {
   console.log('close request')
   await router.push({
     name: 'Dashboard'
+  })
+}
+
+const navigateToBuildHistory = async () => {
+  if (!hasBuildHistoryAccess.value) {
+    return
+  }
+
+  await router.push({
+    name: 'BuildHistory',
+    params: {
+      pipelineId: id.value
+    }
   })
 }
 

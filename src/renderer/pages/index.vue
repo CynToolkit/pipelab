@@ -17,6 +17,7 @@
             class="w-full h-full"
             :scrollable="true"
             scroll-height="flex"
+            scroll-height="flex"
           >
             <template #header>
               <div class="flex justify-content-between">
@@ -53,9 +54,19 @@
                 <span v-if="data.type === 'external'">{{ data.path }}</span>
               </template>
             </Column> -->
-            <Column header="" style="width: 200px">
+            <Column header="" style="width: 240px">
               <template #body="{ data }">
                 <ButtonGroup class="p-buttonset">
+                  <Button
+                    v-if="hasBuildHistoryAccess"
+                    v-tooltip.top="'View build history for this project'"
+                    size="small"
+                    severity="secondary"
+                    class="p-button-outlined"
+                    @click.stop="viewProjectBuildHistory(data)"
+                  >
+                    <template #icon><i class="mdi mdi-history"></i></template>
+                  </Button>
                   <Button
                     size="small"
                     severity="info"
@@ -434,6 +445,11 @@ type Item = {
 
 const { hasBenefit } = useAuth()
 
+// Build history access
+const hasBuildHistoryAccess = computed(() => {
+  return hasBenefit('cloud-save')
+})
+
 const newProjectType = ref<Item>()
 const newProjectTypes = computed<Item[]>(() => {
   return [
@@ -555,6 +571,23 @@ const duplicateProject = async (file: SavedFile) => {
   newProjectName.value = file.name + ' (copy)'
   newProjectData.value = file
   isNewProjectModalVisible.value = true
+}
+
+const viewProjectBuildHistory = async (file: EnhancedFile) => {
+  if (!hasBuildHistoryAccess.value) {
+    return
+  }
+
+  // Use project ID for navigation to general build history
+  // For external files, use the file path as project identifier
+  const pipelineId = file.type === 'external' ? file.path : file.id
+
+  await router.push({
+    name: 'BuildHistory',
+    params: {
+      pipelineId: pipelineId
+    }
+  })
 }
 
 const isNewProjectModalVisible = ref(false)

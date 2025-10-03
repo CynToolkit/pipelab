@@ -546,8 +546,10 @@ export const registerIPCHandlers = () => {
 
       // Simplified: get all entries, optionally filter by pipeline
       const allEntries = await buildHistoryStorage.getAll()
+      console.log('allEntries', allEntries)
+      console.log('value.query', value.query)
       const filteredEntries = value.query?.pipelineId
-        ? allEntries.filter((entry) => entry.projectId === value.query.pipelineId)
+        ? allEntries.filter((entry) => entry.pipelineId === value.query.pipelineId)
         : allEntries
 
       send({
@@ -668,50 +670,6 @@ export const registerIPCHandlers = () => {
     }
   })
 
-  handle('build-history:delete-by-project', async (event, { send, value }) => {
-    const { logger } = useLogger()
-
-    try {
-      // Check authorization before allowing deletion
-      await checkBuildHistoryAuthorization(event)
-
-      await buildHistoryStorage.deleteByProject(value.projectId)
-      send({
-        type: 'end',
-        data: {
-          type: 'success',
-          result: { result: 'ok' }
-        }
-      })
-    } catch (error) {
-      logger().error('Failed to delete build history entries for project:', error)
-
-      // Handle subscription errors with user-friendly messages
-      if (error instanceof SubscriptionRequiredError) {
-        send({
-          type: 'end',
-          data: {
-            type: 'error',
-            ipcError: error.userMessage,
-            code: error.code
-          }
-        })
-        return
-      }
-
-      send({
-        type: 'end',
-        data: {
-          type: 'error',
-          ipcError:
-            error instanceof Error
-              ? error.message
-              : 'Failed to delete build history entries for project'
-        }
-      })
-    }
-  })
-
   handle('build-history:clear', async (event, { send }) => {
     const { logger } = useLogger()
 
@@ -823,7 +781,7 @@ export const registerIPCHandlers = () => {
   })
 
   handle('graph:execute', async (event, { send, value }) => {
-    const { graph, variables, projectName, projectPath } = value
+    const { graph, variables, projectName, projectPath, pipelineId } = value
 
     const mainWindow = BrowserWindow.getFocusedWindow()
     abortControllerGraph = new AbortController()
@@ -834,6 +792,7 @@ export const registerIPCHandlers = () => {
         variables,
         projectName,
         projectPath,
+        pipelineId,
         mainWindow,
         onNodeEnter: (node) => {
           // Send UI update for node entering

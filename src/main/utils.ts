@@ -429,6 +429,7 @@ export interface GraphExecutionOptions {
   abortSignal?: AbortSignal
   /** Optional output file path for CLI usage */
   outputPath?: string
+  pipelineId?: string
 }
 
 /**
@@ -447,14 +448,17 @@ export const executeGraphWithHistory = async (options: GraphExecutionOptions) =>
     onNodeExit,
     onLog,
     abortSignal,
-    outputPath
+    outputPath,
+    pipelineId
   } = options
+
+  console.log('options', options)
 
   // Create build history entry for this pipeline execution
   const buildId = `build-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
   const buildEntry: BuildHistoryEntry = {
     id: buildId,
-    projectId: projectPath || 'unknown',
+    pipelineId: pipelineId,
     projectName: projectName || 'Unnamed Pipeline',
     projectPath: projectPath || 'unknown',
     status: 'running',

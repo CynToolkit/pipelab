@@ -54,7 +54,7 @@
           <div class="info-grid">
             <div class="info-item">
               <label>Project ID:</label>
-              <span>{{ entry.projectId }}</span>
+              <span>{{ entry.pipelineId }}</span>
             </div>
             <div class="info-item">
               <label>Status:</label>
