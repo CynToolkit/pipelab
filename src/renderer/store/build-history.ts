@@ -1,4 +1,4 @@
-import { defineStore } from 'pinia'
+import { defineStore, storeToRefs } from 'pinia'
 import { ref, computed, readonly } from 'vue'
 import { useLogger } from '@@/logger'
 import { useAuth } from './auth'
@@ -15,6 +15,11 @@ export const useBuildHistory = defineStore('build-history', () => {
   const api = useAPI()
   const logger = useLogger()
   const authStore = useAuth()
+
+  const {} = authStore
+  const { hasBuildHistoryBenefit } = storeToRefs(authStore)
+
+  const isRefreshingHistory = ref(false)
 
   // IPC API functions
   const buildHistoryAPI = {
@@ -39,6 +44,7 @@ export const useBuildHistory = defineStore('build-history', () => {
       const result = await api.execute('build-history:get-all', {
         query
       })
+      console.log('result', result)
       if (result.type === 'error') {
         throw new Error(result.ipcError || 'Failed to get build history entries')
       }
@@ -97,7 +103,6 @@ export const useBuildHistory = defineStore('build-history', () => {
   const currentEntry = ref<BuildHistoryEntry | undefined>()
   const isLoading = ref(false)
   const error = ref<string | undefined>()
-  const subscriptionError = ref<SubscriptionError | undefined>()
   const storageInfo = ref<
     | {
         totalEntries: number
@@ -114,42 +119,11 @@ export const useBuildHistory = defineStore('build-history', () => {
   // Computed
   const hasEntries = computed(() => entries.value.length > 0)
   const totalEntries = computed(() => entries.value.length)
-  const isPaidUser = computed(() => authStore.hasBenefit('cloud-save'))
-  const hasSubscriptionError = computed(() => subscriptionError.value !== undefined)
-  const subscriptionErrorCode = computed(() => subscriptionError.value?.code)
-
-  // Helper functions
-  const clearError = () => {
-    error.value = undefined
-    subscriptionError.value = undefined
-  }
+  const canUseHistory = computed(() => hasBuildHistoryBenefit.value)
 
   const setError = (errorMessage: string) => {
     error.value = errorMessage
     logger.logger().error('[Build History]', errorMessage)
-  }
-
-  const setSubscriptionError = (subError: SubscriptionError) => {
-    subscriptionError.value = subError
-    error.value = subError.userMessage
-    logger.logger().warn('[Build History] Subscription error:', subError.code)
-  }
-
-  const handleSubscriptionError = (error: unknown): boolean => {
-    if (isSubscriptionError(error)) {
-      setSubscriptionError(error)
-      return true
-    }
-    return false
-  }
-
-  const checkBuildHistoryAuthorization = (): boolean => {
-    if (!isPaidUser.value) {
-      const subError = new SubscriptionRequiredError('build-history')
-      setSubscriptionError(subError)
-      return false
-    }
-    return true
   }
 
   const buildQuery = (): BuildHistoryQuery => ({
@@ -159,10 +133,9 @@ export const useBuildHistory = defineStore('build-history', () => {
   // Actions
   const loadEntries = async (query?: BuildHistoryQuery): Promise<void> => {
     isLoading.value = true
-    clearError()
 
     // Check authorization before attempting to load
-    if (!checkBuildHistoryAuthorization()) {
+    if (!canUseHistory.value) {
       isLoading.value = false
       return
     }
@@ -179,12 +152,6 @@ export const useBuildHistory = defineStore('build-history', () => {
           response.total > 0 ? Math.max(...response.entries.map((e) => e.startTime)) : undefined
       }
     } catch (err) {
-      // Handle subscription errors specifically
-      if (handleSubscriptionError(err)) {
-        isLoading.value = false
-        return
-      }
-
       const errorMessage =
         err instanceof Error ? err.message : 'Failed to load build history entries'
       setError(errorMessage)
@@ -196,10 +163,9 @@ export const useBuildHistory = defineStore('build-history', () => {
 
   const loadEntry = async (id: string): Promise<BuildHistoryEntry | undefined> => {
     isLoading.value = true
-    clearError()
 
     // Check authorization before attempting to load
-    if (!checkBuildHistoryAuthorization()) {
+    if (!canUseHistory.value) {
       isLoading.value = false
       return undefined
     }
@@ -216,12 +182,6 @@ export const useBuildHistory = defineStore('build-history', () => {
       }
       return entry
     } catch (err) {
-      // Handle subscription errors specifically
-      if (handleSubscriptionError(err)) {
-        isLoading.value = false
-        return undefined
-      }
-
       const errorMessage = err instanceof Error ? err.message : 'Failed to load build history entry'
       setError(errorMessage)
       throw err
@@ -232,10 +192,9 @@ export const useBuildHistory = defineStore('build-history', () => {
 
   const saveEntry = async (entry: BuildHistoryEntry): Promise<void> => {
     isLoading.value = true
-    clearError()
 
     // Check authorization before attempting to save
-    if (!checkBuildHistoryAuthorization()) {
+    if (!canUseHistory.value) {
       isLoading.value = false
       return
     }
@@ -256,12 +215,6 @@ export const useBuildHistory = defineStore('build-history', () => {
         currentEntry.value = entry
       }
     } catch (err) {
-      // Handle subscription errors specifically
-      if (handleSubscriptionError(err)) {
-        isLoading.value = false
-        return
-      }
-
       const errorMessage = err instanceof Error ? err.message : 'Failed to save build history entry'
       setError(errorMessage)
       throw err
@@ -272,10 +225,9 @@ export const useBuildHistory = defineStore('build-history', () => {
 
   const updateEntry = async (id: string, updates: Partial<BuildHistoryEntry>): Promise<void> => {
     isLoading.value = true
-    clearError()
 
     // Check authorization before attempting to update
-    if (!checkBuildHistoryAuthorization()) {
+    if (!canUseHistory.value) {
       isLoading.value = false
       return
     }
@@ -294,12 +246,6 @@ export const useBuildHistory = defineStore('build-history', () => {
         currentEntry.value = { ...currentEntry.value, ...updates, updatedAt: Date.now() }
       }
     } catch (err) {
-      // Handle subscription errors specifically
-      if (handleSubscriptionError(err)) {
-        isLoading.value = false
-        return
-      }
-
       const errorMessage =
         err instanceof Error ? err.message : 'Failed to update build history entry'
       setError(errorMessage)
@@ -311,10 +257,9 @@ export const useBuildHistory = defineStore('build-history', () => {
 
   const deleteEntry = async (id: string): Promise<void> => {
     isLoading.value = true
-    clearError()
 
     // Check authorization before attempting to delete
-    if (!checkBuildHistoryAuthorization()) {
+    if (!canUseHistory.value) {
       isLoading.value = false
       return
     }
@@ -333,12 +278,6 @@ export const useBuildHistory = defineStore('build-history', () => {
         currentEntry.value = undefined
       }
     } catch (err) {
-      // Handle subscription errors specifically
-      if (handleSubscriptionError(err)) {
-        isLoading.value = false
-        return
-      }
-
       const errorMessage =
         err instanceof Error ? err.message : 'Failed to delete build history entry'
       setError(errorMessage)
@@ -350,10 +289,9 @@ export const useBuildHistory = defineStore('build-history', () => {
 
   const deleteByProject = async (projectId: string): Promise<void> => {
     isLoading.value = true
-    clearError()
 
     // Check authorization before attempting to delete
-    if (!checkBuildHistoryAuthorization()) {
+    if (!canUseHistory.value) {
       isLoading.value = false
       return
     }
@@ -369,12 +307,6 @@ export const useBuildHistory = defineStore('build-history', () => {
         currentEntry.value = undefined
       }
     } catch (err) {
-      // Handle subscription errors specifically
-      if (handleSubscriptionError(err)) {
-        isLoading.value = false
-        return
-      }
-
       const errorMessage =
         err instanceof Error ? err.message : 'Failed to delete build history entries for project'
       setError(errorMessage)
@@ -386,10 +318,9 @@ export const useBuildHistory = defineStore('build-history', () => {
 
   const clearHistory = async (): Promise<void> => {
     isLoading.value = true
-    clearError()
 
     // Check authorization before attempting to clear
-    if (!checkBuildHistoryAuthorization()) {
+    if (!canUseHistory.value) {
       isLoading.value = false
       return
     }
@@ -400,12 +331,6 @@ export const useBuildHistory = defineStore('build-history', () => {
       currentEntry.value = undefined
       storageInfo.value = undefined
     } catch (err) {
-      // Handle subscription errors specifically
-      if (handleSubscriptionError(err)) {
-        isLoading.value = false
-        return
-      }
-
       const errorMessage = err instanceof Error ? err.message : 'Failed to clear build history'
       setError(errorMessage)
       throw err
@@ -416,18 +341,13 @@ export const useBuildHistory = defineStore('build-history', () => {
 
   const refreshStorageInfo = async (): Promise<void> => {
     // Check authorization before attempting to get storage info
-    if (!checkBuildHistoryAuthorization()) {
+    if (!canUseHistory.value) {
       return
     }
 
     try {
       storageInfo.value = await buildHistoryAPI.getStorageInfo()
     } catch (err) {
-      // Handle subscription errors specifically
-      if (handleSubscriptionError(err)) {
-        return
-      }
-
       const errorMessage = err instanceof Error ? err.message : 'Failed to refresh storage info'
       setError(errorMessage)
     }
@@ -446,19 +366,16 @@ export const useBuildHistory = defineStore('build-history', () => {
 
   return {
     // State
-    entries: readonly(entries),
+    entries: entries,
     currentEntry: readonly(currentEntry),
     isLoading: readonly(isLoading),
     error: readonly(error),
-    subscriptionError: readonly(subscriptionError),
     storageInfo: readonly(storageInfo),
 
     // Computed
     hasEntries,
     totalEntries,
-    isPaidUser,
-    hasSubscriptionError,
-    subscriptionErrorCode,
+    canUseHistory,
 
     // Pipeline filtering
     currentPipelineId: readonly(currentPipelineId),
@@ -474,7 +391,6 @@ export const useBuildHistory = defineStore('build-history', () => {
     refreshStorageInfo,
     setCurrentPipeline,
     clearCurrentPipeline,
-    clearError,
 
     // Query builder
     buildQuery

@@ -1,77 +1,58 @@
-import { Channels, Data, End, Events, Message, RequestId } from '@@/apis'
+import { Channels, Data, End, Events } from '@@/apis'
 import { useLogger } from '@@/logger'
-import { klona } from 'klona'
-import { nanoid } from 'nanoid'
-import { toRaw } from 'vue'
+import { useWebSocketAPI } from './websocket-client'
+import { WebSocketListener } from '@@/websocket.types'
 
-// type OnOptions = {
-//   onMessage: (event: Electron.IpcRendererEvent, ...data: any[]) => Promise<void>
-// }
+// Re-export for backwards compatibility
+export type { WebSocketListener }
 
-export type Listener<KEY extends Channels> = (
-  event: Electron.IpcRendererEvent,
-  data: Events<KEY>
-) => Promise<void>
-
-export const useAPI = (
-  pipe: {
-    send: (channel: string, ...args: any[]) => void
-    on: any
-  } = window.electron.ipcRenderer
-) => {
+export const useAPI = () => {
   const { logger } = useLogger()
-  /**
-   * Send an order
-   */
-  const send = <KEY extends Channels>(channel: KEY, args?: Data<KEY>) => pipe.send(channel, args)
-
-  const on = <KEY extends Channels>(
-    channel: KEY | string,
-    listener: (event: Electron.IpcRendererEvent, data: Events<KEY>) => void
-  ) => {
-    // console.log('listening for', channel)
-    return pipe.on(channel, listener)
-  }
+  const { execute: wsExecute, isConnected } = useWebSocketAPI()
 
   /**
-   * Send an order and wait for it's execution
+   * Send an order and wait for its execution
    */
   const execute = async <KEY extends Channels>(
     channel: KEY,
     data?: Data<KEY>,
-    listener?: Listener<KEY>
-  ) => {
-    const newId = nanoid() as RequestId
-    // eslint-disable-next-line no-async-promise-executor
-    return new Promise<End<KEY>>(async (resolve) => {
-      const message: Message = {
-        requestId: newId,
-        data: toRaw(klona(data))
-      }
-      // console.log(`${newId} for channel ${channel}`)
-      const cancel = on(newId, async (event, data) => {
-        // console.log('receiving event', event, data)
-        if (data.type === 'end') {
-          cancel()
-          return resolve(data.data)
-        } else {
-          await listener?.(event, data)
-        }
-      })
+    listener?: WebSocketListener<KEY>
+  ): Promise<End<KEY>> => {
+    try {
+      const result = await wsExecute(channel, data, listener)
 
-      try {
-        pipe.send(channel, message)
-      } catch (e) {
-        logger().error(e)
-        logger().error(channel, message)
-      }
-    })
+      return result
+    } catch (error) {
+      logger().error('API execution error:', error)
+      throw error
+    }
+  }
+
+  /**
+   * Send an order (for backwards compatibility)
+   */
+  const send = <KEY extends Channels>(channel: KEY, data?: Data<KEY>) => {
+    logger().warn('useAPI.send() is deprecated. Use useAPI.execute() instead.')
+    return execute(channel, data)
+  }
+
+  /**
+   * On method (placeholder for backwards compatibility)
+   */
+  const on = <KEY extends Channels>(
+    channel: KEY | string,
+    listener: (event: any, data: Events<KEY>) => void
+  ) => {
+    logger().warn('useAPI.on() is not supported in WebSocket mode. Use useAPI.execute() instead.')
+    // Return a no-op function for backwards compatibility
+    return () => {}
   }
 
   return {
     send,
     on,
-    execute
+    execute,
+    isConnected
   }
 }
 

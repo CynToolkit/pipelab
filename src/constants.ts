@@ -2,7 +2,11 @@ import { platform } from 'process'
 
 export const name = 'Pipelab'
 
-export const outFolderName = (binName: string, platform: NodeJS.Platform, arch: NodeJS.Architecture) => {
+export const outFolderName = (
+  binName: string,
+  platform: NodeJS.Platform,
+  arch: NodeJS.Architecture
+) => {
   let platformName = ''
   let archName = ''
 
@@ -42,3 +46,5 @@ export const getBinName = (name: string) => {
   }
   return name
 }
+
+export const websocketPort = 33753

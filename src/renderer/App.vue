@@ -1,10 +1,8 @@
 <template>
   <div class="app">
-    <suspense timeout="0">
-      <template #default>
-        <div class="layout">
-          <div class="container">
-            <!-- <Menubar :model="items">
+    <div class="layout">
+      <div class="container">
+        <!-- <Menubar :model="items">
               <template #start>
                 <Skeleton width="10rem" height="4rem"></Skeleton>
               </template>
@@ -12,21 +10,16 @@
                 <Avatar label="" size="large" shape="circle" />
               </template>
             </Menubar> -->
-            <div class="content">
-              <div class="main">
-                <router-view v-if="!isLoading"></router-view>
-                <div v-else>
-                  <Skeleton width="100%" height="100%"></Skeleton>
-                </div>
-              </div>
+        <div class="content">
+          <div class="main">
+            <router-view v-if="!isLoading"></router-view>
+            <div v-else>
+              <Skeleton width="100%" height="100%"></Skeleton>
             </div>
           </div>
         </div>
-      </template>
-      <template #fallback>
-        <div>Loading...</div>
-      </template>
-    </suspense>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -40,6 +33,7 @@ import { useLogger } from '@@/logger'
 import { useAuth } from '@renderer/store/auth'
 import { storeToRefs } from 'pinia'
 import { useAppSettings } from './store/settings'
+import { websocketManager } from './composables/websocket-manager'
 
 const appStore = useAppStore()
 const filesStore = useFiles()
@@ -54,14 +48,14 @@ const { init } = appStore
 const isLoading = ref(false)
 
 handle('log:message', async (event, { value, send }) => {
-  console.log('log:message: Received value:', {
-    value,
-    type: typeof value,
-    hasValue: !!value,
-    isObject: typeof value === 'object',
-    hasMeta: value?._meta,
-    metaType: typeof value?._meta
-  })
+  // console.log('log:message: Received value:', {
+  //   value,
+  //   type: typeof value,
+  //   hasValue: !!value,
+  //   isObject: typeof value === 'object',
+  //   hasMeta: value?._meta,
+  //   metaType: typeof value?._meta
+  // })
 
   // Validate that value exists and is an object before accessing properties
   if (!value || typeof value !== 'object') {
@@ -191,6 +185,9 @@ onMounted(async () => {
 
   .main {
     flex: 1;
+    display: flex;
+    width: 100%;
+    height: 100%;
   }
 }
 

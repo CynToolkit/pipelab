@@ -3,6 +3,7 @@ import { join } from 'path'
 import { platform } from 'os'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { registerIPCHandlers } from './main/handlers'
+import { webSocketServer } from './main/websocket-server'
 import { usePlugins } from '@@/plugins'
 import { parseArgs, ParseArgsConfig } from 'node:util'
 import { readFile, writeFile, mkdir } from 'fs/promises'
@@ -250,6 +251,16 @@ app.whenReady().then(async () => {
   await registerBuiltIn()
   // registerOtherPlugins()
 
+  // Start WebSocket server
+  try {
+    await webSocketServer.start()
+    // Wait for WebSocket server to be ready before creating window
+    await webSocketServer.waitForReady()
+    logger().info('WebSocket server is ready, creating window')
+  } catch (error) {
+    logger().error('Failed to start WebSocket server:', error)
+  }
+
   const config = {
     options: {
       /** project: path to file .pipelab */
@@ -386,6 +397,26 @@ app.whenReady().then(async () => {
 // explicitly with Cmd + Q.
 app.on('window-all-closed', async () => {
   if (process.platform !== 'darwin') {
+    // Stop WebSocket server before quitting
+    try {
+      await webSocketServer.stop()
+    } catch (error) {
+      logger().error('Error stopping WebSocket server:', error)
+    }
     app.quit()
+  }
+})
+
+// Handle app before quit to cleanup WebSocket server
+app.on('before-quit', async (event) => {
+  event.preventDefault()
+
+  try {
+    await webSocketServer.stop()
+    logger().info('WebSocket server stopped, quitting app')
+    app.exit(0)
+  } catch (error) {
+    logger().error('Error stopping WebSocket server during quit:', error)
+    app.exit(1)
   }
 })

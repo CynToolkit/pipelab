@@ -23,6 +23,9 @@ import posthogPlugin from './plugins/posthog' //import the plugin.
 import posthog from 'posthog-js'
 import { i18n } from './i18n'
 
+import { websocketManager } from './composables/websocket-manager'
+import { useLogger } from '@@/logger'
+
 if (window.isPackaged && !window.isTest && !window.isCI) {
   init(
     {
@@ -143,4 +146,19 @@ if (window.isPackaged && process.env.TEST !== 'true') {
 }
 app.use(i18n)
 
+const { logger } = useLogger()
+
+// Initialize WebSocket manager in background
+websocketManager.initialize().catch((error) => {
+  logger().warn(
+    'WebSocket manager initialization failed, app will continue without WebSocket:',
+    error
+  )
+})
 app.mount('#app')
+logger().info('App mounted')
+
+// Ensure WebSocket connection after app is mounted
+setTimeout(() => {
+  websocketManager.ensureConnection()
+}, 1000) // Wait 1 second after mount to ensure server is ready

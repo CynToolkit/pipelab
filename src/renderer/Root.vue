@@ -1,18 +1,9 @@
 <template>
-  <Suspense>
-    <template #default>
-      <App />
-    </template>
-    <template #fallback>
-      <Skeleton></Skeleton>
-    </template>
-  </Suspense>
+  <App />
 </template>
 
 <script lang="ts" setup>
-import App from './App.vue';
+import App from './App.vue'
 </script>
 
-<style lang="scss" scoped>
-
-</style>
+<style lang="scss" scoped></style>

@@ -9,7 +9,7 @@
         <div class="header-titles">
           <h2>Build History</h2>
           <div class="status">
-            <span v-if="isPaidUser" class="paid-user">✓ Premium Feature</span>
+            <span v-if="hasBuildHistoryBenefit" class="paid-user">✓ Premium Feature</span>
             <span v-else class="free-user">⚠ Premium Feature Required</span>
           </div>
         </div>
@@ -21,16 +21,6 @@
       <p>Checking authentication...</p>
     </div>
 
-    <!-- Subscription Error Display -->
-    <div v-else-if="showSubscriptionErrorState" class="subscription-error">
-      <div class="error-icon">🚫</div>
-      <div class="error-content">
-        <h3>Subscription Required</h3>
-        <p>{{ subscriptionError?.userMessage }}</p>
-        <button class="upgrade-btn" @click="showSubscriptionOptions">Upgrade Subscription</button>
-      </div>
-    </div>
-
     <!-- Build History Content (only show if authorized) -->
     <div v-else-if="canAccessBuildHistory" class="build-history-content">
       <!-- Loading State -->
@@ -39,7 +29,7 @@
       </div>
 
       <!-- Error State -->
-      <div v-else-if="error && !hasSubscriptionError" class="error">
+      <div v-else-if="error" class="error">
         <p>{{ error }}</p>
         <button class="retry-btn" @click="retryLoad">Retry</button>
       </div>
@@ -87,7 +77,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, watch, onUnmounted } from 'vue'
+import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useBuildHistory } from '../renderer/store/build-history'
 import { useAuth } from '../renderer/store/auth'
@@ -99,19 +89,10 @@ const buildHistoryStore = useBuildHistory()
 const authStore = useAuth()
 
 // Destructure auth store with storeToRefs for proper reactivity
-const { authState, isLoadingSubscriptions } = storeToRefs(authStore)
+const { hasBuildHistoryBenefit } = storeToRefs(authStore)
 
 // Computed properties from build history store
-const {
-  entries,
-  isLoading,
-  error,
-  subscriptionError,
-  storageInfo,
-  hasEntries,
-  isPaidUser,
-  hasSubscriptionError
-} = buildHistoryStore
+const { entries, isLoading, error, storageInfo, hasEntries } = storeToRefs(buildHistoryStore)
 
 // Computed properties from auth store (for internal use)
 
@@ -124,65 +105,7 @@ const isAuthLoading = computed(
     authStore.isLoadingSubscriptions
 )
 
-const canAccessBuildHistory = computed(
-  () => isPaidUser.value && !hasSubscriptionError.value && !isAuthLoading.value
-)
-
-const showSubscriptionErrorState = computed(
-  () => hasSubscriptionError.value && !isAuthLoading.value
-)
-
-// Watch for auth state changes and reload data when appropriate
-const stopAuthWatcher = watch(
-  [() => authState.value, () => isPaidUser.value],
-  async ([newAuthState, newIsPaidUser], [oldAuthState, oldIsPaidUser]) => {
-    // If auth state changed from loading to signed in and user became paid
-    if (
-      (oldAuthState === 'LOADING' || oldAuthState === 'INITIALIZING') &&
-      newAuthState === 'SIGNED_IN' &&
-      newIsPaidUser &&
-      !oldIsPaidUser
-    ) {
-      await loadBuildHistory()
-    }
-    // If user lost paid status, clear the data
-    else if (oldIsPaidUser && !newIsPaidUser) {
-      // The store will handle clearing subscription errors when isPaidUser becomes false
-      // but we should clear any existing data
-      buildHistoryStore.clearError()
-    }
-  },
-  { immediate: false }
-)
-
-// Watch for subscription loading state changes
-const stopSubscriptionWatcher = watch(
-  () => isLoadingSubscriptions.value,
-  async (newIsLoading, oldIsLoading) => {
-    // When subscription loading completes and user becomes paid, load data
-    if (oldIsLoading && !newIsLoading && isPaidUser.value && !hasSubscriptionError.value) {
-      await loadBuildHistory()
-    }
-  },
-  { immediate: false }
-)
-
-// Helper function to load build history
-const loadBuildHistory = async (): Promise<void> => {
-  if (isPaidUser.value && !hasSubscriptionError.value) {
-    try {
-      await buildHistoryStore.loadEntries()
-    } catch (error) {
-      console.error('Failed to load build history after auth change:', error)
-    }
-  }
-}
-
-// Cleanup watchers on unmount
-onUnmounted(() => {
-  stopAuthWatcher()
-  stopSubscriptionWatcher()
-})
+const canAccessBuildHistory = computed(() => hasBuildHistoryBenefit.value && !isAuthLoading.value)
 
 // Methods
 const formatDate = (timestamp: number): string => {
@@ -232,17 +155,6 @@ const showSubscriptionOptions = (): void => {
 const goToDashboard = (): void => {
   router.push('/dashboard')
 }
-
-// Initialize - load entries when component mounts
-onMounted(async () => {
-  if (isPaidUser) {
-    try {
-      await buildHistoryStore.loadEntries()
-    } catch (error) {
-      console.error('Failed to load build history:', error)
-    }
-  }
-})
 </script>
 
 <style scoped>

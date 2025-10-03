@@ -1,11 +1,12 @@
 import { useLogger } from '@@/logger' // Assuming path is correct
 import { supabase } from '@@/supabase' // Assuming path is correct
-import { User, UserResponse } from '@supabase/supabase-js'
+import { AuthChangeEvent, Session, User, UserResponse } from '@supabase/supabase-js'
 import { defineStore } from 'pinia'
 import { computed, readonly, Ref, ref, shallowRef } from 'vue'
 import posthog from 'posthog-js'
 import { email } from 'valibot'
 import { Subscription } from '@polar-sh/sdk/dist/commonjs/models/components/subscription'
+import { createEventHook } from '@vueuse/core'
 
 // Define a more comprehensive AuthStateType
 export type AuthStateType =
@@ -27,6 +28,9 @@ export const useAuth = defineStore('auth', () => {
   const isAuthModalVisible = ref(false)
   const authModalTitle = ref<string>()
   const authModalSubTitle = ref<string>()
+
+  const onAuthChanged = createEventHook<{ event: AuthChangeEvent; session: Session }>()
+  const onSubscriptionChanged = createEventHook<{ subscriptions: Subscription[] }>()
 
   const displayAuthModal = (title?: string, subtitle?: string) => {
     isAuthModalVisible.value = true
@@ -56,7 +60,7 @@ export const useAuth = defineStore('auth', () => {
         try {
           const result = await supabase.functions.invoke('polar-user-plan')
           if (result.data) {
-            console.log('result', result)
+            console.log('Subscription result', result)
             subscriptions.value = result.data.subscriptions
           }
         } catch (error) {
@@ -69,6 +73,8 @@ export const useAuth = defineStore('auth', () => {
       console.warn('User is anonymous, skipping subscription fetch.')
     }
     isLoadingSubscriptions.value = false
+    console.log('onSubscriptionChanged.trigger')
+    onSubscriptionChanged.trigger({ subscriptions: subscriptions.value })
   }
 
   supabase.auth.onAuthStateChange((event, session) => {
@@ -150,6 +156,8 @@ export const useAuth = defineStore('auth', () => {
         // No signInAnonymously() here. Similar to SIGNED_OUT, handle anonymous sign-in outside if needed.
         break
     }
+
+    onAuthChanged.trigger({ event, session })
   })
 
   // Explicitly initialize the auth state when the store is created
@@ -293,6 +301,9 @@ export const useAuth = defineStore('auth', () => {
     )
   }
 
+  const hasBuildHistoryBenefit = computed(() => hasBenefit('build-history'))
+  const hasCloudSaveBenefit = computed(() => hasBenefit('cloud-save'))
+
   const isLoadingSubscriptions = ref(true)
 
   return {
@@ -315,6 +326,12 @@ export const useAuth = defineStore('auth', () => {
     hideAuthModal,
     isAuthModalVisible,
     authModalTitle,
-    authModalSubTitle
+    authModalSubTitle,
+
+    hasBuildHistoryBenefit,
+    hasCloudSaveBenefit,
+
+    onAuthChanged: onAuthChanged.on,
+    onSubscriptionChanged: onSubscriptionChanged.on
   }
 })

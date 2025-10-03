@@ -331,6 +331,7 @@ const deleteEntry = () => {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
+  overflow: hidden;
 }
 
 .info-item label {

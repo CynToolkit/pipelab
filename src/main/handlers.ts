@@ -1,6 +1,6 @@
 import { Channels, Data, Events, Message } from '@@/apis'
-import { BrowserWindow, app, dialog, ipcMain } from 'electron'
 import { ensure, getFinalPlugins, executeGraphWithHistory } from './utils'
+import { WebSocket as WSWebSocket } from 'ws'
 import { join } from 'node:path'
 import { writeFile, readFile } from 'node:fs/promises'
 import { presets } from './presets/list'
@@ -9,37 +9,62 @@ import { useLogger } from '@@/logger'
 import { getDefaultAppSettingsMigrated, setupConfig } from './config'
 import { buildHistoryStorage } from './handlers/build-history'
 import { SubscriptionRequiredError } from '@@/subscription-errors'
+import { WebSocketEvent, WebSocketHandler, WebSocketSendFunction } from '@@/websocket.types'
+import { app, BrowserWindow, dialog } from 'electron'
 
-export type HandleListenerSendFn<KEY extends Channels> = (events: Events<KEY>) => void
+export type HandleListenerSendFn<KEY extends Channels> = WebSocketSendFunction<KEY>
 
-export type HandleListener<KEY extends Channels> = (
-  event: Electron.IpcMainInvokeEvent,
-  data: { value: Data<KEY>; send: HandleListenerSendFn<KEY> }
-) => Promise<void>
+export type WsEvent = WebSocketEvent
+
+export type HandleListener<KEY extends Channels> = WebSocketHandler<KEY>
+
+const handlers: Record<string, WebSocketHandler<any>> = {}
 
 export const useAPI = () => {
   const { logger } = useLogger()
 
-  const handle = <KEY extends Channels>(channel: KEY, listener: HandleListener<KEY>) => {
-    return ipcMain.on(channel, (event, message: Message) => {
-      const { data, requestId } = message
-      // logger.info('received event', requestId)
-      // logger.info('received data', data)
+  const handle = <KEY extends Channels>(channel: KEY, listener: WebSocketHandler<KEY>) => {
+    handlers[channel] = listener
 
-      const send: HandleListenerSendFn<KEY> = (events) => {
-        logger().debug('sending', events, 'to', requestId)
-        return event.sender.send(requestId, events)
+    return {
+      channel,
+      listener
+    }
+  }
+
+  const processWebSocketMessage = (ws: WSWebSocket, channel: string, message: Message) => {
+    const { data, requestId } = message
+
+    if (handlers[channel]) {
+      logger().debug('Executing handler for channel:', channel)
+      const event: WsEvent = {
+        sender: ws.url || 'websocket-client'
       }
 
-      return listener(event, {
+      const send: HandleListenerSendFn<any> = (events) => {
+        logger().debug('sending', events, 'to', requestId)
+        const response = {
+          type: 'response',
+          requestId,
+          events
+        }
+        ws.send(JSON.stringify(response))
+        return Promise.resolve()
+      }
+
+      return handlers[channel](event, {
         send,
         value: data
       })
-    })
+    } else {
+      logger().warn('No handler found for channel:', channel)
+    }
   }
 
   return {
-    handle
+    handle,
+    processWebSocketMessage,
+    handlers
   }
 }
 
@@ -50,15 +75,7 @@ export const registerIPCHandlers = () => {
   logger().info('registering ipc handlers')
 
   // Helper function to check build history authorization
-  const checkBuildHistoryAuthorization = async (
-    event: Electron.IpcMainInvokeEvent
-  ): Promise<string> => {
-    // In a real implementation, you'd extract the user ID from the session/token
-    // For now, we'll use a placeholder - this needs to be implemented based on your auth system
-    const userId = event.sender.getTitle() || 'anonymous' // This is a placeholder
-
-    // TEMPORARILY DISABLED: Auth verification bypassed for debugging
-    // Original code: const isAuthorized = await mainProcessAuth.isPaidUser(userId)
+  const checkBuildHistoryAuthorization = async (event: WsEvent): Promise<boolean> => {
     logger().info('AUTH BYPASS: Skipping auth verification for build history access')
 
     // Always authorize for now - relying on frontend auth checks only
@@ -68,7 +85,7 @@ export const registerIPCHandlers = () => {
       throw new SubscriptionRequiredError('build-history')
     }
 
-    return userId
+    return true
   }
 
   handle('dialog:showOpenDialog', async (event, { value, send }) => {
@@ -78,7 +95,7 @@ export const registerIPCHandlers = () => {
     logger().info('value', value)
     logger().info('dialog:showOpenDialog')
 
-    const mainWindow = BrowserWindow.fromWebContents(event.sender)
+    const mainWindow = BrowserWindow.getFocusedWindow()
 
     if (!mainWindow) {
       logger().error('mainWindow not found')
@@ -156,7 +173,7 @@ export const registerIPCHandlers = () => {
     logger().info('value', value)
     logger().info('dialog:showSaveDialog')
 
-    const mainWindow = BrowserWindow.fromWebContents(event.sender)
+    const mainWindow = BrowserWindow.getFocusedWindow()
 
     if (!mainWindow) {
       logger().error('mainWindow not found')
@@ -272,7 +289,8 @@ export const registerIPCHandlers = () => {
   handle('action:execute', async (event, { send, value }) => {
     const { nodeId, params, pluginId } = value
 
-    const mainWindow = BrowserWindow.fromWebContents(event.sender)
+    // In WebSocket mode, no BrowserWindow available
+    const mainWindow = BrowserWindow.getFocusedWindow()
     abortControllerGraph = new AbortController()
 
     const signalPromise = new Promise((resolve, reject) => {
@@ -807,7 +825,7 @@ export const registerIPCHandlers = () => {
   handle('graph:execute', async (event, { send, value }) => {
     const { graph, variables, projectName, projectPath } = value
 
-    const mainWindow = BrowserWindow.fromWebContents(event.sender)
+    const mainWindow = BrowserWindow.getFocusedWindow()
     abortControllerGraph = new AbortController()
 
     try {
@@ -838,16 +856,30 @@ export const registerIPCHandlers = () => {
           })
         },
         onLog: (data, node) => {
+          console.log('data', data)
+          console.log('node', node)
+          /**
+           *
+              data {
+                type: 'log',
+                data: {
+                  decorator: '[Export .c3p]',
+                  time: 1759479752141,
+                  message: [ 'Downloading browser' ]
+                }
+              }
+              node undefined
+           */
           // Send log data to frontend
           if (data.type === 'log') {
             // Sanitize data for IPC serialization
             const sanitizedData = {
-              type: data.type,
-              level: data.level,
-              message: data.message,
-              timestamp: data.timestamp,
-              nodeId: data.nodeId,
-              pluginId: data.pluginId
+              type: data.data.type,
+              level: data.data.level,
+              message: data.data.message,
+              timestamp: data.data.timestamp,
+              nodeId: data.data.nodeId,
+              pluginId: data.data.pluginId
               // Only include serializable properties
             }
 

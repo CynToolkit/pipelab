@@ -454,7 +454,8 @@ const run = async () => {
         projectPath:
           currentFilePointer.value.type === 'external' ? currentFilePointer.value.path : undefined
       },
-      async (event, data) => {
+      async (data) => {
+        console.log('data', data)
         if (data.type === 'node-enter') {
           const node = nodes.value.find((n) => n.uid === data.data.nodeUid)
           if (node) {
@@ -472,6 +473,7 @@ const run = async () => {
         } else if (data.type === 'node-log') {
           const { nodeUid, logData } = data.data
           if (logData.type === 'log') {
+            console.log('logData', logData)
             const lines = logData.data.message.join(' ')
 
             const splittedInnerLines = lines.split('\n')

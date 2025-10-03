@@ -13,16 +13,24 @@
 
         <div class="header-actions">
           <Button
+            v-tooltip.top="'Back to Dashboard'"
+            label="Back"
+            severity="secondary"
+            @click="goToDashboard"
+          >
+            <i class="pi pi-arrow-left"></i>
+          </Button>
+          <Button
             v-tooltip.top="'Refresh build history'"
             label="Refresh"
             severity="secondary"
-            :loading="isLoading"
+            :loading="buildHistoryStore.isLoading"
             @click="refreshHistory"
           >
             <i class="pi pi-refresh"></i>
           </Button>
           <Button
-            v-if="isPaidUser"
+            v-if="buildHistoryStore.canUseHistory"
             v-tooltip.top="'Clear all build history'"
             label="Clear History"
             severity="danger"
@@ -32,70 +40,31 @@
           </Button>
         </div>
       </div>
-
-      <!-- Subscription Status -->
-      <div class="subscription-status">
-        <div v-if="isPaidUser" class="premium-status">
-          <i class="pi pi-star"></i>
-          <span>Premium Feature - Build History Enabled</span>
-        </div>
-        <div v-else class="free-status">
-          <i class="pi pi-lock"></i>
-          <span>Premium Feature Required</span>
-          <Button label="Upgrade" size="small" @click="showSubscriptionOptions" />
-        </div>
-      </div>
     </div>
 
-    <!-- Subscription Error Display -->
-    <div v-if="hasSubscriptionError" class="subscription-error">
-      <div class="error-icon">
-        <i class="pi pi-exclamation-triangle"></i>
-      </div>
-      <div class="error-content">
-        <h3>Subscription Required</h3>
-        <p>{{ subscriptionError?.userMessage }}</p>
-        <div class="error-actions">
-          <Button
-            label="Upgrade Subscription"
-            severity="primary"
-            @click="showSubscriptionOptions"
-          />
-          <Button label="Back to Dashboard" severity="secondary" @click="goToDashboard" />
-        </div>
-      </div>
+    <!-- Loading state -->
+    <div v-if="authStore.isLoadingSubscriptions" class="loading-state">
+      <ProgressSpinner />
+      <p>Loading build history...</p>
     </div>
 
     <!-- Main Content (only show if authorized) -->
-    <div v-else-if="isPaidUser" class="main-content">
-      <!-- Filters Section -->
-      <BuildHistoryFilters
-        :filters="filters"
-        :has-entries="hasEntries"
-        @update:filters="onFiltersChange"
-        @export="onExportData"
-      />
-
+    <div v-else-if="buildHistoryStore.canUseHistory" class="main-content">
       <!-- Build History List -->
       <BuildHistoryList
-        :entries="entries"
-        :is-loading="isLoading"
-        :error="error"
+        :entries="buildHistoryStore.entries"
+        :is-loading="buildHistoryStore.isLoading"
+        :error="buildHistoryStore.error"
         :total-count="totalCount"
-        :pagination="pagination"
         :can-delete="true"
         :can-start-build="true"
-        @load-more="loadMore"
-        @retry-load="retryLoad"
         @view-details="onViewDetails"
         @delete="onDeleteEntry"
         @start-build="onStartBuild"
-        @sort-change="onSortChange"
-        @page-change="onPageChange"
       />
 
       <!-- Storage Information -->
-      <div v-if="storageInfo" class="storage-info">
+      <div v-if="buildHistoryStore.storageInfo" class="storage-info">
         <div class="storage-header">
           <h3>Storage Information</h3>
           <Button
@@ -111,19 +80,19 @@
         <div class="storage-stats">
           <div class="stat-item">
             <label>Total Entries:</label>
-            <span>{{ storageInfo.totalEntries.toLocaleString() }}</span>
+            <span>{{ buildHistoryStore.storageInfo.totalEntries.toLocaleString() }}</span>
           </div>
           <div class="stat-item">
             <label>Storage Size:</label>
-            <span>{{ formatSize(storageInfo.totalSize) }}</span>
+            <span>{{ formatSize(buildHistoryStore.storageInfo.totalSize) }}</span>
           </div>
-          <div v-if="storageInfo.oldestEntry" class="stat-item">
+          <div v-if="buildHistoryStore.storageInfo.oldestEntry" class="stat-item">
             <label>Oldest Entry:</label>
-            <span>{{ formatDate(storageInfo.oldestEntry) }}</span>
+            <span>{{ formatDate(buildHistoryStore.storageInfo.oldestEntry) }}</span>
           </div>
-          <div v-if="storageInfo.newestEntry" class="stat-item">
+          <div v-if="buildHistoryStore.storageInfo.newestEntry" class="stat-item">
             <label>Newest Entry:</label>
-            <span>{{ formatDate(storageInfo.newestEntry) }}</span>
+            <span>{{ formatDate(buildHistoryStore.storageInfo.newestEntry) }}</span>
           </div>
         </div>
       </div>
@@ -137,7 +106,7 @@
       <h3>Premium Feature</h3>
       <p>Build history tracking is available with a premium subscription.</p>
       <div class="unauthorized-actions">
-        <Button label="Upgrade to Access" severity="primary" @click="showSubscriptionOptions" />
+        <Button label="Upgrade to Access" severity="primary" @click="() => {}" />
         <Button label="Back to Dashboard" severity="secondary" @click="goToDashboard" />
       </div>
     </div>
@@ -175,22 +144,24 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useConfirm } from 'primevue/useconfirm'
 import { useBuildHistory } from '../store/build-history'
-import type { BuildHistoryEntry, BuildFilters } from '@@/build-history'
+import type { BuildHistoryEntry } from '@@/build-history'
 
 // Components
-import BuildHistoryFilters from '../components/BuildHistoryFilters.vue'
 import BuildHistoryList from '../components/BuildHistoryList.vue'
 import BuildDetailsModal from '../components/BuildDetailsModal.vue'
+import { useAuth } from '@renderer/store/auth'
 
 // Composables
 const router = useRouter()
+const route = useRoute()
 const confirm = useConfirm()
 
 // Stores
 const buildHistoryStore = useBuildHistory()
+const authStore = useAuth()
 
 // Local state
 const selectedEntry = ref<BuildHistoryEntry | null>(null)
@@ -199,19 +170,11 @@ const showExportDialog = ref(false)
 const exportProgress = ref(0)
 const exportStatus = ref('')
 
-// Computed properties
-const entries = buildHistoryStore.entries
-const isLoading = buildHistoryStore.isLoading
-const error = buildHistoryStore.error
-const subscriptionError = buildHistoryStore.subscriptionError
-const storageInfo = buildHistoryStore.storageInfo
-const hasEntries = buildHistoryStore.hasEntries
-const isPaidUser = buildHistoryStore.isPaidUser
-const hasSubscriptionError = buildHistoryStore.hasSubscriptionError
-const filters = buildHistoryStore.filters
-const pagination = buildHistoryStore.pagination
+const totalCount = computed(() => buildHistoryStore.storageInfo?.totalEntries || 0)
 
-const totalCount = computed(() => storageInfo?.totalEntries || 0)
+const projectId = computed(() => {
+  return (route.params.projectId as string) || null
+})
 
 // Methods
 const formatDate = (timestamp: number): string => {
@@ -237,53 +200,6 @@ const refreshHistory = async () => {
   } catch (error) {
     console.error('Failed to refresh build history:', error)
   }
-}
-
-const retryLoad = async () => {
-  try {
-    await buildHistoryStore.loadEntries()
-  } catch (error) {
-    console.error('Failed to retry loading build history:', error)
-  }
-}
-
-const loadMore = async () => {
-  const nextPage = pagination.page + 1
-  const newPagination = { ...pagination, page: nextPage }
-
-  try {
-    await buildHistoryStore.loadEntries({
-      filters: filters,
-      pagination: newPagination
-    })
-  } catch (error) {
-    console.error('Failed to load more entries:', error)
-  }
-}
-
-const onFiltersChange = (newFilters: BuildFilters) => {
-  buildHistoryStore.setFilters(newFilters)
-  buildHistoryStore.setPagination({ ...pagination, page: 1 })
-  buildHistoryStore.loadEntries()
-}
-
-const onSortChange = (sortBy: string, sortOrder: 'asc' | 'desc') => {
-  buildHistoryStore.setPagination({
-    ...pagination,
-    sortBy: sortBy as keyof BuildHistoryEntry,
-    sortOrder,
-    page: 1
-  })
-  buildHistoryStore.loadEntries()
-}
-
-const onPageChange = (page: number, pageSize: number) => {
-  buildHistoryStore.setPagination({
-    ...pagination,
-    page,
-    pageSize
-  })
-  buildHistoryStore.loadEntries()
 }
 
 const onViewDetails = (entry: BuildHistoryEntry) => {
@@ -399,32 +315,28 @@ const onExportData = async () => {
   }
 }
 
-const showSubscriptionOptions = () => {
-  // In a real implementation, this would open a subscription modal or redirect to pricing page
-  confirm.require({
-    message: 'This would open subscription options or redirect to the pricing page.',
-    header: 'Subscription Required',
-    icon: 'pi pi-info-circle',
-    accept: () => {
-      // Future implementation would go here
-    }
-  })
-}
-
 const goToDashboard = () => {
   router.push('/dashboard')
 }
 
-// Initialize - load data when component mounts
-onMounted(async () => {
-  if (isPaidUser) {
+// Helper function to load build history
+const loadBuildHistory = async (): Promise<void> => {
+  console.log('buildHistoryStore.canUseHistory', buildHistoryStore.canUseHistory)
+  if (buildHistoryStore.canUseHistory) {
     try {
       await buildHistoryStore.loadEntries()
       await buildHistoryStore.refreshStorageInfo()
     } catch (error) {
-      console.error('Failed to initialize build history page:', error)
+      console.error('Failed to load build history after auth change:', error)
     }
   }
+}
+
+authStore.onSubscriptionChanged(async ({ subscriptions }) => {
+  console.log('subscriptions', subscriptions)
+  console.log('authStore.hasBuildHistoryBenefit', authStore.hasBuildHistoryBenefit)
+  // If user now has build history benefit, load entries
+  loadBuildHistory()
 })
 
 // Cleanup - clear selection when component unmounts
@@ -436,8 +348,11 @@ onUnmounted(() => {
 <style scoped>
 .build-history-page {
   padding: 2rem;
-  max-width: 1400px;
-  margin: 0 auto;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
 }
 
 .page-header {
@@ -536,6 +451,9 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: 2rem;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .storage-info {

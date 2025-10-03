@@ -124,30 +124,13 @@
           </div>
         </div>
       </div>
-
-      <!-- Pagination -->
-      <div v-if="showPagination" class="pagination-container">
-        <Paginator
-          :first="paginationOffset"
-          :rows="pagination.pageSize"
-          :total-records="totalCount"
-          :rows-per-page-options="[10, 20, 50, 100]"
-          template="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown"
-          @page="onPageChange"
-        />
-      </div>
-
-      <!-- Load More (for infinite scroll) -->
-      <div v-if="showLoadMore" class="load-more-container">
-        <Button label="Load More" severity="secondary" :loading="isLoading" @click="loadMore" />
-      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
-import type { BuildHistoryEntry, PaginationOptions } from '@@/build-history'
+import { ref, computed } from 'vue'
+import type { BuildHistoryEntry } from '@@/build-history'
 import BuildHistoryItem from './BuildHistoryItem.vue'
 
 interface Props {
@@ -156,11 +139,8 @@ interface Props {
   error?: string
   hasSubscriptionError?: boolean
   totalCount?: number
-  pagination?: PaginationOptions
   canDelete?: boolean
   canStartBuild?: boolean
-  showPagination?: boolean
-  showLoadMore?: boolean
 }
 
 interface Emits {
@@ -193,11 +173,6 @@ const sortOrder = ref<'asc' | 'desc'>('desc')
 
 // Computed properties
 const hasEntries = computed(() => props.entries.length > 0)
-
-const paginationOffset = computed(() => {
-  if (!props.pagination) return 0
-  return (props.pagination.page - 1) * props.pagination.pageSize
-})
 
 // Sort options
 const sortOptions = [
@@ -239,33 +214,12 @@ const toggleSortOrder = () => {
   sortOrder.value = sortOrder.value === 'desc' ? 'asc' : 'desc'
   emit('sort-change', sortBy.value, sortOrder.value)
 }
-
-const onPageChange = (event: any) => {
-  const newPage = Math.floor(event.first / event.rows) + 1
-  const newPageSize = event.rows
-  emit('page-change', newPage, newPageSize)
-}
-
-const loadMore = () => {
-  emit('load-more')
-}
-
-// Watch for external sort changes
-watch(
-  () => props.pagination,
-  (newPagination) => {
-    if (newPagination) {
-      sortBy.value = newPagination.sortBy || 'startTime'
-      sortOrder.value = newPagination.sortOrder || 'desc'
-    }
-  },
-  { immediate: true }
-)
 </script>
 
 <style scoped>
 .build-history-list {
   min-height: 400px;
+  flex: 1;
 }
 
 .loading-state,
@@ -324,6 +278,8 @@ watch(
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
+  overflow: hidden;
+  height: 100%;
 }
 
 .list-header {
@@ -391,9 +347,11 @@ watch(
 
 .entries-container {
   min-height: 300px;
+  overflow: auto;
 }
 
 .entries-list {
+  overflow: auto;
   display: flex;
   flex-direction: column;
   gap: 1rem;

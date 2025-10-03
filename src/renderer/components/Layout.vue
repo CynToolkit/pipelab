@@ -273,7 +273,8 @@ const isBuildHistoryRoute = computed(() => {
 })
 
 const navigateToBuildHistory = () => {
-  router.push({ name: 'BuildHistory' })
+  console.log('route', route)
+  router.push({ name: 'BuildHistory', params: { projectId: route.params.projectId } })
 }
 
 const updateStatus = ref<UpdateStatus>('update-not-available')

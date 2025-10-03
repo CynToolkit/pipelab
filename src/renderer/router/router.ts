@@ -51,7 +51,7 @@ const routes: RouterOptions['routes'] = [
     }
   },
   {
-    path: '/build-history',
+    path: '/build-history/:projectId?',
     name: 'BuildHistory',
     component: () => import('../pages/BuildHistoryPage.vue'),
     meta: {
