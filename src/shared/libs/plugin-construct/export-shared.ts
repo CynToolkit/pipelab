@@ -13,6 +13,7 @@ import { script } from './assets/script.js'
 import * as v from 'valibot'
 import { BrowserContext } from 'playwright'
 import { join } from 'node:path'
+import { homedir } from 'node:os'
 
 const platform = process.platform
 const { LOCALAPPDATA, XDG_CONFIG_HOME } = process.env
@@ -23,8 +24,10 @@ const isCI = process.env.CI === 'true' || import.meta.env.CI === 'true'
 let baseProfile
 if (platform === 'win32') {
   baseProfile = join(LOCALAPPDATA ?? '', 'Google', 'Chrome', 'User Data')
-} else if (platform === 'linux' || platform === 'darwin') {
+} else if (platform === 'linux') {
   baseProfile = join(XDG_CONFIG_HOME ?? '', 'google-chrome')
+} else if (platform === 'darwin') {
+  baseProfile = join(homedir(), 'Library', 'Application Support', 'Google', 'Chrome')
 }
 
 export const sharedParams = {
