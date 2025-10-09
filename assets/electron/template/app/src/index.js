@@ -83,8 +83,111 @@ function assertUnreachable(_x) {
 
 safeStorage.setUsePlainTextEncryption(true)
 
-process.on('uncaughtException', (error) => {
-  console.error('Uncaught Exception:', error)
+function createErrorWindow(errorMessage) {
+  const errorWindow = new BrowserWindow({
+    width: 600,
+    height: 250,
+    title: 'Game Startup Error',
+    center: true,
+    resizable: false,
+    webPreferences: {
+      preload: join(metaDirname, 'preload.js')
+    }
+  })
+
+  const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <title>Error</title>
+        <style>
+          /* Basic reset and modern styling */
+          html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: #2c2f33; /* Dark background */
+            color: #ffffff;             /* White text */
+            overflow: hidden;
+          }
+          /* Flexbox container to center content */
+          body {
+            display: flex;
+            flex-direction: column;
+            justify-content: center; /* Center horizontally */
+            align-items: center;     /* Center vertically */
+            text-align: center;
+            padding: 1rem;
+            gap: 1.5rem;
+          }
+          h1 {
+            font-weight: 400; /* Lighter font weight */
+            font-size: 1.2rem;
+            line-height: 1.5;
+            margin: 0;
+          }
+          .button-container {
+            margin-top: 0.5rem;
+          }
+          button {
+            background-color: #404448; /* Slightly lighter dark background */
+            color: #ffffff;
+            border: 1px solid #55585c;
+            border-radius: 6px;
+            padding: 0.75rem 1.5rem;
+            font-family: inherit;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s ease, border-color 0.2s ease;
+          }
+          button:hover {
+            background-color: #4a4e52;
+            border-color: #60646a;
+          }
+          button:active {
+            background-color: #363a3e;
+            transform: translateY(1px);
+          }
+          button:focus {
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(85, 88, 92, 0.5);
+          }
+        </style>
+      </head>
+      <body>
+        <h1>${errorMessage}</h1>
+        <div class="button-container">
+          <button onclick="exitApplication()">Close</button>
+        </div>
+        <script>
+          function exitApplication() {
+            window.electronAPI.exit()
+          }
+        </script>
+      </body>
+    </html>
+  `
+
+  // Encode the HTML and load it as a data URL
+  const encodedHtml = encodeURIComponent(htmlContent)
+  errorWindow.loadURL(`data:text/html,${encodedHtml}`)
+  return errorWindow
+}
+
+process.on('uncaughtException', async (error) => {
+  console.error('Uncaught Exception:', error, error.code)
+
+  if (error.code === 'EADDRINUSE') {
+    const errorWindow = await createErrorWindow(
+      'Unable to start the game.<br>Is another instance already running?'
+    )
+    errorWindow.show()
+    errorWindow.on('closed', () => {
+      app.quit()
+    })
+  }
 })
 process.on('unhandledRejection', (reason) => {
   console.error('Unhandled Promise Rejection:', reason)
@@ -191,7 +294,7 @@ const dir = app.isPackaged ? join(metaDirname, './app') : './src/app'
  */
 const createAppServer = (mainWindow, serveStatic = true) => {
   // eslint-disable-next-line no-async-promise-executor
-  return new Promise(async (resolve) => {
+  return new Promise(async (resolve, reject) => {
     const server = createServer()
 
     if (serveStatic) {
@@ -217,181 +320,186 @@ const createAppServer = (mainWindow, serveStatic = true) => {
       })
     }
 
-    const wss = new WebSocketServer({ server })
-    wss.on('connection', function connection(ws) {
-      clients.add(ws)
+    try {
+      const wss = new WebSocketServer({ server })
+      wss.on('connection', function connection(ws) {
+        clients.add(ws)
 
-      ws.on('error', console.error)
+        ws.on('error', console.error)
 
-      ws.on('message', async (data) => {
-        //region Message handlers
-        /** @type {import('@pipelab/core').Message} */
-        const json = JSON.parse(data.toString())
-        console.log('received:', json)
+        ws.on('message', async (data) => {
+          //region Message handlers
+          /** @type {import('@pipelab/core').Message} */
+          const json = JSON.parse(data.toString())
+          console.log('received:', json)
 
-        try {
-          switch (json.url) {
-            case '/paths':
-              await userFolder(json, ws, config)
-              break
+          try {
+            switch (json.url) {
+              case '/paths':
+                await userFolder(json, ws, config)
+                break
 
-            case '/fs/file/write':
-              await fsWrite(json, ws)
-              break
+              case '/fs/file/write':
+                await fsWrite(json, ws)
+                break
 
-            case '/fs/file/read':
-              await fsRead(json, ws)
-              break
+              case '/fs/file/read':
+                await fsRead(json, ws)
+                break
 
-            case '/fs/file/read/binary':
-              await fsReadBinary(json, ws)
-              break
+              case '/fs/file/read/binary':
+                await fsReadBinary(json, ws)
+                break
 
-            case '/fs/folder/create':
-              await fsFolderCreate(json, ws)
-              break
+              case '/fs/folder/create':
+                await fsFolderCreate(json, ws)
+                break
 
-            case '/window/maximize':
-              await windowMaximize(json, ws, mainWindow)
-              break
+              case '/window/maximize':
+                await windowMaximize(json, ws, mainWindow)
+                break
 
-            case '/window/minimize':
-              await windowMinimize(json, ws, mainWindow)
-              break
-            case '/window/request-attention':
-              await windowRequestAttention(json, ws, mainWindow)
-              break
-            case '/window/restore':
-              await windowRestore(json, ws, mainWindow)
-              break
-            case '/dialog/folder':
-              await dialogFolder(json, ws)
-              break
-            case '/dialog/open':
-              await dialogOpen(json, ws)
-              break
-            case '/dialog/save':
-              await dialogSave(json, ws)
-              break
-            case '/window/set-always-on-top':
-              await windowSetAlwaysOnTop(json, ws, mainWindow)
-              break
-            case '/window/set-height':
-              await windowSetHeight(json, ws, mainWindow)
-              break
-            case '/window/set-maximum-size':
-              await windowSetMaximumSize(json, ws, mainWindow)
-              break
-            case '/window/set-minimum-size':
-              await windowSetMinimumSize(json, ws, mainWindow)
-              break
-            case '/window/set-resizable':
-              await windowSetResizable(json, ws, mainWindow)
-              break
-            case '/window/set-title':
-              await windowSetTitle(json, ws, mainWindow)
-              break
-            case '/window/set-width':
-              await windowSetWidth(json, ws, mainWindow)
-              break
-            case '/window/set-x':
-              await windowSetX(json, ws, mainWindow)
-              break
-            case '/window/set-y':
-              await windowSetY(json, ws, mainWindow)
-              break
-            case '/window/show-dev-tools':
-              await windowShowDevTools(json, ws, mainWindow)
-              break
-            case '/window/unmaximize':
-              await windowUnmaximize(json, ws, mainWindow)
-              break
-            case '/window/set-fullscreen':
-              await windowSetFullscreen(json, ws, mainWindow)
-              break
-            case '/engine':
-              await engine(json, ws)
-              break
-            case '/open':
-              await open(json, ws)
-              break
-            case '/show-in-explorer':
-              await showInExplorer(json, ws)
-              break
-            case '/run':
-              await run(json, ws)
-              break
-            case '/fs/copy':
-              await fsCopy(json, ws)
-              break
-            case '/fs/delete':
-              await fsDelete(json, ws)
-              break
-            case '/fs/exist':
-              await fsExist(json, ws)
-              break
-            case '/fs/list':
-              await fsList(json, ws)
-              break
-            case '/fs/file/size':
-              await fsFileSize(json, ws)
-              break
-            case '/fs/move':
-              await fsMove(json, ws)
-              break
-            case '/steam/raw':
-              await steamRaw(json, ws, client)
-              break
-            case '/steam/leaderboard/upload-score':
-              await steamUploadScore(json, ws, client)
-              break
-            case '/steam/leaderboard/download-score':
-              await steamDownloadScore(json, ws, client)
-              break
-            case '/discord/set-activity':
-              await discordSetActivity(json, ws, mainWindow, rpc)
-              break
-            case '/exit':
-              await exit(json, ws)
-              break
-            case '/window/fullscreen-state':
-              // sent the other way around
-              break
-            case '/infos':
-              await infos(json, ws)
-              break
+              case '/window/minimize':
+                await windowMinimize(json, ws, mainWindow)
+                break
+              case '/window/request-attention':
+                await windowRequestAttention(json, ws, mainWindow)
+                break
+              case '/window/restore':
+                await windowRestore(json, ws, mainWindow)
+                break
+              case '/dialog/folder':
+                await dialogFolder(json, ws)
+                break
+              case '/dialog/open':
+                await dialogOpen(json, ws)
+                break
+              case '/dialog/save':
+                await dialogSave(json, ws)
+                break
+              case '/window/set-always-on-top':
+                await windowSetAlwaysOnTop(json, ws, mainWindow)
+                break
+              case '/window/set-height':
+                await windowSetHeight(json, ws, mainWindow)
+                break
+              case '/window/set-maximum-size':
+                await windowSetMaximumSize(json, ws, mainWindow)
+                break
+              case '/window/set-minimum-size':
+                await windowSetMinimumSize(json, ws, mainWindow)
+                break
+              case '/window/set-resizable':
+                await windowSetResizable(json, ws, mainWindow)
+                break
+              case '/window/set-title':
+                await windowSetTitle(json, ws, mainWindow)
+                break
+              case '/window/set-width':
+                await windowSetWidth(json, ws, mainWindow)
+                break
+              case '/window/set-x':
+                await windowSetX(json, ws, mainWindow)
+                break
+              case '/window/set-y':
+                await windowSetY(json, ws, mainWindow)
+                break
+              case '/window/show-dev-tools':
+                await windowShowDevTools(json, ws, mainWindow)
+                break
+              case '/window/unmaximize':
+                await windowUnmaximize(json, ws, mainWindow)
+                break
+              case '/window/set-fullscreen':
+                await windowSetFullscreen(json, ws, mainWindow)
+                break
+              case '/engine':
+                await engine(json, ws)
+                break
+              case '/open':
+                await open(json, ws)
+                break
+              case '/show-in-explorer':
+                await showInExplorer(json, ws)
+                break
+              case '/run':
+                await run(json, ws)
+                break
+              case '/fs/copy':
+                await fsCopy(json, ws)
+                break
+              case '/fs/delete':
+                await fsDelete(json, ws)
+                break
+              case '/fs/exist':
+                await fsExist(json, ws)
+                break
+              case '/fs/list':
+                await fsList(json, ws)
+                break
+              case '/fs/file/size':
+                await fsFileSize(json, ws)
+                break
+              case '/fs/move':
+                await fsMove(json, ws)
+                break
+              case '/steam/raw':
+                await steamRaw(json, ws, client)
+                break
+              case '/steam/leaderboard/upload-score':
+                await steamUploadScore(json, ws, client)
+                break
+              case '/steam/leaderboard/download-score':
+                await steamDownloadScore(json, ws, client)
+                break
+              case '/discord/set-activity':
+                await discordSetActivity(json, ws, mainWindow, rpc)
+                break
+              case '/exit':
+                await exit(json, ws)
+                break
+              case '/window/fullscreen-state':
+                // sent the other way around
+                break
+              case '/infos':
+                await infos(json, ws)
+                break
 
-            default:
-              console.log('unsupported', data)
-              assertUnreachable(json)
-              break
+              default:
+                console.log('unsupported', data)
+                assertUnreachable(json)
+                break
+            }
+          } catch (e) {
+            console.error('e', e)
+            ws.send(
+              JSON.stringify({
+                url: json.url,
+                correlationId: json.correlationId,
+                body: {
+                  success: false,
+                  error: e.message
+                }
+              })
+            )
           }
-        } catch (e) {
-          console.error('e', e)
-          ws.send(
-            JSON.stringify({
-              url: json.url,
-              correlationId: json.correlationId,
-              body: {
-                success: false,
-                error: e.message
-              }
-            })
-          )
-        }
-      })
+        })
 
-      ws.on('close', () => {
-        clients.delete(ws)
+        ws.on('close', () => {
+          clients.delete(ws)
+        })
       })
-    })
+    } catch (e) {
+      console.error('Unable to create websocket server', e)
+      return reject(e)
+    }
 
     server.listen(31753, '127.0.0.1', () => {
       const adress = server.address()
       if (adress && typeof adress !== 'string') {
         return resolve(adress.port)
       }
-      throw new Error('Unable to bind server: adress is not an object')
+      return reject('Unable to bind server: adress is not an object')
     })
   })
 }
@@ -450,8 +558,9 @@ const createWindow = async () => {
   } else {
     const port = await createAppServer(mainWindow)
 
-    await mainWindow?.loadURL(`http://localhost:${port}`)
-    console.log('URL loaded')
+    const url = `http://localhost:${port}`
+    await mainWindow?.loadURL(url)
+    console.log('URL loaded (static)', url)
   }
 
   mainWindow.on('enter-full-screen', () => {
@@ -541,8 +650,5 @@ app.whenReady().then(async () => {
 })
 
 app.on('window-all-closed', async () => {
-  if (process.platform !== 'darwin') {
-    // await client.shutdown()
-    app.quit()
-  }
+  app.quit()
 })
