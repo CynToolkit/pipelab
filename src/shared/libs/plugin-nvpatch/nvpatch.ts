@@ -32,45 +32,42 @@ export const NVPatch = createAction({
 export const NVPatchRunner = createActionRunner<typeof NVPatch>(
   async ({ log, inputs, paths, abortSignal, cwd }) => {
     const { join, resolve } = await import('node:path')
-    const { writeFile, cp, mkdir } = await import('node:fs/promises')
-    const { shell } = await import('electron')
-    const StreamZip = await import('node-stream-zip')
-
-    // const peBinFolder = join(cwd, 'EditBinPE')
-    // const peBinZip = peBinFolder + '.zip'
-    // const peBinBin = join(peBinFolder, 'EditBinPE.exe')
-
-    // log('Downloading EditBinPE to', peBinFolder)
-
-    // // donwload the zip file
-    // await downloadFile(
-    //   'https://github.com/GabrielFrigo4/EditBinPE/releases/download/Release-1.0.1/EditBinPE.zip',
-    //   peBinZip,
-    //   {},
-    //   abortSignal
-    // )
-
-    // log('Unzipping', peBinZip, 'to', peBinFolder)
-    // await mkdir(peBinFolder, { recursive: true })
-    // // unzip the file
-    // const zip = new StreamZip.default.async({ file: peBinZip })
-    // const bytes = await zip.extract(null, peBinFolder)
-    // console.log('bytes', bytes)
-    // await zip.close()
 
     // run
 
     console.log('process.env', process.env)
 
-    const nvpatch = resolve(join(process.env.USERPROFILE, '.dotnet', 'tools', 'nvpatch.exe'))
+    // Detect platform and set up platform-specific configuration
+    const isMacOS = process.platform === 'darwin'
+    const isWindows = process.platform === 'win32'
 
-    log('Trying nvpatch from', nvpatch)
+    let nvpatchCommand: string
+    let nvpatchArgs: string[]
+
+    if (isMacOS) {
+      // macOS: Use arch -x86_64 with dotnet runtime and DLL path
+      const dotnetRuntime = '/usr/local/share/dotnet/x64/dotnet'
+      const nvpatchDll = resolve(join(process.env.HOME!, '.dotnet', 'tools', 'nvpatch.dll'))
+
+      log('Trying nvpatch from', nvpatchDll)
+
+      nvpatchCommand = 'arch'
+      nvpatchArgs = ['-x86_64', dotnetRuntime, nvpatchDll, '--enable', inputs['input']]
+    } else {
+      // Windows: Use direct executable path with HOME instead of USERPROFILE
+      const nvpatchExe = resolve(join(process.env.USERPROFILE!, '.dotnet', 'tools', 'nvpatch.exe'))
+
+      log('Trying nvpatch from', nvpatchExe)
+
+      nvpatchCommand = nvpatchExe
+      nvpatchArgs = ['--enable', inputs['input']]
+    }
 
     await runWithLiveLogs(
-      nvpatch,
-      ['--enable', inputs['input']],
+      nvpatchCommand,
+      nvpatchArgs,
       {
-        cancelSignal: abortSignal,
+        cancelSignal: abortSignal
       },
       log
     )

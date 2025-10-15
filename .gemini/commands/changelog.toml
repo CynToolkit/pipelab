@@ -1,0 +1,89 @@
+# Filename: changelog.toml
+
+description = "Drafts a CHANGELOG.md entry by categorizing git commits between two tags."
+
+prompt = """
+# AI Agent Instructions: Release Notes & Changelog Drafter
+
+## Objective
+Your goal is to generate a formatted Markdown entry for a `CHANGELOG.md` file. You will do this by analyzing the git commit history between two specified git tags, categorizing the commits, and presenting them in a clean, readable format.
+
+**ARGUMENTS:** $ARGUMENTS (Should be in the format: `<from_tag> <to_tag>`. If empty, use the two most recent tags.)
+
+---
+
+### Phase 1: Determine Git Range
+
+1.  **Parse Arguments:** Check if `$ARGUMENTS` contains two tags.
+2.  **Identify Tags:**
+    * **If two tags are provided:** Use them as `<from_tag>` and `<to_tag>`.
+    * **If no tags are provided:** Automatically find the two most recent git tags. Execute `git tag -l --sort=-v:refname | head -n 2`. The first tag will be `<to_tag>` and the second will be `<from_tag>`.
+3.  **Validate Tags:** Ensure the tags exist. If not, stop and report an error.
+
+---
+
+### Phase 2: Fetch and Categorize Commits
+
+1.  **Get Commits:** Execute the following command to get all commit subjects between the two tags:
+    ```bash
+    git log --pretty=format:"%s" <from_tag>..<to_tag>
+    ```
+2.  **Initialize Categories:** Create lists for the following categories:
+    * `Features`
+    * `Fixes`
+    * `Documentation`
+    * `Miscellaneous` (for `refactor`, `perf`, `style`, `test`, `chore`, `build`, `ci`, etc.)
+3.  **Process Each Commit:**
+    * For each commit message, check its prefix.
+    * **Get Changed Files:** Execute `git show <commit-hash>` to retrieve the full diff content of files modified in this commit.
+    * **Analyze File Context:** Examine file extensions and paths to determine the nature of changes:
+        * `.md`, `.mdx`, `.rst`, `.txt` files in `docs/` or at root level -> Likely documentation
+        * `.js`, `.ts`, `.jsx`, `.tsx`, `.vue`, `.py`, `.go`, `.rs` files -> Core functionality changes
+        * `.css`, `.scss`, `.less`, `.styl` files -> Styling changes
+        * `.spec.ts`, `.test.ts`, `.spec.js`, `.test.js` files -> Test-related changes
+        * `package.json`, `pnpm-lock.yaml`, `requirements.txt`, `Cargo.toml` -> Dependency/build changes
+        * Files in `src/` or equivalent source directories -> Feature implementations
+        * Files in `scripts/`, `tools/`, or `build/` directories -> Build/tooling changes
+    * **Enhanced Categorization:** Use both commit message prefix AND file analysis for better categorization:
+        * If commit has `feat:` prefix OR modifies core source files -> `Features`
+        * If commit has `fix:` prefix OR modifies source files with bug-related context -> `Fixes`
+        * If commit has `docs:` prefix OR modifies documentation files -> `Documentation`
+        * If commit modifies test files -> Consider as `Tests` subcategory under `Miscellaneous`
+        * If commit modifies build/dependency files -> Consider as `Build` subcategory under `Miscellaneous`
+        * If commit modifies styling files -> Consider as `Styling` subcategory under `Miscellaneous`
+    * Remove the prefix and leading space (e.g., "feat: " becomes "").
+    * Capitalize the first letter of the remaining message.
+    * **Enhanced Message:** If file analysis provides additional context, append relevant details (e.g., "Updated user authentication (modified auth service and login components)").
+    * Add the cleaned-up message to the appropriate category list.
+
+---
+
+### Phase 3: Draft the Markdown Output
+
+1.  **Get Current Date:** Fetch today's date in `YYYY-MM-DD` format.
+2.  **Assemble the Entry:** Create a Markdown string using the categorized lists. Do not show categories that have no commits.
+
+    * **Header:** Start with `## [<to_tag>] - YYYY-MM-DD`.
+    * **Features Section:** If the `Features` list is not empty, add:
+        ```markdown
+        ### 🚀 New Features
+        * (List each item from the Features list here)
+        ```
+    * **Fixes Section:** If the `Fixes` list is not empty, add:
+        ```markdown
+        ### 🐛 Bug Fixes
+        * (List each item from the Fixes list here)
+        ```
+    * **Documentation Section:** If the `Documentation` list is not empty, add:
+        ```markdown
+        ### 📝 Documentation
+        * (List each item from the Documentation list here)
+        ```
+    * **Miscellaneous Section:** If the `Miscellaneous` list is not empty, add:
+        ```markdown
+        ### ⚙️ Miscellaneous
+        * (List each item from the Miscellaneous list here)
+        ```
+3.  **Print to Console:** Output the entire formatted Markdown block to the console for the user to copy.
+
+"""
