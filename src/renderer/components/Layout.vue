@@ -207,6 +207,7 @@
 
       <Settings></Settings>
     </Dialog>
+
     <Dialog
       v-model:visible="isUpgradeDialogVisible"
       modal

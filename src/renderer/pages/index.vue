@@ -16,7 +16,7 @@
             data-key="id"
             class="w-full h-full"
             :scrollable="true"
-            scrollHeight="flex"
+            scroll-height="flex"
           >
             <template #header>
               <div class="flex justify-content-between">
@@ -59,8 +59,8 @@
                   <Button
                     size="small"
                     severity="info"
-                    @click.stop="duplicateProject(data)"
                     class="p-button-outlined"
+                    @click.stop="duplicateProject(data)"
                   >
                     <template #icon><i class="mdi mdi-content-copy"></i></template>
                   </Button>
@@ -68,15 +68,15 @@
                     v-if="!data.noDeleteBtn"
                     size="small"
                     severity="danger"
-                    @click.stop="deleteProject(data.id)"
                     class="p-button-outlined"
+                    @click.stop="deleteProject(data.id)"
                   >
                     <template #icon><i class="mdi mdi-delete"></i></template>
                   </Button>
                   <Button
                     size="small"
-                    @click.stop="loadExisting(data.id)"
                     class="p-button-outlined"
+                    @click.stop="loadExisting(data.id)"
                   >
                     <template #icon><i class="mdi mdi-folder-open"></i></template>
                   </Button>
@@ -155,7 +155,7 @@
                     </div>
                   </template>
                   <template #value="{ value }: { value: Item | undefined }">
-                    <div class="flex align-items-center gap-2" v-if="value">
+                    <div v-if="value" class="flex align-items-center gap-2">
                       <i v-if="value.icon" :class="value.icon"></i>
                       <span>{{ value.label }}</span>
                     </div>
@@ -163,7 +163,7 @@
                 </Select>
               </div>
 
-              <div v-if="newProjectType === 'local'" class="location">
+              <div v-if="newProjectType && newProjectType.value === 'local'" class="location">
                 <FileInput
                   v-model="newProjectLocalLocation"
                   :default-path="newProjectNamePathified"
@@ -277,16 +277,16 @@ const canCreateproject = computed(() => {
     return (
       newProjectType.value !== undefined &&
       newProjectName.value !== undefined &&
-      (newProjectType.value === 'cloud' ||
-        (newProjectType.value === 'local' && newProjectLocalLocation.value !== undefined))
+      (newProjectType.value.value === 'cloud' ||
+        (newProjectType.value.value === 'local' && newProjectLocalLocation.value !== undefined))
     )
   }
   return (
     newProjectType.value !== undefined &&
     newProjectPreset.value !== undefined &&
     newProjectName.value !== undefined &&
-    (newProjectType.value === 'cloud' ||
-      (newProjectType.value === 'local' && newProjectLocalLocation.value !== undefined))
+    (newProjectType.value.value === 'cloud' ||
+      (newProjectType.value.value === 'local' && newProjectLocalLocation.value !== undefined))
   )
 })
 
@@ -434,7 +434,7 @@ type Item = {
 
 const { hasBenefit } = useAuth()
 
-const newProjectType = ref()
+const newProjectType = ref<Item>()
 const newProjectTypes = computed<Item[]>(() => {
   return [
     {
