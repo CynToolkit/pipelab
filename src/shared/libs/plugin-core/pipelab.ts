@@ -201,6 +201,10 @@ export interface ControlTypeArray extends ControlTypeBase {
   }
 }
 
+export interface ControlTypeColor extends ControlTypeBase {
+  type: 'color'
+}
+
 export interface ControlTypeElectronConfigureV2 extends ControlTypeBase {
   type: 'electron:configure:v2'
 }
@@ -216,6 +220,7 @@ export type ControlType =
   | ControlTypeExpression
   | ControlTypeNetlifySite
   | ControlTypeArray
+  | ControlTypeColor
   | ControlTypeElectronConfigureV2
 
 export type InputDefinition<T extends ControlType = ControlType> = {
@@ -517,6 +522,18 @@ export const createStringParam = (
     },
     value: `"${value}"`
   } satisfies InputDefinition<ControlTypeInput>
+}
+export const createColorPicker = (
+  value: string,
+  definition: Omit<InputDefinition<ControlTypeColor>, 'value' | 'control'>
+) => {
+  return {
+    ...definition,
+    control: {
+      type: 'color'
+    },
+    value: `"${value}"`
+  } satisfies InputDefinition<ControlTypeColor>
 }
 export const createPasswordParam = (
   value: string,

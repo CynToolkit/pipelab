@@ -147,6 +147,10 @@
           "customPackages": {
             "editor": "editor",
             "value": "[\n]"
+          },
+          "backgroundColor": {
+            "editor": "simple",
+            "value": "\"#FFFFFF\""
           }
         }
       }

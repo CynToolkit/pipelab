@@ -1,5 +1,6 @@
 <template>
   <div class="editor">
+    <pre>{{ paramDefinition.control }}</pre>
     <div v-if="paramDefinition.control.type === 'input'" class="input">
       <template v-if="paramDefinition.control.options.kind === 'text'">
         <Password
@@ -96,15 +97,15 @@
       <Select
         :placeholder="paramDefinition.control.options.placeholder"
         :model-value="modelValue"
-        @update:model-value="onParamNetlifySiteChange"
         :options="items"
-        optionLabel="name"
-        optionValue="id"
+        option-label="name"
+        option-value="id"
         :loading="netlifySelectLoading"
         :disabled="
           netlifySelectLoading || !currentNodeParams[paramDefinition.control.options.tokenKey]
         "
         class="w-full"
+        @update:model-value="onParamNetlifySiteChange"
       >
         <!-- <template #option="slotProps">
           <div>{{ slotProps.option.name }}</div>
@@ -119,6 +120,9 @@
       <!-- <Button class="w-full" @click="onChangeNetlifySiteClick(paramDefinition.control.options)">
         {{ modelValue ? modelValue : (paramDefinition.control.label ?? 'Browse path') }}
       </Button> -->
+    </div>
+    <div v-else-if="paramDefinition.control.type === 'color'" class="color">
+      <ColorPicker :model-value="modelValueColor" @update:model-value="onParamColorChange" />
     </div>
     <Button v-else class="w-full" @click="onSwitch">Switch to editor to edit value</Button>
   </div>
@@ -137,6 +141,7 @@ import { InputNumberInputEvent } from 'primevue/inputnumber'
 import { BlockAction, BlockCondition, BlockEvent, BlockLoop } from '@@/model'
 import { useEditor } from '@renderer/store/editor'
 import { storeToRefs } from 'pinia'
+import ColorPicker from '../ColorPicker.vue'
 
 type Params = (Action | Condition | Event)['params']
 
@@ -242,6 +247,10 @@ const onSelectChange = (event: SelectButtonChangeEvent) => {
   emit('update:modelValue', event.value)
 }
 
+const onParamColorChange = (value: string) => {
+  emit('update:modelValue', `"${value}"`)
+}
+
 const booleanOptions = [
   { text: 'True', value: true },
   { text: 'False', value: false }
@@ -256,6 +265,14 @@ const modelValueString = computed(() => {
 
 const modelValueNumber = computed<number | undefined>(() => {
   return Number.parseInt(modelValueString.value)
+})
+
+const modelValueColor = computed(() => {
+  const str = modelValueString.value
+  if (str.startsWith('"') && str.endsWith('"')) {
+    return str.slice(1, -1)
+  }
+  return str
 })
 
 const onSwitch = () => {

@@ -31,6 +31,7 @@ declare namespace DesktopApp {
      * User-defined npm packages to install (format: "package[@version]")
      */
     customPackages?: string[]
+    backgroundColor: string
   }
 
   interface Electron extends Config {
@@ -45,6 +46,5 @@ declare namespace DesktopApp {
 
   interface Tauri extends Config {
     tauriVersion: string
-
-   }
+  }
 }

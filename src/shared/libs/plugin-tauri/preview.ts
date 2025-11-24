@@ -39,7 +39,8 @@ export const previewRunner = createActionRunner<ReturnType<typeof createPreviewP
       openDevtoolsOnStart: options.inputs.configuration['openDevtoolsOnStart'],
       enableDiscordSupport: options.inputs.configuration['enableDiscordSupport'],
       discordAppId: options.inputs.configuration['discordAppId'],
-      customPackages: options.inputs.configuration['customPackages']
+      customPackages: options.inputs.configuration['customPackages'],
+      backgroundColor: options.inputs.configuration['backgroundColor']
     } satisfies DesktopApp.Tauri) as DesktopApp.Tauri
 
     console.log('completeConfiguration', completeConfiguration)
