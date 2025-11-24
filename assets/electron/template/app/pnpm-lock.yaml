@@ -79,11 +79,11 @@ importers:
         specifier: 1.8.0
         version: 1.8.0
       '@pipelab/core':
-        specifier: 1.4.8
-        version: 1.4.8
+        specifier: 1.4.9
+        version: 1.4.9
       electron:
-        specifier: 34.0.2
-        version: 34.0.2
+        specifier: 39.2.3
+        version: 39.2.3
 
 packages:
 
@@ -257,8 +257,8 @@ packages:
     engines: {node: ^12.13.0 || ^14.15.0 || >=16.0.0}
     deprecated: This functionality has been moved to @npmcli/fs
 
-  '@pipelab/core@1.4.8':
-    resolution: {integrity: sha512-yCn9h6MnaoVgXEaA+nuOa4FPOJ94817jADhjo2xDjh2S2cHq4xr/mzP3ys/gRnvvKm0NrENx98iLh3/ANqQTcg==}
+  '@pipelab/core@1.4.9':
+    resolution: {integrity: sha512-eHz2UNZrDeaTUHS5BL4Mc6c2yBWt7N7xQ2hT0gu2UnAHsWO2QL/j2SVyyaYwGY9m6Ht6jXPXBwD0cngVWVy5vQ==}
 
   '@sec-ant/readable-stream@0.4.1':
     resolution: {integrity: sha512-831qok9r2t8AlxLko40y2ebgSDhenenCatLVeW/uBtnHPyhHOvG0C7TvfgecV+wHzIm5KUICgzmVpWS+IMEAeg==}
@@ -296,9 +296,6 @@ packages:
 
   '@types/minimatch@5.1.2':
     resolution: {integrity: sha512-K0VQKziLUWkVKiRVrx4a40iPaxTUefQmjtkQofBkYRcoaaL/8rhwDWww9qWbrgicNOgnpIsMxyNIUM4+n6dUIA==}
-
-  '@types/node@20.17.24':
-    resolution: {integrity: sha512-d7fGCyB96w9BnWQrOsJtpyiSaBcAYYr75bnK6ZRjDbql2cGLj/3GsL5OYmLPNq76l7Gf2q4Rv9J2o6h5CrD9sA==}
 
   '@types/node@22.10.5':
     resolution: {integrity: sha512-F8Q+SeGimwOo86fiovQh8qiXfFEh2/ocYv7tU5pJ3EXMSSxk1Joj5wefpFK2fHTf/N6HKGSxIDBT9f3gCxXPkQ==}
@@ -606,8 +603,8 @@ packages:
     resolution: {integrity: sha512-bO3y10YikuUwUuDUQRM4KfwNkKhnpVO7IPdbsrejwN9/AABJzzTQ4GeHwyzNSrVO+tEH3/Np255a3sVZpZDjvg==}
     engines: {node: '>=8.0.0'}
 
-  electron@34.0.2:
-    resolution: {integrity: sha512-u3F+DSUlg9NaGS+9qnYmSRN8VjAnc3LJDDk1ye1uISJnh4gjG76y3681qLowsPMx4obvCP2eBINnmbLo0yT5WA==}
+  electron@39.2.3:
+    resolution: {integrity: sha512-j7k7/bj3cNA29ty54FzEMRUoqirE+RBQPhPFP+XDuM93a1l2WcDPiYumxKWz+iKcXxBJLFdMIAlvtLTB/RfCkg==}
     engines: {node: '>= 12.20.55'}
     hasBin: true
 
@@ -1720,9 +1717,6 @@ packages:
     resolution: {integrity: sha512-yGSza74xk0UG8k+pLh5oeoYirvIiWo5t0/o3zHHAO2tRDiZcxWP7fywNlXhqb6/r6sWvwi+RsyQMWhVLe4BVuA==}
     engines: {node: '>=10'}
 
-  undici-types@6.19.8:
-    resolution: {integrity: sha512-ve2KP6f/JnbPBFyobGHuerC9g1FYGn/F8n1LWTwNxCEzd6IfqTwUQcNXgEtmmQ6DlRrC1hrSrBnCZPokRrDHjw==}
-
   undici-types@6.20.0:
     resolution: {integrity: sha512-Ny6QZ2Nju20vw1SRHe3d9jVu6gJ+4e3+MMpqu7pqE5HT6WsTSlce++GQmK5UXS8mzV8DSYHrQH+Xrf2jVcuKNg==}
 
@@ -2273,7 +2267,7 @@ snapshots:
       mkdirp: 1.0.4
       rimraf: 3.0.2
 
-  '@pipelab/core@1.4.8': {}
+  '@pipelab/core@1.4.9': {}
 
   '@sec-ant/readable-stream@0.4.1': {}
 
@@ -2311,10 +2305,6 @@ snapshots:
       '@types/node': 22.10.5
 
   '@types/minimatch@5.1.2': {}
-
-  '@types/node@20.17.24':
-    dependencies:
-      undici-types: 6.19.8
 
   '@types/node@22.10.5':
     dependencies:
@@ -2689,10 +2679,10 @@ snapshots:
       - supports-color
     optional: true
 
-  electron@34.0.2:
+  electron@39.2.3:
     dependencies:
       '@electron/get': 2.0.3
-      '@types/node': 20.17.24
+      '@types/node': 22.10.5
       extract-zip: 2.0.1
     transitivePeerDependencies:
       - supports-color
@@ -3844,8 +3834,6 @@ snapshots:
     optional: true
 
   type-fest@1.4.0: {}
-
-  undici-types@6.19.8: {}
 
   undici-types@6.20.0: {}
 
