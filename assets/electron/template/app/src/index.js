@@ -515,11 +515,12 @@ const createWindow = async () => {
     frame: config.frame,
     transparent: config.transparent,
     alwaysOnTop: config.alwaysOnTop,
+    backgroundColor: config.backgroundColor,
     icon: config.icon,
     webPreferences: {
       preload: join(metaDirname, 'preload.js')
     },
-    show: false
+    show: true
   })
 
   if (!mainWindow) {

@@ -245,6 +245,8 @@ export const configureParams = {
     }
   },
 
+  backgroundColor: createStringParam('#ffffff', { label: 'Background Color', description: 'The background color of the window', required: false }),
+
   electronVersion: createStringParam('', {
     label: 'Electron version',
     description:
