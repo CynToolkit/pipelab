@@ -17,7 +17,6 @@
             class="w-full h-full"
             :scrollable="true"
             scroll-height="flex"
-            scroll-height="flex"
           >
             <template #header>
               <div class="flex justify-content-between">
@@ -227,6 +226,12 @@
         </div>
       </div>
     </Dialog>
+
+    <BuildHistoryDialog
+      v-model:visible="showBuildHistoryDialog"
+      :pipeline-id="selectedPipelineId"
+      @hide="showBuildHistoryDialog = false"
+    />
   </div>
 </template>
 
@@ -250,6 +255,7 @@ import { useAppStore } from '@renderer/store/app'
 import Layout from '../components/Layout.vue'
 import { useI18n } from 'vue-i18n'
 import { useAuth } from '@renderer/store/auth'
+import BuildHistoryDialog from '@renderer/components/BuildHistoryDialog.vue'
 
 const router = useRouter()
 const api = useAPI()
@@ -463,7 +469,7 @@ const newProjectTypes = computed<Item[]>(() => {
       label: t('home.cloud'),
       value: 'cloud',
       icon: 'mdi mdi-cloud',
-      disabled: !hasBenefit('cloud-save'),
+      disabled: true && !hasBenefit('cloud-save'),
       isPremium: true,
       description: t('home.store-project-on-the-cloud')
     }
@@ -578,19 +584,15 @@ const viewProjectBuildHistory = async (file: EnhancedFile) => {
     return
   }
 
-  // Use project ID for navigation to general build history
-  // For external files, use the file path as project identifier
-  const pipelineId = file.type === 'external' ? file.path : file.id
-
-  await router.push({
-    name: 'BuildHistory',
-    params: {
-      pipelineId: pipelineId
-    }
-  })
+  selectedPipelineId.value = file.id
+  showBuildHistoryDialog.value = true
 }
 
 const isNewProjectModalVisible = ref(false)
+
+// Build history dialog state
+const showBuildHistoryDialog = ref(false)
+const selectedPipelineId = ref<string>()
 </script>
 
 <style lang="scss" scoped>

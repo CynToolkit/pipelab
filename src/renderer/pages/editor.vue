@@ -18,18 +18,6 @@
                   <i class="mdi mdi-close mr-1"></i>
                 </template>
               </Button>
-              <Button
-                v-if="hasBuildHistoryAccess"
-                outlined
-                :label="t('editor.view-history')"
-                :disabled="isRunning"
-                size="small"
-                @click="navigateToBuildHistory"
-              >
-                <template #icon>
-                  <i class="mdi mdi-history mr-1"></i>
-                </template>
-              </Button>
               <!-- <Button
               type="button"
               @click="toggle"
@@ -71,6 +59,18 @@
               </Inplace>
             </div>
             <div class="right">
+              <Button
+                v-if="hasBuildHistoryAccess"
+                outlined
+                :label="t('editor.view-history')"
+                :disabled="isRunning"
+                size="small"
+                @click="navigateToBuildHistory"
+              >
+                <template #icon>
+                  <i class="mdi mdi-history mr-1"></i>
+                </template>
+              </Button>
               <Button
                 outlined
                 :label="t('base.save')"
@@ -296,6 +296,12 @@
         </div>
       </div>
     </Layout>
+
+    <BuildHistoryDialog
+      v-model:visible="showBuildHistoryDialog"
+      :pipeline-id="id"
+      @hide="showBuildHistoryDialog = false"
+    />
   </div>
 </template>
 
@@ -338,6 +344,7 @@ import { createQuickJs } from '@renderer/utils/quickjs'
 import ParamEditor from '@renderer/components/nodes/ParamEditor.vue'
 import { useI18n } from 'vue-i18n'
 import { pipeline } from 'stream'
+import BuildHistoryDialog from '@renderer/components/BuildHistoryDialog.vue'
 
 type Param = ValueOf<BlockAction['params']>
 
@@ -387,6 +394,9 @@ const { isLoggedIn } = storeToRefs(authStore)
 const hasBuildHistoryAccess = computed(() => {
   return authStore.hasBenefit('cloud-save')
 })
+
+// Build history dialog state
+const showBuildHistoryDialog = ref(false)
 
 const quickLogs = ref([])
 
@@ -474,7 +484,7 @@ const run = async () => {
           currentFilePointer.value.type === 'external' ? currentFilePointer.value.path : undefined
       },
       async (data) => {
-        console.log('data', data)
+        console.log('graph:execute data', data)
         if (data.type === 'node-enter') {
           const node = nodes.value.find((n) => n.uid === data.data.nodeUid)
           if (node) {
@@ -491,33 +501,33 @@ const run = async () => {
           }
         } else if (data.type === 'node-log') {
           const { nodeUid, logData } = data.data
-          if (logData.type === 'log') {
-            console.log('logData', logData)
-            const lines = logData.data.message.join(' ')
+          console.log('logData', logData)
+          const lines = logData.message.join(' ')
 
-            const splittedInnerLines = lines.split('\n')
+          const splittedInnerLines = lines.split('\n')
 
-            for (const l of splittedInnerLines
-              .map((x) => x.trim())
-              .filter((x) => !!x)
-              .filter((x) => x !== '')) {
-              let content = ''
+          for (const l of splittedInnerLines
+            .map((x) => x.trim())
+            .filter((x) => !!x)
+            .filter((x) => x !== '')) {
+            let content = ''
 
-              if (hasAnsi(l)) {
-                content += fancyAnsi.toHtml(l)
-              } else {
-                content += l
-              }
-
-              pushLine(
-                nodeUid,
-                [format(logData.data.time, 'dd/MM/yyyy - hh:mm:ss'), content].join(' ')
-              )
+            if (hasAnsi(l)) {
+              content += fancyAnsi.toHtml(l)
+            } else {
+              content += l
             }
+
+            pushLine(
+              nodeUid,
+              [format(logData.timestamp, 'dd/MM/yyyy - hh:mm:ss'), content].join(' ')
+            )
           }
         }
       }
     )
+
+    console.log('result', result)
 
     if (result.type === 'success') {
       posthog.capture(`node_sucess`, {
@@ -531,34 +541,48 @@ const run = async () => {
       }
     }
 
-    toast.add({
-      summary: t('editor.execution-done'),
-      life: 10_000,
-      severity: 'success',
-      detail: t('editor.your-project-has-been-executed-successfully')
-    })
-    posthog.capture('run_succeed')
-  } catch (e) {
-    // Find the last active node and mark it as error
-    if (lastActiveNode.value) {
-      nodeStatuses.value[lastActiveNode.value.uid] = 'error'
+    if (result.type === 'error') {
+      if (result.code === 'canceled') {
+        // Build was canceled
+        toast.add({
+          summary: 'Build canceled',
+          life: 10_000,
+          severity: 'info',
+          detail: 'The build was canceled.'
+        })
+        posthog.capture('run_canceled')
+      } else if (result.code === 'error') {
+        // Find the last active node and mark it as error
+        if (lastActiveNode.value) {
+          nodeStatuses.value[lastActiveNode.value.uid] = 'error'
 
-      posthog.capture(`node_errored`, {
-        origin_node_id: lastActiveNode.value.origin.nodeId,
-        origin_plugin_id: lastActiveNode.value.origin.pluginId
-      })
-    }
+          posthog.capture(`node_errored`, {
+            origin_node_id: lastActiveNode.value.origin.nodeId,
+            origin_plugin_id: lastActiveNode.value.origin.pluginId
+          })
+        }
 
-    console.error('error while executing process', e)
-    if (e instanceof Error) {
+        console.error('error while executing process', result.ipcError)
+        toast.add({
+          summary: t('editor.execution-failed'),
+          life: 10_000,
+          severity: 'error',
+          detail: t('editor.project-has-encountered-an-error') + result.ipcError
+        })
+        posthog.capture('run_errored')
+      }
+    } else {
       toast.add({
-        summary: t('editor.execution-failed'),
+        summary: t('editor.execution-done'),
         life: 10_000,
-        severity: 'error',
-        detail: t('editor.project-has-encountered-an-error') + e.message
+        severity: 'success',
+        detail: t('editor.your-project-has-been-executed-successfully')
       })
+      posthog.capture('run_succeed')
     }
-    posthog.capture('run_errored')
+  } catch (e) {
+    console.error('error while executing process', e)
+    console.error('UNHANDLED ERROR', e)
   }
   setActiveNode(undefined)
   setIsRunning(false)
@@ -587,12 +611,7 @@ const navigateToBuildHistory = async () => {
     return
   }
 
-  await router.push({
-    name: 'BuildHistory',
-    params: {
-      pipelineId: id.value
-    }
-  })
+  showBuildHistoryDialog.value = true
 }
 
 const saveLocal = async (path: string) => {

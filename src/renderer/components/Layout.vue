@@ -252,60 +252,6 @@ const headerSentence = computed(() => {
   return route.meta?.title as string
 })
 
-const hasBuildHistoryAccess = computed(() => {
-  return auth.hasBenefit('cloud-save')
-})
-
-const isBuildHistoryRoute = computed(() => {
-  return route.name === 'BuildHistory' || route.name === 'BuildHistory'
-})
-
-const isScenarioFilteredRoute = computed(() => {
-  return route.name === 'BuildHistory'
-})
-
-const getBuildHistoryText = () => {
-  if (isScenarioFilteredRoute.value) {
-    return t('navigation.build-history-scenario')
-  }
-  return t('navigation.build-history')
-}
-
-const getBuildHistoryLabel = () => {
-  if (isScenarioFilteredRoute.value) {
-    return t('navigation.build-history-scenario-description')
-  }
-  return t('navigation.build-history-description')
-}
-
-const navigateToBuildHistory = () => {
-  console.log('route', route)
-
-  // If we're already on a build history route, toggle between general and scenario-filtered
-  if (isBuildHistoryRoute.value) {
-    if (isScenarioFilteredRoute.value) {
-      // Switch to general build history
-      router.push({
-        name: 'BuildHistory',
-        params: { pipelineId: route.params.pipelineId }
-      })
-    } else {
-      // Try to switch to scenario-filtered if we have scenario context
-      const currentPipelineId = route.params.pipelineId
-      if (currentPipelineId) {
-        router.push({
-          name: 'BuildHistory',
-          params: {
-            pipelineId: currentPipelineId
-          }
-        })
-      }
-    }
-  } else {
-    // Navigate to general build history
-    router.push({ name: 'BuildHistory' })
-  }
-}
 
 const updateStatus = ref<UpdateStatus>('update-not-available')
 

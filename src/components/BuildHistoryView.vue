@@ -2,9 +2,9 @@
   <div class="build-history-view">
     <div class="header">
       <div class="header-left">
-        <button class="back-button" @click="goToDashboard">
-          <i class="pi pi-arrow-left"></i>
-          <span>Back to Dashboard</span>
+        <button class="back-button" @click="$emit('update:visible', false)">
+          <i class="pi pi-times"></i>
+          <span>Close</span>
         </button>
         <div class="header-titles">
           <h2>Build History</h2>
@@ -78,13 +78,11 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useRouter } from 'vue-router'
 import { useBuildHistory } from '../renderer/store/build-history'
 import { useAuth } from '../renderer/store/auth'
 import { storeToRefs } from 'pinia'
 
 // Composables
-const router = useRouter()
 const buildHistoryStore = useBuildHistory()
 const authStore = useAuth()
 
@@ -152,9 +150,9 @@ const showSubscriptionOptions = (): void => {
   alert('This would open subscription options or redirect to pricing page')
 }
 
-const goToDashboard = (): void => {
-  router.push('/dashboard')
-}
+defineEmits<{
+  'update:visible': [value: boolean]
+}>()
 </script>
 
 <style scoped>
@@ -333,6 +331,11 @@ const goToDashboard = (): void => {
 .status-badge.running {
   background-color: #cce7ff;
   color: #0066cc;
+}
+
+.status-badge.cancelled {
+  background-color: #e2e3e5;
+  color: #383d41;
 }
 
 .entry-details p {

@@ -18,6 +18,7 @@ import { HandleListenerSendFn } from './handlers'
 import { ensureNodeJS, generateTempFolder } from './utils'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
+import { setupConfig } from './config'
 
 const checkParams = (definitionParams: InputsDefinition, elementParams: Record<string, string>) => {
   // get a list of all required params
@@ -120,6 +121,8 @@ export const handleActionExecute = async (
 ): Promise<End<'action:execute'>> => {
   const { plugins } = usePlugins()
   const { logger } = useLogger()
+  const settings = await setupConfig()
+  const config = await settings.getConfig()
 
   mainWindow?.setProgressBar(1, {
     mode: 'indeterminate'
@@ -142,7 +145,8 @@ export const handleActionExecute = async (
     }
   }
 
-  const tmp = await generateTempFolder(tmpdir())
+  const tmp = await generateTempFolder(config.cacheFolder)
+
   const _assetsPath = await assetsPath()
   const _unpackPath = await unpackPath()
   const nodePath = await ensureNodeJS()
@@ -185,7 +189,7 @@ export const handleActionExecute = async (
       paths: {
         assets: _assetsPath,
         unpack: _unpackPath,
-        cache: tmpdir(),
+        cache: config.cacheFolder,
         node: nodePath,
         pnpm
       },
@@ -203,6 +207,13 @@ export const handleActionExecute = async (
   } catch (e) {
     logger().error('Error in action execution:', e)
     mainWindow?.setProgressBar(1, { mode: 'normal' })
+
+    // If aborted, throw AbortError to distinguish from actual errors
+    if (abortSignal.aborted) {
+      const abortError = new Error('Aborted')
+      abortError.name = 'AbortError'
+      throw abortError
+    }
 
     return {
       type: 'error',

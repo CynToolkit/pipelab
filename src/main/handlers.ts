@@ -546,8 +546,6 @@ export const registerIPCHandlers = () => {
 
       // Simplified: get all entries, optionally filter by pipeline
       const allEntries = await buildHistoryStorage.getAll()
-      console.log('allEntries', allEntries)
-      console.log('value.query', value.query)
       const filteredEntries = value.query?.pipelineId
         ? allEntries.filter((entry) => entry.pipelineId === value.query.pipelineId)
         : allEntries
@@ -815,31 +813,12 @@ export const registerIPCHandlers = () => {
           })
         },
         onLog: (data, node) => {
-          console.log('data', data)
-          console.log('node', node)
-          /**
-           *
-              data {
-                type: 'log',
-                data: {
-                  decorator: '[Export .c3p]',
-                  time: 1759479752141,
-                  message: [ 'Downloading browser' ]
-                }
-              }
-              node undefined
-           */
           // Send log data to frontend
           if (data.type === 'log') {
             // Sanitize data for IPC serialization
             const sanitizedData = {
-              type: data.data.type,
-              level: data.data.level,
               message: data.data.message,
-              timestamp: data.data.timestamp,
-              nodeId: data.data.nodeId,
-              pluginId: data.data.pluginId
-              // Only include serializable properties
+              timestamp: data.data.time
             }
 
             send({
@@ -865,10 +844,13 @@ export const registerIPCHandlers = () => {
         }
       })
     } catch (e) {
+      console.log('abortControllerGraph.signal.aborted', abortControllerGraph.signal.aborted)
+      const isCanceled = e instanceof Error && e.name === 'AbortError'
       send({
         type: 'end',
         data: {
           type: 'error',
+          code: isCanceled ? 'canceled' : 'error',
           ipcError: e instanceof Error ? e.message : 'Unknown error'
         }
       })

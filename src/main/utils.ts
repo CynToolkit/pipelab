@@ -490,6 +490,7 @@ export const executeGraphWithHistory = async (options: GraphExecutionOptions) =>
       variables,
       steps: {},
       context: {},
+      abortSignal,
       onNodeEnter: (node) => {
         logger().info('onNodeEnter', node.uid)
         onNodeEnter?.(node)
@@ -505,11 +506,11 @@ export const executeGraphWithHistory = async (options: GraphExecutionOptions) =>
             node.origin.pluginId,
             params,
             mainWindow,
-            (data) => {
+            async (data) => {
               if (!isCI) {
                 logger().info('send', data)
               }
-              onLog?.(data)
+              onLog?.(data, node)
             },
             abortSignal || new AbortController().signal
           )
@@ -537,18 +538,32 @@ export const executeGraphWithHistory = async (options: GraphExecutionOptions) =>
 
     return { result, buildId }
   } catch (e) {
-    // Update build history entry as failed
-    buildEntry.status = 'failed'
     buildEntry.endTime = Date.now()
     buildEntry.duration = buildEntry.endTime - buildEntry.startTime
-    buildEntry.error = {
-      message: e instanceof Error ? e.message : 'Unknown error',
-      timestamp: Date.now()
-    }
     buildEntry.updatedAt = Date.now()
 
+    console.log('aaaaa e', e)
+
+    // Check if the error is due to user cancellation (AbortError)
+    if (e instanceof Error && e.name === 'AbortError') {
+      // Update build history entry as cancelled
+      buildEntry.status = 'cancelled'
+      buildEntry.error = {
+        message: 'Build canceled by user',
+        timestamp: Date.now()
+      }
+      logger().info(`Build history entry updated as cancelled: ${buildId}`)
+    } else {
+      // Update build history entry as failed
+      buildEntry.status = 'failed'
+      buildEntry.error = {
+        message: e instanceof Error ? e.message : 'Unknown error',
+        timestamp: Date.now()
+      }
+      logger().info(`Build history entry updated as failed: ${buildId}`)
+    }
+
     await buildHistoryStorage.save(buildEntry)
-    logger().info(`Build history entry updated as failed: ${buildId}`)
 
     // Handle error output file for CLI usage
     if (outputPath) {

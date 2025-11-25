@@ -45,10 +45,18 @@ export const processGraph = async (options: {
   ) => Promise<End<'condition:execute'> | End<'action:execute'>>
   onNodeEnter: (node: Block) => void
   onNodeExit: (node: Block) => void
+  abortSignal?: AbortSignal
 }) => {
   const { logger } = useLogger()
 
   for (const node of options.graph) {
+    // Check if operation was aborted
+    if (options.abortSignal?.aborted) {
+      const abortError = new Error('Aborted')
+      abortError.name = 'AbortError'
+      throw abortError
+    }
+
     const rawNode = node
 
     const pluginDefinition = getPluginDefinition(node.origin.pluginId, options.definitions)
@@ -86,12 +94,14 @@ export const processGraph = async (options: {
         if (value === true) {
           await processGraph({
             graph: rawNode.branchTrue,
-            ...options
+            ...options,
+            abortSignal: options.abortSignal
           })
         } else {
           await processGraph({
             graph: rawNode.branchFalse,
-            ...options
+            ...options,
+            abortSignal: options.abortSignal
           })
         }
       }
@@ -131,6 +141,10 @@ export const processGraph = async (options: {
       if (result.type === 'error') {
         logger().error(result.ipcError)
         options.onNodeExit(rawNode)
+        // Check if it's an AbortError from cancellation
+        if (result.ipcError && typeof result.ipcError === 'object' && (result.ipcError as Error).name === 'AbortError') {
+          throw result.ipcError
+        }
         throw new Error(`"${nodeDefinition.node.name}" action error: ${result.ipcError}`)
       }
 
