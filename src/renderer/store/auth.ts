@@ -24,6 +24,7 @@ export const useAuth = defineStore('auth', () => {
   const isAuthenticating = ref(false) // Track loading state for auth actions
   const errorMessage = ref<string>() // For storing error messages to display to the user
   const subscriptions = ref<Subscription[]>([]) // Store user subscriptions
+  const subscriptionError = ref<string>() // Store subscription loading errors
 
   const isAuthModalVisible = ref(false)
   const authModalTitle = ref<string>()
@@ -54,24 +55,40 @@ export const useAuth = defineStore('auth', () => {
   }
 
   const fetchSubscription = async () => {
+    console.log('[Auth] fetchSubscription: Starting, setting isLoadingSubscriptions to true')
     isLoadingSubscriptions.value = true
+    subscriptionError.value = undefined
     if (user.value) {
       if (user.value.email) {
         try {
           const result = await supabase.functions.invoke('polar-user-plan')
-          if (result.data) {
-            console.log('Subscription result', result)
-            subscriptions.value = result.data.subscriptions
+          if (result.error) {
+            throw new Error(result.error.message || 'Network error')
           }
+          if (!result.data) {
+            throw new Error('Invalid response: no data')
+          }
+          if (!Array.isArray(result.data.subscriptions)) {
+            throw new Error('Invalid response: subscriptions is not an array')
+          }
+          console.log('Subscription result', result)
+          subscriptions.value = result.data.subscriptions
         } catch (error) {
           console.error('Failed to fetch subscription:', error)
+          subscriptionError.value = error instanceof Error ? error.message : 'Unknown error'
+          subscriptions.value = []
         }
       } else {
         console.warn('User email is not available, skipping subscription fetch.')
+        subscriptionError.value = 'User email not available'
+        subscriptions.value = []
       }
     } else {
       console.warn('User is anonymous, skipping subscription fetch.')
+      subscriptionError.value = 'User is anonymous'
+      subscriptions.value = []
     }
+    console.log('[Auth] fetchSubscription: Completed, setting isLoadingSubscriptions to false')
     isLoadingSubscriptions.value = false
     console.log('onSubscriptionChanged.trigger')
     onSubscriptionChanged.trigger({ subscriptions: subscriptions.value })
@@ -194,7 +211,7 @@ export const useAuth = defineStore('auth', () => {
         })
         user.value = data.user
         setAuthState('SIGNED_IN')
-        fetchSubscription()
+        await fetchSubscription()
       } else {
         logger.logger().info('[Auth] No user found during init, signing in anonymously...')
         posthog.identify()
@@ -234,7 +251,7 @@ export const useAuth = defineStore('auth', () => {
         logger.logger().info('[Auth] Logged in user:', data.user.id)
         user.value = data.user
         setAuthState('SIGNED_IN')
-        fetchSubscription()
+        await fetchSubscription()
         return loginResponse
       }
     } finally {
@@ -304,7 +321,7 @@ export const useAuth = defineStore('auth', () => {
   const hasBuildHistoryBenefit = computed(() => hasBenefit('build-history'))
   const hasCloudSaveBenefit = computed(() => hasBenefit('cloud-save'))
 
-  const isLoadingSubscriptions = ref(true)
+  const isLoadingSubscriptions = ref(false)
 
   return {
     user,
@@ -313,6 +330,7 @@ export const useAuth = defineStore('auth', () => {
     isAuthenticating,
     errorMessage,
     subscriptions: readonly(subscriptions),
+    subscriptionError: readonly(subscriptionError),
     isLoadingSubscriptions,
     hasBenefit,
 
@@ -321,6 +339,7 @@ export const useAuth = defineStore('auth', () => {
     login,
     register,
     logout,
+    fetchSubscription,
 
     displayAuthModal,
     hideAuthModal,

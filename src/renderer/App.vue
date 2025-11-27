@@ -14,7 +14,8 @@
           <div class="main">
             <router-view v-if="!isLoading"></router-view>
             <div v-else>
-              <Skeleton width="100%" height="100%"></Skeleton>
+              <SubscriptionLoadingIndicator v-if="isLoading" />
+              <Skeleton v-else width="100%" height="100%"></Skeleton>
             </div>
           </div>
         </div>
@@ -33,14 +34,15 @@ import { useLogger } from '@@/logger'
 import { useAuth } from '@renderer/store/auth'
 import { storeToRefs } from 'pinia'
 import { useAppSettings } from './store/settings'
-import { websocketManager } from './composables/websocket-manager'
+import SubscriptionLoadingIndicator from './components/SubscriptionLoadingIndicator.vue'
 
 const appStore = useAppStore()
 const filesStore = useFiles()
 const settingsStore = useAppSettings()
 const { logger } = useLogger()
 const authStore = useAuth()
-const { init: authInit } = authStore
+const { init: authInit, fetchSubscription } = authStore
+const { isLoadingSubscriptions } = storeToRefs(authStore)
 const { settings } = storeToRefs(settingsStore)
 const { init: initSettings } = settingsStore
 
@@ -110,18 +112,33 @@ handle('log:message', async (event, { value, send }) => {
 })
 
 onMounted(async () => {
+  console.log('[App] onMounted: Starting app initialization, isLoading:', isLoading.value)
   isLoading.value = true
 
   await filesStore.load()
+  console.log('filesStore.files', filesStore.files)
   await init()
   await initSettings()
+  console.log(
+    '[App] onMounted: Before authInit, isLoadingSubscriptions:',
+    isLoadingSubscriptions.value
+  )
   await authInit()
+  console.log(
+    '[App] onMounted: After authInit, isLoadingSubscriptions:',
+    isLoadingSubscriptions.value
+  )
+
+  console.log('[App] onMounted: isLoadingSubscriptions is true, calling fetchSubscription')
+  await fetchSubscription()
+  console.log('[App] onMounted: fetchSubscription completed')
 
   logger().info('init done')
   // const result = await api.execute('')
 
   console.log('settings', settings.value)
 
+  console.log('[App] onMounted: Setting isLoading to false')
   isLoading.value = false
 })
 </script>

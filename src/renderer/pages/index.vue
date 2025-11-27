@@ -1,22 +1,25 @@
 <template>
   <div class="index">
     <Toast />
+    <ConfirmDialog />
     <Layout>
       <div class="your-projects">
-        <div v-if="filesEnhanced.length === 0" class="no-projects">
+        <div v-if="!isLoading && filesEnhanced.length === 0" class="no-projects">
           <div>{{ $t('home.no-projects-yet') }}</div>
           <Button @click="newFile">
             <i class="mdi mdi-plus-circle-outline mr-2"></i>
             {{ $t('home.new-project') }}
           </Button>
         </div>
-        <div class="your-projects__table">
+        <div v-else class="your-projects__table">
           <DataTable
             :value="filesEnhanced"
             data-key="id"
-            class="w-full h-full"
+            class="w-full h-full clickable-rows"
             :scrollable="true"
             scroll-height="flex"
+            :loading="isLoading"
+            @row-click="handleRowClick"
           >
             <template #header>
               <div class="flex justify-content-between">
@@ -45,8 +48,15 @@
                   />
                 </div>
               </template>
+              <template #loading>
+                <Skeleton width="32px" height="32px" />
+              </template>
             </Column>
-            <Column field="content.name" header="Name" />
+            <Column field="content.name" header="Name">
+              <template #loading>
+                <Skeleton width="200px" />
+              </template>
+            </Column>
             <!-- <Column field="content.description" header="Description" /> -->
             <!-- <Column header="Path">
               <template #body="{ data }">
@@ -57,14 +67,19 @@
               <template #body="{ data }">
                 <ButtonGroup class="p-buttonset">
                   <Button
-                    v-if="hasBuildHistoryAccess"
                     v-tooltip.top="'View build history for this project'"
+                    :disabled="!hasBuildHistoryAccess"
+                    :loading="isLoadingSubscriptions"
                     size="small"
                     severity="secondary"
                     class="p-button-outlined"
+                    :class="{ premium: hasBuildHistoryAccess }"
+                    color="yellow"
                     @click.stop="viewProjectBuildHistory(data)"
                   >
-                    <template #icon><i class="mdi mdi-history"></i></template>
+                    <template #icon>
+                      <i class="mdi mdi-history"></i>
+                    </template>
                   </Button>
                   <Button
                     size="small"
@@ -83,14 +98,10 @@
                   >
                     <template #icon><i class="mdi mdi-delete"></i></template>
                   </Button>
-                  <Button
-                    size="small"
-                    class="p-button-outlined"
-                    @click.stop="loadExisting(data.id)"
-                  >
-                    <template #icon><i class="mdi mdi-folder-open"></i></template>
-                  </Button>
                 </ButtonGroup>
+              </template>
+              <template #loading>
+                <Skeleton width="240px" height="32px" />
               </template>
             </Column>
           </DataTable>
@@ -256,9 +267,13 @@ import Layout from '../components/Layout.vue'
 import { useI18n } from 'vue-i18n'
 import { useAuth } from '@renderer/store/auth'
 import BuildHistoryDialog from '@renderer/components/BuildHistoryDialog.vue'
+import Skeleton from 'primevue/skeleton'
+import ConfirmDialog from 'primevue/confirmdialog'
+import { useConfirm } from 'primevue/useconfirm'
 
 const router = useRouter()
 const api = useAPI()
+const confirm = useConfirm()
 
 // Table data
 const fileStore = useFiles()
@@ -309,7 +324,10 @@ const canCreateproject = computed(() => {
 
 const { t } = useI18n()
 
+const isLoading = ref(false)
+
 watchEffect(async () => {
+  isLoading.value = true
   const entries = Object.entries(files.value.data)
 
   const result: EnhancedFile[] = []
@@ -366,6 +384,7 @@ watchEffect(async () => {
   }
 
   filesEnhanced.value = result
+  isLoading.value = false
 })
 
 const openFile = async () => {
@@ -449,7 +468,7 @@ type Item = {
   isPremium?: boolean
 }
 
-const { hasBenefit } = useAuth()
+const { hasBenefit, isLoadingSubscriptions } = useAuth()
 
 // Build history access
 const hasBuildHistoryAccess = computed(() => {
@@ -568,8 +587,24 @@ const loadExisting = async (id: string) => {
   })
 }
 
+const handleRowClick = (event: any) => {
+  loadExisting(event.data.id)
+}
+
 const deleteProject = async (id: string) => {
-  await remove(id)
+  confirm.require({
+    message: 'Are you sure you want to delete this project? This action cannot be undone.',
+    header: 'Delete Project',
+    icon: 'pi pi-exclamation-triangle',
+    rejectClass: 'p-button-secondary p-button-outlined',
+    acceptClass: 'p-button-danger',
+    accept: async () => {
+      await remove(id)
+    },
+    reject: () => {
+      // do nothing
+    }
+  })
 }
 
 const duplicateProject = async (file: SavedFile) => {
@@ -767,5 +802,25 @@ const selectedPipelineId = ref<string>()
     flex: 1;
     height: 100%;
   }
+}
+
+.clickable-rows :deep(.p-datatable-tbody > tr:hover) {
+  cursor: pointer;
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.icon-container {
+  position: relative;
+  display: inline-block;
+}
+
+.crown-icon {
+  position: absolute;
+  top: 0.1em;
+  right: 0.1em;
+  font-size: 0.6em;
+  background-color: gold;
+  border-radius: 50%;
+  padding: 2px;
 }
 </style>
