@@ -32,7 +32,7 @@
       <template #header>
         <div class="flex flex-column w-full">
           <p class="text-xl text-center">
-            {{ authModalTitle ? authModalTitle : type === 'login' ? 'Login' : 'Register' }}
+            {{ authModalTitle ? authModalTitle : type === 'login' ? 'Login' : type === 'register' ? 'Register' : 'Forgot Password' }}
           </p>
           <p class="text-center">{{ authModalSubTitle }}</p>
         </div>
@@ -84,7 +84,7 @@
                   <div class="mb-2"></div>
 
                   <div class="flex align-items-center justify-content-between mb-5">
-                    <Button text> Forgot password? </Button>
+                    <Button text @click="type = 'forgot-password'"> Forgot password? </Button>
                   </div>
 
                   <Button
@@ -168,7 +168,7 @@
                   <div class="mb-2"></div>
 
                   <div class="flex align-items-center justify-content-between mb-5">
-                    <Button text> Forgot password? </Button>
+                    <Button text @click="type = 'forgot-password'"> Forgot password? </Button>
                   </div>
 
                   <Button
@@ -182,6 +182,50 @@
                   <Button
                     text
                     label="Already have an account?"
+                    class="w-full p-3 text-lg"
+                    @click="type = 'login'"
+                  />
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div v-if="type === 'forgot-password'" class="login">
+        <div class="grid justify-content-center">
+          <div class="col-12 xl:col-6 w-full">
+            <div class="h-full w-full">
+              <!-- @vue-expect-error -->
+              <form @submit.prevent="handleSubmit">
+                <div class="w-full md:w-10 mx-auto">
+                  <InputText
+                    id="reset-mail"
+                    v-model="emailModel"
+                    v-bind="emailProps"
+                    type="text"
+                    :class="{
+                      'w-full': true
+                    }"
+                    placeholder="Email"
+                    :invalid="!!errors.email"
+                  />
+                  <small v-if="errors.email" id="reset-mail-help">
+                    {{ errors.email }}
+                  </small>
+
+                  <div class="mb-2"></div>
+
+                  <Button
+                    type="submit"
+                    label="Send Reset Email"
+                    color="primary"
+                    class="w-full p-3 text-lg mb-2"
+                    :loading="authState === 'LOADING'"
+                    @click="onSubmit"
+                  />
+                  <Button
+                    text
+                    label="Back to Login"
                     class="w-full p-3 text-lg"
                     @click="type = 'login'"
                   />
@@ -271,7 +315,7 @@ const toggleAccountMenu = (event: MouseEvent) => {
   $menu.value.toggle(event)
 }
 
-const type = ref<'login' | 'register'>('login')
+const type = ref<'login' | 'register' | 'forgot-password'>('login')
 
 const logout = async () => {
   await auth.logout()
@@ -379,7 +423,6 @@ const schema = toTypedSchema(
     ),
     password: pipe(
       string('A password is required'),
-      nonEmpty('Password is required'),
       minLength(10, 'Password must be at least 10 characters long'),
       regex(/[a-z]/, 'Password must contain at least one lowercase letter'),
       regex(/[A-Z]/, 'Password must contain at least one uppercase letter'),
@@ -415,6 +458,25 @@ const onSuccess = async (values: any) => {
           summary: 'Sucessfully registered',
           detail: 'A confirmation e-mail has been sent',
           life: 3000
+        })
+      }
+    } else if (type.value === 'forgot-password') {
+      const { error } = await auth.resetPassword(values.email)
+      if (error) {
+        console.log('error', error)
+        toast.add({
+          severity: 'error',
+          summary: 'Failed to send reset email',
+          detail: error.message,
+          life: 3000
+        })
+      } else {
+        type.value = 'login'
+        toast.add({
+          severity: 'success',
+          summary: 'Reset email sent',
+          detail: 'If an account with that email exists, we\'ve sent you a password reset link.',
+          life: 5000
         })
       }
     } else {

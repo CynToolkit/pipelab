@@ -302,6 +302,27 @@ export const useAuth = defineStore('auth', () => {
     }
   }
 
+  const resetPassword = async (email: string): Promise<{ error: any }> => {
+    isAuthenticating.value = true
+    setAuthState('LOADING')
+    clearError()
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email)
+      if (error) {
+        logger.logger().error('[Auth] Reset password error:', error)
+        setAuthState('ERROR')
+        errorMessage.value = 'Failed to send reset email.'
+        return { error }
+      } else {
+        logger.logger().info('[Auth] Reset password email sent to:', email)
+        setAuthState('SIGNED_OUT') // Reset to signed out state
+        return { error: null }
+      }
+    } finally {
+      isAuthenticating.value = false
+    }
+  }
+
   // Call init immediately when the store is created to check initial auth state
   init()
 
@@ -398,6 +419,7 @@ export const useAuth = defineStore('auth', () => {
     login,
     register,
     logout,
+    resetPassword,
     fetchSubscription,
 
     displayAuthModal,
