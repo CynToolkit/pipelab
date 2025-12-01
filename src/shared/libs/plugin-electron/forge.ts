@@ -246,7 +246,11 @@ export const configureParams = {
     }
   },
 
-  backgroundColor: createColorPicker('#ffffff', { label: 'Background Color', description: 'The background color of the window', required: false }),
+  backgroundColor: createColorPicker('#ffffff', {
+    label: 'Background Color',
+    description: 'The background color of the window',
+    required: false
+  }),
 
   electronVersion: createStringParam('', {
     label: 'Electron version',

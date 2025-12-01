@@ -60,7 +60,7 @@
             </div>
             <div class="right">
               <Button
-                v-if="hasBuildHistoryAccess"
+                v-if="hasBuildHistoryBenefit"
                 outlined
                 :label="t('editor.view-history')"
                 :disabled="isRunning"
@@ -306,7 +306,7 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, inject, reactive, ref, watch } from 'vue'
 import Accordion from 'primevue/accordion'
 import AccordionPanel from 'primevue/accordionpanel'
 import AccordionHeader from 'primevue/accordionheader'
@@ -349,6 +349,7 @@ import BuildHistoryDialog from '@renderer/components/BuildHistoryDialog.vue'
 type Param = ValueOf<BlockAction['params']>
 
 const router = useRouter()
+const openUpgradeDialog = inject('openUpgradeDialog') as () => void
 
 const fancyAnsi = new FancyAnsi()
 
@@ -388,12 +389,7 @@ const { files } = storeToRefs(filesStore)
 const { update } = filesStore
 
 const authStore = useAuth()
-const { isLoggedIn } = storeToRefs(authStore)
-
-// Build history access
-const hasBuildHistoryAccess = computed(() => {
-  return authStore.hasBenefit('cloud-save')
-})
+const { isLoggedIn, hasBuildHistoryBenefit } = storeToRefs(authStore)
 
 // Build history dialog state
 const showBuildHistoryDialog = ref(false)
@@ -607,7 +603,8 @@ const onCloseRequest = async () => {
 }
 
 const navigateToBuildHistory = async () => {
-  if (!hasBuildHistoryAccess.value) {
+  if (!authStore.hasBuildHistoryBenefit) {
+    openUpgradeDialog()
     return
   }
 

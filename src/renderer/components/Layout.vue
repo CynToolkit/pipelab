@@ -208,25 +208,16 @@
       <Settings></Settings>
     </Dialog>
 
-    <Dialog
-      v-model:visible="isUpgradeDialogVisible"
-      modal
-      :style="{ width: '50vw' }"
-      :breakpoints="{ '575px': '90vw' }"
-    >
-      <UpgradeDialog @close="closeUpgradeDialog" />
-    </Dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, inject } from 'vue'
 import { useAuth } from '@renderer/store/auth'
 import { MenuItem } from 'primevue/menuitem'
 import { useLogger } from '@@/logger'
 import Settings from '@renderer/components/Settings.vue'
 import UpgradeNowButton from '@renderer/components/UpgradeNowButton.vue'
-import UpgradeDialog from '@renderer/components/UpgradeDialog.vue'
 import { useToast } from 'primevue/usetoast'
 import Menu from 'primevue/menu'
 import Button from 'primevue/button'
@@ -238,13 +229,12 @@ import posthog from 'posthog-js'
 import { storeToRefs } from 'pinia'
 import { handle } from '@renderer/composables/handlers'
 import { useForm } from 'vee-validate'
-import { useRoute, useRouter } from 'vue-router'
-import { useI18n } from 'vue-i18n'
+import { useRoute } from 'vue-router'
 
 const { logger } = useLogger()
-const { t } = useI18n()
 const route = useRoute()
-const router = useRouter()
+
+const openUpgradeDialog = inject('openUpgradeDialog') as () => void
 
 const $menu = ref()
 
@@ -297,15 +287,6 @@ const {
   isLoadingSubscriptions
 } = storeToRefs(auth)
 const isSettingsModalVisible = ref(false)
-const isUpgradeDialogVisible = ref(false)
-
-const openUpgradeDialog = () => {
-  isUpgradeDialogVisible.value = true
-}
-
-const closeUpgradeDialog = () => {
-  isUpgradeDialogVisible.value = false
-}
 
 const accountMenuItems = computed(() => {
   const items: MenuItem[] = []
@@ -354,7 +335,7 @@ const accountMenuItems = computed(() => {
       separator: true
     },
     {
-      label: appVersion,
+      label: appVersion.value,
       icon: 'mdi mdi-information'
     }
   )

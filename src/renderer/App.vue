@@ -19,14 +19,24 @@
             </div>
           </div>
         </div>
+
+        <Dialog
+          v-model:visible="isUpgradeDialogVisible"
+          modal
+          :style="{ width: '50vw' }"
+          :breakpoints="{ '575px': '90vw' }"
+        >
+          <UpgradeDialog @close="closeUpgradeDialog" />
+        </Dialog>
       </div>
     </div>
+    <DevBenefitsOverride />
   </div>
 </template>
 
 <script setup lang="ts">
 import { useAppStore } from './store/app'
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, provide } from 'vue'
 import { primary, primaryDarken1, primaryDarken2 } from './style/main'
 import { useFiles } from './store/files'
 import { handle } from './composables/handlers'
@@ -35,6 +45,9 @@ import { useAuth } from '@renderer/store/auth'
 import { storeToRefs } from 'pinia'
 import { useAppSettings } from './store/settings'
 import SubscriptionLoadingIndicator from './components/SubscriptionLoadingIndicator.vue'
+import UpgradeDialog from './components/UpgradeDialog.vue'
+import DevBenefitsOverride from './components/DevBenefitsOverride.vue'
+import Dialog from 'primevue/dialog'
 
 const appStore = useAppStore()
 const filesStore = useFiles()
@@ -48,6 +61,17 @@ const { init: initSettings } = settingsStore
 
 const { init } = appStore
 const isLoading = ref(false)
+const isUpgradeDialogVisible = ref(false)
+
+const openUpgradeDialog = () => {
+  isUpgradeDialogVisible.value = true
+}
+
+const closeUpgradeDialog = () => {
+  isUpgradeDialogVisible.value = false
+}
+
+provide('openUpgradeDialog', openUpgradeDialog)
 
 handle('log:message', async (event, { value, send }) => {
   // console.log('log:message: Received value:', {

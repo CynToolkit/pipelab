@@ -129,9 +129,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, inject } from 'vue'
 import type { BuildHistoryEntry } from '@@/build-history'
 import BuildHistoryItem from './BuildHistoryItem.vue'
+import { useAuth } from '../store/auth'
 
 interface Props {
   entries: BuildHistoryEntry[]
@@ -166,6 +167,10 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<Emits>()
 
+// Composables
+const authStore = useAuth()
+const openUpgradeDialog = inject('openUpgradeDialog') as () => void
+
 // Local state
 const viewMode = ref<'list' | 'grid'>('list')
 const sortBy = ref<keyof BuildHistoryEntry>('startTime')
@@ -190,6 +195,10 @@ const retryLoad = () => {
 }
 
 const startNewBuild = () => {
+  if (!authStore.hasBuildHistoryBenefit) {
+    openUpgradeDialog()
+    return
+  }
   emit('start-build')
 }
 

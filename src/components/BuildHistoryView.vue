@@ -77,7 +77,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, inject } from 'vue'
 import { useBuildHistory } from '../renderer/store/build-history'
 import { useAuth } from '../renderer/store/auth'
 import { storeToRefs } from 'pinia'
@@ -85,6 +85,7 @@ import { storeToRefs } from 'pinia'
 // Composables
 const buildHistoryStore = useBuildHistory()
 const authStore = useAuth()
+const openUpgradeDialog = inject('openUpgradeDialog') as () => void
 
 // Destructure auth store with storeToRefs for proper reactivity
 const { hasBuildHistoryBenefit } = storeToRefs(authStore)
@@ -146,8 +147,7 @@ const retryLoad = async (): Promise<void> => {
 }
 
 const showSubscriptionOptions = (): void => {
-  // In a real implementation, this would open a subscription modal or redirect to pricing page
-  alert('This would open subscription options or redirect to pricing page')
+  openUpgradeDialog()
 }
 
 defineEmits<{

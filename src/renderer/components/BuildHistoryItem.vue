@@ -135,9 +135,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, inject } from 'vue'
 import type { BuildHistoryEntry } from '@@/build-history'
 import BuildStatusBadge from './BuildStatusBadge.vue'
+import { useAuth } from '../store/auth'
 
 interface Props {
   entry: BuildHistoryEntry
@@ -159,6 +160,10 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const emit = defineEmits<Emits>()
+
+// Composables
+const authStore = useAuth()
+const openUpgradeDialog = inject('openUpgradeDialog') as () => void
 
 // Local state
 const expanded = ref(false)
@@ -201,6 +206,10 @@ const handleClick = () => {
 }
 
 const viewDetails = () => {
+  if (!authStore.hasBuildHistoryBenefit) {
+    openUpgradeDialog()
+    return
+  }
   emit('view-details', props.entry)
 }
 

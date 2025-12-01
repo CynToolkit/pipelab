@@ -67,13 +67,12 @@
               <template #body="{ data }">
                 <ButtonGroup class="p-buttonset">
                   <Button
+                    v-if="hasBuildHistoryBenefit"
                     v-tooltip.top="'View build history for this project'"
-                    :disabled="!hasBuildHistoryAccess"
                     :loading="isLoadingSubscriptions"
                     size="small"
                     severity="secondary"
                     class="p-button-outlined"
-                    :class="{ premium: hasBuildHistoryAccess }"
                     color="yellow"
                     @click.stop="viewProjectBuildHistory(data)"
                   >
@@ -247,7 +246,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watchEffect } from 'vue'
+import { computed, ref, watchEffect, inject } from 'vue'
 import { storeToRefs } from 'pinia'
 import { EnhancedFile, SavedFile, Preset } from '@@/model'
 import { nanoid } from 'nanoid'
@@ -273,6 +272,7 @@ import { useConfirm } from 'primevue/useconfirm'
 
 const router = useRouter()
 const api = useAPI()
+const openUpgradeDialog = inject('openUpgradeDialog') as () => void
 const confirm = useConfirm()
 
 // Table data
@@ -468,12 +468,7 @@ type Item = {
   isPremium?: boolean
 }
 
-const { hasBenefit, isLoadingSubscriptions } = useAuth()
-
-// Build history access
-const hasBuildHistoryAccess = computed(() => {
-  return hasBenefit('cloud-save')
-})
+const { isLoadingSubscriptions, hasBuildHistoryBenefit } = useAuth()
 
 const newProjectType = ref<Item>()
 const newProjectTypes = computed<Item[]>(() => {
@@ -615,7 +610,8 @@ const duplicateProject = async (file: SavedFile) => {
 }
 
 const viewProjectBuildHistory = async (file: EnhancedFile) => {
-  if (!hasBuildHistoryAccess.value) {
+  if (!hasBuildHistoryBenefit) {
+    openUpgradeDialog()
     return
   }
 

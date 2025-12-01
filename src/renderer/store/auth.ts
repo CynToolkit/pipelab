@@ -312,11 +312,67 @@ export const useAuth = defineStore('auth', () => {
     'build-history': 'b77e9800-8302-4581-8df3-6f1b979acef5'
   }
 
-  const hasBenefit = (benefit: keyof typeof benefits) => {
+  const devOverrides = ref<Record<string, string>>({})
+
+  const loadDevOverrides = () => {
+    if (process.env.NODE_ENV === 'development') {
+      const stored = localStorage.getItem('dev-benefits-overrides')
+      if (stored) {
+        devOverrides.value = JSON.parse(stored)
+      }
+    }
+  }
+
+  const saveDevOverrides = () => {
+    if (process.env.NODE_ENV === 'development') {
+      localStorage.setItem('dev-benefits-overrides', JSON.stringify(devOverrides.value))
+    }
+  }
+
+  const setDevOverride = (benefit: string, value: string) => {
+    console.log(`[setDevOverride] Setting ${benefit} to ${value}`)
+    devOverrides.value[benefit] = value
+    saveDevOverrides()
+    console.log(`[setDevOverride] devOverrides now:`, devOverrides.value)
+  }
+
+  const getActualBenefit = (benefit: keyof typeof benefits) => {
+    // Check subscriptions for actual status
     return subscriptions.value.some((sub) =>
       sub.product.benefits.map((b) => b.id).includes(benefits[benefit])
     )
   }
+
+  const hasBenefit = (benefit: keyof typeof benefits) => {
+    // Check dev overrides in development mode
+    if (process.env.NODE_ENV === 'development') {
+      const override = devOverrides.value[benefit]
+      console.log(`[hasBenefit] ${benefit}: override=${override}`)
+      if (override !== undefined) {
+        switch (override) {
+          case 'force-on':
+            console.log(`[hasBenefit] ${benefit}: forcing ON`)
+            return true
+          case 'force-off':
+            console.log(`[hasBenefit] ${benefit}: forcing OFF`)
+            return false
+          case 'actual':
+          default:
+            console.log(`[hasBenefit] ${benefit}: using actual`)
+            // Fall through to actual check
+            break
+        }
+      }
+    }
+
+    // Default behavior: check subscriptions
+    const actual = getActualBenefit(benefit)
+    console.log(`[hasBenefit] ${benefit}: actual=${actual}`)
+    return actual
+  }
+
+  // Load overrides on store creation
+  loadDevOverrides()
 
   const hasBuildHistoryBenefit = computed(() => hasBenefit('build-history'))
   const hasCloudSaveBenefit = computed(() => hasBenefit('cloud-save'))
@@ -333,6 +389,9 @@ export const useAuth = defineStore('auth', () => {
     subscriptionError: readonly(subscriptionError),
     isLoadingSubscriptions,
     hasBenefit,
+    getActualBenefit,
+    devOverrides: readonly(devOverrides),
+    setDevOverride,
 
     clearError,
     init, // Keep init for explicit re-initialization if needed, though generally called once on app start.

@@ -39,7 +39,7 @@
         <h3>Premium Feature</h3>
         <p>Build history tracking is available with a premium subscription.</p>
         <div class="unauthorized-actions">
-          <Button label="Upgrade to Access" severity="primary" @click="() => {}" />
+          <Button label="Upgrade to Access" severity="primary" @click="openUpgradeDialog" />
           <Button label="Close" severity="secondary" @click="$emit('update:visible', false)" />
         </div>
       </div>
@@ -77,7 +77,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onUnmounted, onMounted, watch } from 'vue'
+import { ref, computed, onUnmounted, onMounted, watch, inject } from 'vue'
 import { useConfirm } from 'primevue/useconfirm'
 import { useBuildHistory } from '../store/build-history'
 import type { BuildHistoryEntry } from '@@/build-history'
@@ -107,6 +107,7 @@ const confirm = useConfirm()
 // Stores
 const buildHistoryStore = useBuildHistory()
 const authStore = useAuth()
+const openUpgradeDialog = inject('openUpgradeDialog') as () => void
 
 // Local state
 const selectedEntry = ref<BuildHistoryEntry | null>(null)
