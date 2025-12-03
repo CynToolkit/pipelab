@@ -205,8 +205,8 @@ importers:
         specifier: 0.31.0
         version: 0.31.0
       quickjs-emscripten-sync:
-        specifier: 1.5.2
-        version: 1.5.2(quickjs-emscripten@0.31.0)
+        specifier: 1.6.0
+        version: 1.6.0(quickjs-emscripten@0.31.0)
       semver:
         specifier: 7.6.3
         version: 7.6.3
@@ -6367,8 +6367,8 @@ packages:
   quickjs-emscripten-core@0.31.0:
     resolution: {integrity: sha512-oQz8p0SiKDBc1TC7ZBK2fr0GoSHZKA0jZIeXxsnCyCs4y32FStzCW4d1h6E1sE0uHDMbGITbk2zhNaytaoJwXQ==}
 
-  quickjs-emscripten-sync@1.5.2:
-    resolution: {integrity: sha512-TWwKQWXOKgQPt0efKIzFFZjHTu+9InM3Ou2s+jh4aYBy765zy20jZRiBZb52OU2JQ7DkBklICe03h9XOwDy3+Q==}
+  quickjs-emscripten-sync@1.6.0:
+    resolution: {integrity: sha512-/lmcNUJ0VasuQjdnKVjSzhuQi5vWO3lslG+UEfsRTgHoEYHA0Be2DzhvIBDvYn05+Xh0lC+esYX3KtebdSrEgg==}
     engines: {node: '>=12'}
     peerDependencies:
       quickjs-emscripten: '*'
@@ -14832,7 +14832,7 @@ snapshots:
     dependencies:
       '@jitl/quickjs-ffi-types': 0.31.0
 
-  quickjs-emscripten-sync@1.5.2(quickjs-emscripten@0.31.0):
+  quickjs-emscripten-sync@1.6.0(quickjs-emscripten@0.31.0):
     dependencies:
       quickjs-emscripten: 0.31.0
 

@@ -38,10 +38,10 @@ export const createQuickJs = async () => {
     const arena = new Arena(vm, { isMarshalable: true })
 
     const exposed = {
-      console: {
-        // eslint-disable-next-line no-console
-        log: console.log
-      },
+      // console: {
+      //   // eslint-disable-next-line no-console
+      //   log: console.log
+      // },
       fmt,
       ...params
     }
