@@ -1,6 +1,5 @@
 <template>
   <div class="editor">
-    <pre>{{ paramDefinition.control }}</pre>
     <div v-if="paramDefinition.control.type === 'input'" class="input">
       <template v-if="paramDefinition.control.options.kind === 'text'">
         <Password

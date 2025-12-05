@@ -37,8 +37,9 @@ module.exports = class PipelabPlugin extends PluginBase {
   async postPackage(config, result) {
     const fs = require('fs').promises
     const path = require('path')
+    const appConfig = require('./config.cjs')
 
-    if (result.platform === 'win32') {
+    if (result.platform === 'win32' && appConfig.enableDoctor) {
       const appName = config.packagerConfig.name
       console.log('appName', appName)
       const doctorBatContent = `@echo off

@@ -31,6 +31,7 @@ const config = {
   steamGameId: 480,
   enableDiscordSupport: false,
   discordAppId: '',
+  enableDoctor: false,
   ignore: [],
 }
 

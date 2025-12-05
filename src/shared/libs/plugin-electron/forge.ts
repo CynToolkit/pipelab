@@ -394,6 +394,11 @@ export const configureParams = {
     required: false,
     label: 'Discord application ID',
     description: 'The Discord application ID'
+  }),
+  enableDoctor: createBooleanParam(true, {
+    required: false,
+    label: 'Enable doctor file',
+    description: 'Whether to include the doctor.bat file in Windows builds for prerequisite checking and app launching'
   })
 } satisfies InputsDefinition
 
