@@ -3,7 +3,7 @@ import {
   createActionRunner,
   createPathParam,
   createStringParam,
-  runWithLiveLogs,
+  runWithLiveLogs
 } from '@pipelab/plugin-core'
 
 export const ID = 'fs:run'
@@ -12,7 +12,7 @@ export const run = createAction({
   id: ID,
   name: 'Invoke file',
   displayString:
-    "`Invoke ${fmt.param(params.command, 'primary')} ${(params.parameters ?? []).map(x => { console.log('x', x); return fmt.param(x) }).join(' ')}`",
+    "`Invoke ${fmt.param(params.command, 'primary')} ${(params.parameters ?? []).map(x => fmt.param(x)).join(' ')}`",
   // displayString: displayString,
   params: {
     command: createStringParam('', {
