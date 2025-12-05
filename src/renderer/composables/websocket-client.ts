@@ -9,7 +9,6 @@ import {
   WebSocketConnectionState,
   WebSocketError,
   WebSocketConnectionError,
-  WebSocketTimeoutError,
   WebSocketMessage,
   isWebSocketRequestMessage,
   isWebSocketResponseMessage,
@@ -28,6 +27,7 @@ interface QueuedMessage {
   requestId: RequestId
   listener?: (event: any) => void
 }
+
 
 export class WebSocketClient {
   private ws: WebSocket | null = null
@@ -88,9 +88,6 @@ export class WebSocketClient {
         this.connectionState = 'disconnected'
         this.notifyStateChange()
 
-        // Clear any queued messages since connection is lost
-        this.clearQueue()
-
         this.scheduleReconnect()
       }
 
@@ -99,9 +96,6 @@ export class WebSocketClient {
         this.isConnecting = false
         this.connectionState = 'error'
         this.notifyStateChange()
-
-        // Clear any queued messages since connection is in error state
-        this.clearQueue()
       }
     } catch (error) {
       console.error('Failed to create WebSocket connection:', error)
@@ -125,6 +119,7 @@ export class WebSocketClient {
   private scheduleReconnect() {
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
       console.error('Max reconnection attempts reached')
+      this.clearQueue()
       return
     }
 
@@ -166,12 +161,6 @@ export class WebSocketClient {
 
       // If connection is not ready, queue the message
       if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
-        if (this.connectionState === 'error') {
-          logger().error('WebSocket send failed: connection in error state')
-          reject(new WebSocketConnectionError('WebSocket is in error state'))
-          return
-        }
-
         logger().debug('WebSocket not ready, queuing message:', { channel, hasData: !!data })
 
         const requestId = nanoid() as RequestId
@@ -220,15 +209,10 @@ export class WebSocketClient {
       hasData: !!data
     })
 
-    const timeout = setTimeout(() => {
-      this.listeners.delete(requestId)
-      reject(new WebSocketTimeoutError('WebSocket request timeout', 30000, requestId))
-    }, 30000) // 30 second timeout
 
     this.listeners.set(requestId, (response: WebSocketMessage) => {
       if (isWebSocketErrorMessage(response)) {
         // Handle error messages immediately
-        clearTimeout(timeout)
         this.listeners.delete(requestId)
         reject(new WebSocketError(response.error, response.code, response.requestId))
       } else if (isWebSocketResponseMessage(response)) {
@@ -237,7 +221,6 @@ export class WebSocketClient {
 
         if (endEvent.type === 'end') {
           // Only resolve and cleanup when we receive the final 'end' message
-          clearTimeout(timeout)
           this.listeners.delete(requestId)
           resolve(endEvent.data)
         } else {
@@ -258,7 +241,6 @@ export class WebSocketClient {
     try {
       this.ws.send(JSON.stringify(message))
     } catch (error) {
-      clearTimeout(timeout)
       this.listeners.delete(requestId)
       reject(
         new WebSocketError(
@@ -312,6 +294,7 @@ export class WebSocketClient {
     this.messageQueue = []
   }
 
+
   public isConnected(): boolean {
     return this.ws?.readyState === WebSocket.OPEN
   }
@@ -363,8 +346,8 @@ export const useWebSocketAPI = () => {
   const client = getWebSocketClient()
 
   /**
-   * Send an order and wait for its execution
-   */
+    * Send an order and wait for its execution
+    */
   const execute = async <KEY extends Channels>(
     channel: KEY,
     data?: Data<KEY>,
