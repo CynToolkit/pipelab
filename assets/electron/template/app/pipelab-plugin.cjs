@@ -64,9 +64,36 @@ if %errorlevel% neq 0 (
 echo OK: VC++ Redistributable found.
 echo.
 
+echo 3. Checking DirectX version...
+dxdiag /t %temp%\\dxdiag.txt >nul 2>&1
+find "DirectX Version" %temp%\\dxdiag.txt
+if %errorlevel%==0 (
+  echo OK: DirectX detected.
+) else (
+  echo ERROR: DirectX not detected.
+)
+del %temp%\\dxdiag.txt 2>nul
+echo.
+
+echo 4. Checking Vulkan...
+if exist "%SystemRoot%\\System32\\vulkan-1.dll" (
+  echo OK: Vulkan installed.
+) else (
+  echo WARNING: Vulkan not found.
+)
+echo.
+
+echo 5. GPU Information:
+echo All GPUs:
+wmic path win32_videocontroller get name,adapterram,driverversion
+echo.
+echo Current GPU (primary adapter):
+for /f "tokens=*" %i in ('wmic path win32_videocontroller where "Availability=3" get name /value ^| find "Name="') do echo %i
+echo.
+
 echo All prerequisites met. Starting ${appName}...
 echo Logs will be displayed and saved to ${appName.toLowerCase()}-debug.log
-powershell -command "& { .\\${appName}.exe *>&1 | tee ${appName.toLowerCase()}-debug.log }"
+powershell -command "& { .\\${appName}.exe --enable-logging *>&1 | tee ${appName.toLowerCase()}-debug.log }"
 echo.
 
 echo ${appName} has exited. Logs saved to ${appName.toLowerCase()}-debug.log
