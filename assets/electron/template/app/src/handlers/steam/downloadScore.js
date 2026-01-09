@@ -1,10 +1,10 @@
 import { handleSteamRequest } from './utils.js'
 
-// * @param {Omit<import('@armaldio/steamworks.js').Client, "init" | "runCallbacks">} client
+// * @param {Omit<import('@pipelab/steamworks.js').Client, "init" | "runCallbacks">} client
 /**
  * @param {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').SteamRaw, 'input'>} json
  * @param {import('ws').WebSocket} ws
- * @param {import('@armaldio/steamworks.js').Client} client
+ * @param {import('@pipelab/steamworks.js').Client} client
  */
 export default async (json, ws, client) => {
   await handleSteamRequest(client, json, ws, async (client, json) => {

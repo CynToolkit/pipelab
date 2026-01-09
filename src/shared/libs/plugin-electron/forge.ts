@@ -398,7 +398,8 @@ export const configureParams = {
   enableDoctor: createBooleanParam(true, {
     required: false,
     label: 'Enable doctor file',
-    description: 'Whether to include the doctor.bat file in Windows builds for prerequisite checking and app launching'
+    description:
+      'Whether to include the doctor.bat file in Windows builds for prerequisite checking and app launching'
   })
 } satisfies InputsDefinition
 
@@ -770,7 +771,7 @@ export const forge = async (
     /* ESBUILD transpilation */
     const external = [
       'electron',
-      '@armaldio/steamworks.js',
+      '@pipelab/steamworks.js',
       'electron',
       'node:*',
       'http',

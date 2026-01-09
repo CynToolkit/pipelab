@@ -2,7 +2,7 @@ import { handleSteamRequest } from './utils.js'
 
 /**
  * Core Steam leaderboard upload logic
- * @param {Omit<import('@armaldio/steamworks.js').Client, "init" | "runCallbacks">} client
+ * @param {Omit<import('@pipelab/steamworks.js').Client, "init" | "runCallbacks">} client
  * @param {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').SteamRaw, 'input'>} json
  * @returns {Promise<any>} The upload result
  */
@@ -20,7 +20,7 @@ const uploadScoreHandler = async (client, json) => {
 /**
  * @param {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').SteamRaw, 'input'>} json
  * @param {import('ws').WebSocket} ws
- * @param {Omit<import('@armaldio/steamworks.js').Client, "init" | "runCallbacks">} client
+ * @param {Omit<import('@pipelab/steamworks.js').Client, "init" | "runCallbacks">} client
  */
 export default async (json, ws, client) => {
   await handleSteamRequest(client, json, ws, uploadScoreHandler)

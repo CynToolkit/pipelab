@@ -9,7 +9,7 @@ import { WebSocketServer, WebSocket } from 'ws'
 import './custom-main.js'
 import mri from 'mri'
 import config from '../config.cjs'
-import steamworks from '@armaldio/steamworks.js'
+import steamworks from '@pipelab/steamworks.js'
 import DiscordRPC from 'discord-rpc'
 
 // user
@@ -239,7 +239,7 @@ const isCJSOnly =
 
 //region Steam
 
-/** @type {Omit<import('@armaldio/steamworks.js').Client, "init" | "runCallbacks">} */
+/** @type {Omit<import('@pipelab/steamworks.js').Client, "init" | "runCallbacks">} */
 let client
 console.log('config.enableSteamSupport', config.enableSteamSupport)
 if (config.enableSteamSupport) {

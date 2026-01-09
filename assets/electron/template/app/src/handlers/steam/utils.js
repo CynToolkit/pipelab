@@ -16,7 +16,7 @@ function checkSteamClient(client) {
 
 /**
  * Enhanced Steam request handler that combines client validation with response formatting
- * @param {import('@armaldio/steamworks.js').Client} client - The Steam client instance
+ * @param {import('@pipelab/steamworks.js').Client} client - The Steam client instance
  * @param {Object} json - The JSON request object containing url, correlationId, and body
  * @param {import('ws').WebSocket} ws - The WebSocket connection
  * @param {Function} handlerFunction - The handler function to execute if client is valid

@@ -11,15 +11,15 @@ importers:
 
   .:
     dependencies:
-      '@armaldio/steamworks.js':
-        specifier: 0.7.0
-        version: 0.7.0
       '@electron-forge/plugin-base':
         specifier: 7.4.0
         version: 7.4.0
       '@electron/asar':
         specifier: 3.2.13
         version: 3.2.13
+      '@pipelab/steamworks.js':
+        specifier: ^0.8.0
+        version: 0.8.0
       discord-rpc:
         specifier: ^4.0.1
         version: 4.0.1(encoding@0.1.13)
@@ -86,10 +86,6 @@ importers:
         version: 39.2.3
 
 packages:
-
-  '@armaldio/steamworks.js@0.7.0':
-    resolution: {integrity: sha512-5OJZOxRCWq2oKJ3HbsaHtngNwcPu52wdHRDOnk6DqgM9ia60hzXVjD7B88pieaP+xayx60dWwpSPF0GWrMMUsA==}
-    engines: {node: '>= 14'}
 
   '@electron-forge/cli@7.4.0':
     resolution: {integrity: sha512-a+zZv3ja/IxkJzNyx4sOHSZv6DPV85S0PEVF6pcRjUpbDL5r+DxjRFsNc0Nq4UIWyFm1nw7RWoPdd9uDst4Tvg==}
@@ -259,6 +255,10 @@ packages:
 
   '@pipelab/core@1.4.9':
     resolution: {integrity: sha512-eHz2UNZrDeaTUHS5BL4Mc6c2yBWt7N7xQ2hT0gu2UnAHsWO2QL/j2SVyyaYwGY9m6Ht6jXPXBwD0cngVWVy5vQ==}
+
+  '@pipelab/steamworks.js@0.8.0':
+    resolution: {integrity: sha512-ubmQGqH7t38/CcyIjK8roCDAzBX8xWG1nBQJw8t9bmRmzMTGeHlDkNTQJxIT9uak6t7dC8jFupPIvEnASHbCOA==}
+    engines: {node: '>= 14'}
 
   '@sec-ant/readable-stream@0.4.1':
     resolution: {integrity: sha512-831qok9r2t8AlxLko40y2ebgSDhenenCatLVeW/uBtnHPyhHOvG0C7TvfgecV+wHzIm5KUICgzmVpWS+IMEAeg==}
@@ -1860,10 +1860,6 @@ packages:
 
 snapshots:
 
-  '@armaldio/steamworks.js@0.7.0':
-    dependencies:
-      '@types/node': 22.10.5
-
   '@electron-forge/cli@7.4.0(encoding@0.1.13)':
     dependencies:
       '@electron-forge/core': 7.4.0(encoding@0.1.13)
@@ -2268,6 +2264,10 @@ snapshots:
       rimraf: 3.0.2
 
   '@pipelab/core@1.4.9': {}
+
+  '@pipelab/steamworks.js@0.8.0':
+    dependencies:
+      '@types/node': 22.10.5
 
   '@sec-ant/readable-stream@0.4.1': {}
 
