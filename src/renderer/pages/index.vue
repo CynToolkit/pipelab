@@ -468,7 +468,9 @@ type Item = {
   isPremium?: boolean
 }
 
-const { isLoadingSubscriptions, hasBuildHistoryBenefit } = useAuth()
+const authStore = useAuth()
+const { isLoadingSubscriptions, hasCloudSaveBenefit, hasBuildHistoryBenefit } =
+  storeToRefs(authStore)
 
 const newProjectType = ref<Item>()
 const newProjectTypes = computed<Item[]>(() => {
@@ -477,13 +479,14 @@ const newProjectTypes = computed<Item[]>(() => {
       label: t('home.local'),
       value: 'local',
       description: t('home.store-project-locally'),
-      icon: 'mdi mdi-folder'
+      icon: 'mdi mdi-folder',
+      disabled: false
     },
     {
       label: t('home.cloud'),
       value: 'cloud',
       icon: 'mdi mdi-cloud',
-      disabled: true && !hasBenefit('cloud-save'),
+      disabled: true || !hasCloudSaveBenefit,
       isPremium: true,
       description: t('home.store-project-on-the-cloud')
     }
@@ -818,5 +821,10 @@ const selectedPipelineId = ref<string>()
   background-color: gold;
   border-radius: 50%;
   padding: 2px;
+}
+
+.disabled {
+  opacity: 0.5;
+  pointer-events: none;
 }
 </style>
