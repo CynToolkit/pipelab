@@ -61,6 +61,7 @@ import exit from './handlers/general/exit.js'
 import steamRaw from './handlers/steam/raw.js'
 import steamUploadScore from './handlers/steam/uploadScore.js'
 import steamDownloadScore from './handlers/steam/downloadScore.js'
+import steamUpdateItem from './handlers/steam/updateItem.js'
 
 // discord set activity
 import discordSetActivity from './handlers/discord/set-activity.js'
@@ -451,6 +452,9 @@ const createAppServer = (mainWindow, serveStatic = true) => {
                 break
               case '/steam/leaderboard/download-score':
                 await steamDownloadScore(json, ws, client)
+                break
+              case '/steam/workshop/update-item':
+                await steamUpdateItem(json, ws, client)
                 break
               case '/discord/set-activity':
                 await discordSetActivity(json, ws, mainWindow, rpc)
