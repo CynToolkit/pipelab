@@ -1,17 +1,19 @@
 import { handleSteamRequest } from './utils.js'
 
 /**
- * Core Steam workshop update item logic
+ * Core Steam workshop get item logic
  * @param {Omit<import('@pipelab/steamworks.js').Client, "init" | "runCallbacks">} client
  * @param {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').SteamRaw, 'input'>} json
- * @returns {Promise<any>} The update result
+ * @returns {Promise<any>} The item result
  */
-const updateItemHandler = async (client, json) => {
-  const { itemId, updateDetails, appID } = json.body
+const getItemHandler = async (client, json) => {
+  const { itemId } = json.body
 
+  // Convert itemId from string to BigInt
   const itemIdBigInt = BigInt(itemId)
 
-  const result = await client.workshop.updateItem(itemIdBigInt, updateDetails, appID)
+  // TODO: Handle queryConfig parameter when needed
+  const result = await client.workshop.getItem(itemIdBigInt)
 
   return result
 }
@@ -22,5 +24,5 @@ const updateItemHandler = async (client, json) => {
  * @param {Omit<import('@pipelab/steamworks.js').Client, "init" | "runCallbacks">} client
  */
 export default async (json, ws, client) => {
-  await handleSteamRequest(client, json, ws, updateItemHandler)
+  await handleSteamRequest(client, json, ws, getItemHandler)
 }
