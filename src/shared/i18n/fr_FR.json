@@ -40,6 +40,9 @@
     "billing": "Facturation",
     "team": "Équipe"
   },
+  "navigation": {
+    "build-history": "Build History"
+  },
   "base": {
     "close": "Fermer",
     "save": "Enregistrer",
@@ -59,7 +62,8 @@
     "execution-failed": "Échec de l'exécution",
     "project-has-encountered-an-error": "Le projet a rencontré une erreur :",
     "project-saved": "Projet enregistré",
-    "your-project-has-be-saved-successfully": "Votre projet a été enregistré avec succès"
+    "your-project-has-be-saved-successfully": "Votre projet a été enregistré avec succès",
+    "view-history": "History"
   },
   "home": {
     "invalid-preset": "Préréglage non valide",
