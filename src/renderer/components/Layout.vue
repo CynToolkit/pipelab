@@ -364,7 +364,7 @@ const accountMenuItems = computed(() => {
         }
       }
     )
-  } else {
+  } else if (auth.hasLoginProvider) {
     items.push({
       label: 'Login / Register',
       icon: 'mdi mdi-account',

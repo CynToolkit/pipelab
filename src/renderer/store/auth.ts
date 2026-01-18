@@ -1,5 +1,5 @@
 import { useLogger } from '@@/logger' // Assuming path is correct
-import { supabase } from '@@/supabase' // Assuming path is correct
+import { isSupabaseAvailable, supabase as supabaseFn } from '@@/supabase' // Assuming path is correct
 import { AuthChangeEvent, Session, User, UserResponse } from '@supabase/supabase-js'
 import { defineStore } from 'pinia'
 import { computed, readonly, Ref, ref, shallowRef } from 'vue'
@@ -32,6 +32,8 @@ export const useAuth = defineStore('auth', () => {
 
   const onAuthChanged = createEventHook<{ event: AuthChangeEvent; session: Session }>()
   const onSubscriptionChanged = createEventHook<{ subscriptions: Subscription[] }>()
+
+  const supabase = isSupabaseAvailable ? supabaseFn() : undefined
 
   const displayAuthModal = (title?: string, subtitle?: string) => {
     isAuthModalVisible.value = true
@@ -94,7 +96,7 @@ export const useAuth = defineStore('auth', () => {
     onSubscriptionChanged.trigger({ subscriptions: subscriptions.value })
   }
 
-  supabase.auth.onAuthStateChange((event, session) => {
+  supabase?.auth.onAuthStateChange((event, session) => {
     // Removed async to make it fully synchronous event handler as we are not initiating async actions inside
     logger.logger().debug('[Auth Change] Event:', event)
     logger
@@ -179,6 +181,10 @@ export const useAuth = defineStore('auth', () => {
 
   // Explicitly initialize the auth state when the store is created
   const init = async () => {
+    if (!isSupabaseAvailable) {
+      return
+    }
+
     if (authState.value !== 'INITIALIZING') {
       logger.logger().warn('[Auth] Init called when not in INITIALIZING state. Ignoring.')
       return // Prevent duplicate init calls
@@ -407,6 +413,7 @@ export const useAuth = defineStore('auth', () => {
     authState,
     isLoggedIn,
     isAuthenticating,
+    hasLoginProvider: isSupabaseAvailable,
     errorMessage,
     subscriptions: readonly(subscriptions),
     subscriptionError: readonly(subscriptionError),
