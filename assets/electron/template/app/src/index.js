@@ -61,6 +61,16 @@ import exit from './handlers/general/exit.js'
 import steamRaw from './handlers/steam/raw.js'
 import steamUploadScore from './handlers/steam/uploadScore.js'
 import steamDownloadScore from './handlers/steam/downloadScore.js'
+import steamUpdateItem from './handlers/steam/updateItem.js'
+import steamGetItem from './handlers/steam/getItem.js'
+import steamGetItems from './handlers/steam/getItems.js'
+import steamSubscribe from './handlers/steam/subscribe.js'
+import steamUnsubscribe from './handlers/steam/unsubscribe.js'
+import steamState from './handlers/steam/state.js'
+import steamInstallInfo from './handlers/steam/installInfo.js'
+import steamDownloadInfo from './handlers/steam/downloadInfo.js'
+import steamDownload from './handlers/steam/download.js'
+import steamDeleteItem from './handlers/steam/deleteItem.js'
 
 // discord set activity
 import discordSetActivity from './handlers/discord/set-activity.js'
@@ -466,6 +476,36 @@ const createAppServer = (mainWindow, serveStatic = true) => {
                 break
               case '/steam/leaderboard/download-score':
                 await steamDownloadScore(json, ws, client)
+                break
+              case '/steam/workshop/update-item':
+                await steamUpdateItem(json, ws, client)
+                break
+              case '/steam/workshop/get-item':
+                await steamGetItem(json, ws, client)
+                break
+              case '/steam/workshop/get-items':
+                await steamGetItems(json, ws, client)
+                break
+              case '/steam/workshop/subscribe':
+                await steamSubscribe(json, ws, client)
+                break
+              case '/steam/workshop/unsubscribe':
+                await steamUnsubscribe(json, ws, client)
+                break
+              case '/steam/workshop/state':
+                await steamState(json, ws, client)
+                break
+              case '/steam/workshop/install-info':
+                await steamInstallInfo(json, ws, client)
+                break
+              case '/steam/workshop/download-info':
+                await steamDownloadInfo(json, ws, client)
+                break
+              case '/steam/workshop/download':
+                await steamDownload(json, ws, client)
+                break
+              case '/steam/workshop/delete-item':
+                await steamDeleteItem(json, ws, client)
                 break
               case '/discord/set-activity':
                 await discordSetActivity(json, ws, mainWindow, rpc)
