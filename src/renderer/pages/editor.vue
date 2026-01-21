@@ -442,7 +442,7 @@ const cancel = async () => {
 }
 
 const run = async () => {
-  if (!isLoggedIn.value) {
+  if (!isLoggedIn.value && authStore.hasLoginProvider) {
     authStore.displayAuthModal(
       t('editor.welcome-back'),
       t('editor.please-log-in-to-run-a-scenario')
