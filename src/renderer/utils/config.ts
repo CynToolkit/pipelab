@@ -41,7 +41,11 @@ export const createConfig = <T>(config: string) => {
   const load = async () => {
     return api.execute('config:load', {
       config
-    })
+    }) as Promise<
+      | { type: 'error'; ipcError: string; code?: string }
+      | { type: 'success'; result: { result: T } }
+    >
+    // TODO: better typing
   }
 
   const save = async (data: T) => {
@@ -51,8 +55,20 @@ export const createConfig = <T>(config: string) => {
     })
   }
 
+  const backup = async (suffix: string) => {
+    const data = await load()
+    if (data.type === 'error') {
+      throw new Error(data.ipcError)
+    }
+    await api.execute('config:save', {
+      config: `${config}_${suffix}`,
+      data: JSON.stringify(klona(data.result.result))
+    })
+  }
+
   return {
     save,
-    load
+    load,
+    backup
   }
 }

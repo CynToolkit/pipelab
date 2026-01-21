@@ -136,6 +136,7 @@ export type IpcDefinition = {
       graph: any[]
       variables: any[]
       pipelineId?: string
+      projectId?: string
       projectName?: string
       projectPath?: string
     },

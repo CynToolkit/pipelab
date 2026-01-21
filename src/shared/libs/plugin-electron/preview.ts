@@ -20,7 +20,7 @@ export const previewRunner = createActionRunner<ReturnType<typeof createPreviewP
     ) as DesktopApp.Electron
 
     const output = await forge('package', undefined, options, completeConfiguration)
-    options.log('Opening preview', output)
+    options.log('Opening preview', JSON.stringify(output))
     options.log('Opening url', url)
     await runWithLiveLogs(
       output.binary,

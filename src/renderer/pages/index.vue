@@ -3,107 +3,130 @@
     <Toast />
     <ConfirmDialog />
     <Layout>
-      <div class="your-projects">
-        <div v-if="!isLoading && filesEnhanced.length === 0" class="no-projects">
-          <div>{{ $t('home.no-projects-yet') }}</div>
-          <Button @click="newFile">
-            <i class="mdi mdi-plus-circle-outline mr-2"></i>
-            {{ $t('home.new-project') }}
-          </Button>
+      <div class="main-layout">
+        <div class="drawer">
+          <div class="project-header">
+            <div class="project-text">
+              <i class="mdi mdi-folder mr-2"></i>
+              Projects
+            </div>
+            <div>
+              <Button v-if="hasMultipleProjectsBenefit" text size="small" @click="createProject">
+                <i class="icon mdi mdi-plus fs-16"></i>
+              </Button>
+            </div>
+          </div>
+          <Tree
+            v-model:selection-keys="selectedKey"
+            selection-mode="single"
+            :value="nodes"
+            class="w-full md:w-[30rem]"
+            @node-unselect="onNodeUnselect"
+          ></Tree>
         </div>
-        <div v-else class="your-projects__table">
-          <DataTable
-            :value="filesEnhanced"
-            data-key="id"
-            class="w-full h-full clickable-rows"
-            :scrollable="true"
-            scroll-height="flex"
-            :loading="isLoading"
-            @row-click="handleRowClick"
-          >
-            <template #header>
-              <div class="flex justify-content-between">
-                <div class="list-header bold">{{ $t('home.your-projects') }}</div>
 
-                <div class="flex justify-content-end gap-2">
-                  <Button @click="newFile">
-                    <i class="mdi mdi-plus-circle-outline mr-2"></i>
-                    {{ $t('home.new-project-0') }}
-                  </Button>
-                  <Button outlined @click="openFile">
-                    <i class="mdi mdi-folder-open-outline mr-2"></i>
-                    {{ $t('home.open') }}
-                  </Button>
+        <div class="your-projects">
+          <div v-if="!isLoading && filesEnhanced.length === 0" class="no-projects">
+            <div>{{ $t('home.no-projects-yet') }}</div>
+            <Button @click="newFile">
+              <i class="mdi mdi-plus-circle-outline mr-2"></i>
+              {{ $t('home.new-project') }}
+            </Button>
+          </div>
+          <div v-else class="your-projects__table">
+            <DataTable
+              :value="filesEnhanced"
+              data-key="id"
+              class="w-full h-full clickable-rows"
+              :scrollable="true"
+              scroll-height="flex"
+              :loading="isLoading"
+              @row-click="handleRowClick"
+            >
+              <template #header>
+                <div class="flex justify-content-between">
+                  <div class="list-header bold">{{ activeProject.name }}</div>
+
+                  <div class="flex justify-content-end gap-2">
+                    <Button @click="newFile">
+                      <i class="mdi mdi-plus-circle-outline mr-2"></i>
+                      {{ $t('home.new-pipeline') }}
+                    </Button>
+                    <Button outlined @click="openFile">
+                      <i class="mdi mdi-folder-open-outline mr-2"></i>
+                      {{ $t('home.import') }}
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            </template>
-            <Column header="" style="width: 120px">
-              <template #body="{ data }">
-                <div class="icons" style="display: flex; gap: 4px">
-                  <PluginIcon
-                    v-for="(icon, idx) in getScenarioIcons(data)"
-                    :key="idx"
-                    width="32px"
-                    :icon="icon"
-                  />
-                </div>
               </template>
-              <template #loading>
-                <Skeleton width="32px" height="32px" />
-              </template>
-            </Column>
-            <Column field="content.name" header="Name">
-              <template #loading>
-                <Skeleton width="200px" />
-              </template>
-            </Column>
-            <!-- <Column field="content.description" header="Description" /> -->
-            <!-- <Column header="Path">
+              <Column header="" style="width: 120px">
+                <template #body="{ data }">
+                  <div class="icons" style="display: flex; gap: 4px">
+                    <PluginIcon
+                      v-for="(icon, idx) in getScenarioIcons(data)"
+                      :key="idx"
+                      width="32px"
+                      :icon="icon"
+                    />
+                  </div>
+                </template>
+                <template #loading>
+                  <Skeleton width="32px" height="32px" />
+                </template>
+              </Column>
+              <Column field="content.name" header="Name">
+                <template #loading>
+                  <Skeleton width="200px" />
+                </template>
+              </Column>
+              <!-- <Column field="content.description" header="Description" /> -->
+              <!-- <Column header="Path">
               <template #body="{ data }">
                 <span v-if="data.type === 'external'">{{ data.path }}</span>
               </template>
             </Column> -->
-            <Column header="" style="width: 240px">
-              <template #body="{ data }">
-                <ButtonGroup class="p-buttonset">
-                  <Button
-                    v-if="hasBuildHistoryBenefit"
-                    v-tooltip.top="'View build history for this project'"
-                    :loading="isLoadingSubscriptions"
-                    size="small"
-                    severity="secondary"
-                    class="p-button-outlined"
-                    color="yellow"
-                    @click.stop="viewProjectBuildHistory(data)"
-                  >
-                    <template #icon>
-                      <i class="mdi mdi-history"></i>
-                    </template>
-                  </Button>
-                  <Button
-                    size="small"
-                    severity="info"
-                    class="p-button-outlined"
-                    @click.stop="duplicateProject(data)"
-                  >
-                    <template #icon><i class="mdi mdi-content-copy"></i></template>
-                  </Button>
-                  <Button
-                    v-if="!data.noDeleteBtn"
-                    size="small"
-                    severity="danger"
-                    class="p-button-outlined"
-                    @click.stop="deleteProject(data.id)"
-                  >
-                    <template #icon><i class="mdi mdi-delete"></i></template>
-                  </Button>
-                </ButtonGroup>
-              </template>
-              <template #loading>
-                <Skeleton width="240px" height="32px" />
-              </template>
-            </Column>
-          </DataTable>
+              <Column header="" style="width: 240px">
+                <template #body="{ data }">
+                  <ButtonGroup class="p-buttonset">
+                    <Button
+                      v-if="hasBuildHistoryBenefit"
+                      v-tooltip.top="'View build history for this project'"
+                      :loading="isLoadingSubscriptions"
+                      size="small"
+                      severity="secondary"
+                      class="p-button-outlined"
+                      color="yellow"
+                      @click.stop="viewProjectBuildHistory(data)"
+                    >
+                      <template #icon>
+                        <i class="mdi mdi-history"></i>
+                      </template>
+                    </Button>
+                    <Button
+                      size="small"
+                      severity="info"
+                      class="p-button-outlined"
+                      @click.stop="duplicateProject(data)"
+                    >
+                      <template #icon><i class="mdi mdi-content-copy"></i></template>
+                    </Button>
+                    <Button
+                      v-if="!data.noDeleteBtn"
+                      size="small"
+                      severity="danger"
+                      class="p-button-outlined"
+                      @click.stop="deleteProject(data.id)"
+                    >
+                      <template #icon><i class="mdi mdi-delete"></i></template>
+                    </Button>
+                  </ButtonGroup>
+                </template>
+                <template #loading>
+                  <Skeleton width="240px" height="32px" />
+                </template>
+              </Column>
+            </DataTable>
+          </div>
         </div>
       </div>
     </Layout>
@@ -140,7 +163,7 @@
     >
       <template #header>
         <div class="flex flex-column w-full">
-          <p class="text-xl text-center">{{ $t('home.new-project-1') }}</p>
+          <p class="text-xl text-center">{{ $t('home.new-project') }}</p>
         </div>
       </template>
 
@@ -156,11 +179,11 @@
               <div class="mb-1">{{ $t('settings.tabs.storage') }}</div>
               <div class="mb-2">
                 <Select
-                  v-model="newProjectType"
+                  v-model="newPipelineType"
                   class="w-full"
                   option-label="label"
                   option-disabled="disabled"
-                  :options="newProjectTypes"
+                  :options="newPipelineTypes"
                   :disabled="newProjectName.length === 0"
                 >
                   <template #option="{ option }: { option: Item }">
@@ -183,7 +206,7 @@
                 </Select>
               </div>
 
-              <div v-if="newProjectType && newProjectType.value === 'local'" class="location">
+              <div v-if="newPipelineType && newPipelineType.value === 'local'" class="location">
                 <FileInput
                   v-model="newProjectLocalLocation"
                   :default-path="newProjectNamePathified"
@@ -202,7 +225,112 @@
                 </div>
                 <template v-else>
                   <div
-                    v-for="(preset, key) of newProjectPresets"
+                    v-for="(preset, key) of newPipelinePresets"
+                    :key="key"
+                    :class="{ active: newProjectPreset === key, disabled: preset.disabled }"
+                    class="preset"
+                    @click="newProjectPreset = key"
+                  >
+                    <div class="preset-title">{{ preset.data.name }}</div>
+                    <div>{{ preset.data.description }}</div>
+                    <div v-if="preset.hightlight" class="highlight-icon">
+                      <i class="mdi mdi-star-circle-outline mr-2 fs-24"></i>
+                    </div>
+                    <div v-if="newProjectPreset === key" class="selection-icon">
+                      <i class="mdi mdi-check-circle mr-2 fs-24"></i>
+                    </div>
+                  </div>
+                </template>
+              </div>
+
+              <div class="buttons">
+                <Button
+                  v-if="newProjectData"
+                  :disabled="!canCreateproject"
+                  @click="onNewFileCreation(newProjectData)"
+                  >{{ $t('home.duplicate-project') }}</Button
+                >
+                <Button v-else :disabled="!canCreateproject" @click="onNewFileCreation()">{{
+                  $t('home.create-project')
+                }}</Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Dialog>
+
+    <Dialog
+      v-model:visible="isNewPipelineModalVisible"
+      modal
+      :style="{ width: '75vw' }"
+      :breakpoints="{ '575px': '90vw' }"
+    >
+      <template #header>
+        <div class="flex flex-column w-full">
+          <p class="text-xl text-center">{{ $t('home.new-pipeline') }}</p>
+        </div>
+      </template>
+
+      <div class="new-pipeline">
+        <div class="grid justify-content-center">
+          <div class="col-12 xl:col-6 w-full">
+            <div class="h-full w-full">
+              <div class="mb-1">{{ $t('home.pipeline-name') }}</div>
+              <div class="mb-2">
+                <InputText v-model="newProjectName" class="w-full"> </InputText>
+              </div>
+
+              <div class="mb-1">{{ $t('settings.tabs.storage') }}</div>
+              <div class="mb-2">
+                <Select
+                  v-model="newPipelineType"
+                  class="w-full"
+                  option-label="label"
+                  option-disabled="disabled"
+                  :options="newPipelineTypes"
+                  :disabled="newProjectName.length === 0"
+                >
+                  <template #option="{ option }: { option: Item }">
+                    <div class="w-full flex align-items-center justify-content-between gap-2">
+                      <div class="flex align-items-center gap-2">
+                        <i v-if="option.icon" :class="option.icon"></i>
+                        <span>{{ option.label }}</span>
+                      </div>
+                      <div v-if="option.isPremium" class="premium-icon">
+                        <i class="mdi mdi-crown ml-2"></i>
+                      </div>
+                    </div>
+                  </template>
+                  <template #value="{ value }: { value: Item | undefined }">
+                    <div v-if="value" class="flex align-items-center gap-2">
+                      <i v-if="value.icon" :class="value.icon"></i>
+                      <span>{{ value.label }}</span>
+                    </div>
+                  </template>
+                </Select>
+              </div>
+
+              <div v-if="newPipelineType && newPipelineType.value === 'local'" class="location">
+                <FileInput
+                  v-model="newProjectLocalLocation"
+                  :default-path="newProjectNamePathified"
+                ></FileInput>
+              </div>
+
+              <div class="presets">
+                <div v-if="newProjectData">
+                  <div :class="{ active: true }" class="preset">
+                    <div class="preset-title">{{ newProjectData.name }}</div>
+                    <div>{{ newProjectData.description }}</div>
+                    <div class="selection-icon">
+                      <i class="mdi mdi-check-circle mr-2 fs-24"></i>
+                    </div>
+                  </div>
+                </div>
+                <template v-else>
+                  <div
+                    v-for="(preset, key) of newPipelinePresets"
                     :key="key"
                     :class="{ active: newProjectPreset === key, disabled: preset.disabled }"
                     class="preset"
@@ -246,7 +374,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watchEffect, inject } from 'vue'
+import { computed, ref, watchEffect, inject, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { EnhancedFile, SavedFile, Preset } from '@@/model'
 import { nanoid } from 'nanoid'
@@ -254,6 +382,7 @@ import { useRouter } from 'vue-router'
 import { useAPI } from '@renderer/composables/api'
 import { useFiles } from '@renderer/store/files'
 import { loadExternalFile } from '@renderer/utils/config'
+import Tree from 'primevue/tree'
 
 import { Presets } from '@@/apis'
 import FileInput from '@renderer/components/FileInput.vue'
@@ -269,6 +398,7 @@ import BuildHistoryDialog from '@renderer/components/BuildHistoryDialog.vue'
 import Skeleton from 'primevue/skeleton'
 import ConfirmDialog from 'primevue/confirmdialog'
 import { useConfirm } from 'primevue/useconfirm'
+import { TreeNode } from 'primevue/treenode'
 
 const router = useRouter()
 const api = useAPI()
@@ -307,18 +437,18 @@ function getScenarioIcons(scenario: EnhancedFile) {
 const canCreateproject = computed(() => {
   if (newProjectData.value) {
     return (
-      newProjectType.value !== undefined &&
+      newPipelineType.value !== undefined &&
       newProjectName.value !== undefined &&
-      (newProjectType.value.value === 'cloud' ||
-        (newProjectType.value.value === 'local' && newProjectLocalLocation.value !== undefined))
+      (newPipelineType.value.value === 'cloud' ||
+        (newPipelineType.value.value === 'local' && newProjectLocalLocation.value !== undefined))
     )
   }
   return (
-    newProjectType.value !== undefined &&
+    newPipelineType.value !== undefined &&
     newProjectPreset.value !== undefined &&
     newProjectName.value !== undefined &&
-    (newProjectType.value.value === 'cloud' ||
-      (newProjectType.value.value === 'local' && newProjectLocalLocation.value !== undefined))
+    (newPipelineType.value.value === 'cloud' ||
+      (newPipelineType.value.value === 'local' && newProjectLocalLocation.value !== undefined))
   )
 })
 
@@ -326,20 +456,59 @@ const { t } = useI18n()
 
 const isLoading = ref(false)
 
+const selectedKey = ref<Record<string, boolean>>({})
+const activeProjectIndex = computed(() => Number.parseInt(Object.keys(selectedKey.value)[0]))
+const activeProjectId = computed(() => projects.value[activeProjectIndex.value]?.id)
+const activeProject = computed(() =>
+  activeProjectId.value
+    ? projects.value.find((project) => project.id === activeProjectId.value)
+    : undefined
+)
+const projects = computed(() => files.value.projects)
+
+const pipelines = computed(() =>
+  activeProjectId.value
+    ? files.value.pipelines.filter((pipeline) => pipeline.project === activeProjectId.value)
+    : []
+)
+
+const onNodeUnselect = (node: TreeNode) => {
+  console.log('onNodeUnselect', node)
+}
+
+const nodes = computed<TreeNode[]>(() => {
+  return Object.entries(projects.value).map(([id, file]) => {
+    // const children = Object.entries(file.data).map(([pipelineId, pipeline]) => {
+    //   return {
+    //     key: pipelineId,
+    //     label: pipelineId,
+    //     children: []
+    //   } satisfies TreeNode
+    // })
+
+    return {
+      key: id,
+      label: file.name
+      // children
+    } satisfies TreeNode
+  })
+})
+
 watchEffect(async () => {
   isLoading.value = true
-  const entries = Object.entries(files.value.data)
 
   const result: EnhancedFile[] = []
 
-  for (const [id, file] of entries) {
+  for (const file of pipelines.value) {
     let fileContent: string
     if (file.type === 'external') {
       const resultLoad = await loadExternalFile(file.path)
 
+      console.log('resultLoad', resultLoad)
+
       if (resultLoad.type === 'error') {
         console.error('Unable to load file', resultLoad.ipcError)
-        const [id] = Object.entries(files.value.data).find(([, value]) => {
+        const { id } = files.value.pipelines.find((value) => {
           if (value.type === 'internal') {
             if (value.path === file.path) {
               return true
@@ -353,7 +522,7 @@ watchEffect(async () => {
         })
         console.log('id', id)
         updateFileStore((state) => {
-          delete state.data[id]
+          state.pipelines = state.pipelines.filter((value) => value.id !== id)
         })
         continue
       }
@@ -377,8 +546,9 @@ watchEffect(async () => {
         path: file.path,
         summary: file.summary,
         type: file.type,
-        id,
-        content: content
+        id: file.id,
+        content: content,
+        project: file.project
       })
     }
   }
@@ -387,6 +557,18 @@ watchEffect(async () => {
   isLoading.value = false
 })
 
+watch(
+  [projects, selectedKey],
+  (newProjects) => {
+    // Automatically select the first project if nothing is selected
+    if (Object.keys(selectedKey.value).length === 0 && Object.keys(newProjects).length > 0) {
+      const firstProjectId = Object.keys(newProjects)[0]
+      selectedKey.value = { [firstProjectId]: true }
+    }
+  },
+  { immediate: true }
+)
+
 const openFile = async () => {
   const pathsResult = await api.execute(
     'dialog:showOpenDialog',
@@ -394,13 +576,13 @@ const openFile = async () => {
       title: t('home.choose-a-new-path'),
       properties: ['openFile'],
       filters: [{ name: t('home.pipelab-project'), extensions: [PROJECT_EXTENSION] }]
-    },
-    async (_, message) => {
-      const { type } = message
-      if (type === 'end') {
-        //
-      }
     }
+    // async (_, message) => {
+    //   const { type } = message
+    //   if (type === 'end') {
+    //     //
+    //   }
+    // }
   )
 
   if (pathsResult.type === 'error') {
@@ -414,11 +596,10 @@ const openFile = async () => {
       const fileToRead = paths.filePaths[0]
       let newId = nanoid()
 
-      const alreadyAddedPaths = Object.entries(files.value.data).map(([id, file]) => {
+      const alreadyAddedPaths = files.value.pipelines.map((file) => {
         if (file.type === 'external') {
           return {
-            ...file,
-            id
+            ...file
           }
         }
       })
@@ -430,7 +611,7 @@ const openFile = async () => {
       }
       // save file to store
       updateFileStore((state) => {
-        state.data[newId] = {
+        state.pipelines.push({
           lastModified: new Date().toISOString(),
           path: fileToRead,
           summary: {
@@ -438,12 +619,14 @@ const openFile = async () => {
             name: '',
             plugins: []
           },
-          type: 'external'
-        }
+          type: 'external',
+          project: activeProject.value.id,
+          id: newId
+        })
       })
 
       await router.push({
-        name: t('headers.editor'),
+        name: 'Editor',
         params: {
           id: newId
         }
@@ -469,11 +652,15 @@ type Item = {
 }
 
 const authStore = useAuth()
-const { isLoadingSubscriptions, hasCloudSaveBenefit, hasBuildHistoryBenefit } =
-  storeToRefs(authStore)
+const {
+  isLoadingSubscriptions,
+  hasCloudSaveBenefit,
+  hasBuildHistoryBenefit,
+  hasMultipleProjectsBenefit
+} = storeToRefs(authStore)
 
-const newProjectType = ref<Item>()
-const newProjectTypes = computed<Item[]>(() => {
+const newPipelineType = ref<Item>()
+const newPipelineTypes = computed<Item[]>(() => {
   return [
     {
       label: t('home.local'),
@@ -486,6 +673,7 @@ const newProjectTypes = computed<Item[]>(() => {
       label: t('home.cloud'),
       value: 'cloud',
       icon: 'mdi mdi-cloud',
+      // eslint-disable-next-line no-constant-binary-expression
       disabled: true || !hasCloudSaveBenefit,
       isPremium: true,
       description: t('home.store-project-on-the-cloud')
@@ -494,10 +682,20 @@ const newProjectTypes = computed<Item[]>(() => {
 })
 
 const newProjectPreset = ref<string>()
-const newProjectPresets = ref<Presets>({})
+const newPipelinePresets = ref<Presets>({})
 
 const newProjectLocalLocation = ref<string>()
 const newProjectData = ref<SavedFile>()
+
+/**
+ * Create a new project
+ * save it to the repo
+ * and save it to user location
+ */
+const createProject = async () => {
+  // show dialog
+  isNewProjectModalVisible.value = true
+}
 
 /**
  * Create a new project
@@ -512,26 +710,27 @@ const newFile = async () => {
     throw new Error(presetsResult.ipcError)
   }
 
-  newProjectPresets.value = presetsResult.result
+  newPipelinePresets.value = presetsResult.result
 
   // show dialog
-  isNewProjectModalVisible.value = true
+  isNewPipelineModalVisible.value = true
 }
 
 const onNewFileCreation = async (
-  preset: SavedFile = newProjectPresets.value[newProjectPreset.value].data
+  preset: SavedFile = newPipelinePresets.value[newProjectPreset.value].data
 ) => {
-  let id = nanoid()
+  console.error('TODO')
+  let pipelineId = nanoid()
 
   if (!preset) {
     throw new Error(t('home.invalid-preset'))
   }
 
-  const alreadyAddedPaths = Object.entries(files.value.data).map(([id, file]) => {
+  const alreadyAddedPaths = files.value.pipelines.map((file) => {
     if (file.type === 'external') {
       return {
         ...file,
-        id
+        id: file.id
       }
     }
   })
@@ -539,12 +738,14 @@ const onNewFileCreation = async (
   const foundExisting = alreadyAddedPaths.find((x) => x.path === newProjectLocalLocation.value)
 
   if (foundExisting && foundExisting.type === 'external') {
-    id = foundExisting.id
+    pipelineId = foundExisting.id
   }
+
+  const projectId = activeProject.value.id
 
   // update file store
   updateFileStore((state) => {
-    state.data[id] = {
+    state.pipelines.push({
       lastModified: new Date().toISOString(),
       path: newProjectLocalLocation.value,
       summary: {
@@ -552,8 +753,10 @@ const onNewFileCreation = async (
         name: newProjectName.value,
         plugins: []
       },
-      type: 'external'
-    }
+      type: 'external',
+      project: projectId,
+      id: pipelineId
+    })
   })
 
   const updatedPreset: Preset = {
@@ -569,23 +772,26 @@ const onNewFileCreation = async (
   })
 
   await router.push({
-    name: t('headers.editor'),
+    name: 'Editor',
     params: {
-      id
+      pipelineId: pipelineId,
+      projectId: projectId
     }
   })
 }
 
 const loadExisting = async (id: string) => {
   await router.push({
-    name: t('headers.editor'),
+    name: 'Editor',
     params: {
-      id
+      pipelineId: id,
+      projectId: activeProject.value.id
     }
   })
 }
 
 const handleRowClick = (event: any) => {
+  console.log('event', event)
   loadExisting(event.data.id)
 }
 
@@ -609,7 +815,7 @@ const duplicateProject = async (file: SavedFile) => {
   console.log('file', file)
   newProjectName.value = file.name + ' (copy)'
   newProjectData.value = file
-  isNewProjectModalVisible.value = true
+  isNewPipelineModalVisible.value = true
 }
 
 const viewProjectBuildHistory = async (file: EnhancedFile) => {
@@ -622,6 +828,7 @@ const viewProjectBuildHistory = async (file: EnhancedFile) => {
   showBuildHistoryDialog.value = true
 }
 
+const isNewPipelineModalVisible = ref(false)
 const isNewProjectModalVisible = ref(false)
 
 // Build history dialog state
@@ -651,12 +858,6 @@ const selectedPipelineId = ref<string>()
 
     font-weight: 500 !important;
   }
-}
-
-.content {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
 }
 
 .scenarios {
@@ -823,8 +1024,25 @@ const selectedPipelineId = ref<string>()
   padding: 2px;
 }
 
-.disabled {
-  opacity: 0.5;
-  pointer-events: none;
+.main-layout {
+  display: flex;
+  flex-direction: row;
+  height: 100%;
+  width: 100%;
+}
+
+.drawer {
+  width: 400px;
+
+  .project-header {
+    padding: 0 16px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+
+    .project-text {
+    }
+  }
 }
 </style>

@@ -50,7 +50,7 @@ export interface MigrationObjInput<Down, Current, Up> {
 export interface MigratorConfig<InitialState, FinalState> {
   migrations: MigrationClass<any, any, any>[]
   coerce?: boolean
-  defaultValue?: InitialState
+  defaultValue?: FinalState
 }
 
 export class Migrator<InitialState extends MigrationSchema, OutputState extends MigrationSchema> {
@@ -59,14 +59,14 @@ export class Migrator<InitialState extends MigrationSchema, OutputState extends 
   migrations: Record<SemVer, MigrationClass<any, any, any>> = {}
 
   coerce: boolean
-  defaultValue: InitialState
+  defaultValue: OutputState
 
   constructor(config: MigratorConfig<InitialState, OutputState>) {
     config.migrations.forEach((migration) => {
       this.migrations[migration.version] = migration
     })
 
-    this.defaultValue = config?.defaultValue ?? {} as InitialState
+    this.defaultValue = config?.defaultValue ?? ({} as OutputState)
 
     const versions = this.getVersions()
     this.current = versions[versions.length - 1]
@@ -78,7 +78,10 @@ export class Migrator<InitialState extends MigrationSchema, OutputState extends 
     return semver.sort(keys)
   }
 
-  async migrate(_state: MigrationSchema | undefined, options?: MigrateOptions): Promise<OutputState> {
+  async migrate(
+    _state: MigrationSchema | undefined,
+    options?: MigrateOptions
+  ): Promise<OutputState> {
     const state = _state ?? this.defaultValue
     console.log('state', state)
     const currentVersion = this.tryCoerce(state.version)

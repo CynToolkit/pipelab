@@ -831,29 +831,33 @@ export const forge = async (
     log('finalPlatform', finalPlatform)
     const finalArch = inputArch ?? arch() ?? ''
 
-    await runWithLiveLogs(
-      node,
-      [forge, action, /* '--', */ '--arch', finalArch, '--platform', finalPlatform],
-      {
-        cwd: destinationFolder,
-        env: {
-          DEBUG: completeConfiguration.enableExtraLogging ? '*' : '',
-          ELECTRON_NO_ASAR: '1',
-          PATH: `${dirname(node)}${delimiter}${process.env.PATH}`
-          // DEBUG: "electron-packager"
+    try {
+      await runWithLiveLogs(
+        node,
+        [forge, action, /* '--', */ '--arch', finalArch, '--platform', finalPlatform],
+        {
+          cwd: destinationFolder,
+          env: {
+            DEBUG: completeConfiguration.enableExtraLogging ? '*' : '',
+            ELECTRON_NO_ASAR: '1',
+            PATH: `${dirname(node)}${delimiter}${process.env.PATH}`
+            // DEBUG: "electron-packager"
+          },
+          cancelSignal: abortSignal
         },
-        cancelSignal: abortSignal
-      },
-      log,
-      {
-        onStderr(data) {
-          log(data)
-        },
-        onStdout(data) {
-          log(data)
+        log,
+        {
+          onStderr(data) {
+            log(data)
+          },
+          onStdout(data) {
+            log(data)
+          }
         }
-      }
-    )
+      )
+    } catch (e) {
+      console.error('e', e)
+    }
 
     if (action === 'package') {
       const outName = outFolderName(

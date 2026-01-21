@@ -193,12 +193,13 @@ export const SavedFileValidator = SavedFileValidatorV3
 const savedFileMigratorr = createMigrator<SavedFileV1, SavedFile>()
 const defaultValue = savedFileMigratorr.createDefault({
   canvas: {
+    triggers: [],
     blocks: []
   },
   description: '',
   name: '',
   variables: [],
-  version: '1.0.0'
+  version: '3.0.0'
 })
 
 export const savedFileMigrator = savedFileMigratorr.createMigrations({

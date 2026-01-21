@@ -32,7 +32,15 @@
       <template #header>
         <div class="flex flex-column w-full">
           <p class="text-xl text-center">
-            {{ authModalTitle ? authModalTitle : type === 'login' ? 'Login' : type === 'register' ? 'Register' : 'Forgot Password' }}
+            {{
+              authModalTitle
+                ? authModalTitle
+                : type === 'login'
+                  ? 'Login'
+                  : type === 'register'
+                    ? 'Register'
+                    : 'Forgot Password'
+            }}
           </p>
           <p class="text-center">{{ authModalSubTitle }}</p>
         </div>
@@ -251,7 +259,6 @@
 
       <Settings></Settings>
     </Dialog>
-
   </div>
 </template>
 
@@ -285,7 +292,6 @@ const $menu = ref()
 const headerSentence = computed(() => {
   return route.meta?.title as string
 })
-
 
 const updateStatus = ref<UpdateStatus>('update-not-available')
 
@@ -475,7 +481,7 @@ const onSuccess = async (values: any) => {
         toast.add({
           severity: 'success',
           summary: 'Reset email sent',
-          detail: 'If an account with that email exists, we\'ve sent you a password reset link.',
+          detail: "If an account with that email exists, we've sent you a password reset link.",
           life: 5000
         })
       }

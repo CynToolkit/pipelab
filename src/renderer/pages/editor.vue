@@ -318,7 +318,6 @@ import { storeToRefs } from 'pinia'
 import { useRouter } from 'vue-router'
 import { BlockAction, BlockCondition, BlockLoop, SavedFile } from '@@/model'
 import { useAPI } from '@renderer/composables/api'
-import { useAppStore } from '@renderer/store/app'
 import { useToast } from 'primevue/usetoast'
 import { tinykeys } from 'tinykeys'
 import { useFiles } from '@renderer/store/files'
@@ -332,18 +331,14 @@ import EnvironementEditor from './environement-editor.vue'
 import ProjectSettingsEditor from './project-settings-editor.vue'
 import { format } from 'date-fns'
 import { FancyAnsi, hasAnsi } from 'fancy-ansi'
-import Tooltip from 'primevue/tooltip'
 import { watchThrottled } from '@vueuse/core'
 import { stripHtml } from 'string-strip-html'
 import posthog from 'posthog-js'
 import Layout from '@renderer/components/Layout.vue'
 import { useAuth } from '@renderer/store/auth'
-import { value } from 'valibot'
 import type { ValueOf } from 'type-fest'
-import { createQuickJs } from '@renderer/utils/quickjs'
 import ParamEditor from '@renderer/components/nodes/ParamEditor.vue'
 import { useI18n } from 'vue-i18n'
-import { pipeline } from 'stream'
 import BuildHistoryDialog from '@renderer/components/BuildHistoryDialog.vue'
 
 type Param = ValueOf<BlockAction['params']>
@@ -362,7 +357,8 @@ const {
   currentFilePointer,
   errors,
   stepsDisplay,
-  id,
+  pipelineId,
+  projectId,
   logLines,
   nodeStatuses,
   isRunning,
@@ -374,15 +370,12 @@ const {
   pushLine,
   clearLogs,
   getNodeDefinition,
-  getPluginDefinition,
   removeNode,
   setBlockValue,
   setSelectedNode
 } = instance
 
 const { t } = useI18n()
-const app = useAppStore()
-const { pluginDefinitions } = storeToRefs(app)
 
 const filesStore = useFiles()
 const { files } = storeToRefs(filesStore)
@@ -396,12 +389,6 @@ const showBuildHistoryDialog = ref(false)
 
 const quickLogs = ref([])
 
-const keyToNodePluginId = (key: string) => {
-  const foundNode = nodes.value.find((x) => x.uid === key)
-  const node = getNodeDefinition(foundNode.origin.nodeId, foundNode.origin.pluginId)
-  return node.node.name ?? key
-}
-
 const keyToNodeName = (key: string) => {
   const foundNode = nodes.value.find((x) => x.uid === key)
   const node = getNodeDefinition(foundNode.origin.nodeId, foundNode.origin.pluginId)
@@ -409,9 +396,11 @@ const keyToNodeName = (key: string) => {
 }
 
 watch(
-  id,
-  async (newId) => {
-    const file = files.value.data[newId]
+  [projectId, pipelineId],
+  async () => {
+    console.log('projectId', projectId.value)
+    console.log('pipelineId', pipelineId.value)
+    const file = files.value.pipelines.find((x) => x.id === pipelineId.value)
 
     if (file && file.type === 'external') {
       const { path: filePath } = file
@@ -466,14 +455,13 @@ const run = async () => {
   setIsRunning(true)
   clearLogs()
 
-  const collectedTmpPaths: string[] = []
-
   try {
     const result = await api.execute(
       'graph:execute',
       {
         graph: klona(nodes.value),
-        pipelineId: id.value,
+        pipelineId: pipelineId.value,
+        projectId: projectId.value,
         variables: variables.value,
         projectName: name.value,
         projectPath:
@@ -628,7 +616,7 @@ const saveLocal = async (path: string) => {
   await saveExternalFile(path, result)
 
   await update((state) => {
-    const data = state.data[id.value]
+    const data = state.pipelines.find((x) => x.id === pipelineId.value)
     if (data.type === 'external') {
       data.lastModified = new Date().toISOString()
     } else {
@@ -734,7 +722,7 @@ watchThrottled(
 
 const exportLog = async () => {
   const logPaths = await api.execute('dialog:showSaveDialog', {
-    defaultPath: `pipelab-${instance.id}.log`
+    defaultPath: `pipelab-${instance.projectId}-${instance.pipelineId}.log`
   })
 
   const myLines = Object.entries(logLines.value)
@@ -782,10 +770,6 @@ const nodeDefinition = computed(() => {
     return def.node
   }
   return undefined
-})
-
-const pluginDefinition = computed(() => {
-  return getPluginDefinition(selectedNode.value.origin.pluginId)
 })
 
 const onValueChanged = (newValue: Param, paramKey: string) => {
