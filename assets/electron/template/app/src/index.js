@@ -229,8 +229,6 @@ if (config.enableDiscordSupport) {
   console.log('rpc', rpc)
 }
 
-// Fix for ICU data loading issues
-app.commandLine.appendSwitch('no-sandbox')
 //region commandLine Flags
 if (config.enableInProcessGPU) {
   app.commandLine.appendSwitch('in-process-gpu')
