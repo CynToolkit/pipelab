@@ -56,9 +56,10 @@ const defaultCacheFolder = join(tmpdir(), 'pipelab')
 
 export const defaultAppSettings = migrator.createDefault({
   cacheFolder: defaultCacheFolder,
-
+  clearTemporaryFoldersOnPipelineEnd: false,
+  locale: 'en-US',
   theme: 'light',
-  version: '1.0.0'
+  version: '4.0.0'
 })
 
 export const appSettingsMigrator = migrator.createMigrations({

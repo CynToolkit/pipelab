@@ -78,11 +78,11 @@
     "create-project": "Create project",
     "duplicate-project": "Duplicate project",
     "project-name": "Project Name",
-    "new-project-1": "New Project",
-    "open": "Open",
-    "new-project-0": "New Project",
-    "your-projects": "Your projects",
     "new-project": "New Project",
+    "new-pipeline": "New pipeline",
+    "open": "Open",
+    "import": "Import",
+    "your-projects": "Your projects",
     "no-projects-yet": "No projects yet"
   },
   "scenarios": {

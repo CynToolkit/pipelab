@@ -27,7 +27,7 @@ const routes: RouterOptions['routes'] = [
     children: []
   },
   {
-    path: '/scenarios/editor/:id',
+    path: '/scenarios/editor/:pipelineId/:projectId',
     name: 'Editor',
     component: () => import('../pages/editor.vue'),
     meta: {

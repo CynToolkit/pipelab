@@ -2,13 +2,13 @@
   <div v-if="isDevMode" class="dev-benefits-override">
     <div class="dev-panel">
       <h4>Dev Benefits Override</h4>
-      <div class="benefit-item" v-for="benefit in benefits" :key="benefit.key">
+      <div v-for="benefit in benefits" :key="benefit.key" class="benefit-item">
         <div class="benefit-header">
           <span class="benefit-label">{{ benefit.label }}</span>
           <select
             :value="auth.devOverrides[benefit.key] || 'actual'"
-            @change="setOverride(benefit.key, $event.target.value)"
             class="override-select"
+            @change="setOverride(benefit.key, $event.target.value)"
           >
             <option value="actual">Use Actual</option>
             <option value="force-on">Force On</option>
@@ -36,19 +36,22 @@ const auth = useAuth()
 
 const benefits = [
   { key: 'build-history', label: 'Build History' },
-  { key: 'cloud-save', label: 'Cloud Save' }
+  { key: 'cloud-save', label: 'Cloud Save' },
+  { key: 'multiple-projects', label: 'Multiple Projects' }
 ] as const
 
 const isDevMode = computed(() => process.env.NODE_ENV === 'development')
 
 const actualStatus = computed(() => ({
   'build-history': auth.getActualBenefit('build-history'),
-  'cloud-save': auth.getActualBenefit('cloud-save')
+  'cloud-save': auth.getActualBenefit('cloud-save'),
+  'multiple-projects': auth.getActualBenefit('multiple-projects')
 }))
 
 const effectiveStatus = computed(() => ({
   'build-history': auth.hasBenefit('build-history'),
-  'cloud-save': auth.hasBenefit('cloud-save')
+  'cloud-save': auth.hasBenefit('cloud-save'),
+  'multiple-projects': auth.hasBenefit('multiple-projects')
 }))
 
 const setOverride = (benefit: string, value: string) => {

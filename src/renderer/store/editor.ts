@@ -98,7 +98,8 @@ export const useEditor = defineStore('editor', () => {
   const filesStore = useFiles()
   const { files } = storeToRefs(filesStore)
 
-  const id = useRouteParams<string>('id')
+  const pipelineId = useRouteParams<string>('pipelineId')
+  const projectId = useRouteParams<string>('projectId')
 
   const name = ref('')
   const description = ref('')
@@ -140,7 +141,7 @@ export const useEditor = defineStore('editor', () => {
   }
 
   const currentFilePointer = computed(() => {
-    return files.value.data[id.value]
+    return files.value.pipelines.find((x) => x.id === pipelineId.value)
   })
 
   // const savedFile = computed(() => {
@@ -708,7 +709,8 @@ export const useEditor = defineStore('editor', () => {
     activeNode,
     selectedNode,
     name,
-    id,
+    pipelineId,
+    projectId,
     description,
     errors,
 

@@ -258,6 +258,7 @@ console.log('config.enableSteamSupport', config.enableSteamSupport)
 if (config.enableSteamSupport) {
   app.commandLine.appendSwitch('in-process-gpu')
   app.commandLine.appendSwitch('disable-direct-composition')
+  app.commandLine.appendSwitch('no-sandbox')
 
   // const isNecessary = steamworks.restartAppIfNecessary(config.steamGameId)
   // console.log('isNecessary', isNecessary)
@@ -330,6 +331,20 @@ const createAppServer = (mainWindow, serveStatic = true) => {
           ],
           public: dir
         })
+      })
+    } else {
+      server.on('request', (req, res) => {
+        res.setHeader('Access-Control-Allow-Origin', '*') // or 'https://preview.construct.net'
+        res.setHeader('Access-Control-Allow-Private-Network', 'true')
+        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
+        if (req.method === 'OPTIONS') {
+          res.writeHead(204)
+          res.end()
+          return
+        }
+        res.writeHead(200, { 'Content-Type': 'text/plain' })
+        res.end('Pipelab Electron App Server\n')
       })
     }
 
@@ -598,8 +613,6 @@ const createWindow = async () => {
   if (argUrl) {
     console.log('argUrl', argUrl)
     await createAppServer(mainWindow, false)
-
-    // console.log('port', port)
 
     await mainWindow?.loadURL(argUrl)
     console.log('URL loaded')

@@ -5,10 +5,12 @@ export const createMigrator = <
   FinalState extends MigrationSchema
 >() => {
   return {
-    createDefault(defaultState: InitialState): InitialState {
+    createDefault(defaultState: FinalState): FinalState {
       return defaultState
     },
-    createMigrations(config: MigratorConfig<InitialState, FinalState>): Migrator<InitialState, FinalState> {
+    createMigrations(
+      config: MigratorConfig<InitialState, FinalState>
+    ): Migrator<InitialState, FinalState> {
       return new Migrator<InitialState, FinalState>(config)
     }
   }

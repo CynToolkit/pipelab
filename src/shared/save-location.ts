@@ -1,6 +1,8 @@
 import { array, literal, object, string, union, type InferInput } from 'valibot'
 
 export const SaveLocationInternalValidator = object({
+  id: string(),
+  project: string(),
   path: string(),
   lastModified: string(),
   type: literal('internal'),
@@ -15,6 +17,8 @@ export const SaveLocationInternalValidator = object({
 export type SaveLocationInternal = InferInput<typeof SaveLocationInternalValidator>
 
 export const SaveLocationExternalValidator = object({
+  id: string(),
+  project: string(),
   path: string(),
   lastModified: string(),
   type: literal('external'),
@@ -37,6 +41,8 @@ export const SaveLocationExternalValidator = object({
 export type SaveLocationExternal = InferInput<typeof SaveLocationExternalValidator>
 
 export const SaveLocationPipelabCloudValidator = object({
+  id: string(),
+  project: string(),
   type: literal('pipelab-cloud')
 })
 
