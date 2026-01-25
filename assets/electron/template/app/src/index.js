@@ -17,6 +17,7 @@ import userFolder from './handlers/user/folder.js'
 
 // fs
 import fsWrite from './handlers/fs/write.js'
+import fsWriteBase64 from './handlers/fs/write-base64.js'
 import fsRead from './handlers/fs/read.js'
 import fsReadBinary from './handlers/fs/read-binary.js'
 import fsFolderCreate from './handlers/fs/folder-create.js'
@@ -228,6 +229,8 @@ if (config.enableDiscordSupport) {
   console.log('rpc', rpc)
 }
 
+// Fix for ICU data loading issues
+app.commandLine.appendSwitch('no-sandbox')
 //region commandLine Flags
 if (config.enableInProcessGPU) {
   app.commandLine.appendSwitch('in-process-gpu')
@@ -351,6 +354,10 @@ const createAppServer = (mainWindow, serveStatic = true) => {
 
               case '/fs/file/write':
                 await fsWrite(json, ws)
+                break
+
+              case '/fs/file/write-base64':
+                await fsWriteBase64(json, ws)
                 break
 
               case '/fs/file/read':
