@@ -1,4 +1,5 @@
 import { createAction, createActionRunner, createPathParam, createStringParam, runWithLiveLogs } from '@pipelab/plugin-core'
+import { dirname } from 'node:path'
 
 export const ID = 'poki-upload'
 
@@ -42,8 +43,8 @@ export const uploadToPoki = createAction({
 
 export const uploadToPokiRunner = createActionRunner<typeof uploadToPoki>(
   async ({ log, inputs, paths, abortSignal, cwd }) => {
-    const { join } = await import('node:path')
-    const { writeFile , cp, mkdir } = await import('node:fs/promises')
+    const { join, basename, delimiter } = await import('node:path')
+    const { writeFile, cp, mkdir } = await import('node:fs/promises')
     const { shell } = await import('electron')
 
     const { unpack } = paths
@@ -82,6 +83,10 @@ export const uploadToPokiRunner = createActionRunner<typeof uploadToPoki>(
       ['upload', '--name', inputs.name, '--notes', inputs.notes],
       {
         cwd,
+        env: {
+          // DEBUG: '*',
+          PATH: `${dirname(poki)}${delimiter}${process.env.PATH}`,
+        },
         cancelSignal: abortSignal,
       },
       log,
