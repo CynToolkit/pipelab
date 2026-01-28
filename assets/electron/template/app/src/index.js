@@ -287,6 +287,21 @@ app.setPath('userData', sessionDataPath)
 const clients = new Set()
 
 /**
+ * @type {import('http').Server | null}
+ */
+let httpServer = null
+
+/**
+ * @type {import('ws').WebSocketServer | null}
+ */
+let wss = null
+
+/**
+ * @type {boolean}
+ */
+let isQuitting = false
+
+/**
  * @param {string} message
  */
 const broadcastMessage = (message) => {
@@ -307,7 +322,8 @@ const dir = app.isPackaged ? join(metaDirname, './app') : './src/app'
 const createAppServer = (mainWindow, serveStatic = true) => {
   // eslint-disable-next-line no-async-promise-executor
   return new Promise(async (resolve, reject) => {
-    const server = createServer()
+    httpServer = createServer()
+    const server = httpServer
 
     if (serveStatic) {
       server.on('request', (req, res) => {
@@ -347,7 +363,7 @@ const createAppServer = (mainWindow, serveStatic = true) => {
     }
 
     try {
-      const wss = new WebSocketServer({ server })
+      wss = new WebSocketServer({ server })
       wss.on('connection', function connection(ws) {
         clients.add(ws)
 
@@ -657,9 +673,53 @@ const createWindow = async () => {
   return mainWindow
 }
 
+/**
+ * Cleanup all resources before quitting
+ */
+const cleanup = () => {
+  return new Promise((resolve) => {
+    console.log('Cleaning up resources...')
+
+    // Close all WebSocket clients
+    for (const client of clients) {
+      try {
+        client.close()
+      } catch (e) {
+        console.error('Error closing WebSocket client:', e)
+      }
+    }
+    clients.clear()
+
+    // Close WebSocket server
+    if (wss) {
+      try {
+        wss.close()
+      } catch (e) {
+        console.error('Error closing WebSocket server:', e)
+      }
+      wss = null
+    }
+
+    // Close HTTP server
+    if (httpServer) {
+      httpServer.close(() => {
+        console.log('HTTP server closed')
+        httpServer = null
+        resolve()
+      })
+      // Force resolve after timeout in case server doesn't close cleanly
+      setTimeout(resolve, 500)
+    } else {
+      resolve()
+    }
+  })
+}
+
 const registerHandlers = async () => {
-  ipcMain.on('exit', (event, code) => {
+  ipcMain.on('exit', async (event, code) => {
     console.log('exit', code)
+    isQuitting = true
+    await cleanup()
     app.exit(code)
   })
 }
@@ -708,6 +768,39 @@ app.whenReady().then(async () => {
   })
 })
 
-app.on('window-all-closed', async () => {
-  app.quit()
+app.on('before-quit', (event) => {
+  if (!isQuitting) {
+    event.preventDefault()
+    isQuitting = true
+    cleanup().then(() => {
+      app.quit()
+    })
+  }
+})
+
+app.on('will-quit', () => {
+  // Final cleanup - synchronous operations only
+  // Close any remaining WebSocket clients
+  for (const client of clients) {
+    try {
+      client.terminate() // Force close
+    } catch (e) {
+      // Ignore errors during final cleanup
+    }
+  }
+  clients.clear()
+})
+
+app.on('window-all-closed', () => {
+  // On macOS, apps typically stay open until explicitly quit
+  // But for games, we usually want to quit when the window is closed
+  if (process.platform !== 'darwin' || isQuitting) {
+    app.quit()
+  } else {
+    // On macOS, trigger the quit process which will run cleanup
+    isQuitting = true
+    cleanup().then(() => {
+      app.quit()
+    })
+  }
 })
