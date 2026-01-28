@@ -56,7 +56,7 @@
 <script lang="ts" setup>
 import { useAPI } from '@renderer/composables/api'
 import { supabase } from '@@/supabase'
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 
 const emit = defineEmits(['close'])
 const api = useAPI()

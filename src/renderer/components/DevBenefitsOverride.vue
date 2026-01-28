@@ -8,7 +8,7 @@
           <select
             :value="auth.devOverrides[benefit.key] || 'actual'"
             class="override-select"
-            @change="setOverride(benefit.key, $event.target.value)"
+            @change="setOverride(benefit.key, ($event.target as HTMLSelectElement).value)"
           >
             <option value="actual">Use Actual</option>
             <option value="force-on">Force On</option>

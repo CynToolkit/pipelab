@@ -491,9 +491,9 @@ const run = async () => {
           const splittedInnerLines = lines.split('\n')
 
           for (const l of splittedInnerLines
-            .map((x) => x.trim())
-            .filter((x) => !!x)
-            .filter((x) => x !== '')) {
+            .map((x: string) => x.trim())
+            .filter((x: string) => !!x)
+            .filter((x: string) => x !== '')) {
             let content = ''
 
             if (hasAnsi(l)) {
