@@ -49,6 +49,14 @@ const routes: RouterOptions['routes'] = [
     meta: {
       title: t('headers.team')
     }
+  },
+  {
+    path: '/simple-editor',
+    name: 'SimpleEditor',
+    component: () => import('../pages/simple-editor.vue'),
+    meta: {
+      title: 'Simple Editor'
+    }
   }
 ]
 

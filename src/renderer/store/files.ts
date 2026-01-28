@@ -150,6 +150,21 @@ export const useFiles = defineStore('files', () => {
     })
   }
 
+  const removeProject = async (id: string) => {
+    update((state) => {
+      state.projects = state.projects.filter((project) => project.id !== id)
+    })
+  }
+
+  const transferPipeline = async (pipelineId: string, projectId: string) => {
+    update((state) => {
+      const pipeline = state.pipelines.find((p) => p.id === pipelineId)
+      if (pipeline) {
+        pipeline.project = projectId
+      }
+    })
+  }
+
   const loadFile = (name: string) => {
     const { load, save } = createConfig<Record<string, File>>(name)
     return {
@@ -165,6 +180,8 @@ export const useFiles = defineStore('files', () => {
     load,
     loadFile,
     update,
-    remove
+    remove,
+    removeProject,
+    transferPipeline
   }
 })

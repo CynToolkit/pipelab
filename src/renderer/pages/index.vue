@@ -10,8 +10,32 @@
               <i class="mdi mdi-folder mr-2"></i>
               Projects
             </div>
-            <div>
-              <Button v-if="hasMultipleProjectsBenefit" text size="small" @click="createProject">
+            <div class="flex gap-1">
+              <Button
+                text
+                size="small"
+                severity="secondary"
+                :disabled="!activeProject"
+                @click="openRenameProjectDialog"
+              >
+                <i class="icon mdi mdi-pencil fs-16"></i>
+              </Button>
+              <Button
+                v-if="hasMultipleProjectsBenefit"
+                text
+                size="small"
+                severity="danger"
+                :disabled="!activeProject"
+                @click="deleteProject"
+              >
+                <i class="icon mdi mdi-delete fs-16"></i>
+              </Button>
+              <Button
+                v-tooltip.top="!hasMultipleProjectsBenefit ? $t('home.premium-feature') : undefined"
+                text
+                size="small"
+                @click="onCreateProjectClick"
+              >
                 <i class="icon mdi mdi-plus fs-16"></i>
               </Button>
             </div>
@@ -27,10 +51,10 @@
 
         <div class="your-projects">
           <div v-if="!isLoading && filesEnhanced.length === 0" class="no-projects">
-            <div>{{ $t('home.no-projects-yet') }}</div>
+            <div>{{ $t('home.no-pipelines-yet') }}</div>
             <Button @click="newFile">
               <i class="mdi mdi-plus-circle-outline mr-2"></i>
-              {{ $t('home.new-project') }}
+              {{ $t('home.new-pipeline') }}
             </Button>
           </div>
           <div v-else class="your-projects__table">
@@ -87,39 +111,12 @@
             </Column> -->
               <Column header="" style="width: 240px">
                 <template #body="{ data }">
-                  <ButtonGroup class="p-buttonset">
-                    <Button
-                      v-if="hasBuildHistoryBenefit"
-                      v-tooltip.top="'View build history for this project'"
-                      :loading="isLoadingSubscriptions"
-                      size="small"
-                      severity="secondary"
-                      class="p-button-outlined"
-                      color="yellow"
-                      @click.stop="viewProjectBuildHistory(data)"
-                    >
-                      <template #icon>
-                        <i class="mdi mdi-history"></i>
-                      </template>
-                    </Button>
-                    <Button
-                      size="small"
-                      severity="info"
-                      class="p-button-outlined"
-                      @click.stop="duplicateProject(data)"
-                    >
-                      <template #icon><i class="mdi mdi-content-copy"></i></template>
-                    </Button>
-                    <Button
-                      v-if="!data.noDeleteBtn"
-                      size="small"
-                      severity="danger"
-                      class="p-button-outlined"
-                      @click.stop="deleteProject(data.id)"
-                    >
-                      <template #icon><i class="mdi mdi-delete"></i></template>
-                    </Button>
-                  </ButtonGroup>
+                  <Button
+                    icon="mdi mdi-dots-vertical"
+                    text
+                    rounded
+                    @click.stop="toggleMenu($event, data)"
+                  />
                 </template>
                 <template #loading>
                   <Skeleton width="240px" height="32px" />
@@ -176,81 +173,8 @@
                 <InputText v-model="newProjectName" class="w-full"> </InputText>
               </div>
 
-              <div class="mb-1">{{ $t('settings.tabs.storage') }}</div>
-              <div class="mb-2">
-                <Select
-                  v-model="newPipelineType"
-                  class="w-full"
-                  option-label="label"
-                  option-disabled="disabled"
-                  :options="newPipelineTypes"
-                  :disabled="newProjectName.length === 0"
-                >
-                  <template #option="{ option }: { option: Item }">
-                    <div class="w-full flex align-items-center justify-content-between gap-2">
-                      <div class="flex align-items-center gap-2">
-                        <i v-if="option.icon" :class="option.icon"></i>
-                        <span>{{ option.label }}</span>
-                      </div>
-                      <div v-if="option.isPremium" class="premium-icon">
-                        <i class="mdi mdi-crown ml-2"></i>
-                      </div>
-                    </div>
-                  </template>
-                  <template #value="{ value }: { value: Item | undefined }">
-                    <div v-if="value" class="flex align-items-center gap-2">
-                      <i v-if="value.icon" :class="value.icon"></i>
-                      <span>{{ value.label }}</span>
-                    </div>
-                  </template>
-                </Select>
-              </div>
-
-              <div v-if="newPipelineType && newPipelineType.value === 'local'" class="location">
-                <FileInput
-                  v-model="newProjectLocalLocation"
-                  :default-path="newProjectNamePathified"
-                ></FileInput>
-              </div>
-
-              <div class="presets">
-                <div v-if="newProjectData">
-                  <div :class="{ active: true }" class="preset">
-                    <div class="preset-title">{{ newProjectData.name }}</div>
-                    <div>{{ newProjectData.description }}</div>
-                    <div class="selection-icon">
-                      <i class="mdi mdi-check-circle mr-2 fs-24"></i>
-                    </div>
-                  </div>
-                </div>
-                <template v-else>
-                  <div
-                    v-for="(preset, key) of newPipelinePresets"
-                    :key="key"
-                    :class="{ active: newProjectPreset === key, disabled: preset.disabled }"
-                    class="preset"
-                    @click="newProjectPreset = key"
-                  >
-                    <div class="preset-title">{{ preset.data.name }}</div>
-                    <div>{{ preset.data.description }}</div>
-                    <div v-if="preset.hightlight" class="highlight-icon">
-                      <i class="mdi mdi-star-circle-outline mr-2 fs-24"></i>
-                    </div>
-                    <div v-if="newProjectPreset === key" class="selection-icon">
-                      <i class="mdi mdi-check-circle mr-2 fs-24"></i>
-                    </div>
-                  </div>
-                </template>
-              </div>
-
               <div class="buttons">
-                <Button
-                  v-if="newProjectData"
-                  :disabled="!canCreateproject"
-                  @click="onNewFileCreation(newProjectData)"
-                  >{{ $t('home.duplicate-project') }}</Button
-                >
-                <Button v-else :disabled="!canCreateproject" @click="onNewFileCreation()">{{
+                <Button :disabled="!canCreateProject" @click="onNewProjectCreation()">{{
                   $t('home.create-project')
                 }}</Button>
               </div>
@@ -351,11 +275,11 @@
               <div class="buttons">
                 <Button
                   v-if="newProjectData"
-                  :disabled="!canCreateproject"
+                  :disabled="!canCreatePipeline"
                   @click="onNewFileCreation(newProjectData)"
                   >{{ $t('home.duplicate-project') }}</Button
                 >
-                <Button v-else :disabled="!canCreateproject" @click="onNewFileCreation()">{{
+                <Button v-else :disabled="!canCreatePipeline" @click="onNewFileCreation()">{{
                   $t('home.create-project')
                 }}</Button>
               </div>
@@ -370,12 +294,67 @@
       :pipeline-id="selectedPipelineId"
       @hide="showBuildHistoryDialog = false"
     />
+
+    <Menu ref="menu" :model="menuItems" :popup="true" />
+
+    <Dialog
+      v-model:visible="isTransferModalVisible"
+      modal
+      :style="{ width: '50vw' }"
+      :breakpoints="{ '575px': '90vw' }"
+    >
+      <template #header>
+        <p class="text-xl font-bold">{{ $t('home.transfer') }}</p>
+      </template>
+      <div class="flex flex-column gap-2">
+        <label>{{ $t('home.select-project') }}</label>
+        <Select
+          v-model="selectedTargetProject"
+          :options="availableProjectsForTransfer"
+          option-label="label"
+          option-value="value"
+          class="w-full"
+        />
+      </div>
+      <template #footer>
+        <Button label="Cancel" text severity="secondary" @click="isTransferModalVisible = false" />
+        <Button
+          label="Transfer"
+          :disabled="!selectedTargetProject"
+          @click="performTransfer"
+        />
+      </template>
+    </Dialog>
+    <Dialog
+      v-model:visible="isRenameProjectModalVisible"
+      modal
+      :style="{ width: '50vw' }"
+      :breakpoints="{ '575px': '90vw' }"
+    >
+      <template #header>
+        <p class="text-xl font-bold">{{ $t('home.rename-project') }}</p>
+      </template>
+      <div class="flex flex-column gap-2">
+        <label>{{ $t('home.new-project-name') }}</label>
+        <InputText v-model="renameProjectName" class="w-full" />
+      </div>
+      <template #footer>
+        <Button label="Cancel" text severity="secondary" @click="isRenameProjectModalVisible = false" />
+        <Button
+          label="Rename"
+          :disabled="!renameProjectName"
+          @click="onRenameProject"
+        />
+      </template>
+    </Dialog>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, ref, watchEffect, inject, watch } from 'vue'
+import { useToast } from 'primevue/usetoast'
 import { storeToRefs } from 'pinia'
+import Menu from 'primevue/menu'
 import { EnhancedFile, SavedFile, Preset } from '@@/model'
 import { nanoid } from 'nanoid'
 import { useRouter } from 'vue-router'
@@ -404,11 +383,12 @@ const router = useRouter()
 const api = useAPI()
 const openUpgradeDialog = inject('openUpgradeDialog') as () => void
 const confirm = useConfirm()
+const toast = useToast()
 
 // Table data
 const fileStore = useFiles()
 const { files } = storeToRefs(fileStore)
-const { update: updateFileStore, remove } = fileStore
+const { update: updateFileStore, remove, removeProject, transferPipeline } = fileStore
 
 const filesEnhanced = ref<EnhancedFile[]>([])
 
@@ -434,7 +414,7 @@ function getScenarioIcons(scenario: EnhancedFile) {
   return icons
 }
 
-const canCreateproject = computed(() => {
+const canCreatePipeline = computed(() => {
   if (newProjectData.value) {
     return (
       newPipelineType.value !== undefined &&
@@ -452,13 +432,16 @@ const canCreateproject = computed(() => {
   )
 })
 
+const canCreateProject = computed(() => {
+  return newProjectName.value !== undefined && newProjectName.value.length > 0
+})
+
 const { t } = useI18n()
 
 const isLoading = ref(false)
 
 const selectedKey = ref<Record<string, boolean>>({})
-const activeProjectIndex = computed(() => Number.parseInt(Object.keys(selectedKey.value)[0]))
-const activeProjectId = computed(() => projects.value[activeProjectIndex.value]?.id)
+const activeProjectId = computed(() => Object.keys(selectedKey.value)[0])
 const activeProject = computed(() =>
   activeProjectId.value
     ? projects.value.find((project) => project.id === activeProjectId.value)
@@ -477,7 +460,7 @@ const onNodeUnselect = (node: TreeNode) => {
 }
 
 const nodes = computed<TreeNode[]>(() => {
-  return Object.entries(projects.value).map(([id, file]) => {
+  return projects.value.map((file) => {
     // const children = Object.entries(file.data).map(([pipelineId, pipeline]) => {
     //   return {
     //     key: pipelineId,
@@ -487,7 +470,7 @@ const nodes = computed<TreeNode[]>(() => {
     // })
 
     return {
-      key: id,
+      key: file.id,
       label: file.name
       // children
     } satisfies TreeNode
@@ -559,10 +542,10 @@ watchEffect(async () => {
 
 watch(
   [projects, selectedKey],
-  (newProjects) => {
+  ([newProjects, newSelectedKey]) => {
     // Automatically select the first project if nothing is selected
-    if (Object.keys(selectedKey.value).length === 0 && Object.keys(newProjects).length > 0) {
-      const firstProjectId = Object.keys(newProjects)[0]
+    if (Object.keys(newSelectedKey).length === 0 && newProjects.length > 0) {
+      const firstProjectId = newProjects[0].id
       selectedKey.value = { [firstProjectId]: true }
     }
   },
@@ -693,6 +676,7 @@ const newProjectData = ref<SavedFile>()
  * and save it to user location
  */
 const createProject = async () => {
+  newProjectName.value = ''
   // show dialog
   isNewProjectModalVisible.value = true
 }
@@ -703,6 +687,7 @@ const createProject = async () => {
  * and save it to user location
  */
 const newFile = async () => {
+  newProjectName.value = ''
   // find presets
   const presetsResult = await api.execute('presets:get')
 
@@ -716,10 +701,54 @@ const newFile = async () => {
   isNewPipelineModalVisible.value = true
 }
 
+const onNewProjectCreation = async () => {
+  const projectId = nanoid()
+  updateFileStore((state) => {
+    state.projects.push({
+      id: projectId,
+      name: newProjectName.value,
+      description: ''
+    })
+  })
+  isNewProjectModalVisible.value = false
+  // Select the new project
+  selectedKey.value = { [projectId]: true }
+  newProjectName.value = ''
+}
+
+const onCreateProjectClick = () => {
+  if (hasMultipleProjectsBenefit.value) {
+    createProject()
+  } else {
+    openUpgradeDialog()
+  }
+}
+
+const isRenameProjectModalVisible = ref(false)
+const renameProjectName = ref('')
+
+const openRenameProjectDialog = () => {
+  if (activeProject.value) {
+    renameProjectName.value = activeProject.value.name
+    isRenameProjectModalVisible.value = true
+  }
+}
+
+const onRenameProject = async () => {
+  if (activeProject.value && renameProjectName.value) {
+    updateFileStore((state) => {
+      const project = state.projects.find((p) => p.id === activeProject.value?.id)
+      if (project) {
+        project.name = renameProjectName.value
+      }
+    })
+    isRenameProjectModalVisible.value = false
+  }
+}
+
 const onNewFileCreation = async (
   preset: SavedFile = newPipelinePresets.value[newProjectPreset.value].data
 ) => {
-  console.error('TODO')
   let pipelineId = nanoid()
 
   if (!preset) {
@@ -795,10 +824,10 @@ const handleRowClick = (event: any) => {
   loadExisting(event.data.id)
 }
 
-const deleteProject = async (id: string) => {
+const deletePipeline = async (id: string) => {
   confirm.require({
-    message: 'Are you sure you want to delete this project? This action cannot be undone.',
-    header: 'Delete Project',
+    message: 'Are you sure you want to delete this pipeline? This action cannot be undone.',
+    header: 'Delete Pipeline',
     icon: 'pi pi-exclamation-triangle',
     rejectClass: 'p-button-secondary p-button-outlined',
     acceptClass: 'p-button-danger',
@@ -810,6 +839,104 @@ const deleteProject = async (id: string) => {
     }
   })
 }
+
+const deleteProject = async () => {
+  if (!activeProject.value) return
+
+  if (pipelines.value.length > 0) {
+    toast.add({
+      severity: 'error',
+      summary: t('home.cannot-delete-project'),
+      detail: t('home.project-not-empty'),
+      life: 3000
+    })
+    return
+  }
+
+  confirm.require({
+    message: t('home.confirm-delete-project'),
+    header: t('home.delete-project'),
+    icon: 'pi pi-exclamation-triangle',
+    rejectClass: 'p-button-secondary p-button-outlined',
+    acceptClass: 'p-button-danger',
+    accept: async () => {
+      await removeProject(activeProject.value.id)
+    },
+    reject: () => {
+      // do nothing
+    }
+  })
+}
+
+const menu = ref()
+const selectedPipelineForMenu = ref<EnhancedFile | null>(null)
+const isTransferModalVisible = ref(false)
+const selectedTargetProject = ref()
+
+const toggleMenu = (event: Event, data: EnhancedFile) => {
+  selectedPipelineForMenu.value = data
+  menu.value.toggle(event)
+}
+
+const menuItems = computed(() => [
+  {
+    label: t('home.build-history'),
+    icon: 'mdi mdi-history',
+    command: () => {
+      if (selectedPipelineForMenu.value) viewProjectBuildHistory(selectedPipelineForMenu.value)
+    },
+    visible: hasBuildHistoryBenefit.value
+  },
+  {
+    label: t('home.duplicate'),
+    icon: 'mdi mdi-content-copy',
+    command: () => {
+      if (selectedPipelineForMenu.value) duplicateProject(selectedPipelineForMenu.value.content)
+    }
+  },
+  {
+    label: t('home.transfer'),
+    icon: 'mdi mdi-folder-move',
+    command: () => {
+      openTransferDialog()
+    }
+  },
+  {
+    separator: true
+  },
+  {
+    label: t('base.delete'),
+    icon: 'mdi mdi-delete',
+    class: 'text-red-500',
+    command: () => {
+      if (selectedPipelineForMenu.value) deletePipeline(selectedPipelineForMenu.value.id)
+    }
+  }
+])
+
+const openTransferDialog = () => {
+  isTransferModalVisible.value = true
+  selectedTargetProject.value = null
+}
+
+const performTransfer = async () => {
+  if (selectedPipelineForMenu.value && selectedTargetProject.value) {
+    await transferPipeline(selectedPipelineForMenu.value.id, selectedTargetProject.value.id)
+    isTransferModalVisible.value = false
+    toast.add({
+      severity: 'success',
+      summary: t('home.transfer-successful'),
+      detail: t('home.pipeline-transferred'),
+      life: 3000
+    })
+  }
+}
+
+const availableProjectsForTransfer = computed(() => {
+  return projects.value
+    .filter((p) => p.id !== activeProject.value?.id)
+    .map((p) => ({ label: p.name, value: p }))
+})
 
 const duplicateProject = async (file: SavedFile) => {
   console.log('file', file)
