@@ -72,6 +72,7 @@ import steamInstallInfo from './handlers/steam/installInfo.js'
 import steamDownloadInfo from './handlers/steam/downloadInfo.js'
 import steamDownload from './handlers/steam/download.js'
 import steamDeleteItem from './handlers/steam/deleteItem.js'
+import steamSaveScreenshot from './handlers/steam/saveScreenshot.js'
 
 // discord set activity
 import discordSetActivity from './handlers/discord/set-activity.js'
@@ -527,6 +528,9 @@ const createAppServer = (mainWindow, serveStatic = true) => {
                 break
               case '/steam/workshop/delete-item':
                 await steamDeleteItem(json, ws, client)
+                break
+              case '/steam/screenshots/save':
+                await steamSaveScreenshot(json, ws, client)
                 break
               case '/discord/set-activity':
                 await discordSetActivity(json, ws, mainWindow, rpc)
