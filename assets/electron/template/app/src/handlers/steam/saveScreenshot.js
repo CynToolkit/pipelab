@@ -1,5 +1,5 @@
 import { handleSteamRequest } from './utils.js'
-import { writeFileSync, unlinkSync, mkdirSync } from 'node:fs'
+import { writeFileSync, unlinkSync, mkdirSync, rmdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { randomUUID } from 'node:crypto'
@@ -37,22 +37,23 @@ const saveScreenshotHandler = async (client, json) => {
   mkdirSync(tempDir, { recursive: true })
   const tempPath = join(tempDir, `screenshot-${randomUUID()}.${format}`)
 
-  try {
-    // Write to temp file
-    writeFileSync(tempPath, buffer)
+  // Write to temp file
+  writeFileSync(tempPath, buffer)
 
-    // Add to Steam library
-    const handle = client.screenshots.addScreenshotToLibrary(tempPath, null, width, height)
+  // Add to Steam library
+  const handle = client.screenshots.addScreenshotToLibrary(tempPath, null, width, height)
 
-    return handle
-  } finally {
-    // Clean up temp file
+  // Delete temp file after a delay to allow Steam to process it
+  setTimeout(() => {
     try {
       unlinkSync(tempPath)
+      rmdirSync(tempDir)
     } catch {
       // Ignore cleanup errors
     }
-  }
+  }, 5000)
+
+  return handle
 }
 
 /**
