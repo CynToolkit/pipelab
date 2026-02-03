@@ -1,27 +1,36 @@
 <template>
-  <div v-if="isDevMode" class="dev-benefits-override">
+  <div v-if="isDevMode" class="dev-benefits-override" :class="{ collapsed: isCollapsed }">
     <div class="dev-panel">
-      <h4>Dev Benefits Override</h4>
-      <div v-for="benefit in benefits" :key="benefit.key" class="benefit-item">
-        <div class="benefit-header">
-          <span class="benefit-label">{{ benefit.label }}</span>
-          <select
-            :value="auth.devOverrides[benefit.key] || 'actual'"
-            class="override-select"
-            @change="setOverride(benefit.key, ($event.target as HTMLSelectElement).value)"
-          >
-            <option value="actual">Use Actual</option>
-            <option value="force-on">Force On</option>
-            <option value="force-off">Force Off</option>
-          </select>
-        </div>
-        <div class="status-container">
-          <span class="status actual" :class="{ active: actualStatus[benefit.key] }">
-            Actual: {{ actualStatus[benefit.key] ? 'Active' : 'Inactive' }}
-          </span>
-          <span class="status effective" :class="{ active: effectiveStatus[benefit.key] }">
-            Effective: {{ effectiveStatus[benefit.key] ? 'Active' : 'Inactive' }}
-          </span>
+      <div class="panel-header">
+        <h4 v-if="!isCollapsed">Dev Benefits Override</h4>
+        <span v-else class="collapsed-title">Dev Tools</span>
+        <button class="toggle-btn" @click="toggleCollapse">
+          <i class="mdi" :class="isCollapsed ? 'mdi-chevron-up' : 'mdi-chevron-down'"></i>
+        </button>
+      </div>
+
+      <div v-if="!isCollapsed">
+        <div v-for="benefit in benefits" :key="benefit.key" class="benefit-item">
+          <div class="benefit-header">
+            <span class="benefit-label">{{ benefit.label }}</span>
+            <select
+              :value="auth.devOverrides[benefit.key] || 'actual'"
+              class="override-select"
+              @change="setOverride(benefit.key, ($event.target as HTMLSelectElement).value)"
+            >
+              <option value="actual">Use Actual</option>
+              <option value="force-on">Force On</option>
+              <option value="force-off">Force Off</option>
+            </select>
+          </div>
+          <div class="status-container">
+            <span class="status actual" :class="{ active: actualStatus[benefit.key] }">
+              Actual: {{ actualStatus[benefit.key] ? 'Active' : 'Inactive' }}
+            </span>
+            <span class="status effective" :class="{ active: effectiveStatus[benefit.key] }">
+              Effective: {{ effectiveStatus[benefit.key] ? 'Active' : 'Inactive' }}
+            </span>
+          </div>
         </div>
       </div>
     </div>
@@ -29,10 +38,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useAuth } from '../store/auth'
 
 const auth = useAuth()
+const isCollapsed = ref(true)
 
 const benefits = [
   { key: 'build-history', label: 'Build History' },
@@ -41,6 +51,10 @@ const benefits = [
 ] as const
 
 const isDevMode = computed(() => process.env.NODE_ENV === 'development')
+
+const toggleCollapse = () => {
+  isCollapsed.value = !isCollapsed.value
+}
 
 const actualStatus = computed(() => ({
   'build-history': auth.getActualBenefit('build-history'),
@@ -75,11 +89,49 @@ const setOverride = (benefit: string, value: string) => {
   border-radius: 8px;
   min-width: 300px;
   font-size: 14px;
+  transition: all 0.3s ease;
 }
 
-.dev-panel h4 {
-  margin: 0 0 12px 0;
+.dev-benefits-override.collapsed .dev-panel {
+  min-width: auto;
+  padding: 8px 12px;
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.dev-benefits-override.collapsed .panel-header {
+  margin-bottom: 0;
+}
+
+.panel-header h4 {
+  margin: 0;
   font-size: 16px;
+}
+
+.collapsed-title {
+  font-weight: bold;
+  margin-right: 8px;
+}
+
+.toggle-btn {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.toggle-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .benefit-item {

@@ -52,7 +52,7 @@
         <div class="your-projects">
           <div v-if="!isLoading && filesEnhanced.length === 0" class="no-projects">
             <div>{{ $t('home.no-pipelines-yet') }}</div>
-            <Button @click="newFile">
+            <Button @click="openNewProjectDialog">
               <i class="mdi mdi-plus-circle-outline mr-2"></i>
               {{ $t('home.new-pipeline') }}
             </Button>
@@ -72,14 +72,14 @@
                   <div class="list-header bold">{{ activeProject.name }}</div>
 
                   <div class="flex justify-content-end gap-2">
-                    <Button @click="newFile">
+                    <Button @click="openNewProjectDialog">
                       <i class="mdi mdi-plus-circle-outline mr-2"></i>
                       {{ $t('home.new-pipeline') }}
                     </Button>
-                    <Button outlined @click="openFile">
+                    <!-- <Button outlined @click="openFile">
                       <i class="mdi mdi-folder-open-outline mr-2"></i>
                       {{ $t('home.import') }}
-                    </Button>
+                    </Button> -->
                   </div>
                 </div>
               </template>
@@ -99,6 +99,16 @@
                 </template>
               </Column>
               <Column field="content.name" header="Name">
+                <template #body="{ data }">
+                  <div class="flex align-items-center gap-2">
+                    <span>{{ data.content.name }}</span>
+                    <i
+                      v-if="data.type === 'external' && shouldMigrate === true"
+                      v-tooltip.top="$t('home.migrate-warning')"
+                      class="mdi mdi-alert-circle text-orange-500"
+                    ></i>
+                  </div>
+                </template>
                 <template #loading>
                   <Skeleton width="200px" />
                 </template>
@@ -200,49 +210,48 @@
         <div class="grid justify-content-center">
           <div class="col-12 xl:col-6 w-full">
             <div class="h-full w-full">
+              <div class="mb-4 flex justify-content-center">
+                <SelectButton
+                  v-show="hasSimplePipelines"
+                  v-model="projectMode"
+                  :options="projectModes"
+                  option-label="label"
+                  option-value="value"
+                  :allow-empty="false"
+                />
+              </div>
+
               <div class="mb-1">{{ $t('home.pipeline-name') }}</div>
               <div class="mb-2">
                 <InputText v-model="newProjectName" class="w-full"> </InputText>
               </div>
 
-              <div class="mb-1">{{ $t('settings.tabs.storage') }}</div>
-              <div class="mb-2">
-                <Select
-                  v-model="newPipelineType"
-                  class="w-full"
-                  option-label="label"
-                  option-disabled="disabled"
-                  :options="newPipelineTypes"
-                  :disabled="newProjectName.length === 0"
-                >
-                  <template #option="{ option }: { option: Item }">
-                    <div class="w-full flex align-items-center justify-content-between gap-2">
-                      <div class="flex align-items-center gap-2">
-                        <i v-if="option.icon" :class="option.icon"></i>
-                        <span>{{ option.label }}</span>
-                      </div>
-                      <div v-if="option.isPremium" class="premium-icon">
-                        <i class="mdi mdi-crown ml-2"></i>
-                      </div>
-                    </div>
-                  </template>
-                  <template #value="{ value }: { value: Item | undefined }">
-                    <div v-if="value" class="flex align-items-center gap-2">
-                      <i v-if="value.icon" :class="value.icon"></i>
-                      <span>{{ value.label }}</span>
-                    </div>
-                  </template>
-                </Select>
+              <div v-if="false" class="field-checkbox mb-2 flex align-items-center">
+                <Checkbox
+                  v-model="isCloudProject"
+                  binary
+                  input-id="cloudProject"
+                  :disabled="!hasCloudSaveBenefit"
+                />
+                <label for="cloudProject" class="cursor-pointer ml-2 flex align-items-center">
+                  {{ $t('home.store-project-on-the-cloud') }}
+                  <i
+                    v-if="!hasCloudSaveBenefit"
+                    v-tooltip="$t('home.premium-feature')"
+                    class="mdi mdi-crown text-yellow-500 ml-2"
+                  ></i>
+                </label>
               </div>
 
-              <div v-if="newPipelineType && newPipelineType.value === 'local'" class="location">
+              <!-- Internal storage doesn't need path input -->
+              <!-- <div v-if="newPipelineType && newPipelineType.value === 'local'" class="location">
                 <FileInput
                   v-model="newProjectLocalLocation"
                   :default-path="newProjectNamePathified"
                 ></FileInput>
-              </div>
+              </div> -->
 
-              <div class="presets">
+              <div v-if="!isSimpleProjectCreation" class="presets">
                 <div v-if="newProjectData">
                   <div :class="{ active: true }" class="preset">
                     <div class="preset-title">{{ newProjectData.name }}</div>
@@ -318,11 +327,7 @@
       </div>
       <template #footer>
         <Button label="Cancel" text severity="secondary" @click="isTransferModalVisible = false" />
-        <Button
-          label="Transfer"
-          :disabled="!selectedTargetProject"
-          @click="performTransfer"
-        />
+        <Button label="Transfer" :disabled="!selectedTargetProject" @click="performTransfer" />
       </template>
     </Dialog>
     <Dialog
@@ -339,12 +344,13 @@
         <InputText v-model="renameProjectName" class="w-full" />
       </div>
       <template #footer>
-        <Button label="Cancel" text severity="secondary" @click="isRenameProjectModalVisible = false" />
         <Button
-          label="Rename"
-          :disabled="!renameProjectName"
-          @click="onRenameProject"
+          label="Cancel"
+          text
+          severity="secondary"
+          @click="isRenameProjectModalVisible = false"
         />
+        <Button label="Rename" :disabled="!renameProjectName" @click="onRenameProject" />
       </template>
     </Dialog>
   </div>
@@ -355,7 +361,7 @@ import { computed, ref, watchEffect, inject, watch } from 'vue'
 import { useToast } from 'primevue/usetoast'
 import { storeToRefs } from 'pinia'
 import Menu from 'primevue/menu'
-import { EnhancedFile, SavedFile, Preset } from '@@/model'
+import { EnhancedFile, SavedFile, Preset, savedFileMigrator } from '@@/model'
 import { nanoid } from 'nanoid'
 import { useRouter } from 'vue-router'
 import { useAPI } from '@renderer/composables/api'
@@ -378,12 +384,16 @@ import Skeleton from 'primevue/skeleton'
 import ConfirmDialog from 'primevue/confirmdialog'
 import { useConfirm } from 'primevue/useconfirm'
 import { TreeNode } from 'primevue/treenode'
+import { SaveLocation, SaveLocationExternal, SaveLocationInternal } from '@@/save-location'
+import { usePipeline } from '@renderer/composables/usePipeline'
+import { usePostHog } from '@renderer/composables/usePostHog'
 
 const router = useRouter()
 const api = useAPI()
 const openUpgradeDialog = inject('openUpgradeDialog') as () => void
 const confirm = useConfirm()
 const toast = useToast()
+const { posthog } = usePostHog()
 
 // Table data
 const fileStore = useFiles()
@@ -392,43 +402,28 @@ const { update: updateFileStore, remove, removeProject, transferPipeline } = fil
 
 const filesEnhanced = ref<EnhancedFile[]>([])
 
-const appStore = useAppStore()
-const { getPluginDefinition } = appStore
+const hasSimplePipelines = posthog.isFeatureEnabled('simple-pipeline')
+console.log('hasSimplePipelines', hasSimplePipelines)
+
+const { createPipeline } = usePipeline()
+
+const shouldMigrate = false // TODO:
 
 // Icon logic adapted from ScenarioListItem
-function getScenarioIcons(scenario: EnhancedFile) {
-  const icons: any[] = []
-  if (!scenario?.content?.canvas?.blocks) return icons
-  const blocks = scenario.content.canvas.blocks
-  for (const node of blocks) {
-    const def = getPluginDefinition(node.origin.pluginId)
-    if (def && def.icon) {
-      icons.push({ origin: node.origin, ...def.icon })
-    }
-  }
-  if (icons.length > 4) {
-    return icons
-      .slice(0, 3)
-      .concat({ type: 'icon', icon: 'mdi-plus', origin: { nodeId: '0', pluginId: '0' } })
-  }
-  return icons
+function getScenarioIcons(pipeline: EnhancedFile) {
+  const p = createPipeline(pipeline)
+
+  return p.getIcons()
 }
 
 const canCreatePipeline = computed(() => {
   if (newProjectData.value) {
-    return (
-      newPipelineType.value !== undefined &&
-      newProjectName.value !== undefined &&
-      (newPipelineType.value.value === 'cloud' ||
-        (newPipelineType.value.value === 'local' && newProjectLocalLocation.value !== undefined))
-    )
+    return newProjectName.value !== undefined && newProjectName.value.length > 0
   }
   return (
-    newPipelineType.value !== undefined &&
     newProjectPreset.value !== undefined &&
     newProjectName.value !== undefined &&
-    (newPipelineType.value.value === 'cloud' ||
-      (newPipelineType.value.value === 'local' && newProjectLocalLocation.value !== undefined))
+    newProjectName.value.length > 0
   )
 })
 
@@ -477,17 +472,19 @@ const nodes = computed<TreeNode[]>(() => {
   })
 })
 
+// When pipelines are loaded
 watchEffect(async () => {
   isLoading.value = true
 
   const result: EnhancedFile[] = []
 
+  // for each pipeline file
   for (const file of pipelines.value) {
-    let fileContent: string
+    let fileContent: string = ''
+
+    // When external
     if (file.type === 'external') {
       const resultLoad = await loadExternalFile(file.path)
-
-      console.log('resultLoad', resultLoad)
 
       if (resultLoad.type === 'error') {
         console.error('Unable to load file', resultLoad.ipcError)
@@ -503,7 +500,6 @@ watchEffect(async () => {
           }
           return false
         })
-        console.log('id', id)
         updateFileStore((state) => {
           state.pipelines = state.pipelines.filter((value) => value.id !== id)
         })
@@ -517,11 +513,31 @@ watchEffect(async () => {
       } else {
         throw new Error(t('editor.invalid-file-content'))
       }
+    } else if (file.type === 'internal') {
+      // Load internal file
+      const configResult = await api.execute('config:load', { config: file.configName })
+      if (configResult.type === 'success') {
+        fileContent = JSON.stringify(configResult.result.result)
+      } else {
+        console.error('Failed to load internal file', configResult)
+        continue
+      }
+    } else if (file.type === 'pipelab-cloud') {
+      // Cloud loading not implemented yet
+      continue
     } else {
       throw new Error(t('home.invalid-file-type'))
     }
 
-    const content = JSON.parse(fileContent) as SavedFile
+    if (!fileContent) {
+      throw new Error(t('editor.invalid-file-content'))
+    }
+
+    const _content = JSON.parse(fileContent) as SavedFile
+
+    const content = await savedFileMigrator.migrate(_content)
+
+    console.log('content', content)
 
     if (file.type === 'external') {
       result.push({
@@ -532,6 +548,15 @@ watchEffect(async () => {
         id: file.id,
         content: content,
         project: file.project
+      })
+    } else if (file.type === 'internal') {
+      result.push({
+        lastModified: file.lastModified,
+        type: file.type,
+        id: file.id,
+        content: content,
+        project: file.project,
+        configName: file.configName
       })
     }
   }
@@ -552,142 +577,65 @@ watch(
   { immediate: true }
 )
 
-const openFile = async () => {
-  const pathsResult = await api.execute(
-    'dialog:showOpenDialog',
-    {
-      title: t('home.choose-a-new-path'),
-      properties: ['openFile'],
-      filters: [{ name: t('home.pipelab-project'), extensions: [PROJECT_EXTENSION] }]
-    }
-    // async (_, message) => {
-    //   const { type } = message
-    //   if (type === 'end') {
-    //     //
-    //   }
-    // }
-  )
-
-  if (pathsResult.type === 'error') {
-    throw new Error(pathsResult.ipcError)
-  }
-
-  const paths = pathsResult.result
-
-  if (!paths.canceled) {
-    if (paths.filePaths.length === 1) {
-      const fileToRead = paths.filePaths[0]
-      let newId = nanoid()
-
-      const alreadyAddedPaths = files.value.pipelines.map((file) => {
-        if (file.type === 'external') {
-          return {
-            ...file
-          }
-        }
-      })
-
-      const foundElement = alreadyAddedPaths.find((x) => x.path === fileToRead)
-
-      if (foundElement) {
-        newId = foundElement.id
-      }
-      // save file to store
-      updateFileStore((state) => {
-        state.pipelines.push({
-          lastModified: new Date().toISOString(),
-          path: fileToRead,
-          summary: {
-            description: '',
-            name: '',
-            plugins: []
-          },
-          type: 'external',
-          project: activeProject.value.id,
-          id: newId
-        })
-      })
-
-      await router.push({
-        name: 'Editor',
-        params: {
-          id: newId
-        }
-      })
-    } else {
-      console.error(t('home.invalid-number-of-paths-selected'))
-    }
-  }
-}
-
 const newProjectName = ref('')
-const newProjectNamePathified = computed(() => {
-  return kebabCase(newProjectName.value)
-})
-
-type Item = {
-  label: string
-  value: string
-  description: string
-  icon: string
-  disabled?: boolean
-  isPremium?: boolean
-}
 
 const authStore = useAuth()
-const {
-  isLoadingSubscriptions,
-  hasCloudSaveBenefit,
-  hasBuildHistoryBenefit,
-  hasMultipleProjectsBenefit
-} = storeToRefs(authStore)
+const { hasCloudSaveBenefit, hasBuildHistoryBenefit, hasMultipleProjectsBenefit } =
+  storeToRefs(authStore)
 
-const newPipelineType = ref<Item>()
-const newPipelineTypes = computed<Item[]>(() => {
-  return [
-    {
-      label: t('home.local'),
-      value: 'local',
-      description: t('home.store-project-locally'),
-      icon: 'mdi mdi-folder',
+const projectMode = computed(() => (hasSimplePipelines ? 'simple' : 'advanced'))
+console.log('projectMode', projectMode.value)
+const isSimpleProjectCreation = computed(() => projectMode.value === 'simple')
+const projectModes = computed(() => [
+  { label: t('home.simple-pipeline'), value: 'simple' },
+  { label: t('home.advanced-pipeline'), value: 'advanced' }
+])
+
+watch(projectMode, (mode) => {
+  if (mode === 'simple') {
+    // Inject and select simple preset
+    newPipelinePresets.value['simple'] = {
+      data: {
+        version: '4.0.0',
+        type: 'simple',
+        name: 'Simple Pipeline',
+        description: 'A simplified editor for quick projects',
+        canvas: { blocks: [], triggers: [] },
+        variables: [],
+        source: { type: 'c3-html', path: '' },
+        packaging: { enabled: false },
+        publishing: {
+          steam: { enabled: false },
+          itch: { enabled: false },
+          poki: { enabled: false }
+        }
+      },
+      hightlight: true,
       disabled: false
-    },
-    {
-      label: t('home.cloud'),
-      value: 'cloud',
-      icon: 'mdi mdi-cloud',
-      // eslint-disable-next-line no-constant-binary-expression
-      disabled: true || !hasCloudSaveBenefit,
-      isPremium: true,
-      description: t('home.store-project-on-the-cloud')
     }
-  ]
+    newProjectPreset.value = 'simple'
+  } else {
+    // Clear simple preset selection if switching to advanced
+    if (newProjectPreset.value === 'simple') {
+      newProjectPreset.value = undefined
+    }
+  }
 })
+
+const isCloudProject = ref(false)
 
 const newProjectPreset = ref<string>()
 const newPipelinePresets = ref<Presets>({})
 
-const newProjectLocalLocation = ref<string>()
 const newProjectData = ref<SavedFile>()
 
 /**
- * Create a new project
- * save it to the repo
- * and save it to user location
+ * Open new project dialog
  */
-const createProject = async () => {
+const openNewProjectDialog = async () => {
   newProjectName.value = ''
-  // show dialog
-  isNewProjectModalVisible.value = true
-}
+  projectMode.value = 'simple' // Default to simple
 
-/**
- * Create a new project
- * save it to the repo
- * and save it to user location
- */
-const newFile = async () => {
-  newProjectName.value = ''
   // find presets
   const presetsResult = await api.execute('presets:get')
 
@@ -700,7 +648,6 @@ const newFile = async () => {
   // show dialog
   isNewPipelineModalVisible.value = true
 }
-
 const onNewProjectCreation = async () => {
   const projectId = nanoid()
   updateFileStore((state) => {
@@ -749,43 +696,50 @@ const onRenameProject = async () => {
 const onNewFileCreation = async (
   preset: SavedFile = newPipelinePresets.value[newProjectPreset.value].data
 ) => {
-  let pipelineId = nanoid()
+  const pipelineId = nanoid()
 
   if (!preset) {
     throw new Error(t('home.invalid-preset'))
   }
 
-  const alreadyAddedPaths = files.value.pipelines.map((file) => {
-    if (file.type === 'external') {
-      return {
-        ...file,
-        id: file.id
-      }
-    }
-  })
-
-  const foundExisting = alreadyAddedPaths.find((x) => x.path === newProjectLocalLocation.value)
-
-  if (foundExisting && foundExisting.type === 'external') {
-    pipelineId = foundExisting.id
-  }
-
   const projectId = activeProject.value.id
+  let pathOrConfigName = ''
+  const type: SaveLocation['type'] = isCloudProject.value ? 'pipelab-cloud' : 'internal'
+
+  if (type === 'internal') {
+    pathOrConfigName = `pipeline-${pipelineId}`
+  }
 
   // update file store
   updateFileStore((state) => {
-    state.pipelines.push({
-      lastModified: new Date().toISOString(),
-      path: newProjectLocalLocation.value,
-      summary: {
-        description: '',
-        name: newProjectName.value,
-        plugins: []
-      },
-      type: 'external',
-      project: projectId,
-      id: pipelineId
-    })
+    if (type === 'internal') {
+      state.pipelines.push({
+        lastModified: new Date().toISOString(),
+        configName: pathOrConfigName,
+        type: 'internal',
+        project: projectId,
+        id: pipelineId
+      })
+    } else if (type === 'pipelab-cloud') {
+      state.pipelines.push({
+        type: 'pipelab-cloud',
+        project: projectId,
+        id: pipelineId
+      })
+    } else {
+      state.pipelines.push({
+        lastModified: new Date().toISOString(),
+        path: pathOrConfigName,
+        summary: {
+          description: '',
+          name: newProjectName.value,
+          plugins: []
+        },
+        type: 'external',
+        project: projectId,
+        id: pipelineId
+      })
+    }
   })
 
   const updatedPreset: Preset = {
@@ -795,28 +749,55 @@ const onNewFileCreation = async (
   } satisfies Preset
 
   // write file
-  await api.execute('fs:write', {
-    path: newProjectLocalLocation.value,
-    content: JSON.stringify(updatedPreset)
-  })
+  if (type === 'internal') {
+    await api.execute('config:save', {
+      config: pathOrConfigName,
+      data: JSON.stringify(updatedPreset)
+    })
+  } else if (type === 'pipelab-cloud') {
+    // TODO:
+  }
 
-  await router.push({
-    name: 'Editor',
-    params: {
-      pipelineId: pipelineId,
-      projectId: projectId
-    }
-  })
+  if (updatedPreset.type === 'simple') {
+    await router.push({
+      name: 'SimpleEditor',
+      params: {
+        pipelineId: pipelineId,
+        projectId: projectId
+      }
+    })
+  } else {
+    await router.push({
+      name: 'Editor',
+      params: {
+        pipelineId: pipelineId,
+        projectId: projectId
+      }
+    })
+  }
 }
 
 const loadExisting = async (id: string) => {
-  await router.push({
-    name: 'Editor',
-    params: {
-      pipelineId: id,
-      projectId: activeProject.value.id
-    }
-  })
+  // Find the file to check its type
+  const enhancedFile = filesEnhanced.value.find((f) => f.id === id)
+
+  if (enhancedFile && enhancedFile.content.type === 'simple') {
+    await router.push({
+      name: 'SimpleEditor',
+      params: {
+        pipelineId: id,
+        projectId: activeProject.value.id
+      }
+    })
+  } else {
+    await router.push({
+      name: 'Editor',
+      params: {
+        pipelineId: id,
+        projectId: activeProject.value.id
+      }
+    })
+  }
 }
 
 const handleRowClick = (event: any) => {
@@ -895,6 +876,14 @@ const menuItems = computed(() => [
     }
   },
   {
+    label: t('home.migrate-to-internal'),
+    icon: 'mdi mdi-folder-move',
+    command: () => {
+      if (selectedPipelineForMenu.value) migratePipeline(selectedPipelineForMenu.value)
+    },
+    visible: shouldMigrate === true && selectedPipelineForMenu.value?.type === 'external'
+  },
+  {
     label: t('home.transfer'),
     icon: 'mdi mdi-folder-move',
     command: () => {
@@ -943,6 +932,46 @@ const duplicateProject = async (file: SavedFile) => {
   newProjectName.value = file.name + ' (copy)'
   newProjectData.value = file
   isNewPipelineModalVisible.value = true
+}
+
+const migratePipeline = async (file: EnhancedFile) => {
+  confirm.require({
+    message: t('home.confirm-migration-message'),
+    header: t('home.migrate-pipeline'),
+    icon: 'pi pi-info-circle',
+    rejectClass: 'p-button-secondary p-button-outlined',
+    acceptClass: 'p-button-primary',
+    accept: async () => {
+      const newConfigName = `pipeline-${nanoid()}`
+
+      // Save content to internal config
+      await api.execute('config:save', {
+        config: newConfigName,
+        data: JSON.stringify(file.content)
+      })
+
+      // Update store: replace external pipeline definition with internal one
+      updateFileStore((state) => {
+        const index = state.pipelines.findIndex((p) => p.id === file.id)
+        if (index !== -1) {
+          state.pipelines[index] = {
+            id: file.id,
+            project: file.project,
+            lastModified: new Date().toISOString(),
+            type: 'internal',
+            configName: newConfigName
+          }
+        }
+      })
+
+      toast.add({
+        severity: 'success',
+        summary: t('base.success'),
+        detail: t('home.migration-success'),
+        life: 3000
+      })
+    }
+  })
 }
 
 const viewProjectBuildHistory = async (file: EnhancedFile) => {

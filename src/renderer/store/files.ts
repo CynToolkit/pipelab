@@ -130,7 +130,6 @@ export const useFiles = defineStore('files', () => {
       }
       try {
         const filerepo = await fileRepoMigrations.migrate(data.result.result)
-        console.log('filerepo', filerepo)
         files.value = filerepo
       } catch (e) {
         if (e instanceof ValiError) {

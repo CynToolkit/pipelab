@@ -140,7 +140,6 @@ onMounted(async () => {
   isLoading.value = true
 
   await filesStore.load()
-  console.log('filesStore.files', filesStore.files)
   await init()
   await initSettings()
   console.log(

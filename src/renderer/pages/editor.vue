@@ -299,7 +299,7 @@
 
     <BuildHistoryDialog
       v-model:visible="showBuildHistoryDialog"
-      :pipeline-id="id"
+      :pipeline-id="pipelineId"
       @hide="showBuildHistoryDialog = false"
     />
   </div>
@@ -316,7 +316,7 @@ import NodesEditor from '@renderer/pages/nodes-editor.vue'
 import EditorNodeDummy from '@renderer/components/nodes/EditorNodeDummy.vue'
 import { storeToRefs } from 'pinia'
 import { useRouter } from 'vue-router'
-import { BlockAction, BlockCondition, BlockLoop, SavedFile } from '@@/model'
+import { BlockAction, BlockCondition, BlockLoop, SavedFile, SavedFileDefault } from '@@/model'
 import { useAPI } from '@renderer/composables/api'
 import { useToast } from 'primevue/usetoast'
 import { tinykeys } from 'tinykeys'
@@ -345,6 +345,8 @@ type Param = ValueOf<BlockAction['params']>
 
 const router = useRouter()
 const openUpgradeDialog = inject('openUpgradeDialog') as () => void
+
+const api = useAPI()
 
 const fancyAnsi = new FancyAnsi()
 
@@ -398,26 +400,44 @@ const keyToNodeName = (key: string) => {
 watch(
   [projectId, pipelineId],
   async () => {
-    console.log('projectId', projectId.value)
-    console.log('pipelineId', pipelineId.value)
     const file = files.value.pipelines.find((x) => x.id === pipelineId.value)
 
-    if (file && file.type === 'external') {
-      const { path: filePath } = file
+    if (file) {
+      if (file.type === 'external') {
+        const { path: filePath } = file
 
-      const fileDataResult = await loadExternalFile(filePath)
+        const fileDataResult = await loadExternalFile(filePath)
 
-      if (fileDataResult.type === 'error') {
-        throw new Error(fileDataResult.ipcError)
-      }
+        if (fileDataResult.type === 'error') {
+          throw new Error(fileDataResult.ipcError)
+        }
 
-      const fileData = fileDataResult.result
+        const fileData = fileDataResult.result
 
-      if ('content' in fileData) {
-        const content = JSON.parse(fileData.content) as SavedFile
-        await loadSavedFile(content)
-      } else {
-        throw new Error(t('editor.invalid-file-content'))
+        if ('content' in fileData) {
+          const content = JSON.parse(fileData.content) as SavedFile
+          await loadSavedFile(content)
+        } else {
+          throw new Error(t('editor.invalid-file-content'))
+        }
+      } else if (file.type === 'internal') {
+        const { configName } = file
+
+        const configResult = await api.execute('config:load', { config: configName })
+
+        if (configResult.type === 'error') {
+          throw new Error(configResult.ipcError)
+        }
+
+        const fileData = configResult.result
+
+        try {
+          const content = fileData.result as SavedFile
+          await loadSavedFile(content)
+        } catch (e) {
+          console.error('error', e)
+          throw new Error(t('editor.invalid-file-content'))
+        }
       }
     }
   },
@@ -429,8 +449,6 @@ watch(
 const toast = useToast()
 
 const currentLogAccordion = ref()
-
-const api = useAPI()
 
 const { setActiveNode } = instance
 const { activeNode } = storeToRefs(instance)
@@ -577,6 +595,8 @@ const run = async () => {
 const onSaveRequest = async () => {
   if (currentFilePointer.value.type === 'external') {
     await saveLocal(currentFilePointer.value.path)
+  } else if (currentFilePointer.value.type === 'internal') {
+    await saveInternal(currentFilePointer.value.configName)
   } else {
     // TODO: save to cloud
     throw new Error('TODO')
@@ -600,15 +620,16 @@ const navigateToBuildHistory = async () => {
 }
 
 const saveLocal = async (path: string) => {
-  const result: SavedFile = {
-    version: '3.0.0',
+  const result: SavedFileDefault = {
+    version: '4.0.0',
     name: name.value,
     description: '',
     canvas: {
       blocks: nodes.value,
       triggers: triggers.value
     },
-    variables: variables.value
+    variables: variables.value,
+    type: 'default'
   }
 
   console.log('result', result)
@@ -624,9 +645,50 @@ const saveLocal = async (path: string) => {
     }
   })
 
-  new Notification(t('editor.project-saved'), {
-    body: t('editor.your-project-has-be-saved-successfully')
+  toast.add({
+    severity: 'success',
+    summary: t('editor.project-saved'),
+    detail: t('editor.your-project-has-be-saved-successfully')
   })
+}
+
+const saveInternal = async (configName: string) => {
+  const result: SavedFileDefault = {
+    version: '4.0.0',
+    name: name.value,
+    description: '',
+    canvas: {
+      blocks: nodes.value,
+      triggers: triggers.value
+    },
+    variables: variables.value,
+    type: 'default'
+  }
+
+  try {
+    await api.execute('config:save', {
+      config: configName,
+      data: JSON.stringify(result)
+    })
+
+    await update((state) => {
+      const data = state.pipelines.find((x) => x.id === pipelineId.value)
+      if (data.type === 'external' || data.type === 'internal') {
+        data.lastModified = new Date().toISOString()
+      } else {
+        throw new Error('Invalid file type')
+      }
+    })
+
+    toast.add({
+      severity: 'success',
+      summary: t('editor.project-saved'),
+      detail: t('editor.your-project-has-be-saved-successfully')
+    })
+  } catch (e) {
+    console.error('error', e)
+    throw new Error(t('editor.project-has-encountered-an-error'))
+  }
 }
 
 // TODO: proper alert and prompt

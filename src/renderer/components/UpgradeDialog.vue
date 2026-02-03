@@ -14,7 +14,7 @@
       <!-- Error state -->
       <div v-else-if="error" class="error-state">
         <p class="error-message">{{ error }}</p>
-        <button @click="fetchPlansFromPolar" class="retry-button">Retry</button>
+        <button class="retry-button" @click="fetchPlansFromPolar">Retry</button>
       </div>
 
       <!-- Plans display -->
@@ -28,8 +28,8 @@
           <div class="plan-header">
             <h3>{{ plan.name }}</h3>
             <div v-for="(price, pIndex) in plan.prices" :key="pIndex">
-              <span class="price" v-if="price.amountType === 'free'">Free</span>
-              <span class="price" v-else>
+              <span v-if="price.amountType === 'free'" class="price">Free</span>
+              <span v-else class="price">
                 {{ price.priceAmount / 100 }} {{ price.priceCurrency }} /
                 {{ price.recurringInterval }}
               </span>
@@ -42,7 +42,7 @@
               </li>
             </ul>
           </div>
-          <button @click="upgradeToPlan(plan)" class="plan-button" :disabled="plan.name === 'Free'">
+          <button class="plan-button" :disabled="plan.name === 'Free'" @click="upgradeToPlan(plan)">
             {{ plan.name === 'Free' ? 'Current Plan' : `Upgrade to ${plan.name}` }}
           </button>
         </div>
@@ -73,7 +73,7 @@ const fetchPlansFromPolar = async () => {
     error.value = null
 
     // Call the actual polar-available-plans cloud function
-    const { data, error: apiError } = await supabase.functions.invoke('polar-available-plans')
+    const { data, error: apiError } = await supabase().functions.invoke('polar-available-plans')
 
     if (apiError) {
       throw apiError
@@ -91,7 +91,7 @@ const fetchPlansFromPolar = async () => {
 
 const upgradeToPlan = async (plan: any) => {
   console.log(plan)
-  const result = await supabase.functions.invoke('checkout', {
+  const result = await supabase().functions.invoke('checkout', {
     body: {
       itemIds: [plan.id]
     }

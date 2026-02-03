@@ -83,7 +83,6 @@ export class Migrator<InitialState extends MigrationSchema, OutputState extends 
     options?: MigrateOptions
   ): Promise<OutputState> {
     const state = _state ?? this.defaultValue
-    console.log('state', state)
     const currentVersion = this.tryCoerce(state.version)
     const targetVersion = this.tryCoerce(options?.target ?? this.current)
 

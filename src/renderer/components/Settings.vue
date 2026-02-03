@@ -320,7 +320,7 @@ const isBillingPortalUrlLoading = ref(false)
 const openBillingPortal = async () => {
   isBillingPortalUrlLoading.value = true
   try {
-    const result = await supabase.functions.invoke('customer-portal')
+    const result = await supabase().functions.invoke('customer-portal')
     console.log('result', result)
     window.open(result.data.customerPortal)
   } catch (error) {

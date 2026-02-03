@@ -268,6 +268,9 @@ if (config.enableSteamSupport) {
   try {
     client = steamworks.init(config.steamGameId)
     console.log(client.localplayer.getName())
+    client.callback.register(client.callback.SteamCallback.GameOverlayActivated, () => {
+      console.log('GameOverlayActivated')
+    })
   } catch (e) {
     console.error('e', e)
   }

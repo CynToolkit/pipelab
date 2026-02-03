@@ -98,7 +98,18 @@
     "duplicate": "Duplicate",
     "rename-project": "Rename Project",
     "new-project-name": "New Project Name",
-    "premium-feature": "This is a premium feature"
+    "premium-feature": "This is a premium feature",
+    "migrate-warning": "This file type will soon be not supported anymore. Please migrate it using the option from the menu",
+    "simple-pipeline": "Simple pipeline",
+    "advanced-pipeline": "Advanced pipeline",
+    "new-simple-project": "New simple project",
+    "new-advanced-project": "New advanced project",
+    "store-project-internally": "Store project internally",
+    "internal": "Internal",
+    "confirm-migration-message": "Are you sure you want to migrate this pipeline to internal storage? This will create a copy in the internal storage managed by Pipelab.",
+    "migrate-pipeline": "Migrate Pipeline",
+    "migration-success": "Pipeline migrated successfully",
+    "migrate-to-internal": "Migrate to Internal"
   },
   "scenarios": {
     "scenarios": "Scenarios"

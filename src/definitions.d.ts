@@ -32,6 +32,7 @@ declare namespace DesktopApp {
      */
     customPackages?: string[]
     backgroundColor: string
+    enableDoctor: boolean
   }
 
   interface Electron extends Config {

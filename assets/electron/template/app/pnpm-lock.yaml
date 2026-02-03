@@ -18,8 +18,8 @@ importers:
         specifier: 3.2.13
         version: 3.2.13
       '@pipelab/steamworks.js':
-        specifier: ^0.8.0
-        version: 0.8.0
+        specifier: ^0.9.1
+        version: 0.9.1
       discord-rpc:
         specifier: ^4.0.1
         version: 4.0.1(encoding@0.1.13)
@@ -256,8 +256,8 @@ packages:
   '@pipelab/core@1.4.9':
     resolution: {integrity: sha512-eHz2UNZrDeaTUHS5BL4Mc6c2yBWt7N7xQ2hT0gu2UnAHsWO2QL/j2SVyyaYwGY9m6Ht6jXPXBwD0cngVWVy5vQ==}
 
-  '@pipelab/steamworks.js@0.8.0':
-    resolution: {integrity: sha512-ubmQGqH7t38/CcyIjK8roCDAzBX8xWG1nBQJw8t9bmRmzMTGeHlDkNTQJxIT9uak6t7dC8jFupPIvEnASHbCOA==}
+  '@pipelab/steamworks.js@0.9.1':
+    resolution: {integrity: sha512-IHIcpSUoqmNvdT765JRVPUexLdFqew3beAZ+F7w7eMS7PsrH6Ust7VEYKIg3/cnhGIkGQHBlmH7ChwVR35hNJQ==}
     engines: {node: '>= 14'}
 
   '@sec-ant/readable-stream@0.4.1':
@@ -1676,6 +1676,7 @@ packages:
   tar@6.2.1:
     resolution: {integrity: sha512-DZ4yORTwrbTj/7MZYq2w+/ZFdI6OZ/f9SFHR+71gIVUZhOQPHzVCLpvRnPgyaMpfWxxk/4ONva3GQSyNIKRv6A==}
     engines: {node: '>=10'}
+    deprecated: Old versions of tar are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exhorbitant rates) by contacting i@izs.me
 
   temp@0.9.4:
     resolution: {integrity: sha512-yYrrsWnrXMcdsnu/7YMYAofM1ktpL5By7vZhf15CrXijWWrEYZks5AXBudalfSWJLlnen/QUJUB5aoB0kqZUGA==}
@@ -2265,7 +2266,7 @@ snapshots:
 
   '@pipelab/core@1.4.9': {}
 
-  '@pipelab/steamworks.js@0.8.0':
+  '@pipelab/steamworks.js@0.9.1':
     dependencies:
       '@types/node': 22.10.5
 
