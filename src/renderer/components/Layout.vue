@@ -100,7 +100,7 @@
                     label="Sign In"
                     color="primary"
                     class="w-full p-3 text-lg mb-2"
-                    :loading="authState === 'LOADING'"
+                    :loading="isAuthenticating"
                     @click="onSubmit"
                   />
                   <Button
@@ -334,7 +334,8 @@ const {
   isAuthModalVisible,
   authModalTitle,
   authModalSubTitle,
-  isLoadingSubscriptions
+  isLoadingSubscriptions,
+  isAuthenticating
 } = storeToRefs(auth)
 const isSettingsModalVisible = ref(false)
 

@@ -52,7 +52,8 @@
     "delete": "Delete",
     "logs": "Logs",
     "ok": "OK",
-    "add": "Add"
+    "add": "Add",
+    "search": "Search..."
   },
   "editor": {
     "invalid-file-content": "Invalid file content",
@@ -64,7 +65,9 @@
     "project-has-encountered-an-error": "Project has encountered an error:",
     "project-saved": "Project saved",
     "your-project-has-be-saved-successfully": "Your project has be saved successfully",
-    "view-history": "History"
+    "view-history": "History",
+    "add-plugin": "Add plugin",
+    "display-advanced-nodes": "Display advanced nodes"
   },
   "home": {
     "invalid-preset": "Invalid preset",

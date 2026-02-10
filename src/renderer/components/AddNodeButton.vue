@@ -21,7 +21,7 @@
       modal
       header=""
       :style="{ width: '60%', maxWidth: '800px' }"
-      :contentStyle="{ padding: '1rem' }"
+      :content-style="{ padding: '1rem' }"
       :breakpoints="{ '960px': '75vw', '641px': '90vw' }"
     >
       <template #header>
@@ -99,7 +99,7 @@
         <div class="footer pt-4">
           <div class="flex justify-content-start gap-2">
             <Checkbox id="advanced-nodes-checkbox" v-model="displayAdvancedNodes" :binary="true" />
-            <label for="advanced-nodes-checkbox"> Display advanced nodes </label>
+            <label for="advanced-nodes-checkbox"> {{ $t('editor.display-advanced-nodes') }} </label>
           </div>
 
           <div class="flex justify-content-end gap-2">

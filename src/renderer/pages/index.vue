@@ -51,8 +51,8 @@
 
         <div class="your-projects">
           <div v-if="!isLoading && filesEnhanced.length === 0" class="no-projects">
-            <div>{{ $t('home.no-pipelines-yet') }}</div>
-            <Button @click="openNewProjectDialog">
+            <div class="no-pipelines-text">{{ $t('home.no-pipelines-yet') }}</div>
+            <Button severity="secondary" variant="outlined" @click="openNewProjectDialog">
               <i class="mdi mdi-plus-circle-outline mr-2"></i>
               {{ $t('home.new-pipeline') }}
             </Button>
@@ -888,7 +888,8 @@ const menuItems = computed(() => [
     icon: 'mdi mdi-folder-move',
     command: () => {
       openTransferDialog()
-    }
+    },
+    visible: projects.value.length > 1
   },
   {
     separator: true
@@ -1078,6 +1079,7 @@ const selectedPipelineId = ref<string>()
   justify-content: center;
   gap: 8px;
   margin-top: 32px;
+  height: 100%;
 }
 
 .presets {
@@ -1157,6 +1159,13 @@ const selectedPipelineId = ref<string>()
   &__table {
     flex: 1;
     height: 100%;
+  }
+
+  .no-pipelines-text {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 8px;
+    color: #666;
   }
 }
 
