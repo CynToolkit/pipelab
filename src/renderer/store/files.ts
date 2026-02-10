@@ -124,7 +124,8 @@ export const useFiles = defineStore('files', () => {
     const data = await loadConfig()
 
     if (data.type === 'success') {
-      if (fileRepoMigrations.needMigration(data.result.result.version)) {
+      // TODO: beter typing for "data.result.result.version"
+      if (fileRepoMigrations.needMigration(data.result.result.version ?? '0.0.0')) {
         console.log('backing up')
         backupConfig(data.result.result.version)
       }
