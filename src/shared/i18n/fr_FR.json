@@ -48,7 +48,8 @@
     "end": "Fin",
     "delete": "Supprimer",
     "logs": "Logs",
-    "ok": "OK"
+    "ok": "OK",
+    "add": "Ajouter"
   },
   "editor": {
     "invalid-file-content": "Contenu du fichier invalide",

@@ -105,11 +105,11 @@
           <div class="flex justify-content-end gap-2">
             <Button
               type="button"
-              label="Cancel"
+              :label="$t('base.cancel')"
               severity="secondary"
               @click="visible = false"
             ></Button>
-            <Button type="button" label="Ajouter" @click="onAdd"></Button>
+            <Button type="button" :label="$t('base.add')" @click="onAdd"></Button>
           </div>
         </div>
       </template>

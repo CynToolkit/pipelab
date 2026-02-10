@@ -41,14 +41,15 @@
     "team": "Team"
   },
   "base": {
-    "close": "Close",
-    "save": "Save",
-    "run": "Run",
-    "cancel": "Cancel",
-    "end": "End",
-    "delete": "Delete",
-    "logs": "Logs",
-    "ok": "OK"
+    "close": "关闭",
+    "save": "保存",
+    "run": "运行",
+    "cancel": "取消",
+    "end": "结束",
+    "delete": "删除",
+    "logs": "日志",
+    "ok": "确定",
+    "add": "添加"
   },
   "editor": {
     "invalid-file-content": "Invalid file content",
