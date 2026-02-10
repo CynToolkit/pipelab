@@ -44,14 +44,16 @@
     "build-history": "Build History"
   },
   "base": {
-    "close": "Close",
-    "save": "Save",
-    "run": "Run",
-    "cancel": "Cancel",
-    "end": "End",
-    "delete": "Delete",
+    "close": "Fechar",
+    "save": "Salvar",
+    "run": "Executar",
+    "cancel": "Cancelar",
+    "end": "Fim",
+    "delete": "Excluir",
     "logs": "Logs",
-    "ok": "OK"
+    "ok": "OK",
+    "add": "Adicionar",
+    "search": "Search..."
   },
   "editor": {
     "invalid-file-content": "Invalid file content",
@@ -63,7 +65,9 @@
     "project-has-encountered-an-error": "Project has encountered an error:",
     "project-saved": "Project saved",
     "your-project-has-be-saved-successfully": "Your project has be saved successfully",
-    "view-history": "History"
+    "view-history": "History",
+    "add-plugin": "Add plugin",
+    "display-advanced-nodes": "Display advanced nodes"
   },
   "home": {
     "invalid-preset": "Invalid preset",
@@ -82,8 +86,34 @@
     "new-pipeline": "New pipeline",
     "open": "Open",
     "import": "Import",
+    "pipeline-name": "Pipeline Name",
     "your-projects": "Your projects",
-    "no-projects-yet": "No projects yet"
+    "no-projects-yet": "No projects yet",
+    "no-pipelines-yet": "No pipelines yet",
+    "delete-project": "Delete project",
+    "confirm-delete-project": "Are you sure you want to delete this project? This action cannot be undone.",
+    "cannot-delete-project": "Cannot delete project",
+    "project-not-empty": "This project contains pipelines. Please delete them first.",
+    "transfer": "Transfer",
+    "transfer-successful": "Transfer Successful",
+    "pipeline-transferred": "Pipeline transferred successfully",
+    "select-project": "Select Project",
+    "build-history": "Build History",
+    "duplicate": "Duplicate",
+    "rename-project": "Rename Project",
+    "new-project-name": "New Project Name",
+    "premium-feature": "This is a premium feature",
+    "migrate-warning": "This file type will soon be not supported anymore. Please migrate it using the option from the menu",
+    "simple-pipeline": "Simple pipeline",
+    "advanced-pipeline": "Advanced pipeline",
+    "new-simple-project": "New simple project",
+    "new-advanced-project": "New advanced project",
+    "store-project-internally": "Store project internally",
+    "internal": "Internal",
+    "confirm-migration-message": "Are you sure you want to migrate this pipeline to internal storage? This will create a copy in the internal storage managed by Pipelab.",
+    "migrate-pipeline": "Migrate Pipeline",
+    "migration-success": "Pipeline migrated successfully",
+    "migrate-to-internal": "Migrate to Internal"
   },
   "scenarios": {
     "scenarios": "Scenarios"
