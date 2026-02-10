@@ -33,6 +33,7 @@ declare namespace DesktopApp {
     customPackages?: string[]
     backgroundColor: string
     enableDoctor: boolean
+    serverMode: 'default' | 'customProtocol'
   }
 
   interface Electron extends Config {

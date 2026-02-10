@@ -43,6 +43,8 @@ module.exports = class PipelabPlugin extends PluginBase {
       const appName = config.packagerConfig.name
       console.log('appName', appName)
       const doctorBatContent = `@echo off
+pushd "%~dp0"
+
 echo ${appName} Doctor - Checking prerequisites...
 echo.
 
@@ -65,14 +67,12 @@ echo OK: VC++ Redistributable found.
 echo.
 
 echo 3. Checking DirectX version...
-dxdiag /t %temp%\\dxdiag.txt >nul 2>&1
-find "DirectX Version" %temp%\\dxdiag.txt
+reg query "HKLM\\SOFTWARE\\Microsoft\\DirectX" /v Version >nul 2>&1
 if %errorlevel%==0 (
   echo OK: DirectX detected.
 ) else (
-  echo ERROR: DirectX not detected.
+  echo ERROR: DirectX registry key not found.
 )
-del %temp%\\dxdiag.txt 2>nul
 echo.
 
 echo 4. Checking Vulkan...
@@ -85,19 +85,24 @@ echo.
 
 echo 5. GPU Information:
 echo All GPUs:
-wmic path win32_videocontroller get name,adapterram,driverversion
-echo.
-echo Current GPU (primary adapter):
-for /f "tokens=*" %i in ('wmic path win32_videocontroller where "Availability=3" get name /value ^| find "Name="') do echo %i
+powershell -NoProfile -Command "Get-CimInstance Win32_VideoController | Select-Object Name, AdapterRAM, DriverVersion | Format-Table -AutoSize"
 echo.
 
 echo All prerequisites met. Starting ${appName}...
 echo Logs will be displayed and saved to ${appName.toLowerCase()}-debug.log
-powershell -command "& { .\\${appName}.exe --enable-logging *>&1 | tee ${appName.toLowerCase()}-debug.log }"
 echo.
 
-echo ${appName} has exited. Logs saved to ${appName.toLowerCase()}-debug.log
+powershell -NoProfile -ExecutionPolicy Bypass -Command "cmd /c '${appName}.exe --enable-logging 2>&1' | Tee-Object -FilePath '${appName.toLowerCase()}}-debug.log'"
+
+echo.
+if %ERRORLEVEL% NEQ 0 (
+    echo [ERROR] ${appName} exited with error code: %ERRORLEVEL%
+) else (
+    echo ${appName} has exited. Logs saved to ${appName.toLowerCase()}}-debug.log
+)
+
 :end
+popd
 pause`
       const doctorBatPath = path.join(result.outputPaths[0], 'doctor.bat')
       await fs.writeFile(doctorBatPath, doctorBatContent, 'utf8')

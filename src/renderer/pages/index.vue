@@ -184,7 +184,7 @@
               </div>
 
               <div class="buttons">
-                <Button :disabled="!canCreateProject" @click="onNewProjectCreation()">{{
+                <Button :disabled="!canCreateProject" @click="onNewProjectCreation">{{
                   $t('home.create-project')
                 }}</Button>
               </div>
@@ -583,7 +583,7 @@ const authStore = useAuth()
 const { hasCloudSaveBenefit, hasBuildHistoryBenefit, hasMultipleProjectsBenefit } =
   storeToRefs(authStore)
 
-const projectMode = computed(() => (hasSimplePipelines ? 'simple' : 'advanced'))
+const projectMode = ref(hasSimplePipelines ? 'simple' : 'advanced')
 console.log('projectMode', projectMode.value)
 const isSimpleProjectCreation = computed(() => projectMode.value === 'simple')
 const projectModes = computed(() => [
@@ -634,7 +634,7 @@ const newProjectData = ref<SavedFile>()
  */
 const openNewProjectDialog = async () => {
   newProjectName.value = ''
-  projectMode.value = 'simple' // Default to simple
+  projectMode.value = 'advanced' // Default to advanced TODO:
 
   // find presets
   const presetsResult = await api.execute('presets:get')
@@ -665,7 +665,7 @@ const onNewProjectCreation = async () => {
 
 const onCreateProjectClick = () => {
   if (hasMultipleProjectsBenefit.value) {
-    createProject()
+    isNewProjectModalVisible.value = true
   } else {
     openUpgradeDialog()
   }

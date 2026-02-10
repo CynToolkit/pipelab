@@ -2,7 +2,10 @@
 
 import { app, BrowserWindow, ipcMain, safeStorage, session, shell } from 'electron'
 import { dirname, join } from 'node:path'
-// @ts-expect-error no types
+import path from 'node:path'
+import { createReadStream } from 'node:fs'
+import { stat } from 'node:fs/promises'
+import mime from 'mime-types'
 import serve from 'serve-handler'
 import { createServer } from 'http'
 import { WebSocketServer, WebSocket } from 'ws'
@@ -81,6 +84,7 @@ import { getAppName } from './utils.js'
 import infos from './handlers/general/infos.js'
 
 import semver from 'semver'
+import { protocol } from 'electron/main'
 
 /**
  * Assert switch is exhaustive
@@ -93,6 +97,19 @@ function assertUnreachable(_x) {
 }
 
 safeStorage.setUsePlainTextEncryption(true)
+
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: 'app',
+    privileges: {
+      standard: true, // Permet de résoudre les origines correctement (corrige l'erreur 'null')
+      secure: true, // Traité comme une origine sécurisée (nécessaire pour Service Workers/Web Workers)
+      supportFetchAPI: true, // Active l'API Fetch pour ce protocole
+      corsEnabled: true, // Autorise les requêtes CORS si nécessaire
+      allowServiceWorkers: true // Souvent requis par Construct 3
+    }
+  }
+])
 
 function createErrorWindow(errorMessage) {
   const errorWindow = new BrowserWindow({
@@ -268,8 +285,15 @@ if (config.enableSteamSupport) {
   try {
     client = steamworks.init(config.steamGameId)
     console.log(client.localplayer.getName())
-    client.callback.register(client.callback.SteamCallback.GameOverlayActivated, () => {
-      console.log('GameOverlayActivated')
+    client.callback.register(client.callback.SteamCallback.GameOverlayActivated, (data) => {
+      /**
+       * @type {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').FullscreenState, 'input'>}
+       */
+      const order = {
+        url: '/steam/overlay-activated',
+        body: data
+      }
+      broadcastMessage(JSON.stringify(order))
     })
   } catch (e) {
     console.error('e', e)
@@ -611,18 +635,26 @@ const createWindow = async () => {
     }
   }
 
+  // preview
   if (argUrl) {
     console.log('argUrl', argUrl)
     await createAppServer(mainWindow, false)
 
     await mainWindow?.loadURL(argUrl)
     console.log('URL loaded')
-  } else {
-    const port = await createAppServer(mainWindow)
-
-    const url = `http://localhost:${port}`
-    await mainWindow?.loadURL(url)
-    console.log('URL loaded (static)', url)
+  }
+  // prod
+  else {
+    const isCustomProtocol = config.serverMode === 'customProtocol'
+    const port = await createAppServer(mainWindow, isCustomProtocol === false)
+    if (isCustomProtocol) {
+      await mainWindow?.loadURL('app://game/index.html')
+      console.log('URL loaded (static)', 'app://game/index.html')
+    } else {
+      const url = `http://127.0.0.1:${port}`
+      await mainWindow?.loadURL(url)
+      console.log('URL loaded', url)
+    }
   }
 
   mainWindow.on('enter-full-screen', () => {
@@ -680,6 +712,67 @@ const rpcLogin = async () => {
   })
 }
 
+function registerCustomProtocol() {
+  const GAME_DIR = path.join(metaDirname, 'app')
+
+  protocol.handle('app', async (request) => {
+    let internalPath = request.url.replace('app://game/', '')
+    internalPath = internalPath.split('?')[0]
+    internalPath = decodeURIComponent(internalPath)
+
+    if (internalPath === '' || internalPath.endsWith('/')) {
+      internalPath = 'index.html'
+    }
+
+    const finalPath = path.join(GAME_DIR, internalPath)
+
+    try {
+      const stats = await stat(finalPath)
+      const mimeType = mime.lookup(finalPath) || 'application/octet-stream'
+
+      const headers = new Headers()
+      headers.set('Content-Type', mimeType)
+      headers.set('Access-Control-Allow-Origin', '*')
+      headers.set('Accept-Ranges', 'bytes')
+
+      const rangeHeader = request.headers.get('Range')
+
+      if (rangeHeader) {
+        const parts = rangeHeader.replace(/bytes=/, '').split('-')
+        const start = parseInt(parts[0], 10)
+        const end = parts[1] ? parseInt(parts[1], 10) : stats.size - 1
+        const chunkSize = end - start + 1
+
+        const stream = createReadStream(finalPath, { start, end })
+
+        headers.set('Content-Range', `bytes ${start}-${end}/${stats.size}`)
+        headers.set('Content-Length', String(chunkSize))
+
+        // @ts-expect-error streams are accepted
+        return new Response(stream, {
+          status: 206,
+          statusText: 'Partial Content',
+          headers: headers
+        })
+      }
+      // no range / streaming
+      else {
+        headers.set('Content-Length', String(stats.size))
+        const stream = createReadStream(finalPath)
+
+        // @ts-expect-error streams are accepted
+        return new Response(stream, {
+          status: 200,
+          headers: headers
+        })
+      }
+    } catch (error) {
+      console.error(`[App Protocol] Error serving ${finalPath}:`, error)
+      return new Response('Not Found', { status: 404 })
+    }
+  })
+}
+
 app.whenReady().then(async () => {
   await registerHandlers()
 
@@ -691,6 +784,8 @@ app.whenReady().then(async () => {
       console.error('e', e)
     }
   }
+
+  registerCustomProtocol()
 
   const mainWindow = await createWindow()
 

@@ -1,7 +1,12 @@
 // THIS IS STUB DEFINITION
 // WILL BE REPLACED ON BUILD
 
-/** @type {ElectronAppConfig.Config} */
+// eslint-disable-next-line @typescript-eslint/triple-slash-reference
+/// <reference path="../../../../src/definitions.d.ts" />
+
+// @ts-check
+
+/** @type {DesktopApp.Electron} */
 const config = {
   alwaysOnTop: false,
   appBundleId: 'com.pipelab.app',
@@ -33,6 +38,8 @@ const config = {
   discordAppId: '',
   enableDoctor: false,
   ignore: [],
+  serverMode: 'default',
+  backgroundColor: '#FFF'
 }
 
 module.exports = config

@@ -30,5 +30,6 @@ export const defaultElectronConfig = {
   backgroundColor: '#FFF',
   openDevtoolsOnStart: false,
   enableDoctor: false,
-  customPackages: [] as string[]
+  customPackages: [] as string[],
+  serverMode: 'default'
 } satisfies DesktopApp.Electron
