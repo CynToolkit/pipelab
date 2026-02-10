@@ -18,8 +18,8 @@ importers:
         specifier: 3.2.13
         version: 3.2.13
       '@pipelab/steamworks.js':
-        specifier: ^0.9.1
-        version: 0.9.1
+        specifier: ^0.10.0
+        version: 0.10.0
       discord-rpc:
         specifier: ^4.0.1
         version: 4.0.1(encoding@0.1.13)
@@ -262,8 +262,8 @@ packages:
   '@pipelab/core@1.4.9':
     resolution: {integrity: sha512-eHz2UNZrDeaTUHS5BL4Mc6c2yBWt7N7xQ2hT0gu2UnAHsWO2QL/j2SVyyaYwGY9m6Ht6jXPXBwD0cngVWVy5vQ==}
 
-  '@pipelab/steamworks.js@0.9.1':
-    resolution: {integrity: sha512-IHIcpSUoqmNvdT765JRVPUexLdFqew3beAZ+F7w7eMS7PsrH6Ust7VEYKIg3/cnhGIkGQHBlmH7ChwVR35hNJQ==}
+  '@pipelab/steamworks.js@0.10.0':
+    resolution: {integrity: sha512-F9u3h9asGpVbaYfx8FiA92sIZAQ+PtHuP1Azmsco9zr39oOcnKfUBQSMUuYVz4wol9tHIMQP3+cI04TUwFa37Q==}
     engines: {node: '>= 14'}
 
   '@sec-ant/readable-stream@0.4.1':
@@ -2283,7 +2283,7 @@ snapshots:
 
   '@pipelab/core@1.4.9': {}
 
-  '@pipelab/steamworks.js@0.9.1':
+  '@pipelab/steamworks.js@0.10.0':
     dependencies:
       '@types/node': 22.10.5
 
