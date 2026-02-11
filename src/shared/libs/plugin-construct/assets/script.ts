@@ -178,6 +178,30 @@ export const script = async (
   await page.waitForTimeout(2000)
   log('after wait')
 
+  if (username && password) {
+    log('Authenticating')
+    await page.getByTitle('User account').locator('ui-icon').click()
+    await page.getByRole('menuitem', { name: 'Log in' }).locator('span').click()
+    await page.frameLocator('#loginDialog iframe').getByLabel('Username').fill(username)
+    await page.frameLocator('#loginDialog iframe').getByLabel('Password').fill(password)
+
+    const tokenPromise = page.waitForResponse(/https:\/\/account.*\.construct\.net\/login.json/i)
+
+    await page.frameLocator('#loginDialog iframe').getByRole('button', { name: 'Log in' }).click()
+
+    const response = await tokenPromise
+    const jsonResponse = await response.json()
+
+    if (jsonResponse.request.status === 'error') {
+      await page.close()
+
+      throw new Error('Invalid credentials')
+    }
+    log('Authenticated')
+  }
+
+  await page.waitForTimeout(2000)
+
   const [fileChooser] = await Promise.all([
     page.waitForEvent('filechooser'),
     page.keyboard.press('ControlOrMeta+O')
@@ -239,30 +263,6 @@ export const script = async (
   })
   log('Got progress dialog to disapear')
   clearTimeout(progressInterval)
-
-  if (username && password) {
-    log('Authenticating')
-    await page.getByTitle('User account').locator('ui-icon').click()
-    await page.getByRole('menuitem', { name: 'Log in' }).locator('span').click()
-    await page.frameLocator('#loginDialog iframe').getByLabel('Username').fill(username)
-    await page.frameLocator('#loginDialog iframe').getByLabel('Password').fill(password)
-
-    const tokenPromise = page.waitForResponse(/https:\/\/account.*\.construct\.net\/login.json/i)
-
-    await page.frameLocator('#loginDialog iframe').getByRole('button', { name: 'Log in' }).click()
-
-    const response = await tokenPromise
-    const jsonResponse = await response.json()
-
-    log('jsonResponse', jsonResponse)
-
-    if (jsonResponse.request.status === 'error') {
-      await page.close()
-
-      throw new Error('Invalid credentials')
-    }
-    log('Authenticated')
-  }
 
   await page.getByRole('button', { name: 'Menu' }).click()
   await page.getByRole('menuitem', { name: 'Project' }).click()
