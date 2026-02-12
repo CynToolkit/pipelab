@@ -50,7 +50,7 @@ jobs:
         run: pnpm install
 
       - name: rebuild
-        run: npm rebuild
+        run: pnpm rebuild
 
       - name: Import Apple Code Signing Certificate
         uses: apple-actions/import-codesign-certs@v3
@@ -62,7 +62,7 @@ jobs:
       - name: Verify certificates
         if: matrix.os == 'macos-latest'
         run: |
-          security find-identity -v -p codesign
+          security find-identity -v -p codesigning
           codesign --verify --verbose /Applications/Xcode.app
 
       - name: Cache keychain
