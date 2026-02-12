@@ -258,8 +258,11 @@ if (config.forceHighPerformanceGpu) {
   app.commandLine.appendSwitch('force-high-performance-gpu')
 }
 
-// Fix stea remote play together
+// Fix steam remote play together
 app.commandLine.appendSwitch('disable-features', 'AudioServiceOutOfProcess')
+
+app.commandLine.appendSwitch('force-high-performance-gpu')
+app.commandLine.appendSwitch('disable-gpu-sandbox')
 //endregion
 
 const hasElectronVersion = config.electronVersion !== undefined && config.electronVersion !== ''

@@ -59,6 +59,19 @@ jobs:
           p12-file-base64: ${{ secrets.CERTIFICATE_OSX_APPLICATION }}
           p12-password: ${{ secrets.CERTIFICATE_OSX_APPLICATION_PASSWORD }}
 
+      - name: Verify certificates
+        if: matrix.os == 'macos-latest'
+        run: |
+          security find-identity -v -p codesign
+          codesign --verify --verbose /Applications/Xcode.app
+
+      - name: Cache keychain
+        uses: actions/cache@v4
+        if: matrix.os == 'macos-latest'
+        with:
+          path: ~/Library/Keychains
+          key: ${{ runner.os }}-keychain-${{ hashFiles('**/*.p12') }}
+
       - name: Package application
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
