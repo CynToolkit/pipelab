@@ -50,7 +50,7 @@ jobs:
         run: pnpm install
 
       - name: rebuild
-        run: pnpm rebuild
+        run: npm rebuild
 
       - name: Import Apple Code Signing Certificate
         uses: apple-actions/import-codesign-certs@v3
