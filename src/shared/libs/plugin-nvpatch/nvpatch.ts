@@ -32,6 +32,27 @@ export const NVPatch = createAction({
 export const NVPatchRunner = createActionRunner<typeof NVPatch>(
   async ({ log, inputs, paths, abortSignal, cwd }) => {
     const { join, resolve } = await import('node:path')
+    const { fileExists } = await import('@@/libs/plugin-core')
+    const { execa } = await import('execa')
+    const semver = (await import('semver')).default
+
+    const checkDotnetVersion = async (command: string) => {
+      try {
+        const { stdout } = await execa(command, ['--version'])
+        const version = stdout.trim()
+        log(`.NET version found: ${version}`)
+        if (semver.lt(semver.coerce(version) || '0.0.0', '8.0.0')) {
+          throw new Error(`.NET version 8 or higher is required. Found version ${version}.`)
+        }
+      } catch (e: unknown) {
+        if (e instanceof Error && e.message?.includes('.NET version 8 or higher is required')) {
+          throw e
+        }
+        throw new Error(
+          `.NET runtime not found (command: "${command}"). Please ensure .NET 8 or higher is installed.`
+        )
+      }
+    }
 
     // run
 
@@ -51,16 +72,29 @@ export const NVPatchRunner = createActionRunner<typeof NVPatch>(
 
       log('Trying nvpatch from', nvpatchDll)
 
+      // ensure dotnet runtime is installed
+      await checkDotnetVersion(dotnetRuntime)
+
       nvpatchCommand = 'arch'
       nvpatchArgs = ['-x86_64', dotnetRuntime, nvpatchDll, '--enable', inputs['input']]
     } else {
       // Windows: Use direct executable path with HOME instead of USERPROFILE
-      const nvpatchExe = resolve(join(process.env.USERPROFILE!, '.dotnet', 'tools', 'nvpatch.exe'))
+      const nvpatchExe = resolve(
+        join(process.env.USERPROFILE || process.env.HOME || '', '.dotnet', 'tools', 'nvpatch.exe')
+      )
 
       log('Trying nvpatch from', nvpatchExe)
 
       nvpatchCommand = nvpatchExe
       nvpatchArgs = ['--enable', inputs['input']]
+
+      // ensure the binary exists
+      if (!(await fileExists(nvpatchExe))) {
+        throw new Error(`nvpatch.exe not found at ${nvpatchExe}`)
+      }
+
+      // ensure dotnet runtime is installed
+      await checkDotnetVersion('dotnet')
     }
 
     await runWithLiveLogs(
