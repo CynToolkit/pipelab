@@ -46,6 +46,34 @@
                 </div>
               </div>
             </div>
+
+            <div class="field">
+              <label class="label">Onboarding Tours</label>
+              <div class="flex flex-column gap-2 mt-2">
+                <Button
+                  outlined
+                  severity="secondary"
+                  size="small"
+                  :label="t('settings.restart-dashboard-tour')"
+                  @click="restartTour('dashboard')"
+                >
+                  <template #icon>
+                    <i class="mdi mdi-refresh mr-2"></i>
+                  </template>
+                </Button>
+                <Button
+                  outlined
+                  severity="secondary"
+                  size="small"
+                  :label="t('settings.restart-editor-tour')"
+                  @click="restartTour('editor')"
+                >
+                  <template #icon>
+                    <i class="mdi mdi-refresh mr-2"></i>
+                  </template>
+                </Button>
+              </div>
+            </div>
           </div>
         </TabPanel>
 
@@ -352,6 +380,19 @@ const refreshStorageInfo = async () => {
   } catch (error) {
     console.error('Failed to refresh storage info:', error)
   }
+}
+
+const restartTour = (tourId: 'dashboard' | 'editor') => {
+  const tours = { ...settingsRef.value.tours }
+  tours[tourId] = {
+    step: 0,
+    completed: false
+  }
+  appSettings.updateSettings({
+    ...settingsRef.value,
+    tours
+  })
+  alert(t('settings.tour-reset-success'))
 }
 </script>
 

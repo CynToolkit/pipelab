@@ -2,7 +2,7 @@ import { createMigration, createMigrator, finalVersion, initialVersion } from '@
 import { createVersionSchema, OmitVersion } from '@@/libs/migration/models/migration'
 import { app } from 'electron'
 import { join } from 'node:path'
-import { union, literal, InferInput, string, boolean } from 'valibot'
+import { union, literal, InferInput, string, boolean, object, number } from 'valibot'
 import { ensure } from './utils'
 import { readFile, writeFile } from 'node:fs/promises'
 import { useLogger } from '@@/logger'
@@ -42,13 +42,39 @@ export const AppSettingsValidatorV4 = createVersionSchema({
   ])
 })
 
+export const AppSettingsValidatorV5 = createVersionSchema({
+  theme: union([literal('light'), literal('dark')]),
+  version: literal('5.0.0'),
+  cacheFolder: string(),
+  clearTemporaryFoldersOnPipelineEnd: boolean(),
+  locale: union([
+    literal('en-US'),
+    literal('fr-FR'),
+    literal('pt-BR'),
+    literal('zh-CN'),
+    literal('es-ES'),
+    literal('de-DE')
+  ]),
+  tours: object({
+    dashboard: object({
+      step: number(),
+      completed: boolean()
+    }),
+    editor: object({
+      step: number(),
+      completed: boolean()
+    })
+  })
+})
+
 export type AppConfigV1 = InferInput<typeof AppSettingsValidatorV1>
 export type AppConfigV2 = InferInput<typeof AppSettingsValidatorV2>
 export type AppConfigV3 = InferInput<typeof AppSettingsValidatorV3>
 export type AppConfigV4 = InferInput<typeof AppSettingsValidatorV4>
+export type AppConfigV5 = InferInput<typeof AppSettingsValidatorV5>
 
-export type AppConfig = AppConfigV4
-export const AppSettingsValidator = AppSettingsValidatorV4
+export type AppConfig = AppConfigV5
+export const AppSettingsValidator = AppSettingsValidatorV5
 
 const migrator = createMigrator<AppConfigV1, AppConfig>()
 
@@ -59,7 +85,17 @@ export const defaultAppSettings = migrator.createDefault({
   clearTemporaryFoldersOnPipelineEnd: false,
   locale: 'en-US',
   theme: 'light',
-  version: '4.0.0'
+  version: '5.0.0',
+  tours: {
+    dashboard: {
+      step: 0,
+      completed: false
+    },
+    editor: {
+      step: 0,
+      completed: false
+    }
+  }
 })
 
 export const appSettingsMigrator = migrator.createMigrations({
@@ -94,56 +130,34 @@ export const appSettingsMigrator = migrator.createMigrations({
         return rest as unknown as AppConfigV3
       }
     }),
-    createMigration<AppConfigV3, AppConfigV4, never>({
+    createMigration<AppConfigV3, AppConfigV4, AppConfigV5>({
       version: '4.0.0',
+      up: (state) => ({
+        ...state,
+        tours: {
+          dashboard: {
+            step: 0,
+            completed: false
+          },
+          editor: {
+            step: 0,
+            completed: false
+          }
+        }
+      }),
+      down: (state) => {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { tours, ...rest } = state as AppConfigV5
+        return rest as unknown as AppConfigV4
+      }
+    }),
+    createMigration<AppConfigV4, AppConfigV5, never>({
+      version: '5.0.0',
       up: finalVersion,
       down: () => {
-        throw new Error("Can't migrate down from 4.0.0")
+        throw new Error("Can't migrate down from 5.0.0")
       }
     })
-    // createMigration<SavedFileV1, SavedFileV2, SavedFileV3>({
-    //   version: '2.0.0',
-    //   up: (state) => {
-    //     const { canvas, ...rest } = state
-    //     const { blocks, triggers } = canvas
-    //     const newBlocks: SavedFileV2['canvas']['blocks'] = []
-    //     for (const block of blocks) {
-    //       const newParams: SavedFileV2['canvas']['blocks'][number]['params'] = {}
-    //       for (const data of Object.entries(block.params)) {
-    //         if (data === undefined) {
-    //           throw new Error("Can't migrate block with undefined params")
-    //         } else {
-    //           const [key, value] = data
-    //           newParams[key] = {
-    //             editor: 'editor',
-    //             value
-    //           }
-    //         }
-    //       }
-    //       newBlocks.push({
-    //         ...block,
-    //         params: newParams
-    //       })
-    //     }
-    //     return {
-    //       ...rest,
-    //       canvas: {
-    //         triggers,
-    //         blocks: newBlocks
-    //       },
-    //     } satisfies OmitVersion<SavedFileV3>
-    //   },
-    //   down: () => {
-    //     throw new Error('Migration down not implemented')
-    //   }
-    // }),
-    // createMigration<SavedFileV2, SavedFileV3, SavedFileV3>({
-    //   version: '3.0.0',
-    //   up: finalVersion,
-    //   down: () => {
-    //     throw new Error('Migration down not implemented')
-    //   }
-    // })
   ]
 })
 

@@ -8,6 +8,7 @@
           <div class="buttons">
             <div class="left">
               <Button
+                id="tour-editor-close"
                 outlined
                 :label="t('base.close')"
                 :disabled="isRunning"
@@ -72,6 +73,7 @@
                 </template>
               </Button>
               <Button
+                id="tour-editor-save"
                 outlined
                 :label="t('base.save')"
                 :disabled="isRunning"
@@ -82,7 +84,14 @@
                   <i class="mdi mdi-content-save mr-1"></i>
                 </template>
               </Button>
-              <Button v-if="!isRunning" outlined :label="t('base.run')" size="small" @click="run">
+              <Button
+                v-if="!isRunning"
+                id="tour-editor-run"
+                outlined
+                :label="t('base.run')"
+                size="small"
+                @click="run"
+              >
                 <template #icon>
                   <i class="mdi mdi-play mr-1"></i>
                 </template>
@@ -111,7 +120,7 @@
                 <EnvironementEditor v-if="instance"></EnvironementEditor>
               </div>
             </div> -->
-            <div class="main">
+            <div id="tour-editor-canvas" class="main">
               <div class="node-editor-wrapper">
                 <EditorNodeEvent
                   v-for="trigger in triggers"
@@ -187,7 +196,7 @@
           </div>
 
           <div class="bottom" :class="{ expanded: bottomExpanded }">
-            <div class="header" @click="toggleLogsWindow">
+            <div id="tour-editor-logs" class="header" @click="toggleLogsWindow">
               <div class="ml-2 h3 logs-header">
                 <div>{{ t('base.logs') }}</div>
                 <div v-if="isRunning" class="logs-animated">
@@ -306,7 +315,7 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, inject, reactive, ref, watch } from 'vue'
+import { computed, inject, reactive, ref, watch, onMounted } from 'vue'
 import Accordion from 'primevue/accordion'
 import AccordionPanel from 'primevue/accordionpanel'
 import AccordionHeader from 'primevue/accordionheader'
@@ -340,6 +349,7 @@ import type { ValueOf } from 'type-fest'
 import ParamEditor from '@renderer/components/nodes/ParamEditor.vue'
 import { useI18n } from 'vue-i18n'
 import BuildHistoryDialog from '@renderer/components/BuildHistoryDialog.vue'
+import { useTour } from '@renderer/composables/useTour'
 
 type Param = ValueOf<BlockAction['params']>
 
@@ -374,8 +384,10 @@ const {
   getNodeDefinition,
   removeNode,
   setBlockValue,
-  setSelectedNode
+  setSelectedNode,
+  setActiveNode
 } = instance
+const { activeNode } = storeToRefs(instance)
 
 const { t } = useI18n()
 
@@ -385,6 +397,59 @@ const { update } = filesStore
 
 const authStore = useAuth()
 const { isLoggedIn, hasBuildHistoryBenefit } = storeToRefs(authStore)
+
+const { startTour: triggerTour, isCompleted } = useTour('editor')
+
+const startTour = (force = false) => {
+  triggerTour(
+    [
+      {
+        element: '#tour-editor-canvas',
+        popover: {
+          title: t('tour.editor-canvas-title'),
+          description: t('tour.editor-canvas-description')
+        }
+      },
+      {
+        element: '#tour-editor-save',
+        popover: {
+          title: t('tour.editor-save-title'),
+          description: t('tour.editor-save-description')
+        }
+      },
+      {
+        element: '#tour-editor-run',
+        popover: {
+          title: t('tour.editor-run-title'),
+          description: t('tour.editor-run-description')
+        }
+      },
+      {
+        element: '#tour-editor-logs',
+        popover: {
+          title: t('tour.editor-logs-title'),
+          description: t('tour.editor-logs-description')
+        }
+      },
+      {
+        element: '#tour-editor-close',
+        popover: {
+          title: t('tour.editor-close-title'),
+          description: t('tour.editor-close-description')
+        }
+      }
+    ],
+    force
+  )
+}
+
+onMounted(() => {
+  if (!isCompleted()) {
+    setTimeout(() => {
+      startTour()
+    }, 1000)
+  }
+})
 
 // Build history dialog state
 const showBuildHistoryDialog = ref(false)
@@ -449,9 +514,6 @@ watch(
 const toast = useToast()
 
 const currentLogAccordion = ref()
-
-const { setActiveNode } = instance
-const { activeNode } = storeToRefs(instance)
 
 const lastActiveNode = ref<BlockAction | BlockCondition | BlockLoop>()
 

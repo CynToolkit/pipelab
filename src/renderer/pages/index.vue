@@ -12,6 +12,7 @@
             </div>
             <div class="flex gap-1">
               <Button
+                id="tour-rename-project"
                 text
                 size="small"
                 severity="secondary"
@@ -22,6 +23,7 @@
               </Button>
               <Button
                 v-if="hasMultipleProjectsBenefit"
+                id="tour-delete-project"
                 text
                 size="small"
                 severity="danger"
@@ -31,6 +33,7 @@
                 <i class="icon mdi mdi-delete fs-16"></i>
               </Button>
               <Button
+                id="tour-add-project"
                 v-tooltip.top="!hasMultipleProjectsBenefit ? $t('home.premium-feature') : undefined"
                 text
                 size="small"
@@ -41,6 +44,7 @@
             </div>
           </div>
           <Tree
+            id="tour-projects-list"
             v-model:selection-keys="selectedKey"
             selection-mode="single"
             :value="nodes"
@@ -52,7 +56,12 @@
         <div class="your-projects">
           <div v-if="!isLoading && filesEnhanced.length === 0" class="no-projects">
             <div class="no-pipelines-text">{{ $t('home.no-pipelines-yet') }}</div>
-            <Button severity="secondary" variant="outlined" @click="openNewProjectDialog">
+            <Button
+              id="tour-new-pipeline-empty"
+              severity="secondary"
+              variant="outlined"
+              @click="openNewProjectDialog"
+            >
               <i class="mdi mdi-plus-circle-outline mr-2"></i>
               {{ $t('home.new-pipeline') }}
             </Button>
@@ -72,7 +81,7 @@
                   <div class="list-header bold">{{ activeProject.name }}</div>
 
                   <div class="flex justify-content-end gap-2">
-                    <Button @click="openNewProjectDialog">
+                    <Button id="tour-new-pipeline" @click="openNewProjectDialog">
                       <i class="mdi mdi-plus-circle-outline mr-2"></i>
                       {{ $t('home.new-pipeline') }}
                     </Button>
@@ -357,7 +366,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watchEffect, inject, watch } from 'vue'
+import { computed, ref, watchEffect, inject, watch, onMounted } from 'vue'
 import { useToast } from 'primevue/usetoast'
 import { storeToRefs } from 'pinia'
 import Menu from 'primevue/menu'
@@ -368,6 +377,7 @@ import { useAPI } from '@renderer/composables/api'
 import { useFiles } from '@renderer/store/files'
 import { loadExternalFile } from '@renderer/utils/config'
 import Tree from 'primevue/tree'
+import { useTour } from '@renderer/composables/useTour'
 
 import { Presets } from '@@/apis'
 import FileInput from '@renderer/components/FileInput.vue'
@@ -376,6 +386,7 @@ import { kebabCase } from 'change-case'
 
 import PluginIcon from '../components/nodes/PluginIcon.vue'
 import { useAppStore } from '@renderer/store/app'
+import { useAppSettings } from '@renderer/store/settings'
 import Layout from '../components/Layout.vue'
 import { useI18n } from 'vue-i18n'
 import { useAuth } from '@renderer/store/auth'
@@ -394,6 +405,11 @@ const openUpgradeDialog = inject('openUpgradeDialog') as () => void
 const confirm = useConfirm()
 const toast = useToast()
 const { posthog } = usePostHog()
+const settingsStore = useAppSettings()
+const { settings } = storeToRefs(settingsStore)
+const { updateSettings } = settingsStore
+
+const { startTour: triggerTour, isCompleted } = useTour('dashboard')
 
 // Table data
 const fileStore = useFiles()
@@ -991,6 +1007,53 @@ const isNewProjectModalVisible = ref(false)
 // Build history dialog state
 const showBuildHistoryDialog = ref(false)
 const selectedPipelineId = ref<string>()
+
+const startTour = (force = false) => {
+  triggerTour(
+    [
+      {
+        element: '#tour-projects-list',
+        popover: {
+          title: t('tour.projects-list-title'),
+          description: t('tour.projects-list-description')
+        }
+      },
+      {
+        element: '#tour-add-project',
+        popover: {
+          title: t('tour.add-project-title'),
+          description: t('tour.add-project-description')
+        }
+      },
+      {
+        element: '#tour-rename-project, #tour-delete-project',
+        popover: {
+          title: t('tour.project-actions-title'),
+          description: t('tour.project-actions-description')
+        }
+      },
+      {
+        element: '#tour-new-pipeline, #tour-new-pipeline-empty',
+        popover: {
+          title: t('tour.new-pipeline-title'),
+          description: t('tour.new-pipeline-description')
+        }
+      }
+    ],
+    force
+  )
+}
+
+onMounted(() => {
+  // Check if we should show the tour (e.g., first time or via a button)
+  // For now, let's just provide a way to start it, or start it if no projects exist
+  if (!isCompleted()) {
+    // Wait a bit for the UI to be fully ready
+    setTimeout(() => {
+      startTour()
+    }, 1000)
+  }
+})
 </script>
 
 <style lang="scss" scoped>
