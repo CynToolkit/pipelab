@@ -12,27 +12,6 @@
             </div>
             <div class="flex gap-1">
               <Button
-                id="tour-rename-project"
-                text
-                size="small"
-                severity="secondary"
-                :disabled="!activeProject"
-                @click="openRenameProjectDialog"
-              >
-                <i class="icon mdi mdi-pencil fs-16"></i>
-              </Button>
-              <Button
-                v-if="hasMultipleProjectsBenefit"
-                id="tour-delete-project"
-                text
-                size="small"
-                severity="danger"
-                :disabled="!activeProject"
-                @click="deleteProject"
-              >
-                <i class="icon mdi mdi-delete fs-16"></i>
-              </Button>
-              <Button
                 id="tour-add-project"
                 v-tooltip.top="!hasMultipleProjectsBenefit ? $t('home.premium-feature') : undefined"
                 text
@@ -48,9 +27,37 @@
             v-model:selection-keys="selectedKey"
             selection-mode="single"
             :value="nodes"
-            class="w-full md:w-[30rem]"
+            class="w-full md:w-[30rem] project-tree"
+            :pt="{
+              nodeLabel: {
+                class: ['w-full']
+              }
+            }"
             @node-unselect="onNodeUnselect"
-          ></Tree>
+          >
+            <template #default="slotProps">
+              <div class="project-node flex align-items-center justify-content-between w-full">
+                <span>{{ slotProps.node.label }}</span>
+                <div class="project-node-actions flex gap-1">
+                  <Button
+                    severity="secondary"
+                    size="small"
+                    @click.stop="openRenameProjectDialog(slotProps.node.key)"
+                  >
+                    <i class="icon mdi mdi-pencil fs-14"></i>
+                  </Button>
+                  <Button
+                    v-if="nodes.length > 1"
+                    size="small"
+                    severity="danger"
+                    @click.stop="deleteProject(slotProps.node.key)"
+                  >
+                    <i class="icon mdi mdi-delete fs-14"></i>
+                  </Button>
+                </div>
+              </div>
+            </template>
+          </Tree>
         </div>
 
         <div class="your-projects">
@@ -690,22 +697,29 @@ const onCreateProjectClick = () => {
 const isRenameProjectModalVisible = ref(false)
 const renameProjectName = ref('')
 
-const openRenameProjectDialog = () => {
-  if (activeProject.value) {
-    renameProjectName.value = activeProject.value.name
+const projectToRenameId = ref<string | null>(null)
+
+const openRenameProjectDialog = (projectId?: string) => {
+  const id = projectId || activeProjectId.value
+  const project = projects.value.find((p) => p.id === id)
+
+  if (project) {
+    projectToRenameId.value = id
+    renameProjectName.value = project.name
     isRenameProjectModalVisible.value = true
   }
 }
 
 const onRenameProject = async () => {
-  if (activeProject.value && renameProjectName.value) {
+  if (projectToRenameId.value && renameProjectName.value) {
     updateFileStore((state) => {
-      const project = state.projects.find((p) => p.id === activeProject.value?.id)
+      const project = state.projects.find((p) => p.id === projectToRenameId.value)
       if (project) {
         project.name = renameProjectName.value
       }
     })
     isRenameProjectModalVisible.value = false
+    projectToRenameId.value = null
   }
 }
 
@@ -837,10 +851,13 @@ const deletePipeline = async (id: string) => {
   })
 }
 
-const deleteProject = async () => {
-  if (!activeProject.value) return
+const deleteProject = async (projectId?: string) => {
+  const id = projectId || activeProjectId.value
+  if (!id) return
 
-  if (pipelines.value.length > 0) {
+  const projectPipelines = files.value.pipelines.filter((pipeline) => pipeline.project === id)
+
+  if (projectPipelines.length > 0) {
     toast.add({
       severity: 'error',
       summary: t('home.cannot-delete-project'),
@@ -857,7 +874,7 @@ const deleteProject = async () => {
     rejectClass: 'p-button-secondary p-button-outlined',
     acceptClass: 'p-button-danger',
     accept: async () => {
-      await removeProject(activeProject.value.id)
+      await removeProject(id)
     },
     reject: () => {
       // do nothing
@@ -1272,6 +1289,21 @@ onMounted(() => {
     justify-content: space-between;
 
     .project-text {
+    }
+  }
+
+  .project-node {
+    .project-node-actions {
+      visibility: hidden;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    &:hover {
+      .project-node-actions {
+        visibility: visible;
+        opacity: 1;
+      }
     }
   }
 }
