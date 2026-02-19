@@ -444,11 +444,11 @@ const startTour = (force = false) => {
 }
 
 onMounted(() => {
-  if (!isCompleted()) {
-    setTimeout(() => {
-      startTour()
-    }, 1000)
-  }
+  // if (!isCompleted()) {
+  //   setTimeout(() => {
+  //     startTour()
+  //   }, 1000)
+  // }
 })
 
 // Build history dialog state

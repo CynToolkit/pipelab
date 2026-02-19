@@ -1045,14 +1045,14 @@ const startTour = (force = false) => {
 }
 
 onMounted(() => {
-  // Check if we should show the tour (e.g., first time or via a button)
-  // For now, let's just provide a way to start it, or start it if no projects exist
-  if (!isCompleted()) {
-    // Wait a bit for the UI to be fully ready
-    setTimeout(() => {
-      startTour()
-    }, 1000)
-  }
+  // // Check if we should show the tour (e.g., first time or via a button)
+  // // For now, let's just provide a way to start it, or start it if no projects exist
+  // if (!isCompleted()) {
+  //   // Wait a bit for the UI to be fully ready
+  //   setTimeout(() => {
+  //     startTour()
+  //   }, 1000)
+  // }
 })
 </script>
 
@@ -1261,6 +1261,8 @@ onMounted(() => {
 
 .drawer {
   width: 400px;
+  flex: 1 0 auto;
+  border-right: 1px solid var(--p-datatable-header-border-color);
 
   .project-header {
     padding: 0 16px;
