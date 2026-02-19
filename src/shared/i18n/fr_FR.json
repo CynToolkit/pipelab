@@ -31,7 +31,10 @@
     "cache-cleared-successfully": "Cache cleared successfully",
     "failed-to-clear-cache-error-message": "Failed to clear cache: {0}",
     "failed-to-reset-cache-folder-error-message": "Failed to reset cache folder: {0}",
-    "select-cache-folder": "Select Cache Folder"
+    "select-cache-folder": "Select Cache Folder",
+    "restart-dashboard-tour": "Restart Dashboard Tour",
+    "restart-editor-tour": "Restart Editor Tour",
+    "tour-reset-success": "Tour has been reset. It will start the next time you visit the page."
   },
   "headers": {
     "dashboard": "Tableau de bord",
@@ -117,5 +120,26 @@
   },
   "scenarios": {
     "scenarios": "Scénarios"
+  },
+  "tour": {
+    "start-tour": "Start Tour",
+    "projects-list-title": "Project Navigator",
+    "projects-list-description": "This sidebar shows all your projects. Selecting a project will display its associated pipelines in the main area.",
+    "add-project-title": "Create New Project",
+    "add-project-description": "Projects help you organize your pipelines by topic or client. Click here to start a fresh project.",
+    "new-pipeline-title": "Build a Pipeline",
+    "new-pipeline-description": "Ready to automate? Create a new pipeline to start adding logic and blocks.",
+    "project-actions-title": "Project Management",
+    "project-actions-description": "Use these buttons to rename or delete the currently selected project.",
+    "editor-canvas-title": "The Visual Canvas",
+    "editor-canvas-description": "This is your workspace. Drag and drop blocks here to define your automation flow from top to bottom.",
+    "editor-save-title": "Save Progress",
+    "editor-save-description": "Keep your changes safe. We recommend saving frequently, especially after complex logic changes.",
+    "editor-run-title": "Test your Automation",
+    "editor-run-description": "Click Run to start the execution. Pipelab will process each block and provide real-time feedback.",
+    "editor-logs-title": "Execution Logs",
+    "editor-logs-description": "The logs window shows exactly what's happening during execution. Great for debugging and monitoring progress.",
+    "editor-close-title": "Exit Editor",
+    "editor-close-description": "Done for now? Return to the dashboard to manage other projects or pipelines."
   }
 }
