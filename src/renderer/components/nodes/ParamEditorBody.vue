@@ -209,6 +209,11 @@ const onChangePathClick = async (options: OpenDialogOptions) => {
   const paths = pathsResponse.result
 
   logger().info('paths', paths)
+
+  if (paths.canceled || paths.filePaths.length === 0) {
+    return
+  }
+
   const p = paths.filePaths[0]
 
   emit('update:modelValue', `"${p}"`)
