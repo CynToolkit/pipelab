@@ -1,6 +1,6 @@
 import { useLogger } from '@@/logger'
 import { isRenderer } from '@@/validation'
-import { newQuickJSWASMModuleFromVariant, newVariant, RELEASE_SYNC } from 'quickjs-emscripten'
+import { newQuickJSWASMModuleFromVariant, newVariant, RELEASE_SYNC, QuickJSContext } from 'quickjs-emscripten'
 import { Arena } from 'quickjs-emscripten-sync'
 import { fmt } from './fmt'
 
@@ -15,7 +15,6 @@ class EvaluationError extends Error {
 }
 
 export const createQuickJs = async () => {
-  // TODO: could improve
   const { logger } = useLogger()
 
   let location: string
@@ -33,45 +32,63 @@ export const createQuickJs = async () => {
   })
   const quickjs = await newQuickJSWASMModuleFromVariant(variant)
 
-  const run = (code: string, params: Record<string, unknown>) => {
+  const createContext = () => {
     const vm = quickjs.newContext()
     const arena = new Arena(vm, { isMarshalable: true })
 
-    const exposed = {
-      // console: {
-      //   // eslint-disable-next-line no-console
-      //   log: console.log
-      // },
-      fmt,
-      ...params
+    const run = (code: string, params: Record<string, unknown>) => {
+      const exposed = {
+        fmt,
+        ...params
+      }
+      arena.expose(exposed)
+
+      const finalCode = `(() => {
+        return ${code};
+      })()`
+
+      try {
+        return arena.evalCode(finalCode)
+      } catch (e) {
+        logger().error('error', e)
+        logger().error('Final code was', finalCode)
+        throw new EvaluationError(e.name, e.message)
+      }
     }
-    arena.expose(exposed)
 
-    // const finalCode = `export const result = ${code}`
-    const finalCode = `(() => {
-      // console.log('params', params);
-      // console.log('params.parameters', params.parameters);
+    return {
+      run,
+      dispose: () => {
+        try {
+          arena.dispose()
+        } catch (e) {
+          logger().error('Failed to dispose arena', e)
+        }
+        try {
+          vm.dispose()
+        } catch (e) {
+          logger().error('Failed to dispose VM', e)
+        }
+      }
+    }
+  }
 
-      return ${code};
-  })()
-    `
-
+  const run = (code: string, params: Record<string, unknown>) => {
+    const ctx = createContext()
     try {
-      const result = arena.evalCode(finalCode)
-
-      return result
-    } catch (e) {
-      logger().error('error', e)
-      logger().error('Final code was', finalCode)
-      throw new EvaluationError(e.name, e.message)
+      return ctx.run(code, params)
     } finally {
-      arena.dispose()
-      vm.dispose()
+      try {
+        ctx.dispose()
+      } catch (e) {
+        logger().error('Failed to dispose context', e)
+      }
     }
   }
 
   return {
-    run
+    run,
+    createContext
   }
 }
 

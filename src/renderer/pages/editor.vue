@@ -76,7 +76,7 @@
                 id="tour-editor-save"
                 outlined
                 :label="t('base.save')"
-                :disabled="isRunning || isSaving"
+                :disabled="isRunning || isSaving || !isDirty"
                 :loading="isSaving"
                 size="small"
                 @click="onSaveRequest(false)"
@@ -341,7 +341,7 @@ import EnvironementEditor from './environement-editor.vue'
 import ProjectSettingsEditor from './project-settings-editor.vue'
 import { format } from 'date-fns'
 import { FancyAnsi, hasAnsi } from 'fancy-ansi'
-import { watchThrottled } from '@vueuse/core'
+import { debounce, watchThrottled } from '@vueuse/core'
 import { stripHtml } from 'string-strip-html'
 import posthog from 'posthog-js'
 import Layout from '@renderer/components/Layout.vue'
@@ -351,6 +351,7 @@ import ParamEditor from '@renderer/components/nodes/ParamEditor.vue'
 import { useI18n } from 'vue-i18n'
 import BuildHistoryDialog from '@renderer/components/BuildHistoryDialog.vue'
 import { useTour } from '@renderer/composables/useTour'
+import { debounce as esDebounce } from 'es-toolkit'
 
 type Param = ValueOf<BlockAction['params']>
 
@@ -655,9 +656,20 @@ const run = async () => {
 }
 
 const isSaving = ref(false)
+const isDirty = ref(false)
 
-onEditorChanged(() => {
+const debouncedSave = esDebounce(() => {
   onSaveRequest()
+}, 1000)
+
+let isInitialLoad = true
+onEditorChanged(() => {
+  if (isInitialLoad) {
+    isInitialLoad = false
+    return
+  }
+  isDirty.value = true
+  debouncedSave()
 })
 
 const onSaveRequest = async (silent = true) => {
@@ -670,7 +682,9 @@ const onSaveRequest = async (silent = true) => {
     // TODO: save to cloud
     throw new Error('TODO')
   }
+  await sleep(500)
   isSaving.value = false
+  isDirty.value = false
 }
 
 const onCloseRequest = async () => {

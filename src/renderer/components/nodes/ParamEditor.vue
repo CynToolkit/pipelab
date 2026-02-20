@@ -125,14 +125,6 @@
           </svg>
 
           <div class="helpers">
-            <!--<!~~ Value ~~>
-            <Panel header="Value" toggleable>
-              <ParamEditorBody
-                :model-value="simpleInputValue"
-                :param-definition="paramDefinition"
-                @update:model-value="onParamEditorUpdate"
-              ></ParamEditorBody>
-            </Panel>-->
             <!-- Outputs -->
             <Panel header="Outputs" toggleable>
               <div class="steps-list">
@@ -381,7 +373,7 @@ const {
   })
 ])
 
-const doCodeEditorUpdate = throttle(async (newValue) => {
+const doCodeEditorUpdate = async (newValue: string) => {
   const displayString = newValue ?? ''
 
   try {
@@ -397,10 +389,12 @@ const doCodeEditorUpdate = throttle(async (newValue) => {
     isError.value = false
 
     // update on code editor text change
-    emit('update:modelValue', {
-      editor: param.value?.editor,
-      value: newValue
-    })
+    if (newValue !== param.value?.value) {
+      emit('update:modelValue', {
+        editor: param.value?.editor,
+        value: newValue
+      })
+    }
   } catch (e) {
     console.error(e)
     logger().error('e', JSON.stringify(e))
@@ -411,7 +405,7 @@ const doCodeEditorUpdate = throttle(async (newValue) => {
       logger().error('e', e)
     }
   }
-}, 500)
+}
 
 // near definition to be the first to trigger
 onCodeEditorTextUpdate(async (newValue) => {

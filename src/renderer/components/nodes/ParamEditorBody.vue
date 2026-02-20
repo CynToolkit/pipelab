@@ -18,10 +18,7 @@
         <InputText
           v-else
           :model-value="modelValueString"
-          filter
           :placeholder="paramDefinition.control.options.placeholder"
-          multiple
-          option-label="label"
           class="w-full"
           @update:model-value="onParamInputTextChange"
         />

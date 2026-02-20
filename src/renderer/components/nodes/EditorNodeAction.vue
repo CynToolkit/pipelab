@@ -116,7 +116,7 @@
 import { useEditor } from '@renderer/store/editor'
 import { BlockAction, Steps } from '@@/model'
 import { storeToRefs } from 'pinia'
-import { PropType, computed, ref, shallowRef, toRefs } from 'vue'
+import { PropType, computed, ref, shallowRef, toRefs, watch } from 'vue'
 import { watchDebounced } from '@vueuse/core'
 import ParamEditor from './ParamEditor.vue'
 import PluginIcon from './PluginIcon.vue'
@@ -226,12 +226,6 @@ const items = computed<MenuItem[]>(() => [
   }
 ])
 
-const toggle = (event: MouseEvent) => {
-  if (!isRunning.value) {
-    menu.value.toggle(event)
-  }
-}
-
 const $node = ref<HTMLDivElement>()
 
 // const isHovered = useElementHover($node)
@@ -247,11 +241,19 @@ const {
   enableNode,
   getNodeDefinition,
   getPluginDefinition,
-  setSelectedNode
+  setSelectedNode,
+  saveParams
 } = editor
 const { activeNode, variables, selectedNode, resolvedParams, steps, vm } = storeToRefs(editor)
 
 type Param = ValueOf<BlockAction['params']>
+
+const toggle = async (event: MouseEvent) => {
+  if (!isRunning.value) {
+    await saveParams()
+    menu.value.toggle(event)
+  }
+}
 
 const hasErrors = computed(() => {
   const innerErrors = errors.value[value.value.uid]
@@ -297,29 +299,33 @@ const pluginDefinition = computed(() => {
 const title = computed(() => {
   console.log('value.value', value.value.name)
   console.log('nodeDefinition.value?.name', nodeDefinition.value?.name)
-  console.trace('is changed')
   return value.value.name ?? nodeDefinition.value?.name ?? ''
 })
 
-watchDebounced(
-  [resolvedParams, steps],
+watch(
+  [() => resolvedParams.value[value.value.uid], steps, vm],
   async () => {
     if (!vm.value) {
       return
     }
 
+    const nodeParams = resolvedParams.value[value.value.uid]
+    if (!nodeParams) {
+      subtitle.value = ''
+      return
+    }
+
     const displayString = nodeDefinition.value?.displayString ?? ''
     const result = await vm.value.run(displayString, {
-      params: resolvedParams.value[value.value.uid],
+      params: nodeParams,
       steps: steps.value
     })
     const clean = DOMPurify.sanitize(result)
     subtitle.value = clean
   },
   {
-    debounce: 500,
     immediate: true,
-    maxWait: 1000
+    deep: true
   }
 )
 
