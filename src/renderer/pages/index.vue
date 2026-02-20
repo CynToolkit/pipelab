@@ -560,8 +560,6 @@ watchEffect(async () => {
 
     const content = await savedFileMigrator.migrate(_content)
 
-    console.log('content', content)
-
     if (file.type === 'external') {
       result.push({
         lastModified: file.lastModified,

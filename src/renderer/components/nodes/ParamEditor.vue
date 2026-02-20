@@ -61,9 +61,9 @@
               v-show="param.editor === 'simple'"
               :model-value="simpleInputValue"
               :param-definition="paramDefinition"
+              :value="value"
               @update:model-value="onParamEditorUpdate"
               @switch="toggleMode"
-              :value="value"
             ></ParamEditorBody>
           </div>
           <ConfirmPopup></ConfirmPopup>
@@ -386,8 +386,6 @@ const doCodeEditorUpdate = throttle(async (newValue) => {
 
   try {
     const variables = await formattedVariables()
-    console.log('displayString', displayString)
-    console.log('variables', variables)
     const result = await vm.value.run(displayString, {
       params: {},
       // params: resolvedParams.value,

@@ -33,7 +33,7 @@ import { useLogger } from '@@/logger'
 import { klona } from 'klona'
 import { create } from 'mutative'
 import { parse, value } from 'valibot'
-import { watchDebounced } from '@vueuse/core'
+import { createEventHook, watchDebounced } from '@vueuse/core'
 import { makeResolvedParams } from '@renderer/utils/evaluator'
 import { createQuickJs } from '@renderer/utils/quickjs'
 
@@ -660,6 +660,8 @@ export const useEditor = defineStore('editor', () => {
     vm.value = _vm
   })
 
+  const whenModified = createEventHook()
+
   const resolvedParams = ref<Record<string, Record<string, unknown>>>({})
   watchDebounced(
     [blocks, stepsDisplay, variablesDisplay],
@@ -691,6 +693,7 @@ export const useEditor = defineStore('editor', () => {
       }
 
       console.log('resolvedParams.value', resolvedParams.value)
+      whenModified.trigger()
     },
     {
       debounce: 200,
@@ -755,7 +758,10 @@ export const useEditor = defineStore('editor', () => {
 
     vm,
     resolvedParams,
-    steps: stepsDisplay
+    steps: stepsDisplay,
+
+    // Hooks
+    onEditorChanged: whenModified.on
   }
 })
 

@@ -28,7 +28,6 @@
           @delete="onDeleteEntry"
           @start-build="onStartBuild"
         />
-
       </div>
 
       <!-- Unauthorized State -->
@@ -170,7 +169,6 @@ const onStartBuild = () => {
   // router.push('/scenarios')
 }
 
-
 // Helper function to load build history
 const loadBuildHistory = async (): Promise<void> => {
   console.log('buildHistoryStore.canUseHistory', buildHistoryStore.canUseHistory)
@@ -207,8 +205,6 @@ watch(
 )
 
 authStore.onSubscriptionChanged(async ({ subscriptions }) => {
-  console.log('subscriptions', subscriptions)
-  console.log('authStore.hasBuildHistoryBenefit', authStore.hasBuildHistoryBenefit)
   // If user now has build history benefit, load entries
   if (props.visible) {
     loadBuildHistory()
@@ -250,7 +246,6 @@ onUnmounted(() => {
   min-height: 0;
   overflow: hidden;
 }
-
 
 .unauthorized-state {
   text-align: center;
@@ -306,6 +301,5 @@ onUnmounted(() => {
     flex-direction: column;
     align-items: center;
   }
-
 }
 </style>

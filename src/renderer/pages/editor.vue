@@ -76,9 +76,10 @@
                 id="tour-editor-save"
                 outlined
                 :label="t('base.save')"
-                :disabled="isRunning"
+                :disabled="isRunning || isSaving"
+                :loading="isSaving"
                 size="small"
-                @click="onSaveRequest"
+                @click="onSaveRequest(false)"
               >
                 <template #icon>
                   <i class="mdi mdi-content-save mr-1"></i>
@@ -385,7 +386,8 @@ const {
   removeNode,
   setBlockValue,
   setSelectedNode,
-  setActiveNode
+  setActiveNode,
+  onEditorChanged
 } = instance
 const { activeNode } = storeToRefs(instance)
 
@@ -652,17 +654,23 @@ const run = async () => {
   setIsRunning(false)
 }
 
-// const isSaving = ref(false)
+const isSaving = ref(false)
 
-const onSaveRequest = async () => {
+onEditorChanged(() => {
+  onSaveRequest()
+})
+
+const onSaveRequest = async (silent = true) => {
+  isSaving.value = true
   if (currentFilePointer.value.type === 'external') {
-    await saveLocal(currentFilePointer.value.path)
+    await saveLocal(currentFilePointer.value.path, silent)
   } else if (currentFilePointer.value.type === 'internal') {
-    await saveInternal(currentFilePointer.value.configName)
+    await saveInternal(currentFilePointer.value.configName, silent)
   } else {
     // TODO: save to cloud
     throw new Error('TODO')
   }
+  isSaving.value = false
 }
 
 const onCloseRequest = async () => {
@@ -681,7 +689,7 @@ const navigateToBuildHistory = async () => {
   showBuildHistoryDialog.value = true
 }
 
-const saveLocal = async (path: string) => {
+const saveLocal = async (path: string, silent = false) => {
   const result: SavedFileDefault = {
     version: '4.0.0',
     name: name.value,
@@ -707,14 +715,16 @@ const saveLocal = async (path: string) => {
     }
   })
 
-  toast.add({
-    severity: 'success',
-    summary: t('editor.project-saved'),
-    detail: t('editor.your-project-has-be-saved-successfully')
-  })
+  if (!silent) {
+    toast.add({
+      severity: 'success',
+      summary: t('editor.project-saved'),
+      detail: t('editor.your-project-has-be-saved-successfully')
+    })
+  }
 }
 
-const saveInternal = async (configName: string) => {
+const saveInternal = async (configName: string, silent = false) => {
   const result: SavedFileDefault = {
     version: '4.0.0',
     name: name.value,
@@ -742,11 +752,13 @@ const saveInternal = async (configName: string) => {
       }
     })
 
-    toast.add({
-      severity: 'success',
-      summary: t('editor.project-saved'),
-      detail: t('editor.your-project-has-be-saved-successfully')
-    })
+    if (!silent) {
+      toast.add({
+        severity: 'success',
+        summary: t('editor.project-saved'),
+        detail: t('editor.your-project-has-be-saved-successfully')
+      })
+    }
   } catch (e) {
     console.error('error', e)
     throw new Error(t('editor.project-has-encountered-an-error'))
@@ -874,7 +886,7 @@ const exportLog = async () => {
 tinykeys(window, {
   '$mod+KeyS': (event) => {
     event.preventDefault()
-    onSaveRequest()
+    onSaveRequest(false)
   }
 })
 

@@ -11,8 +11,8 @@
       }"
       @click="onNodeClick"
     >
-      <div class="update-indicator" v-if="nodeDefinition?.updateAvailable">
-        <i class="mdi mdi-update" v-tooltip="{ value: 'Update available' }" label="Save" />
+      <div v-if="nodeDefinition?.updateAvailable" class="update-indicator">
+        <i v-tooltip="{ value: 'Update available' }" class="mdi mdi-update" label="Save" />
       </div>
 
       <div class="vertical">
@@ -297,6 +297,7 @@ const pluginDefinition = computed(() => {
 const title = computed(() => {
   console.log('value.value', value.value.name)
   console.log('nodeDefinition.value?.name', nodeDefinition.value?.name)
+  console.trace('is changed')
   return value.value.name ?? nodeDefinition.value?.name ?? ''
 })
 

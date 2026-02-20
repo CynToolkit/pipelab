@@ -92,7 +92,6 @@ export const useAuth = defineStore('auth', () => {
     }
     console.log('[Auth] fetchSubscription: Completed, setting isLoadingSubscriptions to false')
     isLoadingSubscriptions.value = false
-    console.log('onSubscriptionChanged.trigger')
     onSubscriptionChanged.trigger({ subscriptions: subscriptions.value })
   }
 
@@ -358,10 +357,8 @@ export const useAuth = defineStore('auth', () => {
   }
 
   const setDevOverride = (benefit: string, value: string) => {
-    console.log(`[setDevOverride] Setting ${benefit} to ${value}`)
     devOverrides.value[benefit] = value
     saveDevOverrides()
-    console.log(`[setDevOverride] devOverrides now:`, devOverrides.value)
   }
 
   const getActualBenefit = (benefit: keyof typeof benefits) => {
@@ -375,18 +372,14 @@ export const useAuth = defineStore('auth', () => {
     // Check dev overrides in development mode
     if (process.env.NODE_ENV === 'development') {
       const override = devOverrides.value[benefit]
-      console.log(`[hasBenefit] ${benefit}: override=${override}`)
       if (override !== undefined) {
         switch (override) {
           case 'force-on':
-            console.log(`[hasBenefit] ${benefit}: forcing ON`)
             return true
           case 'force-off':
-            console.log(`[hasBenefit] ${benefit}: forcing OFF`)
             return false
           case 'actual':
           default:
-            console.log(`[hasBenefit] ${benefit}: using actual`)
             // Fall through to actual check
             break
         }
@@ -395,7 +388,6 @@ export const useAuth = defineStore('auth', () => {
 
     // Default behavior: check subscriptions
     const actual = getActualBenefit(benefit)
-    console.log(`[hasBenefit] ${benefit}: actual=${actual}`)
     return actual
   }
 

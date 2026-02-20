@@ -208,15 +208,12 @@ export const setupConfig = async () => {
         logger().error('e', e)
       }
 
-      logger().info('json', json)
-
       try {
         await writeFile(filesPath, JSON.stringify(json))
       } catch (e) {
         logger().error('e', e)
       }
 
-      console.log('json', json)
       return json
     }
   }
