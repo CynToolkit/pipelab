@@ -1,6 +1,8 @@
 {
   "settings": {
     "darkTheme": "Tema escuro",
+    "autosave": "Autosave",
+    "autosaveDescription": "When enabled, your changes will be automatically saved as you edit your pipelines.",
     "language": "Idioma",
     "languageOptions": {
       "en-US": "English",
