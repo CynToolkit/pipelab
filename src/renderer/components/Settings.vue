@@ -15,6 +15,20 @@
               <div class="field-switch">
                 <ToggleSwitch
                   :disabled="!settingsRef"
+                  input-id="autosave"
+                  :model-value="settingsRef?.autosave ?? true"
+                  @update:model-value="updateAutosave"
+                />
+                <label for="autosave" class="label">{{ t('settings.autosave') }}</label>
+              </div>
+              <p class="description">
+                {{ t('settings.autosaveDescription') }}
+              </p>
+            </div>
+            <div class="field">
+              <div class="field-switch">
+                <ToggleSwitch
+                  :disabled="!settingsRef"
                   aria-label="asdsdsd"
                   input-id="app-theme"
                   :model-value="false"
@@ -279,6 +293,13 @@ watch(
 const cacheFolder = computed(() => {
   return settingsRef.value?.cacheFolder
 })
+
+const updateAutosave = (value: boolean) => {
+  return appSettings.updateSettings({
+    ...settingsRef.value,
+    autosave: value
+  })
+}
 
 const updateCacheFolder = (value: string) => {
   return appSettings.updateSettings({

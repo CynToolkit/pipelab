@@ -67,14 +67,41 @@ export const AppSettingsValidatorV5 = createVersionSchema({
   })
 })
 
+export const AppSettingsValidatorV6 = createVersionSchema({
+  theme: union([literal('light'), literal('dark')]),
+  version: literal('6.0.0'),
+  cacheFolder: string(),
+  clearTemporaryFoldersOnPipelineEnd: boolean(),
+  locale: union([
+    literal('en-US'),
+    literal('fr-FR'),
+    literal('pt-BR'),
+    literal('zh-CN'),
+    literal('es-ES'),
+    literal('de-DE')
+  ]),
+  tours: object({
+    dashboard: object({
+      step: number(),
+      completed: boolean()
+    }),
+    editor: object({
+      step: number(),
+      completed: boolean()
+    })
+  }),
+  autosave: boolean()
+})
+
 export type AppConfigV1 = InferInput<typeof AppSettingsValidatorV1>
 export type AppConfigV2 = InferInput<typeof AppSettingsValidatorV2>
 export type AppConfigV3 = InferInput<typeof AppSettingsValidatorV3>
 export type AppConfigV4 = InferInput<typeof AppSettingsValidatorV4>
 export type AppConfigV5 = InferInput<typeof AppSettingsValidatorV5>
+export type AppConfigV6 = InferInput<typeof AppSettingsValidatorV6>
 
-export type AppConfig = AppConfigV5
-export const AppSettingsValidator = AppSettingsValidatorV5
+export type AppConfig = AppConfigV6
+export const AppSettingsValidator = AppSettingsValidatorV6
 
 const migrator = createMigrator<AppConfigV1, AppConfig>()
 
@@ -85,7 +112,8 @@ export const defaultAppSettings = migrator.createDefault({
   clearTemporaryFoldersOnPipelineEnd: false,
   locale: 'en-US',
   theme: 'light',
-  version: '5.0.0',
+  version: '6.0.0',
+  autosave: true,
   tours: {
     dashboard: {
       step: 0,
@@ -151,11 +179,23 @@ export const appSettingsMigrator = migrator.createMigrations({
         return rest as unknown as AppConfigV4
       }
     }),
-    createMigration<AppConfigV4, AppConfigV5, never>({
+    createMigration<AppConfigV4, AppConfigV5, AppConfigV6>({
       version: '5.0.0',
+      up: (state) => ({
+        ...state,
+        autosave: true
+      }),
+      down: (state) => {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { autosave, ...rest } = state as AppConfigV6
+        return rest as unknown as AppConfigV5
+      }
+    }),
+    createMigration<AppConfigV5, AppConfigV6, never>({
+      version: '6.0.0',
       up: finalVersion,
       down: () => {
-        throw new Error("Can't migrate down from 5.0.0")
+        throw new Error("Can't migrate down from 6.0.0")
       }
     })
   ]

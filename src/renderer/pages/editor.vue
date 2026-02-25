@@ -353,6 +353,8 @@ import BuildHistoryDialog from '@renderer/components/BuildHistoryDialog.vue'
 import { useTour } from '@renderer/composables/useTour'
 import { debounce as esDebounce } from 'es-toolkit'
 
+import { useAppSettings } from '@renderer/store/settings'
+
 type Param = ValueOf<BlockAction['params']>
 
 const router = useRouter()
@@ -361,6 +363,9 @@ const openUpgradeDialog = inject('openUpgradeDialog') as () => void
 const api = useAPI()
 
 const fancyAnsi = new FancyAnsi()
+
+const appSettings = useAppSettings()
+const { settings: settingsRef } = storeToRefs(appSettings)
 
 const instance = useEditor()
 const {
@@ -659,7 +664,9 @@ const isSaving = ref(false)
 const isDirty = ref(false)
 
 const debouncedSave = esDebounce(() => {
-  onSaveRequest()
+  if (settingsRef.value?.autosave !== false) {
+    onSaveRequest()
+  }
 }, 1000)
 
 let isInitialLoad = true
