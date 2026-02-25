@@ -24,17 +24,20 @@ export default async (json, ws, mainWindow, rpc) => {
 
   const startTimestampAsNumber = Number.parseInt(startTimestamp)
 
+  const payload = {
+    instance: false
+  }
+
+  if (details) payload.details = details
+  if (state) payload.state = state
+  if (largeImageKey) payload.largeImageKey = largeImageKey
+  if (largeImageText) payload.largeImageText = largeImageText
+  if (smallImageKey) payload.smallImageKey = smallImageKey
+  if (smallImageText) payload.smallImageText = smallImageText
+  if (!Number.isNaN(startTimestampAsNumber)) payload.startTimestamp = startTimestampAsNumber
+
   try {
-    await rpc.setActivity({
-      details,
-      state,
-      startTimestamp: startTimestampAsNumber,
-      largeImageKey,
-      largeImageText,
-      smallImageKey,
-      smallImageText,
-      instance: false
-    })
+    await rpc.setActivity(payload)
 
     /**
      * @type {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').DiscordSetActivity, 'output'>}
