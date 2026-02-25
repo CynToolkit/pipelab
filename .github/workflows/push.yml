@@ -10,6 +10,7 @@ on:
   pull_request:
     branches: [main, develop]
   merge_group:
+  workflow_dispatch:
 
 jobs:
   build-and-test:
@@ -129,7 +130,9 @@ jobs:
             arch: arm64
           - os: windows-latest
             arch: arm64
-    if: startsWith(github.ref, 'refs/tags/')
+    if: |
+      !cancelled() && 
+      (startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch')
 
     steps:
       - uses: actions/checkout@v4
