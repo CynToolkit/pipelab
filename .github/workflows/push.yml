@@ -17,6 +17,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     env:
       CI: true
+      DEBUG: "*"
 
     strategy:
       matrix:
@@ -131,7 +132,7 @@ jobs:
           - os: windows-latest
             arch: arm64
     if: |
-      !cancelled() && 
+      !cancelled() &&
       (startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch')
 
     steps:
