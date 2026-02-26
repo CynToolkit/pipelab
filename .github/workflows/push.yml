@@ -67,13 +67,6 @@ jobs:
           security find-identity -v -p codesigning
           codesign --verify --verbose /Applications/Xcode.app
 
-      - name: Cache keychain
-        uses: actions/cache@v4
-        if: matrix.os == 'macos-latest'
-        with:
-          path: ~/Library/Keychains
-          key: ${{ runner.os }}-keychain-${{ hashFiles('**/*.p12') }}
-
       - name: Package application
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
