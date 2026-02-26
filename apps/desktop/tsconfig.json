@@ -1,0 +1,45 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "commonjs",
+    "allowJs": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "noImplicitAny": true,
+    "noEmit": true,
+    "baseUrl": ".",
+    "outDir": "dist",
+    "moduleResolution": "node",
+    "inlineSourceMap": true,
+    "resolveJsonModule": true,
+    "paths": {
+      "@pipelab/shared": [
+        "../../packages/shared/src/index.ts"
+      ],
+      "@pipelab/shared/*": [
+        "../../packages/shared/src/*"
+      ],
+      "@main/*": [
+        "./src/main/*"
+      ],
+      "@renderer/*": [
+        "../ui/src/*"
+      ],
+      "@pipelab/constants": [
+        "../../packages/constants/src/index.ts"
+      ],
+      "@pipelab/*": [
+        "../../packages/shared/src/libs/*"
+      ],
+    }
+  },
+  "exclude": [
+    "node_modules",
+    "./assets/tauri/template/app/src-tauri",
+        "dist",
+        "out",
+        "scripts",
+        "./assets"
+      ]
+    }
+    

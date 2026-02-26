@@ -1,0 +1,63 @@
+{
+  "name": "app",
+  "productName": "app",
+  "version": "1.0.0",
+  "description": "My Electron application description",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "electron-forge start",
+    "start:url": "electron-forge start -- --url=https://google.com",
+    "package": "electron-forge package",
+    "make": "electron-forge make",
+    "publish": "electron-forge publish",
+    "lint": "echo \"No linting configured\""
+  },
+  "devDependencies": {
+    "@electron-forge/cli": "7.4.0",
+    "@electron-forge/maker-deb": "7.4.0",
+    "@electron-forge/maker-dmg": "7.4.0",
+    "@electron-forge/maker-rpm": "7.4.0",
+    "@electron-forge/maker-squirrel": "7.4.0",
+    "@electron-forge/maker-zip": "7.4.0",
+    "@electron-forge/plugin-auto-unpack-natives": "7.4.0",
+    "@electron-forge/plugin-fuses": "7.4.0",
+    "@electron/fuses": "1.8.0",
+    "@pipelab/core": "1.4.9",
+    "@types/mime-types": "^3.0.1",
+    "electron": "39.2.3"
+  },
+  "keywords": [],
+  "author": {
+    "name": "Quentin Goinaud",
+    "email": "quentin.goinaud@gmail.com"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@electron-forge/plugin-base": "7.4.0",
+    "@electron/asar": "3.2.13",
+    "@pipelab/steamworks.js": "^0.11.1",
+    "discord-rpc": "^4.0.1",
+    "electron-serve": "^2.1.1",
+    "electron-squirrel-startup": "1.0.1",
+    "execa": "^9.4.0",
+    "mime-types": "^3.0.2",
+    "move-file": "^3.1.0",
+    "mri": "1.2.0",
+    "semver": "^7.7.2",
+    "serve-handler": "^6.1.6",
+    "slash": "^5.1.0",
+    "ws": "^8.18.1"
+  },
+  "pnpm": {
+    "overrides": {
+      "discord-rpc>register-scheme": "-"
+    },
+    "onlyBuiltDependencies": [
+      "electron",
+      "electron-winstaller",
+      "fs-xattr",
+      "macos-alias"
+    ]
+  }
+}

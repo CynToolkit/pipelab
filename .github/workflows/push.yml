@@ -52,7 +52,8 @@ jobs:
         run: pnpm install
 
       - name: rebuild
-        run: npm rebuild
+        working-directory: apps/desktop
+        run: pnpm rebuild
 
       - name: Import Apple Code Signing Certificate
         uses: apple-actions/import-codesign-certs@v3
@@ -68,6 +69,7 @@ jobs:
           codesign --verify --verbose /Applications/Xcode.app
 
       - name: Package application
+        working-directory: apps/desktop
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -87,18 +89,18 @@ jobs:
         uses: coactions/setup-xvfb@v1
         continue-on-error: true
         with:
-          run: pnpm test:e2e:raw
+          run: pnpm --filter @pipelab/app test:e2e:raw
 
       - name: Upload Playwright artifacts
         uses: actions/upload-artifact@v4
         continue-on-error: true
         with:
           name: ${{ matrix.os }}-playwright
-          path: playwright/**/*
+          path: apps/desktop/playwright/**/*
 
       - name: windows workaround
         if: matrix.os == 'windows-latest'
-        run: rd -r "out/Pipelab-win32-x64/resources/app/node_modules"
+        run: rd -r "apps/desktop/out/Pipelab-win32-x64/resources/app/node_modules"
 
       - name: Upload artifacts
         if: success()
@@ -106,7 +108,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: artifact-${{ matrix.os }}-${{ matrix.arch }}-out
-          path: out/**/*
+          path: apps/desktop/out/**/*
 
   release:
     permissions:
@@ -135,7 +137,7 @@ jobs:
         uses: actions/download-artifact@v5
         with:
           name: artifact-${{ matrix.os }}-${{ matrix.arch }}-out
-          path: out
+          path: apps/desktop/out
 
       - uses: pnpm/action-setup@v4
         name: Install pnpm
@@ -153,9 +155,10 @@ jobs:
 
       - name: windows workaround
         if: matrix.os == 'windows-latest'
-        run: cd out/Pipelab-win32-x64/resources/app && pnpm i
+        run: cd apps/desktop/out/Pipelab-win32-x64/resources/app && pnpm i
 
       - name: Publish release
+        working-directory: apps/desktop
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: pnpm electron-forge publish --from-dry-run

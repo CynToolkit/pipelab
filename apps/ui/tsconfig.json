@@ -1,0 +1,29 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "jsx": "preserve",
+    "importHelpers": true,
+    "moduleDetection": "force",
+    "allowJs": true,
+    "sourceMap": true,
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "lib": ["ESNext", "DOM"],
+    "skipLibCheck": true,
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": {
+      "@renderer/*": ["./src/*"],
+      "@pipelab/shared": ["../../packages/shared/src/index.ts"],
+      "@pipelab/shared/*": ["../../packages/shared/src/*"],
+      "@pipelab/constants": ["../../packages/constants/src/index.ts"],
+      "@pipelab/*": ["../../packages/shared/src/libs/*"],
+      "@main/*": ["../../apps/desktop/src/main/*"]
+    }
+  },
+  "include": ["src/**/*.ts", "src/**/*.vue", "src/**/*.d.ts"],
+  "exclude": ["node_modules"]
+}

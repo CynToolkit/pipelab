@@ -1,0 +1,36 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "app",
+  "version": "0.1.0",
+  "identifier": "xyz.armaldio.app",
+  "build": {
+    "beforeDevCommand": "echo 1",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "echo 1",
+    "frontendDist": "../src/app"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "title": "App",
+        "width": 800,
+        "height": 600
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  }
+}

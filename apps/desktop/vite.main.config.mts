@@ -1,0 +1,74 @@
+import type { ConfigEnv, UserConfig } from 'vite'
+import { defineConfig, loadEnv, mergeConfig } from 'vite'
+import { getBuildConfig, getBuildDefine, external, pluginHotRestart } from './vite.base.config.mjs'
+import tsconfigPaths from 'vite-tsconfig-paths'
+import { viteStaticCopy } from 'vite-plugin-static-copy'
+import { sentryVitePlugin } from '@sentry/vite-plugin'
+import { resolve } from 'path'
+
+// https://vitejs.dev/config
+export default defineConfig((env) => {
+  const forgeEnv = env as ConfigEnv<'build'>
+  const { forgeConfigSelf } = forgeEnv
+  const define = getBuildDefine(forgeEnv)
+  const environment = loadEnv(env.mode, process.cwd(), '')
+
+  const plugins = [
+    pluginHotRestart('restart'),
+    tsconfigPaths({
+      projects: ['./tsconfig.json']
+    }),
+    viteStaticCopy({
+      targets: [
+        {
+          src: 'node_modules/@jitl/quickjs-wasmfile-release-sync/dist/emscripten-module.wasm',
+          dest: '.'
+        }
+      ]
+    })
+  ]
+
+  // check if we are in a tag
+  const tag = process.env.GITHUB_REF?.includes('refs/tags/')
+  console.log('tag', tag)
+  if (tag) {
+    plugins.push(
+      sentryVitePlugin({
+        org: 'armaldio',
+        project: 'cyn',
+        authToken: environment.SENTRY_AUTH_TOKEN
+      })
+    )
+  }
+
+  const config: UserConfig = {
+    build: {
+      sourcemap: true,
+      lib: {
+        entry: forgeConfigSelf.entry!,
+        fileName: () => '[name].js',
+        formats: ['cjs']
+      },
+      rollupOptions: {
+        external: external.filter((dep) => !dep.startsWith('@pipelab/'))
+      }
+    },
+    plugins,
+    define: {
+      ...define,
+      __POSTHOG_API_KEY__: JSON.stringify(environment.POSTHOG_API_KEY)
+    },
+    resolve: {
+      // Load the Node.js entry.
+      mainFields: ['module', 'jsnext:main', 'jsnext'],
+      alias: {
+        '@pipelab/shared': resolve(__dirname, '../../packages/shared/src'),
+        '@pipelab/constants': resolve(__dirname, '../../packages/constants/src/index.ts'),
+        '@pipelab': resolve(__dirname, '../../packages/shared/src/libs'),
+        '@main': resolve(__dirname, 'src/main')
+      }
+    }
+  }
+
+  return mergeConfig(getBuildConfig(forgeEnv), config)
+})

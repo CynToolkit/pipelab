@@ -1,0 +1,58 @@
+{
+  "version": "3.0.0",
+  "name": "Noobs are coming tauri",
+  "description": "",
+  "canvas": {
+    "blocks": [
+      {
+        "uid": "tauri-package-node",
+        "type": "action",
+        "origin": { "nodeId": "tauri:package:v2", "pluginId": "tauri" },
+        "params": {
+          "arch": { "editor": "simple", "value": "" },
+          "platform": { "editor": "simple", "value": "" },
+          "input-folder": {
+            "editor": "simple",
+            "value": "\"./tests/e2e/fixtures/html-export\""
+          },
+          "name": { "editor": "simple", "value": "\"Pipelab\"" },
+          "appBundleId": { "editor": "simple", "value": "\"com.pipelab.app\"" },
+          "appCopyright": { "editor": "simple", "value": "\"Copyright © 2024 Pipelab\"" },
+          "appVersion": { "editor": "simple", "value": "\"1.0.0\"" },
+          "icon": { "editor": "simple", "value": "" },
+          "author": { "editor": "simple", "value": "\"Pipelab\"" },
+          "description": { "editor": "simple", "value": "\"A simple Electron application\"" },
+          "appCategoryType": {
+            "editor": "simple",
+            "value": "\"public.app-category.developer-tools\""
+          },
+          "width": { "editor": "simple", "value": 800 },
+          "height": { "editor": "simple", "value": 600 },
+          "fullscreen": { "editor": "simple", "value": false },
+          "frame": { "editor": "simple", "value": true },
+          "transparent": { "editor": "simple", "value": false },
+          "toolbar": { "editor": "simple", "value": true },
+          "alwaysOnTop": { "editor": "simple", "value": false },
+          "tauriVersion": { "editor": "simple", "value": "\"\"" },
+          "enableExtraLogging": { "editor": "simple", "value": false },
+          "openDevtoolsOnStart": { "editor": "simple", "value": false },
+          "websocketApi": { "editor": "simple", "value": "[]" },
+          "ignore": { "editor": "simple", "value": "[\n  // use 'src/app/' as starting point\n]" },
+          "enableSteamSupport": { "editor": "simple", "value": false },
+          "steamGameId": { "editor": "simple", "value": 480 },
+          "enableDiscordSupport": { "editor": "simple", "value": false },
+          "discordAppId": { "editor": "simple", "value": "\"\"" }
+        }
+      }
+    ],
+    "triggers": [
+      {
+        "type": "event",
+        "origin": { "pluginId": "system", "nodeId": "manual" },
+        "uid": "manual-start",
+        "params": {}
+      }
+    ]
+  },
+  "variables": []
+}
