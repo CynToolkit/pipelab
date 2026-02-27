@@ -22,6 +22,31 @@ importers:
         specifier: ^2.4.2
         version: 2.8.11
 
+  apps/cli:
+    dependencies:
+      '@pipelab/constants':
+        specifier: workspace:*
+        version: link:../../packages/constants
+      '@pipelab/core-node':
+        specifier: workspace:*
+        version: link:../../packages/core-node
+      '@pipelab/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+      cac:
+        specifier: 6.7.14
+        version: 6.7.14
+    devDependencies:
+      '@types/node':
+        specifier: 22.7.9
+        version: 22.7.9
+      tsup:
+        specifier: ^8.0.0
+        version: 8.5.1(jiti@2.4.2)(postcss@8.5.4)(tsx@4.19.1)(typescript@5.8.3)
+      typescript:
+        specifier: ^5.0.0
+        version: 5.8.3
+
   apps/desktop:
     dependencies:
       '@electron-toolkit/preload':
@@ -45,6 +70,9 @@ importers:
       '@pipelab/core':
         specifier: 1.4.9
         version: 1.4.9
+      '@pipelab/core-node':
+        specifier: workspace:*
+        version: link:../../packages/core-node
       '@pipelab/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -542,6 +570,43 @@ importers:
 
   packages/constants:
     devDependencies:
+      tsup:
+        specifier: ^8.0.0
+        version: 8.5.1(jiti@2.4.2)(postcss@8.5.4)(tsx@4.19.1)(typescript@5.8.3)
+      typescript:
+        specifier: ^5.0.0
+        version: 5.8.3
+
+  packages/core-node:
+    dependencies:
+      '@pipelab/constants':
+        specifier: workspace:*
+        version: link:../constants
+      '@pipelab/shared':
+        specifier: workspace:*
+        version: link:../shared
+      es-toolkit:
+        specifier: 1.25.2
+        version: 1.25.2
+      nanoid:
+        specifier: 5.0.7
+        version: 5.0.7
+      tar:
+        specifier: 6.2.1
+        version: 6.2.1
+      ws:
+        specifier: 8.18.3
+        version: 8.18.3
+      yauzl:
+        specifier: 2.10.0
+        version: 2.10.0
+    devDependencies:
+      '@types/node':
+        specifier: 22.7.9
+        version: 22.7.9
+      '@types/ws':
+        specifier: 8.18.1
+        version: 8.18.1
       tsup:
         specifier: ^8.0.0
         version: 8.5.1(jiti@2.4.2)(postcss@8.5.4)(tsx@4.19.1)(typescript@5.8.3)

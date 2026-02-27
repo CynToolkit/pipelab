@@ -65,8 +65,10 @@ export default defineConfig((env) => {
         '@renderer': resolve(__dirname, '../ui/src'),
         '@pipelab/shared': resolve(__dirname, '../../packages/shared/src'),
         '@pipelab/constants': resolve(__dirname, '../../packages/constants/src/index.ts'),
+        '@pipelab/ui': resolve(__dirname, '../ui/src/main.ts'),
+        '@pipelab/core-node': resolve(__dirname, '../../packages/core-node/src'),
         '@pipelab': resolve(__dirname, '../../packages/shared/src/libs'),
-        '@main': resolve(__dirname, 'src/main')
+        '@main': resolve(__dirname, '../../packages/core-node/src')
       }
     },
     clearScreen: false

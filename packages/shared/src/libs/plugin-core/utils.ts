@@ -99,7 +99,7 @@ export const runWithLiveLogsPTY = async (
 
     const subprocess = spawn(command, args, ptyOptions)
 
-    hooks.onCreated?.(subprocess)
+    hooks?.onCreated?.(subprocess)
 
     subprocess.onData((data) => {
       hooks?.onStdout?.(data.toString(), subprocess)

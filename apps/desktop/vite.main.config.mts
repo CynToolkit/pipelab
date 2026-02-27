@@ -64,8 +64,9 @@ export default defineConfig((env) => {
       alias: {
         '@pipelab/shared': resolve(__dirname, '../../packages/shared/src'),
         '@pipelab/constants': resolve(__dirname, '../../packages/constants/src/index.ts'),
+        '@pipelab/core-node': resolve(__dirname, '../../packages/core-node/src'),
         '@pipelab': resolve(__dirname, '../../packages/shared/src/libs'),
-        '@main': resolve(__dirname, 'src/main')
+        '@main': resolve(__dirname, '../../packages/core-node/src')
       }
     }
   }

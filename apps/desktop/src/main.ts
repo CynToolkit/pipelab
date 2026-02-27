@@ -2,18 +2,20 @@ import { app, shell, BrowserWindow, dialog, autoUpdater, protocol, screen } from
 import { join } from 'path'
 import { platform } from 'os'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
-import { registerIPCHandlers } from './main/handlers'
-import { webSocketServer } from './main/websocket-server'
+import {
+  registerIPCHandlers,
+  webSocketServer,
+  executeGraphWithHistory,
+  setupConfig,
+  setSystemContext
+} from '@pipelab/core-node'
 import { usePlugins } from '@pipelab/shared/plugins'
 import { parseArgs, ParseArgsConfig } from 'node:util'
 import { readFile, writeFile, mkdir } from 'fs/promises'
-import { executeGraphWithHistory } from '@main/utils'
 import { SavedFile } from '@pipelab/shared/model'
 import { useLogger } from '@pipelab/shared/logger'
 import * as Sentry from '@sentry/electron/main'
-import { assetsPath } from '@main/paths'
 import { usePluginAPI } from '@main/api'
-import { setupConfig } from '@main/config'
 import { resolve } from 'node:path'
 import Squirrel from 'electron-squirrel-startup'
 
@@ -166,6 +168,22 @@ function handleProtocolUrl(url: string) {
 }
 
 app.whenReady().then(async () => {
+  setSystemContext({
+    userDataPath: app.getPath('userData'),
+    showOpenDialog: (options) => {
+      const mainWindow = BrowserWindow.getFocusedWindow()
+      if (!mainWindow) throw new Error('No window')
+      return dialog.showOpenDialog(mainWindow, options)
+    },
+    showSaveDialog: (options) => {
+      const mainWindow = BrowserWindow.getFocusedWindow()
+      if (!mainWindow) throw new Error('No window')
+      return dialog.showSaveDialog(mainWindow, options)
+    },
+    getMainWindow: () => BrowserWindow.getFocusedWindow(),
+    getPluginAPI: (mainWindow) => usePluginAPI(mainWindow)
+  })
+
   protocol.handle('pipelab', async (request) => {
     const url = request.url
     console.log('handle url', url)
