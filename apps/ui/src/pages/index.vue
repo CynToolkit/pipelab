@@ -401,8 +401,12 @@ import BuildHistoryDialog from '@renderer/components/BuildHistoryDialog.vue'
 import Skeleton from 'primevue/skeleton'
 import ConfirmDialog from 'primevue/confirmdialog'
 import { useConfirm } from 'primevue/useconfirm'
-import { TreeNode } from 'primevue/treenode'
-import { SaveLocation, SaveLocationExternal, SaveLocationInternal } from '@pipelab/shared/save-location'
+import { TreeNode } from 'primevue'
+import {
+  SaveLocation,
+  SaveLocationExternal,
+  SaveLocationInternal
+} from '@pipelab/shared/save-location'
 import { usePipeline } from '@renderer/composables/usePipeline'
 import { usePostHog } from '@renderer/composables/usePostHog'
 

@@ -1,7 +1,5 @@
 import { Options, Subprocess } from 'execa'
 import { IPty, type IPtyForkOptions, type IWindowsPtyForkOptions } from '@lydell/node-pty'
-import { createWriteStream } from 'fs'
-import { pipeline } from 'stream/promises'
 import { ExternalCommandError } from './custom-errors'
 
 export const fileExists = async (path: string): Promise<boolean> => {
@@ -78,8 +76,6 @@ export const runWithLiveLogs = async (
   })
 }
 
-
-
 export const runWithLiveLogsPTY = async (
   command: string,
   args: string[],
@@ -112,7 +108,9 @@ export const runWithLiveLogsPTY = async (
       if (exitCode === 0) {
         return resolve()
       } else {
-        return reject(new ExternalCommandError(`Command exited with non-zero exitCode: ${exitCode}`, exitCode))
+        return reject(
+          new ExternalCommandError(`Command exited with non-zero exitCode: ${exitCode}`, exitCode)
+        )
       }
     })
   })
@@ -156,6 +154,7 @@ export const downloadFile = async (
   let downloadedSize = 0
 
   // Create a write stream for the file
+  const { createWriteStream } = await import('fs')
   const fileStream = createWriteStream(localPath)
 
   // Create a readable stream to monitor progress
@@ -179,5 +178,6 @@ export const downloadFile = async (
     throw new Error('Failed to create a readable stream')
   }
 
+  const { pipeline } = await import('stream/promises')
   await pipeline(readable, fileStream)
 }

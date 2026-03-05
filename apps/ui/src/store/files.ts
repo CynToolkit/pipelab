@@ -123,6 +123,8 @@ export const useFiles = defineStore('files', () => {
   const load = async () => {
     const data = await loadConfig()
 
+    console.log('data', data)
+
     if (data.type === 'success') {
       // TODO: beter typing for "data.result.result.version"
       if (fileRepoMigrations.needMigration(data.result.result.version ?? '0.0.0')) {

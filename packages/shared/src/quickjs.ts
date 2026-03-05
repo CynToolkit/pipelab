@@ -1,6 +1,11 @@
 import { useLogger } from './logger'
 import { isRenderer } from './validation'
-import { newQuickJSWASMModuleFromVariant, newVariant, RELEASE_SYNC, QuickJSContext } from 'quickjs-emscripten'
+import {
+  newQuickJSWASMModuleFromVariant,
+  newVariant,
+  RELEASE_SYNC,
+  QuickJSContext
+} from 'quickjs-emscripten'
 import { Arena } from 'quickjs-emscripten-sync'
 import { fmt } from './fmt'
 
@@ -21,8 +26,10 @@ export const createQuickJs = async () => {
   if (isRenderer()) {
     location = (await import('@jitl/quickjs-wasmfile-release-sync/wasm?url')).default
   } else {
-    const { join } = await import('node:path')
-    const { dirname } = await import('@main/paths')
+    const nodePathPkg = 'node:path'
+    const coreNodePkg = '@pipelab/core-node'
+    const { join } = await import(nodePathPkg)
+    const { dirname } = await import(coreNodePkg)
     const _dirname = await dirname()
     location = join(_dirname, 'emscripten-module.wasm')
   }

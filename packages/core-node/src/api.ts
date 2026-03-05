@@ -69,13 +69,13 @@ export type RequestId = Tagged<string, 'request-id'>
 
 // type Output = End<'fs:openFolder'>
 
-export type HandleListenerSendFn<KEY extends RendererChannels> = (
+export type HandleListenerRendererSendFn<KEY extends RendererChannels> = (
   events: RendererEvents<KEY>
 ) => void
 
-export type HandleListener<KEY extends RendererChannels> = (
+export type HandleListenerRenderer<KEY extends RendererChannels> = (
   event: Electron.IpcMainInvokeEvent,
-  data: { value: RendererData<KEY>; send: HandleListenerSendFn<KEY> }
+  data: { value: RendererData<KEY>; send: HandleListenerRendererSendFn<KEY> }
 ) => Promise<void>
 
 export type ListenerMain<KEY extends RendererChannels> = (
@@ -89,7 +89,7 @@ export const usePluginAPI = (browserWindow: any) => {
    * Send an order
    */
   const send = <KEY extends RendererChannels>(channel: KEY, args?: RendererData<KEY>) => {
-    if (!browserWindow) return
+    if (!browserWindow || browserWindow.isDestroyed()) return
     browserWindow.webContents.send(channel, args)
   }
 
@@ -97,10 +97,13 @@ export const usePluginAPI = (browserWindow: any) => {
     channel: KEY | string,
     listener: (event: any, data: RendererEvents<KEY>) => void
   ) => {
-    if (!browserWindow) return () => {}
+    if (!browserWindow || browserWindow.isDestroyed()) return () => {}
     const ipcMain = browserWindow.webContents.ipc.on(channel, listener)
 
-    const cancel = () => ipcMain.removeListener(channel, listener)
+    const cancel = () => {
+      if (browserWindow.isDestroyed()) return
+      ipcMain.removeListener(channel, listener)
+    }
 
     return cancel
   }
@@ -116,10 +119,14 @@ export const usePluginAPI = (browserWindow: any) => {
     const { nanoid } = await import('nanoid')
     const newId = nanoid() as RequestId
     // eslint-disable-next-line no-async-promise-executor
-    return new Promise<RendererEnd<KEY>>(async (resolve) => {
+    return new Promise<RendererEnd<KEY>>(async (resolve, reject) => {
       const message: RendererMessage = {
         requestId: newId,
         data: toRaw(klona(data))
+      }
+
+      if (!browserWindow || browserWindow.isDestroyed()) {
+        return reject(new Error('Browser window is destroyed'))
       }
 
       const cancel = on(newId, async (event, data) => {
@@ -134,11 +141,11 @@ export const usePluginAPI = (browserWindow: any) => {
 
       // send the message
       try {
-        if (!browserWindow) throw new Error('No browser window')
         browserWindow.webContents.send(channel, message)
       } catch (e) {
         logger().error(e)
         logger().error(channel, message)
+        reject(e)
       }
     })
   }

@@ -1,6 +1,7 @@
 import { Channels, Data, End } from '@pipelab/shared/apis'
 import { useLogger } from '@pipelab/shared/logger'
 import { getWebSocketClient, WebSocketClient } from './websocket-client'
+import { ref } from 'vue'
 import {
   WebSocketManager,
   WebSocketConnectionState,
@@ -13,6 +14,7 @@ class WebSocketManagerImpl implements WebSocketManager {
   private client: WebSocketClient | null = null
   private stateChangeListeners: Set<(state: WebSocketConnectionState) => void> = new Set()
   private isInitialized = false
+  public connectionState = ref<WebSocketConnectionState>('disconnected')
 
   async initialize(config?: WebSocketClientConfig): Promise<void> {
     if (this.isInitialized) {
@@ -23,9 +25,11 @@ class WebSocketManagerImpl implements WebSocketManager {
 
     try {
       this.client = getWebSocketClient()
+      this.connectionState.value = this.client.getConnectionState()
 
       // Set up state change listener
       this.client.onStateChange((state) => {
+        this.connectionState.value = state
         this.stateChangeListeners.forEach((listener) => {
           try {
             listener(state)

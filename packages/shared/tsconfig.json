@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "commonjs",
+    "allowJs": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "noImplicitAny": true,
+    "noEmit": true,
+    "baseUrl": ".",
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "paths": {
+      "@pipelab/migration/*": ["./src/libs/migration/*"],
+      "@pipelab/plugin-core": ["./src/libs/plugin-core"],
+      "@pipelab/plugin-core/*": ["./src/libs/plugin-core/*"],
+      "@pipelab/core-app": ["./src/libs/core-app"],
+      "@pipelab/shared/*": ["./src/*"]
+    },
+    "typeRoots": ["./src"],
+    "types": ["global.d.ts", "wasm.d.ts"]
+  },
+  "include": ["src/**/*", "tests/**/*", "*.ts"],
+  "exclude": ["node_modules", "dist"]
+}

@@ -4,7 +4,7 @@ import { dirname, join } from 'path'
 import { tmpdir } from 'os'
 import { nanoid } from 'nanoid'
 import { mkdir, readFile, writeFile } from 'fs/promises'
-import { getBinName, name, outFolderName } from '../../../src/constants'
+import { getBinName, name, outFolderName } from '@pipelab/constants'
 import { platform, arch } from 'process'
 
 const tmpLogFile = join(tmpdir(), nanoid() + 'pipelab-app-test.log.json')

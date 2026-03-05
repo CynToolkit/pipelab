@@ -18,7 +18,7 @@ export const useMiddleware = <HANDLER extends (...args: any[]) => Awaitable<void
   }
 
   const cancel = (id: string) => {
-    handlers.value = handlers.value.filter(h => h.id !== id)
+    handlers.value = handlers.value.filter((h) => h.id !== id)
   }
 
   const use = (callback: HANDLER) => {
@@ -26,16 +26,16 @@ export const useMiddleware = <HANDLER extends (...args: any[]) => Awaitable<void
 
     handlers.value.push({
       id,
-      fn: callback,
+      fn: callback
     })
 
     return {
-      cancel: () => cancel(id),
+      cancel: () => cancel(id)
     }
   }
 
   return {
     handler: handlerFn,
-    use,
+    use
   }
 }

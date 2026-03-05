@@ -1,8 +1,6 @@
 <template>
   <div class="node-event-wrapper">
-    <div
-      class="node-event"
-    >
+    <div class="node-event">
       <div class="vertical">
         <PluginIcon :icon="{ icon: 'mdi mdi-help-circle', type: 'icon' }"></PluginIcon>
 
@@ -10,9 +8,7 @@
           <div class="title">
             <span class="">No trigger selected</span>
           </div>
-          <div class="subtitle">
-            Click here to select one
-          </div>
+          <div class="subtitle">Click here to select one</div>
         </div>
 
         <span class="pi pi-bolt"></span>
@@ -39,11 +35,18 @@ const props = defineProps({
     type: Array as PropType<string[]>,
     required: true
     // default: () => []
-  },
+  }
 })
 
 const editor = useEditor()
-const { getNodeDefinition, getPluginDefinition, setTriggerValue, addNode, addTrigger, removeTrigger } = editor
+const {
+  getNodeDefinition,
+  getPluginDefinition,
+  setTriggerValue,
+  addNode,
+  addTrigger,
+  removeTrigger
+} = editor
 const { activeNode } = storeToRefs(editor)
 </script>
 

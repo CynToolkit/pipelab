@@ -1,6 +1,5 @@
 import type { ConditionalPick } from 'type-fest'
 import type { BrowserWindow, OpenDialogOptions } from 'electron'
-import { UseMainAPI } from '@main/api'
 import { BlockAction, BlockCondition, BlockEvent, BlockLoop } from '@pipelab/shared/model'
 
 export type PathOptions = {
@@ -393,7 +392,7 @@ export type ActionRunnerData<ACTION extends Action> = {
     pnpm: string
     node: string
   }
-  api: UseMainAPI
+  api: any
   browserWindow: BrowserWindow
   abortSignal: AbortSignal
 }
@@ -655,93 +654,6 @@ export const createEvent = <T extends Omit<Event, 'type'>>(event: T) => {
 }
 
 export type Runner = ActionRunner<any> | LoopRunner<any> | EventRunner<any> | ConditionRunner<any>
-
-const a1 = createAction({
-  id: 'aaa',
-  name: 'AAA',
-  icon: '',
-  displayString: '',
-  meta: {},
-  description: '',
-  run: async () => {
-    //
-  },
-  params: {
-    aaa: {
-      value: 'aaa',
-      control: {
-        type: 'input',
-        options: {
-          kind: 'text'
-        }
-      },
-      label: 'AAA'
-    },
-    bbb: {
-      value: 12,
-      label: 'BBB',
-      control: {
-        type: 'input',
-        options: {
-          kind: 'number'
-        }
-      }
-    },
-    ccc: {
-      value: ['aaa'],
-      label: 'CCC',
-      control: {
-        type: 'select',
-        options: {
-          placeholder: 'aaa',
-          options: [
-            {
-              label: 'AAA',
-              value: 'aaa'
-            }
-          ]
-        }
-      }
-    },
-    ddd: {
-      value: ['a', 12],
-      label: 'DDD',
-      control: {
-        type: 'select',
-        options: {
-          placeholder: 'ddd',
-          options: [
-            {
-              label: 'AAA',
-              value: 'aaa'
-            }
-          ]
-        }
-      }
-    }
-  },
-  outputs: {
-    aaa: {
-      value: 'string',
-      label: 'AAA',
-      validator: (value) => value === 'hello' || value == 'bye'
-    },
-    bbb: {
-      label: 'BBB',
-      //   schema: z.number(),
-      value: 12
-    },
-    ccc: {
-      label: 'CCC',
-      //   schema: z.array(z.string()),
-      value: [] as string[]
-    },
-    ddd: {
-      label: 'DDD',
-      value: undefined as Array<string | number> | undefined
-    }
-  }
-})
 
 const sleep = (duration: number) => {
   return new Promise((resolve) => setTimeout(resolve, duration))

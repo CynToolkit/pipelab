@@ -25,6 +25,7 @@ declare module 'vue' {
     DataTable: typeof import('primevue/datatable')['default']
     DevBenefitsOverride: typeof import('./src/components/DevBenefitsOverride.vue')['default']
     Dialog: typeof import('primevue/dialog')['default']
+    DisconnectedPage: typeof import('./src/components/DisconnectedPage.vue')['default']
     Divider: typeof import('primevue/divider')['default']
     Drawer: typeof import('primevue/drawer')['default']
     Dropdown: typeof import('primevue/dropdown')['default']
@@ -68,6 +69,7 @@ declare module 'vue' {
     ToggleSwitch: typeof import('primevue/toggleswitch')['default']
     UpgradeDialog: typeof import('./src/components/UpgradeDialog.vue')['default']
     UpgradeNowButton: typeof import('./src/components/UpgradeNowButton.vue')['default']
+    WebFilePicker: typeof import('./src/components/WebFilePicker.vue')['default']
   }
   export interface ComponentCustomProperties {
     Tooltip: typeof import('primevue/tooltip')['default']

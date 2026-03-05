@@ -1,11 +1,10 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
-
-<head>
-  <meta charset="UTF-8" />
-  <title>Pipelab</title>
-  <!-- https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP -->
-  <!-- <meta
+  <head>
+    <meta charset="UTF-8" />
+    <title>Pipelab</title>
+    <!-- https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP -->
+    <!-- <meta
     http-equiv="Content-Security-Policy"
     content="
         default-src 'self';
@@ -17,43 +16,38 @@
         connect-src 'self' https://*.supabase.co https://webhook.site/*;
       "
   /> -->
-  <link
-    rel="preconnect"
-    href="https://fonts.googleapis.com"
-  >
-  <link
-    rel="preconnect"
-    href="https://fonts.gstatic.com"
-    crossorigin
-  >
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Geist+Mono:wght@100..900&family=Geist:wght@100..900&family=Public+Sans:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
-  <style>
-    html,
-    body,
-    #app {
-      border: none;
-      margin: 0;
-      padding: 0;
-      height: 100%;
-    }
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Geist+Mono:wght@100..900&family=Geist:wght@100..900&family=Public+Sans:ital,wght@0,100..900;1,100..900&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      html,
+      body,
+      #app {
+        border: none;
+        margin: 0;
+        padding: 0;
+        height: 100%;
+      }
 
-    html {
-      font-family: "Geist", serif;
-      /* font-optical-sizing: auto;
+      html {
+        font-family: 'Geist', serif;
+        /* font-optical-sizing: auto;
         font-weight: normal;
         font-style: normal;
         font-variation-settings:
           "wdth" 100; */
-    }
-  </style>
-</head>
+      }
+    </style>
+  </head>
 
-<body>
-  <div id="app"></div>
-  <script
+  <body>
+    <div id="app"></div>
+    <!-- <script
     type="module"
     src="/src/renderer.ts"
-  ></script>
-</body>
-
+  ></script> -->
+  </body>
 </html>

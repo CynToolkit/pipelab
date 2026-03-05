@@ -15,7 +15,7 @@ export const useLogger = () => {
 
     // in main, send logs to renderer
     if (!isRenderer()) {
-      const { usePluginAPI } = await import('@main/api')
+      const { usePluginAPI } = await import('@pipelab/core-node')
       _logger.attachTransport((logObj) => {
         const api = usePluginAPI(mainWindow)
         api.execute('log:message', logObj as any)

@@ -408,8 +408,10 @@ export const zipFolder = async (from: string, to: string, log: typeof console.lo
   })
 }
 
-// @ts-expect-error import.meta
-const isCI = process.env.CI === 'true' || import.meta.env.CI === 'true'
+const isCI =
+  process.env.CI === 'true' ||
+  // @ts-expect-error import.meta
+  (typeof import.meta !== 'undefined' && import.meta.env?.CI === 'true')
 
 export interface GraphExecutionOptions {
   /** The graph nodes to execute */

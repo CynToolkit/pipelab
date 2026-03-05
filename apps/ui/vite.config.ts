@@ -24,8 +24,8 @@ export default defineConfig(({ mode }) => {
         resolvers: [PrimeVueResolver()]
       }),
       AutoImport({
-        imports: ['vue', 'vue-router', 'pinia'],
-        // We avoid PrimeVueResolver here because it causes name collisions 
+        imports: ['vue', 'vue-router', 'pinia']
+        // We avoid PrimeVueResolver here because it causes name collisions
         // with project types like Steps, Message, etc.
         // resolvers: [PrimeVueResolver()]
       })

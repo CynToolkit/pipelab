@@ -248,7 +248,8 @@ export const uploadToSteamRunner = createActionRunner<typeof uploadToSteam>(
     } catch (e) {
       if (e instanceof ExternalCommandError) {
         const code = e.code as keyof typeof errorMap
-        const message = (code in errorMap) ? errorMap[code] : 'SteamCmd error:' + e.code + ' ' + e.message
+        const message =
+          code in errorMap ? errorMap[code] : 'SteamCmd error:' + e.code + ' ' + e.message
         throw new Error(message)
       } else if (e instanceof Error) {
         console.error(e)

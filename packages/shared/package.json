@@ -2,7 +2,134 @@
   "name": "@pipelab/shared",
   "version": "1.0.0",
   "private": true,
-  "main": "./src/index.ts",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    },
+    "./apis": {
+      "types": "./dist/apis.d.ts",
+      "import": "./dist/apis.mjs",
+      "require": "./dist/apis.js"
+    },
+    "./build-history": {
+      "types": "./dist/build-history.d.ts",
+      "import": "./dist/build-history.mjs",
+      "require": "./dist/build-history.js"
+    },
+    "./config.schema": {
+      "types": "./dist/config.schema.d.ts",
+      "import": "./dist/config.schema.mjs",
+      "require": "./dist/config.schema.js"
+    },
+    "./database.types": {
+      "types": "./dist/database.types.d.ts",
+      "import": "./dist/database.types.mjs",
+      "require": "./dist/database.types.js"
+    },
+    "./evaluator": {
+      "types": "./dist/evaluator.d.ts",
+      "import": "./dist/evaluator.mjs",
+      "require": "./dist/evaluator.js"
+    },
+    "./fmt": {
+      "types": "./dist/fmt.d.ts",
+      "import": "./dist/fmt.mjs",
+      "require": "./dist/fmt.js"
+    },
+    "./graph": {
+      "types": "./dist/graph.d.ts",
+      "import": "./dist/graph.mjs",
+      "require": "./dist/graph.js"
+    },
+    "./i18n-utils": {
+      "types": "./dist/i18n-utils.d.ts",
+      "import": "./dist/i18n-utils.mjs",
+      "require": "./dist/i18n-utils.js"
+    },
+    "./logger": {
+      "types": "./dist/logger.d.ts",
+      "import": "./dist/logger.mjs",
+      "require": "./dist/logger.js"
+    },
+    "./model": {
+      "types": "./dist/model.d.ts",
+      "import": "./dist/model.mjs",
+      "require": "./dist/model.js"
+    },
+    "./plugins": {
+      "types": "./dist/plugins.d.ts",
+      "import": "./dist/plugins.mjs",
+      "require": "./dist/plugins.js"
+    },
+    "./quickjs": {
+      "types": "./dist/quickjs.d.ts",
+      "import": "./dist/quickjs.mjs",
+      "require": "./dist/quickjs.js"
+    },
+    "./save-location": {
+      "types": "./dist/save-location.d.ts",
+      "import": "./dist/save-location.mjs",
+      "require": "./dist/save-location.js"
+    },
+    "./subscription-errors": {
+      "types": "./dist/subscription-errors.d.ts",
+      "import": "./dist/subscription-errors.mjs",
+      "require": "./dist/subscription-errors.js"
+    },
+    "./supabase": {
+      "types": "./dist/supabase.d.ts",
+      "import": "./dist/supabase.mjs",
+      "require": "./dist/supabase.js"
+    },
+    "./types": {
+      "types": "./dist/types.d.ts",
+      "import": "./dist/types.mjs",
+      "require": "./dist/types.js"
+    },
+    "./utils": {
+      "types": "./dist/utils.d.ts",
+      "import": "./dist/utils.mjs",
+      "require": "./dist/utils.js"
+    },
+    "./validation": {
+      "types": "./dist/validation.d.ts",
+      "import": "./dist/validation.mjs",
+      "require": "./dist/validation.js"
+    },
+    "./variables": {
+      "types": "./dist/variables.d.ts",
+      "import": "./dist/variables.mjs",
+      "require": "./dist/variables.js"
+    },
+    "./websocket.types": {
+      "types": "./dist/websocket.types.d.ts",
+      "import": "./dist/websocket.types.mjs",
+      "require": "./dist/websocket.types.js"
+    },
+    "./config": {
+      "types": "./dist/config/index.d.ts",
+      "import": "./dist/config/index.mjs",
+      "require": "./dist/config/index.js"
+    },
+    "./i18n": {
+      "types": "./dist/i18n/index.d.ts",
+      "import": "./dist/i18n/index.mjs",
+      "require": "./dist/i18n/index.js"
+    },
+    "./libs": {
+      "types": "./dist/libs/index.d.ts",
+      "import": "./dist/libs/index..mjs",
+      "require": "./dist/libs/index.js"
+    }
+  },
   "dependencies": {
     "klona": "2.0.6",
     "nanoid": "5.0.7",
@@ -11,5 +138,10 @@
     "tslog": "4.9.3",
     "type-fest": "4.26.1",
     "valibot": "0.42.1"
+  },
+  "devDependencies": {
+    "esbuild-plugin-wasm": "1.1.0",
+    "tsup": "^8.5.1",
+    "typescript": "5.9.3"
   }
 }

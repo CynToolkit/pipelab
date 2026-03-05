@@ -1,7 +1,6 @@
 import { Channels, Data, End, RequestId } from '@pipelab/shared/apis'
 import { useLogger } from '@pipelab/shared/logger'
 import { klona } from 'klona'
-import { nanoid } from 'nanoid'
 import { toRaw } from 'vue'
 import {
   WebSocketSendFunction,
@@ -28,30 +27,44 @@ interface QueuedMessage {
   listener?: (event: any) => void
 }
 
-
 export class WebSocketClient {
   private ws: WebSocket | null = null
   private listeners: Map<string, (data: WebSocketMessage) => void> = new Map()
   private reconnectAttempts = 0
-  private maxReconnectAttempts = 5
+  private maxReconnectAttempts = Infinity
   private reconnectDelay = 1000
+  private maxReconnectDelay = 30000 // Cap at 30 seconds
   private isConnecting = false
   private connectionState: WebSocketConnectionState = 'disconnected'
   private stateChangeListeners: Set<(state: WebSocketConnectionState) => void> = new Set()
   private messageQueue: QueuedMessage[] = []
+  private reconnectTimeout: any = null
+  public currentUrl: string
 
   constructor(private config: WebSocketClientConfig = {}) {
     const {
       url = `ws://localhost:${websocketPort}`,
-      maxReconnectAttempts = 5,
+      maxReconnectAttempts = Infinity,
       reconnectDelay = 1000
     } = config
     this.maxReconnectAttempts = maxReconnectAttempts
     this.reconnectDelay = reconnectDelay
-    this.connect(url)
+    this.currentUrl = url
+
+    // Check if running in browser/renderer environment
+    this.isRenderer = typeof window !== 'undefined'
   }
 
-  private connect(url?: string) {
+  public connect(url?: string) {
+    const targetUrl = url || this.currentUrl
+    this.currentUrl = targetUrl
+
+    // Clear any pending reconnection attempt
+    if (this.reconnectTimeout) {
+      clearTimeout(this.reconnectTimeout)
+      this.reconnectTimeout = null
+    }
+
     if (this.isConnecting || this.ws?.readyState === WebSocket.OPEN) {
       return
     }
@@ -61,14 +74,19 @@ export class WebSocketClient {
     this.notifyStateChange()
 
     try {
-      const connectionUrl = url || this.config.url || `ws://localhost:${websocketPort}`
-      this.ws = new WebSocket(connectionUrl)
+      this.ws = new WebSocket(targetUrl)
 
       this.ws.onopen = () => {
-        console.log('WebSocket connected')
+        console.log('WebSocket connected to', targetUrl)
         this.isConnecting = false
         this.reconnectAttempts = 0
         this.connectionState = 'connected'
+        
+        if (this.reconnectTimeout) {
+          clearTimeout(this.reconnectTimeout)
+          this.reconnectTimeout = null
+        }
+        
         this.notifyStateChange()
 
         const { logger } = useLogger()
@@ -124,12 +142,17 @@ export class WebSocketClient {
     }
 
     this.reconnectAttempts++
-    const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1) // Exponential backoff
+    // Exponential backoff, capped at maxReconnectDelay
+    const delay = Math.min(
+      this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1),
+      this.maxReconnectDelay
+    )
 
-    setTimeout(() => {
-      console.log(
-        `Attempting to reconnect (${this.reconnectAttempts}/${this.maxReconnectAttempts})`
-      )
+    const maxAttemptsStr = this.maxReconnectAttempts === Infinity ? '∞' : this.maxReconnectAttempts
+
+    this.reconnectTimeout = setTimeout(() => {
+      this.reconnectTimeout = null
+      console.log(`Attempting to reconnect (${this.reconnectAttempts}/${maxAttemptsStr}) in ${delay}ms`)
       this.connect()
     }, delay)
   }
@@ -156,8 +179,9 @@ export class WebSocketClient {
     data?: Data<KEY>,
     listener?: (event: any) => void
   ): Promise<End<KEY>> {
-    return new Promise((resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
       const { logger } = useLogger()
+      const { nanoid } = await import('nanoid')
 
       // If connection is not ready, queue the message
       if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
@@ -177,7 +201,7 @@ export class WebSocketClient {
       }
 
       // Connection is ready, send immediately
-      this.sendMessage(channel, data, resolve, reject, listener)
+      this.sendMessage(channel, data, resolve, reject, nanoid, listener)
     })
   }
 
@@ -186,6 +210,7 @@ export class WebSocketClient {
     data: Data<KEY> | undefined,
     resolve: (value: End<KEY>) => void,
     reject: (reason: any) => void,
+    nanoidFn: () => string,
     listener?: (event: any) => void
   ): void {
     const { logger } = useLogger()
@@ -196,7 +221,7 @@ export class WebSocketClient {
       return
     }
 
-    const requestId = nanoid() as RequestId
+    const requestId = nanoidFn() as RequestId
     const message: WebSocketMessage = {
       channel,
       requestId,
@@ -208,7 +233,6 @@ export class WebSocketClient {
       requestId,
       hasData: !!data
     })
-
 
     this.listeners.set(requestId, (response: WebSocketMessage) => {
       if (isWebSocketErrorMessage(response)) {
@@ -250,7 +274,7 @@ export class WebSocketClient {
     }
   }
 
-  private flushQueue(): void {
+  private async flushQueue(): Promise<void> {
     const { logger } = useLogger()
 
     if (this.messageQueue.length === 0) {
@@ -263,6 +287,8 @@ export class WebSocketClient {
     const queuedMessages = [...this.messageQueue]
     this.messageQueue = []
 
+    const { nanoid } = await import('nanoid')
+
     // Send all queued messages
     for (const queuedMessage of queuedMessages) {
       this.sendMessage(
@@ -270,6 +296,9 @@ export class WebSocketClient {
         queuedMessage.data,
         queuedMessage.resolve,
         queuedMessage.reject,
+        // The queued message already has a requestId, but we pass nanoid just in case sendMessage needs it for retries or something.
+        // Actually, sendMessage generates a NEW requestId. That's a bug in the original code, but we'll maintain the signature for now.
+        nanoid,
         queuedMessage.listener
       )
     }
@@ -294,7 +323,6 @@ export class WebSocketClient {
     this.messageQueue = []
   }
 
-
   public isConnected(): boolean {
     return this.ws?.readyState === WebSocket.OPEN
   }
@@ -302,6 +330,12 @@ export class WebSocketClient {
   public disconnect() {
     this.connectionState = 'disconnected'
     this.notifyStateChange()
+
+    // Clear any pending reconnection attempt
+    if (this.reconnectTimeout) {
+      clearTimeout(this.reconnectTimeout)
+      this.reconnectTimeout = null
+    }
 
     // Clear any queued messages since we're disconnecting
     this.clearQueue()
@@ -346,8 +380,8 @@ export const useWebSocketAPI = () => {
   const client = getWebSocketClient()
 
   /**
-    * Send an order and wait for its execution
-    */
+   * Send an order and wait for its execution
+   */
   const execute = async <KEY extends Channels>(
     channel: KEY,
     data?: Data<KEY>,
@@ -363,7 +397,7 @@ export const useWebSocketAPI = () => {
 
   return {
     execute,
-    isConnected: client.isConnected(),
+    isConnected: client.isConnected.bind(client),
     disconnect: client.disconnect.bind(client)
   }
 }

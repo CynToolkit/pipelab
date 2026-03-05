@@ -1,6 +1,7 @@
 <template>
   <div class="app">
-    <div class="layout">
+    <DisconnectedPage v-if="isDisconnected" />
+    <div v-else class="layout">
       <div class="container">
         <!-- <Menubar :model="items">
               <template #start>
@@ -30,13 +31,14 @@
         </Dialog>
       </div>
     </div>
-    <DevBenefitsOverride />
+    <DevBenefitsOverride v-if="!isDisconnected" />
+    <WebFilePicker v-if="!isDisconnected" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { useAppStore } from './store/app'
-import { onMounted, ref, provide } from 'vue'
+import { onMounted, ref, provide, watch, computed } from 'vue'
 import { primary, primaryDarken1, primaryDarken2 } from './style/main'
 import { useFiles } from './store/files'
 import { handle } from './composables/handlers'
@@ -44,14 +46,19 @@ import { useLogger } from '@pipelab/shared/logger'
 import { useAuth } from '@renderer/store/auth'
 import { storeToRefs } from 'pinia'
 import { useAppSettings } from './store/settings'
+import { useAgentsStore } from './store/agents'
 import SubscriptionLoadingIndicator from './components/SubscriptionLoadingIndicator.vue'
+import DisconnectedPage from './components/DisconnectedPage.vue'
 import UpgradeDialog from './components/UpgradeDialog.vue'
 import DevBenefitsOverride from './components/DevBenefitsOverride.vue'
+import WebFilePicker from './components/WebFilePicker.vue'
 import Dialog from 'primevue/dialog'
+import { websocketManager } from './composables/websocket-manager'
 
 const appStore = useAppStore()
 const filesStore = useFiles()
 const settingsStore = useAppSettings()
+const agentsStore = useAgentsStore()
 const { logger } = useLogger()
 const authStore = useAuth()
 const { init: authInit, fetchSubscription } = authStore
@@ -61,7 +68,15 @@ const { init: initSettings } = settingsStore
 
 const { init } = appStore
 const isLoading = ref(false)
+const isDataLoaded = ref(false)
+const isInitialized = ref(false)
 const isUpgradeDialogVisible = ref(false)
+
+const isDisconnected = computed(
+  () =>
+    isInitialized.value &&
+    websocketManager.connectionState.value !== 'connected'
+)
 
 const openUpgradeDialog = () => {
   isUpgradeDialogVisible.value = true
@@ -140,34 +155,41 @@ handle('log:message', async (event, { value, send }) => {
   })
 })
 
+const fetchInitialData = async () => {
+  console.log('[App] fetchInitialData: Starting remote data fetch')
+  try {
+    await filesStore.load()
+    await init()
+    // settingsStore.init() is no longer needed here as it's local, but we call loadRemoteSettings to sync
+    await settingsStore.load()
+    await authInit()
+    await fetchSubscription()
+    isDataLoaded.value = true
+    logger().info('Remote data fetch complete')
+  } catch (error) {
+    logger().error('Failed to fetch remote data:', error)
+  }
+}
+
+// Watch for WebSocket connection to trigger data fetch
+watch(
+  () => websocketManager.connectionState.value,
+  (state) => {
+    if (state === 'connected') {
+      fetchInitialData()
+    }
+  },
+  { immediate: true }
+)
+
 onMounted(async () => {
-  console.log('[App] onMounted: Starting app initialization, isLoading:', isLoading.value)
-  isLoading.value = true
+  console.log('[App] onMounted: UI mounted, initializing local stores')
 
-  await filesStore.load()
-  await init()
-  await initSettings()
-  console.log(
-    '[App] onMounted: Before authInit, isLoadingSubscriptions:',
-    isLoadingSubscriptions.value
-  )
-  await authInit()
-  console.log(
-    '[App] onMounted: After authInit, isLoadingSubscriptions:',
-    isLoadingSubscriptions.value
-  )
+  // Initialize agents store which will trigger the WebSocket connection
+  await agentsStore.init()
+  isInitialized.value = true
 
-  console.log('[App] onMounted: isLoadingSubscriptions is true, calling fetchSubscription')
-  await fetchSubscription()
-  console.log('[App] onMounted: fetchSubscription completed')
-
-  logger().info('init done')
-  // const result = await api.execute('')
-
-  console.log('settings', settings.value)
-
-  console.log('[App] onMounted: Setting isLoading to false')
-  isLoading.value = false
+  // Loading state for specific data should be handled by components
 })
 </script>
 

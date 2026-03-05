@@ -48,7 +48,7 @@ export default createNodeDefinition({
         false,
         false
       ),
-      runner: packageV2Runner,
+      runner: packageV2Runner
     },
     {
       node: createPreviewProps(
@@ -56,13 +56,13 @@ export default createNodeDefinition({
         'Preview app',
         'Package and preview your app from an URL',
         '',
-        "`Preview app from ${fmt.param(params['input-url'], 'primary', 'Input folder not set')}`",
+        "`Preview app from ${fmt.param(params['input-url'], 'primary', 'Input folder not set')}`"
       ),
       runner: previewRunner
     },
     {
       node: props,
-      runner: configureRunner,
+      runner: configureRunner
     }
   ]
 })

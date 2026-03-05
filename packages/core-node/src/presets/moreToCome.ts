@@ -20,9 +20,7 @@ export const moreToCome: PresetFn = async () => {
           params: {}
         }
       ],
-      blocks: [
-
-      ]
+      blocks: []
     }
   }
 

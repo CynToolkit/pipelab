@@ -1,4 +1,4 @@
-import { Variable } from './libs/core-app'
+import { Variable } from '@pipelab/core-app'
 import { CreateQuickJSFn } from './quickjs'
 
 export const variableToFormattedVariable = async (

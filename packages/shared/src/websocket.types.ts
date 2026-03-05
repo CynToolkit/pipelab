@@ -79,6 +79,13 @@ export interface WebSocketConnectionInfo {
   lastActivity?: Date
 }
 
+export interface Agent {
+  id: string
+  name: string
+  isSelf: boolean
+  connectedAt?: number
+}
+
 // Handler function types
 export type WebSocketHandler<KEY extends Channels> = (
   event: WebSocketEvent,

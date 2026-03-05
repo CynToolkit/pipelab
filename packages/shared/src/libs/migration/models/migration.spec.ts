@@ -29,8 +29,8 @@ interface V4 extends MigrationSchema {
 
 const outputV1: V1 = {
   dummyV1: 'aaa',
-  version: '1.0.0',
-};
+  version: '1.0.0'
+}
 
 const outputV2: V2 = {
   dummyV2: 'aaa',

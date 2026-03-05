@@ -5,7 +5,7 @@ import { BuildHistoryEntry, IBuildHistoryStorage } from '@pipelab/shared/build-h
 import { useLogger } from '@pipelab/shared/logger'
 
 // Simplified storage - one file per pipeline containing array of build entries
-const STORAGE_PATH = join(getSystemContext().userDataPath, 'build-history')
+const getStoragePath = () => join(getSystemContext().userDataPath, 'build-history')
 
 export class BuildHistoryStorage implements IBuildHistoryStorage {
   private logger = useLogger()
@@ -22,12 +22,12 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
       .replace(/__/g, '_') // Replace multiple underscores with single
       .replace(/^_+|_+$/g, '') // Remove leading/trailing underscores
 
-    return join(STORAGE_PATH, `pipeline-${sanitizedId}.json`)
+    return join(getStoragePath(), `pipeline-${sanitizedId}.json`)
   }
 
   private async ensureStoragePath(): Promise<void> {
     try {
-      await mkdir(STORAGE_PATH, { recursive: true })
+      await mkdir(getStoragePath(), { recursive: true })
     } catch (error) {
       this.logger.logger().error('Failed to create storage path:', error)
       throw new Error(`Failed to create storage directory: ${error}`)
@@ -191,7 +191,7 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
       await this.ensureStoragePath()
 
       const files = await this.getAllPipelineFiles()
-      await Promise.all(files.map((file) => unlink(join(STORAGE_PATH, file))))
+      await Promise.all(files.map((file) => unlink(join(getStoragePath(), file))))
 
       this.logger.logger().info('Cleared all build history entries')
     } catch (error) {
@@ -220,7 +220,7 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
       try {
         const files = await this.getAllPipelineFiles()
         for (const file of files) {
-          const filePath = join(STORAGE_PATH, file)
+          const filePath = join(getStoragePath(), file)
           const stats = await import('node:fs/promises').then((fs) => fs.stat(filePath))
           totalSize += stats.size
         }
@@ -246,7 +246,7 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
   private async getAllPipelineFiles(): Promise<string[]> {
     try {
       await this.ensureStoragePath()
-      const files = await import('node:fs/promises').then((fs) => fs.readdir(STORAGE_PATH))
+      const files = await import('node:fs/promises').then((fs) => fs.readdir(getStoragePath()))
       return files.filter((file) => file.startsWith('pipeline-') && file.endsWith('.json'))
     } catch (error) {
       return []

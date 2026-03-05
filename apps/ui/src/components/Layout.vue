@@ -2,6 +2,43 @@
   <div class="layout">
     <div class="header">
       <div class="bold title">{{ headerSentence }}</div>
+
+      <div v-if="!isElectron" class="flex gap-2 align-items-center">
+        <div
+          v-if="localhostDetected"
+          class="flex align-items-center gap-2 p-2 border-round surface-100 text-sm"
+        >
+          <i class="mdi mdi-lan-connect text-primary"></i>
+          <span>Local agent found!</span>
+          <Button label="Add" size="small" outlined @click="agentsStore.addLocalhostAgent()" />
+        </div>
+
+        <Select
+          v-model="selectedAgentId"
+          :options="agents"
+          option-label="name"
+          option-value="id"
+          placeholder="Select Agent"
+          class="w-full md:w-14rem"
+          :loading="isLoadingAgents"
+        >
+          <template #option="slotProps">
+            <div class="flex align-items-center gap-2">
+              <i class="mdi mdi-robot"></i>
+              <div>{{ slotProps.option.name }}</div>
+            </div>
+          </template>
+        </Select>
+        <Button
+          icon="mdi mdi-refresh"
+          severity="secondary"
+          text
+          @click="refreshAgents"
+          :loading="isLoadingAgents"
+          v-tooltip.bottom="'Refresh agents'"
+        />
+      </div>
+
       <div class="button">
         <Button link class="list-item" @click="toggleAccountMenu">
           <i class="icon mdi mdi-account fs-24"></i>
@@ -13,8 +50,12 @@
       <slot></slot>
     </div>
     <div class="footer">
-      <div>
+      <div class="flex gap-2 align-items-center">
         <UpgradeNowButton v-if="!isLoadingSubscriptions" @open-upgrade-dialog="openUpgradeDialog" />
+        <div class="connection-status" :class="connectionState">
+          <i class="mdi" :class="connectionIcon"></i>
+          {{ connectionText }}
+        </div>
       </div>
 
       <div>
@@ -265,6 +306,7 @@
 <script setup lang="ts">
 import { ref, computed, inject } from 'vue'
 import { useAuth } from '@renderer/store/auth'
+import { useAgentsStore } from '@renderer/store/agents'
 import { MenuItem } from 'primevue/menuitem'
 import { useLogger } from '@pipelab/shared/logger'
 import Settings from '@renderer/components/Settings.vue'
@@ -272,6 +314,7 @@ import UpgradeNowButton from '@renderer/components/UpgradeNowButton.vue'
 import { useToast } from 'primevue/usetoast'
 import Menu from 'primevue/menu'
 import Button from 'primevue/button'
+import Select from 'primevue/select'
 import Dialog from 'primevue/dialog'
 import { UpdateStatus } from '@main/api'
 import { email, minLength, nonEmpty, object, pipe, regex, string } from 'valibot'
@@ -281,9 +324,12 @@ import { storeToRefs } from 'pinia'
 import { handle } from '@renderer/composables/handlers'
 import { useForm } from 'vee-validate'
 import { useRoute } from 'vue-router'
+import { websocketManager } from '@renderer/composables/websocket-manager'
 
 const { logger } = useLogger()
 const route = useRoute()
+
+const isElectron = !!window.electron
 
 const openUpgradeDialog = inject('openUpgradeDialog') as () => void
 
@@ -298,6 +344,38 @@ const updateStatus = ref<UpdateStatus>('update-not-available')
 const appVersion = ref(window.version)
 posthog.register({
   'app-version': appVersion.value
+})
+
+const connectionState = computed(() => websocketManager.connectionState.value)
+
+const connectionIcon = computed(() => {
+  switch (connectionState.value) {
+    case 'connected':
+      return 'mdi-lan-connect'
+    case 'connecting':
+      return 'mdi-lan-pending'
+    case 'disconnected':
+      return 'mdi-lan-disconnect'
+    case 'error':
+      return 'mdi-lan-disconnect'
+    default:
+      return 'mdi-lan-disconnect'
+  }
+})
+
+const connectionText = computed(() => {
+  switch (connectionState.value) {
+    case 'connected':
+      return 'Connected'
+    case 'connecting':
+      return 'Connecting...'
+    case 'disconnected':
+      return 'Disconnected'
+    case 'error':
+      return 'Connection Error'
+    default:
+      return 'Disconnected'
+  }
 })
 
 const updateStatusText = computed(() => {
@@ -328,6 +406,7 @@ const logout = async () => {
 }
 
 const auth = useAuth()
+const agentsStore = useAgentsStore()
 const {
   user,
   authState,
@@ -337,6 +416,13 @@ const {
   isLoadingSubscriptions,
   isAuthenticating
 } = storeToRefs(auth)
+
+const { agents, selectedAgentId, isLoadingAgents } = storeToRefs(agentsStore)
+
+const refreshAgents = async () => {
+  await agentsStore.refresh()
+}
+
 const isSettingsModalVisible = ref(false)
 
 const accountMenuItems = computed(() => {
@@ -651,6 +737,26 @@ const onSubmit = handleSubmit(onSuccess, onInvalidSubmit)
     align-items: center;
     font-size: 12px;
     padding: 0 8px;
+
+    .connection-status {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-weight: 500;
+
+      &.connected {
+        color: #4caf50;
+      }
+
+      &.connecting {
+        color: #ff9800;
+      }
+
+      &.disconnected,
+      &.error {
+        color: #f44336;
+      }
+    }
   }
 
   .content {

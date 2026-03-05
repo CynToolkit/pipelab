@@ -1,5 +1,5 @@
 <template>
-  <div v-if="isLoading"> <Skeleton width="10rem" height="1rem"></Skeleton> </div>
+  <div v-if="isLoading"><Skeleton width="10rem" height="1rem"></Skeleton></div>
   <div @click="emit('click', item)" v-else-if="item">
     <div class="local" v-if="item.saveLocation.type === 'external'">
       {{ item.name }}
@@ -11,7 +11,7 @@
 </template>
 
 <script lang="ts" setup>
-import { Recent } from '@renderer/store/recents';
+import { Recent } from '@renderer/store/recents'
 import { PropType, ref, toRefs } from 'vue'
 
 const props = defineProps({
@@ -22,7 +22,7 @@ const props = defineProps({
 })
 
 const emit = defineEmits<{
-  click: [payload: Recent],
+  click: [payload: Recent]
 }>()
 
 const { item } = toRefs(props)

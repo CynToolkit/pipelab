@@ -35,18 +35,18 @@ The project is an Electron-based application built with Vue 3 and TypeScript.
 
 The project uses `pnpm` as its package manager.
 
-| Task | Command |
-| :--- | :--- |
-| **Development** | `pnpm dev` (starts Electron with source maps enabled) |
-| **Build (All)** | `pnpm build` |
-| **Build (Linux)** | `pnpm build:linux` |
-| **Build (Windows)** | `pnpm build:win` |
-| **Build (Mac)** | `pnpm build:mac` |
-| **Package** | `pnpm package` |
-| **Unit Tests** | `pnpm test:unit` |
-| **E2E Tests** | `pnpm test:e2e:local` |
-| **Linting** | `pnpm lint` |
-| **Type Checking**| `pnpm typecheck` |
+| Task                | Command                                               |
+| :------------------ | :---------------------------------------------------- |
+| **Development**     | `pnpm dev` (starts Electron with source maps enabled) |
+| **Build (All)**     | `pnpm build`                                          |
+| **Build (Linux)**   | `pnpm build:linux`                                    |
+| **Build (Windows)** | `pnpm build:win`                                      |
+| **Build (Mac)**     | `pnpm build:mac`                                      |
+| **Package**         | `pnpm package`                                        |
+| **Unit Tests**      | `pnpm test:unit`                                      |
+| **E2E Tests**       | `pnpm test:e2e:local`                                 |
+| **Linting**         | `pnpm lint`                                           |
+| **Type Checking**   | `pnpm typecheck`                                      |
 
 ## Development Conventions
 
@@ -67,7 +67,7 @@ The project uses `pnpm` as its package manager.
   2. `pnpm changeset version` to bump versions.
   3. `pnpm changeset tag` to tag the release.
 
-
 # General recomandations
+
 - When modifying code, do not attempt to typecheck it.
 - When modifying code, do not attempt to lint it.

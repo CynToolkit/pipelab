@@ -9,8 +9,13 @@ import { useLogger } from '@pipelab/shared/logger'
 import { getDefaultAppSettingsMigrated, setupConfig } from './config'
 import { buildHistoryStorage } from './handlers/build-history'
 import { SubscriptionRequiredError } from '@pipelab/shared/subscription-errors'
-import { WebSocketEvent, WebSocketHandler, WebSocketSendFunction } from '@pipelab/shared/websocket.types'
+import {
+  WebSocketEvent,
+  WebSocketHandler,
+  WebSocketSendFunction
+} from '@pipelab/shared/websocket.types'
 import { getSystemContext } from './context'
+import { webSocketServer } from './websocket-server'
 
 export type HandleListenerSendFn<KEY extends Channels> = WebSocketSendFunction<KEY>
 
@@ -68,11 +73,57 @@ export const useAPI = () => {
   }
 }
 
-export const registerIPCHandlers = () => {
-  const { handle } = useAPI()
+export const registerIPCHandlers = (filter?: (channel: Channels) => boolean) => {
+  const { handle, handlers } = useAPI()
   const { logger } = useLogger()
 
   logger().info('registering ipc handlers')
+
+  const isRenderer = () => {
+    return typeof process === 'undefined' || process.type === 'renderer'
+  }
+
+  if (
+    typeof process !== 'undefined' &&
+    process.versions &&
+    process.versions.electron &&
+    !isRenderer()
+  ) {
+    const { ipcMain } = require('electron')
+
+    for (const [channel, listener] of Object.entries(handlers)) {
+      if (filter && !filter(channel as Channels)) {
+        continue
+      }
+
+      logger().debug('Registering Electron IPC handler:', channel)
+
+      ipcMain.on(channel, async (event: any, message: IpcMessage) => {
+        const { data, requestId } = message
+
+        const send: HandleListenerSendFn<any> = async (events) => {
+          event.reply(channel, {
+            type: 'response',
+            requestId,
+            events
+          })
+        }
+
+        try {
+          await listener({ sender: 'electron-ipc' }, { send, value: data })
+        } catch (error) {
+          logger().error(`Error in IPC handler for ${channel}:`, error)
+          send({
+            type: 'end',
+            data: {
+              type: 'error',
+              ipcError: error instanceof Error ? error.message : 'Unknown error'
+            }
+          })
+        }
+      })
+    }
+  }
 
   // Helper function to check build history authorization
   const checkBuildHistoryAuthorization = async (event: WsEvent): Promise<boolean> => {
@@ -153,6 +204,67 @@ export const registerIPCHandlers = () => {
         type: 'success',
         result: {
           ok: true
+        }
+      }
+    })
+  })
+
+  handle('fs:listDirectory', async (event, { value, send }) => {
+    const { logger } = useLogger()
+    const { readdir, stat } = await import('node:fs/promises')
+    const { join } = await import('node:path')
+
+    try {
+      const entries = await readdir(value.path, { withFileTypes: true })
+      const files = await Promise.all(
+        entries.map(async (entry) => {
+          const fullPath = join(value.path, entry.name)
+          let stats: any = {}
+          try {
+            stats = await stat(fullPath)
+          } catch (e) {
+            // Might happen for broken symlinks etc
+          }
+
+          return {
+            name: entry.name,
+            isDirectory: entry.isDirectory(),
+            isSymbolicLink: entry.isSymbolicLink(),
+            size: stats.size || 0,
+            mtime: stats.mtime?.getTime() || 0
+          }
+        })
+      )
+
+      send({
+        type: 'end',
+        data: {
+          type: 'success',
+          result: {
+            files
+          }
+        }
+      })
+    } catch (error) {
+      logger().error('Failed to list directory:', error)
+      send({
+        type: 'end',
+        data: {
+          type: 'error',
+          ipcError: error instanceof Error ? error.message : 'Unable to list directory'
+        }
+      })
+    }
+  })
+
+  handle('fs:getHomeDirectory', async (event, { send }) => {
+    const { homedir } = await import('node:os')
+    send({
+      type: 'end',
+      data: {
+        type: 'success',
+        result: {
+          path: homedir()
         }
       }
     })
@@ -321,7 +433,11 @@ export const registerIPCHandlers = () => {
   handle('config:load', async (_, { send, value }) => {
     const { config } = value
 
+    console.log('config', config)
+
     const userData = getSystemContext().userDataPath
+
+    console.log('userData', userData)
 
     const filesPath = join(userData, 'config', config + '.json')
 
@@ -348,9 +464,12 @@ export const registerIPCHandlers = () => {
   })
 
   handle('settings:load', async (_, { send }) => {
+    console.log('settings:load', 'aaa')
+    logger().info('settings:load', 'aaa')
     const settingsG = await setupConfig()
     const settings = await settingsG.getConfig()
-    
+    console.log('settings', settings)
+
     if (!settings) {
       return send({
         type: 'end',
@@ -770,6 +889,31 @@ export const registerIPCHandlers = () => {
         data: {
           type: 'error',
           ipcError: error instanceof Error ? error.message : 'Failed to configure build history'
+        }
+      })
+    }
+  })
+
+  handle('agents:get', async (event, { send }) => {
+    const { logger } = useLogger()
+
+    try {
+      const agents = webSocketServer.getAgents()
+
+      send({
+        type: 'end',
+        data: {
+          type: 'success',
+          result: { agents }
+        }
+      })
+    } catch (error) {
+      logger().error('Failed to get agents:', error)
+      send({
+        type: 'end',
+        data: {
+          type: 'error',
+          ipcError: error instanceof Error ? error.message : 'Failed to get agents'
         }
       })
     }

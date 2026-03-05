@@ -20,7 +20,7 @@ export const presets = async () => {
   return {
     newProject: newProjectVal,
     c3toSteam: c3toSteamVal,
-    moreToCome: moreToComeVal,
+    moreToCome: moreToComeVal
     // demo: demoPresetVal,
     // if: ifPresetVal,
     // loop: loopPresetVal,

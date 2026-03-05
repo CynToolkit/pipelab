@@ -15,12 +15,14 @@ A visual tool to create task automation workflows.
 # Getting Started
 
 # Making a release
+
 ```
 pnpm changeset version
 pnpm changeset tag
 ```
 
 # Architecture
+
 ```mermaid
 graph TD
     classDef pipelab fill:#0096FF,stroke:#333,stroke-width:4px;
@@ -78,7 +80,9 @@ graph TD
 ```
 
 # Development
+
 ## Enable source maps
+
 ```bash
 NODE_OPTIONS=--enable-source-maps pnpm xxx
 ```

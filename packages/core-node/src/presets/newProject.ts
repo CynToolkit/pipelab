@@ -20,14 +20,12 @@ export const newProjectPreset: PresetFn = async () => {
           params: {}
         }
       ],
-      blocks: [
-
-      ]
+      blocks: []
     }
   }
 
   return {
     data,
-    hightlight: true,
+    hightlight: true
   }
 }

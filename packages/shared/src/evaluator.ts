@@ -29,7 +29,9 @@ export const makeResolvedParams = async (
         variables: data.variables
       }
 
-      const output = ctx ? ctx.run(parameterCodeValue, runParams) : await vm.run(parameterCodeValue, runParams)
+      const output = ctx
+        ? ctx.run(parameterCodeValue, runParams)
+        : await vm.run(parameterCodeValue, runParams)
 
       const outputResult = onItem(output)
 

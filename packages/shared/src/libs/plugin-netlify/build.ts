@@ -1,4 +1,4 @@
-import { ensure, extractZip, zipFolder } from '@main/utils'
+import { ensure, extractZip, zipFolder } from '@pipelab/core-node'
 import {
   createAction,
   createActionRunner,

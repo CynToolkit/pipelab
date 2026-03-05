@@ -9,7 +9,13 @@
         </div>
       </div>
     </template>
-    <Button disabled class="add-btn" label="Add variable" icon="pi pi-plus" @click="addVariable"></Button>
+    <Button
+      disabled
+      class="add-btn"
+      label="Add variable"
+      icon="pi pi-plus"
+      @click="addVariable"
+    ></Button>
 
     <Dialog
       v-model:visible="isNewVariableDialogVisible"

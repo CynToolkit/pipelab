@@ -19,7 +19,7 @@ export const testC3Offline: PresetFn = async () => {
           },
           uid: 'manual-start',
           params: {}
-        },
+        }
       ],
       blocks: [
         {
@@ -30,7 +30,7 @@ export const testC3Offline: PresetFn = async () => {
             pluginId: 'electron'
           },
           params: {
-            'input-folder':  {
+            'input-folder': {
               editor: 'editor',
               value: `/home/quentin/Documents/Cyn Assets/app`
             },
@@ -48,24 +48,24 @@ export const testC3Offline: PresetFn = async () => {
           params: {
             folder: {
               editor: 'editor',
-              value: `{{ steps['${packageWithElecton}']['outputs']['output'] }}`,
+              value: `{{ steps['${packageWithElecton}']['outputs']['output'] }}`
             },
             appId: {
               editor: 'editor',
-              value: '3047200',
+              value: '3047200'
             },
             depotId: {
               editor: 'editor',
-              value: '3047201',
+              value: '3047201'
             },
             sdk: {
               editor: 'editor',
-              value: '/home/quentin/Documents/steamworkssdk/sdk',
+              value: '/home/quentin/Documents/steamworkssdk/sdk'
             },
             username: {
               editor: 'editor',
-              value: 'armaldio',
-            },
+              value: 'armaldio'
+            }
           }
         }
       ]

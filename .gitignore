@@ -109,3 +109,6 @@ assets/tauri/template/app/src/app
 
 # Local Netlify folder
 .netlify
+apps/cli/bin
+
+.turbo

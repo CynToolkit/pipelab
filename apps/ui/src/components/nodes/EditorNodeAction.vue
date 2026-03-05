@@ -126,7 +126,7 @@ import { makeResolvedParams } from '@pipelab/shared/evaluator'
 import { ValidationError } from '@renderer/models/error'
 import AddNodeButton from '../AddNodeButton.vue'
 import type { ValueOf } from 'type-fest'
-import { MenuItem } from 'primevue/menuitem'
+import { MenuItem } from 'primevue'
 
 const props = defineProps({
   value: {

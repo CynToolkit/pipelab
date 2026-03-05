@@ -65,17 +65,17 @@ export const openExternalTerminal = async (
 
   if (platform === 'darwin') {
     // macOS: open in Terminal.app
-    const shellCommand = `${command} ${args.join(' ')}; echo "You can now close this window"`;
+    const shellCommand = `${command} ${args.join(' ')}; echo "You can now close this window"`
     // Escape for AppleScript string literal
     const escapedShellCommand = shellCommand
       .replace(/\\/g, '\\\\') // Must escape backslashes first
-      .replace(/"/g, '\\"'); // Then escape double quotes
+      .replace(/"/g, '\\"') // Then escape double quotes
 
-    let osaScript: string;
+    let osaScript: string
     if (keepOpen) {
       // If keepOpen is true, just run the command and leave the terminal open.
       // Added activate to bring Terminal to front.
-      osaScript = `tell application "Terminal"\nactivate\ndo script "${escapedShellCommand}"\nend tell`;
+      osaScript = `tell application "Terminal"\nactivate\ndo script "${escapedShellCommand}"\nend tell`
     } else {
       // If keepOpen is false (default), run the command, wait for it to finish, then close the tab.
       osaScript = `tell application "Terminal"
@@ -86,10 +86,10 @@ export const openExternalTerminal = async (
     repeat while busy of targetTab
         delay 0.5 -- Check every 0.5 seconds
     end repeat
-end tell`;
+end tell`
     }
 
-    return execa('osascript', ['-e', osaScript], options);
+    return execa('osascript', ['-e', osaScript], options)
   } else if (platform === 'linux') {
     // Linux: use $TERMINAL, $TERM, or fallback to xterm
     const terminal = process.env.TERMINAL ?? process.env.TERM ?? 'xterm'

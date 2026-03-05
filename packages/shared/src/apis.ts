@@ -2,6 +2,7 @@ import { RendererPluginDefinition } from '@pipelab/plugin-core'
 import type { Tagged } from 'type-fest'
 import { PresetResult, Steps } from './model'
 import { AppConfig } from './config.schema'
+import { Agent } from './websocket.types'
 import {
   BuildHistoryEntry,
   BuildHistoryQuery,
@@ -57,6 +58,20 @@ export type IpcDefinition = {
     },
     EndEvent<{ ok: boolean }>
   ]
+  'fs:listDirectory': [
+    // input
+    { path: string },
+    EndEvent<{
+      files: {
+        name: string
+        isDirectory: boolean
+        isSymbolicLink: boolean
+        size: number
+        mtime: number
+      }[]
+    }>
+  ]
+  'fs:getHomeDirectory': [void, EndEvent<{ path: string }>]
   'settings:reset': [
     // input
     { key: keyof AppConfig },
@@ -131,6 +146,7 @@ export type IpcDefinition = {
     { config: Partial<BuildHistoryConfig> },
     EndEvent<{ result: 'ok' | 'ko' }>
   ]
+  'agents:get': [void, EndEvent<{ agents: Agent[] }>]
   'graph:execute': [
     {
       graph: any[]
@@ -150,6 +166,9 @@ export type IpcDefinition = {
 }
 
 export type Channels = keyof IpcDefinition
+
+export const ShellChannels: Channels[] = ['dialog:showOpenDialog', 'dialog:showSaveDialog']
+
 export type Data<KEY extends Channels> = IpcDefinition[KEY][0]
 export type Events<KEY extends Channels> = IpcDefinition[KEY][1]
 export type End<KEY extends Channels> = Extract<IpcDefinition[KEY][1], { type: 'end' }>['data']

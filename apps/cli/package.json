@@ -2,22 +2,39 @@
   "name": "@pipelab/cli",
   "version": "1.0.0",
   "private": true,
-  "bin": {
-    "pipelab": "dist/index.js"
-  },
   "scripts": {
-    "build": "tsup src/index.ts --format cjs --dts",
+    "build": "tsup src/index.ts --format cjs --dts --sourcemap",
+    "bundle": "tsup src/index.ts --format cjs --no-dts --minify --clean",
+    "pkg": "pnpm bundle && pkg . --output bin/pipelab",
     "dev": "tsup src/index.ts --format cjs --dts --watch",
+    "serve": "pnpm build && node dist/index.js serve",
+    "dev:serve": "tsup src/index.ts --format cjs --dts --onSuccess \"node dist/index.js serve\"",
     "start": "node dist/index.js"
   },
+  "bin": "dist/index.js",
+  "pkg": {
+    "scripts": [
+      "dist/*.js"
+    ],
+    "assets": [
+      "dist/*.wasm"
+    ],
+    "targets": [
+      "node18-linux-x64",
+      "node18-win-x64",
+      "node18-macos-x64"
+    ],
+    "outputPath": "bin"
+  },
   "dependencies": {
+    "@pipelab/constants": "workspace:*",
     "@pipelab/core-node": "workspace:*",
     "@pipelab/shared": "workspace:*",
-    "@pipelab/constants": "workspace:*",
     "cac": "6.7.14"
   },
   "devDependencies": {
     "@types/node": "22.7.9",
+    "pkg": "5.8.1",
     "tsup": "^8.0.0",
     "typescript": "^5.0.0"
   }

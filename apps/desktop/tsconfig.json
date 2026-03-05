@@ -22,24 +22,26 @@
       "@main/*": [
         "./src/main/*"
       ],
-      "@renderer/*": [
-        "../ui/src/*"
-      ],
       "@pipelab/constants": [
         "../../packages/constants/src/index.ts"
       ],
       "@pipelab/*": [
         "../../packages/shared/src/libs/*"
-      ],
+      ]
     }
   },
+  "include": [
+    "src/**/*",
+    "tests/**/*",
+    "*.ts",
+    "*.mts"
+  ],
   "exclude": [
     "node_modules",
     "./assets/tauri/template/app/src-tauri",
-        "dist",
-        "out",
-        "scripts",
-        "./assets"
-      ]
-    }
-    
+    "dist",
+    "out",
+    "scripts",
+    "./assets"
+  ]
+}

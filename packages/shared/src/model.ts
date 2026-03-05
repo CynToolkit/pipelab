@@ -158,7 +158,7 @@ const CanvasValidatorV3 = object({
   triggers: array(BlockEventValidator)
 })
 
-const VariableValidatorV1 = custom<Variable>(() => true)
+export const VariableValidatorV1 = custom<Variable>(() => true)
 
 export const SavedFileValidatorV1 = object({
   version: literal('1.0.0'),

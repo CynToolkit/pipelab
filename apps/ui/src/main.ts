@@ -33,7 +33,7 @@ const isCI = window.isCI || false
 if (isPackaged && !isTest && !isCI) {
   vueInit({
     dsn: 'https://757630879674735027fa5700162253f7@o45694.ingest.us.sentry.io/4507621723144192',
-    debug: true,
+    debug: true
   })
 }
 
@@ -149,7 +149,4 @@ websocketManager.initialize().catch((error) => {
 app.mount('#app')
 logger().info('App mounted')
 
-// Ensure WebSocket connection after app is mounted
-setTimeout(() => {
-  websocketManager.ensureConnection()
-}, 1000) // Wait 1 second after mount to ensure server is ready
+// Connection logic is now handled by App.vue and agentsStore

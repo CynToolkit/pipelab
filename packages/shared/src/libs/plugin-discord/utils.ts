@@ -23,5 +23,5 @@ export const defaultTauriConfig = {
   discordAppId: '',
   ignore: [] as string[],
   backgroundColor: '#FFF',
-  openDevtoolsOnStart: false,
+  openDevtoolsOnStart: false
 } satisfies DesktopApp.Tauri

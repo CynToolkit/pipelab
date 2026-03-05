@@ -2,20 +2,14 @@ import { app, shell, BrowserWindow, dialog, autoUpdater, protocol, screen } from
 import { join } from 'path'
 import { platform } from 'os'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
-import {
-  registerIPCHandlers,
-  webSocketServer,
-  executeGraphWithHistory,
-  setupConfig,
-  setSystemContext
-} from '@pipelab/core-node'
-import { usePlugins } from '@pipelab/shared/plugins'
+import { startServer, stopServer } from './main/server-process'
+import { setSystemContext, registerIPCHandlers, setupConfig, assetsPath } from '@pipelab/core-node'
+import { ShellChannels } from '@pipelab/shared/apis'
 import { parseArgs, ParseArgsConfig } from 'node:util'
-import { readFile, writeFile, mkdir } from 'fs/promises'
-import { SavedFile } from '@pipelab/shared/model'
+import { mkdir } from 'fs/promises'
 import { useLogger } from '@pipelab/shared/logger'
 import * as Sentry from '@sentry/electron/main'
-import { usePluginAPI } from '@main/api'
+import { usePluginAPI } from '@pipelab/core-node'
 import { resolve } from 'node:path'
 import Squirrel from 'electron-squirrel-startup'
 
@@ -128,17 +122,17 @@ function createWindow(): void {
     return { action: 'deny' }
   })
 
-  // and load the index.html of the app.
-  if (is.dev && process.env.UI_DEV_SERVER_URL) {
-    mainWindow.loadURL(process.env.UI_DEV_SERVER_URL)
-  } else if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
-    mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL)
-  } else {
-    mainWindow.loadFile(join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`))
-  }
-}
+  console.log('process.env.UI_DEV_SERVER_URL', process.env.UI_DEV_SERVER_URL)
 
-const { registerBuiltIn } = usePlugins()
+  // and load the index.html of the app.
+  // if (is.dev && process.env.UI_DEV_SERVER_URL) {
+  mainWindow.loadURL(process.env.UI_DEV_SERVER_URL)
+  // } else if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
+  // mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL)
+  // } else {
+  // mainWindow.loadFile(join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`))
+  // }
+}
 
 if (is.dev && process.platform === 'win32') {
   app.setAsDefaultProtocolClient('pipelab', process.execPath, [resolve(process.argv[1])])
@@ -188,6 +182,7 @@ app.whenReady().then(async () => {
     const url = request.url
     console.log('handle url', url)
     await handleProtocolUrl(url)
+    return new Response(null, { status: 200 })
   })
 
   if (!is.dev) {
@@ -272,127 +267,17 @@ app.whenReady().then(async () => {
 
   console.log('settings', settings)
 
-  registerIPCHandlers()
-  await registerBuiltIn()
-  // registerOtherPlugins()
+  registerIPCHandlers((channel) => ShellChannels.includes(channel))
 
-  // Start WebSocket server
+  // Start standalone CLI server
   try {
-    await webSocketServer.start()
-    // Wait for WebSocket server to be ready before creating window
-    await webSocketServer.waitForReady()
-    logger().info('WebSocket server is ready, creating window')
+    await startServer()
+    logger().info('Standalone server is ready, creating window')
   } catch (error) {
-    logger().error('Failed to start WebSocket server:', error)
+    logger().error('Failed to start standalone server:', error)
   }
-
-  const config = {
-    options: {
-      /** project: path to file .pipelab */
-      project: {
-        type: 'string',
-        short: 'p'
-      },
-      /** action: run | open  */
-      action: {
-        type: 'string',
-        short: 'a'
-      },
-      /** output: path to output result */
-      output: {
-        type: 'string',
-        short: 'o'
-      },
-      inspect: {
-        type: 'boolean'
-      }
-    }
-  } satisfies ParseArgsConfig
-
-  const { values } = parseArgs(config)
-
-  logger().info('values', values)
 
   createWindow()
-
-  delete values['inspect']
-
-  // exit if values are passed
-  if (Object.keys(values).length > 0) {
-    logger().info('Processing graph...')
-
-    const { action, project, output } = values
-
-    if (action === 'run') {
-      const rawData = await readFile(project, 'utf8')
-      const data = JSON.parse(rawData) as SavedFile
-
-      logger().info('data', data)
-
-      const { canvas, variables } = data
-      const { blocks: nodes } = canvas
-
-      try {
-        await executeGraphWithHistory({
-          graph: nodes,
-          variables: variables,
-          projectName: data.name || 'Unnamed Pipeline',
-          projectPath: project,
-          mainWindow: mainWindow,
-          onNodeEnter: (node) => {
-            logger().info('onNodeEnter', node.uid)
-          },
-          onNodeExit: (node) => {
-            logger().info('onNodeExit', node.uid)
-          },
-          onLog: (data) => {
-            if (!isCI) {
-              logger().info('send', data)
-            }
-            console.log('send', data)
-          },
-          outputPath: output
-        })
-
-        console.log('got an output', output)
-      } catch (e) {
-        console.error('error while executing process', e)
-        if (output) {
-          await writeFile(output, JSON.stringify({ error: (e as Error).message }, null, 2), 'utf8')
-        }
-      }
-    }
-
-    process.exit(0)
-  }
-
-  // const icon = nativeImage.createFromPath(imagePath)
-  // tray = new Tray(icon)
-  // const contextMenu = Menu.buildFromTemplate([
-  //   {
-  //     label: 'Open',
-  //     type: 'normal',
-  //     click: () => {
-  //       if (mainWindow) {
-  //         mainWindow.show()
-  //       }
-  //     }
-  //   },
-  //   { type: 'separator' },
-  //   {
-  //     label: 'Exit',
-  //     type: 'normal',
-  //     click: () => {
-  //       // isQuiting = true
-  //       app.quit()
-  //     }
-  //   }
-  // ])
-
-  // tray.setContextMenu(contextMenu)
-  // tray.on('click', () => {
-  //   mainWindow.show()
-  // })
 
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
@@ -422,26 +307,17 @@ app.whenReady().then(async () => {
 // explicitly with Cmd + Q.
 app.on('window-all-closed', async () => {
   if (process.platform !== 'darwin') {
-    // Stop WebSocket server before quitting
-    try {
-      await webSocketServer.stop()
-    } catch (error) {
-      logger().error('Error stopping WebSocket server:', error)
-    }
+    // Stop standalone server before quitting
+    stopServer()
     app.quit()
   }
 })
 
-// Handle app before quit to cleanup WebSocket server
+// Handle app before quit to cleanup standalone server
 app.on('before-quit', async (event) => {
   event.preventDefault()
 
-  try {
-    await webSocketServer.stop()
-    logger().info('WebSocket server stopped, quitting app')
-    app.exit(0)
-  } catch (error) {
-    logger().error('Error stopping WebSocket server during quit:', error)
-    app.exit(1)
-  }
+  stopServer()
+  logger().info('Standalone server stopped, quitting app')
+  app.exit(0)
 })

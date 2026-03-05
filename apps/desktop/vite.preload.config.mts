@@ -1,13 +1,13 @@
-import type { ConfigEnv, UserConfig } from 'vite';
-import { defineConfig, mergeConfig } from 'vite';
-import { getBuildConfig, external, pluginHotRestart } from './vite.base.config.mjs';
-import tsconfigPaths from 'vite-tsconfig-paths';
-import { resolve } from 'path';
+import type { ConfigEnv, UserConfig } from 'vite'
+import { defineConfig, mergeConfig } from 'vite'
+import { getBuildConfig, external, pluginHotRestart } from './vite.base.config.mjs'
+import tsconfigPaths from 'vite-tsconfig-paths'
+import { resolve } from 'path'
 
 // https://vitejs.dev/config
 export default defineConfig((env) => {
-  const forgeEnv = env as ConfigEnv<'build'>;
-  const { forgeConfigSelf } = forgeEnv;
+  const forgeEnv = env as ConfigEnv<'build'>
+  const { forgeConfigSelf } = forgeEnv
   const config: UserConfig = {
     build: {
       rollupOptions: {
@@ -20,9 +20,9 @@ export default defineConfig((env) => {
           inlineDynamicImports: true,
           entryFileNames: '[name].js',
           chunkFileNames: '[name].js',
-          assetFileNames: '[name].[ext]',
-        },
-      },
+          assetFileNames: '[name].[ext]'
+        }
+      }
     },
     plugins: [
       pluginHotRestart('reload'),
@@ -39,7 +39,7 @@ export default defineConfig((env) => {
         '@main': resolve(__dirname, '../../packages/core-node/src')
       }
     }
-  };
+  }
 
-  return mergeConfig(getBuildConfig(forgeEnv), config);
-});
+  return mergeConfig(getBuildConfig(forgeEnv), config)
+})

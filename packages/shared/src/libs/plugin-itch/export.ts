@@ -1,4 +1,4 @@
-import { extractZip } from '@main/utils'
+import { extractZip } from '@pipelab/core-node'
 import {
   createAction,
   createActionRunner,

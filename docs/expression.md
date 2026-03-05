@@ -1,4 +1,5 @@
 # Expressions
+
 An expression is of type string that can include any data
 
 - a number:

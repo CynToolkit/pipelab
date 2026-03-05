@@ -1,10 +1,7 @@
 export const name = 'Pipelab'
+export const appIdentifier = 'pipelab'
 
-export const outFolderName = (
-  binName: string,
-  platform: string,
-  arch: string
-) => {
+export const outFolderName = (binName: string, platform: string, arch: string) => {
   let platformName = ''
   let archName = ''
 
@@ -37,9 +34,9 @@ export const outFolderName = (
 
 /**
  * Get the binary name for a given platform
- * @param name 
+ * @param name
  * @param platform If not provided, it will try to use process.platform (Node.js only)
- * @returns 
+ * @returns
  */
 export const getBinName = (name: string, platform?: string) => {
   const p = platform || (typeof process !== 'undefined' ? process.platform : 'unknown')

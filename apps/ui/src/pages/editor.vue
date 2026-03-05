@@ -326,7 +326,13 @@ import NodesEditor from '@renderer/pages/nodes-editor.vue'
 import EditorNodeDummy from '@renderer/components/nodes/EditorNodeDummy.vue'
 import { storeToRefs } from 'pinia'
 import { useRouter } from 'vue-router'
-import { BlockAction, BlockCondition, BlockLoop, SavedFile, SavedFileDefault } from '@pipelab/shared/model'
+import {
+  BlockAction,
+  BlockCondition,
+  BlockLoop,
+  SavedFile,
+  SavedFileDefault
+} from '@pipelab/shared/model'
 import { useAPI } from '@renderer/composables/api'
 import { useToast } from 'primevue/usetoast'
 import { tinykeys } from 'tinykeys'

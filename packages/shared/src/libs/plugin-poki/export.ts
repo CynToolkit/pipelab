@@ -1,4 +1,10 @@
-import { createAction, createActionRunner, createPathParam, createStringParam, runWithLiveLogs } from '@pipelab/plugin-core'
+import {
+  createAction,
+  createActionRunner,
+  createPathParam,
+  createStringParam,
+  runWithLiveLogs
+} from '@pipelab/plugin-core'
 import { dirname } from 'node:path'
 
 export const ID = 'poki-upload'
@@ -25,17 +31,17 @@ export const uploadToPoki = createAction({
     project: createStringParam('', {
       required: true,
       label: 'Project',
-      description: 'This is you Poki game id',
+      description: 'This is you Poki game id'
     }),
     name: createStringParam('', {
       required: true,
       label: 'Version name',
-      description: 'This is the name of the version',
+      description: 'This is the name of the version'
     }),
     notes: createStringParam('', {
       required: true,
       label: 'Version notes',
-      description: 'These are notes you want to specify with  your version',
+      description: 'These are notes you want to specify with  your version'
     })
   },
   outputs: {}
@@ -85,9 +91,9 @@ export const uploadToPokiRunner = createActionRunner<typeof uploadToPoki>(
         cwd,
         env: {
           // DEBUG: '*',
-          PATH: `${dirname(poki)}${delimiter}${process.env.PATH}`,
+          PATH: `${dirname(poki)}${delimiter}${process.env.PATH}`
         },
-        cancelSignal: abortSignal,
+        cancelSignal: abortSignal
       },
       log,
       {

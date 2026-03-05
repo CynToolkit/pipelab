@@ -12,7 +12,7 @@ export const sleepAction = createAction({
   params: {
     duration: createNumberParam(2000, {
       required: true,
-      label: 'Duration',
+      label: 'Duration'
     })
   },
 

@@ -1,4 +1,4 @@
-import { InputDefinition } from "@pipelab/plugin-core"
+import { InputDefinition } from '@pipelab/plugin-core'
 
 export const isRequired = (param: InputDefinition) => {
   return param.required === true
@@ -13,4 +13,4 @@ export const isRenderer = () => {
 
   // @ts-expect-error
   return process.browser === true || process.title === 'browser'
-};
+}

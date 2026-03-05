@@ -142,7 +142,11 @@ export const processGraph = async (options: {
         logger().error(result.ipcError)
         options.onNodeExit(rawNode)
         // Check if it's an AbortError from cancellation
-        if (result.ipcError && typeof result.ipcError === 'object' && (result.ipcError as Error).name === 'AbortError') {
+        if (
+          result.ipcError &&
+          typeof result.ipcError === 'object' &&
+          (result.ipcError as Error).name === 'AbortError'
+        ) {
           throw result.ipcError
         }
         throw new Error(`"${nodeDefinition.node.name}" action error: ${result.ipcError}`)

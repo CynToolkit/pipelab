@@ -1,6 +1,6 @@
 import { shallowRef } from 'vue'
-import { createNodeDefinition } from '../shared/libs/plugin-core'
-import { is } from '@electron-toolkit/utils'
+import { createNodeDefinition } from '@pipelab/plugin-core'
+const isDev = process.env.NODE_ENV === 'development'
 
 const builtInPlugins = async () => {
   const base = [
@@ -16,7 +16,7 @@ const builtInPlugins = async () => {
     (await import('./libs/plugin-tauri')).default
   ]
 
-  if (is.dev) {
+  if (isDev) {
     base.push((await import('./libs/plugin-netlify')).default)
   }
 

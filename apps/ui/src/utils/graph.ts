@@ -7,13 +7,13 @@ export const walker = async (graph: Array<Block>, onNode: (node: Block) => Promi
 
       await walker(node.branchTrue, onNode)
       await walker(node.branchFalse, onNode)
-    } else  */if (node.type === 'action') {
+    } else  */ if (node.type === 'action') {
       await onNode(node)
     } /* else if (node.type === 'loop') {
       await onNode(node)
 
       await walker(node.children, onNode)
-    }  */else if (node.type === 'comment') {
+    }  */ else if (node.type === 'comment') {
       await onNode(node)
     } else if (node.type === 'event') {
       await onNode(node)

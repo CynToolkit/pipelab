@@ -8,9 +8,17 @@ import {
   WebSocketConnectionState,
   WebSocketError,
   WebSocketMessage,
-  isWebSocketRequestMessage
+  isWebSocketRequestMessage,
+  Agent
 } from '@pipelab/shared/websocket.types'
 import { websocketPort } from '@pipelab/constants'
+
+export interface ConnectedClient {
+  id: string
+  name: string
+  ws: WSWebSocket
+  connectedAt: number
+}
 
 export class WebSocketServer {
   private wss: WSWebSocketServer | null = null
@@ -18,9 +26,11 @@ export class WebSocketServer {
   private isReady = false
   private readyResolve: (() => void) | null = null
   private connectionState: WebSocketConnectionState = 'disconnected'
+  private clients: Map<WSWebSocket, ConnectedClient> = new Map()
 
   async start(port: number = websocketPort): Promise<void> {
     const { logger } = useLogger()
+    const { nanoid } = await import('nanoid')
 
     return new Promise((resolve, reject) => {
       try {
@@ -35,7 +45,23 @@ export class WebSocketServer {
         this.wss = new WSWebSocketServer({ server })
 
         this.wss.on('connection', (ws: WSWebSocket, request: IncomingMessage) => {
-          logger().info('WebSocket client connected', { url: request.url })
+          const clientId = nanoid()
+          const clientName = `Agent ${clientId.substring(0, 4)}`
+          const connectedAt = Date.now()
+
+          const client: ConnectedClient = {
+            id: clientId,
+            name: clientName,
+            ws,
+            connectedAt
+          }
+
+          this.clients.set(ws, client)
+          logger().info('WebSocket client connected', {
+            id: clientId,
+            name: clientName,
+            url: request.url
+          })
 
           ws.on('message', (data: Buffer) => {
             try {
@@ -49,7 +75,16 @@ export class WebSocketServer {
           })
 
           ws.on('close', (code: number, reason: Buffer) => {
-            logger().info('WebSocket client disconnected', { code, reason: reason.toString() })
+            const client = this.clients.get(ws)
+            if (client) {
+              logger().info('WebSocket client disconnected', {
+                id: client.id,
+                name: client.name,
+                code,
+                reason: reason.toString()
+              })
+              this.clients.delete(ws)
+            }
           })
 
           ws.on('error', (error: Error) => {
@@ -178,6 +213,19 @@ export class WebSocketServer {
 
   getConnectionState(): WebSocketConnectionState {
     return this.connectionState
+  }
+
+  getAgents(): Agent[] {
+    return Array.from(this.clients.values()).map((client) => ({
+      id: client.id,
+      name: client.name,
+      isSelf: false, // This will be set by the client itself when receiving the list
+      connectedAt: client.connectedAt
+    }))
+  }
+
+  getClient(ws: WSWebSocket): ConnectedClient | undefined {
+    return this.clients.get(ws)
   }
 }
 

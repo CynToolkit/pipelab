@@ -17,7 +17,7 @@ const config: ForgeConfig = {
     //   // unpack: '*.{node,dll,so,lib,dylib,exe}'
     // },
     asar: false,
-    extraResource: ['assets'],
+    extraResource: ['assets', 'bin'],
     // extraResource: ['.vite/build/assets'],
     name,
     icon: 'assets/build/icon',
@@ -69,6 +69,32 @@ const config: ForgeConfig = {
     }
   ],
   hooks: {
+    prePackage: async (forgeConfig, platform, arch) => {
+      console.log('INFO: Running prePackage hook to build CLI binaries...')
+      const { execSync } = require('child_process')
+      const cliPath = path.resolve(__dirname, '../cli')
+
+      try {
+        console.log(`INFO: Building CLI binaries in ${cliPath}...`)
+        execSync('pnpm pkg', { cwd: cliPath, stdio: 'inherit' })
+
+        // Ensure bin directory exists in desktop package
+        const destBinDir = path.resolve(__dirname, 'bin')
+        if (!(await fs.pathExists(destBinDir))) {
+          await fs.mkdir(destBinDir)
+        }
+
+        // Copy built binaries to desktop/bin for extraResource inclusion
+        const srcBinDir = path.join(cliPath, 'bin')
+        console.log(`INFO: Copying binaries from ${srcBinDir} to ${destBinDir}`)
+        await fs.copy(srcBinDir, destBinDir, { overwrite: true })
+
+        console.log('INFO: CLI binaries built and copied successfully.')
+      } catch (err) {
+        console.error('ERROR: Failed to build or copy CLI binaries:', err)
+        throw err
+      }
+    },
     packageAfterCopy: async (forgeConfig, buildPath, electronVersion, platform, arch) => {
       console.log('INFO: Running packageAfterCopy hook...')
       const projectRoot = path.resolve(__dirname)

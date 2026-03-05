@@ -14,6 +14,7 @@ import {
   AppConfigV4,
   AppConfigV5,
   AppConfigV6,
+  AppConfigV7,
   AppSettingsValidator
 } from '@pipelab/shared/config.schema'
 
@@ -26,8 +27,9 @@ export const defaultAppSettings = migrator.createDefault({
   clearTemporaryFoldersOnPipelineEnd: false,
   locale: 'en-US',
   theme: 'light',
-  version: '6.0.0',
+  version: '7.0.0',
   autosave: true,
+  agents: [],
   tours: {
     dashboard: {
       step: 0,
@@ -105,11 +107,23 @@ export const appSettingsMigrator = migrator.createMigrations({
         return rest as unknown as AppConfigV5
       }
     }),
-    createMigration<AppConfigV5, AppConfigV6, never>({
+    createMigration<AppConfigV5, AppConfigV6, AppConfigV7>({
       version: '6.0.0',
+      up: (state) => ({
+        ...state,
+        agents: []
+      }),
+      down: (state) => {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { agents, ...rest } = state as AppConfigV7
+        return rest as unknown as AppConfigV6
+      }
+    }),
+    createMigration<AppConfigV6, AppConfigV7, never>({
+      version: '7.0.0',
       up: finalVersion,
       down: () => {
-        throw new Error("Can't migrate down from 6.0.0")
+        throw new Error("Can't migrate down from 7.0.0")
       }
     })
   ]
@@ -126,7 +140,9 @@ export const getDefaultAppSettingsMigrated = () => {
 
 export const setupConfig = async () => {
   const userData = getSystemContext().userDataPath
+  console.log('userData', userData)
   const filesPath = join(userData, 'config', 'settings.json')
+  console.log('filesPath', filesPath)
   await ensure(filesPath, JSON.stringify(appSettingsMigrator.defaultValue))
 
   return {
@@ -142,6 +158,7 @@ export const setupConfig = async () => {
     },
     getConfig: async () => {
       const { logger } = useLogger()
+      console.log('filesPath', filesPath)
 
       let content = undefined
       try {
