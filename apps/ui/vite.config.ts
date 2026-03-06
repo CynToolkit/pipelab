@@ -39,6 +39,11 @@ export default defineConfig(({ mode }) => {
     optimizeDeps: {
       include: ['@codemirror/state', '@codemirror/view']
     },
+    build: {
+      rollupOptions: {
+        external: ['@pipelab/core-node']
+      }
+    },
     resolve: {
       alias: {
         '@renderer': resolve(__dirname, 'src'),
@@ -46,8 +51,8 @@ export default defineConfig(({ mode }) => {
         '@pipelab/constants': resolve(__dirname, '../../packages/constants/src/index.ts'),
         '@pipelab/ui': resolve(__dirname, 'src/main.ts'),
         '@pipelab/core-node': resolve(__dirname, '../../packages/core-node/src'),
-        '@pipelab': resolve(__dirname, '../../packages/shared/src/libs'),
-        '@main': resolve(__dirname, '../../packages/core-node/src')
+        '@pipelab/migration': resolve(__dirname, '../../packages/migration/src'),
+        '@pipelab': resolve(__dirname, '../../packages/shared/src/libs')
       }
     }
   }

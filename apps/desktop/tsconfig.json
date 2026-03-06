@@ -12,11 +12,11 @@
       "@pipelab/shared/*": [
         "../../packages/shared/src/*"
       ],
-      "@main/*": [
-        "./src/main/*"
-      ],
       "@pipelab/constants": [
         "../../packages/constants/src/index.ts"
+      ],
+      "@pipelab/migration": [
+        "../../packages/migration/src/index.ts"
       ],
       "@pipelab/*": [
         "../../packages/shared/src/libs/*"

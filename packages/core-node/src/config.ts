@@ -1,7 +1,7 @@
 import { getSystemContext } from './context'
-import { join } from 'node:path'
+import path from 'node:path'
 import { ensure } from './utils'
-import { readFile, writeFile } from 'node:fs/promises'
+import fs from 'node:fs/promises'
 import { useLogger } from '@pipelab/shared/logger'
 import { configRegistry, Migrator } from '@pipelab/shared/config'
 
@@ -13,7 +13,7 @@ export const setupConfigFile = async <T>(name: string) => {
   }
 
   const userData = getSystemContext().userDataPath
-  const filesPath = join(userData, 'config', `${name}.json`)
+  const filesPath = path.join(userData, 'config', `${name}.json`)
   
   await ensure(filesPath, JSON.stringify(migrator.defaultValue))
 
@@ -21,7 +21,7 @@ export const setupConfigFile = async <T>(name: string) => {
     setConfig: async (config: T) => {
       const { logger } = useLogger()
       try {
-        await writeFile(filesPath, JSON.stringify(config))
+        await fs.writeFile(filesPath, JSON.stringify(config))
         return true
       } catch (e) {
         logger().error(`Error saving config ${name}:`, e)
@@ -32,7 +32,7 @@ export const setupConfigFile = async <T>(name: string) => {
       const { logger } = useLogger()
       let content = undefined
       try {
-        content = await readFile(filesPath, 'utf8')
+        content = await fs.readFile(filesPath, 'utf8')
       } catch (e) {
         logger().error(`Error reading config ${name}:`, e)
       }
@@ -50,7 +50,7 @@ export const setupConfigFile = async <T>(name: string) => {
 
       // Save back migrated config
       try {
-        await writeFile(filesPath, JSON.stringify(json))
+        await fs.writeFile(filesPath, JSON.stringify(json))
       } catch (e) {
         logger().error(`Error saving migrated config ${name}:`, e)
       }

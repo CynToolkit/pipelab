@@ -10,8 +10,7 @@
     "paths": {
       "@pipelab/shared/*": ["../shared/src/*"],
       "@pipelab/constants": ["../constants/src/index.ts"],
-      "@pipelab/*": ["../shared/src/libs/*"],
-      "@main/*": ["../../apps/desktop/src/main/*"]
+      "@pipelab/*": ["../shared/src/libs/*"]
     }
   },
   "include": ["src/**/*"],

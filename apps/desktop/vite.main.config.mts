@@ -45,7 +45,7 @@ export default defineConfig((env) => {
     build: {
       sourcemap: true,
       lib: {
-        entry: forgeConfigSelf.entry!,
+        entry: forgeConfigSelf?.entry || 'src/main.ts',
         fileName: () => '[name].js',
         formats: ['cjs']
       },
@@ -65,8 +65,8 @@ export default defineConfig((env) => {
         '@pipelab/shared': resolve(__dirname, '../../packages/shared/src'),
         '@pipelab/constants': resolve(__dirname, '../../packages/constants/src/index.ts'),
         '@pipelab/core-node': resolve(__dirname, '../../packages/core-node/src'),
-        '@pipelab': resolve(__dirname, '../../packages/shared/src/libs'),
-        '@main': resolve(__dirname, '../../packages/core-node/src')
+        '@pipelab/migration': resolve(__dirname, '../../packages/migration/src'),
+        '@pipelab': resolve(__dirname, '../../packages/shared/src/libs')
       }
     }
   }

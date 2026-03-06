@@ -15,8 +15,10 @@ import { getSystemContext } from './context'
 import { BlockCondition } from '@pipelab/shared/model'
 import { HandleListenerSendFn } from './handlers'
 import { ensureNodeJS, generateTempFolder } from './utils'
-import { join } from 'node:path'
-import { tmpdir } from 'node:os'
+import path from 'node:path'
+import os from 'node:os'
+const { join } = path
+const { tmpdir } = os
 import { setupConfigFile } from './config'
 import { AppConfig } from '@pipelab/shared/config.schema'
 

@@ -13,7 +13,7 @@ export default defineConfig((env) => {
       rollupOptions: {
         external: external.filter((dep) => !dep.startsWith('@pipelab/')),
         // Preload scripts may contain Web assets, so use the `build.rollupOptions.input` instead `build.lib.entry`.
-        input: forgeConfigSelf.entry!,
+        input: forgeConfigSelf?.entry || 'src/preload.ts',
         output: {
           format: 'cjs',
           // It should not be split chunks.
@@ -35,8 +35,8 @@ export default defineConfig((env) => {
         '@pipelab/shared': resolve(__dirname, '../../packages/shared/src'),
         '@pipelab/constants': resolve(__dirname, '../../packages/constants/src/index.ts'),
         '@pipelab/core-node': resolve(__dirname, '../../packages/core-node/src'),
-        '@pipelab': resolve(__dirname, '../../packages/shared/src/libs'),
-        '@main': resolve(__dirname, '../../packages/core-node/src')
+        '@pipelab/migration': resolve(__dirname, '../../packages/migration/src'),
+        '@pipelab': resolve(__dirname, '../../packages/shared/src/libs')
       }
     }
   }
