@@ -1,12 +1,7 @@
 {
+  "extends": "../../packages/tsconfig/node.json",
   "compilerOptions": {
-    "target": "ESNext",
-    "module": "ESNext",
     "moduleResolution": "bundler",
-    "strict": true,
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
     "outDir": "dist",
     "declaration": true,
     "declarationMap": true,

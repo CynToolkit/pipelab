@@ -6,7 +6,7 @@ import { writeFile, readFile } from 'node:fs/promises'
 import { presets } from './presets/list'
 import { handleActionExecute, handleConditionExecute } from './handler-func'
 import { useLogger } from '@pipelab/shared/logger'
-import { getDefaultAppSettingsMigrated, setupConfig } from './config'
+import { setupConfigFile } from './config'
 import { buildHistoryStorage } from './handlers/build-history'
 import { SubscriptionRequiredError } from '@pipelab/shared/subscription-errors'
 import {
@@ -41,19 +41,29 @@ export const useAPI = () => {
     const { data, requestId } = message
 
     if (handlers[channel]) {
-      logger().debug('Executing handler for channel:', channel)
+      logger().debug('Executing handler for channel:', channel, 'with data:', JSON.stringify(data))
       const event: WsEvent = {
         sender: ws.url || 'websocket-client'
       }
 
       const send: HandleListenerSendFn<any> = (events) => {
-        logger().debug('sending', events, 'to', requestId)
+        const serialized = JSON.stringify(events)
+        logger().debug(
+          'sending response to',
+          requestId,
+          ':',
+          serialized.length > 500 ? serialized.substring(0, 500) + '...' : serialized
+        )
         const response = {
           type: 'response',
           requestId,
           events
         }
-        ws.send(JSON.stringify(response))
+        ws.send(JSON.stringify(response), (error) => {
+          if (error) {
+            logger().error('Failed to send WebSocket response:', error)
+          }
+        })
         return Promise.resolve()
       }
 
@@ -165,12 +175,11 @@ export const registerIPCHandlers = (filter?: (channel: Channels) => boolean) => 
   handle('fs:read', async (event, { value, send }) => {
     const { logger } = useLogger()
 
-    // logger.info('event', event)
-    // logger().info('value', value)
-    // logger().info('fs:read')
+    logger().info('fs:read', value.path)
 
     try {
       const data = await readFile(value.path, 'utf-8')
+      logger().info('fs:read success, content length:', data.length)
 
       send({
         type: 'end',
@@ -182,7 +191,7 @@ export const registerIPCHandlers = (filter?: (channel: Channels) => boolean) => 
         }
       })
     } catch (e) {
-      logger().error('e', e)
+      logger().error('fs:read error for path:', value.path, e)
       send({
         type: 'end',
         data: {
@@ -431,127 +440,108 @@ export const registerIPCHandlers = (filter?: (channel: Channels) => boolean) => 
   })
 
   handle('config:load', async (_, { send, value }) => {
-    const { config } = value
+    const { config: name } = value
+    const { logger } = useLogger()
 
-    console.log('config', config)
+    logger().info('config:load', name)
 
-    const userData = getSystemContext().userDataPath
-
-    console.log('userData', userData)
-
-    const filesPath = join(userData, 'config', config + '.json')
-
-    await ensure(filesPath)
-
-    let content = '{}'
     try {
-      content = await readFile(filesPath, 'utf8')
-    } catch (e) {
-      logger().error('e', e)
-    }
+      const manager = await setupConfigFile(name)
+      const json = await manager.getConfig()
 
-    const json = JSON.parse(content)
-
-    send({
-      type: 'end',
-      data: {
-        type: 'success',
-        result: {
-          result: json
+      send({
+        type: 'end',
+        data: {
+          type: 'success',
+          result: {
+            result: json
+          }
         }
-      }
-    })
-  })
-
-  handle('settings:load', async (_, { send }) => {
-    console.log('settings:load', 'aaa')
-    logger().info('settings:load', 'aaa')
-    const settingsG = await setupConfig()
-    const settings = await settingsG.getConfig()
-    console.log('settings', settings)
-
-    if (!settings) {
-      return send({
+      })
+    } catch (e) {
+      logger().error(`config:load error for ${name}:`, e)
+      send({
         type: 'end',
         data: {
           type: 'error',
-          ipcError: 'Settings not found'
+          ipcError: e instanceof Error ? e.message : `Unable to load config ${name}`
         }
       })
     }
-
-    send({
-      type: 'end',
-      data: {
-        type: 'success',
-        result: {
-          result: settings
-        }
-      }
-    })
-  })
-
-  handle('settings:save', async (_, { send, value }) => {
-    const settingsG = await setupConfig()
-    const settings = await settingsG.setConfig(value as any)
-
-    send({
-      type: 'end',
-      data: {
-        type: 'success',
-        result: {
-          result: settings === true ? 'ok' : 'ko'
-        }
-      }
-    })
-  })
-
-  handle('settings:reset', async (event, { value, send }) => {
-    const { logger } = useLogger()
-    logger().info('value', value)
-    logger().info('settings:reset')
-
-    const settingsG = await setupConfig()
-    const settings = await settingsG.getConfig()
-
-    const migratedSettings = await getDefaultAppSettingsMigrated()
-
-    await settingsG.setConfig({
-      ...(settings || migratedSettings),
-      [value.key]: migratedSettings[value.key as keyof typeof migratedSettings]
-    } as any)
-
-    send({
-      type: 'end',
-      data: {
-        type: 'success',
-        result: {
-          result: 'ok'
-        }
-      }
-    })
   })
 
   handle('config:save', async (_, { send, value }) => {
-    const { data, config } = value
+    const { data, config: name } = value
+    const { logger } = useLogger()
+    
+    try {
+      const manager = await setupConfigFile(name)
+      const json = typeof data === 'string' ? JSON.parse(data) : data
+      await manager.setConfig(json)
 
-    const userData = getSystemContext().userDataPath
-
-    const filesPath = join(userData, 'config', config + '.json')
-
-    await ensure(filesPath)
-
-    await writeFile(filesPath, data, 'utf8')
-
-    send({
-      type: 'end',
-      data: {
-        type: 'success',
-        result: {
-          result: 'ok'
+      send({
+        type: 'end',
+        data: {
+          type: 'success',
+          result: {
+            result: 'ok'
+          }
         }
+      })
+    } catch (e) {
+      logger().error(`config:save error for ${name}:`, e)
+      send({
+        type: 'end',
+        data: {
+          type: 'error',
+          ipcError: e instanceof Error ? e.message : `Unable to save config ${name}`
+        }
+      })
+    }
+  })
+
+  handle('config:reset', async (event, { value, send }) => {
+    const { config: name, key } = value
+    const { logger } = useLogger()
+    logger().info('config:reset', name, key)
+
+    try {
+      const manager = await setupConfigFile(name)
+      const currentConfig = await manager.getConfig()
+
+      const { configRegistry } = await import('@pipelab/shared/config')
+      const migrator = configRegistry[name]
+
+      if (!migrator) {
+        throw new Error(`No migrator found for configuration: ${name}`)
       }
-    })
+
+      const defaultValue = (migrator.defaultValue as any)[key]
+
+      await manager.setConfig({
+        ...(currentConfig ? (currentConfig as any) : {}),
+        [key]: defaultValue
+      } as any)
+
+      send({
+        type: 'end',
+        data: {
+          type: 'success',
+          result: {
+            result: 'ok'
+          }
+        }
+      })
+    } catch (e) {
+      logger().error(`config:reset error for ${name}:`, e)
+      send({
+        type: 'end',
+        data: {
+          type: 'error',
+          ipcError: e instanceof Error ? e.message : `Unable to reset config ${name}`
+        }
+      })
+    }
   })
 
   handle('action:cancel', async (_, { send }) => {

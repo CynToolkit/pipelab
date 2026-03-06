@@ -17,7 +17,8 @@ import { HandleListenerSendFn } from './handlers'
 import { ensureNodeJS, generateTempFolder } from './utils'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { setupConfig } from './config'
+import { setupConfigFile } from './config'
+import { AppConfig } from '@pipelab/shared/config.schema'
 
 const checkParams = (definitionParams: InputsDefinition, elementParams: Record<string, string>) => {
   // get a list of all required params
@@ -120,7 +121,7 @@ export const handleActionExecute = async (
 ): Promise<End<'action:execute'>> => {
   const { plugins } = usePlugins()
   const { logger } = useLogger()
-  const settings = await setupConfig()
+  const settings = await setupConfigFile<AppConfig>('settings')
   const config = await settings.getConfig()
 
   mainWindow?.setProgressBar(1, {

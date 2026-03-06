@@ -17,7 +17,7 @@ export default async (json, ws) => {
     url: json.url,
     body: {
       success: true,
-      content: [...file],
+      content: [...file]
     }
   }
   ws.send(JSON.stringify(readFileResult))

@@ -3,8 +3,9 @@ import { join } from 'path'
 import { platform } from 'os'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { startServer, stopServer } from './main/server-process'
-import { setSystemContext, registerIPCHandlers, setupConfig, assetsPath } from '@pipelab/core-node'
+import { setSystemContext, registerIPCHandlers, setupConfigFile, assetsPath } from '@pipelab/core-node'
 import { ShellChannels } from '@pipelab/shared/apis'
+import { AppConfig } from '@pipelab/shared/config.schema'
 import { parseArgs, ParseArgsConfig } from 'node:util'
 import { mkdir } from 'fs/promises'
 import { useLogger } from '@pipelab/shared/logger'
@@ -261,7 +262,7 @@ app.whenReady().then(async () => {
 
   await mkdir(shimsPaths, { recursive: true })
 
-  const settingsG = await setupConfig()
+  const settingsG = await setupConfigFile<AppConfig>('settings')
 
   const settings = await settingsG.getConfig()
 

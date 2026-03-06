@@ -3,8 +3,8 @@
 import { app } from 'electron'
 import { join } from 'path'
 
-import slash from 'slash';
-import { getAppName } from '../../utils.js';
+import slash from 'slash'
+import { getAppName } from '../../utils.js'
 
 /**
  * @param {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').MessagePaths, 'input'>} json

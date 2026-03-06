@@ -33,6 +33,7 @@
     "cac": "6.7.14"
   },
   "devDependencies": {
+    "@pipelab/tsconfig": "workspace:*",
     "@types/node": "22.7.9",
     "pkg": "5.8.1",
     "tsup": "^8.0.0",

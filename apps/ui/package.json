@@ -65,6 +65,7 @@
     "vue-router": "4.4.5"
   },
   "devDependencies": {
+    "@pipelab/tsconfig": "workspace:*",
     "@primevue/auto-import-resolver": "4.1.1",
     "@types/node": "22.7.9",
     "@vitejs/plugin-vue": "5.2.3",

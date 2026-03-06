@@ -57,7 +57,7 @@ export class WebSocketServer {
           }
 
           this.clients.set(ws, client)
-          logger().info('WebSocket client connected', {
+          console.log('WebSocket client connected', {
             id: clientId,
             name: clientName,
             url: request.url

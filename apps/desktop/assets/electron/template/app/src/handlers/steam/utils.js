@@ -32,10 +32,10 @@ function handleSteamRequest(client, json, ws, handlerFunction, useRawErrorFormat
       correlationId: json.correlationId,
       body: useRawErrorFormat
         ? {
-          data: null,
-          success: false,
-          error: clientError.error
-        }
+            data: null,
+            success: false,
+            error: clientError.error
+          }
         : clientError
     }
     ws.send(JSON.stringify(errorResult))
@@ -62,14 +62,14 @@ function handleSteamRequest(client, json, ws, handlerFunction, useRawErrorFormat
         correlationId: json.correlationId,
         body: useRawErrorFormat
           ? {
-            data: null,
-            success: false,
-            error: error.message || 'Unknown error occurred'
-          }
+              data: null,
+              success: false,
+              error: error.message || 'Unknown error occurred'
+            }
           : {
-            success: false,
-            error: error.message || 'Unknown error occurred'
-          }
+              success: false,
+              error: error.message || 'Unknown error occurred'
+            }
       }
       ws.send(JSON.stringify(errorResult))
     })

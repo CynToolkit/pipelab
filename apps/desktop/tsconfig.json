@@ -1,17 +1,10 @@
 {
+  "extends": "../../packages/tsconfig/commonjs.json",
   "compilerOptions": {
-    "target": "ESNext",
-    "module": "commonjs",
-    "allowJs": true,
-    "skipLibCheck": true,
-    "esModuleInterop": true,
-    "noImplicitAny": true,
     "noEmit": true,
     "baseUrl": ".",
     "outDir": "dist",
-    "moduleResolution": "node",
     "inlineSourceMap": true,
-    "resolveJsonModule": true,
     "paths": {
       "@pipelab/shared": [
         "../../packages/shared/src/index.ts"

@@ -1,18 +1,7 @@
 {
+  "extends": "../../packages/tsconfig/vue.json",
   "compilerOptions": {
-    "target": "ESNext",
-    "module": "ESNext",
-    "moduleResolution": "bundler",
-    "strict": true,
-    "jsx": "preserve",
-    "importHelpers": true,
-    "moduleDetection": "force",
-    "allowJs": true,
     "sourceMap": true,
-    "resolveJsonModule": true,
-    "esModuleInterop": true,
-    "lib": ["ESNext", "DOM"],
-    "skipLibCheck": true,
     "noEmit": true,
     "baseUrl": ".",
     "paths": {

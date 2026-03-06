@@ -21,5 +21,5 @@ export default async (json, ws) => {
       paths: openDialogResponse.filePaths
     }
   }
-  ws.send(JSON.stringify(dialogOpenResult));
+  ws.send(JSON.stringify(dialogOpenResult))
 }

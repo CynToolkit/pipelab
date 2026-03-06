@@ -20,7 +20,7 @@ export default async (json, ws) => {
       url: json.url,
       body: {
         success: true,
-        content: file,
+        content: file
       }
     }
     ws.send(JSON.stringify(readFileResult))
@@ -34,7 +34,7 @@ export default async (json, ws) => {
       url: json.url,
       body: {
         success: false,
-        error: e.message,
+        error: e.message
       }
     }
     ws.send(JSON.stringify(readFileResult))

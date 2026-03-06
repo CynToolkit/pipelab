@@ -13,5 +13,5 @@ export default async (json, ws) => {
       engine: 'electron'
     }
   }
-  ws.send(JSON.stringify(engineResult));
+  ws.send(JSON.stringify(engineResult))
 }

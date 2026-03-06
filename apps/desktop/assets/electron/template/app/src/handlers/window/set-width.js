@@ -5,7 +5,7 @@
  */
 export default async (json, ws, mainWindow) => {
   const [, height] = mainWindow.getSize()
-  mainWindow.setSize(json.body.value, height);
+  mainWindow.setSize(json.body.value, height)
 
   /**
    * @type {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').MessageSetWidth, 'output'>}
@@ -17,5 +17,5 @@ export default async (json, ws, mainWindow) => {
       success: true
     }
   }
-  ws.send(JSON.stringify(setWidthResult));
+  ws.send(JSON.stringify(setWidthResult))
 }

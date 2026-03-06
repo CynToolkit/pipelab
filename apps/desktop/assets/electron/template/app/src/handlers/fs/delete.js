@@ -16,7 +16,7 @@ export default async (json, ws) => {
     correlationId: json.correlationId,
     url: json.url,
     body: {
-      success: true,
+      success: true
     }
   }
   ws.send(JSON.stringify(readFileResult))

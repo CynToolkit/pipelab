@@ -20,5 +20,5 @@ export default async (json, ws, mainWindow) => {
       success: true
     }
   }
-  ws.send(JSON.stringify(showDevtoolsResult));
+  ws.send(JSON.stringify(showDevtoolsResult))
 }

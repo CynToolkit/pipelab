@@ -37,6 +37,9 @@ importers:
         specifier: 6.7.14
         version: 6.7.14
     devDependencies:
+      '@pipelab/tsconfig':
+        specifier: workspace:*
+        version: link:../../packages/tsconfig
       '@types/node':
         specifier: 22.7.9
         version: 22.7.9
@@ -257,6 +260,9 @@ importers:
       '@mdi/font':
         specifier: 7.4.47
         version: 7.4.47
+      '@pipelab/tsconfig':
+        specifier: workspace:*
+        version: link:../../packages/tsconfig
       '@playwright/test':
         specifier: 1.48.1
         version: 1.48.1
@@ -546,6 +552,9 @@ importers:
         specifier: 4.4.5
         version: 4.4.5(vue@3.5.13(typescript@5.8.3))
     devDependencies:
+      '@pipelab/tsconfig':
+        specifier: workspace:*
+        version: link:../../packages/tsconfig
       '@primevue/auto-import-resolver':
         specifier: 4.1.1
         version: 4.1.1
@@ -576,6 +585,9 @@ importers:
 
   packages/constants:
     devDependencies:
+      '@pipelab/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
       tsup:
         specifier: ^8.0.0
         version: 8.5.1(jiti@2.4.2)(postcss@8.5.4)(tsx@4.19.1)(typescript@5.8.3)
@@ -607,6 +619,9 @@ importers:
         specifier: 2.10.0
         version: 2.10.0
     devDependencies:
+      '@pipelab/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
       '@types/node':
         specifier: 22.7.9
         version: 22.7.9
@@ -620,8 +635,36 @@ importers:
         specifier: ^5.0.0
         version: 5.8.3
 
+  packages/migration:
+    dependencies:
+      klona:
+        specifier: 2.0.6
+        version: 2.0.6
+      semver:
+        specifier: ^7.6.3
+        version: 7.6.3
+      valibot:
+        specifier: 0.42.1
+        version: 0.42.1(typescript@5.9.3)
+    devDependencies:
+      '@pipelab/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      '@types/semver':
+        specifier: ^7.5.8
+        version: 7.5.8
+      tsup:
+        specifier: ^8.5.1
+        version: 8.5.1(jiti@2.4.2)(postcss@8.5.4)(tsx@4.19.1)(typescript@5.9.3)
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+
   packages/shared:
     dependencies:
+      '@pipelab/migration':
+        specifier: workspace:*
+        version: link:../migration
       klona:
         specifier: 2.0.6
         version: 2.0.6
@@ -644,6 +687,9 @@ importers:
         specifier: 0.42.1
         version: 0.42.1(typescript@5.9.3)
     devDependencies:
+      '@pipelab/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
       esbuild-plugin-wasm:
         specifier: 1.1.0
         version: 1.1.0
@@ -653,6 +699,8 @@ importers:
       typescript:
         specifier: 5.9.3
         version: 5.9.3
+
+  packages/tsconfig: {}
 
 packages:
 

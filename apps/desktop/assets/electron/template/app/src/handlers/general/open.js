@@ -3,7 +3,7 @@ import { shell } from 'electron'
 /**
  * @param {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').MessageOpen, 'input'>} json
  * @param {import('ws').WebSocket} ws
-*/
+ */
 export default async (json, ws) => {
   await shell.openPath(json.body.path)
 
@@ -14,8 +14,8 @@ export default async (json, ws) => {
     correlationId: json.correlationId,
     url: json.url,
     body: {
-      success: true,
+      success: true
     }
   }
-  ws.send(JSON.stringify(runResult));
+  ws.send(JSON.stringify(runResult))
 }

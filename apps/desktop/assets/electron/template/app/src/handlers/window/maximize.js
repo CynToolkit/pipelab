@@ -4,7 +4,7 @@
  * @param {import('electron').BrowserWindow} mainWindow
  */
 export default async (json, ws, mainWindow) => {
-  mainWindow.maximize();
+  mainWindow.maximize()
 
   /**
    * @type {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').MessageWindowMaximize, 'output'>}
@@ -16,5 +16,5 @@ export default async (json, ws, mainWindow) => {
       success: true
     }
   }
-  ws.send(JSON.stringify(maximizeResult));
+  ws.send(JSON.stringify(maximizeResult))
 }

@@ -72,11 +72,6 @@ export type IpcDefinition = {
     }>
   ]
   'fs:getHomeDirectory': [void, EndEvent<{ path: string }>]
-  'settings:reset': [
-    // input
-    { key: keyof AppConfig },
-    EndEvent<{ result: string }>
-  ]
   'dialog:showOpenDialog': [
     // input
     Electron.OpenDialogOptions,
@@ -118,10 +113,9 @@ export type IpcDefinition = {
   'constants:get': [void, EndEvent<{ result: { userData: string } }>]
 
   'config:load': [{ config: string }, EndEvent<{ result: any }>]
-  'config:save': [{ data: string; config: string }, EndEvent<{ result: 'ok' }>]
+  'config:save': [{ data: any; config: string }, EndEvent<{ result: 'ok' }>]
+  'config:reset': [{ config: string; key: string }, EndEvent<{ result: 'ok' }>]
   'action:cancel': [void, EndEvent<{ result: 'ok' | 'ko' }>]
-  'settings:load': [never, EndEvent<{ result: AppConfig }>]
-  'settings:save': [AppConfig, EndEvent<{ result: 'ok' | 'ko' }>]
 
   // Build History APIs
   'build-history:save': [{ entry: BuildHistoryEntry }, EndEvent<{ result: 'ok' | 'ko' }>]

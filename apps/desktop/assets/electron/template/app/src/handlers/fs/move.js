@@ -1,8 +1,8 @@
 // @ts-check
 
-import { moveFile } from 'move-file';
-import { mkdir } from 'node:fs/promises';
-import { dirname } from 'node:path';
+import { moveFile } from 'move-file'
+import { mkdir } from 'node:fs/promises'
+import { dirname } from 'node:path'
 
 /**
  * @param {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').MessageMove, 'input'>} json
@@ -23,7 +23,7 @@ export default async (json, ws) => {
     correlationId: json.correlationId,
     url: json.url,
     body: {
-      success: true,
+      success: true
     }
   }
   ws.send(JSON.stringify(readFileResult))

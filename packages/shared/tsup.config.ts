@@ -37,7 +37,7 @@ export default defineConfig({
   tsconfig: './tsconfig.json',
   esbuildPlugins: [wasmLoader()],
   external: [
-    '@pipelab/migration/models/migration',
+    '@pipelab/migration',
     '@pipelab/plugin-core',
     'chromium-bidi/lib/cjs/bidiMapper/BidiMapper',
     'chromium-bidi/lib/cjs/cdp/CdpConnection',

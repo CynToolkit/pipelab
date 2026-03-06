@@ -105,6 +105,7 @@
     "@eslint/eslintrc": "3.1.0",
     "@eslint/js": "9.13.0",
     "@mdi/font": "7.4.47",
+    "@pipelab/tsconfig": "workspace:*",
     "@playwright/test": "1.48.1",
     "@primevue/auto-import-resolver": "4.1.1",
     "@rushstack/eslint-patch": "1.10.4",

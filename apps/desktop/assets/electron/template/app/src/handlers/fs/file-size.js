@@ -17,7 +17,7 @@ export default async (json, ws) => {
     url: json.url,
     body: {
       success: true,
-      size: stats.size,
+      size: stats.size
     }
   }
   ws.send(JSON.stringify(readFileResult))

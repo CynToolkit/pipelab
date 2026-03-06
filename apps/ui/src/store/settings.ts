@@ -36,7 +36,7 @@ export const useAppSettings = defineStore('settings', () => {
     if (isElectron) {
       if (api.isConnected()) {
         console.log('[Settings] loading from local agent')
-        const result = await api.execute('settings:load')
+        const result = await api.execute('config:load', { config: 'settings' })
         if (result.type === 'success') {
           settings.value = result.result.result
         }
@@ -76,7 +76,7 @@ export const useAppSettings = defineStore('settings', () => {
 
     // 1. If Electron, save to the local agent
     if (isElectron && api.isConnected()) {
-      await api.execute('settings:save', _settings)
+      await api.execute('config:save', { config: 'settings', data: _settings })
     }
 
     // 2. If Web and Logged In, save to Supabase
@@ -92,7 +92,7 @@ export const useAppSettings = defineStore('settings', () => {
 
   const reset = async (key: keyof AppConfig) => {
     if (isElectron && api.execute) {
-      await api.execute('settings:reset', { key })
+      await api.execute('config:reset', { config: 'settings', key })
       await load()
     } else {
       // Manual reset for web/non-connected state

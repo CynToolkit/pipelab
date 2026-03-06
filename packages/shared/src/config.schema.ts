@@ -1,5 +1,5 @@
 import { union, literal, InferInput, string, boolean, object, number, array } from 'valibot'
-import { createVersionSchema } from '@pipelab/migration/models/migration'
+import { createVersionSchema } from '@pipelab/migration'
 
 export const AppSettingsValidatorV1 = createVersionSchema({
   cacheFolder: string(),

@@ -5,5 +5,7 @@ export type {
   Migrator,
   MigratorConfig,
   MigrationFn,
-  SemVer
+  SemVer,
+  OmitVersion
 } from './models/migration'
+export { createVersionSchema } from './models/migration'

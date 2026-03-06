@@ -4,7 +4,7 @@
  * @param {import('electron').BrowserWindow} mainWindow
  */
 export default async (json, ws, mainWindow) => {
-  mainWindow.setAlwaysOnTop(true);
+  mainWindow.setAlwaysOnTop(true)
 
   /**
    * @type {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').MessageSetAlwaysOnTop, 'output'>}
@@ -16,5 +16,5 @@ export default async (json, ws, mainWindow) => {
       success: true
     }
   }
-  ws.send(JSON.stringify(setAlwaysOnTopResult));
+  ws.send(JSON.stringify(setAlwaysOnTopResult))
 }

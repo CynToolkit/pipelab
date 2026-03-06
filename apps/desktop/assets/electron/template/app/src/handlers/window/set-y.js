@@ -5,7 +5,7 @@
  */
 export default async (json, ws, mainWindow) => {
   const [x, y] = mainWindow.getPosition()
-  mainWindow.setPosition(x, json.body.value);
+  mainWindow.setPosition(x, json.body.value)
 
   /**
    * @type {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').MessageSetY, 'output'>}
@@ -17,5 +17,5 @@ export default async (json, ws, mainWindow) => {
       success: true
     }
   }
-  ws.send(JSON.stringify(setYResult));
+  ws.send(JSON.stringify(setYResult))
 }

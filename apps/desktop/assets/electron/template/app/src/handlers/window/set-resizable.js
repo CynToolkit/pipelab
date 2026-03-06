@@ -16,5 +16,5 @@ export default async (json, ws, mainWindow) => {
       success: true
     }
   }
-  ws.send(JSON.stringify(setResizableResult));
+  ws.send(JSON.stringify(setResizableResult))
 }

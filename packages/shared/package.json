@@ -131,6 +131,7 @@
     }
   },
   "dependencies": {
+    "@pipelab/migration": "workspace:*",
     "klona": "2.0.6",
     "nanoid": "5.0.7",
     "quickjs-emscripten": "0.31.0",
@@ -140,6 +141,7 @@
     "valibot": "0.42.1"
   },
   "devDependencies": {
+    "@pipelab/tsconfig": "workspace:*",
     "esbuild-plugin-wasm": "1.1.0",
     "tsup": "^8.5.1",
     "typescript": "5.9.3"

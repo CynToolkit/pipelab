@@ -8,7 +8,7 @@ import { mkdir } from 'node:fs/promises'
  */
 export default async (json, ws) => {
   await mkdir(json.body.path, {
-    recursive: json.body.recursive,
+    recursive: json.body.recursive
   })
 
   /**

@@ -2,7 +2,13 @@ import { Variable } from '@pipelab/core-app'
 import { WithId } from './utils'
 import { SaveLocation } from './save-location'
 import type { Simplify } from 'type-fest'
-import { createMigration, createMigrator, finalVersion, initialVersion } from './libs/migration'
+import {
+  createMigration,
+  createMigrator,
+  finalVersion,
+  initialVersion,
+  OmitVersion
+} from '@pipelab/migration'
 import {
   any,
   array,
@@ -22,7 +28,6 @@ import {
   unknown,
   variant
 } from 'valibot'
-import type { OmitVersion } from './libs/migration/models/migration'
 
 export type NodeId = string
 
