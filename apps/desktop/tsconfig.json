@@ -1,7 +1,7 @@
 {
   "extends": "../../packages/tsconfig/commonjs.json",
   "compilerOptions": {
-    "noEmit": true,
+    "emitDeclarationOnly": true,
     "baseUrl": ".",
     "outDir": "dist",
     "inlineSourceMap": true,
@@ -27,7 +27,8 @@
     "src/**/*",
     "tests/**/*",
     "*.ts",
-    "*.mts"
+    "*.mts",
+    "package.json"
   ],
   "exclude": [
     "node_modules",
@@ -36,5 +37,11 @@
     "out",
     "scripts",
     "./assets"
+  ],
+  "references": [
+    { "path": "../../packages/constants" },
+    { "path": "../../packages/shared" },
+    { "path": "../../packages/core-node" },
+    { "path": "../ui" }
   ]
 }

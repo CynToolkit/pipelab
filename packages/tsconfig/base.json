@@ -1,5 +1,8 @@
 {
   "compilerOptions": {
+    "composite": true,
+    "declaration": true,
+    "declarationMap": true,
     "target": "ESNext",
     "module": "ESNext",
     "esModuleInterop": true,

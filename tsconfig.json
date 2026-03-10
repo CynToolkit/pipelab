@@ -1,0 +1,12 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./packages/constants" },
+    { "path": "./packages/migration" },
+    { "path": "./packages/shared" },
+    { "path": "./packages/core-node" },
+    { "path": "./apps/ui" },
+    { "path": "./apps/cli" },
+    { "path": "./apps/desktop" }
+  ]
+}

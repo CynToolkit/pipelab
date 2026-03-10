@@ -1,7 +1,8 @@
 {
   "extends": "../tsconfig/commonjs.json",
   "compilerOptions": {
-    "noEmit": true,
+    "emitDeclarationOnly": true,
+    "outDir": "dist",
     "baseUrl": ".",
     "paths": {
       "@pipelab/plugin-core": ["./src/libs/plugin-core"],
@@ -12,6 +13,9 @@
     "typeRoots": ["./src"],
     "types": ["global.d.ts", "wasm.d.ts"]
   },
-  "include": ["src/**/*", "tests/**/*", "*.ts"],
-  "exclude": ["node_modules", "dist"]
+  "include": ["src/**/*", "tests/**/*", "*.ts", "src/**/*.json"],
+  "exclude": ["node_modules", "dist"],
+  "references": [
+    { "path": "../migration" }
+  ]
 }

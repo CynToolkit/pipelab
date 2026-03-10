@@ -2,7 +2,8 @@
   "extends": "../../packages/tsconfig/vue.json",
   "compilerOptions": {
     "sourceMap": true,
-    "noEmit": true,
+    "emitDeclarationOnly": true,
+    "outDir": "dist",
     "baseUrl": ".",
     "paths": {
       "@renderer/*": ["./src/*"],
@@ -14,5 +15,9 @@
     }
   },
   "include": ["src/**/*.ts", "src/**/*.vue", "src/**/*.d.ts"],
-  "exclude": ["node_modules"]
+  "exclude": ["node_modules"],
+  "references": [
+    { "path": "../../packages/constants" },
+    { "path": "../../packages/shared" }
+  ]
 }

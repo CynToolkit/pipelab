@@ -1,7 +1,8 @@
 {
   "extends": "../tsconfig/commonjs.json",
   "compilerOptions": {
-    "noEmit": true,
+    "emitDeclarationOnly": true,
+    "outDir": "dist",
     "baseUrl": ".",
     "paths": {
       "@pipelab/migration/*": ["./src/*"]
