@@ -16,9 +16,9 @@
     "vue-demi": "0.14.10"
   },
   "devDependencies": {
-    "turbo": "^2.4.2",
     "@changesets/cli": "^2.27.11",
-    "prettier": "^3.3.3"
+    "prettier": "^3.3.3",
+    "turbo": "^2.8.15"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
