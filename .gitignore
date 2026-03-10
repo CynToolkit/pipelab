@@ -112,3 +112,4 @@ assets/tauri/template/app/src/app
 apps/cli/bin
 
 .turbo
+apps/desktop/bin/

@@ -5,6 +5,10 @@
       "dependsOn": ["^build"],
       "outputs": ["dist/**", ".vite/**", "out/**"]
     },
+    "package": {
+      "dependsOn": ["build"],
+      "outputs": ["out/**"]
+    },
     "test": {
       "dependsOn": ["build"],
       "outputs": []

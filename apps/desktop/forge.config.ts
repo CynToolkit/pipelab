@@ -9,6 +9,12 @@ import { FuseV1Options, FuseVersion } from '@electron/fuses'
 import { name } from '@pipelab/constants'
 import * as fs from 'fs-extra'
 import * as path from 'path'
+import { execSync } from 'child_process'
+import { fileURLToPath } from 'url'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
+
 /** @type {*} */
 const config: ForgeConfig = {
   packagerConfig: {
@@ -71,18 +77,15 @@ const config: ForgeConfig = {
   hooks: {
     prePackage: async (forgeConfig, platform, arch) => {
       console.log('INFO: Running prePackage hook to build CLI binaries...')
-      const { execSync } = require('child_process')
       const cliPath = path.resolve(__dirname, '../cli')
 
       try {
         console.log(`INFO: Building CLI binaries in ${cliPath}...`)
-        execSync('pnpm pkg', { cwd: cliPath, stdio: 'inherit' })
+        execSync('pnpm run pkg', { cwd: cliPath, stdio: 'inherit' })
 
         // Ensure bin directory exists in desktop package
         const destBinDir = path.resolve(__dirname, 'bin')
-        if (!(await fs.pathExists(destBinDir))) {
-          await fs.mkdir(destBinDir)
-        }
+        await fs.ensureDir(destBinDir)
 
         // Copy built binaries to desktop/bin for extraResource inclusion
         const srcBinDir = path.join(cliPath, 'bin')
@@ -101,13 +104,15 @@ const config: ForgeConfig = {
       const packagesToCopy = ['@esbuild', '@lydell']
 
       for (const packageName of packagesToCopy) {
-        const srcDir = path.join(projectRoot, 'node_modules', packageName)
+        const srcDir = path.join(__dirname, 'node_modules', packageName)
         const destDir = path.join(buildPath, 'node_modules', packageName)
 
         try {
           if (await fs.pathExists(srcDir)) {
-            console.log(`INFO: Copying ${srcDir} to ${destDir}`)
-            await fs.copy(srcDir, destDir, { overwrite: true, dereference: true })
+            console.log(`INFO: Copying ${srcDir} to ${destDir} using cp -rL...`)
+            execSync(`rm -rf "${destDir}"`)
+            execSync(`mkdir -p "${path.dirname(destDir)}"`)
+            execSync(`cp -rL "${srcDir}" "${destDir}"`)
             console.log(`INFO: Successfully copied ${packageName}.`)
           } else {
             console.warn(
