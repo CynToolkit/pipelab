@@ -12,10 +12,6 @@
       "require": "./src/index.ts"
     }
   },
-  "scripts": {
-    "build": "tsup src/index.ts --format cjs,esm --dts",
-    "dev": "tsup src/index.ts --format cjs,esm --dts --watch"
-  },
   "devDependencies": {
     "@pipelab/tsconfig": "workspace:*",
     "tsup": "^8.0.0",

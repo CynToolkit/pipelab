@@ -15,9 +15,14 @@ cli
     const userDataPath =
       options.userData || join(homedir(), '.config', '@pipelab', isDev ? 'app-dev' : 'app')
 
+    // In dev, assets are in ../assets relative to dist/index.js
+    // In pkg, they are also in ../assets relative to the bundled dist/index.js
+    const assetsPath = join(__dirname, '..', 'assets')
+
     // Setup minimal context for headless mode
     setSystemContext({
       userDataPath,
+      assetsPath,
       showOpenDialog: async () => {
         console.error('showOpenDialog is not supported in CLI mode')
         return { canceled: true, filePaths: [] }

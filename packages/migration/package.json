@@ -2,13 +2,9 @@
   "name": "@pipelab/migration",
   "version": "1.0.0",
   "private": true,
-  "main": "dist/index.js",
-  "module": "dist/index.mjs",
-  "types": "dist/index.d.ts",
-  "scripts": {
-    "build": "tsup",
-    "dev": "tsup --watch"
-  },
+  "main": "./src/index.ts",
+  "module": "./src/index.ts",
+  "types": "./src/index.ts",
   "dependencies": {
     "klona": "2.0.6",
     "semver": "^7.6.3",

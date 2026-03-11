@@ -1,22 +1,41 @@
+import { getSystemContext } from './context'
+
 export const unpackPath = async () => {
   const { join } = await import('path')
-  const { app } = await import('electron')
-  const _unpackPath =
-    !process.env.NODE_ENV || process.env.NODE_ENV === 'production'
-      ? app.getAppPath() // Live Mode
-      : process.cwd() // Dev Mode
+  try {
+    const { app } = await import('electron')
+    const _unpackPath =
+      !process.env.NODE_ENV || process.env.NODE_ENV === 'production'
+        ? app.getAppPath() // Live Mode
+        : process.cwd() // Dev Mode
 
-  return join(_unpackPath)
+    return join(_unpackPath)
+  } catch (e) {
+    return process.cwd()
+  }
 }
 
 export const assetsPath = async () => {
-  const { app } = await import('electron')
+  try {
+    const context = getSystemContext()
+    if (context.assetsPath) {
+      return context.assetsPath
+    }
+  } catch (e) {
+    // context not initialized yet
+  }
+
   const { join } = await import('path')
-  const _assetsPath =
-    !process.env.NODE_ENV || process.env.NODE_ENV === 'production'
-      ? join(app.getAppPath(), '..') // Live Mode
-      : process.cwd() // Dev Mode
-  return join(_assetsPath, 'assets')
+  try {
+    const { app } = await import('electron')
+    const _assetsPath =
+      !process.env.NODE_ENV || process.env.NODE_ENV === 'production'
+        ? join(app.getAppPath(), '..') // Live Mode
+        : process.cwd() // Dev Mode
+    return join(_assetsPath, 'assets')
+  } catch (e) {
+    return join(process.cwd(), 'assets')
+  }
 }
 
 export const dirname = async () => {

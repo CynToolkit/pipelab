@@ -1,7 +1,6 @@
 {
   "extends": "../tsconfig/node.json",
   "compilerOptions": {
-    "composite": false,
     "moduleResolution": "bundler",
     "outDir": "dist",
     "declaration": true,

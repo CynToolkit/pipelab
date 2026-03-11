@@ -1,7 +1,6 @@
 {
   "extends": "../tsconfig/commonjs.json",
   "compilerOptions": {
-    "composite": false,
     "emitDeclarationOnly": true,
     "outDir": "dist",
     "baseUrl": ".",

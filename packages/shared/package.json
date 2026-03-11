@@ -2,132 +2,128 @@
   "name": "@pipelab/shared",
   "version": "1.0.0",
   "private": true,
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
-  "scripts": {
-    "build": "tsup",
-    "dev": "tsup --watch"
-  },
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.js"
+      "types": "./src/index.ts",
+      "import": "./src/index.ts",
+      "require": "./src/index.ts"
     },
     "./apis": {
-      "types": "./dist/apis.d.ts",
-      "import": "./dist/apis.mjs",
-      "require": "./dist/apis.js"
+      "types": "./src/apis.ts",
+      "import": "./src/apis.ts",
+      "require": "./src/apis.ts"
     },
     "./build-history": {
-      "types": "./dist/build-history.d.ts",
-      "import": "./dist/build-history.mjs",
-      "require": "./dist/build-history.js"
+      "types": "./src/build-history.ts",
+      "import": "./src/build-history.ts",
+      "require": "./src/build-history.ts"
     },
     "./config.schema": {
-      "types": "./dist/config.schema.d.ts",
-      "import": "./dist/config.schema.mjs",
-      "require": "./dist/config.schema.js"
+      "types": "./src/config.schema.ts",
+      "import": "./src/config.schema.ts",
+      "require": "./src/config.schema.ts"
     },
     "./database.types": {
-      "types": "./dist/database.types.d.ts",
-      "import": "./dist/database.types.mjs",
-      "require": "./dist/database.types.js"
+      "types": "./src/database.types.ts",
+      "import": "./src/database.types.ts",
+      "require": "./src/database.types.ts"
     },
     "./evaluator": {
-      "types": "./dist/evaluator.d.ts",
-      "import": "./dist/evaluator.mjs",
-      "require": "./dist/evaluator.js"
+      "types": "./src/evaluator.ts",
+      "import": "./src/evaluator.ts",
+      "require": "./src/evaluator.ts"
     },
     "./fmt": {
-      "types": "./dist/fmt.d.ts",
-      "import": "./dist/fmt.mjs",
-      "require": "./dist/fmt.js"
+      "types": "./src/fmt.ts",
+      "import": "./src/fmt.ts",
+      "require": "./src/fmt.ts"
     },
     "./graph": {
-      "types": "./dist/graph.d.ts",
-      "import": "./dist/graph.mjs",
-      "require": "./dist/graph.js"
+      "types": "./src/graph.ts",
+      "import": "./src/graph.ts",
+      "require": "./src/graph.ts"
     },
     "./i18n-utils": {
-      "types": "./dist/i18n-utils.d.ts",
-      "import": "./dist/i18n-utils.mjs",
-      "require": "./dist/i18n-utils.js"
+      "types": "./src/i18n-utils.ts",
+      "import": "./src/i18n-utils.ts",
+      "require": "./src/i18n-utils.ts"
     },
     "./logger": {
-      "types": "./dist/logger.d.ts",
-      "import": "./dist/logger.mjs",
-      "require": "./dist/logger.js"
+      "types": "./src/logger.ts",
+      "import": "./src/logger.ts",
+      "require": "./src/logger.ts"
     },
     "./model": {
-      "types": "./dist/model.d.ts",
-      "import": "./dist/model.mjs",
-      "require": "./dist/model.js"
+      "types": "./src/model.ts",
+      "import": "./src/model.ts",
+      "require": "./src/model.ts"
     },
     "./plugins": {
-      "types": "./dist/plugins.d.ts",
-      "import": "./dist/plugins.mjs",
-      "require": "./dist/plugins.js"
+      "types": "./src/plugins.ts",
+      "import": "./src/plugins.ts",
+      "require": "./src/plugins.ts"
     },
     "./quickjs": {
-      "types": "./dist/quickjs.d.ts",
-      "import": "./dist/quickjs.mjs",
-      "require": "./dist/quickjs.js"
+      "types": "./src/quickjs.ts",
+      "import": "./src/quickjs.ts",
+      "require": "./src/quickjs.ts"
     },
     "./save-location": {
-      "types": "./dist/save-location.d.ts",
-      "import": "./dist/save-location.mjs",
-      "require": "./dist/save-location.js"
+      "types": "./src/save-location.ts",
+      "import": "./src/save-location.ts",
+      "require": "./src/save-location.ts"
     },
     "./subscription-errors": {
-      "types": "./dist/subscription-errors.d.ts",
-      "import": "./dist/subscription-errors.mjs",
-      "require": "./dist/subscription-errors.js"
+      "types": "./src/subscription-errors.ts",
+      "import": "./src/subscription-errors.ts",
+      "require": "./src/subscription-errors.ts"
     },
     "./supabase": {
-      "types": "./dist/supabase.d.ts",
-      "import": "./dist/supabase.mjs",
-      "require": "./dist/supabase.js"
+      "types": "./src/supabase.ts",
+      "import": "./src/supabase.ts",
+      "require": "./src/supabase.ts"
     },
     "./types": {
-      "types": "./dist/types.d.ts",
-      "import": "./dist/types.mjs",
-      "require": "./dist/types.js"
+      "types": "./src/types.ts",
+      "import": "./src/types.ts",
+      "require": "./src/types.ts"
     },
     "./utils": {
-      "types": "./dist/utils.d.ts",
-      "import": "./dist/utils.mjs",
-      "require": "./dist/utils.js"
+      "types": "./src/utils.ts",
+      "import": "./src/utils.ts",
+      "require": "./src/utils.ts"
     },
     "./validation": {
-      "types": "./dist/validation.d.ts",
-      "import": "./dist/validation.mjs",
-      "require": "./dist/validation.js"
+      "types": "./src/validation.ts",
+      "import": "./src/validation.ts",
+      "require": "./src/validation.ts"
     },
     "./variables": {
-      "types": "./dist/variables.d.ts",
-      "import": "./dist/variables.mjs",
-      "require": "./dist/variables.js"
+      "types": "./src/variables.ts",
+      "import": "./src/variables.ts",
+      "require": "./src/variables.ts"
     },
     "./websocket.types": {
-      "types": "./dist/websocket.types.d.ts",
-      "import": "./dist/websocket.types.mjs",
-      "require": "./dist/websocket.types.js"
+      "types": "./src/websocket.types.ts",
+      "import": "./src/websocket.types.ts",
+      "require": "./src/websocket.types.ts"
     },
     "./config": {
-      "types": "./dist/config/index.d.ts",
-      "import": "./dist/config/index.mjs",
-      "require": "./dist/config/index.js"
+      "types": "./src/config.ts",
+      "import": "./src/config.ts",
+      "require": "./src/config.ts"
     },
     "./i18n": {
-      "types": "./dist/i18n/index.d.ts",
-      "import": "./dist/i18n/index.mjs",
-      "require": "./dist/i18n/index.js"
+      "types": "./src/i18n.ts",
+      "import": "./src/i18n.ts",
+      "require": "./src/i18n.ts"
     },
     "./libs": {
-      "types": "./dist/libs/index.d.ts",
-      "import": "./dist/libs/index..mjs",
-      "require": "./dist/libs/index.js"
+      "types": "./src/libs.ts",
+      "import": "./src/libs.ts",
+      "require": "./src/libs.ts"
     }
   },
   "dependencies": {

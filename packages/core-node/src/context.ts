@@ -1,5 +1,6 @@
 export interface SystemContext {
   userDataPath: string
+  assetsPath?: string
   showOpenDialog: (options: any) => Promise<{ canceled: boolean; filePaths: string[] }>
   showSaveDialog: (options: any) => Promise<{ canceled: boolean; filePath: string | undefined }>
   getMainWindow?: () => any

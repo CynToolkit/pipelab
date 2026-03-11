@@ -165,6 +165,9 @@ function handleProtocolUrl(url: string) {
 app.whenReady().then(async () => {
   setSystemContext({
     userDataPath: app.getPath('userData'),
+    assetsPath: app.isPackaged
+      ? join(app.getAppPath(), '..', 'assets')
+      : join(app.getAppPath(), '..', 'cli', 'assets'),
     showOpenDialog: (options) => {
       const mainWindow = BrowserWindow.getFocusedWindow()
       if (!mainWindow) throw new Error('No window')

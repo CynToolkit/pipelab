@@ -23,10 +23,10 @@ const config: ForgeConfig = {
     //   // unpack: '*.{node,dll,so,lib,dylib,exe}'
     // },
     asar: false,
-    extraResource: ['assets', 'bin'],
+    extraResource: [path.join(__dirname, '../cli/assets'), 'bin'],
     // extraResource: ['.vite/build/assets'],
     name,
-    icon: 'assets/build/icon',
+    icon: path.join(__dirname, '../cli/assets/build/icon'),
     extendInfo: {
       NSAppleEventsUsageDescription:
         'This app need to run commands through Terminal for specific tasks such as steamcmd.sh.'
@@ -41,8 +41,8 @@ const config: ForgeConfig = {
       identity: `Developer ID Application: Quentin Goinaud (${process.env.APPLE_TEAM_ID})`,
       optionsForFile: (filePath) => {
         return {
-          'entitlements-inherit': './assets/build/entitlements.mac.plist',
-          entitlements: './assets/build/entitlements.mac.plist'
+          'entitlements-inherit': path.join(__dirname, '../cli/assets/build/entitlements.mac.plist'),
+          entitlements: path.join(__dirname, '../cli/assets/build/entitlements.mac.plist')
         }
       }
     }
@@ -51,7 +51,7 @@ const config: ForgeConfig = {
   makers: [
     new MakerSquirrel({
       name,
-      setupIcon: 'assets/build/icon.ico'
+      setupIcon: path.join(__dirname, '../cli/assets/build/icon.ico')
     }),
     new MakerZIP(undefined, ['linux', 'win32']),
     new MakerDMG()

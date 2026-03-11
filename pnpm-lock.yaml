@@ -612,6 +612,9 @@ importers:
       tar:
         specifier: 6.2.1
         version: 6.2.1
+      type-fest:
+        specifier: 4.39.0
+        version: 4.39.0
       ws:
         specifier: 8.18.3
         version: 8.18.3
@@ -7926,6 +7929,10 @@ packages:
 
   type-fest@4.26.1:
     resolution: {integrity: sha512-yOGpmOAL7CkKe/91I5O3gPICmJNLJ1G4zFYVAsRHg7M64biSnPtRj0WNQt++bRkjYOqjWXrhnUw1utzmVErAdg==}
+    engines: {node: '>=16'}
+
+  type-fest@4.39.0:
+    resolution: {integrity: sha512-w2IGJU1tIgcrepg9ZJ82d8UmItNQtOFJG0HCUE3SzMokKkTsruVDALl2fAdiEzJlfduoU+VyXJWIIUZ+6jV+nw==}
     engines: {node: '>=16'}
 
   type-is@1.6.18:
@@ -16913,6 +16920,8 @@ snapshots:
 
   type-fest@4.26.1: {}
 
+  type-fest@4.39.0: {}
+
   type-is@1.6.18:
     dependencies:
       media-typer: 0.3.0
@@ -17208,7 +17217,7 @@ snapshots:
   vee-validate@4.13.2(vue@3.5.13(typescript@5.8.3)):
     dependencies:
       '@vue/devtools-api': 6.6.4
-      type-fest: 4.26.1
+      type-fest: 4.39.0
       vue: 3.5.13(typescript@5.8.3)
 
   vee-validate@4.14.4(vue@3.5.13(typescript@5.8.3)):
