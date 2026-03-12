@@ -5,8 +5,16 @@
       "dependsOn": ["^build"],
       "outputs": ["dist/**", ".vite/**", "out/**"]
     },
-    "package": {
+    "pkg": {
       "dependsOn": ["build"],
+      "outputs": ["bin/**"]
+    },
+    "package": {
+      "dependsOn": ["^build", "build", "^pkg"],
+      "outputs": ["out/**"]
+    },
+    "make": {
+      "dependsOn": ["build", "^pkg"],
       "outputs": ["out/**"]
     },
     "test": {

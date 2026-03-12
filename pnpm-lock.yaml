@@ -260,6 +260,9 @@ importers:
       '@mdi/font':
         specifier: 7.4.47
         version: 7.4.47
+      '@pipelab/cli':
+        specifier: workspace:*
+        version: link:../cli
       '@pipelab/tsconfig':
         specifier: workspace:*
         version: link:../../packages/tsconfig

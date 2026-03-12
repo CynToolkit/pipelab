@@ -10,14 +10,11 @@ import { name } from '@pipelab/constants'
 import * as fs from 'fs-extra'
 import * as path from 'path'
 import { execSync } from 'child_process'
-import { fileURLToPath } from 'url'
-
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
 
 /** @type {*} */
 const config: ForgeConfig = {
   packagerConfig: {
+    prune: false,
     appBundleId: 'app.pipelab.desktop',
     // asar: {
     //   // unpack: '*.{node,dll,so,lib,dylib,exe}'
@@ -41,7 +38,10 @@ const config: ForgeConfig = {
       identity: `Developer ID Application: Quentin Goinaud (${process.env.APPLE_TEAM_ID})`,
       optionsForFile: (filePath) => {
         return {
-          'entitlements-inherit': path.join(__dirname, '../cli/assets/build/entitlements.mac.plist'),
+          'entitlements-inherit': path.join(
+            __dirname,
+            '../cli/assets/build/entitlements.mac.plist'
+          ),
           entitlements: path.join(__dirname, '../cli/assets/build/entitlements.mac.plist')
         }
       }
@@ -76,13 +76,10 @@ const config: ForgeConfig = {
   ],
   hooks: {
     prePackage: async (forgeConfig, platform, arch) => {
-      console.log('INFO: Running prePackage hook to build CLI binaries...')
+      console.log('INFO: Running prePackage hook to copy CLI binaries...')
       const cliPath = path.resolve(__dirname, '../cli')
 
       try {
-        console.log(`INFO: Building CLI binaries in ${cliPath}...`)
-        execSync('pnpm run pkg', { cwd: cliPath, stdio: 'inherit' })
-
         // Ensure bin directory exists in desktop package
         const destBinDir = path.resolve(__dirname, 'bin')
         await fs.ensureDir(destBinDir)
@@ -92,41 +89,41 @@ const config: ForgeConfig = {
         console.log(`INFO: Copying binaries from ${srcBinDir} to ${destBinDir}`)
         await fs.copy(srcBinDir, destBinDir, { overwrite: true })
 
-        console.log('INFO: CLI binaries built and copied successfully.')
+        console.log('INFO: CLI binaries copied successfully.')
       } catch (err) {
-        console.error('ERROR: Failed to build or copy CLI binaries:', err)
+        console.error('ERROR: Failed to copy CLI binaries:', err)
         throw err
       }
-    },
-    packageAfterCopy: async (forgeConfig, buildPath, electronVersion, platform, arch) => {
-      console.log('INFO: Running packageAfterCopy hook...')
-      const projectRoot = path.resolve(__dirname)
-      const packagesToCopy = ['@esbuild', '@lydell']
-
-      for (const packageName of packagesToCopy) {
-        const srcDir = path.join(__dirname, 'node_modules', packageName)
-        const destDir = path.join(buildPath, 'node_modules', packageName)
-
-        try {
-          if (await fs.pathExists(srcDir)) {
-            console.log(`INFO: Copying ${srcDir} to ${destDir} using cp -rL...`)
-            execSync(`rm -rf "${destDir}"`)
-            execSync(`mkdir -p "${path.dirname(destDir)}"`)
-            execSync(`cp -rL "${srcDir}" "${destDir}"`)
-            console.log(`INFO: Successfully copied ${packageName}.`)
-          } else {
-            console.warn(
-              `WARN: Source directory ${srcDir} does not exist. Skipping copy for ${packageName}.`
-            )
-          }
-        } catch (err) {
-          console.error(`ERROR: Failed to copy ${packageName}:`, err)
-          // Optionally, re-throw the error if this should halt the build
-          // throw err;
-        }
-      }
-      console.log('INFO: packageAfterCopy hook finished.')
     }
+    // packageAfterCopy: async (forgeConfig, buildPath, electronVersion, platform, arch) => {
+    //   console.log('INFO: Running packageAfterCopy hook...')
+    //   const projectRoot = path.resolve(__dirname)
+    //   const packagesToCopy = ['@esbuild', '@lydell']
+
+    //   for (const packageName of packagesToCopy) {
+    //     const srcDir = path.join(__dirname, 'node_modules', packageName)
+    //     const destDir = path.join(buildPath, 'node_modules', packageName)
+
+    //     try {
+    //       if (await fs.pathExists(srcDir)) {
+    //         console.log(`INFO: Copying ${srcDir} to ${destDir} using cp -L...`)
+    //         execSync(`rm -rf "${destDir}"`)
+    //         execSync(`mkdir -p "${path.dirname(destDir)}"`)
+    //         await fs.copy(require("fs").realpathSync(srcDir), destDir, { dereference: true, overwrite: true })
+    //         console.log(`INFO: Successfully copied ${packageName}.`)
+    //       } else {
+    //         console.warn(
+    //           `WARN: Source directory ${srcDir} does not exist. Skipping copy for ${packageName}.`
+    //         )
+    //       }
+    //     } catch (err) {
+    //       console.error(`ERROR: Failed to copy ${packageName}:`, err)
+    //       // Optionally, re-throw the error if this should halt the build
+    //       // throw err;
+    //     }
+    //   }
+    //   console.log('INFO: packageAfterCopy hook finished.')
+    // }
   },
   plugins: [
     new VitePlugin({
