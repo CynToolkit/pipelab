@@ -15,6 +15,9 @@
       "@pipelab/constants": [
         "../../packages/constants/src/index.ts"
       ],
+      "@pipelab/core-node": [
+        "../../packages/core-node/src/index.ts"
+      ],
       "@pipelab/migration": [
         "../../packages/migration/src/index.ts"
       ],

@@ -1,6 +1,6 @@
 import { getSystemContext } from './context'
 import path from 'node:path'
-import { ensure } from './utils'
+import { ensure } from './fs-utils'
 import fs from 'node:fs/promises'
 import { useLogger } from '@pipelab/shared/logger'
 import { configRegistry, Migrator } from '@pipelab/shared/config'

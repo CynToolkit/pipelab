@@ -1,6 +1,11 @@
 #!/usr/bin/env node
 import cac from 'cac'
-import { WebSocketServer, registerIPCHandlers, setSystemContext } from '@pipelab/core-node'
+import {
+  WebSocketServer,
+  registerIPCHandlers,
+  setSystemContext
+} from '@pipelab/core-node'
+import { registerAllHandlers } from '@pipelab/core-node/src/heavy'
 import { join } from 'path'
 import { homedir } from 'os'
 
@@ -40,6 +45,7 @@ cli
     })
 
     console.log(`Starting Pipelab server on port ${options.port}...`)
+    registerAllHandlers()
     registerIPCHandlers()
     const server = new WebSocketServer()
     await server.start(Number(options.port))

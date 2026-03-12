@@ -1,6 +1,6 @@
 import { WebSocketServer as WSWebSocketServer, WebSocket as WSWebSocket } from 'ws'
 import { IncomingMessage } from 'http'
-import { useAPI } from './handlers'
+import { useAPI } from './ipc-core'
 import { useLogger } from '@pipelab/shared/logger'
 import {
   WebSocketServerConfig,

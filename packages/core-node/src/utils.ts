@@ -17,6 +17,8 @@ import { buildHistoryStorage } from './handlers/build-history'
 import type { BuildHistoryEntry } from '@pipelab/shared/build-history'
 import type { Variable } from '@pipelab/core-app'
 
+export { ensure, generateTempFolder } from './fs-utils'
+
 export const getFinalPlugins = () => {
   const { plugins } = usePlugins()
   // console.log('plugins.value', plugins.value)
@@ -45,32 +47,6 @@ export const getFinalPlugins = () => {
   }
 
   return finalPlugins
-}
-
-export const ensure = async (filesPath: string, defaultContent = '{}') => {
-  // create parent folder
-  await mkdir(dirname(filesPath), {
-    recursive: true
-  })
-
-  // ensure file exist
-  try {
-    await access(filesPath)
-  } catch {
-    // File doesn't exist, create it
-    await writeFile(filesPath, defaultContent) // json
-  }
-}
-
-export const generateTempFolder = async (base = tmpdir()) => {
-  await mkdir(base, {
-    recursive: true
-  })
-  const realPath = await realpath(base)
-  console.log('join', join(realPath, 'pipelab-'))
-  const tempFolder = await mkdtemp(join(realPath, 'pipelab-'))
-
-  return tempFolder
 }
 
 /**

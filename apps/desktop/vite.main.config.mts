@@ -50,29 +50,7 @@ export default defineConfig((env) => {
         formats: ['cjs']
       },
       rollupOptions: {
-        external: [
-          ...external.filter((dep) => !dep.startsWith('@pipelab/')),
-          'playwright',
-          'playwright-core',
-          'execa',
-          'archiver',
-          'esbuild',
-          '@jitl/quickjs-wasmfile-release-sync',
-          'node-stream-zip',
-          'semver',
-          '@supabase/supabase-js',
-          'posthog-node',
-          '@lydell/node-pty',
-          '@lydell/node-pty-win32-x64',
-          'pnpm',
-          'serve-handler',
-          'd3-shape',
-          'elkjs',
-          'es-toolkit',
-          'nanoid',
-          'yauzl',
-          'tar'
-        ]
+        external: external.filter((dep) => !dep.startsWith('@pipelab/'))
       }
     },
     plugins,

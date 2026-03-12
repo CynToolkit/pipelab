@@ -9,10 +9,11 @@
     "@pipelab/shared": "workspace:*",
     "es-toolkit": "1.25.2",
     "nanoid": "5.0.7",
+    "slash": "3.0.0",
     "tar": "6.2.1",
+    "type-fest": "4.39.0",
     "ws": "8.18.3",
-    "yauzl": "2.10.0",
-    "type-fest": "4.39.0"
+    "yauzl": "2.10.0"
   },
   "devDependencies": {
     "@pipelab/tsconfig": "workspace:*",

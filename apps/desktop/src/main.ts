@@ -3,14 +3,20 @@ import { join } from 'path'
 import { platform } from 'os'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { startServer, stopServer } from './main/server-process'
-import { setSystemContext, registerIPCHandlers, setupConfigFile, assetsPath } from '@pipelab/core-node'
+import {
+  setSystemContext,
+  registerIPCHandlers,
+  setupConfigFile,
+  assetsPath,
+  registerShellHandlers,
+  usePluginAPI
+} from '@pipelab/core-node'
 import { ShellChannels } from '@pipelab/shared/apis'
 import { AppConfig } from '@pipelab/shared/config.schema'
 import { parseArgs, ParseArgsConfig } from 'node:util'
 import { mkdir } from 'fs/promises'
 import { useLogger } from '@pipelab/shared/logger'
 import * as Sentry from '@sentry/electron/main'
-import { usePluginAPI } from '@pipelab/core-node'
 import { resolve } from 'node:path'
 import Squirrel from 'electron-squirrel-startup'
 
@@ -271,6 +277,7 @@ app.whenReady().then(async () => {
 
   console.log('settings', settings)
 
+  registerShellHandlers()
   registerIPCHandlers((channel) => ShellChannels.includes(channel))
 
   // Start standalone CLI server
