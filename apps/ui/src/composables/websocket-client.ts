@@ -42,8 +42,18 @@ export class WebSocketClient {
   public currentUrl: string
 
   constructor(private config: WebSocketClientConfig = {}) {
+    let defaultUrl = `ws://localhost:${websocketPort}`
+
+    if (typeof window !== 'undefined') {
+      const isDev = window.location.port === '5173'
+      if (!isDev) {
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+        defaultUrl = `${protocol}//${window.location.host}`
+      }
+    }
+
     const {
-      url = `ws://localhost:${websocketPort}`,
+      url = defaultUrl,
       maxReconnectAttempts = Infinity,
       reconnectDelay = 1000
     } = config

@@ -44,7 +44,6 @@
   "references": [
     { "path": "../../packages/constants" },
     { "path": "../../packages/shared" },
-    { "path": "../../packages/core-node" },
-    { "path": "../ui" }
+    { "path": "../../packages/core-node" }
   ]
 }

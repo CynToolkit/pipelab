@@ -2,7 +2,6 @@ import type { ConfigEnv, UserConfig } from 'vite'
 import { defineConfig, loadEnv, mergeConfig } from 'vite'
 import { getBuildConfig, getBuildDefine, external, pluginHotRestart } from './vite.base.config.mjs'
 import tsconfigPaths from 'vite-tsconfig-paths'
-import { viteStaticCopy } from 'vite-plugin-static-copy'
 import { sentryVitePlugin } from '@sentry/vite-plugin'
 import { resolve } from 'path'
 
@@ -18,14 +17,6 @@ export default defineConfig((env) => {
     tsconfigPaths({
       projects: ['./tsconfig.json']
     }),
-    viteStaticCopy({
-      targets: [
-        {
-          src: 'node_modules/@jitl/quickjs-wasmfile-release-sync/dist/emscripten-module.wasm',
-          dest: '.'
-        }
-      ]
-    })
   ]
 
   // check if we are in a tag

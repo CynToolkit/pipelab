@@ -3,8 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "build": "tsup src/index.ts --format cjs --dts --sourcemap",
-    "bundle": "tsup src/index.ts --format cjs --no-dts --minify --clean",
+    "build": "tsup && pnpm copy:ui",
+    "copy:ui": "node -e \"const fs=require('fs'); fs.rmSync('assets/ui', {recursive:true, force:true}); fs.mkdirSync('assets/ui', {recursive:true}); if (fs.existsSync('../ui/dist')) fs.cpSync('../ui/dist', 'assets/ui', {recursive:true})\"",
+    "bundle": "tsup --minify && pnpm copy:ui",
     "pkg": "pnpm bundle && pkg . --output bin/pipelab",
     "dev": "tsup src/index.ts --format cjs --dts --watch",
     "serve": "pnpm build && node dist/index.js serve",
@@ -31,11 +32,13 @@
     "@pipelab/constants": "workspace:*",
     "@pipelab/core-node": "workspace:*",
     "@pipelab/shared": "workspace:*",
-    "cac": "6.7.14"
+    "cac": "6.7.14",
+    "serve-handler": "6.1.7"
   },
   "devDependencies": {
     "@pipelab/tsconfig": "workspace:*",
     "@types/node": "22.7.9",
+    "@types/serve-handler": "6.1.4",
     "pkg": "5.8.1",
     "tsup": "^8.0.0",
     "typescript": "^5.0.0"

@@ -5,6 +5,9 @@
       "dependsOn": ["^build"],
       "outputs": ["dist/**", ".vite/**", "out/**"]
     },
+    "@pipelab/cli#build": {
+      "dependsOn": ["^build", "@pipelab/ui#build"]
+    },
     "pkg": {
       "dependsOn": ["build"],
       "outputs": ["bin/**"]

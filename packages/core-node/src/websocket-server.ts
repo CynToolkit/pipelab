@@ -28,7 +28,7 @@ export class WebSocketServer {
   private connectionState: WebSocketConnectionState = 'disconnected'
   private clients: Map<WSWebSocket, ConnectedClient> = new Map()
 
-  async start(port: number = websocketPort): Promise<void> {
+  async start(port: number = websocketPort, existingServer?: import('http').Server): Promise<void> {
     const { logger } = useLogger()
     const { nanoid } = await import('nanoid')
 
@@ -36,9 +36,9 @@ export class WebSocketServer {
       try {
         logger().info('Starting WebSocket server on port', port)
 
-        // Create HTTP server for WebSocket
+        // Create HTTP server for WebSocket if not provided
         const http = require('http')
-        const server = http.createServer()
+        const server = existingServer || http.createServer()
         this.server = server
 
         // Create WebSocket server
@@ -88,23 +88,37 @@ export class WebSocketServer {
           })
 
           ws.on('error', (error: Error) => {
-            logger().error('WebSocket error:', error)
+            logger().error('WebSocket client error:', error)
           })
         })
 
-        server.listen(port, () => {
+        this.wss.on('error', (error: Error) => {
+          logger().error('WebSocket server error:', error)
+        })
+
+        if (!server.listening) {
+          server.listen(port, () => {
+            this.connectionState = 'connected'
+            logger().info(`WebSocket server listening on port ${port}`)
+            this.isReady = true
+            if (this.readyResolve) {
+              this.readyResolve()
+            }
+            resolve()
+          })
+        } else {
           this.connectionState = 'connected'
-          logger().info(`WebSocket server listening on port ${port}`)
+          logger().info(`WebSocket server attached to existing listening server`)
           this.isReady = true
           if (this.readyResolve) {
             this.readyResolve()
           }
           resolve()
-        })
+        }
 
         server.on('error', (error: Error) => {
           this.connectionState = 'error'
-          logger().error('WebSocket server error:', error)
+          logger().error('WebSocket server HTTP error:', error)
           reject(new WebSocketError(`Server error: ${error.message}`))
         })
       } catch (error) {
