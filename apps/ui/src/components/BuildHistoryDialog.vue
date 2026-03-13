@@ -76,151 +76,151 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onUnmounted, onMounted, watch, inject } from 'vue'
-import { useConfirm } from 'primevue/useconfirm'
-import { useBuildHistory } from '../store/build-history'
-import type { BuildHistoryEntry } from '@pipelab/shared/build-history'
+import { ref, computed, onUnmounted, onMounted, watch, inject } from "vue";
+import { useConfirm } from "primevue/useconfirm";
+import { useBuildHistory } from "../store/build-history";
+import type { BuildHistoryEntry } from "@pipelab/shared/build-history";
 
 // Components
-import BuildHistoryList from './BuildHistoryList.vue'
-import BuildDetailsModal from './BuildDetailsModal.vue'
-import { useAuth } from '@renderer/store/auth'
+import BuildHistoryList from "./BuildHistoryList.vue";
+import BuildDetailsModal from "./BuildDetailsModal.vue";
+import { useAuth } from "@renderer/store/auth";
 
 // Props
 interface Props {
-  visible: boolean
-  pipelineId?: string
+  visible: boolean;
+  pipelineId?: string;
 }
 
-const props = defineProps<Props>()
+const props = defineProps<Props>();
 
 // Emits
 const emit = defineEmits<{
-  hide: []
-  'update:visible': [value: boolean]
-}>()
+  hide: [];
+  "update:visible": [value: boolean];
+}>();
 
 // Composables
-const confirm = useConfirm()
+const confirm = useConfirm();
 
 // Stores
-const buildHistoryStore = useBuildHistory()
-const authStore = useAuth()
-const openUpgradeDialog = inject('openUpgradeDialog') as () => void
+const buildHistoryStore = useBuildHistory();
+const authStore = useAuth();
+const openUpgradeDialog = inject("openUpgradeDialog") as () => void;
 
 // Local state
-const selectedEntry = ref<BuildHistoryEntry | null>(null)
-const showDetailsModal = ref(false)
-const showExportDialog = ref(false)
-const exportProgress = ref(0)
-const exportStatus = ref('')
+const selectedEntry = ref<BuildHistoryEntry | null>(null);
+const showDetailsModal = ref(false);
+const showExportDialog = ref(false);
+const exportProgress = ref(0);
+const exportStatus = ref("");
 
-const totalCount = computed(() => buildHistoryStore.storageInfo?.totalEntries || 0)
+const totalCount = computed(() => buildHistoryStore.storageInfo?.totalEntries || 0);
 
 // Methods
 
 const onViewDetails = (entry: BuildHistoryEntry) => {
-  selectedEntry.value = entry
-  showDetailsModal.value = true
-}
+  selectedEntry.value = entry;
+  showDetailsModal.value = true;
+};
 
 const closeDetailsModal = () => {
-  showDetailsModal.value = false
-  selectedEntry.value = null
-}
+  showDetailsModal.value = false;
+  selectedEntry.value = null;
+};
 
 const onDeleteEntry = async (entry: BuildHistoryEntry) => {
   confirm.require({
     message: `Are you sure you want to delete the build history entry for "${entry.projectName}"?`,
-    header: 'Delete Build History Entry',
-    icon: 'pi pi-exclamation-triangle',
+    header: "Delete Build History Entry",
+    icon: "pi pi-exclamation-triangle",
     accept: async () => {
       try {
-        await buildHistoryStore.deleteEntry(entry.id)
+        await buildHistoryStore.deleteEntry(entry.id);
       } catch (error) {
-        console.error('Failed to delete entry:', error)
+        console.error("Failed to delete entry:", error);
       }
-    }
-  })
-}
+    },
+  });
+};
 
 const onRetryBuild = async (entry: BuildHistoryEntry) => {
   // Close the modal first
-  closeDetailsModal()
+  closeDetailsModal();
 
   // In a real implementation, this would trigger a new build with the same parameters
-  console.log('Retrying build for entry:', entry.id)
+  console.log("Retrying build for entry:", entry.id);
 
   // For now, just show a message
   confirm.require({
     message: `Retry build functionality would start a new build for "${entry.projectName}". This feature is not yet implemented.`,
-    header: 'Retry Build',
-    icon: 'pi pi-info-circle',
+    header: "Retry Build",
+    icon: "pi pi-info-circle",
     accept: () => {
       // Future implementation would go here
-    }
-  })
-}
+    },
+  });
+};
 
 const onStartBuild = () => {
   // Close the dialog
-  emit('update:visible', false)
+  emit("update:visible", false);
   // Navigate to the appropriate build/start page
   // router.push('/scenarios')
-}
+};
 
 // Helper function to load build history
 const loadBuildHistory = async (): Promise<void> => {
-  console.log('buildHistoryStore.canUseHistory', buildHistoryStore.canUseHistory)
+  console.log("buildHistoryStore.canUseHistory", buildHistoryStore.canUseHistory);
   if (buildHistoryStore.canUseHistory) {
     try {
       // Build query with current pipelineId
       const query = {
-        pipelineId: props.pipelineId || undefined
-      }
-      console.log('query', query)
-      await buildHistoryStore.loadEntries(query)
+        pipelineId: props.pipelineId || undefined,
+      };
+      console.log("query", query);
+      await buildHistoryStore.loadEntries(query);
     } catch (error) {
-      console.error('Failed to load build history after auth change:', error)
+      console.error("Failed to load build history after auth change:", error);
     }
   }
-}
+};
 
 watch(
   () => props.visible,
   (newVisible) => {
     if (newVisible) {
-      loadBuildHistory()
+      loadBuildHistory();
     }
-  }
-)
+  },
+);
 
 watch(
   () => props.pipelineId,
   () => {
     if (props.visible) {
-      loadBuildHistory()
+      loadBuildHistory();
     }
-  }
-)
+  },
+);
 
 authStore.onSubscriptionChanged(async ({ subscriptions }) => {
   // If user now has build history benefit, load entries
   if (props.visible) {
-    loadBuildHistory()
+    loadBuildHistory();
   }
-})
+});
 
 onMounted(() => {
   if (props.visible) {
-    loadBuildHistory()
+    loadBuildHistory();
   }
-})
+});
 
 // Cleanup - clear selection when component unmounts
 onUnmounted(() => {
-  selectedEntry.value = null
-})
+  selectedEntry.value = null;
+});
 </script>
 
 <style scoped>

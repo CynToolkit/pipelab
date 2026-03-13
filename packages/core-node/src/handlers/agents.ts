@@ -1,31 +1,31 @@
-import { useAPI } from '../ipc-core'
-import { useLogger } from '@pipelab/shared/logger'
-import { webSocketServer } from '../websocket-server'
+import { useAPI } from "../ipc-core";
+import { useLogger } from "@pipelab/shared/logger";
+import { webSocketServer } from "../websocket-server";
 
 export const registerAgentsHandlers = () => {
-  const { handle } = useAPI()
-  const { logger } = useLogger()
+  const { handle } = useAPI();
+  const { logger } = useLogger();
 
-  handle('agents:get', async (event, { send }) => {
+  handle("agents:get", async (event, { send }) => {
     try {
-      const agents = webSocketServer.getAgents()
+      const agents = webSocketServer.getAgents();
 
       send({
-        type: 'end',
+        type: "end",
         data: {
-          type: 'success',
-          result: { agents }
-        }
-      })
+          type: "success",
+          result: { agents },
+        },
+      });
     } catch (error) {
-      logger().error('Failed to get agents:', error)
+      logger().error("Failed to get agents:", error);
       send({
-        type: 'end',
+        type: "end",
         data: {
-          type: 'error',
-          ipcError: error instanceof Error ? error.message : 'Failed to get agents'
-        }
-      })
+          type: "error",
+          ipcError: error instanceof Error ? error.message : "Failed to get agents",
+        },
+      });
     }
-  })
-}
+  });
+};

@@ -1,65 +1,65 @@
 // @ts-nocheck
 
-import { PresetFn, SavedFile } from '@pipelab/shared/model'
+import { PresetFn, SavedFile } from "@pipelab/shared/model";
 
 export const loopPreset: PresetFn = async () => {
-  const forId = 'forId'
-  const arrayId = 'arrayId'
+  const forId = "forId";
+  const arrayId = "arrayId";
 
-  const logStepId = 'logStepId'
-  const logExitId = 'logExitId'
+  const logStepId = "logStepId";
+  const logExitId = "logExitId";
 
   const data: SavedFile = {
-    version: '1.0.0',
-    name: 'Loop demo',
-    description: 'Loop demo',
+    version: "1.0.0",
+    name: "Loop demo",
+    description: "Loop demo",
     variables: [
       {
         id: arrayId,
-        description: 'An array',
-        name: 'Array',
-        type: 'array',
-        of: 'string',
-        value: []
-      }
+        description: "An array",
+        name: "Array",
+        type: "array",
+        of: "string",
+        value: [],
+      },
     ],
     canvas: {
       blocks: [
         {
-          type: 'loop',
+          type: "loop",
           origin: {
-            pluginId: 'system',
-            nodeId: 'for'
+            pluginId: "system",
+            nodeId: "for",
           },
 
           params: {},
           children: [
             {
-              type: 'action',
+              type: "action",
               origin: {
-                pluginId: 'system',
-                nodeId: 'log'
+                pluginId: "system",
+                nodeId: "log",
               },
               params: {},
-              uid: logStepId
-            }
+              uid: logStepId,
+            },
           ],
-          uid: forId
+          uid: forId,
         },
         {
-          type: 'action',
+          type: "action",
           origin: {
-            pluginId: 'system',
-            nodeId: 'log'
+            pluginId: "system",
+            nodeId: "log",
           },
           params: {},
-          uid: logExitId
-        }
-      ]
-    }
-  }
+          uid: logExitId,
+        },
+      ],
+    },
+  };
 
   return {
-    data
-  }
-}
+    data,
+  };
+};

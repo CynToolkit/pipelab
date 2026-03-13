@@ -1,4 +1,4 @@
-import { handleSteamRequest } from './utils.js'
+import { handleSteamRequest } from "./utils.js";
 
 /**
  * Core Steam workshop download info logic
@@ -7,14 +7,14 @@ import { handleSteamRequest } from './utils.js'
  * @returns {Promise<any>} The download info result
  */
 const downloadInfoHandler = async (client, json) => {
-  const { itemId } = json.body
+  const { itemId } = json.body;
 
-  const itemIdBigInt = BigInt(itemId)
+  const itemIdBigInt = BigInt(itemId);
 
-  const result = client.workshop.downloadInfo(itemIdBigInt)
+  const result = client.workshop.downloadInfo(itemIdBigInt);
 
-  return result
-}
+  return result;
+};
 
 /**
  * @param {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').SteamRaw, 'input'>} json
@@ -22,5 +22,5 @@ const downloadInfoHandler = async (client, json) => {
  * @param {Omit<import('@pipelab/steamworks.js').Client, "init" | "runCallbacks">} client
  */
 export default async (json, ws, client) => {
-  await handleSteamRequest(client, json, ws, downloadInfoHandler)
-}
+  await handleSteamRequest(client, json, ws, downloadInfoHandler);
+};

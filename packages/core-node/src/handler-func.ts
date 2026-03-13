@@ -1,191 +1,191 @@
-import { End } from '@pipelab/shared/apis'
+import { End } from "@pipelab/shared/apis";
 import {
   Action,
   ActionRunner,
   Condition,
   ConditionRunner,
-  InputsDefinition
-} from '@pipelab/plugin-core'
-import { usePlugins } from '@pipelab/shared/plugins'
-import { isRequired } from '@pipelab/shared/validation'
-import { mkdir } from 'node:fs/promises'
-import { assetsPath, unpackPath } from './paths'
-import { useLogger } from '@pipelab/shared/logger'
-import { getSystemContext } from './context'
-import { BlockCondition } from '@pipelab/shared/model'
-import { HandleListenerSendFn } from './handlers'
-import { ensureNodeJS, generateTempFolder } from './utils'
-import path from 'node:path'
-import os from 'node:os'
-const { join } = path
-const { tmpdir } = os
-import { setupConfigFile } from './config'
-import { AppConfig } from '@pipelab/shared/config.schema'
+  InputsDefinition,
+} from "@pipelab/plugin-core";
+import { usePlugins } from "@pipelab/shared/plugins";
+import { isRequired } from "@pipelab/shared/validation";
+import { mkdir } from "node:fs/promises";
+import { assetsPath, unpackPath } from "./paths";
+import { useLogger } from "@pipelab/shared/logger";
+import { getSystemContext } from "./context";
+import { BlockCondition } from "@pipelab/shared/model";
+import { HandleListenerSendFn } from "./handlers";
+import { ensureNodeJS, generateTempFolder } from "./utils";
+import path from "node:path";
+import os from "node:os";
+const { join } = path;
+const { tmpdir } = os;
+import { setupConfigFile } from "./config";
+import { AppConfig } from "@pipelab/shared/config.schema";
 
 const checkParams = (definitionParams: InputsDefinition, elementParams: Record<string, string>) => {
   // get a list of all required params
-  let expected = Object.keys(definitionParams)
+  let expected = Object.keys(definitionParams);
 
-  const found: string[] = []
+  const found: string[] = [];
   // for each param in elementParams
   for (const param of Object.keys(elementParams)) {
     // if the param is in the expected list
     if (expected.includes(param)) {
       // add to found
-      found.push(param)
+      found.push(param);
       // remove from expected
-      expected = expected.filter((x) => x !== param)
+      expected = expected.filter((x) => x !== param);
     } else {
       // throw new Error('Unexpected param "' + param + '"')
-      console.warn('Unexpected param "' + param + '"')
+      console.warn('Unexpected param "' + param + '"');
     }
   }
 
   for (const param of expected) {
     if (isRequired(definitionParams[param])) {
-      throw new Error('Missing param "' + param + '"')
+      throw new Error('Missing param "' + param + '"');
     }
   }
-}
+};
 
 export const handleConditionExecute = async (
   nodeId: string,
   pluginId: string,
-  params: BlockCondition['params']
+  params: BlockCondition["params"],
   // { send }: { send: HandleListenerSendFn<'condition:execute'> }
-): Promise<End<'condition:execute'>> => {
-  const { plugins } = usePlugins()
-  const { logger } = useLogger()
+): Promise<End<"condition:execute">> => {
+  const { plugins } = usePlugins();
+  const { logger } = useLogger();
 
   const node = plugins.value
     .find((plugin) => plugin.id === pluginId)
     ?.nodes.find((node: any) => node.node.id === nodeId) as
     | {
-        node: Condition
-        runner: ConditionRunner<any>
+        node: Condition;
+        runner: ConditionRunner<any>;
       }
-    | undefined
+    | undefined;
 
   if (!node) {
     return {
-      type: 'error',
-      ipcError: 'Node not found'
-    }
+      type: "error",
+      ipcError: "Node not found",
+    };
   }
 
-  const tmp = await generateTempFolder(tmpdir())
+  const tmp = await generateTempFolder(tmpdir());
 
   await mkdir(tmp, {
-    recursive: true
-  })
+    recursive: true,
+  });
 
   try {
-    checkParams(node.node.params, params)
-    const resolvedInputs = params // await resolveConditionInputs(params, node.node, steps)
+    checkParams(node.node.params, params);
+    const resolvedInputs = params; // await resolveConditionInputs(params, node.node, steps)
 
     const result = await node.runner({
       inputs: resolvedInputs,
       log: (...args) => {
-        logger().info(`[${node.node.name}]`, ...args)
+        logger().info(`[${node.node.name}]`, ...args);
       },
       meta: {
-        definition: ''
+        definition: "",
       },
       setMeta: () => {
-        logger().info('set meta defined here')
+        logger().info("set meta defined here");
       },
-      cwd: tmp
-    })
+      cwd: tmp,
+    });
 
     return {
-      type: 'success',
+      type: "success",
       result: {
         outputs: {},
-        value: result
-      }
-    }
+        value: result,
+      },
+    };
   } catch (e) {
-    logger().error('Error in condition execution:', e)
+    logger().error("Error in condition execution:", e);
     return {
-      type: 'error',
-      ipcError: String(e)
-    }
+      type: "error",
+      ipcError: String(e),
+    };
   }
-}
+};
 
 export const handleActionExecute = async (
   nodeId: string,
   pluginId: string,
   params: Record<string, string>,
   mainWindow: any | undefined,
-  send: HandleListenerSendFn<'action:execute'>,
-  abortSignal: AbortSignal
-): Promise<End<'action:execute'>> => {
-  const { plugins } = usePlugins()
-  const { logger } = useLogger()
-  const settings = await setupConfigFile<AppConfig>('settings')
-  const config = await settings.getConfig()
+  send: HandleListenerSendFn<"action:execute">,
+  abortSignal: AbortSignal,
+): Promise<End<"action:execute">> => {
+  const { plugins } = usePlugins();
+  const { logger } = useLogger();
+  const settings = await setupConfigFile<AppConfig>("settings");
+  const config = await settings.getConfig();
 
   mainWindow?.setProgressBar(1, {
-    mode: 'indeterminate'
-  })
+    mode: "indeterminate",
+  });
 
   const node = plugins.value
     .find((plugin) => plugin.id === pluginId)
     ?.nodes.find((node: any) => node.node.id === nodeId) as
     | {
-        node: Action
-        runner: ActionRunner<any>
+        node: Action;
+        runner: ActionRunner<any>;
       }
-    | undefined
+    | undefined;
 
   if (!node) {
-    mainWindow?.setProgressBar(1, { mode: 'normal' })
+    mainWindow?.setProgressBar(1, { mode: "normal" });
     return {
-      type: 'error',
-      ipcError: 'Node not found'
-    }
+      type: "error",
+      ipcError: "Node not found",
+    };
   }
 
-  const tmp = await generateTempFolder(config?.cacheFolder ?? tmpdir())
+  const tmp = await generateTempFolder(config?.cacheFolder ?? tmpdir());
 
-  const _assetsPath = await assetsPath()
-  const _unpackPath = await unpackPath()
-  const nodePath = await ensureNodeJS()
-  const modulesPath = join(_unpackPath, 'node_modules')
-  const pnpm = join(modulesPath, 'pnpm', 'bin', 'pnpm.cjs')
-  const outputs: Record<string, unknown> = {}
-  const api = getSystemContext().getPluginAPI?.(mainWindow)
+  const _assetsPath = await assetsPath();
+  const _unpackPath = await unpackPath();
+  const nodePath = await ensureNodeJS();
+  const modulesPath = join(_unpackPath, "node_modules");
+  const pnpm = join(modulesPath, "pnpm", "bin", "pnpm.cjs");
+  const outputs: Record<string, unknown> = {};
+  const api = getSystemContext().getPluginAPI?.(mainWindow);
 
   try {
-    await mkdir(tmp, { recursive: true })
-    checkParams(node.node.params, params)
-    const resolvedInputs = params // await resolveActionInputs(params, node.node, steps)
-    logger().info('resolvedInputs', resolvedInputs)
+    await mkdir(tmp, { recursive: true });
+    checkParams(node.node.params, params);
+    const resolvedInputs = params; // await resolveActionInputs(params, node.node, steps)
+    logger().info("resolvedInputs", resolvedInputs);
 
     await node.runner({
       inputs: resolvedInputs,
       log: (...args) => {
-        const decorator = `[${node.node.name}]`
-        const logArgs = [decorator, ...args]
-        logger().info(...logArgs)
+        const decorator = `[${node.node.name}]`;
+        const logArgs = [decorator, ...args];
+        logger().info(...logArgs);
         send({
-          type: 'log',
+          type: "log",
           data: {
             decorator,
             time: Date.now(),
-            message: args
-          }
-        })
+            message: args,
+          },
+        });
       },
       setOutput: (key: any, value: unknown) => {
-        outputs[key] = value
+        outputs[key] = value;
       },
       meta: {
-        definition: ''
+        definition: "",
       },
       setMeta: () => {
-        logger().info('set meta defined here')
+        logger().info("set meta defined here");
       },
       cwd: tmp,
       paths: {
@@ -193,33 +193,33 @@ export const handleActionExecute = async (
         unpack: _unpackPath,
         cache: config?.cacheFolder ?? tmpdir(),
         node: nodePath,
-        pnpm
+        pnpm,
       },
       api,
       browserWindow: mainWindow,
-      abortSignal
-    })
+      abortSignal,
+    });
 
-    mainWindow?.setProgressBar(1, { mode: 'normal' })
+    mainWindow?.setProgressBar(1, { mode: "normal" });
 
     return {
-      type: 'success',
-      result: { outputs, tmp }
-    }
+      type: "success",
+      result: { outputs, tmp },
+    };
   } catch (e) {
-    logger().error('Error in action execution:', e)
-    mainWindow?.setProgressBar(1, { mode: 'normal' })
+    logger().error("Error in action execution:", e);
+    mainWindow?.setProgressBar(1, { mode: "normal" });
 
     // If aborted, throw AbortError to distinguish from actual errors
     if (abortSignal.aborted) {
-      const abortError = new Error('Aborted')
-      abortError.name = 'AbortError'
-      throw abortError
+      const abortError = new Error("Aborted");
+      abortError.name = "AbortError";
+      throw abortError;
     }
 
     return {
-      type: 'error',
-      ipcError: String(e)
-    }
+      type: "error",
+      ipcError: String(e),
+    };
   }
-}
+};

@@ -11,24 +11,24 @@
 </template>
 
 <script lang="ts" setup>
-import { Recent } from '@renderer/store/recents'
-import { PropType, ref, toRefs } from 'vue'
+import { Recent } from "@renderer/store/recents";
+import { PropType, ref, toRefs } from "vue";
 
 const props = defineProps({
   item: {
     type: Object as PropType<Recent>,
-    required: true
-  }
-})
+    required: true,
+  },
+});
 
 const emit = defineEmits<{
-  click: [payload: Recent]
-}>()
+  click: [payload: Recent];
+}>();
 
-const { item } = toRefs(props)
+const { item } = toRefs(props);
 
 // const data = ref<SavedFile>()
-const isLoading = ref(true)
+const isLoading = ref(true);
 
 // const dataRaw = await api.execute('fs:read', {
 //   path: path.value
@@ -37,7 +37,7 @@ const isLoading = ref(true)
 // console.log('data', data)
 
 // data.value = JSON.parse(dataRaw.content) as SavedFile
-isLoading.value = false
+isLoading.value = false;
 </script>
 
 <style lang="scss" scoped></style>

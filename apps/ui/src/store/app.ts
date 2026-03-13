@@ -1,66 +1,66 @@
-import { defineStore } from 'pinia'
-import { createEventHook } from '@vueuse/core'
-import { ref } from 'vue'
-import { useAPI } from '@renderer/composables/api'
-import { RendererPluginDefinition } from '@pipelab/plugin-core'
-import { Presets } from '@pipelab/shared/apis'
-import { useLogger } from '@pipelab/shared/logger'
+import { defineStore } from "pinia";
+import { createEventHook } from "@vueuse/core";
+import { ref } from "vue";
+import { useAPI } from "@renderer/composables/api";
+import { RendererPluginDefinition } from "@pipelab/plugin-core";
+import { Presets } from "@pipelab/shared/apis";
+import { useLogger } from "@pipelab/shared/logger";
 
-export const useAppStore = defineStore('app', () => {
-  const { logger } = useLogger()
+export const useAppStore = defineStore("app", () => {
+  const { logger } = useLogger();
 
   /** Presets to load from */
-  const presets = ref<Presets>()
+  const presets = ref<Presets>();
 
   /** All the plugins definitions */
-  const pluginDefinitions = ref<Array<RendererPluginDefinition>>([])
+  const pluginDefinitions = ref<Array<RendererPluginDefinition>>([]);
 
-  const api = useAPI()
+  const api = useAPI();
 
-  const { on: onPresetsLoaded, trigger: triggerPresetsLoaded } = createEventHook()
+  const { on: onPresetsLoaded, trigger: triggerPresetsLoaded } = createEventHook();
 
   const init = async () => {
     //
-    const nodeGetResult = await api.execute('nodes:get')
+    const nodeGetResult = await api.execute("nodes:get");
 
-    if (nodeGetResult.type === 'error') {
-      throw new Error(nodeGetResult.ipcError)
+    if (nodeGetResult.type === "error") {
+      throw new Error(nodeGetResult.ipcError);
     }
 
-    const { result } = nodeGetResult
-    const { nodes: nodeDefs } = result
+    const { result } = nodeGetResult;
+    const { nodes: nodeDefs } = result;
 
-    pluginDefinitions.value = nodeDefs
+    pluginDefinitions.value = nodeDefs;
 
     //
-    const presentResult = await api.execute('presets:get')
-    if (presentResult.type === 'error') {
-      throw new Error(presentResult.ipcError)
+    const presentResult = await api.execute("presets:get");
+    if (presentResult.type === "error") {
+      throw new Error(presentResult.ipcError);
     }
-    presets.value = presentResult.result
+    presets.value = presentResult.result;
 
     //
-    triggerPresetsLoaded()
-  }
+    triggerPresetsLoaded();
+  };
 
   const getPluginDefinition = (pluginId: string) => {
     const result = pluginDefinitions.value.find((nodeDef) => {
       if (!pluginId) {
-        logger().error('Missing origin: node', pluginId)
+        logger().error("Missing origin: node", pluginId);
       }
-      return nodeDef.id === pluginId
-    })
-    return result
-  }
+      return nodeDef.id === pluginId;
+    });
+    return result;
+  };
 
   const getNodeDefinition = (nodeId: string, pluginId: string) => {
     // const getNodeDefinition = <T extends Block>(node: T extends Block ? T : never) => {
-    const plugin = getPluginDefinition(pluginId)
+    const plugin = getPluginDefinition(pluginId);
     if (plugin) {
-      return plugin.nodes.find((pluginNode) => pluginNode.node.id === nodeId)
+      return plugin.nodes.find((pluginNode) => pluginNode.node.id === nodeId);
     }
-    return undefined
-  }
+    return undefined;
+  };
 
   return {
     presets,
@@ -70,8 +70,8 @@ export const useAppStore = defineStore('app', () => {
     pluginDefinitions,
 
     getPluginDefinition,
-    getNodeDefinition
-  }
-})
+    getNodeDefinition,
+  };
+});
 
-export type AppStore = ReturnType<typeof useAppStore>
+export type AppStore = ReturnType<typeof useAppStore>;

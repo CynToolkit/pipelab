@@ -1,81 +1,81 @@
-import { EnhancedFile, SavedFileDefault, SavedFileSimple } from '@pipelab/shared/model'
-import { AppStore, useAppStore } from '@renderer/store/app'
+import { EnhancedFile, SavedFileDefault, SavedFileSimple } from "@pipelab/shared/model";
+import { AppStore, useAppStore } from "@renderer/store/app";
 
 export function isSimplePipeline(
-  pipeline: EnhancedFile
+  pipeline: EnhancedFile,
 ): pipeline is EnhancedFile<SavedFileSimple> {
-  return pipeline.content.type === 'simple'
+  return pipeline.content.type === "simple";
 }
 
 export function isDefaultPipeline(
-  pipeline: EnhancedFile
+  pipeline: EnhancedFile,
 ): pipeline is EnhancedFile<SavedFileDefault> {
-  return pipeline.content.type === 'default'
+  return pipeline.content.type === "default";
 }
 
 export const usePipeline = () => {
-  const appStore = useAppStore()
-  const { getPluginDefinition } = appStore
+  const appStore = useAppStore();
+  const { getPluginDefinition } = appStore;
 
   const context: Context = {
-    getPluginDefinition
-  }
+    getPluginDefinition,
+  };
 
   function createPipeline(pipeline: EnhancedFile) {
     if (isSimplePipeline(pipeline)) {
-      return useSimplePipeline(pipeline, context)
+      return useSimplePipeline(pipeline, context);
     } else if (isDefaultPipeline(pipeline)) {
-      return useDefaultPipeline(pipeline, context)
+      return useDefaultPipeline(pipeline, context);
     } else {
-      throw new Error('Invalid pipeline type' + pipeline.content.type)
+      throw new Error("Invalid pipeline type" + pipeline.content.type);
     }
   }
 
   return {
-    createPipeline
-  }
-}
+    createPipeline,
+  };
+};
 
 interface UsePipeline {
-  getIcons: () => any[]
+  getIcons: () => any[];
 }
 
 interface Context {
-  getPluginDefinition: AppStore['getPluginDefinition']
+  getPluginDefinition: AppStore["getPluginDefinition"];
 }
 
 export const useSimplePipeline = (
   pipeline: EnhancedFile<SavedFileSimple>,
-  context: Context
+  context: Context,
 ): UsePipeline => {
   return {
-    getIcons: () => []
-  }
-}
+    getIcons: () => [],
+  };
+};
 
 export const useDefaultPipeline = (
   pipeline: EnhancedFile<SavedFileDefault>,
-  context: Context
+  context: Context,
 ): UsePipeline => {
   const getIcons = () => {
-    const icons: any[] = []
-    if (!pipeline?.content?.canvas?.blocks) return icons
-    const blocks = pipeline.content.canvas.blocks
+    const icons: any[] = [];
+    if (!pipeline?.content?.canvas?.blocks) return icons;
+    const blocks = pipeline.content.canvas.blocks;
     for (const node of blocks) {
-      const def = context.getPluginDefinition(node.origin.pluginId)
+      const def = context.getPluginDefinition(node.origin.pluginId);
       if (def && def.icon) {
-        icons.push({ origin: node.origin, ...def.icon })
+        icons.push({ origin: node.origin, ...def.icon });
       }
     }
     if (icons.length > 4) {
       return icons
         .slice(0, 3)
-        .concat({ type: 'icon', icon: 'mdi-plus', origin: { nodeId: '0', pluginId: '0' } })
+        .concat({ type: "icon", icon: "mdi-plus", origin: { nodeId: "0", pluginId: "0" } });
     }
-    return icons
-  }
+    return icons;
+  };
 
   return {
-    getIcons
-  }
-}
+    getIcons,
+  };
+};

@@ -1,6 +1,6 @@
 // @ts-check
 
-import { mkdir } from 'node:fs/promises'
+import { mkdir } from "node:fs/promises";
 
 /**
  * @param {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').MessageCreateFolder, 'input'>} json
@@ -8,8 +8,8 @@ import { mkdir } from 'node:fs/promises'
  */
 export default async (json, ws) => {
   await mkdir(json.body.path, {
-    recursive: json.body.recursive
-  })
+    recursive: json.body.recursive,
+  });
 
   /**
    * @type {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').MessageCreateFolder, 'output'>}
@@ -18,8 +18,8 @@ export default async (json, ws) => {
     correlationId: json.correlationId,
     url: json.url,
     body: {
-      success: true
-    }
-  }
-  ws.send(JSON.stringify(folderCreateResult))
-}
+      success: true,
+    },
+  };
+  ws.send(JSON.stringify(folderCreateResult));
+};

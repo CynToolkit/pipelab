@@ -4,10 +4,10 @@ import {
   createPathParam,
   createStringParam,
   fileExists,
-  runWithLiveLogsPTY
-} from '@pipelab/plugin-core'
-import { checkSteamAuth, openExternalTerminal } from './utils'
-import { ExternalCommandError } from '../plugin-core/custom-errors'
+  runWithLiveLogsPTY,
+} from "@pipelab/plugin-core";
+import { checkSteamAuth, openExternalTerminal } from "./utils";
+import { ExternalCommandError } from "../plugin-core/custom-errors";
 
 // https://github.com/ztgasdf/steampkg?tab=readme-ov-file#account-management
 
@@ -15,52 +15,52 @@ import { ExternalCommandError } from '../plugin-core/custom-errors'
 // Do it at least once
 // sdk/tools/ContentBuilder/builder_linux/steamcmd.sh +login User +quit
 
-export const ID = 'steam-upload'
+export const ID = "steam-upload";
 
 export const uploadToSteam = createAction({
   id: ID,
-  name: 'Upload to Steam',
-  description: 'Upload a folder to Steam',
-  icon: '',
+  name: "Upload to Steam",
+  description: "Upload a folder to Steam",
+  icon: "",
   displayString: "`Upload ${fmt.param(params['folder'], 'primary')} to steam`",
   meta: {},
   params: {
-    sdk: createPathParam('', {
+    sdk: createPathParam("", {
       required: true,
-      label: 'Steam Sdk path',
+      label: "Steam Sdk path",
       control: {
-        type: 'path',
+        type: "path",
         options: {
-          properties: ['openDirectory']
-        }
-      }
+          properties: ["openDirectory"],
+        },
+      },
     }),
-    username: createStringParam('', {
+    username: createStringParam("", {
       required: true,
-      label: 'Steam username'
+      label: "Steam username",
     }),
-    appId: createStringParam('', {
+    appId: createStringParam("", {
       required: true,
-      label: 'App Id'
+      label: "App Id",
     }),
-    depotId: createStringParam('', {
+    depotId: createStringParam("", {
       required: true,
-      label: 'Depot Id'
+      label: "Depot Id",
     }),
-    description: createStringParam('', {
+    description: createStringParam("", {
       required: true,
-      label: 'Description'
+      label: "Description",
     }),
-    folder: createPathParam('', {
+    folder: createPathParam("", {
       required: true,
-      label: 'Folder to upload',
+      label: "Folder to upload",
       control: {
-        type: 'path',
+        type: "path",
         options: {
-          properties: ['openDirectory']
-        }
-      }
-    })
+          properties: ["openDirectory"],
+        },
+      },
+    }),
     // enableDRM: {
     //   value: false,
     //   label: 'Enable DRM',
@@ -78,37 +78,37 @@ export const uploadToSteam = createAction({
     //   }
     // })
   },
-  outputs: {}
-})
+  outputs: {},
+});
 
 export const uploadToSteamRunner = createActionRunner<typeof uploadToSteam>(
   async ({ log, inputs, cwd, abortSignal }) => {
-    const { join, dirname, basename } = await import('path')
-    const { platform } = await import('os')
-    const { chmod, mkdir, writeFile, cp } = await import('fs/promises')
+    const { join, dirname, basename } = await import("path");
+    const { platform } = await import("os");
+    const { chmod, mkdir, writeFile, cp } = await import("fs/promises");
 
-    const { folder, appId, sdk, depotId, username, description } = inputs
-    log(`uploading "${folder}" to steam`)
+    const { folder, appId, sdk, depotId, username, description } = inputs;
+    log(`uploading "${folder}" to steam`);
 
     const errorMap = {
-      6: `No connection to content server. Your depot id (${depotId}) may be invalid`
-    }
+      6: `No connection to content server. Your depot id (${depotId}) may be invalid`,
+    };
 
-    const isSDKExisting = await fileExists(sdk)
+    const isSDKExisting = await fileExists(sdk);
     if (!isSDKExisting) {
-      throw new Error(`You must enter a valid path to the Steam SDK`)
+      throw new Error(`You must enter a valid path to the Steam SDK`);
     }
 
-    const buildOutput = join(cwd, 'steam', 'output')
-    const scriptPath = join(cwd, 'steam', 'script.vdf')
+    const buildOutput = join(cwd, "steam", "output");
+    const scriptPath = join(cwd, "steam", "script.vdf");
 
     await mkdir(buildOutput, {
-      recursive: true
-    })
+      recursive: true,
+    });
 
     await mkdir(dirname(scriptPath), {
-      recursive: true
-    })
+      recursive: true,
+    });
 
     const script = `"AppBuild"
 {
@@ -130,135 +130,135 @@ export const uploadToSteamRunner = createActionRunner<typeof uploadToSteam>(
 			}
 		}
 	}
-}`
+}`;
 
-    console.log('script', script)
+    console.log("script", script);
 
-    let builderFolder = 'builder'
-    if (platform() === 'linux') {
-      builderFolder += '_linux'
-    } else if (platform() === 'darwin') {
-      builderFolder += '_osx'
+    let builderFolder = "builder";
+    if (platform() === "linux") {
+      builderFolder += "_linux";
+    } else if (platform() === "darwin") {
+      builderFolder += "_osx";
     }
 
-    const cmd = 'steamcmd'
-    let cmdFinal = 'steamcmd'
-    if (platform() === 'linux') {
-      cmdFinal += '.sh'
-    } else if (platform() === 'darwin') {
-      cmdFinal += '.sh'
-    } else if (platform() === 'win32') {
-      cmdFinal += '.exe'
+    const cmd = "steamcmd";
+    let cmdFinal = "steamcmd";
+    if (platform() === "linux") {
+      cmdFinal += ".sh";
+    } else if (platform() === "darwin") {
+      cmdFinal += ".sh";
+    } else if (platform() === "win32") {
+      cmdFinal += ".exe";
     }
 
-    const steamcmdPath = join(sdk, 'tools', 'ContentBuilder', builderFolder, cmdFinal)
+    const steamcmdPath = join(sdk, "tools", "ContentBuilder", builderFolder, cmdFinal);
 
-    console.log('steamcmdPath', steamcmdPath)
+    console.log("steamcmdPath", steamcmdPath);
 
-    if (platform() === 'linux' || platform() === 'darwin') {
-      if (platform() === 'linux') {
-        log('Adding "execute" permissions to linux binary')
+    if (platform() === "linux" || platform() === "darwin") {
+      if (platform() === "linux") {
+        log('Adding "execute" permissions to linux binary');
         const steamcmdBinaryPath = join(
           sdk,
-          'tools',
-          'ContentBuilder',
+          "tools",
+          "ContentBuilder",
           builderFolder,
-          'linux32',
-          cmd
-        )
-        await chmod(steamcmdBinaryPath, 0o755)
+          "linux32",
+          cmd,
+        );
+        await chmod(steamcmdBinaryPath, 0o755);
         const steamcmdBinaryErrorReporterPath = join(
           sdk,
-          'tools',
-          'ContentBuilder',
+          "tools",
+          "ContentBuilder",
           builderFolder,
-          'linux32',
-          'steamerrorreporter'
-        )
-        await chmod(steamcmdBinaryErrorReporterPath, 0o755)
+          "linux32",
+          "steamerrorreporter",
+        );
+        await chmod(steamcmdBinaryErrorReporterPath, 0o755);
       }
 
-      if (platform() === 'darwin') {
-        const steamcmdBinaryPath = join(sdk, 'tools', 'ContentBuilder', builderFolder, cmd)
-        log('Adding "execute" permissions to darwin binary')
-        await chmod(steamcmdBinaryPath, 0o755)
+      if (platform() === "darwin") {
+        const steamcmdBinaryPath = join(sdk, "tools", "ContentBuilder", builderFolder, cmd);
+        log('Adding "execute" permissions to darwin binary');
+        await chmod(steamcmdBinaryPath, 0o755);
       }
 
-      log('Adding "execute" permissions to binary')
-      await chmod(steamcmdPath, 0o755)
+      log('Adding "execute" permissions to binary');
+      await chmod(steamcmdPath, 0o755);
     }
 
     // check for steam authentication
     const isAuthenticated = await checkSteamAuth({
       context: {
         log,
-        abortSignal
+        abortSignal,
       },
       scriptPath,
       steamcmdPath,
-      username
-    })
+      username,
+    });
 
-    log('isAuthenticated', JSON.stringify(isAuthenticated))
+    log("isAuthenticated", JSON.stringify(isAuthenticated));
 
     if (isAuthenticated.success === false) {
-      log('Opening terminal with interactive login')
-      await openExternalTerminal(steamcmdPath, ['+login', username, '+quit'], {
-        cancelSignal: abortSignal
-      })
+      log("Opening terminal with interactive login");
+      await openExternalTerminal(steamcmdPath, ["+login", username, "+quit"], {
+        cancelSignal: abortSignal,
+      });
       const isAuthenticatedNow = await checkSteamAuth({
         context: {
           log,
-          abortSignal
+          abortSignal,
         },
         scriptPath,
         steamcmdPath,
-        username
-      })
+        username,
+      });
       if (isAuthenticatedNow.success === false) {
-        throw new Error('Not authenticated')
+        throw new Error("Not authenticated");
       }
     }
 
-    log('Writing script')
+    log("Writing script");
     await writeFile(scriptPath, script, {
-      encoding: 'utf8',
-      signal: abortSignal
-    })
+      encoding: "utf8",
+      signal: abortSignal,
+    });
 
-    log('Executing steamcmd')
+    log("Executing steamcmd");
 
     // Should be authed here
     try {
       await runWithLiveLogsPTY(
         steamcmdPath,
-        ['+login', username, '+run_app_build', scriptPath, '+quit'],
+        ["+login", username, "+run_app_build", scriptPath, "+quit"],
         {},
         log,
         {
           onStdout: (data) => {
-            log('[steamcmd]', data)
+            log("[steamcmd]", data);
           },
           onStderr: (data) => {
-            log('[steamcmd]', data)
-          }
+            log("[steamcmd]", data);
+          },
         },
-        abortSignal
-      )
+        abortSignal,
+      );
     } catch (e) {
       if (e instanceof ExternalCommandError) {
-        const code = e.code as keyof typeof errorMap
+        const code = e.code as keyof typeof errorMap;
         const message =
-          code in errorMap ? errorMap[code] : 'SteamCmd error:' + e.code + ' ' + e.message
-        throw new Error(message)
+          code in errorMap ? errorMap[code] : "SteamCmd error:" + e.code + " " + e.message;
+        throw new Error(message);
       } else if (e instanceof Error) {
-        console.error(e)
-        throw new Error('Error:' + e.message)
+        console.error(e);
+        throw new Error("Error:" + e.message);
       } else {
-        throw new Error('unknwon error')
+        throw new Error("unknwon error");
       }
     }
 
-    log('Done uploading')
-  }
-)
+    log("Done uploading");
+  },
+);

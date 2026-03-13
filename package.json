@@ -1,25 +1,26 @@
 {
   "name": "pipelab-monorepo",
   "private": true,
-  "packageManager": "pnpm@10.12.0",
   "scripts": {
     "build": "turbo build",
     "dev": "turbo dev",
     "lint": "turbo lint",
     "test": "turbo test",
     "typecheck": "turbo typecheck",
-    "format": "prettier --write .",
+    "format": "oxfmt .",
     "changeset": "changeset"
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.27.11",
+    "oxfmt": "0.40.0",
+    "oxlint": "1.55.0",
+    "turbo": "^2.8.15"
   },
   "resolutions": {
     "@codemirror/state": "6.4.1",
     "vue-demi": "0.14.10"
   },
-  "devDependencies": {
-    "@changesets/cli": "^2.27.11",
-    "prettier": "^3.3.3",
-    "turbo": "^2.8.15"
-  },
+  "packageManager": "pnpm@10.12.0",
   "pnpm": {
     "onlyBuiltDependencies": [
       "@parcel/watcher",

@@ -7,59 +7,59 @@ import {
   createStringParam,
   InputsDefinition,
   ParamsToInput,
-  runWithLiveLogs
-} from '@pipelab/plugin-core'
-import { script } from './assets/script.js'
-import * as v from 'valibot'
-import { BrowserContext } from 'playwright'
-import { join } from 'node:path'
-import { homedir } from 'node:os'
+  runWithLiveLogs,
+} from "@pipelab/plugin-core";
+import { script } from "./assets/script.js";
+import * as v from "valibot";
+import { BrowserContext } from "playwright";
+import { join } from "node:path";
+import { homedir } from "node:os";
 
-const platform = process.platform
-const { LOCALAPPDATA, XDG_CONFIG_HOME } = process.env
+const platform = process.platform;
+const { LOCALAPPDATA, XDG_CONFIG_HOME } = process.env;
 
 // @ts-expect-error import.meta
-const isCI = process.env.CI === 'true' || import.meta.env.CI === 'true'
+const isCI = process.env.CI === "true" || import.meta.env.CI === "true";
 
-let baseProfile
-if (platform === 'win32') {
-  baseProfile = join(LOCALAPPDATA ?? '', 'Google', 'Chrome', 'User Data')
-} else if (platform === 'linux') {
-  baseProfile = join(XDG_CONFIG_HOME ?? '', 'google-chrome')
-} else if (platform === 'darwin') {
-  baseProfile = join(homedir(), 'Library', 'Application Support', 'Google', 'Chrome')
+let baseProfile;
+if (platform === "win32") {
+  baseProfile = join(LOCALAPPDATA ?? "", "Google", "Chrome", "User Data");
+} else if (platform === "linux") {
+  baseProfile = join(XDG_CONFIG_HOME ?? "", "google-chrome");
+} else if (platform === "darwin") {
+  baseProfile = join(homedir(), "Library", "Application Support", "Google", "Chrome");
 }
 
 export const sharedParams = {
-  username: createStringParam('', {
-    label: 'Username',
+  username: createStringParam("", {
+    label: "Username",
     required: false,
-    description: 'Your Construct username'
+    description: "Your Construct username",
   }),
-  password: createPasswordParam('', {
+  password: createPasswordParam("", {
     description:
-      'Your Construct password. Will only be used locally to automate the export on Construct website via a local browser. Will not be sent to any server.',
+      "Your Construct password. Will only be used locally to automate the export on Construct website via a local browser. Will not be sent to any server.",
     required: false,
-    label: 'Password'
+    label: "Password",
   }),
-  version: createStringParam('', {
-    description: 'The Construct version you want to use',
-    label: 'Version',
-    required: false
+  version: createStringParam("", {
+    description: "The Construct version you want to use",
+    label: "Version",
+    required: false,
   }),
   headless: {
-    description: 'Whether to show the browser while export',
+    description: "Whether to show the browser while export",
     required: false,
     control: {
-      type: 'boolean'
+      type: "boolean",
     },
     value: false,
-    label: 'Start headless'
+    label: "Start headless",
   },
   timeout: createNumberParam(120, {
     description: "The timeout (in seconds) to close the browser if it's stuck",
     required: false,
-    label: 'Timeout'
+    label: "Timeout",
   }),
   // customBrowser: {
   //   description: 'Start your own browser rather than the predefined one',
@@ -75,16 +75,16 @@ export const sharedParams = {
   customProfile: createPathParam(undefined, {
     required: false,
     description:
-      'Use your own profile (X:\\Users\\XXX\\AppData\\Local\\Google\\Chrome\\User Data). Usefull if you want to reuse plugins installed in your current browser',
+      "Use your own profile (X:\\Users\\XXX\\AppData\\Local\\Google\\Chrome\\User Data). Usefull if you want to reuse plugins installed in your current browser",
     control: {
-      type: 'path',
+      type: "path",
       options: {
-        properties: ['openDirectory'],
-        defaultPath: baseProfile
-      }
+        properties: ["openDirectory"],
+        defaultPath: baseProfile,
+      },
     },
-    label: 'Custom profile'
-  })
+    label: "Custom profile",
+  }),
   // addonsFolder: {
   //   description: 'Folder containing addons to import in the editor',
   //   required: false,
@@ -98,74 +98,74 @@ export const sharedParams = {
   //   value: '',
   //   label: 'Addons folder'
   // }
-} satisfies InputsDefinition
+} satisfies InputsDefinition;
 
-type Inputs = ParamsToInput<typeof sharedParams>
+type Inputs = ParamsToInput<typeof sharedParams>;
 
 export const exportc3p = async <ACTION extends Action>(
   file: string,
-  { cwd, log, inputs, setOutput, paths, abortSignal }: ActionRunnerData<ACTION>
+  { cwd, log, inputs, setOutput, paths, abortSignal }: ActionRunnerData<ACTION>,
 ) => {
-  let context: BrowserContext | undefined = undefined
+  let context: BrowserContext | undefined = undefined;
 
-  abortSignal.addEventListener('abort', () => {
-    console.error('aborted')
+  abortSignal.addEventListener("abort", () => {
+    console.error("aborted");
 
-    context?.close()
-  })
-  const newInputs = inputs as Inputs
+    context?.close();
+  });
+  const newInputs = inputs as Inputs;
 
   // const { addonsFolder } = newInputs
 
-  const playwright = await import('playwright')
-  const { join, dirname } = await import('node:path')
-  const { cp, mkdir } = await import('node:fs/promises')
+  const playwright = await import("playwright");
+  const { join, dirname } = await import("node:path");
+  const { cp, mkdir } = await import("node:fs/promises");
 
-  const { unpack, node } = paths
-  const modulesPath = join(unpack, 'node_modules')
+  const { unpack, node } = paths;
+  const modulesPath = join(unpack, "node_modules");
 
   // const playwrightServer = await import("playwright-core/lib/server");
 
-  const browserName: 'chromium' | 'firefox' | 'webkit' = 'chromium'
+  const browserName: "chromium" | "firefox" | "webkit" = "chromium";
 
   // const a = await playwrightServer.installBrowsersForNpmInstall([
   //   browserName,
   // ]);
-  log('Downloading browser')
+  log("Downloading browser");
   await runWithLiveLogs(
     node,
-    [join(modulesPath, 'playwright', 'cli.js'), 'install', browserName],
+    [join(modulesPath, "playwright", "cli.js"), "install", browserName],
     {
       env: {},
-      cancelSignal: abortSignal
+      cancelSignal: abortSignal,
     },
     log,
     {
       onStdout(data) {
-        log(data)
+        log(data);
       },
       onStderr(data) {
-        log(data)
-      }
-    }
-  )
+        log(data);
+      },
+    },
+  );
 
-  const downloadDir = join(cwd, 'playwright')
+  const downloadDir = join(cwd, "playwright");
 
-  log('Browser downloaded to', downloadDir)
+  log("Browser downloaded to", downloadDir);
 
-  log('Exporting construct project')
+  log("Exporting construct project");
 
-  console.log('newInputs', newInputs)
+  console.log("newInputs", newInputs);
 
-  const browserInstance = playwright[browserName]
+  const browserInstance = playwright[browserName];
 
-  let version = newInputs.version
+  let version = newInputs.version;
   // if version is full digit, prepend "r", otherwise, use as is
   if (version && /^\d+$/.test(version)) {
-    version = `r${version}`
+    version = `r${version}`;
   }
-  const headless = newInputs.headless
+  const headless = newInputs.headless;
 
   // if (newInputs.customBrowser && !newInputs.customProfile) {
   //   throw new Error('You must specify a custom profile when using a custom browser')
@@ -177,64 +177,64 @@ export const exportc3p = async <ACTION extends Action>(
 
   // if (newInputs.customBrowser && newInputs.customProfile) {
   if (newInputs.customProfile) {
-    const customProfile = join(cwd, 'playwright-profile')
+    const customProfile = join(cwd, "playwright-profile");
 
     await mkdir(customProfile, {
-      recursive: true
-    })
+      recursive: true,
+    });
 
-    const indexedDbPathSource = join(newInputs.customProfile, 'Default', 'IndexedDB')
-    const indexedDbPathDestination = join(customProfile, 'Default', 'IndexedDB')
+    const indexedDbPathSource = join(newInputs.customProfile, "Default", "IndexedDB");
+    const indexedDbPathDestination = join(customProfile, "Default", "IndexedDB");
     const pathsToCopy = [
-      'https_editor.construct.net_0.indexeddb.blob',
-      'https_editor.construct.net_0.indexeddb.leveldb'
-    ]
+      "https_editor.construct.net_0.indexeddb.blob",
+      "https_editor.construct.net_0.indexeddb.leveldb",
+    ];
 
     for (const p of pathsToCopy) {
-      const from = join(indexedDbPathSource, p)
-      const to = join(indexedDbPathDestination, p)
+      const from = join(indexedDbPathSource, p);
+      const to = join(indexedDbPathDestination, p);
       await cp(from, to, {
-        recursive: true
-      })
+        recursive: true,
+      });
     }
 
     context = await browserInstance.launchPersistentContext(customProfile, {
       headless,
-      locale: 'en-US',
+      locale: "en-US",
       recordVideo: isCI
         ? {
-            dir: join(process.cwd(), 'playwright')
+            dir: join(process.cwd(), "playwright"),
           }
-        : undefined
-    })
+        : undefined,
+    });
   } else {
     const browser = await browserInstance.launch({
-      headless
-    })
+      headless,
+    });
 
     context = await browser.newContext({
-      locale: 'en-US',
+      locale: "en-US",
       recordVideo: isCI
         ? {
-            dir: join(process.cwd(), 'playwright')
+            dir: join(process.cwd(), "playwright"),
           }
-        : undefined
-    })
-    await context.clearPermissions()
+        : undefined,
+    });
+    await context.clearPermissions();
   }
 
-  const page = await context.newPage()
+  const page = await context.newPage();
 
-  page.setDefaultTimeout(newInputs.timeout * 1000)
+  page.setDefaultTimeout(newInputs.timeout * 1000);
 
   // this exact sequn=ence make it work
   await page.addInitScript(() => {
     // @ts-expect-error dds
-    delete self.showOpenFilePicker
-  })
-  page.on('filechooser', (worker) => {
-    console.log('filechooser created: ' + worker.page.name)
-  })
+    delete self.showOpenFilePicker;
+  });
+  page.on("filechooser", (worker) => {
+    console.log("filechooser created: " + worker.page.name);
+  });
   // ---------------------------------
 
   try {
@@ -245,26 +245,26 @@ export const exportc3p = async <ACTION extends Action>(
       newInputs.username,
       newInputs.password,
       version,
-      downloadDir
+      downloadDir,
       // addonsFolder,
-    )
+    );
 
-    log('Setting output result to ', result)
+    log("Setting output result to ", result);
 
-    setOutput('folder', result) // deprecated
+    setOutput("folder", result); // deprecated
 
-    setOutput('parentFolder', dirname(result))
-    setOutput('zipFile', result)
+    setOutput("parentFolder", dirname(result));
+    setOutput("zipFile", result);
   } catch (e) {
-    log('error, no result, crashed', e)
-    throw new Error('ConstructExport failed: ' + e.message)
+    log("error, no result, crashed", e);
+    throw new Error("ConstructExport failed: " + e.message);
   } finally {
     // await context.browser().close()
-    await context.close()
+    await context.close();
   }
-}
+};
 
 export const constructVersionValidator = (options: any) => {
-  void options
-  return v.pipe(v.string(), v.regex(/^\d+(-\d+)?$/, 'Invalid version'))
-}
+  void options;
+  return v.pipe(v.string(), v.regex(/^\d+(-\d+)?$/, "Invalid version"));
+};

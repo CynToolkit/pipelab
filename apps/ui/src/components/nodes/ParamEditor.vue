@@ -109,7 +109,7 @@
             :style="{
               position: 'absolute',
               left: middlewareData.arrow?.x != null ? `${middlewareData.arrow.x}px` : '',
-              top: middlewareData.arrow?.y != null ? `${middlewareData.arrow.y}px` : ''
+              top: middlewareData.arrow?.y != null ? `${middlewareData.arrow.y}px` : '',
             }"
             class="fill-gray-800"
             aria-hidden="true"
@@ -185,41 +185,41 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, toRefs, watch } from 'vue'
-import type { ValueOf } from 'type-fest'
-import { Action, Condition, Event } from '@pipelab/plugin-core'
-import { createCodeEditor } from '@renderer/utils/code-editor'
-import { CreateQuickJSFn } from '@pipelab/shared/quickjs'
-import { BlockAction, BlockCondition, BlockEvent, BlockLoop, Steps } from '@pipelab/shared/model'
-import { controlsToIcon, controlsToType } from '@renderer/models/controls'
-import { Completion, CompletionContext } from '@codemirror/autocomplete'
-import { javascriptLanguage } from '@codemirror/lang-javascript'
-import vTooltip from 'primevue/tooltip'
-import { throttle } from 'es-toolkit'
-import { arrow, autoUpdate, flip, offset, shift, useFloating } from '@floating-ui/vue'
-import { vOnClickOutside } from '@vueuse/components'
-import { useEditor } from '@renderer/store/editor'
-import { storeToRefs } from 'pinia'
-import { useLogger } from '@pipelab/shared/logger'
-import ParamEditorBody from './ParamEditorBody.vue'
-import { Variable } from '@pipelab/core-app'
-import { variableToFormattedVariable } from '@pipelab/shared/variables'
-import { useConfirm } from 'primevue/useconfirm'
-import { klona } from 'klona'
-import { stepsPlaceholders } from '@renderer/utils/code-editor/step-plugin'
+import { computed, ref, toRefs, watch } from "vue";
+import type { ValueOf } from "type-fest";
+import { Action, Condition, Event } from "@pipelab/plugin-core";
+import { createCodeEditor } from "@renderer/utils/code-editor";
+import { CreateQuickJSFn } from "@pipelab/shared/quickjs";
+import { BlockAction, BlockCondition, BlockEvent, BlockLoop, Steps } from "@pipelab/shared/model";
+import { controlsToIcon, controlsToType } from "@renderer/models/controls";
+import { Completion, CompletionContext } from "@codemirror/autocomplete";
+import { javascriptLanguage } from "@codemirror/lang-javascript";
+import vTooltip from "primevue/tooltip";
+import { throttle } from "es-toolkit";
+import { arrow, autoUpdate, flip, offset, shift, useFloating } from "@floating-ui/vue";
+import { vOnClickOutside } from "@vueuse/components";
+import { useEditor } from "@renderer/store/editor";
+import { storeToRefs } from "pinia";
+import { useLogger } from "@pipelab/shared/logger";
+import ParamEditorBody from "./ParamEditorBody.vue";
+import { Variable } from "@pipelab/core-app";
+import { variableToFormattedVariable } from "@pipelab/shared/variables";
+import { useConfirm } from "primevue/useconfirm";
+import { klona } from "klona";
+import { stepsPlaceholders } from "@renderer/utils/code-editor/step-plugin";
 
-type Params = (Action | Condition | Event)['params']
-type Param = ValueOf<BlockAction['params']>
+type Params = (Action | Condition | Event)["params"];
+type Param = ValueOf<BlockAction["params"]>;
 
 const props = defineProps<{
-  param: Param | undefined
-  paramDefinition: ValueOf<Params>
-  paramKey: string | number
+  param: Param | undefined;
+  paramDefinition: ValueOf<Params>;
+  paramKey: string | number;
 
-  value: BlockAction | BlockEvent | BlockCondition | BlockLoop
-  steps: Steps
-  variables: Variable[]
-}>()
+  value: BlockAction | BlockEvent | BlockCondition | BlockLoop;
+  steps: Steps;
+  variables: Variable[];
+}>();
 
 // const props = defineProps({
 //   param: {
@@ -250,87 +250,87 @@ const props = defineProps<{
 //   }
 // })
 
-const { paramKey, paramDefinition, steps, variables, param } = toRefs(props)
+const { paramKey, paramDefinition, steps, variables, param } = toRefs(props);
 
-const confirm = useConfirm()
+const confirm = useConfirm();
 
-const editor = useEditor()
-const { getNodeDefinition } = editor
-const { nodes, vm } = storeToRefs(editor)
+const editor = useEditor();
+const { getNodeDefinition } = editor;
+const { nodes, vm } = storeToRefs(editor);
 
 const confirmSwitchMode = (event: MouseEvent) => {
   return new Promise<boolean>((resolve) => {
     confirm.require({
       target: event.currentTarget,
       message:
-        'Switching back to simple mode will delete all your changes. Are you sure you want to continue?',
-      icon: 'pi pi-exclamation-triangle',
+        "Switching back to simple mode will delete all your changes. Are you sure you want to continue?",
+      icon: "pi pi-exclamation-triangle",
       rejectProps: {
-        label: 'Cancel',
-        severity: 'secondary',
-        outlined: true
+        label: "Cancel",
+        severity: "secondary",
+        outlined: true,
       },
       acceptProps: {
-        label: 'Switch to simple mode'
+        label: "Switch to simple mode",
       },
       accept: () => {
-        return resolve(true) // Resolve the promise with true when the user accepts
+        return resolve(true); // Resolve the promise with true when the user accepts
       },
       reject: () => {
-        return resolve(false) // Resolve the promise with false when the user rejects
-      }
-    })
-  })
-}
+        return resolve(false); // Resolve the promise with false when the user rejects
+      },
+    });
+  });
+};
 
 const toggleMode = async (event: MouseEvent) => {
-  const target = param.value?.editor === 'simple' ? 'editor' : 'simple'
-  let answer = true
-  let targetValue = klona(param.value?.value)
-  if (target === 'simple') {
-    event.preventDefault()
+  const target = param.value?.editor === "simple" ? "editor" : "simple";
+  let answer = true;
+  let targetValue = klona(param.value?.value);
+  if (target === "simple") {
+    event.preventDefault();
 
-    answer = await confirmSwitchMode(event)
-    targetValue = paramDefinition.value.value
+    answer = await confirmSwitchMode(event);
+    targetValue = paramDefinition.value.value;
   }
 
   if (answer === true) {
-    emit('update:modelValue', {
+    emit("update:modelValue", {
       editor: target,
-      value: targetValue
-    })
+      value: targetValue,
+    });
   }
-}
+};
 
 const emit = defineEmits<{
-  (event: 'update:modelValue', data: Param): void
-}>()
+  (event: "update:modelValue", data: Param): void;
+}>();
 
-const isError = ref(false)
-const hintText = ref<string>()
+const isError = ref(false);
+const hintText = ref<string>();
 
-const $codeEditorText = ref<HTMLDivElement>()
-const $floating = ref<HTMLDivElement>()
-const $arrow = ref<HTMLElement>()
+const $codeEditorText = ref<HTMLDivElement>();
+const $floating = ref<HTMLDivElement>();
+const $arrow = ref<HTMLElement>();
 
-const { logger } = useLogger()
+const { logger } = useLogger();
 
 const formattedVariables = () => {
-  return variableToFormattedVariable(vm.value, variables.value)
-}
+  return variableToFormattedVariable(vm.value, variables.value);
+};
 
 function myCompletions(context: CompletionContext) {
-  const word = context.matchBefore(/\w*/)
+  const word = context.matchBefore(/\w*/);
   if (word) {
-    if (word.from == word.to && !context.explicit) return null
+    if (word.from == word.to && !context.explicit) return null;
     return {
       from: word.from,
       options: [
-        { label: 'match', type: 'keyword', boost: 10 },
-        { label: 'hello', type: 'variable', info: '(World)' },
-        { label: 'magic', type: 'text', apply: '⠁⭒*.✩.*⭒⠁', detail: 'macro' }
-      ] satisfies Completion[]
-    }
+        { label: "match", type: "keyword", boost: 10 },
+        { label: "hello", type: "variable", info: "(World)" },
+        { label: "magic", type: "text", apply: "⠁⭒*.✩.*⭒⠁", detail: "macro" },
+      ] satisfies Completion[],
+    };
   }
 }
 
@@ -361,95 +361,95 @@ function myCompletions(context: CompletionContext) {
 const {
   update: codeEditorTextUpdate,
   onUpdate: onCodeEditorTextUpdate,
-  value: editorTextValue
+  value: editorTextValue,
 } = createCodeEditor($codeEditorText, [
   javascriptLanguage.data.of({
-    autocomplete: myCompletions
+    autocomplete: myCompletions,
   }),
   stepsPlaceholders({
     param,
     steps,
-    variables
-  })
-])
+    variables,
+  }),
+]);
 
 const doCodeEditorUpdate = async (newValue: string) => {
-  const displayString = newValue ?? ''
+  const displayString = newValue ?? "";
 
   try {
-    const variables = await formattedVariables()
+    const variables = await formattedVariables();
     const result = await vm.value.run(displayString, {
       params: {},
       // params: resolvedParams.value,
       steps: steps.value,
-      variables
-    })
-    simpleInputValue.value = result
-    hintText.value = resolveHintTextResult(result)
-    isError.value = false
+      variables,
+    });
+    simpleInputValue.value = result;
+    hintText.value = resolveHintTextResult(result);
+    isError.value = false;
 
     // update on code editor text change
     if (newValue !== param.value?.value) {
-      emit('update:modelValue', {
+      emit("update:modelValue", {
         editor: param.value?.editor,
-        value: newValue
-      })
+        value: newValue,
+      });
     }
   } catch (e) {
-    console.error(e)
-    logger().error('e', JSON.stringify(e))
+    console.error(e);
+    logger().error("e", JSON.stringify(e));
     if (e instanceof Error) {
-      hintText.value = /* e.name + ' ' +  */ e.message
-      isError.value = true
+      hintText.value = /* e.name + ' ' +  */ e.message;
+      isError.value = true;
     } else {
-      logger().error('e', e)
+      logger().error("e", e);
     }
   }
-}
+};
 
 // near definition to be the first to trigger
 onCodeEditorTextUpdate(async (newValue) => {
-  doCodeEditorUpdate(newValue)
-})
+  doCodeEditorUpdate(newValue);
+});
 
 watch(
   () => param.value,
   () => {
     // initial value setting
-    const newValue = klona(param.value)
+    const newValue = klona(param.value);
     if (newValue) {
       if (newValue.value === undefined || newValue.value === null) {
-        codeEditorTextUpdate('')
+        codeEditorTextUpdate("");
       } else {
-        codeEditorTextUpdate((newValue.value as string).toString())
+        codeEditorTextUpdate((newValue.value as string).toString());
       }
     }
   },
   {
-    immediate: true
-  }
-)
+    immediate: true,
+  },
+);
 
 const insertEditorEnd = (str: string | number | boolean) => {
-  codeEditorTextUpdate(editorTextValue.value + str.toString())
-}
+  codeEditorTextUpdate(editorTextValue.value + str.toString());
+};
 
 const insertEditorReplace = (str: string | number | boolean) => {
-  codeEditorTextUpdate(str.toString())
-}
+  codeEditorTextUpdate(str.toString());
+};
 
 const { floatingStyles, middlewareData } = useFloating($codeEditorText, $floating, {
-  placement: 'left',
+  placement: "left",
   middleware: [
     offset(10),
     shift(),
     flip({
-      fallbackPlacements: ['bottom']
+      fallbackPlacements: ["bottom"],
     }),
-    arrow({ element: $arrow })
+    arrow({ element: $arrow }),
   ],
-  whileElementsMounted: autoUpdate
-})
+  whileElementsMounted: autoUpdate,
+});
 
 // const debounce = <T extends (...args: any[]) => void>(
 //   func: T,
@@ -464,106 +464,106 @@ const { floatingStyles, middlewareData } = useFloating($codeEditorText, $floatin
 // }
 
 const resolveHintTextResult = (result: unknown) => {
-  if (paramDefinition.value.control.type === 'select') {
+  if (paramDefinition.value.control.type === "select") {
     const label = paramDefinition.value.control.options.options.find(
-      (o) => o.value === result
-    )?.label
+      (o) => o.value === result,
+    )?.label;
     if (label) {
-      return label
+      return label;
     }
   }
-  return ((result as string | undefined) ?? '').toString()
-}
+  return ((result as string | undefined) ?? "").toString();
+};
 
-const simpleInputValue = ref<unknown>()
+const simpleInputValue = ref<unknown>();
 
 const onParamEditorUpdate = (value: unknown) => {
-  insertEditorReplace(value !== undefined ? value.toString() : '')
-}
+  insertEditorReplace(value !== undefined ? value.toString() : "");
+};
 
-const isModalDisplayed = ref(false)
+const isModalDisplayed = ref(false);
 const onClickInside = () => {
-  if (param.value?.editor === 'editor') {
-    isModalDisplayed.value = true
+  if (param.value?.editor === "editor") {
+    isModalDisplayed.value = true;
   }
-}
+};
 const onClickOutside = () => {
-  isModalDisplayed.value = false
-}
+  isModalDisplayed.value = false;
+};
 
 watch(
   () => param.value?.editor,
   (newValue) => {
-    if (newValue === 'editor') {
-      isModalDisplayed.value = true
+    if (newValue === "editor") {
+      isModalDisplayed.value = true;
     } else {
-      isModalDisplayed.value = false
+      isModalDisplayed.value = false;
     }
-  }
-)
+  },
+);
 
 const getOutputLabel = (stepUid: string, key: string) => {
-  const nodeOrigin = nodes.value.find((n) => n.uid === stepUid)?.origin
+  const nodeOrigin = nodes.value.find((n) => n.uid === stepUid)?.origin;
   if (nodeOrigin) {
-    const nodeDef = getNodeDefinition(nodeOrigin.nodeId, nodeOrigin.pluginId).node as Action
+    const nodeDef = getNodeDefinition(nodeOrigin.nodeId, nodeOrigin.pluginId).node as Action;
     if (nodeDef) {
-      return nodeDef.outputs[key]?.label ?? key
+      return nodeDef.outputs[key]?.label ?? key;
     }
-    return key
+    return key;
   }
-  return key
-}
+  return key;
+};
 const isOutputDeprecated = (stepUid: string, key: string) => {
-  const nodeOrigin = nodes.value.find((n) => n.uid === stepUid)?.origin
+  const nodeOrigin = nodes.value.find((n) => n.uid === stepUid)?.origin;
   if (nodeOrigin) {
-    const nodeDef = getNodeDefinition(nodeOrigin.nodeId, nodeOrigin.pluginId).node as Action
+    const nodeDef = getNodeDefinition(nodeOrigin.nodeId, nodeOrigin.pluginId).node as Action;
     if (nodeDef) {
-      return nodeDef.outputs[key]?.deprecated ?? false
+      return nodeDef.outputs[key]?.deprecated ?? false;
     }
-    return key
+    return key;
   }
-  return key
-}
+  return key;
+};
 
 const getOutputDescription = (stepUid: string, key: string) => {
-  const nodeOrigin = nodes.value.find((n) => n.uid === stepUid)?.origin
+  const nodeOrigin = nodes.value.find((n) => n.uid === stepUid)?.origin;
   if (nodeOrigin) {
-    const nodeDef = getNodeDefinition(nodeOrigin.nodeId, nodeOrigin.pluginId).node as Action
+    const nodeDef = getNodeDefinition(nodeOrigin.nodeId, nodeOrigin.pluginId).node as Action;
     if (nodeDef) {
-      return nodeDef.outputs[key]?.description ?? key
+      return nodeDef.outputs[key]?.description ?? key;
     }
-    return key
+    return key;
   }
-  return key
-}
+  return key;
+};
 
 const getStepLabel = (key: string) => {
-  const nodeOrigin = nodes.value.find((n) => n.uid === key)?.origin
+  const nodeOrigin = nodes.value.find((n) => n.uid === key)?.origin;
   if (nodeOrigin) {
-    const nodeDef = getNodeDefinition(nodeOrigin.nodeId, nodeOrigin.pluginId)
+    const nodeDef = getNodeDefinition(nodeOrigin.nodeId, nodeOrigin.pluginId);
     if (nodeDef) {
-      return nodeDef.node.name
+      return nodeDef.node.name;
     }
-    return key
+    return key;
   }
-  return key
-}
+  return key;
+};
 
 const paramType = computed(() => {
-  return controlsToType(paramDefinition.value.control)
-})
+  return controlsToType(paramDefinition.value.control);
+});
 
 const paramIcon = computed(() => {
-  return controlsToIcon(paramDefinition.value.control)
-})
+  return controlsToIcon(paramDefinition.value.control);
+});
 
 const isExpectedValid = computed(() => {
-  return paramType.value === typeof simpleInputValue.value
-})
+  return paramType.value === typeof simpleInputValue.value;
+});
 
 const expectedTooltip = computed(() => {
-  return `Expected: ${paramType.value}, got ${typeof simpleInputValue.value}`
-})
+  return `Expected: ${paramType.value}, got ${typeof simpleInputValue.value}`;
+});
 </script>
 
 <style scoped lang="scss">

@@ -1,11 +1,11 @@
 export class ExternalCommandError extends Error {
-  code: number
+  code: number;
 
   constructor(message: string, code: number) {
-    super(message)
+    super(message);
 
-    this.code = code
+    this.code = code;
 
-    Object.setPrototypeOf(this, ExternalCommandError.prototype)
+    Object.setPrototypeOf(this, ExternalCommandError.prototype);
   }
 }

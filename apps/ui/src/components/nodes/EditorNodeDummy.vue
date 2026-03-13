@@ -15,14 +15,14 @@
 defineProps({
   title: {
     type: String,
-    required: true
+    required: true,
   },
   subtitle: {
     type: String,
     required: false,
-    default: ''
-  }
-})
+    default: "",
+  },
+});
 </script>
 
 <style scoped>

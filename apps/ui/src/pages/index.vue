@@ -30,8 +30,8 @@
             class="w-full md:w-[30rem] project-tree"
             :pt="{
               nodeLabel: {
-                class: ['w-full']
-              }
+                class: ['w-full'],
+              },
             }"
             @node-unselect="onNodeUnselect"
           >
@@ -62,7 +62,7 @@
 
         <div class="your-projects">
           <div v-if="!isLoading && filesEnhanced.length === 0" class="no-projects">
-            <div class="no-pipelines-text">{{ $t('home.no-pipelines-yet') }}</div>
+            <div class="no-pipelines-text">{{ $t("home.no-pipelines-yet") }}</div>
             <Button
               id="tour-new-pipeline-empty"
               severity="secondary"
@@ -70,7 +70,7 @@
               @click="openNewProjectDialog"
             >
               <i class="mdi mdi-plus-circle-outline mr-2"></i>
-              {{ $t('home.new-pipeline') }}
+              {{ $t("home.new-pipeline") }}
             </Button>
           </div>
           <div v-else class="your-projects__table">
@@ -90,7 +90,7 @@
                   <div class="flex justify-content-end gap-2">
                     <Button id="tour-new-pipeline" @click="openNewProjectDialog">
                       <i class="mdi mdi-plus-circle-outline mr-2"></i>
-                      {{ $t('home.new-pipeline') }}
+                      {{ $t("home.new-pipeline") }}
                     </Button>
                     <!-- <Button outlined @click="openFile">
                       <i class="mdi mdi-folder-open-outline mr-2"></i>
@@ -186,7 +186,7 @@
     >
       <template #header>
         <div class="flex flex-column w-full">
-          <p class="text-xl text-center">{{ $t('home.new-project') }}</p>
+          <p class="text-xl text-center">{{ $t("home.new-project") }}</p>
         </div>
       </template>
 
@@ -194,14 +194,14 @@
         <div class="grid justify-content-center">
           <div class="col-12 xl:col-6 w-full">
             <div class="h-full w-full">
-              <div class="mb-1">{{ $t('home.project-name') }}</div>
+              <div class="mb-1">{{ $t("home.project-name") }}</div>
               <div class="mb-2">
                 <InputText v-model="newProjectName" class="w-full"> </InputText>
               </div>
 
               <div class="buttons">
                 <Button :disabled="!canCreateProject" @click="onNewProjectCreation">{{
-                  $t('home.create-project')
+                  $t("home.create-project")
                 }}</Button>
               </div>
             </div>
@@ -218,7 +218,7 @@
     >
       <template #header>
         <div class="flex flex-column w-full">
-          <p class="text-xl text-center">{{ $t('home.new-pipeline') }}</p>
+          <p class="text-xl text-center">{{ $t("home.new-pipeline") }}</p>
         </div>
       </template>
 
@@ -237,7 +237,7 @@
                 />
               </div>
 
-              <div class="mb-1">{{ $t('home.pipeline-name') }}</div>
+              <div class="mb-1">{{ $t("home.pipeline-name") }}</div>
               <div class="mb-2">
                 <InputText v-model="newProjectName" class="w-full"> </InputText>
               </div>
@@ -250,7 +250,7 @@
                   :disabled="!hasCloudSaveBenefit"
                 />
                 <label for="cloudProject" class="cursor-pointer ml-2 flex align-items-center">
-                  {{ $t('home.store-project-on-the-cloud') }}
+                  {{ $t("home.store-project-on-the-cloud") }}
                   <i
                     v-if="!hasCloudSaveBenefit"
                     v-tooltip="$t('home.premium-feature')"
@@ -302,10 +302,10 @@
                   v-if="newProjectData"
                   :disabled="!canCreatePipeline"
                   @click="onNewFileCreation(newProjectData)"
-                  >{{ $t('home.duplicate-project') }}</Button
+                  >{{ $t("home.duplicate-project") }}</Button
                 >
                 <Button v-else :disabled="!canCreatePipeline" @click="onNewFileCreation()">{{
-                  $t('home.create-project')
+                  $t("home.create-project")
                 }}</Button>
               </div>
             </div>
@@ -329,10 +329,10 @@
       :breakpoints="{ '575px': '90vw' }"
     >
       <template #header>
-        <p class="text-xl font-bold">{{ $t('home.transfer') }}</p>
+        <p class="text-xl font-bold">{{ $t("home.transfer") }}</p>
       </template>
       <div class="flex flex-column gap-2">
-        <label>{{ $t('home.select-project') }}</label>
+        <label>{{ $t("home.select-project") }}</label>
         <Select
           v-model="selectedTargetProject"
           :options="availableProjectsForTransfer"
@@ -353,10 +353,10 @@
       :breakpoints="{ '575px': '90vw' }"
     >
       <template #header>
-        <p class="text-xl font-bold">{{ $t('home.rename-project') }}</p>
+        <p class="text-xl font-bold">{{ $t("home.rename-project") }}</p>
       </template>
       <div class="flex flex-column gap-2">
-        <label>{{ $t('home.new-project-name') }}</label>
+        <label>{{ $t("home.new-project-name") }}</label>
         <InputText v-model="renameProjectName" class="w-full" />
       </div>
       <template #footer>
@@ -373,113 +373,113 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watchEffect, inject, watch, onMounted } from 'vue'
-import { useToast } from 'primevue/usetoast'
-import { storeToRefs } from 'pinia'
-import Menu from 'primevue/menu'
-import { EnhancedFile, SavedFile, Preset, savedFileMigrator } from '@pipelab/shared/model'
-import { nanoid } from 'nanoid'
-import { useRouter } from 'vue-router'
-import { useAPI } from '@renderer/composables/api'
-import { useFiles } from '@renderer/store/files'
-import { loadExternalFile } from '@renderer/utils/config'
-import Tree from 'primevue/tree'
-import { useTour } from '@renderer/composables/useTour'
+import { computed, ref, watchEffect, inject, watch, onMounted } from "vue";
+import { useToast } from "primevue/usetoast";
+import { storeToRefs } from "pinia";
+import Menu from "primevue/menu";
+import { EnhancedFile, SavedFile, Preset, savedFileMigrator } from "@pipelab/shared/model";
+import { nanoid } from "nanoid";
+import { useRouter } from "vue-router";
+import { useAPI } from "@renderer/composables/api";
+import { useFiles } from "@renderer/store/files";
+import { loadExternalFile } from "@renderer/utils/config";
+import Tree from "primevue/tree";
+import { useTour } from "@renderer/composables/useTour";
 
-import { Presets } from '@pipelab/shared/apis'
-import FileInput from '@renderer/components/FileInput.vue'
-import { PROJECT_EXTENSION } from '@renderer/models/constants'
-import { kebabCase } from 'change-case'
+import { Presets } from "@pipelab/shared/apis";
+import FileInput from "@renderer/components/FileInput.vue";
+import { PROJECT_EXTENSION } from "@renderer/models/constants";
+import { kebabCase } from "change-case";
 
-import PluginIcon from '../components/nodes/PluginIcon.vue'
-import { useAppStore } from '@renderer/store/app'
-import { useAppSettings } from '@renderer/store/settings'
-import Layout from '../components/Layout.vue'
-import { useI18n } from 'vue-i18n'
-import { useAuth } from '@renderer/store/auth'
-import BuildHistoryDialog from '@renderer/components/BuildHistoryDialog.vue'
-import Skeleton from 'primevue/skeleton'
-import ConfirmDialog from 'primevue/confirmdialog'
-import { useConfirm } from 'primevue/useconfirm'
-import { TreeNode } from 'primevue'
+import PluginIcon from "../components/nodes/PluginIcon.vue";
+import { useAppStore } from "@renderer/store/app";
+import { useAppSettings } from "@renderer/store/settings";
+import Layout from "../components/Layout.vue";
+import { useI18n } from "vue-i18n";
+import { useAuth } from "@renderer/store/auth";
+import BuildHistoryDialog from "@renderer/components/BuildHistoryDialog.vue";
+import Skeleton from "primevue/skeleton";
+import ConfirmDialog from "primevue/confirmdialog";
+import { useConfirm } from "primevue/useconfirm";
+import { TreeNode } from "primevue";
 import {
   SaveLocation,
   SaveLocationExternal,
-  SaveLocationInternal
-} from '@pipelab/shared/save-location'
-import { usePipeline } from '@renderer/composables/usePipeline'
-import { usePostHog } from '@renderer/composables/usePostHog'
+  SaveLocationInternal,
+} from "@pipelab/shared/save-location";
+import { usePipeline } from "@renderer/composables/usePipeline";
+import { usePostHog } from "@renderer/composables/usePostHog";
 
-const router = useRouter()
-const api = useAPI()
-const openUpgradeDialog = inject('openUpgradeDialog') as () => void
-const confirm = useConfirm()
-const toast = useToast()
-const { posthog } = usePostHog()
-const settingsStore = useAppSettings()
-const { settings } = storeToRefs(settingsStore)
-const { updateSettings } = settingsStore
+const router = useRouter();
+const api = useAPI();
+const openUpgradeDialog = inject("openUpgradeDialog") as () => void;
+const confirm = useConfirm();
+const toast = useToast();
+const { posthog } = usePostHog();
+const settingsStore = useAppSettings();
+const { settings } = storeToRefs(settingsStore);
+const { updateSettings } = settingsStore;
 
-const { startTour: triggerTour, isCompleted } = useTour('dashboard')
+const { startTour: triggerTour, isCompleted } = useTour("dashboard");
 
 // Table data
-const fileStore = useFiles()
-const { files } = storeToRefs(fileStore)
-const { update: updateFileStore, remove, removeProject, transferPipeline } = fileStore
+const fileStore = useFiles();
+const { files } = storeToRefs(fileStore);
+const { update: updateFileStore, remove, removeProject, transferPipeline } = fileStore;
 
-const filesEnhanced = ref<EnhancedFile[]>([])
+const filesEnhanced = ref<EnhancedFile[]>([]);
 
-const hasSimplePipelines = posthog.isFeatureEnabled('simple-pipeline')
-console.log('hasSimplePipelines', hasSimplePipelines)
+const hasSimplePipelines = posthog.isFeatureEnabled("simple-pipeline");
+console.log("hasSimplePipelines", hasSimplePipelines);
 
-const { createPipeline } = usePipeline()
+const { createPipeline } = usePipeline();
 
-const shouldMigrate = false // TODO:
+const shouldMigrate = false; // TODO:
 
 // Icon logic adapted from ScenarioListItem
 function getScenarioIcons(pipeline: EnhancedFile) {
-  const p = createPipeline(pipeline)
+  const p = createPipeline(pipeline);
 
-  return p.getIcons()
+  return p.getIcons();
 }
 
 const canCreatePipeline = computed(() => {
   if (newProjectData.value) {
-    return newProjectName.value !== undefined && newProjectName.value.length > 0
+    return newProjectName.value !== undefined && newProjectName.value.length > 0;
   }
   return (
     newProjectPreset.value !== undefined &&
     newProjectName.value !== undefined &&
     newProjectName.value.length > 0
-  )
-})
+  );
+});
 
 const canCreateProject = computed(() => {
-  return newProjectName.value !== undefined && newProjectName.value.length > 0
-})
+  return newProjectName.value !== undefined && newProjectName.value.length > 0;
+});
 
-const { t } = useI18n()
+const { t } = useI18n();
 
-const isLoading = ref(false)
+const isLoading = ref(false);
 
-const selectedKey = ref<Record<string, boolean>>({})
-const activeProjectId = computed(() => Object.keys(selectedKey.value)[0])
+const selectedKey = ref<Record<string, boolean>>({});
+const activeProjectId = computed(() => Object.keys(selectedKey.value)[0]);
 const activeProject = computed(() =>
   activeProjectId.value
     ? projects.value.find((project) => project.id === activeProjectId.value)
-    : undefined
-)
-const projects = computed(() => files.value.projects)
+    : undefined,
+);
+const projects = computed(() => files.value.projects);
 
 const pipelines = computed(() =>
   activeProjectId.value
     ? files.value.pipelines.filter((pipeline) => pipeline.project === activeProjectId.value)
-    : []
-)
+    : [],
+);
 
 const onNodeUnselect = (node: TreeNode) => {
-  console.log('onNodeUnselect', node)
-}
+  console.log("onNodeUnselect", node);
+};
 
 const nodes = computed<TreeNode[]>(() => {
   return projects.value.map((file) => {
@@ -493,78 +493,78 @@ const nodes = computed<TreeNode[]>(() => {
 
     return {
       key: file.id,
-      label: file.name
+      label: file.name,
       // children
-    } satisfies TreeNode
-  })
-})
+    } satisfies TreeNode;
+  });
+});
 
 // When pipelines are loaded
 watchEffect(async () => {
-  isLoading.value = true
+  isLoading.value = true;
 
-  const result: EnhancedFile[] = []
+  const result: EnhancedFile[] = [];
 
   // for each pipeline file
   for (const file of pipelines.value) {
-    let fileContent: string = ''
+    let fileContent: string = "";
 
     // When external
-    if (file.type === 'external') {
-      const resultLoad = await loadExternalFile(file.path)
+    if (file.type === "external") {
+      const resultLoad = await loadExternalFile(file.path);
 
-      if (resultLoad.type === 'error') {
-        console.error('Unable to load file', resultLoad.ipcError)
+      if (resultLoad.type === "error") {
+        console.error("Unable to load file", resultLoad.ipcError);
         const { id } = files.value.pipelines.find((value) => {
-          if (value.type === 'internal') {
+          if (value.type === "internal") {
             if (value.path === file.path) {
-              return true
+              return true;
             }
-          } else if (value.type === 'external') {
+          } else if (value.type === "external") {
             if (value.path === file.path) {
-              return true
+              return true;
             }
           }
-          return false
-        })
+          return false;
+        });
         updateFileStore((state) => {
-          state.pipelines = state.pipelines.filter((value) => value.id !== id)
-        })
-        continue
+          state.pipelines = state.pipelines.filter((value) => value.id !== id);
+        });
+        continue;
       }
 
-      const result = resultLoad.result
+      const result = resultLoad.result;
 
-      if ('content' in result) {
-        fileContent = result.content
+      if ("content" in result) {
+        fileContent = result.content;
       } else {
-        throw new Error(t('editor.invalid-file-content'))
+        throw new Error(t("editor.invalid-file-content"));
       }
-    } else if (file.type === 'internal') {
+    } else if (file.type === "internal") {
       // Load internal file
-      const configResult = await api.execute('config:load', { config: file.configName })
-      if (configResult.type === 'success') {
-        fileContent = JSON.stringify(configResult.result.result)
+      const configResult = await api.execute("config:load", { config: file.configName });
+      if (configResult.type === "success") {
+        fileContent = JSON.stringify(configResult.result.result);
       } else {
-        console.error('Failed to load internal file', configResult)
-        continue
+        console.error("Failed to load internal file", configResult);
+        continue;
       }
-    } else if (file.type === 'pipelab-cloud') {
+    } else if (file.type === "pipelab-cloud") {
       // Cloud loading not implemented yet
-      continue
+      continue;
     } else {
-      throw new Error(t('home.invalid-file-type'))
+      throw new Error(t("home.invalid-file-type"));
     }
 
     if (!fileContent) {
-      throw new Error(t('editor.invalid-file-content'))
+      throw new Error(t("editor.invalid-file-content"));
     }
 
-    const _content = JSON.parse(fileContent) as SavedFile
+    const _content = JSON.parse(fileContent) as SavedFile;
 
-    const content = await savedFileMigrator.migrate(_content)
+    const content = await savedFileMigrator.migrate(_content);
 
-    if (file.type === 'external') {
+    if (file.type === "external") {
       result.push({
         lastModified: file.lastModified,
         path: file.path,
@@ -572,496 +572,496 @@ watchEffect(async () => {
         type: file.type,
         id: file.id,
         content: content,
-        project: file.project
-      })
-    } else if (file.type === 'internal') {
+        project: file.project,
+      });
+    } else if (file.type === "internal") {
       result.push({
         lastModified: file.lastModified,
         type: file.type,
         id: file.id,
         content: content,
         project: file.project,
-        configName: file.configName
-      })
+        configName: file.configName,
+      });
     }
   }
 
-  filesEnhanced.value = result
-  isLoading.value = false
-})
+  filesEnhanced.value = result;
+  isLoading.value = false;
+});
 
 watch(
   [projects, selectedKey],
   ([newProjects, newSelectedKey]) => {
     // Automatically select the first project if nothing is selected
     if (Object.keys(newSelectedKey).length === 0 && newProjects.length > 0) {
-      const firstProjectId = newProjects[0].id
-      selectedKey.value = { [firstProjectId]: true }
+      const firstProjectId = newProjects[0].id;
+      selectedKey.value = { [firstProjectId]: true };
     }
   },
-  { immediate: true }
-)
+  { immediate: true },
+);
 
-const newProjectName = ref('')
+const newProjectName = ref("");
 
-const authStore = useAuth()
+const authStore = useAuth();
 const { hasCloudSaveBenefit, hasBuildHistoryBenefit, hasMultipleProjectsBenefit } =
-  storeToRefs(authStore)
+  storeToRefs(authStore);
 
-const projectMode = ref(hasSimplePipelines ? 'simple' : 'advanced')
-console.log('projectMode', projectMode.value)
-const isSimpleProjectCreation = computed(() => projectMode.value === 'simple')
+const projectMode = ref(hasSimplePipelines ? "simple" : "advanced");
+console.log("projectMode", projectMode.value);
+const isSimpleProjectCreation = computed(() => projectMode.value === "simple");
 const projectModes = computed(() => [
-  { label: t('home.simple-pipeline'), value: 'simple' },
-  { label: t('home.advanced-pipeline'), value: 'advanced' }
-])
+  { label: t("home.simple-pipeline"), value: "simple" },
+  { label: t("home.advanced-pipeline"), value: "advanced" },
+]);
 
 watch(projectMode, (mode) => {
-  if (mode === 'simple') {
+  if (mode === "simple") {
     // Inject and select simple preset
-    newPipelinePresets.value['simple'] = {
+    newPipelinePresets.value["simple"] = {
       data: {
-        version: '4.0.0',
-        type: 'simple',
-        name: 'Simple Pipeline',
-        description: 'A simplified editor for quick projects',
+        version: "4.0.0",
+        type: "simple",
+        name: "Simple Pipeline",
+        description: "A simplified editor for quick projects",
         canvas: { blocks: [], triggers: [] },
         variables: [],
-        source: { type: 'c3-html', path: '' },
+        source: { type: "c3-html", path: "" },
         packaging: { enabled: false },
         publishing: {
           steam: { enabled: false },
           itch: { enabled: false },
-          poki: { enabled: false }
-        }
+          poki: { enabled: false },
+        },
       },
       hightlight: true,
-      disabled: false
-    }
-    newProjectPreset.value = 'simple'
+      disabled: false,
+    };
+    newProjectPreset.value = "simple";
   } else {
     // Clear simple preset selection if switching to advanced
-    if (newProjectPreset.value === 'simple') {
-      newProjectPreset.value = undefined
+    if (newProjectPreset.value === "simple") {
+      newProjectPreset.value = undefined;
     }
   }
-})
+});
 
-const isCloudProject = ref(false)
+const isCloudProject = ref(false);
 
-const newProjectPreset = ref<string>()
-const newPipelinePresets = ref<Presets>({})
+const newProjectPreset = ref<string>();
+const newPipelinePresets = ref<Presets>({});
 
-const newProjectData = ref<SavedFile>()
+const newProjectData = ref<SavedFile>();
 
 /**
  * Open new project dialog
  */
 const openNewProjectDialog = async () => {
-  newProjectName.value = ''
-  projectMode.value = 'advanced' // Default to advanced TODO:
+  newProjectName.value = "";
+  projectMode.value = "advanced"; // Default to advanced TODO:
 
   // find presets
-  const presetsResult = await api.execute('presets:get')
+  const presetsResult = await api.execute("presets:get");
 
-  if (presetsResult.type === 'error') {
-    throw new Error(presetsResult.ipcError)
+  if (presetsResult.type === "error") {
+    throw new Error(presetsResult.ipcError);
   }
 
-  newPipelinePresets.value = presetsResult.result
+  newPipelinePresets.value = presetsResult.result;
 
   // show dialog
-  isNewPipelineModalVisible.value = true
-}
+  isNewPipelineModalVisible.value = true;
+};
 const onNewProjectCreation = async () => {
-  const projectId = nanoid()
+  const projectId = nanoid();
   updateFileStore((state) => {
     state.projects.push({
       id: projectId,
       name: newProjectName.value,
-      description: ''
-    })
-  })
-  isNewProjectModalVisible.value = false
+      description: "",
+    });
+  });
+  isNewProjectModalVisible.value = false;
   // Select the new project
-  selectedKey.value = { [projectId]: true }
-  newProjectName.value = ''
-}
+  selectedKey.value = { [projectId]: true };
+  newProjectName.value = "";
+};
 
 const onCreateProjectClick = () => {
   if (hasMultipleProjectsBenefit.value) {
-    isNewProjectModalVisible.value = true
+    isNewProjectModalVisible.value = true;
   } else {
-    openUpgradeDialog()
+    openUpgradeDialog();
   }
-}
+};
 
-const isRenameProjectModalVisible = ref(false)
-const renameProjectName = ref('')
+const isRenameProjectModalVisible = ref(false);
+const renameProjectName = ref("");
 
-const projectToRenameId = ref<string | null>(null)
+const projectToRenameId = ref<string | null>(null);
 
 const openRenameProjectDialog = (projectId?: string) => {
-  const id = projectId || activeProjectId.value
-  const project = projects.value.find((p) => p.id === id)
+  const id = projectId || activeProjectId.value;
+  const project = projects.value.find((p) => p.id === id);
 
   if (project) {
-    projectToRenameId.value = id
-    renameProjectName.value = project.name
-    isRenameProjectModalVisible.value = true
+    projectToRenameId.value = id;
+    renameProjectName.value = project.name;
+    isRenameProjectModalVisible.value = true;
   }
-}
+};
 
 const onRenameProject = async () => {
   if (projectToRenameId.value && renameProjectName.value) {
     updateFileStore((state) => {
-      const project = state.projects.find((p) => p.id === projectToRenameId.value)
+      const project = state.projects.find((p) => p.id === projectToRenameId.value);
       if (project) {
-        project.name = renameProjectName.value
+        project.name = renameProjectName.value;
       }
-    })
-    isRenameProjectModalVisible.value = false
-    projectToRenameId.value = null
+    });
+    isRenameProjectModalVisible.value = false;
+    projectToRenameId.value = null;
   }
-}
+};
 
 const onNewFileCreation = async (
-  preset: SavedFile = newPipelinePresets.value[newProjectPreset.value].data
+  preset: SavedFile = newPipelinePresets.value[newProjectPreset.value].data,
 ) => {
-  const pipelineId = nanoid()
+  const pipelineId = nanoid();
 
   if (!preset) {
-    throw new Error(t('home.invalid-preset'))
+    throw new Error(t("home.invalid-preset"));
   }
 
-  const projectId = activeProject.value.id
-  let pathOrConfigName = ''
-  const type: SaveLocation['type'] = isCloudProject.value ? 'pipelab-cloud' : 'internal'
+  const projectId = activeProject.value.id;
+  let pathOrConfigName = "";
+  const type: SaveLocation["type"] = isCloudProject.value ? "pipelab-cloud" : "internal";
 
-  if (type === 'internal') {
-    pathOrConfigName = `pipeline-${pipelineId}`
+  if (type === "internal") {
+    pathOrConfigName = `pipeline-${pipelineId}`;
   }
 
   // update file store
   updateFileStore((state) => {
-    if (type === 'internal') {
+    if (type === "internal") {
       state.pipelines.push({
         lastModified: new Date().toISOString(),
         configName: pathOrConfigName,
-        type: 'internal',
+        type: "internal",
         project: projectId,
-        id: pipelineId
-      })
-    } else if (type === 'pipelab-cloud') {
+        id: pipelineId,
+      });
+    } else if (type === "pipelab-cloud") {
       state.pipelines.push({
-        type: 'pipelab-cloud',
+        type: "pipelab-cloud",
         project: projectId,
-        id: pipelineId
-      })
+        id: pipelineId,
+      });
     } else {
       state.pipelines.push({
         lastModified: new Date().toISOString(),
         path: pathOrConfigName,
         summary: {
-          description: '',
+          description: "",
           name: newProjectName.value,
-          plugins: []
+          plugins: [],
         },
-        type: 'external',
+        type: "external",
         project: projectId,
-        id: pipelineId
-      })
+        id: pipelineId,
+      });
     }
-  })
+  });
 
   const updatedPreset: Preset = {
     ...preset,
     name: newProjectName.value,
-    description: ''
-  } satisfies Preset
+    description: "",
+  } satisfies Preset;
 
   // write file
-  if (type === 'internal') {
-    await api.execute('config:save', {
+  if (type === "internal") {
+    await api.execute("config:save", {
       config: pathOrConfigName,
-      data: JSON.stringify(updatedPreset)
-    })
-  } else if (type === 'pipelab-cloud') {
+      data: JSON.stringify(updatedPreset),
+    });
+  } else if (type === "pipelab-cloud") {
     // TODO:
   }
 
-  if (updatedPreset.type === 'simple') {
+  if (updatedPreset.type === "simple") {
     await router.push({
-      name: 'SimpleEditor',
+      name: "SimpleEditor",
       params: {
         pipelineId: pipelineId,
-        projectId: projectId
-      }
-    })
+        projectId: projectId,
+      },
+    });
   } else {
     await router.push({
-      name: 'Editor',
+      name: "Editor",
       params: {
         pipelineId: pipelineId,
-        projectId: projectId
-      }
-    })
+        projectId: projectId,
+      },
+    });
   }
-}
+};
 
 const loadExisting = async (id: string) => {
   // Find the file to check its type
-  const enhancedFile = filesEnhanced.value.find((f) => f.id === id)
+  const enhancedFile = filesEnhanced.value.find((f) => f.id === id);
 
-  if (enhancedFile && enhancedFile.content.type === 'simple') {
+  if (enhancedFile && enhancedFile.content.type === "simple") {
     await router.push({
-      name: 'SimpleEditor',
+      name: "SimpleEditor",
       params: {
         pipelineId: id,
-        projectId: activeProject.value.id
-      }
-    })
+        projectId: activeProject.value.id,
+      },
+    });
   } else {
     await router.push({
-      name: 'Editor',
+      name: "Editor",
       params: {
         pipelineId: id,
-        projectId: activeProject.value.id
-      }
-    })
+        projectId: activeProject.value.id,
+      },
+    });
   }
-}
+};
 
 const handleRowClick = (event: any) => {
-  console.log('event', event)
-  loadExisting(event.data.id)
-}
+  console.log("event", event);
+  loadExisting(event.data.id);
+};
 
 const deletePipeline = async (id: string) => {
   confirm.require({
-    message: 'Are you sure you want to delete this pipeline? This action cannot be undone.',
-    header: 'Delete Pipeline',
-    icon: 'pi pi-exclamation-triangle',
-    rejectClass: 'p-button-secondary p-button-outlined',
-    acceptClass: 'p-button-danger',
+    message: "Are you sure you want to delete this pipeline? This action cannot be undone.",
+    header: "Delete Pipeline",
+    icon: "pi pi-exclamation-triangle",
+    rejectClass: "p-button-secondary p-button-outlined",
+    acceptClass: "p-button-danger",
     accept: async () => {
-      await remove(id)
+      await remove(id);
     },
     reject: () => {
       // do nothing
-    }
-  })
-}
+    },
+  });
+};
 
 const deleteProject = async (projectId?: string) => {
-  const id = projectId || activeProjectId.value
-  if (!id) return
+  const id = projectId || activeProjectId.value;
+  if (!id) return;
 
-  const projectPipelines = files.value.pipelines.filter((pipeline) => pipeline.project === id)
+  const projectPipelines = files.value.pipelines.filter((pipeline) => pipeline.project === id);
 
   if (projectPipelines.length > 0) {
     toast.add({
-      severity: 'error',
-      summary: t('home.cannot-delete-project'),
-      detail: t('home.project-not-empty'),
-      life: 3000
-    })
-    return
+      severity: "error",
+      summary: t("home.cannot-delete-project"),
+      detail: t("home.project-not-empty"),
+      life: 3000,
+    });
+    return;
   }
 
   confirm.require({
-    message: t('home.confirm-delete-project'),
-    header: t('home.delete-project'),
-    icon: 'pi pi-exclamation-triangle',
-    rejectClass: 'p-button-secondary p-button-outlined',
-    acceptClass: 'p-button-danger',
+    message: t("home.confirm-delete-project"),
+    header: t("home.delete-project"),
+    icon: "pi pi-exclamation-triangle",
+    rejectClass: "p-button-secondary p-button-outlined",
+    acceptClass: "p-button-danger",
     accept: async () => {
-      await removeProject(id)
+      await removeProject(id);
     },
     reject: () => {
       // do nothing
-    }
-  })
-}
+    },
+  });
+};
 
-const menu = ref()
-const selectedPipelineForMenu = ref<EnhancedFile | null>(null)
-const isTransferModalVisible = ref(false)
-const selectedTargetProject = ref()
+const menu = ref();
+const selectedPipelineForMenu = ref<EnhancedFile | null>(null);
+const isTransferModalVisible = ref(false);
+const selectedTargetProject = ref();
 
 const toggleMenu = (event: Event, data: EnhancedFile) => {
-  selectedPipelineForMenu.value = data
-  menu.value.toggle(event)
-}
+  selectedPipelineForMenu.value = data;
+  menu.value.toggle(event);
+};
 
 const menuItems = computed(() => [
   {
-    label: t('home.build-history'),
-    icon: 'mdi mdi-history',
+    label: t("home.build-history"),
+    icon: "mdi mdi-history",
     command: () => {
-      if (selectedPipelineForMenu.value) viewProjectBuildHistory(selectedPipelineForMenu.value)
+      if (selectedPipelineForMenu.value) viewProjectBuildHistory(selectedPipelineForMenu.value);
     },
-    visible: hasBuildHistoryBenefit.value
+    visible: hasBuildHistoryBenefit.value,
   },
   {
-    label: t('home.duplicate'),
-    icon: 'mdi mdi-content-copy',
+    label: t("home.duplicate"),
+    icon: "mdi mdi-content-copy",
     command: () => {
-      if (selectedPipelineForMenu.value) duplicateProject(selectedPipelineForMenu.value.content)
-    }
-  },
-  {
-    label: t('home.migrate-to-internal'),
-    icon: 'mdi mdi-folder-move',
-    command: () => {
-      if (selectedPipelineForMenu.value) migratePipeline(selectedPipelineForMenu.value)
+      if (selectedPipelineForMenu.value) duplicateProject(selectedPipelineForMenu.value.content);
     },
-    visible: shouldMigrate === true && selectedPipelineForMenu.value?.type === 'external'
   },
   {
-    label: t('home.transfer'),
-    icon: 'mdi mdi-folder-move',
+    label: t("home.migrate-to-internal"),
+    icon: "mdi mdi-folder-move",
     command: () => {
-      openTransferDialog()
+      if (selectedPipelineForMenu.value) migratePipeline(selectedPipelineForMenu.value);
     },
-    visible: projects.value.length > 1
+    visible: shouldMigrate === true && selectedPipelineForMenu.value?.type === "external",
   },
   {
-    separator: true
-  },
-  {
-    label: t('base.delete'),
-    icon: 'mdi mdi-delete',
-    class: 'text-red-500',
+    label: t("home.transfer"),
+    icon: "mdi mdi-folder-move",
     command: () => {
-      if (selectedPipelineForMenu.value) deletePipeline(selectedPipelineForMenu.value.id)
-    }
-  }
-])
+      openTransferDialog();
+    },
+    visible: projects.value.length > 1,
+  },
+  {
+    separator: true,
+  },
+  {
+    label: t("base.delete"),
+    icon: "mdi mdi-delete",
+    class: "text-red-500",
+    command: () => {
+      if (selectedPipelineForMenu.value) deletePipeline(selectedPipelineForMenu.value.id);
+    },
+  },
+]);
 
 const openTransferDialog = () => {
-  isTransferModalVisible.value = true
-  selectedTargetProject.value = null
-}
+  isTransferModalVisible.value = true;
+  selectedTargetProject.value = null;
+};
 
 const performTransfer = async () => {
   if (selectedPipelineForMenu.value && selectedTargetProject.value) {
-    await transferPipeline(selectedPipelineForMenu.value.id, selectedTargetProject.value.id)
-    isTransferModalVisible.value = false
+    await transferPipeline(selectedPipelineForMenu.value.id, selectedTargetProject.value.id);
+    isTransferModalVisible.value = false;
     toast.add({
-      severity: 'success',
-      summary: t('home.transfer-successful'),
-      detail: t('home.pipeline-transferred'),
-      life: 3000
-    })
+      severity: "success",
+      summary: t("home.transfer-successful"),
+      detail: t("home.pipeline-transferred"),
+      life: 3000,
+    });
   }
-}
+};
 
 const availableProjectsForTransfer = computed(() => {
   return projects.value
     .filter((p) => p.id !== activeProject.value?.id)
-    .map((p) => ({ label: p.name, value: p }))
-})
+    .map((p) => ({ label: p.name, value: p }));
+});
 
 const duplicateProject = async (file: SavedFile) => {
-  console.log('file', file)
-  newProjectName.value = file.name + ' (copy)'
-  newProjectData.value = file
-  isNewPipelineModalVisible.value = true
-}
+  console.log("file", file);
+  newProjectName.value = file.name + " (copy)";
+  newProjectData.value = file;
+  isNewPipelineModalVisible.value = true;
+};
 
 const migratePipeline = async (file: EnhancedFile) => {
   confirm.require({
-    message: t('home.confirm-migration-message'),
-    header: t('home.migrate-pipeline'),
-    icon: 'pi pi-info-circle',
-    rejectClass: 'p-button-secondary p-button-outlined',
-    acceptClass: 'p-button-primary',
+    message: t("home.confirm-migration-message"),
+    header: t("home.migrate-pipeline"),
+    icon: "pi pi-info-circle",
+    rejectClass: "p-button-secondary p-button-outlined",
+    acceptClass: "p-button-primary",
     accept: async () => {
-      const newConfigName = `pipeline-${nanoid()}`
+      const newConfigName = `pipeline-${nanoid()}`;
 
       // Save content to internal config
-      await api.execute('config:save', {
+      await api.execute("config:save", {
         config: newConfigName,
-        data: JSON.stringify(file.content)
-      })
+        data: JSON.stringify(file.content),
+      });
 
       // Update store: replace external pipeline definition with internal one
       updateFileStore((state) => {
-        const index = state.pipelines.findIndex((p) => p.id === file.id)
+        const index = state.pipelines.findIndex((p) => p.id === file.id);
         if (index !== -1) {
           state.pipelines[index] = {
             id: file.id,
             project: file.project,
             lastModified: new Date().toISOString(),
-            type: 'internal',
-            configName: newConfigName
-          }
+            type: "internal",
+            configName: newConfigName,
+          };
         }
-      })
+      });
 
       toast.add({
-        severity: 'success',
-        summary: t('base.success'),
-        detail: t('home.migration-success'),
-        life: 3000
-      })
-    }
-  })
-}
+        severity: "success",
+        summary: t("base.success"),
+        detail: t("home.migration-success"),
+        life: 3000,
+      });
+    },
+  });
+};
 
 const viewProjectBuildHistory = async (file: EnhancedFile) => {
   if (!hasBuildHistoryBenefit) {
-    openUpgradeDialog()
-    return
+    openUpgradeDialog();
+    return;
   }
 
-  selectedPipelineId.value = file.id
-  showBuildHistoryDialog.value = true
-}
+  selectedPipelineId.value = file.id;
+  showBuildHistoryDialog.value = true;
+};
 
-const isNewPipelineModalVisible = ref(false)
-const isNewProjectModalVisible = ref(false)
+const isNewPipelineModalVisible = ref(false);
+const isNewProjectModalVisible = ref(false);
 
 // Build history dialog state
-const showBuildHistoryDialog = ref(false)
-const selectedPipelineId = ref<string>()
+const showBuildHistoryDialog = ref(false);
+const selectedPipelineId = ref<string>();
 
 const startTour = (force = false) => {
   triggerTour(
     [
       {
-        element: '#tour-projects-list',
+        element: "#tour-projects-list",
         popover: {
-          title: t('tour.projects-list-title'),
-          description: t('tour.projects-list-description')
-        }
+          title: t("tour.projects-list-title"),
+          description: t("tour.projects-list-description"),
+        },
       },
       {
-        element: '#tour-add-project',
+        element: "#tour-add-project",
         popover: {
-          title: t('tour.add-project-title'),
-          description: t('tour.add-project-description')
-        }
+          title: t("tour.add-project-title"),
+          description: t("tour.add-project-description"),
+        },
       },
       {
-        element: '#tour-rename-project, #tour-delete-project',
+        element: "#tour-rename-project, #tour-delete-project",
         popover: {
-          title: t('tour.project-actions-title'),
-          description: t('tour.project-actions-description')
-        }
+          title: t("tour.project-actions-title"),
+          description: t("tour.project-actions-description"),
+        },
       },
       {
-        element: '#tour-new-pipeline, #tour-new-pipeline-empty',
+        element: "#tour-new-pipeline, #tour-new-pipeline-empty",
         popover: {
-          title: t('tour.new-pipeline-title'),
-          description: t('tour.new-pipeline-description')
-        }
-      }
+          title: t("tour.new-pipeline-title"),
+          description: t("tour.new-pipeline-description"),
+        },
+      },
     ],
-    force
-  )
-}
+    force,
+  );
+};
 
 onMounted(() => {
   // // Check if we should show the tour (e.g., first time or via a button)
@@ -1072,7 +1072,7 @@ onMounted(() => {
   //     startTour()
   //   }, 1000)
   // }
-})
+});
 </script>
 
 <style lang="scss" scoped>

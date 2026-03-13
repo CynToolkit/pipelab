@@ -58,115 +58,115 @@
 </template>
 
 <script lang="ts" setup>
-import { useAPI } from '@renderer/composables/api'
-import { supabase } from '@pipelab/shared/supabase'
-import { ref, onMounted } from 'vue'
-import { useAuth } from '@renderer/store/auth'
+import { useAPI } from "@renderer/composables/api";
+import { supabase } from "@pipelab/shared/supabase";
+import { ref, onMounted } from "vue";
+import { useAuth } from "@renderer/store/auth";
 
-const emit = defineEmits(['close'])
-const api = useAPI()
-const auth = useAuth()
+const emit = defineEmits(["close"]);
+const api = useAPI();
+const auth = useAuth();
 
 // State for plans, loading, and error
-const plans = ref([])
-const isLoading = ref(false)
-const error = ref<string | null>(null)
+const plans = ref([]);
+const isLoading = ref(false);
+const error = ref<string | null>(null);
 
 // Function to fetch plans from polar.sh using the actual cloud function
 const fetchPlansFromPolar = async () => {
   try {
-    isLoading.value = true
-    error.value = null
+    isLoading.value = true;
+    error.value = null;
 
     // Call the actual polar-available-plans cloud function
-    const { data, error: apiError } = await supabase().functions.invoke('polar-available-plans')
+    const { data, error: apiError } = await supabase().functions.invoke("polar-available-plans");
 
     if (apiError) {
-      throw apiError
+      throw apiError;
     }
 
     // Process the response data
-    plans.value = data.plans || []
+    plans.value = data.plans || [];
   } catch (err) {
-    error.value = 'Failed to fetch plans. Please try again later.'
-    console.error('Error fetching plans:', err)
+    error.value = "Failed to fetch plans. Please try again later.";
+    console.error("Error fetching plans:", err);
   } finally {
-    isLoading.value = false
+    isLoading.value = false;
   }
-}
+};
 
 const isCurrentPlan = (plan: any) => {
   // If plan is Free, it's current if user has no subscriptions
-  if (plan.name === 'Free') {
-    return auth.subscriptions.length === 0
+  if (plan.name === "Free") {
+    return auth.subscriptions.length === 0;
   }
 
   // For paid plans, check if user has a subscription to this product
   // Assuming plan.id corresponds to product_id
   return auth.subscriptions.some((sub) => {
     // Check both ID and name just to be safe, depending on what the API returns
-    return sub.product.id === plan.id || sub.product.name === plan.name
-  })
-}
+    return sub.product.id === plan.id || sub.product.name === plan.name;
+  });
+};
 
 const isPlanDisabled = (plan: any) => {
   // Always disable if it's the current plan
-  if (isCurrentPlan(plan)) return true
+  if (isCurrentPlan(plan)) return true;
 
   // If not logged in, button is enabled (to allow login)
-  if (!auth.isLoggedIn) return false
+  if (!auth.isLoggedIn) return false;
 
   // If logged in and plan is Free (but not current, meaning user is on paid plan),
   // disable for now (downgrade flow)
-  if (plan.name === 'Free') return true
+  if (plan.name === "Free") return true;
 
-  return false
-}
+  return false;
+};
 
 const getPlanButtonText = (plan: any) => {
   if (isCurrentPlan(plan)) {
-    return 'Current Plan'
+    return "Current Plan";
   }
 
   if (!auth.isLoggedIn) {
-    return 'Login to Upgrade'
+    return "Login to Upgrade";
   }
 
-  return `Upgrade to ${plan.name}`
-}
+  return `Upgrade to ${plan.name}`;
+};
 
 const handlePlanAction = (plan: any) => {
   if (!auth.isLoggedIn) {
-    auth.displayAuthModal('Login Required', 'Please login or register to upgrade your plan.')
-    return
+    auth.displayAuthModal("Login Required", "Please login or register to upgrade your plan.");
+    return;
   }
 
-  upgradeToPlan(plan)
-}
+  upgradeToPlan(plan);
+};
 
 const upgradeToPlan = async (plan: any) => {
-  console.log(plan)
-  const result = await supabase().functions.invoke('checkout', {
+  console.log(plan);
+  const result = await supabase().functions.invoke("checkout", {
     body: {
-      itemIds: [plan.id]
-    }
-  })
-  console.log('result', result)
+      itemIds: [plan.id],
+    },
+  });
+  console.log("result", result);
   if (result.data && result.data.checkoutURL) {
-    window.open(result.data.checkoutURL)
+    window.open(result.data.checkoutURL);
   } else {
-    console.error('No checkout URL returned', result)
+    console.error("No checkout URL returned", result);
   }
-}
+};
 
 // Fetch plans when component is mounted
 onMounted(() => {
-  fetchPlansFromPolar()
-})
+  fetchPlansFromPolar();
+});
 
 const closeDialog = () => {
-  emit('close')
-}
+  emit("close");
+};
 </script>
 
 <style lang="scss" scoped>
@@ -272,7 +272,7 @@ const closeDialog = () => {
         position: relative;
 
         &::before {
-          content: '•';
+          content: "•";
           position: absolute;
           left: 0;
           color: #6366f1;

@@ -10,8 +10,8 @@ export default async (json, ws) => {
     correlationId: json.correlationId,
     url: json.url,
     body: {
-      engine: 'electron'
-    }
-  }
-  ws.send(JSON.stringify(engineResult))
-}
+      engine: "electron",
+    },
+  };
+  ws.send(JSON.stringify(engineResult));
+};

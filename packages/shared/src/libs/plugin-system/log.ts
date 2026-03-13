@@ -1,28 +1,28 @@
-import { createAction, createActionRunner, createStringParam } from '@pipelab/plugin-core'
+import { createAction, createActionRunner, createStringParam } from "@pipelab/plugin-core";
 
-export const ID = 'log'
+export const ID = "log";
 
 export type Data = {
-  text: string
-}
+  text: string;
+};
 
 export const logAction = createAction({
   id: ID,
-  name: 'Log',
-  description: 'Log a message',
-  icon: '',
+  name: "Log",
+  description: "Log a message",
+  icon: "",
   displayString: '`Log "${fmt.param(params.message)}"`',
   meta: {},
   params: {
-    message: createStringParam('', {
+    message: createStringParam("", {
       required: true,
-      label: 'Message'
-    })
+      label: "Message",
+    }),
   },
 
-  outputs: {}
-})
+  outputs: {},
+});
 
 export const logActionRunner = createActionRunner<typeof logAction>(async ({ log, inputs }) => {
-  log(`${inputs.message ?? ''}`)
-})
+  log(`${inputs.message ?? ""}`);
+});

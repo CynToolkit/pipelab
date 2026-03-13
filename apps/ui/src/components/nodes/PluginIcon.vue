@@ -9,25 +9,25 @@
 </template>
 
 <script lang="ts" setup>
-import { IconType } from '@pipelab/plugin-core'
-import { PropType } from 'vue'
+import { IconType } from "@pipelab/plugin-core";
+import { PropType } from "vue";
 
 defineProps({
   icon: {
     type: Object as PropType<IconType | undefined>,
-    required: true
+    required: true,
   },
   width: {
     type: [String, Number] as PropType<string | number>,
     required: false,
-    default: '40px'
+    default: "40px",
   },
   color: {
     type: String,
     required: false,
-    default: 'black'
-  }
-})
+    default: "black",
+  },
+});
 </script>
 
 <style lang="scss" scoped></style>

@@ -1,20 +1,20 @@
 // @ts-check
 
-import { mkdir, writeFile } from 'node:fs/promises'
-import { dirname } from 'node:path'
+import { mkdir, writeFile } from "node:fs/promises";
+import { dirname } from "node:path";
 
 /**
  * @param {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').MessageWriteFile, 'input'>} json
  * @param {import('ws').WebSocket} ws
  */
 export default async (json, ws) => {
-  const destDirName = dirname(json.body.path)
-  await mkdir(destDirName, { recursive: true })
+  const destDirName = dirname(json.body.path);
+  await mkdir(destDirName, { recursive: true });
 
   await writeFile(json.body.path, json.body.contents, {
     encoding: json.body.encoding,
-    flag: json.body.flag
-  })
+    flag: json.body.flag,
+  });
 
   /**
    * @type {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').MessageWriteFile, 'output'>}
@@ -23,8 +23,8 @@ export default async (json, ws) => {
     correlationId: json.correlationId,
     url: json.url,
     body: {
-      success: true
-    }
-  }
-  ws.send(JSON.stringify(writeFileResult))
-}
+      success: true,
+    },
+  };
+  ws.send(JSON.stringify(writeFileResult));
+};

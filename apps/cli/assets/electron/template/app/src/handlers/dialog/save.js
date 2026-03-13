@@ -1,4 +1,4 @@
-import { dialog } from 'electron'
+import { dialog } from "electron";
 
 /**
  * @param {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').MessageShowSaveDialog, 'input'>} json
@@ -6,8 +6,8 @@ import { dialog } from 'electron'
  */
 export default async (json, ws) => {
   const saveDialogResponse = await dialog.showSaveDialog({
-    properties: []
-  })
+    properties: [],
+  });
 
   /**
    * @type {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').MessageShowSaveDialog, 'output'>}
@@ -17,8 +17,8 @@ export default async (json, ws) => {
     url: json.url,
     body: {
       success: true,
-      path: saveDialogResponse.filePath
-    }
-  }
-  ws.send(JSON.stringify(dialogOpenResult))
-}
+      path: saveDialogResponse.filePath,
+    },
+  };
+  ws.send(JSON.stringify(dialogOpenResult));
+};

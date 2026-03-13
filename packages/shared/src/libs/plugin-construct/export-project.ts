@@ -3,74 +3,74 @@ import {
   createAction,
   createActionRunner,
   createPathParam,
-  fileExists
-} from '@pipelab/plugin-core'
-import { exportc3p, sharedParams } from './export-shared.js'
-import { throttle } from 'es-toolkit'
-import { zipFolder } from '@pipelab/core-node'
+  fileExists,
+} from "@pipelab/plugin-core";
+import { exportc3p, sharedParams } from "./export-shared.js";
+import { throttle } from "es-toolkit";
+import { zipFolder } from "@pipelab/core-node";
 
-export const ID = 'export-construct-project-folder'
+export const ID = "export-construct-project-folder";
 
 export const exportProjectAction = createAction({
   id: ID,
-  name: 'Export folder',
+  name: "Export folder",
   displayString: "`Export project ${params.version ? `r${params.version}` : ''}`",
   meta: {},
   params: {
-    folder: createPathParam('', {
+    folder: createPathParam("", {
       required: true,
-      label: 'Folder',
+      label: "Folder",
       control: {
-        type: 'path',
+        type: "path",
         options: {
-          properties: ['openDirectory']
-        }
-      }
+          properties: ["openDirectory"],
+        },
+      },
     }),
-    ...sharedParams
+    ...sharedParams,
   },
   outputs: {
     folder: {
-      type: 'path',
+      type: "path",
       deprecated: true,
       value: undefined as undefined | string,
-      label: 'Exported zip'
+      label: "Exported zip",
       // schema: schema.string()
     },
     parentFolder: {
-      type: 'path',
+      type: "path",
       deprecated: false,
       value: undefined as undefined | string,
-      label: 'Path to parent folder of exported zip'
+      label: "Path to parent folder of exported zip",
       // schema: schema.string()
     },
     zipFile: {
-      type: 'path',
+      type: "path",
       deprecated: false,
       value: undefined as undefined | string,
-      label: 'Exported zip'
+      label: "Exported zip",
       // schema: schema.string()
-    }
+    },
   },
-  description: 'Export construct project from folder',
-  icon: ''
-})
+  description: "Export construct project from folder",
+  icon: "",
+});
 
 export const ExportProjectActionRunner = createActionRunner<typeof exportProjectAction>(
   async (options) => {
-    const { join } = await import('node:path')
+    const { join } = await import("node:path");
 
-    const c3pFolderExists = await fileExists(options.inputs.folder)
+    const c3pFolderExists = await fileExists(options.inputs.folder);
     if (!c3pFolderExists) {
-      throw new Error('You must specify a valid construct project folder')
+      throw new Error("You must specify a valid construct project folder");
     }
 
-    const outputPath = join(options.cwd, 'c3_tmp_proj.c3p')
+    const outputPath = join(options.cwd, "c3_tmp_proj.c3p");
 
-    const to = await zipFolder(options.inputs.folder, outputPath, options.log)
+    const to = await zipFolder(options.inputs.folder, outputPath, options.log);
 
-    await exportc3p(to, options)
-  }
-)
+    await exportc3p(to, options);
+  },
+);
 
-export type Params = ExtractInputsFromAction<typeof exportProjectAction>
+export type Params = ExtractInputsFromAction<typeof exportProjectAction>;

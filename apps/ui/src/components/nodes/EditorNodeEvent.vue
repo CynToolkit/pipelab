@@ -57,71 +57,71 @@
 </template>
 
 <script setup lang="ts">
-import { useEditor } from '@renderer/store/editor'
-import { BlockEvent, Steps } from '@pipelab/shared/model'
-import { storeToRefs } from 'pinia'
-import { PropType, computed, ref, toRefs } from 'vue'
-import { computedAsync } from '@vueuse/core'
-import { makeResolvedParams } from '@pipelab/shared/evaluator'
-import ParamEditor from './ParamEditor.vue'
-import { Event } from '@pipelab/plugin-core'
-import DOMPurify from 'dompurify'
-import PluginIcon from './PluginIcon.vue'
-import { ValidationError } from '@renderer/models/error'
-import AddNodeButton from '../AddNodeButton.vue'
-import { createQuickJs } from '@pipelab/shared/quickjs'
-import { useLogger } from '@pipelab/shared/logger'
+import { useEditor } from "@renderer/store/editor";
+import { BlockEvent, Steps } from "@pipelab/shared/model";
+import { storeToRefs } from "pinia";
+import { PropType, computed, ref, toRefs } from "vue";
+import { computedAsync } from "@vueuse/core";
+import { makeResolvedParams } from "@pipelab/shared/evaluator";
+import ParamEditor from "./ParamEditor.vue";
+import { Event } from "@pipelab/plugin-core";
+import DOMPurify from "dompurify";
+import PluginIcon from "./PluginIcon.vue";
+import { ValidationError } from "@renderer/models/error";
+import AddNodeButton from "../AddNodeButton.vue";
+import { createQuickJs } from "@pipelab/shared/quickjs";
+import { useLogger } from "@pipelab/shared/logger";
 
 const props = defineProps({
   value: {
     type: Object as PropType<BlockEvent>,
-    required: true
+    required: true,
   },
   path: {
     type: Array as PropType<string[]>,
-    required: true
+    required: true,
     // default: () => []
   },
   steps: {
     type: Object as PropType<Steps>,
-    required: true
+    required: true,
   },
   errors: {
     type: Object as PropType<Record<string, ValidationError[]>>,
     required: false,
-    default: () => ({})
-  }
-})
+    default: () => ({}),
+  },
+});
 
-const { value, steps } = toRefs(props)
+const { value, steps } = toRefs(props);
 
-const { logger } = useLogger()
+const { logger } = useLogger();
 
-const editor = useEditor()
-const { getNodeDefinition, getPluginDefinition, setTriggerValue, addNode, removeTrigger } = editor
-const { activeNode } = storeToRefs(editor)
+const editor = useEditor();
+const { getNodeDefinition, getPluginDefinition, setTriggerValue, addNode, removeTrigger } = editor;
+const { activeNode } = storeToRefs(editor);
 
 const nodeDefinition = computed(() => {
-  const el = getNodeDefinition(value.value.origin.nodeId, value.value.origin.pluginId)
+  const el = getNodeDefinition(value.value.origin.nodeId, value.value.origin.pluginId);
   if (el) {
-    return el.node as Event
+    return el.node as Event;
   }
-  return undefined
-})
+  return undefined;
+});
 
 const pluginDefinition = computed(() => {
-  return getPluginDefinition(value.value.origin.pluginId)
-})
+  return getPluginDefinition(value.value.origin.pluginId);
+});
 
 const onValueChanged = (newValue: unknown, paramKey: string) => {
   setTriggerValue(value.value.uid, {
     ...value.value,
     params: {
       ...value.value.params,
-      [paramKey]: newValue
-    }
-  })
-}
+      [paramKey]: newValue,
+    },
+  });
+};
 
 const resolvedParams = computedAsync(
   async () => {
@@ -130,7 +130,7 @@ const resolvedParams = computedAsync(
         params: value.value.params,
         steps: steps.value,
         context: {},
-        variables: {}
+        variables: {},
       },
       (item) => {
         // console.log('item', item)
@@ -138,38 +138,38 @@ const resolvedParams = computedAsync(
         // console.log('cleanOutput', cleanOutput)
 
         // return `<div class=\"param\">${cleanOutput}</div>`
-        return item
-      }
-    )
+        return item;
+      },
+    );
   },
   {},
   {
     onError: (error) => {
-      logger().error('error', error)
-    }
-  }
-)
+      logger().error("error", error);
+    },
+  },
+);
 
 const subtitle = computedAsync(
   async () => {
-    const displayString = nodeDefinition.value?.displayString ?? ''
-    const vm = await createQuickJs()
+    const displayString = nodeDefinition.value?.displayString ?? "";
+    const vm = await createQuickJs();
     const result = await vm.run(displayString, {
       params: resolvedParams.value,
-      steps: steps.value
-    })
-    const clean = DOMPurify.sanitize(result)
-    return clean
+      steps: steps.value,
+    });
+    const clean = DOMPurify.sanitize(result);
+    return clean;
   },
-  'Loading...',
+  "Loading...",
   {
     onError: (error) => {
-      logger().error('error', error)
-    }
-  }
-)
+      logger().error("error", error);
+    },
+  },
+);
 
-const showSidebar = ref(false)
+const showSidebar = ref(false);
 </script>
 
 <style scoped>

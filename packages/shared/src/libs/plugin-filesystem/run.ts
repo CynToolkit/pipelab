@@ -3,94 +3,94 @@ import {
   createActionRunner,
   createPathParam,
   createStringParam,
-  runWithLiveLogs
-} from '@pipelab/plugin-core'
+  runWithLiveLogs,
+} from "@pipelab/plugin-core";
 
-export const ID = 'fs:run'
+export const ID = "fs:run";
 
 export const run = createAction({
   id: ID,
-  name: 'Invoke file',
+  name: "Invoke file",
   displayString:
     "`Invoke ${fmt.param(params.command, 'primary')} ${(params.parameters ?? []).map(x => fmt.param(x)).join(' ')}`",
   // displayString: displayString,
   params: {
-    command: createStringParam('', {
+    command: createStringParam("", {
       required: true,
-      description: 'The command to run',
-      label: 'Command'
+      description: "The command to run",
+      label: "Command",
     }),
     parameters: {
       required: true,
       description: "The command's parameters",
-      label: 'Arguments',
+      label: "Arguments",
       value: [],
       control: {
-        type: 'array',
+        type: "array",
         options: {
-          kind: 'text'
-        }
-      }
+          kind: "text",
+        },
+      },
     },
-    workingDirectory: createPathParam('', {
+    workingDirectory: createPathParam("", {
       required: false,
-      description: 'The directory to run the command in. Default to current task directory',
-      label: 'Working directory',
+      description: "The directory to run the command in. Default to current task directory",
+      label: "Working directory",
       control: {
-        type: 'path',
+        type: "path",
         options: {
-          properties: ['createDirectory', 'openDirectory']
-        }
-      }
+          properties: ["createDirectory", "openDirectory"],
+        },
+      },
     }),
     stopOnError: {
       required: false,
-      description: 'Stop the task if the command fails',
-      label: 'Stop on error',
+      description: "Stop the task if the command fails",
+      label: "Stop on error",
       value: false,
       control: {
-        type: 'boolean'
-      }
-    }
+        type: "boolean",
+      },
+    },
   },
 
   outputs: {
     stdout: {
-      label: 'Standard output',
-      description: 'Standard output of the command',
-      value: ''
+      label: "Standard output",
+      description: "Standard output of the command",
+      value: "",
     },
     stderr: {
-      label: 'Error output',
-      value: ''
+      label: "Error output",
+      value: "",
     },
     exitCode: {
-      label: 'Exit code',
-      value: 0
+      label: "Exit code",
+      value: 0,
     },
     duration: {
-      label: 'Duration',
-      value: 0
-    }
+      label: "Duration",
+      value: 0,
+    },
   },
-  description: 'Invoke an arbitrary executable',
-  icon: '',
-  meta: {}
-})
+  description: "Invoke an arbitrary executable",
+  icon: "",
+  meta: {},
+});
 
 export const runRunner = createActionRunner<typeof run>(
   async ({ log, inputs, setOutput, abortSignal }) => {
-    const str = `${inputs.command} ${inputs.parameters.join(' ')}`
+    const str = `${inputs.command} ${inputs.parameters.join(" ")}`;
 
-    log(`Running ${str}`)
+    log(`Running ${str}`);
 
-    let stdout: string = ''
-    let stderr: string = ''
-    let exitCode: number = 0
-    const durationMs: number = 0
+    let stdout: string = "";
+    let stderr: string = "";
+    let exitCode: number = 0;
+    const durationMs: number = 0;
 
-    const wd = inputs.workingDirectory ?? process.cwd()
-    log(`Working directory: ${wd}`)
+    const wd = inputs.workingDirectory ?? process.cwd();
+    log(`Working directory: ${wd}`);
 
     try {
       await runWithLiveLogs(
@@ -98,41 +98,41 @@ export const runRunner = createActionRunner<typeof run>(
         inputs.parameters,
         {
           cwd: wd,
-          cancelSignal: abortSignal
+          cancelSignal: abortSignal,
         },
         log,
         {
           onStdout: (data) => {
-            stdout += data.toString()
-            log(data.toString())
+            stdout += data.toString();
+            log(data.toString());
           },
           onStderr: (data) => {
-            stderr += data.toString()
-            log(data.toString())
+            stderr += data.toString();
+            log(data.toString());
           },
           onExit(code) {
-            exitCode = code
-          }
-        }
-      )
+            exitCode = code;
+          },
+        },
+      );
 
-      setOutput('exitCode', exitCode === undefined ? -1 : exitCode)
-      setOutput('stdout', stdout)
-      setOutput('stderr', stderr)
-      setOutput('duration', durationMs)
+      setOutput("exitCode", exitCode === undefined ? -1 : exitCode);
+      setOutput("stdout", stdout);
+      setOutput("stderr", stderr);
+      setOutput("duration", durationMs);
       if ((exitCode > 0 || exitCode === undefined) && inputs.stopOnError === true) {
-        throw new Error(`Command failed with exit code ${exitCode}`)
+        throw new Error(`Command failed with exit code ${exitCode}`);
       }
     } catch (error) {
-      console.log('error', error)
+      console.log("error", error);
       if (inputs.stopOnError === true) {
-        throw error
+        throw error;
       } else if (error /*  instanceof ExecaError */) {
-        setOutput('exitCode', error.exitCode === undefined ? -1 : error.exitCode)
-        setOutput('stdout', error.stdout ?? '')
-        setOutput('stderr', error.stderr ?? '')
-        setOutput('duration', error.durationMs ?? 0)
+        setOutput("exitCode", error.exitCode === undefined ? -1 : error.exitCode);
+        setOutput("stdout", error.stdout ?? "");
+        setOutput("stderr", error.stderr ?? "");
+        setOutput("duration", error.durationMs ?? 0);
       }
     }
-  }
-)
+  },
+);

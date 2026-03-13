@@ -1,4 +1,4 @@
-import { handleSteamRequest } from './utils.js'
+import { handleSteamRequest } from "./utils.js";
 
 // * @param {Omit<import('@pipelab/steamworks.js').Client, "init" | "runCallbacks">} client
 /**
@@ -8,21 +8,21 @@ import { handleSteamRequest } from './utils.js'
  */
 export default async (json, ws, client) => {
   await handleSteamRequest(client, json, ws, async (client, json) => {
-    const { body } = json
-    const { name, type, start, end } = body
+    const { body } = json;
+    const { name, type, start, end } = body;
 
-    const leaderboard = await client.leaderboards.findLeaderboard(name)
+    const leaderboard = await client.leaderboards.findLeaderboard(name);
     /** @type {Awaited<ReturnType<leaderboards['downloadScores']>>} */
-    const result = await client.leaderboards.downloadScores(leaderboard, type, start, end)
+    const result = await client.leaderboards.downloadScores(leaderboard, type, start, end);
 
     // Enhance each result with the Steam friend name
     const enhancedResult = await Promise.all(
       result.map(async (entry) => ({
         ...entry,
-        name: await client.friends.getFriendName(entry.steamId)
-      }))
-    )
+        name: await client.friends.getFriendName(entry.steamId),
+      })),
+    );
 
-    return enhancedResult
-  })
-}
+    return enhancedResult;
+  });
+};

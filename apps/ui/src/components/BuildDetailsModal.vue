@@ -206,82 +206,82 @@
 </template>
 
 <script setup lang="ts">
-import type { BuildHistoryEntry } from '@pipelab/shared/build-history'
-import BuildStatusBadge from './BuildStatusBadge.vue'
+import type { BuildHistoryEntry } from "@pipelab/shared/build-history";
+import BuildStatusBadge from "./BuildStatusBadge.vue";
 
 interface Props {
-  entry: BuildHistoryEntry | null
-  visible: boolean
-  canDelete?: boolean
-  canRetry?: boolean
+  entry: BuildHistoryEntry | null;
+  visible: boolean;
+  canDelete?: boolean;
+  canRetry?: boolean;
 }
 
 interface Emits {
-  (e: 'hide'): void
-  (e: 'retry', entry: BuildHistoryEntry): void
-  (e: 'delete', entry: BuildHistoryEntry): void
+  (e: "hide"): void;
+  (e: "retry", entry: BuildHistoryEntry): void;
+  (e: "delete", entry: BuildHistoryEntry): void;
 }
 
 const props = withDefaults(defineProps<Props>(), {
   canDelete: false,
-  canRetry: false
-})
+  canRetry: false,
+});
 
-const emit = defineEmits<Emits>()
+const emit = defineEmits<Emits>();
 
 // Methods
 const formatDateTime = (timestamp: number): string => {
-  return new Date(timestamp).toLocaleString()
-}
+  return new Date(timestamp).toLocaleString();
+};
 
 const formatTime = (timestamp: number): string => {
-  return new Date(timestamp).toLocaleTimeString()
-}
+  return new Date(timestamp).toLocaleTimeString();
+};
 
 const formatDuration = (duration: number): string => {
-  const seconds = Math.floor(duration / 1000)
-  const minutes = Math.floor(seconds / 60)
-  const hours = Math.floor(minutes / 60)
+  const seconds = Math.floor(duration / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
 
   if (hours > 0) {
-    return `${hours}h ${minutes % 60}m`
+    return `${hours}h ${minutes % 60}m`;
   } else if (minutes > 0) {
-    return `${minutes}m ${seconds % 60}s`
+    return `${minutes}m ${seconds % 60}s`;
   } else {
-    return `${seconds}s`
+    return `${seconds}s`;
   }
-}
+};
 
 const getStepIcon = (status: string): string => {
   const icons = {
-    pending: 'pi pi-clock',
-    running: 'pi pi-spin pi-spinner',
-    completed: 'pi pi-check',
-    failed: 'pi pi-times',
-    cancelled: 'pi pi-stop'
-  }
-  return icons[status as keyof typeof icons] || 'pi pi-circle'
-}
+    pending: "pi pi-clock",
+    running: "pi pi-spin pi-spinner",
+    completed: "pi pi-check",
+    failed: "pi pi-times",
+    cancelled: "pi pi-stop",
+  };
+  return icons[status as keyof typeof icons] || "pi pi-circle";
+};
 
 const closeModal = () => {
-  emit('hide')
-}
+  emit("hide");
+};
 
 const onHide = () => {
-  emit('hide')
-}
+  emit("hide");
+};
 
 const retryBuild = () => {
   if (props.entry) {
-    emit('retry', props.entry)
+    emit("retry", props.entry);
   }
-}
+};
 
 const deleteEntry = () => {
   if (props.entry) {
-    emit('delete', props.entry)
+    emit("delete", props.entry);
   }
-}
+};
 </script>
 
 <style scoped>

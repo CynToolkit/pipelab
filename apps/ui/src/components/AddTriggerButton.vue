@@ -49,10 +49,10 @@
                 >
                   <a
                     class="element flex align-items-center p-3 border-round w-full transition-colors transition-duration-150 cursor-pointer"
-                    style="border-radius: '10px'"
+                    style="border-radius: &quot;10px&quot;"
                     :class="{
                       selected:
-                        selected?.triggerId === trigger.node.id && selected.pluginId === plugin.id
+                        selected?.triggerId === trigger.node.id && selected.pluginId === plugin.id,
                     }"
                   >
                     <i class="pi pi-home text-xl mr-3"></i>
@@ -90,134 +90,134 @@
 </template>
 
 <script lang="ts" setup>
-import { useEditor } from '@renderer/store/editor'
-import { PropType, computed, ref, toRefs, watchEffect } from 'vue'
+import { useEditor } from "@renderer/store/editor";
+import { PropType, computed, ref, toRefs, watchEffect } from "vue";
 
-import { storeToRefs } from 'pinia'
-import Button from 'primevue/button'
-import InputText from 'primevue/inputtext'
-import { useAppStore } from '@renderer/store/app'
-import { PipelabNode, Event } from '@pipelab/plugin-core'
-import { useLogger } from '@pipelab/shared/logger'
+import { storeToRefs } from "pinia";
+import Button from "primevue/button";
+import InputText from "primevue/inputtext";
+import { useAppStore } from "@renderer/store/app";
+import { PipelabNode, Event } from "@pipelab/plugin-core";
+import { useLogger } from "@pipelab/shared/logger";
 
-type ButtonProps = InstanceType<typeof Button>['$props']
+type ButtonProps = InstanceType<typeof Button>["$props"];
 
 const props = defineProps({
   buttonProps: {
     type: Object as PropType<ButtonProps>,
     required: false,
-    default: () => ({})
+    default: () => ({}),
   },
   path: {
     type: Array as PropType<string[]>,
-    required: true
-  }
-})
+    required: true,
+  },
+});
 
-const { path } = toRefs(props)
+const { path } = toRefs(props);
 
-const instance = useEditor()
-const appStore = useAppStore()
+const instance = useEditor();
+const appStore = useAppStore();
 
-const { pluginDefinitions } = storeToRefs(appStore)
-const $searchInput = ref<InstanceType<typeof InputText>>()
+const { pluginDefinitions } = storeToRefs(appStore);
+const $searchInput = ref<InstanceType<typeof InputText>>();
 
-const visible = ref(false)
-const search = ref('')
+const visible = ref(false);
+const search = ref("");
 
-const { logger } = useLogger()
+const { logger } = useLogger();
 
 watchEffect(() => {
   if (visible.value === true) {
-    const el = $searchInput.value?.$el as HTMLInputElement
+    const el = $searchInput.value?.$el as HTMLInputElement;
 
     if (el) {
-      el.focus()
+      el.focus();
     }
   }
-})
+});
 
-const selected = ref<{ triggerId: string; pluginId: string }>()
+const selected = ref<{ triggerId: string; pluginId: string }>();
 
 const addNode = () => {
-  visible.value = true
-}
+  visible.value = true;
+};
 
-const editor = useEditor()
-const { getNodeDefinition, getPluginDefinition } = editor
+const editor = useEditor();
+const { getNodeDefinition, getPluginDefinition } = editor;
 
 const onAdd = () => {
-  const selection = selected.value
+  const selection = selected.value;
 
   if (!selection) {
-    logger().error('cannot find selection')
-    return
+    logger().error("cannot find selection");
+    return;
   }
 
-  const def = getPluginDefinition(selection.pluginId)
+  const def = getPluginDefinition(selection.pluginId);
 
   if (!def) {
-    logger().error('cannot find definition')
-    return
+    logger().error("cannot find definition");
+    return;
   }
 
-  const trigger = getNodeDefinition(selection.triggerId, selection.pluginId)
+  const trigger = getNodeDefinition(selection.triggerId, selection.pluginId);
 
   if (!trigger) {
-    logger().error('cannot find trigger')
-    return
+    logger().error("cannot find trigger");
+    return;
   }
 
-  const insertAt = Number.parseInt(path.value.pop() ?? '0') + 1
+  const insertAt = Number.parseInt(path.value.pop() ?? "0") + 1;
 
   instance.addTrigger({
     trigger: trigger.node as Event,
     plugin: def,
     path: path.value,
-    insertAt
-  })
+    insertAt,
+  });
 
-  visible.value = false
-}
+  visible.value = false;
+};
 
 const isNodePicked = (trigger: PipelabNode, searchedValue: string) => {
-  const description = trigger.description.toLowerCase()
-  const name = trigger.name.toLowerCase()
+  const description = trigger.description.toLowerCase();
+  const name = trigger.name.toLowerCase();
 
-  if (trigger.type !== 'event') {
-    return false
+  if (trigger.type !== "event") {
+    return false;
   }
 
   if (description.includes(searchedValue) || name.includes(searchedValue)) {
-    return true
+    return true;
   }
-  return false
-}
+  return false;
+};
 
 // TODO: refactor
 const searchedElements = computed(() => {
-  logger().info('pluginDefinitions', pluginDefinitions.value)
-  const searchedValue = search.value.toLowerCase()
+  logger().info("pluginDefinitions", pluginDefinitions.value);
+  const searchedValue = search.value.toLowerCase();
 
   return pluginDefinitions.value
     .filter((def) => {
-      const description = def.description.toLowerCase()
-      const name = def.name.toLowerCase()
+      const description = def.description.toLowerCase();
+      const name = def.name.toLowerCase();
 
-      const someNodeMatch = def.nodes.some((trigger) => isNodePicked(trigger.node, searchedValue))
+      const someNodeMatch = def.nodes.some((trigger) => isNodePicked(trigger.node, searchedValue));
 
       if (description.includes(searchedValue) || name.includes(searchedValue) || someNodeMatch) {
-        return true
+        return true;
       }
-      return false
+      return false;
     })
     .map((def) => {
       return {
         ...def,
-        triggers: def.nodes.filter((trigger) => isNodePicked(trigger.node, searchedValue))
-      }
-    })
-})
+        triggers: def.nodes.filter((trigger) => isNodePicked(trigger.node, searchedValue)),
+      };
+    });
+});
 </script>
 
 <style lang="scss" scoped>

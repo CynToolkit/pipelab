@@ -1,147 +1,147 @@
-import { Channels, Data, End } from '@pipelab/shared/apis'
-import { useLogger } from '@pipelab/shared/logger'
-import { getWebSocketClient, WebSocketClient } from './websocket-client'
-import { ref } from 'vue'
+import { Channels, Data, End } from "@pipelab/shared/apis";
+import { useLogger } from "@pipelab/shared/logger";
+import { getWebSocketClient, WebSocketClient } from "./websocket-client";
+import { ref } from "vue";
 import {
   WebSocketManager,
   WebSocketConnectionState,
   WebSocketClientConfig,
   WebSocketError,
-  WebSocketConnectionError
-} from '@pipelab/shared/websocket.types'
+  WebSocketConnectionError,
+} from "@pipelab/shared/websocket.types";
 
 class WebSocketManagerImpl implements WebSocketManager {
-  private client: WebSocketClient | null = null
-  private stateChangeListeners: Set<(state: WebSocketConnectionState) => void> = new Set()
-  private isInitialized = false
-  public connectionState = ref<WebSocketConnectionState>('disconnected')
+  private client: WebSocketClient | null = null;
+  private stateChangeListeners: Set<(state: WebSocketConnectionState) => void> = new Set();
+  private isInitialized = false;
+  public connectionState = ref<WebSocketConnectionState>("disconnected");
 
   async initialize(config?: WebSocketClientConfig): Promise<void> {
     if (this.isInitialized) {
-      return
+      return;
     }
 
-    const { logger } = useLogger()
+    const { logger } = useLogger();
 
     try {
-      this.client = getWebSocketClient()
-      this.connectionState.value = this.client.getConnectionState()
+      this.client = getWebSocketClient();
+      this.connectionState.value = this.client.getConnectionState();
 
       // Set up state change listener
       this.client.onStateChange((state) => {
-        this.connectionState.value = state
+        this.connectionState.value = state;
         this.stateChangeListeners.forEach((listener) => {
           try {
-            listener(state)
+            listener(state);
           } catch (error) {
-            logger().error('Error in WebSocket state change listener:', error)
+            logger().error("Error in WebSocket state change listener:", error);
           }
-        })
-      })
+        });
+      });
 
-      this.isInitialized = true
-      logger().info('WebSocket manager initialized')
+      this.isInitialized = true;
+      logger().info("WebSocket manager initialized");
     } catch (error) {
-      logger().error('Failed to initialize WebSocket manager:', error)
+      logger().error("Failed to initialize WebSocket manager:", error);
       throw new WebSocketConnectionError(
-        `Initialization failed: ${error instanceof Error ? error.message : 'Unknown error'}`
-      )
+        `Initialization failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
     }
   }
 
   async connect(url?: string): Promise<void> {
     if (!this.client) {
-      await this.initialize()
+      await this.initialize();
     }
 
     if (!this.client) {
-      throw new WebSocketConnectionError('WebSocket client not available')
+      throw new WebSocketConnectionError("WebSocket client not available");
     }
 
-    const { logger } = useLogger()
+    const { logger } = useLogger();
 
     try {
       if (url && this.client.isConnected()) {
-        this.client.disconnect()
+        this.client.disconnect();
       }
 
       if (url) {
-        this.client.reconnect(url)
+        this.client.reconnect(url);
       } else {
-        this.client.reconnect()
+        this.client.reconnect();
       }
 
-      logger().info('WebSocket connection initiated', { url })
+      logger().info("WebSocket connection initiated", { url });
     } catch (error) {
-      logger().error('Failed to connect WebSocket:', error)
-      throw error
+      logger().error("Failed to connect WebSocket:", error);
+      throw error;
     }
   }
 
   disconnect(): void {
     if (this.client) {
-      this.client.disconnect()
+      this.client.disconnect();
     }
   }
 
   send<KEY extends Channels>(channel: KEY, data?: Data<KEY>): Promise<End<KEY>> {
     if (!this.client) {
-      throw new WebSocketConnectionError('WebSocket client not initialized')
+      throw new WebSocketConnectionError("WebSocket client not initialized");
     }
 
     if (!this.client.isConnected()) {
-      throw new WebSocketConnectionError('WebSocket is not connected')
+      throw new WebSocketConnectionError("WebSocket is not connected");
     }
 
-    return this.client.send(channel, data)
+    return this.client.send(channel, data);
   }
 
   isConnected(): boolean {
-    return this.client?.isConnected() ?? false
+    return this.client?.isConnected() ?? false;
   }
 
   getConnectionState(): WebSocketConnectionState {
-    return this.client?.getConnectionState() ?? 'disconnected'
+    return this.client?.getConnectionState() ?? "disconnected";
   }
 
   onStateChange(callback: (state: WebSocketConnectionState) => void): () => void {
-    this.stateChangeListeners.add(callback)
+    this.stateChangeListeners.add(callback);
     return () => {
-      this.stateChangeListeners.delete(callback)
-    }
+      this.stateChangeListeners.delete(callback);
+    };
   }
 
   getClient(): WebSocketClient | null {
-    return this.client
+    return this.client;
   }
 
   async ensureConnection(url?: string): Promise<void> {
-    const { logger } = useLogger()
+    const { logger } = useLogger();
 
-    logger().debug('Ensuring WebSocket connection...', {
+    logger().debug("Ensuring WebSocket connection...", {
       hasClient: !!this.client,
       isConnected: this.client?.isConnected() ?? false,
-      targetUrl: url
-    })
+      targetUrl: url,
+    });
 
     if (!this.client) {
-      logger().debug('Initializing WebSocket client...')
-      await this.initialize()
+      logger().debug("Initializing WebSocket client...");
+      await this.initialize();
     }
 
     if (!this.client) {
-      throw new WebSocketConnectionError('WebSocket client not available')
+      throw new WebSocketConnectionError("WebSocket client not available");
     }
 
     if (!this.client.isConnected()) {
-      logger().debug('Connecting WebSocket client...')
-      await this.connect(url)
-      logger().info('WebSocket connection established successfully')
+      logger().debug("Connecting WebSocket client...");
+      await this.connect(url);
+      logger().info("WebSocket connection established successfully");
     } else {
-      logger().debug('WebSocket already connected')
+      logger().debug("WebSocket already connected");
     }
   }
 }
 
 // Export singleton instance
-export const websocketManager = new WebSocketManagerImpl()
+export const websocketManager = new WebSocketManagerImpl();

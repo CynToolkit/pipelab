@@ -9,14 +9,14 @@
 /** @type {DesktopApp.Electron} */
 const config = {
   alwaysOnTop: false,
-  appBundleId: 'com.pipelab.app',
-  appCategoryType: '',
-  appCopyright: 'Copyright © 2024 Pipelab',
-  appVersion: '1.0.0',
-  author: 'Pipelab',
-  customMainCode: '',
-  description: 'A simple Electron application',
-  electronVersion: '',
+  appBundleId: "com.pipelab.app",
+  appCategoryType: "",
+  appCopyright: "Copyright © 2024 Pipelab",
+  appVersion: "1.0.0",
+  author: "Pipelab",
+  customMainCode: "",
+  description: "A simple Electron application",
+  electronVersion: "",
   disableAsarPackaging: true,
   forceHighPerformanceGpu: false,
   enableExtraLogging: false,
@@ -26,20 +26,20 @@ const config = {
   openDevtoolsOnStart: false,
   frame: true,
   fullscreen: false,
-  icon: '',
+  icon: "",
   height: 600,
-  name: 'Pipelab',
+  name: "Pipelab",
   toolbar: true,
   transparent: false,
   width: 800,
   enableSteamSupport: false,
   steamGameId: 480,
   enableDiscordSupport: false,
-  discordAppId: '',
+  discordAppId: "",
   enableDoctor: false,
   ignore: [],
-  serverMode: 'default',
-  backgroundColor: '#FFF'
-}
+  serverMode: "default",
+  backgroundColor: "#FFF",
+};
 
-module.exports = config
+module.exports = config;

@@ -1,58 +1,58 @@
-import { createAction, createActionRunner, createPathParam } from '@pipelab/plugin-core'
+import { createAction, createActionRunner, createPathParam } from "@pipelab/plugin-core";
 
-export const ID = 'fs:remove'
+export const ID = "fs:remove";
 
 export const remove = createAction({
   id: ID,
-  name: 'Remove file/folder',
+  name: "Remove file/folder",
   displayString: '`Remove ${fmt.param(params.from, "primary")}`',
   params: {
-    from: createPathParam('', {
-      label: 'Path',
+    from: createPathParam("", {
+      label: "Path",
       required: true,
       control: {
-        type: 'path',
+        type: "path",
         options: {
-          properties: ['openFile']
-        }
-      }
+          properties: ["openFile"],
+        },
+      },
     }),
     recursive: {
-      label: 'Recursive',
+      label: "Recursive",
       required: true,
       value: true,
       control: {
-        type: 'boolean'
-      }
-    }
+        type: "boolean",
+      },
+    },
   },
 
   outputs: {},
-  description: 'Remove a file or a folder',
-  icon: '',
-  meta: {}
-})
+  description: "Remove a file or a folder",
+  icon: "",
+  meta: {},
+});
 
 export const removeRunner = createActionRunner<typeof remove>(async ({ log, inputs }) => {
-  const { rm } = await import('node:fs/promises')
-  log('')
+  const { rm } = await import("node:fs/promises");
+  log("");
 
-  const from = inputs.from
+  const from = inputs.from;
 
-  log('Removing', from, inputs.recursive)
+  log("Removing", from, inputs.recursive);
 
   if (!from) {
-    log('From', from)
-    throw new Error('Missing source')
+    log("From", from);
+    throw new Error("Missing source");
   }
 
   try {
-    process.noAsar = true
-    await rm(from, { recursive: true, force: true, maxRetries: 3 })
-    process.noAsar = false
-    log('Removed', from)
+    process.noAsar = true;
+    await rm(from, { recursive: true, force: true, maxRetries: 3 });
+    process.noAsar = false;
+    log("Removed", from);
   } catch (e) {
-    log('Error removeing file', e)
-    throw e
+    log("Error removeing file", e);
+    throw e;
   }
-})
+});

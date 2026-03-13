@@ -9,7 +9,7 @@
           :toggle-mask="true"
           :feedback="false"
           :class="{
-            'w-full': true
+            'w-full': true,
           }"
           input-class="w-full"
           @update:model-value="onParamInputTextChange"
@@ -49,7 +49,7 @@
     </div>
     <div v-else-if="paramDefinition.control.type === 'path'" class="path">
       <Button class="w-full" @click="onChangePathClick(paramDefinition.control.options)">
-        {{ modelValue ? modelValue : (paramDefinition.control.label ?? 'Browse path') }}
+        {{ modelValue ? modelValue : (paramDefinition.control.label ?? "Browse path") }}
       </Button>
     </div>
     <div
@@ -125,172 +125,172 @@
 </template>
 
 <script lang="ts" setup>
-import { Action, Condition, Event } from '@pipelab/plugin-core'
-import type { ValueOf } from 'type-fest'
-import { computed, PropType, toRefs, ref, onMounted } from 'vue'
-import { useAPI } from '@renderer/composables/api'
-import { useLogger } from '@pipelab/shared/logger'
-import type { OpenDialogOptions } from 'electron'
-import { SelectButtonChangeEvent } from 'primevue/selectbutton'
-import { ListboxChangeEvent } from 'primevue/listbox'
-import { InputNumberInputEvent } from 'primevue/inputnumber'
-import { BlockAction, BlockCondition, BlockEvent, BlockLoop } from '@pipelab/shared/model'
-import { useEditor } from '@renderer/store/editor'
-import { storeToRefs } from 'pinia'
-import ColorPicker from '../ColorPicker.vue'
+import { Action, Condition, Event } from "@pipelab/plugin-core";
+import type { ValueOf } from "type-fest";
+import { computed, PropType, toRefs, ref, onMounted } from "vue";
+import { useAPI } from "@renderer/composables/api";
+import { useLogger } from "@pipelab/shared/logger";
+import type { OpenDialogOptions } from "electron";
+import { SelectButtonChangeEvent } from "primevue/selectbutton";
+import { ListboxChangeEvent } from "primevue/listbox";
+import { InputNumberInputEvent } from "primevue/inputnumber";
+import { BlockAction, BlockCondition, BlockEvent, BlockLoop } from "@pipelab/shared/model";
+import { useEditor } from "@renderer/store/editor";
+import { storeToRefs } from "pinia";
+import ColorPicker from "../ColorPicker.vue";
 
-type Params = (Action | Condition | Event)['params']
+type Params = (Action | Condition | Event)["params"];
 
 const props = defineProps<{
-  paramDefinition: ValueOf<Params>
-  modelValue?: unknown
-  value: BlockAction | BlockEvent | BlockCondition | BlockLoop
-}>()
+  paramDefinition: ValueOf<Params>;
+  modelValue?: unknown;
+  value: BlockAction | BlockEvent | BlockCondition | BlockLoop;
+}>();
 
-const { modelValue } = toRefs(props)
+const { modelValue } = toRefs(props);
 
 const emit = defineEmits<{
-  (event: 'update:modelValue', data: any): void
-  (event: 'switch'): void
-}>()
+  (event: "update:modelValue", data: any): void;
+  (event: "switch"): void;
+}>();
 
-const api = useAPI()
+const api = useAPI();
 
-const { logger } = useLogger()
-const editor = useEditor()
-const { resolvedParams } = storeToRefs(editor)
+const { logger } = useLogger();
+const editor = useEditor();
+const { resolvedParams } = storeToRefs(editor);
 
 const currentNodeParams = computed(() => {
-  return resolvedParams.value[props.value.uid]
-})
+  return resolvedParams.value[props.value.uid];
+});
 
 /** Netlify */
-const netlifySelectLoading = ref(false)
+const netlifySelectLoading = ref(false);
 const search = async (event: { query: string }) => {
-  netlifySelectLoading.value = true
+  netlifySelectLoading.value = true;
   try {
-    const control = props.paramDefinition.control
-    if (control.type === 'netlify-site') {
+    const control = props.paramDefinition.control;
+    if (control.type === "netlify-site") {
       const response = await fetch(`https://api.netlify.com/api/v1/sites`, {
         headers: {
-          Authorization: `Bearer ${currentNodeParams.value[control.options.tokenKey]}`
-        }
-      })
-      const data = await response.json()
+          Authorization: `Bearer ${currentNodeParams.value[control.options.tokenKey]}`,
+        },
+      });
+      const data = await response.json();
 
-      console.log('data', data)
+      console.log("data", data);
 
-      items.value = data
+      items.value = data;
     }
   } catch (error) {
-    console.error(error)
+    console.error(error);
   } finally {
-    netlifySelectLoading.value = false
+    netlifySelectLoading.value = false;
   }
-}
-const items = ref()
+};
+const items = ref();
 
 const onChangePathClick = async (options: OpenDialogOptions) => {
   const pathsResponse = await api.execute(
-    'dialog:showOpenDialog',
+    "dialog:showOpenDialog",
     options,
     async (context, message) => {
-      const { type, data } = message
-      if (type === 'end') {
-        logger().info('end', data)
+      const { type, data } = message;
+      if (type === "end") {
+        logger().info("end", data);
       }
-    }
-  )
+    },
+  );
 
-  if (pathsResponse.type === 'error') {
-    throw new Error(pathsResponse.ipcError)
+  if (pathsResponse.type === "error") {
+    throw new Error(pathsResponse.ipcError);
   }
 
-  const paths = pathsResponse.result
+  const paths = pathsResponse.result;
 
-  logger().info('paths', paths)
+  logger().info("paths", paths);
 
   if (paths.canceled || paths.filePaths.length === 0) {
-    return
+    return;
   }
 
-  const p = paths.filePaths[0]
+  const p = paths.filePaths[0];
 
-  emit('update:modelValue', `"${p}"`)
-}
+  emit("update:modelValue", `"${p}"`);
+};
 
 const onParamNetlifySiteChange = (event: string) => {
-  console.log('event', event)
-  emit('update:modelValue', `"${event}"`)
-}
+  console.log("event", event);
+  emit("update:modelValue", `"${event}"`);
+};
 
 const onParamSelectChange = (event: ListboxChangeEvent) => {
-  console.log('event', event)
-  emit('update:modelValue', `"${event.value}"`)
-}
+  console.log("event", event);
+  emit("update:modelValue", `"${event.value}"`);
+};
 
 const onParamInputTextChange = (event: string) => {
-  emit('update:modelValue', `"${event}"`)
-}
+  emit("update:modelValue", `"${event}"`);
+};
 
 // const onParamInputNumberChange = (event: number) => {
 //   console.log('event', event)
 //   emit('update:modelValue', event)
 // }
 const onParamInputNumberChange = (event: InputNumberInputEvent) => {
-  console.log('event', event)
-  emit('update:modelValue', event.value)
-}
+  console.log("event", event);
+  emit("update:modelValue", event.value);
+};
 
 const onParamMultiSelectChange = (
-  event: Omit<ListboxChangeEvent, 'value'> & { value: { label: string; value: string }[] }
+  event: Omit<ListboxChangeEvent, "value"> & { value: { label: string; value: string }[] },
 ) => {
-  const data = event.value.map((v) => v.value)
+  const data = event.value.map((v) => v.value);
 
-  emit('update:modelValue', `${JSON.stringify(data)}`)
-}
+  emit("update:modelValue", `${JSON.stringify(data)}`);
+};
 
 const onSelectChange = (event: SelectButtonChangeEvent) => {
-  emit('update:modelValue', event.value)
-}
+  emit("update:modelValue", event.value);
+};
 
 const onParamColorChange = (value: string) => {
-  emit('update:modelValue', `"${value}"`)
-}
+  emit("update:modelValue", `"${value}"`);
+};
 
 const booleanOptions = [
-  { text: 'True', value: true },
-  { text: 'False', value: false }
-]
+  { text: "True", value: true },
+  { text: "False", value: false },
+];
 
 const modelValueString = computed(() => {
   if (modelValue.value === undefined) {
-    return ''
+    return "";
   }
-  return modelValue.value.toString()
-})
+  return modelValue.value.toString();
+});
 
 const modelValueNumber = computed<number | undefined>(() => {
-  return Number.parseInt(modelValueString.value)
-})
+  return Number.parseInt(modelValueString.value);
+});
 
 const modelValueColor = computed(() => {
-  const str = modelValueString.value
+  const str = modelValueString.value;
   if (str.startsWith('"') && str.endsWith('"')) {
-    return str.slice(1, -1)
+    return str.slice(1, -1);
   }
-  return str
-})
+  return str;
+});
 
 const onSwitch = () => {
-  emit('switch')
-}
+  emit("switch");
+};
 
 onMounted(() => {
-  if (props.paramDefinition.control.type === 'netlify-site') {
-    search({ query: '' })
+  if (props.paramDefinition.control.type === "netlify-site") {
+    search({ query: "" });
   }
-})
+});
 </script>
 
 <style lang="scss" scoped></style>

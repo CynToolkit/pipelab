@@ -1,20 +1,20 @@
-import { createEvent, createEventRunner } from '@pipelab/plugin-core'
+import { createEvent, createEventRunner } from "@pipelab/plugin-core";
 
-export const ID = 'manual'
+export const ID = "manual";
 
-export type Data = {}
+export type Data = {};
 
 export const manualEvent = createEvent({
   id: ID,
-  name: 'Manual',
-  description: 'Start a pipeline manually',
+  name: "Manual",
+  description: "Start a pipeline manually",
   displayString: "'Start the pipeline manually'",
-  icon: '',
+  icon: "",
   meta: {},
   params: {},
-  outputs: {}
-})
+  outputs: {},
+});
 
 export const manualEvaluator = createEventRunner<typeof manualEvent>(async () => {
-  return
-})
+  return;
+});

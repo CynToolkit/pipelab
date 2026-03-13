@@ -74,54 +74,54 @@ getNodeDefinition: {{ getNodeDefinition(value.origin.nodeId, value.origin.plugin
 </template>
 
 <script setup lang="ts">
-import { useEditor } from '@renderer/store/editor'
-import { PropType, computed, ref, toRefs } from 'vue'
-import NodesEditor from '@renderer/pages/nodes-editor.vue'
-import { BlockLoop } from '@pipelab/shared/model'
-import { storeToRefs } from 'pinia'
-import { computedAsync } from '@vueuse/core'
-import AddNodeButton from '@renderer/components/AddNodeButton.vue'
-import { AddNodeEvent } from '../AddNodeButton.model'
-import { Loop } from '@pipelab/plugin-core'
-import PluginIcon from './PluginIcon.vue'
-import { ValidationError } from '@renderer/models/error'
+import { useEditor } from "@renderer/store/editor";
+import { PropType, computed, ref, toRefs } from "vue";
+import NodesEditor from "@renderer/pages/nodes-editor.vue";
+import { BlockLoop } from "@pipelab/shared/model";
+import { storeToRefs } from "pinia";
+import { computedAsync } from "@vueuse/core";
+import AddNodeButton from "@renderer/components/AddNodeButton.vue";
+import { AddNodeEvent } from "../AddNodeButton.model";
+import { Loop } from "@pipelab/plugin-core";
+import PluginIcon from "./PluginIcon.vue";
+import { ValidationError } from "@renderer/models/error";
 
 const props = defineProps({
   value: {
     type: Object as PropType<BlockLoop>,
-    required: true
+    required: true,
   },
   path: {
     type: Array as PropType<string[]>,
-    required: true
+    required: true,
     // default: () => []
   },
   errors: {
     type: Object as PropType<Record<string, ValidationError[]>>,
     required: false,
-    default: () => ({})
-  }
-})
+    default: () => ({}),
+  },
+});
 
 const emit = defineEmits<{
-  'add-node': [payload: AddNodeEvent]
-}>()
+  "add-node": [payload: AddNodeEvent];
+}>();
 
-const { value } = toRefs(props)
+const { value } = toRefs(props);
 
-const editor = useEditor()
-const { getNodeDefinition, getPluginDefinition } = editor
-const { activeNode } = storeToRefs(editor)
+const editor = useEditor();
+const { getNodeDefinition, getPluginDefinition } = editor;
+const { activeNode } = storeToRefs(editor);
 
-const showSidebar = ref(false)
+const showSidebar = ref(false);
 
 const nodeDefinition = computed(() => {
-  return getNodeDefinition(value.value.origin.nodeId, value.value.origin.pluginId).node as Loop
-})
+  return getNodeDefinition(value.value.origin.nodeId, value.value.origin.pluginId).node as Loop;
+});
 
 const pluginDefinition = computed(() => {
-  return getPluginDefinition(value.value.origin.pluginId)
-})
+  return getPluginDefinition(value.value.origin.pluginId);
+});
 
 const subtitle = computedAsync(
   async () => {
@@ -129,20 +129,20 @@ const subtitle = computedAsync(
     //   params: value.value.params
     // })
     // return result
-    return 'TODO'
+    return "TODO";
   },
-  'Loading...',
+  "Loading...",
   {
     onError: (error) => {
-      console.error('error', error)
-    }
-  }
-)
+      console.error("error", error);
+    },
+  },
+);
 
 const onValueChanged = (newValue: unknown, paramKey: string) => {
-  console.log('newValue', newValue)
+  console.log("newValue", newValue);
 
-  throw new Error('Not implemented')
+  throw new Error("Not implemented");
 
   // setBlockValue(value.value.uid, {
   //   ...value.value,
@@ -151,7 +151,7 @@ const onValueChanged = (newValue: unknown, paramKey: string) => {
   //     [paramKey]: newValue
   //   }
   // })
-}
+};
 </script>
 
 <style scoped>

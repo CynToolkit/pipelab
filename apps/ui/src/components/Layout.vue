@@ -76,11 +76,11 @@
             {{
               authModalTitle
                 ? authModalTitle
-                : type === 'login'
-                  ? 'Login'
-                  : type === 'register'
-                    ? 'Register'
-                    : 'Forgot Password'
+                : type === "login"
+                  ? "Login"
+                  : type === "register"
+                    ? "Register"
+                    : "Forgot Password"
             }}
           </p>
           <p class="text-center">{{ authModalSubTitle }}</p>
@@ -100,7 +100,7 @@
                     v-bind="emailProps"
                     type="text"
                     :class="{
-                      'w-full': true
+                      'w-full': true,
                     }"
                     placeholder="Email"
                     :invalid="!!errors.email"
@@ -120,7 +120,7 @@
                     :feedback="false"
                     :invalid="!!errors.password"
                     :class="{
-                      'w-full': true
+                      'w-full': true,
                     }"
                     input-class="w-full"
                   >
@@ -169,7 +169,7 @@
                     v-bind="emailProps"
                     type="text"
                     :class="{
-                      'w-full': true
+                      'w-full': true,
                     }"
                     placeholder="Email"
                     :invalid="!!errors.email"
@@ -188,7 +188,7 @@
                     :toggle-mask="true"
                     :invalid="!!errors.password"
                     :class="{
-                      'w-full': true
+                      'w-full': true,
                     }"
                     input-class="w-full"
                   >
@@ -253,7 +253,7 @@
                     v-bind="emailProps"
                     type="text"
                     :class="{
-                      'w-full': true
+                      'w-full': true,
                     }"
                     placeholder="Email"
                     :invalid="!!errors.email"
@@ -304,109 +304,109 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, inject } from 'vue'
-import { useAuth } from '@renderer/store/auth'
-import { useAgentsStore } from '@renderer/store/agents'
-import { MenuItem } from 'primevue/menuitem'
-import { useLogger } from '@pipelab/shared/logger'
-import Settings from '@renderer/components/Settings.vue'
-import UpgradeNowButton from '@renderer/components/UpgradeNowButton.vue'
-import { useToast } from 'primevue/usetoast'
-import Menu from 'primevue/menu'
-import Button from 'primevue/button'
-import Select from 'primevue/select'
-import Dialog from 'primevue/dialog'
-import { UpdateStatus } from '@pipelab/core-node'
-import { email, minLength, nonEmpty, object, pipe, regex, string } from 'valibot'
-import { toTypedSchema } from '@vee-validate/valibot'
-import posthog from 'posthog-js'
-import { storeToRefs } from 'pinia'
-import { handle } from '@renderer/composables/handlers'
-import { useForm } from 'vee-validate'
-import { useRoute } from 'vue-router'
-import { websocketManager } from '@renderer/composables/websocket-manager'
+import { ref, computed, inject } from "vue";
+import { useAuth } from "@renderer/store/auth";
+import { useAgentsStore } from "@renderer/store/agents";
+import { MenuItem } from "primevue/menuitem";
+import { useLogger } from "@pipelab/shared/logger";
+import Settings from "@renderer/components/Settings.vue";
+import UpgradeNowButton from "@renderer/components/UpgradeNowButton.vue";
+import { useToast } from "primevue/usetoast";
+import Menu from "primevue/menu";
+import Button from "primevue/button";
+import Select from "primevue/select";
+import Dialog from "primevue/dialog";
+import { UpdateStatus } from "@pipelab/core-node";
+import { email, minLength, nonEmpty, object, pipe, regex, string } from "valibot";
+import { toTypedSchema } from "@vee-validate/valibot";
+import posthog from "posthog-js";
+import { storeToRefs } from "pinia";
+import { handle } from "@renderer/composables/handlers";
+import { useForm } from "vee-validate";
+import { useRoute } from "vue-router";
+import { websocketManager } from "@renderer/composables/websocket-manager";
 
-const { logger } = useLogger()
-const route = useRoute()
+const { logger } = useLogger();
+const route = useRoute();
 
-const isElectron = !!window.electron
+const isElectron = !!window.electron;
 
-const openUpgradeDialog = inject('openUpgradeDialog') as () => void
+const openUpgradeDialog = inject("openUpgradeDialog") as () => void;
 
-const $menu = ref()
+const $menu = ref();
 
 const headerSentence = computed(() => {
-  return route.meta?.title as string
-})
+  return route.meta?.title as string;
+});
 
-const updateStatus = ref<UpdateStatus>('update-not-available')
+const updateStatus = ref<UpdateStatus>("update-not-available");
 
-const appVersion = ref(window.version)
+const appVersion = ref(window.version);
 posthog.register({
-  'app-version': appVersion.value
-})
+  "app-version": appVersion.value,
+});
 
-const connectionState = computed(() => websocketManager.connectionState.value)
+const connectionState = computed(() => websocketManager.connectionState.value);
 
 const connectionIcon = computed(() => {
   switch (connectionState.value) {
-    case 'connected':
-      return 'mdi-lan-connect'
-    case 'connecting':
-      return 'mdi-lan-pending'
-    case 'disconnected':
-      return 'mdi-lan-disconnect'
-    case 'error':
-      return 'mdi-lan-disconnect'
+    case "connected":
+      return "mdi-lan-connect";
+    case "connecting":
+      return "mdi-lan-pending";
+    case "disconnected":
+      return "mdi-lan-disconnect";
+    case "error":
+      return "mdi-lan-disconnect";
     default:
-      return 'mdi-lan-disconnect'
+      return "mdi-lan-disconnect";
   }
-})
+});
 
 const connectionText = computed(() => {
   switch (connectionState.value) {
-    case 'connected':
-      return 'Connected'
-    case 'connecting':
-      return 'Connecting...'
-    case 'disconnected':
-      return 'Disconnected'
-    case 'error':
-      return 'Connection Error'
+    case "connected":
+      return "Connected";
+    case "connecting":
+      return "Connecting...";
+    case "disconnected":
+      return "Disconnected";
+    case "error":
+      return "Connection Error";
     default:
-      return 'Disconnected'
+      return "Disconnected";
   }
-})
+});
 
 const updateStatusText = computed(() => {
   switch (updateStatus.value) {
-    case 'update-not-available':
-      return ''
-    case 'update-available':
-      return 'Update available, downloading...'
-    case 'update-downloaded':
-      return 'Update downloaded'
-    case 'checking-for-update':
-      return 'Checking for update...'
-    case 'error':
-      return 'Error'
+    case "update-not-available":
+      return "";
+    case "update-available":
+      return "Update available, downloading...";
+    case "update-downloaded":
+      return "Update downloaded";
+    case "checking-for-update":
+      return "Checking for update...";
+    case "error":
+      return "Error";
     default:
-      return ''
+      return "";
   }
-})
+});
 
 const toggleAccountMenu = (event: MouseEvent) => {
-  $menu.value.toggle(event)
-}
+  $menu.value.toggle(event);
+};
 
-const type = ref<'login' | 'register' | 'forgot-password'>('login')
+const type = ref<"login" | "register" | "forgot-password">("login");
 
 const logout = async () => {
-  await auth.logout()
-}
+  await auth.logout();
+};
 
-const auth = useAuth()
-const agentsStore = useAgentsStore()
+const auth = useAuth();
+const agentsStore = useAgentsStore();
 const {
   user,
   authState,
@@ -414,199 +414,199 @@ const {
   authModalTitle,
   authModalSubTitle,
   isLoadingSubscriptions,
-  isAuthenticating
-} = storeToRefs(auth)
+  isAuthenticating,
+} = storeToRefs(auth);
 
-const { agents, selectedAgentId, isLoadingAgents } = storeToRefs(agentsStore)
+const { agents, selectedAgentId, isLoadingAgents } = storeToRefs(agentsStore);
 
 const refreshAgents = async () => {
-  await agentsStore.refresh()
-}
+  await agentsStore.refresh();
+};
 
-const isSettingsModalVisible = ref(false)
+const isSettingsModalVisible = ref(false);
 
 const accountMenuItems = computed(() => {
-  const items: MenuItem[] = []
+  const items: MenuItem[] = [];
 
   if (user.value) {
     items.push(
       {
         label: user.value.email,
-        icon: 'mdi mdi-email',
-        disabled: true
+        icon: "mdi mdi-email",
+        disabled: true,
       },
       {
-        label: 'Profile',
-        icon: 'mdi mdi-account',
-        disabled: true
+        label: "Profile",
+        icon: "mdi mdi-account",
+        disabled: true,
       },
       {
-        label: 'Team',
-        icon: 'mdi mdi-account-multiple',
-        disabled: true
+        label: "Team",
+        icon: "mdi mdi-account-multiple",
+        disabled: true,
       },
       {
-        separator: true
+        separator: true,
       },
       {
-        label: 'Logout',
-        icon: 'mdi mdi-logout',
+        label: "Logout",
+        icon: "mdi mdi-logout",
         disabled: false,
         command: async () => {
-          await logout()
-        }
-      }
-    )
+          await logout();
+        },
+      },
+    );
   } else if (auth.hasLoginProvider) {
     items.push({
-      label: 'Login / Register',
-      icon: 'mdi mdi-account',
+      label: "Login / Register",
+      icon: "mdi mdi-account",
       command: () => {
-        auth.displayAuthModal()
-      }
-    } satisfies MenuItem)
+        auth.displayAuthModal();
+      },
+    } satisfies MenuItem);
   }
 
   items.push(
     {
-      separator: true
+      separator: true,
     },
     {
       label: appVersion.value,
-      icon: 'mdi mdi-information'
-    }
-  )
+      icon: "mdi mdi-information",
+    },
+  );
 
   const result = [
     {
-      label: 'Account',
-      icon: 'mdi mdi-account',
-      items
+      label: "Account",
+      icon: "mdi mdi-account",
+      items,
     },
     {
-      separator: true
+      separator: true,
     },
     {
-      label: 'Settings',
-      icon: 'mdi mdi-cog',
+      label: "Settings",
+      icon: "mdi mdi-cog",
       disabled: false,
       command: () => {
-        console.log('Settings')
-        isSettingsModalVisible.value = true
-      }
-    }
-  ] satisfies MenuItem
+        console.log("Settings");
+        isSettingsModalVisible.value = true;
+      },
+    },
+  ] satisfies MenuItem;
 
-  return result
-})
+  return result;
+});
 
-handle('update:set-status', async (event, { value }) => {
-  console.log('event', event)
-  console.log('value', value)
+handle("update:set-status", async (event, { value }) => {
+  console.log("event", event);
+  console.log("value", value);
 
-  updateStatus.value = value.status
-})
+  updateStatus.value = value.status;
+});
 
 const schema = toTypedSchema(
   object({
     email: pipe(
-      string('An email adress is required'),
-      nonEmpty('Email is required'),
-      email('Invalid email')
+      string("An email adress is required"),
+      nonEmpty("Email is required"),
+      email("Invalid email"),
     ),
     password: pipe(
-      string('A password is required'),
-      minLength(10, 'Password must be at least 10 characters long'),
-      regex(/[a-z]/, 'Password must contain at least one lowercase letter'),
-      regex(/[A-Z]/, 'Password must contain at least one uppercase letter'),
-      regex(/[0-9]/, 'Password must contain at least one number'),
-      regex(/[!@#$%^&*()_+-=[\]{};':"|<>?,./`~.]/, 'Password must contain at least one symbol')
-    )
-  })
-)
+      string("A password is required"),
+      minLength(10, "Password must be at least 10 characters long"),
+      regex(/[a-z]/, "Password must contain at least one lowercase letter"),
+      regex(/[A-Z]/, "Password must contain at least one uppercase letter"),
+      regex(/[0-9]/, "Password must contain at least one number"),
+      regex(/[!@#$%^&*()_+-=[\]{};':"|<>?,./`~.]/, "Password must contain at least one symbol"),
+    ),
+  }),
+);
 
 const { defineField, handleSubmit, errors } = useForm({
-  validationSchema: schema
-})
+  validationSchema: schema,
+});
 
-const [emailModel, emailProps] = defineField('email')
-const [passwordModel, passwordProps] = defineField('password')
+const [emailModel, emailProps] = defineField("email");
+const [passwordModel, passwordProps] = defineField("password");
 
 const onSuccess = async (values: any) => {
   try {
-    if (type.value === 'register') {
-      const { error } = await auth.register(values.email, values.password)
+    if (type.value === "register") {
+      const { error } = await auth.register(values.email, values.password);
       if (error) {
-        console.log('error', error)
+        console.log("error", error);
         toast.add({
-          severity: 'error',
-          summary: 'Failed to register',
+          severity: "error",
+          summary: "Failed to register",
           detail: error.message,
-          life: 3000
-        })
+          life: 3000,
+        });
       } else {
-        isAuthModalVisible.value = false
+        isAuthModalVisible.value = false;
         toast.add({
-          severity: 'success',
-          summary: 'Sucessfully registered',
-          detail: 'A confirmation e-mail has been sent',
-          life: 3000
-        })
+          severity: "success",
+          summary: "Sucessfully registered",
+          detail: "A confirmation e-mail has been sent",
+          life: 3000,
+        });
       }
-    } else if (type.value === 'forgot-password') {
-      const { error } = await auth.resetPassword(values.email)
+    } else if (type.value === "forgot-password") {
+      const { error } = await auth.resetPassword(values.email);
       if (error) {
-        console.log('error', error)
+        console.log("error", error);
         toast.add({
-          severity: 'error',
-          summary: 'Failed to send reset email',
+          severity: "error",
+          summary: "Failed to send reset email",
           detail: error.message,
-          life: 3000
-        })
+          life: 3000,
+        });
       } else {
-        type.value = 'login'
+        type.value = "login";
         toast.add({
-          severity: 'success',
-          summary: 'Reset email sent',
+          severity: "success",
+          summary: "Reset email sent",
           detail: "If an account with that email exists, we've sent you a password reset link.",
-          life: 5000
-        })
+          life: 5000,
+        });
       }
     } else {
-      const { error } = await auth.login(values.email, values.password)
+      const { error } = await auth.login(values.email, values.password);
       if (error) {
-        console.log('error', error)
+        console.log("error", error);
         toast.add({
-          severity: 'error',
-          summary: 'Failed to login',
+          severity: "error",
+          summary: "Failed to login",
           detail: error.message,
-          life: 3000
-        })
+          life: 3000,
+        });
       } else {
-        isAuthModalVisible.value = false
+        isAuthModalVisible.value = false;
         toast.add({
-          severity: 'success',
-          summary: 'Sucessfully logged in',
-          detail: 'Welcome back!',
-          life: 3000
-        })
+          severity: "success",
+          summary: "Sucessfully logged in",
+          detail: "Welcome back!",
+          life: 3000,
+        });
       }
     }
   } catch (error) {
-    console.log('error', error)
-    toast.add({ severity: 'info', summary: 'Info', detail: error, life: 3000 })
+    console.log("error", error);
+    toast.add({ severity: "info", summary: "Info", detail: error, life: 3000 });
   }
-}
+};
 
-const toast = useToast()
+const toast = useToast();
 
 function onInvalidSubmit({ values, errors, results }: any) {
-  logger().info({ values }) // current form values
-  logger().info({ errors }) // a map of field names and their first error message
-  logger().info({ results }) // a detailed map of field names and their validation results
+  logger().info({ values }); // current form values
+  logger().info({ errors }); // a map of field names and their first error message
+  logger().info({ results }); // a detailed map of field names and their validation results
 }
 
-const onSubmit = handleSubmit(onSuccess, onInvalidSubmit)
+const onSubmit = handleSubmit(onSuccess, onInvalidSubmit);
 </script>
 
 <style lang="scss" scoped>

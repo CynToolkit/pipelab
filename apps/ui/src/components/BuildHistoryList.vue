@@ -129,29 +129,29 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, inject } from 'vue'
-import type { BuildHistoryEntry } from '@pipelab/shared/build-history'
-import BuildHistoryItem from './BuildHistoryItem.vue'
-import { useAuth } from '../store/auth'
+import { ref, computed, inject } from "vue";
+import type { BuildHistoryEntry } from "@pipelab/shared/build-history";
+import BuildHistoryItem from "./BuildHistoryItem.vue";
+import { useAuth } from "../store/auth";
 
 interface Props {
-  entries: BuildHistoryEntry[]
-  isLoading?: boolean
-  error?: string
-  hasSubscriptionError?: boolean
-  totalCount?: number
-  canDelete?: boolean
-  canStartBuild?: boolean
+  entries: BuildHistoryEntry[];
+  isLoading?: boolean;
+  error?: string;
+  hasSubscriptionError?: boolean;
+  totalCount?: number;
+  canDelete?: boolean;
+  canStartBuild?: boolean;
 }
 
 interface Emits {
-  (e: 'load-more'): void
-  (e: 'retry-load'): void
-  (e: 'view-details', entry: BuildHistoryEntry): void
-  (e: 'delete', entry: BuildHistoryEntry): void
-  (e: 'start-build'): void
-  (e: 'sort-change', sortBy: string, sortOrder: 'asc' | 'desc'): void
-  (e: 'page-change', page: number, pageSize: number): void
+  (e: "load-more"): void;
+  (e: "retry-load"): void;
+  (e: "view-details", entry: BuildHistoryEntry): void;
+  (e: "delete", entry: BuildHistoryEntry): void;
+  (e: "start-build"): void;
+  (e: "sort-change", sortBy: string, sortOrder: "asc" | "desc"): void;
+  (e: "page-change", page: number, pageSize: number): void;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -162,67 +162,67 @@ const props = withDefaults(defineProps<Props>(), {
   canDelete: false,
   canStartBuild: false,
   showPagination: true,
-  showLoadMore: false
-})
+  showLoadMore: false,
+});
 
-const emit = defineEmits<Emits>()
+const emit = defineEmits<Emits>();
 
 // Composables
-const authStore = useAuth()
-const openUpgradeDialog = inject('openUpgradeDialog') as () => void
+const authStore = useAuth();
+const openUpgradeDialog = inject("openUpgradeDialog") as () => void;
 
 // Local state
-const viewMode = ref<'list' | 'grid'>('list')
-const sortBy = ref<keyof BuildHistoryEntry>('startTime')
-const sortOrder = ref<'asc' | 'desc'>('desc')
+const viewMode = ref<"list" | "grid">("list");
+const sortBy = ref<keyof BuildHistoryEntry>("startTime");
+const sortOrder = ref<"asc" | "desc">("desc");
 
 // Computed properties
-const hasEntries = computed(() => props.entries.length > 0)
+const hasEntries = computed(() => props.entries.length > 0);
 
 // Sort options
 const sortOptions = [
-  { label: 'Start Time', value: 'startTime' },
-  { label: 'End Time', value: 'endTime' },
-  { label: 'Duration', value: 'duration' },
-  { label: 'Project Name', value: 'projectName' },
-  { label: 'Status', value: 'status' },
-  { label: 'Created At', value: 'createdAt' }
-]
+  { label: "Start Time", value: "startTime" },
+  { label: "End Time", value: "endTime" },
+  { label: "Duration", value: "duration" },
+  { label: "Project Name", value: "projectName" },
+  { label: "Status", value: "status" },
+  { label: "Created At", value: "createdAt" },
+];
 
 // Methods
 const retryLoad = () => {
-  emit('retry-load')
-}
+  emit("retry-load");
+};
 
 const startNewBuild = () => {
   if (!authStore.hasBuildHistoryBenefit) {
-    openUpgradeDialog()
-    return
+    openUpgradeDialog();
+    return;
   }
-  emit('start-build')
-}
+  emit("start-build");
+};
 
 const onViewDetails = (entry: BuildHistoryEntry) => {
-  emit('view-details', entry)
-}
+  emit("view-details", entry);
+};
 
 const onDeleteEntry = (entry: BuildHistoryEntry) => {
-  emit('delete', entry)
-}
+  emit("delete", entry);
+};
 
 const onEntryToggle = (entry: BuildHistoryEntry, expanded: boolean) => {
   // Handle entry expansion if needed
-  console.log('Entry toggled:', entry.id, expanded)
-}
+  console.log("Entry toggled:", entry.id, expanded);
+};
 
 const onSortChange = () => {
-  emit('sort-change', sortBy.value, sortOrder.value)
-}
+  emit("sort-change", sortBy.value, sortOrder.value);
+};
 
 const toggleSortOrder = () => {
-  sortOrder.value = sortOrder.value === 'desc' ? 'asc' : 'desc'
-  emit('sort-change', sortBy.value, sortOrder.value)
-}
+  sortOrder.value = sortOrder.value === "desc" ? "asc" : "desc";
+  emit("sort-change", sortBy.value, sortOrder.value);
+};
 </script>
 
 <style scoped>

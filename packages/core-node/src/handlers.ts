@@ -1,2 +1,2 @@
-export * from './ipc-core'
-export * from './handlers/index'
+export * from "./ipc-core";
+export * from "./handlers/index";

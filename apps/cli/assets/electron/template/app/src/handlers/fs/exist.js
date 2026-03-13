@@ -1,6 +1,6 @@
 // @ts-check
 
-import { access } from 'node:fs/promises'
+import { access } from "node:fs/promises";
 
 /**
  * @param {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').MessageExistFile, 'input'>} json
@@ -8,7 +8,7 @@ import { access } from 'node:fs/promises'
  */
 export default async (json, ws) => {
   try {
-    await access(json.body.path)
+    await access(json.body.path);
 
     /**
      * @type {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').MessageExistFile, 'output'>}
@@ -17,10 +17,10 @@ export default async (json, ws) => {
       correlationId: json.correlationId,
       url: json.url,
       body: {
-        success: true
-      }
-    }
-    ws.send(JSON.stringify(existResult))
+        success: true,
+      },
+    };
+    ws.send(JSON.stringify(existResult));
   } catch (e) {
     /**
      * @type {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').MessageExistFile, 'output'>}
@@ -29,9 +29,9 @@ export default async (json, ws) => {
       correlationId: json.correlationId,
       url: json.url,
       body: {
-        success: false
-      }
-    }
-    ws.send(JSON.stringify(existResult))
+        success: false,
+      },
+    };
+    ws.send(JSON.stringify(existResult));
   }
-}
+};

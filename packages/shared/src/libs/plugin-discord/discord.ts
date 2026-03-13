@@ -5,28 +5,28 @@ import {
   createStringParam,
   InputsDefinition,
   OutputsDefinition,
-  runWithLiveLogs
-} from '../plugin-core'
-import { detectRuntime } from '@pipelab/shared/plugins'
-import { app } from 'electron'
-import { dirname } from 'node:path'
-import { startTunnel } from 'untun'
+  runWithLiveLogs,
+} from "../plugin-core";
+import { detectRuntime } from "@pipelab/shared/plugins";
+import { app } from "electron";
+import { dirname } from "node:path";
+import { startTunnel } from "untun";
 
-export const IDPackage = 'discord:package'
-export const IDPreview = 'discord:preview'
+export const IDPackage = "discord:package";
+export const IDPreview = "discord:preview";
 
 const paramsInputFolder = {
-  'input-folder': createPathParam('', {
-    label: 'Folder to package',
+  "input-folder": createPathParam("", {
+    label: "Folder to package",
     required: true,
     control: {
-      type: 'path',
+      type: "path",
       options: {
-        properties: ['openDirectory']
-      }
-    }
-  })
-} satisfies InputsDefinition
+        properties: ["openDirectory"],
+      },
+    },
+  }),
+} satisfies InputsDefinition;
 
 // const paramsInputURL = {
 //   'input-url': createStringParam('', {
@@ -36,20 +36,20 @@ const paramsInputFolder = {
 // } satisfies InputsDefinition
 
 export const configureParams = {
-  name: createStringParam('Pipelab', {
-    label: 'Application name',
-    description: 'The name of the application',
-    required: true
-  })
-} satisfies InputsDefinition
+  name: createStringParam("Pipelab", {
+    label: "Application name",
+    description: "The name of the application",
+    required: true,
+  }),
+} satisfies InputsDefinition;
 
 const outputs = {
   outputDir: {
-    label: 'Output folder',
-    value: '',
-    description: 'The folder where the packaged application is located'
-  }
-} satisfies OutputsDefinition
+    label: "Output folder",
+    value: "",
+    description: "The folder where the packaged application is located",
+  },
+} satisfies OutputsDefinition;
 
 export const createPackageProps = (
   id: string,
@@ -61,7 +61,7 @@ export const createPackageProps = (
   deprecated?: boolean,
   deprecatedMessage?: string,
   disabled?: false,
-  updateAvailable?: boolean
+  updateAvailable?: boolean,
 ) => {
   return createAction({
     id,
@@ -77,20 +77,20 @@ export const createPackageProps = (
     updateAvailable,
     params: {
       ...paramsInputFolder,
-      ...configureParams
+      ...configureParams,
     },
     outputs: {
-      outputDir: outputs.outputDir
-    }
-  })
-}
+      outputDir: outputs.outputDir,
+    },
+  });
+};
 
 export const createPreviewProps = (
   id: string,
   name: string,
   description: string,
   icon: string,
-  displayString: string
+  displayString: string,
 ) =>
   createAction({
     id,
@@ -102,56 +102,56 @@ export const createPreviewProps = (
     params: {
       ...paramsInputFolder,
       ...configureParams,
-      customHostname: createStringParam('', {
+      customHostname: createStringParam("", {
         required: false,
-        label: 'Custom hostname',
-        description: 'The hostname to use for the preview'
-      })
+        label: "Custom hostname",
+        description: "The hostname to use for the preview",
+      }),
     },
     outputs: {
       // ...outputs.outputDir
-    }
-  })
+    },
+  });
 
 const createAppServer = async (folder: string) => {
   try {
-    const serve = await import('serve-handler')
-    const { createServer } = await import('http')
+    const serve = await import("serve-handler");
+    const { createServer } = await import("http");
 
-    const server = createServer()
+    const server = createServer();
 
-    server.on('request', (req, res) => {
+    server.on("request", (req, res) => {
       return serve.default(req, res, {
         maxAge: 0,
         public: folder,
         headers: {
-          'bypass-tunnel-reminder': 'false'
-        }
-      })
-    })
+          "bypass-tunnel-reminder": "false",
+        },
+      });
+    });
 
     const listen = async () => {
       return new Promise((resolve, reject) => {
-        server.listen(40400, '127.0.0.1', () => {
-          return resolve(server)
-        })
-      })
-    }
+        server.listen(40400, "127.0.0.1", () => {
+          return resolve(server);
+        });
+      });
+    };
 
-    await listen()
-    console.log('listening2')
-    console.log('address', server.address)
-    const addressRes = server.address()
-    console.log('addressRes', addressRes)
-    if (addressRes && typeof addressRes !== 'string') {
-      return { port: addressRes.port }
+    await listen();
+    console.log("listening2");
+    console.log("address", server.address);
+    const addressRes = server.address();
+    console.log("addressRes", addressRes);
+    if (addressRes && typeof addressRes !== "string") {
+      return { port: addressRes.port };
     }
-    throw new Error('Unable to bind server: adress is not an object')
+    throw new Error("Unable to bind server: adress is not an object");
   } catch (e) {
-    console.error(e)
-    throw e
+    console.error(e);
+    throw e;
   }
-}
+};
 
 const createTunnel = async (port: number, subdomain: string) => {
   // const localtunnel = await import('localtunnel')
@@ -170,25 +170,25 @@ const createTunnel = async (port: number, subdomain: string) => {
   // })
   // console.log('tunnel.url', tunnel)
   // return tunnel
-}
+};
 
 export const waitForAbort = (signal: AbortSignal): Promise<void> => {
   return new Promise<void>((resolve, reject) => {
     if (signal.aborted) {
-      return resolve() // Already aborted
+      return resolve(); // Already aborted
     }
 
     const onAbort = () => {
-      signal.removeEventListener('abort', onAbort)
-      resolve()
-    }
+      signal.removeEventListener("abort", onAbort);
+      resolve();
+    };
 
-    signal.addEventListener('abort', onAbort)
-  })
-}
+    signal.addEventListener("abort", onAbort);
+  });
+};
 
 export const discord = async (
-  action: 'package' | 'preview',
+  action: "package" | "preview",
   appFolder: string | undefined,
   {
     cwd,
@@ -196,69 +196,69 @@ export const discord = async (
     inputs,
     setOutput,
     paths,
-    abortSignal
+    abortSignal,
   }:
     | ActionRunnerData<ReturnType<typeof createPackageProps>>
     | ActionRunnerData<ReturnType<typeof createPreviewProps>>,
-  completeConfiguration: DesktopApp.Config
+  completeConfiguration: DesktopApp.Config,
 ): Promise<{ folder: string; binary: string | undefined } | undefined> => {
-  const { join, basename, delimiter } = await import('node:path')
-  const { cp, readFile, writeFile } = await import('node:fs/promises')
-  const { arch, platform } = await import('os')
-  const { kebabCase } = await import('change-case')
+  const { join, basename, delimiter } = await import("node:path");
+  const { cp, readFile, writeFile } = await import("node:fs/promises");
+  const { arch, platform } = await import("os");
+  const { kebabCase } = await import("change-case");
 
-  console.log('appFolder', appFolder)
+  console.log("appFolder", appFolder);
 
-  log('Building discord')
+  log("Building discord");
 
-  const runtime = await detectRuntime(appFolder)
+  const runtime = await detectRuntime(appFolder);
 
-  const { assets, unpack, cache, node, pnpm } = paths
+  const { assets, unpack, cache, node, pnpm } = paths;
 
-  const destinationFolder = join(cwd, 'build')
+  const destinationFolder = join(cwd, "build");
 
-  const templateFolder = join(assets, 'discord', 'templates', 'nitro-app')
+  const templateFolder = join(assets, "discord", "templates", "nitro-app");
 
   // copy template to destination
   await cp(templateFolder, destinationFolder, {
     recursive: true,
     filter: (src) => {
-      log('src', src)
+      log("src", src);
       // log('dest', dest)
       // TODO: support other oses
       return (
-        basename(src) !== 'node_modules' &&
-        !src.includes('.nitro') &&
-        !src.includes('.output') &&
-        !src.includes('.env')
-      )
-    }
-  })
+        basename(src) !== "node_modules" &&
+        !src.includes(".nitro") &&
+        !src.includes(".output") &&
+        !src.includes(".env")
+      );
+    },
+  });
 
-  const placeAppFolder = join(destinationFolder, 'src', 'app')
+  const placeAppFolder = join(destinationFolder, "src", "app");
 
   // if input is folder, copy folder to destination
   if (appFolder) {
     // copy app to template
     await cp(appFolder, placeAppFolder, {
-      recursive: true
-    })
+      recursive: true,
+    });
   }
 
   writeFile(
-    join(destinationFolder, '.env'),
+    join(destinationFolder, ".env"),
     `DISCORD_CLIENT_ID=1357217738241736724
 DISCORD_CLIENT_SECRET=yJ4vRnzDtKAqg2Le3_Sap2CqHybkTp2U`,
-    'utf8'
-  )
+    "utf8",
+  );
 
-  const shimsPaths = join(assets, 'shims')
+  const shimsPaths = join(assets, "shims");
 
-  const userData = app.getPath('userData')
+  const userData = app.getPath("userData");
 
-  const pnpmHome = join(userData, 'config', 'pnpm')
+  const pnpmHome = join(userData, "config", "pnpm");
 
-  const sanitizedName = kebabCase(completeConfiguration.name)
+  const sanitizedName = kebabCase(completeConfiguration.name);
 
   // package.json update
   // const pkgJSONPath = join(destinationFolder, 'package.json')
@@ -284,28 +284,28 @@ DISCORD_CLIENT_SECRET=yJ4vRnzDtKAqg2Le3_Sap2CqHybkTp2U`,
   // tauriConfJSON.build.devUrl = appFolder
   // await writeFile(tauriConfJSONPath, JSON.stringify(tauriConfJSON, null, 2))
 
-  log('Installing packages')
+  log("Installing packages");
   await runWithLiveLogs(
     node,
-    [pnpm, 'install', '--prefer-offline'],
+    [pnpm, "install", "--prefer-offline"],
     {
       cwd: destinationFolder,
       env: {
         // DEBUG: '*',
-        PNPM_HOME: pnpmHome
+        PNPM_HOME: pnpmHome,
       },
-      cancelSignal: abortSignal
+      cancelSignal: abortSignal,
     },
     log,
     {
       onStderr(data) {
-        log(data)
+        log(data);
       },
       onStdout(data) {
-        log(data)
-      }
-    }
-  )
+        log(data);
+      },
+    },
+  );
 
   // override discord version
   // if (completeConfiguration.electronVersion && completeConfiguration.electronVersion !== '') {
@@ -334,47 +334,47 @@ DISCORD_CLIENT_SECRET=yJ4vRnzDtKAqg2Le3_Sap2CqHybkTp2U`,
   // }
 
   try {
-    if (action === 'preview') {
-      const port = 14141
+    if (action === "preview") {
+      const port = 14141;
 
-      const modulesPath = join(unpack, 'node_modules')
-      const nitro = join(modulesPath, 'nitropack', 'dist', 'cli', 'index.mjs')
+      const modulesPath = join(unpack, "node_modules");
+      const nitro = join(modulesPath, "nitropack", "dist", "cli", "index.mjs");
 
       // const nitro = await import('nitropack')
 
-      console.log('nitro', nitro)
+      console.log("nitro", nitro);
 
       await Promise.allSettled([
         runWithLiveLogs(
           node,
-          [pnpm, 'dlx', 'nitropack', 'dev'],
+          [pnpm, "dlx", "nitropack", "dev"],
           {
             cwd: destinationFolder,
             env: {
               // DEBUG: '*',
               PATH: `${dirname(node)}${delimiter}${process.env.PATH}`,
               PNPM_HOME: pnpmHome,
-              PORT: port.toString()
+              PORT: port.toString(),
             },
-            cancelSignal: abortSignal
+            cancelSignal: abortSignal,
           },
           log,
           {
             onStderr(data) {
-              log(data)
+              log(data);
             },
             onStdout(data) {
-              log(data)
-            }
-          }
+              log(data);
+            },
+          },
         ),
         (async () => {
-          const tunnel = await startTunnel({ port, acceptCloudflareNotice: true })
-          console.log('tunnel', tunnel)
-          const url = await tunnel.getURL()
-          console.log('Public URL:', url)
-        })()
-      ])
+          const tunnel = await startTunnel({ port, acceptCloudflareNotice: true });
+          console.log("tunnel", tunnel);
+          const url = await tunnel.getURL();
+          console.log("Public URL:", url);
+        })(),
+      ]);
 
       // const { port } = await createAppServer(placeAppFolder)
 
@@ -382,10 +382,10 @@ DISCORD_CLIENT_SECRET=yJ4vRnzDtKAqg2Le3_Sap2CqHybkTp2U`,
 
       // await waitForAbort(abortSignal)
     } else {
-      throw new Error('TODO')
+      throw new Error("TODO");
     }
 
-    if (action === 'package') {
+    if (action === "package") {
       // const binName = getBinName(completeConfiguration.name)
       // log('cargoOutputPath', cargoOutputPath)
       // setOutput('output', cargoOutputPath)
@@ -393,10 +393,10 @@ DISCORD_CLIENT_SECRET=yJ4vRnzDtKAqg2Le3_Sap2CqHybkTp2U`,
       //   folder: cargoOutputPath,
       //   binary: join(cargoOutputPath, binName)
       // }
-    } else if (action === 'preview') {
+    } else if (action === "preview") {
       // continue
     } else {
-      throw new Error('Unsupported action')
+      throw new Error("Unsupported action");
       // const output = join(destinationFolder, 'out', 'make')
       // setOutput('output', output)
       // return {
@@ -406,14 +406,14 @@ DISCORD_CLIENT_SECRET=yJ4vRnzDtKAqg2Le3_Sap2CqHybkTp2U`,
     }
   } catch (e) {
     if (e instanceof Error) {
-      if (e.name === 'RequestError') {
-        log('Request error')
+      if (e.name === "RequestError") {
+        log("Request error");
       }
-      if (e.name === 'RequestError') {
-        log('Request error')
+      if (e.name === "RequestError") {
+        log("Request error");
       }
     }
-    log(e)
-    return undefined
+    log(e);
+    return undefined;
   }
-}
+};

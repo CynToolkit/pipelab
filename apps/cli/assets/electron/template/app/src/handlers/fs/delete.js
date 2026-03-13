@@ -1,13 +1,13 @@
 // @ts-check
 
-import { unlink } from 'node:fs/promises'
+import { unlink } from "node:fs/promises";
 
 /**
  * @param {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').MessageDelete, 'input'>} json
  * @param {import('ws').WebSocket} ws
  */
 export default async (json, ws) => {
-  await unlink(json.body.path)
+  await unlink(json.body.path);
 
   /**
    * @type {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').MessageDelete, 'output'>}
@@ -16,8 +16,8 @@ export default async (json, ws) => {
     correlationId: json.correlationId,
     url: json.url,
     body: {
-      success: true
-    }
-  }
-  ws.send(JSON.stringify(readFileResult))
-}
+      success: true,
+    },
+  };
+  ws.send(JSON.stringify(readFileResult));
+};

@@ -4,12 +4,12 @@
  * @param {import('electron').BrowserWindow} mainWindow
  */
 export default async (json, ws, mainWindow) => {
-  if (json.body.value === 'fullscreen') {
-    mainWindow.setFullScreen(true)
-  } else if (json.body.value === 'normal') {
-    mainWindow.setFullScreen(false)
+  if (json.body.value === "fullscreen") {
+    mainWindow.setFullScreen(true);
+  } else if (json.body.value === "normal") {
+    mainWindow.setFullScreen(false);
   } else {
-    throw new Error('Unsupported value ')
+    throw new Error("Unsupported value ");
   }
 
   /**
@@ -19,8 +19,8 @@ export default async (json, ws, mainWindow) => {
     correlationId: json.correlationId,
     url: json.url,
     body: {
-      success: true
-    }
-  }
-  ws.send(JSON.stringify(showsetFullscreenResult))
-}
+      success: true,
+    },
+  };
+  ws.send(JSON.stringify(showsetFullscreenResult));
+};

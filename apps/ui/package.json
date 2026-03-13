@@ -8,7 +8,9 @@
     "dev": "vite",
     "build": "vite build",
     "typecheck": "vue-tsc --noEmit -p tsconfig.json --composite false",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "format": "oxfmt .",
+    "lint": "oxlint ."
   },
   "dependencies": {
     "@codemirror/autocomplete": "6.18.1",

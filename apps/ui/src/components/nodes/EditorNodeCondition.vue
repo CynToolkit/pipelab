@@ -75,39 +75,39 @@ getNodeDefinition: {{ getNodeDefinition(value.origin.nodeId, value.origin.plugin
 </template>
 
 <script setup lang="ts">
-import { useEditor } from '@renderer/store/editor'
-import { PropType, computed, ref, toRefs } from 'vue'
-import NodesEditor from '@renderer/pages/nodes-editor.vue'
-import { BlockCondition } from '@pipelab/shared/model'
-import { storeToRefs } from 'pinia'
-import { computedAsync } from '@vueuse/core'
-import PluginIcon from './PluginIcon.vue'
-import { Condition } from '@pipelab/plugin-core'
-import { ValidationError } from '@renderer/models/error'
-import { useLogger } from '@pipelab/shared/logger'
+import { useEditor } from "@renderer/store/editor";
+import { PropType, computed, ref, toRefs } from "vue";
+import NodesEditor from "@renderer/pages/nodes-editor.vue";
+import { BlockCondition } from "@pipelab/shared/model";
+import { storeToRefs } from "pinia";
+import { computedAsync } from "@vueuse/core";
+import PluginIcon from "./PluginIcon.vue";
+import { Condition } from "@pipelab/plugin-core";
+import { ValidationError } from "@renderer/models/error";
+import { useLogger } from "@pipelab/shared/logger";
 
 const props = defineProps({
   value: {
     type: Object as PropType<BlockCondition>,
-    required: true
+    required: true,
   },
   path: {
     type: Array as PropType<string[]>,
-    required: true
+    required: true,
     // default: () => []
   },
   errors: {
     type: Object as PropType<Record<string, ValidationError[]>>,
     required: false,
-    default: () => ({})
-  }
-})
+    default: () => ({}),
+  },
+});
 
-const { value } = toRefs(props)
+const { value } = toRefs(props);
 
-const $nodeConditionWrapper = ref<HTMLDivElement>()
+const $nodeConditionWrapper = ref<HTMLDivElement>();
 
-const { logger } = useLogger()
+const { logger } = useLogger();
 
 const subtitle = computedAsync(
   async () => {
@@ -115,19 +115,19 @@ const subtitle = computedAsync(
     //   params: value.value.params
     // })
     // return result
-    return 'TODO'
+    return "TODO";
   },
-  'Loading...',
+  "Loading...",
   {
     onError: (error) => {
-      logger().error('error', error)
-    }
-  }
-)
+      logger().error("error", error);
+    },
+  },
+);
 
-const editor = useEditor()
-const { getNodeDefinition, setBlockValue, getPluginDefinition } = editor
-const { activeNode } = storeToRefs(editor)
+const editor = useEditor();
+const { getNodeDefinition, setBlockValue, getPluginDefinition } = editor;
+const { activeNode } = storeToRefs(editor);
 
 const onValueChanged = (newValue: unknown, paramKey: string) => {
   // @ts-expect-error not yet condition type
@@ -135,20 +135,21 @@ const onValueChanged = (newValue: unknown, paramKey: string) => {
     ...value.value,
     params: {
       ...value.value.params,
-      [paramKey]: newValue
-    }
-  })
-}
+      [paramKey]: newValue,
+    },
+  });
+};
 
 const nodeDefinition = computed(() => {
-  return getNodeDefinition(value.value.origin.nodeId, value.value.origin.pluginId).node as Condition
-})
+  return getNodeDefinition(value.value.origin.nodeId, value.value.origin.pluginId)
+    .node as Condition;
+});
 
 const pluginDefinition = computed(() => {
-  return getPluginDefinition(value.value.origin.pluginId)
-})
+  return getPluginDefinition(value.value.origin.pluginId);
+});
 
-const showSidebar = ref(false)
+const showSidebar = ref(false);
 </script>
 
 <style scoped>

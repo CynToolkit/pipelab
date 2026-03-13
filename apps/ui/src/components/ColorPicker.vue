@@ -9,12 +9,12 @@
 
 <script setup lang="ts">
 const props = defineProps<{
-  modelValue?: string
-}>()
+  modelValue?: string;
+}>();
 
 const emit = defineEmits<{
-  (event: 'update:modelValue', value: string): void
-}>()
+  (event: "update:modelValue", value: string): void;
+}>();
 </script>
 
 <style scoped>

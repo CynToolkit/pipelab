@@ -4,7 +4,7 @@
  * @param {import('electron').BrowserWindow} mainWindow
  */
 export default async (json, ws, mainWindow) => {
-  mainWindow.restore()
+  mainWindow.restore();
 
   /**
    * @type {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').MessageWindowRestore, 'output'>}
@@ -13,8 +13,8 @@ export default async (json, ws, mainWindow) => {
     correlationId: json.correlationId,
     url: json.url,
     body: {
-      success: true
-    }
-  }
-  ws.send(JSON.stringify(restoreResult))
-}
+      success: true,
+    },
+  };
+  ws.send(JSON.stringify(restoreResult));
+};

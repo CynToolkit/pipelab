@@ -1,58 +1,58 @@
-import { createExpression, createExpressionRunner } from '@pipelab/plugin-core'
+import { createExpression, createExpressionRunner } from "@pipelab/plugin-core";
 
-export const ID = 'join'
+export const ID = "join";
 
 export type Data = {
-  value: string
-}
+  value: string;
+};
 
-const DEFAULT_SEPARATOR = ', '
+const DEFAULT_SEPARATOR = ", ";
 
 export const join = createExpression({
   id: ID,
-  name: 'Join',
-  description: 'Join values',
-  displayString: 'Join {{ params.value }}',
-  icon: '',
+  name: "Join",
+  description: "Join values",
+  displayString: "Join {{ params.value }}",
+  icon: "",
   meta: {},
   params: {
     input: {
-      label: 'Input',
+      label: "Input",
       value: [],
       control: {
-        type: 'input',
+        type: "input",
         options: {
-          kind: 'text'
-        }
-      }
+          kind: "text",
+        },
+      },
     },
     separator: {
-      label: 'Separator',
+      label: "Separator",
       value: DEFAULT_SEPARATOR,
       control: {
-        type: 'input',
+        type: "input",
         options: {
-          kind: 'text'
-        }
-      }
-    }
+          kind: "text",
+        },
+      },
+    },
   },
 
   outputs: {
     value: {
-      label: 'Value',
-      value: ''
-    }
-  }
-})
+      label: "Value",
+      value: "",
+    },
+  },
+});
 
 export const evaluator = createExpressionRunner<typeof join>(async ({ inputs }) => {
-  const inputArr = inputs?.input
-  const separatorArr = inputs?.separator
+  const inputArr = inputs?.input;
+  const separatorArr = inputs?.separator;
 
-  const input = inputArr ? inputArr[0] : []
-  const separator = separatorArr?.[0] ?? DEFAULT_SEPARATOR
+  const input = inputArr ? inputArr[0] : [];
+  const separator = separatorArr?.[0] ?? DEFAULT_SEPARATOR;
 
-  const result = input.join(separator)
-  return result
-})
+  const result = input.join(separator);
+  return result;
+});

@@ -1,1 +1,1 @@
-export const PROJECT_EXTENSION = 'plb'
+export const PROJECT_EXTENSION = "plb";

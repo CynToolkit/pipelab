@@ -4,84 +4,84 @@
 </template>
 
 <script lang="ts" setup>
-import { useAppStore } from '@renderer/store/app'
-import { walker } from '@renderer/utils/graph'
-import { Origin, SavedFile } from '@pipelab/shared/model'
-import { IconType } from '@pipelab/plugin-core'
-import { PropType, ref, toRaw, toRefs, watchEffect } from 'vue'
-import PluginIcon from './nodes/PluginIcon.vue'
-import { EnhancedFile } from '@pipelab/shared/model'
-import { klona } from 'klona'
+import { useAppStore } from "@renderer/store/app";
+import { walker } from "@renderer/utils/graph";
+import { Origin, SavedFile } from "@pipelab/shared/model";
+import { IconType } from "@pipelab/plugin-core";
+import { PropType, ref, toRaw, toRefs, watchEffect } from "vue";
+import PluginIcon from "./nodes/PluginIcon.vue";
+import { EnhancedFile } from "@pipelab/shared/model";
+import { klona } from "klona";
 
 const props = defineProps({
   scenario: {
     type: Object as PropType<EnhancedFile>,
-    required: true
+    required: true,
   },
   noDeleteBtn: {
     type: Boolean,
-    default: false
-  }
-})
+    default: false,
+  },
+});
 
 const emit = defineEmits<{
-  delete: [payload: SavedFile]
-  open: [payload: SavedFile]
-  duplicate: [payload: SavedFile]
-}>()
+  delete: [payload: SavedFile];
+  open: [payload: SavedFile];
+  duplicate: [payload: SavedFile];
+}>();
 
-const { scenario } = toRefs(props)
+const { scenario } = toRefs(props);
 
-const appStore = useAppStore()
-const { getPluginDefinition } = appStore
+const appStore = useAppStore();
+const { getPluginDefinition } = appStore;
 
-const icons = ref<(IconType & { origin: Origin })[]>([])
+const icons = ref<(IconType & { origin: Origin })[]>([]);
 
 watchEffect(async () => {
-  const newIcons: (IconType & { origin: Origin })[] = []
+  const newIcons: (IconType & { origin: Origin })[] = [];
   await walker(scenario.value.content.canvas.blocks, async (node) => {
-    const def = getPluginDefinition(node.origin.pluginId)
+    const def = getPluginDefinition(node.origin.pluginId);
     if (def) {
       newIcons.push({
         origin: node.origin,
-        ...def.icon
-      })
+        ...def.icon,
+      });
     }
-  })
+  });
   if (newIcons.length > 4) {
     icons.value = [
       ...newIcons.slice(0, 3),
       {
-        type: 'icon',
-        icon: 'mdi-plus',
+        type: "icon",
+        icon: "mdi-plus",
         origin: {
-          nodeId: '0',
-          pluginId: '0'
-        }
-      }
-    ]
+          nodeId: "0",
+          pluginId: "0",
+        },
+      },
+    ];
   } else {
-    icons.value = newIcons
+    icons.value = newIcons;
   }
 
   // console.log('icons.value', icons.value)
   // icons.value = icons.value.filter((x) => icons.value.map((y) => y.origin).indexOf(x) >= 0)
   // console.log('icons.value', icons.value)
-})
+});
 
 const onDelete = () => {
-  emit('delete', scenario.value.content)
-}
+  emit("delete", scenario.value.content);
+};
 
 const onDuplicate = () => {
-  console.log('scenario.value', scenario.value)
-  console.log('scenario.value', scenario.value.content)
-  emit('duplicate', scenario.value.content)
-}
+  console.log("scenario.value", scenario.value);
+  console.log("scenario.value", scenario.value.content);
+  emit("duplicate", scenario.value.content);
+};
 
 const onOpen = () => {
-  emit('open', scenario.value.content)
-}
+  emit("open", scenario.value.content);
+};
 </script>
 
 <style lang="scss" scoped>

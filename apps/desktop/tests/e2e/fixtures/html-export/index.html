@@ -10,20 +10,20 @@
     <script>
       // window.electronAPI.exit(0)
 
-      const ws = new WebSocket('ws://localhost:31753')
+      const ws = new WebSocket("ws://localhost:31753");
 
       ws.onopen = () => {
-        console.log('WebSocket opened')
+        console.log("WebSocket opened");
 
         /** @type {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').MessageExit, 'input'>} */
         const orderPath = {
-          url: '/exit',
+          url: "/exit",
           body: {
-            code: 0
-          }
-        }
-        ws.send(JSON.stringify(orderPath))
-      }
+            code: 0,
+          },
+        };
+        ws.send(JSON.stringify(orderPath));
+      };
     </script>
   </body>
 </html>

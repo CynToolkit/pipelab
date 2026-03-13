@@ -9,7 +9,7 @@
           <span class="status-dot"></span>
           Offline
         </div>
-        
+
         <div class="icon-container">
           <i class="pi pi-wifi text-8xl icon-pulse"></i>
           <div class="connection-lines">
@@ -24,12 +24,12 @@
           We couldn't establish a connection to the Pipelab agent.<br />
           Please ensure the agent is running and try again.
         </p>
-        
+
         <div class="actions">
-          <Button 
-            label="Try Reconnect" 
-            icon="pi pi-refresh" 
-            @click="testReconnection" 
+          <Button
+            label="Try Reconnect"
+            icon="pi pi-refresh"
+            @click="testReconnection"
             :loading="isReconnecting"
             class="reconnect-button"
           />
@@ -49,41 +49,39 @@
       <div class="agent-info" v-if="agentsStore.selectedAgent">
         Target: {{ agentsStore.selectedAgent.url }}
       </div>
-      <div class="retry-count" v-if="retryCount > 0">
-        Attempts: {{ retryCount }}
-      </div>
+      <div class="retry-count" v-if="retryCount > 0">Attempts: {{ retryCount }}</div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-import Button from 'primevue/button'
-import { websocketManager } from '@renderer/composables/websocket-manager'
-import { useAgentsStore } from '@renderer/store/agents'
+import { ref } from "vue";
+import Button from "primevue/button";
+import { websocketManager } from "@renderer/composables/websocket-manager";
+import { useAgentsStore } from "@renderer/store/agents";
 
-const isReconnecting = ref(false)
-const retryCount = ref(0)
-const agentsStore = useAgentsStore()
+const isReconnecting = ref(false);
+const retryCount = ref(0);
+const agentsStore = useAgentsStore();
 
 const testReconnection = async () => {
-  isReconnecting.value = true
-  retryCount.value++
+  isReconnecting.value = true;
+  retryCount.value++;
   try {
     if (agentsStore.selectedAgent) {
-      await websocketManager.connect(agentsStore.selectedAgent.url)
+      await websocketManager.connect(agentsStore.selectedAgent.url);
     } else {
-      await websocketManager.connect()
+      await websocketManager.connect();
     }
   } catch (e) {
-    console.error('Reconnection failed', e)
+    console.error("Reconnection failed", e);
   } finally {
     // Keep it loading for a short while
     setTimeout(() => {
-      isReconnecting.value = false
-    }, 800)
+      isReconnecting.value = false;
+    }, 800);
   }
-}
+};
 </script>
 
 <style scoped lang="scss">
@@ -108,7 +106,7 @@ const testReconnection = async () => {
   left: 0;
   width: 100%;
   height: 100%;
-  background-image: 
+  background-image:
     linear-gradient(var(--p-surface-200) 1px, transparent 1px),
     linear-gradient(90deg, var(--p-surface-200) 1px, transparent 1px);
   background-size: 60px 60px;
@@ -189,9 +187,21 @@ const testReconnection = async () => {
   opacity: 0;
 }
 
-.line-1 { width: 120px; height: 120px; animation: expand 4s infinite 0s; }
-.line-2 { width: 120px; height: 120px; animation: expand 4s infinite 1.3s; }
-.line-3 { width: 120px; height: 120px; animation: expand 4s infinite 2.6s; }
+.line-1 {
+  width: 120px;
+  height: 120px;
+  animation: expand 4s infinite 0s;
+}
+.line-2 {
+  width: 120px;
+  height: 120px;
+  animation: expand 4s infinite 1.3s;
+}
+.line-3 {
+  width: 120px;
+  height: 120px;
+  animation: expand 4s infinite 2.6s;
+}
 
 .title {
   font-size: 4rem;
@@ -222,7 +232,7 @@ const testReconnection = async () => {
     transform: translateY(-4px) scale(1.02);
     box-shadow: 0 20px 45px rgba(var(--p-primary-color-rgb), 0.35) !important;
   }
-  
+
   &:active {
     transform: translateY(-2px) scale(0.98);
   }
@@ -287,18 +297,39 @@ const testReconnection = async () => {
 }
 
 @keyframes pulse {
-  0%, 100% { transform: scale(1); opacity: 0.85; }
-  50% { transform: scale(1.1); opacity: 1; }
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.85;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 1;
+  }
 }
 
 @keyframes expand {
-  0% { width: 100px; height: 100px; opacity: 0.6; border-width: 3px; }
-  100% { width: 500px; height: 500px; opacity: 0; border-width: 0.5px; }
+  0% {
+    width: 100px;
+    height: 100px;
+    opacity: 0.6;
+    border-width: 3px;
+  }
+  100% {
+    width: 500px;
+    height: 500px;
+    opacity: 0;
+    border-width: 0.5px;
+  }
 }
 
 @keyframes drift {
-  0% { transform: translate(0, 0) rotate(0deg); }
-  100% { transform: translate(150px, 100px) rotate(15deg); }
+  0% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+  100% {
+    transform: translate(150px, 100px) rotate(15deg);
+  }
 }
 
 @media (max-width: 992px) {

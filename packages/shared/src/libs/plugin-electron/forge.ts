@@ -1,4 +1,4 @@
-import { getBinName, outFolderName } from '@pipelab/constants'
+import { getBinName, outFolderName } from "@pipelab/constants";
 import {
   ActionRunnerData,
   createAction,
@@ -10,342 +10,342 @@ import {
   createStringParam,
   InputsDefinition,
   OutputsDefinition,
-  runWithLiveLogs
-} from '../plugin-core'
+  runWithLiveLogs,
+} from "../plugin-core";
 
-import { app } from 'electron'
-import { detectRuntime } from '@pipelab/shared/plugins'
-import { dirname } from 'node:path'
-import * as esbuild from 'esbuild'
+import { app } from "electron";
+import { detectRuntime } from "@pipelab/shared/plugins";
+import { dirname } from "node:path";
+import * as esbuild from "esbuild";
 
 // TODO: https://js.electronforge.io/modules/_electron_forge_core.html
 
-export const IDMake = 'electron:make'
-export const IDPackage = 'electron:package'
-export const IDPackageV2 = 'electron:package:v2'
-export const IDPackageV3 = 'electron:package:v3'
-export const IDPreview = 'electron:preview'
+export const IDMake = "electron:make";
+export const IDPackage = "electron:package";
+export const IDPackageV2 = "electron:package:v2";
+export const IDPackageV3 = "electron:package:v3";
+export const IDPreview = "electron:preview";
 
 const paramsInputFolder = {
-  'input-folder': createPathParam('', {
-    label: 'Folder to package',
+  "input-folder": createPathParam("", {
+    label: "Folder to package",
     required: true,
     control: {
-      type: 'path',
+      type: "path",
       options: {
-        properties: ['openDirectory']
-      }
-    }
-  })
-} satisfies InputsDefinition
+        properties: ["openDirectory"],
+      },
+    },
+  }),
+} satisfies InputsDefinition;
 
 const paramsInputURL = {
-  'input-url': createStringParam('', {
-    label: 'URL to preview',
-    required: true
-  })
-} satisfies InputsDefinition
+  "input-url": createStringParam("", {
+    label: "URL to preview",
+    required: true,
+  }),
+} satisfies InputsDefinition;
 
 const params = {
   arch: {
-    value: '' as NodeJS.Architecture | '', // MakeOptions['arch'],
-    label: 'Architecture',
+    value: "" as NodeJS.Architecture | "", // MakeOptions['arch'],
+    label: "Architecture",
     required: false,
     control: {
-      type: 'select',
+      type: "select",
       options: {
-        placeholder: 'Architecture',
+        placeholder: "Architecture",
         options: [
           {
-            label: 'Older PCs (ia32)',
-            value: 'ia32'
+            label: "Older PCs (ia32)",
+            value: "ia32",
           },
           {
-            label: 'Modern PCs (x64)',
-            value: 'x64'
+            label: "Modern PCs (x64)",
+            value: "x64",
           },
           {
-            label: 'Older Mobile/Pi (armv7l)',
-            value: 'armv7l'
+            label: "Older Mobile/Pi (armv7l)",
+            value: "armv7l",
           },
           {
-            label: 'New Mobile/Apple Silicon (arm64)',
-            value: 'arm64'
+            label: "New Mobile/Apple Silicon (arm64)",
+            value: "arm64",
           },
           {
-            label: 'Mac Universal (universal)',
-            value: 'universal'
+            label: "Mac Universal (universal)",
+            value: "universal",
           },
           {
-            label: 'Special Systems (mips64el)',
-            value: 'mips64el'
-          }
-        ]
-      }
-    }
+            label: "Special Systems (mips64el)",
+            value: "mips64el",
+          },
+        ],
+      },
+    },
   },
   platform: {
-    value: '' as NodeJS.Platform | '', // MakeOptions['platform'],
-    label: 'Platform',
+    value: "" as NodeJS.Platform | "", // MakeOptions['platform'],
+    label: "Platform",
     required: false,
     control: {
-      type: 'select',
+      type: "select",
       options: {
-        placeholder: 'Platform',
+        placeholder: "Platform",
         options: [
           {
-            label: 'Windows (win32)',
-            value: 'win32'
+            label: "Windows (win32)",
+            value: "win32",
           },
           {
-            label: 'macOS (darwin)',
-            value: 'darwin'
+            label: "macOS (darwin)",
+            value: "darwin",
           },
           {
-            label: 'Linux (linux)',
-            value: 'linux'
-          }
-        ]
-      }
-    }
+            label: "Linux (linux)",
+            value: "linux",
+          },
+        ],
+      },
+    },
   },
   configuration: {
-    label: 'Electron configuration',
+    label: "Electron configuration",
     value: undefined as Partial<DesktopApp.Electron> | undefined,
     required: true,
     control: {
-      type: 'json'
-    }
-  }
-} satisfies InputsDefinition
+      type: "json",
+    },
+  },
+} satisfies InputsDefinition;
 
 export const configureParams = {
-  name: createStringParam('Pipelab', {
-    label: 'Application name',
-    description: 'The name of the application',
-    required: true
+  name: createStringParam("Pipelab", {
+    label: "Application name",
+    description: "The name of the application",
+    required: true,
   }),
-  appBundleId: createStringParam('com.pipelab.app', {
-    label: 'Application bundle ID',
-    description: 'The bundle ID of the application',
-    required: true
+  appBundleId: createStringParam("com.pipelab.app", {
+    label: "Application bundle ID",
+    description: "The bundle ID of the application",
+    required: true,
   }),
-  appCopyright: createStringParam('Copyright © 2024 Pipelab', {
-    label: 'Application copyright',
-    description: 'The copyright of the application',
-    required: false
+  appCopyright: createStringParam("Copyright © 2024 Pipelab", {
+    label: "Application copyright",
+    description: "The copyright of the application",
+    required: false,
   }),
-  appVersion: createStringParam('1.0.0', {
-    label: 'Application version',
-    description: 'The version of the application',
-    required: true
+  appVersion: createStringParam("1.0.0", {
+    label: "Application version",
+    description: "The version of the application",
+    required: true,
   }),
-  icon: createPathParam('', {
-    label: 'Application icon',
-    description: 'The icon of the application. macOS: .icns. Windows: .ico',
+  icon: createPathParam("", {
+    label: "Application icon",
+    description: "The icon of the application. macOS: .icns. Windows: .ico",
     required: false,
     control: {
-      type: 'path',
+      type: "path",
       options: {
         filters: [
-          { name: 'Image', extensions: ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'ico', 'icns'] }
-        ]
+          { name: "Image", extensions: ["png", "jpg", "jpeg", "gif", "bmp", "ico", "icns"] },
+        ],
       },
-      label: 'Path to an image file'
-    }
+      label: "Path to an image file",
+    },
   }),
-  author: createStringParam('Pipelab', {
-    label: 'Application author',
-    description: 'The author of the application',
-    required: true
+  author: createStringParam("Pipelab", {
+    label: "Application author",
+    description: "The author of the application",
+    required: true,
   }),
-  description: createStringParam('A simple Electron application', {
-    label: 'Application description',
-    description: 'The description of the application',
-    required: false
+  description: createStringParam("A simple Electron application", {
+    label: "Application description",
+    description: "The description of the application",
+    required: false,
   }),
   customPackages: createArray<string[]>(
     `[
   // e.g. "lodash" or "express@4.17.1"
 ]`,
     {
-      label: 'Custom npm packages',
+      label: "Custom npm packages",
       description:
         'A list of additional npm packages to install (format: "package" or "package@version")',
       required: false,
       control: {
-        type: 'array',
+        type: "array",
         options: {
-          kind: 'text'
-        }
-      }
-    }
+          kind: "text",
+        },
+      },
+    },
   ),
 
-  appCategoryType: createStringParam('public.app-category.developer-tools', {
-    platforms: ['darwin'],
-    label: 'Application category type',
-    description: 'The category type of the application',
-    required: false
+  appCategoryType: createStringParam("public.app-category.developer-tools", {
+    platforms: ["darwin"],
+    label: "Application category type",
+    description: "The category type of the application",
+    required: false,
   }),
 
   // window
   width: createNumberParam(800, {
-    label: 'Window width',
-    description: 'The width of the window',
-    required: false
+    label: "Window width",
+    description: "The width of the window",
+    required: false,
   }),
   height: createNumberParam(600, {
-    label: 'Window height',
-    description: 'The height of the window',
-    required: false
+    label: "Window height",
+    description: "The height of the window",
+    required: false,
   }),
   fullscreen: {
-    label: 'Fullscreen',
+    label: "Fullscreen",
     value: false,
-    description: 'Whether to start the application in fullscreen mode',
+    description: "Whether to start the application in fullscreen mode",
     required: false,
     control: {
-      type: 'boolean'
-    }
+      type: "boolean",
+    },
   },
   frame: {
-    label: 'Frame',
+    label: "Frame",
     value: true,
-    description: 'Whether to show the window frame',
+    description: "Whether to show the window frame",
     required: false,
     control: {
-      type: 'boolean'
-    }
+      type: "boolean",
+    },
   },
   transparent: {
-    label: 'Transparent',
+    label: "Transparent",
     value: false,
-    description: 'Whether to make the window transparent',
+    description: "Whether to make the window transparent",
     required: false,
     control: {
-      type: 'boolean'
-    }
+      type: "boolean",
+    },
   },
   toolbar: {
-    label: 'Toolbar',
+    label: "Toolbar",
     value: true,
-    description: 'Whether to show the toolbar',
+    description: "Whether to show the toolbar",
     required: false,
     control: {
-      type: 'boolean'
-    }
+      type: "boolean",
+    },
   },
   alwaysOnTop: {
-    label: 'Always on top',
+    label: "Always on top",
     value: false,
-    description: 'Whether to always keep the window on top',
+    description: "Whether to always keep the window on top",
     required: false,
     control: {
-      type: 'boolean'
-    }
+      type: "boolean",
+    },
   },
 
-  backgroundColor: createColorPicker('#ffffff', {
-    label: 'Background Color',
-    description: 'The background color of the window',
-    required: false
+  backgroundColor: createColorPicker("#ffffff", {
+    label: "Background Color",
+    description: "The background color of the window",
+    required: false,
   }),
 
-  electronVersion: createStringParam('', {
-    label: 'Electron version',
+  electronVersion: createStringParam("", {
+    label: "Electron version",
     description:
-      'The version of Electron to use. If no version specified, it will use the latest one.',
-    required: false
-  }),
-  customMainCode: createPathParam('', {
+      "The version of Electron to use. If no version specified, it will use the latest one.",
     required: false,
-    label: 'Custom main code',
+  }),
+  customMainCode: createPathParam("", {
+    required: false,
+    label: "Custom main code",
     control: {
-      type: 'path',
+      type: "path",
       options: {
-        filters: [{ name: 'JavaScript', extensions: ['js'] }]
+        filters: [{ name: "JavaScript", extensions: ["js"] }],
       },
-      label: 'Path to a file containing custom main code'
-    }
+      label: "Path to a file containing custom main code",
+    },
   }),
   disableAsarPackaging: {
     required: false,
-    label: 'Disable ASAR packaging',
+    label: "Disable ASAR packaging",
     value: true,
     control: {
-      type: 'boolean'
+      type: "boolean",
     },
-    description: 'Whether to disable packaging project files in a single binary or not'
+    description: "Whether to disable packaging project files in a single binary or not",
   },
   enableExtraLogging: {
     required: false,
-    label: 'Enable extra logging',
+    label: "Enable extra logging",
     value: false,
     control: {
-      type: 'boolean'
+      type: "boolean",
     },
-    description: 'Whether to enable extra logging of internal tools while bundling'
+    description: "Whether to enable extra logging of internal tools while bundling",
   },
   clearServiceWorkerOnBoot: {
     required: false,
-    label: 'Clear service worker on boot',
+    label: "Clear service worker on boot",
     value: false,
     control: {
-      type: 'boolean'
+      type: "boolean",
     },
-    description: 'Whether to clear service worker on boot'
+    description: "Whether to clear service worker on boot",
   },
   openDevtoolsOnStart: createBooleanParam(false, {
-    label: 'Open devtools on app start',
+    label: "Open devtools on app start",
     required: false,
-    description: 'Whether to open devtools on app start'
+    description: "Whether to open devtools on app start",
   }),
 
   // Flags
 
   enableInProcessGPU: {
     required: false,
-    label: 'Enable in-process GPU',
+    label: "Enable in-process GPU",
     description:
-      'When enabled, the GPU process runs inside the main browser process instead of a separate one. This can reduce overhead but may lead to instability or crashes if the GPU process fails.',
+      "When enabled, the GPU process runs inside the main browser process instead of a separate one. This can reduce overhead but may lead to instability or crashes if the GPU process fails.",
     value: false,
     control: {
-      type: 'boolean'
-    }
+      type: "boolean",
+    },
   },
   enableDisableRendererBackgrounding: {
     required: false,
     description:
-      'Enabling this prevents background tabs from being throttled, which can be useful for web apps that need continuous performance.',
-    label: 'Disable renderer backgrounding',
+      "Enabling this prevents background tabs from being throttled, which can be useful for web apps that need continuous performance.",
+    label: "Disable renderer backgrounding",
     value: false,
     control: {
-      type: 'boolean'
-    }
+      type: "boolean",
+    },
   },
   forceHighPerformanceGpu: {
     required: false,
     description:
-      'Enabling this forces the app to always use the high-performance GPU, which can improve rendering but may increase power consumption.',
-    label: 'Force high performance GPU',
+      "Enabling this forces the app to always use the high-performance GPU, which can improve rendering but may increase power consumption.",
+    label: "Force high performance GPU",
     value: false,
     control: {
-      type: 'boolean'
-    }
+      type: "boolean",
+    },
   },
 
   // websocket apis
   websocketApi: {
     required: false,
-    label: 'WebSocket APIs to allow (empty = all)',
-    value: '[]',
+    label: "WebSocket APIs to allow (empty = all)",
+    value: "[]",
     control: {
-      type: 'array',
+      type: "array",
       options: {
-        kind: 'text'
-      }
-    }
+        kind: "text",
+      },
+    },
   },
   ignore: createArray<(string | RegExp)[]>(
     `[
@@ -353,90 +353,90 @@ export const configureParams = {
 ]`,
     {
       required: false,
-      label: 'Folders to ignore',
+      label: "Folders to ignore",
       description:
-        'An array of string or Regex that allow ignoring certain files or folders from being packaged',
+        "An array of string or Regex that allow ignoring certain files or folders from being packaged",
       control: {
-        type: 'array',
+        type: "array",
         options: {
-          kind: 'text'
-        }
-      }
-    }
+          kind: "text",
+        },
+      },
+    },
   ),
 
   // integrations
 
   enableSteamSupport: {
     required: false,
-    label: 'Enable steam support',
-    description: 'Whether to enable Steam support',
+    label: "Enable steam support",
+    description: "Whether to enable Steam support",
     value: false,
     control: {
-      type: 'boolean'
-    }
+      type: "boolean",
+    },
   },
   steamGameId: createNumberParam(480, {
     required: false,
-    label: 'Steam game ID',
-    description: 'The Steam game ID'
+    label: "Steam game ID",
+    description: "The Steam game ID",
   }),
   enableDiscordSupport: {
     required: false,
-    label: 'Enable Discord support',
-    description: 'Whether to enable Discord support',
+    label: "Enable Discord support",
+    description: "Whether to enable Discord support",
     value: false,
     control: {
-      type: 'boolean'
-    }
+      type: "boolean",
+    },
   },
-  discordAppId: createStringParam('', {
+  discordAppId: createStringParam("", {
     required: false,
-    label: 'Discord application ID',
-    description: 'The Discord application ID'
+    label: "Discord application ID",
+    description: "The Discord application ID",
   }),
   enableDoctor: createBooleanParam(true, {
     required: false,
-    label: 'Enable doctor file',
+    label: "Enable doctor file",
     description:
-      'Whether to include the doctor.bat file in Windows builds for prerequisite checking and app launching'
+      "Whether to include the doctor.bat file in Windows builds for prerequisite checking and app launching",
   }),
   serverMode: {
-    value: '"default"' as 'default' | 'customProtocol',
+    value: '"default"' as "default" | "customProtocol",
     required: false,
-    label: 'Server mode',
-    description: 'The server mode to use',
+    label: "Server mode",
+    description: "The server mode to use",
     control: {
-      type: 'select',
+      type: "select",
       options: {
-        placeholder: 'Mode',
+        placeholder: "Mode",
         options: [
           {
-            value: 'default',
-            label: 'Default'
+            value: "default",
+            label: "Default",
           },
           {
-            value: 'customProtocol',
-            label: 'Custom Protocol'
-          }
-        ]
-      }
-    }
-  }
-} satisfies InputsDefinition
+            value: "customProtocol",
+            label: "Custom Protocol",
+          },
+        ],
+      },
+    },
+  },
+} satisfies InputsDefinition;
 
 const outputs = {
   output: {
-    label: 'Output',
-    value: '',
+    label: "Output",
+    value: "",
     control: {
-      type: 'path',
+      type: "path",
       options: {
-        properties: ['openDirectory']
-      }
-    }
-  }
-} satisfies OutputsDefinition
+        properties: ["openDirectory"],
+      },
+    },
+  },
+} satisfies OutputsDefinition;
 
 // type Inputs = ParamsToInput<typeof params>
 
@@ -445,7 +445,7 @@ export const createMakeProps = (
   name: string,
   description: string,
   icon: string,
-  displayString: string
+  displayString: string,
 ) =>
   createAction({
     id,
@@ -456,10 +456,10 @@ export const createMakeProps = (
     meta: {},
     params: {
       ...params,
-      ...paramsInputFolder
+      ...paramsInputFolder,
     },
-    outputs
-  })
+    outputs,
+  });
 
 export const createPackageProps = (
   id: string,
@@ -471,7 +471,7 @@ export const createPackageProps = (
   deprecated?: boolean,
   deprecatedMessage?: string,
   disabled?: false,
-  updateAvailable?: boolean
+  updateAvailable?: boolean,
 ) =>
   createAction({
     id,
@@ -487,10 +487,10 @@ export const createPackageProps = (
     updateAvailable,
     params: {
       ...params,
-      ...paramsInputFolder
+      ...paramsInputFolder,
     },
-    outputs: outputs
-  })
+    outputs: outputs,
+  });
 export const createPackageV2Props = (
   id: string,
   name: string,
@@ -501,9 +501,9 @@ export const createPackageV2Props = (
   deprecated?: boolean,
   deprecatedMessage?: string,
   disabled?: false,
-  updateAvailable?: boolean
+  updateAvailable?: boolean,
 ) => {
-  const { arch, platform } = params
+  const { arch, platform } = params;
   return createAction({
     id,
     name,
@@ -520,18 +520,18 @@ export const createPackageV2Props = (
       arch,
       platform,
       ...paramsInputFolder,
-      ...configureParams
+      ...configureParams,
     },
-    outputs: outputs
-  })
-}
+    outputs: outputs,
+  });
+};
 
 export const createPreviewProps = (
   id: string,
   name: string,
   description: string,
   icon: string,
-  displayString: string
+  displayString: string,
 ) =>
   createAction({
     id,
@@ -542,13 +542,13 @@ export const createPreviewProps = (
     meta: {},
     params: {
       ...params,
-      ...paramsInputURL
+      ...paramsInputURL,
     },
-    outputs: outputs
-  })
+    outputs: outputs,
+  });
 
 export const forge = async (
-  action: 'make' | 'package' | 'preview',
+  action: "make" | "package" | "preview",
   appFolder: string | undefined,
   {
     cwd,
@@ -556,53 +556,53 @@ export const forge = async (
     inputs,
     setOutput,
     paths,
-    abortSignal
+    abortSignal,
   }: ActionRunnerData<
     | ReturnType<typeof createMakeProps>
     | ReturnType<typeof createPackageProps>
     | ReturnType<typeof createPackageV2Props>
     | ReturnType<typeof createPreviewProps>
   >,
-  completeConfiguration: DesktopApp.Electron
+  completeConfiguration: DesktopApp.Electron,
 ): Promise<{ folder: string; binary: string | undefined } | undefined> => {
-  const { join, basename, delimiter } = await import('node:path')
-  const { cp, readFile, writeFile, rm } = await import('node:fs/promises')
-  const { arch, platform } = await import('os')
-  const { kebabCase } = await import('change-case')
-  const semver = (await import('semver')).default
+  const { join, basename, delimiter } = await import("node:path");
+  const { cp, readFile, writeFile, rm } = await import("node:fs/promises");
+  const { arch, platform } = await import("os");
+  const { kebabCase } = await import("change-case");
+  const semver = (await import("semver")).default;
 
-  log('Building electron')
+  log("Building electron");
 
-  if (action !== 'preview') {
-    await detectRuntime(appFolder)
+  if (action !== "preview") {
+    await detectRuntime(appFolder);
   }
 
-  const { assets, unpack, node } = paths
+  const { assets, unpack, node } = paths;
 
-  console.log('assets', assets)
+  console.log("assets", assets);
 
   // const { fileURLToPath } = await import('url')
   // const __dirname = fileURLToPath(dirname(import.meta.url))
   // const { app } = await import('electron')
 
-  const modulesPath = join(unpack, 'node_modules')
+  const modulesPath = join(unpack, "node_modules");
 
-  const pnpm = join(modulesPath, 'pnpm', 'bin', 'pnpm.cjs')
+  const pnpm = join(modulesPath, "pnpm", "bin", "pnpm.cjs");
 
-  const destinationFolder = join(cwd, 'build')
+  const destinationFolder = join(cwd, "build");
 
   const forge = join(
     destinationFolder,
-    'node_modules',
-    '@electron-forge',
-    'cli',
-    'dist',
-    'electron-forge.js'
-  )
+    "node_modules",
+    "@electron-forge",
+    "cli",
+    "dist",
+    "electron-forge.js",
+  );
 
-  const templateFolder = join(assets, 'electron', 'template', 'app')
-  console.log('templateFolder', templateFolder)
-  console.log('destinationFolder', destinationFolder)
+  const templateFolder = join(assets, "electron", "template", "app");
+  console.log("templateFolder", templateFolder);
+  console.log("destinationFolder", destinationFolder);
 
   // copy template to destination
   await cp(templateFolder, destinationFolder, {
@@ -610,309 +610,309 @@ export const forge = async (
     filter: (src) => {
       // console.log('src', src)
       // console.log('dest', dest)
-      return basename(src) !== 'node_modules'
-    }
-  })
+      return basename(src) !== "node_modules";
+    },
+  });
 
-  console.log('copy done')
+  console.log("copy done");
 
-  const pkgJSONPath = join(destinationFolder, 'package.json')
-  const pkgJSONContent = await readFile(pkgJSONPath, 'utf8')
-  const userData = app.getPath('userData')
-  const pnpmHome = join(userData, 'config', 'pnpm')
-  const sanitizedName = kebabCase(completeConfiguration.name)
+  const pkgJSONPath = join(destinationFolder, "package.json");
+  const pkgJSONContent = await readFile(pkgJSONPath, "utf8");
+  const userData = app.getPath("userData");
+  const pnpmHome = join(userData, "config", "pnpm");
+  const sanitizedName = kebabCase(completeConfiguration.name);
 
-  const originalIconPath = completeConfiguration.icon
-  const hasIcon = completeConfiguration.icon !== undefined && completeConfiguration.icon !== ''
-  const iconFilename = hasIcon ? basename(completeConfiguration.icon) : ''
-  const newIconPath = hasIcon ? join(destinationFolder, iconFilename) : ''
-  const relativeIconPath = hasIcon ? join('./', 'build', iconFilename) : ''
-  const relativeIconPath1 = hasIcon ? join('./', iconFilename) : ''
+  const originalIconPath = completeConfiguration.icon;
+  const hasIcon = completeConfiguration.icon !== undefined && completeConfiguration.icon !== "";
+  const iconFilename = hasIcon ? basename(completeConfiguration.icon) : "";
+  const newIconPath = hasIcon ? join(destinationFolder, iconFilename) : "";
+  const relativeIconPath = hasIcon ? join("./", "build", iconFilename) : "";
+  const relativeIconPath1 = hasIcon ? join("./", iconFilename) : "";
 
-  log('relativeIconPath', relativeIconPath)
-  log('relativeIconPath1', relativeIconPath1)
+  log("relativeIconPath", relativeIconPath);
+  log("relativeIconPath1", relativeIconPath1);
 
   const hasElectronVersion =
     completeConfiguration.electronVersion !== undefined &&
-    completeConfiguration.electronVersion !== ''
+    completeConfiguration.electronVersion !== "";
   const isCJSOnly =
     hasElectronVersion &&
-    semver.lt(semver.coerce(completeConfiguration.electronVersion) || '0.0.0', '28.0.0')
+    semver.lt(semver.coerce(completeConfiguration.electronVersion) || "0.0.0", "28.0.0");
 
-  const pkgJSON = JSON.parse(pkgJSONContent)
-  log('Setting name to', sanitizedName)
-  pkgJSON.name = sanitizedName
-  log('Setting productName to', completeConfiguration.name)
-  pkgJSON.productName = completeConfiguration.name
+  const pkgJSON = JSON.parse(pkgJSONContent);
+  log("Setting name to", sanitizedName);
+  pkgJSON.name = sanitizedName;
+  log("Setting productName to", completeConfiguration.name);
+  pkgJSON.productName = completeConfiguration.name;
 
-  completeConfiguration.icon = relativeIconPath1
+  completeConfiguration.icon = relativeIconPath1;
 
   writeFile(
-    join(destinationFolder, 'config.cjs'),
+    join(destinationFolder, "config.cjs"),
     `module.exports = ${JSON.stringify(completeConfiguration, undefined, 2)}`,
-    'utf8'
-  )
+    "utf8",
+  );
 
   if (isCJSOnly) {
-    log('Setting type to', 'commonjs')
-    pkgJSON.type = 'commonjs'
+    log("Setting type to", "commonjs");
+    pkgJSON.type = "commonjs";
   } else {
-    log('Setting type to', 'module')
-    pkgJSON.type = 'module'
+    log("Setting type to", "module");
+    pkgJSON.type = "module";
   }
 
-  await writeFile(pkgJSONPath, JSON.stringify(pkgJSON, null, 2))
+  await writeFile(pkgJSONPath, JSON.stringify(pkgJSON, null, 2));
 
-  log('Installing packages')
+  log("Installing packages");
   await runWithLiveLogs(
     node,
-    [pnpm, 'install', '--prefer-offline'],
+    [pnpm, "install", "--prefer-offline"],
     {
       cwd: destinationFolder,
       env: {
         // DEBUG: '*',
         PATH: `${dirname(node)}${delimiter}${process.env.PATH}`,
-        PNPM_HOME: pnpmHome
+        PNPM_HOME: pnpmHome,
       },
-      cancelSignal: abortSignal
+      cancelSignal: abortSignal,
     },
     log,
     {
       onStderr(data) {
-        log(data)
+        log(data);
       },
       onStdout(data) {
-        log(data)
-      }
-    }
-  )
+        log(data);
+      },
+    },
+  );
 
-  console.log('done install')
+  console.log("done install");
 
   // install user-defined custom packages
   if (
     Array.isArray(completeConfiguration.customPackages) &&
     completeConfiguration.customPackages.length > 0
   ) {
-    log(`Installing custom packages: ${completeConfiguration.customPackages.join(', ')}`)
+    log(`Installing custom packages: ${completeConfiguration.customPackages.join(", ")}`);
     await runWithLiveLogs(
       node,
-      [pnpm, 'install', ...completeConfiguration.customPackages, '--prefer-offline'],
+      [pnpm, "install", ...completeConfiguration.customPackages, "--prefer-offline"],
       {
         cwd: destinationFolder,
         env: {
           // DEBUG: '*',
           PATH: `${dirname(node)}${delimiter}${process.env.PATH}`,
-          PNPM_HOME: pnpmHome
+          PNPM_HOME: pnpmHome,
         },
-        cancelSignal: abortSignal
+        cancelSignal: abortSignal,
       },
       log,
       {
         onStderr(data) {
-          log(data)
+          log(data);
         },
         onStdout(data) {
-          log(data)
-        }
-      }
-    )
+          log(data);
+        },
+      },
+    );
   }
 
   // override electron version
-  if (completeConfiguration.electronVersion && completeConfiguration.electronVersion !== '') {
-    log(`Installing electron@${completeConfiguration.electronVersion}`)
+  if (completeConfiguration.electronVersion && completeConfiguration.electronVersion !== "") {
+    log(`Installing electron@${completeConfiguration.electronVersion}`);
     await runWithLiveLogs(
       node,
-      [pnpm, 'install', `electron@${completeConfiguration.electronVersion}`, '--prefer-offline'],
+      [pnpm, "install", `electron@${completeConfiguration.electronVersion}`, "--prefer-offline"],
       {
         cwd: destinationFolder,
         env: {
           // DEBUG: '*',
           PATH: `${dirname(node)}${delimiter}${process.env.PATH}`,
-          PNPM_HOME: pnpmHome
+          PNPM_HOME: pnpmHome,
         },
-        cancelSignal: abortSignal
+        cancelSignal: abortSignal,
       },
       log,
       {
         onStderr(data) {
-          log(data)
+          log(data);
         },
         onStdout(data) {
-          log(data)
-        }
-      }
-    )
+          log(data);
+        },
+      },
+    );
   }
 
   if (isCJSOnly) {
-    log(`Installing execa@8`)
+    log(`Installing execa@8`);
     await runWithLiveLogs(
       node,
-      [pnpm, 'install', `execa@8`, '--prefer-offline'],
+      [pnpm, "install", `execa@8`, "--prefer-offline"],
       {
         cwd: destinationFolder,
         env: {
           // DEBUG: '*',
           PATH: `${dirname(node)}${delimiter}${process.env.PATH}`,
-          PNPM_HOME: pnpmHome
+          PNPM_HOME: pnpmHome,
         },
-        cancelSignal: abortSignal
+        cancelSignal: abortSignal,
       },
       log,
       {
         onStderr(data) {
-          log(data)
+          log(data);
         },
         onStdout(data) {
-          log(data)
-        }
-      }
-    )
+          log(data);
+        },
+      },
+    );
   }
 
-  console.log('completeConfiguration.icon', completeConfiguration.icon)
+  console.log("completeConfiguration.icon", completeConfiguration.icon);
 
   // copy icon
   if (hasIcon) {
-    await cp(originalIconPath, newIconPath)
+    await cp(originalIconPath, newIconPath);
   }
 
   // copy custom main code
-  const destinationFile = join(destinationFolder, 'src', 'custom-main.js')
+  const destinationFile = join(destinationFolder, "src", "custom-main.js");
   if (completeConfiguration.customMainCode) {
-    await cp(completeConfiguration.customMainCode, destinationFile)
+    await cp(completeConfiguration.customMainCode, destinationFile);
   } else {
     await writeFile(destinationFile, 'console.log("No custom main code provided")', {
-      signal: abortSignal
-    })
+      signal: abortSignal,
+    });
   }
 
   if (isCJSOnly) {
     /* ESBUILD transpilation */
     const external = [
-      'electron',
-      '@pipelab/steamworks.js',
-      'electron',
-      'node:*',
-      'http',
-      'node:stream'
-    ]
+      "electron",
+      "@pipelab/steamworks.js",
+      "electron",
+      "node:*",
+      "http",
+      "node:stream",
+    ];
     await esbuild.build({
-      entryPoints: [join(destinationFolder, 'src', 'index.js')],
+      entryPoints: [join(destinationFolder, "src", "index.js")],
       bundle: true,
       write: true,
-      format: 'cjs',
-      platform: 'node',
+      format: "cjs",
+      platform: "node",
       external,
-      outfile: join(destinationFolder, 'dist', 'index.js')
-    })
+      outfile: join(destinationFolder, "dist", "index.js"),
+    });
     await esbuild.build({
-      entryPoints: [join(destinationFolder, 'src', 'preload.js')],
+      entryPoints: [join(destinationFolder, "src", "preload.js")],
       bundle: true,
-      platform: 'node',
+      platform: "node",
       external,
-      format: 'cjs',
+      format: "cjs",
       write: true,
-      outfile: join(destinationFolder, 'dist', 'preload.js')
-    })
+      outfile: join(destinationFolder, "dist", "preload.js"),
+    });
     await esbuild.build({
-      entryPoints: [join(destinationFolder, 'src', 'custom-main.js')],
+      entryPoints: [join(destinationFolder, "src", "custom-main.js")],
       bundle: true,
-      platform: 'node',
+      platform: "node",
       external,
-      format: 'cjs',
+      format: "cjs",
       write: true,
-      outfile: join(destinationFolder, 'dist', 'custom-main.js')
-    })
-    await rm(join(destinationFolder, 'src'), { recursive: true })
-    await cp(join(destinationFolder, 'dist'), join(destinationFolder, 'src'), {
-      recursive: true
-    })
-    await rm(join(destinationFolder, 'dist'), { recursive: true })
+      outfile: join(destinationFolder, "dist", "custom-main.js"),
+    });
+    await rm(join(destinationFolder, "src"), { recursive: true });
+    await cp(join(destinationFolder, "dist"), join(destinationFolder, "src"), {
+      recursive: true,
+    });
+    await rm(join(destinationFolder, "dist"), { recursive: true });
     /* ESBUILD transpilation */
   }
 
-  const placeAppFolder = join(destinationFolder, 'src', 'app')
+  const placeAppFolder = join(destinationFolder, "src", "app");
 
   // if input is folder, copy folder to destination
-  if (appFolder && action !== 'preview') {
+  if (appFolder && action !== "preview") {
     // copy app to template
     await cp(appFolder, placeAppFolder, {
-      recursive: true
-    })
+      recursive: true,
+    });
   }
 
-  const inputPlatform = inputs.platform === '' ? undefined : inputs.platform
-  const inputArch = inputs.arch === '' ? undefined : inputs.arch
+  const inputPlatform = inputs.platform === "" ? undefined : inputs.platform;
+  const inputArch = inputs.arch === "" ? undefined : inputs.arch;
 
   try {
-    log('typeof inputs.platform', typeof inputs.platform)
-    const finalPlatform = inputPlatform ?? platform() ?? ''
-    log('finalPlatform', finalPlatform)
-    const finalArch = inputArch ?? arch() ?? ''
+    log("typeof inputs.platform", typeof inputs.platform);
+    const finalPlatform = inputPlatform ?? platform() ?? "";
+    log("finalPlatform", finalPlatform);
+    const finalArch = inputArch ?? arch() ?? "";
 
     try {
       await runWithLiveLogs(
         node,
-        [forge, action, /* '--', */ '--arch', finalArch, '--platform', finalPlatform],
+        [forge, action, /* '--', */ "--arch", finalArch, "--platform", finalPlatform],
         {
           cwd: destinationFolder,
           env: {
-            DEBUG: completeConfiguration.enableExtraLogging ? '*' : '',
-            ELECTRON_NO_ASAR: '1',
-            PATH: `${dirname(node)}${delimiter}${process.env.PATH}`
+            DEBUG: completeConfiguration.enableExtraLogging ? "*" : "",
+            ELECTRON_NO_ASAR: "1",
+            PATH: `${dirname(node)}${delimiter}${process.env.PATH}`,
             // DEBUG: "electron-packager"
           },
-          cancelSignal: abortSignal
+          cancelSignal: abortSignal,
         },
         log,
         {
           onStderr(data) {
-            log(data)
+            log(data);
           },
           onStdout(data) {
-            log(data)
-          }
-        }
-      )
+            log(data);
+          },
+        },
+      );
     } catch (e) {
-      console.error('e', e)
+      console.error("e", e);
     }
 
-    if (action === 'package') {
+    if (action === "package") {
       const outName = outFolderName(
         completeConfiguration.name,
         finalPlatform as NodeJS.Platform,
-        finalArch as NodeJS.Architecture
-      )
-      const binName = getBinName(completeConfiguration.name)
+        finalArch as NodeJS.Architecture,
+      );
+      const binName = getBinName(completeConfiguration.name);
 
-      const output = join(destinationFolder, 'out', outName)
-      setOutput('output', output)
+      const output = join(destinationFolder, "out", outName);
+      setOutput("output", output);
       return {
         folder: output,
-        binary: join(output, binName)
-      }
+        binary: join(output, binName),
+      };
     } else {
-      const output = join(destinationFolder, 'out', 'make')
-      setOutput('output', output)
+      const output = join(destinationFolder, "out", "make");
+      setOutput("output", output);
       return {
         folder: output,
-        binary: undefined
-      }
+        binary: undefined,
+      };
     }
   } catch (e) {
     if (e instanceof Error) {
-      if (e.name === 'RequestError') {
-        log('Request error')
+      if (e.name === "RequestError") {
+        log("Request error");
       }
-      if (e.name === 'RequestError') {
-        log('Request error')
+      if (e.name === "RequestError") {
+        log("Request error");
       }
     }
-    log(e)
-    return undefined
+    log(e);
+    return undefined;
   }
-}
+};

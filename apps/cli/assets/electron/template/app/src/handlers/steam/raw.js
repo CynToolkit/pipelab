@@ -1,4 +1,4 @@
-import { handleSteamRequest } from './utils.js'
+import { handleSteamRequest } from "./utils.js";
 
 /**
  * @param {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').SteamRaw, 'input'>} json
@@ -6,17 +6,17 @@ import { handleSteamRequest } from './utils.js'
  * @param {Omit<import('@pipelab/steamworks.js').Client, "init" | "runCallbacks">} client
  */
 export default async (json, ws, client) => {
-  console.log('json', json)
+  console.log("json", json);
 
   await handleSteamRequest(
     client,
     json,
     ws,
     async (client, json) => {
-      const { body } = json
-      const { args, method, namespace } = body
+      const { body } = json;
+      const { args, method, namespace } = body;
 
-      const result = await client[namespace][method](...args)
+      const result = await client[namespace][method](...args);
 
       // if (namespace === 'localplayer' && method === 'getSteamId') {
       //   console.log('result', result)
@@ -35,8 +35,8 @@ export default async (json, ws, client) => {
       //   }
       // }
 
-      return result
+      return result;
     },
-    true
-  )
-}
+    true,
+  );
+};

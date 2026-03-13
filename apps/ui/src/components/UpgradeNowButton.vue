@@ -6,25 +6,25 @@
 </template>
 
 <script lang="ts" setup>
-import { computed } from 'vue'
-import { useAuth } from '@renderer/store/auth'
+import { computed } from "vue";
+import { useAuth } from "@renderer/store/auth";
 
-const authStore = useAuth()
+const authStore = useAuth();
 
 // Check if user has any active subscriptions
 const isSubscribed = computed(() => {
-  return authStore.subscriptions.length > 0
-})
+  return authStore.subscriptions.length > 0;
+});
 
 const isLoggedIn = computed(() => {
-  return authStore.isLoggedIn
-})
+  return authStore.isLoggedIn;
+});
 
-const emit = defineEmits(['open-upgrade-dialog'])
+const emit = defineEmits(["open-upgrade-dialog"]);
 
 const openUpgradeDialog = () => {
-  emit('open-upgrade-dialog')
-}
+  emit("open-upgrade-dialog");
+};
 </script>
 
 <style lang="scss" scoped>

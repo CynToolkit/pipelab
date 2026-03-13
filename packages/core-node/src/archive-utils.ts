@@ -1,4 +1,4 @@
-import { mkdir } from 'node:fs/promises'
+import { mkdir } from "node:fs/promises";
 
 /**
  * Extracts a .tar.gz archive.
@@ -7,31 +7,31 @@ import { mkdir } from 'node:fs/promises'
  * @returns A Promise that resolves when extraction is complete.
  */
 export async function extractTarGz(archivePath: string, destinationDir: string): Promise<void> {
-  const { createReadStream } = await import('node:fs')
-  const zlib = await import('zlib')
-  const tar = (await import('tar')).default
+  const { createReadStream } = await import("node:fs");
+  const zlib = await import("zlib");
+  const tar = (await import("tar")).default;
 
-  console.log(`Extracting ${archivePath} to ${destinationDir}...`)
+  console.log(`Extracting ${archivePath} to ${destinationDir}...`);
 
   // Ensure the destination directory exists
-  await mkdir(destinationDir, { recursive: true })
+  await mkdir(destinationDir, { recursive: true });
 
   return new Promise((resolve, reject) => {
-    const readStream = createReadStream(archivePath)
-    const gunzipStream = zlib.createGunzip()
-    const extractStream = tar.extract({ cwd: destinationDir, strip: 1 })
+    const readStream = createReadStream(archivePath);
+    const gunzipStream = zlib.createGunzip();
+    const extractStream = tar.extract({ cwd: destinationDir, strip: 1 });
 
-    readStream.on('error', reject)
-    gunzipStream.on('error', reject)
-    extractStream.on('error', reject)
+    readStream.on("error", reject);
+    gunzipStream.on("error", reject);
+    extractStream.on("error", reject);
 
-    extractStream.on('close', () => {
-      console.log('Extraction finished.')
-      resolve()
-    })
+    extractStream.on("close", () => {
+      console.log("Extraction finished.");
+      resolve();
+    });
 
-    readStream.pipe(gunzipStream).pipe(extractStream)
-  })
+    readStream.pipe(gunzipStream).pipe(extractStream);
+  });
 }
 
 /**
@@ -41,33 +41,33 @@ export async function extractTarGz(archivePath: string, destinationDir: string):
  * @returns A Promise that resolves when extraction is complete.
  */
 export async function extractZip(archivePath: string, destinationDir: string): Promise<void> {
-  const yauzl = await import('yauzl')
-  const { createWriteStream } = await import('node:fs')
-  const { join, dirname } = await import('node:path')
+  const yauzl = await import("yauzl");
+  const { createWriteStream } = await import("node:fs");
+  const { join, dirname } = await import("node:path");
 
-  console.log(`Extracting ${archivePath} to ${destinationDir}...`)
+  console.log(`Extracting ${archivePath} to ${destinationDir}...`);
 
   // Ensure the destination directory exists
-  await mkdir(destinationDir, { recursive: true })
+  await mkdir(destinationDir, { recursive: true });
 
   return new Promise((resolve, reject) => {
     yauzl.open(archivePath, { lazyEntries: true }, (err, zipfile) => {
       if (err || !zipfile) {
-        return reject(err || new Error('Could not open zip file'))
+        return reject(err || new Error("Could not open zip file"));
       }
 
-      zipfile.on('error', reject)
+      zipfile.on("error", reject);
 
-      zipfile.readEntry() // Start reading entries
+      zipfile.readEntry(); // Start reading entries
 
-      zipfile.on('entry', (entry) => {
-        const entryPath = join(destinationDir, entry.fileName)
+      zipfile.on("entry", (entry) => {
+        const entryPath = join(destinationDir, entry.fileName);
 
         if (/\/$/.test(entry.fileName)) {
           // It's a directory
           mkdir(entryPath, { recursive: true })
             .then(() => zipfile.readEntry())
-            .catch(reject)
+            .catch(reject);
         } else {
           // It's a file
           // Ensure parent directory exists (just in case)
@@ -75,68 +75,68 @@ export async function extractZip(archivePath: string, destinationDir: string): P
             .then(() => {
               zipfile.openReadStream(entry, (err, readStream) => {
                 if (err || !readStream) {
-                  return reject(err || new Error('Could not open read stream'))
+                  return reject(err || new Error("Could not open read stream"));
                 }
 
-                readStream.on('error', reject)
-                const writeStream = createWriteStream(entryPath)
-                writeStream.on('error', reject)
-                writeStream.on('close', () => {
-                  zipfile.readEntry()
-                })
-                readStream.pipe(writeStream)
-              })
+                readStream.on("error", reject);
+                const writeStream = createWriteStream(entryPath);
+                writeStream.on("error", reject);
+                writeStream.on("close", () => {
+                  zipfile.readEntry();
+                });
+                readStream.pipe(writeStream);
+              });
             })
-            .catch(reject)
+            .catch(reject);
         }
-      })
+      });
 
-      zipfile.on('end', () => {
-        console.log('Zip extraction finished.')
-        resolve()
-      })
-    })
-  })
+      zipfile.on("end", () => {
+        console.log("Zip extraction finished.");
+        resolve();
+      });
+    });
+  });
 }
 
 export const zipFolder = async (from: string, to: string, log: typeof console.log) => {
-  const archiver = (await import('archiver')).default
-  const { createWriteStream } = await import('node:fs')
+  const archiver = (await import("archiver")).default;
+  const { createWriteStream } = await import("node:fs");
 
-  const output = createWriteStream(to)
+  const output = createWriteStream(to);
 
-  const archive = archiver('zip', {
-    zlib: { level: 9 } // Sets the compression level.
-  })
+  const archive = archiver("zip", {
+    zlib: { level: 9 }, // Sets the compression level.
+  });
 
   // eslint-disable-next-line no-async-promise-executor
   return new Promise<string>(async (resolve, reject) => {
     // listen for all archive data to be written
     // 'close' event is fired only when a file descriptor is involved
-    output.on('close', function () {
-      log(archive.pointer() + ' total bytes')
-      log('archiver has been finalized and the output file descriptor has closed.')
-      resolve(to)
-    })
+    output.on("close", function () {
+      log(archive.pointer() + " total bytes");
+      log("archiver has been finalized and the output file descriptor has closed.");
+      resolve(to);
+    });
 
     // This event is fired when the data source is drained no matter what was the data source.
     // It is not part of this library but part of NodeJS.
-    output.on('end', function () {
-      log('Data has been drained')
-    })
+    output.on("end", function () {
+      log("Data has been drained");
+    });
 
     // good practice to catch this error and expose it to the user
-    archive.on('error', function (err) {
-      reject(err)
-    })
+    archive.on("error", function (err) {
+      reject(err);
+    });
 
     // pipe archive data to the file
-    archive.pipe(output)
+    archive.pipe(output);
 
-    archive.directory(from, false)
+    archive.directory(from, false);
 
     // finalize the archive (ie we are done appending files but streams have to finish yet)
     // 'close', 'end' or 'finish' may be fired right after calling this method so register to them beforehand
-    await archive.finalize()
-  })
-}
+    await archive.finalize();
+  });
+};

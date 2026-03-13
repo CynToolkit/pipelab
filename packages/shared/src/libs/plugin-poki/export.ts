@@ -3,68 +3,68 @@ import {
   createActionRunner,
   createPathParam,
   createStringParam,
-  runWithLiveLogs
-} from '@pipelab/plugin-core'
-import { dirname } from 'node:path'
+  runWithLiveLogs,
+} from "@pipelab/plugin-core";
+import { dirname } from "node:path";
 
-export const ID = 'poki-upload'
+export const ID = "poki-upload";
 
 export const uploadToPoki = createAction({
   id: ID,
-  name: 'Upload to Poki.io',
-  description: '',
-  icon: '',
+  name: "Upload to Poki.io",
+  description: "",
+  icon: "",
   displayString:
     "`Upload ${fmt.param(params['input-folder'], 'primary', 'No path selected')} to ${fmt.param(params['project'], 'primary', 'No project')} poki game (${fmt.param(params['name'], 'primary', 'No version name')})`",
   meta: {},
   params: {
-    'input-folder': createPathParam('', {
+    "input-folder": createPathParam("", {
       required: true,
-      label: 'Folder to Upload',
+      label: "Folder to Upload",
       control: {
-        type: 'path',
+        type: "path",
         options: {
-          properties: ['openDirectory']
-        }
-      }
+          properties: ["openDirectory"],
+        },
+      },
     }),
-    project: createStringParam('', {
+    project: createStringParam("", {
       required: true,
-      label: 'Project',
-      description: 'This is you Poki game id'
+      label: "Project",
+      description: "This is you Poki game id",
     }),
-    name: createStringParam('', {
+    name: createStringParam("", {
       required: true,
-      label: 'Version name',
-      description: 'This is the name of the version'
+      label: "Version name",
+      description: "This is the name of the version",
     }),
-    notes: createStringParam('', {
+    notes: createStringParam("", {
       required: true,
-      label: 'Version notes',
-      description: 'These are notes you want to specify with  your version'
-    })
+      label: "Version notes",
+      description: "These are notes you want to specify with  your version",
+    }),
   },
-  outputs: {}
-})
+  outputs: {},
+});
 
 export const uploadToPokiRunner = createActionRunner<typeof uploadToPoki>(
   async ({ log, inputs, paths, abortSignal, cwd }) => {
-    const { join, basename, delimiter } = await import('node:path')
-    const { writeFile, cp, mkdir } = await import('node:fs/promises')
-    const { shell } = await import('electron')
+    const { join, basename, delimiter } = await import("node:path");
+    const { writeFile, cp, mkdir } = await import("node:fs/promises");
+    const { shell } = await import("electron");
 
-    const { unpack } = paths
-    const modulesPath = join(unpack, 'node_modules')
-    const poki = join(modulesPath, '@poki', 'cli', 'bin', 'index.js')
+    const { unpack } = paths;
+    const modulesPath = join(unpack, "node_modules");
+    const poki = join(modulesPath, "@poki", "cli", "bin", "index.js");
 
-    const dist = join(cwd, 'dist')
+    const dist = join(cwd, "dist");
 
-    await mkdir(dist, { recursive: true })
-    await cp(inputs['input-folder'], dist, {
-      recursive: true
-    })
+    await mkdir(dist, { recursive: true });
+    await cp(inputs["input-folder"], dist, {
+      recursive: true,
+    });
 
-    const pokiJsonPath = join(cwd, 'poki.json')
+    const pokiJsonPath = join(cwd, "poki.json");
 
     // create file at the same place the folder to upload
     await writeFile(
@@ -72,39 +72,39 @@ export const uploadToPokiRunner = createActionRunner<typeof uploadToPoki>(
       JSON.stringify(
         {
           game_id: inputs.project,
-          build_dir: 'dist'
+          build_dir: "dist",
         },
         undefined,
-        2
+        2,
       ),
-      'utf-8'
-    )
+      "utf-8",
+    );
 
-    await shell.openPath(cwd)
+    await shell.openPath(cwd);
 
     // TODO: needs auth
 
     await runWithLiveLogs(
       poki,
-      ['upload', '--name', inputs.name, '--notes', inputs.notes],
+      ["upload", "--name", inputs.name, "--notes", inputs.notes],
       {
         cwd,
         env: {
           // DEBUG: '*',
-          PATH: `${dirname(poki)}${delimiter}${process.env.PATH}`
+          PATH: `${dirname(poki)}${delimiter}${process.env.PATH}`,
         },
-        cancelSignal: abortSignal
+        cancelSignal: abortSignal,
       },
       log,
       {
         onStderr(data, subprocess) {
-          log(data)
+          log(data);
         },
         onStdout(data, subprocess) {
-          log(data)
-        }
-      }
-    )
+          log(data);
+        },
+      },
+    );
 
     /*
       {
@@ -114,6 +114,6 @@ export const uploadToPokiRunner = createActionRunner<typeof uploadToPoki>(
       npx @poki/cli upload --name "$(git rev-parse --short HEAD)" --notes "$(git log -1 --pretty=%B)"
     */
 
-    log('Uploaded to poki')
-  }
-)
+    log("Uploaded to poki");
+  },
+);

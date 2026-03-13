@@ -1,10 +1,10 @@
 // @ts-check
 
-import { app } from 'electron'
-import { join } from 'path'
+import { app } from "electron";
+import { join } from "path";
 
-import slash from 'slash'
-import { getAppName } from '../../utils.js'
+import slash from "slash";
+import { getAppName } from "../../utils.js";
 
 /**
  * @param {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').MessagePaths, 'input'>} json
@@ -13,34 +13,34 @@ import { getAppName } from '../../utils.js'
  */
 export default (json, ws, config) => {
   try {
-    const name = json.body.name
+    const name = json.body.name;
 
-    let folder
+    let folder;
 
-    const { env } = process
+    const { env } = process;
     //      windows       linux
-    const { APPDATA, LOCALAPPDATA, XDG_DATA_HOME, XDG_CONFIG_HOME } = env
-    const appDataBackup = app.getPath('appData')
-    const localAppData = LOCALAPPDATA ?? XDG_DATA_HOME ?? appDataBackup
-    const appData = APPDATA ?? XDG_CONFIG_HOME ?? appDataBackup
+    const { APPDATA, LOCALAPPDATA, XDG_DATA_HOME, XDG_CONFIG_HOME } = env;
+    const appDataBackup = app.getPath("appData");
+    const localAppData = LOCALAPPDATA ?? XDG_DATA_HOME ?? appDataBackup;
+    const appData = APPDATA ?? XDG_CONFIG_HOME ?? appDataBackup;
 
-    const appNameFolder = getAppName(config)
+    const appNameFolder = getAppName(config);
 
-    const localUserData = join(localAppData, appNameFolder)
-    const userData = join(appData, appNameFolder)
+    const localUserData = join(localAppData, appNameFolder);
+    const userData = join(appData, appNameFolder);
 
-    if (name === 'app') {
-      folder = app.getAppPath()
-    } else if (name === 'project') {
-      folder = join(app.getAppPath(), 'src', 'app') // path to construct files
-    } else if (name === 'localAppData') {
-      folder = localAppData
-    } else if (name === 'localUserData') {
-      folder = localUserData
-    } else if (name === 'userData') {
-      folder = userData
+    if (name === "app") {
+      folder = app.getAppPath();
+    } else if (name === "project") {
+      folder = join(app.getAppPath(), "src", "app"); // path to construct files
+    } else if (name === "localAppData") {
+      folder = localAppData;
+    } else if (name === "localUserData") {
+      folder = localUserData;
+    } else if (name === "userData") {
+      folder = userData;
     } else {
-      folder = app.getPath(name)
+      folder = app.getPath(name);
     }
 
     /**
@@ -50,12 +50,12 @@ export default (json, ws, config) => {
       url: json.url,
       correlationId: json.correlationId,
       body: {
-        data: slash(folder)
-      }
-    }
-    ws.send(JSON.stringify(userFolderResult))
+        data: slash(folder),
+      },
+    };
+    ws.send(JSON.stringify(userFolderResult));
   } catch (e) {
-    console.error('e', e)
+    console.error("e", e);
     /**
      * @type {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').MessagePaths, 'output'>}
      */
@@ -63,9 +63,9 @@ export default (json, ws, config) => {
       url: json.url,
       correlationId: json.correlationId,
       body: {
-        error: e.message
-      }
-    }
-    ws.send(JSON.stringify(userFolderResult))
+        error: e.message,
+      },
+    };
+    ws.send(JSON.stringify(userFolderResult));
   }
-}
+};

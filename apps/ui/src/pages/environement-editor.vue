@@ -58,81 +58,81 @@
 </template>
 
 <script setup lang="ts">
-import { useEditor } from '@renderer/store/editor'
-import { createCodeEditor } from '@renderer/utils/code-editor'
-import { nanoid } from 'nanoid'
-import { storeToRefs } from 'pinia'
-import { ref } from 'vue'
+import { useEditor } from "@renderer/store/editor";
+import { createCodeEditor } from "@renderer/utils/code-editor";
+import { nanoid } from "nanoid";
+import { storeToRefs } from "pinia";
+import { ref } from "vue";
 
-const instance = useEditor()
-const { environnements } = storeToRefs(instance)
+const instance = useEditor();
+const { environnements } = storeToRefs(instance);
 const {
   addVariable: instanceAddVariable,
   updateVariable: instanceUpdateVariable,
-  removeVariable: instanceRemoveVariable
-} = instance
+  removeVariable: instanceRemoveVariable,
+} = instance;
 
-const isNewVariableDialogVisible = ref(false)
+const isNewVariableDialogVisible = ref(false);
 
-const $codeEditorText = ref<HTMLDivElement>()
+const $codeEditorText = ref<HTMLDivElement>();
 
-const name = ref('')
-const description = ref('')
+const name = ref("");
+const description = ref("");
 
 const {
   update: codeEditorTextUpdate,
   onUpdate: onCodeEditorTextUpdate,
-  value: editorTextValue
+  value: editorTextValue,
 } = createCodeEditor($codeEditorText, [
   // javascriptLanguage.data.of({
   //   // autocomplete: myCompletions
   // })
-])
+]);
 
 const onSave = () => {
-  isNewVariableDialogVisible.value = false
+  isNewVariableDialogVisible.value = false;
 
-  if (mode.value === 'create') {
+  if (mode.value === "create") {
     instanceAddVariable({
       id: nanoid(),
       value: editorTextValue.value,
       description: description.value,
-      name: name.value
-    })
+      name: name.value,
+    });
   } else {
     instanceUpdateVariable({
       id: dialogId.value,
       value: editorTextValue.value,
       description: description.value,
-      name: name.value
-    })
+      name: name.value,
+    });
   }
-}
+};
 
-const dialogId = ref<string>()
+const dialogId = ref<string>();
 
 const addVariable = () => {
-  isNewVariableDialogVisible.value = true
-  mode.value = 'create'
-}
+  isNewVariableDialogVisible.value = true;
+  mode.value = "create";
+};
 
 const remVariable = (id: string) => {
-  isNewVariableDialogVisible.value = false
-  instanceRemoveVariable(id)
-}
+  isNewVariableDialogVisible.value = false;
+  instanceRemoveVariable(id);
+};
 
-const mode = ref<'create' | 'edit'>('create')
+const mode = ref<"create" | "edit">("create");
 const editVariable = (id: string) => {
-  const foundVar = environnements.value.find((x) => x.id === id)
+  const foundVar = environnements.value.find((x) => x.id === id);
   if (foundVar) {
-    codeEditorTextUpdate(foundVar.value)
-    name.value = foundVar.name
-    description.value = foundVar.description
-    mode.value = 'edit'
-    dialogId.value = foundVar.id
+    codeEditorTextUpdate(foundVar.value);
+    name.value = foundVar.name;
+    description.value = foundVar.description;
+    mode.value = "edit";
+    dialogId.value = foundVar.id;
   }
-  isNewVariableDialogVisible.value = true
-}
+  isNewVariableDialogVisible.value = true;
+};
 </script>
 
 <style scoped lang="scss">

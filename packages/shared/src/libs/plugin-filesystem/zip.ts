@@ -1,103 +1,103 @@
-import { createAction, createActionRunner, createPathParam } from '@pipelab/plugin-core'
+import { createAction, createActionRunner, createPathParam } from "@pipelab/plugin-core";
 
-export const ID = 'zip-node'
+export const ID = "zip-node";
 
-export type MaybeArray<T> = T | T[]
+export type MaybeArray<T> = T | T[];
 
 export const getValue = <T>(array: MaybeArray<T>): T => {
   if (Array.isArray(array)) {
-    return array[0]
+    return array[0];
   } else {
-    return array
+    return array;
   }
-}
+};
 
 export const zip = createAction({
   id: ID,
-  name: 'Zip',
+  name: "Zip",
   updateAvailable: true,
   displayString:
     '`Zip ${fmt.param(params.folder, "primary", "No folder specified")} to ${fmt.param(params.output, "secondary", "No output specified")}`',
   params: {
-    folder: createPathParam('', {
+    folder: createPathParam("", {
       required: true,
       control: {
-        type: 'path',
+        type: "path",
         options: {
-          properties: ['openDirectory']
-        }
+          properties: ["openDirectory"],
+        },
       },
-      label: 'Folder'
+      label: "Folder",
     }),
-    output: createPathParam('', {
+    output: createPathParam("", {
       required: true,
       control: {
-        type: 'path',
+        type: "path",
         options: {
-          properties: ['openFile', 'promptToCreate'],
+          properties: ["openFile", "promptToCreate"],
           // must be zip file
           filters: [
             {
-              extensions: ['zip'],
-              name: 'Zip file'
-            }
-          ]
-        }
+              extensions: ["zip"],
+              name: "Zip file",
+            },
+          ],
+        },
       },
-      label: 'Folder'
-    })
+      label: "Folder",
+    }),
   },
 
   outputs: {
     path: {
-      value: '',
-      label: 'Path'
-    }
+      value: "",
+      label: "Path",
+    },
   },
-  description: 'Zip a folder into a .zip file',
-  icon: '',
-  meta: {}
-})
+  description: "Zip a folder into a .zip file",
+  icon: "",
+  meta: {},
+});
 
 export const zipRunner = createActionRunner<typeof zip>(
   async ({ log, inputs, setOutput, abortSignal }) => {
-    const { createWriteStream } = await import('node:fs')
-    const { default: archiver } = await import('archiver')
+    const { createWriteStream } = await import("node:fs");
+    const { default: archiver } = await import("archiver");
 
-    abortSignal.addEventListener('abort', () => {
-      throw new Error('Aborted')
-    })
+    abortSignal.addEventListener("abort", () => {
+      throw new Error("Aborted");
+    });
 
-    const output = createWriteStream(inputs.output)
+    const output = createWriteStream(inputs.output);
 
-    const archive = archiver('zip', {
-      zlib: { level: 9 } // Sets the compression level.
-    })
+    const archive = archiver("zip", {
+      zlib: { level: 9 }, // Sets the compression level.
+    });
 
     return new Promise((resolve, reject) => {
-      output.on('close', function () {
-        console.log(archive.pointer() + ' total bytes')
-        console.log('archiver has been finalized and the output file descriptor has closed.')
+      output.on("close", function () {
+        console.log(archive.pointer() + " total bytes");
+        console.log("archiver has been finalized and the output file descriptor has closed.");
 
-        setOutput('path', inputs.output)
-        resolve()
-      })
+        setOutput("path", inputs.output);
+        resolve();
+      });
 
-      output.on('end', function () {
-        console.log('Data has been drained')
-      })
+      output.on("end", function () {
+        console.log("Data has been drained");
+      });
 
-      archive.on('warning', function (err) {
-        if (err.code === 'ENOENT') {
-          console.log('Archiver warning: ENOENT')
+      archive.on("warning", function (err) {
+        if (err.code === "ENOENT") {
+          console.log("Archiver warning: ENOENT");
         } else {
-          reject(err)
+          reject(err);
         }
-      })
+      });
 
-      archive.on('error', function (err) {
-        reject(err)
-      })
+      archive.on("error", function (err) {
+        reject(err);
+      });
 
       // archive.on('data', function (data) {
       //   log('data', data)
@@ -117,18 +117,18 @@ export const zipRunner = createActionRunner<typeof zip>(
       //   } */
       //   // log('progress', data.entries.processed + '/' + data.entries.total)
       // })
-      archive.on('entry', function (data) {
-        log('Adding', data.name)
-      })
-      archive.on('finish', function () {
-        log('finish')
-      })
+      archive.on("entry", function (data) {
+        log("Adding", data.name);
+      });
+      archive.on("finish", function () {
+        log("finish");
+      });
 
-      archive.pipe(output)
+      archive.pipe(output);
 
-      archive.directory(inputs.folder, false)
+      archive.directory(inputs.folder, false);
 
-      archive.finalize()
-    })
-  }
-)
+      archive.finalize();
+    });
+  },
+);

@@ -1,5 +1,5 @@
-import { describe, beforeEach, expect, it } from 'vitest'
-import { setActivePinia, createPinia } from 'pinia'
+import { describe, beforeEach, expect, it } from "vitest";
+import { setActivePinia, createPinia } from "pinia";
 // import { useAPI } from '@renderer/composables/api'
 
 // vi.mock('@renderer/composables/api', () => ({
@@ -14,22 +14,22 @@ import { setActivePinia, createPinia } from 'pinia'
 //   }
 // }))
 
-describe('editor store', () => {
+describe("editor store", () => {
   // let editor: UseEditorFn
 
   beforeEach(() => {
     // creates a fresh pinia and makes it active
     // so it's automatically picked up by any useStore() call
     // without having to pass it to it: `useStore(pinia)`
-    setActivePinia(createPinia())
+    setActivePinia(createPinia());
 
     // editor = useEditor()
     // editor.initialization()
-  })
+  });
 
-  it('dummy', () => {
-    expect(1).toBe(1)
-  })
+  it("dummy", () => {
+    expect(1).toBe(1);
+  });
 
   // describe('node insertion', () => {
   //   it('insert at one level deep', async () => {
@@ -126,4 +126,4 @@ describe('editor store', () => {
 
   //   it('insert in a condition', () => {})
   // })
-})
+});

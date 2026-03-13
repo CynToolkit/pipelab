@@ -1,89 +1,89 @@
-import { createCondition, createConditionRunner } from '@pipelab/plugin-core'
+import { createCondition, createConditionRunner } from "@pipelab/plugin-core";
 
-export const ID = 'branch'
+export const ID = "branch";
 
 export const branchCondition = createCondition({
   id: ID,
-  icon: '',
-  name: 'Branch',
-  description: '',
-  displayString: 'If {{ params.valueA }} {{ params.operator }} {{ params.valueB }}',
+  icon: "",
+  name: "Branch",
+  description: "",
+  displayString: "If {{ params.valueA }} {{ params.operator }} {{ params.valueB }}",
   params: {
     valueA: {
-      value: '',
-      label: 'First value',
+      value: "",
+      label: "First value",
       control: {
-        type: 'input',
+        type: "input",
         options: {
-          kind: 'text'
-        }
-      }
+          kind: "text",
+        },
+      },
     },
     operator: {
-      value: '',
-      label: 'Comparison',
+      value: "",
+      label: "Comparison",
       control: {
-        type: 'select',
+        type: "select",
         options: {
-          placeholder: 'Comparison',
+          placeholder: "Comparison",
           options: [
             {
-              label: '=',
-              value: '='
-            }
-          ]
-        }
-      }
+              label: "=",
+              value: "=",
+            },
+          ],
+        },
+      },
     },
     valueB: {
-      value: '',
-      label: 'Second value',
+      value: "",
+      label: "Second value",
       control: {
-        type: 'input',
+        type: "input",
         options: {
-          kind: 'text'
-        }
-      }
-    }
-  }
-})
+          kind: "text",
+        },
+      },
+    },
+  },
+});
 
 export const branchConditionRunner = createConditionRunner<typeof branchCondition>(
   async ({ log, inputs }) => {
-    const firstValue = inputs.valueA
-    const secondValue = inputs.valueB
-    const operator = inputs.operator as '=' | '!=' | '<' | '<=' | '>' | '>='
+    const firstValue = inputs.valueA;
+    const secondValue = inputs.valueB;
+    const operator = inputs.operator as "=" | "!=" | "<" | "<=" | ">" | ">=";
 
-    let result
+    let result;
     switch (operator) {
-      case '!=':
-        result = firstValue != secondValue
-        break
+      case "!=":
+        result = firstValue != secondValue;
+        break;
 
-      case '<':
-        result = firstValue < secondValue
-        break
+      case "<":
+        result = firstValue < secondValue;
+        break;
 
-      case '<=':
-        result = firstValue <= secondValue
-        break
+      case "<=":
+        result = firstValue <= secondValue;
+        break;
 
-      case '=':
-        result = firstValue === secondValue
-        break
+      case "=":
+        result = firstValue === secondValue;
+        break;
 
-      case '>':
-        result = firstValue > secondValue
-        break
+      case ">":
+        result = firstValue > secondValue;
+        break;
 
-      case '>=':
-        result = firstValue >= secondValue
-        break
+      case ">=":
+        result = firstValue >= secondValue;
+        break;
 
       default:
-        throw new Error('Unhandled case')
+        throw new Error("Unhandled case");
     }
 
-    return result
-  }
-)
+    return result;
+  },
+);

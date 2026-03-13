@@ -1,112 +1,112 @@
-import { klona } from 'klona'
-import { toRaw } from 'vue'
+import { klona } from "klona";
+import { toRaw } from "vue";
 
-import type { Tagged } from 'type-fest'
-import { ILogObjMeta } from 'tslog'
-import { useLogger } from '@pipelab/shared/logger'
+import type { Tagged } from "type-fest";
+import { ILogObjMeta } from "tslog";
+import { useLogger } from "@pipelab/shared/logger";
 
 export type UpdateStatus =
-  | 'update-available'
-  | 'update-downloaded'
-  | 'checking-for-update'
-  | 'update-not-available'
-  | 'error'
+  | "update-available"
+  | "update-downloaded"
+  | "checking-for-update"
+  | "update-not-available"
+  | "error";
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-type Event<TYPE extends string, DATA> = { type: TYPE; data: DATA }
+type Event<TYPE extends string, DATA> = { type: TYPE; data: DATA };
 type EndEvent<DATA> = {
-  type: 'end'
+  type: "end";
   data:
     | {
-        type: 'success'
-        result: DATA
+        type: "success";
+        result: DATA;
       }
     | {
-        type: 'error'
-        ipcError: string
-      }
-}
+        type: "error";
+        ipcError: string;
+      };
+};
 
 export type IpcDefinition = {
-  'dialog:alert': [
+  "dialog:alert": [
     // input
     { message: string; buttons?: { title: string; value: string }[] },
-    EndEvent<{ answer: string }>
-  ]
-  'dialog:prompt': [
+    EndEvent<{ answer: string }>,
+  ];
+  "dialog:prompt": [
     // input
     { message: string; buttons?: { title: string; value: string }[] },
-    EndEvent<{ answer: string }>
-  ]
-  'log:message': [
+    EndEvent<{ answer: string }>,
+  ];
+  "log:message": [
     // input
     ILogObjMeta,
-    EndEvent<void>
-  ]
-  'update:set-status': [
+    EndEvent<void>,
+  ];
+  "update:set-status": [
     // input
     {
-      status: UpdateStatus
+      status: UpdateStatus;
     },
-    EndEvent<void>
-  ]
-}
+    EndEvent<void>,
+  ];
+};
 
-export type RendererChannels = keyof IpcDefinition
-export type RendererData<KEY extends RendererChannels> = IpcDefinition[KEY][0]
-export type RendererEvents<KEY extends RendererChannels> = IpcDefinition[KEY][1]
+export type RendererChannels = keyof IpcDefinition;
+export type RendererData<KEY extends RendererChannels> = IpcDefinition[KEY][0];
+export type RendererEvents<KEY extends RendererChannels> = IpcDefinition[KEY][1];
 export type RendererEnd<KEY extends RendererChannels> = Extract<
   IpcDefinition[KEY][1],
-  { type: 'end' }
->['data']
+  { type: "end" }
+>["data"];
 
 export type RendererMessage = {
   // the channel to communicate
-  requestId: RequestId
-  data: any
-}
-export type RequestId = Tagged<string, 'request-id'>
+  requestId: RequestId;
+  data: any;
+};
+export type RequestId = Tagged<string, "request-id">;
 
 // type Output = End<'fs:openFolder'>
 
 export type HandleListenerRendererSendFn<KEY extends RendererChannels> = (
-  events: RendererEvents<KEY>
-) => void
+  events: RendererEvents<KEY>,
+) => void;
 
 export type HandleListenerRenderer<KEY extends RendererChannels> = (
   event: Electron.IpcMainInvokeEvent,
-  data: { value: RendererData<KEY>; send: HandleListenerRendererSendFn<KEY> }
-) => Promise<void>
+  data: { value: RendererData<KEY>; send: HandleListenerRendererSendFn<KEY> },
+) => Promise<void>;
 
 export type ListenerMain<KEY extends RendererChannels> = (
   event: Electron.IpcMainEvent,
-  data: RendererEvents<KEY>
-) => Promise<void>
+  data: RendererEvents<KEY>,
+) => Promise<void>;
 
 export const usePluginAPI = (browserWindow: any) => {
-  const { logger } = useLogger()
+  const { logger } = useLogger();
   /**
    * Send an order
    */
   const send = <KEY extends RendererChannels>(channel: KEY, args?: RendererData<KEY>) => {
-    if (!browserWindow || browserWindow.isDestroyed()) return
-    browserWindow.webContents.send(channel, args)
-  }
+    if (!browserWindow || browserWindow.isDestroyed()) return;
+    browserWindow.webContents.send(channel, args);
+  };
 
   const on = <KEY extends RendererChannels>(
     channel: KEY | string,
-    listener: (event: any, data: RendererEvents<KEY>) => void
+    listener: (event: any, data: RendererEvents<KEY>) => void,
   ) => {
-    if (!browserWindow || browserWindow.isDestroyed()) return () => {}
-    const ipcMain = browserWindow.webContents.ipc.on(channel, listener)
+    if (!browserWindow || browserWindow.isDestroyed()) return () => {};
+    const ipcMain = browserWindow.webContents.ipc.on(channel, listener);
 
     const cancel = () => {
-      if (browserWindow.isDestroyed()) return
-      ipcMain.removeListener(channel, listener)
-    }
+      if (browserWindow.isDestroyed()) return;
+      ipcMain.removeListener(channel, listener);
+    };
 
-    return cancel
-  }
+    return cancel;
+  };
 
   /**
    * Send an order and wait for it's execution
@@ -114,47 +114,47 @@ export const usePluginAPI = (browserWindow: any) => {
   const execute = async <KEY extends RendererChannels>(
     channel: KEY,
     data?: RendererData<KEY>,
-    listener?: ListenerMain<KEY>
+    listener?: ListenerMain<KEY>,
   ) => {
-    const { nanoid } = await import('nanoid')
-    const newId = nanoid() as RequestId
+    const { nanoid } = await import("nanoid");
+    const newId = nanoid() as RequestId;
     // eslint-disable-next-line no-async-promise-executor
     return new Promise<RendererEnd<KEY>>(async (resolve, reject) => {
       const message: RendererMessage = {
         requestId: newId,
-        data: toRaw(klona(data))
-      }
+        data: toRaw(klona(data)),
+      };
 
       if (!browserWindow || browserWindow.isDestroyed()) {
-        return reject(new Error('Browser window is destroyed'))
+        return reject(new Error("Browser window is destroyed"));
       }
 
       const cancel = on(newId, async (event, data) => {
         // console.log('receiving event', event, data)
-        if (data.type === 'end') {
-          cancel()
-          return resolve(data.data)
+        if (data.type === "end") {
+          cancel();
+          return resolve(data.data);
         } else {
-          await listener?.(event, data)
+          await listener?.(event, data);
         }
-      })
+      });
 
       // send the message
       try {
-        browserWindow.webContents.send(channel, message)
+        browserWindow.webContents.send(channel, message);
       } catch (e) {
-        logger().error(e)
-        logger().error(channel, message)
-        reject(e)
+        logger().error(e);
+        logger().error(channel, message);
+        reject(e);
       }
-    })
-  }
+    });
+  };
 
   return {
     send,
     on,
-    execute
-  }
-}
+    execute,
+  };
+};
 
-export type UseMainAPI = ReturnType<typeof usePluginAPI>
+export type UseMainAPI = ReturnType<typeof usePluginAPI>;

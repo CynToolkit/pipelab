@@ -1,69 +1,69 @@
 // @ts-nocheck
-import { PresetFn, SavedFile } from '@pipelab/shared/model'
+import { PresetFn, SavedFile } from "@pipelab/shared/model";
 
 export const ifPreset: PresetFn = async () => {
-  const branchId = 'branchId'
-  const logOkId = 'logOkId'
-  const logKoId = 'logKoId'
-  const booleanId = 'booleanId'
+  const branchId = "branchId";
+  const logOkId = "logOkId";
+  const logKoId = "logKoId";
+  const booleanId = "booleanId";
 
   const data: SavedFile = {
-    version: '1.0.0',
-    name: 'Condition demo',
-    description: 'Condition demo',
+    version: "1.0.0",
+    name: "Condition demo",
+    description: "Condition demo",
     variables: [
       {
-        type: 'boolean',
+        type: "boolean",
         id: booleanId,
-        description: 'The value of the conditon',
-        name: 'Value',
-        value: true
-      }
+        description: "The value of the conditon",
+        name: "Value",
+        value: true,
+      },
     ],
     canvas: {
       blocks: [
         {
-          type: 'condition',
+          type: "condition",
           origin: {
-            pluginId: 'system',
-            nodeId: 'branch'
+            pluginId: "system",
+            nodeId: "branch",
           },
           uid: branchId,
           params: {
-            condition: ''
+            condition: "",
           },
           branchTrue: [
             {
-              type: 'action',
+              type: "action",
               origin: {
-                pluginId: 'system',
-                nodeId: 'log'
+                pluginId: "system",
+                nodeId: "log",
               },
               uid: logOkId,
               params: {
-                text: 'OK'
-              }
-            }
+                text: "OK",
+              },
+            },
           ],
           branchFalse: [
             {
-              type: 'action',
+              type: "action",
               origin: {
-                pluginId: 'system',
-                nodeId: 'log'
+                pluginId: "system",
+                nodeId: "log",
               },
               uid: logKoId,
               params: {
-                text: 'KO'
-              }
-            }
-          ]
-        }
-      ]
-    }
-  }
+                text: "KO",
+              },
+            },
+          ],
+        },
+      ],
+    },
+  };
 
   return {
-    data
-  }
-}
+    data,
+  };
+};

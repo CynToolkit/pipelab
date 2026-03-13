@@ -1,20 +1,20 @@
-import { NVPatch, NVPatchRunner } from './nvpatch'
+import { NVPatch, NVPatchRunner } from "./nvpatch";
 
-import { createNodeDefinition } from '@pipelab/plugin-core'
+import { createNodeDefinition } from "@pipelab/plugin-core";
 
 export default createNodeDefinition({
-  description: 'NVPatch',
-  name: 'NVPatch',
-  id: 'nv-patch',
+  description: "NVPatch",
+  name: "NVPatch",
+  id: "nv-patch",
   icon: {
-    type: 'icon',
-    icon: 'mdi-wrench'
+    type: "icon",
+    icon: "mdi-wrench",
   },
   nodes: [
     // make and package
     {
       node: NVPatch,
-      runner: NVPatchRunner
-    }
-  ]
-})
+      runner: NVPatchRunner,
+    },
+  ],
+});

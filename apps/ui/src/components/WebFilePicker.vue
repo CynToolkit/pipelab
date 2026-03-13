@@ -41,7 +41,7 @@
           </Column>
           <Column field="size" header="Size" sortable>
             <template #body="{ data }">
-              {{ data.isDirectory ? '--' : formatSize(data.size) }}
+              {{ data.isDirectory ? "--" : formatSize(data.size) }}
             </template>
           </Column>
           <Column field="mtime" header="Modified" sortable>
@@ -61,7 +61,7 @@
             class="w-full"
           />
           <div v-else class="text-sm text-600 truncate">
-            {{ selectedFile ? selectedFile.name : 'No file selected' }}
+            {{ selectedFile ? selectedFile.name : "No file selected" }}
           </div>
         </div>
         <div class="actions flex gap-2">
@@ -78,156 +78,156 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
-import { useUIStore } from '../store/ui'
-import { useAPI } from '../composables/api'
-import { useLogger } from '@pipelab/shared/logger'
+import { ref, computed, watch, onMounted } from "vue";
+import { useUIStore } from "../store/ui";
+import { useAPI } from "../composables/api";
+import { useLogger } from "@pipelab/shared/logger";
 
-const uiStore = useUIStore()
-const api = useAPI()
-const { logger } = useLogger()
+const uiStore = useUIStore();
+const api = useAPI();
+const { logger } = useLogger();
 
-const options = computed(() => uiStore.filePickerOptions)
-const currentPath = ref('')
-const files = ref([])
-const selectedFile = ref(null)
-const saveFileName = ref('')
-const isLoading = ref(false)
+const options = computed(() => uiStore.filePickerOptions);
+const currentPath = ref("");
+const files = ref([]);
+const selectedFile = ref(null);
+const saveFileName = ref("");
+const isLoading = ref(false);
 
 const isAtRoot = computed(() => {
   // Simple check for Unix/Windows roots
-  return currentPath.value === '/' || /^[a-zA-Z]:\$/.test(currentPath.value)
-})
+  return currentPath.value === "/" || /^[a-zA-Z]:\$/.test(currentPath.value);
+});
 
 const canConfirm = computed(() => {
-  if (options.value?.mode === 'save') {
-    return saveFileName.value.length > 0
+  if (options.value?.mode === "save") {
+    return saveFileName.value.length > 0;
   }
-  return selectedFile.value !== null
-})
+  return selectedFile.value !== null;
+});
 
 const loadDirectory = async () => {
-  isLoading.value = true
+  isLoading.value = true;
   try {
-    const result = await api.execute('fs:listDirectory', { path: currentPath.value })
-    if (result.type === 'success') {
-      files.value = result.result.files
-      selectedFile.value = null
+    const result = await api.execute("fs:listDirectory", { path: currentPath.value });
+    if (result.type === "success") {
+      files.value = result.result.files;
+      selectedFile.value = null;
     } else {
-      logger().error('Failed to load directory:', result.ipcError)
+      logger().error("Failed to load directory:", result.ipcError);
     }
   } catch (error) {
-    logger().error('Error loading directory:', error)
+    logger().error("Error loading directory:", error);
   } finally {
-    isLoading.value = false
+    isLoading.value = false;
   }
-}
+};
 
 const goToHome = async () => {
   try {
-    const result = await api.execute('fs:getHomeDirectory')
-    if (result.type === 'success') {
-      currentPath.value = result.result.path
-      await loadDirectory()
+    const result = await api.execute("fs:getHomeDirectory");
+    if (result.type === "success") {
+      currentPath.value = result.result.path;
+      await loadDirectory();
     }
   } catch (error) {
-    logger().error('Error getting home directory:', error)
+    logger().error("Error getting home directory:", error);
   }
-}
+};
 
 const goUp = async () => {
-  const parts = currentPath.value.split(/[\/]/).filter(Boolean)
+  const parts = currentPath.value.split(/[\/]/).filter(Boolean);
   if (parts.length > 0) {
     // If Windows path like C:
-    if (parts.length === 1 && currentPath.value.includes(':')) {
-      return // Already at root
+    if (parts.length === 1 && currentPath.value.includes(":")) {
+      return; // Already at root
     }
-    parts.pop()
-    currentPath.value = currentPath.value.startsWith('/') ? '/' + parts.join('/') : parts.join('')
-    if (currentPath.value === '') currentPath.value = '/'
-    await loadDirectory()
+    parts.pop();
+    currentPath.value = currentPath.value.startsWith("/") ? "/" + parts.join("/") : parts.join("");
+    if (currentPath.value === "") currentPath.value = "/";
+    await loadDirectory();
   }
-}
+};
 
 const onRowDblClick = async (event: any) => {
-  const data = event.data
+  const data = event.data;
   if (data.isDirectory) {
-    const sep = currentPath.value.includes('') ? '' : '/'
+    const sep = currentPath.value.includes("") ? "" : "/";
     currentPath.value = currentPath.value.endsWith(sep)
       ? currentPath.value + data.name
-      : currentPath.value + sep + data.name
-    await loadDirectory()
+      : currentPath.value + sep + data.name;
+    await loadDirectory();
   } else {
-    onConfirm()
+    onConfirm();
   }
-}
+};
 
 const onConfirm = () => {
-  if (options.value?.mode === 'open') {
+  if (options.value?.mode === "open") {
     if (selectedFile.value) {
-      const sep = currentPath.value.includes('') ? '' : '/'
+      const sep = currentPath.value.includes("") ? "" : "/";
       const fullPath = currentPath.value.endsWith(sep)
         ? currentPath.value + selectedFile.value.name
-        : currentPath.value + sep + selectedFile.value.name
+        : currentPath.value + sep + selectedFile.value.name;
 
       uiStore.resolveFilePicker({
         canceled: false,
         filePaths: [fullPath],
-        filePath: fullPath
-      })
+        filePath: fullPath,
+      });
     }
   } else {
     if (saveFileName.value) {
-      const sep = currentPath.value.includes('') ? '' : '/'
+      const sep = currentPath.value.includes("") ? "" : "/";
       const fullPath = currentPath.value.endsWith(sep)
         ? currentPath.value + saveFileName.value
-        : currentPath.value + sep + saveFileName.value
+        : currentPath.value + sep + saveFileName.value;
 
       uiStore.resolveFilePicker({
         canceled: false,
-        filePath: fullPath
-      })
+        filePath: fullPath,
+      });
     }
   }
-}
+};
 
 const onCancel = () => {
-  uiStore.resolveFilePicker({ canceled: true })
-}
+  uiStore.resolveFilePicker({ canceled: true });
+};
 
 const getFileIcon = (file: any) => {
-  if (file.isDirectory) return 'pi pi-folder text-primary'
-  if (file.isSymbolicLink) return 'pi pi-link'
-  return 'pi pi-file text-600'
-}
+  if (file.isDirectory) return "pi pi-folder text-primary";
+  if (file.isSymbolicLink) return "pi pi-link";
+  return "pi pi-file text-600";
+};
 
 const formatSize = (bytes: number) => {
-  if (bytes === 0) return '0 B'
-  const k = 1024
-  const sizes = ['B', 'KB', 'MB', 'GB', 'TB']
-  const i = Math.floor(Math.log(bytes) / Math.log(k))
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
-}
+  if (bytes === 0) return "0 B";
+  const k = 1024;
+  const sizes = ["B", "KB", "MB", "GB", "TB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+};
 
 const formatDate = (timestamp: number) => {
-  return new Date(timestamp).toLocaleString()
-}
+  return new Date(timestamp).toLocaleString();
+};
 
 // Initial load
 watch(
   () => uiStore.isFilePickerVisible,
   (visible) => {
-    if (visible && currentPath.value === '') {
-      goToHome()
+    if (visible && currentPath.value === "") {
+      goToHome();
     }
-  }
-)
+  },
+);
 
 onMounted(() => {
   if (uiStore.isFilePickerVisible) {
-    goToHome()
+    goToHome();
   }
-})
+});
 </script>
 
 <style scoped>

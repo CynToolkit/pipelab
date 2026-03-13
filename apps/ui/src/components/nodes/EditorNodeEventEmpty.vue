@@ -24,30 +24,30 @@
 </template>
 
 <script setup lang="ts">
-import { useEditor } from '@renderer/store/editor'
-import { storeToRefs } from 'pinia'
-import { PropType, computed, ref, toRefs } from 'vue'
-import PluginIcon from './PluginIcon.vue'
-import AddTriggerButton from '../AddTriggerButton.vue'
+import { useEditor } from "@renderer/store/editor";
+import { storeToRefs } from "pinia";
+import { PropType, computed, ref, toRefs } from "vue";
+import PluginIcon from "./PluginIcon.vue";
+import AddTriggerButton from "../AddTriggerButton.vue";
 
 const props = defineProps({
   path: {
     type: Array as PropType<string[]>,
-    required: true
+    required: true,
     // default: () => []
-  }
-})
+  },
+});
 
-const editor = useEditor()
+const editor = useEditor();
 const {
   getNodeDefinition,
   getPluginDefinition,
   setTriggerValue,
   addNode,
   addTrigger,
-  removeTrigger
-} = editor
-const { activeNode } = storeToRefs(editor)
+  removeTrigger,
+} = editor;
+const { activeNode } = storeToRefs(editor);
 </script>
 
 <style scoped>

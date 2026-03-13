@@ -1,4 +1,4 @@
-import { ensure, extractZip, zipFolder } from '@pipelab/core-node'
+import { ensure, extractZip, zipFolder } from "@pipelab/core-node";
 import {
   createAction,
   createActionRunner,
@@ -7,171 +7,171 @@ import {
   createStringParam,
   downloadFile,
   fileExists,
-  runWithLiveLogs
-} from '@pipelab/plugin-core'
-import { app, shell } from 'electron'
-import { createReadStream } from 'node:fs'
-import { cp, mkdir, rm, writeFile } from 'node:fs/promises'
-import { delimiter, dirname, join, basename } from 'node:path'
+  runWithLiveLogs,
+} from "@pipelab/plugin-core";
+import { app, shell } from "electron";
+import { createReadStream } from "node:fs";
+import { cp, mkdir, rm, writeFile } from "node:fs/promises";
+import { delimiter, dirname, join, basename } from "node:path";
 
-export const ID = 'netlify-upload'
+export const ID = "netlify-upload";
 
 export interface ButlerJSONOutputLog {
-  level: 'info'
-  message: string
-  time: number
-  type: 'log'
+  level: "info";
+  message: string;
+  time: number;
+  type: "log";
 }
 
 export interface ButlerJSONOutputProgress {
-  bps: number
-  eta: number
-  progress: number
-  time: 1736873335
-  type: 'progress'
+  bps: number;
+  eta: number;
+  progress: number;
+  time: 1736873335;
+  type: "progress";
 }
 
-export type ButlerJSONOutput = ButlerJSONOutputLog | ButlerJSONOutputProgress
+export type ButlerJSONOutput = ButlerJSONOutputLog | ButlerJSONOutputProgress;
 
 export const uploadToNetlify = createAction({
   id: ID,
-  name: 'Upload to Netlify',
-  description: '',
-  icon: '',
+  name: "Upload to Netlify",
+  description: "",
+  icon: "",
   displayString:
     "`Upload ${fmt.param(params['input-folder'], 'primary', 'No path selected')} to ${fmt.param(params['site'], 'primary', 'No site')}`",
   meta: {},
   params: {
-    'input-folder': createPathParam('', {
+    "input-folder": createPathParam("", {
       required: true,
-      label: 'Path to the folder to upload to netlify',
+      label: "Path to the folder to upload to netlify",
       control: {
-        type: 'path',
+        type: "path",
         options: {
-          properties: ['openDirectory']
-        }
-      }
+          properties: ["openDirectory"],
+        },
+      },
     }),
-    token: createStringParam('', {
+    token: createStringParam("", {
       required: true,
-      label: 'Token'
+      label: "Token",
     }),
-    site: createNetlifySiteParam('', 'token', {
+    site: createNetlifySiteParam("", "token", {
       required: true,
-      label: 'Site'
-    })
+      label: "Site",
+    }),
   },
-  outputs: {}
-})
+  outputs: {},
+});
 
 export const uploadToNetlifyRunner = createActionRunner<typeof uploadToNetlify>(
   async ({ log, inputs, cwd, abortSignal, paths }) => {
-    log('Uploading to netlify')
+    log("Uploading to netlify");
 
-    const { pnpm, node, assets } = paths
+    const { pnpm, node, assets } = paths;
 
-    const userData = app.getPath('userData')
-    const pnpmHome = join(userData, 'config', 'pnpm')
+    const userData = app.getPath("userData");
+    const pnpmHome = join(userData, "config", "pnpm");
 
     const sitesResult = await fetch(`https://api.netlify.com/api/v1/sites/${inputs.site}`, {
-      method: 'GET',
+      method: "GET",
       headers: {
-        'Content-Type': 'application/zip',
-        Authorization: `Bearer ${inputs.token}`
-      }
-    })
-    const site = await sitesResult.json()
+        "Content-Type": "application/zip",
+        Authorization: `Bearer ${inputs.token}`,
+      },
+    });
+    const site = await sitesResult.json();
 
-    log('site', site)
+    log("site", site);
     if (!site) {
-      throw new Error('Site does not exist')
+      throw new Error("Site does not exist");
     }
 
-    const appFolder = inputs['input-folder']
+    const appFolder = inputs["input-folder"];
 
     // 1. Prepare input folder with temmplate
     // Assume input folder is always a static site
-    const destinationFolder = join(cwd)
-    const templateFolder = join(assets, 'netlify', 'templates', 'static')
+    const destinationFolder = join(cwd);
+    const templateFolder = join(assets, "netlify", "templates", "static");
 
     // copy template to destination
     await cp(templateFolder, destinationFolder, {
       recursive: true,
       filter: (src) => {
-        return basename(src) !== 'node_modules'
-      }
-    })
-    const placeAppFolder = join(destinationFolder, 'dist')
+        return basename(src) !== "node_modules";
+      },
+    });
+    const placeAppFolder = join(destinationFolder, "dist");
     if (appFolder) {
       // copy app to template
       await cp(appFolder, placeAppFolder, {
-        recursive: true
-      })
+        recursive: true,
+      });
     }
 
     // 2. Ensure correct configuration
-    const packageJsonPath = join(appFolder, 'package.json')
-    const packageJson = await fileExists(packageJsonPath)
+    const packageJsonPath = join(appFolder, "package.json");
+    const packageJson = await fileExists(packageJsonPath);
     if (!packageJson) {
-      throw new Error('No package.json found in input folder')
+      throw new Error("No package.json found in input folder");
     }
 
-    const netlifyDir = join(destinationFolder, '.netlify')
-    const netlifyState = join(netlifyDir, 'state.json')
+    const netlifyDir = join(destinationFolder, ".netlify");
+    const netlifyState = join(netlifyDir, "state.json");
 
-    await mkdir(netlifyDir, { recursive: true })
+    await mkdir(netlifyDir, { recursive: true });
 
-    await writeFile(netlifyState, `{ "siteId": "${inputs.site}" }`, 'utf-8')
+    await writeFile(netlifyState, `{ "siteId": "${inputs.site}" }`, "utf-8");
 
     // 3. Package installation
-    log('Installing packages')
+    log("Installing packages");
     await runWithLiveLogs(
       node,
-      [pnpm, 'install', '--prefer-offline'],
-      {
-        cwd: destinationFolder,
-        env: {
-          // DEBUG: '*',
-          PATH: `${dirname(node)}${delimiter}${process.env.PATH}`,
-          PNPM_HOME: pnpmHome
-        },
-        cancelSignal: abortSignal
-      },
-      log,
-      {
-        onStderr(data) {
-          log(data)
-        },
-        onStdout(data) {
-          log(data)
-        }
-      }
-    )
-
-    // 4. netlify deploy
-    await runWithLiveLogs(
-      node,
-      [pnpm, '--package', 'netlify-cli', 'dlx', 'netlify', 'deploy', '--prod'],
+      [pnpm, "install", "--prefer-offline"],
       {
         cwd: destinationFolder,
         env: {
           // DEBUG: '*',
           PATH: `${dirname(node)}${delimiter}${process.env.PATH}`,
           PNPM_HOME: pnpmHome,
-          NETLIFY_AUTH_TOKEN: inputs.token
         },
-        cancelSignal: abortSignal
+        cancelSignal: abortSignal,
       },
       log,
       {
         onStderr(data) {
-          log(data)
+          log(data);
         },
         onStdout(data) {
-          log(data)
-        }
-      }
-    )
+          log(data);
+        },
+      },
+    );
+
+    // 4. netlify deploy
+    await runWithLiveLogs(
+      node,
+      [pnpm, "--package", "netlify-cli", "dlx", "netlify", "deploy", "--prod"],
+      {
+        cwd: destinationFolder,
+        env: {
+          // DEBUG: '*',
+          PATH: `${dirname(node)}${delimiter}${process.env.PATH}`,
+          PNPM_HOME: pnpmHome,
+          NETLIFY_AUTH_TOKEN: inputs.token,
+        },
+        cancelSignal: abortSignal,
+      },
+      log,
+      {
+        onStderr(data) {
+          log(data);
+        },
+        onStdout(data) {
+          log(data);
+        },
+      },
+    );
 
     // ensure input folder have a package.json
 
@@ -267,6 +267,6 @@ export const uploadToNetlifyRunner = createActionRunner<typeof uploadToNetlify>(
 
     // log('Deployed to netlify', deploy)
 
-    log('Uploaded to netlify')
-  }
-)
+    log("Uploaded to netlify");
+  },
+);

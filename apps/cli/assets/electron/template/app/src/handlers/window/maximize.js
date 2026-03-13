@@ -4,7 +4,7 @@
  * @param {import('electron').BrowserWindow} mainWindow
  */
 export default async (json, ws, mainWindow) => {
-  mainWindow.maximize()
+  mainWindow.maximize();
 
   /**
    * @type {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').MessageWindowMaximize, 'output'>}
@@ -13,8 +13,8 @@ export default async (json, ws, mainWindow) => {
     correlationId: json.correlationId,
     url: json.url,
     body: {
-      success: true
-    }
-  }
-  ws.send(JSON.stringify(maximizeResult))
-}
+      success: true,
+    },
+  };
+  ws.send(JSON.stringify(maximizeResult));
+};

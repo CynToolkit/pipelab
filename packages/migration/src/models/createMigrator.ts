@@ -1,22 +1,22 @@
-import { MigratorConfig, Migrator, MigrationSchema } from './migration'
+import { MigratorConfig, Migrator, MigrationSchema } from "./migration";
 
 export const createMigrator = <
   InitialState extends MigrationSchema,
-  FinalState extends MigrationSchema
+  FinalState extends MigrationSchema,
 >() => {
   return {
     createDefault(defaultState: FinalState): FinalState {
-      return defaultState
+      return defaultState;
     },
     createMigrations(
-      config: MigratorConfig<InitialState, FinalState>
+      config: MigratorConfig<InitialState, FinalState>,
     ): Migrator<InitialState, FinalState> {
-      return new Migrator<InitialState, FinalState>(config)
-    }
-  }
-}
+      return new Migrator<InitialState, FinalState>(config);
+    },
+  };
+};
 
 export type MigratorFactory<
   InitialState extends MigrationSchema,
-  FinalState extends MigrationSchema
-> = ReturnType<typeof createMigrator<InitialState, FinalState>>
+  FinalState extends MigrationSchema,
+> = ReturnType<typeof createMigrator<InitialState, FinalState>>;

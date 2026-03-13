@@ -1,9 +1,9 @@
-import { expect, test, vi } from 'vitest'
-import { makeRunner } from './make.js'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
-import { type fs } from 'memfs'
-import { browserWindow } from '@pipelab/shared/tests/helpers.js'
+import { expect, test, vi } from "vitest";
+import { makeRunner } from "./make.js";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { type fs } from "memfs";
+import { browserWindow } from "@pipelab/shared/tests/helpers.js";
 
 // ...
 
@@ -13,17 +13,17 @@ import { browserWindow } from '@pipelab/shared/tests/helpers.js'
 //   return memfs.fs.promises
 // })
 
-test('adds 1 + 2 to equal 3', async () => {
-  const outputs: Record<string, unknown> = {}
+test("adds 1 + 2 to equal 3", async () => {
+  const outputs: Record<string, unknown> = {};
 
-  const id = 'ut-electron-build'
-  const tmpDir = join(tmpdir(), id)
+  const id = "ut-electron-build";
+  const tmpDir = join(tmpdir(), id);
 
-  console.log('tmpDir', tmpDir)
+  console.log("tmpDir", tmpDir);
 
-  const inputFolder = join(process.cwd(), 'fixtures', 'build')
+  const inputFolder = join(process.cwd(), "fixtures", "build");
 
-  console.log('inputFolder', inputFolder)
+  console.log("inputFolder", inputFolder);
 
   // await makeRunner({
   //   inputs: {
@@ -52,6 +52,6 @@ test('adds 1 + 2 to equal 3', async () => {
   //   api: undefined,
   //   browserWindow
   // })
-  console.log('outputs', outputs)
-  expect(true).toBe(true)
-}, 120_000)
+  console.log("outputs", outputs);
+  expect(true).toBe(true);
+}, 120_000);

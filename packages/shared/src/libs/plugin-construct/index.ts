@@ -1,26 +1,26 @@
-import { createNodeDefinition } from '@pipelab/plugin-core'
-import { exportAction, ExportActionRunner } from './export-c3p.js'
-import { exportProjectAction, ExportProjectActionRunner } from './export-project.js'
-import icon from './assets/construct.webp'
-import { constructVersionValidator } from './export-shared'
+import { createNodeDefinition } from "@pipelab/plugin-core";
+import { exportAction, ExportActionRunner } from "./export-c3p.js";
+import { exportProjectAction, ExportProjectActionRunner } from "./export-project.js";
+import icon from "./assets/construct.webp";
+import { constructVersionValidator } from "./export-shared";
 
 export default createNodeDefinition({
-  description: 'Construct',
-  name: 'Construct',
-  id: 'construct',
+  description: "Construct",
+  name: "Construct",
+  id: "construct",
   icon: {
-    type: 'image',
-    image: icon
+    type: "image",
+    image: icon,
   },
   nodes: [
     {
       node: exportAction,
-      runner: ExportActionRunner
+      runner: ExportActionRunner,
     },
     {
       node: exportProjectAction,
-      runner: ExportProjectActionRunner
-    }
+      runner: ExportProjectActionRunner,
+    },
   ],
   validators: [
     // {
@@ -28,7 +28,7 @@ export default createNodeDefinition({
     //   description: 'Version must be a valid semver',
     //   validator: constructVersionValidator
     // }
-  ]
-})
+  ],
+});
 
-export type { Params as ExportParams } from './export-c3p.js'
+export type { Params as ExportParams } from "./export-c3p.js";

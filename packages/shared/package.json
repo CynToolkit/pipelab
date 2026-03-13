@@ -126,6 +126,10 @@
       "require": "./src/libs.ts"
     }
   },
+  "scripts": {
+    "format": "oxfmt .",
+    "lint": "oxlint ."
+  },
   "dependencies": {
     "@pipelab/migration": "workspace:*",
     "klona": "2.0.6",

@@ -1,123 +1,123 @@
 // @ts-nocheck
 
-import { PresetFn, SavedFile } from '@pipelab/shared/model'
+import { PresetFn, SavedFile } from "@pipelab/shared/model";
 
 export const demoPreset: PresetFn = async () => {
-  const startId = 'manual-start'
-  const exportConstructProjectId = 'export-construct-project'
-  const listFilesNodeId = 'list-files-node'
-  const logOkId = 'log-ok'
+  const startId = "manual-start";
+  const exportConstructProjectId = "export-construct-project";
+  const listFilesNodeId = "list-files-node";
+  const logOkId = "log-ok";
 
   const data: SavedFile = {
-    version: '1.0.0',
+    version: "1.0.0",
     variables: [],
-    name: 'demo',
-    description: 'demo',
+    name: "demo",
+    description: "demo",
     canvas: {
       blocks: [
         {
-          type: 'event',
+          type: "event",
           origin: {
-            pluginId: 'system',
-            nodeId: 'manual'
+            pluginId: "system",
+            nodeId: "manual",
           },
           uid: startId,
-          params: {}
+          params: {},
         },
         {
-          type: 'action',
+          type: "action",
           origin: {
-            pluginId: 'construct',
-            nodeId: 'export-construct-project'
+            pluginId: "construct",
+            nodeId: "export-construct-project",
           },
           uid: exportConstructProjectId,
           params: {
-            version: '300',
-            username: 'quentin',
-            password: 'aaa',
-            headless: false
-          }
+            version: "300",
+            username: "quentin",
+            password: "aaa",
+            headless: false,
+          },
         },
         {
-          type: 'action',
+          type: "action",
           origin: {
-            pluginId: 'filesystem',
-            nodeId: 'list-files-node'
+            pluginId: "filesystem",
+            nodeId: "list-files-node",
           },
           uid: listFilesNodeId,
           params: {
-            folder: '/home/quentin/Téléchargements/sourcegit/',
-            recursive: true
-          }
+            folder: "/home/quentin/Téléchargements/sourcegit/",
+            recursive: true,
+          },
         },
         {
-          type: 'loop',
+          type: "loop",
           origin: {
-            pluginId: 'system',
-            nodeId: 'for'
+            pluginId: "system",
+            nodeId: "for",
           },
 
           params: {
-            value: `{{ steps['${listFilesNodeId}']['outputs']['paths'] }}`
+            value: `{{ steps['${listFilesNodeId}']['outputs']['paths'] }}`,
           },
           children: [
             {
-              type: 'condition',
+              type: "condition",
               origin: {
-                pluginId: 'filesystem',
-                nodeId: 'is-file'
+                pluginId: "filesystem",
+                nodeId: "is-file",
               },
-              uid: 'is-file-condition',
+              uid: "is-file-condition",
 
               params: {
-                path: `{{ steps['${listFilesNodeId}']['outputs']['paths'][context.loopindex] }}`
+                path: `{{ steps['${listFilesNodeId}']['outputs']['paths'][context.loopindex] }}`,
               },
               branchTrue: [
                 {
-                  type: 'action',
+                  type: "action",
                   origin: {
-                    pluginId: 'system',
-                    nodeId: 'log'
+                    pluginId: "system",
+                    nodeId: "log",
                   },
                   params: {
-                    message: `File: {{ steps['${listFilesNodeId}']['outputs']['paths'] }}`
+                    message: `File: {{ steps['${listFilesNodeId}']['outputs']['paths'] }}`,
                   },
-                  uid: 'log-ok-in-foreach'
-                }
+                  uid: "log-ok-in-foreach",
+                },
               ],
               branchFalse: [
                 {
-                  type: 'action',
+                  type: "action",
                   origin: {
-                    pluginId: 'system',
-                    nodeId: 'log'
+                    pluginId: "system",
+                    nodeId: "log",
                   },
                   params: {
-                    message: `Folder: {{ steps['${listFilesNodeId}']['outputs']['paths'] }}`
+                    message: `Folder: {{ steps['${listFilesNodeId}']['outputs']['paths'] }}`,
                   },
-                  uid: 'log-ko-in-foreach'
-                }
-              ]
-            }
+                  uid: "log-ko-in-foreach",
+                },
+              ],
+            },
           ],
-          uid: 'for-each-file'
+          uid: "for-each-file",
         },
         {
-          type: 'action',
+          type: "action",
           origin: {
-            pluginId: 'system',
-            nodeId: 'log'
+            pluginId: "system",
+            nodeId: "log",
           },
           uid: logOkId,
           params: {
-            message: '{{ Filesystem.Join() }}'
-          }
-        }
-      ]
-    }
-  }
+            message: "{{ Filesystem.Join() }}",
+          },
+        },
+      ],
+    },
+  };
 
   return {
-    data
-  }
-}
+    data,
+  };
+};

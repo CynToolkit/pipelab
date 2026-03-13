@@ -35,53 +35,53 @@
 </template>
 
 <script setup lang="ts">
-import EditorNodeAction from '@renderer/components/nodes/EditorNodeAction.vue'
+import EditorNodeAction from "@renderer/components/nodes/EditorNodeAction.vue";
 // import EditorNodeCondition from '@renderer/components/nodes/EditorNodeCondition.vue'
 // import EditorNodeEvent from '@renderer/components/nodes/EditorNodeEvent.vue'
 // import EditorNodeLoop from '@renderer/components/nodes/EditorNodeLoop.vue'
 
-import { PropType, toRefs } from 'vue'
-import { Block, Steps } from '@pipelab/shared/model'
-import { ValidationError } from '@renderer/models/error'
-import { useEditor } from '@renderer/store/editor'
-import { storeToRefs } from 'pinia'
+import { PropType, toRefs } from "vue";
+import { Block, Steps } from "@pipelab/shared/model";
+import { ValidationError } from "@renderer/models/error";
+import { useEditor } from "@renderer/store/editor";
+import { storeToRefs } from "pinia";
 
-const editor = useEditor()
-const { steps } = storeToRefs(editor)
+const editor = useEditor();
+const { steps } = storeToRefs(editor);
 
 const props = defineProps({
   nodes: {
     type: Array as PropType<Block[]>,
-    required: true
+    required: true,
   },
   extraAddButton: {
     type: Boolean,
     default: true,
-    required: false
+    required: false,
   },
   path: {
     type: Array as PropType<string[]>,
-    required: true
+    required: true,
     // default: () => []
   },
   errors: {
     type: Object as PropType<Record<string, ValidationError[]>>,
     required: false,
-    default: () => ({})
+    default: () => ({}),
   },
   startingIndex: {
     type: Number,
     required: false,
-    default: 0
+    default: 0,
   },
   isRunning: {
     type: Boolean,
     required: false,
-    default: false
-  }
-})
+    default: false,
+  },
+});
 
-const { nodes, path } = toRefs(props)
+const { nodes, path } = toRefs(props);
 </script>
 
 <style scoped lang="scss">

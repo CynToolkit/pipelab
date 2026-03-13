@@ -1,51 +1,51 @@
-import { useAPI, HandleListenerSendFn } from '../ipc-core'
-import { getSystemContext } from '../context'
-import { useLogger } from '@pipelab/shared/logger'
-import { getFinalPlugins, executeGraphWithHistory } from '../utils'
-import { presets } from '../presets/list'
-import { handleActionExecute, handleConditionExecute } from '../handler-func'
+import { useAPI, HandleListenerSendFn } from "../ipc-core";
+import { getSystemContext } from "../context";
+import { useLogger } from "@pipelab/shared/logger";
+import { getFinalPlugins, executeGraphWithHistory } from "../utils";
+import { presets } from "../presets/list";
+import { handleActionExecute, handleConditionExecute } from "../handler-func";
 
 export const registerEngineHandlers = () => {
-  const { handle } = useAPI()
-  const { logger } = useLogger()
+  const { handle } = useAPI();
+  const { logger } = useLogger();
 
-  handle('nodes:get', async (_, { send }) => {
-    const finalPlugins = getFinalPlugins()
+  handle("nodes:get", async (_, { send }) => {
+    const finalPlugins = getFinalPlugins();
     send({
-      type: 'end',
+      type: "end",
       data: {
-        type: 'success',
+        type: "success",
         result: {
-          nodes: finalPlugins
-        }
-      }
-    })
-  })
+          nodes: finalPlugins,
+        },
+      },
+    });
+  });
 
-  handle('presets:get', async (_, { send }) => {
-    const presetData = await presets()
+  handle("presets:get", async (_, { send }) => {
+    const presetData = await presets();
     send({
-      type: 'end',
+      type: "end",
       data: {
-        type: 'success',
-        result: presetData
-      }
-    })
-  })
+        type: "success",
+        result: presetData,
+      },
+    });
+  });
 
-  handle('condition:execute', async (_, { value }) => {
-    const { nodeId, params, pluginId } = value
-    await handleConditionExecute(nodeId, pluginId, params)
-  })
+  handle("condition:execute", async (_, { value }) => {
+    const { nodeId, params, pluginId } = value;
+    await handleConditionExecute(nodeId, pluginId, params);
+  });
 
-  let abortControllerGraph: undefined | AbortController = undefined
+  let abortControllerGraph: undefined | AbortController = undefined;
 
   const effectiveActionExecute = async (
     nodeId: string,
     pluginId: string,
     params: Record<string, string>,
     mainWindow: any | undefined,
-    send: HandleListenerSendFn<'action:execute'>
+    send: HandleListenerSendFn<"action:execute">,
   ) => {
     try {
       const result = await handleActionExecute(
@@ -54,83 +54,83 @@ export const registerEngineHandlers = () => {
         params,
         mainWindow,
         send,
-        abortControllerGraph!.signal
-      )
+        abortControllerGraph!.signal,
+      );
 
       await send({
         data: result,
-        type: 'end'
-      })
+        type: "end",
+      });
     } catch (e) {
-      console.error('Error during action execution:', e)
+      console.error("Error during action execution:", e);
       await send({
-        type: 'end',
+        type: "end",
         data: {
-          ipcError: e instanceof Error ? e.message : 'Unknown error',
-          type: 'error'
-        }
-      })
+          ipcError: e instanceof Error ? e.message : "Unknown error",
+          type: "error",
+        },
+      });
     }
-  }
+  };
 
-  handle('action:execute', async (event, { send, value }) => {
-    const { nodeId, params, pluginId } = value
-    const mainWindow = getSystemContext().getMainWindow?.()
-    abortControllerGraph = new AbortController()
+  handle("action:execute", async (event, { send, value }) => {
+    const { nodeId, params, pluginId } = value;
+    const mainWindow = getSystemContext().getMainWindow?.();
+    abortControllerGraph = new AbortController();
 
     const signalPromise = new Promise((resolve, reject) => {
-      abortControllerGraph!.signal.addEventListener('abort', async () => {
+      abortControllerGraph!.signal.addEventListener("abort", async () => {
         await send({
-          type: 'end',
+          type: "end",
           data: {
-            ipcError: 'Action aborted',
-            type: 'error'
-          }
-        })
-        return reject(new Error('Action interrupted'))
-      })
-    })
+            ipcError: "Action aborted",
+            type: "error",
+          },
+        });
+        return reject(new Error("Action interrupted"));
+      });
+    });
 
     await Promise.race([
       signalPromise,
-      effectiveActionExecute(nodeId, pluginId, params, mainWindow, send)
-    ])
-  })
+      effectiveActionExecute(nodeId, pluginId, params, mainWindow, send),
+    ]);
+  });
 
-  handle('constants:get', async (_, { send }) => {
-    const userData = getSystemContext().userDataPath
+  handle("constants:get", async (_, { send }) => {
+    const userData = getSystemContext().userDataPath;
     send({
-      type: 'end',
+      type: "end",
       data: {
-        type: 'success',
+        type: "success",
         result: {
           result: {
-            userData
-          }
-        }
-      }
-    })
-  })
+            userData,
+          },
+        },
+      },
+    });
+  });
 
-  handle('action:cancel', async (_, { send }) => {
+  handle("action:cancel", async (_, { send }) => {
     if (abortControllerGraph) {
-      abortControllerGraph.abort('Interrupted by user')
+      abortControllerGraph.abort("Interrupted by user");
     }
     send({
-      type: 'end',
+      type: "end",
       data: {
-        type: 'success',
+        type: "success",
         result: {
-          result: 'ok'
-        }
-      }
-    })
-  })
+          result: "ok",
+        },
+      },
+    });
+  });
 
-  handle('graph:execute', async (event, { send, value }) => {
-    const { graph, variables, projectName, projectPath, pipelineId } = value
-    const mainWindow = getSystemContext().getMainWindow?.()
-    abortControllerGraph = new AbortController()
+  handle("graph:execute", async (event, { send, value }) => {
+    const { graph, variables, projectName, projectPath, pipelineId } = value;
+    const mainWindow = getSystemContext().getMainWindow?.();
+    abortControllerGraph = new AbortController();
 
     try {
       const { result, buildId } = await executeGraphWithHistory({
@@ -142,60 +142,60 @@ export const registerEngineHandlers = () => {
         mainWindow,
         onNodeEnter: (node) => {
           send({
-            type: 'node-enter',
+            type: "node-enter",
             data: {
               nodeUid: node.uid,
-              nodeName: node.name
-            }
-          })
+              nodeName: node.name,
+            },
+          });
         },
         onNodeExit: (node) => {
           send({
-            type: 'node-exit',
+            type: "node-exit",
             data: {
               nodeUid: node.uid,
-              nodeName: node.name
-            }
-          })
+              nodeName: node.name,
+            },
+          });
         },
         onLog: (data, node) => {
-          if (data.type === 'log') {
+          if (data.type === "log") {
             const sanitizedData = {
               message: data.data.message,
-              timestamp: data.data.time
-            }
+              timestamp: data.data.time,
+            };
             send({
-              type: 'node-log',
+              type: "node-log",
               data: {
-                nodeUid: node?.uid || 'unknown',
-                logData: sanitizedData
-              }
-            })
+                nodeUid: node?.uid || "unknown",
+                logData: sanitizedData,
+              },
+            });
           }
         },
-        abortSignal: abortControllerGraph!.signal
-      })
+        abortSignal: abortControllerGraph!.signal,
+      });
 
       send({
-        type: 'end',
+        type: "end",
         data: {
-          type: 'success',
+          type: "success",
           result: {
             result,
-            buildId
-          }
-        }
-      })
+            buildId,
+          },
+        },
+      });
     } catch (e) {
-      const isCanceled = e instanceof Error && e.name === 'AbortError'
+      const isCanceled = e instanceof Error && e.name === "AbortError";
       send({
-        type: 'end',
+        type: "end",
         data: {
-          type: 'error',
-          code: isCanceled ? 'canceled' : 'error',
-          ipcError: e instanceof Error ? e.message : 'Unknown error'
-        }
-      })
+          type: "error",
+          code: isCanceled ? "canceled" : "error",
+          ipcError: e instanceof Error ? e.message : "Unknown error",
+        },
+      });
     }
-  })
-}
+  });
+};

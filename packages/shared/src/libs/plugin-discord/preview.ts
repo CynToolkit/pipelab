@@ -1,12 +1,12 @@
-import { createActionRunner } from '@pipelab/plugin-core'
-import { createPreviewProps, discord } from './discord'
-import { merge } from 'ts-deepmerge'
+import { createActionRunner } from "@pipelab/plugin-core";
+import { createPreviewProps, discord } from "./discord";
+import { merge } from "ts-deepmerge";
 
 export const previewRunner = createActionRunner<ReturnType<typeof createPreviewProps>>(
   async (options) => {
-    const inputFolder = options.inputs['input-folder']
-    if (inputFolder === '') {
-      throw new Error("URL can't be empty")
+    const inputFolder = options.inputs["input-folder"];
+    if (inputFolder === "") {
+      throw new Error("URL can't be empty");
     }
 
     // if (!options.inputs.configuration) {
@@ -14,12 +14,12 @@ export const previewRunner = createActionRunner<ReturnType<typeof createPreviewP
     // }
 
     const completeConfiguration = merge({}, {
-      ...options.inputs
-    } satisfies any) as any
+      ...options.inputs,
+    } satisfies any) as any;
 
-    console.log('completeConfiguration', completeConfiguration)
+    console.log("completeConfiguration", completeConfiguration);
 
-    await discord('preview', inputFolder, options, completeConfiguration)
-    return
-  }
-)
+    await discord("preview", inputFolder, options, completeConfiguration);
+    return;
+  },
+);

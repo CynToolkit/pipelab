@@ -1,47 +1,47 @@
-import { createAction, createActionRunner, createStringParam } from '@pipelab/plugin-core'
+import { createAction, createActionRunner, createStringParam } from "@pipelab/plugin-core";
 
-export const ID = 'system:prompt'
+export const ID = "system:prompt";
 
 export type Data = {
-  text: string
-}
+  text: string;
+};
 
 export const promptAction = createAction({
   id: ID,
-  name: 'Prompt',
-  description: 'Prompt a message',
-  icon: '',
+  name: "Prompt",
+  description: "Prompt a message",
+  icon: "",
   displayString: "`Prompt ${fmt.param(params.message ?? 'No message')}`",
   meta: {},
   params: {
-    message: createStringParam('', {
+    message: createStringParam("", {
       required: true,
-      label: 'Message'
-    })
+      label: "Message",
+    }),
   },
 
   outputs: {
     answer: {
-      label: 'Answer',
-      value: ''
-    }
-  }
-})
+      label: "Answer",
+      value: "",
+    },
+  },
+});
 
 export const promptActionRunner = createActionRunner<typeof promptAction>(
   async ({ log, inputs, api, setOutput, browserWindow }) => {
-    browserWindow.flashFrame(true)
+    browserWindow.flashFrame(true);
     //    'cancel' | 'ok'
-    const _answer = await api.execute('dialog:prompt', {
-      message: inputs.message
-    })
+    const _answer = await api.execute("dialog:prompt", {
+      message: inputs.message,
+    });
 
-    log('_answer', _answer)
+    log("_answer", _answer);
 
-    if (_answer.type === 'success') {
-      setOutput('answer', _answer.result.answer)
+    if (_answer.type === "success") {
+      setOutput("answer", _answer.result.answer);
     } else {
-      throw new Error(_answer.ipcError)
+      throw new Error(_answer.ipcError);
     }
-  }
-)
+  },
+);

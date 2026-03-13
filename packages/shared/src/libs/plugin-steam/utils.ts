@@ -1,81 +1,81 @@
-import { runWithLiveLogsPTY } from '../plugin-core'
-import { Options as ExecaOptions } from 'execa'
+import { runWithLiveLogsPTY } from "../plugin-core";
+import { Options as ExecaOptions } from "execa";
 
 export type Options = {
-  steamcmdPath: string
-  username: string
-  scriptPath: string
+  steamcmdPath: string;
+  username: string;
+  scriptPath: string;
   context: {
-    log: typeof console.log
-    abortSignal: AbortSignal
-  }
-}
+    log: typeof console.log;
+    abortSignal: AbortSignal;
+  };
+};
 
 export const checkSteamAuth = async (options: Options) => {
-  let error: 'LOGGED_OUT' | 'UNKNOWN' | undefined = undefined
+  let error: "LOGGED_OUT" | "UNKNOWN" | undefined = undefined;
 
   try {
     await runWithLiveLogsPTY(
       options.steamcmdPath,
-      ['+login', options.username, '+quit'],
+      ["+login", options.username, "+quit"],
       {},
       options.context.log,
       {
         onStdout: (data, subprocess) => {
-          options.context.log('[Steam Cmd]', data)
+          options.context.log("[Steam Cmd]", data);
           // TODO: handle password input dynamically
-          if (data.includes('Cached credentials not found')) {
-            error = 'LOGGED_OUT'
+          if (data.includes("Cached credentials not found")) {
+            error = "LOGGED_OUT";
 
-            subprocess.kill()
+            subprocess.kill();
           }
-        }
+        },
       },
-      options.context.abortSignal
-    )
+      options.context.abortSignal,
+    );
   } catch (e) {
-    console.error('e', e)
+    console.error("e", e);
     if (!error) {
-      error = 'UNKNOWN'
+      error = "UNKNOWN";
     }
   }
 
   if (error) {
     return {
       success: false,
-      error
-    }
+      error,
+    };
   }
 
   return {
-    success: true
-  }
-}
+    success: true,
+  };
+};
 
 export const openExternalTerminal = async (
   command: string,
   args: string[] = [],
   options: ExecaOptions = {},
-  keepOpen = false
+  keepOpen = false,
 ) => {
-  const { execa } = await import('execa')
-  const os = await import('os')
+  const { execa } = await import("execa");
+  const os = await import("os");
 
-  const platform = process.platform
+  const platform = process.platform;
 
-  if (platform === 'darwin') {
+  if (platform === "darwin") {
     // macOS: open in Terminal.app
-    const shellCommand = `${command} ${args.join(' ')}; echo "You can now close this window"`
+    const shellCommand = `${command} ${args.join(" ")}; echo "You can now close this window"`;
     // Escape for AppleScript string literal
     const escapedShellCommand = shellCommand
-      .replace(/\\/g, '\\\\') // Must escape backslashes first
-      .replace(/"/g, '\\"') // Then escape double quotes
+      .replace(/\\/g, "\\\\") // Must escape backslashes first
+      .replace(/"/g, '\\"'); // Then escape double quotes
 
-    let osaScript: string
+    let osaScript: string;
     if (keepOpen) {
       // If keepOpen is true, just run the command and leave the terminal open.
       // Added activate to bring Terminal to front.
-      osaScript = `tell application "Terminal"\nactivate\ndo script "${escapedShellCommand}"\nend tell`
+      osaScript = `tell application "Terminal"\nactivate\ndo script "${escapedShellCommand}"\nend tell`;
     } else {
       // If keepOpen is false (default), run the command, wait for it to finish, then close the tab.
       osaScript = `tell application "Terminal"
@@ -86,15 +86,15 @@ export const openExternalTerminal = async (
     repeat while busy of targetTab
         delay 0.5 -- Check every 0.5 seconds
     end repeat
-end tell`
+end tell`;
     }
 
-    return execa('osascript', ['-e', osaScript], options)
-  } else if (platform === 'linux') {
+    return execa("osascript", ["-e", osaScript], options);
+  } else if (platform === "linux") {
     // Linux: use $TERMINAL, $TERM, or fallback to xterm
-    const terminal = process.env.TERMINAL ?? process.env.TERM ?? 'xterm'
-    return execa(terminal, ['-e', command, ...args], options)
-  } else if (platform === 'win32') {
+    const terminal = process.env.TERMINAL ?? process.env.TERM ?? "xterm";
+    return execa(terminal, ["-e", command, ...args], options);
+  } else if (platform === "win32") {
     // Windows: try PowerShell by default, fallback to CMD if needed
     // try {
     //   console.log('verifying')
@@ -114,12 +114,12 @@ end tell`
     // } catch (error) {
     // Oops! No PowerShell? Fallback to CMD.
     return execa(
-      'cmd.exe',
-      [keepOpen ? '/k' : '/c', 'start', 'cmd.exe', '/c', command, ...args],
-      options
-    )
+      "cmd.exe",
+      [keepOpen ? "/k" : "/c", "start", "cmd.exe", "/c", command, ...args],
+      options,
+    );
     // }
   } else {
-    throw new Error('Unsupported platform: ' + platform)
+    throw new Error("Unsupported platform: " + platform);
   }
-}
+};

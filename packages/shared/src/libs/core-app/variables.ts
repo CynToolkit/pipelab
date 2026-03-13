@@ -1,10 +1,10 @@
 export interface VariableBase {
-  value: string
-  id: string
-  name: string
-  description: string
+  value: string;
+  id: string;
+  name: string;
+  description: string;
 }
 
-export type Variable = VariableBase
+export type Variable = VariableBase;
 
-export const foo = 'aaa'
+export const foo = "aaa";

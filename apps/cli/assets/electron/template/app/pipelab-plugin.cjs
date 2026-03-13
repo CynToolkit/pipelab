@@ -1,4 +1,4 @@
-const { PluginBase } = require('@electron-forge/plugin-base')
+const { PluginBase } = require("@electron-forge/plugin-base");
 
 module.exports = class PipelabPlugin extends PluginBase {
   getHooks() {
@@ -12,8 +12,8 @@ module.exports = class PipelabPlugin extends PluginBase {
       postPackage: [this.postPackage],
       preMake: [this.preMake],
       postMake: [this.postMake],
-      readPackageJson: [this.readPackageJson]
-    }
+      readPackageJson: [this.readPackageJson],
+    };
   }
 
   prePackage() {
@@ -26,22 +26,22 @@ module.exports = class PipelabPlugin extends PluginBase {
     // console.log('running postStart hook')
   }
   async packageAfterCopy(config, buildPath, electronVersion, platform, arch) {
-    console.log(`Platform: ${platform}`)
-    console.log(`Architecture: ${arch}`)
-    console.log(`Build path: ${buildPath}`)
-    console.log(`Config: ${JSON.stringify(config)}`)
-    console.log(`Electron version: ${electronVersion}`)
-    const fs = require('fs').promises
-    const path = require('path')
-    const pkg = require('./package.json')
+    console.log(`Platform: ${platform}`);
+    console.log(`Architecture: ${arch}`);
+    console.log(`Build path: ${buildPath}`);
+    console.log(`Config: ${JSON.stringify(config)}`);
+    console.log(`Electron version: ${electronVersion}`);
+    const fs = require("fs").promises;
+    const path = require("path");
+    const pkg = require("./package.json");
 
-    console.log('config', config)
+    console.log("config", config);
 
-    const outputFolder = path.resolve(buildPath, '..', '..')
+    const outputFolder = path.resolve(buildPath, "..", "..");
 
     // Runtime JSON file
 
-    const pipelabJsonPath = path.join(outputFolder, 'pipelab.json')
+    const pipelabJsonPath = path.join(outputFolder, "pipelab.json");
 
     await fs.writeFile(
       pipelabJsonPath,
@@ -50,20 +50,20 @@ module.exports = class PipelabPlugin extends PluginBase {
           name: config.name || pkg.productName || pkg.name,
           version: config.appVersion || pkg.version,
           description: config.description || pkg.description,
-          author: config.author || (typeof pkg.author === 'object' ? pkg.author.name : pkg.author),
+          author: config.author || (typeof pkg.author === "object" ? pkg.author.name : pkg.author),
           homepage: pkg.homepage,
-          engine: 'Pipelab',
-          runtimeVersion: pkg.devDependencies['@pipelab/core'],
+          engine: "Pipelab",
+          runtimeVersion: pkg.devDependencies["@pipelab/core"],
           buildDate: new Date().toISOString(),
           platform: platform,
           arch: arch,
-          electron: electronVersion
+          electron: electronVersion,
         },
         null,
-        2
+        2,
       ),
-      'utf8'
-    )
+      "utf8",
+    );
   }
   packageAfterPrune() {
     // console.log('running packageAfterPrune hook')
@@ -72,16 +72,16 @@ module.exports = class PipelabPlugin extends PluginBase {
     // console.log('running packageAfterExtract hook')
   }
   async postPackage(config, result) {
-    const fs = require('fs').promises
-    const path = require('path')
-    const appConfig = require('./config.cjs')
+    const fs = require("fs").promises;
+    const path = require("path");
+    const appConfig = require("./config.cjs");
 
-    const outputFolder = result.outputPaths[0]
+    const outputFolder = result.outputPaths[0];
 
     // Doctor
-    if (result.platform === 'win32' && appConfig.enableDoctor) {
-      const appName = config.packagerConfig.name
-      console.log('appName', appName)
+    if (result.platform === "win32" && appConfig.enableDoctor) {
+      const appName = config.packagerConfig.name;
+      console.log("appName", appName);
       const doctorBatContent = `@echo off
 pushd "%~dp0"
 
@@ -143,9 +143,9 @@ if %ERRORLEVEL% NEQ 0 (
 
 :end
 popd
-pause`
-      const doctorBatPath = path.join(outputFolder, 'doctor.bat')
-      await fs.writeFile(doctorBatPath, doctorBatContent, 'utf8')
+pause`;
+      const doctorBatPath = path.join(outputFolder, "doctor.bat");
+      await fs.writeFile(doctorBatPath, doctorBatContent, "utf8");
     }
   }
   preMake() {
@@ -157,4 +157,4 @@ pause`
   readPackageJson() {
     // console.log('running readPackageJson hook')
   }
-}
+};

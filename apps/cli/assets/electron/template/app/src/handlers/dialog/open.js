@@ -1,4 +1,4 @@
-import { dialog } from 'electron'
+import { dialog } from "electron";
 
 /**
  * @param {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').MessageShowOpenDialog, 'input'>} json
@@ -6,8 +6,8 @@ import { dialog } from 'electron'
  */
 export default async (json, ws) => {
   const openDialogResponse = await dialog.showOpenDialog({
-    properties: ['openFile']
-  })
+    properties: ["openFile"],
+  });
 
   /**
    * @type {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').MessageShowOpenDialog, 'output'>}
@@ -18,8 +18,8 @@ export default async (json, ws) => {
     body: {
       success: true,
       canceled: openDialogResponse.canceled,
-      paths: openDialogResponse.filePaths
-    }
-  }
-  ws.send(JSON.stringify(dialogOpenResult))
-}
+      paths: openDialogResponse.filePaths,
+    },
+  };
+  ws.send(JSON.stringify(dialogOpenResult));
+};

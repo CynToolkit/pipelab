@@ -1,4 +1,4 @@
 export interface ValidationError {
-  type: 'missing'
-  param: string
+  type: "missing";
+  param: string;
 }

@@ -5,9 +5,9 @@
  */
 export default async (json, ws, mainWindow) => {
   if (json.body.value === true) {
-    mainWindow.webContents.openDevTools()
+    mainWindow.webContents.openDevTools();
   } else {
-    mainWindow.webContents.closeDevTools()
+    mainWindow.webContents.closeDevTools();
   }
 
   /**
@@ -17,8 +17,8 @@ export default async (json, ws, mainWindow) => {
     correlationId: json.correlationId,
     url: json.url,
     body: {
-      success: true
-    }
-  }
-  ws.send(JSON.stringify(showDevtoolsResult))
-}
+      success: true,
+    },
+  };
+  ws.send(JSON.stringify(showDevtoolsResult));
+};

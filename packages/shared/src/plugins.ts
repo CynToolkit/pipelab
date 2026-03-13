@@ -1,79 +1,79 @@
-import { shallowRef } from 'vue'
-import { createNodeDefinition } from '@pipelab/plugin-core'
-const isDev = process.env.NODE_ENV === 'development'
+import { shallowRef } from "vue";
+import { createNodeDefinition } from "@pipelab/plugin-core";
+const isDev = process.env.NODE_ENV === "development";
 
 const builtInPlugins = async () => {
   const base = [
-    (await import('./libs/plugin-construct')).default,
-    (await import('./libs/plugin-filesystem')).default,
-    (await import('./libs/plugin-system')).default,
-    (await import('./libs/plugin-steam')).default,
-    (await import('./libs/plugin-itch')).default,
-    (await import('./libs/plugin-electron')).default,
-    (await import('./libs/plugin-discord')).default,
-    (await import('./libs/plugin-poki')).default,
-    (await import('./libs/plugin-nvpatch')).default,
-    (await import('./libs/plugin-tauri')).default
-  ]
+    (await import("./libs/plugin-construct")).default,
+    (await import("./libs/plugin-filesystem")).default,
+    (await import("./libs/plugin-system")).default,
+    (await import("./libs/plugin-steam")).default,
+    (await import("./libs/plugin-itch")).default,
+    (await import("./libs/plugin-electron")).default,
+    (await import("./libs/plugin-discord")).default,
+    (await import("./libs/plugin-poki")).default,
+    (await import("./libs/plugin-nvpatch")).default,
+    (await import("./libs/plugin-tauri")).default,
+  ];
 
   if (isDev) {
-    base.push((await import('./libs/plugin-netlify')).default)
+    base.push((await import("./libs/plugin-netlify")).default);
   }
 
-  return (await Promise.all([...base])).flat()
-}
+  return (await Promise.all([...base])).flat();
+};
 
-type Plugin = ReturnType<typeof createNodeDefinition>
+type Plugin = ReturnType<typeof createNodeDefinition>;
 
-const plugins = shallowRef<Plugin[]>([])
+const plugins = shallowRef<Plugin[]>([]);
 
 export const usePlugins = () => {
-  const load = () => {}
+  const load = () => {};
 
   const registerBuiltIn = async () => {
-    const builtIns = (await builtInPlugins()) as Plugin[]
-    plugins.value.push(...builtIns)
-  }
+    const builtIns = (await builtInPlugins()) as Plugin[];
+    plugins.value.push(...builtIns);
+  };
 
   return {
     load,
     registerBuiltIn,
-    plugins
-  }
-}
+    plugins,
+  };
+};
 
-export type OutputRuntimes = 'construct' | 'godot'
+export type OutputRuntimes = "construct" | "godot";
 
 export const detectRuntime = async (
-  appFolder: string | undefined
+  appFolder: string | undefined,
 ): Promise<OutputRuntimes | undefined> => {
-  const { fileExists } = await import('@pipelab/plugin-core')
-  const { join } = await import('node:path')
+  const { fileExists } = await import("@pipelab/plugin-core");
+  const { join } = await import("node:path");
 
-  let detectedRuntime: OutputRuntimes | undefined = undefined
+  let detectedRuntime: OutputRuntimes | undefined = undefined;
   if (appFolder) {
-    const indexExist = await fileExists(join(appFolder, 'index.html'))
-    const swExist = await fileExists(join(appFolder, 'sw.js'))
-    const offlineJSON = await fileExists(join(appFolder, 'offline.json'))
-    const dataJSON = await fileExists(join(appFolder, 'data.json'))
-    const scriptsFolder = await fileExists(join(appFolder, 'scripts'))
-    const workermainJs = await fileExists(join(appFolder, 'workermain.js'))
+    const indexExist = await fileExists(join(appFolder, "index.html"));
+    const swExist = await fileExists(join(appFolder, "sw.js"));
+    const offlineJSON = await fileExists(join(appFolder, "offline.json"));
+    const dataJSON = await fileExists(join(appFolder, "data.json"));
+    const scriptsFolder = await fileExists(join(appFolder, "scripts"));
+    const workermainJs = await fileExists(join(appFolder, "workermain.js"));
 
     if (!indexExist) {
-      throw new Error('The input folder does not contain an index.html file')
+      throw new Error("The input folder does not contain an index.html file");
     }
 
     if (swExist || dataJSON || workermainJs || scriptsFolder) {
-      detectedRuntime = 'construct'
+      detectedRuntime = "construct";
     }
 
-    console.log('Detected runtime', detectedRuntime)
+    console.log("Detected runtime", detectedRuntime);
 
-    if (detectedRuntime === 'construct' && offlineJSON && swExist) {
+    if (detectedRuntime === "construct" && offlineJSON && swExist) {
       throw new Error(
-        'Construct runtime detected, please disable offline capabilties when using HTML5 export. Offline is already supported by default.'
-      )
+        "Construct runtime detected, please disable offline capabilties when using HTML5 export. Offline is already supported by default.",
+      );
     }
   }
-  return detectedRuntime
-}
+  return detectedRuntime;
+};

@@ -2,10 +2,10 @@
   <div class="card">
     <Tabs value="0">
       <TabList>
-        <Tab value="0">{{ t('settings.tabs.general') }}</Tab>
+        <Tab value="0">{{ t("settings.tabs.general") }}</Tab>
         <Tab value="1">Agents</Tab>
-        <Tab value="2">{{ t('settings.tabs.advanced') }}</Tab>
-        <Tab v-if="user" value="3">{{ t('settings.tabs.billing') }}</Tab>
+        <Tab value="2">{{ t("settings.tabs.advanced") }}</Tab>
+        <Tab v-if="user" value="3">{{ t("settings.tabs.billing") }}</Tab>
       </TabList>
       <TabPanels>
         <!-- General Tab -->
@@ -19,10 +19,10 @@
                   :model-value="settingsRef?.autosave ?? true"
                   @update:model-value="updateAutosave"
                 />
-                <label for="autosave" class="label">{{ t('settings.autosave') }}</label>
+                <label for="autosave" class="label">{{ t("settings.autosave") }}</label>
               </div>
               <p class="description">
-                {{ t('settings.autosaveDescription') }}
+                {{ t("settings.autosaveDescription") }}
               </p>
             </div>
             <div class="field">
@@ -33,11 +33,11 @@
                   input-id="app-theme"
                   :model-value="false"
                 />
-                <label for="app-theme" class="label">{{ t('settings.darkTheme') }}</label>
+                <label for="app-theme" class="label">{{ t("settings.darkTheme") }}</label>
               </div>
             </div>
             <div class="field">
-              <label for="app-theme" class="label">{{ $t('settings.language') }}</label>
+              <label for="app-theme" class="label">{{ $t("settings.language") }}</label>
               <div class="field-switch">
                 <div class="locale-changer">
                   <Select
@@ -47,13 +47,13 @@
                   >
                     <template #option="slotProps">
                       <div class="flex items-center">
-                        <div>{{ $t('settings.languageOptions.' + slotProps.option) }}</div>
+                        <div>{{ $t("settings.languageOptions." + slotProps.option) }}</div>
                       </div>
                     </template>
 
                     <template #value="slotProps">
                       <div class="flex items-center">
-                        <div>{{ $t('settings.languageOptions.' + slotProps.value) }}</div>
+                        <div>{{ $t("settings.languageOptions." + slotProps.value) }}</div>
                       </div>
                     </template>
                   </Select>
@@ -170,7 +170,7 @@
           <div class="storage-settings">
             <div class="field">
               <label for="cache-folder" class="label">{{
-                $t('settings.pipeline-cache-folder')
+                $t("settings.pipeline-cache-folder")
               }}</label>
               <InputGroup>
                 <InputText
@@ -184,19 +184,19 @@
                   @update:model-value="updateCacheFolder"
                 />
                 <Button :disabled="!settingsRef" class="btn" @click="browseCacheFolder">{{
-                  $t('settings.browse')
+                  $t("settings.browse")
                 }}</Button>
               </InputGroup>
               <p class="description">
-                {{ $t('settings.manage-where-the-app-stores-temporary-and-cache-files') }}
+                {{ $t("settings.manage-where-the-app-stores-temporary-and-cache-files") }}
               </p>
             </div>
             <div class="field actions">
               <Button :disabled="!settingsRef || true" class="btn danger" @click="clearCache">{{
-                $t('settings.clear-cache')
+                $t("settings.clear-cache")
               }}</Button>
               <Button :disabled="!settingsRef" class="btn" @click="resetCacheFolder">{{
-                $t('settings.reset-to-default')
+                $t("settings.reset-to-default")
               }}</Button>
             </div>
             <div class="field">
@@ -208,11 +208,11 @@
                   @update:model-value="updateClearTemporaryFoldersOnPipelineEnd"
                 />
                 <label for="clear-temp-folders" class="label">
-                  {{ t('settings.clearTempFolders') }}
+                  {{ t("settings.clearTempFolders") }}
                 </label>
               </div>
               <p class="description">
-                {{ t('settings.clearTempFoldersDescription') }}
+                {{ t("settings.clearTempFoldersDescription") }}
               </p>
             </div>
 
@@ -267,15 +267,15 @@
                     </div>
                     <div class="subscription-dates">
                       <div class="subscription-date-item">
-                        <span class="date-label">{{ $t('settings.start-date') }}</span>
+                        <span class="date-label">{{ $t("settings.start-date") }}</span>
                         <span class="date-value">{{
-                          format(subscription.currentPeriodStart, 'MMM dd, yyyy')
+                          format(subscription.currentPeriodStart, "MMM dd, yyyy")
                         }}</span>
                       </div>
                       <div class="subscription-date-item">
-                        <span class="date-label">{{ $t('settings.renewal-date') }}</span>
+                        <span class="date-label">{{ $t("settings.renewal-date") }}</span>
                         <span class="date-value">{{
-                          format(subscription.currentPeriodEnd, 'MMM dd, yyyy')
+                          format(subscription.currentPeriodEnd, "MMM dd, yyyy")
                         }}</span>
                       </div>
                     </div>
@@ -291,7 +291,7 @@
             :loading="isBillingPortalUrlLoading"
             @click="openBillingPortal"
           >
-            {{ $t('settings.manage-subscription') }}
+            {{ $t("settings.manage-subscription") }}
           </Button>
           <UpgradeDialog v-if="subscriptions.length === 0" />
         </TabPanel>
@@ -301,228 +301,228 @@
 </template>
 
 <script lang="ts" setup>
-import Tabs from 'primevue/tabs'
-import TabList from 'primevue/tablist'
-import Tab from 'primevue/tab'
-import Card from 'primevue/card'
-import TabPanels from 'primevue/tabpanels'
-import TabPanel from 'primevue/tabpanel'
-import { computed, ref } from 'vue'
-import { useAppSettings } from '@renderer/store/settings'
-import { storeToRefs } from 'pinia'
-import Button from 'primevue/button'
-import { supabase } from '@pipelab/shared/supabase'
-import { useAuth } from '@renderer/store/auth'
-import { useBuildHistory } from '../store/build-history'
-import UpgradeDialog from '@renderer/components/UpgradeDialog.vue'
-import { useAPI } from '@renderer/composables/api'
+import Tabs from "primevue/tabs";
+import TabList from "primevue/tablist";
+import Tab from "primevue/tab";
+import Card from "primevue/card";
+import TabPanels from "primevue/tabpanels";
+import TabPanel from "primevue/tabpanel";
+import { computed, ref } from "vue";
+import { useAppSettings } from "@renderer/store/settings";
+import { storeToRefs } from "pinia";
+import Button from "primevue/button";
+import { supabase } from "@pipelab/shared/supabase";
+import { useAuth } from "@renderer/store/auth";
+import { useBuildHistory } from "../store/build-history";
+import UpgradeDialog from "@renderer/components/UpgradeDialog.vue";
+import { useAPI } from "@renderer/composables/api";
 
-import { format } from 'date-fns'
-import { useI18n } from 'vue-i18n'
-import { Locales, MessageSchema } from '@pipelab/shared/i18n-utils'
-import { watch } from 'vue'
-import DataTable from 'primevue/datatable'
-import Column from 'primevue/column'
-import Dialog from 'primevue/dialog'
-import InputText from 'primevue/inputtext'
-import { nanoid } from 'nanoid'
+import { format } from "date-fns";
+import { useI18n } from "vue-i18n";
+import { Locales, MessageSchema } from "@pipelab/shared/i18n-utils";
+import { watch } from "vue";
+import DataTable from "primevue/datatable";
+import Column from "primevue/column";
+import Dialog from "primevue/dialog";
+import InputText from "primevue/inputtext";
+import { nanoid } from "nanoid";
 
 const { t, locale } = useI18n<
   {
-    message: MessageSchema
+    message: MessageSchema;
   },
   Locales
->()
+>();
 
-const appSettings = useAppSettings()
-const authStore = useAuth()
-const buildHistoryStore = useBuildHistory()
-const api = useAPI()
+const appSettings = useAppSettings();
+const authStore = useAuth();
+const buildHistoryStore = useBuildHistory();
+const api = useAPI();
 
-const { settings: settingsRef } = storeToRefs(appSettings)
-const { subscriptions, user } = storeToRefs(authStore)
-const { canUseHistory, storageInfo } = storeToRefs(buildHistoryStore)
+const { settings: settingsRef } = storeToRefs(appSettings);
+const { subscriptions, user } = storeToRefs(authStore);
+const { canUseHistory, storageInfo } = storeToRefs(buildHistoryStore);
 
 const currentLocale = computed({
-  get: () => (settingsRef.value?.locale as string) || 'en-US',
+  get: () => (settingsRef.value?.locale as string) || "en-US",
   set: (value: string) => {
     appSettings.updateSettings({
       ...settingsRef.value,
-      locale: value as Locales
-    })
-  }
-})
+      locale: value as Locales,
+    });
+  },
+});
 
 // Agents management
-const showAddAgentDialog = ref(false)
-const newAgent = ref({ name: '', url: '' })
+const showAddAgentDialog = ref(false);
+const newAgent = ref({ name: "", url: "" });
 
 const addAgent = async () => {
-  if (!settingsRef.value || !newAgent.value.name || !newAgent.value.url) return
+  if (!settingsRef.value || !newAgent.value.name || !newAgent.value.url) return;
 
-  const updatedAgents = [...(settingsRef.value.agents || [])]
+  const updatedAgents = [...(settingsRef.value.agents || [])];
   updatedAgents.push({
     id: nanoid(),
     name: newAgent.value.name,
-    url: newAgent.value.url
-  })
+    url: newAgent.value.url,
+  });
 
   await appSettings.updateSettings({
     ...settingsRef.value,
-    agents: updatedAgents
-  })
+    agents: updatedAgents,
+  });
 
-  showAddAgentDialog.value = false
-  newAgent.value = { name: '', url: '' }
-}
+  showAddAgentDialog.value = false;
+  newAgent.value = { name: "", url: "" };
+};
 
 const removeAgent = async (id: string) => {
-  if (!settingsRef.value) return
+  if (!settingsRef.value) return;
 
-  const updatedAgents = (settingsRef.value.agents || []).filter((a) => a.id !== id)
+  const updatedAgents = (settingsRef.value.agents || []).filter((a) => a.id !== id);
 
   await appSettings.updateSettings({
     ...settingsRef.value,
-    agents: updatedAgents
-  })
-}
+    agents: updatedAgents,
+  });
+};
 
 // Update i18n locale when settings change
 watch(
   () => settingsRef.value?.locale,
   (newLocale) => {
     if (newLocale) {
-      locale.value = newLocale
+      locale.value = newLocale;
     }
   },
-  { immediate: true }
-)
+  { immediate: true },
+);
 
 const cacheFolder = computed(() => {
-  return settingsRef.value?.cacheFolder
-})
+  return settingsRef.value?.cacheFolder;
+});
 
 const updateAutosave = (value: boolean) => {
   return appSettings.updateSettings({
     ...settingsRef.value,
-    autosave: value
-  })
-}
+    autosave: value,
+  });
+};
 
 const updateCacheFolder = (value: string) => {
   return appSettings.updateSettings({
     ...settingsRef.value,
-    cacheFolder: value
-  })
-}
+    cacheFolder: value,
+  });
+};
 
 const updateClearTemporaryFoldersOnPipelineEnd = (value: boolean) => {
   return appSettings.updateSettings({
     ...settingsRef.value,
-    clearTemporaryFoldersOnPipelineEnd: value
-  })
-}
+    clearTemporaryFoldersOnPipelineEnd: value,
+  });
+};
 
 const browseCacheFolder = async () => {
-  const newPath = await api.execute('dialog:showOpenDialog', {
-    title: t('settings.select-cache-folder'),
+  const newPath = await api.execute("dialog:showOpenDialog", {
+    title: t("settings.select-cache-folder"),
     defaultPath: cacheFolder.value,
-    properties: ['openDirectory']
-  })
+    properties: ["openDirectory"],
+  });
 
-  console.log('newPath', newPath)
+  console.log("newPath", newPath);
 
-  if (newPath.type === 'success') {
-    await updateCacheFolder(newPath.result.filePaths[0])
+  if (newPath.type === "success") {
+    await updateCacheFolder(newPath.result.filePaths[0]);
   } else {
-    console.log('Error selecting cache folder', newPath)
+    console.log("Error selecting cache folder", newPath);
   }
-}
+};
 const clearCache = async () => {
-  if (!settingsRef.value?.cacheFolder) return
+  if (!settingsRef.value?.cacheFolder) return;
 
   try {
     // Clear the cache folder contents
-    await api.execute('fs:rm', {
+    await api.execute("fs:rm", {
       path: settingsRef.value.cacheFolder,
       recursive: true,
-      force: true
-    })
+      force: true,
+    });
 
     // Show success message
     // You might want to replace this with a toast notification component if available
-    alert(t('settings.cache-cleared-successfully'))
+    alert(t("settings.cache-cleared-successfully"));
   } catch (error) {
-    console.error('Failed to clear cache:', error)
-    alert(t('settings.failed-to-clear-cache-error-message', [error.message]))
+    console.error("Failed to clear cache:", error);
+    alert(t("settings.failed-to-clear-cache-error-message", [error.message]));
   }
-}
+};
 
 const resetCacheFolder = async () => {
   try {
     // Reset to default cache folder (system temp directory)
-    await appSettings.reset('cacheFolder')
+    await appSettings.reset("cacheFolder");
 
     // Show success message
     // You might want to replace this with a toast notification component if available
-    alert(`Cache folder reset to default`)
+    alert(`Cache folder reset to default`);
   } catch (error) {
-    console.error('Failed to reset cache folder:', error)
-    alert(t('settings.failed-to-reset-cache-folder-error-message', [error.message]))
+    console.error("Failed to reset cache folder:", error);
+    alert(t("settings.failed-to-reset-cache-folder-error-message", [error.message]));
   }
-}
+};
 
-const isBillingPortalUrlLoading = ref(false)
+const isBillingPortalUrlLoading = ref(false);
 
 const openBillingPortal = async () => {
-  isBillingPortalUrlLoading.value = true
+  isBillingPortalUrlLoading.value = true;
   try {
-    const result = await supabase().functions.invoke('customer-portal')
-    console.log('result', result)
-    window.open(result.data.customerPortal)
+    const result = await supabase().functions.invoke("customer-portal");
+    console.log("result", result);
+    window.open(result.data.customerPortal);
   } catch (error) {
-    console.error('Error opening billing portal:', error)
+    console.error("Error opening billing portal:", error);
   }
-  isBillingPortalUrlLoading.value = false
-}
+  isBillingPortalUrlLoading.value = false;
+};
 
 const formatDate = (timestamp: number): string => {
-  return new Date(timestamp).toLocaleDateString()
-}
+  return new Date(timestamp).toLocaleDateString();
+};
 
 const formatSize = (bytes: number): string => {
-  const units = ['B', 'KB', 'MB', 'GB']
-  let size = bytes
-  let unitIndex = 0
+  const units = ["B", "KB", "MB", "GB"];
+  let size = bytes;
+  let unitIndex = 0;
 
   while (size >= 1024 && unitIndex < units.length - 1) {
-    size /= 1024
-    unitIndex++
+    size /= 1024;
+    unitIndex++;
   }
 
-  return `${size.toFixed(1)} ${units[unitIndex]}`
-}
+  return `${size.toFixed(1)} ${units[unitIndex]}`;
+};
 
 const refreshStorageInfo = async () => {
   try {
-    await buildHistoryStore.refreshStorageInfo()
+    await buildHistoryStore.refreshStorageInfo();
   } catch (error) {
-    console.error('Failed to refresh storage info:', error)
+    console.error("Failed to refresh storage info:", error);
   }
-}
+};
 
-const restartTour = (tourId: 'dashboard' | 'editor') => {
-  const tours = { ...settingsRef.value.tours }
+const restartTour = (tourId: "dashboard" | "editor") => {
+  const tours = { ...settingsRef.value.tours };
   tours[tourId] = {
     step: 0,
-    completed: false
-  }
+    completed: false,
+  };
   appSettings.updateSettings({
     ...settingsRef.value,
-    tours
-  })
-  alert(t('settings.tour-reset-success'))
-}
+    tours,
+  });
+  alert(t("settings.tour-reset-success"));
+};
 </script>
 
 <style lang="scss" scoped>

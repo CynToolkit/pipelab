@@ -7,11 +7,11 @@
 </template>
 
 <script setup lang="ts">
-import { useEditor } from '@renderer/store/editor'
-import { nanoid } from 'nanoid'
-import { storeToRefs } from 'pinia'
+import { useEditor } from "@renderer/store/editor";
+import { nanoid } from "nanoid";
+import { storeToRefs } from "pinia";
 
-const instance = useEditor()
+const instance = useEditor();
 </script>
 
 <style scoped lang="scss">

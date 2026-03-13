@@ -5,6 +5,10 @@
   "main": "./src/index.ts",
   "module": "./src/index.ts",
   "types": "./src/index.ts",
+  "scripts": {
+    "format": "oxfmt .",
+    "lint": "oxlint ."
+  },
   "dependencies": {
     "klona": "2.0.6",
     "semver": "^7.6.3",

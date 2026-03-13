@@ -1,4 +1,4 @@
-import { dialog } from 'electron'
+import { dialog } from "electron";
 
 /**
  * @param {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').MessageShowFolderDialog, 'input'>} json
@@ -6,8 +6,8 @@ import { dialog } from 'electron'
  */
 export default async (json, ws) => {
   const openFolderDialogResponse = await dialog.showOpenDialog({
-    properties: ['openDirectory', 'createDirectory']
-  })
+    properties: ["openDirectory", "createDirectory"],
+  });
 
   /**
    * @type {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').MessageShowFolderDialog, 'output'>}
@@ -18,8 +18,8 @@ export default async (json, ws) => {
     body: {
       success: true,
       canceled: openFolderDialogResponse.canceled,
-      paths: openFolderDialogResponse.filePaths
-    }
-  }
-  ws.send(JSON.stringify(dialogOpenResult))
-}
+      paths: openFolderDialogResponse.filePaths,
+    },
+  };
+  ws.send(JSON.stringify(dialogOpenResult));
+};

@@ -118,68 +118,68 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { useRouter } from 'vue-router'
-import Accordion from 'primevue/accordion'
-import AccordionPanel from 'primevue/accordionpanel'
-import AccordionHeader from 'primevue/accordionheader'
-import AccordionContent from 'primevue/accordioncontent'
-import RadioButton from 'primevue/radiobutton'
-import Checkbox from 'primevue/checkbox'
-import InputText from 'primevue/inputtext'
-import Button from 'primevue/button'
+import { ref, computed } from "vue";
+import { useRouter } from "vue-router";
+import Accordion from "primevue/accordion";
+import AccordionPanel from "primevue/accordionpanel";
+import AccordionHeader from "primevue/accordionheader";
+import AccordionContent from "primevue/accordioncontent";
+import RadioButton from "primevue/radiobutton";
+import Checkbox from "primevue/checkbox";
+import InputText from "primevue/inputtext";
+import Button from "primevue/button";
 
 // Components are likely auto-imported, but referring to them helps type checking if set up.
 
-const router = useRouter()
+const router = useRouter();
 
 // --- Source ---
 const sourceTypes = [
-  { label: 'Construct 3 (HTML Export)', value: 'c3-html' },
-  { label: 'Construct 3 (NW.js)', value: 'c3-nwjs' },
-  { label: 'Godot', value: 'godot' },
-  { label: 'Plain HTML', value: 'html' }
-]
-const selectedSourceType = ref('c3-html')
-const sourcePath = ref('')
+  { label: "Construct 3 (HTML Export)", value: "c3-html" },
+  { label: "Construct 3 (NW.js)", value: "c3-nwjs" },
+  { label: "Godot", value: "godot" },
+  { label: "Plain HTML", value: "html" },
+];
+const selectedSourceType = ref("c3-html");
+const sourcePath = ref("");
 
 const browseSource = async () => {
   // Placeholder for file dialog logic
-  console.log('Open file dialog')
-}
+  console.log("Open file dialog");
+};
 
 // --- Packaging ---
 const needsPackaging = computed(() => {
   // Example logic: NW.js is already packaged (mostly), others might need wrapping
   // Adjust logic as per actual requirement.
   // User said: "(for example Construct 3 NW.js is already packaged)"
-  return selectedSourceType.value !== 'c3-nwjs'
-})
+  return selectedSourceType.value !== "c3-nwjs";
+});
 
-const doPackaging = ref(true)
+const doPackaging = ref(true);
 
 // --- Publishing ---
-const publishingTargets = ref<string[]>([])
-const steamAppId = ref('')
-const itchProject = ref('')
-const pokiGameId = ref('')
+const publishingTargets = ref<string[]>([]);
+const steamAppId = ref("");
+const itchProject = ref("");
+const pokiGameId = ref("");
 
 const runPipeline = () => {
   console.log({
     source: {
       type: selectedSourceType.value,
-      path: sourcePath.value
+      path: sourcePath.value,
     },
     packaging: needsPackaging.value ? doPackaging.value : false,
     publishing: {
       targets: publishingTargets.value,
       steam: steamAppId.value,
       itch: itchProject.value,
-      poki: pokiGameId.value
-    }
-  })
+      poki: pokiGameId.value,
+    },
+  });
   // Logic to trigger the pipeline would go here
-}
+};
 </script>
 
 <style scoped>

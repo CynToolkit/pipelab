@@ -15,16 +15,16 @@
     </style>
 
     <script type="module">
-      import { DiscordSDK } from 'https://unpkg.com/@discord/embedded-app-sdk@2.0.0/output/index.mjs'
-      const discordSdk = new DiscordSDK('1357217738241736724')
+      import { DiscordSDK } from "https://unpkg.com/@discord/embedded-app-sdk@2.0.0/output/index.mjs";
+      const discordSdk = new DiscordSDK("1357217738241736724");
 
       // Bootstrapping the SDK
-      await discordSdk.ready()
+      await discordSdk.ready();
       const { user } = await discordSdk.commands.authorize({
-        client_id: '1357217738241736724',
-        scopes: ['identify']
-      })
-      console.log('Logged in user:', user)
+        client_id: "1357217738241736724",
+        scopes: ["identify"],
+      });
+      console.log("Logged in user:", user);
     </script>
   </head>
 

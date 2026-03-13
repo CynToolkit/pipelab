@@ -1,64 +1,64 @@
-import { useAPI } from '../ipc-core'
-import { getSystemContext } from '../context'
-import { useLogger } from '@pipelab/shared/logger'
-import slash from 'slash'
+import { useAPI } from "../ipc-core";
+import { getSystemContext } from "../context";
+import { useLogger } from "@pipelab/shared/logger";
+import slash from "slash";
 
 export const registerShellHandlers = () => {
-  const { handle } = useAPI()
-  const { logger } = useLogger()
+  const { handle } = useAPI();
+  const { logger } = useLogger();
 
-  handle('dialog:showOpenDialog', async (event, { value, send }) => {
-    logger().info('value', value)
-    logger().info('dialog:showOpenDialog')
+  handle("dialog:showOpenDialog", async (event, { value, send }) => {
+    logger().info("value", value);
+    logger().info("dialog:showOpenDialog");
 
-    const { showOpenDialog } = getSystemContext()
+    const { showOpenDialog } = getSystemContext();
 
-    const { canceled, filePaths } = await showOpenDialog(value)
+    const { canceled, filePaths } = await showOpenDialog(value);
 
     send({
-      type: 'end',
+      type: "end",
       data: {
-        type: 'success',
+        type: "success",
         result: {
           filePaths: filePaths.map((f: string) => slash(f)),
-          canceled
-        }
-      }
-    })
-  })
+          canceled,
+        },
+      },
+    });
+  });
 
-  handle('dialog:showSaveDialog', async (event, { value, send }) => {
-    const { logger } = useLogger()
+  handle("dialog:showSaveDialog", async (event, { value, send }) => {
+    const { logger } = useLogger();
 
-    logger().info('value', value)
-    logger().info('dialog:showSaveDialog')
+    logger().info("value", value);
+    logger().info("dialog:showSaveDialog");
 
-    const { showSaveDialog } = getSystemContext()
+    const { showSaveDialog } = getSystemContext();
 
-    const { canceled, filePath } = await showSaveDialog(value)
+    const { canceled, filePath } = await showSaveDialog(value);
 
     send({
-      type: 'end',
+      type: "end",
       data: {
-        type: 'success',
+        type: "success",
         result: {
           filePath,
-          canceled
-        }
-      }
-    })
-  })
+          canceled,
+        },
+      },
+    });
+  });
 
-  handle('fs:getHomeDirectory', async (event, { send }) => {
-    const { homedir } = await import('node:os')
+  handle("fs:getHomeDirectory", async (event, { send }) => {
+    const { homedir } = await import("node:os");
     send({
-      type: 'end',
+      type: "end",
       data: {
-        type: 'success',
+        type: "success",
         result: {
-          path: homedir()
-        }
-      }
-    })
-  })
-}
+          path: homedir(),
+        },
+      },
+    });
+  });
+};

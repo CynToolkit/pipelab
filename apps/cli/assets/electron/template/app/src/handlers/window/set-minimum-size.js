@@ -4,7 +4,7 @@
  * @param {import('electron').BrowserWindow} mainWindow
  */
 export default async (json, ws, mainWindow) => {
-  mainWindow.setMinimumSize(json.body.width, json.body.height)
+  mainWindow.setMinimumSize(json.body.width, json.body.height);
 
   /**
    * @type {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').MessageSetMinimumSize, 'output'>}
@@ -13,8 +13,8 @@ export default async (json, ws, mainWindow) => {
     correlationId: json.correlationId,
     url: json.url,
     body: {
-      success: true
-    }
-  }
-  ws.send(JSON.stringify(setMinimumSizeResult))
-}
+      success: true,
+    },
+  };
+  ws.send(JSON.stringify(setMinimumSizeResult));
+};

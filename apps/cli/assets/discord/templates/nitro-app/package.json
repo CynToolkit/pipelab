@@ -6,10 +6,10 @@
     "prepare": "nitro prepare",
     "preview": "node .output/server/index.mjs"
   },
-  "devDependencies": {
-    "nitropack": "latest"
-  },
   "dependencies": {
     "mime-types": "^3.0.1"
+  },
+  "devDependencies": {
+    "nitropack": "latest"
   }
 }

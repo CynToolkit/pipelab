@@ -15,7 +15,5 @@
   },
   "include": ["src/**/*", "tests/**/*", "*.ts", "src/**/*.json"],
   "exclude": ["node_modules", "dist"],
-  "references": [
-    { "path": "../migration" }
-  ]
+  "references": [{ "path": "../migration" }]
 }

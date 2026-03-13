@@ -135,87 +135,87 @@
 </template>
 
 <script setup lang="ts">
-import { ref, inject } from 'vue'
-import type { BuildHistoryEntry } from '@pipelab/shared/build-history'
-import BuildStatusBadge from './BuildStatusBadge.vue'
-import { useAuth } from '../store/auth'
+import { ref, inject } from "vue";
+import type { BuildHistoryEntry } from "@pipelab/shared/build-history";
+import BuildStatusBadge from "./BuildStatusBadge.vue";
+import { useAuth } from "../store/auth";
 
 interface Props {
-  entry: BuildHistoryEntry
-  expandable?: boolean
-  showActions?: boolean
-  canDelete?: boolean
+  entry: BuildHistoryEntry;
+  expandable?: boolean;
+  showActions?: boolean;
+  canDelete?: boolean;
 }
 
 interface Emits {
-  (e: 'view-details', entry: BuildHistoryEntry): void
-  (e: 'delete', entry: BuildHistoryEntry): void
-  (e: 'toggle', entry: BuildHistoryEntry, expanded: boolean): void
+  (e: "view-details", entry: BuildHistoryEntry): void;
+  (e: "delete", entry: BuildHistoryEntry): void;
+  (e: "toggle", entry: BuildHistoryEntry, expanded: boolean): void;
 }
 
 const props = withDefaults(defineProps<Props>(), {
   expandable: true,
   showActions: true,
-  canDelete: false
-})
+  canDelete: false,
+});
 
-const emit = defineEmits<Emits>()
+const emit = defineEmits<Emits>();
 
 // Composables
-const authStore = useAuth()
-const openUpgradeDialog = inject('openUpgradeDialog') as () => void
+const authStore = useAuth();
+const openUpgradeDialog = inject("openUpgradeDialog") as () => void;
 
 // Local state
-const expanded = ref(false)
-const showAllSteps = ref(false)
+const expanded = ref(false);
+const showAllSteps = ref(false);
 
 // Computed properties
 
 // Methods
 const formatDate = (timestamp: number): string => {
-  return new Date(timestamp).toLocaleDateString()
-}
+  return new Date(timestamp).toLocaleDateString();
+};
 
 const formatDateTime = (timestamp: number): string => {
-  return new Date(timestamp).toLocaleString()
-}
+  return new Date(timestamp).toLocaleString();
+};
 
 const formatTime = (timestamp: number): string => {
-  return new Date(timestamp).toLocaleTimeString()
-}
+  return new Date(timestamp).toLocaleTimeString();
+};
 
 const formatDuration = (duration: number): string => {
-  const seconds = Math.floor(duration / 1000)
-  const minutes = Math.floor(seconds / 60)
-  const hours = Math.floor(minutes / 60)
+  const seconds = Math.floor(duration / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
 
   if (hours > 0) {
-    return `${hours}h ${minutes % 60}m`
+    return `${hours}h ${minutes % 60}m`;
   } else if (minutes > 0) {
-    return `${minutes}m ${seconds % 60}s`
+    return `${minutes}m ${seconds % 60}s`;
   } else {
-    return `${seconds}s`
+    return `${seconds}s`;
   }
-}
+};
 
 const handleClick = () => {
   if (props.expandable) {
-    expanded.value = !expanded.value
-    emit('toggle', props.entry, expanded.value)
+    expanded.value = !expanded.value;
+    emit("toggle", props.entry, expanded.value);
   }
-}
+};
 
 const viewDetails = () => {
   if (!authStore.hasBuildHistoryBenefit) {
-    openUpgradeDialog()
-    return
+    openUpgradeDialog();
+    return;
   }
-  emit('view-details', props.entry)
-}
+  emit("view-details", props.entry);
+};
 
 const deleteEntry = () => {
-  emit('delete', props.entry)
-}
+  emit("delete", props.entry);
+};
 </script>
 
 <style scoped>

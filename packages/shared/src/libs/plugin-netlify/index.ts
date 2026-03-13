@@ -1,26 +1,26 @@
-import { uploadToNetlify, uploadToNetlifyRunner } from './publish'
-import { buildNetlifySite, buildNetlifySiteRunner } from './build'
+import { uploadToNetlify, uploadToNetlifyRunner } from "./publish";
+import { buildNetlifySite, buildNetlifySiteRunner } from "./build";
 
-import { createNodeDefinition } from '@pipelab/plugin-core'
-import icon from './assets/netlify-icon.webp'
+import { createNodeDefinition } from "@pipelab/plugin-core";
+import icon from "./assets/netlify-icon.webp";
 
 export default createNodeDefinition({
-  description: 'Netlify',
-  name: 'Netlify',
-  id: 'netlify',
+  description: "Netlify",
+  name: "Netlify",
+  id: "netlify",
   icon: {
-    type: 'image',
-    image: icon
+    type: "image",
+    image: icon,
   },
   nodes: [
     // make and package
     {
       node: buildNetlifySite,
-      runner: buildNetlifySiteRunner
+      runner: buildNetlifySiteRunner,
     },
     {
       node: uploadToNetlify,
-      runner: uploadToNetlifyRunner
-    }
-  ]
-})
+      runner: uploadToNetlifyRunner,
+    },
+  ],
+});

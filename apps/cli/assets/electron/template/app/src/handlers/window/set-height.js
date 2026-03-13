@@ -4,8 +4,8 @@
  * @param {import('electron').BrowserWindow} mainWindow
  */
 export default async (json, ws, mainWindow) => {
-  const [width] = mainWindow.getSize()
-  mainWindow.setSize(width, json.body.value)
+  const [width] = mainWindow.getSize();
+  mainWindow.setSize(width, json.body.value);
 
   /**
    * @type {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').MessageSetHeight, 'output'>}
@@ -14,8 +14,8 @@ export default async (json, ws, mainWindow) => {
     correlationId: json.correlationId,
     url: json.url,
     body: {
-      success: true
-    }
-  }
-  ws.send(JSON.stringify(setHeightResult))
-}
+      success: true,
+    },
+  };
+  ws.send(JSON.stringify(setHeightResult));
+};

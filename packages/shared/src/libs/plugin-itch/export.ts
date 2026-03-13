@@ -1,133 +1,133 @@
-import { extractZip } from '@pipelab/core-node'
+import { extractZip } from "@pipelab/core-node";
 import {
   createAction,
   createActionRunner,
   createPathParam,
   createStringParam,
   downloadFile,
-  runWithLiveLogs
-} from '@pipelab/plugin-core'
+  runWithLiveLogs,
+} from "@pipelab/plugin-core";
 
-export const ID = 'itch-upload'
+export const ID = "itch-upload";
 
 export interface ButlerJSONOutputLog {
-  level: 'info'
-  message: string
-  time: number
-  type: 'log'
+  level: "info";
+  message: string;
+  time: number;
+  type: "log";
 }
 
 export interface ButlerJSONOutputProgress {
-  bps: number
-  eta: number
-  progress: number
-  time: 1736873335
-  type: 'progress'
+  bps: number;
+  eta: number;
+  progress: number;
+  time: 1736873335;
+  type: "progress";
 }
 
-export type ButlerJSONOutput = ButlerJSONOutputLog | ButlerJSONOutputProgress
+export type ButlerJSONOutput = ButlerJSONOutputLog | ButlerJSONOutputProgress;
 
 export const uploadToItch = createAction({
   id: ID,
-  name: 'Upload to Itch.io',
-  description: '',
-  icon: '',
+  name: "Upload to Itch.io",
+  description: "",
+  icon: "",
   displayString:
     "`Upload ${fmt.param(params['input-folder'], 'primary', 'No path selected')} to ${fmt.param(params['user'], 'primary', 'No project')}/${fmt.param(params['project'], 'primary', 'No project')}:${fmt.param(params['channel'], 'primary', 'No channel')}`",
   meta: {},
   params: {
-    'input-folder': createPathParam('', {
+    "input-folder": createPathParam("", {
       required: true,
-      label: 'Folder to Upload',
+      label: "Folder to Upload",
       control: {
-        type: 'path',
+        type: "path",
         options: {
-          properties: ['openDirectory']
-        }
-      }
+          properties: ["openDirectory"],
+        },
+      },
     }),
-    user: createStringParam('', {
+    user: createStringParam("", {
       required: true,
-      label: 'User'
+      label: "User",
     }),
-    project: createStringParam('', {
+    project: createStringParam("", {
       required: true,
-      label: 'Project'
+      label: "Project",
     }),
-    channel: createStringParam('', {
+    channel: createStringParam("", {
       required: true,
-      label: 'Channel'
+      label: "Channel",
     }),
-    'api-key': createStringParam('', {
+    "api-key": createStringParam("", {
       required: true,
-      label: 'API key'
-    })
+      label: "API key",
+    }),
   },
-  outputs: {}
-})
+  outputs: {},
+});
 
 export const uploadToItchRunner = createActionRunner<typeof uploadToItch>(
   async ({ log, inputs, cwd, abortSignal }) => {
-    const { app } = await import('electron')
-    const { join, dirname } = await import('node:path')
-    const { mkdir, access, chmod } = await import('node:fs/promises')
-    const StreamZip = await import('node-stream-zip')
+    const { app } = await import("electron");
+    const { join, dirname } = await import("node:path");
+    const { mkdir, access, chmod } = await import("node:fs/promises");
+    const StreamZip = await import("node-stream-zip");
 
-    const userData = app.getPath('userData')
+    const userData = app.getPath("userData");
 
-    const itchMetadataPath = join(userData, 'thirdparty', 'itch')
-    const butlerTmpZipFile = join(cwd, 'thirdparty', 'itch', 'butler.zip')
+    const itchMetadataPath = join(userData, "thirdparty", "itch");
+    const butlerTmpZipFile = join(cwd, "thirdparty", "itch", "butler.zip");
 
-    log('butlerTmpZipFile', butlerTmpZipFile)
+    log("butlerTmpZipFile", butlerTmpZipFile);
 
     // create destination dir
     await mkdir(itchMetadataPath, {
-      recursive: true
-    })
+      recursive: true,
+    });
 
     // create tmp dir
     await mkdir(dirname(butlerTmpZipFile), {
-      recursive: true
-    })
+      recursive: true,
+    });
 
-    const localOs = process.platform
-    const localArch = process.arch
+    const localOs = process.platform;
+    const localArch = process.arch;
 
-    let butlerName = ''
-    if (localOs === 'darwin') {
-      butlerName += 'darwin'
-    } else if (localOs === 'linux') {
-      butlerName += 'linux'
-    } else if (localOs === 'win32') {
-      butlerName += 'windows'
+    let butlerName = "";
+    if (localOs === "darwin") {
+      butlerName += "darwin";
+    } else if (localOs === "linux") {
+      butlerName += "linux";
+    } else if (localOs === "win32") {
+      butlerName += "windows";
     }
 
-    butlerName += '-'
+    butlerName += "-";
 
-    if (localArch === 'x64') {
-      butlerName += 'amd64'
+    if (localArch === "x64") {
+      butlerName += "amd64";
     } else {
-      throw new Error('Unsupported architecture')
+      throw new Error("Unsupported architecture");
     }
 
-    let extension = ''
-    if (localOs === 'win32') {
-      extension += '.exe'
+    let extension = "";
+    if (localOs === "win32") {
+      extension += ".exe";
     }
 
-    const butlerPath = join(itchMetadataPath, `butler${extension}`)
-    console.log('butlerPath', butlerPath)
+    const butlerPath = join(itchMetadataPath, `butler${extension}`);
+    console.log("butlerPath", butlerPath);
 
-    let alreadyExist = true
+    let alreadyExist = true;
 
     try {
-      await access(butlerPath)
+      await access(butlerPath);
     } catch (e) {
-      alreadyExist = false
+      alreadyExist = false;
     }
 
-    const url = `https://broth.itch.zone/butler/${butlerName}/LATEST/archive/default`
-    console.log('url', url)
+    const url = `https://broth.itch.zone/butler/${butlerName}/LATEST/archive/default`;
+    console.log("url", url);
 
     if (alreadyExist === false) {
       await downloadFile(
@@ -135,58 +135,58 @@ export const uploadToItchRunner = createActionRunner<typeof uploadToItch>(
         butlerTmpZipFile,
         {
           onProgress: ({ progress }) => {
-            log(`Downloading itch.io butler: ${progress.toFixed(2)}%`)
-          }
+            log(`Downloading itch.io butler: ${progress.toFixed(2)}%`);
+          },
         },
-        abortSignal
-      )
+        abortSignal,
+      );
       // const zip = new StreamZip.default.async({ file: butlerTmpZipFile })
 
       // const bytes = await zip.extract(null, dirname(butlerPath))
       // await zip.close()
 
-      await extractZip(butlerTmpZipFile, dirname(butlerPath))
+      await extractZip(butlerTmpZipFile, dirname(butlerPath));
 
       // log('bytes', bytes)
     }
 
-    await chmod(butlerPath, 0o755)
+    await chmod(butlerPath, 0o755);
 
-    log('Uploading to itch')
+    log("Uploading to itch");
 
     await runWithLiveLogs(
       butlerPath,
       [
-        'push',
-        inputs['input-folder'],
+        "push",
+        inputs["input-folder"],
         `${inputs.user}/${inputs.project}:${inputs.channel}`,
-        '--json'
+        "--json",
       ],
       {
         env: {
-          BUTLER_API_KEY: inputs['api-key']
+          BUTLER_API_KEY: inputs["api-key"],
         },
-        cancelSignal: abortSignal
+        cancelSignal: abortSignal,
       },
       log,
       {
         onStdout(data, subprocess) {
-          const jsons = data.trim().split('\n')
+          const jsons = data.trim().split("\n");
           for (const jsonData of jsons) {
-            const json = JSON.parse(jsonData) as ButlerJSONOutput
+            const json = JSON.parse(jsonData) as ButlerJSONOutput;
             switch (json.type) {
-              case 'log':
-                log(json.message)
-                break
-              case 'progress':
-                log(`${json.progress}% - ETA: ${json.eta}s`)
-                break
+              case "log":
+                log(json.message);
+                break;
+              case "progress":
+                log(`${json.progress}% - ETA: ${json.eta}s`);
+                break;
             }
           }
-        }
-      }
-    )
+        },
+      },
+    );
 
-    log('Uploaded to itch')
-  }
-)
+    log("Uploaded to itch");
+  },
+);

@@ -1,14 +1,14 @@
-import { Variable } from '@pipelab/core-app'
-import { WithId } from './utils'
-import { SaveLocation } from './save-location'
-import type { Simplify } from 'type-fest'
+import { Variable } from "@pipelab/core-app";
+import { WithId } from "./utils";
+import { SaveLocation } from "./save-location";
+import type { Simplify } from "type-fest";
 import {
   createMigration,
   createMigrator,
   finalVersion,
   initialVersion,
-  OmitVersion
-} from '@pipelab/migration'
+  OmitVersion,
+} from "@pipelab/migration";
 import {
   any,
   array,
@@ -26,326 +26,326 @@ import {
   string,
   union,
   unknown,
-  variant
-} from 'valibot'
+  variant,
+} from "valibot";
 
-export type NodeId = string
+export type NodeId = string;
 
 export type Position = {
-  x: number
-  y: number
-}
+  x: number;
+  y: number;
+};
 
 export const OriginValidator = object({
   pluginId: string(),
-  nodeId: string()
-})
+  nodeId: string(),
+});
 
-export type Origin = InferOutput<typeof OriginValidator>
+export type Origin = InferOutput<typeof OriginValidator>;
 
 const BlockActionValidatorV1 = object({
-  type: literal('action'),
+  type: literal("action"),
   uid: string(),
   disabled: optional(boolean()),
   params: record(string(), any()),
-  origin: OriginValidator
-})
+  origin: OriginValidator,
+});
 
-export const EditorParamValidatorV3 = union([literal('simple'), literal('editor')])
-export type EditorParam = InferOutput<typeof EditorParamValidatorV3>
+export const EditorParamValidatorV3 = union([literal("simple"), literal("editor")]);
+export type EditorParam = InferOutput<typeof EditorParamValidatorV3>;
 const BlockActionValidatorV3 = object({
-  type: literal('action'),
+  type: literal("action"),
   uid: string(),
-  name: pipe(optional(string()), description('A custom name provided by the user')),
+  name: pipe(optional(string()), description("A custom name provided by the user")),
   disabled: optional(boolean()),
   params: record(
     string(),
     object({
       editor: EditorParamValidatorV3,
-      value: unknown()
-    })
+      value: unknown(),
+    }),
   ),
-  origin: OriginValidator
-})
+  origin: OriginValidator,
+});
 
 export type Condition = {
-  type: 'condition'
-  uid: string
-  origin: Origin
-  params: Record<string, any>
-  branchTrue: Array<Block>
-  branchFalse: Array<Block>
-}
+  type: "condition";
+  uid: string;
+  origin: Origin;
+  params: Record<string, any>;
+  branchTrue: Array<Block>;
+  branchFalse: Array<Block>;
+};
 
 const BlockConditionValidator: GenericSchema<Condition> = object({
-  type: literal('condition'),
+  type: literal("condition"),
   uid: string(),
   origin: OriginValidator,
   params: record(string(), any()),
   branchTrue: lazy(() => array(BlockValidator)),
-  branchFalse: lazy(() => array(BlockValidator))
-})
+  branchFalse: lazy(() => array(BlockValidator)),
+});
 
 export type Loop = {
-  type: 'loop'
-  uid: string
-  origin: Origin
-  params: Record<string, any>
-  children: Array<Block>
-}
+  type: "loop";
+  uid: string;
+  origin: Origin;
+  params: Record<string, any>;
+  children: Array<Block>;
+};
 const BlockLoopValidator: GenericSchema<Loop> = object({
-  type: literal('loop'),
+  type: literal("loop"),
   uid: string(),
   origin: OriginValidator,
   params: record(string(), any()),
-  children: lazy(() => array(BlockValidator))
-})
+  children: lazy(() => array(BlockValidator)),
+});
 
 const BlockEventValidator = object({
-  type: literal('event'),
+  type: literal("event"),
   uid: string(),
   origin: OriginValidator,
-  params: record(string(), any())
-})
+  params: record(string(), any()),
+});
 
 const BlockCommentValidator = object({
-  type: literal('comment'),
+  type: literal("comment"),
   uid: string(),
   origin: OriginValidator,
-  comment: string()
-})
+  comment: string(),
+});
 
-const BlockValidatorV1 = variant('type', [
+const BlockValidatorV1 = variant("type", [
   BlockActionValidatorV1,
   // BlockConditionValidator,
-  BlockEventValidator
+  BlockEventValidator,
   // BlockLoopValidator,
   // BlockCommentValidator
-])
+]);
 
-const BlockValidatorV2 = variant('type', [
-  BlockActionValidatorV1
+const BlockValidatorV2 = variant("type", [
+  BlockActionValidatorV1,
   // BlockConditionValidator,
   // BlockEventValidator,
   // BlockLoopValidator,
   // BlockCommentValidator
-])
+]);
 
-const BlockValidatorV3 = variant('type', [
-  BlockActionValidatorV3
+const BlockValidatorV3 = variant("type", [
+  BlockActionValidatorV3,
   // BlockConditionValidator,
   // BlockEventValidator,
   // BlockLoopValidator,
   // BlockCommentValidator
-])
+]);
 
-const BlockValidator = BlockValidatorV3
+const BlockValidator = BlockValidatorV3;
 
-export type BlockAction = Simplify<InferOutput<typeof BlockActionValidatorV3>>
-export type BlockCondition = InferOutput<typeof BlockConditionValidator>
-export type BlockLoop = InferOutput<typeof BlockLoopValidator>
-export type BlockEvent = InferOutput<typeof BlockEventValidator>
-export type BlockComment = InferOutput<typeof BlockCommentValidator>
+export type BlockAction = Simplify<InferOutput<typeof BlockActionValidatorV3>>;
+export type BlockCondition = InferOutput<typeof BlockConditionValidator>;
+export type BlockLoop = InferOutput<typeof BlockLoopValidator>;
+export type BlockEvent = InferOutput<typeof BlockEventValidator>;
+export type BlockComment = InferOutput<typeof BlockCommentValidator>;
 
-export type Block = InferOutput<typeof BlockValidatorV3>
+export type Block = InferOutput<typeof BlockValidatorV3>;
 
 const CanvasValidatorV1 = object({
-  blocks: array(BlockValidatorV1)
-})
+  blocks: array(BlockValidatorV1),
+});
 
 const CanvasValidatorV2 = object({
   blocks: array(BlockValidatorV2),
-  triggers: array(BlockEventValidator)
-})
+  triggers: array(BlockEventValidator),
+});
 
 const CanvasValidatorV3 = object({
   blocks: array(BlockValidatorV3),
-  triggers: array(BlockEventValidator)
-})
+  triggers: array(BlockEventValidator),
+});
 
-export const VariableValidatorV1 = custom<Variable>(() => true)
+export const VariableValidatorV1 = custom<Variable>(() => true);
 
 export const SavedFileValidatorV1 = object({
-  version: literal('1.0.0'),
+  version: literal("1.0.0"),
   name: string(),
   description: string(),
   canvas: CanvasValidatorV1,
-  variables: array(VariableValidatorV1)
-})
+  variables: array(VariableValidatorV1),
+});
 
 export const SavedFileValidatorV2 = object({
-  version: literal('2.0.0'),
+  version: literal("2.0.0"),
   name: string(),
   description: string(),
   canvas: CanvasValidatorV2,
-  variables: array(VariableValidatorV1)
-})
+  variables: array(VariableValidatorV1),
+});
 
 export const SavedFileValidatorV3 = object({
-  version: literal('3.0.0'),
+  version: literal("3.0.0"),
   name: string(),
   description: string(),
   canvas: CanvasValidatorV3,
-  variables: array(VariableValidatorV1)
-})
+  variables: array(VariableValidatorV1),
+});
 
 export const SavedFileDefaultValidator = object({
-  version: literal('4.0.0'),
-  type: literal('default'),
+  version: literal("4.0.0"),
+  type: literal("default"),
   name: string(),
   description: string(),
   canvas: CanvasValidatorV3,
-  variables: array(VariableValidatorV1)
-})
+  variables: array(VariableValidatorV1),
+});
 
 export const SavedFileSimpleValidator = object({
-  version: literal('4.0.0'),
-  type: literal('simple'),
+  version: literal("4.0.0"),
+  type: literal("simple"),
   name: string(),
   description: string(),
   source: object({
-    type: union([literal('c3-html'), literal('c3-nwjs'), literal('godot'), literal('html')]),
-    path: string()
+    type: union([literal("c3-html"), literal("c3-nwjs"), literal("godot"), literal("html")]),
+    path: string(),
   }),
   packaging: object({
-    enabled: boolean()
+    enabled: boolean(),
   }),
   publishing: object({
     steam: object({ enabled: boolean(), appId: optional(string()) }),
     itch: object({ enabled: boolean(), project: optional(string()) }),
-    poki: object({ enabled: boolean(), gameId: optional(string()) })
-  })
-})
+    poki: object({ enabled: boolean(), gameId: optional(string()) }),
+  }),
+});
 
-export type SavedFileDefault = InferOutput<typeof SavedFileDefaultValidator>
-export type SavedFileSimple = InferOutput<typeof SavedFileSimpleValidator>
-export const SavedFileValidatorV4 = union([SavedFileDefaultValidator, SavedFileSimpleValidator])
+export type SavedFileDefault = InferOutput<typeof SavedFileDefaultValidator>;
+export type SavedFileSimple = InferOutput<typeof SavedFileSimpleValidator>;
+export const SavedFileValidatorV4 = union([SavedFileDefaultValidator, SavedFileSimpleValidator]);
 
-export type SavedFileV1 = InferOutput<typeof SavedFileValidatorV1>
-export type SavedFileV2 = InferOutput<typeof SavedFileValidatorV2>
-export type SavedFileV3 = InferOutput<typeof SavedFileValidatorV3>
-export type SavedFileV4 = InferOutput<typeof SavedFileValidatorV4>
-export type SavedFile = SavedFileV4
-export const SavedFileValidator = SavedFileValidatorV4
+export type SavedFileV1 = InferOutput<typeof SavedFileValidatorV1>;
+export type SavedFileV2 = InferOutput<typeof SavedFileValidatorV2>;
+export type SavedFileV3 = InferOutput<typeof SavedFileValidatorV3>;
+export type SavedFileV4 = InferOutput<typeof SavedFileValidatorV4>;
+export type SavedFile = SavedFileV4;
+export const SavedFileValidator = SavedFileValidatorV4;
 
-const savedFileMigratorr = createMigrator<SavedFileV1, SavedFile>()
+const savedFileMigratorr = createMigrator<SavedFileV1, SavedFile>();
 const defaultValue = savedFileMigratorr.createDefault({
   canvas: {
     triggers: [],
-    blocks: []
+    blocks: [],
   },
-  description: '',
-  name: '',
+  description: "",
+  name: "",
   variables: [],
-  type: 'default',
-  version: '4.0.0'
-})
+  type: "default",
+  version: "4.0.0",
+});
 
 export const savedFileMigrator = savedFileMigratorr.createMigrations({
   defaultValue,
   migrations: [
     createMigration<never, SavedFileV1, SavedFileV2>({
-      version: '1.0.0',
+      version: "1.0.0",
       up: (state) => {
-        const blocks = state.canvas.blocks
+        const blocks = state.canvas.blocks;
 
-        const triggers: Array<BlockEvent> = []
-        const newBlocks: Array<Block> = []
+        const triggers: Array<BlockEvent> = [];
+        const newBlocks: Array<Block> = [];
 
         for (const block of blocks) {
-          if (block.type === 'event') {
+          if (block.type === "event") {
             // add to triggers
-            triggers.push(block)
+            triggers.push(block);
           } else {
             // restore in blocks because it's not a trigger
-            newBlocks.push(block)
+            newBlocks.push(block);
           }
         }
 
         return {
           canvas: {
             blocks: newBlocks,
-            triggers: triggers
+            triggers: triggers,
           },
           description: state.description,
           name: state.name,
-          variables: state.variables
-        } satisfies OmitVersion<SavedFileV2>
+          variables: state.variables,
+        } satisfies OmitVersion<SavedFileV2>;
       },
-      down: initialVersion
+      down: initialVersion,
     }),
     createMigration<SavedFileV1, SavedFileV2, SavedFileV3>({
-      version: '2.0.0',
+      version: "2.0.0",
       up: (state) => {
-        const { canvas, ...rest } = state
-        const { blocks, triggers } = canvas
+        const { canvas, ...rest } = state;
+        const { blocks, triggers } = canvas;
 
-        const newBlocks: SavedFileV2['canvas']['blocks'] = []
+        const newBlocks: SavedFileV2["canvas"]["blocks"] = [];
 
         for (const block of blocks) {
-          const newParams: SavedFileV2['canvas']['blocks'][number]['params'] = {}
+          const newParams: SavedFileV2["canvas"]["blocks"][number]["params"] = {};
 
           for (const data of Object.entries(block.params)) {
             if (data === undefined) {
-              throw new Error("Can't migrate block with undefined params")
+              throw new Error("Can't migrate block with undefined params");
             } else {
-              const [key, value] = data
+              const [key, value] = data;
               newParams[key] = {
-                editor: 'editor',
-                value
-              }
+                editor: "editor",
+                value,
+              };
             }
           }
 
           newBlocks.push({
             ...block,
-            params: newParams
-          })
+            params: newParams,
+          });
         }
 
         return {
           ...rest,
           canvas: {
             triggers,
-            blocks: newBlocks
-          }
-        } satisfies OmitVersion<SavedFileV3>
+            blocks: newBlocks,
+          },
+        } satisfies OmitVersion<SavedFileV3>;
       },
       down: () => {
-        throw new Error('Migration down not implemented')
-      }
+        throw new Error("Migration down not implemented");
+      },
     }),
     createMigration<SavedFileV2, SavedFileV3, SavedFileV4>({
-      version: '3.0.0',
+      version: "3.0.0",
       up: (state) => {
         return {
           ...state,
-          type: 'default'
-        } satisfies OmitVersion<SavedFileV4>
+          type: "default",
+        } satisfies OmitVersion<SavedFileV4>;
       },
       down: () => {
-        throw new Error('Migration down not implemented')
-      }
+        throw new Error("Migration down not implemented");
+      },
     }),
     createMigration<SavedFileV3, SavedFileV4, SavedFileV4>({
-      version: '4.0.0',
+      version: "4.0.0",
       up: finalVersion,
       down: () => {
-        throw new Error('Migration down not implemented')
-      }
-    })
-  ]
-})
+        throw new Error("Migration down not implemented");
+      },
+    }),
+  ],
+});
 
-export type Preset = SavedFile
-export type PresetResult = { data: SavedFile; hightlight?: boolean; disabled?: boolean }
-export type PresetFn = () => Promise<PresetResult>
+export type Preset = SavedFile;
+export type PresetResult = { data: SavedFile; hightlight?: boolean; disabled?: boolean };
+export type PresetFn = () => Promise<PresetResult>;
 
 export type Steps = Record<
   string,
   {
-    outputs: Record<string, unknown>
+    outputs: Record<string, unknown>;
   }
->
+>;
 
-export type EnhancedFile<T extends SavedFile = SavedFile> = WithId<SaveLocation> & { content: T }
+export type EnhancedFile<T extends SavedFile = SavedFile> = WithId<SaveLocation> & { content: T };

@@ -3,7 +3,7 @@ name: Electron Forge CI/CD
 on:
   push:
     tags:
-      - '*'
+      - "*"
     branches:
       - main
       - develop
@@ -17,7 +17,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     env:
       CI: true
-      DEBUG: '*'
+      DEBUG: "*"
 
     strategy:
       matrix:
@@ -40,13 +40,13 @@ jobs:
       - name: Use Node.js 22.5.1
         uses: actions/setup-node@v4
         with:
-          node-version: '22.5.1'
-          cache: 'pnpm'
+          node-version: "22.5.1"
+          cache: "pnpm"
 
       - name: Set up Python 3.10
         uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: "3.10"
 
       - name: Install dependencies
         run: pnpm install
@@ -147,8 +147,8 @@ jobs:
       - name: Use Node.js 22.5.1
         uses: actions/setup-node@v4
         with:
-          node-version: '22.5.1'
-          cache: 'pnpm'
+          node-version: "22.5.1"
+          cache: "pnpm"
 
       - name: Install dependencies
         run: pnpm install --prod=false

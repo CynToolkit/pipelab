@@ -1,9 +1,9 @@
-import { expect, test } from 'vitest'
-import { unzipRunner } from './unzip.js'
-import { browserWindow } from '@pipelab/shared/tests/helpers.js'
+import { expect, test } from "vitest";
+import { unzipRunner } from "./unzip.js";
+import { browserWindow } from "@pipelab/shared/tests/helpers.js";
 
-test('adds 1 + 2 to equal 3', async () => {
-  const outputs: Record<string, unknown> = {}
+test("adds 1 + 2 to equal 3", async () => {
+  const outputs: Record<string, unknown> = {};
   // await unzipRunner({
   //   inputs: {
   //     file: ''
@@ -28,6 +28,6 @@ test('adds 1 + 2 to equal 3', async () => {
   //   api: undefined,
   //   browserWindow,
   // })
-  console.log('outputs', outputs)
-  expect(true).toBe(true)
-}, 120_000)
+  console.log("outputs", outputs);
+  expect(true).toBe(true);
+}, 120_000);

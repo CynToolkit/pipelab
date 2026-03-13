@@ -1,4 +1,4 @@
-import { app } from 'electron'
+import { app } from "electron";
 /**
  * @param {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').MessageExit, 'input'>} json
  * @param {import('ws').WebSocket} ws
@@ -11,10 +11,10 @@ export default async (json, ws) => {
     correlationId: json.correlationId,
     url: json.url,
     body: {
-      success: true
-    }
-  }
-  ws.send(JSON.stringify(engineResult))
+      success: true,
+    },
+  };
+  ws.send(JSON.stringify(engineResult));
 
-  app.exit(json.body.code)
-}
+  app.exit(json.body.code);
+};

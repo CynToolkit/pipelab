@@ -1,5 +1,9 @@
 {
   "name": "@pipelab/tsconfig",
   "version": "1.0.0",
-  "private": true
+  "private": true,
+  "scripts": {
+    "format": "oxfmt .",
+    "lint": "oxlint ."
+  }
 }

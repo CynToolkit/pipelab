@@ -1,53 +1,53 @@
-import { createAction, createActionRunner, createPathParam } from '@pipelab/plugin-core'
+import { createAction, createActionRunner, createPathParam } from "@pipelab/plugin-core";
 
-export const ID = 'minify:code'
+export const ID = "minify:code";
 
 export const minifyCode = createAction({
   id: ID,
-  name: 'Minify code',
-  description: '',
-  icon: '',
-  displayString: '`Minify code`',
+  name: "Minify code",
+  description: "",
+  icon: "",
+  displayString: "`Minify code`",
   meta: {},
   params: {
-    'input-folder': createPathParam('', {
+    "input-folder": createPathParam("", {
       required: true,
-      label: 'Folder to compress',
+      label: "Folder to compress",
       control: {
-        type: 'path',
+        type: "path",
         options: {
-          properties: ['openDirectory']
-        }
-      }
-    })
+          properties: ["openDirectory"],
+        },
+      },
+    }),
   },
-  outputs: {}
-})
+  outputs: {},
+});
 
 const getAllJsFiles = async (dir: string): Promise<string[]> => {
-  const { readdir } = await import('node:fs/promises')
-  const { join } = await import('node:path')
+  const { readdir } = await import("node:fs/promises");
+  const { join } = await import("node:path");
 
-  const files = await readdir(dir, { withFileTypes: true })
+  const files = await readdir(dir, { withFileTypes: true });
   return files.flatMap((file) => {
-    const fullPath = join(dir, file.name)
+    const fullPath = join(dir, file.name);
     if (file.isDirectory()) {
-      return getAllJsFiles(fullPath)
-    } else if (file.isFile() && fullPath.endsWith('.js')) {
-      return fullPath
+      return getAllJsFiles(fullPath);
+    } else if (file.isFile() && fullPath.endsWith(".js")) {
+      return fullPath;
     }
-    return []
-  })
-}
+    return [];
+  });
+};
 
 export const minifyCodeRunner = createActionRunner<typeof minifyCode>(
   async ({ log, inputs, cwd, abortSignal }) => {
-    const { app } = await import('electron')
-    const { join, dirname } = await import('node:path')
-    const { mkdir, access, chmod } = await import('node:fs/promises')
-    const esbuild = (await import('esbuild')).default
+    const { app } = await import("electron");
+    const { join, dirname } = await import("node:path");
+    const { mkdir, access, chmod } = await import("node:fs/promises");
+    const esbuild = (await import("esbuild")).default;
 
-    const jsFiles = await getAllJsFiles(inputs['input-folder'])
+    const jsFiles = await getAllJsFiles(inputs["input-folder"]);
 
     for (const file of jsFiles) {
       await esbuild.build({
@@ -56,12 +56,12 @@ export const minifyCodeRunner = createActionRunner<typeof minifyCode>(
         minify: true, // Minify the content
         bundle: false, // Don't bundle dependencies
         sourcemap: false, // No source maps (optional)
-        format: 'esm', // Optional: Specify output format
-        write: true // Ensure the file is overwritten
-      })
-      console.log(`Minified: ${file}`)
+        format: "esm", // Optional: Specify output format
+        write: true, // Ensure the file is overwritten
+      });
+      console.log(`Minified: ${file}`);
     }
 
-    log('Minified code')
-  }
-)
+    log("Minified code");
+  },
+);

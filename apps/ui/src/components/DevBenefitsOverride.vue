@@ -25,10 +25,10 @@
           </div>
           <div class="status-container">
             <span class="status actual" :class="{ active: actualStatus[benefit.key] }">
-              Actual: {{ actualStatus[benefit.key] ? 'Active' : 'Inactive' }}
+              Actual: {{ actualStatus[benefit.key] ? "Active" : "Inactive" }}
             </span>
             <span class="status effective" :class="{ active: effectiveStatus[benefit.key] }">
-              Effective: {{ effectiveStatus[benefit.key] ? 'Active' : 'Inactive' }}
+              Effective: {{ effectiveStatus[benefit.key] ? "Active" : "Inactive" }}
             </span>
           </div>
         </div>
@@ -38,40 +38,40 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
-import { useAuth } from '../store/auth'
+import { computed, ref } from "vue";
+import { useAuth } from "../store/auth";
 
-const auth = useAuth()
-const isCollapsed = ref(true)
+const auth = useAuth();
+const isCollapsed = ref(true);
 
 const benefits = [
-  { key: 'build-history', label: 'Build History' },
-  { key: 'cloud-save', label: 'Cloud Save' },
-  { key: 'multiple-projects', label: 'Multiple Projects' }
-] as const
+  { key: "build-history", label: "Build History" },
+  { key: "cloud-save", label: "Cloud Save" },
+  { key: "multiple-projects", label: "Multiple Projects" },
+] as const;
 
-const isDevMode = computed(() => process.env.NODE_ENV === 'development')
+const isDevMode = computed(() => process.env.NODE_ENV === "development");
 
 const toggleCollapse = () => {
-  isCollapsed.value = !isCollapsed.value
-}
+  isCollapsed.value = !isCollapsed.value;
+};
 
 const actualStatus = computed(() => ({
-  'build-history': auth.getActualBenefit('build-history'),
-  'cloud-save': auth.getActualBenefit('cloud-save'),
-  'multiple-projects': auth.getActualBenefit('multiple-projects')
-}))
+  "build-history": auth.getActualBenefit("build-history"),
+  "cloud-save": auth.getActualBenefit("cloud-save"),
+  "multiple-projects": auth.getActualBenefit("multiple-projects"),
+}));
 
 const effectiveStatus = computed(() => ({
-  'build-history': auth.hasBenefit('build-history'),
-  'cloud-save': auth.hasBenefit('cloud-save'),
-  'multiple-projects': auth.hasBenefit('multiple-projects')
-}))
+  "build-history": auth.hasBenefit("build-history"),
+  "cloud-save": auth.hasBenefit("cloud-save"),
+  "multiple-projects": auth.hasBenefit("multiple-projects"),
+}));
 
 const setOverride = (benefit: string, value: string) => {
-  console.log(`[DevBenefitsOverride] Setting override for ${benefit} to ${value}`)
-  auth.setDevOverride(benefit, value)
-}
+  console.log(`[DevBenefitsOverride] Setting override for ${benefit} to ${value}`);
+  auth.setDevOverride(benefit, value);
+};
 </script>
 
 <style scoped>

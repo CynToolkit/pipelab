@@ -1,4 +1,4 @@
-import { execa } from 'execa'
+import { execa } from "execa";
 
 /**
  * @param {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').MessageRun, 'input'>} json
@@ -7,9 +7,9 @@ import { execa } from 'execa'
 export default async (json, ws) => {
   const exec = execa({
     cwd: json.body.cwd,
-    env: json.body.env
-  })
-  const { stderr, stdout } = await exec(json.body.command, json.body.args)
+    env: json.body.env,
+  });
+  const { stderr, stdout } = await exec(json.body.command, json.body.args);
 
   /**
    * @type {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').MessageRun, 'output'>}
@@ -20,8 +20,8 @@ export default async (json, ws) => {
     body: {
       success: true,
       stdout,
-      stderr
-    }
-  }
-  ws.send(JSON.stringify(execResult))
-}
+      stderr,
+    },
+  };
+  ws.send(JSON.stringify(execResult));
+};

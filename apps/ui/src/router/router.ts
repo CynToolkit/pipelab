@@ -1,66 +1,66 @@
-import { createRouter, createWebHashHistory, RouterOptions } from 'vue-router'
-import { i18n } from '../i18n'
+import { createRouter, createWebHashHistory, RouterOptions } from "vue-router";
+import { i18n } from "../i18n";
 
-const { t } = i18n.global
+const { t } = i18n.global;
 
-const routes: RouterOptions['routes'] = [
+const routes: RouterOptions["routes"] = [
   {
-    path: '/',
-    name: 'Home',
-    redirect: 'Dashboard'
+    path: "/",
+    name: "Home",
+    redirect: "Dashboard",
   },
   {
-    path: '/dashboard',
-    component: () => import('../pages/index.vue'),
-    name: 'Dashboard',
+    path: "/dashboard",
+    component: () => import("../pages/index.vue"),
+    name: "Dashboard",
     meta: {
-      title: t('headers.dashboard')
-    }
-  },
-  {
-    path: '/scenarios',
-    name: 'Scenarios',
-    component: () => import('../pages/scenarios.vue'),
-    meta: {
-      title: t('headers.scenarios')
+      title: t("headers.dashboard"),
     },
-    children: []
   },
   {
-    path: '/scenarios/editor/:pipelineId/:projectId',
-    name: 'Editor',
-    component: () => import('../pages/editor.vue'),
+    path: "/scenarios",
+    name: "Scenarios",
+    component: () => import("../pages/scenarios.vue"),
     meta: {
-      title: t('headers.editor')
-    }
+      title: t("headers.scenarios"),
+    },
+    children: [],
   },
   {
-    path: '/billing',
-    name: 'Billing',
-    component: () => import('../pages/editor.vue'),
+    path: "/scenarios/editor/:pipelineId/:projectId",
+    name: "Editor",
+    component: () => import("../pages/editor.vue"),
     meta: {
-      title: t('headers.billing')
-    }
+      title: t("headers.editor"),
+    },
   },
   {
-    path: '/team',
-    name: 'Team',
-    component: () => import('../pages/team.vue'),
+    path: "/billing",
+    name: "Billing",
+    component: () => import("../pages/editor.vue"),
     meta: {
-      title: t('headers.team')
-    }
+      title: t("headers.billing"),
+    },
   },
   {
-    path: '/simple-editor',
-    name: 'SimpleEditor',
-    component: () => import('../pages/simple-editor.vue'),
+    path: "/team",
+    name: "Team",
+    component: () => import("../pages/team.vue"),
     meta: {
-      title: 'Simple Editor'
-    }
-  }
-]
+      title: t("headers.team"),
+    },
+  },
+  {
+    path: "/simple-editor",
+    name: "SimpleEditor",
+    component: () => import("../pages/simple-editor.vue"),
+    meta: {
+      title: "Simple Editor",
+    },
+  },
+];
 
 export const router = createRouter({
   history: createWebHashHistory(),
-  routes
-})
+  routes,
+});

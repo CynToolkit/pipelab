@@ -1,4 +1,4 @@
-import { handleSteamRequest } from './utils.js'
+import { handleSteamRequest } from "./utils.js";
 
 /**
  * Core Steam workshop install info logic
@@ -7,14 +7,14 @@ import { handleSteamRequest } from './utils.js'
  * @returns {Promise<any>} The install info result
  */
 const installInfoHandler = async (client, json) => {
-  const { itemId } = json.body
+  const { itemId } = json.body;
 
-  const itemIdBigInt = BigInt(itemId)
+  const itemIdBigInt = BigInt(itemId);
 
-  const result = client.workshop.installInfo(itemIdBigInt)
+  const result = client.workshop.installInfo(itemIdBigInt);
 
-  return result
-}
+  return result;
+};
 
 /**
  * @param {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').SteamRaw, 'input'>} json
@@ -22,5 +22,5 @@ const installInfoHandler = async (client, json) => {
  * @param {Omit<import('@pipelab/steamworks.js').Client, "init" | "runCallbacks">} client
  */
 export default async (json, ws, client) => {
-  await handleSteamRequest(client, json, ws, installInfoHandler)
-}
+  await handleSteamRequest(client, json, ws, installInfoHandler);
+};

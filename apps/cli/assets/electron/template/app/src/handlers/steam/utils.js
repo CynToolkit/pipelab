@@ -7,11 +7,11 @@ function checkSteamClient(client) {
   if (client === undefined || client === null) {
     return {
       success: false,
-      error: 'Steam client is not initialized or available'
-    }
+      error: "Steam client is not initialized or available",
+    };
   }
 
-  return null
+  return null;
 }
 
 /**
@@ -25,7 +25,7 @@ function checkSteamClient(client) {
  */
 function handleSteamRequest(client, json, ws, handlerFunction, useRawErrorFormat = false) {
   // Check if Steam client is initialized
-  const clientError = checkSteamClient(client)
+  const clientError = checkSteamClient(client);
   if (clientError) {
     const errorResult = {
       url: json.url,
@@ -34,12 +34,12 @@ function handleSteamRequest(client, json, ws, handlerFunction, useRawErrorFormat
         ? {
             data: null,
             success: false,
-            error: clientError.error
+            error: clientError.error,
           }
-        : clientError
-    }
-    ws.send(JSON.stringify(errorResult))
-    return Promise.resolve()
+        : clientError,
+    };
+    ws.send(JSON.stringify(errorResult));
+    return Promise.resolve();
   }
 
   // Execute the handler function and format the response
@@ -50,13 +50,13 @@ function handleSteamRequest(client, json, ws, handlerFunction, useRawErrorFormat
         correlationId: json.correlationId,
         body: {
           data: result,
-          success: true
-        }
-      }
-      ws.send(JSON.stringify(steamResult, (_, v) => (typeof v === 'bigint' ? v.toString() : v)))
+          success: true,
+        },
+      };
+      ws.send(JSON.stringify(steamResult, (_, v) => (typeof v === "bigint" ? v.toString() : v)));
     })
     .catch((error) => {
-      console.error('Error in Steam handler:', error)
+      console.error("Error in Steam handler:", error);
       const errorResult = {
         url: json.url,
         correlationId: json.correlationId,
@@ -64,15 +64,15 @@ function handleSteamRequest(client, json, ws, handlerFunction, useRawErrorFormat
           ? {
               data: null,
               success: false,
-              error: error.message || 'Unknown error occurred'
+              error: error.message || "Unknown error occurred",
             }
           : {
               success: false,
-              error: error.message || 'Unknown error occurred'
-            }
-      }
-      ws.send(JSON.stringify(errorResult))
-    })
+              error: error.message || "Unknown error occurred",
+            },
+      };
+      ws.send(JSON.stringify(errorResult));
+    });
 }
 
-export { checkSteamClient, handleSteamRequest }
+export { checkSteamClient, handleSteamRequest };

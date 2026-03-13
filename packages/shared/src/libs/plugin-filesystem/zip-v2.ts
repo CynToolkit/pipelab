@@ -1,90 +1,90 @@
-import { createAction, createActionRunner, createPathParam } from '@pipelab/plugin-core'
+import { createAction, createActionRunner, createPathParam } from "@pipelab/plugin-core";
 
-export const ID = 'zip-v2-node'
+export const ID = "zip-v2-node";
 
-export type MaybeArray<T> = T | T[]
+export type MaybeArray<T> = T | T[];
 
 export const getValue = <T>(array: MaybeArray<T>): T => {
   if (Array.isArray(array)) {
-    return array[0]
+    return array[0];
   } else {
-    return array
+    return array;
   }
-}
+};
 
 export const zipV2 = createAction({
   id: ID,
-  name: 'Zip',
+  name: "Zip",
   displayString: '`Zip ${fmt.param(params.folder, "primary", "No folder specified")}`',
   params: {
-    folder: createPathParam('', {
+    folder: createPathParam("", {
       required: true,
       control: {
-        type: 'path',
+        type: "path",
         options: {
-          properties: ['openDirectory']
-        }
+          properties: ["openDirectory"],
+        },
       },
-      label: 'Folder'
-    })
+      label: "Folder",
+    }),
   },
 
   outputs: {
     path: {
-      value: '',
-      label: 'Path'
-    }
+      value: "",
+      label: "Path",
+    },
   },
-  description: 'Zip a folder into a .zip file',
-  icon: '',
-  meta: {}
-})
+  description: "Zip a folder into a .zip file",
+  icon: "",
+  meta: {},
+});
 
 export const zipV2Runner = createActionRunner<typeof zipV2>(
   async ({ log, inputs, setOutput, abortSignal, paths }) => {
-    const { createWriteStream } = await import('node:fs')
-    const { join } = await import('path')
-    const { default: archiver } = await import('archiver')
+    const { createWriteStream } = await import("node:fs");
+    const { join } = await import("path");
+    const { default: archiver } = await import("archiver");
 
-    abortSignal.addEventListener('abort', () => {
-      throw new Error('Aborted')
-    })
+    abortSignal.addEventListener("abort", () => {
+      throw new Error("Aborted");
+    });
 
-    const outputDir = paths.cache
-    const outputFile = join(outputDir, 'output.zip')
+    const outputDir = paths.cache;
+    const outputFile = join(outputDir, "output.zip");
 
-    console.log('outputFile', outputFile)
+    console.log("outputFile", outputFile);
 
-    const output = createWriteStream(outputFile)
+    const output = createWriteStream(outputFile);
 
-    const archive = archiver('zip', {
-      zlib: { level: 9 } // Sets the compression level.
-    })
+    const archive = archiver("zip", {
+      zlib: { level: 9 }, // Sets the compression level.
+    });
 
     return new Promise((resolve, reject) => {
-      output.on('close', function () {
-        console.log(archive.pointer() + ' total bytes')
-        console.log('archiver has been finalized and the output file descriptor has closed.')
+      output.on("close", function () {
+        console.log(archive.pointer() + " total bytes");
+        console.log("archiver has been finalized and the output file descriptor has closed.");
 
-        setOutput('path', outputFile)
-        resolve()
-      })
+        setOutput("path", outputFile);
+        resolve();
+      });
 
-      output.on('end', function () {
-        console.log('Data has been drained')
-      })
+      output.on("end", function () {
+        console.log("Data has been drained");
+      });
 
-      archive.on('warning', function (err) {
-        if (err.code === 'ENOENT') {
-          console.log('Archiver warning: ENOENT')
+      archive.on("warning", function (err) {
+        if (err.code === "ENOENT") {
+          console.log("Archiver warning: ENOENT");
         } else {
-          reject(err)
+          reject(err);
         }
-      })
+      });
 
-      archive.on('error', function (err) {
-        reject(err)
-      })
+      archive.on("error", function (err) {
+        reject(err);
+      });
 
       // archive.on('data', function (data) {
       //   log('data', data)
@@ -104,18 +104,18 @@ export const zipV2Runner = createActionRunner<typeof zipV2>(
       //   } */
       //   // log('progress', data.entries.processed + '/' + data.entries.total)
       // })
-      archive.on('entry', function (data) {
-        log('Adding', data.name)
-      })
-      archive.on('finish', function () {
-        log('finish')
-      })
+      archive.on("entry", function (data) {
+        log("Adding", data.name);
+      });
+      archive.on("finish", function () {
+        log("finish");
+      });
 
-      archive.pipe(output)
+      archive.pipe(output);
 
-      archive.directory(inputs.folder, false)
+      archive.directory(inputs.folder, false);
 
-      archive.finalize()
-    })
-  }
-)
+      archive.finalize();
+    });
+  },
+);

@@ -37,59 +37,57 @@
 </template>
 
 <script setup lang="ts">
-import { useAppStore } from './store/app'
-import { onMounted, ref, provide, watch, computed } from 'vue'
-import { primary, primaryDarken1, primaryDarken2 } from './style/main'
-import { useFiles } from './store/files'
-import { handle } from './composables/handlers'
-import { useLogger } from '@pipelab/shared/logger'
-import { useAuth } from '@renderer/store/auth'
-import { storeToRefs } from 'pinia'
-import { useAppSettings } from './store/settings'
-import { useAgentsStore } from './store/agents'
-import SubscriptionLoadingIndicator from './components/SubscriptionLoadingIndicator.vue'
-import DisconnectedPage from './components/DisconnectedPage.vue'
-import UpgradeDialog from './components/UpgradeDialog.vue'
-import DevBenefitsOverride from './components/DevBenefitsOverride.vue'
-import WebFilePicker from './components/WebFilePicker.vue'
-import Dialog from 'primevue/dialog'
-import { websocketManager } from './composables/websocket-manager'
+import { useAppStore } from "./store/app";
+import { onMounted, ref, provide, watch, computed } from "vue";
+import { primary, primaryDarken1, primaryDarken2 } from "./style/main";
+import { useFiles } from "./store/files";
+import { handle } from "./composables/handlers";
+import { useLogger } from "@pipelab/shared/logger";
+import { useAuth } from "@renderer/store/auth";
+import { storeToRefs } from "pinia";
+import { useAppSettings } from "./store/settings";
+import { useAgentsStore } from "./store/agents";
+import SubscriptionLoadingIndicator from "./components/SubscriptionLoadingIndicator.vue";
+import DisconnectedPage from "./components/DisconnectedPage.vue";
+import UpgradeDialog from "./components/UpgradeDialog.vue";
+import DevBenefitsOverride from "./components/DevBenefitsOverride.vue";
+import WebFilePicker from "./components/WebFilePicker.vue";
+import Dialog from "primevue/dialog";
+import { websocketManager } from "./composables/websocket-manager";
 
-const appStore = useAppStore()
-const filesStore = useFiles()
-const settingsStore = useAppSettings()
-const agentsStore = useAgentsStore()
-const { logger } = useLogger()
-const authStore = useAuth()
-const { init: authInit, fetchSubscription } = authStore
-const { isLoadingSubscriptions } = storeToRefs(authStore)
-const { settings } = storeToRefs(settingsStore)
-const { init: initSettings } = settingsStore
+const appStore = useAppStore();
+const filesStore = useFiles();
+const settingsStore = useAppSettings();
+const agentsStore = useAgentsStore();
+const { logger } = useLogger();
+const authStore = useAuth();
+const { init: authInit, fetchSubscription } = authStore;
+const { isLoadingSubscriptions } = storeToRefs(authStore);
+const { settings } = storeToRefs(settingsStore);
+const { init: initSettings } = settingsStore;
 
-const { init } = appStore
-const isLoading = ref(false)
-const isDataLoaded = ref(false)
-const isInitialized = ref(false)
-const isUpgradeDialogVisible = ref(false)
+const { init } = appStore;
+const isLoading = ref(false);
+const isDataLoaded = ref(false);
+const isInitialized = ref(false);
+const isUpgradeDialogVisible = ref(false);
 
 const isDisconnected = computed(
-  () =>
-    isInitialized.value &&
-    websocketManager.connectionState.value !== 'connected'
-)
+  () => isInitialized.value && websocketManager.connectionState.value !== "connected",
+);
 
 const openUpgradeDialog = () => {
-  isUpgradeDialogVisible.value = true
-}
+  isUpgradeDialogVisible.value = true;
+};
 
 const closeUpgradeDialog = () => {
-  isUpgradeDialogVisible.value = false
-}
+  isUpgradeDialogVisible.value = false;
+};
 
-provide('openUpgradeDialog', openUpgradeDialog)
+provide("openUpgradeDialog", openUpgradeDialog);
 
-handle('log:message', async (event, { value, send }) => {
-  console.log('value', value)
+handle("log:message", async (event, { value, send }) => {
+  console.log("value", value);
   // console.log('log:message: Received value:', {
   //   value,
   //   type: typeof value,
@@ -100,97 +98,97 @@ handle('log:message', async (event, { value, send }) => {
   // })
 
   // Validate that value exists and is an object before accessing properties
-  if (!value || typeof value !== 'object') {
-    console.warn('log:message: Invalid value received:', {
+  if (!value || typeof value !== "object") {
+    console.warn("log:message: Invalid value received:", {
       value,
       type: typeof value,
-      hasValue: !!value
-    })
+      hasValue: !!value,
+    });
     send({
-      type: 'end',
-      data: undefined
-    })
-    return
+      type: "end",
+      data: undefined,
+    });
+    return;
   }
 
   // Check if the value has _meta property before accessing it
   if (
     value &&
     value._meta &&
-    typeof value._meta === 'object' &&
+    typeof value._meta === "object" &&
     value._meta.logLevelId !== undefined
   ) {
     try {
       const values = Object.entries(value)
-        .filter(([key]) => key !== '_meta')
-        .map(([, v]) => v)
+        .filter(([key]) => key !== "_meta")
+        .map(([, v]) => v);
 
       // Filter out undefined values to prevent tslog errors
-      const filteredValues = values.filter((v) => v !== undefined)
-      const logLevelName = value._meta.logLevelName || 'LOG'
+      const filteredValues = values.filter((v) => v !== undefined);
+      const logLevelName = value._meta.logLevelName || "LOG";
 
       logger()
         .getSubLogger({
-          name: 'Main'
+          name: "Main",
         })
         .log(
           value._meta.logLevelId,
           value._meta.path.fullFilePath,
-          ...[logLevelName, ...filteredValues]
-        )
+          ...[logLevelName, ...filteredValues],
+        );
     } catch (error) {
-      console.error('log:message: Error processing log message:', error)
+      console.error("log:message: Error processing log message:", error);
     }
   } else {
-    console.warn('log:message: Value missing _meta property or _meta is not an object:', {
+    console.warn("log:message: Value missing _meta property or _meta is not an object:", {
       hasMeta: !!value._meta,
       metaType: typeof value._meta,
-      valueKeys: Object.keys(value || {})
-    })
+      valueKeys: Object.keys(value || {}),
+    });
   }
 
   send({
-    type: 'end',
-    data: undefined
-  })
-})
+    type: "end",
+    data: undefined,
+  });
+});
 
 const fetchInitialData = async () => {
-  console.log('[App] fetchInitialData: Starting remote data fetch')
+  console.log("[App] fetchInitialData: Starting remote data fetch");
   try {
-    await filesStore.load()
-    await init()
+    await filesStore.load();
+    await init();
     // settingsStore.init() is no longer needed here as it's local, but we call loadRemoteSettings to sync
-    await settingsStore.load()
-    await authInit()
-    await fetchSubscription()
-    isDataLoaded.value = true
-    logger().info('Remote data fetch complete')
+    await settingsStore.load();
+    await authInit();
+    await fetchSubscription();
+    isDataLoaded.value = true;
+    logger().info("Remote data fetch complete");
   } catch (error) {
-    logger().error('Failed to fetch remote data:', error)
+    logger().error("Failed to fetch remote data:", error);
   }
-}
+};
 
 // Watch for WebSocket connection to trigger data fetch
 watch(
   () => websocketManager.connectionState.value,
   (state) => {
-    if (state === 'connected') {
-      fetchInitialData()
+    if (state === "connected") {
+      fetchInitialData();
     }
   },
-  { immediate: true }
-)
+  { immediate: true },
+);
 
 onMounted(async () => {
-  console.log('[App] onMounted: UI mounted, initializing local stores')
+  console.log("[App] onMounted: UI mounted, initializing local stores");
 
   // Initialize agents store which will trigger the WebSocket connection
-  await agentsStore.init()
-  isInitialized.value = true
+  await agentsStore.init();
+  isInitialized.value = true;
 
   // Loading state for specific data should be handled by components
-})
+});
 </script>
 
 <style lang="scss">

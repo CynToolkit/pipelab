@@ -4,8 +4,8 @@
  * @param {import('electron').BrowserWindow} mainWindow
  */
 export default async (json, ws, mainWindow) => {
-  const [x, y] = mainWindow.getPosition()
-  mainWindow.setPosition(json.body.value, y)
+  const [x, y] = mainWindow.getPosition();
+  mainWindow.setPosition(json.body.value, y);
 
   /**
    * @type {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').MessageSetX, 'output'>}
@@ -14,8 +14,8 @@ export default async (json, ws, mainWindow) => {
     correlationId: json.correlationId,
     url: json.url,
     body: {
-      success: true
-    }
-  }
-  ws.send(JSON.stringify(setXResult))
-}
+      success: true,
+    },
+  };
+  ws.send(JSON.stringify(setXResult));
+};

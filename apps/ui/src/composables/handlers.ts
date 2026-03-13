@@ -1,35 +1,40 @@
 // renderer handler
 
-import { useLogger } from '@pipelab/shared/logger'
-import { RendererChannels, RendererEvents, RendererData, RendererMessage } from '@pipelab/core-node'
+import { useLogger } from "@pipelab/shared/logger";
+import {
+  RendererChannels,
+  RendererEvents,
+  RendererData,
+  RendererMessage,
+} from "@pipelab/core-node";
 
 export type HandleListenerRendererSendFn<KEY extends RendererChannels> = (
-  events: RendererEvents<KEY>
-) => void
+  events: RendererEvents<KEY>,
+) => void;
 
 export type HandleListenerRenderer<KEY extends RendererChannels> = (
   event: Electron.IpcRendererEvent,
-  data: { value: RendererData<KEY>; send: HandleListenerRendererSendFn<KEY> }
-) => Promise<void>
+  data: { value: RendererData<KEY>; send: HandleListenerRendererSendFn<KEY> },
+) => Promise<void>;
 
 export const handle = <KEY extends RendererChannels>(
   channel: KEY,
-  listener: HandleListenerRenderer<KEY>
+  listener: HandleListenerRenderer<KEY>,
 ) => {
   if (!window.electron) {
-    console.warn(`[Handlers] Electron not available, skipping handler for channel: ${channel}`)
-    return () => {}
+    console.warn(`[Handlers] Electron not available, skipping handler for channel: ${channel}`);
+    return () => {};
   }
   return window.electron.ipcRenderer.on(channel, (event, message: RendererMessage) => {
-    const { data, requestId } = message
+    const { data, requestId } = message;
 
     const send: HandleListenerRendererSendFn<KEY> = (events) => {
-      return window.electron.ipcRenderer.send(requestId, events)
-    }
+      return window.electron.ipcRenderer.send(requestId, events);
+    };
 
     return listener(event, {
       send,
-      value: data
-    })
-  })
-}
+      value: data,
+    });
+  });
+};

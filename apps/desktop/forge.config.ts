@@ -1,60 +1,60 @@
-import type { ForgeConfig } from '@electron-forge/shared-types'
-import { MakerSquirrel } from '@electron-forge/maker-squirrel'
-import { MakerZIP } from '@electron-forge/maker-zip'
-import { VitePlugin } from '@electron-forge/plugin-vite'
-import { FusesPlugin } from '@electron-forge/plugin-fuses'
-import { MakerDMG } from '@electron-forge/maker-dmg'
-import { MakerPKG } from '@electron-forge/maker-pkg'
-import { FuseV1Options, FuseVersion } from '@electron/fuses'
-import { name } from '@pipelab/constants'
-import * as fs from 'fs-extra'
-import * as path from 'path'
-import { execSync } from 'child_process'
+import type { ForgeConfig } from "@electron-forge/shared-types";
+import { MakerSquirrel } from "@electron-forge/maker-squirrel";
+import { MakerZIP } from "@electron-forge/maker-zip";
+import { VitePlugin } from "@electron-forge/plugin-vite";
+import { FusesPlugin } from "@electron-forge/plugin-fuses";
+import { MakerDMG } from "@electron-forge/maker-dmg";
+import { MakerPKG } from "@electron-forge/maker-pkg";
+import { FuseV1Options, FuseVersion } from "@electron/fuses";
+import { name } from "@pipelab/constants";
+import * as fs from "fs-extra";
+import * as path from "path";
+import { execSync } from "child_process";
 
 /** @type {*} */
 const config: ForgeConfig = {
   packagerConfig: {
     prune: false,
-    appBundleId: 'app.pipelab.desktop',
+    appBundleId: "app.pipelab.desktop",
     // asar: {
     //   // unpack: '*.{node,dll,so,lib,dylib,exe}'
     // },
     asar: false,
-    extraResource: [path.join(__dirname, '../cli/assets'), 'bin'],
+    extraResource: [path.join(__dirname, "../cli/assets"), "bin"],
     // extraResource: ['.vite/build/assets'],
     name,
-    icon: path.join(__dirname, '../cli/assets/build/icon'),
+    icon: path.join(__dirname, "../cli/assets/build/icon"),
     extendInfo: {
       NSAppleEventsUsageDescription:
-        'This app need to run commands through Terminal for specific tasks such as steamcmd.sh.'
+        "This app need to run commands through Terminal for specific tasks such as steamcmd.sh.",
     },
     osxNotarize: {
       appleId: process.env.APPLE_ID,
       appleIdPassword: process.env.APPLE_ID_PASSWORD,
-      teamId: process.env.APPLE_TEAM_ID
+      teamId: process.env.APPLE_TEAM_ID,
     },
     osxSign: {
       strictVerify: false,
       identity: `Developer ID Application: Quentin Goinaud (${process.env.APPLE_TEAM_ID})`,
       optionsForFile: (filePath) => {
         return {
-          'entitlements-inherit': path.join(
+          "entitlements-inherit": path.join(
             __dirname,
-            '../cli/assets/build/entitlements.mac.plist'
+            "../cli/assets/build/entitlements.mac.plist",
           ),
-          entitlements: path.join(__dirname, '../cli/assets/build/entitlements.mac.plist')
-        }
-      }
-    }
+          entitlements: path.join(__dirname, "../cli/assets/build/entitlements.mac.plist"),
+        };
+      },
+    },
   },
   rebuildConfig: {},
   makers: [
     new MakerSquirrel({
       name,
-      setupIcon: path.join(__dirname, '../cli/assets/build/icon.ico')
+      setupIcon: path.join(__dirname, "../cli/assets/build/icon.ico"),
     }),
-    new MakerZIP(undefined, ['linux', 'win32']),
-    new MakerDMG()
+    new MakerZIP(undefined, ["linux", "win32"]),
+    new MakerDMG(),
     // TODO: need to regenerate the certificate
     // new MakerPKG({
     //   identity: `Developer ID Installer: Quentin Goinaud (${process.env.APPLE_TEAM_ID})`,
@@ -62,39 +62,39 @@ const config: ForgeConfig = {
   ],
   publishers: [
     {
-      name: '@electron-forge/publisher-github',
+      name: "@electron-forge/publisher-github",
       config: {
         repository: {
-          owner: 'CynToolkit',
-          name: 'pipelab'
+          owner: "CynToolkit",
+          name: "pipelab",
         },
         prerelease: true,
         draft: false,
-        generateReleaseNotes: true
-      }
-    }
+        generateReleaseNotes: true,
+      },
+    },
   ],
   hooks: {
     prePackage: async (forgeConfig, platform, arch) => {
-      console.log('INFO: Running prePackage hook to copy CLI binaries...')
-      const cliPath = path.resolve(__dirname, '../cli')
+      console.log("INFO: Running prePackage hook to copy CLI binaries...");
+      const cliPath = path.resolve(__dirname, "../cli");
 
       try {
         // Ensure bin directory exists in desktop package
-        const destBinDir = path.resolve(__dirname, 'bin')
-        await fs.ensureDir(destBinDir)
+        const destBinDir = path.resolve(__dirname, "bin");
+        await fs.ensureDir(destBinDir);
 
         // Copy built binaries to desktop/bin for extraResource inclusion
-        const srcBinDir = path.join(cliPath, 'bin')
-        console.log(`INFO: Copying binaries from ${srcBinDir} to ${destBinDir}`)
-        await fs.copy(srcBinDir, destBinDir, { overwrite: true })
+        const srcBinDir = path.join(cliPath, "bin");
+        console.log(`INFO: Copying binaries from ${srcBinDir} to ${destBinDir}`);
+        await fs.copy(srcBinDir, destBinDir, { overwrite: true });
 
-        console.log('INFO: CLI binaries copied successfully.')
+        console.log("INFO: CLI binaries copied successfully.");
       } catch (err) {
-        console.error('ERROR: Failed to copy CLI binaries:', err)
-        throw err
+        console.error("ERROR: Failed to copy CLI binaries:", err);
+        throw err;
       }
-    }
+    },
     // packageAfterCopy: async (forgeConfig, buildPath, electronVersion, platform, arch) => {
     //   console.log('INFO: Running packageAfterCopy hook...')
     //   const projectRoot = path.resolve(__dirname)
@@ -132,20 +132,20 @@ const config: ForgeConfig = {
       build: [
         {
           // `entry` is just an alias for `build.lib.entry` in the corresponding file of `config`.
-          entry: 'src/main.ts',
-          config: 'vite.main.config.mts'
+          entry: "src/main.ts",
+          config: "vite.main.config.mts",
         },
         {
-          entry: 'src/preload.ts',
-          config: 'vite.preload.config.mts'
-        }
+          entry: "src/preload.ts",
+          config: "vite.preload.config.mts",
+        },
       ],
       renderer: [
         {
-          name: 'main_window',
-          config: 'vite.renderer.config.mts'
-        }
-      ]
+          name: "main_window",
+          config: "vite.renderer.config.mts",
+        },
+      ],
     }),
     // Fuses are used to enable/disable various Electron functionality
     // at package time, before code signing the application
@@ -156,9 +156,9 @@ const config: ForgeConfig = {
       [FuseV1Options.EnableNodeOptionsEnvironmentVariable]: true,
       [FuseV1Options.EnableNodeCliInspectArguments]: false,
       [FuseV1Options.EnableEmbeddedAsarIntegrityValidation]: false, // must enable again, broken for windows build on linux
-      [FuseV1Options.OnlyLoadAppFromAsar]: false // need tesing
-    })
-  ]
-}
+      [FuseV1Options.OnlyLoadAppFromAsar]: false, // need tesing
+    }),
+  ],
+};
 
-export default config
+export default config;

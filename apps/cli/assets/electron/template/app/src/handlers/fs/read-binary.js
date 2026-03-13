@@ -1,13 +1,13 @@
 // @ts-check
 
-import { readFile } from 'node:fs/promises'
+import { readFile } from "node:fs/promises";
 
 /**
  * @param {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').MessageReadFileBinary, 'input'>} json
  * @param {import('ws').WebSocket} ws
  */
 export default async (json, ws) => {
-  const file = await readFile(json.body.path)
+  const file = await readFile(json.body.path);
 
   /**
    * @type {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').MessageReadFileBinary, 'output'>}
@@ -17,8 +17,8 @@ export default async (json, ws) => {
     url: json.url,
     body: {
       success: true,
-      content: [...file]
-    }
-  }
-  ws.send(JSON.stringify(readFileResult))
-}
+      content: [...file],
+    },
+  };
+  ws.send(JSON.stringify(readFileResult));
+};

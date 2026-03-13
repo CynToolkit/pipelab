@@ -7,7 +7,7 @@
         active: activeNode?.uid === value.uid,
         error: hasErrors,
         disabled: value.disabled || isRunning,
-        selected: isNodeSelected
+        selected: isNodeSelected,
       }"
       @click="onNodeClick"
     >
@@ -32,11 +32,11 @@
               "
               size="small"
               :pt="{
-                root: { style: { padding: '0 4px' } }
+                root: { style: { padding: '0 4px' } },
               }"
               class="deprecated-string"
             >
-              {{ 'Deprecated' }}
+              {{ "Deprecated" }}
             </Button>
           </div>
           <div v-if="subtitle" class="subtitle" v-html="subtitle"></div>
@@ -113,124 +113,124 @@
 </template>
 
 <script setup lang="ts">
-import { useEditor } from '@renderer/store/editor'
-import { BlockAction, Steps } from '@pipelab/shared/model'
-import { storeToRefs } from 'pinia'
-import { PropType, computed, ref, shallowRef, toRefs, watch } from 'vue'
-import { watchDebounced } from '@vueuse/core'
-import ParamEditor from './ParamEditor.vue'
-import PluginIcon from './PluginIcon.vue'
-import { createQuickJs } from '@pipelab/shared/quickjs'
-import DOMPurify from 'dompurify'
-import { makeResolvedParams } from '@pipelab/shared/evaluator'
-import { ValidationError } from '@renderer/models/error'
-import AddNodeButton from '../AddNodeButton.vue'
-import type { ValueOf } from 'type-fest'
-import { MenuItem } from 'primevue'
+import { useEditor } from "@renderer/store/editor";
+import { BlockAction, Steps } from "@pipelab/shared/model";
+import { storeToRefs } from "pinia";
+import { PropType, computed, ref, shallowRef, toRefs, watch } from "vue";
+import { watchDebounced } from "@vueuse/core";
+import ParamEditor from "./ParamEditor.vue";
+import PluginIcon from "./PluginIcon.vue";
+import { createQuickJs } from "@pipelab/shared/quickjs";
+import DOMPurify from "dompurify";
+import { makeResolvedParams } from "@pipelab/shared/evaluator";
+import { ValidationError } from "@renderer/models/error";
+import AddNodeButton from "../AddNodeButton.vue";
+import type { ValueOf } from "type-fest";
+import { MenuItem } from "primevue";
 
 const props = defineProps({
   value: {
     type: Object as PropType<BlockAction>,
-    required: true
+    required: true,
   },
   index: {
     type: Number,
-    required: true
+    required: true,
   },
   path: {
     type: Array as PropType<string[]>,
-    required: true
+    required: true,
     // default: () => []
   },
   errors: {
     type: Object as PropType<Record<string, ValidationError[]>>,
     required: false,
-    default: () => ({})
+    default: () => ({}),
   },
   isRunning: {
     type: Boolean,
     required: false,
-    default: false
-  }
-})
+    default: false,
+  },
+});
 
-const menu = ref()
-const { value, index, isRunning, errors } = toRefs(props)
+const menu = ref();
+const { value, index, isRunning, errors } = toRefs(props);
 
 const items = computed<MenuItem[]>(() => [
   {
-    label: 'Options',
+    label: "Options",
     items: [
       {
-        label: 'Edit',
-        icon: 'mdi-pencil',
+        label: "Edit",
+        icon: "mdi-pencil",
         command: () => {
-          onNodeClick()
-        }
+          onNodeClick();
+        },
       },
       {
-        separator: true
+        separator: true,
       },
       {
-        label: 'Move up',
-        icon: 'mdi-arrow-up',
+        label: "Move up",
+        icon: "mdi-arrow-up",
         command: () => {
-          swapNodes(index.value, 'up')
-        }
+          swapNodes(index.value, "up");
+        },
       },
       {
-        label: 'Move down',
-        icon: 'mdi-arrow-down',
+        label: "Move down",
+        icon: "mdi-arrow-down",
         command: () => {
-          swapNodes(index.value, 'down')
-        }
+          swapNodes(index.value, "down");
+        },
       },
       {
-        separator: true
+        separator: true,
       },
       {
-        label: 'Enable',
-        icon: 'mdi-toggle-switch-off-outline',
+        label: "Enable",
+        icon: "mdi-toggle-switch-off-outline",
         visible: !!value.value.disabled,
         command: () => {
-          enableNode(value.value)
-        }
+          enableNode(value.value);
+        },
       },
       {
-        label: 'Disable',
-        icon: 'mdi-toggle-switch',
+        label: "Disable",
+        icon: "mdi-toggle-switch",
         visible: !value.value.disabled,
         command: () => {
-          disableNode(value.value)
-        }
+          disableNode(value.value);
+        },
       },
       {
-        label: 'Duplicate',
-        icon: 'mdi-content-copy',
+        label: "Duplicate",
+        icon: "mdi-content-copy",
         command: () => {
-          cloneNode(value.value, index.value + 1)
-        }
+          cloneNode(value.value, index.value + 1);
+        },
       },
       {
-        separator: true
+        separator: true,
       },
       {
-        label: 'Delete',
-        icon: 'mdi-trash-can',
-        class: 'danger',
+        label: "Delete",
+        icon: "mdi-trash-can",
+        class: "danger",
         command: () => {
-          removeNode(value.value.uid)
-        }
-      }
-    ]
-  }
-])
+          removeNode(value.value.uid);
+        },
+      },
+    ],
+  },
+]);
 
-const $node = ref<HTMLDivElement>()
+const $node = ref<HTMLDivElement>();
 
 // const isHovered = useElementHover($node)
 
-const editor = useEditor()
+const editor = useEditor();
 const {
   setBlockValue,
   addNode,
@@ -242,109 +242,109 @@ const {
   getNodeDefinition,
   getPluginDefinition,
   setSelectedNode,
-  saveParams
-} = editor
-const { activeNode, variables, selectedNode, resolvedParams, steps, vm } = storeToRefs(editor)
+  saveParams,
+} = editor;
+const { activeNode, variables, selectedNode, resolvedParams, steps, vm } = storeToRefs(editor);
 
-type Param = ValueOf<BlockAction['params']>
+type Param = ValueOf<BlockAction["params"]>;
 
 const toggle = async (event: MouseEvent) => {
   if (!isRunning.value) {
-    await saveParams()
-    menu.value.toggle(event)
+    await saveParams();
+    menu.value.toggle(event);
   }
-}
+};
 
 const hasErrors = computed(() => {
-  const innerErrors = errors.value[value.value.uid]
+  const innerErrors = errors.value[value.value.uid];
   if (innerErrors) {
-    return Object.keys(innerErrors).length > 0
+    return Object.keys(innerErrors).length > 0;
   }
-  return false
-})
+  return false;
+});
 
 const handleInput = (newValue: InputEvent) => {
-  const content = (newValue.target as HTMLDivElement)?.textContent
-  console.log('content', content)
+  const content = (newValue.target as HTMLDivElement)?.textContent;
+  console.log("content", content);
   setBlockValue(value.value.uid, {
     ...value.value,
-    name: content
-  })
-}
+    name: content,
+  });
+};
 
 const onValueChanged = (newValue: Param, paramKey: string) => {
   setBlockValue(value.value.uid, {
     ...value.value,
     params: {
       ...value.value.params,
-      [paramKey]: newValue
-    }
-  })
-}
+      [paramKey]: newValue,
+    },
+  });
+};
 
-const subtitle = ref('')
+const subtitle = ref("");
 
 const nodeDefinition = computed(() => {
-  const def = getNodeDefinition(value.value.origin.nodeId, value.value.origin.pluginId)
+  const def = getNodeDefinition(value.value.origin.nodeId, value.value.origin.pluginId);
   if (def) {
-    return def.node
+    return def.node;
   }
-  return undefined
-})
+  return undefined;
+});
 
 const pluginDefinition = computed(() => {
-  return getPluginDefinition(value.value.origin.pluginId)
-})
+  return getPluginDefinition(value.value.origin.pluginId);
+});
 
 const title = computed(() => {
-  console.log('value.value', value.value.name)
-  console.log('nodeDefinition.value?.name', nodeDefinition.value?.name)
-  return value.value.name ?? nodeDefinition.value?.name ?? ''
-})
+  console.log("value.value", value.value.name);
+  console.log("nodeDefinition.value?.name", nodeDefinition.value?.name);
+  return value.value.name ?? nodeDefinition.value?.name ?? "";
+});
 
 watch(
   [() => resolvedParams.value[value.value.uid], steps, vm],
   async () => {
     if (!vm.value) {
-      return
+      return;
     }
 
-    const nodeParams = resolvedParams.value[value.value.uid]
+    const nodeParams = resolvedParams.value[value.value.uid];
     if (!nodeParams) {
-      subtitle.value = ''
-      return
+      subtitle.value = "";
+      return;
     }
 
-    const displayString = nodeDefinition.value?.displayString ?? ''
+    const displayString = nodeDefinition.value?.displayString ?? "";
     const result = await vm.value.run(displayString, {
       params: nodeParams,
-      steps: steps.value
-    })
-    const clean = DOMPurify.sanitize(result)
-    subtitle.value = clean
+      steps: steps.value,
+    });
+    const clean = DOMPurify.sanitize(result);
+    subtitle.value = clean;
   },
   {
     immediate: true,
-    deep: true
-  }
-)
+    deep: true,
+  },
+);
 
-const showSidebar = ref(false)
+const showSidebar = ref(false);
 
 const onNodeClick = () => {
   if (!isRunning.value) {
-    showSidebar.value = true
-    setSelectedNode(value.value)
+    showSidebar.value = true;
+    setSelectedNode(value.value);
   }
-}
+};
 
 const isNodeSelected = computed(() => {
-  return selectedNode.value?.uid === value.value.uid
-})
+  return selectedNode.value?.uid === value.value.uid;
+});
 
 const hasErrored = computed(() => {
-  return false
-})
+  return false;
+});
 </script>
 
 <style scoped lang="scss">

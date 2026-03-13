@@ -77,82 +77,82 @@
 </template>
 
 <script setup lang="ts">
-import { computed, inject } from 'vue'
-import { useBuildHistory } from '../renderer/store/build-history'
-import { useAuth } from '../renderer/store/auth'
-import { storeToRefs } from 'pinia'
+import { computed, inject } from "vue";
+import { useBuildHistory } from "../renderer/store/build-history";
+import { useAuth } from "../renderer/store/auth";
+import { storeToRefs } from "pinia";
 
 // Composables
-const buildHistoryStore = useBuildHistory()
-const authStore = useAuth()
-const openUpgradeDialog = inject('openUpgradeDialog') as () => void
+const buildHistoryStore = useBuildHistory();
+const authStore = useAuth();
+const openUpgradeDialog = inject("openUpgradeDialog") as () => void;
 
 // Destructure auth store with storeToRefs for proper reactivity
-const { hasBuildHistoryBenefit } = storeToRefs(authStore)
+const { hasBuildHistoryBenefit } = storeToRefs(authStore);
 
 // Computed properties from build history store
-const { entries, isLoading, error, storageInfo, hasEntries } = storeToRefs(buildHistoryStore)
+const { entries, isLoading, error, storageInfo, hasEntries } = storeToRefs(buildHistoryStore);
 
 // Computed properties from auth store (for internal use)
 
 // Auth-related computed properties (used in template)
 const isAuthLoading = computed(
   () =>
-    authStore.authState === 'INITIALIZING' ||
-    authStore.authState === 'LOADING' ||
+    authStore.authState === "INITIALIZING" ||
+    authStore.authState === "LOADING" ||
     authStore.isAuthenticating ||
-    authStore.isLoadingSubscriptions
-)
+    authStore.isLoadingSubscriptions,
+);
 
-const canAccessBuildHistory = computed(() => hasBuildHistoryBenefit.value && !isAuthLoading.value)
+const canAccessBuildHistory = computed(() => hasBuildHistoryBenefit.value && !isAuthLoading.value);
 
 // Methods
 const formatDate = (timestamp: number): string => {
-  return new Date(timestamp).toLocaleString()
-}
+  return new Date(timestamp).toLocaleString();
+};
 
 const formatDuration = (duration: number): string => {
-  const seconds = Math.floor(duration / 1000)
-  const minutes = Math.floor(seconds / 60)
-  const hours = Math.floor(minutes / 60)
+  const seconds = Math.floor(duration / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
 
   if (hours > 0) {
-    return `${hours}h ${minutes % 60}m`
+    return `${hours}h ${minutes % 60}m`;
   } else if (minutes > 0) {
-    return `${minutes}m ${seconds % 60}s`
+    return `${minutes}m ${seconds % 60}s`;
   } else {
-    return `${seconds}s`
+    return `${seconds}s`;
   }
-}
+};
 
 const formatSize = (bytes: number): string => {
-  const units = ['B', 'KB', 'MB', 'GB']
-  let size = bytes
-  let unitIndex = 0
+  const units = ["B", "KB", "MB", "GB"];
+  let size = bytes;
+  let unitIndex = 0;
 
   while (size >= 1024 && unitIndex < units.length - 1) {
-    size /= 1024
-    unitIndex++
+    size /= 1024;
+    unitIndex++;
   }
 
-  return `${size.toFixed(1)} ${units[unitIndex]}`
-}
+  return `${size.toFixed(1)} ${units[unitIndex]}`;
+};
 
 const retryLoad = async (): Promise<void> => {
   try {
-    await buildHistoryStore.loadEntries()
+    await buildHistoryStore.loadEntries();
   } catch (error) {
-    console.error('Failed to retry loading build history:', error)
+    console.error("Failed to retry loading build history:", error);
   }
-}
+};
 
 const showSubscriptionOptions = (): void => {
-  openUpgradeDialog()
-}
+  openUpgradeDialog();
+};
 
 defineEmits<{
-  'update:visible': [value: boolean]
-}>()
+  "update:visible": [value: boolean];
+}>();
 </script>
 
 <style scoped>

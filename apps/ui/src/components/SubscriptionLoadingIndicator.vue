@@ -7,16 +7,16 @@
 
 <script lang="ts" setup>
 interface Props {
-  message?: string
-  size?: 'small' | 'medium' | 'large'
-  showText?: boolean
+  message?: string;
+  size?: "small" | "medium" | "large";
+  showText?: boolean;
 }
 
 withDefaults(defineProps<Props>(), {
-  message: 'Loading...',
-  size: 'small',
-  showText: true
-})
+  message: "Loading...",
+  size: "small",
+  showText: true,
+});
 </script>
 
 <style lang="scss" scoped>

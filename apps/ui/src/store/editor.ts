@@ -1,4 +1,4 @@
-import { computed, onMounted, ref, shallowRef, watch } from 'vue'
+import { computed, onMounted, ref, shallowRef, watch } from "vue";
 import {
   Block,
   BlockAction,
@@ -8,56 +8,56 @@ import {
   SavedFile,
   savedFileMigrator,
   SavedFileValidator,
-  Steps
-} from '@pipelab/shared/model'
+  Steps,
+} from "@pipelab/shared/model";
 import {
   Action,
   Condition,
   Event,
   Loop,
   PipelabNode,
-  RendererNodeDefinition
-} from '@pipelab/plugin-core'
-import { Variable } from '@pipelab/core-app'
-import { defineStore, storeToRefs } from 'pinia'
-import get from 'get-value'
-import set from 'set-value'
-import { nanoid } from 'nanoid'
-import { AddNodeEvent, AddTriggerEvent } from '@renderer/components/AddNodeButton.model'
-import { useAppStore } from './app'
-import { useFiles } from './files'
-import { useRouteParams } from '@vueuse/router'
-import { ValidationError } from '@renderer/models/error'
-import { isRequired } from '@pipelab/shared/validation'
-import { useLogger } from '@pipelab/shared/logger'
-import { klona } from 'klona'
-import { create } from 'mutative'
-import { parse, value } from 'valibot'
-import { createEventHook, watchDebounced } from '@vueuse/core'
-import { makeResolvedParams } from '@pipelab/shared/evaluator'
-import { createQuickJs } from '@pipelab/shared/quickjs'
-import { Context } from '@pipelab/shared/types'
+  RendererNodeDefinition,
+} from "@pipelab/plugin-core";
+import { Variable } from "@pipelab/core-app";
+import { defineStore, storeToRefs } from "pinia";
+import get from "get-value";
+import set from "set-value";
+import { nanoid } from "nanoid";
+import { AddNodeEvent, AddTriggerEvent } from "@renderer/components/AddNodeButton.model";
+import { useAppStore } from "./app";
+import { useFiles } from "./files";
+import { useRouteParams } from "@vueuse/router";
+import { ValidationError } from "@renderer/models/error";
+import { isRequired } from "@pipelab/shared/validation";
+import { useLogger } from "@pipelab/shared/logger";
+import { klona } from "klona";
+import { create } from "mutative";
+import { parse, value } from "valibot";
+import { createEventHook, watchDebounced } from "@vueuse/core";
+import { makeResolvedParams } from "@pipelab/shared/evaluator";
+import { createQuickJs } from "@pipelab/shared/quickjs";
+import { Context } from "@pipelab/shared/types";
 
 // Definitions
 export const isActionDefinition = (nodeDefinition: PipelabNode): nodeDefinition is Action => {
-  return nodeDefinition.type === 'action'
-}
+  return nodeDefinition.type === "action";
+};
 
 export const isConditionDefinition = (nodeDefinition: PipelabNode): nodeDefinition is Condition => {
-  return nodeDefinition.type === 'condition'
-}
+  return nodeDefinition.type === "condition";
+};
 
 export const isEventDefinition = (nodeDefinition: PipelabNode): nodeDefinition is Event => {
-  return nodeDefinition.type === 'event'
-}
+  return nodeDefinition.type === "event";
+};
 
 export const isLoopDefinition = (nodeDefinition: PipelabNode): nodeDefinition is Loop => {
-  return nodeDefinition.type === 'loop'
-}
+  return nodeDefinition.type === "loop";
+};
 
 export const isActionBlock = (nodeDefinition: Block): nodeDefinition is BlockAction => {
-  return nodeDefinition.type === 'action'
-}
+  return nodeDefinition.type === "action";
+};
 
 // export const isConditionBlock = (nodeDefinition: Block): nodeDefinition is BlockCondition => {
 //   return nodeDefinition.type === 'condition'
@@ -75,73 +75,73 @@ export const isActionBlock = (nodeDefinition: Block): nodeDefinition is BlockAct
 //   return nodeDefinition.type === 'loop'
 // }
 
-export type BlockToNode<T extends Block> = T['type'] extends 'action'
+export type BlockToNode<T extends Block> = T["type"] extends "action"
   ? Action
-  : T['type'] extends 'condition'
+  : T["type"] extends "condition"
     ? Condition
-    : T['type'] extends 'event'
+    : T["type"] extends "event"
       ? Event
-      : T['type'] extends 'loop'
+      : T["type"] extends "loop"
         ? Loop
-        : never
+        : never;
 
-export type Status = 'idle' | 'running' | 'error' | 'canceled' | 'done'
+export type Status = "idle" | "running" | "error" | "canceled" | "done";
 
-export const useEditor = defineStore('editor', () => {
-  const appStore = useAppStore()
-  const { presets, pluginDefinitions } = storeToRefs(appStore)
-  const { getNodeDefinition, getPluginDefinition } = appStore
+export const useEditor = defineStore("editor", () => {
+  const appStore = useAppStore();
+  const { presets, pluginDefinitions } = storeToRefs(appStore);
+  const { getNodeDefinition, getPluginDefinition } = appStore;
 
-  const { logger } = useLogger()
+  const { logger } = useLogger();
 
-  const filesStore = useFiles()
-  const { files } = storeToRefs(filesStore)
+  const filesStore = useFiles();
+  const { files } = storeToRefs(filesStore);
 
-  const pipelineId = useRouteParams<string>('pipelineId')
-  const projectId = useRouteParams<string>('projectId')
+  const pipelineId = useRouteParams<string>("pipelineId");
+  const projectId = useRouteParams<string>("projectId");
 
-  const name = ref('')
-  const description = ref('')
+  const name = ref("");
+  const description = ref("");
 
-  const isRunning = ref(false)
+  const isRunning = ref(false);
   const setIsRunning = (value: boolean) => {
-    isRunning.value = value
-  }
+    isRunning.value = value;
+  };
 
   /** All the nodes on the editor */
-  const blocks = ref<Array<Block>>([])
+  const blocks = ref<Array<Block>>([]);
 
   /** All the trigger nodes on the editor */
-  const triggers = ref<Array<BlockEvent>>([])
+  const triggers = ref<Array<BlockEvent>>([]);
 
   /** All the variables of the editor */
-  const variables = ref<Array<Variable>>([])
+  const variables = ref<Array<Variable>>([]);
 
   /** All the environnement variables supported for the editor */
-  const environnements = ref<Array<any>>([])
+  const environnements = ref<Array<any>>([]);
 
   /** All log lines relative to their plugin instance */
-  const logLines = ref<Record<string, unknown[]>>({})
+  const logLines = ref<Record<string, unknown[]>>({});
 
-  const nodeStatuses = ref<Record<string, Status>>({})
+  const nodeStatuses = ref<Record<string, Status>>({});
 
   /** The API helper */
   // const api = useAPI()
 
   const pushLine = (nodeUid: string, data: string) => {
     if (!logLines.value[nodeUid]) {
-      logLines.value[nodeUid] = []
+      logLines.value[nodeUid] = [];
     }
-    logLines.value[nodeUid].push(data)
-  }
+    logLines.value[nodeUid].push(data);
+  };
 
   const clearLogs = () => {
-    logLines.value = {}
-  }
+    logLines.value = {};
+  };
 
   const currentFilePointer = computed(() => {
-    return files.value.pipelines.find((x) => x.id === pipelineId.value)
-  })
+    return files.value.pipelines.find((x) => x.id === pipelineId.value);
+  });
 
   // const savedFile = computed(() => {
   //   return {
@@ -168,20 +168,20 @@ export const useEditor = defineStore('editor', () => {
   // })
 
   const stepsDisplay = computed(() => {
-    const result: Steps = {}
+    const result: Steps = {};
 
     for (const node of blocks.value) {
-      const pluginDef = getNodeDefinition(node.origin.nodeId, node.origin.pluginId)
+      const pluginDef = getNodeDefinition(node.origin.nodeId, node.origin.pluginId);
 
       if (!result[node.uid]) {
         result[node.uid] = {
-          outputs: {}
-        }
+          outputs: {},
+        };
       }
 
       if (pluginDef) {
-        if (pluginDef.node.type === 'action') {
-          const outputs = pluginDef.node.outputs
+        if (pluginDef.node.type === "action") {
+          const outputs = pluginDef.node.outputs;
 
           for (const [key, output] of Object.entries(outputs)) {
             /*
@@ -189,32 +189,32 @@ export const useEditor = defineStore('editor', () => {
               class="mdi mdi-play-circle"
               />
             */
-            result[node.uid]['outputs'][key] =
-              `<span class="step">${node.name ?? pluginDef.node.name} → ${output.label}</span>`
+            result[node.uid]["outputs"][key] =
+              `<span class="step">${node.name ?? pluginDef.node.name} → ${output.label}</span>`;
           }
         }
       }
     }
 
-    return result
-  })
+    return result;
+  });
 
-  const activeNode = ref<BlockAction | BlockCondition | BlockLoop>()
+  const activeNode = ref<BlockAction | BlockCondition | BlockLoop>();
   const setActiveNode = (node: BlockAction | BlockCondition | BlockLoop | undefined) => {
-    activeNode.value = node
-  }
+    activeNode.value = node;
+  };
 
-  const selectedNodeUid = ref<string | undefined>()
+  const selectedNodeUid = ref<string | undefined>();
   const selectedNode = computed(() => {
     if (!selectedNodeUid.value) {
-      return undefined
+      return undefined;
     }
-    return blocks.value.find((x) => x.uid === selectedNodeUid.value)
-  })
+    return blocks.value.find((x) => x.uid === selectedNodeUid.value);
+  });
   const setSelectedNode = (node: BlockAction | BlockCondition | BlockLoop | undefined) => {
-    console.log('node', node)
-    selectedNodeUid.value = node?.uid
-  }
+    console.log("node", node);
+    selectedNodeUid.value = node?.uid;
+  };
 
   /** All the plugins's node definitions */
   const nodeDefinitions = computed(() => {
@@ -222,59 +222,59 @@ export const useEditor = defineStore('editor', () => {
       .map((x) =>
         x.nodes.map((n) => ({
           ...n,
-          plugin: x.id
-        }))
+          plugin: x.id,
+        })),
       )
-      .flat(3) satisfies RendererNodeDefinition[]
-  })
+      .flat(3) satisfies RendererNodeDefinition[];
+  });
 
   const clear = () => {
-    blocks.value = []
-    variables.value = []
-    triggers.value = []
-    setActiveNode(undefined)
-    setSelectedNode(undefined)
-  }
+    blocks.value = [];
+    variables.value = [];
+    triggers.value = [];
+    setActiveNode(undefined);
+    setSelectedNode(undefined);
+  };
 
   const errors = computed(() => {
-    const editorErrors: Record<string, ValidationError[]> = {}
+    const editorErrors: Record<string, ValidationError[]> = {};
     for (const block of blocks.value) {
-      const blockErrors = validate(block)
+      const blockErrors = validate(block);
 
       for (const err of blockErrors) {
         if (!editorErrors[block.uid]) {
-          editorErrors[block.uid] = []
+          editorErrors[block.uid] = [];
         }
-        editorErrors[block.uid].push(err)
+        editorErrors[block.uid].push(err);
       }
     }
 
-    return editorErrors
-  })
+    return editorErrors;
+  });
 
   const validate = (block: Block | BlockEvent) => {
-    const errors: ValidationError[] = []
-    if (block.type === 'action') {
-      const definition = getNodeDefinition(block.origin.nodeId, block.origin.pluginId)
+    const errors: ValidationError[] = [];
+    if (block.type === "action") {
+      const definition = getNodeDefinition(block.origin.nodeId, block.origin.pluginId);
       if (!definition) {
         errors.push({
-          type: 'missing',
-          param: block.origin.nodeId + ':' + block.origin.pluginId
-        })
-        logger().warn(`Missing required node "${block.origin.nodeId}:${block.origin.pluginId}"`)
-        return errors
+          type: "missing",
+          param: block.origin.nodeId + ":" + block.origin.pluginId,
+        });
+        logger().warn(`Missing required node "${block.origin.nodeId}:${block.origin.pluginId}"`);
+        return errors;
       }
-      const requiredParams = Object.entries(definition.node?.params ?? {})
+      const requiredParams = Object.entries(definition.node?.params ?? {});
       for (const [key, param] of requiredParams) {
         if (
           (isRequired(param) && !(key in block.params)) ||
           (isRequired(param) && !block.params[key].value)
         ) {
-          logger().warn(`Missing required param "${key}" in node "${block.uid}"`)
+          logger().warn(`Missing required param "${key}" in node "${block.uid}"`);
           errors.push({
-            type: 'missing',
-            param: key
-          })
+            type: "missing",
+            param: key,
+          });
         }
       }
 
@@ -290,7 +290,7 @@ export const useEditor = defineStore('editor', () => {
       //       })
       //     }
       //   }
-    } else if (block.type === 'event') {
+    } else if (block.type === "event") {
       //
       // } else if (block.type === 'loop') {
       //   const definition = getNodeDefinition(block.origin.nodeId, block.origin.pluginId)
@@ -307,56 +307,56 @@ export const useEditor = defineStore('editor', () => {
       // } else if (block.type === 'comment') {
       //   //
     }
-    return errors
-  }
+    return errors;
+  };
 
   const loadSavedFile = async (input: Readonly<SavedFile>) => {
-    clear()
+    clear();
 
     const data = await savedFileMigrator.migrate(input, {
-      debug: true
-    })
+      debug: true,
+    });
 
     // ensure all params are there
     const finalData = create(data, (draft) => {
       for (const block of draft.canvas.blocks) {
-        const definition = getNodeDefinition(block.origin.nodeId, block.origin.pluginId)
+        const definition = getNodeDefinition(block.origin.nodeId, block.origin.pluginId);
         if (definition) {
-          const params = definition.node.params
+          const params = definition.node.params;
           for (const param of Object.keys(params)) {
             if (!(param in block.params)) {
-              console.log('params[param]', params[param])
-              console.warn('adding mising param', param, {
-                editor: 'simple',
-                value: params[param].value
-              })
+              console.log("params[param]", params[param]);
+              console.warn("adding mising param", param, {
+                editor: "simple",
+                value: params[param].value,
+              });
               block.params[param] = {
-                editor: 'simple',
-                value: params[param].value
-              }
+                editor: "simple",
+                value: params[param].value,
+              };
             }
           }
         }
       }
-    })
+    });
 
-    await parse(SavedFileValidator, finalData)
+    await parse(SavedFileValidator, finalData);
 
-    name.value = finalData.name
-    description.value = finalData.description
+    name.value = finalData.name;
+    description.value = finalData.description;
 
     for (const variable of finalData.variables) {
-      addVariable(variable)
+      addVariable(variable);
     }
 
     for (const block of finalData.canvas.blocks) {
-      blocks.value.push(block)
-      validate(block)
+      blocks.value.push(block);
+      validate(block);
     }
 
     for (const trigger of finalData.canvas.triggers) {
-      triggers.value.push(trigger)
-      validate(trigger)
+      triggers.value.push(trigger);
+      validate(trigger);
     }
 
     // // load connections
@@ -371,126 +371,126 @@ export const useEditor = defineStore('editor', () => {
     // }
 
     // console.log('/ loadSchemaIntoEditor')
-  }
+  };
 
   /**
    * TODO: support nested removals
    */
   const removeNode = (nodeId: string) => {
-    const nodeIndex = blocks.value.findIndex((b) => b.uid === nodeId)
+    const nodeIndex = blocks.value.findIndex((b) => b.uid === nodeId);
     if (nodeIndex > -1) {
       blocks.value = [
         ...blocks.value.slice(0, nodeIndex),
-        ...blocks.value.slice(nodeIndex + 1, undefined)
-      ]
+        ...blocks.value.slice(nodeIndex + 1, undefined),
+      ];
     }
-  }
+  };
 
   const removeTrigger = (triggerId: string) => {
-    const triggerIndex = triggers.value.findIndex((b) => b.uid === triggerId)
+    const triggerIndex = triggers.value.findIndex((b) => b.uid === triggerId);
     if (triggerIndex > -1) {
       triggers.value = [
         ...triggers.value.slice(0, triggerIndex),
-        ...triggers.value.slice(triggerIndex + 1, undefined)
-      ]
+        ...triggers.value.slice(triggerIndex + 1, undefined),
+      ];
     }
-  }
+  };
 
   const setBlockValue = (nodeId: string, value: Block) => {
-    const nodeIndex = blocks.value.findIndex((b) => b.uid === nodeId)
+    const nodeIndex = blocks.value.findIndex((b) => b.uid === nodeId);
     if (nodeIndex > -1) {
       // replace node
       blocks.value = [
         ...blocks.value.slice(0, nodeIndex),
         value,
-        ...blocks.value.slice(nodeIndex + 1, undefined)
-      ]
+        ...blocks.value.slice(nodeIndex + 1, undefined),
+      ];
     }
-  }
+  };
 
   const setTriggerValue = (nodeId: string, value: BlockEvent) => {
-    const nodeIndex = triggers.value.findIndex((b) => b.uid === nodeId)
+    const nodeIndex = triggers.value.findIndex((b) => b.uid === nodeId);
     if (nodeIndex > -1) {
       // replace node
       triggers.value = [
         ...triggers.value.slice(0, nodeIndex),
         value,
-        ...triggers.value.slice(nodeIndex + 1, undefined)
-      ]
+        ...triggers.value.slice(nodeIndex + 1, undefined),
+      ];
     }
-  }
+  };
 
-  const swapNodes = (index: number, direction: 'up' | 'down') => {
-    const newIndex = index + (direction === 'up' ? -1 : 1)
+  const swapNodes = (index: number, direction: "up" | "down") => {
+    const newIndex = index + (direction === "up" ? -1 : 1);
     const output = blocks.value.map((element, _index) =>
       _index === index
         ? blocks.value[newIndex]
         : _index === newIndex
           ? blocks.value[index]
-          : element
-    )
-    console.log('input', blocks.value)
-    console.log('output', output)
+          : element,
+    );
+    console.log("input", blocks.value);
+    console.log("output", output);
 
-    blocks.value = output
-  }
+    blocks.value = output;
+  };
 
   const cloneNode = (node: Block, newIndex: number) => {
-    const newNode = klona(node)
-    newNode.uid = nanoid()
-    addNodeToBlock(newNode, [], newIndex)
-  }
+    const newNode = klona(node);
+    newNode.uid = nanoid();
+    addNodeToBlock(newNode, [], newIndex);
+  };
 
   const disableNode = (node: Block) => {
     blocks.value = create(klona(blocks.value), (draft) => {
       for (let i = 0; i < draft.length; i += 1) {
         if (draft[i].uid === node.uid) {
-          draft[i].disabled = true
+          draft[i].disabled = true;
         }
       }
-    })
-  }
+    });
+  };
 
   const enableNode = (node: Block) => {
     blocks.value = create(klona(blocks.value), (draft) => {
       for (let i = 0; i < draft.length; i += 1) {
         if (draft[i].uid === node.uid) {
-          draft[i].disabled = false
+          draft[i].disabled = false;
         }
       }
-    })
-  }
+    });
+  };
 
   const addNode = (event: AddNodeEvent) => {
-    const { node: nodeDefinition, path, plugin: pluginDefinition, insertAt } = event
+    const { node: nodeDefinition, path, plugin: pluginDefinition, insertAt } = event;
 
     if (nodeDefinition && pluginDefinition) {
       if (isActionDefinition(nodeDefinition)) {
-        console.log('nodeDefinition', nodeDefinition)
+        console.log("nodeDefinition", nodeDefinition);
 
-        const createParams: BlockAction['params'] = {}
+        const createParams: BlockAction["params"] = {};
         for (const [key, param] of Object.entries(nodeDefinition.params)) {
           // ensure the value is converted to code expression
-          const val = param.value
+          const val = param.value;
 
           createParams[key] = {
-            editor: 'simple',
-            value: val
-          }
+            editor: "simple",
+            value: val,
+          };
         }
 
-        console.log('createParams', createParams)
+        console.log("createParams", createParams);
 
         const node: BlockAction = {
           uid: nanoid(),
           type: nodeDefinition.type,
           origin: {
             nodeId: nodeDefinition.id,
-            pluginId: pluginDefinition.id
+            pluginId: pluginDefinition.id,
           },
-          params: createParams
-        }
-        addNodeToBlock(node, path, insertAt)
+          params: createParams,
+        };
+        addNodeToBlock(node, path, insertAt);
       } /* else if (isConditionDefinition(nodeDefinition)) {
         const node: BlockCondition = {
           uid: nanoid(),
@@ -517,13 +517,13 @@ export const useEditor = defineStore('editor', () => {
         }
         addNodeToBlock(node, path, insertAt)
       } */ else {
-        logger().error('Unhandled', nodeDefinition)
+        logger().error("Unhandled", nodeDefinition);
       }
     }
-  }
+  };
 
   const addTrigger = (event: AddTriggerEvent) => {
-    const { trigger: triggerDefinition, path, plugin: pluginDefinition, insertAt } = event
+    const { trigger: triggerDefinition, path, plugin: pluginDefinition, insertAt } = event;
 
     if (triggerDefinition && pluginDefinition) {
       if (isEventDefinition(triggerDefinition)) {
@@ -532,19 +532,19 @@ export const useEditor = defineStore('editor', () => {
           type: triggerDefinition.type,
           origin: {
             nodeId: triggerDefinition.id,
-            pluginId: pluginDefinition.id
+            pluginId: pluginDefinition.id,
           },
-          params: {}
-        }
-        addTriggerToBlock(node, path, insertAt)
+          params: {},
+        };
+        addTriggerToBlock(node, path, insertAt);
       } else {
-        logger().error('Unhandled', triggerDefinition)
+        logger().error("Unhandled", triggerDefinition);
       }
     }
-  }
+  };
 
   const addTriggerToBlock = (node: BlockEvent, path: string[], insertAt: number) => {
-    const value = path.length === 0 ? triggers.value : get(triggers.value, path)
+    const value = path.length === 0 ? triggers.value : get(triggers.value, path);
 
     // const firstPart = value.slice(0, insertAt)
     // const secondPart = value.slice(insertAt + 1)
@@ -553,17 +553,17 @@ export const useEditor = defineStore('editor', () => {
       ...value.slice(0, insertAt),
       node,
       ...value.slice(
-        insertAt // already has +1
-      )
-    ]
+        insertAt, // already has +1
+      ),
+    ];
     if (path.length === 0) {
-      triggers.value = newValue
+      triggers.value = newValue;
     } else {
-      set(triggers.value, path, newValue)
+      set(triggers.value, path, newValue);
     }
 
-    return
-  }
+    return;
+  };
 
   // const addNodeToBlock = (node: Block, path: string[], insertAt: number) => {
   //   console.log('node', node)
@@ -591,112 +591,112 @@ export const useEditor = defineStore('editor', () => {
   // }
 
   const addNodeToBlock = (node: Block, path: string[], insertAt: number) => {
-    console.log('node', node)
-    console.log('path', path)
-    console.log('insertAt', insertAt)
+    console.log("node", node);
+    console.log("path", path);
+    console.log("insertAt", insertAt);
 
-    const value = blocks.value
+    const value = blocks.value;
 
     const newValue = [
       ...value.slice(0, insertAt),
       node,
       ...value.slice(
-        insertAt // already has +1
-      )
-    ]
-    blocks.value = newValue
+        insertAt, // already has +1
+      ),
+    ];
+    blocks.value = newValue;
 
-    return
-  }
+    return;
+  };
 
   const addVariable = (variable: Variable) => {
-    variables.value.push(variable)
-  }
+    variables.value.push(variable);
+  };
 
   const removeVariable = (id: string) => {
-    const index = variables.value.findIndex((x) => x.id === id)
+    const index = variables.value.findIndex((x) => x.id === id);
     variables.value = [
       ...variables.value.slice(0, index),
-      ...variables.value.slice(index + 1, undefined)
-    ]
-  }
+      ...variables.value.slice(index + 1, undefined),
+    ];
+  };
 
   const updateVariable = (variable: Variable) => {
     variables.value = create(variables.value, (draft) => {
-      console.log('draft', draft)
+      console.log("draft", draft);
       for (let i = 0; i < draft.length; i += 1) {
-        console.log('draft[i]', draft[i])
+        console.log("draft[i]", draft[i]);
         if (draft[i].id === variable.id) {
-          draft[i] = klona(variable)
+          draft[i] = klona(variable);
         }
       }
-      return draft
-    })
-  }
+      return draft;
+    });
+  };
 
   const loadPreset = async (preset: string) => {
     if (!presets.value) {
-      throw new Error('No presets')
+      throw new Error("No presets");
     }
 
     if (preset) {
-      const selectedPreset = presets.value[preset]
+      const selectedPreset = presets.value[preset];
       if (selectedPreset) {
-        await loadSavedFile(selectedPreset.data)
+        await loadSavedFile(selectedPreset.data);
       }
     }
-  }
+  };
 
   const variablesDisplay = computed(() => {
-    const result: Record<string, string> = {}
+    const result: Record<string, string> = {};
     for (const variable of variables.value) {
-      result[variable.id] = `<div class="variable">@${variable.name}</div>`
+      result[variable.id] = `<div class="variable">@${variable.name}</div>`;
     }
-    return result
-  })
+    return result;
+  });
 
-  const vm = shallowRef()
+  const vm = shallowRef();
   createQuickJs().then((_vm) => {
-    vm.value = _vm
-  })
+    vm.value = _vm;
+  });
 
-  const whenModified = createEventHook()
+  const whenModified = createEventHook();
 
   async function saveParams() {
-    const newResolvedParams: Record<string, Record<string, unknown>> = {}
+    const newResolvedParams: Record<string, Record<string, unknown>> = {};
 
     for (const block of blocks.value) {
-      if (block.type === 'action') {
+      if (block.type === "action") {
         const resolved = await makeResolvedParams(
           {
             params: block.params,
             steps: stepsDisplay.value,
             context: {},
-            variables: variablesDisplay.value
+            variables: variablesDisplay.value,
           },
           (item) => {
-            return item
+            return item;
           },
-          vm.value
-        )
-        newResolvedParams[block.uid] = resolved
+          vm.value,
+        );
+        newResolvedParams[block.uid] = resolved;
       }
     }
 
-    resolvedParams.value = newResolvedParams
-    whenModified.trigger()
+    resolvedParams.value = newResolvedParams;
+    whenModified.trigger();
   }
 
-  const resolvedParams = ref<Record<string, Record<string, unknown>>>({})
+  const resolvedParams = ref<Record<string, Record<string, unknown>>>({});
   watch([blocks, stepsDisplay, variablesDisplay], saveParams, {
-    deep: true
-  })
+    deep: true,
+  });
 
   onMounted(() => {
-    console.group('onMounted')
-    saveParams()
-    console.groupEnd()
-  })
+    console.group("onMounted");
+    saveParams();
+    console.groupEnd();
+  });
 
   return {
     nodes: blocks,
@@ -758,8 +758,8 @@ export const useEditor = defineStore('editor', () => {
     steps: stepsDisplay,
 
     // Hooks
-    onEditorChanged: whenModified.on
-  }
-})
+    onEditorChanged: whenModified.on,
+  };
+});
 
-export type UseEditorFn = ReturnType<typeof useEditor>
+export type UseEditorFn = ReturnType<typeof useEditor>;

@@ -199,7 +199,7 @@
           <div class="bottom" :class="{ expanded: bottomExpanded }">
             <div id="tour-editor-logs" class="header" @click="toggleLogsWindow">
               <div class="ml-2 h3 logs-header">
-                <div>{{ t('base.logs') }}</div>
+                <div>{{ t("base.logs") }}</div>
                 <div v-if="isRunning" class="logs-animated">
                   <div
                     v-for="log in quickLogs"
@@ -250,7 +250,7 @@
                             'mdi-close-circle': nodeStatuses[key] === 'error',
                             'mdi-progress-question': nodeStatuses[key] === 'idle',
                             'mdi-cog': nodeStatuses[key] === 'running',
-                            rotate: nodeStatuses[key] === 'running'
+                            rotate: nodeStatuses[key] === 'running',
                           }"
                         ></i>
                         <span class="font-bold whitespace-nowrap">{{ keyToNodeName(key) }}</span>
@@ -316,64 +316,64 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, inject, reactive, ref, watch, onMounted } from 'vue'
-import Accordion from 'primevue/accordion'
-import AccordionPanel from 'primevue/accordionpanel'
-import AccordionHeader from 'primevue/accordionheader'
-import AccordionContent from 'primevue/accordioncontent'
-import { useEditor } from '@renderer/store/editor'
-import NodesEditor from '@renderer/pages/nodes-editor.vue'
-import EditorNodeDummy from '@renderer/components/nodes/EditorNodeDummy.vue'
-import { storeToRefs } from 'pinia'
-import { useRouter } from 'vue-router'
+import { computed, inject, reactive, ref, watch, onMounted } from "vue";
+import Accordion from "primevue/accordion";
+import AccordionPanel from "primevue/accordionpanel";
+import AccordionHeader from "primevue/accordionheader";
+import AccordionContent from "primevue/accordioncontent";
+import { useEditor } from "@renderer/store/editor";
+import NodesEditor from "@renderer/pages/nodes-editor.vue";
+import EditorNodeDummy from "@renderer/components/nodes/EditorNodeDummy.vue";
+import { storeToRefs } from "pinia";
+import { useRouter } from "vue-router";
 import {
   BlockAction,
   BlockCondition,
   BlockLoop,
   SavedFile,
-  SavedFileDefault
-} from '@pipelab/shared/model'
-import { useAPI } from '@renderer/composables/api'
-import { useToast } from 'primevue/usetoast'
-import { tinykeys } from 'tinykeys'
-import { useFiles } from '@renderer/store/files'
-import { klona } from 'klona'
-import { loadExternalFile, saveExternalFile } from '@renderer/utils/config'
-import EditorNodeEvent from '@renderer/components/nodes/EditorNodeEvent.vue'
-import EditorNodeEventEmpty from '@renderer/components/nodes/EditorNodeEventEmpty.vue'
-import { handle, HandleListenerRendererSendFn } from '@renderer/composables/handlers'
-import VariablesEditor from './variables-editor.vue'
-import EnvironementEditor from './environement-editor.vue'
-import ProjectSettingsEditor from './project-settings-editor.vue'
-import { format } from 'date-fns'
-import { FancyAnsi, hasAnsi } from 'fancy-ansi'
-import { debounce, watchThrottled } from '@vueuse/core'
-import { stripHtml } from 'string-strip-html'
-import posthog from 'posthog-js'
-import Layout from '@renderer/components/Layout.vue'
-import { useAuth } from '@renderer/store/auth'
-import type { ValueOf } from 'type-fest'
-import ParamEditor from '@renderer/components/nodes/ParamEditor.vue'
-import { useI18n } from 'vue-i18n'
-import BuildHistoryDialog from '@renderer/components/BuildHistoryDialog.vue'
-import { useTour } from '@renderer/composables/useTour'
-import { debounce as esDebounce } from 'es-toolkit'
+  SavedFileDefault,
+} from "@pipelab/shared/model";
+import { useAPI } from "@renderer/composables/api";
+import { useToast } from "primevue/usetoast";
+import { tinykeys } from "tinykeys";
+import { useFiles } from "@renderer/store/files";
+import { klona } from "klona";
+import { loadExternalFile, saveExternalFile } from "@renderer/utils/config";
+import EditorNodeEvent from "@renderer/components/nodes/EditorNodeEvent.vue";
+import EditorNodeEventEmpty from "@renderer/components/nodes/EditorNodeEventEmpty.vue";
+import { handle, HandleListenerRendererSendFn } from "@renderer/composables/handlers";
+import VariablesEditor from "./variables-editor.vue";
+import EnvironementEditor from "./environement-editor.vue";
+import ProjectSettingsEditor from "./project-settings-editor.vue";
+import { format } from "date-fns";
+import { FancyAnsi, hasAnsi } from "fancy-ansi";
+import { debounce, watchThrottled } from "@vueuse/core";
+import { stripHtml } from "string-strip-html";
+import posthog from "posthog-js";
+import Layout from "@renderer/components/Layout.vue";
+import { useAuth } from "@renderer/store/auth";
+import type { ValueOf } from "type-fest";
+import ParamEditor from "@renderer/components/nodes/ParamEditor.vue";
+import { useI18n } from "vue-i18n";
+import BuildHistoryDialog from "@renderer/components/BuildHistoryDialog.vue";
+import { useTour } from "@renderer/composables/useTour";
+import { debounce as esDebounce } from "es-toolkit";
 
-import { useAppSettings } from '@renderer/store/settings'
+import { useAppSettings } from "@renderer/store/settings";
 
-type Param = ValueOf<BlockAction['params']>
+type Param = ValueOf<BlockAction["params"]>;
 
-const router = useRouter()
-const openUpgradeDialog = inject('openUpgradeDialog') as () => void
+const router = useRouter();
+const openUpgradeDialog = inject("openUpgradeDialog") as () => void;
 
-const api = useAPI()
+const api = useAPI();
 
-const fancyAnsi = new FancyAnsi()
+const fancyAnsi = new FancyAnsi();
 
-const appSettings = useAppSettings()
-const { settings: settingsRef } = storeToRefs(appSettings)
+const appSettings = useAppSettings();
+const { settings: settingsRef } = storeToRefs(appSettings);
 
-const instance = useEditor()
+const instance = useEditor();
 const {
   nodes,
   triggers,
@@ -387,8 +387,8 @@ const {
   logLines,
   nodeStatuses,
   isRunning,
-  selectedNode
-} = storeToRefs(instance)
+  selectedNode,
+} = storeToRefs(instance);
 const {
   loadSavedFile,
   setIsRunning,
@@ -399,63 +399,63 @@ const {
   setBlockValue,
   setSelectedNode,
   setActiveNode,
-  onEditorChanged
-} = instance
-const { activeNode } = storeToRefs(instance)
+  onEditorChanged,
+} = instance;
+const { activeNode } = storeToRefs(instance);
 
-const { t } = useI18n()
+const { t } = useI18n();
 
-const filesStore = useFiles()
-const { files } = storeToRefs(filesStore)
-const { update } = filesStore
+const filesStore = useFiles();
+const { files } = storeToRefs(filesStore);
+const { update } = filesStore;
 
-const authStore = useAuth()
-const { isLoggedIn, hasBuildHistoryBenefit } = storeToRefs(authStore)
+const authStore = useAuth();
+const { isLoggedIn, hasBuildHistoryBenefit } = storeToRefs(authStore);
 
-const { startTour: triggerTour, isCompleted } = useTour('editor')
+const { startTour: triggerTour, isCompleted } = useTour("editor");
 
 const startTour = (force = false) => {
   triggerTour(
     [
       {
-        element: '#tour-editor-canvas',
+        element: "#tour-editor-canvas",
         popover: {
-          title: t('tour.editor-canvas-title'),
-          description: t('tour.editor-canvas-description')
-        }
+          title: t("tour.editor-canvas-title"),
+          description: t("tour.editor-canvas-description"),
+        },
       },
       {
-        element: '#tour-editor-save',
+        element: "#tour-editor-save",
         popover: {
-          title: t('tour.editor-save-title'),
-          description: t('tour.editor-save-description')
-        }
+          title: t("tour.editor-save-title"),
+          description: t("tour.editor-save-description"),
+        },
       },
       {
-        element: '#tour-editor-run',
+        element: "#tour-editor-run",
         popover: {
-          title: t('tour.editor-run-title'),
-          description: t('tour.editor-run-description')
-        }
+          title: t("tour.editor-run-title"),
+          description: t("tour.editor-run-description"),
+        },
       },
       {
-        element: '#tour-editor-logs',
+        element: "#tour-editor-logs",
         popover: {
-          title: t('tour.editor-logs-title'),
-          description: t('tour.editor-logs-description')
-        }
+          title: t("tour.editor-logs-title"),
+          description: t("tour.editor-logs-description"),
+        },
       },
       {
-        element: '#tour-editor-close',
+        element: "#tour-editor-close",
         popover: {
-          title: t('tour.editor-close-title'),
-          description: t('tour.editor-close-description')
-        }
-      }
+          title: t("tour.editor-close-title"),
+          description: t("tour.editor-close-description"),
+        },
+      },
     ],
-    force
-  )
-}
+    force,
+  );
+};
 
 onMounted(() => {
   // if (!isCompleted()) {
@@ -463,95 +463,95 @@ onMounted(() => {
   //     startTour()
   //   }, 1000)
   // }
-})
+});
 
 // Build history dialog state
-const showBuildHistoryDialog = ref(false)
+const showBuildHistoryDialog = ref(false);
 
-const quickLogs = ref([])
+const quickLogs = ref([]);
 
 const keyToNodeName = (key: string) => {
-  const foundNode = nodes.value.find((x) => x.uid === key)
-  const node = getNodeDefinition(foundNode.origin.nodeId, foundNode.origin.pluginId)
-  return node.node.name ?? key
-}
+  const foundNode = nodes.value.find((x) => x.uid === key);
+  const node = getNodeDefinition(foundNode.origin.nodeId, foundNode.origin.pluginId);
+  return node.node.name ?? key;
+};
 
 watch(
   [projectId, pipelineId],
   async () => {
-    const file = files.value.pipelines.find((x) => x.id === pipelineId.value)
+    const file = files.value.pipelines.find((x) => x.id === pipelineId.value);
 
     if (file) {
-      if (file.type === 'external') {
-        const { path: filePath } = file
+      if (file.type === "external") {
+        const { path: filePath } = file;
 
-        const fileDataResult = await loadExternalFile(filePath)
+        const fileDataResult = await loadExternalFile(filePath);
 
-        if (fileDataResult.type === 'error') {
-          throw new Error(fileDataResult.ipcError)
+        if (fileDataResult.type === "error") {
+          throw new Error(fileDataResult.ipcError);
         }
 
-        const fileData = fileDataResult.result
+        const fileData = fileDataResult.result;
 
-        if ('content' in fileData) {
-          const content = JSON.parse(fileData.content) as SavedFile
-          await loadSavedFile(content)
+        if ("content" in fileData) {
+          const content = JSON.parse(fileData.content) as SavedFile;
+          await loadSavedFile(content);
         } else {
-          throw new Error(t('editor.invalid-file-content'))
+          throw new Error(t("editor.invalid-file-content"));
         }
-      } else if (file.type === 'internal') {
-        const { configName } = file
+      } else if (file.type === "internal") {
+        const { configName } = file;
 
-        const configResult = await api.execute('config:load', { config: configName })
+        const configResult = await api.execute("config:load", { config: configName });
 
-        if (configResult.type === 'error') {
-          throw new Error(configResult.ipcError)
+        if (configResult.type === "error") {
+          throw new Error(configResult.ipcError);
         }
 
-        const fileData = configResult.result
+        const fileData = configResult.result;
 
         try {
-          const content = fileData.result as SavedFile
-          await loadSavedFile(content)
+          const content = fileData.result as SavedFile;
+          await loadSavedFile(content);
         } catch (e) {
-          console.error('error', e)
-          throw new Error(t('editor.invalid-file-content'))
+          console.error("error", e);
+          throw new Error(t("editor.invalid-file-content"));
         }
       }
     }
   },
   {
-    immediate: true
-  }
-)
+    immediate: true,
+  },
+);
 
-const toast = useToast()
+const toast = useToast();
 
-const currentLogAccordion = ref()
+const currentLogAccordion = ref();
 
-const lastActiveNode = ref<BlockAction | BlockCondition | BlockLoop>()
+const lastActiveNode = ref<BlockAction | BlockCondition | BlockLoop>();
 
 const cancel = async () => {
-  await api.execute('action:cancel')
-}
+  await api.execute("action:cancel");
+};
 
 const run = async () => {
   if (!isLoggedIn.value && authStore.hasLoginProvider) {
     authStore.displayAuthModal(
-      t('editor.welcome-back'),
-      t('editor.please-log-in-to-run-a-scenario')
-    )
-    return
+      t("editor.welcome-back"),
+      t("editor.please-log-in-to-run-a-scenario"),
+    );
+    return;
   }
 
-  posthog.capture('run_started')
+  posthog.capture("run_started");
 
-  setIsRunning(true)
-  clearLogs()
+  setIsRunning(true);
+  clearLogs();
 
   try {
     const result = await api.execute(
-      'graph:execute',
+      "graph:execute",
       {
         graph: klona(nodes.value),
         pipelineId: pipelineId.value,
@@ -559,309 +559,309 @@ const run = async () => {
         variables: variables.value,
         projectName: name.value,
         projectPath:
-          currentFilePointer.value.type === 'external' ? currentFilePointer.value.path : undefined
+          currentFilePointer.value.type === "external" ? currentFilePointer.value.path : undefined,
       },
       async (data) => {
-        console.log('graph:execute data', data)
-        if (data.type === 'node-enter') {
-          const node = nodes.value.find((n) => n.uid === data.data.nodeUid)
+        console.log("graph:execute data", data);
+        if (data.type === "node-enter") {
+          const node = nodes.value.find((n) => n.uid === data.data.nodeUid);
           if (node) {
-            setActiveNode(node)
-            lastActiveNode.value = node
-            nodeStatuses.value[node.uid] = 'running'
-            currentLogAccordion.value = node.uid
+            setActiveNode(node);
+            lastActiveNode.value = node;
+            nodeStatuses.value[node.uid] = "running";
+            currentLogAccordion.value = node.uid;
           }
-        } else if (data.type === 'node-exit') {
-          const node = nodes.value.find((n) => n.uid === data.data.nodeUid)
+        } else if (data.type === "node-exit") {
+          const node = nodes.value.find((n) => n.uid === data.data.nodeUid);
           if (node) {
-            setActiveNode(undefined)
-            nodeStatuses.value[node.uid] = 'done'
+            setActiveNode(undefined);
+            nodeStatuses.value[node.uid] = "done";
           }
-        } else if (data.type === 'node-log') {
-          const { nodeUid, logData } = data.data
-          console.log('logData', logData)
-          const lines = logData.message.join(' ')
+        } else if (data.type === "node-log") {
+          const { nodeUid, logData } = data.data;
+          console.log("logData", logData);
+          const lines = logData.message.join(" ");
 
-          const splittedInnerLines = lines.split('\n')
+          const splittedInnerLines = lines.split("\n");
 
           for (const l of splittedInnerLines
             .map((x: string) => x.trim())
             .filter((x: string) => !!x)
-            .filter((x: string) => x !== '')) {
-            let content = ''
+            .filter((x: string) => x !== "")) {
+            let content = "";
 
             if (hasAnsi(l)) {
-              content += fancyAnsi.toHtml(l)
+              content += fancyAnsi.toHtml(l);
             } else {
-              content += l
+              content += l;
             }
 
             pushLine(
               nodeUid,
-              [format(logData.timestamp, 'dd/MM/yyyy - hh:mm:ss'), content].join(' ')
-            )
+              [format(logData.timestamp, "dd/MM/yyyy - hh:mm:ss"), content].join(" "),
+            );
           }
         }
-      }
-    )
+      },
+    );
 
-    console.log('result', result)
+    console.log("result", result);
 
-    if (result.type === 'success') {
+    if (result.type === "success") {
       posthog.capture(`node_sucess`, {
         origin_node_id: lastActiveNode.value.origin.nodeId,
-        origin_plugin_id: lastActiveNode.value.origin.pluginId
-      })
+        origin_plugin_id: lastActiveNode.value.origin.pluginId,
+      });
 
       // Mark all nodes as done since execution completed successfully
       for (const node of nodes.value) {
-        nodeStatuses.value[node.uid] = 'done'
+        nodeStatuses.value[node.uid] = "done";
       }
     }
 
-    if (result.type === 'error') {
-      if (result.code === 'canceled') {
+    if (result.type === "error") {
+      if (result.code === "canceled") {
         // Build was canceled
         toast.add({
-          summary: 'Build canceled',
+          summary: "Build canceled",
           life: 10_000,
-          severity: 'info',
-          detail: 'The build was canceled.'
-        })
-        posthog.capture('run_canceled')
-      } else if (result.code === 'error') {
+          severity: "info",
+          detail: "The build was canceled.",
+        });
+        posthog.capture("run_canceled");
+      } else if (result.code === "error") {
         // Find the last active node and mark it as error
         if (lastActiveNode.value) {
-          nodeStatuses.value[lastActiveNode.value.uid] = 'error'
+          nodeStatuses.value[lastActiveNode.value.uid] = "error";
 
           posthog.capture(`node_errored`, {
             origin_node_id: lastActiveNode.value.origin.nodeId,
-            origin_plugin_id: lastActiveNode.value.origin.pluginId
-          })
+            origin_plugin_id: lastActiveNode.value.origin.pluginId,
+          });
         }
 
-        console.error('error while executing process', result.ipcError)
+        console.error("error while executing process", result.ipcError);
         toast.add({
-          summary: t('editor.execution-failed'),
+          summary: t("editor.execution-failed"),
           life: 10_000,
-          severity: 'error',
-          detail: t('editor.project-has-encountered-an-error') + result.ipcError
-        })
-        posthog.capture('run_errored')
+          severity: "error",
+          detail: t("editor.project-has-encountered-an-error") + result.ipcError,
+        });
+        posthog.capture("run_errored");
       }
     } else {
       toast.add({
-        summary: t('editor.execution-done'),
+        summary: t("editor.execution-done"),
         life: 10_000,
-        severity: 'success',
-        detail: t('editor.your-project-has-been-executed-successfully')
-      })
-      posthog.capture('run_succeed')
+        severity: "success",
+        detail: t("editor.your-project-has-been-executed-successfully"),
+      });
+      posthog.capture("run_succeed");
     }
   } catch (e) {
-    console.error('error while executing process', e)
-    console.error('UNHANDLED ERROR', e)
+    console.error("error while executing process", e);
+    console.error("UNHANDLED ERROR", e);
   }
-  setActiveNode(undefined)
-  setIsRunning(false)
-}
+  setActiveNode(undefined);
+  setIsRunning(false);
+};
 
-const isSaving = ref(false)
-const isDirty = ref(false)
+const isSaving = ref(false);
+const isDirty = ref(false);
 
 const debouncedSave = esDebounce(() => {
   if (settingsRef.value?.autosave !== false) {
-    onSaveRequest()
+    onSaveRequest();
   }
-}, 1000)
+}, 1000);
 
-let isInitialLoad = true
+let isInitialLoad = true;
 onEditorChanged(() => {
   if (isInitialLoad) {
-    isInitialLoad = false
-    return
+    isInitialLoad = false;
+    return;
   }
-  isDirty.value = true
-  debouncedSave()
-})
+  isDirty.value = true;
+  debouncedSave();
+});
 
 const onSaveRequest = async (silent = true) => {
-  isSaving.value = true
-  if (currentFilePointer.value.type === 'external') {
-    await saveLocal(currentFilePointer.value.path, silent)
-  } else if (currentFilePointer.value.type === 'internal') {
-    await saveInternal(currentFilePointer.value.configName, silent)
+  isSaving.value = true;
+  if (currentFilePointer.value.type === "external") {
+    await saveLocal(currentFilePointer.value.path, silent);
+  } else if (currentFilePointer.value.type === "internal") {
+    await saveInternal(currentFilePointer.value.configName, silent);
   } else {
     // TODO: save to cloud
-    throw new Error('TODO')
+    throw new Error("TODO");
   }
-  await sleep(500)
-  isSaving.value = false
-  isDirty.value = false
-}
+  await sleep(500);
+  isSaving.value = false;
+  isDirty.value = false;
+};
 
 const onCloseRequest = async () => {
-  console.log('close request')
+  console.log("close request");
   await router.push({
-    name: 'Dashboard'
-  })
-}
+    name: "Dashboard",
+  });
+};
 
 const navigateToBuildHistory = async () => {
   if (!authStore.hasBuildHistoryBenefit) {
-    openUpgradeDialog()
-    return
+    openUpgradeDialog();
+    return;
   }
 
-  showBuildHistoryDialog.value = true
-}
+  showBuildHistoryDialog.value = true;
+};
 
 const saveLocal = async (path: string, silent = false) => {
   const result: SavedFileDefault = {
-    version: '4.0.0',
+    version: "4.0.0",
     name: name.value,
-    description: '',
+    description: "",
     canvas: {
       blocks: nodes.value,
-      triggers: triggers.value
+      triggers: triggers.value,
     },
     variables: variables.value,
-    type: 'default'
-  }
+    type: "default",
+  };
 
-  console.log('result', result)
+  console.log("result", result);
 
-  await saveExternalFile(path, result)
+  await saveExternalFile(path, result);
 
   await update((state) => {
-    const data = state.pipelines.find((x) => x.id === pipelineId.value)
-    if (data.type === 'external') {
-      data.lastModified = new Date().toISOString()
+    const data = state.pipelines.find((x) => x.id === pipelineId.value);
+    if (data.type === "external") {
+      data.lastModified = new Date().toISOString();
     } else {
-      throw new Error('Invalid file type')
+      throw new Error("Invalid file type");
     }
-  })
+  });
 
   if (!silent) {
     toast.add({
-      severity: 'success',
-      summary: t('editor.project-saved'),
-      detail: t('editor.your-project-has-be-saved-successfully')
-    })
+      severity: "success",
+      summary: t("editor.project-saved"),
+      detail: t("editor.your-project-has-be-saved-successfully"),
+    });
   }
-}
+};
 
 const saveInternal = async (configName: string, silent = false) => {
   const result: SavedFileDefault = {
-    version: '4.0.0',
+    version: "4.0.0",
     name: name.value,
-    description: '',
+    description: "",
     canvas: {
       blocks: nodes.value,
-      triggers: triggers.value
+      triggers: triggers.value,
     },
     variables: variables.value,
-    type: 'default'
-  }
+    type: "default",
+  };
 
   try {
-    await api.execute('config:save', {
+    await api.execute("config:save", {
       config: configName,
-      data: JSON.stringify(result)
-    })
+      data: JSON.stringify(result),
+    });
 
     await update((state) => {
-      const data = state.pipelines.find((x) => x.id === pipelineId.value)
-      if (data.type === 'external' || data.type === 'internal') {
-        data.lastModified = new Date().toISOString()
+      const data = state.pipelines.find((x) => x.id === pipelineId.value);
+      if (data.type === "external" || data.type === "internal") {
+        data.lastModified = new Date().toISOString();
       } else {
-        throw new Error('Invalid file type')
+        throw new Error("Invalid file type");
       }
-    })
+    });
 
     if (!silent) {
       toast.add({
-        severity: 'success',
-        summary: t('editor.project-saved'),
-        detail: t('editor.your-project-has-be-saved-successfully')
-      })
+        severity: "success",
+        summary: t("editor.project-saved"),
+        detail: t("editor.your-project-has-be-saved-successfully"),
+      });
     }
   } catch (e) {
-    console.error('error', e)
-    throw new Error(t('editor.project-has-encountered-an-error'))
+    console.error("error", e);
+    throw new Error(t("editor.project-has-encountered-an-error"));
   }
-}
+};
 
 // TODO: proper alert and prompt
 
-handle('dialog:alert', async (event, { value, send }) => {
-  alert(value.message)
+handle("dialog:alert", async (event, { value, send }) => {
+  alert(value.message);
 
   send({
-    type: 'end',
+    type: "end",
     data: {
-      type: 'success',
+      type: "success",
       result: {
-        answer: 'ok'
-      }
-    }
-  })
-})
+        answer: "ok",
+      },
+    },
+  });
+});
 
-const isPromptDialogVisible = ref(false)
-const promptDialogAnswer = ref('')
+const isPromptDialogVisible = ref(false);
+const promptDialogAnswer = ref("");
 const onPromptDialogCancel = () => {
   lastPromptInfos.callback({
-    type: 'end',
+    type: "end",
     data: {
-      type: 'error',
-      ipcError: 'canceled'
-    }
-  })
-  isPromptDialogVisible.value = false
-}
+      type: "error",
+      ipcError: "canceled",
+    },
+  });
+  isPromptDialogVisible.value = false;
+};
 const onPromptDialogOK = () => {
   lastPromptInfos.callback({
-    type: 'end',
+    type: "end",
     data: {
-      type: 'success',
+      type: "success",
       result: {
-        answer: promptDialogAnswer.value
-      }
-    }
-  })
-  isPromptDialogVisible.value = false
-}
+        answer: promptDialogAnswer.value,
+      },
+    },
+  });
+  isPromptDialogVisible.value = false;
+};
 
 const lastPromptInfos = reactive({
-  callback: undefined as undefined | HandleListenerRendererSendFn<'dialog:prompt'>,
-  message: ''
-})
+  callback: undefined as undefined | HandleListenerRendererSendFn<"dialog:prompt">,
+  message: "",
+});
 
-handle('dialog:prompt', async (event, { value, send }) => {
-  lastPromptInfos.message = value.message
-  lastPromptInfos.callback = send
+handle("dialog:prompt", async (event, { value, send }) => {
+  lastPromptInfos.message = value.message;
+  lastPromptInfos.callback = send;
 
-  isPromptDialogVisible.value = true
-})
+  isPromptDialogVisible.value = true;
+});
 
-const bottomExpanded = ref(false)
+const bottomExpanded = ref(false);
 const toggleLogsWindow = () => {
-  bottomExpanded.value = !bottomExpanded.value
-}
+  bottomExpanded.value = !bottomExpanded.value;
+};
 
 watchThrottled(
   logLines,
   async () => {
     if (!activeNode.value) {
-      return
+      return;
     }
 
-    const currentLogItem = logLines.value[activeNode.value.uid] ?? []
-    const lastLine = currentLogItem.length - 1
+    const currentLogItem = logLines.value[activeNode.value.uid] ?? [];
+    const lastLine = currentLogItem.length - 1;
 
     if (lastLine < 0) {
-      return
+      return;
     }
 
     quickLogs.value = [
@@ -869,81 +869,81 @@ watchThrottled(
       {
         id: Date.now(),
         text: logLines.value[activeNode.value.uid][lastLine],
-        isExiting: false
-      }
-    ]
+        isExiting: false,
+      },
+    ];
 
-    await sleep(1000)
+    await sleep(1000);
 
-    quickLogs.value = quickLogs.value.filter((log) => !log.isExiting)
+    quickLogs.value = quickLogs.value.filter((log) => !log.isExiting);
   },
   {
     throttle: 1000,
-    deep: true
-  }
-)
+    deep: true,
+  },
+);
 
 const exportLog = async () => {
-  const logPaths = await api.execute('dialog:showSaveDialog', {
-    defaultPath: `pipelab-${instance.projectId}-${instance.pipelineId}.log`
-  })
+  const logPaths = await api.execute("dialog:showSaveDialog", {
+    defaultPath: `pipelab-${instance.projectId}-${instance.pipelineId}.log`,
+  });
 
-  const myLines = Object.entries(logLines.value)
-  let html = ''
+  const myLines = Object.entries(logLines.value);
+  let html = "";
   for (const [key, value] of myLines) {
-    html += `${key}\n`
+    html += `${key}\n`;
     for (const val of value) {
-      html += `${'\t'.repeat(2)}${stripHtml(val.toString()).result}\n`
+      html += `${"\t".repeat(2)}${stripHtml(val.toString()).result}\n`;
     }
-    html += `\n`
+    html += `\n`;
   }
 
-  const content = html
+  const content = html;
 
-  if (logPaths.type === 'success') {
+  if (logPaths.type === "success") {
     if (logPaths.result.filePath) {
-      await api.execute('fs:write', {
+      await api.execute("fs:write", {
         path: logPaths.result.filePath,
-        content
-      })
+        content,
+      });
     }
   }
-}
+};
 
 tinykeys(window, {
-  '$mod+KeyS': (event) => {
-    event.preventDefault()
-    onSaveRequest(false)
-  }
-})
+  "$mod+KeyS": (event) => {
+    event.preventDefault();
+    onSaveRequest(false);
+  },
+});
 
 function sleep(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms))
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 const nodeDefinition = computed(() => {
   if (!selectedNode.value) {
-    return undefined
+    return undefined;
   }
   const def = getNodeDefinition(
     selectedNode.value.origin.nodeId,
-    selectedNode.value.origin.pluginId
-  )
+    selectedNode.value.origin.pluginId,
+  );
   if (def) {
-    return def.node
+    return def.node;
   }
-  return undefined
-})
+  return undefined;
+});
 
 const onValueChanged = (newValue: Param, paramKey: string) => {
   setBlockValue(selectedNode.value.uid, {
     ...selectedNode.value,
     params: {
       ...selectedNode.value.params,
-      [paramKey]: newValue
-    }
-  })
-}
+      [paramKey]: newValue,
+    },
+  });
+};
 </script>
 
 <style scoped lang="scss">
@@ -1019,7 +1019,7 @@ const onValueChanged = (newValue: Param, paramKey: string) => {
       width: 100%;
       min-height: 0;
 
-      font-family: 'Geist Mono', serif;
+      font-family: "Geist Mono", serif;
 
       .card {
         width: 100%;

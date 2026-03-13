@@ -8,7 +8,7 @@
       size="small"
       :pt="{
         root: { style: { fontSize: '10px', width: '24px', height: '24px' } },
-        icon: { style: { fontSize: '10px' } }
+        icon: { style: { fontSize: '10px' } },
       }"
       @click="addNode"
     ></Button>
@@ -66,7 +66,8 @@
                   <a
                     class="element"
                     :class="{
-                      selected: selected?.nodeId === node.node.id && selected.pluginId === plugin.id
+                      selected:
+                        selected?.nodeId === node.node.id && selected.pluginId === plugin.id,
                     }"
                   >
                     <i class="pi" :class="node.node.icon || 'pi-box'"></i>
@@ -99,7 +100,7 @@
         <div class="footer pt-4">
           <div class="flex justify-content-start gap-2">
             <Checkbox id="advanced-nodes-checkbox" v-model="displayAdvancedNodes" :binary="true" />
-            <label for="advanced-nodes-checkbox"> {{ $t('editor.display-advanced-nodes') }} </label>
+            <label for="advanced-nodes-checkbox"> {{ $t("editor.display-advanced-nodes") }} </label>
           </div>
 
           <div class="flex justify-content-end gap-2">
@@ -119,156 +120,156 @@
 </template>
 
 <script lang="ts" setup>
-import { useEditor } from '@renderer/store/editor'
-import { PropType, computed, ref, toRefs, watchEffect } from 'vue'
+import { useEditor } from "@renderer/store/editor";
+import { PropType, computed, ref, toRefs, watchEffect } from "vue";
 
-import { storeToRefs } from 'pinia'
-import Button from 'primevue/button'
-import InputText from 'primevue/inputtext'
-import { useAppStore } from '@renderer/store/app'
-import { PipelabNode, RendererNodeDefinition } from '@pipelab/plugin-core'
-import { useLogger } from '@pipelab/shared/logger'
-import PluginIcon from './nodes/PluginIcon.vue'
+import { storeToRefs } from "pinia";
+import Button from "primevue/button";
+import InputText from "primevue/inputtext";
+import { useAppStore } from "@renderer/store/app";
+import { PipelabNode, RendererNodeDefinition } from "@pipelab/plugin-core";
+import { useLogger } from "@pipelab/shared/logger";
+import PluginIcon from "./nodes/PluginIcon.vue";
 
-type ButtonProps = InstanceType<typeof Button>['$props']
+type ButtonProps = InstanceType<typeof Button>["$props"];
 
 const props = defineProps({
   buttonProps: {
     type: Object as PropType<ButtonProps>,
     required: false,
-    default: () => ({})
+    default: () => ({}),
   },
   path: {
     type: Array as PropType<string[]>,
-    required: true
+    required: true,
   },
   isRunning: {
     type: Boolean,
     required: false,
-    default: false
-  }
-})
+    default: false,
+  },
+});
 
-const { path, isRunning } = toRefs(props)
+const { path, isRunning } = toRefs(props);
 
-const instance = useEditor()
-const appStore = useAppStore()
+const instance = useEditor();
+const appStore = useAppStore();
 
-const { pluginDefinitions } = storeToRefs(appStore)
-const $searchInput = ref<InstanceType<typeof InputText>>()
+const { pluginDefinitions } = storeToRefs(appStore);
+const $searchInput = ref<InstanceType<typeof InputText>>();
 
-const visible = ref(false)
-const search = ref('')
-const displayAdvancedNodes = ref(false)
+const visible = ref(false);
+const search = ref("");
+const displayAdvancedNodes = ref(false);
 
 watchEffect(() => {
   if (visible.value === true) {
-    const el = $searchInput.value?.$el as HTMLInputElement
+    const el = $searchInput.value?.$el as HTMLInputElement;
 
     if (el) {
-      el.focus()
+      el.focus();
     }
   }
-})
+});
 
 const shouldShowNode = (node: RendererNodeDefinition) => {
   if (node.node.advanced && displayAdvancedNodes.value) {
-    return true
+    return true;
   } else if (node.node.advanced && !displayAdvancedNodes.value) {
-    return false
+    return false;
   } else if (node.node.disabled) {
-    return false
+    return false;
   } else {
-    return true
+    return true;
   }
-}
+};
 
-const selected = ref<{ nodeId: string; pluginId: string }>()
+const selected = ref<{ nodeId: string; pluginId: string }>();
 
 const addNode = () => {
   if (!isRunning.value) {
-    visible.value = true
+    visible.value = true;
   }
-}
+};
 
-const editor = useEditor()
-const { getNodeDefinition, getPluginDefinition } = editor
+const editor = useEditor();
+const { getNodeDefinition, getPluginDefinition } = editor;
 
-const { logger } = useLogger()
+const { logger } = useLogger();
 
 const onAdd = () => {
-  const selection = selected.value
+  const selection = selected.value;
 
   if (!selection) {
-    logger().error('cannot find selection')
-    return
+    logger().error("cannot find selection");
+    return;
   }
 
-  const def = getPluginDefinition(selection.pluginId)
+  const def = getPluginDefinition(selection.pluginId);
 
   if (!def) {
-    logger().error('cannot find definition')
-    return
+    logger().error("cannot find definition");
+    return;
   }
 
-  const node = getNodeDefinition(selection.nodeId, selection.pluginId)
+  const node = getNodeDefinition(selection.nodeId, selection.pluginId);
 
   if (!node) {
-    logger().error('cannot find node')
-    return
+    logger().error("cannot find node");
+    return;
   }
 
-  const insertAt = Number.parseInt(path.value.pop() ?? '0')
+  const insertAt = Number.parseInt(path.value.pop() ?? "0");
 
   instance.addNode({
     node: node.node,
     plugin: def,
     path: path.value,
-    insertAt
-  })
+    insertAt,
+  });
 
-  visible.value = false
-}
+  visible.value = false;
+};
 
 const isNodePicked = (node: PipelabNode, searchedValue: string) => {
-  if (node.type !== 'action') {
-    return false
+  if (node.type !== "action") {
+    return false;
   }
 
-  if (!searchedValue) return true
+  if (!searchedValue) return true;
 
-  const searchTerms = searchedValue.toLowerCase().split(/\s+/)
-  const description = node.description?.toLowerCase() || ''
-  const name = node.name.toLowerCase()
-  const tags = node.tags?.map((tag) => tag.toLowerCase()) || []
-  const allText = `${name} ${description} ${tags.join(' ')}`
+  const searchTerms = searchedValue.toLowerCase().split(/\s+/);
+  const description = node.description?.toLowerCase() || "";
+  const name = node.name.toLowerCase();
+  const tags = node.tags?.map((tag) => tag.toLowerCase()) || [];
+  const allText = `${name} ${description} ${tags.join(" ")}`;
 
   return searchTerms.every(
-    (term) => allText.includes(term) || term.split('').every((char) => allText.includes(char))
-  )
-}
+    (term) => allText.includes(term) || term.split("").every((char) => allText.includes(char)),
+  );
+};
 
 const searchedElements = computed(() => {
-  const searchedValue = search.value.trim()
+  const searchedValue = search.value.trim();
 
   return pluginDefinitions.value
     .map((def) => ({
       ...def,
-      nodes: def.nodes.filter((node) => isNodePicked(node.node, searchedValue))
+      nodes: def.nodes.filter((node) => isNodePicked(node.node, searchedValue)),
     }))
     .filter((def) => {
-      if (!searchedValue) return true
+      if (!searchedValue) return true;
 
-      const defName = def.name.toLowerCase()
-      const defDescription = (def.description || '').toLowerCase()
-      const searchTerms = searchedValue.toLowerCase().split(/\s+/)
+      const defName = def.name.toLowerCase();
+      const defDescription = (def.description || "").toLowerCase();
+      const searchTerms = searchedValue.toLowerCase().split(/\s+/);
 
       return searchTerms.every(
         (term) =>
-          defName.includes(term) || defDescription.includes(term) || def.nodes.some(() => true) // Keep if any nodes matched
-      )
-    })
-})
+          defName.includes(term) || defDescription.includes(term) || def.nodes.some(() => true), // Keep if any nodes matched
+      );
+    });
+});
 </script>
 
 <style lang="scss" scoped>

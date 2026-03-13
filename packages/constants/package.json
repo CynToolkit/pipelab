@@ -12,6 +12,10 @@
       "require": "./src/index.ts"
     }
   },
+  "scripts": {
+    "format": "oxfmt .",
+    "lint": "oxlint ."
+  },
   "devDependencies": {
     "@pipelab/tsconfig": "workspace:*",
     "tsup": "^8.0.0",

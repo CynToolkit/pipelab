@@ -1,4 +1,4 @@
-import { getBinName } from '@pipelab/constants'
+import { getBinName } from "@pipelab/constants";
 import {
   ActionRunnerData,
   createAction,
@@ -9,12 +9,12 @@ import {
   createStringParam,
   InputsDefinition,
   OutputsDefinition,
-  runWithLiveLogs
-} from '../plugin-core'
-import { detectRuntime } from '@pipelab/shared/plugins'
-import { app } from 'electron'
-import { dirname, join } from 'node:path'
-import { existsSync } from 'node:fs'
+  runWithLiveLogs,
+} from "../plugin-core";
+import { detectRuntime } from "@pipelab/shared/plugins";
+import { app } from "electron";
+import { dirname, join } from "node:path";
+import { existsSync } from "node:fs";
 
 /**
  * Searches for common cargo paths and resolves to a valid cargo executable path
@@ -22,323 +22,323 @@ import { existsSync } from 'node:fs'
  * @throws Error if cargo cannot be found
  */
 async function resolveCargoPath(): Promise<string> {
-  const { platform } = await import('os')
-  const { execa } = await import('execa')
-  const cargoBinName = platform() === 'win32' ? 'cargo.exe' : 'cargo'
+  const { platform } = await import("os");
+  const { execa } = await import("execa");
+  const cargoBinName = platform() === "win32" ? "cargo.exe" : "cargo";
 
   // Common cargo paths by platform
-  const commonPaths: string[] = []
-  const currentPlatform = platform()
+  const commonPaths: string[] = [];
+  const currentPlatform = platform();
 
   // Helper function to add paths if they exist
   const addIfExists = (path: string) => {
     if (existsSync(path)) {
-      commonPaths.push(path)
+      commonPaths.push(path);
     }
-  }
+  };
 
-  const rustupHome = process.env.RUSTUP_HOME || join(app.getPath('home'), '.rustup')
-  const cargoHome = process.env.CARGO_HOME || join(app.getPath('home'), '.cargo')
+  const rustupHome = process.env.RUSTUP_HOME || join(app.getPath("home"), ".rustup");
+  const cargoHome = process.env.CARGO_HOME || join(app.getPath("home"), ".cargo");
 
-  if (currentPlatform === 'win32') {
+  if (currentPlatform === "win32") {
     // Windows paths
     addIfExists(
-      join(rustupHome, 'toolchains', 'stable-x86_64-pc-windows-msvc', 'bin', cargoBinName)
-    )
+      join(rustupHome, "toolchains", "stable-x86_64-pc-windows-msvc", "bin", cargoBinName),
+    );
     addIfExists(
-      join(rustupHome, 'toolchains', 'nightly-x86_64-pc-windows-msvc', 'bin', cargoBinName)
-    )
-    addIfExists(join(cargoHome, 'bin', cargoBinName))
-  } else if (currentPlatform === 'linux') {
+      join(rustupHome, "toolchains", "nightly-x86_64-pc-windows-msvc", "bin", cargoBinName),
+    );
+    addIfExists(join(cargoHome, "bin", cargoBinName));
+  } else if (currentPlatform === "linux") {
     // Linux paths
     addIfExists(
-      join(rustupHome, 'toolchains', 'stable-x86_64-unknown-linux-gnu', 'bin', cargoBinName)
-    )
+      join(rustupHome, "toolchains", "stable-x86_64-unknown-linux-gnu", "bin", cargoBinName),
+    );
     addIfExists(
-      join(rustupHome, 'toolchains', 'nightly-x86_64-unknown-linux-gnu', 'bin', cargoBinName)
-    )
-    addIfExists(join(cargoHome, 'bin', cargoBinName))
-    addIfExists('/usr/bin/cargo')
-    addIfExists('/usr/local/bin/cargo')
-  } else if (currentPlatform === 'darwin') {
+      join(rustupHome, "toolchains", "nightly-x86_64-unknown-linux-gnu", "bin", cargoBinName),
+    );
+    addIfExists(join(cargoHome, "bin", cargoBinName));
+    addIfExists("/usr/bin/cargo");
+    addIfExists("/usr/local/bin/cargo");
+  } else if (currentPlatform === "darwin") {
     // macOS paths
-    addIfExists(join(rustupHome, 'toolchains', 'stable-x86_64-apple-darwin', 'bin', cargoBinName))
-    addIfExists(join(rustupHome, 'toolchains', 'nightly-x86_64-apple-darwin', 'bin', cargoBinName))
-    addIfExists(join(cargoHome, 'bin', cargoBinName))
-    addIfExists('/usr/local/bin/cargo')
-    addIfExists('/opt/homebrew/bin/cargo')
+    addIfExists(join(rustupHome, "toolchains", "stable-x86_64-apple-darwin", "bin", cargoBinName));
+    addIfExists(join(rustupHome, "toolchains", "nightly-x86_64-apple-darwin", "bin", cargoBinName));
+    addIfExists(join(cargoHome, "bin", cargoBinName));
+    addIfExists("/usr/local/bin/cargo");
+    addIfExists("/opt/homebrew/bin/cargo");
   }
 
   // Return first existing path found
   if (commonPaths.length > 0) {
-    return commonPaths[0]
+    return commonPaths[0];
   }
 
   // Fallback: try to find cargo using system tools on Unix systems
-  if (currentPlatform !== 'win32') {
+  if (currentPlatform !== "win32") {
     try {
-      const whichResult = await execa('which', ['cargo'])
-      const cargoPath = whichResult.stdout.trim()
+      const whichResult = await execa("which", ["cargo"]);
+      const cargoPath = whichResult.stdout.trim();
       if (cargoPath && existsSync(cargoPath)) {
-        return cargoPath
+        return cargoPath;
       }
     } catch {
       // Ignore errors from which command
     }
   }
 
-  throw new Error('Cargo not found. Please install it first')
+  throw new Error("Cargo not found. Please install it first");
 }
 
 // TODO: https://js.electronforge.io/modules/_electron_forge_core.html
 
-export const IDMake = 'tauri:make'
-export const IDPackageV2 = 'tauri:package:v2'
-export const IDPreview = 'tauri:preview'
+export const IDMake = "tauri:make";
+export const IDPackageV2 = "tauri:package:v2";
+export const IDPreview = "tauri:preview";
 
 const paramsInputFolder = {
-  'input-folder': createPathParam('', {
-    label: 'Folder to package',
+  "input-folder": createPathParam("", {
+    label: "Folder to package",
     required: true,
     control: {
-      type: 'path',
+      type: "path",
       options: {
-        properties: ['openDirectory']
-      }
-    }
-  })
-} satisfies InputsDefinition
+        properties: ["openDirectory"],
+      },
+    },
+  }),
+} satisfies InputsDefinition;
 
 const paramsInputURL = {
-  'input-url': createStringParam('', {
-    label: 'URL to preview',
-    required: true
-  })
-} satisfies InputsDefinition
+  "input-url": createStringParam("", {
+    label: "URL to preview",
+    required: true,
+  }),
+} satisfies InputsDefinition;
 
 const params = {
   arch: {
-    value: '' as NodeJS.Architecture | '', // MakeOptions['arch'],
-    label: 'Architecture',
+    value: "" as NodeJS.Architecture | "", // MakeOptions['arch'],
+    label: "Architecture",
     required: false,
     control: {
-      type: 'select',
+      type: "select",
       options: {
-        placeholder: 'Architecture',
+        placeholder: "Architecture",
         options: [
           {
-            label: 'Older PCs (ia32)',
-            value: 'ia32'
+            label: "Older PCs (ia32)",
+            value: "ia32",
           },
           {
-            label: 'Modern PCs (x64)',
-            value: 'x64'
+            label: "Modern PCs (x64)",
+            value: "x64",
           },
           {
-            label: 'Older Mobile/Pi (armv7l)',
-            value: 'armv7l'
+            label: "Older Mobile/Pi (armv7l)",
+            value: "armv7l",
           },
           {
-            label: 'New Mobile/Apple Silicon (arm64)',
-            value: 'arm64'
+            label: "New Mobile/Apple Silicon (arm64)",
+            value: "arm64",
           },
           {
-            label: 'Mac Universal (universal)',
-            value: 'universal'
+            label: "Mac Universal (universal)",
+            value: "universal",
           },
           {
-            label: 'Special Systems (mips64el)',
-            value: 'mips64el'
-          }
-        ]
-      }
-    }
+            label: "Special Systems (mips64el)",
+            value: "mips64el",
+          },
+        ],
+      },
+    },
   },
   platform: {
-    value: '' as NodeJS.Platform | '', // MakeOptions['platform'],
-    label: 'Platform',
+    value: "" as NodeJS.Platform | "", // MakeOptions['platform'],
+    label: "Platform",
     required: false,
     control: {
-      type: 'select',
+      type: "select",
       options: {
-        placeholder: 'Platform',
+        placeholder: "Platform",
         options: [
           {
-            label: 'Windows (win32)',
-            value: 'win32'
+            label: "Windows (win32)",
+            value: "win32",
           },
           {
-            label: 'macOS (darwin)',
-            value: 'darwin'
+            label: "macOS (darwin)",
+            value: "darwin",
           },
           {
-            label: 'Linux (linux)',
-            value: 'linux'
+            label: "Linux (linux)",
+            value: "linux",
           },
           {
-            label: 'Android',
-            value: 'android'
+            label: "Android",
+            value: "android",
           },
           {
-            label: 'iOS',
-            value: 'ios'
-          }
-        ]
-      }
-    }
+            label: "iOS",
+            value: "ios",
+          },
+        ],
+      },
+    },
   },
   configuration: {
-    label: 'Tauri configuration',
+    label: "Tauri configuration",
     value: undefined as Partial<DesktopApp.Tauri> | undefined,
     required: true,
     control: {
-      type: 'json'
-    }
-  }
-} satisfies InputsDefinition
+      type: "json",
+    },
+  },
+} satisfies InputsDefinition;
 
 export const configureParams = {
-  name: createStringParam('Pipelab', {
-    label: 'Application name',
-    description: 'The name of the application',
-    required: true
+  name: createStringParam("Pipelab", {
+    label: "Application name",
+    description: "The name of the application",
+    required: true,
   }),
-  appBundleId: createStringParam('com.pipelab.app', {
-    label: 'Application bundle ID',
-    description: 'The bundle ID of the application',
-    required: true
+  appBundleId: createStringParam("com.pipelab.app", {
+    label: "Application bundle ID",
+    description: "The bundle ID of the application",
+    required: true,
   }),
-  appCopyright: createStringParam('Copyright © 2024 Pipelab', {
-    label: 'Application copyright',
-    description: 'The copyright of the application',
-    required: false
+  appCopyright: createStringParam("Copyright © 2024 Pipelab", {
+    label: "Application copyright",
+    description: "The copyright of the application",
+    required: false,
   }),
-  appVersion: createStringParam('1.0.0', {
-    label: 'Application version',
-    description: 'The version of the application',
-    required: true
+  appVersion: createStringParam("1.0.0", {
+    label: "Application version",
+    description: "The version of the application",
+    required: true,
   }),
-  icon: createPathParam('', {
-    label: 'Application icon',
-    description: 'The icon of the application. macOS: .icns. Windows: .ico',
+  icon: createPathParam("", {
+    label: "Application icon",
+    description: "The icon of the application. macOS: .icns. Windows: .ico",
     required: false,
     control: {
-      type: 'path',
+      type: "path",
       options: {
         filters: [
-          { name: 'Image', extensions: ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'ico', 'icns'] }
-        ]
+          { name: "Image", extensions: ["png", "jpg", "jpeg", "gif", "bmp", "ico", "icns"] },
+        ],
       },
-      label: 'Path to an image file'
-    }
+      label: "Path to an image file",
+    },
   }),
-  author: createStringParam('Pipelab', {
-    label: 'Application author',
-    description: 'The author of the application',
-    required: true
+  author: createStringParam("Pipelab", {
+    label: "Application author",
+    description: "The author of the application",
+    required: true,
   }),
-  description: createStringParam('A simple Electron application', {
-    label: 'Application description',
-    description: 'The description of the application',
-    required: false
+  description: createStringParam("A simple Electron application", {
+    label: "Application description",
+    description: "The description of the application",
+    required: false,
   }),
 
-  appCategoryType: createStringParam('public.app-category.developer-tools', {
-    platforms: ['darwin'],
-    label: 'Application category type',
-    description: 'The category type of the application',
-    required: false
+  appCategoryType: createStringParam("public.app-category.developer-tools", {
+    platforms: ["darwin"],
+    label: "Application category type",
+    description: "The category type of the application",
+    required: false,
   }),
 
   // window
   width: createNumberParam(800, {
-    label: 'Window width',
-    description: 'The width of the window',
-    required: false
+    label: "Window width",
+    description: "The width of the window",
+    required: false,
   }),
   height: createNumberParam(600, {
-    label: 'Window height',
-    description: 'The height of the window',
-    required: false
+    label: "Window height",
+    description: "The height of the window",
+    required: false,
   }),
   fullscreen: {
-    label: 'Fullscreen',
+    label: "Fullscreen",
     value: false,
-    description: 'Whether to start the application in fullscreen mode',
+    description: "Whether to start the application in fullscreen mode",
     required: false,
     control: {
-      type: 'boolean'
-    }
+      type: "boolean",
+    },
   },
   frame: {
-    label: 'Frame',
+    label: "Frame",
     value: true,
-    description: 'Whether to show the window frame',
+    description: "Whether to show the window frame",
     required: false,
     control: {
-      type: 'boolean'
-    }
+      type: "boolean",
+    },
   },
   transparent: {
-    label: 'Transparent',
+    label: "Transparent",
     value: false,
-    description: 'Whether to make the window transparent',
+    description: "Whether to make the window transparent",
     required: false,
     control: {
-      type: 'boolean'
-    }
+      type: "boolean",
+    },
   },
   toolbar: {
-    label: 'Toolbar',
+    label: "Toolbar",
     value: true,
-    description: 'Whether to show the toolbar',
+    description: "Whether to show the toolbar",
     required: false,
     control: {
-      type: 'boolean'
-    }
+      type: "boolean",
+    },
   },
   alwaysOnTop: {
-    label: 'Always on top',
+    label: "Always on top",
     value: false,
-    description: 'Whether to always keep the window on top',
+    description: "Whether to always keep the window on top",
     required: false,
     control: {
-      type: 'boolean'
-    }
+      type: "boolean",
+    },
   },
 
-  tauriVersion: createStringParam('', {
-    label: 'Tauri version',
+  tauriVersion: createStringParam("", {
+    label: "Tauri version",
     description:
-      'The version of Tauri to use. If no version specified, it will use the latest one.',
-    required: false
+      "The version of Tauri to use. If no version specified, it will use the latest one.",
+    required: false,
   }),
   enableExtraLogging: {
     required: false,
-    label: 'Enable extra logging',
+    label: "Enable extra logging",
     value: false,
     control: {
-      type: 'boolean'
+      type: "boolean",
     },
-    description: 'Whether to enable extra logging of internal tools while bundling'
+    description: "Whether to enable extra logging of internal tools while bundling",
   },
   openDevtoolsOnStart: createBooleanParam(false, {
-    label: 'Open devtools on app start',
+    label: "Open devtools on app start",
     required: false,
-    description: 'Whether to open devtools on app start'
+    description: "Whether to open devtools on app start",
   }),
 
   // websocket apis
   websocketApi: {
     required: false,
-    label: 'WebSocket APIs to allow (empty = all)',
-    value: '[]',
+    label: "WebSocket APIs to allow (empty = all)",
+    value: "[]",
     control: {
-      type: 'array',
+      type: "array",
       options: {
-        kind: 'text'
-      }
-    }
+        kind: "text",
+      },
+    },
   },
   ignore: createArray<(string | RegExp)[]>(
     `[
@@ -346,72 +346,72 @@ export const configureParams = {
 ]`,
     {
       required: false,
-      label: 'Folders to ignore',
+      label: "Folders to ignore",
       description:
-        'An array of string or Regex that allow ignoring certain files or folders from being packaged',
+        "An array of string or Regex that allow ignoring certain files or folders from being packaged",
       control: {
-        type: 'array',
+        type: "array",
         options: {
-          kind: 'text'
-        }
-      }
-    }
+          kind: "text",
+        },
+      },
+    },
   ),
 
   // integrations
 
   enableSteamSupport: {
     required: false,
-    label: 'Enable steam support',
-    description: 'Whether to enable Steam support',
+    label: "Enable steam support",
+    description: "Whether to enable Steam support",
     value: false,
     control: {
-      type: 'boolean'
-    }
+      type: "boolean",
+    },
   },
   steamGameId: createNumberParam(480, {
     required: false,
-    label: 'Steam game ID',
-    description: 'The Steam game ID'
+    label: "Steam game ID",
+    description: "The Steam game ID",
   }),
   enableDiscordSupport: {
     required: false,
-    label: 'Enable Discord support',
-    description: 'Whether to enable Discord support',
+    label: "Enable Discord support",
+    description: "Whether to enable Discord support",
     value: false,
     control: {
-      type: 'boolean'
-    }
+      type: "boolean",
+    },
   },
-  discordAppId: createStringParam('', {
+  discordAppId: createStringParam("", {
     required: false,
-    label: 'Discord application ID',
-    description: 'The Discord application ID'
-  })
-} satisfies InputsDefinition
+    label: "Discord application ID",
+    description: "The Discord application ID",
+  }),
+} satisfies InputsDefinition;
 
 const outputs = {
   output: {
-    label: 'Output',
-    value: '',
+    label: "Output",
+    value: "",
     control: {
-      type: 'path',
+      type: "path",
       options: {
-        properties: ['openDirectory']
-      }
-    }
+        properties: ["openDirectory"],
+      },
+    },
   },
   binary: {
-    label: 'Binary',
-    value: '',
+    label: "Binary",
+    value: "",
     control: {
-      type: 'path',
+      type: "path",
       options: {
-        properties: ['openFile']
-      }
-    }
-  }
-} satisfies OutputsDefinition
+        properties: ["openFile"],
+      },
+    },
+  },
+} satisfies OutputsDefinition;
 
 // type Inputs = ParamsToInput<typeof params>
 
@@ -420,7 +420,7 @@ export const createMakeProps = (
   name: string,
   description: string,
   icon: string,
-  displayString: string
+  displayString: string,
 ) =>
   createAction({
     id,
@@ -431,10 +431,10 @@ export const createMakeProps = (
     meta: {},
     params: {
       ...params,
-      ...paramsInputFolder
+      ...paramsInputFolder,
     },
-    outputs
-  })
+    outputs,
+  });
 
 export const createPackageV2Props = (
   id: string,
@@ -446,9 +446,9 @@ export const createPackageV2Props = (
   deprecated?: boolean,
   deprecatedMessage?: string,
   disabled?: false,
-  updateAvailable?: boolean
+  updateAvailable?: boolean,
 ) => {
-  const { arch, platform } = params
+  const { arch, platform } = params;
   return createAction({
     id,
     name,
@@ -465,18 +465,18 @@ export const createPackageV2Props = (
       arch,
       platform,
       ...paramsInputFolder,
-      ...configureParams
+      ...configureParams,
     },
-    outputs: outputs
-  })
-}
+    outputs: outputs,
+  });
+};
 
 export const createPreviewProps = (
   id: string,
   name: string,
   description: string,
   icon: string,
-  displayString: string
+  displayString: string,
 ) =>
   createAction({
     id,
@@ -487,13 +487,13 @@ export const createPreviewProps = (
     meta: {},
     params: {
       ...params,
-      ...paramsInputURL
+      ...paramsInputURL,
     },
-    outputs: outputs
-  })
+    outputs: outputs,
+  });
 
 export const tauri = async (
-  action: 'make' | 'package' | 'preview',
+  action: "make" | "package" | "preview",
   appFolder: string | undefined,
   {
     cwd,
@@ -501,29 +501,29 @@ export const tauri = async (
     inputs,
     setOutput,
     paths,
-    abortSignal
+    abortSignal,
   }: ActionRunnerData<ReturnType<typeof createPackageV2Props>>,
-  completeConfiguration: DesktopApp.Config
+  completeConfiguration: DesktopApp.Config,
 ): Promise<{ folder: string; binary: string | undefined } | undefined> => {
-  const { join, basename, delimiter } = await import('node:path')
-  const { cp, readFile, writeFile } = await import('node:fs/promises')
-  const { arch, platform } = await import('os')
-  const { kebabCase } = await import('change-case')
-  const { parseTOML, stringifyTOML } = await import('confbox')
+  const { join, basename, delimiter } = await import("node:path");
+  const { cp, readFile, writeFile } = await import("node:fs/promises");
+  const { arch, platform } = await import("os");
+  const { kebabCase } = await import("change-case");
+  const { parseTOML, stringifyTOML } = await import("confbox");
 
-  console.log('appFolder', appFolder)
+  console.log("appFolder", appFolder);
 
-  log('Building tauri')
+  log("Building tauri");
 
-  if (action !== 'preview') {
-    await detectRuntime(appFolder)
+  if (action !== "preview") {
+    await detectRuntime(appFolder);
   }
 
-  const { assets, unpack, cache, node, pnpm } = paths
+  const { assets, unpack, cache, node, pnpm } = paths;
 
-  const destinationFolder = join(cwd, 'build')
+  const destinationFolder = join(cwd, "build");
 
-  const templateFolder = join(assets, 'tauri', 'template', 'app')
+  const templateFolder = join(assets, "tauri", "template", "app");
 
   // copy template to destination
   await cp(templateFolder, destinationFolder, {
@@ -533,76 +533,76 @@ export const tauri = async (
       // log('dest', dest)
       // TODO: support other oses
       return (
-        basename(src) !== 'node_modules' &&
-        !src.includes('src-tauri\\target') &&
-        !src.includes('src-tauri\\gen')
-      )
-    }
-  })
+        basename(src) !== "node_modules" &&
+        !src.includes("src-tauri\\target") &&
+        !src.includes("src-tauri\\gen")
+      );
+    },
+  });
 
-  const placeAppFolder = join(destinationFolder, 'src', 'app')
+  const placeAppFolder = join(destinationFolder, "src", "app");
 
   // if input is folder, copy folder to destination
-  if (appFolder && action !== 'preview') {
+  if (appFolder && action !== "preview") {
     // copy app to template
     await cp(appFolder, placeAppFolder, {
-      recursive: true
-    })
+      recursive: true,
+    });
   }
 
   writeFile(
-    join(destinationFolder, 'config.cjs'),
+    join(destinationFolder, "config.cjs"),
     `module.exports = ${JSON.stringify(completeConfiguration, undefined, 2)}`,
-    'utf8'
-  )
+    "utf8",
+  );
 
-  const shimsPaths = join(assets, 'shims')
+  const shimsPaths = join(assets, "shims");
 
-  const userData = app.getPath('userData')
+  const userData = app.getPath("userData");
 
-  const pnpmHome = join(userData, 'config', 'pnpm')
+  const pnpmHome = join(userData, "config", "pnpm");
 
-  const sanitizedName = kebabCase(completeConfiguration.name)
+  const sanitizedName = kebabCase(completeConfiguration.name);
 
   // package.json update
-  log('Package.json update')
-  const pkgJSONPath = join(destinationFolder, 'package.json')
-  const pkgJSONContent = await readFile(pkgJSONPath, 'utf8')
-  const pkgJSON = JSON.parse(pkgJSONContent)
-  log('Setting name to', sanitizedName)
-  pkgJSON.name = sanitizedName
-  log('Setting productName to', completeConfiguration.name)
-  pkgJSON.productName = completeConfiguration.name
-  await writeFile(pkgJSONPath, JSON.stringify(pkgJSON, null, 2))
+  log("Package.json update");
+  const pkgJSONPath = join(destinationFolder, "package.json");
+  const pkgJSONContent = await readFile(pkgJSONPath, "utf8");
+  const pkgJSON = JSON.parse(pkgJSONContent);
+  log("Setting name to", sanitizedName);
+  pkgJSON.name = sanitizedName;
+  log("Setting productName to", completeConfiguration.name);
+  pkgJSON.productName = completeConfiguration.name;
+  await writeFile(pkgJSONPath, JSON.stringify(pkgJSON, null, 2));
 
   // Cargo.toml update
-  log('Cargo.toml update')
-  const cargoTomlPath = join(destinationFolder, 'src-tauri', 'Cargo.toml')
-  const cargoTomlContent = await readFile(cargoTomlPath, 'utf8')
-  const cargoToml = parseTOML(cargoTomlContent) as { name: string; version: string }
-  log('Setting name to', sanitizedName)
-  console.log('cargoToml', cargoToml)
-  cargoToml.name = sanitizedName
-  log('Setting version to', completeConfiguration.appVersion)
-  cargoToml.version = completeConfiguration.appVersion
-  console.log('cargoToml', stringifyTOML(cargoToml))
-  await writeFile(cargoTomlPath, stringifyTOML(cargoToml))
+  log("Cargo.toml update");
+  const cargoTomlPath = join(destinationFolder, "src-tauri", "Cargo.toml");
+  const cargoTomlContent = await readFile(cargoTomlPath, "utf8");
+  const cargoToml = parseTOML(cargoTomlContent) as { name: string; version: string };
+  log("Setting name to", sanitizedName);
+  console.log("cargoToml", cargoToml);
+  cargoToml.name = sanitizedName;
+  log("Setting version to", completeConfiguration.appVersion);
+  cargoToml.version = completeConfiguration.appVersion;
+  console.log("cargoToml", stringifyTOML(cargoToml));
+  await writeFile(cargoTomlPath, stringifyTOML(cargoToml));
 
   // tauri.conf.json update
-  log('Tauri.conf.json update')
-  const tauriConfJSONPath = join(destinationFolder, 'src-tauri', 'tauri.conf.json')
-  const tauriConfJSONContent = await readFile(tauriConfJSONPath, 'utf8')
-  const tauriConfJSON = JSON.parse(tauriConfJSONContent)
-  log('Setting productName to', completeConfiguration.name)
-  tauriConfJSON.productName = completeConfiguration.name
-  log('Setting version to', completeConfiguration.appVersion)
-  tauriConfJSON.version = completeConfiguration.appVersion
-  log('Setting identifier to', completeConfiguration.appBundleId)
-  tauriConfJSON.identifier = completeConfiguration.appBundleId
-  if (action === 'preview') {
-    log('Setting build.devUrl to', appFolder)
-    tauriConfJSON.build.devUrl = appFolder
-    await writeFile(tauriConfJSONPath, JSON.stringify(tauriConfJSON, null, 2))
+  log("Tauri.conf.json update");
+  const tauriConfJSONPath = join(destinationFolder, "src-tauri", "tauri.conf.json");
+  const tauriConfJSONContent = await readFile(tauriConfJSONPath, "utf8");
+  const tauriConfJSON = JSON.parse(tauriConfJSONContent);
+  log("Setting productName to", completeConfiguration.name);
+  tauriConfJSON.productName = completeConfiguration.name;
+  log("Setting version to", completeConfiguration.appVersion);
+  tauriConfJSON.version = completeConfiguration.appVersion;
+  log("Setting identifier to", completeConfiguration.appBundleId);
+  tauriConfJSON.identifier = completeConfiguration.appBundleId;
+  if (action === "preview") {
+    log("Setting build.devUrl to", appFolder);
+    tauriConfJSON.build.devUrl = appFolder;
+    await writeFile(tauriConfJSONPath, JSON.stringify(tauriConfJSON, null, 2));
   }
   /* else {
     log('Setting build.frontendDist to', appFolder)
@@ -610,29 +610,29 @@ export const tauri = async (
     await writeFile(tauriConfJSONPath, JSON.stringify(tauriConfJSON, null, 2))
   } */
 
-  log('Installing packages')
+  log("Installing packages");
   await runWithLiveLogs(
     node,
-    [pnpm, 'install', '--prefer-offline'],
+    [pnpm, "install", "--prefer-offline"],
     {
       cwd: destinationFolder,
       env: {
         // DEBUG: '*',
         PATH: `${dirname(node)}${delimiter}${process.env.PATH}`,
-        PNPM_HOME: pnpmHome
+        PNPM_HOME: pnpmHome,
       },
-      cancelSignal: abortSignal
+      cancelSignal: abortSignal,
     },
     log,
     {
       onStderr(data) {
-        log(data)
+        log(data);
       },
       onStdout(data) {
-        log(data)
-      }
-    }
-  )
+        log(data);
+      },
+    },
+  );
 
   // override tauri version
   // if (completeConfiguration.electronVersion && completeConfiguration.electronVersion !== '') {
@@ -661,186 +661,186 @@ export const tauri = async (
   //   )
   // }
 
-  const inputPlatform = inputs.platform === '' ? undefined : inputs.platform
-  const inputArch = inputs.arch === '' ? undefined : inputs.arch
+  const inputPlatform = inputs.platform === "" ? undefined : inputs.platform;
+  const inputArch = inputs.arch === "" ? undefined : inputs.arch;
 
   try {
-    log('typeof inputs.platform', typeof inputs.platform)
-    const finalPlatform: NodeJS.Platform = inputPlatform ?? platform()
-    log('finalPlatform', finalPlatform)
-    const finalArch: NodeJS.Architecture = inputArch ?? (arch() as NodeJS.Architecture)
-    log('finalArch', finalArch)
+    log("typeof inputs.platform", typeof inputs.platform);
+    const finalPlatform: NodeJS.Platform = inputPlatform ?? platform();
+    log("finalPlatform", finalPlatform);
+    const finalArch: NodeJS.Architecture = inputArch ?? (arch() as NodeJS.Architecture);
+    log("finalArch", finalArch);
 
-    let tauriPlatform = ''
-    if (finalPlatform === 'win32') {
-      tauriPlatform = 'pc-windows-msvc'
-    } else if (finalPlatform === 'linux') {
-      tauriPlatform = 'unknown-linux-gnu'
+    let tauriPlatform = "";
+    if (finalPlatform === "win32") {
+      tauriPlatform = "pc-windows-msvc";
+    } else if (finalPlatform === "linux") {
+      tauriPlatform = "unknown-linux-gnu";
     } else {
-      throw new Error('Unsupported platform')
+      throw new Error("Unsupported platform");
     }
 
-    let tauriArch = ''
-    if (finalArch === 'x64') {
-      tauriArch = 'x86_64'
+    let tauriArch = "";
+    if (finalArch === "x64") {
+      tauriArch = "x86_64";
     } else {
-      throw new Error('Unsupported arch')
+      throw new Error("Unsupported arch");
     }
 
-    const target = `${tauriArch}-${tauriPlatform}`
+    const target = `${tauriArch}-${tauriPlatform}`;
 
     // Resolve cargo path using the new function
-    const cargo = await resolveCargoPath()
-    const cargoBinDir = dirname(cargo)
+    const cargo = await resolveCargoPath();
+    const cargoBinDir = dirname(cargo);
 
-    log('cargoBinDir', cargoBinDir)
-    console.log('cargo', cargo)
+    log("cargoBinDir", cargoBinDir);
+    console.log("cargo", cargo);
 
-    log('destinationFolder', destinationFolder)
+    log("destinationFolder", destinationFolder);
 
-    const cargoTargetDir = join(cache, 'cargo', 'target', completeConfiguration.appBundleId)
-    const cargoOutputPath = join(cargoTargetDir, target, 'release')
+    const cargoTargetDir = join(cache, "cargo", "target", completeConfiguration.appBundleId);
+    const cargoOutputPath = join(cargoTargetDir, target, "release");
 
-    log('cargoTargetDir', cargoTargetDir)
-    log('cargoOutputPath', cargoOutputPath)
+    log("cargoTargetDir", cargoTargetDir);
+    log("cargoOutputPath", cargoOutputPath);
 
-    log('Starting compiling')
+    log("Starting compiling");
 
     // by default add the tauri cli
     await runWithLiveLogs(
       cargo,
-      ['install', 'tauri-cli', '--version', '^2.0.0', '--locked'],
+      ["install", "tauri-cli", "--version", "^2.0.0", "--locked"],
       {
-        cwd: join(destinationFolder, 'src-tauri'),
+        cwd: join(destinationFolder, "src-tauri"),
         env: {
-          DEBUG: completeConfiguration.enableExtraLogging ? '*' : '',
-          ELECTRON_NO_ASAR: '1',
+          DEBUG: completeConfiguration.enableExtraLogging ? "*" : "",
+          ELECTRON_NO_ASAR: "1",
           CARGO_TARGET_DIR: cargoTargetDir,
-          PATH: `${cargoBinDir}${delimiter}${dirname(node)}${delimiter}${process.env.PATH}`
+          PATH: `${cargoBinDir}${delimiter}${dirname(node)}${delimiter}${process.env.PATH}`,
         },
-        cancelSignal: abortSignal
+        cancelSignal: abortSignal,
       },
       log,
       {
         onStderr(data) {
           // on ci, do not log
           if (!process.env.CI) {
-            log(data)
+            log(data);
           }
         },
         onStdout(data) {
           // on ci, do not log
           if (!process.env.CI) {
-            log(data)
+            log(data);
           }
-        }
-      }
-    )
+        },
+      },
+    );
 
     // if preview, run tauri dev
-    if (action === 'preview') {
+    if (action === "preview") {
       await runWithLiveLogs(
         cargo,
-        ['tauri', 'dev', '--target', target],
+        ["tauri", "dev", "--target", target],
         {
-          cwd: join(destinationFolder, 'src-tauri'),
+          cwd: join(destinationFolder, "src-tauri"),
           env: {
-            DEBUG: completeConfiguration.enableExtraLogging ? '*' : '',
-            ELECTRON_NO_ASAR: '1',
+            DEBUG: completeConfiguration.enableExtraLogging ? "*" : "",
+            ELECTRON_NO_ASAR: "1",
             CARGO_TARGET_DIR: cargoTargetDir,
-            PATH: `${cargoBinDir}${delimiter}${dirname(node)}${delimiter}${process.env.PATH}`
+            PATH: `${cargoBinDir}${delimiter}${dirname(node)}${delimiter}${process.env.PATH}`,
           },
-          cancelSignal: abortSignal
+          cancelSignal: abortSignal,
         },
         log,
         {
           onStderr(data) {
-            log(data)
+            log(data);
           },
           onStdout(data) {
-            log(data)
-          }
-        }
-      )
+            log(data);
+          },
+        },
+      );
     } else {
       // otherwise build, but don't bundle
       await runWithLiveLogs(
         cargo,
-        ['tauri', 'build', '--target', target, '--no-bundle'],
+        ["tauri", "build", "--target", target, "--no-bundle"],
         {
-          cwd: join(destinationFolder, 'src-tauri'),
+          cwd: join(destinationFolder, "src-tauri"),
           env: {
-            DEBUG: completeConfiguration.enableExtraLogging ? '*' : '',
-            ELECTRON_NO_ASAR: '1',
+            DEBUG: completeConfiguration.enableExtraLogging ? "*" : "",
+            ELECTRON_NO_ASAR: "1",
             CARGO_TARGET_DIR: cargoTargetDir,
-            PATH: `${cargoBinDir}${delimiter}${dirname(node)}${delimiter}${process.env.PATH}`
+            PATH: `${cargoBinDir}${delimiter}${dirname(node)}${delimiter}${process.env.PATH}`,
           },
-          cancelSignal: abortSignal
+          cancelSignal: abortSignal,
         },
         log,
         {
           onStderr(data) {
             // on ci, do not log
             if (!process.env.CI) {
-              log(data)
+              log(data);
             }
           },
           onStdout(data) {
             // on ci, do not log
             if (!process.env.CI) {
-              log(data)
+              log(data);
             }
-          }
-        }
-      )
+          },
+        },
+      );
 
       // if make, bundle
-      if (action === 'make') {
+      if (action === "make") {
         await runWithLiveLogs(
           cargo,
           // TODO: https://v2.tauri.app/fr/distribute/#bundling
-          ['tauri', 'bundle', '--', '--bundles', 'appimage'],
+          ["tauri", "bundle", "--", "--bundles", "appimage"],
           {
-            cwd: join(destinationFolder, 'src-tauri'),
+            cwd: join(destinationFolder, "src-tauri"),
             env: {
-              DEBUG: completeConfiguration.enableExtraLogging ? '*' : '',
-              ELECTRON_NO_ASAR: '1',
+              DEBUG: completeConfiguration.enableExtraLogging ? "*" : "",
+              ELECTRON_NO_ASAR: "1",
               CARGO_TARGET_DIR: cargoTargetDir,
-              PATH: `${cargoBinDir}${delimiter}${dirname(node)}${delimiter}${process.env.PATH}`
+              PATH: `${cargoBinDir}${delimiter}${dirname(node)}${delimiter}${process.env.PATH}`,
             },
-            cancelSignal: abortSignal
+            cancelSignal: abortSignal,
           },
           log,
           {
             onStderr(data) {
-              log(data)
+              log(data);
             },
             onStdout(data) {
-              log(data)
-            }
-          }
-        )
+              log(data);
+            },
+          },
+        );
       }
     }
 
-    if (action === 'package') {
-      const binName = getBinName(sanitizedName)
+    if (action === "package") {
+      const binName = getBinName(sanitizedName);
 
-      log('cargoOutputPath', cargoOutputPath)
+      log("cargoOutputPath", cargoOutputPath);
 
-      setOutput('output', cargoOutputPath)
-      setOutput('binary', join(cargoOutputPath, binName))
+      setOutput("output", cargoOutputPath);
+      setOutput("binary", join(cargoOutputPath, binName));
       return {
         folder: cargoOutputPath,
-        binary: join(cargoOutputPath, binName)
-      }
-    } else if (action === 'make') {
+        binary: join(cargoOutputPath, binName),
+      };
+    } else if (action === "make") {
       // TODO:
-      throw new Error('Unsupported action')
-    } else if (action === 'preview') {
+      throw new Error("Unsupported action");
+    } else if (action === "preview") {
       // continue
     } else {
-      throw new Error('Unsupported action')
+      throw new Error("Unsupported action");
       // const output = join(destinationFolder, 'out', 'make')
       // setOutput('output', output)
       // return {
@@ -850,15 +850,15 @@ export const tauri = async (
     }
   } catch (e) {
     if (e instanceof Error) {
-      if (e.name === 'RequestError') {
-        log('Request error')
+      if (e.name === "RequestError") {
+        log("Request error");
       }
-      if (e.name === 'RequestError') {
-        log('Request error')
+      if (e.name === "RequestError") {
+        log("Request error");
       }
-      throw e
+      throw e;
     }
-    log(e)
-    return undefined
+    log(e);
+    return undefined;
   }
-}
+};

@@ -1,78 +1,78 @@
-import { PresetFn, SavedFile } from '@pipelab/shared/model'
+import { PresetFn, SavedFile } from "@pipelab/shared/model";
 
 export const testC3Offline: PresetFn = async () => {
-  const packageWithElecton = 'electron-package-node'
-  const steamUpload = 'steam-upload-node'
+  const packageWithElecton = "electron-package-node";
+  const steamUpload = "steam-upload-node";
 
   const data: SavedFile = {
-    version: '3.0.0',
+    version: "3.0.0",
     variables: [],
-    name: 'C3 test without export',
-    description: 'C3 test without export',
+    name: "C3 test without export",
+    description: "C3 test without export",
     canvas: {
       triggers: [
         {
-          type: 'event',
+          type: "event",
           origin: {
-            pluginId: 'system',
-            nodeId: 'manual'
+            pluginId: "system",
+            nodeId: "manual",
           },
-          uid: 'manual-start',
-          params: {}
-        }
+          uid: "manual-start",
+          params: {},
+        },
       ],
       blocks: [
         {
           uid: packageWithElecton,
-          type: 'action',
+          type: "action",
           origin: {
-            nodeId: 'package-to-electron',
-            pluginId: 'electron'
+            nodeId: "package-to-electron",
+            pluginId: "electron",
           },
           params: {
-            'input-folder': {
-              editor: 'editor',
-              value: `/home/quentin/Documents/Cyn Assets/app`
+            "input-folder": {
+              editor: "editor",
+              value: `/home/quentin/Documents/Cyn Assets/app`,
             },
             arch: undefined,
-            platform: undefined
-          }
+            platform: undefined,
+          },
         },
         {
           uid: steamUpload,
-          type: 'action',
+          type: "action",
           origin: {
-            nodeId: 'steam-upload',
-            pluginId: 'steam'
+            nodeId: "steam-upload",
+            pluginId: "steam",
           },
           params: {
             folder: {
-              editor: 'editor',
-              value: `{{ steps['${packageWithElecton}']['outputs']['output'] }}`
+              editor: "editor",
+              value: `{{ steps['${packageWithElecton}']['outputs']['output'] }}`,
             },
             appId: {
-              editor: 'editor',
-              value: '3047200'
+              editor: "editor",
+              value: "3047200",
             },
             depotId: {
-              editor: 'editor',
-              value: '3047201'
+              editor: "editor",
+              value: "3047201",
             },
             sdk: {
-              editor: 'editor',
-              value: '/home/quentin/Documents/steamworkssdk/sdk'
+              editor: "editor",
+              value: "/home/quentin/Documents/steamworkssdk/sdk",
             },
             username: {
-              editor: 'editor',
-              value: 'armaldio'
-            }
-          }
-        }
-      ]
-    }
-  }
+              editor: "editor",
+              value: "armaldio",
+            },
+          },
+        },
+      ],
+    },
+  };
 
   return {
-    data
-  }
-}
+    data,
+  };
+};

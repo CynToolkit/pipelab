@@ -1,16 +1,16 @@
-import { InputDefinition } from '@pipelab/plugin-core'
+import { InputDefinition } from "@pipelab/plugin-core";
 
 export const isRequired = (param: InputDefinition) => {
-  return param.required === true
-}
+  return param.required === true;
+};
 
 export const isRenderer = () => {
   // running in a web browser
-  if (typeof process === 'undefined') return true
+  if (typeof process === "undefined") return true;
 
   // node-integration is disabled
-  if (!process) return true
+  if (!process) return true;
 
   // @ts-expect-error
-  return process.browser === true || process.title === 'browser'
-}
+  return process.browser === true || process.title === "browser";
+};

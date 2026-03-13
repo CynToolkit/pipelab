@@ -6,80 +6,80 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-import type { BuildHistoryEntry } from '@pipelab/shared/build-history'
+import { computed } from "vue";
+import type { BuildHistoryEntry } from "@pipelab/shared/build-history";
 
 interface Props {
-  status: BuildHistoryEntry['status'] | 'pending'
-  showIcon?: boolean
-  size?: 'small' | 'medium' | 'large'
+  status: BuildHistoryEntry["status"] | "pending";
+  showIcon?: boolean;
+  size?: "small" | "medium" | "large";
 }
 
 const props = withDefaults(defineProps<Props>(), {
   showIcon: true,
-  size: 'medium'
-})
+  size: "medium",
+});
 
 const statusConfig = {
   running: {
-    class: 'status-running',
-    icon: 'pi pi-spin pi-spinner',
-    text: 'Running',
-    color: '#007bff',
-    tooltip: 'Build is currently in progress'
+    class: "status-running",
+    icon: "pi pi-spin pi-spinner",
+    text: "Running",
+    color: "#007bff",
+    tooltip: "Build is currently in progress",
   },
   completed: {
-    class: 'status-completed',
-    icon: 'pi pi-check',
-    text: 'Completed',
-    color: '#28a745',
-    tooltip: 'Build completed successfully'
+    class: "status-completed",
+    icon: "pi pi-check",
+    text: "Completed",
+    color: "#28a745",
+    tooltip: "Build completed successfully",
   },
   failed: {
-    class: 'status-failed',
-    icon: 'pi pi-times',
-    text: 'Failed',
-    color: '#dc3545',
-    tooltip: 'Build failed with errors'
+    class: "status-failed",
+    icon: "pi pi-times",
+    text: "Failed",
+    color: "#dc3545",
+    tooltip: "Build failed with errors",
   },
   cancelled: {
-    class: 'status-cancelled',
-    icon: 'pi pi-stop',
-    text: 'Cancelled',
-    color: '#6c757d',
-    tooltip: 'Build was cancelled'
+    class: "status-cancelled",
+    icon: "pi pi-stop",
+    text: "Cancelled",
+    color: "#6c757d",
+    tooltip: "Build was cancelled",
   },
   pending: {
-    class: 'status-pending',
-    icon: 'pi pi-clock',
-    text: 'Pending',
-    color: '#ffc107',
-    tooltip: 'Step is waiting to execute'
-  }
-}
+    class: "status-pending",
+    icon: "pi pi-clock",
+    text: "Pending",
+    color: "#ffc107",
+    tooltip: "Step is waiting to execute",
+  },
+};
 
 const statusClass = computed(() => {
-  const config = statusConfig[props.status]
+  const config = statusConfig[props.status];
   return [
-    'build-status-badge',
+    "build-status-badge",
     `status-${props.status}`,
     `size-${props.size}`,
-    config?.class
-  ].filter(Boolean)
-})
+    config?.class,
+  ].filter(Boolean);
+});
 
 const statusIcon = computed(() => {
-  if (!props.showIcon) return ''
-  return statusConfig[props.status]?.icon || ''
-})
+  if (!props.showIcon) return "";
+  return statusConfig[props.status]?.icon || "";
+});
 
 const statusText = computed(() => {
-  return statusConfig[props.status]?.text || props.status
-})
+  return statusConfig[props.status]?.text || props.status;
+});
 
 const tooltipText = computed(() => {
-  return statusConfig[props.status]?.tooltip || props.status
-})
+  return statusConfig[props.status]?.tooltip || props.status;
+});
 </script>
 
 <style scoped>
