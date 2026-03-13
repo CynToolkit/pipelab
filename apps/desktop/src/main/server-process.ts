@@ -8,11 +8,23 @@ import { websocketPort } from "@pipelab/constants";
 
 let serverProcess: ChildProcess | null = null;
 
-const isUp = (url: string) =>
-  new Promise<boolean>((r) => {
-    return ((ws) => (
-      (ws.onopen = () => (ws.close(), r(true))), (ws.onerror = () => r(false))
-    ))(new WebSocket(url));
+const isUp = (url: string, retries = 20, delay = 500): Promise<boolean> =>
+  new Promise<boolean>((resolve) => {
+    const attempt = (remainingRetries: number) => {
+      const ws = new WebSocket(url);
+      ws.onopen = () => {
+        ws.close();
+        resolve(true);
+      };
+      ws.onerror = () => {
+        if (remainingRetries > 0) {
+          setTimeout(() => attempt(remainingRetries - 1), delay);
+        } else {
+          resolve(false);
+        }
+      };
+    };
+    attempt(retries);
   });
 
 export const startServer = async () => {
@@ -33,7 +45,10 @@ export const startServer = async () => {
     // args = [join(__dirname, '../../../cli/dist/index.js'), 'serve']
     // In dev, wait for the dev to start it manually
     console.error("In development mode, please start the server manually");
-    await isUp(`ws://localhost:${websocketPort}`);
+    const up = await isUp(`ws://localhost:${websocketPort}`);
+    if (!up) {
+      throw new Error(`Server failed to start on port ${websocketPort}`);
+    }
   } else {
     // In production, we use the bundled binary
     // The binary should be placed in a known location relative to the app
@@ -71,7 +86,10 @@ export const startServer = async () => {
     });
 
     // Give it a moment to start
-    await isUp(`ws://localhost:${websocketPort}`);
+    const up = await isUp(`ws://localhost:${websocketPort}`);
+    if (!up) {
+      throw new Error(`Server failed to start on port ${websocketPort}`);
+    }
   }
 };
 
