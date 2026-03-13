@@ -46,13 +46,17 @@ export default defineConfig((env) => {
         formats: ["cjs"],
       },
       rollupOptions: {
-        external: external.filter((dep) => {
-          const isPipelab = dep.startsWith("@pipelab/");
-          const isElectronToolkit = dep.startsWith("@electron-toolkit/");
-          const isWs = dep === "ws";
-          const isSquirrel = dep === "electron-squirrel-startup";
-          return !isPipelab && !isElectronToolkit && !isWs && !isSquirrel;
-        }),
+        external: [
+          ...external.filter((dep) => {
+            const isPipelab = dep.startsWith("@pipelab/");
+            const isElectronToolkit = dep.startsWith("@electron-toolkit/");
+            const isWs = dep === "ws";
+            const isSquirrel = dep === "electron-squirrel-startup";
+            return !isPipelab && !isElectronToolkit && !isWs && !isSquirrel;
+          }),
+          "bufferutil",
+          "utf-8-validate",
+        ],
       },
     },
     plugins,

@@ -2,27 +2,33 @@ import { spawn, ChildProcess } from "child_process";
 import { join } from "path";
 import { app } from "electron";
 import { is } from "@electron-toolkit/utils";
-import { exit } from "node:process";
-import WebSocket from "ws";
+import http from "node:http";
 import { websocketPort } from "@pipelab/constants";
 
 let serverProcess: ChildProcess | null = null;
 
-const isUp = (url: string, retries = 20, delay = 500): Promise<boolean> =>
+const isUp = (port: number, retries = 20, delay = 500): Promise<boolean> =>
   new Promise<boolean>((resolve) => {
     const attempt = (remainingRetries: number) => {
-      const ws = new WebSocket(url);
-      ws.onopen = () => {
-        ws.close();
+      const req = http.get(`http://localhost:${port}`, (res) => {
+        res.resume();
+        console.info(`[Server Check] Server is up on port ${port}`);
         resolve(true);
-      };
-      ws.onerror = () => {
+      });
+
+      req.on("error", () => {
         if (remainingRetries > 0) {
+          if (remainingRetries % 5 === 0 || remainingRetries === 20) {
+            console.info(
+              `[Server Check] Waiting for server on port ${port}... (${remainingRetries} retries left)`,
+            );
+          }
           setTimeout(() => attempt(remainingRetries - 1), delay);
         } else {
+          console.error(`[Server Check] Server failed to come up on port ${port} after all retries`);
           resolve(false);
         }
-      };
+      });
     };
     attempt(retries);
   });
@@ -44,10 +50,9 @@ export const startServer = async () => {
     // serverPath = 'node'
     // args = [join(__dirname, '../../../cli/dist/index.js'), 'serve']
     // In dev, wait for the dev to start it manually
-    console.error("In development mode, please start the server manually");
-    const up = await isUp(`ws://localhost:${websocketPort}`);
+    const up = await isUp(websocketPort);
     if (!up) {
-      throw new Error(`Server failed to start on port ${websocketPort}`);
+      throw new Error("In development mode, please start the server manually");
     }
   } else {
     // In production, we use the bundled binary
@@ -86,7 +91,7 @@ export const startServer = async () => {
     });
 
     // Give it a moment to start
-    const up = await isUp(`ws://localhost:${websocketPort}`);
+    const up = await isUp(websocketPort);
     if (!up) {
       throw new Error(`Server failed to start on port ${websocketPort}`);
     }

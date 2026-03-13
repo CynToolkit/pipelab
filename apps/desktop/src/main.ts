@@ -272,6 +272,7 @@ app.whenReady().then(async () => {
     console.info("Standalone server is ready, creating window");
   } catch (error) {
     console.error("Failed to start standalone server:", error);
+    process.exit(1);
   }
 
   createWindow();
