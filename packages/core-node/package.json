@@ -28,7 +28,6 @@
     "@pipelab/tsconfig": "workspace:*",
     "@types/node": "22.7.9",
     "@types/ws": "8.18.1",
-    "tsup": "^8.0.0",
     "typescript": "^5.0.0"
   }
 }
