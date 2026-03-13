@@ -1,5 +1,6 @@
 import { WebSocketServer as WSWebSocketServer, WebSocket as WSWebSocket } from "ws";
 import { IncomingMessage } from "http";
+import { nanoid } from "nanoid";
 import { useAPI } from "./ipc-core";
 import { useLogger } from "@pipelab/shared/logger";
 import {
@@ -30,7 +31,6 @@ export class WebSocketServer {
 
   async start(port: number = websocketPort, existingServer?: import("http").Server): Promise<void> {
     const { logger } = useLogger();
-    const { nanoid } = await import("nanoid");
 
     return new Promise((resolve, reject) => {
       try {

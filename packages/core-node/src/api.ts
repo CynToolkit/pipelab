@@ -1,3 +1,4 @@
+import { nanoid } from "nanoid";
 import { klona } from "klona";
 import { toRaw } from "vue";
 
@@ -116,7 +117,6 @@ export const usePluginAPI = (browserWindow: any) => {
     data?: RendererData<KEY>,
     listener?: ListenerMain<KEY>,
   ) => {
-    const { nanoid } = await import("nanoid");
     const newId = nanoid() as RequestId;
     // eslint-disable-next-line no-async-promise-executor
     return new Promise<RendererEnd<KEY>>(async (resolve, reject) => {

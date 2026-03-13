@@ -1,3 +1,4 @@
+import { nanoid } from "nanoid";
 import { usePlugins } from "@pipelab/shared/plugins";
 import { RendererPluginDefinition } from "@pipelab/plugin-core/pipelab";
 import { downloadFile, Hooks } from "@pipelab/plugin-core/utils";
@@ -163,7 +164,7 @@ export const executeGraphWithHistory = async ({
   abortSignal: AbortSignal;
   mainWindow?: any;
 }) => {
-  const buildId = (await import("nanoid")).nanoid();
+  const buildId = nanoid();
   const startTime = Date.now();
 
   // Save initial build history entry

@@ -1,24 +1,19 @@
-import { app, shell, BrowserWindow, dialog, autoUpdater, protocol, screen } from "electron";
+import {
+  app,
+  shell,
+  BrowserWindow,
+  dialog,
+  autoUpdater,
+  screen,
+} from "electron";
 import { join } from "path";
 import { platform } from "os";
 import { electronApp, optimizer, is } from "@electron-toolkit/utils";
 import { startServer, stopServer } from "./main/server-process";
-import {
-  setSystemContext,
-  registerIPCHandlers,
-  setupConfigFile,
-  assetsPath,
-  registerShellHandlers,
-  usePluginAPI,
-} from "@pipelab/core-node";
-import { ShellChannels } from "@pipelab/shared/apis";
-import { AppConfig } from "@pipelab/shared/config.schema";
-import { parseArgs, ParseArgsConfig } from "node:util";
-import { mkdir } from "fs/promises";
-import { useLogger } from "@pipelab/shared/logger";
 import * as Sentry from "@sentry/electron/main";
 import { resolve } from "node:path";
 import Squirrel from "electron-squirrel-startup";
+import { websocketPort } from "@pipelab/constants";
 
 if (is.dev) {
   app.setPath("userData", app.getPath("userData") + "-dev");
@@ -29,12 +24,10 @@ const isLinux = platform() === "linux";
 // let tray
 let isReadyToShow = false;
 
-const { logger, setMainWindow } = useLogger();
-
-logger().info("app.isPackaged", app.isPackaged);
-logger().info("process.env.TEST", process.env.TEST);
-logger().info("process.env.WINEHOMEDIR", process.env.WINEHOMEDIR);
-logger().info("isLinux", isLinux);
+console.info("app.isPackaged", app.isPackaged);
+console.info("process.env.TEST", process.env.TEST);
+console.info("process.env.WINEHOMEDIR", process.env.WINEHOMEDIR);
+console.info("isLinux", isLinux);
 
 const isWine = platform() === "win32" && "WINEHOMEDIR" in process.env;
 
@@ -102,9 +95,7 @@ function createWindow(): void {
     },
   });
 
-  setMainWindow(mainWindow);
-
-  api = usePluginAPI(mainWindow);
+  // api = usePluginAPI(mainWindow);
 
   if (is.dev) {
     mainWindow.webContents.openDevTools();
@@ -129,20 +120,14 @@ function createWindow(): void {
     return { action: "deny" };
   });
 
-  console.log("process.env.UI_DEV_SERVER_URL", process.env.UI_DEV_SERVER_URL);
-
   // and load the index.html of the app.
-  // if (is.dev && process.env.UI_DEV_SERVER_URL) {
-  mainWindow.loadURL(process.env.UI_DEV_SERVER_URL);
-  // } else if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
-  // mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL)
-  // } else {
-  // mainWindow.loadFile(join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`))
-  // }
+  mainWindow.loadURL(`http://localhost:${websocketPort}`);
 }
 
 if (is.dev && process.platform === "win32") {
-  app.setAsDefaultProtocolClient("pipelab", process.execPath, [resolve(process.argv[1])]);
+  app.setAsDefaultProtocolClient("pipelab", process.execPath, [
+    resolve(process.argv[1]),
+  ]);
 } else {
   app.setAsDefaultProtocolClient("pipelab");
 }
@@ -169,31 +154,31 @@ function handleProtocolUrl(url: string) {
 }
 
 app.whenReady().then(async () => {
-  setSystemContext({
-    userDataPath: app.getPath("userData"),
-    assetsPath: app.isPackaged
-      ? join(app.getAppPath(), "..", "assets")
-      : join(app.getAppPath(), "..", "cli", "assets"),
-    showOpenDialog: (options) => {
-      const mainWindow = BrowserWindow.getFocusedWindow();
-      if (!mainWindow) throw new Error("No window");
-      return dialog.showOpenDialog(mainWindow, options);
-    },
-    showSaveDialog: (options) => {
-      const mainWindow = BrowserWindow.getFocusedWindow();
-      if (!mainWindow) throw new Error("No window");
-      return dialog.showSaveDialog(mainWindow, options);
-    },
-    getMainWindow: () => BrowserWindow.getFocusedWindow(),
-    getPluginAPI: (mainWindow) => usePluginAPI(mainWindow),
-  });
+  // setSystemContext({
+  //   userDataPath: app.getPath("userData"),
+  //   assetsPath: app.isPackaged
+  //     ? join(app.getAppPath(), "..", "assets")
+  //     : join(app.getAppPath(), "..", "cli", "assets"),
+  //   showOpenDialog: (options) => {
+  //     const mainWindow = BrowserWindow.getFocusedWindow();
+  //     if (!mainWindow) throw new Error("No window");
+  //     return dialog.showOpenDialog(mainWindow, options);
+  //   },
+  //   showSaveDialog: (options) => {
+  //     const mainWindow = BrowserWindow.getFocusedWindow();
+  //     if (!mainWindow) throw new Error("No window");
+  //     return dialog.showSaveDialog(mainWindow, options);
+  //   },
+  //   getMainWindow: () => BrowserWindow.getFocusedWindow(),
+  //   getPluginAPI: (mainWindow) => usePluginAPI(mainWindow),
+  // });
 
-  protocol.handle("pipelab", async (request) => {
-    const url = request.url;
-    console.log("handle url", url);
-    await handleProtocolUrl(url);
-    return new Response(null, { status: 200 });
-  });
+  // protocol.handle("pipelab", async (request) => {
+  //   const url = request.url;
+  //   console.log("handle url", url);
+  //   await handleProtocolUrl(url);
+  //   return new Response(null, { status: 200 });
+  // });
 
   if (!is.dev) {
     autoUpdater.setFeedURL({
@@ -207,15 +192,16 @@ app.whenReady().then(async () => {
       api?.execute("update:set-status", {
         status: "update-downloaded",
       });
-      logger().info("releaseNotes", releaseNotes);
-      logger().info("releaseName", releaseName);
-      logger().info("event", event);
+      console.info("releaseNotes", releaseNotes);
+      console.info("releaseName", releaseName);
+      console.info("event", event);
       const dialogOpts: Electron.MessageBoxOptions = {
         type: "info",
         buttons: ["Restart", "Later"],
         title: "Application Update",
         message: process.platform === "win32" ? releaseNotes : releaseName,
-        detail: "A new version has been downloaded. Restart the application to apply the updates.",
+        detail:
+          "A new version has been downloaded. Restart the application to apply the updates.",
       };
 
       dialog.showMessageBox(dialogOpts).then((returnValue) => {
@@ -227,7 +213,7 @@ app.whenReady().then(async () => {
       api?.execute("update:set-status", {
         status: "error",
       });
-      logger().info("There was a problem updating the application");
+      console.info("There was a problem updating the application");
       console.log(message);
     });
 
@@ -235,26 +221,26 @@ app.whenReady().then(async () => {
       api?.execute("update:set-status", {
         status: "update-available",
       });
-      logger().info("Found update");
+      console.info("Found update");
     });
 
     autoUpdater.on("update-not-available", () => {
       api?.execute("update:set-status", {
         status: "update-not-available",
       });
-      logger().info("No update available");
+      console.info("No update available");
     });
 
     autoUpdater.on("checking-for-update", (info: any) => {
       api?.execute("update:set-status", {
         status: "checking-for-update",
       });
-      logger().info("checking-for-update", info);
+      console.info("checking-for-update", info);
     });
-    logger().info("autoUpdater.getFeedURL()", autoUpdater.getFeedURL());
+    console.info("autoUpdater.getFeedURL()", autoUpdater.getFeedURL());
   }
 
-  logger().info("app ready");
+  console.info("app ready");
 
   // Set app user model id for windows
   electronApp.setAppUserModelId("com.pipelab");
@@ -266,26 +252,26 @@ app.whenReady().then(async () => {
     optimizer.watchWindowShortcuts(window);
   });
 
-  const assets = await assetsPath();
-  const shimsPaths = join(assets, "shims");
+  // const assets = await assetsPath();
+  // const shimsPaths = join(assets, "shims");
 
-  await mkdir(shimsPaths, { recursive: true });
+  // await mkdir(shimsPaths, { recursive: true });
 
-  const settingsG = await setupConfigFile<AppConfig>("settings");
+  // const settingsG = await setupConfigFile<AppConfig>("settings");
 
-  const settings = await settingsG.getConfig();
+  // const settings = await settingsG.getConfig();
 
-  console.log("settings", settings);
+  // console.log("settings", settings);
 
-  registerShellHandlers();
-  registerIPCHandlers((channel) => ShellChannels.includes(channel));
+  // registerShellHandlers();
+  // registerIPCHandlers((channel) => ShellChannels.includes(channel));
 
   // Start standalone CLI server
   try {
     await startServer();
-    logger().info("Standalone server is ready, creating window");
+    console.info("Standalone server is ready, creating window");
   } catch (error) {
-    logger().error("Failed to start standalone server:", error);
+    console.error("Failed to start standalone server:", error);
   }
 
   createWindow();
@@ -329,6 +315,6 @@ app.on("before-quit", async (event) => {
   event.preventDefault();
 
   stopServer();
-  logger().info("Standalone server stopped, quitting app");
+  console.info("Standalone server stopped, quitting app");
   app.exit(0);
 });

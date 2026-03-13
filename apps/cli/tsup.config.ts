@@ -8,7 +8,7 @@ export default defineConfig({
   sourcemap: true,
   clean: true,
   minify: false,
-  noExternal: [/^@pipelab\/.*/, "serve-handler", "slash"],
+  noExternal: [/^@pipelab\/.*/, "serve-handler", "slash", "nanoid"],
   external: [
     "playwright",
     "playwright-core",
@@ -18,7 +18,6 @@ export default defineConfig({
     "archiver",
     "tar",
     "yauzl",
-    "nanoid",
     "semver",
     "@jitl/quickjs-wasmfile-release-sync",
   ],

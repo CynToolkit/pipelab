@@ -1,6 +1,10 @@
 import type { ConfigEnv, UserConfig } from "vite";
 import { defineConfig, mergeConfig } from "vite";
-import { getBuildConfig, external, pluginHotRestart } from "./vite.base.config.mjs";
+import {
+  getBuildConfig,
+  external,
+  pluginHotRestart,
+} from "./vite.base.config.mjs";
 import tsconfigPaths from "vite-tsconfig-paths";
 import { resolve } from "path";
 
@@ -33,9 +37,10 @@ export default defineConfig((env) => {
     resolve: {
       alias: {
         "@pipelab/shared": resolve(__dirname, "../../packages/shared/src"),
-        "@pipelab/constants": resolve(__dirname, "../../packages/constants/src/index.ts"),
-        "@pipelab/core-node": resolve(__dirname, "../../packages/core-node/src"),
-        "@pipelab/migration": resolve(__dirname, "../../packages/migration/src"),
+        "@pipelab/constants": resolve(
+          __dirname,
+          "../../packages/constants/src/index.ts"
+        ),
         "@pipelab": resolve(__dirname, "../../packages/shared/src/libs"),
       },
     },

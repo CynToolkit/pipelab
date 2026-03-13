@@ -1,4 +1,4 @@
-import type {
+import {
   AppConfig,
   AppConfigV1,
   AppConfigV2,
@@ -9,7 +9,7 @@ import type {
   AppConfigV7,
 } from "../config.schema";
 
-export type {
+export {
   AppConfig,
   AppConfigV1,
   AppConfigV2,
@@ -19,5 +19,3 @@ export type {
   AppConfigV6,
   AppConfigV7,
 };
-
-export { defaultAppSettings, appSettingsMigrator } from "@pipelab/migration/settings";

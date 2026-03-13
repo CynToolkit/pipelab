@@ -116,9 +116,6 @@ importers:
       '@pipelab/constants':
         specifier: workspace:*
         version: link:../../packages/constants
-      '@pipelab/core-node':
-        specifier: workspace:*
-        version: link:../../packages/core-node
       '@pipelab/shared':
         specifier: workspace:*
         version: link:../../packages/shared

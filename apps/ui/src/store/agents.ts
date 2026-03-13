@@ -2,6 +2,7 @@ import { defineStore } from "pinia";
 import { ref, computed, watch } from "vue";
 import { websocketManager } from "@renderer/composables/websocket-manager";
 import { useLogger } from "@pipelab/shared/logger";
+import { nanoid } from "nanoid";
 import { useAppSettings } from "./settings";
 import { websocketPort } from "@pipelab/constants";
 
@@ -109,7 +110,6 @@ export const useAgentsStore = defineStore(
     };
 
     const addLocalhostAgent = async () => {
-      const { nanoid } = await import("nanoid");
       const updatedAgents = [...agents.value];
       const newAgent = {
         id: nanoid(),

@@ -1,26 +1,27 @@
-import { union, literal, InferInput, string, boolean, object, number, array } from "valibot";
-import { createVersionSchema } from "@pipelab/migration";
+import { union, literal, InferInput, string, boolean, object, number, array, GenericSchema } from "valibot";
 
-export const AppSettingsValidatorV1 = createVersionSchema({
+export const createVersionSchema = <T extends GenericSchema<any, any>>(schema: T) => schema;
+
+export const AppSettingsValidatorV1 = object({
   cacheFolder: string(),
   theme: union([literal("light"), literal("dark")]),
   version: literal("1.0.0"),
 });
 
-export const AppSettingsValidatorV2 = createVersionSchema({
+export const AppSettingsValidatorV2 = object({
   cacheFolder: string(),
   theme: union([literal("light"), literal("dark")]),
   version: literal("2.0.0"),
 });
 
-export const AppSettingsValidatorV3 = createVersionSchema({
+export const AppSettingsValidatorV3 = object({
   cacheFolder: string(),
   theme: union([literal("light"), literal("dark")]),
   version: literal("3.0.0"),
   clearTemporaryFoldersOnPipelineEnd: boolean(),
 });
 
-export const AppSettingsValidatorV4 = createVersionSchema({
+export const AppSettingsValidatorV4 = object({
   theme: union([literal("light"), literal("dark")]),
   version: literal("4.0.0"),
   cacheFolder: string(),
@@ -35,7 +36,7 @@ export const AppSettingsValidatorV4 = createVersionSchema({
   ]),
 });
 
-export const AppSettingsValidatorV5 = createVersionSchema({
+export const AppSettingsValidatorV5 = object({
   theme: union([literal("light"), literal("dark")]),
   version: literal("5.0.0"),
   cacheFolder: string(),
@@ -60,7 +61,7 @@ export const AppSettingsValidatorV5 = createVersionSchema({
   }),
 });
 
-export const AppSettingsValidatorV6 = createVersionSchema({
+export const AppSettingsValidatorV6 = object({
   theme: union([literal("light"), literal("dark")]),
   version: literal("6.0.0"),
   cacheFolder: string(),
@@ -86,7 +87,7 @@ export const AppSettingsValidatorV6 = createVersionSchema({
   autosave: boolean(),
 });
 
-export const AppSettingsValidatorV7 = createVersionSchema({
+export const AppSettingsValidatorV7 = object({
   theme: union([literal("light"), literal("dark")]),
   version: literal("7.0.0"),
   cacheFolder: string(),

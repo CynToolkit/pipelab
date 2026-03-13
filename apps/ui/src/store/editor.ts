@@ -22,7 +22,6 @@ import { Variable } from "@pipelab/core-app";
 import { defineStore, storeToRefs } from "pinia";
 import get from "get-value";
 import set from "set-value";
-import { nanoid } from "nanoid";
 import { AddNodeEvent, AddTriggerEvent } from "@renderer/components/AddNodeButton.model";
 import { useAppStore } from "./app";
 import { useFiles } from "./files";
@@ -30,6 +29,7 @@ import { useRouteParams } from "@vueuse/router";
 import { ValidationError } from "@renderer/models/error";
 import { isRequired } from "@pipelab/shared/validation";
 import { useLogger } from "@pipelab/shared/logger";
+import { nanoid } from "nanoid";
 import { klona } from "klona";
 import { create } from "mutative";
 import { parse, value } from "valibot";
@@ -493,7 +493,7 @@ export const useEditor = defineStore("editor", () => {
         addNodeToBlock(node, path, insertAt);
       } /* else if (isConditionDefinition(nodeDefinition)) {
         const node: BlockCondition = {
-          uid: nanoid(),
+          uid: crypto.randomUUID(),
           type: nodeDefinition.type,
           origin: {
             nodeId: nodeDefinition.id,
@@ -506,7 +506,7 @@ export const useEditor = defineStore("editor", () => {
         addNodeToBlock(node, path, insertAt)
       } else if (isLoopDefinition(nodeDefinition)) {
         const node: BlockLoop = {
-          uid: nanoid(),
+          uid: crypto.randomUUID(),
           type: nodeDefinition.type,
           origin: {
             nodeId: nodeDefinition.id,

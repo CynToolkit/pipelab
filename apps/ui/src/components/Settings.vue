@@ -320,12 +320,12 @@ import { useAPI } from "@renderer/composables/api";
 import { format } from "date-fns";
 import { useI18n } from "vue-i18n";
 import { Locales, MessageSchema } from "@pipelab/shared/i18n-utils";
+import { nanoid } from "nanoid";
 import { watch } from "vue";
 import DataTable from "primevue/datatable";
 import Column from "primevue/column";
 import Dialog from "primevue/dialog";
 import InputText from "primevue/inputtext";
-import { nanoid } from "nanoid";
 
 const { t, locale } = useI18n<
   {
