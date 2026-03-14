@@ -1,11 +1,11 @@
-import { getSystemContext } from "../context";
+import { userDataPath } from "../context";
 import { join } from "node:path";
 import { writeFile, readFile, unlink, mkdir } from "node:fs/promises";
 import { BuildHistoryEntry, IBuildHistoryStorage } from "@pipelab/shared/build-history";
 import { useLogger } from "@pipelab/shared/logger";
 
 // Simplified storage - one file per pipeline containing array of build entries
-const getStoragePath = () => join(getSystemContext().userDataPath, "build-history");
+const getStoragePath = () => join(userDataPath, "build-history");
 
 export class BuildHistoryStorage implements IBuildHistoryStorage {
   private logger = useLogger();

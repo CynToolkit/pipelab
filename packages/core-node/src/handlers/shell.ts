@@ -1,5 +1,4 @@
 import { useAPI } from "../ipc-core";
-import { getSystemContext } from "../context";
 import { useLogger } from "@pipelab/shared/logger";
 import slash from "slash";
 
@@ -11,17 +10,15 @@ export const registerShellHandlers = () => {
     logger().info("value", value);
     logger().info("dialog:showOpenDialog");
 
-    const { showOpenDialog } = getSystemContext();
-
-    const { canceled, filePaths } = await showOpenDialog(value);
-
+    // Since we are in a standalone server, we cannot show Electron dialogs.
+    // In the future, this could be handled by the UI or a separate GUI process.
     send({
       type: "end",
       data: {
         type: "success",
         result: {
-          filePaths: filePaths.map((f: string) => slash(f)),
-          canceled,
+          filePaths: [],
+          canceled: true,
         },
       },
     });
@@ -33,17 +30,13 @@ export const registerShellHandlers = () => {
     logger().info("value", value);
     logger().info("dialog:showSaveDialog");
 
-    const { showSaveDialog } = getSystemContext();
-
-    const { canceled, filePath } = await showSaveDialog(value);
-
     send({
       type: "end",
       data: {
         type: "success",
         result: {
-          filePath,
-          canceled,
+          filePath: undefined,
+          canceled: true,
         },
       },
     });

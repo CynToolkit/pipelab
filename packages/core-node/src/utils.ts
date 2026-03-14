@@ -2,11 +2,10 @@ import { nanoid } from "nanoid";
 import { usePlugins } from "@pipelab/shared/plugins";
 import { RendererPluginDefinition } from "@pipelab/plugin-core";
 import { downloadFile, Hooks } from "@pipelab/plugin-core";
-import { access, chmod, mkdir, mkdtemp, realpath, rm, unlink, writeFile } from "node:fs/promises";
+import { access, chmod, mkdir, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import { tmpdir } from "node:os";
-import { getSystemContext } from "./context";
-import { constants, createReadStream } from "node:fs";
+import { userDataPath, assetsPath } from "./context";
+import { constants } from "node:fs";
 import { throttle } from "es-toolkit";
 import { processGraph } from "@pipelab/shared/graph";
 import { handleActionExecute } from "./handler-func";
@@ -47,10 +46,8 @@ export const getFinalPlugins = () => {
  * @returns A Promise that resolves to the path of the installed Node.js executable.
  */
 export const ensureNodeJS = async (version: string) => {
-  const { assetsPath } = await import("./paths");
   const { extractTarGz, extractZip } = await import("./archive-utils");
-  const _assetsPath = await assetsPath();
-  const nodeDir = join(_assetsPath, "node", version);
+  const nodeDir = join(assetsPath, "node", version);
   const isWindows = process.platform === "win32";
   const executableName = isWindows ? "node.exe" : "bin/node";
   const finalNodePath = join(nodeDir, executableName);

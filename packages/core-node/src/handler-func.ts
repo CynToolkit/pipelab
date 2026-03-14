@@ -9,9 +9,8 @@ import {
 import { usePlugins } from "@pipelab/shared/plugins";
 import { isRequired } from "@pipelab/shared/validation";
 import { mkdir } from "node:fs/promises";
-import { assetsPath, unpackPath } from "./paths";
+import { assetsPath, unpackPath, userDataPath } from "./context";
 import { useLogger } from "@pipelab/shared/logger";
-import { getSystemContext } from "./context";
 import { BlockCondition } from "@pipelab/shared/model";
 import { HandleListenerSendFn } from "./handlers";
 import { ensureNodeJS, generateTempFolder } from "./utils";
@@ -149,13 +148,11 @@ export const handleActionExecute = async (
 
   const tmp = await generateTempFolder(config?.cacheFolder ?? tmpdir());
 
-  const _assetsPath = await assetsPath();
-  const _unpackPath = await unpackPath();
-  const nodePath = await ensureNodeJS();
-  const modulesPath = join(_unpackPath, "node_modules");
+  const nodePath = await ensureNodeJS("20.11.1");
+  const modulesPath = join(unpackPath, "node_modules");
   const pnpm = join(modulesPath, "pnpm", "bin", "pnpm.cjs");
   const outputs: Record<string, unknown> = {};
-  const api = getSystemContext().getPluginAPI?.(mainWindow);
+  const api = undefined;
 
   try {
     await mkdir(tmp, { recursive: true });
@@ -189,12 +186,12 @@ export const handleActionExecute = async (
       },
       cwd: tmp,
       paths: {
-        assets: _assetsPath,
-        unpack: _unpackPath,
+        assets: assetsPath,
+        unpack: unpackPath,
         cache: config?.cacheFolder ?? tmpdir(),
         node: nodePath,
         pnpm,
-        userData: getSystemContext().userDataPath,
+        userData: userDataPath,
       },
       api,
       browserWindow: mainWindow,

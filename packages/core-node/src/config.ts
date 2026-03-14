@@ -1,4 +1,4 @@
-import { getSystemContext } from "./context";
+import { userDataPath } from "./context";
 import path from "node:path";
 import { ensure } from "./fs-utils";
 import fs from "node:fs/promises";
@@ -14,7 +14,7 @@ export const setupConfigFile = async <T>(name: string) => {
     );
   }
 
-  const userData = getSystemContext().userDataPath;
+  const userData = userDataPath;
   const filesPath = path.join(userData, "config", `${name}.json`);
 
   await ensure(filesPath, JSON.stringify(migrator.defaultValue));

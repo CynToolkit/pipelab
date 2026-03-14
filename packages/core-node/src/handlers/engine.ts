@@ -1,5 +1,5 @@
 import { useAPI, HandleListenerSendFn } from "../ipc-core";
-import { getSystemContext } from "../context";
+import { userDataPath } from "../context";
 import { useLogger } from "@pipelab/shared/logger";
 import { getFinalPlugins, executeGraphWithHistory } from "../utils";
 import { presets } from "../presets/list";
@@ -75,7 +75,7 @@ export const registerEngineHandlers = () => {
 
   handle("action:execute", async (event, { send, value }) => {
     const { nodeId, params, pluginId } = value;
-    const mainWindow = getSystemContext().getMainWindow?.();
+    const mainWindow = undefined;
     abortControllerGraph = new AbortController();
 
     const signalPromise = new Promise((resolve, reject) => {
@@ -98,7 +98,7 @@ export const registerEngineHandlers = () => {
   });
 
   handle("constants:get", async (_, { send }) => {
-    const userData = getSystemContext().userDataPath;
+    const userData = userDataPath;
     send({
       type: "end",
       data: {
@@ -129,7 +129,7 @@ export const registerEngineHandlers = () => {
 
   handle("graph:execute", async (event, { send, value }) => {
     const { graph, variables, projectName, projectPath, pipelineId } = value;
-    const mainWindow = getSystemContext().getMainWindow?.();
+    const mainWindow = undefined;
     abortControllerGraph = new AbortController();
 
     try {
