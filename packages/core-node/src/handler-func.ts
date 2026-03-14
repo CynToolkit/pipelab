@@ -194,6 +194,7 @@ export const handleActionExecute = async (
         cache: config?.cacheFolder ?? tmpdir(),
         node: nodePath,
         pnpm,
+        userData: getSystemContext().userDataPath,
       },
       api,
       browserWindow: mainWindow,

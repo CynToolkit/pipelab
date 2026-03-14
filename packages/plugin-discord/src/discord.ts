@@ -8,7 +8,6 @@ import {
   runWithLiveLogs,
 } from "@pipelab/plugin-core";
 import { detectRuntime } from "@pipelab/shared/plugins";
-import { app } from "electron";
 import { dirname } from "node:path";
 import { startTunnel } from "untun";
 
@@ -254,9 +253,7 @@ DISCORD_CLIENT_SECRET=yJ4vRnzDtKAqg2Le3_Sap2CqHybkTp2U`,
 
   const shimsPaths = join(assets, "shims");
 
-  const userData = app.getPath("userData");
-
-  const pnpmHome = join(userData, "config", "pnpm");
+  const pnpmHome = join(paths.userData, "config", "pnpm");
 
   const sanitizedName = kebabCase(completeConfiguration.name);
 

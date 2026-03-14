@@ -397,6 +397,7 @@ export type ActionRunnerData<ACTION extends Action> = {
     cache: string;
     pnpm: string;
     node: string;
+    userData: string;
   };
   api: any;
   browserWindow: BrowserWindow;

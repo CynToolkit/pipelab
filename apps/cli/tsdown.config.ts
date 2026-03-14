@@ -1,5 +1,6 @@
 import { defineConfig } from "tsdown";
-import { resolve } from "path";
+import { resolve, dirname } from "path";
+import { readFileSync } from "node:fs";
 
 export default defineConfig({
   entry: ["src/index.ts"],
@@ -15,6 +16,7 @@ export default defineConfig({
     "@pipelab/migration/settings": resolve(import.meta.dirname, "../../packages/migration/src/settings.ts"),
     "@pipelab/migration/model": resolve(import.meta.dirname, "../../packages/migration/src/model.ts"),
     "@pipelab/migration": resolve(import.meta.dirname, "../../packages/migration/src/index.ts"),
+    "electron": resolve(import.meta.dirname, "assets/shims/electron.ts"),
   },
   deps: {
     neverBundle: [
@@ -27,13 +29,30 @@ export default defineConfig({
       "tar",
       "yauzl",
       "semver",
-      "electron",
       "@lydell/node-pty",
       "@jitl/quickjs-wasmfile-release-sync",
-      /\.webp$/,
       /\?url$/,
     ],
-    alwaysBundle: [/^@pipelab\/.*/, "serve-handler", "slash", "nanoid"],
+    alwaysBundle: [/^@pipelab\/.*/, "serve-handler", "slash", "nanoid", "sliced", "deep-defaults"],
   },
+  define: {
+    "import.meta": "{}",
+  },
+  plugins: [
+    {
+      name: "webp-base64",
+      resolveId(source, importer) {
+        if (source.endsWith(".webp")) {
+          return resolve(dirname(importer), source);
+        }
+      },
+      load(id) {
+        if (id.endsWith(".webp")) {
+          const data = readFileSync(id).toString("base64");
+          return `export default "data:image/webp;base64,${data}"`;
+        }
+      },
+    },
+  ],
   target: false,
 });

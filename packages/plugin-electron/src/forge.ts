@@ -13,7 +13,6 @@ import {
   runWithLiveLogs,
 } from "@pipelab/plugin-core";
 
-import { app } from "electron";
 import { detectRuntime } from "@pipelab/shared/plugins";
 import { dirname } from "node:path";
 import * as esbuild from "esbuild";
@@ -618,8 +617,7 @@ export const forge = async (
 
   const pkgJSONPath = join(destinationFolder, "package.json");
   const pkgJSONContent = await readFile(pkgJSONPath, "utf8");
-  const userData = app.getPath("userData");
-  const pnpmHome = join(userData, "config", "pnpm");
+  const pnpmHome = join(paths.userData, "config", "pnpm");
   const sanitizedName = kebabCase(completeConfiguration.name);
 
   const originalIconPath = completeConfiguration.icon;

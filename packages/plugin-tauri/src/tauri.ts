@@ -11,10 +11,10 @@ import {
   OutputsDefinition,
   runWithLiveLogs,
 } from "@pipelab/plugin-core";
-import { detectRuntime } from "@pipelab/shared/plugins";
-import { app } from "electron";
 import { dirname, join } from "node:path";
 import { existsSync } from "node:fs";
+import { homedir } from "node:os";
+import { detectRuntime } from "@pipelab/shared/plugins";
 
 /**
  * Searches for common cargo paths and resolves to a valid cargo executable path
@@ -37,8 +37,8 @@ async function resolveCargoPath(): Promise<string> {
     }
   };
 
-  const rustupHome = process.env.RUSTUP_HOME || join(app.getPath("home"), ".rustup");
-  const cargoHome = process.env.CARGO_HOME || join(app.getPath("home"), ".cargo");
+  const rustupHome = process.env.RUSTUP_HOME || join(homedir(), ".rustup");
+  const cargoHome = process.env.CARGO_HOME || join(homedir(), ".cargo");
 
   if (currentPlatform === "win32") {
     // Windows paths
@@ -558,9 +558,7 @@ export const tauri = async (
 
   const shimsPaths = join(assets, "shims");
 
-  const userData = app.getPath("userData");
-
-  const pnpmHome = join(userData, "config", "pnpm");
+  const pnpmHome = join(paths.userData, "config", "pnpm");
 
   const sanitizedName = kebabCase(completeConfiguration.name);
 

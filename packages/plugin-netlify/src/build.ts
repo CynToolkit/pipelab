@@ -9,7 +9,6 @@ import {
   fileExists,
   runWithLiveLogs,
 } from "@pipelab/plugin-core";
-import { app, shell } from "electron";
 import { createReadStream } from "node:fs";
 import { cp, mkdir, rm, writeFile } from "node:fs/promises";
 import { delimiter, dirname, join } from "node:path";
@@ -48,8 +47,7 @@ export const buildNetlifySiteRunner = createActionRunner<typeof buildNetlifySite
 
     const { pnpm, node } = paths;
 
-    const userData = app.getPath("userData");
-    const pnpmHome = join(userData, "config", "pnpm");
+    const pnpmHome = join(paths.userData, "config", "pnpm");
 
     const buildDir = join(cwd, "build");
 
