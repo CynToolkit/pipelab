@@ -43,7 +43,7 @@ export default defineConfig({
       name: "webp-base64",
       resolveId(source, importer) {
         if (source.endsWith(".webp")) {
-          return resolve(dirname(importer), source);
+          return resolve(importer ? dirname(importer) : process.cwd(), source);
         }
       },
       load(id) {

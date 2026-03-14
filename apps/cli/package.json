@@ -5,12 +5,11 @@
   "bin": "dist/index.cjs",
   "scripts": {
     "build": "tsdown && pnpm copy:ui",
-    "copy:ui": "node -e \"const fs=require('fs'); fs.rmSync('assets/ui', {recursive:true, force:true}); fs.mkdirSync('assets/ui', {recursive:true}); if (fs.existsSync('../ui/dist')) fs.cpSync('../ui/dist', 'assets/ui', {recursive:true})\"",
-    "bundle": "tsdown && pnpm copy:ui",
-    "pkg": "pnpm bundle && pkg . --output bin/pipelab",
-    "dev": "tsdown src/index.ts --format cjs --dts --watch",
-    "serve": "pnpm build && node dist/index.cjs serve",
-    "dev:serve": "tsdown src/index.ts --format cjs --dts --onSuccess \"node dist/index.cjs serve\"",
+    "copy:ui": "node scripts/copy-ui.mjs",
+    "pkg": "pnpm build && pkg . --output bin/pipelab",
+    "dev": "tsdown --watch",
+    "serve": "pnpm build && pnpm start serve",
+    "dev:serve": "tsdown --onSuccess \"node dist/index.cjs serve\"",
     "start": "node dist/index.cjs",
     "format": "oxfmt .",
     "lint": "oxlint ."
