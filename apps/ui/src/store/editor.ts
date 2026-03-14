@@ -18,7 +18,7 @@ import {
   PipelabNode,
   RendererNodeDefinition,
 } from "@pipelab/plugin-core";
-import { Variable } from "@pipelab/core-app";
+import { Variable } from "@pipelab/shared/variables";
 import { defineStore, storeToRefs } from "pinia";
 import get from "get-value";
 import set from "set-value";

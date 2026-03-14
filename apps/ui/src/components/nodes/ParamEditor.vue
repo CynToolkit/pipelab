@@ -202,7 +202,7 @@ import { useEditor } from "@renderer/store/editor";
 import { storeToRefs } from "pinia";
 import { useLogger } from "@pipelab/shared/logger";
 import ParamEditorBody from "./ParamEditorBody.vue";
-import { Variable } from "@pipelab/core-app";
+import { Variable } from "@pipelab/shared/variables";
 import { variableToFormattedVariable } from "@pipelab/shared/variables";
 import { useConfirm } from "primevue/useconfirm";
 import { klona } from "klona";

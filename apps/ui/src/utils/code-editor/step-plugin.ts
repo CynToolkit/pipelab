@@ -1,5 +1,5 @@
 import { BlockAction, Steps } from "@pipelab/shared/model";
-import { Variable } from "@pipelab/core-app";
+import { Variable } from "@pipelab/shared/variables";
 import {
   Decoration,
   MatchDecorator,

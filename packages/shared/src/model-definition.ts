@@ -1,6 +1,6 @@
 import { SaveLocation } from "./save-location";
 import { WithId } from "./utils";
-import { Variable } from "@pipelab/core-app";
+import { Variable } from "./variables";
 import {
   any,
   array,

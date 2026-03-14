@@ -1,5 +1,13 @@
-import { Variable } from "@pipelab/core-app";
 import { CreateQuickJSFn } from "./quickjs";
+
+export interface VariableBase {
+  value: string;
+  id: string;
+  name: string;
+  description: string;
+}
+
+export type Variable = VariableBase;
 
 export const variableToFormattedVariable = async (
   vm: Awaited<CreateQuickJSFn>,

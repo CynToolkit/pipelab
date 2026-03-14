@@ -13,7 +13,7 @@ import { handleActionExecute } from "./handler-func";
 import { useLogger } from "@pipelab/shared/logger";
 import { buildHistoryStorage } from "./handlers/build-history";
 import type { BuildHistoryEntry } from "@pipelab/shared/build-history";
-import type { Variable } from "@pipelab/core-app";
+import type { Variable } from "@pipelab/shared/variables";
 
 export { ensure, generateTempFolder } from "./fs-utils";
 export { extractTarGz, extractZip, zipFolder } from "./archive-utils";
