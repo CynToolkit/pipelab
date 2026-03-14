@@ -1,0 +1,19 @@
+{
+  "name": "@pipelab/plugin-nvpatch",
+  "version": "1.0.0",
+  "private": true,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "format": "oxfmt .",
+    "lint": "oxlint ."
+  },
+  "dependencies": {
+    "@pipelab/plugin-core": "workspace:*",
+    "execa": "9.4.1"
+  },
+  "devDependencies": {
+    "@pipelab/tsconfig": "workspace:*",
+    "typescript": "5.9.3"
+  }
+}

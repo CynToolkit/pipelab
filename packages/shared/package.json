@@ -138,7 +138,19 @@
     "quickjs-emscripten-sync": "1.6.0",
     "tslog": "4.9.3",
     "type-fest": "4.26.1",
-    "valibot": "0.42.1"
+    "valibot": "0.42.1",
+    "@pipelab/plugin-core": "workspace:*",
+    "@pipelab/plugin-construct": "workspace:*",
+    "@pipelab/plugin-filesystem": "workspace:*",
+    "@pipelab/plugin-system": "workspace:*",
+    "@pipelab/plugin-steam": "workspace:*",
+    "@pipelab/plugin-itch": "workspace:*",
+    "@pipelab/plugin-electron": "workspace:*",
+    "@pipelab/plugin-discord": "workspace:*",
+    "@pipelab/plugin-poki": "workspace:*",
+    "@pipelab/plugin-nvpatch": "workspace:*",
+    "@pipelab/plugin-tauri": "workspace:*",
+    "@pipelab/plugin-netlify": "workspace:*"
   },
   "devDependencies": {
     "@pipelab/tsconfig": "workspace:*",

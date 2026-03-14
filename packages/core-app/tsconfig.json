@@ -1,0 +1,10 @@
+{
+  "extends": "@pipelab/tsconfig/vue.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "src"
+  },
+  "include": [
+    "src"
+  ]
+}

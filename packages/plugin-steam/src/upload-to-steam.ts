@@ -7,7 +7,7 @@ import {
   runWithLiveLogsPTY,
 } from "@pipelab/plugin-core";
 import { checkSteamAuth, openExternalTerminal } from "./utils";
-import { ExternalCommandError } from "../plugin-core/custom-errors";
+import { ExternalCommandError } from "@pipelab/plugin-core";
 
 // https://github.com/ztgasdf/steampkg?tab=readme-ov-file#account-management
 

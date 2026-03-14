@@ -11,7 +11,7 @@ import {
   InputsDefinition,
   OutputsDefinition,
   runWithLiveLogs,
-} from "../plugin-core";
+} from "@pipelab/plugin-core";
 
 import { app } from "electron";
 import { detectRuntime } from "@pipelab/shared/plugins";

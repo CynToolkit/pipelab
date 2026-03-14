@@ -1,0 +1,22 @@
+{
+  "name": "@pipelab/plugin-discord",
+  "version": "1.0.0",
+  "private": true,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "format": "oxfmt .",
+    "lint": "oxlint ."
+  },
+  "dependencies": {
+    "@pipelab/plugin-core": "workspace:*",
+    "ts-deepmerge": "7.0.1",
+    "@pipelab/shared": "workspace:*",
+    "electron": "32.1.2",
+    "untun": "0.1.3"
+  },
+  "devDependencies": {
+    "@pipelab/tsconfig": "workspace:*",
+    "typescript": "5.9.3"
+  }
+}

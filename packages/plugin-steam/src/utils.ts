@@ -1,4 +1,4 @@
-import { runWithLiveLogsPTY } from "../plugin-core";
+import { runWithLiveLogsPTY } from "@pipelab/plugin-core";
 import { Options as ExecaOptions } from "execa";
 
 export type Options = {

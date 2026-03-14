@@ -1,7 +1,7 @@
 import { nanoid } from "nanoid";
 import { usePlugins } from "@pipelab/shared/plugins";
-import { RendererPluginDefinition } from "@pipelab/plugin-core/pipelab";
-import { downloadFile, Hooks } from "@pipelab/plugin-core/utils";
+import { RendererPluginDefinition } from "@pipelab/plugin-core";
+import { downloadFile, Hooks } from "@pipelab/plugin-core";
 import { access, chmod, mkdir, mkdtemp, realpath, rm, unlink, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { tmpdir } from "node:os";

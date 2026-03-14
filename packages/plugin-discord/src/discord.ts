@@ -6,7 +6,7 @@ import {
   InputsDefinition,
   OutputsDefinition,
   runWithLiveLogs,
-} from "../plugin-core";
+} from "@pipelab/plugin-core";
 import { detectRuntime } from "@pipelab/shared/plugins";
 import { app } from "electron";
 import { dirname } from "node:path";

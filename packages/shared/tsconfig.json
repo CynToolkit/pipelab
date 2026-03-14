@@ -5,9 +5,6 @@
     "outDir": "dist",
     "baseUrl": ".",
     "paths": {
-      "@pipelab/plugin-core": ["./src/libs/plugin-core"],
-      "@pipelab/plugin-core/*": ["./src/libs/plugin-core/*"],
-      "@pipelab/core-app": ["./src/libs/core-app"],
       "@pipelab/shared/*": ["./src/*"]
     },
     "typeRoots": ["./src"],
