@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import cac from "cac";
-import { registerIPCHandlers, setSystemContext, WebSocketServer } from "@pipelab/core-node";
+import { setSystemContext, WebSocketServer } from "@pipelab/core-node";
 import { registerAllHandlers } from "@pipelab/core-node/heavy";
 import { join } from "path";
 import { homedir } from "os";
@@ -53,7 +53,6 @@ cli
     console.log(`UI available at http://localhost:${options.port}`);
 
     registerAllHandlers();
-    registerIPCHandlers();
     const wsServer = new WebSocketServer();
     await wsServer.start(Number(options.port), server);
   });

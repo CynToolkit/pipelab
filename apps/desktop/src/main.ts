@@ -264,7 +264,6 @@ app.whenReady().then(async () => {
   // console.log("settings", settings);
 
   // registerShellHandlers();
-  // registerIPCHandlers((channel) => ShellChannels.includes(channel));
 
   // Start standalone CLI server
   try {
