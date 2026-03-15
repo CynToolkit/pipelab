@@ -130,7 +130,7 @@
 
 <script setup lang="ts">
 import { ref, computed, inject } from "vue";
-import type { BuildHistoryEntry } from "@pipelab/shared/build-history";
+import type { BuildHistoryEntry } from "@pipelab/shared";
 import BuildHistoryItem from "./BuildHistoryItem.vue";
 import { useAuth } from "../store/auth";
 

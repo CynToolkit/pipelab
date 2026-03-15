@@ -332,7 +332,7 @@ import {
   BlockLoop,
   SavedFile,
   SavedFileDefault,
-} from "@pipelab/shared/model";
+} from "@pipelab/shared";
 import { useAPI } from "@renderer/composables/api";
 import { useToast } from "primevue/usetoast";
 import { tinykeys } from "tinykeys";

@@ -6,11 +6,11 @@
 <script lang="ts" setup>
 import { useAppStore } from "@renderer/store/app";
 import { walker } from "@renderer/utils/graph";
-import { Origin, SavedFile } from "@pipelab/shared/model";
+import { Origin, SavedFile } from "@pipelab/shared";
 import { IconType } from "@pipelab/plugin-core";
 import { PropType, ref, toRaw, toRefs, watchEffect } from "vue";
 import PluginIcon from "./nodes/PluginIcon.vue";
-import { EnhancedFile } from "@pipelab/shared/model";
+import { EnhancedFile } from "@pipelab/shared";
 import { klona } from "klona";
 
 const props = defineProps({

@@ -24,7 +24,7 @@ import posthog from "posthog-js";
 import { i18n } from "./i18n";
 
 import { websocketManager } from "./composables/websocket-manager";
-import { useLogger } from "@pipelab/shared/logger";
+import { useLogger } from "@pipelab/shared";
 
 const isPackaged = window.isPackaged || false;
 const isTest = window.isTest || false;

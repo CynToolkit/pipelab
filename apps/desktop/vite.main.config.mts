@@ -1,11 +1,6 @@
 import type { ConfigEnv, UserConfig } from "vite";
 import { defineConfig, loadEnv, mergeConfig } from "vite";
-import {
-  getBuildConfig,
-  getBuildDefine,
-  external,
-  pluginHotRestart,
-} from "./vite.base.config.mjs";
+import { getBuildConfig, getBuildDefine, external, pluginHotRestart } from "./vite.base.config.mjs";
 import tsconfigPaths from "vite-tsconfig-paths";
 import { sentryVitePlugin } from "@sentry/vite-plugin";
 import { resolve } from "path";
@@ -33,7 +28,7 @@ export default defineConfig((env) => {
         org: "armaldio",
         project: "cyn",
         authToken: environment.SENTRY_AUTH_TOKEN,
-      })
+      }),
     );
   }
 
@@ -73,26 +68,6 @@ export default defineConfig((env) => {
       mainFields: ["module", "jsnext:main", "jsnext"],
       conditions: ["node"],
       alias: {
-        "@pipelab/shared": resolve(__dirname, "../../packages/shared/src"),
-        "@pipelab/constants": resolve(
-          __dirname,
-          "../../packages/constants/src/index.ts"
-        ),
-        "@pipelab/migration/projects": resolve(
-          __dirname,
-          "../../packages/shared/src/migrations/projects.ts"
-        ),
-        "@pipelab/migration/settings": resolve(
-          __dirname,
-          "../../packages/shared/src/migrations/settings.ts"
-        ),
-        "@pipelab/migration/model": resolve(
-          __dirname,
-          "../../packages/shared/src/migrations/model.ts"
-        ),        "@pipelab/migration": resolve(
-          __dirname,
-          "../../packages/migration/src/index.ts"
-        ),
         "@pipelab": resolve(__dirname, "../../packages/shared/src/libs"),
       },
     },

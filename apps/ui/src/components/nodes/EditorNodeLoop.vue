@@ -77,7 +77,7 @@ getNodeDefinition: {{ getNodeDefinition(value.origin.nodeId, value.origin.plugin
 import { useEditor } from "@renderer/store/editor";
 import { PropType, computed, ref, toRefs } from "vue";
 import NodesEditor from "@renderer/pages/nodes-editor.vue";
-import { BlockLoop } from "@pipelab/shared/model";
+import { BlockLoop } from "@pipelab/shared";
 import { storeToRefs } from "pinia";
 import { computedAsync } from "@vueuse/core";
 import AddNodeButton from "@renderer/components/AddNodeButton.vue";

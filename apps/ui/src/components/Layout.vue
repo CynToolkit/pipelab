@@ -271,7 +271,7 @@
 import { ref, computed, inject } from "vue";
 import { useAuth } from "@renderer/store/auth";
 import { MenuItem } from "primevue/menuitem";
-import { useLogger } from "@pipelab/shared/logger";
+import { useLogger } from "@pipelab/shared";
 import Settings from "@renderer/components/Settings.vue";
 import UpgradeNowButton from "@renderer/components/UpgradeNowButton.vue";
 import { useToast } from "primevue/usetoast";

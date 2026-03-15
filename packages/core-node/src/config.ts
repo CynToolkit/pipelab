@@ -2,8 +2,8 @@ import { userDataPath } from "./context";
 import path from "node:path";
 import { ensure } from "./fs-utils";
 import fs from "node:fs/promises";
-import { useLogger } from "@pipelab/shared/logger";
-import { configRegistry, Migrator } from "@pipelab/shared/config";
+import { useLogger } from "@pipelab/shared";
+import { configRegistry, Migrator } from "@pipelab/shared";
 
 export const setupConfigFile = async <T>(name: string) => {
   const migrator = configRegistry[name] as Migrator<T>;
@@ -44,12 +44,9 @@ export const setupConfigFile = async <T>(name: string) => {
 
       let json = undefined;
       try {
-        json = await migrator.migrate(
-          content === undefined ? undefined : JSON.parse(content),
-          {
-            debug: true,
-          },
-        );
+        json = await migrator.migrate(content === undefined ? undefined : JSON.parse(content), {
+          debug: true,
+        });
         console.log("json", json);
       } catch (e) {
         logger().error(`Error migrating config ${name}:`, e);

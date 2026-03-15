@@ -114,15 +114,15 @@
 
 <script setup lang="ts">
 import { useEditor } from "@renderer/store/editor";
-import { BlockAction, Steps } from "@pipelab/shared/model";
+import { BlockAction, Steps } from "@pipelab/shared";
 import { storeToRefs } from "pinia";
 import { PropType, computed, ref, shallowRef, toRefs, watch } from "vue";
 import { watchDebounced } from "@vueuse/core";
 import ParamEditor from "./ParamEditor.vue";
 import PluginIcon from "./PluginIcon.vue";
-import { createQuickJs } from "@pipelab/shared/quickjs";
+import { createQuickJs } from "@pipelab/shared";
 import DOMPurify from "dompurify";
-import { makeResolvedParams } from "@pipelab/shared/evaluator";
+import { makeResolvedParams } from "@pipelab/shared";
 import { ValidationError } from "@renderer/models/error";
 import AddNodeButton from "../AddNodeButton.vue";
 import type { ValueOf } from "type-fest";

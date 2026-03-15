@@ -81,7 +81,7 @@
 import { ref, computed, watch, onMounted } from "vue";
 import { useUIStore } from "../store/ui";
 import { useAPI } from "../composables/api";
-import { useLogger } from "@pipelab/shared/logger";
+import { useLogger } from "@pipelab/shared";
 
 const uiStore = useUIStore();
 const api = useAPI();

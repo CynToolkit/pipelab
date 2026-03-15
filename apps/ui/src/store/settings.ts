@@ -1,9 +1,9 @@
 import { defineStore } from "pinia";
 import { useAPI } from "@renderer/composables/api";
-import { AppConfig } from "@pipelab/shared/config.schema";
+import { AppConfig } from "@pipelab/shared";
 import { readonly, ref, watch } from "vue";
 import { useAuth } from "./auth";
-import { supabase as supabaseFn } from "@pipelab/shared/supabase";
+import { supabase as supabaseFn } from "@pipelab/shared";
 
 export const useAppSettings = defineStore("settings", () => {
   const api = useAPI();

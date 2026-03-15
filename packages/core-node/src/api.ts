@@ -4,7 +4,7 @@ import { toRaw } from "vue";
 
 import type { Tagged } from "type-fest";
 import { ILogObjMeta } from "tslog";
-import { useLogger } from "@pipelab/shared/logger";
+import { useLogger } from "@pipelab/shared";
 
 export type UpdateStatus =
   | "update-available"

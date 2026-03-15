@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import cac from "cac";
 import { WebSocketServer, setAssetsPath, assetsPath } from "@pipelab/core-node";
-import { registerAllHandlers } from "@pipelab/core-node/heavy";
+import { registerAllHandlers } from "@pipelab/core-node";
 import { join } from "path";
 import http from "http";
 import handler from "serve-handler";

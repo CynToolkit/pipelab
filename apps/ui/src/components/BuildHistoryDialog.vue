@@ -79,7 +79,7 @@
 import { ref, computed, onUnmounted, onMounted, watch, inject } from "vue";
 import { useConfirm } from "primevue/useconfirm";
 import { useBuildHistory } from "../store/build-history";
-import type { BuildHistoryEntry } from "@pipelab/shared/build-history";
+import type { BuildHistoryEntry } from "@pipelab/shared";
 
 // Components
 import BuildHistoryList from "./BuildHistoryList.vue";

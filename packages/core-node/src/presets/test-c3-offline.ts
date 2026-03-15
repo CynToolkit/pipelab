@@ -1,4 +1,4 @@
-import { PresetFn, SavedFile } from "@pipelab/shared/model";
+import { PresetFn, SavedFile } from "@pipelab/shared";
 
 export const testC3Offline: PresetFn = async () => {
   const packageWithElecton = "electron-package-node";

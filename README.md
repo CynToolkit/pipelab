@@ -84,17 +84,20 @@ graph TD
 This monorepo contains the following applications and packages:
 
 ### Applications
+
 - **apps/cli**: The headless CLI and WebSocket server.
 - **apps/desktop**: The Electron-based desktop application.
 - **apps/ui**: The Vue 3 visual automation interface.
 
 ### Core Packages
+
 - **packages/core-node**: Backend engine and logic.
 - **packages/shared**: Shared types and models.
 - **packages/plugin-core**: Base for all Pipelab plugins.
 
 ### Plugins
-- **packages/plugin-***: Modular plugins for various platforms and tools (Steam, Discord, Construct, etc.).
+
+- **packages/plugin-\***: Modular plugins for various platforms and tools (Steam, Discord, Construct, etc.).
 
 # Development
 

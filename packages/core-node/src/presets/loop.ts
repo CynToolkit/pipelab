@@ -1,6 +1,6 @@
 // @ts-nocheck
 
-import { PresetFn, SavedFile } from "@pipelab/shared/model";
+import { PresetFn, SavedFile } from "@pipelab/shared";
 
 export const loopPreset: PresetFn = async () => {
   const forId = "forId";

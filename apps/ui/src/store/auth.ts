@@ -1,5 +1,5 @@
-import { useLogger } from "@pipelab/shared/logger"; // Assuming path is correct
-import { isSupabaseAvailable, supabase as supabaseFn } from "@pipelab/shared/supabase"; // Assuming path is correct
+import { useLogger } from "@pipelab/shared"; // Assuming path is correct
+import { isSupabaseAvailable, supabase as supabaseFn } from "@pipelab/shared"; // Assuming path is correct
 import { AuthChangeEvent, Session, User, UserResponse } from "@supabase/supabase-js";
 import { defineStore } from "pinia";
 import { computed, readonly, Ref, ref, shallowRef } from "vue";

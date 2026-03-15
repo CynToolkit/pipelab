@@ -1,11 +1,7 @@
-import { Channels, IpcMessage } from "@pipelab/shared/apis";
+import { Channels, IpcMessage } from "@pipelab/shared";
 import { WebSocket as WSWebSocket } from "ws";
-import { useLogger } from "@pipelab/shared/logger";
-import {
-  WebSocketEvent,
-  WebSocketHandler,
-  WebSocketSendFunction,
-} from "@pipelab/shared/websocket.types";
+import { useLogger } from "@pipelab/shared";
+import { WebSocketEvent, WebSocketHandler, WebSocketSendFunction } from "@pipelab/shared";
 
 export type HandleListenerSendFn<KEY extends Channels> = WebSocketSendFunction<KEY>;
 

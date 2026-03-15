@@ -7,7 +7,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import type { BuildHistoryEntry } from "@pipelab/shared/build-history";
+import type { BuildHistoryEntry } from "@pipelab/shared";
 
 interface Props {
   status: BuildHistoryEntry["status"] | "pending";

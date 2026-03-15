@@ -11,7 +11,7 @@
 </template>
 
 <script lang="ts" setup>
-import { useLogger } from "@pipelab/shared/logger";
+import { useLogger } from "@pipelab/shared";
 import { useAPI } from "@renderer/composables/api";
 import InputText from "primevue/inputtext";
 import { extname } from "path-browserify";

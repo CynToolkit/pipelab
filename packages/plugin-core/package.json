@@ -9,11 +9,11 @@
     "lint": "oxlint ."
   },
   "dependencies": {
-    "execa": "9.4.1",
     "@lydell/node-pty": "1.0.3",
-    "type-fest": "4.26.1",
+    "@pipelab/shared": "workspace:*",
     "electron": "32.1.2",
-    "@pipelab/shared": "workspace:*"
+    "execa": "9.4.1",
+    "type-fest": "4.26.1"
   },
   "devDependencies": {
     "@pipelab/tsconfig": "workspace:*",

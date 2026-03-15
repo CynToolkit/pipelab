@@ -1,5 +1,5 @@
 import { useAPI } from "../ipc-core";
-import { useLogger } from "@pipelab/shared/logger";
+import { useLogger } from "@pipelab/shared";
 import { webSocketServer } from "../websocket-server";
 
 export const registerAgentsHandlers = () => {

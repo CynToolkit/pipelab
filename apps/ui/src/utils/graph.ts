@@ -1,4 +1,4 @@
-import { Block } from "@pipelab/shared/model";
+import { Block } from "@pipelab/shared";
 
 export const walker = async (graph: Array<Block>, onNode: (node: Block) => Promise<void>) => {
   for (const node of graph) {

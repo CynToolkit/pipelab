@@ -128,7 +128,7 @@ import Button from "primevue/button";
 import InputText from "primevue/inputtext";
 import { useAppStore } from "@renderer/store/app";
 import { PipelabNode, RendererNodeDefinition } from "@pipelab/plugin-core";
-import { useLogger } from "@pipelab/shared/logger";
+import { useLogger } from "@pipelab/shared";
 import PluginIcon from "./nodes/PluginIcon.vue";
 
 type ButtonProps = InstanceType<typeof Button>["$props"];

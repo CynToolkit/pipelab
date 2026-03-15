@@ -5,7 +5,7 @@
     "outDir": "dist",
     "baseUrl": ".",
     "paths": {
-      "@pipelab/migration/*": ["./src/*"]
+      "@pipelab/migration": ["./src"]
     }
   },
   "include": ["src/**/*"],

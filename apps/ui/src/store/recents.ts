@@ -1,4 +1,4 @@
-import { SaveLocation } from "@pipelab/shared/save-location";
+import { SaveLocation } from "@pipelab/shared";
 import { defineStore } from "pinia";
 import { ref } from "vue";
 

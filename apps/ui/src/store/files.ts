@@ -1,14 +1,10 @@
-import { SavedFile } from "@pipelab/shared/model";
+import { SavedFile } from "@pipelab/shared";
 import { defineStore } from "pinia";
 import { ref } from "vue";
 import { Draft, create } from "mutative";
 import { createConfig } from "@renderer/utils/config";
 import { klona } from "klona";
-import {
-  FileRepo,
-  fileRepoMigrations,
-  defaultFileRepo as defaultValue,
-} from "@pipelab/shared/config";
+import { FileRepo, fileRepoMigrations, defaultFileRepo as defaultValue } from "@pipelab/shared";
 import { ValiError } from "valibot";
 
 export interface File {

@@ -1,8 +1,8 @@
 import { userDataPath } from "../context";
 import { join } from "node:path";
 import { writeFile, readFile, unlink, mkdir } from "node:fs/promises";
-import { BuildHistoryEntry, IBuildHistoryStorage } from "@pipelab/shared/build-history";
-import { useLogger } from "@pipelab/shared/logger";
+import { BuildHistoryEntry, IBuildHistoryStorage } from "@pipelab/shared";
+import { useLogger } from "@pipelab/shared";
 
 // Simplified storage - one file per pipeline containing array of build entries
 const getStoragePath = () => join(userDataPath, "build-history");

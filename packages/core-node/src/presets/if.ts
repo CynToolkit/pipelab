@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { PresetFn, SavedFile } from "@pipelab/shared/model";
+import { PresetFn, SavedFile } from "@pipelab/shared";
 
 export const ifPreset: PresetFn = async () => {
   const branchId = "branchId";

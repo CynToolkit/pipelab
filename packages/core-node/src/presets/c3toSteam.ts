@@ -1,4 +1,4 @@
-import { PresetFn, SavedFile } from "@pipelab/shared/model";
+import { PresetFn, SavedFile } from "@pipelab/shared";
 
 export const c3toSteamPreset: PresetFn = async () => {
   const startId = "manual-start";

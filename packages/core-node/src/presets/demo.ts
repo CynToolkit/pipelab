@@ -1,6 +1,6 @@
 // @ts-nocheck
 
-import { PresetFn, SavedFile } from "@pipelab/shared/model";
+import { PresetFn, SavedFile } from "@pipelab/shared";
 
 export const demoPreset: PresetFn = async () => {
   const startId = "manual-start";

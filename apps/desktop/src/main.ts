@@ -1,11 +1,4 @@
-import {
-  app,
-  shell,
-  BrowserWindow,
-  dialog,
-  autoUpdater,
-  screen,
-} from "electron";
+import { app, shell, BrowserWindow, dialog, autoUpdater, screen } from "electron";
 import { join } from "path";
 import { platform } from "os";
 import { electronApp, optimizer, is } from "@electron-toolkit/utils";
@@ -125,9 +118,7 @@ function createWindow(): void {
 }
 
 if (is.dev && process.platform === "win32") {
-  app.setAsDefaultProtocolClient("pipelab", process.execPath, [
-    resolve(process.argv[1]),
-  ]);
+  app.setAsDefaultProtocolClient("pipelab", process.execPath, [resolve(process.argv[1])]);
 } else {
   app.setAsDefaultProtocolClient("pipelab");
 }
@@ -200,8 +191,7 @@ app.whenReady().then(async () => {
         buttons: ["Restart", "Later"],
         title: "Application Update",
         message: process.platform === "win32" ? releaseNotes : releaseName,
-        detail:
-          "A new version has been downloaded. Restart the application to apply the updates.",
+        detail: "A new version has been downloaded. Restart the application to apply the updates.",
       };
 
       dialog.showMessageBox(dialogOpts).then((returnValue) => {

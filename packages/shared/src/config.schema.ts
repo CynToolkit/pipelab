@@ -1,4 +1,14 @@
-import { union, literal, InferInput, string, boolean, object, number, array, GenericSchema } from "valibot";
+import {
+  union,
+  literal,
+  InferInput,
+  string,
+  boolean,
+  object,
+  number,
+  array,
+  GenericSchema,
+} from "valibot";
 
 export const createVersionSchema = <T extends GenericSchema<any, any>>(schema: T) => schema;
 

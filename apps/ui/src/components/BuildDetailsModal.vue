@@ -206,7 +206,7 @@
 </template>
 
 <script setup lang="ts">
-import type { BuildHistoryEntry } from "@pipelab/shared/build-history";
+import type { BuildHistoryEntry } from "@pipelab/shared";
 import BuildStatusBadge from "./BuildStatusBadge.vue";
 
 interface Props {

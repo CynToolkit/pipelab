@@ -1,5 +1,5 @@
-import { Channels, Data, End, RequestId } from "@pipelab/shared/apis";
-import { useLogger } from "@pipelab/shared/logger";
+import { Channels, Data, End, RequestId } from "@pipelab/shared";
+import { useLogger } from "@pipelab/shared";
 import { klona } from "klona";
 import { toRaw } from "vue";
 import {
@@ -12,7 +12,7 @@ import {
   isWebSocketRequestMessage,
   isWebSocketResponseMessage,
   isWebSocketErrorMessage,
-} from "@pipelab/shared/websocket.types";
+} from "@pipelab/shared";
 import { websocketPort } from "@pipelab/constants";
 
 export type WebSocketSendFn<KEY extends Channels> = WebSocketSendFunction<KEY>;

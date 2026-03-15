@@ -7,3 +7,4 @@ export * from "./paths";
 export * from "./api";
 export * from "./fs-utils";
 export * from "./archive-utils";
+export * from "./heavy";

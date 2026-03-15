@@ -2,8 +2,8 @@
   "name": "@pipelab/cli",
   "version": "1.0.0",
   "private": true,
-  "type": "module",
   "bin": "dist/index.cjs",
+  "type": "module",
   "scripts": {
     "build": "NODE_ENV=production tsdown && pnpm copy:ui",
     "copy:ui": "node scripts/copy-ui.mjs",

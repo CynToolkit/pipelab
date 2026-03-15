@@ -1,4 +1,4 @@
-import { EnhancedFile, SavedFileDefault, SavedFileSimple } from "@pipelab/shared/model";
+import { EnhancedFile, SavedFileDefault, SavedFileSimple } from "@pipelab/shared";
 import { AppStore, useAppStore } from "@renderer/store/app";
 
 export function isSimplePipeline(

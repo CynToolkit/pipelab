@@ -11,7 +11,7 @@
 <script lang="ts" setup>
 import ScenarioListItem from "@renderer/components/ScenarioListItem.vue";
 import { useAPI } from "@renderer/composables/api";
-import { SavedFile } from "@pipelab/shared/model";
+import { SavedFile } from "@pipelab/shared";
 import { onMounted, ref, toRefs } from "vue";
 
 const props = defineProps({

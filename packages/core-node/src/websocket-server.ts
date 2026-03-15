@@ -2,7 +2,7 @@ import { WebSocketServer as WSWebSocketServer, WebSocket as WSWebSocket } from "
 import { IncomingMessage } from "http";
 import { nanoid } from "nanoid";
 import { useAPI } from "./ipc-core";
-import { useLogger } from "@pipelab/shared/logger";
+import { useLogger } from "@pipelab/shared";
 import {
   WebSocketServerConfig,
   WebSocketServerEvents,
@@ -11,7 +11,7 @@ import {
   WebSocketMessage,
   isWebSocketRequestMessage,
   Agent,
-} from "@pipelab/shared/websocket.types";
+} from "@pipelab/shared";
 import { websocketPort } from "@pipelab/constants";
 
 export interface ConnectedClient {

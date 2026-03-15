@@ -10,12 +10,9 @@
     "baseUrl": ".",
     "paths": {
       "@pipelab/shared": ["../../packages/shared/src/index.ts"],
-      "@pipelab/shared/*": ["../../packages/shared/src/*"],
       "@pipelab/constants": ["../../packages/constants/src/index.ts"],
       "@pipelab/core-node": ["../../packages/core-node/src/index.ts"],
-      "@pipelab/core-node/*": ["../../packages/core-node/src/*"],
       "@pipelab/migration": ["../../packages/migration/src/index.ts"],
-      "@pipelab/migration/*": ["../../packages/migration/src/*"],
       "@pipelab/*": ["../../packages/shared/src/libs/*"],
       "@core-node/*": ["../../packages/core-node/src/*"]
     }
@@ -23,8 +20,14 @@
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"],
   "references": [
-    { "path": "../../packages/constants" },
-    { "path": "../../packages/shared" },
-    { "path": "../../packages/core-node" }
+    {
+      "path": "../../packages/constants"
+    },
+    {
+      "path": "../../packages/shared"
+    },
+    {
+      "path": "../../packages/core-node"
+    }
   ]
 }

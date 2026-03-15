@@ -1,5 +1,5 @@
-import { BlockAction, Steps } from "@pipelab/shared/model";
-import { Variable } from "@pipelab/shared/variables";
+import { BlockAction, Steps } from "@pipelab/shared";
+import { Variable } from "@pipelab/shared";
 import {
   Decoration,
   MatchDecorator,

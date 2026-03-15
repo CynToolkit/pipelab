@@ -1,5 +1,5 @@
 import { nanoid } from "nanoid";
-import { usePlugins } from "@pipelab/shared/plugins";
+import { usePlugins } from "@pipelab/shared";
 import { RendererPluginDefinition } from "@pipelab/plugin-core";
 import { downloadFile, Hooks } from "@pipelab/plugin-core";
 import { access, chmod, mkdir, rm, writeFile } from "node:fs/promises";
@@ -7,12 +7,12 @@ import { dirname, join } from "node:path";
 import { userDataPath, assetsPath } from "./context";
 import { constants } from "node:fs";
 import { throttle } from "es-toolkit";
-import { processGraph } from "@pipelab/shared/graph";
+import { processGraph } from "@pipelab/shared";
 import { handleActionExecute } from "./handler-func";
-import { useLogger } from "@pipelab/shared/logger";
+import { useLogger } from "@pipelab/shared";
 import { buildHistoryStorage } from "./handlers/build-history";
-import type { BuildHistoryEntry } from "@pipelab/shared/build-history";
-import type { Variable } from "@pipelab/shared/variables";
+import type { BuildHistoryEntry } from "@pipelab/shared";
+import type { Variable } from "@pipelab/shared";
 
 export { ensure, generateTempFolder } from "./fs-utils";
 export { extractTarGz, extractZip, zipFolder } from "./archive-utils";

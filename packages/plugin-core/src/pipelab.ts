@@ -1,6 +1,6 @@
 import type { ConditionalPick } from "type-fest";
 import type { BrowserWindow, OpenDialogOptions } from "electron";
-import { BlockAction, BlockCondition, BlockEvent, BlockLoop } from "@pipelab/shared/model";
+import { BlockAction, BlockCondition, BlockEvent, BlockLoop } from "@pipelab/shared";
 
 export type PathOptions = {
   filter?: RegExp;

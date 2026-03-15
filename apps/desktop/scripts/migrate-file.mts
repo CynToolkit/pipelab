@@ -1,4 +1,4 @@
-import { savedFileMigrator } from "@pipelab/shared/model";
+import { savedFileMigrator } from "@pipelab/shared";
 import * as fs from "fs/promises";
 import { join } from "path";
 import { tmpdir } from "os";

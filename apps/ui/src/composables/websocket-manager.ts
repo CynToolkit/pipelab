@@ -1,5 +1,5 @@
-import { Channels, Data, End } from "@pipelab/shared/apis";
-import { useLogger } from "@pipelab/shared/logger";
+import { Channels, Data, End } from "@pipelab/shared";
+import { useLogger } from "@pipelab/shared";
 import { getWebSocketClient, WebSocketClient } from "./websocket-client";
 import { ref } from "vue";
 import {
@@ -8,7 +8,7 @@ import {
   WebSocketClientConfig,
   WebSocketError,
   WebSocketConnectionError,
-} from "@pipelab/shared/websocket.types";
+} from "@pipelab/shared";
 
 class WebSocketManagerImpl implements WebSocketManager {
   private client: WebSocketClient | null = null;

@@ -1,4 +1,4 @@
-import { PresetFn, SavedFile } from "@pipelab/shared/model";
+import { PresetFn, SavedFile } from "@pipelab/shared";
 
 export const newProjectPreset: PresetFn = async () => {
   const startId = "manual-start";

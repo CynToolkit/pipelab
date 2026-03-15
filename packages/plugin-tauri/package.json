@@ -9,12 +9,12 @@
     "lint": "oxlint ."
   },
   "dependencies": {
-    "@pipelab/plugin-core": "workspace:*",
     "@pipelab/constants": "workspace:*",
+    "@pipelab/plugin-core": "workspace:*",
     "@pipelab/shared": "workspace:*",
     "electron": "32.1.2",
-    "ts-deepmerge": "7.0.1",
-    "execa": "9.4.1"
+    "execa": "9.4.1",
+    "ts-deepmerge": "7.0.1"
   },
   "devDependencies": {
     "@pipelab/tsconfig": "workspace:*",

@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 import { unzipRunner } from "./unzip.js";
-import { browserWindow } from "@pipelab/shared/tests/helpers.js";
+import { browserWindow } from "@pipelab/shared";
 
 test("adds 1 + 2 to equal 3", async () => {
   const outputs: Record<string, unknown> = {};

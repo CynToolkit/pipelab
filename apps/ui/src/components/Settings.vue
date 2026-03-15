@@ -236,7 +236,7 @@ import { computed, ref } from "vue";
 import { useAppSettings } from "@renderer/store/settings";
 import { storeToRefs } from "pinia";
 import Button from "primevue/button";
-import { supabase } from "@pipelab/shared/supabase";
+import { supabase } from "@pipelab/shared";
 import { useAuth } from "@renderer/store/auth";
 import { useBuildHistory } from "../store/build-history";
 import UpgradeDialog from "@renderer/components/UpgradeDialog.vue";
@@ -244,7 +244,7 @@ import { useAPI } from "@renderer/composables/api";
 
 import { format } from "date-fns";
 import { useI18n } from "vue-i18n";
-import { Locales, MessageSchema } from "@pipelab/shared/i18n-utils";
+import { Locales, MessageSchema } from "@pipelab/shared";
 import { watch } from "vue";
 
 const { t, locale } = useI18n<

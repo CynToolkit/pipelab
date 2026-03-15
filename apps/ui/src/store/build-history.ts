@@ -1,6 +1,6 @@
 import { defineStore, storeToRefs } from "pinia";
 import { ref, computed, readonly } from "vue";
-import { useLogger } from "@pipelab/shared/logger";
+import { useLogger } from "@pipelab/shared";
 import { useAuth } from "./auth";
 import { useAPI } from "@renderer/composables/api";
 import type {
@@ -8,11 +8,8 @@ import type {
   BuildHistoryQuery,
   BuildHistoryResponse,
   SubscriptionError,
-} from "@pipelab/shared/build-history";
-import {
-  isSubscriptionError,
-  SubscriptionRequiredError,
-} from "@pipelab/shared/subscription-errors";
+} from "@pipelab/shared";
+import { isSubscriptionError, SubscriptionRequiredError } from "@pipelab/shared";
 
 export const useBuildHistory = defineStore("build-history", () => {
   const api = useAPI();

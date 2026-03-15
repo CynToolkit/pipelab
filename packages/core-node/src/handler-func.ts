@@ -1,4 +1,4 @@
-import { End } from "@pipelab/shared/apis";
+import { End } from "@pipelab/shared";
 import {
   Action,
   ActionRunner,
@@ -6,12 +6,12 @@ import {
   ConditionRunner,
   InputsDefinition,
 } from "@pipelab/plugin-core";
-import { usePlugins } from "@pipelab/shared/plugins";
-import { isRequired } from "@pipelab/shared/validation";
+import { usePlugins } from "@pipelab/shared";
+import { isRequired } from "@pipelab/shared";
 import { mkdir } from "node:fs/promises";
 import { assetsPath, unpackPath, userDataPath } from "./context";
-import { useLogger } from "@pipelab/shared/logger";
-import { BlockCondition } from "@pipelab/shared/model";
+import { useLogger } from "@pipelab/shared";
+import { BlockCondition } from "@pipelab/shared";
 import { HandleListenerSendFn } from "./handlers";
 import { ensureNodeJS, generateTempFolder } from "./utils";
 import path from "node:path";
@@ -19,7 +19,7 @@ import os from "node:os";
 const { join } = path;
 const { tmpdir } = os;
 import { setupConfigFile } from "./config";
-import { AppConfig } from "@pipelab/shared/config.schema";
+import { AppConfig } from "@pipelab/shared";
 
 const checkParams = (definitionParams: InputsDefinition, elementParams: Record<string, string>) => {
   // get a list of all required params

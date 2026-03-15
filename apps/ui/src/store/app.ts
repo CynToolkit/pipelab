@@ -3,8 +3,8 @@ import { createEventHook } from "@vueuse/core";
 import { ref } from "vue";
 import { useAPI } from "@renderer/composables/api";
 import { RendererPluginDefinition } from "@pipelab/plugin-core";
-import { Presets } from "@pipelab/shared/apis";
-import { useLogger } from "@pipelab/shared/logger";
+import { Presets } from "@pipelab/shared";
+import { useLogger } from "@pipelab/shared";
 
 export const useAppStore = defineStore("app", () => {
   const { logger } = useLogger();

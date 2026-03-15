@@ -1,7 +1,7 @@
-import { Channels, Data, End, Events, ShellChannels } from "@pipelab/shared/apis";
-import { useLogger } from "@pipelab/shared/logger";
+import { Channels, Data, End, Events, ShellChannels } from "@pipelab/shared";
+import { useLogger } from "@pipelab/shared";
 import { useWebSocketAPI } from "./websocket-client";
-import { WebSocketListener } from "@pipelab/shared/websocket.types";
+import { WebSocketListener } from "@pipelab/shared";
 import { useUIStore } from "../store/ui";
 
 // Re-export for backwards compatibility

@@ -9,121 +9,6 @@
       "types": "./src/index.ts",
       "import": "./src/index.ts",
       "require": "./src/index.ts"
-    },
-    "./apis": {
-      "types": "./src/apis.ts",
-      "import": "./src/apis.ts",
-      "require": "./src/apis.ts"
-    },
-    "./build-history": {
-      "types": "./src/build-history.ts",
-      "import": "./src/build-history.ts",
-      "require": "./src/build-history.ts"
-    },
-    "./config.schema": {
-      "types": "./src/config.schema.ts",
-      "import": "./src/config.schema.ts",
-      "require": "./src/config.schema.ts"
-    },
-    "./database.types": {
-      "types": "./src/database.types.ts",
-      "import": "./src/database.types.ts",
-      "require": "./src/database.types.ts"
-    },
-    "./evaluator": {
-      "types": "./src/evaluator.ts",
-      "import": "./src/evaluator.ts",
-      "require": "./src/evaluator.ts"
-    },
-    "./fmt": {
-      "types": "./src/fmt.ts",
-      "import": "./src/fmt.ts",
-      "require": "./src/fmt.ts"
-    },
-    "./graph": {
-      "types": "./src/graph.ts",
-      "import": "./src/graph.ts",
-      "require": "./src/graph.ts"
-    },
-    "./i18n-utils": {
-      "types": "./src/i18n-utils.ts",
-      "import": "./src/i18n-utils.ts",
-      "require": "./src/i18n-utils.ts"
-    },
-    "./logger": {
-      "types": "./src/logger.ts",
-      "import": "./src/logger.ts",
-      "require": "./src/logger.ts"
-    },
-    "./model": {
-      "types": "./src/model.ts",
-      "import": "./src/model.ts",
-      "require": "./src/model.ts"
-    },
-    "./plugins": {
-      "types": "./src/plugins.ts",
-      "import": "./src/plugins.ts",
-      "require": "./src/plugins.ts"
-    },
-    "./quickjs": {
-      "types": "./src/quickjs.ts",
-      "import": "./src/quickjs.ts",
-      "require": "./src/quickjs.ts"
-    },
-    "./save-location": {
-      "types": "./src/save-location.ts",
-      "import": "./src/save-location.ts",
-      "require": "./src/save-location.ts"
-    },
-    "./subscription-errors": {
-      "types": "./src/subscription-errors.ts",
-      "import": "./src/subscription-errors.ts",
-      "require": "./src/subscription-errors.ts"
-    },
-    "./supabase": {
-      "types": "./src/supabase.ts",
-      "import": "./src/supabase.ts",
-      "require": "./src/supabase.ts"
-    },
-    "./types": {
-      "types": "./src/types.ts",
-      "import": "./src/types.ts",
-      "require": "./src/types.ts"
-    },
-    "./utils": {
-      "types": "./src/utils.ts",
-      "import": "./src/utils.ts",
-      "require": "./src/utils.ts"
-    },
-    "./validation": {
-      "types": "./src/validation.ts",
-      "import": "./src/validation.ts",
-      "require": "./src/validation.ts"
-    },
-    "./variables": {
-      "types": "./src/variables.ts",
-      "import": "./src/variables.ts",
-      "require": "./src/variables.ts"
-    },
-    "./websocket.types": {
-      "types": "./src/websocket.types.ts",
-      "import": "./src/websocket.types.ts",
-      "require": "./src/websocket.types.ts"
-    },
-    "./config": {
-      "types": "./src/config.ts",
-      "import": "./src/config.ts",
-      "require": "./src/config.ts"
-    },
-    "./i18n": {
-      "types": "./src/i18n.ts",
-      "import": "./src/i18n.ts",
-      "require": "./src/i18n.ts"
-    },
-    "./libs": {
-      "types": "./src/libs.ts",
-      "import": "./src/libs.ts",
-      "require": "./src/libs.ts"
     }
   },
   "scripts": {
@@ -132,25 +17,25 @@
   },
   "dependencies": {
     "@pipelab/migration": "workspace:*",
+    "@pipelab/plugin-construct": "workspace:*",
+    "@pipelab/plugin-core": "workspace:*",
+    "@pipelab/plugin-discord": "workspace:*",
+    "@pipelab/plugin-electron": "workspace:*",
+    "@pipelab/plugin-filesystem": "workspace:*",
+    "@pipelab/plugin-itch": "workspace:*",
+    "@pipelab/plugin-netlify": "workspace:*",
+    "@pipelab/plugin-nvpatch": "workspace:*",
+    "@pipelab/plugin-poki": "workspace:*",
+    "@pipelab/plugin-steam": "workspace:*",
+    "@pipelab/plugin-system": "workspace:*",
+    "@pipelab/plugin-tauri": "workspace:*",
     "klona": "2.0.6",
     "nanoid": "5.0.7",
     "quickjs-emscripten": "0.31.0",
     "quickjs-emscripten-sync": "1.6.0",
     "tslog": "4.9.3",
     "type-fest": "4.26.1",
-    "valibot": "0.42.1",
-    "@pipelab/plugin-core": "workspace:*",
-    "@pipelab/plugin-construct": "workspace:*",
-    "@pipelab/plugin-filesystem": "workspace:*",
-    "@pipelab/plugin-system": "workspace:*",
-    "@pipelab/plugin-steam": "workspace:*",
-    "@pipelab/plugin-itch": "workspace:*",
-    "@pipelab/plugin-electron": "workspace:*",
-    "@pipelab/plugin-discord": "workspace:*",
-    "@pipelab/plugin-poki": "workspace:*",
-    "@pipelab/plugin-nvpatch": "workspace:*",
-    "@pipelab/plugin-tauri": "workspace:*",
-    "@pipelab/plugin-netlify": "workspace:*"
+    "valibot": "0.42.1"
   },
   "devDependencies": {
     "@pipelab/tsconfig": "workspace:*",

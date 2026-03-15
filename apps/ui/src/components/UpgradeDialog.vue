@@ -59,7 +59,7 @@
 
 <script lang="ts" setup>
 import { useAPI } from "@renderer/composables/api";
-import { supabase } from "@pipelab/shared/supabase";
+import { supabase } from "@pipelab/shared";
 import { ref, onMounted } from "vue";
 import { useAuth } from "@renderer/store/auth";
 

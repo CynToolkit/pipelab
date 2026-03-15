@@ -9,7 +9,7 @@ import {
   savedFileMigrator,
   SavedFileValidator,
   Steps,
-} from "@pipelab/shared/model";
+} from "@pipelab/shared";
 import {
   Action,
   Condition,
@@ -18,7 +18,7 @@ import {
   PipelabNode,
   RendererNodeDefinition,
 } from "@pipelab/plugin-core";
-import { Variable } from "@pipelab/shared/variables";
+import { Variable } from "@pipelab/shared";
 import { defineStore, storeToRefs } from "pinia";
 import get from "get-value";
 import set from "set-value";
@@ -27,16 +27,16 @@ import { useAppStore } from "./app";
 import { useFiles } from "./files";
 import { useRouteParams } from "@vueuse/router";
 import { ValidationError } from "@renderer/models/error";
-import { isRequired } from "@pipelab/shared/validation";
-import { useLogger } from "@pipelab/shared/logger";
+import { isRequired } from "@pipelab/shared";
+import { useLogger } from "@pipelab/shared";
 import { nanoid } from "nanoid";
 import { klona } from "klona";
 import { create } from "mutative";
 import { parse, value } from "valibot";
 import { createEventHook, watchDebounced } from "@vueuse/core";
-import { makeResolvedParams } from "@pipelab/shared/evaluator";
-import { createQuickJs } from "@pipelab/shared/quickjs";
-import { Context } from "@pipelab/shared/types";
+import { makeResolvedParams } from "@pipelab/shared";
+import { createQuickJs } from "@pipelab/shared";
+import { Context } from "@pipelab/shared";
 
 // Definitions
 export const isActionDefinition = (nodeDefinition: PipelabNode): nodeDefinition is Action => {

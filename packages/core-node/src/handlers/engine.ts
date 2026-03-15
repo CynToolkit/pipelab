@@ -1,6 +1,6 @@
 import { useAPI, HandleListenerSendFn } from "../ipc-core";
 import { userDataPath } from "../context";
-import { useLogger } from "@pipelab/shared/logger";
+import { useLogger } from "@pipelab/shared";
 import { getFinalPlugins, executeGraphWithHistory } from "../utils";
 import { presets } from "../presets/list";
 import { handleActionExecute, handleConditionExecute } from "../handler-func";

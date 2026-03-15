@@ -1,6 +1,6 @@
 // renderer handler
 
-import { useLogger } from "@pipelab/shared/logger";
+import { useLogger } from "@pipelab/shared";
 import {
   RendererChannels,
   RendererEvents,

@@ -136,7 +136,7 @@
 
 <script setup lang="ts">
 import { ref, inject } from "vue";
-import type { BuildHistoryEntry } from "@pipelab/shared/build-history";
+import type { BuildHistoryEntry } from "@pipelab/shared";
 import BuildStatusBadge from "./BuildStatusBadge.vue";
 import { useAuth } from "../store/auth";
 

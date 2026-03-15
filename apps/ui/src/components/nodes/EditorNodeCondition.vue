@@ -78,13 +78,13 @@ getNodeDefinition: {{ getNodeDefinition(value.origin.nodeId, value.origin.plugin
 import { useEditor } from "@renderer/store/editor";
 import { PropType, computed, ref, toRefs } from "vue";
 import NodesEditor from "@renderer/pages/nodes-editor.vue";
-import { BlockCondition } from "@pipelab/shared/model";
+import { BlockCondition } from "@pipelab/shared";
 import { storeToRefs } from "pinia";
 import { computedAsync } from "@vueuse/core";
 import PluginIcon from "./PluginIcon.vue";
 import { Condition } from "@pipelab/plugin-core";
 import { ValidationError } from "@renderer/models/error";
-import { useLogger } from "@pipelab/shared/logger";
+import { useLogger } from "@pipelab/shared";
 
 const props = defineProps({
   value: {

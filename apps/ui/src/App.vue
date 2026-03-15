@@ -42,7 +42,7 @@ import { onMounted, ref, provide, watch, computed } from "vue";
 import { primary, primaryDarken1, primaryDarken2 } from "./style/main";
 import { useFiles } from "./store/files";
 import { handle } from "./composables/handlers";
-import { useLogger } from "@pipelab/shared/logger";
+import { useLogger } from "@pipelab/shared";
 import { useAuth } from "@renderer/store/auth";
 import { storeToRefs } from "pinia";
 import { useAppSettings } from "./store/settings";

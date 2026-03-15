@@ -6,33 +6,13 @@
     "outDir": "dist",
     "inlineSourceMap": true,
     "paths": {
-      "@pipelab/shared": [
-        "../../packages/shared/src/index.ts"
-      ],
-      "@pipelab/shared/*": [
-        "../../packages/shared/src/*"
-      ],
-      "@pipelab/constants": [
-        "../../packages/constants/src/index.ts"
-      ],
-      "@pipelab/migration": [
-        "../../packages/migration/src/index.ts"
-      ],
-      "@pipelab/migration/*": [
-        "../../packages/migration/src/*"
-      ],
-      "@pipelab/*": [
-        "../../packages/shared/src/libs/*"
-      ]
+      "@pipelab/shared": ["../../packages/shared/src/index.ts"],
+      "@pipelab/constants": ["../../packages/constants/src/index.ts"],
+      "@pipelab/migration": ["../../packages/migration/src"],
+      "@pipelab/*": ["../../packages/shared/src/libs/*"]
     }
   },
-  "include": [
-    "src/**/*",
-    "tests/**/*",
-    "*.ts",
-    "*.mts",
-    "package.json"
-  ],
+  "include": ["src/**/*", "tests/**/*", "*.ts", "*.mts", "package.json"],
   "exclude": [
     "node_modules",
     "./assets/tauri/template/app/src-tauri",
@@ -47,6 +27,6 @@
     },
     {
       "path": "../../packages/shared"
-    },
+    }
   ]
 }

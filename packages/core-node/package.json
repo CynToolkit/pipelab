@@ -5,9 +5,7 @@
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "exports": {
-    ".": "./src/index.ts",
-    "./api": "./src/api.ts",
-    "./heavy": "./src/heavy.ts"
+    ".": "./src/index.ts"
   },
   "scripts": {
     "format": "oxfmt .",
@@ -15,6 +13,7 @@
   },
   "dependencies": {
     "@pipelab/constants": "workspace:*",
+    "@pipelab/plugin-core": "workspace:*",
     "@pipelab/shared": "workspace:*",
     "es-toolkit": "1.25.2",
     "nanoid": "5.0.7",
@@ -22,8 +21,7 @@
     "tar": "6.2.1",
     "type-fest": "4.39.0",
     "ws": "8.18.3",
-    "yauzl": "2.10.0",
-    "@pipelab/plugin-core": "workspace:*"
+    "yauzl": "2.10.0"
   },
   "devDependencies": {
     "@pipelab/tsconfig": "workspace:*",

@@ -25,7 +25,9 @@ const isUp = (port: number, retries = 20, delay = 500): Promise<boolean> =>
           }
           setTimeout(() => attempt(remainingRetries - 1), delay);
         } else {
-          console.error(`[Server Check] Server failed to come up on port ${port} after all retries`);
+          console.error(
+            `[Server Check] Server failed to come up on port ${port} after all retries`,
+          );
           resolve(false);
         }
       });
@@ -58,13 +60,8 @@ export const startServer = async () => {
     // In production, we use the bundled binary
     // The binary should be placed in a known location relative to the app
     const platform =
-      process.platform === "win32"
-        ? "win"
-        : process.platform === "darwin"
-        ? "macos"
-        : "linux";
-    const binaryName =
-      `pipelab-${platform}` + (process.platform === "win32" ? ".exe" : "");
+      process.platform === "win32" ? "win" : process.platform === "darwin" ? "macos" : "linux";
+    const binaryName = `pipelab-${platform}` + (process.platform === "win32" ? ".exe" : "");
     serverPath = join(process.resourcesPath, "bin", binaryName);
 
     console.info("Starting standalone server:", serverPath, args.join(" "));

@@ -377,7 +377,7 @@ import { computed, ref, watchEffect, inject, watch, onMounted } from "vue";
 import { useToast } from "primevue/usetoast";
 import { storeToRefs } from "pinia";
 import Menu from "primevue/menu";
-import { EnhancedFile, SavedFile, Preset, savedFileMigrator } from "@pipelab/shared/model";
+import { EnhancedFile, SavedFile, Preset, savedFileMigrator } from "@pipelab/shared";
 import { nanoid } from "nanoid";
 import { useRouter } from "vue-router";
 import { useAPI } from "@renderer/composables/api";
@@ -386,7 +386,7 @@ import { loadExternalFile } from "@renderer/utils/config";
 import Tree from "primevue/tree";
 import { useTour } from "@renderer/composables/useTour";
 
-import { Presets } from "@pipelab/shared/apis";
+import { Presets } from "@pipelab/shared";
 import FileInput from "@renderer/components/FileInput.vue";
 import { PROJECT_EXTENSION } from "@renderer/models/constants";
 import { kebabCase } from "change-case";
@@ -402,11 +402,7 @@ import Skeleton from "primevue/skeleton";
 import ConfirmDialog from "primevue/confirmdialog";
 import { useConfirm } from "primevue/useconfirm";
 import { TreeNode } from "primevue";
-import {
-  SaveLocation,
-  SaveLocationExternal,
-  SaveLocationInternal,
-} from "@pipelab/shared/save-location";
+import { SaveLocation, SaveLocationExternal, SaveLocationInternal } from "@pipelab/shared";
 import { usePipeline } from "@renderer/composables/usePipeline";
 import { usePostHog } from "@renderer/composables/usePostHog";
 

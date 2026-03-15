@@ -1,7 +1,7 @@
 import { useAPI, WsEvent } from "../ipc-core";
-import { useLogger } from "@pipelab/shared/logger";
+import { useLogger } from "@pipelab/shared";
 import { buildHistoryStorage } from "./build-history";
-import { SubscriptionRequiredError } from "@pipelab/shared/subscription-errors";
+import { SubscriptionRequiredError } from "@pipelab/shared";
 
 // Helper function to check build history authorization
 const checkBuildHistoryAuthorization = async (event: WsEvent): Promise<boolean> => {

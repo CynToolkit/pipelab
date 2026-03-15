@@ -41,7 +41,7 @@ import EditorNodeAction from "@renderer/components/nodes/EditorNodeAction.vue";
 // import EditorNodeLoop from '@renderer/components/nodes/EditorNodeLoop.vue'
 
 import { PropType, toRefs } from "vue";
-import { Block, Steps } from "@pipelab/shared/model";
+import { Block, Steps } from "@pipelab/shared";
 import { ValidationError } from "@renderer/models/error";
 import { useEditor } from "@renderer/store/editor";
 import { storeToRefs } from "pinia";

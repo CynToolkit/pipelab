@@ -5,7 +5,7 @@
     "outDir": "dist",
     "baseUrl": ".",
     "paths": {
-      "@pipelab/shared/*": ["./src/*"]
+      "@pipelab/shared": ["./src"]
     },
     "typeRoots": ["./src"],
     "types": ["global.d.ts", "wasm.d.ts"]
