@@ -1,4 +1,4 @@
-import { createRouter, createWebHashHistory, RouterOptions } from "vue-router";
+import { createRouter, createWebHistory, RouterOptions } from "vue-router";
 import { i18n } from "../i18n";
 
 const { t } = i18n.global;
@@ -61,6 +61,6 @@ const routes: RouterOptions["routes"] = [
 ];
 
 export const router = createRouter({
-  history: createWebHashHistory(),
+  history: createWebHistory(),
   routes,
 });

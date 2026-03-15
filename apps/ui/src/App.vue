@@ -46,7 +46,6 @@ import { useLogger } from "@pipelab/shared/logger";
 import { useAuth } from "@renderer/store/auth";
 import { storeToRefs } from "pinia";
 import { useAppSettings } from "./store/settings";
-import { useAgentsStore } from "./store/agents";
 import SubscriptionLoadingIndicator from "./components/SubscriptionLoadingIndicator.vue";
 import DisconnectedPage from "./components/DisconnectedPage.vue";
 import UpgradeDialog from "./components/UpgradeDialog.vue";
@@ -58,7 +57,6 @@ import { websocketManager } from "./composables/websocket-manager";
 const appStore = useAppStore();
 const filesStore = useFiles();
 const settingsStore = useAppSettings();
-const agentsStore = useAgentsStore();
 const { logger } = useLogger();
 const authStore = useAuth();
 const { init: authInit, fetchSubscription } = authStore;
@@ -181,10 +179,10 @@ watch(
 );
 
 onMounted(async () => {
-  console.log("[App] onMounted: UI mounted, initializing local stores");
+  console.log("[App] onMounted: UI mounted, connecting to agent");
 
-  // Initialize agents store which will trigger the WebSocket connection
-  await agentsStore.init();
+  // Connect to the WebSocket server directly
+  await websocketManager.connect();
   isInitialized.value = true;
 
   // Loading state for specific data should be handled by components

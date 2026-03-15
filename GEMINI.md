@@ -71,3 +71,4 @@ The project uses `pnpm` as its package manager.
 
 - When modifying code, do not attempt to typecheck it.
 - When modifying code, do not attempt to lint it.
+- When creating packages, ensure files are **not** accessed via subpaths (e.g. `import { useAPI } from "@pipelab/shared/api"`).

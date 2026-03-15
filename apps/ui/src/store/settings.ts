@@ -46,26 +46,26 @@ export const useAppSettings = defineStore("settings", () => {
       return;
     }
 
-    // 2. If Web and Logged In, load from Supabase (Cloud Save)
-    if (auth.user) {
-      console.log("[Settings] loading from Supabase");
-      const supabase = supabaseFn();
-      const { data, error } = await supabase
-        .from("user_settings")
-        .select("settings")
-        .eq("user_id", auth.user.id)
-        .single();
+    // // 2. If Web and Logged In, load from Supabase (Cloud Save)
+    // if (auth.user) {
+    //   console.log("[Settings] loading from Supabase");
+    //   const supabase = supabaseFn();
+    //   const { data, error } = await supabase
+    //     .from("user_settings")
+    //     .select("settings")
+    //     .eq("user_id", auth.user.id)
+    //     .single();
 
-      if (data && !error) {
-        settings.value = {
-          ...settings.value,
-          ...data.settings,
-        };
-        return;
-      } else if (error) {
-        console.warn("[Settings] Failed to load from Supabase:", error);
-      }
-    }
+    //   if (data && !error) {
+    //     settings.value = {
+    //       ...settings.value,
+    //       ...data.settings,
+    //     };
+    //     return;
+    //   } else if (error) {
+    //     console.warn("[Settings] Failed to load from Supabase:", error);
+    //   }
+    // }
 
     // 3. Fallback: If not connected or not logged in, we stay with default/current settings
     // (Note: No localStorage as requested)
@@ -79,15 +79,15 @@ export const useAppSettings = defineStore("settings", () => {
       await api.execute("config:save", { config: "settings", data: _settings });
     }
 
-    // 2. If Web and Logged In, save to Supabase
-    if (!isElectron && auth.user) {
-      const supabase = supabaseFn();
-      await supabase.from("user_settings").upsert({
-        user_id: auth.user.id,
-        settings: _settings,
-        updated_at: new Date().toISOString(),
-      });
-    }
+    // // 2. If Web and Logged In, save to Supabase
+    // if (!isElectron && auth.user) {
+    //   const supabase = supabaseFn();
+    //   await supabase.from("user_settings").upsert({
+    //     user_id: auth.user.id,
+    //     settings: _settings,
+    //     updated_at: new Date().toISOString(),
+    //   });
+    // }
   };
 
   const reset = async (key: keyof AppConfig) => {

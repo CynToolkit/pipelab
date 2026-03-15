@@ -12,5 +12,7 @@ if (fs.existsSync(uiDistPath)) {
   console.log("Copying UI dist to assets/ui...");
   fs.cpSync(uiDistPath, assetsUiPath, { recursive: true });
 } else {
-  console.warn("Warning: UI dist not found at " + uiDistPath);
+  console.error(`Error: UI distribution not found at ${uiDistPath}`);
+  console.error("Please run 'pnpm build' in the apps/ui package first.");
+  process.exit(1);
 }

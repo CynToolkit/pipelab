@@ -15,6 +15,7 @@ export const setupConfigFile = async <T>(name: string) => {
   }
 
   const userData = userDataPath;
+  console.log("Using data path at", userData);
   const filesPath = path.join(userData, "config", `${name}.json`);
 
   await ensure(filesPath, JSON.stringify(migrator.defaultValue));
@@ -39,11 +40,17 @@ export const setupConfigFile = async <T>(name: string) => {
         logger().error(`Error reading config ${name}:`, e);
       }
 
+      console.log("content", content);
+
       let json = undefined;
       try {
-        json = await migrator.migrate(content === undefined ? undefined : JSON.parse(content), {
-          debug: true,
-        });
+        json = await migrator.migrate(
+          content === undefined ? undefined : JSON.parse(content),
+          {
+            debug: true,
+          },
+        );
+        console.log("json", json);
       } catch (e) {
         logger().error(`Error migrating config ${name}:`, e);
         json = migrator.defaultValue;

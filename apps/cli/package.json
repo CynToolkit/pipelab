@@ -2,14 +2,14 @@
   "name": "@pipelab/cli",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
   "bin": "dist/index.cjs",
   "scripts": {
-    "build": "tsdown && pnpm copy:ui",
+    "build": "NODE_ENV=production tsdown && pnpm copy:ui",
     "copy:ui": "node scripts/copy-ui.mjs",
     "pkg": "pnpm build && pkg . --output bin/pipelab",
-    "dev": "tsdown --watch",
-    "serve": "pnpm build && pnpm start serve",
-    "dev:serve": "tsdown --onSuccess \"node dist/index.cjs serve\"",
+    "dev": "NODE_ENV=development tsdown --watch --onSuccess \"NODE_ENV=development node dist/index.cjs serve\"",
+    "watch": "tsdown --watch",
     "start": "node dist/index.cjs",
     "format": "oxfmt .",
     "lint": "oxlint ."

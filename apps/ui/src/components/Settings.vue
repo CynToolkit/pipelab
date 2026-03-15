@@ -3,7 +3,6 @@
     <Tabs value="0">
       <TabList>
         <Tab value="0">{{ t("settings.tabs.general") }}</Tab>
-        <Tab value="1">Agents</Tab>
         <Tab value="2">{{ t("settings.tabs.advanced") }}</Tab>
         <Tab v-if="user" value="3">{{ t("settings.tabs.billing") }}</Tab>
       </TabList>
@@ -89,80 +88,6 @@
               </div>
             </div>
           </div>
-        </TabPanel>
-
-        <!-- Agents Tab -->
-        <TabPanel value="1">
-          <div class="field">
-            <div class="flex justify-content-between align-items-center mb-3">
-              <label class="label mb-0">Custom Agents</label>
-              <Button
-                icon="pi pi-plus"
-                label="Add Agent"
-                size="small"
-                @click="showAddAgentDialog = true"
-              />
-            </div>
-            <p class="description mb-4">
-              Add remote Pipelab instances to run pipelines on other machines.
-            </p>
-
-            <DataTable :value="settingsRef?.agents || []" dataKey="id" class="p-datatable-sm">
-              <template #empty>No custom agents configured.</template>
-              <Column field="name" header="Name"></Column>
-              <Column field="url" header="WebSocket URL"></Column>
-              <Column
-                headerStyle="width: 4rem; text-align: center"
-                bodyStyle="text-align: center; overflow: visible"
-              >
-                <template #body="{ data }">
-                  <Button
-                    type="button"
-                    icon="mdi mdi-delete"
-                    severity="danger"
-                    text
-                    rounded
-                    @click="removeAgent(data.id)"
-                  ></Button>
-                </template>
-              </Column>
-            </DataTable>
-          </div>
-
-          <Dialog
-            v-model:visible="showAddAgentDialog"
-            header="Add Custom Agent"
-            :modal="true"
-            :style="{ width: '400px' }"
-          >
-            <div class="flex flex-column gap-3 mb-4 mt-2">
-              <div class="flex flex-column gap-2">
-                <label for="agent-name">Name</label>
-                <InputText
-                  id="agent-name"
-                  v-model="newAgent.name"
-                  placeholder="e.g. Production Server"
-                />
-              </div>
-              <div class="flex flex-column gap-2">
-                <label for="agent-url">WebSocket URL</label>
-                <InputText
-                  id="agent-url"
-                  v-model="newAgent.url"
-                  placeholder="ws://192.168.1.100:33753"
-                />
-              </div>
-            </div>
-            <template #footer>
-              <Button label="Cancel" icon="pi pi-times" text @click="showAddAgentDialog = false" />
-              <Button
-                label="Add"
-                icon="pi pi-check"
-                @click="addAgent"
-                :disabled="!newAgent.name || !newAgent.url"
-              />
-            </template>
-          </Dialog>
         </TabPanel>
 
         <!-- Advanced Tab -->
@@ -320,12 +245,7 @@ import { useAPI } from "@renderer/composables/api";
 import { format } from "date-fns";
 import { useI18n } from "vue-i18n";
 import { Locales, MessageSchema } from "@pipelab/shared/i18n-utils";
-import { nanoid } from "nanoid";
 import { watch } from "vue";
-import DataTable from "primevue/datatable";
-import Column from "primevue/column";
-import Dialog from "primevue/dialog";
-import InputText from "primevue/inputtext";
 
 const { t, locale } = useI18n<
   {
@@ -352,40 +272,6 @@ const currentLocale = computed({
     });
   },
 });
-
-// Agents management
-const showAddAgentDialog = ref(false);
-const newAgent = ref({ name: "", url: "" });
-
-const addAgent = async () => {
-  if (!settingsRef.value || !newAgent.value.name || !newAgent.value.url) return;
-
-  const updatedAgents = [...(settingsRef.value.agents || [])];
-  updatedAgents.push({
-    id: nanoid(),
-    name: newAgent.value.name,
-    url: newAgent.value.url,
-  });
-
-  await appSettings.updateSettings({
-    ...settingsRef.value,
-    agents: updatedAgents,
-  });
-
-  showAddAgentDialog.value = false;
-  newAgent.value = { name: "", url: "" };
-};
-
-const removeAgent = async (id: string) => {
-  if (!settingsRef.value) return;
-
-  const updatedAgents = (settingsRef.value.agents || []).filter((a) => a.id !== id);
-
-  await appSettings.updateSettings({
-    ...settingsRef.value,
-    agents: updatedAgents,
-  });
-};
 
 // Update i18n locale when settings change
 watch(

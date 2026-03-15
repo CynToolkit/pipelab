@@ -46,9 +46,6 @@
 
     <!-- Bottom info bar -->
     <div class="bottom-bar">
-      <div class="agent-info" v-if="agentsStore.selectedAgent">
-        Target: {{ agentsStore.selectedAgent.url }}
-      </div>
       <div class="retry-count" v-if="retryCount > 0">Attempts: {{ retryCount }}</div>
     </div>
   </div>
@@ -58,21 +55,15 @@
 import { ref } from "vue";
 import Button from "primevue/button";
 import { websocketManager } from "@renderer/composables/websocket-manager";
-import { useAgentsStore } from "@renderer/store/agents";
 
 const isReconnecting = ref(false);
 const retryCount = ref(0);
-const agentsStore = useAgentsStore();
 
 const testReconnection = async () => {
   isReconnecting.value = true;
   retryCount.value++;
   try {
-    if (agentsStore.selectedAgent) {
-      await websocketManager.connect(agentsStore.selectedAgent.url);
-    } else {
-      await websocketManager.connect();
-    }
+    await websocketManager.connect();
   } catch (e) {
     console.error("Reconnection failed", e);
   } finally {
