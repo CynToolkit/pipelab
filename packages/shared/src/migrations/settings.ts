@@ -5,7 +5,7 @@ import {
   initialVersion,
   OmitVersion,
   SemVer,
-} from "./index";
+} from "@pipelab/migration";
 import {
   AppConfig,
   AppConfigV1,
@@ -15,7 +15,7 @@ import {
   AppConfigV5,
   AppConfigV6,
   AppConfigV7,
-} from "@pipelab/shared/src/config/settings";
+} from "../config/settings";
 
 const migrator = createMigrator<AppConfigV1, AppConfig>();
 

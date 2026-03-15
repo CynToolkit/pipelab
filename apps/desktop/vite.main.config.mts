@@ -80,17 +80,16 @@ export default defineConfig((env) => {
         ),
         "@pipelab/migration/projects": resolve(
           __dirname,
-          "../../packages/migration/src/projects.ts"
+          "../../packages/shared/src/migrations/projects.ts"
         ),
         "@pipelab/migration/settings": resolve(
           __dirname,
-          "../../packages/migration/src/settings.ts"
+          "../../packages/shared/src/migrations/settings.ts"
         ),
         "@pipelab/migration/model": resolve(
           __dirname,
-          "../../packages/migration/src/model.ts"
-        ),
-        "@pipelab/migration": resolve(
+          "../../packages/shared/src/migrations/model.ts"
+        ),        "@pipelab/migration": resolve(
           __dirname,
           "../../packages/migration/src/index.ts"
         ),

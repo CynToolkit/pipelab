@@ -12,9 +12,9 @@ export default defineConfig({
   alias: {
     "@pipelab/core-node/api": resolve(import.meta.dirname, "../../packages/core-node/src/api.ts"),
     "@pipelab/core-node/src/heavy": resolve(import.meta.dirname, "../../packages/core-node/src/heavy.ts"),
-    "@pipelab/migration/projects": resolve(import.meta.dirname, "../../packages/migration/src/projects.ts"),
-    "@pipelab/migration/settings": resolve(import.meta.dirname, "../../packages/migration/src/settings.ts"),
-    "@pipelab/migration/model": resolve(import.meta.dirname, "../../packages/migration/src/model.ts"),
+    "@pipelab/migration/projects": resolve(import.meta.dirname, "../../packages/shared/src/migrations/projects.ts"),
+    "@pipelab/migration/settings": resolve(import.meta.dirname, "../../packages/shared/src/migrations/settings.ts"),
+    "@pipelab/migration/model": resolve(import.meta.dirname, "../../packages/shared/src/migrations/model.ts"),
     "@pipelab/migration": resolve(import.meta.dirname, "../../packages/migration/src/index.ts"),
     "electron": resolve(import.meta.dirname, "assets/shims/electron.ts"),
   },

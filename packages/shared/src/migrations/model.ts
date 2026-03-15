@@ -5,14 +5,14 @@ import {
   initialVersion,
   OmitVersion,
   SemVer,
-} from "./index";
+} from "@pipelab/migration";
 import {
   SavedFileV1,
   SavedFileV2,
   SavedFileV3,
   SavedFileV4,
   SavedFile,
-} from "@pipelab/shared/src/model-definition";
+} from "../model-definition";
 
 const savedFileMigratorr = createMigrator<SavedFileV1, SavedFile>();
 const defaultValue = savedFileMigratorr.createDefault({

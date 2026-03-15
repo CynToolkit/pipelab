@@ -24,4 +24,4 @@ export type FileRepoV2 = InferInput<typeof FileRepoValidatorV2>;
 export const FileRepoValidator = FileRepoValidatorV2;
 export type FileRepo = InferInput<typeof FileRepoValidator>;
 
-export { fileRepoMigrator, defaultFileRepo, fileRepoMigrations } from "@pipelab/migration/projects";
+export { fileRepoMigrator, defaultFileRepo, fileRepoMigrations } from "../migrations/projects";

@@ -3,12 +3,12 @@ import {
   createMigrator,
   initialVersion,
   SemVer,
-} from "./index";
+} from "@pipelab/migration";
 import { 
   FileRepoV1, 
   FileRepoV2, 
   FileRepo 
-} from "@pipelab/shared/src/config/projects";
+} from "../config/projects";
 
 export const fileRepoMigrator = createMigrator<FileRepoV1, FileRepo>();
 

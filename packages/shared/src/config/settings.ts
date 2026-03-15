@@ -20,4 +20,4 @@ export type {
   AppConfigV7,
 };
 
-export { defaultAppSettings, appSettingsMigrator } from "@pipelab/migration/settings";
+export { defaultAppSettings, appSettingsMigrator } from "../migrations/settings";
