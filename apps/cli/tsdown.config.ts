@@ -2,6 +2,15 @@ import { defineConfig } from "tsdown";
 import { resolve, dirname } from "path";
 import { readFileSync } from "node:fs";
 
+const envFile = readFileSync(resolve(import.meta.dirname, "../../.env"), "utf-8");
+const env: Record<string, string> = {};
+envFile.split("\n").forEach((line) => {
+  const [key, ...value] = line.split("=");
+  if (key && value) {
+    env[key.trim()] = value.join("=").trim().replace(/^"(.*)"$/, "$1");
+  }
+});
+
 export default defineConfig({
   entry: ["src/index.ts"],
   format: ["cjs"],
@@ -10,7 +19,12 @@ export default defineConfig({
   clean: true,
   minify: false,
   alias: {
-    "electron": resolve(import.meta.dirname, "assets/shims/electron.ts"),
+    electron: resolve(import.meta.dirname, "assets/shims/electron.ts"),
+  },
+  define: {
+    "import.meta": "{}",
+    __SUPABASE_URL__: JSON.stringify(env.SUPABASE_URL),
+    __SUPABASE_ANON_KEY__: JSON.stringify(env.SUPABASE_ANON_KEY),
   },
   deps: {
     neverBundle: [
@@ -28,9 +42,6 @@ export default defineConfig({
       /\?url$/,
     ],
     alwaysBundle: [/^@pipelab\/.*/, "serve-handler", "slash", "nanoid", "sliced", "deep-defaults"],
-  },
-  define: {
-    "import.meta": "{}",
   },
   plugins: [
     {

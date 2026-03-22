@@ -1,6 +1,6 @@
 import { userDataPath } from "../context";
 import { join } from "node:path";
-import { writeFile, readFile, unlink, mkdir } from "node:fs/promises";
+import { writeFile, readFile, unlink, mkdir, stat, readdir } from "node:fs/promises";
 import { BuildHistoryEntry, IBuildHistoryStorage } from "@pipelab/shared";
 import { useLogger } from "@pipelab/shared";
 
@@ -221,7 +221,7 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
         const files = await this.getAllPipelineFiles();
         for (const file of files) {
           const filePath = join(getStoragePath(), file);
-          const stats = await import("node:fs/promises").then((fs) => fs.stat(filePath));
+          const stats = await stat(filePath);
           totalSize += stats.size;
         }
       } catch (error) {
@@ -246,7 +246,7 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
   private async getAllPipelineFiles(): Promise<string[]> {
     try {
       await this.ensureStoragePath();
-      const files = await import("node:fs/promises").then((fs) => fs.readdir(getStoragePath()));
+      const files = await readdir(getStoragePath());
       return files.filter((file) => file.startsWith("pipeline-") && file.endsWith(".json"));
     } catch (error) {
       return [];

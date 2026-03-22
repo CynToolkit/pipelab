@@ -26,12 +26,9 @@ export const createQuickJs = async () => {
   if (isRenderer()) {
     location = (await import("@jitl/quickjs-wasmfile-release-sync/wasm?url")).default;
   } else {
-    const nodePathPkg = "node:path";
-    const coreNodePkg = "@pipelab/core-node";
-    const { join } = await import(nodePathPkg);
-    const { dirname } = await import(coreNodePkg);
-    const _dirname = await dirname();
-    location = join(_dirname, "emscripten-module.wasm");
+    const { join } = await import("node:path");
+    const { assetsPath } = await import("@pipelab/core-node");
+    location = join(assetsPath, "emscripten-module.wasm");
   }
 
   const variant = newVariant(RELEASE_SYNC, {

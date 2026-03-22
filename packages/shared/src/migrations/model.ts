@@ -6,7 +6,7 @@ import {
   OmitVersion,
   SemVer,
 } from "@pipelab/migration";
-import { SavedFileV1, SavedFileV2, SavedFileV3, SavedFileV4, SavedFile } from "../model-definition";
+import { SavedFileV1, SavedFileV2, SavedFileV3, SavedFileV4, SavedFile } from "../model";
 
 const savedFileMigratorr = createMigrator<SavedFileV1, SavedFile>();
 const defaultValue = savedFileMigratorr.createDefault({

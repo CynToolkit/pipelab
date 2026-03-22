@@ -1,6 +1,7 @@
 import { useAPI } from "../ipc-core";
 import { useLogger } from "@pipelab/shared";
-import { writeFile, readFile } from "node:fs/promises";
+import { writeFile, readFile, readdir, stat } from "node:fs/promises";
+import { join } from "node:path";
 
 export const registerFsHandlers = () => {
   const { handle } = useAPI();
@@ -49,9 +50,6 @@ export const registerFsHandlers = () => {
   });
 
   handle("fs:listDirectory", async (event, { value, send }) => {
-    const { readdir, stat } = await import("node:fs/promises");
-    const { join } = await import("node:path");
-
     try {
       const entries = await readdir(value.path, { withFileTypes: true });
       const files = await Promise.all(

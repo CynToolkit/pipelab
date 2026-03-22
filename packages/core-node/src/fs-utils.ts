@@ -1,4 +1,4 @@
-import { access, mkdir, realpath, writeFile } from "node:fs/promises";
+import { access, mkdir, realpath, writeFile, mkdtemp } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { tmpdir } from "node:os";
 
@@ -27,8 +27,3 @@ export const generateTempFolder = async (base = tmpdir()) => {
 
   return tempFolder;
 };
-
-async function mkdtemp(prefix: string) {
-  const { mkdtemp: fsMkdtemp } = await import("node:fs/promises");
-  return fsMkdtemp(prefix);
-}

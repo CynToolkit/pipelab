@@ -1,4 +1,8 @@
-import { mkdir } from "node:fs/promises";
+import { mkdir as mkdirP } from "node:fs/promises";
+import { createWriteStream, mkdir } from "node:fs";
+import { join, dirname } from "node:path";
+import yauzl from "yauzl";
+import archiver from "archiver";
 
 /**
  * Extracts a .zip archive.
@@ -7,14 +11,10 @@ import { mkdir } from "node:fs/promises";
  * @returns A Promise that resolves when extraction is complete.
  */
 export async function extractZip(archivePath: string, destinationDir: string): Promise<void> {
-  const yauzl = await import("yauzl");
-  const { createWriteStream } = await import("node:fs");
-  const { join, dirname } = await import("node:path");
-
   console.log(`Extracting ${archivePath} to ${destinationDir}...`);
 
   // Ensure the destination directory exists
-  await mkdir(destinationDir, { recursive: true });
+  await mkdirP(destinationDir, { recursive: true });
 
   return new Promise((resolve, reject) => {
     yauzl.open(archivePath, { lazyEntries: true }, (err, zipfile) => {
@@ -66,9 +66,6 @@ export async function extractZip(archivePath: string, destinationDir: string): P
 }
 
 export const zipFolder = async (from: string, to: string, log: typeof console.log) => {
-  const archiver = (await import("archiver")).default;
-  const { createWriteStream } = await import("node:fs");
-
   const output = createWriteStream(to);
 
   const archive = archiver("zip", {

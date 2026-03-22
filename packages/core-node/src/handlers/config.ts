@@ -1,5 +1,5 @@
 import { useAPI } from "../ipc-core";
-import { useLogger } from "@pipelab/shared";
+import { useLogger, configRegistry } from "@pipelab/shared";
 import { setupConfigFile } from "../config";
 
 export const registerConfigHandlers = () => {
@@ -72,7 +72,6 @@ export const registerConfigHandlers = () => {
       const manager = await setupConfigFile(name);
       const currentConfig = await manager.getConfig();
 
-      const { configRegistry } = await import("@pipelab/shared");
       const migrator = configRegistry[name];
 
       if (!migrator) {

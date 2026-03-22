@@ -1,6 +1,7 @@
 import { useAPI } from "../ipc-core";
 import { useLogger } from "@pipelab/shared";
 import slash from "slash";
+import { homedir } from "node:os";
 
 export const registerShellHandlers = () => {
   const { handle } = useAPI();
@@ -43,7 +44,6 @@ export const registerShellHandlers = () => {
   });
 
   handle("fs:getHomeDirectory", async (event, { send }) => {
-    const { homedir } = await import("node:os");
     send({
       type: "end",
       data: {

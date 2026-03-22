@@ -2,7 +2,7 @@ import { nanoid } from "nanoid";
 import { usePlugins } from "@pipelab/shared";
 import { RendererPluginDefinition } from "@pipelab/plugin-core";
 import { downloadFile, Hooks } from "@pipelab/plugin-core";
-import { access, chmod, mkdir, rm, writeFile } from "node:fs/promises";
+import { access, chmod, mkdir, rm, writeFile, readdir, cp } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { userDataPath, assetsPath } from "./context";
 import { constants } from "node:fs";
@@ -46,7 +46,6 @@ export const getFinalPlugins = () => {
  * @returns A Promise that resolves to the path of the installed Node.js executable.
  */
 export const ensureNodeJS = async (version: string) => {
-  const { extractTarGz, extractZip } = await import("./archive-utils");
   const nodeDir = join(assetsPath, "node", version);
   const isWindows = process.platform === "win32";
   const executableName = isWindows ? "node.exe" : "bin/node";
@@ -96,7 +95,6 @@ export const ensureNodeJS = async (version: string) => {
   }
 
   // 5. Locate the extracted directory (it's usually node-vX.Y.Z-platform-arch)
-  const { readdir } = await import("node:fs/promises");
   const extractedEntries = await readdir(extractTempDir);
   const nodeSubDir = extractedEntries.find((entry) => entry.startsWith(`node-v${version}`));
 
@@ -111,7 +109,6 @@ export const ensureNodeJS = async (version: string) => {
   await mkdir(dirname(nodeDir), { recursive: true });
   await rm(nodeDir, { recursive: true, force: true }); // Clean up existing directory if any
   // Use rename if on the same device, but copy + rm is safer across different devices/partitions
-  const { cp } = await import("node:fs/promises");
   await cp(sourceDir, nodeDir, { recursive: true });
 
   // 7. Clean up temporary files
