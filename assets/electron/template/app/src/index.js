@@ -333,6 +333,21 @@ let wss = null
 let isQuitting = false
 
 /**
+ * @type {number}
+ */
+let requestedExitCode = 0
+
+/**
+ * @type {Promise<void> | null}
+ */
+let cleanupPromise = null
+
+/**
+ * @type {Promise<void> | null}
+ */
+let quitPromise = null
+
+/**
  * @param {string} message
  */
 const broadcastMessage = (message) => {
@@ -566,7 +581,7 @@ const createAppServer = (mainWindow, serveStatic = true) => {
                 await discordSetActivity(json, ws, mainWindow, rpc)
                 break
               case '/exit':
-                await exit(json, ws)
+                await exit(json, ws, requestQuit)
                 break
               case '/window/fullscreen-state':
                 // sent the other way around
@@ -718,11 +733,14 @@ const createWindow = async () => {
 /**
  * Cleanup all resources before quitting
  */
-const cleanup = () => {
-  return new Promise((resolve) => {
+const cleanup = async () => {
+  if (cleanupPromise) {
+    return cleanupPromise
+  }
+
+  cleanupPromise = (async () => {
     console.log('Cleaning up resources...')
 
-    // Close all WebSocket clients
     for (const client of clients) {
       try {
         client.close()
@@ -732,7 +750,6 @@ const cleanup = () => {
     }
     clients.clear()
 
-    // Close WebSocket server
     if (wss) {
       try {
         wss.close()
@@ -742,27 +759,101 @@ const cleanup = () => {
       wss = null
     }
 
-    // Close HTTP server
-    if (httpServer) {
-      httpServer.close(() => {
-        console.log('HTTP server closed')
-        httpServer = null
-        resolve()
-      })
-      // Force resolve after timeout in case server doesn't close cleanly
-      setTimeout(resolve, 500)
-    } else {
-      resolve()
+    if (rpc) {
+      try {
+        await rpc.clearActivity()
+      } catch (e) {
+        console.error('Error clearing Discord RPC activity:', e)
+      }
+
+      try {
+        rpc.destroy()
+      } catch (e) {
+        console.error('Error destroying Discord RPC client:', e)
+      }
+
+      rpc = undefined
     }
+
+    try {
+      protocol.unhandle('app')
+    } catch (e) {
+      console.error('Error unregistering app protocol:', e)
+    }
+
+    if (httpServer) {
+      const server = httpServer
+      httpServer = null
+
+      await new Promise((resolve) => {
+        let isSettled = false
+        const done = () => {
+          if (!isSettled) {
+            isSettled = true
+            resolve()
+          }
+        }
+
+        server.close(() => {
+          console.log('HTTP server closed')
+          done()
+        })
+
+        setTimeout(done, 500)
+      })
+    }
+  })().finally(() => {
+    cleanupPromise = null
   })
+
+  return cleanupPromise
+}
+
+const hideAndDestroyAllWindows = () => {
+  for (const window of BrowserWindow.getAllWindows()) {
+    try {
+      if (process.platform === 'win32') {
+        window.setSkipTaskbar(true)
+        if (window.isVisible()) {
+          window.hide()
+        }
+      }
+
+      if (!window.isDestroyed()) {
+        window.destroy()
+      }
+    } catch (e) {
+      console.error('Error destroying window during quit:', e)
+    }
+  }
+}
+
+const requestQuit = async (exitCode = 0) => {
+  requestedExitCode = exitCode
+  process.exitCode = exitCode
+
+  if (quitPromise) {
+    return quitPromise
+  }
+
+  quitPromise = (async () => {
+    isQuitting = true
+    await cleanup()
+    hideAndDestroyAllWindows()
+    app.quit()
+  })().catch((error) => {
+    console.error('Error while quitting application:', error)
+    hideAndDestroyAllWindows()
+    app.quit()
+  })
+
+  return quitPromise
 }
 
 const registerHandlers = async () => {
   ipcMain.on('exit', async (event, code) => {
     console.log('exit', code)
-    isQuitting = true
-    await cleanup()
-    app.exit(code)
+    await requestQuit(code)
   })
 }
 
@@ -874,16 +965,15 @@ app.whenReady().then(async () => {
 })
 
 app.on('before-quit', (event) => {
-  if (!isQuitting) {
+  if (!quitPromise) {
     event.preventDefault()
-    isQuitting = true
-    cleanup().then(() => {
-      app.quit()
-    })
+    void requestQuit(requestedExitCode)
   }
 })
 
 app.on('will-quit', () => {
+  process.exitCode = requestedExitCode
+
   // Final cleanup - synchronous operations only
   // Close any remaining WebSocket clients
   for (const client of clients) {
@@ -897,15 +987,5 @@ app.on('will-quit', () => {
 })
 
 app.on('window-all-closed', () => {
-  // On macOS, apps typically stay open until explicitly quit
-  // But for games, we usually want to quit when the window is closed
-  if (process.platform !== 'darwin' || isQuitting) {
-    app.quit()
-  } else {
-    // On macOS, trigger the quit process which will run cleanup
-    isQuitting = true
-    cleanup().then(() => {
-      app.quit()
-    })
-  }
+  void requestQuit(requestedExitCode)
 })
