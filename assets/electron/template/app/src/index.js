@@ -333,11 +333,6 @@ let wss = null
 let isQuitting = false
 
 /**
- * @type {number}
- */
-let requestedExitCode = 0
-
-/**
  * @type {Promise<void> | null}
  */
 let cleanupPromise = null
@@ -576,7 +571,7 @@ const createAppServer = (mainWindow, serveStatic = true) => {
                 await discordSetActivity(json, ws, mainWindow, rpc)
                 break
               case '/exit':
-                await exit(json, ws, requestQuit)
+                await exit(json, ws)
                 break
               case '/window/fullscreen-state':
                 // sent the other way around
@@ -804,29 +799,11 @@ const cleanup = async () => {
   return cleanupPromise
 }
 
-const requestQuit = async (exitCode = 0) => {
-  requestedExitCode = exitCode
-  process.exitCode = exitCode
-
-  if (isQuitting) {
-    return
-  }
-
-  isQuitting = true
-
-  try {
-    await cleanup()
-  } catch (error) {
-    console.error('Error while quitting application:', error)
-  }
-
-  app.quit()
-}
-
 const registerHandlers = async () => {
-  ipcMain.on('exit', async (event, code) => {
+  ipcMain.on('exit', (event, code) => {
     console.log('exit', code)
-    await requestQuit(code)
+    process.exitCode = code
+    app.quit()
   })
 }
 
@@ -940,25 +917,26 @@ app.whenReady().then(async () => {
 app.on('before-quit', (event) => {
   if (!isQuitting) {
     event.preventDefault()
-    void requestQuit(requestedExitCode)
+    isQuitting = true
+    cleanup()
+      .catch((error) => {
+        console.error('Error while quitting application:', error)
+      })
+      .finally(() => {
+        app.quit()
+      })
   }
 })
 
 app.on('will-quit', () => {
-  process.exitCode = requestedExitCode
-
-  // Final cleanup - synchronous operations only
-  // Close any remaining WebSocket clients
   for (const client of clients) {
     try {
-      client.terminate() // Force close
-    } catch (e) {
-      // Ignore errors during final cleanup
-    }
+      client.terminate()
+    } catch (e) {}
   }
   clients.clear()
 })
 
 app.on('window-all-closed', () => {
-  void requestQuit(requestedExitCode)
+  app.quit()
 })

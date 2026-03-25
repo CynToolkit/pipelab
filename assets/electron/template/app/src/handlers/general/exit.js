@@ -1,9 +1,10 @@
+import { app } from 'electron'
+
 /**
  * @param {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').MessageExit, 'input'>} json
  * @param {import('ws').WebSocket} ws
- * @param {(exitCode?: number) => Promise<void>} requestQuit
  */
-export default async (json, ws, requestQuit) => {
+export default async (json, ws) => {
   /**
    * @type {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').MessageExit, 'output'>}
    */
@@ -16,5 +17,6 @@ export default async (json, ws, requestQuit) => {
   }
   ws.send(JSON.stringify(engineResult))
 
-  await requestQuit(json.body.code)
+  process.exitCode = json.body.code
+  app.quit()
 }
