@@ -41,14 +41,15 @@
     "team": "Team"
   },
   "base": {
-    "close": "Close",
-    "save": "Save",
-    "run": "Run",
-    "cancel": "Cancel",
-    "end": "End",
-    "delete": "Delete",
+    "close": "Fechar",
+    "save": "Salvar",
+    "run": "Executar",
+    "cancel": "Cancelar",
+    "end": "Fim",
+    "delete": "Excluir",
     "logs": "Logs",
-    "ok": "OK"
+    "ok": "OK",
+    "add": "Adicionar"
   },
   "editor": {
     "invalid-file-content": "Invalid file content",

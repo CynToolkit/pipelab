@@ -2,7 +2,7 @@
  * @param {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').DiscordSetActivity, 'input'>} json
  * @param {import('ws').WebSocket} ws
  * @param {import('electron').BrowserWindow} mainWindow
- * @param {Object} client
+ * @param {import('discord-rpc').Client} rpc
  */
 export default async (json, ws, mainWindow, rpc) => {
   console.log('json', json)
@@ -22,26 +22,47 @@ export default async (json, ws, mainWindow, rpc) => {
     return
   }
 
-  rpc.setActivity({
-    details,
-    state,
-    startTimestamp,
-    largeImageKey,
-    largeImageText,
-    smallImageKey,
-    smallImageText,
-    instance: false
-  })
+  const startTimestampAsNumber = Number.parseInt(startTimestamp)
 
-  /**
-   * @type {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').DiscordSetActivity, 'output'>}
-   */
-  const result = {
-    url: json.url,
-    correlationId: json.correlationId,
-    body: {
-      success: true
-    }
+  const payload = {
+    instance: false
   }
-  ws.send(JSON.stringify(result))
+
+  if (details) payload.details = details
+  if (state) payload.state = state
+  if (largeImageKey) payload.largeImageKey = largeImageKey
+  if (largeImageText) payload.largeImageText = largeImageText
+  if (smallImageKey) payload.smallImageKey = smallImageKey
+  if (smallImageText) payload.smallImageText = smallImageText
+  if (!Number.isNaN(startTimestampAsNumber)) payload.startTimestamp = startTimestampAsNumber
+
+  try {
+    await rpc.setActivity(payload)
+
+    /**
+     * @type {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').DiscordSetActivity, 'output'>}
+     */
+    const result = {
+      url: json.url,
+      correlationId: json.correlationId,
+      body: {
+        success: true
+      }
+    }
+    ws.send(JSON.stringify(result))
+  } catch (e) {
+    console.error('e', e)
+    /**
+     * @type {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').DiscordSetActivity, 'output'>}
+     */
+    const result = {
+      url: json.url,
+      correlationId: json.correlationId,
+      body: {
+        success: false,
+        error: e.message
+      }
+    }
+    ws.send(JSON.stringify(result))
+  }
 }

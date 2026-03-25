@@ -17,6 +17,11 @@ import { setupConfig } from '@main/config'
 import { resolve } from 'node:path'
 import Squirrel from 'electron-squirrel-startup'
 
+if (is.dev) {
+  app.setPath('userData', app.getPath('userData') + '-dev')
+  console.log('Dev mode: userData path set to', app.getPath('userData'))
+}
+
 const isLinux = platform() === 'linux'
 // let tray
 let isReadyToShow = false

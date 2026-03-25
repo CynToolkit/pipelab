@@ -15,19 +15,21 @@ export const makeResolvedParams = async (
   const { logger } = useLogger()
   const vm = _vm ?? (await createQuickJs())
 
-  const result: Record<string, string> = {}
+  const result: Record<string, any> = {}
+
+  const ctx = 'createContext' in vm ? (vm as any).createContext() : null
 
   for (const [paramName, param] of Object.entries(data.params)) {
     try {
       const parameterCodeValue = (param.value ?? '').toString()
 
-      const output = await vm.run(parameterCodeValue, {
+      const runParams = {
         steps: data.steps,
         params: {},
-        variables: data.variables,
-        extraCode: `
-        `
-      })
+        variables: data.variables
+      }
+
+      const output = ctx ? ctx.run(parameterCodeValue, runParams) : await vm.run(parameterCodeValue, runParams)
 
       const outputResult = onItem(output)
 
@@ -37,5 +39,10 @@ export const makeResolvedParams = async (
       result[paramName] = ''
     }
   }
+
+  if (ctx) {
+    ctx.dispose()
+  }
+
   return result
 }

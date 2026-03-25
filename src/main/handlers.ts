@@ -149,9 +149,6 @@ export const registerIPCHandlers = () => {
 
   handle('fs:write', async (event, { value, send }) => {
     const { logger } = useLogger()
-    // logger.info('event', event)
-    logger().info('value', value)
-    logger().info('fs:read')
 
     await writeFile(value.path, value.content, 'utf-8')
 

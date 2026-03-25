@@ -184,11 +184,44 @@ export const SavedFileValidatorV3 = object({
   variables: array(VariableValidatorV1)
 })
 
+export const SavedFileDefaultValidator = object({
+  version: literal('4.0.0'),
+  type: literal('default'),
+  name: string(),
+  description: string(),
+  canvas: CanvasValidatorV3,
+  variables: array(VariableValidatorV1)
+})
+
+export const SavedFileSimpleValidator = object({
+  version: literal('4.0.0'),
+  type: literal('simple'),
+  name: string(),
+  description: string(),
+  source: object({
+    type: union([literal('c3-html'), literal('c3-nwjs'), literal('godot'), literal('html')]),
+    path: string()
+  }),
+  packaging: object({
+    enabled: boolean()
+  }),
+  publishing: object({
+    steam: object({ enabled: boolean(), appId: optional(string()) }),
+    itch: object({ enabled: boolean(), project: optional(string()) }),
+    poki: object({ enabled: boolean(), gameId: optional(string()) })
+  })
+})
+
+export type SavedFileDefault = InferOutput<typeof SavedFileDefaultValidator>
+export type SavedFileSimple = InferOutput<typeof SavedFileSimpleValidator>
+export const SavedFileValidatorV4 = union([SavedFileDefaultValidator, SavedFileSimpleValidator])
+
 export type SavedFileV1 = InferOutput<typeof SavedFileValidatorV1>
 export type SavedFileV2 = InferOutput<typeof SavedFileValidatorV2>
 export type SavedFileV3 = InferOutput<typeof SavedFileValidatorV3>
-export type SavedFile = SavedFileV3
-export const SavedFileValidator = SavedFileValidatorV3
+export type SavedFileV4 = InferOutput<typeof SavedFileValidatorV4>
+export type SavedFile = SavedFileV4
+export const SavedFileValidator = SavedFileValidatorV4
 
 const savedFileMigratorr = createMigrator<SavedFileV1, SavedFile>()
 const defaultValue = savedFileMigratorr.createDefault({
@@ -199,7 +232,8 @@ const defaultValue = savedFileMigratorr.createDefault({
   description: '',
   name: '',
   variables: [],
-  version: '3.0.0'
+  type: 'default',
+  version: '4.0.0'
 })
 
 export const savedFileMigrator = savedFileMigratorr.createMigrations({
@@ -276,8 +310,20 @@ export const savedFileMigrator = savedFileMigratorr.createMigrations({
         throw new Error('Migration down not implemented')
       }
     }),
-    createMigration<SavedFileV2, SavedFileV3, SavedFileV3>({
+    createMigration<SavedFileV2, SavedFileV3, SavedFileV4>({
       version: '3.0.0',
+      up: (state) => {
+        return {
+          ...state,
+          type: 'default'
+        } satisfies OmitVersion<SavedFileV4>
+      },
+      down: () => {
+        throw new Error('Migration down not implemented')
+      }
+    }),
+    createMigration<SavedFileV3, SavedFileV4, SavedFileV4>({
+      version: '4.0.0',
       up: finalVersion,
       down: () => {
         throw new Error('Migration down not implemented')
@@ -297,4 +343,4 @@ export type Steps = Record<
   }
 >
 
-export type EnhancedFile = WithId<SaveLocation> & { content: SavedFile }
+export type EnhancedFile<T extends SavedFile = SavedFile> = WithId<SaveLocation> & { content: T }

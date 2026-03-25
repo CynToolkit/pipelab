@@ -14,7 +14,7 @@
       <!-- Error state -->
       <div v-else-if="error" class="error-state">
         <p class="error-message">{{ error }}</p>
-        <button @click="fetchPlansFromPolar" class="retry-button">Retry</button>
+        <button class="retry-button" @click="fetchPlansFromPolar">Retry</button>
       </div>
 
       <!-- Plans display -->
@@ -28,8 +28,8 @@
           <div class="plan-header">
             <h3>{{ plan.name }}</h3>
             <div v-for="(price, pIndex) in plan.prices" :key="pIndex">
-              <span class="price" v-if="price.amountType === 'free'">Free</span>
-              <span class="price" v-else>
+              <span v-if="price.amountType === 'free'" class="price">Free</span>
+              <span v-else class="price">
                 {{ price.priceAmount / 100 }} {{ price.priceCurrency }} /
                 {{ price.recurringInterval }}
               </span>
@@ -42,8 +42,12 @@
               </li>
             </ul>
           </div>
-          <button @click="upgradeToPlan(plan)" class="plan-button" :disabled="plan.name === 'Free'">
-            {{ plan.name === 'Free' ? 'Current Plan' : `Upgrade to ${plan.name}` }}
+          <button
+            class="plan-button"
+            :disabled="isPlanDisabled(plan)"
+            @click="handlePlanAction(plan)"
+          >
+            {{ getPlanButtonText(plan) }}
           </button>
         </div>
       </template>
@@ -56,10 +60,12 @@
 <script lang="ts" setup>
 import { useAPI } from '@renderer/composables/api'
 import { supabase } from '@@/supabase'
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
+import { useAuth } from '@renderer/store/auth'
 
 const emit = defineEmits(['close'])
 const api = useAPI()
+const auth = useAuth()
 
 // State for plans, loading, and error
 const plans = ref([])
@@ -73,7 +79,7 @@ const fetchPlansFromPolar = async () => {
     error.value = null
 
     // Call the actual polar-available-plans cloud function
-    const { data, error: apiError } = await supabase.functions.invoke('polar-available-plans')
+    const { data, error: apiError } = await supabase().functions.invoke('polar-available-plans')
 
     if (apiError) {
       throw apiError
@@ -89,15 +95,68 @@ const fetchPlansFromPolar = async () => {
   }
 }
 
+const isCurrentPlan = (plan: any) => {
+  // If plan is Free, it's current if user has no subscriptions
+  if (plan.name === 'Free') {
+    return auth.subscriptions.length === 0
+  }
+
+  // For paid plans, check if user has a subscription to this product
+  // Assuming plan.id corresponds to product_id
+  return auth.subscriptions.some((sub) => {
+    // Check both ID and name just to be safe, depending on what the API returns
+    return sub.product.id === plan.id || sub.product.name === plan.name
+  })
+}
+
+const isPlanDisabled = (plan: any) => {
+  // Always disable if it's the current plan
+  if (isCurrentPlan(plan)) return true
+
+  // If not logged in, button is enabled (to allow login)
+  if (!auth.isLoggedIn) return false
+
+  // If logged in and plan is Free (but not current, meaning user is on paid plan),
+  // disable for now (downgrade flow)
+  if (plan.name === 'Free') return true
+
+  return false
+}
+
+const getPlanButtonText = (plan: any) => {
+  if (isCurrentPlan(plan)) {
+    return 'Current Plan'
+  }
+
+  if (!auth.isLoggedIn) {
+    return 'Login to Upgrade'
+  }
+
+  return `Upgrade to ${plan.name}`
+}
+
+const handlePlanAction = (plan: any) => {
+  if (!auth.isLoggedIn) {
+    auth.displayAuthModal('Login Required', 'Please login or register to upgrade your plan.')
+    return
+  }
+
+  upgradeToPlan(plan)
+}
+
 const upgradeToPlan = async (plan: any) => {
   console.log(plan)
-  const result = await supabase.functions.invoke('checkout', {
+  const result = await supabase().functions.invoke('checkout', {
     body: {
       itemIds: [plan.id]
     }
   })
   console.log('result', result)
-  window.open(result.data.checkoutURL)
+  if (result.data && result.data.checkoutURL) {
+    window.open(result.data.checkoutURL)
+  } else {
+    console.error('No checkout URL returned', result)
+  }
 }
 
 // Fetch plans when component is mounted

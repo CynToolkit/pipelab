@@ -1,10 +1,10 @@
-import { defineStore } from "pinia";
-import { createEventHook } from "@vueuse/core";
-import { ref } from "vue";
-import { useAPI } from "@renderer/composables/api";
-import { RendererPluginDefinition } from "@pipelab/plugin-core";
-import { Presets } from "@@/apis";
-import { useLogger } from "@@/logger";
+import { defineStore } from 'pinia'
+import { createEventHook } from '@vueuse/core'
+import { ref } from 'vue'
+import { useAPI } from '@renderer/composables/api'
+import { RendererPluginDefinition } from '@pipelab/plugin-core'
+import { Presets } from '@@/apis'
+import { useLogger } from '@@/logger'
 
 export const useAppStore = defineStore('app', () => {
   const { logger } = useLogger()
@@ -70,6 +70,8 @@ export const useAppStore = defineStore('app', () => {
     pluginDefinitions,
 
     getPluginDefinition,
-    getNodeDefinition,
+    getNodeDefinition
   }
 })
+
+export type AppStore = ReturnType<typeof useAppStore>

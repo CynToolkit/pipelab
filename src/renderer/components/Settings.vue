@@ -15,6 +15,20 @@
               <div class="field-switch">
                 <ToggleSwitch
                   :disabled="!settingsRef"
+                  input-id="autosave"
+                  :model-value="settingsRef?.autosave ?? true"
+                  @update:model-value="updateAutosave"
+                />
+                <label for="autosave" class="label">{{ t('settings.autosave') }}</label>
+              </div>
+              <p class="description">
+                {{ t('settings.autosaveDescription') }}
+              </p>
+            </div>
+            <div class="field">
+              <div class="field-switch">
+                <ToggleSwitch
+                  :disabled="!settingsRef"
                   aria-label="asdsdsd"
                   input-id="app-theme"
                   :model-value="false"
@@ -44,6 +58,34 @@
                     </template>
                   </Select>
                 </div>
+              </div>
+            </div>
+
+            <div class="field">
+              <label class="label">Onboarding Tours</label>
+              <div class="flex flex-column gap-2 mt-2">
+                <Button
+                  outlined
+                  severity="secondary"
+                  size="small"
+                  :label="t('settings.restart-dashboard-tour')"
+                  @click="restartTour('dashboard')"
+                >
+                  <template #icon>
+                    <i class="mdi mdi-refresh mr-2"></i>
+                  </template>
+                </Button>
+                <Button
+                  outlined
+                  severity="secondary"
+                  size="small"
+                  :label="t('settings.restart-editor-tour')"
+                  @click="restartTour('editor')"
+                >
+                  <template #icon>
+                    <i class="mdi mdi-refresh mr-2"></i>
+                  </template>
+                </Button>
               </div>
             </div>
           </div>
@@ -252,6 +294,13 @@ const cacheFolder = computed(() => {
   return settingsRef.value?.cacheFolder
 })
 
+const updateAutosave = (value: boolean) => {
+  return appSettings.updateSettings({
+    ...settingsRef.value,
+    autosave: value
+  })
+}
+
 const updateCacheFolder = (value: string) => {
   return appSettings.updateSettings({
     ...settingsRef.value,
@@ -320,7 +369,7 @@ const isBillingPortalUrlLoading = ref(false)
 const openBillingPortal = async () => {
   isBillingPortalUrlLoading.value = true
   try {
-    const result = await supabase.functions.invoke('customer-portal')
+    const result = await supabase().functions.invoke('customer-portal')
     console.log('result', result)
     window.open(result.data.customerPortal)
   } catch (error) {
@@ -352,6 +401,19 @@ const refreshStorageInfo = async () => {
   } catch (error) {
     console.error('Failed to refresh storage info:', error)
   }
+}
+
+const restartTour = (tourId: 'dashboard' | 'editor') => {
+  const tours = { ...settingsRef.value.tours }
+  tours[tourId] = {
+    step: 0,
+    completed: false
+  }
+  appSettings.updateSettings({
+    ...settingsRef.value,
+    tours
+  })
+  alert(t('settings.tour-reset-success'))
 }
 </script>
 

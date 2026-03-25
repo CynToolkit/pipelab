@@ -92,7 +92,6 @@ export const useAuth = defineStore('auth', () => {
     }
     console.log('[Auth] fetchSubscription: Completed, setting isLoadingSubscriptions to false')
     isLoadingSubscriptions.value = false
-    console.log('onSubscriptionChanged.trigger')
     onSubscriptionChanged.trigger({ subscriptions: subscriptions.value })
   }
 
@@ -337,7 +336,7 @@ export const useAuth = defineStore('auth', () => {
   const benefits = {
     'cloud-save': '16955d3e-3e0f-4574-9093-87a32edf237c',
     'build-history': 'b77e9800-8302-4581-8df3-6f1b979acef5',
-    'multiple-projects': 'a1b2c3d4-e5f6-7890-g1h2-i3j4k5l6m7n8'
+    'multiple-projects': 'ad00648e-ba6f-461a-87d0-84cabd53e489'
   }
 
   const devOverrides = ref<Record<string, string>>({})
@@ -358,10 +357,8 @@ export const useAuth = defineStore('auth', () => {
   }
 
   const setDevOverride = (benefit: string, value: string) => {
-    console.log(`[setDevOverride] Setting ${benefit} to ${value}`)
     devOverrides.value[benefit] = value
     saveDevOverrides()
-    console.log(`[setDevOverride] devOverrides now:`, devOverrides.value)
   }
 
   const getActualBenefit = (benefit: keyof typeof benefits) => {
@@ -375,18 +372,14 @@ export const useAuth = defineStore('auth', () => {
     // Check dev overrides in development mode
     if (process.env.NODE_ENV === 'development') {
       const override = devOverrides.value[benefit]
-      console.log(`[hasBenefit] ${benefit}: override=${override}`)
       if (override !== undefined) {
         switch (override) {
           case 'force-on':
-            console.log(`[hasBenefit] ${benefit}: forcing ON`)
             return true
           case 'force-off':
-            console.log(`[hasBenefit] ${benefit}: forcing OFF`)
             return false
           case 'actual':
           default:
-            console.log(`[hasBenefit] ${benefit}: using actual`)
             // Fall through to actual check
             break
         }
@@ -395,7 +388,6 @@ export const useAuth = defineStore('auth', () => {
 
     // Default behavior: check subscriptions
     const actual = getActualBenefit(benefit)
-    console.log(`[hasBenefit] ${benefit}: actual=${actual}`)
     return actual
   }
 

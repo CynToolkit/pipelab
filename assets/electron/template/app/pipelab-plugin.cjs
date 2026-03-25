@@ -25,8 +25,45 @@ module.exports = class PipelabPlugin extends PluginBase {
   postStart() {
     // console.log('running postStart hook')
   }
-  packageAfterCopy() {
-    // console.log('running packageAfterCopy hook')
+  async packageAfterCopy(config, buildPath, electronVersion, platform, arch) {
+    console.log(`Platform: ${platform}`)
+    console.log(`Architecture: ${arch}`)
+    console.log(`Build path: ${buildPath}`)
+    console.log(`Config: ${JSON.stringify(config)}`)
+    console.log(`Electron version: ${electronVersion}`)
+    const fs = require('fs').promises
+    const path = require('path')
+    const pkg = require('./package.json')
+
+    console.log('config', config)
+
+    const outputFolder = path.resolve(buildPath, '..', '..')
+
+    // Runtime JSON file
+
+    const pipelabJsonPath = path.join(outputFolder, 'pipelab.json')
+
+    await fs.writeFile(
+      pipelabJsonPath,
+      JSON.stringify(
+        {
+          name: config.name || pkg.productName || pkg.name,
+          version: config.appVersion || pkg.version,
+          description: config.description || pkg.description,
+          author: config.author || (typeof pkg.author === 'object' ? pkg.author.name : pkg.author),
+          homepage: pkg.homepage,
+          engine: 'Pipelab',
+          runtimeVersion: pkg.devDependencies['@pipelab/core'],
+          buildDate: new Date().toISOString(),
+          platform: platform,
+          arch: arch,
+          electron: electronVersion
+        },
+        null,
+        2
+      ),
+      'utf8'
+    )
   }
   packageAfterPrune() {
     // console.log('running packageAfterPrune hook')
@@ -39,10 +76,15 @@ module.exports = class PipelabPlugin extends PluginBase {
     const path = require('path')
     const appConfig = require('./config.cjs')
 
+    const outputFolder = result.outputPaths[0]
+
+    // Doctor
     if (result.platform === 'win32' && appConfig.enableDoctor) {
       const appName = config.packagerConfig.name
       console.log('appName', appName)
       const doctorBatContent = `@echo off
+pushd "%~dp0"
+
 echo ${appName} Doctor - Checking prerequisites...
 echo.
 
@@ -65,14 +107,12 @@ echo OK: VC++ Redistributable found.
 echo.
 
 echo 3. Checking DirectX version...
-dxdiag /t %temp%\\dxdiag.txt >nul 2>&1
-find "DirectX Version" %temp%\\dxdiag.txt
+reg query "HKLM\\SOFTWARE\\Microsoft\\DirectX" /v Version >nul 2>&1
 if %errorlevel%==0 (
   echo OK: DirectX detected.
 ) else (
-  echo ERROR: DirectX not detected.
+  echo ERROR: DirectX registry key not found.
 )
-del %temp%\\dxdiag.txt 2>nul
 echo.
 
 echo 4. Checking Vulkan...
@@ -85,21 +125,26 @@ echo.
 
 echo 5. GPU Information:
 echo All GPUs:
-wmic path win32_videocontroller get name,adapterram,driverversion
-echo.
-echo Current GPU (primary adapter):
-for /f "tokens=*" %i in ('wmic path win32_videocontroller where "Availability=3" get name /value ^| find "Name="') do echo %i
+powershell -NoProfile -Command "Get-CimInstance Win32_VideoController | Select-Object Name, AdapterRAM, DriverVersion | Format-Table -AutoSize"
 echo.
 
 echo All prerequisites met. Starting ${appName}...
 echo Logs will be displayed and saved to ${appName.toLowerCase()}-debug.log
-powershell -command "& { .\\${appName}.exe --enable-logging *>&1 | tee ${appName.toLowerCase()}-debug.log }"
 echo.
 
-echo ${appName} has exited. Logs saved to ${appName.toLowerCase()}-debug.log
+powershell -NoProfile -ExecutionPolicy Bypass -Command "cmd /c '${appName}.exe --enable-logging 2>&1' | Tee-Object -FilePath '${appName.toLowerCase()}}-debug.log'"
+
+echo.
+if %ERRORLEVEL% NEQ 0 (
+    echo [ERROR] ${appName} exited with error code: %ERRORLEVEL%
+) else (
+    echo ${appName} has exited. Logs saved to ${appName.toLowerCase()}}-debug.log
+)
+
 :end
+popd
 pause`
-      const doctorBatPath = path.join(result.outputPaths[0], 'doctor.bat')
+      const doctorBatPath = path.join(outputFolder, 'doctor.bat')
       await fs.writeFile(doctorBatPath, doctorBatContent, 'utf8')
     }
   }

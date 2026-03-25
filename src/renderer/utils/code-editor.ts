@@ -75,11 +75,9 @@ export const createCodeEditor = (
       return
     }
     if (editor.value) {
-      const transaction = editor.value.state.update({
+      editor.value.dispatch({
         changes: { from: 0, to: editor.value.state.doc.length, insert: value }
       })
-      const update = editor.value.state.update(transaction)
-      editor.value.update([update])
     }
   }
 

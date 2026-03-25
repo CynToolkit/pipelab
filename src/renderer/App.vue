@@ -74,6 +74,7 @@ const closeUpgradeDialog = () => {
 provide('openUpgradeDialog', openUpgradeDialog)
 
 handle('log:message', async (event, { value, send }) => {
+  console.log('value', value)
   // console.log('log:message: Received value:', {
   //   value,
   //   type: typeof value,
@@ -117,7 +118,11 @@ handle('log:message', async (event, { value, send }) => {
         .getSubLogger({
           name: 'Main'
         })
-        .log(value._meta.logLevelId, ...[logLevelName, ...filteredValues])
+        .log(
+          value._meta.logLevelId,
+          value._meta.path.fullFilePath,
+          ...[logLevelName, ...filteredValues]
+        )
     } catch (error) {
       console.error('log:message: Error processing log message:', error)
     }
@@ -140,7 +145,6 @@ onMounted(async () => {
   isLoading.value = true
 
   await filesStore.load()
-  console.log('filesStore.files', filesStore.files)
   await init()
   await initSettings()
   console.log(

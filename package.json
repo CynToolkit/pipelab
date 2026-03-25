@@ -1,6 +1,6 @@
 {
   "name": "@pipelab/app",
-  "version": "1.35.0",
+  "version": "1.37.0",
   "description": "-",
   "main": ".vite/build/main.js",
   "author": "Armaldio",
@@ -77,6 +77,7 @@
     "d3-shape": "3.2.0",
     "date-fns": "4.1.0",
     "dompurify": "3.1.7",
+    "driver.js": "1.4.0",
     "ejs": "3.1.10",
     "electron-squirrel-startup": "1.0.1",
     "elkjs": "0.9.3",

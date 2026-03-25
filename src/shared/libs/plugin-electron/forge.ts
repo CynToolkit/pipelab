@@ -400,7 +400,29 @@ export const configureParams = {
     label: 'Enable doctor file',
     description:
       'Whether to include the doctor.bat file in Windows builds for prerequisite checking and app launching'
-  })
+  }),
+  serverMode: {
+    value: '"default"' as 'default' | 'customProtocol',
+    required: false,
+    label: 'Server mode',
+    description: 'The server mode to use',
+    control: {
+      type: 'select',
+      options: {
+        placeholder: 'Mode',
+        options: [
+          {
+            value: 'default',
+            label: 'Default'
+          },
+          {
+            value: 'customProtocol',
+            label: 'Custom Protocol'
+          }
+        ]
+      }
+    }
+  }
 } satisfies InputsDefinition
 
 const outputs = {

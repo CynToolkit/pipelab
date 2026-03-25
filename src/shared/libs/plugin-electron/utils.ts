@@ -26,6 +26,10 @@ export const defaultElectronConfig = {
   steamGameId: 480,
   enableDiscordSupport: false,
   discordAppId: '',
-  ignore: [],
+  ignore: [] as string[],
+  backgroundColor: '#FFF',
   openDevtoolsOnStart: false,
+  enableDoctor: false,
+  customPackages: [] as string[],
+  serverMode: 'default'
 } satisfies DesktopApp.Electron

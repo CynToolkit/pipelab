@@ -39,7 +39,9 @@ export const packageV2Runner = createActionRunner<ReturnType<typeof createPackag
       enableDiscordSupport: options.inputs['enableDiscordSupport'],
       discordAppId: options.inputs['discordAppId'],
       customPackages: options.inputs['customPackages'],
-      backgroundColor: options.inputs['backgroundColor']
+      backgroundColor: options.inputs['backgroundColor'],
+      enableDoctor: options.inputs['enableDoctor'],
+      serverMode: options.inputs['serverMode']
     } satisfies DesktopApp.Electron) as DesktopApp.Electron
 
     options.log('completeConfiguration', completeConfiguration)

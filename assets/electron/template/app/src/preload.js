@@ -11,7 +11,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     }
   },
   handle: (message, handler) => {
-    ipcRenderer.on(message, (event, ...args) => handler(...args));
+    ipcRenderer.on(message, (event, ...args) => handler(...args))
   },
   isElectron: () => true,
   exit: (code) => {
@@ -19,6 +19,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   }
 })
 
+/** @deprecated */
 contextBridge.exposeInMainWorld('isElectron', true)
+contextBridge.exposeInMainWorld('isPipelab', true)
+contextBridge.exposeInMainWorld('pipelabEngine', 'electron')
 
 console.log('Preload script loaded')

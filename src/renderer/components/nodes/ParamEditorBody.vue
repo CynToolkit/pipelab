@@ -18,10 +18,7 @@
         <InputText
           v-else
           :model-value="modelValueString"
-          filter
           :placeholder="paramDefinition.control.options.placeholder"
-          multiple
-          option-label="label"
           class="w-full"
           @update:model-value="onParamInputTextChange"
         />
@@ -172,17 +169,19 @@ const netlifySelectLoading = ref(false)
 const search = async (event: { query: string }) => {
   netlifySelectLoading.value = true
   try {
-    // const response = await fetch(`https://api.netlify.com/api/v1/sites?search=${event.query}`, {
-    const response = await fetch(`https://api.netlify.com/api/v1/sites`, {
-      headers: {
-        Authorization: `Bearer ${currentNodeParams.value[props.paramDefinition.control.options.tokenKey]}`
-      }
-    })
-    const data = await response.json()
+    const control = props.paramDefinition.control
+    if (control.type === 'netlify-site') {
+      const response = await fetch(`https://api.netlify.com/api/v1/sites`, {
+        headers: {
+          Authorization: `Bearer ${currentNodeParams.value[control.options.tokenKey]}`
+        }
+      })
+      const data = await response.json()
 
-    console.log('data', data)
+      console.log('data', data)
 
-    items.value = data
+      items.value = data
+    }
   } catch (error) {
     console.error(error)
   } finally {
@@ -192,12 +191,16 @@ const search = async (event: { query: string }) => {
 const items = ref()
 
 const onChangePathClick = async (options: OpenDialogOptions) => {
-  const pathsResponse = await api.execute('dialog:showOpenDialog', options, async (_, message) => {
-    const { type, data } = message
-    if (type === 'end') {
-      logger().info('end', data)
+  const pathsResponse = await api.execute(
+    'dialog:showOpenDialog',
+    options,
+    async (context, message) => {
+      const { type, data } = message
+      if (type === 'end') {
+        logger().info('end', data)
+      }
     }
-  })
+  )
 
   if (pathsResponse.type === 'error') {
     throw new Error(pathsResponse.ipcError)
@@ -206,6 +209,11 @@ const onChangePathClick = async (options: OpenDialogOptions) => {
   const paths = pathsResponse.result
 
   logger().info('paths', paths)
+
+  if (paths.canceled || paths.filePaths.length === 0) {
+    return
+  }
+
   const p = paths.filePaths[0]
 
   emit('update:modelValue', `"${p}"`)

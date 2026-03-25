@@ -8,6 +8,7 @@
           <div class="buttons">
             <div class="left">
               <Button
+                id="tour-editor-close"
                 outlined
                 :label="t('base.close')"
                 :disabled="isRunning"
@@ -72,17 +73,26 @@
                 </template>
               </Button>
               <Button
+                id="tour-editor-save"
                 outlined
                 :label="t('base.save')"
-                :disabled="isRunning"
+                :disabled="isRunning || isSaving || !isDirty"
+                :loading="isSaving"
                 size="small"
-                @click="onSaveRequest"
+                @click="onSaveRequest(false)"
               >
                 <template #icon>
                   <i class="mdi mdi-content-save mr-1"></i>
                 </template>
               </Button>
-              <Button v-if="!isRunning" outlined :label="t('base.run')" size="small" @click="run">
+              <Button
+                v-if="!isRunning"
+                id="tour-editor-run"
+                outlined
+                :label="t('base.run')"
+                size="small"
+                @click="run"
+              >
                 <template #icon>
                   <i class="mdi mdi-play mr-1"></i>
                 </template>
@@ -111,7 +121,7 @@
                 <EnvironementEditor v-if="instance"></EnvironementEditor>
               </div>
             </div> -->
-            <div class="main">
+            <div id="tour-editor-canvas" class="main">
               <div class="node-editor-wrapper">
                 <EditorNodeEvent
                   v-for="trigger in triggers"
@@ -187,7 +197,7 @@
           </div>
 
           <div class="bottom" :class="{ expanded: bottomExpanded }">
-            <div class="header" @click="toggleLogsWindow">
+            <div id="tour-editor-logs" class="header" @click="toggleLogsWindow">
               <div class="ml-2 h3 logs-header">
                 <div>{{ t('base.logs') }}</div>
                 <div v-if="isRunning" class="logs-animated">
@@ -299,14 +309,14 @@
 
     <BuildHistoryDialog
       v-model:visible="showBuildHistoryDialog"
-      :pipeline-id="id"
+      :pipeline-id="pipelineId"
       @hide="showBuildHistoryDialog = false"
     />
   </div>
 </template>
 
 <script lang="ts" setup>
-import { computed, inject, reactive, ref, watch } from 'vue'
+import { computed, inject, reactive, ref, watch, onMounted } from 'vue'
 import Accordion from 'primevue/accordion'
 import AccordionPanel from 'primevue/accordionpanel'
 import AccordionHeader from 'primevue/accordionheader'
@@ -316,7 +326,7 @@ import NodesEditor from '@renderer/pages/nodes-editor.vue'
 import EditorNodeDummy from '@renderer/components/nodes/EditorNodeDummy.vue'
 import { storeToRefs } from 'pinia'
 import { useRouter } from 'vue-router'
-import { BlockAction, BlockCondition, BlockLoop, SavedFile } from '@@/model'
+import { BlockAction, BlockCondition, BlockLoop, SavedFile, SavedFileDefault } from '@@/model'
 import { useAPI } from '@renderer/composables/api'
 import { useToast } from 'primevue/usetoast'
 import { tinykeys } from 'tinykeys'
@@ -331,7 +341,7 @@ import EnvironementEditor from './environement-editor.vue'
 import ProjectSettingsEditor from './project-settings-editor.vue'
 import { format } from 'date-fns'
 import { FancyAnsi, hasAnsi } from 'fancy-ansi'
-import { watchThrottled } from '@vueuse/core'
+import { debounce, watchThrottled } from '@vueuse/core'
 import { stripHtml } from 'string-strip-html'
 import posthog from 'posthog-js'
 import Layout from '@renderer/components/Layout.vue'
@@ -340,13 +350,22 @@ import type { ValueOf } from 'type-fest'
 import ParamEditor from '@renderer/components/nodes/ParamEditor.vue'
 import { useI18n } from 'vue-i18n'
 import BuildHistoryDialog from '@renderer/components/BuildHistoryDialog.vue'
+import { useTour } from '@renderer/composables/useTour'
+import { debounce as esDebounce } from 'es-toolkit'
+
+import { useAppSettings } from '@renderer/store/settings'
 
 type Param = ValueOf<BlockAction['params']>
 
 const router = useRouter()
 const openUpgradeDialog = inject('openUpgradeDialog') as () => void
 
+const api = useAPI()
+
 const fancyAnsi = new FancyAnsi()
+
+const appSettings = useAppSettings()
+const { settings: settingsRef } = storeToRefs(appSettings)
 
 const instance = useEditor()
 const {
@@ -372,8 +391,11 @@ const {
   getNodeDefinition,
   removeNode,
   setBlockValue,
-  setSelectedNode
+  setSelectedNode,
+  setActiveNode,
+  onEditorChanged
 } = instance
+const { activeNode } = storeToRefs(instance)
 
 const { t } = useI18n()
 
@@ -383,6 +405,59 @@ const { update } = filesStore
 
 const authStore = useAuth()
 const { isLoggedIn, hasBuildHistoryBenefit } = storeToRefs(authStore)
+
+const { startTour: triggerTour, isCompleted } = useTour('editor')
+
+const startTour = (force = false) => {
+  triggerTour(
+    [
+      {
+        element: '#tour-editor-canvas',
+        popover: {
+          title: t('tour.editor-canvas-title'),
+          description: t('tour.editor-canvas-description')
+        }
+      },
+      {
+        element: '#tour-editor-save',
+        popover: {
+          title: t('tour.editor-save-title'),
+          description: t('tour.editor-save-description')
+        }
+      },
+      {
+        element: '#tour-editor-run',
+        popover: {
+          title: t('tour.editor-run-title'),
+          description: t('tour.editor-run-description')
+        }
+      },
+      {
+        element: '#tour-editor-logs',
+        popover: {
+          title: t('tour.editor-logs-title'),
+          description: t('tour.editor-logs-description')
+        }
+      },
+      {
+        element: '#tour-editor-close',
+        popover: {
+          title: t('tour.editor-close-title'),
+          description: t('tour.editor-close-description')
+        }
+      }
+    ],
+    force
+  )
+}
+
+onMounted(() => {
+  // if (!isCompleted()) {
+  //   setTimeout(() => {
+  //     startTour()
+  //   }, 1000)
+  // }
+})
 
 // Build history dialog state
 const showBuildHistoryDialog = ref(false)
@@ -398,26 +473,44 @@ const keyToNodeName = (key: string) => {
 watch(
   [projectId, pipelineId],
   async () => {
-    console.log('projectId', projectId.value)
-    console.log('pipelineId', pipelineId.value)
     const file = files.value.pipelines.find((x) => x.id === pipelineId.value)
 
-    if (file && file.type === 'external') {
-      const { path: filePath } = file
+    if (file) {
+      if (file.type === 'external') {
+        const { path: filePath } = file
 
-      const fileDataResult = await loadExternalFile(filePath)
+        const fileDataResult = await loadExternalFile(filePath)
 
-      if (fileDataResult.type === 'error') {
-        throw new Error(fileDataResult.ipcError)
-      }
+        if (fileDataResult.type === 'error') {
+          throw new Error(fileDataResult.ipcError)
+        }
 
-      const fileData = fileDataResult.result
+        const fileData = fileDataResult.result
 
-      if ('content' in fileData) {
-        const content = JSON.parse(fileData.content) as SavedFile
-        await loadSavedFile(content)
-      } else {
-        throw new Error(t('editor.invalid-file-content'))
+        if ('content' in fileData) {
+          const content = JSON.parse(fileData.content) as SavedFile
+          await loadSavedFile(content)
+        } else {
+          throw new Error(t('editor.invalid-file-content'))
+        }
+      } else if (file.type === 'internal') {
+        const { configName } = file
+
+        const configResult = await api.execute('config:load', { config: configName })
+
+        if (configResult.type === 'error') {
+          throw new Error(configResult.ipcError)
+        }
+
+        const fileData = configResult.result
+
+        try {
+          const content = fileData.result as SavedFile
+          await loadSavedFile(content)
+        } catch (e) {
+          console.error('error', e)
+          throw new Error(t('editor.invalid-file-content'))
+        }
       }
     }
   },
@@ -429,11 +522,6 @@ watch(
 const toast = useToast()
 
 const currentLogAccordion = ref()
-
-const api = useAPI()
-
-const { setActiveNode } = instance
-const { activeNode } = storeToRefs(instance)
 
 const lastActiveNode = ref<BlockAction | BlockCondition | BlockLoop>()
 
@@ -491,9 +579,9 @@ const run = async () => {
           const splittedInnerLines = lines.split('\n')
 
           for (const l of splittedInnerLines
-            .map((x) => x.trim())
-            .filter((x) => !!x)
-            .filter((x) => x !== '')) {
+            .map((x: string) => x.trim())
+            .filter((x: string) => !!x)
+            .filter((x: string) => x !== '')) {
             let content = ''
 
             if (hasAnsi(l)) {
@@ -572,15 +660,38 @@ const run = async () => {
   setIsRunning(false)
 }
 
-// const isSaving = ref(false)
+const isSaving = ref(false)
+const isDirty = ref(false)
 
-const onSaveRequest = async () => {
+const debouncedSave = esDebounce(() => {
+  if (settingsRef.value?.autosave !== false) {
+    onSaveRequest()
+  }
+}, 1000)
+
+let isInitialLoad = true
+onEditorChanged(() => {
+  if (isInitialLoad) {
+    isInitialLoad = false
+    return
+  }
+  isDirty.value = true
+  debouncedSave()
+})
+
+const onSaveRequest = async (silent = true) => {
+  isSaving.value = true
   if (currentFilePointer.value.type === 'external') {
-    await saveLocal(currentFilePointer.value.path)
+    await saveLocal(currentFilePointer.value.path, silent)
+  } else if (currentFilePointer.value.type === 'internal') {
+    await saveInternal(currentFilePointer.value.configName, silent)
   } else {
     // TODO: save to cloud
     throw new Error('TODO')
   }
+  await sleep(500)
+  isSaving.value = false
+  isDirty.value = false
 }
 
 const onCloseRequest = async () => {
@@ -599,16 +710,17 @@ const navigateToBuildHistory = async () => {
   showBuildHistoryDialog.value = true
 }
 
-const saveLocal = async (path: string) => {
-  const result: SavedFile = {
-    version: '3.0.0',
+const saveLocal = async (path: string, silent = false) => {
+  const result: SavedFileDefault = {
+    version: '4.0.0',
     name: name.value,
     description: '',
     canvas: {
       blocks: nodes.value,
       triggers: triggers.value
     },
-    variables: variables.value
+    variables: variables.value,
+    type: 'default'
   }
 
   console.log('result', result)
@@ -624,9 +736,54 @@ const saveLocal = async (path: string) => {
     }
   })
 
-  new Notification(t('editor.project-saved'), {
-    body: t('editor.your-project-has-be-saved-successfully')
-  })
+  if (!silent) {
+    toast.add({
+      severity: 'success',
+      summary: t('editor.project-saved'),
+      detail: t('editor.your-project-has-be-saved-successfully')
+    })
+  }
+}
+
+const saveInternal = async (configName: string, silent = false) => {
+  const result: SavedFileDefault = {
+    version: '4.0.0',
+    name: name.value,
+    description: '',
+    canvas: {
+      blocks: nodes.value,
+      triggers: triggers.value
+    },
+    variables: variables.value,
+    type: 'default'
+  }
+
+  try {
+    await api.execute('config:save', {
+      config: configName,
+      data: JSON.stringify(result)
+    })
+
+    await update((state) => {
+      const data = state.pipelines.find((x) => x.id === pipelineId.value)
+      if (data.type === 'external' || data.type === 'internal') {
+        data.lastModified = new Date().toISOString()
+      } else {
+        throw new Error('Invalid file type')
+      }
+    })
+
+    if (!silent) {
+      toast.add({
+        severity: 'success',
+        summary: t('editor.project-saved'),
+        detail: t('editor.your-project-has-be-saved-successfully')
+      })
+    }
+  } catch (e) {
+    console.error('error', e)
+    throw new Error(t('editor.project-has-encountered-an-error'))
+  }
 }
 
 // TODO: proper alert and prompt
@@ -750,7 +907,7 @@ const exportLog = async () => {
 tinykeys(window, {
   '$mod+KeyS': (event) => {
     event.preventDefault()
-    onSaveRequest()
+    onSaveRequest(false)
   }
 })
 

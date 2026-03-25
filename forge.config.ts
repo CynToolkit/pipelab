@@ -84,7 +84,7 @@ const config: ForgeConfig = {
         try {
           if (await fs.pathExists(srcDir)) {
             console.log(`INFO: Copying ${srcDir} to ${destDir}`);
-            await fs.copy(srcDir, destDir, { overwrite: true });
+            await fs.copy(srcDir, destDir, { overwrite: true, dereference: true });
             console.log(`INFO: Successfully copied ${packageName}.`);
           } else {
             console.warn(`WARN: Source directory ${srcDir} does not exist. Skipping copy for ${packageName}.`);

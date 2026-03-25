@@ -1,4 +1,4 @@
-import { computed, ref, shallowRef } from 'vue'
+import { computed, onMounted, ref, shallowRef, watch } from 'vue'
 import {
   Block,
   BlockAction,
@@ -33,7 +33,7 @@ import { useLogger } from '@@/logger'
 import { klona } from 'klona'
 import { create } from 'mutative'
 import { parse, value } from 'valibot'
-import { watchDebounced } from '@vueuse/core'
+import { createEventHook, watchDebounced } from '@vueuse/core'
 import { makeResolvedParams } from '@renderer/utils/evaluator'
 import { createQuickJs } from '@renderer/utils/quickjs'
 
@@ -660,45 +660,43 @@ export const useEditor = defineStore('editor', () => {
     vm.value = _vm
   })
 
-  const resolvedParams = ref<Record<string, Record<string, unknown>>>({})
-  watchDebounced(
-    [blocks, stepsDisplay, variablesDisplay],
-    async () => {
-      console.log('blocks.value', blocks.value)
-      console.log('stepsDisplay.value', stepsDisplay.value)
-      console.log('variablesDisplay.value', variablesDisplay.value)
+  const whenModified = createEventHook()
 
-      for (const block of blocks.value) {
-        if (block.type === 'action') {
-          const resolved = await makeResolvedParams(
-            {
-              params: block.params,
-              steps: stepsDisplay.value,
-              context: {},
-              variables: variablesDisplay.value
-            },
-            (item) => {
-              // const cleanOutput = DOMPurify.sanitize(item)
-              // console.log('cleanOutput', cleanOutput)
+  async function saveParams() {
+    const newResolvedParams: Record<string, Record<string, unknown>> = {}
 
-              // return `<div class="param">${cleanOutput}</div>`
-              return item
-            },
-            vm.value
-          )
-          resolvedParams.value[block.uid] = resolved
-        }
+    for (const block of blocks.value) {
+      if (block.type === 'action') {
+        const resolved = await makeResolvedParams(
+          {
+            params: block.params,
+            steps: stepsDisplay.value,
+            context: {},
+            variables: variablesDisplay.value
+          },
+          (item) => {
+            return item
+          },
+          vm.value
+        )
+        newResolvedParams[block.uid] = resolved
       }
-
-      console.log('resolvedParams.value', resolvedParams.value)
-    },
-    {
-      debounce: 200,
-      immediate: true,
-      maxWait: 500,
-      deep: true
     }
-  )
+
+    resolvedParams.value = newResolvedParams
+    whenModified.trigger()
+  }
+
+  const resolvedParams = ref<Record<string, Record<string, unknown>>>({})
+  watch([blocks, stepsDisplay, variablesDisplay], saveParams, {
+    deep: true
+  })
+
+  onMounted(() => {
+    console.group('onMounted')
+    saveParams()
+    console.groupEnd()
+  })
 
   return {
     nodes: blocks,
@@ -753,9 +751,14 @@ export const useEditor = defineStore('editor', () => {
     disableNode,
     enableNode,
 
+    saveParams,
+
     vm,
     resolvedParams,
-    steps: stepsDisplay
+    steps: stepsDisplay,
+
+    // Hooks
+    onEditorChanged: whenModified.on
   }
 })
 
