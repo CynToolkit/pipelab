@@ -343,11 +343,6 @@ let requestedExitCode = 0
 let cleanupPromise = null
 
 /**
- * @type {Promise<void> | null}
- */
-let quitPromise = null
-
-/**
  * @param {string} message
  */
 const broadcastMessage = (message) => {
@@ -809,45 +804,23 @@ const cleanup = async () => {
   return cleanupPromise
 }
 
-const hideAndDestroyAllWindows = () => {
-  for (const window of BrowserWindow.getAllWindows()) {
-    try {
-      if (process.platform === 'win32') {
-        window.setSkipTaskbar(true)
-        if (window.isVisible()) {
-          window.hide()
-        }
-      }
-
-      if (!window.isDestroyed()) {
-        window.destroy()
-      }
-    } catch (e) {
-      console.error('Error destroying window during quit:', e)
-    }
-  }
-}
-
 const requestQuit = async (exitCode = 0) => {
   requestedExitCode = exitCode
   process.exitCode = exitCode
 
-  if (quitPromise) {
-    return quitPromise
+  if (isQuitting) {
+    return
   }
 
-  quitPromise = (async () => {
-    isQuitting = true
-    await cleanup()
-    hideAndDestroyAllWindows()
-    app.quit()
-  })().catch((error) => {
-    console.error('Error while quitting application:', error)
-    hideAndDestroyAllWindows()
-    app.quit()
-  })
+  isQuitting = true
 
-  return quitPromise
+  try {
+    await cleanup()
+  } catch (error) {
+    console.error('Error while quitting application:', error)
+  }
+
+  app.quit()
 }
 
 const registerHandlers = async () => {
@@ -965,7 +938,7 @@ app.whenReady().then(async () => {
 })
 
 app.on('before-quit', (event) => {
-  if (!quitPromise) {
+  if (!isQuitting) {
     event.preventDefault()
     void requestQuit(requestedExitCode)
   }
