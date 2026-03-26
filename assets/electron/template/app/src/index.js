@@ -48,6 +48,7 @@ import windowSetY from './handlers/window/set-y.js'
 import windowShowDevTools from './handlers/window/show-dev-tools.js'
 import windowUnmaximize from './handlers/window/unmaximize.js'
 import windowSetFullscreen from './handlers/window/set-fullscreen.js'
+import windowSetIgnoreMouseEvents from './handlers/window/set-ignore-mouse-events.js'
 
 // dialog
 import dialogFolder from './handlers/dialog/folder.js'
@@ -494,6 +495,9 @@ const createAppServer = (mainWindow, serveStatic = true) => {
                 break
               case '/window/set-fullscreen':
                 await windowSetFullscreen(json, ws, mainWindow)
+                break
+              case '/window/set-ignore-mouse-events':
+                await windowSetIgnoreMouseEvents(json, ws, mainWindow)
                 break
               case '/engine':
                 await engine(json, ws)
