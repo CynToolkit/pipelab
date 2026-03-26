@@ -800,10 +800,11 @@ const cleanup = async () => {
 }
 
 const registerHandlers = async () => {
-  ipcMain.on('exit', (event, code) => {
+  ipcMain.on('exit', async (event, code) => {
     console.log('exit', code)
-    process.exitCode = code
-    app.quit()
+    isQuitting = true
+    await cleanup()
+    app.exit(code)
   })
 }
 
@@ -938,5 +939,15 @@ app.on('will-quit', () => {
 })
 
 app.on('window-all-closed', () => {
-  app.quit()
+  // On macOS, apps typically stay open until explicitly quit
+  // But for games, we usually want to quit when the window is closed
+  if (process.platform !== 'darwin' || isQuitting) {
+    app.quit()
+  } else {
+    // On macOS, trigger the quit process which will run cleanup
+    isQuitting = true
+    cleanup().then(() => {
+      app.quit()
+    })
+  }
 })
