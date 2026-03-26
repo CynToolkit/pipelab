@@ -276,7 +276,7 @@ let client
 console.log('config.enableSteamSupport', config.enableSteamSupport)
 if (config.enableSteamSupport) {
   app.commandLine.appendSwitch('in-process-gpu')
-  app.commandLine.appendSwitch('disable-direct-composition')
+  //app.commandLine.appendSwitch('disable-direct-composition')
   app.commandLine.appendSwitch('no-sandbox')
 
   // const isNecessary = steamworks.restartAppIfNecessary(config.steamGameId)
@@ -627,6 +627,7 @@ const createWindow = async () => {
     width: config.width,
     height: config.height,
     fullscreen: config.fullscreen,
+    fullscreenable: true,
     frame: config.frame,
     transparent: config.transparent,
     alwaysOnTop: config.alwaysOnTop,
