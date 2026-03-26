@@ -1,5 +1,4 @@
 import { app } from 'electron'
-
 /**
  * @param {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').MessageExit, 'input'>} json
  * @param {import('ws').WebSocket} ws
@@ -17,6 +16,5 @@ export default async (json, ws) => {
   }
   ws.send(JSON.stringify(engineResult))
 
-  process.exitCode = json.body.code
-  app.quit()
+  app.exit(json.body.code)
 }
