@@ -48,6 +48,7 @@ import windowSetY from './handlers/window/set-y.js'
 import windowShowDevTools from './handlers/window/show-dev-tools.js'
 import windowUnmaximize from './handlers/window/unmaximize.js'
 import windowSetFullscreen from './handlers/window/set-fullscreen.js'
+import windowSetIgnoreMouseEvents from './handlers/window/set-ignore-mouse-events.js'
 
 // dialog
 import dialogFolder from './handlers/dialog/folder.js'
@@ -276,7 +277,7 @@ let client
 console.log('config.enableSteamSupport', config.enableSteamSupport)
 if (config.enableSteamSupport) {
   app.commandLine.appendSwitch('in-process-gpu')
-  app.commandLine.appendSwitch('disable-direct-composition')
+  //app.commandLine.appendSwitch('disable-direct-composition')
   app.commandLine.appendSwitch('no-sandbox')
 
   // const isNecessary = steamworks.restartAppIfNecessary(config.steamGameId)
@@ -331,6 +332,11 @@ let wss = null
  * @type {boolean}
  */
 let isQuitting = false
+
+/**
+ * @type {Promise<void> | null}
+ */
+let cleanupPromise = null
 
 /**
  * @param {string} message
@@ -490,6 +496,9 @@ const createAppServer = (mainWindow, serveStatic = true) => {
               case '/window/set-fullscreen':
                 await windowSetFullscreen(json, ws, mainWindow)
                 break
+              case '/window/set-ignore-mouse-events':
+                await windowSetIgnoreMouseEvents(json, ws, mainWindow)
+                break
               case '/engine':
                 await engine(json, ws)
                 break
@@ -622,6 +631,7 @@ const createWindow = async () => {
     width: config.width,
     height: config.height,
     fullscreen: config.fullscreen,
+    fullscreenable: true,
     frame: config.frame,
     transparent: config.transparent,
     alwaysOnTop: config.alwaysOnTop,
@@ -718,11 +728,14 @@ const createWindow = async () => {
 /**
  * Cleanup all resources before quitting
  */
-const cleanup = () => {
-  return new Promise((resolve) => {
+const cleanup = async () => {
+  if (cleanupPromise) {
+    return cleanupPromise
+  }
+
+  cleanupPromise = (async () => {
     console.log('Cleaning up resources...')
 
-    // Close all WebSocket clients
     for (const client of clients) {
       try {
         client.close()
@@ -732,7 +745,6 @@ const cleanup = () => {
     }
     clients.clear()
 
-    // Close WebSocket server
     if (wss) {
       try {
         wss.close()
@@ -742,19 +754,54 @@ const cleanup = () => {
       wss = null
     }
 
-    // Close HTTP server
-    if (httpServer) {
-      httpServer.close(() => {
-        console.log('HTTP server closed')
-        httpServer = null
-        resolve()
-      })
-      // Force resolve after timeout in case server doesn't close cleanly
-      setTimeout(resolve, 500)
-    } else {
-      resolve()
+    if (rpc) {
+      try {
+        await rpc.clearActivity()
+      } catch (e) {
+        console.error('Error clearing Discord RPC activity:', e)
+      }
+
+      try {
+        rpc.destroy()
+      } catch (e) {
+        console.error('Error destroying Discord RPC client:', e)
+      }
+
+      rpc = undefined
     }
+
+    try {
+      protocol.unhandle('app')
+    } catch (e) {
+      console.error('Error unregistering app protocol:', e)
+    }
+
+    if (httpServer) {
+      const server = httpServer
+      httpServer = null
+
+      await new Promise((resolve) => {
+        let isSettled = false
+        const done = () => {
+          if (!isSettled) {
+            isSettled = true
+            resolve()
+          }
+        }
+
+        server.close(() => {
+          console.log('HTTP server closed')
+          done()
+        })
+
+        setTimeout(done, 500)
+      })
+    }
+  })().finally(() => {
+    cleanupPromise = null
   })
+
+  return cleanupPromise
 }
 
 const registerHandlers = async () => {
@@ -877,21 +924,21 @@ app.on('before-quit', (event) => {
   if (!isQuitting) {
     event.preventDefault()
     isQuitting = true
-    cleanup().then(() => {
-      app.quit()
-    })
+    cleanup()
+      .catch((error) => {
+        console.error('Error while quitting application:', error)
+      })
+      .finally(() => {
+        app.quit()
+      })
   }
 })
 
 app.on('will-quit', () => {
-  // Final cleanup - synchronous operations only
-  // Close any remaining WebSocket clients
   for (const client of clients) {
     try {
-      client.terminate() // Force close
-    } catch (e) {
-      // Ignore errors during final cleanup
-    }
+      client.terminate()
+    } catch (e) {}
   }
   clients.clear()
 })
