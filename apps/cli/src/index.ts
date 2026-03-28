@@ -53,7 +53,7 @@ cli
     console.log(`Starting Pipelab server on port ${options.port}...`);
     console.log(`UI available at http://localhost:${options.port}`);
 
-    registerAllHandlers();
+    await registerAllHandlers();
     const wsServer = new WebSocketServer();
     await wsServer.start(Number(options.port), server);
   });

@@ -9,8 +9,8 @@
     "lint": "oxlint ."
   },
   "dependencies": {
-    "@pipelab/core-node": "workspace:*",
-    "@pipelab/plugin-core": "workspace:*"
+    "@pipelab/plugin-core": "workspace:*",
+    "node-stream-zip": "1.15.0"
   },
   "devDependencies": {
     "@pipelab/tsconfig": "workspace:*",

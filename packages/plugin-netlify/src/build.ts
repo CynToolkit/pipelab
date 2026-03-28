@@ -1,4 +1,4 @@
-import { ensure, extractZip, zipFolder } from "@pipelab/core-node";
+import { ensure, extractZip, zipFolder } from "@pipelab/plugin-core";
 import {
   createAction,
   createActionRunner,

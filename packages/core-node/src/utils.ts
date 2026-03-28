@@ -14,8 +14,13 @@ import { buildHistoryStorage } from "./handlers/build-history";
 import type { BuildHistoryEntry } from "@pipelab/shared";
 import type { Variable } from "@pipelab/shared";
 
-export { ensure, generateTempFolder } from "./fs-utils";
-export { extractTarGz, extractZip, zipFolder } from "./archive-utils";
+import {
+  ensure,
+  generateTempFolder,
+  extractTarGz,
+  extractZip,
+  zipFolder,
+} from "@pipelab/plugin-core";
 
 export const getFinalPlugins = () => {
   const { plugins } = usePlugins();

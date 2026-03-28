@@ -7,7 +7,7 @@ import {
 } from "@pipelab/plugin-core";
 import { exportc3p, sharedParams } from "./export-shared.js";
 import { throttle } from "es-toolkit";
-import { zipFolder } from "@pipelab/core-node";
+import { zipFolder } from "@pipelab/plugin-core";
 
 export const ID = "export-construct-project-folder";
 

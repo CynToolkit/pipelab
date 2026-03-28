@@ -27,7 +27,8 @@ export const createQuickJs = async () => {
     location = (await import("@jitl/quickjs-wasmfile-release-sync/wasm?url")).default;
   } else {
     const { join } = await import("node:path");
-    const { assetsPath } = await import("@pipelab/core-node");
+    const assetsPath = (global as any).PIPELAB_ASSETS_PATH || process.env.PIPELAB_ASSETS_PATH;
+    if (!assetsPath) throw new Error("PIPELAB_ASSETS_PATH is not set");
     location = join(assetsPath, "emscripten-module.wasm");
   }
 

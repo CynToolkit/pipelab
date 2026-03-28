@@ -9,7 +9,6 @@
     "lint": "oxlint ."
   },
   "dependencies": {
-    "@pipelab/core-node": "workspace:*",
     "@pipelab/plugin-core": "workspace:*",
     "es-toolkit": "1.25.2",
     "playwright": "1.48.2",

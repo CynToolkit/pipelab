@@ -1,6 +1,6 @@
 import { userDataPath } from "./context";
 import path from "node:path";
-import { ensure } from "./fs-utils";
+import { ensure } from "@pipelab/plugin-core";
 import fs from "node:fs/promises";
 import { useLogger } from "@pipelab/shared";
 import { configRegistry, Migrator } from "@pipelab/shared";

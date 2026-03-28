@@ -1,6 +1,5 @@
 import type { ConditionalPick } from "type-fest";
 import type { BrowserWindow, OpenDialogOptions } from "electron";
-import { BlockAction, BlockCondition, BlockEvent, BlockLoop } from "@pipelab/shared";
 
 export type PathOptions = {
   filter?: RegExp;
@@ -231,10 +230,7 @@ export type InputDefinition<T extends ControlType = ControlType> = {
   control: T;
   value: unknown;
   platforms?: NodeJS.Platform[];
-  onNodeUpdate?: (
-    value: BlockAction | BlockEvent | BlockCondition | BlockLoop,
-    settings: InputDefinition<T>,
-  ) => void;
+  onNodeUpdate?: (value: any, settings: InputDefinition<T>) => void;
 };
 
 export type InputsDefinition = Record<string, InputDefinition>;

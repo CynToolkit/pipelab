@@ -1,5 +1,4 @@
 import { Logger } from "tslog";
-import { isRenderer } from "./validation";
 
 const createDefaultLogger = () =>
   new Logger({
@@ -10,21 +9,12 @@ const createDefaultLogger = () =>
 let _logger = createDefaultLogger();
 
 export const useLogger = () => {
-  const setMainWindow = async (mainWindow: any) => {
-    _logger = createDefaultLogger();
-
-    // in main, send logs to renderer
-    if (!isRenderer()) {
-      const { usePluginAPI } = await import("@pipelab/core-node");
-      _logger.attachTransport((logObj) => {
-        const api = usePluginAPI(mainWindow);
-        api.execute("log:message", logObj as any);
-      });
-    }
+  const attachTransport = (transport: (logObj: unknown) => void) => {
+    _logger.attachTransport(transport as any);
   };
 
   return {
     logger: () => _logger,
-    setMainWindow,
+    attachTransport,
   };
 };

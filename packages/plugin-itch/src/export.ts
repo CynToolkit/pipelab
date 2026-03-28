@@ -1,4 +1,4 @@
-import { extractZip } from "@pipelab/core-node";
+import { extractZip } from "@pipelab/plugin-core";
 import {
   createAction,
   createActionRunner,

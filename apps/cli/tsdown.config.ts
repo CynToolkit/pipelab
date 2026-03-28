@@ -7,7 +7,10 @@ const env: Record<string, string> = {};
 envFile.split("\n").forEach((line) => {
   const [key, ...value] = line.split("=");
   if (key && value) {
-    env[key.trim()] = value.join("=").trim().replace(/^"(.*)"$/, "$1");
+    env[key.trim()] = value
+      .join("=")
+      .trim()
+      .replace(/^"(.*)"$/, "$1");
   }
 });
 

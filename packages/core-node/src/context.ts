@@ -23,12 +23,14 @@ export const userDataPath =
  * Default is calculated relative to the current file, but can be overridden.
  */
 export let assetsPath = join(__dirname, "..", "assets");
+(global as any).PIPELAB_ASSETS_PATH = assetsPath;
 
 /**
  * Allows overriding the assets path if it's not in the default location.
  */
 export const setAssetsPath = (path: string) => {
   assetsPath = path;
+  (global as any).PIPELAB_ASSETS_PATH = path;
 };
 
 /**

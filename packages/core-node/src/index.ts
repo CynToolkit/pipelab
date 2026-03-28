@@ -5,6 +5,5 @@ export * from "./handlers/shell";
 export * from "./config";
 export * from "./paths";
 export * from "./api";
-export * from "./fs-utils";
-export * from "./archive-utils";
 export * from "./heavy";
+export * from "./plugins-registry";

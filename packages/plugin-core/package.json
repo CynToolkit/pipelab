@@ -10,13 +10,19 @@
   },
   "dependencies": {
     "@lydell/node-pty": "1.0.3",
-    "@pipelab/shared": "workspace:*",
+    "archiver": "7.0.1",
     "electron": "32.1.2",
     "execa": "9.4.1",
-    "type-fest": "4.26.1"
+    "tar": "6.2.1",
+    "type-fest": "4.26.1",
+    "yauzl": "2.10.0",
+    "zod": "4.3.6"
   },
   "devDependencies": {
     "@pipelab/tsconfig": "workspace:*",
+    "@types/archiver": "7.0.0",
+    "@types/tar": "7.0.87",
+    "@types/yauzl": "2.10.3",
     "typescript": "5.9.3"
   }
 }
