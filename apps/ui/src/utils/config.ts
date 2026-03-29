@@ -18,6 +18,7 @@ export const saveInternalFile = (name: string, data: unknown) => {
   });
 };
 
+/** @deprecated External pipeline files are deprecated. Use config:load with path instead. */
 export const loadExternalFile = (path: string) => {
   const api = useAPI();
 
@@ -26,6 +27,7 @@ export const loadExternalFile = (path: string) => {
   });
 };
 
+/** @deprecated External pipeline files are deprecated. */
 export const saveExternalFile = (path: string, data: unknown) => {
   const api = useAPI();
 

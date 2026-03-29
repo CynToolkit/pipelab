@@ -482,23 +482,17 @@ watch(
     const file = files.value.pipelines.find((x) => x.id === pipelineId.value);
 
     if (file) {
-      if (file.type === "external") {
+      if (file.type === "external") { // @deprecated external files are deprecated
         const { path: filePath } = file;
 
-        const fileDataResult = await loadExternalFile(filePath);
+        const configResult = await api.execute("config:load", { config: filePath });
 
-        if (fileDataResult.type === "error") {
-          throw new Error(fileDataResult.ipcError);
+        if (configResult.type === "error") {
+          throw new Error(configResult.ipcError);
         }
 
-        const fileData = fileDataResult.result;
-
-        if ("content" in fileData) {
-          const content = JSON.parse(fileData.content) as SavedFile;
-          await loadSavedFile(content);
-        } else {
-          throw new Error(t("editor.invalid-file-content"));
-        }
+        const content = configResult.result.result as SavedFile;
+        await loadSavedFile(content);
       } else if (file.type === "internal") {
         const { configName } = file;
 
@@ -559,7 +553,7 @@ const run = async () => {
         variables: variables.value,
         projectName: name.value,
         projectPath:
-          currentFilePointer.value.type === "external" ? currentFilePointer.value.path : undefined,
+          currentFilePointer.value.type === "external" ? currentFilePointer.value.path : undefined, // @deprecated external files are deprecated
       },
       async (data) => {
         console.log("graph:execute data", data);
@@ -687,7 +681,7 @@ onEditorChanged(() => {
 
 const onSaveRequest = async (silent = true) => {
   isSaving.value = true;
-  if (currentFilePointer.value.type === "external") {
+  if (currentFilePointer.value.type === "external") { // @deprecated external files are deprecated
     await saveLocal(currentFilePointer.value.path, silent);
   } else if (currentFilePointer.value.type === "internal") {
     await saveInternal(currentFilePointer.value.configName, silent);
@@ -735,7 +729,7 @@ const saveLocal = async (path: string, silent = false) => {
 
   await update((state) => {
     const data = state.pipelines.find((x) => x.id === pipelineId.value);
-    if (data.type === "external") {
+    if (data.type === "external") { // @deprecated external files are deprecated
       data.lastModified = new Date().toISOString();
     } else {
       throw new Error("Invalid file type");

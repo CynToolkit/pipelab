@@ -310,12 +310,8 @@ export const useEditor = defineStore("editor", () => {
     return errors;
   };
 
-  const loadSavedFile = async (input: Readonly<SavedFile>) => {
+  const loadSavedFile = async (data: Readonly<SavedFile>) => {
     clear();
-
-    const data = await savedFileMigrator.migrate(input, {
-      debug: true,
-    });
 
     // ensure all params are there
     const finalData = create(data, (draft) => {

@@ -5,8 +5,8 @@ import fs from "node:fs/promises";
 import { useLogger } from "@pipelab/shared";
 import { configRegistry, Migrator } from "@pipelab/shared";
 
-export const setupConfigFile = async <T>(name: string) => {
-  const migrator = configRegistry[name] as Migrator<T>;
+export const setupConfigFile = async <T>(name: string, customMigrator?: Migrator<T>) => {
+  const migrator = customMigrator || (configRegistry[name] as Migrator<T>);
 
   if (!migrator) {
     throw new Error(
@@ -15,8 +15,8 @@ export const setupConfigFile = async <T>(name: string) => {
   }
 
   const userData = userDataPath;
-  console.log("Using data path at", userData);
-  const filesPath = path.join(userData, "config", `${name}.json`);
+  const isAbsolutePath = path.isAbsolute(name);
+  const filesPath = isAbsolutePath ? name : path.join(userData, "config", `${name}.json`);
 
   await ensure(filesPath, JSON.stringify(migrator.defaultValue));
 

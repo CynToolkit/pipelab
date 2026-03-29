@@ -122,7 +122,7 @@
                       v-if="data.type === 'external' && shouldMigrate === true"
                       v-tooltip.top="$t('home.migrate-warning')"
                       class="mdi mdi-alert-circle text-orange-500"
-                    ></i>
+                    ></i><!-- @deprecated external files are deprecated -->
                   </div>
                 </template>
                 <template #loading>
@@ -132,7 +132,7 @@
               <!-- <Column field="content.description" header="Description" /> -->
               <!-- <Column header="Path">
               <template #body="{ data }">
-                <span v-if="data.type === 'external'">{{ data.path }}</span>
+                <span v-if="data.type === 'external'">{{ data.path }}</span><!-- @deprecated external files are deprecated -->
               </template>
             </Column> -->
               <Column header="" style="width: 240px">
@@ -505,12 +505,13 @@ watchEffect(async () => {
   for (const file of pipelines.value) {
     let fileContent: string = "";
 
-    // When external
+    // When external (@deprecated)
     if (file.type === "external") {
-      const resultLoad = await loadExternalFile(file.path);
+      const configResult = await api.execute("config:load", { config: file.path });
 
-      if (resultLoad.type === "error") {
-        console.error("Unable to load file", resultLoad.ipcError);
+      if (configResult.type === "error") {
+        console.error("Unable to load file", configResult.ipcError);
+        // ... filtering logic ...
         const { id } = files.value.pipelines.find((value) => {
           if (value.type === "internal") {
             if (value.path === file.path) {
@@ -529,18 +530,13 @@ watchEffect(async () => {
         continue;
       }
 
-      const result = resultLoad.result;
-
-      if ("content" in result) {
-        fileContent = result.content;
-      } else {
-        throw new Error(t("editor.invalid-file-content"));
-      }
+      const result = configResult.result.result as SavedFile;
+      fileContent = result;
     } else if (file.type === "internal") {
       // Load internal file
       const configResult = await api.execute("config:load", { config: file.configName });
       if (configResult.type === "success") {
-        fileContent = JSON.stringify(configResult.result.result);
+        fileContent = configResult.result.result as SavedFile;
       } else {
         console.error("Failed to load internal file", configResult);
         continue;
@@ -552,13 +548,7 @@ watchEffect(async () => {
       throw new Error(t("home.invalid-file-type"));
     }
 
-    if (!fileContent) {
-      throw new Error(t("editor.invalid-file-content"));
-    }
-
-    const _content = JSON.parse(fileContent) as SavedFile;
-
-    const content = await savedFileMigrator.migrate(_content);
+    const content = fileContent;
 
     if (file.type === "external") {
       result.push({

@@ -9,6 +9,7 @@ export const SaveLocationInternalValidator = object({
 });
 export type SaveLocationInternal = InferInput<typeof SaveLocationInternalValidator>;
 
+/** @deprecated External pipeline files are deprecated and will be removed in future versions. */
 export const SaveLocationExternalValidator = object({
   id: string(),
   project: string(),
@@ -21,6 +22,7 @@ export const SaveLocationExternalValidator = object({
     description: string(),
   }),
 });
+/** @deprecated External pipeline files are deprecated and will be removed in future versions. */
 export type SaveLocationExternal = InferInput<typeof SaveLocationExternalValidator>;
 
 export const SaveLocationPipelabCloudValidator = object({

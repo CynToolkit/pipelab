@@ -29,24 +29,8 @@ export const useFiles = defineStore("files", () => {
   const load = async () => {
     const data = await loadConfig();
 
-    console.log("data", data);
-
     if (data.type === "success") {
-      // TODO: beter typing for "data.result.result.version"
-      if (fileRepoMigrations.needMigration(data.result.result.version ?? "0.0.0")) {
-        console.log("backing up");
-        backupConfig(data.result.result.version);
-      }
-      try {
-        const filerepo = await fileRepoMigrations.migrate(data.result.result);
-        files.value = filerepo;
-      } catch (e) {
-        if (e instanceof ValiError) {
-          console.log("error", e.issues);
-        }
-        console.error("error", e);
-        files.value = defaultValue;
-      }
+      files.value = data.result.result as FileRepo;
     } else {
       files.value = defaultValue;
     }

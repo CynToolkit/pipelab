@@ -54,6 +54,9 @@ cli
     console.log(`UI available at http://localhost:${options.port}`);
 
     await registerAllHandlers();
+    const { registerMigrationHandlers } = await import("./migrations");
+    registerMigrationHandlers();
+
     const wsServer = new WebSocketServer();
     await wsServer.start(Number(options.port), server);
   });
