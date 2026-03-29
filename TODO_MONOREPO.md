@@ -48,10 +48,6 @@ Goal: Improve build speed, enforce boundaries, and standardize the developer exp
 - [ ] Add `references` arrays to `tsconfig.json` files to reflect the actual dependency graph.
 - [ ] Switch to `tsc --build` for lightning-fast incremental typechecking.
 
-### 3. Public API Enforcement
-
-- [x] Add `"exports"` fields to `packages/shared`, `packages/core-node`, and `packages/constants`.
-- [x] Ensure that internal utilities are not exposed to consumers.
 
 ### 4. Quality Gates
 
@@ -72,10 +68,16 @@ Goal: Modernize internal communication between UI, Core-Node, and Shell.
 - [ ] Implement tRPC server in `@pipelab/core-node`.
 - [ ] Update `@pipelab/ui` to consume tRPC hooks/composables instead of raw WebSockets.
 
-### 2. CLI Authentication & Headless Execution
+### 2. CLI Authentication & Backend-First Auth [IN PROGRESS]
 
-- [ ] Implement `pipelab login` command to trigger browser-based interactive authentication.
-- [ ] Implement `pipelab login --token <PAT>` command for headless/CI environments using Personal Access Tokens.
-- [ ] Create a local configuration store in `@pipelab/core-node` to securely save the authentication token.
-- [ ] Update UI to seamlessly pass authentication tokens to the embedded agent in the Electron desktop app.
+- [ ] Implement `pipelab login` command for interactive CLI authentication.
+- [ ] Implement `pipelab login --token <PAT>` command for headless/CI environments.
 - [ ] Implement database schema/API for generating and validating long-lived Personal Access Tokens (PATs).
+
+### 3. Benefits Management Centralization
+
+- [ ] Move benefits mapping (IDs to names) and entitlement logic to `@pipelab/core-node`.
+- [ ] Implement `BenefitsManager` in the backend to calculate user entitlements based on Supabase subscriptions.
+- [ ] Implement persistent dev overrides in the backend (stored in a JSON file instead of `localStorage`).
+- [ ] Define IPC channels (`benefits:get`, `benefits:setOverride`) for UI interaction.
+- [ ] Update UI (`useAuth` store) to react to `benefits:updated` WebSocket events from the backend.

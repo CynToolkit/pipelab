@@ -1,4 +1,5 @@
 import { RendererPluginDefinition } from "@pipelab/plugin-core";
+import { User, UserResponse } from "@supabase/supabase-js";
 import type { Tagged } from "type-fest";
 import { PresetResult, Steps } from "./model";
 import { AppConfig } from "./config.schema";
@@ -156,6 +157,24 @@ export type IpcDefinition = {
       | { type: "node-log"; data: { nodeUid: string; logData: any } }
       | EndEvent<{ result: any; buildId: string }>
     ),
+  ];
+  "auth:getUser": [void, EndEvent<{ user: User | null }>];
+  "auth:signInWithPassword": [
+    { email: string; password: string },
+    EndEvent<UserResponse>,
+  ];
+  "auth:signUp": [
+    { email: string; password: string },
+    EndEvent<UserResponse>,
+  ];
+  "auth:signOut": [void, EndEvent<void>];
+  "auth:resetPasswordForEmail": [
+    { email: string },
+    EndEvent<{ error: any | null }>,
+  ];
+  "auth:invoke": [
+    { name: string; options?: any },
+    EndEvent<{ data: any | null; error: any | null }>,
   ];
 };
 

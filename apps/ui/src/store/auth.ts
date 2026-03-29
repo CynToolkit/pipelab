@@ -1,6 +1,7 @@
-import { useLogger } from "@pipelab/shared"; // Assuming path is correct
-import { isSupabaseAvailable, supabase as supabaseFn } from "@pipelab/shared"; // Assuming path is correct
+import { useLogger } from "@pipelab/shared";
+import { isSupabaseAvailable } from "@pipelab/shared";
 import { AuthChangeEvent, Session, User, UserResponse } from "@supabase/supabase-js";
+import { useAPI } from "@renderer/composables/api";
 import { defineStore } from "pinia";
 import { computed, readonly, Ref, ref, shallowRef } from "vue";
 import posthog from "posthog-js";
@@ -22,7 +23,7 @@ export const useAuth = defineStore("auth", () => {
   const user = shallowRef<User>();
   const authState = ref<AuthStateType>("INITIALIZING") as Ref<AuthStateType>; // Start in INITIALIZING state
   const isAuthenticating = ref(false); // Track loading state for auth actions
-  const errorMessage = ref<string>(); // For storing error messages to display to the user
+  const errorMessage = ref<string | null>(); // For storing error messages to display to the user
   const subscriptions = ref<Subscription[]>([]); // Store user subscriptions
   const subscriptionError = ref<string>(); // Store subscription loading errors
 
@@ -33,7 +34,23 @@ export const useAuth = defineStore("auth", () => {
   const onAuthChanged = createEventHook<{ event: AuthChangeEvent; session: Session }>();
   const onSubscriptionChanged = createEventHook<{ subscriptions: Subscription[] }>();
 
-  const supabase = isSupabaseAvailable ? supabaseFn() : undefined;
+  const api = useAPI();
+  api.on("auth:getUser", (data) => {
+    logger.logger().info("[Auth] Received auth state change from backend:", data);
+    if (data.user) {
+      user.value = data.user;
+      posthog.identify(data.user.id, {
+        email: data.user.email,
+        is_anonymous: data.user.is_anonymous || false,
+      });
+      authState.value = "SIGNED_IN";
+      fetchSubscription();
+    } else {
+      user.value = undefined;
+      posthog.reset();
+      authState.value = "SIGNED_OUT";
+    }
+  });
 
   const displayAuthModal = (title?: string, subtitle?: string) => {
     isAuthModalVisible.value = true;
@@ -63,18 +80,24 @@ export const useAuth = defineStore("auth", () => {
     if (user.value) {
       if (user.value.email) {
         try {
-          const result = await supabase.functions.invoke("polar-user-plan");
-          if (result.error) {
-            throw new Error(result.error.message || "Network error");
+          const result: any = await api.execute("auth:invoke", {
+            name: "polar-user-plan",
+          });
+          if (result.type === "error") {
+            throw new Error(result.ipcError || "Network error");
           }
-          if (!result.data) {
+          const { data, error } = result.result;
+          if (error) {
+            throw new Error(error.message || "Network error");
+          }
+          if (!data) {
             throw new Error("Invalid response: no data");
           }
-          if (!Array.isArray(result.data.subscriptions)) {
+          if (!Array.isArray(data.subscriptions)) {
             throw new Error("Invalid response: subscriptions is not an array");
           }
           console.log("Subscription result", result);
-          subscriptions.value = result.data.subscriptions;
+          subscriptions.value = data.subscriptions;
         } catch (error) {
           console.error("Failed to fetch subscription:", error);
           subscriptionError.value = error instanceof Error ? error.message : "Unknown error";
@@ -95,88 +118,8 @@ export const useAuth = defineStore("auth", () => {
     onSubscriptionChanged.trigger({ subscriptions: subscriptions.value });
   };
 
-  supabase?.auth.onAuthStateChange((event, session) => {
-    // Removed async to make it fully synchronous event handler as we are not initiating async actions inside
-    logger.logger().debug("[Auth Change] Event:", event);
-    logger
-      .logger()
-      .debug(
-        "[Auth Change] User ID:",
-        session?.user?.id,
-        "is_anonymous:",
-        session?.user?.is_anonymous,
-        "email:",
-        session?.user?.email,
-      );
-
-    switch (event) {
-      case "SIGNED_IN":
-        if (session?.user) {
-          user.value = session.user;
-          console.log("Session", session);
-          posthog.identify(session.user.id, {
-            email: session.user.email,
-            is_anonymous: session.user.is_anonymous || false,
-          });
-          setAuthState("SIGNED_IN");
-        }
-        break;
-      case "INITIAL_SESSION":
-        logger
-          .logger()
-          .debug("[Auth] Initial Session event - Handling session check in init function.");
-        // No action here. Initial session check and anonymous sign-in is handled in init() now.
-        if (session?.user) {
-          logger
-            .logger()
-            .debug(
-              "[Auth Change] User ID:",
-              session?.user?.id,
-              "is_anonymous:",
-              session?.user?.is_anonymous,
-              "email:",
-              session?.user?.email,
-            );
-          console.log("Session", session);
-          posthog.identify(session.user.id, {
-            email: session.user.email,
-            is_anonymous: session.user.is_anonymous || false,
-          });
-          user.value = session.user;
-          setAuthState("SIGNED_IN");
-        } else {
-          logger
-            .logger()
-            .info(
-              "[Auth] No user found on initial session, anonymous sign-in will be triggered in init().",
-            );
-          // Anonymous sign-in will be handled in the init() function if no user is found after initial check.
-        }
-        break;
-      case "SIGNED_OUT":
-        logger.logger().info("[Auth] Signed out event.");
-        user.value = null;
-        posthog.reset();
-        setAuthState("SIGNED_OUT");
-        // No signInAnonymously() here. Let the app handle anonymous sign-in separately if needed after sign-out, or rely on initial sign-in on next load.
-        break;
-      case "USER_UPDATED": // Or other events you want to handle specifically
-        if (session?.user) {
-          user.value = session.user; // Refresh user data on update
-        }
-        break;
-      case "TOKEN_REFRESHED":
-        break;
-      default:
-        logger.logger().warn("[Auth] Unhandled auth event:", event);
-        // setAuthState('SIGNED_OUT') // Fallback to signed out for unhandled events
-        // user.value = null
-        // No signInAnonymously() here. Similar to SIGNED_OUT, handle anonymous sign-in outside if needed.
-        break;
-    }
-
-    onAuthChanged.trigger({ event, session });
-  });
+  // The backend now handles the auth state.
+  // We will pull the user state during init and after each action.
 
   // Explicitly initialize the auth state when the store is created
   const init = async () => {
@@ -191,52 +134,37 @@ export const useAuth = defineStore("auth", () => {
     logger.logger().info("[Auth] Initializing authentication...");
     setAuthState("LOADING"); // Set loading state during init
     try {
-      const { data, error } = await supabase.auth.getUser(); // Use getUser for initial check
-      if (error) {
-        logger.logger().error("[Auth] Error fetching user during init:", error);
-        // Fallback to anonymous sign-in on init error, as initial user fetch failed.
-        logger
-          .logger()
-          .info("[Auth] Falling back to anonymous sign-in due to initial user fetch error.");
-      } else if (data.user) {
+      const result = await api.execute("auth:getUser");
+      if (result.type === "success" && result.result.user) {
+        const currentUser = result.result.user;
         logger
           .logger()
           .info(
             "[Auth] Found existing user during init:",
-            data.user.id,
+            currentUser.id,
             "anonymous:",
-            data.user.is_anonymous,
+            currentUser.is_anonymous,
             "email:",
-            data.user.email,
+            currentUser.email,
           );
-        console.log("Session", data);
-        posthog.identify(data.user.id, {
-          email: data.user.email,
-          is_anonymous: data.user.is_anonymous || false,
+        posthog.identify(currentUser.id, {
+          email: currentUser.email,
+          is_anonymous: currentUser.is_anonymous || false,
         });
-        user.value = data.user;
-        setAuthState("SIGNED_IN");
+        user.value = currentUser;
+        authState.value = "SIGNED_IN";
         await fetchSubscription();
       } else {
-        logger.logger().info("[Auth] No user found during init, signing in anonymously...");
+        logger.logger().info("[Auth] No user found during init");
         posthog.identify();
+        authState.value = "SIGNED_OUT";
       }
     } catch (e) {
       logger.logger().error("[Auth] Unexpected error during init:", e);
-      setAuthState("ERROR"); // Set error state if init fails unexpectedly
+      authState.value = "ERROR"; // Set error state if init fails unexpectedly
       errorMessage.value = "Failed to initialize authentication.";
     } finally {
-      if (authState.value === "LOADING") {
-        // Ensure we transition from loading state even if errors occur during init
-        if (
-          authState.value !== "SIGNED_IN" &&
-          authState.value !== "ANONYMOUS" &&
-          authState.value !== "ERROR"
-        ) {
-          // If after init, state is still loading and not signed in or anonymous, default to signed out (though should ideally be ANONYMOUS or ERROR after signInAnonymously in error cases).
-          setAuthState("SIGNED_OUT"); // As a last resort fallback, though ideally we should be in ANONYMOUS or ERROR state if initial auth fails and anonymous sign in is attempted in init.
-        }
-      }
+      // Init is done
     }
   };
 
@@ -245,19 +173,30 @@ export const useAuth = defineStore("auth", () => {
     setAuthState("LOADING");
     clearError();
     try {
-      const loginResponse = await supabase.auth.signInWithPassword({ email, password: pwd });
-      const { data, error } = loginResponse;
+      const result = await api.execute("auth:signInWithPassword", {
+        email,
+        password: pwd,
+      });
+
+      if (result.type === "error") {
+        logger.logger().error("[Auth] Login error:", result.ipcError);
+        setAuthState("ERROR");
+        errorMessage.value = result.ipcError || "Invalid login credentials.";
+        return { data: { user: null, session: null }, error: { message: result.ipcError } } as any;
+      }
+
+      const { data, error } = result.result;
       if (error) {
         logger.logger().error("[Auth] Login error:", error);
         setAuthState("ERROR");
         errorMessage.value = "Invalid login credentials.";
-        return loginResponse;
+        return result.result;
       } else {
         logger.logger().info("[Auth] Logged in user:", data.user.id);
         user.value = data.user;
         setAuthState("SIGNED_IN");
         await fetchSubscription();
-        return loginResponse;
+        return result.result;
       }
     } finally {
       isAuthenticating.value = false;
@@ -269,19 +208,29 @@ export const useAuth = defineStore("auth", () => {
     setAuthState("LOADING");
     clearError();
     try {
-      const registerResponse = await supabase.auth.signUp({ email, password: pwd }); // Use signUp for registration
-      console.log("registerResponse", registerResponse);
-      const { data, error } = registerResponse;
+      const result = await api.execute("auth:signUp", {
+        email,
+        password: pwd,
+      });
+
+      if (result.type === "error") {
+        logger.logger().error("[Auth] Registration error:", result.ipcError);
+        setAuthState("ERROR");
+        errorMessage.value = result.ipcError || "Failed to register. Please try again.";
+        return { data: { user: null, session: null }, error: { message: result.ipcError } } as any;
+      }
+
+      const { data, error } = result.result;
       if (error) {
         logger.logger().error("[Auth] Registration error:", error);
         setAuthState("ERROR");
         errorMessage.value = "Failed to register. Please try again.";
-        return registerResponse;
+        return result.result;
       } else {
         // an email is sent, you must validate it
         logger.logger().info("[Auth] Registered new user:", data.user.id);
         setAuthState("AWAITING_VALIDATION");
-        return registerResponse;
+        return result.result;
       }
     } finally {
       isAuthenticating.value = false;
@@ -293,10 +242,11 @@ export const useAuth = defineStore("auth", () => {
     setAuthState("LOADING"); // Optionally set authState to loading during logout
     clearError();
     try {
-      await supabase.auth.signOut();
+      await api.execute("auth:signOut");
       logger.logger().info("[Auth] Signed out.");
-      user.value = null; // Already handled in onAuthStateChange('SIGNED_OUT') but good to keep for immediate null user.
-      setAuthState("SIGNED_OUT"); // Ensure state is set to signed out - also handled in onAuthStateChange, but good for clarity
+      user.value = undefined;
+      posthog.reset();
+      setAuthState("SIGNED_OUT");
       subscriptions.value = [];
     } catch (error) {
       logger.logger().error("[Auth] Logout error:", error);
@@ -312,7 +262,15 @@ export const useAuth = defineStore("auth", () => {
     setAuthState("LOADING");
     clearError();
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email);
+      const result = await api.execute("auth:resetPasswordForEmail", { email });
+      if (result.type === "error") {
+        logger.logger().error("[Auth] Reset password error:", result.ipcError);
+        setAuthState("ERROR");
+        errorMessage.value = "Failed to send reset email.";
+        return { error: { message: result.ipcError } };
+      }
+
+      const { error } = result.result;
       if (error) {
         logger.logger().error("[Auth] Reset password error:", error);
         setAuthState("ERROR");
@@ -363,8 +321,8 @@ export const useAuth = defineStore("auth", () => {
 
   const getActualBenefit = (benefit: keyof typeof benefits) => {
     // Check subscriptions for actual status
-    return subscriptions.value.some((sub) =>
-      sub.product.benefits.map((b) => b.id).includes(benefits[benefit]),
+    return subscriptions.value.some((sub: any) =>
+      sub.product.benefits.map((b: any) => b.id).includes(benefits[benefit]),
     );
   };
 

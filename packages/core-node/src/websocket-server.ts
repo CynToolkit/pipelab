@@ -11,6 +11,8 @@ import {
   WebSocketMessage,
   isWebSocketRequestMessage,
   Agent,
+  Channels,
+  Events,
 } from "@pipelab/shared";
 import { websocketPort } from "@pipelab/constants";
 
@@ -240,6 +242,34 @@ export class WebSocketServer {
 
   getClient(ws: WSWebSocket): ConnectedClient | undefined {
     return this.clients.get(ws);
+  }
+
+  /**
+   * Broadcasts a message to all connected clients.
+   * Useful for push notifications like auth state changes.
+   */
+  broadcast<KEY extends Channels>(channel: KEY, data: Events<KEY>): void {
+    const { logger } = useLogger();
+    if (!this.wss) return;
+
+    const message = {
+      type: "event",
+      channel,
+      data,
+    };
+
+    const messageStr = JSON.stringify(message);
+    logger().debug(`[WebSocket] Broadcasting to all clients on channel: ${channel}`);
+
+    for (const client of this.clients.values()) {
+      try {
+        if (client.ws.readyState === WSWebSocket.OPEN) {
+          client.ws.send(messageStr);
+        }
+      } catch (error) {
+        logger().error(`[WebSocket] Failed to broadcast to client ${client.id}:`, error);
+      }
+    }
   }
 }
 

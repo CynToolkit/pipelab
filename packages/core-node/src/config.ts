@@ -34,17 +34,22 @@ export const setupConfigFile = async <T>(name: string, customMigrator?: Migrator
     getConfig: async () => {
       const { logger } = useLogger();
       let content = undefined;
+      let originalJson: any = undefined;
+
       try {
         content = await fs.readFile(filesPath, "utf8");
+        if (content !== undefined) {
+          originalJson = JSON.parse(content);
+        }
       } catch (e) {
-        logger().error(`Error reading config ${name}:`, e);
+        logger().error(`Error reading or parsing config ${name}:`, e);
       }
 
       console.log("content", content);
 
-      let json = undefined;
+      let json: any = undefined;
       try {
-        json = await migrator.migrate(content === undefined ? undefined : JSON.parse(content), {
+        json = await migrator.migrate(originalJson, {
           debug: true,
         });
         console.log("json", json);
@@ -53,11 +58,34 @@ export const setupConfigFile = async <T>(name: string, customMigrator?: Migrator
         json = migrator.defaultValue;
       }
 
-      // Save back migrated config
-      try {
-        await fs.writeFile(filesPath, JSON.stringify(json));
-      } catch (e) {
-        logger().error(`Error saving migrated config ${name}:`, e);
+      const originalVersion = originalJson?.version;
+      const newVersion = json?.version;
+
+      // Check if migration actually changed the version
+      if (originalVersion !== newVersion && content !== undefined) {
+        // Backup previous file before overwriting
+        const parsedPath = path.parse(filesPath);
+        const versionSuffix = originalVersion || "unknown";
+        const backupPath = path.join(
+          parsedPath.dir,
+          `${parsedPath.name}.${versionSuffix}.bak`,
+        );
+
+        try {
+          await fs.copyFile(filesPath, backupPath);
+          logger().info(`Backup created for ${name} at ${backupPath} (version ${versionSuffix})`);
+        } catch (e) {
+          logger().error(`Failed to create backup for ${name}:`, e);
+        }
+      }
+
+      // Save back migrated config if changed or if it's a new file
+      if (originalVersion !== newVersion || content === undefined) {
+        try {
+          await fs.writeFile(filesPath, JSON.stringify(json));
+        } catch (e) {
+          logger().error(`Error saving migrated config ${name}:`, e);
+        }
       }
 
       return json as T;

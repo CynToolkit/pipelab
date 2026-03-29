@@ -8,5 +8,6 @@ if (!__SUPABASE_URL__ || !__SUPABASE_ANON_KEY__) {
   _isSupabaseAvailable = false;
 }
 
-export const supabase = () => createClient<Database>(__SUPABASE_URL__, __SUPABASE_ANON_KEY__);
+export const supabase = (options?: any) =>
+  createClient<Database>(__SUPABASE_URL__, __SUPABASE_ANON_KEY__, options);
 export const isSupabaseAvailable = _isSupabaseAvailable;
