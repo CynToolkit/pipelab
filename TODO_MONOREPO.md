@@ -81,3 +81,40 @@ Goal: Modernize internal communication between UI, Core-Node, and Shell.
 - [ ] Implement persistent dev overrides in the backend (stored in a JSON file instead of `localStorage`).
 - [ ] Define IPC channels (`benefits:get`, `benefits:setOverride`) for UI interaction.
 - [ ] Update UI (`useAuth` store) to react to `benefits:updated` WebSocket events from the backend.
+
+---
+
+## 🟣 Phase 4: Feature Parity & Stability
+
+Goal: Reach feature parity with the legacy monolithic app and improve core functionality.
+
+### 1. Core Engine Improvements
+- [ ] **Autosave**: Implement automatic pipeline saving.
+- [ ] **Undo/Redo**: Add history support for the node editor.
+- [ ] **Error Handling**: Gracefully handle and display pipeline execution errors in dialogs.
+- [ ] **Async Execution**: Investigate processing QuickJS logic in Web Workers to prevent UI blocking.
+- [ ] **Memory Management**: Audit and resolve potential memory leaks in QuickJS (open/close actions).
+- [ ] **Cleanup**: Implement automatic temporary directory cleanup (`tmp/`).
+- [ ] **ASAR Handling**: Ensure `process.noAsar = true` is correctly set and handled for cross-app file copies.
+
+### 2. Node & Plugin Enhancements
+- [ ] **Image Optimization**: Integrate `sharp` for lossless compression in relevant nodes.
+- [ ] **Filesystem Expansion**: Support `.local/share` paths and better overwrite parameters.
+- [ ] **C3 Integration**: Fix C3 Preview issues and improve version selection for C3P exports.
+- [ ] **Steam/Discord**: Verify Steam achievement integrations and investigate "Discord Activity" packaging.
+
+---
+
+## ☁️ Phase 5: Cloud & Ecosystem
+
+Goal: Expand Pipelab beyond the local desktop environment.
+
+### 1. CI/CD Integration
+- [ ] **GitHub Actions**: Create `pipelab/setup` and `pipelab/run` actions for automated pipeline runs.
+- [ ] **Interactive CLI**: Implement `pipelab login` for local CLI authentication.
+- [ ] **Headless Execution**: Ensure pipelines can run in CI environments using environment variables/PATs for sensitive data.
+
+### 2. Cross-Platform & Distribution
+- [ ] **Cloud Sync**: Store configurations and pipelines in the user's online account for cross-machine access.
+- [ ] **Alternative Packaging**: Investigate packaging as **Tauri** for smaller binary sizes or **Godot Export** for game-integrated pipelines.
+- [ ] **Publishing**: Expand specialized upload nodes for **Poki**, **Itch**, etc.
