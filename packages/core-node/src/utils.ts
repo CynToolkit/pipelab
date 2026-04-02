@@ -50,7 +50,7 @@ export const getFinalPlugins = () => {
  * @returns A Promise that resolves to the path of the installed Node.js executable.
  */
 export const ensureNodeJS = async (version: string) => {
-  const nodeDir = join(assetsPath, "node", version);
+  const nodeDir = join(userDataPath, "thirdparty", "node", version);
   const isWindows = process.platform === "win32";
   const executableName = isWindows ? "node.exe" : "bin/node";
   const finalNodePath = join(nodeDir, executableName);
@@ -75,14 +75,14 @@ export const ensureNodeJS = async (version: string) => {
 
   const fileName = `node-v${version}-${downloadPlatform}-${arch}.${extension}`;
   const downloadUrl = `https://nodejs.org/dist/v${version}/${fileName}`;
-  const tempDir = await generateTempFolder();
+  const tempDir = await generateTempFolder(join(userDataPath, "thirdparty", ".tmp"));
   const archivePath = join(tempDir, fileName);
 
   // 3. Download the Node.js archive
   console.log(`Downloading Node.js from ${downloadUrl}...`);
   const hooks: Hooks = {
     onProgress: (progress) => {
-      console.log(`Download progress: ${progress}%`);
+      console.log(`Download progress: ${progress.progress.toFixed(2)}%`);
     },
   };
   await downloadFile(downloadUrl, archivePath, hooks);

@@ -21,7 +21,7 @@ export async function extractTarGz(archivePath: string, destinationDir: string):
   return new Promise((resolve, reject) => {
     const readStream = createReadStream(archivePath);
     const gunzipStream = zlib.createGunzip();
-    const extractStream = tar.extract({ cwd: destinationDir, strip: 1 });
+    const extractStream = tar.extract({ cwd: destinationDir });
 
     readStream.on("error", reject);
     gunzipStream.on("error", reject);
@@ -63,13 +63,13 @@ export async function extractZip(archivePath: string, destinationDir: string): P
 
         if (/\/$/.test(entry.fileName)) {
           // It's a directory
-          mkdir(entryPath, { recursive: true })
+          mkdirP(entryPath, { recursive: true })
             .then(() => zipfile.readEntry())
             .catch(reject);
         } else {
           // It's a file
           // Ensure parent directory exists (just in case)
-          mkdir(dirname(entryPath), { recursive: true })
+          mkdirP(dirname(entryPath), { recursive: true })
             .then(() => {
               zipfile.openReadStream(entry, (err, readStream) => {
                 if (err || !readStream) {
