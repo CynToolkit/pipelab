@@ -132,7 +132,8 @@
               <!-- <Column field="content.description" header="Description" /> -->
               <!-- <Column header="Path">
               <template #body="{ data }">
-                <span v-if="data.type === 'external'">{{ data.path }}</span><!-- @deprecated external files are deprecated -->
+                <!~~ @deprecated external files are deprecated ~~>
+                <span v-if="data.type === 'external'">{{ data.path }}</span>
               </template>
             </Column> -->
               <Column header="" style="width: 240px">
