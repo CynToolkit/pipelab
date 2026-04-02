@@ -208,7 +208,7 @@ export const executeGraphWithHistory = async ({
 
     const endTime = Date.now();
     await buildHistoryStorage.update(buildId, {
-      status: "success",
+      status: "completed",
       endTime,
       duration: endTime - startTime,
       result,

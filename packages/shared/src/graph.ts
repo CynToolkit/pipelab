@@ -49,6 +49,8 @@ export const processGraph = async (options: {
 }) => {
   const { logger } = useLogger();
 
+  console.log("options.graph", options.graph);
+
   for (const node of options.graph) {
     // Check if operation was aborted
     if (options.abortSignal?.aborted) {

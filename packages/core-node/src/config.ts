@@ -45,7 +45,7 @@ export const setupConfigFile = async <T>(name: string, customMigrator?: Migrator
         logger().error(`Error reading or parsing config ${name}:`, e);
       }
 
-      console.log("content", content);
+      // console.log("content", content);
 
       let json: any = undefined;
       try {
