@@ -735,6 +735,9 @@ importers:
 
   packages/shared:
     dependencies:
+      '@jitl/quickjs-wasmfile-release-sync':
+        specifier: 0.31.0
+        version: 0.31.0
       '@pipelab/migration':
         specifier: workspace:*
         version: link:../migration

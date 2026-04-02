@@ -22,19 +22,16 @@ class EvaluationError extends Error {
 export const createQuickJs = async () => {
   const { logger } = useLogger();
 
-  let location: string;
+  let variant: any;
   if (isRenderer()) {
-    location = (await import("@jitl/quickjs-wasmfile-release-sync/wasm?url")).default;
+    const location = (await import("@jitl/quickjs-wasmfile-release-sync/wasm?url")).default;
+    variant = newVariant(RELEASE_SYNC, {
+      wasmLocation: location,
+    });
   } else {
-    const { join } = await import("node:path");
-    const assetsPath = (global as any).PIPELAB_ASSETS_PATH || process.env.PIPELAB_ASSETS_PATH;
-    if (!assetsPath) throw new Error("PIPELAB_ASSETS_PATH is not set");
-    location = join(assetsPath, "emscripten-module.wasm");
+    variant = (await import("@jitl/quickjs-wasmfile-release-sync")).default;
   }
 
-  const variant = newVariant(RELEASE_SYNC, {
-    wasmLocation: location,
-  });
   const quickjs = await newQuickJSWASMModuleFromVariant(variant);
 
   const createContext = () => {
