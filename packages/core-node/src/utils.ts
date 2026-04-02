@@ -6,7 +6,6 @@ import { access, chmod, mkdir, rm, writeFile, readdir, cp } from "node:fs/promis
 import { dirname, join } from "node:path";
 import { userDataPath, assetsPath } from "./context";
 import { constants } from "node:fs";
-import { throttle } from "es-toolkit";
 import { processGraph } from "@pipelab/shared";
 import { handleActionExecute } from "./handler-func";
 import { useLogger } from "@pipelab/shared";
@@ -167,6 +166,7 @@ export const executeGraphWithHistory = async ({
   const startTime = Date.now();
 
   // Save initial build history entry
+  const now = Date.now();
   const initialEntry: BuildHistoryEntry = {
     id: buildId,
     projectName,
@@ -175,43 +175,64 @@ export const executeGraphWithHistory = async ({
     startTime,
     status: "running",
     logs: [],
+    steps: [],
+    totalSteps: graph.length,
+    completedSteps: 0,
+    failedSteps: 0,
+    cancelledSteps: 0,
+    createdAt: now,
+    updatedAt: now,
   };
   await buildHistoryStorage.save(initialEntry);
 
   const logs: any[] = [];
 
   try {
-    const result = await processGraph(
+    const result = await processGraph({
       graph,
+      definitions: getFinalPlugins(),
       variables,
-      {
-        onNodeEnter: (node) => {
-          onNodeEnter?.(node);
-        },
-        onNodeExit: (node) => {
-          onNodeExit?.(node);
-        },
-        onLog: (data, node) => {
-          const logEntry = {
-            type: data.type,
-            message: data.data.message,
-            timestamp: data.data.time,
-            nodeUid: node?.uid,
-          };
-          logs.push(logEntry);
-          onLog?.(data, node);
-        },
+      steps: {},
+      context: {},
+      onExecuteItem: async (node, params, steps) => {
+        if (node.type === "action") {
+          return await handleActionExecute(
+            node.origin.nodeId,
+            node.origin.pluginId,
+            params,
+            mainWindow,
+            async (data) => {
+              if (data.type === "log") {
+                const logEntry = {
+                  type: data.type,
+                  message: data.data.message,
+                  timestamp: data.data.time,
+                  nodeUid: node?.uid,
+                };
+                logs.push(logEntry);
+                onLog?.(data, node);
+              }
+            },
+            abortSignal,
+          );
+        }
+        throw new Error(`Execution of node type ${node.type} not implemented in utils.ts`);
+      },
+      onNodeEnter: (node) => {
+        onNodeEnter?.(node);
+      },
+      onNodeExit: (node) => {
+        onNodeExit?.(node);
       },
       abortSignal,
-      mainWindow,
-    );
+    });
 
     const endTime = Date.now();
     await buildHistoryStorage.update(buildId, {
       status: "completed",
       endTime,
       duration: endTime - startTime,
-      result,
+      output: result.steps,
       logs,
     });
 
@@ -221,10 +242,14 @@ export const executeGraphWithHistory = async ({
     const isCanceled = error instanceof Error && error.name === "AbortError";
 
     await buildHistoryStorage.update(buildId, {
-      status: isCanceled ? "canceled" : "error",
+      status: isCanceled ? "cancelled" : "failed",
       endTime,
       duration: endTime - startTime,
-      error: error instanceof Error ? error.message : String(error),
+      error: {
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        timestamp: endTime,
+      },
       logs,
     });
 
