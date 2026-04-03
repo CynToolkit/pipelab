@@ -149,6 +149,7 @@ test("End-to-End: Poki Upload Action via Pipelab CLI", async () => {
         variables: []
     };
     const pipelineFile = join(sandboxPath, "pipeline.json");
+    const resultFile = join(sandboxPath, "result.json");
     await writeFile(pipelineFile, JSON.stringify(pipeline, null, 2));
 
     // 3. Run Pipelab CLI
@@ -169,7 +170,9 @@ test("End-to-End: Poki Upload Action via Pipelab CLI", async () => {
                 "run",
                 pipelineFile,
                 "--user-data",
-                userDataPath
+                userDataPath,
+                "--output",
+                resultFile
             ],
             {
                 cwd: projectRoot,
@@ -208,6 +211,16 @@ test("End-to-End: Poki Upload Action via Pipelab CLI", async () => {
     expect(pokiJsonContent.build_dir).toBe("dist");
     const distPath = join(projectPath, "dist");
     await expect(access(join(distPath, "index.html"))).resolves.not.toThrow();
+
+    // B. Verify CLI Result File
+    await expect(access(resultFile)).resolves.not.toThrow();
+    const resultJson = JSON.parse(await readFile(resultFile, "utf-8"));
+
+    expect(resultJson.steps).toBeDefined();
+    // Result object is from processGraph, which contains the 'steps' object
+    // Each entry in 'steps' is keyed by node UID
+    expect(resultJson.steps["poki-node"]).toBeDefined();
+    expect(resultJson.steps["poki-node"].outputs).toBeDefined();
 
     console.log("E2E Test Passed!");
 }, 120000); // 2 minute timeout
