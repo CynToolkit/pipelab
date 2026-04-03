@@ -51,7 +51,6 @@ export const uploadToPoki = createAction({
 
 export const uploadToPokiRunner = createActionRunner<typeof uploadToPoki>(
   async ({ log, inputs, paths, abortSignal, cwd }) => {
-    const { shell } = await import("electron");
     const { ensureNPMPackage } = await import("@pipelab/plugin-core");
 
     const { node, thirdparty, pnpm } = paths;
@@ -84,8 +83,6 @@ export const uploadToPokiRunner = createActionRunner<typeof uploadToPoki>(
       ),
       "utf-8",
     );
-
-    await shell.openPath(cwd);
 
     // TODO: needs auth
 
