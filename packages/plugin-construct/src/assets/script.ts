@@ -115,6 +115,26 @@ const registerMissingAddonErrorListener = (page: Page, log: typeof console.log) 
     });
 };
 
+const registerNewVersionAvailableListener = (page: Page, log: typeof console.log) => {
+  // as soon as it appear, without blocking flow
+  // ignore new version available and throw
+  const newVersionAvailableDialog = page.locator("#confirmDialog");
+  const cancelButton = newVersionAvailableDialog.locator(".cancelConfirmButton");
+  cancelButton
+    .waitFor({
+      timeout: 0,
+    })
+    .then(async () => {
+      await cancelButton.click();
+      log("cancelButton clicked");
+      registerNewVersionAvailableListener(page, log);
+    })
+    .catch(async () => {
+      log("cancelButton.click() failed");
+    });
+}
+
+
 export const script = async (
   page: Page,
   log: typeof console.log,
@@ -123,7 +143,6 @@ export const script = async (
   password: string | undefined,
   version: string | undefined,
   downloadDir: string,
-  // addonsFolder: string | undefined
 ) => {
   let url = "https://editor.construct.net/";
   if (version) {
@@ -136,44 +155,10 @@ export const script = async (
 
   // const serviceworker = await serviceWorkerPromise;
   registerWelcomeToConstructListener(page, log);
+  registerNewVersionAvailableListener(page, log);
+
 
   log("after event");
-
-  // if (addonsFolder) {
-  //   const _files = await readdir(addonsFolder)
-  //   const addonFiles = _files
-  //     .filter((x) => extname(x) === '.c3addon')
-  //     .map((x) => join(addonsFolder, x))
-  //   console.log('addonFiles', addonFiles)
-
-  //   await page.pause()
-  //   await page.getByRole('button', { name: 'Menu' }).click();
-  //   await page.mouse.move(30, 150)
-  //   await page.mouse.move(150, 100)
-  //   await page.mouse.click(150, 100);
-
-  //   const [fileChooserAddons] = await Promise.all([
-  //     page.waitForEvent('filechooser'),
-  //     await page.getByRole('button', { name: 'Install new addon...' }).click()
-  //   ])
-
-  //   await fileChooserAddons.setFiles(addonFiles)
-
-  //   // await page.pause()
-  //   // if (addonFiles.length > 0) {
-  //   //   for (let i = 0; i < addonFiles.length - 1; i += 1) {
-  //   //     const [fileChooser] = await Promise.all([
-  //   //       page.waitForEvent('filechooser'),
-  //   //       page.keyboard.press('ControlOrMeta+O')
-  //   //     ])
-
-  //   //     await fileChooser.setFiles(addonFiles[i])
-  //   //     log('Set addon files', addonFiles[i])
-
-  //   //     await page.pause()
-  //   //   }
-  //   // }
-  // }
 
   await page.waitForTimeout(2000);
   log("after wait");

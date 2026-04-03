@@ -156,7 +156,8 @@ export const exportc3p = async <ACTION extends Action>(
     },
   );
 
-  const playwright = await import(playwrightPkgPath);
+  const playwrightModule = await import(join(playwrightPkgPath, "index.js"));
+  const playwright = playwrightModule.default || playwrightModule;
 
   const downloadDir = join(cwd, "playwright");
 
