@@ -4,6 +4,7 @@ import {
   createPathParam,
   runWithLiveLogs,
 } from "@pipelab/plugin-core";
+import { ensureNVPatch } from "./ensure.js";
 
 export const ID = "nvpatch";
 
@@ -30,7 +31,7 @@ export const NVPatch = createAction({
 });
 
 export const NVPatchRunner = createActionRunner<typeof NVPatch>(
-  async ({ log, inputs, paths, abortSignal, cwd, api }) => {
+  async ({ log, inputs, paths, abortSignal, cwd }) => {
     const { execa } = await import("execa");
     const semver = (await import("semver")).default;
 
@@ -55,7 +56,6 @@ export const NVPatchRunner = createActionRunner<typeof NVPatch>(
     // run
 
     log("Ensuring nvpatch is installed...");
-    const { ensureNVPatch } = await import("./ensure.js");
     const { thirdparty } = paths;
     const nvpatchCommand = await ensureNVPatch(thirdparty);
 

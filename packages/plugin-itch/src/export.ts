@@ -1,3 +1,5 @@
+import { join, dirname, delimiter } from "node:path";
+import { ensureButler } from "./ensure.js";
 import { extractZip } from "@pipelab/plugin-core";
 import {
   createAction,
@@ -68,8 +70,6 @@ export const uploadToItch = createAction({
 
 export const uploadToItchRunner = createActionRunner<typeof uploadToItch>(
   async ({ log, inputs, cwd, abortSignal, paths }) => {
-    const { join, dirname, delimiter } = await import("node:path");
-    const { ensureButler } = await import("./ensure.js");
     const { node, thirdparty } = paths;
     const butlerPath = await ensureButler(thirdparty);
 

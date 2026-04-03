@@ -5,7 +5,9 @@ import {
   createStringParam,
   runWithLiveLogs,
 } from "@pipelab/plugin-core";
-import { dirname } from "node:path";
+import { dirname, join, delimiter } from "node:path";
+import { writeFile, cp, mkdir } from "node:fs/promises";
+import { homedir } from "node:os";
 
 export const ID = "poki-upload";
 
@@ -49,8 +51,6 @@ export const uploadToPoki = createAction({
 
 export const uploadToPokiRunner = createActionRunner<typeof uploadToPoki>(
   async ({ log, inputs, paths, abortSignal, cwd }) => {
-    const { join, delimiter } = await import("node:path");
-    const { writeFile, cp, mkdir } = await import("node:fs/promises");
     const { shell } = await import("electron");
     const { ensureNPMPackage } = await import("@pipelab/plugin-core");
 

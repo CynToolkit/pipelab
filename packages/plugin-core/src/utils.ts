@@ -1,6 +1,10 @@
 import { Options, Subprocess } from "execa";
 import { IPty, type IPtyForkOptions, type IWindowsPtyForkOptions } from "@lydell/node-pty";
-import { ExternalCommandError } from "./custom-errors";
+import { ExternalCommandError } from "./custom-errors.js";
+import { generateTempFolder } from "./fs-utils.js";
+import { extractTarGz } from "./archive-utils.js";
+import { join } from "node:path";
+import { access, mkdir, writeFile, rm } from "node:fs/promises";
 
 export const fileExists = async (path: string): Promise<boolean> => {
   try {
@@ -190,10 +194,6 @@ export const downloadFile = async (
  * @returns A Promise that resolves to the path of the extracted package (the 'package' subfolder).
  */
 export const ensureNPMPackage = async (thirdpartyDir: string, name: string, version: string) => {
-  const { join } = await import("node:path");
-  const { access, mkdir, writeFile, rm } = await import("node:fs/promises");
-  const { extractTarGz } = await import("./archive-utils.js");
-  const { generateTempFolder } = await import("./fs-utils.js");
 
   const packageDir = join(thirdpartyDir, name, version);
   const finalPath = join(packageDir, "package");
