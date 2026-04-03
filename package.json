@@ -35,6 +35,7 @@
       "esbuild",
       "fs-xattr",
       "macos-alias",
+      "msw",
       "sharp",
       "vue-demi"
     ]

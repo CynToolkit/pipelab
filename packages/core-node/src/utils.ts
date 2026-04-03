@@ -46,7 +46,7 @@ export const getFinalPlugins = () => {
 
 /**
  * Installs a specific version of Node.js if not already present.
- * @param version The version of Node.js to install (e.g., '20.11.1').
+ * @param version The version of Node.js to install (e.g., '24.14.1').
  * @returns A Promise that resolves to the path of the installed Node.js executable.
  */
 export const ensureNodeJS = async (version: string) => {

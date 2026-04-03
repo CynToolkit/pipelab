@@ -1,7 +1,7 @@
 import { WebSocketServer as WSWebSocketServer, WebSocket as WSWebSocket } from "ws";
-import { IncomingMessage } from "http";
+import http, { IncomingMessage } from "node:http";
 import { nanoid } from "nanoid";
-import { useAPI } from "./ipc-core";
+import { useAPI } from "./ipc-core.js";
 import { useLogger } from "@pipelab/shared";
 import {
   WebSocketServerConfig,
@@ -39,7 +39,6 @@ export class WebSocketServer {
         logger().info("Starting WebSocket server on port", port);
 
         // Create HTTP server for WebSocket if not provided
-        const http = require("http");
         const server = existingServer || http.createServer();
         this.server = server;
 

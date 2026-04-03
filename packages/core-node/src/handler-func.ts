@@ -64,9 +64,9 @@ export const handleConditionExecute = async (
     .find((plugin) => plugin.id === pluginId)
     ?.nodes.find((node: any) => node.node.id === nodeId) as
     | {
-        node: Condition;
-        runner: ConditionRunner<any>;
-      }
+      node: Condition;
+      runner: ConditionRunner<any>;
+    }
     | undefined;
 
   if (!node) {
@@ -137,9 +137,9 @@ export const handleActionExecute = async (
     .find((plugin) => plugin.id === pluginId)
     ?.nodes.find((node: any) => node.node.id === nodeId) as
     | {
-        node: Action;
-        runner: ActionRunner<any>;
-      }
+      node: Action;
+      runner: ActionRunner<any>;
+    }
     | undefined;
 
   if (!node) {
@@ -150,9 +150,9 @@ export const handleActionExecute = async (
     };
   }
 
-  const tmp = await generateTempFolder(config?.cacheFolder ?? tmpdir());
+  const tmp = await generateTempFolder(config?.cacheFolder || tmpdir());
 
-  const nodePath = await ensureNodeJS("20.11.1");
+  const nodePath = await ensureNodeJS("24.14.1");
   const pnpm = await ensurePNPM("10.12.0");
 
   const outputs: Record<string, unknown> = {};
@@ -191,7 +191,7 @@ export const handleActionExecute = async (
       cwd: tmp,
       paths: {
         assets: assetsPath,
-        cache: config?.cacheFolder ?? tmpdir(),
+        cache: config?.cacheFolder || tmpdir(),
         node: nodePath,
         pnpm,
         modules: "",

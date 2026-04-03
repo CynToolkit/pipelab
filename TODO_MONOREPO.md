@@ -4,6 +4,10 @@ The project has undergone a major architectural shift: splitting the monolithic 
 
 ---
 
+pipielab run, must return the output as json if "--json" otherwise just return 0 if all done or number for error codee
+define a list of error codes
+
+
 ## 🟢 Phase 1: Stabilization (CURRENT PRIORITY)
 
 Goal: Ensure the application remains 100% functional in both development and production environments.

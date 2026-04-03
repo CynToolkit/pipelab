@@ -61,6 +61,66 @@ cli
     await wsServer.start(Number(options.port), server);
   });
 
+cli
+  .command("run <file>", "Run a pipeline from a JSON file")
+  .option("--user-data <path>", "Custom user data path")
+  .option("--variables <json>", "JSON string of variables to override")
+  .action(async (file, options) => {
+    const { readFile, access } = await import("node:fs/promises");
+    const { resolve, isAbsolute } = await import("node:path");
+
+    const pipelinePath = isAbsolute(file) ? file : resolve(process.cwd(), file);
+
+    try {
+      await access(pipelinePath);
+    } catch (e) {
+      console.error(`Error: Pipeline file not found at ${pipelinePath}`);
+      process.exit(1);
+    }
+
+    const pipelineContent = await readFile(pipelinePath, "utf-8");
+    const pipeline = JSON.parse(pipelineContent);
+
+    const { graph, variables: pipelineVariables, projectName, projectPath, pipelineId } = pipeline;
+
+    const vars = options.variables ? JSON.parse(options.variables) : pipelineVariables || [];
+
+    console.log(`Executing pipeline: ${projectName || "Unnamed Project"} (${pipelineId || "no-id"})`);
+
+    await registerAllHandlers();
+    const { registerMigrationHandlers } = await import("./migrations");
+    registerMigrationHandlers();
+
+    const { executeGraphWithHistory } = await import("@pipelab/core-node");
+
+    const abortController = new AbortController();
+
+    try {
+      const { result, buildId } = await executeGraphWithHistory({
+        graph,
+        variables: vars,
+        projectName: projectName || "CLI Run",
+        projectPath: projectPath || process.cwd(),
+        pipelineId: pipelineId || "cli-run",
+        onNodeEnter: (node) => console.log(`[ENTER] ${node.name} (${node.uid})`),
+        onNodeExit: (node) => console.log(`[EXIT] ${node.name} (${node.uid})`),
+        onLog: (data) => {
+          if (data.type === "log") {
+            console.log(`[LOG] ${data.data.message}`);
+          }
+        },
+        abortSignal: abortController.signal,
+      });
+
+      console.log(`Pipeline execution finished. Build ID: ${buildId}`);
+      console.log("Result:", JSON.stringify(result, null, 2));
+      process.exit(0);
+    } catch (e) {
+      console.error("Pipeline execution failed:", e);
+      process.exit(1);
+    }
+  });
+
 cli.help();
 cli.version("1.0.0");
 cli.parse();

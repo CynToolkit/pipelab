@@ -54,7 +54,7 @@ export const uploadToPokiRunner = createActionRunner<typeof uploadToPoki>(
     const { ensureNPMPackage } = await import("@pipelab/plugin-core");
 
     const { node, thirdparty, pnpm } = paths;
-    const pokiDir = await ensureNPMPackage(thirdparty, "@poki/cli", "1.0.0", {
+    const pokiDir = await ensureNPMPackage(thirdparty, "@poki/cli", "0.1.19", {
       nodePath: node,
       pnpmPath: pnpm,
       installDeps: true,

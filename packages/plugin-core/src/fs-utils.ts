@@ -17,11 +17,12 @@ export const ensure = async (filesPath: string, defaultContent = "{}") => {
   }
 };
 
-export const generateTempFolder = async (base = tmpdir()) => {
-  await mkdir(base, {
+export const generateTempFolder = async (base?: string) => {
+  const targetBase = base || tmpdir();
+  await mkdir(targetBase, {
     recursive: true,
   });
-  const realPath = await realpath(base);
+  const realPath = await realpath(targetBase);
   console.log("join", join(realPath, "pipelab-"));
   const tempFolder = await mkdtemp(join(realPath, "pipelab-"));
 

@@ -6,15 +6,18 @@
   "types": "./src/index.ts",
   "scripts": {
     "format": "oxfmt .",
-    "lint": "oxlint ."
+    "lint": "oxlint .",
+    "test": "vitest run"
   },
   "dependencies": {
     "@pipelab/plugin-core": "workspace:*"
   },
   "devDependencies": {
     "@pipelab/tsconfig": "workspace:*",
-    "@types/node": "^20.11.1",
-    "@types/electron": "^32.1.2",
-    "typescript": "5.9.3"
+    "@types/node": "^24.1.0",
+    "electron": "32.1.2",
+    "typescript": "5.9.3",
+    "vitest": "3.1.4",
+    "msw": "2.7.5"
   }
 }

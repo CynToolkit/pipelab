@@ -138,9 +138,9 @@ export const registerAuthHandlers = () => {
   });
 
   // Maintain logs for the backend state change and broadcast to all clients
-  client.auth.onAuthStateChange((event, session) => {
-    const { webSocketServer } = require("../websocket-server");
+  client.auth.onAuthStateChange(async (event, session) => {
+    const { webSocketServer } = await import("../websocket-server.js");
     logger().info("[Auth] State changed, broadcasting:", event, session?.user?.email || "anonymous");
-    webSocketServer.broadcast("auth:getUser", { user: session?.user || null });
+    webSocketServer.broadcast("auth:getUser" as any, { user: session?.user || null } as any);
   });
 };
