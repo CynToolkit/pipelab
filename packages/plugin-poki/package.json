@@ -13,6 +13,8 @@
   },
   "devDependencies": {
     "@pipelab/tsconfig": "workspace:*",
+    "@types/node": "^20.11.1",
+    "@types/electron": "^32.1.2",
     "typescript": "5.9.3"
   }
 }

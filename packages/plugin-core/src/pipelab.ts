@@ -230,7 +230,7 @@ export type InputDefinition<T extends ControlType = ControlType> = {
   control: T;
   value: unknown;
   platforms?: NodeJS.Platform[];
-  onNodeUpdate?: (value: any, settings: InputDefinition<T>) => void;
+  onNodeUpdate?: (value: any, settings: InputDefinition<any>) => void;
 };
 
 export type InputsDefinition = Record<string, InputDefinition>;
@@ -388,14 +388,17 @@ export type ActionRunnerData<ACTION extends Action> = {
   meta: ACTION["meta"];
   cwd: string;
   paths: {
-    unpack: string;
     assets: string;
     cache: string;
     pnpm: string;
     node: string;
     userData: string;
+    modules: string;
+    thirdparty: string;
   };
-  api: any;
+  api: {
+    [key: string]: any;
+  };
   browserWindow: BrowserWindow;
   abortSignal: AbortSignal;
 };

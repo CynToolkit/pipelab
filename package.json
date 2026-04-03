@@ -12,9 +12,13 @@
   },
   "devDependencies": {
     "@changesets/cli": "^2.27.11",
+    "@pipelab/tsconfig": "workspace:*",
+    "@types/node": "^20.11.1",
+    "@types/tar": "^6.1.13",
     "oxfmt": "0.40.0",
     "oxlint": "1.55.0",
-    "turbo": "^2.8.15"
+    "turbo": "^2.8.15",
+    "typescript": "5.9.3"
   },
   "resolutions": {
     "@codemirror/state": "6.4.1",

@@ -2,7 +2,9 @@
   "extends": "@pipelab/tsconfig/vue.json",
   "compilerOptions": {
     "outDir": "dist",
-    "rootDir": "src"
+    "rootDir": "src",
+    "types": ["node"],
+    "skipLibCheck": true
   },
   "include": ["src"]
 }

@@ -116,26 +116,29 @@ export const exportc3p = async <ACTION extends Action>(
 
   // const { addonsFolder } = newInputs
 
-  const playwright = await import("playwright");
-  const { join, dirname } = await import("node:path");
+  const { join, dirname, delimiter } = await import("node:path");
   const { cp, mkdir } = await import("node:fs/promises");
+  const { ensureNPMPackage } = await import("@pipelab/plugin-core");
 
-  const { unpack, node } = paths;
-  const modulesPath = join(unpack, "node_modules");
-
-  // const playwrightServer = await import("playwright-core/lib/server");
+  const { thirdparty, node } = paths;
 
   const browserName: "chromium" | "firefox" | "webkit" = "chromium";
 
-  // const a = await playwrightServer.installBrowsersForNpmInstall([
-  //   browserName,
-  // ]);
-  log("Downloading browser");
+  const playwrightPkgPath = await ensureNPMPackage(thirdparty, "playwright", "1.48.2");
+  const playwrightCli = join(playwrightPkgPath, "cli.js");
+  const browsersPath = join(thirdparty, "playwright-browsers");
+
+  process.env.PLAYWRIGHT_BROWSERS_PATH = browsersPath;
+
+  log("Downloading browser to", browsersPath);
   await runWithLiveLogs(
     node,
-    [join(modulesPath, "playwright", "cli.js"), "install", browserName],
+    [playwrightCli, "install", browserName],
     {
-      env: {},
+      env: {
+        PLAYWRIGHT_BROWSERS_PATH: browsersPath,
+        PATH: `${dirname(node)}${delimiter}${process.env.PATH}`,
+      },
       cancelSignal: abortSignal,
     },
     log,
@@ -149,6 +152,8 @@ export const exportc3p = async <ACTION extends Action>(
     },
   );
 
+  const playwright = await import("playwright");
+
   const downloadDir = join(cwd, "playwright");
 
   log("Browser downloaded to", downloadDir);
@@ -161,7 +166,7 @@ export const exportc3p = async <ACTION extends Action>(
 
   let version = newInputs.version;
   // if version is full digit, prepend "r", otherwise, use as is
-  if (version && /^\d+$/.test(version)) {
+  if (version && /^\d+$/.test(version as string)) {
     version = `r${version}`;
   }
   const headless = newInputs.headless;
@@ -182,7 +187,7 @@ export const exportc3p = async <ACTION extends Action>(
       recursive: true,
     });
 
-    const indexedDbPathSource = join(newInputs.customProfile, "Default", "IndexedDB");
+    const indexedDbPathSource = join(newInputs.customProfile as string, "Default", "IndexedDB");
     const indexedDbPathDestination = join(customProfile, "Default", "IndexedDB");
     const pathsToCopy = [
       "https_editor.construct.net_0.indexeddb.blob",
@@ -198,7 +203,7 @@ export const exportc3p = async <ACTION extends Action>(
     }
 
     context = await browserInstance.launchPersistentContext(customProfile, {
-      headless,
+      headless: headless as boolean,
       locale: "en-US",
       recordVideo: isCI
         ? {
@@ -208,7 +213,7 @@ export const exportc3p = async <ACTION extends Action>(
     });
   } else {
     const browser = await browserInstance.launch({
-      headless,
+      headless: headless as boolean,
     });
 
     context = await browser.newContext({
@@ -224,7 +229,7 @@ export const exportc3p = async <ACTION extends Action>(
 
   const page = await context.newPage();
 
-  page.setDefaultTimeout(newInputs.timeout * 1000);
+  page.setDefaultTimeout((newInputs.timeout as number) * 1000);
 
   // this exact sequn=ence make it work
   await page.addInitScript(() => {
@@ -241,9 +246,9 @@ export const exportc3p = async <ACTION extends Action>(
       page,
       log,
       file,
-      newInputs.username,
-      newInputs.password,
-      version,
+      newInputs.username as string,
+      newInputs.password as string,
+      version as string,
       downloadDir,
       // addonsFolder,
     );
@@ -254,7 +259,7 @@ export const exportc3p = async <ACTION extends Action>(
 
     setOutput("parentFolder", dirname(result));
     setOutput("zipFile", result);
-  } catch (e) {
+  } catch (e: any) {
     log("error, no result, crashed", e);
     throw new Error("ConstructExport failed: " + e.message);
   } finally {

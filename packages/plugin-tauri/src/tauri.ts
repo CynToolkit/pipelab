@@ -519,7 +519,7 @@ export const tauri = async (
     await detectRuntime(appFolder);
   }
 
-  const { assets, unpack, cache, node, pnpm } = paths;
+  const { assets, modules, cache, node, pnpm } = paths;
 
   const destinationFolder = join(cwd, "build");
 

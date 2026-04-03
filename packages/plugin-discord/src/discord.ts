@@ -212,7 +212,7 @@ export const discord = async (
 
   const runtime = await detectRuntime(appFolder);
 
-  const { assets, unpack, cache, node, pnpm } = paths;
+  const { assets, modules, cache, node, pnpm } = paths;
 
   const destinationFolder = join(cwd, "build");
 
@@ -334,7 +334,7 @@ DISCORD_CLIENT_SECRET=yJ4vRnzDtKAqg2Le3_Sap2CqHybkTp2U`,
     if (action === "preview") {
       const port = 14141;
 
-      const modulesPath = join(unpack, "node_modules");
+      const modulesPath = modules;
       const nitro = join(modulesPath, "nitropack", "dist", "cli", "index.mjs");
 
       // const nitro = await import('nitropack')

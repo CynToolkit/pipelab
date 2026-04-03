@@ -1,7 +1,7 @@
 import { join } from "node:path";
 import { homedir } from "node:os";
 
-const isDev = process.env.NODE_ENV === "development";
+export const isDev = process.env.NODE_ENV === "development";
 
 const getArg = (name: string): string | undefined => {
   const index = process.argv.indexOf(name);
@@ -33,7 +33,4 @@ export const setAssetsPath = (path: string) => {
   (global as any).PIPELAB_ASSETS_PATH = path;
 };
 
-/**
- * The path where temporary files or extracted dependencies are kept.
- */
-export const unpackPath = join(userDataPath, "unpack");
+

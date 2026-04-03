@@ -181,3 +181,55 @@ export const downloadFile = async (
   const { pipeline } = await import("stream/promises");
   await pipeline(readable, fileStream);
 };
+
+/**
+ * Installs an NPM package from the npm registry as a tarball if not already present.
+ * @param thirdpartyDir The directory where third-party tools are stored.
+ * @param name The name of the package (e.g., 'pnpm' or '@poki/cli').
+ * @param version The version of the package.
+ * @returns A Promise that resolves to the path of the extracted package (the 'package' subfolder).
+ */
+export const ensureNPMPackage = async (thirdpartyDir: string, name: string, version: string) => {
+  const { join } = await import("node:path");
+  const { access, mkdir, writeFile, rm } = await import("node:fs/promises");
+  const { extractTarGz } = await import("./archive-utils.js");
+  const { generateTempFolder } = await import("./fs-utils.js");
+
+  const packageDir = join(thirdpartyDir, name, version);
+  const finalPath = join(packageDir, "package");
+  const markerFile = join(packageDir, ".installed");
+
+  // 1. Check if already installed
+  try {
+    await access(markerFile);
+    return finalPath;
+  } catch (e) {
+    console.log(`NPM package ${name}@${version} not found at ${finalPath}, installing...`);
+  }
+
+  // 2. Determine download URL
+  let tarballName = name;
+  if (name.startsWith("@")) {
+    const [, pkgName] = name.split("/");
+    tarballName = pkgName;
+  }
+  const downloadUrl = `https://registry.npmjs.org/${name}/-/${tarballName}-${version}.tgz`;
+
+  const tempDir = await generateTempFolder(join(thirdpartyDir, ".tmp"));
+  const tarballPath = join(tempDir, `${tarballName}-${version}.tgz`);
+
+  // 3. Download the tarball
+  console.log(`Downloading ${name}@${version} from ${downloadUrl}...`);
+  await downloadFile(downloadUrl, tarballPath);
+
+  // 4. Extract
+  console.log(`Extracting ${name}@${version} to ${packageDir}...`);
+  await mkdir(packageDir, { recursive: true });
+  await extractTarGz(tarballPath, packageDir);
+
+  // 5. Cleanup & Marker
+  await writeFile(markerFile, new Date().toISOString());
+  await rm(tempDir, { recursive: true, force: true });
+
+  return finalPath;
+};

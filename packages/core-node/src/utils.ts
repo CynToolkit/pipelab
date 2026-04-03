@@ -139,6 +139,17 @@ export const ensureNodeJS = async (version: string) => {
   }
 };
 
+/**
+ * Installs the PNPM package from npm as a tarball if not already present.
+ * @returns A Promise that resolves to the path of the pnpm.cjs executable.
+ */
+export const ensurePNPM = async (version = "10.12.0") => {
+  const { ensureNPMPackage } = await import("@pipelab/plugin-core");
+  const packagePath = await ensureNPMPackage(join(userDataPath, "thirdparty"), "pnpm", version);
+  return join(packagePath, "bin", "pnpm.cjs");
+};
+
+
 export const executeGraphWithHistory = async ({
   graph,
   variables,

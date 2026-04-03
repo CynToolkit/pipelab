@@ -9,11 +9,14 @@ import {
 import { usePlugins } from "@pipelab/shared";
 import { isRequired } from "@pipelab/shared";
 import { mkdir } from "node:fs/promises";
-import { assetsPath, unpackPath, userDataPath } from "./context";
+import { assetsPath, isDev, userDataPath } from "./context";
 import { useLogger } from "@pipelab/shared";
 import { BlockCondition } from "@pipelab/shared";
 import { HandleListenerSendFn } from "./handlers";
-import { ensureNodeJS } from "./utils";
+import {
+  ensureNodeJS,
+  ensurePNPM,
+} from "./utils";
 import { generateTempFolder } from "@pipelab/plugin-core";
 import path from "node:path";
 import os from "node:os";
@@ -150,10 +153,10 @@ export const handleActionExecute = async (
   const tmp = await generateTempFolder(config?.cacheFolder ?? tmpdir());
 
   const nodePath = await ensureNodeJS("20.11.1");
-  const modulesPath = join(unpackPath, "node_modules");
-  const pnpm = join(modulesPath, "pnpm", "bin", "pnpm.cjs");
+  const pnpm = await ensurePNPM("10.12.0");
+
   const outputs: Record<string, unknown> = {};
-  const api = undefined;
+  const api = {};
 
   try {
     await mkdir(tmp, { recursive: true });
@@ -188,11 +191,12 @@ export const handleActionExecute = async (
       cwd: tmp,
       paths: {
         assets: assetsPath,
-        unpack: unpackPath,
         cache: config?.cacheFolder ?? tmpdir(),
         node: nodePath,
         pnpm,
+        modules: "",
         userData: userDataPath,
+        thirdparty: join(userDataPath, "thirdparty"),
       },
       api,
       browserWindow: mainWindow,

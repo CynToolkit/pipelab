@@ -49,18 +49,19 @@ export const uploadToPoki = createAction({
 
 export const uploadToPokiRunner = createActionRunner<typeof uploadToPoki>(
   async ({ log, inputs, paths, abortSignal, cwd }) => {
-    const { join, basename, delimiter } = await import("node:path");
+    const { join, delimiter } = await import("node:path");
     const { writeFile, cp, mkdir } = await import("node:fs/promises");
     const { shell } = await import("electron");
+    const { ensureNPMPackage } = await import("@pipelab/plugin-core");
 
-    const { unpack } = paths;
-    const modulesPath = join(unpack, "node_modules");
-    const poki = join(modulesPath, "@poki", "cli", "bin", "index.js");
+    const { node, thirdparty } = paths;
+    const pokiDir = await ensureNPMPackage(thirdparty, "@poki/cli", "1.0.0");
+    const poki = join(pokiDir, "bin", "index.js");
 
     const dist = join(cwd, "dist");
 
     await mkdir(dist, { recursive: true });
-    await cp(inputs["input-folder"], dist, {
+    await cp(inputs["input-folder"] as string, dist, {
       recursive: true,
     });
 
@@ -85,13 +86,13 @@ export const uploadToPokiRunner = createActionRunner<typeof uploadToPoki>(
     // TODO: needs auth
 
     await runWithLiveLogs(
-      poki,
-      ["upload", "--name", inputs.name, "--notes", inputs.notes],
+      node,
+      [poki, "upload", "--name", inputs.name as string, "--notes", inputs.notes as string],
       {
         cwd,
         env: {
           // DEBUG: '*',
-          PATH: `${dirname(poki)}${delimiter}${process.env.PATH}`,
+          PATH: `${dirname(node)}${delimiter}${process.env.PATH}`,
         },
         cancelSignal: abortSignal,
       },

@@ -576,7 +576,7 @@ export const forge = async (
     await detectRuntime(appFolder);
   }
 
-  const { assets, unpack, node } = paths;
+  const { assets, modules, node, pnpm } = paths;
 
   console.log("assets", assets);
 
@@ -584,9 +584,7 @@ export const forge = async (
   // const __dirname = fileURLToPath(dirname(import.meta.url))
   // const { app } = await import('electron')
 
-  const modulesPath = join(unpack, "node_modules");
-
-  const pnpm = join(modulesPath, "pnpm", "bin", "pnpm.cjs");
+  const modulesPath = modules;
 
   const destinationFolder = join(cwd, "build");
 

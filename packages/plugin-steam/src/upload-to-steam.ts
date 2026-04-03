@@ -87,7 +87,13 @@ export const uploadToSteamRunner = createActionRunner<typeof uploadToSteam>(
     const { platform } = await import("os");
     const { chmod, mkdir, writeFile, cp } = await import("fs/promises");
 
-    const { folder, appId, sdk, depotId, username, description } = inputs;
+    const folder = inputs.folder as string;
+    const appId = inputs.appId as string;
+    const sdk = inputs.sdk as string;
+    const depotId = inputs.depotId as string;
+    const username = inputs.username as string;
+    const description = inputs.description as string;
+
     log(`uploading "${folder}" to steam`);
 
     const errorMap = {
@@ -98,41 +104,6 @@ export const uploadToSteamRunner = createActionRunner<typeof uploadToSteam>(
     if (!isSDKExisting) {
       throw new Error(`You must enter a valid path to the Steam SDK`);
     }
-
-    const buildOutput = join(cwd, "steam", "output");
-    const scriptPath = join(cwd, "steam", "script.vdf");
-
-    await mkdir(buildOutput, {
-      recursive: true,
-    });
-
-    await mkdir(dirname(scriptPath), {
-      recursive: true,
-    });
-
-    const script = `"AppBuild"
-{
-	"AppID" "${appId}" // your AppID
-	"Desc" "${description}" // internal description for this build
-
-	"ContentRoot" "${folder}" // root content folder, relative to location of this file
-	"BuildOutput" "${buildOutput}" // build output folder for build logs and build cache files
-
-	"Depots"
-	{
-		"${depotId}" // your DepotID
-		{
-			"FileMapping"
-			{
-				"LocalPath" "*" // all files from contentroot folder
-				"DepotPath" "." // mapped into the root of the depot
-				"recursive" "1" // include all subfolders
-			}
-		}
-	}
-}`;
-
-    console.log("script", script);
 
     let builderFolder = "builder";
     if (platform() === "linux") {
@@ -151,7 +122,7 @@ export const uploadToSteamRunner = createActionRunner<typeof uploadToSteam>(
       cmdFinal += ".exe";
     }
 
-    const steamcmdPath = join(sdk, "tools", "ContentBuilder", builderFolder, cmdFinal);
+    const steamcmdPath = join(sdk as string, "tools", "ContentBuilder", builderFolder, cmdFinal);
 
     console.log("steamcmdPath", steamcmdPath);
 
@@ -188,7 +159,40 @@ export const uploadToSteamRunner = createActionRunner<typeof uploadToSteam>(
       await chmod(steamcmdPath, 0o755);
     }
 
-    // check for steam authentication
+    const buildOutput = join(cwd, "steam", "output");
+    const scriptPath = join(cwd, "steam", "script.vdf");
+
+    await mkdir(buildOutput, {
+      recursive: true,
+    });
+
+    await mkdir(dirname(scriptPath), {
+      recursive: true,
+    });
+
+    const script = `"AppBuild"
+{
+	"AppID" "${appId}" // your AppID
+	"Desc" "${description}" // internal description for this build
+
+	"ContentRoot" "${folder}" // root content folder, relative to location of this file
+	"BuildOutput" "${buildOutput}" // build output folder for build logs and build cache files
+
+	"Depots"
+	{
+		"${depotId}" // your DepotID
+		{
+			"FileMapping"
+			{
+				"LocalPath" "*" // all files from contentroot folder
+				"DepotPath" "." // mapped into the root of the depot
+				"recursive" "1" // include all subfolders
+			}
+		}
+	}
+}`;
+
+    console.log("script", script);
     const isAuthenticated = await checkSteamAuth({
       context: {
         log,

@@ -67,90 +67,11 @@ export const uploadToItch = createAction({
 });
 
 export const uploadToItchRunner = createActionRunner<typeof uploadToItch>(
-  async ({ log, inputs, cwd, abortSignal }) => {
-    const { app } = await import("electron");
-    const { join, dirname } = await import("node:path");
-    const { mkdir, access, chmod } = await import("node:fs/promises");
-    const StreamZip = await import("node-stream-zip");
-
-    const userData = app.getPath("userData");
-
-    const itchMetadataPath = join(userData, "thirdparty", "itch");
-    const butlerTmpZipFile = join(cwd, "thirdparty", "itch", "butler.zip");
-
-    log("butlerTmpZipFile", butlerTmpZipFile);
-
-    // create destination dir
-    await mkdir(itchMetadataPath, {
-      recursive: true,
-    });
-
-    // create tmp dir
-    await mkdir(dirname(butlerTmpZipFile), {
-      recursive: true,
-    });
-
-    const localOs = process.platform;
-    const localArch = process.arch;
-
-    let butlerName = "";
-    if (localOs === "darwin") {
-      butlerName += "darwin";
-    } else if (localOs === "linux") {
-      butlerName += "linux";
-    } else if (localOs === "win32") {
-      butlerName += "windows";
-    }
-
-    butlerName += "-";
-
-    if (localArch === "x64") {
-      butlerName += "amd64";
-    } else {
-      throw new Error("Unsupported architecture");
-    }
-
-    let extension = "";
-    if (localOs === "win32") {
-      extension += ".exe";
-    }
-
-    const butlerPath = join(itchMetadataPath, `butler${extension}`);
-    console.log("butlerPath", butlerPath);
-
-    let alreadyExist = true;
-
-    try {
-      await access(butlerPath);
-    } catch (e) {
-      alreadyExist = false;
-    }
-
-    const url = `https://broth.itch.zone/butler/${butlerName}/LATEST/archive/default`;
-    console.log("url", url);
-
-    if (alreadyExist === false) {
-      await downloadFile(
-        url,
-        butlerTmpZipFile,
-        {
-          onProgress: ({ progress }) => {
-            log(`Downloading itch.io butler: ${progress.toFixed(2)}%`);
-          },
-        },
-        abortSignal,
-      );
-      // const zip = new StreamZip.default.async({ file: butlerTmpZipFile })
-
-      // const bytes = await zip.extract(null, dirname(butlerPath))
-      // await zip.close()
-
-      await extractZip(butlerTmpZipFile, dirname(butlerPath));
-
-      // log('bytes', bytes)
-    }
-
-    await chmod(butlerPath, 0o755);
+  async ({ log, inputs, cwd, abortSignal, paths }) => {
+    const { join, dirname, delimiter } = await import("node:path");
+    const { ensureButler } = await import("./ensure.js");
+    const { node, thirdparty } = paths;
+    const butlerPath = await ensureButler(thirdparty);
 
     log("Uploading to itch");
 
@@ -158,13 +79,15 @@ export const uploadToItchRunner = createActionRunner<typeof uploadToItch>(
       butlerPath,
       [
         "push",
-        inputs["input-folder"],
-        `${inputs.user}/${inputs.project}:${inputs.channel}`,
+        inputs["input-folder"] as string,
+        `${inputs.user as string}/${inputs.project as string}:${inputs.channel as string}`,
         "--json",
       ],
       {
         env: {
-          BUTLER_API_KEY: inputs["api-key"],
+          // DEBUG: '*',
+          PATH: `${dirname(node)}${delimiter}${process.env.PATH}`,
+          BUTLER_API_KEY: inputs["api-key"] as string,
         },
         cancelSignal: abortSignal,
       },
