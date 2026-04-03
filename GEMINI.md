@@ -71,3 +71,6 @@ The project uses `pnpm` as its package manager and Turborepo for task orchestrat
 - When modifying code, do not attempt to typecheck it.
 - When modifying code, do not attempt to lint it.
 - When creating packages, ensure files are **not** accessed via subpaths (e.g. `import { useAPI } from "@pipelab/shared/api"`).
+- Do not read docs from packages irectly, use context7 mcp
+- Prefer your native file read tools over cat command
+- Do not grep unless strictly necessary

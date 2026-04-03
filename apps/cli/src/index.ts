@@ -65,9 +65,10 @@ cli
   .command("run <file>", "Run a pipeline from a JSON file")
   .option("--user-data <path>", "Custom user data path")
   .option("--variables <json>", "JSON string of variables to override")
+  .option("-o, --output <path>", "Path to write the result file")
   .action(async (file, options) => {
-    const { readFile, access } = await import("node:fs/promises");
-    const { resolve, isAbsolute } = await import("node:path");
+    const { readFile, access, writeFile, mkdir } = await import("node:fs/promises");
+    const { resolve, isAbsolute, dirname } = await import("node:path");
 
     const pipelinePath = isAbsolute(file) ? file : resolve(process.cwd(), file);
 
@@ -114,6 +115,17 @@ cli
 
       console.log(`Pipeline execution finished. Build ID: ${buildId}`);
       console.log("Result:", JSON.stringify(result, null, 2));
+
+      if (options.output) {
+        const outputPath = isAbsolute(options.output)
+          ? options.output
+          : resolve(process.cwd(), options.output);
+
+        await mkdir(dirname(outputPath), { recursive: true });
+        await writeFile(outputPath, JSON.stringify(result, null, 2), "utf-8");
+        console.log(`Result saved to ${outputPath}`);
+      }
+
       process.exit(0);
     } catch (e) {
       console.error("Pipeline execution failed:", e);
