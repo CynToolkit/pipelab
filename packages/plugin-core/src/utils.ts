@@ -191,10 +191,19 @@ export const downloadFile = async (
  * @param thirdpartyDir The directory where third-party tools are stored.
  * @param name The name of the package (e.g., 'pnpm' or '@poki/cli').
  * @param version The version of the package.
+ * @param options (Optional) configuration for dependency installation.
  * @returns A Promise that resolves to the path of the extracted package (the 'package' subfolder).
  */
-export const ensureNPMPackage = async (thirdpartyDir: string, name: string, version: string) => {
-
+export const ensureNPMPackage = async (
+  thirdpartyDir: string,
+  name: string,
+  version: string,
+  options?: {
+    nodePath?: string;
+    pnpmPath?: string;
+    installDeps?: boolean;
+  },
+) => {
   const packageDir = join(thirdpartyDir, name, version);
   const finalPath = join(packageDir, "package");
   const markerFile = join(packageDir, ".installed");
@@ -227,7 +236,20 @@ export const ensureNPMPackage = async (thirdpartyDir: string, name: string, vers
   await mkdir(packageDir, { recursive: true });
   await extractTarGz(tarballPath, packageDir);
 
-  // 5. Cleanup & Marker
+  // 5. Install dependencies if requested
+  if (options?.installDeps && options.pnpmPath) {
+    console.log(`Installing dependencies for ${name}@${version} using pnpm at ${options.pnpmPath}...`);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { execa } = await import("execa");
+    // We use the pnpm .cjs bundle directly with node
+    const node = options.nodePath || process.execPath;
+    await execa(node, [options.pnpmPath, "install", "--prod"], {
+      cwd: finalPath,
+      stdio: "inherit",
+    });
+  }
+
+  // 6. Cleanup & Marker
   await writeFile(markerFile, new Date().toISOString());
   await rm(tempDir, { recursive: true, force: true });
 

@@ -120,11 +120,15 @@ export const exportc3p = async <ACTION extends Action>(
   const { cp, mkdir } = await import("node:fs/promises");
   const { ensureNPMPackage } = await import("@pipelab/plugin-core");
 
-  const { thirdparty, node } = paths;
+  const { thirdparty, node, pnpm } = paths;
 
   const browserName: "chromium" | "firefox" | "webkit" = "chromium";
 
-  const playwrightPkgPath = await ensureNPMPackage(thirdparty, "playwright", "1.48.2");
+  const playwrightPkgPath = await ensureNPMPackage(thirdparty, "playwright-core", "1.48.2", {
+    nodePath: node,
+    pnpmPath: pnpm,
+    installDeps: true,
+  });
   const playwrightCli = join(playwrightPkgPath, "cli.js");
   const browsersPath = join(thirdparty, "playwright-browsers");
 
@@ -152,7 +156,7 @@ export const exportc3p = async <ACTION extends Action>(
     },
   );
 
-  const playwright = await import("playwright");
+  const playwright = await import(playwrightPkgPath);
 
   const downloadDir = join(cwd, "playwright");
 
@@ -207,8 +211,8 @@ export const exportc3p = async <ACTION extends Action>(
       locale: "en-US",
       recordVideo: isCI
         ? {
-            dir: join(process.cwd(), "playwright"),
-          }
+          dir: join(process.cwd(), "playwright"),
+        }
         : undefined,
     });
   } else {
@@ -220,11 +224,15 @@ export const exportc3p = async <ACTION extends Action>(
       locale: "en-US",
       recordVideo: isCI
         ? {
-            dir: join(process.cwd(), "playwright"),
-          }
+          dir: join(process.cwd(), "playwright"),
+        }
         : undefined,
     });
-    await context.clearPermissions();
+    await context?.clearPermissions();
+  }
+
+  if (!context) {
+    throw new Error("Failed to initialize browser context");
   }
 
   const page = await context.newPage();
@@ -263,8 +271,9 @@ export const exportc3p = async <ACTION extends Action>(
     log("error, no result, crashed", e);
     throw new Error("ConstructExport failed: " + e.message);
   } finally {
-    // await context.browser().close()
-    await context.close();
+    if (context) {
+      await context.close();
+    }
   }
 };
 

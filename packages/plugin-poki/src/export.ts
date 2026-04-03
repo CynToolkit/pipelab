@@ -54,8 +54,12 @@ export const uploadToPokiRunner = createActionRunner<typeof uploadToPoki>(
     const { shell } = await import("electron");
     const { ensureNPMPackage } = await import("@pipelab/plugin-core");
 
-    const { node, thirdparty } = paths;
-    const pokiDir = await ensureNPMPackage(thirdparty, "@poki/cli", "1.0.0");
+    const { node, thirdparty, pnpm } = paths;
+    const pokiDir = await ensureNPMPackage(thirdparty, "@poki/cli", "1.0.0", {
+      nodePath: node,
+      pnpmPath: pnpm,
+      installDeps: true,
+    });
     const poki = join(pokiDir, "bin", "index.js");
 
     const dist = join(cwd, "dist");
