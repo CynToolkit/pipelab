@@ -70,6 +70,8 @@ export const uploadToPokiRunner = createActionRunner<typeof uploadToPoki>(
 
     const pokiJsonPath = join(cwd, "poki.json");
 
+    console.log("pokiJsonPath", pokiJsonPath);
+
     // create file at the same place the folder to upload
     await writeFile(
       pokiJsonPath,

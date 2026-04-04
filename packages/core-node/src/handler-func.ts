@@ -55,7 +55,7 @@ export const handleConditionExecute = async (
   nodeId: string,
   pluginId: string,
   params: BlockCondition["params"],
-  // { send }: { send: HandleListenerSendFn<'condition:execute'> }
+  cwd: string,
 ): Promise<End<"condition:execute">> => {
   const { plugins } = usePlugins();
   const { logger } = useLogger();
@@ -76,9 +76,7 @@ export const handleConditionExecute = async (
     };
   }
 
-  const tmp = await generateTempFolder(tmpdir());
-
-  await mkdir(tmp, {
+  await mkdir(cwd, {
     recursive: true,
   });
 
@@ -97,7 +95,7 @@ export const handleConditionExecute = async (
       setMeta: () => {
         logger().info("set meta defined here");
       },
-      cwd: tmp,
+      cwd,
     });
 
     return {
@@ -123,11 +121,11 @@ export const handleActionExecute = async (
   mainWindow: any | undefined,
   send: HandleListenerSendFn<"action:execute">,
   abortSignal: AbortSignal,
+  cwd: string,
+  cachePath: string,
 ): Promise<End<"action:execute">> => {
   const { plugins } = usePlugins();
   const { logger } = useLogger();
-  const settings = await setupConfigFile<AppConfig>("settings");
-  const config = await settings.getConfig();
 
   mainWindow?.setProgressBar(1, {
     mode: "indeterminate",
@@ -150,7 +148,6 @@ export const handleActionExecute = async (
     };
   }
 
-  const tmp = await generateTempFolder(config?.cacheFolder || tmpdir());
 
   const nodePath = await ensureNodeJS("24.14.1");
   const pnpm = await ensurePNPM("10.12.0");
@@ -159,7 +156,7 @@ export const handleActionExecute = async (
   const api = {};
 
   try {
-    await mkdir(tmp, { recursive: true });
+    await mkdir(cwd, { recursive: true });
     checkParams(node.node.params, params);
     const resolvedInputs = params; // await resolveActionInputs(params, node.node, steps)
     logger().info("resolvedInputs", resolvedInputs);
@@ -188,10 +185,10 @@ export const handleActionExecute = async (
       setMeta: () => {
         logger().info("set meta defined here");
       },
-      cwd: tmp,
+      cwd: cwd,
       paths: {
         assets: assetsPath,
-        cache: config?.cacheFolder || tmpdir(),
+        cache: cachePath,
         node: nodePath,
         pnpm,
         modules: "",
@@ -207,7 +204,7 @@ export const handleActionExecute = async (
 
     return {
       type: "success",
-      result: { outputs, tmp },
+      result: { outputs, tmp: cwd },
     };
   } catch (e) {
     logger().error("Error in action execution:", e);

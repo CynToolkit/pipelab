@@ -5,6 +5,7 @@ import { registerAllHandlers } from "@pipelab/core-node";
 import { join } from "path";
 import http from "http";
 import handler from "serve-handler";
+import type { AppConfig } from "@pipelab/shared";
 
 const cli = cac("pipelab");
 
@@ -84,15 +85,25 @@ cli
 
     const { graph, variables: pipelineVariables, projectName, projectPath, pipelineId } = pipeline;
 
-    const vars = options.variables ? JSON.parse(options.variables) : pipelineVariables || [];
+    let vars = pipelineVariables || [];
+    if (options.variables) {
+      vars = JSON.parse(options.variables);
+    }
 
-    console.log(`Executing pipeline: ${projectName || "Unnamed Project"} (${pipelineId || "no-id"})`);
+    const effectiveProjectName = projectName || "CLI Run";
+    const effectiveProjectPath = projectPath || process.cwd();
+    const effectivePipelineId = pipelineId || "cli-run";
+
+    console.log(`Executing pipeline: ${effectiveProjectName} (${effectivePipelineId})`);
 
     await registerAllHandlers();
     const { registerMigrationHandlers } = await import("./migrations");
     registerMigrationHandlers();
 
-    const { executeGraphWithHistory } = await import("@pipelab/core-node");
+    const { executeGraphWithHistory, setupConfigFile } = await import("@pipelab/core-node");
+    const settings = await setupConfigFile<AppConfig>("settings");
+    const config = await settings.getConfig();
+    const cachePath = config?.cacheFolder || (await import("node:os")).tmpdir();
 
     const abortController = new AbortController();
 
@@ -100,9 +111,10 @@ cli
       const { result, buildId } = await executeGraphWithHistory({
         graph,
         variables: vars,
-        projectName: projectName || "CLI Run",
-        projectPath: projectPath || process.cwd(),
-        pipelineId: pipelineId || "cli-run",
+        projectName: effectiveProjectName,
+        projectPath: effectiveProjectPath,
+        pipelineId: effectivePipelineId,
+        cachePath: cachePath,
         onNodeEnter: (node) => console.log(`[ENTER] ${node.name} (${node.uid})`),
         onNodeExit: (node) => console.log(`[EXIT] ${node.name} (${node.uid})`),
         onLog: (data) => {

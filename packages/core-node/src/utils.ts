@@ -161,6 +161,7 @@ export const executeGraphWithHistory = async ({
   onLog,
   abortSignal,
   mainWindow,
+  cachePath,
 }: {
   graph: any;
   variables: Variable[];
@@ -172,6 +173,7 @@ export const executeGraphWithHistory = async ({
   onLog?: (data: any, node?: any) => void;
   abortSignal: AbortSignal;
   mainWindow?: any;
+  cachePath: string;
 }) => {
   const buildId = nanoid();
   const startTime = Date.now();
@@ -225,6 +227,8 @@ export const executeGraphWithHistory = async ({
               }
             },
             abortSignal,
+            projectPath,
+            cachePath,
           );
         }
         throw new Error(`Execution of node type ${node.type} not implemented in utils.ts`);

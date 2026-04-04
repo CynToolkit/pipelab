@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import http from "node:http";
 import { setupServer } from "msw/node";
 import { http as mswHttp, HttpResponse } from "msw";
+import { stdout } from "node:process";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -186,11 +187,17 @@ test("End-to-End: Poki Upload Action via Pipelab CLI", async () => {
             console.log,
             {
                 onStdout: (data) => {
-                    console.log('stdout');
+                    console.log('stdout', data.toString());
+                    // if (data.includes('poki.json')) {
+                    //     console.log(data);
+                    // }
                     // return process.stdout.write(data);
                 },
                 onStderr: (data) => {
-                    console.log('stderr');
+                    console.log('stderr', data.toString());
+                    // if (data.includes('poki.json')) {
+                    //     console.log(data);
+                    // }
                     // return process.stderr.write(data);
                 },
             }
@@ -204,6 +211,7 @@ test("End-to-End: Poki Upload Action via Pipelab CLI", async () => {
 
     // A. Verify build preparation (poki.json)
     const pokiJsonPath = join(projectPath, "poki.json");
+    console.log("pokiJsonPath test", pokiJsonPath);
     await expect(access(pokiJsonPath)).resolves.not.toThrow();
 
     const pokiJsonContent = JSON.parse(await readFile(pokiJsonPath, "utf-8"));
