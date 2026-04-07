@@ -85,6 +85,7 @@ export const uploadToItchRunner = createActionRunner<typeof uploadToItch>(
       ],
       {
         env: {
+          ...process.env,
           // DEBUG: '*',
           PATH: `${dirname(node)}${delimiter}${process.env.PATH}`,
           BUTLER_API_KEY: inputs["api-key"] as string,

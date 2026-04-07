@@ -615,6 +615,7 @@ export const tauri = async (
     {
       cwd: destinationFolder,
       env: {
+        ...process.env,
         // DEBUG: '*',
         PATH: `${dirname(node)}${delimiter}${process.env.PATH}`,
         PNPM_HOME: pnpmHome,
@@ -711,6 +712,7 @@ export const tauri = async (
       {
         cwd: join(destinationFolder, "src-tauri"),
         env: {
+          ...process.env,
           DEBUG: completeConfiguration.enableExtraLogging ? "*" : "",
           ELECTRON_NO_ASAR: "1",
           CARGO_TARGET_DIR: cargoTargetDir,
@@ -743,6 +745,7 @@ export const tauri = async (
         {
           cwd: join(destinationFolder, "src-tauri"),
           env: {
+            ...process.env,
             DEBUG: completeConfiguration.enableExtraLogging ? "*" : "",
             ELECTRON_NO_ASAR: "1",
             CARGO_TARGET_DIR: cargoTargetDir,
@@ -768,6 +771,7 @@ export const tauri = async (
         {
           cwd: join(destinationFolder, "src-tauri"),
           env: {
+            ...process.env,
             DEBUG: completeConfiguration.enableExtraLogging ? "*" : "",
             ELECTRON_NO_ASAR: "1",
             CARGO_TARGET_DIR: cargoTargetDir,

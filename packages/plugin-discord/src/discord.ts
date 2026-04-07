@@ -288,6 +288,7 @@ DISCORD_CLIENT_SECRET=yJ4vRnzDtKAqg2Le3_Sap2CqHybkTp2U`,
     {
       cwd: destinationFolder,
       env: {
+        ...process.env,
         // DEBUG: '*',
         PNPM_HOME: pnpmHome,
       },
@@ -348,6 +349,7 @@ DISCORD_CLIENT_SECRET=yJ4vRnzDtKAqg2Le3_Sap2CqHybkTp2U`,
           {
             cwd: destinationFolder,
             env: {
+              ...process.env,
               // DEBUG: '*',
               PATH: `${dirname(node)}${delimiter}${process.env.PATH}`,
               PNPM_HOME: pnpmHome,

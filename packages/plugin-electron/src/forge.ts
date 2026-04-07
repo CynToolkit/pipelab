@@ -666,6 +666,7 @@ export const forge = async (
     {
       cwd: destinationFolder,
       env: {
+        ...process.env,
         // DEBUG: '*',
         PATH: `${dirname(node)}${delimiter}${process.env.PATH}`,
         PNPM_HOME: pnpmHome,
@@ -697,6 +698,7 @@ export const forge = async (
       {
         cwd: destinationFolder,
         env: {
+          ...process.env,
           // DEBUG: '*',
           PATH: `${dirname(node)}${delimiter}${process.env.PATH}`,
           PNPM_HOME: pnpmHome,
@@ -724,6 +726,7 @@ export const forge = async (
       {
         cwd: destinationFolder,
         env: {
+          ...process.env,
           // DEBUG: '*',
           PATH: `${dirname(node)}${delimiter}${process.env.PATH}`,
           PNPM_HOME: pnpmHome,
@@ -750,6 +753,7 @@ export const forge = async (
       {
         cwd: destinationFolder,
         env: {
+          ...process.env,
           // DEBUG: '*',
           PATH: `${dirname(node)}${delimiter}${process.env.PATH}`,
           PNPM_HOME: pnpmHome,

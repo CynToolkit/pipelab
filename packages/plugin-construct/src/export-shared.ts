@@ -140,6 +140,7 @@ export const exportc3p = async <ACTION extends Action>(
     [playwrightCli, "install", browserName],
     {
       env: {
+        ...process.env,
         PLAYWRIGHT_BROWSERS_PATH: browsersPath,
         PATH: `${dirname(node)}${delimiter}${process.env.PATH}`,
       },

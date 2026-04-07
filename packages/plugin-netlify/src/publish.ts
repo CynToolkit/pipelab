@@ -129,6 +129,7 @@ export const uploadToNetlifyRunner = createActionRunner<typeof uploadToNetlify>(
       {
         cwd: destinationFolder,
         env: {
+          ...process.env,
           // DEBUG: '*',
           PATH: `${dirname(node)}${delimiter}${process.env.PATH}`,
           PNPM_HOME: pnpmHome,
@@ -153,6 +154,7 @@ export const uploadToNetlifyRunner = createActionRunner<typeof uploadToNetlify>(
       {
         cwd: destinationFolder,
         env: {
+          ...process.env,
           // DEBUG: '*',
           PATH: `${dirname(node)}${delimiter}${process.env.PATH}`,
           PNPM_HOME: pnpmHome,

@@ -122,6 +122,7 @@ export const buildNetlifySiteRunner = createActionRunner<typeof buildNetlifySite
       {
         cwd: buildDir,
         env: {
+          ...process.env,
           // DEBUG: '*',
           PATH: `${dirname(node)}${delimiter}${process.env.PATH}`,
           PNPM_HOME: pnpmHome,
@@ -166,6 +167,7 @@ export const buildNetlifySiteRunner = createActionRunner<typeof buildNetlifySite
       {
         cwd: buildDir,
         env: {
+          ...process.env,
           // DEBUG: '*',
           PATH: `${dirname(node)}${delimiter}${process.env.PATH}`,
           PNPM_HOME: pnpmHome,

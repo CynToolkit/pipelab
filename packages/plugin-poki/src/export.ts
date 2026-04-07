@@ -88,12 +88,16 @@ export const uploadToPokiRunner = createActionRunner<typeof uploadToPoki>(
 
     // TODO: needs auth
 
+    log("process.env.MSW_BRIDGE_PORT", process.env.MSW_BRIDGE_PORT);
+    log("process.env.NODE_OPTIONS", process.env.NODE_OPTIONS);
+
     await runWithLiveLogs(
       node,
       [poki, "upload", "--name", inputs.name as string, "--notes", inputs.notes as string],
       {
         cwd,
         env: {
+          ...process.env,
           // DEBUG: '*',
           PATH: `${dirname(node)}${delimiter}${process.env.PATH}`,
         },
