@@ -1,7 +1,7 @@
 import { makeResolvedParams } from "./evaluator";
 import { Steps } from "./model";
 import { Variable } from "./variables";
-import { RendererPluginDefinition } from "@pipelab/plugin-core";
+import { RendererPluginDefinition } from "./plugins/definitions";
 import { Block } from "./model";
 import { Context } from "./types";
 import { End } from "./apis";

@@ -4,14 +4,10 @@
     "emitDeclarationOnly": true,
     "outDir": "dist",
     "baseUrl": ".",
-    "paths": {
-      "@pipelab/shared": ["./src"],
-      "@pipelab/plugin-core": ["../plugin-core/src/index.ts"]
-    },
     "typeRoots": ["./src"],
     "types": ["global.d.ts", "wasm.d.ts"]
   },
   "include": ["src/**/*", "tests/**/*", "*.ts", "src/**/*.json"],
   "exclude": ["node_modules", "dist"],
-  "references": [{ "path": "../migration" }, { "path": "../plugin-core" }]
+  "references": [{ "path": "../migration" }]
 }

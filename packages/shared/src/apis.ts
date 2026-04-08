@@ -1,4 +1,4 @@
-import { RendererPluginDefinition } from "@pipelab/plugin-core";
+import { RendererPluginDefinition } from "./plugins/definitions";
 import { User, UserResponse } from "@supabase/supabase-js";
 import type { Tagged } from "type-fest";
 import { PresetResult, Steps } from "./model";

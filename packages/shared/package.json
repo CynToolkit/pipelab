@@ -18,7 +18,6 @@
   "dependencies": {
     "@jitl/quickjs-wasmfile-release-sync": "0.31.0",
     "@pipelab/migration": "workspace:*",
-    "@pipelab/plugin-core": "workspace:*",
     "@supabase/supabase-js": "2.99.3",
     "klona": "2.0.6",
     "nanoid": "5.0.7",

@@ -1,4 +1,13 @@
-import { fileExists } from "@pipelab/plugin-core";
+const fileExists = async (path: string): Promise<boolean> => {
+  try {
+    const { access } = await import("fs/promises");
+    await access(path);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 import { join } from "node:path";
 
 import { OutputRuntimes } from "./types";
