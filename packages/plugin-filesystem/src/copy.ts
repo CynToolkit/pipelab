@@ -107,9 +107,16 @@ export const copyRunner = createActionRunner<typeof copy>(async ({ log, inputs, 
     throw new Error("Missing destination");
   }
 
-  // if from is a file, we need to add the file name to the destination
+  // if from is a file, we only add the file name to the destination if 'to' is an existing directory
   if (fromIsAFile) {
-    to = join(to, fromFileName);
+    try {
+      const toStats = await stat(to);
+      if (toStats.isDirectory()) {
+        to = join(to, fromFileName);
+      }
+    } catch (e) {
+      // If 'to' doesn't exist, we assume the user provided the full destination path (including filename)
+    }
   }
 
   log("Copying", from, "to", to, "recursive", inputs.recursive, "overwrite", inputs.overwrite);

@@ -19,11 +19,17 @@ importers:
         specifier: workspace:*
         version: link:packages/tsconfig
       '@types/node':
-        specifier: ^20.11.1
-        version: 20.19.0
+        specifier: 22.7.9
+        version: 22.7.9
       '@types/tar':
         specifier: ^6.1.13
         version: 6.1.13
+      execa:
+        specifier: 9.5.1
+        version: 9.5.1
+      nanoid:
+        specifier: 5.0.8
+        version: 5.0.8
       oxfmt:
         specifier: 0.40.0
         version: 0.40.0
@@ -36,6 +42,9 @@ importers:
       typescript:
         specifier: 5.9.3
         version: 5.9.3
+      vitest:
+        specifier: 3.1.4
+        version: 3.1.4(@types/node@22.7.9)(jiti@2.4.2)(jsdom@25.0.1)(less@4.2.0)(msw@2.7.5(@types/node@22.7.9)(typescript@5.9.3))(sass@1.80.4)(tsx@4.19.1)
 
   apps/cli:
     dependencies:
@@ -67,12 +76,21 @@ importers:
       '@yao-pkg/pkg':
         specifier: 6.14.1
         version: 6.14.1(encoding@0.1.13)
+      execa:
+        specifier: 9.5.1
+        version: 9.5.1
+      nanoid:
+        specifier: 5.0.8
+        version: 5.0.8
       tsdown:
         specifier: 0.21.2
         version: 0.21.2(typescript@5.8.3)
       typescript:
         specifier: ^5.0.0
         version: 5.8.3
+      vitest:
+        specifier: 3.1.4
+        version: 3.1.4(@types/node@22.7.9)(jiti@2.4.2)(jsdom@25.0.1)(less@4.2.0)(msw@2.7.5(@types/node@22.7.9)(typescript@5.8.3))(sass@1.80.4)(tsx@4.19.1)
 
   apps/desktop:
     dependencies:
@@ -4325,6 +4343,10 @@ packages:
     resolution: {integrity: sha512-5eo/BRqZm3GYce+1jqX/tJ7duA2AnE39i88fuedNFUV8XxGxUpF3aWkBRfbUcjV49gCkvS/pzc0YrCPhaIewdg==}
     engines: {node: ^18.19.0 || >=20.5.0}
 
+  execa@9.5.1:
+    resolution: {integrity: sha512-QY5PPtSonnGwhhHDNI7+3RvY285c7iuJFFB+lU+oEzMY/gEGJ808owqJsrr8Otd1E/x07po1LkUBmdAc5duPAg==}
+    engines: {node: ^18.19.0 || >=20.5.0}
+
   expand-template@2.0.3:
     resolution: {integrity: sha512-XYfuKMvj4O35f/pOXLObndIRvyQ+/+6AhODh+OKWj9S9498pHHn/IMszH+gt0fBCRWMNfk1ZSp5x3AifmnI2vg==}
     engines: {node: '>=6'}
@@ -5298,6 +5320,11 @@ packages:
 
   nanoid@5.0.7:
     resolution: {integrity: sha512-oLxFY2gd2IqnjcYyOXD8XGCftpGtZP2AbHbOkthDkvRywH5ayNtPVy9YlOPcHckXzbLTCHpkb7FB+yuxKV13pQ==}
+    engines: {node: ^18 || >=20}
+    hasBin: true
+
+  nanoid@5.0.8:
+    resolution: {integrity: sha512-TcJPw+9RV9dibz1hHUzlLVy8N4X9TnwirAjrU08Juo6BNKggzVfP2ZJ/3ZUSq15Xl5i85i+Z89XBO90pB2PghQ==}
     engines: {node: ^18 || >=20}
     hasBin: true
 
@@ -9679,12 +9706,12 @@ snapshots:
     dependencies:
       '@types/http-cache-semantics': 4.0.4
       '@types/keyv': 3.1.4
-      '@types/node': 20.19.0
+      '@types/node': 24.12.2
       '@types/responselike': 1.0.3
 
   '@types/connect@3.4.36':
     dependencies:
-      '@types/node': 20.19.0
+      '@types/node': 24.12.2
 
   '@types/cookie@0.6.0': {}
 
@@ -9705,11 +9732,11 @@ snapshots:
 
   '@types/jsonfile@6.1.4':
     dependencies:
-      '@types/node': 20.19.0
+      '@types/node': 24.12.2
 
   '@types/keyv@3.1.4':
     dependencies:
-      '@types/node': 20.19.0
+      '@types/node': 24.12.2
 
   '@types/lodash-es@4.17.12':
     dependencies:
@@ -9719,7 +9746,7 @@ snapshots:
 
   '@types/mysql@2.15.22':
     dependencies:
-      '@types/node': 20.19.0
+      '@types/node': 24.12.2
 
   '@types/node@12.20.55': {}
 
@@ -9741,7 +9768,7 @@ snapshots:
 
   '@types/pg@8.6.1':
     dependencies:
-      '@types/node': 20.19.0
+      '@types/node': 24.12.2
       pg-protocol: 1.10.0
       pg-types: 2.2.0
 
@@ -9749,11 +9776,11 @@ snapshots:
 
   '@types/readdir-glob@1.1.5':
     dependencies:
-      '@types/node': 20.19.0
+      '@types/node': 24.12.2
 
   '@types/responselike@1.0.3':
     dependencies:
-      '@types/node': 20.19.0
+      '@types/node': 24.12.2
 
   '@types/semver@7.5.8': {}
 
@@ -9767,7 +9794,7 @@ snapshots:
 
   '@types/tar@6.1.13':
     dependencies:
-      '@types/node': 20.19.0
+      '@types/node': 24.12.2
       minipass: 4.2.8
 
   '@types/tar@7.0.87':
@@ -9813,6 +9840,15 @@ snapshots:
       magic-string: 0.30.17
     optionalDependencies:
       msw: 2.7.5(@types/node@22.7.9)(typescript@5.8.3)
+      vite: 6.3.3(@types/node@22.7.9)(jiti@2.4.2)(less@4.2.0)(sass@1.80.4)(tsx@4.19.1)
+
+  '@vitest/mocker@3.1.4(msw@2.7.5(@types/node@22.7.9)(typescript@5.9.3))(vite@6.3.3(@types/node@22.7.9)(jiti@2.4.2)(less@4.2.0)(sass@1.80.4)(tsx@4.19.1))':
+    dependencies:
+      '@vitest/spy': 3.1.4
+      estree-walker: 3.0.3
+      magic-string: 0.30.17
+    optionalDependencies:
+      msw: 2.7.5(@types/node@22.7.9)(typescript@5.9.3)
       vite: 6.3.3(@types/node@22.7.9)(jiti@2.4.2)(less@4.2.0)(sass@1.80.4)(tsx@4.19.1)
 
   '@vitest/mocker@3.1.4(msw@2.7.5(@types/node@24.12.2)(typescript@5.9.3))(vite@6.3.3(@types/node@24.12.2)(jiti@2.4.2)(less@4.2.0)(sass@1.80.4)(tsx@4.19.1))':
@@ -11011,6 +11047,21 @@ snapshots:
       strip-final-newline: 4.0.0
       yoctocolors: 2.1.2
 
+  execa@9.5.1:
+    dependencies:
+      '@sindresorhus/merge-streams': 4.0.0
+      cross-spawn: 7.0.6
+      figures: 6.1.0
+      get-stream: 9.0.1
+      human-signals: 8.0.1
+      is-plain-obj: 4.1.0
+      is-stream: 4.0.1
+      npm-run-path: 6.0.0
+      pretty-ms: 9.3.0
+      signal-exit: 4.1.0
+      strip-final-newline: 4.0.0
+      yoctocolors: 2.1.2
+
   expand-template@2.0.3: {}
 
   expand-tilde@2.0.2:
@@ -12070,6 +12121,32 @@ snapshots:
       - '@types/node'
     optional: true
 
+  msw@2.7.5(@types/node@22.7.9)(typescript@5.9.3):
+    dependencies:
+      '@bundled-es-modules/cookie': 2.0.1
+      '@bundled-es-modules/statuses': 1.0.1
+      '@bundled-es-modules/tough-cookie': 0.1.6
+      '@inquirer/confirm': 5.1.21(@types/node@22.7.9)
+      '@mswjs/interceptors': 0.37.6
+      '@open-draft/deferred-promise': 2.2.0
+      '@open-draft/until': 2.1.0
+      '@types/cookie': 0.6.0
+      '@types/statuses': 2.0.6
+      graphql: 16.13.2
+      headers-polyfill: 4.0.3
+      is-node-process: 1.2.0
+      outvariant: 1.4.3
+      path-to-regexp: 6.3.0
+      picocolors: 1.1.1
+      strict-event-emitter: 0.5.1
+      type-fest: 4.39.0
+      yargs: 17.7.2
+    optionalDependencies:
+      typescript: 5.9.3
+    transitivePeerDependencies:
+      - '@types/node'
+    optional: true
+
   msw@2.7.5(@types/node@24.12.2)(typescript@5.9.3):
     dependencies:
       '@bundled-es-modules/cookie': 2.0.1
@@ -12119,6 +12196,8 @@ snapshots:
   nanoid@3.3.11: {}
 
   nanoid@5.0.7: {}
+
+  nanoid@5.0.8: {}
 
   napi-build-utils@2.0.0: {}
 
@@ -13874,6 +13953,46 @@ snapshots:
     dependencies:
       '@vitest/expect': 3.1.4
       '@vitest/mocker': 3.1.4(msw@2.7.5(@types/node@22.7.9)(typescript@5.8.3))(vite@6.3.3(@types/node@22.7.9)(jiti@2.4.2)(less@4.2.0)(sass@1.80.4)(tsx@4.19.1))
+      '@vitest/pretty-format': 3.2.2
+      '@vitest/runner': 3.1.4
+      '@vitest/snapshot': 3.1.4
+      '@vitest/spy': 3.1.4
+      '@vitest/utils': 3.1.4
+      chai: 5.2.0
+      debug: 4.4.1
+      expect-type: 1.2.1
+      magic-string: 0.30.17
+      pathe: 2.0.3
+      std-env: 3.9.0
+      tinybench: 2.9.0
+      tinyexec: 0.3.2
+      tinyglobby: 0.2.15
+      tinypool: 1.1.0
+      tinyrainbow: 2.0.0
+      vite: 6.3.3(@types/node@22.7.9)(jiti@2.4.2)(less@4.2.0)(sass@1.80.4)(tsx@4.19.1)
+      vite-node: 3.1.4(@types/node@22.7.9)(jiti@2.4.2)(less@4.2.0)(sass@1.80.4)(tsx@4.19.1)
+      why-is-node-running: 2.3.0
+    optionalDependencies:
+      '@types/node': 22.7.9
+      jsdom: 25.0.1
+    transitivePeerDependencies:
+      - jiti
+      - less
+      - lightningcss
+      - msw
+      - sass
+      - sass-embedded
+      - stylus
+      - sugarss
+      - supports-color
+      - terser
+      - tsx
+      - yaml
+
+  vitest@3.1.4(@types/node@22.7.9)(jiti@2.4.2)(jsdom@25.0.1)(less@4.2.0)(msw@2.7.5(@types/node@22.7.9)(typescript@5.9.3))(sass@1.80.4)(tsx@4.19.1):
+    dependencies:
+      '@vitest/expect': 3.1.4
+      '@vitest/mocker': 3.1.4(msw@2.7.5(@types/node@22.7.9)(typescript@5.9.3))(vite@6.3.3(@types/node@22.7.9)(jiti@2.4.2)(less@4.2.0)(sass@1.80.4)(tsx@4.19.1))
       '@vitest/pretty-format': 3.2.2
       '@vitest/runner': 3.1.4
       '@vitest/snapshot': 3.1.4

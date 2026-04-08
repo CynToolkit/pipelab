@@ -1,14 +1,15 @@
 import { it, expect, describe, vi } from "vitest";
 import { execa } from "execa";
-import { dirname, join } from "path";
-import { tmpdir } from "os";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
+import { readFile } from "node:fs/promises";
 import { nanoid } from "nanoid";
-import { mkdir, readFile, writeFile } from "fs/promises";
 import { getBinName, name, outFolderName } from "@pipelab/constants";
-import { platform, arch } from "process";
+import { platform, arch } from "node:process";
+import { projectRoot, fixturesPath } from "./utils";
 
 const tmpLogFile = join(tmpdir(), nanoid() + "pipelab-app-test.log.json");
-const root = process.cwd();
+const root = projectRoot;
 
 const binFolder = outFolderName("Pipelab", platform, arch);
 const binName = getBinName(name);
@@ -17,7 +18,7 @@ const bin = join(root, "out", binFolder, binName);
 // const bin = '/home/quentin/Projects/pipelab-monorepo/out/@pipelab-app-win32-x64/@pipelab-app.exe'
 console.log("bin", bin);
 
-const fixtures = join(root, "tests/e2e/fixtures");
+const fixtures = fixturesPath;
 
 console.log("fixtures", fixtures);
 console.log("tmpLogFile", tmpLogFile);

@@ -19,8 +19,6 @@
     "dev": "pnpx cross-env NODE_OPTIONS=--enable-source-maps pnpm start",
     "test:unit": "vitest run -c vitest.config.mts",
     "test:unit:watch": "vitest watch -c vitest.config.mts",
-    "test:e2e:raw": "vitest run -c tests/e2e/vitest.config.mts",
-    "test:e2e:local": "pnpm package && pnpm test:e2e:raw",
     "test:e2e:pw": "echo 1",
     "build": "echo 'Desktop app is built via electron-forge (use pnpm package or pnpm make)'",
     "package": "electron-forge package",

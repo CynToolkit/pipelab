@@ -6,6 +6,8 @@
     "dev": "turbo dev",
     "lint": "turbo lint",
     "test": "turbo test",
+    "test:e2e:raw": "pnpm --filter @pipelab/cli test:e2e:raw",
+    "test:e2e": "pnpm --filter @pipelab/cli test:e2e",
     "typecheck": "turbo typecheck",
     "format": "oxfmt .",
     "changeset": "changeset"
@@ -13,12 +15,15 @@
   "devDependencies": {
     "@changesets/cli": "^2.27.11",
     "@pipelab/tsconfig": "workspace:*",
-    "@types/node": "^20.11.1",
+    "@types/node": "22.7.9",
     "@types/tar": "^6.1.13",
+    "execa": "9.5.1",
+    "nanoid": "5.0.8",
     "oxfmt": "0.40.0",
     "oxlint": "1.55.0",
     "turbo": "^2.8.15",
-    "typescript": "5.9.3"
+    "typescript": "5.9.3",
+    "vitest": "3.1.4"
   },
   "resolutions": {
     "@codemirror/state": "6.4.1",
