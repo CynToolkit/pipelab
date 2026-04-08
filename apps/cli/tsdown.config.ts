@@ -25,7 +25,6 @@ export default defineConfig({
     electron: resolve(import.meta.dirname, "assets/shims/electron.ts"),
   },
   define: {
-    "import.meta": "{}",
     __SUPABASE_URL__: JSON.stringify(env.SUPABASE_URL),
     __SUPABASE_ANON_KEY__: JSON.stringify(env.SUPABASE_ANON_KEY),
   },

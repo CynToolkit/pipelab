@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import cac from "cac";
-import { WebSocketServer, setAssetsPath, assetsPath } from "@pipelab/core-node";
+import { WebSocketServer, setAssetsPath, assetsPath, isDev } from "@pipelab/core-node";
 import { registerAllHandlers } from "@pipelab/core-node";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
@@ -8,7 +8,10 @@ import http from "http";
 import handler from "serve-handler";
 import type { AppConfig } from "@pipelab/shared";
 
+console.log('cwd', process.cwd());
+console.log('import.meta.url', import.meta.url);
 const __dirname = dirname(fileURLToPath(import.meta.url));
+console.log('__dirname', __dirname);
 setAssetsPath(join(__dirname, "..", "assets"));
 
 const cli = cac("pipelab");
