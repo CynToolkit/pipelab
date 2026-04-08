@@ -55,7 +55,7 @@ describe("End-to-End: Multi-Plugin Integration Test", () => {
             projectName: "Integration E2E Test"
         };
 
-        const resultJson = await runPipeline(pipeline, sandbox.path, { userData: sandbox.path });
+        const resultJson = await runPipeline(pipeline, sandbox.path);
 
         // Verification
         expect(resultJson.steps["copy-to-staging"]).toBeDefined();

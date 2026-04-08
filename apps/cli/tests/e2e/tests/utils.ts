@@ -63,9 +63,8 @@ export const runPipeline = async (
         resultFile,
     ];
 
-    if (options.userData) {
-        args.push("--user-data", options.userData);
-    }
+    const userData = options.userData || sandboxPath;
+    args.push("--user-data", userData);
 
     await runWithLiveLogs(
         tsxBinary,

@@ -38,8 +38,7 @@ describe("End-to-End: Electron Plugin", () => {
             projectName: "Electron E2E Test"
         };
 
-        // 3. Run the pipeline
-        const resultJson = await runPipeline(pipeline, sandbox.path, { userData: sandbox.path });
+        const resultJson = await runPipeline(pipeline, sandbox.path);
 
         // 4. Verification
         expect(resultJson.steps["electron-node"]).toBeDefined();
