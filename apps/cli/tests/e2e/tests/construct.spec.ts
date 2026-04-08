@@ -25,10 +25,14 @@ const runPipeline = async (pipeline: object, sandboxPath: string) => {
             resultFile
         ],
         {
-            cwd: projectRoot,
+            cwd: sandboxPath,
             env: { ...process.env }
         },
-        console.log
+        console.log,
+        {
+            onStdout: (data) => console.log('stdout', data.toString()),
+            onStderr: (data) => console.log('stderr', data.toString()),
+        }
     );
 
     return JSON.parse(await readFile(resultFile, "utf-8"));
@@ -57,6 +61,15 @@ describe("End-to-End: Construct 3 Export Pipeline", () => {
         // is self-contained or its inputs are relative to the project root.
         const fixtures = fixturesPath;
         const jsonProject = JSON.parse(await readFile(join(fixtures, "c3-export.json"), "utf-8"));
+
+        // Adjust the path in the fixture to be absolute for the test environment
+        const testC3pPath = resolve(fixtures, "c3-export/test.c3p");
+        if (jsonProject.canvas?.blocks?.[0]?.params?.file) {
+            jsonProject.canvas.blocks[0].params.file.value = JSON.stringify(testC3pPath);
+        }
+
+        // Set the projectPath to sandboxPath to ensure outputs go there
+        jsonProject.projectPath = sandboxPath;
 
         // The pipeline likely uses relative paths, so we'll run it from a temp dir
         // and adjust paths if needed. For now, we assume it's runnable as is.

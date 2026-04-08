@@ -30,8 +30,8 @@ cli
         response.writeHead(200, { "Content-Type": "text/plain" });
         response.end(
           "Pipelab CLI Server (Development Mode)\n" +
-            "WebSocket API is active.\n" +
-            "UI is NOT served by this server in dev mode. Please run 'pnpm dev' in apps/ui.",
+          "WebSocket API is active.\n" +
+          "UI is NOT served by this server in dev mode. Please run 'pnpm dev' in apps/ui.",
         );
         return;
       }
@@ -41,7 +41,7 @@ cli
         response.writeHead(404, { "Content-Type": "text/plain" });
         response.end(
           `Error: UI directory not found at ${uiPath}.\n` +
-            "Please run 'pnpm build' in apps/ui to generate the distribution.",
+          "Please run 'pnpm build' in apps/ui to generate the distribution.",
         );
         return;
       }
@@ -83,14 +83,35 @@ cli
     const pipelineContent = await readFile(pipelinePath, "utf-8");
     const pipeline = JSON.parse(pipelineContent);
 
-    const { graph, variables: pipelineVariables, projectName, projectPath, pipelineId } = pipeline;
+    let finalPipeline = pipeline;
+    if (pipeline.version) {
+      const { savedFileMigrator } = await import("@pipelab/shared");
+      finalPipeline = await savedFileMigrator.migrate(pipeline);
+    }
 
-    let vars = pipelineVariables || [];
+    const {
+      graph: rawGraph,
+      variables: pipelineVariables,
+      projectName,
+      projectPath,
+      pipelineId,
+      canvas,
+      name,
+    } = finalPipeline;
+
+    const graph = rawGraph || canvas?.blocks;
+
+    if (!graph) {
+      console.error("Error: Pipeline does not contain a valid graph or canvas.blocks");
+      process.exit(1);
+    }
+
+    let vars = pipelineVariables || finalPipeline.variables || [];
     if (options.variables) {
       vars = JSON.parse(options.variables);
     }
 
-    const effectiveProjectName = projectName || "CLI Run";
+    const effectiveProjectName = projectName || name || "CLI Run";
     const effectiveProjectPath = projectPath || process.cwd();
     const effectivePipelineId = pipelineId || "cli-run";
 
@@ -126,7 +147,7 @@ cli
       });
 
       console.log(`Pipeline execution finished. Build ID: ${buildId}`);
-      console.log("Result:", JSON.stringify(result, null, 2));
+      // console.log("Result:", JSON.stringify(result, null, 2));
 
       if (options.output) {
         const outputPath = isAbsolute(options.output)
