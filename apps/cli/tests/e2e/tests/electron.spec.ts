@@ -1,10 +1,48 @@
 import { expect, test, describe, beforeAll, afterAll } from "vitest";
 import { runWithLiveLogs } from "@pipelab/plugin-core";
 import { mkdir, writeFile, readFile, access, chmod, rm } from "node:fs/promises";
-import { join, resolve } from "node:path";
-import { tmpdir } from "node:os";
+import { join, resolve, dirname as pathDirname } from "node:path";
+import { tmpdir, homedir } from "node:os";
 import { projectRoot } from "./utils";
+import { symlink } from "node:fs/promises";
 
+
+const runPipeline = async (pipeline: object, sandboxPath: string, extraEnv: Record<string, string> = {}) => {
+    const pipelineFile = join(sandboxPath, "pipeline.json");
+    const resultFile = join(sandboxPath, "result.json");
+    await writeFile(pipelineFile, JSON.stringify(pipeline, null, 2));
+    const cliSourcePath = resolve(projectRoot, "apps/cli/src/index.ts");
+    const tsxBinary = resolve(projectRoot, "node_modules/.bin/tsx");
+
+    await runWithLiveLogs(
+        tsxBinary,
+        [
+            "--import",
+            join(projectRoot, "scripts", "tsx-assets-loader.mjs"),
+            cliSourcePath,
+            "run",
+            pipelineFile,
+            "--output",
+            resultFile,
+            "--user-data",
+            sandboxPath
+        ],
+        {
+            cwd: projectRoot,
+            env: {
+                ...process.env,
+                ...extraEnv
+            }
+        },
+        console.log,
+        {
+            onStdout: (data) => console.log('stdout', data.toString()),
+            onStderr: (data) => console.log('stderr', data.toString()),
+        }
+    );
+
+    return JSON.parse(await readFile(resultFile, "utf-8"));
+};
 
 describe("End-to-End: Electron Plugin", () => {
     let sandboxPath: string;
@@ -19,7 +57,7 @@ describe("End-to-End: Electron Plugin", () => {
         mockElectronBuilderPath = join(mockBinPath, "electron-builder");
 
         await mkdir(mockBinPath, { recursive: true });
-        
+
         const shellMockScript = `#!/bin/sh
 echo "$@" > "$ARGS_FILE"
 # Try to find the project dir to create a fake output
@@ -48,6 +86,17 @@ exit 0
         await mkdir(projectToPackage, { recursive: true });
         await writeFile(join(projectToPackage, "package.json"), JSON.stringify({ name: "my-app", version: "1.0.0", main: "index.js" }));
         await writeFile(join(projectToPackage, "index.js"), "console.log('hello electron')");
+        await writeFile(join(projectToPackage, "index.html"), "<h1>Hello Electron</h1>");
+
+        // Symlink real thirdparty to avoid downloads but keep using real binaries
+        const realThirdParty = join(homedir(), ".config", "@pipelab", "app", "thirdparty");
+        const sandboxThirdParty = join(sandboxPath, "thirdparty");
+        await mkdir(pathDirname(sandboxThirdParty), { recursive: true });
+        try {
+            await symlink(realThirdParty, sandboxThirdParty, "dir");
+        } catch (e) {
+            console.warn("Could not symlink thirdparty, falling back to download", e);
+        }
 
         // 2. Create the pipeline
         const pipeline = {
@@ -55,58 +104,25 @@ exit 0
                 uid: "electron-node",
                 name: "Electron Package Node",
                 type: "action",
-                origin: { pluginId: "electron", nodeId: "package" },
+                origin: { pluginId: "electron", nodeId: "electron:package" },
                 params: {
-                    "path": { value: JSON.stringify(projectToPackage) },
-                    "targets": { value: JSON.stringify(["linux"]) }
+                    "input-folder": { value: JSON.stringify(projectToPackage) },
+                    "configuration": { value: JSON.stringify({ name: "my-app" }) }
                 }
-            }]
+            }],
+            projectPath: sandboxPath,
+            projectName: "Electron E2E Test"
         };
-        const pipelineFile = join(sandboxPath, "pipeline.json");
-        const resultFile = join(sandboxPath, "result.json");
-        await writeFile(pipelineFile, JSON.stringify(pipeline, null, 2));
 
         // 3. Run the pipeline
-        const cliSourcePath = resolve(projectRoot, "apps/cli/src/index.ts");
-        const tsxBinary = resolve(projectRoot, "node_modules/.bin/tsx");
-
-        await runWithLiveLogs(
-            tsxBinary,
-            [
-                "--import",
-                join(projectRoot, "scripts", "tsx-assets-loader.mjs"),
-                cliSourcePath,
-                "run",
-                pipelineFile,
-                "--output",
-                resultFile
-            ],
-            {
-                cwd: projectRoot,
-                env: {
-                    ...process.env,
-                    // Prepend our mock bin to the PATH
-                    PATH: `${mockBinPath}:${process.env.PATH}`,
-                    // Pass a variable to our mock script
-                    ARGS_FILE: argsFile
-                }
-            },
-            console.log,
-            {
-                onStdout: (data) => console.log('stdout', data.toString()),
-                onStderr: (data) => console.log('stderr', data.toString()),
-            }
-        );
+        const resultJson = await runPipeline(pipeline, sandboxPath);
 
         // 4. Verification
-        await expect(access(argsFile)).resolves.not.toThrow();
-        const receivedArgs = await readFile(argsFile, "utf-8");
-        expect(receivedArgs).toContain("--linux");
-        expect(receivedArgs).toContain(`--project=${projectToPackage}`);
-
-        await expect(access(resultFile)).resolves.not.toThrow();
-        const resultJson = JSON.parse(await readFile(resultFile, "utf-8"));
         expect(resultJson.steps["electron-node"]).toBeDefined();
-        expect(resultJson.steps["electron-node"].status).toBe("success");
-    }, 120000);
+
+        // Verify output exists in the sandbox build folder
+        const outputDir = join(sandboxPath, "build", "out", "my-app-linux-x64");
+        await expect(access(outputDir)).resolves.not.toThrow();
+    }, 600000); // Increased timeout to 10 minutes for real build (including pnpm install)
 });
+

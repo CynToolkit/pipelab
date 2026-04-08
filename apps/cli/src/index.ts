@@ -2,10 +2,14 @@
 import cac from "cac";
 import { WebSocketServer, setAssetsPath, assetsPath } from "@pipelab/core-node";
 import { registerAllHandlers } from "@pipelab/core-node";
-import { join } from "path";
+import { join, dirname } from "path";
+import { fileURLToPath } from "url";
 import http from "http";
 import handler from "serve-handler";
 import type { AppConfig } from "@pipelab/shared";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+setAssetsPath(join(__dirname, "..", "assets"));
 
 const cli = cac("pipelab");
 
@@ -14,14 +18,10 @@ cli
   .option("-p, --port <port>", "Port to listen on", { default: 33753 })
   .option("--user-data <path>", "Custom user data path")
   .action(async (options) => {
-    const isDev = process.env.NODE_ENV === "development";
-    // In dev, assets are in ../assets relative to dist/index.js
-    // In pkg, they are also in ../assets relative to the bundled dist/index.js
-    const _assetsPath = assetsPath;
-    const uiPath = join(_assetsPath, "ui");
+    const uiPath = join(assetsPath, "ui");
 
     // Setup minimal context for headless mode
-    setAssetsPath(_assetsPath);
+    // setAssetsPath already called at top level
 
     console.log("isDev", isDev);
 
