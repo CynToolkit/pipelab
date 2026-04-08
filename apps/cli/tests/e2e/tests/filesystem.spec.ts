@@ -1,55 +1,18 @@
 import { expect, test, describe, beforeAll, afterAll } from "vitest";
-import { runWithLiveLogs } from "@pipelab/plugin-core";
-import { mkdir, writeFile, readFile, access, rm } from "node:fs/promises";
-import { join, resolve } from "node:path";
-import { tmpdir } from "node:os";
-import { projectRoot } from "./utils";
-
-
-const runPipeline = async (pipeline: object, sandboxPath: string) => {
-    const pipelineFile = join(sandboxPath, "pipeline.json");
-    const resultFile = join(sandboxPath, "result.json");
-    await writeFile(pipelineFile, JSON.stringify(pipeline, null, 2));
-    const cliSourcePath = resolve(projectRoot, "apps/cli/src/index.ts");
-    const tsxBinary = resolve(projectRoot, "node_modules/.bin/tsx");
-
-    await runWithLiveLogs(
-        tsxBinary,
-        [
-            "--import",
-            join(projectRoot, "scripts", "tsx-assets-loader.mjs"),
-            cliSourcePath,
-            "run",
-            pipelineFile,
-            "--output",
-            resultFile
-        ],
-        {
-            cwd: projectRoot,
-            env: { ...process.env }
-        },
-        console.log,
-        {
-            onStdout: (data) => console.log('stdout', data.toString()),
-            onStderr: (data) => console.log('stderr', data.toString()),
-        }
-    );
-
-    return JSON.parse(await readFile(resultFile, "utf-8"));
-};
+import { mkdir, writeFile, readFile, access } from "node:fs/promises";
+import { join } from "node:path";
+import { generateSandboxPath, setupSandbox, cleanupSandbox, runPipeline } from "./utils";
 
 describe("End-to-End: Filesystem Plugin", () => {
     let sandboxPath: string;
 
     beforeAll(async () => {
-        const sandboxId = `fs-e2e-${Math.random().toString(36).substring(7)}`;
-        sandboxPath = join(tmpdir(), sandboxId);
+        sandboxPath = generateSandboxPath("fs-e2e");
+        await setupSandbox(sandboxPath);
     });
 
     afterAll(async () => {
-        if (sandboxPath) {
-            await rm(sandboxPath, { recursive: true, force: true });
-        }
+        await cleanupSandbox(sandboxPath);
     });
 
     test("should copy a file using 'copy' node", { timeout: 60000 }, async () => {
@@ -81,8 +44,6 @@ describe("End-to-End: Filesystem Plugin", () => {
 
         const result = await runPipeline(pipeline, testPath);
 
-        console.log("destFile", destFile);
-        console.log("result", result);
         await expect(access(destFile)).resolves.not.toThrow();
         const content = await readFile(destFile, "utf-8");
         expect(content).toBe("Hello World");

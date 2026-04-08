@@ -1,69 +1,18 @@
 import { expect, test, describe, beforeAll, afterAll } from "vitest";
-import { runWithLiveLogs } from "@pipelab/plugin-core";
-import { mkdir, writeFile, readFile, access, rm, symlink } from "node:fs/promises";
-import { join, resolve, dirname as pathDirname } from "node:path";
-import { tmpdir, homedir } from "node:os";
-import { projectRoot } from "./utils";
-
-const runPipeline = async (pipeline: object, sandboxPath: string, extraEnv: Record<string, string> = {}) => {
-    const pipelineFile = join(sandboxPath, "pipeline.json");
-    const resultFile = join(sandboxPath, "result.json");
-    await writeFile(pipelineFile, JSON.stringify(pipeline, null, 2));
-    const cliSourcePath = resolve(projectRoot, "apps/cli/src/index.ts");
-    const tsxBinary = resolve(projectRoot, "node_modules/.bin/tsx");
-
-    await runWithLiveLogs(
-        tsxBinary,
-        [
-            "--import",
-            join(projectRoot, "scripts", "tsx-assets-loader.mjs"),
-            cliSourcePath,
-            "run",
-            pipelineFile,
-            "--output",
-            resultFile,
-            "--user-data",
-            sandboxPath
-        ],
-        {
-            cwd: projectRoot,
-            env: {
-                ...process.env,
-                ...extraEnv
-            }
-        },
-        console.log,
-        {
-            onStdout: (data) => console.log('stdout', data.toString()),
-            onStderr: (data) => console.log('stderr', data.toString()),
-        }
-    );
-
-    return JSON.parse(await readFile(resultFile, "utf-8"));
-};
+import { mkdir, writeFile, access } from "node:fs/promises";
+import { join } from "node:path";
+import { generateSandboxPath, setupSandbox, cleanupSandbox, runPipeline } from "./utils";
 
 describe("End-to-End: Multi-Plugin Integration Test", () => {
     let sandboxPath: string;
 
     beforeAll(async () => {
-        sandboxPath = join(tmpdir(), `integration-e2e-${Math.random().toString(36).substring(7)}`);
-        await mkdir(sandboxPath, { recursive: true });
-
-        // Symlink real thirdparty to avoid downloads but keep using real binaries
-        const realThirdParty = join(homedir(), ".config", "@pipelab", "app", "thirdparty");
-        const sandboxThirdParty = join(sandboxPath, "thirdparty");
-        await mkdir(pathDirname(sandboxThirdParty), { recursive: true });
-        try {
-            await symlink(realThirdParty, sandboxThirdParty, "dir");
-        } catch (e) {
-            console.warn("Could not symlink thirdparty, falling back to download", e);
-        }
+        sandboxPath = generateSandboxPath("integration-e2e");
+        await setupSandbox(sandboxPath, { symlinkThirdParty: true });
     });
 
     afterAll(async () => {
-        if (sandboxPath) {
-            await rm(sandboxPath, { recursive: true, force: true });
-        }
+        await cleanupSandbox(sandboxPath);
     });
 
     test("should run a pipeline with filesystem and electron nodes", async () => {
@@ -107,7 +56,7 @@ describe("End-to-End: Multi-Plugin Integration Test", () => {
             projectName: "Integration E2E Test"
         };
 
-        const resultJson = await runPipeline(pipeline, sandboxPath);
+        const resultJson = await runPipeline(pipeline, sandboxPath, { userData: sandboxPath });
 
         // Verification
         expect(resultJson.steps["copy-to-staging"]).toBeDefined();
