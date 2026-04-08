@@ -1,22 +1,21 @@
 import { expect, test, describe, beforeAll, afterAll } from "vitest";
 import { mkdir, writeFile, readFile, access } from "node:fs/promises";
 import { join } from "node:path";
-import { generateSandboxPath, setupSandbox, cleanupSandbox, runPipeline } from "./utils";
+import { createSandbox, runPipeline } from "./utils";
 
 describe("End-to-End: Filesystem Plugin", () => {
-    let sandboxPath: string;
+    let sandbox: Awaited<ReturnType<typeof createSandbox>>;
 
     beforeAll(async () => {
-        sandboxPath = generateSandboxPath("fs-e2e");
-        await setupSandbox(sandboxPath);
+        sandbox = await createSandbox("fs-e2e");
     });
 
     afterAll(async () => {
-        await cleanupSandbox(sandboxPath);
+        await sandbox.remove();
     });
 
     test("should copy a file using 'copy' node", { timeout: 60000 }, async () => {
-        const testPath = join(sandboxPath, 'copy');
+        const testPath = join(sandbox.path, 'copy');
         const sourcePath = join(testPath, "source");
         const destPath = join(testPath, "destination");
         await mkdir(sourcePath, { recursive: true });
@@ -50,7 +49,7 @@ describe("End-to-End: Filesystem Plugin", () => {
     });
 
     test("should move a file using 'move' node", { timeout: 60000 }, async () => {
-        const testPath = join(sandboxPath, 'move');
+        const testPath = join(sandbox.path, 'move');
         const sourcePath = join(testPath, "source");
         const destPath = join(testPath, "destination");
         await mkdir(sourcePath, { recursive: true });
@@ -95,7 +94,7 @@ describe("End-to-End: Filesystem Plugin", () => {
     });
 
     test("should delete a file using 'delete' node", { timeout: 60000 }, async () => {
-        const testPath = join(sandboxPath, 'delete');
+        const testPath = join(sandbox.path, 'delete');
         await mkdir(testPath, { recursive: true });
         const fileToDelete = join(testPath, "file_to_delete.txt");
         await writeFile(fileToDelete, "Delete me");

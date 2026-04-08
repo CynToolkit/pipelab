@@ -1,18 +1,17 @@
 import { expect, test, describe, beforeAll, afterAll } from "vitest";
 import { readFile, access } from "node:fs/promises";
 import { join, resolve } from "node:path";
-import { fixturesPath, generateSandboxPath, setupSandbox, cleanupSandbox, runPipeline } from "./utils";
+import { fixturesPath, createSandbox, runPipeline } from "./utils";
 
 describe("End-to-End: Construct 3 Export Pipeline", () => {
-    let sandboxPath: string;
+    let sandbox: Awaited<ReturnType<typeof createSandbox>>;
 
     beforeAll(async () => {
-        sandboxPath = generateSandboxPath("c3-pipeline-e2e");
-        await setupSandbox(sandboxPath);
+        sandbox = await createSandbox("c3-pipeline-e2e");
     });
 
     afterAll(async () => {
-        await cleanupSandbox(sandboxPath);
+        await sandbox.remove();
     });
 
     test("should run the full C3 export pipeline", async () => {
@@ -26,9 +25,9 @@ describe("End-to-End: Construct 3 Export Pipeline", () => {
         }
 
         // Set the projectPath to sandboxPath to ensure outputs go there
-        jsonProject.projectPath = sandboxPath;
+        jsonProject.projectPath = sandbox.path;
 
-        const result = await runPipeline(jsonProject, sandboxPath, { cwd: sandboxPath });
+        const result = await runPipeline(jsonProject, sandbox.path, { cwd: sandbox.path });
 
         // Verification
         expect(result.steps).toBeDefined();

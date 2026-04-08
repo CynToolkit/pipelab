@@ -1,23 +1,22 @@
 import { expect, test, describe, beforeAll, afterAll } from "vitest";
 import { mkdir, writeFile, access } from "node:fs/promises";
 import { join } from "node:path";
-import { generateSandboxPath, setupSandbox, cleanupSandbox, runPipeline } from "./utils";
+import { createSandbox, runPipeline } from "./utils";
 
 describe("End-to-End: Multi-Plugin Integration Test", () => {
-    let sandboxPath: string;
+    let sandbox: Awaited<ReturnType<typeof createSandbox>>;
 
     beforeAll(async () => {
-        sandboxPath = generateSandboxPath("integration-e2e");
-        await setupSandbox(sandboxPath, { symlinkThirdParty: true });
+        sandbox = await createSandbox("integration-e2e");
     });
 
     afterAll(async () => {
-        await cleanupSandbox(sandboxPath);
+        await sandbox.remove();
     });
 
     test("should run a pipeline with filesystem and electron nodes", async () => {
-        const projectSourcePath = join(sandboxPath, "my-app-source");
-        const projectStagingPath = join(sandboxPath, "my-app-staging");
+        const projectSourcePath = join(sandbox.path, "my-app-source");
+        const projectStagingPath = join(sandbox.path, "my-app-staging");
         await mkdir(projectSourcePath, { recursive: true });
 
         // Create initial source files
@@ -52,18 +51,18 @@ describe("End-to-End: Multi-Plugin Integration Test", () => {
                     dependsOn: ["copy-to-staging"]
                 }
             ],
-            projectPath: sandboxPath,
+            projectPath: sandbox.path,
             projectName: "Integration E2E Test"
         };
 
-        const resultJson = await runPipeline(pipeline, sandboxPath, { userData: sandboxPath });
+        const resultJson = await runPipeline(pipeline, sandbox.path, { userData: sandbox.path });
 
         // Verification
         expect(resultJson.steps["copy-to-staging"]).toBeDefined();
         expect(resultJson.steps["package-electron-app"]).toBeDefined();
 
         // Verify output exists in the sandbox build folder (relative to staging path)
-        const outputDir = join(sandboxPath, "build", "out", "my-app-linux-x64");
+        const outputDir = join(sandbox.path, "build", "out", "my-app-linux-x64");
         await expect(access(outputDir)).resolves.not.toThrow();
     }, 600000); // 10 minutes timeout for real build
 });

@@ -18,41 +18,21 @@ export const projectRoot = resolve(__dirname, "../../../../../");
 export const fixturesPath = resolve(__dirname, "../fixtures");
 
 /**
- * Generates a unique sandbox path in the OS temp directory.
+ * Creates a unique sandbox directory and returns a bundle containing its path
+ * and a pre-filled remove utility.
  */
-export const generateSandboxPath = (prefix: string) => {
-    return join(tmpdir(), `${prefix}-${Math.random().toString(36).substring(7)}`);
-};
-
-/**
- * Sets up a sandbox directory, optionally symlinking the thirdparty directory
- * to avoid downloading binaries repeatedly during tests.
- */
-export const setupSandbox = async (sandboxPath: string, options: { symlinkThirdParty?: boolean } = {}) => {
+export const createSandbox = async (prefix: string) => {
+    const sandboxPath = join(tmpdir(), `${prefix}-${Math.random().toString(36).substring(7)}`);
     await mkdir(sandboxPath, { recursive: true });
-
-    if (options.symlinkThirdParty) {
-        const realThirdParty = join(homedir(), ".config", "@pipelab", "app", "thirdparty");
-        const sandboxThirdParty = join(sandboxPath, "thirdparty");
-        const sandboxThirdPartyParent = dirname(sandboxThirdParty);
-        
-        await mkdir(sandboxThirdPartyParent, { recursive: true });
-        try {
-            await symlink(realThirdParty, sandboxThirdParty, "dir");
-        } catch (e) {
-            console.warn(`Could not symlink thirdparty to ${sandboxThirdParty}, falling back to download`, e);
+    
+    return {
+        path: sandboxPath,
+        remove: async () => {
+            await rm(sandboxPath, { recursive: true, force: true });
         }
-    }
+    };
 };
 
-/**
- * Cleans up a sandbox directory.
- */
-export const cleanupSandbox = async (sandboxPath: string) => {
-    if (sandboxPath) {
-        await rm(sandboxPath, { recursive: true, force: true });
-    }
-};
 
 /**
  * Runs a Pipelab pipeline using the CLI.
