@@ -270,7 +270,20 @@
 <script setup lang="ts">
 import { ref, computed, inject } from "vue";
 import { useAuth } from "@renderer/store/auth";
-import { MenuItem } from "primevue/menuitem";
+interface MenuItem {
+  label?: string;
+  icon?: string;
+  command?: (event: any) => void;
+  url?: string;
+  items?: MenuItem[];
+  disabled?: boolean;
+  visible?: boolean;
+  target?: string;
+  separator?: boolean;
+  style?: any;
+  class?: any;
+  key?: string;
+}
 import { useLogger } from "@pipelab/shared";
 import Settings from "@renderer/components/Settings.vue";
 import UpgradeNowButton from "@renderer/components/UpgradeNowButton.vue";

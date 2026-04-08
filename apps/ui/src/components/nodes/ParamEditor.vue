@@ -187,7 +187,7 @@
 <script setup lang="ts">
 import { computed, ref, toRefs, watch } from "vue";
 import type { ValueOf } from "type-fest";
-import { Action, Condition, Event } from "@pipelab/plugin-core";
+import { Action, Condition, Event } from "@pipelab/shared";
 import { createCodeEditor } from "@renderer/utils/code-editor";
 import { CreateQuickJSFn } from "@pipelab/shared";
 import { BlockAction, BlockCondition, BlockEvent, BlockLoop, Steps } from "@pipelab/shared";

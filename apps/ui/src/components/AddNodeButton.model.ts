@@ -1,4 +1,4 @@
-import { PipelabNode, Event, RendererPluginDefinition } from "@pipelab/plugin-core";
+import { PipelabNode, Event, RendererPluginDefinition } from "@pipelab/shared";
 
 export interface AddNodeEvent {
   node: PipelabNode;

@@ -9,7 +9,7 @@
 </template>
 
 <script lang="ts" setup>
-import { IconType } from "@pipelab/plugin-core";
+import { IconType } from "@pipelab/shared";
 import { PropType } from "vue";
 
 defineProps({

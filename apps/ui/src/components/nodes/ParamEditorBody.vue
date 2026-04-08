@@ -125,7 +125,7 @@
 </template>
 
 <script lang="ts" setup>
-import { Action, Condition, Event } from "@pipelab/plugin-core";
+import { Action, Condition, Event } from "@pipelab/shared";
 import type { ValueOf } from "type-fest";
 import { computed, PropType, toRefs, ref, onMounted } from "vue";
 import { useAPI } from "@renderer/composables/api";

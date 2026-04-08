@@ -64,7 +64,7 @@ import { PropType, computed, ref, toRefs } from "vue";
 import { computedAsync } from "@vueuse/core";
 import { makeResolvedParams } from "@pipelab/shared";
 import ParamEditor from "./ParamEditor.vue";
-import { Event } from "@pipelab/plugin-core";
+import { Event } from "@pipelab/shared";
 import DOMPurify from "dompurify";
 import PluginIcon from "./PluginIcon.vue";
 import { ValidationError } from "@renderer/models/error";

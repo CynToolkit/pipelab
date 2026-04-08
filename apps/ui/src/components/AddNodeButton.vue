@@ -127,7 +127,7 @@ import { storeToRefs } from "pinia";
 import Button from "primevue/button";
 import InputText from "primevue/inputtext";
 import { useAppStore } from "@renderer/store/app";
-import { PipelabNode, RendererNodeDefinition } from "@pipelab/plugin-core";
+import { PipelabNode, RendererNodeDefinition } from "@pipelab/shared";
 import { useLogger } from "@pipelab/shared";
 import PluginIcon from "./nodes/PluginIcon.vue";
 

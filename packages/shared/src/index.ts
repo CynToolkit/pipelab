@@ -56,3 +56,4 @@ export * from "./variables";
 export * from "./websocket.types";
 export * from "./config";
 export * from "./node-utils";
+export * from "./plugins/definitions";

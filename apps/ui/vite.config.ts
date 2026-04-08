@@ -48,7 +48,6 @@ export default defineConfig(({ mode }) => {
       alias: {
         "@renderer": resolve(__dirname, "src"),
         "@pipelab/shared": resolve(__dirname, "../../packages/shared/src"),
-        "@pipelab/plugin-core": resolve(__dirname, "../../packages/plugin-core/src"),
         "@pipelab/constants": resolve(__dirname, "../../packages/constants/src/index.ts"),
         "@pipelab/ui": resolve(__dirname, "src/main.ts"),
         "@pipelab/core-node": resolve(__dirname, "../../packages/core-node/src"),

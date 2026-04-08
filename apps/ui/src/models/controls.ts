@@ -1,4 +1,4 @@
-import { ControlType } from "@pipelab/plugin-core";
+import { ControlType } from "@pipelab/shared";
 import { match } from "ts-pattern";
 
 type PrimitiveConstructor =
