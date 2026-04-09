@@ -1,3 +1,7 @@
+import { join } from "node:path";
+
+export type OutputRuntimes = "construct" | "godot";
+
 const fileExists = async (path: string): Promise<boolean> => {
   try {
     const { access } = await import("fs/promises");
@@ -7,10 +11,6 @@ const fileExists = async (path: string): Promise<boolean> => {
     return false;
   }
 };
-
-import { join } from "node:path";
-
-import { OutputRuntimes } from "./types";
 
 /**
  * Detects the runtime of an app folder by checking for specific files.

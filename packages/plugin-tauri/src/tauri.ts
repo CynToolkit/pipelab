@@ -7,6 +7,7 @@ import {
   createNumberParam,
   createPathParam,
   createStringParam,
+  detectRuntime,
   InputsDefinition,
   OutputsDefinition,
   runWithLiveLogs,
@@ -14,7 +15,6 @@ import {
 import { dirname, join } from "node:path";
 import { existsSync } from "node:fs";
 import { homedir } from "node:os";
-import { detectRuntime } from "@pipelab/shared";
 
 /**
  * Searches for common cargo paths and resolves to a valid cargo executable path

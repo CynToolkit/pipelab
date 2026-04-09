@@ -3,11 +3,11 @@ import {
   createAction,
   createPathParam,
   createStringParam,
+  detectRuntime,
   InputsDefinition,
   OutputsDefinition,
   runWithLiveLogs,
 } from "@pipelab/plugin-core";
-import { detectRuntime } from "@pipelab/shared";
 import { dirname } from "node:path";
 import { startTunnel } from "untun";
 

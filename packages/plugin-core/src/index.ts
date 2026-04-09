@@ -4,6 +4,7 @@ export * from "./utils.js";
 export * from "./fs-utils.js";
 export * from "./archive-utils.js";
 export * from "./custom-errors.js";
+export * from "./node-utils.js";
 
 export { z as schema } from "zod";
 export type NoData = { [index in string]?: unknown };
