@@ -1,25 +1,26 @@
 import { defineConfig, loadEnv } from "vite";
 import vue from "@vitejs/plugin-vue";
-import tsconfigPaths from "vite-tsconfig-paths";
 import { resolve } from "path";
 import Components from "unplugin-vue-components/vite";
 import { PrimeVueResolver } from "@primevue/auto-import-resolver";
 import AutoImport from "unplugin-auto-import/vite";
+import VueDevTools from "vite-plugin-vue-devtools";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
 
   return {
+    devtools: {
+      enabled: true,
+    },
     server: {
       port: 5173,
       strictPort: true,
     },
     plugins: [
+      VueDevTools(),
       vue(),
-      tsconfigPaths({
-        projects: ["./tsconfig.json"],
-      }),
       Components({
         resolvers: [PrimeVueResolver()],
       }),
@@ -52,6 +53,7 @@ export default defineConfig(({ mode }) => {
       },
     },
     resolve: {
+      tsconfigPaths: true,
       dedupe: [
         "@codemirror/state",
         "@codemirror/view",
