@@ -1,36 +1,31 @@
 <template>
   <div class="app">
-    <DisconnectedPage v-if="isDisconnected" />
-    <div v-else class="layout">
-      <div class="container">
-        <!-- <Menubar :model="items">
-              <template #start>
-                <Skeleton width="10rem" height="4rem"></Skeleton>
-              </template>
-              <template #end>
-                <Avatar label="" size="large" shape="circle" />
-              </template>
-            </Menubar> -->
-        <div class="content">
-          <div class="main">
-            <router-view v-if="!isLoading"></router-view>
-            <div v-else>
-              <SubscriptionLoadingIndicator v-if="isLoading" />
-              <Skeleton v-else width="100%" height="100%"></Skeleton>
+    <transition name="fade" mode="out-in">
+      <ConnectingPage v-if="isConnecting" />
+      <DisconnectedPage v-else-if="isDisconnected" />
+      <div v-else class="layout">
+        <div class="container">
+          <div class="content">
+            <div class="main">
+              <router-view v-if="!isLoading"></router-view>
+              <div v-else>
+                <SubscriptionLoadingIndicator v-if="isLoading" />
+                <Skeleton v-else width="100%" height="100%"></Skeleton>
+              </div>
             </div>
           </div>
-        </div>
 
-        <Dialog
-          v-model:visible="isUpgradeDialogVisible"
-          modal
-          :style="{ width: '50vw' }"
-          :breakpoints="{ '575px': '90vw' }"
-        >
-          <UpgradeDialog @close="closeUpgradeDialog" />
-        </Dialog>
+          <Dialog
+            v-model:visible="isUpgradeDialogVisible"
+            modal
+            :style="{ width: '50vw' }"
+            :breakpoints="{ '575px': '90vw' }"
+          >
+            <UpgradeDialog @close="closeUpgradeDialog" />
+          </Dialog>
+        </div>
       </div>
-    </div>
+    </transition>
     <DevBenefitsOverride v-if="!isDisconnected" />
     <WebFilePicker v-if="!isDisconnected" />
   </div>
@@ -48,6 +43,7 @@ import { storeToRefs } from "pinia";
 import { useAppSettings } from "./store/settings";
 import SubscriptionLoadingIndicator from "./components/SubscriptionLoadingIndicator.vue";
 import DisconnectedPage from "./components/DisconnectedPage.vue";
+import ConnectingPage from "./components/ConnectingPage.vue";
 import UpgradeDialog from "./components/UpgradeDialog.vue";
 import DevBenefitsOverride from "./components/DevBenefitsOverride.vue";
 import WebFilePicker from "./components/WebFilePicker.vue";
@@ -69,9 +65,21 @@ const isLoading = ref(false);
 const isDataLoaded = ref(false);
 const isInitialized = ref(false);
 const isUpgradeDialogVisible = ref(false);
+const minimumLoadingTimeReached = ref(false);
 
 const isDisconnected = computed(
-  () => isInitialized.value && websocketManager.connectionState.value !== "connected",
+  () =>
+    isInitialized.value &&
+    minimumLoadingTimeReached.value &&
+    (websocketManager.connectionState.value === "disconnected" ||
+      websocketManager.connectionState.value === "error"),
+);
+
+const isConnecting = computed(
+  () =>
+    isInitialized.value &&
+    (!minimumLoadingTimeReached.value ||
+      websocketManager.connectionState.value === "connecting"),
 );
 
 const openUpgradeDialog = () => {
@@ -185,6 +193,11 @@ onMounted(async () => {
   await websocketManager.connect();
   isInitialized.value = true;
 
+  // Ensure the connecting page is visible for at least a certain amount of time
+  setTimeout(() => {
+    minimumLoadingTimeReached.value = true;
+  }, 5000);
+
   // Loading state for specific data should be handled by components
 });
 </script>
@@ -269,5 +282,15 @@ onMounted(async () => {
   font-size: 1.2rem;
   margin: 16px;
   text-align: center;
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.8s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 </style>

@@ -22,6 +22,7 @@ declare module 'vue' {
     Column: typeof import('primevue/column')['default']
     ConfirmDialog: typeof import('primevue/confirmdialog')['default']
     ConfirmPopup: typeof import('primevue/confirmpopup')['default']
+    ConnectingPage: typeof import('./src/components/ConnectingPage.vue')['default']
     DataTable: typeof import('primevue/datatable')['default']
     DevBenefitsOverride: typeof import('./src/components/DevBenefitsOverride.vue')['default']
     Dialog: typeof import('primevue/dialog')['default']
