@@ -1,5 +1,6 @@
 import { appSettingsMigrator } from "./settings";
 import { fileRepoMigrations } from "./projects";
+import { savedFileMigrator } from "../model";
 
 export * from "./settings";
 export * from "./projects";
@@ -12,4 +13,5 @@ export interface Migrator<T> {
 export const configRegistry: Record<string, Migrator<any>> = {
   settings: appSettingsMigrator,
   projects: fileRepoMigrations,
+  pipeline: savedFileMigrator,
 };

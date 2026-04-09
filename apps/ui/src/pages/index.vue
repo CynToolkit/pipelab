@@ -432,7 +432,7 @@ console.log("hasSimplePipelines", hasSimplePipelines);
 
 const { createPipeline } = usePipeline();
 
-const shouldMigrate = false; // TODO:
+const shouldMigrate = true; // TODO:
 
 // Icon logic adapted from ScenarioListItem
 function getScenarioIcons(pipeline: EnhancedFile) {

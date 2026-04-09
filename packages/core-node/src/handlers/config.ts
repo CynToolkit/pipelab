@@ -1,6 +1,6 @@
 import { useAPI } from "../ipc-core";
 import { useLogger, configRegistry } from "@pipelab/shared";
-import { setupConfigFile } from "../config";
+import { setupConfigFile, getMigrator } from "../config";
 
 export const registerConfigHandlers = () => {
   const { handle } = useAPI();
@@ -72,7 +72,7 @@ export const registerConfigHandlers = () => {
       const manager = await setupConfigFile(name);
       const currentConfig = await manager.getConfig();
 
-      const migrator = configRegistry[name];
+      const migrator = getMigrator(name);
 
       if (!migrator) {
         throw new Error(`No migrator found for configuration: ${name}`);

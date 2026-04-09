@@ -5,8 +5,20 @@ import fs from "node:fs/promises";
 import { useLogger } from "@pipelab/shared";
 import { configRegistry, Migrator } from "@pipelab/shared";
 
+export const getMigrator = <T>(name: string) => {
+  if (configRegistry[name]) {
+    return configRegistry[name] as Migrator<T>;
+  }
+
+  if (name.startsWith("pipeline-")) {
+    return configRegistry["pipeline"] as Migrator<T>;
+  }
+
+  return undefined;
+};
+
 export const setupConfigFile = async <T>(name: string, customMigrator?: Migrator<T>) => {
-  const migrator = customMigrator || (configRegistry[name] as Migrator<T>);
+  const migrator = customMigrator || getMigrator<T>(name);
 
   if (!migrator) {
     throw new Error(
