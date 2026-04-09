@@ -14,12 +14,14 @@
     "test:e2e:raw": "vitest run -c tests/e2e/vitest.config.mts",
     "test:e2e": "pnpm build && pnpm test:e2e:raw",
     "format": "oxfmt .",
-    "lint": "oxlint ."
+    "lint": "oxlint .",
+    "typecheck": "tsc --noEmit -p tsconfig.json --composite false"
   },
   "dependencies": {
     "cac": "6.7.14",
     "dotenv": "17.4.1",
-    "serve-handler": "6.1.7"
+    "serve-handler": "6.1.7",
+    "@sentry/node": "8.34.0"
   },
   "devDependencies": {
     "@pipelab/constants": "workspace:*",

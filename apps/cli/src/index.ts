@@ -9,8 +9,16 @@ const __dirname = dirname(__filename);
 // Explicitly load .env from the monorepo root
 config({ path: join(__dirname, "../../../.env") });
 
-import cac from "cac";
+import * as Sentry from "@sentry/node";
 import { WebSocketServer, setAssetsPath, assetsPath, isDev } from "@pipelab/core-node";
+
+if (!isDev && process.env.TEST !== "true") {
+  Sentry.init({
+    dsn: "https://757630879674735027fa5700162253f7@o45694.ingest.us.sentry.io/4507621723144192",
+  });
+}
+
+import cac from "cac";
 import { registerAllHandlers } from "@pipelab/core-node";
 import http from "http";
 import handler from "serve-handler";
