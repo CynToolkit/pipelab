@@ -1,62 +1,7 @@
 import { supabase, useLogger, isSupabaseAvailable } from "@pipelab/shared";
 import { useAPI } from "../ipc-core";
-import fs from "node:fs";
-import path from "node:path";
+import { JsonFileStorage } from "../utils/storage";
 import { userDataPath } from "../context";
-
-/**
- * A simple file-based storage implementation for Supabase Auth in Node.js.
- * This ensures that the authentication session persists across CLI restarts.
- */
-class FileStorage {
-  private filePath: string;
-
-  constructor() {
-    this.filePath = path.join(userDataPath, "auth-session.json");
-    const dir = path.dirname(this.filePath);
-    if (!fs.existsSync(dir)) {
-      try {
-        fs.mkdirSync(dir, { recursive: true });
-      } catch (e) {
-        // ignore errors during directory creation
-      }
-    }
-  }
-
-  getItem(key: string): string | null {
-    try {
-      if (!fs.existsSync(this.filePath)) return null;
-      const data = JSON.parse(fs.readFileSync(this.filePath, "utf8"));
-      return data[key] || null;
-    } catch (e) {
-      return null;
-    }
-  }
-
-  setItem(key: string, value: string): void {
-    try {
-      let data: any = {};
-      if (fs.existsSync(this.filePath)) {
-        data = JSON.parse(fs.readFileSync(this.filePath, "utf8"));
-      }
-      data[key] = value;
-      fs.writeFileSync(this.filePath, JSON.stringify(data), "utf8");
-    } catch (e) {
-      // ignore write errors
-    }
-  }
-
-  removeItem(key: string): void {
-    try {
-      if (!fs.existsSync(this.filePath)) return;
-      const data = JSON.parse(fs.readFileSync(this.filePath, "utf8"));
-      delete data[key];
-      fs.writeFileSync(this.filePath, JSON.stringify(data), "utf8");
-    } catch (e) {
-      // ignore delete errors
-    }
-  }
-}
 
 /**
  * Registers authentication handlers for the CLI/system backend.
@@ -73,7 +18,7 @@ export const registerAuthHandlers = () => {
   // Initialize the singleton Supabase client for the backend with the custom FileStorage
   const client = supabase({
     auth: {
-      storage: new FileStorage(),
+      storage: new JsonFileStorage("auth-session.json", userDataPath),
       persistSession: true,
       autoRefreshToken: true,
       detectSessionInUrl: false,
