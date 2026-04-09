@@ -20,6 +20,8 @@ import {
   extractZip,
   zipFolder,
 } from "@pipelab/plugin-core";
+import { setupConfigFile } from "./config";
+import { AppConfig } from "@pipelab/shared";
 
 export const getFinalPlugins = () => {
   const { plugins } = usePlugins();
@@ -199,6 +201,12 @@ export const executeGraphWithHistory = async ({
   await buildHistoryStorage.save(initialEntry);
 
   const logs: any[] = [];
+  const sandboxPath = await generateTempFolder(cachePath);
+  const { logger } = useLogger();
+  logger().info(`[Sandbox] Execution sandbox created at: ${sandboxPath}`);
+  const settingsFile = await setupConfigFile<AppConfig>("settings");
+  const config = await settingsFile.getConfig();
+  const shouldCleanup = config?.clearTemporaryFoldersOnPipelineEnd ?? true;
 
   try {
     const result = await processGraph({
@@ -227,7 +235,7 @@ export const executeGraphWithHistory = async ({
               }
             },
             abortSignal,
-            projectPath,
+            sandboxPath,
             cachePath,
           );
         }
@@ -269,5 +277,13 @@ export const executeGraphWithHistory = async ({
     });
 
     throw error;
+  } finally {
+    if (shouldCleanup) {
+      try {
+        await rm(sandboxPath, { recursive: true, force: true });
+      } catch (e) {
+        console.warn(`Failed to cleanup sandbox at ${sandboxPath}:`, e);
+      }
+    }
   }
 };

@@ -8,7 +8,7 @@ import {
 } from "@pipelab/plugin-core";
 import { usePlugins } from "@pipelab/shared";
 import { isRequired } from "@pipelab/shared";
-import { mkdir } from "node:fs/promises";
+import { mkdir, stat } from "node:fs/promises";
 import { assetsPath, isDev, userDataPath } from "./context";
 import { useLogger } from "@pipelab/shared";
 import { BlockCondition } from "@pipelab/shared";
@@ -76,9 +76,18 @@ export const handleConditionExecute = async (
     };
   }
 
-  await mkdir(cwd, {
-    recursive: true,
-  });
+  try {
+    const s = await stat(cwd);
+    if (!s.isDirectory()) {
+      throw new Error(`Execution directory "${cwd}" exists but is not a directory.`);
+    }
+  } catch (e: any) {
+    if (e.code === "ENOENT") {
+      await mkdir(cwd, { recursive: true });
+    } else {
+      throw e;
+    }
+  }
 
   try {
     checkParams(node.node.params, params);
@@ -156,7 +165,18 @@ export const handleActionExecute = async (
   const api = {};
 
   try {
-    await mkdir(cwd, { recursive: true });
+  try {
+    const s = await stat(cwd);
+    if (!s.isDirectory()) {
+      throw new Error(`Execution directory "${cwd}" exists but is not a directory.`);
+    }
+  } catch (e: any) {
+    if (e.code === "ENOENT") {
+      await mkdir(cwd, { recursive: true });
+    } else {
+      throw e;
+    }
+  }
     checkParams(node.node.params, params);
     const resolvedInputs = params; // await resolveActionInputs(params, node.node, steps)
     logger().info("resolvedInputs", resolvedInputs);
