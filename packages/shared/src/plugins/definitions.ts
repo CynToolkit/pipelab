@@ -34,8 +34,7 @@ export interface ControlTypeInput extends ControlTypeBase {
 
 export interface ControlTypeExpression extends ControlTypeBase {
   type: "expression";
-  options: {
-  };
+  options: {};
 }
 
 export interface ControlTypeNetlifySite extends ControlTypeBase {

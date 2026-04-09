@@ -63,10 +63,10 @@ export const NVPatchRunner = createActionRunner<typeof NVPatch>(
     const isMacOS = process.platform === "darwin";
 
     if (isMacOS) {
-      // macOS: Use arch -x86_64 with dotnet runtime if needed, 
+      // macOS: Use arch -x86_64 with dotnet runtime if needed,
       // but let's try the direct command first as ensureNVPatch should provide a working shim
       log("Using nvpatch from", nvpatchCommand);
-      
+
       // Still need to check dotnet as it's a dependency of the tool
       await checkDotnetVersion("dotnet");
     } else {

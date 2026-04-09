@@ -1,4 +1,4 @@
-import { createMigration, createMigrator, initialVersion, finalVersion, } from "@pipelab/migration";
+import { createMigration, createMigrator, initialVersion, finalVersion } from "@pipelab/migration";
 import { FileRepoV1, FileRepoV2, FileRepo } from "../config/projects";
 
 export const fileRepoMigrator = createMigrator<FileRepoV1, FileRepo>();

@@ -132,8 +132,7 @@ const registerNewVersionAvailableListener = (page: Page, log: typeof console.log
     .catch(async () => {
       log("cancelButton.click() failed");
     });
-}
-
+};
 
 export const script = async (
   page: Page,
@@ -156,7 +155,6 @@ export const script = async (
   // const serviceworker = await serviceWorkerPromise;
   registerWelcomeToConstructListener(page, log);
   registerNewVersionAvailableListener(page, log);
-
 
   log("after event");
 

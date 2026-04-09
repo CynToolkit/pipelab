@@ -1,5 +1,19 @@
 import type { BrowserWindow } from "electron";
-import { Action, Condition, Loop, Expression, Event, SetOutputActionFn, SetOutputLoopFn, SetOutputExpressionFn, ExtractInputsFromAction, ExtractInputsFromCondition, ExtractInputsFromLoop, ExtractInputsFromEvent, ExtractInputsFromExpression } from "@pipelab/shared";
+import {
+  Action,
+  Condition,
+  Loop,
+  Expression,
+  Event,
+  SetOutputActionFn,
+  SetOutputLoopFn,
+  SetOutputExpressionFn,
+  ExtractInputsFromAction,
+  ExtractInputsFromCondition,
+  ExtractInputsFromLoop,
+  ExtractInputsFromEvent,
+  ExtractInputsFromExpression,
+} from "@pipelab/shared";
 
 export * from "@pipelab/shared";
 

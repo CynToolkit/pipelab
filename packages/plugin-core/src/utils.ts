@@ -238,7 +238,9 @@ export const ensureNPMPackage = async (
 
   // 5. Install dependencies if requested
   if (options?.installDeps && options.pnpmPath) {
-    console.log(`Installing dependencies for ${name}@${version} using pnpm at ${options.pnpmPath}...`);
+    console.log(
+      `Installing dependencies for ${name}@${version} using pnpm at ${options.pnpmPath}...`,
+    );
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { execa } = await import("execa");
     // We use the pnpm .cjs bundle directly with node

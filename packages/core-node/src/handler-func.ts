@@ -13,10 +13,7 @@ import { assetsPath, isDev, userDataPath } from "./context";
 import { useLogger } from "@pipelab/shared";
 import { BlockCondition } from "@pipelab/shared";
 import { HandleListenerSendFn } from "./handlers";
-import {
-  ensureNodeJS,
-  ensurePNPM,
-} from "./utils";
+import { ensureNodeJS, ensurePNPM } from "./utils";
 import { generateTempFolder } from "@pipelab/plugin-core";
 import path from "node:path";
 import os from "node:os";
@@ -64,9 +61,9 @@ export const handleConditionExecute = async (
     .find((plugin) => plugin.id === pluginId)
     ?.nodes.find((node: any) => node.node.id === nodeId) as
     | {
-      node: Condition;
-      runner: ConditionRunner<any>;
-    }
+        node: Condition;
+        runner: ConditionRunner<any>;
+      }
     | undefined;
 
   if (!node) {
@@ -144,9 +141,9 @@ export const handleActionExecute = async (
     .find((plugin) => plugin.id === pluginId)
     ?.nodes.find((node: any) => node.node.id === nodeId) as
     | {
-      node: Action;
-      runner: ActionRunner<any>;
-    }
+        node: Action;
+        runner: ActionRunner<any>;
+      }
     | undefined;
 
   if (!node) {
@@ -157,7 +154,6 @@ export const handleActionExecute = async (
     };
   }
 
-
   const nodePath = await ensureNodeJS("24.14.1");
   const pnpm = await ensurePNPM("10.12.0");
 
@@ -165,18 +161,18 @@ export const handleActionExecute = async (
   const api = {};
 
   try {
-  try {
-    const s = await stat(cwd);
-    if (!s.isDirectory()) {
-      throw new Error(`Execution directory "${cwd}" exists but is not a directory.`);
+    try {
+      const s = await stat(cwd);
+      if (!s.isDirectory()) {
+        throw new Error(`Execution directory "${cwd}" exists but is not a directory.`);
+      }
+    } catch (e: any) {
+      if (e.code === "ENOENT") {
+        await mkdir(cwd, { recursive: true });
+      } else {
+        throw e;
+      }
     }
-  } catch (e: any) {
-    if (e.code === "ENOENT") {
-      await mkdir(cwd, { recursive: true });
-    } else {
-      throw e;
-    }
-  }
     checkParams(node.node.params, params);
     const resolvedInputs = params; // await resolveActionInputs(params, node.node, steps)
     logger().info("resolvedInputs", resolvedInputs);

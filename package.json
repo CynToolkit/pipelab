@@ -32,6 +32,9 @@
   },
   "packageManager": "pnpm@10.12.0",
   "pnpm": {
+    "overrides": {
+      "@codemirror/state": "6.4.1"
+    },
     "onlyBuiltDependencies": [
       "@parcel/watcher",
       "@sentry/cli",

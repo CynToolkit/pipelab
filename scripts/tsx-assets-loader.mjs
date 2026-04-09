@@ -1,10 +1,10 @@
-import { createRequire } from 'module';
-import { pathToFileURL } from 'node:url';
+import { createRequire } from "module";
+import { pathToFileURL } from "node:url";
 
 const require = createRequire(import.meta.url);
-const Module = require('node:module');
+const Module = require("node:module");
 
-const assetExtensions = ['.webp', '.png', '.jpg', '.jpeg', '.svg'];
+const assetExtensions = [".webp", ".png", ".jpg", ".jpeg", ".svg"];
 
 /**
  * Handle CJS (require)
@@ -21,9 +21,9 @@ for (const ext of assetExtensions) {
 export async function resolve(specifier, context, nextResolve) {
   if (assetExtensions.some((ext) => specifier.endsWith(ext))) {
     return {
-      format: 'module',
+      format: "module",
       shortCircuit: true,
-      url: specifier.startsWith('file://') ? specifier : new URL(specifier, context.parentURL).href,
+      url: specifier.startsWith("file://") ? specifier : new URL(specifier, context.parentURL).href,
     };
   }
   return nextResolve(specifier, context);
@@ -32,7 +32,7 @@ export async function resolve(specifier, context, nextResolve) {
 export async function load(url, context, nextLoad) {
   if (assetExtensions.some((ext) => url.endsWith(ext))) {
     return {
-      format: 'module',
+      format: "module",
       shortCircuit: true,
       source: `export default ${JSON.stringify(url)};`,
     };

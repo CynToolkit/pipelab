@@ -159,19 +159,10 @@ export type IpcDefinition = {
     ),
   ];
   "auth:getUser": [void, EndEvent<{ user: User | null }>];
-  "auth:signInWithPassword": [
-    { email: string; password: string },
-    EndEvent<UserResponse>,
-  ];
-  "auth:signUp": [
-    { email: string; password: string },
-    EndEvent<UserResponse>,
-  ];
+  "auth:signInWithPassword": [{ email: string; password: string }, EndEvent<UserResponse>];
+  "auth:signUp": [{ email: string; password: string }, EndEvent<UserResponse>];
   "auth:signOut": [void, EndEvent<void>];
-  "auth:resetPasswordForEmail": [
-    { email: string },
-    EndEvent<{ error: any | null }>,
-  ];
+  "auth:resetPasswordForEmail": [{ email: string }, EndEvent<{ error: any | null }>];
   "auth:invoke": [
     { name: string; options?: any },
     EndEvent<{ data: any | null; error: any | null }>,

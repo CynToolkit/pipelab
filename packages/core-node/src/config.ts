@@ -66,10 +66,7 @@ export const setupConfigFile = async <T>(name: string, customMigrator?: Migrator
         // Backup previous file before overwriting
         const parsedPath = path.parse(filesPath);
         const versionSuffix = originalVersion || "unknown";
-        const backupPath = path.join(
-          parsedPath.dir,
-          `${parsedPath.name}.${versionSuffix}.bak`,
-        );
+        const backupPath = path.join(parsedPath.dir, `${parsedPath.name}.${versionSuffix}.bak`);
 
         try {
           await fs.copyFile(filesPath, backupPath);

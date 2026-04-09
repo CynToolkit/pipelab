@@ -23,8 +23,9 @@ const getArg = (name: string): string | undefined => {
  * The path where user data (settings, build history, etc.) is stored.
  * Can be overridden by the --user-data CLI flag.
  */
-export const userDataPath =
-  (getArg("--user-data") ? resolve(getArg("--user-data")!) : join(homedir(), ".config", "@pipelab", isDev ? "app-dev" : "app"));
+export const userDataPath = getArg("--user-data")
+  ? resolve(getArg("--user-data")!)
+  : join(homedir(), ".config", "@pipelab", isDev ? "app-dev" : "app");
 
 /**
  * The path to the assets directory (contains shims, templates, etc.).

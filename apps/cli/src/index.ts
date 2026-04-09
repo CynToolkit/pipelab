@@ -16,9 +16,9 @@ import http from "http";
 import handler from "serve-handler";
 import type { AppConfig } from "@pipelab/shared";
 
-console.log('cwd', process.cwd());
-console.log('import.meta.url', import.meta.url);
-console.log('__dirname', __dirname);
+console.log("cwd", process.cwd());
+console.log("import.meta.url", import.meta.url);
+console.log("__dirname", __dirname);
 setAssetsPath(join(__dirname, "..", "assets"));
 
 const cli = cac("pipelab");
@@ -40,8 +40,8 @@ cli
         response.writeHead(200, { "Content-Type": "text/plain" });
         response.end(
           "Pipelab CLI Server (Development Mode)\n" +
-          "WebSocket API is active.\n" +
-          "UI is NOT served by this server in dev mode. Please run 'pnpm dev' in apps/ui.",
+            "WebSocket API is active.\n" +
+            "UI is NOT served by this server in dev mode. Please run 'pnpm dev' in apps/ui.",
         );
         return;
       }
@@ -51,7 +51,7 @@ cli
         response.writeHead(404, { "Content-Type": "text/plain" });
         response.end(
           `Error: UI directory not found at ${uiPath}.\n` +
-          "Please run 'pnpm build' in apps/ui to generate the distribution.",
+            "Please run 'pnpm build' in apps/ui to generate the distribution.",
         );
         return;
       }

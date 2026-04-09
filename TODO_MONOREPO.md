@@ -7,7 +7,6 @@ The project has undergone a major architectural shift: splitting the monolithic 
 pipielab run, must return the output as json if "--json" otherwise just return 0 if all done or number for error codee
 define a list of error codes
 
-
 ## 🟢 Phase 1: Stabilization (CURRENT PRIORITY)
 
 Goal: Ensure the application remains 100% functional in both development and production environments.
@@ -52,7 +51,6 @@ Goal: Improve build speed, enforce boundaries, and standardize the developer exp
 - [ ] Add `references` arrays to `tsconfig.json` files to reflect the actual dependency graph.
 - [ ] Switch to `tsc --build` for lightning-fast incremental typechecking.
 
-
 ### 4. Quality Gates
 
 - [ ] Implement `syncpack` to keep dependency versions identical across all packages.
@@ -93,6 +91,7 @@ Goal: Modernize internal communication between UI, Core-Node, and Shell.
 Goal: Reach feature parity with the legacy monolithic app and improve core functionality.
 
 ### 1. Core Engine Improvements
+
 - [ ] **Autosave**: Implement automatic pipeline saving.
 - [ ] **Undo/Redo**: Add history support for the node editor.
 - [ ] **Error Handling**: Gracefully handle and display pipeline execution errors in dialogs.
@@ -102,6 +101,7 @@ Goal: Reach feature parity with the legacy monolithic app and improve core funct
 - [ ] **ASAR Handling**: Ensure `process.noAsar = true` is correctly set and handled for cross-app file copies.
 
 ### 2. Node & Plugin Enhancements
+
 - [ ] **Image Optimization**: Integrate `sharp` for lossless compression in relevant nodes.
 - [ ] **Filesystem Expansion**: Support `.local/share` paths and better overwrite parameters.
 - [ ] **C3 Integration**: Fix C3 Preview issues and improve version selection for C3P exports.
@@ -114,11 +114,13 @@ Goal: Reach feature parity with the legacy monolithic app and improve core funct
 Goal: Expand Pipelab beyond the local desktop environment.
 
 ### 1. CI/CD Integration
+
 - [ ] **GitHub Actions**: Create `pipelab/setup` and `pipelab/run` actions for automated pipeline runs.
 - [ ] **Interactive CLI**: Implement `pipelab login` for local CLI authentication.
 - [ ] **Headless Execution**: Ensure pipelines can run in CI environments using environment variables/PATs for sensitive data.
 
 ### 2. Cross-Platform & Distribution
+
 - [ ] **Cloud Sync**: Store configurations and pipelines in the user's online account for cross-machine access.
 - [ ] **Alternative Packaging**: Investigate packaging as **Tauri** for smaller binary sizes or **Godot Export** for game-integrated pipelines.
 - [ ] **Publishing**: Expand specialized upload nodes for **Poki**, **Itch**, etc.

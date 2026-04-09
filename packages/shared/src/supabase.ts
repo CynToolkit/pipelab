@@ -15,13 +15,13 @@ export const supabase = (options?: any) => {
 export const isSupabaseAvailable = () => {
   const { url, anonKey } = getSupabaseConfig();
   const available = !!(url && anonKey);
-  
+
   if (!available) {
     console.warn("Supabase environment variables are not configured.", {
       hasUrl: !!url,
       hasKey: !!anonKey,
     });
   }
-  
+
   return available;
 };

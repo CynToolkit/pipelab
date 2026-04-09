@@ -206,6 +206,9 @@ importers:
       '@codemirror/commands':
         specifier: 6.6.2
         version: 6.6.2
+      '@codemirror/lang-javascript':
+        specifier: 6.2.2
+        version: 6.2.2
       '@codemirror/lang-liquid':
         specifier: 6.2.1
         version: 6.2.1
@@ -1010,8 +1013,8 @@ packages:
   '@codemirror/lang-html@6.4.9':
     resolution: {integrity: sha512-aQv37pIMSlueybId/2PVSP6NPnmurFDVmZwzc7jszd2KAF8qd4VBbvNYPXWQq90WIARjsdVkPbw29pszmHws3Q==}
 
-  '@codemirror/lang-javascript@6.2.4':
-    resolution: {integrity: sha512-0WVmhp1QOqZ4Rt6GlVGwKJN3KW7Xh4H2q8ZZNGZaP6lRdxXJzmjm4FqvmOojVj6khWJHIb9sp7U/72W7xQgqAA==}
+  '@codemirror/lang-javascript@6.2.2':
+    resolution: {integrity: sha512-VGQfY+FCc285AhWuwjYxQyUQcYurWlxdKYT4bqwr3Twnd5wP5WSeu52t4tvvuWmljT4EmgEgZCqSieokhtY8hg==}
 
   '@codemirror/lang-liquid@6.2.1':
     resolution: {integrity: sha512-J1Mratcm6JLNEiX+U2OlCDTysGuwbHD76XwuL5o5bo9soJtSbz2g6RU3vGHFyS5DC8rgVmFSzi7i6oBftm7tnA==}
@@ -7516,7 +7519,7 @@ snapshots:
     dependencies:
       '@codemirror/autocomplete': 6.18.1(@codemirror/language@6.11.1)(@codemirror/state@6.4.1)(@codemirror/view@6.34.0)(@lezer/common@1.2.3)
       '@codemirror/lang-css': 6.3.1(@codemirror/view@6.34.0)
-      '@codemirror/lang-javascript': 6.2.4
+      '@codemirror/lang-javascript': 6.2.2
       '@codemirror/language': 6.11.1
       '@codemirror/state': 6.4.1
       '@codemirror/view': 6.34.0
@@ -7524,7 +7527,7 @@ snapshots:
       '@lezer/css': 1.2.1
       '@lezer/html': 1.3.10
 
-  '@codemirror/lang-javascript@6.2.4':
+  '@codemirror/lang-javascript@6.2.2':
     dependencies:
       '@codemirror/autocomplete': 6.18.1(@codemirror/language@6.11.1)(@codemirror/state@6.4.1)(@codemirror/view@6.34.0)(@lezer/common@1.2.3)
       '@codemirror/language': 6.11.1

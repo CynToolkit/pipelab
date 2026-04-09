@@ -151,7 +151,6 @@ export const ensurePNPM = async (version = "10.12.0") => {
   return join(packagePath, "bin", "pnpm.cjs");
 };
 
-
 export const executeGraphWithHistory = async ({
   graph,
   variables,

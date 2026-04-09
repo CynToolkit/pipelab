@@ -482,7 +482,8 @@ watch(
     const file = files.value.pipelines.find((x) => x.id === pipelineId.value);
 
     if (file) {
-      if (file.type === "external") { // @deprecated external files are deprecated
+      if (file.type === "external") {
+        // @deprecated external files are deprecated
         const { path: filePath } = file;
 
         const configResult = await api.execute("config:load", { config: filePath });
@@ -681,7 +682,8 @@ onEditorChanged(() => {
 
 const onSaveRequest = async (silent = true) => {
   isSaving.value = true;
-  if (currentFilePointer.value.type === "external") { // @deprecated external files are deprecated
+  if (currentFilePointer.value.type === "external") {
+    // @deprecated external files are deprecated
     await saveLocal(currentFilePointer.value.path, silent);
   } else if (currentFilePointer.value.type === "internal") {
     await saveInternal(currentFilePointer.value.configName, silent);
@@ -729,7 +731,8 @@ const saveLocal = async (path: string, silent = false) => {
 
   await update((state) => {
     const data = state.pipelines.find((x) => x.id === pipelineId.value);
-    if (data.type === "external") { // @deprecated external files are deprecated
+    if (data.type === "external") {
+      // @deprecated external files are deprecated
       data.lastModified = new Date().toISOString();
     } else {
       throw new Error("Invalid file type");

@@ -213,8 +213,8 @@ export const exportc3p = async <ACTION extends Action>(
       locale: "en-US",
       recordVideo: isCI
         ? {
-          dir: join(process.cwd(), "playwright"),
-        }
+            dir: join(process.cwd(), "playwright"),
+          }
         : undefined,
     });
   } else {
@@ -226,8 +226,8 @@ export const exportc3p = async <ACTION extends Action>(
       locale: "en-US",
       recordVideo: isCI
         ? {
-          dir: join(process.cwd(), "playwright"),
-        }
+            dir: join(process.cwd(), "playwright"),
+          }
         : undefined,
     });
     await context?.clearPermissions();

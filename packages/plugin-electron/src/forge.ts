@@ -9,6 +9,7 @@ import {
   createPathParam,
   createStringParam,
   detectRuntime,
+  generateTempFolder,
   InputsDefinition,
   OutputsDefinition,
   runWithLiveLogs,
@@ -584,286 +585,124 @@ export const forge = async (
   // const __dirname = fileURLToPath(dirname(import.meta.url))
   // const { app } = await import('electron')
 
-  const modulesPath = modules;
-
-  const destinationFolder = join(cwd, "build");
-
-  const forge = join(
-    destinationFolder,
-    "node_modules",
-    "@electron-forge",
-    "cli",
-    "dist",
-    "electron-forge.js",
-  );
-
-  const templateFolder = join(assets, "electron", "template", "app");
-  console.log("templateFolder", templateFolder);
-  console.log("destinationFolder", destinationFolder);
-
-  // copy template to destination
-  await cp(templateFolder, destinationFolder, {
-    recursive: true,
-    filter: (src) => {
-      // console.log('src', src)
-      // console.log('dest', dest)
-      return basename(src) !== "node_modules";
-    },
-  });
-
-  console.log("copy done");
-
-  const pkgJSONPath = join(destinationFolder, "package.json");
-  const pkgJSONContent = await readFile(pkgJSONPath, "utf8");
-  const pnpmHome = join(paths.userData, "config", "pnpm");
-  const sanitizedName = kebabCase(completeConfiguration.name);
-
-  const originalIconPath = completeConfiguration.icon;
-  const hasIcon = completeConfiguration.icon !== undefined && completeConfiguration.icon !== "";
-  const iconFilename = hasIcon ? basename(completeConfiguration.icon) : "";
-  const newIconPath = hasIcon ? join(destinationFolder, iconFilename) : "";
-  const relativeIconPath = hasIcon ? join("./", "build", iconFilename) : "";
-  const relativeIconPath1 = hasIcon ? join("./", iconFilename) : "";
-
-  log("relativeIconPath", relativeIconPath);
-  log("relativeIconPath1", relativeIconPath1);
-
-  const hasElectronVersion =
-    completeConfiguration.electronVersion !== undefined &&
-    completeConfiguration.electronVersion !== "";
-  const isCJSOnly =
-    hasElectronVersion &&
-    semver.lt(semver.coerce(completeConfiguration.electronVersion) || "0.0.0", "28.0.0");
-
-  const pkgJSON = JSON.parse(pkgJSONContent);
-  log("Setting name to", sanitizedName);
-  pkgJSON.name = sanitizedName;
-  log("Setting productName to", completeConfiguration.name);
-  pkgJSON.productName = completeConfiguration.name;
-
-  completeConfiguration.icon = relativeIconPath1;
-
-  writeFile(
-    join(destinationFolder, "config.cjs"),
-    `module.exports = ${JSON.stringify(completeConfiguration, undefined, 2)}`,
-    "utf8",
-  );
-
-  if (isCJSOnly) {
-    log("Setting type to", "commonjs");
-    pkgJSON.type = "commonjs";
-  } else {
-    log("Setting type to", "module");
-    pkgJSON.type = "module";
-  }
-
-  await writeFile(pkgJSONPath, JSON.stringify(pkgJSON, null, 2));
-
-  log("Installing packages");
-  await runWithLiveLogs(
-    node,
-    [pnpm, "install", "--prefer-offline"],
-    {
-      cwd: destinationFolder,
-      env: {
-        ...process.env,
-        // DEBUG: '*',
-        PATH: `${dirname(node)}${delimiter}${process.env.PATH}`,
-        PNPM_HOME: pnpmHome,
-      },
-      cancelSignal: abortSignal,
-    },
-    log,
-    {
-      onStderr(data) {
-        log(data);
-      },
-      onStdout(data) {
-        log(data);
-      },
-    },
-  );
-
-  console.log("done install");
-
-  // install user-defined custom packages
-  if (
-    Array.isArray(completeConfiguration.customPackages) &&
-    completeConfiguration.customPackages.length > 0
-  ) {
-    log(`Installing custom packages: ${completeConfiguration.customPackages.join(", ")}`);
-    await runWithLiveLogs(
-      node,
-      [pnpm, "install", ...completeConfiguration.customPackages, "--prefer-offline"],
-      {
-        cwd: destinationFolder,
-        env: {
-          ...process.env,
-          // DEBUG: '*',
-          PATH: `${dirname(node)}${delimiter}${process.env.PATH}`,
-          PNPM_HOME: pnpmHome,
-        },
-        cancelSignal: abortSignal,
-      },
-      log,
-      {
-        onStderr(data) {
-          log(data);
-        },
-        onStdout(data) {
-          log(data);
-        },
-      },
-    );
-  }
-
-  // override electron version
-  if (completeConfiguration.electronVersion && completeConfiguration.electronVersion !== "") {
-    log(`Installing electron@${completeConfiguration.electronVersion}`);
-    await runWithLiveLogs(
-      node,
-      [pnpm, "install", `electron@${completeConfiguration.electronVersion}`, "--prefer-offline"],
-      {
-        cwd: destinationFolder,
-        env: {
-          ...process.env,
-          // DEBUG: '*',
-          PATH: `${dirname(node)}${delimiter}${process.env.PATH}`,
-          PNPM_HOME: pnpmHome,
-        },
-        cancelSignal: abortSignal,
-      },
-      log,
-      {
-        onStderr(data) {
-          log(data);
-        },
-        onStdout(data) {
-          log(data);
-        },
-      },
-    );
-  }
-
-  if (isCJSOnly) {
-    log(`Installing execa@8`);
-    await runWithLiveLogs(
-      node,
-      [pnpm, "install", `execa@8`, "--prefer-offline"],
-      {
-        cwd: destinationFolder,
-        env: {
-          ...process.env,
-          // DEBUG: '*',
-          PATH: `${dirname(node)}${delimiter}${process.env.PATH}`,
-          PNPM_HOME: pnpmHome,
-        },
-        cancelSignal: abortSignal,
-      },
-      log,
-      {
-        onStderr(data) {
-          log(data);
-        },
-        onStdout(data) {
-          log(data);
-        },
-      },
-    );
-  }
-
-  console.log("completeConfiguration.icon", completeConfiguration.icon);
-
-  // copy icon
-  if (hasIcon) {
-    await cp(originalIconPath, newIconPath);
-  }
-
-  // copy custom main code
-  const destinationFile = join(destinationFolder, "src", "custom-main.js");
-  if (completeConfiguration.customMainCode) {
-    await cp(completeConfiguration.customMainCode, destinationFile);
-  } else {
-    await writeFile(destinationFile, 'console.log("No custom main code provided")', {
-      signal: abortSignal,
-    });
-  }
-
-  if (isCJSOnly) {
-    /* ESBUILD transpilation */
-    const external = [
-      "electron",
-      "@pipelab/steamworks.js",
-      "electron",
-      "node:*",
-      "http",
-      "node:stream",
-    ];
-    await esbuild.build({
-      entryPoints: [join(destinationFolder, "src", "index.js")],
-      bundle: true,
-      write: true,
-      format: "cjs",
-      platform: "node",
-      external,
-      outfile: join(destinationFolder, "dist", "index.js"),
-    });
-    await esbuild.build({
-      entryPoints: [join(destinationFolder, "src", "preload.js")],
-      bundle: true,
-      platform: "node",
-      external,
-      format: "cjs",
-      write: true,
-      outfile: join(destinationFolder, "dist", "preload.js"),
-    });
-    await esbuild.build({
-      entryPoints: [join(destinationFolder, "src", "custom-main.js")],
-      bundle: true,
-      platform: "node",
-      external,
-      format: "cjs",
-      write: true,
-      outfile: join(destinationFolder, "dist", "custom-main.js"),
-    });
-    await rm(join(destinationFolder, "src"), { recursive: true });
-    await cp(join(destinationFolder, "dist"), join(destinationFolder, "src"), {
-      recursive: true,
-    });
-    await rm(join(destinationFolder, "dist"), { recursive: true });
-    /* ESBUILD transpilation */
-  }
-
-  const placeAppFolder = join(destinationFolder, "src", "app");
-
-  // if input is folder, copy folder to destination
-  if (appFolder && action !== "preview") {
-    // copy app to template
-    await cp(appFolder, placeAppFolder, {
-      recursive: true,
-    });
-  }
-
-  const inputPlatform = inputs.platform === "" ? undefined : inputs.platform;
-  const inputArch = inputs.arch === "" ? undefined : inputs.arch;
+  const destinationFolder = await generateTempFolder(paths.cache);
+  log(`Staging build in ${destinationFolder}`);
 
   try {
-    log("typeof inputs.platform", typeof inputs.platform);
-    const finalPlatform = inputPlatform ?? platform() ?? "";
-    log("finalPlatform", finalPlatform);
-    const finalArch = inputArch ?? arch() ?? "";
+    const forge = join(
+      destinationFolder,
+      "node_modules",
+      "@electron-forge",
+      "cli",
+      "dist",
+      "electron-forge.js",
+    );
 
-    try {
+    const templateFolder = join(assets, "electron", "template", "app");
+    console.log("templateFolder", templateFolder);
+    console.log("destinationFolder", destinationFolder);
+
+    // copy template to destination
+    await cp(templateFolder, destinationFolder, {
+      recursive: true,
+      filter: (src) => {
+        // console.log('src', src)
+        // console.log('dest', dest)
+        return basename(src) !== "node_modules";
+      },
+    });
+
+    console.log("copy done");
+
+    const pkgJSONPath = join(destinationFolder, "package.json");
+    const pkgJSONContent = await readFile(pkgJSONPath, "utf8");
+    const pnpmHome = join(paths.userData, "config", "pnpm");
+    const sanitizedName = kebabCase(completeConfiguration.name);
+
+    const originalIconPath = completeConfiguration.icon;
+    const hasIcon = completeConfiguration.icon !== undefined && completeConfiguration.icon !== "";
+    const iconFilename = hasIcon ? basename(completeConfiguration.icon) : "";
+    const newIconPath = hasIcon ? join(destinationFolder, iconFilename) : "";
+    const relativeIconPath = hasIcon ? join("./", "build", iconFilename) : "";
+    const relativeIconPath1 = hasIcon ? join("./", iconFilename) : "";
+
+    log("relativeIconPath", relativeIconPath);
+    log("relativeIconPath1", relativeIconPath1);
+
+    const hasElectronVersion =
+      completeConfiguration.electronVersion !== undefined &&
+      completeConfiguration.electronVersion !== "";
+    const isCJSOnly =
+      hasElectronVersion &&
+      semver.lt(semver.coerce(completeConfiguration.electronVersion) || "0.0.0", "28.0.0");
+
+    const pkgJSON = JSON.parse(pkgJSONContent);
+    log("Setting name to", sanitizedName);
+    pkgJSON.name = sanitizedName;
+    log("Setting productName to", completeConfiguration.name);
+    pkgJSON.productName = completeConfiguration.name;
+
+    completeConfiguration.icon = relativeIconPath1;
+
+    writeFile(
+      join(destinationFolder, "config.cjs"),
+      `module.exports = ${JSON.stringify(completeConfiguration, undefined, 2)}`,
+      "utf8",
+    );
+
+    if (isCJSOnly) {
+      log("Setting type to", "commonjs");
+      pkgJSON.type = "commonjs";
+    } else {
+      log("Setting type to", "module");
+      pkgJSON.type = "module";
+    }
+
+    await writeFile(pkgJSONPath, JSON.stringify(pkgJSON, null, 2));
+
+    log("Installing packages");
+    await runWithLiveLogs(
+      node,
+      [pnpm, "install", "--prefer-offline"],
+      {
+        cwd: destinationFolder,
+        env: {
+          ...process.env,
+          // DEBUG: '*',
+          PATH: `${dirname(node)}${delimiter}${process.env.PATH}`,
+          PNPM_HOME: pnpmHome,
+        },
+        cancelSignal: abortSignal,
+      },
+      log,
+      {
+        onStderr(data) {
+          log(data);
+        },
+        onStdout(data) {
+          log(data);
+        },
+      },
+    );
+
+    console.log("done install");
+
+    // install user-defined custom packages
+    if (
+      Array.isArray(completeConfiguration.customPackages) &&
+      completeConfiguration.customPackages.length > 0
+    ) {
+      log(`Installing custom packages: ${completeConfiguration.customPackages.join(", ")}`);
       await runWithLiveLogs(
         node,
-        [forge, action, /* '--', */ "--arch", finalArch, "--platform", finalPlatform],
+        [pnpm, "install", ...completeConfiguration.customPackages, "--prefer-offline"],
         {
           cwd: destinationFolder,
           env: {
-            DEBUG: completeConfiguration.enableExtraLogging ? "*" : "",
-            ELECTRON_NO_ASAR: "1",
+            ...process.env,
+            // DEBUG: '*',
             PATH: `${dirname(node)}${delimiter}${process.env.PATH}`,
-            // DEBUG: "electron-packager"
+            PNPM_HOME: pnpmHome,
           },
           cancelSignal: abortSignal,
         },
@@ -877,42 +716,216 @@ export const forge = async (
           },
         },
       );
-    } catch (e) {
-      console.error("e", e);
     }
 
-    if (action === "package") {
-      const outName = outFolderName(
-        completeConfiguration.name,
-        finalPlatform as NodeJS.Platform,
-        finalArch as NodeJS.Architecture,
+    // override electron version
+    if (completeConfiguration.electronVersion && completeConfiguration.electronVersion !== "") {
+      log(`Installing electron@${completeConfiguration.electronVersion}`);
+      await runWithLiveLogs(
+        node,
+        [pnpm, "install", `electron@${completeConfiguration.electronVersion}`, "--prefer-offline"],
+        {
+          cwd: destinationFolder,
+          env: {
+            ...process.env,
+            // DEBUG: '*',
+            PATH: `${dirname(node)}${delimiter}${process.env.PATH}`,
+            PNPM_HOME: pnpmHome,
+          },
+          cancelSignal: abortSignal,
+        },
+        log,
+        {
+          onStderr(data) {
+            log(data);
+          },
+          onStdout(data) {
+            log(data);
+          },
+        },
       );
-      const binName = getBinName(completeConfiguration.name);
+    }
 
-      const output = join(destinationFolder, "out", outName);
-      setOutput("output", output);
-      return {
-        folder: output,
-        binary: join(output, binName),
-      };
+    if (isCJSOnly) {
+      log(`Installing execa@8`);
+      await runWithLiveLogs(
+        node,
+        [pnpm, "install", `execa@8`, "--prefer-offline"],
+        {
+          cwd: destinationFolder,
+          env: {
+            ...process.env,
+            // DEBUG: '*',
+            PATH: `${dirname(node)}${delimiter}${process.env.PATH}`,
+            PNPM_HOME: pnpmHome,
+          },
+          cancelSignal: abortSignal,
+        },
+        log,
+        {
+          onStderr(data) {
+            log(data);
+          },
+          onStdout(data) {
+            log(data);
+          },
+        },
+      );
+    }
+
+    console.log("completeConfiguration.icon", completeConfiguration.icon);
+
+    // copy icon
+    if (hasIcon) {
+      await cp(originalIconPath, newIconPath);
+    }
+
+    // copy custom main code
+    const destinationFile = join(destinationFolder, "src", "custom-main.js");
+    if (completeConfiguration.customMainCode) {
+      await cp(completeConfiguration.customMainCode, destinationFile);
     } else {
-      const output = join(destinationFolder, "out", "make");
-      setOutput("output", output);
-      return {
-        folder: output,
-        binary: undefined,
-      };
+      await writeFile(destinationFile, 'console.log("No custom main code provided")', {
+        signal: abortSignal,
+      });
     }
-  } catch (e) {
-    if (e instanceof Error) {
-      if (e.name === "RequestError") {
-        log("Request error");
-      }
-      if (e.name === "RequestError") {
-        log("Request error");
-      }
+
+    if (isCJSOnly) {
+      /* ESBUILD transpilation */
+      const external = [
+        "electron",
+        "@pipelab/steamworks.js",
+        "electron",
+        "node:*",
+        "http",
+        "node:stream",
+      ];
+      await esbuild.build({
+        entryPoints: [join(destinationFolder, "src", "index.js")],
+        bundle: true,
+        write: true,
+        format: "cjs",
+        platform: "node",
+        external,
+        outfile: join(destinationFolder, "dist", "index.js"),
+      });
+      await esbuild.build({
+        entryPoints: [join(destinationFolder, "src", "preload.js")],
+        bundle: true,
+        platform: "node",
+        external,
+        format: "cjs",
+        write: true,
+        outfile: join(destinationFolder, "dist", "preload.js"),
+      });
+      await esbuild.build({
+        entryPoints: [join(destinationFolder, "src", "custom-main.js")],
+        bundle: true,
+        platform: "node",
+        external,
+        format: "cjs",
+        write: true,
+        outfile: join(destinationFolder, "dist", "custom-main.js"),
+      });
+      await rm(join(destinationFolder, "src"), { recursive: true });
+      await cp(join(destinationFolder, "dist"), join(destinationFolder, "src"), {
+        recursive: true,
+      });
+      await rm(join(destinationFolder, "dist"), { recursive: true });
+      /* ESBUILD transpilation */
     }
-    log(e);
-    return undefined;
+
+    const placeAppFolder = join(destinationFolder, "src", "app");
+
+    // if input is folder, copy folder to destination
+    if (appFolder && action !== "preview") {
+      // copy app to template
+      await cp(appFolder, placeAppFolder, {
+        recursive: true,
+      });
+    }
+
+    const inputPlatform = inputs.platform === "" ? undefined : inputs.platform;
+    const inputArch = inputs.arch === "" ? undefined : inputs.arch;
+
+    try {
+      log("typeof inputs.platform", typeof inputs.platform);
+      const finalPlatform = inputPlatform ?? platform() ?? "";
+      log("finalPlatform", finalPlatform);
+      const finalArch = inputArch ?? arch() ?? "";
+
+      try {
+        await runWithLiveLogs(
+          node,
+          [forge, action, /* '--', */ "--arch", finalArch, "--platform", finalPlatform],
+          {
+            cwd: destinationFolder,
+            env: {
+              DEBUG: completeConfiguration.enableExtraLogging ? "*" : "",
+              ELECTRON_NO_ASAR: "1",
+              PATH: `${dirname(node)}${delimiter}${process.env.PATH}`,
+              // DEBUG: "electron-packager"
+            },
+            cancelSignal: abortSignal,
+          },
+          log,
+          {
+            onStderr(data) {
+              log(data);
+            },
+            onStdout(data) {
+              log(data);
+            },
+          },
+        );
+      } catch (e) {
+        console.error("e", e);
+      }
+
+      if (action === "package") {
+        const outName = outFolderName(
+          completeConfiguration.name,
+          finalPlatform as NodeJS.Platform,
+          finalArch as NodeJS.Architecture,
+        );
+        const binName = getBinName(completeConfiguration.name);
+
+        const output = join(cwd, "out", outName);
+        setOutput("output", output);
+        return {
+          folder: output,
+          binary: join(output, binName),
+        };
+      } else {
+        const output = join(cwd, "out", "make");
+        setOutput("output", output);
+        return {
+          folder: output,
+          binary: undefined,
+        };
+      }
+    } catch (e) {
+      if (e instanceof Error) {
+        if (e.name === "RequestError") {
+          log("Request error");
+        }
+        if (e.name === "RequestError") {
+          log("Request error");
+        }
+      }
+      log(e);
+      return undefined;
+    }
+  } finally {
+    try {
+      if (action !== "preview") {
+        const outDir = join(destinationFolder, "out");
+        const finalOutDir = join(cwd, "out");
+        await cp(outDir, finalOutDir, { recursive: true });
+      }
+    } catch (e) {
+      log("Failed to copy build output back to cwd:", e);
+    }
+    await rm(destinationFolder, { recursive: true, force: true });
   }
 };

@@ -37,7 +37,14 @@ export default defineConfig(({ mode }) => {
       __POSTHOG_API_KEY__: JSON.stringify(env.POSTHOG_API_KEY),
     },
     optimizeDeps: {
-      include: ["@codemirror/state", "@codemirror/view"],
+      include: [
+        "@codemirror/state",
+        "@codemirror/view",
+        "@codemirror/language",
+        "@codemirror/commands",
+        "@codemirror/autocomplete",
+        "@codemirror/lang-javascript",
+      ],
     },
     build: {
       rollupOptions: {
@@ -45,6 +52,14 @@ export default defineConfig(({ mode }) => {
       },
     },
     resolve: {
+      dedupe: [
+        "@codemirror/state",
+        "@codemirror/view",
+        "@codemirror/language",
+        "@codemirror/commands",
+        "@codemirror/autocomplete",
+        "@codemirror/lang-javascript",
+      ],
       alias: {
         "@renderer": resolve(__dirname, "src"),
         "@pipelab/shared": resolve(__dirname, "../../packages/shared/src"),

@@ -122,7 +122,8 @@
                       v-if="data.type === 'external' && shouldMigrate === true"
                       v-tooltip.top="$t('home.migrate-warning')"
                       class="mdi mdi-alert-circle text-orange-500"
-                    ></i><!-- @deprecated external files are deprecated -->
+                    ></i
+                    ><!-- @deprecated external files are deprecated -->
                   </div>
                 </template>
                 <template #loading>

@@ -22,67 +22,66 @@ export const fixturesPath = resolve(__dirname, "../fixtures");
  * and a pre-filled remove utility.
  */
 export const createSandbox = async (prefix: string) => {
-    const sandboxPath = join(tmpdir(), `${prefix}-${Math.random().toString(36).substring(7)}`);
-    await mkdir(sandboxPath, { recursive: true });
-    
-    return {
-        path: sandboxPath,
-        remove: async () => {
-            await rm(sandboxPath, { recursive: true, force: true });
-        }
-    };
-};
+  const sandboxPath = join(tmpdir(), `${prefix}-${Math.random().toString(36).substring(7)}`);
+  await mkdir(sandboxPath, { recursive: true });
 
+  return {
+    path: sandboxPath,
+    remove: async () => {
+      await rm(sandboxPath, { recursive: true, force: true });
+    },
+  };
+};
 
 /**
  * Runs a Pipelab pipeline using the CLI.
  */
 export const runPipeline = async (
-    pipeline: object,
-    sandboxPath: string,
-    options: {
-        extraEnv?: Record<string, string>;
-        userData?: string;
-        cwd?: string;
-    } = {}
+  pipeline: object,
+  sandboxPath: string,
+  options: {
+    extraEnv?: Record<string, string>;
+    userData?: string;
+    cwd?: string;
+  } = {},
 ) => {
-    const pipelineFile = join(sandboxPath, "pipeline.json");
-    const resultFile = join(sandboxPath, "result.json");
-    await writeFile(pipelineFile, JSON.stringify(pipeline, null, 2));
-    
-    const cliSourcePath = resolve(projectRoot, "apps/cli/src/index.ts");
-    const tsxBinary = resolve(projectRoot, "node_modules/.bin/tsx");
+  const pipelineFile = join(sandboxPath, "pipeline.json");
+  const resultFile = join(sandboxPath, "result.json");
+  await writeFile(pipelineFile, JSON.stringify(pipeline, null, 2));
 
-    const args = [
-        "--import",
-        join(projectRoot, "scripts", "tsx-assets-loader.mjs"),
-        cliSourcePath,
-        "run",
-        pipelineFile,
-        "--output",
-        resultFile,
-    ];
+  const cliSourcePath = resolve(projectRoot, "apps/cli/src/index.ts");
+  const tsxBinary = resolve(projectRoot, "node_modules/.bin/tsx");
 
-    const userData = options.userData || sandboxPath;
-    args.push("--user-data", userData);
+  const args = [
+    "--import",
+    join(projectRoot, "scripts", "tsx-assets-loader.mjs"),
+    cliSourcePath,
+    "run",
+    pipelineFile,
+    "--output",
+    resultFile,
+  ];
 
-    await runWithLiveLogs(
-        tsxBinary,
-        args,
-        {
-            cwd: options.cwd || projectRoot,
-            env: {
-                ...process.env,
-                ...options.extraEnv,
-            }
-        },
-        console.log,
-        {
-            onStdout: (data) => console.log('stdout', data.toString()),
-            onStderr: (data) => console.log('stderr', data.toString()),
-        }
-    );
+  const userData = options.userData || sandboxPath;
+  args.push("--user-data", userData);
 
-    const resultRaw = await readFile(resultFile, "utf-8");
-    return JSON.parse(resultRaw);
+  await runWithLiveLogs(
+    tsxBinary,
+    args,
+    {
+      cwd: options.cwd || projectRoot,
+      env: {
+        ...process.env,
+        ...options.extraEnv,
+      },
+    },
+    console.log,
+    {
+      onStdout: (data) => console.log("stdout", data.toString()),
+      onStderr: (data) => console.log("stderr", data.toString()),
+    },
+  );
+
+  const resultRaw = await readFile(resultFile, "utf-8");
+  return JSON.parse(resultRaw);
 };
