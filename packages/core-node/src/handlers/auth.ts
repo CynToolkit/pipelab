@@ -10,7 +10,8 @@ export const registerAuthHandlers = () => {
   const { handle } = useAPI();
   const { logger } = useLogger();
 
-  if (!isSupabaseAvailable) {
+  const supabaseAvailable = isSupabaseAvailable();
+  if (!supabaseAvailable) {
     logger().warn("[Auth] Supabase is not available. Auth handlers will not be functional.");
     return;
   }
@@ -26,7 +27,6 @@ export const registerAuthHandlers = () => {
   });
 
   handle("auth:getUser", async (_, { send }) => {
-    logger().debug("[Auth] auth:getUser");
     try {
       const { data, error } = await client.auth.getUser();
       if (error) {

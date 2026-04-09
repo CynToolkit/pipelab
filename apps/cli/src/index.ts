@@ -1,17 +1,23 @@
 #!/usr/bin/env node
-import "dotenv/config";
+import { config } from "dotenv";
+import { join, dirname } from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// Explicitly load .env from the monorepo root
+config({ path: join(__dirname, "../../../.env") });
+
 import cac from "cac";
 import { WebSocketServer, setAssetsPath, assetsPath, isDev } from "@pipelab/core-node";
 import { registerAllHandlers } from "@pipelab/core-node";
-import { join, dirname } from "path";
-import { fileURLToPath } from "url";
 import http from "http";
 import handler from "serve-handler";
 import type { AppConfig } from "@pipelab/shared";
 
 console.log('cwd', process.cwd());
 console.log('import.meta.url', import.meta.url);
-const __dirname = dirname(fileURLToPath(import.meta.url));
 console.log('__dirname', __dirname);
 setAssetsPath(join(__dirname, "..", "assets"));
 
