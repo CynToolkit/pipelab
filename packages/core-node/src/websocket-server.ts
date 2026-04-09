@@ -1,7 +1,7 @@
 import { WebSocketServer as WSWebSocketServer, WebSocket as WSWebSocket } from "ws";
 import http, { IncomingMessage } from "node:http";
 import { nanoid } from "nanoid";
-import { useAPI } from "./ipc-core.js";
+import { useAPI } from "./ipc-core";
 import { useLogger } from "@pipelab/shared";
 import {
   WebSocketServerConfig,

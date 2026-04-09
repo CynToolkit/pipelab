@@ -51,6 +51,9 @@ importers:
       cac:
         specifier: 6.7.14
         version: 6.7.14
+      dotenv:
+        specifier: 17.4.1
+        version: 17.4.1
       serve-handler:
         specifier: 6.1.7
         version: 6.1.7
@@ -789,9 +792,6 @@ importers:
       '@pipelab/migration':
         specifier: workspace:*
         version: link:../migration
-      '@pipelab/plugin-core':
-        specifier: workspace:*
-        version: link:../plugin-core
       '@supabase/supabase-js':
         specifier: 2.99.3
         version: 2.99.3
@@ -4132,6 +4132,10 @@ packages:
 
   dotenv@16.5.0:
     resolution: {integrity: sha512-m/C+AwOAr9/W1UOIZUo232ejMNnJAJtYQjUbHoNTBNTJSvqzzDh7vnrei3o3r3m9blf6ZoDkvcw0VmozNRFJxg==}
+    engines: {node: '>=12'}
+
+  dotenv@17.4.1:
+    resolution: {integrity: sha512-k8DaKGP6r1G30Lx8V4+pCsLzKr8vLmV2paqEj1Y55GdAgJuIqpRp5FfajGF8KtwMxCz9qJc6wUIJnm053d/WCw==}
     engines: {node: '>=12'}
 
   driver.js@1.4.0:
@@ -10741,6 +10745,8 @@ snapshots:
   dompurify@3.1.7: {}
 
   dotenv@16.5.0: {}
+
+  dotenv@17.4.1: {}
 
   driver.js@1.4.0: {}
 

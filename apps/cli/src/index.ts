@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import "dotenv/config";
 import cac from "cac";
 import { WebSocketServer, setAssetsPath, assetsPath, isDev } from "@pipelab/core-node";
 import { registerAllHandlers } from "@pipelab/core-node";

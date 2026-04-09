@@ -1,8 +1,8 @@
 import { createClient } from "@supabase/supabase-js";
 import { Database } from "./database.types";
 
-const supabaseUrl = (globalThis as any).__SUPABASE_URL__ || process.env.VITE_SUPABASE_URL || "";
-const supabaseAnonKey = (globalThis as any).__SUPABASE_ANON_KEY__ || process.env.VITE_SUPABASE_ANON_KEY || "";
+const supabaseUrl = (globalThis as any).__SUPABASE_URL__ || process.env.SUPABASE_URL || "";
+const supabaseAnonKey = (globalThis as any).__SUPABASE_ANON_KEY__ || process.env.SUPABASE_ANON_KEY || "";
 
 let _isSupabaseAvailable = true;
 // ensure supabase env variables are available at build time

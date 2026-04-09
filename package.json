@@ -10,7 +10,8 @@
     "test:e2e": "pnpm --filter @pipelab/cli test:e2e",
     "typecheck": "turbo typecheck",
     "format": "oxfmt .",
-    "changeset": "changeset"
+    "changeset": "changeset",
+    "supa:types": "supabase gen types typescript --project-id $SUPABASE_PROJECT_ID > packages/shared/src/database.types.ts"
   },
   "devDependencies": {
     "@changesets/cli": "^2.27.11",
