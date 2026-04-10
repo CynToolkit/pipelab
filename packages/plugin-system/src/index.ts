@@ -1,11 +1,11 @@
 import { createNodeDefinition } from "@pipelab/plugin-core";
-import { logAction, logActionRunner } from "./log.js";
-// import { branchCondition, branchConditionRunner } from './branch.js'
-// import { forLoop, ForLoopRunner } from './for.js'
-import { manualEvent, manualEvaluator } from "./manual.js";
-import { alertAction, alertActionRunner } from "./alert.js";
-import { promptAction, promptActionRunner } from "./prompt.js";
-import { sleepAction, sleepActionRunner } from "./sleep.js";
+import { logAction, logActionRunner } from "./log";
+// import { branchCondition, branchConditionRunner } from './branch';
+// import { forLoop, ForLoopRunner } from './for';
+import { manualEvent, manualEvaluator } from "./manual";
+import { alertAction, alertActionRunner } from "./alert";
+import { promptAction, promptActionRunner } from "./prompt";
+import { sleepAction, sleepActionRunner } from "./sleep";
 
 export default createNodeDefinition({
   id: "system",

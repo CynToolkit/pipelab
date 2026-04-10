@@ -1,4 +1,4 @@
-import { uploadToSteam, uploadToSteamRunner } from "./upload-to-steam.js";
+import { uploadToSteam, uploadToSteamRunner } from "./upload-to-steam";
 import { createNodeDefinition } from "@pipelab/plugin-core";
 import icon from "./steam.webp";
 

@@ -19,5 +19,3 @@ export type {
   AppConfigV6,
   AppConfigV7,
 };
-
-export { defaultAppSettings, appSettingsMigrator } from "../migrations/settings";

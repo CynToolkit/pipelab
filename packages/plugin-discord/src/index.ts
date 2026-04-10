@@ -1,9 +1,9 @@
-import { previewRunner } from "./preview.js";
+import { previewRunner } from "./preview";
 
 import { createNodeDefinition } from "@pipelab/plugin-core";
 import icon from "./public/discord.webp";
-import { createPackageProps, createPreviewProps, IDPreview, IDPackage } from "./discord.js";
-import { packageV2Runner } from "./package.js";
+import { createPackageProps, createPreviewProps, IDPreview, IDPackage } from "./discord";
+import { packageV2Runner } from "./package";
 
 export default createNodeDefinition({
   description: "Discord",

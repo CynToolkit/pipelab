@@ -1,5 +1,5 @@
-import { makeRunner } from "./make.js";
-import { previewRunner } from "./preview.js";
+import { makeRunner } from "./make";
+import { previewRunner } from "./preview";
 
 import { createNodeDefinition } from "@pipelab/plugin-core";
 import icon from "./public/tauri.webp";
@@ -10,9 +10,9 @@ import {
   IDMake,
   IDPackageV2,
   IDPreview,
-} from "./tauri.js";
-import { configureRunner, props } from "./configure.js";
-import { packageV2Runner } from "./package.js";
+} from "./tauri";
+import { configureRunner, props } from "./configure";
+import { packageV2Runner } from "./package";
 
 export default createNodeDefinition({
   description: "Tauri",

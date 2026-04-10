@@ -1,4 +1,4 @@
-import {
+import type {
   AppConfig,
   AppConfigV1,
   AppConfigV2,
@@ -9,7 +9,7 @@ import {
   AppConfigV7,
 } from "../config.schema";
 
-export {
+export type {
   AppConfig,
   AppConfigV1,
   AppConfigV2,

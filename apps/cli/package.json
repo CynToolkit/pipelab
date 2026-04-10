@@ -2,15 +2,15 @@
   "name": "@pipelab/cli",
   "version": "2.0.0",
   "private": true,
-  "bin": "dist/index.cjs",
+  "bin": "dist/index.mjs",
   "type": "module",
   "scripts": {
     "build": "NODE_ENV=production tsdown && pnpm copy:ui",
     "copy:ui": "node scripts/copy-ui.mjs",
     "pkg": "pnpm build && pkg . --output bin/pipelab",
-    "dev": "NODE_ENV=development tsdown --watch --onSuccess \"NODE_ENV=development node dist/index.cjs serve\"",
+    "dev": "NODE_ENV=development tsdown --watch --onSuccess \"NODE_ENV=development node dist/index.mjs serve\"",
     "watch": "tsdown --watch",
-    "start": "node dist/index.cjs",
+    "start": "node dist/index.mjs",
     "test:e2e:raw": "vitest run -c tests/e2e/vitest.config.mts",
     "test:e2e": "pnpm build && pnpm test:e2e:raw",
     "format": "oxfmt .",
@@ -39,7 +39,7 @@
   },
   "pkg": {
     "scripts": [
-      "dist/*.cjs"
+      "dist/*.mjs"
     ],
     "assets": [
       "dist/*.wasm",

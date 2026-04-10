@@ -1,6 +1,6 @@
-import { makeRunner } from "./make.js";
-import { packageRunner } from "./package.js";
-import { previewRunner } from "./preview.js";
+import { makeRunner } from "./make";
+import { packageRunner } from "./package";
+import { previewRunner } from "./preview";
 
 import { createNodeDefinition } from "@pipelab/plugin-core";
 import icon from "./public/electron.webp";
@@ -13,9 +13,9 @@ import {
   IDPackage,
   IDPackageV2,
   IDPreview,
-} from "./forge.js";
-import { configureRunner, props } from "./configure.js";
-import { packageV2Runner } from "./package-v2.js";
+} from "./forge";
+import { configureRunner, props } from "./configure";
+import { packageV2Runner } from "./package-v2";
 
 export default createNodeDefinition({
   description: "Electron",

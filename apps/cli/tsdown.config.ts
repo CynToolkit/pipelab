@@ -16,7 +16,7 @@ envFile.split("\n").forEach((line) => {
 
 export default defineConfig({
   entry: ["src/index.ts"],
-  format: ["cjs"],
+  format: ["esm"],
   dts: true,
   sourcemap: true,
   clean: true,

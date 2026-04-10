@@ -4,6 +4,12 @@ on:
   push:
     branches: [main, feature/monorepo]
   workflow_dispatch:
+    inputs:
+      forcePublish:
+        description: 'Force publish apps'
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -44,7 +50,9 @@ jobs:
   publish-apps:
     name: Publish Apps (${{ matrix.os }} - ${{ matrix.arch }})
     needs: release
-    if: needs.release.outputs.published == 'true'
+    if: |
+      needs.release.outputs.published == 'true' ||
+      github.event.inputs.forcePublish == 'true'
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:

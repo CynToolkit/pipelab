@@ -9,19 +9,18 @@ import { FuseV1Options, FuseVersion } from "@electron/fuses";
 import { name } from "@pipelab/constants";
 import * as fs from "fs-extra";
 import * as path from "path";
-import { execSync } from "child_process";
+import { fileURLToPath } from "node:url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 /** @type {*} */
 const config: ForgeConfig = {
   packagerConfig: {
     prune: false,
     appBundleId: "app.pipelab.desktop",
-    // asar: {
-    //   // unpack: '*.{node,dll,so,lib,dylib,exe}'
-    // },
     asar: false,
     extraResource: [path.join(__dirname, "../cli/assets"), "bin"],
-    // extraResource: ['.vite/build/assets'],
     name,
     icon: path.join(__dirname, "../cli/assets/build/icon"),
     extendInfo: {
@@ -55,10 +54,6 @@ const config: ForgeConfig = {
     }),
     new MakerZIP(undefined, ["linux", "win32"]),
     new MakerDMG(),
-    // TODO: need to regenerate the certificate
-    // new MakerPKG({
-    //   identity: `Developer ID Installer: Quentin Goinaud (${process.env.APPLE_TEAM_ID})`,
-    // }),
   ],
   publishers: [
     {
@@ -80,11 +75,9 @@ const config: ForgeConfig = {
       const cliPath = path.resolve(__dirname, "../cli");
 
       try {
-        // Ensure bin directory exists in desktop package
         const destBinDir = path.resolve(__dirname, "bin");
         await fs.ensureDir(destBinDir);
 
-        // Copy built binaries to desktop/bin for extraResource inclusion
         const srcBinDir = path.join(cliPath, "bin");
         console.log(`INFO: Copying binaries from ${srcBinDir} to ${destBinDir}`);
         await fs.copy(srcBinDir, destBinDir, { overwrite: true });
@@ -95,43 +88,11 @@ const config: ForgeConfig = {
         throw err;
       }
     },
-    // packageAfterCopy: async (forgeConfig, buildPath, electronVersion, platform, arch) => {
-    //   console.log('INFO: Running packageAfterCopy hook...')
-    //   const projectRoot = path.resolve(__dirname)
-    //   const packagesToCopy = ['@esbuild', '@lydell']
-
-    //   for (const packageName of packagesToCopy) {
-    //     const srcDir = path.join(__dirname, 'node_modules', packageName)
-    //     const destDir = path.join(buildPath, 'node_modules', packageName)
-
-    //     try {
-    //       if (await fs.pathExists(srcDir)) {
-    //         console.log(`INFO: Copying ${srcDir} to ${destDir} using cp -L...`)
-    //         execSync(`rm -rf "${destDir}"`)
-    //         execSync(`mkdir -p "${path.dirname(destDir)}"`)
-    //         await fs.copy(require("fs").realpathSync(srcDir), destDir, { dereference: true, overwrite: true })
-    //         console.log(`INFO: Successfully copied ${packageName}.`)
-    //       } else {
-    //         console.warn(
-    //           `WARN: Source directory ${srcDir} does not exist. Skipping copy for ${packageName}.`
-    //         )
-    //       }
-    //     } catch (err) {
-    //       console.error(`ERROR: Failed to copy ${packageName}:`, err)
-    //       // Optionally, re-throw the error if this should halt the build
-    //       // throw err;
-    //     }
-    //   }
-    //   console.log('INFO: packageAfterCopy hook finished.')
-    // }
   },
   plugins: [
     new VitePlugin({
-      // `build` can specify multiple entry builds, which can be Main process, Preload scripts, Worker process, etc.
-      // If you are familiar with Vite configuration, it will look really familiar.
       build: [
         {
-          // `entry` is just an alias for `build.lib.entry` in the corresponding file of `config`.
           entry: "src/main.ts",
           config: "vite.main.config.mts",
         },
@@ -147,16 +108,14 @@ const config: ForgeConfig = {
         },
       ],
     }),
-    // Fuses are used to enable/disable various Electron functionality
-    // at package time, before code signing the application
     new FusesPlugin({
       version: FuseVersion.V1,
-      [FuseV1Options.RunAsNode]: true, // needed
+      [FuseV1Options.RunAsNode]: true,
       [FuseV1Options.EnableCookieEncryption]: true,
       [FuseV1Options.EnableNodeOptionsEnvironmentVariable]: true,
       [FuseV1Options.EnableNodeCliInspectArguments]: false,
-      [FuseV1Options.EnableEmbeddedAsarIntegrityValidation]: false, // must enable again, broken for windows build on linux
-      [FuseV1Options.OnlyLoadAppFromAsar]: false, // need tesing
+      [FuseV1Options.EnableEmbeddedAsarIntegrityValidation]: false,
+      [FuseV1Options.OnlyLoadAppFromAsar]: false,
     }),
   ],
 };
