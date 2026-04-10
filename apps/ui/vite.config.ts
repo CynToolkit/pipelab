@@ -5,6 +5,7 @@ import Components from "unplugin-vue-components/vite";
 import { PrimeVueResolver } from "@primevue/auto-import-resolver";
 import AutoImport from "unplugin-auto-import/vite";
 import VueDevTools from "vite-plugin-vue-devtools";
+import { uiDevPort } from "@pipelab/constants";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
@@ -12,7 +13,7 @@ export default defineConfig(({ mode }) => {
 
   return {
     server: {
-      port: 5173,
+      port: uiDevPort,
       strictPort: true,
     },
     plugins: [

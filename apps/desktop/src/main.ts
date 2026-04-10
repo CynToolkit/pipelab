@@ -5,7 +5,7 @@ import { electronApp, optimizer, is } from "@electron-toolkit/utils";
 import { startServer, stopServer } from "./main/server-process";
 import { resolve } from "node:path";
 import Squirrel from "electron-squirrel-startup";
-import { websocketPort } from "@pipelab/constants";
+import { websocketPort, uiDevPort } from "@pipelab/constants";
 import { registerIpcHandlers } from "./main/ipc-handlers";
 
 if (is.dev) {
@@ -68,7 +68,11 @@ function createWindow(): void {
     return { action: "deny" };
   });
 
-  mainWindow.loadURL(`http://localhost:${websocketPort}`);
+  if (is.dev) {
+    mainWindow.loadURL(`http://localhost:${uiDevPort}`);
+  } else {
+    mainWindow.loadURL(`http://localhost:${websocketPort}`);
+  }
 }
 
 if (is.dev && process.platform === "win32") {
