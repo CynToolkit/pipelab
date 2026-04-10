@@ -15,7 +15,7 @@ import {
   AppConfigV5,
   AppConfigV6,
   AppConfigV7,
-} from "../config/settings";
+} from "../config.schema";
 
 const migrator = createMigrator<AppConfigV1, AppConfig>();
 
