@@ -53,6 +53,7 @@ export * from "./types";
 export * from "./utils";
 export * from "./validation";
 export * from "./variables";
+export * from "./ipc.types";
 export * from "./websocket.types";
 export * from "./config";
 export * from "./plugins/definitions";

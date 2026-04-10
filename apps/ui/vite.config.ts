@@ -16,6 +16,16 @@ export default defineConfig(({ mode }) => {
       strictPort: true,
     },
     plugins: [
+      {
+        name: "disallow-core-node",
+        resolveId(id) {
+          if (id === "@pipelab/core-node" || id === "@pipelab/plugin-core") {
+            throw new Error(
+              `[Forbidden] Do not import ${id} in the UI project. These are Node.js only packages. Use @pipelab/shared for shared browser-safe code/types.`,
+            );
+          }
+        },
+      },
       mode === "development" && VueDevTools(),
       vue(),
       Components({
@@ -36,6 +46,7 @@ export default defineConfig(({ mode }) => {
       "process.env.UI_VERSION": JSON.stringify(env.npm_package_version || "1.0.0"),
     },
     optimizeDeps: {
+      exclude: ["@pipelab/core-node", "@pipelab/plugin-core"],
       include: [
         "@codemirror/state",
         "@codemirror/view",
@@ -47,7 +58,7 @@ export default defineConfig(({ mode }) => {
     },
     build: {
       rollupOptions: {
-        external: ["@pipelab/core-node"],
+        external: ["@pipelab/core-node", "@pipelab/plugin-core"],
       },
     },
     resolve: {

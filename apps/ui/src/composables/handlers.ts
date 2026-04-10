@@ -6,7 +6,7 @@ import {
   RendererEvents,
   RendererData,
   RendererMessage,
-} from "@pipelab/core-node";
+} from "@pipelab/shared";
 
 export type HandleListenerRendererSendFn<KEY extends RendererChannels> = (
   events: RendererEvents<KEY>,

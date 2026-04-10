@@ -304,7 +304,7 @@ import { useToast } from "primevue/usetoast";
 import Menu from "primevue/menu";
 import Button from "primevue/button";
 import Dialog from "primevue/dialog";
-import { UpdateStatus } from "@pipelab/core-node";
+import { UpdateStatus } from "@pipelab/shared";
 import { email, minLength, nonEmpty, object, pipe, regex, string } from "valibot";
 import { toTypedSchema } from "@vee-validate/valibot";
 import posthog from "posthog-js";
