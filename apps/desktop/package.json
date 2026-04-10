@@ -16,13 +16,13 @@
     "typecheck": "tsc --noEmit -p tsconfig.json --composite false",
     "start": "electron-forge start",
     "start:args": "electron-forge start -- --project ./tests/e2e/fixtures/folder-to-electron.json --action run",
-    "dev": "cross-env NODE_OPTIONS=--enable-source-maps pnpm start",
+    "dev": "cross-env NODE_OPTIONS=--enable-source-maps electron-forge start",
     "build": "echo 'Desktop app is built via electron-forge (use pnpm package or pnpm make)'",
     "package": "electron-forge package",
     "make": "electron-forge make",
     "publish": "electron-forge publish",
     "make-dev-prerelease": "pnpm version prerelease --preid=dev",
-    "migrate-file": "pnpm tsx scripts/migrate-file.mts"
+    "migrate-file": "tsx scripts/migrate-file.mts"
   },
   "dependencies": {
     "@electron-toolkit/preload": "3.0.2",
