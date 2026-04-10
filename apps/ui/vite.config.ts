@@ -11,15 +11,12 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
 
   return {
-    devtools: {
-      enabled: true,
-    },
     server: {
       port: 5173,
       strictPort: true,
     },
     plugins: [
-      VueDevTools(),
+      mode === "development" && VueDevTools(),
       vue(),
       Components({
         resolvers: [PrimeVueResolver()],
@@ -64,12 +61,6 @@ export default defineConfig(({ mode }) => {
       ],
       alias: {
         "@renderer": resolve(__dirname, "src"),
-        "@pipelab/shared": resolve(__dirname, "../../packages/shared/src"),
-        "@pipelab/constants": resolve(__dirname, "../../packages/constants/src/index.ts"),
-        "@pipelab/ui": resolve(__dirname, "src/main.ts"),
-        "@pipelab/core-node": resolve(__dirname, "../../packages/core-node/src"),
-        "@pipelab/migration": resolve(__dirname, "../../packages/migration/src"),
-        "@pipelab": resolve(__dirname, "../../packages/shared/src/libs"),
       },
     },
   };

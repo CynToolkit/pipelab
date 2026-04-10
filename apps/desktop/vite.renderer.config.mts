@@ -1,6 +1,6 @@
 import type { ConfigEnv, UserConfig } from "vite";
 import { defineConfig, loadEnv } from "vite";
-import { pluginExposeRenderer } from "./vite.base.config.mjs";
+import { pluginExposeRenderer } from "./vite.base.config.mts";
 import tsconfigPaths from "vite-tsconfig-paths";
 
 export default defineConfig((env) => {

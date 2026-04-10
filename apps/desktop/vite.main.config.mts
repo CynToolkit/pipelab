@@ -1,6 +1,6 @@
 import type { ConfigEnv, UserConfig } from "vite";
 import { defineConfig, loadEnv, mergeConfig } from "vite";
-import { getBuildConfig, getBuildDefine, external, pluginHotRestart } from "./vite.base.config.mjs";
+import { getBuildConfig, getBuildDefine, external, pluginHotRestart } from "./vite.base.config.mts";
 import tsconfigPaths from "vite-tsconfig-paths";
 import { sentryVitePlugin } from "@sentry/vite-plugin";
 import { resolve } from "path";
@@ -69,9 +69,6 @@ export default defineConfig((env) => {
       // Load the Node.js entry.
       mainFields: ["module", "jsnext:main", "jsnext"],
       conditions: ["node"],
-      alias: {
-        "@pipelab": resolve(__dirname, "../../packages/shared/src/libs"),
-      },
     },
   };
 

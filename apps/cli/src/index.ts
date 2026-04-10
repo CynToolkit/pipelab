@@ -1,16 +1,22 @@
 #!/usr/bin/env node
 import { config } from "dotenv";
-import { join, dirname } from "path";
-import { fileURLToPath } from "url";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-// Explicitly load .env from the monorepo root
-config({ path: join(__dirname, "../../../.env") });
-
+import {
+  WebSocketServer,
+  setAssetsPath,
+  assetsPath,
+  isDev,
+  registerAllHandlers,
+  executeGraphWithHistory,
+  setupConfigFile,
+} from "@pipelab/core-node";
+import { existsSync } from "node:fs";
+import { readFile, access, writeFile, mkdir } from "node:fs/promises";
+import { resolve, isAbsolute, join, dirname } from "node:path";
+import { tmpdir } from "node:os";
+import { fileURLToPath } from "node:url";
+import { savedFileMigrator } from "@pipelab/shared";
+import { registerMigrationHandlers } from "./migrations";
 import * as Sentry from "@sentry/node";
-import { WebSocketServer, setAssetsPath, assetsPath, isDev } from "@pipelab/core-node";
 
 if (!isDev && process.env.TEST !== "true") {
   Sentry.init({
@@ -19,10 +25,15 @@ if (!isDev && process.env.TEST !== "true") {
 }
 
 import cac from "cac";
-import { registerAllHandlers } from "@pipelab/core-node";
 import http from "http";
 import handler from "serve-handler";
 import type { AppConfig } from "@pipelab/shared";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// Explicitly load .env from the monorepo root
+config({ path: join(__dirname, "../../../.env") });
 
 console.log("cwd", process.cwd());
 console.log("import.meta.url", import.meta.url);
@@ -54,7 +65,6 @@ cli
         return;
       }
 
-      const { existsSync } = await import("node:fs");
       if (!existsSync(uiPath)) {
         response.writeHead(404, { "Content-Type": "text/plain" });
         response.end(
@@ -73,7 +83,6 @@ cli
     console.log(`UI available at http://localhost:${options.port}`);
 
     await registerAllHandlers();
-    const { registerMigrationHandlers } = await import("./migrations");
     registerMigrationHandlers();
 
     const wsServer = new WebSocketServer();
@@ -86,9 +95,6 @@ cli
   .option("--variables <json>", "JSON string of variables to override")
   .option("-o, --output <path>", "Path to write the result file")
   .action(async (file, options) => {
-    const { readFile, access, writeFile, mkdir } = await import("node:fs/promises");
-    const { resolve, isAbsolute, dirname } = await import("node:path");
-
     const pipelinePath = isAbsolute(file) ? file : resolve(process.cwd(), file);
 
     try {
@@ -103,7 +109,6 @@ cli
 
     let finalPipeline = pipeline;
     if (pipeline.version) {
-      const { savedFileMigrator } = await import("@pipelab/shared");
       finalPipeline = await savedFileMigrator.migrate(pipeline);
     }
 
@@ -136,13 +141,11 @@ cli
     console.log(`Executing pipeline: ${effectiveProjectName} (${effectivePipelineId})`);
 
     await registerAllHandlers();
-    const { registerMigrationHandlers } = await import("./migrations");
     registerMigrationHandlers();
 
-    const { executeGraphWithHistory, setupConfigFile } = await import("@pipelab/core-node");
     const settings = await setupConfigFile<AppConfig>("settings");
     const config = await settings.getConfig();
-    const cachePath = config?.cacheFolder || (await import("node:os")).tmpdir();
+    const cachePath = config?.cacheFolder || tmpdir();
 
     const abortController = new AbortController();
 
