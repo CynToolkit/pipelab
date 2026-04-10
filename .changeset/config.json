@@ -13,7 +13,9 @@
   "changelog": "@changesets/changelog-git",
   "commit": false,
   "access": "public",
-  "fixed": [],
+  "fixed": [
+    ["@pipelab/app", "@pipelab/ui", "@pipelab/cli"]
+  ],
   "linked": [],
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
