@@ -144,7 +144,6 @@ export const registerEngineHandlers = () => {
 
   handle("graph:execute", async (event, { send, value }) => {
     const { graph, variables, projectName, projectPath, pipelineId } = value;
-    const { executeGraphWithHistory, setupConfigFile } = await import("@pipelab/core-node");
     const settings = await setupConfigFile<AppConfig>("settings");
     const config = await settings.getConfig();
 

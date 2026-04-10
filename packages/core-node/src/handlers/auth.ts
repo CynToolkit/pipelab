@@ -2,6 +2,7 @@ import { supabase, useLogger, isSupabaseAvailable } from "@pipelab/shared";
 import { useAPI } from "../ipc-core";
 import { JsonFileStorage } from "../utils/storage";
 import { userDataPath } from "../context";
+import { webSocketServer } from "../websocket-server";
 
 /**
  * Registers authentication handlers for the CLI/system backend.
@@ -84,7 +85,6 @@ export const registerAuthHandlers = () => {
 
   // Maintain logs for the backend state change and broadcast to all clients
   client.auth.onAuthStateChange(async (event, session) => {
-    const { webSocketServer } = await import("../websocket-server");
     logger().info(
       "[Auth] State changed, broadcasting:",
       event,

@@ -19,6 +19,7 @@ import {
   extractTarGz,
   extractZip,
   zipFolder,
+  ensureNPMPackage,
 } from "@pipelab/plugin-core";
 import { setupConfigFile } from "./config";
 import { AppConfig } from "@pipelab/shared";
@@ -146,7 +147,6 @@ export const ensureNodeJS = async (version: string) => {
  * @returns A Promise that resolves to the path of the pnpm.cjs executable.
  */
 export const ensurePNPM = async (version = "10.12.0") => {
-  const { ensureNPMPackage } = await import("@pipelab/plugin-core");
   const packagePath = await ensureNPMPackage(join(userDataPath, "thirdparty"), "pnpm", version);
   return join(packagePath, "bin", "pnpm.cjs");
 };
