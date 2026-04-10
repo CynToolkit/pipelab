@@ -1,12 +1,15 @@
 import { app, shell, BrowserWindow, dialog, autoUpdater, screen } from "electron";
-import { join } from "path";
-import { platform } from "os";
+import { join, resolve, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+import { platform } from "node:os";
 import { electronApp, optimizer, is } from "@electron-toolkit/utils";
 import { startServer, stopServer } from "./main/server-process";
-import { resolve } from "node:path";
 import Squirrel from "electron-squirrel-startup";
 import { websocketPort, uiDevPort } from "@pipelab/constants";
 import { registerIpcHandlers } from "./main/ipc-handlers";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
 
 if (is.dev) {
   app.setPath("userData", app.getPath("userData") + "-dev");

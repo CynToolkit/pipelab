@@ -1,9 +1,13 @@
-import { spawn, ChildProcess } from "child_process";
-import { join } from "path";
+import { spawn, ChildProcess } from "node:child_process";
+import { join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 import { app } from "electron";
 import { is } from "@electron-toolkit/utils";
 import http from "node:http";
 import { websocketPort } from "@pipelab/constants";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
 
 let serverProcess: ChildProcess | null = null;
 
