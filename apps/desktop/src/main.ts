@@ -52,7 +52,7 @@ function createWindow(): void {
     autoHideMenuBar: true,
     ...position,
     webPreferences: {
-      preload: join(__dirname, "preload.js"),
+      preload: join(__dirname, "preload.cjs"),
       sandbox: false,
       devTools: is.dev,
     },
