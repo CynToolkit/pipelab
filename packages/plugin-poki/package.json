@@ -14,7 +14,7 @@
   },
   "devDependencies": {
     "@pipelab/tsconfig": "workspace:*",
-    "@types/node": "^24.1.0",
+    "@types/node": "24",
     "electron": "32.1.2",
     "msw": "2.7.5",
     "typescript": "5.9.3",

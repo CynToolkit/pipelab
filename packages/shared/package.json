@@ -19,6 +19,7 @@
     "@jitl/quickjs-wasmfile-release-sync": "0.31.0",
     "@pipelab/migration": "workspace:*",
     "@supabase/supabase-js": "2.99.3",
+    "@types/node": "^24.12.2",
     "klona": "2.0.6",
     "nanoid": "5.0.7",
     "quickjs-emscripten": "0.31.0",

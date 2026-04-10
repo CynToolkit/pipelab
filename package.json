@@ -18,6 +18,7 @@
     "@pipelab/tsconfig": "workspace:*",
     "@types/node": "22.7.9",
     "@types/tar": "^6.1.13",
+    "cross-env": "7.0.3",
     "execa": "9.5.1",
     "nanoid": "5.0.8",
     "oxfmt": "0.40.0",

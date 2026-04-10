@@ -72,13 +72,13 @@
   "devDependencies": {
     "@pipelab/tsconfig": "workspace:*",
     "@primevue/auto-import-resolver": "4.1.1",
-    "@types/node": "22.7.9",
+    "@types/node": "24.12.2",
+    "@vitejs/devtools": "0.1.13",
     "@vitejs/plugin-vue": "6.0.5",
     "typescript": "5.8.3",
     "unplugin-auto-import": "0.18.3",
     "unplugin-vue-components": "0.27.4",
     "vite": "8.0.8",
-    "@vitejs/devtools": "0.1.13",
     "vite-plugin-vue-devtools": "8.1.1",
     "vue-tsc": "2.1.6"
   }

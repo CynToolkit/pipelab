@@ -5,5 +5,8 @@
   "scripts": {
     "format": "oxfmt .",
     "lint": "oxlint ."
+  },
+  "dependencies": {
+    "@types/node": "^24.12.2"
   }
 }
