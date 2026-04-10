@@ -1,7 +1,7 @@
 import posthog from "posthog-js";
 
 export function usePostHog() {
-  posthog.init(__POSTHOG_API_KEY__, {
+  posthog.init(process.env.POSTHOG_API_KEY as string, {
     api_host: "https://eu.i.posthog.com",
   });
 

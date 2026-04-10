@@ -57,9 +57,9 @@ export default defineConfig((env) => {
     plugins,
     define: {
       ...define,
-      __POSTHOG_API_KEY__: JSON.stringify(environment.POSTHOG_API_KEY),
-      __SUPABASE_URL__: JSON.stringify(environment.SUPABASE_URL),
-      __SUPABASE_ANON_KEY__: JSON.stringify(environment.SUPABASE_ANON_KEY),
+      "process.env.POSTHOG_API_KEY": JSON.stringify(environment.POSTHOG_API_KEY),
+      "process.env.SUPABASE_URL": JSON.stringify(environment.SUPABASE_URL),
+      "process.env.SUPABASE_ANON_KEY": JSON.stringify(environment.SUPABASE_ANON_KEY),
     },
     ssr: {
       // Ensure we target Node.js for the main process

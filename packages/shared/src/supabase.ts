@@ -2,8 +2,8 @@ import { createClient } from "@supabase/supabase-js";
 import { Database } from "./database.types";
 
 const getSupabaseConfig = () => {
-  const url = (globalThis as any).__SUPABASE_URL__ || process.env.SUPABASE_URL || "";
-  const anonKey = (globalThis as any).__SUPABASE_ANON_KEY__ || process.env.SUPABASE_ANON_KEY || "";
+  const url = process.env.SUPABASE_URL || "";
+  const anonKey = process.env.SUPABASE_ANON_KEY || "";
   return { url, anonKey };
 };
 

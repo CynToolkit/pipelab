@@ -29,10 +29,10 @@ export default defineConfig(({ mode }) => {
       }),
     ],
     define: {
-      __SUPABASE_URL__: JSON.stringify(env.SUPABASE_URL),
-      __SUPABASE_ANON_KEY__: JSON.stringify(env.SUPABASE_ANON_KEY),
-      __SUPABASE_PROJECT_ID__: JSON.stringify(env.SUPABASE_PROJECT_ID),
-      __POSTHOG_API_KEY__: JSON.stringify(env.POSTHOG_API_KEY),
+      "process.env.SUPABASE_URL": JSON.stringify(env.SUPABASE_URL),
+      "process.env.SUPABASE_ANON_KEY": JSON.stringify(env.SUPABASE_ANON_KEY),
+      "process.env.SUPABASE_PROJECT_ID": JSON.stringify(env.SUPABASE_PROJECT_ID),
+      "process.env.POSTHOG_API_KEY": JSON.stringify(env.POSTHOG_API_KEY),
     },
     optimizeDeps: {
       include: [

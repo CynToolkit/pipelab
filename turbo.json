@@ -34,5 +34,11 @@
       "cache": false,
       "persistent": true
     }
-  }
+  },
+  "globalEnv": [
+    "SUPABASE_URL",
+    "SUPABASE_ANON_KEY",
+    "SUPABASE_PROJECT_ID",
+    "POSTHOG_API_KEY"
+  ]
 }
