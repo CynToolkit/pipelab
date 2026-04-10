@@ -11,6 +11,18 @@ import { version } from "../package.json";
 if (process.contextIsolated) {
   try {
     contextBridge.exposeInMainWorld("electron", electronAPI);
+
+    const versions = {
+      electron: process.versions.electron,
+      chrome: process.versions.chrome,
+      node: process.versions.node,
+      app: version,
+    };
+    console.log("[Preload] Exposing versions:", versions);
+
+    contextBridge.exposeInMainWorld("pipelab", {
+      versions,
+    });
     contextBridge.exposeInMainWorld("version", version);
     contextBridge.exposeInMainWorld("isPackaged", process.env.NODE_ENV !== "development");
   } catch (error) {
@@ -18,6 +30,13 @@ if (process.contextIsolated) {
   }
 } else {
   window.electron = electronAPI;
+  const versions = {
+    electron: process.versions.electron,
+    chrome: process.versions.chrome,
+    node: process.versions.node,
+    app: version,
+  };
+  window.pipelab = { versions };
   window.version = version;
   window.isPackaged = process.env.NODE_ENV !== "development";
 }

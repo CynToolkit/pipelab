@@ -5,10 +5,11 @@ import { registerHistoryHandlers } from "./history";
 import { registerEngineHandlers } from "./engine";
 import { registerAgentsHandlers } from "./agents";
 import { registerAuthHandlers } from "./auth";
+import { registerSystemHandlers } from "./system";
 import { builtInPlugins } from "../plugins-registry";
 import { usePlugins } from "@pipelab/shared";
 
-export const registerAllHandlers = async () => {
+export const registerAllHandlers = async (options: { version: string }) => {
   registerShellHandlers();
   registerFsHandlers();
   registerConfigHandlers();
@@ -16,6 +17,7 @@ export const registerAllHandlers = async () => {
   registerEngineHandlers();
   registerAgentsHandlers();
   registerAuthHandlers();
+  registerSystemHandlers(options);
 
   const { registerPlugins } = usePlugins();
   const plugins = await builtInPlugins();

@@ -167,6 +167,7 @@ export type IpcDefinition = {
     { name: string; options?: any },
     EndEvent<{ data: any | null; error: any | null }>,
   ];
+  "agent:version:get": [void, EndEvent<{ version: string }>];
 };
 
 export type Channels = keyof IpcDefinition;

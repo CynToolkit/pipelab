@@ -25,6 +25,7 @@ import { i18n } from "./i18n";
 
 import { websocketManager } from "./composables/websocket-manager";
 import { useLogger } from "@pipelab/shared";
+import Tooltip from "primevue/tooltip";
 
 const isPackaged = window.isPackaged || false;
 const isTest = window.isTest || false;
@@ -136,6 +137,7 @@ if (window.isPackaged && process.env.TEST !== "true") {
   app.use(posthogPlugin);
 }
 app.use(i18n);
+app.directive("tooltip", Tooltip);
 
 const { logger } = useLogger();
 

@@ -28,6 +28,7 @@
     </transition>
     <DevBenefitsOverride v-if="!isDisconnected" />
     <WebFilePicker v-if="!isDisconnected" />
+    <Toast />
   </div>
 </template>
 
@@ -48,6 +49,7 @@ import UpgradeDialog from "./components/UpgradeDialog.vue";
 import DevBenefitsOverride from "./components/DevBenefitsOverride.vue";
 import WebFilePicker from "./components/WebFilePicker.vue";
 import Dialog from "primevue/dialog";
+import Toast from "primevue/toast";
 import { websocketManager } from "./composables/websocket-manager";
 
 const appStore = useAppStore();

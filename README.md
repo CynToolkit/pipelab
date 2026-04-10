@@ -2,107 +2,85 @@
 
 ![logo](./readme/full_white_bg_black_text.png)
 
-## What is Pipelab?
+Pipelab is a visual automation tool designed to create task automation workflows and cross-platform desktop applications.
 
-A visual tool to create task automation workflows.
+## 🏗️ Orchestration Overview
 
-## Why use Pipelab?
-
-- Create cross-platform desktop applications
-- Deploy to popular platforms (Steam, Itch.io, etc.)
-- Automate repetitive tasks
-
-# Getting Started
-
-# Making a release
-
-```
-pnpm changeset version
-pnpm changeset tag
-```
-
-# Architecture
+Pipelab is built as a monorepo with three primary application layers that work together to provide a seamless automation experience:
 
 ```mermaid
 graph TD
-    classDef pipelab fill:#0096FF,stroke:#333,stroke-width:4px;
-    classDef todo stroke:#333,stroke-width:4px, stroke-dasharray: 4px;
-
-    DesktopApp[Desktop App - Pipelab]
-    GameBundle[Game Editor output]
-
-    subgraph GameEditors
-        Construct3[Construct 3]
-        Godot[Godot]
-        GDevelop[GDevelop]
+    classDef main fill:#0096FF,stroke:#333,stroke-width:2px;
+    
+    subgraph UserInterface["User Interface"]
+        UI["@pipelab/ui (Vue 3)"]
     end
 
-    PipelabPlugin[Pipelab Plugin]
-    SteamPlugin[Steam Plugin]
-    CoreMessaging[Core Messaging Library]
-    Renderers[Renderers]
-
-    subgraph Runtime
-        Electron
-        Tauri
-        Webview
+    subgraph Container["Desktop Container"]
+        Electron["@pipelab/app (Electron)"]
     end
 
-    subgraph Platforms
-        Steam
-        Itch
-        Poki
+    subgraph Engine["The Engine"]
+        CLI["@pipelab/cli (Node.js)"]
     end
 
-    Steamworks[steamworks.js Library]
+    UI <-->|WebSocket| CLI
+    UI <-->|IPC| Electron
+    Electron ---|Spawns Sidecar| CLI
+    CLI ---|Executes| Pipelines[Automation Pipelines]
 
-    GameEditors -->|Bundles to| GameBundle
-    GameBundle -->|Is imported into| DesktopApp
-    GameEditors -->|Includes| PipelabPlugin
-
-    PipelabPlugin -->|Is included in| GameBundle
-    PipelabPlugin -->|Implements| CoreMessaging
-
-    SteamPlugin -->|Is included in| GameBundle
-    SteamPlugin -->|Implements| CoreMessaging
-    SteamPlugin -->|Uses| Steamworks
-
-    CoreMessaging -->|Passes messages to| Renderers
-    Runtime -->|Is embedded in| Renderers
-    DesktopApp -->|Packages to| Runtime
-    Runtime -->|Handles events from| CoreMessaging
-
-    DesktopApp -->|Deploys to| Platforms
-    Platforms -->|Uses| Runtime
-
-    class DesktopApp,PipelabPlugin,SteamPlugin,CoreMessaging pipelab;
-    class SteamPlugin,Godot,GDevelop,Tauri,Webview,Itch,Poki todo;
+    class UI,Electron,CLI main;
 ```
 
-# Project Structure
+- **The Engine (@pipelab/cli)**: A standalone Node.js server that handles the heavy lifting. It executes pipelines, manages plugin logic, and exposes a WebSocket API.
+- **The Interface (@pipelab/ui)**: A Vue 3 application that provides the visual graph editor. It connects to the CLI via WebSockets for real-time execution feedback.
+- **The Container (@pipelab/app)**: An Electron wrapper that provides native OS integration (file dialogs, system tray). In production, it automatically manages the CLI as a "sidecar" process.
 
-This monorepo contains the following applications and packages:
+---
 
-### Applications
+## 🛠️ Setup & Development
 
-- **apps/cli**: The headless CLI and WebSocket server.
-- **apps/desktop**: The Electron-based desktop application.
-- **apps/ui**: The Vue 3 visual automation interface.
+### 1. Prerequisites
+Tool versions are managed via **mise**. Check [`.mise.toml`](.mise.toml) for the current requirements.
 
-### Core Packages
+### 2. Environment Configuration
+Create a `.env` file in the **root directory**. This is the single source of truth for all packages:
 
-- **packages/core-node**: Backend engine and logic.
-- **packages/shared**: Shared types and models.
-- **packages/plugin-core**: Base for all Pipelab plugins.
+```env
+SUPABASE_URL=your_project_url
+SUPABASE_ANON_KEY=your_key
+POSTHOG_API_KEY=your_key
+```
 
-### Plugins
-
-- **packages/plugin-\***: Modular plugins for various platforms and tools (Steam, Discord, Construct, etc.).
-
-# Development
-
-## Enable source maps
-
+### 3. Installation
 ```bash
-NODE_OPTIONS=--enable-source-maps pnpm xxx
+pnpm install
+```
+
+### 4. Running Development Mode
+The fastest way to start the entire ecosystem is from the root:
+```bash
+pnpm dev
+```
+> [!TIP]
+> This command uses **Turborepo** to start the UI dev server, the Electron process, and the CLI server concurrently.
+
+---
+
+## 📦 Project Structure
+
+- **`apps/cli`**: The headless engine and WebSocket server.
+- **`apps/desktop`**: The Electron lifecycle and IPC handlers.
+- **`apps/ui`**: Rendering and visual graph interaction.
+- **`packages/*`**: Shared logic, standard constants, and modular plugins (Steam, Discord, etc.).
+
+---
+
+## 🚀 Releases & Versioning
+
+We use **Changesets** to manage versions and changelogs:
+```bash
+pnpm changeset          # Document a change
+pnpm changeset version  # Bump versions
+pnpm changeset tag      # Create git tags
 ```

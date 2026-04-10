@@ -9,7 +9,7 @@ import {
   executeGraphWithHistory,
   setupConfigFile,
 } from "@pipelab/core-node";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { readFile, access, writeFile, mkdir } from "node:fs/promises";
 import { resolve, isAbsolute, join, dirname } from "node:path";
 import { tmpdir } from "node:os";
@@ -49,6 +49,10 @@ cli
   .action(async (options) => {
     const uiPath = join(assetsPath, "ui");
 
+    const packageJsonPath = join(__dirname, "..", "package.json");
+    const packageJson = JSON.parse(await readFile(packageJsonPath, "utf-8"));
+    const version = packageJson.version;
+
     // Setup minimal context for headless mode
     // setAssetsPath already called at top level
 
@@ -82,7 +86,7 @@ cli
     console.log(`Starting Pipelab server on port ${options.port}...`);
     console.log(`UI available at http://localhost:${options.port}`);
 
-    await registerAllHandlers();
+    await registerAllHandlers({ version });
     registerMigrationHandlers();
 
     const wsServer = new WebSocketServer();
@@ -96,6 +100,10 @@ cli
   .option("-o, --output <path>", "Path to write the result file")
   .action(async (file, options) => {
     const pipelinePath = isAbsolute(file) ? file : resolve(process.cwd(), file);
+
+    const packageJsonPath = join(__dirname, "..", "package.json");
+    const packageJson = JSON.parse(await readFile(packageJsonPath, "utf-8"));
+    const version = packageJson.version;
 
     try {
       await access(pipelinePath);
@@ -140,7 +148,7 @@ cli
 
     console.log(`Executing pipeline: ${effectiveProjectName} (${effectivePipelineId})`);
 
-    await registerAllHandlers();
+    await registerAllHandlers({ version });
     registerMigrationHandlers();
 
     const settings = await setupConfigFile<AppConfig>("settings");
@@ -188,5 +196,8 @@ cli
   });
 
 cli.help();
-cli.version("1.0.0");
+
+const packageJsonPath = join(__dirname, "..", "package.json");
+const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf-8"));
+cli.version(packageJson.version);
 cli.parse();

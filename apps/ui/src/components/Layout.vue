@@ -7,7 +7,20 @@
         <Button link class="list-item" @click="toggleAccountMenu">
           <i class="icon mdi mdi-account fs-24"></i>
         </Button>
-        <Menu ref="$menu" :model="accountMenuItems" :popup="true" />
+        <Menu ref="$menu" :model="accountMenuItems" :popup="true">
+          <template #item="{ item, props }">
+            <a v-bind="props.action" class="flex justify-content-between align-items-center w-full p-2">
+              <div class="flex align-items-center">
+                <i v-if="item.icon" :class="[item.icon, 'mr-2']"></i>
+                <span>{{ item.label }}</span>
+              </div>
+              <i
+                v-if="item.class === 'copiable-version'"
+                class="mdi mdi-content-copy text-xs opacity-50 ml-4"
+              ></i>
+            </a>
+          </template>
+        </Menu>
       </div>
     </div>
     <div class="content">
@@ -317,8 +330,45 @@ const headerSentence = computed(() => {
 const updateStatus = ref<UpdateStatus>("update-not-available");
 
 const appVersion = ref(window.version);
+const agentVersion = ref("...");
+const uiVersion = process.env.UI_VERSION;
+// @ts-expect-error - pipelab is added in the preload
+const electronVersion = window.pipelab?.versions?.electron || "N/A";
+
+const updateVersions = async () => {
+  if (websocketManager.isConnected()) {
+    try {
+      const response = await websocketManager.send("agent:version:get");
+      if (response.type === "success") {
+        agentVersion.value = response.result.version;
+      }
+    } catch (error) {
+      console.error("Failed to fetch agent version:", error);
+      agentVersion.value = "Unknown";
+    }
+  } else {
+    agentVersion.value = "...";
+  }
+};
+
+websocketManager.onStateChange((state) => {
+  if (state === "connected") {
+    updateVersions();
+  } else {
+    agentVersion.value = "...";
+  }
+});
+
+// Initial fetch if already connected
+if (websocketManager.isConnected()) {
+  updateVersions();
+}
+
 posthog.register({
   "app-version": appVersion.value,
+  "agent-version": agentVersion.value,
+  "ui-version": uiVersion,
+  "electron-version": electronVersion,
 });
 
 const connectionState = computed(() => websocketManager.connectionState.value);
@@ -435,21 +485,51 @@ const accountMenuItems = computed(() => {
     } satisfies MenuItem);
   }
 
-  items.push(
-    {
-      separator: true,
-    },
-    {
-      label: appVersion.value,
-      icon: "mdi mdi-information",
-    },
-  );
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast.add({
+      severity: "success",
+      summary: "Copied",
+      detail: `Version ${text} copied to clipboard`,
+      life: 2000,
+    });
+  };
 
   const result = [
     {
       label: "Account",
       icon: "mdi mdi-account",
       items,
+    },
+    {
+      separator: true,
+    },
+    {
+      label: "Versions",
+      icon: "mdi mdi-information",
+      items: [
+        {
+          label: `Agent: v${agentVersion.value}`,
+          icon: "mdi mdi-robot",
+          disabled: false,
+          command: () => copyToClipboard(agentVersion.value),
+          class: "copiable-version",
+        },
+        {
+          label: `UI: v${uiVersion}`,
+          icon: "mdi mdi-view-dashboard",
+          disabled: false,
+          command: () => copyToClipboard(uiVersion || "1.0.0"),
+          class: "copiable-version",
+        },
+        {
+          label: `Electron: v${electronVersion}`,
+          icon: "mdi mdi-atom",
+          disabled: false,
+          command: () => copyToClipboard(electronVersion),
+          class: "copiable-version",
+        },
+      ],
     },
     {
       separator: true,
