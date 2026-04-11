@@ -10,6 +10,11 @@ on:
         required: false
         type: boolean
         default: false
+      prerelease:
+        description: 'Mark as pre-release'
+        required: false
+        type: boolean
+        default: true
 
 permissions:
   contents: write
@@ -86,13 +91,14 @@ jobs:
           VERSION=$(node -p "require('./apps/desktop/package.json').version")
           echo "VERSION=$VERSION" >> $GITHUB_ENV
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-          if [[ $VERSION == *"-"* ]]; then
-            echo "PRERELEASE=true" >> $GITHUB_ENV
-            echo "prerelease=true" >> $GITHUB_OUTPUT
-          else
-            echo "PRERELEASE=false" >> $GITHUB_ENV
-            echo "prerelease=false" >> $GITHUB_OUTPUT
+          
+          IS_PRERELEASE="false"
+          if [[ $VERSION == *"-"* ]] || [[ ${{ github.event_name }} == "workflow_dispatch" && ${{ github.event.inputs.prerelease }} == "true" ]] || [[ ${{ github.ref_name }} == "feature/monorepo" ]]; then
+            IS_PRERELEASE="true"
           fi
+          
+          echo "PRERELEASE=$IS_PRERELEASE" >> $GITHUB_ENV
+          echo "prerelease=$IS_PRERELEASE" >> $GITHUB_OUTPUT
 
       - name: Import Apple Code Signing Certificate
         uses: apple-actions/import-codesign-certs@v3
