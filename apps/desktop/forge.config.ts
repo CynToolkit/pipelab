@@ -37,24 +37,11 @@ const config: ForgeConfig = {
     },
     osxSign: {
       identity: `Developer ID Application: Quentin Goinaud (${process.env.APPLE_TEAM_ID})`,
+      hardenedRuntime: true,
+      entitlements: path.join(__dirname, "assets/build/entitlements.mac.plist"),
+      "entitlements-inherit": path.join(__dirname, "assets/build/entitlements.mac.plist"),
       strictVerify: false,
-      optionsForFile: (filePath: string) => {
-        // Only apply entitlements to actual binaries/frameworks to avoid "no resources" errors
-        if (
-          filePath.endsWith(".app") ||
-          filePath.endsWith(".app/") ||
-          filePath.includes("Contents/MacOS/") ||
-          filePath.includes("Contents/Frameworks/") ||
-          filePath.includes("bin/")
-        ) {
-          return {
-            entitlements: path.join(__dirname, "assets/build/entitlements.mac.plist"),
-            hardenedRuntime: true,
-          };
-        }
-        return {};
-      },
-    },
+    } as any,
   },
   rebuildConfig: {},
   makers: [

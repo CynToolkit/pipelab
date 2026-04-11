@@ -44,5 +44,12 @@
     "SUPABASE_ANON_KEY",
     "SUPABASE_PROJECT_ID",
     "POSTHOG_API_KEY"
+  ],
+  "globalPassThroughEnv": [
+    "DEBUG",
+    "APPLE_TEAM_ID",
+    "APPLE_ID",
+    "APPLE_ID_PASSWORD",
+    "APPLE_CODESIGN_IDENTITY"
   ]
 }
