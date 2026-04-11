@@ -33,27 +33,11 @@ const config: ForgeConfig = {
       teamId: process.env.APPLE_TEAM_ID,
     },
     osxSign: {
-      strictVerify: false,
       identity: `Developer ID Application: Quentin Goinaud (${process.env.APPLE_TEAM_ID})`,
-      optionsForFile: (filePath) => {
-        // Only apply entitlements to code files (executables, frameworks, etc.)
-        // to avoid "code has no resources" errors on asset files.
-        if (
-          filePath.endsWith(".app") ||
-          filePath.includes("Contents/MacOS/") ||
-          filePath.includes("Contents/Frameworks/") ||
-          filePath.includes("Contents/Resources/bin/")
-        ) {
-          return {
-            entitlements: path.join(__dirname, "../cli/assets/build/entitlements.mac.plist"),
-            "entitlements-inherit": path.join(
-              __dirname,
-              "../cli/assets/build/entitlements.mac.plist",
-            ),
-          };
-        }
-        return {};
-      },
+      optionsForFile: () => ({
+        entitlements: path.join(__dirname, "../cli/assets/build/entitlements.mac.plist"),
+        "hardened-runtime": true,
+      }),
     },
   },
   rebuildConfig: {},
