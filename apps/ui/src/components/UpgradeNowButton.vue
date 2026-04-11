@@ -1,5 +1,9 @@
 <template>
-  <button v-if="!isSubscribed && isLoggedIn" class="upgrade-now-button" @click="openUpgradeDialog">
+  <button
+    v-if="!isSubscribed && isLoggedIn && hasLoginProvider"
+    class="upgrade-now-button"
+    @click="openUpgradeDialog"
+  >
     <i class="mdi mdi-crown upgrade-icon"></i>
     Upgrade now
   </button>
@@ -18,6 +22,10 @@ const isSubscribed = computed(() => {
 
 const isLoggedIn = computed(() => {
   return authStore.isLoggedIn;
+});
+
+const hasLoginProvider = computed(() => {
+  return authStore.hasLoginProvider;
 });
 
 const emit = defineEmits(["open-upgrade-dialog"]);

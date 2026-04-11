@@ -7,21 +7,20 @@ const getSupabaseConfig = () => {
   return { url, anonKey };
 };
 
-export const supabase = (options?: any) => {
-  const { url, anonKey } = getSupabaseConfig();
-  return createClient<Database>(url, anonKey, options);
-};
-
 export const isSupabaseAvailable = () => {
   const { url, anonKey } = getSupabaseConfig();
   const available = !!(url && anonKey);
 
-  if (!available) {
-    console.warn("Supabase environment variables are not configured.", {
-      hasUrl: !!url,
-      hasKey: !!anonKey,
-    });
-  }
-
   return available;
+};
+
+export const supabase = (options?: any) => {
+  const { url, anonKey } = getSupabaseConfig();
+  if (!url || !anonKey) {
+    if (process.env.NODE_ENV !== "test") {
+      console.warn("Supabase environment variables are not configured. Supabase will not be available.");
+    }
+    return null;
+  }
+  return createClient<Database>(url, anonKey, options);
 };

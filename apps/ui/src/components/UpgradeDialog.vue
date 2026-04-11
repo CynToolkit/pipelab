@@ -59,9 +59,8 @@
 
 <script lang="ts" setup>
 import { useAPI } from "@renderer/composables/api";
-import { supabase } from "@pipelab/shared";
-import { ref, onMounted } from "vue";
 import { useAuth } from "@renderer/store/auth";
+import { isSupabaseAvailable } from "@pipelab/shared";
 
 const emit = defineEmits(["close"]);
 const api = useAPI();
@@ -79,7 +78,12 @@ const fetchPlansFromPolar = async () => {
     error.value = null;
 
     // Call the actual polar-available-plans cloud function
-    const { data, error: apiError } = await supabase().functions.invoke("polar-available-plans");
+    const supabaseClient = supabase();
+    if (!supabaseClient) {
+      error.value = "Upgrades are currently unavailable (Cloud services not configured).";
+      return;
+    }
+    const { data, error: apiError } = await supabaseClient.functions.invoke("polar-available-plans");
 
     if (apiError) {
       throw apiError;
@@ -129,7 +133,7 @@ const getPlanButtonText = (plan: any) => {
   }
 
   if (!auth.isLoggedIn) {
-    return "Login to Upgrade";
+    return auth.hasLoginProvider ? "Login to Upgrade" : "Login Unavailable";
   }
 
   return `Upgrade to ${plan.name}`;
@@ -137,7 +141,9 @@ const getPlanButtonText = (plan: any) => {
 
 const handlePlanAction = (plan: any) => {
   if (!auth.isLoggedIn) {
-    auth.displayAuthModal("Login Required", "Please login or register to upgrade your plan.");
+    if (auth.hasLoginProvider) {
+      auth.displayAuthModal("Login Required", "Please login or register to upgrade your plan.");
+    }
     return;
   }
 
@@ -145,8 +151,12 @@ const handlePlanAction = (plan: any) => {
 };
 
 const upgradeToPlan = async (plan: any) => {
-  console.log(plan);
-  const result = await supabase().functions.invoke("checkout", {
+  const supabaseClient = supabase();
+  if (!supabaseClient) {
+    console.error("Supabase client is not available for checkout");
+    return;
+  }
+  const result = await supabaseClient.functions.invoke("checkout", {
     body: {
       itemIds: [plan.id],
     },

@@ -123,7 +123,7 @@ export const useAuth = defineStore("auth", () => {
 
   // Explicitly initialize the auth state when the store is created
   const init = async () => {
-    if (!isSupabaseAvailable) {
+    if (!isSupabaseAvailable()) {
       return;
     }
 
@@ -363,7 +363,7 @@ export const useAuth = defineStore("auth", () => {
     authState,
     isLoggedIn,
     isAuthenticating,
-    hasLoginProvider: isSupabaseAvailable,
+    hasLoginProvider: isSupabaseAvailable(),
     errorMessage,
     subscriptions: readonly(subscriptions),
     subscriptionError: readonly(subscriptionError),
