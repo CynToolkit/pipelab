@@ -2,20 +2,10 @@ import { defineConfig } from "tsdown";
 import { resolve, dirname } from "path";
 import { readFileSync } from "node:fs";
 
-const envFile = readFileSync(resolve(import.meta.dirname, "../../.env"), "utf-8");
-const env: Record<string, string> = {};
-envFile.split("\n").forEach((line) => {
-  const [key, ...value] = line.split("=");
-  if (key && value) {
-    env[key.trim()] = value
-      .join("=")
-      .trim()
-      .replace(/^"(.*)"$/, "$1");
-  }
-});
-
 export default defineConfig({
   entry: ["src/index.ts"],
+  envFile: "../../.env",
+  envPrefix: ["SUPABASE_", "POSTHOG_", "NODE_ENV"],
   format: ["esm"],
   dts: true,
   sourcemap: true,
@@ -23,12 +13,6 @@ export default defineConfig({
   minify: false,
   alias: {
     electron: resolve(import.meta.dirname, "assets/shims/electron.ts"),
-  },
-  define: {
-    "process.env.SUPABASE_URL": JSON.stringify(env.SUPABASE_URL),
-    "process.env.SUPABASE_ANON_KEY": JSON.stringify(env.SUPABASE_ANON_KEY),
-    "process.env.SUPABASE_PROJECT_ID": JSON.stringify(env.SUPABASE_PROJECT_ID),
-    "process.env.POSTHOG_API_KEY": JSON.stringify(env.POSTHOG_API_KEY),
   },
   deps: {
     neverBundle: [

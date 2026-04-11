@@ -127,6 +127,11 @@ jobs:
       - name: Package Agent (CLI)
         if: matrix.arch == 'x64'
         working-directory: apps/cli
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+          POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
         run: pnpm pkg
 
       - name: Upload Agent Binary to Release
