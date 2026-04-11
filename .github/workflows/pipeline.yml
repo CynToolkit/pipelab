@@ -144,7 +144,7 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: cross-env DEBUG='electron-osx-sign*,electron-forge:*' pnpm turbo make --filter=@pipelab/app -- --arch ${{ matrix.arch }}
+        run: DEBUG='electron-osx-sign*,electron-forge:*' pnpm turbo make --filter=@pipelab/app -- --arch ${{ matrix.arch }}
 
       - name: Upload Desktop Artifacts
         uses: actions/upload-artifact@v4
