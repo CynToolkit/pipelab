@@ -185,7 +185,7 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           
           IS_PRERELEASE="false"
-          if [[ $VERSION == *"-"* ]] || [[ ${{ github.event_name }} == "workflow_dispatch" && ${{ github.event.inputs.prerelease }} == "true" ]] || [[ ${{ github.ref_name }} == "feature/monorepo" ]]; then
+          if [[ $VERSION == *"-"* ]] || [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ github.event.inputs.prerelease }}" == "true" ]] || [[ "${{ github.ref_name }}" == "feature/monorepo" ]]; then
             IS_PRERELEASE="true"
           fi
           
