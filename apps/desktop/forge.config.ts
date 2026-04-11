@@ -20,7 +20,9 @@ const config: ForgeConfig = {
     prune: false,
     appBundleId: "app.pipelab.desktop",
     asar: true,
-    extraResource: [path.join(__dirname, "../cli/assets"), "bin"],
+    extraResource: [
+      path.join(__dirname, "bin") // Résolution absolue recommandée
+    ],
     name,
     icon: path.join(__dirname, "../cli/assets/build/icon"),
     extendInfo: {
@@ -28,19 +30,17 @@ const config: ForgeConfig = {
         "This app need to run commands through Terminal for specific tasks such as steamcmd.sh.",
     },
     osxNotarize: {
-      appleId: process.env.APPLE_ID,
-      appleIdPassword: process.env.APPLE_ID_PASSWORD,
-      teamId: process.env.APPLE_TEAM_ID
+      appleId: process.env.APPLE_ID || "",
+      appleIdPassword: process.env.APPLE_ID_PASSWORD || "",
+      teamId: process.env.APPLE_TEAM_ID || ""
     },
     osxSign: {
       strictVerify: false,
       identity: `Developer ID Application: Quentin Goinaud (${process.env.APPLE_TEAM_ID})`,
-      optionsForFile: (filePath) => {
-        return {
-          'entitlements-inherit': './assets/build/entitlements.mac.plist',
-          entitlements: './assets/build/entitlements.mac.plist'
-        }
-      }
+      // Déplacé à la racine. @electron/osx-sign s'occupera du filtrage des fichiers.
+      // Attention à bien vérifier que ce chemin vers vos assets est correct depuis __dirname.
+      entitlements: path.join(__dirname, "assets/build/entitlements.mac.plist"),
+      'entitlements-inherit': path.join(__dirname, "assets/build/entitlements.mac.plist")
     }
   },
   rebuildConfig: {},
@@ -73,7 +73,7 @@ const config: ForgeConfig = {
 
       try {
         const destBinDir = path.resolve(__dirname, "bin");
-        await fs.ensureDir(destBinDir);
+        await fs.emptyDir(destBinDir);
 
         const srcBinDir = path.join(cliPath, "bin");
         console.log(`INFO: Copying binaries from ${srcBinDir} to ${destBinDir}`);
