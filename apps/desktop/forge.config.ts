@@ -21,7 +21,8 @@ const config: ForgeConfig = {
     appBundleId: "app.pipelab.desktop",
     asar: true,
     extraResource: [
-      path.join(__dirname, "bin") // Résolution absolue recommandée
+      path.join(__dirname, "../cli/assets"),
+      path.join(__dirname, "bin")
     ],
     name,
     icon: path.join(__dirname, "../cli/assets/build/icon"),
@@ -35,13 +36,25 @@ const config: ForgeConfig = {
       teamId: process.env.APPLE_TEAM_ID || ""
     },
     osxSign: {
-      strictVerify: false,
       identity: `Developer ID Application: Quentin Goinaud (${process.env.APPLE_TEAM_ID})`,
-      // Déplacé à la racine. @electron/osx-sign s'occupera du filtrage des fichiers.
-      // Attention à bien vérifier que ce chemin vers vos assets est correct depuis __dirname.
-      entitlements: path.join(__dirname, "assets/build/entitlements.mac.plist"),
-      'entitlements-inherit': path.join(__dirname, "assets/build/entitlements.mac.plist")
-    }
+      strictVerify: false,
+      optionsForFile: (filePath: string) => {
+        // Only apply entitlements to actual binaries/frameworks to avoid "no resources" errors
+        if (
+          filePath.endsWith(".app") ||
+          filePath.endsWith(".app/") ||
+          filePath.includes("Contents/MacOS/") ||
+          filePath.includes("Contents/Frameworks/") ||
+          filePath.includes("bin/")
+        ) {
+          return {
+            entitlements: path.join(__dirname, "assets/build/entitlements.mac.plist"),
+            hardenedRuntime: true,
+          };
+        }
+        return {};
+      },
+    },
   },
   rebuildConfig: {},
   makers: [
