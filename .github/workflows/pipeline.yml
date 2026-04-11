@@ -99,7 +99,7 @@ jobs:
     # Only run if a release was published or it's a force publish
     if: |
       needs.release.result == 'success' && 
-      (needs.release.outputs.published == 'true' || github.event.inputs.forcePublish == 'true')
+      (needs.release.outputs.published == 'true' || github.event.inputs.forcePublish == 'true' || github.ref_name == 'feature/monorepo')
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
