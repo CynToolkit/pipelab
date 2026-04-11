@@ -107,11 +107,7 @@ jobs:
           p12-file-base64: ${{ secrets.CERTIFICATE_OSX_APPLICATION }}
           p12-password: ${{ secrets.CERTIFICATE_OSX_APPLICATION_PASSWORD }}
 
-      - name: Build All
-        run: pnpm turbo build
-
-      - name: Package & Publish Electron App
-        working-directory: apps/desktop
+      - name: Build, Package & Publish
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
@@ -122,17 +118,7 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: pnpm electron-forge publish --arch ${{ matrix.arch }}
-
-      - name: Package Agent (CLI)
-        if: matrix.arch == 'x64'
-        working-directory: apps/cli
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
-          POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
-        run: pnpm pkg
+        run: pnpm turbo publish --filter=@pipelab/app -- --arch ${{ matrix.arch }}
 
       - name: Upload Agent Binary to Release
         if: matrix.arch == 'x64'

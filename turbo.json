@@ -20,6 +20,10 @@
       "dependsOn": ["build", "^pkg"],
       "outputs": ["out/**"]
     },
+    "publish": {
+      "dependsOn": ["build", "^pkg"],
+      "outputs": ["out/**"]
+    },
     "test": {
       "dependsOn": ["build"],
       "outputs": []
