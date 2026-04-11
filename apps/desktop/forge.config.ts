@@ -30,15 +30,18 @@ const config: ForgeConfig = {
     osxNotarize: {
       appleId: process.env.APPLE_ID,
       appleIdPassword: process.env.APPLE_ID_PASSWORD,
-      teamId: process.env.APPLE_TEAM_ID,
+      teamId: process.env.APPLE_TEAM_ID
     },
     osxSign: {
+      strictVerify: false,
       identity: `Developer ID Application: Quentin Goinaud (${process.env.APPLE_TEAM_ID})`,
-      optionsForFile: () => ({
-        entitlements: path.join(__dirname, "../cli/assets/build/entitlements.mac.plist"),
-        "hardened-runtime": true,
-      }),
-    },
+      optionsForFile: (filePath) => {
+        return {
+          'entitlements-inherit': './assets/build/entitlements.mac.plist',
+          entitlements: './assets/build/entitlements.mac.plist'
+        }
+      }
+    }
   },
   rebuildConfig: {},
   makers: [
@@ -104,7 +107,7 @@ const config: ForgeConfig = {
     }),
     new FusesPlugin({
       version: FuseVersion.V1,
-      [FuseV1Options.RunAsNode]: true,
+      [FuseV1Options.RunAsNode]: false,
       [FuseV1Options.EnableCookieEncryption]: true,
       [FuseV1Options.EnableNodeOptionsEnvironmentVariable]: true,
       [FuseV1Options.EnableNodeCliInspectArguments]: false,
