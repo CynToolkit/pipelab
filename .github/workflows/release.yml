@@ -53,11 +53,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   publish-apps:
-    name: Publish Apps (${{ matrix.os }} - ${{ matrix.arch }})
+    name: Build Apps (${{ matrix.os }} - ${{ matrix.arch }})
     needs: release
-    if: |
-      needs.release.outputs.published == 'true' ||
-      github.event.inputs.forcePublish == 'true'
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -84,6 +81,54 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
+      - name: Import Apple Code Signing Certificate
+        uses: apple-actions/import-codesign-certs@v3
+        if: matrix.os == 'macos-latest'
+        with:
+          p12-file-base64: ${{ secrets.CERTIFICATE_OSX_APPLICATION }}
+          p12-password: ${{ secrets.CERTIFICATE_OSX_APPLICATION_PASSWORD }}
+
+      - name: Build & Package
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+          POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: pnpm turbo make --filter=@pipelab/app -- --arch ${{ matrix.arch }}
+
+      - name: Upload Desktop Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-artifacts-${{ matrix.os }}-${{ matrix.arch }}
+          path: apps/desktop/out/make/**/*
+
+      - name: Upload CLI Artifacts
+        if: matrix.arch == 'x64'
+        uses: actions/upload-artifact@v4
+        with:
+          name: cli-artifacts-${{ matrix.os }}-${{ matrix.arch }}
+          path: apps/cli/bin/*
+
+  deploy:
+    name: Deploy Release
+    needs: [release, publish-apps]
+    if: |
+      needs.release.outputs.published == 'true' ||
+      github.event.inputs.forcePublish == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
       - name: Get Version
         id: get_version
         shell: bash
@@ -100,32 +145,13 @@ jobs:
           echo "PRERELEASE=$IS_PRERELEASE" >> $GITHUB_ENV
           echo "prerelease=$IS_PRERELEASE" >> $GITHUB_OUTPUT
 
-      - name: Import Apple Code Signing Certificate
-        uses: apple-actions/import-codesign-certs@v3
-        if: matrix.os == 'macos-latest'
-        with:
-          p12-file-base64: ${{ secrets.CERTIFICATE_OSX_APPLICATION }}
-          p12-password: ${{ secrets.CERTIFICATE_OSX_APPLICATION_PASSWORD }}
-
-      - name: Build, Package & Publish
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
-          POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: pnpm turbo publish --filter=@pipelab/app -- --arch ${{ matrix.arch }}
-
-      - name: Upload Agent Binary to Release
-        if: matrix.arch == 'x64'
+      - name: Create Release and Upload
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: "v${{ env.VERSION }}"
-          prerelease: ${{ env.PRERELEASE == 'true' }}
-          files: apps/cli/bin/*
+          tag_name: "v${{ steps.get_version.outputs.version }}"
+          prerelease: ${{ steps.get_version.outputs.prerelease == 'true' }}
+          files: |
+            artifacts/desktop-artifacts-*/**/*
+            artifacts/cli-artifacts-*/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
