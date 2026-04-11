@@ -49,6 +49,7 @@
     "@types/fs-extra": "11.0.4",
     "@types/node": "24.12.2",
     "electron": "32.1.2",
+    "cross-env": "7.0.3",
     "fs-extra": "11.3.0",
     "tsx": "4.19.1",
     "typescript": "5.8.3",
