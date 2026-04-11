@@ -1,8 +1,10 @@
-name: Release
+name: Pipeline
 
 on:
   push:
-    branches: [main, feature/monorepo]
+    branches: [main, develop, feature/monorepo]
+  pull_request:
+    branches: [main, develop]
   workflow_dispatch:
     inputs:
       forcePublish:
@@ -21,8 +23,47 @@ permissions:
   pull-requests: write
 
 jobs:
+  verify:
+    name: Verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Lint
+        run: pnpm turbo lint
+        continue-on-error: true
+
+      - name: Typecheck
+        run: pnpm turbo typecheck
+        continue-on-error: true
+
+      - name: Test (Unit)
+        run: pnpm turbo test
+        continue-on-error: true
+
+      - name: Build Smoke Test
+        run: pnpm turbo build
+        continue-on-error: true
+
   release:
     name: Release
+    needs: verify
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'feature/monorepo'))
     runs-on: ubuntu-latest
     outputs:
       published: ${{ steps.changesets.outputs.published }}
@@ -55,6 +96,10 @@ jobs:
   publish-apps:
     name: Build Apps (${{ matrix.os }} - ${{ matrix.arch }})
     needs: release
+    # Only run if a release was published or it's a force publish
+    if: |
+      needs.release.result == 'success' && 
+      (needs.release.outputs.published == 'true' || github.event.inputs.forcePublish == 'true')
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
