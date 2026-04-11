@@ -1,10 +1,12 @@
 import { defineConfig } from "tsdown";
 import { resolve, dirname } from "path";
-import { readFileSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
+
+const envFile = resolve(import.meta.dirname, "../../.env");
 
 export default defineConfig({
   entry: ["src/index.ts"],
-  envFile: "../../.env",
+  envFile: existsSync(envFile) ? envFile : undefined,
   envPrefix: ["SUPABASE_", "POSTHOG_", "NODE_ENV"],
   format: ["esm"],
   dts: true,
