@@ -165,7 +165,8 @@ jobs:
     needs: [release, publish-apps]
     if: |
       needs.release.outputs.published == 'true' ||
-      github.event.inputs.forcePublish == 'true'
+      github.event.inputs.forcePublish == 'true' ||
+      github.ref_name == 'feature/monorepo'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
