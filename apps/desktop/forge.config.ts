@@ -63,7 +63,7 @@ const config: ForgeConfig = {
           owner: "CynToolkit",
           name: "pipelab",
         },
-        prerelease: true,
+        prerelease: process.env.PRERELEASE === "true",
         draft: false,
         generateReleaseNotes: true,
       },

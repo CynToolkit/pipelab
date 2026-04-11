@@ -86,6 +86,13 @@ jobs:
           VERSION=$(node -p "require('./apps/desktop/package.json').version")
           echo "VERSION=$VERSION" >> $GITHUB_ENV
           echo "version=$VERSION" >> $GITHUB_OUTPUT
+          if [[ $VERSION == *"-"* ]]; then
+            echo "PRERELEASE=true" >> $GITHUB_ENV
+            echo "prerelease=true" >> $GITHUB_OUTPUT
+          else
+            echo "PRERELEASE=false" >> $GITHUB_ENV
+            echo "prerelease=false" >> $GITHUB_OUTPUT
+          fi
 
       - name: Import Apple Code Signing Certificate
         uses: apple-actions/import-codesign-certs@v3
@@ -121,6 +128,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: "v${{ env.VERSION }}"
+          prerelease: ${{ env.PRERELEASE == 'true' }}
           files: apps/cli/bin/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
