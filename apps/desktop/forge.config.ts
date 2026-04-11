@@ -19,7 +19,7 @@ const config: ForgeConfig = {
   packagerConfig: {
     prune: false,
     appBundleId: "app.pipelab.desktop",
-    asar: false,
+    asar: true,
     extraResource: [path.join(__dirname, "../cli/assets"), "bin"],
     name,
     icon: path.join(__dirname, "../cli/assets/build/icon"),
