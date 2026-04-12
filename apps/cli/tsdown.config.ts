@@ -19,6 +19,7 @@ export default defineConfig({
   sourcemap: true,
   clean: true,
   minify: false,
+  outExtensions: () => ({ js: ".js" }),
   alias: {
     electron: resolve(import.meta.dirname, "assets/shims/electron.ts"),
   },
