@@ -82,6 +82,19 @@ async function renameAssets() {
         const dest = path.join(cliBinDir, newName);
         console.log(`INFO: Renaming CLI ${basename} -> ${newName}`);
         await fs.rename(src, dest);
+
+        // Ensure executable permissions for non-Windows platforms
+        if (os !== "win") {
+          console.log(`INFO: Setting executable permissions for ${newName}`);
+          await fs.chmod(dest, 0o755);
+        }
+      } else if (os !== "win") {
+        // Even if not renamed, ensure it's executable if it's a CLI binary
+        const src = path.join(cliBinDir, file);
+        if (basename.includes("pipelab-cli") || basename === "pipelab-linux" || basename === "pipelab-macos") {
+           console.log(`INFO: Ensuring executable permissions for ${basename}`);
+           await fs.chmod(src, 0o755);
+        }
       }
     }
   } else {
