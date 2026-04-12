@@ -2,7 +2,7 @@
   "name": "@pipelab/cli",
   "version": "2.0.0",
   "private": true,
-  "bin": "dist/index.mjs",
+  "bin": "dist/index.js",
   "type": "module",
   "scripts": {
     "build": "cross-env NODE_ENV=production tsdown && pnpm copy:ui",
@@ -39,7 +39,7 @@
   },
   "pkg": {
     "scripts": [
-      "dist/*.mjs"
+      "dist/*.js"
     ],
     "assets": [
       "dist/*.wasm",
