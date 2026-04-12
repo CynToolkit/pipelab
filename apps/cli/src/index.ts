@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-import { config } from "dotenv";
 import {
   WebSocketServer,
   setAssetsPath,
@@ -32,8 +31,6 @@ import type { AppConfig } from "@pipelab/shared";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Explicitly load .env from the monorepo root
-config({ path: join(__dirname, "../../../.env") });
 
 console.log("cwd", process.cwd());
 console.log("import.meta.url", import.meta.url);
