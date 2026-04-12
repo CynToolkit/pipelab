@@ -200,4 +200,9 @@ cli.help();
 const packageJsonPath = join(__dirname, "..", "package.json");
 const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf-8"));
 cli.version(packageJson.version);
-cli.parse();
+
+const parsed = cli.parse();
+
+if (!parsed.args.length && !process.argv.slice(2).length) {
+  cli.outputHelp();
+}
