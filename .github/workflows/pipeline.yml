@@ -50,12 +50,12 @@ jobs:
         run: pnpm turbo typecheck
         continue-on-error: true
 
-      - name: Test (Unit)
-        run: pnpm turbo test
+      - name: Build
+        run: pnpm turbo build
         continue-on-error: true
 
-      - name: Build Smoke Test
-        run: pnpm turbo build
+      - name: Test (Unit)
+        run: pnpm turbo test
         continue-on-error: true
 
   release:
