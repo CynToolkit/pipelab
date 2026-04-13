@@ -67,11 +67,11 @@ async function renameAssets() {
       const basename = path.basename(file);
       let newName = "";
 
-      if (basename === "pipelab-linux" && os === "linux") {
+      if ((basename === "pipelab-linux" || basename === "pipelab") && os === "linux") {
         newName = `pipelab-cli-v${version}-linux-x64`;
-      } else if (basename === "pipelab-win.exe" && os === "win") {
+      } else if ((basename === "pipelab-win.exe" || basename === "pipelab.exe") && os === "win") {
         newName = `pipelab-cli-v${version}-win-x64.exe`;
-      } else if (basename === "pipelab-macos" && os === "macos") {
+      } else if ((basename === "pipelab-macos" || basename === "pipelab") && os === "macos") {
         // pkg default output for macos is usually x64 currently
         // If we add arm64, we'll need to be more specific
         newName = `pipelab-cli-v${version}-macos-${arch}`;

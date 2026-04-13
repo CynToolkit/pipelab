@@ -7,7 +7,7 @@
   "scripts": {
     "build": "cross-env NODE_ENV=production tsdown && pnpm copy:ui",
     "copy:ui": "node scripts/copy-ui.mjs",
-    "pkg": "pnpm build && pkg . --output bin/pipelab",
+    "pkg": "pnpm build && node scripts/build-pkg.mjs",
     "dev": "cross-env NODE_ENV=development tsdown --watch --onSuccess \"cross-env NODE_ENV=development node dist/index.js serve\"",
     "watch": "tsdown --watch",
     "start": "node dist/index.js",
@@ -44,12 +44,6 @@
     "assets": [
       "dist/*.wasm",
       "assets/**/*"
-    ],
-    "targets": [
-      "node24-linux-x64",
-      "node24-win-x64",
-      "node24-macos-x64",
-      "node24-macos-arm64"
     ],
     "outputPath": "bin"
   }

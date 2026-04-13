@@ -145,6 +145,7 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          TARGET_ARCH: ${{ matrix.arch }}
         run: pnpm turbo make --filter=@pipelab/app -- --arch ${{ matrix.arch }}
 
       - name: Rename Assets
@@ -157,7 +158,6 @@ jobs:
           path: apps/desktop/out/make/**/*
 
       - name: Upload CLI Artifacts
-        if: matrix.arch == 'x64'
         uses: actions/upload-artifact@v4
         with:
           name: cli-artifacts-${{ matrix.os }}-${{ matrix.arch }}
