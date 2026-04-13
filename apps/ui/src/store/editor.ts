@@ -35,7 +35,11 @@ import { create } from "mutative";
 import { parse, value } from "valibot";
 import { createEventHook, watchDebounced } from "@vueuse/core";
 import { makeResolvedParams } from "@pipelab/shared";
-import { createQuickJsBrowser } from "@pipelab/shared";
+import { createQuickJsFromVariant, newVariant, RELEASE_SYNC } from "@pipelab/shared";
+// @ts-ignore — Vite ?url suffix resolves the WASM file URL at build time
+import wasmLocation from "@jitl/quickjs-wasmfile-release-sync/wasm?url";
+const _browserVariant = newVariant(RELEASE_SYNC, { wasmLocation });
+const createQuickJsBrowser = () => createQuickJsFromVariant(_browserVariant);
 import { Context } from "@pipelab/shared";
 
 // Definitions
