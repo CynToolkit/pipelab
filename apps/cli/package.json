@@ -38,12 +38,12 @@
     "vitest": "3.1.4"
   },
   "pkg": {
-    "scripts": [
-      "dist/*.js"
-    ],
+    "scripts": [],
     "assets": [
+      "dist/*.js",
       "dist/*.wasm",
-      "assets/**/*"
+      "assets/**/*",
+      "package.json"
     ],
     "outputPath": "bin"
   }

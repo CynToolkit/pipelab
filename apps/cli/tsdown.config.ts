@@ -22,7 +22,14 @@ export default defineConfig({
   sourcemap: true,
   clean: true,
   minify: false,
+  splitting: false,
+  target: false,
   outExtensions: () => ({ js: ".js" }),
+  rolldownOptions: {
+    output: {
+      inlineDynamicImports: true,
+    },
+  },
   alias: {
     electron: resolve(import.meta.dirname, "assets/shims/electron.ts"),
   },
