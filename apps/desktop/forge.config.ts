@@ -82,6 +82,29 @@ const config: ForgeConfig = {
         throw err;
       }
     },
+    postPackage: async (forgeConfig, packageResult) => {
+      console.log("INFO: Running postPackage hook to rename assets...");
+      const { spawn } = await import("child_process");
+      await new Promise((resolve, reject) => {
+        const child = spawn("node", ["../../scripts/rename-assets.mjs"], { cwd: __dirname, stdio: "inherit" });
+        child.on("close", (code) => {
+          if (code === 0) resolve(null);
+          else reject(new Error(`rename-assets.mjs exited with code ${code}`));
+        });
+      });
+    },
+    postMake: async (forgeConfig, makeResults) => {
+      console.log("INFO: Running postMake hook to rename assets...");
+      const { spawn } = await import("child_process");
+      await new Promise((resolve, reject) => {
+        const child = spawn("node", ["../../scripts/rename-assets.mjs"], { cwd: __dirname, stdio: "inherit" });
+        child.on("close", (code) => {
+          if (code === 0) resolve(null);
+          else reject(new Error(`rename-assets.mjs exited with code ${code}`));
+        });
+      });
+      return makeResults;
+    },
   },
   plugins: [
     new VitePlugin({

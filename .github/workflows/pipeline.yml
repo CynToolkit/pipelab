@@ -158,8 +158,6 @@ jobs:
           TARGET_ARCH: ${{ matrix.arch }}
         run: pnpm turbo make --filter=@pipelab/app -- --arch ${{ matrix.arch }}
 
-      - name: Rename Assets
-        run: node scripts/rename-assets.mjs ${{ matrix.os }} ${{ matrix.arch }}
 
       - name: Upload Desktop Artifacts
         uses: actions/upload-artifact@v4

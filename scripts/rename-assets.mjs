@@ -10,13 +10,16 @@ async function renameAssets() {
   const pkg = await fs.readJson(pkgPath);
   const version = pkg.version;
 
-  const rawOs = process.argv[2]; // ubuntu-latest, windows-latest, macos-latest
-  const rawArch = process.argv[3]; // x64, arm64
+  const rawOs = process.argv[2] || process.platform; // ubuntu-latest, windows-latest, macos-latest
+  const rawArch = process.argv[3] || process.arch; // x64, arm64
 
   const osMap = {
     "ubuntu-latest": "linux",
     "windows-latest": "win",
     "macos-latest": "macos",
+    "darwin": "macos",
+    "win32": "win",
+    "linux": "linux"
   };
 
   const os = osMap[rawOs] || rawOs;
