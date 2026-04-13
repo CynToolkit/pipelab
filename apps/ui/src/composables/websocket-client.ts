@@ -31,6 +31,7 @@ interface QueuedMessage {
 export class WebSocketClient {
   private ws: WebSocket | null = null;
   private listeners: Map<string, (data: WebSocketMessage) => void> = new Map();
+  private eventListeners: Map<string, Set<(data: any) => void>> = new Map();
   private reconnectAttempts = 0;
   private maxReconnectAttempts = Infinity;
   private reconnectDelay = 1000;
@@ -173,6 +174,18 @@ export class WebSocketClient {
       if (isWebSocketResponseMessage(message) || isWebSocketErrorMessage(message)) {
         if (this.listeners.has(message.requestId)) {
           this.listeners.get(message.requestId)!(message);
+        }
+      } else if (message.type === "event" && "channel" in message) {
+        const channel = message.channel;
+        const listeners = this.eventListeners.get(channel);
+        if (listeners) {
+          listeners.forEach((listener) => {
+            try {
+              listener(message.data);
+            } catch (error) {
+              console.error(`Error in event listener for channel ${channel}:`, error);
+            }
+          });
         }
       } else if (isWebSocketRequestMessage(message)) {
         // Handle incoming request messages if needed
@@ -367,6 +380,15 @@ export class WebSocketClient {
     this.disconnect();
     this.connect(url);
   }
+  public on<KEY extends Channels>(channel: KEY | string, listener: (data: Events<KEY>) => void): () => void {
+    if (!this.eventListeners.has(channel)) {
+      this.eventListeners.set(channel, new Set());
+    }
+    this.eventListeners.get(channel)!.add(listener);
+    return () => {
+      this.eventListeners.get(channel)?.delete(listener);
+    };
+  }
 }
 
 // Global WebSocket client instance
@@ -403,5 +425,6 @@ export const useWebSocketAPI = () => {
     execute,
     isConnected: client.isConnected.bind(client),
     disconnect: client.disconnect.bind(client),
+    on: client.on.bind(client),
   };
 };

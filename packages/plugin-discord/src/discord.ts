@@ -155,9 +155,6 @@ const createAppServer = async (folder: string) => {
   }
 };
 
-  // return tunnel
-};
-
 export const waitForAbort = (signal: AbortSignal): Promise<void> => {
   return new Promise<void>((resolve, reject) => {
     if (signal.aborted) {

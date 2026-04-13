@@ -30,6 +30,7 @@ export class WebSocketServer {
   private readyResolve: (() => void) | null = null;
   private connectionState: WebSocketConnectionState = "disconnected";
   private clients: Map<WSWebSocket, ConnectedClient> = new Map();
+  private lastBroadcasts: Map<Channels, string> = new Map();
 
   async start(port: number = websocketPort, existingServer?: import("http").Server): Promise<void> {
     const { logger } = useLogger();
@@ -63,6 +64,15 @@ export class WebSocketServer {
             name: clientName,
             url: request.url,
           });
+
+          // Replay last known state for each channel that has been broadcasted
+          for (const messageStr of this.lastBroadcasts.values()) {
+            try {
+              ws.send(messageStr);
+            } catch (error) {
+              logger().error("[WebSocket] Failed to replay sticky event to new client:", error);
+            }
+          }
 
           ws.on("message", (data: Buffer) => {
             try {
@@ -249,7 +259,6 @@ export class WebSocketServer {
    */
   broadcast<KEY extends Channels>(channel: KEY, data: Events<KEY>): void {
     const { logger } = useLogger();
-    if (!this.wss) return;
 
     const message = {
       type: "event",
@@ -258,6 +267,9 @@ export class WebSocketServer {
     };
 
     const messageStr = JSON.stringify(message);
+    this.lastBroadcasts.set(channel, messageStr);
+
+    if (!this.wss || this.clients.size === 0) return;
     logger().debug(`[WebSocket] Broadcasting to all clients on channel: ${channel}`);
 
     for (const client of this.clients.values()) {

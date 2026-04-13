@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import {
-  WebSocketServer,
+  webSocketServer,
   setAssetsPath,
   assetsPath,
   isDev,
@@ -85,8 +85,7 @@ cli
     await registerAllHandlers({ version });
     registerMigrationHandlers();
 
-    const wsServer = new WebSocketServer();
-    await wsServer.start(Number(options.port), server);
+    await webSocketServer.start(Number(options.port), server);
   });
 
 cli

@@ -1,8 +1,11 @@
 import { defineConfig } from "tsdown";
 import { resolve, dirname } from "path";
 import { readFileSync, existsSync } from "node:fs";
+import { config } from "dotenv";
 
 const envFile = resolve(import.meta.dirname, "../../.env");
+
+config({ path: envFile });
 
 export default defineConfig({
   entry: ["src/index.ts"],

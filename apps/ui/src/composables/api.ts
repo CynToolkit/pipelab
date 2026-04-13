@@ -9,7 +9,7 @@ export type { WebSocketListener };
 
 export const useAPI = () => {
   const { logger } = useLogger();
-  const { execute: wsExecute, isConnected } = useWebSocketAPI();
+  const { execute: wsExecute, isConnected, on: wsOn } = useWebSocketAPI();
   const uiStore = useUIStore();
 
   /**
@@ -91,11 +91,9 @@ export const useAPI = () => {
    */
   const on = <KEY extends Channels>(
     channel: KEY | string,
-    listener: (event: any, data: Events<KEY>) => void,
+    listener: (data: Events<KEY>) => void,
   ) => {
-    logger().warn("useAPI.on() is not supported in WebSocket mode. Use useAPI.execute() instead.");
-    // Return a no-op function for backwards compatibility
-    return () => {};
+    return wsOn(channel, listener);
   };
 
   return {
