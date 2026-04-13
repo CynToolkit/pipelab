@@ -61,14 +61,10 @@ class WebSocketManagerImpl implements WebSocketManager {
     const { logger } = useLogger();
 
     try {
-      if (url && this.client.isConnected()) {
-        this.client.disconnect();
-      }
-
       if (url) {
         this.client.reconnect(url);
       } else {
-        this.client.reconnect();
+        this.client.connect();
       }
 
       logger().info("WebSocket connection initiated", { url });

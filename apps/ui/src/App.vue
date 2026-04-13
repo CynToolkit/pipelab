@@ -197,7 +197,7 @@ onMounted(async () => {
   // Ensure the connecting page is visible for at least a certain amount of time
   setTimeout(() => {
     minimumLoadingTimeReached.value = true;
-  }, 5000);
+  }, 2000);
 
   // Loading state for specific data should be handled by components
 });

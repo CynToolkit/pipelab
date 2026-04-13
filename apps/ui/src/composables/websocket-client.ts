@@ -344,7 +344,7 @@ export class WebSocketClient {
     return this.ws?.readyState === WebSocket.OPEN;
   }
 
-  public disconnect() {
+  public disconnect(options: { clearQueue?: boolean } = { clearQueue: true }) {
     this.connectionState = "disconnected";
     this.notifyStateChange();
 
@@ -355,7 +355,9 @@ export class WebSocketClient {
     }
 
     // Clear any queued messages since we're disconnecting
-    this.clearQueue();
+    if (options.clearQueue) {
+      this.clearQueue();
+    }
 
     if (this.ws) {
       this.ws.close();
@@ -377,7 +379,7 @@ export class WebSocketClient {
   }
 
   public reconnect(url?: string) {
-    this.disconnect();
+    this.disconnect({ clearQueue: false });
     this.connect(url);
   }
   public on<KEY extends Channels>(channel: KEY | string, listener: (data: Events<KEY>) => void): () => void {
