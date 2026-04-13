@@ -57,6 +57,9 @@ importers:
       cac:
         specifier: 6.7.14
         version: 6.7.14
+      execa:
+        specifier: 9.5.1
+        version: 9.5.1
       serve-handler:
         specifier: 6.1.7
         version: 6.1.7
@@ -85,9 +88,6 @@ importers:
       cross-env:
         specifier: 7.0.3
         version: 7.0.3
-      execa:
-        specifier: 9.5.1
-        version: 9.5.1
       nanoid:
         specifier: 5.0.8
         version: 5.0.8
