@@ -1,10 +1,8 @@
 import { useLogger } from "./logger";
-import { isRenderer } from "./validation";
 import {
   newQuickJSWASMModuleFromVariant,
   newVariant,
   RELEASE_SYNC,
-  QuickJSContext,
 } from "quickjs-emscripten";
 import { Arena } from "quickjs-emscripten-sync";
 import { fmt } from "./fmt";
@@ -19,18 +17,13 @@ class EvaluationError extends Error {
   }
 }
 
-export const createQuickJs = async () => {
+/**
+ * Creates a QuickJS instance from an already-resolved variant.
+ * Callers are responsible for importing and passing the correct variant
+ * for their environment (Node vs browser) using a static import.
+ */
+export const createQuickJsFromVariant = async (variant: any) => {
   const { logger } = useLogger();
-
-  let variant: any;
-  if (isRenderer()) {
-    const location = (await import("@jitl/quickjs-wasmfile-release-sync/wasm?url")).default;
-    variant = newVariant(RELEASE_SYNC, {
-      wasmLocation: location,
-    });
-  } else {
-    variant = (await import("@jitl/quickjs-wasmfile-release-sync")).default;
-  }
 
   const quickjs = await newQuickJSWASMModuleFromVariant(variant);
 
@@ -94,4 +87,16 @@ export const createQuickJs = async () => {
   };
 };
 
+// ---------------------------------------------------------------------------
+// Node.js variant — statically imported, safe in the Electron main process
+// ---------------------------------------------------------------------------
+import nodeVariant from "@jitl/quickjs-wasmfile-release-sync";
+
+export const createQuickJs = () => createQuickJsFromVariant(nodeVariant);
+
 export type CreateQuickJSFn = ReturnType<typeof createQuickJs>;
+
+// ---------------------------------------------------------------------------
+// newVariant / RELEASE_SYNC re-exported for callers that build their own variant
+// ---------------------------------------------------------------------------
+export { newVariant, RELEASE_SYNC };

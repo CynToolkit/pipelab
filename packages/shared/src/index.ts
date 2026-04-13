@@ -33,6 +33,7 @@ export * from "./model";
 export * from "./plugins";
 export * from "./plugins/definitions"; // <-- RE-ADDED
 export * from "./quickjs";
+export * from "./quickjs-browser";
 export * from "./save-location";
 export * from "./subscription-errors";
 export * from "./supabase";

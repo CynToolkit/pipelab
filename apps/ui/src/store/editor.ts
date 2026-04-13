@@ -35,7 +35,7 @@ import { create } from "mutative";
 import { parse, value } from "valibot";
 import { createEventHook, watchDebounced } from "@vueuse/core";
 import { makeResolvedParams } from "@pipelab/shared";
-import { createQuickJs } from "@pipelab/shared";
+import { createQuickJsBrowser } from "@pipelab/shared";
 import { Context } from "@pipelab/shared";
 
 // Definitions
@@ -652,7 +652,7 @@ export const useEditor = defineStore("editor", () => {
   });
 
   const vm = shallowRef();
-  createQuickJs().then((_vm) => {
+  createQuickJsBrowser().then((_vm) => {
     vm.value = _vm;
   });
 
