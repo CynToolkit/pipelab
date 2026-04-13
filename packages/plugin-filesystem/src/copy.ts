@@ -1,3 +1,5 @@
+import { cp, mkdir, rm, stat } from "node:fs/promises";
+import { basename, join, dirname } from "node:path";
 import { createAction, createActionRunner, createPathParam } from "@pipelab/plugin-core";
 
 export const ID = "fs:copy";
@@ -78,8 +80,6 @@ export const copy = createAction({
 });
 
 export const copyRunner = createActionRunner<typeof copy>(async ({ log, inputs, setOutput }) => {
-  const { cp, mkdir, rm, stat } = await import("node:fs/promises");
-  const { basename, join, dirname } = await import("node:path");
   log("");
 
   const from = inputs.from;

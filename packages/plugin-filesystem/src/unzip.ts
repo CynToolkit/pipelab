@@ -1,3 +1,5 @@
+import StreamZip from "node-stream-zip";
+import { join } from "node:path";
 import { createAction, createActionRunner, createPathParam } from "@pipelab/plugin-core";
 
 export const ID = "unzip-file-node";
@@ -32,9 +34,6 @@ export const unzip = createAction({
 
 export const unzipRunner = createActionRunner<typeof unzip>(
   async ({ log, inputs, setOutput, cwd }) => {
-    const StreamZip = await import("node-stream-zip");
-    const { join } = await import("node:path");
-
     console.log("inputs", inputs);
 
     console.log("inputs.file", inputs.file);
@@ -47,7 +46,7 @@ export const unzipRunner = createActionRunner<typeof unzip>(
 
     log("Unzip file", inputs.file, "to", output);
 
-    const zip = new StreamZip.default.async({ file });
+    const zip = new StreamZip.async({ file });
 
     const bytes = await zip.extract(null, output);
     await zip.close();

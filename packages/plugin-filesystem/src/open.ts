@@ -1,4 +1,7 @@
+import { createRequire } from "node:module";
 import { createAction, createActionRunner, createPathParam } from "@pipelab/plugin-core";
+
+const require = createRequire(import.meta.url);
 // import displayString from './displayStringRun.lua?raw'
 
 export const ID = "fs:open-in-explorer";
@@ -33,7 +36,7 @@ export const openInExplorer = createAction({
 
 export const openInExplorerRunner = createActionRunner<typeof openInExplorer>(
   async ({ log, inputs, setOutput }) => {
-    const { shell } = await import("electron");
+    const { shell } = require("electron");
 
     log(`Opening ${inputs.path}`);
     const message = await shell.openPath(inputs.path);

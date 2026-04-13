@@ -1,3 +1,4 @@
+import { rm } from "node:fs/promises";
 import { createAction, createActionRunner, createPathParam } from "@pipelab/plugin-core";
 
 export const ID = "fs:remove";
@@ -34,7 +35,6 @@ export const remove = createAction({
 });
 
 export const removeRunner = createActionRunner<typeof remove>(async ({ log, inputs }) => {
-  const { rm } = await import("node:fs/promises");
   log("");
 
   const from = inputs.from;

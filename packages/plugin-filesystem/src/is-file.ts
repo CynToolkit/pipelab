@@ -1,3 +1,4 @@
+import fs from "node:fs/promises";
 import { createCondition, createConditionRunner } from "@pipelab/plugin-core";
 
 export const ID = "is-file";
@@ -24,7 +25,6 @@ export const isFileCondition = createCondition({
 
 export const isFileRunner = createConditionRunner<typeof isFileCondition>(
   async ({ log, inputs }) => {
-    const fs = await import("node:fs/promises");
 
     const path = inputs.path;
 

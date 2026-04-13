@@ -3,6 +3,7 @@ import {
   createActionRunner,
   createPathParam,
   createStringParam,
+  ensureNPMPackage,
   runWithLiveLogs,
 } from "@pipelab/plugin-core";
 import { dirname, join, delimiter } from "node:path";
@@ -51,8 +52,6 @@ export const uploadToPoki = createAction({
 
 export const uploadToPokiRunner = createActionRunner<typeof uploadToPoki>(
   async ({ log, inputs, paths, abortSignal, cwd }) => {
-    const { ensureNPMPackage } = await import("@pipelab/plugin-core");
-
     const { node, thirdparty, pnpm } = paths;
     const pokiDir = await ensureNPMPackage(thirdparty, "@poki/cli", "0.1.19", {
       nodePath: node,

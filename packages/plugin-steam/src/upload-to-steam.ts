@@ -1,3 +1,6 @@
+import { join, dirname, basename } from "node:path";
+import { platform } from "node:os";
+import { chmod, mkdir, writeFile, cp } from "node:fs/promises";
 import {
   createAction,
   createActionRunner,
@@ -83,10 +86,6 @@ export const uploadToSteam = createAction({
 
 export const uploadToSteamRunner = createActionRunner<typeof uploadToSteam>(
   async ({ log, inputs, cwd, abortSignal }) => {
-    const { join, dirname, basename } = await import("path");
-    const { platform } = await import("os");
-    const { chmod, mkdir, writeFile, cp } = await import("fs/promises");
-
     const folder = inputs.folder as string;
     const appId = inputs.appId as string;
     const sdk = inputs.sdk as string;

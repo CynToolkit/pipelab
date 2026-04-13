@@ -12,8 +12,11 @@ import {
 import { script } from "./assets/script.js";
 import * as v from "valibot";
 import { BrowserContext } from "playwright";
-import { join } from "node:path";
+import { dirname, join, delimiter } from "node:path";
+import { cp, mkdir } from "node:fs/promises";
 import { homedir } from "node:os";
+import { createRequire } from "node:module";
+import { ensureNPMPackage } from "@pipelab/plugin-core";
 
 const platform = process.platform;
 const { LOCALAPPDATA, XDG_CONFIG_HOME } = process.env;
@@ -116,10 +119,6 @@ export const exportc3p = async <ACTION extends Action>(
 
   // const { addonsFolder } = newInputs
 
-  const { join, dirname, delimiter } = await import("node:path");
-  const { cp, mkdir } = await import("node:fs/promises");
-  const { ensureNPMPackage } = await import("@pipelab/plugin-core");
-
   const { thirdparty, node, pnpm } = paths;
 
   const browserName: "chromium" | "firefox" | "webkit" = "chromium";
@@ -157,7 +156,8 @@ export const exportc3p = async <ACTION extends Action>(
     },
   );
 
-  const playwrightModule = await import(join(playwrightPkgPath, "index.js"));
+  const require = createRequire(import.meta.url);
+  const playwrightModule = require(join(playwrightPkgPath, "index.js"));
   const playwright = playwrightModule.default || playwrightModule;
 
   const downloadDir = join(cwd, "playwright");

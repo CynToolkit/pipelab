@@ -1,5 +1,6 @@
 import { runWithLiveLogsPTY } from "@pipelab/plugin-core";
-import { Options as ExecaOptions } from "execa";
+import { execa, Options as ExecaOptions } from "execa";
+import os from "node:os";
 
 export type Options = {
   steamcmdPath: string;
@@ -58,9 +59,6 @@ export const openExternalTerminal = async (
   options: ExecaOptions = {},
   keepOpen = false,
 ) => {
-  const { execa } = await import("execa");
-  const os = await import("os");
-
   const platform = process.platform;
 
   if (platform === "darwin") {

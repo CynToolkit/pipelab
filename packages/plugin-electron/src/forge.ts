@@ -15,7 +15,11 @@ import {
   runWithLiveLogs,
 } from "@pipelab/plugin-core";
 
-import { dirname } from "node:path";
+import { dirname, join, basename, delimiter } from "node:path";
+import { cp, readFile, writeFile, rm } from "node:fs/promises";
+import { platform as osPlatform, arch as osArch } from "node:os";
+import { kebabCase } from "change-case";
+import semver from "semver";
 import * as esbuild from "esbuild";
 
 // TODO: https://js.electronforge.io/modules/_electron_forge_core.html
@@ -565,12 +569,6 @@ export const forge = async (
   >,
   completeConfiguration: DesktopApp.Electron,
 ): Promise<{ folder: string; binary: string | undefined } | undefined> => {
-  const { join, basename, delimiter } = await import("node:path");
-  const { cp, readFile, writeFile, rm } = await import("node:fs/promises");
-  const { arch, platform } = await import("os");
-  const { kebabCase } = await import("change-case");
-  const semver = (await import("semver")).default;
-
   log("Building electron");
 
   if (action !== "preview") {
@@ -850,9 +848,9 @@ export const forge = async (
 
     try {
       log("typeof inputs.platform", typeof inputs.platform);
-      const finalPlatform = inputPlatform ?? platform() ?? "";
+      const finalPlatform = inputPlatform ?? osPlatform() ?? "";
       log("finalPlatform", finalPlatform);
-      const finalArch = inputArch ?? arch() ?? "";
+      const finalArch = inputArch ?? osArch() ?? "";
 
       try {
         await runWithLiveLogs(

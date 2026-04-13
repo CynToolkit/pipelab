@@ -210,7 +210,8 @@ export const registerEngineHandlers = () => {
           },
         },
       });
-    } catch (e) {
+      console.error("Graph execution failed:", e);
+      logger().error("Graph execution failed:", e);
       const isCanceled = e instanceof Error && e.name === "AbortError";
       send({
         type: "end",

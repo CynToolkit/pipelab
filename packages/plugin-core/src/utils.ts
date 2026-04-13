@@ -1,14 +1,21 @@
-import { Options, Subprocess } from "execa";
-import { IPty, type IPtyForkOptions, type IWindowsPtyForkOptions } from "@lydell/node-pty";
+import { execa, Options, Subprocess } from "execa";
+import {
+  spawn,
+  IPty,
+  type IPtyForkOptions,
+  type IWindowsPtyForkOptions,
+} from "@lydell/node-pty";
 import { ExternalCommandError } from "./custom-errors.js";
 import { generateTempFolder } from "./fs-utils.js";
 import { extractTarGz } from "./archive-utils.js";
 import { join } from "node:path";
 import { access, mkdir, writeFile, rm } from "node:fs/promises";
+import { createWriteStream } from "node:fs";
+import { pipeline } from "node:stream/promises";
 
 export const fileExists = async (path: string): Promise<boolean> => {
   try {
-    await import("fs/promises").then(({ access }) => access(path));
+    await access(path);
     return true;
   } catch {
     return false;
@@ -26,7 +33,6 @@ export const runWithLiveLogs = async (
     onExit?: (code: number) => void;
   },
 ): Promise<void> => {
-  const { execa } = await import("execa");
   return new Promise((resolve, reject) => {
     console.log("command: ", command, args.join(" "));
 
@@ -93,7 +99,6 @@ export const runWithLiveLogsPTY = async (
   },
   abortSignal?: AbortSignal,
 ): Promise<void> => {
-  const { spawn } = await import("@lydell/node-pty");
   return new Promise((resolve, reject) => {
     console.log("command: ", command, args.join(" "));
 
@@ -156,9 +161,6 @@ export const downloadFile = async (
 
   // Track progress
   let downloadedSize = 0;
-
-  // Create a write stream for the file
-  const { createWriteStream } = await import("fs");
   const fileStream = createWriteStream(localPath);
 
   // Create a readable stream to monitor progress
@@ -182,7 +184,6 @@ export const downloadFile = async (
     throw new Error("Failed to create a readable stream");
   }
 
-  const { pipeline } = await import("stream/promises");
   await pipeline(readable, fileStream);
 };
 
@@ -242,7 +243,6 @@ export const ensureNPMPackage = async (
       `Installing dependencies for ${name}@${version} using pnpm at ${options.pnpmPath}...`,
     );
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { execa } = await import("execa");
     // We use the pnpm .cjs bundle directly with node
     const node = options.nodePath || process.execPath;
     await execa(node, [options.pnpmPath, "install", "--prod"], {

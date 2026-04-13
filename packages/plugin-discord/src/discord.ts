@@ -8,7 +8,12 @@ import {
   OutputsDefinition,
   runWithLiveLogs,
 } from "@pipelab/plugin-core";
-import { dirname } from "node:path";
+import { dirname, join, basename, delimiter } from "node:path";
+import { cp, readFile, writeFile } from "node:fs/promises";
+import { platform as osPlatform, arch as osArch } from "node:os";
+import { kebabCase } from "change-case";
+import { createServer } from "node:http";
+import serve from "serve-handler";
 import { startTunnel } from "untun";
 
 export const IDPackage = "discord:package";
@@ -114,13 +119,11 @@ export const createPreviewProps = (
 
 const createAppServer = async (folder: string) => {
   try {
-    const serve = await import("serve-handler");
-    const { createServer } = await import("http");
 
     const server = createServer();
 
     server.on("request", (req, res) => {
-      return serve.default(req, res, {
+      return serve(req, res, {
         maxAge: 0,
         public: folder,
         headers: {
@@ -201,11 +204,6 @@ export const discord = async (
     | ActionRunnerData<ReturnType<typeof createPreviewProps>>,
   completeConfiguration: DesktopApp.Config,
 ): Promise<{ folder: string; binary: string | undefined } | undefined> => {
-  const { join, basename, delimiter } = await import("node:path");
-  const { cp, readFile, writeFile } = await import("node:fs/promises");
-  const { arch, platform } = await import("os");
-  const { kebabCase } = await import("change-case");
-
   console.log("appFolder", appFolder);
 
   log("Building discord");

@@ -1,3 +1,5 @@
+import { join, dirname } from "node:path";
+import { mkdir, access, chmod } from "node:fs/promises";
 import { createAction, createActionRunner, createPathParam } from "@pipelab/plugin-core";
 
 export const ID = "minify:images";
@@ -26,9 +28,6 @@ export const minifyImages = createAction({
 
 export const minifyImagesRunner = createActionRunner<typeof minifyImages>(
   async ({ log, inputs, cwd, abortSignal }) => {
-    const { app } = await import("electron");
-    const { join, dirname } = await import("node:path");
-    const { mkdir, access, chmod } = await import("node:fs/promises");
 
     // TODO: https://github.com/imagemin/imagemin
 

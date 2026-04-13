@@ -12,9 +12,13 @@ import {
   OutputsDefinition,
   runWithLiveLogs,
 } from "@pipelab/plugin-core";
-import { dirname, join } from "node:path";
-import { existsSync } from "node:fs";
-import { homedir } from "node:os";
+import { dirname, join, basename, delimiter } from "node:path";
+import { existsSync, readFile, writeFile } from "node:fs";
+import { cp, readFile as readFilePromise, writeFile as writeFilePromise } from "node:fs/promises";
+import { homedir, platform as osPlatform, arch as osArch } from "node:os";
+import { execa } from "execa";
+import { kebabCase } from "change-case";
+import { parseTOML, stringifyTOML } from "confbox";
 
 /**
  * Searches for common cargo paths and resolves to a valid cargo executable path
@@ -22,13 +26,11 @@ import { homedir } from "node:os";
  * @throws Error if cargo cannot be found
  */
 async function resolveCargoPath(): Promise<string> {
-  const { platform } = await import("os");
-  const { execa } = await import("execa");
-  const cargoBinName = platform() === "win32" ? "cargo.exe" : "cargo";
+  const cargoBinName = osPlatform() === "win32" ? "cargo.exe" : "cargo";
 
   // Common cargo paths by platform
   const commonPaths: string[] = [];
-  const currentPlatform = platform();
+  const currentPlatform = osPlatform();
 
   // Helper function to add paths if they exist
   const addIfExists = (path: string) => {
@@ -505,12 +507,6 @@ export const tauri = async (
   }: ActionRunnerData<ReturnType<typeof createPackageV2Props>>,
   completeConfiguration: DesktopApp.Config,
 ): Promise<{ folder: string; binary: string | undefined } | undefined> => {
-  const { join, basename, delimiter } = await import("node:path");
-  const { cp, readFile, writeFile } = await import("node:fs/promises");
-  const { arch, platform } = await import("os");
-  const { kebabCase } = await import("change-case");
-  const { parseTOML, stringifyTOML } = await import("confbox");
-
   console.log("appFolder", appFolder);
 
   log("Building tauri");
@@ -550,7 +546,7 @@ export const tauri = async (
     });
   }
 
-  writeFile(
+  writeFilePromise(
     join(destinationFolder, "config.cjs"),
     `module.exports = ${JSON.stringify(completeConfiguration, undefined, 2)}`,
     "utf8",
@@ -576,7 +572,7 @@ export const tauri = async (
   // Cargo.toml update
   log("Cargo.toml update");
   const cargoTomlPath = join(destinationFolder, "src-tauri", "Cargo.toml");
-  const cargoTomlContent = await readFile(cargoTomlPath, "utf8");
+  const cargoTomlContent = await readFilePromise(cargoTomlPath, "utf8");
   const cargoToml = parseTOML(cargoTomlContent) as { name: string; version: string };
   log("Setting name to", sanitizedName);
   console.log("cargoToml", cargoToml);
@@ -584,7 +580,7 @@ export const tauri = async (
   log("Setting version to", completeConfiguration.appVersion);
   cargoToml.version = completeConfiguration.appVersion;
   console.log("cargoToml", stringifyTOML(cargoToml));
-  await writeFile(cargoTomlPath, stringifyTOML(cargoToml));
+  await writeFilePromise(cargoTomlPath, stringifyTOML(cargoToml));
 
   // tauri.conf.json update
   log("Tauri.conf.json update");
@@ -600,7 +596,7 @@ export const tauri = async (
   if (action === "preview") {
     log("Setting build.devUrl to", appFolder);
     tauriConfJSON.build.devUrl = appFolder;
-    await writeFile(tauriConfJSONPath, JSON.stringify(tauriConfJSON, null, 2));
+    await writeFilePromise(tauriConfJSONPath, JSON.stringify(tauriConfJSON, null, 2));
   }
   /* else {
     log('Setting build.frontendDist to', appFolder)
@@ -665,9 +661,9 @@ export const tauri = async (
 
   try {
     log("typeof inputs.platform", typeof inputs.platform);
-    const finalPlatform: NodeJS.Platform = inputPlatform ?? platform();
+    const finalPlatform: NodeJS.Platform = inputPlatform ?? osPlatform();
     log("finalPlatform", finalPlatform);
-    const finalArch: NodeJS.Architecture = inputArch ?? (arch() as NodeJS.Architecture);
+    const finalArch: NodeJS.Architecture = inputArch ?? (osArch() as NodeJS.Architecture);
     log("finalArch", finalArch);
 
     let tauriPlatform = "";

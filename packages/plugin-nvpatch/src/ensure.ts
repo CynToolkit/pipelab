@@ -1,6 +1,7 @@
 import { join } from "node:path";
 import { mkdir, access } from "node:fs/promises";
 import { constants } from "node:fs";
+import { execa } from "execa";
 
 /**
  * Installs NVPatch if not already present.
@@ -20,7 +21,6 @@ export const ensureNVPatch = async (thirdpartyDir: string) => {
     console.log(`NVPatch not found at ${finalPath}, installing...`);
   }
 
-  const { execa } = await import("execa");
   await mkdir(nvpatchDir, { recursive: true });
 
   console.log(`Installing nvpatch via dotnet tool to ${nvpatchDir}...`);

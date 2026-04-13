@@ -1,3 +1,5 @@
+import { createWriteStream } from "node:fs";
+import archiver from "archiver";
 import { createAction, createActionRunner, createPathParam } from "@pipelab/plugin-core";
 
 export const ID = "zip-node";
@@ -61,8 +63,6 @@ export const zip = createAction({
 
 export const zipRunner = createActionRunner<typeof zip>(
   async ({ log, inputs, setOutput, abortSignal }) => {
-    const { createWriteStream } = await import("node:fs");
-    const { default: archiver } = await import("archiver");
 
     abortSignal.addEventListener("abort", () => {
       throw new Error("Aborted");

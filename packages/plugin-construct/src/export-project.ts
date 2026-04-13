@@ -1,3 +1,4 @@
+import { join } from "node:path";
 import {
   ExtractInputsFromAction,
   createAction,
@@ -58,7 +59,6 @@ export const exportProjectAction = createAction({
 
 export const ExportProjectActionRunner = createActionRunner<typeof exportProjectAction>(
   async (options) => {
-    const { join } = await import("node:path");
 
     const c3pFolderExists = await fileExists(options.inputs.folder);
     if (!c3pFolderExists) {

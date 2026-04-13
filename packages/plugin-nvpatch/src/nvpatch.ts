@@ -1,3 +1,5 @@
+import { execa } from "execa";
+import semver from "semver";
 import {
   createAction,
   createActionRunner,
@@ -32,9 +34,6 @@ export const NVPatch = createAction({
 
 export const NVPatchRunner = createActionRunner<typeof NVPatch>(
   async ({ log, inputs, paths, abortSignal, cwd }) => {
-    const { execa } = await import("execa");
-    const semver = (await import("semver")).default;
-
     const checkDotnetVersion = async (command: string) => {
       try {
         const { stdout } = await execa(command, ["--version"]);

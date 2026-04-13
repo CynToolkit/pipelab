@@ -1,10 +1,10 @@
+import { access } from "node:fs/promises";
 import { join } from "node:path";
 
 export type OutputRuntimes = "construct" | "godot";
 
 const fileExists = async (path: string): Promise<boolean> => {
   try {
-    const { access } = await import("fs/promises");
     await access(path);
     return true;
   } catch {

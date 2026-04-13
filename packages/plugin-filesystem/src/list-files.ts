@@ -1,3 +1,5 @@
+import fs from "node:fs/promises";
+import path from "node:path";
 import { createAction, createActionRunner } from "@pipelab/plugin-core";
 export const ID = "list-files-node";
 
@@ -39,9 +41,6 @@ export const ListFilesAction = createAction({
 
 export const ListFilesActionRun = createActionRunner<typeof ListFilesAction>(
   async ({ log, inputs, setOutput }) => {
-    const fs = await import("node:fs/promises");
-    const path = await import("node:path");
-
     const readdir = fs.readdir;
 
     log("");

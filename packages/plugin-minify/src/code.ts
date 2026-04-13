@@ -1,3 +1,6 @@
+import { readdir, mkdir, access, chmod } from "node:fs/promises";
+import { join, dirname } from "node:path";
+import esbuild from "esbuild";
 import { createAction, createActionRunner, createPathParam } from "@pipelab/plugin-core";
 
 export const ID = "minify:code";
@@ -25,9 +28,6 @@ export const minifyCode = createAction({
 });
 
 const getAllJsFiles = async (dir: string): Promise<string[]> => {
-  const { readdir } = await import("node:fs/promises");
-  const { join } = await import("node:path");
-
   const files = await readdir(dir, { withFileTypes: true });
   return files.flatMap((file) => {
     const fullPath = join(dir, file.name);
@@ -42,10 +42,6 @@ const getAllJsFiles = async (dir: string): Promise<string[]> => {
 
 export const minifyCodeRunner = createActionRunner<typeof minifyCode>(
   async ({ log, inputs, cwd, abortSignal }) => {
-    const { app } = await import("electron");
-    const { join, dirname } = await import("node:path");
-    const { mkdir, access, chmod } = await import("node:fs/promises");
-    const esbuild = (await import("esbuild")).default;
 
     const jsFiles = await getAllJsFiles(inputs["input-folder"]);
 
