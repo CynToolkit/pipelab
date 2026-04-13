@@ -18,6 +18,7 @@ if (platform === "darwin") targetOs = "macos";
 
 // Use TARGET_ARCH from CI, or default to os.arch()
 const arch = process.env.TARGET_ARCH || os.arch();
+const archSource = process.env.TARGET_ARCH ? "environment" : "host";
 let targetArch = arch;
 if (arch === "x86_64") targetArch = "x64";
 if (arch === "aarch64") targetArch = "arm64";
@@ -30,6 +31,7 @@ const outputPath = path.join("bin", binaryName);
 const target = `node24-${targetOs}-${targetArch}`;
 
 console.log(`[build-pkg.mjs] Version: ${version}`);
+console.log(`[build-pkg.mjs] Arch Source: ${archSource}`);
 console.log(`[build-pkg.mjs] Output: ${outputPath}`);
 console.log(`[build-pkg.mjs] Running pkg with target: ${target}`);
 
