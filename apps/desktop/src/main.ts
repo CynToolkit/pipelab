@@ -5,7 +5,6 @@ import { platform } from "node:os";
 import { electronApp, optimizer, is } from "@electron-toolkit/utils";
 import { startServer, stopServer } from "./main/server-process";
 import { createRequire } from "node:module";
-import Squirrel from "electron-squirrel-startup";
 import { websocketPort, uiDevPort } from "@pipelab/constants";
 import { registerIpcHandlers } from "./main/ipc-handlers";
 
@@ -15,8 +14,6 @@ if (is.dev) {
   app.setPath("userData", app.getPath("userData") + "-dev");
 }
 
-const isLinux = platform() === "linux";
-
 function getIconPath() {
   let ext = ".png";
   if (platform() === "win32") ext = ".ico";
@@ -24,17 +21,13 @@ function getIconPath() {
   return join("./assets", "build", `icon${ext}`);
 }
 
-if (!isLinux && process.env.TEST !== "true" && app.isPackaged && Squirrel) {
-  app.quit();
-}
-/*
-if (platform() === "win32" && process.env.TEST !== "true" && app.isPackaged) {
+if (process.platform === "win32" && process.env.TEST !== "true" && app.isPackaged) {
   const require = createRequire(import.meta.url);
   if (require("electron-squirrel-startup")) {
     app.quit();
   }
 }
-  */
+
 
 let mainWindow: BrowserWindow | undefined;
 
