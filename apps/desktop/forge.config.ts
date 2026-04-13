@@ -4,17 +4,59 @@ import { MakerZIP } from "@electron-forge/maker-zip";
 import { VitePlugin } from "@electron-forge/plugin-vite";
 import { FusesPlugin } from "@electron-forge/plugin-fuses";
 import { MakerDMG } from "@electron-forge/maker-dmg";
-import { MakerPKG } from "@electron-forge/maker-pkg";
 import { FuseV1Options, FuseVersion } from "@electron/fuses";
 import { name } from "@pipelab/constants";
-import * as fs from "fs-extra";
-import * as path from "path";
+import fs from "fs-extra";
+import path from "path";
 import { fileURLToPath } from "node:url";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-/** @type {*} */
+const getStandardOs = (p: string) => ({ win32: "win", darwin: "macos", linux: "linux" }[p] || p);
+
+/**
+ * Picks the pre-built CLI binary and copies it to the app's bin folder.
+ */
+async function prepareBinaries(platform: string, arch: string) {
+  const os = getStandardOs(platform);
+  const { version } = await fs.readJson(path.join(__dirname, "package.json"));
+  const suffix = os === "win" ? ".exe" : "";
+
+  const srcName = `pipelab-cli-v${version}-${os}-${arch}${suffix}`;
+  const src = path.resolve(__dirname, "../cli/bin", srcName);
+  const dest = path.resolve(__dirname, "bin", `pipelab-${os}${suffix}`);
+
+  console.log(`INFO: Bundling CLI: ${srcName} -> ${path.basename(dest)}`);
+  await fs.ensureDir(path.dirname(dest));
+  await fs.copy(src, dest, { overwrite: true });
+  if (os !== "win") await fs.chmod(dest, 0o755);
+}
+
+/**
+ * Renames Forge-generated installers in /out/make.
+ */
+async function renameInstallers(platform: string, arch: string) {
+  const { version } = await fs.readJson(path.join(__dirname, "package.json"));
+  const os = getStandardOs(platform);
+  const makeDir = path.join(__dirname, "out/make");
+
+  if (!(await fs.pathExists(makeDir))) return;
+  const files = await fs.readdir(makeDir, { recursive: true });
+
+  for (const relFile of files) {
+    const file = path.join(makeDir, relFile);
+    if ((await fs.stat(file)).isDirectory()) continue;
+
+    const ext = path.extname(file);
+    const basename = path.basename(file);
+    if ([".zip", ".dmg", ".exe", ".deb", ".rpm"].includes(ext) && !basename.includes("-v")) {
+      const newName = `pipelab-desktop-v${version}-${os}-${arch}${ext}`;
+      await fs.rename(file, path.join(path.dirname(file), newName));
+    }
+  }
+}
+
 const config: ForgeConfig = {
   packagerConfig: {
     prune: false,
@@ -24,8 +66,7 @@ const config: ForgeConfig = {
     name,
     icon: path.join(__dirname, "../cli/assets/build/icon"),
     extendInfo: {
-      NSAppleEventsUsageDescription:
-        "This app need to run commands through Terminal for specific tasks such as steamcmd.sh.",
+      NSAppleEventsUsageDescription: "This app need to run commands through Terminal.",
     },
     osxNotarize: {
       appleId: process.env.APPLE_ID || "",
@@ -40,12 +81,8 @@ const config: ForgeConfig = {
       strictVerify: false,
     } as any,
   },
-  rebuildConfig: {},
   makers: [
-    new MakerSquirrel({
-      name,
-      setupIcon: path.join(__dirname, "../cli/assets/build/icon.ico"),
-    }),
+    new MakerSquirrel({ name, setupIcon: path.join(__dirname, "../cli/assets/build/icon.ico") }),
     new MakerZIP(undefined, ["linux", "win32"]),
     new MakerDMG(),
   ],
@@ -53,10 +90,7 @@ const config: ForgeConfig = {
     {
       name: "@electron-forge/publisher-github",
       config: {
-        repository: {
-          owner: "CynToolkit",
-          name: "pipelab",
-        },
+        repository: { owner: "CynToolkit", name: "pipelab" },
         prerelease: process.env.PRERELEASE === "true",
         draft: false,
         generateReleaseNotes: true,
@@ -64,66 +98,22 @@ const config: ForgeConfig = {
     },
   ],
   hooks: {
-    prePackage: async (forgeConfig, platform, arch) => {
-      console.log("INFO: Running prePackage hook to copy CLI binaries...");
-      const cliPath = path.resolve(__dirname, "../cli");
-
-      try {
-        const destBinDir = path.resolve(__dirname, "bin");
-        await fs.emptyDir(destBinDir);
-
-        const srcBinDir = path.join(cliPath, "bin");
-        console.log(`INFO: Copying binaries from ${srcBinDir} to ${destBinDir}`);
-        await fs.copy(srcBinDir, destBinDir, { overwrite: true });
-
-        console.log("INFO: CLI binaries copied successfully.");
-      } catch (err) {
-        console.error("ERROR: Failed to copy CLI binaries:", err);
-        throw err;
+    prePackage: async (_, p, a) => await prepareBinaries(p, a),
+    postMake: async (_, makeResults) => {
+      for (const target of new Set(makeResults.map((r) => `${r.platform}:${r.arch}`))) {
+        const [p, a] = target.split(":");
+        await renameInstallers(p, a);
       }
-    },
-    postPackage: async (forgeConfig, packageResult) => {
-      console.log("INFO: Running postPackage hook to rename assets...");
-      const { spawn } = await import("child_process");
-      await new Promise((resolve, reject) => {
-        const child = spawn("node", ["../../scripts/rename-assets.mjs"], { cwd: __dirname, stdio: "inherit" });
-        child.on("close", (code) => {
-          if (code === 0) resolve(null);
-          else reject(new Error(`rename-assets.mjs exited with code ${code}`));
-        });
-      });
-    },
-    postMake: async (forgeConfig, makeResults) => {
-      console.log("INFO: Running postMake hook to rename assets...");
-      const { spawn } = await import("child_process");
-      await new Promise((resolve, reject) => {
-        const child = spawn("node", ["../../scripts/rename-assets.mjs"], { cwd: __dirname, stdio: "inherit" });
-        child.on("close", (code) => {
-          if (code === 0) resolve(null);
-          else reject(new Error(`rename-assets.mjs exited with code ${code}`));
-        });
-      });
       return makeResults;
     },
   },
   plugins: [
     new VitePlugin({
       build: [
-        {
-          entry: "src/main.ts",
-          config: "vite.main.config.mts",
-        },
-        {
-          entry: "src/preload.ts",
-          config: "vite.preload.config.mts",
-        },
+        { entry: "src/main.ts", config: "vite.main.config.mts" },
+        { entry: "src/preload.ts", config: "vite.preload.config.mts" },
       ],
-      renderer: [
-        {
-          name: "main_window",
-          config: "vite.renderer.config.mts",
-        },
-      ],
+      renderer: [{ name: "main_window", config: "vite.renderer.config.mts" }],
     }),
     new FusesPlugin({
       version: FuseVersion.V1,

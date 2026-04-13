@@ -62,29 +62,28 @@ export const startServer = async () => {
   } else {
     // In production, we use the bundled binary
     // The binary should be placed in a known location relative to the app
-    const platform =
-      process.platform === "win32" ? "win" : process.platform === "darwin" ? "macos" : "linux";
-    const binaryName = `pipelab-${platform}` + (process.platform === "win32" ? ".exe" : "");
-    serverPath = join(process.resourcesPath, "bin", binaryName);
+    const suffix = process.platform === "win32" ? ".exe" : "";
+    const platform = process.platform === "win32" ? "win" : process.platform === "darwin" ? "macos" : "linux";
+    serverPath = join(process.resourcesPath, "bin", `pipelab-${platform}${suffix}`);
 
-    console.info("Starting standalone server:", serverPath, args.join(" "));
+    console.log(`INFO: Using resource path: ${process.resourcesPath}`);
+    console.log(`INFO: Computed server path: ${serverPath}`);
 
-    serverProcess = spawn(serverPath, args, {
-      stdio: "pipe",
-      env: {
-        ...process.env,
-        // Pass any necessary env vars to the server
-      },
-    });
+    const fs = await import("node:fs");
+    if (!fs.existsSync(serverPath)) {
+      const fallback = join(app.getAppPath(), "..", "bin", `pipelab-${platform}${suffix}`);
+      console.warn(`WARN: Server not found at ${serverPath}, trying fallback: ${fallback}`);
+      if (fs.existsSync(fallback)) serverPath = fallback;
+      else throw new Error(`Standalone server binary not found at ${serverPath}`);
+    }
 
-    serverProcess.stdout?.on("data", (data) => {
-      console.info(`[Server] ${data.toString().trim()}`);
-    });
+    console.info(`Starting server: ${serverPath} ${args.join(" ")}`);
 
-    serverProcess.stderr?.on("data", (data) => {
-      console.error(`[Server Error] ${data.toString().trim()}`);
-    });
+    serverProcess = spawn(serverPath, args, { stdio: "pipe", env: { ...process.env } });
 
+    serverProcess.on("error", (err) => console.error("ERROR: Failed to spawn server:", err));
+    serverProcess.stdout?.on("data", (d) => console.info(`[Server] ${d.toString().trim()}`));
+    serverProcess.stderr?.on("data", (d) => console.error(`[Server Error] ${d.toString().trim()}`));
     serverProcess.on("close", (code) => {
       console.info(`Server process exited with code ${code}`);
       serverProcess = null;

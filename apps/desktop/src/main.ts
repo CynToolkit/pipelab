@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { platform } from "node:os";
 import { electronApp, optimizer, is } from "@electron-toolkit/utils";
 import { startServer, stopServer } from "./main/server-process";
+import { createRequire } from "node:module";
 import Squirrel from "electron-squirrel-startup";
 import { websocketPort, uiDevPort } from "@pipelab/constants";
 import { registerIpcHandlers } from "./main/ipc-handlers";
@@ -26,6 +27,14 @@ function getIconPath() {
 if (!isLinux && process.env.TEST !== "true" && app.isPackaged && Squirrel) {
   app.quit();
 }
+/*
+if (platform() === "win32" && process.env.TEST !== "true" && app.isPackaged) {
+  const require = createRequire(import.meta.url);
+  if (require("electron-squirrel-startup")) {
+    app.quit();
+  }
+}
+  */
 
 let mainWindow: BrowserWindow | undefined;
 
@@ -38,9 +47,9 @@ function createWindow(): void {
   const position =
     externalDisplay && is.dev
       ? {
-          x: externalDisplay.bounds.x + 50,
-          y: externalDisplay.bounds.y + 50,
-        }
+        x: externalDisplay.bounds.x + 50,
+        y: externalDisplay.bounds.y + 50,
+      }
       : {};
 
   mainWindow = new BrowserWindow({
