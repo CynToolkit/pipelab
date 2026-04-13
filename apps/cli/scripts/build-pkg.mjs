@@ -22,9 +22,9 @@ console.log(`[build-pkg.mjs] Running pkg with target: ${target}`);
 
 try {
   // Execute pkg
-  execSync(`npx pkg . --output bin/pipelab -t ${target}`, { 
+  execSync(`npx pkg . --output bin/pipelab -t ${target}`, {
     stdio: "inherit",
-    env: process.env // pass through path for npx etc
+    env: process.env, // pass through path for npx etc
   });
 } catch (err) {
   console.error("[build-pkg.mjs] pkg failed", err);

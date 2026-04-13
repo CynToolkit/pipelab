@@ -8,7 +8,6 @@ import { websocketPort } from "@pipelab/constants";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-
 let serverProcess: ChildProcess | null = null;
 
 const isUp = (port: number, retries = 20, delay = 500): Promise<boolean> =>

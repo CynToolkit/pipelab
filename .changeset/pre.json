@@ -24,8 +24,5 @@
     "@pipelab/shared": "2.0.0",
     "@pipelab/tsconfig": "1.0.0"
   },
-  "changesets": [
-    "curly-planets-move",
-    "orange-pans-arrive"
-  ]
+  "changesets": ["curly-planets-move", "orange-pans-arrive"]
 }

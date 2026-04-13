@@ -67,7 +67,8 @@ const isElectron = computed(() => {
   left: 0;
   width: 100%;
   height: 100%;
-  background-image: linear-gradient(var(--p-surface-200) 1px, transparent 1px),
+  background-image:
+    linear-gradient(var(--p-surface-200) 1px, transparent 1px),
     linear-gradient(90deg, var(--p-surface-200) 1px, transparent 1px);
   background-size: 60px 60px;
   opacity: 0.2;
@@ -206,23 +207,44 @@ const isElectron = computed(() => {
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 @keyframes pulse {
-  0%, 100% { transform: scale(1); opacity: 0.8; }
-  50% { transform: scale(1.1); opacity: 1; }
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 1;
+  }
 }
 
 @keyframes progress {
-  0% { transform: translateX(-100%); }
-  50% { transform: translateX(0%); }
-  100% { transform: translateX(100%); }
+  0% {
+    transform: translateX(-100%);
+  }
+  50% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
 }
 
 @keyframes float {
-  0% { transform: translate(0, 0); }
-  100% { transform: translate(100px, 50px); }
+  0% {
+    transform: translate(0, 0);
+  }
+  100% {
+    transform: translate(100px, 50px);
+  }
 }
 </style>

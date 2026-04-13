@@ -26,7 +26,7 @@ export const builtInPlugins = async () => {
   ];
 
   if (isDev) {
-    // Only import Netlify in dev mode if possible, but for simplicity in a bundled app, 
+    // Only import Netlify in dev mode if possible, but for simplicity in a bundled app,
     // we can import it statically if we want it available.
     // However, if we want to KEEP it dynamic for dev, it might still crash if run in dev via pkg (unlikely).
     // Let's make it static too to be safe, or just exclude it if not needed in CLI.

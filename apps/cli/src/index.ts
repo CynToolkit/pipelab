@@ -31,7 +31,6 @@ import type { AppConfig } from "@pipelab/shared";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-
 console.log("cwd", process.cwd());
 console.log("import.meta.url", import.meta.url);
 console.log("__dirname", __dirname);

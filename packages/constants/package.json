@@ -17,11 +17,11 @@
     "format": "oxfmt .",
     "lint": "oxlint ."
   },
+  "dependencies": {
+    "@types/node": "^24.12.2"
+  },
   "devDependencies": {
     "@pipelab/tsconfig": "workspace:*",
     "typescript": "^5.0.0"
-  },
-  "dependencies": {
-    "@types/node": "^24.12.2"
   }
 }

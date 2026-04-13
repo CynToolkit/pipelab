@@ -9,7 +9,10 @@
         </Button>
         <Menu ref="$menu" :model="accountMenuItems" :popup="true">
           <template #item="{ item, props }">
-            <a v-bind="props.action" class="flex justify-content-between align-items-center w-full p-2">
+            <a
+              v-bind="props.action"
+              class="flex justify-content-between align-items-center w-full p-2"
+            >
               <div class="flex align-items-center">
                 <i v-if="item.icon" :class="[item.icon, 'mr-2']"></i>
                 <span>{{ item.label }}</span>

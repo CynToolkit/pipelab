@@ -1,12 +1,7 @@
 // renderer handler
 
 import { useLogger } from "@pipelab/shared";
-import {
-  RendererChannels,
-  RendererEvents,
-  RendererData,
-  RendererMessage,
-} from "@pipelab/shared";
+import { RendererChannels, RendererEvents, RendererData, RendererMessage } from "@pipelab/shared";
 
 export type HandleListenerRendererSendFn<KEY extends RendererChannels> = (
   events: RendererEvents<KEY>,

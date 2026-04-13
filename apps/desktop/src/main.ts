@@ -10,7 +10,6 @@ import { registerIpcHandlers } from "./main/ipc-handlers";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-
 if (is.dev) {
   app.setPath("userData", app.getPath("userData") + "-dev");
 }

@@ -2,7 +2,6 @@ import fs from "fs-extra";
 import path from "path";
 import { fileURLToPath } from "url";
 
-
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, "..");
 
@@ -29,7 +28,7 @@ async function renameAssets() {
   const desktopMakeDir = path.join(root, "apps/desktop/out/make");
   if (await fs.pathExists(desktopMakeDir)) {
     const files = await fs.promises.readdir(desktopMakeDir, { recursive: true });
-    
+
     for (const relativeFile of files) {
       const file = path.join(desktopMakeDir, relativeFile);
       const stats = await fs.stat(file);
@@ -37,14 +36,14 @@ async function renameAssets() {
 
       const ext = path.extname(file);
       const basename = path.basename(file);
-      
+
       let newName = "";
 
       // Only rename main installer/archive files
       if (ext === ".zip" || ext === ".dmg" || ext === ".exe" || ext === ".deb" || ext === ".rpm") {
         // Avoid renaming RELEASES or other support files if they were picked up
         if (basename.toLowerCase().includes("pipelab")) {
-           newName = `pipelab-desktop-v${version}-${os}-${arch}${ext}`;
+          newName = `pipelab-desktop-v${version}-${os}-${arch}${ext}`;
         }
       }
 
@@ -62,7 +61,7 @@ async function renameAssets() {
   const cliBinDir = path.join(root, "apps/cli/bin");
   if (await fs.pathExists(cliBinDir)) {
     const files = await fs.readdir(cliBinDir);
-    
+
     for (const file of files) {
       const basename = path.basename(file);
       let newName = "";
@@ -91,9 +90,13 @@ async function renameAssets() {
       } else if (os !== "win") {
         // Even if not renamed, ensure it's executable if it's a CLI binary
         const src = path.join(cliBinDir, file);
-        if (basename.includes("pipelab-cli") || basename === "pipelab-linux" || basename === "pipelab-macos") {
-           console.log(`INFO: Ensuring executable permissions for ${basename}`);
-           await fs.chmod(src, 0o755);
+        if (
+          basename.includes("pipelab-cli") ||
+          basename === "pipelab-linux" ||
+          basename === "pipelab-macos"
+        ) {
+          console.log(`INFO: Ensuring executable permissions for ${basename}`);
+          await fs.chmod(src, 0o755);
         }
       }
     }

@@ -83,7 +83,8 @@ const fetchPlansFromPolar = async () => {
       error.value = "Upgrades are currently unavailable (Cloud services not configured).";
       return;
     }
-    const { data, error: apiError } = await supabaseClient.functions.invoke("polar-available-plans");
+    const { data, error: apiError } =
+      await supabaseClient.functions.invoke("polar-available-plans");
 
     if (apiError) {
       throw apiError;

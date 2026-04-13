@@ -11,15 +11,18 @@ The Desktop application serves as the native shell for the Pipelab ecosystem. It
 3.  **UI Container**: Loads and displays the `@pipelab/ui` interface.
 
 ### Communication Flow
+
 - **Main to UI**: Via standard Electron IPC.
 - **UI to CLI**: Via WebSockets (even when running inside the desktop app).
 
 ## 🛠️ Development
 
 ### Setup
+
 Ensure you have the root-level `.env` file configured.
 
 ### Commands
+
 ```bash
 pnpm dev        # Starts the Electron app in development mode
 pnpm package    # Packages the application for the current platform (production)

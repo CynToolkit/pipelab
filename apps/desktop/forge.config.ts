@@ -20,10 +20,7 @@ const config: ForgeConfig = {
     prune: false,
     appBundleId: "app.pipelab.desktop",
     asar: true,
-    extraResource: [
-      path.join(__dirname, "../cli/assets"),
-      path.join(__dirname, "bin")
-    ],
+    extraResource: [path.join(__dirname, "../cli/assets"), path.join(__dirname, "bin")],
     name,
     icon: path.join(__dirname, "../cli/assets/build/icon"),
     extendInfo: {
@@ -33,7 +30,7 @@ const config: ForgeConfig = {
     osxNotarize: {
       appleId: process.env.APPLE_ID || "",
       appleIdPassword: process.env.APPLE_ID_PASSWORD || "",
-      teamId: process.env.APPLE_TEAM_ID || ""
+      teamId: process.env.APPLE_TEAM_ID || "",
     },
     osxSign: {
       identity: `Developer ID Application: Quentin Goinaud (${process.env.APPLE_TEAM_ID})`,

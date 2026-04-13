@@ -8,12 +8,12 @@ on:
   workflow_dispatch:
     inputs:
       forcePublish:
-        description: 'Force publish apps'
+        description: "Force publish apps"
         required: false
         type: boolean
         default: false
       prerelease:
-        description: 'Mark as pre-release'
+        description: "Mark as pre-release"
         required: false
         type: boolean
         default: true
@@ -59,7 +59,7 @@ jobs:
         continue-on-error: true
 
   release:
-    name: Release
+    name: Check Release & PR
     needs: verify
     if: |
       github.event_name == 'workflow_dispatch' ||
@@ -85,11 +85,12 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
-      - name: Create Release Pull Request or Tag
+      - name: Create Release Pull Request or Check Publish
         id: changesets
         uses: changesets/action@v1
         with:
-          publish: pnpm changeset tag
+          publish: echo "published=true"
+          createGithubReleases: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -135,7 +136,7 @@ jobs:
 
       - name: Build & Package
         env:
-          DEBUG: 'electron-osx-sign*,electron-forge:*'
+          DEBUG: "electron-osx-sign*,electron-forge:*"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -173,35 +174,68 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Create Package GitHub Releases
+        id: changesets_tag
+        uses: changesets/action@v1
+        with:
+          publish: pnpm changeset tag
+          createGithubReleases: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
           path: artifacts
 
-      - name: Get Version
-        id: get_version
+      - name: Get Versions
+        id: versions
         shell: bash
         run: |
-          VERSION=$(node -p "require('./apps/desktop/package.json').version")
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          
+          APP_VERSION=$(node -p "require('./apps/desktop/package.json').version")
+          CLI_VERSION=$(node -p "require('./apps/cli/package.json').version")
+          echo "app_version=$APP_VERSION" >> $GITHUB_OUTPUT
+          echo "cli_version=$CLI_VERSION" >> $GITHUB_OUTPUT
+
           IS_PRERELEASE="false"
-          if [[ $VERSION == *"-"* ]] || [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ github.event.inputs.prerelease }}" == "true" ]] || [[ "${{ github.ref_name }}" == "feature/monorepo" ]]; then
+          if [[ $APP_VERSION == *"-"* ]] || [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ github.event.inputs.prerelease }}" == "true" ]] || [[ "${{ github.ref_name }}" == "feature/monorepo" ]]; then
             IS_PRERELEASE="true"
           fi
-          
-          echo "PRERELEASE=$IS_PRERELEASE" >> $GITHUB_ENV
+
           echo "prerelease=$IS_PRERELEASE" >> $GITHUB_OUTPUT
 
-      - name: Create Release and Upload
+      - name: Upload Desktop Binaries
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: "v${{ steps.get_version.outputs.version }}"
-          prerelease: ${{ steps.get_version.outputs.prerelease == 'true' }}
+          tag_name: "@pipelab/app@${{ steps.versions.outputs.app_version }}"
+          prerelease: ${{ steps.versions.outputs.prerelease == 'true' }}
           files: |
             artifacts/desktop-artifacts-*/**/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload CLI Binaries
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: "@pipelab/cli@${{ steps.versions.outputs.cli_version }}"
+          prerelease: ${{ steps.versions.outputs.prerelease == 'true' }}
+          files: |
             artifacts/cli-artifacts-*/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -2,7 +2,6 @@
   "name": "@pipelab/app",
   "version": "2.0.0",
   "private": true,
-  "type": "module",
   "description": "-",
   "homepage": "https://pipelab.app",
   "author": "Armaldio",
@@ -10,6 +9,7 @@
     "type": "git",
     "url": "https://github.com/CynToolkit/pipelab.git"
   },
+  "type": "module",
   "main": ".vite/build/main.js",
   "scripts": {
     "format": "oxfmt .",
@@ -47,8 +47,8 @@
     "@types/electron-squirrel-startup": "1.0.2",
     "@types/fs-extra": "11.0.4",
     "@types/node": "24.12.2",
-    "electron": "32.1.2",
     "cross-env": "7.0.3",
+    "electron": "32.1.2",
     "fs-extra": "11.3.0",
     "tsx": "4.19.1",
     "typescript": "5.8.3",

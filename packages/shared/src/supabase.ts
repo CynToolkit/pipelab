@@ -18,7 +18,9 @@ export const supabase = (options?: any) => {
   const { url, anonKey } = getSupabaseConfig();
   if (!url || !anonKey) {
     if (process.env.NODE_ENV !== "test") {
-      console.warn("Supabase environment variables are not configured. Supabase will not be available.");
+      console.warn(
+        "Supabase environment variables are not configured. Supabase will not be available.",
+      );
     }
     return null;
   }

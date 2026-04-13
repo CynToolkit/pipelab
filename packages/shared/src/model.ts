@@ -233,4 +233,3 @@ export type Steps = Record<
 >;
 
 export type EnhancedFile<T extends SavedFile = SavedFile> = WithId<SaveLocation> & { content: T };
-

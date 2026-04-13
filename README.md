@@ -11,7 +11,7 @@ Pipelab is built as a monorepo with three primary application layers that work t
 ```mermaid
 graph TD
     classDef main fill:#0096FF,stroke:#333,stroke-width:2px;
-    
+
     subgraph UserInterface["User Interface"]
         UI["@pipelab/ui (Vue 3)"]
     end
@@ -41,9 +41,11 @@ graph TD
 ## 🛠️ Setup & Development
 
 ### 1. Prerequisites
+
 Tool versions are managed via **mise**. Check [`.mise.toml`](.mise.toml) for the current requirements.
 
 ### 2. Environment Configuration
+
 Create a `.env` file in the **root directory**. This is the single source of truth for all packages:
 
 ```env
@@ -53,15 +55,19 @@ POSTHOG_API_KEY=your_key
 ```
 
 ### 3. Installation
+
 ```bash
 pnpm install
 ```
 
 ### 4. Running Development Mode
+
 The fastest way to start the entire ecosystem is from the root:
+
 ```bash
 pnpm dev
 ```
+
 > [!TIP]
 > This command uses **Turborepo** to start the UI dev server, the Electron process, and the CLI server concurrently.
 
@@ -79,6 +85,7 @@ pnpm dev
 ## 🚀 Releases & Versioning
 
 We use **Changesets** to manage versions and changelogs:
+
 ```bash
 pnpm changeset          # Document a change
 pnpm changeset version  # Bump versions

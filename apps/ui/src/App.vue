@@ -80,8 +80,7 @@ const isDisconnected = computed(
 const isConnecting = computed(
   () =>
     isInitialized.value &&
-    (!minimumLoadingTimeReached.value ||
-      websocketManager.connectionState.value === "connecting"),
+    (!minimumLoadingTimeReached.value || websocketManager.connectionState.value === "connecting"),
 );
 
 const openUpgradeDialog = () => {

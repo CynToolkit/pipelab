@@ -39,12 +39,7 @@
       "persistent": true
     }
   },
-  "globalEnv": [
-    "SUPABASE_URL",
-    "SUPABASE_ANON_KEY",
-    "SUPABASE_PROJECT_ID",
-    "POSTHOG_API_KEY"
-  ],
+  "globalEnv": ["SUPABASE_URL", "SUPABASE_ANON_KEY", "SUPABASE_PROJECT_ID", "POSTHOG_API_KEY"],
   "globalPassThroughEnv": [
     "DEBUG",
     "APPLE_TEAM_ID",

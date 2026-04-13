@@ -11,9 +11,11 @@ The standalone engine of Pipelab. It provides the core automation logic and serv
 ## 🛠️ Development
 
 ### Setup
+
 The CLI requires Supabase variables to be "baked in" during the build process. Ensure your root `.env` is populated before building or running `pnpm dev`.
 
 ### Commands
+
 ```bash
 pnpm dev        # Start the server in development mode
 pnpm build      # Generate the production CJS bundle
