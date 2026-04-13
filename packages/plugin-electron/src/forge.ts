@@ -576,13 +576,6 @@ export const forge = async (
   }
 
   const { assets, modules, node, pnpm } = paths;
-
-  console.log("assets", assets);
-
-  // const { fileURLToPath } = await import('url')
-  // const __dirname = fileURLToPath(dirname(import.meta.url))
-  // const { app } = await import('electron')
-
   const destinationFolder = await generateTempFolder(paths.cache);
   log(`Staging build in ${destinationFolder}`);
 
@@ -604,8 +597,6 @@ export const forge = async (
     await cp(templateFolder, destinationFolder, {
       recursive: true,
       filter: (src) => {
-        // console.log('src', src)
-        // console.log('dest', dest)
         return basename(src) !== "node_modules";
       },
     });

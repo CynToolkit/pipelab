@@ -14,6 +14,7 @@ import {
   isWebSocketErrorMessage,
 } from "@pipelab/shared";
 import { websocketPort } from "@pipelab/constants";
+import { nanoid } from "nanoid";
 
 export type WebSocketSendFn<KEY extends Channels> = WebSocketSendFunction<KEY>;
 
@@ -189,7 +190,6 @@ export class WebSocketClient {
   ): Promise<End<KEY>> {
     return new Promise(async (resolve, reject) => {
       const { logger } = useLogger();
-      const { nanoid } = await import("nanoid");
 
       // If connection is not ready, queue the message
       if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
@@ -291,11 +291,9 @@ export class WebSocketClient {
 
     logger().debug(`Flushing ${this.messageQueue.length} queued messages`);
 
-    // Create a copy of the queue and clear it
+    // copy of the queue and clear it
     const queuedMessages = [...this.messageQueue];
     this.messageQueue = [];
-
-    const { nanoid } = await import("nanoid");
 
     // Send all queued messages
     for (const queuedMessage of queuedMessages) {
@@ -304,8 +302,6 @@ export class WebSocketClient {
         queuedMessage.data,
         queuedMessage.resolve,
         queuedMessage.reject,
-        // The queued message already has a requestId, but we pass nanoid just in case sendMessage needs it for retries or something.
-        // Actually, sendMessage generates a NEW requestId. That's a bug in the original code, but we'll maintain the signature for now.
         nanoid,
         queuedMessage.listener,
       );

@@ -155,22 +155,6 @@ const createAppServer = async (folder: string) => {
   }
 };
 
-const createTunnel = async (port: number, subdomain: string) => {
-  // const localtunnel = await import('localtunnel')
-  // console.log('localtunnel', localtunnel)
-  // const tunnel = await localtunnel.default({ port, subdomain })
-  // tunnel.on('close', () => {
-  //   // tunnels are closed
-  // })
-  // console.log('tunnel.url', tunnel.url)
-  // return tunnel
-  // const localtunnel = await import('tunnelmole')
-  // console.log('localtunnel', localtunnel)
-  // const tunnel = await localtunnel.tunnelmole({ port, domain: subdomain })
-  // tunnel.on('close', () => {
-  //   // tunnels are closed
-  // })
-  // console.log('tunnel.url', tunnel)
   // return tunnel
 };
 
@@ -335,8 +319,6 @@ DISCORD_CLIENT_SECRET=yJ4vRnzDtKAqg2Le3_Sap2CqHybkTp2U`,
 
       const modulesPath = modules;
       const nitro = join(modulesPath, "nitropack", "dist", "cli", "index.mjs");
-
-      // const nitro = await import('nitropack')
 
       console.log("nitro", nitro);
 
