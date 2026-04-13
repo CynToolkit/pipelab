@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { app } from "electron";
 import { is } from "@electron-toolkit/utils";
 import http from "node:http";
+import fs from "node:fs";
 import { websocketPort } from "@pipelab/constants";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -69,7 +70,7 @@ export const startServer = async () => {
     console.log(`INFO: Using resource path: ${process.resourcesPath}`);
     console.log(`INFO: Computed server path: ${serverPath}`);
 
-    const fs = await import("node:fs");
+
     if (!fs.existsSync(serverPath)) {
       const fallback = join(app.getAppPath(), "..", "bin", `pipelab-${platform}${suffix}`);
       console.warn(`WARN: Server not found at ${serverPath}, trying fallback: ${fallback}`);
