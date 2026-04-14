@@ -6,6 +6,7 @@ import { is } from "@electron-toolkit/utils";
 import http from "node:http";
 import fs from "node:fs";
 import { websocketPort } from "@pipelab/constants";
+import { fetchPipelabCli, setUserDataPath } from "@pipelab/core-node";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -61,22 +62,9 @@ export const startServer = async () => {
       throw new Error("In development mode, please start the server manually");
     }
   } else {
-    // In production, we use the bundled binary
-    // The binary should be placed in a known location relative to the app
-    const suffix = process.platform === "win32" ? ".exe" : "";
-    const platform =
-      process.platform === "win32" ? "win" : process.platform === "darwin" ? "macos" : "linux";
-    serverPath = join(process.resourcesPath, "bin", `pipelab-${platform}${suffix}`);
-
-    console.log(`INFO: Using resource path: ${process.resourcesPath}`);
-    console.log(`INFO: Computed server path: ${serverPath}`);
-
-    if (!fs.existsSync(serverPath)) {
-      const fallback = join(app.getAppPath(), "..", "bin", `pipelab-${platform}${suffix}`);
-      console.warn(`WARN: Server not found at ${serverPath}, trying fallback: ${fallback}`);
-      if (fs.existsSync(fallback)) serverPath = fallback;
-      else throw new Error(`Standalone server binary not found at ${serverPath}`);
-    }
+    // In production, we fetch the binary from remote
+    setUserDataPath(userDataPath);
+    serverPath = await fetchPipelabCli();
 
     console.info(`Starting server: ${serverPath} ${args.join(" ")}`);
 

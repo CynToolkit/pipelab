@@ -6,22 +6,18 @@
       "outputs": ["dist/**", ".vite/**", "out/**"]
     },
     "@pipelab/cli#build": {
-      "dependsOn": ["^build", "@pipelab/ui#build"]
-    },
-    "pkg": {
-      "dependsOn": ["build"],
-      "outputs": ["bin/**"]
+      "dependsOn": ["^build"]
     },
     "package": {
-      "dependsOn": ["^build", "build", "^pkg"],
-      "outputs": ["out/**"]
+      "dependsOn": ["build"],
+      "outputs": ["out/**", "bin/**"]
     },
     "make": {
-      "dependsOn": ["build", "^pkg"],
+      "dependsOn": ["build"],
       "outputs": ["out/**"]
     },
     "publish": {
-      "dependsOn": ["build", "^pkg"],
+      "dependsOn": ["build"],
       "outputs": ["out/**"]
     },
     "test": {

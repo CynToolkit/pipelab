@@ -21,6 +21,7 @@ const { join } = path;
 const { tmpdir } = os;
 import { setupConfigFile } from "./config";
 import { AppConfig } from "@pipelab/shared";
+import { fetchPipelabAsset } from "./utils/remote";
 
 const checkParams = (definitionParams: InputsDefinition, elementParams: Record<string, string>) => {
   // get a list of all required params
@@ -158,7 +159,9 @@ export const handleActionExecute = async (
   const pnpm = await ensurePNPM("10.12.0");
 
   const outputs: Record<string, unknown> = {};
-  const api = {};
+  const api: any = {
+    fetchAsset: fetchPipelabAsset,
+  };
 
   try {
     try {

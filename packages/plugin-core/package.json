@@ -18,6 +18,8 @@
     "lint": "oxlint ."
   },
   "dependencies": {
+    "@pipelab/constants": "workspace:*",
+    "@pipelab/shared": "workspace:*",
     "@types/node": "^24.12.2",
     "archiver": "7.0.1",
     "electron": "32.1.2",

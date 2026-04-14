@@ -1,0 +1,9 @@
+{
+  "name": "@pipelab/asset-discord",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Discord assets for pipelab",
+  "files": [
+    "templates"
+  ]
+}

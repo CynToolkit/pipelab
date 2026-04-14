@@ -7,7 +7,6 @@ import {
   InputsDefinition,
   OutputsDefinition,
   runWithLiveLogs,
-  copyRecursive,
 } from "@pipelab/plugin-core";
 import { dirname, join, basename, delimiter } from "node:path";
 import { cp, readFile, writeFile } from "node:fs/promises";
@@ -179,6 +178,7 @@ export const discord = async (
     inputs,
     setOutput,
     paths,
+    api,
     abortSignal,
   }:
     | ActionRunnerData<ReturnType<typeof createPackageProps>>
@@ -195,10 +195,12 @@ export const discord = async (
 
   const destinationFolder = join(cwd, "build");
 
-  const templateFolder = join(assets, "discord", "templates", "nitro-app");
+  const rawAssetFolder = await api.fetchAsset("@pipelab/asset-discord");
+  const templateFolder = join(rawAssetFolder, "template");
 
   // copy template to destination
-  await copyRecursive(templateFolder, destinationFolder, {
+  await cp(templateFolder, destinationFolder, {
+    recursive: true,
     filter: (src) => {
       log("src", src);
       // log('dest', dest)
@@ -217,7 +219,7 @@ export const discord = async (
   // if input is folder, copy folder to destination
   if (appFolder) {
     // copy app to template
-    await copyRecursive(appFolder, placeAppFolder);
+    await cp(appFolder, placeAppFolder, { recursive: true });
   }
 
   writeFile(

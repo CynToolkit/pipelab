@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 import {
   webSocketServer,
-  setAssetsPath,
-  assetsPath,
   isDev,
   registerAllHandlers,
   executeGraphWithHistory,
   setupConfigFile,
+  userDataPath,
+  fetchPipelabAsset,
 } from "@pipelab/core-node";
 import { existsSync, readFileSync } from "node:fs";
 import { readFile, access, writeFile, mkdir } from "node:fs/promises";
@@ -34,7 +34,7 @@ const __dirname = dirname(__filename);
 console.log("cwd", process.cwd());
 console.log("import.meta.url", import.meta.url);
 console.log("__dirname", __dirname);
-setAssetsPath(join(__dirname, "..", "assets"));
+
 
 const cli = cac("pipelab");
 
@@ -43,7 +43,10 @@ cli
   .option("-p, --port <port>", "Port to listen on", { default: 33753 })
   .option("--user-data <path>", "Custom user data path")
   .action(async (options) => {
-    const uiPath = join(assetsPath, "ui");
+    let rawAssetFolder: string | undefined;
+    if (!isDev) {
+      rawAssetFolder = await fetchPipelabAsset("@pipelab/ui");
+    }
 
     const packageJsonPath = join(__dirname, "..", "package.json");
     const packageJson = JSON.parse(await readFile(packageJsonPath, "utf-8"));
@@ -56,26 +59,30 @@ cli
 
     const server = http.createServer(async (request, response) => {
       if (isDev) {
-        response.writeHead(200, { "Content-Type": "text/plain" });
-        response.end(
-          "Pipelab CLI Server (Development Mode)\n" +
-            "WebSocket API is active.\n" +
-            "UI is NOT served by this server in dev mode. Please run 'pnpm dev' in apps/ui.",
-        );
+        response.writeHead(200, { "Content-Type": "text/html" });
+        response.end(`
+          <html>
+            <body style="font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #0f172a; color: #f8fafc;">
+              <h1 style="color: #38bdf8;">Pipelab Dev Mode</h1>
+              <p>The CLI server is running (API/WebSocket), but the UI is not served here in development.</p>
+              <p>Please open the UI through its own dev server (usually <a href="http://localhost:5173" style="color: #38bdf8;">http://localhost:5173</a>).</p>
+            </body>
+          </html>
+        `);
         return;
       }
 
-      if (!existsSync(uiPath)) {
+      if (!rawAssetFolder || !existsSync(rawAssetFolder)) {
         response.writeHead(404, { "Content-Type": "text/plain" });
         response.end(
-          `Error: UI directory not found at ${uiPath}.\n` +
-            "Please run 'pnpm build' in apps/ui to generate the distribution.",
+          `Error: UI directory not found at ${rawAssetFolder}.\n` +
+          "Please run 'pnpm build' in apps/ui to generate the distribution.",
         );
         return;
       }
 
       return handler(request, response, {
-        public: uiPath,
+        public: rawAssetFolder,
       });
     });
 

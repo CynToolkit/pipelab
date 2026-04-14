@@ -13,7 +13,6 @@ import {
   InputsDefinition,
   OutputsDefinition,
   runWithLiveLogs,
-  copyRecursive,
 } from "@pipelab/plugin-core";
 
 import { dirname, join, basename, delimiter } from "node:path";
@@ -561,6 +560,7 @@ export const forge = async (
     inputs,
     setOutput,
     paths,
+    api,
     abortSignal,
   }: ActionRunnerData<
     | ReturnType<typeof createMakeProps>
@@ -590,12 +590,14 @@ export const forge = async (
       "electron-forge.js",
     );
 
-    const templateFolder = join(assets, "electron", "template", "app");
+    const rawAssetFolder = await api.fetchAsset("@pipelab/asset-electron");
+    const templateFolder = join(rawAssetFolder, "template");
     console.log("templateFolder", templateFolder);
     console.log("destinationFolder", destinationFolder);
 
     // copy template to destination
-    await copyRecursive(templateFolder, destinationFolder, {
+    await cp(templateFolder, destinationFolder, {
+      recursive: true,
       filter: (src) => {
         return basename(src) !== "node_modules";
       },
@@ -766,13 +768,13 @@ export const forge = async (
 
     // copy icon
     if (hasIcon) {
-      await copyRecursive(originalIconPath, newIconPath);
+      await cp(originalIconPath, newIconPath, { recursive: true });
     }
 
     // copy custom main code
     const destinationFile = join(destinationFolder, "src", "custom-main.js");
     if (completeConfiguration.customMainCode) {
-      await copyRecursive(completeConfiguration.customMainCode, destinationFile);
+      await cp(completeConfiguration.customMainCode, destinationFile, { recursive: true });
     } else {
       await writeFile(destinationFile, 'console.log("No custom main code provided")', {
         signal: abortSignal,
@@ -817,7 +819,7 @@ export const forge = async (
         outfile: join(destinationFolder, "dist", "custom-main.js"),
       });
       await rm(join(destinationFolder, "src"), { recursive: true });
-      await copyRecursive(join(destinationFolder, "dist"), join(destinationFolder, "src"));
+      await cp(join(destinationFolder, "dist"), join(destinationFolder, "src"), { recursive: true });
       await rm(join(destinationFolder, "dist"), { recursive: true });
       /* ESBUILD transpilation */
     }
@@ -827,7 +829,7 @@ export const forge = async (
     // if input is folder, copy folder to destination
     if (appFolder && action !== "preview") {
       // copy app to template
-      await copyRecursive(appFolder, placeAppFolder);
+      await cp(appFolder, placeAppFolder, { recursive: true });
     }
 
     const inputPlatform = inputs.platform === "" ? undefined : inputs.platform;
@@ -902,7 +904,7 @@ export const forge = async (
       if (action !== "preview") {
         const outDir = join(destinationFolder, "out");
         const finalOutDir = join(cwd, "out");
-        await copyRecursive(outDir, finalOutDir);
+        await cp(outDir, finalOutDir, { recursive: true });
       }
     } catch (e) {
       log("Failed to copy build output back to cwd:", e);

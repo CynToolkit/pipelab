@@ -1,4 +1,4 @@
-import { ensure, extractZip, zipFolder, copyRecursive } from "@pipelab/plugin-core";
+import { ensure, extractZip, zipFolder } from "@pipelab/plugin-core";
 import {
   createAction,
   createActionRunner,
@@ -64,7 +64,7 @@ export const uploadToNetlify = createAction({
 });
 
 export const uploadToNetlifyRunner = createActionRunner<typeof uploadToNetlify>(
-  async ({ log, inputs, cwd, abortSignal, paths }) => {
+  async ({ log, inputs, cwd, abortSignal, paths, api }) => {
     log("Uploading to netlify");
 
     const { pnpm, node, assets } = paths;
@@ -90,10 +90,12 @@ export const uploadToNetlifyRunner = createActionRunner<typeof uploadToNetlify>(
     // 1. Prepare input folder with temmplate
     // Assume input folder is always a static site
     const destinationFolder = join(cwd);
-    const templateFolder = join(assets, "netlify", "templates", "static");
+    const rawAssetFolder = await api.fetchAsset("@pipelab/asset-netlify");
+    const templateFolder = join(rawAssetFolder, "template");
 
     // copy template to destination
-    await copyRecursive(templateFolder, destinationFolder, {
+    await cp(templateFolder, destinationFolder, {
+      recursive: true,
       filter: (src) => {
         return basename(src) !== "node_modules";
       },
@@ -101,7 +103,7 @@ export const uploadToNetlifyRunner = createActionRunner<typeof uploadToNetlify>(
     const placeAppFolder = join(destinationFolder, "dist");
     if (appFolder) {
       // copy app to template
-      await copyRecursive(appFolder, placeAppFolder);
+      await cp(appFolder, placeAppFolder, { recursive: true });
     }
 
     // 2. Ensure correct configuration

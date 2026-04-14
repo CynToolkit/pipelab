@@ -13,6 +13,7 @@
     "lint": "oxlint ."
   },
   "dependencies": {
+    "adm-zip": "0.5.16",
     "@pipelab/constants": "workspace:*",
     "@pipelab/plugin-construct": "workspace:*",
     "@pipelab/plugin-core": "workspace:*",
@@ -35,6 +36,7 @@
   },
   "devDependencies": {
     "@pipelab/tsconfig": "workspace:*",
+    "@types/adm-zip": "0.5.7",
     "@types/node": "24.12.2",
     "@types/ws": "8.18.1",
     "typescript": "^5.0.0"

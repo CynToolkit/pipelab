@@ -1,0 +1,9 @@
+{
+  "name": "@pipelab/asset-tauri",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Tauri assets for pipelab",
+  "files": [
+    "template"
+  ]
+}

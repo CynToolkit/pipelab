@@ -7,3 +7,4 @@ export * from "./paths";
 export * from "./api";
 export * from "./heavy";
 export * from "./plugins-registry";
+export * from "./utils/remote";

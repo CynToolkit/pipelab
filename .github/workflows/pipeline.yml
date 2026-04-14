@@ -216,8 +216,18 @@ jobs:
         run: |
           APP_VERSION=$(node -p "require('./apps/desktop/package.json').version")
           CLI_VERSION=$(node -p "require('./apps/cli/package.json').version")
+          ASSET_ELECTRON_VERSION=$(node -p "require('./packages/asset-electron/package.json').version")
+          ASSET_DISCORD_VERSION=$(node -p "require('./packages/asset-discord/package.json').version")
+          ASSET_NETLIFY_VERSION=$(node -p "require('./packages/asset-netlify/package.json').version")
+          ASSET_TAURI_VERSION=$(node -p "require('./packages/asset-tauri/package.json').version")
+          UI_VERSION=$(node -p "require('./apps/ui/package.json').version")
           echo "app_version=$APP_VERSION" >> $GITHUB_OUTPUT
           echo "cli_version=$CLI_VERSION" >> $GITHUB_OUTPUT
+          echo "asset_electron_version=$ASSET_ELECTRON_VERSION" >> $GITHUB_OUTPUT
+          echo "asset_discord_version=$ASSET_DISCORD_VERSION" >> $GITHUB_OUTPUT
+          echo "asset_netlify_version=$ASSET_NETLIFY_VERSION" >> $GITHUB_OUTPUT
+          echo "asset_tauri_version=$ASSET_TAURI_VERSION" >> $GITHUB_OUTPUT
+          echo "ui_version=$UI_VERSION" >> $GITHUB_OUTPUT
 
           IS_PRERELEASE="false"
           if [[ $APP_VERSION == *"-"* ]] || [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ github.event.inputs.prerelease }}" == "true" ]] || [[ "${{ github.ref_name }}" == "feature/monorepo" ]]; then
@@ -243,5 +253,59 @@ jobs:
           prerelease: ${{ steps.versions.outputs.prerelease == 'true' }}
           files: |
             artifacts/cli-artifacts-*/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Package Assets
+        shell: bash
+        run: |
+          for package in electron discord netlify tauri; do
+            if [ -d "packages/asset-$package" ]; then
+              (cd packages/asset-$package && zip -r asset.zip .)
+            fi
+          done
+
+          # Package UI from apps/ui/dist
+          if [ -d "apps/ui/dist" ]; then
+            (cd apps/ui/dist && zip -r ../asset.zip .)
+          fi
+
+      - name: Upload Asset Electron
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: "@pipelab/asset-electron@${{ steps.versions.outputs.asset_electron_version }}"
+          files: packages/asset-electron/asset.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Upload Asset Discord
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: "@pipelab/asset-discord@${{ steps.versions.outputs.asset_discord_version }}"
+          files: packages/asset-discord/asset.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Upload Asset Netlify
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: "@pipelab/asset-netlify@${{ steps.versions.outputs.asset_netlify_version }}"
+          files: packages/asset-netlify/asset.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Upload Asset Tauri
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: "@pipelab/asset-tauri@${{ steps.versions.outputs.asset_tauri_version }}"
+          files: packages/asset-tauri/asset.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Upload Asset UI
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: "@pipelab/ui@${{ steps.versions.outputs.ui_version }}"
+          files: apps/ui/asset.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

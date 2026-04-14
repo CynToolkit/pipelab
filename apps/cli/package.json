@@ -5,14 +5,13 @@
   "bin": "dist/index.cjs",
   "type": "module",
   "scripts": {
-    "build": "cross-env NODE_ENV=production tsdown && pnpm copy:ui",
-    "copy:ui": "node scripts/copy-ui.mjs",
-    "pkg": "pnpm build && node scripts/build-pkg.mjs",
+    "build": "cross-env NODE_ENV=production tsdown",
+    "package": "pnpm build && node scripts/build-package.mjs",
     "dev": "cross-env NODE_ENV=development tsdown --watch --onSuccess \"cross-env NODE_ENV=development node dist/index.js serve\"",
     "watch": "tsdown --watch",
     "start": "node dist/index.js",
     "test:e2e:raw": "vitest run -c tests/e2e/vitest.config.mts",
-    "test:e2e": "pnpm run pkg && pnpm test:e2e:raw",
+    "test:e2e": "pnpm run package && pnpm test:e2e:raw",
     "format": "oxfmt .",
     "lint": "oxlint .",
     "typecheck": "tsc --noEmit -p tsconfig.json --composite false"
@@ -43,7 +42,6 @@
       "dist/*.cjs",
       "dist/*.js",
       "dist/*.wasm",
-      "assets/**/*",
       "package.json"
     ],
     "outputPath": "bin"

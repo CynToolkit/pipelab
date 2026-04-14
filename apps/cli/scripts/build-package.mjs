@@ -1,0 +1,50 @@
+import { execSync } from "child_process";
+import os from "os";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// Read package.json version
+const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, "../package.json"), "utf8"));
+const version = pkg.version;
+
+// Map Node's os.platform() to pkg's target OS string
+const platform = os.platform();
+let targetOs = "linux";
+if (platform === "win32") targetOs = "win";
+if (platform === "darwin") targetOs = "macos";
+
+// Use TARGET_ARCH from CI, or default to os.arch()
+const arch = process.env.TARGET_ARCH || os.arch();
+const archSource = process.env.TARGET_ARCH ? "environment" : "host";
+let targetArch = arch;
+if (arch === "x86_64") targetArch = "x64";
+if (arch === "aarch64") targetArch = "arm64";
+
+// Construct the versioned output filename
+const binaryName = `pipelab-cli-v${version}-${targetOs}-${targetArch}${targetOs === "win" ? ".exe" : ""}`;
+const outputPath = path.resolve(__dirname, "../bin", binaryName);
+
+// Build target string (e.g. node24-macos-arm64)
+const target = `node24-${targetOs}-${targetArch}`;
+
+console.log(`[build-package.mjs] Version: ${version}`);
+console.log(`[build-package.mjs] Arch Source: ${archSource}`);
+console.log(`[build-package.mjs] Output: ${outputPath}`);
+console.log(`[build-package.mjs] Running pkg with target: ${target}`);
+
+try {
+  const cliDir = path.resolve(__dirname, "..");
+
+  // Run pkg from the package directory
+  console.log(`[build-package.mjs] Working directory: ${cliDir}`);
+  execSync(`npx pkg package.json --output "${outputPath}" -t ${target} --no-bytecode`, {
+    stdio: "inherit",
+    cwd: cliDir,
+  });
+} catch (err) {
+  console.error("[build-package.mjs] pkg failed", err);
+  process.exit(1);
+}

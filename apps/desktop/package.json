@@ -42,6 +42,8 @@
     "@electron/notarize": "2.5.0",
     "@pipelab/cli": "workspace:*",
     "@pipelab/constants": "workspace:*",
+    "@pipelab/core-node": "workspace:*",
+    "@pipelab/plugin-core": "workspace:*",
     "@pipelab/tsconfig": "workspace:*",
     "@sentry/vite-plugin": "2.23.1",
     "@types/electron-squirrel-startup": "1.0.2",

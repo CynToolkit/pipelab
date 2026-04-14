@@ -15,23 +15,6 @@ const __dirname = path.dirname(__filename);
 
 const getStandardOs = (p: string) => ({ win32: "win", darwin: "macos", linux: "linux" })[p] || p;
 
-/**
- * Picks the pre-built CLI binary and copies it to the app's bin folder.
- */
-async function prepareBinaries(platform: string, arch: string) {
-  const os = getStandardOs(platform);
-  const { version } = await fs.readJson(path.join(__dirname, "package.json"));
-  const suffix = os === "win" ? ".exe" : "";
-
-  const srcName = `pipelab-cli-v${version}-${os}-${arch}${suffix}`;
-  const src = path.resolve(__dirname, "../cli/bin", srcName);
-  const dest = path.resolve(__dirname, "bin", `pipelab-${os}${suffix}`);
-
-  console.log(`INFO: Bundling CLI: ${srcName} -> ${path.basename(dest)}`);
-  await fs.ensureDir(path.dirname(dest));
-  await fs.copy(src, dest, { overwrite: true });
-  if (os !== "win") await fs.chmod(dest, 0o755);
-}
 
 /**
  * Renames Forge-generated installers in /out/make.
@@ -62,9 +45,9 @@ const config: ForgeConfig = {
     prune: false,
     appBundleId: "app.pipelab.desktop",
     asar: true,
-    extraResource: [path.join(__dirname, "../cli/assets"), path.join(__dirname, "bin")],
+    extraResource: [],
     name,
-    icon: path.join(__dirname, "../cli/assets/build/icon"),
+    icon: path.join(__dirname, "assets/build/icon"),
     extendInfo: {
       NSAppleEventsUsageDescription: "This app need to run commands through Terminal.",
     },
@@ -82,7 +65,7 @@ const config: ForgeConfig = {
     } as any,
   },
   makers: [
-    new MakerSquirrel({ name, setupIcon: path.join(__dirname, "../cli/assets/build/icon.ico") }),
+    new MakerSquirrel({ name, setupIcon: path.join(__dirname, "assets/build/icon.ico") }),
     new MakerZIP(undefined, ["linux", "win32"]),
     new MakerDMG(),
   ],
@@ -98,7 +81,6 @@ const config: ForgeConfig = {
     },
   ],
   hooks: {
-    prePackage: async (_, p, a) => await prepareBinaries(p, a),
     postMake: async (_, makeResults) => {
       for (const target of new Set(makeResults.map((r) => `${r.platform}:${r.arch}`))) {
         const [p, a] = target.split(":");

@@ -1,0 +1,21 @@
+import { shell } from "electron";
+
+/**
+ * @param {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').MessageOpen, 'input'>} json
+ * @param {import('ws').WebSocket} ws
+ */
+export default async (json, ws) => {
+  await shell.openPath(json.body.path);
+
+  /**
+   * @type {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').MessageOpen, 'output'>}
+   */
+  const runResult = {
+    correlationId: json.correlationId,
+    url: json.url,
+    body: {
+      success: true,
+    },
+  };
+  ws.send(JSON.stringify(runResult));
+};

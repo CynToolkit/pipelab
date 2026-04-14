@@ -29,26 +29,3 @@ export const generateTempFolder = async (base?: string) => {
 
   return tempFolder;
 };
-
-/**
- * A pkg-compatible recursive copy function.
- * Node's fs.cp uses opendir internally which is not supported by pkg's snapshot filesystem.
- */
-export const copyRecursive = async (
-  src: string,
-  dest: string,
-  options?: { filter?: (src: string) => boolean },
-) => {
-  const stats = statSync(src);
-  if (options?.filter && !options.filter(src)) return;
-
-  if (stats.isDirectory()) {
-    await mkdir(dest, { recursive: true });
-    const files = readdirSync(src);
-    for (const file of files) {
-      await copyRecursive(join(src, file), join(dest, file), options);
-    }
-  } else {
-    copyFileSync(src, dest);
-  }
-};

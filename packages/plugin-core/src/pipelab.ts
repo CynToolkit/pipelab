@@ -40,6 +40,7 @@ export type ActionRunnerData<ACTION extends Action> = {
     thirdparty: string;
   };
   api: {
+    fetchAsset: (packageName: string, version?: string) => Promise<string>;
     [key: string]: any;
   };
   browserWindow: BrowserWindow;
