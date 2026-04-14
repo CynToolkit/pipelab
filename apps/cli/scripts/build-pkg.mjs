@@ -25,7 +25,7 @@ if (arch === "aarch64") targetArch = "arm64";
 
 // Construct the versioned output filename
 const binaryName = `pipelab-cli-v${version}-${targetOs}-${targetArch}${targetOs === "win" ? ".exe" : ""}`;
-const outputPath = path.join("bin", binaryName);
+const outputPath = path.resolve(__dirname, "../bin", binaryName);
 
 // Build target string (e.g. node24-macos-arm64)
 const target = `node24-${targetOs}-${targetArch}`;
@@ -36,10 +36,13 @@ console.log(`[build-pkg.mjs] Output: ${outputPath}`);
 console.log(`[build-pkg.mjs] Running pkg with target: ${target}`);
 
 try {
-  // Execute pkg
-  execSync(`npx pkg . --output ${outputPath} -t ${target}`, {
+  const cliDir = path.resolve(__dirname, "..");
+
+  // Run pkg from the package directory
+  console.log(`[build-pkg.mjs] Working directory: ${cliDir}`);
+  execSync(`npx pkg package.json --output "${outputPath}" -t ${target} --no-bytecode`, {
     stdio: "inherit",
-    env: process.env,
+    cwd: cliDir,
   });
 } catch (err) {
   console.error("[build-pkg.mjs] pkg failed", err);

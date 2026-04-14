@@ -1,4 +1,4 @@
-import { ensure, extractZip, zipFolder } from "@pipelab/plugin-core";
+import { ensure, extractZip, zipFolder, copyRecursive } from "@pipelab/plugin-core";
 import {
   createAction,
   createActionRunner,
@@ -93,8 +93,7 @@ export const uploadToNetlifyRunner = createActionRunner<typeof uploadToNetlify>(
     const templateFolder = join(assets, "netlify", "templates", "static");
 
     // copy template to destination
-    await cp(templateFolder, destinationFolder, {
-      recursive: true,
+    await copyRecursive(templateFolder, destinationFolder, {
       filter: (src) => {
         return basename(src) !== "node_modules";
       },
@@ -102,9 +101,7 @@ export const uploadToNetlifyRunner = createActionRunner<typeof uploadToNetlify>(
     const placeAppFolder = join(destinationFolder, "dist");
     if (appFolder) {
       // copy app to template
-      await cp(appFolder, placeAppFolder, {
-        recursive: true,
-      });
+      await copyRecursive(appFolder, placeAppFolder);
     }
 
     // 2. Ensure correct configuration

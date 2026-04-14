@@ -45,7 +45,6 @@ export const zipV2 = createAction({
 
 export const zipV2Runner = createActionRunner<typeof zipV2>(
   async ({ log, inputs, setOutput, abortSignal, paths }) => {
-
     abortSignal.addEventListener("abort", () => {
       throw new Error("Aborted");
     });

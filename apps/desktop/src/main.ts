@@ -28,7 +28,6 @@ if (process.platform === "win32" && process.env.TEST !== "true" && app.isPackage
   }
 }
 
-
 let mainWindow: BrowserWindow | undefined;
 
 function createWindow(): void {
@@ -40,9 +39,9 @@ function createWindow(): void {
   const position =
     externalDisplay && is.dev
       ? {
-        x: externalDisplay.bounds.x + 50,
-        y: externalDisplay.bounds.y + 50,
-      }
+          x: externalDisplay.bounds.x + 50,
+          y: externalDisplay.bounds.y + 50,
+        }
       : {};
 
   mainWindow = new BrowserWindow({

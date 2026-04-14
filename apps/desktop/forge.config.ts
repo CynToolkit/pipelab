@@ -13,7 +13,7 @@ import { fileURLToPath } from "node:url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const getStandardOs = (p: string) => ({ win32: "win", darwin: "macos", linux: "linux" }[p] || p);
+const getStandardOs = (p: string) => ({ win32: "win", darwin: "macos", linux: "linux" })[p] || p;
 
 /**
  * Picks the pre-built CLI binary and copies it to the app's bin folder.

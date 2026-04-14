@@ -23,6 +23,14 @@ export const makeResolvedParams = async (
     try {
       const parameterCodeValue = (param.value ?? "").toString();
 
+      // Bypass QuickJS for simple static values
+      try {
+        result[paramName] = JSON.parse(parameterCodeValue);
+        continue;
+      } catch (e) {
+        // Not a simple JSON value, proceed to QuickJS evaluation
+      }
+
       const runParams = {
         steps: data.steps,
         params: {},

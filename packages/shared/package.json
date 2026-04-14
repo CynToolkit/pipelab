@@ -15,6 +15,7 @@
     "lint": "oxlint ."
   },
   "dependencies": {
+    "@jitl/quickjs-singlefile-mjs-release-sync": "0.31.0",
     "@jitl/quickjs-wasmfile-release-sync": "0.31.0",
     "@pipelab/migration": "workspace:*",
     "@supabase/supabase-js": "2.99.3",

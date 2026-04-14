@@ -1,10 +1,4 @@
 import { execa, Options, Subprocess } from "execa";
-import {
-  spawn,
-  IPty,
-  type IPtyForkOptions,
-  type IWindowsPtyForkOptions,
-} from "@lydell/node-pty";
 import { ExternalCommandError } from "./custom-errors.js";
 import { generateTempFolder } from "./fs-utils.js";
 import { extractTarGz } from "./archive-utils.js";
@@ -89,36 +83,57 @@ export const runWithLiveLogs = async (
 export const runWithLiveLogsPTY = async (
   command: string,
   args: string[],
-  ptyOptions: IPtyForkOptions | IWindowsPtyForkOptions,
+  execaOptions: Options,
   log: typeof console.log,
   hooks?: {
-    onStdout?: (data: string, subprocess: IPty) => void;
-    onStderr?: (data: string, subprocess: IPty) => void;
+    onStdout?: (data: string, subprocess: Subprocess) => void;
+    onStderr?: (data: string, subprocess: Subprocess) => void;
     onExit?: (code: number) => void;
-    onCreated?: (subprocess: IPty) => void;
+    onCreated?: (subprocess: Subprocess) => void;
   },
   abortSignal?: AbortSignal,
 ): Promise<void> => {
   return new Promise((resolve, reject) => {
-    console.log("command: ", command, args.join(" "));
+    console.log("command (execa-pty-fallback): ", command, args.join(" "));
 
-    const subprocess = spawn(command, args, ptyOptions);
+    const subprocess = execa(command, args, {
+      ...execaOptions,
+      stdout: "pipe",
+      stderr: "pipe",
+      stdin: "pipe",
+      env: {
+        ...process.env,
+        ...execaOptions.env,
+        TERM: "xterm-256color",
+        FORCE_STDERR_LOGGING: "1",
+      },
+      cancelSignal: abortSignal,
+    });
 
     hooks?.onCreated?.(subprocess);
 
-    subprocess.onData((data) => {
+    subprocess.stdout?.on("data", (data: Buffer) => {
       hooks?.onStdout?.(data.toString(), subprocess);
     });
 
-    subprocess.onExit(({ exitCode, signal }) => {
-      console.log("exit", exitCode);
-      hooks?.onExit?.(exitCode);
+    subprocess.stderr?.on("data", (data: Buffer) => {
+      hooks?.onStderr?.(data.toString(), subprocess);
+    });
 
-      if (exitCode === 0) {
+    subprocess.on("error", (error: Error) => {
+      console.log("error", error);
+      return reject(error);
+    });
+
+    subprocess.on("exit", (code: number) => {
+      console.log("exit", code);
+      hooks?.onExit?.(code || 0);
+
+      if (code === 0) {
         return resolve();
       } else {
         return reject(
-          new ExternalCommandError(`Command exited with non-zero exitCode: ${exitCode}`, exitCode),
+          new ExternalCommandError(`Command exited with non-zero code: ${code}`, code || 1),
         );
       }
     });

@@ -11,6 +11,7 @@ import {
   InputsDefinition,
   OutputsDefinition,
   runWithLiveLogs,
+  copyRecursive,
 } from "@pipelab/plugin-core";
 import { dirname, join, basename, delimiter } from "node:path";
 import { existsSync, readFile, writeFile } from "node:fs";
@@ -522,8 +523,7 @@ export const tauri = async (
   const templateFolder = join(assets, "tauri", "template", "app");
 
   // copy template to destination
-  await cp(templateFolder, destinationFolder, {
-    recursive: true,
+  await copyRecursive(templateFolder, destinationFolder, {
     filter: (src) => {
       // log('src', src)
       // log('dest', dest)
@@ -541,9 +541,7 @@ export const tauri = async (
   // if input is folder, copy folder to destination
   if (appFolder && action !== "preview") {
     // copy app to template
-    await cp(appFolder, placeAppFolder, {
-      recursive: true,
-    });
+    await copyRecursive(appFolder, placeAppFolder);
   }
 
   writeFilePromise(

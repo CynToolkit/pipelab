@@ -36,10 +36,33 @@ export const openInExplorer = createAction({
 
 export const openInExplorerRunner = createActionRunner<typeof openInExplorer>(
   async ({ log, inputs, setOutput }) => {
-    const { shell } = require("electron");
+    const { exec } = await import("node:child_process");
+    const { platform } = await import("node:os");
 
     log(`Opening ${inputs.path}`);
-    const message = await shell.openPath(inputs.path);
-    setOutput("message", message);
+
+    return new Promise((resolve, reject) => {
+      let command = "";
+      const p = platform();
+
+      if (p === "win32") {
+        command = `start "" "${inputs.path}"`;
+      } else if (p === "darwin") {
+        command = `open "${inputs.path}"`;
+      } else {
+        command = `xdg-open "${inputs.path}"`;
+      }
+
+      exec(command, (error) => {
+        if (error) {
+          log(`Error opening path: ${error.message}`);
+          setOutput("message", error.message);
+          resolve();
+        } else {
+          setOutput("message", "success");
+          resolve();
+        }
+      });
+    });
   },
 );

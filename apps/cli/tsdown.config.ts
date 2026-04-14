@@ -17,46 +17,13 @@ export default defineConfig({
   },
   envFile: existsSync(envFile) ? envFile : undefined,
   envPrefix: ["SUPABASE_", "POSTHOG_", "NODE_ENV"],
-  format: ["esm"],
   dts: true,
   sourcemap: true,
   clean: true,
   minify: false,
-  splitting: false,
-  target: false,
-  outExtensions: () => ({ js: ".js" }),
-  rolldownOptions: {
-    output: {
-      inlineDynamicImports: true,
-    },
-  },
-  alias: {
-    electron: resolve(import.meta.dirname, "assets/shims/electron.ts"),
-  },
-  deps: {
-    neverBundle: [
-      "playwright",
-      "playwright-core",
-      "esbuild",
-      "@lydell/node-pty",
-      "@jitl/quickjs-wasmfile-release-sync",
-      /\?url$/,
-    ],
-    alwaysBundle: [
-      /^@pipelab\/.*/,
-      "serve-handler",
-      "slash",
-      "nanoid",
-      "sliced",
-      "deep-defaults",
-      "execa",
-      "semver",
-      "archiver",
-      "tar",
-      "yauzl",
-      "ws",
-    ],
-  },
+  format: ["cjs"],
+  outExtensions: () => ({ js: ".cjs" }),
+  deps: { alwaysBundle: ["@sentry/node", "execa", "cac", "serve-handler", "unicorn-magic", "is-stream", "get-stream"] },
   plugins: [
     {
       name: "webp-base64",
@@ -73,5 +40,4 @@ export default defineConfig({
       },
     },
   ],
-  target: false,
 });

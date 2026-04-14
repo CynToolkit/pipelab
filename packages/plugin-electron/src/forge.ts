@@ -13,6 +13,7 @@ import {
   InputsDefinition,
   OutputsDefinition,
   runWithLiveLogs,
+  copyRecursive,
 } from "@pipelab/plugin-core";
 
 import { dirname, join, basename, delimiter } from "node:path";
@@ -594,8 +595,7 @@ export const forge = async (
     console.log("destinationFolder", destinationFolder);
 
     // copy template to destination
-    await cp(templateFolder, destinationFolder, {
-      recursive: true,
+    await copyRecursive(templateFolder, destinationFolder, {
       filter: (src) => {
         return basename(src) !== "node_modules";
       },
@@ -766,13 +766,13 @@ export const forge = async (
 
     // copy icon
     if (hasIcon) {
-      await cp(originalIconPath, newIconPath);
+      await copyRecursive(originalIconPath, newIconPath);
     }
 
     // copy custom main code
     const destinationFile = join(destinationFolder, "src", "custom-main.js");
     if (completeConfiguration.customMainCode) {
-      await cp(completeConfiguration.customMainCode, destinationFile);
+      await copyRecursive(completeConfiguration.customMainCode, destinationFile);
     } else {
       await writeFile(destinationFile, 'console.log("No custom main code provided")', {
         signal: abortSignal,
@@ -817,9 +817,7 @@ export const forge = async (
         outfile: join(destinationFolder, "dist", "custom-main.js"),
       });
       await rm(join(destinationFolder, "src"), { recursive: true });
-      await cp(join(destinationFolder, "dist"), join(destinationFolder, "src"), {
-        recursive: true,
-      });
+      await copyRecursive(join(destinationFolder, "dist"), join(destinationFolder, "src"));
       await rm(join(destinationFolder, "dist"), { recursive: true });
       /* ESBUILD transpilation */
     }
@@ -829,9 +827,7 @@ export const forge = async (
     // if input is folder, copy folder to destination
     if (appFolder && action !== "preview") {
       // copy app to template
-      await cp(appFolder, placeAppFolder, {
-        recursive: true,
-      });
+      await copyRecursive(appFolder, placeAppFolder);
     }
 
     const inputPlatform = inputs.platform === "" ? undefined : inputs.platform;
@@ -843,33 +839,29 @@ export const forge = async (
       log("finalPlatform", finalPlatform);
       const finalArch = inputArch ?? osArch() ?? "";
 
-      try {
-        await runWithLiveLogs(
-          node,
-          [forge, action, /* '--', */ "--arch", finalArch, "--platform", finalPlatform],
-          {
-            cwd: destinationFolder,
-            env: {
-              DEBUG: completeConfiguration.enableExtraLogging ? "*" : "",
-              ELECTRON_NO_ASAR: "1",
-              PATH: `${dirname(node)}${delimiter}${process.env.PATH}`,
-              // DEBUG: "electron-packager"
-            },
-            cancelSignal: abortSignal,
+      await runWithLiveLogs(
+        node,
+        [forge, action, /* '--', */ "--arch", finalArch, "--platform", finalPlatform],
+        {
+          cwd: destinationFolder,
+          env: {
+            DEBUG: completeConfiguration.enableExtraLogging ? "*" : "",
+            ELECTRON_NO_ASAR: "1",
+            PATH: `${dirname(node)}${delimiter}${process.env.PATH}`,
+            // DEBUG: "electron-packager"
           },
-          log,
-          {
-            onStderr(data) {
-              log(data);
-            },
-            onStdout(data) {
-              log(data);
-            },
+          cancelSignal: abortSignal,
+        },
+        log,
+        {
+          onStderr(data) {
+            log(data);
           },
-        );
-      } catch (e) {
-        console.error("e", e);
-      }
+          onStdout(data) {
+            log(data);
+          },
+        },
+      );
 
       if (action === "package") {
         const outName = outFolderName(
@@ -903,14 +895,14 @@ export const forge = async (
         }
       }
       log(e);
-      return undefined;
+      throw e;
     }
   } finally {
     try {
       if (action !== "preview") {
         const outDir = join(destinationFolder, "out");
         const finalOutDir = join(cwd, "out");
-        await cp(outDir, finalOutDir, { recursive: true });
+        await copyRecursive(outDir, finalOutDir);
       }
     } catch (e) {
       log("Failed to copy build output back to cwd:", e);

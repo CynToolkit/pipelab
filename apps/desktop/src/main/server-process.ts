@@ -64,12 +64,12 @@ export const startServer = async () => {
     // In production, we use the bundled binary
     // The binary should be placed in a known location relative to the app
     const suffix = process.platform === "win32" ? ".exe" : "";
-    const platform = process.platform === "win32" ? "win" : process.platform === "darwin" ? "macos" : "linux";
+    const platform =
+      process.platform === "win32" ? "win" : process.platform === "darwin" ? "macos" : "linux";
     serverPath = join(process.resourcesPath, "bin", `pipelab-${platform}${suffix}`);
 
     console.log(`INFO: Using resource path: ${process.resourcesPath}`);
     console.log(`INFO: Computed server path: ${serverPath}`);
-
 
     if (!fs.existsSync(serverPath)) {
       const fallback = join(app.getAppPath(), "..", "bin", `pipelab-${platform}${suffix}`);

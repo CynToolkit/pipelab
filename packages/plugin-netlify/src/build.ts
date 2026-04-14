@@ -1,4 +1,4 @@
-import { ensure, extractZip, zipFolder } from "@pipelab/plugin-core";
+import { ensure, extractZip, zipFolder, copyRecursive } from "@pipelab/plugin-core";
 import {
   createAction,
   createActionRunner,
@@ -59,9 +59,7 @@ export const buildNetlifySiteRunner = createActionRunner<typeof buildNetlifySite
       throw new Error("No package.json found in input folder");
     }
 
-    await cp(inputs["input-folder"], buildDir, {
-      recursive: true,
-    });
+    await copyRecursive(inputs["input-folder"], buildDir);
 
     const netlifyDir = join(buildDir, ".netlify");
     const netlifyState = join(netlifyDir, "state.json");

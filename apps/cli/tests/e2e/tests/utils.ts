@@ -49,24 +49,30 @@ export const runPipeline = async (
   const resultFile = join(sandboxPath, "result.json");
   await writeFile(pipelineFile, JSON.stringify(pipeline, null, 2));
 
-  const cliSourcePath = resolve(projectRoot, "apps/cli/src/index.ts");
-  const tsxBinary = resolve(projectRoot, "node_modules/.bin/tsx");
+  const pkgPath = resolve(projectRoot, "apps/cli/package.json");
+  const pkg = JSON.parse(await readFile(pkgPath, "utf-8"));
+  const version = pkg.version;
 
-  const args = [
-    "--import",
-    join(projectRoot, "scripts", "tsx-assets-loader.mjs"),
-    cliSourcePath,
-    "run",
-    pipelineFile,
-    "--output",
-    resultFile,
-  ];
+  const platform = process.platform;
+  let targetOs = "linux";
+  if (platform === "win32") targetOs = "win";
+  if (platform === "darwin") targetOs = "macos";
+
+  const arch = process.arch;
+  let targetArch = arch;
+  if (arch === "x64") targetArch = "x64";
+  if (arch === "arm64") targetArch = "arm64";
+
+  const binaryName = `pipelab-cli-v${version}-${targetOs}-${targetArch}${targetOs === "win" ? ".exe" : ""}`;
+  const cliBinaryPath = resolve(projectRoot, "apps/cli/bin", binaryName);
+
+  const args = ["run", pipelineFile, "--output", resultFile];
 
   const userData = options.userData || sandboxPath;
   args.push("--user-data", userData);
 
   await runWithLiveLogs(
-    tsxBinary,
+    cliBinaryPath,
     args,
     {
       cwd: options.cwd || projectRoot,

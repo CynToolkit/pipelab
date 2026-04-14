@@ -28,7 +28,6 @@ export const minifyImages = createAction({
 
 export const minifyImagesRunner = createActionRunner<typeof minifyImages>(
   async ({ log, inputs, cwd, abortSignal }) => {
-
     // TODO: https://github.com/imagemin/imagemin
 
     log("Minified images");

@@ -63,7 +63,6 @@ export const zip = createAction({
 
 export const zipRunner = createActionRunner<typeof zip>(
   async ({ log, inputs, setOutput, abortSignal }) => {
-
     abortSignal.addEventListener("abort", () => {
       throw new Error("Aborted");
     });

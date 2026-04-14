@@ -2,7 +2,7 @@
   "name": "@pipelab/cli",
   "version": "2.0.0",
   "private": true,
-  "bin": "dist/index.js",
+  "bin": "dist/index.cjs",
   "type": "module",
   "scripts": {
     "build": "cross-env NODE_ENV=production tsdown && pnpm copy:ui",
@@ -12,7 +12,7 @@
     "watch": "tsdown --watch",
     "start": "node dist/index.js",
     "test:e2e:raw": "vitest run -c tests/e2e/vitest.config.mts",
-    "test:e2e": "pnpm build && pnpm test:e2e:raw",
+    "test:e2e": "pnpm run pkg && pnpm test:e2e:raw",
     "format": "oxfmt .",
     "lint": "oxlint .",
     "typecheck": "tsc --noEmit -p tsconfig.json --composite false"
@@ -30,7 +30,7 @@
     "@pipelab/tsconfig": "workspace:*",
     "@types/node": "24.12.2",
     "@types/serve-handler": "6.1.4",
-    "@yao-pkg/pkg": "6.14.1",
+    "@yao-pkg/pkg": "6.15.0",
     "cross-env": "7.0.3",
     "nanoid": "5.0.8",
     "tsdown": "0.21.2",
@@ -40,6 +40,7 @@
   "pkg": {
     "scripts": [],
     "assets": [
+      "dist/*.cjs",
       "dist/*.js",
       "dist/*.wasm",
       "assets/**/*",

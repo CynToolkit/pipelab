@@ -33,10 +33,10 @@ jobs:
         with:
           run_install: false
 
-      - name: Use Node.js 22
+      - name: Use Node.js 24
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           cache: "pnpm"
 
       - name: Install dependencies
@@ -85,10 +85,10 @@ jobs:
         with:
           run_install: false
 
-      - name: Use Node.js 22
+      - name: Use Node.js 24
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           cache: "pnpm"
 
       - name: Install dependencies
@@ -127,10 +127,10 @@ jobs:
         with:
           run_install: false
 
-      - name: Use Node.js 22
+      - name: Use Node.js 24
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           cache: "pnpm"
 
       - name: Install dependencies
@@ -157,7 +157,6 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           TARGET_ARCH: ${{ matrix.arch }}
         run: pnpm turbo make --filter=@pipelab/app -- --arch ${{ matrix.arch }}
-
 
       - name: Upload Desktop Artifacts
         uses: actions/upload-artifact@v4
@@ -188,10 +187,10 @@ jobs:
         with:
           run_install: false
 
-      - name: Use Node.js 22
+      - name: Use Node.js 24
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           cache: "pnpm"
 
       - name: Install dependencies

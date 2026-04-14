@@ -25,7 +25,6 @@ export const isFileCondition = createCondition({
 
 export const isFileRunner = createConditionRunner<typeof isFileCondition>(
   async ({ log, inputs }) => {
-
     const path = inputs.path;
 
     log("path", path);

@@ -42,7 +42,6 @@ const getAllJsFiles = async (dir: string): Promise<string[]> => {
 
 export const minifyCodeRunner = createActionRunner<typeof minifyCode>(
   async ({ log, inputs, cwd, abortSignal }) => {
-
     const jsFiles = await getAllJsFiles(inputs["input-folder"]);
 
     for (const file of jsFiles) {

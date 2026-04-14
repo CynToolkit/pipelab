@@ -75,6 +75,7 @@
     "@types/node": "24.12.2",
     "@vitejs/devtools": "0.1.13",
     "@vitejs/plugin-vue": "6.0.5",
+    "sass-embedded": "^1.83.4",
     "typescript": "5.8.3",
     "unplugin-auto-import": "0.18.3",
     "unplugin-vue-components": "0.27.4",

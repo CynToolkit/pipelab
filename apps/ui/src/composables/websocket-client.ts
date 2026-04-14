@@ -382,7 +382,10 @@ export class WebSocketClient {
     this.disconnect({ clearQueue: false });
     this.connect(url);
   }
-  public on<KEY extends Channels>(channel: KEY | string, listener: (data: Events<KEY>) => void): () => void {
+  public on<KEY extends Channels>(
+    channel: KEY | string,
+    listener: (data: Events<KEY>) => void,
+  ): () => void {
     if (!this.eventListeners.has(channel)) {
       this.eventListeners.set(channel, new Set());
     }

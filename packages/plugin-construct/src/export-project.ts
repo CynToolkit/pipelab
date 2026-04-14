@@ -59,7 +59,6 @@ export const exportProjectAction = createAction({
 
 export const ExportProjectActionRunner = createActionRunner<typeof exportProjectAction>(
   async (options) => {
-
     const c3pFolderExists = await fileExists(options.inputs.folder);
     if (!c3pFolderExists) {
       throw new Error("You must specify a valid construct project folder");

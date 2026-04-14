@@ -1,4 +1,4 @@
-import { createActionRunner } from "@pipelab/plugin-core";
+import { createActionRunner, copyRecursive } from "@pipelab/plugin-core";
 import { createPackageProps, discord } from "./discord";
 import { merge } from "ts-deepmerge";
 import { defaultTauriConfig } from "./utils";
@@ -14,8 +14,7 @@ export const packageV2Runner = createActionRunner<ReturnType<typeof createPackag
     const templateFolder = join(assets, "discord", "templates", "nitro-app");
 
     // copy template to destination
-    await cp(templateFolder, destinationFolder, {
-      recursive: true,
+    await copyRecursive(templateFolder, destinationFolder, {
       filter: (src) => {
         log("src", src);
         // log('dest', dest)
@@ -26,9 +25,7 @@ export const packageV2Runner = createActionRunner<ReturnType<typeof createPackag
     const placeAppFolder = join(destinationFolder, "server", "public", ".proxy");
     if (appFolder) {
       // copy app to template
-      await cp(appFolder, placeAppFolder, {
-        recursive: true,
-      });
+      await copyRecursive(appFolder, placeAppFolder);
     }
 
     log("destinationFolder", destinationFolder);

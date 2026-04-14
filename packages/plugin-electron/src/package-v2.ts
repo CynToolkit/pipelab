@@ -47,6 +47,6 @@ export const packageV2Runner = createActionRunner<ReturnType<typeof createPackag
     options.log("completeConfiguration", completeConfiguration);
 
     // @ts-expect-error options is not really compatible
-    await forge("package", appFolder, options, completeConfiguration);
+    return await forge("package", appFolder, options, completeConfiguration);
   },
 );

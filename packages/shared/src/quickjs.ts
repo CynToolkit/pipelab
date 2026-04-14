@@ -1,9 +1,5 @@
 import { useLogger } from "./logger";
-import {
-  newQuickJSWASMModuleFromVariant,
-  newVariant,
-  RELEASE_SYNC,
-} from "quickjs-emscripten";
+import { newQuickJSWASMModuleFromVariant, newVariant, RELEASE_SYNC } from "quickjs-emscripten";
 import { Arena } from "quickjs-emscripten-sync";
 import { fmt } from "./fmt";
 
@@ -90,7 +86,7 @@ export const createQuickJsFromVariant = async (variant: any) => {
 // ---------------------------------------------------------------------------
 // Node.js variant — statically imported, safe in the Electron main process
 // ---------------------------------------------------------------------------
-import nodeVariant from "@jitl/quickjs-wasmfile-release-sync";
+import nodeVariant from "@jitl/quickjs-singlefile-mjs-release-sync";
 
 export const createQuickJs = () => createQuickJsFromVariant(nodeVariant);
 

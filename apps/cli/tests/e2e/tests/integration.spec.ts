@@ -64,8 +64,11 @@ describe("End-to-End: Multi-Plugin Integration Test", () => {
     expect(resultJson.steps["copy-to-staging"]).toBeDefined();
     expect(resultJson.steps["package-electron-app"]).toBeDefined();
 
-    // Verify output exists in the sandbox build folder (relative to staging path)
-    const outputDir = join(sandbox.path, "build", "out", "my-app-linux-x64");
-    await expect(access(outputDir)).resolves.not.toThrow();
+    const outputs = resultJson.steps["package-electron-app"].outputs;
+    expect(outputs).toBeDefined();
+    expect(outputs.output).toEqual(expect.any(String));
+
+    // Verify output exists in the dynamically generated output folder
+    await expect(access(outputs.output)).resolves.not.toThrow();
   }, 600000); // 10 minutes timeout for real build
 });

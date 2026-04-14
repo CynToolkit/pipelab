@@ -8,6 +8,7 @@ import {
   InputsDefinition,
   ParamsToInput,
   runWithLiveLogs,
+  copyRecursive,
 } from "@pipelab/plugin-core";
 import { script } from "./assets/script.js";
 import * as v from "valibot";
@@ -203,9 +204,7 @@ export const exportc3p = async <ACTION extends Action>(
     for (const p of pathsToCopy) {
       const from = join(indexedDbPathSource, p);
       const to = join(indexedDbPathDestination, p);
-      await cp(from, to, {
-        recursive: true,
-      });
+      await copyRecursive(from, to);
     }
 
     context = await browserInstance.launchPersistentContext(customProfile, {
