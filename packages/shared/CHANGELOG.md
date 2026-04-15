@@ -1,5 +1,11 @@
 # @pipelab/shared
 
+## 2.0.1-beta.2
+
+### Patch Changes
+
+- sd
+
 ## 2.0.1-beta.1
 
 ### Patch Changes
