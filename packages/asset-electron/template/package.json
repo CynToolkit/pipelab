@@ -5,14 +5,13 @@
   "keywords": [],
   "license": "MIT",
   "author": {
-    "name": "Quentin Goinaud",
-    "email": "quentin.goinaud@gmail.com"
+    "name": "[NAME]",
+    "email": "[EMAIL_ADDRESS]"
   },
   "type": "module",
   "main": "src/index.js",
   "scripts": {
     "start": "electron-forge start",
-    "start:url": "electron-forge start -- --url=https://google.com",
     "package": "electron-forge package",
     "make": "electron-forge make",
     "publish": "electron-forge publish",
