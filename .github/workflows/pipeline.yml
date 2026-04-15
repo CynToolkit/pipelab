@@ -183,7 +183,7 @@ jobs:
           p12-file-base64: ${{ secrets.CERTIFICATE_OSX_APPLICATION }}
           p12-password: ${{ secrets.CERTIFICATE_OSX_APPLICATION_PASSWORD }}
 
-      - name: Build Desktop
+      - name: Package & Make Desktop
         env:
           DEBUG: "electron-osx-sign*,electron-forge:*"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -196,7 +196,9 @@ jobs:
           APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           TARGET_ARCH: ${{ matrix.arch }}
-        run: pnpm turbo make --filter=@pipelab/app -- --arch ${{ matrix.arch }}
+        run: |
+          pnpm --filter @pipelab/app package -- --arch ${{ matrix.arch }}
+          pnpm --filter @pipelab/app make -- --arch ${{ matrix.arch }}
 
       - uses: actions/upload-artifact@v4
         with:
