@@ -104,16 +104,12 @@ export async function fetchPipelabAsset(packageName: string, version?: string): 
     targetRelease = await fetchReleaseInfo("CynToolkit/pipelab", packageName, version);
     resolvedVersion = targetRelease.tag_name.split("@").pop()!;
   } catch (error) {
-    // 3. Network/API Failure: Fallback to latest local version if no specific version was requested
-    if (!version) {
-      console.warn(`[Fetcher] Network failed, looking for local fallback for ${packageName}...`);
-      const latestLocal = await findLatestLocalVersion(assetBaseDir);
-      if (latestLocal) {
-        console.info(`[Fetcher] Using locally cached version: ${latestLocal}`);
-        return join(assetBaseDir, latestLocal);
-      }
+    // 3. Network Failure: Try local fallback for actual network errors (not "release not found")
+    const fallbackVersion = await tryLocalFallback(version, error, assetBaseDir, packageName);
+    if (fallbackVersion) {
+      return join(assetBaseDir, fallbackVersion);
     }
-    throw error; // Re-throw if no fallback found or if specific version failed
+    throw error; // Re-throw: either release not found, specific version failed, or no local fallback
   }
 
   const assetDir = join(assetBaseDir, resolvedVersion);
@@ -166,17 +162,13 @@ export async function fetchPipelabCli(version?: string): Promise<string> {
     targetRelease = await fetchReleaseInfo("CynToolkit/pipelab", packageName, version);
     resolvedVersion = targetRelease.tag_name.split("@").pop()!;
   } catch (error) {
-    // 3. Network/API Failure: Fallback to latest local version
-    if (!version) {
-      console.warn("[Fetcher] Network failed, looking for local CLI fallback...");
-      const latestLocal = await findLatestLocalVersion(binBaseDir);
-      if (latestLocal) {
-        const binaryName = `pipelab-cli-v${latestLocal}-${os}-${arch}${suffix}`;
-        const binaryPath = join(binBaseDir, latestLocal, binaryName);
-        if (existsSync(binaryPath)) {
-          console.info(`[Fetcher] Using locally cached CLI: ${latestLocal}`);
-          return binaryPath;
-        }
+    // 3. Network Failure: Try local fallback for actual network errors (not "release not found")
+    const fallbackVersion = await tryLocalFallback(version, error, binBaseDir, "CLI");
+    if (fallbackVersion) {
+      const binaryName = `pipelab-cli-v${fallbackVersion}-${os}-${arch}${suffix}`;
+      const binaryPath = join(binBaseDir, fallbackVersion, binaryName);
+      if (existsSync(binaryPath)) {
+        return binaryPath;
       }
     }
     throw error;
@@ -218,4 +210,37 @@ async function findLatestLocalVersion(baseDir: string): Promise<string | null> {
   } catch (e) {
     return null;
   }
+}
+
+/**
+ * Checks if an error from fetchReleaseInfo is a "release not found" error vs a network error.
+ */
+function isReleaseNotFoundError(error: unknown): boolean {
+  const errorMessage = error instanceof Error ? error.message : String(error);
+  return errorMessage.includes("No release found for package");
+}
+
+/**
+ * Attempts to use a locally cached version when network fetch fails.
+ * Returns the fallback path if available, otherwise null.
+ */
+async function tryLocalFallback(
+  version: string | undefined,
+  error: unknown,
+  baseDir: string,
+  logPrefix: string,
+): Promise<string | null> {
+  // Only fallback for network errors, not "release not found" errors
+  if (version || isReleaseNotFoundError(error)) {
+    return null;
+  }
+
+  console.warn(`[Fetcher] ${logPrefix}: Network failed, looking for local fallback...`);
+  const latestLocal = await findLatestLocalVersion(baseDir);
+  if (latestLocal) {
+    console.info(`[Fetcher] ${logPrefix}: Using locally cached version: ${latestLocal}`);
+    return latestLocal;
+  }
+  console.warn(`[Fetcher] ${logPrefix}: No local fallback found`);
+  return null;
 }
