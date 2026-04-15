@@ -59,9 +59,7 @@ jobs:
         run: pnpm turbo typecheck
         continue-on-error: true
 
-      - name: Build
-        run: pnpm turbo build
-        continue-on-error: true
+      # Skip build here - we'll build in publish-apps job with artifacts cached
 
       - name: Test (Unit)
         run: pnpm turbo test
@@ -103,10 +101,47 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  publish-apps:
-    name: Build Apps (${{ matrix.os }} - ${{ matrix.arch }})
+  build-ui:
+    name: Build UI
     needs: release
-    # Only run if a release was published or it's a force publish
+    if: |
+      needs.release.result == 'success' && 
+      (needs.release.outputs.published == 'true' || github.event.inputs.forcePublish == 'true' || github.ref_name == 'feature/monorepo')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: "pnpm"
+      - run: pnpm install
+
+      - name: Cache Turbo
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: turbo-build-ui-${{ github.sha }}
+          restore-keys: |
+            turbo-build-ui-
+
+      - name: Build UI
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+          POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
+        run: pnpm --filter @pipelab/ui build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ui-artifacts
+          path: apps/ui/dist/**/*
+
+  build-desktop:
+    name: Build Desktop (${{ matrix.os }} - ${{ matrix.arch }})
+    needs: release
     if: |
       needs.release.result == 'success' && 
       (needs.release.outputs.published == 'true' || github.event.inputs.forcePublish == 'true' || github.ref_name == 'feature/monorepo')
@@ -122,19 +157,24 @@ jobs:
             arch: arm64
     steps:
       - uses: actions/checkout@v4
-
       - uses: pnpm/action-setup@v4
         with:
           run_install: false
-
-      - name: Use Node.js 24
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: "pnpm"
+      - run: pnpm install
 
-      - name: Install dependencies
-        run: pnpm install
+      - name: Cache Turbo
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: turbo-build-desktop-${{ matrix.os }}-${{ matrix.arch }}-${{ github.sha }}
+          restore-keys: |
+            turbo-build-desktop-${{ matrix.os }}-${{ matrix.arch }}-
+            turbo-build-desktop-${{ matrix.os }}-
+            turbo-build-desktop-
 
       - name: Import Apple Code Signing Certificate
         uses: apple-actions/import-codesign-certs@v3
@@ -143,7 +183,7 @@ jobs:
           p12-file-base64: ${{ secrets.CERTIFICATE_OSX_APPLICATION }}
           p12-password: ${{ secrets.CERTIFICATE_OSX_APPLICATION_PASSWORD }}
 
-      - name: Build & Package
+      - name: Build Desktop
         env:
           DEBUG: "electron-osx-sign*,electron-forge:*"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -158,21 +198,61 @@ jobs:
           TARGET_ARCH: ${{ matrix.arch }}
         run: pnpm turbo make --filter=@pipelab/app -- --arch ${{ matrix.arch }}
 
-      - name: Upload Desktop Artifacts
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
           name: desktop-artifacts-${{ matrix.os }}-${{ matrix.arch }}
           path: apps/desktop/out/make/**/*
 
-      - name: Upload CLI Artifacts
-        uses: actions/upload-artifact@v4
+  build-cli:
+    name: Build CLI (${{ matrix.os }} - ${{ matrix.arch }})
+    needs: release
+    if: |
+      needs.release.result == 'success' && 
+      (needs.release.outputs.published == 'true' || github.event.inputs.forcePublish == 'true' || github.ref_name == 'feature/monorepo')
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        arch: [x64, arm64]
+        exclude:
+          - os: ubuntu-latest
+            arch: arm64
+          - os: windows-latest
+            arch: arm64
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: "pnpm"
+      - run: pnpm install
+
+      - name: Cache Turbo
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: turbo-build-cli-${{ matrix.os }}-${{ matrix.arch }}-${{ github.sha }}
+          restore-keys: |
+            turbo-build-cli-${{ matrix.os }}-${{ matrix.arch }}-
+            turbo-build-cli-${{ matrix.os }}-
+            turbo-build-cli-
+
+      - name: Build CLI
+        env:
+          TARGET_ARCH: ${{ matrix.arch }}
+        run: pnpm --filter @pipelab/cli package
+
+      - uses: actions/upload-artifact@v4
         with:
           name: cli-artifacts-${{ matrix.os }}-${{ matrix.arch }}
           path: apps/cli/bin/*
 
   deploy:
     name: Deploy Release
-    needs: [release, publish-apps]
+    needs: [release, build-desktop, build-cli, build-ui]
     if: |
       needs.release.outputs.published == 'true' ||
       github.event.inputs.forcePublish == 'true' ||
@@ -209,14 +289,6 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: artifacts
-
-      - name: Build UI
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
-          POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
-        run: pnpm --filter @pipelab/ui build
 
       - name: Get Versions
         id: versions
@@ -273,9 +345,9 @@ jobs:
             fi
           done
 
-          # Package UI from apps/ui/dist
-          if [ -d "apps/ui/dist" ]; then
-            (cd apps/ui/dist && zip -r ../asset.zip .)
+          # Package UI from downloaded artifacts
+          if [ -d "artifacts/ui-artifacts" ]; then
+            (cd artifacts/ui-artifacts && zip -r ../../apps/ui/asset.zip .)
           fi
 
       - name: Upload Asset Electron
