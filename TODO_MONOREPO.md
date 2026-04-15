@@ -29,6 +29,7 @@ Goal: Ensure the application remains 100% functional in both development and pro
 
 ### 3. Critical Fixes
 
+- [ ] **Template Prefetch**: Implement prefetching of all necessary templates (`@pipelab/asset-electron`, etc.) before pipeline execution starts to fail fast with clear errors instead of failing mid-pipeline.
 - [ ] **Type Safety**: Resolve the 8 remaining type errors in `apps/ui` reported during `turbo typecheck` (mostly related to PrimeVue components and optional refs).
 - [ ] **External Deps**: Audit `apps/desktop/vite.base.config.mts`'s `external` list. Ensure no `@pipelab/*` packages are accidentally externalized in the bundle.
 - [ ] **IPC Routing**: Ensure `dialog:showOpenDialog` and `dialog:showSaveDialog` are correctly routed to Electron even when the UI is loaded from a remote URL.
