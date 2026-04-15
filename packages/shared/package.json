@@ -1,6 +1,6 @@
 {
   "name": "@pipelab/shared",
-  "version": "2.0.0",
+  "version": "2.0.1-beta.0",
   "private": true,
   "description": "-",
   "type": "module",

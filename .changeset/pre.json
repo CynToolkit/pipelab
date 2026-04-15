@@ -22,7 +22,15 @@
     "@pipelab/plugin-system": "1.0.0",
     "@pipelab/plugin-tauri": "1.0.0",
     "@pipelab/shared": "2.0.0",
-    "@pipelab/tsconfig": "1.0.0"
+    "@pipelab/tsconfig": "1.0.0",
+    "@pipelab/asset-discord": "1.0.0",
+    "@pipelab/asset-electron": "1.0.0",
+    "@pipelab/asset-netlify": "1.0.0",
+    "@pipelab/asset-tauri": "1.0.0"
   },
-  "changesets": ["curly-planets-move", "orange-pans-arrive"]
+  "changesets": [
+    "curly-planets-move",
+    "light-lemons-call",
+    "orange-pans-arrive"
+  ]
 }

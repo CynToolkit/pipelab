@@ -1,6 +1,6 @@
 {
   "name": "@pipelab/asset-electron",
-  "version": "1.0.0",
+  "version": "1.0.1-beta.0",
   "private": true,
   "description": "Electron assets for pipelab",
   "files": [
