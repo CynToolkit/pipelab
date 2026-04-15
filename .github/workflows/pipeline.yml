@@ -210,6 +210,14 @@ jobs:
         with:
           path: artifacts
 
+      - name: Build UI
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+          POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
+        run: pnpm --filter @pipelab/ui build
+
       - name: Get Versions
         id: versions
         shell: bash
