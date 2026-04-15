@@ -289,12 +289,61 @@ jobs:
           name: cli-artifacts-${{ matrix.os }}-${{ matrix.arch }}
           path: apps/cli/bin/*
 
+  test-cli-e2e:
+    name: Test CLI E2E (${{ matrix.os }} - ${{ matrix.arch }})
+    needs: [build-cli, changes]
+    if: |
+      always() &&
+      needs.build-cli.result == 'success' &&
+      contains(fromJson(needs.changes.outputs.affected), '@pipelab/cli')
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        arch: [x64, arm64]
+        exclude:
+          - os: ubuntu-latest
+            arch: arm64
+          - os: windows-latest
+            arch: arm64
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: "pnpm"
+      - run: pnpm install
+
+      - name: Download CLI artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: cli-artifacts-${{ matrix.os }}-${{ matrix.arch }}
+          path: apps/cli/bin
+
+      - name: Cache Turbo
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: turbo-test-cli-e2e-${{ matrix.os }}-${{ matrix.arch }}-${{ github.sha }}
+          restore-keys: |
+            turbo-test-cli-e2e-${{ matrix.os }}-${{ matrix.arch }}-
+            turbo-test-cli-e2e-${{ matrix.os }}-
+            turbo-test-cli-e2e-
+
+      - name: Run CLI E2E Tests
+        run: pnpm turbo test:e2e:raw --filter @pipelab/cli
+
   deploy:
     name: Deploy Release
-    needs: [release, build-desktop, build-cli, build-ui, changes]
+    needs: [release, build-desktop, build-cli, build-ui, test-cli-e2e, changes]
     if: |
       always() &&
       needs.release.result == 'success' &&
+      (needs.test-cli-e2e.result == 'success' || needs.test-cli-e2e.result == 'skipped') &&
       (needs.release.outputs.published == 'true' ||
       github.event.inputs.forcePublish == 'true' ||
       github.ref_name == 'feature/monorepo')

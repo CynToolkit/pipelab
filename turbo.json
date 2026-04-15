@@ -24,6 +24,10 @@
       "dependsOn": ["build"],
       "outputs": []
     },
+    "test:e2e:raw": {
+      "dependsOn": ["build"],
+      "outputs": []
+    },
     "lint": {
       "outputs": []
     },
