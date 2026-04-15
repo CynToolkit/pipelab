@@ -1,5 +1,11 @@
 # @pipelab/app
 
+## 2.0.1-beta.1
+
+### Patch Changes
+
+- 9268b1e: test 3
+
 ## 2.0.1-beta.0
 
 ### Patch Changes

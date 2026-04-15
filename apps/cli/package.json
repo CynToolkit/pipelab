@@ -1,6 +1,6 @@
 {
   "name": "@pipelab/cli",
-  "version": "2.0.1-beta.0",
+  "version": "2.0.1-beta.1",
   "private": true,
   "bin": "dist/index.cjs",
   "type": "module",
