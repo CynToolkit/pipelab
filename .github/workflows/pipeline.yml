@@ -23,6 +23,40 @@ permissions:
   pull-requests: write
 
 jobs:
+  changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      affected: ${{ steps.detect.outputs.affected }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - name: Use Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: "pnpm"
+
+      - name: Detect Changes
+        id: detect
+        run: |
+          # Get the last tag to compare against
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "HEAD~10")
+          echo "Comparing against: $LAST_TAG"
+
+          # Use turbo to list affected packages
+          # We use npx to avoid full install if possible, but turbo needs the graph
+          npx turbo ls -F "[$LAST_TAG]" --output=json > affected.json
+          
+          # Run our detection script
+          npx tsx scripts/detect-changes.ts affected.json
+
   verify:
     name: Verify
     runs-on: ubuntu-latest
@@ -103,10 +137,11 @@ jobs:
 
   build-ui:
     name: Build UI
-    needs: release
+    needs: [release, changes]
     if: |
       needs.release.result == 'success' && 
-      (needs.release.outputs.published == 'true' || github.event.inputs.forcePublish == 'true' || github.ref_name == 'feature/monorepo')
+      (needs.release.outputs.published == 'true' || github.event.inputs.forcePublish == 'true' || github.ref_name == 'feature/monorepo') &&
+      (contains(fromJson(needs.changes.outputs.affected), '@pipelab/ui') || github.event.inputs.forcePublish == 'true')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -141,10 +176,11 @@ jobs:
 
   build-desktop:
     name: Build Desktop (${{ matrix.os }} - ${{ matrix.arch }})
-    needs: release
+    needs: [release, changes]
     if: |
       needs.release.result == 'success' && 
-      (needs.release.outputs.published == 'true' || github.event.inputs.forcePublish == 'true' || github.ref_name == 'feature/monorepo')
+      (needs.release.outputs.published == 'true' || github.event.inputs.forcePublish == 'true' || github.ref_name == 'feature/monorepo') &&
+      (contains(fromJson(needs.changes.outputs.affected), '@pipelab/app') || github.event.inputs.forcePublish == 'true')
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -207,10 +243,11 @@ jobs:
 
   build-cli:
     name: Build CLI (${{ matrix.os }} - ${{ matrix.arch }})
-    needs: release
+    needs: [release, changes]
     if: |
       needs.release.result == 'success' && 
-      (needs.release.outputs.published == 'true' || github.event.inputs.forcePublish == 'true' || github.ref_name == 'feature/monorepo')
+      (needs.release.outputs.published == 'true' || github.event.inputs.forcePublish == 'true' || github.ref_name == 'feature/monorepo') &&
+      (contains(fromJson(needs.changes.outputs.affected), '@pipelab/cli') || github.event.inputs.forcePublish == 'true')
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -254,11 +291,13 @@ jobs:
 
   deploy:
     name: Deploy Release
-    needs: [release, build-desktop, build-cli, build-ui]
+    needs: [release, build-desktop, build-cli, build-ui, changes]
     if: |
-      needs.release.outputs.published == 'true' ||
+      always() &&
+      needs.release.result == 'success' &&
+      (needs.release.outputs.published == 'true' ||
       github.event.inputs.forcePublish == 'true' ||
-      github.ref_name == 'feature/monorepo'
+      github.ref_name == 'feature/monorepo')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -291,6 +330,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: artifacts
+        continue-on-error: true
 
       - name: Get Versions
         id: versions
@@ -319,6 +359,7 @@ jobs:
           echo "prerelease=$IS_PRERELEASE" >> $GITHUB_OUTPUT
 
       - name: Upload Desktop Binaries
+        if: contains(fromJson(needs.changes.outputs.affected), '@pipelab/app') || github.event.inputs.forcePublish == 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: "@pipelab/app@${{ steps.versions.outputs.app_version }}"
@@ -329,6 +370,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload CLI Binaries
+        if: contains(fromJson(needs.changes.outputs.affected), '@pipelab/cli') || github.event.inputs.forcePublish == 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: "@pipelab/cli@${{ steps.versions.outputs.cli_version }}"
@@ -341,11 +383,19 @@ jobs:
       - name: Package Assets
         shell: bash
         run: |
-          for package in electron discord netlify tauri; do
-            if [ -d "packages/asset-$package" ]; then
-              (cd packages/asset-$package && zip -r asset.zip .)
-            fi
-          done
+          # Only package assets that have changes
+          if [[ "${{ contains(fromJson(needs.changes.outputs.affected), '@pipelab/asset-electron') }}" == "true" ]] || [[ "${{ github.event.inputs.forcePublish }}" == "true" ]]; then
+            (cd packages/asset-electron && zip -r asset.zip .)
+          fi
+          if [[ "${{ contains(fromJson(needs.changes.outputs.affected), '@pipelab/asset-discord') }}" == "true" ]] || [[ "${{ github.event.inputs.forcePublish }}" == "true" ]]; then
+            (cd packages/asset-discord && zip -r asset.zip .)
+          fi
+          if [[ "${{ contains(fromJson(needs.changes.outputs.affected), '@pipelab/asset-netlify') }}" == "true" ]] || [[ "${{ github.event.inputs.forcePublish }}" == "true" ]]; then
+            (cd packages/asset-netlify && zip -r asset.zip .)
+          fi
+          if [[ "${{ contains(fromJson(needs.changes.outputs.affected), '@pipelab/asset-tauri') }}" == "true" ]] || [[ "${{ github.event.inputs.forcePublish }}" == "true" ]]; then
+            (cd packages/asset-tauri && zip -r asset.zip .)
+          fi
 
           # Package UI from downloaded artifacts
           if [ -d "artifacts/ui-artifacts" ]; then
@@ -353,6 +403,7 @@ jobs:
           fi
 
       - name: Upload Asset Electron
+        if: contains(fromJson(needs.changes.outputs.affected), '@pipelab/asset-electron') || github.event.inputs.forcePublish == 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: "@pipelab/asset-electron@${{ steps.versions.outputs.asset_electron_version }}"
@@ -361,6 +412,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           
       - name: Upload Asset Discord
+        if: contains(fromJson(needs.changes.outputs.affected), '@pipelab/asset-discord') || github.event.inputs.forcePublish == 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: "@pipelab/asset-discord@${{ steps.versions.outputs.asset_discord_version }}"
@@ -369,6 +421,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           
       - name: Upload Asset Netlify
+        if: contains(fromJson(needs.changes.outputs.affected), '@pipelab/asset-netlify') || github.event.inputs.forcePublish == 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: "@pipelab/asset-netlify@${{ steps.versions.outputs.asset_netlify_version }}"
@@ -377,6 +430,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           
       - name: Upload Asset Tauri
+        if: contains(fromJson(needs.changes.outputs.affected), '@pipelab/asset-tauri') || github.event.inputs.forcePublish == 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: "@pipelab/asset-tauri@${{ steps.versions.outputs.asset_tauri_version }}"
@@ -385,6 +439,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           
       - name: Upload Asset UI
+        if: contains(fromJson(needs.changes.outputs.affected), '@pipelab/ui') || github.event.inputs.forcePublish == 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: "@pipelab/ui@${{ steps.versions.outputs.ui_version }}"
