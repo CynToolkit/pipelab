@@ -1,5 +1,11 @@
 # @pipelab/asset-electron
 
+## 1.0.1-beta.2
+
+### Patch Changes
+
+- update template
+
 ## 1.0.1-beta.1
 
 ### Patch Changes
