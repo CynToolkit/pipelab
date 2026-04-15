@@ -17,5 +17,19 @@
   "linked": [],
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
-  "ignore": []
+  "ignore": [
+    "@pipelab/plugin-construct",
+    "@pipelab/plugin-core",
+    "@pipelab/plugin-discord",
+    "@pipelab/plugin-electron",
+    "@pipelab/plugin-filesystem",
+    "@pipelab/plugin-itch",
+    "@pipelab/plugin-minify",
+    "@pipelab/plugin-netlify",
+    "@pipelab/plugin-nvpatch",
+    "@pipelab/plugin-poki",
+    "@pipelab/plugin-steam",
+    "@pipelab/plugin-system",
+    "@pipelab/plugin-tauri"
+  ]
 }
