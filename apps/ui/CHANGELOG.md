@@ -1,5 +1,14 @@
 # @pipelab/ui
 
+## 2.0.1-beta.4
+
+### Patch Changes
+
+- tesyt
+- Updated dependencies
+  - @pipelab/constants@1.0.1-beta.3
+  - @pipelab/shared@2.0.1-beta.4
+
 ## 2.0.1-beta.3
 
 ### Patch Changes

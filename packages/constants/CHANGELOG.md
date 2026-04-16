@@ -1,5 +1,11 @@
 # @pipelab/constants
 
+## 1.0.1-beta.3
+
+### Patch Changes
+
+- tesyt
+
 ## 1.0.1-beta.2
 
 ### Patch Changes
