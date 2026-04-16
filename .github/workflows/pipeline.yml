@@ -58,45 +58,69 @@ jobs:
           # Run our detection script
           npx tsx scripts/detect-changes.ts affected.json
 
-  verify:
-    name: Verify
+  verify-lint:
+    name: Verify Lint
     needs: changes
     if: needs.changes.outputs.affected != '[]'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: pnpm/action-setup@v4
         with:
           run_install: false
-
       - name: Use Node.js 24
         uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: "pnpm"
-
       - name: Install dependencies
         run: pnpm install
-
-
       - name: Lint
         run: pnpm turbo lint
-        continue-on-error: true
 
+  verify-typecheck:
+    name: Verify Typecheck
+    needs: changes
+    if: needs.changes.outputs.affected != '[]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+      - name: Use Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: "pnpm"
+      - name: Install dependencies
+        run: pnpm install
       - name: Typecheck
         run: pnpm turbo typecheck
-        continue-on-error: true
 
-      # Skip build here - we'll build in publish-apps job with artifacts cached
-
+  verify-test:
+    name: Verify Unit Tests
+    needs: changes
+    if: needs.changes.outputs.affected != '[]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+      - name: Use Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: "pnpm"
+      - name: Install dependencies
+        run: pnpm install
       - name: Test (Unit)
         run: pnpm turbo test
-        continue-on-error: true
 
   build-all:
     name: Build All
-    needs: [verify, changes]
+    needs: [verify-lint, verify-typecheck, verify-test, changes]
     if: needs.changes.outputs.affected != '[]'
     runs-on: ubuntu-latest
     steps:
@@ -124,7 +148,6 @@ jobs:
           name: monorepo-dist
           path: |
             packages/*/dist/**
-            packages/*/template/**
             apps/*/dist/**
             apps/desktop/.vite/**
             apps/ui/dist/**
@@ -182,7 +205,7 @@ jobs:
       always() &&
       (needs.build-all.result == 'success') &&
       (needs.test-cli-e2e.result == 'success' || needs.test-cli-e2e.result == 'skipped') &&
-      (contains(fromJson(needs.changes.outputs.affected), '@pipelab/app') || github.event.inputs.forcePublish == 'true' || github.ref_name == 'feature/monorepo')
+      (contains(fromJson(needs.changes.outputs.affected), '@pipelab/app') || github.event.inputs.forcePublish == 'true')
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -275,8 +298,7 @@ jobs:
       needs.release.result == 'success' &&
       (needs.test-cli-e2e.result == 'success' || needs.test-cli-e2e.result == 'skipped') &&
       (needs.release.outputs.published == 'true' ||
-      github.event.inputs.forcePublish == 'true' ||
-      github.ref_name == 'feature/monorepo')
+      github.event.inputs.forcePublish == 'true')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
