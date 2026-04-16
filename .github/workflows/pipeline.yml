@@ -55,7 +55,11 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" == "pull_request" ]; then
             BASE_REF="origin/${{ github.base_ref }}"
+          elif [ "${{ github.ref_name }}" != "main" ] && [ "${{ github.ref_name }}" != "develop" ]; then
+            # On feature/integration branches, compare against main to see the full PR history
+            BASE_REF="origin/main"
           else
+            # On main/develop push, only compare against the previous commit (delta)
             BASE_REF="${{ github.event.before }}"
           fi
           
