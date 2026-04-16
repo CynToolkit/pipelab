@@ -1,5 +1,11 @@
 # @pipelab/asset-electron
 
+## 1.0.1-beta.7
+
+### Patch Changes
+
+- fix ghost process
+
 ## 1.0.1-beta.6
 
 ### Patch Changes
