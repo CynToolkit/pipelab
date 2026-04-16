@@ -84,9 +84,16 @@ export const ensureNodeJS = async (version: string) => {
   // 3. Download the Node.js archive
   console.log(`Downloading Node.js from ${downloadUrl}...`);
   const hooks: Hooks = {
-    onProgress: (progress) => {
-      console.log(`Download progress: ${progress.progress.toFixed(2)}%`);
-    },
+    onProgress: (() => {
+      let lastProgress = -1;
+      return (progress) => {
+        const p = Math.floor(progress.progress / 25) * 25;
+        if (p > lastProgress) {
+          lastProgress = p;
+          console.log(`Download progress: ${p}%`);
+        }
+      };
+    })(),
   };
   await downloadFile(downloadUrl, archivePath, hooks);
 
