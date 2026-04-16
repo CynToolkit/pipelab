@@ -53,26 +53,15 @@ export const runPipeline = async (
   const pkg = JSON.parse(await readFile(pkgPath, "utf-8"));
   const version = pkg.version;
 
-  const platform = process.platform;
-  let targetOs = "linux";
-  if (platform === "win32") targetOs = "win";
-  if (platform === "darwin") targetOs = "macos";
+  const cliPath = resolve(projectRoot, "apps/cli/dist/index.cjs");
 
-  const arch = process.arch;
-  let targetArch = arch;
-  if (arch === "x64") targetArch = "x64";
-  if (arch === "arm64") targetArch = "arm64";
-
-  const binaryName = `pipelab-cli-v${version}-${targetOs}-${targetArch}${targetOs === "win" ? ".exe" : ""}`;
-  const cliBinaryPath = resolve(projectRoot, "apps/cli/bin", binaryName);
-
-  const args = ["run", pipelineFile, "--output", resultFile];
+  const args = [cliPath, "run", pipelineFile, "--output", resultFile];
 
   const userData = options.userData || sandboxPath;
   args.push("--user-data", userData);
 
   await runWithLiveLogs(
-    cliBinaryPath,
+    process.execPath,
     args,
     {
       cwd: options.cwd || projectRoot,

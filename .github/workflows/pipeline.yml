@@ -243,22 +243,13 @@ jobs:
           path: apps/desktop/out/make/**/*
 
   build-cli:
-    name: Build CLI (${{ matrix.os }} - ${{ matrix.arch }})
+    name: Build CLI
     needs: [release, changes]
     if: |
       needs.release.result == 'success' && 
       (needs.release.outputs.published == 'true' || github.event.inputs.forcePublish == 'true' || github.ref_name == 'feature/monorepo') &&
       (contains(fromJson(needs.changes.outputs.affected), '@pipelab/cli') || github.event.inputs.forcePublish == 'true')
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-        arch: [x64, arm64]
-        exclude:
-          - os: ubuntu-latest
-            arch: arm64
-          - os: windows-latest
-            arch: arm64
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -274,40 +265,23 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .turbo
-          key: turbo-build-cli-${{ matrix.os }}-${{ matrix.arch }}-${{ github.sha }}
+          key: turbo-build-cli-ubuntu-latest-x64-${{ github.sha }}
           restore-keys: |
-            turbo-build-cli-${{ matrix.os }}-${{ matrix.arch }}-
-            turbo-build-cli-${{ matrix.os }}-
+            turbo-build-cli-ubuntu-latest-x64-
+            turbo-build-cli-ubuntu-latest-
             turbo-build-cli-
 
       - name: Build CLI
-        env:
-          TARGET_ARCH: ${{ matrix.arch }}
-        run: pnpm --filter @pipelab/cli package
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: cli-artifacts-${{ matrix.os }}-${{ matrix.arch }}
-          path: apps/cli/bin/*
+        run: pnpm --filter @pipelab/cli build
 
   test-cli-e2e:
-    name: Test CLI E2E (${{ matrix.os }} - ${{ matrix.arch }})
+    name: Test CLI E2E
     needs: [build-cli, changes]
     if: |
       always() &&
       needs.build-cli.result == 'success' &&
       contains(fromJson(needs.changes.outputs.affected), '@pipelab/cli')
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-        arch: [x64, arm64]
-        exclude:
-          - os: ubuntu-latest
-            arch: arm64
-          - os: windows-latest
-            arch: arm64
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -318,12 +292,6 @@ jobs:
           node-version: 24
           cache: "pnpm"
       - run: pnpm install
-
-      - name: Download CLI artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: cli-artifacts-${{ matrix.os }}-${{ matrix.arch }}
-          path: apps/cli/bin
 
       - name: Cache Turbo
         uses: actions/cache@v4
@@ -416,17 +384,6 @@ jobs:
           prerelease: ${{ steps.versions.outputs.prerelease == 'true' }}
           files: |
             artifacts/desktop-artifacts-*/**/*
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload CLI Binaries
-        if: contains(fromJson(needs.changes.outputs.affected), '@pipelab/cli') || github.event.inputs.forcePublish == 'true'
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: "@pipelab/cli@${{ steps.versions.outputs.cli_version }}"
-          prerelease: ${{ steps.versions.outputs.prerelease == 'true' }}
-          files: |
-            artifacts/cli-artifacts-*/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

@@ -6,7 +6,7 @@ import { is } from "@electron-toolkit/utils";
 import http from "node:http";
 import fs from "node:fs";
 import { websocketPort } from "@pipelab/constants";
-import { fetchPipelabCli, setUserDataPath } from "@pipelab/core-node";
+import { fetchPipelabCli, setUserDataPath, ensureNodeJS } from "@pipelab/core-node";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -62,9 +62,13 @@ export const startServer = async () => {
       throw new Error("In development mode, please start the server manually");
     }
   } else {
-    // In production, we fetch the binary from remote
+    // In production, we fetch the bundle from remote
     setUserDataPath(userDataPath);
-    serverPath = await fetchPipelabCli();
+    const cliPath = await fetchPipelabCli();
+    const nodePath = await ensureNodeJS("24.14.1");
+
+    serverPath = nodePath;
+    args = [cliPath, ...args];
 
     console.info(`Starting server: ${serverPath} ${args.join(" ")}`);
 
