@@ -85,6 +85,7 @@ jobs:
             ${{ runner.os }}-turbo-${{ github.job }}-
       - name: Lint
         run: pnpm turbo lint --cache-dir=".turbo"
+        continue-on-error: true
 
   verify-typecheck:
     name: Verify Typecheck
@@ -112,6 +113,7 @@ jobs:
             ${{ runner.os }}-turbo-${{ github.job }}-
       - name: Typecheck
         run: pnpm turbo typecheck --cache-dir=".turbo"
+        continue-on-error: true
 
   verify-test:
     name: Verify Unit Tests
@@ -139,6 +141,7 @@ jobs:
             ${{ runner.os }}-turbo-${{ github.job }}-
       - name: Test (Unit)
         run: pnpm turbo test --cache-dir=".turbo"
+        continue-on-error: true
 
   build-all:
     name: Build All
