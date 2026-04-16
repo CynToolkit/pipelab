@@ -60,6 +60,8 @@ jobs:
 
   verify:
     name: Verify
+    needs: changes
+    if: needs.changes.outputs.affected != '[]'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -94,7 +96,8 @@ jobs:
 
   build-all:
     name: Build All
-    needs: verify
+    needs: [verify, changes]
+    if: needs.changes.outputs.affected != '[]'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -171,11 +174,11 @@ jobs:
 
   build-desktop:
     name: Build Desktop (${{ matrix.os }} - ${{ matrix.arch }})
-    needs: [release, build-all, changes]
+    needs: [build-all, test-cli-e2e, changes]
     if: |
-      needs.release.result == 'success' && 
-      (needs.release.outputs.published == 'true' || github.event.inputs.forcePublish == 'true' || github.ref_name == 'feature/monorepo') &&
-      (contains(fromJson(needs.changes.outputs.affected), '@pipelab/app') || github.event.inputs.forcePublish == 'true')
+      (needs.build-all.result == 'success') &&
+      (needs.test-cli-e2e.result == 'success' || needs.test-cli-e2e.result == 'skipped') &&
+      (contains(fromJson(needs.changes.outputs.affected), '@pipelab/app') || github.event.inputs.forcePublish == 'true' || github.ref_name == 'feature/monorepo')
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
