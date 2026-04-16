@@ -119,6 +119,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
+      - name: Build packages
+        run: pnpm build
+
       - name: Create Release Pull Request or Check Publish
         id: changesets
         uses: changesets/action@v1
@@ -127,7 +130,7 @@ jobs:
           createGithubReleases: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_CONFIG_PROVENANCE: true
 
   build-ui:
     name: Build UI
