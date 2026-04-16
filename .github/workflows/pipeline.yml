@@ -127,10 +127,11 @@ jobs:
 
   release:
     name: Check Release & PR
-    needs: build-all
+    needs: [build-all, test-cli-e2e]
     if: |
-      github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'feature/monorepo'))
+      (needs.test-cli-e2e.result == 'success' || needs.test-cli-e2e.result == 'skipped') &&
+      (github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'feature/monorepo')))
     runs-on: ubuntu-latest
     outputs:
       published: ${{ steps.changesets.outputs.published }}
