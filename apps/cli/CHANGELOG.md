@@ -1,5 +1,11 @@
 # @pipelab/cli
 
+## 2.0.1-beta.3
+
+### Patch Changes
+
+- last test
+
 ## 2.0.1-beta.2
 
 ## 2.0.1-beta.1

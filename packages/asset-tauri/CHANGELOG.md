@@ -1,5 +1,11 @@
 # @pipelab/asset-tauri
 
+## 1.0.1-beta.2
+
+### Patch Changes
+
+- last test
+
 ## 1.0.1-beta.1
 
 ### Patch Changes
