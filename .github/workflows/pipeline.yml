@@ -124,6 +124,7 @@ jobs:
           name: monorepo-dist
           path: |
             packages/*/dist/**
+            packages/*/template/**
             apps/*/dist/**
             apps/desktop/.vite/**
             apps/ui/dist/**
@@ -132,6 +133,8 @@ jobs:
     name: Check Release & PR
     needs: [build-all, test-cli-e2e]
     if: |
+      always() &&
+      needs.build-all.result == 'success' &&
       (needs.test-cli-e2e.result == 'success' || needs.test-cli-e2e.result == 'skipped') &&
       (github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'feature/monorepo')))
@@ -176,6 +179,7 @@ jobs:
     name: Build Desktop (${{ matrix.os }} - ${{ matrix.arch }})
     needs: [build-all, test-cli-e2e, changes]
     if: |
+      always() &&
       (needs.build-all.result == 'success') &&
       (needs.test-cli-e2e.result == 'success' || needs.test-cli-e2e.result == 'skipped') &&
       (contains(fromJson(needs.changes.outputs.affected), '@pipelab/app') || github.event.inputs.forcePublish == 'true' || github.ref_name == 'feature/monorepo')
