@@ -79,7 +79,7 @@ async function findLatestLocalVersion(baseDir: string): Promise<string | null> {
   try {
     const entries = await readdir(baseDir, { withFileTypes: true });
     const versions = entries
-      .filter((e) => e.isDirectory())
+      .filter((e) => e.isDirectory() || e.isSymbolicLink())
       .map((e) => e.name)
       // Basic numeric sort for versions (e.g. 1.10.0 > 1.2.0)
       .sort((a, b) => b.localeCompare(a, undefined, { numeric: true, sensitivity: "base" }));

@@ -1,8 +1,7 @@
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { mkdir, writeFile, readFile, symlink, rm } from "node:fs/promises";
+import { mkdir, writeFile, readFile, symlink, rm, readdir } from "node:fs/promises";
 import { tmpdir, homedir } from "node:os";
-import { runWithLiveLogs } from "@pipelab/plugin-core";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -16,6 +15,42 @@ export const projectRoot = resolve(__dirname, "../../../../../");
  * Robustly resolves the fixtures path relative to this utility file.
  */
 export const fixturesPath = resolve(__dirname, "../fixtures");
+
+/**
+ * Discovers and symlinks monorepo packages into the sandbox.
+ */
+async function symlinkMonorepoPackages(sandboxPath: string) {
+  const folders = ["packages", "apps"];
+  const targetRoot = join(sandboxPath, "packages");
+
+  for (const folder of folders) {
+    const parentDir = resolve(projectRoot, folder);
+    const entries = await readdir(parentDir, { withFileTypes: true });
+
+    for (const entry of entries) {
+      if (entry.isDirectory()) {
+        const pkgJsonPath = join(parentDir, entry.name, "package.json");
+        try {
+          const pkg = JSON.parse(await readFile(pkgJsonPath, "utf-8"));
+          if (pkg.name && pkg.name.startsWith("@pipelab/")) {
+            const version = pkg.version;
+            const linkPath = join(targetRoot, pkg.name, version);
+            await mkdir(dirname(linkPath), { recursive: true });
+            
+            // If already exists (e.g. from multiple test runs), skip
+            try {
+              await symlink(join(parentDir, entry.name), linkPath, "dir");
+            } catch (e: any) {
+              if (e.code !== "EEXIST") throw e;
+            }
+          }
+        } catch (e) {
+          // Skip folders without package.json
+        }
+      }
+    }
+  }
+}
 
 /**
  * Creates a unique sandbox directory and returns a bundle containing its path
@@ -49,9 +84,8 @@ export const runPipeline = async (
   const resultFile = join(sandboxPath, "result.json");
   await writeFile(pipelineFile, JSON.stringify(pipeline, null, 2));
 
-  const pkgPath = resolve(projectRoot, "apps/cli/package.json");
-  const pkg = JSON.parse(await readFile(pkgPath, "utf-8"));
-  const version = pkg.version;
+  // Symlink packages to avoid npm download failures in tests
+  await symlinkMonorepoPackages(sandboxPath);
 
   const cliPath = resolve(projectRoot, "apps/cli/dist/index.cjs");
 
@@ -60,22 +94,20 @@ export const runPipeline = async (
   const userData = options.userData || sandboxPath;
   args.push("--user-data", userData);
 
-  await runWithLiveLogs(
-    process.execPath,
-    args,
-    {
-      cwd: options.cwd || projectRoot,
-      env: {
-        ...process.env,
-        ...options.extraEnv,
-      },
+  // Use a specialized version of runWithLiveLogs to avoid dependency on the built shared package
+  const { execa } = await import("execa");
+  const child = execa(process.execPath, args, {
+    cwd: options.cwd || projectRoot,
+    env: {
+      ...process.env,
+      ...options.extraEnv,
     },
-    console.log,
-    {
-      onStdout: (data) => console.log("stdout", data.toString()),
-      onStderr: (data) => console.log("stderr", data.toString()),
-    },
-  );
+  });
+
+  child.stdout?.on("data", (data) => console.log("stdout", data.toString()));
+  child.stderr?.on("data", (data) => console.log("stderr", data.toString()));
+
+  await child;
 
   const resultRaw = await readFile(resultFile, "utf-8");
   return JSON.parse(resultRaw);
