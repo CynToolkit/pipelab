@@ -1,5 +1,26 @@
 # @pipelab/core-node
 
+## 1.0.1-beta.5
+
+### Patch Changes
+
+- sd
+- Updated dependencies
+  - @pipelab/plugin-core@1.0.1-beta.3
+  - @pipelab/constants@1.0.1-beta.4
+  - @pipelab/shared@2.0.1-beta.5
+  - @pipelab/plugin-construct@1.0.1-beta.0
+  - @pipelab/plugin-discord@1.0.1-beta.0
+  - @pipelab/plugin-electron@1.0.1-beta.0
+  - @pipelab/plugin-filesystem@1.0.1-beta.0
+  - @pipelab/plugin-itch@1.0.1-beta.0
+  - @pipelab/plugin-netlify@1.0.1-beta.0
+  - @pipelab/plugin-nvpatch@1.0.1-beta.0
+  - @pipelab/plugin-poki@1.0.1-beta.0
+  - @pipelab/plugin-steam@1.0.1-beta.0
+  - @pipelab/plugin-system@1.0.1-beta.0
+  - @pipelab/plugin-tauri@1.0.1-beta.0
+
 ## 1.0.1-beta.4
 
 ### Patch Changes

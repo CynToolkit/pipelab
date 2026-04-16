@@ -1,5 +1,11 @@
 # @pipelab/app
 
+## 2.0.1-beta.5
+
+### Patch Changes
+
+- sd
+
 ## 2.0.1-beta.4
 
 ### Patch Changes

@@ -92,9 +92,41 @@ jobs:
         run: pnpm turbo test
         continue-on-error: true
 
+  build-all:
+    name: Build All
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+      - name: Use Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: "pnpm"
+      - name: Install dependencies
+        run: pnpm install
+      - name: Build packages
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+          POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
+        run: pnpm build
+      - name: Upload monorepo-dist
+        uses: actions/upload-artifact@v4
+        with:
+          name: monorepo-dist
+          path: |
+            packages/*/dist/**
+            apps/*/dist/**
+            apps/ui/dist/**
+
   release:
     name: Check Release & PR
-    needs: verify
+    needs: build-all
     if: |
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'feature/monorepo'))
@@ -119,8 +151,10 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
-      - name: Build packages
-        run: pnpm build
+      - name: Download monorepo-dist
+        uses: actions/download-artifact@v4
+        with:
+          name: monorepo-dist
 
       - name: Create Release Pull Request or Check Publish
         id: changesets
@@ -132,41 +166,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_CONFIG_PROVENANCE: true
 
-  build-ui:
-    name: Build UI
-    needs: [release, changes]
-    if: |
-      needs.release.result == 'success' && 
-      (needs.release.outputs.published == 'true' || github.event.inputs.forcePublish == 'true' || github.ref_name == 'feature/monorepo') &&
-      (contains(fromJson(needs.changes.outputs.affected), '@pipelab/ui') || github.event.inputs.forcePublish == 'true')
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          run_install: false
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: "pnpm"
-      - run: pnpm install
-
-
-      - name: Build UI
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
-          POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
-        run: pnpm --filter @pipelab/ui build
-      - uses: actions/upload-artifact@v4
-        with:
-          name: ui-artifacts
-          path: apps/ui/dist/**/*
-
   build-desktop:
     name: Build Desktop (${{ matrix.os }} - ${{ matrix.arch }})
-    needs: [release, changes]
+    needs: [release, build-all, changes]
     if: |
       needs.release.result == 'success' && 
       (needs.release.outputs.published == 'true' || github.event.inputs.forcePublish == 'true' || github.ref_name == 'feature/monorepo') &&
@@ -192,6 +194,10 @@ jobs:
           cache: "pnpm"
       - run: pnpm install
 
+      - name: Download monorepo-dist
+        uses: actions/download-artifact@v4
+        with:
+          name: monorepo-dist
 
       - name: Import Apple Code Signing Certificate
         uses: apple-actions/import-codesign-certs@v3
@@ -222,35 +228,12 @@ jobs:
           name: desktop-artifacts-${{ matrix.os }}-${{ matrix.arch }}
           path: apps/desktop/out/make/**/*
 
-  build-cli:
-    name: Build CLI
-    needs: [release, changes]
-    if: |
-      needs.release.result == 'success' && 
-      (needs.release.outputs.published == 'true' || github.event.inputs.forcePublish == 'true' || github.ref_name == 'feature/monorepo') &&
-      (contains(fromJson(needs.changes.outputs.affected), '@pipelab/cli') || github.event.inputs.forcePublish == 'true')
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          run_install: false
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: "pnpm"
-      - run: pnpm install
-
-
-      - name: Build CLI
-        run: pnpm --filter @pipelab/cli build
-
   test-cli-e2e:
     name: Test CLI E2E
-    needs: [build-cli, changes]
+    needs: [build-all, changes]
     if: |
       always() &&
-      needs.build-cli.result == 'success' &&
+      needs.build-all.result == 'success' &&
       contains(fromJson(needs.changes.outputs.affected), '@pipelab/cli')
     runs-on: ubuntu-latest
     steps:
@@ -264,13 +247,17 @@ jobs:
           cache: "pnpm"
       - run: pnpm install
 
+      - name: Download monorepo-dist
+        uses: actions/download-artifact@v4
+        with:
+          name: monorepo-dist
 
       - name: Run CLI E2E Tests
         run: pnpm turbo test:e2e:raw --filter @pipelab/cli
 
   deploy:
     name: Deploy Release
-    needs: [release, build-desktop, build-cli, build-ui, test-cli-e2e, changes]
+    needs: [release, build-desktop, test-cli-e2e, changes]
     if: |
       always() &&
       needs.release.result == 'success' &&

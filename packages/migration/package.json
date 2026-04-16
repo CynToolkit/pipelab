@@ -1,6 +1,6 @@
 {
   "name": "@pipelab/migration",
-  "version": "1.0.1-beta.3",
+  "version": "1.0.1-beta.4",
   "private": true,
   "type": "module",
   "main": "./src/index.ts",

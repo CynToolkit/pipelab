@@ -1,5 +1,11 @@
 # @pipelab/plugin-core
 
+## 1.0.1-beta.3
+
+### Patch Changes
+
+- sd
+
 ## 1.0.1-beta.2
 
 ### Patch Changes
