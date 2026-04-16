@@ -122,6 +122,7 @@ jobs:
           path: |
             packages/*/dist/**
             apps/*/dist/**
+            apps/desktop/.vite/**
             apps/ui/dist/**
 
   release:
@@ -155,6 +156,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: monorepo-dist
+          path: .
 
       - name: Create Release Pull Request or Check Publish
         id: changesets
@@ -198,6 +200,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: monorepo-dist
+          path: .
 
       - name: Import Apple Code Signing Certificate
         uses: apple-actions/import-codesign-certs@v3
@@ -251,6 +254,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: monorepo-dist
+          path: .
 
       - name: Run CLI E2E Tests
         run: pnpm turbo test:e2e:raw --filter @pipelab/cli
