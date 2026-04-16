@@ -20,5 +20,6 @@
     "msw": "2.7.5",
     "typescript": "5.9.3",
     "vitest": "3.1.4"
-  }
+  },
+  "license": "FSL-1.1-MIT"
 }

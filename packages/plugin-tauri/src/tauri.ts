@@ -520,7 +520,7 @@ export const tauri = async (
 
   const destinationFolder = join(cwd, "build");
 
-  const rawAssetFolder = await api.fetchAsset("@pipelab/asset-tauri");
+  const rawAssetFolder = await api.fetchAsset("@pipelab/asset-tauri", "^1.0.0");
   const templateFolder = join(rawAssetFolder, "template");
 
   // copy template to destination

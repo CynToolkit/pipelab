@@ -1,7 +1,28 @@
 {
   "name": "@pipelab/plugin-core",
   "version": "1.0.1-beta.0",
-  "private": true,
+  "description": "Core library for building Pipelab plugins",
+  "license": "FSL-1.1-MIT",
+  "author": "CynToolkit",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/CynToolkit/pipelab.git",
+    "directory": "packages/plugin-core"
+  },
+  "publishConfig": {
+    "access": "public",
+    "main": "./dist/index.cjs",
+    "module": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "import": "./dist/index.js",
+        "require": "./dist/index.cjs",
+        "default": "./dist/index.js"
+      }
+    }
+  },
   "type": "module",
   "main": "./src/index.ts",
   "browser": "./src/index.ts",
@@ -14,26 +35,30 @@
     }
   },
   "scripts": {
+    "build": "tsdown",
     "format": "oxfmt .",
     "lint": "oxlint ."
   },
   "dependencies": {
-    "@pipelab/constants": "workspace:*",
-    "@pipelab/shared": "workspace:*",
     "@types/node": "^24.12.2",
     "archiver": "7.0.1",
     "electron": "32.1.2",
     "execa": "9.4.1",
+    "pacote": "21.5.0",
     "tar": "6.2.1",
     "type-fest": "4.26.1",
     "yauzl": "2.10.0",
     "zod": "4.3.6"
   },
   "devDependencies": {
+    "@pipelab/constants": "workspace:*",
+    "@pipelab/shared": "workspace:*",
     "@pipelab/tsconfig": "workspace:*",
     "@types/archiver": "7.0.0",
+    "@types/pacote": "11.1.8",
     "@types/tar": "7.0.87",
     "@types/yauzl": "2.10.3",
+    "tsdown": "0.21.2",
     "typescript": "5.9.3"
   }
 }

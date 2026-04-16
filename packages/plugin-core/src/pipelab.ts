@@ -1,5 +1,5 @@
 import type { BrowserWindow } from "electron";
-import {
+import type {
   Action,
   Condition,
   Loop,

@@ -23,7 +23,18 @@ export default defineConfig({
   minify: false,
   format: ["cjs"],
   outExtensions: () => ({ js: ".cjs" }),
-  deps: { alwaysBundle: ["@sentry/node", "execa", "cac", "serve-handler", "unicorn-magic", "is-stream", "get-stream"] },
+  deps: {
+    alwaysBundle: [
+      /^@pipelab\//,
+      "@sentry/node",
+      "execa",
+      "cac",
+      "serve-handler",
+      "unicorn-magic",
+      "is-stream",
+      "get-stream",
+    ],
+  },
   plugins: [
     {
       name: "webp-base64",

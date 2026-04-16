@@ -160,7 +160,9 @@ export const handleActionExecute = async (
 
   const outputs: Record<string, unknown> = {};
   const api: any = {
-    fetchAsset: fetchPipelabAsset,
+    fetchAsset: async (packageName: string, versionOrRange?: string) => {
+      return fetchPipelabAsset(packageName, versionOrRange);
+    },
   };
 
   try {

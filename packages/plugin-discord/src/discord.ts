@@ -195,7 +195,7 @@ export const discord = async (
 
   const destinationFolder = join(cwd, "build");
 
-  const rawAssetFolder = await api.fetchAsset("@pipelab/asset-discord");
+  const rawAssetFolder = await api.fetchAsset("@pipelab/asset-discord", "^1.0.0");
   const templateFolder = join(rawAssetFolder, "template");
 
   // copy template to destination

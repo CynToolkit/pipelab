@@ -590,7 +590,7 @@ export const forge = async (
       "electron-forge.js",
     );
 
-    const rawAssetFolder = await api.fetchAsset("@pipelab/asset-electron");
+    const rawAssetFolder = await api.fetchAsset("@pipelab/asset-electron", "^1.0.0");
     const templateFolder = join(rawAssetFolder, "template");
     console.log("templateFolder", templateFolder);
     console.log("destinationFolder", destinationFolder);

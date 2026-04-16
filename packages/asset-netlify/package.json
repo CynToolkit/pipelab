@@ -1,9 +1,18 @@
 {
   "name": "@pipelab/asset-netlify",
   "version": "1.0.1-beta.1",
-  "private": true,
   "description": "Netlify assets for pipelab",
+  "license": "FSL-1.1-MIT",
+  "author": "CynToolkit",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/CynToolkit/pipelab.git",
+    "directory": "packages/asset-netlify"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "files": [
-    "templates"
+    "template"
   ]
 }

@@ -13,7 +13,6 @@
     "lint": "oxlint ."
   },
   "dependencies": {
-    "adm-zip": "0.5.16",
     "@pipelab/constants": "workspace:*",
     "@pipelab/plugin-construct": "workspace:*",
     "@pipelab/plugin-core": "workspace:*",
@@ -28,8 +27,11 @@
     "@pipelab/plugin-system": "workspace:*",
     "@pipelab/plugin-tauri": "workspace:*",
     "@pipelab/shared": "workspace:*",
+    "adm-zip": "0.5.16",
     "es-toolkit": "1.25.2",
     "nanoid": "5.0.7",
+    "pacote": "21.5.0",
+    "semver": "^7.7.4",
     "slash": "3.0.0",
     "type-fest": "4.39.0",
     "ws": "8.18.3"
@@ -38,7 +40,10 @@
     "@pipelab/tsconfig": "workspace:*",
     "@types/adm-zip": "0.5.7",
     "@types/node": "24.12.2",
+    "@types/pacote": "11.1.8",
+    "@types/semver": "^7.7.1",
     "@types/ws": "8.18.1",
     "typescript": "^5.0.0"
-  }
+  },
+  "license": "FSL-1.1-MIT"
 }

@@ -11,7 +11,7 @@ export const packageV2Runner = createActionRunner<ReturnType<typeof createPackag
 
     const { assets, unpack, cache, node, pnpm } = paths;
     const destinationFolder = join(cwd);
-    const rawAssetFolder = await api.fetchAsset("@pipelab/asset-discord");
+    const rawAssetFolder = await api.fetchAsset("@pipelab/asset-discord", "^1.0.0");
     const templateFolder = join(rawAssetFolder, "template");
 
     // copy template to destination

@@ -90,7 +90,7 @@ export const uploadToNetlifyRunner = createActionRunner<typeof uploadToNetlify>(
     // 1. Prepare input folder with temmplate
     // Assume input folder is always a static site
     const destinationFolder = join(cwd);
-    const rawAssetFolder = await api.fetchAsset("@pipelab/asset-netlify");
+    const rawAssetFolder = await api.fetchAsset("@pipelab/asset-netlify", "^1.0.0");
     const templateFolder = join(rawAssetFolder, "template");
 
     // copy template to destination

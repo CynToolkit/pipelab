@@ -1,11 +1,10 @@
 import { execa, Options, Subprocess } from "execa";
 import { ExternalCommandError } from "./custom-errors.js";
-import { generateTempFolder } from "./fs-utils.js";
-import { extractTarGz } from "./archive-utils.js";
 import { join } from "node:path";
 import { access, mkdir, writeFile, rm } from "node:fs/promises";
 import { createWriteStream } from "node:fs";
 import { pipeline } from "node:stream/promises";
+import pacote from "pacote";
 
 export const fileExists = async (path: string): Promise<boolean> => {
   try {
@@ -222,37 +221,19 @@ export const ensureNPMPackage = async (
 ) => {
   const packageDir = join(thirdpartyDir, name, version);
   const finalPath = join(packageDir, "package");
-  const markerFile = join(packageDir, ".installed");
 
   // 1. Check if already installed
-  try {
-    await access(markerFile);
+  if (await fileExists(finalPath)) {
     return finalPath;
-  } catch (e) {
-    console.log(`NPM package ${name}@${version} not found at ${finalPath}, installing...`);
   }
+  console.log(`NPM package ${name}@${version} not found at ${finalPath}, installing...`);
 
-  // 2. Determine download URL
-  let tarballName = name;
-  if (name.startsWith("@")) {
-    const [, pkgName] = name.split("/");
-    tarballName = pkgName;
-  }
-  const downloadUrl = `https://registry.npmjs.org/${name}/-/${tarballName}-${version}.tgz`;
-
-  const tempDir = await generateTempFolder(join(thirdpartyDir, ".tmp"));
-  const tarballPath = join(tempDir, `${tarballName}-${version}.tgz`);
-
-  // 3. Download the tarball
-  console.log(`Downloading ${name}@${version} from ${downloadUrl}...`);
-  await downloadFile(downloadUrl, tarballPath);
-
-  // 4. Extract
-  console.log(`Extracting ${name}@${version} to ${packageDir}...`);
+  // 2. Extract using pacote
+  console.log(`Extracting ${name}@${version} to ${finalPath}...`);
   await mkdir(packageDir, { recursive: true });
-  await extractTarGz(tarballPath, packageDir);
+  await pacote.extract(`${name}@${version}`, finalPath);
 
-  // 5. Install dependencies if requested
+  // 3. Install dependencies if requested
   if (options?.installDeps && options.pnpmPath) {
     console.log(
       `Installing dependencies for ${name}@${version} using pnpm at ${options.pnpmPath}...`,
@@ -265,10 +246,6 @@ export const ensureNPMPackage = async (
       stdio: "inherit",
     });
   }
-
-  // 6. Cleanup & Marker
-  await writeFile(markerFile, new Date().toISOString());
-  await rm(tempDir, { recursive: true, force: true });
 
   return finalPath;
 };

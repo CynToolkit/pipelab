@@ -8,5 +8,6 @@
   },
   "dependencies": {
     "@types/node": "^24.12.2"
-  }
+  },
+  "license": "FSL-1.1-MIT"
 }

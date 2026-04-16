@@ -23,5 +23,6 @@
   "devDependencies": {
     "@pipelab/tsconfig": "workspace:*",
     "typescript": "^5.0.0"
-  }
+  },
+  "license": "FSL-1.1-MIT"
 }

@@ -19,7 +19,6 @@
   "updateInternalDependencies": "patch",
   "ignore": [
     "@pipelab/plugin-construct",
-    "@pipelab/plugin-core",
     "@pipelab/plugin-discord",
     "@pipelab/plugin-electron",
     "@pipelab/plugin-filesystem",

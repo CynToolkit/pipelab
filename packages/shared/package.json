@@ -32,5 +32,6 @@
     "@pipelab/tsconfig": "workspace:*",
     "esbuild-plugin-wasm": "1.1.0",
     "typescript": "5.9.3"
-  }
+  },
+  "license": "FSL-1.1-MIT"
 }

@@ -54,5 +54,6 @@
       "sharp",
       "vue-demi"
     ]
-  }
+  },
+  "license": "FSL-1.1-MIT"
 }

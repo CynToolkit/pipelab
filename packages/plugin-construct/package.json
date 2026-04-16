@@ -19,5 +19,6 @@
     "@pipelab/tsconfig": "workspace:*",
     "@types/node": "24",
     "typescript": "5.9.3"
-  }
+  },
+  "license": "FSL-1.1-MIT"
 }
