@@ -76,8 +76,15 @@ jobs:
           cache: "pnpm"
       - name: Install dependencies
         run: pnpm install
+      - name: Cache Turbo
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-${{ github.job }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-${{ github.job }}-
       - name: Lint
-        run: pnpm turbo lint
+        run: pnpm turbo lint --cache-dir=".turbo"
 
   verify-typecheck:
     name: Verify Typecheck
@@ -96,8 +103,15 @@ jobs:
           cache: "pnpm"
       - name: Install dependencies
         run: pnpm install
+      - name: Cache Turbo
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-${{ github.job }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-${{ github.job }}-
       - name: Typecheck
-        run: pnpm turbo typecheck
+        run: pnpm turbo typecheck --cache-dir=".turbo"
 
   verify-test:
     name: Verify Unit Tests
@@ -116,8 +130,15 @@ jobs:
           cache: "pnpm"
       - name: Install dependencies
         run: pnpm install
+      - name: Cache Turbo
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-${{ github.job }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-${{ github.job }}-
       - name: Test (Unit)
-        run: pnpm turbo test
+        run: pnpm turbo test --cache-dir=".turbo"
 
   build-all:
     name: Build All
@@ -136,13 +157,20 @@ jobs:
           cache: "pnpm"
       - name: Install dependencies
         run: pnpm install
+      - name: Cache Turbo
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-${{ github.job }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-${{ github.job }}-
       - name: Build packages
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
           SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
           POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
-        run: pnpm build
+        run: pnpm build --cache-dir=".turbo"
       - name: Upload monorepo-dist
         uses: actions/upload-artifact@v4
         with:
@@ -292,9 +320,15 @@ jobs:
         with:
           name: monorepo-dist
           path: .
-
+      - name: Cache Turbo
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-${{ github.job }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-${{ github.job }}-
       - name: Run CLI E2E Tests
-        run: pnpm turbo test:e2e:raw --filter @pipelab/cli
+        run: pnpm turbo test:e2e:raw --filter @pipelab/cli --cache-dir=".turbo"
 
   deploy:
     name: Deploy Release
