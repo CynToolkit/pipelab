@@ -29,6 +29,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       affected: ${{ steps.detect.outputs.affected }}
+      needs_build: ${{ steps.detect.outputs.needs_build }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -121,7 +122,7 @@ jobs:
   build-all:
     name: Build All
     needs: [verify-lint, verify-typecheck, verify-test, changes]
-    if: needs.changes.outputs.affected != '[]'
+    if: needs.changes.outputs.affected != '[]' && needs.changes.outputs.needs_build == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -154,11 +155,13 @@ jobs:
 
   release:
     name: Check Release & PR
-    needs: [build-all, test-cli-e2e]
+    needs: [build-all, verify-lint, verify-typecheck, verify-test, changes]
     if: |
       always() &&
-      needs.build-all.result == 'success' &&
-      (needs.test-cli-e2e.result == 'success' || needs.test-cli-e2e.result == 'skipped') &&
+      (needs.build-all.result == 'success' || needs.build-all.result == 'skipped') &&
+      needs.verify-lint.result == 'success' &&
+      needs.verify-typecheck.result == 'success' &&
+      needs.verify-test.result == 'success' &&
       (github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'feature/monorepo')))
     runs-on: ubuntu-latest
@@ -183,6 +186,7 @@ jobs:
         run: pnpm install
 
       - name: Download monorepo-dist
+        if: needs.changes.outputs.needs_build == 'true'
         uses: actions/download-artifact@v4
         with:
           name: monorepo-dist
@@ -228,6 +232,7 @@ jobs:
       - run: pnpm install
 
       - name: Download monorepo-dist
+        if: needs.changes.outputs.needs_build == 'true'
         uses: actions/download-artifact@v4
         with:
           name: monorepo-dist
@@ -282,6 +287,7 @@ jobs:
       - run: pnpm install
 
       - name: Download monorepo-dist
+        if: needs.changes.outputs.needs_build == 'true'
         uses: actions/download-artifact@v4
         with:
           name: monorepo-dist
