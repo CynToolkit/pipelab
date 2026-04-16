@@ -48,13 +48,22 @@ jobs:
       - name: Detect Changes
         id: detect
         run: |
-          # Get the last tag to compare against
-          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "HEAD~10")
-          echo "Comparing against: $LAST_TAG"
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            BASE_REF="origin/${{ github.base_ref }}"
+          else
+            BASE_REF="${{ github.event.before }}"
+          fi
+          
+          # Fallback if BASE_REF is null or empty (initial push)
+          if [ -z "$BASE_REF" ] || [ "$BASE_REF" == "0000000000000000000000000000000000000000" ]; then
+            BASE_REF=$(git describe --tags --abbrev=0 2>/dev/null || echo "HEAD~10")
+          fi
+          
+          echo "Comparing against: $BASE_REF"
 
           # Use turbo to list affected packages
           # We use npx to avoid full install if possible, but turbo needs the graph
-          npx turbo ls -F "[$LAST_TAG]" --output=json > affected.json
+          npx turbo ls -F "[$BASE_REF]" --output=json > affected.json
           
           # Run our detection script
           npx tsx scripts/detect-changes.ts affected.json
