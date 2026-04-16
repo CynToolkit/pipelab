@@ -5,6 +5,7 @@ on:
     branches: [main, develop, feature/monorepo]
   pull_request:
     branches: [main, develop]
+  merge_group:
   workflow_dispatch:
     inputs:
       forcePublish:
@@ -22,6 +23,10 @@ permissions:
   contents: write
   pull-requests: write
   id-token: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   changes:
