@@ -14,7 +14,7 @@ describe("End-to-End: Steam Integration", () => {
     await sandbox.remove();
   });
 
-  test.only("should mock a steam upload pipeline using a single file", async () => {
+  test("should mock a steam upload pipeline using a single file", async () => {
     // 1. Setup mock Steam SDK
     const mockSdkPath = join(sandbox.path, "mock-steam-sdk");
     let builderFolder = "builder";
