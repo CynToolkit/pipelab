@@ -124,8 +124,8 @@ export const runPipeline = async (
     },
   });
 
-  child.stdout?.on("data", (data) => console.log("stdout", data.toString()));
-  child.stderr?.on("data", (data) => console.log("stderr", data.toString()));
+  child.stdout?.on("data", (data) => console.log(`[Pipelab CLI] stdout: ${data.toString().trim()}`));
+  child.stderr?.on("data", (data) => console.log(`[Pipelab CLI] stderr: ${data.toString().trim()}`));
 
   await child;
 
@@ -175,10 +175,14 @@ export const runElectronApp = async (
   let stderr = "";
 
   child.stdout?.on("data", (data) => {
-    stdout += data.toString();
+    const text = data.toString().trim();
+    if (text) console.log(`[Electron Binary] stdout: ${text}`);
+    stdout += text;
   });
   child.stderr?.on("data", (data) => {
-    stderr += data.toString();
+    const text = data.toString().trim();
+    if (text) console.log(`[Electron Binary] stderr: ${text}`);
+    stderr += text;
   });
 
   // Kill the process after timeoutMs

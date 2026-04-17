@@ -3,6 +3,8 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   test: {
     fileParallelism: false,
+    maxWorkers: 1,
+    minWorkers: 1,
     poolOptions: {
       forks: {
         singleFork: true,
@@ -11,8 +13,5 @@ export default defineConfig({
     include: ["**/*.spec.ts"],
     root: "tests/e2e",
     environment: "node",
-    reporters: process.env.GITHUB_ACTIONS
-      ? ["hanging-process", "github-actions", "default"]
-      : ["hanging-process", "default"],
   },
 });
