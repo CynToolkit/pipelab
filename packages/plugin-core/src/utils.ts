@@ -24,119 +24,44 @@ export const runWithLiveLogs = async (
     onStdout?: (data: string, subprocess: Subprocess) => void;
     onStderr?: (data: string, subprocess: Subprocess) => void;
     onExit?: (code: number) => void;
-  },
-): Promise<void> => {
-  return new Promise((resolve, reject) => {
-    console.log("command: ", command, args.join(" "));
-
-    const subprocess = execa(command, args, {
-      ...execaOptions,
-      stdout: "pipe",
-      stderr: "pipe",
-      stdin: "pipe",
-    });
-
-    subprocess.stdout.on("data", (data: Buffer) => {
-      hooks?.onStdout?.(data.toString(), subprocess);
-    });
-
-    subprocess.stderr?.on("data", (data: Buffer) => {
-      hooks?.onStderr?.(data.toString(), subprocess);
-    });
-
-    subprocess.on("error", (error: Error) => {
-      console.log("error", error);
-      return reject(error);
-    });
-
-    subprocess.on("close", (code: number) => {
-      console.log("close", code);
-      hooks?.onExit?.(code);
-
-      if (code === 0) {
-        return resolve();
-      } else {
-        return reject(new Error(`Command exited with non-zero code: ${code}`));
-      }
-    });
-
-    subprocess.on("disconnect", () => {
-      console.log("disconnect");
-      hooks?.onExit?.(0);
-      return resolve();
-    });
-
-    subprocess.on("exit", (code: number) => {
-      console.log("exit", code);
-      hooks?.onExit?.(code);
-
-      if (code === 0) {
-        return resolve();
-      } else {
-        return reject(new Error(`Command exited with non-zero code: ${code}`));
-      }
-    });
-  });
-};
-
-export const runWithLiveLogsPTY = async (
-  command: string,
-  args: string[],
-  execaOptions: Options,
-  log: typeof console.log,
-  hooks?: {
-    onStdout?: (data: string, subprocess: Subprocess) => void;
-    onStderr?: (data: string, subprocess: Subprocess) => void;
-    onExit?: (code: number) => void;
     onCreated?: (subprocess: Subprocess) => void;
   },
   abortSignal?: AbortSignal,
 ): Promise<void> => {
-  return new Promise((resolve, reject) => {
-    console.log("command (execa-pty-fallback): ", command, args.join(" "));
+  console.log("command: ", command, args.join(" "));
 
-    const subprocess = execa(command, args, {
-      ...execaOptions,
-      stdout: "pipe",
-      stderr: "pipe",
-      stdin: "pipe",
-      env: {
-        ...process.env,
-        ...execaOptions.env,
-        TERM: "xterm-256color",
-        FORCE_STDERR_LOGGING: "1",
-      },
-      cancelSignal: abortSignal,
-    });
-
-    hooks?.onCreated?.(subprocess);
-
-    subprocess.stdout?.on("data", (data: Buffer) => {
-      hooks?.onStdout?.(data.toString(), subprocess);
-    });
-
-    subprocess.stderr?.on("data", (data: Buffer) => {
-      hooks?.onStderr?.(data.toString(), subprocess);
-    });
-
-    subprocess.on("error", (error: Error) => {
-      console.log("error", error);
-      return reject(error);
-    });
-
-    subprocess.on("exit", (code: number) => {
-      console.log("exit", code);
-      hooks?.onExit?.(code || 0);
-
-      if (code === 0) {
-        return resolve();
-      } else {
-        return reject(
-          new ExternalCommandError(`Command exited with non-zero code: ${code}`, code || 1),
-        );
-      }
-    });
+  const subprocess = execa(command, args, {
+    ...execaOptions,
+    stdout: "pipe",
+    stderr: "pipe",
+    stdin: "pipe",
+    env: {
+      ...process.env,
+      ...execaOptions.env,
+      TERM: "xterm-256color",
+      FORCE_STDERR_LOGGING: "1",
+    },
+    cancelSignal: abortSignal,
   });
+
+  hooks?.onCreated?.(subprocess);
+
+  subprocess.stdout?.on("data", (data: Buffer) => {
+    hooks?.onStdout?.(data.toString(), subprocess);
+  });
+
+  subprocess.stderr?.on("data", (data: Buffer) => {
+    hooks?.onStderr?.(data.toString(), subprocess);
+  });
+
+  try {
+    const { exitCode } = await subprocess;
+    hooks?.onExit?.(exitCode ?? 0);
+  } catch (error: any) {
+    const code = error.exitCode ?? 1;
+    hooks?.onExit?.(code);
+    throw new ExternalCommandError(error.message, code);
+  }
 };
 
 export interface Hooks {

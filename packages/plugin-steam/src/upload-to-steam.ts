@@ -7,7 +7,7 @@ import {
   createPathParam,
   createStringParam,
   fileExists,
-  runWithLiveLogsPTY,
+  runWithLiveLogs,
 } from "@pipelab/plugin-core";
 import { checkSteamAuth, openExternalTerminal } from "./utils";
 import { ExternalCommandError } from "@pipelab/plugin-core";
@@ -125,16 +125,29 @@ export const uploadToSteamRunner = createActionRunner<typeof uploadToSteam>(
     }
 
     const cmd = "steamcmd";
-    let cmdFinal = "steamcmd";
-    if (platform() === "linux") {
-      cmdFinal += ".sh";
-    } else if (platform() === "darwin") {
-      cmdFinal += ".sh";
-    } else if (platform() === "win32") {
-      cmdFinal += ".exe";
+    const extensions = platform() === "win32" ? [".exe", ".cmd", ".bat"] : [".sh"];
+
+    let cmdFinal = "";
+    let steamcmdPath = "";
+
+    for (const ext of extensions) {
+      const p = join(sdk as string, "tools", "ContentBuilder", builderFolder, cmd + ext);
+      if (await fileExists(p)) {
+        steamcmdPath = p;
+        cmdFinal = cmd + ext;
+        break;
+      }
     }
 
-    const steamcmdPath = join(sdk as string, "tools", "ContentBuilder", builderFolder, cmdFinal);
+    // Fallback if none found (to maintain previous behavior of joining default)
+    if (!steamcmdPath) {
+      if (platform() === "linux" || platform() === "darwin") {
+        cmdFinal = "steamcmd.sh";
+      } else if (platform() === "win32") {
+        cmdFinal = "steamcmd.exe";
+      }
+      steamcmdPath = join(sdk as string, "tools", "ContentBuilder", builderFolder, cmdFinal);
+    }
 
     console.log("steamcmdPath", steamcmdPath);
 
@@ -249,10 +262,12 @@ export const uploadToSteamRunner = createActionRunner<typeof uploadToSteam>(
 
     // Should be authed here
     try {
-      await runWithLiveLogsPTY(
+      await runWithLiveLogs(
         steamcmdPath,
         ["+login", username, "+run_app_build", scriptPath, "+quit"],
-        {},
+        {
+          shell: platform() === "win32",
+        },
         log,
         {
           onStdout: (data) => {

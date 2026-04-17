@@ -1,4 +1,4 @@
-import { runWithLiveLogsPTY } from "@pipelab/plugin-core";
+import { runWithLiveLogs } from "@pipelab/plugin-core";
 import { execa, Options as ExecaOptions } from "execa";
 import os from "node:os";
 
@@ -16,10 +16,12 @@ export const checkSteamAuth = async (options: Options) => {
   let error: "LOGGED_OUT" | "UNKNOWN" | undefined = undefined;
 
   try {
-    await runWithLiveLogsPTY(
+    await runWithLiveLogs(
       options.steamcmdPath,
       ["+login", options.username, "+quit"],
-      {},
+      {
+        shell: process.platform === "win32",
+      },
       options.context.log,
       {
         onStdout: (data, subprocess) => {

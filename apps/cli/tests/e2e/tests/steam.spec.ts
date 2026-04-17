@@ -24,7 +24,7 @@ describe("End-to-End: Steam Integration", () => {
       builderFolder += "_osx";
     }
 
-    const cmdFinal = process.platform === "win32" ? "steamcmd.exe" : "steamcmd.sh";
+    const cmdFinal = process.platform === "win32" ? "steamcmd.cmd" : "steamcmd.sh";
     const steamcmdPath = join(mockSdkPath, "tools", "ContentBuilder", builderFolder, cmdFinal);
 
     await mkdir(dirname(steamcmdPath), { recursive: true });
