@@ -73,5 +73,5 @@ describe("End-to-End: Electron Plugin", () => {
     expect(stdout + stderr).not.toContain("Error: Cannot find module");
     expect(stderr).not.toContain("Error:");
     */
-  }, 600000); // 10 minutes timeout for real build
+  }, 5 * 60 * 1000); // 5 minutes timeout for real build
 });

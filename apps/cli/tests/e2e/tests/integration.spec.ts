@@ -70,5 +70,5 @@ describe("End-to-End: Multi-Plugin Integration Test", () => {
 
     // Verify output exists in the dynamically generated output folder
     await expect(access(outputs.output)).resolves.not.toThrow();
-  }, 600000); // 10 minutes timeout for real build
+  }, 5 * 60 * 1000); // 5 minutes timeout for real build
 });

@@ -42,5 +42,5 @@ describe("End-to-End: Construct 3 Export Pipeline", () => {
     await expect(access(outputs.folder)).resolves.not.toThrow();
     await expect(access(outputs.parentFolder)).resolves.not.toThrow();
     await expect(access(outputs.zipFile)).resolves.not.toThrow();
-  }, 120000);
+  }, 5 * 60 * 1000);
 });

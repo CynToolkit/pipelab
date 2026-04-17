@@ -15,8 +15,9 @@ const registerInstallButtonListener = (page: Page, log: typeof console.log) => {
       log("installBtn clicked");
       registerInstallButtonListener(page, log);
     })
-    .catch(async () => {
-      log("installBtn.click() failed");
+    .catch(async (e) => {
+      if (e.message.includes("Target page, context or browser has been closed")) return;
+      log("installBtn.click() failed", e.message);
     });
 };
 
@@ -34,8 +35,9 @@ const registerSaveLoginExpiredistener = (page: Page, log: typeof console.log) =>
       log("cancelBtn clicked");
       registerSaveLoginExpiredistener(page, log);
     })
-    .catch(async () => {
-      log("cancelBtn.click() failed");
+    .catch(async (e) => {
+      if (e.message.includes("Target page, context or browser has been closed")) return;
+      log("cancelBtn.click() failed", e.message);
     });
 };
 
@@ -52,13 +54,14 @@ const registerWebglErrorListener = (page: Page, log: typeof console.log) => {
       const text = await okDialog.allInnerTexts();
 
       if (text.join().toLowerCase().includes("webgl")) {
-        webglErrorButton.click();
+        await webglErrorButton.click();
         log("webglErrorButton clicked");
         registerWebglErrorListener(page, log);
       }
     })
-    .catch(async () => {
-      log("webglErrorButton.click() failed");
+    .catch(async (e) => {
+      if (e.message.includes("Target page, context or browser has been closed")) return;
+      log("webglErrorButton.click() failed", e.message);
     });
 };
 const registerDeprecatedFeatures = (page: Page, log: typeof console.log) => {
@@ -75,8 +78,9 @@ const registerDeprecatedFeatures = (page: Page, log: typeof console.log) => {
       log("okButton clicked");
       registerDeprecatedFeatures(page, log);
     })
-    .catch(async () => {
-      log("okButton.click() failed");
+    .catch(async (e) => {
+      if (e.message.includes("Target page, context or browser has been closed")) return;
+      log("deprecatedFeatures.okButton.click() failed", e.message);
     });
 };
 const registerWelcomeToConstructListener = (page: Page, log: typeof console.log) => {
@@ -91,10 +95,11 @@ const registerWelcomeToConstructListener = (page: Page, log: typeof console.log)
     .then(async () => {
       await okButton.click();
       log("okButton clicked");
-      registerDeprecatedFeatures(page, log);
+      // registerWelcomeToConstructListener(page, log); // usually only once
     })
-    .catch(async () => {
-      log("okButton.click() failed");
+    .catch(async (e) => {
+      if (e.message.includes("Target page, context or browser has been closed")) return;
+      log("welcomeTour.okButton.click() failed", e.message);
     });
 };
 
@@ -110,8 +115,9 @@ const registerMissingAddonErrorListener = (page: Page, log: typeof console.log) 
     .then(async () => {
       throw new Error("Missing addon. You should bundle addons with your project");
     })
-    .catch(async () => {
-      log("webglErrorButton.click() failed");
+    .catch(async (e) => {
+      if (e.message.includes("Target page, context or browser has been closed")) return;
+      log("missingAddon.okButton.waitFor() failed", e.message);
     });
 };
 
@@ -129,8 +135,9 @@ const registerNewVersionAvailableListener = (page: Page, log: typeof console.log
       log("cancelButton clicked");
       registerNewVersionAvailableListener(page, log);
     })
-    .catch(async () => {
-      log("cancelButton.click() failed");
+    .catch(async (e) => {
+      if (e.message.includes("Target page, context or browser has been closed")) return;
+      log("cancelButton.click() failed", e.message);
     });
 };
 
@@ -229,8 +236,9 @@ export const script = async (
     .then(() => {
       log("notNowBtn clicked");
     })
-    .catch(async () => {
-      log("notNowBtn.click() failed");
+    .catch(async (e) => {
+      if (e.message.includes("Target page, context or browser has been closed")) return;
+      log("notNowBtn.click() failed", e.message);
     });
 
   registerInstallButtonListener(page, log);
