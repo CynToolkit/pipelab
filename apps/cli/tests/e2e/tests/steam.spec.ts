@@ -39,7 +39,7 @@ describe("End-to-End: Steam Integration", () => {
       const { chmod } = await import("node:fs/promises");
       await chmod(steamcmdPath, 0o755);
 
-      // Necessary stub binaries for Linux pathing in the runner
+      // Necessary stub binaries for Linux/Darwin pathing in the runner
       if (process.platform === "linux") {
         const linux32Dir = join(dirname(steamcmdPath), "linux32");
         await mkdir(linux32Dir, { recursive: true });
@@ -47,6 +47,12 @@ describe("End-to-End: Steam Integration", () => {
         await writeFile(join(linux32Dir, "steamerrorreporter"), "#!/bin/bash\nexit 0");
         await chmod(join(linux32Dir, "steamcmd"), 0o755);
         await chmod(join(linux32Dir, "steamerrorreporter"), 0o755);
+      }
+
+      if (process.platform === "darwin") {
+        const steamcmdBinaryPath = join(dirname(steamcmdPath), "steamcmd");
+        await writeFile(steamcmdBinaryPath, "#!/bin/bash\nexit 0");
+        await chmod(steamcmdBinaryPath, 0o755);
       }
     }
 
