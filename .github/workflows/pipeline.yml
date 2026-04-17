@@ -354,7 +354,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-turbo-${{ github.job }}-
       - name: Run CLI E2E Tests
-        run: pnpm turbo test:e2e:raw --filter @pipelab/cli --cache-dir=".turbo"
+        run: pnpm turbo test:e2e --filter @pipelab/cli --cache-dir=".turbo"
 
   deploy:
     name: Deploy Release

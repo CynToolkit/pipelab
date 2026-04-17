@@ -1,7 +1,8 @@
 import { expect, test, describe, beforeAll, afterAll } from "vitest";
 import { mkdir, writeFile, access } from "node:fs/promises";
 import { join } from "node:path";
-import { createSandbox, runPipeline } from "./utils";
+import { createSandbox, runPipeline, runElectronApp } from "./utils";
+import { getBinName } from "@pipelab/constants";
 
 describe("End-to-End: Electron Plugin", () => {
   let sandbox: Awaited<ReturnType<typeof createSandbox>>;
@@ -54,5 +55,21 @@ describe("End-to-End: Electron Plugin", () => {
 
     // Verify output exists in the dynamically generated output folder
     await expect(access(outputs.output)).resolves.not.toThrow();
+
+    // Verify and run the binary
+    const platform = process.platform;
+    const binName = getBinName("my-app", platform);
+    const binaryPath = join(outputs.output, binName);
+
+    console.log("Calculated binary path:", binaryPath);
+    await expect(access(binaryPath)).resolves.not.toThrow();
+
+    // Run the app (smoke test)
+    const { stdout, stderr } = await runElectronApp(binaryPath, { timeoutMs: 15000 });
+    
+    // Check for some basic output indicating it started
+    // In dev mode or with logging enabled, we expect some Electron logs
+    expect(stdout + stderr).not.toContain("Error: Cannot find module");
+    expect(stderr).not.toContain("Error:");
   }, 600000); // 10 minutes timeout for real build
 });

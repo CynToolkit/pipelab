@@ -81,11 +81,24 @@ export const uploadToSteam = createAction({
     //   }
     // })
   },
-  outputs: {},
+  outputs: {
+    "script-path": {
+      label: "Script path",
+      value: "",
+    },
+    "output-folder": {
+      label: "Output folder",
+      value: "",
+    },
+    "status": {
+      label: "Status",
+      value: "",
+    },
+  },
 });
 
 export const uploadToSteamRunner = createActionRunner<typeof uploadToSteam>(
-  async ({ log, inputs, cwd, abortSignal }) => {
+  async ({ log, inputs, cwd, abortSignal, setOutput }) => {
     const folder = inputs.folder as string;
     const appId = inputs.appId as string;
     const sdk = inputs.sdk as string;
@@ -160,6 +173,9 @@ export const uploadToSteamRunner = createActionRunner<typeof uploadToSteam>(
 
     const buildOutput = join(cwd, "steam", "output");
     const scriptPath = join(cwd, "steam", "script.vdf");
+
+    setOutput("script-path", scriptPath);
+    setOutput("output-folder", buildOutput);
 
     await mkdir(buildOutput, {
       recursive: true,
@@ -262,6 +278,7 @@ export const uploadToSteamRunner = createActionRunner<typeof uploadToSteam>(
       }
     }
 
+    setOutput("status", "success");
     log("Done uploading");
   },
 );

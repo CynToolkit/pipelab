@@ -125,3 +125,66 @@ export const runPipeline = async (
   const resultRaw = await readFile(resultFile, "utf-8");
   return JSON.parse(resultRaw);
 };
+
+/**
+ * Runs a packaged Electron application and captures its output.
+ */
+export const runElectronApp = async (
+  binaryPath: string,
+  options: {
+    timeoutMs?: number;
+    args?: string[];
+    env?: Record<string, string>;
+  } = {},
+) => {
+  const { execa } = await import("execa");
+
+  const args = options.args || [];
+  if (!args.includes("--no-sandbox")) {
+    args.push("--no-sandbox");
+  }
+
+  const timeoutMs = options.timeoutMs || 15000;
+
+  let command = binaryPath;
+  let finalArgs = args;
+
+  if (isLinux) {
+    command = "xvfb-run";
+    finalArgs = ["--auto-servernum", binaryPath, ...args];
+  }
+
+  const child = execa(command, finalArgs, {
+    env: {
+      ...process.env,
+      ...options.env,
+      ELECTRON_ENABLE_LOGGING: "1",
+    },
+    // Don't use execa timeout here because we want to kill it manually or let it timeout and catch it
+  });
+
+  let stdout = "";
+  let stderr = "";
+
+  child.stdout?.on("data", (data) => {
+    stdout += data.toString();
+  });
+  child.stderr?.on("data", (data) => {
+    stderr += data.toString();
+  });
+
+  // Kill the process after timeoutMs
+  const timeout = setTimeout(() => {
+    child.kill("SIGTERM");
+  }, timeoutMs);
+
+  try {
+    await child;
+  } catch (e: any) {
+    // Expected if we kill it
+  } finally {
+    clearTimeout(timeout);
+  }
+
+  return { stdout, stderr };
+};

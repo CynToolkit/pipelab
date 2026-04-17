@@ -15,5 +15,5 @@ run = "pnpm package"
 depends = ["install"]
 
 [tasks.test-e2e-local]
-run = "pnpm test:e2e:raw"
+run = "pnpm test:e2e"
 depends = ["package"]
