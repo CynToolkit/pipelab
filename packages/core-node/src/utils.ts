@@ -204,7 +204,11 @@ export const executeGraphWithHistory = async ({
     createdAt: now,
     updatedAt: now,
   };
-  await buildHistoryStorage.save(initialEntry);
+  const shouldDisableHistory = process.env.PIPELAB_DISABLE_HISTORY === "true";
+
+  if (!shouldDisableHistory) {
+    await buildHistoryStorage.save(initialEntry);
+  }
 
   const logs: any[] = [];
   const sandboxPath = await generateTempFolder(cachePath);
@@ -257,30 +261,42 @@ export const executeGraphWithHistory = async ({
     });
 
     const endTime = Date.now();
-    await buildHistoryStorage.update(buildId, {
-      status: "completed",
-      endTime,
-      duration: endTime - startTime,
-      output: result.steps,
-      logs,
-    });
+    if (!shouldDisableHistory) {
+      await buildHistoryStorage.update(
+        buildId,
+        {
+          status: "completed",
+          endTime,
+          duration: endTime - startTime,
+          output: result.steps,
+          logs,
+        },
+        pipelineId,
+      );
+    }
 
     return { result, buildId };
   } catch (error) {
     const endTime = Date.now();
     const isCanceled = error instanceof Error && error.name === "AbortError";
 
-    await buildHistoryStorage.update(buildId, {
-      status: isCanceled ? "cancelled" : "failed",
-      endTime,
-      duration: endTime - startTime,
-      error: {
-        message: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined,
-        timestamp: endTime,
-      },
-      logs,
-    });
+    if (!shouldDisableHistory) {
+      await buildHistoryStorage.update(
+        buildId,
+        {
+          status: isCanceled ? "cancelled" : "failed",
+          endTime,
+          duration: endTime - startTime,
+          error: {
+            message: error instanceof Error ? error.message : String(error),
+            stack: error instanceof Error ? error.stack : undefined,
+            timestamp: endTime,
+          },
+          logs,
+        },
+        pipelineId,
+      );
+    }
 
     throw error;
   } finally {

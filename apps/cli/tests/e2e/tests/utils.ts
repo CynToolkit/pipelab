@@ -121,6 +121,7 @@ export const runPipeline = async (
     env: {
       ...process.env,
       ...options.extraEnv,
+      PIPELAB_DISABLE_HISTORY: "true",
     },
   });
 

@@ -120,13 +120,16 @@ export type IpcDefinition = {
 
   // Build History APIs
   "build-history:save": [{ entry: BuildHistoryEntry }, EndEvent<{ result: "ok" | "ko" }>];
-  "build-history:get": [{ id: string }, EndEvent<{ entry?: BuildHistoryEntry }>];
+  "build-history:get": [
+    { id: string; pipelineId?: string },
+    EndEvent<{ entry?: BuildHistoryEntry }>,
+  ];
   "build-history:get-all": [{ query?: BuildHistoryQuery }, EndEvent<BuildHistoryResponse>];
   "build-history:update": [
-    { id: string; updates: Partial<BuildHistoryEntry> },
+    { id: string; updates: Partial<BuildHistoryEntry>; pipelineId?: string },
     EndEvent<{ result: "ok" | "ko" }>,
   ];
-  "build-history:delete": [{ id: string }, EndEvent<{ result: "ok" | "ko" }>];
+  "build-history:delete": [{ id: string; pipelineId?: string }, EndEvent<{ result: "ok" | "ko" }>];
   "build-history:clear": [void, EndEvent<{ result: "ok" | "ko" }>];
   "build-history:get-storage-info": [
     void,

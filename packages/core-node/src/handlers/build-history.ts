@@ -81,15 +81,20 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
     }
   }
 
-  async get(id: string): Promise<BuildHistoryEntry | undefined> {
+  async get(id: string, pipelineId?: string): Promise<BuildHistoryEntry | undefined> {
     try {
+      if (pipelineId) {
+        const entries = await this.loadPipelineHistory(pipelineId);
+        return entries.find((e) => e.id === id);
+      }
+
       // We need to search through all pipeline files to find the entry
       // This is simple but not optimized - for production you'd want indexing
       const files = await this.getAllPipelineFiles();
 
       for (const file of files) {
-        const pipelineId = file.replace("pipeline-", "").replace(".json", "");
-        const entries = await this.loadPipelineHistory(pipelineId);
+        const pId = file.replace("pipeline-", "").replace(".json", "");
+        const entries = await this.loadPipelineHistory(pId);
 
         const entry = entries.find((e) => e.id === id);
         if (entry) {
@@ -134,14 +139,10 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
     }
   }
 
-  async update(id: string, updates: Partial<BuildHistoryEntry>): Promise<void> {
+  async update(id: string, updates: Partial<BuildHistoryEntry>, pipelineId?: string): Promise<void> {
     try {
-      const files = await this.getAllPipelineFiles();
-
-      for (const file of files) {
-        const pipelineId = file.replace("pipeline-", "").replace(".json", "");
+      if (pipelineId) {
         const entries = await this.loadPipelineHistory(pipelineId);
-
         const entryIndex = entries.findIndex((e) => e.id === id);
         if (entryIndex >= 0) {
           entries[entryIndex] = {
@@ -152,6 +153,24 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
           await this.savePipelineHistory(pipelineId, entries);
           return;
         }
+      } else {
+        const files = await this.getAllPipelineFiles();
+
+        for (const file of files) {
+          const pId = file.replace("pipeline-", "").replace(".json", "");
+          const entries = await this.loadPipelineHistory(pId);
+
+          const entryIndex = entries.findIndex((e) => e.id === id);
+          if (entryIndex >= 0) {
+            entries[entryIndex] = {
+              ...entries[entryIndex],
+              ...updates,
+              updatedAt: Date.now(),
+            };
+            await this.savePipelineHistory(pId, entries);
+            return;
+          }
+        }
       }
 
       throw new Error(`Build history entry ${id} not found`);
@@ -161,20 +180,31 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
     }
   }
 
-  async delete(id: string): Promise<void> {
+  async delete(id: string, pipelineId?: string): Promise<void> {
     try {
-      const files = await this.getAllPipelineFiles();
-
-      for (const file of files) {
-        const pipelineId = file.replace("pipeline-", "").replace(".json", "");
+      if (pipelineId) {
         const entries = await this.loadPipelineHistory(pipelineId);
-
         const entryIndex = entries.findIndex((e) => e.id === id);
         if (entryIndex >= 0) {
           entries.splice(entryIndex, 1);
           await this.savePipelineHistory(pipelineId, entries);
           this.logger.logger().info(`Deleted build history entry: ${id}`);
           return;
+        }
+      } else {
+        const files = await this.getAllPipelineFiles();
+
+        for (const file of files) {
+          const pId = file.replace("pipeline-", "").replace(".json", "");
+          const entries = await this.loadPipelineHistory(pId);
+
+          const entryIndex = entries.findIndex((e) => e.id === id);
+          if (entryIndex >= 0) {
+            entries.splice(entryIndex, 1);
+            await this.savePipelineHistory(pId, entries);
+            this.logger.logger().info(`Deleted build history entry: ${id}`);
+            return;
+          }
         }
       }
 

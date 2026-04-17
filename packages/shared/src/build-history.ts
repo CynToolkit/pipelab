@@ -64,11 +64,11 @@ export interface BuildHistoryResponse {
 // Storage interfaces - Simplified for pipeline-specific storage
 export interface IBuildHistoryStorage {
   save(entry: BuildHistoryEntry): Promise<void>;
-  get(id: string): Promise<BuildHistoryEntry | undefined>;
+  get(id: string, pipelineId?: string): Promise<BuildHistoryEntry | undefined>;
   getAll(): Promise<BuildHistoryEntry[]>;
   getByPipeline(pipelineId: string): Promise<BuildHistoryEntry[]>;
-  update(id: string, updates: Partial<BuildHistoryEntry>): Promise<void>;
-  delete(id: string): Promise<void>;
+  update(id: string, updates: Partial<BuildHistoryEntry>, pipelineId?: string): Promise<void>;
+  delete(id: string, pipelineId?: string): Promise<void>;
   clear(): Promise<void>;
   getStorageInfo(): Promise<{
     totalEntries: number;

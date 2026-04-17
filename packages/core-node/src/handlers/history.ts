@@ -69,7 +69,7 @@ export const registerHistoryHandlers = () => {
       logger().info("AUTH BYPASS: Processing build-history:get request");
       await checkBuildHistoryAuthorization(event);
 
-      const entry = await buildHistoryStorage.get(value.id);
+      const entry = await buildHistoryStorage.get(value.id, value.pipelineId);
       send({
         type: "end",
         data: {
@@ -156,7 +156,7 @@ export const registerHistoryHandlers = () => {
       // Check authorization before allowing update
       await checkBuildHistoryAuthorization(event);
 
-      await buildHistoryStorage.update(value.id, value.updates);
+      await buildHistoryStorage.update(value.id, value.updates, value.pipelineId);
       send({
         type: "end",
         data: {
@@ -195,7 +195,7 @@ export const registerHistoryHandlers = () => {
       // Check authorization before allowing deletion
       await checkBuildHistoryAuthorization(event);
 
-      await buildHistoryStorage.delete(value.id);
+      await buildHistoryStorage.delete(value.id, value.pipelineId);
       send({
         type: "end",
         data: {
