@@ -1,3 +1,5 @@
+import { exec } from "node:child_process";
+import { platform } from "node:os";
 import { createRequire } from "node:module";
 import { createAction, createActionRunner, createPathParam } from "@pipelab/plugin-core";
 
@@ -36,9 +38,6 @@ export const openInExplorer = createAction({
 
 export const openInExplorerRunner = createActionRunner<typeof openInExplorer>(
   async ({ log, inputs, setOutput }) => {
-    const { exec } = await import("node:child_process");
-    const { platform } = await import("node:os");
-
     log(`Opening ${inputs.path}`);
 
     return new Promise((resolve, reject) => {

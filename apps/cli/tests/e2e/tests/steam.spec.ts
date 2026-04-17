@@ -1,5 +1,5 @@
 import { expect, test, describe, beforeAll, afterAll } from "vitest";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, writeFile, chmod, access } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { createSandbox, runPipeline } from "./utils";
 
@@ -36,7 +36,6 @@ describe("End-to-End: Steam Integration", () => {
 
     await writeFile(steamcmdPath, mockScript);
     if (process.platform !== "win32") {
-      const { chmod } = await import("node:fs/promises");
       await chmod(steamcmdPath, 0o755);
 
       // Necessary stub binaries for Linux/Darwin pathing in the runner
@@ -96,7 +95,6 @@ describe("End-to-End: Steam Integration", () => {
     expect(outputs["status"]).toBe("success");
 
     // Verify files exist
-    const { access } = await import("node:fs/promises");
     await expect(access(outputs["script-path"])).resolves.not.toThrow();
     await expect(access(outputs["output-folder"])).resolves.not.toThrow();
   }, 5 * 60 * 1000); // 5 minutes timeout for real build

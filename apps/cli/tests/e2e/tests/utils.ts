@@ -2,6 +2,7 @@ import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { mkdir, writeFile, readFile, symlink, rm, readdir } from "node:fs/promises";
 import { tmpdir, homedir } from "node:os";
+import { execa } from "execa";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -114,7 +115,6 @@ export const runPipeline = async (
   args.push("--user-data", userData);
 
   // Use a specialized version of runWithLiveLogs to avoid dependency on the built shared package
-  const { execa } = await import("execa");
   const child = execa(process.execPath, args, {
     cwd: options.cwd || projectRoot,
     cleanup: true,
@@ -145,7 +145,6 @@ export const runElectronApp = async (
     env?: Record<string, string>;
   } = {},
 ) => {
-  const { execa } = await import("execa");
 
   const args = options.args || [];
   if (!args.includes("--no-sandbox")) {

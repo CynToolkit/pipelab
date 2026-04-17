@@ -202,6 +202,43 @@ jobs:
             apps/desktop/.vite/**
             apps/ui/dist/**
 
+  publish-preview:
+    name: Publish Preview
+    needs: build-all
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+      - name: Use Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: "pnpm"
+      - name: Install dependencies
+        run: pnpm install
+      - name: Download monorepo-dist
+        uses: actions/download-artifact@v4
+        with:
+          name: monorepo-dist
+          path: .
+      - name: Publish to pkg.pr.new
+        run: |
+          npx pkg-pr-new publish \
+            packages/shared \
+            packages/core-node \
+            packages/plugin-* \
+            packages/asset-* \
+            packages/migration \
+            packages/constants \
+            apps/cli \
+            --comment=update
+
   release:
     name: Check Release & PR
     needs: [build-all, verify-lint, verify-typecheck, verify-test, changes]
