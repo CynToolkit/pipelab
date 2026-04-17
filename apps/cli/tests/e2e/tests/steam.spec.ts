@@ -93,5 +93,5 @@ describe("End-to-End: Steam Integration", () => {
     const { access } = await import("node:fs/promises");
     await expect(access(outputs["script-path"])).resolves.not.toThrow();
     await expect(access(outputs["output-folder"])).resolves.not.toThrow();
-  });
+  }, 5 * 60 * 1000); // 5 minutes timeout for real build
 });
