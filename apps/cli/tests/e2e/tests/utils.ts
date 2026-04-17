@@ -6,6 +6,19 @@ import { tmpdir, homedir } from "node:os";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
+export const isWindows = process.platform === "win32";
+export const isMac = process.platform === "darwin";
+export const isLinux = process.platform === "linux";
+
+/**
+ * Utility to check if current platform matches target(s).
+ * Useful for it.runIf(onlyOn('win32'))
+ */
+export const onlyOn = (platforms: NodeJS.Platform | NodeJS.Platform[]) => {
+  const target = Array.isArray(platforms) ? platforms : [platforms];
+  return target.includes(process.platform);
+};
+
 /**
  * Robustly resolves the project root relative to this utility file.
  */

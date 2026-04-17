@@ -317,13 +317,18 @@ jobs:
           path: apps/desktop/out/make/**/*
 
   test-cli-e2e:
-    name: Test CLI E2E
+    name: Test CLI E2E (${{ matrix.os }})
     needs: [build-all, changes]
     if: |
       always() &&
       needs.build-all.result == 'success' &&
       contains(fromJson(needs.changes.outputs.affected), '@pipelab/cli')
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
