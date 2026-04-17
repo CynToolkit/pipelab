@@ -18,22 +18,12 @@ export async function extractTarGz(archivePath: string, destinationDir: string):
   // Ensure the destination directory exists
   await mkdirP(destinationDir, { recursive: true });
 
-  return new Promise((resolve, reject) => {
-    const readStream = createReadStream(archivePath);
-    const gunzipStream = zlib.createGunzip();
-    const extractStream = tar.extract({ cwd: destinationDir });
-
-    readStream.on("error", reject);
-    gunzipStream.on("error", reject);
-    extractStream.on("error", reject);
-
-    extractStream.on("close", () => {
-      console.log("Extraction finished.");
-      resolve();
-    });
-
-    readStream.pipe(gunzipStream).pipe(extractStream);
+  await tar.x({
+    file: archivePath,
+    cwd: destinationDir,
   });
+
+  console.log("Extraction finished.");
 }
 
 /**
