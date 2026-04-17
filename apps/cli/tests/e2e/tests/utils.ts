@@ -76,7 +76,13 @@ export const createSandbox = async (prefix: string) => {
   return {
     path: sandboxPath,
     remove: async () => {
-      await rm(sandboxPath, { recursive: true, force: true });
+      // Use native retry logic for robust directory removal
+      await rm(sandboxPath, { 
+        recursive: true, 
+        force: true, 
+        maxRetries: 10, 
+        retryDelay: 100 
+      });
     },
   };
 };
@@ -111,6 +117,7 @@ export const runPipeline = async (
   const { execa } = await import("execa");
   const child = execa(process.execPath, args, {
     cwd: options.cwd || projectRoot,
+    cleanup: true,
     env: {
       ...process.env,
       ...options.extraEnv,
@@ -155,6 +162,7 @@ export const runElectronApp = async (
   }
 
   const child = execa(command, finalArgs, {
+    cleanup: true,
     env: {
       ...process.env,
       ...options.env,
