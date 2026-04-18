@@ -15,56 +15,58 @@ describe("End-to-End: Electron Plugin", () => {
     await sandbox.remove();
   });
 
-  test("should package a project using 'electron-package' node", async () => {
-    // 1. Setup a dummy project to package
-    const projectToPackage = join(sandbox.path, "my-app");
-    await mkdir(projectToPackage, { recursive: true });
-    await writeFile(
-      join(projectToPackage, "package.json"),
-      JSON.stringify({ name: "my-app", version: "1.0.0", main: "index.js" }),
-    );
-    await writeFile(join(projectToPackage, "index.js"), "console.log('hello electron')");
-    await writeFile(join(projectToPackage, "index.html"), "<h1>Hello Electron</h1>");
+  test(
+    "should package a project using 'electron-package' node",
+    async () => {
+      // 1. Setup a dummy project to package
+      const projectToPackage = join(sandbox.path, "my-app");
+      await mkdir(projectToPackage, { recursive: true });
+      await writeFile(
+        join(projectToPackage, "package.json"),
+        JSON.stringify({ name: "my-app", version: "1.0.0", main: "index.js" }),
+      );
+      await writeFile(join(projectToPackage, "index.js"), "console.log('hello electron')");
+      await writeFile(join(projectToPackage, "index.html"), "<h1>Hello Electron</h1>");
 
-    // 2. Create the pipeline
-    const pipeline = {
-      graph: [
-        {
-          uid: "electron-node",
-          name: "Electron Package Node",
-          type: "action",
-          origin: { pluginId: "electron", nodeId: "electron:package" },
-          params: {
-            "input-folder": { value: JSON.stringify(projectToPackage) },
-            configuration: { value: JSON.stringify({ name: "my-app" }) },
+      // 2. Create the pipeline
+      const pipeline = {
+        graph: [
+          {
+            uid: "electron-node",
+            name: "Electron Package Node",
+            type: "action",
+            origin: { pluginId: "electron", nodeId: "electron:package" },
+            params: {
+              "input-folder": { value: JSON.stringify(projectToPackage) },
+              configuration: { value: JSON.stringify({ name: "my-app" }) },
+            },
           },
-        },
-      ],
-      projectPath: sandbox.path,
-      projectName: "Electron E2E Test",
-    };
+        ],
+        projectPath: sandbox.path,
+        projectName: "Electron E2E Test",
+      };
 
-    const resultJson = await runPipeline(pipeline, sandbox.path);
+      const resultJson = await runPipeline(pipeline, sandbox.path);
 
-    // 4. Verification
-    expect(resultJson.steps["electron-node"]).toBeDefined();
+      // 4. Verification
+      expect(resultJson.steps["electron-node"]).toBeDefined();
 
-    const outputs = resultJson.steps["electron-node"].outputs;
-    expect(outputs).toBeDefined();
-    expect(outputs.output).toEqual(expect.any(String));
+      const outputs = resultJson.steps["electron-node"].outputs;
+      expect(outputs).toBeDefined();
+      expect(outputs.output).toEqual(expect.any(String));
 
-    // Verify output exists in the dynamically generated output folder
-    await expect(access(outputs.output)).resolves.not.toThrow();
+      // Verify output exists in the dynamically generated output folder
+      await expect(access(outputs.output)).resolves.not.toThrow();
 
-    // Verify and run the binary
-    const platform = process.platform;
-    const binName = getBinName("my-app", platform);
-    const binaryPath = join(outputs.output, binName);
+      // Verify and run the binary
+      const platform = process.platform;
+      const binName = getBinName("my-app", platform);
+      const binaryPath = join(outputs.output, binName);
 
-    console.log("Calculated binary path:", binaryPath);
-    await expect(access(binaryPath)).resolves.not.toThrow();
+      console.log("Calculated binary path:", binaryPath);
+      await expect(access(binaryPath)).resolves.not.toThrow();
 
-    /*
+      /*
     // Run the app (smoke test)
     const { stdout, stderr } = await runElectronApp(binaryPath, { timeoutMs: 15000 });
     
@@ -73,5 +75,7 @@ describe("End-to-End: Electron Plugin", () => {
     expect(stdout + stderr).not.toContain("Error: Cannot find module");
     expect(stderr).not.toContain("Error:");
     */
-  }, 5 * 60 * 1000); // 5 minutes timeout for real build
+    },
+    5 * 60 * 1000,
+  ); // 5 minutes timeout for real build
 });

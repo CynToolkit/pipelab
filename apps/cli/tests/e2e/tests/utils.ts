@@ -50,7 +50,7 @@ async function symlinkMonorepoPackages(sandboxPath: string) {
             const version = pkg.version;
             const linkPath = join(targetRoot, pkg.name, version);
             await mkdir(dirname(linkPath), { recursive: true });
-            
+
             // If already exists (e.g. from multiple test runs), skip
             try {
               await symlink(join(parentDir, entry.name), linkPath, "dir");
@@ -78,11 +78,11 @@ export const createSandbox = async (prefix: string) => {
     path: sandboxPath,
     remove: async () => {
       // Use native retry logic for robust directory removal
-      await rm(sandboxPath, { 
-        recursive: true, 
-        force: true, 
-        maxRetries: 10, 
-        retryDelay: 100 
+      await rm(sandboxPath, {
+        recursive: true,
+        force: true,
+        maxRetries: 10,
+        retryDelay: 100,
       });
     },
   };
@@ -125,8 +125,12 @@ export const runPipeline = async (
     },
   });
 
-  child.stdout?.on("data", (data) => console.log(`[Pipelab CLI] stdout: ${data.toString().trim()}`));
-  child.stderr?.on("data", (data) => console.log(`[Pipelab CLI] stderr: ${data.toString().trim()}`));
+  child.stdout?.on("data", (data) =>
+    console.log(`[Pipelab CLI] stdout: ${data.toString().trim()}`),
+  );
+  child.stderr?.on("data", (data) =>
+    console.log(`[Pipelab CLI] stderr: ${data.toString().trim()}`),
+  );
 
   await child;
 
@@ -145,7 +149,6 @@ export const runElectronApp = async (
     env?: Record<string, string>;
   } = {},
 ) => {
-
   const args = options.args || [];
   if (!args.includes("--no-sandbox")) {
     args.push("--no-sandbox");

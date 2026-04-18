@@ -2,55 +2,30 @@
   "$schema": "https://turbo.build/schema.json",
   "tasks": {
     "build": {
-      "dependsOn": [
-        "^build"
-      ],
-      "outputs": [
-        "dist/**",
-        ".vite/**",
-        "out/**"
-      ]
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**", ".vite/**", "out/**"]
     },
     "@pipelab/cli#build": {
-      "dependsOn": [
-        "^build"
-      ]
+      "dependsOn": ["^build"]
     },
     "package": {
-      "dependsOn": [
-        "build"
-      ],
-      "outputs": [
-        "out/**",
-        "bin/**"
-      ]
+      "dependsOn": ["build"],
+      "outputs": ["out/**", "bin/**"]
     },
     "make": {
-      "dependsOn": [
-        "build"
-      ],
-      "outputs": [
-        "out/**"
-      ]
+      "dependsOn": ["build"],
+      "outputs": ["out/**"]
     },
     "publish": {
-      "dependsOn": [
-        "build"
-      ],
-      "outputs": [
-        "out/**"
-      ]
+      "dependsOn": ["build"],
+      "outputs": ["out/**"]
     },
     "test": {
-      "dependsOn": [
-        "build"
-      ],
+      "dependsOn": ["build"],
       "outputs": []
     },
     "test:e2e": {
-      "dependsOn": [
-        "build"
-      ],
+      "dependsOn": ["build"],
       "outputs": []
     },
     "lint": {
@@ -64,12 +39,7 @@
       "persistent": true
     }
   },
-  "globalEnv": [
-    "SUPABASE_URL",
-    "SUPABASE_ANON_KEY",
-    "SUPABASE_PROJECT_ID",
-    "POSTHOG_API_KEY"
-  ],
+  "globalEnv": ["SUPABASE_URL", "SUPABASE_ANON_KEY", "SUPABASE_PROJECT_ID", "POSTHOG_API_KEY"],
   "globalPassThroughEnv": [
     "DEBUG",
     "APPLE_TEAM_ID",

@@ -1,6 +1,7 @@
 {
   "name": "pipelab-monorepo",
   "private": true,
+  "license": "FSL-1.1-MIT",
   "scripts": {
     "build": "turbo build",
     "dev": "turbo dev",
@@ -17,7 +18,6 @@
     "@pipelab/constants": "workspace:*",
     "@pipelab/core-node": "workspace:*",
     "@pipelab/plugin-core": "workspace:*",
-    "@pipelab/plugin-filesystem": "workspace:*",
     "@pipelab/shared": "workspace:*",
     "@pipelab/tsconfig": "workspace:*",
     "@types/node": "24.12.2",
@@ -53,6 +53,5 @@
       "sharp",
       "vue-demi"
     ]
-  },
-  "license": "FSL-1.1-MIT"
+  }
 }

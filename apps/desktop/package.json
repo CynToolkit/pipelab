@@ -4,6 +4,7 @@
   "private": true,
   "description": "-",
   "homepage": "https://pipelab.app",
+  "license": "FSL-1.1-MIT",
   "author": "Armaldio",
   "repository": {
     "type": "git",
@@ -56,6 +57,5 @@
     "typescript": "5.8.3",
     "vite": "6.3.3",
     "vite-tsconfig-paths": "5.1.4"
-  },
-  "license": "FSL-1.1-MIT"
+  }
 }

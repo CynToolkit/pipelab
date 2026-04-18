@@ -3,6 +3,7 @@
   "version": "2.0.1-beta.5",
   "private": true,
   "description": "-",
+  "license": "FSL-1.1-MIT",
   "type": "module",
   "main": "./src/index.ts",
   "module": "./src/index.ts",
@@ -32,6 +33,5 @@
     "@pipelab/tsconfig": "workspace:*",
     "esbuild-plugin-wasm": "1.1.0",
     "typescript": "5.9.3"
-  },
-  "license": "FSL-1.1-MIT"
+  }
 }

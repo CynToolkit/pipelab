@@ -2,6 +2,7 @@
   "name": "@pipelab/constants",
   "version": "1.0.1-beta.4",
   "private": true,
+  "license": "FSL-1.1-MIT",
   "type": "module",
   "main": "./src/index.ts",
   "module": "./src/index.ts",
@@ -23,6 +24,5 @@
   "devDependencies": {
     "@pipelab/tsconfig": "workspace:*",
     "typescript": "^5.0.0"
-  },
-  "license": "FSL-1.1-MIT"
+  }
 }

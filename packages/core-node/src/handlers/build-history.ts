@@ -139,7 +139,11 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
     }
   }
 
-  async update(id: string, updates: Partial<BuildHistoryEntry>, pipelineId?: string): Promise<void> {
+  async update(
+    id: string,
+    updates: Partial<BuildHistoryEntry>,
+    pipelineId?: string,
+  ): Promise<void> {
     try {
       if (pipelineId) {
         const entries = await this.loadPipelineHistory(pipelineId);

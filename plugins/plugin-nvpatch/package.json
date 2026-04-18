@@ -1,0 +1,38 @@
+{
+  "name": "@pipelab/plugin-nvpatch",
+  "version": "1.0.1-beta.0",
+  "license": "FSL-1.1-MIT",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "import": "./dist/index.js",
+        "require": "./dist/index.cjs",
+        "default": "./dist/index.js"
+      }
+    },
+    "main": "./dist/index.cjs",
+    "module": "./dist/index.js",
+    "types": "./dist/index.d.ts"
+  },
+  "scripts": {
+    "format": "oxfmt .",
+    "lint": "oxlint .",
+    "build": "tsdown"
+  },
+  "dependencies": {
+    "@pipelab/plugin-core": "workspace:*",
+    "@types/node": "^24.12.2",
+    "execa": "9.4.1"
+  },
+  "devDependencies": {
+    "@pipelab/tsconfig": "workspace:*",
+    "tsdown": "0.21.2",
+    "typescript": "5.9.3"
+  }
+}

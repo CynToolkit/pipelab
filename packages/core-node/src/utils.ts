@@ -4,7 +4,8 @@ import { RendererPluginDefinition } from "@pipelab/plugin-core";
 import { downloadFile, Hooks } from "@pipelab/plugin-core";
 import { access, chmod, mkdir, rm, writeFile, readdir, cp } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import { userDataPath, assetsPath } from "./context";
+import { pathToFileURL } from "node:url";
+import { userDataPath, assetsPath, isDev, projectRoot } from "./context";
 import { constants } from "node:fs";
 import { processGraph } from "@pipelab/shared";
 import { handleActionExecute } from "./handler-func";
@@ -21,6 +22,7 @@ import {
   zipFolder,
   ensureNPMPackage,
 } from "@pipelab/plugin-core";
+import { fetchPipelabAsset, fetchPipelabPlugin } from "./utils/remote";
 import { setupConfigFile } from "./config";
 import { AppConfig } from "@pipelab/shared";
 
@@ -213,6 +215,54 @@ export const executeGraphWithHistory = async ({
   const logs: any[] = [];
   const sandboxPath = await generateTempFolder(cachePath);
   const { logger } = useLogger();
+
+  // Ensure all plugins used in the graph are downloaded and registered
+  const { registerPlugins, plugins: registeredPlugins } = usePlugins();
+  const pluginIds = new Set(
+    graph.map((node: any) => node.origin?.pluginId).filter(Boolean),
+  ) as Set<string>;
+
+  for (const pluginId of pluginIds) {
+    const isRegistered = registeredPlugins.value.some((p) => p.id === pluginId);
+    if (!isRegistered) {
+      logger().info(`[Runner] Plugin "${pluginId}" not found, attempting to load...`);
+      try {
+        const packageName = `@pipelab/plugin-${pluginId}`;
+
+        let pluginDefinition;
+        if (isDev && projectRoot) {
+          try {
+            const pluginPath = join(
+              projectRoot,
+              "plugins",
+              `plugin-${pluginId}`,
+              "dist",
+              "index.js",
+            );
+            const pluginModule = await import(pathToFileURL(pluginPath).href);
+            pluginDefinition = pluginModule.default;
+          } catch (e) {
+            logger().warn(
+              `[Runner] Could not load "${packageName}" from plugins folder in dev, falling back to download...`,
+            );
+          }
+        }
+
+        if (!pluginDefinition) {
+          const pluginDir = await fetchPipelabPlugin(packageName);
+          const pluginPath = join(pluginDir, "dist", "index.js");
+          const pluginModule = await import(pathToFileURL(pluginPath).href);
+          pluginDefinition = pluginModule.default;
+        }
+
+        registerPlugins([pluginDefinition]);
+        logger().info(`[Runner] Plugin "${pluginId}" loaded and registered successfully`);
+      } catch (e) {
+        logger().error(`[Runner] Failed to load or register plugin "${pluginId}":`, e);
+      }
+    }
+  }
+
   logger().info(`[Sandbox] Execution sandbox created at: ${sandboxPath}`);
   const settingsFile = await setupConfigFile<AppConfig>("settings");
   const config = await settingsFile.getConfig();

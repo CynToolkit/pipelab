@@ -1,0 +1,41 @@
+{
+  "name": "@pipelab/plugin-poki",
+  "version": "1.0.1-beta.0",
+  "license": "FSL-1.1-MIT",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "import": "./dist/index.js",
+        "require": "./dist/index.cjs",
+        "default": "./dist/index.js"
+      }
+    },
+    "main": "./dist/index.cjs",
+    "module": "./dist/index.js",
+    "types": "./dist/index.d.ts"
+  },
+  "scripts": {
+    "format": "oxfmt .",
+    "lint": "oxlint .",
+    "test": "vitest run",
+    "build": "tsdown"
+  },
+  "dependencies": {
+    "@pipelab/plugin-core": "workspace:*"
+  },
+  "devDependencies": {
+    "@pipelab/tsconfig": "workspace:*",
+    "@types/node": "24",
+    "electron": "32.1.2",
+    "msw": "2.7.5",
+    "tsdown": "0.21.2",
+    "typescript": "5.9.3",
+    "vitest": "3.1.4"
+  }
+}

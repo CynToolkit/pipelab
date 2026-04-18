@@ -60,6 +60,18 @@ export async function fetchPipelabAsset(
 }
 
 /**
+ * High-level utility to fetch and cache a Pipelab plugin (e.g. @pipelab/plugin-steam).
+ * Respects userDataPath/packages.
+ */
+export async function fetchPipelabPlugin(
+  pluginName: string,
+  versionOrRange?: string,
+): Promise<string> {
+  const { packageDir } = await fetchPipelabPackage(pluginName, versionOrRange);
+  return packageDir;
+}
+
+/**
  * High-level utility to fetch and cache the Pipelab CLI JavaScript bundle.
  * Respects userDataPath/packages.
  * @returns The absolute path to the CLI entry point (dist/index.cjs).

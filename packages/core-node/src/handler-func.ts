@@ -21,7 +21,7 @@ const { join } = path;
 const { tmpdir } = os;
 import { setupConfigFile } from "./config";
 import { AppConfig } from "@pipelab/shared";
-import { fetchPipelabAsset } from "./utils/remote";
+import { fetchPipelabAsset, fetchPipelabPlugin } from "./utils/remote";
 
 const checkParams = (definitionParams: InputsDefinition, elementParams: Record<string, string>) => {
   // get a list of all required params
@@ -162,6 +162,9 @@ export const handleActionExecute = async (
   const api: any = {
     fetchAsset: async (packageName: string, versionOrRange?: string) => {
       return fetchPipelabAsset(packageName, versionOrRange);
+    },
+    fetchPlugin: async (pluginName: string, versionOrRange?: string) => {
+      return fetchPipelabPlugin(pluginName, versionOrRange);
     },
   };
 

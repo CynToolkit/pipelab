@@ -9,34 +9,34 @@
     "url": "https://github.com/CynToolkit/pipelab.git",
     "directory": "apps/cli"
   },
+  "bin": {
+    "pipelab": "./dist/index.mjs",
+    "plab": "./dist/index.mjs"
+  },
+  "type": "module",
   "publishConfig": {
     "access": "public"
   },
-  "bin": {
-    "pipelab": "./dist/index.cjs",
-    "plab": "./dist/index.cjs"
-  },
-  "type": "module",
   "scripts": {
     "build": "cross-env NODE_ENV=production tsdown",
-    "dev": "cross-env NODE_ENV=development tsdown --watch --onSuccess \"cross-env NODE_ENV=development node dist/index.js serve\"",
+    "dev": "cross-env NODE_ENV=development tsdown --watch --onSuccess \"cross-env NODE_ENV=development node dist/index.mjs serve\"",
     "watch": "tsdown --watch",
-    "start": "node dist/index.js",
+    "start": "node dist/index.mjs",
     "test:e2e": "vitest run -c tests/e2e/vitest.config.mts",
     "format": "oxfmt .",
     "lint": "oxlint .",
     "typecheck": "tsc --noEmit -p tsconfig.json --composite false"
   },
   "dependencies": {
+    "@pipelab/constants": "workspace:*",
+    "@pipelab/core-node": "workspace:*",
+    "@pipelab/shared": "workspace:*",
     "@sentry/node": "8.34.0",
     "cac": "6.7.14",
     "execa": "9.5.1",
     "serve-handler": "6.1.7"
   },
   "devDependencies": {
-    "@pipelab/constants": "workspace:*",
-    "@pipelab/core-node": "workspace:*",
-    "@pipelab/shared": "workspace:*",
     "@pipelab/tsconfig": "workspace:*",
     "@types/node": "24.12.2",
     "cross-env": "7.0.3",

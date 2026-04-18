@@ -2,6 +2,7 @@
   "name": "@pipelab/core-node",
   "version": "1.0.1-beta.5",
   "private": true,
+  "license": "FSL-1.1-MIT",
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
@@ -14,18 +15,7 @@
   },
   "dependencies": {
     "@pipelab/constants": "workspace:*",
-    "@pipelab/plugin-construct": "workspace:*",
     "@pipelab/plugin-core": "workspace:*",
-    "@pipelab/plugin-discord": "workspace:*",
-    "@pipelab/plugin-electron": "workspace:*",
-    "@pipelab/plugin-filesystem": "workspace:*",
-    "@pipelab/plugin-itch": "workspace:*",
-    "@pipelab/plugin-netlify": "workspace:*",
-    "@pipelab/plugin-nvpatch": "workspace:*",
-    "@pipelab/plugin-poki": "workspace:*",
-    "@pipelab/plugin-steam": "workspace:*",
-    "@pipelab/plugin-system": "workspace:*",
-    "@pipelab/plugin-tauri": "workspace:*",
     "@pipelab/shared": "workspace:*",
     "adm-zip": "0.5.16",
     "es-toolkit": "1.25.2",
@@ -44,6 +34,5 @@
     "@types/semver": "^7.7.1",
     "@types/ws": "8.18.1",
     "typescript": "^5.0.0"
-  },
-  "license": "FSL-1.1-MIT"
+  }
 }

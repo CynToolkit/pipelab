@@ -1,0 +1,38 @@
+{
+  "name": "@pipelab/plugin-itch",
+  "version": "1.0.1-beta.0",
+  "license": "FSL-1.1-MIT",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "import": "./dist/index.js",
+        "require": "./dist/index.cjs",
+        "default": "./dist/index.js"
+      }
+    },
+    "main": "./dist/index.cjs",
+    "module": "./dist/index.js",
+    "types": "./dist/index.d.ts"
+  },
+  "scripts": {
+    "format": "oxfmt .",
+    "lint": "oxlint .",
+    "build": "tsdown"
+  },
+  "dependencies": {
+    "@pipelab/plugin-core": "workspace:*",
+    "node-stream-zip": "1.15.0"
+  },
+  "devDependencies": {
+    "@pipelab/tsconfig": "workspace:*",
+    "@types/node": "24",
+    "tsdown": "0.21.2",
+    "typescript": "5.9.3"
+  }
+}

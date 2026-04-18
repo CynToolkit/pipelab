@@ -23,10 +23,7 @@ importers:
         version: link:packages/core-node
       '@pipelab/plugin-core':
         specifier: workspace:*
-        version: link:packages/plugin-core
-      '@pipelab/plugin-filesystem':
-        specifier: workspace:*
-        version: link:packages/plugin-filesystem
+        version: link:plugins/plugin-core
       '@pipelab/shared':
         specifier: workspace:*
         version: link:packages/shared
@@ -163,7 +160,7 @@ importers:
         version: link:../../packages/core-node
       '@pipelab/plugin-core':
         specifier: workspace:*
-        version: link:../../packages/plugin-core
+        version: link:../../plugins/plugin-core
       '@pipelab/tsconfig':
         specifier: workspace:*
         version: link:../../packages/tsconfig
@@ -406,13 +403,13 @@ importers:
         specifier: 2.1.6
         version: 2.1.6(typescript@5.8.3)
 
-  packages/asset-discord: {}
+  assets/asset-discord: {}
 
-  packages/asset-electron: {}
+  assets/asset-electron: {}
 
-  packages/asset-netlify: {}
+  assets/asset-netlify: {}
 
-  packages/asset-tauri: {}
+  assets/asset-tauri: {}
 
   packages/constants:
     dependencies:
@@ -432,42 +429,9 @@ importers:
       '@pipelab/constants':
         specifier: workspace:*
         version: link:../constants
-      '@pipelab/plugin-construct':
-        specifier: workspace:*
-        version: link:../plugin-construct
       '@pipelab/plugin-core':
         specifier: workspace:*
-        version: link:../plugin-core
-      '@pipelab/plugin-discord':
-        specifier: workspace:*
-        version: link:../plugin-discord
-      '@pipelab/plugin-electron':
-        specifier: workspace:*
-        version: link:../plugin-electron
-      '@pipelab/plugin-filesystem':
-        specifier: workspace:*
-        version: link:../plugin-filesystem
-      '@pipelab/plugin-itch':
-        specifier: workspace:*
-        version: link:../plugin-itch
-      '@pipelab/plugin-netlify':
-        specifier: workspace:*
-        version: link:../plugin-netlify
-      '@pipelab/plugin-nvpatch':
-        specifier: workspace:*
-        version: link:../plugin-nvpatch
-      '@pipelab/plugin-poki':
-        specifier: workspace:*
-        version: link:../plugin-poki
-      '@pipelab/plugin-steam':
-        specifier: workspace:*
-        version: link:../plugin-steam
-      '@pipelab/plugin-system':
-        specifier: workspace:*
-        version: link:../plugin-system
-      '@pipelab/plugin-tauri':
-        specifier: workspace:*
-        version: link:../plugin-tauri
+        version: link:../../plugins/plugin-core
       '@pipelab/shared':
         specifier: workspace:*
         version: link:../shared
@@ -543,334 +507,6 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
 
-  packages/plugin-construct:
-    dependencies:
-      '@pipelab/plugin-core':
-        specifier: workspace:*
-        version: link:../plugin-core
-      es-toolkit:
-        specifier: 1.25.2
-        version: 1.25.2
-      playwright:
-        specifier: 1.48.2
-        version: 1.48.2
-      valibot:
-        specifier: 0.42.1
-        version: 0.42.1(typescript@5.9.3)
-    devDependencies:
-      '@pipelab/tsconfig':
-        specifier: workspace:*
-        version: link:../tsconfig
-      '@types/node':
-        specifier: '24'
-        version: 24.12.2
-      typescript:
-        specifier: 5.9.3
-        version: 5.9.3
-
-  packages/plugin-core:
-    dependencies:
-      '@types/node':
-        specifier: ^24.12.2
-        version: 24.12.2
-      archiver:
-        specifier: 7.0.1
-        version: 7.0.1
-      electron:
-        specifier: 32.1.2
-        version: 32.1.2
-      execa:
-        specifier: 9.4.1
-        version: 9.4.1
-      pacote:
-        specifier: 21.5.0
-        version: 21.5.0
-      tar:
-        specifier: 6.2.1
-        version: 6.2.1
-      type-fest:
-        specifier: 4.26.1
-        version: 4.26.1
-      yauzl:
-        specifier: 2.10.0
-        version: 2.10.0
-      zod:
-        specifier: 4.3.6
-        version: 4.3.6
-    devDependencies:
-      '@pipelab/constants':
-        specifier: workspace:*
-        version: link:../constants
-      '@pipelab/shared':
-        specifier: workspace:*
-        version: link:../shared
-      '@pipelab/tsconfig':
-        specifier: workspace:*
-        version: link:../tsconfig
-      '@types/archiver':
-        specifier: 7.0.0
-        version: 7.0.0
-      '@types/pacote':
-        specifier: 11.1.8
-        version: 11.1.8
-      '@types/tar':
-        specifier: 7.0.87
-        version: 7.0.87
-      '@types/yauzl':
-        specifier: 2.10.3
-        version: 2.10.3
-      tsdown:
-        specifier: 0.21.2
-        version: 0.21.2(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)(@vitejs/devtools@0.1.13)(publint@0.3.18)(typescript@5.9.3)
-      typescript:
-        specifier: 5.9.3
-        version: 5.9.3
-
-  packages/plugin-discord:
-    dependencies:
-      '@pipelab/plugin-core':
-        specifier: workspace:*
-        version: link:../plugin-core
-      '@pipelab/shared':
-        specifier: workspace:*
-        version: link:../shared
-      '@types/node':
-        specifier: ^24.12.2
-        version: 24.12.2
-      electron:
-        specifier: 32.1.2
-        version: 32.1.2
-      ts-deepmerge:
-        specifier: 7.0.1
-        version: 7.0.1
-      untun:
-        specifier: 0.1.3
-        version: 0.1.3
-    devDependencies:
-      '@pipelab/tsconfig':
-        specifier: workspace:*
-        version: link:../tsconfig
-      typescript:
-        specifier: 5.9.3
-        version: 5.9.3
-
-  packages/plugin-electron:
-    dependencies:
-      '@pipelab/constants':
-        specifier: workspace:*
-        version: link:../constants
-      '@pipelab/plugin-core':
-        specifier: workspace:*
-        version: link:../plugin-core
-      '@pipelab/shared':
-        specifier: workspace:*
-        version: link:../shared
-      '@types/node':
-        specifier: ^24.12.2
-        version: 24.12.2
-      electron:
-        specifier: 32.1.2
-        version: 32.1.2
-      esbuild:
-        specifier: 0.24.0
-        version: 0.24.0
-      ts-deepmerge:
-        specifier: 7.0.1
-        version: 7.0.1
-    devDependencies:
-      '@pipelab/tsconfig':
-        specifier: workspace:*
-        version: link:../tsconfig
-      typescript:
-        specifier: 5.9.3
-        version: 5.9.3
-
-  packages/plugin-filesystem:
-    dependencies:
-      '@pipelab/plugin-core':
-        specifier: workspace:*
-        version: link:../plugin-core
-      '@types/node':
-        specifier: ^24.12.2
-        version: 24.12.2
-      node-stream-zip:
-        specifier: 1.15.0
-        version: 1.15.0
-    devDependencies:
-      '@pipelab/tsconfig':
-        specifier: workspace:*
-        version: link:../tsconfig
-      typescript:
-        specifier: 5.9.3
-        version: 5.9.3
-
-  packages/plugin-itch:
-    dependencies:
-      '@pipelab/plugin-core':
-        specifier: workspace:*
-        version: link:../plugin-core
-      node-stream-zip:
-        specifier: 1.15.0
-        version: 1.15.0
-    devDependencies:
-      '@pipelab/tsconfig':
-        specifier: workspace:*
-        version: link:../tsconfig
-      '@types/node':
-        specifier: '24'
-        version: 24.12.2
-      typescript:
-        specifier: 5.9.3
-        version: 5.9.3
-
-  packages/plugin-minify:
-    dependencies:
-      '@pipelab/plugin-core':
-        specifier: workspace:*
-        version: link:../plugin-core
-      '@types/node':
-        specifier: ^24.12.2
-        version: 24.12.2
-    devDependencies:
-      '@pipelab/tsconfig':
-        specifier: workspace:*
-        version: link:../tsconfig
-      typescript:
-        specifier: 5.9.3
-        version: 5.9.3
-
-  packages/plugin-netlify:
-    dependencies:
-      '@pipelab/plugin-core':
-        specifier: workspace:*
-        version: link:../plugin-core
-      '@types/node':
-        specifier: ^24.12.2
-        version: 24.12.2
-      electron:
-        specifier: 32.1.2
-        version: 32.1.2
-      untun:
-        specifier: 0.1.3
-        version: 0.1.3
-    devDependencies:
-      '@pipelab/tsconfig':
-        specifier: workspace:*
-        version: link:../tsconfig
-      typescript:
-        specifier: 5.9.3
-        version: 5.9.3
-
-  packages/plugin-nvpatch:
-    dependencies:
-      '@pipelab/plugin-core':
-        specifier: workspace:*
-        version: link:../plugin-core
-      '@types/node':
-        specifier: ^24.12.2
-        version: 24.12.2
-      execa:
-        specifier: 9.4.1
-        version: 9.4.1
-    devDependencies:
-      '@pipelab/tsconfig':
-        specifier: workspace:*
-        version: link:../tsconfig
-      typescript:
-        specifier: 5.9.3
-        version: 5.9.3
-
-  packages/plugin-poki:
-    dependencies:
-      '@pipelab/plugin-core':
-        specifier: workspace:*
-        version: link:../plugin-core
-    devDependencies:
-      '@pipelab/tsconfig':
-        specifier: workspace:*
-        version: link:../tsconfig
-      '@types/node':
-        specifier: '24'
-        version: 24.12.2
-      electron:
-        specifier: 32.1.2
-        version: 32.1.2
-      msw:
-        specifier: 2.7.5
-        version: 2.7.5(@types/node@24.12.2)(typescript@5.9.3)
-      typescript:
-        specifier: 5.9.3
-        version: 5.9.3
-      vitest:
-        specifier: 3.1.4
-        version: 3.1.4(@types/node@24.12.2)(jiti@2.6.1)(lightningcss@1.32.0)(msw@2.7.5(@types/node@24.12.2)(typescript@5.9.3))(sass-embedded@1.99.0)(sass@1.99.0)(terser@5.46.1)(tsx@4.19.1)
-
-  packages/plugin-steam:
-    dependencies:
-      '@pipelab/plugin-core':
-        specifier: workspace:*
-        version: link:../plugin-core
-      '@types/node':
-        specifier: ^24.12.2
-        version: 24.12.2
-      execa:
-        specifier: 9.4.1
-        version: 9.4.1
-    devDependencies:
-      '@pipelab/tsconfig':
-        specifier: workspace:*
-        version: link:../tsconfig
-      typescript:
-        specifier: 5.9.3
-        version: 5.9.3
-
-  packages/plugin-system:
-    dependencies:
-      '@pipelab/plugin-core':
-        specifier: workspace:*
-        version: link:../plugin-core
-      '@types/node':
-        specifier: ^24.12.2
-        version: 24.12.2
-    devDependencies:
-      '@pipelab/tsconfig':
-        specifier: workspace:*
-        version: link:../tsconfig
-      typescript:
-        specifier: 5.9.3
-        version: 5.9.3
-
-  packages/plugin-tauri:
-    dependencies:
-      '@pipelab/constants':
-        specifier: workspace:*
-        version: link:../constants
-      '@pipelab/plugin-core':
-        specifier: workspace:*
-        version: link:../plugin-core
-      '@pipelab/shared':
-        specifier: workspace:*
-        version: link:../shared
-      '@types/node':
-        specifier: ^24.12.2
-        version: 24.12.2
-      electron:
-        specifier: 32.1.2
-        version: 32.1.2
-      execa:
-        specifier: 9.4.1
-        version: 9.4.1
-      ts-deepmerge:
-        specifier: 7.0.1
-        version: 7.0.1
-    devDependencies:
-      '@pipelab/tsconfig':
-        specifier: workspace:*
-        version: link:../tsconfig
-      typescript:
-        specifier: 5.9.3
-        version: 5.9.3
-
   packages/shared:
     dependencies:
       '@jitl/quickjs-singlefile-mjs-release-sync':
@@ -925,6 +561,370 @@ importers:
       '@types/node':
         specifier: ^24.12.2
         version: 24.12.2
+
+  plugins/plugin-construct:
+    dependencies:
+      '@pipelab/plugin-core':
+        specifier: workspace:*
+        version: link:../plugin-core
+      es-toolkit:
+        specifier: 1.25.2
+        version: 1.25.2
+      playwright:
+        specifier: 1.48.2
+        version: 1.48.2
+      valibot:
+        specifier: 0.42.1
+        version: 0.42.1(typescript@5.9.3)
+    devDependencies:
+      '@pipelab/tsconfig':
+        specifier: workspace:*
+        version: link:../../packages/tsconfig
+      '@types/node':
+        specifier: '24'
+        version: 24.12.2
+      tsdown:
+        specifier: 0.21.2
+        version: 0.21.2(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)(@vitejs/devtools@0.1.13)(publint@0.3.18)(typescript@5.9.3)
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+
+  plugins/plugin-core:
+    dependencies:
+      '@types/node':
+        specifier: ^24.12.2
+        version: 24.12.2
+      archiver:
+        specifier: 7.0.1
+        version: 7.0.1
+      electron:
+        specifier: 32.1.2
+        version: 32.1.2
+      execa:
+        specifier: 9.4.1
+        version: 9.4.1
+      pacote:
+        specifier: 21.5.0
+        version: 21.5.0
+      tar:
+        specifier: 6.2.1
+        version: 6.2.1
+      type-fest:
+        specifier: 4.26.1
+        version: 4.26.1
+      yauzl:
+        specifier: 2.10.0
+        version: 2.10.0
+      zod:
+        specifier: 4.3.6
+        version: 4.3.6
+    devDependencies:
+      '@pipelab/constants':
+        specifier: workspace:*
+        version: link:../../packages/constants
+      '@pipelab/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+      '@pipelab/tsconfig':
+        specifier: workspace:*
+        version: link:../../packages/tsconfig
+      '@types/archiver':
+        specifier: 7.0.0
+        version: 7.0.0
+      '@types/pacote':
+        specifier: 11.1.8
+        version: 11.1.8
+      '@types/tar':
+        specifier: 7.0.87
+        version: 7.0.87
+      '@types/yauzl':
+        specifier: 2.10.3
+        version: 2.10.3
+      tsdown:
+        specifier: 0.21.2
+        version: 0.21.2(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)(@vitejs/devtools@0.1.13)(publint@0.3.18)(typescript@5.9.3)
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+
+  plugins/plugin-discord:
+    dependencies:
+      '@pipelab/plugin-core':
+        specifier: workspace:*
+        version: link:../plugin-core
+      '@pipelab/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+      '@types/node':
+        specifier: ^24.12.2
+        version: 24.12.2
+      electron:
+        specifier: 32.1.2
+        version: 32.1.2
+      ts-deepmerge:
+        specifier: 7.0.1
+        version: 7.0.1
+      untun:
+        specifier: 0.1.3
+        version: 0.1.3
+    devDependencies:
+      '@pipelab/tsconfig':
+        specifier: workspace:*
+        version: link:../../packages/tsconfig
+      tsdown:
+        specifier: 0.21.2
+        version: 0.21.2(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)(@vitejs/devtools@0.1.13)(publint@0.3.18)(typescript@5.9.3)
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+
+  plugins/plugin-electron:
+    dependencies:
+      '@pipelab/constants':
+        specifier: workspace:*
+        version: link:../../packages/constants
+      '@pipelab/plugin-core':
+        specifier: workspace:*
+        version: link:../plugin-core
+      '@pipelab/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+      '@types/node':
+        specifier: ^24.12.2
+        version: 24.12.2
+      electron:
+        specifier: 32.1.2
+        version: 32.1.2
+      esbuild:
+        specifier: 0.24.0
+        version: 0.24.0
+      ts-deepmerge:
+        specifier: 7.0.1
+        version: 7.0.1
+    devDependencies:
+      '@pipelab/tsconfig':
+        specifier: workspace:*
+        version: link:../../packages/tsconfig
+      tsdown:
+        specifier: 0.21.2
+        version: 0.21.2(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)(@vitejs/devtools@0.1.13)(publint@0.3.18)(typescript@5.9.3)
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+
+  plugins/plugin-filesystem:
+    dependencies:
+      '@pipelab/plugin-core':
+        specifier: workspace:*
+        version: link:../plugin-core
+      '@types/node':
+        specifier: ^24.12.2
+        version: 24.12.2
+      node-stream-zip:
+        specifier: 1.15.0
+        version: 1.15.0
+    devDependencies:
+      '@pipelab/tsconfig':
+        specifier: workspace:*
+        version: link:../../packages/tsconfig
+      tsdown:
+        specifier: 0.21.2
+        version: 0.21.2(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)(@vitejs/devtools@0.1.13)(publint@0.3.18)(typescript@5.9.3)
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+
+  plugins/plugin-itch:
+    dependencies:
+      '@pipelab/plugin-core':
+        specifier: workspace:*
+        version: link:../plugin-core
+      node-stream-zip:
+        specifier: 1.15.0
+        version: 1.15.0
+    devDependencies:
+      '@pipelab/tsconfig':
+        specifier: workspace:*
+        version: link:../../packages/tsconfig
+      '@types/node':
+        specifier: '24'
+        version: 24.12.2
+      tsdown:
+        specifier: 0.21.2
+        version: 0.21.2(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)(@vitejs/devtools@0.1.13)(publint@0.3.18)(typescript@5.9.3)
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+
+  plugins/plugin-minify:
+    dependencies:
+      '@pipelab/plugin-core':
+        specifier: workspace:*
+        version: link:../plugin-core
+      '@types/node':
+        specifier: ^24.12.2
+        version: 24.12.2
+    devDependencies:
+      '@pipelab/tsconfig':
+        specifier: workspace:*
+        version: link:../../packages/tsconfig
+      tsdown:
+        specifier: 0.21.2
+        version: 0.21.2(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)(@vitejs/devtools@0.1.13)(publint@0.3.18)(typescript@5.9.3)
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+
+  plugins/plugin-netlify:
+    dependencies:
+      '@pipelab/plugin-core':
+        specifier: workspace:*
+        version: link:../plugin-core
+      '@types/node':
+        specifier: ^24.12.2
+        version: 24.12.2
+      electron:
+        specifier: 32.1.2
+        version: 32.1.2
+      untun:
+        specifier: 0.1.3
+        version: 0.1.3
+    devDependencies:
+      '@pipelab/tsconfig':
+        specifier: workspace:*
+        version: link:../../packages/tsconfig
+      tsdown:
+        specifier: 0.21.2
+        version: 0.21.2(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)(@vitejs/devtools@0.1.13)(publint@0.3.18)(typescript@5.9.3)
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+
+  plugins/plugin-nvpatch:
+    dependencies:
+      '@pipelab/plugin-core':
+        specifier: workspace:*
+        version: link:../plugin-core
+      '@types/node':
+        specifier: ^24.12.2
+        version: 24.12.2
+      execa:
+        specifier: 9.4.1
+        version: 9.4.1
+    devDependencies:
+      '@pipelab/tsconfig':
+        specifier: workspace:*
+        version: link:../../packages/tsconfig
+      tsdown:
+        specifier: 0.21.2
+        version: 0.21.2(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)(@vitejs/devtools@0.1.13)(publint@0.3.18)(typescript@5.9.3)
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+
+  plugins/plugin-poki:
+    dependencies:
+      '@pipelab/plugin-core':
+        specifier: workspace:*
+        version: link:../plugin-core
+    devDependencies:
+      '@pipelab/tsconfig':
+        specifier: workspace:*
+        version: link:../../packages/tsconfig
+      '@types/node':
+        specifier: '24'
+        version: 24.12.2
+      electron:
+        specifier: 32.1.2
+        version: 32.1.2
+      msw:
+        specifier: 2.7.5
+        version: 2.7.5(@types/node@24.12.2)(typescript@5.9.3)
+      tsdown:
+        specifier: 0.21.2
+        version: 0.21.2(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)(@vitejs/devtools@0.1.13(@pnpm/logger@1001.0.1)(typescript@5.9.3)(vite@6.3.3(@types/node@24.12.2)(jiti@2.6.1)(lightningcss@1.32.0)(sass-embedded@1.99.0)(sass@1.99.0)(terser@5.46.1)(tsx@4.19.1)))(publint@0.3.18)(typescript@5.9.3)
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 3.1.4
+        version: 3.1.4(@types/node@24.12.2)(jiti@2.6.1)(lightningcss@1.32.0)(msw@2.7.5(@types/node@24.12.2)(typescript@5.9.3))(sass-embedded@1.99.0)(sass@1.99.0)(terser@5.46.1)(tsx@4.19.1)
+
+  plugins/plugin-steam:
+    dependencies:
+      '@pipelab/plugin-core':
+        specifier: workspace:*
+        version: link:../plugin-core
+      '@types/node':
+        specifier: ^24.12.2
+        version: 24.12.2
+      execa:
+        specifier: 9.4.1
+        version: 9.4.1
+    devDependencies:
+      '@pipelab/tsconfig':
+        specifier: workspace:*
+        version: link:../../packages/tsconfig
+      tsdown:
+        specifier: 0.21.2
+        version: 0.21.2(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)(@vitejs/devtools@0.1.13)(publint@0.3.18)(typescript@5.9.3)
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+
+  plugins/plugin-system:
+    dependencies:
+      '@pipelab/plugin-core':
+        specifier: workspace:*
+        version: link:../plugin-core
+      '@types/node':
+        specifier: ^24.12.2
+        version: 24.12.2
+    devDependencies:
+      '@pipelab/tsconfig':
+        specifier: workspace:*
+        version: link:../../packages/tsconfig
+      tsdown:
+        specifier: 0.21.2
+        version: 0.21.2(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)(@vitejs/devtools@0.1.13)(publint@0.3.18)(typescript@5.9.3)
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+
+  plugins/plugin-tauri:
+    dependencies:
+      '@pipelab/constants':
+        specifier: workspace:*
+        version: link:../../packages/constants
+      '@pipelab/plugin-core':
+        specifier: workspace:*
+        version: link:../plugin-core
+      '@pipelab/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+      '@types/node':
+        specifier: ^24.12.2
+        version: 24.12.2
+      electron:
+        specifier: 32.1.2
+        version: 32.1.2
+      execa:
+        specifier: 9.4.1
+        version: 9.4.1
+      ts-deepmerge:
+        specifier: 7.0.1
+        version: 7.0.1
+    devDependencies:
+      '@pipelab/tsconfig':
+        specifier: workspace:*
+        version: link:../../packages/tsconfig
+      tsdown:
+        specifier: 0.21.2
+        version: 0.21.2(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)(@vitejs/devtools@0.1.13)(publint@0.3.18)(typescript@5.9.3)
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
 
 packages:
 
@@ -11215,6 +11215,17 @@ snapshots:
       - typescript
       - ws
 
+  '@vitejs/devtools-kit@0.1.13(typescript@5.9.3)(vite@6.3.3(@types/node@24.12.2)(jiti@2.6.1)(lightningcss@1.32.0)(sass-embedded@1.99.0)(sass@1.99.0)(terser@5.46.1)(tsx@4.19.1))(ws@8.20.0)':
+    dependencies:
+      '@vitejs/devtools-rpc': 0.1.13(typescript@5.9.3)(ws@8.20.0)
+      birpc: 4.0.0
+      ohash: 2.0.11
+      vite: 6.3.3(@types/node@24.12.2)(jiti@2.6.1)(lightningcss@1.32.0)(sass-embedded@1.99.0)(sass@1.99.0)(terser@5.46.1)(tsx@4.19.1)
+    transitivePeerDependencies:
+      - typescript
+      - ws
+    optional: true
+
   '@vitejs/devtools-kit@0.1.13(typescript@5.9.3)(vite@8.0.8)(ws@8.20.0)':
     dependencies:
       '@vitejs/devtools-rpc': 0.1.13(typescript@5.9.3)(ws@8.20.0)
@@ -11280,6 +11291,62 @@ snapshots:
       - utf-8-validate
       - vite
       - vue
+
+  '@vitejs/devtools-rolldown@0.1.13(@pnpm/logger@1001.0.1)(typescript@5.9.3)(vite@6.3.3(@types/node@24.12.2)(jiti@2.6.1)(lightningcss@1.32.0)(sass-embedded@1.99.0)(sass@1.99.0)(terser@5.46.1)(tsx@4.19.1))(vue@3.5.32(typescript@5.9.3))':
+    dependencies:
+      '@floating-ui/dom': 1.7.6
+      '@pnpm/read-project-manifest': 1001.2.6(@pnpm/logger@1001.0.1)
+      '@rolldown/debug': 1.0.0-rc.15
+      '@vitejs/devtools-kit': 0.1.13(typescript@5.9.3)(vite@6.3.3(@types/node@24.12.2)(jiti@2.6.1)(lightningcss@1.32.0)(sass-embedded@1.99.0)(sass@1.99.0)(terser@5.46.1)(tsx@4.19.1))(ws@8.20.0)
+      '@vitejs/devtools-rpc': 0.1.13(typescript@5.9.3)(ws@8.20.0)
+      ansis: 4.2.0
+      birpc: 4.0.0
+      cac: 7.0.0
+      d3-shape: 3.2.0
+      diff: 8.0.4
+      get-port-please: 3.2.0
+      h3: 1.15.11
+      mlly: 1.8.2
+      mrmime: 2.0.1
+      ohash: 2.0.11
+      p-limit: 7.3.0
+      pathe: 2.0.3
+      publint: 0.3.18
+      sirv: 3.0.2
+      split2: 4.2.0
+      structured-clone-es: 2.0.0
+      tinyglobby: 0.2.16
+      unconfig: 7.5.0
+      unstorage: 1.17.5
+      vue-virtual-scroller: 2.0.1(vue@3.5.32(typescript@5.9.3))
+      ws: 8.20.0
+    transitivePeerDependencies:
+      - '@azure/app-configuration'
+      - '@azure/cosmos'
+      - '@azure/data-tables'
+      - '@azure/identity'
+      - '@azure/keyvault-secrets'
+      - '@azure/storage-blob'
+      - '@capacitor/preferences'
+      - '@deno/kv'
+      - '@netlify/blobs'
+      - '@planetscale/database'
+      - '@pnpm/logger'
+      - '@upstash/redis'
+      - '@vercel/blob'
+      - '@vercel/functions'
+      - '@vercel/kv'
+      - aws4fetch
+      - bufferutil
+      - db0
+      - idb-keyval
+      - ioredis
+      - typescript
+      - uploadthing
+      - utf-8-validate
+      - vite
+      - vue
+    optional: true
 
   '@vitejs/devtools-rolldown@0.1.13(@pnpm/logger@1001.0.1)(typescript@5.9.3)(vite@8.0.8)(vue@3.5.32(typescript@5.9.3))':
     dependencies:
@@ -11406,6 +11473,52 @@ snapshots:
       - typescript
       - uploadthing
       - utf-8-validate
+
+  '@vitejs/devtools@0.1.13(@pnpm/logger@1001.0.1)(typescript@5.9.3)(vite@6.3.3(@types/node@24.12.2)(jiti@2.6.1)(lightningcss@1.32.0)(sass-embedded@1.99.0)(sass@1.99.0)(terser@5.46.1)(tsx@4.19.1))':
+    dependencies:
+      '@vitejs/devtools-kit': 0.1.13(typescript@5.9.3)(vite@6.3.3(@types/node@24.12.2)(jiti@2.6.1)(lightningcss@1.32.0)(sass-embedded@1.99.0)(sass@1.99.0)(terser@5.46.1)(tsx@4.19.1))(ws@8.20.0)
+      '@vitejs/devtools-rolldown': 0.1.13(@pnpm/logger@1001.0.1)(typescript@5.9.3)(vite@6.3.3(@types/node@24.12.2)(jiti@2.6.1)(lightningcss@1.32.0)(sass-embedded@1.99.0)(sass@1.99.0)(terser@5.46.1)(tsx@4.19.1))(vue@3.5.32(typescript@5.9.3))
+      '@vitejs/devtools-rpc': 0.1.13(typescript@5.9.3)(ws@8.20.0)
+      birpc: 4.0.0
+      cac: 7.0.0
+      h3: 1.15.11
+      immer: 11.1.4
+      launch-editor: 2.13.2
+      mlly: 1.8.2
+      obug: 2.1.1
+      open: 11.0.0
+      pathe: 2.0.3
+      perfect-debounce: 2.1.0
+      sirv: 3.0.2
+      tinyexec: 1.1.1
+      vite: 6.3.3(@types/node@24.12.2)(jiti@2.6.1)(lightningcss@1.32.0)(sass-embedded@1.99.0)(sass@1.99.0)(terser@5.46.1)(tsx@4.19.1)
+      vue: 3.5.32(typescript@5.9.3)
+      ws: 8.20.0
+    transitivePeerDependencies:
+      - '@azure/app-configuration'
+      - '@azure/cosmos'
+      - '@azure/data-tables'
+      - '@azure/identity'
+      - '@azure/keyvault-secrets'
+      - '@azure/storage-blob'
+      - '@capacitor/preferences'
+      - '@deno/kv'
+      - '@netlify/blobs'
+      - '@planetscale/database'
+      - '@pnpm/logger'
+      - '@upstash/redis'
+      - '@vercel/blob'
+      - '@vercel/functions'
+      - '@vercel/kv'
+      - aws4fetch
+      - bufferutil
+      - db0
+      - idb-keyval
+      - ioredis
+      - typescript
+      - uploadthing
+      - utf-8-validate
+    optional: true
 
   '@vitejs/devtools@0.1.13(@pnpm/logger@1001.0.1)(typescript@5.9.3)(vite@8.0.8)':
     dependencies:
@@ -15283,6 +15396,37 @@ snapshots:
   tsconfck@3.1.6(typescript@5.8.3):
     optionalDependencies:
       typescript: 5.8.3
+
+  tsdown@0.21.2(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)(@vitejs/devtools@0.1.13(@pnpm/logger@1001.0.1)(typescript@5.9.3)(vite@6.3.3(@types/node@24.12.2)(jiti@2.6.1)(lightningcss@1.32.0)(sass-embedded@1.99.0)(sass@1.99.0)(terser@5.46.1)(tsx@4.19.1)))(publint@0.3.18)(typescript@5.9.3):
+    dependencies:
+      ansis: 4.2.0
+      cac: 7.0.0
+      defu: 6.1.7
+      empathic: 2.0.0
+      hookable: 6.1.0
+      import-without-cache: 0.2.5
+      obug: 2.1.1
+      picomatch: 4.0.4
+      rolldown: 1.0.0-rc.9(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)
+      rolldown-plugin-dts: 0.22.5(rolldown@1.0.0-rc.9(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2))(typescript@5.9.3)
+      semver: 7.7.4
+      tinyexec: 1.1.1
+      tinyglobby: 0.2.16
+      tree-kill: 1.2.2
+      unconfig-core: 7.5.0
+      unrun: 0.2.35
+    optionalDependencies:
+      '@vitejs/devtools': 0.1.13(@pnpm/logger@1001.0.1)(typescript@5.9.3)(vite@6.3.3(@types/node@24.12.2)(jiti@2.6.1)(lightningcss@1.32.0)(sass-embedded@1.99.0)(sass@1.99.0)(terser@5.46.1)(tsx@4.19.1))
+      publint: 0.3.18
+      typescript: 5.9.3
+    transitivePeerDependencies:
+      - '@emnapi/core'
+      - '@emnapi/runtime'
+      - '@ts-macro/tsc'
+      - '@typescript/native-preview'
+      - oxc-resolver
+      - synckit
+      - vue-tsc
 
   tsdown@0.21.2(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)(@vitejs/devtools@0.1.13)(publint@0.3.18)(typescript@5.9.3):
     dependencies:

@@ -35,7 +35,6 @@ console.log("cwd", process.cwd());
 console.log("import.meta.url", import.meta.url);
 console.log("__dirname", __dirname);
 
-
 const cli = cac("pipelab");
 
 cli
@@ -76,7 +75,7 @@ cli
         response.writeHead(404, { "Content-Type": "text/plain" });
         response.end(
           `Error: UI directory not found at ${rawAssetFolder}.\n` +
-          "Please run 'pnpm build' in apps/ui to generate the distribution.",
+            "Please run 'pnpm build' in apps/ui to generate the distribution.",
         );
         return;
       }

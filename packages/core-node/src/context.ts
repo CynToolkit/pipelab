@@ -1,6 +1,7 @@
 import { join, dirname, resolve } from "node:path";
 import { homedir } from "node:os";
 import { fileURLToPath } from "node:url";
+import { existsSync } from "node:fs";
 
 let _dirname = "";
 try {
@@ -10,6 +11,23 @@ try {
 }
 
 export const isDev = process.env.NODE_ENV === "development";
+
+/**
+ * Finds the monorepo root by looking for pnpm-workspace.yaml.
+ * Only intended for use during development.
+ */
+function findProjectRoot(startDir: string): string | null {
+  let curr = startDir;
+  while (curr !== dirname(curr)) {
+    if (existsSync(join(curr, "pnpm-workspace.yaml"))) {
+      return curr;
+    }
+    curr = dirname(curr);
+  }
+  return null;
+}
+
+export const projectRoot = isDev ? findProjectRoot(_dirname) : null;
 
 const getArg = (name: string): string | undefined => {
   const index = process.argv.indexOf(name);

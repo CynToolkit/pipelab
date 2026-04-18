@@ -58,7 +58,9 @@ The project uses `pnpm` as its package manager and Turborepo for task orchestrat
 
 ## Common Workflows
 
-- **Adding a new Node/Block**: Investigate `packages/plugin-core` or related plugins and how nodes are registered in the core engine.
+- **Adding a new Node/Block**: Investigate `plugins/plugin-core` or related plugins and how nodes are registered in the core engine.
+- `plugins/`: Contains all Pipelab plugins.
+- `assets/`: Contains all Pipelab assets.
 - **Modifying the UI**: Most views are located in `apps/ui/src/pages/` or `apps/ui/src/components/`.
 - **Database Changes**: Update Supabase types after modifying the remote schema.
 - **Releases**:
