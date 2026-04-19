@@ -107,7 +107,7 @@ export const runPipeline = async (
   // Symlink packages to avoid npm download failures in tests
   await symlinkMonorepoPackages(sandboxPath);
 
-  const cliPath = resolve(projectRoot, "apps/cli/dist/index.cjs");
+  const cliPath = resolve(projectRoot, "apps/cli/dist/index.mjs");
 
   const args = [cliPath, "run", pipelineFile, "--output", resultFile];
 

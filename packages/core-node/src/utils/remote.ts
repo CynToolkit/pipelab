@@ -79,7 +79,7 @@ export async function fetchPipelabPlugin(
 export async function fetchPipelabCli(versionOrRange?: string): Promise<string> {
   const packageName = "@pipelab/cli";
   const { packageDir } = await fetchPipelabPackage(packageName, versionOrRange);
-  return join(packageDir, "dist", "index.cjs");
+  return join(packageDir, "dist", "index.mjs");
 }
 
 /**
