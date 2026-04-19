@@ -63,6 +63,15 @@ importers:
 
   apps/cli:
     dependencies:
+      '@pipelab/constants':
+        specifier: workspace:*
+        version: link:../../packages/constants
+      '@pipelab/core-node':
+        specifier: workspace:*
+        version: link:../../packages/core-node
+      '@pipelab/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       '@sentry/node':
         specifier: 8.34.0
         version: 8.34.0
@@ -76,15 +85,6 @@ importers:
         specifier: 6.1.7
         version: 6.1.7
     devDependencies:
-      '@pipelab/constants':
-        specifier: workspace:*
-        version: link:../../packages/constants
-      '@pipelab/core-node':
-        specifier: workspace:*
-        version: link:../../packages/core-node
-      '@pipelab/shared':
-        specifier: workspace:*
-        version: link:../../packages/shared
       '@pipelab/tsconfig':
         specifier: workspace:*
         version: link:../../packages/tsconfig
