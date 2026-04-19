@@ -27,7 +27,7 @@ export const builtInPlugins = async () => {
       if (isDev && projectRoot) {
         try {
           // In dev, load directly from the plugins/ directory
-          const pluginPath = join(projectRoot, "plugins", `plugin-${id}`, "dist", "index.js");
+          const pluginPath = join(projectRoot, "plugins", `plugin-${id}`, "dist", "index.mjs");
           pluginModule = await import(pathToFileURL(pluginPath).href);
           return pluginModule.default;
         } catch (e) {
@@ -38,7 +38,7 @@ export const builtInPlugins = async () => {
       }
 
       const pluginDir = await fetchPipelabPlugin(packageName);
-      const pluginPath = join(pluginDir, "dist", "index.js");
+      const pluginPath = join(pluginDir, "dist", "index.mjs");
       pluginModule = await import(pathToFileURL(pluginPath).href);
       return pluginModule.default;
     } catch (e) {
