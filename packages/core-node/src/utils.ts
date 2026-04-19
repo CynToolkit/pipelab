@@ -237,7 +237,7 @@ export const executeGraphWithHistory = async ({
               "plugins",
               `plugin-${pluginId}`,
               "dist",
-              "index.js",
+              "index.mjs",
             );
             const pluginModule = await import(pathToFileURL(pluginPath).href);
             pluginDefinition = pluginModule.default;
@@ -250,7 +250,7 @@ export const executeGraphWithHistory = async ({
 
         if (!pluginDefinition) {
           const pluginDir = await fetchPipelabPlugin(packageName);
-          const pluginPath = join(pluginDir, "dist", "index.js");
+          const pluginPath = join(pluginDir, "dist", "index.mjs");
           const pluginModule = await import(pathToFileURL(pluginPath).href);
           pluginDefinition = pluginModule.default;
         }
