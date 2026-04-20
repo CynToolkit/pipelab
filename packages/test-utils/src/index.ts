@@ -85,8 +85,8 @@ export const createSandbox = async (prefix: string) => {
       await rm(sandboxPath, {
         recursive: true,
         force: true,
-        maxRetries: 10,
-        retryDelay: 100,
+        maxRetries: 20,
+        retryDelay: 500,
       });
     },
   };

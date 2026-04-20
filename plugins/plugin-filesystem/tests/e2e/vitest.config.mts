@@ -4,7 +4,7 @@ export default defineConfig({
   test: {
     fileParallelism: false,
     testTimeout: 60000,
-    hookTimeout: 30000,
+    hookTimeout: 60000,
     maxWorkers: 1,
     minWorkers: 1,
     poolOptions: {

@@ -109,6 +109,7 @@ export const exportc3p = async <ACTION extends Action>(
   { cwd, log, inputs, setOutput, paths, abortSignal }: ActionRunnerData<ACTION>,
 ) => {
   let context: BrowserContext | undefined = undefined;
+  let browser: any | undefined = undefined;
 
   abortSignal.addEventListener("abort", () => {
     console.error("aborted");
@@ -216,7 +217,7 @@ export const exportc3p = async <ACTION extends Action>(
         : undefined,
     });
   } else {
-    const browser = await browserInstance.launch({
+    browser = await browserInstance.launch({
       headless: headless as boolean,
     });
 
@@ -273,6 +274,9 @@ export const exportc3p = async <ACTION extends Action>(
   } finally {
     if (context) {
       await context.close();
+    }
+    if (browser) {
+      await browser.close();
     }
   }
 };
