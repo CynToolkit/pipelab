@@ -1,27 +1,26 @@
-import { expect, test, describe, beforeAll, afterAll } from "vitest";
-import { mkdir, writeFile, chmod, access } from "node:fs/promises";
+import { expect, test, describe, afterEach } from "vitest";
+import { mkdir, writeFile, access } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createSandbox, runPipeline, findProjectRoot } from "@pipelab/test-utils";
+import { createSandbox, runAction, isWindows, isLinux, isMac } from "@pipelab/test-utils";
+import { uploadToSteamRunner } from "../../src/upload-to-steam";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const projectRoot = findProjectRoot(__dirname);
 
 describe("End-to-End: Steam Integration", () => {
   let sandbox: Awaited<ReturnType<typeof createSandbox>>;
 
-  beforeAll(async () => {
-    sandbox = await createSandbox("steam-e2e");
-  });
-
-  afterAll(async () => {
-    await sandbox.remove();
+  afterEach(async () => {
+    if (sandbox) {
+      await sandbox.remove();
+    }
   });
 
   test(
-    "should mock a steam upload pipeline using a single file",
+    "should mock a steam upload action using a single file",
     async () => {
+      sandbox = await createSandbox("steam-e2e");
       // 1. Setup mock Steam SDK
       const mockSdkPath = join(sandbox.path, "mock-steam-sdk");
       let builderFolder = "builder";
@@ -31,36 +30,23 @@ describe("End-to-End: Steam Integration", () => {
         builderFolder += "_osx";
       }
 
-      const cmdFinal = process.platform === "win32" ? "steamcmd.cmd" : "steamcmd.sh";
-      const steamcmdPath = join(mockSdkPath, "tools", "ContentBuilder", builderFolder, cmdFinal);
-
-      await mkdir(dirname(steamcmdPath), { recursive: true });
-
+      const relativeSteamCmd = join("mock-steam-sdk", "tools", "ContentBuilder", builderFolder, "steamcmd");
+      
       // Create the mock steamcmd script that simulates a successful login and build
-      const mockScript =
-        process.platform === "win32"
-          ? `@echo off\necho Authenticated\nexit /b 0`
-          : `#!/bin/bash\necho "Authenticated"\nexit 0`;
+      const mockScript = isWindows
+        ? `@echo off\necho Authenticated\nexit /b 0`
+        : `#!/bin/bash\necho "Authenticated"\nexit 0`;
 
-      await writeFile(steamcmdPath, mockScript);
-      if (process.platform !== "win32") {
-        await chmod(steamcmdPath, 0o755);
+      await sandbox.mockBinary(relativeSteamCmd, mockScript);
 
-        // Necessary stub binaries for Linux/Darwin pathing in the runner
-        if (process.platform === "linux") {
-          const linux32Dir = join(dirname(steamcmdPath), "linux32");
-          await mkdir(linux32Dir, { recursive: true });
-          await writeFile(join(linux32Dir, "steamcmd"), "#!/bin/bash\nexit 0");
-          await writeFile(join(linux32Dir, "steamerrorreporter"), "#!/bin/bash\nexit 0");
-          await chmod(join(linux32Dir, "steamcmd"), 0o755);
-          await chmod(join(linux32Dir, "steamerrorreporter"), 0o755);
-        }
+      if (isLinux) {
+        const linux32Dir = join("mock-steam-sdk", "tools", "ContentBuilder", builderFolder, "linux32");
+        await sandbox.mockBinary(join(linux32Dir, "steamcmd"), undefined, { extension: false });
+        await sandbox.mockBinary(join(linux32Dir, "steamerrorreporter"), undefined, { extension: false });
+      }
 
-        if (process.platform === "darwin") {
-          const steamcmdBinaryPath = join(dirname(steamcmdPath), "steamcmd");
-          await writeFile(steamcmdBinaryPath, "#!/bin/bash\nexit 0");
-          await chmod(steamcmdBinaryPath, 0o755);
-        }
+      if (isMac) {
+        await sandbox.mockBinary(join("mock-steam-sdk", "tools", "ContentBuilder", builderFolder, "steamcmd"), undefined, { extension: false });
       }
 
       // 2. Setup a dummy single file to upload
@@ -68,43 +54,31 @@ describe("End-to-End: Steam Integration", () => {
       await mkdir(uploadFolder, { recursive: true });
       await writeFile(join(uploadFolder, "test-file.txt"), "This is a test file for steam upload.");
 
-      // 3. Create the pipeline
-      const pipeline = {
-        graph: [
-          {
-            uid: "steam-upload-node",
-            name: "Steam Upload Node",
-            type: "action",
-            origin: { pluginId: "steam", nodeId: "steam-upload" },
-            params: {
-              sdk: { value: JSON.stringify(mockSdkPath) },
-              username: { value: JSON.stringify("testuser") },
-              appId: { value: JSON.stringify("123456") },
-              depotId: { value: JSON.stringify("654321") },
-              description: { value: JSON.stringify("Test Build") },
-              folder: { value: JSON.stringify(uploadFolder) },
-            },
-          },
-        ],
-        projectPath: sandbox.path,
-        projectName: "Steam Upload Mock Test",
+      // 3. Run the action directly
+      const inputs = {
+        sdk: mockSdkPath,
+        username: "testuser",
+        appId: "123456",
+        depotId: "654321",
+        description: "Test Build",
+        folder: uploadFolder,
       };
 
-      // 4. Run the pipeline
-      const resultJson = await runPipeline(pipeline, sandbox.path, projectRoot);
+      const result = await runAction(uploadToSteamRunner, {
+        inputs,
+        sandboxPath: sandbox.path,
+      });
 
-      // 5. Verification
-      expect(resultJson.steps["steam-upload-node"]).toBeDefined();
-
-      const outputs = resultJson.steps["steam-upload-node"].outputs;
+      // 4. Verification
+      const outputs = result.outputs;
       expect(outputs).toBeDefined();
       expect(outputs["script-path"]).toBeDefined();
       expect(outputs["output-folder"]).toBeDefined();
       expect(outputs["status"]).toBe("success");
 
       // Verify files exist
-      await expect(access(outputs["script-path"])).resolves.not.toThrow();
-      await expect(access(outputs["output-folder"])).resolves.not.toThrow();
+      await expect(access(outputs["script-path"] as string)).resolves.not.toThrow();
+      await expect(access(outputs["output-folder"] as string)).resolves.not.toThrow();
     },
     5 * 60 * 1000,
   ); // 5 minutes timeout for real build

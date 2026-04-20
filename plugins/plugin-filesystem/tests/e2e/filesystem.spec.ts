@@ -1,26 +1,26 @@
-import { expect, test, describe, beforeAll, afterAll } from "vitest";
+import { expect, test, describe, beforeAll, afterAll, afterEach } from "vitest";
 import { mkdir, writeFile, readFile, access } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createSandbox, runPipeline, findProjectRoot } from "@pipelab/test-utils";
+import { createSandbox, runAction } from "@pipelab/test-utils";
+import { copyRunner } from "../../src/copy";
+import { removeRunner } from "../../src/remove";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const projectRoot = findProjectRoot(__dirname);
 
 describe("End-to-End: Filesystem Plugin", () => {
   let sandbox: Awaited<ReturnType<typeof createSandbox>>;
 
-  beforeAll(async () => {
-    sandbox = await createSandbox("fs-e2e");
+  afterEach(async () => {
+    if (sandbox) {
+      await sandbox.remove();
+    }
   });
 
-  afterAll(async () => {
-    await sandbox.remove();
-  });
-
-  test("should copy a file using 'copy' node", { timeout: 60000 }, async () => {
-    const testPath = join(sandbox.path, "copy");
+  test("should copy a file using 'copy' action", { timeout: 60000 }, async () => {
+    sandbox = await createSandbox("fs-copy-e2e");
+    const testPath = sandbox.path;
     const sourcePath = join(testPath, "source");
     const destPath = join(testPath, "destination");
     await mkdir(sourcePath, { recursive: true });
@@ -30,33 +30,25 @@ describe("End-to-End: Filesystem Plugin", () => {
     const destFile = join(destPath, "file.txt");
     await writeFile(sourceFile, "Hello World");
 
-    const pipeline = {
-      graph: [
-        {
-          uid: "copy-node",
-          name: "Copy File Node",
-          type: "action",
-          origin: { pluginId: "filesystem", nodeId: "fs:copy" },
-          params: {
-            from: { value: JSON.stringify(sourceFile) },
-            to: { value: JSON.stringify(destFile) },
-            recursive: { value: JSON.stringify(false) },
-            overwrite: { value: JSON.stringify(false) },
-            cleanup: { value: JSON.stringify(false) },
-          },
-        },
-      ],
-    };
-
-    const result = await runPipeline(pipeline, testPath, projectRoot);
+    await runAction(copyRunner, {
+      inputs: {
+        from: sourceFile,
+        to: destFile,
+        recursive: false,
+        overwrite: false,
+        cleanup: false,
+      },
+      sandboxPath: testPath,
+    });
 
     await expect(access(destFile)).resolves.not.toThrow();
     const content = await readFile(destFile, "utf-8");
     expect(content).toBe("Hello World");
   });
 
-  test("should move a file using 'move' node", { timeout: 60000 }, async () => {
-    const testPath = join(sandbox.path, "move");
+  test("should move a file using 'copy' then 'remove' actions", { timeout: 60000 }, async () => {
+    sandbox = await createSandbox("fs-move-e2e");
+    const testPath = sandbox.path;
     const sourcePath = join(testPath, "source");
     const destPath = join(testPath, "destination");
     await mkdir(sourcePath, { recursive: true });
@@ -66,62 +58,45 @@ describe("End-to-End: Filesystem Plugin", () => {
     const destFile = join(destPath, "file.txt");
     await writeFile(sourceFile, "File to move");
 
-    const pipeline = {
-      graph: [
-        {
-          uid: "copy-node-move",
-          name: "Copy for move",
-          type: "action",
-          origin: { pluginId: "filesystem", nodeId: "fs:copy" },
-          params: {
-            from: { value: JSON.stringify(sourceFile) },
-            to: { value: JSON.stringify(destFile) },
-            recursive: { value: JSON.stringify(false) },
-            overwrite: { value: JSON.stringify(false) },
-            cleanup: { value: JSON.stringify(false) },
-          },
-        },
-        {
-          uid: "delete-node-move",
-          name: "Delete for move",
-          type: "action",
-          origin: { pluginId: "filesystem", nodeId: "fs:remove" },
-          params: {
-            from: { value: JSON.stringify(sourceFile) },
-            recursive: { value: JSON.stringify(true) },
-          },
-        },
-      ],
-    };
+    // Copy
+    await runAction(copyRunner, {
+      inputs: {
+        from: sourceFile,
+        to: destFile,
+        recursive: false,
+        overwrite: false,
+        cleanup: false,
+      },
+      sandboxPath: testPath,
+    });
 
-    await runPipeline(pipeline, testPath, projectRoot);
+    // Remove
+    await runAction(removeRunner, {
+      inputs: {
+        from: sourceFile,
+        recursive: true,
+      },
+      sandboxPath: testPath,
+    });
 
     await expect(access(destFile)).resolves.not.toThrow();
     await expect(access(sourceFile)).rejects.toThrow();
   });
 
-  test("should delete a file using 'delete' node", { timeout: 60000 }, async () => {
-    const testPath = join(sandbox.path, "delete");
+  test("should delete a file using 'remove' action", { timeout: 60000 }, async () => {
+    sandbox = await createSandbox("fs-remove-e2e");
+    const testPath = sandbox.path;
     await mkdir(testPath, { recursive: true });
     const fileToDelete = join(testPath, "file_to_delete.txt");
     await writeFile(fileToDelete, "Delete me");
 
-    const pipeline = {
-      graph: [
-        {
-          uid: "remove-node",
-          name: "Remove File Node",
-          type: "action",
-          origin: { pluginId: "filesystem", nodeId: "fs:remove" },
-          params: {
-            from: { value: JSON.stringify(fileToDelete) },
-            recursive: { value: JSON.stringify(true) },
-          },
-        },
-      ],
-    };
-
-    await runPipeline(pipeline, testPath, projectRoot);
+    await runAction(removeRunner, {
+      inputs: {
+        from: fileToDelete,
+        recursive: true,
+      },
+      sandboxPath: testPath,
+    });
 
     await expect(access(fileToDelete)).rejects.toThrow();
   });

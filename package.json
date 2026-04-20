@@ -7,7 +7,6 @@
     "dev": "turbo dev",
     "lint": "turbo lint",
     "test": "turbo test",
-    "test:e2e": "turbo test:e2e --output-logs=new-only",
     "typecheck": "turbo typecheck",
     "format": "oxfmt .",
     "changeset": "changeset",

@@ -21,11 +21,6 @@
       "outputs": ["out/**"]
     },
     "test": {
-      "dependsOn": ["build"],
-      "outputs": []
-    },
-    "test:e2e": {
-      "dependsOn": ["build"],
       "outputs": []
     },
     "lint": {

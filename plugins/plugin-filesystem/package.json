@@ -24,7 +24,7 @@
     "format": "oxfmt .",
     "lint": "oxlint .",
     "build": "tsdown",
-    "test:e2e": "vitest run -c tests/e2e/vitest.config.mts"
+    "test": "vitest run -c tests/e2e/vitest.config.mts"
   },
   "dependencies": {
     "@pipelab/plugin-core": "workspace:*",

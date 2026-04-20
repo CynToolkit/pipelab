@@ -1,13 +1,12 @@
 import { expect, test, describe, beforeAll, afterAll } from "vitest";
 import { readFile, access } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { join, resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { dirname } from "node:path";
-import { createSandbox, runPipeline, findProjectRoot, fixturesPath as originalFixturesPath } from "@pipelab/test-utils";
+import { createSandbox, runAction } from "@pipelab/test-utils";
+import { ExportActionRunner } from "../../src/export-c3p";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const projectRoot = findProjectRoot(__dirname);
 const fixturesPath = join(__dirname, "fixtures");
 
 describe("End-to-End: Construct 3 Export Pipeline", () => {
@@ -22,25 +21,30 @@ describe("End-to-End: Construct 3 Export Pipeline", () => {
   });
 
   test(
-    "should run the full C3 export pipeline",
+    "should run the full C3 export action",
     async () => {
       const fixtures = fixturesPath;
       const jsonProject = JSON.parse(await readFile(join(fixtures, "c3-export.json"), "utf-8"));
 
-      // Adjust the path in the fixture to be absolute for the test environment
+      // 1. Prepare inputs
       const testC3pPath = resolve(fixtures, "c3-export/test.c3p");
-      if (jsonProject.canvas?.blocks?.[0]?.params?.file) {
-        jsonProject.canvas.blocks[0].params.file.value = JSON.stringify(testC3pPath);
-      }
+      const blockParams = jsonProject.canvas?.blocks?.[0]?.params;
+      
+      const inputs = {
+        file: testC3pPath,
+        version: JSON.parse(blockParams?.version?.value || '"stable"'),
+        type: JSON.parse(blockParams?.type?.value || '"web"'),
+        // Add other required inputs from sharedParams if needed
+      };
 
-      // Set the projectPath to sandboxPath to ensure outputs go there
-      jsonProject.projectPath = sandbox.path;
+      // 2. Run the action directly
+      const result = await runAction(ExportActionRunner, {
+        inputs,
+        sandboxPath: sandbox.path,
+      });
 
-      const result = await runPipeline(jsonProject, sandbox.path, projectRoot, { cwd: sandbox.path });
-
-      // Verification
-      expect(result.steps).toBeDefined();
-      const outputs = result.steps["export-construct-project"]?.outputs;
+      // 3. Verification
+      const outputs = result.outputs;
       expect(outputs).toBeDefined();
 
       expect(outputs.folder).toEqual(expect.any(String));
@@ -48,9 +52,9 @@ describe("End-to-End: Construct 3 Export Pipeline", () => {
       expect(outputs.zipFile).toEqual(expect.any(String));
 
       // Verify that the output files/folders actually exist
-      await expect(access(outputs.folder)).resolves.not.toThrow();
-      await expect(access(outputs.parentFolder)).resolves.not.toThrow();
-      await expect(access(outputs.zipFile)).resolves.not.toThrow();
+      await expect(access(outputs.folder as string)).resolves.not.toThrow();
+      await expect(access(outputs.parentFolder as string)).resolves.not.toThrow();
+      await expect(access(outputs.zipFile as string)).resolves.not.toThrow();
     },
     5 * 60 * 1000,
   );

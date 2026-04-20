@@ -3,7 +3,7 @@ import { mkdir, readdir } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import pacote from "pacote";
 import semver from "semver";
-import { userDataPath } from "../context";
+import { isDev, projectRoot, userDataPath } from "../context";
 
 /**
  * Internal helper to fetch, cache, and resolve a Pipelab package from npm.
@@ -55,6 +55,13 @@ export async function fetchPipelabAsset(
   packageName: string,
   versionOrRange?: string,
 ): Promise<string> {
+  if (isDev && projectRoot) {
+    const assetId = packageName.replace("@pipelab/asset-", "");
+    const localPath = join(projectRoot, "assets", `asset-${assetId}`);
+    if (existsSync(localPath)) {
+      return localPath;
+    }
+  }
   const { packageDir } = await fetchPipelabPackage(packageName, versionOrRange);
   return packageDir;
 }

@@ -22,7 +22,7 @@
     "dev": "cross-env NODE_ENV=development tsdown --watch --onSuccess \"cross-env NODE_ENV=development node dist/index.mjs serve\"",
     "watch": "tsdown --watch",
     "start": "node dist/index.mjs",
-    "test:e2e": "vitest run -c tests/e2e/vitest.config.mts",
+    "test": "vitest run -c tests/e2e/vitest.config.mts",
     "format": "oxfmt .",
     "lint": "oxlint .",
     "typecheck": "tsc --noEmit -p tsconfig.json --composite false"

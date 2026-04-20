@@ -2,12 +2,12 @@ import { expect, test, describe, beforeAll, afterAll } from "vitest";
 import { mkdir, writeFile, access } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createSandbox, runPipeline, findProjectRoot } from "@pipelab/test-utils";
+import { createSandbox, runAction } from "@pipelab/test-utils";
 import { getBinName } from "@pipelab/constants";
+import { packageRunner } from "../../src/package";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const projectRoot = findProjectRoot(__dirname);
 
 describe("End-to-End: Electron Plugin", () => {
   let sandbox: Awaited<ReturnType<typeof createSandbox>>;
@@ -33,53 +33,32 @@ describe("End-to-End: Electron Plugin", () => {
       await writeFile(join(projectToPackage, "index.js"), "console.log('hello electron')");
       await writeFile(join(projectToPackage, "index.html"), "<h1>Hello Electron</h1>");
 
-      // 2. Create the pipeline
-      const pipeline = {
-        graph: [
-          {
-            uid: "electron-node",
-            name: "Electron Package Node",
-            type: "action",
-            origin: { pluginId: "electron", nodeId: "electron:package" },
-            params: {
-              "input-folder": { value: JSON.stringify(projectToPackage) },
-              configuration: { value: JSON.stringify({ name: "my-app" }) },
-            },
-          },
-        ],
-        projectPath: sandbox.path,
-        projectName: "Electron E2E Test",
+      // 2. Run the action directly
+      const inputs = {
+        "input-folder": projectToPackage,
+        configuration: { name: "my-app" },
       };
 
-      const resultJson = await runPipeline(pipeline, sandbox.path, projectRoot);
+      const result = await runAction(packageRunner, {
+        inputs,
+        sandboxPath: sandbox.path,
+      });
 
-      // 4. Verification
-      expect(resultJson.steps["electron-node"]).toBeDefined();
-
-      const outputs = resultJson.steps["electron-node"].outputs;
+      // 3. Verification
+      const outputs = result.outputs;
       expect(outputs).toBeDefined();
       expect(outputs.output).toEqual(expect.any(String));
 
       // Verify output exists in the dynamically generated output folder
-      await expect(access(outputs.output)).resolves.not.toThrow();
+      await expect(access(outputs.output as string)).resolves.not.toThrow();
 
       // Verify and run the binary
       const platform = process.platform;
       const binName = getBinName("my-app", platform);
-      const binaryPath = join(outputs.output, binName);
+      const binaryPath = join(outputs.output as string, binName);
 
       console.log("Calculated binary path:", binaryPath);
       await expect(access(binaryPath)).resolves.not.toThrow();
-
-      /*
-    // Run the app (smoke test)
-    const { stdout, stderr } = await runElectronApp(binaryPath, { timeoutMs: 15000 });
-    
-    // Check for some basic output indicating it started
-    // In dev mode or with logging enabled, we expect some Electron logs
-    expect(stdout + stderr).not.toContain("Error: Cannot find module");
-    expect(stderr).not.toContain("Error:");
-    */
     },
     5 * 60 * 1000,
   ); // 5 minutes timeout for real build

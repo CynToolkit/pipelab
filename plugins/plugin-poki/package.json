@@ -30,6 +30,7 @@
     "@pipelab/plugin-core": "workspace:*"
   },
   "devDependencies": {
+    "@pipelab/test-utils": "workspace:*",
     "@pipelab/tsconfig": "workspace:*",
     "@types/node": "24",
     "electron": "32.1.2",

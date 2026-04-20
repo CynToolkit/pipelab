@@ -6,7 +6,7 @@ import { access, chmod, mkdir, rm, writeFile, readdir, cp } from "node:fs/promis
 import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { userDataPath, assetsPath, isDev, projectRoot } from "./context";
-import { constants } from "node:fs";
+import { constants, existsSync } from "node:fs";
 import { processGraph } from "@pipelab/shared";
 import { handleActionExecute } from "./handler-func";
 import { useLogger } from "@pipelab/shared";
@@ -232,13 +232,22 @@ export const executeGraphWithHistory = async ({
         let pluginDefinition;
         if (isDev && projectRoot) {
           try {
-            const pluginPath = join(
+            let pluginPath = join(
               projectRoot,
               "plugins",
               `plugin-${pluginId}`,
-              "dist",
-              "index.mjs",
+              "src",
+              "index.ts",
             );
+            if (!existsSync(pluginPath)) {
+              pluginPath = join(
+                projectRoot,
+                "plugins",
+                `plugin-${pluginId}`,
+                "dist",
+                "index.mjs",
+              );
+            }
             const pluginModule = await import(pathToFileURL(pluginPath).href);
             pluginDefinition = pluginModule.default;
           } catch (e) {
