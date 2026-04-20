@@ -1,4 +1,4 @@
-import { expect, test, describe, beforeAll, afterAll } from "vitest";
+import { expect, test, describe, afterEach } from "vitest";
 import { mkdir, writeFile, access } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -12,17 +12,16 @@ const __dirname = dirname(__filename);
 describe("End-to-End: Electron Plugin", () => {
   let sandbox: Awaited<ReturnType<typeof createSandbox>>;
 
-  beforeAll(async () => {
-    sandbox = await createSandbox("electron-e2e");
-  });
-
-  afterAll(async () => {
-    await sandbox.remove();
+  afterEach(async () => {
+    if (sandbox) {
+      await sandbox.remove();
+    }
   });
 
   test(
     "should package a project using 'electron-package' node",
     async () => {
+      sandbox = await createSandbox("electron-e2e");
       // 1. Setup a dummy project to package
       const projectToPackage = join(sandbox.path, "my-app");
       await mkdir(projectToPackage, { recursive: true });

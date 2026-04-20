@@ -153,7 +153,20 @@ spawnSync('pnpm', process.argv.slice(2), { stdio: 'inherit', shell: true });`,
       thirdparty: join(options.sandboxPath, "thirdparty"),
     },
     api: {
-      fetchAsset: async (packageName: string) => join(options.sandboxPath, "assets", packageName),
+      fetchAsset: async (packageName: string) => {
+        const sandboxAssetPath = join(options.sandboxPath, "assets", packageName);
+        if (existsSyncSync(sandboxAssetPath)) {
+          return sandboxAssetPath;
+        }
+        // Fallback to real monorepo assets
+        // Normalize: remove @pipelab/ prefix if present
+        const folderName = packageName.startsWith("@pipelab/") 
+          ? packageName.replace("@pipelab/", "") 
+          : packageName;
+          
+        const projectRoot = findProjectRoot(__dirname);
+        return join(projectRoot, "assets", folderName);
+      },
     },
     // @ts-ignore - Mocking BrowserWindow
     browserWindow: undefined,

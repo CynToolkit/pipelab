@@ -1,4 +1,4 @@
-import { expect, test, describe, beforeAll, afterAll } from "vitest";
+import { expect, test, describe, afterEach } from "vitest";
 import { readFile, access } from "node:fs/promises";
 import { join, resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -12,17 +12,16 @@ const fixturesPath = join(__dirname, "fixtures");
 describe("End-to-End: Construct 3 Export Pipeline", () => {
   let sandbox: Awaited<ReturnType<typeof createSandbox>>;
 
-  beforeAll(async () => {
-    sandbox = await createSandbox("c3-pipeline-e2e");
-  });
-
-  afterAll(async () => {
-    await sandbox.remove();
+  afterEach(async () => {
+    if (sandbox) {
+      await sandbox.remove();
+    }
   });
 
   test(
     "should run the full C3 export action",
     async () => {
+      sandbox = await createSandbox("c3-pipeline-e2e");
       const fixtures = fixturesPath;
       const jsonProject = JSON.parse(await readFile(join(fixtures, "c3-export.json"), "utf-8"));
 
