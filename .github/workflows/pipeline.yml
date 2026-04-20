@@ -348,12 +348,6 @@ jobs:
           cache: "pnpm"
       - run: pnpm install
 
-      - name: Download monorepo-dist
-        if: needs.changes.outputs.needs_build == 'true'
-        uses: actions/download-artifact@v4
-        with:
-          name: monorepo-dist
-          path: .
       - name: Cache Turbo
         uses: actions/cache@v4
         with:
