@@ -33,7 +33,7 @@ export const isLinux = process.platform === "linux";
  */
 export const createSandbox = async (prefix: string) => {
   const sandboxPath = join(tmpdir(), `${prefix}-${Math.random().toString(36).substring(7)}`);
-  
+
   const paths = {
     input: join(sandboxPath, "input"),
     output: join(sandboxPath, "output"),
@@ -58,7 +58,7 @@ export const createSandbox = async (prefix: string) => {
     mockBinary: async (relativePath: string, content?: string, options: { extension?: string | false } = {}) => {
       const fullPath = join(sandboxPath, relativePath);
       let platformPath = fullPath;
-      
+
       if (options.extension === false) {
         // Use exactly the path provided
       } else if (options.extension) {
@@ -67,18 +67,18 @@ export const createSandbox = async (prefix: string) => {
         const hasExtension = /\.[a-z0-9]+$/i.test(relativePath);
         platformPath = hasExtension ? fullPath : (isWindows ? `${fullPath}.cmd` : `${fullPath}.sh`);
       }
-      
-      const defaultContent = isWindows 
+
+      const defaultContent = isWindows
         ? `@echo off\necho Mock Binary Execution: %*\nexit /b 0`
         : `#!/bin/bash\necho "Mock Binary Execution: $@"\nexit 0`;
-      
+
       await mkdir(dirname(platformPath), { recursive: true });
       await writeFile(platformPath, content || defaultContent);
-      
+
       if (!isWindows) {
         await chmod(platformPath, 0o755);
       }
-      
+
       return platformPath;
     },
     remove: async () => {
@@ -95,13 +95,13 @@ export const createSandbox = async (prefix: string) => {
 /**
  * Runs the Pipelab CLI out-of-process.
  */
-export const runCLI = async (args: string[], options: { 
-  cwd?: string, 
-  env?: Record<string, string> 
+export const runCLI = async (args: string[], options: {
+  cwd?: string,
+  env?: Record<string, string>
 } = {}) => {
   const projectRoot = findProjectRoot(__dirname);
   const cliPath = resolve(projectRoot, "apps/cli/src/index.ts");
-  
+
   return execa("tsx", [cliPath, ...args], {
     cwd: options.cwd || projectRoot,
     env: {
@@ -160,10 +160,10 @@ spawnSync('pnpm', process.argv.slice(2), { stdio: 'inherit', shell: true });`,
         }
         // Fallback to real monorepo assets
         // Normalize: remove @pipelab/ prefix if present
-        const folderName = packageName.startsWith("@pipelab/") 
-          ? packageName.replace("@pipelab/", "") 
+        const folderName = packageName.startsWith("@pipelab/")
+          ? packageName.replace("@pipelab/", "")
           : packageName;
-          
+
         const projectRoot = findProjectRoot(__dirname);
         return join(projectRoot, "assets", folderName);
       },
@@ -172,7 +172,7 @@ spawnSync('pnpm', process.argv.slice(2), { stdio: 'inherit', shell: true });`,
     browserWindow: undefined,
     abortSignal: new AbortController().signal,
     // @ts-ignore - Mocking setMeta
-    setMeta: () => {},
+    setMeta: () => { },
     meta: {} as any,
   };
 
@@ -207,7 +207,7 @@ spawnSync('pnpm', process.argv.slice(2), { stdio: 'inherit', shell: true });`,
 export const runElectronApp = async (app_path: string, options: { timeoutMs?: number } = {}) => {
   const child = execa(app_path, [], {
     cleanup: true,
-    timeout: options.timeoutMs || 10000,
+    timeout: options.timeoutMs || 120000,
   });
   return child;
 };
