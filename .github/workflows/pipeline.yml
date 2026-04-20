@@ -390,7 +390,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-turbo-${{ github.job }}-
       - name: Run CLI E2E Tests
-        run: pnpm turbo test:e2e --filter @pipelab/cli --cache-dir=".turbo" --log-order=grouped --concurrency 1
+        run: pnpm turbo test --filter @pipelab/cli --cache-dir=".turbo" --log-order=grouped --concurrency 1
 
   deploy:
     name: Deploy Release
