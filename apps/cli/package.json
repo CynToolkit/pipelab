@@ -10,18 +10,22 @@
     "directory": "apps/cli"
   },
   "bin": {
-    "pipelab": "./dist/index.mjs",
-    "plab": "./dist/index.mjs"
+    "pipelab": "./src/index.ts",
+    "plab": "./src/index.ts"
   },
   "type": "module",
   "publishConfig": {
-    "access": "public"
+    "access": "public",
+    "bin": {
+      "pipelab": "./dist/index.mjs",
+      "plab": "./dist/index.mjs"
+    }
   },
   "scripts": {
     "build": "cross-env NODE_ENV=production tsdown",
-    "dev": "cross-env NODE_ENV=development tsdown --watch --onSuccess \"cross-env NODE_ENV=development node dist/index.mjs serve\"",
+    "dev": "cross-env NODE_ENV=development tsx watch src/index.ts serve",
     "watch": "tsdown --watch",
-    "start": "node dist/index.mjs",
+    "start": "tsx src/index.ts",
     "test": "vitest run -c tests/e2e/vitest.config.mts",
     "format": "oxfmt .",
     "lint": "oxlint .",

@@ -10,15 +10,15 @@
     "directory": "plugins/plugin-core"
   },
   "type": "module",
-  "main": "./dist/index.cjs",
-  "module": "./dist/index.mjs",
+  "main": "./src/index.ts",
+  "module": "./src/index.ts",
   "browser": "./src/index.ts",
-  "types": "./dist/index.d.mts",
+  "types": "./src/index.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.mts",
-      "import": "./dist/index.mjs",
-      "default": "./dist/index.mjs"
+      "types": "./src/index.ts",
+      "import": "./src/index.ts",
+      "default": "./src/index.ts"
     }
   },
   "publishConfig": {

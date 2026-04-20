@@ -3,9 +3,9 @@
   "version": "1.0.1-beta.0",
   "license": "FSL-1.1-MIT",
   "type": "module",
-  "main": "./dist/index.cjs",
-  "module": "./dist/index.mjs",
-  "types": "./dist/index.d.mts",
+  "main": "./src/index.ts",
+  "module": "./src/index.ts",
+  "types": "./src/index.ts",
   "publishConfig": {
     "access": "public",
     "exports": {
