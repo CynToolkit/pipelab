@@ -37,6 +37,7 @@
     "serve-handler": "6.1.7"
   },
   "devDependencies": {
+    "@pipelab/test-utils": "workspace:*",
     "@pipelab/tsconfig": "workspace:*",
     "@types/node": "24.12.2",
     "cross-env": "7.0.3",
@@ -44,5 +45,10 @@
     "tsdown": "0.21.2",
     "typescript": "^5.0.0",
     "vitest": "3.1.4"
+  },
+  "test": {
+    "env": {
+      "NODE_ENV": "development"
+    }
   }
 }

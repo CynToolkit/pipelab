@@ -1,6 +1,7 @@
 import { fetchPipelabPlugin } from "./utils/remote";
 import { pathToFileURL } from "node:url";
 import { join } from "node:path";
+import { existsSync } from "node:fs";
 import { isDev, projectRoot } from "./context";
 
 const DEFAULT_PLUGIN_IDS = [
@@ -27,7 +28,10 @@ export const builtInPlugins = async () => {
       if (isDev && projectRoot) {
         try {
           // In dev, load directly from the plugins/ directory
-          const pluginPath = join(projectRoot, "plugins", `plugin-${id}`, "dist", "index.mjs");
+          let pluginPath = join(projectRoot, "plugins", `plugin-${id}`, "src", "index.ts");
+          if (!existsSync(pluginPath)) {
+            pluginPath = join(projectRoot, "plugins", `plugin-${id}`, "dist", "index.mjs");
+          }
           pluginModule = await import(pathToFileURL(pluginPath).href);
           return pluginModule.default;
         } catch (e) {

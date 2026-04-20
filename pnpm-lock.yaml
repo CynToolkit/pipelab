@@ -85,6 +85,9 @@ importers:
         specifier: 6.1.7
         version: 6.1.7
     devDependencies:
+      '@pipelab/test-utils':
+        specifier: workspace:*
+        version: link:../../packages/test-utils
       '@pipelab/tsconfig':
         specifier: workspace:*
         version: link:../../packages/tsconfig
@@ -556,6 +559,25 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
 
+  packages/test-utils:
+    dependencies:
+      '@pipelab/core-node':
+        specifier: workspace:*
+        version: link:../core-node
+      execa:
+        specifier: 9.5.1
+        version: 9.5.1
+    devDependencies:
+      '@pipelab/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      '@types/node':
+        specifier: 24.12.2
+        version: 24.12.2
+      typescript:
+        specifier: ^5.0.0
+        version: 5.9.3
+
   packages/tsconfig:
     dependencies:
       '@types/node':
@@ -577,6 +599,9 @@ importers:
         specifier: 0.42.1
         version: 0.42.1(typescript@5.9.3)
     devDependencies:
+      '@pipelab/test-utils':
+        specifier: workspace:*
+        version: link:../../packages/test-utils
       '@pipelab/tsconfig':
         specifier: workspace:*
         version: link:../../packages/tsconfig
@@ -585,10 +610,13 @@ importers:
         version: 24.12.2
       tsdown:
         specifier: 0.21.2
-        version: 0.21.2(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)(@vitejs/devtools@0.1.13)(publint@0.3.18)(typescript@5.9.3)
+        version: 0.21.2(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)(@vitejs/devtools@0.1.13(@pnpm/logger@1001.0.1)(typescript@5.9.3)(vite@6.3.3(@types/node@24.12.2)(jiti@2.6.1)(lightningcss@1.32.0)(sass-embedded@1.99.0)(sass@1.99.0)(terser@5.46.1)(tsx@4.19.1)))(publint@0.3.18)(typescript@5.9.3)
       typescript:
         specifier: 5.9.3
         version: 5.9.3
+      vitest:
+        specifier: 3.1.4
+        version: 3.1.4(@types/node@24.12.2)(jiti@2.6.1)(lightningcss@1.32.0)(msw@2.7.5(@types/node@24.12.2)(typescript@5.9.3))(sass-embedded@1.99.0)(sass@1.99.0)(terser@5.46.1)(tsx@4.19.1)
 
   plugins/plugin-core:
     dependencies:
@@ -703,6 +731,9 @@ importers:
         specifier: 7.0.1
         version: 7.0.1
     devDependencies:
+      '@pipelab/test-utils':
+        specifier: workspace:*
+        version: link:../../packages/test-utils
       '@pipelab/tsconfig':
         specifier: workspace:*
         version: link:../../packages/tsconfig
@@ -712,6 +743,9 @@ importers:
       typescript:
         specifier: 5.9.3
         version: 5.9.3
+      vitest:
+        specifier: 3.1.4
+        version: 3.1.4(@types/node@24.12.2)(jiti@2.6.1)(lightningcss@1.32.0)(msw@2.7.5(@types/node@24.12.2)(typescript@5.9.3))(sass-embedded@1.99.0)(sass@1.99.0)(terser@5.46.1)(tsx@4.19.1)
 
   plugins/plugin-filesystem:
     dependencies:
@@ -725,6 +759,9 @@ importers:
         specifier: 1.15.0
         version: 1.15.0
     devDependencies:
+      '@pipelab/test-utils':
+        specifier: workspace:*
+        version: link:../../packages/test-utils
       '@pipelab/tsconfig':
         specifier: workspace:*
         version: link:../../packages/tsconfig
@@ -734,6 +771,9 @@ importers:
       typescript:
         specifier: 5.9.3
         version: 5.9.3
+      vitest:
+        specifier: 3.1.4
+        version: 3.1.4(@types/node@24.12.2)(jiti@2.6.1)(lightningcss@1.32.0)(msw@2.7.5(@types/node@24.12.2)(typescript@5.9.3))(sass-embedded@1.99.0)(sass@1.99.0)(terser@5.46.1)(tsx@4.19.1)
 
   plugins/plugin-itch:
     dependencies:
@@ -843,7 +883,7 @@ importers:
         version: 2.7.5(@types/node@24.12.2)(typescript@5.9.3)
       tsdown:
         specifier: 0.21.2
-        version: 0.21.2(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)(@vitejs/devtools@0.1.13(@pnpm/logger@1001.0.1)(typescript@5.9.3)(vite@6.3.3(@types/node@24.12.2)(jiti@2.6.1)(lightningcss@1.32.0)(sass-embedded@1.99.0)(sass@1.99.0)(terser@5.46.1)(tsx@4.19.1)))(publint@0.3.18)(typescript@5.9.3)
+        version: 0.21.2(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)(@vitejs/devtools@0.1.13)(publint@0.3.18)(typescript@5.9.3)
       typescript:
         specifier: 5.9.3
         version: 5.9.3
@@ -863,6 +903,9 @@ importers:
         specifier: 9.4.1
         version: 9.4.1
     devDependencies:
+      '@pipelab/test-utils':
+        specifier: workspace:*
+        version: link:../../packages/test-utils
       '@pipelab/tsconfig':
         specifier: workspace:*
         version: link:../../packages/tsconfig
@@ -872,6 +915,9 @@ importers:
       typescript:
         specifier: 5.9.3
         version: 5.9.3
+      vitest:
+        specifier: 3.1.4
+        version: 3.1.4(@types/node@24.12.2)(jiti@2.6.1)(lightningcss@1.32.0)(msw@2.7.5(@types/node@24.12.2)(typescript@5.9.3))(sass-embedded@1.99.0)(sass@1.99.0)(terser@5.46.1)(tsx@4.19.1)
 
   plugins/plugin-system:
     dependencies:

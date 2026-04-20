@@ -1,4 +1,5 @@
-import { useAPI, setupConfigFile } from "@pipelab/core-node";
+import { useAPI } from "./ipc-core";
+import { setupConfigFile } from "./config";
 import {
   savedFileMigrator,
   fileRepoMigrations,
@@ -11,7 +12,7 @@ import {
  * This overrides the default handlers from @pipelab/core-node to include
  * pipeline and file repo migrations directly in the backend.
  */
-export const registerMigrationHandlers = () => {
+export function registerMigrationHandlers() {
   const { handle } = useAPI();
   const { logger } = useLogger();
 
@@ -67,4 +68,4 @@ export const registerMigrationHandlers = () => {
   // We also need to override config:save if we want to ensure consistency,
   // although mostly we just care about migrations on load.
   // The default config:save from core-node will work fine as it uses the same setupConfigFile logic.
-};
+}

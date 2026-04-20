@@ -1,7 +1,14 @@
 import { expect, test, describe, beforeAll, afterAll } from "vitest";
 import { readFile, access } from "node:fs/promises";
 import { join, resolve } from "node:path";
-import { fixturesPath, createSandbox, runPipeline } from "./utils";
+import { fileURLToPath } from "node:url";
+import { dirname } from "node:path";
+import { createSandbox, runPipeline, findProjectRoot, fixturesPath as originalFixturesPath } from "@pipelab/test-utils";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const projectRoot = findProjectRoot(__dirname);
+const fixturesPath = join(__dirname, "fixtures");
 
 describe("End-to-End: Construct 3 Export Pipeline", () => {
   let sandbox: Awaited<ReturnType<typeof createSandbox>>;
@@ -29,7 +36,7 @@ describe("End-to-End: Construct 3 Export Pipeline", () => {
       // Set the projectPath to sandboxPath to ensure outputs go there
       jsonProject.projectPath = sandbox.path;
 
-      const result = await runPipeline(jsonProject, sandbox.path, { cwd: sandbox.path });
+      const result = await runPipeline(jsonProject, sandbox.path, projectRoot, { cwd: sandbox.path });
 
       // Verification
       expect(result.steps).toBeDefined();

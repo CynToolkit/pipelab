@@ -1,7 +1,12 @@
 import { expect, test, describe, beforeAll, afterAll } from "vitest";
 import { mkdir, writeFile, access } from "node:fs/promises";
-import { join } from "node:path";
-import { createSandbox, runPipeline } from "./utils";
+import { join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+import { createSandbox, runPipeline, findProjectRoot } from "@pipelab/test-utils";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const projectRoot = findProjectRoot(__dirname);
 
 describe("End-to-End: Multi-Plugin Integration Test", () => {
   let sandbox: Awaited<ReturnType<typeof createSandbox>>;
@@ -60,7 +65,7 @@ describe("End-to-End: Multi-Plugin Integration Test", () => {
         projectName: "Integration E2E Test",
       };
 
-      const resultJson = await runPipeline(pipeline, sandbox.path);
+      const resultJson = await runPipeline(pipeline, sandbox.path, projectRoot);
 
       // Verification
       expect(resultJson.steps["copy-to-staging"]).toBeDefined();

@@ -17,13 +17,14 @@
       }
     },
     "main": "./dist/index.cjs",
-    "module": "./dist/index.js",
-    "types": "./dist/index.d.ts"
+    "module": "./dist/index.mjs",
+    "types": "./dist/index.d.mts"
   },
   "scripts": {
     "format": "oxfmt .",
     "lint": "oxlint .",
-    "build": "tsdown"
+    "build": "tsdown",
+    "test:e2e": "vitest run -c tests/e2e/vitest.config.mts"
   },
   "dependencies": {
     "@pipelab/plugin-core": "workspace:*",
@@ -31,8 +32,15 @@
     "execa": "9.4.1"
   },
   "devDependencies": {
+    "@pipelab/test-utils": "workspace:*",
     "@pipelab/tsconfig": "workspace:*",
     "tsdown": "0.21.2",
-    "typescript": "5.9.3"
+    "typescript": "5.9.3",
+    "vitest": "3.1.4"
+  },
+  "test": {
+    "env": {
+      "NODE_ENV": "development"
+    }
   }
 }

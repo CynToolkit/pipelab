@@ -1,7 +1,12 @@
 import { expect, test, describe, beforeAll, afterAll } from "vitest";
 import { mkdir, writeFile, readFile, access } from "node:fs/promises";
-import { join } from "node:path";
-import { createSandbox, runPipeline } from "./utils";
+import { join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+import { createSandbox, runPipeline, findProjectRoot } from "@pipelab/test-utils";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const projectRoot = findProjectRoot(__dirname);
 
 describe("End-to-End: Filesystem Plugin", () => {
   let sandbox: Awaited<ReturnType<typeof createSandbox>>;
@@ -43,7 +48,7 @@ describe("End-to-End: Filesystem Plugin", () => {
       ],
     };
 
-    const result = await runPipeline(pipeline, testPath);
+    const result = await runPipeline(pipeline, testPath, projectRoot);
 
     await expect(access(destFile)).resolves.not.toThrow();
     const content = await readFile(destFile, "utf-8");
@@ -89,7 +94,7 @@ describe("End-to-End: Filesystem Plugin", () => {
       ],
     };
 
-    await runPipeline(pipeline, testPath);
+    await runPipeline(pipeline, testPath, projectRoot);
 
     await expect(access(destFile)).resolves.not.toThrow();
     await expect(access(sourceFile)).rejects.toThrow();
@@ -116,7 +121,7 @@ describe("End-to-End: Filesystem Plugin", () => {
       ],
     };
 
-    await runPipeline(pipeline, testPath);
+    await runPipeline(pipeline, testPath, projectRoot);
 
     await expect(access(fileToDelete)).rejects.toThrow();
   });

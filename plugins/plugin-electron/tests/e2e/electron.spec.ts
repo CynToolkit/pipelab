@@ -1,8 +1,13 @@
 import { expect, test, describe, beforeAll, afterAll } from "vitest";
 import { mkdir, writeFile, access } from "node:fs/promises";
-import { join } from "node:path";
-import { createSandbox, runPipeline, runElectronApp } from "./utils";
+import { join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+import { createSandbox, runPipeline, findProjectRoot } from "@pipelab/test-utils";
 import { getBinName } from "@pipelab/constants";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const projectRoot = findProjectRoot(__dirname);
 
 describe("End-to-End: Electron Plugin", () => {
   let sandbox: Awaited<ReturnType<typeof createSandbox>>;
@@ -46,7 +51,7 @@ describe("End-to-End: Electron Plugin", () => {
         projectName: "Electron E2E Test",
       };
 
-      const resultJson = await runPipeline(pipeline, sandbox.path);
+      const resultJson = await runPipeline(pipeline, sandbox.path, projectRoot);
 
       // 4. Verification
       expect(resultJson.steps["electron-node"]).toBeDefined();

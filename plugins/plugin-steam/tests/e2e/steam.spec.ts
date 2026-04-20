@@ -1,7 +1,12 @@
 import { expect, test, describe, beforeAll, afterAll } from "vitest";
 import { mkdir, writeFile, chmod, access } from "node:fs/promises";
 import { join, dirname } from "node:path";
-import { createSandbox, runPipeline } from "./utils";
+import { fileURLToPath } from "node:url";
+import { createSandbox, runPipeline, findProjectRoot } from "@pipelab/test-utils";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const projectRoot = findProjectRoot(__dirname);
 
 describe("End-to-End: Steam Integration", () => {
   let sandbox: Awaited<ReturnType<typeof createSandbox>>;
@@ -86,7 +91,7 @@ describe("End-to-End: Steam Integration", () => {
       };
 
       // 4. Run the pipeline
-      const resultJson = await runPipeline(pipeline, sandbox.path);
+      const resultJson = await runPipeline(pipeline, sandbox.path, projectRoot);
 
       // 5. Verification
       expect(resultJson.steps["steam-upload-node"]).toBeDefined();
