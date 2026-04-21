@@ -7,7 +7,7 @@ import { startServer, stopServer } from "./main/server-process";
 import { websocketPort, uiDevPort } from "@pipelab/constants";
 import { registerIpcHandlers } from "./main/ipc-handlers";
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
+// __dirname is available globally in the CJS bundle
 
 if (is.dev) {
   app.setPath("userData", app.getPath("userData") + "-dev");

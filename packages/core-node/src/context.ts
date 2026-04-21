@@ -3,12 +3,8 @@ import { homedir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { existsSync } from "node:fs";
 
-let _dirname = "";
-try {
-  _dirname = dirname(fileURLToPath(import.meta.url));
-} catch (e) {
-  _dirname = __dirname;
-}
+const _dirname =
+  typeof __dirname !== "undefined" ? __dirname : dirname(fileURLToPath(import.meta.url));
 
 export const isDev = process.env.NODE_ENV === "development";
 

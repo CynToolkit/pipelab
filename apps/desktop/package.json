@@ -10,7 +10,6 @@
     "type": "git",
     "url": "https://github.com/CynToolkit/pipelab.git"
   },
-  "type": "module",
   "main": ".vite/build/main.js",
   "scripts": {
     "format": "oxfmt .",
