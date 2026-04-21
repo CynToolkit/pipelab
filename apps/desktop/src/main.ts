@@ -92,19 +92,34 @@ const sendUpdateStatus = (status: string) => {
 };
 
 app.whenReady().then(async () => {
-  if (!is.dev) {
+  if (!is.dev || process.env.APP_UPDATE_URL) {
+    const updateUrl =
+      process.env.APP_UPDATE_URL || "https://github.com/CynToolkit/pipelab/releases/latest/download";
+
+    console.log(`[Update] Setting up auto-updater with feed URL: ${updateUrl}`);
+
     autoUpdater.setFeedURL({
-      url: "https://github.com/CynToolkit/pipelab/releases/latest/download",
+      url: updateUrl,
       headers: {
         "Cache-Control": "no-cache",
       },
     });
 
-    autoUpdater.on("checking-for-update", () => sendUpdateStatus("checking-for-update"));
-    autoUpdater.on("update-available", () => sendUpdateStatus("update-available"));
-    autoUpdater.on("update-not-available", () => sendUpdateStatus("update-not-available"));
+    autoUpdater.on("checking-for-update", () => {
+      console.log("[Update] Checking for update...");
+      sendUpdateStatus("checking-for-update");
+    });
+    autoUpdater.on("update-available", () => {
+      console.log("[Update] Update available!");
+      sendUpdateStatus("update-available");
+    });
+    autoUpdater.on("update-not-available", () => {
+      console.log("[Update] Update not available.");
+      sendUpdateStatus("update-not-available");
+    });
 
     autoUpdater.on("update-downloaded", (event, releaseNotes, releaseName) => {
+      console.log("[Update] Update downloaded:", releaseName);
       sendUpdateStatus("update-downloaded");
 
       const dialogOpts: Electron.MessageBoxOptions = {
@@ -122,7 +137,7 @@ app.whenReady().then(async () => {
 
     autoUpdater.on("error", (message) => {
       sendUpdateStatus("error");
-      console.error("There was a problem updating the application", message);
+      console.error("[Update] There was a problem updating the application:", message);
     });
   }
 
