@@ -26,13 +26,15 @@
     "@pipelab/asset-discord": "1.0.0",
     "@pipelab/asset-electron": "1.0.0",
     "@pipelab/asset-netlify": "1.0.0",
-    "@pipelab/asset-tauri": "1.0.0"
+    "@pipelab/asset-tauri": "1.0.0",
+    "@pipelab/test-utils": "1.0.0"
   },
   "changesets": [
     "curly-planets-move",
     "dull-states-smoke",
     "every-cars-speak",
     "floppy-icons-study",
+    "funky-ears-open",
     "humble-moons-grow",
     "light-lemons-call",
     "orange-pans-arrive",
