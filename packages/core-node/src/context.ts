@@ -4,7 +4,11 @@ import { fileURLToPath } from "node:url";
 import { existsSync } from "node:fs";
 
 const _dirname =
-  typeof __dirname !== "undefined" ? __dirname : dirname(fileURLToPath(import.meta.url));
+  typeof __dirname !== "undefined"
+    ? __dirname
+    : typeof import.meta !== "undefined" && import.meta.url
+      ? dirname(fileURLToPath(import.meta.url))
+      : process.cwd();
 
 export const isDev = process.env.NODE_ENV === "development";
 

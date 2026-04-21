@@ -6,8 +6,8 @@ import { electronApp, optimizer, is } from "@electron-toolkit/utils";
 import { startServer, stopServer } from "./main/server-process";
 import { websocketPort, uiDevPort } from "@pipelab/constants";
 import { registerIpcHandlers } from "./main/ipc-handlers";
+import started from 'electron-squirrel-startup';
 
-// __dirname is available globally in the CJS bundle
 
 if (is.dev) {
   app.setPath("userData", app.getPath("userData") + "-dev");
@@ -21,7 +21,7 @@ function getIconPath() {
 }
 
 if (process.platform === "win32" && process.env.TEST !== "true" && app.isPackaged) {
-  if (require("electron-squirrel-startup")) {
+  if (started) {
     app.quit();
   }
 }
@@ -37,9 +37,9 @@ function createWindow(): void {
   const position =
     externalDisplay && is.dev
       ? {
-          x: externalDisplay.bounds.x + 50,
-          y: externalDisplay.bounds.y + 50,
-        }
+        x: externalDisplay.bounds.x + 50,
+        y: externalDisplay.bounds.y + 50,
+      }
       : {};
 
   mainWindow = new BrowserWindow({
