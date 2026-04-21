@@ -50,6 +50,10 @@ export default defineConfig((env) => {
           "bufferutil",
           "utf-8-validate",
         ],
+        output: {
+          banner:
+            'import { createRequire } from "node:module"; const require = createRequire(import.meta.url);',
+        },
       },
     },
     plugins,

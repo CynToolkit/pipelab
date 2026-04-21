@@ -1,5 +1,5 @@
 {
-  "extends": "../../packages/tsconfig/commonjs.json",
+  "extends": "@pipelab/tsconfig/commonjs.json",
   "compilerOptions": {
     "emitDeclarationOnly": true,
     "baseUrl": ".",
@@ -7,7 +7,6 @@
     "inlineSourceMap": true,
     "paths": {
       "@pipelab/shared": ["../../packages/shared/src/index.ts"],
-      "@pipelab/plugin-core": ["../../plugins/plugin-core/src/index.ts"],
       "@pipelab/constants": ["../../packages/constants/src/index.ts"],
       "@pipelab/migration": ["../../packages/migration/src"],
       "@pipelab/*": ["../../packages/shared/src/libs/*"]
@@ -28,9 +27,6 @@
     },
     {
       "path": "../../packages/shared"
-    },
-    {
-      "path": "../../plugins/plugin-core"
     }
   ]
 }

@@ -1,5 +1,7 @@
 # @pipelab/cli
 
+## 2.0.1-beta.8
+
 ## 2.0.1-beta.7
 
 ### Patch Changes

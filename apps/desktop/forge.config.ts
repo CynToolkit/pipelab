@@ -6,7 +6,7 @@ import { FusesPlugin } from "@electron-forge/plugin-fuses";
 import { MakerDMG } from "@electron-forge/maker-dmg";
 import { FuseV1Options, FuseVersion } from "@electron/fuses";
 import { name } from "@pipelab/constants";
-import fs from "fs-extra";
+import fs from "node:fs/promises";
 import path from "path";
 import { fileURLToPath } from "node:url";
 
@@ -19,11 +19,17 @@ const getStandardOs = (p: string) => ({ win32: "win", darwin: "macos", linux: "l
  * Renames Forge-generated installers in /out/make.
  */
 async function renameInstallers(platform: string, arch: string) {
-  const { version } = await fs.readJson(path.join(__dirname, "package.json"));
+  const pkgPath = path.join(__dirname, "package.json");
+  const { version } = JSON.parse(await fs.readFile(pkgPath, "utf-8"));
   const os = getStandardOs(platform);
   const makeDir = path.join(__dirname, "out/make");
 
-  if (!(await fs.pathExists(makeDir))) return;
+  const exists = await fs
+    .access(makeDir)
+    .then(() => true)
+    .catch(() => false);
+  if (!exists) return;
+
   const files = await fs.readdir(makeDir, { recursive: true });
 
   for (const relFile of files) {

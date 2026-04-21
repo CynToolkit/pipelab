@@ -13,22 +13,13 @@
   "changelog": "@changesets/changelog-git",
   "commit": false,
   "access": "public",
-  "fixed": [["@pipelab/app", "@pipelab/ui", "@pipelab/cli"]],
+  "fixed": [
+    [
+      "@pipelab/ui",
+      "@pipelab/cli"
+    ]
+  ],
   "linked": [],
   "baseBranch": "main",
-  "updateInternalDependencies": "patch",
-  "ignore": [
-    "@pipelab/plugin-construct",
-    "@pipelab/plugin-discord",
-    "@pipelab/plugin-electron",
-    "@pipelab/plugin-filesystem",
-    "@pipelab/plugin-itch",
-    "@pipelab/plugin-minify",
-    "@pipelab/plugin-netlify",
-    "@pipelab/plugin-nvpatch",
-    "@pipelab/plugin-poki",
-    "@pipelab/plugin-steam",
-    "@pipelab/plugin-system",
-    "@pipelab/plugin-tauri"
-  ]
+  "updateInternalDependencies": "patch"
 }

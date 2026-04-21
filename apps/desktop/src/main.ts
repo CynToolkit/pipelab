@@ -4,7 +4,6 @@ import { fileURLToPath } from "node:url";
 import { platform } from "node:os";
 import { electronApp, optimizer, is } from "@electron-toolkit/utils";
 import { startServer, stopServer } from "./main/server-process";
-import { createRequire } from "node:module";
 import { websocketPort, uiDevPort } from "@pipelab/constants";
 import { registerIpcHandlers } from "./main/ipc-handlers";
 
@@ -22,7 +21,6 @@ function getIconPath() {
 }
 
 if (process.platform === "win32" && process.env.TEST !== "true" && app.isPackaged) {
-  const require = createRequire(import.meta.url);
   if (require("electron-squirrel-startup")) {
     app.quit();
   }
