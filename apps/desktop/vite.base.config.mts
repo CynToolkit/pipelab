@@ -7,9 +7,6 @@ export const builtins = ["electron", ...builtinModules.map((m) => [m, `node:${m}
 
 export const external = [
   ...builtins,
-  "chromium-bidi/lib/cjs/bidiMapper/BidiMapper",
-  "chromium-bidi/lib/cjs/cdp/CdpConnection",
-  "readable-stream/passthrough",
   ...Object.keys("dependencies" in pkg ? (pkg.dependencies as Record<string, unknown>) : {}),
 ];
 
