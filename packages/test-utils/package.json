@@ -1,6 +1,6 @@
 {
   "name": "@pipelab/test-utils",
-  "version": "1.0.1-beta.0",
+  "version": "1.0.1-beta.1",
   "private": true,
   "license": "FSL-1.1-MIT",
   "type": "module",

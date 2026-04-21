@@ -1,6 +1,6 @@
 {
   "name": "@pipelab/plugin-netlify",
-  "version": "1.0.1-beta.0",
+  "version": "1.0.1-beta.1",
   "license": "FSL-1.1-MIT",
   "type": "module",
   "main": "./src/index.ts",
