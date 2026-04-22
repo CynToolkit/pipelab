@@ -1,5 +1,7 @@
 # @pipelab/ui
 
+## 2.0.1-beta.16
+
 ## 2.0.1-beta.15
 
 ### Patch Changes

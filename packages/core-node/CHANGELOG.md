@@ -1,5 +1,11 @@
 # @pipelab/core-node
 
+## 1.0.1-beta.17
+
+### Patch Changes
+
+- qs
+
 ## 1.0.1-beta.16
 
 ### Patch Changes
