@@ -45,7 +45,8 @@ export default defineConfig((env) => {
           ...external.filter((dep) => {
             const isPipelab = dep.startsWith("@pipelab/");
             const isElectronToolkit = dep.startsWith("@electron-toolkit/");
-            return !isPipelab && !isElectronToolkit;
+            const isSquirrel = dep === "electron-squirrel-startup";
+            return !isPipelab && !isElectronToolkit && !isSquirrel;
           }),
           "bufferutil",
           "utf-8-validate",
