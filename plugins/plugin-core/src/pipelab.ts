@@ -40,7 +40,16 @@ export type ActionRunnerData<ACTION extends Action> = {
     thirdparty: string;
   };
   api: {
-    fetchAsset: (packageName: string, version?: string) => Promise<string>;
+    fetchAsset: (
+      packageName: string,
+      version?: string,
+      options?: { installDeps?: boolean },
+    ) => Promise<string>;
+    fetchPlugin: (
+      pluginName: string,
+      version?: string,
+      options?: { installDeps?: boolean },
+    ) => Promise<string>;
     [key: string]: any;
   };
   browserWindow: BrowserWindow;

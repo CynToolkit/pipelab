@@ -1,5 +1,11 @@
 # @pipelab/plugin-core
 
+## 1.0.1-beta.13
+
+### Patch Changes
+
+- update
+
 ## 1.0.1-beta.12
 
 ### Patch Changes

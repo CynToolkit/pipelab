@@ -1,6 +1,6 @@
 {
   "name": "@pipelab/core-node",
-  "version": "1.0.1-beta.14",
+  "version": "1.0.1-beta.15",
   "private": true,
   "license": "FSL-1.1-MIT",
   "type": "module",
@@ -19,6 +19,7 @@
     "@pipelab/shared": "workspace:*",
     "adm-zip": "0.5.16",
     "es-toolkit": "1.25.2",
+    "execa": "9.5.2",
     "nanoid": "5.0.7",
     "pacote": "21.5.0",
     "semver": "^7.7.4",

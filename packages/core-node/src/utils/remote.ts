@@ -1,9 +1,17 @@
-import { join } from "node:path";
+import { dirname, delimiter, join } from "node:path";
 import { mkdir, readdir } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import pacote from "pacote";
 import semver from "semver";
 import { isDev, projectRoot, userDataPath } from "../context";
+
+import { execa } from "execa";
+
+type FetchOptions = {
+  installDeps?: boolean;
+  nodePath?: string;
+  pnpmPath?: string;
+};
 
 /**
  * Internal helper to fetch, cache, and resolve a Pipelab package from npm.
@@ -11,6 +19,7 @@ import { isDev, projectRoot, userDataPath } from "../context";
 async function fetchPipelabPackage(
   packageName: string,
   versionOrRange: string | undefined,
+  options?: FetchOptions,
 ): Promise<{ packageDir: string; resolvedVersion: string }> {
   const baseDir = join(userDataPath, "packages", packageName);
   let resolvedVersion: string;
@@ -42,6 +51,37 @@ async function fetchPipelabPackage(
     console.log(`Downloading ${packageName}@${resolvedVersion} from npm...`);
     await mkdir(packageDir, { recursive: true });
     await pacote.extract(`${packageName}@${resolvedVersion}`, packageDir);
+
+    if (options?.installDeps) {
+      console.log(`[Fetcher] ${packageName}: Installing dependencies...`);
+      try {
+        const nodePath = options.nodePath || "node";
+        const pnpmPath = options.pnpmPath || "pnpm";
+
+        // Use node to run pnpm if pnpmPath is a script
+        const isScript = pnpmPath.endsWith(".cjs") || pnpmPath.endsWith(".js");
+        const command = isScript ? nodePath : pnpmPath;
+        const args = isScript
+          ? [pnpmPath, "install", "--prod", "--no-lockfile"]
+          : ["install", "--prod", "--no-lockfile"];
+
+        await execa(command, args, {
+          cwd: packageDir,
+          stdio: "inherit",
+          env: {
+            ...process.env,
+            NODE_ENV: "production",
+            PATH: options.nodePath
+              ? `${dirname(options.nodePath)}${delimiter}${process.env.PATH}`
+              : process.env.PATH,
+          },
+        });
+      } catch (err: any) {
+        console.error(`[Fetcher] ${packageName}: Failed to install dependencies: ${err.message}`);
+        // We don't throw here to allow trying to run even with missing deps, 
+        // though it will likely fail later.
+      }
+    }
   }
 
   return { packageDir, resolvedVersion };
@@ -54,6 +94,7 @@ async function fetchPipelabPackage(
 export async function fetchPipelabAsset(
   packageName: string,
   versionOrRange?: string,
+  options?: FetchOptions,
 ): Promise<string> {
   if (isDev && projectRoot) {
     const assetId = packageName.replace("@pipelab/asset-", "");
@@ -62,7 +103,7 @@ export async function fetchPipelabAsset(
       return localPath;
     }
   }
-  const { packageDir } = await fetchPipelabPackage(packageName, versionOrRange);
+  const { packageDir } = await fetchPipelabPackage(packageName, versionOrRange, options);
   return packageDir;
 }
 
@@ -73,8 +114,12 @@ export async function fetchPipelabAsset(
 export async function fetchPipelabPlugin(
   pluginName: string,
   versionOrRange?: string,
+  options?: FetchOptions,
 ): Promise<string> {
-  const { packageDir } = await fetchPipelabPackage(pluginName, versionOrRange);
+  const { packageDir } = await fetchPipelabPackage(pluginName, versionOrRange, {
+    installDeps: true, // Default to true for plugins
+    ...options,
+  });
   return packageDir;
 }
 
@@ -83,12 +128,14 @@ export async function fetchPipelabPlugin(
  * Respects userDataPath/packages.
  * @returns The absolute path to the CLI entry point (dist/index.cjs).
  */
-export async function fetchPipelabCli(versionOrRange?: string): Promise<string> {
+export async function fetchPipelabCli(
+  versionOrRange?: string,
+  options?: FetchOptions,
+): Promise<string> {
   const packageName = "@pipelab/cli";
-  const { packageDir } = await fetchPipelabPackage(packageName, versionOrRange);
+  const { packageDir } = await fetchPipelabPackage(packageName, versionOrRange, options);
   return join(packageDir, "dist", "index.mjs");
 }
-
 /**
  * Finds the latest semver-like version in a directory.
  */

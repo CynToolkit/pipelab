@@ -1,5 +1,12 @@
 # @pipelab/plugin-construct
 
+## 1.0.1-beta.8
+
+### Patch Changes
+
+- Updated dependencies
+  - @pipelab/plugin-core@1.0.1-beta.13
+
 ## 1.0.1-beta.7
 
 ### Patch Changes

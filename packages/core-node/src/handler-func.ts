@@ -160,11 +160,27 @@ export const handleActionExecute = async (
 
   const outputs: Record<string, unknown> = {};
   const api: any = {
-    fetchAsset: async (packageName: string, versionOrRange?: string) => {
-      return fetchPipelabAsset(packageName, versionOrRange);
+    fetchAsset: async (
+      packageName: string,
+      versionOrRange?: string,
+      options?: { installDeps?: boolean },
+    ) => {
+      return fetchPipelabAsset(packageName, versionOrRange, {
+        nodePath,
+        pnpmPath: pnpm,
+        ...options,
+      });
     },
-    fetchPlugin: async (pluginName: string, versionOrRange?: string) => {
-      return fetchPipelabPlugin(pluginName, versionOrRange);
+    fetchPlugin: async (
+      pluginName: string,
+      versionOrRange?: string,
+      options?: { installDeps?: boolean },
+    ) => {
+      return fetchPipelabPlugin(pluginName, versionOrRange, {
+        nodePath,
+        pnpmPath: pnpm,
+        ...options,
+      });
     },
   };
 
