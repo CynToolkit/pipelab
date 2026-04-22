@@ -1,8 +1,12 @@
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import { dirname, join, resolve } from "node:path";
 import { execa } from "execa";
 
-const root = resolve(process.cwd());
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const root = resolve(__dirname, "..");
+
 const uiPackageJsonPath = join(root, "apps", "ui", "package.json");
 let uiDistDir = join(root, "apps", "ui", "dist");
 
@@ -14,6 +18,13 @@ if (!existsSync(uiDistDir) && existsSync(ciDistDir)) {
 }
 
 async function main() {
+  try {
+    const { stdout: whoami } = await execa("npm", ["whoami"]);
+    console.log(`Currently logged in as: ${whoami}`);
+  } catch (err) {
+    console.warn("Could not determine current npm user. Make sure you are logged in.");
+  }
+
   console.log("Reading UI package.json...");
   const uiPackageJson = JSON.parse(readFileSync(uiPackageJsonPath, "utf-8"));
   const { version, license, author, repository } = uiPackageJson;
@@ -31,6 +42,7 @@ async function main() {
     type: "module",
     publishConfig: {
       access: "public",
+      registry: "https://registry.npmjs.org/",
     },
     dependencies: {}, // Self-contained
   };
@@ -44,9 +56,9 @@ async function main() {
   writeFileSync(outputPath, JSON.stringify(dynamicPackageJson, null, 2));
 
   console.log("Publishing to npm...");
-  
+
   // Handle prerelease tags (e.g. 2.0.1-beta.12 -> tag: beta)
-  const args = ["publish", "--access", "public", "--no-git-checks"];
+  const args = ["publish", "--access", "public"];
   const prereleaseMatch = version.match(/-(.*)\./);
   if (prereleaseMatch && prereleaseMatch[1]) {
     const tag = prereleaseMatch[1];
@@ -55,16 +67,17 @@ async function main() {
   }
 
   try {
-    const { stdout } = await execa("pnpm", args, {
+    // Using standard npm for the publish as it sometimes handles scoped paths more reliably
+    await execa("npm", args, {
       cwd: uiDistDir,
+      stdio: "inherit",
     });
-    console.log(stdout);
     console.log("Successfully published @pipelab/ui!");
   } catch (error) {
     console.error("Failed to publish @pipelab/ui:");
     console.error(error.message);
     if (process.env.CI) {
-        process.exit(1);
+      process.exit(1);
     }
   }
 }
