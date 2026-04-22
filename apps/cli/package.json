@@ -1,6 +1,6 @@
 {
   "name": "@pipelab/cli",
-  "version": "2.0.1-beta.11",
+  "version": "2.0.1-beta.12",
   "description": "The command line interface for Pipelab",
   "license": "FSL-1.1-MIT",
   "author": "CynToolkit",
