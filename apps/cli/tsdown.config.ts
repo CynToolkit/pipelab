@@ -19,6 +19,6 @@ export default defineConfig({
   envFile: existsSync(envFile) ? envFile : undefined,
   envPrefix: ["SUPABASE_", "POSTHOG_", "NODE_ENV"],
   deps: {
-    alwaysBundle: [/^@pipelab\/.*/],
+    alwaysBundle: [/.*/],
   },
 });

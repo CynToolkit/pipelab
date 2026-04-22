@@ -76,3 +76,4 @@ The project uses `pnpm` as its package manager and Turborepo for task orchestrat
 - Do not read docs from packages irectly, use context7 mcp
 - Prefer your native file read tools over cat command
 - Do not grep unless strictly necessary
+- Use pnpm instead of npm

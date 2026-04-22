@@ -62,7 +62,7 @@ importers:
         version: 3.1.4(@types/node@24.12.2)(jiti@2.6.1)(lightningcss@1.32.0)(msw@2.7.5(@types/node@24.12.2)(typescript@5.9.3))(sass-embedded@1.99.0)(sass@1.99.0)(terser@5.46.1)(tsx@4.19.1)
 
   apps/cli:
-    dependencies:
+    devDependencies:
       '@pipelab/constants':
         specifier: workspace:*
         version: link:../../packages/constants
@@ -72,34 +72,33 @@ importers:
       '@pipelab/shared':
         specifier: workspace:*
         version: link:../../packages/shared
-      '@sentry/node':
-        specifier: 8.34.0
-        version: 8.34.0
-      cac:
-        specifier: 6.7.14
-        version: 6.7.14
-      execa:
-        specifier: 9.5.1
-        version: 9.5.1
-      serve-handler:
-        specifier: 6.1.7
-        version: 6.1.7
-    devDependencies:
       '@pipelab/test-utils':
         specifier: workspace:*
         version: link:../../packages/test-utils
       '@pipelab/tsconfig':
         specifier: workspace:*
         version: link:../../packages/tsconfig
+      '@sentry/node':
+        specifier: 8.34.0
+        version: 8.34.0
       '@types/node':
         specifier: 24.12.2
         version: 24.12.2
+      cac:
+        specifier: 6.7.14
+        version: 6.7.14
       cross-env:
         specifier: 7.0.3
         version: 7.0.3
+      execa:
+        specifier: 9.5.1
+        version: 9.5.1
       nanoid:
         specifier: 5.0.8
         version: 5.0.8
+      serve-handler:
+        specifier: 6.1.7
+        version: 6.1.7
       tsdown:
         specifier: 0.21.2
         version: 0.21.2(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)(@vitejs/devtools@0.1.13)(publint@0.3.18)(typescript@5.9.3)
@@ -598,7 +597,7 @@ importers:
         version: 24.12.2
       tsdown:
         specifier: 0.21.2
-        version: 0.21.2(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)(@vitejs/devtools@0.1.13)(publint@0.3.18)(typescript@5.9.3)
+        version: 0.21.2(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)(@vitejs/devtools@0.1.13(@pnpm/logger@1001.0.1)(typescript@5.9.3)(vite@6.3.3(@types/node@24.12.2)(jiti@2.6.1)(lightningcss@1.32.0)(sass-embedded@1.99.0)(sass@1.99.0)(terser@5.46.1)(tsx@4.19.1)))(publint@0.3.18)(typescript@5.9.3)
       typescript:
         specifier: 5.9.3
         version: 5.9.3
@@ -11224,6 +11223,17 @@ snapshots:
       - typescript
       - ws
 
+  '@vitejs/devtools-kit@0.1.13(typescript@5.9.3)(vite@6.3.3(@types/node@24.12.2)(jiti@2.6.1)(lightningcss@1.32.0)(sass-embedded@1.99.0)(sass@1.99.0)(terser@5.46.1)(tsx@4.19.1))(ws@8.20.0)':
+    dependencies:
+      '@vitejs/devtools-rpc': 0.1.13(typescript@5.9.3)(ws@8.20.0)
+      birpc: 4.0.0
+      ohash: 2.0.11
+      vite: 6.3.3(@types/node@24.12.2)(jiti@2.6.1)(lightningcss@1.32.0)(sass-embedded@1.99.0)(sass@1.99.0)(terser@5.46.1)(tsx@4.19.1)
+    transitivePeerDependencies:
+      - typescript
+      - ws
+    optional: true
+
   '@vitejs/devtools-kit@0.1.13(typescript@5.9.3)(vite@8.0.8)(ws@8.20.0)':
     dependencies:
       '@vitejs/devtools-rpc': 0.1.13(typescript@5.9.3)(ws@8.20.0)
@@ -11289,6 +11299,62 @@ snapshots:
       - utf-8-validate
       - vite
       - vue
+
+  '@vitejs/devtools-rolldown@0.1.13(@pnpm/logger@1001.0.1)(typescript@5.9.3)(vite@6.3.3(@types/node@24.12.2)(jiti@2.6.1)(lightningcss@1.32.0)(sass-embedded@1.99.0)(sass@1.99.0)(terser@5.46.1)(tsx@4.19.1))(vue@3.5.32(typescript@5.9.3))':
+    dependencies:
+      '@floating-ui/dom': 1.7.6
+      '@pnpm/read-project-manifest': 1001.2.6(@pnpm/logger@1001.0.1)
+      '@rolldown/debug': 1.0.0-rc.15
+      '@vitejs/devtools-kit': 0.1.13(typescript@5.9.3)(vite@6.3.3(@types/node@24.12.2)(jiti@2.6.1)(lightningcss@1.32.0)(sass-embedded@1.99.0)(sass@1.99.0)(terser@5.46.1)(tsx@4.19.1))(ws@8.20.0)
+      '@vitejs/devtools-rpc': 0.1.13(typescript@5.9.3)(ws@8.20.0)
+      ansis: 4.2.0
+      birpc: 4.0.0
+      cac: 7.0.0
+      d3-shape: 3.2.0
+      diff: 8.0.4
+      get-port-please: 3.2.0
+      h3: 1.15.11
+      mlly: 1.8.2
+      mrmime: 2.0.1
+      ohash: 2.0.11
+      p-limit: 7.3.0
+      pathe: 2.0.3
+      publint: 0.3.18
+      sirv: 3.0.2
+      split2: 4.2.0
+      structured-clone-es: 2.0.0
+      tinyglobby: 0.2.16
+      unconfig: 7.5.0
+      unstorage: 1.17.5
+      vue-virtual-scroller: 2.0.1(vue@3.5.32(typescript@5.9.3))
+      ws: 8.20.0
+    transitivePeerDependencies:
+      - '@azure/app-configuration'
+      - '@azure/cosmos'
+      - '@azure/data-tables'
+      - '@azure/identity'
+      - '@azure/keyvault-secrets'
+      - '@azure/storage-blob'
+      - '@capacitor/preferences'
+      - '@deno/kv'
+      - '@netlify/blobs'
+      - '@planetscale/database'
+      - '@pnpm/logger'
+      - '@upstash/redis'
+      - '@vercel/blob'
+      - '@vercel/functions'
+      - '@vercel/kv'
+      - aws4fetch
+      - bufferutil
+      - db0
+      - idb-keyval
+      - ioredis
+      - typescript
+      - uploadthing
+      - utf-8-validate
+      - vite
+      - vue
+    optional: true
 
   '@vitejs/devtools-rolldown@0.1.13(@pnpm/logger@1001.0.1)(typescript@5.9.3)(vite@8.0.8)(vue@3.5.32(typescript@5.9.3))':
     dependencies:
@@ -11415,6 +11481,52 @@ snapshots:
       - typescript
       - uploadthing
       - utf-8-validate
+
+  '@vitejs/devtools@0.1.13(@pnpm/logger@1001.0.1)(typescript@5.9.3)(vite@6.3.3(@types/node@24.12.2)(jiti@2.6.1)(lightningcss@1.32.0)(sass-embedded@1.99.0)(sass@1.99.0)(terser@5.46.1)(tsx@4.19.1))':
+    dependencies:
+      '@vitejs/devtools-kit': 0.1.13(typescript@5.9.3)(vite@6.3.3(@types/node@24.12.2)(jiti@2.6.1)(lightningcss@1.32.0)(sass-embedded@1.99.0)(sass@1.99.0)(terser@5.46.1)(tsx@4.19.1))(ws@8.20.0)
+      '@vitejs/devtools-rolldown': 0.1.13(@pnpm/logger@1001.0.1)(typescript@5.9.3)(vite@6.3.3(@types/node@24.12.2)(jiti@2.6.1)(lightningcss@1.32.0)(sass-embedded@1.99.0)(sass@1.99.0)(terser@5.46.1)(tsx@4.19.1))(vue@3.5.32(typescript@5.9.3))
+      '@vitejs/devtools-rpc': 0.1.13(typescript@5.9.3)(ws@8.20.0)
+      birpc: 4.0.0
+      cac: 7.0.0
+      h3: 1.15.11
+      immer: 11.1.4
+      launch-editor: 2.13.2
+      mlly: 1.8.2
+      obug: 2.1.1
+      open: 11.0.0
+      pathe: 2.0.3
+      perfect-debounce: 2.1.0
+      sirv: 3.0.2
+      tinyexec: 1.1.1
+      vite: 6.3.3(@types/node@24.12.2)(jiti@2.6.1)(lightningcss@1.32.0)(sass-embedded@1.99.0)(sass@1.99.0)(terser@5.46.1)(tsx@4.19.1)
+      vue: 3.5.32(typescript@5.9.3)
+      ws: 8.20.0
+    transitivePeerDependencies:
+      - '@azure/app-configuration'
+      - '@azure/cosmos'
+      - '@azure/data-tables'
+      - '@azure/identity'
+      - '@azure/keyvault-secrets'
+      - '@azure/storage-blob'
+      - '@capacitor/preferences'
+      - '@deno/kv'
+      - '@netlify/blobs'
+      - '@planetscale/database'
+      - '@pnpm/logger'
+      - '@upstash/redis'
+      - '@vercel/blob'
+      - '@vercel/functions'
+      - '@vercel/kv'
+      - aws4fetch
+      - bufferutil
+      - db0
+      - idb-keyval
+      - ioredis
+      - typescript
+      - uploadthing
+      - utf-8-validate
+    optional: true
 
   '@vitejs/devtools@0.1.13(@pnpm/logger@1001.0.1)(typescript@5.9.3)(vite@8.0.8)':
     dependencies:
@@ -15292,6 +15404,37 @@ snapshots:
   tsconfck@3.1.6(typescript@5.8.3):
     optionalDependencies:
       typescript: 5.8.3
+
+  tsdown@0.21.2(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)(@vitejs/devtools@0.1.13(@pnpm/logger@1001.0.1)(typescript@5.9.3)(vite@6.3.3(@types/node@24.12.2)(jiti@2.6.1)(lightningcss@1.32.0)(sass-embedded@1.99.0)(sass@1.99.0)(terser@5.46.1)(tsx@4.19.1)))(publint@0.3.18)(typescript@5.9.3):
+    dependencies:
+      ansis: 4.2.0
+      cac: 7.0.0
+      defu: 6.1.7
+      empathic: 2.0.0
+      hookable: 6.1.0
+      import-without-cache: 0.2.5
+      obug: 2.1.1
+      picomatch: 4.0.4
+      rolldown: 1.0.0-rc.9(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)
+      rolldown-plugin-dts: 0.22.5(rolldown@1.0.0-rc.9(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2))(typescript@5.9.3)
+      semver: 7.7.4
+      tinyexec: 1.1.1
+      tinyglobby: 0.2.16
+      tree-kill: 1.2.2
+      unconfig-core: 7.5.0
+      unrun: 0.2.35
+    optionalDependencies:
+      '@vitejs/devtools': 0.1.13(@pnpm/logger@1001.0.1)(typescript@5.9.3)(vite@6.3.3(@types/node@24.12.2)(jiti@2.6.1)(lightningcss@1.32.0)(sass-embedded@1.99.0)(sass@1.99.0)(terser@5.46.1)(tsx@4.19.1))
+      publint: 0.3.18
+      typescript: 5.9.3
+    transitivePeerDependencies:
+      - '@emnapi/core'
+      - '@emnapi/runtime'
+      - '@ts-macro/tsc'
+      - '@typescript/native-preview'
+      - oxc-resolver
+      - synckit
+      - vue-tsc
 
   tsdown@0.21.2(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)(@vitejs/devtools@0.1.13)(publint@0.3.18)(typescript@5.9.3):
     dependencies:

@@ -31,21 +31,19 @@
     "lint": "oxlint .",
     "typecheck": "tsc --noEmit -p tsconfig.json --composite false"
   },
-  "dependencies": {
+  "devDependencies": {
     "@pipelab/constants": "workspace:*",
     "@pipelab/core-node": "workspace:*",
     "@pipelab/shared": "workspace:*",
-    "@sentry/node": "8.34.0",
-    "cac": "6.7.14",
-    "execa": "9.5.1",
-    "serve-handler": "6.1.7"
-  },
-  "devDependencies": {
     "@pipelab/test-utils": "workspace:*",
     "@pipelab/tsconfig": "workspace:*",
+    "@sentry/node": "8.34.0",
     "@types/node": "24.12.2",
+    "cac": "6.7.14",
     "cross-env": "7.0.3",
+    "execa": "9.5.1",
     "nanoid": "5.0.8",
+    "serve-handler": "6.1.7",
     "tsdown": "0.21.2",
     "typescript": "^5.0.0",
     "vitest": "3.1.4"
