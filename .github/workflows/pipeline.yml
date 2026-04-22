@@ -441,7 +441,14 @@ jobs:
 
       - name: Publish @pipelab/ui dynamically
         if: needs.release.outputs.published == 'true' || github.event_name == 'workflow_dispatch'
-        run: node scripts/publish-ui.mjs
+        run: node scripts/publish-app.mjs ui
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish @pipelab/cli dynamically
+        if: needs.release.outputs.published == 'true' || github.event_name == 'workflow_dispatch'
+        run: node scripts/publish-app.mjs cli
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}

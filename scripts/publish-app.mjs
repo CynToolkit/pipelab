@@ -3,18 +3,29 @@ import { fileURLToPath } from "node:url";
 import { dirname, join, resolve } from "node:path";
 import { execa } from "execa";
 
+const appName = process.argv[2];
+if (!appName) {
+  console.error("Please provide the app name to publish (e.g. ui, cli)");
+  process.exit(1);
+}
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const root = resolve(__dirname, "..");
 
-const uiPackageJsonPath = join(root, "apps", "ui", "package.json");
-let uiDistDir = join(root, "apps", "ui", "dist");
+const appPackageJsonPath = join(root, "apps", appName, "package.json");
+let appDistDir = join(root, "apps", appName, "dist");
 
 // In CI, artifacts are downloaded to the "artifacts" directory
-const ciDistDir = join(root, "artifacts", "monorepo-dist", "apps", "ui", "dist");
-if (!existsSync(uiDistDir) && existsSync(ciDistDir)) {
+const ciDistDir = join(root, "artifacts", "monorepo-dist", "apps", appName, "dist");
+if (!existsSync(appDistDir) && existsSync(ciDistDir)) {
   console.log(`Detected CI artifact directory at ${ciDistDir}`);
-  uiDistDir = ciDistDir;
+  appDistDir = ciDistDir;
+}
+
+if (!existsSync(appPackageJsonPath)) {
+  console.error(`Package.json not found for app: ${appName} at ${appPackageJsonPath}`);
+  process.exit(1);
 }
 
 async function main() {
@@ -25,16 +36,16 @@ async function main() {
     console.warn("Could not determine current npm user. Make sure you are logged in.");
   }
 
-  console.log("Reading UI package.json...");
-  const uiPackageJson = JSON.parse(readFileSync(uiPackageJsonPath, "utf-8"));
-  const { version, license, author, repository } = uiPackageJson;
+  console.log(`Reading ${appName} package.json...`);
+  const appPackageJson = JSON.parse(readFileSync(appPackageJsonPath, "utf-8"));
+  const { version, license, author, repository, description } = appPackageJson;
 
-  console.log(`Preparing @pipelab/ui v${version} for publishing...`);
+  console.log(`Preparing @pipelab/${appName} v${version} for publishing...`);
 
   const dynamicPackageJson = {
-    name: "@pipelab/ui",
+    name: `@pipelab/${appName}`,
     version,
-    description: "The UI assets for Pipelab",
+    description: description || `The ${appName} assets for Pipelab`,
     license,
     author,
     repository,
@@ -44,14 +55,20 @@ async function main() {
       access: "public",
       registry: "https://registry.npmjs.org/",
     },
+    ...(appName === "cli" ? {
+      bin: {
+        "pipelab": "./index.mjs",
+        "plab": "./index.mjs"
+      }
+    } : {}),
     dependencies: {}, // Self-contained
   };
 
-  const outputPath = join(uiDistDir, "package.json");
+  const outputPath = join(appDistDir, "package.json");
   console.log(`Writing dynamic package.json to ${outputPath}...`);
-  if (!existsSync(uiDistDir)) {
-    console.warn(`Warning: dist directory ${uiDistDir} not found, creating it...`);
-    mkdirSync(uiDistDir, { recursive: true });
+  if (!existsSync(appDistDir)) {
+    console.warn(`Warning: dist directory ${appDistDir} not found, creating it...`);
+    mkdirSync(appDistDir, { recursive: true });
   }
   writeFileSync(outputPath, JSON.stringify(dynamicPackageJson, null, 2));
 
@@ -69,12 +86,12 @@ async function main() {
   try {
     // Using standard npm for the publish as it sometimes handles scoped paths more reliably
     await execa("npm", args, {
-      cwd: uiDistDir,
+      cwd: appDistDir,
       stdio: "inherit",
     });
-    console.log("Successfully published @pipelab/ui!");
+    console.log(`Successfully published @pipelab/${appName}!`);
   } catch (error) {
-    console.error("Failed to publish @pipelab/ui:");
+    console.error(`Failed to publish @pipelab/${appName}:`);
     console.error(error.message);
     if (process.env.CI) {
       process.exit(1);
