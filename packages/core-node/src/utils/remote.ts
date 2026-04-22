@@ -24,6 +24,8 @@ async function fetchPipelabPackage(
   const baseDir = join(userDataPath, "packages", packageName);
   let resolvedVersion: string;
 
+  console.log(`[Fetcher] Resolving ${packageName}@${versionOrRange || "latest"}...`);
+
   try {
     // 1. Resolve version/range using npm
     const packument = await pacote.packument(packageName);
@@ -36,24 +38,35 @@ async function fetchPipelabPackage(
       throw new Error(`Package ${packageName}@${range} not found on npm`);
     }
     resolvedVersion = foundVersion;
+    console.log(`[Fetcher] ${packageName}: Resolved to v${resolvedVersion} via npm`);
   } catch (error) {
     console.warn(`[Fetcher] ${packageName}: remote resolution failed, trying local fallback...`);
     const fallbackVersion = await tryLocalFallback(versionOrRange, error, baseDir, packageName);
     if (fallbackVersion) {
       resolvedVersion = fallbackVersion;
+      console.log(`[Fetcher] ${packageName}: Using local fallback v${resolvedVersion}`);
     } else {
       throw error;
     }
   }
 
   const packageDir = join(baseDir, resolvedVersion);
-  if (!existsSync(packageDir)) {
-    console.log(`Downloading ${packageName}@${resolvedVersion} from npm...`);
+  const exists = existsSync(packageDir);
+
+  if (!exists) {
+    console.log(`[Fetcher] ${packageName}@${resolvedVersion}: Directory missing, downloading...`);
     await mkdir(packageDir, { recursive: true });
     await pacote.extract(`${packageName}@${resolvedVersion}`, packageDir);
+  } else {
+    console.log(`[Fetcher] ${packageName}@${resolvedVersion}: Directory exists at ${packageDir}`);
+  }
 
-    if (options?.installDeps) {
-      console.log(`[Fetcher] ${packageName}: Installing dependencies...`);
+  if (options?.installDeps) {
+    const nodeModulesPath = join(packageDir, "node_modules");
+    const hasNodeModules = existsSync(nodeModulesPath);
+
+    if (!hasNodeModules) {
+      console.log(`[Fetcher] ${packageName}: node_modules missing, triggering installation...`);
       try {
         const nodePath = options.nodePath || "node";
         const pnpmPath = options.pnpmPath || "pnpm";
@@ -64,6 +77,8 @@ async function fetchPipelabPackage(
         const args = isScript
           ? [pnpmPath, "install", "--prod", "--no-lockfile"]
           : ["install", "--prod", "--no-lockfile"];
+
+        console.log(`[Fetcher] ${packageName}: Running ${command} ${args.join(" ")}...`);
 
         await execa(command, args, {
           cwd: packageDir,
@@ -76,11 +91,12 @@ async function fetchPipelabPackage(
               : process.env.PATH,
           },
         });
+        console.log(`[Fetcher] ${packageName}: Dependencies installed successfully`);
       } catch (err: any) {
         console.error(`[Fetcher] ${packageName}: Failed to install dependencies: ${err.message}`);
-        // We don't throw here to allow trying to run even with missing deps, 
-        // though it will likely fail later.
       }
+    } else {
+      console.log(`[Fetcher] ${packageName}: node_modules already exists, skipping installation`);
     }
   }
 

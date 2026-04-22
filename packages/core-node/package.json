@@ -1,6 +1,6 @@
 {
   "name": "@pipelab/core-node",
-  "version": "1.0.1-beta.15",
+  "version": "1.0.1-beta.16",
   "private": true,
   "license": "FSL-1.1-MIT",
   "type": "module",

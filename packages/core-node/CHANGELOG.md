@@ -1,5 +1,11 @@
 # @pipelab/core-node
 
+## 1.0.1-beta.16
+
+### Patch Changes
+
+- fetching update
+
 ## 1.0.1-beta.15
 
 ### Patch Changes
