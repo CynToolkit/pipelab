@@ -1,5 +1,11 @@
 # @pipelab/asset-electron
 
+## 1.0.1-beta.15
+
+### Patch Changes
+
+- rfg
+
 ## 1.0.1-beta.14
 
 ### Patch Changes

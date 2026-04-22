@@ -1,5 +1,15 @@
 # @pipelab/core-node
 
+## 1.0.1-beta.13
+
+### Patch Changes
+
+- rfg
+- Updated dependencies
+  - @pipelab/plugin-core@1.0.1-beta.11
+  - @pipelab/constants@1.0.1-beta.12
+  - @pipelab/shared@2.0.1-beta.13
+
 ## 1.0.1-beta.12
 
 ### Patch Changes

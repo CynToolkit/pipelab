@@ -1,5 +1,11 @@
 # @pipelab/app
 
+## 2.0.1-beta.14
+
+### Patch Changes
+
+- rfg
+
 ## 2.0.1-beta.13
 
 ### Patch Changes

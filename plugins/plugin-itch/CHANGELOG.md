@@ -1,5 +1,13 @@
 # @pipelab/plugin-itch
 
+## 1.0.1-beta.6
+
+### Patch Changes
+
+- rfg
+- Updated dependencies
+  - @pipelab/plugin-core@1.0.1-beta.11
+
 ## 1.0.1-beta.5
 
 ### Patch Changes

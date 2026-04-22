@@ -1,5 +1,11 @@
 # @pipelab/tsconfig
 
+## 1.0.1-beta.12
+
+### Patch Changes
+
+- rfg
+
 ## 1.0.1-beta.11
 
 ### Patch Changes

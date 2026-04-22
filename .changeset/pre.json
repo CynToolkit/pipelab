@@ -30,6 +30,7 @@
     "@pipelab/test-utils": "1.0.0"
   },
   "changesets": [
+    "clear-lions-relax",
     "curly-planets-move",
     "dull-states-smoke",
     "eighty-poets-sell",

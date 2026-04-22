@@ -1,10 +1,17 @@
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { execa } from "execa";
 
 const root = resolve(process.cwd());
 const uiPackageJsonPath = join(root, "apps", "ui", "package.json");
-const uiDistDir = join(root, "apps", "ui", "dist");
+let uiDistDir = join(root, "apps", "ui", "dist");
+
+// In CI, artifacts are downloaded to the "artifacts" directory
+const ciDistDir = join(root, "artifacts", "monorepo-dist", "apps", "ui", "dist");
+if (!existsSync(uiDistDir) && existsSync(ciDistDir)) {
+  console.log(`Detected CI artifact directory at ${ciDistDir}`);
+  uiDistDir = ciDistDir;
+}
 
 async function main() {
   console.log("Reading UI package.json...");
@@ -30,6 +37,10 @@ async function main() {
 
   const outputPath = join(uiDistDir, "package.json");
   console.log(`Writing dynamic package.json to ${outputPath}...`);
+  if (!existsSync(uiDistDir)) {
+    console.warn(`Warning: dist directory ${uiDistDir} not found, creating it...`);
+    mkdirSync(uiDistDir, { recursive: true });
+  }
   writeFileSync(outputPath, JSON.stringify(dynamicPackageJson, null, 2));
 
   console.log("Publishing to npm...");
