@@ -35,12 +35,14 @@ export default defineConfig((env) => {
   const config: UserConfig = {
     build: {
       sourcemap: true,
-      lib: {
-        entry: forgeConfigSelf?.entry || "src/main.ts",
-        fileName: () => "[name].js",
-        formats: ["cjs"],
-      },
       rollupOptions: {
+        input: forgeConfigSelf?.entry || "src/main.ts",
+        output: {
+          format: "cjs",
+          entryFileNames: "[name].js",
+          chunkFileNames: "[name].js",
+          assetFileNames: "[name].[ext]",
+        },
         external: [
           ...external.filter((dep) => {
             const isPipelab = dep.startsWith("@pipelab/");
