@@ -68,8 +68,18 @@ async function fetchPipelabPackage(
     if (!hasNodeModules) {
       console.log(`[Fetcher] ${packageName}: node_modules missing, triggering installation...`);
       try {
-        const nodePath = options.nodePath || "node";
-        const pnpmPath = options.pnpmPath || "pnpm";
+        let nodePath = options.nodePath;
+        let pnpmPath = options.pnpmPath;
+
+        if (!nodePath || !pnpmPath) {
+          const { ensureNodeJS, ensurePNPM } = await import("./ensurers");
+          if (!nodePath) {
+            nodePath = await ensureNodeJS("24.14.1").catch(() => process.execPath);
+          }
+          if (!pnpmPath) {
+            pnpmPath = await ensurePNPM().catch(() => "pnpm");
+          }
+        }
 
         // Use node to run pnpm if pnpmPath is a script
         const isScript = pnpmPath.endsWith(".cjs") || pnpmPath.endsWith(".js");
@@ -78,22 +88,32 @@ async function fetchPipelabPackage(
           ? [pnpmPath, "install", "--prod", "--no-lockfile"]
           : ["install", "--prod", "--no-lockfile"];
 
-        console.log(`[Fetcher] ${packageName}: Running ${command} ${args.join(" ")}...`);
+        console.log(`[Fetcher] ${packageName}: Running installation...`);
+        console.log(`[Fetcher] ${packageName}: Command: ${command} ${args.join(" ")}`);
+        console.log(`[Fetcher] ${packageName}: CWD: ${packageDir}`);
 
-        await execa(command, args, {
+        const { all } = await execa(command, args, {
           cwd: packageDir,
-          stdio: "inherit",
+          all: true, // Capture both stdout and stderr
           env: {
             ...process.env,
             NODE_ENV: "production",
-            PATH: options.nodePath
-              ? `${dirname(options.nodePath)}${delimiter}${process.env.PATH}`
+            PATH: nodePath
+              ? `${dirname(nodePath)}${delimiter}${process.env.PATH}`
               : process.env.PATH,
           },
         });
+
+        if (all) {
+          console.log(`[Fetcher] ${packageName}: Installation output:\n${all}`);
+        }
+
         console.log(`[Fetcher] ${packageName}: Dependencies installed successfully`);
       } catch (err: any) {
         console.error(`[Fetcher] ${packageName}: Failed to install dependencies: ${err.message}`);
+        if (err.all) {
+          console.error(`[Fetcher] ${packageName}: Installation error output:\n${err.all}`);
+        }
       }
     } else {
       console.log(`[Fetcher] ${packageName}: node_modules already exists, skipping installation`);

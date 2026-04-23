@@ -9,7 +9,11 @@ import { registerSystemHandlers } from "./system";
 import { builtInPlugins } from "../plugins-registry";
 import { usePlugins } from "@pipelab/shared";
 
-export const registerAllHandlers = async (options: { version: string }) => {
+export const registerAllHandlers = async (options: {
+  version: string;
+  nodePath?: string;
+  pnpmPath?: string;
+}) => {
   registerShellHandlers();
   registerFsHandlers();
   registerConfigHandlers();
@@ -20,7 +24,10 @@ export const registerAllHandlers = async (options: { version: string }) => {
   registerSystemHandlers(options);
 
   const { registerPlugins } = usePlugins();
-  const plugins = await builtInPlugins();
+  const plugins = await builtInPlugins({
+    nodePath: options.nodePath,
+    pnpmPath: options.pnpmPath,
+  });
   registerPlugins(plugins as any);
 };
 

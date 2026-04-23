@@ -19,7 +19,7 @@ const DEFAULT_PLUGIN_IDS = [
   "netlify",
 ];
 
-export const builtInPlugins = async () => {
+export const builtInPlugins = async (options?: { nodePath?: string; pnpmPath?: string }) => {
   console.log("[Plugins] Finalizing default plugins list...");
   const promises = DEFAULT_PLUGIN_IDS.map(async (id) => {
     try {
@@ -44,15 +44,30 @@ export const builtInPlugins = async () => {
         }
       }
 
-      const pluginDir = await fetchPipelabPlugin(packageName);
+      const pluginDir = await fetchPipelabPlugin(packageName, undefined, {
+        nodePath: options?.nodePath,
+        pnpmPath: options?.pnpmPath,
+      });
       const pluginPath = join(pluginDir, "dist", "index.mjs");
       
-      // console.log(`[Plugins] [${id}] Importing from: ${pluginPath}`);
+      console.log(`[Plugins] [${id}] Attempting to import from: ${pluginPath}`);
+      if (!existsSync(pluginPath)) {
+        console.error(`[Plugins] [${id}] CRITICAL: Plugin entry point not found at ${pluginPath}`);
+        // Optionally list files in the directory to see what's there
+        try {
+          const files = await readdir(pluginDir, { recursive: true });
+          console.log(`[Plugins] [${id}] Directory contents:`, files);
+        } catch (e) {}
+      }
+
       pluginModule = await import(pathToFileURL(pluginPath).href);
       console.log(`[Plugins] [${id}] Successfully loaded from: ${pluginDir}`);
       return pluginModule.default;
-    } catch (e) {
+    } catch (e: any) {
       console.error(`[Plugins] [${id}] CRITICAL: Failed to load:`, e);
+      if (e.code === "ERR_MODULE_NOT_FOUND") {
+        console.error(`[Plugins] [${id}] This usually means a dependency is missing in the plugin's node_modules.`);
+      }
       return null;
     }
   });

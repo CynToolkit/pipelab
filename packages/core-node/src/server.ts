@@ -14,6 +14,8 @@ import { registerMigrationHandlers } from "./migrations";
 export interface ServeOptions {
   port: string | number;
   userData?: string;
+  nodePath?: string;
+  pnpmPath?: string;
 }
 
 export async function serveCommand(options: ServeOptions, version: string, dirname: string) {
@@ -54,7 +56,32 @@ export async function serveCommand(options: ServeOptions, version: string, dirna
   console.log(`Starting Pipelab server on port ${options.port}...`);
   console.log(`UI available at http://localhost:${options.port}`);
 
-  await registerAllHandlers({ version });
+  let { nodePath, pnpmPath } = options;
+
+  if (!isDev) {
+    const { ensureNodeJS, ensurePNPM } = await import("./utils");
+    if (!nodePath) {
+      try {
+        nodePath = await ensureNodeJS("24.14.1");
+      } catch (e) {
+        console.warn("[Server] Failed to ensure Node.js, using default process.execPath:", e);
+        nodePath = process.execPath;
+      }
+    }
+    if (!pnpmPath) {
+      try {
+        pnpmPath = await ensurePNPM();
+      } catch (e) {
+        console.warn("[Server] Failed to ensure PNPM, dependencies might fail to install:", e);
+      }
+    }
+  }
+
+  await registerAllHandlers({
+    version,
+    nodePath,
+    pnpmPath,
+  });
   registerMigrationHandlers();
 
   await webSocketServer.start(Number(options.port), server);

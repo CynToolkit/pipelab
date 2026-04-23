@@ -5,8 +5,7 @@ import { is } from "@electron-toolkit/utils";
 import http from "node:http";
 import fs from "node:fs";
 import { websocketPort } from "@pipelab/constants";
-import { fetchPipelabCli, setUserDataPath, ensureNodeJS } from "@pipelab/core-node";
-
+import { fetchPipelabCli, setUserDataPath, ensureNodeJS, projectRoot } from "@pipelab/core-node";
 
 
 let serverProcess: ChildProcess | null = null;
@@ -63,7 +62,20 @@ export const startServer = async () => {
   } else {
     // In production, we fetch the bundle from remote
     setUserDataPath(userDataPath);
-    const cliPath = await fetchPipelabCli();
+    let cliPath: string | undefined;
+
+    if (projectRoot) {
+      const localCli = join(projectRoot, "apps", "cli", "dist", "index.mjs");
+      if (fs.existsSync(localCli)) {
+        cliPath = localCli;
+        console.info(`[Server] Project root detected, using local CLI: ${cliPath}`);
+      }
+    }
+
+    if (!cliPath) {
+      cliPath = await fetchPipelabCli();
+    }
+
     const nodePath = await ensureNodeJS("24.14.1");
 
     serverPath = nodePath;
@@ -71,7 +83,12 @@ export const startServer = async () => {
 
     console.info(`Starting server: ${serverPath} ${args.join(" ")}`);
 
-    serverProcess = spawn(serverPath, args, { stdio: "pipe", env: { ...process.env } });
+    serverProcess = spawn(serverPath, args, {
+      stdio: "pipe",
+      env: {
+        ...process.env,
+      },
+    });
 
     serverProcess.on("error", (err) => console.error("ERROR: Failed to spawn server:", err));
     serverProcess.stdout?.on("data", (d) => console.info(`[Server] ${d.toString().trim()}`));

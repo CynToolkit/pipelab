@@ -14,7 +14,6 @@ export const isDev = process.env.NODE_ENV === "development";
 
 /**
  * Finds the monorepo root by looking for pnpm-workspace.yaml.
- * Only intended for use during development.
  */
 function findProjectRoot(startDir: string): string | null {
   let curr = startDir;
@@ -27,7 +26,7 @@ function findProjectRoot(startDir: string): string | null {
   return null;
 }
 
-export const projectRoot = isDev ? findProjectRoot(_dirname) : null;
+export const projectRoot = findProjectRoot(_dirname);
 
 const getArg = (name: string): string | undefined => {
   const index = process.argv.indexOf(name);
