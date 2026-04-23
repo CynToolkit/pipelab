@@ -59,7 +59,7 @@ export async function serveCommand(options: ServeOptions, version: string, dirna
   let { nodePath, pnpmPath } = options;
 
   if (!isDev) {
-    const { ensureNodeJS, ensurePNPM } = await import("./utils");
+    const { ensureNodeJS, ensurePNPM } = await import("./utils/ensurers");
     if (!nodePath) {
       try {
         nodePath = await ensureNodeJS("24.14.1");

@@ -1,5 +1,11 @@
 # @pipelab/plugin-core
 
+## 1.0.1-beta.15
+
+### Patch Changes
+
+- wdf
+
 ## 1.0.1-beta.14
 
 ### Patch Changes

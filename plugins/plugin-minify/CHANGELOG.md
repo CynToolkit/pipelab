@@ -1,5 +1,13 @@
 # @pipelab/plugin-minify
 
+## 1.0.1-beta.10
+
+### Patch Changes
+
+- wdf
+- Updated dependencies
+  - @pipelab/plugin-core@1.0.1-beta.15
+
 ## 1.0.1-beta.9
 
 ### Patch Changes

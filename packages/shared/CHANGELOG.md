@@ -1,5 +1,13 @@
 # @pipelab/shared
 
+## 2.0.1-beta.16
+
+### Patch Changes
+
+- wdf
+- Updated dependencies
+  - @pipelab/migration@1.0.1-beta.15
+
 ## 2.0.1-beta.15
 
 ### Patch Changes

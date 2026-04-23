@@ -13,7 +13,7 @@ import { assetsPath, isDev, userDataPath } from "./context";
 import { useLogger } from "@pipelab/shared";
 import { BlockCondition } from "@pipelab/shared";
 import { HandleListenerSendFn } from "./handlers";
-import { ensureNodeJS, ensurePNPM } from "./utils";
+import { ensureNodeJS, ensurePNPM } from "./utils/ensurers";
 import { generateTempFolder } from "@pipelab/plugin-core";
 import path from "node:path";
 import os from "node:os";
