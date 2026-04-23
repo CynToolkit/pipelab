@@ -1,5 +1,11 @@
 # @pipelab/asset-electron
 
+## 1.0.1-beta.17
+
+### Patch Changes
+
+- sdf
+
 ## 1.0.1-beta.16
 
 ### Patch Changes
