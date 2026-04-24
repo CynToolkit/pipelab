@@ -114,7 +114,7 @@ async function installDependencies(packageDir: string, packageName: string, opti
   }
 }
 
-export async function fetchAsset(
+export async function fetchPipelabAsset(
   packageName: string,
   versionOrRange?: string,
   options?: FetchOptions,
@@ -128,7 +128,7 @@ export async function fetchAsset(
   return packageDir;
 }
 
-export async function fetchPlugin(
+export async function fetchPipelabPlugin(
   pluginName: string,
   versionOrRange?: string,
   options?: FetchOptions,
@@ -144,7 +144,7 @@ export async function fetchPlugin(
   return { packageDir, entryPoint: finalEntryPoint, isLocal: !!isLocal };
 }
 
-export async function fetchCli(
+export async function fetchPipelabCli(
   versionOrRange?: string,
   options?: FetchOptions,
 ): Promise<{ packageDir: string; entryPoint: string; isLocal: boolean }> {
@@ -159,8 +159,6 @@ export async function fetchCli(
 
   return { packageDir, entryPoint: finalEntryPoint, isLocal: !!isLocal };
 }
-
-export { fetchPlugin as fetchPipelabPlugin, fetchCli as fetchPipelabCli };
 
 /**
  * Cache for monorepo package locations to avoid repeated disk crawling.

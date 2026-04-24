@@ -21,7 +21,7 @@ import {
   extractZip,
   zipFolder,
 } from "./utils/fs-extras";
-import { fetchAsset, fetchPlugin } from "./utils/remote";
+import { fetchPipelabAsset, fetchPipelabPlugin } from "./utils/remote";
 import { setupConfigFile } from "./config";
 import { AppConfig } from "@pipelab/shared";
 
@@ -119,7 +119,7 @@ export const executeGraphWithHistory = async ({
       try {
         const packageName = `@pipelab/plugin-${pluginId}`;
 
-        const { packageDir, entryPoint } = await fetchPlugin(packageName);
+        const { packageDir, entryPoint } = await fetchPipelabPlugin(packageName);
         const pluginModule = await import(pathToFileURL(entryPoint).href);
         const pluginDefinition = pluginModule.default;
 
