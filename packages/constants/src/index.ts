@@ -51,3 +51,20 @@ export const getBinName = (name: string, platform?: string) => {
 
 export const websocketPort = 33753;
 export const uiDevPort = 5173;
+
+export const uiDevServerInstruction = "pnpm turbo dev --filter=@pipelab/ui";
+
+export const getUiDevServerFatalError = (port: number) => `
+--------------------------------------------------------------------------------
+  [FATAL ERROR] UI dev server is NOT running on port ${port}
+  Please start it manually before running the desktop app:
+    '${uiDevServerInstruction}'
+--------------------------------------------------------------------------------`;
+
+export const getUiDevServerMissingWarning = () => `
+--------------------------------------------------------------------------------
+  [DEVELOPMENT MODE] CLI server started (API/WebSocket).
+  NOTE: The UI is NOT served from this process in development.
+  Please ensure the UI dev server is running:
+    '${uiDevServerInstruction}'
+--------------------------------------------------------------------------------`;

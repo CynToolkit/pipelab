@@ -6,6 +6,7 @@ import {
   ensureNodeJS,
   ensurePNPM,
 } from "./index";
+import { getUiDevServerMissingWarning, uiDevPort } from "@pipelab/constants";
 import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -45,7 +46,7 @@ export async function serveCommand(options: ServeOptions, version: string, dirna
       response.writeHead(404, { "Content-Type": "text/plain" });
       response.end(
         `Error: UI directory not found at ${rawAssetFolder}.\n` +
-          "Please run 'pnpm build' in apps/ui to generate the distribution.",
+        "Please run 'pnpm build' in apps/ui to generate the distribution.",
       );
       return;
     }
@@ -56,7 +57,12 @@ export async function serveCommand(options: ServeOptions, version: string, dirna
   });
 
   console.log(`Starting Pipelab server on port ${options.port}...`);
-  console.log(`UI available at http://localhost:${options.port}`);
+  if (isDev) {
+    console.info(getUiDevServerMissingWarning());
+    console.log(`UI available at http://localhost:${uiDevPort}`);
+  } else {
+    console.log(`UI available at http://localhost:${options.port}`);
+  }
 
   let { nodePath, pnpmPath } = options;
 

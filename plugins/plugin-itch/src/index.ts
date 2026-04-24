@@ -1,7 +1,7 @@
 import { uploadToItch, uploadToItchRunner } from "./export";
 
 import { createNodeDefinition } from "@pipelab/plugin-core";
-import icon from "./assets/itch-icon.webp";
+const icon = new URL("./assets/itch-icon.webp", import.meta.url).href;
 
 export default createNodeDefinition({
   description: "Itch.io",

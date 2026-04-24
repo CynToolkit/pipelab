@@ -23,6 +23,10 @@ export default defineConfig((env) => {
       outDir: `.vite/renderer/${name}`,
       sourcemap: true,
     },
+    server: {
+      port: 5183,
+      strictPort: true,
+    },
     plugins,
     clearScreen: false,
   } as UserConfig;

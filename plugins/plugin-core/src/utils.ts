@@ -5,10 +5,6 @@ export {
   fetchPipelabPlugin,
   fetchPipelabCli,
   runPnpm,
-  generateTempFolder,
-  extractTarGz,
-  extractZip,
-  zipFolder,
   downloadFile,
   runWithLiveLogs,
 } from "@pipelab/core-node";

@@ -1,7 +1,7 @@
 import { createNodeDefinition } from "@pipelab/plugin-core";
 import { exportAction, ExportActionRunner } from "./export-c3p";
 import { exportProjectAction, ExportProjectActionRunner } from "./export-project";
-import icon from "./assets/construct.webp";
+const icon = new URL("./assets/construct.webp", import.meta.url).href;
 import { constructVersionValidator } from "./export-shared";
 
 export default createNodeDefinition({

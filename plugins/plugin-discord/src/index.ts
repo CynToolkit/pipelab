@@ -1,7 +1,7 @@
 import { previewRunner } from "./preview";
 
 import { createNodeDefinition } from "@pipelab/plugin-core";
-import icon from "./public/discord.webp";
+const icon = new URL("./public/discord.webp", import.meta.url).href;
 import { createPackageProps, createPreviewProps, IDPreview, IDPackage } from "./discord";
 import { packageV2Runner } from "./package";
 

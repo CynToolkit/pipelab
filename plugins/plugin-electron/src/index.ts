@@ -3,7 +3,7 @@ import { packageRunner } from "./package";
 import { previewRunner } from "./preview";
 
 import { createNodeDefinition } from "@pipelab/plugin-core";
-import icon from "./public/electron.webp";
+const icon = new URL("./public/electron.webp", import.meta.url).href;
 import {
   createMakeProps,
   createPackageProps,

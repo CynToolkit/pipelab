@@ -1,7 +1,7 @@
 import { uploadToPoki, uploadToPokiRunner } from "./export";
 
 import { createNodeDefinition } from "@pipelab/plugin-core";
-import icon from "./assets/poki-icon.webp";
+const icon = new URL("./assets/poki-icon.webp", import.meta.url).href;
 
 export default createNodeDefinition({
   description: "Poki",

@@ -33,14 +33,36 @@ export const getFinalPlugins = () => {
 
   for (const plugin of plugins.value) {
     const finalNodes = [];
-    for (const node of plugin.nodes) {
+
+    const transformUrl = (url: string) => {
+      if (url.startsWith("file://")) {
+        return url.replace("file://", "media://");
+      }
+      return url;
+    };
+
+    const finalIcon =
+      plugin.icon?.type === "image"
+        ? {
+            ...plugin.icon,
+            image: transformUrl(plugin.icon.image),
+          }
+        : plugin.icon;
+
+    for (const nodeDef of plugin.nodes) {
+      const node = nodeDef.node;
       finalNodes.push({
-        ...node,
+        ...nodeDef,
+        node: {
+          ...node,
+          icon: transformUrl(node.icon),
+        },
       });
     }
 
     finalPlugins.push({
       ...plugin,
+      icon: finalIcon,
       nodes: finalNodes,
     });
   }

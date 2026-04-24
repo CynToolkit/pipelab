@@ -2,7 +2,7 @@ import { uploadToNetlify, uploadToNetlifyRunner } from "./publish";
 import { buildNetlifySite, buildNetlifySiteRunner } from "./build";
 
 import { createNodeDefinition } from "@pipelab/plugin-core";
-import icon from "./assets/netlify-icon.webp";
+const icon = new URL("./assets/netlify-icon.webp", import.meta.url).href;
 
 export default createNodeDefinition({
   description: "Netlify",

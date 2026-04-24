@@ -2,7 +2,7 @@ import { makeRunner } from "./make";
 import { previewRunner } from "./preview";
 
 import { createNodeDefinition } from "@pipelab/plugin-core";
-import icon from "./public/tauri.webp";
+const icon = new URL("./public/tauri.webp", import.meta.url).href;
 import {
   createMakeProps,
   createPackageV2Props,

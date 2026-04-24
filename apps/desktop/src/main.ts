@@ -1,6 +1,6 @@
-import { app, shell, BrowserWindow, dialog, autoUpdater, screen } from "electron";
+import { app, shell, BrowserWindow, dialog, autoUpdater, screen, protocol, net } from "electron";
 import { join, resolve, dirname } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { platform } from "node:os";
 import { electronApp, optimizer, is } from "@electron-toolkit/utils";
 import { startServer, stopServer } from "./main/server-process";
@@ -12,6 +12,19 @@ import started from 'electron-squirrel-startup';
 if (is.dev) {
   app.setPath("userData", app.getPath("userData") + "-dev");
 }
+
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: "media",
+    privileges: {
+      secure: true,
+      standard: true,
+      supportFetchAPI: true,
+      corsEnabled: true,
+      stream: true,
+    },
+  },
+]);
 
 function getIconPath() {
   let ext = ".png";
@@ -140,6 +153,11 @@ app.whenReady().then(async () => {
   }
 
   electronApp.setAppUserModelId("com.pipelab");
+
+  protocol.handle("media", (request) => {
+    const path = decodeURIComponent(request.url.replace(/^media:\/\/+/, "/"));
+    return net.fetch(pathToFileURL(path).toString());
+  });
 
   app.on("browser-window-created", (_, window) => {
     optimizer.watchWindowShortcuts(window);
