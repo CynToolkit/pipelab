@@ -8,6 +8,8 @@ import {
   downloadFile,
   fileExists,
   runWithLiveLogs,
+  runPnpm,
+  fetchPipelabAsset,
 } from "@pipelab/plugin-core";
 import { createReadStream } from "node:fs";
 import { cp, mkdir, rm, writeFile } from "node:fs/promises";
@@ -64,12 +66,10 @@ export const uploadToNetlify = createAction({
 });
 
 export const uploadToNetlifyRunner = createActionRunner<typeof uploadToNetlify>(
-  async ({ log, inputs, cwd, abortSignal, paths, api }) => {
+  async ({ log, inputs, cwd, abortSignal, paths }) => {
     log("Uploading to netlify");
 
-    const { pnpm, node, assets } = paths;
-
-    const pnpmHome = join(paths.userData, "config", "pnpm");
+    const { node, assets } = paths;
 
     const sitesResult = await fetch(`https://api.netlify.com/api/v1/sites/${inputs.site}`, {
       method: "GET",
@@ -90,7 +90,7 @@ export const uploadToNetlifyRunner = createActionRunner<typeof uploadToNetlify>(
     // 1. Prepare input folder with temmplate
     // Assume input folder is always a static site
     const destinationFolder = join(cwd);
-    const rawAssetFolder = await api.fetchAsset("@pipelab/asset-netlify", "^1.0.0");
+    const rawAssetFolder = await fetchPipelabAsset("@pipelab/asset-netlify", "^1.0.0");
     const templateFolder = join(rawAssetFolder, "template");
 
     // copy template to destination
@@ -122,55 +122,18 @@ export const uploadToNetlifyRunner = createActionRunner<typeof uploadToNetlify>(
 
     // 3. Package installation
     log("Installing packages");
-    await runWithLiveLogs(
-      node,
-      [pnpm, "install", "--prefer-offline"],
-      {
-        cwd: destinationFolder,
-        env: {
-          ...process.env,
-          // DEBUG: '*',
-          PATH: `${dirname(node)}${delimiter}${process.env.PATH}`,
-          PNPM_HOME: pnpmHome,
-        },
-        cancelSignal: abortSignal,
-      },
-      log,
-      {
-        onStderr(data) {
-          log(data);
-        },
-        onStdout(data) {
-          log(data);
-        },
-      },
-    );
-
+    const { all } = await runPnpm(destinationFolder, {
+      signal: abortSignal,
+    });
     // 4. netlify deploy
-    await runWithLiveLogs(
-      node,
-      [pnpm, "--package", "netlify-cli", "dlx", "netlify", "deploy", "--prod"],
-      {
-        cwd: destinationFolder,
-        env: {
-          ...process.env,
-          // DEBUG: '*',
-          PATH: `${dirname(node)}${delimiter}${process.env.PATH}`,
-          PNPM_HOME: pnpmHome,
-          NETLIFY_AUTH_TOKEN: inputs.token,
-        },
-        cancelSignal: abortSignal,
+    const { all: deployOut } = await runPnpm(destinationFolder, {
+      args: ["--package", "netlify-cli", "dlx", "netlify", "deploy", "--prod"],
+      extraEnv: {
+        NETLIFY_AUTH_TOKEN: inputs.token,
       },
-      log,
-      {
-        onStderr(data) {
-          log(data);
-        },
-        onStdout(data) {
-          log(data);
-        },
-      },
-    );
+      signal: abortSignal,
+    });
+    if (deployOut) log(deployOut);
 
     // ensure input folder have a package.json
 

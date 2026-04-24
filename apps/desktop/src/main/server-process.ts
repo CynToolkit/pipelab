@@ -46,15 +46,21 @@ export const startServer = async () => {
   const userDataPath = app.getPath("userData");
   setUserDataPath(userDataPath);
 
-  // Check if server is already running (e.g. manually started by dev)
+  // 1. Ensure runtime environment (Node.js) is ready FIRST
+  const nodePath = await ensureNodeJS("24.14.1").catch((e) => {
+    console.warn(`[Server] Failed to ensure specific Node.js version, falling back to system 'node': ${e.message}`);
+    return "node";
+  });
+
+  // 2. Check if server is already running
   const alreadyUp = await isUp(websocketPort, is.dev ? 2 : 1, 500);
   if (alreadyUp) {
     console.info(`[Server] Server already running on port ${websocketPort}`);
     return;
   }
 
-  const { entryPoint, isLocal, packageDir } = await fetchPipelabCli();
-  const nodePath = await ensureNodeJS("24.14.1").catch(() => "node");
+  // 3. Resolve the CLI (will use nodePath if installation is needed)
+  const { entryPoint, isLocal, packageDir } = await fetchPipelabCli(undefined, { nodePath });
 
   let serverPath = nodePath;
   let args = [entryPoint, "serve", "--user-data", userDataPath];

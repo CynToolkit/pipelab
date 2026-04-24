@@ -12,7 +12,9 @@ import {
   generateTempFolder,
   InputsDefinition,
   OutputsDefinition,
+  runPnpm,
   runWithLiveLogs,
+  fetchPipelabAsset,
 } from "@pipelab/plugin-core";
 
 import { dirname, join, basename, delimiter } from "node:path";
@@ -560,7 +562,6 @@ export const forge = async (
     inputs,
     setOutput,
     paths,
-    api,
     abortSignal,
   }: ActionRunnerData<
     | ReturnType<typeof createMakeProps>
@@ -576,7 +577,7 @@ export const forge = async (
     await detectRuntime(appFolder);
   }
 
-  const { assets, modules, node, pnpm } = paths;
+  const { assets, modules, node } = paths;
   const destinationFolder = await generateTempFolder(paths.cache);
   log(`Staging build in ${destinationFolder}`);
 
@@ -590,7 +591,7 @@ export const forge = async (
       "electron-forge.js",
     );
 
-    const rawAssetFolder = await api.fetchAsset("@pipelab/asset-electron", "^1.0.0");
+    const rawAssetFolder = await fetchPipelabAsset("@pipelab/asset-electron", "^1.0.0");
     const templateFolder = join(rawAssetFolder, "template");
     console.log("templateFolder", templateFolder);
     console.log("destinationFolder", destinationFolder);
@@ -607,7 +608,6 @@ export const forge = async (
 
     const pkgJSONPath = join(destinationFolder, "package.json");
     const pkgJSONContent = await readFile(pkgJSONPath, "utf8");
-    const pnpmHome = join(paths.userData, "config", "pnpm");
     const sanitizedName = kebabCase(completeConfiguration.name);
 
     const originalIconPath = completeConfiguration.icon;
@@ -652,29 +652,11 @@ export const forge = async (
     await writeFile(pkgJSONPath, JSON.stringify(pkgJSON, null, 2));
 
     log("Installing packages");
-    await runWithLiveLogs(
-      node,
-      [pnpm, "install", "--prefer-offline"],
-      {
-        cwd: destinationFolder,
-        env: {
-          ...process.env,
-          // DEBUG: '*',
-          PATH: `${dirname(node)}${delimiter}${process.env.PATH}`,
-          PNPM_HOME: pnpmHome,
-        },
-        cancelSignal: abortSignal,
-      },
-      log,
-      {
-        onStderr(data) {
-          log(data);
-        },
-        onStdout(data) {
-          log(data);
-        },
-      },
-    );
+    const { all: installAll } = await runPnpm(destinationFolder, {
+      args: ["install", "--prefer-offline"],
+      signal: abortSignal,
+    });
+    if (installAll) log(installAll);
 
     console.log("done install");
 
@@ -684,84 +666,30 @@ export const forge = async (
       completeConfiguration.customPackages.length > 0
     ) {
       log(`Installing custom packages: ${completeConfiguration.customPackages.join(", ")}`);
-      await runWithLiveLogs(
-        node,
-        [pnpm, "install", ...completeConfiguration.customPackages, "--prefer-offline"],
-        {
-          cwd: destinationFolder,
-          env: {
-            ...process.env,
-            // DEBUG: '*',
-            PATH: `${dirname(node)}${delimiter}${process.env.PATH}`,
-            PNPM_HOME: pnpmHome,
-          },
-          cancelSignal: abortSignal,
-        },
-        log,
-        {
-          onStderr(data) {
-            log(data);
-          },
-          onStdout(data) {
-            log(data);
-          },
-        },
-      );
+      const { all: customAll } = await runPnpm(destinationFolder, {
+        args: ["install", ...completeConfiguration.customPackages, "--prefer-offline"],
+        signal: abortSignal,
+      });
+      if (customAll) log(customAll);
     }
 
     // override electron version
     if (completeConfiguration.electronVersion && completeConfiguration.electronVersion !== "") {
       log(`Installing electron@${completeConfiguration.electronVersion}`);
-      await runWithLiveLogs(
-        node,
-        [pnpm, "install", `electron@${completeConfiguration.electronVersion}`, "--prefer-offline"],
-        {
-          cwd: destinationFolder,
-          env: {
-            ...process.env,
-            // DEBUG: '*',
-            PATH: `${dirname(node)}${delimiter}${process.env.PATH}`,
-            PNPM_HOME: pnpmHome,
-          },
-          cancelSignal: abortSignal,
-        },
-        log,
-        {
-          onStderr(data) {
-            log(data);
-          },
-          onStdout(data) {
-            log(data);
-          },
-        },
-      );
+      const { all: electronAll } = await runPnpm(destinationFolder, {
+        args: ["install", `electron@${completeConfiguration.electronVersion}`, "--prefer-offline"],
+        signal: abortSignal,
+      });
+      if (electronAll) log(electronAll);
     }
 
     if (isCJSOnly) {
       log(`Installing execa@8`);
-      await runWithLiveLogs(
-        node,
-        [pnpm, "install", `execa@8`, "--prefer-offline"],
-        {
-          cwd: destinationFolder,
-          env: {
-            ...process.env,
-            // DEBUG: '*',
-            PATH: `${dirname(node)}${delimiter}${process.env.PATH}`,
-            PNPM_HOME: pnpmHome,
-          },
-          cancelSignal: abortSignal,
-        },
-        log,
-        {
-          onStderr(data) {
-            log(data);
-          },
-          onStdout(data) {
-            log(data);
-          },
-        },
-      );
+      const { all: execaAll } = await runPnpm(destinationFolder, {
+        args: ["install", `execa@8`, "--prefer-offline"],
+        signal: abortSignal,
+      });
+      if (execaAll) log(execaAll);
     }
 
     console.log("completeConfiguration.icon", completeConfiguration.icon);

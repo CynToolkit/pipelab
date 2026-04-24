@@ -8,7 +8,8 @@ import {
   downloadFile,
   fileExists,
   runWithLiveLogs,
-} from "@pipelab/plugin-core";
+  runPnpm,
+ } from "@pipelab/plugin-core";
 import { createReadStream } from "node:fs";
 import { cp, mkdir, rm, writeFile } from "node:fs/promises";
 import { delimiter, dirname, join } from "node:path";
@@ -45,9 +46,7 @@ export const buildNetlifySiteRunner = createActionRunner<typeof buildNetlifySite
   async ({ log, inputs, cwd, abortSignal, paths }) => {
     log("Building netlify site");
 
-    const { pnpm, node } = paths;
-
-    const pnpmHome = join(paths.userData, "config", "pnpm");
+    const { node } = paths;
 
     const buildDir = join(cwd, "build");
 
@@ -114,30 +113,14 @@ export const buildNetlifySiteRunner = createActionRunner<typeof buildNetlifySite
     //     }
     //   }
     // )
-    await runWithLiveLogs(
-      node,
-      [pnpm, "--package", "netlify-cli", "dlx", "netlify", "build"],
-      {
-        cwd: buildDir,
-        env: {
-          ...process.env,
-          // DEBUG: '*',
-          PATH: `${dirname(node)}${delimiter}${process.env.PATH}`,
-          PNPM_HOME: pnpmHome,
-          NETLIFY_AUTH_TOKEN: inputs.token,
-        },
-        cancelSignal: abortSignal,
+    const { all: buildOut } = await runPnpm(buildDir, {
+      args: ["--package", "netlify-cli", "dlx", "netlify", "build"],
+      extraEnv: {
+        NETLIFY_AUTH_TOKEN: inputs.token,
       },
-      log,
-      {
-        onStderr(data) {
-          log(data);
-        },
-        onStdout(data) {
-          log(data);
-        },
-      },
-    );
+      signal: abortSignal,
+    });
+    if (buildOut) log(buildOut);
 
     // const distDir = join(buildDir, 'dist')
 
@@ -159,30 +142,14 @@ export const buildNetlifySiteRunner = createActionRunner<typeof buildNetlifySite
     //
     // const deploy = await result.json()
 
-    await runWithLiveLogs(
-      node,
-      [pnpm, "--package", "netlify-cli", "dlx", "netlify", "deploy", "--prod"],
-      {
-        cwd: buildDir,
-        env: {
-          ...process.env,
-          // DEBUG: '*',
-          PATH: `${dirname(node)}${delimiter}${process.env.PATH}`,
-          PNPM_HOME: pnpmHome,
-          NETLIFY_AUTH_TOKEN: inputs.token,
-        },
-        cancelSignal: abortSignal,
+    const { all: deployOut } = await runPnpm(buildDir, {
+      args: ["--package", "netlify-cli", "dlx", "netlify", "deploy", "--prod"],
+      extraEnv: {
+        NETLIFY_AUTH_TOKEN: inputs.token,
       },
-      log,
-      {
-        onStderr(data) {
-          log(data);
-        },
-        onStdout(data) {
-          log(data);
-        },
-      },
-    );
+      signal: abortSignal,
+    });
+    if (deployOut) log(deployOut);
 
     // log('Deployed to netlify', deploy)
 

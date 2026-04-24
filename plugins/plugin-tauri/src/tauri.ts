@@ -10,7 +10,9 @@ import {
   detectRuntime,
   InputsDefinition,
   OutputsDefinition,
+  runPnpm,
   runWithLiveLogs,
+  fetchPipelabAsset,
 } from "@pipelab/plugin-core";
 import { dirname, join, basename, delimiter } from "node:path";
 import { existsSync, readFile, writeFile } from "node:fs";
@@ -503,7 +505,6 @@ export const tauri = async (
     inputs,
     setOutput,
     paths,
-    api,
     abortSignal,
   }: ActionRunnerData<ReturnType<typeof createPackageV2Props>>,
   completeConfiguration: DesktopApp.Config,
@@ -516,11 +517,11 @@ export const tauri = async (
     await detectRuntime(appFolder);
   }
 
-  const { assets, modules, cache, node, pnpm } = paths;
+  const { assets, modules, cache, node } = paths;
 
   const destinationFolder = join(cwd, "build");
 
-  const rawAssetFolder = await api.fetchAsset("@pipelab/asset-tauri", "^1.0.0");
+  const rawAssetFolder = await fetchPipelabAsset("@pipelab/asset-tauri", "^1.0.0");
   const templateFolder = join(rawAssetFolder, "template");
 
   // copy template to destination
@@ -553,8 +554,6 @@ export const tauri = async (
   );
 
   const shimsPaths = join(assets, "shims");
-
-  const pnpmHome = join(paths.userData, "config", "pnpm");
 
   const sanitizedName = kebabCase(completeConfiguration.name);
 
@@ -605,29 +604,10 @@ export const tauri = async (
   } */
 
   log("Installing packages");
-  await runWithLiveLogs(
-    node,
-    [pnpm, "install", "--prefer-offline"],
-    {
-      cwd: destinationFolder,
-      env: {
-        ...process.env,
-        // DEBUG: '*',
-        PATH: `${dirname(node)}${delimiter}${process.env.PATH}`,
-        PNPM_HOME: pnpmHome,
-      },
-      cancelSignal: abortSignal,
-    },
-    log,
-    {
-      onStderr(data) {
-        log(data);
-      },
-      onStdout(data) {
-        log(data);
-      },
-    },
-  );
+  const { all } = await runPnpm(destinationFolder, {
+    signal: abortSignal,
+  });
+  if (all) log(all);
 
   // override tauri version
   // if (completeConfiguration.electronVersion && completeConfiguration.electronVersion !== '') {

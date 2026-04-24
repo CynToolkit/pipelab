@@ -1,10 +1,10 @@
 import { Options, Subprocess } from "execa";
 export {
   fetchPackage,
-  fetchAsset,
-  fetchPlugin,
-  fetchCli,
-  ensure,
+  fetchPipelabAsset,
+  fetchPipelabPlugin,
+  fetchPipelabCli,
+  runPnpm,
   generateTempFolder,
   extractTarGz,
   extractZip,

@@ -1,16 +1,18 @@
 import { dirname, delimiter, join } from "node:path";
-import { mkdir, readdir, readFile } from "node:fs/promises";
-import { existsSync } from "node:fs";
+import { mkdir, readdir, readFile, writeFile, access, chmod, rm, cp } from "node:fs/promises";
+import { existsSync, constants } from "node:fs";
 import pacote from "pacote";
 import semver from "semver";
 import { isDev, projectRoot, userDataPath } from "../context";
 import { execa } from "execa";
+import { downloadFile, extractZip, extractTarGz, generateTempFolder } from "./fs-extras";
 
 export type FetchOptions = {
   installDeps?: boolean;
   nodePath?: string;
   pnpmPath?: string;
   baseDir?: string;
+  signal?: AbortSignal;
 };
 
 /**
@@ -77,40 +79,131 @@ export async function fetchPackage(
   return { packageDir, resolvedVersion };
 }
 
+/**
+ * Executes a pnpm install in a specific directory with a portable environment.
+ */
+export async function runPnpm(
+  cwd: string,
+  options?: {
+    args?: string[];
+    extraEnv?: Record<string, string>;
+    signal?: AbortSignal;
+  },
+) {
+  let {
+    args = ["install", "--prod", "--no-lockfile"],
+    extraEnv = {},
+    signal,
+  } = options || {};
+
+  const nodePath = await ensureNodeJS("24.14.1").catch(() => process.execPath);
+  const pnpmPath = await ensurePNPM().catch(() => "pnpm");
+
+  const isScript = pnpmPath.endsWith(".cjs") || pnpmPath.endsWith(".js");
+  const command = isScript ? nodePath : pnpmPath;
+  const finalArgs = isScript ? [pnpmPath, ...args] : args;
+
+  return execa(command, finalArgs, {
+    cwd,
+    all: true,
+    signal,
+    env: {
+      ...process.env,
+      NODE_ENV: "production",
+      PATH: nodePath ? `${dirname(nodePath)}${delimiter}${process.env.PATH}` : process.env.PATH,
+      PNPM_HOME: join(userDataPath, "pnpm"),
+      ...extraEnv,
+    },
+  });
+}
+
+/**
+ * Installs a specific version of Node.js if not already present.
+ */
+export async function ensureNodeJS(version: string) {
+  const nodeDir = join(userDataPath, "thirdparty", "node", version);
+  const isWindows = process.platform === "win32";
+  const executableName = isWindows ? "node.exe" : "bin/node";
+  const finalNodePath = join(nodeDir, executableName);
+
+  try {
+    await access(finalNodePath, constants.X_OK);
+    return finalNodePath;
+  } catch (e) {}
+
+  const arch = process.arch === "x64" ? "x64" : process.arch === "arm64" ? "arm64" : "x86";
+  const platform = isWindows ? "win" : process.platform === "darwin" ? "osx" : "linux";
+  const extension = isWindows ? "zip" : "tar.gz";
+  const downloadPlatform = platform === "osx" ? "darwin" : platform;
+
+  const fileName = `node-v${version}-${downloadPlatform}-${arch}.${extension}`;
+  const downloadUrl = `https://nodejs.org/dist/v${version}/${fileName}`;
+  const tempDir = await generateTempFolder(join(userDataPath, "thirdparty", ".tmp"));
+  const archivePath = join(tempDir, fileName);
+
+  console.log(`Downloading Node.js from ${downloadUrl}...`);
+  await downloadFile(downloadUrl, archivePath);
+
+  console.log(`Extracting Node.js to ${tempDir}...`);
+  const extractTempDir = join(tempDir, "extracted");
+  await mkdir(extractTempDir, { recursive: true });
+
+  if (extension === "zip") {
+    await extractZip(archivePath, extractTempDir);
+  } else {
+    await extractTarGz(archivePath, extractTempDir);
+  }
+
+  const extractedEntries = await readdir(extractTempDir);
+  const nodeSubDir = extractedEntries.find((entry) => entry.startsWith(`node-v${version}`));
+  if (!nodeSubDir) throw new Error(`Could not find extracted Node.js directory`);
+
+  const sourceDir = join(extractTempDir, nodeSubDir);
+  await mkdir(dirname(nodeDir), { recursive: true });
+  await rm(nodeDir, { recursive: true, force: true });
+  await cp(sourceDir, nodeDir, { recursive: true });
+  await rm(tempDir, { recursive: true, force: true });
+
+  if (!isWindows) await chmod(finalNodePath, 0o755).catch(() => {});
+  return finalNodePath;
+}
+
+/**
+ * Installs the PNPM package from npm if not already present.
+ */
+export async function ensurePNPM(version = "10.12.0") {
+  const { packageDir } = await fetchPackage("pnpm", version, {
+    baseDir: join(userDataPath, "thirdparty", "pnpm"),
+  });
+  return join(packageDir, "bin", "pnpm.cjs");
+}
+
 async function installDependencies(packageDir: string, packageName: string, options: FetchOptions) {
   const nodeModulesPath = join(packageDir, "node_modules");
-  if (existsSync(nodeModulesPath)) return;
 
-  console.log(`[Fetcher] ${packageName}: node_modules missing, triggering installation...`);
-  try {
-    let { nodePath, pnpmPath } = options;
-
-    if (!nodePath || !pnpmPath) {
-      const { ensureNodeJS, ensurePNPM } = await import("./ensurers");
-      if (!nodePath) nodePath = await ensureNodeJS("24.14.1").catch(() => process.execPath);
-      if (!pnpmPath) pnpmPath = await ensurePNPM().catch(() => "pnpm");
+  // Check if node_modules already exists and has content
+  if (existsSync(nodeModulesPath)) {
+    try {
+      const files = await readdir(nodeModulesPath);
+      if (files.length > 0) return;
+      console.warn(`[Fetcher] ${packageName}: node_modules exists but is empty. Re-installing...`);
+    } catch (e) {
+      // Continue to install if readdir fails
     }
+  }
 
-    const isScript = pnpmPath.endsWith(".cjs") || pnpmPath.endsWith(".js");
-    const command = isScript ? nodePath : pnpmPath;
-    const args = isScript
-      ? [pnpmPath, "install", "--prod", "--no-lockfile"]
-      : ["install", "--prod", "--no-lockfile"];
-
-    const { all } = await execa(command, args, {
-      cwd: packageDir,
-      all: true,
-      env: {
-        ...process.env,
-        NODE_ENV: "production",
-        PATH: nodePath ? `${dirname(nodePath)}${delimiter}${process.env.PATH}` : process.env.PATH,
-      },
+  console.log(`[Fetcher] ${packageName}: Installing dependencies...`);
+  try {
+    const { all } = await runPnpm(packageDir, {
+      signal: options.signal,
     });
 
-    if (all) console.log(`[Fetcher] ${packageName}: Installation output:\n${all}`);
+    if (all) console.log(`[Fetcher] ${packageName}: Installation trace:\n${all}`);
+    console.log(`[Fetcher] ${packageName}: Dependencies installed successfully.`);
   } catch (err: any) {
-    console.error(`[Fetcher] ${packageName}: Failed to install dependencies: ${err.message}`);
-    if (err.all) console.error(`[Fetcher] ${packageName}: Installation error output:\n${err.all}`);
+    console.error(`[Fetcher] ${packageName}: CRITICAL ERROR during dependency installation: ${err.message}`);
+    if (err.all) console.error(`[Fetcher] ${packageName}: Error details:\n${err.all}`);
+    throw new Error(`Failed to install dependencies for ${packageName}. See logs for details.`);
   }
 }
 

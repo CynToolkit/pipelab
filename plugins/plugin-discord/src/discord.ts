@@ -7,6 +7,8 @@ import {
   InputsDefinition,
   OutputsDefinition,
   runWithLiveLogs,
+  fetchPipelabAsset,
+  runPnpm,
 } from "@pipelab/plugin-core";
 import { dirname, join, basename, delimiter } from "node:path";
 import { cp, readFile, writeFile } from "node:fs/promises";
@@ -178,7 +180,6 @@ export const discord = async (
     inputs,
     setOutput,
     paths,
-    api,
     abortSignal,
   }:
     | ActionRunnerData<ReturnType<typeof createPackageProps>>
@@ -191,11 +192,11 @@ export const discord = async (
 
   const runtime = await detectRuntime(appFolder);
 
-  const { assets, modules, cache, node, pnpm } = paths;
+  const { assets, modules, cache, node } = paths;
 
   const destinationFolder = join(cwd, "build");
 
-  const rawAssetFolder = await api.fetchAsset("@pipelab/asset-discord", "^1.0.0");
+  const rawAssetFolder = await fetchPipelabAsset("@pipelab/asset-discord", "^1.0.0");
   const templateFolder = join(rawAssetFolder, "template");
 
   // copy template to destination
@@ -231,8 +232,6 @@ DISCORD_CLIENT_SECRET=yJ4vRnzDtKAqg2Le3_Sap2CqHybkTp2U`,
 
   const shimsPaths = join(assets, "shims");
 
-  const pnpmHome = join(paths.userData, "config", "pnpm");
-
   const sanitizedName = kebabCase(completeConfiguration.name);
 
   // package.json update
@@ -260,28 +259,11 @@ DISCORD_CLIENT_SECRET=yJ4vRnzDtKAqg2Le3_Sap2CqHybkTp2U`,
   // await writeFile(tauriConfJSONPath, JSON.stringify(tauriConfJSON, null, 2))
 
   log("Installing packages");
-  await runWithLiveLogs(
-    node,
-    [pnpm, "install", "--prefer-offline"],
-    {
-      cwd: destinationFolder,
-      env: {
-        ...process.env,
-        // DEBUG: '*',
-        PNPM_HOME: pnpmHome,
-      },
-      cancelSignal: abortSignal,
-    },
-    log,
-    {
-      onStderr(data) {
-        log(data);
-      },
-      onStdout(data) {
-        log(data);
-      },
-    },
-  );
+  const { all: installOut } = await runPnpm(destinationFolder, {
+    args: ["install", "--prefer-offline"],
+    signal: abortSignal,
+  });
+  if (installOut) log(installOut);
 
   // override discord version
   // if (completeConfiguration.electronVersion && completeConfiguration.electronVersion !== '') {
@@ -319,30 +301,15 @@ DISCORD_CLIENT_SECRET=yJ4vRnzDtKAqg2Le3_Sap2CqHybkTp2U`,
       console.log("nitro", nitro);
 
       await Promise.allSettled([
-        runWithLiveLogs(
-          node,
-          [pnpm, "dlx", "nitropack", "dev"],
-          {
-            cwd: destinationFolder,
-            env: {
-              ...process.env,
-              // DEBUG: '*',
-              PATH: `${dirname(node)}${delimiter}${process.env.PATH}`,
-              PNPM_HOME: pnpmHome,
-              PORT: port.toString(),
-            },
-            cancelSignal: abortSignal,
+        runPnpm(destinationFolder, {
+          args: ["dlx", "nitropack", "dev"],
+          extraEnv: {
+            PORT: port.toString(),
           },
-          log,
-          {
-            onStderr(data) {
-              log(data);
-            },
-            onStdout(data) {
-              log(data);
-            },
-          },
-        ),
+          signal: abortSignal,
+        }).then(({ all }) => {
+          if (all) log(all);
+        }),
         (async () => {
           const tunnel = await startTunnel({ port, acceptCloudflareNotice: true });
           console.log("tunnel", tunnel);

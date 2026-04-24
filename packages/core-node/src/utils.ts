@@ -48,7 +48,7 @@ export const getFinalPlugins = () => {
   return finalPlugins;
 };
 
-import { ensureNodeJS, ensurePNPM } from "./utils/ensurers";
+import { ensureNodeJS, ensurePNPM } from "./utils/remote";
 
 export const executeGraphWithHistory = async ({
   graph,

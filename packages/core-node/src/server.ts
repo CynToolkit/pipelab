@@ -3,6 +3,8 @@ import {
   isDev,
   registerAllHandlers,
   fetchPipelabAsset,
+  ensureNodeJS,
+  ensurePNPM,
 } from "./index";
 import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
@@ -59,7 +61,6 @@ export async function serveCommand(options: ServeOptions, version: string, dirna
   let { nodePath, pnpmPath } = options;
 
   if (!isDev) {
-    const { ensureNodeJS, ensurePNPM } = await import("./utils/ensurers");
     if (!nodePath) {
       try {
         nodePath = await ensureNodeJS("24.14.1");

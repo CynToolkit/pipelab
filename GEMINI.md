@@ -77,3 +77,4 @@ The project uses `pnpm` as its package manager and Turborepo for task orchestrat
 - Prefer your native file read tools over cat command
 - Do not grep unless strictly necessary
 - Use pnpm instead of npm
+- Never grep in gitignored folders (like node_modules or dist or out folders)
