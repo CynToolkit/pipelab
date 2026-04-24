@@ -1,17 +1,42 @@
 {
   "name": "@pipelab/shared",
   "version": "2.0.1-beta.16",
-  "private": true,
-  "description": "-",
+  "private": false,
+  "description": "Shared logic and types for the Pipelab ecosystem",
   "license": "FSL-1.1-MIT",
+  "author": "CynToolkit",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/CynToolkit/pipelab.git",
+    "directory": "packages/shared"
+  },
   "type": "module",
   "main": "./src/index.ts",
   "module": "./src/index.ts",
   "types": "./src/index.ts",
   "exports": {
-    ".": "./src/index.ts"
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.mts",
+        "import": "./dist/index.mjs",
+        "require": "./dist/index.cjs",
+        "default": "./dist/index.mjs"
+      }
+    },
+    "main": "./dist/index.cjs",
+    "module": "./dist/index.mjs",
+    "types": "./dist/index.d.mts"
   },
   "scripts": {
+    "build": "tsdown",
     "format": "oxfmt .",
     "lint": "oxlint ."
   },
@@ -32,6 +57,7 @@
   "devDependencies": {
     "@pipelab/tsconfig": "workspace:*",
     "esbuild-plugin-wasm": "1.1.0",
+    "tsdown": "0.21.2",
     "typescript": "5.9.3"
   }
 }

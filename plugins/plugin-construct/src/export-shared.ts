@@ -8,6 +8,7 @@ import {
   InputsDefinition,
   ParamsToInput,
   runWithLiveLogs,
+  fetchPackage,
 } from "@pipelab/plugin-core";
 import { script } from "./assets/script.js";
 import * as v from "valibot";
@@ -16,7 +17,6 @@ import { dirname, join, delimiter } from "node:path";
 import { cp, mkdir } from "node:fs/promises";
 import { homedir } from "node:os";
 import { createRequire } from "node:module";
-import { ensureNPMPackage } from "@pipelab/plugin-core";
 
 const platform = process.platform;
 const { LOCALAPPDATA, XDG_CONFIG_HOME } = process.env;
@@ -124,7 +124,8 @@ export const exportc3p = async <ACTION extends Action>(
 
   const browserName: "chromium" | "firefox" | "webkit" = "chromium";
 
-  const playwrightPkgPath = await ensureNPMPackage(thirdparty, "playwright-core", "1.48.2", {
+  const { packageDir: playwrightPkgPath } = await fetchPackage("playwright-core", "1.48.2", {
+    baseDir: join(thirdparty, "playwright-core"),
     nodePath: node,
     pnpmPath: pnpm,
     installDeps: true,

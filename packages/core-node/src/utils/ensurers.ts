@@ -2,14 +2,8 @@ import { join, dirname } from "node:path";
 import { access, chmod, mkdir, rm, readdir, cp } from "node:fs/promises";
 import { constants } from "node:fs";
 import { userDataPath } from "../context";
-import {
-  downloadFile,
-  generateTempFolder,
-  extractZip,
-  extractTarGz,
-  ensureNPMPackage,
-  Hooks,
-} from "@pipelab/plugin-core";
+import { fetchPackage } from "./remote";
+import { downloadFile, extractZip, extractTarGz, generateTempFolder } from "./fs-extras";
 
 /**
  * Installs a specific version of Node.js if not already present.
@@ -36,19 +30,11 @@ export const ensureNodeJS = async (version: string) => {
   const archivePath = join(tempDir, fileName);
 
   console.log(`Downloading Node.js from ${downloadUrl}...`);
-  const hooks: Hooks = {
-    onProgress: (() => {
-      let lastProgress = -1;
-      return (progress) => {
-        const p = Math.floor(progress.progress / 25) * 25;
-        if (p > lastProgress) {
-          lastProgress = p;
-          console.log(`Download progress: ${p}%`);
-        }
-      };
-    })(),
-  };
-  await downloadFile(downloadUrl, archivePath, hooks);
+  await downloadFile(downloadUrl, archivePath, {
+    onProgress: (progress) => {
+       // Minimal logging
+    }
+  });
 
   console.log(`Extracting Node.js to ${tempDir}...`);
   const extractTempDir = join(tempDir, "extracted");
@@ -62,10 +48,7 @@ export const ensureNodeJS = async (version: string) => {
 
   const extractedEntries = await readdir(extractTempDir);
   const nodeSubDir = extractedEntries.find((entry) => entry.startsWith(`node-v${version}`));
-
-  if (!nodeSubDir) {
-    throw new Error(`Could not find extracted Node.js directory in ${extractTempDir}`);
-  }
+  if (!nodeSubDir) throw new Error(`Could not find extracted Node.js directory`);
 
   const sourceDir = join(extractTempDir, nodeSubDir);
   await mkdir(dirname(nodeDir), { recursive: true });
@@ -73,18 +56,17 @@ export const ensureNodeJS = async (version: string) => {
   await cp(sourceDir, nodeDir, { recursive: true });
   await rm(tempDir, { recursive: true, force: true });
 
-  if (!isWindows) {
-    await chmod(finalNodePath, 0o755).catch(() => {});
-  }
-
-  await access(finalNodePath, constants.X_OK);
+  if (!isWindows) await chmod(finalNodePath, 0o755).catch(() => {});
   return finalNodePath;
 };
 
 /**
- * Installs the PNPM package from npm as a tarball if not already present.
+ * Installs the PNPM package from npm if not already present.
+ * Uses the flat fetching utility.
  */
 export const ensurePNPM = async (version = "10.12.0") => {
-  const packagePath = await ensureNPMPackage(join(userDataPath, "thirdparty"), "pnpm", version);
-  return join(packagePath, "bin", "pnpm.cjs");
+  const { packageDir } = await fetchPackage("pnpm", version, {
+    baseDir: join(userDataPath, "thirdparty", "pnpm")
+  });
+  return join(packageDir, "bin", "pnpm.cjs");
 };

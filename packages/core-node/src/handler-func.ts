@@ -1,11 +1,12 @@
 import { End } from "@pipelab/shared";
+import { ensureNodeJS, ensurePNPM } from "./utils/ensurers";
 import {
   Action,
   ActionRunner,
   Condition,
   ConditionRunner,
-  InputsDefinition,
-} from "@pipelab/plugin-core";
+} from "./types/runner";
+import { InputsDefinition } from "@pipelab/shared";
 import { usePlugins } from "@pipelab/shared";
 import { isRequired } from "@pipelab/shared";
 import { mkdir, stat } from "node:fs/promises";
@@ -13,15 +14,14 @@ import { assetsPath, isDev, userDataPath } from "./context";
 import { useLogger } from "@pipelab/shared";
 import { BlockCondition } from "@pipelab/shared";
 import { HandleListenerSendFn } from "./handlers";
-import { ensureNodeJS, ensurePNPM } from "./utils/ensurers";
-import { generateTempFolder } from "@pipelab/plugin-core";
+import { generateTempFolder } from "./utils/fs-extras";
 import path from "node:path";
 import os from "node:os";
 const { join } = path;
 const { tmpdir } = os;
 import { setupConfigFile } from "./config";
 import { AppConfig } from "@pipelab/shared";
-import { fetchPipelabAsset, fetchPipelabPlugin } from "./utils/remote";
+import { fetchAsset, fetchPlugin } from "./utils/remote";
 
 const checkParams = (definitionParams: InputsDefinition, elementParams: Record<string, string>) => {
   // get a list of all required params
@@ -159,30 +159,6 @@ export const handleActionExecute = async (
   const pnpm = await ensurePNPM("10.12.0");
 
   const outputs: Record<string, unknown> = {};
-  const api: any = {
-    fetchAsset: async (
-      packageName: string,
-      versionOrRange?: string,
-      options?: { installDeps?: boolean },
-    ) => {
-      return fetchPipelabAsset(packageName, versionOrRange, {
-        nodePath,
-        pnpmPath: pnpm,
-        ...options,
-      });
-    },
-    fetchPlugin: async (
-      pluginName: string,
-      versionOrRange?: string,
-      options?: { installDeps?: boolean },
-    ) => {
-      return fetchPipelabPlugin(pluginName, versionOrRange, {
-        nodePath,
-        pnpmPath: pnpm,
-        ...options,
-      });
-    },
-  };
 
   try {
     try {
@@ -235,7 +211,6 @@ export const handleActionExecute = async (
         userData: userDataPath,
         thirdparty: join(userDataPath, "thirdparty"),
       },
-      api,
       browserWindow: mainWindow,
       abortSignal,
     });

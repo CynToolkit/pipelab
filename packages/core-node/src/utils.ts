@@ -1,7 +1,7 @@
 import { nanoid } from "nanoid";
 import { usePlugins } from "@pipelab/shared";
-import { RendererPluginDefinition } from "@pipelab/plugin-core";
-import { downloadFile, Hooks } from "@pipelab/plugin-core";
+import { RendererPluginDefinition } from "@pipelab/shared";
+import { downloadFile, DownloadHooks } from "./utils/fs-extras";
 import { access, chmod, mkdir, rm, writeFile, readdir, cp } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -20,9 +20,8 @@ import {
   extractTarGz,
   extractZip,
   zipFolder,
-  ensureNPMPackage,
-} from "@pipelab/plugin-core";
-import { fetchPipelabAsset, fetchPipelabPlugin } from "./utils/remote";
+} from "./utils/fs-extras";
+import { fetchAsset, fetchPlugin } from "./utils/remote";
 import { setupConfigFile } from "./config";
 import { AppConfig } from "@pipelab/shared";
 
@@ -149,7 +148,7 @@ export const executeGraphWithHistory = async ({
         }
 
         if (!pluginDefinition) {
-          const pluginDir = await fetchPipelabPlugin(packageName);
+          const pluginDir = await fetchPlugin(packageName);
           const pluginPath = join(pluginDir, "dist", "index.mjs");
           const pluginModule = await import(pathToFileURL(pluginPath).href);
           pluginDefinition = pluginModule.default;

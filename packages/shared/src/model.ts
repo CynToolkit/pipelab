@@ -61,7 +61,7 @@ const BlockActionValidatorV3 = object({
   origin: OriginValidator,
 });
 
-export type Condition = {
+export type BlockCondition = {
   type: "condition";
   uid: string;
   origin: Origin;
@@ -70,7 +70,7 @@ export type Condition = {
   branchFalse: Array<Block>;
 };
 
-const BlockConditionValidator: GenericSchema<Condition> = object({
+const BlockConditionValidator: GenericSchema<BlockCondition> = object({
   type: literal("condition"),
   uid: string(),
   origin: OriginValidator,
@@ -79,14 +79,14 @@ const BlockConditionValidator: GenericSchema<Condition> = object({
   branchFalse: lazy(() => array(BlockValidator)),
 });
 
-export type Loop = {
+export type BlockLoop = {
   type: "loop";
   uid: string;
   origin: Origin;
   params: Record<string, any>;
   children: Array<Block>;
 };
-const BlockLoopValidator: GenericSchema<Loop> = object({
+const BlockLoopValidator: GenericSchema<BlockLoop> = object({
   type: literal("loop"),
   uid: string(),
   origin: OriginValidator,
@@ -135,8 +135,6 @@ const BlockValidatorV3 = variant("type", [
 const BlockValidator = BlockValidatorV3;
 
 export type BlockAction = Simplify<InferOutput<typeof BlockActionValidatorV3>>;
-export type BlockCondition = InferOutput<typeof BlockConditionValidator>;
-export type BlockLoop = InferOutput<typeof BlockLoopValidator>;
 export type BlockEvent = InferOutput<typeof BlockEventValidator>;
 export type BlockComment = InferOutput<typeof BlockCommentValidator>;
 

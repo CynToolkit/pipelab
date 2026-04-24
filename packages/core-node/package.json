@@ -1,31 +1,60 @@
 {
   "name": "@pipelab/core-node",
   "version": "1.0.1-beta.19",
-  "private": true,
+  "private": false,
+  "description": "The Pipelab automation engine for Node.js",
   "license": "FSL-1.1-MIT",
+  "author": "CynToolkit",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/CynToolkit/pipelab.git",
+    "directory": "packages/core-node"
+  },
   "type": "module",
   "main": "./src/index.ts",
+  "module": "./src/index.ts",
   "types": "./src/index.ts",
   "exports": {
-    ".": "./src/index.ts"
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.mts",
+        "import": "./dist/index.mjs",
+        "require": "./dist/index.cjs",
+        "default": "./dist/index.mjs"
+      }
+    },
+    "main": "./dist/index.cjs",
+    "module": "./dist/index.mjs",
+    "types": "./dist/index.d.mts"
   },
   "scripts": {
+    "build": "tsdown",
     "format": "oxfmt .",
     "lint": "oxlint ."
   },
   "dependencies": {
     "@pipelab/constants": "workspace:*",
-    "@pipelab/plugin-core": "workspace:*",
     "@pipelab/shared": "workspace:*",
     "adm-zip": "0.5.16",
+    "archiver": "7.0.1",
     "es-toolkit": "1.25.2",
     "execa": "9.5.2",
     "nanoid": "5.0.7",
     "pacote": "21.5.0",
     "semver": "^7.7.4",
     "slash": "3.0.0",
+    "tar": "6.2.1",
     "type-fest": "4.39.0",
-    "ws": "8.18.3"
+    "ws": "8.18.3",
+    "yauzl": "2.10.0"
   },
   "devDependencies": {
     "@pipelab/tsconfig": "workspace:*",
@@ -34,6 +63,10 @@
     "@types/pacote": "11.1.8",
     "@types/semver": "^7.7.1",
     "@types/ws": "8.18.1",
+    "@types/archiver": "7.0.0",
+    "@types/tar": "7.0.87",
+    "@types/yauzl": "2.10.3",
+    "tsdown": "0.21.2",
     "typescript": "^5.0.0"
   }
 }

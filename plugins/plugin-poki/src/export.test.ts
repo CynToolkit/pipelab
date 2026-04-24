@@ -26,8 +26,8 @@ describe("End-to-End: Poki Upload Action", () => {
     await writeFile(join(paths.input, "index.html"), "<html><body>Test</body></html>");
 
     // 2. Pre-seed a mock Poki CLI to avoid downloads and network issues
-    // Path matches standard ensureNPMPackage structure
-    const relativePokiBin = join("thirdparty", "@poki/cli", "0.1.19", "package", "bin", "index.js");
+    // Path matches new flat fetchPackage structure
+    const relativePokiBin = join("thirdparty", "@poki/cli", "0.1.19", "bin", "index.js");
     await sandbox.mockBinary(
       relativePokiBin,
       "console.log('Mock Poki CLI execution'); process.exit(0);"

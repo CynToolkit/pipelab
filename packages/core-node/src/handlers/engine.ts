@@ -4,7 +4,7 @@ import { useLogger } from "@pipelab/shared";
 import { getFinalPlugins, executeGraphWithHistory } from "../utils";
 import { presets } from "../presets/list";
 import { handleActionExecute, handleConditionExecute } from "../handler-func";
-import { generateTempFolder } from "@pipelab/plugin-core";
+import { generateTempFolder } from "../utils/fs-extras";
 import { tmpdir } from "node:os";
 import { setupConfigFile } from "../config";
 import { AppConfig } from "@pipelab/shared";
