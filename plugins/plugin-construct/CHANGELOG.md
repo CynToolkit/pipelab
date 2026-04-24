@@ -1,5 +1,13 @@
 # @pipelab/plugin-construct
 
+## 1.0.1-beta.11
+
+### Patch Changes
+
+- sd
+- Updated dependencies
+  - @pipelab/plugin-core@1.0.1-beta.16
+
 ## 1.0.1-beta.10
 
 ### Patch Changes
