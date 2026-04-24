@@ -119,40 +119,9 @@ export const executeGraphWithHistory = async ({
       try {
         const packageName = `@pipelab/plugin-${pluginId}`;
 
-        let pluginDefinition;
-        if (isDev && projectRoot) {
-          try {
-            let pluginPath = join(
-              projectRoot,
-              "plugins",
-              `plugin-${pluginId}`,
-              "src",
-              "index.ts",
-            );
-            if (!existsSync(pluginPath)) {
-              pluginPath = join(
-                projectRoot,
-                "plugins",
-                `plugin-${pluginId}`,
-                "dist",
-                "index.mjs",
-              );
-            }
-            const pluginModule = await import(pathToFileURL(pluginPath).href);
-            pluginDefinition = pluginModule.default;
-          } catch (e) {
-            logger().warn(
-              `[Runner] Could not load "${packageName}" from plugins folder in dev, falling back to download...`,
-            );
-          }
-        }
-
-        if (!pluginDefinition) {
-          const pluginDir = await fetchPlugin(packageName);
-          const pluginPath = join(pluginDir, "dist", "index.mjs");
-          const pluginModule = await import(pathToFileURL(pluginPath).href);
-          pluginDefinition = pluginModule.default;
-        }
+        const { packageDir, entryPoint } = await fetchPlugin(packageName);
+        const pluginModule = await import(pathToFileURL(entryPoint).href);
+        const pluginDefinition = pluginModule.default;
 
         registerPlugins([pluginDefinition]);
         logger().info(`[Runner] Plugin "${pluginId}" loaded and registered successfully`);

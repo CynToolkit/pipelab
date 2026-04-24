@@ -1,5 +1,5 @@
 import { dirname, delimiter, join } from "node:path";
-import { mkdir, readdir } from "node:fs/promises";
+import { mkdir, readdir, readFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import pacote from "pacote";
 import semver from "semver";
@@ -21,7 +21,21 @@ export async function fetchPackage(
   packageName: string,
   versionOrRange: string | undefined,
   options?: FetchOptions,
-): Promise<{ packageDir: string; resolvedVersion: string }> {
+): Promise<{ packageDir: string; resolvedVersion: string; isLocal?: boolean; entryPoint?: string }> {
+  // 0. Check for local monorepo package in development
+  if (isDev && projectRoot && process.env.PIPELAB_FORCE_NPM !== "true") {
+    if (packageName.startsWith("@pipelab/")) {
+      const local = await tryResolveMonorepoPackage(packageName);
+      if (local) {
+        console.log(`[Fetcher] ${packageName}: Resolved to local source at ${local.packageDir}`);
+        return {
+          ...local,
+          resolvedVersion: "workspace",
+        };
+      }
+    }
+  }
+
   const baseDir = options?.baseDir || join(userDataPath, "packages", packageName);
   let resolvedVersion: string;
 
@@ -118,20 +132,117 @@ export async function fetchPlugin(
   pluginName: string,
   versionOrRange?: string,
   options?: FetchOptions,
-): Promise<string> {
-  const { packageDir } = await fetchPackage(pluginName, versionOrRange, {
+): Promise<{ packageDir: string; entryPoint: string; isLocal: boolean }> {
+  const { packageDir, isLocal, entryPoint } = await fetchPackage(pluginName, versionOrRange, {
     installDeps: true,
     ...options,
   });
-  return packageDir;
+
+  // Default entry point if not provided by fetchPackage
+  const finalEntryPoint = entryPoint || join(packageDir, "dist", "index.mjs");
+
+  return { packageDir, entryPoint: finalEntryPoint, isLocal: !!isLocal };
 }
 
 export async function fetchCli(
   versionOrRange?: string,
   options?: FetchOptions,
-): Promise<string> {
-  const { packageDir } = await fetchPackage("@pipelab/cli", versionOrRange, options);
-  return join(packageDir, "dist", "index.mjs");
+): Promise<{ packageDir: string; entryPoint: string; isLocal: boolean }> {
+  const { packageDir, isLocal, entryPoint } = await fetchPackage(
+    "@pipelab/cli",
+    versionOrRange,
+    options,
+  );
+
+  // Default entry point for CLI if not provided
+  const finalEntryPoint = entryPoint || join(packageDir, "dist", "index.mjs");
+
+  return { packageDir, entryPoint: finalEntryPoint, isLocal: !!isLocal };
+}
+
+export { fetchPlugin as fetchPipelabPlugin, fetchCli as fetchPipelabCli };
+
+/**
+ * Cache for monorepo package locations to avoid repeated disk crawling.
+ */
+let monorepoCache: Record<string, string> | null = null;
+
+async function tryResolveMonorepoPackage(
+  packageName: string,
+): Promise<{ packageDir: string; isLocal: boolean; entryPoint: string } | null> {
+  if (!monorepoCache) {
+    monorepoCache = await crawlMonorepoPackages();
+  }
+
+  const packageDir = monorepoCache[packageName];
+  if (!packageDir) return null;
+
+  // Find best entry point from package.json
+  let entryPoint: string | undefined;
+  try {
+    const pkgPath = join(packageDir, "package.json");
+    const pkg = JSON.parse(await readFile(pkgPath, "utf-8"));
+
+    // 1. Try to find the entry point from package.json
+    // User tip: main is usually source in dev, publishConfig.main is compiled for prod
+    const publishMain = pkg.publishConfig?.module || pkg.publishConfig?.main;
+    const devMain = pkg.module || pkg.main;
+    
+    // Check bin field if it's a CLI
+    const binField = typeof pkg.bin === "string" ? pkg.bin : pkg.bin?.[packageName.replace("@pipelab/", "")] || (pkg.bin ? pkg.bin[Object.keys(pkg.bin)[0]] : undefined);
+    
+    // In dev, we prefer the "main" field if it points to TS, or a hardcoded src/index.ts
+    const tsSource = join(packageDir, "src", "index.ts");
+    
+    if (devMain && devMain.endsWith(".ts")) {
+      entryPoint = join(packageDir, devMain);
+    } else if (existsSync(tsSource)) {
+      entryPoint = tsSource;
+    } else if (binField) {
+      entryPoint = join(packageDir, binField);
+    } else if (publishMain) {
+      entryPoint = join(packageDir, publishMain);
+    } else if (devMain) {
+      entryPoint = join(packageDir, devMain);
+    }
+  } catch (e) {
+    console.warn(`[Fetcher] Failed to parse package.json for ${packageName}:`, e);
+  }
+
+  return {
+    packageDir,
+    isLocal: true,
+    entryPoint: entryPoint || join(packageDir, "dist", "index.mjs"),
+  };
+}
+
+async function crawlMonorepoPackages(): Promise<Record<string, string>> {
+  const cache: Record<string, string> = {};
+  if (!projectRoot) return cache;
+
+  const searchDirs = ["plugins", "packages", "apps"];
+  for (const dir of searchDirs) {
+    const fullDir = join(projectRoot, dir);
+    if (!existsSync(fullDir)) continue;
+
+    try {
+      const entries = await readdir(fullDir, { withFileTypes: true });
+      for (const entry of entries) {
+        if (entry.isDirectory()) {
+          const pkgPath = join(fullDir, entry.name, "package.json");
+          if (existsSync(pkgPath)) {
+            try {
+              const pkg = JSON.parse(await readFile(pkgPath, "utf-8"));
+              if (pkg.name) {
+                cache[pkg.name] = join(fullDir, entry.name);
+              }
+            } catch (e) {}
+          }
+        }
+      }
+    } catch (e) {}
+  }
+  return cache;
 }
 
 async function findLatestLocalVersion(baseDir: string): Promise<string | null> {

@@ -44,65 +44,50 @@ export const startServer = async () => {
   }
 
   const userDataPath = app.getPath("userData");
-  let serverPath: string;
-  let args: string[] = ["serve", "--user-data", userDataPath];
+  setUserDataPath(userDataPath);
 
-  console.log("is.dev", is.dev);
+  // Check if server is already running (e.g. manually started by dev)
+  const alreadyUp = await isUp(websocketPort, is.dev ? 2 : 1, 500);
+  if (alreadyUp) {
+    console.info(`[Server] Server already running on port ${websocketPort}`);
+    return;
+  }
 
-  if (is.dev) {
-    // // In dev, we run from the source using ts-node or similar
-    // // Actually, we can just point to the built dist/index.js in the cli package
-    // serverPath = 'node'
-    // args = [join(__dirname, '../../../cli/dist/index.js'), 'serve']
-    // In dev, wait for the dev to start it manually
-    const up = await isUp(websocketPort);
-    if (!up) {
-      throw new Error("In development mode, please start the server manually");
-    }
+  const { entryPoint, isLocal, packageDir } = await fetchPipelabCli();
+  const nodePath = await ensureNodeJS("24.14.1").catch(() => "node");
+
+  let serverPath = nodePath;
+  let args = [entryPoint, "serve", "--user-data", userDataPath];
+
+  if (isLocal && entryPoint.endsWith(".ts")) {
+    console.info(`[Server] Local CLI detected at ${packageDir}, starting with hot-reload (tsx watch)`);
+    const tsxPath = projectRoot ? join(projectRoot, "node_modules", ".bin", "tsx") : "tsx";
+    serverPath = tsxPath;
+    args = ["watch", entryPoint, "serve", "--user-data", userDataPath];
   } else {
-    // In production, we fetch the bundle from remote
-    setUserDataPath(userDataPath);
-    let cliPath: string | undefined;
+    console.info(`[Server] Starting CLI server from: ${entryPoint}`);
+  }
 
-    if (projectRoot) {
-      const localCli = join(projectRoot, "apps", "cli", "dist", "index.mjs");
-      if (fs.existsSync(localCli)) {
-        cliPath = localCli;
-        console.info(`[Server] Project root detected, using local CLI: ${cliPath}`);
-      }
-    }
+  serverProcess = spawn(serverPath, args, {
+    stdio: "pipe",
+    env: {
+      ...process.env,
+      NODE_ENV: is.dev ? "development" : "production",
+    },
+  });
 
-    if (!cliPath) {
-      cliPath = await fetchPipelabCli();
-    }
+  serverProcess.on("error", (err) => console.error("ERROR: Failed to spawn server:", err));
+  serverProcess.stdout?.on("data", (d) => console.info(`[Server] ${d.toString().trim()}`));
+  serverProcess.stderr?.on("data", (d) => console.error(`[Server Error] ${d.toString().trim()}`));
+  serverProcess.on("close", (code) => {
+    console.info(`Server process exited with code ${code}`);
+    serverProcess = null;
+  });
 
-    const nodePath = await ensureNodeJS("24.14.1");
-
-    serverPath = nodePath;
-    args = [cliPath, ...args];
-
-    console.info(`Starting server: ${serverPath} ${args.join(" ")}`);
-
-    serverProcess = spawn(serverPath, args, {
-      stdio: "pipe",
-      env: {
-        ...process.env,
-      },
-    });
-
-    serverProcess.on("error", (err) => console.error("ERROR: Failed to spawn server:", err));
-    serverProcess.stdout?.on("data", (d) => console.info(`[Server] ${d.toString().trim()}`));
-    serverProcess.stderr?.on("data", (d) => console.error(`[Server Error] ${d.toString().trim()}`));
-    serverProcess.on("close", (code) => {
-      console.info(`Server process exited with code ${code}`);
-      serverProcess = null;
-    });
-
-    // Give it a moment to start
-    const up = await isUp(websocketPort);
-    if (!up) {
-      throw new Error(`Server failed to start on port ${websocketPort}`);
-    }
+  // Wait for server to be ready
+  const up = await isUp(websocketPort, is.dev ? 20 : 10);
+  if (!up) {
+    throw new Error(`Server failed to start on port ${websocketPort}`);
   }
 };
 
