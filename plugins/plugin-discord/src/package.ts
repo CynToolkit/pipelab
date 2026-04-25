@@ -9,7 +9,7 @@ export const packageV2Runner = createActionRunner<ReturnType<typeof createPackag
   async ({ inputs, cwd, paths, log, setOutput, context }) => {
     const appFolder = inputs["input-folder"];
 
-    const { unpack, cache, node, pnpm } = paths;
+    const { cache, node, pnpm } = paths;
     const destinationFolder = join(cwd);
     const rawAssetFolder = await fetchPipelabAsset("@pipelab/asset-discord", "^1.0.0", { context });
     const templateFolder = join(rawAssetFolder, "template");
