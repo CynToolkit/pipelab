@@ -1,5 +1,13 @@
 # @pipelab/shared
 
+## 2.0.1-beta.19
+
+### Patch Changes
+
+- sqqd
+- Updated dependencies
+  - @pipelab/migration@1.0.1-beta.18
+
 ## 2.0.1-beta.18
 
 ### Patch Changes

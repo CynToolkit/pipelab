@@ -1,5 +1,13 @@
 # @pipelab/plugin-core
 
+## 1.0.1-beta.18
+
+### Patch Changes
+
+- sqqd
+- Updated dependencies
+  - @pipelab/core-node@1.0.1-beta.22
+
 ## 1.0.1-beta.17
 
 ### Patch Changes

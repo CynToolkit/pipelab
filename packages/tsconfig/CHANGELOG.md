@@ -1,5 +1,11 @@
 # @pipelab/tsconfig
 
+## 1.0.1-beta.18
+
+### Patch Changes
+
+- sqqd
+
 ## 1.0.1-beta.17
 
 ### Patch Changes

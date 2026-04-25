@@ -1,5 +1,11 @@
 # @pipelab/app
 
+## 2.0.1-beta.20
+
+### Patch Changes
+
+- sqqd
+
 ## 2.0.1-beta.19
 
 ### Patch Changes

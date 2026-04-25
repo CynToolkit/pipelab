@@ -1,5 +1,11 @@
 # @pipelab/asset-electron
 
+## 1.0.1-beta.21
+
+### Patch Changes
+
+- sqqd
+
 ## 1.0.1-beta.20
 
 ### Patch Changes
