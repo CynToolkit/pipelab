@@ -27,11 +27,15 @@ describe("End-to-End: Poki Upload Action", () => {
 
     // 2. Pre-seed a mock Poki CLI to avoid downloads and network issues
     // Path matches new flat fetchPackage structure
-    const relativePokiBin = join("thirdparty", "@poki/cli", "0.1.19", "bin", "index.js");
+    const relativePokiBin = join("user-data", "packages", "@poki/cli", "0.1.19", "bin", "index.js");
     await sandbox.mockBinary(
       relativePokiBin,
       "console.log('Mock Poki CLI execution'); process.exit(0);",
     );
+    // Pre-seed node_modules to skip installation
+    const pokiDir = join(sandbox.path, "user-data", "packages", "@poki/cli", "0.1.19");
+    await mkdir(join(pokiDir, "node_modules"), { recursive: true });
+    await writeFile(join(pokiDir, "node_modules", ".keep"), "");
 
     // 3. Run Pipeline
     try {
@@ -56,5 +60,5 @@ describe("End-to-End: Poki Upload Action", () => {
 
     const pokiJsonContent = JSON.parse(await readFile(pokiJsonPath, "utf-8"));
     expect(pokiJsonContent.game_id).toBe("poki-game-123");
-  }, 20000);
+  }, 5 * 60 * 1000); // 5 minutes timeout for real environment setup
 });
