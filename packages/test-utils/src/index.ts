@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import { mkdir, writeFile, chmod, rm } from "node:fs/promises";
 import { existsSync as existsSyncSync } from "node:fs";
 import { tmpdir } from "node:os";
-import type { ActionRunner, ActionRunnerData, Action } from "@pipelab/plugin-core";
+import { type ActionRunner, type ActionRunnerData, type Action, PipelabContext } from "@pipelab/plugin-core";
 import { execa } from "execa";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -178,6 +178,9 @@ spawnSync('pnpm', process.argv.slice(2), { stdio: 'inherit', shell: true });`,
     // @ts-ignore - Mocking BrowserWindow
     browserWindow: undefined,
     abortSignal: new AbortController().signal,
+    context: new PipelabContext({
+      userDataPath: join(options.sandboxPath, "user-data"),
+    }),
     // @ts-ignore - Mocking setMeta
     setMeta: () => {},
     meta: {} as any,

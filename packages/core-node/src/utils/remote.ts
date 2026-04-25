@@ -113,7 +113,7 @@ export async function runPnpm(
   return execa(command, finalArgs, {
     cwd,
     all: true,
-    signal,
+    cancelSignal: signal,
     env: {
       ...process.env,
       NODE_ENV: "production",
