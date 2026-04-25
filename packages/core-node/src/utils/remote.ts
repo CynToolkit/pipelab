@@ -1,18 +1,17 @@
 import { dirname, delimiter, join } from "node:path";
+import { tmpdir } from "node:os";
 import { mkdir, readdir, readFile, writeFile, access, chmod, rm, cp } from "node:fs/promises";
 import { existsSync, constants } from "node:fs";
 import pacote from "pacote";
 import semver from "semver";
-import { isDev, projectRoot, userDataPath } from "../context";
+import { isDev, projectRoot, PipelabContext } from "../context";
 import { execa } from "execa";
 import { downloadFile, extractZip, extractTarGz, generateTempFolder } from "./fs-extras";
 
 export type FetchOptions = {
   installDeps?: boolean;
-  nodePath?: string;
-  pnpmPath?: string;
-  baseDir?: string;
   signal?: AbortSignal;
+  context: PipelabContext;
 };
 
 /**
@@ -21,9 +20,14 @@ export type FetchOptions = {
  */
 export async function fetchPackage(
   packageName: string,
-  versionOrRange: string | undefined,
-  options?: FetchOptions,
-): Promise<{ packageDir: string; resolvedVersion: string; isLocal?: boolean; entryPoint?: string }> {
+  versionOrRange: string,
+  options: FetchOptions,
+): Promise<{
+  packageDir: string;
+  resolvedVersion: string;
+  isLocal?: boolean;
+  entryPoint?: string;
+}> {
   // 0. Check for local monorepo package in development
   if (isDev && projectRoot && process.env.PIPELAB_FORCE_NPM !== "true") {
     if (packageName.startsWith("@pipelab/")) {
@@ -38,7 +42,8 @@ export async function fetchPackage(
     }
   }
 
-  const baseDir = options?.baseDir || join(userDataPath, "packages", packageName);
+  const ctx = options.context;
+  const baseDir = ctx.getPackagesPath(packageName);
   let resolvedVersion: string;
 
   console.log(`[Fetcher] Resolving ${packageName}@${versionOrRange || "latest"}...`);
@@ -84,20 +89,22 @@ export async function fetchPackage(
  */
 export async function runPnpm(
   cwd: string,
-  options?: {
+  options: {
     args?: string[];
     extraEnv?: Record<string, string>;
     signal?: AbortSignal;
+    context: PipelabContext;
   },
 ) {
-  let {
+  const {
     args = ["install", "--prod", "--no-lockfile"],
     extraEnv = {},
     signal,
-  } = options || {};
+    context: ctx,
+  } = options;
 
-  const nodePath = await ensureNodeJS("24.14.1").catch(() => process.execPath);
-  const pnpmPath = await ensurePNPM().catch(() => "pnpm");
+  const nodePath = await ensureNodeJS("24.14.1", { context: ctx }).catch(() => process.execPath);
+  const pnpmPath = await ensurePNPM("10.12.0", { context: ctx }).catch(() => "pnpm");
 
   const isScript = pnpmPath.endsWith(".cjs") || pnpmPath.endsWith(".js");
   const command = isScript ? nodePath : pnpmPath;
@@ -111,7 +118,7 @@ export async function runPnpm(
       ...process.env,
       NODE_ENV: "production",
       PATH: nodePath ? `${dirname(nodePath)}${delimiter}${process.env.PATH}` : process.env.PATH,
-      PNPM_HOME: join(userDataPath, "pnpm"),
+      PNPM_HOME: join(ctx.userDataPath, "pnpm"),
       ...extraEnv,
     },
   });
@@ -120,8 +127,9 @@ export async function runPnpm(
 /**
  * Installs a specific version of Node.js if not already present.
  */
-export async function ensureNodeJS(version: string) {
-  const nodeDir = join(userDataPath, "thirdparty", "node", version);
+export async function ensureNodeJS(version: string, options: { context: PipelabContext }) {
+  const ctx = options.context;
+  const nodeDir = ctx.getThirdPartyPath("node", version);
   const isWindows = process.platform === "win32";
   const executableName = isWindows ? "node.exe" : "bin/node";
   const finalNodePath = join(nodeDir, executableName);
@@ -138,7 +146,7 @@ export async function ensureNodeJS(version: string) {
 
   const fileName = `node-v${version}-${downloadPlatform}-${arch}.${extension}`;
   const downloadUrl = `https://nodejs.org/dist/v${version}/${fileName}`;
-  const tempDir = await generateTempFolder(join(userDataPath, "thirdparty", ".tmp"));
+  const tempDir = await generateTempFolder(tmpdir());
   const archivePath = join(tempDir, fileName);
 
   console.log(`Downloading Node.js from ${downloadUrl}...`);
@@ -171,9 +179,10 @@ export async function ensureNodeJS(version: string) {
 /**
  * Installs the PNPM package from npm if not already present.
  */
-export async function ensurePNPM(version = "10.12.0") {
+export async function ensurePNPM(version = "10.12.0", options: { context: PipelabContext }) {
+  const ctx = options.context;
   const { packageDir } = await fetchPackage("pnpm", version, {
-    baseDir: join(userDataPath, "thirdparty", "pnpm"),
+    context: ctx,
   });
   return join(packageDir, "bin", "pnpm.cjs");
 }
@@ -196,12 +205,15 @@ async function installDependencies(packageDir: string, packageName: string, opti
   try {
     const { all } = await runPnpm(packageDir, {
       signal: options.signal,
+      context: options.context,
     });
 
     if (all) console.log(`[Fetcher] ${packageName}: Installation trace:\n${all}`);
     console.log(`[Fetcher] ${packageName}: Dependencies installed successfully.`);
   } catch (err: any) {
-    console.error(`[Fetcher] ${packageName}: CRITICAL ERROR during dependency installation: ${err.message}`);
+    console.error(
+      `[Fetcher] ${packageName}: CRITICAL ERROR during dependency installation: ${err.message}`,
+    );
     if (err.all) console.error(`[Fetcher] ${packageName}: Error details:\n${err.all}`);
     throw new Error(`Failed to install dependencies for ${packageName}. See logs for details.`);
   }
@@ -209,8 +221,8 @@ async function installDependencies(packageDir: string, packageName: string, opti
 
 export async function fetchPipelabAsset(
   packageName: string,
-  versionOrRange?: string,
-  options?: FetchOptions,
+  versionOrRange: string,
+  options: FetchOptions,
 ): Promise<string> {
   if (isDev && projectRoot) {
     const assetId = packageName.replace("@pipelab/asset-", "");
@@ -223,8 +235,8 @@ export async function fetchPipelabAsset(
 
 export async function fetchPipelabPlugin(
   pluginName: string,
-  versionOrRange?: string,
-  options?: FetchOptions,
+  versionOrRange: string,
+  options: FetchOptions,
 ): Promise<{ packageDir: string; entryPoint: string; isLocal: boolean }> {
   const { packageDir, isLocal, entryPoint } = await fetchPackage(pluginName, versionOrRange, {
     installDeps: true,
@@ -238,8 +250,8 @@ export async function fetchPipelabPlugin(
 }
 
 export async function fetchPipelabCli(
-  versionOrRange?: string,
-  options?: FetchOptions,
+  versionOrRange: string,
+  options: FetchOptions,
 ): Promise<{ packageDir: string; entryPoint: string; isLocal: boolean }> {
   const { packageDir, isLocal, entryPoint } = await fetchPackage(
     "@pipelab/cli",
@@ -278,13 +290,17 @@ async function tryResolveMonorepoPackage(
     // User tip: main is usually source in dev, publishConfig.main is compiled for prod
     const publishMain = pkg.publishConfig?.module || pkg.publishConfig?.main;
     const devMain = pkg.module || pkg.main;
-    
+
     // Check bin field if it's a CLI
-    const binField = typeof pkg.bin === "string" ? pkg.bin : pkg.bin?.[packageName.replace("@pipelab/", "")] || (pkg.bin ? pkg.bin[Object.keys(pkg.bin)[0]] : undefined);
-    
+    const binField =
+      typeof pkg.bin === "string"
+        ? pkg.bin
+        : pkg.bin?.[packageName.replace("@pipelab/", "")] ||
+          (pkg.bin ? pkg.bin[Object.keys(pkg.bin)[0]] : undefined);
+
     // In dev, we prefer the "main" field if it points to TS, or a hardcoded src/index.ts
     const tsSource = join(packageDir, "src", "index.ts");
-    
+
     if (devMain && devMain.endsWith(".ts")) {
       entryPoint = join(packageDir, devMain);
     } else if (existsSync(tsSource)) {

@@ -51,12 +51,10 @@ export const uploadToPoki = createAction({
 });
 
 export const uploadToPokiRunner = createActionRunner<typeof uploadToPoki>(
-  async ({ log, inputs, paths, abortSignal, cwd }) => {
+  async ({ log, inputs, paths, abortSignal, cwd, context }) => {
     const { node, thirdparty, pnpm } = paths;
     const { packageDir: pokiDir } = await fetchPackage("@poki/cli", "0.1.19", {
-      baseDir: join(thirdparty, "@poki/cli"),
-      nodePath: node,
-      pnpmPath: pnpm,
+      context,
       installDeps: true,
     });
     const poki = join(pokiDir, "bin", "index.js");

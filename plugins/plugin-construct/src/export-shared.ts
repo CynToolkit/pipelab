@@ -106,15 +106,15 @@ type Inputs = ParamsToInput<typeof sharedParams>;
 
 export const exportc3p = async <ACTION extends Action>(
   file: string,
-  { cwd, log, inputs, setOutput, paths, abortSignal }: ActionRunnerData<ACTION>,
+  { cwd, log, inputs, setOutput, paths, abortSignal, context: ctx }: ActionRunnerData<ACTION>,
 ) => {
-  let context: BrowserContext | undefined = undefined;
+  let browserContext: BrowserContext | undefined = undefined;
   let browser: any | undefined = undefined;
 
   abortSignal.addEventListener("abort", () => {
     console.error("aborted");
 
-    context?.close();
+    browserContext?.close();
   });
   const newInputs = inputs as Inputs;
 
@@ -125,10 +125,8 @@ export const exportc3p = async <ACTION extends Action>(
   const browserName: "chromium" | "firefox" | "webkit" = "chromium";
 
   const { packageDir: playwrightPkgPath } = await fetchPackage("playwright-core", "1.48.2", {
-    baseDir: join(thirdparty, "playwright-core"),
-    nodePath: node,
-    pnpmPath: pnpm,
     installDeps: true,
+    context: ctx,
   });
   const playwrightCli = join(playwrightPkgPath, "cli.js");
   const browsersPath = join(thirdparty, "playwright-browsers");
@@ -208,7 +206,7 @@ export const exportc3p = async <ACTION extends Action>(
       await cp(from, to, { recursive: true });
     }
 
-    context = await browserInstance.launchPersistentContext(customProfile, {
+    browserContext = await browserInstance.launchPersistentContext(customProfile, {
       headless: headless as boolean,
       locale: "en-US",
       recordVideo: isCI
@@ -222,7 +220,7 @@ export const exportc3p = async <ACTION extends Action>(
       headless: headless as boolean,
     });
 
-    context = await browser.newContext({
+    browserContext = await browser.newContext({
       locale: "en-US",
       recordVideo: isCI
         ? {
@@ -230,14 +228,14 @@ export const exportc3p = async <ACTION extends Action>(
           }
         : undefined,
     });
-    await context?.clearPermissions();
+    await browserContext?.clearPermissions();
   }
 
-  if (!context) {
+  if (!browserContext) {
     throw new Error("Failed to initialize browser context");
   }
 
-  const page = await context.newPage();
+  const page = await browserContext.newPage();
 
   page.setDefaultTimeout((newInputs.timeout as number) * 1000);
 
@@ -273,8 +271,8 @@ export const exportc3p = async <ACTION extends Action>(
     log("error, no result, crashed", e);
     throw new Error("ConstructExport failed: " + e.message);
   } finally {
-    if (context) {
-      await context.close();
+    if (browserContext) {
+      await browserContext.close();
     }
     if (browser) {
       await browser.close();

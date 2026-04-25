@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { useLogger } from "@pipelab/shared";
+import { PipelabContext } from "../context";
 
 /**
  * A generic file-based storage implementation for persisting JSON data.
@@ -10,8 +11,8 @@ export class JsonFileStorage {
   private filePath: string;
   private logger = useLogger().logger;
 
-  constructor(fileName: string, userDataPath: string) {
-    this.filePath = path.join(userDataPath, fileName);
+  constructor(fileName: string, context: PipelabContext) {
+    this.filePath = path.join(context.userDataPath, fileName);
     const dir = path.dirname(this.filePath);
     if (!fs.existsSync(dir)) {
       try {

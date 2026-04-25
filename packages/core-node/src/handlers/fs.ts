@@ -3,7 +3,9 @@ import { useLogger } from "@pipelab/shared";
 import { writeFile, readFile, readdir, stat } from "node:fs/promises";
 import { join } from "node:path";
 
-export const registerFsHandlers = () => {
+import { PipelabContext } from "../context";
+
+export const registerFsHandlers = (_context: PipelabContext) => {
   const { handle } = useAPI();
   const { logger } = useLogger();
 

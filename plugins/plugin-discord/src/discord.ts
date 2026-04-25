@@ -181,6 +181,7 @@ export const discord = async (
     setOutput,
     paths,
     abortSignal,
+    context,
   }:
     | ActionRunnerData<ReturnType<typeof createPackageProps>>
     | ActionRunnerData<ReturnType<typeof createPreviewProps>>,
@@ -192,11 +193,11 @@ export const discord = async (
 
   const runtime = await detectRuntime(appFolder);
 
-  const { assets, modules, cache, node } = paths;
+  const { modules, cache, node } = paths;
 
   const destinationFolder = join(cwd, "build");
 
-  const rawAssetFolder = await fetchPipelabAsset("@pipelab/asset-discord", "^1.0.0");
+  const rawAssetFolder = await fetchPipelabAsset("@pipelab/asset-discord", "^1.0.0", { context });
   const templateFolder = join(rawAssetFolder, "template");
 
   // copy template to destination
@@ -230,8 +231,6 @@ DISCORD_CLIENT_SECRET=yJ4vRnzDtKAqg2Le3_Sap2CqHybkTp2U`,
     "utf8",
   );
 
-  const shimsPaths = join(assets, "shims");
-
   const sanitizedName = kebabCase(completeConfiguration.name);
 
   // package.json update
@@ -262,6 +261,7 @@ DISCORD_CLIENT_SECRET=yJ4vRnzDtKAqg2Le3_Sap2CqHybkTp2U`,
   const { all: installOut } = await runPnpm(destinationFolder, {
     args: ["install", "--prefer-offline"],
     signal: abortSignal,
+    context,
   });
   if (installOut) log(installOut);
 
@@ -307,6 +307,7 @@ DISCORD_CLIENT_SECRET=yJ4vRnzDtKAqg2Le3_Sap2CqHybkTp2U`,
             PORT: port.toString(),
           },
           signal: abortSignal,
+          context,
         }).then(({ all }) => {
           if (all) log(all);
         }),
@@ -317,35 +318,11 @@ DISCORD_CLIENT_SECRET=yJ4vRnzDtKAqg2Le3_Sap2CqHybkTp2U`,
           console.log("Public URL:", url);
         })(),
       ]);
-
-      // const { port } = await createAppServer(placeAppFolder)
-
-      // const tunnel = await createTunnel(port, inputs['customHostname'])
-
-      // await waitForAbort(abortSignal)
     } else {
       throw new Error("TODO");
     }
 
-    if (action === "package") {
-      // const binName = getBinName(completeConfiguration.name)
-      // log('cargoOutputPath', cargoOutputPath)
-      // setOutput('output', cargoOutputPath)
-      // return {
-      //   folder: cargoOutputPath,
-      //   binary: join(cargoOutputPath, binName)
-      // }
-    } else if (action === "preview") {
-      // continue
-    } else {
-      throw new Error("Unsupported action");
-      // const output = join(destinationFolder, 'out', 'make')
-      // setOutput('output', output)
-      // return {
-      //   folder: output,
-      //   binary: undefined
-      // }
-    }
+    return undefined;
   } catch (e) {
     if (e instanceof Error) {
       if (e.name === "RequestError") {

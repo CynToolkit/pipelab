@@ -5,8 +5,7 @@ import { is } from "@electron-toolkit/utils";
 import http from "node:http";
 import fs from "node:fs";
 import { websocketPort, uiDevPort, getUiDevServerFatalError } from "@pipelab/constants";
-import { fetchPipelabCli, setUserDataPath, ensureNodeJS, projectRoot } from "@pipelab/core-node";
-
+import { fetchPipelabCli, ensureNodeJS, projectRoot, PipelabContext } from "@pipelab/core-node";
 
 let serverProcess: ChildProcess | null = null;
 
@@ -46,7 +45,6 @@ export const startServer = async () => {
   }
 
   const userDataPath = app.getPath("userData");
-  setUserDataPath(userDataPath);
 
   // 0. In dev mode, ensure UI dev server is running BEFORE anything else
   if (is.dev) {
@@ -57,9 +55,13 @@ export const startServer = async () => {
     }
   }
 
+  const context = new PipelabContext({ userDataPath });
+
   // 1. Ensure runtime environment (Node.js) is ready FIRST
-  const nodePath = await ensureNodeJS("24.14.1").catch((e) => {
-    console.warn(`[Server] Failed to ensure specific Node.js version, falling back to system 'node': ${e.message}`);
+  const nodePath = await ensureNodeJS("24.14.1", { context }).catch((e) => {
+    console.warn(
+      `[Server] Failed to ensure specific Node.js version, falling back to system 'node': ${e.message}`,
+    );
     return "node";
   });
 
@@ -75,13 +77,15 @@ export const startServer = async () => {
   }
 
   // 3. Resolve the CLI (will use nodePath if installation is needed)
-  const { entryPoint, isLocal, packageDir } = await fetchPipelabCli(undefined, { nodePath });
+  const { entryPoint, isLocal, packageDir } = await fetchPipelabCli("latest", { context });
 
   let serverPath = nodePath;
   let args = [entryPoint, "serve", "--user-data", userDataPath];
 
   if (isLocal && entryPoint.endsWith(".ts")) {
-    console.info(`[Server] Local CLI detected at ${packageDir}, starting with hot-reload (tsx watch)`);
+    console.info(
+      `[Server] Local CLI detected at ${packageDir}, starting with hot-reload (tsx watch)`,
+    );
     const tsxPath = projectRoot ? join(projectRoot, "node_modules", ".bin", "tsx") : "tsx";
     serverPath = tsxPath;
     args = ["watch", entryPoint, "serve", "--user-data", userDataPath];

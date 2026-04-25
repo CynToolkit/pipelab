@@ -1,13 +1,13 @@
 import { supabase, useLogger, isSupabaseAvailable } from "@pipelab/shared";
 import { useAPI } from "../ipc-core";
 import { JsonFileStorage } from "../utils/storage";
-import { userDataPath } from "../context";
+import { PipelabContext } from "../context";
 import { webSocketServer } from "../websocket-server";
 
 /**
  * Registers authentication handlers for the CLI/system backend.
  */
-export const registerAuthHandlers = () => {
+export const registerAuthHandlers = (context: PipelabContext) => {
   const { handle } = useAPI();
   const { logger } = useLogger();
 
@@ -20,7 +20,7 @@ export const registerAuthHandlers = () => {
   // Initialize the singleton Supabase client for the backend with the custom FileStorage
   const client = supabase({
     auth: {
-      storage: new JsonFileStorage("auth-session.json", userDataPath),
+      storage: new JsonFileStorage("auth-session.json", context),
       persistSession: true,
       autoRefreshToken: true,
       detectSessionInUrl: false,

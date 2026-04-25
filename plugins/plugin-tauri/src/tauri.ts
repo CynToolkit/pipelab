@@ -506,6 +506,7 @@ export const tauri = async (
     setOutput,
     paths,
     abortSignal,
+    context,
   }: ActionRunnerData<ReturnType<typeof createPackageV2Props>>,
   completeConfiguration: DesktopApp.Config,
 ): Promise<{ folder: string; binary: string | undefined } | undefined> => {
@@ -517,11 +518,11 @@ export const tauri = async (
     await detectRuntime(appFolder);
   }
 
-  const { assets, modules, cache, node } = paths;
+  const { modules, cache, node } = paths;
 
   const destinationFolder = join(cwd, "build");
 
-  const rawAssetFolder = await fetchPipelabAsset("@pipelab/asset-tauri", "^1.0.0");
+  const rawAssetFolder = await fetchPipelabAsset("@pipelab/asset-tauri", "^1.0.0", { context });
   const templateFolder = join(rawAssetFolder, "template");
 
   // copy template to destination
@@ -552,8 +553,6 @@ export const tauri = async (
     `module.exports = ${JSON.stringify(completeConfiguration, undefined, 2)}`,
     "utf8",
   );
-
-  const shimsPaths = join(assets, "shims");
 
   const sanitizedName = kebabCase(completeConfiguration.name);
 
@@ -606,6 +605,7 @@ export const tauri = async (
   log("Installing packages");
   const { all } = await runPnpm(destinationFolder, {
     signal: abortSignal,
+    context,
   });
   if (all) log(all);
 

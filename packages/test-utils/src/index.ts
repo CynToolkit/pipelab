@@ -55,7 +55,11 @@ export const createSandbox = async (prefix: string) => {
     /**
      * Creates a mock binary/script in the sandbox.
      */
-    mockBinary: async (relativePath: string, content?: string, options: { extension?: string | false } = {}) => {
+    mockBinary: async (
+      relativePath: string,
+      content?: string,
+      options: { extension?: string | false } = {},
+    ) => {
       const fullPath = join(sandboxPath, relativePath);
       let platformPath = fullPath;
 
@@ -65,7 +69,7 @@ export const createSandbox = async (prefix: string) => {
         platformPath = `${fullPath}.${options.extension}`;
       } else {
         const hasExtension = /\.[a-z0-9]+$/i.test(relativePath);
-        platformPath = hasExtension ? fullPath : (isWindows ? `${fullPath}.cmd` : `${fullPath}.sh`);
+        platformPath = hasExtension ? fullPath : isWindows ? `${fullPath}.cmd` : `${fullPath}.sh`;
       }
 
       const defaultContent = isWindows
@@ -95,10 +99,13 @@ export const createSandbox = async (prefix: string) => {
 /**
  * Runs the Pipelab CLI out-of-process.
  */
-export const runCLI = async (args: string[], options: {
-  cwd?: string,
-  env?: Record<string, string>
-} = {}) => {
+export const runCLI = async (
+  args: string[],
+  options: {
+    cwd?: string;
+    env?: Record<string, string>;
+  } = {},
+) => {
   const projectRoot = findProjectRoot(__dirname);
   const cliPath = resolve(projectRoot, "apps/cli/src/index.ts");
 
@@ -172,7 +179,7 @@ spawnSync('pnpm', process.argv.slice(2), { stdio: 'inherit', shell: true });`,
     browserWindow: undefined,
     abortSignal: new AbortController().signal,
     // @ts-ignore - Mocking setMeta
-    setMeta: () => { },
+    setMeta: () => {},
     meta: {} as any,
   };
 

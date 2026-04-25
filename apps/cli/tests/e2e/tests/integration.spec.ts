@@ -43,7 +43,7 @@ describe("End-to-End: Multi-Plugin Integration Test", () => {
               overwrite: { value: JSON.stringify(true) },
               cleanup: { value: JSON.stringify(false) },
             },
-          }
+          },
         ],
         projectPath: sandbox.path,
         projectName: "Integration E2E Test",

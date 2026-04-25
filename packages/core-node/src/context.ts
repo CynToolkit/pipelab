@@ -28,40 +28,26 @@ function findProjectRoot(startDir: string): string | null {
 
 export const projectRoot = findProjectRoot(_dirname);
 
-const getArg = (name: string): string | undefined => {
-  const index = process.argv.indexOf(name);
-  if (index > -1 && index < process.argv.length - 1) {
-    return process.argv[index + 1];
+export interface PipelabContextOptions {
+  userDataPath: string;
+}
+
+export class PipelabContext {
+  public readonly userDataPath: string;
+
+  constructor(options: PipelabContextOptions) {
+    this.userDataPath = options.userDataPath;
   }
-  return undefined;
-};
 
-/**
- * The path where user data (settings, build history, etc.) is stored.
- * Can be overridden by the --user-data CLI flag or setUserDataPath.
- */
-export let userDataPath = getArg("--user-data")
-  ? resolve(getArg("--user-data")!)
-  : join(homedir(), ".config", "@pipelab", isDev ? "app-dev" : "app");
+  getPackagesPath(...subpaths: string[]) {
+    return join(this.userDataPath, "packages", ...subpaths);
+  }
 
-/**
- * Allows overriding the user data path.
- */
-export const setUserDataPath = (path: string) => {
-  userDataPath = path;
-};
+  getThirdPartyPath(...subpaths: string[]) {
+    return join(this.userDataPath, "thirdparty", ...subpaths);
+  }
 
-/**
- * The path to the assets directory (contains shims, templates, etc.).
- * Default is calculated relative to the current file, but can be overridden.
- */
-export let assetsPath = join(_dirname, "..", "assets");
-(global as any).PIPELAB_ASSETS_PATH = assetsPath;
-
-/**
- * Allows overriding the assets path if it's not in the default location.
- */
-export const setAssetsPath = (path: string) => {
-  assetsPath = path;
-  (global as any).PIPELAB_ASSETS_PATH = path;
-};
+  getConfigPath(...subpaths: string[]) {
+    return join(this.userDataPath, "config", ...subpaths);
+  }
+}

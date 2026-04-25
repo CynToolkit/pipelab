@@ -1,5 +1,5 @@
 import { useAPI, HandleListenerSendFn } from "../ipc-core";
-import { userDataPath } from "../context";
+import { PipelabContext } from "../context";
 import { useLogger } from "@pipelab/shared";
 import { getFinalPlugins, executeGraphWithHistory } from "../utils";
 import { presets } from "../presets/list";
@@ -9,7 +9,7 @@ import { tmpdir } from "node:os";
 import { setupConfigFile } from "../config";
 import { AppConfig } from "@pipelab/shared";
 
-export const registerEngineHandlers = () => {
+export const registerEngineHandlers = (context: PipelabContext) => {
   const { handle } = useAPI();
   const { logger } = useLogger();
 
@@ -40,7 +40,7 @@ export const registerEngineHandlers = () => {
   handle("condition:execute", async (_, { value }) => {
     const { nodeId, params, pluginId } = value;
     const cwd = await generateTempFolder(tmpdir());
-    await handleConditionExecute(nodeId, pluginId, params, cwd);
+    await handleConditionExecute(nodeId, pluginId, params, cwd, context);
   });
 
   let abortControllerGraph: undefined | AbortController = undefined;
@@ -64,6 +64,7 @@ export const registerEngineHandlers = () => {
         abortControllerGraph!.signal,
         cwd,
         cachePath,
+        context,
       );
 
       await send({
@@ -84,7 +85,7 @@ export const registerEngineHandlers = () => {
 
   handle("action:execute", async (event, { send, value }) => {
     const { nodeId, params, pluginId } = value;
-    const settings = await setupConfigFile<AppConfig>("settings");
+    const settings = await setupConfigFile<AppConfig>("settings", { context });
     const config = await settings.getConfig();
 
     const cachePath = config?.cacheFolder || tmpdir();
@@ -113,7 +114,7 @@ export const registerEngineHandlers = () => {
   });
 
   handle("constants:get", async (_, { send }) => {
-    const userData = userDataPath;
+    const userData = context.userDataPath;
     send({
       type: "end",
       data: {
@@ -144,7 +145,7 @@ export const registerEngineHandlers = () => {
 
   handle("graph:execute", async (event, { send, value }) => {
     const { graph, variables, projectName, projectPath, pipelineId } = value;
-    const settings = await setupConfigFile<AppConfig>("settings");
+    const settings = await setupConfigFile<AppConfig>("settings", { context });
     const config = await settings.getConfig();
 
     const effectiveProjectName = projectName || "Unnamed Project";
@@ -198,6 +199,7 @@ export const registerEngineHandlers = () => {
         },
         abortSignal: abortControllerGraph!.signal,
         cachePath: effectiveCachePath,
+        context,
       });
 
       send({

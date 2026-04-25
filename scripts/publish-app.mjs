@@ -55,12 +55,14 @@ async function main() {
       access: "public",
       registry: "https://registry.npmjs.org/",
     },
-    ...(appName === "cli" ? {
-      bin: {
-        "pipelab": "./index.mjs",
-        "plab": "./index.mjs"
-      }
-    } : {}),
+    ...(appName === "cli"
+      ? {
+          bin: {
+            pipelab: "./index.mjs",
+            plab: "./index.mjs",
+          },
+        }
+      : {}),
     dependencies: {}, // Self-contained
   };
 

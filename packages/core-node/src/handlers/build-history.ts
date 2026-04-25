@@ -1,17 +1,20 @@
-import { userDataPath } from "../context";
+import { PipelabContext } from "../context";
 import { join } from "node:path";
 import { writeFile, readFile, unlink, mkdir, stat, readdir } from "node:fs/promises";
 import { BuildHistoryEntry, IBuildHistoryStorage } from "@pipelab/shared";
 import { useLogger } from "@pipelab/shared";
 
 // Simplified storage - one file per pipeline containing array of build entries
-const getStoragePath = () => join(userDataPath, "build-history");
 
 export class BuildHistoryStorage implements IBuildHistoryStorage {
   private logger = useLogger();
 
-  constructor() {
+  constructor(private context: PipelabContext) {
     // Simple initialization - no complex setup needed
+  }
+
+  private getStoragePath() {
+    return join(this.context.userDataPath, "build-history");
   }
 
   private getPipelinePath(pipelineId: string): string {
@@ -22,12 +25,12 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
       .replace(/__/g, "_") // Replace multiple underscores with single
       .replace(/^_+|_+$/g, ""); // Remove leading/trailing underscores
 
-    return join(getStoragePath(), `pipeline-${sanitizedId}.json`);
+    return join(this.getStoragePath(), `pipeline-${sanitizedId}.json`);
   }
 
   private async ensureStoragePath(): Promise<void> {
     try {
-      await mkdir(getStoragePath(), { recursive: true });
+      await mkdir(this.getStoragePath(), { recursive: true });
     } catch (error) {
       this.logger.logger().error("Failed to create storage path:", error);
       throw new Error(`Failed to create storage directory: ${error}`);
@@ -225,7 +228,7 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
       await this.ensureStoragePath();
 
       const files = await this.getAllPipelineFiles();
-      await Promise.all(files.map((file) => unlink(join(getStoragePath(), file))));
+      await Promise.all(files.map((file) => unlink(join(this.getStoragePath(), file))));
 
       this.logger.logger().info("Cleared all build history entries");
     } catch (error) {
@@ -254,7 +257,7 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
       try {
         const files = await this.getAllPipelineFiles();
         for (const file of files) {
-          const filePath = join(getStoragePath(), file);
+          const filePath = join(this.getStoragePath(), file);
           const stats = await stat(filePath);
           totalSize += stats.size;
         }
@@ -280,13 +283,10 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
   private async getAllPipelineFiles(): Promise<string[]> {
     try {
       await this.ensureStoragePath();
-      const files = await readdir(getStoragePath());
+      const files = await readdir(this.getStoragePath());
       return files.filter((file) => file.startsWith("pipeline-") && file.endsWith(".json"));
     } catch (error) {
       return [];
     }
   }
 }
-
-// Export a default instance
-export const buildHistoryStorage = new BuildHistoryStorage();

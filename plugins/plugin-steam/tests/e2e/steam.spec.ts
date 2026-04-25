@@ -30,8 +30,14 @@ describe("End-to-End: Steam Integration", () => {
         builderFolder += "_osx";
       }
 
-      const relativeSteamCmd = join("mock-steam-sdk", "tools", "ContentBuilder", builderFolder, "steamcmd");
-      
+      const relativeSteamCmd = join(
+        "mock-steam-sdk",
+        "tools",
+        "ContentBuilder",
+        builderFolder,
+        "steamcmd",
+      );
+
       // Create the mock steamcmd script that simulates a successful login and build
       const mockScript = isWindows
         ? `@echo off\necho Authenticated\nexit /b 0`
@@ -40,13 +46,25 @@ describe("End-to-End: Steam Integration", () => {
       await sandbox.mockBinary(relativeSteamCmd, mockScript);
 
       if (isLinux) {
-        const linux32Dir = join("mock-steam-sdk", "tools", "ContentBuilder", builderFolder, "linux32");
+        const linux32Dir = join(
+          "mock-steam-sdk",
+          "tools",
+          "ContentBuilder",
+          builderFolder,
+          "linux32",
+        );
         await sandbox.mockBinary(join(linux32Dir, "steamcmd"), undefined, { extension: false });
-        await sandbox.mockBinary(join(linux32Dir, "steamerrorreporter"), undefined, { extension: false });
+        await sandbox.mockBinary(join(linux32Dir, "steamerrorreporter"), undefined, {
+          extension: false,
+        });
       }
 
       if (isMac) {
-        await sandbox.mockBinary(join("mock-steam-sdk", "tools", "ContentBuilder", builderFolder, "steamcmd"), undefined, { extension: false });
+        await sandbox.mockBinary(
+          join("mock-steam-sdk", "tools", "ContentBuilder", builderFolder, "steamcmd"),
+          undefined,
+          { extension: false },
+        );
       }
 
       // 2. Setup a dummy single file to upload

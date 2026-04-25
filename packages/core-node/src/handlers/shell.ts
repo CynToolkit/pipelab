@@ -1,9 +1,9 @@
 import { useAPI } from "../ipc-core";
 import { useLogger } from "@pipelab/shared";
-import slash from "slash";
+import { PipelabContext } from "../context";
 import { homedir } from "node:os";
 
-export const registerShellHandlers = () => {
+export const registerShellHandlers = (_context: PipelabContext) => {
   const { handle } = useAPI();
   const { logger } = useLogger();
 

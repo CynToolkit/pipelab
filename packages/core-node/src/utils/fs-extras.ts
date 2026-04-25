@@ -55,18 +55,23 @@ export async function extractZip(archivePath: string, destinationDir: string): P
       zipfile.on("entry", (entry) => {
         const entryPath = join(destinationDir, entry.fileName);
         if (/\/$/.test(entry.fileName)) {
-          mkdirP(entryPath, { recursive: true }).then(() => zipfile.readEntry()).catch(reject);
+          mkdirP(entryPath, { recursive: true })
+            .then(() => zipfile.readEntry())
+            .catch(reject);
         } else {
-          mkdirP(dirname(entryPath), { recursive: true }).then(() => {
-            zipfile.openReadStream(entry, (err, readStream) => {
-              if (err || !readStream) return reject(err || new Error("Could not open read stream"));
-              readStream.on("error", reject);
-              const writeStream = createWriteStream(entryPath);
-              writeStream.on("error", reject);
-              writeStream.on("close", () => zipfile.readEntry());
-              readStream.pipe(writeStream);
-            });
-          }).catch(reject);
+          mkdirP(dirname(entryPath), { recursive: true })
+            .then(() => {
+              zipfile.openReadStream(entry, (err, readStream) => {
+                if (err || !readStream)
+                  return reject(err || new Error("Could not open read stream"));
+                readStream.on("error", reject);
+                const writeStream = createWriteStream(entryPath);
+                writeStream.on("error", reject);
+                writeStream.on("close", () => zipfile.readEntry());
+                readStream.pipe(writeStream);
+              });
+            })
+            .catch(reject);
         }
       });
       zipfile.on("end", () => resolve());
@@ -77,7 +82,11 @@ export async function extractZip(archivePath: string, destinationDir: string): P
 /**
  * Zips a folder.
  */
-export const zipFolder = async (from: string, to: string, log: typeof console.log = console.log) => {
+export const zipFolder = async (
+  from: string,
+  to: string,
+  log: typeof console.log = console.log,
+) => {
   const output = createWriteStream(to);
   const archive = archiver("zip", { zlib: { level: 9 } });
   return new Promise<string>((resolve, reject) => {

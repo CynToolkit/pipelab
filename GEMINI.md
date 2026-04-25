@@ -78,3 +78,5 @@ The project uses `pnpm` as its package manager and Turborepo for task orchestrat
 - Do not grep unless strictly necessary
 - Use pnpm instead of npm
 - Never grep in gitignored folders (like node_modules or dist or out folders)
+- Think twice before proposing a solution or a plan: there may be evident flaws or simpler alternatives
+- Use rg/ripgrep instead of grep

@@ -14,6 +14,7 @@ export default defineConfig({
     },
     include: ["**/*.spec.ts"],
     root: "tests/e2e",
-    environment: "node", env: { NODE_ENV: "development", PIPELAB_DISABLE_HISTORY: "true" },
+    environment: "node",
+    env: { NODE_ENV: "development", PIPELAB_DISABLE_HISTORY: "true" },
   },
 });

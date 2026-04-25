@@ -1,4 +1,5 @@
 import type { BrowserWindow } from "electron";
+import type { PipelabContext } from "../context";
 import type {
   Action,
   Condition,
@@ -45,7 +46,6 @@ export type ActionRunnerData<ACTION extends Action> = {
   meta: ACTION["meta"];
   cwd: string;
   paths: {
-    assets: string;
     cache: string;
     pnpm: string;
     node: string;
@@ -55,6 +55,7 @@ export type ActionRunnerData<ACTION extends Action> = {
   };
   browserWindow: BrowserWindow;
   abortSignal: AbortSignal;
+  context: PipelabContext;
 };
 
 export type ActionRunner<ACTION extends Action> = (data: ActionRunnerData<ACTION>) => Promise<void>;
@@ -65,6 +66,7 @@ export type ConditionRunner<CONDITION extends Condition> = (data: {
   setMeta: (callback: (data: CONDITION["meta"]) => CONDITION["meta"]) => void;
   meta: CONDITION["meta"];
   cwd: string;
+  context: PipelabContext;
 }) => Promise<boolean>;
 
 export type LoopRunner<LOOP extends Loop> = (data: {
@@ -74,6 +76,7 @@ export type LoopRunner<LOOP extends Loop> = (data: {
   setMeta: (callback: (data: LOOP["meta"]) => LOOP["meta"]) => void;
   meta: LOOP["meta"];
   cwd: string;
+  context: PipelabContext;
 }) => Promise<"step" | "exit">;
 
 export type ExpressionRunner<EXPRESSION extends Expression> = (data: {
@@ -83,6 +86,7 @@ export type ExpressionRunner<EXPRESSION extends Expression> = (data: {
   setMeta: (callback: (data: EXPRESSION["meta"]) => EXPRESSION["meta"]) => void;
   meta: EXPRESSION["meta"];
   cwd: string;
+  context: PipelabContext;
 }) => Promise<string>;
 
 export type EventRunner<EVENT extends Event> = (data: {
@@ -91,6 +95,7 @@ export type EventRunner<EVENT extends Event> = (data: {
   setMeta: (callback: (data: EVENT["meta"]) => EVENT["meta"]) => void;
   meta: EVENT["meta"];
   cwd: string;
+  context: PipelabContext;
 }) => Promise<void>;
 
 export type Runner = ActionRunner<any> | LoopRunner<any> | EventRunner<any> | ConditionRunner<any>;

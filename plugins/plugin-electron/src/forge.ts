@@ -563,6 +563,7 @@ export const forge = async (
     setOutput,
     paths,
     abortSignal,
+    context,
   }: ActionRunnerData<
     | ReturnType<typeof createMakeProps>
     | ReturnType<typeof createPackageProps>
@@ -577,7 +578,7 @@ export const forge = async (
     await detectRuntime(appFolder);
   }
 
-  const { assets, modules, node } = paths;
+  const { modules, node } = paths;
   const destinationFolder = await generateTempFolder(paths.cache);
   log(`Staging build in ${destinationFolder}`);
 
@@ -591,7 +592,9 @@ export const forge = async (
       "electron-forge.js",
     );
 
-    const rawAssetFolder = await fetchPipelabAsset("@pipelab/asset-electron", "^1.0.0");
+    const rawAssetFolder = await fetchPipelabAsset("@pipelab/asset-electron", "^1.0.0", {
+      context,
+    });
     const templateFolder = join(rawAssetFolder, "template");
     console.log("templateFolder", templateFolder);
     console.log("destinationFolder", destinationFolder);
@@ -655,6 +658,7 @@ export const forge = async (
     const { all: installAll } = await runPnpm(destinationFolder, {
       args: ["install", "--prefer-offline"],
       signal: abortSignal,
+      context,
     });
     if (installAll) log(installAll);
 
@@ -669,6 +673,7 @@ export const forge = async (
       const { all: customAll } = await runPnpm(destinationFolder, {
         args: ["install", ...completeConfiguration.customPackages, "--prefer-offline"],
         signal: abortSignal,
+        context,
       });
       if (customAll) log(customAll);
     }
@@ -679,6 +684,7 @@ export const forge = async (
       const { all: electronAll } = await runPnpm(destinationFolder, {
         args: ["install", `electron@${completeConfiguration.electronVersion}`, "--prefer-offline"],
         signal: abortSignal,
+        context,
       });
       if (electronAll) log(electronAll);
     }
@@ -688,6 +694,7 @@ export const forge = async (
       const { all: execaAll } = await runPnpm(destinationFolder, {
         args: ["install", `execa@8`, "--prefer-offline"],
         signal: abortSignal,
+        context,
       });
       if (execaAll) log(execaAll);
     }

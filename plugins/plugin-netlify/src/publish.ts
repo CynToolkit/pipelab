@@ -66,10 +66,10 @@ export const uploadToNetlify = createAction({
 });
 
 export const uploadToNetlifyRunner = createActionRunner<typeof uploadToNetlify>(
-  async ({ log, inputs, cwd, abortSignal, paths }) => {
+  async ({ log, inputs, cwd, abortSignal, paths, context }) => {
     log("Uploading to netlify");
 
-    const { node, assets } = paths;
+    const { node } = paths;
 
     const sitesResult = await fetch(`https://api.netlify.com/api/v1/sites/${inputs.site}`, {
       method: "GET",
@@ -90,7 +90,7 @@ export const uploadToNetlifyRunner = createActionRunner<typeof uploadToNetlify>(
     // 1. Prepare input folder with temmplate
     // Assume input folder is always a static site
     const destinationFolder = join(cwd);
-    const rawAssetFolder = await fetchPipelabAsset("@pipelab/asset-netlify", "^1.0.0");
+    const rawAssetFolder = await fetchPipelabAsset("@pipelab/asset-netlify", "^1.0.0", { context });
     const templateFolder = join(rawAssetFolder, "template");
 
     // copy template to destination
@@ -124,6 +124,7 @@ export const uploadToNetlifyRunner = createActionRunner<typeof uploadToNetlify>(
     log("Installing packages");
     const { all } = await runPnpm(destinationFolder, {
       signal: abortSignal,
+      context,
     });
     // 4. netlify deploy
     const { all: deployOut } = await runPnpm(destinationFolder, {
@@ -132,6 +133,7 @@ export const uploadToNetlifyRunner = createActionRunner<typeof uploadToNetlify>(
         NETLIFY_AUTH_TOKEN: inputs.token,
       },
       signal: abortSignal,
+      context,
     });
     if (deployOut) log(deployOut);
 

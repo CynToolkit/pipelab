@@ -1,6 +1,7 @@
 import { useAPI } from "../ipc-core";
+import { PipelabContext } from "../context";
 
-export const registerSystemHandlers = (options: { version: string }) => {
+export const registerSystemHandlers = (options: { version: string; context: PipelabContext }) => {
   const { handle } = useAPI();
 
   handle("agent:version:get", async (_, { send }) => {

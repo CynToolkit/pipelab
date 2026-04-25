@@ -5,22 +5,16 @@ import { downloadFile, DownloadHooks } from "./utils/fs-extras";
 import { access, chmod, mkdir, rm, writeFile, readdir, cp } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { userDataPath, assetsPath, isDev, projectRoot } from "./context";
+import { isDev, projectRoot, PipelabContext } from "./context";
 import { constants, existsSync } from "node:fs";
 import { processGraph } from "@pipelab/shared";
 import { handleActionExecute } from "./handler-func";
 import { useLogger } from "@pipelab/shared";
-import { buildHistoryStorage } from "./handlers/build-history";
+import { BuildHistoryStorage } from "./handlers/build-history";
 import type { BuildHistoryEntry } from "@pipelab/shared";
 import type { Variable } from "@pipelab/shared";
 
-import {
-  ensure,
-  generateTempFolder,
-  extractTarGz,
-  extractZip,
-  zipFolder,
-} from "./utils/fs-extras";
+import { ensure, generateTempFolder, extractTarGz, extractZip, zipFolder } from "./utils/fs-extras";
 import { fetchPipelabAsset, fetchPipelabPlugin } from "./utils/remote";
 import { setupConfigFile } from "./config";
 import { AppConfig } from "@pipelab/shared";
@@ -84,6 +78,7 @@ export const executeGraphWithHistory = async ({
   abortSignal,
   mainWindow,
   cachePath,
+  context,
 }: {
   graph: any;
   variables: Variable[];
@@ -96,7 +91,10 @@ export const executeGraphWithHistory = async ({
   abortSignal: AbortSignal;
   mainWindow?: any;
   cachePath: string;
+  context: PipelabContext;
 }) => {
+  const ctx = context;
+  const buildHistoryStorage = new BuildHistoryStorage(ctx);
   const buildId = nanoid();
   const startTime = Date.now();
 
@@ -141,7 +139,9 @@ export const executeGraphWithHistory = async ({
       try {
         const packageName = `@pipelab/plugin-${pluginId}`;
 
-        const { packageDir, entryPoint } = await fetchPipelabPlugin(packageName);
+        const { packageDir, entryPoint } = await fetchPipelabPlugin(packageName, "latest", {
+          context: ctx,
+        });
         const pluginModule = await import(pathToFileURL(entryPoint).href);
         const pluginDefinition = pluginModule.default;
 
@@ -154,7 +154,7 @@ export const executeGraphWithHistory = async ({
   }
 
   logger().info(`[Sandbox] Execution sandbox created at: ${sandboxPath}`);
-  const settingsFile = await setupConfigFile<AppConfig>("settings");
+  const settingsFile = await setupConfigFile<AppConfig>("settings", { context: ctx });
   const config = await settingsFile.getConfig();
   const shouldCleanup = config?.clearTemporaryFoldersOnPipelineEnd ?? true;
 
@@ -187,6 +187,7 @@ export const executeGraphWithHistory = async ({
             abortSignal,
             sandboxPath,
             cachePath,
+            ctx,
           );
         }
         throw new Error(`Execution of node type ${node.type} not implemented in utils.ts`);

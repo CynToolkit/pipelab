@@ -1,8 +1,6 @@
-import {
-  executeGraphWithHistory,
-} from "./utils";
+import { executeGraphWithHistory } from "./utils";
 import { setupConfigFile } from "./config";
-import { isDev } from "./context";
+import { isDev, PipelabContext } from "./context";
 import { readFile, access, writeFile, mkdir } from "node:fs/promises";
 import { resolve, isAbsolute, join, dirname } from "node:path";
 import { tmpdir } from "node:os";
@@ -61,10 +59,15 @@ export async function runPipelineCommand(file: string, options: RunOptions, vers
 
   console.log(`Executing pipeline: ${effectiveProjectName} (${effectivePipelineId})`);
 
-  await registerAllHandlers({ version });
-  registerMigrationHandlers();
+  if (!options.userData) throw new Error("userDataPath is required for runPipelineCommand");
+  const context = new PipelabContext({
+    userDataPath: options.userData,
+  });
 
-  const settings = await setupConfigFile<AppConfig>("settings");
+  await registerAllHandlers({ version, context });
+  registerMigrationHandlers(context);
+
+  const settings = await setupConfigFile<AppConfig>("settings", { context });
   const config = await settings.getConfig();
   const cachePath = config?.cacheFolder || tmpdir();
 
@@ -85,6 +88,7 @@ export async function runPipelineCommand(file: string, options: RunOptions, vers
       }
     },
     abortSignal: abortController.signal,
+    context,
   });
 
   console.log(`Pipeline execution finished. Build ID: ${buildId}`);

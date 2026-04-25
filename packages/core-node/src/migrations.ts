@@ -1,4 +1,5 @@
 import { useAPI } from "./ipc-core";
+import { PipelabContext } from "./context";
 import { setupConfigFile } from "./config";
 import {
   savedFileMigrator,
@@ -12,7 +13,7 @@ import {
  * This overrides the default handlers from @pipelab/core-node to include
  * pipeline and file repo migrations directly in the backend.
  */
-export function registerMigrationHandlers() {
+export function registerMigrationHandlers(context: PipelabContext) {
   const { handle } = useAPI();
   const { logger } = useLogger();
 
@@ -41,7 +42,7 @@ export function registerMigrationHandlers() {
       // Since setupConfigFile in core-node expects the migrator to be in the configRegistry,
       // and we want to keep migrations in the CLI package, we'll manually apply them here.
 
-      const manager = await setupConfigFile(name, migrator);
+      const manager = await setupConfigFile(name, { context, migrator });
       const json = await manager.getConfig();
 
       send({

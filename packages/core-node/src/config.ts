@@ -1,4 +1,4 @@
-import { userDataPath } from "./context";
+import { PipelabContext } from "./context";
 import path from "node:path";
 import { ensure } from "./utils/fs-extras";
 import fs from "node:fs/promises";
@@ -17,8 +17,12 @@ export const getMigrator = <T>(name: string) => {
   return undefined;
 };
 
-export const setupConfigFile = async <T>(name: string, customMigrator?: Migrator<T>) => {
-  const migrator = customMigrator || getMigrator<T>(name);
+export const setupConfigFile = async <T>(
+  name: string,
+  options: { context: PipelabContext; migrator?: Migrator<T> },
+) => {
+  const ctx = options.context;
+  const migrator = options.migrator || getMigrator<T>(name);
 
   if (!migrator) {
     throw new Error(
@@ -26,9 +30,8 @@ export const setupConfigFile = async <T>(name: string, customMigrator?: Migrator
     );
   }
 
-  const userData = userDataPath;
   const isAbsolutePath = path.isAbsolute(name);
-  const filesPath = isAbsolutePath ? name : path.join(userData, "config", `${name}.json`);
+  const filesPath = isAbsolutePath ? name : ctx.getConfigPath(`${name}.json`);
 
   await ensure(filesPath, JSON.stringify(migrator.defaultValue));
 

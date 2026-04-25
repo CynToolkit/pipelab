@@ -132,7 +132,6 @@ jobs:
         run: pnpm turbo typecheck --cache-dir=".turbo"
         continue-on-error: true
 
-
   build-all:
     name: Build All
     needs: [verify-lint, verify-typecheck, test-matrix, changes]

@@ -38,9 +38,11 @@ const server = http.createServer((req, res) => {
 
     if (fs.existsSync(dmgPath)) {
       res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({
-        url: `http://localhost:${PORT}/download/macos/pipelab-v${version}.zip`
-      }));
+      res.end(
+        JSON.stringify({
+          url: `http://localhost:${PORT}/download/macos/pipelab-v${version}.zip`,
+        }),
+      );
     } else {
       res.writeHead(204);
       res.end();
@@ -69,12 +71,13 @@ const server = http.createServer((req, res) => {
     const filePath = findFile(MAKE_DIR);
     if (filePath) {
       const ext = path.extname(filePath);
-      const contentType = {
-        ".nupkg": "application/zip",
-        ".zip": "application/zip",
-        ".exe": "application/x-msdownload",
-        ".dmg": "application/x-apple-diskimage",
-      }[ext] || "application/octet-stream";
+      const contentType =
+        {
+          ".nupkg": "application/zip",
+          ".zip": "application/zip",
+          ".exe": "application/x-msdownload",
+          ".dmg": "application/x-apple-diskimage",
+        }[ext] || "application/octet-stream";
 
       res.writeHead(200, { "Content-Type": contentType });
       fs.createReadStream(filePath).pipe(res);

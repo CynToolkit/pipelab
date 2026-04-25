@@ -9,7 +9,7 @@ import {
   fileExists,
   runWithLiveLogs,
   runPnpm,
- } from "@pipelab/plugin-core";
+} from "@pipelab/plugin-core";
 import { createReadStream } from "node:fs";
 import { cp, mkdir, rm, writeFile } from "node:fs/promises";
 import { delimiter, dirname, join } from "node:path";

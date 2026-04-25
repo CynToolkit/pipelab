@@ -1,16 +1,11 @@
 import { End } from "@pipelab/shared";
 import { ensureNodeJS, ensurePNPM } from "./utils/remote";
-import {
-  Action,
-  ActionRunner,
-  Condition,
-  ConditionRunner,
-} from "./types/runner";
+import { Action, ActionRunner, Condition, ConditionRunner } from "./types/runner";
 import { InputsDefinition } from "@pipelab/shared";
 import { usePlugins } from "@pipelab/shared";
 import { isRequired } from "@pipelab/shared";
 import { mkdir, stat } from "node:fs/promises";
-import { assetsPath, userDataPath } from "./context";
+import { PipelabContext } from "./context";
 import { useLogger } from "@pipelab/shared";
 import { BlockCondition } from "@pipelab/shared";
 import { HandleListenerSendFn } from "./handlers";
@@ -48,7 +43,9 @@ export const handleConditionExecute = async (
   pluginId: string,
   params: BlockCondition["params"],
   cwd: string,
+  context: PipelabContext,
 ): Promise<End<"condition:execute">> => {
+  const ctx = context;
   const { plugins } = usePlugins();
   const { logger } = useLogger();
 
@@ -56,9 +53,9 @@ export const handleConditionExecute = async (
     .find((plugin) => plugin.id === pluginId)
     ?.nodes.find((node: any) => node.node.id === nodeId) as
     | {
-      node: Condition;
-      runner: ConditionRunner<any>;
-    }
+        node: Condition;
+        runner: ConditionRunner<any>;
+      }
     | undefined;
 
   if (!node) {
@@ -97,6 +94,7 @@ export const handleConditionExecute = async (
         logger().info("set meta defined here");
       },
       cwd,
+      context: ctx,
     });
 
     return {
@@ -124,7 +122,9 @@ export const handleActionExecute = async (
   abortSignal: AbortSignal,
   cwd: string,
   cachePath: string,
+  context: PipelabContext,
 ): Promise<End<"action:execute">> => {
+  const ctx = context;
   const { plugins } = usePlugins();
   const { logger } = useLogger();
 
@@ -136,9 +136,9 @@ export const handleActionExecute = async (
     .find((plugin) => plugin.id === pluginId)
     ?.nodes.find((node: any) => node.node.id === nodeId) as
     | {
-      node: Action;
-      runner: ActionRunner<any>;
-    }
+        node: Action;
+        runner: ActionRunner<any>;
+      }
     | undefined;
 
   if (!node) {
@@ -149,8 +149,8 @@ export const handleActionExecute = async (
     };
   }
 
-  const nodePath = await ensureNodeJS("24.14.1");
-  const pnpm = await ensurePNPM("10.12.0");
+  const nodePath = await ensureNodeJS("24.14.1", { context: ctx });
+  const pnpm = await ensurePNPM("10.12.0", { context: ctx });
 
   const outputs: Record<string, unknown> = {};
 
@@ -197,16 +197,16 @@ export const handleActionExecute = async (
       },
       cwd: cwd,
       paths: {
-        assets: assetsPath,
         cache: cachePath,
         node: nodePath,
         pnpm,
         modules: "",
-        userData: userDataPath,
-        thirdparty: join(userDataPath, "thirdparty"),
+        userData: ctx.userDataPath,
+        thirdparty: ctx.getThirdPartyPath(),
       },
       browserWindow: mainWindow,
       abortSignal,
+      context: ctx,
     });
 
     mainWindow?.setProgressBar(1, { mode: "normal" });

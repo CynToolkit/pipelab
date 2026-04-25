@@ -1,10 +1,10 @@
 import {
-  webSocketServer,
-  isDev,
-  registerAllHandlers,
-  fetchPipelabAsset,
-  ensureNodeJS,
   ensurePNPM,
+  PipelabContext,
+  isDev,
+  fetchPipelabAsset,
+  registerAllHandlers,
+  webSocketServer,
 } from "./index";
 import { getUiDevServerMissingWarning, uiDevPort } from "@pipelab/constants";
 import { existsSync } from "node:fs";
@@ -21,10 +21,15 @@ export interface ServeOptions {
   pnpmPath?: string;
 }
 
-export async function serveCommand(options: ServeOptions, version: string, dirname: string) {
+export async function serveCommand(options: ServeOptions, version: string, _dirname: string) {
+  if (!options.userData) throw new Error("userDataPath is required for serveCommand");
+  const context = new PipelabContext({
+    userDataPath: options.userData,
+  });
+
   let rawAssetFolder: string | undefined;
   if (!isDev) {
-    rawAssetFolder = await fetchPipelabAsset("@pipelab/ui");
+    rawAssetFolder = await fetchPipelabAsset("@pipelab/ui", "latest", { context });
   }
 
   const server = http.createServer(async (request, response) => {
@@ -46,7 +51,7 @@ export async function serveCommand(options: ServeOptions, version: string, dirna
       response.writeHead(404, { "Content-Type": "text/plain" });
       response.end(
         `Error: UI directory not found at ${rawAssetFolder}.\n` +
-        "Please run 'pnpm build' in apps/ui to generate the distribution.",
+          "Please run 'pnpm build' in apps/ui to generate the distribution.",
       );
       return;
     }
@@ -64,32 +69,11 @@ export async function serveCommand(options: ServeOptions, version: string, dirna
     console.log(`UI available at http://localhost:${options.port}`);
   }
 
-  let { nodePath, pnpmPath } = options;
-
-  if (!isDev) {
-    if (!nodePath) {
-      try {
-        nodePath = await ensureNodeJS("24.14.1");
-      } catch (e) {
-        console.warn("[Server] Failed to ensure Node.js, using default process.execPath:", e);
-        nodePath = process.execPath;
-      }
-    }
-    if (!pnpmPath) {
-      try {
-        pnpmPath = await ensurePNPM();
-      } catch (e) {
-        console.warn("[Server] Failed to ensure PNPM, dependencies might fail to install:", e);
-      }
-    }
-  }
-
   await registerAllHandlers({
     version,
-    nodePath,
-    pnpmPath,
+    context,
   });
-  registerMigrationHandlers();
+  registerMigrationHandlers(context);
 
   await webSocketServer.start(Number(options.port), server);
   return server;

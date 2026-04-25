@@ -13,12 +13,7 @@
   "changelog": "@changesets/changelog-git",
   "commit": false,
   "access": "public",
-  "fixed": [
-    [
-      "@pipelab/ui",
-      "@pipelab/cli"
-    ]
-  ],
+  "fixed": [["@pipelab/ui", "@pipelab/cli"]],
   "linked": [],
   "baseBranch": "main",
   "updateInternalDependencies": "patch"

@@ -8,25 +8,26 @@ import { registerAuthHandlers } from "./auth";
 import { registerSystemHandlers } from "./system";
 import { builtInPlugins } from "../plugins-registry";
 import { usePlugins } from "@pipelab/shared";
+import { PipelabContext } from "../context";
 
 export const registerAllHandlers = async (options: {
   version: string;
-  nodePath?: string;
-  pnpmPath?: string;
+  context: PipelabContext;
 }) => {
-  registerShellHandlers();
-  registerFsHandlers();
-  registerConfigHandlers();
-  registerHistoryHandlers();
-  registerEngineHandlers();
-  registerAgentsHandlers();
-  registerAuthHandlers();
+  const context = options.context;
+
+  registerShellHandlers(context);
+  registerFsHandlers(context);
+  registerConfigHandlers(context);
+  registerHistoryHandlers(context);
+  registerEngineHandlers(context);
+  registerAgentsHandlers(context);
+  registerAuthHandlers(context);
   registerSystemHandlers(options);
 
   const { registerPlugins } = usePlugins();
   const plugins = await builtInPlugins({
-    nodePath: options.nodePath,
-    pnpmPath: options.pnpmPath,
+    context,
   });
   registerPlugins(plugins as any);
 };

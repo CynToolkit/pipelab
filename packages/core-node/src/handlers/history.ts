@@ -1,7 +1,8 @@
 import { useAPI, WsEvent } from "../ipc-core";
 import { useLogger } from "@pipelab/shared";
-import { buildHistoryStorage } from "./build-history";
+import { BuildHistoryStorage } from "./build-history";
 import { SubscriptionRequiredError } from "@pipelab/shared";
+import { PipelabContext } from "../context";
 
 // Helper function to check build history authorization
 const checkBuildHistoryAuthorization = async (event: WsEvent): Promise<boolean> => {
@@ -18,9 +19,10 @@ const checkBuildHistoryAuthorization = async (event: WsEvent): Promise<boolean> 
   return true;
 };
 
-export const registerHistoryHandlers = () => {
+export const registerHistoryHandlers = (context: PipelabContext) => {
   const { handle } = useAPI();
   const { logger } = useLogger();
+  const buildHistoryStorage = new BuildHistoryStorage(context);
 
   // Build History Handlers
   handle("build-history:save", async (event, { send, value }) => {

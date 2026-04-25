@@ -1,14 +1,11 @@
 #!/usr/bin/env node
-import {
-  isDev,
-  runPipelineCommand,
-  serveCommand,
-} from "@pipelab/core-node";
+import { isDev, runPipelineCommand, serveCommand } from "@pipelab/core-node";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import * as Sentry from "@sentry/node";
 import cac from "cac";
+import { getDefaultUserDataPath } from "./paths";
 
 if (!isDev && process.env.TEST !== "true") {
   Sentry.init({
@@ -31,6 +28,7 @@ cli
   .option("--user-data <path>", "Custom user data path")
   .action(async (options) => {
     try {
+      options.userData = options.userData || getDefaultUserDataPath();
       await serveCommand(options, version, __dirname);
     } catch (e) {
       console.error(e);
@@ -45,6 +43,7 @@ cli
   .option("-o, --output <path>", "Path to write the result file")
   .action(async (file, options) => {
     try {
+      options.userData = options.userData || getDefaultUserDataPath();
       await runPipelineCommand(file, options, version);
       process.exit(0);
     } catch (e) {

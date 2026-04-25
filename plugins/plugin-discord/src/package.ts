@@ -6,12 +6,12 @@ import { basename, join } from "path";
 import { cp } from "fs/promises";
 
 export const packageV2Runner = createActionRunner<ReturnType<typeof createPackageProps>>(
-  async ({ inputs, cwd, paths, log, setOutput }) => {
+  async ({ inputs, cwd, paths, log, setOutput, context }) => {
     const appFolder = inputs["input-folder"];
 
-    const { assets, unpack, cache, node, pnpm } = paths;
+    const { unpack, cache, node, pnpm } = paths;
     const destinationFolder = join(cwd);
-    const rawAssetFolder = await fetchPipelabAsset("@pipelab/asset-discord", "^1.0.0");
+    const rawAssetFolder = await fetchPipelabAsset("@pipelab/asset-discord", "^1.0.0", { context });
     const templateFolder = join(rawAssetFolder, "template");
 
     // copy template to destination

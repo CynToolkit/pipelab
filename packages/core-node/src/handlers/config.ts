@@ -1,8 +1,9 @@
 import { useAPI } from "../ipc-core";
 import { useLogger, configRegistry } from "@pipelab/shared";
 import { setupConfigFile, getMigrator } from "../config";
+import { PipelabContext } from "../context";
 
-export const registerConfigHandlers = () => {
+export const registerConfigHandlers = (context: PipelabContext) => {
   const { handle } = useAPI();
   const { logger } = useLogger();
 
@@ -11,7 +12,7 @@ export const registerConfigHandlers = () => {
     logger().info("config:load", name);
 
     try {
-      const manager = await setupConfigFile(name);
+      const manager = await setupConfigFile(name, { context });
       const json = await manager.getConfig();
 
       send({
@@ -39,7 +40,7 @@ export const registerConfigHandlers = () => {
     const { data, config: name } = value;
 
     try {
-      const manager = await setupConfigFile(name);
+      const manager = await setupConfigFile(name, { context });
       const json = typeof data === "string" ? JSON.parse(data) : data;
       await manager.setConfig(json);
 
@@ -69,7 +70,7 @@ export const registerConfigHandlers = () => {
     logger().info("config:reset", name, key);
 
     try {
-      const manager = await setupConfigFile(name);
+      const manager = await setupConfigFile(name, { context });
       const currentConfig = await manager.getConfig();
 
       const migrator = getMigrator(name);

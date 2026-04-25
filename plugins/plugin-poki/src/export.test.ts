@@ -30,7 +30,7 @@ describe("End-to-End: Poki Upload Action", () => {
     const relativePokiBin = join("thirdparty", "@poki/cli", "0.1.19", "bin", "index.js");
     await sandbox.mockBinary(
       relativePokiBin,
-      "console.log('Mock Poki CLI execution'); process.exit(0);"
+      "console.log('Mock Poki CLI execution'); process.exit(0);",
     );
 
     // 3. Run Pipeline

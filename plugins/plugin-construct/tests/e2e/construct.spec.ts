@@ -28,7 +28,7 @@ describe("End-to-End: Construct 3 Export Pipeline", () => {
       // 1. Prepare inputs
       const testC3pPath = resolve(fixtures, "c3-export/test.c3p");
       const blockParams = jsonProject.canvas?.blocks?.[0]?.params;
-      
+
       const inputs = {
         file: testC3pPath,
         version: JSON.parse(blockParams?.version?.value || '"stable"'),

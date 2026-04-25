@@ -6,8 +6,7 @@ import { electronApp, optimizer, is } from "@electron-toolkit/utils";
 import { startServer, stopServer } from "./main/server-process";
 import { websocketPort, uiDevPort } from "@pipelab/constants";
 import { registerIpcHandlers } from "./main/ipc-handlers";
-import started from 'electron-squirrel-startup';
-
+import started from "electron-squirrel-startup";
 
 if (is.dev) {
   app.setPath("userData", app.getPath("userData") + "-dev");
@@ -50,9 +49,9 @@ function createWindow(): void {
   const position =
     externalDisplay && is.dev
       ? {
-        x: externalDisplay.bounds.x + 50,
-        y: externalDisplay.bounds.y + 50,
-      }
+          x: externalDisplay.bounds.x + 50,
+          y: externalDisplay.bounds.y + 50,
+        }
       : {};
 
   mainWindow = new BrowserWindow({
@@ -105,7 +104,8 @@ const sendUpdateStatus = (status: string) => {
 app.whenReady().then(async () => {
   if (!is.dev || process.env.APP_UPDATE_URL) {
     const updateUrl =
-      process.env.APP_UPDATE_URL || "https://github.com/CynToolkit/pipelab/releases/latest/download";
+      process.env.APP_UPDATE_URL ||
+      "https://github.com/CynToolkit/pipelab/releases/latest/download";
 
     console.log(`[Update] Setting up auto-updater with feed URL: ${updateUrl}`);
 
