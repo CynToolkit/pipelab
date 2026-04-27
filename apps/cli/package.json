@@ -17,7 +17,8 @@
   "type": "module",
   "scripts": {
     "build": "cross-env NODE_ENV=production tsdown",
-    "dev": "cross-env NODE_ENV=development tsx watch src/index.ts serve",
+    "dev": "cross-env NODE_ENV=development tsx watch src/index.ts",
+    "serve": "cross-env NODE_ENV=development tsx watch src/index.ts serve",
     "watch": "tsdown --watch",
     "start": "tsx src/index.ts",
     "test": "vitest run -c tests/e2e/vitest.config.mts",
@@ -26,12 +27,13 @@
     "typecheck": "tsc --noEmit -p tsconfig.json --composite false"
   },
   "dependencies": {
+    "@clack/prompts": "1.2.0",
     "@pipelab/constants": "workspace:*",
     "@pipelab/core-node": "workspace:*",
     "@pipelab/shared": "workspace:*",
     "@pipelab/test-utils": "workspace:*",
     "@sentry/node": "8.34.0",
-    "cac": "6.7.14",
+    "commander": "^12.1.0",
     "execa": "9.5.1",
     "nanoid": "5.0.8",
     "serve-handler": "6.1.7"

@@ -128,6 +128,13 @@ export const AppSettingsValidatorV7 = object({
       url: string(),
     }),
   ),
+  buildHistory: object({
+    retentionPolicy: object({
+      enabled: boolean(),
+      maxEntries: number(), // Maximum number of entries per pipeline
+      maxAge: number(), // Maximum age of entries in days
+    }),
+  }),
 });
 
 export type AppConfigV1 = InferInput<typeof AppSettingsValidatorV1>;

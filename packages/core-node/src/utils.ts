@@ -241,6 +241,12 @@ export const executeGraphWithHistory = async ({
 
     throw error;
   } finally {
+    // Apply retention policy regardless of outcome
+    if (!shouldDisableHistory) {
+      // Don't await, let it run in the background
+      buildHistoryStorage.applyRetentionPolicy();
+    }
+    
     if (shouldCleanup) {
       try {
         await rm(sandboxPath, { recursive: true, force: true });

@@ -65,9 +65,8 @@ export const setupConfigFile = async <T>(
       let json: any = undefined;
       try {
         json = await migrator.migrate(originalJson, {
-          debug: true,
+          debug: false,
         });
-        console.log("json", json);
       } catch (e) {
         logger().error(`Error migrating config ${name}:`, e);
         json = migrator.defaultValue;
