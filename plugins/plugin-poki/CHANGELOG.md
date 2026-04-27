@@ -1,5 +1,13 @@
 # @pipelab/plugin-poki
 
+## 1.0.1-beta.15
+
+### Patch Changes
+
+- gf
+- Updated dependencies
+  - @pipelab/plugin-core@1.0.1-beta.20
+
 ## 1.0.1-beta.14
 
 ### Patch Changes

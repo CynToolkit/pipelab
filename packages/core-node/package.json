@@ -1,6 +1,6 @@
 {
   "name": "@pipelab/core-node",
-  "version": "1.0.1-beta.23",
+  "version": "1.0.1-beta.24",
   "private": false,
   "description": "The Pipelab automation engine for Node.js",
   "license": "FSL-1.1-MIT",

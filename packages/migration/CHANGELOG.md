@@ -1,5 +1,11 @@
 # @pipelab/migration
 
+## 1.0.1-beta.20
+
+### Patch Changes
+
+- gf
+
 ## 1.0.1-beta.19
 
 ### Patch Changes
