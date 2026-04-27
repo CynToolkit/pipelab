@@ -1,5 +1,13 @@
 # @pipelab/shared
 
+## 2.0.1-beta.20
+
+### Patch Changes
+
+- azs
+- Updated dependencies
+  - @pipelab/migration@1.0.1-beta.19
+
 ## 2.0.1-beta.19
 
 ### Patch Changes

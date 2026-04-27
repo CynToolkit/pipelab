@@ -1,5 +1,14 @@
 # @pipelab/ui
 
+## 2.0.1-beta.22
+
+### Patch Changes
+
+- azs
+- Updated dependencies
+  - @pipelab/constants@1.0.1-beta.19
+  - @pipelab/shared@2.0.1-beta.20
+
 ## 2.0.1-beta.21
 
 ### Patch Changes

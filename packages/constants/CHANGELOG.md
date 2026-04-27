@@ -1,5 +1,11 @@
 # @pipelab/constants
 
+## 1.0.1-beta.19
+
+### Patch Changes
+
+- azs
+
 ## 1.0.1-beta.18
 
 ### Patch Changes
