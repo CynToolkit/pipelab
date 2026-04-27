@@ -1,5 +1,11 @@
 # @pipelab/asset-tauri
 
+## 1.0.1-beta.21
+
+### Patch Changes
+
+- sdsd
+
 ## 1.0.1-beta.20
 
 ### Patch Changes

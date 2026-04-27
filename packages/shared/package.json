@@ -1,6 +1,6 @@
 {
   "name": "@pipelab/shared",
-  "version": "2.0.1-beta.21",
+  "version": "2.0.1-beta.22",
   "private": false,
   "description": "Shared logic and types for the Pipelab ecosystem",
   "license": "FSL-1.1-MIT",
