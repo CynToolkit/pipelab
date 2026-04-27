@@ -38,7 +38,26 @@
         </div>
       </div>
 
-      <div>
+      <div class="flex gap-1 align-items-center footer-center">
+        <Button
+          v-tooltip.top="'Report an Issue (GitHub)'"
+          text
+          class="footer-social-button"
+          @click="openLink('https://github.com/CynToolkit/pipelab/issues/new')"
+        >
+          <i class="mdi mdi-github"></i>
+        </Button>
+        <Button
+          v-tooltip.top="'Join Community (Discord)'"
+          text
+          class="footer-social-button"
+          @click="openLink('https://discord.gg/your-invite-code')"
+        >
+          <i class="mdi mdi-discord"></i>
+        </Button>
+      </div>
+
+      <div class="flex gap-3 align-items-center justify-content-end">
         <div class="update-status">{{ updateStatusText }}</div>
         <div class="version-text">{{ appVersion }}</div>
       </div>
@@ -427,6 +446,16 @@ const toggleAccountMenu = (event: MouseEvent) => {
   $menu.value.toggle(event);
 };
 
+const openLink = (url: string) => {
+  if (isElectron) {
+    // @ts-ignore
+    window.electron.openExternal(url);
+  } else {
+    window.open(url, "_blank");
+  }
+  posthog.capture("social_link_clicked", { url });
+};
+
 const type = ref<"login" | "register" | "forgot-password">("login");
 
 const logout = async () => {
@@ -807,6 +836,33 @@ const onSubmit = handleSubmit(onSuccess, onInvalidSubmit);
       &.error {
         color: #f44336;
       }
+    }
+
+    .footer-social-button {
+      padding: 0;
+      width: 24px;
+      height: 20px;
+      color: #666;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 4px;
+      transition: all 0.2s ease;
+
+      &:hover {
+        background-color: rgba(0, 0, 0, 0.05);
+        color: var(--primary-color) !important;
+      }
+
+      i {
+        font-size: 16px;
+      }
+    }
+
+    .footer-center {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
     }
   }
 

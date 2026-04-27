@@ -16,7 +16,6 @@ import { definePreset } from "@primevue/themes";
 import "./style/main.scss";
 import VueDOMPurifyHTML from "vue-dompurify-html";
 
-import { init as vueInit } from "@sentry/vue";
 import ToastService from "primevue/toastservice";
 import ConfirmationService from "primevue/confirmationservice";
 import posthogPlugin from "./plugins/posthog"; //import the plugin.
@@ -30,13 +29,6 @@ import Tooltip from "primevue/tooltip";
 const isPackaged = window.isPackaged || false;
 const isTest = window.isTest || false;
 const isCI = window.isCI || false;
-
-if (isPackaged && !isTest && !isCI) {
-  vueInit({
-    dsn: "https://757630879674735027fa5700162253f7@o45694.ingest.us.sentry.io/4507621723144192",
-    debug: true,
-  });
-}
 
 const pinia = createPinia();
 pinia.use(piniaPluginPersistedstate);

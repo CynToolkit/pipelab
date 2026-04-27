@@ -2,7 +2,6 @@ import type { ConfigEnv, UserConfig } from "vite";
 import { defineConfig, loadEnv, mergeConfig } from "vite";
 import { getBuildConfig, getBuildDefine, external, pluginHotRestart } from "./vite.base.config.mts";
 import tsconfigPaths from "vite-tsconfig-paths";
-import { sentryVitePlugin } from "@sentry/vite-plugin";
 import { resolve } from "path";
 
 // https://vitejs.dev/config
@@ -22,15 +21,6 @@ export default defineConfig((env) => {
   // check if we are in a tag
   const tag = process.env.GITHUB_REF?.includes("refs/tags/");
   console.log("tag", tag);
-  if (tag) {
-    plugins.push(
-      sentryVitePlugin({
-        org: "armaldio",
-        project: "cyn",
-        authToken: environment.SENTRY_AUTH_TOKEN,
-      }),
-    );
-  }
 
   const config: UserConfig = {
     build: {

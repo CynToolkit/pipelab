@@ -32,10 +32,10 @@
     "@pipelab/core-node": "workspace:*",
     "@pipelab/shared": "workspace:*",
     "@pipelab/test-utils": "workspace:*",
-    "@sentry/node": "8.34.0",
     "commander": "^12.1.0",
     "execa": "9.5.1",
     "nanoid": "5.0.8",
+    "posthog-node": "5.30.6",
     "serve-handler": "6.1.7"
   },
   "devDependencies": {

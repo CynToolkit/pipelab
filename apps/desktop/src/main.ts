@@ -7,6 +7,32 @@ import { startServer, stopServer } from "./main/server-process";
 import { websocketPort, uiDevPort } from "@pipelab/constants";
 import { registerIpcHandlers } from "./main/ipc-handlers";
 import started from "electron-squirrel-startup";
+import { PostHog } from "posthog-node";
+
+const isProduction = app.isPackaged && process.env.TEST !== "true";
+
+let posthog: PostHog | undefined;
+if (isProduction) {
+  posthog = new PostHog(process.env.POSTHOG_API_KEY || "", {
+    host: "https://eu.i.posthog.com",
+  });
+}
+
+process.on("uncaughtException", (error) => {
+  console.error("Uncaught Exception in Main Process:", error);
+  if (posthog) {
+    posthog.capture({
+      distinctId: "desktop-main-process",
+      event: "uncaught_exception",
+      properties: {
+        message: error.message,
+        stack: error.stack,
+        platform: process.platform,
+        version: app.getVersion(),
+      },
+    });
+  }
+});
 
 if (is.dev) {
   app.setPath("userData", app.getPath("userData") + "-dev");

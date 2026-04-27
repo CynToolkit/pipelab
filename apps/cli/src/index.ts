@@ -11,15 +11,18 @@ import { setupCommand } from "./commands/setup";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import * as Sentry from "@sentry/node";
-import { Command } from "commander";
-import { getDefaultUserDataPath } from "./paths";
+import { PostHog } from "posthog-node";
 
-if (!isDev && process.env.TEST !== "true") {
-  Sentry.init({
-    dsn: "https://757630879674735027fa5700162253f7@o45694.ingest.us.sentry.io/4507621723144192",
+const isProduction = !isDev && process.env.TEST !== "true";
+
+let posthog: PostHog | undefined;
+if (isProduction) {
+  posthog = new PostHog(process.env.POSTHOG_API_KEY || "", {
+    host: "https://eu.i.posthog.com",
   });
 }
+import { Command } from "commander";
+import { getDefaultUserDataPath } from "./paths";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -184,6 +187,19 @@ pipelines
       process.exit(1);
     }
   });
+
+program.hook("postAction", (thisCommand) => {
+  if (posthog) {
+    posthog.capture({
+      distinctId: "cli-user",
+      event: "command_executed",
+      properties: {
+        command: thisCommand.name(),
+        args: thisCommand.args,
+      },
+    });
+  }
+});
 
 program.parse(process.argv);
 
