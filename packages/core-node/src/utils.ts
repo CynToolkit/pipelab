@@ -125,6 +125,9 @@ export const executeGraphWithHistory = async ({
   const logs: any[] = [];
   const sandboxPath = await generateTempFolder(cachePath);
   const { logger } = useLogger();
+  let completedSteps = 0;
+  let failedSteps = 0;
+  let cancelledSteps = 0;
 
   // Ensure all plugins used in the graph are downloaded and registered
   const { registerPlugins, plugins: registeredPlugins } = usePlugins();
@@ -175,7 +178,8 @@ export const executeGraphWithHistory = async ({
             async (data) => {
               if (data.type === "log") {
                 const logEntry = {
-                  type: data.type,
+                  id: nanoid(),
+                  level: "info",
                   message: data.data.message,
                   timestamp: data.data.time,
                   nodeUid: node?.uid,
@@ -195,7 +199,14 @@ export const executeGraphWithHistory = async ({
       onNodeEnter: (node) => {
         onNodeEnter?.(node);
       },
-      onNodeExit: (node) => {
+      onNodeExit: async (node) => {
+        completedSteps++;
+        if (!shouldDisableHistory) {
+          // Update progress in the background
+          buildHistoryStorage.update(buildId, { completedSteps }, pipelineId).catch((err) => {
+            logger().error(`Failed to update progress for build ${buildId}:`, err);
+          });
+        }
         onNodeExit?.(node);
       },
       abortSignal,
@@ -211,6 +222,7 @@ export const executeGraphWithHistory = async ({
           duration: endTime - startTime,
           output: result.steps,
           logs,
+          completedSteps,
         },
         pipelineId,
       );
@@ -234,6 +246,9 @@ export const executeGraphWithHistory = async ({
             timestamp: endTime,
           },
           logs,
+          completedSteps,
+          failedSteps: isCanceled ? 0 : 1,
+          cancelledSteps: isCanceled ? 1 : 0,
         },
         pipelineId,
       );

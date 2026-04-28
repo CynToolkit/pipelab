@@ -39,52 +39,17 @@
           <span class="results-count">
             Showing {{ entries.length }} of {{ totalCount }} entries
           </span>
-          <div class="view-controls">
-            <div class="view-mode">
-              <Button
-                v-tooltip.top="'List View'"
-                text
-                severity="secondary"
-                size="small"
-                :class="{ active: viewMode === 'list' }"
-                @click="viewMode = 'list'"
-              >
-                <i class="pi pi-list"></i>
-              </Button>
-              <Button
-                v-tooltip.top="'Grid View'"
-                text
-                severity="secondary"
-                size="small"
-                :class="{ active: viewMode === 'grid' }"
-                @click="viewMode = 'grid'"
-              >
-                <i class="pi pi-th-large"></i>
-              </Button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Sort Controls -->
-        <div class="sort-controls">
-          <label for="sortBy">Sort by:</label>
-          <Dropdown
-            id="sortBy"
-            v-model="sortBy"
-            :options="sortOptions"
-            option-label="label"
-            option-value="value"
-            class="sort-dropdown"
-            @change="onSortChange"
-          />
           <Button
-            v-tooltip.top="`Sort ${sortOrder === 'desc' ? 'Ascending' : 'Descending'}`"
+            v-if="hasEntries && canDelete"
+            v-tooltip.top="'Clear All Entries'"
             text
-            severity="secondary"
+            severity="danger"
             size="small"
-            @click="toggleSortOrder"
+            class="ml-2"
+            @click="onClearAll"
           >
-            <i :class="`pi pi-sort-${sortOrder === 'desc' ? 'down' : 'up'}`"></i>
+            <i class="pi pi-trash mr-2"></i>
+            Clear Displayed
           </Button>
         </div>
       </div>
@@ -149,6 +114,7 @@ interface Emits {
   (e: "retry-load"): void;
   (e: "view-details", entry: BuildHistoryEntry): void;
   (e: "delete", entry: BuildHistoryEntry): void;
+  (e: "clear-all"): void;
   (e: "start-build"): void;
   (e: "sort-change", sortBy: string, sortOrder: "asc" | "desc"): void;
   (e: "page-change", page: number, pageSize: number): void;
@@ -208,6 +174,10 @@ const onViewDetails = (entry: BuildHistoryEntry) => {
 
 const onDeleteEntry = (entry: BuildHistoryEntry) => {
   emit("delete", entry);
+};
+
+const onClearAll = () => {
+  emit("clear-all");
 };
 
 const onEntryToggle = (entry: BuildHistoryEntry, expanded: boolean) => {
@@ -304,7 +274,9 @@ const toggleSortOrder = () => {
 .results-info {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 1rem;
+  flex: 1;
 }
 
 .results-count {

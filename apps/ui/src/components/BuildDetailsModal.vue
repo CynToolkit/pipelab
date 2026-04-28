@@ -7,7 +7,7 @@
     :closable="true"
     @update:visible="onHide"
   >
-    <div class="build-details-modal">
+    <div v-if="entry" class="build-details-modal">
       <!-- Build Overview -->
       <div class="build-overview">
         <div class="overview-header">
@@ -41,154 +41,163 @@
       </div>
 
       <!-- Tab Navigation -->
-      <TabView class="details-tabs">
-        <TabPanel value="steps" header="Execution Steps">
-          <div class="steps-container">
-            <div v-if="entry.steps.length === 0" class="no-steps">
-              <p>No execution steps available.</p>
-            </div>
-            <div v-else class="steps-timeline">
-              <div
-                v-for="(buildStep, index) in entry.steps"
-                :key="buildStep.id"
-                class="step-timeline-item"
-                :class="buildStep.status"
-              >
-                <div class="step-timeline-marker">
-                  <i :class="getStepIcon(buildStep.status)" class="step-icon"></i>
-                  <div v-if="index < entry.steps.length - 1" class="step-connector"></div>
-                </div>
-                <div class="step-timeline-content">
-                  <div class="step-header">
-                    <h4 class="step-name">{{ buildStep.name }}</h4>
-                    <div class="step-status-info">
-                      <BuildStatusBadge :status="buildStep.status" size="small" />
-                      <span v-if="buildStep.duration" class="step-duration">
-                        {{ formatDuration(buildStep.duration) }}
-                      </span>
+      <Tabs value="steps" class="details-tabs">
+        <TabList>
+          <Tab value="steps">Execution Steps</Tab>
+          <Tab value="logs">Build Logs</Tab>
+          <Tab v-if="entry.error" value="error">Error Details</Tab>
+          <Tab value="metadata">Metadata</Tab>
+        </TabList>
+
+        <TabPanels>
+          <TabPanel value="steps">
+            <div class="steps-container">
+              <div v-if="!entry.steps || entry.steps.length === 0" class="no-steps">
+                <p>No execution steps available.</p>
+              </div>
+              <div v-else class="steps-timeline">
+                <div
+                  v-for="(buildStep, index) in entry.steps || []"
+                  :key="buildStep.id"
+                  class="step-timeline-item"
+                  :class="buildStep.status"
+                >
+                  <div class="step-timeline-marker">
+                    <i :class="getStepIcon(buildStep.status)" class="step-icon"></i>
+                    <div v-if="index < entry.steps.length - 1" class="step-connector"></div>
+                  </div>
+                  <div class="step-timeline-content">
+                    <div class="step-header">
+                      <h4 class="step-name">{{ buildStep.name }}</h4>
+                      <div class="step-status-info">
+                        <BuildStatusBadge :status="buildStep.status" size="small" />
+                        <span v-if="buildStep.duration" class="step-duration">
+                          {{ formatDuration(buildStep.duration) }}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div class="step-details">
+                      <div class="step-timing">
+                        <span v-if="buildStep.startTime" class="start-time">
+                          Started: {{ formatTime(buildStep.startTime) }}
+                        </span>
+                        <span v-if="buildStep.endTime" class="end-time">
+                          Ended: {{ formatTime(buildStep.endTime) }}
+                        </span>
+                      </div>
+
+                      <!-- Step Logs -->
+                      <div v-if="buildStep.logs?.length > 0" class="step-logs">
+                        <details class="logs-details">
+                          <summary>View Logs ({{ buildStep.logs?.length || 0 }} entries)</summary>
+                          <div class="logs-content">
+                            <div
+                              v-for="log in buildStep.logs || []"
+                              :key="log.id"
+                              class="log-entry"
+                              :class="`log-${log.level || 'info'}`"
+                            >
+                              <span class="log-time">{{ formatTime(log.timestamp) }}</span>
+                              <span class="log-level">{{ (log.level || 'info').toUpperCase() }}</span>
+                              <span class="log-message">{{ Array.isArray(log.message) ? log.message.join(' ') : log.message }}</span>
+                              <span v-if="log.source" class="log-source">({{ log.source }})</span>
+                            </div>
+                          </div>
+                        </details>
+                      </div>
+
+                      <!-- Step Error -->
+                      <div v-if="buildStep.error" class="step-error">
+                        <details class="error-details">
+                          <summary class="error-summary">
+                            <i class="pi pi-exclamation-triangle"></i>
+                            Error: {{ buildStep.error.message }}
+                          </summary>
+                          <div class="error-content">
+                            <p class="error-message">{{ buildStep.error.message }}</p>
+                            <div v-if="buildStep.error.stack" class="error-stack">
+                              <h6>Stack Trace:</h6>
+                              <pre>{{ buildStep.error.stack }}</pre>
+                            </div>
+                            <div v-if="buildStep.error.code" class="error-metadata">
+                              <small><strong>Error Code:</strong> {{ buildStep.error.code }}</small>
+                            </div>
+                          </div>
+                        </details>
+                      </div>
+
+                      <!-- Step Output -->
+                      <div v-if="buildStep.output" class="step-output">
+                        <details class="output-details">
+                          <summary>Step Output</summary>
+                          <div class="output-content">
+                            <pre>{{ JSON.stringify(buildStep.output, null, 2) }}</pre>
+                          </div>
+                        </details>
+                      </div>
                     </div>
                   </div>
-
-                  <div class="step-details">
-                    <div class="step-timing">
-                      <span v-if="buildStep.startTime" class="start-time">
-                        Started: {{ formatTime(buildStep.startTime) }}
-                      </span>
-                      <span v-if="buildStep.endTime" class="end-time">
-                        Ended: {{ formatTime(buildStep.endTime) }}
-                      </span>
-                    </div>
-
-                    <!-- Step Logs -->
-                    <div v-if="buildStep.logs.length > 0" class="step-logs">
-                      <details class="logs-details">
-                        <summary>View Logs ({{ buildStep.logs.length }} entries)</summary>
-                        <div class="logs-content">
-                          <div
-                            v-for="log in buildStep.logs"
-                            :key="log.id"
-                            class="log-entry"
-                            :class="`log-${log.level}`"
-                          >
-                            <span class="log-time">{{ formatTime(log.timestamp) }}</span>
-                            <span class="log-level">{{ log.level.toUpperCase() }}</span>
-                            <span class="log-message">{{ log.message }}</span>
-                            <span v-if="log.source" class="log-source">({{ log.source }})</span>
-                          </div>
-                        </div>
-                      </details>
-                    </div>
-
-                    <!-- Step Error -->
-                    <div v-if="buildStep.error" class="step-error">
-                      <details class="error-details">
-                        <summary class="error-summary">
-                          <i class="pi pi-exclamation-triangle"></i>
-                          Error: {{ buildStep.error.message }}
-                        </summary>
-                        <div class="error-content">
-                          <p class="error-message">{{ buildStep.error.message }}</p>
-                          <div v-if="buildStep.error.stack" class="error-stack">
-                            <h6>Stack Trace:</h6>
-                            <pre>{{ buildStep.error.stack }}</pre>
-                          </div>
-                          <div v-if="buildStep.error.code" class="error-metadata">
-                            <small><strong>Error Code:</strong> {{ buildStep.error.code }}</small>
-                          </div>
-                        </div>
-                      </details>
-                    </div>
-
-                    <!-- Step Output -->
-                    <div v-if="buildStep.output" class="step-output">
-                      <details class="output-details">
-                        <summary>Step Output</summary>
-                        <div class="output-content">
-                          <pre>{{ JSON.stringify(buildStep.output, null, 2) }}</pre>
-                        </div>
-                      </details>
-                    </div>
-                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        </TabPanel>
+          </TabPanel>
 
-        <TabPanel value="logs" header="Build Logs">
-          <div class="logs-container">
-            <div v-if="entry.logs.length === 0" class="no-logs">
-              <p>No build logs available.</p>
-            </div>
-            <div v-else class="logs-list">
-              <div
-                v-for="log in entry.logs"
-                :key="log.id"
-                class="log-entry"
-                :class="`log-${log.level}`"
-              >
-                <span class="log-time">{{ formatTime(log.timestamp) }}</span>
-                <span class="log-level">{{ log.level.toUpperCase() }}</span>
-                <span class="log-message">{{ log.message }}</span>
-                <span v-if="log.source" class="log-source">({{ log.source }})</span>
+          <TabPanel value="logs">
+            <div class="logs-container">
+              <div v-if="!entry.logs || entry.logs.length === 0" class="no-logs">
+                <p>No build logs available.</p>
+              </div>
+              <div v-else class="logs-list">
+                <div
+                  v-for="log in entry.logs || []"
+                  :key="log.id"
+                  class="log-entry"
+                  :class="`log-${log.level || 'info'}`"
+                >
+                  <span class="log-time">{{ formatTime(log.timestamp) }}</span>
+                  <span class="log-level">{{ (log.level || 'info').toUpperCase() }}</span>
+                  <span class="log-message">{{ Array.isArray(log.message) ? log.message.join(' ') : log.message }}</span>
+                  <span v-if="log.source" class="log-source">({{ log.source }})</span>
+                </div>
               </div>
             </div>
-          </div>
-        </TabPanel>
+          </TabPanel>
 
-        <TabPanel v-if="entry.error" value="error" header="Error Details">
-          <div class="error-container">
-            <div class="error-header">
-              <h4>Build Error</h4>
-              <BuildStatusBadge status="failed" size="medium" />
+          <TabPanel v-if="entry.error" value="error">
+            <div class="error-container">
+              <div class="error-header">
+                <h4>Build Error</h4>
+                <BuildStatusBadge status="failed" size="medium" />
+              </div>
+              <div class="error-content">
+                <div class="error-message">
+                  <strong>Message:</strong>
+                  <p>{{ entry.error.message }}</p>
+                </div>
+                <div v-if="entry.error.stack" class="error-stack">
+                  <strong>Stack Trace:</strong>
+                  <pre>{{ entry.error.stack }}</pre>
+                </div>
+                <div v-if="entry.error.code" class="error-metadata">
+                  <strong>Error Code:</strong> {{ entry.error.code }}
+                </div>
+              </div>
             </div>
-            <div class="error-content">
-              <div class="error-message">
-                <strong>Message:</strong>
-                <p>{{ entry.error.message }}</p>
-              </div>
-              <div v-if="entry.error.stack" class="error-stack">
-                <strong>Stack Trace:</strong>
-                <pre>{{ entry.error.stack }}</pre>
-              </div>
-              <div v-if="entry.error.code" class="error-metadata">
-                <strong>Error Code:</strong> {{ entry.error.code }}
-              </div>
-            </div>
-          </div>
-        </TabPanel>
+          </TabPanel>
 
-        <TabPanel value="metadata" header="Metadata">
-          <div class="metadata-container">
-            <div v-if="!entry.metadata" class="no-metadata">
-              <p>No metadata available.</p>
+          <TabPanel value="metadata">
+            <div class="metadata-container">
+              <div v-if="!entry.metadata" class="no-metadata">
+                <p>No metadata available.</p>
+              </div>
+              <div v-else class="metadata-content">
+                <pre>{{ JSON.stringify(entry.metadata, null, 2) }}</pre>
+              </div>
             </div>
-            <div v-else class="metadata-content">
-              <pre>{{ JSON.stringify(entry.metadata, null, 2) }}</pre>
-            </div>
-          </div>
-        </TabPanel>
-      </TabView>
+          </TabPanel>
+        </TabPanels>
+      </Tabs>
 
       <!-- Modal Actions -->
       <div class="modal-actions">

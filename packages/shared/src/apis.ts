@@ -131,6 +131,7 @@ export type IpcDefinition = {
   ];
   "build-history:delete": [{ id: string; pipelineId?: string }, EndEvent<{ result: "ok" | "ko" }>];
   "build-history:clear": [void, EndEvent<{ result: "ok" | "ko" }>];
+  "build-history:clear-by-pipeline": [{ pipelineId: string }, EndEvent<{ result: "ok" | "ko" }>];
   "build-history:get-storage-info": [
     void,
     EndEvent<{

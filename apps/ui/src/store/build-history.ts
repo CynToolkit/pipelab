@@ -305,6 +305,36 @@ export const useBuildHistory = defineStore("build-history", () => {
     }
   };
 
+  const clearHistoryByPipeline = async (pipelineId: string): Promise<void> => {
+    isLoading.value = true;
+
+    if (!canUseHistory.value) {
+      isLoading.value = false;
+      return;
+    }
+
+    try {
+      // We need to add this to buildHistoryAPI but let's see if we can use delete with just pipelineId or similar
+      // For now let's assume we add a new IPC call
+      const result = await api.execute("build-history:clear-by-pipeline", { pipelineId });
+      if (result.type === "error") {
+        throw new Error(result.ipcError || "Failed to clear history for pipeline");
+      }
+      
+      // Update local state: remove entries for this pipeline
+      entries.value = entries.value.filter(e => e.pipelineId !== pipelineId);
+      if (currentEntry.value?.pipelineId === pipelineId) {
+        currentEntry.value = undefined;
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Failed to clear history for pipeline";
+      setError(errorMessage);
+      throw err;
+    } finally {
+      isLoading.value = false;
+    }
+  };
+
   const refreshStorageInfo = async (): Promise<void> => {
     // Check authorization before attempting to get storage info
     if (!canUseHistory.value) {
@@ -359,6 +389,7 @@ export const useBuildHistory = defineStore("build-history", () => {
     updateEntry,
     deleteEntry,
     clearHistory,
+    clearHistoryByPipeline,
     refreshStorageInfo,
     setCurrentPipeline,
     clearCurrentPipeline,

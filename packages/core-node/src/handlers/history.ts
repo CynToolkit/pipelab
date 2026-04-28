@@ -226,6 +226,36 @@ export const registerHistoryHandlers = (context: PipelabContext) => {
     }
   });
 
+  handle("build-history:clear-by-pipeline", async (event, { send, value }) => {
+    try {
+      await checkBuildHistoryAuthorization(event);
+
+      await buildHistoryStorage.clearByPipeline(value.pipelineId);
+      send({
+        type: "end",
+        data: { type: "success", result: { result: "ok" } },
+      });
+    } catch (error) {
+      logger().error(`Failed to clear build history for pipeline ${value.pipelineId}:`, error);
+
+      if (error instanceof SubscriptionRequiredError) {
+        send({
+          type: "end",
+          data: { type: "error", ipcError: error.userMessage, code: error.code },
+        });
+        return;
+      }
+
+      send({
+        type: "end",
+        data: {
+          type: "error",
+          ipcError: error instanceof Error ? error.message : "Failed to clear build history for pipeline",
+        },
+      });
+    }
+  });
+
   handle("build-history:get-storage-info", async (event, { send }) => {
     try {
       await checkBuildHistoryAuthorization(event);

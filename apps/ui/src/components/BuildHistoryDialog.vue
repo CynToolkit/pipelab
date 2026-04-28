@@ -23,9 +23,10 @@
           :error="buildHistoryStore.error"
           :total-count="totalCount"
           :can-delete="true"
-          :can-start-build="true"
+          :can-start-build="false"
           @view-details="onViewDetails"
           @delete="onDeleteEntry"
+          @clear-all="onClearAllEntries"
           @start-build="onStartBuild"
         />
       </div>
@@ -55,7 +56,7 @@
       />
 
       <!-- Confirmation Dialogs -->
-      <ConfirmDialog />
+      <ConfirmDialog group="build-history" />
 
       <!-- Export Progress Dialog -->
       <Dialog
@@ -131,6 +132,7 @@ const closeDetailsModal = () => {
 
 const onDeleteEntry = async (entry: BuildHistoryEntry) => {
   confirm.require({
+    group: "build-history",
     message: `Are you sure you want to delete the build history entry for "${entry.projectName}"?`,
     header: "Delete Build History Entry",
     icon: "pi pi-exclamation-triangle",
@@ -139,6 +141,30 @@ const onDeleteEntry = async (entry: BuildHistoryEntry) => {
         await buildHistoryStore.deleteEntry(entry.id);
       } catch (error) {
         console.error("Failed to delete entry:", error);
+      }
+    },
+  });
+};
+
+const onClearAllEntries = async () => {
+  const message = props.pipelineId
+    ? `Are you sure you want to clear ALL build history entries for this pipeline?`
+    : `Are you sure you want to clear ALL build history entries across all pipelines?`;
+
+  confirm.require({
+    group: "build-history",
+    message,
+    header: "Clear Build History",
+    icon: "pi pi-exclamation-triangle",
+    accept: async () => {
+      try {
+        if (props.pipelineId) {
+          await buildHistoryStore.clearHistoryByPipeline(props.pipelineId);
+        } else {
+          await buildHistoryStore.clearHistory();
+        }
+      } catch (error) {
+        console.error("Failed to clear entries:", error);
       }
     },
   });

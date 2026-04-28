@@ -18,16 +18,6 @@
 
       <div class="item-actions">
         <Button
-          v-if="showActions"
-          v-tooltip.top="'View Details'"
-          text
-          severity="secondary"
-          size="small"
-          @click.stop="viewDetails"
-        >
-          <i class="pi pi-eye"></i>
-        </Button>
-        <Button
           v-if="showActions && canDelete"
           v-tooltip.top="'Delete Entry'"
           text
@@ -46,7 +36,7 @@
     </div>
 
     <!-- Expanded Content -->
-    <div v-if="expanded" class="item-expanded">
+    <div v-if="expanded" class="item-expanded" @click.stop>
       <div class="expanded-content">
         <!-- Basic Information -->
         <div class="info-section">
@@ -115,10 +105,6 @@
           <h5>Error Details</h5>
           <div class="error-content">
             <p class="error-message">{{ entry.error.message }}</p>
-            <details v-if="entry.error.stack" class="error-stack">
-              <summary>Stack Trace</summary>
-              <pre>{{ entry.error.stack }}</pre>
-            </details>
           </div>
         </div>
 
@@ -206,10 +192,6 @@ const handleClick = () => {
 };
 
 const viewDetails = () => {
-  if (!authStore.hasBuildHistoryBenefit) {
-    openUpgradeDialog();
-    return;
-  }
   emit("view-details", props.entry);
 };
 
@@ -399,28 +381,7 @@ const deleteEntry = () => {
 
 .error-message {
   color: #721c24;
-  margin: 0 0 1rem 0;
-}
-
-.error-stack {
   margin: 0;
-}
-
-.error-stack summary {
-  color: #721c24;
-  font-weight: 500;
-  cursor: pointer;
-  padding: 0.5rem 0;
-}
-
-.error-stack pre {
-  background: #f8f9fa;
-  padding: 1rem;
-  border-radius: 4px;
-  font-size: 0.875rem;
-  color: #495057;
-  overflow-x: auto;
-  margin-top: 0.5rem;
 }
 
 .metadata-content {

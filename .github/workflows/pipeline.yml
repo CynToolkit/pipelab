@@ -212,10 +212,11 @@ jobs:
             --comment=update
 
   release:
-    name: Check Release & PR
-    needs: [build-all, verify-lint, verify-typecheck, test-matrix, changes]
+    name: Release & Deploy
+    needs: [build-all, verify-lint, verify-typecheck, test-matrix, changes, build-desktop]
     if: |
       always() &&
+      (needs.build-desktop.result == 'success' || needs.build-desktop.result == 'skipped') &&
       (needs.build-all.result == 'success' || needs.build-all.result == 'skipped') &&
       needs.verify-lint.result == 'success' &&
       needs.verify-typecheck.result == 'success' &&
@@ -250,15 +251,77 @@ jobs:
           name: monorepo-dist
           path: .
 
-      - name: Create Release Pull Request or Check Publish
+      - name: Publish to NPM & Create GitHub Release
         id: changesets
         uses: changesets/action@v1
         with:
           publish: pnpm changeset publish --provenance
-          createGithubReleases: false
+          createGithubReleases: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_CONFIG_PROVENANCE: true
+
+      - name: Download all artifacts
+        if: steps.changesets.outputs.published == 'true' || github.event.inputs.forcePublish == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+        continue-on-error: true
+
+      - name: Get Versions
+        if: steps.changesets.outputs.published == 'true' || github.event.inputs.forcePublish == 'true'
+        id: versions
+        shell: bash
+        run: |
+          APP_VERSION=$(node -p "require('./apps/desktop/package.json').version")
+          CLI_VERSION=$(node -p "require('./apps/cli/package.json').version")
+          ASSET_ELECTRON_VERSION=$(node -p "require('./assets/asset-electron/package.json').version")
+          ASSET_DISCORD_VERSION=$(node -p "require('./assets/asset-discord/package.json').version")
+          ASSET_NETLIFY_VERSION=$(node -p "require('./assets/asset-netlify/package.json').version")
+          ASSET_TAURI_VERSION=$(node -p "require('./assets/asset-tauri/package.json').version")
+          UI_VERSION=$(node -p "require('./apps/ui/package.json').version")
+          echo "app_version=$APP_VERSION" >> $GITHUB_OUTPUT
+          echo "cli_version=$CLI_VERSION" >> $GITHUB_OUTPUT
+          echo "asset_electron_version=$ASSET_ELECTRON_VERSION" >> $GITHUB_OUTPUT
+          echo "asset_discord_version=$ASSET_DISCORD_VERSION" >> $GITHUB_OUTPUT
+          echo "asset_netlify_version=$ASSET_NETLIFY_VERSION" >> $GITHUB_OUTPUT
+          echo "asset_tauri_version=$ASSET_TAURI_VERSION" >> $GITHUB_OUTPUT
+          echo "ui_version=$UI_VERSION" >> $GITHUB_OUTPUT
+
+          IS_PRERELEASE="false"
+          if [[ $APP_VERSION == *"-"* ]] || [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ github.event.inputs.prerelease }}" == "true" ]] || [[ "${{ github.ref_name }}" == "feature/monorepo" ]]; then
+            IS_PRERELEASE="true"
+          fi
+
+          echo "prerelease=$IS_PRERELEASE" >> $GITHUB_OUTPUT
+
+      - name: Upload Desktop Binaries
+        if: (steps.changesets.outputs.published == 'true' || github.event.inputs.forcePublish == 'true') && (contains(fromJson(needs.changes.outputs.affected), '@pipelab/app') || github.event.inputs.forcePublish == 'true')
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: "@pipelab/app@${{ steps.versions.outputs.app_version }}"
+          prerelease: ${{ steps.versions.outputs.prerelease == 'true' }}
+          files: |
+            artifacts/desktop-artifacts-*/**/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish @pipelab/ui dynamically
+        if: steps.changesets.outputs.published == 'true' || github.event_name == 'workflow_dispatch'
+        run: node scripts/publish-app.mjs ui
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
+
+      - name: Publish @pipelab/cli dynamically
+        if: steps.changesets.outputs.published == 'true' || github.event_name == 'workflow_dispatch'
+        run: node scripts/publish-app.mjs cli
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
 
   build-desktop:
     name: Build Desktop (${{ matrix.os }} - ${{ matrix.arch }})
@@ -356,99 +419,3 @@ jobs:
             ${{ runner.os }}-turbo-${{ github.job }}-
       - name: Run Tests
         run: pnpm turbo test --cache-dir=".turbo" --log-order=grouped --concurrency 1
-
-  deploy:
-    name: Deploy Release
-    needs: [release, build-desktop, test-matrix, changes]
-    if: |
-      always() &&
-      needs.release.result == 'success' &&
-      (needs.test-matrix.result == 'success' || needs.test-matrix.result == 'skipped') &&
-      (needs.release.outputs.published == 'true' ||
-      github.event.inputs.forcePublish == 'true')
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - uses: pnpm/action-setup@v4
-        with:
-          run_install: false
-
-      - name: Use Node.js 24
-        uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: "pnpm"
-
-      - name: Install dependencies
-        run: pnpm install
-
-      - name: Create Package GitHub Releases
-        id: changesets_tag
-        uses: changesets/action@v1
-        with:
-          publish: pnpm changeset tag
-          createGithubReleases: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-        continue-on-error: true
-
-      - name: Get Versions
-        id: versions
-        shell: bash
-        run: |
-          APP_VERSION=$(node -p "require('./apps/desktop/package.json').version")
-          CLI_VERSION=$(node -p "require('./apps/cli/package.json').version")
-          ASSET_ELECTRON_VERSION=$(node -p "require('./assets/asset-electron/package.json').version")
-          ASSET_DISCORD_VERSION=$(node -p "require('./assets/asset-discord/package.json').version")
-          ASSET_NETLIFY_VERSION=$(node -p "require('./assets/asset-netlify/package.json').version")
-          ASSET_TAURI_VERSION=$(node -p "require('./assets/asset-tauri/package.json').version")
-          UI_VERSION=$(node -p "require('./apps/ui/package.json').version")
-          echo "app_version=$APP_VERSION" >> $GITHUB_OUTPUT
-          echo "cli_version=$CLI_VERSION" >> $GITHUB_OUTPUT
-          echo "asset_electron_version=$ASSET_ELECTRON_VERSION" >> $GITHUB_OUTPUT
-          echo "asset_discord_version=$ASSET_DISCORD_VERSION" >> $GITHUB_OUTPUT
-          echo "asset_netlify_version=$ASSET_NETLIFY_VERSION" >> $GITHUB_OUTPUT
-          echo "asset_tauri_version=$ASSET_TAURI_VERSION" >> $GITHUB_OUTPUT
-          echo "ui_version=$UI_VERSION" >> $GITHUB_OUTPUT
-
-          IS_PRERELEASE="false"
-          if [[ $APP_VERSION == *"-"* ]] || [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ github.event.inputs.prerelease }}" == "true" ]] || [[ "${{ github.ref_name }}" == "feature/monorepo" ]]; then
-            IS_PRERELEASE="true"
-          fi
-
-          echo "prerelease=$IS_PRERELEASE" >> $GITHUB_OUTPUT
-
-      - name: Upload Desktop Binaries
-        if: contains(fromJson(needs.changes.outputs.affected), '@pipelab/app') || github.event.inputs.forcePublish == 'true'
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: "@pipelab/app@${{ steps.versions.outputs.app_version }}"
-          prerelease: ${{ steps.versions.outputs.prerelease == 'true' }}
-          files: |
-            artifacts/desktop-artifacts-*/**/*
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Publish @pipelab/ui dynamically
-        if: needs.release.outputs.published == 'true' || github.event_name == 'workflow_dispatch'
-        run: node scripts/publish-app.mjs ui
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-          POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
-
-      - name: Publish @pipelab/cli dynamically
-        if: needs.release.outputs.published == 'true' || github.event_name == 'workflow_dispatch'
-        run: node scripts/publish-app.mjs cli
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-          POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
