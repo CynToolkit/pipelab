@@ -1,5 +1,13 @@
 # @pipelab/shared
 
+## 2.0.1-beta.23
+
+### Patch Changes
+
+- xwc
+- Updated dependencies
+  - @pipelab/migration@1.0.1-beta.22
+
 ## 2.0.1-beta.22
 
 ### Patch Changes

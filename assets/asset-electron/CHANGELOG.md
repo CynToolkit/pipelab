@@ -1,5 +1,11 @@
 # @pipelab/asset-electron
 
+## 1.0.1-beta.25
+
+### Patch Changes
+
+- xwc
+
 ## 1.0.1-beta.24
 
 ### Patch Changes

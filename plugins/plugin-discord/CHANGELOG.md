@@ -1,5 +1,14 @@
 # @pipelab/plugin-discord
 
+## 1.0.1-beta.17
+
+### Patch Changes
+
+- xwc
+- Updated dependencies
+  - @pipelab/plugin-core@1.0.1-beta.22
+  - @pipelab/shared@2.0.1-beta.23
+
 ## 1.0.1-beta.16
 
 ### Patch Changes

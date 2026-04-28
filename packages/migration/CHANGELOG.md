@@ -1,5 +1,11 @@
 # @pipelab/migration
 
+## 1.0.1-beta.22
+
+### Patch Changes
+
+- xwc
+
 ## 1.0.1-beta.21
 
 ### Patch Changes

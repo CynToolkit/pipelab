@@ -1,5 +1,14 @@
 # @pipelab/core-node
 
+## 1.0.1-beta.26
+
+### Patch Changes
+
+- xwc
+- Updated dependencies
+  - @pipelab/constants@1.0.1-beta.22
+  - @pipelab/shared@2.0.1-beta.23
+
 ## 1.0.1-beta.25
 
 ### Patch Changes

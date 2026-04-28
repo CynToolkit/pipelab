@@ -1,5 +1,11 @@
 # @pipelab/app
 
+## 2.0.1-beta.24
+
+### Patch Changes
+
+- xwc
+
 ## 2.0.1-beta.23
 
 ### Patch Changes

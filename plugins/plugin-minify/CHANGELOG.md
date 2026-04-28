@@ -1,5 +1,13 @@
 # @pipelab/plugin-minify
 
+## 1.0.1-beta.17
+
+### Patch Changes
+
+- xwc
+- Updated dependencies
+  - @pipelab/plugin-core@1.0.1-beta.22
+
 ## 1.0.1-beta.16
 
 ### Patch Changes
