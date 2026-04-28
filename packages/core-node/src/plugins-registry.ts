@@ -29,6 +29,7 @@ export const builtInPlugins = async (options: { context: PipelabContext }) => {
 
       const { packageDir, entryPoint } = await fetchPipelabPlugin(packageName, "latest", {
         context: options.context,
+        installDeps: true,
       });
 
       console.log(`[Plugins] [${id}] Attempting to import from: ${entryPoint}`);
@@ -38,7 +39,7 @@ export const builtInPlugins = async (options: { context: PipelabContext }) => {
         try {
           const files = await readdir(packageDir, { recursive: true });
           console.log(`[Plugins] [${id}] Directory contents:`, files);
-        } catch (e) {}
+        } catch (e) { }
       }
 
       const pluginModule = await import(pathToFileURL(entryPoint).href);
