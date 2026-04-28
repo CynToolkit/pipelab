@@ -1,5 +1,16 @@
 # @pipelab/cli
 
+## 2.0.1-beta.26
+
+### Patch Changes
+
+- sd
+- Updated dependencies
+  - @pipelab/test-utils@1.0.1-beta.18
+  - @pipelab/constants@1.0.1-beta.23
+  - @pipelab/core-node@1.0.1-beta.27
+  - @pipelab/shared@2.0.1-beta.24
+
 ## 2.0.1-beta.25
 
 ### Patch Changes
