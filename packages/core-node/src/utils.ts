@@ -15,7 +15,8 @@ import type { BuildHistoryEntry } from "@pipelab/shared";
 import type { Variable } from "@pipelab/shared";
 
 import { ensure, generateTempFolder, extractTarGz, extractZip, zipFolder } from "./utils/fs-extras";
-import { fetchPipelabAsset, fetchPipelabPlugin } from "./utils/remote";
+import { fetchPipelabAsset } from "./utils/remote";
+import { loadPipelabPlugin } from "./plugins-registry";
 import { setupConfigFile } from "./config";
 import { AppConfig } from "@pipelab/shared";
 
@@ -139,19 +140,13 @@ export const executeGraphWithHistory = async ({
     const isRegistered = registeredPlugins.value.some((p) => p.id === pluginId);
     if (!isRegistered) {
       logger().info(`[Runner] Plugin "${pluginId}" not found, attempting to load...`);
-      try {
-        const packageName = `@pipelab/plugin-${pluginId}`;
+      const pluginDefinition = await loadPipelabPlugin(pluginId, { context: ctx });
 
-        const { packageDir, entryPoint } = await fetchPipelabPlugin(packageName, "latest", {
-          context: ctx,
-        });
-        const pluginModule = await import(pathToFileURL(entryPoint).href);
-        const pluginDefinition = pluginModule.default;
-
+      if (pluginDefinition) {
         registerPlugins([pluginDefinition]);
         logger().info(`[Runner] Plugin "${pluginId}" loaded and registered successfully`);
-      } catch (e) {
-        logger().error(`[Runner] Failed to load or register plugin "${pluginId}":`, e);
+      } else {
+        logger().error(`[Runner] Failed to load or register plugin "${pluginId}"`);
       }
     }
   }

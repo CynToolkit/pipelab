@@ -1,5 +1,13 @@
 # @pipelab/plugin-netlify
 
+## 1.0.1-beta.21
+
+### Patch Changes
+
+- df
+- Updated dependencies
+  - @pipelab/plugin-core@1.0.1-beta.26
+
 ## 1.0.1-beta.20
 
 ### Patch Changes

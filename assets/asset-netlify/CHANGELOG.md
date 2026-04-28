@@ -1,5 +1,11 @@
 # @pipelab/asset-netlify
 
+## 1.0.1-beta.26
+
+### Patch Changes
+
+- df
+
 ## 1.0.1-beta.25
 
 ### Patch Changes

@@ -190,18 +190,18 @@ export async function ensurePNPM(version = "10.12.0", options: { context: Pipela
 async function installDependencies(packageDir: string, packageName: string, options: FetchOptions) {
   const nodeModulesPath = join(packageDir, "node_modules");
 
-  // Check if node_modules already exists and has content
   if (existsSync(nodeModulesPath)) {
     try {
       const files = await readdir(nodeModulesPath);
-      if (files.length > 0) return;
-      console.warn(`[Fetcher] ${packageName}: node_modules exists but is empty. Re-installing...`);
+      if (files.length === 0) {
+        console.warn(`[Fetcher] ${packageName}: node_modules exists but is empty. Re-installing...`);
+      }
     } catch (e) {
       // Continue to install if readdir fails
     }
   }
 
-  console.log(`[Fetcher] ${packageName}: Installing dependencies...`);
+  console.log(`[Fetcher] ${packageName}: Ensuring dependencies are installed...`);
   try {
     const { all } = await runPnpm(packageDir, {
       signal: options.signal,
