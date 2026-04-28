@@ -100,8 +100,6 @@ export const AppSettingsValidatorV6 = object({
 export const AppSettingsValidatorV7 = object({
   theme: union([literal("light"), literal("dark")]),
   version: literal("7.0.0"),
-  cacheFolder: string(),
-  clearTemporaryFoldersOnPipelineEnd: boolean(),
   locale: union([
     literal("en-US"),
     literal("fr-FR"),

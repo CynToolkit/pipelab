@@ -69,7 +69,8 @@ export async function runPipelineCommand(file: string, options: RunOptions, vers
 
   const settings = await setupConfigFile<AppConfig>("settings", { context });
   const config = await settings.getConfig();
-  const cachePath = config?.cacheFolder || tmpdir();
+  const cachePath = join(context.userDataPath, "cache");
+  await mkdir(cachePath, { recursive: true });
 
   const abortController = new AbortController();
 

@@ -1,6 +1,5 @@
 <template>
   <div class="editor-page">
-    <Toast position="bottom-center" />
 
     <Layout>
       <div class="editor">

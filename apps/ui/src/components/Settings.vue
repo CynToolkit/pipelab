@@ -9,60 +9,69 @@
       <TabPanels>
         <!-- General Tab -->
         <TabPanel value="0">
-          <div class="general-settings">
-            <div class="field">
-              <div class="field-switch">
+          <div class="settings-group">
+            <div class="setting-item">
+              <div class="setting-content">
+                <label for="autosave" class="setting-title">{{ t("settings.autosave") }}</label>
+                <div class="setting-description">{{ t("settings.autosaveDescription") }}</div>
+              </div>
+              <div class="setting-action">
                 <ToggleSwitch
                   :disabled="!settingsRef"
                   input-id="autosave"
                   :model-value="settingsRef?.autosave ?? true"
                   @update:model-value="updateAutosave"
                 />
-                <label for="autosave" class="label">{{ t("settings.autosave") }}</label>
               </div>
-              <p class="description">
-                {{ t("settings.autosaveDescription") }}
-              </p>
             </div>
-            <div class="field">
-              <div class="field-switch">
+            
+            <div class="setting-item">
+              <div class="setting-content">
+                <label for="app-theme" class="setting-title">{{ t("settings.darkTheme") }}</label>
+                <div class="setting-description">Toggle between light and dark mode for the application interface.</div>
+              </div>
+              <div class="setting-action">
                 <ToggleSwitch
                   :disabled="!settingsRef"
-                  aria-label="asdsdsd"
+                  aria-label="Toggle dark mode"
                   input-id="app-theme"
                   :model-value="false"
                 />
-                <label for="app-theme" class="label">{{ t("settings.darkTheme") }}</label>
-              </div>
-            </div>
-            <div class="field">
-              <label for="app-theme" class="label">{{ $t("settings.language") }}</label>
-              <div class="field-switch">
-                <div class="locale-changer">
-                  <Select
-                    v-model="currentLocale"
-                    :options="$i18n.availableLocales"
-                    class="w-full p-2 border rounded"
-                  >
-                    <template #option="slotProps">
-                      <div class="flex items-center">
-                        <div>{{ $t("settings.languageOptions." + slotProps.option) }}</div>
-                      </div>
-                    </template>
-
-                    <template #value="slotProps">
-                      <div class="flex items-center">
-                        <div>{{ $t("settings.languageOptions." + slotProps.value) }}</div>
-                      </div>
-                    </template>
-                  </Select>
-                </div>
               </div>
             </div>
 
-            <div class="field">
-              <label class="label">Onboarding Tours</label>
-              <div class="flex flex-column gap-2 mt-2">
+            <div class="setting-item">
+              <div class="setting-content">
+                <label for="language-select" class="setting-title">{{ $t("settings.language") }}</label>
+                <div class="setting-description">Select your preferred language for the application UI.</div>
+              </div>
+              <div class="setting-action">
+                <Select
+                  input-id="language-select"
+                  v-model="currentLocale"
+                  :options="$i18n.availableLocales"
+                  class="w-[200px]"
+                >
+                  <template #option="slotProps">
+                    <div class="flex items-center">
+                      <div>{{ $t("settings.languageOptions." + slotProps.option) }}</div>
+                    </div>
+                  </template>
+                  <template #value="slotProps">
+                    <div class="flex items-center">
+                      <div>{{ $t("settings.languageOptions." + slotProps.value) }}</div>
+                    </div>
+                  </template>
+                </Select>
+              </div>
+            </div>
+
+            <div class="setting-item">
+              <div class="setting-content">
+                <div class="setting-title">Onboarding Tours</div>
+                <div class="setting-description">Restart the interactive guides for different sections of the app.</div>
+              </div>
+              <div class="setting-action flex gap-2">
                 <Button
                   outlined
                   severity="secondary"
@@ -92,88 +101,126 @@
 
         <!-- Advanced Tab -->
         <TabPanel value="2">
-          <div class="storage-settings">
-            <div class="field">
-              <label for="cache-folder" class="label">{{
-                $t("settings.pipeline-cache-folder")
-              }}</label>
-              <InputGroup>
-                <InputText
-                  :disabled="!settingsRef"
-                  :model-value="cacheFolder"
-                  input-id="cache-folder"
-                  readonly
-                  type="text"
-                  class="input"
-                  :placeholder="$t('settings.enter-or-browse-for-a-folder')"
-                  @update:model-value="updateCacheFolder"
-                />
-                <Button :disabled="!settingsRef" class="btn" @click="browseCacheFolder">{{
-                  $t("settings.browse")
-                }}</Button>
-              </InputGroup>
-              <p class="description">
-                {{ $t("settings.manage-where-the-app-stores-temporary-and-cache-files") }}
-              </p>
-            </div>
-            <div class="field actions">
-              <Button :disabled="!settingsRef || true" class="btn danger" @click="clearCache">{{
-                $t("settings.clear-cache")
-              }}</Button>
-              <Button :disabled="!settingsRef" class="btn" @click="resetCacheFolder">{{
-                $t("settings.reset-to-default")
-              }}</Button>
-            </div>
-            <div class="field">
-              <div class="field-switch">
-                <ToggleSwitch
-                  :disabled="!settingsRef"
-                  input-id="clear-temp-folders"
-                  :model-value="settingsRef?.clearTemporaryFoldersOnPipelineEnd || false"
-                  @update:model-value="updateClearTemporaryFoldersOnPipelineEnd"
-                />
-                <label for="clear-temp-folders" class="label">
-                  {{ t("settings.clearTempFolders") }}
-                </label>
-              </div>
-              <p class="description">
-                {{ t("settings.clearTempFoldersDescription") }}
-              </p>
+          <div class="settings-group mb-8">
+            <div class="section-header">
+              <h3>{{ t("settings.retentionPolicy") }}</h3>
+              <p class="description">{{ t("settings.retentionPolicyDescription") }}</p>
             </div>
 
-            <!-- Storage Information -->
-            <div v-if="buildHistoryStore.storageInfo" class="storage-info">
-              <div class="storage-header">
-                <h3>Storage Information</h3>
-                <Button
-                  v-tooltip.top="'Refresh storage info'"
-                  text
-                  severity="secondary"
-                  size="small"
-                  @click="refreshStorageInfo"
-                >
-                  <i class="pi pi-refresh"></i>
-                </Button>
+            <div v-if="storageInfo && storageInfo.disk" class="storage-card mb-6 mt-4">
+              <div class="card-header mb-4">
+                <div class="flex items-center gap-2">
+                  <i class="pi pi-database text-primary text-xl"></i>
+                  <span class="text-lg font-bold tracking-tight">{{ t('settings.disk-usage') }}</span>
+                  <Button
+                    v-tooltip.top="'Refresh storage info'"
+                    text
+                    severity="secondary"
+                    size="small"
+                    class="ml-2"
+                    @click="refreshStorageInfo"
+                  >
+                    <i class="pi pi-refresh"></i>
+                  </Button>
+                </div>
+                <div class="text-sm font-medium opacity-60">
+                  {{ formatSize(storageInfo.disk.total - storageInfo.disk.free) }} / {{ formatSize(storageInfo.disk.total) }}
+                </div>
               </div>
-              <div class="storage-stats">
-                <div class="stat-item">
-                  <label>Total Entries:</label>
-                  <span>{{ buildHistoryStore.storageInfo.totalEntries.toLocaleString() }}</span>
+
+              <!-- Main Progress Bar -->
+              <div class="usage-bar-container mb-6">
+                <div class="usage-bar">
+                  <div 
+                    class="usage-segment pipelab-segment" 
+                    :style="{ width: (storageInfo.disk.pipelab / storageInfo.disk.total * 100) + '%' }"
+                    v-tooltip="t('settings.storage-pipelab') + ': ' + formatSize(storageInfo.disk.pipelab)"
+                  ></div>
+                  <div 
+                    class="usage-segment other-segment" 
+                    :style="{ width: ((storageInfo.disk.total - storageInfo.disk.free - storageInfo.disk.pipelab) / storageInfo.disk.total * 100) + '%' }"
+                    v-tooltip="t('settings.storage-other') + ': ' + formatSize(storageInfo.disk.total - storageInfo.disk.free - storageInfo.disk.pipelab)"
+                  ></div>
                 </div>
-                <div class="stat-item">
-                  <label>Storage Size:</label>
-                  <span>{{ formatSize(buildHistoryStore.storageInfo.totalSize) }}</span>
+              </div>
+
+              <!-- Legend / Details -->
+              <div class="usage-details grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div class="detail-item">
+                  <div class="flex items-center gap-2 mb-1">
+                    <div class="dot pipelab-dot"></div>
+                    <span class="detail-label">{{ t('settings.storage-pipelab') }}</span>
+                  </div>
+                  <div class="detail-value">{{ formatSize(storageInfo.disk.pipelab) }}</div>
                 </div>
-                <div v-if="buildHistoryStore.storageInfo.oldestEntry" class="stat-item">
-                  <label>Oldest Entry:</label>
-                  <span>{{ formatDate(buildHistoryStore.storageInfo.oldestEntry) }}</span>
+                <div class="detail-item">
+                  <div class="flex items-center gap-2 mb-1">
+                    <div class="dot other-dot"></div>
+                    <span class="detail-label">{{ t('settings.storage-other') }}</span>
+                  </div>
+                  <div class="detail-value">{{ formatSize(storageInfo.disk.total - storageInfo.disk.free - storageInfo.disk.pipelab) }}</div>
                 </div>
-                <div v-if="buildHistoryStore.storageInfo.newestEntry" class="stat-item">
-                  <label>Newest Entry:</label>
-                  <span>{{ formatDate(buildHistoryStore.storageInfo.newestEntry) }}</span>
+                <div class="detail-item">
+                  <div class="flex items-center gap-2 mb-1">
+                    <div class="dot free-dot"></div>
+                    <span class="detail-label">{{ t('settings.storage-free') }}</span>
+                  </div>
+                  <div class="detail-value">{{ formatSize(storageInfo.disk.free) }}</div>
                 </div>
               </div>
             </div>
+
+            <div class="setting-item">
+              <div class="setting-content">
+                <label for="retention-enabled" class="setting-title">{{ t("settings.retentionEnabled") }}</label>
+                <div class="setting-description">Automatically delete old pipelines builds to save space.</div>
+              </div>
+              <div class="setting-action">
+                <ToggleSwitch
+                  :disabled="!settingsRef"
+                  input-id="retention-enabled"
+                  :model-value="settingsRef?.buildHistory?.retentionPolicy?.enabled ?? false"
+                  @update:model-value="updateRetentionEnabled"
+                />
+              </div>
+            </div>
+
+            <div class="setting-item" :class="{ 'opacity-50 pointer-events-none': !settingsRef?.buildHistory?.retentionPolicy?.enabled }">
+              <div class="setting-content">
+                <label for="max-entries" class="setting-title">{{ t("settings.retentionMaxEntries") }}</label>
+                <div class="setting-description">{{ t("settings.retentionMaxEntriesDescription") }}</div>
+              </div>
+              <div class="setting-action">
+                <InputNumber
+                  v-model="retentionMaxEntries"
+                  :disabled="!settingsRef || !settingsRef?.buildHistory?.retentionPolicy?.enabled"
+                  input-id="max-entries"
+                  show-buttons
+                  :min="1"
+                  :max="1000"
+                  class="w-[120px]"
+                />
+              </div>
+            </div>
+
+            <div class="setting-item" :class="{ 'opacity-50 pointer-events-none': !settingsRef?.buildHistory?.retentionPolicy?.enabled }">
+              <div class="setting-content">
+                <label for="max-age" class="setting-title">{{ t("settings.retentionMaxAge") }}</label>
+                <div class="setting-description">{{ t("settings.retentionMaxAgeDescription") }}</div>
+              </div>
+              <div class="setting-action">
+                <InputNumber
+                  v-model="retentionMaxAge"
+                  :disabled="!settingsRef || !settingsRef?.buildHistory?.retentionPolicy?.enabled"
+                  input-id="max-age"
+                  show-buttons
+                  :min="1"
+                  :max="365"
+                  class="w-[120px]"
+                />
+              </div>
+            </div>
+
           </div>
         </TabPanel>
 
@@ -232,10 +279,11 @@ import Tab from "primevue/tab";
 import Card from "primevue/card";
 import TabPanels from "primevue/tabpanels";
 import TabPanel from "primevue/tabpanel";
-import { computed, ref } from "vue";
+import { computed, ref, onMounted, toRaw } from "vue";
 import { useAppSettings } from "@renderer/store/settings";
 import { storeToRefs } from "pinia";
 import Button from "primevue/button";
+import InputNumber from "primevue/inputnumber";
 import { supabase } from "@pipelab/shared";
 import { useAuth } from "@renderer/store/auth";
 import { useBuildHistory } from "../store/build-history";
@@ -263,11 +311,16 @@ const { settings: settingsRef } = storeToRefs(appSettings);
 const { subscriptions, user } = storeToRefs(authStore);
 const { canUseHistory, storageInfo } = storeToRefs(buildHistoryStore);
 
+onMounted(async () => {
+  await buildHistoryStore.refreshStorageInfo();
+});
+
+
 const currentLocale = computed({
   get: () => (settingsRef.value?.locale as string) || "en-US",
   set: (value: string) => {
     appSettings.updateSettings({
-      ...settingsRef.value,
+      ...(toRaw(settingsRef.value) as any),
       locale: value as Locales,
     });
   },
@@ -284,79 +337,82 @@ watch(
   { immediate: true },
 );
 
-const cacheFolder = computed(() => {
-  return settingsRef.value?.cacheFolder;
-});
 
 const updateAutosave = (value: boolean) => {
   return appSettings.updateSettings({
-    ...settingsRef.value,
+    ...(toRaw(settingsRef.value) as any),
     autosave: value,
   });
 };
 
-const updateCacheFolder = (value: string) => {
+
+
+const updateRetentionEnabled = (value: boolean) => {
+  const currentBuildHistory = settingsRef.value.buildHistory || {};
+  const currentPolicy = currentBuildHistory.retentionPolicy || {
+    enabled: false,
+    maxEntries: 50,
+    maxAge: 30,
+  };
+
   return appSettings.updateSettings({
-    ...settingsRef.value,
-    cacheFolder: value,
+    ...(toRaw(settingsRef.value) as any),
+    buildHistory: {
+      ...currentBuildHistory,
+      retentionPolicy: {
+        ...currentPolicy,
+        enabled: value,
+      },
+    },
   });
 };
 
-const updateClearTemporaryFoldersOnPipelineEnd = (value: boolean) => {
-  return appSettings.updateSettings({
-    ...settingsRef.value,
-    clearTemporaryFoldersOnPipelineEnd: value,
-  });
-};
+const retentionMaxEntries = computed({
+  get: () => settingsRef.value?.buildHistory?.retentionPolicy?.maxEntries ?? 50,
+  set: (value: number) => {
+    const currentBuildHistory = settingsRef.value.buildHistory || {};
+    const currentPolicy = currentBuildHistory.retentionPolicy || {
+      enabled: false,
+      maxEntries: 50,
+      maxAge: 30,
+    };
 
-const browseCacheFolder = async () => {
-  const newPath = await api.execute("dialog:showOpenDialog", {
-    title: t("settings.select-cache-folder"),
-    defaultPath: cacheFolder.value,
-    properties: ["openDirectory"],
-  });
-
-  console.log("newPath", newPath);
-
-  if (newPath.type === "success") {
-    await updateCacheFolder(newPath.result.filePaths[0]);
-  } else {
-    console.log("Error selecting cache folder", newPath);
-  }
-};
-const clearCache = async () => {
-  if (!settingsRef.value?.cacheFolder) return;
-
-  try {
-    // Clear the cache folder contents
-    await api.execute("fs:rm", {
-      path: settingsRef.value.cacheFolder,
-      recursive: true,
-      force: true,
+    appSettings.updateSettings({
+      ...(toRaw(settingsRef.value) as any),
+      buildHistory: {
+        ...currentBuildHistory,
+        retentionPolicy: {
+          ...currentPolicy,
+          maxEntries: value,
+        },
+      },
     });
+  },
+});
 
-    // Show success message
-    // You might want to replace this with a toast notification component if available
-    alert(t("settings.cache-cleared-successfully"));
-  } catch (error) {
-    console.error("Failed to clear cache:", error);
-    alert(t("settings.failed-to-clear-cache-error-message", [error.message]));
-  }
-};
+const retentionMaxAge = computed({
+  get: () => settingsRef.value?.buildHistory?.retentionPolicy?.maxAge ?? 30,
+  set: (value: number) => {
+    const currentBuildHistory = settingsRef.value.buildHistory || {};
+    const currentPolicy = currentBuildHistory.retentionPolicy || {
+      enabled: false,
+      maxEntries: 50,
+      maxAge: 30,
+    };
 
-const resetCacheFolder = async () => {
-  try {
-    // Reset to default cache folder (system temp directory)
-    await appSettings.reset("cacheFolder");
+    appSettings.updateSettings({
+      ...(toRaw(settingsRef.value) as any),
+      buildHistory: {
+        ...currentBuildHistory,
+        retentionPolicy: {
+          ...currentPolicy,
+          maxAge: value,
+        },
+      },
+    });
+  },
+});
 
-    // Show success message
-    // You might want to replace this with a toast notification component if available
-    alert(`Cache folder reset to default`);
-  } catch (error) {
-    console.error("Failed to reset cache folder:", error);
-    alert(t("settings.failed-to-reset-cache-folder-error-message", [error.message]));
-  }
-};
 
 const isBillingPortalUrlLoading = ref(false);
 
@@ -377,16 +433,11 @@ const formatDate = (timestamp: number): string => {
 };
 
 const formatSize = (bytes: number): string => {
-  const units = ["B", "KB", "MB", "GB"];
-  let size = bytes;
-  let unitIndex = 0;
-
-  while (size >= 1024 && unitIndex < units.length - 1) {
-    size /= 1024;
-    unitIndex++;
-  }
-
-  return `${size.toFixed(1)} ${units[unitIndex]}`;
+  if (bytes === 0) return "0 B";
+  const k = 1024;
+  const sizes = ["B", "KB", "MB", "GB", "TB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
 };
 
 const refreshStorageInfo = async () => {
@@ -404,7 +455,7 @@ const restartTour = (tourId: "dashboard" | "editor") => {
     completed: false,
   };
   appSettings.updateSettings({
-    ...settingsRef.value,
+    ...(toRaw(settingsRef.value) as any),
     tours,
   });
   alert(t("settings.tour-reset-success"));
@@ -412,25 +463,56 @@ const restartTour = (tourId: "dashboard" | "editor") => {
 </script>
 
 <style lang="scss" scoped>
-.field {
-  .label {
-    margin-right: 1rem;
-    font-weight: bold;
+.settings-group {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.setting-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.5rem;
+  background: var(--surface-card);
+  border: 1px solid var(--surface-border);
+  border-radius: 12px;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+
+  &:hover {
+    border-color: var(--primary-color);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    transform: translateY(-1px);
   }
 
-  .description {
-    opacity: 0.8;
-    margin-top: 0.5rem;
-    font-size: 0.8rem;
+  .setting-content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    flex: 1;
+    padding-right: 2rem;
   }
 
-  .field-switch {
+  .setting-title {
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: var(--text-color);
+    cursor: default;
+    margin: 0;
+  }
+
+  .setting-description {
+    font-size: 0.85rem;
+    color: var(--text-color-secondary);
+    line-height: 1.5;
+    opacity: 0.85;
+  }
+
+  .setting-action {
     display: flex;
     align-items: center;
-
-    .label {
-      margin-left: 0.5rem;
-    }
+    flex-shrink: 0;
   }
 }
 
@@ -485,57 +567,163 @@ const restartTour = (tourId: "dashboard" | "editor") => {
   width: 100%;
 }
 
-.storage-info {
-  background: #f8f9fa;
-  border: 1px solid #e9ecef;
-  border-radius: 8px;
+.storage-card {
+  background: var(--surface-card);
+  border: 1px solid var(--surface-border);
+  border-radius: 16px;
   padding: 1.5rem;
-  margin-top: 1rem;
-}
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
 
-.storage-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
-}
-
-.storage-header h3 {
-  margin: 0;
-  color: #495057;
-  font-size: 1.25rem;
-}
-
-.storage-stats {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1rem;
-}
-
-.stat-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.75rem;
-  background: #fff;
-  border-radius: 6px;
-  border: 1px solid #e9ecef;
-}
-
-.stat-item label {
-  font-weight: 600;
-  color: #6c757d;
-}
-
-.stat-item span {
-  color: #495057;
-  font-weight: 500;
-}
-
-/* Responsive adjustments */
-@media (max-width: 768px) {
-  .storage-stats {
-    grid-template-columns: 1fr;
+  .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
   }
+
+  .usage-bar-container {
+    background: #cbd5e1; /* Much darker slate to ensure visibility */
+    height: 12px;
+    border-radius: 100px;
+    position: relative;
+    padding: 0;
+    overflow: hidden;
+    border: 1px solid rgba(0,0,0,0.05);
+  }
+
+  .usage-bar {
+    display: flex;
+    height: 100%;
+    width: 100%;
+    gap: 0; /* No gaps for a unified look */
+  }
+
+  .usage-segment {
+    height: 100%;
+    transition: width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+    border-right: 2px solid #cbd5e1; /* Matches the empty track for a "slotted" effect */
+  }
+
+  .pipelab-segment {
+    background: linear-gradient(135deg, #a855f7 0%, #8b5cf6 100%);
+    min-width: 8px;
+  }
+
+  .other-segment {
+    background: #3b82f6;
+    box-shadow: 0 2px 4px rgba(59, 130, 246, 0.15);
+  }
+
+  .free-segment {
+    background: var(--surface-300); /* Darker gray to distinguish from card */
+    opacity: 0.8;
+  }
+
+  .detail-item {
+    padding: 1rem;
+    background: var(--surface-card);
+    border-radius: 12px;
+    border: 1px solid var(--surface-border);
+    transition: all 0.2s ease;
+    cursor: default;
+
+    &:hover {
+      border-color: var(--primary-color);
+      transform: translateY(-2px);
+      background: var(--surface-section);
+    }
+  }
+
+  .detail-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 700;
+    opacity: 0.6;
+  }
+
+  .detail-value {
+    font-size: 1.25rem;
+    font-weight: 800;
+    font-family: 'Inter', sans-serif;
+  }
+
+  .dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 3px;
+    box-shadow: 0 0 8px rgba(0,0,0,0.1);
+  }
+
+  .pipelab-dot { background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%); }
+  .other-dot { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); }
+  .free-dot { background: #cbd5e1; }
+}
+
+.section-header {
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--surface-border);
+
+  h3 {
+    margin: 0 0 0.35rem 0;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--text-color);
+    letter-spacing: -0.01em;
+  }
+
+  .description {
+    margin: 0;
+    font-size: 0.9rem;
+    color: var(--text-color-secondary);
+  }
+}
+
+.input-small {
+  width: 150px;
+}
+/* Modern Tab Styling */
+:deep(.p-tabs) {
+  background: transparent;
+}
+
+:deep(.p-tablist-tab-list) {
+  border-bottom: 1px solid var(--surface-border) !important;
+  gap: 1.5rem;
+  background: transparent !important;
+  border-top: none !important;
+}
+
+:deep(.p-tablist-content) {
+  background: transparent !important;
+}
+
+:deep(.p-tab) {
+  padding: 1rem 0.5rem !important;
+  font-weight: 600 !important;
+  color: var(--text-color-secondary) !important;
+  background: transparent !important;
+  border-bottom: 2px solid transparent !important;
+  transition: all 0.2s ease !important;
+  min-width: 80px;
+  display: flex;
+  justify-content: center;
+  border-top: none !important;
+
+  &:not(.p-disabled):hover {
+    color: var(--text-color) !important;
+    background: transparent !important;
+  }
+
+  &.p-tab-active {
+    color: var(--primary-color) !important;
+    border-bottom-color: var(--primary-color) !important;
+    background: transparent !important;
+  }
+}
+
+:deep(.p-tabpanels) {
+  padding: 2rem 0 !important;
+  background: transparent !important;
 }
 </style>

@@ -76,12 +76,16 @@ export interface IBuildHistoryStorage {
     oldestEntry?: number;
     newestEntry?: number;
     numberOfPipelines: number;
-    cachePath: string;
     userDataPath: string;
     retentionPolicy: {
       enabled: boolean;
       maxEntries: number;
       maxAge: number;
+    };
+    disk: {
+      total: number;
+      free: number;
+      pipelab: number;
     };
   }>;
 }

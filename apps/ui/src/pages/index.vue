@@ -1,6 +1,5 @@
 <template>
   <div class="index">
-    <Toast />
     <ConfirmDialog />
     <Layout>
       <div class="main-layout">

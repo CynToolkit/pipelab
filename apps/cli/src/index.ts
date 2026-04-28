@@ -11,7 +11,15 @@ import { setupCommand } from "./commands/setup";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { isSupabaseAvailable } from "@pipelab/shared";
+import { config } from "dotenv";
 import { PostHog } from "posthog-node";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// Load .env from root
+config({ path: join(__dirname, "../../../.env") });
 
 const isProduction = !isDev && process.env.TEST !== "true";
 
@@ -24,9 +32,6 @@ if (isProduction) {
 import { Command } from "commander";
 import { getDefaultUserDataPath } from "./paths";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
 const packageJsonPath = join(__dirname, "..", "package.json");
 const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf-8"));
 const version = packageJson.version;
@@ -37,6 +42,10 @@ program
   .name("pipelab")
   .description("The command line interface for Pipelab")
   .version(version);
+
+if (!isSupabaseAvailable()) {
+  console.warn("\x1b[33m%s\x1b[0m", "Warning: Authentication is currently disabled (Cloud services not configured).");
+}
 
 program
   .command("serve")

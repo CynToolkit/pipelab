@@ -2,9 +2,10 @@ import { PipelabContext } from "../context";
 import { join } from "node:path";
 import { writeFile, readFile, unlink, mkdir, stat, readdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { BuildHistoryEntry, IBuildHistoryStorage, AppConfig } from "@pipelab/shared";
-import { useLogger } from "@pipelab/shared";
+import { useLogger, BuildHistoryEntry, IBuildHistoryStorage, AppConfig } from "@pipelab/shared";
 import { setupConfigFile } from "../config";
+import checkDiskSpace from "check-disk-space";
+import { getFolderSize } from "../utils/fs-extras";
 
 // Simplified storage - one file per pipeline containing array of build entries
 
@@ -128,6 +129,11 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
       this.logger
         .logger()
         .info(`Saved build history entry: ${entry.id} for pipeline: ${entry.pipelineId}`);
+
+      // Apply retention policy after each save
+      this.applyRetentionPolicy().catch((err) => {
+        this.logger.logger().error("Failed to apply retention policy after save:", err);
+      });
     } catch (error) {
       this.logger.logger().error("Failed to save build history entry:", error);
       throw new Error(`Failed to save build history entry: ${error}`);
@@ -280,24 +286,31 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
     oldestEntry?: number;
     newestEntry?: number;
     numberOfPipelines: number;
-    cachePath: string;
     userDataPath: string;
     retentionPolicy: {
       enabled: boolean;
       maxEntries: number;
       maxAge: number;
     };
+    disk: {
+      total: number;
+      free: number;
+      pipelab: number;
+    };
   }> {
     try {
       const allEntries = await this.getAll();
       const files = await this.getAllPipelineFiles();
 
+      const diskSpace = await checkDiskSpace(this.context.userDataPath);
+      const pipelabSize = await getFolderSize(this.context.userDataPath);
+
       const settings = await setupConfigFile<AppConfig>("settings", { context: this.context });
       const config = await settings.getConfig();
       const policy = config?.buildHistory?.retentionPolicy || {
         enabled: false,
-        maxEntries: 0,
-        maxAge: 0,
+        maxEntries: 50,
+        maxAge: 30,
       };
 
       if (allEntries.length === 0) {
@@ -305,12 +318,16 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
           totalEntries: 0,
           totalSize: 0,
           numberOfPipelines: files.length,
-          cachePath: config?.cacheFolder || tmpdir(),
           userDataPath: this.context.userDataPath,
           retentionPolicy: {
             enabled: policy.enabled,
             maxEntries: policy.maxEntries,
             maxAge: policy.maxAge,
+          },
+          disk: {
+            total: diskSpace.size,
+            free: diskSpace.free,
+            pipelab: pipelabSize,
           },
         };
       }
@@ -334,12 +351,16 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
         oldestEntry: sortedEntries[0]?.createdAt,
         newestEntry: sortedEntries[sortedEntries.length - 1]?.createdAt,
         numberOfPipelines: files.length,
-        cachePath: config?.cacheFolder || tmpdir(),
         userDataPath: this.context.userDataPath,
         retentionPolicy: {
           enabled: policy.enabled,
           maxEntries: policy.maxEntries,
           maxAge: policy.maxAge,
+        },
+        disk: {
+          total: diskSpace.size,
+          free: diskSpace.free,
+          pipelab: pipelabSize,
         },
       };
     } catch (error) {

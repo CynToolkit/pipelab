@@ -1,6 +1,6 @@
 import { mkdir, createWriteStream, createReadStream } from "node:fs";
 import { execa, Options, Subprocess } from "execa";
-import { mkdir as mkdirP, access, writeFile, realpath, mkdtemp, chmod } from "node:fs/promises";
+import { mkdir as mkdirP, access, writeFile, realpath, mkdtemp, chmod, stat, readdir } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { tmpdir } from "node:os";
 import tar from "tar";
@@ -180,3 +180,32 @@ export const runWithLiveLogs = async (
     throw new Error(`Command failed with exit code ${code}: ${error.message}`);
   }
 };
+
+/**
+ * Calculates the total size of a directory recursively.
+ */
+export async function getFolderSize(dirPath: string): Promise<number> {
+  try {
+    const files = await readdir(dirPath, { withFileTypes: true });
+    const ArrayOfPromises = files.map(async (file) => {
+      const path = join(dirPath, file.name);
+      if (file.isDirectory()) {
+        try {
+          return await getFolderSize(path);
+        } catch {
+          return 0;
+        }
+      }
+      try {
+        const { size } = await stat(path);
+        return size;
+      } catch {
+        return 0;
+      }
+    });
+    const results = await Promise.all(ArrayOfPromises);
+    return results.reduce((acc, size) => acc + size, 0);
+  } catch {
+    return 0;
+  }
+}

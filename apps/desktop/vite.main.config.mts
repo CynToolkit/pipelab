@@ -9,7 +9,8 @@ export default defineConfig((env) => {
   const forgeEnv = env as ConfigEnv<"build">;
   const { forgeConfigSelf } = forgeEnv;
   const define = getBuildDefine(forgeEnv);
-  const environment = loadEnv(env.mode, process.cwd(), "");
+  const rootPath = resolve(__dirname, "../../");
+  const environment = loadEnv(env.mode, rootPath, "");
 
   const plugins = [
     pluginHotRestart("restart"),
@@ -23,6 +24,7 @@ export default defineConfig((env) => {
   console.log("tag", tag);
 
   const config: UserConfig = {
+    envDir: rootPath,
     build: {
       sourcemap: true,
       rollupOptions: {

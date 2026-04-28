@@ -12,8 +12,6 @@ export const useAppSettings = defineStore("settings", () => {
   const settings = ref<AppConfig>({
     theme: "light",
     version: "7.0.0",
-    cacheFolder: "",
-    clearTemporaryFoldersOnPipelineEnd: false,
     locale: "en-US",
     tours: {
       dashboard: { step: 0, completed: false },
@@ -21,6 +19,13 @@ export const useAppSettings = defineStore("settings", () => {
     },
     autosave: true,
     agents: [],
+    buildHistory: {
+      retentionPolicy: {
+        enabled: false,
+        maxEntries: 50,
+        maxAge: 30,
+      },
+    },
   });
 
   const isElectron = !!window.electron;

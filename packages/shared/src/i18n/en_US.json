@@ -19,8 +19,6 @@
       "advanced": "Advanced",
       "billing": "Billing"
     },
-    "clearTempFolders": "Automatically clean up temporary files",
-    "clearTempFoldersDescription": "When enabled, all temporary files created during pipeline execution will be automatically deleted after the pipeline completes. This helps save disk space but you may need to copy artifacts yourself to preserve them.",
     "pipeline-cache-folder": "Pipeline Cache Folder:",
     "enter-or-browse-for-a-folder": "Enter or browse for a folder",
     "browse": "Browse",
@@ -36,7 +34,20 @@
     "select-cache-folder": "Select Cache Folder",
     "restart-dashboard-tour": "Restart Dashboard Tour",
     "restart-editor-tour": "Restart Editor Tour",
-    "tour-reset-success": "Tour has been reset. It will start the next time you visit the page."
+    "tour-reset-success": "Tour has been reset. It will start the next time you visit the page.",
+    "retentionPolicy": "Retention Policy",
+    "retentionPolicyDescription": "Manage how long your build logs and history are kept.",
+    "retentionEnabled": "Enable Retention Policy",
+    "retentionMaxEntries": "Maximum Entries",
+    "retentionMaxEntriesDescription": "Keep up to this number of entries per pipeline.",
+    "retentionMaxAge": "Maximum Age (days)",
+    "retentionMaxAgeDescription": "Keep entries for up to this many days.",
+    "storage-pipelab": "Pipelab",
+    "storage-other": "Other Apps",
+    "storage-free": "Free Space",
+    "disk-usage": "Disk Usage",
+    "free": "Free",
+    "other": "Other"
   },
   "headers": {
     "dashboard": "Dashboard",

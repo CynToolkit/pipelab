@@ -11,6 +11,18 @@ import type {
 } from "@pipelab/shared";
 import { isSubscriptionError, SubscriptionRequiredError } from "@pipelab/shared";
 
+interface StorageInfo {
+  totalEntries: number;
+  totalSize: number;
+  oldestEntry?: number;
+  newestEntry?: number;
+  disk: {
+    total: number;
+    free: number;
+    pipelab: number;
+  };
+}
+
 export const useBuildHistory = defineStore("build-history", () => {
   const api = useAPI();
   const logger = useLogger();
@@ -75,17 +87,12 @@ export const useBuildHistory = defineStore("build-history", () => {
       }
     },
 
-    async getStorageInfo(): Promise<{
-      totalEntries: number;
-      totalSize: number;
-      oldestEntry?: number;
-      newestEntry?: number;
-    }> {
+    async getStorageInfo(): Promise<StorageInfo> {
       const result = await api.execute("build-history:get-storage-info");
       if (result.type === "error") {
         throw new Error(result.ipcError || "Failed to get build history storage info");
       }
-      return result.result;
+      return result.result as StorageInfo;
     },
   };
 
@@ -94,15 +101,7 @@ export const useBuildHistory = defineStore("build-history", () => {
   const currentEntry = ref<BuildHistoryEntry | undefined>();
   const isLoading = ref(false);
   const error = ref<string | undefined>();
-  const storageInfo = ref<
-    | {
-        totalEntries: number;
-        totalSize: number;
-        oldestEntry?: number;
-        newestEntry?: number;
-      }
-    | undefined
-  >();
+  const storageInfo = ref<StorageInfo | undefined>();
 
   // Filtering state
   const currentPipelineId = ref<string | undefined>();
@@ -143,6 +142,7 @@ export const useBuildHistory = defineStore("build-history", () => {
           response.total > 0 ? Math.min(...response.entries.map((e) => e.startTime)) : undefined,
         newestEntry:
           response.total > 0 ? Math.max(...response.entries.map((e) => e.startTime)) : undefined,
+        disk: storageInfo.value?.disk || { total: 0, free: 0, pipelab: 0 },
       };
     } catch (err) {
       const errorMessage =

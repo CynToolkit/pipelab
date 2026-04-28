@@ -33,6 +33,7 @@
     "@pipelab/shared": "workspace:*",
     "@pipelab/test-utils": "workspace:*",
     "commander": "^12.1.0",
+    "dotenv": "17.4.2",
     "execa": "9.5.1",
     "nanoid": "5.0.8",
     "posthog-node": "5.30.6",

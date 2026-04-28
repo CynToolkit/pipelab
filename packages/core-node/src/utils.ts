@@ -156,7 +156,7 @@ export const executeGraphWithHistory = async ({
   logger().info(`[Sandbox] Execution sandbox created at: ${sandboxPath}`);
   const settingsFile = await setupConfigFile<AppConfig>("settings", { context: ctx });
   const config = await settingsFile.getConfig();
-  const shouldCleanup = config?.clearTemporaryFoldersOnPipelineEnd ?? true;
+  const shouldCleanup = true;
 
   try {
     const result = await processGraph({

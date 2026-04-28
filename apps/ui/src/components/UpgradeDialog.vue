@@ -58,9 +58,10 @@
 </template>
 
 <script lang="ts" setup>
+import { ref, onMounted } from "vue";
 import { useAPI } from "@renderer/composables/api";
 import { useAuth } from "@renderer/store/auth";
-import { isSupabaseAvailable } from "@pipelab/shared";
+import { isSupabaseAvailable, supabase } from "@pipelab/shared";
 
 const emit = defineEmits(["close"]);
 const api = useAPI();

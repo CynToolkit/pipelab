@@ -45,6 +45,7 @@
     "@pipelab/shared": "workspace:*",
     "adm-zip": "0.5.16",
     "archiver": "7.0.1",
+    "check-disk-space": "3.4.0",
     "es-toolkit": "1.25.2",
     "execa": "9.5.2",
     "nanoid": "5.0.7",
