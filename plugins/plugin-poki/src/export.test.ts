@@ -32,8 +32,10 @@ describe("End-to-End: Poki Upload Action", () => {
       relativePokiBin,
       "console.log('Mock Poki CLI execution'); process.exit(0);",
     );
-    // Pre-seed node_modules to skip installation
+    // Pre-seed node_modules and package.json to skip installation or allow pnpm to run
     const pokiDir = join(sandbox.path, "user-data", "packages", "@poki/cli", "0.1.19");
+    await mkdir(pokiDir, { recursive: true });
+    await writeFile(join(pokiDir, "package.json"), JSON.stringify({ name: "@poki/cli", version: "0.1.19" }));
     await mkdir(join(pokiDir, "node_modules"), { recursive: true });
     await writeFile(join(pokiDir, "node_modules", ".keep"), "");
 

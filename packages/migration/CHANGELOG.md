@@ -1,5 +1,11 @@
 # @pipelab/migration
 
+## 1.0.1-beta.27
+
+### Patch Changes
+
+- sd
+
 ## 1.0.1-beta.26
 
 ### Patch Changes
