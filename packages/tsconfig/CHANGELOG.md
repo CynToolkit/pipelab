@@ -1,5 +1,11 @@
 # @pipelab/tsconfig
 
+## 1.0.1-beta.25
+
+### Patch Changes
+
+- sd
+
 ## 1.0.1-beta.24
 
 ### Patch Changes

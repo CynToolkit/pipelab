@@ -5,7 +5,7 @@ import { is } from "@electron-toolkit/utils";
 import http from "node:http";
 import fs from "node:fs";
 import { websocketPort, uiDevPort, getUiDevServerFatalError } from "@pipelab/constants";
-import { fetchPipelabCli, projectRoot, PipelabContext } from "@pipelab/core-node";
+import { fetchPipelabCli, projectRoot, PipelabContext, getDefaultUserDataPath } from "@pipelab/core-node";
 
 let serverProcess: ChildProcess | null = null;
 
@@ -44,7 +44,7 @@ export const startServer = async () => {
     return;
   }
 
-  const userDataPath = app.getPath("userData");
+  const userDataPath = getDefaultUserDataPath();
 
   // 0. In dev mode, ensure UI dev server is running BEFORE anything else
   if (is.dev) {
