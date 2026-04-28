@@ -1,5 +1,14 @@
 # @pipelab/core-node
 
+## 1.0.1-beta.32
+
+### Patch Changes
+
+- sd
+- Updated dependencies
+  - @pipelab/constants@1.0.1-beta.28
+  - @pipelab/shared@2.0.1-beta.29
+
 ## 1.0.1-beta.31
 
 ### Patch Changes
