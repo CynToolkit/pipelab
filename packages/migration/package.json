@@ -1,6 +1,6 @@
 {
   "name": "@pipelab/migration",
-  "version": "1.0.1-beta.23",
+  "version": "1.0.1-beta.24",
   "private": false,
   "description": "Migration utilities for Pipelab data structures",
   "license": "FSL-1.1-MIT",

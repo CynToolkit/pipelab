@@ -40,7 +40,8 @@ export default defineConfig((env) => {
             const isPipelab = dep.startsWith("@pipelab/");
             const isElectronToolkit = dep.startsWith("@electron-toolkit/");
             const isSquirrel = dep === "electron-squirrel-startup";
-            return !isPipelab && !isElectronToolkit && !isSquirrel;
+            const isPosthog = dep === "posthog-node";
+            return !isPipelab && !isElectronToolkit && !isSquirrel && !isPosthog;
           }),
           "bufferutil",
           "utf-8-validate",

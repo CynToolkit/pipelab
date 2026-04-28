@@ -1,5 +1,5 @@
 import { join, dirname, resolve } from "node:path";
-import { homedir } from "node:os";
+import { homedir, platform } from "node:os";
 import { fileURLToPath } from "node:url";
 import { existsSync } from "node:fs";
 
@@ -11,6 +11,21 @@ const _dirname =
       : process.cwd();
 
 export const isDev = process.env.NODE_ENV === "development";
+
+export const getDefaultUserDataPath = () => {
+  const base = (() => {
+    switch (platform()) {
+      case "win32":
+        return process.env.APPDATA || join(homedir(), "AppData", "Roaming");
+      case "darwin":
+        return join(homedir(), "Library", "Application Support");
+      default:
+        return process.env.XDG_CONFIG_HOME || join(homedir(), ".config");
+    }
+  })();
+
+  return join(base, "@pipelab", isDev ? "app-dev" : "app");
+};
 
 /**
  * Finds the monorepo root by looking for pnpm-workspace.yaml.

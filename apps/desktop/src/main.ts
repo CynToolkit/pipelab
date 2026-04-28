@@ -6,6 +6,7 @@ import { electronApp, optimizer, is } from "@electron-toolkit/utils";
 import { startServer, stopServer } from "./main/server-process";
 import { websocketPort, uiDevPort } from "@pipelab/constants";
 import { registerIpcHandlers } from "./main/ipc-handlers";
+import { getDefaultUserDataPath } from "@pipelab/core-node";
 import started from "electron-squirrel-startup";
 import { PostHog } from "posthog-node";
 
@@ -34,9 +35,7 @@ process.on("uncaughtException", (error) => {
   }
 });
 
-if (is.dev) {
-  app.setPath("userData", app.getPath("userData") + "-dev");
-}
+app.setPath("userData", join(getDefaultUserDataPath(), "desktop"));
 
 protocol.registerSchemesAsPrivileged([
   {
