@@ -305,6 +305,7 @@
 <script setup lang="ts">
 import { ref, computed, inject } from "vue";
 import { useAuth } from "@renderer/store/auth";
+import { useShell } from "@renderer/composables/use-shell";
 interface MenuItem {
   label?: string;
   icon?: string;
@@ -338,6 +339,7 @@ import { websocketManager } from "@renderer/composables/websocket-manager";
 
 const { logger } = useLogger();
 const route = useRoute();
+const shell = useShell();
 
 const isElectron = !!window.electron;
 
@@ -447,12 +449,7 @@ const toggleAccountMenu = (event: MouseEvent) => {
 };
 
 const openLink = (url: string) => {
-  if (isElectron) {
-    // @ts-ignore
-    window.electron.openExternal(url);
-  } else {
-    window.open(url, "_blank");
-  }
+  shell.openExternal(url);
   posthog.capture("social_link_clicked", { url });
 };
 

@@ -129,6 +129,7 @@ import { Action, Condition, Event } from "@pipelab/shared";
 import type { ValueOf } from "type-fest";
 import { computed, PropType, toRefs, ref, onMounted } from "vue";
 import { useAPI } from "@renderer/composables/api";
+import { useShell } from "@renderer/composables/use-shell";
 import { useLogger } from "@pipelab/shared";
 import type { OpenDialogOptions } from "electron";
 import { SelectButtonChangeEvent } from "primevue/selectbutton";
@@ -158,6 +159,7 @@ const api = useAPI();
 
 const { logger } = useLogger();
 const editor = useEditor();
+const shell = useShell();
 const { resolvedParams } = storeToRefs(editor);
 
 const currentNodeParams = computed(() => {
@@ -190,17 +192,12 @@ const search = async (event: { query: string }) => {
 };
 const items = ref();
 
-const onChangePathClick = async (options: OpenDialogOptions) => {
-  const pathsResponse = await api.execute(
-    "dialog:showOpenDialog",
-    options,
-    async (context, message) => {
-      const { type, data } = message;
-      if (type === "end") {
-        logger().info("end", data);
-      }
-    },
-  );
+const onChangePathClick = async (options: OpenDialogOptions = {}) => {
+  const isDirectory = options?.properties?.includes("openDirectory");
+
+  const pathsResponse = await (isDirectory
+    ? shell.openDirectory(options)
+    : shell.openFile(options));
 
   if (pathsResponse.type === "error") {
     throw new Error(pathsResponse.ipcError);
@@ -210,7 +207,7 @@ const onChangePathClick = async (options: OpenDialogOptions) => {
 
   logger().info("paths", paths);
 
-  if (paths.canceled || paths.filePaths.length === 0) {
+  if (paths.canceled || !paths.filePaths || paths.filePaths.length === 0) {
     return;
   }
 

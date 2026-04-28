@@ -200,7 +200,7 @@ app.whenReady().then(async () => {
   createWindow();
 
   if (mainWindow) {
-    registerIpcHandlers(mainWindow);
+    registerIpcHandlers();
   }
 
   mainWindow?.on("ready-to-show", () => {

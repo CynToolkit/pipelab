@@ -1,4 +1,4 @@
-import { contextBridge } from "electron";
+import { contextBridge, ipcRenderer } from "electron";
 import { electronAPI } from "@electron-toolkit/preload";
 import { version } from "../package.json";
 
@@ -22,6 +22,10 @@ if (process.contextIsolated) {
 
     contextBridge.exposeInMainWorld("pipelab", {
       versions,
+      showOpenDialog: (options: any) => ipcRenderer.invoke("dialog:showOpenDialog", options),
+      showSaveDialog: (options: any) => ipcRenderer.invoke("dialog:showSaveDialog", options),
+      openExternal: (url: string) => ipcRenderer.invoke("shell:openExternal", url),
+      showItemInFolder: (path: string) => ipcRenderer.invoke("shell:showItemInFolder", path),
     });
     contextBridge.exposeInMainWorld("version", version);
     contextBridge.exposeInMainWorld("isPackaged", process.env.NODE_ENV !== "development");
@@ -36,7 +40,13 @@ if (process.contextIsolated) {
     node: process.versions.node,
     app: version,
   };
-  window.pipelab = { versions };
+  window.pipelab = {
+    versions,
+    showOpenDialog: (options: any) => ipcRenderer.invoke("dialog:showOpenDialog", options),
+    showSaveDialog: (options: any) => ipcRenderer.invoke("dialog:showSaveDialog", options),
+    openExternal: (url: string) => ipcRenderer.invoke("shell:openExternal", url),
+    showItemInFolder: (path: string) => ipcRenderer.invoke("shell:showItemInFolder", path),
+  };
   window.version = version;
   window.isPackaged = process.env.NODE_ENV !== "development";
 }
