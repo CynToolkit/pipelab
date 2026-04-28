@@ -68,7 +68,7 @@ export const startServer = async () => {
 
   // 2. Resolve the CLI
   const context = new PipelabContext({ userDataPath });
-  const { entryPoint, isLocal, packageDir } = await fetchPipelabCli("latest", { context, installDeps: true });
+  const { entryPoint, isLocal, packageDir } = await fetchPipelabCli("latest", { context });
 
   let serverPath = process.execPath;
   let args = [entryPoint, "serve"];

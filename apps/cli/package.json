@@ -31,7 +31,6 @@
     "@pipelab/constants": "workspace:*",
     "@pipelab/core-node": "workspace:*",
     "@pipelab/shared": "workspace:*",
-    "@pipelab/test-utils": "workspace:*",
     "commander": "^12.1.0",
     "dotenv": "17.4.2",
     "execa": "9.5.1",
@@ -40,6 +39,7 @@
     "serve-handler": "6.1.7"
   },
   "devDependencies": {
+    "@pipelab/test-utils": "workspace:*",
     "@pipelab/tsconfig": "workspace:*",
     "@types/node": "24.12.2",
     "cross-env": "7.0.3",
