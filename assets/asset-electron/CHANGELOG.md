@@ -1,5 +1,11 @@
 # @pipelab/asset-electron
 
+## 1.0.1-latest.37
+
+### Patch Changes
+
+- sdfc
+
 ## 1.0.1-latest.36
 
 ### Patch Changes

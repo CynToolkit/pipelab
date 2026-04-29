@@ -51,6 +51,7 @@ import WebFilePicker from "./components/WebFilePicker.vue";
 import Dialog from "primevue/dialog";
 import Toast from "primevue/toast";
 import { websocketManager } from "./composables/websocket-manager";
+import { useWebSocketAPI } from "./composables/websocket-client";
 
 const appStore = useAppStore();
 const filesStore = useFiles();
@@ -63,9 +64,11 @@ const { settings } = storeToRefs(settingsStore);
 const { init: initSettings } = settingsStore;
 
 const { init } = appStore;
+const { on } = useWebSocketAPI();
 const isLoading = ref(false);
 const isDataLoaded = ref(false);
 const isInitialized = ref(false);
+const isServerReady = ref(false);
 const isUpgradeDialogVisible = ref(false);
 const minimumLoadingTimeReached = ref(false);
 
@@ -80,7 +83,9 @@ const isDisconnected = computed(
 const isConnecting = computed(
   () =>
     isInitialized.value &&
-    (!minimumLoadingTimeReached.value || websocketManager.connectionState.value === "connecting"),
+    (!minimumLoadingTimeReached.value ||
+      websocketManager.connectionState.value === "connecting" ||
+      !isServerReady.value),
 );
 
 const openUpgradeDialog = () => {
@@ -176,11 +181,11 @@ const fetchInitialData = async () => {
   }
 };
 
-// Watch for WebSocket connection to trigger data fetch
+// Watch for WebSocket connection and server readiness to trigger data fetch
 watch(
-  () => websocketManager.connectionState.value,
-  (state) => {
-    if (state === "connected") {
+  [() => websocketManager.connectionState.value, isServerReady],
+  ([state, ready]) => {
+    if (state === "connected" && ready) {
       fetchInitialData();
     }
   },
@@ -189,6 +194,13 @@ watch(
 
 onMounted(async () => {
   console.log("[App] onMounted: UI mounted, connecting to agent");
+
+  on("startup:progress", (event) => {
+    if (event.type === "ready") {
+      console.log("[App] Startup ready signal received");
+      isServerReady.value = true;
+    }
+  });
 
   // Connect to the WebSocket server directly
   await websocketManager.connect();

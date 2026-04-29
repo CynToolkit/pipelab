@@ -29,6 +29,13 @@ export const sendStartupProgress = (message: string) => {
   });
 };
 
+export const sendStartupReady = () => {
+  console.log(`[Startup Progress] Ready!`);
+  webSocketServer.broadcast("startup:progress", {
+    type: "ready",
+  });
+};
+
 export async function serveCommand(options: ServeOptions, version: string, _dirname: string) {
   if (!options.userData) throw new Error("userDataPath is required for serveCommand");
   const context = new PipelabContext({
@@ -59,7 +66,7 @@ export async function serveCommand(options: ServeOptions, version: string, _dirn
       response.writeHead(404, { "Content-Type": "text/plain" });
       response.end(
         `Error: UI directory not found at ${rawAssetFolder}.\n` +
-          "Please run 'pnpm build' in apps/ui to generate the distribution.",
+        "Please run 'pnpm build' in apps/ui to generate the distribution.",
       );
       return;
     }
@@ -86,9 +93,7 @@ export async function serveCommand(options: ServeOptions, version: string, _dirn
   });
   registerMigrationHandlers(context);
 
-  if (process.send) {
-    process.send({ type: "ready" });
-  }
+  sendStartupReady();
 
   return server;
 }

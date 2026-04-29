@@ -92,7 +92,7 @@ export const startServer = async () => {
       PORT: websocketPort.toString(),
       IS_SERVER: "true",
     },
-    stdio: ["inherit", "inherit", "inherit", "ipc"],
+    stdio: ["inherit", "inherit", "inherit"],
   });
 
   serverProcess.on("error", (err) => console.error("ERROR: Failed to spawn server:", err));

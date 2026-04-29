@@ -1,5 +1,13 @@
 # @pipelab/plugin-filesystem
 
+## 1.0.1-latest.29
+
+### Patch Changes
+
+- sdfc
+- Updated dependencies
+  - @pipelab/plugin-core@1.0.1-latest.34
+
 ## 1.0.1-latest.28
 
 ### Patch Changes

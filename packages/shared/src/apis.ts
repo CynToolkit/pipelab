@@ -172,7 +172,10 @@ export type IpcDefinition = {
     EndEvent<{ data: any | null; error: any | null }>,
   ];
   "agent:version:get": [void, EndEvent<{ version: string }>];
-  "startup:progress": [void, { type: "progress"; data: { message: string } }];
+  "startup:progress": [
+    void,
+    { type: "progress"; data: { message: string } } | { type: "ready" },
+  ];
 };
 
 export type Channels = keyof IpcDefinition;

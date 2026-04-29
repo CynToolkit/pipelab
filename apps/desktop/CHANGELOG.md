@@ -1,5 +1,11 @@
 # @pipelab/app
 
+## 2.0.1-latest.36
+
+### Patch Changes
+
+- sdfc
+
 ## 2.0.1-latest.35
 
 ### Patch Changes
