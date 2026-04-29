@@ -8,7 +8,7 @@ import {
   showPipelineCommand,
 } from "./commands/pipelines";
 import { setupCommand } from "./commands/setup";
-import { readFileSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { isSupabaseAvailable } from "@pipelab/shared";
@@ -18,23 +18,39 @@ import { PostHog } from "posthog-node";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Load .env from root
-config({ path: join(__dirname, "../../../.env") });
+// Only load .env in development as values are bundled in production by tsdown
+if (isDev) {
+  const envPath = join(__dirname, "../../../.env");
+  if (existsSync(envPath)) {
+    config({ path: envPath });
+  }
+}
 
 const isProduction = !isDev && process.env.TEST !== "true";
 
 let posthog: PostHog | undefined;
-if (isProduction) {
-  posthog = new PostHog(process.env.POSTHOG_API_KEY || "", {
+if (isProduction && process.env.POSTHOG_API_KEY) {
+  posthog = new PostHog(process.env.POSTHOG_API_KEY, {
     host: "https://eu.i.posthog.com",
   });
 }
 import { Command } from "commander";
 import { getDefaultUserDataPath } from "./paths";
 
-const packageJsonPath = join(__dirname, "..", "package.json");
-const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf-8"));
-const version = packageJson.version;
+// Resolve version from package.json with fallbacks for production
+let version = "0.0.0";
+try {
+  const packageJsonPath = existsSync(join(__dirname, "package.json"))
+    ? join(__dirname, "package.json")
+    : join(__dirname, "..", "package.json");
+
+  if (existsSync(packageJsonPath)) {
+    const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf-8"));
+    version = packageJson.version;
+  }
+} catch (e) {
+  console.warn("[CLI] Could not resolve version from package.json, using fallback.");
+}
 
 const program = new Command();
 
