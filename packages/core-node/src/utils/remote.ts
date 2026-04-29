@@ -8,6 +8,30 @@ import { isDev, projectRoot, PipelabContext } from "../context";
 import { execa } from "execa";
 import { downloadFile, extractZip, extractTarGz, generateTempFolder } from "./fs-extras";
 
+/**
+ * In-memory lock to prevent concurrent operations on the same resource (e.g., downloading Node.js).
+ */
+const activeOperations = new Map<string, Promise<any>>();
+
+async function withLock<T>(key: string, fn: () => Promise<T>): Promise<T> {
+  const existing = activeOperations.get(key);
+  if (existing) {
+    console.log(`[Lock] Waiting for concurrent operation on: ${key}`);
+    return existing;
+  }
+
+  const promise = (async () => {
+    try {
+      return await fn();
+    } finally {
+      activeOperations.delete(key);
+    }
+  })();
+
+  activeOperations.set(key, promise);
+  return promise;
+}
+
 export type FetchOptions = {
   installDeps?: boolean;
   signal?: AbortSignal;
@@ -72,36 +96,39 @@ export async function fetchPackage(
     }
   }
 
-  const packageDir = join(baseDir, resolvedVersion);
-  if (!existsSync(packageDir)) {
-    console.log(`[Fetcher] ${packageName}@${resolvedVersion}: Downloading to ${packageDir}...`);
-    await mkdir(packageDir, { recursive: true });
-    await pacote.extract(`${packageName}@${resolvedVersion}`, packageDir);
-  }
-
-  // 2. Resolve entry point from package.json for downloaded package
-  let entryPoint: string | undefined;
-  try {
-    const pkgPath = join(packageDir, "package.json");
-    if (existsSync(pkgPath)) {
-      const pkg = JSON.parse(await readFile(pkgPath, "utf-8"));
-      const main = pkg.module || pkg.main || pkg.publishConfig?.module || pkg.publishConfig?.main;
-      if (main) {
-        entryPoint = join(packageDir, main);
-      } else if (pkg.bin) {
-        const binFile = typeof pkg.bin === "string" ? pkg.bin : Object.values(pkg.bin)[0];
-        if (binFile) entryPoint = join(packageDir, binFile as string);
-      }
+  const lockKey = `package:${packageName}:${resolvedVersion}`;
+  return withLock(lockKey, async () => {
+    const packageDir = join(baseDir, resolvedVersion);
+    if (!existsSync(packageDir)) {
+      console.log(`[Fetcher] ${packageName}@${resolvedVersion}: Downloading to ${packageDir}...`);
+      await mkdir(packageDir, { recursive: true });
+      await pacote.extract(`${packageName}@${resolvedVersion}`, packageDir);
     }
-  } catch (e) {
-    console.warn(`[Fetcher] ${packageName}: Failed to parse package.json for entry point resolution:`, e);
-  }
 
-  if (options?.installDeps) {
-    await installDependencies(packageDir, packageName, options);
-  }
+    // 2. Resolve entry point from package.json for downloaded package
+    let entryPoint: string | undefined;
+    try {
+      const pkgPath = join(packageDir, "package.json");
+      if (existsSync(pkgPath)) {
+        const pkg = JSON.parse(await readFile(pkgPath, "utf-8"));
+        const main = pkg.module || pkg.main || pkg.publishConfig?.module || pkg.publishConfig?.main;
+        if (main) {
+          entryPoint = join(packageDir, main);
+        } else if (pkg.bin) {
+          const binFile = typeof pkg.bin === "string" ? pkg.bin : Object.values(pkg.bin)[0];
+          if (binFile) entryPoint = join(packageDir, binFile as string);
+        }
+      }
+    } catch (e) {
+      console.warn(`[Fetcher] ${packageName}: Failed to parse package.json for entry point resolution:`, e);
+    }
 
-  return { packageDir, resolvedVersion, entryPoint };
+    if (options?.installDeps) {
+      await installDependencies(packageDir, packageName, options);
+    }
+
+    return { packageDir, resolvedVersion, entryPoint };
+  });
 }
 
 /**
@@ -148,63 +175,69 @@ export async function runPnpm(
  * Installs a specific version of Node.js if not already present.
  */
 export async function ensureNodeJS(version: string, options: { context: PipelabContext }) {
-  const ctx = options.context;
-  const nodeDir = ctx.getThirdPartyPath("node", version);
-  const isWindows = process.platform === "win32";
-  const executableName = isWindows ? "node.exe" : "bin/node";
-  const finalNodePath = join(nodeDir, executableName);
+  const lockKey = `node:${version}`;
+  return withLock(lockKey, async () => {
+    const ctx = options.context;
+    const nodeDir = ctx.getThirdPartyPath("node", version);
+    const isWindows = process.platform === "win32";
+    const executableName = isWindows ? "node.exe" : "bin/node";
+    const finalNodePath = join(nodeDir, executableName);
 
-  try {
-    await access(finalNodePath, constants.X_OK);
+    try {
+      await access(finalNodePath, constants.X_OK);
+      return finalNodePath;
+    } catch (e) {}
+
+    const arch = process.arch === "x64" ? "x64" : process.arch === "arm64" ? "arm64" : "x86";
+    const platform = isWindows ? "win" : process.platform === "darwin" ? "osx" : "linux";
+    const extension = isWindows ? "zip" : "tar.gz";
+    const downloadPlatform = platform === "osx" ? "darwin" : platform;
+
+    const fileName = `node-v${version}-${downloadPlatform}-${arch}.${extension}`;
+    const downloadUrl = `https://nodejs.org/dist/v${version}/${fileName}`;
+    const tempDir = await generateTempFolder(tmpdir());
+    const archivePath = join(tempDir, fileName);
+
+    console.log(`Downloading Node.js from ${downloadUrl}...`);
+    await downloadFile(downloadUrl, archivePath);
+
+    console.log(`Extracting Node.js to ${tempDir}...`);
+    const extractTempDir = join(tempDir, "extracted");
+    await mkdir(extractTempDir, { recursive: true });
+
+    if (extension === "zip") {
+      await extractZip(archivePath, extractTempDir);
+    } else {
+      await extractTarGz(archivePath, extractTempDir);
+    }
+
+    const extractedEntries = await readdir(extractTempDir);
+    const nodeSubDir = extractedEntries.find((entry) => entry.startsWith(`node-v${version}`));
+    if (!nodeSubDir) throw new Error(`Could not find extracted Node.js directory`);
+
+    const sourceDir = join(extractTempDir, nodeSubDir);
+    await mkdir(dirname(nodeDir), { recursive: true });
+    await rm(nodeDir, { recursive: true, force: true });
+    await cp(sourceDir, nodeDir, { recursive: true });
+    await rm(tempDir, { recursive: true, force: true });
+
+    if (!isWindows) await chmod(finalNodePath, 0o755).catch(() => {});
     return finalNodePath;
-  } catch (e) {}
-
-  const arch = process.arch === "x64" ? "x64" : process.arch === "arm64" ? "arm64" : "x86";
-  const platform = isWindows ? "win" : process.platform === "darwin" ? "osx" : "linux";
-  const extension = isWindows ? "zip" : "tar.gz";
-  const downloadPlatform = platform === "osx" ? "darwin" : platform;
-
-  const fileName = `node-v${version}-${downloadPlatform}-${arch}.${extension}`;
-  const downloadUrl = `https://nodejs.org/dist/v${version}/${fileName}`;
-  const tempDir = await generateTempFolder(tmpdir());
-  const archivePath = join(tempDir, fileName);
-
-  console.log(`Downloading Node.js from ${downloadUrl}...`);
-  await downloadFile(downloadUrl, archivePath);
-
-  console.log(`Extracting Node.js to ${tempDir}...`);
-  const extractTempDir = join(tempDir, "extracted");
-  await mkdir(extractTempDir, { recursive: true });
-
-  if (extension === "zip") {
-    await extractZip(archivePath, extractTempDir);
-  } else {
-    await extractTarGz(archivePath, extractTempDir);
-  }
-
-  const extractedEntries = await readdir(extractTempDir);
-  const nodeSubDir = extractedEntries.find((entry) => entry.startsWith(`node-v${version}`));
-  if (!nodeSubDir) throw new Error(`Could not find extracted Node.js directory`);
-
-  const sourceDir = join(extractTempDir, nodeSubDir);
-  await mkdir(dirname(nodeDir), { recursive: true });
-  await rm(nodeDir, { recursive: true, force: true });
-  await cp(sourceDir, nodeDir, { recursive: true });
-  await rm(tempDir, { recursive: true, force: true });
-
-  if (!isWindows) await chmod(finalNodePath, 0o755).catch(() => {});
-  return finalNodePath;
+  });
 }
 
 /**
  * Installs the PNPM package from npm if not already present.
  */
 export async function ensurePNPM(version = "10.12.0", options: { context: PipelabContext }) {
-  const ctx = options.context;
-  const { packageDir } = await fetchPackage("pnpm", version, {
-    context: ctx,
+  const lockKey = `pnpm:${version}`;
+  return withLock(lockKey, async () => {
+    const ctx = options.context;
+    const { packageDir } = await fetchPackage("pnpm", version, {
+      context: ctx,
+    });
+    return join(packageDir, "bin", "pnpm.cjs");
   });
-  return join(packageDir, "bin", "pnpm.cjs");
 }
 
 async function installDependencies(packageDir: string, packageName: string, options: FetchOptions) {

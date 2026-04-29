@@ -53,11 +53,14 @@ export const loadPipelabPlugin = async (id: string, options: { context: PipelabC
 
 export const builtInPlugins = async (options: { context: PipelabContext }) => {
   console.log("[Plugins] Finalizing default plugins list...");
-  const promises = DEFAULT_PLUGIN_IDS.map(async (id) => {
-    return loadPipelabPlugin(id, options);
-  });
+  const plugins = [];
+  for (const id of DEFAULT_PLUGIN_IDS) {
+    const plugin = await loadPipelabPlugin(id, options);
+    if (plugin) {
+      plugins.push(plugin);
+    }
+  }
 
-  const plugins = await Promise.all(promises);
   const filtered = plugins.filter(Boolean).flat();
   console.log(`[Plugins] Successfully loaded ${filtered.length} default plugins`);
   return filtered;
