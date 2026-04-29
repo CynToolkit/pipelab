@@ -1,6 +1,6 @@
 {
   "name": "@pipelab/tsconfig",
-  "version": "1.0.1-latest.32",
+  "version": "1.0.1-latest.33",
   "private": false,
   "description": "Shared TypeScript configurations for Pipelab",
   "license": "FSL-1.1-MIT",

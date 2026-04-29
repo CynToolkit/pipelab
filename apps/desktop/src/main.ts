@@ -178,24 +178,6 @@ app.whenReady().then(async () => {
   }
 
   electronApp.setAppUserModelId("com.pipelab");
-
-  protocol.handle("media", (request) => {
-    const path = decodeURIComponent(request.url.replace(/^media:\/\/+/, "/"));
-    return net.fetch(pathToFileURL(path).toString());
-  });
-
-  app.on("browser-window-created", (_, window) => {
-    optimizer.watchWindowShortcuts(window);
-  });
-
-  try {
-    await startServer();
-    console.info("Standalone server is ready, creating window");
-  } catch (error) {
-    console.error("Failed to start standalone server:", error);
-    process.exit(1);
-  }
-
   createWindow();
 
   if (mainWindow) {
@@ -212,6 +194,24 @@ app.whenReady().then(async () => {
       }, 10000);
     }
   });
+
+  protocol.handle("media", (request) => {
+    const path = decodeURIComponent(request.url.replace(/^media:\/\/+/, "/"));
+    return net.fetch(pathToFileURL(path).toString());
+  });
+
+  app.on("browser-window-created", (_, window) => {
+    optimizer.watchWindowShortcuts(window);
+  });
+
+  try {
+    await startServer();
+    console.info("Standalone server is ready");
+  } catch (error) {
+    console.error("Failed to start standalone server:", error);
+    process.exit(1);
+  }
+
 
   app.on("activate", function () {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();

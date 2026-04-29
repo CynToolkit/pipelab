@@ -16,7 +16,7 @@
           <div class="loading-bar">
             <div class="loading-progress"></div>
           </div>
-          <p class="subtitle">Initialising environment...</p>
+          <p class="subtitle">{{ progressMessage }}</p>
         </div>
       </div>
     </div>
@@ -35,7 +35,24 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, onMounted, ref, onUnmounted } from "vue";
+import { useWebSocketAPI } from "../composables/websocket-client";
+
+const progressMessage = ref("Initialising environment...");
+const { on } = useWebSocketAPI();
+let unbind: (() => void) | undefined;
+
+onMounted(() => {
+  unbind = on("startup:progress", (event) => {
+    if (event.type === "progress") {
+      progressMessage.value = event.data.message;
+    }
+  });
+});
+
+onUnmounted(() => {
+  unbind?.();
+});
 
 const isElectron = computed(() => {
   return (

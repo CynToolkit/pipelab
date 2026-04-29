@@ -6,6 +6,7 @@ import pacote from "pacote";
 import semver from "semver";
 import { isDev, projectRoot, PipelabContext } from "../context";
 import { execa } from "execa";
+import { sendStartupProgress } from "../server";
 import { downloadFile, extractZip, extractTarGz, generateTempFolder } from "./fs-extras";
 
 /**
@@ -198,9 +199,11 @@ export async function ensureNodeJS(version: string, options: { context: PipelabC
     const tempDir = await generateTempFolder(tmpdir());
     const archivePath = join(tempDir, fileName);
 
+    sendStartupProgress(`Downloading Node.js v${version}...`);
     console.log(`Downloading Node.js from ${downloadUrl}...`);
     await downloadFile(downloadUrl, archivePath);
 
+    sendStartupProgress(`Extracting Node.js v${version}...`);
     console.log(`Extracting Node.js to ${tempDir}...`);
     const extractTempDir = join(tempDir, "extracted");
     await mkdir(extractTempDir, { recursive: true });
@@ -232,6 +235,7 @@ export async function ensureNodeJS(version: string, options: { context: PipelabC
 export async function ensurePNPM(version = "10.12.0", options: { context: PipelabContext }) {
   const lockKey = `pnpm:${version}`;
   return withLock(lockKey, async () => {
+    sendStartupProgress(`Checking PNPM v${version}...`);
     const ctx = options.context;
     const { packageDir } = await fetchPackage("pnpm", version, {
       context: ctx,

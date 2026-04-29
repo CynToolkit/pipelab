@@ -21,6 +21,14 @@ export interface ServeOptions {
   pnpmPath?: string;
 }
 
+export const sendStartupProgress = (message: string) => {
+  console.log(`[Startup Progress] ${message}`);
+  webSocketServer.broadcast("startup:progress", {
+    type: "progress",
+    data: { message },
+  });
+};
+
 export async function serveCommand(options: ServeOptions, version: string, _dirname: string) {
   if (!options.userData) throw new Error("userDataPath is required for serveCommand");
   const context = new PipelabContext({
@@ -69,14 +77,15 @@ export async function serveCommand(options: ServeOptions, version: string, _dirn
     console.log(`UI available at http://localhost:${options.port}`);
   }
 
+  // Start the server EARLY so the UI can connect and receive progress updates
+  await webSocketServer.start(Number(options.port), server);
+
   await registerAllHandlers({
     version,
     context,
   });
   registerMigrationHandlers(context);
 
-  await webSocketServer.start(Number(options.port), server);
-  
   if (process.send) {
     process.send({ type: "ready" });
   }

@@ -106,29 +106,13 @@ export const startServer = async () => {
     isServerRunning = false;
   });
 
-  // Wait for the "ready" message via IPC
-  console.log(`[Server] Waiting for 'ready' signal from CLI...`);
-  
-  await new Promise<void>((resolve, reject) => {
-    if (!serverProcess) return reject(new Error("Server process failed to start."));
-
-    const onMessage = (msg: any) => {
-      if (msg && msg.type === "ready") {
-        console.log(`[Server] CLI is ready!`);
-        serverProcess?.off("message", onMessage);
-        serverProcess?.off("close", onClose);
-        resolve();
-      }
-    };
-
-    const onClose = (code: number | null) => {
-      serverProcess?.off("message", onMessage);
-      reject(new Error(`Server process exited with code ${code} before sending ready signal.`));
-    };
-
-    serverProcess.on("message", onMessage);
-    serverProcess.on("close", onClose);
-  });
+  // Wait for the server to be listening on the port
+  console.log(`[Server] Waiting for server on port ${websocketPort}...`);
+  const up = await isUp(websocketPort);
+  if (!up) {
+    throw new Error(`Server failed to start on port ${websocketPort}`);
+  }
+  console.log(`[Server] CLI server is listening!`);
 };
 
 export const stopServer = () => {

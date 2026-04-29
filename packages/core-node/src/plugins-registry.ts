@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { readdir } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { isDev, projectRoot, PipelabContext } from "./context";
+import { sendStartupProgress } from "./server";
 
 const DEFAULT_PLUGIN_IDS = [
   "construct",
@@ -55,6 +56,7 @@ export const builtInPlugins = async (options: { context: PipelabContext }) => {
   console.log("[Plugins] Finalizing default plugins list...");
   const plugins = [];
   for (const id of DEFAULT_PLUGIN_IDS) {
+    sendStartupProgress(`Loading plugin: ${id}`);
     const plugin = await loadPipelabPlugin(id, options);
     if (plugin) {
       plugins.push(plugin);

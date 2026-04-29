@@ -45,11 +45,18 @@ export const useAPI = () => {
           requestId,
           events,
         };
-        ws.send(JSON.stringify(response), (error) => {
-          if (error) {
-            logger().error("Failed to send WebSocket response:", error);
-          }
-        });
+
+        if (ws.readyState === WSWebSocket.OPEN) {
+          ws.send(JSON.stringify(response), (error) => {
+            if (error) {
+              logger().error("Failed to send WebSocket response:", error);
+            }
+          });
+        } else {
+          logger().debug(
+            `Cannot send response to ${requestId}: WebSocket is not open (state: ${ws.readyState})`,
+          );
+        }
         return Promise.resolve();
       };
 

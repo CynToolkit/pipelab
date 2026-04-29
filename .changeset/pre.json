@@ -30,6 +30,7 @@
     "@pipelab/test-utils": "1.0.0"
   },
   "changesets": [
+    "breezy-zebras-bathe",
     "clear-lions-relax",
     "crisp-zebras-hope",
     "curly-planets-move",

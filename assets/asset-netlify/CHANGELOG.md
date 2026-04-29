@@ -1,5 +1,11 @@
 # @pipelab/asset-netlify
 
+## 1.0.1-latest.33
+
+### Patch Changes
+
+- qsd
+
 ## 1.0.1-latest.32
 
 ### Patch Changes
