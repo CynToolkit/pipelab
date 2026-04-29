@@ -1,5 +1,11 @@
 # @pipelab/tsconfig
 
+## 1.0.1-latest.31
+
+### Patch Changes
+
+- ad
+
 ## 1.0.1-latest.30
 
 ### Patch Changes

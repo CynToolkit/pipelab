@@ -1,5 +1,13 @@
 # @pipelab/plugin-core
 
+## 1.0.1-latest.31
+
+### Patch Changes
+
+- ad
+- Updated dependencies
+  - @pipelab/core-node@1.0.1-latest.35
+
 ## 1.0.1-latest.30
 
 ### Patch Changes

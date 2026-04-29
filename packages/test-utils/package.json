@@ -1,6 +1,6 @@
 {
   "name": "@pipelab/test-utils",
-  "version": "1.0.1-latest.25",
+  "version": "1.0.1-latest.26",
   "private": false,
   "description": "Testing utilities for Pipelab plugins and monorepo",
   "license": "FSL-1.1-MIT",

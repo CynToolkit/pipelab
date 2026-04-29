@@ -1,5 +1,14 @@
 # @pipelab/ui
 
+## 2.0.1-latest.34
+
+### Patch Changes
+
+- ad
+- Updated dependencies
+  - @pipelab/constants@1.0.1-latest.31
+  - @pipelab/shared@2.0.1-latest.32
+
 ## 2.0.1-latest.33
 
 ### Patch Changes
