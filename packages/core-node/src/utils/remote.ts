@@ -53,10 +53,12 @@ export async function fetchPackage(
     const packument = await pacote.packument(packageName);
     const versions = Object.keys(packument.versions);
     const range = versionOrRange || "latest";
-    const foundVersion = semver.maxSatisfying(versions, range) || packument["dist-tags"]?.[range];
+
+    // Prioritize tags (like 'latest', 'beta', etc.) over semver ranges
+    const foundVersion = packument["dist-tags"]?.[range] || semver.maxSatisfying(versions, range);
 
     if (!foundVersion) {
-      throw new Error(`Package ${packageName}@${range} not found on npm`);
+      throw new Error(`Package ${packageName}@${range} not found on npm (available tags: ${Object.keys(packument["dist-tags"] || {}).join(", ")})`);
     }
     resolvedVersion = foundVersion;
     console.log(`[Fetcher] ${packageName}: Resolved to v${resolvedVersion} via npm`);
@@ -77,11 +79,29 @@ export async function fetchPackage(
     await pacote.extract(`${packageName}@${resolvedVersion}`, packageDir);
   }
 
+  // 2. Resolve entry point from package.json for downloaded package
+  let entryPoint: string | undefined;
+  try {
+    const pkgPath = join(packageDir, "package.json");
+    if (existsSync(pkgPath)) {
+      const pkg = JSON.parse(await readFile(pkgPath, "utf-8"));
+      const main = pkg.module || pkg.main || pkg.publishConfig?.module || pkg.publishConfig?.main;
+      if (main) {
+        entryPoint = join(packageDir, main);
+      } else if (pkg.bin) {
+        const binFile = typeof pkg.bin === "string" ? pkg.bin : Object.values(pkg.bin)[0];
+        if (binFile) entryPoint = join(packageDir, binFile as string);
+      }
+    }
+  } catch (e) {
+    console.warn(`[Fetcher] ${packageName}: Failed to parse package.json for entry point resolution:`, e);
+  }
+
   if (options?.installDeps) {
     await installDependencies(packageDir, packageName, options);
   }
 
-  return { packageDir, resolvedVersion };
+  return { packageDir, resolvedVersion, entryPoint };
 }
 
 /**
@@ -244,7 +264,14 @@ export async function fetchPipelabPlugin(
   });
 
   // Default entry point if not provided by fetchPackage
-  const finalEntryPoint = entryPoint || join(packageDir, "dist", "index.mjs");
+  let finalEntryPoint = entryPoint;
+  if (!finalEntryPoint) {
+    const patterns = [
+      join(packageDir, "dist", "index.mjs"),
+      join(packageDir, "index.mjs"),
+    ];
+    finalEntryPoint = patterns.find((p) => existsSync(p)) || patterns[0];
+  }
 
   return { packageDir, entryPoint: finalEntryPoint, isLocal: !!isLocal };
 }
@@ -260,7 +287,14 @@ export async function fetchPipelabCli(
   );
 
   // Default entry point for CLI if not provided
-  const finalEntryPoint = entryPoint || join(packageDir, "dist", "index.mjs");
+  let finalEntryPoint = entryPoint;
+  if (!finalEntryPoint) {
+    const patterns = [
+      join(packageDir, "dist", "index.mjs"),
+      join(packageDir, "index.mjs"),
+    ];
+    finalEntryPoint = patterns.find((p) => existsSync(p)) || patterns[0];
+  }
 
   return { packageDir, entryPoint: finalEntryPoint, isLocal: !!isLocal };
 }

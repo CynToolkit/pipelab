@@ -1,6 +1,6 @@
 {
   "mode": "pre",
-  "tag": "beta",
+  "tag": "latest",
   "initialVersions": {
     "@pipelab/cli": "2.0.0",
     "@pipelab/app": "2.0.0",
@@ -33,6 +33,7 @@
     "clear-lions-relax",
     "curly-planets-move",
     "curvy-nails-sell",
+    "cute-fans-win",
     "dull-states-smoke",
     "eager-adults-rest",
     "eighty-poets-sell",

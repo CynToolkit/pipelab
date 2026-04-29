@@ -96,15 +96,30 @@ export const startServer = async () => {
   serverProcess.on("error", (err) => console.error("ERROR: Failed to spawn server:", err));
   serverProcess.stdout?.on("data", (d) => console.info(`[Server] ${d.toString().trim()}`));
   serverProcess.stderr?.on("data", (d) => console.error(`[Server Error] ${d.toString().trim()}`));
+  let isServerRunning = true;
   serverProcess.on("close", (code) => {
     console.info(`Server process exited with code ${code}`);
     serverProcess = null;
+    isServerRunning = false;
   });
 
-  // Wait for server to be ready
-  const up = await isUp(websocketPort, is.dev ? 20 : 10);
-  if (!up) {
-    throw new Error(`Server failed to start on port ${websocketPort}`);
+  // Wait for server to be ready, but fail fast if process dies
+  const startWait = Date.now();
+  const timeout = (is.dev ? 20 : 10) * 500;
+  
+  while (Date.now() - startWait < timeout) {
+    if (!isServerRunning) {
+      throw new Error("Server process exited prematurely during startup.");
+    }
+    const ready = await isUp(websocketPort, 1, 0, true);
+    if (ready) break;
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+
+  const finalCheck = await isUp(websocketPort, 1, 0, true);
+  if (!finalCheck) {
+    if (serverProcess) serverProcess.kill();
+    throw new Error(`Server failed to start on port ${websocketPort} after all retries`);
   }
 };
 

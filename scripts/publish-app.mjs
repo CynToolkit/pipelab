@@ -78,12 +78,14 @@ async function main() {
 
   // Handle prerelease tags (e.g. 2.0.1-beta.12 -> tag: beta)
   const args = ["publish", "--access", "public"];
+  /* 
   const prereleaseMatch = version.match(/-(.*)\./);
   if (prereleaseMatch && prereleaseMatch[1]) {
     const tag = prereleaseMatch[1];
     console.log(`Detected prerelease version, using tag: ${tag}`);
     args.push("--tag", tag);
   }
+  */
 
   try {
     // Using standard npm for the publish as it sometimes handles scoped paths more reliably
