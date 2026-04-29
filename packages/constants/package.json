@@ -1,6 +1,6 @@
 {
   "name": "@pipelab/constants",
-  "version": "1.0.1-latest.31",
+  "version": "1.0.1-latest.32",
   "private": false,
   "description": "Shared constants for the Pipelab ecosystem",
   "license": "FSL-1.1-MIT",

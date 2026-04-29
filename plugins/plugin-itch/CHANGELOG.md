@@ -1,5 +1,13 @@
 # @pipelab/plugin-itch
 
+## 1.0.1-latest.27
+
+### Patch Changes
+
+- sdq
+- Updated dependencies
+  - @pipelab/plugin-core@1.0.1-latest.32
+
 ## 1.0.1-latest.26
 
 ### Patch Changes
