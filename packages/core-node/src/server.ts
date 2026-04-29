@@ -76,5 +76,10 @@ export async function serveCommand(options: ServeOptions, version: string, _dirn
   registerMigrationHandlers(context);
 
   await webSocketServer.start(Number(options.port), server);
+  
+  if (process.send) {
+    process.send({ type: "ready" });
+  }
+
   return server;
 }

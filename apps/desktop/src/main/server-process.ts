@@ -85,17 +85,20 @@ export const startServer = async () => {
   }
 
   serverProcess = spawn(serverPath, args, {
-    stdio: "pipe",
     env: {
       ...process.env,
       ELECTRON_RUN_AS_NODE: "1",
       NODE_ENV: is.dev ? "development" : "production",
+      PORT: websocketPort.toString(),
+      IS_SERVER: "true",
     },
+    stdio: ["inherit", "inherit", "inherit", "ipc"],
   });
 
   serverProcess.on("error", (err) => console.error("ERROR: Failed to spawn server:", err));
   serverProcess.stdout?.on("data", (d) => console.info(`[Server] ${d.toString().trim()}`));
   serverProcess.stderr?.on("data", (d) => console.error(`[Server Error] ${d.toString().trim()}`));
+  
   let isServerRunning = true;
   serverProcess.on("close", (code) => {
     console.info(`Server process exited with code ${code}`);
@@ -103,24 +106,29 @@ export const startServer = async () => {
     isServerRunning = false;
   });
 
-  // Wait for server to be ready, but fail fast if process dies
-  const startWait = Date.now();
-  const timeout = (is.dev ? 20 : 10) * 500;
+  // Wait for the "ready" message via IPC
+  console.log(`[Server] Waiting for 'ready' signal from CLI...`);
   
-  while (Date.now() - startWait < timeout) {
-    if (!isServerRunning) {
-      throw new Error("Server process exited prematurely during startup.");
-    }
-    const ready = await isUp(websocketPort, 1, 0, true);
-    if (ready) break;
-    await new Promise(resolve => setTimeout(resolve, 500));
-  }
+  await new Promise<void>((resolve, reject) => {
+    if (!serverProcess) return reject(new Error("Server process failed to start."));
 
-  const finalCheck = await isUp(websocketPort, 1, 0, true);
-  if (!finalCheck) {
-    if (serverProcess) serverProcess.kill();
-    throw new Error(`Server failed to start on port ${websocketPort} after all retries`);
-  }
+    const onMessage = (msg: any) => {
+      if (msg && msg.type === "ready") {
+        console.log(`[Server] CLI is ready!`);
+        serverProcess?.off("message", onMessage);
+        serverProcess?.off("close", onClose);
+        resolve();
+      }
+    };
+
+    const onClose = (code: number | null) => {
+      serverProcess?.off("message", onMessage);
+      reject(new Error(`Server process exited with code ${code} before sending ready signal.`));
+    };
+
+    serverProcess.on("message", onMessage);
+    serverProcess.on("close", onClose);
+  });
 };
 
 export const stopServer = () => {
