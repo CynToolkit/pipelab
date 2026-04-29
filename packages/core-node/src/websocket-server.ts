@@ -108,7 +108,7 @@ export class WebSocketServer {
         });
 
         if (!server.listening) {
-          server.listen(port, () => {
+          server.listen(port, "127.0.0.1", () => {
             this.connectionState = "connected";
             logger().info(`WebSocket server listening on port ${port}`);
             this.isReady = true;
