@@ -1,5 +1,14 @@
 # @pipelab/core-node
 
+## 1.0.1-latest.34
+
+### Patch Changes
+
+- sdqsd
+- Updated dependencies
+  - @pipelab/constants@1.0.1-latest.30
+  - @pipelab/shared@2.0.1-latest.31
+
 ## 1.0.1-latest.33
 
 ### Patch Changes

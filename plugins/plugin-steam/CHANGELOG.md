@@ -1,5 +1,13 @@
 # @pipelab/plugin-steam
 
+## 1.0.1-latest.25
+
+### Patch Changes
+
+- sdqsd
+- Updated dependencies
+  - @pipelab/plugin-core@1.0.1-latest.30
+
 ## 1.0.1-latest.24
 
 ### Patch Changes

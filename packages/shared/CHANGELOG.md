@@ -1,5 +1,13 @@
 # @pipelab/shared
 
+## 2.0.1-latest.31
+
+### Patch Changes
+
+- sdqsd
+- Updated dependencies
+  - @pipelab/migration@1.0.1-latest.30
+
 ## 2.0.1-latest.30
 
 ### Patch Changes
