@@ -334,12 +334,14 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-        arch: [x64, arm64]
-        exclude:
+        include:
           - os: ubuntu-latest
-            arch: arm64
+            arch: x64
           - os: windows-latest
+            arch: x64
+          - os: macos-13
+            arch: x64
+          - os: macos-latest
             arch: arm64
     steps:
       - uses: actions/checkout@v4
@@ -361,7 +363,7 @@ jobs:
 
       - name: Import Apple Code Signing Certificate
         uses: apple-actions/import-codesign-certs@v3
-        if: matrix.os == 'macos-latest'
+        if: startsWith(matrix.os, 'macos-')
         with:
           p12-file-base64: ${{ secrets.CERTIFICATE_OSX_APPLICATION }}
           p12-password: ${{ secrets.CERTIFICATE_OSX_APPLICATION_PASSWORD }}
