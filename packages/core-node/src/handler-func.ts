@@ -53,9 +53,9 @@ export const handleConditionExecute = async (
     .find((plugin) => plugin.id === pluginId)
     ?.nodes.find((node: any) => node.node.id === nodeId) as
     | {
-        node: Condition;
-        runner: ConditionRunner<any>;
-      }
+      node: Condition;
+      runner: ConditionRunner<any>;
+    }
     | undefined;
 
   if (!node) {
@@ -136,9 +136,9 @@ export const handleActionExecute = async (
     .find((plugin) => plugin.id === pluginId)
     ?.nodes.find((node: any) => node.node.id === nodeId) as
     | {
-        node: Action;
-        runner: ActionRunner<any>;
-      }
+      node: Action;
+      runner: ActionRunner<any>;
+    }
     | undefined;
 
   if (!node) {
@@ -149,8 +149,8 @@ export const handleActionExecute = async (
     };
   }
 
-  const nodePath = await ensureNodeJS("24.14.1", { context: ctx });
-  const pnpm = await ensurePNPM("10.12.0", { context: ctx });
+  const nodePath = await ensureNodeJS(ctx);
+  const pnpm = await ensurePNPM(ctx);
 
   const outputs: Record<string, unknown> = {};
 

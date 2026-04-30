@@ -1,5 +1,15 @@
 # @pipelab/plugin-electron
 
+## 1.0.1-latest.30
+
+### Patch Changes
+
+- qsd
+- Updated dependencies
+  - @pipelab/plugin-core@1.0.1-latest.35
+  - @pipelab/constants@1.0.1-latest.35
+  - @pipelab/shared@2.0.1-latest.36
+
 ## 1.0.1-latest.29
 
 ### Patch Changes

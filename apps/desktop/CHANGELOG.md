@@ -1,5 +1,11 @@
 # @pipelab/app
 
+## 2.0.1-latest.37
+
+### Patch Changes
+
+- qsd
+
 ## 2.0.1-latest.36
 
 ### Patch Changes

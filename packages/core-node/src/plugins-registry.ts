@@ -1,9 +1,8 @@
-import { fetchPipelabPlugin } from "./utils/remote";
+import { ensureNodeJS, ensurePNPM, fetchPipelabPlugin } from "./utils/remote";
 import { pathToFileURL } from "node:url";
-import { join } from "node:path";
 import { readdir } from "node:fs/promises";
 import { existsSync } from "node:fs";
-import { isDev, projectRoot, PipelabContext } from "./context";
+import { PipelabContext } from "./context";
 import { sendStartupProgress } from "./server";
 
 const DEFAULT_PLUGIN_IDS = [
@@ -54,14 +53,24 @@ export const loadPipelabPlugin = async (id: string, options: { context: PipelabC
 
 export const builtInPlugins = async (options: { context: PipelabContext }) => {
   console.log("[Plugins] Finalizing default plugins list...");
-  const plugins = [];
-  for (const id of DEFAULT_PLUGIN_IDS) {
-    sendStartupProgress(`Loading plugin: ${id}`);
-    const plugin = await loadPipelabPlugin(id, options);
-    if (plugin) {
-      plugins.push(plugin);
-    }
-  }
+
+  // Pre-ensure Node.js and PNPM once in parallel so plugins don't have to wait for them
+  sendStartupProgress("Preparing environment...");
+  await Promise.all([
+    ensureNodeJS(options.context),
+    ensurePNPM(options.context),
+  ]);
+
+  const results = await Promise.allSettled(
+    DEFAULT_PLUGIN_IDS.map(async (id) => {
+      sendStartupProgress(`Loading plugin: ${id}`);
+      return loadPipelabPlugin(id, options);
+    }),
+  );
+
+  const plugins = results
+    .filter((r) => r.status === "fulfilled")
+    .map((r) => (r as PromiseFulfilledResult<any>).value);
 
   const filtered = plugins.filter(Boolean).flat();
   console.log(`[Plugins] Successfully loaded ${filtered.length} default plugins`);

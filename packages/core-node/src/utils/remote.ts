@@ -9,10 +9,14 @@ import { execa } from "execa";
 import { sendStartupProgress } from "../server";
 import { downloadFile, extractZip, extractTarGz, generateTempFolder } from "./fs-extras";
 
+export const DEFAULT_NODE_VERSION = "24.14.1";
+export const DEFAULT_PNPM_VERSION = "10.12.0";
+
 /**
  * In-memory lock to prevent concurrent operations on the same resource (e.g., downloading Node.js).
  */
 const activeOperations = new Map<string, Promise<any>>();
+const packumentRequests = new Map<string, Promise<any>>();
 
 async function withLock<T>(key: string, fn: () => Promise<T>): Promise<T> {
   const existing = activeOperations.get(key);
@@ -74,8 +78,15 @@ export async function fetchPackage(
   console.log(`[Fetcher] Resolving ${packageName}@${versionOrRange || "latest"}...`);
 
   try {
-    // 1. Resolve version/range using npm
-    const packument = await pacote.packument(packageName);
+    // 1. Resolve version/range using npm with session-wide memoization and disk cache
+    const cachePath = join(ctx.userDataPath, "cache", "pacote");
+    let packumentPromise = packumentRequests.get(packageName);
+    if (!packumentPromise) {
+      packumentPromise = pacote.packument(packageName, { cache: cachePath });
+      packumentRequests.set(packageName, packumentPromise);
+    }
+
+    const packument = await packumentPromise;
     const versions = Object.keys(packument.versions);
     const range = versionOrRange || "latest";
 
@@ -97,32 +108,61 @@ export async function fetchPackage(
     }
   }
 
+  const cachePath = join(ctx.userDataPath, "cache", "pacote");
+
+  // 1. Resolve version/range using npm with session-wide memoization and disk cache
+  try {
+    let packumentPromise = packumentRequests.get(packageName);
+    if (!packumentPromise) {
+      packumentPromise = pacote.packument(packageName, { cache: cachePath });
+      packumentRequests.set(packageName, packumentPromise);
+    }
+
+    const packument = await packumentPromise;
+    const versions = Object.keys(packument.versions);
+    const range = versionOrRange || "latest";
+
+    // Prioritize tags (like 'latest', 'beta', etc.) over semver ranges
+    const foundVersion = packument["dist-tags"]?.[range] || semver.maxSatisfying(versions, range);
+
+    if (!foundVersion) {
+      throw new Error(
+        `Package ${packageName}@${range} not found on npm (available tags: ${Object.keys(
+          packument["dist-tags"] || {},
+        ).join(", ")})`,
+      );
+    }
+    resolvedVersion = foundVersion;
+    console.log(`[Fetcher] ${packageName}: Resolved to v${resolvedVersion} via npm`);
+  } catch (error) {
+    console.warn(`[Fetcher] ${packageName}: remote resolution failed, trying local fallback...`);
+    const fallbackVersion = await tryLocalFallback(versionOrRange, error, baseDir, packageName);
+    if (fallbackVersion) {
+      resolvedVersion = fallbackVersion;
+    } else {
+      throw error;
+    }
+  }
+
+  const packageDir = join(baseDir, resolvedVersion);
+
+  // If the package already exists and we don't need to install dependencies, return immediately
+  if (existsSync(packageDir) && !options?.installDeps) {
+    return { packageDir, resolvedVersion };
+  }
+
   const lockKey = `package:${packageName}:${resolvedVersion}`;
   return withLock(lockKey, async () => {
-    const packageDir = join(baseDir, resolvedVersion);
     if (!existsSync(packageDir)) {
       console.log(`[Fetcher] ${packageName}@${resolvedVersion}: Downloading to ${packageDir}...`);
       await mkdir(packageDir, { recursive: true });
-      await pacote.extract(`${packageName}@${resolvedVersion}`, packageDir);
+      await pacote.extract(`${packageName}@${resolvedVersion}`, packageDir, {
+        cache: cachePath,
+      });
     }
 
     // 2. Resolve entry point from package.json for downloaded package
-    let entryPoint: string | undefined;
-    try {
-      const pkgPath = join(packageDir, "package.json");
-      if (existsSync(pkgPath)) {
-        const pkg = JSON.parse(await readFile(pkgPath, "utf-8"));
-        const main = pkg.module || pkg.main || pkg.publishConfig?.module || pkg.publishConfig?.main;
-        if (main) {
-          entryPoint = join(packageDir, main);
-        } else if (pkg.bin) {
-          const binFile = typeof pkg.bin === "string" ? pkg.bin : Object.values(pkg.bin)[0];
-          if (binFile) entryPoint = join(packageDir, binFile as string);
-        }
-      }
-    } catch (e) {
-      console.warn(`[Fetcher] ${packageName}: Failed to parse package.json for entry point resolution:`, e);
-    }
+    const entryPoint = await resolveEntryPoint(packageDir, packageName);
 
     if (options?.installDeps) {
       await installDependencies(packageDir, packageName, options);
@@ -145,14 +185,16 @@ export async function runPnpm(
   },
 ) {
   const {
-    args = ["install", "--prod", "--no-lockfile"],
+    args = ["install", "--prod", "--no-lockfile", "--prefer-offline"],
     extraEnv = {},
     signal,
     context: ctx,
   } = options;
 
-  const nodePath = await ensureNodeJS("24.14.1", { context: ctx }).catch(() => process.execPath);
-  const pnpmPath = await ensurePNPM("10.12.0", { context: ctx }).catch(() => "pnpm");
+  const [nodePath, pnpmPath] = await Promise.all([
+    ensureNodeJS(ctx).catch(() => process.execPath),
+    ensurePNPM(ctx).catch(() => "pnpm"),
+  ]);
 
   const isScript = pnpmPath.endsWith(".cjs") || pnpmPath.endsWith(".js");
   const command = isScript ? nodePath : pnpmPath;
@@ -175,19 +217,21 @@ export async function runPnpm(
 /**
  * Installs a specific version of Node.js if not already present.
  */
-export async function ensureNodeJS(version: string, options: { context: PipelabContext }) {
+export async function ensureNodeJS(
+  context: PipelabContext,
+  version = DEFAULT_NODE_VERSION,
+) {
+  const isWindows = process.platform === "win32";
+  const nodeDir = context.getThirdPartyPath("node", version);
+  const finalNodePath = join(nodeDir, isWindows ? "node.exe" : "bin/node");
+
+  if (existsSync(finalNodePath)) {
+    return finalNodePath;
+  }
+
   const lockKey = `node:${version}`;
   return withLock(lockKey, async () => {
-    const ctx = options.context;
-    const nodeDir = ctx.getThirdPartyPath("node", version);
-    const isWindows = process.platform === "win32";
-    const executableName = isWindows ? "node.exe" : "bin/node";
-    const finalNodePath = join(nodeDir, executableName);
-
-    try {
-      await access(finalNodePath, constants.X_OK);
-      return finalNodePath;
-    } catch (e) {}
+    if (existsSync(finalNodePath)) return finalNodePath;
 
     const arch = process.arch === "x64" ? "x64" : process.arch === "arm64" ? "arm64" : "x86";
     const platform = isWindows ? "win" : process.platform === "darwin" ? "osx" : "linux";
@@ -224,7 +268,7 @@ export async function ensureNodeJS(version: string, options: { context: PipelabC
     await cp(sourceDir, nodeDir, { recursive: true });
     await rm(tempDir, { recursive: true, force: true });
 
-    if (!isWindows) await chmod(finalNodePath, 0o755).catch(() => {});
+    if (!isWindows) await chmod(finalNodePath, 0o755).catch(() => { });
     return finalNodePath;
   });
 }
@@ -232,13 +276,23 @@ export async function ensureNodeJS(version: string, options: { context: PipelabC
 /**
  * Installs the PNPM package from npm if not already present.
  */
-export async function ensurePNPM(version = "10.12.0", options: { context: PipelabContext }) {
+export async function ensurePNPM(
+  context: PipelabContext,
+  version = DEFAULT_PNPM_VERSION,
+) {
+  const pnpmDir = context.getPackagesPath("pnpm", version);
+  const pnpmPath = join(pnpmDir, "bin", "pnpm.cjs");
+
+  if (existsSync(pnpmPath)) {
+    return pnpmPath;
+  }
+
   const lockKey = `pnpm:${version}`;
   return withLock(lockKey, async () => {
+    if (existsSync(pnpmPath)) return pnpmPath;
     sendStartupProgress(`Checking PNPM v${version}...`);
-    const ctx = options.context;
     const { packageDir } = await fetchPackage("pnpm", version, {
-      context: ctx,
+      context,
     });
     return join(packageDir, "bin", "pnpm.cjs");
   });
@@ -367,7 +421,7 @@ async function tryResolveMonorepoPackage(
       typeof pkg.bin === "string"
         ? pkg.bin
         : pkg.bin?.[packageName.replace("@pipelab/", "")] ||
-          (pkg.bin ? pkg.bin[Object.keys(pkg.bin)[0]] : undefined);
+        (pkg.bin ? pkg.bin[Object.keys(pkg.bin)[0]] : undefined);
 
     // In dev, we prefer the "main" field if it points to TS, or a hardcoded src/index.ts
     const tsSource = join(packageDir, "src", "index.ts");
@@ -414,11 +468,11 @@ async function crawlMonorepoPackages(): Promise<Record<string, string>> {
               if (pkg.name) {
                 cache[pkg.name] = join(fullDir, entry.name);
               }
-            } catch (e) {}
+            } catch (e) { }
           }
         }
       }
-    } catch (e) {}
+    } catch (e) { }
   }
   return cache;
 }
@@ -449,4 +503,29 @@ async function tryLocalFallback(
     return latestLocal;
   }
   return null;
+}
+
+/**
+ * Resolves the entry point of a package by looking at its package.json.
+ */
+async function resolveEntryPoint(packageDir: string, packageName: string) {
+  try {
+    const pkgPath = join(packageDir, "package.json");
+    if (!existsSync(pkgPath)) return undefined;
+
+    const pkg = JSON.parse(await readFile(pkgPath, "utf-8"));
+    const main = pkg.module || pkg.main || pkg.publishConfig?.module || pkg.publishConfig?.main;
+
+    if (main) {
+      return join(packageDir, main);
+    }
+
+    if (pkg.bin) {
+      const binFile = typeof pkg.bin === "string" ? pkg.bin : Object.values(pkg.bin)[0];
+      if (binFile) return join(packageDir, binFile as string);
+    }
+  } catch (e) {
+    console.warn(`[Fetcher] ${packageName}: Failed to resolve entry point:`, e);
+  }
+  return undefined;
 }
