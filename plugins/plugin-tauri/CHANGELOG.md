@@ -1,5 +1,15 @@
 # @pipelab/plugin-tauri
 
+## 1.0.1-latest.32
+
+### Patch Changes
+
+- sd
+- Updated dependencies
+  - @pipelab/plugin-core@1.0.1-latest.37
+  - @pipelab/constants@1.0.1-latest.37
+  - @pipelab/shared@2.0.1-latest.38
+
 ## 1.0.1-latest.31
 
 ### Patch Changes

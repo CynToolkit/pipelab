@@ -13,6 +13,10 @@ import { fileURLToPath } from "node:url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+console.log(`[Forge Config] Host arch: ${process.arch}`);
+console.log(`[Forge Config] Target arch (env.TARGET_ARCH): ${process.env.TARGET_ARCH}`);
+console.log(`[Forge Config] npm_config_arch: ${process.env.npm_config_arch}`);
+
 const getStandardOs = (p: string) => ({ win32: "win", darwin: "macos", linux: "linux" })[p] || p;
 
 /**

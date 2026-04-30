@@ -401,8 +401,8 @@ jobs:
           TARGET_ARCH: ${{ matrix.arch }}
           npm_config_arch: ${{ matrix.arch }}
         run: |
-          pnpm --filter @pipelab/app package -- --arch ${{ matrix.arch }}
-          pnpm --filter @pipelab/app make -- --arch ${{ matrix.arch }}
+          pnpm -C apps/desktop run package -- --arch=${{ matrix.arch }}
+          pnpm -C apps/desktop run make -- --arch=${{ matrix.arch }}
 
       - name: Debug Output
         run: ls -R apps/desktop/out/make

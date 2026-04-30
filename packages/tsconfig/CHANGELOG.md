@@ -1,5 +1,11 @@
 # @pipelab/tsconfig
 
+## 1.0.1-latest.37
+
+### Patch Changes
+
+- sd
+
 ## 1.0.1-latest.36
 
 ### Patch Changes
