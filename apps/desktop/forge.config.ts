@@ -51,6 +51,8 @@ async function renameInstallers(platform: string, arch: string) {
 
 const config: ForgeConfig = {
   packagerConfig: {
+    // @ts-expect-error - Force architecture as Forge CLI sometimes ignores --arch flag in CI
+    arch: process.env.TARGET_ARCH || process.env.npm_config_arch || process.arch,
     prune: false,
     appBundleId: "app.pipelab.desktop",
     asar: true,
