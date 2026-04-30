@@ -1,5 +1,15 @@
 # @pipelab/cli
 
+## 2.0.1-latest.43
+
+### Patch Changes
+
+- qsd
+- Updated dependencies
+  - @pipelab/constants@1.0.1-latest.40
+  - @pipelab/core-node@1.0.1-latest.44
+  - @pipelab/shared@2.0.1-latest.41
+
 ## 2.0.1-latest.42
 
 ### Patch Changes

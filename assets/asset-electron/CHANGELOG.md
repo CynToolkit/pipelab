@@ -1,5 +1,11 @@
 # @pipelab/asset-electron
 
+## 1.0.1-latest.43
+
+### Patch Changes
+
+- qsd
+
 ## 1.0.1-latest.42
 
 ### Patch Changes

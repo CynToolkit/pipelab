@@ -276,6 +276,7 @@ jobs:
         continue-on-error: true
 
       - name: Get Versions
+        id: versions
         run: |
           APP_VERSION=$(node -p "require('./apps/desktop/package.json').version")
           CLI_VERSION=$(node -p "require('./apps/cli/package.json').version")
@@ -306,12 +307,9 @@ jobs:
           tag_name: "@pipelab/app@${{ steps.versions.outputs.app_version }}"
           prerelease: ${{ steps.versions.outputs.prerelease == 'true' }}
           files: |
-            artifacts/**/*-macos-x64.dmg
-            artifacts/**/*-macos-arm64.dmg
-            artifacts/**/*-win-x64.exe
-            artifacts/**/*-linux-x64.zip
-            artifacts/**/*-macos-x64.zip
-            artifacts/**/*-macos-arm64.zip
+            artifacts/**/*.dmg
+            artifacts/**/*.exe
+            artifacts/**/*.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -401,8 +399,9 @@ jobs:
           TARGET_ARCH: ${{ matrix.arch }}
           npm_config_arch: ${{ matrix.arch }}
         run: |
-          pnpm -C apps/desktop exec electron-forge package --arch=${{ matrix.arch }}
-          pnpm -C apps/desktop exec electron-forge make --arch=${{ matrix.arch }}
+          cd apps/desktop
+          pnpm run package -- --arch=${{ matrix.arch }}
+          pnpm run make -- --arch=${{ matrix.arch }}
 
       - name: Debug Output
         run: ls -R apps/desktop/out/make

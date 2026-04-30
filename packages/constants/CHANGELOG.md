@@ -1,5 +1,11 @@
 # @pipelab/constants
 
+## 1.0.1-latest.40
+
+### Patch Changes
+
+- qsd
+
 ## 1.0.1-latest.39
 
 ### Patch Changes
