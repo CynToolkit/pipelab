@@ -109,41 +109,6 @@ export async function fetchPackage(
   }
 
   const cachePath = join(ctx.userDataPath, "cache", "pacote");
-
-  // 1. Resolve version/range using npm with session-wide memoization and disk cache
-  try {
-    let packumentPromise = packumentRequests.get(packageName);
-    if (!packumentPromise) {
-      packumentPromise = pacote.packument(packageName, { cache: cachePath });
-      packumentRequests.set(packageName, packumentPromise);
-    }
-
-    const packument = await packumentPromise;
-    const versions = Object.keys(packument.versions);
-    const range = versionOrRange || "latest";
-
-    // Prioritize tags (like 'latest', 'beta', etc.) over semver ranges
-    const foundVersion = packument["dist-tags"]?.[range] || semver.maxSatisfying(versions, range);
-
-    if (!foundVersion) {
-      throw new Error(
-        `Package ${packageName}@${range} not found on npm (available tags: ${Object.keys(
-          packument["dist-tags"] || {},
-        ).join(", ")})`,
-      );
-    }
-    resolvedVersion = foundVersion;
-    console.log(`[Fetcher] ${packageName}: Resolved to v${resolvedVersion} via npm`);
-  } catch (error) {
-    console.warn(`[Fetcher] ${packageName}: remote resolution failed, trying local fallback...`);
-    const fallbackVersion = await tryLocalFallback(versionOrRange, error, baseDir, packageName);
-    if (fallbackVersion) {
-      resolvedVersion = fallbackVersion;
-    } else {
-      throw error;
-    }
-  }
-
   const packageDir = join(baseDir, resolvedVersion);
 
   // If the package already exists and we don't need to install dependencies, return immediately
@@ -185,7 +150,7 @@ export async function runPnpm(
   },
 ) {
   const {
-    args = ["install", "--prod", "--no-lockfile", "--prefer-offline"],
+    args = ["install", "--prod", "--no-lockfile", "--prefer-offline", "--no-verify-store-integrity"],
     extraEnv = {},
     signal,
     context: ctx,
@@ -209,6 +174,7 @@ export async function runPnpm(
       NODE_ENV: "production",
       PATH: nodePath ? `${dirname(nodePath)}${delimiter}${process.env.PATH}` : process.env.PATH,
       PNPM_HOME: join(ctx.userDataPath, "pnpm"),
+      PNPM_ONLY_ALLOW_TRUSTED_DEPENDENCIES: "false",
       ...extraEnv,
     },
   });

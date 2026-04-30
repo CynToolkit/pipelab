@@ -105,12 +105,6 @@ function createWindow(): void {
     shell.openExternal(details.url);
     return { action: "deny" };
   });
-
-  if (is.dev) {
-    mainWindow.loadURL(`http://localhost:${uiDevPort}`);
-  } else {
-    mainWindow.loadURL(`http://localhost:${websocketPort}`);
-  }
 }
 
 if (is.dev && process.platform === "win32") {
@@ -182,18 +176,54 @@ app.whenReady().then(async () => {
 
   if (mainWindow) {
     registerIpcHandlers();
+
+    // Show a splash screen/loading state while waiting for the server
+    if (is.dev) {
+      // In dev, we might already have the dev server up
+      mainWindow.loadURL(`http://localhost:${uiDevPort}`);
+    } else {
+      // In prod, load the local bundled index.html as a splash screen
+      // The Forge Vite plugin exposes these globals
+      if (typeof MAIN_WINDOW_VITE_DEV_SERVER_URL !== "undefined") {
+        mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
+      } else {
+        mainWindow.loadFile(join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`));
+      }
+    }
+
+    mainWindow.once("ready-to-show", () => {
+      mainWindow?.show();
+      mainWindow?.maximize();
+    });
   }
 
-  mainWindow?.on("ready-to-show", () => {
-    mainWindow?.show();
-    mainWindow?.maximize();
+  // Start the background server (this might include downloading the CLI on first run)
+  try {
+    console.info("[Main] Starting standalone server...");
+    await startServer();
+    console.info("[Main] Standalone server is ready");
 
-    if (app.isPackaged) {
-      setTimeout(() => {
-        autoUpdater.checkForUpdates();
-      }, 10000);
+    // Once server is ready, load the real UI
+    if (!is.dev) {
+      console.info(`[Main] Loading production UI from localhost:${websocketPort}`);
+      mainWindow?.loadURL(`http://localhost:${websocketPort}`);
     }
-  });
+  } catch (error) {
+    console.error("Failed to start standalone server:", error);
+    dialog.showErrorBox(
+      "Startup Error",
+      "Failed to start the background server. This is required for Pipelab to function.\n\n" +
+      (error instanceof Error ? error.message : String(error))
+    );
+    app.quit();
+    return;
+  }
+
+  if (app.isPackaged) {
+    setTimeout(() => {
+      autoUpdater.checkForUpdates();
+    }, 10000);
+  }
 
   protocol.handle("media", (request) => {
     const path = decodeURIComponent(request.url.replace(/^media:\/\/+/, "/"));
@@ -203,14 +233,6 @@ app.whenReady().then(async () => {
   app.on("browser-window-created", (_, window) => {
     optimizer.watchWindowShortcuts(window);
   });
-
-  try {
-    await startServer();
-    console.info("Standalone server is ready");
-  } catch (error) {
-    console.error("Failed to start standalone server:", error);
-    process.exit(1);
-  }
 
 
   app.on("activate", function () {

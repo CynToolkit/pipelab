@@ -400,7 +400,6 @@ jobs:
           npm_config_arch: ${{ matrix.arch }}
         run: |
           cd apps/desktop
-          pnpm run package -- --arch=${{ matrix.arch }}
           pnpm run make -- --arch=${{ matrix.arch }}
 
       - name: Debug Output

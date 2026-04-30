@@ -9,9 +9,9 @@ import { fetchPipelabCli, projectRoot, PipelabContext, getDefaultUserDataPath } 
 
 let serverProcess: ChildProcess | null = null;
 
-const isUp = (port: number, retries = 20, delay = 500, silent = false): Promise<boolean> =>
+const isUp = (port: number, delay = 1000, shouldContinue?: () => boolean, silent = false): Promise<boolean> =>
   new Promise<boolean>((resolve) => {
-    const attempt = (remainingRetries: number) => {
+    const attempt = () => {
       const req = http.get(`http://localhost:${port}`, (res) => {
         res.resume();
         if (!silent) console.info(`[Server Check] Server is up on port ${port}`);
@@ -19,24 +19,20 @@ const isUp = (port: number, retries = 20, delay = 500, silent = false): Promise<
       });
 
       req.on("error", () => {
-        if (remainingRetries > 0) {
-          if (!silent && (remainingRetries % 5 === 0 || remainingRetries === 20)) {
-            console.info(
-              `[Server Check] Waiting for server on port ${port}... (${remainingRetries} retries left)`,
-            );
+        if (!shouldContinue || shouldContinue()) {
+          if (!silent) {
+            console.info(`[Server Check] Waiting for server on port ${port}...`);
           }
-          setTimeout(() => attempt(remainingRetries - 1), delay);
+          setTimeout(attempt, delay);
         } else {
           if (!silent) {
-            console.error(
-              `[Server Check] Server failed to come up on port ${port} after all retries`,
-            );
+            console.error(`[Server Check] Server check aborted for port ${port}`);
           }
           resolve(false);
         }
       });
     };
-    attempt(retries);
+    attempt();
   });
 
 export const startServer = async () => {
@@ -48,7 +44,8 @@ export const startServer = async () => {
 
   // 0. In dev mode, ensure UI dev server is running BEFORE anything else
   if (is.dev) {
-    const isUIUp = await isUp(uiDevPort, 2, 500, true);
+    let retries = 5;
+    const isUIUp = await isUp(uiDevPort, 500, () => retries-- > 0, true);
     if (!isUIUp) {
       console.error(getUiDevServerFatalError(uiDevPort));
       throw new Error("UI dev server not found. App cannot start in development mode.");
@@ -56,7 +53,8 @@ export const startServer = async () => {
   }
 
   // 1. Check if server is already running
-  const alreadyUp = await isUp(websocketPort, is.dev ? 2 : 1, 500, true);
+  let initialRetries = 1;
+  const alreadyUp = await isUp(websocketPort, 500, () => initialRetries-- > 0, true);
   if (alreadyUp) {
     console.info(`[Server] Server already running on port ${websocketPort}`);
     return;
@@ -84,6 +82,7 @@ export const startServer = async () => {
     console.info(`[Server] Starting CLI server from: ${entryPoint}`);
   }
 
+  let isServerRunning = true;
   serverProcess = spawn(serverPath, args, {
     env: {
       ...process.env,
@@ -99,7 +98,6 @@ export const startServer = async () => {
   serverProcess.stdout?.on("data", (d) => console.info(`[Server] ${d.toString().trim()}`));
   serverProcess.stderr?.on("data", (d) => console.error(`[Server Error] ${d.toString().trim()}`));
   
-  let isServerRunning = true;
   serverProcess.on("close", (code) => {
     console.info(`Server process exited with code ${code}`);
     serverProcess = null;
@@ -108,9 +106,10 @@ export const startServer = async () => {
 
   // Wait for the server to be listening on the port
   console.log(`[Server] Waiting for server on port ${websocketPort}...`);
-  const up = await isUp(websocketPort);
+  // Wait indefinitely as long as the server process is running
+  const up = await isUp(websocketPort, 1000, () => isServerRunning);
   if (!up) {
-    throw new Error(`Server failed to start on port ${websocketPort}`);
+    throw new Error(`Server failed to start on port ${websocketPort} (process exited)`);
   }
   console.log(`[Server] CLI server is listening!`);
 };

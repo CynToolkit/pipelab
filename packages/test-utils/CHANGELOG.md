@@ -1,5 +1,13 @@
 # @pipelab/test-utils
 
+## 1.0.1-latest.36
+
+### Patch Changes
+
+- sdq
+- Updated dependencies
+  - @pipelab/plugin-core@1.0.1-latest.41
+
 ## 1.0.1-latest.35
 
 ### Patch Changes
