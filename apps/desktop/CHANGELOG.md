@@ -1,5 +1,11 @@
 # @pipelab/app
 
+## 2.0.1-latest.41
+
+### Patch Changes
+
+- hyg
+
 ## 2.0.1-latest.40
 
 ### Patch Changes

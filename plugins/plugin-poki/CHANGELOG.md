@@ -1,5 +1,13 @@
 # @pipelab/plugin-poki
 
+## 1.0.1-latest.34
+
+### Patch Changes
+
+- hyg
+- Updated dependencies
+  - @pipelab/plugin-core@1.0.1-latest.39
+
 ## 1.0.1-latest.33
 
 ### Patch Changes

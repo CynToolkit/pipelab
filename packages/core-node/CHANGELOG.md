@@ -1,5 +1,14 @@
 # @pipelab/core-node
 
+## 1.0.1-latest.43
+
+### Patch Changes
+
+- hyg
+- Updated dependencies
+  - @pipelab/constants@1.0.1-latest.39
+  - @pipelab/shared@2.0.1-latest.40
+
 ## 1.0.1-latest.42
 
 ### Patch Changes

@@ -1,5 +1,13 @@
 # @pipelab/shared
 
+## 2.0.1-latest.40
+
+### Patch Changes
+
+- hyg
+- Updated dependencies
+  - @pipelab/migration@1.0.1-latest.39
+
 ## 2.0.1-latest.39
 
 ### Patch Changes

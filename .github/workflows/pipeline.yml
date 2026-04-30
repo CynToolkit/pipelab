@@ -347,7 +347,7 @@ jobs:
             arch: x64
           - os: windows-latest
             arch: x64
-          - os: macos-latest
+          - os: macos-15-intel
             arch: x64
           - os: macos-latest
             arch: arm64
@@ -401,8 +401,8 @@ jobs:
           TARGET_ARCH: ${{ matrix.arch }}
           npm_config_arch: ${{ matrix.arch }}
         run: |
-          pnpm -C apps/desktop run package -- --arch=${{ matrix.arch }}
-          pnpm -C apps/desktop run make -- --arch=${{ matrix.arch }}
+          pnpm -C apps/desktop exec electron-forge package --arch=${{ matrix.arch }}
+          pnpm -C apps/desktop exec electron-forge make --arch=${{ matrix.arch }}
 
       - name: Debug Output
         run: ls -R apps/desktop/out/make

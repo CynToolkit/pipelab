@@ -30,6 +30,7 @@
     "@pipelab/test-utils": "1.0.0"
   },
   "changesets": [
+    "all-games-shake",
     "breezy-zebras-bathe",
     "clear-hats-stop",
     "clear-lions-relax",

@@ -1,5 +1,11 @@
 # @pipelab/asset-netlify
 
+## 1.0.1-latest.39
+
+### Patch Changes
+
+- hyg
+
 ## 1.0.1-latest.38
 
 ### Patch Changes
