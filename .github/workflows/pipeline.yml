@@ -376,6 +376,17 @@ jobs:
           p12-file-base64: ${{ secrets.CERTIFICATE_OSX_APPLICATION }}
           p12-password: ${{ secrets.CERTIFICATE_OSX_APPLICATION_PASSWORD }}
 
+      - name: Debug Architectures
+        run: |
+          echo "Host Architecture (uname -m): $(uname -m)"
+          echo "Host Architecture (node process.arch): $(node -p 'process.arch')"
+          echo "Target Architecture (matrix.arch): ${{ matrix.arch }}"
+          echo "Target Architecture (env.TARGET_ARCH): $TARGET_ARCH"
+          echo "Target Architecture (env.npm_config_arch): $npm_config_arch"
+        env:
+          TARGET_ARCH: ${{ matrix.arch }}
+          npm_config_arch: ${{ matrix.arch }}
+
       - name: Package & Make Desktop
         env:
           DEBUG: "electron-osx-sign*,electron-forge:*"
@@ -388,6 +399,7 @@ jobs:
           APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           TARGET_ARCH: ${{ matrix.arch }}
+          npm_config_arch: ${{ matrix.arch }}
         run: |
           pnpm --filter @pipelab/app package -- --arch ${{ matrix.arch }}
           pnpm --filter @pipelab/app make -- --arch ${{ matrix.arch }}
