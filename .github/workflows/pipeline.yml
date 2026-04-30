@@ -262,6 +262,13 @@ jobs:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_CONFIG_PROVENANCE: true
 
+      - name: Download monorepo-dist
+        if: needs.changes.outputs.needs_build == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: monorepo-dist
+          path: .
+
       - name: Download all artifacts
         if: steps.changesets.outputs.published == 'true' || github.event.inputs.forcePublish == 'true'
         uses: actions/download-artifact@v4
@@ -269,10 +276,11 @@ jobs:
           path: artifacts
         continue-on-error: true
 
+      - name: Debug Artifacts
+        run: ls -R artifacts
+        continue-on-error: true
+
       - name: Get Versions
-        if: steps.changesets.outputs.published == 'true' || github.event.inputs.forcePublish == 'true'
-        id: versions
-        shell: bash
         run: |
           APP_VERSION=$(node -p "require('./apps/desktop/package.json').version")
           CLI_VERSION=$(node -p "require('./apps/cli/package.json').version")
@@ -297,13 +305,18 @@ jobs:
           echo "prerelease=$IS_PRERELEASE" >> $GITHUB_OUTPUT
 
       - name: Upload Desktop Binaries
-        if: (steps.changesets.outputs.published == 'true' || github.event.inputs.forcePublish == 'true') && (contains(fromJson(needs.changes.outputs.affected), '@pipelab/app') || github.event.inputs.forcePublish == 'true')
+        if: steps.changesets.outputs.published == 'true' || github.event.inputs.forcePublish == 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: "@pipelab/app@${{ steps.versions.outputs.app_version }}"
           prerelease: ${{ steps.versions.outputs.prerelease == 'true' }}
           files: |
-            artifacts/desktop-artifacts-*/**/*
+            artifacts/**/*-macos-x64.dmg
+            artifacts/**/*-macos-arm64.dmg
+            artifacts/**/*-win-x64.exe
+            artifacts/**/*-linux-x64.zip
+            artifacts/**/*-macos-x64.zip
+            artifacts/**/*-macos-arm64.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -339,7 +352,7 @@ jobs:
             arch: x64
           - os: windows-latest
             arch: x64
-          - os: macos-13
+          - os: macos-latest
             arch: x64
           - os: macos-latest
             arch: arm64
@@ -383,6 +396,10 @@ jobs:
         run: |
           pnpm --filter @pipelab/app package -- --arch ${{ matrix.arch }}
           pnpm --filter @pipelab/app make -- --arch ${{ matrix.arch }}
+
+      - name: Debug Output
+        run: ls -R apps/desktop/out/make
+        continue-on-error: true
 
       - uses: actions/upload-artifact@v4
         with:
