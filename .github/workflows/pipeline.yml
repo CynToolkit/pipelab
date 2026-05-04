@@ -47,13 +47,17 @@ jobs:
       - name: Detect Changes
         id: detect
         run: |
+          if [ "${{ github.ref_name }}" == "main" ] || [ "${{ github.ref_name }}" == "develop" ]; then
+            echo "affected=['ALL']" >> $GITHUB_OUTPUT
+            echo "needs_build=true" >> $GITHUB_OUTPUT
+            echo "Bypassing change detection for release branch: ${{ github.ref_name }}"
+            exit 0
+          fi
+
           if [ "${{ github.event_name }}" == "pull_request" ]; then
             BASE_REF="origin/${{ github.base_ref }}"
-          elif [ "${{ github.ref_name }}" != "main" ] && [ "${{ github.ref_name }}" != "develop" ]; then
-            # On feature/integration branches, compare against main to see the full PR history
-            BASE_REF="origin/main"
           else
-            # On main/develop push, only compare against the previous commit (delta)
+            # On feature push, only compare against the previous commit (delta)
             BASE_REF="${{ github.event.before }}"
           fi
 
@@ -65,7 +69,6 @@ jobs:
           echo "Comparing against: $BASE_REF"
 
           # Use turbo to list affected packages
-          # We use npx to avoid full install if possible, but turbo needs the graph
           npx turbo ls -F "[$BASE_REF]" --output=json > affected.json
 
           # Run our detection script
@@ -343,7 +346,7 @@ jobs:
       always() &&
       (needs.build-all.result == 'success') &&
       (needs.test-matrix.result == 'success' || needs.test-matrix.result == 'skipped') &&
-      (contains(fromJson(needs.changes.outputs.affected), '@pipelab/app') || github.event.inputs.forcePublish == 'true')
+      (contains(needs.changes.outputs.affected, 'ALL') || contains(fromJson(needs.changes.outputs.affected), '@pipelab/app') || github.event.inputs.forcePublish == 'true')
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
