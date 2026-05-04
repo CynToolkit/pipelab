@@ -262,7 +262,7 @@ jobs:
         id: changesets
         uses: changesets/action@v1
         with:
-          publish: ${{ github.ref_name == 'develop' && 'pnpm changeset publish --tag beta --provenance' || 'pnpm changeset publish --provenance' }}
+          publish: pnpm changeset publish --provenance
           createGithubReleases: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
