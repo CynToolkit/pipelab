@@ -1,0 +1,7 @@
+{
+  "extends": "./base.json",
+  "compilerOptions": {
+    "moduleResolution": "node",
+    "strict": true
+  }
+}

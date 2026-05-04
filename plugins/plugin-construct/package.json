@@ -1,0 +1,53 @@
+{
+  "name": "@pipelab/plugin-construct",
+  "version": "0.9.9",
+  "license": "FSL-1.1-MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/CynToolkit/pipelab.git",
+    "directory": "plugins/plugin-construct"
+  },
+  "type": "module",
+  "main": "./src/index.ts",
+  "module": "./src/index.ts",
+  "types": "./src/index.ts",
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.mts",
+        "import": "./dist/index.mjs",
+        "require": "./dist/index.cjs",
+        "default": "./dist/index.mjs"
+      }
+    },
+    "main": "./dist/index.cjs",
+    "module": "./dist/index.mjs",
+    "types": "./dist/index.d.mts"
+  },
+  "scripts": {
+    "format": "oxfmt .",
+    "lint": "oxlint .",
+    "build": "tsdown",
+    "test": "vitest run -c tests/e2e/vitest.config.mts"
+  },
+  "dependencies": {
+    "@pipelab/plugin-core": "workspace:*",
+    "es-toolkit": "1.25.2",
+    "playwright": "1.48.2",
+    "valibot": "0.42.1"
+  },
+  "devDependencies": {
+    "@pipelab/test-utils": "workspace:*",
+    "@pipelab/tsconfig": "workspace:*",
+    "@types/node": "24",
+    "tsdown": "0.21.2",
+    "typescript": "5.9.3",
+    "vitest": "3.1.4"
+  },
+  "test": {
+    "env": {
+      "NODE_ENV": "development"
+    }
+  }
+}

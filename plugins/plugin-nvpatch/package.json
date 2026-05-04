@@ -1,0 +1,43 @@
+{
+  "name": "@pipelab/plugin-nvpatch",
+  "version": "0.9.9",
+  "license": "FSL-1.1-MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/CynToolkit/pipelab.git",
+    "directory": "plugins/plugin-nvpatch"
+  },
+  "type": "module",
+  "main": "./src/index.ts",
+  "module": "./src/index.ts",
+  "types": "./src/index.ts",
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.mts",
+        "import": "./dist/index.mjs",
+        "require": "./dist/index.cjs",
+        "default": "./dist/index.mjs"
+      }
+    },
+    "main": "./dist/index.cjs",
+    "module": "./dist/index.mjs",
+    "types": "./dist/index.d.mts"
+  },
+  "scripts": {
+    "format": "oxfmt .",
+    "lint": "oxlint .",
+    "build": "tsdown"
+  },
+  "dependencies": {
+    "@pipelab/plugin-core": "workspace:*",
+    "@types/node": "^24.12.2",
+    "execa": "9.4.1"
+  },
+  "devDependencies": {
+    "@pipelab/tsconfig": "workspace:*",
+    "tsdown": "0.21.2",
+    "typescript": "5.9.3"
+  }
+}

@@ -1,0 +1,86 @@
+{
+  "settings": {
+    "darkTheme": "Dark theme",
+    "language": "Language",
+    "languageOptions": {
+      "en-US": "English",
+      "fr-FR": "French",
+      "pt-BR": "Portuguese",
+      "zh-CN": "Chinese",
+      "es-ES": "Spanish",
+      "de-DE": "German"
+    },
+    "tabs": {
+      "general": "General",
+      "storage": "Storage",
+      "integrations": "Integrations",
+      "advanced": "Advanced",
+      "billing": "Billing"
+    },
+    "clearTempFolders": "Automatically clean up temporary files",
+    "clearTempFoldersDescription": "When enabled, all temporary files created during pipeline execution will be automatically deleted after the pipeline completes. This helps save disk space but you may need to copy artifacts yourself to preserve them.",
+    "pipeline-cache-folder": "Pipeline Cache Folder:",
+    "enter-or-browse-for-a-folder": "Enter or browse for a folder",
+    "browse": "Browse",
+    "manage-where-the-app-stores-temporary-and-cache-files": "Manage where the app stores temporary and cache files.",
+    "clear-cache": "Clear cache",
+    "reset-to-default": "Reset to default",
+    "manage-subscription": "Manage Subscription",
+    "renewal-date": "Renewal Date",
+    "start-date": "Start Date:",
+    "cache-cleared-successfully": "Cache cleared successfully",
+    "failed-to-clear-cache-error-message": "Failed to clear cache: {0}",
+    "failed-to-reset-cache-folder-error-message": "Failed to reset cache folder: {0}",
+    "select-cache-folder": "Select Cache Folder"
+  },
+  "headers": {
+    "dashboard": "Dashboard",
+    "scenarios": "Scenarios",
+    "editor": "Editor",
+    "billing": "Billing",
+    "team": "Team"
+  },
+  "base": {
+    "close": "关闭",
+    "save": "保存",
+    "run": "运行",
+    "cancel": "取消",
+    "end": "结束",
+    "delete": "删除",
+    "logs": "日志",
+    "ok": "确定",
+    "add": "添加"
+  },
+  "editor": {
+    "invalid-file-content": "Invalid file content",
+    "welcome-back": "Welcome back!",
+    "please-log-in-to-run-a-scenario": "Please log in to run a scenario",
+    "execution-done": "Execution done",
+    "your-project-has-been-executed-successfully": "Your project has been executed successfully",
+    "execution-failed": "Execution failed",
+    "project-has-encountered-an-error": "Project has encountered an error:",
+    "project-saved": "Project saved",
+    "your-project-has-be-saved-successfully": "Your project has be saved successfully"
+  },
+  "home": {
+    "invalid-preset": "Invalid preset",
+    "store-project-on-the-cloud": "Store project on the cloud",
+    "cloud": "Cloud",
+    "store-project-locally": "Store project locally",
+    "local": "Local",
+    "invalid-number-of-paths-selected": "Invalid number of paths selected",
+    "pipelab-project": "Pipelab Project",
+    "choose-a-new-path": "Choose a new path",
+    "invalid-file-type": "Invalid file type",
+    "create-project": "Create project",
+    "duplicate-project": "Duplicate project",
+    "project-name": "Project Name",
+    "new-project": "New Project",
+    "open": "Open",
+    "your-projects": "Your projects",
+    "no-projects-yet": "No projects yet"
+  },
+  "scenarios": {
+    "scenarios": "Scenarios"
+  }
+}

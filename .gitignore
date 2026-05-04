@@ -90,6 +90,9 @@ typings/
 # Vite
 .vite/
 
+# Build output
+dist/
+
 # Electron-Forge
 out/
 
@@ -106,3 +109,8 @@ assets/tauri/template/app/src/app
 
 # Local Netlify folder
 .netlify
+apps/cli/bin
+
+.turbo
+apps/desktop/bin/
+apps/cli/assets/ui

@@ -1,0 +1,32 @@
+{
+  "extends": "@pipelab/tsconfig/commonjs.json",
+  "compilerOptions": {
+    "emitDeclarationOnly": true,
+    "baseUrl": ".",
+    "outDir": "dist",
+    "inlineSourceMap": true,
+    "paths": {
+      "@pipelab/shared": ["../../packages/shared/src/index.ts"],
+      "@pipelab/constants": ["../../packages/constants/src/index.ts"],
+      "@pipelab/migration": ["../../packages/migration/src"],
+      "@pipelab/*": ["../../packages/shared/src/libs/*"]
+    }
+  },
+  "include": ["src/**/*", "tests/**/*", "*.ts", "*.mts", "package.json"],
+  "exclude": [
+    "node_modules",
+    "./assets/tauri/template/app/src-tauri",
+    "dist",
+    "out",
+    "scripts",
+    "./assets"
+  ],
+  "references": [
+    {
+      "path": "../../packages/constants"
+    },
+    {
+      "path": "../../packages/shared"
+    }
+  ]
+}

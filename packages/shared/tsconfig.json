@@ -1,0 +1,13 @@
+{
+  "extends": "../tsconfig/commonjs.json",
+  "compilerOptions": {
+    "emitDeclarationOnly": true,
+    "outDir": "dist",
+    "baseUrl": ".",
+    "typeRoots": ["./src"],
+    "types": ["global.d.ts", "wasm.d.ts"]
+  },
+  "include": ["src/**/*", "tests/**/*", "*.ts", "src/**/*.json"],
+  "exclude": ["node_modules", "dist"],
+  "references": [{ "path": "../migration" }]
+}

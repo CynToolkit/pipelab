@@ -1,0 +1,19 @@
+{
+  "extends": "../tsconfig/node.json",
+  "compilerOptions": {
+    "moduleResolution": "bundler",
+    "outDir": "dist",
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "baseUrl": ".",
+    "paths": {
+      "@pipelab/shared": ["../shared/src"],
+      "@pipelab/constants": ["../constants/src/index.ts"],
+      "@pipelab/*": ["../shared/src/libs/*"]
+    }
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"],
+  "references": [{ "path": "../constants" }, { "path": "../shared" }]
+}

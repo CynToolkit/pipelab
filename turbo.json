@@ -1,0 +1,46 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**", ".vite/**", "out/**"]
+    },
+    "@pipelab/cli#build": {
+      "dependsOn": ["^build"]
+    },
+    "package": {
+      "dependsOn": ["build"],
+      "outputs": ["out/**", "bin/**"]
+    },
+    "make": {
+      "dependsOn": ["build"],
+      "outputs": ["out/**"]
+    },
+    "publish": {
+      "dependsOn": ["build"],
+      "outputs": ["out/**"]
+    },
+    "test": {
+      "outputs": []
+    },
+    "lint": {
+      "outputs": []
+    },
+    "typecheck": {
+      "outputs": []
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    }
+  },
+  "globalEnv": ["SUPABASE_URL", "SUPABASE_ANON_KEY", "SUPABASE_PROJECT_ID", "POSTHOG_API_KEY"],
+  "globalPassThroughEnv": [
+    "DEBUG",
+    "APPLE_TEAM_ID",
+    "APPLE_ID",
+    "APPLE_ID_PASSWORD",
+    "APPLE_CODESIGN_IDENTITY",
+    "TARGET_ARCH"
+  ]
+}

@@ -1,0 +1,452 @@
+name: Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+    inputs:
+      forcePublish:
+        description: "Force publish apps"
+        required: false
+        type: boolean
+        default: false
+      prerelease:
+        description: "Mark as pre-release"
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+  pull-requests: write
+  id-token: write
+
+jobs:
+  changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      affected: ${{ steps.detect.outputs.affected }}
+      needs_build: ${{ steps.detect.outputs.needs_build }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - name: Use Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Detect Changes
+        id: detect
+        run: |
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            BASE_REF="origin/${{ github.base_ref }}"
+          elif [ "${{ github.ref_name }}" != "main" ] && [ "${{ github.ref_name }}" != "develop" ]; then
+            # On feature/integration branches, compare against main to see the full PR history
+            BASE_REF="origin/main"
+          else
+            # On main/develop push, only compare against the previous commit (delta)
+            BASE_REF="${{ github.event.before }}"
+          fi
+
+          # Fallback if BASE_REF is null or empty (initial push)
+          if [ -z "$BASE_REF" ] || [ "$BASE_REF" == "0000000000000000000000000000000000000000" ]; then
+            BASE_REF=$(git describe --tags --abbrev=0 2>/dev/null || echo "HEAD~10")
+          fi
+
+          echo "Comparing against: $BASE_REF"
+
+          # Use turbo to list affected packages
+          # We use npx to avoid full install if possible, but turbo needs the graph
+          npx turbo ls -F "[$BASE_REF]" --output=json > affected.json
+
+          # Run our detection script
+          npx tsx scripts/detect-changes.ts affected.json
+
+  verify-lint:
+    name: Verify Lint
+    needs: changes
+    if: needs.changes.outputs.affected != '[]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+      - name: Use Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: "pnpm"
+      - name: Install dependencies
+        run: pnpm install
+      - name: Cache Turbo
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-${{ github.job }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-${{ github.job }}-
+      - name: Lint
+        run: pnpm turbo lint --cache-dir=".turbo"
+        continue-on-error: true
+
+  verify-typecheck:
+    name: Verify Typecheck
+    needs: changes
+    if: needs.changes.outputs.affected != '[]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+      - name: Use Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: "pnpm"
+      - name: Install dependencies
+        run: pnpm install
+      - name: Cache Turbo
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-${{ github.job }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-${{ github.job }}-
+      - name: Typecheck
+        run: pnpm turbo typecheck --cache-dir=".turbo"
+        continue-on-error: true
+
+  build-all:
+    name: Build All
+    needs: [verify-lint, verify-typecheck, test-matrix, changes]
+    if: needs.changes.outputs.affected != '[]' && needs.changes.outputs.needs_build == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+      - name: Use Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: "pnpm"
+      - name: Install dependencies
+        run: pnpm install
+      - name: Cache Turbo
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-${{ github.job }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-${{ github.job }}-
+      - name: Build packages
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+          POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
+        run: pnpm build --cache-dir=".turbo"
+      - name: Upload monorepo-dist
+        uses: actions/upload-artifact@v4
+        with:
+          name: monorepo-dist
+          path: |
+            packages/*/dist/**
+            plugins/*/dist/**
+            apps/*/dist/**
+            apps/desktop/.vite/**
+            apps/ui/dist/**
+
+  publish-preview:
+    name: Publish Preview
+    needs: build-all
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+      - name: Use Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: "pnpm"
+      - name: Install dependencies
+        run: pnpm install
+      - name: Download monorepo-dist
+        uses: actions/download-artifact@v4
+        with:
+          name: monorepo-dist
+          path: .
+      - name: Publish to pkg.pr.new
+        run: |
+          npx pkg-pr-new publish \
+            packages/shared \
+            packages/core-node \
+            plugins/plugin-* \
+            assets/asset-* \
+            packages/migration \
+            packages/constants \
+            apps/cli \
+            --comment=update
+
+  release:
+    name: Release & Deploy
+    needs: [build-all, verify-lint, verify-typecheck, test-matrix, changes, build-desktop]
+    if: |
+      always() &&
+      (needs.build-desktop.result == 'success' || needs.build-desktop.result == 'skipped') &&
+      (needs.build-all.result == 'success' || needs.build-all.result == 'skipped') &&
+      needs.verify-lint.result == 'success' &&
+      needs.verify-typecheck.result == 'success' &&
+      needs.test-matrix.result == 'success' &&
+      (github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'develop')))
+    runs-on: ubuntu-latest
+    outputs:
+      published: ${{ steps.changesets.outputs.published }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - name: Use Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Download monorepo-dist
+        if: needs.changes.outputs.needs_build == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: monorepo-dist
+          path: .
+
+      - name: Enter/Exit Changeset Pre-mode
+        run: |
+          if [ "${{ github.ref_name }}" == "develop" ]; then
+            if [ ! -f .changeset/pre.json ]; then
+              pnpm changeset pre enter beta
+            fi
+          elif [ "${{ github.ref_name }}" == "main" ]; then
+            if [ -f .changeset/pre.json ]; then
+              pnpm changeset pre exit
+            fi
+          fi
+
+      - name: Publish to NPM & Create GitHub Release
+        id: changesets
+        uses: changesets/action@v1
+        with:
+          publish: ${{ github.ref_name == 'develop' && 'pnpm changeset publish --tag beta --provenance' || 'pnpm changeset publish --provenance' }}
+          createGithubReleases: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_CONFIG_PROVENANCE: true
+
+
+
+      - name: Download all artifacts
+        if: steps.changesets.outputs.published == 'true' || github.event.inputs.forcePublish == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+        continue-on-error: true
+
+      - name: Debug Artifacts
+        run: ls -R artifacts
+        continue-on-error: true
+
+      - name: Get Versions
+        id: versions
+        run: |
+          APP_VERSION=$(node -p "require('./apps/desktop/package.json').version")
+          CLI_VERSION=$(node -p "require('./apps/cli/package.json').version")
+          ASSET_ELECTRON_VERSION=$(node -p "require('./assets/asset-electron/package.json').version")
+          ASSET_DISCORD_VERSION=$(node -p "require('./assets/asset-discord/package.json').version")
+          ASSET_NETLIFY_VERSION=$(node -p "require('./assets/asset-netlify/package.json').version")
+          ASSET_TAURI_VERSION=$(node -p "require('./assets/asset-tauri/package.json').version")
+          UI_VERSION=$(node -p "require('./apps/ui/package.json').version")
+          echo "app_version=$APP_VERSION" >> $GITHUB_OUTPUT
+          echo "cli_version=$CLI_VERSION" >> $GITHUB_OUTPUT
+          echo "asset_electron_version=$ASSET_ELECTRON_VERSION" >> $GITHUB_OUTPUT
+          echo "asset_discord_version=$ASSET_DISCORD_VERSION" >> $GITHUB_OUTPUT
+          echo "asset_netlify_version=$ASSET_NETLIFY_VERSION" >> $GITHUB_OUTPUT
+          echo "asset_tauri_version=$ASSET_TAURI_VERSION" >> $GITHUB_OUTPUT
+          echo "ui_version=$UI_VERSION" >> $GITHUB_OUTPUT
+
+          IS_PRERELEASE="false"
+          if [[ $APP_VERSION == *"-"* ]] || [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ github.event.inputs.prerelease }}" == "true" ]]; then
+            IS_PRERELEASE="true"
+          fi
+
+          echo "prerelease=$IS_PRERELEASE" >> $GITHUB_OUTPUT
+
+      - name: Upload Desktop Binaries
+        if: steps.changesets.outputs.published == 'true' || github.event.inputs.forcePublish == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: "@pipelab/app@${{ steps.versions.outputs.app_version }}"
+          prerelease: ${{ steps.versions.outputs.prerelease == 'true' }}
+          files: |
+            artifacts/**/*.dmg
+            artifacts/**/*.exe
+            artifacts/**/*.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish @pipelab/ui dynamically
+        if: steps.changesets.outputs.published == 'true' || github.event_name == 'workflow_dispatch'
+        run: node scripts/publish-app.mjs ui
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
+
+      - name: Publish @pipelab/cli dynamically
+        if: steps.changesets.outputs.published == 'true' || github.event_name == 'workflow_dispatch'
+        run: node scripts/publish-app.mjs cli
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
+
+  build-desktop:
+    name: Build Desktop (${{ matrix.os }} - ${{ matrix.arch }})
+    needs: [build-all, test-matrix, changes]
+    if: |
+      always() &&
+      (needs.build-all.result == 'success') &&
+      (needs.test-matrix.result == 'success' || needs.test-matrix.result == 'skipped') &&
+      (contains(fromJson(needs.changes.outputs.affected), '@pipelab/app') || github.event.inputs.forcePublish == 'true')
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            arch: x64
+          - os: windows-latest
+            arch: x64
+          - os: macos-15-intel
+            arch: x64
+          - os: macos-latest
+            arch: arm64
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: "pnpm"
+      - run: pnpm install
+
+      - name: Download monorepo-dist
+        if: needs.changes.outputs.needs_build == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: monorepo-dist
+          path: .
+
+      - name: Import Apple Code Signing Certificate
+        uses: apple-actions/import-codesign-certs@v3
+        if: startsWith(matrix.os, 'macos-')
+        with:
+          p12-file-base64: ${{ secrets.CERTIFICATE_OSX_APPLICATION }}
+          p12-password: ${{ secrets.CERTIFICATE_OSX_APPLICATION_PASSWORD }}
+
+      - name: Debug Architectures
+        run: |
+          echo "Host Architecture (uname -m): $(uname -m)"
+          echo "Host Architecture (node process.arch): $(node -p 'process.arch')"
+          echo "Target Architecture (matrix.arch): ${{ matrix.arch }}"
+          echo "Target Architecture (env.TARGET_ARCH): $TARGET_ARCH"
+          echo "Target Architecture (env.npm_config_arch): $npm_config_arch"
+        env:
+          TARGET_ARCH: ${{ matrix.arch }}
+          npm_config_arch: ${{ matrix.arch }}
+
+      - name: Package & Make Desktop
+        env:
+          DEBUG: "electron-osx-sign*,electron-forge:*"
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+          POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          TARGET_ARCH: ${{ matrix.arch }}
+          npm_config_arch: ${{ matrix.arch }}
+        run: |
+          cd apps/desktop
+          pnpm run make -- --arch=${{ matrix.arch }}
+
+      - name: Debug Output
+        run: ls -R apps/desktop/out/make
+        continue-on-error: true
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop-artifacts-${{ matrix.os }}-${{ matrix.arch }}
+          path: apps/desktop/out/make/**/*
+
+  test-matrix:
+    name: Test Matrix (${{ matrix.os }})
+    needs: [changes]
+    if: |
+      always() &&
+      needs.changes.outputs.affected != '[]'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: "pnpm"
+      - run: pnpm install
+
+      - name: Cache Turbo
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-${{ github.job }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-${{ github.job }}-
+      - name: Run Tests
+        run: pnpm turbo test --cache-dir=".turbo" --log-order=grouped --concurrency 1

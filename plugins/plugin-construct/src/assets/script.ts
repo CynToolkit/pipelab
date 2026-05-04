@@ -1,0 +1,288 @@
+import { Page } from "playwright";
+import { join } from "node:path";
+
+const registerInstallButtonListener = (page: Page, log: typeof console.log) => {
+  // as soon as it appear, without blocking flow
+  // accept installing plugins
+  const installDialog = page.locator("#addonConfirmInstallDialog");
+  const installBtn = installDialog.locator(".okButton");
+  installBtn
+    .waitFor({
+      timeout: 0,
+    })
+    .then(async () => {
+      await installBtn.click();
+      log("installBtn clicked");
+      registerInstallButtonListener(page, log);
+    })
+    .catch(async (e) => {
+      if (e.message.includes("Target page, context or browser has been closed")) return;
+      log("installBtn.click() failed", e.message);
+    });
+};
+
+const registerSaveLoginExpiredistener = (page: Page, log: typeof console.log) => {
+  // as soon as it appear, without blocking flow
+  // accept installing plugins
+  const installDialog = page.locator("#confirmDialog");
+  const cancelBtn = installDialog.locator(".cancelConfirmButton");
+  cancelBtn
+    .waitFor({
+      timeout: 0,
+    })
+    .then(async () => {
+      await cancelBtn.click();
+      log("cancelBtn clicked");
+      registerSaveLoginExpiredistener(page, log);
+    })
+    .catch(async (e) => {
+      if (e.message.includes("Target page, context or browser has been closed")) return;
+      log("cancelBtn.click() failed", e.message);
+    });
+};
+
+const registerWebglErrorListener = (page: Page, log: typeof console.log) => {
+  // as soon as it appear, without blocking flow
+  // ignore webgl error
+  const okDialog = page.locator("#okDialog");
+  const webglErrorButton = okDialog.locator(".okButton");
+  webglErrorButton
+    .waitFor({
+      timeout: 0,
+    })
+    .then(async () => {
+      const text = await okDialog.allInnerTexts();
+
+      if (text.join().toLowerCase().includes("webgl")) {
+        await webglErrorButton.click();
+        log("webglErrorButton clicked");
+        registerWebglErrorListener(page, log);
+      }
+    })
+    .catch(async (e) => {
+      if (e.message.includes("Target page, context or browser has been closed")) return;
+      log("webglErrorButton.click() failed", e.message);
+    });
+};
+const registerDeprecatedFeatures = (page: Page, log: typeof console.log) => {
+  // as soon as it appear, without blocking flow
+  // ignore deprecated feature
+  const deprecatedFeaturesDialog = page.locator("#deprecatedFeaturesDialog");
+  const okButton = deprecatedFeaturesDialog.locator(".okButton");
+  okButton
+    .waitFor({
+      timeout: 0,
+    })
+    .then(async () => {
+      await okButton.click();
+      log("okButton clicked");
+      registerDeprecatedFeatures(page, log);
+    })
+    .catch(async (e) => {
+      if (e.message.includes("Target page, context or browser has been closed")) return;
+      log("deprecatedFeatures.okButton.click() failed", e.message);
+    });
+};
+const registerWelcomeToConstructListener = (page: Page, log: typeof console.log) => {
+  // as soon as it appear, without blocking flow
+  // ignore deprecated feature
+  const welcomeTourDialog = page.locator("#welcomeTourDialog");
+  const okButton = welcomeTourDialog.locator(".noThanksLink");
+  okButton
+    .waitFor({
+      timeout: 0,
+    })
+    .then(async () => {
+      await okButton.click();
+      log("okButton clicked");
+      // registerWelcomeToConstructListener(page, log); // usually only once
+    })
+    .catch(async (e) => {
+      if (e.message.includes("Target page, context or browser has been closed")) return;
+      log("welcomeTour.okButton.click() failed", e.message);
+    });
+};
+
+const registerMissingAddonErrorListener = (page: Page, log: typeof console.log) => {
+  // as soon as it appear, without blocking flow
+  // ignore missing addon and throw
+  const okDialog = page.locator("#missingAddonsDialog");
+  const webglErrorButton = okDialog.locator(".okButton");
+  webglErrorButton
+    .waitFor({
+      timeout: 0,
+    })
+    .then(async () => {
+      throw new Error("Missing addon. You should bundle addons with your project");
+    })
+    .catch(async (e) => {
+      if (e.message.includes("Target page, context or browser has been closed")) return;
+      log("missingAddon.okButton.waitFor() failed", e.message);
+    });
+};
+
+const registerNewVersionAvailableListener = (page: Page, log: typeof console.log) => {
+  // as soon as it appear, without blocking flow
+  // ignore new version available and throw
+  const newVersionAvailableDialog = page.locator("#confirmDialog");
+  const cancelButton = newVersionAvailableDialog.locator(".cancelConfirmButton");
+  cancelButton
+    .waitFor({
+      timeout: 0,
+    })
+    .then(async () => {
+      await cancelButton.click();
+      log("cancelButton clicked");
+      registerNewVersionAvailableListener(page, log);
+    })
+    .catch(async (e) => {
+      if (e.message.includes("Target page, context or browser has been closed")) return;
+      log("cancelButton.click() failed", e.message);
+    });
+};
+
+export const script = async (
+  page: Page,
+  log: typeof console.log,
+  filePath: string,
+  username: string | undefined,
+  password: string | undefined,
+  version: string | undefined,
+  downloadDir: string,
+) => {
+  let url = "https://editor.construct.net/";
+  if (version) {
+    url += version;
+  }
+  log("Navigating to URL", url);
+  // const serviceWorkerPromise = page.waitForEvent("serviceworker");
+  await page.goto(url);
+  log("after navigating");
+
+  // const serviceworker = await serviceWorkerPromise;
+  registerWelcomeToConstructListener(page, log);
+  registerNewVersionAvailableListener(page, log);
+
+  log("after event");
+
+  await page.waitForTimeout(2000);
+  log("after wait");
+
+  if (username && password) {
+    log("Authenticating");
+    await page.getByTitle("User account").locator("ui-icon").click();
+    await page.getByRole("menuitem", { name: "Log in" }).locator("span").click();
+    await page.frameLocator("#loginDialog iframe").getByLabel("Username").fill(username);
+    await page.frameLocator("#loginDialog iframe").getByLabel("Password").fill(password);
+
+    const tokenPromise = page.waitForResponse(/https:\/\/account.*\.construct\.net\/login.json/i);
+
+    await page.frameLocator("#loginDialog iframe").getByRole("button", { name: "Log in" }).click();
+
+    const response = await tokenPromise;
+    const jsonResponse = await response.json();
+
+    if (jsonResponse.request.status === "error") {
+      await page.close();
+
+      throw new Error("Invalid credentials");
+    }
+    log("Authenticated");
+  }
+
+  await page.waitForTimeout(2000);
+
+  const [fileChooser] = await Promise.all([
+    page.waitForEvent("filechooser"),
+    page.keyboard.press("ControlOrMeta+O"),
+  ]);
+  log("filechooser");
+
+  console.log("filePath", filePath);
+  await fileChooser.setFiles([filePath]);
+  log("Set file");
+
+  // await page.getByText("Not now").click({
+  //   timeout: 1000
+  // });
+
+  const progressDialog = page.locator("#progressDialog");
+  // <progress class="progressBar" value="0.293996941070648" max="1"></progress>
+  const progessBar = progressDialog.locator(".progressBar");
+
+  log("Waiting for progress dialog");
+  await progressDialog.waitFor({
+    timeout: 0,
+  });
+  log("Got loading progress dialog");
+
+  const progressInterval = setInterval(async () => {
+    const text = await progessBar.getAttribute("value");
+    const textAsNumber = parseFloat(text);
+    const finalText = Number.isNaN(textAsNumber) ? 0 : textAsNumber;
+    log("progress", `${finalText * 100}%`);
+  }, 500);
+
+  // as soon as it appear, without blocking flow
+  // ignore asking for update
+  const notNowBtn = page.getByText("Not now");
+  notNowBtn
+    .waitFor({
+      timeout: 0,
+    })
+    .then(async () => {
+      return notNowBtn.click();
+    })
+    .then(() => {
+      log("notNowBtn clicked");
+    })
+    .catch(async (e) => {
+      if (e.message.includes("Target page, context or browser has been closed")) return;
+      log("notNowBtn.click() failed", e.message);
+    });
+
+  registerInstallButtonListener(page, log);
+  registerWebglErrorListener(page, log);
+  registerMissingAddonErrorListener(page, log);
+  registerDeprecatedFeatures(page, log);
+  registerSaveLoginExpiredistener(page, log);
+
+  log("Waiting for progress dialog to disapear");
+  await progressDialog.waitFor({
+    state: "detached",
+    timeout: 0,
+  });
+  log("Got progress dialog to disapear");
+  clearTimeout(progressInterval);
+
+  await page.getByRole("button", { name: "Menu" }).click();
+  await page.getByRole("menuitem", { name: "Project" }).click();
+  await page.getByRole("menuitem", { name: "Export" }).click();
+  log('"Export" clicked');
+  await page
+    .locator("ui-iconviewitem")
+    .filter({ hasText: "Web (HTML5)" })
+    .locator("ui-icon")
+    .click();
+  log('"Web" clicked');
+
+  await page.locator("#exportSelectPlatformDialog").getByRole("button", { name: "Next" }).click();
+
+  await page.getByLabel("Offline support").uncheck();
+  log("Disabled offline support");
+
+  await page.locator("#exportStandardOptionsDialog").getByRole("button", { name: "Next" }).click();
+  log('"Next" clicked');
+  const downloadPromise = page.waitForEvent("download");
+  await page.locator(".downloadExportedProject").click();
+  const download = await downloadPromise;
+  await page.getByRole("button", { name: "OK" }).click();
+  log('"Download" clicked');
+
+  const finalPath = join(downloadDir, download.suggestedFilename());
+  await download.saveAs(finalPath);
+  log("File Downloaded");
+
+  await page.close();
+  return finalPath;
+};

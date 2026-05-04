@@ -2,7 +2,9 @@
   "$schema": "https://unpkg.com/@changesets/config@3.0.2/schema.json",
   "_changelog": [
     "@changesets/changelog-github",
-    { "repo": "CynToolkit/pipelab" }
+    {
+      "repo": "CynToolkit/pipelab"
+    }
   ],
   "privatePackages": {
     "tag": true,
@@ -11,9 +13,8 @@
   "changelog": "@changesets/changelog-git",
   "commit": false,
   "access": "public",
-  "fixed": [],
+  "fixed": [["@pipelab/ui", "@pipelab/cli"]],
   "linked": [],
   "baseBranch": "main",
-  "updateInternalDependencies": "patch",
-  "ignore": []
+  "updateInternalDependencies": "patch"
 }

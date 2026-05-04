@@ -1,0 +1,26 @@
+{
+  "extends": "../../packages/tsconfig/vue.json",
+  "compilerOptions": {
+    "sourceMap": true,
+    "emitDeclarationOnly": true,
+    "outDir": "dist",
+    "baseUrl": ".",
+    "paths": {
+      "@renderer/*": ["./src/*"],
+      "@pipelab/shared": ["../../packages/shared/src/index.ts"],
+      "@pipelab/constants": ["../../packages/constants/src/index.ts"],
+      "@pipelab/migration": ["../../packages/migration/src/index.ts"],
+      "@pipelab/*": ["../../packages/shared/src/libs/*"]
+    }
+  },
+  "include": ["src/**/*.ts", "src/**/*.vue", "src/**/*.d.ts"],
+  "exclude": ["node_modules"],
+  "references": [
+    {
+      "path": "../../packages/constants"
+    },
+    {
+      "path": "../../packages/shared"
+    }
+  ]
+}

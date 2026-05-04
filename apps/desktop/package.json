@@ -1,0 +1,57 @@
+{
+  "name": "@pipelab/app",
+  "version": "1.9.9",
+  "private": true,
+  "description": "-",
+  "homepage": "https://pipelab.app",
+  "license": "FSL-1.1-MIT",
+  "author": "Armaldio",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/CynToolkit/pipelab.git",
+    "directory": "apps/desktop"
+  },
+  "main": ".vite/build/main.js",
+  "scripts": {
+    "format": "oxfmt .",
+    "lint": "oxlint .",
+    "typecheck": "tsc --noEmit -p tsconfig.json --composite false",
+    "start": "electron-forge start",
+    "start:args": "electron-forge start -- --project ./tests/e2e/fixtures/folder-to-electron.json --action run",
+    "dev": "cross-env NODE_OPTIONS=--enable-source-maps electron-forge start",
+    "package": "cross-env DEBUG='electron-osx-sign*,electron-forge:*' electron-forge package",
+    "make": "electron-forge make",
+    "publish": "electron-forge publish",
+    "make-dev-prerelease": "pnpm version prerelease --preid=dev",
+    "migrate-file": "tsx scripts/migrate-file.mts"
+  },
+  "dependencies": {
+    "electron-squirrel-startup": "1.0.1",
+    "posthog-node": "5.30.6"
+  },
+  "devDependencies": {
+    "@electron-forge/cli": "7.11.1",
+    "@electron-forge/maker-dmg": "7.11.1",
+    "@electron-forge/maker-squirrel": "7.11.1",
+    "@electron-forge/maker-zip": "7.11.1",
+    "@electron-forge/plugin-fuses": "7.11.1",
+    "@electron-forge/plugin-vite": "7.11.1",
+    "@electron-forge/publisher-github": "7.11.1",
+    "@electron-toolkit/preload": "3.0.2",
+    "@electron-toolkit/utils": "4.0.0",
+    "@electron/fuses": "1.8.0",
+    "@electron/notarize": "2.5.0",
+    "@pipelab/constants": "workspace:*",
+    "@pipelab/core-node": "workspace:*",
+    "@pipelab/shared": "workspace:*",
+    "@pipelab/tsconfig": "workspace:*",
+    "@types/electron-squirrel-startup": "1.0.2",
+    "@types/node": "24.12.2",
+    "cross-env": "7.0.3",
+    "electron": "32.1.2",
+    "tsx": "4.19.1",
+    "typescript": "5.8.3",
+    "vite": "6.3.3",
+    "vite-tsconfig-paths": "5.1.4"
+  }
+}

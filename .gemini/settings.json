@@ -2,10 +2,7 @@
   "mcpServers": {
     "primevue": {
       "command": "npx",
-      "args": [
-        "-y",
-        "@primevue/mcp"
-      ]
+      "args": ["-y", "@primevue/mcp"]
     },
     "supabase": {
       "httpUrl": "https://mcp.supabase.com/mcp?project_ref=uehmyyeqheqnxmzhctcd"
