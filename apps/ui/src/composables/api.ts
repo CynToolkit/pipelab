@@ -69,6 +69,11 @@ export const useAPI = () => {
     }
 
     try {
+      if (channel === "graph:execute" && !window.electron && !isConnected()) {
+        logger().info("Routing graph:execute to Cloud Orchestrator");
+        return (await runInCloud(data as any, listener as any)) as any;
+      }
+
       const result = await wsExecute(channel, data, listener);
 
       return result;
@@ -76,6 +81,95 @@ export const useAPI = () => {
       logger().error("API execution error:", error);
       throw error;
     }
+  };
+
+  /**
+   * Transparently run a pipeline in the cloud via Supabase Edge Functions
+   */
+  const runInCloud = async (data: any, listener?: WebSocketListener<"graph:execute">) => {
+    const { supabase: getSupabase } = await import("@pipelab/shared");
+    const supabase = getSupabase();
+    if (!supabase) throw new Error("Supabase is not available for cloud execution");
+
+    // 1. Invoke the Edge Function
+    const { data: runData, error: functionError } = await supabase.functions.invoke("cloud-run", {
+      body: {
+        pipeline: data.graph,
+        options: {
+          os: "windows", // Default to windows for now as per requirements
+        },
+      },
+    });
+
+    if (functionError) throw functionError;
+    const { runId } = runData;
+
+    return new Promise((resolve, reject) => {
+      // 2. Subscribe to logs via Supabase Realtime
+      const channel = supabase
+        .channel(`cloud-logs-${runId}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "INSERT",
+            schema: "public",
+            table: "cloud_run_logs",
+            filter: `run_id=eq.${runId}`,
+          },
+          (payload) => {
+            const log = payload.new;
+            if (log.type === "node-enter") {
+              listener?.({
+                type: "node-enter",
+                data: { nodeUid: log.node_uid },
+              });
+            } else if (log.type === "node-exit") {
+              listener?.({
+                type: "node-exit",
+                data: { nodeUid: log.node_uid },
+              });
+            } else if (log.type === "log") {
+              listener?.({
+                type: "node-log",
+                data: {
+                  nodeUid: log.node_uid,
+                  logData: {
+                    message: [log.message],
+                    timestamp: new Date(log.created_at).getTime(),
+                  },
+                },
+              });
+            }
+          },
+        )
+        .subscribe();
+
+      // 3. Monitor run status
+      const statusSubscription = supabase
+        .channel(`cloud-status-${runId}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "UPDATE",
+            schema: "public",
+            table: "cloud_runs",
+            filter: `id=eq.${runId}`,
+          },
+          (payload) => {
+            const run = payload.new;
+            if (run.status === "success") {
+              statusSubscription.unsubscribe();
+              channel.unsubscribe();
+              resolve({ type: "success", result: {} });
+            } else if (run.status === "failed") {
+              statusSubscription.unsubscribe();
+              channel.unsubscribe();
+              resolve({ type: "error", code: "error", ipcError: "Cloud execution failed" });
+            }
+          },
+        )
+        .subscribe();
+    });
   };
 
   /**

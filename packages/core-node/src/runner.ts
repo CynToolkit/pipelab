@@ -13,6 +13,7 @@ export interface RunOptions {
   userData?: string;
   variables?: string;
   output?: string;
+  cloud?: boolean;
 }
 
 export async function runPipelineCommand(file: string, options: RunOptions, version: string) {
@@ -74,35 +75,86 @@ export async function runPipelineCommand(file: string, options: RunOptions, vers
 
   const abortController = new AbortController();
 
-  const { result, buildId } = await executeGraphWithHistory({
-    graph,
-    variables: vars,
-    projectName: effectiveProjectName,
-    projectPath: effectiveProjectPath,
-    pipelineId: effectivePipelineId,
-    cachePath: cachePath,
-    onNodeEnter: (node) => console.log(`[ENTER] ${node.name} (${node.uid})`),
-    onNodeExit: (node) => console.log(`[EXIT] ${node.name} (${node.uid})`),
-    onLog: (data) => {
-      if (data.type === "log") {
-        console.log(`[LOG] ${data.data.message}`);
-      }
-    },
-    abortSignal: abortController.signal,
-    context,
-  });
-
-  console.log(`Pipeline execution finished. Build ID: ${buildId}`);
-
-  if (options.output) {
-    const outputPath = isAbsolute(options.output)
-      ? options.output
-      : resolve(process.cwd(), options.output);
-
-    await mkdir(dirname(outputPath), { recursive: true });
-    await writeFile(outputPath, JSON.stringify(result, null, 2), "utf-8");
-    console.log(`Result saved to ${outputPath}`);
+  let supabase: any;
+  const cloudRunId = process.env.CLOUD_RUN_ID;
+  if (options.cloud && cloudRunId) {
+    const { createClient } = await import("@supabase/supabase-js");
+    supabase = createClient(
+      process.env.SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+    console.log(`Cloud mode enabled. Streaming logs for run: ${cloudRunId}`);
   }
 
-  return result;
+  try {
+    const { result, buildId } = await executeGraphWithHistory({
+      graph,
+      variables: vars,
+      projectName: effectiveProjectName,
+      projectPath: effectiveProjectPath,
+      pipelineId: effectivePipelineId,
+      cachePath: cachePath,
+      onNodeEnter: (node) => {
+        console.log(`[ENTER] ${node.name} (${node.uid})`);
+        if (supabase) {
+          supabase.from("cloud_run_logs").insert({
+            run_id: cloudRunId,
+            message: `[ENTER] ${node.name} (${node.uid})`,
+            node_uid: node.uid,
+            type: "node-enter"
+          }).then();
+        }
+      },
+      onNodeExit: (node) => {
+        console.log(`[EXIT] ${node.name} (${node.uid})`);
+        if (supabase) {
+          supabase.from("cloud_run_logs").insert({
+            run_id: cloudRunId,
+            message: `[EXIT] ${node.name} (${node.uid})`,
+            node_uid: node.uid,
+            type: "node-exit"
+          }).then();
+        }
+      },
+      onLog: (data, node) => {
+        if (data.type === "log") {
+          const message = data.data.message.join(" ");
+          console.log(`[LOG] ${message}`);
+          if (supabase) {
+            supabase.from("cloud_run_logs").insert({
+              run_id: cloudRunId,
+              message: message,
+              node_uid: node?.uid,
+              type: "log"
+            }).then();
+          }
+        }
+      },
+      abortSignal: abortController.signal,
+      context,
+    });
+
+    console.log(`Pipeline execution finished. Build ID: ${buildId}`);
+
+    if (supabase) {
+      await supabase.from("cloud_runs").update({ status: "success" }).eq("id", cloudRunId);
+    }
+
+    if (options.output) {
+      const outputPath = isAbsolute(options.output)
+        ? options.output
+        : resolve(process.cwd(), options.output);
+
+      await mkdir(dirname(outputPath), { recursive: true });
+      await writeFile(outputPath, JSON.stringify(result, null, 2), "utf-8");
+      console.log(`Result saved to ${outputPath}`);
+    }
+
+    return result;
+  } catch (e) {
+    if (supabase) {
+      await supabase.from("cloud_runs").update({ status: "failed" }).eq("id", cloudRunId);
+    }
+    throw e;
+  }
 }

@@ -84,6 +84,7 @@ program
   .option("--user-data <path>", "Custom user data path")
   .option("--variables <json>", "JSON string of variables to override")
   .option("-o, --output <path>", "Path to write the result file")
+  .option("--cloud", "Run the pipeline in a cloud environment")
   .action(async (file, options) => {
     try {
       options.userData = options.userData || getDefaultUserDataPath();
