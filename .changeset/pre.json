@@ -1,0 +1,37 @@
+{
+  "mode": "pre",
+  "tag": "beta",
+  "initialVersions": {
+    "@pipelab/cli": "1.9.9",
+    "@pipelab/app": "1.9.9",
+    "@pipelab/ui": "1.9.9",
+    "@pipelab/asset-discord": "0.9.9",
+    "@pipelab/asset-electron": "0.9.9",
+    "@pipelab/asset-netlify": "0.9.9",
+    "@pipelab/asset-tauri": "0.9.9",
+    "@pipelab/cloud": "0.9.9",
+    "@pipelab/cloud-azure": "0.9.9",
+    "@pipelab/constants": "0.9.9",
+    "@pipelab/core-node": "0.9.9",
+    "@pipelab/migration": "0.9.9",
+    "@pipelab/shared": "0.9.9",
+    "@pipelab/test-utils": "0.9.9",
+    "@pipelab/tsconfig": "0.9.9",
+    "@pipelab/plugin-construct": "0.9.9",
+    "@pipelab/plugin-core": "0.9.9",
+    "@pipelab/plugin-discord": "0.9.9",
+    "@pipelab/plugin-electron": "0.9.9",
+    "@pipelab/plugin-filesystem": "0.9.9",
+    "@pipelab/plugin-itch": "0.9.9",
+    "@pipelab/plugin-minify": "0.9.9",
+    "@pipelab/plugin-netlify": "0.9.9",
+    "@pipelab/plugin-nvpatch": "0.9.9",
+    "@pipelab/plugin-poki": "0.9.9",
+    "@pipelab/plugin-steam": "0.9.9",
+    "@pipelab/plugin-system": "0.9.9",
+    "@pipelab/plugin-tauri": "0.9.9"
+  },
+  "changesets": [
+    "free-animals-bet"
+  ]
+}
