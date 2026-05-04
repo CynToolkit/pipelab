@@ -2,7 +2,7 @@ name: Pipeline
 
 on:
   push:
-    branches: [main, develop, feature/monorepo]
+    branches: [main, develop]
   pull_request:
     branches: [main, develop]
   workflow_dispatch:
@@ -217,7 +217,7 @@ jobs:
       needs.verify-typecheck.result == 'success' &&
       needs.test-matrix.result == 'success' &&
       (github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'feature/monorepo')))
+      (github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'develop')))
     runs-on: ubuntu-latest
     outputs:
       published: ${{ steps.changesets.outputs.published }}
@@ -246,23 +246,30 @@ jobs:
           name: monorepo-dist
           path: .
 
+      - name: Enter/Exit Changeset Pre-mode
+        run: |
+          if [ "${{ github.ref_name }}" == "develop" ]; then
+            if [ ! -f .changeset/pre.json ]; then
+              pnpm changeset pre enter beta
+            fi
+          elif [ "${{ github.ref_name }}" == "main" ]; then
+            if [ -f .changeset/pre.json ]; then
+              pnpm changeset pre exit
+            fi
+          fi
+
       - name: Publish to NPM & Create GitHub Release
         id: changesets
         uses: changesets/action@v1
         with:
-          publish: pnpm changeset publish --provenance
+          publish: ${{ github.ref_name == 'develop' && 'pnpm changeset publish --tag beta --provenance' || 'pnpm changeset publish --provenance' }}
           createGithubReleases: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_CONFIG_PROVENANCE: true
 
-      - name: Download monorepo-dist
-        if: needs.changes.outputs.needs_build == 'true'
-        uses: actions/download-artifact@v4
-        with:
-          name: monorepo-dist
-          path: .
+
 
       - name: Download all artifacts
         if: steps.changesets.outputs.published == 'true' || github.event.inputs.forcePublish == 'true'
@@ -294,7 +301,7 @@ jobs:
           echo "ui_version=$UI_VERSION" >> $GITHUB_OUTPUT
 
           IS_PRERELEASE="false"
-          if [[ $APP_VERSION == *"-"* ]] || [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ github.event.inputs.prerelease }}" == "true" ]] || [[ "${{ github.ref_name }}" == "feature/monorepo" ]]; then
+          if [[ $APP_VERSION == *"-"* ]] || [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ github.event.inputs.prerelease }}" == "true" ]]; then
             IS_PRERELEASE="true"
           fi
 
