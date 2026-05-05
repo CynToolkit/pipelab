@@ -16,6 +16,7 @@ import { usePluginAPI } from '@main/api'
 import { setupConfig } from '@main/config'
 import { resolve } from 'node:path'
 import Squirrel from 'electron-squirrel-startup'
+import { fetchLatestRelease } from './main/releases'
 
 if (is.dev) {
   app.setPath('userData', app.getPath('userData') + '-dev')
@@ -79,9 +80,9 @@ function createWindow(): void {
   const position =
     externalDisplay && is.dev
       ? {
-          x: externalDisplay.bounds.x + 50,
-          y: externalDisplay.bounds.y + 50
-        }
+        x: externalDisplay.bounds.x + 50,
+        y: externalDisplay.bounds.y + 50
+      }
       : {}
 
   // Create the browser window.
@@ -170,13 +171,31 @@ app.whenReady().then(async () => {
     await handleProtocolUrl(url)
   })
 
-  if (!is.dev) {
-    autoUpdater.setFeedURL({
-      url: 'https://github.com/CynToolkit/pipelab/releases/latest/download',
-      headers: {
-        'Cache-Control': 'no-cache'
+  if (!is.dev || process.env.APP_UPDATE_URL || process.env.PIPELAB_OVERRIDE_RELEASE) {
+    try {
+      const latestRelease = await fetchLatestRelease('@pipelab/app')
+      if (latestRelease) {
+        logger().info('Found latest release:', latestRelease.tag_name)
+        logger().info('Release API URL:', latestRelease.url)
+      } else {
+        logger().info('No specific release found, falling back to generic /latest/download')
       }
-    })
+
+      const feedUrl = latestRelease
+        ? `https://github.com/CynToolkit/pipelab/releases/download/${latestRelease.tag_name}`
+        : 'https://github.com/CynToolkit/pipelab/releases/latest/download'
+
+      logger().info('Setting auto-updater feed URL:', feedUrl)
+
+      autoUpdater.setFeedURL({
+        url: feedUrl,
+        headers: {
+          'Cache-Control': 'no-cache'
+        }
+      })
+    } catch (error) {
+      logger().error('Failed to setup auto-updater:', error)
+    }
 
     autoUpdater.on('update-downloaded', (event, releaseNotes, releaseName) => {
       api?.execute('update:set-status', {
@@ -378,7 +397,8 @@ app.whenReady().then(async () => {
     mainWindow.show()
     mainWindow.maximize()
 
-    if (app.isPackaged) {
+    if (app.isPackaged || process.env.APP_UPDATE_URL || process.env.PIPELAB_OVERRIDE_RELEASE) {
+      autoUpdater.checkForUpdates()
       setTimeout(() => {
         autoUpdater.checkForUpdates()
         console.log('checkForUpdates')
