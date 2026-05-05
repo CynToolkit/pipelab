@@ -1,5 +1,11 @@
 # @pipelab/plugin-nvpatch
 
+## 1.0.0-beta.1
+
+### Patch Changes
+
+- @pipelab/plugin-core@1.0.0-beta.1
+
 ## 1.0.0-beta.0
 
 ### Major Changes

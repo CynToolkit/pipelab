@@ -1,5 +1,11 @@
 # @pipelab/core-node
 
+## 1.0.0-beta.1
+
+### Patch Changes
+
+- improve update checks
+
 ## 1.0.0-beta.0
 
 ### Major Changes
