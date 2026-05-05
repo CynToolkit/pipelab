@@ -6,7 +6,7 @@ import { electronApp, optimizer, is } from "@electron-toolkit/utils";
 import { startServer, stopServer } from "./main/server-process";
 import { websocketPort, uiDevPort } from "@pipelab/constants";
 import { registerIpcHandlers } from "./main/ipc-handlers";
-import { getDefaultUserDataPath } from "@pipelab/core-node";
+import { getDefaultUserDataPath, fetchLatestDesktopRelease } from "@pipelab/core-node";
 import started from "electron-squirrel-startup";
 import { PostHog } from "posthog-node";
 
@@ -74,9 +74,9 @@ function createWindow(): void {
   const position =
     externalDisplay && is.dev
       ? {
-          x: externalDisplay.bounds.x + 50,
-          y: externalDisplay.bounds.y + 50,
-        }
+        x: externalDisplay.bounds.x + 50,
+        y: externalDisplay.bounds.y + 50,
+      }
       : {};
 
   mainWindow = new BrowserWindow({
@@ -121,12 +121,39 @@ const sendUpdateStatus = (status: string) => {
 };
 
 app.whenReady().then(async () => {
-  if (!is.dev || process.env.APP_UPDATE_URL) {
-    const updateUrl =
+  if (!is.dev || process.env.APP_UPDATE_URL || process.env.PIPELAB_OVERRIDE_RELEASE || process.env.FORCE_UPDATE_CHECK === "true") {
+    console.log("[Update] --- Auto-Updater Debug Info ---");
+    console.log(`[Update] Platform: ${process.platform}`);
+    console.log(`[Update] Arch: ${process.arch}`);
+    console.log(`[Update] Current Version: ${app.getVersion()}`);
+    console.log(`[Update] Is Packaged: ${app.isPackaged}`);
+    console.log(`[Update] FORCE_UPDATE_CHECK: ${process.env.FORCE_UPDATE_CHECK}`);
+
+    let updateUrl =
       process.env.APP_UPDATE_URL ||
       "https://github.com/CynToolkit/pipelab/releases/latest/download";
 
-    console.log(`[Update] Setting up auto-updater with feed URL: ${updateUrl}`);
+    // 1. Try to resolve the latest desktop-specific release from GitHub
+    if (!process.env.APP_UPDATE_URL) {
+      const currentVersion = app.getVersion();
+      const isPrerelease = currentVersion.includes("-") || process.env.PRERELEASE === "true";
+
+      console.log(`[Update] Fetching ${isPrerelease ? "beta" : "stable"} releases from GitHub API...`);
+
+      const release = await fetchLatestDesktopRelease({ allowPrerelease: isPrerelease });
+      if (release) {
+        updateUrl = `https://github.com/CynToolkit/pipelab/releases/download/${release.tag_name}`;
+        console.log(`[Update] Target Tag: ${release.tag_name}`);
+        console.log(`[Update] Release API URL: ${release.html_url}`);
+      } else {
+        console.warn("[Update] No desktop release found, using fallback URL");
+      }
+    }
+
+    console.log(`[Update] Final Feed URL: ${updateUrl}`);
+    if (process.platform === "win32") {
+      console.log(`[Update] (Windows) Squirrel will request: ${updateUrl}/RELEASES`);
+    }
 
     autoUpdater.setFeedURL({
       url: updateUrl,
@@ -219,8 +246,9 @@ app.whenReady().then(async () => {
     return;
   }
 
-  if (app.isPackaged) {
+  if (app.isPackaged || process.env.FORCE_UPDATE_CHECK === "true") {
     setTimeout(() => {
+      console.log("[Update] Triggering autoUpdater.checkForUpdates()...");
       autoUpdater.checkForUpdates();
     }, 10000);
   }
