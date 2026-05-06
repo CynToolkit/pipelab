@@ -204,24 +204,14 @@ app.whenReady().then(async () => {
   if (mainWindow) {
     registerIpcHandlers();
 
-    // Show a splash screen/loading state while waiting for the server
     if (is.dev) {
-      // In dev, we might already have the dev server up
+      // In dev, we load the dev server up immediately and show it
       mainWindow.loadURL(`http://localhost:${uiDevPort}`);
-    } else {
-      // In prod, load the local bundled index.html as a splash screen
-      // The Forge Vite plugin exposes these globals
-      if (typeof MAIN_WINDOW_VITE_DEV_SERVER_URL !== "undefined") {
-        mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
-      } else {
-        mainWindow.loadFile(join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`));
-      }
+      mainWindow.once("ready-to-show", () => {
+        mainWindow?.show();
+        mainWindow?.maximize();
+      });
     }
-
-    mainWindow.once("ready-to-show", () => {
-      mainWindow?.show();
-      mainWindow?.maximize();
-    });
   }
 
   // Start the background server (this might include downloading the CLI on first run)
@@ -234,6 +224,10 @@ app.whenReady().then(async () => {
     if (!is.dev) {
       console.info(`[Main] Loading production UI from localhost:${websocketPort}`);
       mainWindow?.loadURL(`http://localhost:${websocketPort}`);
+      mainWindow?.once("ready-to-show", () => {
+        mainWindow?.show();
+        mainWindow?.maximize();
+      });
     }
   } catch (error) {
     console.error("Failed to start standalone server:", error);
