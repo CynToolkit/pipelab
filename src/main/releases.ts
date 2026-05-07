@@ -59,10 +59,13 @@ export const fetchLatestRelease = async (packageName = '@pipelab/app'): Promise<
     // Helper to get version from tag name
     const getVersion = (tagName: string) => tagName.split('@').pop() || '0.0.0'
 
-    // Filter for releases that follow the {packageName}@X.Y.Z tag pattern and filter out prereleases unconditionally
+    // Filter for releases that follow the {packageName}@X.Y.Z tag pattern and filter out prereleases unconditionally unless PRERELEASE is true
     const packageReleases = releases
       .filter((r) => r.tag_name.startsWith(`${packageName}@`))
       .filter((r) => {
+        if (process.env.PRERELEASE === 'true') {
+          return true
+        }
         if (r.prerelease) {
           return false
         }
