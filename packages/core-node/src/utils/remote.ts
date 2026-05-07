@@ -94,7 +94,9 @@ export async function fetchPackage(
     const foundVersion = packument["dist-tags"]?.[range] || semver.maxSatisfying(versions, range);
 
     if (!foundVersion) {
-      throw new Error(`Package ${packageName}@${range} not found on npm (available tags: ${Object.keys(packument["dist-tags"] || {}).join(", ")})`);
+      throw new Error(
+        `Package ${packageName}@${range} not found on npm (available tags: ${Object.keys(packument["dist-tags"] || {}).join(", ")})`,
+      );
     }
     resolvedVersion = foundVersion;
     console.log(`[Fetcher] ${packageName}: Resolved to v${resolvedVersion} via npm`);
@@ -150,7 +152,13 @@ export async function runPnpm(
   },
 ) {
   const {
-    args = ["install", "--prod", "--no-lockfile", "--prefer-offline", "--no-verify-store-integrity"],
+    args = [
+      "install",
+      "--prod",
+      "--no-lockfile",
+      "--prefer-offline",
+      "--no-verify-store-integrity",
+    ],
     extraEnv = {},
     signal,
     context: ctx,
@@ -183,10 +191,7 @@ export async function runPnpm(
 /**
  * Installs a specific version of Node.js if not already present.
  */
-export async function ensureNodeJS(
-  context: PipelabContext,
-  version = DEFAULT_NODE_VERSION,
-) {
+export async function ensureNodeJS(context: PipelabContext, version = DEFAULT_NODE_VERSION) {
   const isWindows = process.platform === "win32";
   const nodeDir = context.getThirdPartyPath("node", version);
   const finalNodePath = join(nodeDir, isWindows ? "node.exe" : "bin/node");
@@ -234,7 +239,7 @@ export async function ensureNodeJS(
     await cp(sourceDir, nodeDir, { recursive: true });
     await rm(tempDir, { recursive: true, force: true });
 
-    if (!isWindows) await chmod(finalNodePath, 0o755).catch(() => { });
+    if (!isWindows) await chmod(finalNodePath, 0o755).catch(() => {});
     return finalNodePath;
   });
 }
@@ -242,10 +247,7 @@ export async function ensureNodeJS(
 /**
  * Installs the PNPM package from npm if not already present.
  */
-export async function ensurePNPM(
-  context: PipelabContext,
-  version = DEFAULT_PNPM_VERSION,
-) {
+export async function ensurePNPM(context: PipelabContext, version = DEFAULT_PNPM_VERSION) {
   const pnpmDir = context.getPackagesPath("pnpm", version);
   const pnpmPath = join(pnpmDir, "bin", "pnpm.cjs");
 
@@ -271,7 +273,9 @@ async function installDependencies(packageDir: string, packageName: string, opti
     try {
       const files = await readdir(nodeModulesPath);
       if (files.length === 0) {
-        console.warn(`[Fetcher] ${packageName}: node_modules exists but is empty. Re-installing...`);
+        console.warn(
+          `[Fetcher] ${packageName}: node_modules exists but is empty. Re-installing...`,
+        );
       } else {
         console.log(`[Fetcher] ${packageName}: Dependencies already installed, skipping.`);
         return;
@@ -319,17 +323,14 @@ export async function fetchPipelabPlugin(
   options: FetchOptions,
 ): Promise<{ packageDir: string; entryPoint: string; isLocal: boolean }> {
   const { packageDir, isLocal, entryPoint } = await fetchPackage(pluginName, versionOrRange, {
-    installDeps: true,
+    installDeps: false,
     ...options,
   });
 
   // Default entry point if not provided by fetchPackage
   let finalEntryPoint = entryPoint;
   if (!finalEntryPoint) {
-    const patterns = [
-      join(packageDir, "dist", "index.mjs"),
-      join(packageDir, "index.mjs"),
-    ];
+    const patterns = [join(packageDir, "dist", "index.mjs"), join(packageDir, "index.mjs")];
     finalEntryPoint = patterns.find((p) => existsSync(p)) || patterns[0];
   }
 
@@ -349,10 +350,7 @@ export async function fetchPipelabCli(
   // Default entry point for CLI if not provided
   let finalEntryPoint = entryPoint;
   if (!finalEntryPoint) {
-    const patterns = [
-      join(packageDir, "dist", "index.mjs"),
-      join(packageDir, "index.mjs"),
-    ];
+    const patterns = [join(packageDir, "dist", "index.mjs"), join(packageDir, "index.mjs")];
     finalEntryPoint = patterns.find((p) => existsSync(p)) || patterns[0];
   }
 
@@ -390,7 +388,7 @@ async function tryResolveMonorepoPackage(
       typeof pkg.bin === "string"
         ? pkg.bin
         : pkg.bin?.[packageName.replace("@pipelab/", "")] ||
-        (pkg.bin ? pkg.bin[Object.keys(pkg.bin)[0]] : undefined);
+          (pkg.bin ? pkg.bin[Object.keys(pkg.bin)[0]] : undefined);
 
     // In dev, we prefer the "main" field if it points to TS, or a hardcoded src/index.ts
     const tsSource = join(packageDir, "src", "index.ts");
@@ -437,11 +435,11 @@ async function crawlMonorepoPackages(): Promise<Record<string, string>> {
               if (pkg.name) {
                 cache[pkg.name] = join(fullDir, entry.name);
               }
-            } catch (e) { }
+            } catch (e) {}
           }
         }
       }
-    } catch (e) { }
+    } catch (e) {}
   }
   return cache;
 }

@@ -93,17 +93,13 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
 
         // 2. Filter by maxEntries (sort by date first to keep the newest)
         if (maxEntries > 0 && entries.length > maxEntries) {
-          entries = entries
-            .sort((a, b) => b.createdAt - a.createdAt)
-            .slice(0, maxEntries);
+          entries = entries.sort((a, b) => b.createdAt - a.createdAt).slice(0, maxEntries);
         }
 
         if (entries.length < originalCount) {
           this.logger
             .logger()
-            .info(
-              `[${pipelineId}] Pruned ${originalCount - entries.length} history entries.`,
-            );
+            .info(`[${pipelineId}] Pruned ${originalCount - entries.length} history entries.`);
           await this.savePipelineHistory(pipelineId, entries);
         }
       }
@@ -271,8 +267,10 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
       await unlink(pipelinePath);
       this.logger.logger().info(`Cleared history for pipeline "${pipelineId}"`);
     } catch (error: any) {
-      if (error.code === 'ENOENT') {
-        this.logger.logger().warn(`No history file found for pipeline "${pipelineId}". Nothing to clear.`);
+      if (error.code === "ENOENT") {
+        this.logger
+          .logger()
+          .warn(`No history file found for pipeline "${pipelineId}". Nothing to clear.`);
         return;
       }
       this.logger.logger().error(`Failed to clear history for pipeline "${pipelineId}":`, error);

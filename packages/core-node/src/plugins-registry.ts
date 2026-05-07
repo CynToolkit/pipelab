@@ -25,7 +25,7 @@ export const loadPipelabPlugin = async (id: string, options: { context: PipelabC
     const packageName = `@pipelab/plugin-${id}`;
     const { packageDir, entryPoint } = await fetchPipelabPlugin(packageName, "latest", {
       context: options.context,
-      installDeps: true,
+      installDeps: false,
     });
 
     console.log(`[Plugins] [${id}] Attempting to import from: ${entryPoint}`);
@@ -34,7 +34,7 @@ export const loadPipelabPlugin = async (id: string, options: { context: PipelabC
       try {
         const files = await readdir(packageDir, { recursive: true });
         console.log(`[Plugins] [${id}] Directory contents:`, files);
-      } catch (e) { }
+      } catch (e) {}
     }
 
     const pluginModule = await import(pathToFileURL(entryPoint).href);
@@ -56,10 +56,7 @@ export const builtInPlugins = async (options: { context: PipelabContext }) => {
 
   // Pre-ensure Node.js and PNPM once in parallel so plugins don't have to wait for them
   sendStartupProgress("Preparing environment...");
-  await Promise.all([
-    ensureNodeJS(options.context),
-    ensurePNPM(options.context),
-  ]);
+  await Promise.all([ensureNodeJS(options.context), ensurePNPM(options.context)]);
 
   const { usePlugins } = await import("@pipelab/shared");
   const { registerPlugins } = usePlugins();

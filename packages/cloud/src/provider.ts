@@ -1,12 +1,12 @@
 export interface CloudRun {
   id: string;
   providerId: string;
-  status: 'initializing' | 'running' | 'success' | 'failed';
+  status: "initializing" | "running" | "success" | "failed";
   startTime: number;
 }
 
 export interface CloudRunOptions {
-  os: 'windows' | 'linux' | 'macos';
+  os: "windows" | "linux" | "macos";
   cpu?: number;
   memoryInGB?: number;
   cloudRunId?: string;
@@ -16,7 +16,7 @@ export interface CloudRunOptions {
 export interface CloudProvider {
   id: string;
   name: string;
-  supportedOS: ('windows' | 'linux' | 'macos')[];
+  supportedOS: ("windows" | "linux" | "macos")[];
 
   /** Trigger a new run */
   run(pipeline: any, options: CloudRunOptions): Promise<CloudRun>;

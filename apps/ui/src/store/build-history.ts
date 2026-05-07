@@ -320,14 +320,15 @@ export const useBuildHistory = defineStore("build-history", () => {
       if (result.type === "error") {
         throw new Error(result.ipcError || "Failed to clear history for pipeline");
       }
-      
+
       // Update local state: remove entries for this pipeline
-      entries.value = entries.value.filter(e => e.pipelineId !== pipelineId);
+      entries.value = entries.value.filter((e) => e.pipelineId !== pipelineId);
       if (currentEntry.value?.pipelineId === pipelineId) {
         currentEntry.value = undefined;
       }
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Failed to clear history for pipeline";
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to clear history for pipeline";
       setError(errorMessage);
       throw err;
     } finally {

@@ -53,9 +53,9 @@ export const handleConditionExecute = async (
     .find((plugin) => plugin.id === pluginId)
     ?.nodes.find((node: any) => node.node.id === nodeId) as
     | {
-      node: Condition;
-      runner: ConditionRunner<any>;
-    }
+        node: Condition;
+        runner: ConditionRunner<any>;
+      }
     | undefined;
 
   if (!node) {
@@ -136,9 +136,9 @@ export const handleActionExecute = async (
     .find((plugin) => plugin.id === pluginId)
     ?.nodes.find((node: any) => node.node.id === nodeId) as
     | {
-      node: Action;
-      runner: ActionRunner<any>;
-    }
+        node: Action;
+        runner: ActionRunner<any>;
+      }
     | undefined;
 
   if (!node) {

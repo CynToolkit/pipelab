@@ -37,8 +37,12 @@ describe("End-to-End: Build History", () => {
 
       // The build history should be generated in the user-data folder
       // Based on BuildHistoryStorage.getPipelinePath, the filename should be pipeline-<sanitizedId>.json
-      const historyFile = join(sandbox.paths.userData, "build-history", `pipeline-${pipelineId}.json`);
-      
+      const historyFile = join(
+        sandbox.paths.userData,
+        "build-history",
+        `pipeline-${pipelineId}.json`,
+      );
+
       // Verification: file must exist
       await expect(access(historyFile)).resolves.not.toThrow();
 
@@ -47,7 +51,7 @@ describe("End-to-End: Build History", () => {
 
       expect(Array.isArray(history)).toBe(true);
       expect(history.length).toBeGreaterThan(0);
-      
+
       const lastEntry = history[history.length - 1];
       expect(lastEntry.pipelineId).toBe(pipelineId);
       expect(lastEntry.status).toBe("completed");

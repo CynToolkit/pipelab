@@ -3,7 +3,12 @@ import { fileURLToPath } from "node:url";
 import { mkdir, writeFile, chmod, rm } from "node:fs/promises";
 import { existsSync as existsSyncSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { type ActionRunner, type ActionRunnerData, type Action, PipelabContext } from "@pipelab/plugin-core";
+import {
+  type ActionRunner,
+  type ActionRunnerData,
+  type Action,
+  PipelabContext,
+} from "@pipelab/plugin-core";
 import { execa } from "execa";
 
 const __filename = fileURLToPath(import.meta.url);

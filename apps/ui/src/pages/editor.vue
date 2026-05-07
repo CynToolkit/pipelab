@@ -1,6 +1,5 @@
 <template>
   <div class="editor-page">
-
     <Layout>
       <div class="editor">
         <div class="editor-content">

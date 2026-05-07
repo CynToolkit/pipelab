@@ -1,12 +1,15 @@
 {
   "name": "@pipelab/plugin-itch",
-  "version": "1.0.0-beta.1",
+  "version": "1.0.0-beta.2",
   "license": "FSL-1.1-MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/CynToolkit/pipelab.git",
     "directory": "plugins/plugin-itch"
   },
+  "files": [
+    "dist"
+  ],
   "type": "module",
   "main": "./src/index.ts",
   "module": "./src/index.ts",

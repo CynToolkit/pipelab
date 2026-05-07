@@ -16,7 +16,7 @@ export interface AzureProviderOptions {
 export class AzureProvider implements CloudProvider {
   id = "azure-aci";
   name = "Azure Container Instances";
-  supportedOS: ('windows' | 'linux' | 'macos')[] = ["windows", "linux"];
+  supportedOS: ("windows" | "linux" | "macos")[] = ["windows", "linux"];
 
   private client: ContainerInstanceManagementClient;
   private shareClient: ShareServiceClient;
@@ -24,14 +24,14 @@ export class AzureProvider implements CloudProvider {
   constructor(private options: AzureProviderOptions) {
     const credential = new DefaultAzureCredential();
     this.client = new ContainerInstanceManagementClient(credential, options.subscriptionId);
-    
+
     const storageCredential = new StorageSharedKeyCredential(
       options.storageAccountName,
-      options.storageAccountKey
+      options.storageAccountKey,
     );
     this.shareClient = new ShareServiceClient(
       `https://${options.storageAccountName}.file.core.windows.net`,
-      storageCredential
+      storageCredential,
     );
   }
 
@@ -43,7 +43,7 @@ export class AzureProvider implements CloudProvider {
     const shareName = this.options.fileShareName;
     const shareClient = this.shareClient.getShareClient(shareName);
     await shareClient.createIfNotExists();
-    
+
     const directoryClient = shareClient.getDirectoryClient("");
     const fileClient = directoryClient.getFileClient(fileName);
     const content = JSON.stringify(pipeline);
@@ -74,7 +74,7 @@ export class AzureProvider implements CloudProvider {
           volumeMounts: [
             {
               name: "pipeline-storage",
-              mountPath: "C:\\pipelab"
+              mountPath: "C:\\pipelab",
             },
           ],
           command: [
@@ -83,7 +83,7 @@ export class AzureProvider implements CloudProvider {
             `C:\\pipelab\\${fileName}`,
             "--cloud",
             "--output",
-            `C:\\pipelab\\result-${runId}.json`
+            `C:\\pipelab\\result-${runId}.json`,
           ],
         },
       ],
@@ -103,7 +103,7 @@ export class AzureProvider implements CloudProvider {
     const result = await this.client.containerGroups.beginCreateOrUpdateAndWait(
       this.options.resourceGroup,
       containerGroupName,
-      containerGroup as any
+      containerGroup as any,
     );
 
     return {
@@ -119,7 +119,7 @@ export class AzureProvider implements CloudProvider {
     const logs = await this.client.containerGroups.listLogs(
       this.options.resourceGroup,
       containerGroupName,
-      "pipelab-cli"
+      "pipelab-cli",
     );
     return logs.content ? logs.content.split("\n") : [];
   }
@@ -128,7 +128,7 @@ export class AzureProvider implements CloudProvider {
     const containerGroupName = runId;
     await this.client.containerGroups.beginDeleteAndWait(
       this.options.resourceGroup,
-      containerGroupName
+      containerGroupName,
     );
   }
 }

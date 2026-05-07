@@ -35,7 +35,7 @@ export async function setupCommand(options: { userData?: string }) {
       },
     });
     if (p.isCancel(token)) return;
-    
+
     const s = p.spinner();
     s.start("Authenticating with Pipelab...");
     await setTimeout(1500); // Fake delay
@@ -101,7 +101,7 @@ export async function setupCommand(options: { userData?: string }) {
 
   p.note(
     `You're all set! You can now use Pipelab CLI to manage your automation.\n\nType 'pipelab --help' to get started.`,
-    "Setup Complete"
+    "Setup Complete",
   );
 
   p.outro("Happy automating! 🚀");

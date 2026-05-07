@@ -22,7 +22,7 @@ export interface FetchReleaseOptions {
  */
 export async function fetchPackageReleases(
   packageName: string,
-  options: FetchReleaseOptions = {}
+  options: FetchReleaseOptions = {},
 ): Promise<GitHubRelease[]> {
   const { repo = "CynToolkit/pipelab", allowPrerelease = false } = options;
   const url = `https://api.github.com/repos/${repo}/releases`;
@@ -61,7 +61,7 @@ export async function fetchPackageReleases(
  */
 export async function fetchLatestPackageRelease(
   packageName: string,
-  options: FetchReleaseOptions = {}
+  options: FetchReleaseOptions = {},
 ): Promise<GitHubRelease | null> {
   const releases = await fetchPackageReleases(packageName, options);
 
@@ -75,7 +75,9 @@ export async function fetchLatestPackageRelease(
     const targetTag = override.includes("@") ? override : `${packageName}@${override}`;
     const release = releases.find((r) => r.tag_name === targetTag);
     if (release) {
-      console.log(`[GitHub] Using release override from PIPELAB_OVERRIDE_RELEASE: ${release.tag_name}`);
+      console.log(
+        `[GitHub] Using release override from PIPELAB_OVERRIDE_RELEASE: ${release.tag_name}`,
+      );
       return release;
     }
     console.warn(`[GitHub] Override release ${override} not found for package ${packageName}`);
@@ -101,12 +103,14 @@ export async function fetchLatestPackageRelease(
  * This ensures we don't accidentally pick a package release (e.g. @pipelab/shared) as the "latest".
  */
 export async function fetchLatestDesktopRelease(
-  options: FetchReleaseOptions = {}
+  options: FetchReleaseOptions = {},
 ): Promise<GitHubRelease | null> {
   const latest = await fetchLatestPackageRelease("@pipelab/app", options);
-  
+
   if (latest) {
-    console.log(`[GitHub] Found latest desktop release: ${latest.tag_name} (${latest.prerelease ? "pre-release" : "stable"})`);
+    console.log(
+      `[GitHub] Found latest desktop release: ${latest.tag_name} (${latest.prerelease ? "pre-release" : "stable"})`,
+    );
   } else {
     console.warn(`[GitHub] No desktop releases found`);
   }

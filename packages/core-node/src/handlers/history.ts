@@ -127,8 +127,7 @@ export const registerHistoryHandlers = (context: PipelabContext) => {
         type: "end",
         data: {
           type: "error",
-          ipcError:
-            error instanceof Error ? error.message : "Failed to get build history entries",
+          ipcError: error instanceof Error ? error.message : "Failed to get build history entries",
         },
       });
     }
@@ -158,8 +157,7 @@ export const registerHistoryHandlers = (context: PipelabContext) => {
         type: "end",
         data: {
           type: "error",
-          ipcError:
-            error instanceof Error ? error.message : "Failed to update build history entry",
+          ipcError: error instanceof Error ? error.message : "Failed to update build history entry",
         },
       });
     }
@@ -189,8 +187,7 @@ export const registerHistoryHandlers = (context: PipelabContext) => {
         type: "end",
         data: {
           type: "error",
-          ipcError:
-            error instanceof Error ? error.message : "Failed to delete build history entry",
+          ipcError: error instanceof Error ? error.message : "Failed to delete build history entry",
         },
       });
     }
@@ -250,7 +247,8 @@ export const registerHistoryHandlers = (context: PipelabContext) => {
         type: "end",
         data: {
           type: "error",
-          ipcError: error instanceof Error ? error.message : "Failed to clear build history for pipeline",
+          ipcError:
+            error instanceof Error ? error.message : "Failed to clear build history for pipeline",
         },
       });
     }
@@ -290,7 +288,7 @@ export const registerHistoryHandlers = (context: PipelabContext) => {
   handle("build-history:configure", async (_, { send, value }) => {
     try {
       logger().info("Updating build history configuration:", value.config);
-      
+
       const settings = await setupConfigFile<AppConfig>("settings", { context });
       const currentConfig = await settings.getConfig();
 

@@ -28,7 +28,9 @@ export async function listPipelinesCommand(options: { userData?: string }) {
           content = JSON.parse(await readFile(pipeline.path, "utf-8"));
         }
       } catch (e: any) {
-        console.log(`--------------------------------------------------------------------------------`);
+        console.log(
+          `--------------------------------------------------------------------------------`,
+        );
         console.log(`Error: Could not read pipeline ${pipeline.id}`);
         if (pipeline.type === "external") {
           console.log(`    Expected Path: ${pipeline.path}`);
@@ -48,7 +50,9 @@ export async function listPipelinesCommand(options: { userData?: string }) {
 
       const name = content?.name || "Unnamed Pipeline";
 
-      console.log(`--------------------------------------------------------------------------------`);
+      console.log(
+        `--------------------------------------------------------------------------------`,
+      );
       console.log(`${name} (${pipeline.id})`);
       if (pipeline.type === "external") {
         console.log(`   Path: ${pipeline.path}`);

@@ -5,11 +5,21 @@ import { is } from "@electron-toolkit/utils";
 import http from "node:http";
 import fs from "node:fs";
 import { websocketPort, uiDevPort, getUiDevServerFatalError } from "@pipelab/constants";
-import { fetchPipelabCli, projectRoot, PipelabContext, getDefaultUserDataPath } from "@pipelab/core-node";
+import {
+  fetchPipelabCli,
+  projectRoot,
+  PipelabContext,
+  getDefaultUserDataPath,
+} from "@pipelab/core-node";
 
 let serverProcess: ChildProcess | null = null;
 
-const isUp = (port: number, delay = 1000, shouldContinue?: () => boolean, silent = false): Promise<boolean> =>
+const isUp = (
+  port: number,
+  delay = 1000,
+  shouldContinue?: () => boolean,
+  silent = false,
+): Promise<boolean> =>
   new Promise<boolean>((resolve) => {
     const attempt = () => {
       const req = http.get(`http://localhost:${port}`, (res) => {
@@ -97,7 +107,7 @@ export const startServer = async () => {
   serverProcess.on("error", (err) => console.error("ERROR: Failed to spawn server:", err));
   serverProcess.stdout?.on("data", (d) => console.info(`[Server] ${d.toString().trim()}`));
   serverProcess.stderr?.on("data", (d) => console.error(`[Server Error] ${d.toString().trim()}`));
-  
+
   serverProcess.on("close", (code) => {
     console.info(`Server process exited with code ${code}`);
     serverProcess = null;

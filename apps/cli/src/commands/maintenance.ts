@@ -31,7 +31,8 @@ export async function usageCommand(options: { userData?: string }) {
   console.log("\nRetention Policy:");
   console.table({
     Enabled: info.retentionPolicy.enabled ? "Yes" : "No",
-    "Max Entries": info.retentionPolicy.maxEntries > 0 ? info.retentionPolicy.maxEntries : "Unlimited",
+    "Max Entries":
+      info.retentionPolicy.maxEntries > 0 ? info.retentionPolicy.maxEntries : "Unlimited",
     "Max Age (days)": info.retentionPolicy.maxAge > 0 ? info.retentionPolicy.maxAge : "Unlimited",
   });
 }

@@ -16,10 +16,12 @@ serve(async (req) => {
     const supabaseClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_ANON_KEY") ?? "",
-      { global: { headers: { Authorization: req.headers.get("Authorization")! } } }
+      { global: { headers: { Authorization: req.headers.get("Authorization")! } } },
     );
 
-    const { data: { user } } = await supabaseClient.auth.getUser();
+    const {
+      data: { user },
+    } = await supabaseClient.auth.getUser();
     if (!user) throw new Error("Unauthorized");
 
     const { pipeline, options } = await req.json();
@@ -63,7 +65,7 @@ serve(async (req) => {
     // 4. Start log polling worker (background)
     // In a real Edge Function, we might trigger another function or a queue
     // For now, we'll return the run info
-    
+
     return new Response(JSON.stringify({ runId: run.id }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

@@ -79,10 +79,7 @@ export async function runPipelineCommand(file: string, options: RunOptions, vers
   const cloudRunId = process.env.CLOUD_RUN_ID;
   if (options.cloud && cloudRunId) {
     const { createClient } = await import("@supabase/supabase-js");
-    supabase = createClient(
-      process.env.SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
+    supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
     console.log(`Cloud mode enabled. Streaming logs for run: ${cloudRunId}`);
   }
 
@@ -97,23 +94,29 @@ export async function runPipelineCommand(file: string, options: RunOptions, vers
       onNodeEnter: (node) => {
         console.log(`[ENTER] ${node.name} (${node.uid})`);
         if (supabase) {
-          supabase.from("cloud_run_logs").insert({
-            run_id: cloudRunId,
-            message: `[ENTER] ${node.name} (${node.uid})`,
-            node_uid: node.uid,
-            type: "node-enter"
-          }).then();
+          supabase
+            .from("cloud_run_logs")
+            .insert({
+              run_id: cloudRunId,
+              message: `[ENTER] ${node.name} (${node.uid})`,
+              node_uid: node.uid,
+              type: "node-enter",
+            })
+            .then();
         }
       },
       onNodeExit: (node) => {
         console.log(`[EXIT] ${node.name} (${node.uid})`);
         if (supabase) {
-          supabase.from("cloud_run_logs").insert({
-            run_id: cloudRunId,
-            message: `[EXIT] ${node.name} (${node.uid})`,
-            node_uid: node.uid,
-            type: "node-exit"
-          }).then();
+          supabase
+            .from("cloud_run_logs")
+            .insert({
+              run_id: cloudRunId,
+              message: `[EXIT] ${node.name} (${node.uid})`,
+              node_uid: node.uid,
+              type: "node-exit",
+            })
+            .then();
         }
       },
       onLog: (data, node) => {
@@ -121,12 +124,15 @@ export async function runPipelineCommand(file: string, options: RunOptions, vers
           const message = data.data.message.join(" ");
           console.log(`[LOG] ${message}`);
           if (supabase) {
-            supabase.from("cloud_run_logs").insert({
-              run_id: cloudRunId,
-              message: message,
-              node_uid: node?.uid,
-              type: "log"
-            }).then();
+            supabase
+              .from("cloud_run_logs")
+              .insert({
+                run_id: cloudRunId,
+                message: message,
+                node_uid: node?.uid,
+                type: "log",
+              })
+              .then();
           }
         }
       },

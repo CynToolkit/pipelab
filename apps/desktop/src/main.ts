@@ -74,9 +74,9 @@ function createWindow(): void {
   const position =
     externalDisplay && is.dev
       ? {
-        x: externalDisplay.bounds.x + 50,
-        y: externalDisplay.bounds.y + 50,
-      }
+          x: externalDisplay.bounds.x + 50,
+          y: externalDisplay.bounds.y + 50,
+        }
       : {};
 
   mainWindow = new BrowserWindow({
@@ -121,7 +121,12 @@ const sendUpdateStatus = (status: string) => {
 };
 
 app.whenReady().then(async () => {
-  if (!is.dev || process.env.APP_UPDATE_URL || process.env.PIPELAB_OVERRIDE_RELEASE || process.env.FORCE_UPDATE_CHECK === "true") {
+  if (
+    !is.dev ||
+    process.env.APP_UPDATE_URL ||
+    process.env.PIPELAB_OVERRIDE_RELEASE ||
+    process.env.FORCE_UPDATE_CHECK === "true"
+  ) {
     console.log("[Update] --- Auto-Updater Debug Info ---");
     console.log(`[Update] Platform: ${process.platform}`);
     console.log(`[Update] Arch: ${process.arch}`);
@@ -138,7 +143,9 @@ app.whenReady().then(async () => {
       const currentVersion = app.getVersion();
       const isPrerelease = currentVersion.includes("-") || process.env.PRERELEASE === "true";
 
-      console.log(`[Update] Fetching ${isPrerelease ? "beta" : "stable"} releases from GitHub API...`);
+      console.log(
+        `[Update] Fetching ${isPrerelease ? "beta" : "stable"} releases from GitHub API...`,
+      );
 
       const release = await fetchLatestDesktopRelease({ allowPrerelease: isPrerelease });
       if (release) {
@@ -234,7 +241,7 @@ app.whenReady().then(async () => {
     dialog.showErrorBox(
       "Startup Error",
       "Failed to start the background server. This is required for Pipelab to function.\n\n" +
-      (error instanceof Error ? error.message : String(error))
+        (error instanceof Error ? error.message : String(error)),
     );
     app.quit();
     return;
@@ -255,7 +262,6 @@ app.whenReady().then(async () => {
   app.on("browser-window-created", (_, window) => {
     optimizer.watchWindowShortcuts(window);
   });
-
 
   app.on("activate", function () {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();

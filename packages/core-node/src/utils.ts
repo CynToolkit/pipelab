@@ -256,7 +256,7 @@ export const executeGraphWithHistory = async ({
       // Don't await, let it run in the background
       buildHistoryStorage.applyRetentionPolicy();
     }
-    
+
     if (shouldCleanup) {
       try {
         await rm(sandboxPath, { recursive: true, force: true });

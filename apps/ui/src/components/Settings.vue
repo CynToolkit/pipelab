@@ -24,11 +24,13 @@
                 />
               </div>
             </div>
-            
+
             <div class="setting-item">
               <div class="setting-content">
                 <label for="app-theme" class="setting-title">{{ t("settings.darkTheme") }}</label>
-                <div class="setting-description">Toggle between light and dark mode for the application interface.</div>
+                <div class="setting-description">
+                  Toggle between light and dark mode for the application interface.
+                </div>
               </div>
               <div class="setting-action">
                 <ToggleSwitch
@@ -42,8 +44,12 @@
 
             <div class="setting-item">
               <div class="setting-content">
-                <label for="language-select" class="setting-title">{{ $t("settings.language") }}</label>
-                <div class="setting-description">Select your preferred language for the application UI.</div>
+                <label for="language-select" class="setting-title">{{
+                  $t("settings.language")
+                }}</label>
+                <div class="setting-description">
+                  Select your preferred language for the application UI.
+                </div>
               </div>
               <div class="setting-action">
                 <Select
@@ -69,7 +75,9 @@
             <div class="setting-item">
               <div class="setting-content">
                 <div class="setting-title">Onboarding Tours</div>
-                <div class="setting-description">Restart the interactive guides for different sections of the app.</div>
+                <div class="setting-description">
+                  Restart the interactive guides for different sections of the app.
+                </div>
               </div>
               <div class="setting-action flex gap-2">
                 <Button
@@ -111,7 +119,9 @@
               <div class="card-header mb-4">
                 <div class="flex items-center gap-2">
                   <i class="pi pi-database text-primary text-xl"></i>
-                  <span class="text-lg font-bold tracking-tight">{{ t('settings.disk-usage') }}</span>
+                  <span class="text-lg font-bold tracking-tight">{{
+                    t("settings.disk-usage")
+                  }}</span>
                   <Button
                     v-tooltip.top="'Refresh storage info'"
                     text
@@ -124,22 +134,41 @@
                   </Button>
                 </div>
                 <div class="text-sm font-medium opacity-60">
-                  {{ formatSize(storageInfo.disk.total - storageInfo.disk.free) }} / {{ formatSize(storageInfo.disk.total) }}
+                  {{ formatSize(storageInfo.disk.total - storageInfo.disk.free) }} /
+                  {{ formatSize(storageInfo.disk.total) }}
                 </div>
               </div>
 
               <!-- Main Progress Bar -->
               <div class="usage-bar-container mb-6">
                 <div class="usage-bar">
-                  <div 
-                    class="usage-segment pipelab-segment" 
-                    :style="{ width: (storageInfo.disk.pipelab / storageInfo.disk.total * 100) + '%' }"
-                    v-tooltip="t('settings.storage-pipelab') + ': ' + formatSize(storageInfo.disk.pipelab)"
+                  <div
+                    class="usage-segment pipelab-segment"
+                    :style="{
+                      width: (storageInfo.disk.pipelab / storageInfo.disk.total) * 100 + '%',
+                    }"
+                    v-tooltip="
+                      t('settings.storage-pipelab') + ': ' + formatSize(storageInfo.disk.pipelab)
+                    "
                   ></div>
-                  <div 
-                    class="usage-segment other-segment" 
-                    :style="{ width: ((storageInfo.disk.total - storageInfo.disk.free - storageInfo.disk.pipelab) / storageInfo.disk.total * 100) + '%' }"
-                    v-tooltip="t('settings.storage-other') + ': ' + formatSize(storageInfo.disk.total - storageInfo.disk.free - storageInfo.disk.pipelab)"
+                  <div
+                    class="usage-segment other-segment"
+                    :style="{
+                      width:
+                        ((storageInfo.disk.total -
+                          storageInfo.disk.free -
+                          storageInfo.disk.pipelab) /
+                          storageInfo.disk.total) *
+                          100 +
+                        '%',
+                    }"
+                    v-tooltip="
+                      t('settings.storage-other') +
+                      ': ' +
+                      formatSize(
+                        storageInfo.disk.total - storageInfo.disk.free - storageInfo.disk.pipelab,
+                      )
+                    "
                   ></div>
                 </div>
               </div>
@@ -149,21 +178,27 @@
                 <div class="detail-item">
                   <div class="flex items-center gap-2 mb-1">
                     <div class="dot pipelab-dot"></div>
-                    <span class="detail-label">{{ t('settings.storage-pipelab') }}</span>
+                    <span class="detail-label">{{ t("settings.storage-pipelab") }}</span>
                   </div>
                   <div class="detail-value">{{ formatSize(storageInfo.disk.pipelab) }}</div>
                 </div>
                 <div class="detail-item">
                   <div class="flex items-center gap-2 mb-1">
                     <div class="dot other-dot"></div>
-                    <span class="detail-label">{{ t('settings.storage-other') }}</span>
+                    <span class="detail-label">{{ t("settings.storage-other") }}</span>
                   </div>
-                  <div class="detail-value">{{ formatSize(storageInfo.disk.total - storageInfo.disk.free - storageInfo.disk.pipelab) }}</div>
+                  <div class="detail-value">
+                    {{
+                      formatSize(
+                        storageInfo.disk.total - storageInfo.disk.free - storageInfo.disk.pipelab,
+                      )
+                    }}
+                  </div>
                 </div>
                 <div class="detail-item">
                   <div class="flex items-center gap-2 mb-1">
                     <div class="dot free-dot"></div>
-                    <span class="detail-label">{{ t('settings.storage-free') }}</span>
+                    <span class="detail-label">{{ t("settings.storage-free") }}</span>
                   </div>
                   <div class="detail-value">{{ formatSize(storageInfo.disk.free) }}</div>
                 </div>
@@ -172,8 +207,12 @@
 
             <div class="setting-item">
               <div class="setting-content">
-                <label for="retention-enabled" class="setting-title">{{ t("settings.retentionEnabled") }}</label>
-                <div class="setting-description">Automatically delete old pipelines builds to save space.</div>
+                <label for="retention-enabled" class="setting-title">{{
+                  t("settings.retentionEnabled")
+                }}</label>
+                <div class="setting-description">
+                  Automatically delete old pipelines builds to save space.
+                </div>
               </div>
               <div class="setting-action">
                 <ToggleSwitch
@@ -185,10 +224,20 @@
               </div>
             </div>
 
-            <div class="setting-item" :class="{ 'opacity-50 pointer-events-none': !settingsRef?.buildHistory?.retentionPolicy?.enabled }">
+            <div
+              class="setting-item"
+              :class="{
+                'opacity-50 pointer-events-none':
+                  !settingsRef?.buildHistory?.retentionPolicy?.enabled,
+              }"
+            >
               <div class="setting-content">
-                <label for="max-entries" class="setting-title">{{ t("settings.retentionMaxEntries") }}</label>
-                <div class="setting-description">{{ t("settings.retentionMaxEntriesDescription") }}</div>
+                <label for="max-entries" class="setting-title">{{
+                  t("settings.retentionMaxEntries")
+                }}</label>
+                <div class="setting-description">
+                  {{ t("settings.retentionMaxEntriesDescription") }}
+                </div>
               </div>
               <div class="setting-action">
                 <InputNumber
@@ -203,10 +252,20 @@
               </div>
             </div>
 
-            <div class="setting-item" :class="{ 'opacity-50 pointer-events-none': !settingsRef?.buildHistory?.retentionPolicy?.enabled }">
+            <div
+              class="setting-item"
+              :class="{
+                'opacity-50 pointer-events-none':
+                  !settingsRef?.buildHistory?.retentionPolicy?.enabled,
+              }"
+            >
               <div class="setting-content">
-                <label for="max-age" class="setting-title">{{ t("settings.retentionMaxAge") }}</label>
-                <div class="setting-description">{{ t("settings.retentionMaxAgeDescription") }}</div>
+                <label for="max-age" class="setting-title">{{
+                  t("settings.retentionMaxAge")
+                }}</label>
+                <div class="setting-description">
+                  {{ t("settings.retentionMaxAgeDescription") }}
+                </div>
               </div>
               <div class="setting-action">
                 <InputNumber
@@ -220,7 +279,6 @@
                 />
               </div>
             </div>
-
           </div>
         </TabPanel>
 
@@ -315,7 +373,6 @@ onMounted(async () => {
   await buildHistoryStore.refreshStorageInfo();
 });
 
-
 const currentLocale = computed({
   get: () => (settingsRef.value?.locale as string) || "en-US",
   set: (value: string) => {
@@ -337,15 +394,12 @@ watch(
   { immediate: true },
 );
 
-
 const updateAutosave = (value: boolean) => {
   return appSettings.updateSettings({
     ...(toRaw(settingsRef.value) as any),
     autosave: value,
   });
 };
-
-
 
 const updateRetentionEnabled = (value: boolean) => {
   const currentBuildHistory = settingsRef.value.buildHistory || {};
@@ -412,7 +466,6 @@ const retentionMaxAge = computed({
     });
   },
 });
-
 
 const isBillingPortalUrlLoading = ref(false);
 
@@ -572,7 +625,9 @@ const restartTour = (tourId: "dashboard" | "editor") => {
   border: 1px solid var(--surface-border);
   border-radius: 16px;
   padding: 1.5rem;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  box-shadow:
+    0 4px 6px -1px rgba(0, 0, 0, 0.1),
+    0 2px 4px -1px rgba(0, 0, 0, 0.06);
 
   .card-header {
     display: flex;
@@ -587,7 +642,7 @@ const restartTour = (tourId: "dashboard" | "editor") => {
     position: relative;
     padding: 0;
     overflow: hidden;
-    border: 1px solid rgba(0,0,0,0.05);
+    border: 1px solid rgba(0, 0, 0, 0.05);
   }
 
   .usage-bar {
@@ -644,19 +699,25 @@ const restartTour = (tourId: "dashboard" | "editor") => {
   .detail-value {
     font-size: 1.25rem;
     font-weight: 800;
-    font-family: 'Inter', sans-serif;
+    font-family: "Inter", sans-serif;
   }
 
   .dot {
     width: 10px;
     height: 10px;
     border-radius: 3px;
-    box-shadow: 0 0 8px rgba(0,0,0,0.1);
+    box-shadow: 0 0 8px rgba(0, 0, 0, 0.1);
   }
 
-  .pipelab-dot { background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%); }
-  .other-dot { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); }
-  .free-dot { background: #cbd5e1; }
+  .pipelab-dot {
+    background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
+  }
+  .other-dot {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  }
+  .free-dot {
+    background: #cbd5e1;
+  }
 }
 
 .section-header {

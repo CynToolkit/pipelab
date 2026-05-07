@@ -22,7 +22,7 @@ import { cp, readFile, writeFile, rm } from "node:fs/promises";
 import { platform as osPlatform, arch as osArch } from "node:os";
 import { kebabCase } from "change-case";
 import semver from "semver";
-import * as esbuild from "esbuild";
+import { pathToFileURL } from "node:url";
 
 // TODO: https://js.electronforge.io/modules/_electron_forge_core.html
 
@@ -717,6 +717,19 @@ export const forge = async (
     }
 
     if (isCJSOnly) {
+      log(`Installing native esbuild for transpilation...`);
+      const { all: esbuildAll } = await runPnpm(destinationFolder, {
+        args: ["install", "-D", "esbuild@0.24.0", "--prefer-offline"],
+        signal: abortSignal,
+        context,
+      });
+      if (esbuildAll) log(esbuildAll);
+
+      const esbuildPath = pathToFileURL(
+        join(destinationFolder, "node_modules", "esbuild", "lib", "main.js"),
+      ).href;
+      const esbuild = await import(esbuildPath);
+
       /* ESBUILD transpilation */
       const external = [
         "electron",

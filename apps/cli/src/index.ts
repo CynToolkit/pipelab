@@ -54,13 +54,13 @@ try {
 
 const program = new Command();
 
-program
-  .name("pipelab")
-  .description("The command line interface for Pipelab")
-  .version(version);
+program.name("pipelab").description("The command line interface for Pipelab").version(version);
 
 if (!isSupabaseAvailable()) {
-  console.warn("\x1b[33m%s\x1b[0m", "Warning: Authentication is currently disabled (Cloud services not configured).");
+  console.warn(
+    "\x1b[33m%s\x1b[0m",
+    "Warning: Authentication is currently disabled (Cloud services not configured).",
+  );
 }
 
 program
@@ -151,10 +151,7 @@ program
     }
   });
 
-const pipelines = program
-  .command("pipelines")
-  .alias("pipeline")
-  .description("Manage pipelines");
+const pipelines = program.command("pipelines").alias("pipeline").description("Manage pipelines");
 
 pipelines
   .command("ls")

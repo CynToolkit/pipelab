@@ -1,12 +1,15 @@
 {
   "name": "@pipelab/plugin-electron",
-  "version": "1.0.0-beta.1",
+  "version": "1.0.0-beta.2",
   "license": "FSL-1.1-MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/CynToolkit/pipelab.git",
     "directory": "plugins/plugin-electron"
   },
+  "files": [
+    "dist"
+  ],
   "type": "module",
   "main": "./src/index.ts",
   "module": "./src/index.ts",
@@ -37,7 +40,6 @@
     "@pipelab/shared": "workspace:*",
     "@types/node": "^24.12.2",
     "electron": "32.1.2",
-    "esbuild": "0.24.0",
     "ts-deepmerge": "7.0.1"
   },
   "devDependencies": {

@@ -66,7 +66,7 @@ export async function serveCommand(options: ServeOptions, version: string, _dirn
       response.writeHead(404, { "Content-Type": "text/plain" });
       response.end(
         `Error: UI directory not found at ${rawAssetFolder}.\n` +
-        "Please run 'pnpm build' in apps/ui to generate the distribution.",
+          "Please run 'pnpm build' in apps/ui to generate the distribution.",
       );
       return;
     }

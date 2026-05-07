@@ -1,6 +1,6 @@
 {
   "name": "@pipelab/core-node",
-  "version": "1.0.0-beta.1",
+  "version": "1.0.0-beta.2",
   "private": false,
   "description": "The Pipelab automation engine for Node.js",
   "license": "FSL-1.1-MIT",
@@ -43,6 +43,7 @@
   "dependencies": {
     "@pipelab/constants": "workspace:*",
     "@pipelab/shared": "workspace:*",
+    "@supabase/supabase-js": "2.99.3",
     "adm-zip": "0.5.16",
     "archiver": "7.0.1",
     "check-disk-space": "3.4.0",
@@ -55,8 +56,7 @@
     "tar": "6.2.1",
     "type-fest": "4.39.0",
     "ws": "8.18.3",
-    "yauzl": "2.10.0",
-    "@supabase/supabase-js": "2.99.3"
+    "yauzl": "2.10.0"
   },
   "devDependencies": {
     "@pipelab/tsconfig": "workspace:*",

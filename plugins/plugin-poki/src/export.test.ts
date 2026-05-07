@@ -17,50 +17,64 @@ describe("End-to-End: Poki Upload Action", () => {
     }
   });
 
-  test("should upload to poki using mocked CLI", async () => {
-    // 1. Setup Sandbox
-    sandbox = await createSandbox("poki-e2e");
-    const { paths } = sandbox;
+  test(
+    "should upload to poki using mocked CLI",
+    async () => {
+      // 1. Setup Sandbox
+      sandbox = await createSandbox("poki-e2e");
+      const { paths } = sandbox;
 
-    // Seed dummy input assets
-    await writeFile(join(paths.input, "index.html"), "<html><body>Test</body></html>");
+      // Seed dummy input assets
+      await writeFile(join(paths.input, "index.html"), "<html><body>Test</body></html>");
 
-    // 2. Pre-seed a mock Poki CLI to avoid downloads and network issues
-    // Path matches new flat fetchPackage structure
-    const relativePokiBin = join("user-data", "packages", "@poki/cli", "0.1.19", "bin", "index.js");
-    await sandbox.mockBinary(
-      relativePokiBin,
-      "console.log('Mock Poki CLI execution'); process.exit(0);",
-    );
-    // Pre-seed node_modules and package.json to skip installation or allow pnpm to run
-    const pokiDir = join(sandbox.path, "user-data", "packages", "@poki/cli", "0.1.19");
-    await mkdir(pokiDir, { recursive: true });
-    await writeFile(join(pokiDir, "package.json"), JSON.stringify({ name: "@poki/cli", version: "0.1.19" }));
-    await mkdir(join(pokiDir, "node_modules"), { recursive: true });
-    await writeFile(join(pokiDir, "node_modules", ".keep"), "");
+      // 2. Pre-seed a mock Poki CLI to avoid downloads and network issues
+      // Path matches new flat fetchPackage structure
+      const relativePokiBin = join(
+        "user-data",
+        "packages",
+        "@poki/cli",
+        "0.1.19",
+        "bin",
+        "index.js",
+      );
+      await sandbox.mockBinary(
+        relativePokiBin,
+        "console.log('Mock Poki CLI execution'); process.exit(0);",
+      );
+      // Pre-seed node_modules and package.json to skip installation or allow pnpm to run
+      const pokiDir = join(sandbox.path, "user-data", "packages", "@poki/cli", "0.1.19");
+      await mkdir(pokiDir, { recursive: true });
+      await writeFile(
+        join(pokiDir, "package.json"),
+        JSON.stringify({ name: "@poki/cli", version: "0.1.19" }),
+      );
+      await mkdir(join(pokiDir, "node_modules"), { recursive: true });
+      await writeFile(join(pokiDir, "node_modules", ".keep"), "");
 
-    // 3. Run Pipeline
-    try {
-      await runAction(uploadToPokiRunner, {
-        inputs: {
-          "input-folder": paths.input,
-          project: "poki-game-123",
-          name: "release-v1",
-          notes: "E2E test notes",
-        },
-        sandboxPath: sandbox.path,
-      });
-    } catch (e: any) {
-      console.error("Execution failed:", e.message);
-      throw e;
-    }
+      // 3. Run Pipeline
+      try {
+        await runAction(uploadToPokiRunner, {
+          inputs: {
+            "input-folder": paths.input,
+            project: "poki-game-123",
+            name: "release-v1",
+            notes: "E2E test notes",
+          },
+          sandboxPath: sandbox.path,
+        });
+      } catch (e: any) {
+        console.error("Execution failed:", e.message);
+        throw e;
+      }
 
-    // 4. Verification
-    const pokiJsonPath = join(sandbox.path, "poki.json");
-    console.log("pokiJsonPath test", pokiJsonPath);
-    await expect(access(pokiJsonPath)).resolves.not.toThrow();
+      // 4. Verification
+      const pokiJsonPath = join(sandbox.path, "poki.json");
+      console.log("pokiJsonPath test", pokiJsonPath);
+      await expect(access(pokiJsonPath)).resolves.not.toThrow();
 
-    const pokiJsonContent = JSON.parse(await readFile(pokiJsonPath, "utf-8"));
-    expect(pokiJsonContent.game_id).toBe("poki-game-123");
-  }, 5 * 60 * 1000); // 5 minutes timeout for real environment setup
+      const pokiJsonContent = JSON.parse(await readFile(pokiJsonPath, "utf-8"));
+      expect(pokiJsonContent.game_id).toBe("poki-game-123");
+    },
+    5 * 60 * 1000,
+  ); // 5 minutes timeout for real environment setup
 });

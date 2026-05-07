@@ -99,8 +99,12 @@
                               :class="`log-${log.level || 'info'}`"
                             >
                               <span class="log-time">{{ formatTime(log.timestamp) }}</span>
-                              <span class="log-level">{{ (log.level || 'info').toUpperCase() }}</span>
-                              <span class="log-message">{{ Array.isArray(log.message) ? log.message.join(' ') : log.message }}</span>
+                              <span class="log-level">{{
+                                (log.level || "info").toUpperCase()
+                              }}</span>
+                              <span class="log-message">{{
+                                Array.isArray(log.message) ? log.message.join(" ") : log.message
+                              }}</span>
                               <span v-if="log.source" class="log-source">({{ log.source }})</span>
                             </div>
                           </div>
@@ -156,8 +160,10 @@
                   :class="`log-${log.level || 'info'}`"
                 >
                   <span class="log-time">{{ formatTime(log.timestamp) }}</span>
-                  <span class="log-level">{{ (log.level || 'info').toUpperCase() }}</span>
-                  <span class="log-message">{{ Array.isArray(log.message) ? log.message.join(' ') : log.message }}</span>
+                  <span class="log-level">{{ (log.level || "info").toUpperCase() }}</span>
+                  <span class="log-message">{{
+                    Array.isArray(log.message) ? log.message.join(" ") : log.message
+                  }}</span>
                   <span v-if="log.source" class="log-source">({{ log.source }})</span>
                 </div>
               </div>
