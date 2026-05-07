@@ -70,6 +70,7 @@ if (
 
 let api: any
 let mainWindow: BrowserWindow | undefined
+let isQuittingForUpdate = false
 
 function createWindow(): void {
   const displays = screen.getAllDisplays()
@@ -212,8 +213,16 @@ app.whenReady().then(async () => {
         detail: 'A new version has been downloaded. Restart the application to apply the updates.'
       }
 
-      dialog.showMessageBox(dialogOpts).then((returnValue) => {
-        if (returnValue.response === 0) autoUpdater.quitAndInstall()
+      dialog.showMessageBox(dialogOpts).then(async (returnValue) => {
+        if (returnValue.response === 0) {
+          isQuittingForUpdate = true
+          try {
+            await webSocketServer.stop()
+          } catch (error) {
+            logger().error('Error stopping WebSocket server before update quit:', error)
+          }
+          autoUpdater.quitAndInstall()
+        }
       })
     })
 
@@ -434,6 +443,11 @@ app.on('window-all-closed', async () => {
 
 // Handle app before quit to cleanup WebSocket server
 app.on('before-quit', async (event) => {
+  if (isQuittingForUpdate) {
+    logger().info('Quitting to install update...')
+    return
+  }
+
   event.preventDefault()
 
   try {
