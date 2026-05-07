@@ -9,6 +9,7 @@ export type Release = {
   published_at: string
   html_url: string
   url: string
+  prerelease?: boolean
 }
 
 const REPO = 'CynToolkit/pipelab'
@@ -55,15 +56,23 @@ export const fetchLatestRelease = async (packageName = '@pipelab/app'): Promise<
       logger().warn(`Release override ${override} not found for package ${packageName}`)
     }
 
-    // Filter for releases that follow the {packageName}@X.Y.Z tag pattern
-    const packageReleases = releases.filter((r) => r.tag_name.startsWith(`${packageName}@`))
+    // Helper to get version from tag name
+    const getVersion = (tagName: string) => tagName.split('@').pop() || '0.0.0'
+
+    // Filter for releases that follow the {packageName}@X.Y.Z tag pattern and filter out prereleases unconditionally
+    const packageReleases = releases
+      .filter((r) => r.tag_name.startsWith(`${packageName}@`))
+      .filter((r) => {
+        if (r.prerelease) {
+          return false
+        }
+        const version = getVersion(r.tag_name)
+        return !semver.prerelease(version)
+      })
 
     if (packageReleases.length === 0) {
       return null
     }
-
-    // Sort by semver
-    const getVersion = (tagName: string) => tagName.split('@').pop() || '0.0.0'
 
     packageReleases.sort((a, b) => {
       const vA = getVersion(a.tag_name)
