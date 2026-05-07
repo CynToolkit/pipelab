@@ -26,10 +26,10 @@ export const registerAllHandlers = async (options: {
   registerSystemHandlers(options);
 
   const { registerPlugins } = usePlugins();
-  const plugins = await builtInPlugins({
+  // Execute in the background! The plugins will be dynamically registered and broadcasted to the UI.
+  builtInPlugins({
     context,
   });
-  registerPlugins(plugins as any);
 };
 
 export { registerShellHandlers } from "./shell";

@@ -272,6 +272,9 @@ async function installDependencies(packageDir: string, packageName: string, opti
       const files = await readdir(nodeModulesPath);
       if (files.length === 0) {
         console.warn(`[Fetcher] ${packageName}: node_modules exists but is empty. Re-installing...`);
+      } else {
+        console.log(`[Fetcher] ${packageName}: Dependencies already installed, skipping.`);
+        return;
       }
     } catch (e) {
       // Continue to install if readdir fails

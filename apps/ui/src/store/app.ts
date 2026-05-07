@@ -41,6 +41,16 @@ export const useAppStore = defineStore("app", () => {
 
     //
     triggerPresetsLoaded();
+
+    // Listen for dynamically loaded plugins in the background
+    api.on("plugin:loaded", (event: any) => {
+      if (event && event.plugin) {
+        // Prevent duplicate registration if nodes:get already got it
+        if (!pluginDefinitions.value.some((p) => p.id === event.plugin.id)) {
+          pluginDefinitions.value.push(event.plugin);
+        }
+      }
+    });
   };
 
   const getPluginDefinition = (pluginId: string) => {

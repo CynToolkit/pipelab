@@ -36,6 +36,10 @@
           <i class="mdi" :class="connectionIcon"></i>
           {{ connectionText }}
         </div>
+        <div class="plugin-status" v-if="pluginStatus">
+          <i class="mdi mdi-loading mdi-spin mr-1"></i>
+          {{ pluginStatus }}
+        </div>
       </div>
 
       <div class="flex gap-1 align-items-center footer-center">
@@ -358,6 +362,21 @@ const agentVersion = ref("...");
 const uiVersion = process.env.UI_VERSION;
 // @ts-expect-error - pipelab is added in the preload
 const electronVersion = window.pipelab?.versions?.electron || "N/A";
+
+const pluginStatus = ref("");
+
+import { useWebSocketAPI } from "@renderer/composables/websocket-client";
+const { on } = useWebSocketAPI();
+
+on("startup:progress", (event: any) => {
+  if (event.type === "progress") {
+    pluginStatus.value = event.data.message;
+  } else if (event.type === "ready" || event.type === "done") {
+    setTimeout(() => {
+      pluginStatus.value = "";
+    }, 2000);
+  }
+});
 
 const updateVersions = async () => {
   if (websocketManager.isConnected()) {

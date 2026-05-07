@@ -52,7 +52,7 @@ export const loadPipelabPlugin = async (id: string, options: { context: PipelabC
 };
 
 export const builtInPlugins = async (options: { context: PipelabContext }) => {
-  console.log("[Plugins] Finalizing default plugins list...");
+  console.log("[Plugins] Starting background plugin loading...");
 
   // Pre-ensure Node.js and PNPM once in parallel so plugins don't have to wait for them
   sendStartupProgress("Preparing environment...");
@@ -61,18 +61,27 @@ export const builtInPlugins = async (options: { context: PipelabContext }) => {
     ensurePNPM(options.context),
   ]);
 
-  const results = await Promise.allSettled(
+  const { usePlugins } = await import("@pipelab/shared");
+  const { registerPlugins } = usePlugins();
+  const { webSocketServer } = await import("./index");
+
+  // Load plugins asynchronously in the background
+  Promise.allSettled(
     DEFAULT_PLUGIN_IDS.map(async (id) => {
       sendStartupProgress(`Loading plugin: ${id}`);
-      return loadPipelabPlugin(id, options);
+      const plugin = await loadPipelabPlugin(id, options);
+      if (plugin) {
+        registerPlugins([plugin]);
+        webSocketServer.broadcast("plugin:loaded", { plugin });
+      }
     }),
-  );
+  ).then(() => {
+    console.log("[Plugins] All default plugins loaded.");
+    sendStartupProgress("All plugins loaded.");
+    setTimeout(() => {
+      webSocketServer.broadcast("startup:progress", { type: "done" });
+    }, 2000);
+  });
 
-  const plugins = results
-    .filter((r) => r.status === "fulfilled")
-    .map((r) => (r as PromiseFulfilledResult<any>).value);
-
-  const filtered = plugins.filter(Boolean).flat();
-  console.log(`[Plugins] Successfully loaded ${filtered.length} default plugins`);
-  return filtered;
+  return [];
 };
