@@ -66,6 +66,16 @@ export const setupConfigFile = async <T>(
       try {
         json = await migrator.migrate(originalJson, {
           debug: false,
+          onStep: async (state: any, version: string) => {
+            const parsedPath = path.parse(filesPath);
+            const versionedPath = path.join(parsedPath.dir, `${parsedPath.name}.v${version}.json`);
+            try {
+              await fs.writeFile(versionedPath, JSON.stringify(state));
+              logger().info(`Intermediate backup created for ${name} at ${versionedPath}`);
+            } catch (e) {
+              logger().error(`Failed to create intermediate backup for ${name} at v${version}:`, e);
+            }
+          },
         });
       } catch (e) {
         logger().error(`Error migrating config ${name}:`, e);
@@ -74,21 +84,6 @@ export const setupConfigFile = async <T>(
 
       const originalVersion = originalJson?.version;
       const newVersion = json?.version;
-
-      // Check if migration actually changed the version
-      if (originalVersion !== newVersion && content !== undefined) {
-        // Backup previous file before overwriting
-        const parsedPath = path.parse(filesPath);
-        const versionSuffix = originalVersion || "unknown";
-        const backupPath = path.join(parsedPath.dir, `${parsedPath.name}.${versionSuffix}.bak`);
-
-        try {
-          await fs.copyFile(filesPath, backupPath);
-          logger().info(`Backup created for ${name} at ${backupPath} (version ${versionSuffix})`);
-        } catch (e) {
-          logger().error(`Failed to create backup for ${name}:`, e);
-        }
-      }
 
       // Save back migrated config if changed or if it's a new file
       if (originalVersion !== newVersion || content === undefined) {

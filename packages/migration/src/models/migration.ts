@@ -11,6 +11,7 @@ export type MigrationFn<From, To> = (state: From, targetVersion: string) => Awai
 export type MigrateOptions = {
   debug?: boolean;
   target?: SemVer;
+  onStep?: (state: any, version: SemVer) => Promise<void> | void;
 };
 
 const SemverValidator = custom<SemVer>((input) =>
@@ -35,20 +36,18 @@ export type OmitVersion<T> = Omit<T, keyof MigrationSchema>;
 
 export type SemVer = `${number}.${number}.${number}`;
 
-export interface MigrationClass<Down, Current, Up> {
+export interface MigrationClass<Current, Up> {
   version: SemVer;
   up: MigrationFn<Current, Up>;
-  down: MigrationFn<Current, Down>;
 }
 
-export interface MigrationObjInput<Down, Current, Up> {
+export interface MigrationObjInput<Current, Up> {
   version: SemVer;
   up: MigrationFn<OmitVersion<Current>, OmitVersion<Up>>;
-  down: MigrationFn<OmitVersion<Current>, OmitVersion<Down>>;
 }
 
 export interface MigratorConfig<InitialState, FinalState> {
-  migrations: MigrationClass<any, any, any>[];
+  migrations: MigrationClass<any, any>[];
   coerce?: boolean;
   defaultValue?: FinalState;
 }
@@ -56,7 +55,7 @@ export interface MigratorConfig<InitialState, FinalState> {
 export class Migrator<InitialState extends MigrationSchema, OutputState extends MigrationSchema> {
   current: SemVer;
 
-  migrations: Record<SemVer, MigrationClass<any, any, any>> = {};
+  migrations: Record<SemVer, MigrationClass<any, any>> = {};
 
   coerce: boolean;
   defaultValue: OutputState;
@@ -109,20 +108,20 @@ export class Migrator<InitialState extends MigrationSchema, OutputState extends 
 
     // Get the migration path
     const isUpgrade = currentIndex < targetIndex;
-    const increment = isUpgrade ? 1 : -1;
-    const direction = isUpgrade ? "up" : "down";
+
+    if (!isUpgrade) {
+      return finalState as OutputState;
+    }
 
     // Perform migrations
-    for (let i = currentIndex; isUpgrade ? i < targetIndex : i > targetIndex; i += increment) {
+    for (let i = currentIndex; i < targetIndex; i++) {
       const currentVersion = versions[i];
-      const nextVersion = versions[i + increment];
+      const nextVersion = versions[i + 1];
 
       if (options?.debug) {
         console.log("\tMigrating to version:", nextVersion);
       }
 
-      // For upgrades, use current version's migration
-      // For downgrades, use previous version's migration
       const migrationVersion = currentVersion;
       const migration = this.migrations[migrationVersion];
 
@@ -130,13 +129,17 @@ export class Migrator<InitialState extends MigrationSchema, OutputState extends 
       const { version: _, ...stateWithoutVersion } = finalState;
 
       // Perform migration
-      const migratedState = await migration[direction](stateWithoutVersion, currentVersion);
+      const migratedState = await migration.up(stateWithoutVersion, currentVersion);
 
       // Add new version
       finalState = {
         ...migratedState,
         version: nextVersion,
       };
+
+      if (options?.onStep) {
+        await options.onStep(finalState, nextVersion);
+      }
 
       if (options?.debug) {
         console.log("\tMigrated state:", finalState);

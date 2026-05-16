@@ -7,5 +7,6 @@ export type {
   MigrationFn,
   SemVer,
   OmitVersion,
+  Awaitable,
 } from "./models/migration";
 export { createVersionSchema } from "./models/migration";

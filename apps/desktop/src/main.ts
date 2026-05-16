@@ -35,7 +35,13 @@ process.on("uncaughtException", (error) => {
   }
 });
 
-app.setPath("userData", join(getDefaultUserDataPath(), "desktop"));
+const getEnv = () => {
+  if (is.dev) return "dev";
+  if (app.getVersion().includes("beta")) return "beta";
+  return "prod";
+};
+
+app.setPath("userData", join(getDefaultUserDataPath(getEnv()), "desktop"));
 
 protocol.registerSchemesAsPrivileged([
   {

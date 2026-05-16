@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeAll, beforeEach, afterEach, vi } from "vitest";
-import { createMigration, final, finalVersion, initial, initialVersion } from "./createMigration";
+import { createMigration, finalVersion } from "./createMigration";
 import { createMigrator, MigratorFactory } from "./createMigrator";
 import { Migrator, MigrationSchema } from "./migration";
 import { z } from "zod";
@@ -53,70 +53,31 @@ describe("migrator", () => {
   let migratorInstance: MigratorFactory<V1, V4>;
   let migratorMigrations: Migrator<V1, V4>;
   beforeAll(() => {
-    // migratorInstance = createMigrator<V4>({
-    //   migrations: [
-    //     initial<V1, V2>('1.0.0', (state) => ({
-    //       dummyV2: state.dummyV1,
-    //     })),
-    //     createMigration<V1, V2, V3>({
-    //       version: '2.0.0',
-    //       up: (state) => ({
-    //         dummyV3: state.dummyV2,
-    //       }),
-    //       down: (state) => ({
-    //         dummyV1: state.dummyV2,
-    //       }),
-    //     }),
-    //     createMigration<V2, V3, V4>({
-    //       version: '3.0.0',
-    //       up: (state) => ({
-    //         dummy: state.dummyV3,
-    //       }),
-    //       down: (state) => ({
-    //         dummyV2: state.dummyV3,
-    //       }),
-    //     }),
-    //     final<V4, V3>('4.0.0', (state) => ({
-    //       dummyV3: state.dummy,
-    //     })),
-    //   ],
-    // });
-
     migratorInstance = createMigrator<V1, V4>();
     migratorMigrations = migratorInstance.createMigrations({
-      defaultValue: outputV1,
+      defaultValue: outputV4,
       migrations: [
-        createMigration<never, V1, V2>({
+        createMigration<V1, V2>({
           version: "1.0.0",
           up: (state) => ({
             dummyV2: state.dummyV1,
           }),
-          down: initialVersion,
         }),
-        createMigration<V1, V2, V3>({
+        createMigration<V2, V3>({
           version: "2.0.0",
           up: (state) => ({
             dummyV3: state.dummyV2,
           }),
-          down: (state) => ({
-            dummyV1: state.dummyV2,
-          }),
         }),
-        createMigration<V2, V3, V4>({
+        createMigration<V3, V4>({
           version: "3.0.0",
           up: (state) => ({
             dummy: state.dummyV3,
           }),
-          down: (state) => ({
-            dummyV2: state.dummyV3,
-          }),
         }),
-        createMigration<V3, V4, never>({
+        createMigration<V4, never>({
           version: "4.0.0",
           up: finalVersion,
-          down: (state) => ({
-            dummyV3: state.dummy,
-          }),
         }),
       ],
     });
@@ -165,25 +126,35 @@ describe("migrator", () => {
     return expect(migratorMigrations.migrate(input)).resolves.toStrictEqual(outputV4);
   });
 
-  test("should downgrade", async () => {
+  test("should skip downgrades silently / not support them", async () => {
     const input: V4 = {
       dummy: "aaa",
       version: "4.0.0",
     };
-    const result = await migratorMigrations.migrate(input);
-    expect(result).toEqual(outputV4);
-    const resultDown = await migratorMigrations.migrate(result, {
+    // Migrate should return the exact state since downgrades are bypassed
+    const result = await migratorMigrations.migrate(input, {
       target: "3.0.0",
     });
-    expect(resultDown).toEqual(outputV3);
-    const resultDown2 = await migratorMigrations.migrate(resultDown, {
-      target: "2.0.0",
+    expect(result).toEqual(input);
+  });
+
+  test("should support onStep callback during migration", async () => {
+    const input: V1 = {
+      dummyV1: "aaa",
+      version: "1.0.0",
+    };
+
+    const steps: any[] = [];
+    await migratorMigrations.migrate(input, {
+      onStep: async (state, version) => {
+        steps.push({ ...state, version });
+      },
     });
-    expect(resultDown2).toEqual(outputV2);
-    const resultUp = await migratorMigrations.migrate(resultDown2, {
-      target: "3.0.0",
-    });
-    expect(resultUp).toEqual(outputV3);
+
+    expect(steps).toHaveLength(3); // 1 -> 2, 2 -> 3, 3 -> 4
+    expect(steps[0]).toEqual(expect.objectContaining({ dummyV2: "aaa", version: "2.0.0" }));
+    expect(steps[1]).toEqual(expect.objectContaining({ dummyV3: "aaa", version: "3.0.0" }));
+    expect(steps[2]).toEqual(expect.objectContaining({ dummy: "aaa", version: "4.0.0" }));
   });
 
   test("should throw if target is not in migrations", async () => {
@@ -194,36 +165,20 @@ describe("migrator", () => {
 
     const badMigratorInstance = createMigrator<V1, V4>().createMigrations({
       migrations: [
-        initial<V1, V2>("1.0.0", (state) => ({
-          dummyV2: state.dummyV1,
-        })),
-        final<V4, V3>("4.0.0", (state) => ({
-          dummyV3: state.dummy,
-        })),
+        createMigration<V1, V2>({
+          version: "1.0.0",
+          up: (state) => ({
+            dummyV2: state.dummyV1,
+          }),
+        }),
+        createMigration<V4, never>({
+          version: "4.0.0",
+          up: finalVersion,
+        }),
       ],
     });
 
     return expect(badMigratorInstance.migrate(input)).rejects.toThrow();
-  });
-
-  test("should throw on migration not found", async () => {
-    const input: V4 = {
-      dummy: "aaa",
-      version: "1.2.0",
-    };
-
-    const badMigratorInstance = createMigrator<V1, V4>().createMigrations({
-      migrations: [
-        initial<V1, V2>("1.0.0", (state) => ({
-          dummyV2: state.dummyV1,
-        })),
-        final<V4, V3>("4.0.0", (state) => ({
-          dummyV3: state.dummy,
-        })),
-      ],
-    });
-
-    await expect(badMigratorInstance.migrate(input)).rejects.toThrow();
   });
 
   test("should migrate an incomplete version (loose)", async () => {
@@ -235,19 +190,15 @@ describe("migrator", () => {
 
     const migrator = createMigrator<V1, V4>().createMigrations({
       migrations: [
-        createMigration<never, V1, V2>({
+        createMigration<V1, V2>({
           version: "1.0.0",
           up: (state) => ({
             dummyV2: state.dummyV1,
           }),
-          down: initialVersion,
         }),
-        createMigration<V1, V2, never>({
+        createMigration<V2, never>({
           version: "2.0.0",
           up: finalVersion,
-          down: (state) => ({
-            dummyV1: state.dummyV2,
-          }),
         }),
       ],
     });
@@ -266,19 +217,15 @@ describe("migrator", () => {
 
     const migrator = createMigrator<V1, V2>().createMigrations({
       migrations: [
-        createMigration<never, V1, V2>({
+        createMigration<V1, V2>({
           version: "1.0.0",
           up: (state) => ({
             dummyV2: state.dummyV1,
           }),
-          down: initialVersion,
         }),
-        createMigration<V1, V2, never>({
+        createMigration<V2, never>({
           version: "2.0.0",
           up: finalVersion,
-          down: (state) => ({
-            dummyV1: state.dummyV2,
-          }),
         }),
       ],
       coerce: false,
@@ -306,7 +253,7 @@ describe("async", () => {
 
     const migrator = createMigrator<V1, V2>().createMigrations({
       migrations: [
-        createMigration<never, V1, V2>({
+        createMigration<V1, V2>({
           version: "1.0.0",
           up: async (state) => {
             await sleep(1000);
@@ -314,17 +261,10 @@ describe("async", () => {
               dummyV2: state.dummyV1,
             };
           },
-          down: initialVersion,
         }),
-        createMigration<V1, V2, never>({
+        createMigration<V2, never>({
           version: "2.0.0",
           up: finalVersion,
-          down: async (state) => {
-            await sleep(1000);
-            return {
-              dummyV1: state.dummyV2,
-            };
-          },
         }),
       ],
     });

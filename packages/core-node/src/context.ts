@@ -12,7 +12,7 @@ const _dirname =
 
 export const isDev = process.env.NODE_ENV === "development";
 
-export const getDefaultUserDataPath = () => {
+export const getDefaultUserDataPath = (env?: "dev" | "beta" | "prod") => {
   const base = (() => {
     switch (platform()) {
       case "win32":
@@ -24,7 +24,10 @@ export const getDefaultUserDataPath = () => {
     }
   })();
 
-  return join(base, "@pipelab", isDev ? "app-dev" : "app");
+  const mode = env ?? (isDev ? "dev" : "prod");
+  const folder = mode === "dev" ? "app-dev" : mode === "beta" ? "app-beta" : "app";
+
+  return join(base, "@pipelab", folder);
 };
 
 /**

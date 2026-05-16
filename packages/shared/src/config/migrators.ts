@@ -1,10 +1,11 @@
 import {
-  createMigration,
+  createMigration as createMigrationBase,
   createMigrator,
   finalVersion,
-  initialVersion,
   OmitVersion,
   SemVer,
+  Awaitable,
+  MigrationSchema,
 } from "@pipelab/migration";
 import {
   AppConfig,
@@ -21,6 +22,13 @@ import { SavedFileV1, SavedFileV2, SavedFileV3, SavedFileV4, SavedFile } from ".
 
 // --- Types ---
 
+export type Additive<T, P> = OmitVersion<T> & OmitVersion<P>;
+
+const createMigration = <From extends MigrationSchema, To extends MigrationSchema>(config: {
+  version: SemVer;
+  up: (state: OmitVersion<From>, targetVersion: string) => Awaitable<Additive<To, From>>;
+}) => createMigrationBase<From, To>(config);
+
 export interface Migrator<T> {
   migrate: (data: any, options?: any) => Promise<T>;
   defaultValue: T;
@@ -31,11 +39,9 @@ export interface Migrator<T> {
 const settingsMigratorInternal = createMigrator<AppConfigV1, AppConfig>();
 
 export const defaultAppSettings = settingsMigratorInternal.createDefault({
-  cacheFolder: "",
-  clearTemporaryFoldersOnPipelineEnd: false,
   locale: "en-US",
   theme: "light",
-  version: "7.0.0" as SemVer,
+  version: "7.0.0",
   autosave: true,
   agents: [],
   tours: {
@@ -48,40 +54,39 @@ export const defaultAppSettings = settingsMigratorInternal.createDefault({
       completed: false,
     },
   },
+  buildHistory: {
+    retentionPolicy: {
+      enabled: false,
+      maxEntries: 50,
+      maxAge: 30,
+    },
+  },
 });
 
 export const appSettingsMigrator = settingsMigratorInternal.createMigrations({
   defaultValue: defaultAppSettings,
   migrations: [
-    createMigration<never, AppConfigV1, AppConfigV2>({
+    createMigration<AppConfigV1, AppConfigV2>({
       version: "1.0.0" as SemVer,
-      up: (state) => state satisfies OmitVersion<AppConfigV2>,
-      down: initialVersion,
+      up: (state) => state,
     }),
-    createMigration<AppConfigV1, AppConfigV2, AppConfigV3>({
+    createMigration<AppConfigV2, AppConfigV3>({
       version: "2.0.0" as SemVer,
       up: (state) => {
         return {
           ...state,
           clearTemporaryFoldersOnPipelineEnd: false,
-        } satisfies OmitVersion<AppConfigV3>;
-      },
-      down: () => {
-        throw new Error("Can't migrate down from 2.0.0");
+        };
       },
     }),
-    createMigration<AppConfigV2, AppConfigV3, AppConfigV4>({
+    createMigration<AppConfigV3, AppConfigV4>({
       version: "3.0.0" as SemVer,
       up: (state) => ({
         ...state,
         locale: "en-US" as const,
       }),
-      down: (state) => {
-        const { locale, ...rest } = state as AppConfigV4;
-        return rest as unknown as AppConfigV3;
-      },
     }),
-    createMigration<AppConfigV3, AppConfigV4, AppConfigV5>({
+    createMigration<AppConfigV4, AppConfigV5>({
       version: "4.0.0" as SemVer,
       up: (state) => ({
         ...state,
@@ -96,39 +101,35 @@ export const appSettingsMigrator = settingsMigratorInternal.createMigrations({
           },
         },
       }),
-      down: (state) => {
-        const { tours, ...rest } = state as AppConfigV5;
-        return rest as unknown as AppConfigV4;
-      },
     }),
-    createMigration<AppConfigV4, AppConfigV5, AppConfigV6>({
+    createMigration<AppConfigV5, AppConfigV6>({
       version: "5.0.0" as SemVer,
       up: (state) => ({
         ...state,
         autosave: true,
       }),
-      down: (state) => {
-        const { autosave, ...rest } = state as AppConfigV6;
-        return rest as unknown as AppConfigV5;
-      },
     }),
-    createMigration<AppConfigV5, AppConfigV6, AppConfigV7>({
+    createMigration<AppConfigV6, AppConfigV7>({
       version: "6.0.0" as SemVer,
-      up: (state) => ({
-        ...state,
-        agents: [],
-      }),
-      down: (state) => {
-        const { agents, ...rest } = state as AppConfigV7;
-        return rest as unknown as AppConfigV6;
+      up: (state) => {
+        // Upgrades V6 to V7: Add agents, add buildHistory.
+        // (Additive only - keeping cacheFolder and clearTemporaryFoldersOnPipelineEnd)
+        return {
+          ...state,
+          agents: [],
+          buildHistory: {
+            retentionPolicy: {
+              enabled: false,
+              maxEntries: 50,
+              maxAge: 30,
+            },
+          },
+        };
       },
     }),
-    createMigration<AppConfigV6, AppConfigV7, never>({
+    createMigration<AppConfigV7, never>({
       version: "7.0.0" as SemVer,
       up: finalVersion,
-      down: () => {
-        throw new Error("Can't migrate down from 7.0.0");
-      },
     }),
   ],
 });
@@ -147,13 +148,12 @@ export const defaultFileRepo = fileRepoMigratorInternal.createDefault({
     },
   ],
   pipelines: [],
-  proxies: [],
 });
 
 export const fileRepoMigrations = fileRepoMigratorInternal.createMigrations({
   defaultValue: defaultFileRepo,
   migrations: [
-    createMigration<never, FileRepoV1, FileRepoV2>({
+    createMigration<FileRepoV1, FileRepoV2>({
       version: "1.0.0",
       up: (state) => {
         const pipelines: FileRepoV2["pipelines"] = Object.entries(state.data || {}).map(
@@ -166,7 +166,7 @@ export const fileRepoMigrations = fileRepoMigratorInternal.createMigrations({
           },
         );
         return {
-          version: "2.0.0",
+          ...state,
           projects: [
             {
               id: "main",
@@ -175,17 +175,12 @@ export const fileRepoMigrations = fileRepoMigratorInternal.createMigrations({
             },
           ],
           pipelines: pipelines,
-          proxies: [],
-        } as any;
+        };
       },
-      down: initialVersion,
     }),
-    createMigration<FileRepoV1, FileRepoV2, never>({
+    createMigration<FileRepoV2, never>({
       version: "2.0.0",
       up: finalVersion,
-      down: (state) => {
-        throw new Error("Cannot downgrade to version 1.0.0");
-      },
     }),
   ],
 });
@@ -202,19 +197,19 @@ const savedFileDefaultValue = savedFileMigratorInternal.createDefault({
   name: "",
   variables: [],
   type: "default",
-  version: "4.0.0" as SemVer,
+  version: "4.0.0",
 });
 
 export const savedFileMigrator = savedFileMigratorInternal.createMigrations({
   defaultValue: savedFileDefaultValue,
   migrations: [
-    createMigration<never, SavedFileV1, SavedFileV2>({
+    createMigration<SavedFileV1, SavedFileV2>({
       version: "1.0.0" as SemVer,
       up: (state) => {
         const blocks = state.canvas.blocks;
 
-        const triggers: any[] = [];
-        const newBlocks: any[] = [];
+        const triggers: SavedFileV2["canvas"]["triggers"] = [];
+        const newBlocks: SavedFileV2["canvas"]["blocks"] = [];
 
         for (const block of blocks) {
           if (block.type === "event") {
@@ -225,27 +220,25 @@ export const savedFileMigrator = savedFileMigratorInternal.createMigrations({
         }
 
         return {
+          ...state,
           canvas: {
+            ...state.canvas,
             blocks: newBlocks,
             triggers: triggers,
           },
-          description: state.description,
-          name: state.name,
-          variables: state.variables,
-        } as any;
+        };
       },
-      down: initialVersion,
     }),
-    createMigration<SavedFileV1, SavedFileV2, SavedFileV3>({
+    createMigration<SavedFileV2, SavedFileV3>({
       version: "2.0.0" as SemVer,
       up: (state) => {
-        const { canvas, ...rest } = state;
+        const { canvas } = state;
         const { blocks, triggers } = canvas;
 
-        const newBlocks: any[] = [];
+        const newBlocks: SavedFileV3["canvas"]["blocks"] = [];
 
         for (const block of blocks) {
-          const newParams: any = {};
+          const newParams: SavedFileV3["canvas"]["blocks"][number]["params"] = {};
 
           for (const data of Object.entries(block.params)) {
             if (data === undefined) {
@@ -266,35 +259,25 @@ export const savedFileMigrator = savedFileMigratorInternal.createMigrations({
         }
 
         return {
-          ...rest,
+          ...state,
           canvas: {
+            ...canvas,
             triggers,
             blocks: newBlocks,
           },
-        } as any;
-      },
-      down: () => {
-        throw new Error("Migration down not implemented");
+        };
       },
     }),
-    createMigration<SavedFileV2, SavedFileV3, SavedFileV4>({
+    createMigration<SavedFileV3, SavedFileV4>({
       version: "3.0.0" as SemVer,
-      up: (state) => {
-        return {
-          ...state,
-          type: "default",
-        } as any;
-      },
-      down: () => {
-        throw new Error("Migration down not implemented");
-      },
+      up: (state) => ({
+        ...state,
+        type: "default",
+      }),
     }),
-    createMigration<SavedFileV3, SavedFileV4, SavedFileV4>({
+    createMigration<SavedFileV4, never>({
       version: "4.0.0" as SemVer,
       up: finalVersion,
-      down: () => {
-        throw new Error("Migration down not implemented");
-      },
     }),
   ],
 });
