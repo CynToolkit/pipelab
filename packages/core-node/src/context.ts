@@ -48,13 +48,16 @@ export const projectRoot = findProjectRoot(_dirname);
 
 export interface PipelabContextOptions {
   userDataPath: string;
+  releaseTag?: string;
 }
 
 export class PipelabContext {
   public readonly userDataPath: string;
+  public readonly releaseTag: string;
 
   constructor(options: PipelabContextOptions) {
     this.userDataPath = options.userDataPath;
+    this.releaseTag = options.releaseTag || "latest";
   }
 
   getPackagesPath(...subpaths: string[]) {

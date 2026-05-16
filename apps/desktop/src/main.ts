@@ -4,7 +4,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { platform } from "node:os";
 import { electronApp, optimizer, is } from "@electron-toolkit/utils";
 import { startServer, stopServer } from "./main/server-process";
-import { websocketPort, uiDevPort } from "@pipelab/constants";
+import { websocketPort, uiDevPort, getProtocolName, getAppBundleId } from "@pipelab/constants";
 import { registerIpcHandlers } from "./main/ipc-handlers";
 import { getDefaultUserDataPath, fetchLatestDesktopRelease } from "@pipelab/core-node";
 import started from "electron-squirrel-startup";
@@ -113,10 +113,12 @@ function createWindow(): void {
   });
 }
 
+const protocolName = getProtocolName(app.getVersion());
+
 if (is.dev && process.platform === "win32") {
-  app.setAsDefaultProtocolClient("pipelab", process.execPath, [resolve(process.argv[1])]);
+  app.setAsDefaultProtocolClient(protocolName, process.execPath, [resolve(process.argv[1])]);
 } else {
-  app.setAsDefaultProtocolClient("pipelab");
+  app.setAsDefaultProtocolClient(protocolName);
 }
 
 const sendUpdateStatus = (status: string) => {
@@ -211,7 +213,8 @@ app.whenReady().then(async () => {
     });
   }
 
-  electronApp.setAppUserModelId("com.pipelab");
+  const appBundleId = getAppBundleId(app.getVersion());
+  electronApp.setAppUserModelId(appBundleId);
   createWindow();
 
   if (mainWindow) {

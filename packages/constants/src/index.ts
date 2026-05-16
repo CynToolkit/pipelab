@@ -1,6 +1,15 @@
 export const name = "Pipelab";
 export const appIdentifier = "pipelab";
 
+export const getAppBundleId = (version: string) =>
+  version.includes("beta") ? "app.pipelab.desktop.beta" : "app.pipelab.desktop";
+
+export const getProductName = (version: string) =>
+  version.includes("beta") ? "Pipelab Beta" : "Pipelab";
+
+export const getProtocolName = (version: string) =>
+  version.includes("beta") ? "pipelab-beta" : "pipelab";
+
 export const outFolderName = (binName: string, platform: string, arch: string) => {
   let platformName = "";
   let archName = "";

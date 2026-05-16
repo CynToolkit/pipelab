@@ -49,15 +49,21 @@ async function renameInstallers(platform: string, arch: string) {
   }
 }
 
+import { getAppBundleId, getProductName } from "@pipelab/constants";
+import { version } from "./package.json";
+
+const productName = getProductName(version);
+const bundleId = getAppBundleId(version);
+
 const config: ForgeConfig = {
   packagerConfig: {
     // @ts-expect-error - Force architecture as Forge CLI sometimes ignores --arch flag in CI
     arch: process.env.TARGET_ARCH || process.env.npm_config_arch || process.arch,
     prune: false,
-    appBundleId: "app.pipelab.desktop",
+    appBundleId: bundleId,
     asar: true,
     extraResource: [],
-    name,
+    name: productName,
     icon: path.join(__dirname, "assets/build/icon"),
     extendInfo: {
       NSAppleEventsUsageDescription: "This app need to run commands through Terminal.",
@@ -76,9 +82,9 @@ const config: ForgeConfig = {
     } as any,
   },
   makers: [
-    new MakerSquirrel({ name, setupIcon: path.join(__dirname, "assets/build/icon.ico") }),
+    new MakerSquirrel({ name: productName, setupIcon: path.join(__dirname, "assets/build/icon.ico") }),
     new MakerZIP(undefined, ["linux", "win32"]),
-    new MakerDMG(),
+    new MakerDMG({ name: productName }),
   ],
   publishers: [
     {

@@ -32,6 +32,7 @@
     "@pipelab/plugin-tauri": "0.9.9"
   },
   "changesets": [
+    "cute-chicken-hunt",
     "free-animals-bet",
     "kind-dryers-cheer",
     "ripe-trams-hug"

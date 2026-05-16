@@ -38,13 +38,15 @@ export const sendStartupReady = () => {
 
 export async function serveCommand(options: ServeOptions, version: string, _dirname: string) {
   if (!options.userData) throw new Error("userDataPath is required for serveCommand");
+  const releaseTag = version.includes("beta") ? "beta" : "latest";
   const context = new PipelabContext({
     userDataPath: options.userData,
+    releaseTag,
   });
 
   let rawAssetFolder: string | undefined;
   if (!isDev) {
-    rawAssetFolder = await fetchPipelabAsset("@pipelab/ui", "latest", { context });
+    rawAssetFolder = await fetchPipelabAsset("@pipelab/ui", releaseTag, { context });
   }
 
   const server = http.createServer(async (request, response) => {

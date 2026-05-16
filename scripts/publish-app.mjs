@@ -93,6 +93,7 @@ async function main() {
       cwd: appDistDir,
       stdio: "inherit",
     });
+
     console.log(`Successfully published @pipelab/${appName}!`);
   } catch (error) {
     console.error(`Failed to publish @pipelab/${appName}:`);

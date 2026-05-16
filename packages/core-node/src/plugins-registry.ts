@@ -23,7 +23,7 @@ const DEFAULT_PLUGIN_IDS = [
 export const loadPipelabPlugin = async (id: string, options: { context: PipelabContext }) => {
   try {
     const packageName = `@pipelab/plugin-${id}`;
-    const { packageDir, entryPoint } = await fetchPipelabPlugin(packageName, "latest", {
+    const { packageDir, entryPoint } = await fetchPipelabPlugin(packageName, options.context.releaseTag, {
       context: options.context,
       installDeps: false,
     });

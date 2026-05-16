@@ -339,6 +339,8 @@ jobs:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
 
+
+
   build-desktop:
     name: Build Desktop (${{ matrix.os }} - ${{ matrix.arch }})
     needs: [build-all, test-matrix, changes]
