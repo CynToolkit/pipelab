@@ -1,5 +1,15 @@
 # @pipelab/cli
 
+## 2.0.0-beta.5
+
+### Patch Changes
+
+- bump
+- Updated dependencies
+  - @pipelab/constants@1.0.0-beta.4
+  - @pipelab/core-node@1.0.0-beta.5
+  - @pipelab/shared@1.0.0-beta.3
+
 ## 2.0.0-beta.4
 
 ### Patch Changes
