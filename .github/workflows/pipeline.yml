@@ -260,6 +260,7 @@ jobs:
               pnpm changeset pre exit
             fi
           fi
+
       - name: Publish to NPM & Create GitHub Release
         id: changesets
         uses: changesets/action@v1
@@ -270,8 +271,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_CONFIG_PROVENANCE: true
-          PNPM_CONFIG_TAG: ${{ (github.ref_name == 'develop' || github.event.inputs.prerelease == 'true') && 'beta' || 'latest' }}
-          NPM_CONFIG_TAG: ${{ (github.ref_name == 'develop' || github.event.inputs.prerelease == 'true') && 'beta' || 'latest' }}
 
       - name: Download all artifacts
         if: steps.changesets.outputs.published == 'true' || github.event.inputs.forcePublish == 'true'
@@ -339,8 +338,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
-
-
 
   build-desktop:
     name: Build Desktop (${{ matrix.os }} - ${{ matrix.arch }})
