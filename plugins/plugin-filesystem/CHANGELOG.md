@@ -1,5 +1,13 @@
 # @pipelab/plugin-filesystem
 
+## 1.0.0-beta.6
+
+### Patch Changes
+
+- beta tag
+- Updated dependencies
+  - @pipelab/plugin-core@1.0.0-beta.6
+
 ## 1.0.0-beta.5
 
 ### Patch Changes
