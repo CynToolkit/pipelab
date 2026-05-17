@@ -1,5 +1,11 @@
 # @pipelab/plugin-core
 
+## 1.0.0-beta.4
+
+### Patch Changes
+
+- @pipelab/core-node@1.0.0-beta.4
+
 ## 1.0.0-beta.3
 
 ### Patch Changes

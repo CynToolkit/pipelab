@@ -1,5 +1,12 @@
 # @pipelab/ui
 
+## 2.0.0-beta.4
+
+### Patch Changes
+
+- Updated dependencies
+  - @pipelab/constants@1.0.0-beta.3
+
 ## 2.0.0-beta.3
 
 ### Patch Changes
