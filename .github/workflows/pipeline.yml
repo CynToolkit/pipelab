@@ -249,18 +249,6 @@ jobs:
           name: monorepo-dist
           path: .
 
-      - name: Enter/Exit Changeset Pre-mode
-        run: |
-          if [ "${{ github.ref_name }}" == "develop" ]; then
-            if [ ! -f .changeset/pre.json ]; then
-              pnpm changeset pre enter beta
-            fi
-          elif [ "${{ github.ref_name }}" == "main" ]; then
-            if [ -f .changeset/pre.json ]; then
-              pnpm changeset pre exit
-            fi
-          fi
-
       - name: Publish to NPM & Create GitHub Release
         id: changesets
         uses: changesets/action@v1
