@@ -34,36 +34,43 @@ export const fetchAllReleases = async (): Promise<Release[]> => {
   }
 }
 
+export type FetchLatestReleaseOptions = {
+  packageName?: string
+  prerelease?: boolean
+  overrideRelease?: string
+}
+
 /**
  * Fetches the latest release for a specific package.
- * Supports PIPELAB_OVERRIDE_RELEASE environment variable.
  */
-export const fetchLatestRelease = async (packageName = '@pipelab/app'): Promise<Release | null> => {
+export const fetchLatestRelease = async (
+  options: FetchLatestReleaseOptions = {}
+): Promise<Release | null> => {
+  const { packageName = '@pipelab/app', prerelease = false, overrideRelease } = options
   const { logger } = useLogger()
 
   try {
     const releases = await fetchAllReleases()
 
-    // Handle environment variable override
-    const override = process.env.PIPELAB_OVERRIDE_RELEASE
-    if (override) {
-      logger().info('Using release override:', override)
-      const targetTag = override.includes('@') ? override : `${packageName}@${override}`
+    // Handle command-line override
+    if (overrideRelease) {
+      logger().info('Using release override:', overrideRelease)
+      const targetTag = overrideRelease.includes('@') ? overrideRelease : `${packageName}@${overrideRelease}`
       const release = releases.find((r) => r.tag_name === targetTag)
       if (release) {
         return release
       }
-      logger().warn(`Release override ${override} not found for package ${packageName}`)
+      logger().warn(`Release override ${overrideRelease} not found for package ${packageName}`)
     }
 
     // Helper to get version from tag name
     const getVersion = (tagName: string) => tagName.split('@').pop() || '0.0.0'
 
-    // Filter for releases that follow the {packageName}@X.Y.Z tag pattern and filter out prereleases unconditionally unless PRERELEASE is true
+    // Filter for releases that follow the {packageName}@X.Y.Z tag pattern and filter out prereleases unconditionally unless prerelease is true
     const packageReleases = releases
       .filter((r) => r.tag_name.startsWith(`${packageName}@`))
       .filter((r) => {
-        if (process.env.PRERELEASE === 'true') {
+        if (prerelease) {
           return true
         }
         if (r.prerelease) {

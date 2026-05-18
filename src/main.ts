@@ -172,9 +172,52 @@ app.whenReady().then(async () => {
     await handleProtocolUrl(url)
   })
 
-  if (!is.dev || process.env.APP_UPDATE_URL || process.env.PIPELAB_OVERRIDE_RELEASE) {
+  const config = {
+    options: {
+      /** project: path to file .pipelab */
+      project: {
+        type: 'string',
+        short: 'p'
+      },
+      /** action: run | open  */
+      action: {
+        type: 'string',
+        short: 'a'
+      },
+      /** output: path to output result */
+      output: {
+        type: 'string',
+        short: 'o'
+      },
+      inspect: {
+        type: 'boolean'
+      },
+      prerelease: {
+        type: 'boolean'
+      },
+      'override-release': {
+        type: 'string'
+      },
+      'app-update-url': {
+        type: 'boolean'
+      }
+    }
+  } satisfies ParseArgsConfig
+
+  const { values } = parseArgs(config)
+
+  const hasAppUpdateUrlFlag = !!values['app-update-url']
+  const hasOverrideReleaseFlag = !!values['override-release']
+  const hasPrereleaseFlag = !!values['prerelease']
+  const overrideReleaseVal = values['override-release']
+
+  if (!is.dev || hasAppUpdateUrlFlag || hasOverrideReleaseFlag || hasPrereleaseFlag) {
     try {
-      const latestRelease = await fetchLatestRelease('@pipelab/app')
+      const latestRelease = await fetchLatestRelease({
+        packageName: '@pipelab/app',
+        prerelease: hasPrereleaseFlag,
+        overrideRelease: overrideReleaseVal
+      })
       if (latestRelease) {
         logger().info('Found latest release:', latestRelease.tag_name)
         logger().info('Release API URL:', latestRelease.url)
@@ -294,39 +337,13 @@ app.whenReady().then(async () => {
     logger().error('Failed to start WebSocket server:', error)
   }
 
-  const config = {
-    options: {
-      /** project: path to file .pipelab */
-      project: {
-        type: 'string',
-        short: 'p'
-      },
-      /** action: run | open  */
-      action: {
-        type: 'string',
-        short: 'a'
-      },
-      /** output: path to output result */
-      output: {
-        type: 'string',
-        short: 'o'
-      },
-      inspect: {
-        type: 'boolean'
-      }
-    }
-  } satisfies ParseArgsConfig
-
-  const { values } = parseArgs(config)
-
   logger().info('values', values)
 
   createWindow()
 
-  delete values['inspect']
-
-  // exit if values are passed
-  if (Object.keys(values).length > 0) {
+  // exit if values are passed for batch execution
+  const hasPipelineArgs = values.action || values.project || values.output
+  if (hasPipelineArgs) {
     logger().info('Processing graph...')
 
     const { action, project, output } = values
@@ -406,7 +423,7 @@ app.whenReady().then(async () => {
     mainWindow.show()
     mainWindow.maximize()
 
-    if (app.isPackaged || process.env.APP_UPDATE_URL || process.env.PIPELAB_OVERRIDE_RELEASE) {
+    if (app.isPackaged || hasAppUpdateUrlFlag || hasOverrideReleaseFlag || hasPrereleaseFlag) {
       autoUpdater.checkForUpdates()
       setTimeout(() => {
         autoUpdater.checkForUpdates()
