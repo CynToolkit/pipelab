@@ -1,5 +1,11 @@
 # @pipelab/constants
 
+## 1.0.0-beta.7
+
+### Patch Changes
+
+- Fix beta directory
+
 ## 1.0.0-beta.6
 
 ### Patch Changes
