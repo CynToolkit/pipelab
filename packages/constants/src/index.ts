@@ -5,7 +5,7 @@ export const getAppBundleId = (version: string) =>
   version.includes("beta") ? "app.pipelab.desktop.beta" : "app.pipelab.desktop";
 
 export const getProductName = (version: string) =>
-  version.includes("beta") ? "Pipelab-Beta" : "Pipelab";
+  version.includes("beta") ? "PipelabBeta" : "Pipelab";
 
 export const getProtocolName = (version: string) =>
   version.includes("beta") ? "pipelab-beta" : "pipelab";
