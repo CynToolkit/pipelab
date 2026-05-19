@@ -17,7 +17,7 @@
         <UpgradeNowButton v-if="!isLoadingSubscriptions" @open-upgrade-dialog="openUpgradeDialog" />
       </div>
 
-      <div>
+      <div class="footer-info">
         <div class="update-status">{{ updateStatusText }}</div>
         <div class="version-text">{{ appVersion }}</div>
       </div>
@@ -651,6 +651,14 @@ const onSubmit = handleSubmit(onSuccess, onInvalidSubmit)
     align-items: center;
     font-size: 12px;
     padding: 0 8px;
+
+    .footer-info {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      gap: 8px;
+      white-space: nowrap;
+    }
   }
 
   .content {

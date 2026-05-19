@@ -33,6 +33,7 @@ logger().info('app.isPackaged', app.isPackaged)
 logger().info('process.env.TEST', process.env.TEST)
 logger().info('process.env.WINEHOMEDIR', process.env.WINEHOMEDIR)
 logger().info('isLinux', isLinux)
+logger().info('process.argv', process.argv)
 
 const isWine = platform() === 'win32' && 'WINEHOMEDIR' in process.env
 
@@ -71,6 +72,21 @@ if (
 let api: any
 let mainWindow: BrowserWindow | undefined
 let isQuittingForUpdate = false
+let isUpdateCheckInProgress = false
+
+function triggerUpdateCheck() {
+  if (isUpdateCheckInProgress) {
+    logger().info('Update check already in progress, skipping checkForUpdates()')
+    return
+  }
+  isUpdateCheckInProgress = true
+  try {
+    autoUpdater.checkForUpdates()
+  } catch (error) {
+    isUpdateCheckInProgress = false
+    logger().error('Failed to trigger auto-updater check:', error)
+  }
+}
 
 function createWindow(): void {
   const displays = screen.getAllDisplays()
@@ -204,7 +220,9 @@ app.whenReady().then(async () => {
     }
   } satisfies ParseArgsConfig
 
-  const { values } = parseArgs(config)
+  const args = app.isPackaged ? process.argv.slice(1) : process.argv.slice(2)
+  logger().info('args to parse:', args)
+  const { values } = parseArgs({ ...config, args })
 
   const hasAppUpdateUrlFlag = !!values['app-update-url']
   const hasOverrideReleaseFlag = !!values['override-release']
@@ -242,6 +260,7 @@ app.whenReady().then(async () => {
     }
 
     autoUpdater.on('update-downloaded', (event, releaseNotes, releaseName) => {
+      isUpdateCheckInProgress = false
       api?.execute('update:set-status', {
         status: 'update-downloaded'
       })
@@ -270,6 +289,7 @@ app.whenReady().then(async () => {
     })
 
     autoUpdater.on('error', (message) => {
+      isUpdateCheckInProgress = false
       api?.execute('update:set-status', {
         status: 'error'
       })
@@ -285,6 +305,7 @@ app.whenReady().then(async () => {
     })
 
     autoUpdater.on('update-not-available', () => {
+      isUpdateCheckInProgress = false
       api?.execute('update:set-status', {
         status: 'update-not-available'
       })
@@ -424,9 +445,9 @@ app.whenReady().then(async () => {
     mainWindow.maximize()
 
     if (app.isPackaged || hasAppUpdateUrlFlag || hasOverrideReleaseFlag || hasPrereleaseFlag) {
-      autoUpdater.checkForUpdates()
+      triggerUpdateCheck()
       setTimeout(() => {
-        autoUpdater.checkForUpdates()
+        triggerUpdateCheck()
         console.log('checkForUpdates')
       }, 10000)
     }
