@@ -1,5 +1,12 @@
 # @pipelab/cli
 
+## 2.0.0-beta.8
+
+### Patch Changes
+
+- Updated dependencies
+  - @pipelab/core-node@1.0.0-beta.8
+
 ## 2.0.0-beta.7
 
 ### Patch Changes

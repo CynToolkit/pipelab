@@ -1,7 +1,7 @@
 import { dirname, delimiter, join } from "node:path";
 import { tmpdir } from "node:os";
-import { mkdir, readdir, readFile, writeFile, access, chmod, rm, cp } from "node:fs/promises";
-import { existsSync, constants } from "node:fs";
+import { mkdir, readdir, readFile, writeFile, access, chmod, rm, cp, rename } from "node:fs/promises";
+import { existsSync, constants, statSync, readdirSync } from "node:fs";
 import pacote from "pacote";
 import semver from "semver";
 import { isDev, projectRoot, PipelabContext } from "../context";
@@ -11,6 +11,29 @@ import { downloadFile, extractZip, extractTarGz, generateTempFolder } from "./fs
 
 export const DEFAULT_NODE_VERSION = "24.14.1";
 export const DEFAULT_PNPM_VERSION = "10.12.0";
+
+function isPackageComplete(packageDir: string): boolean {
+  return existsSync(join(packageDir, "package.json"));
+}
+
+function isNodeJSComplete(nodePath: string): boolean {
+  try {
+    return existsSync(nodePath) && statSync(nodePath).size > 0;
+  } catch {
+    return false;
+  }
+}
+
+function isDependenciesInstalledSync(packageDir: string): boolean {
+  const nodeModulesPath = join(packageDir, "node_modules");
+  if (!existsSync(nodeModulesPath)) return false;
+  try {
+    const files = readdirSync(nodeModulesPath);
+    return files.length > 0;
+  } catch {
+    return false;
+  }
+}
 
 /**
  * In-memory lock to prevent concurrent operations on the same resource (e.g., downloading Node.js).
@@ -113,19 +136,49 @@ export async function fetchPackage(
   const cachePath = join(ctx.userDataPath, "cache", "pacote");
   const packageDir = join(baseDir, resolvedVersion);
 
-  // If the package already exists and we don't need to install dependencies, return immediately
-  if (existsSync(packageDir) && !options?.installDeps) {
+  // If the package already exists and we don't need to install dependencies (or they are already installed), return immediately
+  const isInstalled = options?.installDeps
+    ? (isPackageComplete(packageDir) && isDependenciesInstalledSync(packageDir))
+    : isPackageComplete(packageDir);
+
+  if (isInstalled) {
     return { packageDir, resolvedVersion };
   }
 
   const lockKey = `package:${packageName}:${resolvedVersion}`;
   return withLock(lockKey, async () => {
-    if (!existsSync(packageDir)) {
+    if (!isPackageComplete(packageDir)) {
       console.log(`[Fetcher] ${packageName}@${resolvedVersion}: Downloading to ${packageDir}...`);
-      await mkdir(packageDir, { recursive: true });
-      await pacote.extract(`${packageName}@${resolvedVersion}`, packageDir, {
-        cache: cachePath,
-      });
+      
+      const tempDir = join(baseDir, `.tmp-${resolvedVersion}-${Math.random().toString(36).slice(2)}`);
+      await mkdir(tempDir, { recursive: true });
+      try {
+        await pacote.extract(`${packageName}@${resolvedVersion}`, tempDir, {
+          cache: cachePath,
+        });
+
+        // Resolve entryPoint from package.json inside the temp directory first to ensure everything works
+        await resolveEntryPoint(tempDir, packageName);
+
+        // Remove existing incomplete packageDir if any
+        if (existsSync(packageDir)) {
+          await rm(packageDir, { recursive: true, force: true }).catch(() => {});
+        }
+
+        // Atomically rename the temp directory to the target packageDir
+        try {
+          await rename(tempDir, packageDir);
+        } catch (err: any) {
+          if (isPackageComplete(packageDir)) {
+            console.log(`[Fetcher] Destination ${packageDir} already exists and is valid.`);
+          } else {
+            throw err;
+          }
+        }
+      } catch (err) {
+        await rm(tempDir, { recursive: true, force: true }).catch(() => {});
+        throw err;
+      }
     }
 
     // 2. Resolve entry point from package.json for downloaded package
@@ -196,13 +249,13 @@ export async function ensureNodeJS(context: PipelabContext, version = DEFAULT_NO
   const nodeDir = context.getThirdPartyPath("node", version);
   const finalNodePath = join(nodeDir, isWindows ? "node.exe" : "bin/node");
 
-  if (existsSync(finalNodePath)) {
+  if (isNodeJSComplete(finalNodePath)) {
     return finalNodePath;
   }
 
   const lockKey = `node:${version}`;
   return withLock(lockKey, async () => {
-    if (existsSync(finalNodePath)) return finalNodePath;
+    if (isNodeJSComplete(finalNodePath)) return finalNodePath;
 
     const arch = process.arch === "x64" ? "x64" : process.arch === "arm64" ? "arm64" : "x86";
     const platform = isWindows ? "win" : process.platform === "darwin" ? "osx" : "linux";
@@ -234,12 +287,37 @@ export async function ensureNodeJS(context: PipelabContext, version = DEFAULT_NO
     if (!nodeSubDir) throw new Error(`Could not find extracted Node.js directory`);
 
     const sourceDir = join(extractTempDir, nodeSubDir);
-    await mkdir(dirname(nodeDir), { recursive: true });
-    await rm(nodeDir, { recursive: true, force: true });
-    await cp(sourceDir, nodeDir, { recursive: true });
-    await rm(tempDir, { recursive: true, force: true });
+    const parentDir = dirname(nodeDir);
+    await mkdir(parentDir, { recursive: true });
 
-    if (!isWindows) await chmod(finalNodePath, 0o755).catch(() => {});
+    const tempNodeDir = join(parentDir, `.tmp-node-${version}-${Math.random().toString(36).slice(2)}`);
+    await mkdir(tempNodeDir, { recursive: true });
+
+    try {
+      await cp(sourceDir, tempNodeDir, { recursive: true });
+      if (!isWindows) {
+        const tempNodePath = join(tempNodeDir, "bin/node");
+        await chmod(tempNodePath, 0o755).catch(() => {});
+      }
+
+      if (existsSync(nodeDir)) {
+        await rm(nodeDir, { recursive: true, force: true }).catch(() => {});
+      }
+
+      try {
+        await rename(tempNodeDir, nodeDir);
+      } catch (err: any) {
+        if (isNodeJSComplete(finalNodePath)) {
+          console.log(`[Fetcher] Node.js directory already exists and is valid.`);
+        } else {
+          throw err;
+        }
+      }
+    } finally {
+      await rm(tempNodeDir, { recursive: true, force: true }).catch(() => {});
+      await rm(tempDir, { recursive: true, force: true }).catch(() => {});
+    }
+
     return finalNodePath;
   });
 }
@@ -269,30 +347,33 @@ export async function ensurePNPM(context: PipelabContext, version = DEFAULT_PNPM
 async function installDependencies(packageDir: string, packageName: string, options: FetchOptions) {
   const nodeModulesPath = join(packageDir, "node_modules");
 
-  if (existsSync(nodeModulesPath)) {
-    try {
-      const files = await readdir(nodeModulesPath);
-      if (files.length === 0) {
-        console.warn(
-          `[Fetcher] ${packageName}: node_modules exists but is empty. Re-installing...`,
-        );
-      } else {
-        console.log(`[Fetcher] ${packageName}: Dependencies already installed, skipping.`);
-        return;
-      }
-    } catch (e) {
-      // Continue to install if readdir fails
-    }
+  if (isDependenciesInstalledSync(packageDir)) {
+    console.log(`[Fetcher] ${packageName}: Dependencies already installed, skipping.`);
+    return;
   }
 
-  console.log(`[Fetcher] ${packageName}: Ensuring dependencies are installed...`);
+  // To prevent other processes from seeing a partially populated node_modules,
+  // we can create a temp directory next to packageDir, run pnpm there, and rename node_modules
+  const tempDir = `${packageDir}.tmp-deps-${Math.random().toString(36).slice(2)}`;
+  await mkdir(tempDir, { recursive: true });
   try {
-    const { all } = await runPnpm(packageDir, {
+    // Copy package.json to tempDir so pnpm can install dependencies
+    await cp(join(packageDir, "package.json"), join(tempDir, "package.json"));
+    
+    console.log(`[Fetcher] ${packageName}: Ensuring dependencies are installed...`);
+    const { all } = await runPnpm(tempDir, {
       signal: options.signal,
       context: options.context,
     });
 
     if (all) console.log(`[Fetcher] ${packageName}: Installation trace:\n${all}`);
+
+    // Atomically rename node_modules from tempDir to packageDir/node_modules
+    const tempNodeModules = join(tempDir, "node_modules");
+    if (existsSync(nodeModulesPath)) {
+      await rm(nodeModulesPath, { recursive: true, force: true }).catch(() => {});
+    }
+    await rename(tempNodeModules, nodeModulesPath);
     console.log(`[Fetcher] ${packageName}: Dependencies installed successfully.`);
   } catch (err: any) {
     console.error(
@@ -300,6 +381,8 @@ async function installDependencies(packageDir: string, packageName: string, opti
     );
     if (err.all) console.error(`[Fetcher] ${packageName}: Error details:\n${err.all}`);
     throw new Error(`Failed to install dependencies for ${packageName}. See logs for details.`);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true }).catch(() => {});
   }
 }
 

@@ -1,5 +1,11 @@
 # @pipelab/plugin-poki
 
+## 1.0.0-beta.8
+
+### Patch Changes
+
+- @pipelab/plugin-core@1.0.0-beta.8
+
 ## 1.0.0-beta.7
 
 ### Patch Changes
