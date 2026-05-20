@@ -43,6 +43,8 @@ export type IpcDefinition = {
     // input
     {
       status: UpdateStatus;
+      downloadUrl?: string;
+      version?: string;
     },
     EndEvent<void>,
   ];

@@ -62,7 +62,17 @@
       </div>
 
       <div class="flex gap-3 align-items-center justify-content-end">
-        <div class="update-status">{{ updateStatusText }}</div>
+        <div class="update-status flex align-items-center gap-1" v-if="updateStatus === 'update-available' && updateDownloadUrl">
+          <span>New version {{ updateVersion }} is available.</span>
+          <Button
+            link
+            label="Download"
+            @click="openLink(updateDownloadUrl)"
+            class="p-0 text-xs font-medium cursor-pointer"
+            style="text-decoration: underline; height: 16px; line-height: 16px;"
+          />
+        </div>
+        <div class="update-status" v-else>{{ updateStatusText }}</div>
         <div class="version-text">{{ appVersion }}</div>
       </div>
     </div>
@@ -356,6 +366,8 @@ const headerSentence = computed(() => {
 });
 
 const updateStatus = ref<UpdateStatus>("update-not-available");
+const updateDownloadUrl = ref<string | undefined>(undefined);
+const updateVersion = ref<string | undefined>(undefined);
 
 const appVersion = ref(window.version);
 const agentVersion = ref("...");
@@ -601,6 +613,8 @@ handle("update:set-status", async (event, { value }) => {
   console.log("value", value);
 
   updateStatus.value = value.status;
+  updateDownloadUrl.value = value.downloadUrl;
+  updateVersion.value = value.version;
 });
 
 const schema = toTypedSchema(

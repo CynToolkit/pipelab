@@ -10,6 +10,7 @@ import { getDefaultUserDataPath, fetchLatestDesktopRelease } from "@pipelab/core
 import started from "electron-squirrel-startup";
 import { PostHog } from "posthog-node";
 import { parseArgs } from "node:util";
+import semver from "semver";
 
 const isProduction = app.isPackaged && process.env.TEST !== "true";
 
@@ -203,9 +204,9 @@ if (is.dev && process.platform === "win32") {
   app.setAsDefaultProtocolClient(protocolName);
 }
 
-const sendUpdateStatus = (status: string) => {
+const sendUpdateStatus = (status: string, downloadUrl?: string, version?: string) => {
   mainWindow?.webContents.send("update:set-status", {
-    data: { status },
+    data: { status, downloadUrl, version },
     requestId: "shell-update",
   });
 };
@@ -233,6 +234,8 @@ app.whenReady().then(async () => {
     console.error("[Main] Failed to parse startup protocol URL:", err);
   }
 
+  const supportsAutoUpdate = process.platform === "win32" || process.platform === "darwin";
+
   if (
     !is.dev ||
     process.env.APP_UPDATE_URL ||
@@ -245,10 +248,13 @@ app.whenReady().then(async () => {
     console.log(`[Update] Current Version: ${app.getVersion()}`);
     console.log(`[Update] Is Packaged: ${app.isPackaged}`);
     console.log(`[Update] FORCE_UPDATE_CHECK: ${process.env.FORCE_UPDATE_CHECK}`);
+    console.log(`[Update] Supports Auto-Update: ${supportsAutoUpdate}`);
 
     let updateUrl =
       process.env.APP_UPDATE_URL ||
       "https://github.com/CynToolkit/pipelab/releases/latest/download";
+
+    let latestRelease: any = null;
 
     // 1. Try to resolve the latest desktop-specific release from GitHub
     if (!process.env.APP_UPDATE_URL) {
@@ -261,6 +267,7 @@ app.whenReady().then(async () => {
 
       const release = await fetchLatestDesktopRelease({ allowPrerelease: isPrerelease });
       if (release) {
+        latestRelease = release;
         updateUrl = `https://github.com/CynToolkit/pipelab/releases/download/${release.tag_name}`;
         console.log(`[Update] Target Tag: ${release.tag_name}`);
         console.log(`[Update] Release API URL: ${release.html_url}`);
@@ -269,52 +276,101 @@ app.whenReady().then(async () => {
       }
     }
 
-    console.log(`[Update] Final Feed URL: ${updateUrl}`);
-    if (process.platform === "win32") {
-      console.log(`[Update] (Windows) Squirrel will request: ${updateUrl}/RELEASES`);
-    }
+    // Helper to resolve manual download details for the platform
+    const resolveManualDownloadUrl = (release: any): { downloadUrl: string; version: string } | null => {
+      if (!release) return null;
+      const latestVersion = release.tag_name.split("@").pop();
+      if (!latestVersion) return null;
 
-    autoUpdater.setFeedURL({
-      url: updateUrl,
-      headers: {
-        "Cache-Control": "no-cache",
-      },
-    });
+      let asset;
+      if (process.platform === "linux") {
+        asset = release.assets?.find((a: any) => a.name.endsWith(".AppImage")) ||
+                release.assets?.find((a: any) => a.name.endsWith(".deb"));
+      } else if (process.platform === "darwin") {
+        asset = release.assets?.find((a: any) => a.name.endsWith(".dmg")) ||
+                release.assets?.find((a: any) => a.name.endsWith(".zip"));
+      } else if (process.platform === "win32") {
+        asset = release.assets?.find((a: any) => a.name.endsWith(".exe"));
+      }
 
-    autoUpdater.on("checking-for-update", () => {
-      console.log("[Update] Checking for update...");
-      sendUpdateStatus("checking-for-update");
-    });
-    autoUpdater.on("update-available", () => {
-      console.log("[Update] Update available!");
-      sendUpdateStatus("update-available");
-    });
-    autoUpdater.on("update-not-available", () => {
-      console.log("[Update] Update not available.");
-      sendUpdateStatus("update-not-available");
-    });
-
-    autoUpdater.on("update-downloaded", (event, releaseNotes, releaseName) => {
-      console.log("[Update] Update downloaded:", releaseName);
-      sendUpdateStatus("update-downloaded");
-
-      const dialogOpts: Electron.MessageBoxOptions = {
-        type: "info",
-        buttons: ["Restart", "Later"],
-        title: "Application Update",
-        message: process.platform === "win32" ? releaseNotes : releaseName,
-        detail: "A new version has been downloaded. Restart the application to apply the updates.",
+      return {
+        downloadUrl: asset ? asset.browser_download_url : release.html_url,
+        version: latestVersion,
       };
+    };
 
-      dialog.showMessageBox(dialogOpts).then((returnValue) => {
-        if (returnValue.response === 0) autoUpdater.quitAndInstall();
-      });
-    });
+    if (supportsAutoUpdate) {
+      console.log(`[Update] Final Feed URL: ${updateUrl}`);
+      if (process.platform === "win32") {
+        console.log(`[Update] (Windows) Squirrel will request: ${updateUrl}/RELEASES`);
+      }
 
-    autoUpdater.on("error", (message) => {
-      sendUpdateStatus("error");
-      console.error("[Update] There was a problem updating the application:", message);
-    });
+      try {
+        autoUpdater.setFeedURL({
+          url: updateUrl,
+          headers: {
+            "Cache-Control": "no-cache",
+          },
+        });
+
+        autoUpdater.on("checking-for-update", () => {
+          console.log("[Update] Checking for update...");
+          sendUpdateStatus("checking-for-update");
+        });
+        autoUpdater.on("update-available", () => {
+          console.log("[Update] Update available!");
+          sendUpdateStatus("update-available");
+        });
+        autoUpdater.on("update-not-available", () => {
+          console.log("[Update] Update not available.");
+          sendUpdateStatus("update-not-available");
+        });
+
+        autoUpdater.on("update-downloaded", (event, releaseNotes, releaseName) => {
+          console.log("[Update] Update downloaded:", releaseName);
+          sendUpdateStatus("update-downloaded");
+
+          const dialogOpts: Electron.MessageBoxOptions = {
+            type: "info",
+            buttons: ["Restart", "Later"],
+            title: "Application Update",
+            message: process.platform === "win32" ? releaseNotes : releaseName,
+            detail: "A new version has been downloaded. Restart the application to apply the updates.",
+          };
+
+          dialog.showMessageBox(dialogOpts).then((returnValue) => {
+            if (returnValue.response === 0) autoUpdater.quitAndInstall();
+          });
+        });
+
+        autoUpdater.on("error", (message) => {
+          console.error("[Update] AutoUpdater encountered an error:", message);
+          // Fallback to manual update indicator if an update is actually available
+          const manualInfo = resolveManualDownloadUrl(latestRelease);
+          const currentVersion = app.getVersion();
+          if (manualInfo && semver.valid(manualInfo.version) && semver.gt(manualInfo.version, currentVersion)) {
+            console.log(`[Update] AutoUpdater failed, falling back to manual update for v${manualInfo.version}`);
+            sendUpdateStatus("update-available", manualInfo.downloadUrl, manualInfo.version);
+          } else {
+            sendUpdateStatus("error");
+          }
+        });
+      } catch (err) {
+        console.error("[Update] Failed to setup autoUpdater:", err);
+      }
+    } else {
+      // Manual update check path for Linux and other unsupported platforms
+      console.log("[Update] Auto-updater is not supported. Running manual check...");
+      const manualInfo = resolveManualDownloadUrl(latestRelease);
+      const currentVersion = app.getVersion();
+      if (manualInfo && semver.valid(manualInfo.version) && semver.gt(manualInfo.version, currentVersion)) {
+        console.log(`[Update] Manual update available: v${manualInfo.version}`);
+        sendUpdateStatus("update-available", manualInfo.downloadUrl, manualInfo.version);
+      } else {
+        console.log("[Update] Manual check: No newer version available.");
+        sendUpdateStatus("update-not-available");
+      }
+    }
   }
 
   const appBundleId = getAppBundleId(app.getVersion());
@@ -362,8 +418,10 @@ app.whenReady().then(async () => {
 
   if (app.isPackaged || process.env.FORCE_UPDATE_CHECK === "true") {
     setTimeout(() => {
-      console.log("[Update] Triggering autoUpdater.checkForUpdates()...");
-      autoUpdater.checkForUpdates();
+      if (supportsAutoUpdate) {
+        console.log("[Update] Triggering autoUpdater.checkForUpdates()...");
+        autoUpdater.checkForUpdates();
+      }
     }, 10000);
   }
 
