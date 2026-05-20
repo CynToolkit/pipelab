@@ -173,6 +173,7 @@ export type IpcDefinition = {
   ];
   "agent:version:get": [void, EndEvent<{ version: string }>];
   "startup:progress": [void, { type: "progress"; data: { message: string } } | { type: "ready" }];
+  "plugin:loaded": [void, { plugin: RendererPluginDefinition }];
 };
 
 export type Channels = keyof IpcDefinition;

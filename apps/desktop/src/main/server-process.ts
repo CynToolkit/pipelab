@@ -50,8 +50,6 @@ export const startServer = async () => {
     return;
   }
 
-  const userDataPath = getDefaultUserDataPath();
-
   // 0. In dev mode, ensure UI dev server is running BEFORE anything else
   if (is.dev) {
     let retries = 5;
@@ -76,6 +74,7 @@ export const startServer = async () => {
 
   // 2. Resolve the CLI
   const releaseTag = app.getVersion().includes("beta") ? "beta" : "latest";
+  const userDataPath = getDefaultUserDataPath(releaseTag === "beta" ? "beta" : "prod");
   const context = new PipelabContext({ userDataPath, releaseTag });
   const { entryPoint, isLocal, packageDir } = await fetchPipelabCli(releaseTag, { context });
 

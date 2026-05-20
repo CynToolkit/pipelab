@@ -1,5 +1,11 @@
 # @pipelab/constants
 
+## 1.0.0-beta.8
+
+### Patch Changes
+
+- fixes
+
 ## 1.0.0-beta.7
 
 ### Patch Changes

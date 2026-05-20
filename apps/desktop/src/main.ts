@@ -9,6 +9,7 @@ import { registerIpcHandlers } from "./main/ipc-handlers";
 import { getDefaultUserDataPath, fetchLatestDesktopRelease } from "@pipelab/core-node";
 import started from "electron-squirrel-startup";
 import { PostHog } from "posthog-node";
+import { parseArgs } from "node:util";
 
 const isProduction = app.isPackaged && process.env.TEST !== "true";
 
@@ -41,7 +42,8 @@ const getEnv = () => {
   return "prod";
 };
 
-app.setPath("userData", join(getDefaultUserDataPath(getEnv()), "desktop"));
+const customUserDataPath = getDefaultUserDataPath(getEnv());
+app.setPath("userData", join(customUserDataPath, "desktop"));
 
 protocol.registerSchemesAsPrivileged([
   {
@@ -63,6 +65,79 @@ function getIconPath() {
   return join("./assets", "build", `icon${ext}`);
 }
 
+let pendingUrl: string | null = null;
+
+function findProtocolUrl(args: string[], values: any, positionals: string[]): string | null {
+  const pUrl = positionals.find((arg) => arg.startsWith("pipelab://") || arg.startsWith("pipelab-beta://"));
+  if (pUrl) return pUrl;
+
+  const startArgs = values["process-start-args"];
+  if (startArgs) {
+    if (startArgs.startsWith("pipelab://") || startArgs.startsWith("pipelab-beta://")) {
+      return startArgs;
+    }
+    const parts = startArgs.split(/\s+/);
+    const partUrl = parts.find((arg) => arg.startsWith("pipelab://") || arg.startsWith("pipelab-beta://"));
+    if (partUrl) return partUrl;
+  }
+
+  const anyUrl = args.find((arg) => arg.startsWith("pipelab://") || arg.startsWith("pipelab-beta://"));
+  if (anyUrl) return anyUrl;
+
+  return null;
+}
+
+function handleProtocolUrl(url: string) {
+  if (!url) return;
+  console.info(`[Main] Handling protocol URL: ${url}`);
+  if (mainWindow && !mainWindow.webContents.isLoading()) {
+    mainWindow.webContents.send("protocol-url", url);
+  } else {
+    pendingUrl = url;
+  }
+}
+
+// Register macOS open-url handler
+app.on("open-url", (event, url) => {
+  event.preventDefault();
+  handleProtocolUrl(url);
+});
+
+// Single Instance Lock setup
+const gotTheLock = app.requestSingleInstanceLock();
+if (!gotTheLock) {
+  console.info("[Main] Another instance is already running. Quitting.");
+  app.quit();
+} else {
+  app.on("second-instance", (event, commandLine) => {
+    console.info(`[Main] Second instance started with command line: ${commandLine.join(" ")}`);
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.focus();
+    }
+
+    try {
+      const config = {
+        options: {
+          "process-start-args": { type: "string" as const },
+        },
+        strict: false,
+      };
+      const { values, positionals } = parseArgs({
+        ...config,
+        args: commandLine.slice(1),
+      });
+
+      const url = findProtocolUrl(commandLine, values, positionals);
+      if (url) {
+        handleProtocolUrl(url);
+      }
+    } catch (err) {
+      console.error("[Main] Failed to parse second-instance arguments:", err);
+    }
+  });
+}
+
 if (process.platform === "win32" && process.env.TEST !== "true" && app.isPackaged) {
   if (started) {
     app.quit();
@@ -80,9 +155,9 @@ function createWindow(): void {
   const position =
     externalDisplay && is.dev
       ? {
-          x: externalDisplay.bounds.x + 50,
-          y: externalDisplay.bounds.y + 50,
-        }
+        x: externalDisplay.bounds.x + 50,
+        y: externalDisplay.bounds.y + 50,
+      }
       : {};
 
   mainWindow = new BrowserWindow({
@@ -102,6 +177,13 @@ function createWindow(): void {
   if (is.dev) {
     mainWindow.webContents.openDevTools();
   }
+
+  mainWindow.webContents.on("did-finish-load", () => {
+    if (pendingUrl) {
+      mainWindow?.webContents.send("protocol-url", pendingUrl);
+      pendingUrl = null;
+    }
+  });
 
   mainWindow.on("close", function () {
     app.quit();
@@ -129,6 +211,28 @@ const sendUpdateStatus = (status: string) => {
 };
 
 app.whenReady().then(async () => {
+
+  // Check if launched via protocol URL on startup
+  const startupArgs = is.dev ? process.argv.slice(2) : process.argv.slice(1);
+  try {
+    const config = {
+      options: {
+        "process-start-args": { type: "string" as const },
+      },
+      strict: false,
+    };
+    const { values, positionals } = parseArgs({
+      ...config,
+      args: startupArgs,
+    });
+    const url = findProtocolUrl(process.argv, values, positionals);
+    if (url) {
+      handleProtocolUrl(url);
+    }
+  } catch (err) {
+    console.error("[Main] Failed to parse startup protocol URL:", err);
+  }
+
   if (
     !is.dev ||
     process.env.APP_UPDATE_URL ||
@@ -250,7 +354,7 @@ app.whenReady().then(async () => {
     dialog.showErrorBox(
       "Startup Error",
       "Failed to start the background server. This is required for Pipelab to function.\n\n" +
-        (error instanceof Error ? error.message : String(error)),
+      (error instanceof Error ? error.message : String(error)),
     );
     app.quit();
     return;

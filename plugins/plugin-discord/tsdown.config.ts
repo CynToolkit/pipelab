@@ -12,4 +12,7 @@ export default defineConfig({
     ".jpeg": "dataurl",
     ".svg": "dataurl",
   },
+  deps: {
+    alwaysBundle: [/.*/],
+  },
 });

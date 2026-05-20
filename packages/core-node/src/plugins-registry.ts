@@ -63,22 +63,21 @@ export const builtInPlugins = async (options: { context: PipelabContext }) => {
   const { webSocketServer } = await import("./index");
 
   // Load plugins asynchronously in the background
-  Promise.allSettled(
-    DEFAULT_PLUGIN_IDS.map(async (id) => {
+  (async () => {
+    for (const id of DEFAULT_PLUGIN_IDS) {
       sendStartupProgress(`Loading plugin: ${id}`);
       const plugin = await loadPipelabPlugin(id, options);
       if (plugin) {
         registerPlugins([plugin]);
         webSocketServer.broadcast("plugin:loaded", { plugin });
       }
-    }),
-  ).then(() => {
+    }
     console.log("[Plugins] All default plugins loaded.");
     sendStartupProgress("All plugins loaded.");
     setTimeout(() => {
-      webSocketServer.broadcast("startup:progress", { type: "done" });
+      webSocketServer.broadcast("startup:progress", { type: "ready" });
     }, 2000);
-  });
+  })();
 
   return [];
 };
