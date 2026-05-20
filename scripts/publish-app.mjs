@@ -40,6 +40,17 @@ async function main() {
   const appPackageJson = JSON.parse(readFileSync(appPackageJsonPath, "utf-8"));
   const { version, license, author, repository, description } = appPackageJson;
 
+  // Check if version is already published on npm to avoid E403/Forbidden errors
+  try {
+    const { stdout } = await execa("npm", ["view", `@pipelab/${appName}@${version}`, "version"]);
+    if (stdout.trim() === version) {
+      console.log(`@pipelab/${appName}@${version} is already published on npm. Skipping publish.`);
+      return;
+    }
+  } catch (err) {
+    console.log(`@pipelab/${appName}@${version} is not published on npm yet. Proceeding with publish...`);
+  }
+
   console.log(`Preparing @pipelab/${appName} v${version} for publishing...`);
 
   const dynamicPackageJson = {
