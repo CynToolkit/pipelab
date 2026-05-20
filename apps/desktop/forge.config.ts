@@ -82,7 +82,10 @@ const config: ForgeConfig = {
     } as any,
   },
   makers: [
-    new MakerSquirrel({ name: productName, setupIcon: path.join(__dirname, "assets/build/icon.ico") }),
+    new MakerSquirrel({
+      name: productName,
+      setupIcon: path.join(__dirname, "assets/build/icon.ico"),
+    }),
     new MakerZIP(undefined, ["linux", "win32"]),
     new MakerDMG({ name: productName }),
   ],

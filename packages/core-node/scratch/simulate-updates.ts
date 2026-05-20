@@ -30,7 +30,7 @@ const PACKAGES = [
   "@pipelab/asset-discord",
   "@pipelab/asset-electron",
   "@pipelab/asset-netlify",
-  "@pipelab/asset-tauri"
+  "@pipelab/asset-tauri",
 ];
 
 async function simulate() {
@@ -44,7 +44,9 @@ async function simulate() {
     const stableApp = await fetchLatestDesktopRelease({ allowPrerelease: false });
     const betaApp = await fetchLatestDesktopRelease({ allowPrerelease: true });
 
-    console.log(`[STABLE] Resolved version: ${stableApp ? stableApp.tag_name : "None (Stable users protected)"}`);
+    console.log(
+      `[STABLE] Resolved version: ${stableApp ? stableApp.tag_name : "None (Stable users protected)"}`,
+    );
     console.log(`[BETA]   Resolved version: ${betaApp ? betaApp.tag_name : "None"}`);
   } catch (error) {
     console.error("Failed to fetch desktop releases from GitHub:", error);
@@ -99,14 +101,14 @@ async function simulate() {
         package: pkg,
         stable: stableVersion,
         beta: betaVersion,
-        notes
+        notes,
       });
     } catch (error: any) {
       results.push({
         package: pkg,
         stable: "ERROR",
         beta: "ERROR",
-        notes: `Failed to fetch: ${error.message}`
+        notes: `Failed to fetch: ${error.message}`,
       });
     }
   }

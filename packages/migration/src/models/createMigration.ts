@@ -7,10 +7,9 @@ import {
   SemVer,
 } from "./migration";
 
-export function createMigration<
-  Current extends MigrationSchema,
-  Up extends MigrationSchema,
->(migration: MigrationObjInput<Current, Up>): MigrationClass<Current, Up> {
+export function createMigration<Current extends MigrationSchema, Up extends MigrationSchema>(
+  migration: MigrationObjInput<Current, Up>,
+): MigrationClass<Current, Up> {
   return {
     version: migration.version,
     up: async (state, nextVersion) => {
@@ -26,4 +25,3 @@ export function createMigration<
 export const finalVersion = () => {
   throw new Error("Unable to go up on the final version!");
 };
-

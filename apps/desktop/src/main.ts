@@ -69,7 +69,9 @@ function getIconPath() {
 let pendingUrl: string | null = null;
 
 function findProtocolUrl(args: string[], values: any, positionals: string[]): string | null {
-  const pUrl = positionals.find((arg) => arg.startsWith("pipelab://") || arg.startsWith("pipelab-beta://"));
+  const pUrl = positionals.find(
+    (arg) => arg.startsWith("pipelab://") || arg.startsWith("pipelab-beta://"),
+  );
   if (pUrl) return pUrl;
 
   const startArgs = values["process-start-args"];
@@ -78,11 +80,15 @@ function findProtocolUrl(args: string[], values: any, positionals: string[]): st
       return startArgs;
     }
     const parts = startArgs.split(/\s+/);
-    const partUrl = parts.find((arg) => arg.startsWith("pipelab://") || arg.startsWith("pipelab-beta://"));
+    const partUrl = parts.find(
+      (arg) => arg.startsWith("pipelab://") || arg.startsWith("pipelab-beta://"),
+    );
     if (partUrl) return partUrl;
   }
 
-  const anyUrl = args.find((arg) => arg.startsWith("pipelab://") || arg.startsWith("pipelab-beta://"));
+  const anyUrl = args.find(
+    (arg) => arg.startsWith("pipelab://") || arg.startsWith("pipelab-beta://"),
+  );
   if (anyUrl) return anyUrl;
 
   return null;
@@ -156,9 +162,9 @@ function createWindow(): void {
   const position =
     externalDisplay && is.dev
       ? {
-        x: externalDisplay.bounds.x + 50,
-        y: externalDisplay.bounds.y + 50,
-      }
+          x: externalDisplay.bounds.x + 50,
+          y: externalDisplay.bounds.y + 50,
+        }
       : {};
 
   mainWindow = new BrowserWindow({
@@ -212,7 +218,6 @@ const sendUpdateStatus = (status: string, downloadUrl?: string, version?: string
 };
 
 app.whenReady().then(async () => {
-
   // Check if launched via protocol URL on startup
   const startupArgs = is.dev ? process.argv.slice(2) : process.argv.slice(1);
   try {
@@ -277,18 +282,22 @@ app.whenReady().then(async () => {
     }
 
     // Helper to resolve manual download details for the platform
-    const resolveManualDownloadUrl = (release: any): { downloadUrl: string; version: string } | null => {
+    const resolveManualDownloadUrl = (
+      release: any,
+    ): { downloadUrl: string; version: string } | null => {
       if (!release) return null;
       const latestVersion = release.tag_name.split("@").pop();
       if (!latestVersion) return null;
 
       let asset;
       if (process.platform === "linux") {
-        asset = release.assets?.find((a: any) => a.name.endsWith(".AppImage")) ||
-                release.assets?.find((a: any) => a.name.endsWith(".deb"));
+        asset =
+          release.assets?.find((a: any) => a.name.endsWith(".AppImage")) ||
+          release.assets?.find((a: any) => a.name.endsWith(".deb"));
       } else if (process.platform === "darwin") {
-        asset = release.assets?.find((a: any) => a.name.endsWith(".dmg")) ||
-                release.assets?.find((a: any) => a.name.endsWith(".zip"));
+        asset =
+          release.assets?.find((a: any) => a.name.endsWith(".dmg")) ||
+          release.assets?.find((a: any) => a.name.endsWith(".zip"));
       } else if (process.platform === "win32") {
         asset = release.assets?.find((a: any) => a.name.endsWith(".exe"));
       }
@@ -335,7 +344,8 @@ app.whenReady().then(async () => {
             buttons: ["Restart", "Later"],
             title: "Application Update",
             message: process.platform === "win32" ? releaseNotes : releaseName,
-            detail: "A new version has been downloaded. Restart the application to apply the updates.",
+            detail:
+              "A new version has been downloaded. Restart the application to apply the updates.",
           };
 
           dialog.showMessageBox(dialogOpts).then((returnValue) => {
@@ -348,8 +358,14 @@ app.whenReady().then(async () => {
           // Fallback to manual update indicator if an update is actually available
           const manualInfo = resolveManualDownloadUrl(latestRelease);
           const currentVersion = app.getVersion();
-          if (manualInfo && semver.valid(manualInfo.version) && semver.gt(manualInfo.version, currentVersion)) {
-            console.log(`[Update] AutoUpdater failed, falling back to manual update for v${manualInfo.version}`);
+          if (
+            manualInfo &&
+            semver.valid(manualInfo.version) &&
+            semver.gt(manualInfo.version, currentVersion)
+          ) {
+            console.log(
+              `[Update] AutoUpdater failed, falling back to manual update for v${manualInfo.version}`,
+            );
             sendUpdateStatus("update-available", manualInfo.downloadUrl, manualInfo.version);
           } else {
             sendUpdateStatus("error");
@@ -363,7 +379,11 @@ app.whenReady().then(async () => {
       console.log("[Update] Auto-updater is not supported. Running manual check...");
       const manualInfo = resolveManualDownloadUrl(latestRelease);
       const currentVersion = app.getVersion();
-      if (manualInfo && semver.valid(manualInfo.version) && semver.gt(manualInfo.version, currentVersion)) {
+      if (
+        manualInfo &&
+        semver.valid(manualInfo.version) &&
+        semver.gt(manualInfo.version, currentVersion)
+      ) {
         console.log(`[Update] Manual update available: v${manualInfo.version}`);
         sendUpdateStatus("update-available", manualInfo.downloadUrl, manualInfo.version);
       } else {
@@ -410,7 +430,7 @@ app.whenReady().then(async () => {
     dialog.showErrorBox(
       "Startup Error",
       "Failed to start the background server. This is required for Pipelab to function.\n\n" +
-      (error instanceof Error ? error.message : String(error)),
+        (error instanceof Error ? error.message : String(error)),
     );
     app.quit();
     return;

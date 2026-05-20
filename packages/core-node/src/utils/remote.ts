@@ -1,6 +1,16 @@
 import { dirname, delimiter, join } from "node:path";
 import { tmpdir } from "node:os";
-import { mkdir, readdir, readFile, writeFile, access, chmod, rm, cp, rename } from "node:fs/promises";
+import {
+  mkdir,
+  readdir,
+  readFile,
+  writeFile,
+  access,
+  chmod,
+  rm,
+  cp,
+  rename,
+} from "node:fs/promises";
 import { existsSync, constants, statSync, readdirSync } from "node:fs";
 import pacote from "pacote";
 import semver from "semver";
@@ -80,12 +90,16 @@ export async function fetchPackage(
   isLocal?: boolean;
   entryPoint?: string;
 }> {
+  const start = Date.now();
   // 0. Check for local monorepo package in development
   if (isDev && projectRoot && process.env.PIPELAB_FORCE_NPM !== "true") {
     if (packageName.startsWith("@pipelab/")) {
+      const localStart = Date.now();
       const local = await tryResolveMonorepoPackage(packageName);
       if (local) {
-        console.log(`[Fetcher] ${packageName}: Resolved to local source at ${local.packageDir}`);
+        console.log(
+          `[Fetcher] ${packageName}: Resolved to local source at ${local.packageDir} (${Date.now() - localStart}ms)`,
+        );
         return {
           ...local,
           resolvedVersion: "workspace",
@@ -99,6 +113,7 @@ export async function fetchPackage(
   let resolvedVersion: string;
 
   console.log(`[Fetcher] Resolving ${packageName}@${versionOrRange || "latest"}...`);
+  const resolveStart = Date.now();
 
   try {
     // 1. Resolve version/range using npm with session-wide memoization and disk cache
@@ -122,12 +137,20 @@ export async function fetchPackage(
       );
     }
     resolvedVersion = foundVersion;
-    console.log(`[Fetcher] ${packageName}: Resolved to v${resolvedVersion} via npm`);
+    console.log(
+      `[Fetcher] ${packageName}: Resolved to v${resolvedVersion} via npm (${Date.now() - resolveStart}ms)`,
+    );
   } catch (error) {
-    console.warn(`[Fetcher] ${packageName}: remote resolution failed, trying local fallback...`);
+    console.warn(
+      `[Fetcher] ${packageName}: remote resolution failed (${Date.now() - resolveStart}ms), trying local fallback...`,
+    );
+    const fallbackStart = Date.now();
     const fallbackVersion = await tryLocalFallback(versionOrRange, error, baseDir, packageName);
     if (fallbackVersion) {
       resolvedVersion = fallbackVersion;
+      console.log(
+        `[Fetcher] ${packageName}: Resolved to local fallback ${resolvedVersion} (${Date.now() - fallbackStart}ms)`,
+      );
     } else {
       throw error;
     }
@@ -136,12 +159,17 @@ export async function fetchPackage(
   const cachePath = join(ctx.userDataPath, "cache", "pacote");
   const packageDir = join(baseDir, resolvedVersion);
 
+  const checkStart = Date.now();
   // If the package already exists and we don't need to install dependencies (or they are already installed), return immediately
   const isInstalled = options?.installDeps
-    ? (isPackageComplete(packageDir) && isDependenciesInstalledSync(packageDir))
+    ? isPackageComplete(packageDir) && isDependenciesInstalledSync(packageDir)
     : isPackageComplete(packageDir);
+  const checkDuration = Date.now() - checkStart;
 
   if (isInstalled) {
+    console.log(
+      `[Fetcher] ${packageName}@${resolvedVersion}: Already installed (check took ${checkDuration}ms, fetchPackage took ${Date.now() - start}ms)`,
+    );
     return { packageDir, resolvedVersion };
   }
 
@@ -149,8 +177,12 @@ export async function fetchPackage(
   return withLock(lockKey, async () => {
     if (!isPackageComplete(packageDir)) {
       console.log(`[Fetcher] ${packageName}@${resolvedVersion}: Downloading to ${packageDir}...`);
-      
-      const tempDir = join(baseDir, `.tmp-${resolvedVersion}-${Math.random().toString(36).slice(2)}`);
+      const downloadStart = Date.now();
+
+      const tempDir = join(
+        baseDir,
+        `.tmp-${resolvedVersion}-${Math.random().toString(36).slice(2)}`,
+      );
       await mkdir(tempDir, { recursive: true });
       try {
         await pacote.extract(`${packageName}@${resolvedVersion}`, tempDir, {
@@ -175,6 +207,9 @@ export async function fetchPackage(
             throw err;
           }
         }
+        console.log(
+          `[Fetcher] ${packageName}@${resolvedVersion}: Downloaded and extracted in ${Date.now() - downloadStart}ms`,
+        );
       } catch (err) {
         await rm(tempDir, { recursive: true, force: true }).catch(() => {});
         throw err;
@@ -182,12 +217,23 @@ export async function fetchPackage(
     }
 
     // 2. Resolve entry point from package.json for downloaded package
+    const entryStart = Date.now();
     const entryPoint = await resolveEntryPoint(packageDir, packageName);
+    console.log(
+      `[Fetcher] ${packageName}@${resolvedVersion}: Resolved entry point in ${Date.now() - entryStart}ms`,
+    );
 
     if (options?.installDeps) {
+      const depsStart = Date.now();
       await installDependencies(packageDir, packageName, options);
+      console.log(
+        `[Fetcher] ${packageName}@${resolvedVersion}: Installed dependencies in ${Date.now() - depsStart}ms`,
+      );
     }
 
+    console.log(
+      `[Fetcher] ${packageName}@${resolvedVersion}: FetchPackage complete in ${Date.now() - start}ms`,
+    );
     return { packageDir, resolvedVersion, entryPoint };
   });
 }
@@ -245,11 +291,15 @@ export async function runPnpm(
  * Installs a specific version of Node.js if not already present.
  */
 export async function ensureNodeJS(context: PipelabContext, version = DEFAULT_NODE_VERSION) {
+  const checkStart = Date.now();
   const isWindows = process.platform === "win32";
   const nodeDir = context.getThirdPartyPath("node", version);
   const finalNodePath = join(nodeDir, isWindows ? "node.exe" : "bin/node");
 
   if (isNodeJSComplete(finalNodePath)) {
+    console.log(
+      `[Environment] Node.js check took ${Date.now() - checkStart}ms (found at ${finalNodePath})`,
+    );
     return finalNodePath;
   }
 
@@ -269,10 +319,13 @@ export async function ensureNodeJS(context: PipelabContext, version = DEFAULT_NO
 
     sendStartupProgress(`Downloading Node.js v${version}...`);
     console.log(`Downloading Node.js from ${downloadUrl}...`);
+    const dlStart = Date.now();
     await downloadFile(downloadUrl, archivePath);
+    console.log(`[Environment] Node.js download took ${Date.now() - dlStart}ms`);
 
     sendStartupProgress(`Extracting Node.js v${version}...`);
     console.log(`Extracting Node.js to ${tempDir}...`);
+    const extStart = Date.now();
     const extractTempDir = join(tempDir, "extracted");
     await mkdir(extractTempDir, { recursive: true });
 
@@ -290,7 +343,10 @@ export async function ensureNodeJS(context: PipelabContext, version = DEFAULT_NO
     const parentDir = dirname(nodeDir);
     await mkdir(parentDir, { recursive: true });
 
-    const tempNodeDir = join(parentDir, `.tmp-node-${version}-${Math.random().toString(36).slice(2)}`);
+    const tempNodeDir = join(
+      parentDir,
+      `.tmp-node-${version}-${Math.random().toString(36).slice(2)}`,
+    );
     await mkdir(tempNodeDir, { recursive: true });
 
     try {
@@ -313,11 +369,13 @@ export async function ensureNodeJS(context: PipelabContext, version = DEFAULT_NO
           throw err;
         }
       }
+      console.log(`[Environment] Node.js extraction took ${Date.now() - extStart}ms`);
     } finally {
       await rm(tempNodeDir, { recursive: true, force: true }).catch(() => {});
       await rm(tempDir, { recursive: true, force: true }).catch(() => {});
     }
 
+    console.log(`[Environment] Node.js set up complete in ${Date.now() - checkStart}ms`);
     return finalNodePath;
   });
 }
@@ -326,10 +384,14 @@ export async function ensureNodeJS(context: PipelabContext, version = DEFAULT_NO
  * Installs the PNPM package from npm if not already present.
  */
 export async function ensurePNPM(context: PipelabContext, version = DEFAULT_PNPM_VERSION) {
+  const checkStart = Date.now();
   const pnpmDir = context.getPackagesPath("pnpm", version);
   const pnpmPath = join(pnpmDir, "bin", "pnpm.cjs");
 
   if (existsSync(pnpmPath)) {
+    console.log(
+      `[Environment] PNPM check took ${Date.now() - checkStart}ms (found at ${pnpmPath})`,
+    );
     return pnpmPath;
   }
 
@@ -340,11 +402,13 @@ export async function ensurePNPM(context: PipelabContext, version = DEFAULT_PNPM
     const { packageDir } = await fetchPackage("pnpm", version, {
       context,
     });
+    console.log(`[Environment] PNPM set up complete in ${Date.now() - checkStart}ms`);
     return join(packageDir, "bin", "pnpm.cjs");
   });
 }
 
 async function installDependencies(packageDir: string, packageName: string, options: FetchOptions) {
+  const start = Date.now();
   const nodeModulesPath = join(packageDir, "node_modules");
 
   if (isDependenciesInstalledSync(packageDir)) {
@@ -359,12 +423,14 @@ async function installDependencies(packageDir: string, packageName: string, opti
   try {
     // Copy package.json to tempDir so pnpm can install dependencies
     await cp(join(packageDir, "package.json"), join(tempDir, "package.json"));
-    
+
     console.log(`[Fetcher] ${packageName}: Ensuring dependencies are installed...`);
+    const pnpmStart = Date.now();
     const { all } = await runPnpm(tempDir, {
       signal: options.signal,
       context: options.context,
     });
+    console.log(`[Fetcher] ${packageName}: pnpm install command took ${Date.now() - pnpmStart}ms`);
 
     if (all) console.log(`[Fetcher] ${packageName}: Installation trace:\n${all}`);
 
@@ -373,8 +439,11 @@ async function installDependencies(packageDir: string, packageName: string, opti
     if (existsSync(nodeModulesPath)) {
       await rm(nodeModulesPath, { recursive: true, force: true }).catch(() => {});
     }
+    const renameStart = Date.now();
     await rename(tempNodeModules, nodeModulesPath);
-    console.log(`[Fetcher] ${packageName}: Dependencies installed successfully.`);
+    console.log(
+      `[Fetcher] ${packageName}: Dependencies installed successfully (rename took ${Date.now() - renameStart}ms, total installDependencies took ${Date.now() - start}ms).`,
+    );
   } catch (err: any) {
     console.error(
       `[Fetcher] ${packageName}: CRITICAL ERROR during dependency installation: ${err.message}`,

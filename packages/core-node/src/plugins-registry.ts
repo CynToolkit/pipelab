@@ -21,12 +21,19 @@ const DEFAULT_PLUGIN_IDS = [
 ];
 
 export const loadPipelabPlugin = async (id: string, options: { context: PipelabContext }) => {
+  const start = Date.now();
   try {
     const packageName = `@pipelab/plugin-${id}`;
-    const { packageDir, entryPoint } = await fetchPipelabPlugin(packageName, options.context.releaseTag, {
-      context: options.context,
-      installDeps: false,
-    });
+    const fetchStart = Date.now();
+    const { packageDir, entryPoint } = await fetchPipelabPlugin(
+      packageName,
+      options.context.releaseTag,
+      {
+        context: options.context,
+        installDeps: false,
+      },
+    );
+    const fetchDuration = Date.now() - fetchStart;
 
     console.log(`[Plugins] [${id}] Attempting to import from: ${entryPoint}`);
     if (!existsSync(entryPoint)) {
@@ -37,11 +44,16 @@ export const loadPipelabPlugin = async (id: string, options: { context: PipelabC
       } catch (e) {}
     }
 
+    const importStart = Date.now();
     const pluginModule = await import(pathToFileURL(entryPoint).href);
-    console.log(`[Plugins] [${id}] Successfully loaded from: ${packageDir}`);
+    const importDuration = Date.now() - importStart;
+    const totalDuration = Date.now() - start;
+    console.log(
+      `[Plugins] [${id}] Successfully loaded from: ${packageDir} (fetch: ${fetchDuration}ms, import: ${importDuration}ms, total: ${totalDuration}ms)`,
+    );
     return pluginModule.default;
   } catch (e: any) {
-    console.error(`[Plugins] [${id}] CRITICAL: Failed to load:`, e);
+    console.error(`[Plugins] [${id}] CRITICAL: Failed to load after ${Date.now() - start}ms:`, e);
     if (e.code === "ERR_MODULE_NOT_FOUND") {
       console.error(
         `[Plugins] [${id}] This usually means a dependency is missing in the plugin's node_modules.`,
@@ -56,7 +68,9 @@ export const builtInPlugins = async (options: { context: PipelabContext }) => {
 
   // Pre-ensure Node.js and PNPM once in parallel so plugins don't have to wait for them
   sendStartupProgress("Preparing environment...");
+  const envStart = Date.now();
   await Promise.all([ensureNodeJS(options.context), ensurePNPM(options.context)]);
+  console.log(`[Plugins] Environment preparation took ${Date.now() - envStart}ms`);
 
   const { usePlugins } = await import("@pipelab/shared");
   const { registerPlugins } = usePlugins();
@@ -64,15 +78,20 @@ export const builtInPlugins = async (options: { context: PipelabContext }) => {
 
   // Load plugins asynchronously in the background
   (async () => {
+    const totalStart = Date.now();
     for (const id of DEFAULT_PLUGIN_IDS) {
       sendStartupProgress(`Loading plugin: ${id}`);
+      const pluginStart = Date.now();
       const plugin = await loadPipelabPlugin(id, options);
+      console.log(
+        `[Plugins] [${id}] loadPipelabPlugin loop step took ${Date.now() - pluginStart}ms`,
+      );
       if (plugin) {
         registerPlugins([plugin]);
         webSocketServer.broadcast("plugin:loaded", { plugin });
       }
     }
-    console.log("[Plugins] All default plugins loaded.");
+    console.log(`[Plugins] All default plugins loaded in ${Date.now() - totalStart}ms.`);
     sendStartupProgress("All plugins loaded.");
     setTimeout(() => {
       webSocketServer.broadcast("startup:progress", { type: "ready" });
