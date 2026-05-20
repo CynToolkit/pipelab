@@ -1,5 +1,11 @@
 # @pipelab/plugin-core
 
+## 1.0.0-beta.11
+
+### Patch Changes
+
+- add shims
+
 ## 1.0.0-beta.10
 
 ### Patch Changes
