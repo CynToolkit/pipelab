@@ -1,5 +1,13 @@
 # @pipelab/shared
 
+## 1.0.0-beta.8
+
+### Patch Changes
+
+- changes
+- Updated dependencies
+  - @pipelab/migration@1.0.0-beta.8
+
 ## 1.0.0-beta.7
 
 ### Patch Changes

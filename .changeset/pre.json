@@ -29,11 +29,13 @@
     "@pipelab/plugin-poki": "0.9.9",
     "@pipelab/plugin-steam": "0.9.9",
     "@pipelab/plugin-system": "0.9.9",
-    "@pipelab/plugin-tauri": "0.9.9"
+    "@pipelab/plugin-tauri": "0.9.9",
+    "mini-c3-electron": "0.0.0"
   },
   "changesets": [
     "busy-trains-guess",
     "cute-chicken-hunt",
+    "fast-ghosts-like",
     "free-animals-bet",
     "hot-turkeys-cough",
     "kind-dryers-cheer",
