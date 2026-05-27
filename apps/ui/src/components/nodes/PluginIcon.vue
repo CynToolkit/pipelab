@@ -4,7 +4,12 @@
   <i
     v-else-if="icon.type === 'icon'"
     :style="{ 'font-size': width, width, display: 'flex', color }"
-    :class="{ 'node-icon': true, mdi: true, [icon.icon]: true }"
+    :class="{
+      'node-icon': true,
+      mdi: icon.icon.startsWith('mdi-'),
+      pi: icon.icon.startsWith('pi-'),
+      [icon.icon]: true,
+    }"
   />
 </template>
 

@@ -1,16 +1,11 @@
 import type { BrowserWindow } from "electron";
 import type {
   Action,
-  Condition,
-  Loop,
   Expression,
   Event,
   SetOutputActionFn,
-  SetOutputLoopFn,
   SetOutputExpressionFn,
   ExtractInputsFromAction,
-  ExtractInputsFromCondition,
-  ExtractInputsFromLoop,
   ExtractInputsFromEvent,
   ExtractInputsFromExpression,
 } from "@pipelab/shared";
@@ -20,8 +15,6 @@ import {
   type RunnerCallbackFnArgument,
   type ActionRunnerData,
   type ActionRunner,
-  type ConditionRunner,
-  type LoopRunner,
   type ExpressionRunner,
   type EventRunner,
   type Runner,
@@ -32,8 +25,6 @@ export {
   type RunnerCallbackFnArgument,
   type ActionRunnerData,
   type ActionRunner,
-  type ConditionRunner,
-  type LoopRunner,
   type ExpressionRunner,
   type EventRunner,
   type Runner,
@@ -42,29 +33,6 @@ export {
 
 export const createActionRunner = <ACTION extends Action>(
   runner: (data: ActionRunnerData<ACTION>) => Promise<void>,
-) => runner;
-
-export const createConditionRunner = <CONDITION extends Condition>(
-  runner: (data: {
-    log: typeof console.log;
-    inputs: ExtractInputsFromCondition<CONDITION>;
-    setMeta: (callback: (data: CONDITION["meta"]) => CONDITION["meta"]) => void;
-    meta: CONDITION["meta"];
-    cwd: string;
-    context: PipelabContext;
-  }) => Promise<boolean>,
-) => runner;
-
-export const createLoopRunner = <LOOP extends Loop>(
-  runner: (data: {
-    log: typeof console.log;
-    setOutput: SetOutputLoopFn<LOOP>;
-    inputs: ExtractInputsFromLoop<LOOP>;
-    setMeta: (callback: (data: LOOP["meta"]) => LOOP["meta"]) => void;
-    meta: LOOP["meta"];
-    cwd: string;
-    context: PipelabContext;
-  }) => Promise<"step" | "exit">,
 ) => runner;
 
 export const createExpressionRunner = <EXPRESSION extends Expression>(

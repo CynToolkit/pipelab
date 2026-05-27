@@ -2,7 +2,6 @@ import { makeRunner } from "./make";
 import { previewRunner } from "./preview";
 
 import { createNodeDefinition } from "@pipelab/plugin-core";
-const icon = new URL("./public/tauri.webp", import.meta.url).href;
 import {
   createMakeProps,
   createPackageV2Props,
@@ -15,13 +14,6 @@ import { configureRunner, props } from "./configure";
 import { packageV2Runner } from "./package";
 
 export default createNodeDefinition({
-  description: "Tauri",
-  name: "Tauri",
-  id: "tauri",
-  icon: {
-    type: "image",
-    image: icon,
-  },
   nodes: [
     // make and package
     {

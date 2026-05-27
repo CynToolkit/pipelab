@@ -172,12 +172,22 @@ const fetchInitialData = async () => {
     await init();
     // settingsStore.init() is no longer needed here as it's local, but we call loadRemoteSettings to sync
     await settingsStore.load();
+
+    // Show window once theme/settings info has been received
+    if (window.electron) {
+      window.electron.ipcRenderer.send("window:show");
+    }
+
     await authInit();
     await fetchSubscription();
     isDataLoaded.value = true;
     logger().info("Remote data fetch complete");
   } catch (error) {
     logger().error("Failed to fetch remote data:", error);
+    // Show window even if data fetch fails so the app is not stuck hidden
+    if (window.electron) {
+      window.electron.ipcRenderer.send("window:show");
+    }
   }
 };
 
@@ -187,6 +197,30 @@ watch(
   ([state, ready]) => {
     if (state === "connected" && ready) {
       fetchInitialData();
+    }
+  },
+  { immediate: true },
+);
+
+// Apply app theme configuration
+watch(
+  () => settingsStore.settings?.theme,
+  (newTheme) => {
+    if (newTheme === "dark") {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+  },
+  { immediate: true },
+);
+
+// Show window on connection failure
+watch(
+  isDisconnected,
+  (disconnected) => {
+    if (disconnected && window.electron) {
+      window.electron.ipcRenderer.send("window:show");
     }
   },
   { immediate: true },

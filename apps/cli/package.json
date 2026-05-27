@@ -17,8 +17,7 @@
   "type": "module",
   "scripts": {
     "build": "cross-env NODE_ENV=production tsdown",
-    "dev": "cross-env NODE_ENV=development tsx watch src/index.ts",
-    "serve": "cross-env NODE_ENV=development tsx watch src/index.ts serve",
+    "dev": "cross-env NODE_ENV=development tsx watch src/index.ts serve",
     "watch": "tsdown --watch",
     "start": "tsx src/index.ts",
     "test": "vitest run -c tests/e2e/vitest.config.mts",

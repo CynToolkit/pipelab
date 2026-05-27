@@ -1,16 +1,10 @@
-import { EnhancedFile, SavedFileDefault, SavedFileSimple } from "@pipelab/shared";
+import { EnhancedFile, SavedFile } from "@pipelab/shared";
 import { AppStore, useAppStore } from "@renderer/store/app";
 
-export function isSimplePipeline(
-  pipeline: EnhancedFile,
-): pipeline is EnhancedFile<SavedFileSimple> {
-  return pipeline.content.type === "simple";
-}
-
 export function isDefaultPipeline(
-  pipeline: EnhancedFile,
-): pipeline is EnhancedFile<SavedFileDefault> {
-  return pipeline.content.type === "default";
+  pipeline: EnhancedFile<any>,
+): pipeline is EnhancedFile<SavedFile> {
+  return !(pipeline.content as any).type || (pipeline.content as any).type === "default";
 }
 
 export const usePipeline = () => {
@@ -21,14 +15,8 @@ export const usePipeline = () => {
     getPluginDefinition,
   };
 
-  function createPipeline(pipeline: EnhancedFile) {
-    if (isSimplePipeline(pipeline)) {
-      return useSimplePipeline(pipeline, context);
-    } else if (isDefaultPipeline(pipeline)) {
-      return useDefaultPipeline(pipeline, context);
-    } else {
-      throw new Error("Invalid pipeline type" + pipeline.content.type);
-    }
+  function createPipeline(pipeline: EnhancedFile<any>) {
+    return useDefaultPipeline(pipeline, context);
   }
 
   return {
@@ -44,17 +32,8 @@ interface Context {
   getPluginDefinition: AppStore["getPluginDefinition"];
 }
 
-export const useSimplePipeline = (
-  pipeline: EnhancedFile<SavedFileSimple>,
-  context: Context,
-): UsePipeline => {
-  return {
-    getIcons: () => [],
-  };
-};
-
 export const useDefaultPipeline = (
-  pipeline: EnhancedFile<SavedFileDefault>,
+  pipeline: EnhancedFile<SavedFile>,
   context: Context,
 ): UsePipeline => {
   const getIcons = () => {

@@ -2,7 +2,10 @@
   <div class="node-event-wrapper">
     <div
       class="node-event"
-      :class="{ active: activeNode?.uid === value.uid }"
+      :class="{
+        active: activeNode?.uid === value.uid,
+        error: hasErrors,
+      }"
       @click="showSidebar = true"
     >
       <div class="vertical">
@@ -101,6 +104,14 @@ const editor = useEditor();
 const { getNodeDefinition, getPluginDefinition, setTriggerValue, addNode, removeTrigger } = editor;
 const { activeNode } = storeToRefs(editor);
 
+const hasErrors = computed(() => {
+  const innerErrors = props.errors[value.value.uid];
+  if (innerErrors) {
+    return Object.keys(innerErrors).length > 0;
+  }
+  return false;
+});
+
 const nodeDefinition = computed(() => {
   const el = getNodeDefinition(value.value.origin.nodeId, value.value.origin.pluginId);
   if (el) {
@@ -197,6 +208,10 @@ const showSidebar = ref(false);
   &.active {
     outline: 1px solid red;
     outline-offset: 3px;
+  }
+
+  &.error {
+    background-color: #ffcccc;
   }
 }
 

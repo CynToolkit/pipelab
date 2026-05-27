@@ -6,6 +6,7 @@ import { registerEngineHandlers } from "./engine";
 import { registerAgentsHandlers } from "./agents";
 import { registerAuthHandlers } from "./auth";
 import { registerSystemHandlers } from "./system";
+import { registerPluginsHandlers } from "./plugins";
 import { builtInPlugins } from "../plugins-registry";
 import { usePlugins } from "@pipelab/shared";
 import { PipelabContext } from "../context";
@@ -24,6 +25,7 @@ export const registerAllHandlers = async (options: {
   registerAgentsHandlers(context);
   registerAuthHandlers(context);
   registerSystemHandlers(options);
+  registerPluginsHandlers(context);
 
   const { registerPlugins } = usePlugins();
   // Execute in the background! The plugins will be dynamically registered and broadcasted to the UI.

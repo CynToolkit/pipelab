@@ -7,6 +7,7 @@ import type {
   AppConfigV5,
   AppConfigV6,
   AppConfigV7,
+  AppConfigV8,
 } from "../config.schema";
 
 export type {
@@ -18,4 +19,5 @@ export type {
   AppConfigV5,
   AppConfigV6,
   AppConfigV7,
+  AppConfigV8,
 };

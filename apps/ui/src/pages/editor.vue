@@ -59,6 +59,17 @@
             </div>
             <div class="right">
               <Button
+                outlined
+                :label="t('editor.project-settings')"
+                :disabled="isRunning"
+                size="small"
+                @click="showProjectSettingsDialog = true"
+              >
+                <template #icon>
+                  <i class="mdi mdi-cog mr-1"></i>
+                </template>
+              </Button>
+              <Button
                 v-if="hasBuildHistoryBenefit"
                 outlined
                 :label="t('editor.view-history')"
@@ -104,95 +115,82 @@
             </div>
           </div>
 
-          <div class="editor-wrapper">
-            <!-- <div class="aside">
-              <div>
-                <div class="bold">Project Settings</div>
-                <ProjectSettingsEditor v-if="instance"></ProjectSettingsEditor>
-              </div>
-              <div>
-                <div class="bold">Variables</div>
-                <VariablesEditor v-if="instance"></VariablesEditor>
-              </div>
-              <div>
-                <div class="bold">Environement</div>
-                <EnvironementEditor v-if="instance"></EnvironementEditor>
-              </div>
-            </div> -->
-            <div id="tour-editor-canvas" class="main">
-              <div class="node-editor-wrapper">
-                <EditorNodeEvent
-                  v-for="trigger in triggers"
-                  v-if="triggers.length > 0"
-                  :key="trigger.uid"
-                  :steps="stepsDisplay"
-                  :path="['0']"
-                  :value="trigger"
-                ></EditorNodeEvent>
-                <EditorNodeEventEmpty v-else :path="[]"></EditorNodeEventEmpty>
-
-                <NodesEditor
-                  v-if="instance"
-                  :errors="errors"
-                  :nodes="nodes"
-                  :path="[]"
-                  :steps="stepsDisplay"
-                  :starting-index="1"
-                  :is-running="isRunning"
-                ></NodesEditor>
-                <EditorNodeDummy :title="t('base.end')"></EditorNodeDummy>
-              </div>
-            </div>
-            <!-- <div class="aside">
-              <p class="m-0">
-                Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor
-                incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud
-                exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure
-                dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.
-                Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt
-                mollit anim id est laborum.
-              </p>
-            </div> -->
-            <div v-if="selectedNode" class="drawer right">
-              <div class="flex justify-content-between align-items-center flex-wrap">
-                <div class="text-bold text-xl">
-                  {{ selectedNode?.name ?? nodeDefinition?.name }}
-                </div>
-                <Button
-                  icon="pi pi-times"
-                  class="flex"
-                  size="small"
-                  @click="setSelectedNode(undefined)"
-                ></Button>
-              </div>
-              <div v-if="nodeDefinition" class="flex flex-column gap-4">
-                <div
-                  v-for="(paramDefinition, key) in nodeDefinition.params"
-                  :key="key"
-                  class="param"
-                >
-                  <ParamEditor
-                    :param="selectedNode.params[key]"
-                    :param-key="key"
-                    :param-definition="paramDefinition"
-                    :value="selectedNode"
+          <Splitter class="editor-wrapper" stateKey="pipelab-editor-splitter" stateStorage="local">
+            <SplitterPanel :size="75" :minSize="30">
+              <div id="tour-editor-canvas" class="main">
+                <div class="node-editor-wrapper">
+                  <EditorNodeEvent
+                    v-for="trigger in triggers"
+                    v-slot="{}"
+                    v-if="triggers.length > 0"
+                    :key="trigger.uid"
                     :steps="stepsDisplay"
-                    :variables="variables"
-                    @update:model-value="onValueChanged($event, key.toString())"
-                  ></ParamEditor>
+                    :path="['0']"
+                    :value="trigger"
+                  ></EditorNodeEvent>
+                  <EditorNodeEventEmpty v-else :path="[]"></EditorNodeEventEmpty>
+
+                  <NodesEditor
+                    v-if="instance"
+                    :errors="errors"
+                    :nodes="nodes"
+                    :path="[]"
+                    :steps="stepsDisplay"
+                    :starting-index="1"
+                    :is-running="isRunning"
+                  ></NodesEditor>
+                  <EditorNodeDummy :title="t('base.end')"></EditorNodeDummy>
                 </div>
               </div>
-              <div class="flex items-center gap-2">
-                <Button
-                  :label="t('base.delete')"
-                  icon="pi pi-trash"
-                  class="flex-auto"
-                  severity="danger"
-                  @click="removeNode(selectedNode.uid)"
-                ></Button>
+            </SplitterPanel>
+            <SplitterPanel :size="25" :minSize="15" v-if="selectedNode">
+              <div class="drawer right">
+                <transition name="fade-fast" mode="out-in">
+                  <div :key="selectedNode.uid" class="drawer-content-inner">
+                    <div class="drawer-header">
+                      <div class="text-bold text-xl">
+                        {{ selectedNode?.name ?? nodeDefinition?.name }}
+                      </div>
+                      <Button
+                        icon="pi pi-times"
+                        class="flex"
+                        size="small"
+                        @click="setSelectedNode(undefined)"
+                      ></Button>
+                    </div>
+                    <div class="drawer-body">
+                      <div v-if="nodeDefinition" class="flex flex-column gap-4">
+                        <div
+                          v-for="(paramDefinition, key) in nodeDefinition.params"
+                          :key="key"
+                          class="param"
+                        >
+                          <ParamEditor
+                            :param="selectedNode.params[key]"
+                            :param-key="key"
+                            :param-definition="paramDefinition"
+                            :value="selectedNode"
+                            :steps="stepsDisplay"
+                            :variables="variables"
+                            @update:model-value="onValueChanged($event, key.toString())"
+                          ></ParamEditor>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="drawer-footer">
+                      <Button
+                        :label="t('base.delete')"
+                        icon="pi pi-trash"
+                        class="w-full"
+                        severity="danger"
+                        @click="removeNode(selectedNode.uid)"
+                      ></Button>
+                    </div>
+                  </div>
+                </transition>
               </div>
-            </div>
-          </div>
+            </SplitterPanel>
+          </Splitter>
 
           <div class="bottom" :class="{ expanded: bottomExpanded }">
             <div id="tour-editor-logs" class="header" @click="toggleLogsWindow">
@@ -302,6 +300,40 @@
             </div>
           </Dialog>
         </div>
+
+        <!-- Glassmorphic Loading Overlay while JIT-installing plugins -->
+        <transition name="fade">
+          <div
+            v-if="isJitInstalling"
+            class="jit-loader-overlay"
+            :class="{ 'light-theme': settingsRef?.theme !== 'dark' }"
+          >
+            <div class="ambient" aria-hidden="true">
+              <div class="orb orb-1" />
+              <div class="orb orb-2" />
+              <div class="orb orb-3" />
+            </div>
+            <div class="grid-overlay" aria-hidden="true" />
+            <div class="jit-loader-card">
+              <div class="logo-wrap">
+                <img src="/icon.png" alt="Pipelab" class="logo" />
+              </div>
+              <div class="jit-loader-text-container">
+                <h3>{{ t("editor.jit-loading-title") }}</h3>
+                <p>{{ t("editor.jit-loading-subtitle") }}</p>
+              </div>
+              <div class="progress-track">
+                <div class="progress-fill" />
+              </div>
+              <div class="steps" aria-live="polite">
+                <div class="step">
+                  <i class="step-icon mdi mdi-loading mdi-spin" />
+                  <span>{{ t("editor.jit-loading-status") }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </transition>
       </div>
     </Layout>
 
@@ -310,6 +342,15 @@
       :pipeline-id="pipelineId"
       @hide="showBuildHistoryDialog = false"
     />
+
+    <Dialog
+      v-model:visible="showProjectSettingsDialog"
+      modal
+      :header="t('editor.project-settings')"
+      :style="{ width: '50rem' }"
+    >
+      <ProjectSettingsEditor v-if="instance"></ProjectSettingsEditor>
+    </Dialog>
   </div>
 </template>
 
@@ -319,18 +360,14 @@ import Accordion from "primevue/accordion";
 import AccordionPanel from "primevue/accordionpanel";
 import AccordionHeader from "primevue/accordionheader";
 import AccordionContent from "primevue/accordioncontent";
+import Splitter from "primevue/splitter";
+import SplitterPanel from "primevue/splitterpanel";
 import { useEditor } from "@renderer/store/editor";
 import NodesEditor from "@renderer/pages/nodes-editor.vue";
 import EditorNodeDummy from "@renderer/components/nodes/EditorNodeDummy.vue";
 import { storeToRefs } from "pinia";
 import { useRouter } from "vue-router";
-import {
-  BlockAction,
-  BlockCondition,
-  BlockLoop,
-  SavedFile,
-  SavedFileDefault,
-} from "@pipelab/shared";
+import { BlockAction, SavedFile } from "@pipelab/shared";
 import { useAPI } from "@renderer/composables/api";
 import { useToast } from "primevue/usetoast";
 import { tinykeys } from "tinykeys";
@@ -345,7 +382,7 @@ import EnvironementEditor from "./environement-editor.vue";
 import ProjectSettingsEditor from "./project-settings-editor.vue";
 import { format } from "date-fns";
 import { FancyAnsi, hasAnsi } from "fancy-ansi";
-import { debounce, watchThrottled } from "@vueuse/core";
+import { watchThrottled, useStorage } from "@vueuse/core";
 import { stripHtml } from "string-strip-html";
 import posthog from "posthog-js";
 import Layout from "@renderer/components/Layout.vue";
@@ -358,6 +395,7 @@ import { useTour } from "@renderer/composables/useTour";
 import { debounce as esDebounce } from "es-toolkit";
 
 import { useAppSettings } from "@renderer/store/settings";
+import { useAppStore } from "@renderer/store/app";
 
 type Param = ValueOf<BlockAction["params"]>;
 
@@ -386,6 +424,7 @@ const {
   nodeStatuses,
   isRunning,
   selectedNode,
+  plugins,
 } = storeToRefs(instance);
 const {
   loadSavedFile,
@@ -402,6 +441,42 @@ const {
 const { activeNode } = storeToRefs(instance);
 
 const { t } = useI18n();
+
+const appStore = useAppStore();
+const { pluginDefinitions } = storeToRefs(appStore);
+
+/**
+ * Before loading a pipeline into the editor, check which plugin IDs it uses
+ * and JIT-install any that are not yet registered.
+ * Plugin versions come from each block/trigger's origin.version.
+ */
+const ensurePluginsLoaded = async (file: SavedFile) => {
+  // Collect (pluginId → version) from all block/trigger origins
+  const pluginsMap: Record<string, string> = {};
+  for (const block of file.canvas.blocks) {
+    if (block?.origin?.pluginId) {
+      const id = block.origin.pluginId;
+      const ver = block.origin.version ?? "latest";
+      if (!pluginsMap[id] || pluginsMap[id] === "latest") pluginsMap[id] = ver;
+    }
+  }
+  for (const trigger of file.canvas.triggers) {
+    if (trigger?.origin?.pluginId) {
+      const id = trigger.origin.pluginId;
+      const ver = trigger.origin.version ?? "latest";
+      if (!pluginsMap[id] || pluginsMap[id] === "latest") pluginsMap[id] = ver;
+    }
+  }
+
+  if (Object.keys(pluginsMap).length === 0) return;
+  console.log("[Editor] Requesting ensure-loaded for pipeline plugins:", pluginsMap);
+  isJitInstalling.value = true;
+  try {
+    await api.execute("plugin:ensure-loaded", { plugins: pluginsMap });
+  } finally {
+    isJitInstalling.value = false;
+  }
+};
 
 const filesStore = useFiles();
 const { files } = storeToRefs(filesStore);
@@ -465,19 +540,30 @@ onMounted(() => {
 
 // Build history dialog state
 const showBuildHistoryDialog = ref(false);
+const showProjectSettingsDialog = ref(false);
 
-const quickLogs = ref([]);
+const quickLogs = ref<{ id: number; text: string; isExiting: boolean }[]>([]);
 
 const keyToNodeName = (key: string) => {
   const foundNode = nodes.value.find((x) => x.uid === key);
+  if (!foundNode) {
+    return key;
+  }
   const node = getNodeDefinition(foundNode.origin.nodeId, foundNode.origin.pluginId);
+  if (!node) {
+    return key;
+  }
   return node.node.name ?? key;
 };
+
+const isLoaded = ref(false);
+const isJitInstalling = ref(false);
 
 watch(
   [projectId, pipelineId],
   async () => {
-    const file = files.value.pipelines.find((x) => x.id === pipelineId.value);
+    isLoaded.value = false;
+    const file = files.value.pipelines?.find((x) => x.id === pipelineId.value);
 
     if (file) {
       if (file.type === "external") {
@@ -491,7 +577,9 @@ watch(
         }
 
         const content = configResult.result.result as SavedFile;
+        await ensurePluginsLoaded(content);
         await loadSavedFile(content);
+        isLoaded.value = true;
       } else if (file.type === "internal") {
         const { configName } = file;
 
@@ -505,7 +593,9 @@ watch(
 
         try {
           const content = fileData.result as SavedFile;
+          await ensurePluginsLoaded(content);
           await loadSavedFile(content);
+          isLoaded.value = true;
         } catch (e) {
           console.error("error", e);
           throw new Error(t("editor.invalid-file-content"));
@@ -518,11 +608,28 @@ watch(
   },
 );
 
+watch(
+  plugins,
+  async (newPlugins) => {
+    if (!isLoaded.value) return;
+    console.log("[Editor] Plugins config changed, JIT ensuring loaded:", newPlugins);
+    isDirty.value = true;
+    debouncedSave();
+    isJitInstalling.value = true;
+    try {
+      await api.execute("plugin:ensure-loaded", { plugins: newPlugins });
+    } finally {
+      isJitInstalling.value = false;
+    }
+  },
+  { deep: true },
+);
+
 const toast = useToast();
 
 const currentLogAccordion = ref();
 
-const lastActiveNode = ref<BlockAction | BlockCondition | BlockLoop>();
+const lastActiveNode = ref<BlockAction>();
 
 const cancel = async () => {
   await api.execute("action:cancel");
@@ -535,6 +642,50 @@ const run = async () => {
       t("editor.please-log-in-to-run-a-scenario"),
     );
     return;
+  }
+
+  // Prevent run if there are any validation errors (e.g. missing / disabled plugins)
+  const errorCount = Object.keys(errors.value).length;
+  if (errorCount > 0) {
+    const errorDetails: string[] = [];
+    for (const [uid, blockErrors] of Object.entries(errors.value)) {
+      const block =
+        nodes.value.find((n) => n.uid === uid) || triggers.value.find((t) => t.uid === uid);
+      if (!block) continue;
+
+      const blockName = "name" in block ? block.name : undefined;
+
+      const nodeDef = getNodeDefinition(block.origin.nodeId, block.origin.pluginId);
+      if (!nodeDef) {
+        errorDetails.push(
+          t("editor.validation-plugin-disabled-or-missing", {
+            pluginId: block.origin.pluginId,
+            nodeName: blockName || block.origin.nodeId,
+          }),
+        );
+      } else {
+        for (const err of blockErrors) {
+          if (err.type === "missing") {
+            errorDetails.push(
+              t("editor.validation-missing-param", {
+                nodeName: blockName || nodeDef.node.name,
+                paramName: err.param,
+              }),
+            );
+          }
+        }
+      }
+    }
+
+    if (errorDetails.length > 0) {
+      toast.add({
+        summary: t("editor.validation-failed") || "Validation Failed",
+        life: 10_000,
+        severity: "error",
+        detail: errorDetails.join("\n"),
+      });
+      return;
+    }
   }
 
   posthog.capture("run_started");
@@ -552,7 +703,9 @@ const run = async () => {
         variables: variables.value,
         projectName: name.value,
         projectPath:
-          currentFilePointer.value.type === "external" ? currentFilePointer.value.path : undefined, // @deprecated external files are deprecated
+          currentFilePointer.value?.type === "external"
+            ? currentFilePointer.value?.path
+            : undefined, // @deprecated external files are deprecated
       },
       async (data) => {
         console.log("graph:execute data", data);
@@ -601,10 +754,12 @@ const run = async () => {
     console.log("result", result);
 
     if (result.type === "success") {
-      posthog.capture(`node_sucess`, {
-        origin_node_id: lastActiveNode.value.origin.nodeId,
-        origin_plugin_id: lastActiveNode.value.origin.pluginId,
-      });
+      if (lastActiveNode.value) {
+        posthog.capture(`node_sucess`, {
+          origin_node_id: lastActiveNode.value.origin.nodeId,
+          origin_plugin_id: lastActiveNode.value.origin.pluginId,
+        });
+      }
 
       // Mark all nodes as done since execution completed successfully
       for (const node of nodes.value) {
@@ -680,11 +835,17 @@ onEditorChanged(() => {
 
 const onSaveRequest = async (silent = true) => {
   isSaving.value = true;
-  if (currentFilePointer.value.type === "external") {
+  const filePointer = currentFilePointer.value;
+  if (!filePointer) {
+    isSaving.value = false;
+    return;
+  }
+
+  if (filePointer.type === "external") {
     // @deprecated external files are deprecated
-    await saveLocal(currentFilePointer.value.path, silent);
-  } else if (currentFilePointer.value.type === "internal") {
-    await saveInternal(currentFilePointer.value.configName, silent);
+    await saveLocal(filePointer.path, silent);
+  } else if (filePointer.type === "internal") {
+    await saveInternal(filePointer.configName, silent);
   } else {
     // TODO: save to cloud
     throw new Error("TODO");
@@ -711,8 +872,8 @@ const navigateToBuildHistory = async () => {
 };
 
 const saveLocal = async (path: string, silent = false) => {
-  const result: SavedFileDefault = {
-    version: "4.0.0",
+  const result: SavedFile = {
+    version: "5.0.0",
     name: name.value,
     description: "",
     canvas: {
@@ -720,7 +881,6 @@ const saveLocal = async (path: string, silent = false) => {
       triggers: triggers.value,
     },
     variables: variables.value,
-    type: "default",
   };
 
   console.log("result", result);
@@ -728,7 +888,9 @@ const saveLocal = async (path: string, silent = false) => {
   await saveExternalFile(path, result);
 
   await update((state) => {
+    state.pipelines = state.pipelines || [];
     const data = state.pipelines.find((x) => x.id === pipelineId.value);
+    if (!data) return;
     if (data.type === "external") {
       // @deprecated external files are deprecated
       data.lastModified = new Date().toISOString();
@@ -747,8 +909,8 @@ const saveLocal = async (path: string, silent = false) => {
 };
 
 const saveInternal = async (configName: string, silent = false) => {
-  const result: SavedFileDefault = {
-    version: "4.0.0",
+  const result: SavedFile = {
+    version: "5.0.0",
     name: name.value,
     description: "",
     canvas: {
@@ -756,7 +918,6 @@ const saveInternal = async (configName: string, silent = false) => {
       triggers: triggers.value,
     },
     variables: variables.value,
-    type: "default",
   };
 
   try {
@@ -766,7 +927,9 @@ const saveInternal = async (configName: string, silent = false) => {
     });
 
     await update((state) => {
+      state.pipelines = state.pipelines || [];
       const data = state.pipelines.find((x) => x.id === pipelineId.value);
+      if (!data) return;
       if (data.type === "external" || data.type === "internal") {
         data.lastModified = new Date().toISOString();
       } else {
@@ -806,25 +969,29 @@ handle("dialog:alert", async (event, { value, send }) => {
 const isPromptDialogVisible = ref(false);
 const promptDialogAnswer = ref("");
 const onPromptDialogCancel = () => {
-  lastPromptInfos.callback({
-    type: "end",
-    data: {
-      type: "error",
-      ipcError: "canceled",
-    },
-  });
+  if (lastPromptInfos.callback) {
+    lastPromptInfos.callback({
+      type: "end",
+      data: {
+        type: "error",
+        ipcError: "canceled",
+      },
+    });
+  }
   isPromptDialogVisible.value = false;
 };
 const onPromptDialogOK = () => {
-  lastPromptInfos.callback({
-    type: "end",
-    data: {
-      type: "success",
-      result: {
-        answer: promptDialogAnswer.value,
+  if (lastPromptInfos.callback) {
+    lastPromptInfos.callback({
+      type: "end",
+      data: {
+        type: "success",
+        result: {
+          answer: promptDialogAnswer.value,
+        },
       },
-    },
-  });
+    });
+  }
   isPromptDialogVisible.value = false;
 };
 
@@ -863,7 +1030,7 @@ watchThrottled(
       ...quickLogs.value.map((log) => ({ ...log, isExiting: true })),
       {
         id: Date.now(),
-        text: logLines.value[activeNode.value.uid][lastLine],
+        text: String(currentLogItem[lastLine]) as string,
         isExiting: false,
       },
     ];
@@ -888,7 +1055,7 @@ const exportLog = async () => {
   for (const [key, value] of myLines) {
     html += `${key}\n`;
     for (const val of value) {
-      html += `${"\t".repeat(2)}${stripHtml(val.toString()).result}\n`;
+      html += `${"\t".repeat(2)}${stripHtml(String(val)).result}\n`;
     }
     html += `\n`;
   }
@@ -906,7 +1073,7 @@ const exportLog = async () => {
 };
 
 tinykeys(window, {
-  "$mod+KeyS": (event) => {
+  "$mod+KeyS": (event: KeyboardEvent) => {
     event.preventDefault();
     onSaveRequest(false);
   },
@@ -931,6 +1098,9 @@ const nodeDefinition = computed(() => {
 });
 
 const onValueChanged = (newValue: Param, paramKey: string) => {
+  if (!selectedNode.value) {
+    return;
+  }
   setBlockValue(selectedNode.value.uid, {
     ...selectedNode.value,
     params: {
@@ -965,8 +1135,8 @@ const onValueChanged = (newValue: Param, paramKey: string) => {
     height: calc(100% - 80px);
 
     .editor-wrapper {
-      display: flex;
-      flex-direction: row;
+      border: none;
+      background: transparent;
       height: 100%;
       min-height: 0;
     }
@@ -1159,13 +1329,35 @@ const onValueChanged = (newValue: Param, paramKey: string) => {
   display: flex;
   flex-direction: column;
   background-color: white;
-  padding: 16px;
-  border-left: 1px solid #ddd;
-  overflow: auto;
-  gap: 16px;
-  width: 600px;
+  overflow: hidden;
+  width: 100%;
+  height: 100%;
 
-  .right {
+  .drawer-content-inner {
+    display: flex;
+    flex-direction: column;
+    min-width: 320px;
+    width: 100%;
+    height: 100%;
+  }
+
+  .drawer-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px;
+    border-bottom: 1px solid #eee;
+  }
+
+  .drawer-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+  }
+
+  .drawer-footer {
+    padding: 16px;
+    border-top: 1px solid #eee;
   }
 }
 
@@ -1197,5 +1389,333 @@ const onValueChanged = (newValue: Param, paramKey: string) => {
 
 .slide-out {
   animation: slide-out 500ms forwards;
+}
+
+.jit-loader-overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #0d0d14ea;
+  color: #fff;
+  font-family: var(--font-family, "Geist", system-ui, sans-serif);
+  overflow: hidden;
+  z-index: 10000;
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  transition:
+    background-color 0.5s ease,
+    color 0.5s ease;
+
+  &.light-theme {
+    background: rgba(248, 250, 252, 0.45);
+    color: #0f172a;
+    backdrop-filter: blur(28px) saturate(210%);
+    -webkit-backdrop-filter: blur(28px) saturate(210%);
+  }
+
+  .ambient {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+
+  .orb {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(100px);
+    transition: background 0.5s ease;
+  }
+
+  .orb-1 {
+    width: 40%;
+    height: 40%;
+    top: -10%;
+    left: -10%;
+    background: radial-gradient(circle, #5b52f430 0%, transparent 70%);
+    animation: drift 22s ease-in-out infinite alternate;
+
+    .light-theme & {
+      background: radial-gradient(circle, rgba(99, 102, 241, 0.2) 0%, transparent 70%);
+    }
+  }
+
+  .orb-2 {
+    width: 35%;
+    height: 35%;
+    bottom: -10%;
+    right: -5%;
+    background: radial-gradient(circle, #3b82f625 0%, transparent 70%);
+    animation: drift 28s ease-in-out infinite alternate-reverse;
+
+    .light-theme & {
+      background: radial-gradient(circle, rgba(56, 189, 248, 0.18) 0%, transparent 70%);
+    }
+  }
+
+  .orb-3 {
+    width: 25%;
+    height: 25%;
+    top: 40%;
+    left: 45%;
+    transform: translate(-50%, -50%);
+    background: radial-gradient(circle, #7c3aed15 0%, transparent 70%);
+    animation: drift 18s ease-in-out infinite alternate;
+
+    .light-theme & {
+      background: radial-gradient(circle, rgba(236, 72, 153, 0.1) 0%, transparent 70%);
+    }
+  }
+
+  .grid-overlay {
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(255, 255, 255, 0.015) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    transition: background-image 0.5s ease;
+
+    .light-theme & {
+      background-image:
+        linear-gradient(rgba(99, 102, 241, 0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(99, 102, 241, 0.04) 1px, transparent 1px);
+    }
+  }
+
+  .jit-loader-card {
+    position: relative;
+    z-index: 10;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+    border-radius: 24px;
+    padding: 40px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.2rem;
+    max-width: 450px;
+    text-align: center;
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+    transition: all 0.5s ease;
+
+    .light-theme & {
+      background: rgba(255, 255, 255, 0.82);
+      border: 1px solid rgba(99, 102, 241, 0.15);
+      box-shadow:
+        0 24px 60px rgba(15, 23, 42, 0.1),
+        0 4px 20px rgba(99, 102, 241, 0.04),
+        inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    }
+  }
+
+  .logo-wrap {
+    width: 72px;
+    height: 72px;
+    border-radius: 20px;
+    background: rgba(91, 82, 244, 0.12);
+    border: 1px solid rgba(91, 82, 244, 0.28);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow:
+      0 0 30px rgba(91, 82, 244, 0.15),
+      inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    margin-bottom: 0.2rem;
+    animation: logo-pulse-dark 3s infinite ease-in-out;
+    transition: all 0.5s ease;
+
+    .light-theme & {
+      background: rgba(99, 102, 241, 0.07);
+      border: 1px solid rgba(99, 102, 241, 0.18);
+      box-shadow:
+        0 8px 24px rgba(99, 102, 241, 0.08),
+        inset 0 1px 0 rgba(255, 255, 255, 0.9);
+      animation: logo-pulse 3s infinite ease-in-out;
+    }
+  }
+
+  .logo {
+    width: 52px;
+    height: 52px;
+    object-fit: contain;
+  }
+
+  .jit-loader-text-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+
+    h3 {
+      margin: 0;
+      font-size: 1.35rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      background: linear-gradient(145deg, #fff 30%, rgba(255, 255, 255, 0.6) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      transition: background 0.5s ease;
+
+      .light-theme & {
+        background: linear-gradient(135deg, #0f172a 30%, #4338ca 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+    }
+
+    p {
+      margin: 0;
+      font-size: 0.85rem;
+      color: rgba(255, 255, 255, 0.5);
+      line-height: 1.5;
+
+      .light-theme & {
+        color: #475569;
+      }
+    }
+  }
+
+  .progress-track {
+    width: 280px;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 99px;
+    overflow: hidden;
+    margin: 0.4rem 0;
+    position: relative;
+    transition: background 0.5s ease;
+
+    .light-theme & {
+      background: rgba(15, 23, 42, 0.06);
+    }
+  }
+
+  .progress-fill {
+    position: absolute;
+    height: 100%;
+    background: linear-gradient(90deg, #818cf8, #7c3aed);
+    border-radius: 99px;
+    animation: indeterminate 1.8s ease-in-out infinite;
+
+    .light-theme & {
+      background: linear-gradient(90deg, #6366f1, #4f46e5);
+      box-shadow: 0 0 12px rgba(79, 70, 229, 0.25);
+    }
+  }
+
+  .steps {
+    min-height: 1.8rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .step {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.7);
+
+    .light-theme & {
+      color: #64748b;
+      font-weight: 500;
+    }
+  }
+
+  .step-icon {
+    flex-shrink: 0;
+    font-size: 0.75rem;
+    color: #7c6af7;
+
+    .light-theme & {
+      color: #4f46e5;
+    }
+  }
+}
+
+/* Fade transition */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+/* Fast fade transition for parameters */
+.fade-fast-enter-active,
+.fade-fast-leave-active {
+  transition: opacity 0.15s ease;
+}
+
+.fade-fast-enter-from,
+.fade-fast-leave-to {
+  opacity: 0;
+}
+
+/* Keyframes */
+@keyframes drift {
+  from {
+    transform: translate(0, 0);
+  }
+  to {
+    transform: translate(6vw, 4vh);
+  }
+}
+
+@keyframes indeterminate {
+  0% {
+    left: -40%;
+    right: 100%;
+  }
+  50% {
+    left: 20%;
+    right: 20%;
+  }
+  100% {
+    left: 100%;
+    right: -40%;
+  }
+}
+
+@keyframes logo-pulse {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 8px 24px rgba(99, 102, 241, 0.08);
+  }
+  50% {
+    transform: scale(1.04);
+    box-shadow: 0 14px 36px rgba(99, 102, 241, 0.16);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 8px 24px rgba(99, 102, 241, 0.08);
+  }
+}
+
+@keyframes logo-pulse-dark {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 30px rgba(91, 82, 244, 0.15);
+  }
+  50% {
+    transform: scale(1.04);
+    box-shadow: 0 0 45px rgba(91, 82, 244, 0.3);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 30px rgba(91, 82, 244, 0.15);
+  }
 }
 </style>

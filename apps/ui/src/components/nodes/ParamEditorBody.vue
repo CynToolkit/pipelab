@@ -125,7 +125,7 @@
 </template>
 
 <script lang="ts" setup>
-import { Action, Condition, Event } from "@pipelab/shared";
+import { Action, Event } from "@pipelab/shared";
 import type { ValueOf } from "type-fest";
 import { computed, PropType, toRefs, ref, onMounted } from "vue";
 import { useAPI } from "@renderer/composables/api";
@@ -135,17 +135,17 @@ import type { OpenDialogOptions } from "electron";
 import { SelectButtonChangeEvent } from "primevue/selectbutton";
 import { ListboxChangeEvent } from "primevue/listbox";
 import { InputNumberInputEvent } from "primevue/inputnumber";
-import { BlockAction, BlockCondition, BlockEvent, BlockLoop } from "@pipelab/shared";
+import { BlockAction, BlockEvent } from "@pipelab/shared";
 import { useEditor } from "@renderer/store/editor";
 import { storeToRefs } from "pinia";
 import ColorPicker from "../ColorPicker.vue";
 
-type Params = (Action | Condition | Event)["params"];
+type Params = (Action | Event)["params"];
 
 const props = defineProps<{
   paramDefinition: ValueOf<Params>;
   modelValue?: unknown;
-  value: BlockAction | BlockEvent | BlockCondition | BlockLoop;
+  value: BlockAction | BlockEvent;
 }>();
 
 const { modelValue } = toRefs(props);

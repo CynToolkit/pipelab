@@ -2,9 +2,36 @@ import { defineStore } from "pinia";
 import { createEventHook } from "@vueuse/core";
 import { ref } from "vue";
 import { useAPI } from "@renderer/composables/api";
-import { RendererPluginDefinition } from "@pipelab/shared";
-import { Presets } from "@pipelab/shared";
-import { useLogger } from "@pipelab/shared";
+import { RendererPluginDefinition, Presets, useLogger, transformUrl } from "@pipelab/shared";
+
+const transformPluginUrls = (plugin: RendererPluginDefinition): RendererPluginDefinition => {
+  if (!plugin) return plugin;
+
+  const transformedNodes = (plugin.nodes || []).map((nodeDef) => {
+    if (!nodeDef || !nodeDef.node) return nodeDef;
+    return {
+      ...nodeDef,
+      node: {
+        ...nodeDef.node,
+        icon: transformUrl(nodeDef.node.icon),
+      },
+    };
+  });
+
+  const transformedIcon =
+    plugin.icon?.type === "image"
+      ? {
+          ...plugin.icon,
+          image: transformUrl(plugin.icon.image),
+        }
+      : plugin.icon;
+
+  return {
+    ...plugin,
+    icon: transformedIcon,
+    nodes: transformedNodes,
+  };
+};
 
 export const useAppStore = defineStore("app", () => {
   const { logger } = useLogger();
@@ -30,7 +57,12 @@ export const useAppStore = defineStore("app", () => {
     const { result } = nodeGetResult;
     const { nodes: nodeDefs } = result;
 
-    pluginDefinitions.value = nodeDefs;
+    try {
+      pluginDefinitions.value = (nodeDefs || []).map(transformPluginUrls);
+    } catch (err) {
+      logger().error("Failed to transform plugin URLs on startup:", err);
+      pluginDefinitions.value = nodeDefs || [];
+    }
 
     //
     const presentResult = await api.execute("presets:get");
@@ -45,9 +77,12 @@ export const useAppStore = defineStore("app", () => {
     // Listen for dynamically loaded plugins in the background
     api.on("plugin:loaded", (event: any) => {
       if (event && event.plugin) {
-        // Prevent duplicate registration if nodes:get already got it
-        if (!pluginDefinitions.value.some((p) => p.id === event.plugin.id)) {
-          pluginDefinitions.value.push(event.plugin);
+        const transformedPlugin = transformPluginUrls(event.plugin);
+        const index = pluginDefinitions.value.findIndex((p) => p.id === transformedPlugin.id);
+        if (index !== -1) {
+          pluginDefinitions.value[index] = transformedPlugin;
+        } else {
+          pluginDefinitions.value.push(transformedPlugin);
         }
       }
     });

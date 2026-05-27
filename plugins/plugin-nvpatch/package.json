@@ -1,6 +1,19 @@
 {
   "name": "@pipelab/plugin-nvpatch",
   "version": "1.0.0-beta.12",
+  "description": "Pipelab plugin for patching NW.js game exports",
+  "keywords": [
+    "automation",
+    "construct3",
+    "desktop",
+    "game-export",
+    "nw.js",
+    "nwjs",
+    "patch",
+    "pipelab",
+    "pipelab-plugin",
+    "pipeline"
+  ],
   "license": "FSL-1.1-MIT",
   "repository": {
     "type": "git",
@@ -42,5 +55,13 @@
     "@pipelab/tsconfig": "workspace:*",
     "tsdown": "0.21.2",
     "typescript": "5.9.3"
+  },
+  "pipelab": {
+    "name": "NVPatch",
+    "description": "Pipelab plugin for patching NW.js game exports",
+    "icon": {
+      "type": "icon",
+      "icon": "mdi-wrench"
+    }
   }
 }

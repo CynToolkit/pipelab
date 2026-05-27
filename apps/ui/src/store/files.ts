@@ -6,6 +6,7 @@ import { createConfig } from "@renderer/utils/config";
 import { klona } from "klona";
 import { FileRepo, fileRepoMigrations, defaultFileRepo as defaultValue } from "@pipelab/shared";
 import { ValiError } from "valibot";
+import { useAPI } from "@renderer/composables/api";
 
 export interface File {
   data: SavedFile;
@@ -13,6 +14,7 @@ export interface File {
 
 export const useFiles = defineStore("files", () => {
   const files = ref<FileRepo>(defaultValue);
+  const api = useAPI();
 
   const {
     load: loadConfig,
@@ -37,8 +39,13 @@ export const useFiles = defineStore("files", () => {
   };
 
   const remove = async (id: string) => {
+    const pipeline = files.value.pipelines?.find((file) => file.id === id);
+    if (pipeline && pipeline.type === "internal") {
+      await api.execute("config:delete", { config: pipeline.configName });
+    }
+
     update((state) => {
-      state.pipelines = state.pipelines.filter((file) => file.id !== id);
+      state.pipelines = (state.pipelines || []).filter((file) => file.id !== id);
     });
   };
 
@@ -50,7 +57,7 @@ export const useFiles = defineStore("files", () => {
 
   const transferPipeline = async (pipelineId: string, projectId: string) => {
     update((state) => {
-      const pipeline = state.pipelines.find((p) => p.id === pipelineId);
+      const pipeline = state.pipelines?.find((p) => p.id === pipelineId);
       if (pipeline) {
         pipeline.project = projectId;
       }

@@ -1,13 +1,13 @@
 import { End } from "@pipelab/shared";
 import { ensureNodeJS, ensurePNPM } from "./utils/remote";
-import { Action, ActionRunner, Condition, ConditionRunner } from "./types/runner";
+import { Action, ActionRunner } from "./types/runner";
 import { InputsDefinition } from "@pipelab/shared";
 import { usePlugins } from "@pipelab/shared";
 import { isRequired } from "@pipelab/shared";
 import { mkdir, stat } from "node:fs/promises";
 import { PipelabContext } from "./context";
 import { useLogger } from "@pipelab/shared";
-import { BlockCondition } from "@pipelab/shared";
+
 import { HandleListenerSendFn } from "./handlers";
 import path from "node:path";
 const { join } = path;
@@ -35,81 +35,6 @@ const checkParams = (definitionParams: InputsDefinition, elementParams: Record<s
     if (isRequired(definitionParams[param])) {
       throw new Error('Missing param "' + param + '"');
     }
-  }
-};
-
-export const handleConditionExecute = async (
-  nodeId: string,
-  pluginId: string,
-  params: BlockCondition["params"],
-  cwd: string,
-  context: PipelabContext,
-): Promise<End<"condition:execute">> => {
-  const ctx = context;
-  const { plugins } = usePlugins();
-  const { logger } = useLogger();
-
-  const node = plugins.value
-    .find((plugin) => plugin.id === pluginId)
-    ?.nodes.find((node: any) => node.node.id === nodeId) as
-    | {
-        node: Condition;
-        runner: ConditionRunner<any>;
-      }
-    | undefined;
-
-  if (!node) {
-    return {
-      type: "error",
-      ipcError: "Node not found",
-    };
-  }
-
-  try {
-    const s = await stat(cwd);
-    if (!s.isDirectory()) {
-      throw new Error(`Execution directory "${cwd}" exists but is not a directory.`);
-    }
-  } catch (e: any) {
-    if (e.code === "ENOENT") {
-      await mkdir(cwd, { recursive: true });
-    } else {
-      throw e;
-    }
-  }
-
-  try {
-    checkParams(node.node.params, params);
-    const resolvedInputs = params; // await resolveConditionInputs(params, node.node, steps)
-
-    const result = await node.runner({
-      inputs: resolvedInputs,
-      log: (...args) => {
-        logger().info(`[${node.node.name}]`, ...args);
-      },
-      meta: {
-        definition: "",
-      },
-      setMeta: () => {
-        logger().info("set meta defined here");
-      },
-      cwd,
-      context: ctx,
-    });
-
-    return {
-      type: "success",
-      result: {
-        outputs: {},
-        value: result,
-      },
-    };
-  } catch (e) {
-    logger().error("Error in condition execution:", e);
-    return {
-      type: "error",
-      ipcError: String(e),
-    };
   }
 };
 

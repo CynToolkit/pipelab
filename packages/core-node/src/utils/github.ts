@@ -25,12 +25,32 @@ export async function fetchPackageReleases(
   options: FetchReleaseOptions = {},
 ): Promise<GitHubRelease[]> {
   const { repo = "CynToolkit/pipelab", allowPrerelease = false } = options;
-  const url = `https://api.github.com/repos/${repo}/releases`;
-
-  console.log(`[GitHub] Fetching releases for ${packageName} from ${url}...`);
 
   try {
-    const response = await fetch(url, {
+    const override = process.env.PIPELAB_OVERRIDE_RELEASE;
+    if (override) {
+      const targetTag = override.includes("@") ? override : `${packageName}@${override}`;
+      console.log(`[GitHub] Fetching specific override release: ${targetTag}`);
+      const response = await fetch(
+        `https://api.github.com/repos/${repo}/releases/tags/${encodeURIComponent(targetTag)}`,
+        {
+          headers: {
+            "User-Agent": "Pipelab-Desktop-Updater",
+            Accept: "application/vnd.github.v3+json",
+          },
+        },
+      );
+      if (response.ok) {
+        const release: GitHubRelease = await response.json();
+        return [release];
+      }
+      console.warn(`[GitHub] Override release tag ${targetTag} not found or error occurred`);
+    }
+
+    const matchingRefsUrl = `https://api.github.com/repos/${repo}/git/matching-refs/tags/${encodeURIComponent(packageName)}`;
+    console.log(`[GitHub] Querying matching tags from ${matchingRefsUrl}...`);
+
+    const response = await fetch(matchingRefsUrl, {
       headers: {
         "User-Agent": "Pipelab-Desktop-Updater",
         Accept: "application/vnd.github.v3+json",
@@ -41,14 +61,71 @@ export async function fetchPackageReleases(
       throw new Error(`GitHub API error: ${response.status} ${response.statusText}`);
     }
 
-    const releases: GitHubRelease[] = await response.json();
+    const refs = await response.json();
+    if (!Array.isArray(refs)) {
+      return [];
+    }
 
-    // Filter for releases that follow the {packageName}@X.Y.Z tag pattern
-    const packageReleases = releases
-      .filter((r) => r.tag_name.startsWith(`${packageName}@`))
-      .filter((r) => allowPrerelease || !r.prerelease);
+    // Extract tags matching the packageName@ pattern
+    const matchingTags = refs
+      .map((r: any) => r.ref.replace("refs/tags/", ""))
+      .filter((tag: string) => tag.startsWith(`${packageName}@`));
 
-    return packageReleases;
+    // Filter by semver and prerelease options
+    const filteredTags = matchingTags.filter((tag: string) => {
+      const version = tag.split("@").pop();
+      if (!version || !semver.valid(version)) {
+        return false;
+      }
+      const isPrerelease = semver.prerelease(version) !== null;
+      return allowPrerelease || !isPrerelease;
+    });
+
+    if (filteredTags.length === 0) {
+      return [];
+    }
+
+    // Sort by version (newest/highest first)
+    filteredTags.sort((a, b) => {
+      const vA = a.split("@").pop() || "0.0.0";
+      const vB = b.split("@").pop() || "0.0.0";
+      return semver.rcompare(vA, vB);
+    });
+
+    // Walk tags from newest to oldest, skipping any that have no GitHub Release attached.
+    // A bare git tag (no release) returns 404 from the releases/tags endpoint.
+    for (const tag of filteredTags) {
+      console.log(`[GitHub] Fetching release details for tag: ${tag}`);
+
+      const releaseResponse = await fetch(
+        `https://api.github.com/repos/${repo}/releases/tags/${encodeURIComponent(tag)}`,
+        {
+          headers: {
+            "User-Agent": "Pipelab-Desktop-Updater",
+            Accept: "application/vnd.github.v3+json",
+          },
+        },
+      );
+
+      if (releaseResponse.status === 404) {
+        // Tag exists but no Release was published for it — skip and try older tag
+        console.warn(`[GitHub] Tag "${tag}" has no associated Release, skipping.`);
+        continue;
+      }
+
+      if (!releaseResponse.ok) {
+        throw new Error(
+          `GitHub API error: ${releaseResponse.status} ${releaseResponse.statusText}`,
+        );
+      }
+
+      const release: GitHubRelease = await releaseResponse.json();
+      return [release];
+    }
+
+    // All tags were bare (no Release found)
+    console.warn(`[GitHub] No published Release found for any matching tag of "${packageName}".`);
+    return [];
   } catch (error) {
     console.error(`[GitHub] Failed to fetch releases for ${packageName}:`, error);
     return [];

@@ -3,7 +3,7 @@ import { PipelabContext } from "../context";
 import { useLogger } from "@pipelab/shared";
 import { getFinalPlugins, executeGraphWithHistory } from "../utils";
 import { presets } from "../presets/list";
-import { handleActionExecute, handleConditionExecute } from "../handler-func";
+import { handleActionExecute } from "../handler-func";
 import { generateTempFolder } from "../utils/fs-extras";
 import { tmpdir } from "node:os";
 import { setupConfigFile } from "../config";
@@ -35,12 +35,6 @@ export const registerEngineHandlers = (context: PipelabContext) => {
         result: presetData,
       },
     });
-  });
-
-  handle("condition:execute", async (_, { value }) => {
-    const { nodeId, params, pluginId } = value;
-    const cwd = await generateTempFolder(tmpdir());
-    await handleConditionExecute(nodeId, pluginId, params, cwd, context);
   });
 
   let abortControllerGraph: undefined | AbortController = undefined;

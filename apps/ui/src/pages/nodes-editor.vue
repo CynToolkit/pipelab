@@ -13,21 +13,6 @@
             :errors="errors"
             :is-running="isRunning"
           ></EditorNodeAction>
-          <!-- <EditorNodeCondition
-            v-if="node.type === 'condition'"
-            :path="[...path, index.toString()]"
-            :value="node"
-            :steps="steps"
-            :errors="errors[node.uid]"
-          ></EditorNodeCondition> -->
-          <!-- <EditorNodeLoop
-            v-if="node.type === 'loop'"
-            :path="[...path, index.toString()]"
-            :value="node"
-            @add-node="addNode"
-            :steps="steps"
-            :errors="errors[node.uid]"
-          ></EditorNodeLoop> -->
         </div>
       </div>
     </template>
@@ -36,9 +21,7 @@
 
 <script setup lang="ts">
 import EditorNodeAction from "@renderer/components/nodes/EditorNodeAction.vue";
-// import EditorNodeCondition from '@renderer/components/nodes/EditorNodeCondition.vue'
 // import EditorNodeEvent from '@renderer/components/nodes/EditorNodeEvent.vue'
-// import EditorNodeLoop from '@renderer/components/nodes/EditorNodeLoop.vue'
 
 import { PropType, toRefs } from "vue";
 import { Block, Steps } from "@pipelab/shared";

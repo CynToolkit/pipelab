@@ -1,5 +1,5 @@
 import { getDefaultUserDataPath as getCorePath } from "@pipelab/core-node";
-import pkg from "../package.json" assert { type: "json" };
+import pkg from "../package.json" with { type: "json" };
 
 const isDev = process.env.NODE_ENV === "development";
 

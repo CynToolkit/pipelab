@@ -6,6 +6,7 @@ import {
   defaultFileRepo as _defaultFileRepo,
   savedFileMigrator as _savedFileMigrator,
   configRegistry as _configRegistry,
+  normalizePipelineConfig as _normalizePipelineConfig,
 } from "./config/migrators";
 
 export const appSettingsMigrator = _appSettingsMigrator;
@@ -14,6 +15,7 @@ export const fileRepoMigrations = _fileRepoMigrations;
 export const defaultFileRepo = _defaultFileRepo;
 export const savedFileMigrator = _savedFileMigrator;
 export const configRegistry = _configRegistry;
+export const normalizePipelineConfig = _normalizePipelineConfig;
 
 // 2. Types
 export type { Migrator } from "./config/migrators";

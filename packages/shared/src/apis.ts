@@ -98,24 +98,13 @@ export type IpcDefinition = {
       | EndEvent<{ outputs: Record<string, unknown>; tmp: string }>
     ),
   ];
-  "condition:execute": [
-    {
-      pluginId: string;
-      nodeId: string;
-      params: any;
-      steps: Steps;
-    },
-    (
-      | Event<"progress", unknown>
-      | Event<"progress", unknown>
-      | EndEvent<{ outputs: Record<string, unknown>; value: boolean }>
-    ),
-  ];
+
   "constants:get": [void, EndEvent<{ result: { userData: string } }>];
 
   "config:load": [{ config: string }, EndEvent<{ result: any }>];
   "config:save": [{ data: any; config: string }, EndEvent<{ result: "ok" }>];
   "config:reset": [{ config: string; key: string }, EndEvent<{ result: "ok" }>];
+  "config:delete": [{ config: string }, EndEvent<{ result: "ok" }>];
   "action:cancel": [void, EndEvent<{ result: "ok" | "ko" }>];
 
   // Build History APIs
@@ -174,6 +163,43 @@ export type IpcDefinition = {
   "agent:version:get": [void, EndEvent<{ version: string }>];
   "startup:progress": [void, { type: "progress"; data: { message: string } } | { type: "ready" }];
   "plugin:loaded": [void, { plugin: RendererPluginDefinition }];
+  "plugin:search": [
+    { query: string },
+    EndEvent<{
+      results: Array<{
+        name: string;
+        version: string;
+        description?: string;
+        keywords?: string[];
+        date?: string;
+      }>;
+    }>,
+  ];
+  "plugin:get-details": [
+    { packageName: string },
+    EndEvent<{
+      name: string;
+      latestVersion: string;
+      versions: string[];
+      description?: string;
+    }>,
+  ];
+  "plugin:install": [{ packageName: string; version: string }, EndEvent<{ result: "ok" }>];
+  "plugin:uninstall": [{ packageName: string }, EndEvent<{ result: "ok" }>];
+  "plugin:list-installed": [
+    void,
+    EndEvent<{
+      installed: Array<{
+        name: string;
+        version: string;
+        description?: string;
+      }>;
+    }>,
+  ];
+  "plugin:ensure-loaded": [
+    { plugins: Record<string, string> },
+    EndEvent<{ loaded: string[]; failed: string[] }>,
+  ];
 };
 
 export type Channels = keyof IpcDefinition;

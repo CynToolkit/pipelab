@@ -1,6 +1,19 @@
 {
   "name": "@pipelab/plugin-steam",
   "version": "1.0.0-beta.12",
+  "description": "Pipelab plugin for publishing games to Steam via SteamCMD",
+  "keywords": [
+    "automation",
+    "deployment",
+    "game-development",
+    "game-publishing",
+    "pipelab",
+    "pipelab-plugin",
+    "pipeline",
+    "steam",
+    "steamcmd",
+    "valve"
+  ],
   "license": "FSL-1.1-MIT",
   "repository": {
     "type": "git",
@@ -45,6 +58,11 @@
     "tsdown": "0.21.2",
     "typescript": "5.9.3",
     "vitest": "3.1.4"
+  },
+  "pipelab": {
+    "name": "Steam",
+    "description": "Pipelab plugin for publishing games to Steam via SteamCMD",
+    "icon": "./dist/steam.webp"
   },
   "test": {
     "env": {

@@ -187,10 +187,10 @@
 <script setup lang="ts">
 import { computed, ref, toRefs, watch } from "vue";
 import type { ValueOf } from "type-fest";
-import { Action, Condition, Event } from "@pipelab/shared";
+import { Action, Event } from "@pipelab/shared";
 import { createCodeEditor } from "@renderer/utils/code-editor";
 import { CreateQuickJSFn } from "@pipelab/shared";
-import { BlockAction, BlockCondition, BlockEvent, BlockLoop, Steps } from "@pipelab/shared";
+import { BlockAction, BlockEvent, Steps } from "@pipelab/shared";
 import { controlsToIcon, controlsToType } from "@renderer/models/controls";
 import { Completion, CompletionContext } from "@codemirror/autocomplete";
 import { javascriptLanguage } from "@codemirror/lang-javascript";
@@ -208,7 +208,7 @@ import { useConfirm } from "primevue/useconfirm";
 import { klona } from "klona";
 import { stepsPlaceholders } from "@renderer/utils/code-editor/step-plugin";
 
-type Params = (Action | Condition | Event)["params"];
+type Params = (Action | Event)["params"];
 type Param = ValueOf<BlockAction["params"]>;
 
 const props = defineProps<{
@@ -216,7 +216,7 @@ const props = defineProps<{
   paramDefinition: ValueOf<Params>;
   paramKey: string | number;
 
-  value: BlockAction | BlockEvent | BlockCondition | BlockLoop;
+  value: BlockAction | BlockEvent;
   steps: Steps;
   variables: Variable[];
 }>();

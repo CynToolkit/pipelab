@@ -1,6 +1,19 @@
 {
   "name": "@pipelab/plugin-netlify",
   "version": "1.0.0-beta.12",
+  "description": "Pipelab plugin for deploying web projects to Netlify",
+  "keywords": [
+    "automation",
+    "cdn",
+    "deploy",
+    "deployment",
+    "hosting",
+    "netlify",
+    "pipelab",
+    "pipelab-plugin",
+    "pipeline",
+    "web"
+  ],
   "license": "FSL-1.1-MIT",
   "repository": {
     "type": "git",
@@ -43,5 +56,10 @@
     "@pipelab/tsconfig": "workspace:*",
     "tsdown": "0.21.2",
     "typescript": "5.9.3"
+  },
+  "pipelab": {
+    "name": "Netlify",
+    "description": "Pipelab plugin for deploying web projects to Netlify",
+    "icon": "./dist/assets/netlify-icon.webp"
   }
 }

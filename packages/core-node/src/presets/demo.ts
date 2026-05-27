@@ -9,7 +9,7 @@ export const demoPreset: PresetFn = async () => {
   const logOkId = "log-ok";
 
   const data: SavedFile = {
-    version: "1.0.0",
+    version: "5.0.0",
     variables: [],
     name: "demo",
     description: "demo",
@@ -18,7 +18,7 @@ export const demoPreset: PresetFn = async () => {
         {
           type: "event",
           origin: {
-            pluginId: "system",
+            pluginId: "@pipelab/plugin-system",
             nodeId: "manual",
           },
           uid: startId,
@@ -27,7 +27,7 @@ export const demoPreset: PresetFn = async () => {
         {
           type: "action",
           origin: {
-            pluginId: "construct",
+            pluginId: "@pipelab/plugin-construct",
             nodeId: "export-construct-project",
           },
           uid: exportConstructProjectId,
@@ -41,7 +41,7 @@ export const demoPreset: PresetFn = async () => {
         {
           type: "action",
           origin: {
-            pluginId: "filesystem",
+            pluginId: "@pipelab/plugin-filesystem",
             nodeId: "list-files-node",
           },
           uid: listFilesNodeId,
@@ -53,7 +53,7 @@ export const demoPreset: PresetFn = async () => {
         {
           type: "loop",
           origin: {
-            pluginId: "system",
+            pluginId: "@pipelab/plugin-system",
             nodeId: "for",
           },
 
@@ -64,7 +64,7 @@ export const demoPreset: PresetFn = async () => {
             {
               type: "condition",
               origin: {
-                pluginId: "filesystem",
+                pluginId: "@pipelab/plugin-filesystem",
                 nodeId: "is-file",
               },
               uid: "is-file-condition",
@@ -76,7 +76,7 @@ export const demoPreset: PresetFn = async () => {
                 {
                   type: "action",
                   origin: {
-                    pluginId: "system",
+                    pluginId: "@pipelab/plugin-system",
                     nodeId: "log",
                   },
                   params: {
@@ -89,7 +89,7 @@ export const demoPreset: PresetFn = async () => {
                 {
                   type: "action",
                   origin: {
-                    pluginId: "system",
+                    pluginId: "@pipelab/plugin-system",
                     nodeId: "log",
                   },
                   params: {
@@ -105,7 +105,7 @@ export const demoPreset: PresetFn = async () => {
         {
           type: "action",
           origin: {
-            pluginId: "system",
+            pluginId: "@pipelab/plugin-system",
             nodeId: "log",
           },
           uid: logOkId,

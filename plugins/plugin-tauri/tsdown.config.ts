@@ -16,4 +16,5 @@ export default defineConfig({
   deps: {
     alwaysBundle: [/.*/],
   },
+  copy: ["src/public"],
 });

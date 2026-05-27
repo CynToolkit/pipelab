@@ -154,10 +154,8 @@ export type IconType =
       icon: string;
     };
 export interface PluginDefinition {
-  id: string;
-  name: string;
-  icon: IconType;
-  description: string;
+  packageName?: string;
+  version?: string;
 }
 
 export type RendererNodeDefinition = {
@@ -165,6 +163,13 @@ export type RendererNodeDefinition = {
 };
 
 export interface RendererPluginDefinition extends PluginDefinition {
+  id: string;
+  name: string;
+  icon: IconType;
+  description: string;
+  isOfficial: boolean;
+  packageName: string;
+  version: string;
   nodes: Array<RendererNodeDefinition>;
 }
 
@@ -203,10 +208,7 @@ export type SetOutputActionFn<T extends Action> = (
   key: keyof T["outputs"],
   value: T["outputs"][typeof key]["value"],
 ) => void;
-export type SetOutputLoopFn<T extends Loop> = (
-  key: keyof T["outputs"],
-  value: T["outputs"][typeof key]["value"],
-) => void;
+
 export type SetOutputExpressionFn<T extends Expression> = (
   key: keyof T["outputs"],
   value: T["outputs"][typeof key]["value"],
@@ -244,44 +246,12 @@ export type ExtractInputsFromAction<ACTION extends Action> = {
   [index in keyof ACTION["params"]]: ACTION["params"][index]["value"];
 };
 
-export type ExtractInputsFromCondition<CONDITION extends Condition> = {
-  [index in keyof CONDITION["params"]]: CONDITION["params"][index]["value"];
-};
-export type ExtractInputsFromLoop<LOOP extends Loop> = {
-  [index in keyof LOOP["params"]]: LOOP["params"][index]["value"];
-};
 export type ExtractInputsFromEvent<EVENT extends Event> = {
   [index in keyof EVENT["params"]]: EVENT["params"][index]["value"];
 };
 export type ExtractInputsFromExpression<EXPRESSION extends Expression> = {
   [index in keyof EXPRESSION["params"]]: EXPRESSION["params"][index]["value"];
 };
-
-export interface Condition extends BaseNode {
-  id: string;
-  type: "condition";
-  version?: number;
-  displayString: string;
-  icon: string;
-  name: string;
-  description: string;
-  params: InputsDefinition;
-  meta?: Meta;
-  platforms?: NodeJS.Platform[];
-}
-
-export interface Loop extends BaseNode {
-  id: string;
-  type: "loop";
-  version?: number;
-  displayString: string;
-  icon: string;
-  name: string;
-  description: string;
-  params: InputsDefinition;
-  meta?: Meta;
-  outputs: OutputsDefinition;
-}
 
 export interface Expression extends BaseNode {
   id: string;
@@ -309,7 +279,7 @@ export interface Event extends BaseNode {
   platforms?: NodeJS.Platform[];
 }
 
-export type PipelabNode = Event | Condition | Expression | Action | Loop;
+export type PipelabNode = Event | Expression | Action;
 
 export const createDefinition = <T extends MainPluginDefinition>(definition: T) => {
   return definition satisfies T;
@@ -448,20 +418,6 @@ export const createExpression = <T extends Omit<Expression, "type">>(expression:
     ...expression,
     type: "expression",
   } satisfies Expression;
-};
-
-export const createCondition = <T extends Omit<Condition, "type">>(condition: T) => {
-  return {
-    ...condition,
-    type: "condition",
-  } satisfies Condition;
-};
-
-export const createLoop = <T extends Omit<Loop, "type">>(loop: T) => {
-  return {
-    ...loop,
-    type: "loop",
-  } satisfies Loop;
 };
 
 export const createEvent = <T extends Omit<Event, "type">>(event: T) => {

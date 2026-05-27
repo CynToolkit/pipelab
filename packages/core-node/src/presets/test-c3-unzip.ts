@@ -7,7 +7,7 @@ export const testC3Unzip: PresetFn = async () => {
   const steamUpload = "steam-upload-node";
 
   const data: SavedFile = {
-    version: "3.0.0",
+    version: "5.0.0",
     name: "From Construct to Steam",
     description: "Export from Construct, package with Electron, then upload to Steam",
     variables: [],
@@ -16,8 +16,9 @@ export const testC3Unzip: PresetFn = async () => {
         {
           type: "event",
           origin: {
-            pluginId: "system",
+            pluginId: "@pipelab/plugin-system",
             nodeId: "manual",
+            version: "latest",
           },
           uid: "manual-start",
           params: {},
@@ -29,7 +30,8 @@ export const testC3Unzip: PresetFn = async () => {
           type: "action",
           origin: {
             nodeId: "export-construct-project",
-            pluginId: "construct",
+            pluginId: "@pipelab/plugin-construct",
+            version: "latest",
           },
           params: {
             file: {
@@ -59,7 +61,8 @@ export const testC3Unzip: PresetFn = async () => {
           type: "action",
           origin: {
             nodeId: "unzip-file-node",
-            pluginId: "filesystem",
+            pluginId: "@pipelab/plugin-filesystem",
+            version: "latest",
           },
           params: {
             file: {
@@ -73,15 +76,22 @@ export const testC3Unzip: PresetFn = async () => {
           type: "action",
           origin: {
             nodeId: "electron:package",
-            pluginId: "electron",
+            pluginId: "@pipelab/plugin-electron",
+            version: "latest",
           },
           params: {
             "input-folder": {
               editor: "editor",
               value: `steps['${unzipFileId}']['outputs']['output']`,
             },
-            arch: undefined,
-            platform: undefined,
+            arch: {
+              editor: "simple",
+              value: undefined,
+            },
+            platform: {
+              editor: "simple",
+              value: undefined,
+            },
           },
         },
         {
@@ -89,7 +99,8 @@ export const testC3Unzip: PresetFn = async () => {
           type: "action",
           origin: {
             nodeId: "steam-upload",
-            pluginId: "steam",
+            pluginId: "@pipelab/plugin-steam",
+            version: "latest",
           },
           params: {
             folder: {

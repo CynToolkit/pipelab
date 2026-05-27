@@ -15,7 +15,10 @@
       "storage": "Stockage",
       "integrations": "Intégrations",
       "advanced": "Avancé",
-      "billing": "Facturation"
+      "billing": "Facturation",
+      "plugins": "Plugins",
+      "core-plugins": "Plugins de base",
+      "community-plugins": "Plugins de la communauté"
     },
     "clearTempFolders": "Nettoyer automatiquement les fichiers temporaires",
     "clearTempFoldersDescription": "Lorsque cette option est activée, tous les fichiers temporaires créés lors de l'exécution du pipeline seront automatiquement supprimés une fois le pipeline terminé. Cela permet d'économiser de l'espace disque, mais vous devrez peut-être copier vous-même des artefacts pour les préserver.",

@@ -50,6 +50,46 @@ export async function serveCommand(options: ServeOptions, version: string, _dirn
   }
 
   const server = http.createServer(async (request, response) => {
+    // Serve local media files securely via HTTP
+    if (request.url?.startsWith("/media-file/")) {
+      const prefix = "/media-file/";
+      const encodedPath = request.url.substring(prefix.length);
+      const filePath = decodeURIComponent(encodedPath);
+      // Strip leading slash on Windows if followed by a drive letter (e.g. /C:/...)
+      const normalizedPath =
+        filePath.startsWith("/") && filePath.match(/^\/[a-zA-Z]:/)
+          ? filePath.substring(1)
+          : filePath;
+
+      if (existsSync(normalizedPath)) {
+        try {
+          const content = await readFile(normalizedPath);
+          let contentType = "application/octet-stream";
+          if (normalizedPath.endsWith(".png")) contentType = "image/png";
+          else if (normalizedPath.endsWith(".jpg") || normalizedPath.endsWith(".jpeg"))
+            contentType = "image/jpeg";
+          else if (normalizedPath.endsWith(".svg")) contentType = "image/svg+xml";
+          else if (normalizedPath.endsWith(".gif")) contentType = "image/gif";
+          else if (normalizedPath.endsWith(".webp")) contentType = "image/webp";
+
+          response.writeHead(200, {
+            "Content-Type": contentType,
+            "Access-Control-Allow-Origin": "*",
+          });
+          response.end(content);
+          return;
+        } catch (e) {
+          response.writeHead(500, { "Content-Type": "text/plain" });
+          response.end(`Error reading file: ${e}`);
+          return;
+        }
+      } else {
+        response.writeHead(404, { "Content-Type": "text/plain" });
+        response.end(`File not found: ${normalizedPath}`);
+        return;
+      }
+    }
+
     if (isDev) {
       response.writeHead(200, { "Content-Type": "text/html" });
       response.end(`

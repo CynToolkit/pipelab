@@ -1,6 +1,19 @@
 {
   "name": "@pipelab/plugin-system",
   "version": "1.0.0-beta.12",
+  "description": "Pipelab plugin for running shell commands and system operations",
+  "keywords": [
+    "automation",
+    "cli",
+    "command",
+    "exec",
+    "pipelab",
+    "pipelab-plugin",
+    "pipeline",
+    "scripting",
+    "shell",
+    "system"
+  ],
   "license": "FSL-1.1-MIT",
   "repository": {
     "type": "git",
@@ -41,5 +54,13 @@
     "@pipelab/tsconfig": "workspace:*",
     "tsdown": "0.21.2",
     "typescript": "5.9.3"
+  },
+  "pipelab": {
+    "name": "System",
+    "description": "Pipelab plugin for running shell commands and system operations",
+    "icon": {
+      "type": "icon",
+      "icon": "mdi-cog-outline"
+    }
   }
 }

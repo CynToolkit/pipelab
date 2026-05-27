@@ -33,4 +33,12 @@ export const registerIpcHandlers = () => {
   ipcMain.handle("shell:showItemInFolder", (event, path) => {
     shell.showItemInFolder(path);
   });
+
+  ipcMain.on("window:show", (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (win) {
+      win.show();
+      win.maximize();
+    }
+  });
 };

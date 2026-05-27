@@ -23,7 +23,10 @@ import { pipeline } from "node:stream/promises";
 export const ensure = async (filesPath: string, defaultContent = "{}") => {
   await mkdirP(dirname(filesPath), { recursive: true });
   try {
-    await access(filesPath);
+    const s = await stat(filesPath);
+    if (s.size === 0) {
+      await writeFile(filesPath, defaultContent);
+    }
   } catch {
     await writeFile(filesPath, defaultContent);
   }

@@ -3,7 +3,6 @@ import { packageRunner } from "./package";
 import { previewRunner } from "./preview";
 
 import { createNodeDefinition } from "@pipelab/plugin-core";
-const icon = new URL("./public/electron.webp", import.meta.url).href;
 import {
   createMakeProps,
   createPackageProps,
@@ -18,13 +17,6 @@ import { configureRunner, props } from "./configure";
 import { packageV2Runner } from "./package-v2";
 
 export default createNodeDefinition({
-  description: "Electron",
-  name: "Electron",
-  id: "electron",
-  icon: {
-    type: "image",
-    image: icon,
-  },
   nodes: [
     // make and package
     {

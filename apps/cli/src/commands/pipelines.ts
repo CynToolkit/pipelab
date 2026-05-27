@@ -1,7 +1,8 @@
 import { PipelabContext, setupConfigFile } from "@pipelab/core-node";
 import { FileRepo, SaveLocation } from "@pipelab/shared";
-import { readFile, unlink } from "node:fs/promises";
+import { readFile, unlink, readdir } from "node:fs/promises";
 import { getDefaultUserDataPath } from "../paths";
+import path from "node:path";
 
 export async function listPipelinesCommand(options: { userData?: string }) {
   const userDataPath = options.userData || getDefaultUserDataPath();
@@ -75,7 +76,7 @@ export async function showPipelineCommand(
     const projectsConfig = await setupConfigFile<FileRepo>("projects", { context });
     const repo = await projectsConfig.getConfig();
 
-    const pipeline = repo.pipelines.find(
+    const pipeline = repo.pipelines?.find(
       (p) =>
         p.id === idOrName ||
         (p.type === "internal" && p.configName === idOrName) ||
@@ -219,6 +220,11 @@ export async function deletePipelineCommand(
     const projectsConfig = await setupConfigFile<FileRepo>("projects", { context });
     const repo = await projectsConfig.getConfig();
 
+    if (!repo.pipelines) {
+      console.error(`Pipeline "${id}" not found.`);
+      process.exit(1);
+    }
+
     const index = repo.pipelines.findIndex(
       (p) => p.id === id || (p.type === "internal" && p.configName === id),
     );
@@ -233,9 +239,21 @@ export async function deletePipelineCommand(
     // 1. Delete internal file if applicable
     if (pipeline.type === "internal") {
       try {
-        const path = context.getConfigPath(`${pipeline.configName}.json`);
-        await unlink(path);
+        const filePath = context.getConfigPath(`${pipeline.configName}.json`);
+        await unlink(filePath);
         console.log(`Deleted pipeline file: ${pipeline.configName}.json`);
+
+        // Clean up versioned backups too
+        const parsedPath = path.parse(filePath);
+        const dirEntries = await readdir(parsedPath.dir).catch(() => [] as string[]);
+        const prefix = `${parsedPath.name}.v`;
+        const suffix = `.json`;
+        for (const entry of dirEntries) {
+          if (entry.startsWith(prefix) && entry.endsWith(suffix)) {
+            const backupPath = path.join(parsedPath.dir, entry);
+            await unlink(backupPath).catch(() => {});
+          }
+        }
       } catch (e: any) {
         if (e.code !== "ENOENT") {
           console.warn(`Warning: Could not delete pipeline file: ${e.message}`);

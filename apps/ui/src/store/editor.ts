@@ -2,22 +2,13 @@ import { computed, onMounted, ref, shallowRef, watch } from "vue";
 import {
   Block,
   BlockAction,
-  BlockCondition,
   BlockEvent,
-  BlockLoop,
   SavedFile,
   savedFileMigrator,
   SavedFileValidator,
   Steps,
 } from "@pipelab/shared";
-import {
-  Action,
-  Condition,
-  Event,
-  Loop,
-  PipelabNode,
-  RendererNodeDefinition,
-} from "@pipelab/shared";
+import { Action, Event, PipelabNode, RendererNodeDefinition } from "@pipelab/shared";
 import { Variable } from "@pipelab/shared";
 import { defineStore, storeToRefs } from "pinia";
 import get from "get-value";
@@ -47,47 +38,19 @@ export const isActionDefinition = (nodeDefinition: PipelabNode): nodeDefinition 
   return nodeDefinition.type === "action";
 };
 
-export const isConditionDefinition = (nodeDefinition: PipelabNode): nodeDefinition is Condition => {
-  return nodeDefinition.type === "condition";
-};
-
 export const isEventDefinition = (nodeDefinition: PipelabNode): nodeDefinition is Event => {
   return nodeDefinition.type === "event";
-};
-
-export const isLoopDefinition = (nodeDefinition: PipelabNode): nodeDefinition is Loop => {
-  return nodeDefinition.type === "loop";
 };
 
 export const isActionBlock = (nodeDefinition: Block): nodeDefinition is BlockAction => {
   return nodeDefinition.type === "action";
 };
 
-// export const isConditionBlock = (nodeDefinition: Block): nodeDefinition is BlockCondition => {
-//   return nodeDefinition.type === 'condition'
-// }
-
-// export const isCommentBlock = (nodeDefinition: Block): nodeDefinition is BlockComment => {
-//   return nodeDefinition.type === 'comment'
-// }
-
-// export const isEventBlock = (nodeDefinition: Block): nodeDefinition is BlockEvent => {
-//   return nodeDefinition.type === 'event'
-// }
-
-// export const isLoopBlock = (nodeDefinition: Block): nodeDefinition is BlockLoop => {
-//   return nodeDefinition.type === 'loop'
-// }
-
 export type BlockToNode<T extends Block> = T["type"] extends "action"
   ? Action
-  : T["type"] extends "condition"
-    ? Condition
-    : T["type"] extends "event"
-      ? Event
-      : T["type"] extends "loop"
-        ? Loop
-        : never;
+  : T["type"] extends "event"
+    ? Event
+    : never;
 
 export type Status = "idle" | "running" | "error" | "canceled" | "done";
 
@@ -106,6 +69,33 @@ export const useEditor = defineStore("editor", () => {
 
   const name = ref("");
   const description = ref("");
+
+  /**
+   * Derived map of { pluginId → version } built from all block/trigger origins.
+   * Version is taken from origin.version; if two blocks pin the same plugin at
+   * different versions, the most-specific (non-"latest") version wins.
+   */
+  const plugins = computed<Record<string, string>>(() => {
+    const map: Record<string, string> = {};
+    const record = (pluginId: string, version: string | undefined) => {
+      if (!pluginId) return;
+      const ver = version ?? "latest";
+      if (!map[pluginId] || map[pluginId] === "latest") {
+        map[pluginId] = ver;
+      }
+    };
+    for (const block of blocks.value) {
+      if (block?.origin?.pluginId) {
+        record(block.origin.pluginId, block.origin.version);
+      }
+    }
+    for (const trigger of triggers.value) {
+      if (trigger?.origin?.pluginId) {
+        record(trigger.origin.pluginId, trigger.origin.version);
+      }
+    }
+    return map;
+  });
 
   const isRunning = ref(false);
   const setIsRunning = (value: boolean) => {
@@ -144,7 +134,7 @@ export const useEditor = defineStore("editor", () => {
   };
 
   const currentFilePointer = computed(() => {
-    return files.value.pipelines.find((x) => x.id === pipelineId.value);
+    return files.value.pipelines?.find((x) => x.id === pipelineId.value);
   });
 
   // const savedFile = computed(() => {
@@ -203,8 +193,8 @@ export const useEditor = defineStore("editor", () => {
     return result;
   });
 
-  const activeNode = ref<BlockAction | BlockCondition | BlockLoop>();
-  const setActiveNode = (node: BlockAction | BlockCondition | BlockLoop | undefined) => {
+  const activeNode = ref<BlockAction>();
+  const setActiveNode = (node: BlockAction | undefined) => {
     activeNode.value = node;
   };
 
@@ -215,7 +205,7 @@ export const useEditor = defineStore("editor", () => {
     }
     return blocks.value.find((x) => x.uid === selectedNodeUid.value);
   });
-  const setSelectedNode = (node: BlockAction | BlockCondition | BlockLoop | undefined) => {
+  const setSelectedNode = (node: BlockAction | undefined) => {
     console.log("node", node);
     selectedNodeUid.value = node?.uid;
   };
@@ -253,12 +243,23 @@ export const useEditor = defineStore("editor", () => {
       }
     }
 
+    for (const trigger of triggers.value) {
+      const triggerErrors = validate(trigger);
+
+      for (const err of triggerErrors) {
+        if (!editorErrors[trigger.uid]) {
+          editorErrors[trigger.uid] = [];
+        }
+        editorErrors[trigger.uid].push(err);
+      }
+    }
+
     return editorErrors;
   });
 
   const validate = (block: Block | BlockEvent) => {
     const errors: ValidationError[] = [];
-    if (block.type === "action") {
+    if (block.type === "action" || block.type === "event") {
       const definition = getNodeDefinition(block.origin.nodeId, block.origin.pluginId);
       if (!definition) {
         errors.push({
@@ -281,35 +282,6 @@ export const useEditor = defineStore("editor", () => {
           });
         }
       }
-
-      // } else if (block.type === 'condition') {
-      //   const definition = getNodeDefinition(block.origin.nodeId, block.origin.pluginId)
-      //   const requiredParams = Object.keys(definition?.params ?? {})
-      //   for (const requiredParam of requiredParams) {
-      //     if (!(requiredParam in block.params)) {
-      //       console.warn(`Missing required param "${requiredParam}" in node "${block.uid}"`)
-      //       errors.push({
-      //         type: 'missing',
-      //         param: requiredParam
-      //       })
-      //     }
-      //   }
-    } else if (block.type === "event") {
-      //
-      // } else if (block.type === 'loop') {
-      //   const definition = getNodeDefinition(block.origin.nodeId, block.origin.pluginId)
-      //   const requiredParams = Object.keys(definition?.params ?? {})
-      //   for (const requiredParam of requiredParams) {
-      //     if (!(requiredParam in block.params)) {
-      //       console.warn(`Missing required param "${requiredParam}" in node "${block.uid}"`)
-      //       errors.push({
-      //         type: 'missing',
-      //         param: requiredParam
-      //       })
-      //     }
-      //   }
-      // } else if (block.type === 'comment') {
-      //   //
     }
     return errors;
   };
@@ -344,6 +316,7 @@ export const useEditor = defineStore("editor", () => {
 
     name.value = finalData.name;
     description.value = finalData.description;
+    // plugins is now derived as a computed from block origins — no assignment needed
 
     for (const variable of finalData.variables) {
       addVariable(variable);
@@ -487,36 +460,12 @@ export const useEditor = defineStore("editor", () => {
           origin: {
             nodeId: nodeDefinition.id,
             pluginId: pluginDefinition.id,
+            version: pluginDefinition.version ?? "latest",
           },
           params: createParams,
         };
         addNodeToBlock(node, path, insertAt);
-      } /* else if (isConditionDefinition(nodeDefinition)) {
-        const node: BlockCondition = {
-          uid: crypto.randomUUID(),
-          type: nodeDefinition.type,
-          origin: {
-            nodeId: nodeDefinition.id,
-            pluginId: pluginDefinition.id
-          },
-          params: {},
-          branchFalse: [],
-          branchTrue: []
-        }
-        addNodeToBlock(node, path, insertAt)
-      } else if (isLoopDefinition(nodeDefinition)) {
-        const node: BlockLoop = {
-          uid: crypto.randomUUID(),
-          type: nodeDefinition.type,
-          origin: {
-            nodeId: nodeDefinition.id,
-            pluginId: pluginDefinition.id
-          },
-          params: {},
-          children: []
-        }
-        addNodeToBlock(node, path, insertAt)
-      } */ else {
+      } else {
         logger().error("Unhandled", nodeDefinition);
       }
     }
@@ -533,6 +482,7 @@ export const useEditor = defineStore("editor", () => {
           origin: {
             nodeId: triggerDefinition.id,
             pluginId: pluginDefinition.id,
+            version: pluginDefinition.version ?? "latest",
           },
           params: {},
         };
@@ -710,6 +660,7 @@ export const useEditor = defineStore("editor", () => {
     pipelineId,
     projectId,
     description,
+    plugins,
     errors,
 
     stepsDisplay,

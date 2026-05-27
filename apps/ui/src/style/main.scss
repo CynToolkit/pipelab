@@ -101,10 +101,53 @@ $sizes: 12, 14, 16, 18, 20, 24, 28, 32, 36, 40, 44, 48, 52, 56, 60, 64, 72, 80, 
   }
 }
 
-// .premium {
-//   &.p-button {
-//     background-color: #FFD7004D;
-//     border-color: #FFD7004D;
-//     color: #ffffff;
-//   }
-// }
+/* Fix for PrimeVue v4 IconField / InputIcon positioning */
+.p-iconfield,
+.p-icon-field {
+  position: relative;
+  display: inline-flex;
+  width: 100%;
+  align-items: center;
+
+  .p-inputicon,
+  .p-input-icon {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none;
+    z-index: 1;
+    color: var(--text-color-secondary);
+    opacity: 0.6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85rem;
+  }
+
+  /* Left positioned icon */
+  &.p-iconfield-left,
+  &:not(.p-iconfield-right) {
+    .p-inputicon,
+    .p-input-icon {
+      left: 0.75rem;
+    }
+    .p-inputtext {
+      padding-left: 2.25rem !important;
+    }
+  }
+
+  /* Right positioned icon */
+  &.p-iconfield-right {
+    .p-inputicon,
+    .p-input-icon {
+      right: 0.75rem;
+    }
+    .p-inputtext {
+      padding-right: 2.25rem !important;
+    }
+  }
+
+  .p-inputtext {
+    width: 100%;
+  }
+}

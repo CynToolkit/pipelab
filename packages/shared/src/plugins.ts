@@ -9,7 +9,16 @@ export const usePlugins = () => {
   const load = () => {};
 
   const registerPlugins = (newPlugins: Plugin[]) => {
-    plugins.value.push(...newPlugins);
+    const current = [...plugins.value];
+    for (const np of newPlugins) {
+      const idx = current.findIndex((p) => p.id === np.id);
+      if (idx !== -1) {
+        current[idx] = np;
+      } else {
+        current.push(np);
+      }
+    }
+    plugins.value = current;
   };
 
   return {

@@ -5,7 +5,7 @@ export const testC3Offline: PresetFn = async () => {
   const steamUpload = "steam-upload-node";
 
   const data: SavedFile = {
-    version: "3.0.0",
+    version: "5.0.0",
     variables: [],
     name: "C3 test without export",
     description: "C3 test without export",
@@ -14,8 +14,9 @@ export const testC3Offline: PresetFn = async () => {
         {
           type: "event",
           origin: {
-            pluginId: "system",
+            pluginId: "@pipelab/plugin-system",
             nodeId: "manual",
+            version: "latest",
           },
           uid: "manual-start",
           params: {},
@@ -27,15 +28,22 @@ export const testC3Offline: PresetFn = async () => {
           type: "action",
           origin: {
             nodeId: "package-to-electron",
-            pluginId: "electron",
+            pluginId: "@pipelab/plugin-electron",
+            version: "latest",
           },
           params: {
             "input-folder": {
               editor: "editor",
               value: `/home/quentin/Documents/Cyn Assets/app`,
             },
-            arch: undefined,
-            platform: undefined,
+            arch: {
+              editor: "simple",
+              value: undefined,
+            },
+            platform: {
+              editor: "simple",
+              value: undefined,
+            },
           },
         },
         {
@@ -43,7 +51,8 @@ export const testC3Offline: PresetFn = async () => {
           type: "action",
           origin: {
             nodeId: "steam-upload",
-            pluginId: "steam",
+            pluginId: "@pipelab/plugin-steam",
+            version: "latest",
           },
           params: {
             folder: {

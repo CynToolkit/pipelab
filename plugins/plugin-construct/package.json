@@ -1,6 +1,19 @@
 {
   "name": "@pipelab/plugin-construct",
   "version": "1.0.0-beta.12",
+  "description": "Pipelab plugin for exporting and packaging Construct 3 projects",
+  "keywords": [
+    "automation",
+    "c3",
+    "construct",
+    "construct3",
+    "game-development",
+    "game-export",
+    "html5-game",
+    "pipelab",
+    "pipelab-plugin",
+    "pipeline"
+  ],
   "license": "FSL-1.1-MIT",
   "repository": {
     "type": "git",
@@ -47,6 +60,11 @@
     "tsdown": "0.21.2",
     "typescript": "5.9.3",
     "vitest": "3.1.4"
+  },
+  "pipelab": {
+    "name": "Construct",
+    "description": "Pipelab plugin for exporting and packaging Construct 3 projects",
+    "icon": "./dist/assets/construct.webp"
   },
   "test": {
     "env": {

@@ -64,12 +64,24 @@ Goal: Improve build speed, enforce boundaries, and standardize the developer exp
 
 Goal: Modernize internal communication between UI, Core-Node, and Shell.
 
-### 1. RPC Migration
+### 1. HTTP & WebSocket Migration (Hono + tRPC)
 
-- [ ] Investigate replacing manual WebSocket/IPC message serialization with [tRPC](https://trpc.io/).
-- [ ] Define shared tRPC routers in `@pipelab/shared`.
-- [ ] Implement tRPC server in `@pipelab/core-node`.
-- [ ] Update `@pipelab/ui` to consume tRPC hooks/composables instead of raw WebSockets.
+- [ ] **Hono & tRPC Server Integration**
+  - Integrate `@hono/node-server` into `@pipelab/core-node` to replace raw `http.createServer` handling.
+  - Mount a tRPC server on `@pipelab/core-node` (e.g., at `/trpc`) alongside Hono.
+  - Port existing local file serving logic (SPA assets, plugin resources, templates, and `/media-file/`) into clean Hono route handlers.
+- [ ] **Type-Safe RPC Migration via tRPC**
+  - Define shared tRPC schemas/routers in `@pipelab/shared` (or export from `core-node`).
+  - Migrate all WebSocket-based RPC commands (saving pipelines, fetching configurations, listing plugins) to type-safe tRPC queries and mutations.
+- [ ] **tRPC Subscriptions & Dynamic Rooms for Live Updates**
+  - Implement a tRPC subscription handler over WebSockets.
+  - Implement a room-based event pattern:
+    - Calling a mutation (e.g., `client.pipeline.run.mutate({ id })`) returns a unique execution/subscription `roomId`.
+    - The client subscribes to that `roomId` via a tRPC subscription (`client.pipeline.onProgress.subscribe({ roomId })`) to stream logs and progress.
+- [ ] **Security Enforcement & Best Practices**
+  - **CORS Protection**: Enforce strict CORS origins in Hono (restricting access to the UI dev server `http://localhost:5173` and local electron origin).
+  - **Path Traversal Prevention**: Add robust path validation for all Hono file-serving routes to prevent directory traversal (`..`).
+  - **Handshake Authentication**: Secure the tRPC/Hono endpoints using a local session token handshake generated on startup, protecting the host system from unauthorized local execution.
 
 ### 2. CLI Authentication & Backend-First Auth [IN PROGRESS]
 

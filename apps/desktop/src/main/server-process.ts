@@ -76,7 +76,8 @@ export const startServer = async () => {
   const releaseTag = app.getVersion().includes("beta") ? "beta" : "latest";
   const userDataPath = getDefaultUserDataPath(releaseTag === "beta" ? "beta" : "prod");
   const context = new PipelabContext({ userDataPath, releaseTag });
-  const { entryPoint, isLocal, packageDir } = await fetchPipelabCli(releaseTag, { context });
+  const cliVersion = is.dev ? "local" : releaseTag;
+  const { entryPoint, isLocal, packageDir } = await fetchPipelabCli(cliVersion, { context });
 
   let serverPath = process.execPath;
   let args = [entryPoint, "serve"];

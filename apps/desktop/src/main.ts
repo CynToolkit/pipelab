@@ -218,6 +218,11 @@ const sendUpdateStatus = (status: string, downloadUrl?: string, version?: string
 };
 
 app.whenReady().then(async () => {
+  protocol.handle("media", (request) => {
+    const path = decodeURIComponent(request.url.replace(/^media:\/\/+/, "/"));
+    return net.fetch(pathToFileURL(path).toString());
+  });
+
   // Check if launched via protocol URL on startup
   const startupArgs = is.dev ? process.argv.slice(2) : process.argv.slice(1);
   try {
@@ -401,12 +406,8 @@ app.whenReady().then(async () => {
     registerIpcHandlers();
 
     if (is.dev) {
-      // In dev, we load the dev server up immediately and show it
+      // In dev, we load the dev server up immediately but do not show it yet
       mainWindow.loadURL(`http://localhost:${uiDevPort}`);
-      mainWindow.once("ready-to-show", () => {
-        mainWindow?.show();
-        mainWindow?.maximize();
-      });
     }
   }
 
@@ -420,10 +421,6 @@ app.whenReady().then(async () => {
     if (!is.dev) {
       console.info(`[Main] Loading production UI from localhost:${websocketPort}`);
       mainWindow?.loadURL(`http://localhost:${websocketPort}`);
-      mainWindow?.once("ready-to-show", () => {
-        mainWindow?.show();
-        mainWindow?.maximize();
-      });
     }
   } catch (error) {
     console.error("Failed to start standalone server:", error);
@@ -444,11 +441,6 @@ app.whenReady().then(async () => {
       }
     }, 10000);
   }
-
-  protocol.handle("media", (request) => {
-    const path = decodeURIComponent(request.url.replace(/^media:\/\/+/, "/"));
-    return net.fetch(pathToFileURL(path).toString());
-  });
 
   app.on("browser-window-created", (_, window) => {
     optimizer.watchWindowShortcuts(window);

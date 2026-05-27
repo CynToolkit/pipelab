@@ -1,17 +1,9 @@
 import { createNodeDefinition } from "@pipelab/plugin-core";
 import { exportAction, ExportActionRunner } from "./export-c3p";
 import { exportProjectAction, ExportProjectActionRunner } from "./export-project";
-const icon = new URL("./assets/construct.webp", import.meta.url).href;
 import { constructVersionValidator } from "./export-shared";
 
 export default createNodeDefinition({
-  description: "Construct",
-  name: "Construct",
-  id: "construct",
-  icon: {
-    type: "image",
-    image: icon,
-  },
   nodes: [
     {
       node: exportAction,

@@ -119,7 +119,7 @@ app.use(PrimeVue, {
   theme: {
     preset: PipelabPreset,
     options: {
-      darkModeSelector: "light",
+      darkModeSelector: ".dark",
     },
   },
 });

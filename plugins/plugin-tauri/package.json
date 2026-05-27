@@ -1,6 +1,18 @@
 {
   "name": "@pipelab/plugin-tauri",
   "version": "1.0.0-beta.12",
+  "description": "Pipelab plugin for packaging apps with Tauri",
+  "keywords": [
+    "automation",
+    "cross-platform",
+    "desktop-app",
+    "packaging",
+    "pipelab",
+    "pipelab-plugin",
+    "pipeline",
+    "rust",
+    "tauri"
+  ],
   "license": "FSL-1.1-MIT",
   "repository": {
     "type": "git",
@@ -46,5 +58,10 @@
     "@pipelab/tsconfig": "workspace:*",
     "tsdown": "0.21.2",
     "typescript": "5.9.3"
+  },
+  "pipelab": {
+    "name": "Tauri",
+    "description": "Pipelab plugin for packaging apps with Tauri",
+    "icon": "./dist/public/tauri.webp"
   }
 }

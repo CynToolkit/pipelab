@@ -4,7 +4,7 @@ export const newProjectPreset: PresetFn = async () => {
   const startId = "manual-start";
 
   const data: SavedFile = {
-    version: "3.0.0",
+    version: "5.0.0",
     name: "Empty project",
     description: "A default project with no tasks added",
     variables: [],
@@ -13,8 +13,9 @@ export const newProjectPreset: PresetFn = async () => {
         {
           type: "event",
           origin: {
-            pluginId: "system",
+            pluginId: "@pipelab/plugin-system",
             nodeId: "manual",
+            version: "latest",
           },
           uid: startId,
           params: {},

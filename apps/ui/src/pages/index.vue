@@ -60,6 +60,16 @@
         </div>
 
         <div class="your-projects">
+          <Message
+            v-if="isBannerVisible"
+            severity="warn"
+            :closable="true"
+            class="mb-4"
+            @close="closeBanner"
+          >
+            {{ $t("home.only-internal-supported-notice") }}
+          </Message>
+
           <div v-if="!isLoading && filesEnhanced.length === 0" class="no-projects">
             <div class="no-pipelines-text">{{ $t("home.no-pipelines-yet") }}</div>
             <Button
@@ -84,17 +94,17 @@
             >
               <template #header>
                 <div class="flex justify-content-between">
-                  <div class="list-header bold">{{ activeProject.name }}</div>
+                  <div class="list-header bold">{{ activeProject?.name }}</div>
 
                   <div class="flex justify-content-end gap-2">
                     <Button id="tour-new-pipeline" @click="openNewProjectDialog">
                       <i class="mdi mdi-plus-circle-outline mr-2"></i>
                       {{ $t("home.new-pipeline") }}
                     </Button>
-                    <!-- <Button outlined @click="openFile">
+                    <Button variant="outlined" severity="secondary" @click="importPipeline">
                       <i class="mdi mdi-folder-open-outline mr-2"></i>
-                      {{ $t('home.import') }}
-                    </Button> -->
+                      {{ $t("home.import") }}
+                    </Button>
                   </div>
                 </div>
               </template>
@@ -227,17 +237,6 @@
         <div class="grid justify-content-center">
           <div class="col-12 xl:col-6 w-full">
             <div class="h-full w-full">
-              <div class="mb-4 flex justify-content-center">
-                <SelectButton
-                  v-show="hasSimplePipelines"
-                  v-model="projectMode"
-                  :options="projectModes"
-                  option-label="label"
-                  option-value="value"
-                  :allow-empty="false"
-                />
-              </div>
-
               <div class="mb-1">{{ $t("home.pipeline-name") }}</div>
               <div class="mb-2">
                 <InputText v-model="newProjectName" class="w-full"> </InputText>
@@ -378,7 +377,7 @@ import { computed, ref, watchEffect, inject, watch, onMounted } from "vue";
 import { useToast } from "primevue/usetoast";
 import { storeToRefs } from "pinia";
 import Menu from "primevue/menu";
-import { EnhancedFile, SavedFile, Preset, savedFileMigrator } from "@pipelab/shared";
+import { EnhancedFile, SavedFile, Preset, savedFileMigrator, AppConfig } from "@pipelab/shared";
 import { nanoid } from "nanoid";
 import { useRouter } from "vue-router";
 import { useAPI } from "@renderer/composables/api";
@@ -402,7 +401,8 @@ import BuildHistoryDialog from "@renderer/components/BuildHistoryDialog.vue";
 import Skeleton from "primevue/skeleton";
 import ConfirmDialog from "primevue/confirmdialog";
 import { useConfirm } from "primevue/useconfirm";
-import { TreeNode } from "primevue";
+import type { TreeNode } from "primevue/treenode";
+import Message from "primevue/message";
 import { SaveLocation, SaveLocationExternal, SaveLocationInternal } from "@pipelab/shared";
 import { usePipeline } from "@renderer/composables/usePipeline";
 import { usePostHog } from "@renderer/composables/usePostHog";
@@ -425,9 +425,6 @@ const { files } = storeToRefs(fileStore);
 const { update: updateFileStore, remove, removeProject, transferPipeline } = fileStore;
 
 const filesEnhanced = ref<EnhancedFile[]>([]);
-
-const hasSimplePipelines = posthog.isFeatureEnabled("simple-pipeline");
-console.log("hasSimplePipelines", hasSimplePipelines);
 
 const { createPipeline } = usePipeline();
 
@@ -470,9 +467,24 @@ const projects = computed(() => files.value.projects);
 
 const pipelines = computed(() =>
   activeProjectId.value
-    ? files.value.pipelines.filter((pipeline) => pipeline.project === activeProjectId.value)
+    ? (files.value.pipelines || []).filter((pipeline) => pipeline.project === activeProjectId.value)
     : [],
 );
+
+const hasExternalPipelines = computed(() => {
+  return (files.value.pipelines || []).some((p) => p.type === "external");
+});
+
+const isBannerVisible = computed(() => {
+  return hasExternalPipelines.value && !settings.value.isInternalMigrationBannerClosed;
+});
+
+const closeBanner = () => {
+  updateSettings({
+    ...settings.value,
+    isInternalMigrationBannerClosed: true,
+  } as AppConfig);
+};
 
 const onNodeUnselect = (node: TreeNode) => {
   console.log("onNodeUnselect", node);
@@ -504,7 +516,7 @@ watchEffect(async () => {
 
   // for each pipeline file
   for (const file of pipelines.value) {
-    let fileContent: string = "";
+    let fileContent: SavedFile | undefined;
 
     // When external (@deprecated)
     if (file.type === "external") {
@@ -513,21 +525,20 @@ watchEffect(async () => {
       if (configResult.type === "error") {
         console.error("Unable to load file", configResult.ipcError);
         // ... filtering logic ...
-        const { id } = files.value.pipelines.find((value) => {
-          if (value.type === "internal") {
-            if (value.path === file.path) {
-              return true;
-            }
-          } else if (value.type === "external") {
-            if (value.path === file.path) {
-              return true;
-            }
+        const filePath = file.path;
+        const foundPipeline = (files.value.pipelines || []).find((value) => {
+          if (value.type === "external") {
+            return value.path === filePath;
           }
           return false;
         });
-        updateFileStore((state) => {
-          state.pipelines = state.pipelines.filter((value) => value.id !== id);
-        });
+        if (foundPipeline) {
+          updateFileStore((state) => {
+            state.pipelines = (state.pipelines || []).filter(
+              (value) => value.id !== foundPipeline.id,
+            );
+          });
+        }
         continue;
       }
 
@@ -549,6 +560,9 @@ watchEffect(async () => {
       throw new Error(t("home.invalid-file-type"));
     }
 
+    if (!fileContent) {
+      continue;
+    }
     const content = fileContent;
 
     if (file.type === "external") {
@@ -595,59 +609,17 @@ const authStore = useAuth();
 const { hasCloudSaveBenefit, hasBuildHistoryBenefit, hasMultipleProjectsBenefit } =
   storeToRefs(authStore);
 
-const projectMode = ref(hasSimplePipelines ? "simple" : "advanced");
-console.log("projectMode", projectMode.value);
-const isSimpleProjectCreation = computed(() => projectMode.value === "simple");
-const projectModes = computed(() => [
-  { label: t("home.simple-pipeline"), value: "simple" },
-  { label: t("home.advanced-pipeline"), value: "advanced" },
-]);
-
-watch(projectMode, (mode) => {
-  if (mode === "simple") {
-    // Inject and select simple preset
-    newPipelinePresets.value["simple"] = {
-      data: {
-        version: "4.0.0",
-        type: "simple",
-        name: "Simple Pipeline",
-        description: "A simplified editor for quick projects",
-        canvas: { blocks: [], triggers: [] },
-        variables: [],
-        source: { type: "c3-html", path: "" },
-        packaging: { enabled: false },
-        publishing: {
-          steam: { enabled: false },
-          itch: { enabled: false },
-          poki: { enabled: false },
-        },
-      },
-      hightlight: true,
-      disabled: false,
-    };
-    newProjectPreset.value = "simple";
-  } else {
-    // Clear simple preset selection if switching to advanced
-    if (newProjectPreset.value === "simple") {
-      newProjectPreset.value = undefined;
-    }
-  }
-});
-
 const isCloudProject = ref(false);
 
 const newProjectPreset = ref<string>();
 const newPipelinePresets = ref<Presets>({});
 
-const newProjectData = ref<SavedFile>();
+const newProjectData = ref<Preset>();
 
 /**
  * Open new project dialog
  */
 const openNewProjectDialog = async () => {
-  newProjectName.value = "";
-  projectMode.value = "advanced"; // Default to advanced TODO:
-
   // find presets
   const presetsResult = await api.execute("presets:get");
 
@@ -712,16 +684,21 @@ const onRenameProject = async () => {
   }
 };
 
-const onNewFileCreation = async (
-  preset: SavedFile = newPipelinePresets.value[newProjectPreset.value].data,
-) => {
+const onNewFileCreation = async (preset?: Preset) => {
   const pipelineId = nanoid();
 
-  if (!preset) {
+  const actualPreset =
+    preset ??
+    (newProjectPreset.value ? newPipelinePresets.value[newProjectPreset.value]?.data : undefined);
+
+  if (!actualPreset) {
     throw new Error(t("home.invalid-preset"));
   }
 
-  const projectId = activeProject.value.id;
+  const projectId = activeProject.value?.id;
+  if (!projectId) {
+    return;
+  }
   let pathOrConfigName = "";
   const type: SaveLocation["type"] = isCloudProject.value ? "pipelab-cloud" : "internal";
 
@@ -729,8 +706,25 @@ const onNewFileCreation = async (
     pathOrConfigName = `pipeline-${pipelineId}`;
   }
 
+  const updatedPreset: Preset = {
+    ...actualPreset,
+    name: newProjectName.value,
+    description: "",
+  } satisfies Preset;
+
+  // write file
+  if (type === "internal") {
+    await api.execute("config:save", {
+      config: pathOrConfigName,
+      data: JSON.stringify(updatedPreset),
+    });
+  } else if (type === "pipelab-cloud") {
+    // TODO:
+  }
+
   // update file store
   updateFileStore((state) => {
+    state.pipelines = state.pipelines || [];
     if (type === "internal") {
       state.pipelines.push({
         lastModified: new Date().toISOString(),
@@ -761,62 +755,31 @@ const onNewFileCreation = async (
     }
   });
 
-  const updatedPreset: Preset = {
-    ...preset,
-    name: newProjectName.value,
-    description: "",
-  } satisfies Preset;
-
-  // write file
-  if (type === "internal") {
-    await api.execute("config:save", {
-      config: pathOrConfigName,
-      data: JSON.stringify(updatedPreset),
-    });
-  } else if (type === "pipelab-cloud") {
-    // TODO:
-  }
-
-  if (updatedPreset.type === "simple") {
-    await router.push({
-      name: "SimpleEditor",
-      params: {
-        pipelineId: pipelineId,
-        projectId: projectId,
-      },
-    });
-  } else {
-    await router.push({
-      name: "Editor",
-      params: {
-        pipelineId: pipelineId,
-        projectId: projectId,
-      },
-    });
-  }
+  await router.push({
+    name: "Editor",
+    params: {
+      pipelineId: pipelineId,
+      projectId: projectId,
+    },
+  });
 };
 
 const loadExisting = async (id: string) => {
   // Find the file to check its type
   const enhancedFile = filesEnhanced.value.find((f) => f.id === id);
-
-  if (enhancedFile && enhancedFile.content.type === "simple") {
-    await router.push({
-      name: "SimpleEditor",
-      params: {
-        pipelineId: id,
-        projectId: activeProject.value.id,
-      },
-    });
-  } else {
-    await router.push({
-      name: "Editor",
-      params: {
-        pipelineId: id,
-        projectId: activeProject.value.id,
-      },
-    });
+  if (!enhancedFile) {
+    return;
   }
+
+  const projectId = enhancedFile.project;
+
+  await router.push({
+    name: "Editor",
+    params: {
+      pipelineId: id,
+      projectId: projectId,
+    },
+  });
 };
 
 const handleRowClick = (event: any) => {
@@ -844,7 +807,9 @@ const deleteProject = async (projectId?: string) => {
   const id = projectId || activeProjectId.value;
   if (!id) return;
 
-  const projectPipelines = files.value.pipelines.filter((pipeline) => pipeline.project === id);
+  const projectPipelines = (files.value.pipelines || []).filter(
+    (pipeline) => pipeline.project === id,
+  );
 
   if (projectPipelines.length > 0) {
     toast.add({
@@ -950,7 +915,7 @@ const availableProjectsForTransfer = computed(() => {
     .map((p) => ({ label: p.name, value: p }));
 });
 
-const duplicateProject = async (file: SavedFile) => {
+const duplicateProject = async (file: Preset) => {
   console.log("file", file);
   newProjectName.value = file.name + " (copy)";
   newProjectData.value = file;
@@ -975,6 +940,7 @@ const migratePipeline = async (file: EnhancedFile) => {
 
       // Update store: replace external pipeline definition with internal one
       updateFileStore((state) => {
+        state.pipelines = state.pipelines || [];
         const index = state.pipelines.findIndex((p) => p.id === file.id);
         if (index !== -1) {
           state.pipelines[index] = {
@@ -995,6 +961,74 @@ const migratePipeline = async (file: EnhancedFile) => {
       });
     },
   });
+};
+
+const importPipeline = async () => {
+  const projectId = activeProject.value?.id;
+  if (!projectId) {
+    return;
+  }
+
+  const paths = await api.execute("dialog:showOpenDialog", {
+    title: t("home.import-pipeline"),
+    filters: [{ name: "Pipelab Project", extensions: [PROJECT_EXTENSION] }],
+    properties: ["openFile"],
+  });
+
+  if (paths.type === "error" || paths.result.canceled || paths.result.filePaths.length === 0) {
+    return;
+  }
+
+  const filePath = paths.result.filePaths[0];
+  const fileContentResult = await api.execute("fs:read", { path: filePath });
+
+  if (fileContentResult.type === "error") {
+    toast.add({
+      severity: "error",
+      summary: t("base.error"),
+      detail: t("home.failed-to-read-file"),
+      life: 3000,
+    });
+    return;
+  }
+
+  try {
+    const fileData = JSON.parse(fileContentResult.result.content) as SavedFile;
+    const pipelineId = nanoid();
+    const configName = `pipeline-${pipelineId}`;
+
+    // Save to internal storage
+    await api.execute("config:save", {
+      config: configName,
+      data: JSON.stringify(fileData),
+    });
+
+    // Add to store
+    updateFileStore((state) => {
+      state.pipelines = state.pipelines || [];
+      state.pipelines.push({
+        lastModified: new Date().toISOString(),
+        configName: configName,
+        type: "internal",
+        project: projectId,
+        id: pipelineId,
+      });
+    });
+
+    toast.add({
+      severity: "success",
+      summary: t("base.success"),
+      detail: t("home.import-success"),
+      life: 3000,
+    });
+  } catch (err) {
+    toast.add({
+      severity: "error",
+      summary: t("base.error"),
+      detail: t("editor.invalid-file-content"),
+      life: 3000,
+    });
+  }
 };
 
 const viewProjectBuildHistory = async (file: EnhancedFile) => {

@@ -4,7 +4,7 @@ export const c3toSteamPreset: PresetFn = async () => {
   const startId = "manual-start";
 
   const data: SavedFile = {
-    version: "3.0.0",
+    version: "5.0.0",
     name: "Construct 3 to Steam",
     description: "A basic project to get you started with Construct 3 and Steam",
     variables: [],
@@ -13,8 +13,9 @@ export const c3toSteamPreset: PresetFn = async () => {
         {
           type: "event",
           origin: {
-            pluginId: "system",
+            pluginId: "@pipelab/plugin-system",
             nodeId: "manual",
+            version: "latest",
           },
           uid: startId,
           params: {},
@@ -26,7 +27,8 @@ export const c3toSteamPreset: PresetFn = async () => {
           type: "action",
           origin: {
             nodeId: "export-construct-project",
-            pluginId: "construct",
+            pluginId: "@pipelab/plugin-construct",
+            version: "latest",
           },
           params: {
             file: {
@@ -64,7 +66,8 @@ export const c3toSteamPreset: PresetFn = async () => {
           type: "action",
           origin: {
             nodeId: "unzip-file-node",
-            pluginId: "filesystem",
+            pluginId: "@pipelab/plugin-filesystem",
+            version: "latest",
           },
           params: {
             file: {
@@ -78,7 +81,8 @@ export const c3toSteamPreset: PresetFn = async () => {
           type: "action",
           origin: {
             nodeId: "electron:package:v2",
-            pluginId: "electron",
+            pluginId: "@pipelab/plugin-electron",
+            version: "latest",
           },
           params: {
             arch: {
@@ -208,7 +212,8 @@ export const c3toSteamPreset: PresetFn = async () => {
           type: "action",
           origin: {
             nodeId: "steam-upload",
-            pluginId: "steam",
+            pluginId: "@pipelab/plugin-steam",
+            version: "latest",
           },
           params: {
             sdk: {
@@ -251,7 +256,8 @@ export const c3toSteamPreset: PresetFn = async () => {
           type: "action",
           origin: {
             nodeId: "fs:open-in-explorer",
-            pluginId: "filesystem",
+            pluginId: "@pipelab/plugin-filesystem",
+            version: "latest",
           },
           params: {
             path: {

@@ -17,7 +17,10 @@
       "storage": "Storage",
       "integrations": "Integrations",
       "advanced": "Advanced",
-      "billing": "Billing"
+      "billing": "Billing",
+      "plugins": "Plugins",
+      "core-plugins": "Core Plugins",
+      "community-plugins": "Community Plugins"
     },
     "pipeline-cache-folder": "Pipeline Cache Folder:",
     "enter-or-browse-for-a-folder": "Enter or browse for a folder",
@@ -83,7 +86,14 @@
     "your-project-has-be-saved-successfully": "Your project has be saved successfully",
     "view-history": "History",
     "add-plugin": "Add plugin",
-    "display-advanced-nodes": "Display advanced nodes"
+    "display-advanced-nodes": "Display advanced nodes",
+    "project-settings": "Pipeline Settings",
+    "jit-loading-title": "Installing Required Plugins",
+    "jit-loading-subtitle": "Please wait while Pipelab fetches and prepares the necessary nodes for this pipeline.",
+    "jit-loading-status": "Downloading and building plugin packages…",
+    "validation-failed": "Validation Failed",
+    "validation-plugin-disabled-or-missing": "Plugin \"{pluginId}\" is disabled or not installed (required by \"{nodeName}\").",
+    "validation-missing-param": "Block \"{nodeName}\": missing required parameter \"{paramName}\"."
   },
   "home": {
     "invalid-preset": "Invalid preset",
@@ -129,7 +139,11 @@
     "confirm-migration-message": "Are you sure you want to migrate this pipeline to internal storage? This will create a copy in the internal storage managed by Pipelab.",
     "migrate-pipeline": "Migrate Pipeline",
     "migration-success": "Pipeline migrated successfully",
-    "migrate-to-internal": "Migrate to Internal"
+    "migrate-to-internal": "Migrate to Internal",
+    "only-internal-supported-notice": "Pipelab now stores pipelines internally. External pipeline files are deprecated. You can still import external files as internal pipelines.",
+    "import-pipeline": "Import Pipeline",
+    "import-success": "Pipeline imported successfully",
+    "failed-to-read-file": "Failed to read the selected file"
   },
   "scenarios": {
     "scenarios": "Scenarios"

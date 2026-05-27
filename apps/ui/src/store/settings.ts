@@ -11,7 +11,7 @@ export const useAppSettings = defineStore("settings", () => {
 
   const settings = ref<AppConfig>({
     theme: "light",
-    version: "7.0.0",
+    version: "8.0.0",
     locale: "en-US",
     tours: {
       dashboard: { step: 0, completed: false },
@@ -26,6 +26,24 @@ export const useAppSettings = defineStore("settings", () => {
         maxAge: 30,
       },
     },
+    plugins: [
+      {
+        name: "@pipelab/plugin-construct",
+        enabled: true,
+        description: "Construct 3 export & packaging",
+      },
+      { name: "@pipelab/plugin-filesystem", enabled: true, description: "Filesystem utilities" },
+      { name: "@pipelab/plugin-system", enabled: true, description: "System & shell commands" },
+      { name: "@pipelab/plugin-steam", enabled: true, description: "Steam publishing" },
+      { name: "@pipelab/plugin-itch", enabled: true, description: "Itch.io publishing" },
+      { name: "@pipelab/plugin-electron", enabled: true, description: "Electron packaging" },
+      { name: "@pipelab/plugin-discord", enabled: true, description: "Discord Rich Presence" },
+      { name: "@pipelab/plugin-poki", enabled: true, description: "Poki publishing" },
+      { name: "@pipelab/plugin-nvpatch", enabled: true, description: "NW.js patching" },
+      { name: "@pipelab/plugin-tauri", enabled: true, description: "Tauri packaging" },
+      { name: "@pipelab/plugin-minify", enabled: true, description: "Asset minification" },
+      { name: "@pipelab/plugin-netlify", enabled: true, description: "Netlify deployment" },
+    ],
   });
 
   const isElectron = !!window.electron;

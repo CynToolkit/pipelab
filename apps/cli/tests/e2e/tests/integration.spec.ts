@@ -35,7 +35,7 @@ describe("End-to-End: Multi-Plugin Integration Test", () => {
             uid: "copy-to-staging",
             name: "Copy to Staging",
             type: "action",
-            origin: { pluginId: "filesystem", nodeId: "fs:copy" },
+            origin: { pluginId: "@pipelab/plugin-filesystem", nodeId: "fs:copy" },
             params: {
               from: { value: JSON.stringify(projectSourcePath) },
               to: { value: JSON.stringify(projectStagingPath) },

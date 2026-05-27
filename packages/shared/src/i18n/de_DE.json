@@ -15,7 +15,10 @@
       "storage": "Storage",
       "integrations": "Integrations",
       "advanced": "Advanced",
-      "billing": "Billing"
+      "billing": "Billing",
+      "plugins": "Plugins",
+      "core-plugins": "Core-Plugins",
+      "community-plugins": "Community-Plugins"
     },
     "clearTempFolders": "Automatically clean up temporary files",
     "clearTempFoldersDescription": "Wenn aktiviert, werden alle temporären Dateien, die während der Pipeline-Ausführung erstellt wurden, automatisch gelöscht, nachdem die Pipeline abgeschlossen ist. Dies hilft, Speicherplatz auf der Festplatte zu sparen, aber möglicherweise müssen Sie selbst Artefakte kopieren, um sie zu bewahren.",

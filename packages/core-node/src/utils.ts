@@ -1,24 +1,27 @@
 import { nanoid } from "nanoid";
-import { usePlugins } from "@pipelab/shared";
-import { RendererPluginDefinition } from "@pipelab/shared";
+import {
+  usePlugins,
+  RendererPluginDefinition,
+  processGraph,
+  useLogger,
+  BuildHistoryEntry,
+  Variable,
+  AppConfig,
+  transformUrl,
+} from "@pipelab/shared";
 import { downloadFile, DownloadHooks } from "./utils/fs-extras";
 import { access, chmod, mkdir, rm, writeFile, readdir, cp } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { isDev, projectRoot, PipelabContext } from "./context";
 import { constants, existsSync } from "node:fs";
-import { processGraph } from "@pipelab/shared";
 import { handleActionExecute } from "./handler-func";
-import { useLogger } from "@pipelab/shared";
 import { BuildHistoryStorage } from "./handlers/build-history";
-import type { BuildHistoryEntry } from "@pipelab/shared";
-import type { Variable } from "@pipelab/shared";
 
 import { ensure, generateTempFolder, extractTarGz, extractZip, zipFolder } from "./utils/fs-extras";
 import { fetchPipelabAsset } from "./utils/remote";
 import { loadPipelabPlugin } from "./plugins-registry";
 import { setupConfigFile } from "./config";
-import { AppConfig } from "@pipelab/shared";
 
 export const getFinalPlugins = () => {
   const { plugins } = usePlugins();
@@ -28,13 +31,6 @@ export const getFinalPlugins = () => {
 
   for (const plugin of plugins.value) {
     const finalNodes = [];
-
-    const transformUrl = (url: string) => {
-      if (url.startsWith("file://")) {
-        return url.replace("file://", "media://");
-      }
-      return url;
-    };
 
     const finalIcon =
       plugin.icon?.type === "image"

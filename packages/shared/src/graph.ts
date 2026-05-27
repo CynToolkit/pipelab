@@ -42,7 +42,7 @@ export const processGraph = async (options: {
     node: Block,
     params: Record<string, string>,
     steps: Steps,
-  ) => Promise<End<"condition:execute"> | End<"action:execute">>;
+  ) => Promise<End<"action:execute">>;
   onNodeEnter: (node: Block) => void;
   onNodeExit: (node: Block) => void;
   abortSignal?: AbortSignal;
@@ -68,47 +68,7 @@ export const processGraph = async (options: {
       options.definitions,
     );
 
-    /* if (rawNode.type === 'condition') {
-      options.onNodeEnter(rawNode)
-
-      const newParams = await makeResolvedParams({
-        params: rawNode.params,
-        variables: options.variables,
-        steps: options.steps,
-        context: options.context
-      })
-
-      const result = await options.onExecuteItem(node, newParams, options.steps) as End<'condition:execute'>
-
-      if ('result' in result) {
-        logger().error(result.result)
-        options.onNodeExit(rawNode)
-        throw new Error('Condition error')
-      } else {
-        const { value, outputs } = result
-        if (!options.steps[rawNode.uid]) {
-          options.steps[rawNode.uid] = {
-            outputs: {}
-          }
-        }
-        options.steps[rawNode.uid].outputs = outputs
-
-        if (value === true) {
-          await processGraph({
-            graph: rawNode.branchTrue,
-            ...options,
-            abortSignal: options.abortSignal
-          })
-        } else {
-          await processGraph({
-            graph: rawNode.branchFalse,
-            ...options,
-            abortSignal: options.abortSignal
-          })
-        }
-      }
-      options.onNodeExit(rawNode)
-    } else */ if (rawNode.type === "action") {
+    if (rawNode.type === "action") {
       if (rawNode.disabled === true) {
         console.warn(
           `Node ${rawNode.uid} (${rawNode.origin.pluginId}::${rawNode.origin.nodeId}) is disabled`,
@@ -162,34 +122,6 @@ export const processGraph = async (options: {
         }
         options.steps[rawNode.uid].outputs = result.result.outputs;
       }
-      options.onNodeExit(rawNode);
-    } else if (rawNode.type === "loop") {
-      options.onNodeEnter(rawNode);
-
-      // const context = {}
-
-      // const arrayToLoopOn = await evaluate(rawNode.params.value, context)
-
-      // element is the value of the element at loopindex
-      // let loopindex = 0
-      // for (const _element of arrayToLoopOn) {
-      //   await processGraph(rawNode.children, definitions, variables, steps, {
-      //     ...context,
-      //     loopindex
-      //   })
-
-      //   loopindex += 1
-      // }
-
-      // continue after loop
-
-      // TODO: process loop
-      // const result = await api.execute('node:execute', {
-      //   nodeId: rawNode.origin.nodeId,
-      //   pluginId: rawNode.origin.pluginId,
-      //   params: rawNode.params
-      // })
-      // console.log('result', result)
       options.onNodeExit(rawNode);
     } else if (rawNode.type === "comment") {
       // pass

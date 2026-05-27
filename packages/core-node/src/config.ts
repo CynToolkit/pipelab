@@ -3,14 +3,14 @@ import path from "node:path";
 import { ensure } from "./utils/fs-extras";
 import fs from "node:fs/promises";
 import { useLogger } from "@pipelab/shared";
-import { configRegistry, Migrator } from "@pipelab/shared";
+import { configRegistry, Migrator, normalizePipelineConfig } from "@pipelab/shared";
 
 export const getMigrator = <T>(name: string) => {
   if (configRegistry[name]) {
     return configRegistry[name] as Migrator<T>;
   }
 
-  if (name.startsWith("pipeline-")) {
+  if (name.startsWith("pipeline-") || path.isAbsolute(name) || name.endsWith(".json")) {
     return configRegistry["pipeline"] as Migrator<T>;
   }
 
@@ -50,6 +50,7 @@ export const setupConfigFile = async <T>(
       const { logger } = useLogger();
       let content = undefined;
       let originalJson: any = undefined;
+      let parseFailed = false;
 
       try {
         content = await fs.readFile(filesPath, "utf8");
@@ -58,9 +59,8 @@ export const setupConfigFile = async <T>(
         }
       } catch (e) {
         logger().error(`Error reading or parsing config ${name}:`, e);
+        parseFailed = true;
       }
-
-      // console.log("content", content);
 
       let json: any = undefined;
       try {
@@ -82,11 +82,21 @@ export const setupConfigFile = async <T>(
         json = migrator.defaultValue;
       }
 
+      let normalized = false;
+      const isPipeline =
+        name.startsWith("pipeline-") ||
+        path.isAbsolute(name) ||
+        name.endsWith(".json") ||
+        name === "pipeline";
+      if (isPipeline) {
+        normalized = normalizePipelineConfig(json);
+      }
+
       const originalVersion = originalJson?.version;
       const newVersion = json?.version;
 
-      // Save back migrated config if changed or if it's a new file
-      if (originalVersion !== newVersion || content === undefined) {
+      // Save back migrated config if changed, if normalized, if it's a new file, or if parse failed
+      if (originalVersion !== newVersion || normalized || content === undefined || parseFailed) {
         try {
           await fs.writeFile(filesPath, JSON.stringify(json));
         } catch (e) {

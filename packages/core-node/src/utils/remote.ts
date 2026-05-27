@@ -112,7 +112,12 @@ export async function fetchPackage(
   const baseDir = ctx.getPackagesPath(packageName);
   let resolvedVersion: string;
 
-  console.log(`[Fetcher] Resolving ${packageName}@${versionOrRange || "latest"}...`);
+  let resolvedVersionOrRange = versionOrRange;
+  if (resolvedVersionOrRange === "local") {
+    resolvedVersionOrRange = "latest";
+  }
+
+  console.log(`[Fetcher] Resolving ${packageName}@${resolvedVersionOrRange || "latest"}...`);
   const resolveStart = Date.now();
 
   try {
@@ -126,7 +131,7 @@ export async function fetchPackage(
 
     const packument = await packumentPromise;
     const versions = Object.keys(packument.versions);
-    const range = versionOrRange || "latest";
+    const range = resolvedVersionOrRange || "latest";
 
     // Prioritize tags (like 'latest', 'beta', etc.) over semver ranges
     const foundVersion = packument["dist-tags"]?.[range] || semver.maxSatisfying(versions, range);
@@ -145,7 +150,12 @@ export async function fetchPackage(
       `[Fetcher] ${packageName}: remote resolution failed (${Date.now() - resolveStart}ms), trying local fallback...`,
     );
     const fallbackStart = Date.now();
-    const fallbackVersion = await tryLocalFallback(versionOrRange, error, baseDir, packageName);
+    const fallbackVersion = await tryLocalFallback(
+      resolvedVersionOrRange,
+      error,
+      baseDir,
+      packageName,
+    );
     if (fallbackVersion) {
       resolvedVersion = fallbackVersion;
       console.log(
@@ -596,30 +606,42 @@ async function crawlMonorepoPackages(): Promise<Record<string, string>> {
   return cache;
 }
 
-async function findLatestLocalVersion(baseDir: string): Promise<string | null> {
-  if (!existsSync(baseDir)) return null;
-  try {
-    const entries = await readdir(baseDir, { withFileTypes: true });
-    const versions = entries
-      .filter((e) => e.isDirectory() || e.isSymbolicLink())
-      .map((e) => e.name)
-      .sort((a, b) => b.localeCompare(a, undefined, { numeric: true, sensitivity: "base" }));
-    return versions[0] || null;
-  } catch {
-    return null;
-  }
-}
-
 async function tryLocalFallback(
-  _version: string | undefined,
+  versionOrRange: string | undefined,
   _error: unknown,
   baseDir: string,
   logPrefix: string,
 ): Promise<string | null> {
-  const latestLocal = await findLatestLocalVersion(baseDir);
-  if (latestLocal) {
-    console.info(`[Fetcher] ${logPrefix}: Using locally cached version: ${latestLocal}`);
-    return latestLocal;
+  if (!existsSync(baseDir)) return null;
+  try {
+    const entries = await readdir(baseDir, { withFileTypes: true });
+    const localVersions = entries
+      .filter((e) => e.isDirectory() || e.isSymbolicLink())
+      .map((e) => e.name)
+      .filter((name) => !!semver.valid(name));
+
+    if (localVersions.length === 0) return null;
+
+    const range = versionOrRange || "latest";
+
+    if (range === "latest") {
+      const sorted = localVersions.sort((a, b) => semver.rcompare(a, b));
+      const latestLocal = sorted[0] || null;
+      if (latestLocal) {
+        console.info(`[Fetcher] ${logPrefix}: Using locally cached latest version: ${latestLocal}`);
+        return latestLocal;
+      }
+    } else {
+      const matched = semver.maxSatisfying(localVersions, range);
+      if (matched) {
+        console.info(
+          `[Fetcher] ${logPrefix}: Using locally cached matching version: ${matched} for range ${range}`,
+        );
+        return matched;
+      }
+    }
+  } catch (e) {
+    console.warn(`[Fetcher] ${logPrefix}: Error during local fallback resolution:`, e);
   }
   return null;
 }

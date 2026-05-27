@@ -1,347 +1,799 @@
 <template>
-  <div class="card">
-    <Tabs value="0">
-      <TabList>
-        <Tab value="0">{{ t("settings.tabs.general") }}</Tab>
-        <Tab value="2">{{ t("settings.tabs.advanced") }}</Tab>
-        <Tab v-if="user" value="3">{{ t("settings.tabs.billing") }}</Tab>
-      </TabList>
-      <TabPanels>
-        <!-- General Tab -->
-        <TabPanel value="0">
-          <div class="settings-group">
-            <div class="setting-item">
-              <div class="setting-content">
-                <label for="autosave" class="setting-title">{{ t("settings.autosave") }}</label>
-                <div class="setting-description">{{ t("settings.autosaveDescription") }}</div>
-              </div>
-              <div class="setting-action">
-                <ToggleSwitch
-                  :disabled="!settingsRef"
-                  input-id="autosave"
-                  :model-value="settingsRef?.autosave ?? true"
-                  @update:model-value="updateAutosave"
-                />
-              </div>
+  <div class="settings-container">
+    <!-- Left Sidebar -->
+    <div class="settings-sidebar">
+      <!-- Options Group -->
+      <div class="sidebar-group">
+        <div class="sidebar-group-header">Options</div>
+        <div
+          class="sidebar-item"
+          :class="{ active: currentSection === 'general' }"
+          @click="currentSection = 'general'"
+        >
+          <i class="mdi mdi-tune mr-2"></i>
+          <span>{{ t("settings.tabs.general") }}</span>
+        </div>
+        <div
+          class="sidebar-item"
+          :class="{ active: currentSection === 'advanced' }"
+          @click="currentSection = 'advanced'"
+        >
+          <i class="mdi mdi-server mr-2"></i>
+          <span>{{ t("settings.tabs.advanced") }}</span>
+        </div>
+        <div
+          v-if="user"
+          class="sidebar-item"
+          :class="{ active: currentSection === 'billing' }"
+          @click="currentSection = 'billing'"
+        >
+          <i class="mdi mdi-credit-card mr-2"></i>
+          <span>{{ t("settings.tabs.billing") }}</span>
+        </div>
+      </div>
+
+      <!-- Plugins Group -->
+      <div class="sidebar-group">
+        <div class="sidebar-group-header">Plugins</div>
+        <div
+          class="sidebar-item"
+          :class="{ active: currentSection === 'core-plugins' }"
+          @click="currentSection = 'core-plugins'"
+        >
+          <i class="pi pi-verified mr-2 text-blue-500"></i>
+          <span>{{ t("settings.tabs.core-plugins") }}</span>
+        </div>
+        <div
+          class="sidebar-item"
+          :class="{ active: currentSection === 'community-plugins' }"
+          @click="currentSection = 'community-plugins'"
+        >
+          <i class="pi pi-globe mr-2 text-purple-500"></i>
+          <span>{{ t("settings.tabs.community-plugins") }}</span>
+        </div>
+      </div>
+
+      <!-- Active Core Plugins Group -->
+      <div v-if="enabledCorePlugins.length > 0" class="sidebar-group">
+        <div class="sidebar-group-header">Core plugins</div>
+        <div
+          v-for="plugin in enabledCorePlugins"
+          :key="plugin.name"
+          class="sidebar-item plugin-sidebar-item"
+          :class="{ active: currentSection === `core-plugin-${plugin.name}` }"
+          @click="currentSection = `core-plugin-${plugin.name}`"
+        >
+          <template v-if="getPluginIcon(plugin.name)">
+            <img
+              v-if="getPluginIcon(plugin.name)?.type === 'image'"
+              :src="getPluginIconImage(plugin.name)"
+              class="sidebar-plugin-icon"
+            />
+            <i v-else :class="getIconClass(getPluginIcon(plugin.name))" class="mr-2 opacity-70"></i>
+          </template>
+          <template v-else>
+            <i class="pi pi-box mr-2 opacity-70"></i>
+          </template>
+          <span class="truncate">{{ formatPluginName(plugin.name) }}</span>
+        </div>
+      </div>
+
+      <!-- Active Community Plugins Group -->
+      <div v-if="enabledCommunityPlugins.length > 0" class="sidebar-group">
+        <div class="sidebar-group-header">Community plugins</div>
+        <div
+          v-for="plugin in enabledCommunityPlugins"
+          :key="plugin.name"
+          class="sidebar-item plugin-sidebar-item"
+          :class="{ active: currentSection === `community-plugin-${plugin.name}` }"
+          @click="currentSection = `community-plugin-${plugin.name}`"
+        >
+          <template v-if="getPluginIcon(plugin.name)">
+            <img
+              v-if="getPluginIcon(plugin.name)?.type === 'image'"
+              :src="getPluginIconImage(plugin.name)"
+              class="sidebar-plugin-icon"
+            />
+            <i v-else :class="getIconClass(getPluginIcon(plugin.name))" class="mr-2 opacity-70"></i>
+          </template>
+          <template v-else>
+            <i class="pi pi-box mr-2 opacity-70"></i>
+          </template>
+          <span class="truncate">{{ formatPluginName(plugin.name) }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Content Panel -->
+    <div class="settings-content">
+      <!-- General Tab Content -->
+      <div v-if="currentSection === 'general'" class="settings-panel">
+        <div class="section-header">
+          <h3>{{ t("settings.tabs.general") }}</h3>
+          <p class="description">Configure primary application behaviors and settings.</p>
+        </div>
+
+        <div class="settings-group">
+          <div class="setting-item">
+            <div class="setting-content">
+              <label for="autosave" class="setting-title">{{ t("settings.autosave") }}</label>
+              <div class="setting-description">{{ t("settings.autosaveDescription") }}</div>
             </div>
-
-            <div class="setting-item">
-              <div class="setting-content">
-                <label for="app-theme" class="setting-title">{{ t("settings.darkTheme") }}</label>
-                <div class="setting-description">
-                  Toggle between light and dark mode for the application interface.
-                </div>
-              </div>
-              <div class="setting-action">
-                <ToggleSwitch
-                  :disabled="!settingsRef"
-                  aria-label="Toggle dark mode"
-                  input-id="app-theme"
-                  :model-value="false"
-                />
-              </div>
-            </div>
-
-            <div class="setting-item">
-              <div class="setting-content">
-                <label for="language-select" class="setting-title">{{
-                  $t("settings.language")
-                }}</label>
-                <div class="setting-description">
-                  Select your preferred language for the application UI.
-                </div>
-              </div>
-              <div class="setting-action">
-                <Select
-                  input-id="language-select"
-                  v-model="currentLocale"
-                  :options="$i18n.availableLocales"
-                  class="w-[200px]"
-                >
-                  <template #option="slotProps">
-                    <div class="flex items-center">
-                      <div>{{ $t("settings.languageOptions." + slotProps.option) }}</div>
-                    </div>
-                  </template>
-                  <template #value="slotProps">
-                    <div class="flex items-center">
-                      <div>{{ $t("settings.languageOptions." + slotProps.value) }}</div>
-                    </div>
-                  </template>
-                </Select>
-              </div>
-            </div>
-
-            <div class="setting-item">
-              <div class="setting-content">
-                <div class="setting-title">Onboarding Tours</div>
-                <div class="setting-description">
-                  Restart the interactive guides for different sections of the app.
-                </div>
-              </div>
-              <div class="setting-action flex gap-2">
-                <Button
-                  outlined
-                  severity="secondary"
-                  size="small"
-                  :label="t('settings.restart-dashboard-tour')"
-                  @click="restartTour('dashboard')"
-                >
-                  <template #icon>
-                    <i class="mdi mdi-refresh mr-2"></i>
-                  </template>
-                </Button>
-                <Button
-                  outlined
-                  severity="secondary"
-                  size="small"
-                  :label="t('settings.restart-editor-tour')"
-                  @click="restartTour('editor')"
-                >
-                  <template #icon>
-                    <i class="mdi mdi-refresh mr-2"></i>
-                  </template>
-                </Button>
-              </div>
-            </div>
-          </div>
-        </TabPanel>
-
-        <!-- Advanced Tab -->
-        <TabPanel value="2">
-          <div class="settings-group mb-8">
-            <div class="section-header">
-              <h3>{{ t("settings.retentionPolicy") }}</h3>
-              <p class="description">{{ t("settings.retentionPolicyDescription") }}</p>
-            </div>
-
-            <div v-if="storageInfo && storageInfo.disk" class="storage-card mb-6 mt-4">
-              <div class="card-header mb-4">
-                <div class="flex items-center gap-2">
-                  <i class="pi pi-database text-primary text-xl"></i>
-                  <span class="text-lg font-bold tracking-tight">{{
-                    t("settings.disk-usage")
-                  }}</span>
-                  <Button
-                    v-tooltip.top="'Refresh storage info'"
-                    text
-                    severity="secondary"
-                    size="small"
-                    class="ml-2"
-                    @click="refreshStorageInfo"
-                  >
-                    <i class="pi pi-refresh"></i>
-                  </Button>
-                </div>
-                <div class="text-sm font-medium opacity-60">
-                  {{ formatSize(storageInfo.disk.total - storageInfo.disk.free) }} /
-                  {{ formatSize(storageInfo.disk.total) }}
-                </div>
-              </div>
-
-              <!-- Main Progress Bar -->
-              <div class="usage-bar-container mb-6">
-                <div class="usage-bar">
-                  <div
-                    class="usage-segment pipelab-segment"
-                    :style="{
-                      width: (storageInfo.disk.pipelab / storageInfo.disk.total) * 100 + '%',
-                    }"
-                    v-tooltip="
-                      t('settings.storage-pipelab') + ': ' + formatSize(storageInfo.disk.pipelab)
-                    "
-                  ></div>
-                  <div
-                    class="usage-segment other-segment"
-                    :style="{
-                      width:
-                        ((storageInfo.disk.total -
-                          storageInfo.disk.free -
-                          storageInfo.disk.pipelab) /
-                          storageInfo.disk.total) *
-                          100 +
-                        '%',
-                    }"
-                    v-tooltip="
-                      t('settings.storage-other') +
-                      ': ' +
-                      formatSize(
-                        storageInfo.disk.total - storageInfo.disk.free - storageInfo.disk.pipelab,
-                      )
-                    "
-                  ></div>
-                </div>
-              </div>
-
-              <!-- Legend / Details -->
-              <div class="usage-details grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div class="detail-item">
-                  <div class="flex items-center gap-2 mb-1">
-                    <div class="dot pipelab-dot"></div>
-                    <span class="detail-label">{{ t("settings.storage-pipelab") }}</span>
-                  </div>
-                  <div class="detail-value">{{ formatSize(storageInfo.disk.pipelab) }}</div>
-                </div>
-                <div class="detail-item">
-                  <div class="flex items-center gap-2 mb-1">
-                    <div class="dot other-dot"></div>
-                    <span class="detail-label">{{ t("settings.storage-other") }}</span>
-                  </div>
-                  <div class="detail-value">
-                    {{
-                      formatSize(
-                        storageInfo.disk.total - storageInfo.disk.free - storageInfo.disk.pipelab,
-                      )
-                    }}
-                  </div>
-                </div>
-                <div class="detail-item">
-                  <div class="flex items-center gap-2 mb-1">
-                    <div class="dot free-dot"></div>
-                    <span class="detail-label">{{ t("settings.storage-free") }}</span>
-                  </div>
-                  <div class="detail-value">{{ formatSize(storageInfo.disk.free) }}</div>
-                </div>
-              </div>
-            </div>
-
-            <div class="setting-item">
-              <div class="setting-content">
-                <label for="retention-enabled" class="setting-title">{{
-                  t("settings.retentionEnabled")
-                }}</label>
-                <div class="setting-description">
-                  Automatically delete old pipelines builds to save space.
-                </div>
-              </div>
-              <div class="setting-action">
-                <ToggleSwitch
-                  :disabled="!settingsRef"
-                  input-id="retention-enabled"
-                  :model-value="settingsRef?.buildHistory?.retentionPolicy?.enabled ?? false"
-                  @update:model-value="updateRetentionEnabled"
-                />
-              </div>
-            </div>
-
-            <div
-              class="setting-item"
-              :class="{
-                'opacity-50 pointer-events-none':
-                  !settingsRef?.buildHistory?.retentionPolicy?.enabled,
-              }"
-            >
-              <div class="setting-content">
-                <label for="max-entries" class="setting-title">{{
-                  t("settings.retentionMaxEntries")
-                }}</label>
-                <div class="setting-description">
-                  {{ t("settings.retentionMaxEntriesDescription") }}
-                </div>
-              </div>
-              <div class="setting-action">
-                <InputNumber
-                  v-model="retentionMaxEntries"
-                  :disabled="!settingsRef || !settingsRef?.buildHistory?.retentionPolicy?.enabled"
-                  input-id="max-entries"
-                  show-buttons
-                  :min="1"
-                  :max="1000"
-                  class="w-[120px]"
-                />
-              </div>
-            </div>
-
-            <div
-              class="setting-item"
-              :class="{
-                'opacity-50 pointer-events-none':
-                  !settingsRef?.buildHistory?.retentionPolicy?.enabled,
-              }"
-            >
-              <div class="setting-content">
-                <label for="max-age" class="setting-title">{{
-                  t("settings.retentionMaxAge")
-                }}</label>
-                <div class="setting-description">
-                  {{ t("settings.retentionMaxAgeDescription") }}
-                </div>
-              </div>
-              <div class="setting-action">
-                <InputNumber
-                  v-model="retentionMaxAge"
-                  :disabled="!settingsRef || !settingsRef?.buildHistory?.retentionPolicy?.enabled"
-                  input-id="max-age"
-                  show-buttons
-                  :min="1"
-                  :max="365"
-                  class="w-[120px]"
-                />
-              </div>
+            <div class="setting-action">
+              <ToggleSwitch
+                :disabled="!settingsRef"
+                input-id="autosave"
+                :model-value="settingsRef?.autosave ?? true"
+                @update:model-value="updateAutosave"
+              />
             </div>
           </div>
-        </TabPanel>
 
-        <!-- Billing Tab -->
-        <TabPanel value="3">
-          <template v-for="subscription in subscriptions" :key="subscription.id">
-            <div v-if="subscription.status === 'active'" :key="subscription.id">
-              <Card class="subscription">
-                <template #title>{{ subscription.product.name }}</template>
-                <template #content>
-                  <div class="subscription-details">
-                    <div class="subscription-price">
-                      <span class="currency">{{ subscription.currency }}</span>
-                      {{ (subscription.amount / 100).toFixed(2) }} /
-                      {{ subscription.recurringInterval }}
-                    </div>
-                    <div class="subscription-dates">
-                      <div class="subscription-date-item">
-                        <span class="date-label">{{ $t("settings.start-date") }}</span>
-                        <span class="date-value">{{
-                          format(subscription.currentPeriodStart, "MMM dd, yyyy")
-                        }}</span>
-                      </div>
-                      <div class="subscription-date-item">
-                        <span class="date-label">{{ $t("settings.renewal-date") }}</span>
-                        <span class="date-value">{{
-                          format(subscription.currentPeriodEnd, "MMM dd, yyyy")
-                        }}</span>
-                      </div>
-                    </div>
+          <div class="setting-item">
+            <div class="setting-content">
+              <label for="app-theme" class="setting-title">{{ t("settings.darkTheme") }}</label>
+              <div class="setting-description">
+                Toggle between light and dark mode for the application interface.
+              </div>
+            </div>
+            <div class="setting-action">
+              <ToggleSwitch
+                :disabled="!settingsRef"
+                aria-label="Toggle dark mode"
+                input-id="app-theme"
+                :model-value="settingsRef?.theme === 'dark'"
+                @update:model-value="updateTheme"
+              />
+            </div>
+          </div>
+
+          <div class="setting-item">
+            <div class="setting-content">
+              <label for="language-select" class="setting-title">{{
+                $t("settings.language")
+              }}</label>
+              <div class="setting-description">
+                Select your preferred language for the application UI.
+              </div>
+            </div>
+            <div class="setting-action">
+              <Select
+                input-id="language-select"
+                v-model="currentLocale"
+                :options="$i18n.availableLocales"
+                class="w-[200px]"
+              >
+                <template #option="slotProps">
+                  <div class="flex items-center">
+                    <div>{{ $t("settings.languageOptions." + slotProps.option) }}</div>
                   </div>
                 </template>
-              </Card>
+                <template #value="slotProps">
+                  <div class="flex items-center">
+                    <div>{{ $t("settings.languageOptions." + slotProps.value) }}</div>
+                  </div>
+                </template>
+              </Select>
             </div>
-          </template>
+          </div>
+
+          <div class="setting-item">
+            <div class="setting-content">
+              <div class="setting-title">Onboarding Tours</div>
+              <div class="setting-description">
+                Restart the interactive guides for different sections of the app.
+              </div>
+            </div>
+            <div class="setting-action flex gap-2">
+              <Button
+                outlined
+                severity="secondary"
+                size="small"
+                :label="t('settings.restart-dashboard-tour')"
+                @click="restartTour('dashboard')"
+              >
+                <template #icon>
+                  <i class="mdi mdi-refresh mr-2"></i>
+                </template>
+              </Button>
+              <Button
+                outlined
+                severity="secondary"
+                size="small"
+                :label="t('settings.restart-editor-tour')"
+                @click="restartTour('editor')"
+              >
+                <template #icon>
+                  <i class="mdi mdi-refresh mr-2"></i>
+                </template>
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Advanced Tab Content -->
+      <div v-if="currentSection === 'advanced'" class="settings-panel">
+        <div class="section-header">
+          <h3>{{ t("settings.retentionPolicy") }}</h3>
+          <p class="description">{{ t("settings.retentionPolicyDescription") }}</p>
+        </div>
+
+        <div v-if="storageInfo && storageInfo.disk" class="storage-card mb-4">
+          <div class="card-header mb-3">
+            <div class="flex items-center gap-2">
+              <i class="pi pi-database text-primary text-lg"></i>
+              <span class="text-base font-bold tracking-tight">{{ t("settings.disk-usage") }}</span>
+              <Button
+                v-tooltip.top="'Refresh storage info'"
+                text
+                severity="secondary"
+                size="small"
+                class="ml-1"
+                @click="refreshStorageInfo"
+              >
+                <i class="pi pi-refresh text-xs"></i>
+              </Button>
+            </div>
+            <div class="text-xs font-semibold opacity-60">
+              {{ formatSize(storageInfo.disk.total - storageInfo.disk.free) }} /
+              {{ formatSize(storageInfo.disk.total) }}
+            </div>
+          </div>
+
+          <div class="usage-bar-container mb-4">
+            <div class="usage-bar">
+              <div
+                class="usage-segment pipelab-segment"
+                :style="{
+                  width: (storageInfo.disk.pipelab / storageInfo.disk.total) * 100 + '%',
+                }"
+                v-tooltip="
+                  t('settings.storage-pipelab') + ': ' + formatSize(storageInfo.disk.pipelab)
+                "
+              ></div>
+              <div
+                class="usage-segment other-segment"
+                :style="{
+                  width:
+                    ((storageInfo.disk.total - storageInfo.disk.free - storageInfo.disk.pipelab) /
+                      storageInfo.disk.total) *
+                      100 +
+                    '%',
+                }"
+                v-tooltip="
+                  t('settings.storage-other') +
+                  ': ' +
+                  formatSize(
+                    storageInfo.disk.total - storageInfo.disk.free - storageInfo.disk.pipelab,
+                  )
+                "
+              ></div>
+            </div>
+          </div>
+
+          <div class="usage-details grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div class="detail-item">
+              <div class="flex items-center gap-1.5 mb-0.5">
+                <div class="dot pipelab-dot"></div>
+                <span class="detail-label">{{ t("settings.storage-pipelab") }}</span>
+              </div>
+              <div class="detail-value text-sm">{{ formatSize(storageInfo.disk.pipelab) }}</div>
+            </div>
+            <div class="detail-item">
+              <div class="flex items-center gap-1.5 mb-0.5">
+                <div class="dot other-dot"></div>
+                <span class="detail-label">{{ t("settings.storage-other") }}</span>
+              </div>
+              <div class="detail-value text-sm">
+                {{
+                  formatSize(
+                    storageInfo.disk.total - storageInfo.disk.free - storageInfo.disk.pipelab,
+                  )
+                }}
+              </div>
+            </div>
+            <div class="detail-item">
+              <div class="flex items-center gap-1.5 mb-0.5">
+                <div class="dot free-dot"></div>
+                <span class="detail-label">{{ t("settings.storage-free") }}</span>
+              </div>
+              <div class="detail-value text-sm">{{ formatSize(storageInfo.disk.free) }}</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-group">
+          <div class="setting-item">
+            <div class="setting-content">
+              <label for="retention-enabled" class="setting-title">{{
+                t("settings.retentionEnabled")
+              }}</label>
+              <div class="setting-description">
+                Automatically delete old pipelines builds to save space.
+              </div>
+            </div>
+            <div class="setting-action">
+              <ToggleSwitch
+                :disabled="!settingsRef"
+                input-id="retention-enabled"
+                :model-value="settingsRef?.buildHistory?.retentionPolicy?.enabled ?? false"
+                @update:model-value="updateRetentionEnabled"
+              />
+            </div>
+          </div>
+
+          <div
+            class="setting-item"
+            :class="{
+              'opacity-50 pointer-events-none':
+                !settingsRef?.buildHistory?.retentionPolicy?.enabled,
+            }"
+          >
+            <div class="setting-content">
+              <label for="max-entries" class="setting-title">{{
+                t("settings.retentionMaxEntries")
+              }}</label>
+              <div class="setting-description">
+                {{ t("settings.retentionMaxEntriesDescription") }}
+              </div>
+            </div>
+            <div class="setting-action">
+              <InputNumber
+                v-model="retentionMaxEntries"
+                :disabled="!settingsRef || !settingsRef?.buildHistory?.retentionPolicy?.enabled"
+                input-id="max-entries"
+                show-buttons
+                :min="1"
+                :max="1000"
+                class="w-[120px]"
+              />
+            </div>
+          </div>
+
+          <div
+            class="setting-item"
+            :class="{
+              'opacity-50 pointer-events-none':
+                !settingsRef?.buildHistory?.retentionPolicy?.enabled,
+            }"
+          >
+            <div class="setting-content">
+              <label for="max-age" class="setting-title">{{ t("settings.retentionMaxAge") }}</label>
+              <div class="setting-description">
+                {{ t("settings.retentionMaxAgeDescription") }}
+              </div>
+            </div>
+            <div class="setting-action">
+              <InputNumber
+                v-model="retentionMaxAge"
+                :disabled="!settingsRef || !settingsRef?.buildHistory?.retentionPolicy?.enabled"
+                input-id="max-age"
+                show-buttons
+                :min="1"
+                :max="365"
+                class="w-[120px]"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Billing Tab Content -->
+      <div v-if="currentSection === 'billing'" class="settings-panel">
+        <div class="section-header">
+          <h3>Billing</h3>
+          <p class="description">Manage your account billing details and premium subscriptions.</p>
+        </div>
+
+        <div v-if="subscriptions.length > 0" class="billing-container">
+          <div
+            v-for="subscription in subscriptions"
+            :key="subscription.id"
+            class="settings-group mb-4"
+          >
+            <div v-if="subscription.status === 'active'">
+              <!-- Row 1: Plan Name -->
+              <div class="setting-item">
+                <div class="setting-content">
+                  <span class="setting-title">Subscription Plan</span>
+                  <span class="setting-description">Your current active subscription.</span>
+                </div>
+                <div class="setting-action flex items-center gap-2">
+                  <span class="font-bold text-sm text-color mr-2">{{
+                    subscription.product.name
+                  }}</span>
+                  <span class="installed-badge">Active</span>
+                </div>
+              </div>
+
+              <!-- Row 2: Price -->
+              <div class="setting-item">
+                <div class="setting-content">
+                  <span class="setting-title">Pricing</span>
+                  <span class="setting-description"
+                    >The billing amount and frequency of your plan.</span
+                  >
+                </div>
+                <div class="setting-action">
+                  <span class="font-semibold text-sm text-color">
+                    {{ subscription.currency.toUpperCase() }}
+                    {{ (subscription.amount / 100).toFixed(2) }} /
+                    {{ subscription.recurringInterval }}
+                  </span>
+                </div>
+              </div>
+
+              <!-- Row 3: Start Date -->
+              <div class="setting-item">
+                <div class="setting-content">
+                  <span class="setting-title">{{ $t("settings.start-date") }}</span>
+                  <span class="setting-description">When your subscription started.</span>
+                </div>
+                <div class="setting-action">
+                  <span class="text-sm font-medium text-color">{{
+                    format(subscription.currentPeriodStart, "MMM dd, yyyy")
+                  }}</span>
+                </div>
+              </div>
+
+              <!-- Row 4: Renewal Date -->
+              <div class="setting-item">
+                <div class="setting-content">
+                  <span class="setting-title">{{ $t("settings.renewal-date") }}</span>
+                  <span class="setting-description"
+                    >When your subscription will automatically renew.</span
+                  >
+                </div>
+                <div class="setting-action">
+                  <span class="text-sm font-medium text-color">{{
+                    format(subscription.currentPeriodEnd, "MMM dd, yyyy")
+                  }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
 
           <Button
-            v-if="subscriptions.length > 0"
-            class="btn manage-subscription-btn"
+            class="manage-portal-btn w-full py-2"
+            severity="secondary"
+            outlined
             :loading="isBillingPortalUrlLoading"
             @click="openBillingPortal"
           >
+            <template #icon>
+              <i class="pi pi-external-link mr-2"></i>
+            </template>
             {{ $t("settings.manage-subscription") }}
           </Button>
-          <UpgradeDialog v-if="subscriptions.length === 0" />
-        </TabPanel>
-      </TabPanels>
-    </Tabs>
+        </div>
+
+        <UpgradeDialog v-else />
+      </div>
+
+      <!-- Core Plugins Pane Content -->
+      <div v-if="currentSection === 'core-plugins'" class="settings-panel">
+        <div class="section-header flex justify-between items-center mb-4">
+          <div>
+            <h3>Search core plugins</h3>
+            <p class="description">Filter plugins by name or description.</p>
+          </div>
+          <!-- Filter input on top right -->
+          <IconField :style="{ width: '220px' }" icon-position="left">
+            <InputIcon class="pi pi-search text-xs"></InputIcon>
+            <InputText v-model="coreSearchQuery" placeholder="Search plugins..." size="small" />
+          </IconField>
+        </div>
+
+        <h4 class="text-xs font-bold opacity-60 mb-2 uppercase tracking-wider">Plugin list</h4>
+        <div
+          v-if="filteredCorePlugins.length === 0"
+          class="text-center py-6 text-gray-500 border border-dashed rounded-lg"
+        >
+          No core plugins found matching your search.
+        </div>
+        <div v-else class="plugins-list-group">
+          <div
+            v-for="plugin in filteredCorePlugins"
+            :key="plugin.name"
+            class="plugin-row flex items-center justify-between"
+          >
+            <div class="flex items-center gap-3">
+              <div class="plugin-icon-wrapper flex items-center justify-center">
+                <template v-if="getPluginIcon(plugin.name)">
+                  <img
+                    v-if="getPluginIcon(plugin.name)?.type === 'image'"
+                    :src="getPluginIconImage(plugin.name)"
+                    class="plugin-row-icon"
+                  />
+                  <i
+                    v-else
+                    :class="getIconClass(getPluginIcon(plugin.name))"
+                    class="text-sm text-primary"
+                  ></i>
+                </template>
+                <template v-else>
+                  <i class="pi pi-box text-sm text-primary"></i>
+                </template>
+              </div>
+              <div class="flex flex-column">
+                <span class="plugin-title font-bold text-xs text-color">{{
+                  formatPluginName(plugin.name)
+                }}</span>
+                <span class="plugin-description text-[10px] text-secondary mt-0.5">{{
+                  plugin.description || "No description available."
+                }}</span>
+              </div>
+            </div>
+            <div class="flex items-center gap-2">
+              <Button
+                v-if="plugin.enabled"
+                icon="pi pi-cog"
+                severity="secondary"
+                text
+                rounded
+                size="small"
+                class="hover:rotate-45"
+                v-tooltip.top="'Configure plugin'"
+                @click="currentSection = `core-plugin-${plugin.name}`"
+              />
+              <ToggleSwitch
+                :model-value="plugin.enabled"
+                @update:model-value="togglePlugin(plugin.name)"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Community Plugins Pane Content -->
+      <div v-if="currentSection === 'community-plugins'" class="settings-panel">
+        <div class="section-header">
+          <h3>Community Plugins</h3>
+          <p class="description">
+            Install and manage global pipeline plugins from the npm registry.
+          </p>
+        </div>
+
+        <!-- Search NPM input -->
+        <div class="flex gap-2 items-center mb-4">
+          <IconField :style="{ flex: 1 }" icon-position="left">
+            <InputIcon class="pi pi-search text-xs"></InputIcon>
+            <InputText
+              v-model="searchQuery"
+              placeholder="Search NPM for community plugins (e.g. @pipelab/plugin-)"
+              size="small"
+            />
+          </IconField>
+          <Button
+            v-if="searchQuery"
+            icon="pi pi-times"
+            severity="secondary"
+            text
+            size="small"
+            @click="searchQuery = ''"
+          />
+        </div>
+
+        <!-- Loading indicator for searching -->
+        <div v-if="searchingRegistry" class="flex justify-center items-center py-6">
+          <i class="pi pi-spin pi-spinner text-primary text-xl mr-2"></i>
+          <span class="text-xs">Searching npm registry...</span>
+        </div>
+
+        <!-- Search Results vs Installed Lists -->
+        <div v-else class="plugins-list">
+          <template v-if="searchQuery">
+            <h4 class="text-xs font-bold opacity-60 mb-2 uppercase tracking-wider">
+              Search Results
+            </h4>
+            <div v-if="registryResults.length === 0" class="text-center py-6 text-gray-500">
+              No plugins found matching "{{ searchQuery }}".
+            </div>
+            <div v-else class="plugins-list-group">
+              <div
+                v-for="pkg in registryResults"
+                :key="pkg.name"
+                class="plugin-row flex items-center justify-between"
+              >
+                <div class="flex items-center gap-3">
+                  <div class="plugin-icon-wrapper flex items-center justify-center w-8 h-8 rounded">
+                    <i class="pi pi-box text-primary text-sm"></i>
+                  </div>
+                  <div class="flex flex-column">
+                    <div class="flex items-center gap-1.5">
+                      <span class="plugin-title font-bold text-xs text-color">{{
+                        formatPluginName(pkg.name)
+                      }}</span>
+                      <span v-if="isInstalled(pkg.name)" class="installed-badge">Installed</span>
+                    </div>
+                    <span class="plugin-description text-[10px] text-secondary mt-0.5">{{
+                      pkg.description || "No description available."
+                    }}</span>
+                    <span class="text-[9px] text-secondary opacity-60 mt-0.5"
+                      >Latest version: {{ pkg.version }}</span
+                    >
+                  </div>
+                </div>
+                <div class="flex items-center gap-2">
+                  <Button
+                    v-if="isInstalled(pkg.name)"
+                    label="Uninstall"
+                    severity="danger"
+                    outlined
+                    size="small"
+                    :loading="loadingPlugins[pkg.name]"
+                    @click="uninstallPlugin(pkg.name)"
+                  />
+                  <Button
+                    v-else
+                    label="Install"
+                    size="small"
+                    :loading="loadingPlugins[pkg.name]"
+                    @click="installPlugin(pkg.name, pkg.description)"
+                  />
+                </div>
+              </div>
+            </div>
+          </template>
+
+          <template v-else>
+            <h4 class="text-xs font-bold opacity-60 mb-2 uppercase tracking-wider">
+              Installed Community Plugins
+            </h4>
+            <div
+              v-if="communityPlugins.length === 0"
+              class="text-center py-6 text-gray-500 border border-dashed rounded-lg"
+            >
+              No community plugins installed. Search NPM above to discover plugins.
+            </div>
+            <div v-else class="plugins-list-group">
+              <div
+                v-for="plugin in communityPlugins"
+                :key="plugin.name"
+                class="plugin-row flex items-center justify-between"
+              >
+                <div class="flex items-center gap-3">
+                  <div class="plugin-icon-wrapper flex items-center justify-center">
+                    <template v-if="getPluginIcon(plugin.name)">
+                      <img
+                        v-if="getPluginIcon(plugin.name)?.type === 'image'"
+                        :src="getPluginIconImage(plugin.name)"
+                        class="plugin-row-icon"
+                      />
+                      <i
+                        v-else
+                        :class="getIconClass(getPluginIcon(plugin.name))"
+                        class="text-sm text-primary"
+                      ></i>
+                    </template>
+                    <template v-else>
+                      <i class="pi pi-box text-primary text-sm"></i>
+                    </template>
+                  </div>
+                  <div class="flex flex-column">
+                    <span class="plugin-title font-bold text-xs text-color">{{
+                      formatPluginName(plugin.name)
+                    }}</span>
+                    <span class="plugin-description text-[10px] text-secondary mt-0.5">{{
+                      plugin.description || "No description available."
+                    }}</span>
+                  </div>
+                </div>
+                <div class="flex items-center gap-2">
+                  <!-- Settings Button -->
+                  <Button
+                    v-if="plugin.enabled"
+                    icon="pi pi-cog"
+                    severity="secondary"
+                    text
+                    rounded
+                    size="small"
+                    class="hover:rotate-45"
+                    v-tooltip.top="'Configure plugin'"
+                    @click="currentSection = `community-plugin-${plugin.name}`"
+                  />
+                  <ToggleSwitch
+                    :model-value="plugin.enabled"
+                    @update:model-value="togglePlugin(plugin.name)"
+                  />
+                  <Button
+                    icon="pi pi-trash"
+                    severity="danger"
+                    text
+                    rounded
+                    size="small"
+                    :loading="loadingPlugins[plugin.name]"
+                    v-tooltip.top="'Uninstall'"
+                    @click="uninstallPlugin(plugin.name)"
+                  />
+                </div>
+              </div>
+            </div>
+          </template>
+        </div>
+      </div>
+
+      <!-- Specific Core Plugin settings view -->
+      <div v-if="currentSection.startsWith('core-plugin-')" class="settings-panel">
+        <div class="section-header">
+          <h3>{{ formatPluginName(getSelectedPluginName(currentSection)) }}</h3>
+          <p class="description">
+            {{ getSelectedPluginDescription(currentSection) || "Core system plugin." }}
+          </p>
+        </div>
+
+        <div class="settings-group mt-2">
+          <div class="setting-item">
+            <div class="setting-content">
+              <span class="setting-title">Enable plugin</span>
+              <span class="setting-description"
+                >Turn this core plugin on or off. When disabled, its nodes will not be visible in
+                your editor.</span
+              >
+            </div>
+            <div class="setting-action">
+              <ToggleSwitch
+                :model-value="getSelectedPluginEnabled(currentSection)"
+                @update:model-value="togglePlugin(getSelectedPluginName(currentSection))"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Specific Community Plugin settings view -->
+      <div v-if="currentSection.startsWith('community-plugin-')" class="settings-panel">
+        <div class="section-header flex justify-between items-start">
+          <div>
+            <h3>{{ formatPluginName(getSelectedPluginName(currentSection)) }}</h3>
+            <p class="description">
+              {{ getSelectedPluginDescription(currentSection) || "Community plugin." }}
+            </p>
+          </div>
+          <Button
+            label="Uninstall Plugin"
+            severity="danger"
+            outlined
+            size="small"
+            class="mt-1"
+            :loading="loadingPlugins[getSelectedPluginName(currentSection)]"
+            @click="uninstallPlugin(getSelectedPluginName(currentSection))"
+          />
+        </div>
+
+        <div class="settings-group mt-2">
+          <div class="setting-item">
+            <div class="setting-content">
+              <span class="setting-title">Enable plugin</span>
+              <span class="setting-description"
+                >Turn this community plugin on or off. When disabled, its nodes will not be visible
+                in your editor.</span
+              >
+            </div>
+            <div class="setting-action">
+              <ToggleSwitch
+                :model-value="getSelectedPluginEnabled(currentSection)"
+                @update:model-value="togglePlugin(getSelectedPluginName(currentSection))"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script lang="ts" setup>
-import Tabs from "primevue/tabs";
-import TabList from "primevue/tablist";
-import Tab from "primevue/tab";
-import Card from "primevue/card";
-import TabPanels from "primevue/tabpanels";
-import TabPanel from "primevue/tabpanel";
-import { computed, ref, onMounted, toRaw } from "vue";
+import { computed, ref, onMounted, toRaw, watch } from "vue";
 import { useAppSettings } from "@renderer/store/settings";
+import { useAppStore } from "@renderer/store/app";
 import { storeToRefs } from "pinia";
 import Button from "primevue/button";
+import Card from "primevue/card";
 import InputNumber from "primevue/inputnumber";
+import ToggleSwitch from "primevue/toggleswitch";
+import Select from "primevue/select";
 import { supabase } from "@pipelab/shared";
 import { useAuth } from "@renderer/store/auth";
 import { useBuildHistory } from "../store/build-history";
@@ -351,23 +803,22 @@ import { useAPI } from "@renderer/composables/api";
 import { format } from "date-fns";
 import { useI18n } from "vue-i18n";
 import { Locales, MessageSchema } from "@pipelab/shared";
-import { watch } from "vue";
+import { watchDebounced } from "@vueuse/core";
+import InputText from "primevue/inputtext";
+import { useToast } from "primevue/usetoast";
 
-const { t, locale } = useI18n<
-  {
-    message: MessageSchema;
-  },
-  Locales
->();
+const { t, locale } = useI18n<{ message: MessageSchema }, Locales>();
 
 const appSettings = useAppSettings();
+const appStore = useAppStore();
 const authStore = useAuth();
 const buildHistoryStore = useBuildHistory();
 const api = useAPI();
 
 const { settings: settingsRef } = storeToRefs(appSettings);
+const { pluginDefinitions } = storeToRefs(appStore);
 const { subscriptions, user } = storeToRefs(authStore);
-const { canUseHistory, storageInfo } = storeToRefs(buildHistoryStore);
+const { storageInfo } = storeToRefs(buildHistoryStore);
 
 onMounted(async () => {
   await buildHistoryStore.refreshStorageInfo();
@@ -393,6 +844,13 @@ watch(
   },
   { immediate: true },
 );
+
+const updateTheme = (value: boolean) => {
+  return appSettings.updateSettings({
+    ...(toRaw(settingsRef.value) as any),
+    theme: value ? "dark" : "light",
+  });
+};
 
 const updateAutosave = (value: boolean) => {
   return appSettings.updateSettings({
@@ -472,17 +930,19 @@ const isBillingPortalUrlLoading = ref(false);
 const openBillingPortal = async () => {
   isBillingPortalUrlLoading.value = true;
   try {
-    const result = await supabase().functions.invoke("customer-portal");
+    const client = supabase();
+    if (!client) {
+      throw new Error("Supabase is not configured");
+    }
+    const result = await client.functions.invoke("customer-portal");
     console.log("result", result);
-    window.open(result.data.customerPortal);
+    if (result.data?.customerPortal) {
+      window.open(result.data.customerPortal);
+    }
   } catch (error) {
     console.error("Error opening billing portal:", error);
   }
   isBillingPortalUrlLoading.value = false;
-};
-
-const formatDate = (timestamp: number): string => {
-  return new Date(timestamp).toLocaleDateString();
 };
 
 const formatSize = (bytes: number): string => {
@@ -513,42 +973,455 @@ const restartTour = (tourId: "dashboard" | "editor") => {
   });
   alert(t("settings.tour-reset-success"));
 };
+
+const toast = useToast();
+
+const searchQuery = ref("");
+const searchingRegistry = ref(false);
+const registryResults = ref<any[]>([]);
+const loadingPlugins = ref<Record<string, boolean>>({});
+
+// Watch search input to query the registry with a 500ms debounce
+watchDebounced(
+  searchQuery,
+  async (newQuery) => {
+    const q = newQuery.trim();
+    if (!q) {
+      registryResults.value = [];
+      return;
+    }
+    searchingRegistry.value = true;
+    try {
+      const res = await api.execute("plugin:search", { query: q });
+      if (res.type === "success") {
+        registryResults.value = res.result.results;
+      }
+    } catch (e) {
+      console.error("Registry search error:", e);
+    } finally {
+      searchingRegistry.value = false;
+    }
+  },
+  { debounce: 500 },
+);
+
+const isInstalled = (packageName: string) => {
+  return (settingsRef.value?.plugins || []).some((p) => p.name === packageName);
+};
+
+const installPlugin = async (packageName: string, description = "") => {
+  loadingPlugins.value[packageName] = true;
+  try {
+    toast.add({
+      severity: "info",
+      summary: "Installing plugin",
+      detail: `Downloading and installing ${packageName}...`,
+      life: 3000,
+    });
+
+    const res = await api.execute("plugin:install", {
+      packageName,
+      version: "latest",
+    });
+
+    if (res.type === "success") {
+      const currentPlugins = [...(settingsRef.value?.plugins || [])];
+      if (!currentPlugins.some((p) => p.name === packageName)) {
+        currentPlugins.push({
+          name: packageName,
+          enabled: true,
+          description: description || "Community plugin",
+        });
+        await appSettings.updateSettings({
+          ...(toRaw(settingsRef.value) as any),
+          plugins: currentPlugins,
+        });
+      }
+
+      toast.add({
+        severity: "success",
+        summary: "Plugin installed",
+        detail: `${packageName} has been installed successfully!`,
+        life: 3000,
+      });
+    } else {
+      toast.add({
+        severity: "error",
+        summary: "Installation failed",
+        detail: res.ipcError || `Could not install ${packageName}`,
+        life: 5000,
+      });
+    }
+  } catch (err: any) {
+    console.error("Plugin installation failed:", err);
+    toast.add({
+      severity: "error",
+      summary: "Installation error",
+      detail: err.message || `Could not install ${packageName}`,
+      life: 5000,
+    });
+  } finally {
+    loadingPlugins.value[packageName] = false;
+  }
+};
+
+const uninstallPlugin = async (packageName: string) => {
+  loadingPlugins.value[packageName] = true;
+  try {
+    toast.add({
+      severity: "info",
+      summary: "Uninstalling plugin",
+      detail: `Removing ${packageName}...`,
+      life: 3000,
+    });
+
+    const res = await api.execute("plugin:uninstall", {
+      packageName,
+    });
+
+    if (res.type === "success") {
+      const currentPlugins = (settingsRef.value?.plugins || []).filter(
+        (p) => p.name !== packageName,
+      );
+      await appSettings.updateSettings({
+        ...(toRaw(settingsRef.value) as any),
+        plugins: currentPlugins,
+      });
+
+      // If active section was this plugin's settings panel, switch back to community-plugins
+      if (currentSection.value === `community-plugin-${packageName}`) {
+        currentSection.value = "community-plugins";
+      }
+
+      toast.add({
+        severity: "success",
+        summary: "Plugin uninstalled",
+        detail: `${packageName} has been uninstalled!`,
+        life: 3000,
+      });
+    } else {
+      toast.add({
+        severity: "error",
+        summary: "Uninstall failed",
+        detail: res.ipcError || `Could not uninstall ${packageName}`,
+        life: 5000,
+      });
+    }
+  } catch (err: any) {
+    console.error("Plugin uninstallation failed:", err);
+    toast.add({
+      severity: "error",
+      summary: "Uninstall error",
+      detail: err.message || `Could not uninstall ${packageName}`,
+      life: 5000,
+    });
+  } finally {
+    loadingPlugins.value[packageName] = false;
+  }
+};
+
+// Obsidian refactoring additions
+const currentSection = ref("general");
+const coreSearchQuery = ref("");
+
+const isOfficial = (packageName: string) => {
+  return packageName.startsWith("@pipelab/");
+};
+
+const formatPluginName = (name: string) => {
+  const def = pluginDefinitions.value.find((p) => p.packageName === name || p.id === name);
+  if (def?.name) {
+    return def.name;
+  }
+  if (name.startsWith("@pipelab/plugin-")) {
+    const raw = name.replace("@pipelab/plugin-", "");
+    return raw.charAt(0).toUpperCase() + raw.slice(1);
+  }
+  if (name.startsWith("plugin-")) {
+    const raw = name.replace("plugin-", "");
+    return raw.charAt(0).toUpperCase() + raw.slice(1);
+  }
+  return name;
+};
+
+const getIconClass = (iconObj: any) => {
+  if (!iconObj || !iconObj.icon) return "";
+  const iconName = iconObj.icon;
+  if (iconName.startsWith("mdi-")) {
+    return `mdi ${iconName}`;
+  }
+  if (iconName.startsWith("pi-")) {
+    return `pi ${iconName}`;
+  }
+  return iconName;
+};
+
+const corePlugins = computed(() => {
+  return (settingsRef.value?.plugins || []).filter((p) => isOfficial(p.name));
+});
+
+const communityPlugins = computed(() => {
+  return (settingsRef.value?.plugins || []).filter((p) => !isOfficial(p.name));
+});
+
+const filteredCorePlugins = computed(() => {
+  const query = coreSearchQuery.value.trim().toLowerCase();
+  if (!query) return corePlugins.value;
+  return corePlugins.value.filter((p) => {
+    return (
+      p.name.toLowerCase().includes(query) || (p.description || "").toLowerCase().includes(query)
+    );
+  });
+});
+
+const enabledCorePlugins = computed(() => {
+  return corePlugins.value.filter((p) => p.enabled);
+});
+
+const enabledCommunityPlugins = computed(() => {
+  return communityPlugins.value.filter((p) => p.enabled);
+});
+
+const getPluginIcon = (packageName: string) => {
+  const cleanSearched = packageName
+    .replace("@pipelab/plugin-", "")
+    .replace("plugin-", "")
+    .toLowerCase();
+  const def = pluginDefinitions.value.find((p) => {
+    if (!p.packageName) return false;
+    const cleanDef = p.packageName
+      .replace("@pipelab/plugin-", "")
+      .replace("plugin-", "")
+      .toLowerCase();
+    return cleanDef === cleanSearched || p.packageName === packageName || p.id === packageName;
+  });
+  return def?.icon || null;
+};
+
+const getPluginIconImage = (packageName: string) => {
+  const icon = getPluginIcon(packageName);
+  return icon?.type === "image" ? icon.image : undefined;
+};
+
+const togglePlugin = async (packageName: string) => {
+  const currentPlugins = (settingsRef.value?.plugins || []).map((p) => {
+    if (p.name === packageName) {
+      return { ...p, enabled: !p.enabled };
+    }
+    return p;
+  });
+  await appSettings.updateSettings({
+    ...(toRaw(settingsRef.value) as any),
+    plugins: currentPlugins,
+  });
+
+  toast.add({
+    severity: "success",
+    summary: "Plugin updated",
+    detail: `${formatPluginName(packageName)} is now ${
+      currentPlugins.find((p) => p.name === packageName)?.enabled ? "enabled" : "disabled"
+    }.`,
+    life: 3000,
+  });
+};
+
+const getSelectedPluginName = (section: string) => {
+  if (section.startsWith("core-plugin-")) {
+    return section.replace("core-plugin-", "");
+  }
+  if (section.startsWith("community-plugin-")) {
+    return section.replace("community-plugin-", "");
+  }
+  return "";
+};
+
+const getSelectedPlugin = (section: string) => {
+  const name = getSelectedPluginName(section);
+  return (settingsRef.value?.plugins || []).find((p) => p.name === name);
+};
+
+const getSelectedPluginEnabled = (section: string) => {
+  const plugin = getSelectedPlugin(section);
+  return plugin ? plugin.enabled : false;
+};
+
+const getSelectedPluginDescription = (section: string) => {
+  const plugin = getSelectedPlugin(section);
+  return plugin ? plugin.description : "";
+};
 </script>
 
 <style lang="scss" scoped>
-.settings-group {
+.settings-container {
+  display: flex;
+  width: 100%;
+  height: 65vh;
+  border-radius: 12px;
+  background: var(--surface-card);
+  border: 1px solid var(--surface-border);
+  overflow: hidden;
+}
+
+.settings-sidebar {
+  width: 250px;
+  min-width: 250px;
+  background: var(--surface-section);
+  border-right: 1px solid var(--surface-border);
+  display: flex;
+  flex-direction: column;
+  padding: 1rem 0.6rem;
+  overflow-y: auto;
+  gap: 0.85rem;
+
+  /* Custom scrollbar for sidebar */
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: var(--surface-border);
+    border-radius: 3px;
+  }
+}
+
+.sidebar-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.sidebar-group-header {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-color-secondary);
+  opacity: 0.6;
+  padding: 0 0.5rem 0.35rem 0.5rem;
+}
+
+.sidebar-item {
+  display: flex;
+  align-items: center;
+  padding: 0.4rem 0.6rem;
+  border-radius: 8px;
+  font-weight: 500;
+  font-size: 0.85rem;
+  color: var(--text-color-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+  white-space: nowrap;
+
+  i {
+    font-size: 1rem;
+    opacity: 0.85;
+    transition: transform 0.2s ease;
+  }
+
+  &:hover:not(.active) {
+    background: var(--surface-hover);
+    color: var(--text-color);
+  }
+
+  &.active {
+    background: var(--primary-color);
+    color: var(--primary-color-text);
+    font-weight: 600;
+  }
+}
+
+.plugin-sidebar-item {
+  font-size: 0.8rem;
+  padding: 0.3rem 0.6rem;
+
+  .truncate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.sidebar-plugin-icon {
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  min-height: 16px;
+  object-fit: contain;
+  margin-right: 0.5rem;
+  flex-shrink: 0;
+}
+
+.settings-content {
+  flex: 1;
+  padding: 1rem 1.5rem;
+  overflow-y: auto;
+  background: var(--surface-card);
+
+  /* Custom scrollbar for content */
+  &::-webkit-scrollbar {
+    width: 8px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: var(--surface-border);
+    border-radius: 4px;
+  }
+}
+
+.settings-panel {
   display: flex;
   flex-direction: column;
   gap: 1rem;
 }
 
-.setting-item {
+/* Clear, subtle delimitations in groups */
+.settings-group,
+.plugins-list-group {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--surface-border);
+  border-radius: 8px;
+  background: var(--surface-card);
+  overflow: hidden;
+}
+
+.setting-item,
+.plugin-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 1.5rem;
-  background: var(--surface-card);
-  border: 1px solid var(--surface-border);
-  border-radius: 12px;
+  padding: 0.65rem 0.85rem;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--surface-border);
+  border-radius: 0;
   transition: all 0.2s ease;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
 
-  &:hover {
-    border-color: var(--primary-color);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-    transform: translateY(-1px);
+  &:last-child {
+    border-bottom: none;
   }
 
+  &:hover {
+    background: var(--surface-hover);
+  }
+}
+
+.setting-item {
   .setting-content {
     display: flex;
     flex-direction: column;
-    gap: 0.35rem;
+    gap: 0.2rem;
     flex: 1;
     padding-right: 2rem;
   }
 
   .setting-title {
-    font-size: 1.05rem;
+    font-size: 0.92rem;
     font-weight: 600;
     color: var(--text-color);
     cursor: default;
@@ -556,9 +1429,9 @@ const restartTour = (tourId: "dashboard" | "editor") => {
   }
 
   .setting-description {
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     color: var(--text-color-secondary);
-    line-height: 1.5;
+    line-height: 1.4;
     opacity: 0.85;
   }
 
@@ -569,65 +1442,65 @@ const restartTour = (tourId: "dashboard" | "editor") => {
   }
 }
 
-.actions {
-  margin-top: 1rem;
+/* Condensed plugin row design */
+.plugin-row {
+  .plugin-icon-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--surface-section);
+    border: 1px solid var(--surface-border);
+    color: var(--text-color-secondary);
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    min-height: 32px;
+    border-radius: 6px;
+    flex-shrink: 0;
+  }
 
-  .btn {
-    margin-right: 0.5rem;
+  .plugin-row-icon {
+    width: 20px;
+    height: 20px;
+    object-fit: contain;
+  }
+
+  .plugin-title {
+    font-size: 0.88rem;
+    color: var(--text-color);
+  }
+
+  .plugin-description {
+    font-size: 0.78rem;
+    color: var(--text-color-secondary);
+    opacity: 0.8;
+  }
+
+  .installed-badge {
+    background: rgba(34, 197, 94, 0.1);
+    color: #22c55e;
+    font-size: 0.6rem;
+    font-weight: 700;
+    padding: 0.1rem 0.3rem;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
   }
 }
 
-.subscription-details {
+/* Billing Layout */
+.billing-container {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-
-  .subscription-price {
-    font-size: 1.1rem;
-    font-weight: 600;
-
-    .currency {
-      text-transform: uppercase;
-      margin-right: 0.25rem;
-    }
-  }
-
-  .subscription-dates {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-    font-size: 0.9rem;
-
-    .subscription-date-item {
-      display: flex;
-      justify-content: space-between;
-
-      .date-label {
-        font-weight: 500;
-        color: #666;
-      }
-
-      .date-value {
-        font-weight: 600;
-        color: #333;
-      }
-    }
-  }
-}
-
-.manage-subscription-btn {
-  margin-top: 1rem;
-  width: 100%;
+  gap: 1rem;
 }
 
 .storage-card {
   background: var(--surface-card);
   border: 1px solid var(--surface-border);
-  border-radius: 16px;
-  padding: 1.5rem;
-  box-shadow:
-    0 4px 6px -1px rgba(0, 0, 0, 0.1),
-    0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  border-radius: 12px;
+  padding: 1rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
 
   .card-header {
     display: flex;
@@ -636,7 +1509,7 @@ const restartTour = (tourId: "dashboard" | "editor") => {
   }
 
   .usage-bar-container {
-    background: #cbd5e1; /* Much darker slate to ensure visibility */
+    background: #cbd5e1;
     height: 12px;
     border-radius: 100px;
     position: relative;
@@ -649,13 +1522,13 @@ const restartTour = (tourId: "dashboard" | "editor") => {
     display: flex;
     height: 100%;
     width: 100%;
-    gap: 0; /* No gaps for a unified look */
+    gap: 0;
   }
 
   .usage-segment {
     height: 100%;
     transition: width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
-    border-right: 2px solid #cbd5e1; /* Matches the empty track for a "slotted" effect */
+    border-right: 2px solid #cbd5e1;
   }
 
   .pipelab-segment {
@@ -665,16 +1538,10 @@ const restartTour = (tourId: "dashboard" | "editor") => {
 
   .other-segment {
     background: #3b82f6;
-    box-shadow: 0 2px 4px rgba(59, 130, 246, 0.15);
-  }
-
-  .free-segment {
-    background: var(--surface-300); /* Darker gray to distinguish from card */
-    opacity: 0.8;
   }
 
   .detail-item {
-    padding: 1rem;
+    padding: 0.6rem 0.8rem;
     background: var(--surface-card);
     border-radius: 12px;
     border: 1px solid var(--surface-border);
@@ -706,7 +1573,6 @@ const restartTour = (tourId: "dashboard" | "editor") => {
     width: 10px;
     height: 10px;
     border-radius: 3px;
-    box-shadow: 0 0 8px rgba(0, 0, 0, 0.1);
   }
 
   .pipelab-dot {
@@ -721,8 +1587,8 @@ const restartTour = (tourId: "dashboard" | "editor") => {
 }
 
 .section-header {
-  margin-bottom: 1.5rem;
-  padding-bottom: 1rem;
+  margin-bottom: 1rem;
+  padding-bottom: 0.6rem;
   border-bottom: 1px solid var(--surface-border);
 
   h3 {
@@ -738,53 +1604,5 @@ const restartTour = (tourId: "dashboard" | "editor") => {
     font-size: 0.9rem;
     color: var(--text-color-secondary);
   }
-}
-
-.input-small {
-  width: 150px;
-}
-/* Modern Tab Styling */
-:deep(.p-tabs) {
-  background: transparent;
-}
-
-:deep(.p-tablist-tab-list) {
-  border-bottom: 1px solid var(--surface-border) !important;
-  gap: 1.5rem;
-  background: transparent !important;
-  border-top: none !important;
-}
-
-:deep(.p-tablist-content) {
-  background: transparent !important;
-}
-
-:deep(.p-tab) {
-  padding: 1rem 0.5rem !important;
-  font-weight: 600 !important;
-  color: var(--text-color-secondary) !important;
-  background: transparent !important;
-  border-bottom: 2px solid transparent !important;
-  transition: all 0.2s ease !important;
-  min-width: 80px;
-  display: flex;
-  justify-content: center;
-  border-top: none !important;
-
-  &:not(.p-disabled):hover {
-    color: var(--text-color) !important;
-    background: transparent !important;
-  }
-
-  &.p-tab-active {
-    color: var(--primary-color) !important;
-    border-bottom-color: var(--primary-color) !important;
-    background: transparent !important;
-  }
-}
-
-:deep(.p-tabpanels) {
-  padding: 2rem 0 !important;
-  background: transparent !important;
 }
 </style>

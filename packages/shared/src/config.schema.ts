@@ -8,6 +8,7 @@ import {
   number,
   array,
   GenericSchema,
+  optional,
 } from "valibot";
 
 export const createVersionSchema = <T extends GenericSchema<any, any>>(schema: T) => schema;
@@ -135,6 +136,54 @@ export const AppSettingsValidatorV7 = object({
   }),
 });
 
+export const AppSettingsValidatorV8 = object({
+  theme: union([literal("light"), literal("dark")]),
+  version: literal("8.0.0"),
+  locale: union([
+    literal("en-US"),
+    literal("fr-FR"),
+    literal("pt-BR"),
+    literal("zh-CN"),
+    literal("es-ES"),
+    literal("de-DE"),
+  ]),
+  tours: object({
+    dashboard: object({
+      step: number(),
+      completed: boolean(),
+    }),
+    editor: object({
+      step: number(),
+      completed: boolean(),
+    }),
+  }),
+  autosave: boolean(),
+  agents: array(
+    object({
+      id: string(),
+      name: string(),
+      url: string(),
+    }),
+  ),
+  buildHistory: object({
+    retentionPolicy: object({
+      enabled: boolean(),
+      maxEntries: number(), // Maximum number of entries per pipeline
+      maxAge: number(), // Maximum age of entries in days
+    }),
+  }),
+  // Metadata list of plugins the user has enabled (official + community).
+  // No binaries are stored here — versions are resolved JIT at node-add time.
+  plugins: array(
+    object({
+      name: string(),
+      enabled: boolean(),
+      description: string(),
+    }),
+  ),
+  isInternalMigrationBannerClosed: optional(boolean(), false),
+});
+
 export type AppConfigV1 = InferInput<typeof AppSettingsValidatorV1>;
 export type AppConfigV2 = InferInput<typeof AppSettingsValidatorV2>;
 export type AppConfigV3 = InferInput<typeof AppSettingsValidatorV3>;
@@ -142,6 +191,7 @@ export type AppConfigV4 = InferInput<typeof AppSettingsValidatorV4>;
 export type AppConfigV5 = InferInput<typeof AppSettingsValidatorV5>;
 export type AppConfigV6 = InferInput<typeof AppSettingsValidatorV6>;
 export type AppConfigV7 = InferInput<typeof AppSettingsValidatorV7>;
+export type AppConfigV8 = InferInput<typeof AppSettingsValidatorV8>;
 
-export type AppConfig = AppConfigV7;
-export const AppSettingsValidator = AppSettingsValidatorV7;
+export type AppConfig = AppConfigV8;
+export const AppSettingsValidator = AppSettingsValidatorV8;

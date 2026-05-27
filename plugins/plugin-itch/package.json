@@ -1,6 +1,19 @@
 {
   "name": "@pipelab/plugin-itch",
   "version": "1.0.0-beta.12",
+  "description": "Pipelab plugin for publishing games to itch.io",
+  "keywords": [
+    "automation",
+    "butler",
+    "deployment",
+    "game-publishing",
+    "indie-game",
+    "itch",
+    "itch.io",
+    "pipelab",
+    "pipelab-plugin",
+    "pipeline"
+  ],
   "license": "FSL-1.1-MIT",
   "repository": {
     "type": "git",
@@ -42,5 +55,10 @@
     "@types/node": "24",
     "tsdown": "0.21.2",
     "typescript": "5.9.3"
+  },
+  "pipelab": {
+    "name": "Itch.io",
+    "description": "Pipelab plugin for publishing games to itch.io",
+    "icon": "./dist/assets/itch-icon.webp"
   }
 }

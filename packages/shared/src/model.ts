@@ -32,6 +32,10 @@ export type Position = {
 export const OriginValidator = object({
   pluginId: string(),
   nodeId: string(),
+  version: pipe(
+    optional(string()),
+    description('Pinned version of the plugin for this block. Falls back to "latest" when absent.'),
+  ),
 });
 
 export type Origin = InferOutput<typeof OriginValidator>;
@@ -59,39 +63,6 @@ const BlockActionValidatorV3 = object({
     }),
   ),
   origin: OriginValidator,
-});
-
-export type BlockCondition = {
-  type: "condition";
-  uid: string;
-  origin: Origin;
-  params: Record<string, any>;
-  branchTrue: Array<Block>;
-  branchFalse: Array<Block>;
-};
-
-const BlockConditionValidator: GenericSchema<BlockCondition> = object({
-  type: literal("condition"),
-  uid: string(),
-  origin: OriginValidator,
-  params: record(string(), any()),
-  branchTrue: lazy(() => array(BlockValidator)),
-  branchFalse: lazy(() => array(BlockValidator)),
-});
-
-export type BlockLoop = {
-  type: "loop";
-  uid: string;
-  origin: Origin;
-  params: Record<string, any>;
-  children: Array<Block>;
-};
-const BlockLoopValidator: GenericSchema<BlockLoop> = object({
-  type: literal("loop"),
-  uid: string(),
-  origin: OriginValidator,
-  params: record(string(), any()),
-  children: lazy(() => array(BlockValidator)),
 });
 
 const BlockEventValidator = object({
@@ -180,20 +151,22 @@ export const SavedFileValidatorV3 = object({
   variables: array(VariableValidatorV1),
 });
 
-export const SavedFileDefaultValidator = object({
+export const SavedFileDefaultValidatorV4 = object({
   version: literal("4.0.0"),
   type: literal("default"),
   name: string(),
   description: string(),
+  plugins: optional(record(string(), string())),
   canvas: CanvasValidatorV3,
   variables: array(VariableValidatorV1),
 });
 
-export const SavedFileSimpleValidator = object({
+export const SavedFileSimpleValidatorV4 = object({
   version: literal("4.0.0"),
   type: literal("simple"),
   name: string(),
   description: string(),
+  plugins: optional(record(string(), string())),
   source: object({
     type: union([literal("c3-html"), literal("c3-nwjs"), literal("godot"), literal("html")]),
     path: string(),
@@ -208,19 +181,53 @@ export const SavedFileSimpleValidator = object({
   }),
 });
 
-export type SavedFileDefault = InferOutput<typeof SavedFileDefaultValidator>;
-export type SavedFileSimple = InferOutput<typeof SavedFileSimpleValidator>;
-export const SavedFileValidatorV4 = union([SavedFileDefaultValidator, SavedFileSimpleValidator]);
+export const SavedFileDefaultValidatorV5 = object({
+  version: literal("5.0.0"),
+  name: string(),
+  description: string(),
+  canvas: CanvasValidatorV3,
+  variables: array(VariableValidatorV1),
+});
+
+export const SavedFileSimpleValidatorV5 = object({
+  version: literal("5.0.0"),
+  type: literal("simple"),
+  name: string(),
+  description: string(),
+  plugins: record(string(), string()),
+  source: object({
+    type: union([literal("c3-html"), literal("c3-nwjs"), literal("godot"), literal("html")]),
+    path: string(),
+  }),
+  packaging: object({
+    enabled: boolean(),
+  }),
+  publishing: object({
+    steam: object({ enabled: boolean(), appId: optional(string()) }),
+    itch: object({ enabled: boolean(), project: optional(string()) }),
+    poki: object({ enabled: boolean(), gameId: optional(string()) }),
+  }),
+});
+
+export type SavedFileDefault = InferOutput<typeof SavedFileDefaultValidatorV5>;
+export type SavedFileSimple = InferOutput<typeof SavedFileSimpleValidatorV5>;
+
+export const SavedFileValidatorV4 = union([
+  SavedFileDefaultValidatorV4,
+  SavedFileSimpleValidatorV4,
+]);
+export const SavedFileValidatorV5 = SavedFileDefaultValidatorV5;
 
 export type SavedFileV1 = InferOutput<typeof SavedFileValidatorV1>;
 export type SavedFileV2 = InferOutput<typeof SavedFileValidatorV2>;
 export type SavedFileV3 = InferOutput<typeof SavedFileValidatorV3>;
 export type SavedFileV4 = InferOutput<typeof SavedFileValidatorV4>;
-export type SavedFile = SavedFileV4;
-export const SavedFileValidator = SavedFileValidatorV4;
+export type SavedFileV5 = InferOutput<typeof SavedFileValidatorV5>;
+export type SavedFile = SavedFileV5;
+export const SavedFileValidator = SavedFileValidatorV5;
 
 export type Preset = SavedFile;
-export type PresetResult = { data: SavedFile; hightlight?: boolean; disabled?: boolean };
+export type PresetResult = { data: Preset; hightlight?: boolean; disabled?: boolean };
 export type PresetFn = () => Promise<PresetResult>;
 
 export type Steps = Record<
@@ -230,4 +237,4 @@ export type Steps = Record<
   }
 >;
 
-export type EnhancedFile<T extends SavedFile = SavedFile> = WithId<SaveLocation> & { content: T };
+export type EnhancedFile<T = SavedFile> = WithId<SaveLocation> & { content: T };

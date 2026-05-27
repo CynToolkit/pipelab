@@ -16,17 +16,47 @@ import {
   AppConfigV5,
   AppConfigV6,
   AppConfigV7,
+  AppConfigV8,
 } from "../config.schema";
+
+const DEFAULT_PLUGINS: AppConfigV8["plugins"] = [
+  {
+    name: "@pipelab/plugin-construct",
+    enabled: true,
+    description: "Construct 3 export & packaging",
+  },
+  { name: "@pipelab/plugin-filesystem", enabled: true, description: "Filesystem utilities" },
+  { name: "@pipelab/plugin-system", enabled: true, description: "System & shell commands" },
+  { name: "@pipelab/plugin-steam", enabled: true, description: "Steam publishing" },
+  { name: "@pipelab/plugin-itch", enabled: true, description: "Itch.io publishing" },
+  { name: "@pipelab/plugin-electron", enabled: true, description: "Electron packaging" },
+  { name: "@pipelab/plugin-discord", enabled: true, description: "Discord Rich Presence" },
+  { name: "@pipelab/plugin-poki", enabled: true, description: "Poki publishing" },
+  { name: "@pipelab/plugin-nvpatch", enabled: true, description: "NW.js patching" },
+  { name: "@pipelab/plugin-tauri", enabled: true, description: "Tauri packaging" },
+  { name: "@pipelab/plugin-minify", enabled: true, description: "Asset minification" },
+  { name: "@pipelab/plugin-netlify", enabled: true, description: "Netlify deployment" },
+];
 import { FileRepoV1, FileRepoV2, FileRepo } from "./projects-types";
-import { SavedFileV1, SavedFileV2, SavedFileV3, SavedFileV4, SavedFile } from "../model";
+import {
+  SavedFileV1,
+  SavedFileV2,
+  SavedFileV3,
+  SavedFileV4,
+  SavedFileV5,
+  SavedFile,
+} from "../model";
 
 // --- Types ---
 
 export type Additive<T, P> = OmitVersion<T> & OmitVersion<P>;
 
+type DistributiveOmit<T, K extends keyof any> = T extends any ? Omit<T, K> : never;
+type DistributiveOmitVersion<T> = DistributiveOmit<T, keyof MigrationSchema>;
+
 const createMigration = <From extends MigrationSchema, To extends MigrationSchema>(config: {
   version: SemVer;
-  up: (state: OmitVersion<From>, targetVersion: string) => Awaitable<Additive<To, From>>;
+  up: (state: OmitVersion<From>, targetVersion: string) => Awaitable<OmitVersion<To>>;
 }) => createMigrationBase<From, To>(config);
 
 export interface Migrator<T> {
@@ -41,7 +71,7 @@ const settingsMigratorInternal = createMigrator<AppConfigV1, AppConfig>();
 export const defaultAppSettings = settingsMigratorInternal.createDefault({
   locale: "en-US",
   theme: "light",
-  version: "7.0.0",
+  version: "8.0.0",
   autosave: true,
   agents: [],
   tours: {
@@ -61,6 +91,8 @@ export const defaultAppSettings = settingsMigratorInternal.createDefault({
       maxAge: 30,
     },
   },
+  plugins: DEFAULT_PLUGINS,
+  isInternalMigrationBannerClosed: false,
 });
 
 export const appSettingsMigrator = settingsMigratorInternal.createMigrations({
@@ -109,13 +141,12 @@ export const appSettingsMigrator = settingsMigratorInternal.createMigrations({
         autosave: true,
       }),
     }),
-    createMigration<AppConfigV6, AppConfigV7>({
+    createMigration<AppConfigV6, AppConfigV8>({
       version: "6.0.0" as SemVer,
       up: (state) => {
-        // Upgrades V6 to V7: Add agents, add buildHistory.
-        // (Additive only - keeping cacheFolder and clearTemporaryFoldersOnPipelineEnd)
+        const { cacheFolder: _, clearTemporaryFoldersOnPipelineEnd: __, ...rest } = state;
         return {
-          ...state,
+          ...rest,
           agents: [],
           buildHistory: {
             retentionPolicy: {
@@ -124,11 +155,13 @@ export const appSettingsMigrator = settingsMigratorInternal.createMigrations({
               maxAge: 30,
             },
           },
+          plugins: DEFAULT_PLUGINS,
+          isInternalMigrationBannerClosed: false,
         };
       },
     }),
-    createMigration<AppConfigV7, never>({
-      version: "7.0.0" as SemVer,
+    createMigration<AppConfigV8, never>({
+      version: "8.0.0" as SemVer,
       up: finalVersion,
     }),
   ],
@@ -196,8 +229,7 @@ const savedFileDefaultValue = savedFileMigratorInternal.createDefault({
   description: "",
   name: "",
   variables: [],
-  type: "default",
-  version: "4.0.0",
+  version: "5.0.0",
 });
 
 export const savedFileMigrator = savedFileMigratorInternal.createMigrations({
@@ -275,12 +307,128 @@ export const savedFileMigrator = savedFileMigratorInternal.createMigrations({
         type: "default",
       }),
     }),
-    createMigration<SavedFileV4, never>({
+    createMigration<SavedFileV4, SavedFileV5>({
       version: "4.0.0" as SemVer,
+      up: (_state) => {
+        const state = _state as DistributiveOmitVersion<SavedFileV4>;
+        if (state.type === "simple") {
+          return {
+            name: state.name,
+            description: state.description,
+            canvas: {
+              blocks: [],
+              triggers: [],
+            },
+            variables: [],
+          };
+        }
+
+        const migrateBlock = (block: any, pluginsMap: Record<string, string>) => {
+          if (!block) return;
+          if (block.origin?.pluginId) {
+            block.origin.pluginId = getStrictPluginId(block.origin.pluginId);
+            // Stamp the version from the old top-level plugins map, falling back to "latest"
+            block.origin.version = pluginsMap[block.origin.pluginId] ?? "latest";
+          }
+        };
+
+        // Normalise the old plugins map's keys first so lookups are consistent
+        const normalizedPlugins: Record<string, string> = {};
+        if (state.plugins) {
+          for (const [key, val] of Object.entries(state.plugins)) {
+            normalizedPlugins[getStrictPluginId(key)] = val;
+          }
+        }
+
+        // Stamp origin.version on every block and trigger
+        if (state.canvas) {
+          for (const block of state.canvas.blocks ?? []) {
+            migrateBlock(block, normalizedPlugins);
+          }
+          for (const trigger of state.canvas.triggers ?? []) {
+            migrateBlock(trigger, normalizedPlugins);
+          }
+        }
+
+        // Drop the top-level plugins map — version is now per-block. Omit type.
+        const { plugins: _dropped, type: _type, ...rest } = state;
+        return rest;
+      },
+    }),
+    createMigration<SavedFileV5, never>({
+      version: "5.0.0" as SemVer,
       up: finalVersion,
     }),
   ],
 });
+
+const LEGACY_ID_MAP: Record<string, string> = {
+  construct: "@pipelab/plugin-construct",
+  filesystem: "@pipelab/plugin-filesystem",
+  system: "@pipelab/plugin-system",
+  steam: "@pipelab/plugin-steam",
+  itch: "@pipelab/plugin-itch",
+  electron: "@pipelab/plugin-electron",
+  discord: "@pipelab/plugin-discord",
+  dicord: "@pipelab/plugin-discord",
+  "@pipelab/plugin-dicord": "@pipelab/plugin-discord",
+  poki: "@pipelab/plugin-poki",
+  nvpatch: "@pipelab/plugin-nvpatch",
+  tauri: "@pipelab/plugin-tauri",
+  minify: "@pipelab/plugin-minify",
+  netlify: "@pipelab/plugin-netlify",
+};
+
+export const getStrictPluginId = (pluginId: string): string => {
+  if (!pluginId) return pluginId;
+  if (LEGACY_ID_MAP[pluginId]) {
+    return LEGACY_ID_MAP[pluginId];
+  }
+  if (
+    pluginId.startsWith("@") ||
+    pluginId.includes("/") ||
+    pluginId.startsWith("pipelab-plugin-")
+  ) {
+    return pluginId;
+  }
+  const prefixed = `@pipelab/plugin-${pluginId}`;
+  return LEGACY_ID_MAP[prefixed] || prefixed;
+};
+
+const normalizeBlockPluginId = (block: any): boolean => {
+  if (!block) return false;
+  let changed = false;
+  if (block.origin?.pluginId) {
+    const strictId = getStrictPluginId(block.origin.pluginId);
+    if (block.origin.pluginId !== strictId) {
+      block.origin.pluginId = strictId;
+      changed = true;
+    }
+  }
+  return changed;
+};
+
+export const normalizePipelineConfig = (state: any): boolean => {
+  if (!state) return false;
+  let changed = false;
+
+  // Normalise plugin IDs in block and trigger origins (pluginId field only;
+  // version strings don't need normalisation)
+  if (state.type === "default" && state.canvas) {
+    if (Array.isArray(state.canvas.blocks)) {
+      for (const block of state.canvas.blocks) {
+        if (normalizeBlockPluginId(block)) changed = true;
+      }
+    }
+    if (Array.isArray(state.canvas.triggers)) {
+      for (const trigger of state.canvas.triggers) {
+        if (normalizeBlockPluginId(trigger)) changed = true;
+      }
+    }
+  }
+
+  return changed;
+};
 
 // --- Registry ---
 

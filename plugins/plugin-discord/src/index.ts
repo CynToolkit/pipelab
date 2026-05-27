@@ -1,18 +1,10 @@
 import { previewRunner } from "./preview";
 
 import { createNodeDefinition } from "@pipelab/plugin-core";
-const icon = new URL("./public/discord.webp", import.meta.url).href;
 import { createPackageProps, createPreviewProps, IDPreview, IDPackage } from "./discord";
 import { packageV2Runner } from "./package";
 
 export default createNodeDefinition({
-  description: "Discord",
-  name: "Discord",
-  id: "dicord",
-  icon: {
-    type: "image",
-    image: icon,
-  },
   nodes: [
     {
       node: createPackageProps(

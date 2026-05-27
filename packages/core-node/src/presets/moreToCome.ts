@@ -4,7 +4,7 @@ export const moreToCome: PresetFn = async () => {
   const startId = "manual-start";
 
   const data: SavedFile = {
-    version: "3.0.0",
+    version: "5.0.0",
     name: "More to come!",
     description: "Do not hesitate to suggest templates you would see here",
     variables: [],
@@ -13,8 +13,9 @@ export const moreToCome: PresetFn = async () => {
         {
           type: "event",
           origin: {
-            pluginId: "system",
+            pluginId: "@pipelab/plugin-system",
             nodeId: "manual",
+            version: "latest",
           },
           uid: startId,
           params: {},

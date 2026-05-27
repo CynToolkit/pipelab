@@ -1,6 +1,18 @@
 {
   "name": "@pipelab/plugin-poki",
   "version": "1.0.0-beta.12",
+  "description": "Pipelab plugin for publishing HTML5 games to Poki",
+  "keywords": [
+    "automation",
+    "deployment",
+    "game-publishing",
+    "html5-game",
+    "pipelab",
+    "pipelab-plugin",
+    "pipeline",
+    "poki",
+    "web-game"
+  ],
   "license": "FSL-1.1-MIT",
   "repository": {
     "type": "git",
@@ -46,5 +58,10 @@
     "tsdown": "0.21.2",
     "typescript": "5.9.3",
     "vitest": "3.1.4"
+  },
+  "pipelab": {
+    "name": "Poki",
+    "description": "Pipelab plugin for publishing HTML5 games to Poki",
+    "icon": "./dist/assets/poki-icon.webp"
   }
 }
