@@ -1,5 +1,11 @@
 # @pipelab/cloud
 
+## 1.0.0-beta.9
+
+### Patch Changes
+
+- fg
+
 ## 1.0.0-beta.8
 
 ### Patch Changes

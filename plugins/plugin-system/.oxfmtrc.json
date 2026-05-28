@@ -1,3 +1,9 @@
 {
-  "ignorePatterns": ["dist", "out", "node_modules", "bin"]
+  "ignorePatterns": [
+    "dist",
+    "out",
+    "node_modules",
+    "bin",
+    "**/*.d.ts"
+  ]
 }

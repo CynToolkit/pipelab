@@ -1,6 +1,6 @@
 {
   "name": "@pipelab/plugin-netlify",
-  "version": "1.0.0-beta.13",
+  "version": "1.0.0-beta.14",
   "description": "Pipelab plugin for deploying web projects to Netlify",
   "keywords": [
     "automation",

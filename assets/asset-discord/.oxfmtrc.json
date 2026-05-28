@@ -3,6 +3,7 @@
     "dist",
     "out",
     "node_modules",
-    "bin"
+    "bin",
+    "**/*.d.ts"
   ]
 }

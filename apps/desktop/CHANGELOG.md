@@ -1,5 +1,11 @@
 # @pipelab/app
 
+## 2.0.0-beta.10
+
+### Patch Changes
+
+- fg
+
 ## 2.0.0-beta.9
 
 ### Patch Changes
