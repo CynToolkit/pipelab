@@ -1,4 +1,4 @@
-import { ipcMain, dialog, BrowserWindow, shell } from "electron";
+import { ipcMain, dialog, BrowserWindow, shell, app } from "electron";
 
 export const registerIpcHandlers = () => {
   console.log("[Main] Registering IPC handlers");
@@ -40,5 +40,9 @@ export const registerIpcHandlers = () => {
       win.show();
       win.maximize();
     }
+  });
+
+  ipcMain.on("app:version:get", (event) => {
+    event.returnValue = app.getVersion();
   });
 };

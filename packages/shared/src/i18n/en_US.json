@@ -20,7 +20,8 @@
       "billing": "Billing",
       "plugins": "Plugins",
       "core-plugins": "Core Plugins",
-      "community-plugins": "Community Plugins"
+      "community-plugins": "Community Plugins",
+      "versions": "Versions"
     },
     "pipeline-cache-folder": "Pipeline Cache Folder:",
     "enter-or-browse-for-a-folder": "Enter or browse for a folder",

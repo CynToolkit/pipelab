@@ -400,11 +400,10 @@ app.whenReady().then(async () => {
 
   const appBundleId = getAppBundleId(app.getVersion());
   electronApp.setAppUserModelId(appBundleId);
+  registerIpcHandlers();
   createWindow();
 
   if (mainWindow) {
-    registerIpcHandlers();
-
     if (is.dev) {
       // In dev, we load the dev server up immediately but do not show it yet
       mainWindow.loadURL(`http://localhost:${uiDevPort}`);

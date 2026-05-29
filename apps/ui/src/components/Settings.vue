@@ -30,6 +30,14 @@
           <i class="mdi mdi-credit-card mr-2"></i>
           <span>{{ t("settings.tabs.billing") }}</span>
         </div>
+        <div
+          class="sidebar-item"
+          :class="{ active: currentSection === 'versions' }"
+          @click="currentSection = 'versions'"
+        >
+          <i class="mdi mdi-information mr-2"></i>
+          <span>{{ t("settings.tabs.versions") }}</span>
+        </div>
       </div>
 
       <!-- Plugins Group -->
@@ -373,6 +381,88 @@
                 :min="1"
                 :max="365"
                 class="w-[120px]"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Versions Tab Content -->
+      <div v-if="currentSection === 'versions'" class="settings-panel">
+        <div class="section-header">
+          <h3>{{ t("settings.tabs.versions") }}</h3>
+          <p class="description">Information about the application components and runtime versions.</p>
+        </div>
+
+        <div class="settings-group">
+          <div class="setting-item">
+            <div class="setting-content">
+              <span class="setting-title">Application Version</span>
+              <span class="setting-description">The core version of the Pipelab desktop app.</span>
+            </div>
+            <div class="setting-action flex items-center gap-2">
+              <span class="font-mono text-sm mr-2">{{ formatVersion(appVersion) }}</span>
+              <Button
+                icon="pi pi-copy"
+                severity="secondary"
+                text
+                size="small"
+                v-tooltip.top="'Copy version'"
+                @click="copyToClipboard(appVersion)"
+              />
+            </div>
+          </div>
+
+          <div class="setting-item">
+            <div class="setting-content">
+              <span class="setting-title">Agent Version</span>
+              <span class="setting-description">The version of the headless pipeline runner.</span>
+            </div>
+            <div class="setting-action flex items-center gap-2">
+              <span class="font-mono text-sm mr-2">{{ formatVersion(agentVersion) }}</span>
+              <Button
+                icon="pi pi-copy"
+                severity="secondary"
+                text
+                size="small"
+                v-tooltip.top="'Copy version'"
+                @click="copyToClipboard(agentVersion)"
+              />
+            </div>
+          </div>
+
+          <div class="setting-item">
+            <div class="setting-content">
+              <span class="setting-title">UI Version</span>
+              <span class="setting-description">The version of the frontend user interface.</span>
+            </div>
+            <div class="setting-action flex items-center gap-2">
+              <span class="font-mono text-sm mr-2">{{ formatVersion(uiVersion) }}</span>
+              <Button
+                icon="pi pi-copy"
+                severity="secondary"
+                text
+                size="small"
+                v-tooltip.top="'Copy version'"
+                @click="copyToClipboard(uiVersion)"
+              />
+            </div>
+          </div>
+
+          <div v-if="isElectron" class="setting-item">
+            <div class="setting-content">
+              <span class="setting-title">Electron Version</span>
+              <span class="setting-description">The underlying Electron runtime framework version.</span>
+            </div>
+            <div class="setting-action flex items-center gap-2">
+              <span class="font-mono text-sm mr-2">{{ formatVersion(electronVersion) }}</span>
+              <Button
+                icon="pi pi-copy"
+                severity="secondary"
+                text
+                size="small"
+                v-tooltip.top="'Copy version'"
+                @click="copyToClipboard(electronVersion)"
               />
             </div>
           </div>
@@ -799,6 +889,7 @@ import { useAuth } from "@renderer/store/auth";
 import { useBuildHistory } from "../store/build-history";
 import UpgradeDialog from "@renderer/components/UpgradeDialog.vue";
 import { useAPI } from "@renderer/composables/api";
+import { websocketManager } from "@renderer/composables/websocket-manager";
 
 import { format } from "date-fns";
 import { useI18n } from "vue-i18n";
@@ -975,6 +1066,57 @@ const restartTour = (tourId: "dashboard" | "editor") => {
 };
 
 const toast = useToast();
+
+const appVersion = ref(window.version || "1.0.0");
+const agentVersion = ref("...");
+const uiVersion = process.env.UI_VERSION || "1.0.0";
+const electronVersion = window.pipelab?.versions?.electron || "N/A";
+const isElectron = !!window.electron;
+
+const formatVersion = (version: string) => {
+  if (!version || version === "N/A" || version === "..." || version === "Unknown") {
+    return version;
+  }
+  return version.startsWith("v") ? version : `v${version}`;
+};
+
+const updateVersions = async () => {
+  if (websocketManager.isConnected()) {
+    try {
+      const response = await websocketManager.send("agent:version:get");
+      if (response.type === "success") {
+        agentVersion.value = response.result.version;
+      }
+    } catch (error) {
+      console.error("Failed to fetch agent version in Settings:", error);
+      agentVersion.value = "Unknown";
+    }
+  } else {
+    agentVersion.value = "...";
+  }
+};
+
+websocketManager.onStateChange((state) => {
+  if (state === "connected") {
+    updateVersions();
+  } else {
+    agentVersion.value = "...";
+  }
+});
+
+if (websocketManager.isConnected()) {
+  updateVersions();
+}
+
+const copyToClipboard = (text: string) => {
+  navigator.clipboard.writeText(text);
+  toast.add({
+    severity: "success",
+    summary: "Copied",
+    detail: `Version ${text} copied to clipboard`,
+    life: 2000,
+  });
+};
 
 const searchQuery = ref("");
 const searchingRegistry = ref(false);

@@ -76,7 +76,6 @@
           />
         </div>
         <div class="update-status" v-else>{{ updateStatusText }}</div>
-        <div class="version-text">{{ appVersion }}</div>
       </div>
     </div>
 
@@ -375,7 +374,6 @@ const updateVersion = ref<string | undefined>(undefined);
 const appVersion = ref(window.version);
 const agentVersion = ref("...");
 const uiVersion = process.env.UI_VERSION;
-// @ts-expect-error - pipelab is added in the preload
 const electronVersion = window.pipelab?.versions?.electron || "N/A";
 
 const pluginStatus = ref("");
@@ -563,36 +561,6 @@ const accountMenuItems = computed(() => {
       label: "Account",
       icon: "mdi mdi-account",
       items,
-    },
-    {
-      separator: true,
-    },
-    {
-      label: "Versions",
-      icon: "mdi mdi-information",
-      items: [
-        {
-          label: `Agent: v${agentVersion.value}`,
-          icon: "mdi mdi-robot",
-          disabled: false,
-          command: () => copyToClipboard(agentVersion.value),
-          class: "copiable-version",
-        },
-        {
-          label: `UI: v${uiVersion}`,
-          icon: "mdi mdi-view-dashboard",
-          disabled: false,
-          command: () => copyToClipboard(uiVersion || "1.0.0"),
-          class: "copiable-version",
-        },
-        {
-          label: `Electron: v${electronVersion}`,
-          icon: "mdi mdi-atom",
-          disabled: false,
-          command: () => copyToClipboard(electronVersion),
-          class: "copiable-version",
-        },
-      ],
     },
     {
       separator: true,

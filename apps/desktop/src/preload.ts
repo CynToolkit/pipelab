@@ -1,6 +1,12 @@
 import { contextBridge, ipcRenderer } from "electron";
 import { electronAPI } from "@electron-toolkit/preload";
-import { version } from "../package.json";
+
+let version = "1.0.0";
+try {
+  version = ipcRenderer.sendSync("app:version:get") || "1.0.0";
+} catch (error) {
+  console.error("Failed to fetch version dynamically in preload:", error);
+}
 
 // Custom APIs for renderer
 // TODO: unify window and contextBridge
