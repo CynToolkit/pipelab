@@ -15,7 +15,7 @@ const unpackFilter = join("**", "steamworks.js", "dist", "**", "*");
  * @type {import('@electron-forge/shared-types').ForgeConfig}
  */
 module.exports = {
-  outDir: "./out",
+  outDir: join(__dirname, "out"),
   packagerConfig: {
     asar: config.disableAsarPackaging
       ? false
