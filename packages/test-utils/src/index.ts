@@ -142,7 +142,8 @@ export const runAction = async <A extends Action>(
   await writeFile(
     pnpmShimPath,
     `const { spawnSync } = require('child_process');
-spawnSync('pnpm', process.argv.slice(2), { stdio: 'inherit', shell: true });`,
+const result = spawnSync('pnpm', process.argv.slice(2), { stdio: 'inherit', shell: true });
+process.exit(result.status ?? 0);`,
   );
 
   const context: ActionRunnerData<A> = {

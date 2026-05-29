@@ -638,7 +638,7 @@ export const forge = async (
 
     completeConfiguration.icon = relativeIconPath1;
 
-    writeFile(
+    await writeFile(
       join(destinationFolder, "config.cjs"),
       `module.exports = ${JSON.stringify(completeConfiguration, undefined, 2)}`,
       "utf8",
