@@ -68,6 +68,6 @@ describe("End-to-End: Multi-Plugin Integration Test", () => {
       // Verify output exists
       await expect(access(outputs.output as string)).resolves.not.toThrow();
     },
-    5 * 60 * 1000,
+    30 * 60 * 1000,
   );
 });

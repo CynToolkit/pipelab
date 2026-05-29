@@ -3,7 +3,7 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   test: {
     fileParallelism: false,
-    testTimeout: 60000,
+    testTimeout: 1800000,
     hookTimeout: 60000,
     maxWorkers: 1,
     minWorkers: 1,

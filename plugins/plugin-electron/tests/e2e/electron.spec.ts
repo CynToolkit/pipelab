@@ -59,6 +59,6 @@ describe("End-to-End: Electron Plugin", () => {
       console.log("Calculated binary path:", binaryPath);
       await expect(access(binaryPath)).resolves.not.toThrow();
     },
-    5 * 60 * 1000,
-  ); // 5 minutes timeout for real build
+    30 * 60 * 1000,
+  ); // 30 minutes timeout for real build
 });

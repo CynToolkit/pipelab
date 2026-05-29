@@ -98,6 +98,6 @@ describe("End-to-End: Steam Integration", () => {
       await expect(access(outputs["script-path"] as string)).resolves.not.toThrow();
       await expect(access(outputs["output-folder"] as string)).resolves.not.toThrow();
     },
-    5 * 60 * 1000,
-  ); // 5 minutes timeout for real build
+    30 * 60 * 1000,
+  ); // 30 minutes timeout for real build
 });

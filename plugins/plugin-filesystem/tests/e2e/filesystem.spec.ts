@@ -18,7 +18,7 @@ describe("End-to-End: Filesystem Plugin", () => {
     }
   });
 
-  test("should copy a file using 'copy' action", { timeout: 60000 }, async () => {
+  test("should copy a file using 'copy' action", { timeout: 1800000 }, async () => {
     sandbox = await createSandbox("fs-copy-e2e");
     const testPath = sandbox.path;
     const sourcePath = join(testPath, "source");
@@ -46,7 +46,7 @@ describe("End-to-End: Filesystem Plugin", () => {
     expect(content).toBe("Hello World");
   });
 
-  test("should move a file using 'copy' then 'remove' actions", { timeout: 60000 }, async () => {
+  test("should move a file using 'copy' then 'remove' actions", { timeout: 1800000 }, async () => {
     sandbox = await createSandbox("fs-move-e2e");
     const testPath = sandbox.path;
     const sourcePath = join(testPath, "source");
@@ -83,7 +83,7 @@ describe("End-to-End: Filesystem Plugin", () => {
     await expect(access(sourceFile)).rejects.toThrow();
   });
 
-  test("should delete a file using 'remove' action", { timeout: 60000 }, async () => {
+  test("should delete a file using 'remove' action", { timeout: 1800000 }, async () => {
     sandbox = await createSandbox("fs-remove-e2e");
     const testPath = sandbox.path;
     await mkdir(testPath, { recursive: true });

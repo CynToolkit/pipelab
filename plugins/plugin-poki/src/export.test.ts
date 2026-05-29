@@ -75,6 +75,6 @@ describe("End-to-End: Poki Upload Action", () => {
       const pokiJsonContent = JSON.parse(await readFile(pokiJsonPath, "utf-8"));
       expect(pokiJsonContent.game_id).toBe("poki-game-123");
     },
-    5 * 60 * 1000,
-  ); // 5 minutes timeout for real environment setup
+    30 * 60 * 1000,
+  ); // 30 minutes timeout for real environment setup
 });

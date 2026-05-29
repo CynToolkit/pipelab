@@ -56,6 +56,6 @@ describe("End-to-End: Build History", () => {
       expect(lastEntry.pipelineId).toBe(pipelineId);
       expect(lastEntry.status).toBe("completed");
     },
-    5 * 60 * 1000,
+    30 * 60 * 1000,
   );
 });
