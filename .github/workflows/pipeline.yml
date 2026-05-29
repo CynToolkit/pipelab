@@ -343,9 +343,9 @@ jobs:
             arch: x64
           - os: windows-latest
             arch: x64
-          - os: macos-15-intel
+          - os: macos-26-intel
             arch: x64
-          - os: macos-latest
+          - os: macos-26
             arch: arm64
     steps:
       - uses: actions/checkout@v4
@@ -418,7 +418,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ubuntu-latest, windows-latest, macos-26-intel, macos-26]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     steps:
