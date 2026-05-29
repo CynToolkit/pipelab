@@ -35,7 +35,10 @@ describe("End-to-End: Electron Plugin", () => {
       // 2. Run the action directly
       const inputs = {
         "input-folder": projectToPackage,
-        configuration: { name: "my-app" },
+        configuration: {
+          name: "my-app",
+          enableExtraLogging: true,
+        },
       };
 
       const result = await runAction(packageRunner, {
