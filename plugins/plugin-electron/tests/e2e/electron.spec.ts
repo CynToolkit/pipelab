@@ -38,6 +38,8 @@ describe("End-to-End: Electron Plugin", () => {
         configuration: {
           name: "my-app",
         },
+        arch: "" as const,
+        platform: "" as const,
       };
 
       const result = await runAction(packageRunner, {
