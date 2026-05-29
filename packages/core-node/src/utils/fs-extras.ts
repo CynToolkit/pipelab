@@ -185,11 +185,9 @@ export const runWithLiveLogs = async (
 
   try {
     const { exitCode } = await subprocess;
-    log(`[runWithLiveLogs] Subprocess completed with exitCode: ${exitCode}`);
     hooks?.onExit?.(exitCode ?? 0);
   } catch (error: any) {
     const code = error.exitCode ?? 1;
-    log(`[runWithLiveLogs] Subprocess failed with exitCode: ${code}. Error: ${error.message}`);
     hooks?.onExit?.(code);
     throw new Error(`Command failed with exit code ${code}: ${error.message}`);
   }

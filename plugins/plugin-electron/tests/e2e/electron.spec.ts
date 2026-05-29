@@ -37,7 +37,6 @@ describe("End-to-End: Electron Plugin", () => {
         "input-folder": projectToPackage,
         configuration: {
           name: "my-app",
-          enableExtraLogging: true,
         },
       };
 
