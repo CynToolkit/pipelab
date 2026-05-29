@@ -852,6 +852,14 @@ export const forge = async (
   } finally {
     try {
       if (action !== "preview") {
+        const { readdir } = await import("node:fs/promises");
+        try {
+          const contents = await readdir(destinationFolder, { recursive: true });
+          log("destinationFolder contents in finally:", contents);
+        } catch (err) {
+          log("Failed to read destinationFolder contents:", err);
+        }
+
         const outDir = join(destinationFolder, "out");
         const finalOutDir = join(cwd, "out");
         await cp(outDir, finalOutDir, { recursive: true });
