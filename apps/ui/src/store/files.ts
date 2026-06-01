@@ -1,41 +1,23 @@
 import { SavedFile } from "@pipelab/shared";
 import { defineStore } from "pinia";
-import { ref } from "vue";
 import { Draft, create } from "mutative";
-import { createConfig } from "@renderer/utils/config";
 import { klona } from "klona";
-import { FileRepo, fileRepoMigrations, defaultFileRepo as defaultValue } from "@pipelab/shared";
-import { ValiError } from "valibot";
+import { FileRepo } from "@pipelab/shared";
 import { useAPI } from "@renderer/composables/api";
+import { useProjectsConfig } from "@renderer/composables/useConfig";
 
 export interface File {
   data: SavedFile;
 }
 
 export const useFiles = defineStore("files", () => {
-  const files = ref<FileRepo>(defaultValue);
   const api = useAPI();
-
-  const {
-    load: loadConfig,
-    save: saveConfig,
-    backup: backupConfig,
-  } = createConfig<FileRepo>("projects");
+  const { data: files, load, save } = useProjectsConfig();
 
   const update = async (callback: (state: Draft<FileRepo>) => void) => {
     files.value = create(files.value, callback);
     console.log("files.value", files.value);
-    await saveConfig(klona(files.value));
-  };
-
-  const load = async () => {
-    const data = await loadConfig();
-
-    if (data.type === "success") {
-      files.value = data.result.result as FileRepo;
-    } else {
-      files.value = defaultValue;
-    }
+    await save(klona(files.value));
   };
 
   const remove = async (id: string) => {
@@ -66,7 +48,6 @@ export const useFiles = defineStore("files", () => {
 
   return {
     files: files,
-    // files: readonly(files),
 
     load,
     update,

@@ -1,306 +1,209 @@
 <template>
-  <div class="layout">
-    <div class="header">
-      <div class="bold title">{{ headerSentence }}</div>
+  <div class="layout-shell" :class="{ 'sidebar-collapsed': isSidebarCollapsed }">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <!-- Logo area -->
+      <div class="sidebar-header">
+        <div v-show="!isSidebarCollapsed" class="sidebar-logo-area">
+          <img src="/icon.png" alt="Pipelab" class="sidebar-logo" />
+          <span class="sidebar-brand">Pipelab</span>
+        </div>
+        <button
+          v-tooltip.right="isSidebarCollapsed ? 'Expand sidebar' : undefined"
+          class="sidebar-collapse-btn"
+          @click="toggleSidebar"
+        >
+          <i class="mdi" :class="isSidebarCollapsed ? 'mdi-menu' : 'mdi-chevron-left'" />
+        </button>
+      </div>
 
-      <div class="button">
-        <Button link class="list-item" @click="toggleAccountMenu">
-          <i class="icon mdi mdi-account fs-24"></i>
-        </Button>
-        <Menu ref="$menu" :model="accountMenuItems" :popup="true">
+      <!-- Navigation -->
+      <nav class="sidebar-nav">
+        <router-link
+          to="/dashboard"
+          class="sidebar-nav-item"
+          active-class="active"
+          :class="{ active: route.name === 'Editor' }"
+          v-tooltip.right="
+            isSidebarCollapsed
+              ? route.name === 'Editor'
+                ? 'Back to Dashboard'
+                : 'Dashboard'
+              : undefined
+          "
+        >
+          <i
+            class="mdi nav-icon"
+            :class="route.name === 'Editor' ? 'mdi-arrow-left' : 'mdi-view-dashboard-outline'"
+          />
+          <span v-show="!isSidebarCollapsed" class="nav-label">
+            {{ route.name === "Editor" ? "Back to Dashboard" : "Dashboard" }}
+          </span>
+        </router-link>
+
+        <router-link
+          to="/connections"
+          class="sidebar-nav-item"
+          active-class="active"
+          v-tooltip.right="isSidebarCollapsed ? 'Connections' : undefined"
+        >
+          <i class="mdi mdi-link-variant nav-icon" />
+          <span v-show="!isSidebarCollapsed" class="nav-label">Connections</span>
+        </router-link>
+
+        <router-link
+          to="/integrations"
+          class="sidebar-nav-item"
+          active-class="active"
+          v-tooltip.right="isSidebarCollapsed ? 'Plugins' : undefined"
+        >
+          <i class="mdi mdi-puzzle-outline nav-icon" />
+          <span v-show="!isSidebarCollapsed" class="nav-label">Plugins</span>
+        </router-link>
+
+        <div
+          class="sidebar-nav-item disabled"
+          v-tooltip.right="isSidebarCollapsed ? 'Global Variables (Coming Soon)' : 'Coming Soon'"
+        >
+          <i class="mdi mdi-code-braces nav-icon" />
+          <span v-show="!isSidebarCollapsed" class="nav-label">Variables</span>
+          <span v-show="!isSidebarCollapsed" class="coming-soon-badge">Soon</span>
+        </div>
+      </nav>
+
+      <!-- Spacer -->
+      <div class="sidebar-spacer" />
+
+      <!-- Status section -->
+      <div class="sidebar-status">
+        <!-- Connection status -->
+        <div
+          class="sidebar-status-item"
+          :class="connectionState"
+          v-tooltip.right="isSidebarCollapsed ? connectionText : undefined"
+        >
+          <span class="status-dot" :class="connectionState" />
+          <i class="mdi nav-icon" :class="connectionIcon" />
+          <span v-show="!isSidebarCollapsed" class="status-text">{{ connectionText }}</span>
+        </div>
+
+        <!-- Plugin loading -->
+        <div
+          v-if="pluginStatus"
+          class="sidebar-status-item loading"
+          v-tooltip.right="isSidebarCollapsed ? pluginStatus : undefined"
+        >
+          <i class="mdi mdi-loading mdi-spin nav-icon" />
+          <span v-show="!isSidebarCollapsed" class="status-text">{{ pluginStatus }}</span>
+        </div>
+
+        <!-- Update available -->
+        <button
+          v-if="updateStatus === 'update-available' && updateDownloadUrl"
+          class="sidebar-update-btn"
+          @click="openLink(updateDownloadUrl)"
+          v-tooltip.right="isSidebarCollapsed ? `v${updateVersion} available` : undefined"
+        >
+          <i class="mdi mdi-download nav-icon" />
+          <span v-show="!isSidebarCollapsed" class="status-text">
+            Update v{{ updateVersion }}
+          </span>
+        </button>
+        <div
+          v-else-if="updateStatusText"
+          class="sidebar-status-item muted"
+          v-tooltip.right="isSidebarCollapsed ? updateStatusText : undefined"
+        >
+          <i class="mdi mdi-update nav-icon" />
+          <span v-show="!isSidebarCollapsed" class="status-text">{{ updateStatusText }}</span>
+        </div>
+      </div>
+
+      <div class="sidebar-divider" />
+
+      <!-- Bottom actions -->
+      <div class="sidebar-bottom">
+        <!-- Upgrade -->
+        <div v-if="!isLoadingSubscriptions" class="sidebar-upgrade-wrap">
+          <UpgradeNowButton @open-upgrade-dialog="openUpgradeDialog" />
+        </div>
+
+        <!-- Help & Support -->
+        <button
+          class="sidebar-nav-item"
+          @click="toggleHelpMenu"
+          v-tooltip.right="isSidebarCollapsed ? 'Help & Support' : undefined"
+        >
+          <i class="mdi mdi-help-circle-outline nav-icon" />
+          <span v-show="!isSidebarCollapsed" class="nav-label">Help & Support</span>
+        </button>
+        <Menu ref="$helpMenu" :model="helpMenuItems" :popup="true">
           <template #item="{ item, props }">
             <a
               v-bind="props.action"
-              class="flex justify-content-between align-items-center w-full p-2"
+              class="flex justify-content-between align-items-center w-full p-2 cursor-pointer"
             >
               <div class="flex align-items-center">
                 <i v-if="item.icon" :class="[item.icon, 'mr-2']"></i>
                 <span>{{ item.label }}</span>
               </div>
-              <i
-                v-if="item.class === 'copiable-version'"
-                class="mdi mdi-content-copy text-xs opacity-50 ml-4"
-              ></i>
             </a>
           </template>
         </Menu>
-      </div>
-    </div>
-    <div class="content">
-      <slot></slot>
-    </div>
-    <div class="footer">
-      <div class="flex gap-2 align-items-center">
-        <UpgradeNowButton v-if="!isLoadingSubscriptions" @open-upgrade-dialog="openUpgradeDialog" />
-        <div class="connection-status" :class="connectionState">
-          <i class="mdi" :class="connectionIcon"></i>
-          {{ connectionText }}
-        </div>
-        <div class="plugin-status" v-if="pluginStatus">
-          <i class="mdi mdi-loading mdi-spin mr-1"></i>
-          {{ pluginStatus }}
-        </div>
-      </div>
 
-      <div class="flex gap-1 align-items-center footer-center">
-        <Button
-          v-tooltip.top="'Report an Issue (GitHub)'"
-          text
-          class="footer-social-button"
-          @click="openLink('https://github.com/CynToolkit/pipelab/issues/new')"
+        <!-- Settings -->
+        <button
+          class="sidebar-nav-item"
+          v-tooltip.right="isSidebarCollapsed ? 'Settings' : undefined"
+          @click="isSettingsModalVisible = true"
         >
-          <i class="mdi mdi-github"></i>
-        </Button>
-        <Button
-          v-tooltip.top="'Join Community (Discord)'"
-          text
-          class="footer-social-button"
-          @click="openLink('https://discord.gg/your-invite-code')"
-        >
-          <i class="mdi mdi-discord"></i>
-        </Button>
-      </div>
+          <i class="mdi mdi-cog-outline nav-icon" />
+          <span v-show="!isSidebarCollapsed" class="nav-label">Settings</span>
+        </button>
 
-      <div class="flex gap-3 align-items-center justify-content-end">
-        <div
-          class="update-status flex align-items-center gap-1"
-          v-if="updateStatus === 'update-available' && updateDownloadUrl"
-        >
-          <span>New version {{ updateVersion }} is available.</span>
-          <Button
-            link
-            label="Download"
-            @click="openLink(updateDownloadUrl)"
-            class="p-0 text-xs font-medium cursor-pointer"
-            style="text-decoration: underline; height: 16px; line-height: 16px"
-          />
+        <div v-if="user" class="sidebar-divider" />
+
+        <!-- Account Bottom Row -->
+        <div v-if="user" class="sidebar-account-row">
+          <div v-show="!isSidebarCollapsed" class="account-left">
+            <i class="mdi mdi-account nav-icon" />
+            <span class="account-email truncate font-semibold">{{ user.email }}</span>
+          </div>
+          <button
+            class="account-logout-btn"
+            :class="{ 'collapsed-logout': isSidebarCollapsed }"
+            v-tooltip.right="isSidebarCollapsed ? 'Logout' : undefined"
+            v-tooltip.top="!isSidebarCollapsed ? 'Logout' : undefined"
+            @click="logout"
+          >
+            <i class="mdi mdi-logout" />
+          </button>
         </div>
-        <div class="update-status" v-else>{{ updateStatusText }}</div>
+
+        <!-- Login / Register (if not logged in) -->
+        <button
+          v-if="!user && auth.hasLoginProvider"
+          class="sidebar-nav-item login-btn"
+          v-tooltip.right="isSidebarCollapsed ? 'Login / Register' : undefined"
+          @click="auth.displayAuthModal()"
+        >
+          <i class="mdi mdi-login nav-icon" />
+          <span v-show="!isSidebarCollapsed" class="nav-label">Login / Register</span>
+        </button>
       </div>
+    </aside>
+
+    <!-- Main content area -->
+    <div class="layout-main">
+      <main class="layout-content">
+        <slot></slot>
+      </main>
     </div>
 
-    <Dialog
-      v-model:visible="isAuthModalVisible"
-      modal
-      :style="{ width: '30vw' }"
-      :breakpoints="{ '1199px': '75vw', '575px': '90vw' }"
-    >
-      <template #header>
-        <div class="flex flex-column w-full">
-          <p class="text-xl text-center">
-            {{
-              authModalTitle
-                ? authModalTitle
-                : type === "login"
-                  ? "Login"
-                  : type === "register"
-                    ? "Register"
-                    : "Forgot Password"
-            }}
-          </p>
-          <p class="text-center">{{ authModalSubTitle }}</p>
-        </div>
-      </template>
+    <!-- Auth Dialog (Login / Register / Forgot Password) -->
+    <AuthDialog />
 
-      <div v-if="type === 'login'" class="login">
-        <div class="grid justify-content-center">
-          <div class="col-12 xl:col-6 w-full">
-            <div class="h-full w-full">
-              <!-- @vue-expect-error -->
-              <form @submit.prevent="handleSubmit">
-                <div class="w-full md:w-10 mx-auto">
-                  <InputText
-                    id="mail"
-                    v-model="emailModel"
-                    v-bind="emailProps"
-                    type="text"
-                    :class="{
-                      'w-full': true,
-                    }"
-                    placeholder="Email"
-                    :invalid="!!errors.email"
-                  />
-                  <small v-if="errors.email" id="username-help">
-                    {{ errors.email }}
-                  </small>
-
-                  <div class="mb-2"></div>
-
-                  <Password
-                    id="password1"
-                    v-model="passwordModel"
-                    v-bind="passwordProps"
-                    placeholder="Password"
-                    :toggle-mask="true"
-                    :feedback="false"
-                    :invalid="!!errors.password"
-                    :class="{
-                      'w-full': true,
-                    }"
-                    input-class="w-full"
-                  >
-                  </Password>
-
-                  <small v-if="errors.password" class="p-error">
-                    {{ errors.password }}
-                  </small>
-
-                  <div class="mb-2"></div>
-
-                  <div class="flex align-items-center justify-content-between mb-5">
-                    <Button text @click="type = 'forgot-password'"> Forgot password? </Button>
-                  </div>
-
-                  <Button
-                    type="submit"
-                    label="Sign In"
-                    color="primary"
-                    class="w-full p-3 text-lg mb-2"
-                    :loading="isAuthenticating"
-                    @click="onSubmit"
-                  />
-                  <Button
-                    text
-                    label="Don't have an account?"
-                    class="w-full p-3 text-lg"
-                    @click="type = 'register'"
-                  />
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div v-if="type === 'register'" class="login">
-        <div class="grid justify-content-center">
-          <div class="col-12 xl:col-6 w-full">
-            <div class="h-full w-full">
-              <!-- @vue-expect-error -->
-              <form @submit.prevent="handleSubmit">
-                <div class="w-full md:w-10 mx-auto">
-                  <InputText
-                    id="mail"
-                    v-model="emailModel"
-                    v-bind="emailProps"
-                    type="text"
-                    :class="{
-                      'w-full': true,
-                    }"
-                    placeholder="Email"
-                    :invalid="!!errors.email"
-                  />
-                  <small v-if="errors.email" id="username-help">
-                    {{ errors.email }}
-                  </small>
-
-                  <div class="mb-2"></div>
-
-                  <Password
-                    id="password1"
-                    v-model="passwordModel"
-                    v-bind="passwordProps"
-                    placeholder="Password"
-                    :toggle-mask="true"
-                    :invalid="!!errors.password"
-                    :class="{
-                      'w-full': true,
-                    }"
-                    input-class="w-full"
-                  >
-                    <template #header>
-                      <div class="text-lg font-bold mb-3">Pick a password</div>
-                    </template>
-
-                    <!-- @vue-expect-error -->
-                    <template #footer="sp">
-                      <!-- @vue-expect-error -->
-                      {{ sp.level }}
-                      <Divider />
-                      <ul class="pl-2 ml-2 mt-0 line-height-3">
-                        <li>At least one lowercase</li>
-                        <li>At least one uppercase</li>
-                        <li>At leaset one numeric</li>
-                        <li>Minimum 10 characters</li>
-                      </ul>
-                    </template>
-                  </Password>
-
-                  <small v-if="errors.password" class="p-error">
-                    {{ errors.password }}
-                  </small>
-
-                  <div class="mb-2"></div>
-
-                  <div class="flex align-items-center justify-content-between mb-5">
-                    <Button text @click="type = 'forgot-password'"> Forgot password? </Button>
-                  </div>
-
-                  <Button
-                    type="submit"
-                    label="Sign Up"
-                    color="primary"
-                    class="w-full p-3 text-lg mb-2"
-                    :loading="authState === 'LOADING'"
-                    @click="onSubmit"
-                  />
-                  <Button
-                    text
-                    label="Already have an account?"
-                    class="w-full p-3 text-lg"
-                    @click="type = 'login'"
-                  />
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div v-if="type === 'forgot-password'" class="login">
-        <div class="grid justify-content-center">
-          <div class="col-12 xl:col-6 w-full">
-            <div class="h-full w-full">
-              <!-- @vue-expect-error -->
-              <form @submit.prevent="handleSubmit">
-                <div class="w-full md:w-10 mx-auto">
-                  <InputText
-                    id="reset-mail"
-                    v-model="emailModel"
-                    v-bind="emailProps"
-                    type="text"
-                    :class="{
-                      'w-full': true,
-                    }"
-                    placeholder="Email"
-                    :invalid="!!errors.email"
-                  />
-                  <small v-if="errors.email" id="reset-mail-help">
-                    {{ errors.email }}
-                  </small>
-
-                  <div class="mb-2"></div>
-
-                  <Button
-                    type="submit"
-                    label="Send Reset Email"
-                    color="primary"
-                    class="w-full p-3 text-lg mb-2"
-                    :loading="authState === 'LOADING'"
-                    @click="onSubmit"
-                  />
-                  <Button
-                    text
-                    label="Back to Login"
-                    class="w-full p-3 text-lg"
-                    @click="type = 'login'"
-                  />
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      </div>
-    </Dialog>
-
+    <!-- Settings Dialog -->
     <Dialog
       v-model:visible="isSettingsModalVisible"
       modal
@@ -319,7 +222,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, inject } from "vue";
+import { ref, computed, inject, watch } from "vue";
 import { useAuth } from "@renderer/store/auth";
 import { useShell } from "@renderer/composables/use-shell";
 interface MenuItem {
@@ -339,17 +242,14 @@ interface MenuItem {
 import { useLogger } from "@pipelab/shared";
 import Settings from "@renderer/components/Settings.vue";
 import UpgradeNowButton from "@renderer/components/UpgradeNowButton.vue";
-import { useToast } from "primevue/usetoast";
+import AuthDialog from "@renderer/components/AuthDialog.vue";
 import Menu from "primevue/menu";
 import Button from "primevue/button";
 import Dialog from "primevue/dialog";
 import { UpdateStatus } from "@pipelab/shared";
-import { email, minLength, nonEmpty, object, pipe, regex, string } from "valibot";
-import { toTypedSchema } from "@vee-validate/valibot";
 import posthog from "posthog-js";
 import { storeToRefs } from "pinia";
 import { handle } from "@renderer/composables/handlers";
-import { useForm } from "vee-validate";
 import { useRoute } from "vue-router";
 import { websocketManager } from "@renderer/composables/websocket-manager";
 
@@ -361,11 +261,29 @@ const isElectron = !!window.electron;
 
 const openUpgradeDialog = inject("openUpgradeDialog") as () => void;
 
-const $menu = ref();
+const $helpMenu = ref();
 
-const headerSentence = computed(() => {
-  return route.meta?.title as string;
-});
+// Sidebar state
+const isSidebarCollapsed = ref(false);
+const userSidebarPreference = ref(false); // tracks manual preference
+
+const toggleSidebar = () => {
+  isSidebarCollapsed.value = !isSidebarCollapsed.value;
+  userSidebarPreference.value = isSidebarCollapsed.value;
+};
+
+// Auto-collapse on editor route
+watch(
+  () => route.name,
+  (routeName) => {
+    if (routeName === "Editor") {
+      isSidebarCollapsed.value = true;
+    } else {
+      isSidebarCollapsed.value = userSidebarPreference.value;
+    }
+  },
+  { immediate: true },
+);
 
 const updateStatus = ref<UpdateStatus>("update-not-available");
 const updateDownloadUrl = ref<string | undefined>(undefined);
@@ -476,108 +394,47 @@ const updateStatusText = computed(() => {
   }
 });
 
-const toggleAccountMenu = (event: MouseEvent) => {
-  $menu.value.toggle(event);
+const toggleHelpMenu = (event: MouseEvent) => {
+  $helpMenu.value.toggle(event);
 };
+
+const helpMenuItems = computed(() => [
+  {
+    label: "Documentation",
+    icon: "mdi mdi-book-open-page-variant-outline",
+    command: () => {
+      openLink("https://docs.pipelab.app");
+    },
+  },
+  {
+    label: "Community Discord",
+    icon: "pi pi-discord",
+    command: () => {
+      openLink("https://discord.gg/your-invite-code");
+    },
+  },
+  {
+    label: "Report an Issue",
+    icon: "mdi mdi-github",
+    command: () => {
+      openLink("https://github.com/CynToolkit/pipelab/issues/new");
+    },
+  },
+]);
 
 const openLink = (url: string) => {
   shell.openExternal(url);
   posthog.capture("social_link_clicked", { url });
 };
 
-const type = ref<"login" | "register" | "forgot-password">("login");
-
 const logout = async () => {
   await auth.logout();
 };
 
 const auth = useAuth();
-const {
-  user,
-  authState,
-  isAuthModalVisible,
-  authModalTitle,
-  authModalSubTitle,
-  isLoadingSubscriptions,
-  isAuthenticating,
-} = storeToRefs(auth);
+const { user, isLoadingSubscriptions } = storeToRefs(auth);
 
 const isSettingsModalVisible = ref(false);
-
-const accountMenuItems = computed(() => {
-  const items: MenuItem[] = [];
-
-  if (user.value) {
-    items.push(
-      {
-        label: user.value.email,
-        icon: "mdi mdi-email",
-        disabled: true,
-      },
-      {
-        label: "Profile",
-        icon: "mdi mdi-account",
-        disabled: true,
-      },
-      {
-        label: "Team",
-        icon: "mdi mdi-account-multiple",
-        disabled: true,
-      },
-      {
-        separator: true,
-      },
-      {
-        label: "Logout",
-        icon: "mdi mdi-logout",
-        disabled: false,
-        command: async () => {
-          await logout();
-        },
-      },
-    );
-  } else if (auth.hasLoginProvider) {
-    items.push({
-      label: "Login / Register",
-      icon: "mdi mdi-account",
-      command: () => {
-        auth.displayAuthModal();
-      },
-    } satisfies MenuItem);
-  }
-
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    toast.add({
-      severity: "success",
-      summary: "Copied",
-      detail: `Version ${text} copied to clipboard`,
-      life: 2000,
-    });
-  };
-
-  const result = [
-    {
-      label: "Account",
-      icon: "mdi mdi-account",
-      items,
-    },
-    {
-      separator: true,
-    },
-    {
-      label: "Settings",
-      icon: "mdi mdi-cog",
-      disabled: false,
-      command: () => {
-        console.log("Settings");
-        isSettingsModalVisible.value = true;
-      },
-    },
-  ] satisfies MenuItem;
-
-  return result;
-});
 
 handle("update:set-status", async (event, { value }) => {
   console.log("event", event);
@@ -587,289 +444,474 @@ handle("update:set-status", async (event, { value }) => {
   updateDownloadUrl.value = value.downloadUrl;
   updateVersion.value = value.version;
 });
-
-const schema = toTypedSchema(
-  object({
-    email: pipe(
-      string("An email adress is required"),
-      nonEmpty("Email is required"),
-      email("Invalid email"),
-    ),
-    password: pipe(
-      string("A password is required"),
-      minLength(10, "Password must be at least 10 characters long"),
-      regex(/[a-z]/, "Password must contain at least one lowercase letter"),
-      regex(/[A-Z]/, "Password must contain at least one uppercase letter"),
-      regex(/[0-9]/, "Password must contain at least one number"),
-      regex(/[!@#$%^&*()_+-=[\]{};':"|<>?,./`~.]/, "Password must contain at least one symbol"),
-    ),
-  }),
-);
-
-const { defineField, handleSubmit, errors } = useForm({
-  validationSchema: schema,
-});
-
-const [emailModel, emailProps] = defineField("email");
-const [passwordModel, passwordProps] = defineField("password");
-
-const onSuccess = async (values: any) => {
-  try {
-    if (type.value === "register") {
-      const { error } = await auth.register(values.email, values.password);
-      if (error) {
-        console.log("error", error);
-        toast.add({
-          severity: "error",
-          summary: "Failed to register",
-          detail: error.message,
-          life: 3000,
-        });
-      } else {
-        isAuthModalVisible.value = false;
-        toast.add({
-          severity: "success",
-          summary: "Sucessfully registered",
-          detail: "A confirmation e-mail has been sent",
-          life: 3000,
-        });
-      }
-    } else if (type.value === "forgot-password") {
-      const { error } = await auth.resetPassword(values.email);
-      if (error) {
-        console.log("error", error);
-        toast.add({
-          severity: "error",
-          summary: "Failed to send reset email",
-          detail: error.message,
-          life: 3000,
-        });
-      } else {
-        type.value = "login";
-        toast.add({
-          severity: "success",
-          summary: "Reset email sent",
-          detail: "If an account with that email exists, we've sent you a password reset link.",
-          life: 5000,
-        });
-      }
-    } else {
-      const { error } = await auth.login(values.email, values.password);
-      if (error) {
-        console.log("error", error);
-        toast.add({
-          severity: "error",
-          summary: "Failed to login",
-          detail: error.message,
-          life: 3000,
-        });
-      } else {
-        isAuthModalVisible.value = false;
-        toast.add({
-          severity: "success",
-          summary: "Sucessfully logged in",
-          detail: "Welcome back!",
-          life: 3000,
-        });
-      }
-    }
-  } catch (error) {
-    console.log("error", error);
-    toast.add({ severity: "info", summary: "Info", detail: error, life: 3000 });
-  }
-};
-
-const toast = useToast();
-
-function onInvalidSubmit({ values, errors, results }: any) {
-  logger().info({ values }); // current form values
-  logger().info({ errors }); // a map of field names and their first error message
-  logger().info({ results }); // a detailed map of field names and their validation results
-}
-
-const onSubmit = handleSubmit(onSuccess, onInvalidSubmit);
 </script>
 
 <style lang="scss" scoped>
-.layout {
+/* ─── Layout Shell ──────────────────────────────────────── */
+.layout-shell {
   height: 100%;
-  display: flex;
-  flex-direction: column;
   width: 100%;
+  display: flex;
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
+  overflow: hidden;
+}
 
-  .header {
-    padding: 4px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: var(--surface-card);
-    border-bottom: 1px solid var(--surface-border);
+/* ─── Sidebar ───────────────────────────────────────────── */
+.sidebar {
+  width: 240px;
+  min-width: 240px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--p-surface-50);
+  border-right: 1px solid var(--p-surface-200);
+  transition:
+    width 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+    min-width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+  z-index: 100;
 
-    .title {
-      font-size: 1.5rem;
-      line-height: 2rem;
-      margin-left: 12px;
-    }
+  :root.dark & {
+    background: var(--p-surface-900);
+    border-right-color: var(--p-surface-700);
+  }
+}
 
-    .navigation {
-      display: flex;
-      align-items: center;
+.sidebar-collapsed .sidebar {
+  width: 64px;
+  min-width: 64px;
+}
 
-      .nav-button {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        padding: 8px 16px;
-        font-size: 1rem;
-        color: var(--text-color);
-        text-decoration: none;
-        border-radius: 6px;
-        transition: all 0.2s ease;
-        cursor: pointer;
+/* ─── Sidebar Header ────────────────────────────────────── */
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 12px;
+  gap: 8px;
+  min-height: 56px;
+}
 
-        .icon {
-          opacity: 0.8;
-        }
+.sidebar-logo-area {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  overflow: hidden;
+  min-width: 0;
+}
 
-        .nav-text {
-          font-weight: 500;
-        }
+.sidebar-logo {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  object-fit: contain;
+}
 
-        &:hover {
-          background-color: var(--surface-hover);
-          color: var(--primary-color);
+.sidebar-brand {
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--p-text-color);
+  white-space: nowrap;
+}
 
-          .icon {
-            opacity: 1;
-          }
-        }
+.sidebar-collapse-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--p-text-muted-color);
+  cursor: pointer;
+  transition: all 0.15s ease;
 
-        &.active {
-          background-color: var(--primary-color);
-          color: var(--primary-color-text);
+  &:hover {
+    background: var(--p-surface-200);
+    color: var(--p-text-color);
 
-          .icon {
-            opacity: 1;
-          }
-        }
-
-        &.scenario-filtered {
-          .nav-text {
-            font-weight: 600;
-          }
-
-          .scenario-indicator {
-            opacity: 0.8;
-            margin-left: 4px;
-          }
-        }
-
-        @media (max-width: 768px) {
-          padding: 6px 12px;
-
-          .nav-text {
-            display: none;
-          }
-
-          .icon {
-            margin-right: 0;
-          }
-        }
-      }
-    }
-
-    .button {
-      display: flex;
-      gap: 8px;
-      align-items: center;
-    }
-
-    @media (max-width: 768px) {
-      .navigation {
-        order: 2;
-      }
-
-      .button {
-        order: 3;
-      }
-
-      .title {
-        order: 1;
-        flex: 1;
-        margin-left: 0;
-        margin-right: 0;
-        text-align: center;
-      }
+    :root.dark & {
+      background: var(--p-surface-700);
     }
   }
 
-  .footer {
-    height: 24px;
-    background-color: #eee;
-    border-top: 1px solid #ddd;
-    display: flex;
-    flex-direction: row;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 12px;
-    padding: 0 8px;
+  i {
+    font-size: 18px;
+  }
+}
 
-    .connection-status {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      font-weight: 500;
+.sidebar-collapsed .sidebar-header {
+  justify-content: center;
+}
 
-      &.connected {
-        color: #4caf50;
-      }
+.sidebar-collapsed .sidebar-collapse-btn {
+  margin: 0 auto;
+}
 
-      &.connecting {
-        color: #ff9800;
-      }
+/* ─── Sidebar Navigation ───────────────────────────────── */
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 8px;
+}
 
-      &.disconnected,
-      &.error {
-        color: #f44336;
-      }
-    }
+.sidebar-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 0.825rem;
+  font-weight: 500;
+  color: var(--p-text-muted-color);
+  text-decoration: none;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  width: 100%;
+  text-align: left;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  overflow: hidden;
 
-    .footer-social-button {
-      padding: 0;
-      width: 24px;
-      height: 20px;
-      color: #666;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: 4px;
-      transition: all 0.2s ease;
+  &:hover {
+    background: var(--p-surface-200);
+    color: var(--p-text-color);
 
-      &:hover {
-        background-color: rgba(0, 0, 0, 0.05);
-        color: var(--primary-color) !important;
-      }
-
-      i {
-        font-size: 16px;
-      }
-    }
-
-    .footer-center {
-      position: absolute;
-      left: 50%;
-      transform: translateX(-50%);
+    :root.dark & {
+      background: var(--p-surface-700);
     }
   }
 
-  .content {
-    flex: 1;
-    overflow: auto;
+  &.disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+
+    &:hover {
+      background: transparent;
+      color: var(--p-text-muted-color);
+    }
   }
+
+  &.active {
+    background: var(--p-surface-200);
+    color: var(--p-text-color);
+    font-weight: 600;
+
+    :root.dark & {
+      background: var(--p-surface-700);
+    }
+  }
+
+  .nav-icon {
+    font-size: 18px;
+    flex-shrink: 0;
+    width: 20px;
+    text-align: center;
+  }
+
+  .nav-label {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .coming-soon-badge {
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    background: var(--p-surface-200);
+    color: var(--p-text-muted-color);
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-left: auto;
+
+    :root.dark & {
+      background: var(--p-surface-800);
+    }
+  }
+}
+
+.sidebar-collapsed .sidebar-nav-item {
+  justify-content: center;
+  padding: 10px;
+
+  .nav-label {
+    display: none;
+  }
+}
+
+/* ─── Sidebar Spacer ────────────────────────────────────── */
+.sidebar-spacer {
+  flex: 1;
+}
+
+/* ─── Sidebar Status ────────────────────────────────────── */
+.sidebar-status {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 8px;
+}
+
+.sidebar-status-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  color: var(--p-text-muted-color);
+  white-space: nowrap;
+  overflow: hidden;
+
+  .nav-icon {
+    font-size: 16px;
+    flex-shrink: 0;
+    width: 20px;
+    text-align: center;
+  }
+
+  &.connected {
+    .nav-icon,
+    .status-dot {
+      color: #22c55e;
+    }
+  }
+  &.connecting {
+    .nav-icon,
+    .status-dot {
+      color: #f59e0b;
+    }
+  }
+  &.disconnected,
+  &.error {
+    .nav-icon,
+    .status-dot {
+      color: #ef4444;
+    }
+  }
+
+  .status-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.sidebar-collapsed .sidebar-status-item {
+  justify-content: center;
+  padding: 8px;
+
+  .status-text,
+  .status-dot {
+    display: none;
+  }
+}
+
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: none; /* shown only in expanded mode as an accent */
+}
+
+.sidebar-update-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  background: rgba(99, 102, 241, 0.08);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  color: #6366f1;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  transition: all 0.15s ease;
+
+  &:hover {
+    background: rgba(99, 102, 241, 0.15);
+  }
+
+  .nav-icon {
+    font-size: 16px;
+    flex-shrink: 0;
+    width: 20px;
+    text-align: center;
+  }
+}
+
+.sidebar-collapsed .sidebar-update-btn {
+  justify-content: center;
+  padding: 8px;
+
+  .status-text {
+    display: none;
+  }
+}
+
+/* ─── Sidebar Divider ───────────────────────────────────── */
+.sidebar-divider {
+  height: 1px;
+  margin: 8px 12px;
+  background: var(--p-surface-200);
+
+  :root.dark & {
+    background: var(--p-surface-700);
+  }
+}
+
+/* ─── Sidebar Bottom ────────────────────────────────────── */
+.sidebar-bottom {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 8px 12px;
+}
+
+.sidebar-upgrade-wrap {
+  padding: 4px 2px;
+
+  :deep(.upgrade-now-button) {
+    width: 100%;
+    justify-content: center;
+    padding: 8px 12px;
+    font-size: 0.8rem;
+  }
+}
+
+.sidebar-collapsed .sidebar-upgrade-wrap {
+  :deep(.upgrade-now-button) {
+    padding: 8px;
+    font-size: 0;
+    gap: 0;
+
+    .upgrade-icon {
+      font-size: 18px;
+      margin-right: 0;
+    }
+  }
+}
+
+/* ─── Account Section ───────────────────────────────────── */
+.sidebar-account-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  border-radius: 8px;
+  margin-top: 4px;
+  background: var(--p-surface-100);
+  min-width: 0;
+  gap: 16px;
+
+  :root.dark & {
+    background: var(--p-surface-850);
+  }
+}
+
+.sidebar-collapsed .sidebar-account-row {
+  background: transparent;
+  padding: 0;
+  margin-top: 0;
+  justify-content: center;
+  width: 100%;
+}
+
+.account-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+
+  .nav-icon {
+    font-size: 18px;
+    color: var(--p-text-muted-color);
+    flex-shrink: 0;
+    width: 20px;
+    text-align: center;
+  }
+
+  .account-email {
+    font-size: 0.775rem;
+    font-weight: 600;
+    color: var(--p-text-color);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+.account-logout-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--p-text-muted-color);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+
+  i {
+    font-size: 16px;
+  }
+
+  &:hover {
+    background: rgba(239, 68, 68, 0.08);
+    color: var(--p-red-500, #ef4444);
+  }
+
+  &.collapsed-logout {
+    width: 100%;
+    height: 36px;
+    border-radius: 8px;
+    padding: 10px;
+
+    i {
+      font-size: 18px;
+    }
+
+    &:hover {
+      background: var(--p-surface-200);
+      color: var(--p-text-color);
+
+      :root.dark & {
+        background: var(--p-surface-700);
+      }
+    }
+  }
+}
+
+/* ─── Main Content ──────────────────────────────────────── */
+.layout-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+.layout-content {
+  flex: 1;
+  overflow: auto;
 }
 </style>

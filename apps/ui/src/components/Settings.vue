@@ -22,15 +22,6 @@
           <span>{{ t("settings.tabs.advanced") }}</span>
         </div>
         <div
-          v-if="user"
-          class="sidebar-item"
-          :class="{ active: currentSection === 'billing' }"
-          @click="currentSection = 'billing'"
-        >
-          <i class="mdi mdi-credit-card mr-2"></i>
-          <span>{{ t("settings.tabs.billing") }}</span>
-        </div>
-        <div
           class="sidebar-item"
           :class="{ active: currentSection === 'versions' }"
           @click="currentSection = 'versions'"
@@ -40,74 +31,32 @@
         </div>
       </div>
 
-      <!-- Plugins Group -->
-      <div class="sidebar-group">
-        <div class="sidebar-group-header">Plugins</div>
+      <!-- Account Group -->
+      <div v-if="user" class="sidebar-group">
+        <div class="sidebar-group-header">Account</div>
         <div
           class="sidebar-item"
-          :class="{ active: currentSection === 'core-plugins' }"
-          @click="currentSection = 'core-plugins'"
+          :class="{ active: currentSection === 'profile' }"
+          @click="currentSection = 'profile'"
         >
-          <i class="pi pi-verified mr-2 text-blue-500"></i>
-          <span>{{ t("settings.tabs.core-plugins") }}</span>
+          <i class="mdi mdi-account-outline mr-2"></i>
+          <span>Profile</span>
         </div>
         <div
           class="sidebar-item"
-          :class="{ active: currentSection === 'community-plugins' }"
-          @click="currentSection = 'community-plugins'"
+          :class="{ active: currentSection === 'billing' }"
+          @click="currentSection = 'billing'"
         >
-          <i class="pi pi-globe mr-2 text-purple-500"></i>
-          <span>{{ t("settings.tabs.community-plugins") }}</span>
+          <i class="mdi mdi-credit-card mr-2"></i>
+          <span>Billing</span>
         </div>
-      </div>
-
-      <!-- Active Core Plugins Group -->
-      <div v-if="enabledCorePlugins.length > 0" class="sidebar-group">
-        <div class="sidebar-group-header">Core plugins</div>
         <div
-          v-for="plugin in enabledCorePlugins"
-          :key="plugin.name"
-          class="sidebar-item plugin-sidebar-item"
-          :class="{ active: currentSection === `core-plugin-${plugin.name}` }"
-          @click="currentSection = `core-plugin-${plugin.name}`"
+          class="sidebar-item"
+          :class="{ active: currentSection === 'team' }"
+          @click="currentSection = 'team'"
         >
-          <template v-if="getPluginIcon(plugin.name)">
-            <img
-              v-if="getPluginIcon(plugin.name)?.type === 'image'"
-              :src="getPluginIconImage(plugin.name)"
-              class="sidebar-plugin-icon"
-            />
-            <i v-else :class="getIconClass(getPluginIcon(plugin.name))" class="mr-2 opacity-70"></i>
-          </template>
-          <template v-else>
-            <i class="pi pi-box mr-2 opacity-70"></i>
-          </template>
-          <span class="truncate">{{ formatPluginName(plugin.name) }}</span>
-        </div>
-      </div>
-
-      <!-- Active Community Plugins Group -->
-      <div v-if="enabledCommunityPlugins.length > 0" class="sidebar-group">
-        <div class="sidebar-group-header">Community plugins</div>
-        <div
-          v-for="plugin in enabledCommunityPlugins"
-          :key="plugin.name"
-          class="sidebar-item plugin-sidebar-item"
-          :class="{ active: currentSection === `community-plugin-${plugin.name}` }"
-          @click="currentSection = `community-plugin-${plugin.name}`"
-        >
-          <template v-if="getPluginIcon(plugin.name)">
-            <img
-              v-if="getPluginIcon(plugin.name)?.type === 'image'"
-              :src="getPluginIconImage(plugin.name)"
-              class="sidebar-plugin-icon"
-            />
-            <i v-else :class="getIconClass(getPluginIcon(plugin.name))" class="mr-2 opacity-70"></i>
-          </template>
-          <template v-else>
-            <i class="pi pi-box mr-2 opacity-70"></i>
-          </template>
-          <span class="truncate">{{ formatPluginName(plugin.name) }}</span>
+          <i class="mdi mdi-account-multiple-outline mr-2"></i>
+          <span>Team</span>
         </div>
       </div>
     </div>
@@ -391,7 +340,9 @@
       <div v-if="currentSection === 'versions'" class="settings-panel">
         <div class="section-header">
           <h3>{{ t("settings.tabs.versions") }}</h3>
-          <p class="description">Information about the application components and runtime versions.</p>
+          <p class="description">
+            Information about the application components and runtime versions.
+          </p>
         </div>
 
         <div class="settings-group">
@@ -452,7 +403,9 @@
           <div v-if="isElectron" class="setting-item">
             <div class="setting-content">
               <span class="setting-title">Electron Version</span>
-              <span class="setting-description">The underlying Electron runtime framework version.</span>
+              <span class="setting-description"
+                >The underlying Electron runtime framework version.</span
+              >
             </div>
             <div class="setting-action flex items-center gap-2">
               <span class="font-mono text-sm mr-2">{{ formatVersion(electronVersion) }}</span>
@@ -561,313 +514,109 @@
         <UpgradeDialog v-else />
       </div>
 
-      <!-- Core Plugins Pane Content -->
-      <div v-if="currentSection === 'core-plugins'" class="settings-panel">
-        <div class="section-header flex justify-between items-center mb-4">
-          <div>
-            <h3>Search core plugins</h3>
-            <p class="description">Filter plugins by name or description.</p>
-          </div>
-          <!-- Filter input on top right -->
-          <IconField :style="{ width: '220px' }" icon-position="left">
-            <InputIcon class="pi pi-search text-xs"></InputIcon>
-            <InputText v-model="coreSearchQuery" placeholder="Search plugins..." size="small" />
-          </IconField>
-        </div>
-
-        <h4 class="text-xs font-bold opacity-60 mb-2 uppercase tracking-wider">Plugin list</h4>
-        <div
-          v-if="filteredCorePlugins.length === 0"
-          class="text-center py-6 text-gray-500 border border-dashed rounded-lg"
-        >
-          No core plugins found matching your search.
-        </div>
-        <div v-else class="plugins-list-group">
-          <div
-            v-for="plugin in filteredCorePlugins"
-            :key="plugin.name"
-            class="plugin-row flex items-center justify-between"
-          >
-            <div class="flex items-center gap-3">
-              <div class="plugin-icon-wrapper flex items-center justify-center">
-                <template v-if="getPluginIcon(plugin.name)">
-                  <img
-                    v-if="getPluginIcon(plugin.name)?.type === 'image'"
-                    :src="getPluginIconImage(plugin.name)"
-                    class="plugin-row-icon"
-                  />
-                  <i
-                    v-else
-                    :class="getIconClass(getPluginIcon(plugin.name))"
-                    class="text-sm text-primary"
-                  ></i>
-                </template>
-                <template v-else>
-                  <i class="pi pi-box text-sm text-primary"></i>
-                </template>
-              </div>
-              <div class="flex flex-column">
-                <span class="plugin-title font-bold text-xs text-color">{{
-                  formatPluginName(plugin.name)
-                }}</span>
-                <span class="plugin-description text-[10px] text-secondary mt-0.5">{{
-                  plugin.description || "No description available."
-                }}</span>
-              </div>
-            </div>
-            <div class="flex items-center gap-2">
-              <Button
-                v-if="plugin.enabled"
-                icon="pi pi-cog"
-                severity="secondary"
-                text
-                rounded
-                size="small"
-                class="hover:rotate-45"
-                v-tooltip.top="'Configure plugin'"
-                @click="currentSection = `core-plugin-${plugin.name}`"
-              />
-              <ToggleSwitch
-                :model-value="plugin.enabled"
-                @update:model-value="togglePlugin(plugin.name)"
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Community Plugins Pane Content -->
-      <div v-if="currentSection === 'community-plugins'" class="settings-panel">
+      <!-- Profile Tab Content -->
+      <div v-if="currentSection === 'profile'" class="settings-panel">
         <div class="section-header">
-          <h3>Community Plugins</h3>
-          <p class="description">
-            Install and manage global pipeline plugins from the npm registry.
-          </p>
+          <h3>Profile</h3>
+          <p class="description">Your account information and subscription tier.</p>
         </div>
 
-        <!-- Search NPM input -->
-        <div class="flex gap-2 items-center mb-4">
-          <IconField :style="{ flex: 1 }" icon-position="left">
-            <InputIcon class="pi pi-search text-xs"></InputIcon>
-            <InputText
-              v-model="searchQuery"
-              placeholder="Search NPM for community plugins (e.g. @pipelab/plugin-)"
-              size="small"
-            />
-          </IconField>
-          <Button
-            v-if="searchQuery"
-            icon="pi pi-times"
-            severity="secondary"
-            text
-            size="small"
-            @click="searchQuery = ''"
-          />
-        </div>
-
-        <!-- Loading indicator for searching -->
-        <div v-if="searchingRegistry" class="flex justify-center items-center py-6">
-          <i class="pi pi-spin pi-spinner text-primary text-xl mr-2"></i>
-          <span class="text-xs">Searching npm registry...</span>
-        </div>
-
-        <!-- Search Results vs Installed Lists -->
-        <div v-else class="plugins-list">
-          <template v-if="searchQuery">
-            <h4 class="text-xs font-bold opacity-60 mb-2 uppercase tracking-wider">
-              Search Results
-            </h4>
-            <div v-if="registryResults.length === 0" class="text-center py-6 text-gray-500">
-              No plugins found matching "{{ searchQuery }}".
-            </div>
-            <div v-else class="plugins-list-group">
-              <div
-                v-for="pkg in registryResults"
-                :key="pkg.name"
-                class="plugin-row flex items-center justify-between"
-              >
-                <div class="flex items-center gap-3">
-                  <div class="plugin-icon-wrapper flex items-center justify-center w-8 h-8 rounded">
-                    <i class="pi pi-box text-primary text-sm"></i>
-                  </div>
-                  <div class="flex flex-column">
-                    <div class="flex items-center gap-1.5">
-                      <span class="plugin-title font-bold text-xs text-color">{{
-                        formatPluginName(pkg.name)
-                      }}</span>
-                      <span v-if="isInstalled(pkg.name)" class="installed-badge">Installed</span>
-                    </div>
-                    <span class="plugin-description text-[10px] text-secondary mt-0.5">{{
-                      pkg.description || "No description available."
-                    }}</span>
-                    <span class="text-[9px] text-secondary opacity-60 mt-0.5"
-                      >Latest version: {{ pkg.version }}</span
-                    >
-                  </div>
-                </div>
-                <div class="flex items-center gap-2">
-                  <Button
-                    v-if="isInstalled(pkg.name)"
-                    label="Uninstall"
-                    severity="danger"
-                    outlined
-                    size="small"
-                    :loading="loadingPlugins[pkg.name]"
-                    @click="uninstallPlugin(pkg.name)"
-                  />
-                  <Button
-                    v-else
-                    label="Install"
-                    size="small"
-                    :loading="loadingPlugins[pkg.name]"
-                    @click="installPlugin(pkg.name, pkg.description)"
-                  />
-                </div>
-              </div>
-            </div>
-          </template>
-
-          <template v-else>
-            <h4 class="text-xs font-bold opacity-60 mb-2 uppercase tracking-wider">
-              Installed Community Plugins
-            </h4>
-            <div
-              v-if="communityPlugins.length === 0"
-              class="text-center py-6 text-gray-500 border border-dashed rounded-lg"
-            >
-              No community plugins installed. Search NPM above to discover plugins.
-            </div>
-            <div v-else class="plugins-list-group">
-              <div
-                v-for="plugin in communityPlugins"
-                :key="plugin.name"
-                class="plugin-row flex items-center justify-between"
-              >
-                <div class="flex items-center gap-3">
-                  <div class="plugin-icon-wrapper flex items-center justify-center">
-                    <template v-if="getPluginIcon(plugin.name)">
-                      <img
-                        v-if="getPluginIcon(plugin.name)?.type === 'image'"
-                        :src="getPluginIconImage(plugin.name)"
-                        class="plugin-row-icon"
-                      />
-                      <i
-                        v-else
-                        :class="getIconClass(getPluginIcon(plugin.name))"
-                        class="text-sm text-primary"
-                      ></i>
-                    </template>
-                    <template v-else>
-                      <i class="pi pi-box text-primary text-sm"></i>
-                    </template>
-                  </div>
-                  <div class="flex flex-column">
-                    <span class="plugin-title font-bold text-xs text-color">{{
-                      formatPluginName(plugin.name)
-                    }}</span>
-                    <span class="plugin-description text-[10px] text-secondary mt-0.5">{{
-                      plugin.description || "No description available."
-                    }}</span>
-                  </div>
-                </div>
-                <div class="flex items-center gap-2">
-                  <!-- Settings Button -->
-                  <Button
-                    v-if="plugin.enabled"
-                    icon="pi pi-cog"
-                    severity="secondary"
-                    text
-                    rounded
-                    size="small"
-                    class="hover:rotate-45"
-                    v-tooltip.top="'Configure plugin'"
-                    @click="currentSection = `community-plugin-${plugin.name}`"
-                  />
-                  <ToggleSwitch
-                    :model-value="plugin.enabled"
-                    @update:model-value="togglePlugin(plugin.name)"
-                  />
-                  <Button
-                    icon="pi pi-trash"
-                    severity="danger"
-                    text
-                    rounded
-                    size="small"
-                    :loading="loadingPlugins[plugin.name]"
-                    v-tooltip.top="'Uninstall'"
-                    @click="uninstallPlugin(plugin.name)"
-                  />
-                </div>
-              </div>
-            </div>
-          </template>
-        </div>
-      </div>
-
-      <!-- Specific Core Plugin settings view -->
-      <div v-if="currentSection.startsWith('core-plugin-')" class="settings-panel">
-        <div class="section-header">
-          <h3>{{ formatPluginName(getSelectedPluginName(currentSection)) }}</h3>
-          <p class="description">
-            {{ getSelectedPluginDescription(currentSection) || "Core system plugin." }}
-          </p>
-        </div>
-
-        <div class="settings-group mt-2">
+        <div class="settings-group">
           <div class="setting-item">
             <div class="setting-content">
-              <span class="setting-title">Enable plugin</span>
-              <span class="setting-description"
-                >Turn this core plugin on or off. When disabled, its nodes will not be visible in
-                your editor.</span
-              >
+              <span class="setting-title">Email Address</span>
+              <span class="setting-description">The email associated with your account.</span>
             </div>
             <div class="setting-action">
-              <ToggleSwitch
-                :model-value="getSelectedPluginEnabled(currentSection)"
-                @update:model-value="togglePlugin(getSelectedPluginName(currentSection))"
+              <span class="text-sm font-semibold">{{ user?.email }}</span>
+            </div>
+          </div>
+
+          <div class="setting-item">
+            <div class="setting-content">
+              <span class="setting-title">User ID</span>
+              <span class="setting-description">Your unique identifier.</span>
+            </div>
+            <div class="setting-action flex items-center gap-2">
+              <span class="font-mono text-xs mr-2">{{ user?.id }}</span>
+              <Button
+                icon="pi pi-copy"
+                severity="secondary"
+                text
+                size="small"
+                v-tooltip.top="'Copy User ID'"
+                @click="copyToClipboard(user?.id || '')"
               />
             </div>
           </div>
-        </div>
-      </div>
 
-      <!-- Specific Community Plugin settings view -->
-      <div v-if="currentSection.startsWith('community-plugin-')" class="settings-panel">
-        <div class="section-header flex justify-between items-start">
-          <div>
-            <h3>{{ formatPluginName(getSelectedPluginName(currentSection)) }}</h3>
-            <p class="description">
-              {{ getSelectedPluginDescription(currentSection) || "Community plugin." }}
-            </p>
+          <div class="setting-item">
+            <div class="setting-content">
+              <span class="setting-title">Date Joined</span>
+              <span class="setting-description">When you registered your account.</span>
+            </div>
+            <div class="setting-action">
+              <span class="text-sm font-medium text-color">
+                {{ user?.created_at ? format(new Date(user.created_at), "MMMM dd, yyyy") : "N/A" }}
+              </span>
+            </div>
           </div>
+
+          <div class="setting-item">
+            <div class="setting-content">
+              <span class="setting-title">Status</span>
+              <span class="setting-description">Your subscription plan status.</span>
+            </div>
+            <div class="setting-action flex items-center gap-2">
+              <span class="text-sm font-semibold">
+                {{
+                  subscriptions.length > 0 && subscriptions[0].status === "active"
+                    ? subscriptions[0].product.name
+                    : "Free Tier"
+                }}
+              </span>
+              <span
+                class="installed-badge"
+                :class="{ 'bg-green-100 text-green-800': subscriptions.length > 0 }"
+              >
+                {{
+                  subscriptions.length > 0 && subscriptions[0].status === "active"
+                    ? "Premium"
+                    : "Free"
+                }}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-4 flex justify-end">
           <Button
-            label="Uninstall Plugin"
+            label="Sign Out"
             severity="danger"
             outlined
             size="small"
-            class="mt-1"
-            :loading="loadingPlugins[getSelectedPluginName(currentSection)]"
-            @click="uninstallPlugin(getSelectedPluginName(currentSection))"
+            icon="pi pi-sign-out"
+            @click="logout"
           />
         </div>
+      </div>
 
-        <div class="settings-group mt-2">
-          <div class="setting-item">
-            <div class="setting-content">
-              <span class="setting-title">Enable plugin</span>
-              <span class="setting-description"
-                >Turn this community plugin on or off. When disabled, its nodes will not be visible
-                in your editor.</span
-              >
-            </div>
-            <div class="setting-action">
-              <ToggleSwitch
-                :model-value="getSelectedPluginEnabled(currentSection)"
-                @update:model-value="togglePlugin(getSelectedPluginName(currentSection))"
-              />
-            </div>
-          </div>
+      <!-- Team Tab Content -->
+      <div v-if="currentSection === 'team'" class="settings-panel">
+        <div class="section-header">
+          <h3>Team Management</h3>
+          <p class="description">Collaborate with other developers on your automation pipelines.</p>
+        </div>
+
+        <div
+          class="flex flex-column items-center justify-center py-8 text-center border border-dashed rounded-lg bg-surface-50 dark:bg-surface-950 border-surface-200 dark:border-surface-800 p-6"
+        >
+          <i class="mdi mdi-account-multiple text-4xl mb-2 text-primary"></i>
+          <span class="text-sm font-bold block mb-1">Teams Coming Soon</span>
+          <span class="text-xs text-muted max-w-[320px]">
+            Manage team billing, roles, shared variables, and run pipelines in a collaborative
+            workspace.
+          </span>
         </div>
       </div>
     </div>
@@ -1265,6 +1014,10 @@ const uninstallPlugin = async (packageName: string) => {
 // Obsidian refactoring additions
 const currentSection = ref("general");
 const coreSearchQuery = ref("");
+
+const logout = async () => {
+  await authStore.logout();
+};
 
 const isOfficial = (packageName: string) => {
   return packageName.startsWith("@pipelab/");

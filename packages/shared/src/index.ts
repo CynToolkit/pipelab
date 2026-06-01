@@ -7,6 +7,8 @@ import {
   savedFileMigrator as _savedFileMigrator,
   configRegistry as _configRegistry,
   normalizePipelineConfig as _normalizePipelineConfig,
+  connectionsMigrator as _connectionsMigrator,
+  defaultConnections as _defaultConnections,
 } from "./config/migrators";
 
 export const appSettingsMigrator = _appSettingsMigrator;
@@ -16,9 +18,23 @@ export const defaultFileRepo = _defaultFileRepo;
 export const savedFileMigrator = _savedFileMigrator;
 export const configRegistry = _configRegistry;
 export const normalizePipelineConfig = _normalizePipelineConfig;
+export const connectionsMigrator = _connectionsMigrator;
+export const defaultConnections = _defaultConnections;
 
 // 2. Types
 export type { Migrator } from "./config/migrators";
+export type { IpcDefinition } from "./apis";
+export type { IpcDefinition as RendererIpcDefinition } from "./ipc.types";
+export type { RequestId } from "./apis";
+export type { RequestId as RendererRequestId } from "./ipc.types";
+export type { NodeId } from "./model";
+export type { FileRepo, FileRepoV1, FileRepoV2 } from "./config/projects-definition";
+export {
+  FileRepoValidator,
+  FileRepoValidatorV1,
+  FileRepoValidatorV2,
+  FileRepoProjectValidatorV2,
+} from "./config/projects-definition";
 
 // 3. Core Library exports (Systematic restoration)
 export * from "./apis";
@@ -47,6 +63,7 @@ export * from "./websocket.types";
 // 4. Configuration Sub-packages
 export * from "./config/projects-definition"; // <-- RE-ADDED
 export * from "./config/settings-definition"; // <-- RE-ADDED
+export * from "./config/connections-definition";
 export * from "./config/projects-types";
 
 // NOTE: We avoid "export * from './config'" to prevent nested re-export circles.

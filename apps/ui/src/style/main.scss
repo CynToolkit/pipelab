@@ -1,4 +1,179 @@
 @use "sass:list";
+
+:root {
+  /* Global compact spacing tokens for PrimeVue v4 */
+  --p-content-padding: 0.5rem;
+
+  /* Button */
+  --p-button-padding-y: 0.3rem;
+  --p-button-padding-x: 0.625rem;
+  --p-button-sm-padding-y: 0.2rem;
+  --p-button-sm-padding-x: 0.45rem;
+
+  /* Input & Inputs */
+  --p-inputtext-padding-y: 0.3rem;
+  --p-inputtext-padding-x: 0.625rem;
+  --p-inputtext-sm-padding-y: 0.2rem;
+  --p-inputtext-sm-padding-x: 0.45rem;
+
+  /* Select / Dropdown */
+  --p-select-padding-y: 0.3rem;
+  --p-select-padding-x: 0.625rem;
+
+  /* Menu */
+  --p-menu-item-padding: 0.3rem 0.625rem;
+
+  /* Dialog */
+  --p-dialog-header-padding: 0.75rem 1rem;
+  --p-dialog-content-padding: 0 1rem 1rem 1rem;
+  --p-dialog-footer-padding: 0.75rem 1rem;
+
+  /* DataTable */
+  --p-datatable-header-cell-padding: 0.375rem 0.5rem;
+  --p-datatable-body-cell-padding: 0.375rem 0.5rem;
+
+  /* Tree */
+  --p-tree-node-content-padding: 0.2rem 0.4rem;
+
+  /* Card */
+  --p-card-body-padding: 0.75rem;
+
+  /* Panel */
+  --p-panel-header-padding: 0.5rem 0.75rem;
+  --p-panel-content-padding: 0.75rem;
+
+  /* TabList / Tab */
+  --p-tab-padding: 0.375rem 0.75rem;
+
+  /* Chip */
+  --p-chip-padding: 0.175rem 0.375rem;
+}
+
+/* Typography & Headings overrides for ultra-compact layout */
+h1 {
+  font-size: 1.35rem;
+  letter-spacing: -0.015em;
+}
+
+h2 {
+  font-size: 1.15rem;
+  letter-spacing: -0.015em;
+}
+
+h3 {
+  font-size: 1.05rem;
+  letter-spacing: -0.01em;
+}
+
+h4 {
+  font-size: 0.95rem;
+}
+
+.text-xl {
+  font-size: 1.05rem !important; /* scale down header/nodes details panel titles */
+}
+
+/* PrimeVue Compact Component Styles */
+.p-button {
+  font-size: 0.8125rem !important;
+  font-weight: 500;
+  line-height: 1.25rem;
+
+  &.p-button-sm {
+    font-size: 0.75rem !important;
+    line-height: 1rem;
+  }
+}
+
+.p-inputtext {
+  font-size: 0.8125rem !important;
+  line-height: 1.25rem;
+
+  &.p-inputtext-sm {
+    font-size: 0.75rem !important;
+    line-height: 1rem;
+  }
+}
+
+.p-select {
+  font-size: 0.8125rem !important;
+  line-height: 1.25rem;
+
+  &.p-select-sm {
+    font-size: 0.75rem !important;
+    line-height: 1rem;
+  }
+}
+
+.p-textarea {
+  font-size: 0.8125rem !important;
+}
+
+.p-dialog-title {
+  font-size: 1.05rem !important;
+  font-weight: 600 !important;
+}
+
+.p-dialog-header-action,
+.p-dialog-close-button {
+  width: 26px !important;
+  height: 26px !important;
+  padding: 0 !important;
+  border-radius: 50% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transition: background-color 0.12s ease !important;
+
+  svg,
+  i,
+  .p-dialog-close-icon {
+    width: 10px !important;
+    height: 10px !important;
+    font-size: 10px !important;
+  }
+
+  &:hover {
+    background-color: var(--p-surface-100) !important;
+
+    :root.dark & {
+      background-color: var(--p-surface-800) !important;
+    }
+  }
+}
+
+.p-menu {
+  font-size: 0.8125rem !important;
+}
+
+.p-accordionheader {
+  font-size: 0.8125rem !important;
+  padding: 0.5rem 0.75rem !important;
+}
+
+.p-accordioncontent-content {
+  font-size: 0.8125rem !important;
+  padding: 0.5rem 0.75rem !important;
+}
+
+.p-tab {
+  font-size: 0.8125rem !important;
+  font-weight: 500;
+}
+
+.p-message {
+  font-size: 0.8125rem !important;
+  padding: 0.5rem 0.75rem !important;
+}
+
+.p-chip {
+  font-size: 0.75rem !important;
+}
+
+.p-tag {
+  font-size: 0.75rem !important;
+}
+
 .node-icon {
   font-size: 40px;
 }

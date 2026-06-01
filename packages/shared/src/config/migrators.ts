@@ -17,6 +17,8 @@ import {
   AppConfigV6,
   AppConfigV7,
   AppConfigV8,
+  ConnectionsConfig,
+  ConnectionsConfigV1,
 } from "../config.schema";
 
 const DEFAULT_PLUGINS: AppConfigV8["plugins"] = [
@@ -162,6 +164,25 @@ export const appSettingsMigrator = settingsMigratorInternal.createMigrations({
     }),
     createMigration<AppConfigV8, never>({
       version: "8.0.0" as SemVer,
+      up: finalVersion,
+    }),
+  ],
+});
+
+// --- Connections Migrator ---
+
+const connectionsMigratorInternal = createMigrator<ConnectionsConfigV1, ConnectionsConfig>();
+
+export const defaultConnections = connectionsMigratorInternal.createDefault({
+  version: "1.0.0",
+  connections: [],
+});
+
+export const connectionsMigrator = connectionsMigratorInternal.createMigrations({
+  defaultValue: defaultConnections,
+  migrations: [
+    createMigration<ConnectionsConfigV1, never>({
+      version: "1.0.0" as SemVer,
       up: finalVersion,
     }),
   ],
@@ -436,4 +457,5 @@ export const configRegistry: Record<string, Migrator<any>> = {
   settings: appSettingsMigrator,
   projects: fileRepoMigrations,
   pipeline: savedFileMigrator,
+  connections: connectionsMigrator,
 };

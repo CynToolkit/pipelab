@@ -162,6 +162,18 @@ export type RendererNodeDefinition = {
   node: PipelabNode;
 };
 
+export interface IntegrationField {
+  key: string;
+  label: string;
+  type: "text" | "password" | "file" | "directory";
+  placeholder?: string;
+}
+
+export interface IntegrationDefinition {
+  name: string;
+  fields: IntegrationField[];
+}
+
 export interface RendererPluginDefinition extends PluginDefinition {
   id: string;
   name: string;
@@ -171,6 +183,7 @@ export interface RendererPluginDefinition extends PluginDefinition {
   packageName: string;
   version: string;
   nodes: Array<RendererNodeDefinition>;
+  integrations?: Array<IntegrationDefinition>;
 }
 
 export interface MainPluginDefinition extends PluginDefinition {
@@ -182,6 +195,7 @@ export interface MainPluginDefinition extends PluginDefinition {
     description: string;
     validator: (options: any) => any;
   }>;
+  integrations?: Array<IntegrationDefinition>;
 }
 
 export const createNodeDefinition = (def: MainPluginDefinition) => {

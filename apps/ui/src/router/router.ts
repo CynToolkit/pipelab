@@ -18,6 +18,22 @@ const routes: RouterOptions["routes"] = [
     },
   },
   {
+    path: "/integrations",
+    name: "Plugins",
+    component: () => import("../pages/integrations.vue"),
+    meta: {
+      title: "Plugins",
+    },
+  },
+  {
+    path: "/connections",
+    name: "Connections",
+    component: () => import("../pages/connections.vue"),
+    meta: {
+      title: "Connections",
+    },
+  },
+  {
     path: "/scenarios",
     name: "Scenarios",
     component: () => import("../pages/scenarios.vue"),

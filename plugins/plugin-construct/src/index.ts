@@ -21,6 +21,19 @@ export default createNodeDefinition({
     //   validator: constructVersionValidator
     // }
   ],
+  integrations: [
+    {
+      name: "Browser Executable Link",
+      fields: [
+        {
+          key: "path",
+          label: "Browser Executable Path",
+          type: "file",
+          placeholder: "e.g., /usr/bin/google-chrome",
+        },
+      ],
+    },
+  ],
 });
 
 export type { Params as ExportParams } from "./export-c3p";

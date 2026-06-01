@@ -1,12 +1,7 @@
 import { useAPI } from "./ipc-core";
 import { PipelabContext } from "./context";
-import { setupConfigFile } from "./config";
-import {
-  savedFileMigrator,
-  fileRepoMigrations,
-  appSettingsMigrator,
-  useLogger,
-} from "@pipelab/shared";
+import { setupConfigFile, getMigrator } from "./config";
+import { useLogger } from "@pipelab/shared";
 
 /**
  * Registers migration handlers for the CLI/Standalone server.
@@ -23,14 +18,7 @@ export function registerMigrationHandlers(context: PipelabContext) {
 
     try {
       // Determine which migrator to use
-      let migrator: any = null;
-      if (name === "projects") {
-        migrator = fileRepoMigrations;
-      } else if (name === "settings") {
-        migrator = appSettingsMigrator;
-      } else if (name.startsWith("pipeline-") || name.endsWith(".plb")) {
-        migrator = savedFileMigrator;
-      }
+      const migrator = getMigrator(name);
 
       if (!migrator) {
         throw new Error(

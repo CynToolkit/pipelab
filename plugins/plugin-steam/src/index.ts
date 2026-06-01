@@ -8,4 +8,28 @@ export default createNodeDefinition({
       runner: uploadToSteamRunner,
     },
   ],
+  integrations: [
+    {
+      name: "Steam SDK",
+      fields: [
+        {
+          key: "sdk",
+          label: "Steam SDK Path",
+          type: "directory",
+          placeholder: "e.g., /home/user/steam-sdk",
+        },
+      ],
+    },
+    {
+      name: "Steam Credentials",
+      fields: [
+        {
+          key: "username",
+          label: "Steam Username",
+          type: "text",
+          placeholder: "e.g., steam_user",
+        },
+      ],
+    },
+  ],
 });

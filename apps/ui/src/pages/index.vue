@@ -21,45 +21,47 @@
               </Button>
             </div>
           </div>
-          <Tree
-            id="tour-projects-list"
-            v-model:selection-keys="selectedKey"
-            selection-mode="single"
-            :value="nodes"
-            class="w-full md:w-[30rem] project-tree"
-            :pt="{
-              nodeLabel: {
-                class: ['w-full'],
-              },
-            }"
-            @node-unselect="onNodeUnselect"
-          >
-            <template #default="slotProps">
-              <div class="project-node flex align-items-center justify-content-between w-full">
-                <span>{{ slotProps.node.label }}</span>
-                <div class="project-node-actions flex gap-1">
-                  <Button
-                    severity="secondary"
-                    size="small"
-                    @click.stop="openRenameProjectDialog(slotProps.node.key)"
-                  >
-                    <i class="icon mdi mdi-pencil fs-14"></i>
-                  </Button>
-                  <Button
-                    v-if="nodes.length > 1"
-                    size="small"
-                    severity="danger"
-                    @click.stop="deleteProject(slotProps.node.key)"
-                  >
-                    <i class="icon mdi mdi-delete fs-14"></i>
-                  </Button>
-                </div>
+          <div class="project-list" id="tour-projects-list">
+            <div
+              v-for="project in projects"
+              :key="project.id"
+              class="project-item"
+              :class="{ active: activeProjectId === project.id }"
+              @click="selectProject(project.id)"
+            >
+              <div class="project-item-content">
+                <i class="mdi mdi-folder-outline project-icon"></i>
+                <span class="project-label">{{ project.name }}</span>
               </div>
-            </template>
-          </Tree>
+              <div class="project-item-actions" @click.stop>
+                <Button
+                  text
+                  rounded
+                  severity="secondary"
+                  size="small"
+                  v-tooltip.top="'Rename Project'"
+                  @click="openRenameProjectDialog(project.id)"
+                >
+                  <i class="mdi mdi-pencil"></i>
+                </Button>
+                <Button
+                  v-if="projects.length > 1"
+                  text
+                  rounded
+                  severity="danger"
+                  size="small"
+                  v-tooltip.top="'Delete Project'"
+                  @click="deleteProject(project.id)"
+                >
+                  <i class="mdi mdi-delete"></i>
+                </Button>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div class="your-projects">
+          <!-- Banner -->
           <Message
             v-if="isBannerVisible"
             severity="warn"
@@ -70,7 +72,65 @@
             {{ $t("home.only-internal-supported-notice") }}
           </Message>
 
-          <div v-if="!isLoading && filesEnhanced.length === 0" class="no-projects">
+          <!-- Header Section -->
+          <div class="projects-header">
+            <div class="header-left">
+              <h2 class="project-title">{{ activeProject?.name }}</h2>
+              <span v-if="filteredFilesEnhanced.length > 0" class="pipelines-count">
+                {{ filteredFilesEnhanced.length }} pipeline{{
+                  filteredFilesEnhanced.length === 1 ? "" : "s"
+                }}
+              </span>
+            </div>
+
+            <!-- Toolbar / Search and Action buttons -->
+            <div class="header-right">
+              <!-- Search Input -->
+              <IconField class="search-field">
+                <InputIcon class="pi pi-search" />
+                <InputText
+                  v-model="searchQuery"
+                  placeholder="Search pipelines..."
+                  class="search-input"
+                  size="small"
+                />
+              </IconField>
+
+              <!-- Actions -->
+              <div class="action-buttons">
+                <Button id="tour-new-pipeline" size="small" @click="openNewProjectDialog">
+                  <i class="mdi mdi-plus-circle-outline mr-2"></i>
+                  {{ $t("home.new-pipeline") }}
+                </Button>
+                <Button
+                  variant="outlined"
+                  severity="secondary"
+                  size="small"
+                  @click="importPipeline"
+                >
+                  <i class="mdi mdi-folder-open-outline mr-2"></i>
+                  {{ $t("home.import") }}
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Loading State -->
+          <div v-if="isLoading" class="loading-state">
+            <div v-for="n in 3" :key="n" class="skeleton-row">
+              <Skeleton shape="circle" size="32px" class="mr-3" />
+              <div class="flex-grow-1 mr-4">
+                <Skeleton width="40%" class="mb-2" />
+                <Skeleton width="60%" />
+              </div>
+              <Skeleton width="80px" class="mr-4" />
+              <Skeleton shape="circle" size="32px" />
+            </div>
+          </div>
+
+          <!-- Empty State (No Pipelines) -->
+          <div v-else-if="filesEnhanced.length === 0" class="no-projects">
+            <i class="mdi mdi-folder-open-outline empty-icon"></i>
             <div class="no-pipelines-text">{{ $t("home.no-pipelines-yet") }}</div>
             <Button
               id="tour-new-pipeline-empty"
@@ -78,88 +138,91 @@
               variant="outlined"
               @click="openNewProjectDialog"
             >
-              <i class="mdi mdi-plus-circle-outline mr-2"></i>
+              <i class="mdi mdi-plus mr-2"></i>
               {{ $t("home.new-pipeline") }}
             </Button>
           </div>
-          <div v-else class="your-projects__table">
-            <DataTable
-              :value="filesEnhanced"
-              data-key="id"
-              class="w-full h-full clickable-rows"
-              :scrollable="true"
-              scroll-height="flex"
-              :loading="isLoading"
-              @row-click="handleRowClick"
-            >
-              <template #header>
-                <div class="flex justify-content-between">
-                  <div class="list-header bold">{{ activeProject?.name }}</div>
 
-                  <div class="flex justify-content-end gap-2">
-                    <Button id="tour-new-pipeline" @click="openNewProjectDialog">
-                      <i class="mdi mdi-plus-circle-outline mr-2"></i>
-                      {{ $t("home.new-pipeline") }}
-                    </Button>
-                    <Button variant="outlined" severity="secondary" @click="importPipeline">
-                      <i class="mdi mdi-folder-open-outline mr-2"></i>
-                      {{ $t("home.import") }}
-                    </Button>
+          <!-- No Search Results -->
+          <div v-else-if="filteredFilesEnhanced.length === 0" class="no-search-results">
+            <i class="mdi mdi-magnify-close empty-icon"></i>
+            <div class="no-results-text">No pipelines found matching "{{ searchQuery }}"</div>
+            <Button text severity="secondary" @click="searchQuery = ''"> Clear search </Button>
+          </div>
+
+          <!-- Pipelines List -->
+          <div v-else class="pipelines-list">
+            <div
+              v-for="pipeline in filteredFilesEnhanced"
+              :key="pipeline.id"
+              class="pipeline-row"
+              @click="handleRowClick({ data: pipeline })"
+            >
+              <!-- Left: Plugin Icons -->
+              <div class="pipeline-tech-stack">
+                <div class="tech-icons">
+                  <PluginIcon
+                    v-for="(icon, idx) in getScenarioIcons(pipeline)"
+                    :key="idx"
+                    width="24px"
+                    :icon="icon"
+                    class="tech-icon"
+                  />
+                  <div v-if="getScenarioIcons(pipeline).length === 0" class="empty-tech-icon">
+                    <i class="mdi mdi-play-outline"></i>
                   </div>
                 </div>
-              </template>
-              <Column header="" style="width: 120px">
-                <template #body="{ data }">
-                  <div class="icons" style="display: flex; gap: 4px">
-                    <PluginIcon
-                      v-for="(icon, idx) in getScenarioIcons(data)"
-                      :key="idx"
-                      width="32px"
-                      :icon="icon"
-                    />
-                  </div>
-                </template>
-                <template #loading>
-                  <Skeleton width="32px" height="32px" />
-                </template>
-              </Column>
-              <Column field="content.name" header="Name">
-                <template #body="{ data }">
-                  <div class="flex align-items-center gap-2">
-                    <span>{{ data.content.name }}</span>
-                    <i
-                      v-if="data.type === 'external' && shouldMigrate === true"
-                      v-tooltip.top="$t('home.migrate-warning')"
-                      class="mdi mdi-alert-circle text-orange-500"
-                    ></i
-                    ><!-- @deprecated external files are deprecated -->
-                  </div>
-                </template>
-                <template #loading>
-                  <Skeleton width="200px" />
-                </template>
-              </Column>
-              <!-- <Column field="content.description" header="Description" /> -->
-              <!-- <Column header="Path">
-              <template #body="{ data }">
-                <!~~ @deprecated external files are deprecated ~~>
-                <span v-if="data.type === 'external'">{{ data.path }}</span>
-              </template>
-            </Column> -->
-              <Column header="" style="width: 240px">
-                <template #body="{ data }">
+              </div>
+
+              <!-- Center-left: Info -->
+              <div class="pipeline-info">
+                <div class="pipeline-title-row">
+                  <span class="pipeline-name">{{ pipeline.content.name }}</span>
+                  <Tag
+                    v-if="pipeline.type === 'external'"
+                    severity="warn"
+                    value="External"
+                    v-tooltip.top="shouldMigrate ? $t('home.migrate-warning') : undefined"
+                    class="type-tag"
+                  />
+                </div>
+                <div class="pipeline-desc">
+                  {{ pipeline.content.description || "No description provided" }}
+                </div>
+              </div>
+
+              <!-- Right: Timestamp & Action Buttons -->
+              <div class="pipeline-meta-actions">
+                <span class="pipeline-updated">
+                  Updated
+                  {{
+                    formatLastModified(
+                      pipeline.type !== "pipelab-cloud" ? pipeline.lastModified : undefined,
+                    )
+                  }}
+                </span>
+
+                <div class="row-actions" @click.stop>
+                  <Button
+                    icon="mdi mdi-pencil"
+                    text
+                    rounded
+                    severity="secondary"
+                    size="small"
+                    v-tooltip.top="'Edit Pipeline'"
+                    @click="loadExisting(pipeline.id)"
+                  />
                   <Button
                     icon="mdi mdi-dots-vertical"
                     text
                     rounded
-                    @click.stop="toggleMenu($event, data)"
+                    severity="secondary"
+                    size="small"
+                    @click="toggleMenu($event, pipeline)"
                   />
-                </template>
-                <template #loading>
-                  <Skeleton width="240px" height="32px" />
-                </template>
-              </Column>
-            </DataTable>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -192,8 +255,7 @@
     <Dialog
       v-model:visible="isNewProjectModalVisible"
       modal
-      :style="{ width: '75vw' }"
-      :breakpoints="{ '575px': '90vw' }"
+      :style="{ width: '400px', maxWidth: '90vw' }"
     >
       <template #header>
         <div class="flex flex-column w-full">
@@ -224,8 +286,7 @@
     <Dialog
       v-model:visible="isNewPipelineModalVisible"
       modal
-      :style="{ width: '75vw' }"
-      :breakpoints="{ '575px': '90vw' }"
+      :style="{ width: '550px', maxWidth: '95vw' }"
     >
       <template #header>
         <div class="flex flex-column w-full">
@@ -239,7 +300,22 @@
             <div class="h-full w-full">
               <div class="mb-1">{{ $t("home.pipeline-name") }}</div>
               <div class="mb-2">
-                <InputText v-model="newProjectName" class="w-full"> </InputText>
+                <InputText
+                  v-model="newProjectName"
+                  class="w-full"
+                  placeholder="My awesome pipeline"
+                >
+                </InputText>
+              </div>
+
+              <div class="mb-1">Pipeline Description (optional)</div>
+              <div class="mb-3">
+                <Textarea
+                  v-model="newProjectDescription"
+                  class="w-full"
+                  rows="2"
+                  placeholder="Describe what this pipeline does..."
+                ></Textarea>
               </div>
 
               <div v-if="false" class="field-checkbox mb-2 flex align-items-center">
@@ -267,7 +343,7 @@
                 ></FileInput>
               </div> -->
 
-              <div v-if="!isSimpleProjectCreation" class="presets">
+              <div class="presets">
                 <div v-if="newProjectData">
                   <div :class="{ active: true }" class="preset">
                     <div class="preset-title">{{ newProjectData.name }}</div>
@@ -325,8 +401,7 @@
     <Dialog
       v-model:visible="isTransferModalVisible"
       modal
-      :style="{ width: '50vw' }"
-      :breakpoints="{ '575px': '90vw' }"
+      :style="{ width: '400px', maxWidth: '90vw' }"
     >
       <template #header>
         <p class="text-xl font-bold">{{ $t("home.transfer") }}</p>
@@ -349,8 +424,7 @@
     <Dialog
       v-model:visible="isRenameProjectModalVisible"
       modal
-      :style="{ width: '50vw' }"
-      :breakpoints="{ '575px': '90vw' }"
+      :style="{ width: '400px', maxWidth: '90vw' }"
     >
       <template #header>
         <p class="text-xl font-bold">{{ $t("home.rename-project") }}</p>
@@ -406,6 +480,10 @@ import Message from "primevue/message";
 import { SaveLocation, SaveLocationExternal, SaveLocationInternal } from "@pipelab/shared";
 import { usePipeline } from "@renderer/composables/usePipeline";
 import { usePostHog } from "@renderer/composables/usePostHog";
+import Tag from "primevue/tag";
+import IconField from "primevue/iconfield";
+import InputIcon from "primevue/inputicon";
+import Textarea from "primevue/textarea";
 
 const router = useRouter();
 const api = useAPI();
@@ -425,6 +503,39 @@ const { files } = storeToRefs(fileStore);
 const { update: updateFileStore, remove, removeProject, transferPipeline } = fileStore;
 
 const filesEnhanced = ref<EnhancedFile[]>([]);
+
+const searchQuery = ref("");
+const newProjectDescription = ref("");
+
+const filteredFilesEnhanced = computed(() => {
+  if (!searchQuery.value) return filesEnhanced.value;
+  const query = searchQuery.value.toLowerCase();
+  return filesEnhanced.value.filter((file) => {
+    return (
+      file.content.name?.toLowerCase().includes(query) ||
+      file.content.description?.toLowerCase().includes(query)
+    );
+  });
+});
+
+const formatLastModified = (dateStr?: string) => {
+  if (!dateStr) return "";
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return dateStr;
+
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMins / 60);
+  const diffDays = Math.floor(diffHours / 24);
+
+  if (diffMins < 1) return "just now";
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays < 7) return `${diffDays}d ago`;
+
+  return date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+};
 
 const { createPipeline } = usePipeline();
 
@@ -488,6 +599,10 @@ const closeBanner = () => {
 
 const onNodeUnselect = (node: TreeNode) => {
   console.log("onNodeUnselect", node);
+};
+
+const selectProject = (id: string) => {
+  selectedKey.value = { [id]: true };
 };
 
 const nodes = computed<TreeNode[]>(() => {
@@ -620,6 +735,11 @@ const newProjectData = ref<Preset>();
  * Open new project dialog
  */
 const openNewProjectDialog = async () => {
+  newProjectName.value = "";
+  newProjectDescription.value = "";
+  newProjectPreset.value = undefined;
+  newProjectData.value = undefined;
+
   // find presets
   const presetsResult = await api.execute("presets:get");
 
@@ -709,7 +829,7 @@ const onNewFileCreation = async (preset?: Preset) => {
   const updatedPreset: Preset = {
     ...actualPreset,
     name: newProjectName.value,
-    description: "",
+    description: newProjectDescription.value,
   } satisfies Preset;
 
   // write file
@@ -744,7 +864,7 @@ const onNewFileCreation = async (preset?: Preset) => {
         lastModified: new Date().toISOString(),
         path: pathOrConfigName,
         summary: {
-          description: "",
+          description: newProjectDescription.value,
           name: newProjectName.value,
           plugins: [],
         },
@@ -754,6 +874,9 @@ const onNewFileCreation = async (preset?: Preset) => {
       });
     }
   });
+
+  newProjectName.value = "";
+  newProjectDescription.value = "";
 
   await router.push({
     name: "Editor",
@@ -1097,6 +1220,510 @@ onMounted(() => {
 </script>
 
 <style lang="scss" scoped>
+/* ─── Index Page ────────────────────────────────────────── */
+.index {
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
+  height: 100%;
+  width: 100%;
+}
+
+/* ─── Main Layout (Drawer + Content) ────────────────────── */
+.main-layout {
+  display: flex;
+  flex-direction: row;
+  height: 100%;
+  width: 100%;
+}
+
+/* ─── Project Drawer ────────────────────────────────────── */
+.drawer {
+  width: 240px;
+  flex: 0 0 240px;
+  border-right: 1px solid var(--p-surface-200);
+  background: var(--p-surface-0);
+  display: flex;
+  flex-direction: column;
+
+  :root.dark & {
+    border-right-color: var(--p-surface-700);
+    background: var(--p-surface-950);
+  }
+
+  .project-header {
+    padding: 12px 12px 6px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+
+    .project-text {
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--p-text-muted-color);
+      display: flex;
+      align-items: center;
+    }
+  }
+
+  .project-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 0 12px;
+    overflow: auto;
+    flex: 1;
+  }
+
+  .project-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 10px;
+    border-radius: 8px;
+    font-size: 0.825rem;
+    font-weight: 500;
+    color: var(--p-text-muted-color);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    user-select: none;
+
+    &:hover {
+      background: var(--p-surface-200);
+      color: var(--p-text-color);
+
+      :root.dark & {
+        background: var(--p-surface-800);
+      }
+    }
+
+    &.active {
+      background: var(--p-surface-200);
+      color: var(--p-text-color);
+      font-weight: 600;
+
+      :root.dark & {
+        background: var(--p-surface-800);
+      }
+    }
+  }
+
+  .project-item-content {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+  }
+
+  .project-icon {
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+
+  .project-label {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .project-item-actions {
+    display: flex;
+    gap: 2px;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    flex-shrink: 0;
+
+    :deep(.p-button) {
+      width: 24px;
+      height: 24px;
+      padding: 0;
+
+      i {
+        font-size: 14px;
+      }
+    }
+  }
+
+  .project-item:hover .project-item-actions {
+    opacity: 1;
+  }
+}
+
+/* ─── Pipeline Content Area ─────────────────────────────── */
+.your-projects {
+  height: 100%;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  overflow: auto;
+}
+
+/* ─── Projects Header ───────────────────────────────────── */
+.projects-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+  gap: 12px;
+  flex-shrink: 0;
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+.header-left {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.project-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--p-text-color);
+  margin: 0;
+}
+
+.pipelines-count {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--p-text-muted-color);
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+.search-field {
+  width: 260px;
+
+  @media (max-width: 768px) {
+    width: 100%;
+  }
+
+  .search-input {
+    width: 100%;
+    border-radius: 8px;
+    padding-left: 2.25rem !important;
+  }
+}
+
+.action-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+/* ─── Pipelines List ────────────────────────────────────── */
+.pipelines-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+}
+
+.pipeline-row {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  background: var(--p-surface-0);
+  border: 1px solid var(--p-surface-200);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+
+  :root.dark & {
+    background: var(--p-surface-900);
+    border-color: var(--p-surface-800);
+  }
+
+  &:hover {
+    border-color: var(--p-primary-color);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+    transform: translateY(-1px);
+
+    :root.dark & {
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+      background: var(--p-surface-850);
+      border-color: var(--p-primary-color);
+    }
+
+    .row-actions {
+      opacity: 1;
+    }
+  }
+}
+
+/* ─── Tech Stack Icons ──────────────────────────────────── */
+.pipeline-tech-stack {
+  margin-right: 20px;
+  flex-shrink: 0;
+}
+
+.tech-icons {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--p-surface-50);
+  padding: 2px 6px;
+  border-radius: 6px;
+  border: 1px solid var(--p-surface-100);
+  min-height: 28px;
+
+  :root.dark & {
+    background: var(--p-surface-950);
+    border-color: var(--p-surface-800);
+  }
+}
+
+.tech-icon {
+  flex-shrink: 0;
+  transition: transform 0.15s ease;
+
+  &:hover {
+    transform: scale(1.15);
+  }
+}
+
+.empty-tech-icon {
+  color: var(--p-text-muted-color);
+  font-size: 1.1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+}
+
+/* ─── Pipeline Info ─────────────────────────────────────── */
+.pipeline-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-right: 16px;
+}
+
+.pipeline-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pipeline-name {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--p-text-color);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.type-tag {
+  font-size: 0.7rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+.pipeline-desc {
+  font-size: 0.75rem;
+  color: var(--p-text-muted-color);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ─── Pipeline Meta & Actions ───────────────────────────── */
+.pipeline-meta-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-shrink: 0;
+}
+
+.pipeline-updated {
+  font-size: 0.725rem;
+  color: var(--p-text-muted-color);
+  font-weight: 500;
+}
+
+.row-actions {
+  display: flex;
+  gap: 2px;
+  opacity: 0.7;
+  transition: opacity 0.15s ease;
+
+  @media (max-width: 768px) {
+    opacity: 1;
+  }
+}
+
+/* ─── Empty & Loading States ────────────────────────────── */
+.no-projects,
+.no-search-results {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  flex: 1;
+  padding: 64px 24px;
+  border: 1px dashed var(--p-surface-300);
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.01);
+
+  :root.dark & {
+    border-color: var(--p-surface-700);
+    background: rgba(255, 255, 255, 0.01);
+  }
+
+  .empty-icon {
+    font-size: 3rem;
+    color: var(--p-text-muted-color);
+    opacity: 0.6;
+  }
+
+  .no-pipelines-text,
+  .no-results-text {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--p-text-muted-color);
+    text-align: center;
+  }
+}
+
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+}
+
+.skeleton-row {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  background: var(--p-surface-0);
+  border: 1px solid var(--p-surface-200);
+  border-radius: 8px;
+
+  :root.dark & {
+    background: var(--p-surface-900);
+    border-color: var(--p-surface-800);
+  }
+}
+
+/* ─── Presets Grid ──────────────────────────────────────── */
+.presets {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+  margin-top: 16px;
+  margin-bottom: 16px;
+
+  .preset {
+    border: 1px solid var(--p-surface-200);
+    overflow: hidden;
+    border-radius: 10px;
+    padding: 12px;
+    position: relative;
+    height: 100px;
+    background: var(--p-surface-0);
+    transition: all 0.15s ease;
+
+    :root.dark & {
+      border-color: var(--p-surface-700);
+      background: var(--p-surface-800);
+    }
+
+    &:hover {
+      cursor: pointer;
+      border-color: var(--p-surface-300);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+
+      :root.dark & {
+        border-color: var(--p-surface-600);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+      }
+    }
+
+    .preset-title {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 4px;
+      color: var(--p-text-color);
+    }
+
+    .highlight-icon {
+      position: absolute;
+      right: 8px;
+      top: 8px;
+    }
+
+    .selection-icon {
+      position: absolute;
+      right: 8px;
+      bottom: 8px;
+    }
+
+    &.active {
+      cursor: pointer;
+      border-color: var(--p-primary-color);
+      box-shadow: 0 0 0 1px var(--p-primary-color);
+    }
+
+    &.disabled {
+      pointer-events: none;
+      opacity: 0.5;
+    }
+  }
+}
+
+@media screen and (width < 1280px) {
+  .presets {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media screen and (width < 960px) {
+  .presets {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ─── Misc ──────────────────────────────────────────────── */
+.icon-container {
+  position: relative;
+  display: inline-block;
+}
+
+.crown-icon {
+  position: absolute;
+  top: 0.1em;
+  right: 0.1em;
+  font-size: 0.6em;
+  background-color: gold;
+  border-radius: 50%;
+  padding: 2px;
+}
+
 .header {
   font-size: 1.5rem;
   line-height: 2rem;
@@ -1115,219 +1742,33 @@ onMounted(() => {
     gap: 8px;
     flex-direction: row;
     height: 40px;
-
     font-weight: 500 !important;
   }
 }
 
+/* ─── Unused legacy (kept for reference) ────────────────── */
 .scenarios {
   display: grid;
   grid-template-columns: repeat(1, 1fr);
   grid-template-rows: repeat(1, auto);
-  grid-gap: 20px;
   gap: 16px;
 }
 
 @media (min-width: 768px) {
   .scenarios {
     grid-template-columns: repeat(2, 1fr);
-    grid-template-rows: repeat(1, auto);
   }
 }
 
 @media (min-width: 1024px) {
   .scenarios {
     grid-template-columns: repeat(3, 1fr);
-    grid-template-rows: repeat(1, auto);
   }
 }
 
 @media (min-width: 1280px) {
   .scenarios {
     grid-template-columns: repeat(4, 1fr);
-    grid-template-rows: repeat(1, auto);
-  }
-}
-
-@media (min-width: 1536px) {
-  .scenarios {
-    grid-template-columns: repeat(5, 1fr);
-    grid-template-rows: repeat(1, auto);
-  }
-}
-
-@media (min-width: 1920px) {
-  .scenarios {
-    grid-template-columns: repeat(6, 1fr);
-    grid-template-rows: repeat(1, auto);
-  }
-}
-
-.index {
-  display: flex;
-  flex-direction: column;
-  overflow: auto;
-  height: 100%;
-  width: 100%;
-}
-
-.list-header {
-  font-size: 1.8rem;
-}
-
-.no-projects {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  margin-top: 32px;
-  height: 100%;
-}
-
-.presets {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 8px;
-  margin-top: 16px;
-  margin-bottom: 16px;
-
-  .preset {
-    border: 1px solid #eee;
-    overflow: hidden;
-    border-radius: 8px;
-    padding: 8px;
-    position: relative;
-    height: 100px;
-
-    &:hover {
-      cursor: pointer;
-      background-color: #eee;
-      border: 1px solid #aaa;
-    }
-
-    &.highlight {
-      border: 1px solid #ffff00;
-    }
-
-    .preset-title {
-      font-size: 1.2rem;
-      font-weight: 700;
-      margin-bottom: 4px;
-    }
-
-    .highlight-icon {
-      position: absolute;
-      right: 4px;
-      top: 8px;
-    }
-
-    .selection-icon {
-      position: absolute;
-      right: 4px;
-      bottom: 8px;
-    }
-
-    &.active {
-      cursor: pointer;
-      background-color: #eee;
-      outline: 2px solid #000;
-    }
-
-    &.disabled {
-      pointer-events: none;
-      opacity: 0.75;
-    }
-  }
-}
-
-@media screen and (width < 1280px) {
-  .presets {
-    grid-template-columns: 1fr 1fr;
-  }
-}
-
-@media screen and (width < 960px) {
-  .presets {
-    grid-template-columns: 1fr;
-  }
-}
-
-.your-projects {
-  height: 100%;
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-
-  &__table {
-    flex: 1;
-    height: 100%;
-  }
-
-  .no-pipelines-text {
-    font-size: 1.5rem;
-    font-weight: 700;
-    margin-bottom: 8px;
-    color: #666;
-  }
-}
-
-.clickable-rows :deep(.p-datatable-tbody > tr:hover) {
-  cursor: pointer;
-  background-color: rgba(0, 0, 0, 0.05);
-}
-
-.icon-container {
-  position: relative;
-  display: inline-block;
-}
-
-.crown-icon {
-  position: absolute;
-  top: 0.1em;
-  right: 0.1em;
-  font-size: 0.6em;
-  background-color: gold;
-  border-radius: 50%;
-  padding: 2px;
-}
-
-.main-layout {
-  display: flex;
-  flex-direction: row;
-  height: 100%;
-  width: 100%;
-}
-
-.drawer {
-  width: 400px;
-  flex: 1 0 auto;
-  border-right: 1px solid var(--p-datatable-header-border-color);
-
-  .project-header {
-    padding: 0 16px;
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-
-    .project-text {
-    }
-  }
-
-  .project-node {
-    .project-node-actions {
-      visibility: hidden;
-      opacity: 0;
-      transition: opacity 0.2s;
-    }
-
-    &:hover {
-      .project-node-actions {
-        visibility: visible;
-        opacity: 1;
-      }
-    }
   }
 }
 </style>

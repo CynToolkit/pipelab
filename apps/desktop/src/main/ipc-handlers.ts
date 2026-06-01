@@ -34,7 +34,7 @@ export const registerIpcHandlers = () => {
     shell.showItemInFolder(path);
   });
 
-  ipcMain.on("window:show", (event) => {
+  ipcMain.handle("window:show", (event) => {
     const win = BrowserWindow.fromWebContents(event.sender);
     if (win) {
       win.show();
@@ -42,7 +42,7 @@ export const registerIpcHandlers = () => {
     }
   });
 
-  ipcMain.on("app:version:get", (event) => {
-    event.returnValue = app.getVersion();
+  ipcMain.handle("app:version:get", () => {
+    return app.getVersion();
   });
 };

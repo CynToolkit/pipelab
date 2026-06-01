@@ -17,6 +17,9 @@ export const getValue = <T>(array: MaybeArray<T>): T => {
 export const zip = createAction({
   id: ID,
   name: "Zip",
+  version: 1,
+  deprecated: true,
+  deprecatedMessage: "Use the new Zip V2 block instead.",
   updateAvailable: true,
   displayString:
     '`Zip ${fmt.param(params.folder, "primary", "No folder specified")} to ${fmt.param(params.output, "secondary", "No output specified")}`',

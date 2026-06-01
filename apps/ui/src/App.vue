@@ -35,13 +35,13 @@
 <script setup lang="ts">
 import { useAppStore } from "./store/app";
 import { onMounted, ref, provide, watch, computed } from "vue";
-import { primary, primaryDarken1, primaryDarken2 } from "./style/main";
 import { useFiles } from "./store/files";
 import { handle } from "./composables/handlers";
 import { useLogger } from "@pipelab/shared";
 import { useAuth } from "@renderer/store/auth";
 import { storeToRefs } from "pinia";
 import { useAppSettings } from "./store/settings";
+import { useConnectionsStore } from "./store/connections";
 import SubscriptionLoadingIndicator from "./components/SubscriptionLoadingIndicator.vue";
 import DisconnectedPage from "./components/DisconnectedPage.vue";
 import ConnectingPage from "./components/ConnectingPage.vue";
@@ -56,6 +56,7 @@ import { useWebSocketAPI } from "./composables/websocket-client";
 const appStore = useAppStore();
 const filesStore = useFiles();
 const settingsStore = useAppSettings();
+const connectionsStore = useConnectionsStore();
 const { logger } = useLogger();
 const authStore = useAuth();
 const { init: authInit, fetchSubscription } = authStore;
@@ -118,7 +119,10 @@ handle("log:message", async (event, { value, send }) => {
     });
     send({
       type: "end",
-      data: undefined,
+      data: {
+        type: "success",
+        result: undefined,
+      },
     });
     return;
   }
@@ -145,7 +149,7 @@ handle("log:message", async (event, { value, send }) => {
         })
         .log(
           value._meta.logLevelId,
-          value._meta.path.fullFilePath,
+          value._meta.path?.fullFilePath || "unknown",
           ...[logLevelName, ...filteredValues],
         );
     } catch (error) {
@@ -161,7 +165,10 @@ handle("log:message", async (event, { value, send }) => {
 
   send({
     type: "end",
-    data: undefined,
+    data: {
+      type: "success",
+      result: undefined,
+    },
   });
 });
 
@@ -172,10 +179,11 @@ const fetchInitialData = async () => {
     await init();
     // settingsStore.init() is no longer needed here as it's local, but we call loadRemoteSettings to sync
     await settingsStore.load();
+    await connectionsStore.load();
 
     // Show window once theme/settings info has been received
     if (window.electron) {
-      window.electron.ipcRenderer.send("window:show");
+      window.electron.ipcRenderer.invoke("window:show");
     }
 
     await authInit();
@@ -186,7 +194,7 @@ const fetchInitialData = async () => {
     logger().error("Failed to fetch remote data:", error);
     // Show window even if data fetch fails so the app is not stuck hidden
     if (window.electron) {
-      window.electron.ipcRenderer.send("window:show");
+      window.electron.ipcRenderer.invoke("window:show");
     }
   }
 };
@@ -220,7 +228,7 @@ watch(
   isDisconnected,
   (disconnected) => {
     if (disconnected && window.electron) {
-      window.electron.ipcRenderer.send("window:show");
+      window.electron.ipcRenderer.invoke("window:show");
     }
   },
   { immediate: true },
@@ -260,52 +268,6 @@ onMounted(async () => {
 .content {
   display: flex;
 
-  .sidebar {
-    display: flex;
-    flex-direction: column;
-    width: 300px;
-    background-color: v-bind(primary);
-    color: white;
-
-    &.hidden {
-      display: none;
-    }
-
-    .sidebar-title {
-      font-size: 2rem;
-      text-align: center;
-      margin: 16px 12px;
-      margin-bottom: 64px;
-      margin-top: 32px;
-    }
-
-    .list {
-      margin: 8px;
-      height: 100%;
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-
-      .list-item {
-        cursor: pointer;
-        padding: 8px 16px;
-        font-size: 1.5rem;
-        transition: background-color 0.25s;
-        border-radius: 4px;
-        color: white;
-        text-decoration: none;
-
-        .icon {
-          margin-right: 8px;
-        }
-
-        &:hover {
-          background-color: v-bind(primaryDarken1);
-        }
-      }
-    }
-  }
-
   .main {
     flex: 1;
     display: flex;
@@ -319,16 +281,6 @@ onMounted(async () => {
   max-height: 100%;
   display: flex;
   flex-direction: column;
-}
-
-.router-link-active {
-  background-color: v-bind(primaryDarken2);
-}
-
-.version {
-  font-size: 1.2rem;
-  margin: 16px;
-  text-align: center;
 }
 
 .fade-enter-active,

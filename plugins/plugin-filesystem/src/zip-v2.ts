@@ -18,6 +18,7 @@ export const getValue = <T>(array: MaybeArray<T>): T => {
 export const zipV2 = createAction({
   id: ID,
   name: "Zip",
+  version: 2,
   displayString: '`Zip ${fmt.param(params.folder, "primary", "No folder specified")}`',
   params: {
     folder: createPathParam("", {

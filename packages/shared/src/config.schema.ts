@@ -9,6 +9,7 @@ import {
   array,
   GenericSchema,
   optional,
+  looseObject,
 } from "valibot";
 
 export const createVersionSchema = <T extends GenericSchema<any, any>>(schema: T) => schema;
@@ -183,6 +184,24 @@ export const AppSettingsValidatorV8 = object({
   ),
   isInternalMigrationBannerClosed: optional(boolean(), false),
 });
+
+export const ConnectionValidator = looseObject({
+  id: string(),
+  pluginName: string(),
+  name: string(),
+  createdAt: string(),
+  isDefault: boolean(),
+});
+
+export const ConnectionsValidatorV1 = object({
+  version: literal("1.0.0"),
+  connections: array(ConnectionValidator),
+});
+
+export type Connection = InferInput<typeof ConnectionValidator>;
+export type ConnectionsConfigV1 = InferInput<typeof ConnectionsValidatorV1>;
+export type ConnectionsConfig = ConnectionsConfigV1;
+export const ConnectionsValidator = ConnectionsValidatorV1;
 
 export type AppConfigV1 = InferInput<typeof AppSettingsValidatorV1>;
 export type AppConfigV2 = InferInput<typeof AppSettingsValidatorV2>;

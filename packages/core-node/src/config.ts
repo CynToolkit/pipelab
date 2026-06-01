@@ -6,15 +6,7 @@ import { useLogger } from "@pipelab/shared";
 import { configRegistry, Migrator, normalizePipelineConfig } from "@pipelab/shared";
 
 export const getMigrator = <T>(name: string) => {
-  if (configRegistry[name]) {
-    return configRegistry[name] as Migrator<T>;
-  }
-
-  if (name.startsWith("pipeline-") || path.isAbsolute(name) || name.endsWith(".json")) {
-    return configRegistry["pipeline"] as Migrator<T>;
-  }
-
-  return undefined;
+  return (configRegistry[name] || configRegistry["pipeline"]) as Migrator<T>;
 };
 
 export const setupConfigFile = async <T>(

@@ -15,4 +15,17 @@ export default createNodeDefinition({
       runner: uploadToNetlifyRunner,
     },
   ],
+  integrations: [
+    {
+      name: "Netlify Account",
+      fields: [
+        {
+          key: "apiKey",
+          label: "Personal Access Token",
+          type: "password",
+          placeholder: "netlify API token",
+        },
+      ],
+    },
+  ],
 });

@@ -1,0 +1,1197 @@
+<template>
+  <div class="integrations-page">
+    <Toast />
+    <Layout>
+      <div class="main-layout">
+        <!-- Sidebar Drawer (Lists installed plugins) -->
+        <div class="drawer">
+          <div
+            class="drawer-header flex justify-between items-center px-3 py-2 border-b border-surface-200 dark:border-surface-800"
+          >
+            <span class="drawer-title font-bold text-xs uppercase tracking-wider opacity-75"
+              >Plugins</span
+            >
+            <Button
+              icon="pi pi-globe"
+              severity="secondary"
+              text
+              rounded
+              size="small"
+              class="!w-7 !h-7 !flex !items-center !justify-center !p-0 scale-90"
+              v-tooltip.top="'Explore Marketplace'"
+              @click="isMarketplaceVisible = true"
+            />
+          </div>
+
+          <!-- Search Filter for Plugins -->
+          <div class="search-wrap px-3 py-2">
+            <IconField class="w-full">
+              <InputIcon class="pi pi-search text-xs" />
+              <InputText
+                v-model="installedSearchQuery"
+                placeholder="Filter plugins..."
+                class="w-full"
+                size="small"
+              />
+            </IconField>
+          </div>
+
+          <div class="plugin-list px-2 py-1 flex-grow-1 overflow-y-auto flex flex-column gap-1">
+            <div
+              v-for="plugin in filteredInstalledPlugins"
+              :key="plugin.name"
+              class="plugin-item"
+              :class="{ active: selectedPluginName === plugin.name }"
+              @click="selectedPluginName = plugin.name"
+            >
+              <div class="plugin-item-content">
+                <template v-if="getPluginIcon(plugin.name)">
+                  <img
+                    v-if="getPluginIcon(plugin.name)?.type === 'image'"
+                    :src="getPluginIconImage(plugin.name)"
+                    class="plugin-icon"
+                  />
+                  <i
+                    v-else
+                    :class="getIconClass(getPluginIcon(plugin.name))"
+                    class="plugin-icon-pi"
+                  ></i>
+                </template>
+                <i v-else class="pi pi-box plugin-icon-pi"></i>
+                <span class="plugin-label">{{ formatPluginName(plugin.name) }}</span>
+              </div>
+              <span class="status-dot" :class="{ enabled: plugin.enabled }"></span>
+            </div>
+
+            <div
+              v-if="filteredInstalledPlugins.length === 0"
+              class="text-center py-6 text-[11px] opacity-50"
+            >
+              No plugins matching filter.
+            </div>
+          </div>
+        </div>
+
+        <!-- Main Content Area -->
+        <div class="content-area">
+          <transition name="fade-fast" mode="out-in">
+            <!-- Selected Plugin Detail View -->
+            <div v-if="selectedPlugin" class="pane-content">
+              <div class="pane-header flex justify-between items-start">
+                <div class="flex items-center gap-3">
+                  <div class="plugin-large-icon-wrapper">
+                    <template v-if="getPluginIcon(selectedPlugin.name)">
+                      <img
+                        v-if="getPluginIcon(selectedPlugin.name)?.type === 'image'"
+                        :src="getPluginIconImage(selectedPlugin.name)"
+                        class="plugin-large-icon"
+                      />
+                      <i
+                        v-else
+                        :class="getIconClass(getPluginIcon(selectedPlugin.name))"
+                        class="plugin-large-icon-pi"
+                      ></i>
+                    </template>
+                    <i v-else class="pi pi-box plugin-large-icon-pi"></i>
+                  </div>
+                  <div>
+                    <h2 class="pane-title">{{ formatPluginName(selectedPlugin.name) }}</h2>
+                    <p class="pane-desc">
+                      {{ selectedPlugin.description || "No description provided." }}
+                    </p>
+                  </div>
+                </div>
+
+                <div class="flex items-center gap-3">
+                  <div
+                    class="flex items-center gap-2 bg-surface-50 dark:bg-surface-950 border border-surface-200 dark:border-surface-800 rounded-lg px-2.5 py-1"
+                  >
+                    <span
+                      class="text-[10px] font-bold uppercase tracking-wider text-muted-color opacity-75"
+                      >Status</span
+                    >
+                    <ToggleSwitch
+                      :model-value="selectedPlugin.enabled"
+                      class="small-toggle"
+                      @update:model-value="togglePlugin(selectedPlugin.name)"
+                    />
+                  </div>
+                  <Button
+                    v-if="!isOfficial(selectedPlugin.name)"
+                    label="Uninstall"
+                    severity="danger"
+                    outlined
+                    size="small"
+                    icon="pi pi-trash"
+                    :loading="loadingPlugins[selectedPlugin.name]"
+                    @click="uninstallPlugin(selectedPlugin.name)"
+                  />
+                </div>
+              </div>
+
+              <!-- Tabs: Blocks & Setup (Read-only) -->
+              <Tabs v-model:value="activeTab" class="w-full flex-grow-1 flex flex-column mt-4">
+                <TabList>
+                  <Tab v-if="selectedPluginDefinition?.nodes?.length" value="blocks">
+                    <i class="pi pi-box mr-2 text-[11px]"></i>Blocks
+                  </Tab>
+                  <Tab v-if="selectedPluginDefinition?.integrations?.length" value="schema">
+                    <i class="pi pi-id-card mr-2 text-[11px]"></i>Setup
+                  </Tab>
+                </TabList>
+
+                <TabPanels class="flex-grow-1 overflow-y-auto mt-2">
+                  <!-- Blocks Panel -->
+                  <TabPanel
+                    v-if="selectedPluginDefinition?.nodes?.length"
+                    value="blocks"
+                    class="py-2"
+                  >
+                    <div class="exposed-section">
+                      <div class="section-header mb-4">
+                        <div class="flex flex-column gap-1">
+                          <h3 class="section-title">Blocks</h3>
+                          <p class="section-desc">Automation blocks provided by this plugin.</p>
+                        </div>
+                      </div>
+
+                      <div class="nodes-grid">
+                        <div
+                          v-for="nodeDef in selectedPluginDefinition.nodes"
+                          :key="nodeDef.node.id"
+                          class="node-card"
+                          :class="{
+                            deprecated: nodeDef.node.type === 'action' && nodeDef.node.deprecated,
+                          }"
+                        >
+                          <div class="node-card-header flex items-start justify-between mb-2">
+                            <div class="flex items-center gap-2">
+                              <div class="node-icon-wrapper flex items-center justify-center">
+                                <i
+                                  :class="getNodeIconClass(nodeDef.node.icon)"
+                                  class="node-icon"
+                                ></i>
+                              </div>
+                              <div class="flex flex-column">
+                                <span class="node-title font-bold text-xs">{{
+                                  nodeDef.node.name
+                                }}</span>
+                                <span
+                                  v-if="nodeDef.node.version"
+                                  class="node-version text-[9px] opacity-60"
+                                  >v{{ nodeDef.node.version }}</span
+                                >
+                              </div>
+                            </div>
+                            <div class="flex gap-1">
+                              <Tag
+                                v-if="nodeDef.node.type === 'action' && nodeDef.node.deprecated"
+                                value="Deprecated"
+                                severity="danger"
+                                class="text-[9px] px-1 py-0.5 font-bold"
+                                v-tooltip.top="
+                                  nodeDef.node.deprecatedMessage || 'This node is deprecated.'
+                                "
+                              />
+                              <Tag
+                                v-if="nodeDef.node.advanced"
+                                value="Advanced"
+                                severity="secondary"
+                                class="text-[9px] px-1 py-0.5"
+                              />
+                              <Tag
+                                :value="getNodeTypeLabel(nodeDef.node.type)"
+                                :severity="getNodeTypeSeverity(nodeDef.node.type)"
+                                class="text-[9px] px-1.5 py-0.5"
+                              />
+                            </div>
+                          </div>
+                          <p class="node-description text-[10px] text-secondary">
+                            {{ nodeDef.node.description || "No description available." }}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </TabPanel>
+
+                  <!-- Setup (Read-only) Panel -->
+                  <TabPanel
+                    v-if="selectedPluginDefinition?.integrations?.length"
+                    value="schema"
+                    class="py-2"
+                  >
+                    <div class="exposed-section">
+                      <div class="section-header mb-4">
+                        <div class="flex flex-column gap-1">
+                          <h3 class="section-title">Setup</h3>
+                          <p class="section-desc">
+                            Settings required to configure connection profiles for this plugin.
+                          </p>
+                        </div>
+                      </div>
+
+                      <div class="integrations-grid">
+                        <div
+                          v-for="integration in selectedPluginDefinition.integrations"
+                          :key="integration.name"
+                          class="integration-card"
+                        >
+                          <div class="integration-card-header flex items-center gap-2 mb-3">
+                            <i class="pi pi-id-card text-primary text-sm"></i>
+                            <span class="integration-title font-bold text-xs">{{
+                              integration.name
+                            }}</span>
+                          </div>
+                          <div class="integration-fields">
+                            <div
+                              class="fields-header text-[9px] font-bold uppercase opacity-55 mb-1"
+                            >
+                              Required Fields
+                            </div>
+                            <div
+                              v-for="field in integration.fields"
+                              :key="field.key"
+                              class="field-row flex justify-between items-center py-1 border-b border-surface-200 dark:border-surface-800 last:border-0"
+                            >
+                              <div class="flex flex-column">
+                                <span class="field-label text-[10px] font-medium">{{
+                                  field.label
+                                }}</span>
+                              </div>
+                              <Tag
+                                :value="field.type"
+                                severity="secondary"
+                                class="text-[8px] uppercase px-1 py-0.5"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </TabPanel>
+                </TabPanels>
+              </Tabs>
+            </div>
+
+            <!-- Fallback View -->
+            <div
+              v-else
+              class="pane-content flex items-center justify-center text-center opacity-60"
+            >
+              <div>
+                <i class="pi pi-box text-3xl mb-3"></i>
+                <p class="text-sm">Select a plugin from the sidebar to inspect or configure.</p>
+              </div>
+            </div>
+          </transition>
+        </div>
+      </div>
+    </Layout>
+
+    <!-- Explore Marketplace Dialog -->
+    <Dialog
+      v-model:visible="isMarketplaceVisible"
+      modal
+      header="Explore Plugin Marketplace"
+      :style="{ width: '600px', maxWidth: '90vw' }"
+    >
+      <div class="flex flex-column gap-3 py-2">
+        <div class="search-marketplace-wrap flex gap-2 w-full">
+          <IconField class="flex-grow-1">
+            <InputIcon class="pi pi-search text-xs" />
+            <InputText
+              v-model="registrySearchQuery"
+              placeholder="Search NPM for community plugins (e.g. @pipelab/plugin-)..."
+              class="w-full search-input"
+              size="small"
+            />
+          </IconField>
+          <Button
+            v-if="registrySearchQuery"
+            icon="pi pi-times"
+            severity="secondary"
+            text
+            size="small"
+            @click="registrySearchQuery = ''"
+          />
+        </div>
+
+        <!-- Loading state for search -->
+        <div v-if="searchingRegistry" class="flex justify-content-center items-center py-6">
+          <i class="pi pi-spin pi-spinner text-primary text-xl mr-2"></i>
+          <span class="text-xs">Searching registry...</span>
+        </div>
+
+        <!-- Search results vs Installed items -->
+        <div v-else class="marketplace-results max-h-[350px] overflow-y-auto pr-1">
+          <template v-if="registrySearchQuery">
+            <h4 class="text-xs font-bold opacity-60 mb-2 uppercase tracking-wider">
+              Search Results
+            </h4>
+            <div v-if="registryResults.length === 0" class="text-center py-6 text-xs opacity-50">
+              No community plugins found matching query.
+            </div>
+            <div v-else class="plugins-list-group">
+              <div
+                v-for="pkg in registryResults"
+                :key="pkg.name"
+                class="plugin-row flex items-center justify-between p-2"
+              >
+                <div class="flex items-center gap-3">
+                  <div class="plugin-icon-wrapper flex items-center justify-center">
+                    <i class="pi pi-box text-primary text-sm"></i>
+                  </div>
+                  <div class="flex flex-column">
+                    <div class="flex items-center gap-2">
+                      <span class="plugin-title font-bold text-xs">{{
+                        formatPluginName(pkg.name)
+                      }}</span>
+                      <Tag
+                        v-if="isInstalled(pkg.name)"
+                        severity="success"
+                        value="Installed"
+                        class="text-[9px]"
+                      />
+                    </div>
+                    <span class="plugin-description text-[10px] text-secondary mt-0.5">{{
+                      pkg.description || "No description available."
+                    }}</span>
+                  </div>
+                </div>
+                <div class="flex items-center gap-2">
+                  <Button
+                    v-if="isInstalled(pkg.name)"
+                    label="Uninstall"
+                    severity="danger"
+                    outlined
+                    size="small"
+                    :loading="loadingPlugins[pkg.name]"
+                    @click="uninstallPlugin(pkg.name)"
+                  />
+                  <Button
+                    v-else
+                    label="Install"
+                    size="small"
+                    :loading="loadingPlugins[pkg.name]"
+                    @click="installPlugin(pkg.name, pkg.description)"
+                  />
+                </div>
+              </div>
+            </div>
+          </template>
+
+          <template v-else>
+            <h4 class="text-xs font-bold opacity-60 mb-2 uppercase tracking-wider">
+              Installed Community Plugins
+            </h4>
+            <div
+              v-if="communityPlugins.length === 0"
+              class="text-center py-8 text-xs opacity-50 border border-dashed rounded-lg"
+            >
+              No community plugins installed. Search above to install new plugins.
+            </div>
+            <div v-else class="plugins-list-group">
+              <div
+                v-for="plugin in communityPlugins"
+                :key="plugin.name"
+                class="plugin-row flex items-center justify-between p-2"
+              >
+                <div class="flex items-center gap-3">
+                  <div class="plugin-icon-wrapper flex items-center justify-center">
+                    <template v-if="getPluginIcon(plugin.name)">
+                      <img
+                        v-if="getPluginIcon(plugin.name)?.type === 'image'"
+                        :src="getPluginIconImage(plugin.name)"
+                        class="plugin-row-icon"
+                      />
+                      <i
+                        v-else
+                        :class="getIconClass(getPluginIcon(plugin.name))"
+                        class="text-sm text-primary"
+                      ></i>
+                    </template>
+                    <i v-else class="pi pi-box text-primary text-sm"></i>
+                  </div>
+                  <div class="flex flex-column">
+                    <span class="plugin-title font-bold text-xs">{{
+                      formatPluginName(plugin.name)
+                    }}</span>
+                    <span class="plugin-description text-[10px] text-secondary mt-0.5">{{
+                      plugin.description || "No description available."
+                    }}</span>
+                  </div>
+                </div>
+                <div class="flex items-center gap-2">
+                  <ToggleSwitch
+                    :model-value="plugin.enabled"
+                    class="scale-90"
+                    @update:model-value="togglePlugin(plugin.name)"
+                  />
+                  <Button
+                    icon="pi pi-trash"
+                    severity="danger"
+                    text
+                    rounded
+                    size="small"
+                    :loading="loadingPlugins[plugin.name]"
+                    v-tooltip.top="'Uninstall'"
+                    @click="uninstallPlugin(plugin.name)"
+                  />
+                </div>
+              </div>
+            </div>
+          </template>
+        </div>
+      </div>
+      <template #footer>
+        <Button
+          label="Close"
+          size="small"
+          severity="secondary"
+          @click="isMarketplaceVisible = false"
+        />
+      </template>
+    </Dialog>
+  </div>
+</template>
+
+<script lang="ts" setup>
+import { ref, computed, toRaw, watch } from "vue";
+import { useAppSettings } from "@renderer/store/settings";
+import { useAppStore } from "@renderer/store/app";
+import { storeToRefs } from "pinia";
+import Button from "primevue/button";
+import InputText from "primevue/inputtext";
+import ToggleSwitch from "primevue/toggleswitch";
+import Tag from "primevue/tag";
+import Toast from "primevue/toast";
+import Dialog from "primevue/dialog";
+import IconField from "primevue/iconfield";
+import InputIcon from "primevue/inputicon";
+import Tabs from "primevue/tabs";
+import TabList from "primevue/tablist";
+import Tab from "primevue/tab";
+import TabPanels from "primevue/tabpanels";
+import TabPanel from "primevue/tabpanel";
+import { useToast } from "primevue/usetoast";
+import { useAPI } from "@renderer/composables/api";
+import { watchDebounced } from "@vueuse/core";
+import Layout from "@renderer/components/Layout.vue";
+
+const appSettings = useAppSettings();
+const appStore = useAppStore();
+const api = useAPI();
+const toast = useToast();
+
+const { settings: settingsRef } = storeToRefs(appSettings);
+const { pluginDefinitions } = storeToRefs(appStore);
+
+const selectedPluginName = ref("");
+const activeTab = ref("blocks");
+const isMarketplaceVisible = ref(false);
+const installedSearchQuery = ref("");
+const registrySearchQuery = ref("");
+const searchingRegistry = ref(false);
+const registryResults = ref<any[]>([]);
+const loadingPlugins = ref<Record<string, boolean>>({});
+
+// --- Computed ---
+const allInstalledPlugins = computed(() => {
+  return settingsRef.value?.plugins || [];
+});
+
+const communityPlugins = computed(() => {
+  return allInstalledPlugins.value.filter((p) => !isOfficial(p.name));
+});
+
+const filteredInstalledPlugins = computed(() => {
+  const query = installedSearchQuery.value.trim().toLowerCase();
+  if (!query) return allInstalledPlugins.value;
+  return allInstalledPlugins.value.filter((p) => {
+    return (
+      p.name.toLowerCase().includes(query) || formatPluginName(p.name).toLowerCase().includes(query)
+    );
+  });
+});
+
+const selectedPlugin = computed(() => {
+  if (!selectedPluginName.value) return null;
+  return allInstalledPlugins.value.find((p) => p.name === selectedPluginName.value) || null;
+});
+
+const selectedPluginDefinition = computed(() => {
+  const plugin = selectedPlugin.value;
+  if (!plugin) return null;
+  return (
+    pluginDefinitions.value.find((p) => p.packageName === plugin.name || p.id === plugin.name) ||
+    null
+  );
+});
+
+// --- Watches ---
+watch(
+  () => selectedPlugin.value?.name,
+  (newPluginName) => {
+    if (!newPluginName) return;
+    activeTab.value = "blocks";
+  },
+  { immediate: true },
+);
+
+watchDebounced(
+  registrySearchQuery,
+  async (newQuery) => {
+    const q = newQuery.trim();
+    if (!q) {
+      registryResults.value = [];
+      return;
+    }
+    searchingRegistry.value = true;
+    try {
+      const res = await api.execute("plugin:search", { query: q });
+      if (res.type === "success") {
+        registryResults.value = res.result.results;
+      }
+    } catch (e) {
+      console.error("Registry search error in Plugins:", e);
+    } finally {
+      searchingRegistry.value = false;
+    }
+  },
+  { debounce: 500 },
+);
+
+// --- Helpers ---
+const isOfficial = (packageName: string) => {
+  return packageName.startsWith("@pipelab/");
+};
+
+const formatPluginName = (name: string) => {
+  const def = pluginDefinitions.value.find((p) => p.packageName === name || p.id === name);
+  if (def?.name) {
+    return def.name;
+  }
+  if (name.startsWith("@pipelab/plugin-")) {
+    const raw = name.replace("@pipelab/plugin-", "");
+    return raw.charAt(0).toUpperCase() + raw.slice(1);
+  }
+  if (name.startsWith("plugin-")) {
+    const raw = name.replace("plugin-", "");
+    return raw.charAt(0).toUpperCase() + raw.slice(1);
+  }
+  return name;
+};
+
+const getPluginIcon = (packageName: string) => {
+  const cleanSearched = packageName
+    .replace("@pipelab/plugin-", "")
+    .replace("plugin-", "")
+    .toLowerCase();
+  const def = pluginDefinitions.value.find((p) => {
+    if (!p.packageName) return false;
+    const cleanDef = p.packageName
+      .replace("@pipelab/plugin-", "")
+      .replace("plugin-", "")
+      .toLowerCase();
+    return cleanDef === cleanSearched || p.packageName === packageName || p.id === packageName;
+  });
+  return def?.icon || null;
+};
+
+const getPluginIconImage = (packageName: string) => {
+  const icon = getPluginIcon(packageName);
+  return icon?.type === "image" ? icon.image : undefined;
+};
+
+const getIconClass = (iconObj: any) => {
+  if (!iconObj || !iconObj.icon) return "";
+  const iconName = iconObj.icon;
+  if (iconName.startsWith("mdi-")) {
+    return `mdi ${iconName}`;
+  }
+  if (iconName.startsWith("pi-")) {
+    return `pi ${iconName}`;
+  }
+  return iconName;
+};
+
+const getNodeIconClass = (icon: string | undefined) => {
+  const iconName = icon || "pi-box";
+  if (iconName.startsWith("mdi-")) {
+    return `mdi ${iconName}`;
+  }
+  if (iconName.startsWith("pi-")) {
+    return `pi ${iconName}`;
+  }
+  return `pi ${iconName}`;
+};
+
+const getNodeTypeLabel = (type: string) => {
+  if (type === "action") return "Action";
+  if (type === "expression") return "Expression";
+  if (type === "event") return "Event";
+  return type.charAt(0).toUpperCase() + type.slice(1);
+};
+
+const getNodeTypeSeverity = (type: string) => {
+  if (type === "action") return "info";
+  if (type === "expression") return "warn";
+  if (type === "event") return "success";
+  return "secondary";
+};
+
+const isInstalled = (packageName: string) => {
+  return allInstalledPlugins.value.some((p) => p.name === packageName);
+};
+
+const togglePlugin = async (packageName: string) => {
+  const currentPlugins = allInstalledPlugins.value.map((p) => {
+    if (p.name === packageName) {
+      return { ...p, enabled: !p.enabled };
+    }
+    return p;
+  });
+  await appSettings.updateSettings({
+    ...(toRaw(settingsRef.value) as any),
+    plugins: currentPlugins,
+  });
+
+  toast.add({
+    severity: "success",
+    summary: "Plugin updated",
+    detail: `${formatPluginName(packageName)} is now ${
+      currentPlugins.find((p) => p.name === packageName)?.enabled ? "enabled" : "disabled"
+    }.`,
+    life: 3000,
+  });
+};
+
+const installPlugin = async (packageName: string, description = "") => {
+  loadingPlugins.value[packageName] = true;
+  try {
+    toast.add({
+      severity: "info",
+      summary: "Installing plugin",
+      detail: `Downloading and installing ${packageName}...`,
+      life: 3000,
+    });
+
+    const res = await api.execute("plugin:install", {
+      packageName,
+      version: "latest",
+    });
+
+    if (res.type === "success") {
+      const currentPlugins = [...allInstalledPlugins.value];
+      if (!currentPlugins.some((p) => p.name === packageName)) {
+        currentPlugins.push({
+          name: packageName,
+          enabled: true,
+          description: description || "Community plugin",
+        });
+        await appSettings.updateSettings({
+          ...(toRaw(settingsRef.value) as any),
+          plugins: currentPlugins,
+        });
+      }
+
+      toast.add({
+        severity: "success",
+        summary: "Plugin installed",
+        detail: `${packageName} has been installed successfully!`,
+        life: 3000,
+      });
+    } else {
+      toast.add({
+        severity: "error",
+        summary: "Installation failed",
+        detail: res.ipcError || `Could not install ${packageName}`,
+        life: 5000,
+      });
+    }
+  } catch (err: any) {
+    console.error("Plugin installation failed:", err);
+    toast.add({
+      severity: "error",
+      summary: "Installation error",
+      detail: err.message || `Could not install ${packageName}`,
+      life: 5000,
+    });
+  } finally {
+    loadingPlugins.value[packageName] = false;
+  }
+};
+
+const uninstallPlugin = async (packageName: string) => {
+  loadingPlugins.value[packageName] = true;
+  try {
+    toast.add({
+      severity: "info",
+      summary: "Uninstalling plugin",
+      detail: `Removing ${packageName}...`,
+      life: 3000,
+    });
+
+    const res = await api.execute("plugin:uninstall", {
+      packageName,
+    });
+
+    if (res.type === "success") {
+      const currentPlugins = allInstalledPlugins.value.filter((p) => p.name !== packageName);
+      await appSettings.updateSettings({
+        ...(toRaw(settingsRef.value) as any),
+        plugins: currentPlugins,
+      });
+
+      if (selectedPluginName.value === packageName) {
+        selectedPluginName.value = "";
+      }
+
+      toast.add({
+        severity: "success",
+        summary: "Plugin uninstalled",
+        detail: `${packageName} has been uninstalled!`,
+        life: 3000,
+      });
+    } else {
+      toast.add({
+        severity: "error",
+        summary: "Uninstall failed",
+        detail: res.ipcError || `Could not uninstall ${packageName}`,
+        life: 5000,
+      });
+    }
+  } catch (err: any) {
+    console.error("Plugin uninstallation failed:", err);
+    toast.add({
+      severity: "error",
+      summary: "Uninstall error",
+      detail: err.message || `Could not uninstall ${packageName}`,
+      life: 5000,
+    });
+  } finally {
+    loadingPlugins.value[packageName] = false;
+  }
+};
+</script>
+
+<style lang="scss" scoped>
+.integrations-page {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.main-layout {
+  display: flex;
+  height: 100%;
+  width: 100%;
+}
+
+/* ─── Drawer ────────────────────────────────────────────── */
+.drawer {
+  width: 240px;
+  flex: 0 0 240px;
+  border-right: 1px solid var(--p-surface-200);
+  background: var(--p-surface-0);
+  display: flex;
+  flex-direction: column;
+
+  :root.dark & {
+    border-right-color: var(--p-surface-700);
+    background: var(--p-surface-950);
+  }
+
+  .plugin-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 6px 12px;
+    overflow-y: auto;
+  }
+
+  .plugin-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 10px;
+    border-radius: 8px;
+    font-size: 0.825rem;
+    font-weight: 500;
+    color: var(--p-text-muted-color);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    user-select: none;
+
+    &:hover {
+      background: var(--p-surface-200);
+      color: var(--p-text-color);
+
+      :root.dark & {
+        background: var(--p-surface-800);
+      }
+    }
+
+    &.active {
+      background: var(--p-surface-200);
+      color: var(--p-text-color);
+      font-weight: 600;
+
+      :root.dark & {
+        background: var(--p-surface-800);
+      }
+    }
+
+    .plugin-item-content {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+      flex: 1;
+    }
+
+    .plugin-icon {
+      width: 18px;
+      height: 18px;
+      object-fit: contain;
+      flex-shrink: 0;
+    }
+
+    .plugin-icon-pi {
+      font-size: 16px;
+      color: var(--p-primary-color);
+      flex-shrink: 0;
+      width: 18px;
+      text-align: center;
+    }
+
+    .plugin-label {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-size: 0.8rem;
+    }
+  }
+}
+
+/* ─── Main Content Pane ─────────────────────────────────── */
+.content-area {
+  flex: 1;
+  height: 100%;
+  overflow-y: auto;
+  background: var(--p-surface-0);
+
+  :root.dark & {
+    background: var(--p-surface-900);
+  }
+}
+
+.pane-content {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.pane-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 16px;
+  gap: 12px;
+  flex-shrink: 0;
+
+  .pane-title {
+    font-size: 1.05rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--p-text-color);
+    margin: 0;
+  }
+
+  .pane-desc {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--p-text-muted-color);
+    margin: 0;
+  }
+}
+
+.plugin-large-icon-wrapper {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  background: var(--p-surface-100);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+
+  :root.dark & {
+    background: var(--p-surface-800);
+  }
+
+  .plugin-large-icon {
+    width: 24px;
+    height: 24px;
+    object-fit: contain;
+  }
+
+  .plugin-large-icon-pi {
+    font-size: 20px;
+    color: var(--p-primary-color);
+  }
+}
+
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--p-surface-400);
+
+  &.enabled {
+    background: var(--p-green-500);
+  }
+}
+
+/* ─── Tabs Layout Adjustments ───────────────────────────── */
+:deep(.p-tabs) {
+  border-style: none;
+}
+
+:deep(.p-tablist) {
+  border-bottom: 1px solid var(--p-surface-200);
+  background: transparent;
+
+  :root.dark & {
+    border-bottom-color: var(--p-surface-800);
+  }
+}
+
+:deep(.p-tablist-content) {
+  background: transparent !important;
+}
+
+:deep(.p-tablist-tab-list) {
+  background: transparent !important;
+  border-style: none !important;
+}
+
+:deep(.p-tab) {
+  font-size: 0.775rem;
+  font-weight: 600;
+  color: var(--p-text-muted-color);
+  padding: 8px 16px;
+  background: transparent !important;
+  border: none !important;
+  border-bottom: 2px solid transparent !important;
+  transition: all 0.2s ease;
+
+  &:hover {
+    color: var(--p-text-color);
+    background: transparent !important;
+  }
+
+  &.p-tab-active {
+    color: var(--p-primary-color) !important;
+    border-bottom-color: var(--p-primary-color) !important;
+  }
+}
+
+:deep(.p-tabpanels) {
+  background: transparent !important;
+  padding: 12px 0 0 0 !important;
+}
+
+:deep(.p-tabpanel) {
+  background: transparent !important;
+}
+
+/* ─── Exposed Sections & Grid ───────────────────────────── */
+.exposed-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.section-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--p-text-color);
+  margin: 0;
+}
+
+.section-desc {
+  font-size: 0.75rem;
+  color: var(--p-text-muted-color);
+  margin: 0;
+}
+
+.nodes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px;
+  width: 100%;
+}
+
+.node-card {
+  background: var(--p-surface-50);
+  border: 1px solid var(--p-surface-200);
+  border-radius: 12px;
+  padding: 16px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+
+  :root.dark & {
+    background: var(--p-surface-950);
+    border-color: var(--p-surface-800);
+  }
+
+  &:hover {
+    border-color: var(--p-primary-color);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+
+    :root.dark & {
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+  }
+}
+
+.node-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.node-icon-wrapper {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: var(--p-primary-50);
+  color: var(--p-primary-600);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+
+  :root.dark & {
+    background: var(--p-primary-950);
+    color: var(--p-primary-400);
+  }
+}
+
+.node-icon {
+  font-size: 14px;
+}
+
+.node-title {
+  font-size: 0.825rem;
+  font-weight: 700;
+  color: var(--p-text-color);
+}
+
+.node-version {
+  font-size: 0.65rem;
+  color: var(--p-text-muted-color);
+}
+
+.node-description {
+  font-size: 0.75rem;
+  color: var(--p-text-muted-color);
+  margin-top: 10px;
+  line-height: 1.4;
+  flex-grow: 1;
+}
+
+/* ─── Integrations Schema Grid ──────────────────────────── */
+.integrations-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+  width: 100%;
+}
+
+.integration-card {
+  background: var(--p-surface-50);
+  border: 1px solid var(--p-surface-200);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+
+  :root.dark & {
+    background: var(--p-surface-950);
+    border-color: var(--p-surface-800);
+  }
+}
+
+.integration-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--p-text-color);
+}
+
+.fields-header {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--p-text-muted-color);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.field-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--p-surface-200);
+
+  :root.dark & {
+    border-bottom-color: var(--p-surface-800);
+  }
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.field-label {
+  font-size: 0.775rem;
+  font-weight: 600;
+  color: var(--p-text-color);
+}
+
+.field-key {
+  font-size: 0.65rem;
+  color: var(--p-text-muted-color);
+}
+
+/* ─── Deprecated & Size Adjustments ─────────────────────── */
+.small-toggle {
+  transform: scale(0.65);
+  transform-origin: right center;
+  display: inline-flex;
+}
+
+.node-card.deprecated {
+  border-left: 3.5px solid var(--p-red-500);
+  opacity: 0.75;
+  background: var(--p-surface-100);
+
+  :root.dark & {
+    background: var(--p-surface-950);
+  }
+
+  &:hover {
+    opacity: 0.95;
+    border-left-color: var(--p-red-600);
+  }
+}
+</style>

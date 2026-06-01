@@ -24,24 +24,19 @@ export const useAPI = () => {
     if (ShellChannels.includes(channel)) {
       if (window.electron) {
         logger().debug("Routing to Electron IPC:", channel);
-
-        const requestId = Math.random().toString(36).substring(7);
-
-        return new Promise((resolve, reject) => {
-          const cancel = window.electron.ipcRenderer.on(channel, (_event, response) => {
-            if (response.type === "end") {
-              cancel();
-              resolve(response.data);
-            } else {
-              listener?.(response);
-            }
-          });
-
-          window.electron.ipcRenderer.send(channel, {
-            requestId,
-            data,
-          });
-        });
+        try {
+          const result = await window.electron.ipcRenderer.invoke(channel, data);
+          return {
+            type: "success",
+            result,
+          } as any;
+        } catch (error: any) {
+          logger().error("Shell channel IPC invoke error:", error);
+          return {
+            type: "error",
+            ipcError: error.message,
+          } as any;
+        }
       } else {
         // Fallback for headless mode
         if (channel === "dialog:showOpenDialog") {

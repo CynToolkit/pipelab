@@ -178,6 +178,7 @@ function createWindow(): void {
       preload: join(__dirname, "preload.cjs"),
       sandbox: false,
       devTools: is.dev,
+      additionalArguments: [`--app-version=${app.getVersion()}`],
     },
   });
 

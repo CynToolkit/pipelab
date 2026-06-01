@@ -32,4 +32,17 @@ export default createNodeDefinition({
       runner: previewRunner,
     },
   ],
+  integrations: [
+    {
+      name: "Discord Connection",
+      fields: [
+        {
+          key: "apiKey",
+          label: "Webhook URL",
+          type: "text",
+          placeholder: "https://discord.com/api/webhooks/...",
+        },
+      ],
+    },
+  ],
 });

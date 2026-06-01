@@ -304,7 +304,7 @@ export const registerHistoryHandlers = (context: PipelabContext) => {
         },
       };
 
-      await settings.saveConfig(newConfig);
+      await settings.setConfig(newConfig);
 
       send({
         type: "end",

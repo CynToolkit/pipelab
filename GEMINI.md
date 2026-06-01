@@ -1,82 +1,35 @@
 # Pipelab - AI Context
 
-Pipelab is a visual automation tool designed to create task automation workflows and cross-platform desktop applications. It provides a visual interface for building pipelines that can automate repetitive tasks, deploy to various platforms (Steam, Itch.io, etc.), and more.
+## Architecture
+- **Desktop (`apps/desktop/`)**: Electron main process, IPC, WebSocket server, and headless execution.
+- **UI (`apps/ui/`)**: Vue 3 (Composition API) & PrimeVue v4. Communicates via IPC & WebSockets.
+- **CLI (`apps/cli/`)**: CLI entrypoints and commands.
+- **Packages (`packages/`)**: Shared utilities, constants, migrations, and plugins.
+- **Core Engine (`packages/core-node/` & `@pipelab/plugin-core`)**: Executed using QuickJS (via WebAssembly).
 
-## Architecture Overview
+## Tech Stack & CLI Tasks
+Uses `pnpm` and Turborepo.
+- **Dev**: `pnpm dev`
+- **Build**: `pnpm build`
+- **Typecheck**: `pnpm typecheck`
+- **Format**: `pnpm format` (runs `oxfmt .`)
+- **Lint**: `pnpm lint` (runs `oxlint`)
 
-The project is an Electron-based application built with Vue 3 and TypeScript, organized as a Turbo monorepo.
+## Core Workflows
+- **Nodes/Blocks**: Register and define nodes inside `plugins/`.
+- **UI Views**: Located in `apps/ui/src/pages/` and `apps/ui/src/components/`.
+- **Database**: Remote schema is powered by Supabase. Update Supabase types after remote schema modifications.
+- **Releases**: Managed via Changesets (`pnpm changeset` -> `pnpm changeset version` -> `pnpm changeset tag`).
 
-- **Desktop App (`apps/desktop/`)**: Manages the Electron lifecycle, IPC handlers, a WebSocket server for real-time communication, and handles headless pipeline execution.
-- **UI Application (`apps/ui/`)**: A Vue 3 application using PrimeVue for UI components. It communicates with the desktop main process via IPC and WebSockets.
-- **CLI App (`apps/cli/`)**: A command-line interface for Pipelab.
-- **Packages (`packages/`)**: Contains shared logic, constants, plugins (Steam, Itch, etc.), and the core node system.
-- **Core Engine (`packages/core-node/` & `@pipelab/plugin-core`)**: Leverages `@pipelab/core` and QuickJS (via WebAssembly) for executing automation logic.
+## Development Rules & Conventions
 
-## Tech Stack
+### Typing & Code Quality
+- **Never use `as any`**: Do not use `as any` or `as XXX` or `as unknown` or loose `any` casts. Always use strict, proper TypeScript types or safe conversions.
+- **No typecheck/lint on modify**: Do not attempt to run typecheck or lint commands during modification.
+- **Packages**: Never import workspace packages via subpaths (e.g. `import { useAPI } from "@pipelab/shared/api"` is forbidden; use package exports).
 
-- **Framework**: [Electron](https://www.electronjs.org/)
-- **Frontend**: [Vue 3](https://vuejs.org/) (Composition API)
-- **UI Library**: [PrimeVue v4](https://primevue.org/) with Tailwind/PrimeFlex
-- **State Management**: [Pinia](https://pinia.vuejs.org/)
-- **Build Tool**: [Vite](https://vitejs.dev/) with [Electron Forge](https://www.electronforge.io/) and [Turborepo](https://turbo.build/)
-- **Database/Backend**: [Supabase](https://supabase.com/)
-- **Testing**: [Vitest](https://vitest.dev/) (Unit), [Playwright](https://playwright.dev/) (E2E)
-- **Linting & Formatting**: [oxlint](https://oxc-project.github.io/docs/guide/usage/linter.html) & [oxfmt](https://oxc-project.github.io/docs/guide/usage/formatter.html)
-- **Analytics/Monitoring**: [PostHog](https://posthog.com/), [Sentry](https://sentry.io/)
-
-## Key Directories
-
-- `apps/desktop/`: Electron main process logic, IPC handlers, and API.
-- `apps/ui/`: Vue application source code (components, pages, store, etc.).
-- `apps/cli/`: CLI entrypoints and commands.
-- `packages/`: Shared workspace packages (constants, migration code, and plugins).
-- `scripts/`: Maintenance and migration scripts.
-- `tests/`: End-to-end and unit tests.
-
-## Building and Running
-
-The project uses `pnpm` as its package manager and Turborepo for task orchestration.
-
-| Task              | Command                                     |
-| :---------------- | :------------------------------------------ |
-| **Development**   | `turbo dev` or `pnpm dev`                   |
-| **Build (All)**   | `turbo build` or `pnpm build`               |
-| **Package**       | `turbo package` or `pnpm package`           |
-| **Unit Tests**    | `turbo test` or `pnpm test:unit`            |
-| **Linting**       | `turbo lint` or `pnpm lint` (runs `oxlint`) |
-| **Type Checking** | `turbo typecheck` or `pnpm typecheck`       |
-| **Format**        | `pnpm format` (runs `oxfmt .`)              |
-
-## Development Conventions
-
-- **Typing**: Strict TypeScript usage across the codebase.
-- **Components**: Functional and modular Vue components. PrimeVue is used for most UI elements.
-- **State**: Persistent state management using Pinia with `pinia-plugin-persistedstate`.
-- **Communication**: Use the defined IPC handlers and the WebSocket manager for renderer-to-main or external communication.
-- **Versioning**: Uses [Changesets](https://github.com/changesets/changesets) for managing versions and changelogs.
-- **Code Style**: Enforced by `oxlint` and `oxfmt`. Run `pnpm format` to auto-format.
-
-## Common Workflows
-
-- **Adding a new Node/Block**: Investigate `plugins/plugin-core` or related plugins and how nodes are registered in the core engine.
-- `plugins/`: Contains all Pipelab plugins.
-- `assets/`: Contains all Pipelab assets.
-- **Modifying the UI**: Most views are located in `apps/ui/src/pages/` or `apps/ui/src/components/`.
-- **Database Changes**: Update Supabase types after modifying the remote schema.
-- **Releases**:
-  1. `pnpm changeset` to document changes.
-  2. `pnpm changeset version` to bump versions.
-  3. `pnpm changeset tag` to tag the release.
-
-# General recommendations
-
-- When modifying code, do not attempt to typecheck it.
-- When modifying code, do not attempt to lint it.
-- When creating packages, ensure files are **not** accessed via subpaths (e.g. `import { useAPI } from "@pipelab/shared/api"`).
-- Do not read docs from packages irectly, use context7 mcp
-- Prefer your native file read tools over cat command
-- Do not grep unless strictly necessary
-- Use pnpm instead of npm
-- Never grep in gitignored folders (like node_modules or dist or out folders)
-- Think twice before proposing a solution or a plan: there may be evident flaws or simpler alternatives
-- Use rg/ripgrep instead of grep
+### Workspace Operations
+- Do not read docs from packages directly; use context7 mcp.
+- Prefer native file read tools over `cat` command.
+- Do not grep unless strictly necessary. Never grep in gitignored directories. Use `rg` instead of `grep`.
+- Think twice before proposing a solution/plan to identify evident flaws or simpler alternatives.

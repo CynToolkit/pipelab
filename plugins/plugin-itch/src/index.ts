@@ -10,4 +10,17 @@ export default createNodeDefinition({
       runner: uploadToItchRunner,
     },
   ],
+  integrations: [
+    {
+      name: "Itch Butler Account",
+      fields: [
+        {
+          key: "apiKey",
+          label: "Butler API Key",
+          type: "password",
+          placeholder: "butler API key",
+        },
+      ],
+    },
+  ],
 });
