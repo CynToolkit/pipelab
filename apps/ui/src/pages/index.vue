@@ -1365,22 +1365,21 @@ onMounted(() => {
 /* ─── Projects Header ───────────────────────────────────── */
 .projects-header {
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
+  flex-wrap: wrap;
+  align-items: center;
   margin-bottom: 12px;
-  gap: 12px;
+  gap: 12px 16px;
   flex-shrink: 0;
-
-  @media (max-width: 768px) {
-    flex-direction: column;
-    align-items: stretch;
-  }
+  min-width: 0;
 }
 
 .header-left {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  min-width: 0;
+  flex: 0 1 auto;
+  margin-right: auto;
 }
 
 .project-title {
@@ -1389,6 +1388,9 @@ onMounted(() => {
   letter-spacing: -0.02em;
   color: var(--p-text-color);
   margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .pipelines-count {
@@ -1401,18 +1403,22 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 12px;
-
-  @media (max-width: 768px) {
-    flex-direction: column;
-    align-items: stretch;
-  }
+  flex-wrap: wrap;
+  min-width: 0;
+  flex: 0 1 auto;
+  justify-content: flex-end;
 }
 
 .search-field {
   width: 260px;
+  max-width: 100%;
+  flex-shrink: 1;
+  min-width: 200px;
 
-  @media (max-width: 768px) {
+  @media (max-width: 640px) {
+    flex: 1 1 100%;
     width: 100%;
+    min-width: 0;
   }
 
   .search-input {
@@ -1425,6 +1431,28 @@ onMounted(() => {
 .action-buttons {
   display: flex;
   gap: 8px;
+  flex-wrap: wrap;
+
+  :deep(.p-button) {
+    white-space: nowrap;
+  }
+}
+
+/* Stack everything vertically on small screens */
+@media (max-width: 640px) {
+  .projects-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .header-left {
+    margin-right: 0;
+  }
+
+  .header-right {
+    justify-content: stretch;
+  }
 }
 
 /* ─── Pipelines List ────────────────────────────────────── */
