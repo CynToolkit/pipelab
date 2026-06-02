@@ -69,9 +69,9 @@ export const uploadToItch = createAction({
 });
 
 export const uploadToItchRunner = createActionRunner<typeof uploadToItch>(
-  async ({ log, inputs, cwd, abortSignal, paths }) => {
-    const { node, thirdparty } = paths;
-    const butlerPath = await ensureButler(thirdparty);
+  async ({ log, inputs, cwd, abortSignal, context }) => {
+    const node = context.getNodePath();
+    const butlerPath = await ensureButler(context);
 
     log("Uploading to itch");
 

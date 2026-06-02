@@ -9,7 +9,6 @@ import {
   createPathParam,
   createStringParam,
   detectRuntime,
-  generateTempFolder,
   InputsDefinition,
   OutputsDefinition,
   runPnpm,
@@ -579,7 +578,7 @@ export const forge = async (
   }
 
   const { modules, node } = paths;
-  const destinationFolder = await generateTempFolder(paths.cache);
+  const destinationFolder = await context.createTempFolder("electron-forge-");
   log(`Staging build in ${destinationFolder}`);
 
   try {

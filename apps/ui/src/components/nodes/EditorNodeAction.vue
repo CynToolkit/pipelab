@@ -23,7 +23,9 @@
             <div spellcheck="false" contenteditable="true" @click.stop @input="handleInput">
               {{ title }}
             </div>
-            <div v-if="value.name" class="original-title">{{ nodeDefinition.name }}</div>
+            <div v-if="value.name && nodeDefinition" class="original-title">
+              {{ nodeDefinition.name }}
+            </div>
             <Button
               v-if="nodeDefinition?.deprecated"
               v-tooltip="
@@ -121,12 +123,13 @@ import { watchDebounced } from "@vueuse/core";
 import ParamEditor from "./ParamEditor.vue";
 import PluginIcon from "./PluginIcon.vue";
 import { createQuickJs } from "@pipelab/shared";
+// @ts-expect-error - dompurify missing type declarations
 import DOMPurify from "dompurify";
 import { makeResolvedParams } from "@pipelab/shared";
 import { ValidationError } from "@renderer/models/error";
 import AddNodeButton from "../AddNodeButton.vue";
 import type { ValueOf } from "type-fest";
-import { MenuItem } from "primevue";
+import type { MenuItem } from "primevue/menuitem";
 
 const props = defineProps({
   value: {
@@ -263,8 +266,9 @@ const hasErrors = computed(() => {
   return false;
 });
 
-const handleInput = (newValue: InputEvent) => {
-  const content = (newValue.target as HTMLDivElement)?.textContent;
+const handleInput = (newValue: Event) => {
+  const target = newValue.target;
+  const content = target instanceof HTMLElement ? (target.textContent ?? undefined) : undefined;
   console.log("content", content);
   setBlockValue(value.value.uid, {
     ...value.value,
@@ -286,7 +290,7 @@ const subtitle = ref("");
 
 const nodeDefinition = computed(() => {
   const def = getNodeDefinition(value.value.origin.nodeId, value.value.origin.pluginId);
-  if (def) {
+  if (def && def.node.type === "action") {
     return def.node;
   }
   return undefined;

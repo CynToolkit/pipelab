@@ -1,5 +1,6 @@
 import { PipelabContext, BuildHistoryStorage } from "@pipelab/core-node";
 import { getDefaultUserDataPath } from "../paths";
+import { join } from "node:path";
 
 function formatBytes(bytes: number, decimals = 2) {
   if (bytes === 0) return "0 Bytes";
@@ -25,7 +26,7 @@ export async function usageCommand(options: { userData?: string }) {
     "Oldest Entry": info.oldestEntry ? new Date(info.oldestEntry).toLocaleString() : "N/A",
     "Newest Entry": info.newestEntry ? new Date(info.newestEntry).toLocaleString() : "N/A",
     "User Data Path": info.userDataPath,
-    "Cache Path": info.cachePath,
+    "Cache Path": join(info.userDataPath, "build-history"),
   });
 
   console.log("\nRetention Policy:");

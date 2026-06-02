@@ -1,12 +1,10 @@
-import { useLogger } from "@pipelab/shared";
-import { isSupabaseAvailable } from "@pipelab/shared";
+import { useLogger, isSupabaseAvailable } from "@pipelab/shared";
+import type { Subscription } from "@polar-sh/sdk/models/components/subscription";
 import { AuthChangeEvent, Session, User, UserResponse } from "@supabase/supabase-js";
 import { useAPI } from "@renderer/composables/api";
 import { defineStore } from "pinia";
 import { computed, readonly, Ref, ref, shallowRef } from "vue";
 import posthog from "posthog-js";
-import { email } from "valibot";
-import { Subscription } from "@polar-sh/sdk/dist/commonjs/models/components/subscription";
 import { createEventHook } from "@vueuse/core";
 
 // Define a more comprehensive AuthStateType
@@ -37,11 +35,11 @@ export const useAuth = defineStore("auth", () => {
   const api = useAPI();
   api.on("auth:getUser", (data) => {
     logger.logger().info("[Auth] Received auth state change from backend:", data);
-    if (data.user) {
-      user.value = data.user;
-      posthog.identify(data.user.id, {
-        email: data.user.email,
-        is_anonymous: data.user.is_anonymous || false,
+    if (data.type === "end" && data.data.type === "success" && data.data.result.user) {
+      user.value = data.data.result.user;
+      posthog.identify(data.data.result.user.id, {
+        email: data.data.result.user.email,
+        is_anonymous: data.data.result.user.is_anonymous || false,
       });
       authState.value = "SIGNED_IN";
       fetchSubscription();

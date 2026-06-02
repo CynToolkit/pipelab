@@ -1,4 +1,5 @@
 // Build History Storage Types and Interfaces
+import { SandboxFolder } from "@pipelab/constants";
 
 export interface ExecutionStep {
   id: string;
@@ -86,6 +87,7 @@ export interface IBuildHistoryStorage {
       total: number;
       free: number;
       pipelab: number;
+      folders: Array<{ name: SandboxFolder; label: string; size: number }>;
     };
   }>;
 }

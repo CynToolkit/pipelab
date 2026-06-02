@@ -32,9 +32,13 @@ export type Position = {
 export const OriginValidator = object({
   pluginId: string(),
   nodeId: string(),
-  version: pipe(
-    optional(string()),
-    description('Pinned version of the plugin for this block. Falls back to "latest" when absent.'),
+  version: optional(
+    pipe(
+      string(),
+      description(
+        'Pinned version of the plugin for this block. Falls back to "latest" when absent.',
+      ),
+    ),
   ),
 });
 
@@ -53,7 +57,7 @@ export type EditorParam = InferOutput<typeof EditorParamValidatorV3>;
 const BlockActionValidatorV3 = object({
   type: literal("action"),
   uid: string(),
-  name: pipe(optional(string()), description("A custom name provided by the user")),
+  name: optional(pipe(string(), description("A custom name provided by the user"))),
   disabled: optional(boolean()),
   params: record(
     string(),

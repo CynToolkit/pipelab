@@ -1,15 +1,16 @@
 import { join } from "node:path";
 import { access, mkdir, chmod, rm } from "node:fs/promises";
 import { constants } from "node:fs";
-import { downloadFile, extractZip, generateTempFolder } from "@pipelab/plugin-core";
+import { downloadFile, extractZip, PipelabContext } from "@pipelab/plugin-core";
 
 /**
  * Installs itch.io butler CLI if not already present.
- * @param thirdpartyDir The directory where third-party tools are stored.
+ * @param context The PipelabContext instance.
  * @param version The version of butler to install.
  * @returns A Promise that resolves to the path of the butler executable.
  */
-export const ensureButler = async (thirdpartyDir: string, version = "LATEST") => {
+export const ensureButler = async (context: PipelabContext, version = "LATEST") => {
+  const thirdpartyDir = context.getThirdPartyPath();
   const butlerDir = join(thirdpartyDir, "butler", version);
   const isWindows = process.platform === "win32";
   const executableName = isWindows ? "butler.exe" : "butler";
@@ -43,7 +44,7 @@ export const ensureButler = async (thirdpartyDir: string, version = "LATEST") =>
   }
 
   const downloadUrl = `https://broth.itch.zone/butler/${butlerName}/${version}/archive/default`;
-  const tempDir = await generateTempFolder(join(thirdpartyDir, ".tmp"));
+  const tempDir = await context.createTempFolder("butler-setup-");
   const archivePath = join(tempDir, "butler.zip");
 
   console.log(`Downloading butler from ${downloadUrl}...`);

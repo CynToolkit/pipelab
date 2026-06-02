@@ -52,49 +52,54 @@
         </div>
 
         <div v-if="param === undefined">Oops</div>
-
-        <!-- Code editor -->
-        <div class="code-editor-wrapper">
-          <div class="code-editor-wrapper-inner">
-            <div v-show="param.editor === 'editor'" ref="$codeEditorText" class="code-editor"></div>
-            <ParamEditorBody
-              v-show="param.editor === 'simple'"
-              :model-value="simpleInputValue"
-              :param-definition="paramDefinition"
-              :value="value"
-              @update:model-value="onParamEditorUpdate"
-              @switch="toggleMode"
-            ></ParamEditorBody>
+        <template v-else>
+          <!-- Code editor -->
+          <div class="code-editor-wrapper">
+            <div class="code-editor-wrapper-inner">
+              <div
+                v-show="param.editor === 'editor'"
+                ref="$codeEditorText"
+                class="code-editor"
+              ></div>
+              <ParamEditorBody
+                v-show="param.editor === 'simple'"
+                :model-value="simpleInputValue"
+                :param-definition="paramDefinition"
+                :value="value"
+                @update:model-value="onParamEditorUpdate"
+                @switch="toggleMode"
+              ></ParamEditorBody>
+            </div>
+            <ConfirmPopup></ConfirmPopup>
+            <Button
+              v-if="param.editor === 'editor'"
+              v-tooltip="'Switch to simple mode'"
+              text
+              aria-label="Toggle mode"
+              @click="toggleMode"
+            >
+              <template #icon>
+                <i class="icon mdi mdi-text fs-16"></i>
+              </template>
+            </Button>
+            <Button
+              v-else
+              v-tooltip="'Switch to editor mode'"
+              text
+              aria-label="Toggle mode"
+              @click="toggleMode"
+            >
+              <template #icon>
+                <i class="icon mdi mdi-code-block-braces fs-16"></i>
+              </template>
+            </Button>
           </div>
-          <ConfirmPopup></ConfirmPopup>
-          <Button
-            v-if="param.editor === 'editor'"
-            v-tooltip="'Switch to simple mode'"
-            text
-            aria-label="Toggle mode"
-            @click="toggleMode"
-          >
-            <template #icon>
-              <i class="icon mdi mdi-text fs-16"></i>
-            </template>
-          </Button>
-          <Button
-            v-else
-            v-tooltip="'Switch to editor mode'"
-            text
-            aria-label="Toggle mode"
-            @click="toggleMode"
-          >
-            <template #icon>
-              <i class="icon mdi mdi-code-block-braces fs-16"></i>
-            </template>
-          </Button>
-        </div>
 
-        <!-- Hint text -->
-        <template v-if="param.editor === 'editor'">
-          <Skeleton v-if="hintText === undefined" height="20px"></Skeleton>
-          <div v-else v-dompurify-html="hintText" class="hint" :class="{ error: isError }"></div>
+          <!-- Hint text -->
+          <template v-if="param.editor === 'editor'">
+            <Skeleton v-if="hintText === undefined" height="20px"></Skeleton>
+            <div v-else v-dompurify-html="hintText" class="hint" :class="{ error: isError }"></div>
+          </template>
         </template>
 
         <!-- Floating indicator -->
@@ -261,7 +266,7 @@ const { nodes, vm } = storeToRefs(editor);
 const confirmSwitchMode = (event: MouseEvent) => {
   return new Promise<boolean>((resolve) => {
     confirm.require({
-      target: event.currentTarget,
+      target: event.currentTarget instanceof HTMLElement ? event.currentTarget : undefined,
       message:
         "Switching back to simple mode will delete all your changes. Are you sure you want to continue?",
       icon: "pi pi-exclamation-triangle",
@@ -283,14 +288,17 @@ const confirmSwitchMode = (event: MouseEvent) => {
   });
 };
 
-const toggleMode = async (event: MouseEvent) => {
+const toggleMode = async (event?: MouseEvent) => {
   const target = param.value?.editor === "simple" ? "editor" : "simple";
   let answer = true;
   let targetValue = klona(param.value?.value);
   if (target === "simple") {
-    event.preventDefault();
-
-    answer = await confirmSwitchMode(event);
+    if (event) {
+      event.preventDefault();
+      answer = await confirmSwitchMode(event);
+    } else {
+      answer = true;
+    }
     targetValue = paramDefinition.value.value;
   }
 
@@ -389,9 +397,9 @@ const doCodeEditorUpdate = async (newValue: string) => {
     isError.value = false;
 
     // update on code editor text change
-    if (newValue !== param.value?.value) {
+    if (param.value && newValue !== param.value.value) {
       emit("update:modelValue", {
-        editor: param.value?.editor,
+        editor: param.value.editor,
         value: newValue,
       });
     }
@@ -478,7 +486,7 @@ const resolveHintTextResult = (result: unknown) => {
 const simpleInputValue = ref<unknown>();
 
 const onParamEditorUpdate = (value: unknown) => {
-  insertEditorReplace(value !== undefined ? value.toString() : "");
+  insertEditorReplace(value != null ? value.toString() : "");
 };
 
 const isModalDisplayed = ref(false);
@@ -505,34 +513,40 @@ watch(
 const getOutputLabel = (stepUid: string, key: string) => {
   const nodeOrigin = nodes.value.find((n) => n.uid === stepUid)?.origin;
   if (nodeOrigin) {
-    const nodeDef = getNodeDefinition(nodeOrigin.nodeId, nodeOrigin.pluginId).node as Action;
-    if (nodeDef) {
-      return nodeDef.outputs[key]?.label ?? key;
+    const def = getNodeDefinition(nodeOrigin.nodeId, nodeOrigin.pluginId);
+    if (def) {
+      const nodeDef = def.node as Action;
+      if (nodeDef) {
+        return nodeDef.outputs[key]?.label ?? key;
+      }
     }
-    return key;
   }
   return key;
 };
 const isOutputDeprecated = (stepUid: string, key: string) => {
   const nodeOrigin = nodes.value.find((n) => n.uid === stepUid)?.origin;
   if (nodeOrigin) {
-    const nodeDef = getNodeDefinition(nodeOrigin.nodeId, nodeOrigin.pluginId).node as Action;
-    if (nodeDef) {
-      return nodeDef.outputs[key]?.deprecated ?? false;
+    const def = getNodeDefinition(nodeOrigin.nodeId, nodeOrigin.pluginId);
+    if (def) {
+      const nodeDef = def.node as Action;
+      if (nodeDef) {
+        return nodeDef.outputs[key]?.deprecated ?? false;
+      }
     }
-    return key;
   }
-  return key;
+  return false;
 };
 
 const getOutputDescription = (stepUid: string, key: string) => {
   const nodeOrigin = nodes.value.find((n) => n.uid === stepUid)?.origin;
   if (nodeOrigin) {
-    const nodeDef = getNodeDefinition(nodeOrigin.nodeId, nodeOrigin.pluginId).node as Action;
-    if (nodeDef) {
-      return nodeDef.outputs[key]?.description ?? key;
+    const def = getNodeDefinition(nodeOrigin.nodeId, nodeOrigin.pluginId);
+    if (def) {
+      const nodeDef = def.node as Action;
+      if (nodeDef) {
+        return nodeDef.outputs[key]?.description ?? key;
+      }
     }
-    return key;
   }
   return key;
 };

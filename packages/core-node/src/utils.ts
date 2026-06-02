@@ -18,7 +18,7 @@ import { constants, existsSync } from "node:fs";
 import { handleActionExecute } from "./handler-func";
 import { BuildHistoryStorage } from "./handlers/build-history";
 
-import { ensure, generateTempFolder, extractTarGz, extractZip, zipFolder } from "./utils/fs-extras";
+import { ensure, extractTarGz, extractZip, zipFolder } from "./utils/fs-extras";
 import { fetchPipelabAsset } from "./utils/remote";
 import { loadPipelabPlugin } from "./plugins-registry";
 import { setupConfigFile } from "./config";
@@ -120,7 +120,7 @@ export const executeGraphWithHistory = async ({
   }
 
   const logs: any[] = [];
-  const sandboxPath = await generateTempFolder(cachePath);
+  const sandboxPath = await ctx.createTempFolder("pipeline-sandbox-");
   const { logger } = useLogger();
   let completedSteps = 0;
   let failedSteps = 0;

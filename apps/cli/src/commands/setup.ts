@@ -73,11 +73,15 @@ export async function setupCommand(options: { userData?: string }) {
     process.exit(0);
   }
 
+  const theme = configChanges.theme === "light" ? "light" : "dark";
+  const localeValue = configChanges.locale;
+  const locale = isLocale(localeValue) ? localeValue : "en-US";
+
   // Save config (Fake save for now to avoid side effects in this demo if needed, but let's do it real)
   await settings.setConfig({
     ...config,
-    theme: configChanges.theme,
-    locale: configChanges.locale,
+    theme,
+    locale,
   });
 
   // 3. Integrations
@@ -105,4 +109,13 @@ export async function setupCommand(options: { userData?: string }) {
   );
 
   p.outro("Happy automating! 🚀");
+}
+
+function isLocale(
+  value: unknown,
+): value is "en-US" | "fr-FR" | "pt-BR" | "zh-CN" | "es-ES" | "de-DE" {
+  return (
+    typeof value === "string" &&
+    ["en-US", "fr-FR", "pt-BR", "zh-CN", "es-ES", "de-DE"].includes(value)
+  );
 }

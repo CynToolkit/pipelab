@@ -370,6 +370,7 @@ import { useRouter } from "vue-router";
 import { BlockAction, SavedFile } from "@pipelab/shared";
 import { useAPI } from "@renderer/composables/api";
 import { useToast } from "primevue/usetoast";
+// @ts-expect-error - tinykeys type resolution mismatch with moduleResolution
 import { tinykeys } from "tinykeys";
 import { useFiles } from "@renderer/store/files";
 import { klona } from "klona";

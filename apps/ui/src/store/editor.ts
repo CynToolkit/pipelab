@@ -11,7 +11,9 @@ import {
 import { Action, Event, PipelabNode, RendererNodeDefinition } from "@pipelab/shared";
 import { Variable } from "@pipelab/shared";
 import { defineStore, storeToRefs } from "pinia";
+// @ts-expect-error get-value has no type definitions
 import get from "get-value";
+// @ts-expect-error set-value has no type definitions
 import set from "set-value";
 import { AddNodeEvent, AddTriggerEvent } from "@renderer/components/AddNodeButton.model";
 import { useAppStore } from "./app";
@@ -456,6 +458,7 @@ export const useEditor = defineStore("editor", () => {
 
         const node: BlockAction = {
           uid: nanoid(),
+          name: nodeDefinition.name,
           type: nodeDefinition.type,
           origin: {
             nodeId: nodeDefinition.id,

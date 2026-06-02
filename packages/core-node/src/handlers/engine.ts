@@ -4,8 +4,7 @@ import { useLogger } from "@pipelab/shared";
 import { getFinalPlugins, executeGraphWithHistory } from "../utils";
 import { presets } from "../presets/list";
 import { handleActionExecute } from "../handler-func";
-import { generateTempFolder } from "../utils/fs-extras";
-import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { setupConfigFile } from "../config";
 import { AppConfig } from "@pipelab/shared";
 
@@ -82,10 +81,10 @@ export const registerEngineHandlers = (context: PipelabContext) => {
     const settings = await setupConfigFile<AppConfig>("settings", { context });
     const config = await settings.getConfig();
 
-    const cachePath = config?.cacheFolder || tmpdir();
-    const cwd = await generateTempFolder(cachePath);
+    const cachePath = join(context.userDataPath, "cache", "actions", pluginId, nodeId);
+    const cwd = await context.createTempFolder("action-execute-");
 
-    const mainWindow = undefined;
+    const mainWindow: undefined = undefined;
     abortControllerGraph = new AbortController();
 
     const signalPromise = new Promise((resolve, reject) => {
@@ -145,9 +144,9 @@ export const registerEngineHandlers = (context: PipelabContext) => {
     const effectiveProjectName = projectName || "Unnamed Project";
     const effectiveProjectPath = projectPath || "";
     const effectivePipelineId = pipelineId || "unknown";
-    const effectiveCachePath = config?.cacheFolder || tmpdir();
+    const effectiveCachePath = join(context.userDataPath, "cache", effectivePipelineId);
 
-    const mainWindow = undefined;
+    const mainWindow: undefined = undefined;
     abortControllerGraph = new AbortController();
 
     try {

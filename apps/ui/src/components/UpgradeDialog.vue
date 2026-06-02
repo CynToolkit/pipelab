@@ -29,9 +29,9 @@
             <h3>{{ plan.name }}</h3>
             <div v-for="(price, pIndex) in plan.prices" :key="pIndex">
               <span v-if="price.amountType === 'free'" class="price">Free</span>
-              <span v-else class="price">
+              <span v-else-if="price.amountType === 'fixed'" class="price">
                 {{ price.priceAmount / 100 }} {{ price.priceCurrency }} /
-                {{ price.recurringInterval }}
+                {{ plan.recurringInterval }}
               </span>
             </div>
           </div>
@@ -61,14 +61,17 @@
 import { ref, onMounted } from "vue";
 import { useAPI } from "@renderer/composables/api";
 import { useAuth } from "@renderer/store/auth";
-import { isSupabaseAvailable, supabase } from "@pipelab/shared";
+import { supabase } from "@pipelab/shared";
+import type { Product } from "@polar-sh/sdk/models/components/product";
+
+type Plan = Product;
 
 const emit = defineEmits(["close"]);
 const api = useAPI();
 const auth = useAuth();
 
 // State for plans, loading, and error
-const plans = ref([]);
+const plans = ref<Plan[]>([]);
 const isLoading = ref(false);
 const error = ref<string | null>(null);
 

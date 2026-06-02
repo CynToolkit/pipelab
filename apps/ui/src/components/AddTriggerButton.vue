@@ -49,10 +49,10 @@
                 >
                   <a
                     class="element flex align-items-center p-3 border-round w-full transition-colors transition-duration-150 cursor-pointer"
-                    style="border-radius: &quot;10px&quot;"
+                    style="border-radius: 10px"
                     :class="{
                       selected:
-                        selected?.triggerId === trigger.node.id && selected.pluginId === plugin.id,
+                        selected?.triggerId === trigger.node.id && selected?.pluginId === plugin.id,
                     }"
                   >
                     <i class="pi pi-home text-xl mr-3"></i>
@@ -129,9 +129,10 @@ const { logger } = useLogger();
 
 watchEffect(() => {
   if (visible.value === true) {
-    const el = $searchInput.value?.$el as HTMLInputElement;
+    // @ts-ignore - PrimeVue InputText public instance does not declare $el in type definitions
+    const el = $searchInput.value?.$el;
 
-    if (el) {
+    if (el instanceof HTMLInputElement) {
       el.focus();
     }
   }

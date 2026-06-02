@@ -3,7 +3,6 @@ import { setupConfigFile } from "./config";
 import { isDev, PipelabContext } from "./context";
 import { readFile, access, writeFile, mkdir } from "node:fs/promises";
 import { resolve, isAbsolute, join, dirname } from "node:path";
-import { tmpdir } from "node:os";
 import { savedFileMigrator } from "@pipelab/shared";
 import type { AppConfig } from "@pipelab/shared";
 import { registerMigrationHandlers } from "./migrations";

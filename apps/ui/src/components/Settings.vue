@@ -258,6 +258,30 @@
               <div class="detail-value text-sm">{{ formatSize(storageInfo.disk.free) }}</div>
             </div>
           </div>
+
+          <!-- Sandbox Subfolders Breakdown -->
+          <div
+            v-if="storageInfo?.disk?.folders && storageInfo.disk.folders.length > 0"
+            class="sandbox-breakdown-container mt-4 pt-4 border-t border-solid border-opacity-10 border-current"
+            style="border-top: 1px solid var(--surface-border)"
+          >
+            <h4 class="text-sm font-semibold mb-3 opacity-90">
+              {{ t("settings.storage-breakdown", "Pipelab Sandbox Directory Breakdown") }}
+            </h4>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div
+                v-for="folder in storageInfo?.disk?.folders"
+                :key="folder.name"
+                class="detail-item"
+              >
+                <div class="flex items-center gap-1.5 mb-0.5">
+                  <div class="dot pipelab-dot"></div>
+                  <span class="detail-label">{{ getFolderLabel(folder) }}</span>
+                </div>
+                <div class="detail-value text-sm">{{ formatSize(folder.size) }}</div>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div class="settings-group">
@@ -460,9 +484,14 @@
                 </div>
                 <div class="setting-action">
                   <span class="font-semibold text-sm text-color">
-                    {{ subscription.currency.toUpperCase() }}
-                    {{ (subscription.amount / 100).toFixed(2) }} /
-                    {{ subscription.recurringInterval }}
+                    {{ subscription.currency?.toUpperCase() ?? "" }}
+                    {{
+                      subscription.amount !== undefined
+                        ? (subscription.amount / 100).toFixed(2)
+                        : "0.00"
+                    }}
+                    /
+                    {{ subscription.recurringInterval ?? "" }}
                   </span>
                 </div>
               </div>
@@ -475,7 +504,9 @@
                 </div>
                 <div class="setting-action">
                   <span class="text-sm font-medium text-color">{{
-                    format(subscription.currentPeriodStart, "MMM dd, yyyy")
+                    subscription.currentPeriodStart
+                      ? format(subscription.currentPeriodStart, "MMM dd, yyyy")
+                      : ""
                   }}</span>
                 </div>
               </div>
@@ -490,7 +521,9 @@
                 </div>
                 <div class="setting-action">
                   <span class="text-sm font-medium text-color">{{
-                    format(subscription.currentPeriodEnd, "MMM dd, yyyy")
+                    subscription.currentPeriodEnd
+                      ? format(subscription.currentPeriodEnd, "MMM dd, yyyy")
+                      : ""
                   }}</span>
                 </div>
               </div>
@@ -636,6 +669,7 @@ import Select from "primevue/select";
 import { supabase } from "@pipelab/shared";
 import { useAuth } from "@renderer/store/auth";
 import { useBuildHistory } from "../store/build-history";
+import { SandboxFolder } from "@pipelab/constants";
 import UpgradeDialog from "@renderer/components/UpgradeDialog.vue";
 import { useAPI } from "@renderer/composables/api";
 import { websocketManager } from "@renderer/composables/websocket-manager";
@@ -791,6 +825,12 @@ const formatSize = (bytes: number): string => {
   const sizes = ["B", "KB", "MB", "GB", "TB"];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
+};
+
+const getFolderLabel = (folder: { name: SandboxFolder; label: string }) => {
+  const key = `settings.storage-${folder.name}`;
+  const translated = t(key as any);
+  return translated === key ? folder.label : translated;
 };
 
 const refreshStorageInfo = async () => {

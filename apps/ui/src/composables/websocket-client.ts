@@ -1,4 +1,4 @@
-import { Channels, Data, End, RequestId } from "@pipelab/shared";
+import { Channels, Data, End, Events, RequestId } from "@pipelab/shared";
 import { useLogger } from "@pipelab/shared";
 import { klona } from "klona";
 import { toRaw } from "vue";
@@ -42,6 +42,7 @@ export class WebSocketClient {
   private messageQueue: QueuedMessage[] = [];
   private reconnectTimeout: any = null;
   public currentUrl: string;
+  private isRenderer = false;
 
   constructor(private config: WebSocketClientConfig = {}) {
     let defaultUrl = `ws://localhost:${websocketPort}`;
@@ -169,13 +170,15 @@ export class WebSocketClient {
 
   private handleMessage(event: MessageEvent) {
     try {
-      const message: WebSocketMessage = JSON.parse(event.data);
+      const message: WebSocketMessage | { type: "event"; channel: string; data: any } = JSON.parse(
+        event.data,
+      );
 
       if (isWebSocketResponseMessage(message) || isWebSocketErrorMessage(message)) {
         if (this.listeners.has(message.requestId)) {
           this.listeners.get(message.requestId)!(message);
         }
-      } else if (message.type === "event" && "channel" in message) {
+      } else if ("type" in message && message.type === "event" && "channel" in message) {
         const channel = message.channel;
         const listeners = this.eventListeners.get(channel);
         if (listeners) {

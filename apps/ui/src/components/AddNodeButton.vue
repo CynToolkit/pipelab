@@ -140,7 +140,7 @@
                     class="element"
                     :class="{
                       selected:
-                        selected?.nodeId === node.node.id && selected.pluginId === plugin.id,
+                        selected?.nodeId === node.node.id && selected?.pluginId === plugin.id,
                     }"
                   >
                     <i class="pi" :class="node.node.icon || 'pi-box'"></i>
@@ -321,9 +321,10 @@ const getFallbackIcon = (name: string) => {
 
 watchEffect(() => {
   if (visible.value === true) {
-    const el = $searchInput.value?.$el as HTMLInputElement;
+    // @ts-ignore - PrimeVue InputText public instance does not declare $el in type definitions
+    const el = $searchInput.value?.$el;
 
-    if (el) {
+    if (el instanceof HTMLInputElement) {
       el.focus();
     }
   }

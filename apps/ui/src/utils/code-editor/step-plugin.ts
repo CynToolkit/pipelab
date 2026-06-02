@@ -46,8 +46,8 @@ class PlaceholderWidget extends WidgetType {
     const result = this.options.steps.value?.[this.nodeId]?.outputs[this.output];
 
     span.classList.add("step-placeholder");
-    if (result) {
-      span.innerHTML = result;
+    if (result !== undefined && result !== null) {
+      span.innerHTML = String(result);
     } else {
       span.textContent = "Step missing";
       span.classList.add("step-missing");

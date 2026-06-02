@@ -68,6 +68,7 @@ import { computedAsync } from "@vueuse/core";
 import { makeResolvedParams } from "@pipelab/shared";
 import ParamEditor from "./ParamEditor.vue";
 import { Event } from "@pipelab/shared";
+// @ts-expect-error - dompurify missing type declarations
 import DOMPurify from "dompurify";
 import PluginIcon from "./PluginIcon.vue";
 import { ValidationError } from "@renderer/models/error";

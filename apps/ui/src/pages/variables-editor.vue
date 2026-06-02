@@ -100,7 +100,7 @@ const onSave = () => {
       description: description.value,
       name: name.value,
     });
-  } else {
+  } else if (dialogId.value) {
     instanceUpdateVariable({
       id: dialogId.value,
       value: editorTextValue.value,

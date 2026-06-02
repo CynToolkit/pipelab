@@ -4,7 +4,7 @@ import { createMigrator, MigratorFactory } from "./createMigrator";
 import { Migrator, MigrationSchema } from "./migration";
 import { z } from "zod";
 
-export const withMigration = (obj: z.AnyZodObject) =>
+export const withMigration = (obj: z.ZodObject<any>) =>
   z
     .object({
       version: z.string(),

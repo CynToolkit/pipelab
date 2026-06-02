@@ -3,6 +3,7 @@ import { ref, computed, readonly } from "vue";
 import { useLogger } from "@pipelab/shared";
 import { useAuth } from "./auth";
 import { useAPI } from "@renderer/composables/api";
+import { SandboxFolder } from "@pipelab/constants";
 import type {
   BuildHistoryEntry,
   BuildHistoryQuery,
@@ -20,6 +21,7 @@ interface StorageInfo {
     total: number;
     free: number;
     pipelab: number;
+    folders: Array<{ name: SandboxFolder; label: string; size: number }>;
   };
 }
 
@@ -142,7 +144,7 @@ export const useBuildHistory = defineStore("build-history", () => {
           response.total > 0 ? Math.min(...response.entries.map((e) => e.startTime)) : undefined,
         newestEntry:
           response.total > 0 ? Math.max(...response.entries.map((e) => e.startTime)) : undefined,
-        disk: storageInfo.value?.disk || { total: 0, free: 0, pipelab: 0 },
+        disk: storageInfo.value?.disk || { total: 0, free: 0, pipelab: 0, folders: [] },
       };
     } catch (err) {
       const errorMessage =

@@ -249,17 +249,12 @@ export const registerPluginsHandlers = (context: PipelabContext) => {
   // Ensures all required plugin IDs are loaded, JIT-installing any that are missing.
   // Called before opening a pipeline in the editor.
   handle("plugin:ensure-loaded", async (_, { send, value }) => {
-    const { pluginIds, plugins } = value;
+    const { plugins } = value;
     const { plugins: registeredPlugins, registerPlugins } = usePlugins();
     const loaded: string[] = [];
     const failed: string[] = [];
 
     const pluginsToEnsure = new Set<string>();
-    if (Array.isArray(pluginIds)) {
-      for (const id of pluginIds) {
-        if (id) pluginsToEnsure.add(id);
-      }
-    }
     if (plugins && typeof plugins === "object") {
       for (const id of Object.keys(plugins)) {
         if (id) pluginsToEnsure.add(id);

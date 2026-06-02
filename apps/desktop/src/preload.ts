@@ -1,6 +1,15 @@
 import { contextBridge, ipcRenderer } from "electron";
 import { electronAPI } from "@electron-toolkit/preload";
 
+declare global {
+  interface Window {
+    electron: any;
+    pipelab: any;
+    version: string;
+    isPackaged: boolean;
+  }
+}
+
 let version = "1.0.0";
 try {
   const versionArg = process.argv.find((arg) => arg.startsWith("--app-version="));

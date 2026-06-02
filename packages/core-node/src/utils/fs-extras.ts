@@ -1,17 +1,7 @@
-import { mkdir, createWriteStream, createReadStream } from "node:fs";
+import { createWriteStream } from "node:fs";
 import { execa, Options, Subprocess } from "execa";
-import {
-  mkdir as mkdirP,
-  access,
-  writeFile,
-  realpath,
-  mkdtemp,
-  chmod,
-  stat,
-  readdir,
-} from "node:fs/promises";
+import { mkdir as mkdirP, writeFile, stat, readdir } from "node:fs/promises";
 import { join, dirname } from "node:path";
-import { tmpdir } from "node:os";
 import tar from "tar";
 import yauzl from "yauzl";
 import archiver from "archiver";
@@ -30,17 +20,6 @@ export const ensure = async (filesPath: string, defaultContent = "{}") => {
   } catch {
     await writeFile(filesPath, defaultContent);
   }
-};
-
-/**
- * Generates a unique temporary folder.
- */
-export const generateTempFolder = async (base?: string) => {
-  const targetBase = base || tmpdir();
-  await mkdirP(targetBase, { recursive: true });
-  const realPath = await realpath(targetBase);
-  const tempFolder = await mkdtemp(join(realPath, "pipelab-"));
-  return tempFolder;
 };
 
 /**

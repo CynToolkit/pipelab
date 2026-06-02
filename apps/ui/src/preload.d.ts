@@ -6,6 +6,8 @@ declare global {
     api: unknown;
     version?: string;
     isPackaged?: boolean;
+    isTest?: boolean;
+    isCI?: boolean;
     pipelab?: {
       versions?: {
         electron?: string;

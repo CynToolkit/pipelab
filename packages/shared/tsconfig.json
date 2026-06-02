@@ -3,9 +3,7 @@
   "compilerOptions": {
     "emitDeclarationOnly": true,
     "outDir": "dist",
-    "baseUrl": ".",
-    "typeRoots": ["./src"],
-    "types": ["global.d.ts", "wasm.d.ts"]
+    "baseUrl": "."
   },
   "include": ["src/**/*", "tests/**/*", "*.ts", "src/**/*.json"],
   "exclude": ["node_modules", "dist"],

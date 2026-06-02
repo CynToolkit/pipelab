@@ -75,7 +75,7 @@ function findProtocolUrl(args: string[], values: any, positionals: string[]): st
   if (pUrl) return pUrl;
 
   const startArgs = values["process-start-args"];
-  if (startArgs) {
+  if (typeof startArgs === "string" && startArgs) {
     if (startArgs.startsWith("pipelab://") || startArgs.startsWith("pipelab-beta://")) {
       return startArgs;
     }

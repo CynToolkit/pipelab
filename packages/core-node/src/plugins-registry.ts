@@ -203,7 +203,7 @@ export async function findInstalledPlugins(
   return installed;
 }
 
-export const builtInPlugins = async (options: { context: PipelabContext }) => {
+export const builtInPlugins = async (options: { context: PipelabContext }): Promise<void> => {
   console.log("[Plugins] Starting background plugin loading...");
 
   // Pre-ensure Node.js and PNPM once in parallel so plugins don't have to wait for them
@@ -318,6 +318,4 @@ export const builtInPlugins = async (options: { context: PipelabContext }) => {
       webSocketServer.broadcast("startup:progress", { type: "ready" });
     }, 2000);
   })();
-
-  return [];
 };

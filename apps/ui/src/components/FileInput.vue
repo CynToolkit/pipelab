@@ -14,6 +14,7 @@
 import { useLogger } from "@pipelab/shared";
 import { useAPI } from "@renderer/composables/api";
 import InputText from "primevue/inputtext";
+// @ts-expect-error - path-browserify missing type declarations
 import { extname } from "path-browserify";
 import { PROJECT_EXTENSION } from "@renderer/models/constants";
 import { toRefs } from "vue";
@@ -37,27 +38,18 @@ const hasExtension = (path: string) => {
 };
 
 const pickLocation = async () => {
-  const paths = await api.execute(
-    "dialog:showSaveDialog",
-    {
-      title: "Choose a new path",
-      properties: ["createDirectory", "showOverwriteConfirmation"],
-      filters: [{ name: "Pipelab Project", extensions: [PROJECT_EXTENSION] }],
-      defaultPath: defaultPath.value,
-    },
-    async (_, message) => {
-      const { type } = message;
-      if (type === "end") {
-        //
-      }
-    },
-  );
+  const paths = await api.execute("dialog:showSaveDialog", {
+    title: "Choose a new path",
+    properties: ["createDirectory", "showOverwriteConfirmation"],
+    filters: [{ name: "Pipelab Project", extensions: [PROJECT_EXTENSION] }],
+    defaultPath: defaultPath.value,
+  });
 
   if (paths.type === "error") {
     throw new Error(paths.ipcError);
   }
 
-  if (paths.result.canceled) {
+  if (paths.result.canceled || !paths.result.filePath) {
     logger().error("Save cancelled");
     return;
   }

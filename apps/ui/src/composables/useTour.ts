@@ -14,7 +14,7 @@ export function useTour(tourId: "dashboard" | "editor") {
       onHighlighted: (element, tourStep, { state }) => {
         const tours = { ...settings.value.tours };
         tours[tourId] = {
-          step: state.activeIndex,
+          step: state.activeIndex ?? 0,
           completed: state.activeIndex === tourSteps.length - 1,
         };
 

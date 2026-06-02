@@ -1,11 +1,11 @@
 import { PipelabContext } from "../context";
 import { join } from "node:path";
 import { writeFile, readFile, unlink, mkdir, stat, readdir } from "node:fs/promises";
-import { tmpdir } from "node:os";
 import { useLogger, BuildHistoryEntry, IBuildHistoryStorage, AppConfig } from "@pipelab/shared";
 import { setupConfigFile } from "../config";
 import checkDiskSpace from "check-disk-space";
 import { getFolderSize } from "../utils/fs-extras";
+import { SandboxFolder } from "@pipelab/constants";
 
 // Simplified storage - one file per pipeline containing array of build entries
 
@@ -294,6 +294,7 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
       total: number;
       free: number;
       pipelab: number;
+      folders: Array<{ name: SandboxFolder; label: string; size: number }>;
     };
   }> {
     try {
@@ -302,6 +303,16 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
 
       const diskSpace = await checkDiskSpace(this.context.userDataPath);
       const pipelabSize = await getFolderSize(this.context.userDataPath);
+
+      const folders = [];
+      for (const folder of this.context.getSandboxFolders()) {
+        const size = await getFolderSize(folder.path);
+        folders.push({
+          name: folder.name,
+          label: folder.label,
+          size,
+        });
+      }
 
       const settings = await setupConfigFile<AppConfig>("settings", { context: this.context });
       const config = await settings.getConfig();
@@ -326,6 +337,7 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
             total: diskSpace.size,
             free: diskSpace.free,
             pipelab: pipelabSize,
+            folders,
           },
         };
       }
@@ -359,6 +371,7 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
           total: diskSpace.size,
           free: diskSpace.free,
           pipelab: pipelabSize,
+          folders,
         },
       };
     } catch (error) {

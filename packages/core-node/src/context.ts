@@ -2,12 +2,17 @@ import { join, dirname, resolve } from "node:path";
 import { homedir, platform } from "node:os";
 import { fileURLToPath } from "node:url";
 import { existsSync } from "node:fs";
+import { mkdir, realpath, mkdtemp } from "node:fs/promises";
+import { SandboxFolder, DEFAULT_NODE_VERSION, DEFAULT_PNPM_VERSION } from "@pipelab/constants";
+
+// @ts-ignore import.meta is only allowed in ES Modules
+const metaUrl = typeof import.meta !== "undefined" ? import.meta.url : undefined;
 
 const _dirname =
   typeof __dirname !== "undefined"
     ? __dirname
-    : typeof import.meta !== "undefined" && import.meta.url
-      ? dirname(fileURLToPath(import.meta.url))
+    : metaUrl
+      ? dirname(fileURLToPath(metaUrl))
       : process.cwd();
 
 export const isDev = process.env.NODE_ENV === "development";
@@ -70,5 +75,49 @@ export class PipelabContext {
 
   getConfigPath(...subpaths: string[]) {
     return join(this.userDataPath, "config", ...subpaths);
+  }
+
+  getTempPath(...subpaths: string[]) {
+    return join(this.userDataPath, "temp", ...subpaths);
+  }
+
+  async createTempFolder(prefix = "pipelab-") {
+    const baseDir = this.getTempPath();
+    await mkdir(baseDir, { recursive: true });
+    const realBaseDir = await realpath(baseDir);
+    return await mkdtemp(join(realBaseDir, prefix));
+  }
+
+  getCachePath(...subpaths: string[]) {
+    return join(this.userDataPath, "cache", ...subpaths);
+  }
+
+  getPnpmPath(...subpaths: string[]) {
+    return join(this.userDataPath, "pnpm", ...subpaths);
+  }
+
+  getNodePath(version = DEFAULT_NODE_VERSION) {
+    const isWindows = process.platform === "win32";
+    return this.getThirdPartyPath("node", version, isWindows ? "node.exe" : "bin/node");
+  }
+
+  getPnpmBinPath(version = DEFAULT_PNPM_VERSION) {
+    return this.getPackagesPath("pnpm", version, "bin", "pnpm.cjs");
+  }
+
+  getSandboxFolders(): Array<{ name: SandboxFolder; label: string; path: string }> {
+    const foldersRecord: Record<SandboxFolder, { label: string; path: string }> = {
+      [SandboxFolder.Packages]: { label: "Packages", path: this.getPackagesPath() },
+      [SandboxFolder.ThirdParty]: { label: "Third-Party Tools", path: this.getThirdPartyPath() },
+      [SandboxFolder.Config]: { label: "Configuration", path: this.getConfigPath() },
+      [SandboxFolder.Temp]: { label: "Temporary Files", path: this.getTempPath() },
+      [SandboxFolder.Cache]: { label: "Cache", path: this.getCachePath() },
+      [SandboxFolder.Pnpm]: { label: "PNPM Home", path: this.getPnpmPath() },
+    };
+
+    return (Object.keys(foldersRecord) as SandboxFolder[]).map((key) => ({
+      name: key,
+      ...foldersRecord[key],
+    }));
   }
 }

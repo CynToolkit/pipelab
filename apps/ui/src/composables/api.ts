@@ -116,12 +116,12 @@ export const useAPI = () => {
             if (log.type === "node-enter") {
               listener?.({
                 type: "node-enter",
-                data: { nodeUid: log.node_uid },
+                data: { nodeUid: log.node_uid, nodeName: log.node_name || "" },
               });
             } else if (log.type === "node-exit") {
               listener?.({
                 type: "node-exit",
-                data: { nodeUid: log.node_uid },
+                data: { nodeUid: log.node_uid, nodeName: log.node_name || "" },
               });
             } else if (log.type === "log") {
               listener?.({

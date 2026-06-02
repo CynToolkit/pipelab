@@ -83,14 +83,22 @@ import { useUIStore } from "../store/ui";
 import { useAPI } from "../composables/api";
 import { useLogger } from "@pipelab/shared";
 
+interface FileItem {
+  name: string;
+  isDirectory: boolean;
+  isSymbolicLink: boolean;
+  size: number;
+  mtime: number;
+}
+
 const uiStore = useUIStore();
 const api = useAPI();
 const { logger } = useLogger();
 
 const options = computed(() => uiStore.filePickerOptions);
 const currentPath = ref("");
-const files = ref([]);
-const selectedFile = ref(null);
+const files = ref<FileItem[]>([]);
+const selectedFile = ref<FileItem | null>(null);
 const saveFileName = ref("");
 const isLoading = ref(false);
 

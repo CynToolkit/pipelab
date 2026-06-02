@@ -1,5 +1,4 @@
 import { dirname, delimiter, join } from "node:path";
-import { tmpdir } from "node:os";
 import {
   mkdir,
   readdir,
@@ -17,10 +16,9 @@ import semver from "semver";
 import { isDev, projectRoot, PipelabContext } from "../context";
 import { execa } from "execa";
 import { sendStartupProgress } from "../server";
-import { downloadFile, extractZip, extractTarGz, generateTempFolder } from "./fs-extras";
+import { downloadFile, extractZip, extractTarGz } from "./fs-extras";
 
-export const DEFAULT_NODE_VERSION = "24.14.1";
-export const DEFAULT_PNPM_VERSION = "10.12.0";
+import { DEFAULT_NODE_VERSION, DEFAULT_PNPM_VERSION } from "@pipelab/constants";
 
 function isPackageComplete(packageDir: string): boolean {
   return existsSync(join(packageDir, "package.json"));
@@ -324,7 +322,7 @@ export async function ensureNodeJS(context: PipelabContext, version = DEFAULT_NO
 
     const fileName = `node-v${version}-${downloadPlatform}-${arch}.${extension}`;
     const downloadUrl = `https://nodejs.org/dist/v${version}/${fileName}`;
-    const tempDir = await generateTempFolder(tmpdir());
+    const tempDir = await context.createTempFolder("node-download-");
     const archivePath = join(tempDir, fileName);
 
     sendStartupProgress(`Downloading Node.js v${version}...`);

@@ -78,8 +78,8 @@
 
 <script setup lang="ts">
 import { computed, inject } from "vue";
-import { useBuildHistory } from "../renderer/store/build-history";
-import { useAuth } from "../renderer/store/auth";
+import { useBuildHistory } from "@renderer/store/build-history";
+import { useAuth } from "@renderer/store/auth";
 import { storeToRefs } from "pinia";
 
 // Composables

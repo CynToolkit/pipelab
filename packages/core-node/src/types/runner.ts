@@ -35,6 +35,7 @@ export type ActionRunnerData<ACTION extends Action> = {
   setMeta: (callback: (data: ACTION["meta"]) => ACTION["meta"]) => void;
   meta: ACTION["meta"];
   cwd: string;
+  /** @deprecated Use `context` instead to resolve sandboxed folders and binary paths. */
   paths: {
     cache: string;
     pnpm: string;

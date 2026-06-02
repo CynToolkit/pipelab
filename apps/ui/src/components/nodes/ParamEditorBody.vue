@@ -226,8 +226,8 @@ const onParamSelectChange = (event: ListboxChangeEvent) => {
   emit("update:modelValue", `"${event.value}"`);
 };
 
-const onParamInputTextChange = (event: string) => {
-  emit("update:modelValue", `"${event}"`);
+const onParamInputTextChange = (event: string | undefined) => {
+  emit("update:modelValue", `"${event ?? ""}"`);
 };
 
 // const onParamInputNumberChange = (event: number) => {
@@ -261,7 +261,7 @@ const booleanOptions = [
 ];
 
 const modelValueString = computed(() => {
-  if (modelValue.value === undefined) {
+  if (modelValue.value === undefined || modelValue.value === null) {
     return "";
   }
   return modelValue.value.toString();

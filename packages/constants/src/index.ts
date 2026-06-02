@@ -77,3 +77,17 @@ export const getUiDevServerMissingWarning = () => `
   Please ensure the UI dev server is running:
     '${uiDevServerInstruction}'
 --------------------------------------------------------------------------------`;
+
+export const SandboxFolder = {
+  Packages: "packages",
+  ThirdParty: "thirdparty",
+  Config: "config",
+  Temp: "temp",
+  Cache: "cache",
+  Pnpm: "pnpm",
+} as const;
+
+export type SandboxFolder = (typeof SandboxFolder)[keyof typeof SandboxFolder];
+
+export const DEFAULT_NODE_VERSION = "24.14.1";
+export const DEFAULT_PNPM_VERSION = "10.12.0";
