@@ -33,6 +33,7 @@ Goal: Ensure the application remains 100% functional in both development and pro
 - [ ] **Type Safety**: Resolve the 8 remaining type errors in `apps/ui` reported during `turbo typecheck` (mostly related to PrimeVue components and optional refs).
 - [ ] **External Deps**: Audit `apps/desktop/vite.base.config.mts`'s `external` list. Ensure no `@pipelab/*` packages are accidentally externalized in the bundle.
 - [ ] **IPC Routing**: Ensure `dialog:showOpenDialog` and `dialog:showSaveDialog` are correctly routed to Electron even when the UI is loaded from a remote URL.
+- [ ] **Offline Boot & UI Reflection**: Load the complete interface even when no agents are connected, and reflect the offline state in the UI (hide or disable relevant UI items).
 
 ---
 
