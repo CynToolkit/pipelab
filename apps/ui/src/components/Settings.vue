@@ -178,21 +178,23 @@
 
         <div v-if="storageInfo && storageInfo.disk" class="storage-card mb-4">
           <div class="card-header mb-3">
-            <div class="flex items-center gap-2">
-              <i class="pi pi-database text-primary text-lg"></i>
-              <span class="text-base font-bold tracking-tight">{{ t("settings.disk-usage") }}</span>
+            <div class="card-header-left">
+              <div class="card-header-title">
+                <i class="pi pi-database"></i>
+                <span>{{ t("settings.disk-usage") }}</span>
+              </div>
               <Button
                 v-tooltip.top="'Refresh storage info'"
                 text
                 severity="secondary"
                 size="small"
-                class="ml-1"
+                class="card-header-icon-btn"
                 @click="refreshStorageInfo"
               >
-                <i class="pi pi-refresh text-xs"></i>
+                <i class="pi pi-refresh"></i>
               </Button>
             </div>
-            <div class="text-xs font-semibold opacity-60">
+            <div class="card-header-right">
               {{ formatSize(storageInfo.disk.total - storageInfo.disk.free) }} /
               {{ formatSize(storageInfo.disk.total) }}
             </div>
@@ -231,14 +233,14 @@
 
           <div class="usage-details grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div class="detail-item">
-              <div class="flex items-center gap-1.5 mb-0.5">
+              <div class="flex items-center gap-1.5 mb-0.5 dot-container">
                 <div class="dot pipelab-dot"></div>
                 <span class="detail-label">{{ t("settings.storage-pipelab") }}</span>
               </div>
               <div class="detail-value text-sm">{{ formatSize(storageInfo.disk.pipelab) }}</div>
             </div>
             <div class="detail-item">
-              <div class="flex items-center gap-1.5 mb-0.5">
+              <div class="flex items-center gap-1.5 mb-0.5 dot-container">
                 <div class="dot other-dot"></div>
                 <span class="detail-label">{{ t("settings.storage-other") }}</span>
               </div>
@@ -251,7 +253,7 @@
               </div>
             </div>
             <div class="detail-item">
-              <div class="flex items-center gap-1.5 mb-0.5">
+              <div class="flex items-center gap-1.5 mb-0.5 dot-container">
                 <div class="dot free-dot"></div>
                 <span class="detail-label">{{ t("settings.storage-free") }}</span>
               </div>
@@ -262,8 +264,7 @@
           <!-- Sandbox Subfolders Breakdown -->
           <div
             v-if="storageInfo?.disk?.folders && storageInfo.disk.folders.length > 0"
-            class="sandbox-breakdown-container mt-4 pt-4 border-t border-solid border-opacity-10 border-current"
-            style="border-top: 1px solid var(--surface-border)"
+            class="sandbox-breakdown-container mt-4"
           >
             <h4 class="text-sm font-semibold mb-3 opacity-90">
               {{ t("settings.storage-breakdown", "Pipelab Sandbox Directory Breakdown") }}
@@ -274,7 +275,7 @@
                 :key="folder.name"
                 class="detail-item"
               >
-                <div class="flex items-center gap-1.5 mb-0.5">
+                <div class="flex items-center gap-1.5 mb-0.5 dot-container">
                   <div class="dot pipelab-dot"></div>
                   <span class="detail-label">{{ getFolderLabel(folder) }}</span>
                 </div>
@@ -1441,6 +1442,61 @@ const getSelectedPluginDescription = (section: string) => {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 12px;
+  }
+
+  .card-header-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .card-header-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    font-size: 0.9rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: var(--text-color);
+
+    i {
+      font-size: 14px;
+      line-height: 1;
+      color: var(--primary-color);
+    }
+
+    span {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+  }
+
+  .card-header-icon-btn {
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    flex-shrink: 0;
+
+    i {
+      font-size: 12px;
+      line-height: 1;
+    }
+  }
+
+  .card-header-right {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--text-color-secondary);
+    opacity: 0.8;
+    white-space: nowrap;
   }
 
   .usage-bar-container {
@@ -1476,7 +1532,7 @@ const getSelectedPluginDescription = (section: string) => {
   }
 
   .detail-item {
-    padding: 0.6rem 0.8rem;
+    padding: 0.55rem 0.75rem;
     background: var(--surface-card);
     border-radius: 12px;
     border: 1px solid var(--surface-border);
@@ -1484,9 +1540,8 @@ const getSelectedPluginDescription = (section: string) => {
     cursor: default;
 
     &:hover {
-      border-color: var(--primary-color);
-      transform: translateY(-2px);
-      background: var(--surface-section);
+      border-color: var(--surface-border);
+      background: var(--surface-hover);
     }
   }
 
@@ -1499,16 +1554,24 @@ const getSelectedPluginDescription = (section: string) => {
   }
 
   .detail-value {
-    font-size: 1.25rem;
-    font-weight: 800;
-    font-family: "Inter", sans-serif;
+    font-size: 0.95rem;
+    font-weight: 700;
   }
 
   .dot {
-    width: 10px;
-    height: 10px;
+    width: 9px;
+    height: 9px;
     border-radius: 3px;
+    flex-shrink: 0;
+    position: relative;
+    top: 0.5px;
   }
+
+
+.sandbox-breakdown-container {
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--surface-border);
+}
 
   .pipelab-dot {
     background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
@@ -1539,5 +1602,11 @@ const getSelectedPluginDescription = (section: string) => {
     font-size: 0.9rem;
     color: var(--text-color-secondary);
   }
+}
+
+.dot-container {
+  display:  flex;
+  align-items: center;
+  gap: 8px;
 }
 </style>

@@ -9,12 +9,13 @@
               <i class="mdi mdi-folder mr-2"></i>
               Projects
             </div>
-            <div class="flex gap-1">
+            <div class="project-header-actions">
               <Button
                 id="tour-add-project"
                 v-tooltip.top="!hasMultipleProjectsBenefit ? $t('home.premium-feature') : undefined"
                 text
                 size="small"
+                class="drawer-header-icon-btn"
                 @click="onCreateProjectClick"
               >
                 <i class="icon mdi mdi-plus fs-16"></i>
@@ -256,29 +257,28 @@
       v-model:visible="isNewProjectModalVisible"
       modal
       :style="{ width: '400px', maxWidth: '90vw' }"
+      :pt="{ root: { class: 'new-pipeline-dialog' } }"
     >
       <template #header>
         <div class="flex flex-column w-full">
-          <p class="text-xl text-center">{{ $t("home.new-project") }}</p>
+          <p class="dialog-title">{{ $t("home.new-project") }}</p>
         </div>
       </template>
 
       <div class="new-project">
-        <div class="grid justify-content-center">
-          <div class="col-12 xl:col-6 w-full">
-            <div class="h-full w-full">
-              <div class="mb-1">{{ $t("home.project-name") }}</div>
-              <div class="mb-2">
-                <InputText v-model="newProjectName" class="w-full"> </InputText>
-              </div>
+        <div class="form-section">
+          <label class="form-label">{{ $t("home.project-name") }}</label>
+          <InputText
+            v-model="newProjectName"
+            class="w-full"
+            size="small"
+          />
+        </div>
 
-              <div class="buttons">
-                <Button :disabled="!canCreateProject" @click="onNewProjectCreation">{{
-                  $t("home.create-project")
-                }}</Button>
-              </div>
-            </div>
-          </div>
+        <div class="dialog-footer">
+          <Button :disabled="!canCreateProject" size="small" @click="onNewProjectCreation">{{
+            $t("home.create-project")
+          }}</Button>
         </div>
       </div>
     </Dialog>
@@ -286,106 +286,109 @@
     <Dialog
       v-model:visible="isNewPipelineModalVisible"
       modal
-      :style="{ width: '550px', maxWidth: '95vw' }"
+      :style="{ width: '480px', maxWidth: '95vw' }"
+      :pt="{ root: { class: 'new-pipeline-dialog' } }"
     >
       <template #header>
         <div class="flex flex-column w-full">
-          <p class="text-xl text-center">{{ $t("home.new-pipeline") }}</p>
+          <p class="dialog-title">{{ $t("home.new-pipeline") }}</p>
         </div>
       </template>
 
       <div class="new-pipeline">
-        <div class="grid justify-content-center">
-          <div class="col-12 xl:col-6 w-full">
-            <div class="h-full w-full">
-              <div class="mb-1">{{ $t("home.pipeline-name") }}</div>
-              <div class="mb-2">
-                <InputText
-                  v-model="newProjectName"
-                  class="w-full"
-                  placeholder="My awesome pipeline"
-                >
-                </InputText>
-              </div>
+        <div class="form-section">
+          <label class="form-label">{{ $t("home.pipeline-name") }}</label>
+          <InputText
+            v-model="newProjectName"
+            class="w-full"
+            placeholder="My awesome pipeline"
+            size="small"
+          />
+        </div>
 
-              <div class="mb-1">Pipeline Description (optional)</div>
-              <div class="mb-3">
-                <Textarea
-                  v-model="newProjectDescription"
-                  class="w-full"
-                  rows="2"
-                  placeholder="Describe what this pipeline does..."
-                ></Textarea>
-              </div>
+        <div class="form-section">
+          <label class="form-label">Description <span class="optional">(optional)</span></label>
+          <Textarea
+            v-model="newProjectDescription"
+            class="w-full"
+            rows="2"
+            placeholder="Describe what this pipeline does..."
+          />
+        </div>
 
-              <div v-if="false" class="field-checkbox mb-2 flex align-items-center">
-                <Checkbox
-                  v-model="isCloudProject"
-                  binary
-                  input-id="cloudProject"
-                  :disabled="!hasCloudSaveBenefit"
-                />
-                <label for="cloudProject" class="cursor-pointer ml-2 flex align-items-center">
-                  {{ $t("home.store-project-on-the-cloud") }}
-                  <i
-                    v-if="!hasCloudSaveBenefit"
-                    v-tooltip="$t('home.premium-feature')"
-                    class="mdi mdi-crown text-yellow-500 ml-2"
-                  ></i>
-                </label>
-              </div>
+        <div v-if="false" class="field-checkbox mb-2 flex align-items-center">
+          <Checkbox
+            v-model="isCloudProject"
+            binary
+            input-id="cloudProject"
+            :disabled="!hasCloudSaveBenefit"
+          />
+          <label for="cloudProject" class="cursor-pointer ml-2 flex align-items-center">
+            {{ $t("home.store-project-on-the-cloud") }}
+            <i
+              v-if="!hasCloudSaveBenefit"
+              v-tooltip="$t('home.premium-feature')"
+              class="mdi mdi-crown text-yellow-500 ml-2"
+            ></i>
+          </label>
+        </div>
 
-              <!-- Internal storage doesn't need path input -->
-              <!-- <div v-if="newPipelineType && newPipelineType.value === 'local'" class="location">
-                <FileInput
-                  v-model="newProjectLocalLocation"
-                  :default-path="newProjectNamePathified"
-                ></FileInput>
-              </div> -->
+        <!-- Internal storage doesn't need path input -->
+        <!-- <div v-if="newPipelineType && newPipelineType.value === 'local'" class="location">
+          <FileInput
+            v-model="newProjectLocalLocation"
+            :default-path="newProjectNamePathified"
+          ></FileInput>
+        </div> -->
 
-              <div class="presets">
-                <div v-if="newProjectData">
-                  <div :class="{ active: true }" class="preset">
-                    <div class="preset-title">{{ newProjectData.name }}</div>
-                    <div>{{ newProjectData.description }}</div>
-                    <div class="selection-icon">
-                      <i class="mdi mdi-check-circle mr-2 fs-24"></i>
-                    </div>
-                  </div>
+        <div class="presets-section">
+          <label class="form-label">Template</label>
+          <div class="presets">
+            <div v-if="newProjectData">
+              <div :class="{ active: true }" class="preset">
+                <div class="preset-content">
+                  <div class="preset-title">{{ newProjectData.name }}</div>
+                  <div class="preset-description">{{ newProjectData.description }}</div>
                 </div>
-                <template v-else>
-                  <div
-                    v-for="(preset, key) of newPipelinePresets"
-                    :key="key"
-                    :class="{ active: newProjectPreset === key, disabled: preset.disabled }"
-                    class="preset"
-                    @click="newProjectPreset = key"
-                  >
-                    <div class="preset-title">{{ preset.data.name }}</div>
-                    <div>{{ preset.data.description }}</div>
-                    <div v-if="preset.hightlight" class="highlight-icon">
-                      <i class="mdi mdi-star-circle-outline mr-2 fs-24"></i>
-                    </div>
-                    <div v-if="newProjectPreset === key" class="selection-icon">
-                      <i class="mdi mdi-check-circle mr-2 fs-24"></i>
-                    </div>
-                  </div>
-                </template>
-              </div>
-
-              <div class="buttons">
-                <Button
-                  v-if="newProjectData"
-                  :disabled="!canCreatePipeline"
-                  @click="onNewFileCreation(newProjectData)"
-                  >{{ $t("home.duplicate-project") }}</Button
-                >
-                <Button v-else :disabled="!canCreatePipeline" @click="onNewFileCreation()">{{
-                  $t("home.create-project")
-                }}</Button>
+                <i class="mdi mdi-check-circle preset-check"></i>
               </div>
             </div>
+            <template v-else>
+              <div
+                v-for="(preset, key) of newPipelinePresets"
+                :key="key"
+                :class="{ active: newProjectPreset === key, disabled: preset.disabled }"
+                class="preset"
+                @click="newProjectPreset = key"
+              >
+                <div class="preset-content">
+                  <div class="preset-title">
+                    {{ preset.data.name }}
+                    <i
+                      v-if="preset.hightlight"
+                      v-tooltip="'Recommended'"
+                      class="mdi mdi-star-circle-outline preset-star"
+                    ></i>
+                  </div>
+                  <div class="preset-description">{{ preset.data.description }}</div>
+                </div>
+                <i v-if="newProjectPreset === key" class="mdi mdi-check-circle preset-check"></i>
+              </div>
+            </template>
           </div>
+        </div>
+
+        <div class="dialog-footer">
+          <Button
+            v-if="newProjectData"
+            :disabled="!canCreatePipeline"
+            size="small"
+            @click="onNewFileCreation(newProjectData)"
+            >{{ $t("home.duplicate-project") }}</Button
+          >
+          <Button v-else :disabled="!canCreatePipeline" size="small" @click="onNewFileCreation()">{{
+            $t("home.create-project")
+          }}</Button>
         </div>
       </div>
     </Dialog>
@@ -1266,6 +1269,23 @@ onMounted(() => {
       color: var(--p-text-muted-color);
       display: flex;
       align-items: center;
+      height: 28px;
+      line-height: 1;
+    }
+
+    .project-header-actions {
+      display: flex;
+      gap: 4px;
+    }
+
+    :deep(.drawer-header-icon-btn) {
+      width: 28px;
+      height: 28px;
+      padding: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px;
     }
   }
 
@@ -1658,63 +1678,102 @@ onMounted(() => {
   }
 }
 
-/* ─── Presets Grid ──────────────────────────────────────── */
+/* ─── New Pipeline Dialog ──────────────────────────────── */
+.new-pipeline-dialog {
+  :deep(.p-dialog-header) {
+    padding: 16px 20px 8px;
+    border-bottom: none;
+  }
+
+  :deep(.p-dialog-content) {
+    padding: 8px 20px 20px;
+  }
+}
+
+.dialog-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  text-align: center;
+  margin: 0;
+  color: var(--p-text-color);
+}
+
+.new-pipeline {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.new-project {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.form-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--p-text-color);
+  letter-spacing: -0.01em;
+
+  .optional {
+    font-weight: 400;
+    color: var(--p-text-muted-color);
+    margin-left: 2px;
+  }
+}
+
+.presets-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
 .presets {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 12px;
-  margin-top: 16px;
-  margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 
   .preset {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
     border: 1px solid var(--p-surface-200);
-    overflow: hidden;
-    border-radius: 10px;
-    padding: 12px;
-    position: relative;
-    height: 100px;
+    border-radius: 8px;
+    padding: 10px 12px;
     background: var(--p-surface-0);
     transition: all 0.15s ease;
+    cursor: pointer;
+    min-height: 52px;
 
     :root.dark & {
       border-color: var(--p-surface-700);
-      background: var(--p-surface-800);
+      background: var(--p-surface-850);
     }
 
     &:hover {
-      cursor: pointer;
       border-color: var(--p-surface-300);
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 
       :root.dark & {
         border-color: var(--p-surface-600);
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
       }
     }
 
-    .preset-title {
-      font-size: 1rem;
-      font-weight: 600;
-      margin-bottom: 4px;
-      color: var(--p-text-color);
-    }
-
-    .highlight-icon {
-      position: absolute;
-      right: 8px;
-      top: 8px;
-    }
-
-    .selection-icon {
-      position: absolute;
-      right: 8px;
-      bottom: 8px;
-    }
-
     &.active {
-      cursor: pointer;
       border-color: var(--p-primary-color);
-      box-shadow: 0 0 0 1px var(--p-primary-color);
+      background: color-mix(in srgb, var(--p-primary-color) 6%, var(--p-surface-0));
+
+      :root.dark & {
+        background: color-mix(in srgb, var(--p-primary-color) 10%, var(--p-surface-850));
+      }
     }
 
     &.disabled {
@@ -1722,17 +1781,55 @@ onMounted(() => {
       opacity: 0.5;
     }
   }
-}
 
-@media screen and (width < 1280px) {
-  .presets {
-    grid-template-columns: 1fr 1fr;
+  .preset-content {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    flex: 1;
+  }
+
+  .preset-title {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--p-text-color);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .preset-star {
+    font-size: 14px;
+    color: #f59e0b;
+  }
+
+  .preset-description {
+    font-size: 0.75rem;
+    color: var(--p-text-muted-color);
+    line-height: 1.35;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+
+  .preset-check {
+    font-size: 18px;
+    color: var(--p-primary-color);
+    flex-shrink: 0;
   }
 }
 
-@media screen and (width < 960px) {
-  .presets {
-    grid-template-columns: 1fr;
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 4px;
+
+  :deep(.p-button) {
+    padding: 6px 14px;
+    font-size: 0.825rem;
   }
 }
 

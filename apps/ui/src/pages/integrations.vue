@@ -5,22 +5,22 @@
       <div class="main-layout">
         <!-- Sidebar Drawer (Lists installed plugins) -->
         <div class="drawer">
-          <div
-            class="drawer-header flex justify-between items-center px-3 py-2 border-b border-surface-200 dark:border-surface-800"
-          >
-            <span class="drawer-title font-bold text-xs uppercase tracking-wider opacity-75"
-              >Plugins</span
-            >
-            <Button
-              icon="pi pi-globe"
-              severity="secondary"
-              text
-              rounded
-              size="small"
-              class="!w-7 !h-7 !flex !items-center !justify-center !p-0 scale-90"
-              v-tooltip.top="'Explore Marketplace'"
-              @click="isMarketplaceVisible = true"
-            />
+          <div class="drawer-header">
+            <div class="drawer-header-left">
+              <i class="mdi mdi-puzzle-outline mr-2"></i>
+              Plugins
+            </div>
+            <div class="drawer-header-actions">
+              <Button
+                text
+                size="small"
+                class="drawer-header-icon-btn"
+                v-tooltip.top="'Explore Marketplace'"
+                @click="isMarketplaceVisible = true"
+              >
+                <i class="icon mdi mdi-earth fs-16"></i>
+              </Button>
+            </div>
           </div>
 
           <!-- Search Filter for Plugins -->
@@ -786,6 +786,39 @@ const uninstallPlugin = async (packageName: string) => {
   display: flex;
   height: 100%;
   width: 100%;
+}
+
+.drawer-header {
+  padding: 12px 12px 6px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.drawer-header-left {
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--p-text-muted-color);
+  display: flex;
+  align-items: center;
+}
+
+.drawer-header-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.drawer-header-icon-btn {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
 }
 
 /* ─── Drawer ────────────────────────────────────────────── */
