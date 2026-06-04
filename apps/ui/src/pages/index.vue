@@ -268,11 +268,7 @@
       <div class="new-project">
         <div class="form-section">
           <label class="form-label">{{ $t("home.project-name") }}</label>
-          <InputText
-            v-model="newProjectName"
-            class="w-full"
-            size="small"
-          />
+          <InputText v-model="newProjectName" class="w-full" size="small" />
         </div>
 
         <div class="dialog-footer">

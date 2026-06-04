@@ -1567,11 +1567,10 @@ const getSelectedPluginDescription = (section: string) => {
     top: 0.5px;
   }
 
-
-.sandbox-breakdown-container {
-  padding-top: 0.85rem;
-  border-top: 1px solid var(--surface-border);
-}
+  .sandbox-breakdown-container {
+    padding-top: 0.85rem;
+    border-top: 1px solid var(--surface-border);
+  }
 
   .pipelab-dot {
     background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
@@ -1605,7 +1604,7 @@ const getSelectedPluginDescription = (section: string) => {
 }
 
 .dot-container {
-  display:  flex;
+  display: flex;
   align-items: center;
   gap: 8px;
 }
