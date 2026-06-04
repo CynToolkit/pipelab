@@ -38,7 +38,8 @@
   "scripts": {
     "build": "tsdown",
     "format": "oxfmt .",
-    "lint": "oxlint ."
+    "lint": "oxlint .",
+    "typecheck": "tsc -b"
   },
   "dependencies": {
     "@jitl/quickjs-singlefile-mjs-release-sync": "0.31.0",

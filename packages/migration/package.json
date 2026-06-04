@@ -38,7 +38,8 @@
   "scripts": {
     "build": "tsdown",
     "format": "oxfmt .",
-    "lint": "oxlint ."
+    "lint": "oxlint .",
+    "typecheck": "tsc -b"
   },
   "dependencies": {
     "@types/node": "^24.12.2",

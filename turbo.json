@@ -27,7 +27,8 @@
       "outputs": []
     },
     "typecheck": {
-      "outputs": []
+      // dependsOn is required so dependencies build declarations via tsc -b before apps typecheck
+      "dependsOn": ["^typecheck"]
     },
     "format": {
       "outputs": []

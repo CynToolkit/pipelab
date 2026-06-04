@@ -49,15 +49,16 @@ Goal: Improve build speed, enforce boundaries, and standardize the developer exp
 
 ### 2. TS Project References
 
-- [ ] Enable `composite: true` in all packages.
-- [ ] Add `references` arrays to `tsconfig.json` files to reflect the actual dependency graph.
-- [ ] Switch to `tsc --build` for lightning-fast incremental typechecking.
+- [x] Enable `composite: true` in all packages.
+- [x] Add `references` arrays to `tsconfig.json` files to reflect the actual dependency graph.
+- [x] Switch to `tsc --build` for lightning-fast incremental typechecking.
 
 ### 4. Quality Gates
 
 - [ ] Implement `syncpack` to keep dependency versions identical across all packages.
 - [ ] Set up a GitHub Actions workflow to run `turbo build lint typecheck test` on every PR.
-- [ ] Ensure `pnpm run typecheck` passes with 0 errors at the root level.
+- [x] Ensure `pnpm run typecheck` passes with 0 errors at the root level.
+- [ ] Define `typecheck` scripts for the remaining 22 plugins (`plugins/*`) and assets (`assets/*`) to ensure 100% typecheck coverage.
 
 ---
 
