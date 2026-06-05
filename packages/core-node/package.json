@@ -1,6 +1,6 @@
 {
   "name": "@pipelab/core-node",
-  "version": "1.0.0-beta.13",
+  "version": "1.0.0-beta.14",
   "private": false,
   "description": "The Pipelab automation engine for Node.js",
   "license": "FSL-1.1-MIT",
@@ -39,7 +39,8 @@
     "build": "tsdown",
     "format": "oxfmt .",
     "lint": "oxlint .",
-    "typecheck": "tsc -b"
+    "typecheck": "tsc -b",
+    "test": "vitest run"
   },
   "dependencies": {
     "@pipelab/constants": "workspace:*",
@@ -69,7 +70,9 @@
     "@types/tar": "7.0.87",
     "@types/ws": "8.18.1",
     "@types/yauzl": "2.10.3",
+    "memfs": "4.57.6",
     "tsdown": "0.21.2",
-    "typescript": "^5.0.0"
+    "typescript": "^5.0.0",
+    "vitest": "3.1.4"
   }
 }

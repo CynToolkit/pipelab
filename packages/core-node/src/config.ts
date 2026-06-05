@@ -55,22 +55,28 @@ export const setupConfigFile = async <T>(
       }
 
       let json: any = undefined;
+      let migrationFailed = false;
       try {
-        json = await migrator.migrate(originalJson, {
-          debug: false,
-          onStep: async (state: any, version: string) => {
-            const parsedPath = path.parse(filesPath);
-            const versionedPath = path.join(parsedPath.dir, `${parsedPath.name}.v${version}.json`);
-            try {
-              await fs.writeFile(versionedPath, JSON.stringify(state));
-              logger().info(`Intermediate backup created for ${name} at ${versionedPath}`);
-            } catch (e) {
-              logger().error(`Failed to create intermediate backup for ${name} at v${version}:`, e);
-            }
-          },
-        });
+        if (!parseFailed) {
+          json = await migrator.migrate(originalJson, {
+            debug: false,
+            onStep: async (state: any, version: string) => {
+              const parsedPath = path.parse(filesPath);
+              const versionedPath = path.join(parsedPath.dir, `${parsedPath.name}.v${version}.json`);
+              try {
+                await fs.writeFile(versionedPath, JSON.stringify(state));
+                logger().info(`Intermediate backup created for ${name} at ${versionedPath}`);
+              } catch (e) {
+                logger().error(`Failed to create intermediate backup for ${name} at v${version}:`, e);
+              }
+            },
+          });
+        } else {
+          json = migrator.defaultValue;
+        }
       } catch (e) {
         logger().error(`Error migrating config ${name}:`, e);
+        migrationFailed = true;
         json = migrator.defaultValue;
       }
 
@@ -87,8 +93,30 @@ export const setupConfigFile = async <T>(
       const originalVersion = originalJson?.version;
       const newVersion = json?.version;
 
-      // Save back migrated config if changed, if normalized, if it's a new file, or if parse failed
-      if (originalVersion !== newVersion || normalized || content === undefined || parseFailed) {
+      const shouldSaveBack =
+        originalVersion !== newVersion ||
+        normalized ||
+        content === undefined ||
+        parseFailed ||
+        migrationFailed;
+
+      if (shouldSaveBack) {
+        if (parseFailed || migrationFailed) {
+          try {
+            const parsedPath = path.parse(filesPath);
+            const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+            const corruptedPath = path.join(
+              parsedPath.dir,
+              `${parsedPath.name}.corrupted.${timestamp}.json`,
+            );
+            const backupContent = parseFailed ? (content || "") : JSON.stringify(originalJson, null, 2);
+            await fs.writeFile(corruptedPath, backupContent);
+            logger().info(`Corrupted config file preserved at ${corruptedPath}`);
+          } catch (e) {
+            logger().error(`Failed to backup corrupted config ${name}:`, e);
+          }
+        }
+
         try {
           await fs.writeFile(filesPath, JSON.stringify(json));
         } catch (e) {

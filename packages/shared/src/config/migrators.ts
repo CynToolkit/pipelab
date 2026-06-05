@@ -402,18 +402,7 @@ const LEGACY_ID_MAP: Record<string, string> = {
 
 export const getStrictPluginId = (pluginId: string): string => {
   if (!pluginId) return pluginId;
-  if (LEGACY_ID_MAP[pluginId]) {
-    return LEGACY_ID_MAP[pluginId];
-  }
-  if (
-    pluginId.startsWith("@") ||
-    pluginId.includes("/") ||
-    pluginId.startsWith("pipelab-plugin-")
-  ) {
-    return pluginId;
-  }
-  const prefixed = `@pipelab/plugin-${pluginId}`;
-  return LEGACY_ID_MAP[prefixed] || prefixed;
+  return LEGACY_ID_MAP[pluginId] || pluginId;
 };
 
 const normalizeBlockPluginId = (block: any): boolean => {

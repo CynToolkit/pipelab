@@ -4,6 +4,8 @@ import {
   savedFileMigrator,
   normalizePipelineConfig,
   appSettingsMigrator,
+  fileRepoMigrations,
+  connectionsMigrator,
 } from "./config/migrators";
 import { AppConfigV6, AppConfigV8 } from "./config.schema";
 
@@ -384,6 +386,141 @@ describe("model", () => {
       const changed = normalizePipelineConfig(config);
       expect(changed).toBe(true);
       expect(config.canvas.blocks[0].origin.pluginId).toBe("@pipelab/plugin-discord");
+    });
+  });
+
+  describe("fileRepoMigrations", () => {
+    it("should migrate FileRepoV1 (data record) to FileRepoV2 (pipelines array)", async () => {
+      const v1 = {
+        version: "1.0.0" as const,
+        data: {
+          "pipeline-1": {
+            project: "main",
+            type: "internal" as const,
+            configName: "pipeline-1",
+            lastModified: "2026-06-04",
+          },
+          "pipeline-2": {
+            project: "main",
+            type: "external" as const,
+            path: "/path/to/pipeline-2.json",
+            lastModified: "2026-06-04",
+            summary: {
+              plugins: ["steam"],
+              name: "Test Pipeline 2",
+              description: "Legacy external pipeline",
+            },
+          },
+        },
+      };
+
+      const v2 = await fileRepoMigrations.migrate(v1, { target: "2.0.0" });
+
+      expect(v2).toStrictEqual({
+        version: "2.0.0",
+        data: v1.data,
+        projects: [
+          {
+            id: "main",
+            name: "Default project",
+            description: "The initial default project",
+          },
+        ],
+        pipelines: [
+          {
+            id: "pipeline-1",
+            project: "main",
+            type: "internal",
+            configName: "pipeline-1",
+            lastModified: "2026-06-04",
+          },
+          {
+            id: "pipeline-2",
+            project: "main",
+            type: "external",
+            path: "/path/to/pipeline-2.json",
+            lastModified: "2026-06-04",
+            summary: {
+              plugins: ["steam"],
+              name: "Test Pipeline 2",
+              description: "Legacy external pipeline",
+            },
+          },
+        ],
+      });
+    });
+
+    it("should fallback to default value for corrupted config", async () => {
+      const corrupted: any = {
+        version: "1.0.0",
+        data: null,
+      };
+
+      const result = await fileRepoMigrations.migrate(corrupted, { target: "2.0.0" });
+      expect(result.version).toBe("2.0.0");
+      expect(result.projects).toHaveLength(1);
+      expect(result.pipelines).toEqual([]);
+    });
+  });
+
+  describe("connectionsMigrator", () => {
+    it("should initialize default connections", async () => {
+      const result = await connectionsMigrator.migrate(undefined, { target: "1.0.0" });
+      expect(result).toStrictEqual({
+        version: "1.0.0",
+        connections: [],
+      });
+    });
+  });
+
+  describe("savedFileMigrator - edge cases", () => {
+    it("should normalize unmapped legacy plugin names and typos during migration to 5.0.0", async () => {
+      const v4: SavedFileV4 = {
+        version: "4.0.0",
+        type: "default",
+        canvas: {
+          blocks: [
+            {
+              uid: "b1",
+              type: "action",
+              origin: {
+                pluginId: "filesystem",
+                nodeId: "copy",
+              },
+              params: {},
+            },
+            {
+              uid: "b2",
+              type: "action",
+              origin: {
+                pluginId: "dicord",
+                nodeId: "send",
+              },
+              params: {},
+            },
+            {
+              uid: "b3",
+              type: "action",
+              origin: {
+                pluginId: "custom-cool",
+                nodeId: "run",
+              },
+              params: {},
+            },
+          ],
+          triggers: [],
+        },
+        description: "Edge case plugin names test",
+        name: "Edge Case",
+        variables: [],
+        plugins: {},
+      };
+
+      const v5 = await savedFileMigrator.migrate(v4, { target: "5.0.0" });
+
+      expect(v5.canvas.blocks[0].origin.pluginId).toBe("@pipelab/plugin-filesystem");
+      expect(v5.canvas.blocks[1].origin.pluginId).toBe("@pipelab/plugin-discord");
+      expect(v5.canvas.blocks[2].origin.pluginId).toBe("custom-cool");
     });
   });
 });
