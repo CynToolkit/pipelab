@@ -215,6 +215,10 @@ export const builtInPlugins = async (options: { context: PipelabContext }): Prom
   const { usePlugins } = await import("@pipelab/shared");
   const { registerPlugins } = usePlugins();
   const { webSocketServer } = await import("./index");
+
+  // Broadcast ready signal immediately so the UI launches while plugins load in the background
+  webSocketServer.broadcast("startup:progress", { type: "ready" });
+
   // Load plugins asynchronously in the background
   (async () => {
     const totalStart = Date.now();
@@ -315,7 +319,7 @@ export const builtInPlugins = async (options: { context: PipelabContext }): Prom
     console.log(`[Plugins] All startup plugins loaded in ${Date.now() - totalStart}ms.`);
     sendStartupProgress("All plugins loaded.");
     setTimeout(() => {
-      webSocketServer.broadcast("startup:progress", { type: "ready" });
+      webSocketServer.broadcast("startup:progress", { type: "done" });
     }, 2000);
   })();
 };
