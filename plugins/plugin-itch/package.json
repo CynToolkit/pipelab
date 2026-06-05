@@ -1,6 +1,6 @@
 {
   "name": "@pipelab/plugin-itch",
-  "version": "1.0.0-beta.15",
+  "version": "1.0.0-beta.16",
   "description": "Pipelab plugin for publishing games to itch.io",
   "keywords": [
     "automation",

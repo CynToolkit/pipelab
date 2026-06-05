@@ -175,7 +175,26 @@ export async function fetchPackage(
       const range = resolvedVersionOrRange || "latest";
 
       // Prioritize tags (like 'latest', 'beta', etc.) over semver ranges
-      const foundVersion = packument["dist-tags"]?.[range] || semver.maxSatisfying(versions, range);
+      let foundVersion = packument["dist-tags"]?.[range] || semver.maxSatisfying(versions, range);
+
+      // If we are in a non-latest releaseTag channel (like "beta" or "dev"),
+      // and we are resolving "latest", we prefer the releaseTag version if it exists
+      // and is newer than (or equal to) the latest stable version.
+      if (range === "latest" && ctx.releaseTag && ctx.releaseTag !== "latest") {
+        const releaseTagVersion = packument["dist-tags"]?.[ctx.releaseTag];
+        if (releaseTagVersion && semver.valid(releaseTagVersion)) {
+          if (!foundVersion || (semver.valid(foundVersion) && semver.gte(releaseTagVersion, foundVersion))) {
+            console.log(
+              `[Fetcher] Using release tag "${ctx.releaseTag}" (${releaseTagVersion}) instead of "latest" (${foundVersion || "none"}) for ${packageName}`,
+            );
+            foundVersion = releaseTagVersion;
+          } else if (foundVersion) {
+            console.warn(
+              `[Fetcher] Tag "${ctx.releaseTag}" (${releaseTagVersion}) is older than "latest" (${foundVersion}) for ${packageName}, keeping "latest"`,
+            );
+          }
+        }
+      }
 
       if (!foundVersion) {
         throw new Error(
