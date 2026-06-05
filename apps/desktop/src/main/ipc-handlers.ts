@@ -37,8 +37,11 @@ export const registerIpcHandlers = () => {
   ipcMain.handle("window:show", (event) => {
     const win = BrowserWindow.fromWebContents(event.sender);
     if (win) {
+      console.info("[Main] Received window:show request, showing and maximizing window");
       win.show();
       win.maximize();
+    } else {
+      console.error("[Main] Received window:show request but could not resolve window from sender");
     }
   });
 

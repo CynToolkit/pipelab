@@ -170,7 +170,7 @@ function createWindow(): void {
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 720,
-    show: false,
+    show: true, // Show the window immediately on startup
     icon: getIconPath(),
     autoHideMenuBar: true,
     ...position,
@@ -194,7 +194,7 @@ function createWindow(): void {
   });
 
   mainWindow.on("close", function () {
-    app.quit();
+    app.exit(0);
   });
 
   mainWindow.webContents.setWindowOpenHandler((details) => {

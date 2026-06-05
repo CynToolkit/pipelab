@@ -83,10 +83,10 @@ const isDisconnected = computed(
 
 const isConnecting = computed(
   () =>
-    isInitialized.value &&
-    (!minimumLoadingTimeReached.value ||
-      websocketManager.connectionState.value === "connecting" ||
-      !isServerReady.value),
+    !isInitialized.value ||
+    !minimumLoadingTimeReached.value ||
+    websocketManager.connectionState.value === "connecting" ||
+    !isServerReady.value,
 );
 
 const openUpgradeDialog = () => {
@@ -181,21 +181,12 @@ const fetchInitialData = async () => {
     await settingsStore.load();
     await connectionsStore.load();
 
-    // Show window once theme/settings info has been received
-    if (window.electron) {
-      window.electron.ipcRenderer.invoke("window:show");
-    }
-
     await authInit();
     await fetchSubscription();
     isDataLoaded.value = true;
     logger().info("Remote data fetch complete");
   } catch (error) {
     logger().error("Failed to fetch remote data:", error);
-    // Show window even if data fetch fails so the app is not stuck hidden
-    if (window.electron) {
-      window.electron.ipcRenderer.invoke("window:show");
-    }
   }
 };
 
@@ -223,16 +214,7 @@ watch(
   { immediate: true },
 );
 
-// Show window on connection failure
-watch(
-  isDisconnected,
-  (disconnected) => {
-    if (disconnected && window.electron) {
-      window.electron.ipcRenderer.invoke("window:show");
-    }
-  },
-  { immediate: true },
-);
+// Connection failure is handled by showing the DisconnectedPage in the template
 
 onMounted(async () => {
   console.log("[App] onMounted: UI mounted, connecting to agent");
