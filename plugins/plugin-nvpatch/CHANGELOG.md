@@ -1,5 +1,13 @@
 # @pipelab/plugin-nvpatch
 
+## 1.0.0-beta.17
+
+### Patch Changes
+
+- qs
+- Updated dependencies
+  - @pipelab/plugin-core@1.0.0-beta.17
+
 ## 1.0.0-beta.16
 
 ### Patch Changes

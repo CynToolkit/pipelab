@@ -1,6 +1,6 @@
 {
   "name": "@pipelab/plugin-core",
-  "version": "1.0.0-beta.16",
+  "version": "1.0.0-beta.17",
   "description": "Core library and helpers for building Pipelab plugins",
   "keywords": [
     "automation",
