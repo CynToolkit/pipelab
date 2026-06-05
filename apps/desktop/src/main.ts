@@ -114,7 +114,7 @@ app.on("open-url", (event, url) => {
 const gotTheLock = app.requestSingleInstanceLock();
 if (!gotTheLock) {
   console.info("[Main] Another instance is already running. Quitting.");
-  app.quit();
+  app.exit(0);
 } else {
   app.on("second-instance", (event, commandLine) => {
     console.info(`[Main] Second instance started with command line: ${commandLine.join(" ")}`);

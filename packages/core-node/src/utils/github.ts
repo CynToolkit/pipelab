@@ -38,6 +38,7 @@ export async function fetchPackageReleases(
             "User-Agent": "Pipelab-Desktop-Updater",
             Accept: "application/vnd.github.v3+json",
           },
+          signal: AbortSignal.timeout(10000),
         },
       );
       if (response.ok) {
@@ -55,6 +56,7 @@ export async function fetchPackageReleases(
         "User-Agent": "Pipelab-Desktop-Updater",
         Accept: "application/vnd.github.v3+json",
       },
+      signal: AbortSignal.timeout(10000),
     });
 
     if (!response.ok) {
@@ -104,6 +106,7 @@ export async function fetchPackageReleases(
             "User-Agent": "Pipelab-Desktop-Updater",
             Accept: "application/vnd.github.v3+json",
           },
+          signal: AbortSignal.timeout(10000),
         },
       );
 
