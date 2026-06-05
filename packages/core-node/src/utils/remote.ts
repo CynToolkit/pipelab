@@ -11,6 +11,7 @@ import {
   rename,
 } from "node:fs/promises";
 import { existsSync, constants, statSync, readdirSync } from "node:fs";
+import dns from "node:dns/promises";
 import pacote from "pacote";
 import semver from "semver";
 import { isDev, projectRoot, PipelabContext } from "../context";
@@ -68,6 +69,27 @@ async function withLock<T>(key: string, fn: () => Promise<T>): Promise<T> {
   return promise;
 }
 
+let isOnlineCached: boolean | null = null;
+let lastCheckTime = 0;
+
+export async function isOnline(): Promise<boolean> {
+  const now = Date.now();
+  if (isOnlineCached !== null && now - lastCheckTime < 10000) {
+    return isOnlineCached;
+  }
+  try {
+    await Promise.race([
+      dns.lookup("registry.npmjs.org"),
+      new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 1500)),
+    ]);
+    isOnlineCached = true;
+  } catch {
+    isOnlineCached = false;
+  }
+  lastCheckTime = now;
+  return isOnlineCached;
+}
+
 export type FetchOptions = {
   installDeps?: boolean;
   signal?: AbortSignal;
@@ -118,39 +140,15 @@ export async function fetchPackage(
   console.log(`[Fetcher] Resolving ${packageName}@${resolvedVersionOrRange || "latest"}...`);
   const resolveStart = Date.now();
 
-  try {
-    // 1. Resolve version/range using npm with session-wide memoization and disk cache
-    const cachePath = join(ctx.userDataPath, "cache", "pacote");
-    let packumentPromise = packumentRequests.get(packageName);
-    if (!packumentPromise) {
-      packumentPromise = pacote.packument(packageName, { cache: cachePath });
-      packumentRequests.set(packageName, packumentPromise);
-    }
-
-    const packument = await packumentPromise;
-    const versions = Object.keys(packument.versions);
-    const range = resolvedVersionOrRange || "latest";
-
-    // Prioritize tags (like 'latest', 'beta', etc.) over semver ranges
-    const foundVersion = packument["dist-tags"]?.[range] || semver.maxSatisfying(versions, range);
-
-    if (!foundVersion) {
-      throw new Error(
-        `Package ${packageName}@${range} not found on npm (available tags: ${Object.keys(packument["dist-tags"] || {}).join(", ")})`,
-      );
-    }
-    resolvedVersion = foundVersion;
-    console.log(
-      `[Fetcher] ${packageName}: Resolved to v${resolvedVersion} via npm (${Date.now() - resolveStart}ms)`,
-    );
-  } catch (error) {
+  const online = await isOnline();
+  if (!online) {
     console.warn(
-      `[Fetcher] ${packageName}: remote resolution failed (${Date.now() - resolveStart}ms), trying local fallback...`,
+      `[Fetcher] ${packageName}: offline mode detected (${Date.now() - resolveStart}ms), trying local fallback...`,
     );
     const fallbackStart = Date.now();
     const fallbackVersion = await tryLocalFallback(
       resolvedVersionOrRange,
-      error,
+      new Error("Offline"),
       baseDir,
       packageName,
     );
@@ -160,7 +158,53 @@ export async function fetchPackage(
         `[Fetcher] ${packageName}: Resolved to local fallback ${resolvedVersion} (${Date.now() - fallbackStart}ms)`,
       );
     } else {
-      throw error;
+      throw new Error(`Offline and no local fallback version available for ${packageName}`);
+    }
+  } else {
+    try {
+      // 1. Resolve version/range using npm with session-wide memoization and disk cache
+      const cachePath = join(ctx.userDataPath, "cache", "pacote");
+      let packumentPromise = packumentRequests.get(packageName);
+      if (!packumentPromise) {
+        packumentPromise = pacote.packument(packageName, { cache: cachePath });
+        packumentRequests.set(packageName, packumentPromise);
+      }
+
+      const packument = await packumentPromise;
+      const versions = Object.keys(packument.versions);
+      const range = resolvedVersionOrRange || "latest";
+
+      // Prioritize tags (like 'latest', 'beta', etc.) over semver ranges
+      const foundVersion = packument["dist-tags"]?.[range] || semver.maxSatisfying(versions, range);
+
+      if (!foundVersion) {
+        throw new Error(
+          `Package ${packageName}@${range} not found on npm (available tags: ${Object.keys(packument["dist-tags"] || {}).join(", ")})`,
+        );
+      }
+      resolvedVersion = foundVersion;
+      console.log(
+        `[Fetcher] ${packageName}: Resolved to v${resolvedVersion} via npm (${Date.now() - resolveStart}ms)`,
+      );
+    } catch (error) {
+      console.warn(
+        `[Fetcher] ${packageName}: remote resolution failed (${Date.now() - resolveStart}ms), trying local fallback...`,
+      );
+      const fallbackStart = Date.now();
+      const fallbackVersion = await tryLocalFallback(
+        resolvedVersionOrRange,
+        error,
+        baseDir,
+        packageName,
+      );
+      if (fallbackVersion) {
+        resolvedVersion = fallbackVersion;
+        console.log(
+          `[Fetcher] ${packageName}: Resolved to local fallback ${resolvedVersion} (${Date.now() - fallbackStart}ms)`,
+        );
+      } else {
+        throw error;
+      }
     }
   }
 
