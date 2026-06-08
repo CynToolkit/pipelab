@@ -353,11 +353,15 @@ const toggleSortOrder = () => {
   border: 1px solid #e9ecef;
   border-radius: 8px;
   overflow: hidden;
-  transition: box-shadow 0.2s ease;
+  transition: border-color 0.2s ease;
 }
 
 .grid-item:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border-color: var(--p-surface-300);
+}
+
+:root.dark .grid-item:hover {
+  border-color: var(--p-surface-700);
 }
 
 .pagination-container {

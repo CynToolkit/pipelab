@@ -1083,12 +1083,10 @@ const uninstallPlugin = async (packageName: string) => {
   }
 
   &:hover {
-    border-color: var(--p-primary-color);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    border-color: var(--p-surface-300);
 
     :root.dark & {
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      border-color: var(--p-surface-700);
     }
   }
 }

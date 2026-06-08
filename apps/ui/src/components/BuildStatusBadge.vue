@@ -142,11 +142,7 @@ const tooltipText = computed(() => {
   border: 1px solid rgba(255, 193, 7, 0.2);
 }
 
-/* Hover Effects */
-.build-status-badge:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
+
 
 /* Pulse animation for running status */
 .status-running {

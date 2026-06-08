@@ -210,8 +210,11 @@ const deleteEntry = () => {
 }
 
 .build-history-item:hover {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  border-color: #007bff;
+  border-color: var(--p-surface-300);
+}
+
+:root.dark .build-history-item:hover {
+  border-color: var(--p-surface-700);
 }
 
 .build-history-item.is-clickable {

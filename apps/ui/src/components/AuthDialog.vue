@@ -588,11 +588,6 @@ const onSubmit = handleSubmit(onSuccess, onInvalidSubmit);
   background: #ffffff;
   border: 1px solid var(--p-surface-150);
   z-index: 1;
-  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-
-  &:hover {
-    transform: translateY(-2px) scale(1.05);
-  }
 
   :root.dark & {
     background: var(--p-surface-950);

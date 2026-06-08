@@ -1497,14 +1497,11 @@ onMounted(() => {
   }
 
   &:hover {
-    border-color: var(--p-primary-color);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
-    transform: translateY(-1px);
+    border-color: var(--p-surface-300);
 
     :root.dark & {
-      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
       background: var(--p-surface-850);
-      border-color: var(--p-primary-color);
+      border-color: var(--p-surface-700);
     }
 
     .row-actions {
@@ -1537,11 +1534,6 @@ onMounted(() => {
 
 .tech-icon {
   flex-shrink: 0;
-  transition: transform 0.15s ease;
-
-  &:hover {
-    transform: scale(1.15);
-  }
 }
 
 .empty-tech-icon {
