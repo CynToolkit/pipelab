@@ -142,8 +142,6 @@ const tooltipText = computed(() => {
   border: 1px solid rgba(255, 193, 7, 0.2);
 }
 
-
-
 /* Pulse animation for running status */
 .status-running {
   animation: pulse 2s infinite;

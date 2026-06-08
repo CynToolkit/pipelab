@@ -5,7 +5,7 @@
       <!-- Logo area -->
       <div class="sidebar-header">
         <div v-show="!isSidebarCollapsed" class="sidebar-logo-area">
-          <img src="/icon.png" alt="Pipelab" class="sidebar-logo" />
+          <img v-if="!isElectron" src="/icon.png" alt="Pipelab" class="sidebar-logo" />
           <span class="sidebar-brand">Pipelab</span>
         </div>
         <button
