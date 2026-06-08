@@ -78,6 +78,7 @@
       <div class="sidebar-status">
         <!-- Connection status -->
         <div
+          v-if="!isElectron"
           class="sidebar-status-item"
           :class="connectionState"
           v-tooltip.right="isSidebarCollapsed ? connectionText : undefined"
