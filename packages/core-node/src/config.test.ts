@@ -38,9 +38,9 @@ describe("setupConfigFile & Backup Creation", () => {
     // 1. Setup V1 configuration file in the context's config path
     const configDir = context.getConfigPath();
     await fs.mkdir(configDir, { recursive: true });
-    
+
     const projectsFilePath = path.join(configDir, "projects.json");
-    
+
     const v1Config = {
       version: "1.0.0",
       data: {
@@ -49,10 +49,10 @@ describe("setupConfigFile & Backup Creation", () => {
           type: "internal",
           configName: "pipeline-1",
           lastModified: "2026-06-04",
-        }
-      }
+        },
+      },
     };
-    
+
     await fs.writeFile(projectsFilePath, JSON.stringify(v1Config));
 
     // 2. Initialize setupConfigFile
@@ -66,7 +66,7 @@ describe("setupConfigFile & Backup Creation", () => {
 
     // 4. Assert the main config is updated on disk to version 2.0.0
     expect(migratedConfig.version).toBe("2.0.0");
-    
+
     const updatedContent = JSON.parse(await fs.readFile(projectsFilePath, "utf8"));
     expect(updatedContent.version).toBe("2.0.0");
 
@@ -113,7 +113,9 @@ describe("setupConfigFile & Backup Creation", () => {
 
     // Verify a timestamped corrupted backup file exists
     const files = await fs.readdir(configDir);
-    const corruptedFile = files.find(f => f.startsWith("projects.corrupted.") && f.endsWith(".json"));
+    const corruptedFile = files.find(
+      (f) => f.startsWith("projects.corrupted.") && f.endsWith(".json"),
+    );
     expect(corruptedFile).toBeDefined();
     const corruptedContent = await fs.readFile(path.join(configDir, corruptedFile!), "utf8");
     expect(corruptedContent).toBe("{ corrupted json... }");
@@ -143,9 +145,13 @@ describe("setupConfigFile & Backup Creation", () => {
 
     // Verify a timestamped corrupted backup file exists
     const files = await fs.readdir(configDir);
-    const corruptedFile = files.find(f => f.startsWith("projects.corrupted.") && f.endsWith(".json"));
+    const corruptedFile = files.find(
+      (f) => f.startsWith("projects.corrupted.") && f.endsWith(".json"),
+    );
     expect(corruptedFile).toBeDefined();
-    const corruptedContent = JSON.parse(await fs.readFile(path.join(configDir, corruptedFile!), "utf8"));
+    const corruptedContent = JSON.parse(
+      await fs.readFile(path.join(configDir, corruptedFile!), "utf8"),
+    );
     expect(corruptedContent.invalidData).toBe(true);
   });
 
@@ -169,7 +175,9 @@ describe("setupConfigFile & Backup Creation", () => {
     const success = await configInstance.setConfig(newConfig);
     expect(success).toBe(true);
 
-    const savedContent = JSON.parse(await fs.readFile(path.join(context.getConfigPath(), "projects.json"), "utf8"));
+    const savedContent = JSON.parse(
+      await fs.readFile(path.join(context.getConfigPath(), "projects.json"), "utf8"),
+    );
     expect(savedContent.pipelines).toHaveLength(1);
     expect(savedContent.pipelines[0].id).toBe("pipeline-new");
   });

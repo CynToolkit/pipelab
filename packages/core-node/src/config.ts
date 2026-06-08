@@ -62,12 +62,18 @@ export const setupConfigFile = async <T>(
             debug: false,
             onStep: async (state: any, version: string) => {
               const parsedPath = path.parse(filesPath);
-              const versionedPath = path.join(parsedPath.dir, `${parsedPath.name}.v${version}.json`);
+              const versionedPath = path.join(
+                parsedPath.dir,
+                `${parsedPath.name}.v${version}.json`,
+              );
               try {
                 await fs.writeFile(versionedPath, JSON.stringify(state));
                 logger().info(`Intermediate backup created for ${name} at ${versionedPath}`);
               } catch (e) {
-                logger().error(`Failed to create intermediate backup for ${name} at v${version}:`, e);
+                logger().error(
+                  `Failed to create intermediate backup for ${name} at v${version}:`,
+                  e,
+                );
               }
             },
           });
@@ -109,7 +115,9 @@ export const setupConfigFile = async <T>(
               parsedPath.dir,
               `${parsedPath.name}.corrupted.${timestamp}.json`,
             );
-            const backupContent = parseFailed ? (content || "") : JSON.stringify(originalJson, null, 2);
+            const backupContent = parseFailed
+              ? content || ""
+              : JSON.stringify(originalJson, null, 2);
             await fs.writeFile(corruptedPath, backupContent);
             logger().info(`Corrupted config file preserved at ${corruptedPath}`);
           } catch (e) {

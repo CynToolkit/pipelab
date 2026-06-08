@@ -183,7 +183,10 @@ export async function fetchPackage(
       if (range === "latest" && ctx.releaseTag && ctx.releaseTag !== "latest") {
         const releaseTagVersion = packument["dist-tags"]?.[ctx.releaseTag];
         if (releaseTagVersion && semver.valid(releaseTagVersion)) {
-          if (!foundVersion || (semver.valid(foundVersion) && semver.gte(releaseTagVersion, foundVersion))) {
+          if (
+            !foundVersion ||
+            (semver.valid(foundVersion) && semver.gte(releaseTagVersion, foundVersion))
+          ) {
             console.log(
               `[Fetcher] Using release tag "${ctx.releaseTag}" (${releaseTagVersion}) instead of "latest" (${foundVersion || "none"}) for ${packageName}`,
             );

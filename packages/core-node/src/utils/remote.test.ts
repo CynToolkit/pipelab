@@ -93,13 +93,16 @@ describe("remote utilities & offline mode", () => {
 
   test("fetchPipelabPlugin maps latest to releaseTag for official plugins", async () => {
     vi.advanceTimersByTime(30000); // Bypass 10s caching
-    const context = new PipelabContext({ userDataPath: "/tmp/pipelab-test-remote", releaseTag: "beta" });
+    const context = new PipelabContext({
+      userDataPath: "/tmp/pipelab-test-remote",
+      releaseTag: "beta",
+    });
     const pluginName = "@pipelab/plugin-poki";
     const packageBaseDir = context.getPackagesPath(pluginName);
     const cachedVersionDir = path.join(packageBaseDir, "1.0.0-beta.15");
 
     vi.spyOn(dns, "lookup").mockResolvedValue({ address: "1.2.3.4", family: 4 } as any);
-    
+
     vi.mocked(pacote.packument).mockResolvedValue({
       name: pluginName,
       versions: {
@@ -128,13 +131,16 @@ describe("remote utilities & offline mode", () => {
 
   test("fetchPipelabPlugin maps latest to releaseTag for custom plugins and falls back to latest if tag is missing", async () => {
     vi.advanceTimersByTime(40000); // Bypass 10s caching
-    const context = new PipelabContext({ userDataPath: "/tmp/pipelab-test-remote-custom", releaseTag: "beta" });
+    const context = new PipelabContext({
+      userDataPath: "/tmp/pipelab-test-remote-custom",
+      releaseTag: "beta",
+    });
     const pluginName = "custom-cool-plugin";
     const packageBaseDir = context.getPackagesPath(pluginName);
     const cachedVersionDir = path.join(packageBaseDir, "2.0.0");
 
     vi.spyOn(dns, "lookup").mockResolvedValue({ address: "1.2.3.4", family: 4 } as any);
-    
+
     vi.mocked(pacote.packument).mockResolvedValue({
       name: pluginName,
       versions: {
@@ -163,13 +169,16 @@ describe("remote utilities & offline mode", () => {
 
   test("fetchPipelabPlugin maps latest to releaseTag for custom plugins and falls back to latest if beta is stale", async () => {
     vi.advanceTimersByTime(50000); // Bypass 10s caching
-    const context = new PipelabContext({ userDataPath: "/tmp/pipelab-test-remote-stale", releaseTag: "beta" });
+    const context = new PipelabContext({
+      userDataPath: "/tmp/pipelab-test-remote-stale",
+      releaseTag: "beta",
+    });
     const pluginName = "stale-beta-plugin";
     const packageBaseDir = context.getPackagesPath(pluginName);
     const cachedVersionDir = path.join(packageBaseDir, "2.0.0");
 
     vi.spyOn(dns, "lookup").mockResolvedValue({ address: "1.2.3.4", family: 4 } as any);
-    
+
     vi.mocked(pacote.packument).mockResolvedValue({
       name: pluginName,
       versions: {

@@ -29,7 +29,7 @@ describe("GitHub Release Updates API", () => {
     expect(releases).toEqual([]);
     expect(fetchSpy).toHaveBeenCalledWith(
       expect.stringContaining("matching-refs/tags/%40pipelab%2Fapp"),
-      expect.any(Object)
+      expect.any(Object),
     );
   });
 
@@ -153,7 +153,7 @@ describe("GitHub Release Updates API", () => {
     expect(releases[0].tag_name).toBe("@pipelab/app@1.2.3");
     expect(fetchSpy).toHaveBeenCalledWith(
       expect.stringContaining("releases/tags/%40pipelab%2Fapp%401.2.3"),
-      expect.any(Object)
+      expect.any(Object),
     );
   });
 
@@ -189,9 +189,7 @@ describe("GitHub Release Updates API", () => {
     // Mock matching refs
     fetchSpy.mockResolvedValueOnce({
       ok: true,
-      json: async () => [
-        { ref: "refs/tags/@pipelab/app@3.0.0" },
-      ],
+      json: async () => [{ ref: "refs/tags/@pipelab/app@3.0.0" }],
     } as any);
 
     // Mock release lookup

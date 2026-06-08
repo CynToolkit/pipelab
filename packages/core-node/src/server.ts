@@ -116,6 +116,7 @@ export async function serveCommand(options: ServeOptions, version: string, _dirn
 
     return handler(request, response, {
       public: rawAssetFolder,
+      rewrites: [{ source: "/**", destination: "/index.html" }],
     });
   });
 

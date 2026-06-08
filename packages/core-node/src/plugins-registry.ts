@@ -299,24 +299,22 @@ export const builtInPlugins = async (options: { context: PipelabContext }): Prom
     console.log(`[Plugins] Total plugins to load on startup:`, Array.from(pluginsToLoad.entries()));
 
     // Now load all collected plugins in parallel
-    const loadPromises = Array.from(pluginsToLoad.entries()).map(
-      async ([packageName, version]) => {
-        sendStartupProgress(`Loading plugin: ${packageName}`);
-        const pluginStart = Date.now();
-        try {
-          const plugin = await loadCustomPlugin(packageName, version, options);
-          if (plugin) {
-            registerPlugins([plugin]);
-            webSocketServer.broadcast("plugin:loaded", { plugin });
-            console.log(
-              `[Plugins] Loaded ${packageName}@${version} in ${Date.now() - pluginStart}ms`,
-            );
-          }
-        } catch (err) {
-          console.error(`[Plugins] Failed to load plugin ${packageName} at startup:`, err);
+    const loadPromises = Array.from(pluginsToLoad.entries()).map(async ([packageName, version]) => {
+      sendStartupProgress(`Loading plugin: ${packageName}`);
+      const pluginStart = Date.now();
+      try {
+        const plugin = await loadCustomPlugin(packageName, version, options);
+        if (plugin) {
+          registerPlugins([plugin]);
+          webSocketServer.broadcast("plugin:loaded", { plugin });
+          console.log(
+            `[Plugins] Loaded ${packageName}@${version} in ${Date.now() - pluginStart}ms`,
+          );
         }
-      },
-    );
+      } catch (err) {
+        console.error(`[Plugins] Failed to load plugin ${packageName} at startup:`, err);
+      }
+    });
     await Promise.all(loadPromises);
 
     console.log(`[Plugins] All startup plugins loaded in ${Date.now() - totalStart}ms.`);
