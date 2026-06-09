@@ -41,15 +41,14 @@
           </span>
         </router-link>
 
-        <router-link
-          to="/connections"
-          class="sidebar-nav-item"
-          active-class="active"
-          v-tooltip.right="isSidebarCollapsed ? 'Connections' : undefined"
+        <div
+          class="sidebar-nav-item disabled"
+          v-tooltip.right="isSidebarCollapsed ? 'Connections (Coming Soon)' : 'Coming Soon'"
         >
           <i class="mdi mdi-link-variant nav-icon" />
           <span v-show="!isSidebarCollapsed" class="nav-label">Connections</span>
-        </router-link>
+          <span v-show="!isSidebarCollapsed" class="coming-soon-badge">Soon</span>
+        </div>
 
         <router-link
           to="/integrations"

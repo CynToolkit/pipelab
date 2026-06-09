@@ -50,14 +50,14 @@
           <i class="mdi mdi-credit-card mr-2"></i>
           <span>Billing</span>
         </div>
-        <div
+        <!-- <div
           class="sidebar-item"
           :class="{ active: currentSection === 'team' }"
           @click="currentSection = 'team'"
         >
           <i class="mdi mdi-account-multiple-outline mr-2"></i>
           <span>Team</span>
-        </div>
+        </div> -->
       </div>
     </div>
 
