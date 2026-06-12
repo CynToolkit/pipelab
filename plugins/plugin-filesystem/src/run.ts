@@ -10,9 +10,9 @@ export const ID = "fs:run";
 
 export const run = createAction({
   id: ID,
-  name: "Invoke file",
+  name: "Run Command",
   displayString:
-    "`Invoke ${fmt.param(params.command, 'primary')} ${(params.parameters ?? []).map(x => fmt.param(x)).join(' ')}`",
+    "`Run command ${fmt.param(params.command, 'primary')} ${(params.parameters ?? []).map(x => fmt.param(x)).join(' ')}`",
   // displayString: displayString,
   params: {
     command: createStringParam("", {
@@ -34,7 +34,7 @@ export const run = createAction({
     },
     workingDirectory: createPathParam("", {
       required: false,
-      description: "The directory to run the command in. Default to current task directory",
+      description: "The local folder where the command should execute.",
       label: "Working directory",
       control: {
         type: "path",
@@ -73,7 +73,7 @@ export const run = createAction({
       value: 0,
     },
   },
-  description: "Invoke an arbitrary executable",
+  description: "Run a custom system command or executable.",
   icon: "",
   meta: {},
 });

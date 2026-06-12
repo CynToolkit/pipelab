@@ -172,8 +172,10 @@
       <!-- Advanced Tab Content -->
       <div v-if="currentSection === 'advanced'" class="settings-panel">
         <div class="section-header">
-          <h3>{{ t("settings.retentionPolicy") }}</h3>
-          <p class="description">{{ t("settings.retentionPolicyDescription") }}</p>
+          <h3>{{ t("settings.tabs.advanced") }}</h3>
+          <p class="description">
+            {{ t("settings.manage-where-the-app-stores-temporary-and-cache-files") }}
+          </p>
         </div>
 
         <div v-if="storageInfo && storageInfo.disk" class="storage-card mb-4">
@@ -281,81 +283,6 @@
                 </div>
                 <div class="detail-value text-sm">{{ formatSize(folder.size) }}</div>
               </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="settings-group">
-          <div class="setting-item">
-            <div class="setting-content">
-              <label for="retention-enabled" class="setting-title">{{
-                t("settings.retentionEnabled")
-              }}</label>
-              <div class="setting-description">
-                Automatically delete old pipelines builds to save space.
-              </div>
-            </div>
-            <div class="setting-action">
-              <ToggleSwitch
-                :disabled="!settingsRef"
-                input-id="retention-enabled"
-                :model-value="settingsRef?.buildHistory?.retentionPolicy?.enabled ?? false"
-                @update:model-value="updateRetentionEnabled"
-              />
-            </div>
-          </div>
-
-          <div
-            class="setting-item"
-            :class="{
-              'opacity-50 pointer-events-none':
-                !settingsRef?.buildHistory?.retentionPolicy?.enabled,
-            }"
-          >
-            <div class="setting-content">
-              <label for="max-entries" class="setting-title">{{
-                t("settings.retentionMaxEntries")
-              }}</label>
-              <div class="setting-description">
-                {{ t("settings.retentionMaxEntriesDescription") }}
-              </div>
-            </div>
-            <div class="setting-action">
-              <InputNumber
-                v-model="retentionMaxEntries"
-                :disabled="!settingsRef || !settingsRef?.buildHistory?.retentionPolicy?.enabled"
-                input-id="max-entries"
-                show-buttons
-                :min="1"
-                :max="1000"
-                class="w-[120px]"
-              />
-            </div>
-          </div>
-
-          <div
-            class="setting-item"
-            :class="{
-              'opacity-50 pointer-events-none':
-                !settingsRef?.buildHistory?.retentionPolicy?.enabled,
-            }"
-          >
-            <div class="setting-content">
-              <label for="max-age" class="setting-title">{{ t("settings.retentionMaxAge") }}</label>
-              <div class="setting-description">
-                {{ t("settings.retentionMaxAgeDescription") }}
-              </div>
-            </div>
-            <div class="setting-action">
-              <InputNumber
-                v-model="retentionMaxAge"
-                :disabled="!settingsRef || !settingsRef?.buildHistory?.retentionPolicy?.enabled"
-                input-id="max-age"
-                show-buttons
-                :min="1"
-                :max="365"
-                class="w-[120px]"
-              />
             </div>
           </div>
         </div>
@@ -733,72 +660,6 @@ const updateAutosave = (value: boolean) => {
     autosave: value,
   });
 };
-
-const updateRetentionEnabled = (value: boolean) => {
-  const currentBuildHistory = settingsRef.value.buildHistory || {};
-  const currentPolicy = currentBuildHistory.retentionPolicy || {
-    enabled: false,
-    maxEntries: 50,
-    maxAge: 30,
-  };
-
-  return appSettings.updateSettings({
-    ...(toRaw(settingsRef.value) as any),
-    buildHistory: {
-      ...currentBuildHistory,
-      retentionPolicy: {
-        ...currentPolicy,
-        enabled: value,
-      },
-    },
-  });
-};
-
-const retentionMaxEntries = computed({
-  get: () => settingsRef.value?.buildHistory?.retentionPolicy?.maxEntries ?? 50,
-  set: (value: number) => {
-    const currentBuildHistory = settingsRef.value.buildHistory || {};
-    const currentPolicy = currentBuildHistory.retentionPolicy || {
-      enabled: false,
-      maxEntries: 50,
-      maxAge: 30,
-    };
-
-    appSettings.updateSettings({
-      ...(toRaw(settingsRef.value) as any),
-      buildHistory: {
-        ...currentBuildHistory,
-        retentionPolicy: {
-          ...currentPolicy,
-          maxEntries: value,
-        },
-      },
-    });
-  },
-});
-
-const retentionMaxAge = computed({
-  get: () => settingsRef.value?.buildHistory?.retentionPolicy?.maxAge ?? 30,
-  set: (value: number) => {
-    const currentBuildHistory = settingsRef.value.buildHistory || {};
-    const currentPolicy = currentBuildHistory.retentionPolicy || {
-      enabled: false,
-      maxEntries: 50,
-      maxAge: 30,
-    };
-
-    appSettings.updateSettings({
-      ...(toRaw(settingsRef.value) as any),
-      buildHistory: {
-        ...currentBuildHistory,
-        retentionPolicy: {
-          ...currentPolicy,
-          maxAge: value,
-        },
-      },
-    });
-  },
-});
 
 const isBillingPortalUrlLoading = ref(false);
 

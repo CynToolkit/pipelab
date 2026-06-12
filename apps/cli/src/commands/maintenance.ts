@@ -26,15 +26,7 @@ export async function usageCommand(options: { userData?: string }) {
     "Oldest Entry": info.oldestEntry ? new Date(info.oldestEntry).toLocaleString() : "N/A",
     "Newest Entry": info.newestEntry ? new Date(info.newestEntry).toLocaleString() : "N/A",
     "User Data Path": info.userDataPath,
-    "Cache Path": join(info.userDataPath, "build-history"),
-  });
-
-  console.log("\nRetention Policy:");
-  console.table({
-    Enabled: info.retentionPolicy.enabled ? "Yes" : "No",
-    "Max Entries":
-      info.retentionPolicy.maxEntries > 0 ? info.retentionPolicy.maxEntries : "Unlimited",
-    "Max Age (days)": info.retentionPolicy.maxAge > 0 ? info.retentionPolicy.maxAge : "Unlimited",
+    "Cache Path": context.getBuildHistoryPath(),
   });
 }
 

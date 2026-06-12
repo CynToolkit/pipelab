@@ -7,14 +7,15 @@ export const ID = "minify:images";
 export const minifyImages = createAction({
   id: ID,
   name: "Minify images",
-  description: "",
+  description: "Optimize and reduce the file size of images in a folder.",
   icon: "",
-  displayString: "`Minify`",
+  displayString:
+    "`Optimize images in ${fmt.param(params['input-folder'], 'primary', 'No folder selected')}`",
   meta: {},
   params: {
     "input-folder": createPathParam("", {
       required: true,
-      label: "Folder to Upload",
+      label: "Folder to optimize",
       control: {
         type: "path",
         options: {

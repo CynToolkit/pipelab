@@ -36,11 +36,12 @@ describe("End-to-End: Build History", () => {
       });
 
       // The build history should be generated in the user-data folder
-      // Based on BuildHistoryStorage.getPipelinePath, the filename should be pipeline-<sanitizedId>.json
+      // Based on BuildHistoryStorage.getPipelinePath, the filename should be config/pipelines/<pipelineId>.history.json
       const historyFile = join(
         sandbox.paths.userData,
-        "build-history",
-        `pipeline-${pipelineId}.json`,
+        "config",
+        "pipelines",
+        `${pipelineId}.history.json`,
       );
 
       // Verification: file must exist

@@ -5,7 +5,7 @@ export const ID = "system:sleep";
 export const sleepAction = createAction({
   id: ID,
   name: "Wait",
-  description: "Wait for a given time (in milliseconds)",
+  description: "Pause the pipeline execution for a specified duration.",
   icon: "",
   displayString: "`Wait for ${fmt.param(params.duration)}ms`",
   meta: {},

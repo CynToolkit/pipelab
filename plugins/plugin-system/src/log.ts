@@ -9,9 +9,9 @@ export type Data = {
 export const logAction = createAction({
   id: ID,
   name: "Log",
-  description: "Log a message",
+  description: "Write a custom message to the execution log.",
   icon: "",
-  displayString: '`Log "${fmt.param(params.message)}"`',
+  displayString: '`Log message: "${fmt.param(params.message)}"`',
   meta: {},
   params: {
     message: createStringParam("", {

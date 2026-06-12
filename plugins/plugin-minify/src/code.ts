@@ -8,14 +8,15 @@ export const ID = "minify:code";
 export const minifyCode = createAction({
   id: ID,
   name: "Minify code",
-  description: "",
+  description: "Compress and optimize JavaScript code files inside a folder.",
   icon: "",
-  displayString: "`Minify code`",
+  displayString:
+    "`Optimize code in ${fmt.param(params['input-folder'], 'primary', 'No folder selected')}`",
   meta: {},
   params: {
     "input-folder": createPathParam("", {
       required: true,
-      label: "Folder to compress",
+      label: "Folder to optimize",
       control: {
         type: "path",
         options: {

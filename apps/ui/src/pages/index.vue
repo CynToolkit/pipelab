@@ -380,10 +380,10 @@
             :disabled="!canCreatePipeline"
             size="small"
             @click="onNewFileCreation(newProjectData)"
-            >{{ $t("home.duplicate-project") }}</Button
+            >{{ $t("home.duplicate-pipeline") }}</Button
           >
           <Button v-else :disabled="!canCreatePipeline" size="small" @click="onNewFileCreation()">{{
-            $t("home.create-project")
+            $t("home.create-pipeline")
           }}</Button>
         </div>
       </div>
@@ -822,7 +822,7 @@ const onNewFileCreation = async (preset?: Preset) => {
   const type: SaveLocation["type"] = isCloudProject.value ? "pipelab-cloud" : "internal";
 
   if (type === "internal") {
-    pathOrConfigName = `pipeline-${pipelineId}`;
+    pathOrConfigName = `pipelines/${pipelineId}`;
   }
 
   const updatedPreset: Preset = {
@@ -1052,7 +1052,7 @@ const migratePipeline = async (file: EnhancedFile) => {
     rejectClass: "p-button-secondary p-button-outlined",
     acceptClass: "p-button-primary",
     accept: async () => {
-      const newConfigName = `pipeline-${nanoid()}`;
+      const newConfigName = `pipelines/${nanoid()}`;
 
       // Save content to internal config
       await api.execute("config:save", {
@@ -1117,7 +1117,7 @@ const importPipeline = async () => {
   try {
     const fileData = JSON.parse(fileContentResult.result.content) as SavedFile;
     const pipelineId = nanoid();
-    const configName = `pipeline-${pipelineId}`;
+    const configName = `pipelines/${pipelineId}`;
 
     // Save to internal storage
     await api.execute("config:save", {

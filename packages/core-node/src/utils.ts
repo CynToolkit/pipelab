@@ -102,6 +102,7 @@ export const executeGraphWithHistory = async ({
     projectName,
     projectPath,
     pipelineId,
+    cachePath,
     startTime,
     status: "running",
     logs: [],
@@ -247,17 +248,16 @@ export const executeGraphWithHistory = async ({
 
     throw error;
   } finally {
-    // Apply retention policy regardless of outcome
-    if (!shouldDisableHistory) {
-      // Don't await, let it run in the background
-      buildHistoryStorage.applyRetentionPolicy();
-    }
-
     if (shouldCleanup) {
       try {
         await rm(sandboxPath, { recursive: true, force: true });
       } catch (e) {
         console.warn(`Failed to cleanup sandbox at ${sandboxPath}:`, e);
+      }
+      try {
+        await rm(cachePath, { recursive: true, force: true });
+      } catch (e) {
+        console.warn(`Failed to cleanup cache at ${cachePath}:`, e);
       }
     }
   }

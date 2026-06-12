@@ -23,7 +23,7 @@ export default createNodeDefinition({
   ],
   integrations: [
     {
-      name: "Browser Executable Link",
+      name: "Browser Executable",
       fields: [
         {
           key: "path",

@@ -7,10 +7,10 @@ export const i18n = createI18n<[MessageSchema], Locales>({
   fallbackLocale: "en-US",
   messages: {
     "en-US": en_US,
-    "fr-FR": fr_FR as unknown as MessageSchema,
-    "pt-BR": pt_BR as unknown as MessageSchema,
-    "zh-CN": zh_CN as unknown as MessageSchema,
-    "es-ES": es_ES as unknown as MessageSchema,
-    "de-DE": de_DE as unknown as MessageSchema,
+    "fr-FR": fr_FR,
+    "pt-BR": pt_BR,
+    "zh-CN": zh_CN,
+    "es-ES": es_ES,
+    "de-DE": de_DE,
   },
 });

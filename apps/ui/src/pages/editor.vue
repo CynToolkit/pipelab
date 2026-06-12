@@ -640,7 +640,7 @@ const run = async () => {
   if (!isLoggedIn.value && authStore.hasLoginProvider) {
     authStore.displayAuthModal(
       t("editor.welcome-back"),
-      t("editor.please-log-in-to-run-a-scenario"),
+      t("editor.please-log-in-to-run-a-pipeline"),
     );
     return;
   }

@@ -9,9 +9,9 @@ export type Data = {
 export const alertAction = createAction({
   id: ID,
   name: "Alert",
-  description: "Alert a message",
+  description: "Display a popup alert dialog with a message.",
   icon: "",
-  displayString: "`Alert ${fmt.param(params.message ?? 'No message')}`",
+  displayString: "`Show alert: ${fmt.param(params.message ?? 'No message')}`",
   meta: {},
   params: {
     message: createStringParam("", {

@@ -1,4 +1,4 @@
-import { PipelabContext, setupConfigFile } from "@pipelab/core-node";
+import { PipelabContext, setupConfigFile, deleteConfigFile } from "@pipelab/core-node";
 import { FileRepo, SaveLocation } from "@pipelab/shared";
 import { readFile, unlink, readdir } from "node:fs/promises";
 import { getDefaultUserDataPath } from "../paths";
@@ -239,21 +239,8 @@ export async function deletePipelineCommand(
     // 1. Delete internal file if applicable
     if (pipeline.type === "internal") {
       try {
-        const filePath = context.getConfigPath(`${pipeline.configName}.json`);
-        await unlink(filePath);
+        await deleteConfigFile(pipeline.configName, context);
         console.log(`Deleted pipeline file: ${pipeline.configName}.json`);
-
-        // Clean up versioned backups too
-        const parsedPath = path.parse(filePath);
-        const dirEntries = await readdir(parsedPath.dir).catch(() => [] as string[]);
-        const prefix = `${parsedPath.name}.v`;
-        const suffix = `.json`;
-        for (const entry of dirEntries) {
-          if (entry.startsWith(prefix) && entry.endsWith(suffix)) {
-            const backupPath = path.join(parsedPath.dir, entry);
-            await unlink(backupPath).catch(() => {});
-          }
-        }
       } catch (e: any) {
         if (e.code !== "ENOENT") {
           console.warn(`Warning: Could not delete pipeline file: ${e.message}`);

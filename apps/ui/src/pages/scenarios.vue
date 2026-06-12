@@ -4,7 +4,7 @@
       {{ headerSentence }}
     </div>
     <div class="content">
-      {{ $t("scenarios.scenarios") }}
+      {{ $t("pipelines.title") }}
     </div>
   </div>
 </template>

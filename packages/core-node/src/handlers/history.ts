@@ -284,44 +284,4 @@ export const registerHistoryHandlers = (context: PipelabContext) => {
       });
     }
   });
-
-  handle("build-history:configure", async (_, { send, value }) => {
-    try {
-      logger().info("Updating build history configuration:", value.config);
-
-      const settings = await setupConfigFile<AppConfig>("settings", { context });
-      const currentConfig = await settings.getConfig();
-
-      // Deep merge the new config with the existing one
-      const newConfig = {
-        ...currentConfig,
-        buildHistory: {
-          ...currentConfig?.buildHistory,
-          retentionPolicy: {
-            ...currentConfig?.buildHistory?.retentionPolicy,
-            ...value.config.retentionPolicy,
-          },
-        },
-      };
-
-      await settings.setConfig(newConfig);
-
-      send({
-        type: "end",
-        data: {
-          type: "success",
-          result: { result: "ok" },
-        },
-      });
-    } catch (error) {
-      logger().error("Failed to configure build history:", error);
-      send({
-        type: "end",
-        data: {
-          type: "error",
-          ipcError: error instanceof Error ? error.message : "Failed to configure build history",
-        },
-      });
-    }
-  });
 };

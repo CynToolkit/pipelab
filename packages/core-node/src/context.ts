@@ -51,6 +51,14 @@ function findProjectRoot(startDir: string): string | null {
 
 export const projectRoot = findProjectRoot(_dirname);
 
+export const CacheFolder = {
+  Actions: "actions",
+  Pipelines: "pipelines",
+  Pacote: "pacote",
+} as const;
+
+export type CacheFolderType = (typeof CacheFolder)[keyof typeof CacheFolder];
+
 export interface PipelabContextOptions {
   userDataPath: string;
   releaseTag?: string;
@@ -88,12 +96,21 @@ export class PipelabContext {
     return await mkdtemp(join(realBaseDir, prefix));
   }
 
-  getCachePath(...subpaths: string[]) {
-    return join(this.userDataPath, "cache", ...subpaths);
+  getCachePath(): string;
+  getCachePath(folder: CacheFolderType, ...subpaths: string[]): string;
+  getCachePath(folder?: CacheFolderType, ...subpaths: string[]) {
+    if (!folder) {
+      return join(this.userDataPath, "cache");
+    }
+    return join(this.userDataPath, "cache", folder, ...subpaths);
   }
 
   getPnpmPath(...subpaths: string[]) {
     return join(this.userDataPath, "pnpm", ...subpaths);
+  }
+
+  getBuildHistoryPath(...subpaths: string[]) {
+    return join(this.userDataPath, "build-history", ...subpaths);
   }
 
   getNodePath(version = DEFAULT_NODE_VERSION) {

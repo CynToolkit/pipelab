@@ -3,7 +3,7 @@ import path from "node:path";
 import { ensure } from "./utils/fs-extras";
 import fs from "node:fs/promises";
 import { useLogger } from "@pipelab/shared";
-import { configRegistry, Migrator, normalizePipelineConfig } from "@pipelab/shared";
+import { configRegistry, Migrator } from "@pipelab/shared";
 
 export const getMigrator = <T>(name: string) => {
   return (configRegistry[name] || configRegistry["pipeline"]) as Migrator<T>;
@@ -62,10 +62,7 @@ export const setupConfigFile = async <T>(
             debug: false,
             onStep: async (state: any, version: string) => {
               const parsedPath = path.parse(filesPath);
-              const versionedPath = path.join(
-                parsedPath.dir,
-                `${parsedPath.name}.v${version}.json`,
-              );
+              const versionedPath = ctx.getConfigPath(`${parsedPath.name}.v${version}.json`);
               try {
                 await fs.writeFile(versionedPath, JSON.stringify(state));
                 logger().info(`Intermediate backup created for ${name} at ${versionedPath}`);
@@ -86,33 +83,18 @@ export const setupConfigFile = async <T>(
         json = migrator.defaultValue;
       }
 
-      let normalized = false;
-      const isPipeline =
-        name.startsWith("pipeline-") ||
-        path.isAbsolute(name) ||
-        name.endsWith(".json") ||
-        name === "pipeline";
-      if (isPipeline) {
-        normalized = normalizePipelineConfig(json);
-      }
-
       const originalVersion = originalJson?.version;
       const newVersion = json?.version;
 
       const shouldSaveBack =
-        originalVersion !== newVersion ||
-        normalized ||
-        content === undefined ||
-        parseFailed ||
-        migrationFailed;
+        originalVersion !== newVersion || content === undefined || parseFailed || migrationFailed;
 
       if (shouldSaveBack) {
         if (parseFailed || migrationFailed) {
           try {
             const parsedPath = path.parse(filesPath);
             const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-            const corruptedPath = path.join(
-              parsedPath.dir,
+            const corruptedPath = ctx.getConfigPath(
               `${parsedPath.name}.corrupted.${timestamp}.json`,
             );
             const backupContent = parseFailed
@@ -135,4 +117,11 @@ export const setupConfigFile = async <T>(
       return json as T;
     },
   };
+};
+
+export const deleteConfigFile = async (nameOrPath: string, context: PipelabContext) => {
+  const isAbsolutePath = path.isAbsolute(nameOrPath);
+  const filesPath = isAbsolutePath ? nameOrPath : context.getConfigPath(`${nameOrPath}.json`);
+
+  await fs.rm(filesPath, { force: true });
 };

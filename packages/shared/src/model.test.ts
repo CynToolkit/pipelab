@@ -7,7 +7,7 @@ import {
   fileRepoMigrations,
   connectionsMigrator,
 } from "./config/migrators";
-import { AppConfigV6, AppConfigV8 } from "./config.schema";
+import { AppConfigV6, AppConfigV7 } from "./config.schema";
 
 describe("model", () => {
   it("should migrate 1.0.0 to 2.0.0", async () => {
@@ -326,7 +326,7 @@ describe("model", () => {
     } satisfies SavedFileV5);
   });
 
-  it("should migrate AppConfigV6 to AppConfigV8", async () => {
+  it("should migrate AppConfigV6 to AppConfigV7", async () => {
     const v6: AppConfigV6 = {
       version: "6.0.0",
       theme: "dark",
@@ -340,10 +340,10 @@ describe("model", () => {
       autosave: false,
     };
 
-    const v8 = await appSettingsMigrator.migrate(v6, { target: "8.0.0" });
+    const v7 = await appSettingsMigrator.migrate(v6, { target: "7.0.0" });
 
-    expect(v8).toStrictEqual({
-      version: "8.0.0",
+    expect(v7).toStrictEqual({
+      version: "7.0.0",
       theme: "dark",
       locale: "fr-FR",
       tours: {
@@ -352,13 +352,6 @@ describe("model", () => {
       },
       autosave: false,
       agents: [],
-      buildHistory: {
-        retentionPolicy: {
-          enabled: false,
-          maxEntries: 50,
-          maxAge: 30,
-        },
-      },
       plugins: expect.any(Array),
       isInternalMigrationBannerClosed: false,
     });
@@ -390,7 +383,7 @@ describe("model", () => {
   });
 
   describe("fileRepoMigrations", () => {
-    it("should migrate FileRepoV1 (data record) to FileRepoV2 (pipelines array)", async () => {
+    it("should migrate FileRepoV1 (data record) to FileRepoV3 (pipelines array)", async () => {
       const v1 = {
         version: "1.0.0" as const,
         data: {
@@ -414,10 +407,10 @@ describe("model", () => {
         },
       };
 
-      const v2 = await fileRepoMigrations.migrate(v1, { target: "2.0.0" });
+      const v3 = await fileRepoMigrations.migrate(v1, { target: "3.0.0" });
 
-      expect(v2).toStrictEqual({
-        version: "2.0.0",
+      expect(v3).toStrictEqual({
+        version: "3.0.0",
         data: v1.data,
         projects: [
           {
@@ -456,8 +449,8 @@ describe("model", () => {
         data: null,
       };
 
-      const result = await fileRepoMigrations.migrate(corrupted, { target: "2.0.0" });
-      expect(result.version).toBe("2.0.0");
+      const result = await fileRepoMigrations.migrate(corrupted, { target: "3.0.0" });
+      expect(result.version).toBe("3.0.0");
       expect(result.projects).toHaveLength(1);
       expect(result.pipelines).toEqual([]);
     });

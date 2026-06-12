@@ -14,16 +14,16 @@ export const ID = "poki-upload";
 
 export const uploadToPoki = createAction({
   id: ID,
-  name: "Upload to Poki.io",
-  description: "",
+  name: "Upload to Poki",
+  description: "Upload and publish your build to the Poki Developer Portal.",
   icon: "",
   displayString:
-    "`Upload ${fmt.param(params['input-folder'], 'primary', 'No path selected')} to ${fmt.param(params['project'], 'primary', 'No project')} poki game (${fmt.param(params['name'], 'primary', 'No version name')})`",
+    "`Upload ${fmt.param(params['input-folder'], 'primary', 'No path selected')} to Poki game ID ${fmt.param(params['project'], 'primary', 'No project')} (${fmt.param(params['name'], 'primary', 'No version name')})`",
   meta: {},
   params: {
     "input-folder": createPathParam("", {
       required: true,
-      label: "Folder to Upload",
+      label: "Folder to upload",
       control: {
         type: "path",
         options: {
@@ -33,18 +33,18 @@ export const uploadToPoki = createAction({
     }),
     project: createStringParam("", {
       required: true,
-      label: "Project",
-      description: "This is you Poki game id",
+      label: "Poki Game ID",
+      description: "Your unique Poki game ID.",
     }),
     name: createStringParam("", {
       required: true,
       label: "Version name",
-      description: "This is the name of the version",
+      description: "The version label for this build.",
     }),
     notes: createStringParam("", {
       required: true,
       label: "Version notes",
-      description: "These are notes you want to specify with  your version",
+      description: "Release notes describing the changes in this version.",
     }),
   },
   outputs: {},

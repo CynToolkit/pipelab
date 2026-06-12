@@ -37,7 +37,7 @@ export type ButlerJSONOutput = ButlerJSONOutputLog | ButlerJSONOutputProgress;
 export const uploadToNetlify = createAction({
   id: ID,
   name: "Upload to Netlify",
-  description: "",
+  description: "Deploy your web application or static folder directly to Netlify.",
   icon: "",
   displayString:
     "`Upload ${fmt.param(params['input-folder'], 'primary', 'No path selected')} to ${fmt.param(params['site'], 'primary', 'No site')}`",
@@ -45,7 +45,7 @@ export const uploadToNetlify = createAction({
   params: {
     "input-folder": createPathParam("", {
       required: true,
-      label: "Path to the folder to upload to netlify",
+      label: "Folder to deploy",
       control: {
         type: "path",
         options: {
@@ -55,11 +55,11 @@ export const uploadToNetlify = createAction({
     }),
     token: createStringParam("", {
       required: true,
-      label: "Token",
+      label: "Personal Access Token",
     }),
     site: createNetlifySiteParam("", "token", {
       required: true,
-      label: "Site",
+      label: "Netlify Site",
     }),
   },
   outputs: {},

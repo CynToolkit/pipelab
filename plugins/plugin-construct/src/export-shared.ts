@@ -77,7 +77,7 @@ export const sharedParams = {
   customProfile: createPathParam(undefined, {
     required: false,
     description:
-      "Use your own profile (X:\\Users\\XXX\\AppData\\Local\\Google\\Chrome\\User Data). Usefull if you want to reuse plugins installed in your current browser",
+      "Use your own profile (X:\\Users\\XXX\\AppData\\Local\\Google\\Chrome\\User Data). Useful if you want to reuse plugins installed in your current browser",
     control: {
       type: "path",
       options: {

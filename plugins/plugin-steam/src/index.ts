@@ -21,7 +21,7 @@ export default createNodeDefinition({
       ],
     },
     {
-      name: "Steam Credentials",
+      name: "Steam Account",
       fields: [
         {
           key: "username",

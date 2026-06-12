@@ -32,7 +32,7 @@ export type ButlerJSONOutput = ButlerJSONOutputLog | ButlerJSONOutputProgress;
 export const uploadToItch = createAction({
   id: ID,
   name: "Upload to Itch.io",
-  description: "",
+  description: "Upload your build directory to Itch.io.",
   icon: "",
   displayString:
     "`Upload ${fmt.param(params['input-folder'], 'primary', 'No path selected')} to ${fmt.param(params['user'], 'primary', 'No project')}/${fmt.param(params['project'], 'primary', 'No project')}:${fmt.param(params['channel'], 'primary', 'No channel')}`",
@@ -40,7 +40,7 @@ export const uploadToItch = createAction({
   params: {
     "input-folder": createPathParam("", {
       required: true,
-      label: "Folder to Upload",
+      label: "Folder to upload",
       control: {
         type: "path",
         options: {
@@ -50,7 +50,7 @@ export const uploadToItch = createAction({
     }),
     user: createStringParam("", {
       required: true,
-      label: "User",
+      label: "Username",
     }),
     project: createStringParam("", {
       required: true,
@@ -58,11 +58,11 @@ export const uploadToItch = createAction({
     }),
     channel: createStringParam("", {
       required: true,
-      label: "Channel",
+      label: "Channel (e.g., windows, mac, web)",
     }),
     "api-key": createStringParam("", {
       required: true,
-      label: "API key",
+      label: "API Key",
     }),
   },
   outputs: {},

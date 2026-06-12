@@ -1,6 +1,6 @@
 import { executeGraphWithHistory } from "./utils";
 import { setupConfigFile } from "./config";
-import { isDev, PipelabContext } from "./context";
+import { isDev, PipelabContext, CacheFolder } from "./context";
 import { readFile, access, writeFile, mkdir } from "node:fs/promises";
 import { resolve, isAbsolute, join, dirname } from "node:path";
 import { savedFileMigrator } from "@pipelab/shared";
@@ -67,9 +67,7 @@ export async function runPipelineCommand(file: string, options: RunOptions, vers
   await registerAllHandlers({ version, context });
   registerMigrationHandlers(context);
 
-  const settings = await setupConfigFile<AppConfig>("settings", { context });
-  const config = await settings.getConfig();
-  const cachePath = join(context.userDataPath, "cache");
+  const cachePath = context.getCachePath(CacheFolder.Pipelines, effectivePipelineId);
   await mkdir(cachePath, { recursive: true });
 
   const abortController = new AbortController();

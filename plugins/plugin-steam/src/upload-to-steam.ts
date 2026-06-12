@@ -23,14 +23,14 @@ export const ID = "steam-upload";
 export const uploadToSteam = createAction({
   id: ID,
   name: "Upload to Steam",
-  description: "Upload a folder to Steam",
+  description: "Upload your build directory directly to the Steamworks platform.",
   icon: "",
   displayString: "`Upload ${fmt.param(params['folder'], 'primary')} to steam`",
   meta: {},
   params: {
     sdk: createPathParam("", {
       required: true,
-      label: "Steam Sdk path",
+      label: "Steam SDK Folder",
       control: {
         type: "path",
         options: {
@@ -40,19 +40,19 @@ export const uploadToSteam = createAction({
     }),
     username: createStringParam("", {
       required: true,
-      label: "Steam username",
+      label: "Username",
     }),
     appId: createStringParam("", {
       required: true,
-      label: "App Id",
+      label: "App ID",
     }),
     depotId: createStringParam("", {
       required: true,
-      label: "Depot Id",
+      label: "Depot ID",
     }),
     description: createStringParam("", {
       required: true,
-      label: "Description",
+      label: "Build Description",
     }),
     folder: createPathParam("", {
       required: true,

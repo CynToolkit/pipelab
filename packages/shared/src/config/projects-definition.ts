@@ -18,8 +18,15 @@ export const FileRepoValidatorV2 = object({
   pipelines: optional(array(SaveLocationValidator), []),
 });
 
+export const FileRepoValidatorV3 = object({
+  version: literal("3.0.0"),
+  projects: array(FileRepoProjectValidatorV2),
+  pipelines: optional(array(SaveLocationValidator), []),
+});
+
 export type FileRepoV1 = InferInput<typeof FileRepoValidatorV1>;
 export type FileRepoV2 = InferInput<typeof FileRepoValidatorV2>;
+export type FileRepoV3 = InferInput<typeof FileRepoValidatorV3>;
 
-export const FileRepoValidator = FileRepoValidatorV2;
+export const FileRepoValidator = FileRepoValidatorV3;
 export type FileRepo = InferInput<typeof FileRepoValidator>;

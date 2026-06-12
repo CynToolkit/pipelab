@@ -1,6 +1,6 @@
 import { useAPI } from "../ipc-core";
 import { useLogger, configRegistry } from "@pipelab/shared";
-import { setupConfigFile, getMigrator } from "../config";
+import { setupConfigFile, getMigrator, deleteConfigFile } from "../config";
 import { PipelabContext } from "../context";
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -114,26 +114,7 @@ export const registerConfigHandlers = (context: PipelabContext) => {
     logger().info("config:delete", name);
 
     try {
-      // Config could be an absolute path (for external files/pipelines)
-      // or a name/identifier (for internal config files stored in Pipelab's app data directory).
-      const isAbsolutePath = path.isAbsolute(name);
-      const filesPath = isAbsolutePath ? name : context.getConfigPath(`${name}.json`);
-
-      await fs.rm(filesPath, { force: true });
-
-      // Clean up versioned backups too
-      const parsedPath = path.parse(filesPath);
-      const dirEntries = await fs.readdir(parsedPath.dir).catch(() => [] as string[]);
-      const prefix = `${parsedPath.name}.v`;
-      const suffix = `.json`;
-      for (const entry of dirEntries) {
-        if (entry.startsWith(prefix) && entry.endsWith(suffix)) {
-          const backupPath = path.join(parsedPath.dir, entry);
-          await fs.rm(backupPath, { force: true }).catch((err) => {
-            logger().error(`Failed to delete backup ${backupPath}:`, err);
-          });
-        }
-      }
+      await deleteConfigFile(name, context);
 
       send({
         type: "end",

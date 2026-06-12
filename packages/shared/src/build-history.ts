@@ -34,6 +34,7 @@ export interface BuildHistoryEntry {
   pipelineId: string;
   projectName: string;
   projectPath: string;
+  cachePath?: string;
   status: "running" | "completed" | "failed" | "cancelled";
   startTime: number;
   endTime?: number;
@@ -78,11 +79,6 @@ export interface IBuildHistoryStorage {
     newestEntry?: number;
     numberOfPipelines: number;
     userDataPath: string;
-    retentionPolicy: {
-      enabled: boolean;
-      maxEntries: number;
-      maxAge: number;
-    };
     disk: {
       total: number;
       free: number;
@@ -90,24 +86,6 @@ export interface IBuildHistoryStorage {
       folders: Array<{ name: SandboxFolder; label: string; size: number }>;
     };
   }>;
-}
-
-// Retention policy configuration
-export interface RetentionPolicy {
-  enabled: boolean;
-  maxEntries: number;
-  maxAge: number; // in milliseconds
-  maxSize: number; // in bytes
-  keepFailedBuilds: boolean;
-  keepSuccessfulBuilds: boolean;
-}
-
-// Storage configuration
-export interface BuildHistoryConfig {
-  storagePath: string;
-  indexFileName: string;
-  entryFilePrefix: string;
-  retentionPolicy: RetentionPolicy;
 }
 
 // Authorization and subscription types

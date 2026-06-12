@@ -4,13 +4,7 @@ import type { Tagged } from "type-fest";
 import { PresetResult, Steps } from "./model";
 import { AppConfig } from "./config.schema";
 import { Agent } from "./websocket.types";
-import {
-  BuildHistoryEntry,
-  BuildHistoryQuery,
-  BuildHistoryResponse,
-  BuildHistoryConfig,
-  RetentionPolicy,
-} from "./build-history";
+import { BuildHistoryEntry, BuildHistoryQuery, BuildHistoryResponse } from "./build-history";
 
 type Event<TYPE extends string, DATA> =
   | { type: TYPE; data: DATA }
@@ -129,10 +123,6 @@ export type IpcDefinition = {
       oldestEntry?: number;
       newestEntry?: number;
     }>,
-  ];
-  "build-history:configure": [
-    { config: Partial<BuildHistoryConfig> },
-    EndEvent<{ result: "ok" | "ko" }>,
   ];
   "agents:get": [void, EndEvent<{ agents: Agent[] }>];
   "graph:execute": [

@@ -1,8 +1,7 @@
 import { PipelabContext } from "../context";
 import { join } from "node:path";
-import { writeFile, readFile, unlink, mkdir, stat, readdir } from "node:fs/promises";
+import { writeFile, readFile, unlink, mkdir, stat, readdir, rm } from "node:fs/promises";
 import { useLogger, BuildHistoryEntry, IBuildHistoryStorage, AppConfig } from "@pipelab/shared";
-import { setupConfigFile } from "../config";
 import checkDiskSpace from "check-disk-space";
 import { getFolderSize } from "../utils/fs-extras";
 import { SandboxFolder } from "@pipelab/constants";
@@ -17,18 +16,11 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
   }
 
   private getStoragePath() {
-    return join(this.context.userDataPath, "build-history");
+    return this.context.getConfigPath("pipelines");
   }
 
   private getPipelinePath(pipelineId: string): string {
-    // Sanitize the pipelineId to create a valid filename
-    // Replace invalid filename characters with underscores
-    const sanitizedId = pipelineId
-      .replace(/[/\:*?"<>|]/g, "_")
-      .replace(/__/g, "_") // Replace multiple underscores with single
-      .replace(/^_+|_+$/g, ""); // Remove leading/trailing underscores
-
-    return join(this.getStoragePath(), `pipeline-${sanitizedId}.json`);
+    return join(this.getStoragePath(), `${pipelineId}.history.json`);
   }
 
   private async ensureStoragePath(): Promise<void> {
@@ -65,51 +57,6 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
     }
   }
 
-  async applyRetentionPolicy(): Promise<void> {
-    try {
-      this.logger.logger().info("Applying build history retention policy...");
-      const settings = await setupConfigFile<AppConfig>("settings", { context: this.context });
-      const config = await settings.getConfig();
-      const policy = config?.buildHistory?.retentionPolicy;
-
-      if (!policy || !policy.enabled) {
-        this.logger.logger().info("Retention policy is disabled. Skipping.");
-        return;
-      }
-
-      const { maxAge, maxEntries } = policy;
-      const pipelineFiles = await this.getAllPipelineFiles();
-
-      for (const file of pipelineFiles) {
-        const pipelineId = file.replace("pipeline-", "").replace(".json", "");
-        let entries = await this.loadPipelineHistory(pipelineId);
-        const originalCount = entries.length;
-
-        // 1. Filter by maxAge
-        if (maxAge > 0) {
-          const minDate = Date.now() - maxAge * 24 * 60 * 60 * 1000;
-          entries = entries.filter((entry) => entry.createdAt >= minDate);
-        }
-
-        // 2. Filter by maxEntries (sort by date first to keep the newest)
-        if (maxEntries > 0 && entries.length > maxEntries) {
-          entries = entries.sort((a, b) => b.createdAt - a.createdAt).slice(0, maxEntries);
-        }
-
-        if (entries.length < originalCount) {
-          this.logger
-            .logger()
-            .info(`[${pipelineId}] Pruned ${originalCount - entries.length} history entries.`);
-          await this.savePipelineHistory(pipelineId, entries);
-        }
-      }
-      this.logger.logger().info("Retention policy applied successfully.");
-    } catch (error) {
-      this.logger.logger().error("Failed to apply retention policy:", error);
-      // We don't re-throw here as this is a background task and shouldn't crash the app
-    }
-  }
-
   async save(entry: BuildHistoryEntry): Promise<void> {
     try {
       const entries = await this.loadPipelineHistory(entry.pipelineId);
@@ -125,11 +72,6 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
       this.logger
         .logger()
         .info(`Saved build history entry: ${entry.id} for pipeline: ${entry.pipelineId}`);
-
-      // Apply retention policy after each save
-      this.applyRetentionPolicy().catch((err) => {
-        this.logger.logger().error("Failed to apply retention policy after save:", err);
-      });
     } catch (error) {
       this.logger.logger().error("Failed to save build history entry:", error);
       throw new Error(`Failed to save build history entry: ${error}`);
@@ -145,7 +87,8 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
 
       const files = await this.getAllPipelineFiles();
       for (const file of files) {
-        const pId = file.replace("pipeline-", "").replace(".json", "");
+        const pId = this.parsePipelineIdFromFilename(file);
+        if (!pId) continue;
         const entries = await this.loadPipelineHistory(pId);
         const entry = entries.find((e) => e.id === id);
         if (entry) return entry;
@@ -162,7 +105,8 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
       const files = await this.getAllPipelineFiles();
       const allEntries: BuildHistoryEntry[] = [];
       for (const file of files) {
-        const pipelineId = file.replace("pipeline-", "").replace(".json", "");
+        const pipelineId = this.parsePipelineIdFromFilename(file);
+        if (!pipelineId) continue;
         const entries = await this.loadPipelineHistory(pipelineId);
         allEntries.push(...entries);
       }
@@ -200,7 +144,8 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
       } else {
         const files = await this.getAllPipelineFiles();
         for (const file of files) {
-          const pId = file.replace("pipeline-", "").replace(".json", "");
+          const pId = this.parsePipelineIdFromFilename(file);
+          if (!pId) continue;
           const entries = await this.loadPipelineHistory(pId);
           const entryIndex = entries.findIndex((e) => e.id === id);
           if (entryIndex >= 0) {
@@ -231,7 +176,8 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
       } else {
         const files = await this.getAllPipelineFiles();
         for (const file of files) {
-          const pId = file.replace("pipeline-", "").replace(".json", "");
+          const pId = this.parsePipelineIdFromFilename(file);
+          if (!pId) continue;
           const entries = await this.loadPipelineHistory(pId);
           const entryIndex = entries.findIndex((e) => e.id === id);
           if (entryIndex >= 0) {
@@ -253,8 +199,26 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
     try {
       await this.ensureStoragePath();
       const files = await this.getAllPipelineFiles();
-      await Promise.all(files.map((file) => unlink(join(this.getStoragePath(), file))));
+      const cachePathsToDelete = new Set<string>();
+
+      for (const file of files) {
+        const pipelineId = this.parsePipelineIdFromFilename(file);
+        if (pipelineId) {
+          const entries = await this.loadPipelineHistory(pipelineId);
+          for (const entry of entries) {
+            if (entry.cachePath) {
+              cachePathsToDelete.add(entry.cachePath);
+            }
+          }
+        }
+        await unlink(join(this.getStoragePath(), file));
+      }
+
       this.logger.logger().info("Cleared all build history");
+
+      for (const cachePath of cachePathsToDelete) {
+        await rm(cachePath, { recursive: true, force: true }).catch(() => {});
+      }
     } catch (error) {
       this.logger.logger().error("Failed to clear build history:", error);
       throw new Error(`Failed to clear build history: ${error}`);
@@ -264,8 +228,19 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
   async clearByPipeline(pipelineId: string): Promise<void> {
     try {
       const pipelinePath = this.getPipelinePath(pipelineId);
+      const entries = await this.loadPipelineHistory(pipelineId);
       await unlink(pipelinePath);
       this.logger.logger().info(`Cleared history for pipeline "${pipelineId}"`);
+
+      const cachePathsToDelete = new Set<string>();
+      for (const entry of entries) {
+        if (entry.cachePath) {
+          cachePathsToDelete.add(entry.cachePath);
+        }
+      }
+      for (const cachePath of cachePathsToDelete) {
+        await rm(cachePath, { recursive: true, force: true }).catch(() => {});
+      }
     } catch (error: any) {
       if (error.code === "ENOENT") {
         this.logger
@@ -285,11 +260,6 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
     newestEntry?: number;
     numberOfPipelines: number;
     userDataPath: string;
-    retentionPolicy: {
-      enabled: boolean;
-      maxEntries: number;
-      maxAge: number;
-    };
     disk: {
       total: number;
       free: number;
@@ -314,25 +284,12 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
         });
       }
 
-      const settings = await setupConfigFile<AppConfig>("settings", { context: this.context });
-      const config = await settings.getConfig();
-      const policy = config?.buildHistory?.retentionPolicy || {
-        enabled: false,
-        maxEntries: 50,
-        maxAge: 30,
-      };
-
       if (allEntries.length === 0) {
         return {
           totalEntries: 0,
           totalSize: 0,
           numberOfPipelines: files.length,
           userDataPath: this.context.userDataPath,
-          retentionPolicy: {
-            enabled: policy.enabled,
-            maxEntries: policy.maxEntries,
-            maxAge: policy.maxAge,
-          },
           disk: {
             total: diskSpace.size,
             free: diskSpace.free,
@@ -362,11 +319,6 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
         newestEntry: sortedEntries[sortedEntries.length - 1]?.createdAt,
         numberOfPipelines: files.length,
         userDataPath: this.context.userDataPath,
-        retentionPolicy: {
-          enabled: policy.enabled,
-          maxEntries: policy.maxEntries,
-          maxAge: policy.maxAge,
-        },
         disk: {
           total: diskSpace.size,
           free: diskSpace.free,
@@ -384,9 +336,14 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
     try {
       await this.ensureStoragePath();
       const files = await readdir(this.getStoragePath());
-      return files.filter((file) => file.startsWith("pipeline-") && file.endsWith(".json"));
+      return files.filter((file) => file.endsWith(".history.json"));
     } catch (error) {
       return [];
     }
+  }
+
+  private parsePipelineIdFromFilename(filename: string): string | null {
+    const match = filename.match(/^(.+)\.history\.json$/);
+    return match ? match[1] : null;
   }
 }

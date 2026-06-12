@@ -13,14 +13,14 @@ export const ID = "nvpatch";
 export const NVPatch = createAction({
   id: ID,
   name: "Patch binary",
-  description: "",
+  description: "Apply a compatibility patch to an executable binary file.",
   icon: "",
   displayString: "`Patch binary ${fmt.param(params['input'], 'primary')}`",
   meta: {},
   params: {
     input: createPathParam("", {
       required: true,
-      label: "File to patch",
+      label: "Binary file to patch",
       control: {
         type: "path",
         options: {

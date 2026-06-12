@@ -9,9 +9,9 @@ export type Data = {
 export const promptAction = createAction({
   id: ID,
   name: "Prompt",
-  description: "Prompt a message",
+  description: "Display a dialog box asking the user to input text.",
   icon: "",
-  displayString: "`Prompt ${fmt.param(params.message ?? 'No message')}`",
+  displayString: "`Ask for input: ${fmt.param(params.message ?? 'No message')}`",
   meta: {},
   params: {
     message: createStringParam("", {

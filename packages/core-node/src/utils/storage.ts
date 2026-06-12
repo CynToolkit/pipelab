@@ -12,7 +12,8 @@ export class JsonFileStorage {
   private logger = useLogger().logger;
 
   constructor(fileName: string, context: PipelabContext) {
-    this.filePath = path.join(context.userDataPath, fileName);
+    this.filePath = context.getConfigPath(fileName);
+
     const dir = path.dirname(this.filePath);
     if (!fs.existsSync(dir)) {
       try {

@@ -28,11 +28,12 @@ export type { IpcDefinition as RendererIpcDefinition } from "./ipc.types";
 export type { RequestId } from "./apis";
 export type { RequestId as RendererRequestId } from "./ipc.types";
 export type { NodeId } from "./model";
-export type { FileRepo, FileRepoV1, FileRepoV2 } from "./config/projects-definition";
+export type { FileRepo, FileRepoV1, FileRepoV2, FileRepoV3 } from "./config/projects-definition";
 export {
   FileRepoValidator,
   FileRepoValidatorV1,
   FileRepoValidatorV2,
+  FileRepoValidatorV3,
   FileRepoProjectValidatorV2,
 } from "./config/projects-definition";
 
@@ -64,7 +65,6 @@ export * from "./websocket.types";
 export * from "./config/projects-definition"; // <-- RE-ADDED
 export * from "./config/settings-definition"; // <-- RE-ADDED
 export * from "./config/connections-definition";
-export * from "./config/projects-types";
 
 // NOTE: We avoid "export * from './config'" to prevent nested re-export circles.
 // All necessary members from the config subfolder are explicitly exported above.

@@ -19,14 +19,14 @@ export const ID = "netlify-build";
 export const buildNetlifySite = createAction({
   id: ID,
   name: "Build Netlify site",
-  description: "",
+  description: "Build your Netlify site.",
   icon: "",
   displayString: "`Build ${fmt.param(params['input-folder'], 'primary', 'No path selected')}`",
   meta: {},
   params: {
     "input-folder": createPathParam("", {
       required: true,
-      label: "Path to the folder to upload to netlify",
+      label: "Folder to build",
       control: {
         type: "path",
         options: {
@@ -36,7 +36,7 @@ export const buildNetlifySite = createAction({
     }),
     token: createStringParam("", {
       required: true,
-      label: "Token",
+      label: "Personal Access Token",
     }),
   },
   outputs: {},

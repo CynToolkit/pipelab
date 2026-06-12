@@ -14,7 +14,7 @@ import { existsSync, constants, statSync, readdirSync } from "node:fs";
 import dns from "node:dns/promises";
 import pacote from "pacote";
 import semver from "semver";
-import { isDev, projectRoot, PipelabContext } from "../context";
+import { isDev, projectRoot, PipelabContext, CacheFolder } from "../context";
 import { execa } from "execa";
 import { sendStartupProgress } from "../server";
 import { downloadFile, extractZip, extractTarGz } from "./fs-extras";
@@ -163,7 +163,7 @@ export async function fetchPackage(
   } else {
     try {
       // 1. Resolve version/range using npm with session-wide memoization and disk cache
-      const cachePath = join(ctx.userDataPath, "cache", "pacote");
+      const cachePath = ctx.getCachePath(CacheFolder.Pacote);
       let packumentPromise = packumentRequests.get(packageName);
       if (!packumentPromise) {
         packumentPromise = pacote.packument(packageName, { cache: cachePath });
@@ -230,7 +230,7 @@ export async function fetchPackage(
     }
   }
 
-  const cachePath = join(ctx.userDataPath, "cache", "pacote");
+  const cachePath = ctx.getCachePath(CacheFolder.Pacote);
   const packageDir = join(baseDir, resolvedVersion);
 
   const checkStart = Date.now();
@@ -354,7 +354,7 @@ export async function runPnpm(
       ...process.env,
       NODE_ENV: "production",
       PATH: nodePath ? `${dirname(nodePath)}${delimiter}${process.env.PATH}` : process.env.PATH,
-      PNPM_HOME: join(ctx.userDataPath, "pnpm"),
+      PNPM_HOME: ctx.getPnpmPath(),
       PNPM_ONLY_ALLOW_TRUSTED_DEPENDENCIES: "false",
       ...extraEnv,
     },

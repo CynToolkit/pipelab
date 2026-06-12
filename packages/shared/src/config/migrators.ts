@@ -16,12 +16,11 @@ import {
   AppConfigV5,
   AppConfigV6,
   AppConfigV7,
-  AppConfigV8,
   ConnectionsConfig,
   ConnectionsConfigV1,
 } from "../config.schema";
 
-const DEFAULT_PLUGINS: AppConfigV8["plugins"] = [
+const DEFAULT_PLUGINS: AppConfig["plugins"] = [
   {
     name: "@pipelab/plugin-construct",
     enabled: true,
@@ -39,7 +38,7 @@ const DEFAULT_PLUGINS: AppConfigV8["plugins"] = [
   { name: "@pipelab/plugin-minify", enabled: true, description: "Asset minification" },
   { name: "@pipelab/plugin-netlify", enabled: true, description: "Netlify deployment" },
 ];
-import { FileRepoV1, FileRepoV2, FileRepo } from "./projects-types";
+import { FileRepoV1, FileRepoV2, FileRepoV3, FileRepo } from "./projects-types";
 import {
   SavedFileV1,
   SavedFileV2,
@@ -73,7 +72,7 @@ const settingsMigratorInternal = createMigrator<AppConfigV1, AppConfig>();
 export const defaultAppSettings = settingsMigratorInternal.createDefault({
   locale: "en-US",
   theme: "light",
-  version: "8.0.0",
+  version: "7.0.0",
   autosave: true,
   agents: [],
   tours: {
@@ -84,13 +83,6 @@ export const defaultAppSettings = settingsMigratorInternal.createDefault({
     editor: {
       step: 0,
       completed: false,
-    },
-  },
-  buildHistory: {
-    retentionPolicy: {
-      enabled: false,
-      maxEntries: 50,
-      maxAge: 30,
     },
   },
   plugins: DEFAULT_PLUGINS,
@@ -143,27 +135,20 @@ export const appSettingsMigrator = settingsMigratorInternal.createMigrations({
         autosave: true,
       }),
     }),
-    createMigration<AppConfigV6, AppConfigV8>({
+    createMigration<AppConfigV6, AppConfigV7>({
       version: "6.0.0" as SemVer,
       up: (state) => {
         const { cacheFolder: _, clearTemporaryFoldersOnPipelineEnd: __, ...rest } = state;
         return {
           ...rest,
           agents: [],
-          buildHistory: {
-            retentionPolicy: {
-              enabled: false,
-              maxEntries: 50,
-              maxAge: 30,
-            },
-          },
           plugins: DEFAULT_PLUGINS,
           isInternalMigrationBannerClosed: false,
         };
       },
     }),
-    createMigration<AppConfigV8, never>({
-      version: "8.0.0" as SemVer,
+    createMigration<AppConfigV7, never>({
+      version: "7.0.0" as SemVer,
       up: finalVersion,
     }),
   ],
@@ -193,7 +178,7 @@ export const connectionsMigrator = connectionsMigratorInternal.createMigrations(
 const fileRepoMigratorInternal = createMigrator<FileRepoV1, FileRepo>();
 
 export const defaultFileRepo = fileRepoMigratorInternal.createDefault({
-  version: "2.0.0",
+  version: "3.0.0",
   projects: [
     {
       id: "main",
@@ -232,8 +217,16 @@ export const fileRepoMigrations = fileRepoMigratorInternal.createMigrations({
         };
       },
     }),
-    createMigration<FileRepoV2, never>({
+    createMigration<FileRepoV2, FileRepoV3>({
       version: "2.0.0",
+      up: (state) => {
+        return {
+          ...state,
+        };
+      },
+    }),
+    createMigration<FileRepoV3, never>({
+      version: "3.0.0",
       up: finalVersion,
     }),
   ],
@@ -424,7 +417,7 @@ export const normalizePipelineConfig = (state: any): boolean => {
 
   // Normalise plugin IDs in block and trigger origins (pluginId field only;
   // version strings don't need normalisation)
-  if (state.type === "default" && state.canvas) {
+  if (state.canvas) {
     if (Array.isArray(state.canvas.blocks)) {
       for (const block of state.canvas.blocks) {
         if (normalizeBlockPluginId(block)) changed = true;

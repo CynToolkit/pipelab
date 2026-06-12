@@ -1,10 +1,11 @@
 import { useAPI, HandleListenerSendFn } from "../ipc-core";
-import { PipelabContext } from "../context";
+import { PipelabContext, CacheFolder } from "../context";
 import { useLogger } from "@pipelab/shared";
 import { getFinalPlugins, executeGraphWithHistory } from "../utils";
 import { presets } from "../presets/list";
 import { handleActionExecute } from "../handler-func";
 import { join } from "node:path";
+import { rm } from "node:fs/promises";
 import { setupConfigFile } from "../config";
 import { AppConfig } from "@pipelab/shared";
 
@@ -78,32 +79,35 @@ export const registerEngineHandlers = (context: PipelabContext) => {
 
   handle("action:execute", async (event, { send, value }) => {
     const { nodeId, params, pluginId } = value;
-    const settings = await setupConfigFile<AppConfig>("settings", { context });
-    const config = await settings.getConfig();
-
-    const cachePath = join(context.userDataPath, "cache", "actions", pluginId, nodeId);
+    const cachePath = context.getCachePath(CacheFolder.Actions, pluginId, nodeId);
     const cwd = await context.createTempFolder("action-execute-");
 
-    const mainWindow: undefined = undefined;
-    abortControllerGraph = new AbortController();
+    try {
+      const mainWindow: undefined = undefined;
+      abortControllerGraph = new AbortController();
 
-    const signalPromise = new Promise((resolve, reject) => {
-      abortControllerGraph!.signal.addEventListener("abort", async () => {
-        await send({
-          type: "end",
-          data: {
-            ipcError: "Action aborted",
-            type: "error",
-          },
+      const signalPromise = new Promise((resolve, reject) => {
+        abortControllerGraph!.signal.addEventListener("abort", async () => {
+          await send({
+            type: "end",
+            data: {
+              ipcError: "Action aborted",
+              type: "error",
+            },
+          });
+          return reject(new Error("Action interrupted"));
         });
-        return reject(new Error("Action interrupted"));
       });
-    });
 
-    await Promise.race([
-      signalPromise,
-      effectiveActionExecute(nodeId, pluginId, params, mainWindow, send, cwd, cachePath),
-    ]);
+      await Promise.race([
+        signalPromise,
+        effectiveActionExecute(nodeId, pluginId, params, mainWindow, send, cwd, cachePath),
+      ]);
+    } finally {
+      await rm(cwd, { recursive: true, force: true }).catch((err) => {
+        console.warn(`Failed to cleanup temp folder at ${cwd}:`, err);
+      });
+    }
   });
 
   handle("constants:get", async (_, { send }) => {
@@ -144,7 +148,7 @@ export const registerEngineHandlers = (context: PipelabContext) => {
     const effectiveProjectName = projectName || "Unnamed Project";
     const effectiveProjectPath = projectPath || "";
     const effectivePipelineId = pipelineId || "unknown";
-    const effectiveCachePath = join(context.userDataPath, "cache", effectivePipelineId);
+    const effectiveCachePath = context.getCachePath(CacheFolder.Pipelines, effectivePipelineId);
 
     const mainWindow: undefined = undefined;
     abortControllerGraph = new AbortController();

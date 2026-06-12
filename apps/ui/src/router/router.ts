@@ -38,7 +38,7 @@ const routes: RouterOptions["routes"] = [
     name: "Scenarios",
     component: () => import("../pages/scenarios.vue"),
     meta: {
-      title: t("headers.scenarios"),
+      title: t("headers.pipelines"),
     },
     children: [],
   },
