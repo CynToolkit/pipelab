@@ -137,6 +137,23 @@ export const script = async (
   // const serviceworker = await serviceWorkerPromise;
   registerWelcomeToConstructListener(page, log)
 
+  // as soon as it appear, without blocking flow
+  // ignore asking for update
+  const notNowBtn = page.getByText('Not now')
+  notNowBtn
+    .waitFor({
+      timeout: 0
+    })
+    .then(async () => {
+      return notNowBtn.click()
+    })
+    .then(() => {
+      log('notNowBtn clicked')
+    })
+    .catch(async () => {
+      log('notNowBtn.click() failed')
+    })
+
   log('after event')
 
   // if (addonsFolder) {
@@ -232,23 +249,6 @@ export const script = async (
     const finalText = Number.isNaN(textAsNumber) ? 0 : textAsNumber
     log('progress', `${finalText * 100}%`)
   }, 500)
-
-  // as soon as it appear, without blocking flow
-  // ignore asking for update
-  const notNowBtn = page.getByText('Not now')
-  notNowBtn
-    .waitFor({
-      timeout: 0
-    })
-    .then(async () => {
-      return notNowBtn.click()
-    })
-    .then(() => {
-      log('notNowBtn clicked')
-    })
-    .catch(async () => {
-      log('notNowBtn.click() failed')
-    })
 
   registerInstallButtonListener(page, log)
   registerWebglErrorListener(page, log)
