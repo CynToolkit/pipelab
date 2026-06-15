@@ -115,24 +115,6 @@ const registerMissingAddonErrorListener = (page: Page, log: typeof console.log) 
     })
 }
 
-const registerUpdateAvailableListener = (page: Page, log: typeof console.log) => {
-  // as soon as it appear, without blocking flow
-  // ignore asking for update
-  const notNowBtn = page.getByText('Not now')
-  notNowBtn
-    .waitFor({
-      timeout: 0
-    })
-    .then(async () => {
-      await notNowBtn.click()
-      log('notNowBtn clicked')
-      registerUpdateAvailableListener(page, log)
-    })
-    .catch(async () => {
-      log('notNowBtn.click() failed')
-    })
-}
-
 export const script = async (
   page: Page,
   log: typeof console.log,
@@ -152,13 +134,8 @@ export const script = async (
   await page.goto(url)
   log('after navigating')
 
+  // const serviceworker = await serviceWorkerPromise;
   registerWelcomeToConstructListener(page, log)
-  registerUpdateAvailableListener(page, log)
-  registerInstallButtonListener(page, log)
-  registerWebglErrorListener(page, log)
-  registerMissingAddonErrorListener(page, log)
-  registerDeprecatedFeatures(page, log)
-  registerSaveLoginExpiredistener(page, log)
 
   log('after event')
 
@@ -255,6 +232,29 @@ export const script = async (
     const finalText = Number.isNaN(textAsNumber) ? 0 : textAsNumber
     log('progress', `${finalText * 100}%`)
   }, 500)
+
+  // as soon as it appear, without blocking flow
+  // ignore asking for update
+  const notNowBtn = page.getByText('Not now')
+  notNowBtn
+    .waitFor({
+      timeout: 0
+    })
+    .then(async () => {
+      return notNowBtn.click()
+    })
+    .then(() => {
+      log('notNowBtn clicked')
+    })
+    .catch(async () => {
+      log('notNowBtn.click() failed')
+    })
+
+  registerInstallButtonListener(page, log)
+  registerWebglErrorListener(page, log)
+  registerMissingAddonErrorListener(page, log)
+  registerDeprecatedFeatures(page, log)
+  registerSaveLoginExpiredistener(page, log)
 
   log('Waiting for progress dialog to disapear')
   await progressDialog.waitFor({
