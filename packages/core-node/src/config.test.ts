@@ -64,11 +64,11 @@ describe("setupConfigFile & Backup Creation", () => {
     // 3. Retrieve config (this triggers the migration process and onStep callback)
     const migratedConfig = await configInstance.getConfig();
 
-    // 4. Assert the main config is updated on disk to version 2.0.0
-    expect(migratedConfig.version).toBe("2.0.0");
+    // 4. Assert the main config is updated on disk to version 3.0.0
+    expect(migratedConfig.version).toBe("3.0.0");
 
     const updatedContent = JSON.parse(await fs.readFile(projectsFilePath, "utf8"));
-    expect(updatedContent.version).toBe("2.0.0");
+    expect(updatedContent.version).toBe("3.0.0");
 
     // 5. Assert that the intermediate backup file was created on disk
     const backupFilePath = path.join(configDir, "projects.v2.0.0.json");
@@ -92,7 +92,7 @@ describe("setupConfigFile & Backup Creation", () => {
     // Should create file with default value
     expect(existsSync(projectsFilePath)).toBe(true);
     const content = JSON.parse(await fs.readFile(projectsFilePath, "utf8"));
-    expect(content.version).toBe("2.0.0");
+    expect(content.version).toBe("3.0.0");
     expect(content.projects).toHaveLength(1);
     expect(content.pipelines).toEqual([]);
   });
@@ -107,7 +107,7 @@ describe("setupConfigFile & Backup Creation", () => {
     const configInstance = await setupConfigFile<FileRepo>("projects", { context });
     const config = await configInstance.getConfig();
 
-    expect(config.version).toBe("2.0.0");
+    expect(config.version).toBe("3.0.0");
     expect(config.projects).toHaveLength(1);
     expect(config.pipelines).toEqual([]);
 
