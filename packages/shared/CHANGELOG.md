@@ -1,5 +1,14 @@
 # @pipelab/shared
 
+## 1.0.0-beta.14
+
+### Patch Changes
+
+- sd
+- Updated dependencies
+  - @pipelab/constants@1.0.0-beta.16
+  - @pipelab/migration@1.0.0-beta.14
+
 ## 1.0.0-beta.13
 
 ### Patch Changes

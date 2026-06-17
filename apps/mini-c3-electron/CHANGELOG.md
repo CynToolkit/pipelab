@@ -1,5 +1,11 @@
 # mini-c3-electron
 
+## 0.0.1-beta.6
+
+### Patch Changes
+
+- sd
+
 ## 0.0.1-beta.5
 
 ### Patch Changes
