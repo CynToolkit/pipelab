@@ -17,7 +17,9 @@ const _dirname =
 
 export const isDev = process.env.NODE_ENV === "development";
 
-export const getDefaultUserDataPath = (env?: "dev" | "beta" | "prod") => {
+export type PipelabEnv = "dev" | "beta" | "prod";
+
+export const getDefaultUserDataPath = (env?: PipelabEnv) => {
   const base = (() => {
     switch (platform()) {
       case "win32":

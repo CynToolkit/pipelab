@@ -28,7 +28,11 @@
     </transition>
     <DevBenefitsOverride v-if="!isDisconnected" />
     <WebFilePicker v-if="!isDisconnected" />
-    <MigrationModal v-if="isMigrationModalVisible" v-model:visible="isMigrationModalVisible" />
+    <MigrationModal
+      v-if="isMigrationModalVisible"
+      v-model:visible="isMigrationModalVisible"
+      :source-channel="migrationSourceChannel"
+    />
     <Toast />
   </div>
 </template>
@@ -38,7 +42,7 @@ import { useAppStore } from "./store/app";
 import { onMounted, ref, provide, watch, computed } from "vue";
 import { useFiles } from "./store/files";
 import { handle } from "./composables/handlers";
-import { useLogger } from "@pipelab/shared";
+import { useLogger, MigrationChannel } from "@pipelab/shared";
 import { useAuth } from "@renderer/store/auth";
 import { storeToRefs } from "pinia";
 import { useAppSettings } from "./store/settings";
@@ -53,6 +57,7 @@ import Dialog from "primevue/dialog";
 import Toast from "primevue/toast";
 import MigrationModal from "./components/MigrationModal.vue";
 import { useAPI } from "./composables/api";
+import { OpenMigrationModalKey, OpenUpgradeDialogKey } from "./utils/injection-keys";
 import { websocketManager } from "./composables/websocket-manager";
 import { useWebSocketAPI } from "./composables/websocket-client";
 
@@ -77,10 +82,12 @@ const isUpgradeDialogVisible = ref(false);
 const minimumLoadingTimeReached = ref(false);
 
 const isMigrationModalVisible = ref(false);
-const openMigrationModal = () => {
+const migrationSourceChannel = ref<MigrationChannel | undefined>(undefined);
+const openMigrationModal = (sourceChannel?: MigrationChannel) => {
+  migrationSourceChannel.value = sourceChannel;
   isMigrationModalVisible.value = true;
 };
-provide("openMigrationModal", openMigrationModal);
+provide(OpenMigrationModalKey, openMigrationModal);
 
 const isDisconnected = computed(
   () =>
@@ -106,7 +113,7 @@ const closeUpgradeDialog = () => {
   isUpgradeDialogVisible.value = false;
 };
 
-provide("openUpgradeDialog", openUpgradeDialog);
+provide(OpenUpgradeDialogKey, openUpgradeDialog);
 
 handle("log:message", async (event, { value, send }) => {
   console.log("value", value);

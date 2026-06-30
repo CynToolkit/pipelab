@@ -271,6 +271,11 @@ const toggleSortOrder = () => {
   border: 1px solid #e9ecef;
 }
 
+:root.dark .list-header {
+  background: var(--p-surface-950);
+  border-color: var(--p-surface-800);
+}
+
 .results-info {
   display: flex;
   align-items: center;
@@ -298,6 +303,11 @@ const toggleSortOrder = () => {
   overflow: hidden;
 }
 
+:root.dark .view-mode {
+  background: var(--p-surface-900);
+  border-color: var(--p-surface-800);
+}
+
 .view-mode .p-button {
   border-radius: 0;
   border: none;
@@ -320,6 +330,10 @@ const toggleSortOrder = () => {
   color: #495057;
   font-size: 0.875rem;
   white-space: nowrap;
+}
+
+:root.dark .sort-controls label {
+  color: var(--p-text-color);
 }
 
 .sort-dropdown {
@@ -354,6 +368,11 @@ const toggleSortOrder = () => {
   border-radius: 8px;
   overflow: hidden;
   transition: border-color 0.2s ease;
+}
+
+:root.dark .grid-item {
+  background: var(--p-surface-900);
+  border-color: var(--p-surface-800);
 }
 
 .grid-item:hover {

@@ -138,6 +138,7 @@
     "only-internal-supported-notice": "Pipelab verwaltet jetzt alle Pipelines im Arbeitsbereich der Anwendung. Externe Dateien sind veraltet, können aber weiterhin importiert werden.",
     "import-pipeline": "Pipeline importieren",
     "import-from-stable": "Aus Stable importieren...",
+    "import-from-beta": "Aus Beta importieren...",
     "import-pipeline-file": "Pipeline-Datei importieren (.pipelab)...",
     "import-success": "Pipeline erfolgreich importiert",
     "failed-to-read-file": "Ausgewählte Datei konnte nicht gelesen werden",

@@ -39,17 +39,21 @@ import { getDefaultUserDataPath } from "./paths";
 
 // Resolve version from package.json with fallbacks for production
 let version = "0.0.0";
-try {
-  const packageJsonPath = existsSync(join(__dirname, "package.json"))
-    ? join(__dirname, "package.json")
-    : join(__dirname, "..", "package.json");
+if (isDev) {
+  version = "workspace";
+} else {
+  try {
+    const packageJsonPath = existsSync(join(__dirname, "package.json"))
+      ? join(__dirname, "package.json")
+      : join(__dirname, "..", "package.json");
 
-  if (existsSync(packageJsonPath)) {
-    const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf-8"));
-    version = packageJson.version;
+    if (existsSync(packageJsonPath)) {
+      const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf-8"));
+      version = packageJson.version;
+    }
+  } catch (e) {
+    console.warn("[CLI] Could not resolve version from package.json, using fallback.");
   }
-} catch (e) {
-  console.warn("[CLI] Could not resolve version from package.json, using fallback.");
 }
 
 const program = new Command();

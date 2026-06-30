@@ -2,7 +2,7 @@ import { defineStore } from "pinia";
 import { createEventHook } from "@vueuse/core";
 import { ref } from "vue";
 import { useAPI } from "@renderer/composables/api";
-import { RendererPluginDefinition, Presets, useLogger, transformUrl } from "@pipelab/shared";
+import { RendererPluginDefinition, Presets, useLogger, transformUrl, ReleaseChannel } from "@pipelab/shared";
 
 const transformPluginUrls = (plugin: RendererPluginDefinition): RendererPluginDefinition => {
   if (!plugin) return plugin;
@@ -42,11 +42,24 @@ export const useAppStore = defineStore("app", () => {
   /** All the plugins definitions */
   const pluginDefinitions = ref<Array<RendererPluginDefinition>>([]);
 
+  const channel = ref<ReleaseChannel>("stable");
+  const version = ref<string>("");
+
   const api = useAPI();
 
   const { on: onPresetsLoaded, trigger: triggerPresetsLoaded } = createEventHook();
 
   const init = async () => {
+    try {
+      const versionResult = await api.execute("agent:version:get");
+      if (versionResult.type === "success") {
+        version.value = versionResult.result.version;
+        channel.value = versionResult.result.channel;
+      }
+    } catch (e) {
+      logger().error("Failed to fetch version and channel:", e);
+    }
+
     //
     const nodeGetResult = await api.execute("nodes:get");
 
@@ -113,6 +126,8 @@ export const useAppStore = defineStore("app", () => {
     init,
 
     pluginDefinitions,
+    channel,
+    version,
 
     getPluginDefinition,
     getNodeDefinition,

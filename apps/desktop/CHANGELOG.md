@@ -1,5 +1,11 @@
 # @pipelab/app
 
+## 2.0.0-beta.17
+
+### Patch Changes
+
+- df
+
 ## 2.0.0-beta.16
 
 ### Patch Changes

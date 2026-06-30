@@ -109,6 +109,11 @@ h4 {
   font-size: 0.8125rem !important;
 }
 
+.p-confirmdialog-message,
+.p-confirm-dialog-message {
+  white-space: pre-line;
+}
+
 .p-dialog-title {
   font-size: 1.05rem !important;
   font-weight: 600 !important;

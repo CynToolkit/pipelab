@@ -37,6 +37,11 @@ defineProps({
   width: fit-content;
   background-color: white;
 
+  :root.dark & {
+    background-color: var(--p-surface-900);
+    border-color: var(--p-surface-700);
+  }
+
   &.active {
     outline: 1px solid red;
     outline-offset: 3px;

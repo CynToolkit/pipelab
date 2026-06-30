@@ -138,6 +138,7 @@
     "only-internal-supported-notice": "Pipelab 现在管理应用工作区内的所有流水线。外部文件已被弃用，但仍可以导入。",
     "import-pipeline": "导入流水线",
     "import-from-stable": "从 Stable 导入...",
+    "import-from-beta": "从 Beta 导入...",
     "import-pipeline-file": "导入管道文件 (.pipelab)...",
     "import-success": "流水线已成功导入",
     "failed-to-read-file": "读取所选文件失败",

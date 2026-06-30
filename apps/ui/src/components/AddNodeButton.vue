@@ -736,6 +736,11 @@ const onAdd = () => {
     background-color: var(--p-surface-100);
     border-color: var(--p-surface-200);
 
+    :root.dark & {
+      background-color: var(--p-surface-800);
+      border-color: var(--p-surface-700);
+    }
+
     .node-description {
       color: var(--p-text-color);
     }
@@ -755,6 +760,11 @@ const onAdd = () => {
     color: var(--p-primary-color-text);
     background-color: var(--p-surface-300);
     border-color: var(--p-primary-color);
+
+    :root.dark & {
+      background-color: var(--p-surface-700);
+      color: var(--p-text-color);
+    }
 
     .node-details {
       .node-name {

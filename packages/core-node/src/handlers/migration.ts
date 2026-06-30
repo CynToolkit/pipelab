@@ -1,10 +1,10 @@
 import { useAPI } from "../ipc-core";
 import { useLogger } from "@pipelab/shared";
-import { PipelabContext, getDefaultUserDataPath } from "../context";
+import { PipelabContext, getDefaultUserDataPath, isDev, PipelabEnv } from "../context";
 import fs from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { join, dirname } from "node:path";
-import { FileRepo, SaveLocation, AppConfig, ConnectionsConfig } from "@pipelab/shared";
+import { FileRepo, SaveLocation, AppConfig, ConnectionsConfig, savedFileMigrator } from "@pipelab/shared";
 import semver from "semver";
 
 interface MigrationPipelineItem {
@@ -70,12 +70,19 @@ export const registerMigrationHandlers = (context: PipelabContext) => {
     }
   };
 
-  handle("migration:scan-stable", async (_, { send }) => {
+  handle("migration:scan-stable", async (_, { send, value }) => {
     logger().info("[Migration] Scanning other channel database...");
     try {
-      const isStable =
-        context.userDataPath.endsWith("app") || !context.userDataPath.includes("app-beta");
-      const sourceEnv = isStable ? "beta" : "prod";
+      let sourceEnv: PipelabEnv = "prod";
+      if (value?.sourceChannel === "stable") {
+        sourceEnv = "prod";
+      } else if (value?.sourceChannel === "beta") {
+        sourceEnv = "beta";
+      } else {
+        const isStable =
+          context.userDataPath.endsWith("app") || !context.userDataPath.includes("app-beta");
+        sourceEnv = isStable ? "beta" : "prod";
+      }
       const sourcePath = getDefaultUserDataPath(sourceEnv);
       const targetPath = context.userDataPath;
 
@@ -86,8 +93,8 @@ export const registerMigrationHandlers = (context: PipelabContext) => {
           data: {
             type: "success",
             result: {
-              sourceChannel: isStable ? "Beta" : "Stable",
-              targetChannel: isStable ? "Stable" : "Beta",
+              sourceChannel: sourceEnv === "prod" ? "Stable" : "Beta",
+              targetChannel: isDev ? "Dev" : (context.userDataPath.endsWith("app") || !context.userDataPath.includes("app-beta") ? "Stable" : "Beta"),
               settingsExists: false,
               settingsVersion: null,
               settingsVersionTarget: null,
@@ -207,7 +214,8 @@ export const registerMigrationHandlers = (context: PipelabContext) => {
             try {
               if (existsSync(sourcePipeFile)) {
                 const pipeContent = await fs.readFile(sourcePipeFile, "utf8");
-                const pipeJson = JSON.parse(pipeContent) as { name?: string; description?: string };
+                const rawJson = JSON.parse(pipeContent);
+                const pipeJson = await savedFileMigrator.migrate(rawJson);
                 pipeName = pipeJson.name || pipeName;
                 pipeDesc = pipeJson.description || pipeDesc;
               }
@@ -249,8 +257,8 @@ export const registerMigrationHandlers = (context: PipelabContext) => {
         data: {
           type: "success",
           result: {
-            sourceChannel: isStable ? "Beta" : "Stable",
-            targetChannel: isStable ? "Stable" : "Beta",
+            sourceChannel: sourceEnv === "prod" ? "Stable" : "Beta",
+            targetChannel: isDev ? "Dev" : (context.userDataPath.endsWith("app") || !context.userDataPath.includes("app-beta") ? "Stable" : "Beta"),
             settingsExists,
             settingsVersion,
             settingsVersionTarget: targetSettingsMeta.version,
@@ -289,11 +297,18 @@ export const registerMigrationHandlers = (context: PipelabContext) => {
   handle("migration:perform", async (_, { send, value }) => {
     logger().info("[Migration] Performing migration...");
     try {
-      const { migrateSettings, migrateConnections, selectedProjects, selectedPipelines } = value;
+      const { migrateSettings, migrateConnections, selectedProjects, selectedPipelines, sourceChannel } = value;
 
-      const isStable =
-        context.userDataPath.endsWith("app") || !context.userDataPath.includes("app-beta");
-      const sourceEnv = isStable ? "beta" : "prod";
+      let sourceEnv: PipelabEnv = "prod";
+      if (sourceChannel === "stable") {
+        sourceEnv = "prod";
+      } else if (sourceChannel === "beta") {
+        sourceEnv = "beta";
+      } else {
+        const isStable =
+          context.userDataPath.endsWith("app") || !context.userDataPath.includes("app-beta");
+        sourceEnv = isStable ? "beta" : "prod";
+      }
       const sourcePath = getDefaultUserDataPath(sourceEnv);
       const sourceContext = new PipelabContext({ userDataPath: sourcePath, releaseTag: sourceEnv });
 
@@ -540,14 +555,22 @@ export const registerMigrationHandlers = (context: PipelabContext) => {
               }
             }
 
-            // Copy pipeline file if internal
+            // Copy and migrate pipeline file if internal
             if (stablePipe.type === "internal") {
               const stablePipeFile = sourceContext.getConfigPath(`${stablePipe.configName}.json`);
               const betaPipeFile = context.getConfigPath(`${stablePipe.configName}.json`);
               if (existsSync(stablePipeFile)) {
                 await fs.mkdir(dirname(betaPipeFile), { recursive: true });
-                await fs.copyFile(stablePipeFile, betaPipeFile);
-                logger().info(`[Migration] Copied pipeline file: ${stablePipe.configName}`);
+                try {
+                  const pipeContent = await fs.readFile(stablePipeFile, "utf8");
+                  const rawJson = JSON.parse(pipeContent);
+                  const migratedJson = await savedFileMigrator.migrate(rawJson);
+                  await fs.writeFile(betaPipeFile, JSON.stringify(migratedJson, null, 2));
+                  logger().info(`[Migration] Migrated and copied pipeline file: ${stablePipe.configName}`);
+                } catch (err) {
+                  await fs.copyFile(stablePipeFile, betaPipeFile);
+                  logger().error(`[Migration] Error migrating during copy of ${stablePipe.configName}, fallback to direct copy:`, err);
+                }
               }
             }
 

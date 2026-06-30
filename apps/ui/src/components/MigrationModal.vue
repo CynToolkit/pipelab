@@ -62,7 +62,7 @@
 
                 <!-- Comparison Meta -->
                 <div
-                  class="meta-comparison flex flex-column gap-1 mt-2 p-2 border-round surface-hover text-xs"
+                  class="meta-comparison flex flex-column gap-1 mt-2 p-2 border-round text-xs"
                 >
                   <div class="flex justify-content-between">
                     <span class="text-muted">{{ report.sourceChannel }} (Source):</span>
@@ -118,7 +118,7 @@
 
                 <!-- Comparison Meta -->
                 <div
-                  class="meta-comparison flex flex-column gap-1 mt-2 p-2 border-round surface-hover text-xs"
+                  class="meta-comparison flex flex-column gap-1 mt-2 p-2 border-round text-xs"
                 >
                   <div class="flex justify-content-between">
                     <span class="text-muted">{{ report.sourceChannel }} (Source):</span>
@@ -161,7 +161,7 @@
 
             <!-- Comparison Meta -->
             <div
-              class="meta-comparison flex flex-column gap-1 mb-3 p-2 border-round surface-hover text-xs"
+              class="meta-comparison flex flex-column gap-1 mb-3 p-2 border-round text-xs"
             >
               <div class="flex justify-content-between">
                 <span class="text-muted">{{ report.sourceChannel }} (Source):</span>
@@ -304,10 +304,11 @@ import { useAppSettings } from "@renderer/store/settings";
 import { useConnectionsStore } from "@renderer/store/connections";
 import { useFiles } from "@renderer/store/files";
 import { useToast } from "primevue/usetoast";
-import { StableDataReport, MigrationOptions } from "@pipelab/shared";
+import { StableDataReport, MigrationOptions, MigrationChannel } from "@pipelab/shared";
 
-defineProps<{
+const props = defineProps<{
   visible: boolean;
+  sourceChannel?: MigrationChannel;
 }>();
 
 const emit = defineEmits<{
@@ -343,7 +344,7 @@ const loadReport = async () => {
   scanning.value = true;
   scanError.value = null;
   try {
-    const res = await api.execute("migration:scan-stable");
+    const res = await api.execute("migration:scan-stable", { sourceChannel: props.sourceChannel });
     if (res.type === "success") {
       report.value = res.result;
     } else {
@@ -422,6 +423,7 @@ const performMigration = async () => {
       migrateConnections: migrateConnections.value,
       selectedProjects: selectedProjects.value,
       selectedPipelines: selectedPipelines.value,
+      sourceChannel: props.sourceChannel,
     };
 
     const res = await api.execute("migration:perform", options);
@@ -553,11 +555,18 @@ const performMigration = async () => {
 }
 
 .meta-comparison {
-  background: var(--p-surface-hover, #f8fafc);
+  background: var(--p-surface-50, #f8fafc);
   padding: 8px;
   border-radius: 6px;
   font-size: 0.75rem;
   border: 1px solid var(--p-surface-border, #e2e8f0);
+  color: var(--p-text-color, #334155);
+
+  :root.dark & {
+    background: var(--p-surface-900, #1e293b);
+    border-color: var(--p-surface-800, #334155);
+    color: var(--p-text-muted-color, #94a3b8);
+  }
 }
 
 .projects-section {

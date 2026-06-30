@@ -59,17 +59,6 @@
             </div>
             <div class="right">
               <Button
-                outlined
-                :label="t('editor.project-settings')"
-                :disabled="isRunning"
-                size="small"
-                @click="showProjectSettingsDialog = true"
-              >
-                <template #icon>
-                  <i class="mdi mdi-cog mr-1"></i>
-                </template>
-              </Button>
-              <Button
                 v-if="hasBuildHistoryBenefit"
                 outlined
                 :label="t('editor.view-history')"
@@ -82,6 +71,7 @@
                 </template>
               </Button>
               <Button
+                v-if="settingsRef?.autosave === false"
                 id="tour-editor-save"
                 outlined
                 :label="t('base.save')"
@@ -92,18 +82,6 @@
               >
                 <template #icon>
                   <i class="mdi mdi-content-save mr-1"></i>
-                </template>
-              </Button>
-              <Button
-                id="tour-editor-export"
-                outlined
-                :label="t('home.export-pipeline')"
-                :disabled="isRunning"
-                size="small"
-                @click="exportPipeline"
-              >
-                <template #icon>
-                  <i class="mdi mdi-file-export mr-1"></i>
                 </template>
               </Button>
               <Button
@@ -123,6 +101,19 @@
                   <i class="mdi mdi-cancel mr-1"></i>
                 </template>
               </Button>
+              <Button
+                type="button"
+                outlined
+                size="small"
+                @click="toggleMenu"
+                aria-haspopup="true"
+                aria-controls="more_options_menu"
+              >
+                <template #icon>
+                  <i class="mdi mdi-dots-vertical"></i>
+                </template>
+              </Button>
+              <Menu ref="menu" id="more_options_menu" :model="menuItems" :popup="true" />
               <!-- <Button label="Save" size="small" icon="pi pi-pencil" rounded @click="save"></Button> -->
             </div>
           </div>
@@ -370,6 +361,7 @@
 import { computed, inject, reactive, ref, watch, onMounted } from "vue";
 import Accordion from "primevue/accordion";
 import AccordionPanel from "primevue/accordionpanel";
+import Menu from "primevue/menu";
 import AccordionHeader from "primevue/accordionheader";
 import AccordionContent from "primevue/accordioncontent";
 import Splitter from "primevue/splitter";
@@ -870,6 +862,22 @@ const onSaveRequest = async (silent = true) => {
   isDirty.value = false;
 };
 
+const menu = ref();
+const toggleMenu = (event: any) => {
+  menu.value.toggle(event);
+};
+
+const menuItems = computed(() => [
+  {
+    label: t("home.export-pipeline"),
+    icon: "mdi mdi-file-export",
+    disabled: isRunning.value,
+    command: () => {
+      exportPipeline();
+    },
+  },
+]);
+
 const exportPipeline = async () => {
   const paths = await api.execute("dialog:showSaveDialog", {
     title: t("home.export-pipeline"),
@@ -1190,7 +1198,7 @@ const onValueChanged = (newValue: Param, paramKey: string) => {
 <style scoped lang="scss">
 .editor {
   height: 100%;
-  width: 100vw;
+  width: 100%;
   display: flex;
   flex-direction: row;
   position: relative;
@@ -1203,6 +1211,14 @@ const onValueChanged = (newValue: Param, paramKey: string) => {
   background-size: 20px 20px;
   // background-position: -19px -19px;
   height: 100%;
+
+  :root.dark & {
+    background:
+      linear-gradient(90deg, var(--p-surface-950) 17.5px, transparent 70%) center,
+      linear-gradient(var(--p-surface-950) 17.5px, transparent 70%) center,
+      var(--p-surface-900);
+    background-size: 20px 20px;
+  }
 
   .editor-content {
     width: 100%;
@@ -1226,6 +1242,11 @@ const onValueChanged = (newValue: Param, paramKey: string) => {
     width: 400px;
 
     background-color: white;
+
+    :root.dark & {
+      background-color: var(--p-surface-900);
+      border-color: var(--p-surface-800);
+    }
   }
 
   .bottom {
@@ -1239,6 +1260,11 @@ const onValueChanged = (newValue: Param, paramKey: string) => {
     background-color: white;
     border-radius: 16px;
     border: 1px solid #ddd;
+
+    :root.dark & {
+      background-color: var(--p-surface-900);
+      border-color: var(--p-surface-800);
+    }
     border-radius: 16px;
     height: 64px;
     overflow: hidden;
@@ -1311,6 +1337,11 @@ const onValueChanged = (newValue: Param, paramKey: string) => {
   .buttons {
     background: #fff;
     border-bottom: 2px solid #eee;
+
+    :root.dark & {
+      background: var(--p-surface-900);
+      border-bottom-color: var(--p-surface-800);
+    }
     width: 100%;
     display: flex;
     justify-content: space-between;
@@ -1405,6 +1436,10 @@ const onValueChanged = (newValue: Param, paramKey: string) => {
   display: flex;
   flex-direction: column;
   background-color: white;
+
+  :root.dark & {
+    background-color: var(--p-surface-900);
+  }
   overflow: hidden;
   width: 100%;
   height: 100%;

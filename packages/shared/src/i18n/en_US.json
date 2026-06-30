@@ -138,6 +138,7 @@
     "only-internal-supported-notice": "Pipelab now manages all pipelines within the application workspace. External files are deprecated, but can be imported into your workspace.",
     "import-pipeline": "Import Pipeline",
     "import-from-stable": "Import from Stable...",
+    "import-from-beta": "Import from Beta...",
     "import-pipeline-file": "Import pipeline file (.pipelab)...",
     "import-success": "Pipeline imported successfully",
     "failed-to-read-file": "Failed to read the selected file",

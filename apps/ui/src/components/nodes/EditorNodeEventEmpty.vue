@@ -72,6 +72,12 @@ const { activeNode } = storeToRefs(editor);
     0 0 #0000,
     0 0 22px rgba(186, 186, 191, 0.3);
 
+  :root.dark & {
+    background-color: var(--p-surface-900);
+    border-color: var(--p-surface-700);
+    box-shadow: 0 0 22px rgba(0, 0, 0, 0.5);
+  }
+
   &.active {
     outline: 1px solid red;
     outline-offset: 3px;

@@ -209,6 +209,11 @@ const deleteEntry = () => {
   overflow: hidden;
 }
 
+:root.dark .build-history-item {
+  background: var(--p-surface-900);
+  border-color: var(--p-surface-800);
+}
+
 .build-history-item:hover {
   border-color: var(--p-surface-300);
 }
@@ -253,6 +258,10 @@ const deleteEntry = () => {
   white-space: nowrap;
 }
 
+:root.dark .project-name {
+  color: var(--p-text-color);
+}
+
 .project-path {
   font-size: 0.875rem;
   color: #6c757d;
@@ -294,6 +303,11 @@ const deleteEntry = () => {
   background: #f8f9fa;
 }
 
+:root.dark .item-expanded {
+  border-top-color: var(--p-surface-800);
+  background: var(--p-surface-950);
+}
+
 .expanded-content {
   padding: 1.5rem;
 }
@@ -313,6 +327,13 @@ const deleteEntry = () => {
   color: #495057;
   font-size: 1rem;
   font-weight: 600;
+}
+
+:root.dark .info-section h5,
+:root.dark .steps-section h5,
+:root.dark .error-section h5,
+:root.dark .metadata-section h5 {
+  color: var(--p-text-color);
 }
 
 .info-grid {
@@ -338,6 +359,10 @@ const deleteEntry = () => {
   color: #495057;
 }
 
+:root.dark .info-item span {
+  color: var(--p-text-color);
+}
+
 .steps-list {
   display: flex;
   flex-direction: column;
@@ -351,6 +376,11 @@ const deleteEntry = () => {
   padding: 0.75rem;
 }
 
+:root.dark .step-item {
+  background: var(--p-surface-900);
+  border-color: var(--p-surface-800);
+}
+
 .step-header {
   display: flex;
   justify-content: space-between;
@@ -361,6 +391,10 @@ const deleteEntry = () => {
 .step-name {
   font-weight: 500;
   color: #495057;
+}
+
+:root.dark .step-name {
+  color: var(--p-text-color);
 }
 
 .step-details {
@@ -382,9 +416,18 @@ const deleteEntry = () => {
   padding: 1rem;
 }
 
+:root.dark .error-content {
+  background: var(--p-red-950, #801818);
+  border-color: var(--p-red-800, #b91c1c);
+}
+
 .error-message {
   color: #721c24;
   margin: 0;
+}
+
+:root.dark .error-message {
+  color: var(--p-red-200, #ffc9c9);
 }
 
 .metadata-content {
@@ -394,11 +437,20 @@ const deleteEntry = () => {
   padding: 1rem;
 }
 
+:root.dark .metadata-content {
+  background: var(--p-surface-900);
+  border-color: var(--p-surface-800);
+}
+
 .metadata-content pre {
   margin: 0;
   font-size: 0.875rem;
   color: #495057;
   overflow-x: auto;
+}
+
+:root.dark .metadata-content pre {
+  color: var(--p-text-color);
 }
 
 /* Responsive adjustments */

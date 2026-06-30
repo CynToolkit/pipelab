@@ -466,9 +466,10 @@ import { computed, ref, watchEffect, inject, watch, onMounted } from "vue";
 import { useToast } from "primevue/usetoast";
 import { storeToRefs } from "pinia";
 import Menu from "primevue/menu";
-import { EnhancedFile, SavedFile, Preset, savedFileMigrator, AppConfig } from "@pipelab/shared";
+import { EnhancedFile, SavedFile, Preset, savedFileMigrator, AppConfig, MigrationChannel } from "@pipelab/shared";
 import { nanoid } from "nanoid";
 import { useRouter } from "vue-router";
+import { OpenMigrationModalKey, OpenUpgradeDialogKey } from "../utils/injection-keys";
 import { useAPI } from "@renderer/composables/api";
 import { useFiles } from "@renderer/store/files";
 import { loadExternalFile } from "@renderer/utils/config";
@@ -502,12 +503,13 @@ import Textarea from "primevue/textarea";
 
 const router = useRouter();
 const api = useAPI();
-const openUpgradeDialog = inject("openUpgradeDialog") as () => void;
-const openMigrationModal = inject("openMigrationModal") as (() => void) | undefined;
+const openUpgradeDialog = inject(OpenUpgradeDialogKey)!;
+const openMigrationModal = inject(OpenMigrationModalKey);
 const confirm = useConfirm();
 const toast = useToast();
 const { posthog } = usePostHog();
 const settingsStore = useAppSettings();
+const appStore = useAppStore();
 const { settings } = storeToRefs(settingsStore);
 const { updateSettings } = settingsStore;
 
@@ -1005,22 +1007,50 @@ const toggleImportMenu = (event: Event) => {
   importMenu.value.toggle(event);
 };
 
-const importMenuItems = computed(() => [
-  {
-    label: t("home.import-from-stable"),
-    icon: "mdi mdi-auto-fix",
-    command: () => {
-      openMigrationModal?.();
+const importMenuItems = computed(() => {
+  if (appStore.channel === "dev") {
+    return [
+      {
+        label: t("home.import-from-stable"),
+        icon: "mdi mdi-auto-fix",
+        command: () => {
+          openMigrationModal?.("stable");
+        },
+      },
+      {
+        label: t("home.import-from-beta"),
+        icon: "mdi mdi-auto-fix",
+        command: () => {
+          openMigrationModal?.("beta");
+        },
+      },
+      {
+        label: t("home.import-pipeline-file"),
+        icon: "mdi mdi-file-import-outline",
+        command: () => {
+          importPipeline();
+        },
+      },
+    ];
+  }
+
+  return [
+    {
+      label: appStore.channel === "stable" ? t("home.import-from-beta") : t("home.import-from-stable"),
+      icon: "mdi mdi-auto-fix",
+      command: () => {
+        openMigrationModal?.(appStore.channel === "stable" ? "beta" : "stable");
+      },
     },
-  },
-  {
-    label: t("home.import-pipeline-file"),
-    icon: "mdi mdi-file-import-outline",
-    command: () => {
-      importPipeline();
+    {
+      label: t("home.import-pipeline-file"),
+      icon: "mdi mdi-file-import-outline",
+      command: () => {
+        importPipeline();
+      },
     },
-  },
-]);
+  ];
+});
 
 const menuItems = computed(() => [
   {
@@ -1226,33 +1256,79 @@ const importPipeline = async () => {
   }
 
   try {
-    const fileData = JSON.parse(fileContentResult.result.content) as SavedFile;
-    const pipelineId = nanoid();
-    const configName = `pipelines/${pipelineId}`;
+    const fileDataRaw = JSON.parse(fileContentResult.result.content);
 
-    // Save to internal storage
-    await api.execute("pipeline:save-by-name", {
-      name: configName,
-      data: JSON.stringify(fileData),
-    });
-
-    // Add to store
-    updateFileStore((state) => {
-      state.pipelines = state.pipelines || [];
-      state.pipelines.push({
-        lastModified: new Date().toISOString(),
-        configName: configName,
-        type: "internal",
-        project: projectId,
-        id: pipelineId,
+    if (!fileDataRaw || typeof fileDataRaw !== "object" || !("version" in fileDataRaw)) {
+      toast.add({
+        severity: "error",
+        summary: t("base.error"),
+        detail: t("editor.invalid-file-content"),
+        life: 3000,
       });
-    });
+      return;
+    }
 
-    toast.add({
-      severity: "success",
-      summary: t("base.success"),
-      detail: t("home.import-success"),
-      life: 3000,
+    const originalVersion = fileDataRaw.version || "Unknown";
+
+    // Migrate on frontend to normalize the data before display and save
+    const fileData = (await savedFileMigrator.migrate(fileDataRaw)) as SavedFile;
+
+    const blocksCount = fileData.canvas?.blocks?.length || 0;
+    const isSimple = fileDataRaw.type === "simple";
+    const typeLabel = isSimple ? "Basic Pipeline" : "Advanced Canvas Pipeline";
+
+    const confirmMessage =
+      `Are you sure you want to import this pipeline?\n\n` +
+      `• Name: ${fileData.name || "Unnamed"}\n` +
+      `• Description: ${fileData.description || "No description"}\n` +
+      `• Version: ${originalVersion}\n` +
+      `• Type: ${typeLabel}` +
+      (!isSimple ? `\n• Actions: ${blocksCount} action block(s)` : "");
+
+    confirm.require({
+      message: confirmMessage,
+      header: "Import Pipeline Confirmation",
+      icon: "pi pi-info-circle",
+      acceptClass: "p-button-primary",
+      rejectClass: "p-button-secondary p-button-outlined",
+      accept: async () => {
+        try {
+          const pipelineId = nanoid();
+          const configName = `pipelines/${pipelineId}`;
+
+          // Save migrated file to internal storage
+          await api.execute("pipeline:save-by-name", {
+            name: configName,
+            data: JSON.stringify(fileData),
+          });
+
+          // Add to store
+          updateFileStore((state) => {
+            state.pipelines = state.pipelines || [];
+            state.pipelines.push({
+              lastModified: new Date().toISOString(),
+              configName: configName,
+              type: "internal",
+              project: projectId,
+              id: pipelineId,
+            });
+          });
+
+          toast.add({
+            severity: "success",
+            summary: t("base.success"),
+            detail: t("home.import-success"),
+            life: 3000,
+          });
+        } catch (err) {
+          toast.add({
+            severity: "error",
+            summary: t("base.error"),
+            detail: t("editor.invalid-file-content"),
+            life: 3000,
+          });
+        }
+      },
     });
   } catch (err) {
     toast.add({

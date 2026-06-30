@@ -27,8 +27,8 @@ type EndEvent<DATA> = {
 export type Presets = Record<string, PresetResult>;
 
 export type StableDataReport = {
-  sourceChannel: "Stable" | "Beta";
-  targetChannel: "Stable" | "Beta";
+  sourceChannel: "Stable" | "Beta" | "Dev";
+  targetChannel: "Stable" | "Beta" | "Dev";
 
   // Settings
   settingsExists: boolean;
@@ -71,11 +71,15 @@ export type StableDataReport = {
   }>;
 };
 
+export type ReleaseChannel = "stable" | "beta" | "dev";
+export type MigrationChannel = "stable" | "beta";
+
 export type MigrationOptions = {
   migrateSettings: boolean;
   migrateConnections: boolean;
   selectedProjects: string[];
   selectedPipelines: string[];
+  sourceChannel?: MigrationChannel;
 };
 
 export type IpcDefinition = {
@@ -217,7 +221,10 @@ export type IpcDefinition = {
     { name: string; options?: any },
     EndEvent<{ data: any | null; error: any | null }>,
   ];
-  "agent:version:get": [void, EndEvent<{ version: string }>];
+  "agent:version:get": [
+    void,
+    EndEvent<{ version: string; channel: ReleaseChannel }>,
+  ];
   "startup:progress": [
     void,
     { type: "progress"; data: { message: string } } | { type: "ready" } | { type: "done" },
@@ -260,7 +267,10 @@ export type IpcDefinition = {
     { plugins: Record<string, string> },
     EndEvent<{ loaded: string[]; failed: string[] }>,
   ];
-  "migration:scan-stable": [void, EndEvent<StableDataReport>];
+  "migration:scan-stable": [
+    { sourceChannel?: MigrationChannel },
+    EndEvent<StableDataReport>,
+  ];
   "migration:perform": [MigrationOptions, EndEvent<{ result: "ok" }>];
 };
 

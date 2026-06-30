@@ -277,6 +277,10 @@ const searchedElements = computed(() => {
   &:hover {
     // color: var(--p-primary-contrast-color);
     background-color: var(--p-surface-200);
+
+    :root.dark & {
+      background-color: var(--p-surface-800);
+    }
   }
   &.selected {
     color: var(--p-primary-contrast-color);

@@ -299,6 +299,11 @@ defineEmits<{
   background-color: white;
 }
 
+:root.dark .entry {
+  background-color: var(--p-surface-900);
+  border-color: var(--p-surface-800);
+}
+
 .entry-header {
   display: flex;
   justify-content: space-between;
@@ -309,6 +314,10 @@ defineEmits<{
 .entry-header h4 {
   margin: 0;
   color: #333;
+}
+
+:root.dark .entry-header h4 {
+  color: var(--p-text-color);
 }
 
 .status-badge {
