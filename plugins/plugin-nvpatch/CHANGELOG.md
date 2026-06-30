@@ -1,5 +1,13 @@
 # @pipelab/plugin-nvpatch
 
+## 1.0.0-beta.20
+
+### Patch Changes
+
+- sdsd
+- Updated dependencies
+  - @pipelab/plugin-core@1.0.0-beta.20
+
 ## 1.0.0-beta.19
 
 ### Patch Changes

@@ -1,6 +1,6 @@
 {
   "name": "@pipelab/plugin-steam",
-  "version": "1.0.0-beta.19",
+  "version": "1.0.0-beta.20",
   "description": "Pipelab plugin for publishing games to Steam via SteamCMD",
   "keywords": [
     "automation",

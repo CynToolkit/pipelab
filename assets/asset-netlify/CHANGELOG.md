@@ -1,5 +1,11 @@
 # @pipelab/asset-netlify
 
+## 1.0.0-beta.15
+
+### Patch Changes
+
+- sdsd
+
 ## 1.0.0-beta.14
 
 ### Patch Changes

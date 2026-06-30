@@ -1,5 +1,14 @@
 # @pipelab/cloud-azure
 
+## 1.0.0-beta.15
+
+### Patch Changes
+
+- sdsd
+- Updated dependencies
+  - @pipelab/shared@1.0.0-beta.15
+  - @pipelab/cloud@1.0.0-beta.15
+
 ## 1.0.0-beta.14
 
 ### Patch Changes
