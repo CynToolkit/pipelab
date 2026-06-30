@@ -163,6 +163,24 @@ export const script = async (
   registerWelcomeToConstructListener(page, log);
   registerNewVersionAvailableListener(page, log);
 
+  // as soon as it appear, without blocking flow
+  // ignore asking for update
+  const notNowBtn = page.getByText("Not now");
+  notNowBtn
+    .waitFor({
+      timeout: 0,
+    })
+    .then(async () => {
+      return notNowBtn.click();
+    })
+    .then(() => {
+      log("notNowBtn clicked");
+    })
+    .catch(async (e) => {
+      if (e.message.includes("Target page, context or browser has been closed")) return;
+      log("notNowBtn.click() failed", e.message);
+    });
+
   log("after event");
 
   await page.waitForTimeout(2000);
@@ -222,24 +240,6 @@ export const script = async (
     const finalText = Number.isNaN(textAsNumber) ? 0 : textAsNumber;
     log("progress", `${finalText * 100}%`);
   }, 500);
-
-  // as soon as it appear, without blocking flow
-  // ignore asking for update
-  const notNowBtn = page.getByText("Not now");
-  notNowBtn
-    .waitFor({
-      timeout: 0,
-    })
-    .then(async () => {
-      return notNowBtn.click();
-    })
-    .then(() => {
-      log("notNowBtn clicked");
-    })
-    .catch(async (e) => {
-      if (e.message.includes("Target page, context or browser has been closed")) return;
-      log("notNowBtn.click() failed", e.message);
-    });
 
   registerInstallButtonListener(page, log);
   registerWebglErrorListener(page, log);

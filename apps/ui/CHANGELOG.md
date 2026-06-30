@@ -1,5 +1,14 @@
 # @pipelab/ui
 
+## 2.0.0-beta.21
+
+### Patch Changes
+
+- sd
+- Updated dependencies
+  - @pipelab/constants@1.0.0-beta.19
+  - @pipelab/shared@1.0.0-beta.17
+
 ## 2.0.0-beta.20
 
 ### Patch Changes

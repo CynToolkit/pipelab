@@ -1,5 +1,11 @@
 # @pipelab/constants
 
+## 1.0.0-beta.19
+
+### Patch Changes
+
+- sd
+
 ## 1.0.0-beta.18
 
 ### Patch Changes
