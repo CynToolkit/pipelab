@@ -275,8 +275,8 @@ export const builtInPlugins = async (options: { context: PipelabContext }): Prom
     }
 
     try {
-      const { setupConfigFile } = await import("./config");
-      const settingsManager = await setupConfigFile<any>("settings", { context: options.context });
+      const { setupSettingsConfigFile } = await import("./config");
+      const settingsManager = await setupSettingsConfigFile(options.context);
       const settingsConfig = await settingsManager.getConfig();
       const settingsPlugins = settingsConfig?.plugins || [];
 

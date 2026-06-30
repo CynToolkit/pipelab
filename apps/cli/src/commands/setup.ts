@@ -1,7 +1,7 @@
 import * as p from "@clack/prompts";
 import { setTimeout } from "node:timers/promises";
 import { PipelabContext } from "@pipelab/core-node";
-import { setupConfigFile } from "@pipelab/core-node";
+import { setupSettingsConfigFile } from "@pipelab/core-node";
 import { AppConfig } from "@pipelab/shared";
 import { getDefaultUserDataPath } from "../paths";
 
@@ -43,7 +43,7 @@ export async function setupCommand(options: { userData?: string }) {
   }
 
   // 2. Configuration
-  const settings = await setupConfigFile<AppConfig>("settings", { context });
+  const settings = await setupSettingsConfigFile(context);
   const config = await settings.getConfig();
 
   const configChanges = await p.group({

@@ -1,7 +1,7 @@
 import { join, dirname, resolve } from "node:path";
 import { homedir, platform } from "node:os";
 import { fileURLToPath } from "node:url";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { mkdir, realpath, mkdtemp } from "node:fs/promises";
 import { SandboxFolder, DEFAULT_NODE_VERSION, DEFAULT_PNPM_VERSION } from "@pipelab/constants";
 
@@ -85,8 +85,44 @@ export class PipelabContext {
     return join(this.userDataPath, "config", ...subpaths);
   }
 
+  getSettingsPath() {
+    return this.getConfigPath("settings.json");
+  }
+
+  getConnectionsPath() {
+    return this.getConfigPath("connections.json");
+  }
+
+  getProjectsPath() {
+    return this.getConfigPath("projects.json");
+  }
+
+  private _cachedSettings: any = null;
+  private _cachedSettingsTime: number = 0;
+
+  private getSettings() {
+    const settingsPath = this.getSettingsPath();
+    if (!existsSync(settingsPath)) {
+      return null;
+    }
+    const now = Date.now();
+    if (this._cachedSettings && now - this._cachedSettingsTime < 2000) {
+      return this._cachedSettings;
+    }
+    try {
+      const content = readFileSync(settingsPath, "utf8");
+      this._cachedSettings = JSON.parse(content);
+      this._cachedSettingsTime = now;
+      return this._cachedSettings;
+    } catch (e) {
+      return this._cachedSettings;
+    }
+  }
+
   getTempPath(...subpaths: string[]) {
-    return join(this.userDataPath, "temp", ...subpaths);
+    const settings = this.getSettings();
+    const base = settings?.tempFolder || join(this.userDataPath, "temp");
+    return join(base, ...subpaths);
   }
 
   async createTempFolder(prefix = "pipelab-") {
@@ -99,10 +135,12 @@ export class PipelabContext {
   getCachePath(): string;
   getCachePath(folder: CacheFolderType, ...subpaths: string[]): string;
   getCachePath(folder?: CacheFolderType, ...subpaths: string[]) {
+    const settings = this.getSettings();
+    const base = settings?.cacheFolder || join(this.userDataPath, "cache");
     if (!folder) {
-      return join(this.userDataPath, "cache");
+      return base;
     }
-    return join(this.userDataPath, "cache", folder, ...subpaths);
+    return join(base, folder, ...subpaths);
   }
 
   getPnpmPath(...subpaths: string[]) {

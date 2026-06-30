@@ -21,7 +21,7 @@ import { BuildHistoryStorage } from "./handlers/build-history";
 import { ensure, extractTarGz, extractZip, zipFolder } from "./utils/fs-extras";
 import { fetchPipelabAsset } from "./utils/remote";
 import { loadPipelabPlugin } from "./plugins-registry";
-import { setupConfigFile } from "./config";
+import { setupSettingsConfigFile } from "./config";
 
 export const getFinalPlugins = () => {
   const { plugins } = usePlugins();
@@ -149,7 +149,7 @@ export const executeGraphWithHistory = async ({
   }
 
   logger().info(`[Sandbox] Execution sandbox created at: ${sandboxPath}`);
-  const settingsFile = await setupConfigFile<AppConfig>("settings", { context: ctx });
+  const settingsFile = await setupSettingsConfigFile(ctx);
   const config = await settingsFile.getConfig();
   const shouldCleanup = true;
 

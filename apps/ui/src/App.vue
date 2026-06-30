@@ -28,6 +28,7 @@
     </transition>
     <DevBenefitsOverride v-if="!isDisconnected" />
     <WebFilePicker v-if="!isDisconnected" />
+    <MigrationModal v-if="isMigrationModalVisible" v-model:visible="isMigrationModalVisible" />
     <Toast />
   </div>
 </template>
@@ -50,6 +51,8 @@ import DevBenefitsOverride from "./components/DevBenefitsOverride.vue";
 import WebFilePicker from "./components/WebFilePicker.vue";
 import Dialog from "primevue/dialog";
 import Toast from "primevue/toast";
+import MigrationModal from "./components/MigrationModal.vue";
+import { useAPI } from "./composables/api";
 import { websocketManager } from "./composables/websocket-manager";
 import { useWebSocketAPI } from "./composables/websocket-client";
 
@@ -72,6 +75,12 @@ const isInitialized = ref(false);
 const isServerReady = ref(false);
 const isUpgradeDialogVisible = ref(false);
 const minimumLoadingTimeReached = ref(false);
+
+const isMigrationModalVisible = ref(false);
+const openMigrationModal = () => {
+  isMigrationModalVisible.value = true;
+};
+provide("openMigrationModal", openMigrationModal);
 
 const isDisconnected = computed(
   () =>
@@ -241,14 +250,16 @@ onMounted(async () => {
 
 <style lang="scss">
 .app,
-.layout,
-.content {
+.layout {
   height: 100%;
   overflow: hidden;
 }
 
 .content {
   display: flex;
+  position: relative;
+  flex: 1;
+  min-height: 0;
 
   .main {
     flex: 1;

@@ -4,7 +4,6 @@ import {
   AppConfig,
   ConnectionsConfig,
   FileRepo,
-  SavedFile,
   defaultAppSettings,
   defaultConnections,
   defaultFileRepo,
@@ -12,18 +11,12 @@ import {
 
 const isElectron = typeof window !== "undefined" && !!window.electron;
 
-const defaultPipelineValue: SavedFile = {
-  version: "5.0.0",
-  name: "",
-  description: "",
-  canvas: {
-    blocks: [],
-    triggers: [],
-  },
-  variables: [],
-};
-
-function createConfigComposable<T>(name: string, defaultValue: T) {
+function createConfigComposable<T>(
+  loadChannel: "settings:load" | "connections:load" | "projects:load",
+  saveChannel: "settings:save" | "connections:save" | "projects:save",
+  resetChannel: "settings:reset" | "connections:reset" | "projects:reset",
+  defaultValue: T,
+) {
   const api = useAPI();
   const data = ref<T>(defaultValue);
   const loading = ref(false);
@@ -35,28 +28,28 @@ function createConfigComposable<T>(name: string, defaultValue: T) {
     }
 
     loadedPromise = (async () => {
-      console.log(`[useConfig] load "${name}": isElectron =`, isElectron);
+      console.log(`[useConfig] load "${loadChannel}": isElectron =`, isElectron);
       if (!isElectron) {
         return;
       }
 
       if (!api.isConnected()) {
-        console.warn(`[useConfig] API not connected for loading "${name}"`);
+        console.warn(`[useConfig] API not connected for loading "${loadChannel}"`);
         loadedPromise = null;
         return;
       }
 
       loading.value = true;
       try {
-        const result = await api.execute("config:load", { config: name });
+        const result = await api.execute(loadChannel as any);
         if (result.type === "success") {
-          const loadedValue: T = result.result.result;
+          const loadedValue: T = result.result;
           data.value = loadedValue;
         } else {
-          console.error(`[useConfig] failed to load "${name}":`, result.ipcError);
+          console.error(`[useConfig] failed to load "${loadChannel}":`, result.ipcError);
         }
       } catch (err) {
-        console.error(`[useConfig] error loading "${name}":`, err);
+        console.error(`[useConfig] error loading "${loadChannel}":`, err);
       } finally {
         loading.value = false;
       }
@@ -69,12 +62,12 @@ function createConfigComposable<T>(name: string, defaultValue: T) {
     data.value = newValue;
     if (isElectron && api.isConnected()) {
       try {
-        const result = await api.execute("config:save", { config: name, data: newValue });
+        const result = await api.execute(saveChannel as any, { data: newValue });
         if (result.type === "error") {
-          console.error(`[useConfig] failed to save "${name}":`, result.ipcError);
+          console.error(`[useConfig] failed to save "${saveChannel}":`, result.ipcError);
         }
       } catch (err) {
-        console.error(`[useConfig] error saving "${name}":`, err);
+        console.error(`[useConfig] error saving "${saveChannel}":`, err);
       }
     }
   };
@@ -82,17 +75,17 @@ function createConfigComposable<T>(name: string, defaultValue: T) {
   const reset = async (key: keyof T): Promise<void> => {
     if (isElectron && api.isConnected()) {
       try {
-        const result = await api.execute("config:reset", { config: name, key: String(key) });
+        const result = await api.execute(resetChannel as any, { key: String(key) });
         if (result.type === "success") {
           await load(true);
         } else {
           console.error(
-            `[useConfig] failed to reset key "${String(key)}" of "${name}":`,
+            `[useConfig] failed to reset key "${String(key)}" of "${resetChannel}":`,
             result.ipcError,
           );
         }
       } catch (err) {
-        console.error(`[useConfig] error resetting key "${String(key)}" of "${name}":`, err);
+        console.error(`[useConfig] error resetting key "${String(key)}" of "${resetChannel}":`, err);
       }
     }
   };
@@ -107,17 +100,28 @@ function createConfigComposable<T>(name: string, defaultValue: T) {
 }
 
 export const useSettingsConfig = () => {
-  return createConfigComposable<AppConfig>("settings", defaultAppSettings);
+  return createConfigComposable<AppConfig>(
+    "settings:load",
+    "settings:save",
+    "settings:reset",
+    defaultAppSettings,
+  );
 };
 
 export const useConnectionsConfig = () => {
-  return createConfigComposable<ConnectionsConfig>("connections", defaultConnections);
+  return createConfigComposable<ConnectionsConfig>(
+    "connections:load",
+    "connections:save",
+    "connections:reset",
+    defaultConnections,
+  );
 };
 
 export const useProjectsConfig = () => {
-  return createConfigComposable<FileRepo>("projects", defaultFileRepo);
-};
-
-export const usePipelineConfig = (configNameOrPath: string) => {
-  return createConfigComposable<SavedFile>(configNameOrPath, defaultPipelineValue);
+  return createConfigComposable<FileRepo>(
+    "projects:load",
+    "projects:save",
+    "projects:reset",
+    defaultFileRepo,
+  );
 };

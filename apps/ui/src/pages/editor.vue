@@ -95,6 +95,18 @@
                 </template>
               </Button>
               <Button
+                id="tour-editor-export"
+                outlined
+                :label="t('home.export-pipeline')"
+                :disabled="isRunning"
+                size="small"
+                @click="exportPipeline"
+              >
+                <template #icon>
+                  <i class="mdi mdi-file-export mr-1"></i>
+                </template>
+              </Button>
+              <Button
                 v-if="!isRunning"
                 id="tour-editor-run"
                 outlined
@@ -373,6 +385,7 @@ import { useToast } from "primevue/usetoast";
 // @ts-expect-error - tinykeys type resolution mismatch with moduleResolution
 import { tinykeys } from "tinykeys";
 import { useFiles } from "@renderer/store/files";
+import { PROJECT_EXTENSION } from "@renderer/models/constants";
 import { klona } from "klona";
 import { loadExternalFile, saveExternalFile } from "@renderer/utils/config";
 import EditorNodeEvent from "@renderer/components/nodes/EditorNodeEvent.vue";
@@ -416,6 +429,7 @@ const {
   triggers,
   variables,
   name,
+  description,
   currentFilePointer,
   errors,
   stepsDisplay,
@@ -571,20 +585,20 @@ watch(
         // @deprecated external files are deprecated
         const { path: filePath } = file;
 
-        const configResult = await api.execute("config:load", { config: filePath });
+        const configResult = await api.execute("pipeline:load-by-path", { path: filePath });
 
         if (configResult.type === "error") {
           throw new Error(configResult.ipcError);
         }
 
-        const content = configResult.result.result as SavedFile;
+        const content = configResult.result;
         await ensurePluginsLoaded(content);
         await loadSavedFile(content);
         isLoaded.value = true;
       } else if (file.type === "internal") {
         const { configName } = file;
 
-        const configResult = await api.execute("config:load", { config: configName });
+        const configResult = await api.execute("pipeline:load-by-name", { name: configName });
 
         if (configResult.type === "error") {
           throw new Error(configResult.ipcError);
@@ -593,7 +607,7 @@ watch(
         const fileData = configResult.result;
 
         try {
-          const content = fileData.result as SavedFile;
+          const content = fileData;
           await ensurePluginsLoaded(content);
           await loadSavedFile(content);
           isLoaded.value = true;
@@ -856,6 +870,67 @@ const onSaveRequest = async (silent = true) => {
   isDirty.value = false;
 };
 
+const exportPipeline = async () => {
+  const paths = await api.execute("dialog:showSaveDialog", {
+    title: t("home.export-pipeline"),
+    properties: ["createDirectory", "showOverwriteConfirmation"],
+    filters: [{ name: "Pipelab Project", extensions: [PROJECT_EXTENSION] }],
+    defaultPath: `${name.value || "pipeline"}.${PROJECT_EXTENSION}`,
+  });
+
+  if (paths.type === "error") {
+    toast.add({
+      severity: "error",
+      summary: t("base.error"),
+      detail: t("home.export-failed"),
+      life: 3000,
+    });
+    return;
+  }
+
+  if (paths.result.canceled || !paths.result.filePath) {
+    return;
+  }
+
+  let saveLocation = paths.result.filePath;
+  if (!saveLocation.endsWith(`.${PROJECT_EXTENSION}`)) {
+    saveLocation = `${saveLocation}.${PROJECT_EXTENSION}`;
+  }
+
+  const result: SavedFile = {
+    version: "5.0.0",
+    name: name.value,
+    description: description.value,
+    canvas: {
+      blocks: nodes.value,
+      triggers: triggers.value,
+    },
+    variables: variables.value,
+  };
+
+  const writeResult = await api.execute("fs:write", {
+    path: saveLocation,
+    content: JSON.stringify(result, null, 2),
+  });
+
+  if (writeResult.type === "error" || !writeResult.result.ok) {
+    toast.add({
+      severity: "error",
+      summary: t("base.error"),
+      detail: t("home.export-failed"),
+      life: 3000,
+    });
+    return;
+  }
+
+  toast.add({
+    severity: "success",
+    summary: t("base.success"),
+    detail: t("home.export-success"),
+    life: 3000,
+  });
+};
+
 const onCloseRequest = async () => {
   console.log("close request");
   await router.push({
@@ -922,8 +997,8 @@ const saveInternal = async (configName: string, silent = false) => {
   };
 
   try {
-    await api.execute("config:save", {
-      config: configName,
+    await api.execute("pipeline:save-by-name", {
+      name: configName,
       data: JSON.stringify(result),
     });
 

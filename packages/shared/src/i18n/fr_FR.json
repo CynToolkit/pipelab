@@ -137,8 +137,13 @@
     "migrate-to-internal": "Déplacer vers l'espace de travail",
     "only-internal-supported-notice": "Pipelab gère désormais tous les pipelines au sein de l'espace de travail de l'application. Les fichiers externes sont obsolètes, mais peuvent toujours être importés.",
     "import-pipeline": "Importer le Pipeline",
+    "import-from-stable": "Importer depuis Stable...",
+    "import-pipeline-file": "Importer un fichier de pipeline (.pipelab)...",
     "import-success": "Pipeline importé avec succès",
-    "failed-to-read-file": "Échec de la lecture du fichier sélectionné"
+    "failed-to-read-file": "Échec de la lecture du fichier sélectionné",
+    "export-pipeline": "Exporter le pipeline...",
+    "export-success": "Pipeline exporté avec succès",
+    "export-failed": "Échec de l'exportation du pipeline"
   },
   "pipelines": {
     "title": "@:headers.pipelines"

@@ -2,28 +2,26 @@ import { PipelabContext } from "./context";
 import path from "node:path";
 import { ensure } from "./utils/fs-extras";
 import fs from "node:fs/promises";
-import { useLogger } from "@pipelab/shared";
-import { configRegistry, Migrator } from "@pipelab/shared";
-
-export const getMigrator = <T>(name: string) => {
-  return (configRegistry[name] || configRegistry["pipeline"]) as Migrator<T>;
-};
+import {
+  useLogger,
+  Migrator,
+  AppConfig,
+  ConnectionsConfig,
+  FileRepo,
+  SavedFile,
+  appSettingsMigrator,
+  connectionsMigrator,
+  fileRepoMigrations,
+  savedFileMigrator,
+} from "@pipelab/shared";
 
 export const setupConfigFile = async <T>(
-  name: string,
-  options: { context: PipelabContext; migrator?: Migrator<T> },
+  filesPath: string,
+  options: { context: PipelabContext; migrator: Migrator<T> },
 ) => {
   const ctx = options.context;
-  const migrator = options.migrator || getMigrator<T>(name);
-
-  if (!migrator) {
-    throw new Error(
-      `No migrator found for configuration: ${name}. All managed files must have a migration schema.`,
-    );
-  }
-
-  const isAbsolutePath = path.isAbsolute(name);
-  const filesPath = isAbsolutePath ? name : ctx.getConfigPath(`${name}.json`);
+  const parsedPath = path.parse(filesPath);
+  const migrator = options.migrator;
 
   await ensure(filesPath, JSON.stringify(migrator.defaultValue));
 
@@ -34,7 +32,7 @@ export const setupConfigFile = async <T>(
         await fs.writeFile(filesPath, JSON.stringify(config));
         return true;
       } catch (e) {
-        logger().error(`Error saving config ${name}:`, e);
+        logger().error(`Error saving config ${parsedPath.name}:`, e);
         return false;
       }
     },
@@ -50,7 +48,7 @@ export const setupConfigFile = async <T>(
           originalJson = JSON.parse(content);
         }
       } catch (e) {
-        logger().error(`Error reading or parsing config ${name}:`, e);
+        logger().error(`Error reading or parsing config ${parsedPath.name}:`, e);
         parseFailed = true;
       }
 
@@ -61,14 +59,13 @@ export const setupConfigFile = async <T>(
           json = await migrator.migrate(originalJson, {
             debug: false,
             onStep: async (state: any, version: string) => {
-              const parsedPath = path.parse(filesPath);
-              const versionedPath = ctx.getConfigPath(`${parsedPath.name}.v${version}.json`);
+              const versionedPath = path.join(parsedPath.dir, `${parsedPath.name}.v${version}.json`);
               try {
                 await fs.writeFile(versionedPath, JSON.stringify(state));
-                logger().info(`Intermediate backup created for ${name} at ${versionedPath}`);
+                logger().info(`Intermediate backup created for ${parsedPath.name} at ${versionedPath}`);
               } catch (e) {
                 logger().error(
-                  `Failed to create intermediate backup for ${name} at v${version}:`,
+                  `Failed to create intermediate backup for ${parsedPath.name} at v${version}:`,
                   e,
                 );
               }
@@ -78,7 +75,7 @@ export const setupConfigFile = async <T>(
           json = migrator.defaultValue;
         }
       } catch (e) {
-        logger().error(`Error migrating config ${name}:`, e);
+        logger().error(`Error migrating config ${parsedPath.name}:`, e);
         migrationFailed = true;
         json = migrator.defaultValue;
       }
@@ -92,9 +89,9 @@ export const setupConfigFile = async <T>(
       if (shouldSaveBack) {
         if (parseFailed || migrationFailed) {
           try {
-            const parsedPath = path.parse(filesPath);
             const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-            const corruptedPath = ctx.getConfigPath(
+            const corruptedPath = path.join(
+              parsedPath.dir,
               `${parsedPath.name}.corrupted.${timestamp}.json`,
             );
             const backupContent = parseFailed
@@ -103,14 +100,14 @@ export const setupConfigFile = async <T>(
             await fs.writeFile(corruptedPath, backupContent);
             logger().info(`Corrupted config file preserved at ${corruptedPath}`);
           } catch (e) {
-            logger().error(`Failed to backup corrupted config ${name}:`, e);
+            logger().error(`Failed to backup corrupted config ${parsedPath.name}:`, e);
           }
         }
 
         try {
           await fs.writeFile(filesPath, JSON.stringify(json));
         } catch (e) {
-          logger().error(`Error saving migrated config ${name}:`, e);
+          logger().error(`Error saving migrated config ${parsedPath.name}:`, e);
         }
       }
 
@@ -119,9 +116,51 @@ export const setupConfigFile = async <T>(
   };
 };
 
-export const deleteConfigFile = async (nameOrPath: string, context: PipelabContext) => {
-  const isAbsolutePath = path.isAbsolute(nameOrPath);
-  const filesPath = isAbsolutePath ? nameOrPath : context.getConfigPath(`${nameOrPath}.json`);
+export const setupSettingsConfigFile = (context: PipelabContext) => {
+  return setupConfigFile<AppConfig>(context.getSettingsPath(), {
+    context,
+    migrator: appSettingsMigrator,
+  });
+};
 
+export const setupConnectionsConfigFile = (context: PipelabContext) => {
+  return setupConfigFile<ConnectionsConfig>(context.getConnectionsPath(), {
+    context,
+    migrator: connectionsMigrator,
+  });
+};
+
+export const setupProjectsConfigFile = (context: PipelabContext) => {
+  return setupConfigFile<FileRepo>(context.getProjectsPath(), {
+    context,
+    migrator: fileRepoMigrations,
+  });
+};
+
+export const setupPipelineConfigFileByName = (name: string, context: PipelabContext) => {
+  const filesPath = context.getConfigPath(`${name}.json`);
+  return setupConfigFile<SavedFile>(filesPath, {
+    context,
+    migrator: savedFileMigrator,
+  });
+};
+
+export const setupPipelineConfigFileByPath = (absolutePath: string, context: PipelabContext) => {
+  return setupConfigFile<SavedFile>(absolutePath, {
+    context,
+    migrator: savedFileMigrator,
+  });
+};
+
+const deleteConfigFile = async (filesPath: string) => {
   await fs.rm(filesPath, { force: true });
+};
+
+export const deletePipelineConfigFileByName = async (name: string, context: PipelabContext) => {
+  const filesPath = context.getConfigPath(`${name}.json`);
+  await deleteConfigFile(filesPath);
+};
+
+export const deletePipelineConfigFileByPath = async (absolutePath: string, context: PipelabContext) => {
+  await deleteConfigFile(absolutePath);
 };

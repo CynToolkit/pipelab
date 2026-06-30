@@ -9,11 +9,9 @@ import {
 import { getUiDevServerMissingWarning, uiDevPort } from "@pipelab/constants";
 import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
-import { join } from "node:path";
 import http from "http";
 // @ts-expect-error serve-handler has no type definitions
 import handler from "serve-handler";
-import { registerMigrationHandlers } from "./migrations";
 
 export interface ServeOptions {
   port: string | number;
@@ -135,7 +133,6 @@ export async function serveCommand(options: ServeOptions, version: string, _dirn
     version,
     context,
   });
-  registerMigrationHandlers(context);
 
   sendStartupReady();
 

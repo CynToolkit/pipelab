@@ -1,4 +1,4 @@
-import { PipelabContext, setupConfigFile, deleteConfigFile } from "@pipelab/core-node";
+import { PipelabContext, setupProjectsConfigFile, deletePipelineConfigFileByName } from "@pipelab/core-node";
 import { FileRepo, SaveLocation } from "@pipelab/shared";
 import { readFile, unlink, readdir } from "node:fs/promises";
 import { getDefaultUserDataPath } from "../paths";
@@ -9,7 +9,7 @@ export async function listPipelinesCommand(options: { userData?: string }) {
   const context = new PipelabContext({ userDataPath });
 
   try {
-    const projectsConfig = await setupConfigFile<FileRepo>("projects", { context });
+    const projectsConfig = await setupProjectsConfigFile(context);
     const repo = await projectsConfig.getConfig();
 
     if (!repo.pipelines || repo.pipelines.length === 0) {
@@ -73,7 +73,7 @@ export async function showPipelineCommand(
   const context = new PipelabContext({ userDataPath });
 
   try {
-    const projectsConfig = await setupConfigFile<FileRepo>("projects", { context });
+    const projectsConfig = await setupProjectsConfigFile(context);
     const repo = await projectsConfig.getConfig();
 
     const pipeline = repo.pipelines?.find(
@@ -217,7 +217,7 @@ export async function deletePipelineCommand(
   const context = new PipelabContext({ userDataPath });
 
   try {
-    const projectsConfig = await setupConfigFile<FileRepo>("projects", { context });
+    const projectsConfig = await setupProjectsConfigFile(context);
     const repo = await projectsConfig.getConfig();
 
     if (!repo.pipelines) {
@@ -239,12 +239,10 @@ export async function deletePipelineCommand(
     // 1. Delete internal file if applicable
     if (pipeline.type === "internal") {
       try {
-        await deleteConfigFile(pipeline.configName, context);
+        await deletePipelineConfigFileByName(pipeline.configName, context);
         console.log(`Deleted pipeline file: ${pipeline.configName}.json`);
       } catch (e: any) {
-        if (e.code !== "ENOENT") {
-          console.warn(`Warning: Could not delete pipeline file: ${e.message}`);
-        }
+        console.warn(`Warning: Could not delete pipeline file: ${e.message}`);
       }
     }
 

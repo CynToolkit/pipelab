@@ -86,7 +86,6 @@ export const defaultAppSettings = settingsMigratorInternal.createDefault({
     },
   },
   plugins: DEFAULT_PLUGINS,
-  isInternalMigrationBannerClosed: false,
 });
 
 export const appSettingsMigrator = settingsMigratorInternal.createMigrations({
@@ -138,12 +137,12 @@ export const appSettingsMigrator = settingsMigratorInternal.createMigrations({
     createMigration<AppConfigV6, AppConfigV7>({
       version: "6.0.0" as SemVer,
       up: (state) => {
-        const { cacheFolder: _, clearTemporaryFoldersOnPipelineEnd: __, ...rest } = state;
+        const { cacheFolder, clearTemporaryFoldersOnPipelineEnd: __, ...rest } = state;
         return {
           ...rest,
+          cacheFolder,
           agents: [],
           plugins: DEFAULT_PLUGINS,
-          isInternalMigrationBannerClosed: false,
         };
       },
     }),

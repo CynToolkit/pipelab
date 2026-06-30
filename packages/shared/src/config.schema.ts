@@ -137,7 +137,8 @@ export const AppSettingsValidatorV7 = object({
       description: string(),
     }),
   ),
-  isInternalMigrationBannerClosed: optional(boolean(), false),
+  cacheFolder: optional(string()),
+  tempFolder: optional(string()),
 });
 
 export const ConnectionValidator = looseObject({

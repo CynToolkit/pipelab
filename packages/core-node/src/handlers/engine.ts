@@ -6,7 +6,7 @@ import { presets } from "../presets/list";
 import { handleActionExecute } from "../handler-func";
 import { join } from "node:path";
 import { rm } from "node:fs/promises";
-import { setupConfigFile } from "../config";
+import { setupSettingsConfigFile } from "../config";
 import { AppConfig } from "@pipelab/shared";
 
 export const registerEngineHandlers = (context: PipelabContext) => {
@@ -142,7 +142,7 @@ export const registerEngineHandlers = (context: PipelabContext) => {
 
   handle("graph:execute", async (event, { send, value }) => {
     const { graph, variables, projectName, projectPath, pipelineId } = value;
-    const settings = await setupConfigFile<AppConfig>("settings", { context });
+    const settings = await setupSettingsConfigFile(context);
     const config = await settings.getConfig();
 
     const effectiveProjectName = projectName || "Unnamed Project";

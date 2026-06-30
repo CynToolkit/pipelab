@@ -286,6 +286,130 @@
             </div>
           </div>
         </div>
+
+        <div v-else class="storage-card mb-4 dummy-storage-card">
+          <div class="card-header mb-3">
+            <div class="card-header-left">
+              <div class="card-header-title opacity-60">
+                <i class="pi pi-database"></i>
+                <span>{{ t("settings.disk-usage") }}</span>
+              </div>
+            </div>
+            <div class="card-header-right opacity-60">-- / --</div>
+          </div>
+
+          <div class="usage-bar-container mb-4">
+            <div class="usage-bar">
+              <div
+                class="usage-segment"
+                style="width: 100%; opacity: 0.1; background: var(--p-surface-400)"
+              ></div>
+            </div>
+          </div>
+
+          <div class="usage-details grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div class="detail-item opacity-60">
+              <div class="flex items-center gap-1.5 mb-0.5 dot-container">
+                <div class="dot" style="background: var(--p-surface-400)"></div>
+                <span class="detail-label">{{ t("settings.storage-pipelab") }}</span>
+              </div>
+              <div class="detail-value text-sm">--</div>
+            </div>
+            <div class="detail-item opacity-60">
+              <div class="flex items-center gap-1.5 mb-0.5 dot-container">
+                <div class="dot" style="background: var(--p-surface-300)"></div>
+                <span class="detail-label">{{ t("settings.storage-other") }}</span>
+              </div>
+              <div class="detail-value text-sm">--</div>
+            </div>
+            <div class="detail-item opacity-60">
+              <div class="flex items-center gap-1.5 mb-0.5 dot-container">
+                <div class="dot" style="background: var(--p-surface-200)"></div>
+                <span class="detail-label">{{ t("settings.storage-free") }}</span>
+              </div>
+              <div class="detail-value text-sm">--</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Custom Paths Settings Group -->
+        <div class="settings-group mt-4">
+          <div class="setting-item flex-column align-items-stretch">
+            <div class="setting-content mb-2">
+              <span class="setting-title">{{
+                t("settings.pipeline-cache-folder", "Pipeline Cache Folder")
+              }}</span>
+              <span class="setting-description">
+                Change the directory where downloaded plugins and dependencies are cached. Leave
+                blank to use default workspace storage.
+              </span>
+            </div>
+            <div class="flex gap-2 align-items-center">
+              <InputText
+                :model-value="settingsRef?.cacheFolder || ''"
+                class="flex-grow-1"
+                size="small"
+                readonly
+                placeholder="Default sandboxed cache folder"
+              />
+              <Button label="Browse" size="small" severity="secondary" @click="browseCacheFolder" />
+              <Button
+                icon="pi pi-folder-open"
+                size="small"
+                severity="secondary"
+                outlined
+                v-tooltip.top="'Open folder'"
+                @click="openCacheFolder"
+              />
+              <Button
+                v-if="settingsRef?.cacheFolder"
+                icon="pi pi-refresh"
+                size="small"
+                severity="danger"
+                outlined
+                v-tooltip.top="'Reset to default'"
+                @click="resetCacheFolder"
+              />
+            </div>
+          </div>
+
+          <div class="setting-item flex-column align-items-stretch mt-3">
+            <div class="setting-content mb-2">
+              <span class="setting-title">Pipeline Temporary Folder</span>
+              <span class="setting-description">
+                Change the directory where temporary build and intermediate files are processed.
+                Leave blank to use default workspace storage.
+              </span>
+            </div>
+            <div class="flex gap-2 align-items-center">
+              <InputText
+                :model-value="settingsRef?.tempFolder || ''"
+                class="flex-grow-1"
+                size="small"
+                readonly
+                placeholder="Default sandboxed temp folder"
+              />
+              <Button label="Browse" size="small" severity="secondary" @click="browseTempFolder" />
+              <Button
+                icon="pi pi-folder-open"
+                size="small"
+                severity="secondary"
+                outlined
+                v-tooltip.top="'Open folder'"
+                @click="openTempFolder"
+              />
+              <Button
+                v-if="settingsRef?.tempFolder"
+                icon="pi pi-refresh"
+                size="small"
+                severity="danger"
+                outlined
+                v-tooltip.top="'Reset to default'"
+                @click="resetTempFolder"
+              />
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Versions Tab Content -->
@@ -585,7 +709,7 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, ref, onMounted, toRaw, watch } from "vue";
+import { computed, ref, onMounted, toRaw, watch, inject } from "vue";
 import { useAppSettings } from "@renderer/store/settings";
 import { useAppStore } from "@renderer/store/app";
 import { storeToRefs } from "pinia";
@@ -601,6 +725,7 @@ import { SandboxFolder } from "@pipelab/constants";
 import UpgradeDialog from "@renderer/components/UpgradeDialog.vue";
 import { useAPI } from "@renderer/composables/api";
 import { websocketManager } from "@renderer/composables/websocket-manager";
+import { useShell } from "@renderer/composables/use-shell";
 
 import { format } from "date-fns";
 import { useI18n } from "vue-i18n";
@@ -616,6 +741,65 @@ const appStore = useAppStore();
 const authStore = useAuth();
 const buildHistoryStore = useBuildHistory();
 const api = useAPI();
+const shell = useShell();
+
+const openCacheFolder = () => {
+  const path =
+    settingsRef.value?.cacheFolder ||
+    (storageInfo.value?.userDataPath ? `${storageInfo.value.userDataPath}/cache` : null);
+  if (path) {
+    shell.openExternal(`file://${path}`);
+  }
+};
+
+const openTempFolder = () => {
+  const path =
+    settingsRef.value?.tempFolder ||
+    (storageInfo.value?.userDataPath ? `${storageInfo.value.userDataPath}/temp` : null);
+  if (path) {
+    shell.openExternal(`file://${path}`);
+  }
+};
+
+const browseCacheFolder = async () => {
+  const result = await api.execute("dialog:showOpenDialog", {
+    properties: ["openDirectory"],
+    title: t("settings.select-cache-folder", "Select Cache Folder"),
+  });
+  if (result.type === "success" && !result.result.canceled && result.result.filePaths.length > 0) {
+    appSettings.updateSettings({
+      ...(toRaw(settingsRef.value) as any),
+      cacheFolder: result.result.filePaths[0],
+    });
+  }
+};
+
+const browseTempFolder = async () => {
+  const result = await api.execute("dialog:showOpenDialog", {
+    properties: ["openDirectory"],
+    title: t("settings.select-temp-folder", "Select Temporary Folder"),
+  });
+  if (result.type === "success" && !result.result.canceled && result.result.filePaths.length > 0) {
+    appSettings.updateSettings({
+      ...(toRaw(settingsRef.value) as any),
+      tempFolder: result.result.filePaths[0],
+    });
+  }
+};
+
+const resetCacheFolder = () => {
+  appSettings.updateSettings({
+    ...(toRaw(settingsRef.value) as any),
+    cacheFolder: undefined,
+  });
+};
+
+const resetTempFolder = () => {
+  appSettings.updateSettings({
+    ...(toRaw(settingsRef.value) as any),
+    tempFolder: undefined,
+  });
+};
 
 const { settings: settingsRef } = storeToRefs(appSettings);
 const { pluginDefinitions } = storeToRefs(appStore);

@@ -2,7 +2,15 @@ export * from "./context";
 export * from "./websocket-server";
 export * from "./ipc-core";
 export * from "./handlers/index";
-export * from "./config";
+export {
+  setupSettingsConfigFile,
+  setupConnectionsConfigFile,
+  setupProjectsConfigFile,
+  setupPipelineConfigFileByName,
+  setupPipelineConfigFileByPath,
+  deletePipelineConfigFileByName,
+  deletePipelineConfigFileByPath,
+} from "./config";
 export * from "./paths";
 export * from "./api";
 export * from "./heavy";
@@ -11,7 +19,6 @@ export * from "./utils/remote";
 export * from "./utils/fs-extras";
 export * from "./types/runner";
 export * from "./runner";
-export * from "./migrations";
 export * from "./server";
 export * from "./utils";
 export * from "./utils/github";

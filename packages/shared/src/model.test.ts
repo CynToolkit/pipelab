@@ -353,7 +353,7 @@ describe("model", () => {
       autosave: false,
       agents: [],
       plugins: expect.any(Array),
-      isInternalMigrationBannerClosed: false,
+      cacheFolder: "/some/path",
     });
   });
 

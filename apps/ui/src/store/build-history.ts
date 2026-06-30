@@ -4,19 +4,15 @@ import { useLogger } from "@pipelab/shared";
 import { useAuth } from "./auth";
 import { useAPI } from "@renderer/composables/api";
 import { SandboxFolder } from "@pipelab/constants";
-import type {
-  BuildHistoryEntry,
-  BuildHistoryQuery,
-  BuildHistoryResponse,
-  SubscriptionError,
-} from "@pipelab/shared";
-import { isSubscriptionError, SubscriptionRequiredError } from "@pipelab/shared";
+import type { BuildHistoryEntry, BuildHistoryQuery, BuildHistoryResponse } from "@pipelab/shared";
 
 interface StorageInfo {
   totalEntries: number;
   totalSize: number;
   oldestEntry?: number;
   newestEntry?: number;
+  numberOfPipelines: number;
+  userDataPath: string;
   disk: {
     total: number;
     free: number;
@@ -32,8 +28,6 @@ export const useBuildHistory = defineStore("build-history", () => {
 
   const {} = authStore;
   const { hasBuildHistoryBenefit } = storeToRefs(authStore);
-
-  const isRefreshingHistory = ref(false);
 
   // IPC API functions
   const buildHistoryAPI = {
@@ -144,7 +138,14 @@ export const useBuildHistory = defineStore("build-history", () => {
           response.total > 0 ? Math.min(...response.entries.map((e) => e.startTime)) : undefined,
         newestEntry:
           response.total > 0 ? Math.max(...response.entries.map((e) => e.startTime)) : undefined,
-        disk: storageInfo.value?.disk || { total: 0, free: 0, pipelab: 0, folders: [] },
+        numberOfPipelines: storageInfo.value?.numberOfPipelines || 0,
+        userDataPath: storageInfo.value?.userDataPath || "",
+        disk: storageInfo.value?.disk || {
+          total: 0,
+          free: 0,
+          pipelab: 0,
+          folders: [],
+        },
       };
     } catch (err) {
       const errorMessage =
@@ -235,12 +236,20 @@ export const useBuildHistory = defineStore("build-history", () => {
       // Update entry in local state
       const index = entries.value.findIndex((e) => e.id === id);
       if (index >= 0) {
-        entries.value[index] = { ...entries.value[index], ...updates, updatedAt: Date.now() };
+        entries.value[index] = {
+          ...entries.value[index],
+          ...updates,
+          updatedAt: Date.now(),
+        };
       }
 
       // Update current entry if it's the same
       if (currentEntry.value?.id === id) {
-        currentEntry.value = { ...currentEntry.value, ...updates, updatedAt: Date.now() };
+        currentEntry.value = {
+          ...currentEntry.value,
+          ...updates,
+          updatedAt: Date.now(),
+        };
       }
     } catch (err) {
       const errorMessage =
@@ -318,7 +327,9 @@ export const useBuildHistory = defineStore("build-history", () => {
     try {
       // We need to add this to buildHistoryAPI but let's see if we can use delete with just pipelineId or similar
       // For now let's assume we add a new IPC call
-      const result = await api.execute("build-history:clear-by-pipeline", { pipelineId });
+      const result = await api.execute("build-history:clear-by-pipeline", {
+        pipelineId,
+      });
       if (result.type === "error") {
         throw new Error(result.ipcError || "Failed to clear history for pipeline");
       }

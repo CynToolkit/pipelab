@@ -63,13 +63,7 @@
 
         <div class="your-projects">
           <!-- Banner -->
-          <Message
-            v-if="isBannerVisible"
-            severity="warn"
-            :closable="true"
-            class="mb-4"
-            @close="closeBanner"
-          >
+          <Message v-if="isBannerVisible" severity="warn" :closable="false" class="mb-4">
             {{ $t("home.only-internal-supported-notice") }}
           </Message>
 
@@ -107,10 +101,11 @@
                   variant="outlined"
                   severity="secondary"
                   size="small"
-                  @click="importPipeline"
+                  @click="toggleImportMenu"
                 >
                   <i class="mdi mdi-folder-open-outline mr-2"></i>
                   {{ $t("home.import") }}
+                  <i class="mdi mdi-chevron-down ml-2"></i>
                 </Button>
               </div>
             </div>
@@ -337,6 +332,26 @@
           ></FileInput>
         </div> -->
 
+        <div v-if="isDevMode" class="field-checkbox mb-3 flex align-items-center">
+          <Checkbox v-model="isAdminExternal" binary input-id="adminExternal" />
+          <label
+            for="adminExternal"
+            class="cursor-pointer ml-2 flex align-items-center text-orange-500 font-bold"
+          >
+            Create External Pipeline (Admin Testing Only)
+          </label>
+        </div>
+
+        <div v-if="isAdminExternal" class="form-section mb-3">
+          <label class="form-label text-orange-500 font-bold"
+            >External File Location (Admin Only)</label
+          >
+          <FileInput
+            v-model="newProjectLocalLocation"
+            :default-path="newProjectNamePathified"
+          ></FileInput>
+        </div>
+
         <div class="presets-section">
           <label class="form-label">Template</label>
           <div class="presets">
@@ -396,6 +411,7 @@
     />
 
     <Menu ref="menu" :model="menuItems" :popup="true" />
+    <Menu ref="importMenu" :model="importMenuItems" :popup="true" />
 
     <Dialog
       v-model:visible="isTransferModalVisible"
@@ -487,6 +503,7 @@ import Textarea from "primevue/textarea";
 const router = useRouter();
 const api = useAPI();
 const openUpgradeDialog = inject("openUpgradeDialog") as () => void;
+const openMigrationModal = inject("openMigrationModal") as (() => void) | undefined;
 const confirm = useConfirm();
 const toast = useToast();
 const { posthog } = usePostHog();
@@ -586,15 +603,8 @@ const hasExternalPipelines = computed(() => {
 });
 
 const isBannerVisible = computed(() => {
-  return hasExternalPipelines.value && !settings.value.isInternalMigrationBannerClosed;
+  return hasExternalPipelines.value;
 });
-
-const closeBanner = () => {
-  updateSettings({
-    ...settings.value,
-    isInternalMigrationBannerClosed: true,
-  } as AppConfig);
-};
 
 const onNodeUnselect = (node: TreeNode) => {
   console.log("onNodeUnselect", node);
@@ -634,7 +644,7 @@ watchEffect(async () => {
 
     // When external (@deprecated)
     if (file.type === "external") {
-      const configResult = await api.execute("config:load", { config: file.path });
+      const configResult = await api.execute("pipeline:load-by-path", { path: file.path });
 
       if (configResult.type === "error") {
         console.error("Unable to load file", configResult.ipcError);
@@ -656,13 +666,13 @@ watchEffect(async () => {
         continue;
       }
 
-      const result = configResult.result.result as SavedFile;
+      const result = configResult.result;
       fileContent = result;
     } else if (file.type === "internal") {
       // Load internal file
-      const configResult = await api.execute("config:load", { config: file.configName });
+      const configResult = await api.execute("pipeline:load-by-name", { name: file.configName });
       if (configResult.type === "success") {
-        fileContent = configResult.result.result as SavedFile;
+        fileContent = configResult.result;
       } else {
         console.error("Failed to load internal file", configResult);
         continue;
@@ -819,10 +829,25 @@ const onNewFileCreation = async (preset?: Preset) => {
     return;
   }
   let pathOrConfigName = "";
-  const type: SaveLocation["type"] = isCloudProject.value ? "pipelab-cloud" : "internal";
+  let type: SaveLocation["type"] = isCloudProject.value ? "pipelab-cloud" : "internal";
+
+  if (isAdminExternal.value) {
+    type = "external";
+  }
 
   if (type === "internal") {
     pathOrConfigName = `pipelines/${pipelineId}`;
+  } else if (type === "external") {
+    pathOrConfigName = newProjectLocalLocation.value;
+    if (!pathOrConfigName) {
+      toast.add({
+        severity: "error",
+        summary: t("base.error"),
+        detail: "Please choose a location to save the external file",
+        life: 3000,
+      });
+      return;
+    }
   }
 
   const updatedPreset: Preset = {
@@ -833,9 +858,14 @@ const onNewFileCreation = async (preset?: Preset) => {
 
   // write file
   if (type === "internal") {
-    await api.execute("config:save", {
-      config: pathOrConfigName,
+    await api.execute("pipeline:save-by-name", {
+      name: pathOrConfigName,
       data: JSON.stringify(updatedPreset),
+    });
+  } else if (type === "external") {
+    await api.execute("fs:write", {
+      path: pathOrConfigName,
+      content: JSON.stringify(updatedPreset, null, 2),
     });
   } else if (type === "pipelab-cloud") {
     // TODO:
@@ -876,6 +906,8 @@ const onNewFileCreation = async (preset?: Preset) => {
 
   newProjectName.value = "";
   newProjectDescription.value = "";
+  newProjectLocalLocation.value = "";
+  isAdminExternal.value = false;
 
   await router.push({
     name: "Editor",
@@ -968,6 +1000,28 @@ const toggleMenu = (event: Event, data: EnhancedFile) => {
   menu.value.toggle(event);
 };
 
+const importMenu = ref();
+const toggleImportMenu = (event: Event) => {
+  importMenu.value.toggle(event);
+};
+
+const importMenuItems = computed(() => [
+  {
+    label: t("home.import-from-stable"),
+    icon: "mdi mdi-auto-fix",
+    command: () => {
+      openMigrationModal?.();
+    },
+  },
+  {
+    label: t("home.import-pipeline-file"),
+    icon: "mdi mdi-file-import-outline",
+    command: () => {
+      importPipeline();
+    },
+  },
+]);
+
 const menuItems = computed(() => [
   {
     label: t("home.build-history"),
@@ -982,6 +1036,13 @@ const menuItems = computed(() => [
     icon: "mdi mdi-content-copy",
     command: () => {
       if (selectedPipelineForMenu.value) duplicateProject(selectedPipelineForMenu.value.content);
+    },
+  },
+  {
+    label: t("home.export-pipeline"),
+    icon: "mdi mdi-file-export-outline",
+    command: () => {
+      if (selectedPipelineForMenu.value) exportPipeline(selectedPipelineForMenu.value);
     },
   },
   {
@@ -1055,8 +1116,8 @@ const migratePipeline = async (file: EnhancedFile) => {
       const newConfigName = `pipelines/${nanoid()}`;
 
       // Save content to internal config
-      await api.execute("config:save", {
-        config: newConfigName,
+      await api.execute("pipeline:save-by-name", {
+        name: newConfigName,
         data: JSON.stringify(file.content),
       });
 
@@ -1082,6 +1143,56 @@ const migratePipeline = async (file: EnhancedFile) => {
         life: 3000,
       });
     },
+  });
+};
+
+const exportPipeline = async (file: EnhancedFile) => {
+  const paths = await api.execute("dialog:showSaveDialog", {
+    title: t("home.export-pipeline"),
+    properties: ["createDirectory", "showOverwriteConfirmation"],
+    filters: [{ name: "Pipelab Project", extensions: [PROJECT_EXTENSION] }],
+    defaultPath: `${file.content.name || "pipeline"}.${PROJECT_EXTENSION}`,
+  });
+
+  if (paths.type === "error") {
+    toast.add({
+      severity: "error",
+      summary: t("base.error"),
+      detail: t("home.export-failed"),
+      life: 3000,
+    });
+    return;
+  }
+
+  if (paths.result.canceled || !paths.result.filePath) {
+    return;
+  }
+
+  let saveLocation = paths.result.filePath;
+  if (!saveLocation.endsWith(`.${PROJECT_EXTENSION}`)) {
+    saveLocation = `${saveLocation}.${PROJECT_EXTENSION}`;
+  }
+
+  const writeResult = await api.execute("fs:write", {
+    path: saveLocation,
+    content: JSON.stringify(file.content, null, 2),
+  });
+
+  if (writeResult.type === "error" || !writeResult.result.ok) {
+    toast.add({
+      severity: "error",
+      summary: t("base.error"),
+      detail: t("home.export-failed"),
+      life: 3000,
+    });
+    return;
+  }
+
+  toast.add({
+    severity: "success",
+    summary: t("base.success"),
+    detail: t("home.export-success"),
+    life: 3000,
   });
 };
 
@@ -1120,8 +1231,8 @@ const importPipeline = async () => {
     const configName = `pipelines/${pipelineId}`;
 
     // Save to internal storage
-    await api.execute("config:save", {
-      config: configName,
+    await api.execute("pipeline:save-by-name", {
+      name: configName,
       data: JSON.stringify(fileData),
     });
 
@@ -1166,6 +1277,13 @@ const viewProjectBuildHistory = async (file: EnhancedFile) => {
 const isNewPipelineModalVisible = ref(false);
 const isNewProjectModalVisible = ref(false);
 
+const isAdminExternal = ref(false);
+const newProjectLocalLocation = ref("");
+const isDevMode = computed(() => process.env.NODE_ENV === "development");
+const newProjectNamePathified = computed(() => {
+  return `${newProjectName.value || "pipeline"}`;
+});
+
 // Build history dialog state
 const showBuildHistoryDialog = ref(false);
 const selectedPipelineId = ref<string>();
@@ -1205,17 +1323,6 @@ const startTour = (force = false) => {
     force,
   );
 };
-
-onMounted(() => {
-  // // Check if we should show the tour (e.g., first time or via a button)
-  // // For now, let's just provide a way to start it, or start it if no projects exist
-  // if (!isCompleted()) {
-  //   // Wait a bit for the UI to be fully ready
-  //   setTimeout(() => {
-  //     startTour()
-  //   }, 1000)
-  // }
-});
 </script>
 
 <style lang="scss" scoped>

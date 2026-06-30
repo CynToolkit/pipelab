@@ -1,8 +1,9 @@
 import { RendererPluginDefinition } from "./plugins/definitions";
 import { User, UserResponse } from "@supabase/supabase-js";
 import type { Tagged } from "type-fest";
-import { PresetResult, Steps } from "./model";
-import { AppConfig } from "./config.schema";
+import { PresetResult, Steps, SavedFile } from "./model";
+import { AppConfig, ConnectionsConfig } from "./config.schema";
+import { FileRepo } from "./config/projects-definition";
 import { Agent } from "./websocket.types";
 import { BuildHistoryEntry, BuildHistoryQuery, BuildHistoryResponse } from "./build-history";
 
@@ -24,6 +25,58 @@ type EndEvent<DATA> = {
 };
 
 export type Presets = Record<string, PresetResult>;
+
+export type StableDataReport = {
+  sourceChannel: "Stable" | "Beta";
+  targetChannel: "Stable" | "Beta";
+
+  // Settings
+  settingsExists: boolean;
+  settingsVersion: string | null;
+  settingsVersionTarget: string | null;
+  settingsMtimeSource: number;
+  settingsMtimeTarget: number;
+  settingsImportable: boolean;
+
+  // Connections
+  connectionsExists: boolean;
+  connectionsCount: number;
+  connectionsVersion: string | null;
+  connectionsVersionTarget: string | null;
+  connectionsMtimeSource: number;
+  connectionsMtimeTarget: number;
+  connectionsImportable: boolean;
+
+  // Projects
+  projectsExists: boolean;
+  projectsVersion: string | null;
+  projectsVersionTarget: string | null;
+  projectsMtimeSource: number;
+  projectsMtimeTarget: number;
+  projectsImportable: boolean;
+
+  projects: Array<{
+    id: string;
+    name: string;
+    description: string;
+    pipelines: Array<{
+      id: string;
+      name: string;
+      description: string;
+      type: "internal" | "external" | "pipelab-cloud";
+      lastModifiedStable?: string;
+      lastModifiedBeta?: string;
+      existsInBeta: boolean;
+    }>;
+  }>;
+};
+
+export type MigrationOptions = {
+  migrateSettings: boolean;
+  migrateConnections: boolean;
+  selectedProjects: string[];
+  selectedPipelines: string[];
+};
 
 export type IpcDefinition = {
   "fs:read": [
@@ -95,10 +148,24 @@ export type IpcDefinition = {
 
   "constants:get": [void, EndEvent<{ result: { userData: string } }>];
 
-  "config:load": [{ config: string }, EndEvent<{ result: any }>];
-  "config:save": [{ data: any; config: string }, EndEvent<{ result: "ok" }>];
-  "config:reset": [{ config: string; key: string }, EndEvent<{ result: "ok" }>];
-  "config:delete": [{ config: string }, EndEvent<{ result: "ok" }>];
+  "settings:load": [void, EndEvent<AppConfig>];
+  "settings:save": [{ data: AppConfig }, EndEvent<"ok">];
+  "settings:reset": [{ key: string }, EndEvent<"ok">];
+
+  "connections:load": [void, EndEvent<ConnectionsConfig>];
+  "connections:save": [{ data: ConnectionsConfig }, EndEvent<"ok">];
+  "connections:reset": [{ key: string }, EndEvent<"ok">];
+
+  "projects:load": [void, EndEvent<FileRepo>];
+  "projects:save": [{ data: FileRepo }, EndEvent<"ok">];
+  "projects:reset": [{ key: string }, EndEvent<"ok">];
+
+  "pipeline:load-by-name": [{ name: string }, EndEvent<SavedFile>];
+  "pipeline:load-by-path": [{ path: string }, EndEvent<SavedFile>];
+  "pipeline:save-by-name": [{ name: string; data: string }, EndEvent<"ok">];
+  "pipeline:save-by-path": [{ path: string; data: string }, EndEvent<"ok">];
+  "pipeline:delete-by-name": [{ name: string }, EndEvent<"ok">];
+  "pipeline:delete-by-path": [{ path: string }, EndEvent<"ok">];
   "action:cancel": [void, EndEvent<{ result: "ok" | "ko" }>];
 
   // Build History APIs
@@ -193,6 +260,8 @@ export type IpcDefinition = {
     { plugins: Record<string, string> },
     EndEvent<{ loaded: string[]; failed: string[] }>,
   ];
+  "migration:scan-stable": [void, EndEvent<StableDataReport>];
+  "migration:perform": [MigrationOptions, EndEvent<{ result: "ok" }>];
 };
 
 export type Channels = keyof IpcDefinition;
