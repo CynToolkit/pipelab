@@ -8,9 +8,9 @@ import {
 } from "@pipelab/plugin-core";
 import { dirname, join, delimiter } from "node:path";
 import { writeFile, cp, mkdir } from "node:fs/promises";
-import { homedir } from "node:os";
 
 export const ID = "poki-upload";
+export const POKI_CLI_VERSION = "0.1.19";
 
 export const uploadToPoki = createAction({
   id: ID,
@@ -52,11 +52,15 @@ export const uploadToPoki = createAction({
 
 export const uploadToPokiRunner = createActionRunner<typeof uploadToPoki>(
   async ({ log, inputs, paths, abortSignal, cwd, context }) => {
-    const { node, thirdparty, pnpm } = paths;
-    const { packageDir: pokiDir } = await fetchPackage("@poki/cli", "0.1.19", {
-      context,
-      installDeps: true,
-    });
+    const { node, thirdparty, pnpm, userData } = paths;
+    const { packageDir: pokiDir } = await fetchPackage(
+      "@poki/cli",
+      POKI_CLI_VERSION,
+      {
+        context,
+        installDeps: true,
+      },
+    );
     const poki = join(pokiDir, "bin", "index.js");
 
     const dist = join(cwd, "dist");
@@ -84,21 +88,32 @@ export const uploadToPokiRunner = createActionRunner<typeof uploadToPoki>(
       "utf-8",
     );
 
-    // TODO: needs auth
-
     log("process.env.MSW_BRIDGE_PORT", process.env.MSW_BRIDGE_PORT);
     log("process.env.NODE_OPTIONS", process.env.NODE_OPTIONS);
 
+    // Direct Poki CLI to read/write credentials inside Pipelab's thirdparty folder
+    const sandboxConfigDir = thirdparty;
+
+    const env: Record<string, string> = {
+      ...process.env,
+      XDG_CONFIG_HOME: sandboxConfigDir,
+      LOCALAPPDATA: sandboxConfigDir,
+      PATH: `${dirname(node)}${delimiter}${process.env.PATH}`,
+    };
+
     await runWithLiveLogs(
       node,
-      [poki, "upload", "--name", inputs.name as string, "--notes", inputs.notes as string],
+      [
+        poki,
+        "upload",
+        "--name",
+        inputs.name as string,
+        "--notes",
+        inputs.notes as string,
+      ],
       {
         cwd,
-        env: {
-          ...process.env,
-          // DEBUG: '*',
-          PATH: `${dirname(node)}${delimiter}${process.env.PATH}`,
-        },
+        env,
         cancelSignal: abortSignal,
       },
       log,

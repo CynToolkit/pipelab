@@ -47,6 +47,7 @@
     "build": "tsdown"
   },
   "dependencies": {
+    "@pipelab/constants": "workspace:*",
     "@pipelab/plugin-core": "workspace:*"
   },
   "devDependencies": {
