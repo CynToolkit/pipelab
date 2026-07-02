@@ -51,27 +51,30 @@ describe("isPathBlacklisted", () => {
     expect(isPathBlacklisted("/")).toBe(true);
   });
 
-  test.runIf(isWindows)("should blacklist common Windows directories dynamically on any drive (Windows-only)", () => {
-    // Windows drive roots
-    expect(isPathBlacklisted("c:")).toBe(true);
-    expect(isPathBlacklisted("d:")).toBe(true);
-    expect(isPathBlacklisted("Z:")).toBe(true);
-    expect(isPathBlacklisted("C:\\")).toBe(true);
-    expect(isPathBlacklisted("d:/")).toBe(true);
+  test.runIf(isWindows)(
+    "should blacklist common Windows directories dynamically on any drive (Windows-only)",
+    () => {
+      // Windows drive roots
+      expect(isPathBlacklisted("c:")).toBe(true);
+      expect(isPathBlacklisted("d:")).toBe(true);
+      expect(isPathBlacklisted("Z:")).toBe(true);
+      expect(isPathBlacklisted("C:\\")).toBe(true);
+      expect(isPathBlacklisted("d:/")).toBe(true);
 
-    // Windows system directories on any drive letter
-    expect(isPathBlacklisted("c:/windows")).toBe(true);
-    expect(isPathBlacklisted("D:\\Windows\\")).toBe(true);
-    expect(isPathBlacklisted("e:/program files")).toBe(true);
-    expect(isPathBlacklisted("f:/program files (x86)")).toBe(true);
-    expect(isPathBlacklisted("g:/users")).toBe(true);
-    expect(isPathBlacklisted("h:/programdata")).toBe(true);
-    expect(isPathBlacklisted("i:/perflogs")).toBe(true);
+      // Windows system directories on any drive letter
+      expect(isPathBlacklisted("c:/windows")).toBe(true);
+      expect(isPathBlacklisted("D:\\Windows\\")).toBe(true);
+      expect(isPathBlacklisted("e:/program files")).toBe(true);
+      expect(isPathBlacklisted("f:/program files (x86)")).toBe(true);
+      expect(isPathBlacklisted("g:/users")).toBe(true);
+      expect(isPathBlacklisted("h:/programdata")).toBe(true);
+      expect(isPathBlacklisted("i:/perflogs")).toBe(true);
 
-    // Should NOT blacklist normal subfolders on other drives
-    expect(isPathBlacklisted("d:/my-folder")).toBe(false);
-    expect(isPathBlacklisted("c:/windows-backup")).toBe(false);
-  });
+      // Should NOT blacklist normal subfolders on other drives
+      expect(isPathBlacklisted("d:/my-folder")).toBe(false);
+      expect(isPathBlacklisted("c:/windows-backup")).toBe(false);
+    },
+  );
 
   test("should blacklist standard user profile directories", () => {
     expect(isPathBlacklisted(join(homedir(), "Downloads"))).toBe(true);

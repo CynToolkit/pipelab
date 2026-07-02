@@ -204,7 +204,10 @@
                     v-for="log in quickLogs"
                     :key="log.id"
                     class="log-entry"
-                    :class="{ 'slide-out': log.isExiting, 'slide-in': !log.isExiting }"
+                    :class="{
+                      'slide-out': log.isExiting,
+                      'slide-in': !log.isExiting,
+                    }"
                   >
                     <span v-html="log.text"></span>
                   </div>
@@ -220,7 +223,10 @@
                   <template #icon>
                     <i
                       class="mdi mr-1"
-                      :class="{ 'mdi-minus': bottomExpanded, 'mdi-plus': !bottomExpanded }"
+                      :class="{
+                        'mdi-minus': bottomExpanded,
+                        'mdi-plus': !bottomExpanded,
+                      }"
                     ></i>
                   </template>
                 </Button>
@@ -577,7 +583,9 @@ watch(
         // @deprecated external files are deprecated
         const { path: filePath } = file;
 
-        const configResult = await api.execute("pipeline:load-by-path", { path: filePath });
+        const configResult = await api.execute("pipeline:load-by-path", {
+          path: filePath,
+        });
 
         if (configResult.type === "error") {
           throw new Error(configResult.ipcError);
@@ -590,7 +598,9 @@ watch(
       } else if (file.type === "internal") {
         const { configName } = file;
 
-        const configResult = await api.execute("pipeline:load-by-name", { name: configName });
+        const configResult = await api.execute("pipeline:load-by-name", {
+          name: configName,
+        });
 
         if (configResult.type === "error") {
           throw new Error(configResult.ipcError);
@@ -1254,6 +1264,8 @@ const onValueChanged = (newValue: Param, paramKey: string) => {
     left: 0px;
     right: 0px;
     bottom: 0px;
+
+    z-index: 1;
 
     margin: 8px;
     padding: 8px;
