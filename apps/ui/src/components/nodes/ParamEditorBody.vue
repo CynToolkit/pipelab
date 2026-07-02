@@ -48,9 +48,20 @@
       </SelectButton>
     </div>
     <div v-else-if="paramDefinition.control.type === 'path'" class="path">
-      <Button class="w-full" @click="onChangePathClick(paramDefinition.control.options)">
+      <Button
+        class="w-full"
+        :severity="isBlacklisted ? 'danger' : undefined"
+        @click="onChangePathClick(paramDefinition.control.options)"
+      >
         {{ modelValue ? modelValue : (paramDefinition.control.label ?? "Browse path") }}
       </Button>
+      <div v-if="isBlacklisted" class="warning-banner">
+        <i class="pi pi-exclamation-triangle"></i>
+        <span
+          >Protected system/user folder. Running cleanup/destructive actions on this path is
+          blocked.</span
+        >
+      </div>
     </div>
     <div
       v-else-if="paramDefinition.control.type === 'electron:configure:v2'"
@@ -127,7 +138,7 @@
 <script lang="ts" setup>
 import { Action, Event } from "@pipelab/shared";
 import type { ValueOf } from "type-fest";
-import { computed, PropType, toRefs, ref, onMounted } from "vue";
+import { computed, PropType, toRefs, ref, onMounted, watch } from "vue";
 import { useAPI } from "@renderer/composables/api";
 import { useShell } from "@renderer/composables/use-shell";
 import { useLogger } from "@pipelab/shared";
@@ -146,6 +157,7 @@ const props = defineProps<{
   paramDefinition: ValueOf<Params>;
   modelValue?: unknown;
   value: BlockAction | BlockEvent;
+  paramKey?: string | number;
 }>();
 
 const { modelValue } = toRefs(props);
@@ -240,7 +252,9 @@ const onParamInputNumberChange = (event: InputNumberInputEvent) => {
 };
 
 const onParamMultiSelectChange = (
-  event: Omit<ListboxChangeEvent, "value"> & { value: { label: string; value: string }[] },
+  event: Omit<ListboxChangeEvent, "value"> & {
+    value: { label: string; value: string }[];
+  },
 ) => {
   const data = event.value.map((v) => v.value);
 
@@ -283,6 +297,20 @@ const onSwitch = () => {
   emit("switch");
 };
 
+const cleanPath = computed(() => {
+  let val = modelValueString.value.trim();
+  if (val.startsWith('"') && val.endsWith('"')) {
+    val = val.slice(1, -1);
+  }
+  return val;
+});
+
+const isBlacklisted = computed(() => {
+  if (!props.paramKey) return false;
+  const nodeErrors = editor.errors[props.value.uid] ?? [];
+  return nodeErrors.some((e) => e.type === "blacklisted" && e.param === String(props.paramKey));
+});
+
 onMounted(() => {
   if (props.paramDefinition.control.type === "netlify-site") {
     search({ query: "" });
@@ -290,4 +318,21 @@ onMounted(() => {
 });
 </script>
 
-<style lang="scss" scoped></style>
+<style lang="scss" scoped>
+.warning-banner {
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  font-size: 0.875rem;
+  background-color: rgba(120, 50, 10, 0.2);
+  color: #ff9800;
+  border: 1px solid rgba(255, 152, 0, 0.3);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+
+  i {
+    font-size: 1rem;
+  }
+}
+</style>

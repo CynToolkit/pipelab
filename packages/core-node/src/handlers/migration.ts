@@ -4,7 +4,13 @@ import { PipelabContext, getDefaultUserDataPath, isDev, PipelabEnv } from "../co
 import fs from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { join, dirname } from "node:path";
-import { FileRepo, SaveLocation, AppConfig, ConnectionsConfig, savedFileMigrator } from "@pipelab/shared";
+import {
+  FileRepo,
+  SaveLocation,
+  AppConfig,
+  ConnectionsConfig,
+  savedFileMigrator,
+} from "@pipelab/shared";
 import semver from "semver";
 
 interface MigrationPipelineItem {
@@ -94,7 +100,11 @@ export const registerMigrationHandlers = (context: PipelabContext) => {
             type: "success",
             result: {
               sourceChannel: sourceEnv === "prod" ? "Stable" : "Beta",
-              targetChannel: isDev ? "Dev" : (context.userDataPath.endsWith("app") || !context.userDataPath.includes("app-beta") ? "Stable" : "Beta"),
+              targetChannel: isDev
+                ? "Dev"
+                : context.userDataPath.endsWith("app") || !context.userDataPath.includes("app-beta")
+                  ? "Stable"
+                  : "Beta",
               settingsExists: false,
               settingsVersion: null,
               settingsVersionTarget: null,
@@ -258,7 +268,11 @@ export const registerMigrationHandlers = (context: PipelabContext) => {
           type: "success",
           result: {
             sourceChannel: sourceEnv === "prod" ? "Stable" : "Beta",
-            targetChannel: isDev ? "Dev" : (context.userDataPath.endsWith("app") || !context.userDataPath.includes("app-beta") ? "Stable" : "Beta"),
+            targetChannel: isDev
+              ? "Dev"
+              : context.userDataPath.endsWith("app") || !context.userDataPath.includes("app-beta")
+                ? "Stable"
+                : "Beta",
             settingsExists,
             settingsVersion,
             settingsVersionTarget: targetSettingsMeta.version,
@@ -297,7 +311,13 @@ export const registerMigrationHandlers = (context: PipelabContext) => {
   handle("migration:perform", async (_, { send, value }) => {
     logger().info("[Migration] Performing migration...");
     try {
-      const { migrateSettings, migrateConnections, selectedProjects, selectedPipelines, sourceChannel } = value;
+      const {
+        migrateSettings,
+        migrateConnections,
+        selectedProjects,
+        selectedPipelines,
+        sourceChannel,
+      } = value;
 
       let sourceEnv: PipelabEnv = "prod";
       if (sourceChannel === "stable") {
@@ -566,10 +586,15 @@ export const registerMigrationHandlers = (context: PipelabContext) => {
                   const rawJson = JSON.parse(pipeContent);
                   const migratedJson = await savedFileMigrator.migrate(rawJson);
                   await fs.writeFile(betaPipeFile, JSON.stringify(migratedJson, null, 2));
-                  logger().info(`[Migration] Migrated and copied pipeline file: ${stablePipe.configName}`);
+                  logger().info(
+                    `[Migration] Migrated and copied pipeline file: ${stablePipe.configName}`,
+                  );
                 } catch (err) {
                   await fs.copyFile(stablePipeFile, betaPipeFile);
-                  logger().error(`[Migration] Error migrating during copy of ${stablePipe.configName}, fallback to direct copy:`, err);
+                  logger().error(
+                    `[Migration] Error migrating during copy of ${stablePipe.configName}, fallback to direct copy:`,
+                    err,
+                  );
                 }
               }
             }

@@ -34,7 +34,10 @@ export const registerConfigHandlers = (context: PipelabContext) => {
       logger().error("settings:load error:", e);
       send({
         type: "end",
-        data: { type: "error", ipcError: e instanceof Error ? e.message : "Unable to load settings" },
+        data: {
+          type: "error",
+          ipcError: e instanceof Error ? e.message : "Unable to load settings",
+        },
       });
     }
   });
@@ -53,7 +56,10 @@ export const registerConfigHandlers = (context: PipelabContext) => {
       logger().error("settings:save error:", e);
       send({
         type: "end",
-        data: { type: "error", ipcError: e instanceof Error ? e.message : "Unable to save settings" },
+        data: {
+          type: "error",
+          ipcError: e instanceof Error ? e.message : "Unable to save settings",
+        },
       });
     }
   });
@@ -76,7 +82,10 @@ export const registerConfigHandlers = (context: PipelabContext) => {
       logger().error("settings:reset error:", e);
       send({
         type: "end",
-        data: { type: "error", ipcError: e instanceof Error ? e.message : "Unable to reset settings" },
+        data: {
+          type: "error",
+          ipcError: e instanceof Error ? e.message : "Unable to reset settings",
+        },
       });
     }
   });
@@ -95,7 +104,10 @@ export const registerConfigHandlers = (context: PipelabContext) => {
       logger().error("connections:load error:", e);
       send({
         type: "end",
-        data: { type: "error", ipcError: e instanceof Error ? e.message : "Unable to load connections" },
+        data: {
+          type: "error",
+          ipcError: e instanceof Error ? e.message : "Unable to load connections",
+        },
       });
     }
   });
@@ -114,7 +126,10 @@ export const registerConfigHandlers = (context: PipelabContext) => {
       logger().error("connections:save error:", e);
       send({
         type: "end",
-        data: { type: "error", ipcError: e instanceof Error ? e.message : "Unable to save connections" },
+        data: {
+          type: "error",
+          ipcError: e instanceof Error ? e.message : "Unable to save connections",
+        },
       });
     }
   });
@@ -137,7 +152,10 @@ export const registerConfigHandlers = (context: PipelabContext) => {
       logger().error("connections:reset error:", e);
       send({
         type: "end",
-        data: { type: "error", ipcError: e instanceof Error ? e.message : "Unable to reset connections" },
+        data: {
+          type: "error",
+          ipcError: e instanceof Error ? e.message : "Unable to reset connections",
+        },
       });
     }
   });
@@ -156,7 +174,10 @@ export const registerConfigHandlers = (context: PipelabContext) => {
       logger().error("projects:load error:", e);
       send({
         type: "end",
-        data: { type: "error", ipcError: e instanceof Error ? e.message : "Unable to load projects" },
+        data: {
+          type: "error",
+          ipcError: e instanceof Error ? e.message : "Unable to load projects",
+        },
       });
     }
   });
@@ -175,7 +196,10 @@ export const registerConfigHandlers = (context: PipelabContext) => {
       logger().error("projects:save error:", e);
       send({
         type: "end",
-        data: { type: "error", ipcError: e instanceof Error ? e.message : "Unable to save projects" },
+        data: {
+          type: "error",
+          ipcError: e instanceof Error ? e.message : "Unable to save projects",
+        },
       });
     }
   });
@@ -198,7 +222,10 @@ export const registerConfigHandlers = (context: PipelabContext) => {
       logger().error("projects:reset error:", e);
       send({
         type: "end",
-        data: { type: "error", ipcError: e instanceof Error ? e.message : "Unable to reset projects" },
+        data: {
+          type: "error",
+          ipcError: e instanceof Error ? e.message : "Unable to reset projects",
+        },
       });
     }
   });
@@ -218,7 +245,10 @@ export const registerConfigHandlers = (context: PipelabContext) => {
       logger().error(`pipeline:load-by-name error for ${name}:`, e);
       send({
         type: "end",
-        data: { type: "error", ipcError: e instanceof Error ? e.message : `Unable to load pipeline ${name}` },
+        data: {
+          type: "error",
+          ipcError: e instanceof Error ? e.message : `Unable to load pipeline ${name}`,
+        },
       });
     }
   });
@@ -238,7 +268,10 @@ export const registerConfigHandlers = (context: PipelabContext) => {
       logger().error(`pipeline:load-by-path error for ${absolutePath}:`, e);
       send({
         type: "end",
-        data: { type: "error", ipcError: e instanceof Error ? e.message : `Unable to load pipeline ${absolutePath}` },
+        data: {
+          type: "error",
+          ipcError: e instanceof Error ? e.message : `Unable to load pipeline ${absolutePath}`,
+        },
       });
     }
   });
@@ -257,7 +290,10 @@ export const registerConfigHandlers = (context: PipelabContext) => {
       logger().error(`pipeline:save-by-name error for ${name}:`, e);
       send({
         type: "end",
-        data: { type: "error", ipcError: e instanceof Error ? e.message : `Unable to save pipeline ${name}` },
+        data: {
+          type: "error",
+          ipcError: e instanceof Error ? e.message : `Unable to save pipeline ${name}`,
+        },
       });
     }
   });
@@ -276,7 +312,10 @@ export const registerConfigHandlers = (context: PipelabContext) => {
       logger().error(`pipeline:save-by-path error for ${absolutePath}:`, e);
       send({
         type: "end",
-        data: { type: "error", ipcError: e instanceof Error ? e.message : `Unable to save pipeline ${absolutePath}` },
+        data: {
+          type: "error",
+          ipcError: e instanceof Error ? e.message : `Unable to save pipeline ${absolutePath}`,
+        },
       });
     }
   });
@@ -294,7 +333,10 @@ export const registerConfigHandlers = (context: PipelabContext) => {
       logger().error(`pipeline:delete-by-name error for ${name}:`, e);
       send({
         type: "end",
-        data: { type: "error", ipcError: e instanceof Error ? e.message : `Unable to delete pipeline ${name}` },
+        data: {
+          type: "error",
+          ipcError: e instanceof Error ? e.message : `Unable to delete pipeline ${name}`,
+        },
       });
     }
   });
@@ -312,7 +354,10 @@ export const registerConfigHandlers = (context: PipelabContext) => {
       logger().error(`pipeline:delete-by-path error for ${absolutePath}:`, e);
       send({
         type: "end",
-        data: { type: "error", ipcError: e instanceof Error ? e.message : `Unable to delete pipeline ${absolutePath}` },
+        data: {
+          type: "error",
+          ipcError: e instanceof Error ? e.message : `Unable to delete pipeline ${absolutePath}`,
+        },
       });
     }
   });

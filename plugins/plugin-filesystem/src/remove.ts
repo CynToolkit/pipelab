@@ -1,5 +1,10 @@
 import { rm } from "node:fs/promises";
-import { createAction, createActionRunner, createPathParam } from "@pipelab/plugin-core";
+import {
+  createAction,
+  createActionRunner,
+  createPathParam,
+  assertSafeDirectoryCleanup,
+} from "@pipelab/plugin-core";
 
 export const ID = "fs:remove";
 
@@ -13,6 +18,7 @@ export const remove = createAction({
       required: true,
       control: {
         type: "path",
+        warnIfBlacklisted: true,
         options: {
           properties: ["openFile"],
         },
@@ -47,6 +53,7 @@ export const removeRunner = createActionRunner<typeof remove>(async ({ log, inpu
   }
 
   try {
+    await assertSafeDirectoryCleanup(from);
     process.noAsar = true;
     await rm(from, { recursive: true, force: true, maxRetries: 3 });
     process.noAsar = false;

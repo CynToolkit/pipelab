@@ -180,9 +180,7 @@ describe("setupConfigFile & Backup Creation", () => {
     const success = await configInstance.setConfig(newConfig);
     expect(success).toBe(true);
 
-    const savedContent = JSON.parse(
-      await fs.readFile(context.getProjectsPath(), "utf8"),
-    );
+    const savedContent = JSON.parse(await fs.readFile(context.getProjectsPath(), "utf8"));
     expect(savedContent.pipelines).toHaveLength(1);
     expect(savedContent.pipelines[0].id).toBe("pipeline-new");
   });
@@ -229,4 +227,3 @@ describe("deletePipelineConfigFile", () => {
     await expect(deletePipelineConfigFileByName("does-not-exist", context)).resolves.not.toThrow();
   });
 });
-

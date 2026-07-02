@@ -22,3 +22,4 @@ export * from "./runner";
 export * from "./server";
 export * from "./utils";
 export * from "./utils/github";
+export * from "./fs-utils";

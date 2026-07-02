@@ -59,10 +59,15 @@ export const setupConfigFile = async <T>(
           json = await migrator.migrate(originalJson, {
             debug: false,
             onStep: async (state: any, version: string) => {
-              const versionedPath = path.join(parsedPath.dir, `${parsedPath.name}.v${version}.json`);
+              const versionedPath = path.join(
+                parsedPath.dir,
+                `${parsedPath.name}.v${version}.json`,
+              );
               try {
                 await fs.writeFile(versionedPath, JSON.stringify(state));
-                logger().info(`Intermediate backup created for ${parsedPath.name} at ${versionedPath}`);
+                logger().info(
+                  `Intermediate backup created for ${parsedPath.name} at ${versionedPath}`,
+                );
               } catch (e) {
                 logger().error(
                   `Failed to create intermediate backup for ${parsedPath.name} at v${version}:`,
@@ -161,6 +166,9 @@ export const deletePipelineConfigFileByName = async (name: string, context: Pipe
   await deleteConfigFile(filesPath);
 };
 
-export const deletePipelineConfigFileByPath = async (absolutePath: string, context: PipelabContext) => {
+export const deletePipelineConfigFileByPath = async (
+  absolutePath: string,
+  context: PipelabContext,
+) => {
   await deleteConfigFile(absolutePath);
 };

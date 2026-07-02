@@ -61,9 +61,7 @@
                 <p class="item-desc">Clones your theme, language, and other preferences.</p>
 
                 <!-- Comparison Meta -->
-                <div
-                  class="meta-comparison flex flex-column gap-1 mt-2 p-2 border-round text-xs"
-                >
+                <div class="meta-comparison flex flex-column gap-1 mt-2 p-2 border-round text-xs">
                   <div class="flex justify-content-between">
                     <span class="text-muted">{{ report.sourceChannel }} (Source):</span>
                     <span class="font-medium"
@@ -117,9 +115,7 @@
                 </p>
 
                 <!-- Comparison Meta -->
-                <div
-                  class="meta-comparison flex flex-column gap-1 mt-2 p-2 border-round text-xs"
-                >
+                <div class="meta-comparison flex flex-column gap-1 mt-2 p-2 border-round text-xs">
                   <div class="flex justify-content-between">
                     <span class="text-muted">{{ report.sourceChannel }} (Source):</span>
                     <span class="font-medium"
@@ -160,9 +156,7 @@
             </div>
 
             <!-- Comparison Meta -->
-            <div
-              class="meta-comparison flex flex-column gap-1 mb-3 p-2 border-round text-xs"
-            >
+            <div class="meta-comparison flex flex-column gap-1 mb-3 p-2 border-round text-xs">
               <div class="flex justify-content-between">
                 <span class="text-muted">{{ report.sourceChannel }} (Source):</span>
                 <span class="font-medium"

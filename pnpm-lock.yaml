@@ -164,6 +164,9 @@ importers:
       '@pipelab/core-node':
         specifier: workspace:*
         version: link:../../packages/core-node
+      '@pipelab/plugin-core':
+        specifier: workspace:*
+        version: link:../../plugins/plugin-core
       '@pipelab/shared':
         specifier: workspace:*
         version: link:../../packages/shared

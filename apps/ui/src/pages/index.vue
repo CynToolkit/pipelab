@@ -466,7 +466,14 @@ import { computed, ref, watchEffect, inject, watch, onMounted } from "vue";
 import { useToast } from "primevue/usetoast";
 import { storeToRefs } from "pinia";
 import Menu from "primevue/menu";
-import { EnhancedFile, SavedFile, Preset, savedFileMigrator, AppConfig, MigrationChannel } from "@pipelab/shared";
+import {
+  EnhancedFile,
+  SavedFile,
+  Preset,
+  savedFileMigrator,
+  AppConfig,
+  MigrationChannel,
+} from "@pipelab/shared";
 import { nanoid } from "nanoid";
 import { useRouter } from "vue-router";
 import { OpenMigrationModalKey, OpenUpgradeDialogKey } from "../utils/injection-keys";
@@ -1036,7 +1043,8 @@ const importMenuItems = computed(() => {
 
   return [
     {
-      label: appStore.channel === "stable" ? t("home.import-from-beta") : t("home.import-from-stable"),
+      label:
+        appStore.channel === "stable" ? t("home.import-from-beta") : t("home.import-from-stable"),
       icon: "mdi mdi-auto-fix",
       command: () => {
         openMigrationModal?.(appStore.channel === "stable" ? "beta" : "stable");

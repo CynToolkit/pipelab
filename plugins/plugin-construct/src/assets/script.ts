@@ -31,7 +31,7 @@ export const script = async (
       method: "POST",
       body: formData,
     });
-    const json = await res.json() as any;
+    const json = (await res.json()) as any;
     if (json.request.status !== "ok") {
       throw new Error(json.request.errorMessage || "Invalid credentials");
     }
@@ -43,28 +43,31 @@ export const script = async (
     await page.goto("https://account.construct.net/");
 
     // Inject token into IndexedDB
-    await page.evaluate(async ({ userID, token }) => {
-      return new Promise<void>((resolve, reject) => {
-        const request = indexedDB.open("localforage", 1);
-        request.onerror = () => reject(new Error("Failed to open DB"));
-        request.onsuccess = (e: any) => {
-          const db = e.target.result;
-          try {
-            const transaction = db.transaction(["keyvaluepairs"], "readwrite");
-            const store = transaction.objectStore("keyvaluepairs");
-            const putRequest = store.put({ userID, token }, "login-data");
-            putRequest.onsuccess = () => resolve();
-            putRequest.onerror = () => reject(new Error("Failed to put item"));
-          } catch (err) {
-            reject(err);
-          }
-        };
-        request.onupgradeneeded = (e: any) => {
-          const db = e.target.result;
-          db.createObjectStore("keyvaluepairs");
-        };
-      });
-    }, { userID, token });
+    await page.evaluate(
+      async ({ userID, token }) => {
+        return new Promise<void>((resolve, reject) => {
+          const request = indexedDB.open("localforage", 1);
+          request.onerror = () => reject(new Error("Failed to open DB"));
+          request.onsuccess = (e: any) => {
+            const db = e.target.result;
+            try {
+              const transaction = db.transaction(["keyvaluepairs"], "readwrite");
+              const store = transaction.objectStore("keyvaluepairs");
+              const putRequest = store.put({ userID, token }, "login-data");
+              putRequest.onsuccess = () => resolve();
+              putRequest.onerror = () => reject(new Error("Failed to put item"));
+            } catch (err) {
+              reject(err);
+            }
+          };
+          request.onupgradeneeded = (e: any) => {
+            const db = e.target.result;
+            db.createObjectStore("keyvaluepairs");
+          };
+        });
+      },
+      { userID, token },
+    );
     log("Credentials injected successfully.");
   }
 

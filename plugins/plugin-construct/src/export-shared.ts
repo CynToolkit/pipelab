@@ -28,18 +28,10 @@ if (platform === "win32") {
   baseProfile = join(LOCALAPPDATA ?? "", "Google", "Chrome", "User Data");
 } else if (platform === "linux") {
   const configHome =
-    XDG_CONFIG_HOME && XDG_CONFIG_HOME.trim() !== ""
-      ? XDG_CONFIG_HOME
-      : join(homedir(), ".config");
+    XDG_CONFIG_HOME && XDG_CONFIG_HOME.trim() !== "" ? XDG_CONFIG_HOME : join(homedir(), ".config");
   baseProfile = join(configHome, "google-chrome");
 } else if (platform === "darwin") {
-  baseProfile = join(
-    homedir(),
-    "Library",
-    "Application Support",
-    "Google",
-    "Chrome",
-  );
+  baseProfile = join(homedir(), "Library", "Application Support", "Google", "Chrome");
 }
 
 export const sharedParams = {
@@ -116,15 +108,7 @@ type Inputs = ParamsToInput<typeof sharedParams>;
 
 export const exportc3p = async <ACTION extends Action>(
   file: string,
-  {
-    cwd,
-    log,
-    inputs,
-    setOutput,
-    paths,
-    abortSignal,
-    context: ctx,
-  }: ActionRunnerData<ACTION>,
+  { cwd, log, inputs, setOutput, paths, abortSignal, context: ctx }: ActionRunnerData<ACTION>,
 ) => {
   let browserContext: BrowserContext | undefined = undefined;
   let browser: any | undefined = undefined;
@@ -142,14 +126,10 @@ export const exportc3p = async <ACTION extends Action>(
 
   const browserName: "chromium" | "firefox" | "webkit" = "chromium";
 
-  const { packageDir: playwrightPkgPath } = await fetchPackage(
-    "playwright-core",
-    "1.48.2",
-    {
-      installDeps: true,
-      context: ctx,
-    },
-  );
+  const { packageDir: playwrightPkgPath } = await fetchPackage("playwright-core", "1.48.2", {
+    installDeps: true,
+    context: ctx,
+  });
   const playwrightCli = join(playwrightPkgPath, "cli.js");
   const browsersPath = join(thirdparty, "playwright-browsers");
 
@@ -215,16 +195,8 @@ export const exportc3p = async <ACTION extends Action>(
       recursive: true,
     });
 
-    const indexedDbPathSource = join(
-      newInputs.customProfile as string,
-      "Default",
-      "IndexedDB",
-    );
-    const indexedDbPathDestination = join(
-      customProfile,
-      "Default",
-      "IndexedDB",
-    );
+    const indexedDbPathSource = join(newInputs.customProfile as string, "Default", "IndexedDB");
+    const indexedDbPathDestination = join(customProfile, "Default", "IndexedDB");
     await mkdir(indexedDbPathDestination, { recursive: true });
 
     const pathsToCopy = [
@@ -242,18 +214,15 @@ export const exportc3p = async <ACTION extends Action>(
       }
     }
 
-    browserContext = await browserInstance.launchPersistentContext(
-      customProfile,
-      {
-        headless: headless as boolean,
-        locale: "en-US",
-        recordVideo: isCI
-          ? {
-              dir: join(process.cwd(), "playwright"),
-            }
-          : undefined,
-      },
-    );
+    browserContext = await browserInstance.launchPersistentContext(customProfile, {
+      headless: headless as boolean,
+      locale: "en-US",
+      recordVideo: isCI
+        ? {
+            dir: join(process.cwd(), "playwright"),
+          }
+        : undefined,
+    });
   } else {
     browser = await browserInstance.launch({
       headless: headless as boolean,

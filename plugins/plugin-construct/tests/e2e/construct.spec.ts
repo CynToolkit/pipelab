@@ -53,9 +53,7 @@ describe("End-to-End: Construct 3 Export Pipeline", () => {
 
       // Verify that the output files/folders actually exist
       await expect(access(outputs.folder as string)).resolves.not.toThrow();
-      await expect(
-        access(outputs.parentFolder as string),
-      ).resolves.not.toThrow();
+      await expect(access(outputs.parentFolder as string)).resolves.not.toThrow();
       await expect(access(outputs.zipFile as string)).resolves.not.toThrow();
     },
     30 * 60 * 1000,
@@ -76,10 +74,7 @@ describe("End-to-End: Construct 3 Export Pipeline", () => {
         "https_editor.construct.net_0.indexeddb.leveldb",
       );
       await mkdir(sourceDbDir, { recursive: true });
-      await writeFile(
-        join(sourceDbDir, "test-addon-file-clone.txt"),
-        "addon-database-data",
-      );
+      await writeFile(join(sourceDbDir, "test-addon-file-clone.txt"), "addon-database-data");
 
       // 2. Prepare inputs
       const testC3pPath = resolve(fixtures, "c3-export/test.c3p");
@@ -115,9 +110,7 @@ describe("End-to-End: Construct 3 Export Pipeline", () => {
       );
 
       await expect(access(clonedEditorDbFile)).resolves.not.toThrow();
-      expect(await readFile(clonedEditorDbFile, "utf-8")).toBe(
-        "addon-database-data",
-      );
+      expect(await readFile(clonedEditorDbFile, "utf-8")).toBe("addon-database-data");
     },
     30 * 60 * 1000,
   );

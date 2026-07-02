@@ -100,4 +100,118 @@ describe("End-to-End: Filesystem Plugin", () => {
 
     await expect(access(fileToDelete)).rejects.toThrow();
   });
+
+  test(
+    "should refuse to cleanup or remove a blacklisted path (e.g. user home directory)",
+    { timeout: 1800000 },
+    async () => {
+      sandbox = await createSandbox("fs-blacklist-e2e");
+      const testPath = sandbox.path;
+      const home = process.env.HOME || process.env.USERPROFILE || "";
+
+      await expect(
+        runAction(copyRunner, {
+          inputs: {
+            from: testPath,
+            to: home,
+            recursive: true,
+            overwrite: true,
+            cleanup: true,
+          },
+          sandboxPath: testPath,
+        }),
+      ).rejects.toThrow(/Cannot cleanup\/delete protected system or user directory/);
+
+      await expect(
+        runAction(removeRunner, {
+          inputs: {
+            from: home,
+            recursive: true,
+          },
+          sandboxPath: testPath,
+        }),
+      ).rejects.toThrow(/Cannot cleanup\/delete protected system or user directory/);
+    },
+  );
+
+  test(
+    "should refuse to delete a non-empty directory if the .pipelab folder marker is missing",
+    { timeout: 1800000 },
+    async () => {
+      sandbox = await createSandbox("fs-marker-missing-e2e");
+      const testPath = sandbox.path;
+      const sourceDir = join(testPath, "source");
+      const targetDir = join(testPath, "target");
+
+      await mkdir(sourceDir, { recursive: true });
+      await mkdir(targetDir, { recursive: true });
+
+      // Seed files
+      await writeFile(join(sourceDir, "file1.txt"), "source file");
+      await writeFile(join(targetDir, "personal_photo.png"), "important user file");
+
+      await expect(
+        runAction(copyRunner, {
+          inputs: {
+            from: sourceDir,
+            to: targetDir,
+            recursive: true,
+            overwrite: true,
+            cleanup: true,
+          },
+          sandboxPath: testPath,
+        }),
+      ).rejects.toThrow(/Directory is not empty and was not created by Pipelab/);
+    },
+  );
+
+  test(
+    "should allow cleanup and overwrite if the directory has the .pipelab folder marker",
+    { timeout: 1800000 },
+    async () => {
+      sandbox = await createSandbox("fs-marker-present-e2e");
+      const testPath = sandbox.path;
+      const sourceDir = join(testPath, "source");
+      const targetDir = join(testPath, "target");
+
+      await mkdir(sourceDir, { recursive: true });
+      await mkdir(targetDir, { recursive: true });
+
+      await writeFile(join(sourceDir, "file1.txt"), "source content");
+
+      // Run 1: Copy to target (this should create the marker)
+      await runAction(copyRunner, {
+        inputs: {
+          from: sourceDir,
+          to: targetDir,
+          recursive: true,
+          overwrite: true,
+          cleanup: false,
+        },
+        sandboxPath: testPath,
+      });
+
+      // Check that .pipelab directory was created
+      const markerPath = join(targetDir, ".pipelab");
+      await expect(access(markerPath)).resolves.not.toThrow();
+
+      // Run 2: Copy again with cleanup = true (should succeed because marker exists)
+      await expect(
+        runAction(copyRunner, {
+          inputs: {
+            from: sourceDir,
+            to: targetDir,
+            recursive: true,
+            overwrite: true,
+            cleanup: true,
+          },
+          sandboxPath: testPath,
+        }),
+      ).resolves.not.toThrow();
+
+      // Verify copy succeeded
+      const copiedFile = join(targetDir, "file1.txt");
+      await expect(access(copiedFile)).resolves.not.toThrow();
+    },
+  );
 });

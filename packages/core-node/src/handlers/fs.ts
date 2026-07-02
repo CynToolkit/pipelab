@@ -2,6 +2,7 @@ import { useAPI } from "../ipc-core";
 import { useLogger } from "@pipelab/shared";
 import { writeFile, readFile, readdir, stat } from "node:fs/promises";
 import { join } from "node:path";
+import { isPathBlacklisted } from "../fs-utils";
 
 import { PipelabContext } from "../context";
 
@@ -90,6 +91,30 @@ export const registerFsHandlers = (_context: PipelabContext) => {
         data: {
           type: "error",
           ipcError: error instanceof Error ? error.message : "Unable to list directory",
+        },
+      });
+    }
+  });
+
+  handle("fs:isPathBlacklisted", async (event, { value, send }) => {
+    try {
+      const isBlacklisted = isPathBlacklisted(value.path);
+      send({
+        type: "end",
+        data: {
+          type: "success",
+          result: {
+            isBlacklisted,
+          },
+        },
+      });
+    } catch (error) {
+      logger().error("Failed to check blacklist for path:", error);
+      send({
+        type: "end",
+        data: {
+          type: "error",
+          ipcError: error instanceof Error ? error.message : "Unable to check path blacklist",
         },
       });
     }

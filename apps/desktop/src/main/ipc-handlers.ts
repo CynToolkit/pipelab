@@ -1,4 +1,5 @@
 import { ipcMain, dialog, BrowserWindow, shell, app } from "electron";
+import { isPathBlacklisted } from "@pipelab/plugin-core";
 
 export const registerIpcHandlers = () => {
   console.log("[Main] Registering IPC handlers");
@@ -47,5 +48,9 @@ export const registerIpcHandlers = () => {
 
   ipcMain.handle("app:version:get", () => {
     return app.getVersion();
+  });
+
+  ipcMain.handle("path:isBlacklisted", (event, pathToCheck: string) => {
+    return isPathBlacklisted(pathToCheck);
   });
 };

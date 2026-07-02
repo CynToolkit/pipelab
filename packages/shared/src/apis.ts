@@ -123,6 +123,7 @@ export type IpcDefinition = {
       }[];
     }>,
   ];
+  "fs:isPathBlacklisted": [{ path: string }, EndEvent<{ isBlacklisted: boolean }>];
   "fs:getHomeDirectory": [void, EndEvent<{ path: string }>];
   "dialog:showOpenDialog": [
     // input
@@ -221,10 +222,7 @@ export type IpcDefinition = {
     { name: string; options?: any },
     EndEvent<{ data: any | null; error: any | null }>,
   ];
-  "agent:version:get": [
-    void,
-    EndEvent<{ version: string; channel: ReleaseChannel }>,
-  ];
+  "agent:version:get": [void, EndEvent<{ version: string; channel: ReleaseChannel }>];
   "startup:progress": [
     void,
     { type: "progress"; data: { message: string } } | { type: "ready" } | { type: "done" },
@@ -267,10 +265,7 @@ export type IpcDefinition = {
     { plugins: Record<string, string> },
     EndEvent<{ loaded: string[]; failed: string[] }>,
   ];
-  "migration:scan-stable": [
-    { sourceChannel?: MigrationChannel },
-    EndEvent<StableDataReport>,
-  ];
+  "migration:scan-stable": [{ sourceChannel?: MigrationChannel }, EndEvent<StableDataReport>];
   "migration:perform": [MigrationOptions, EndEvent<{ result: "ok" }>];
 };
 

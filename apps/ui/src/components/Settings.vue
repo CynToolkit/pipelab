@@ -903,9 +903,9 @@ const restartTour = (tourId: "dashboard" | "editor") => {
 const toast = useToast();
 
 const isDevMode = import.meta.env.DEV;
-const appVersion = ref(isDevMode ? "workspace" : (window.version || "1.0.0"));
+const appVersion = ref(isDevMode ? "workspace" : window.version || "1.0.0");
 const agentVersion = ref("...");
-const uiVersion = isDevMode ? "workspace" : (process.env.UI_VERSION || "1.0.0");
+const uiVersion = isDevMode ? "workspace" : process.env.UI_VERSION || "1.0.0";
 const electronVersion = window.pipelab?.versions?.electron || "N/A";
 const isElectron = !!window.electron;
 

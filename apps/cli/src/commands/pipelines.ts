@@ -1,4 +1,8 @@
-import { PipelabContext, setupProjectsConfigFile, deletePipelineConfigFileByName } from "@pipelab/core-node";
+import {
+  PipelabContext,
+  setupProjectsConfigFile,
+  deletePipelineConfigFileByName,
+} from "@pipelab/core-node";
 import { FileRepo, SaveLocation } from "@pipelab/shared";
 import { readFile, unlink, readdir } from "node:fs/promises";
 import { getDefaultUserDataPath } from "../paths";

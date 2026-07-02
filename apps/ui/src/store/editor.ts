@@ -28,6 +28,7 @@ import { create } from "mutative";
 import { parse, value } from "valibot";
 import { createEventHook, watchDebounced } from "@vueuse/core";
 import { makeResolvedParams } from "@pipelab/shared";
+import { useAPI } from "@renderer/composables/api";
 import { createQuickJsFromVariant, newVariant, RELEASE_SYNC } from "@pipelab/shared";
 // @ts-ignore — Vite ?url suffix resolves the WASM file URL at build time
 import wasmLocation from "@jitl/quickjs-wasmfile-release-sync/wasm?url";
@@ -121,8 +122,62 @@ export const useEditor = defineStore("editor", () => {
 
   const nodeStatuses = ref<Record<string, Status>>({});
 
-  /** The API helper */
-  // const api = useAPI()
+  const asyncErrors = ref<Record<string, ValidationError[]>>({});
+
+  const validateAsync = async () => {
+    const newErrors: Record<string, ValidationError[]> = {};
+    const allNodes = [...blocks.value, ...triggers.value];
+
+    for (const node of allNodes) {
+      if (node.type === "action" || node.type === "event") {
+        const definition = getNodeDefinition(node.origin.nodeId, node.origin.pluginId);
+        if (!definition) continue;
+
+        const pathParams = Object.entries(definition.node?.params ?? {}).filter(
+          ([_, param]) => param.control.type === "path" && param.control.warnIfBlacklisted,
+        );
+
+        const nodeErrors: ValidationError[] = [];
+
+        for (const [key, param] of pathParams) {
+          let val = node.params[key]?.value;
+          if (val && typeof val === "string") {
+            val = val.trim();
+            if (val.startsWith('"') && val.endsWith('"')) {
+              val = val.slice(1, -1);
+            }
+
+            try {
+              const api = useAPI();
+              const response = await api.execute("fs:isPathBlacklisted", { path: val });
+              if (response.type === "success" && response.result.isBlacklisted) {
+                nodeErrors.push({
+                  type: "blacklisted",
+                  param: key,
+                });
+              }
+            } catch (e) {
+              logger().error("Failed to check blacklist in store for path:", val, e);
+            }
+          }
+        }
+
+        if (nodeErrors.length > 0) {
+          newErrors[node.uid] = nodeErrors;
+        }
+      }
+    }
+
+    asyncErrors.value = newErrors;
+  };
+
+  watchDebounced(
+    [blocks, triggers],
+    () => {
+      validateAsync();
+    },
+    { deep: true, immediate: true, debounce: 300 },
+  );
 
   const pushLine = (nodeUid: string, data: string) => {
     if (!logLines.value[nodeUid]) {
@@ -228,31 +283,22 @@ export const useEditor = defineStore("editor", () => {
     blocks.value = [];
     variables.value = [];
     triggers.value = [];
+    asyncErrors.value = {};
     setActiveNode(undefined);
     setSelectedNode(undefined);
   };
 
   const errors = computed(() => {
     const editorErrors: Record<string, ValidationError[]> = {};
-    for (const block of blocks.value) {
-      const blockErrors = validate(block);
+    const allNodes = [...blocks.value, ...triggers.value];
 
-      for (const err of blockErrors) {
-        if (!editorErrors[block.uid]) {
-          editorErrors[block.uid] = [];
-        }
-        editorErrors[block.uid].push(err);
-      }
-    }
+    for (const node of allNodes) {
+      const syncErrors = validate(node);
+      const customErrors = asyncErrors.value[node.uid] ?? [];
+      const combined = [...syncErrors, ...customErrors];
 
-    for (const trigger of triggers.value) {
-      const triggerErrors = validate(trigger);
-
-      for (const err of triggerErrors) {
-        if (!editorErrors[trigger.uid]) {
-          editorErrors[trigger.uid] = [];
-        }
-        editorErrors[trigger.uid].push(err);
+      if (combined.length > 0) {
+        editorErrors[node.uid] = combined;
       }
     }
 

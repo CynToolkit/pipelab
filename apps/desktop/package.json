@@ -43,6 +43,7 @@
     "@electron/notarize": "2.5.0",
     "@pipelab/constants": "workspace:*",
     "@pipelab/core-node": "workspace:*",
+    "@pipelab/plugin-core": "workspace:*",
     "@pipelab/shared": "workspace:*",
     "@pipelab/tsconfig": "workspace:*",
     "@types/electron-squirrel-startup": "1.0.2",

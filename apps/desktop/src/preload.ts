@@ -46,6 +46,7 @@ if (process.contextIsolated) {
       showSaveDialog: (options: any) => ipcRenderer.invoke("dialog:showSaveDialog", options),
       openExternal: (url: string) => ipcRenderer.invoke("shell:openExternal", url),
       showItemInFolder: (path: string) => ipcRenderer.invoke("shell:showItemInFolder", path),
+      isPathBlacklisted: (path: string) => ipcRenderer.invoke("path:isBlacklisted", path),
     });
     contextBridge.exposeInMainWorld("version", version);
     contextBridge.exposeInMainWorld("isPackaged", process.env.NODE_ENV !== "development");
@@ -66,6 +67,7 @@ if (process.contextIsolated) {
     showSaveDialog: (options: any) => ipcRenderer.invoke("dialog:showSaveDialog", options),
     openExternal: (url: string) => ipcRenderer.invoke("shell:openExternal", url),
     showItemInFolder: (path: string) => ipcRenderer.invoke("shell:showItemInFolder", path),
+    isPathBlacklisted: (path: string) => ipcRenderer.invoke("path:isBlacklisted", path),
   };
   window.version = version;
   window.isPackaged = process.env.NODE_ENV !== "development";

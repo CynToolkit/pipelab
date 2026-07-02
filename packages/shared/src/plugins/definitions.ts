@@ -79,6 +79,7 @@ export interface ControlTypePath extends ControlTypeBase {
   type: "path";
   options: OpenDialogOptions;
   label?: string;
+  warnIfBlacklisted?: boolean;
 }
 
 export interface ControlTypeJSON extends ControlTypeBase {

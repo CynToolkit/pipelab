@@ -66,6 +66,7 @@
                 :model-value="simpleInputValue"
                 :param-definition="paramDefinition"
                 :value="value"
+                :param-key="paramKey"
                 @update:model-value="onParamEditorUpdate"
                 @switch="toggleMode"
               ></ParamEditorBody>

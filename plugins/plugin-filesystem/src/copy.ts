@@ -1,6 +1,12 @@
 import { cp, mkdir, rm, stat } from "node:fs/promises";
 import { basename, join, dirname } from "node:path";
-import { createAction, createActionRunner, createPathParam } from "@pipelab/plugin-core";
+import {
+  createAction,
+  createActionRunner,
+  createPathParam,
+  assertSafeDirectoryCleanup,
+  writePipelabFolderMarker,
+} from "@pipelab/plugin-core";
 
 export const ID = "fs:copy";
 
@@ -25,6 +31,7 @@ export const copy = createAction({
       required: true,
       control: {
         type: "path",
+        warnIfBlacklisted: true,
         options: {
           properties: ["openFile", "openDirectory", "createDirectory", "promptToCreate"],
         },
@@ -49,7 +56,7 @@ export const copy = createAction({
     cleanup: {
       label: "Cleanup",
       required: true,
-      description: "Whether to delete the original file/folder",
+      description: "Delete existing files at destination before copying",
       value: true,
       control: {
         type: "boolean",
@@ -123,6 +130,7 @@ export const copyRunner = createActionRunner<typeof copy>(async ({ log, inputs, 
 
   if (inputs.cleanup) {
     try {
+      await assertSafeDirectoryCleanup(to);
       log("Cleaning up", to);
       process.noAsar = true;
       await rm(to, { recursive: true, force: true, maxRetries: 3 });
@@ -142,6 +150,11 @@ export const copyRunner = createActionRunner<typeof copy>(async ({ log, inputs, 
       recursive: inputs.recursive && !fromIsAFile,
       force: inputs.overwrite,
     });
+
+    if (!fromIsAFile) {
+      await writePipelabFolderMarker(to, "fs:copy");
+    }
+
     process.noAsar = false;
     setOutput("output", to);
     setOutput("input", from);

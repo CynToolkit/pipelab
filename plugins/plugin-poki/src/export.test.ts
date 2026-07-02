@@ -53,7 +53,7 @@ describe("End-to-End: Poki Upload Action", () => {
         );
         console.log('Mock Poki CLI execution');
         process.exit(0);
-        `
+        `,
       );
       // Pre-seed node_modules and package.json to skip installation or allow pnpm to run
       const pokiDir = join(sandbox.path, "user-data", "packages", "@poki/cli", POKI_CLI_VERSION);
@@ -110,5 +110,4 @@ describe("End-to-End: Poki Upload Action", () => {
     },
     30 * 60 * 1000,
   );
-
 });

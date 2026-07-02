@@ -2,7 +2,13 @@ import { defineStore } from "pinia";
 import { createEventHook } from "@vueuse/core";
 import { ref } from "vue";
 import { useAPI } from "@renderer/composables/api";
-import { RendererPluginDefinition, Presets, useLogger, transformUrl, ReleaseChannel } from "@pipelab/shared";
+import {
+  RendererPluginDefinition,
+  Presets,
+  useLogger,
+  transformUrl,
+  ReleaseChannel,
+} from "@pipelab/shared";
 
 const transformPluginUrls = (plugin: RendererPluginDefinition): RendererPluginDefinition => {
   if (!plugin) return plugin;

@@ -85,7 +85,10 @@ function createConfigComposable<T>(
           );
         }
       } catch (err) {
-        console.error(`[useConfig] error resetting key "${String(key)}" of "${resetChannel}":`, err);
+        console.error(
+          `[useConfig] error resetting key "${String(key)}" of "${resetChannel}":`,
+          err,
+        );
       }
     }
   };
