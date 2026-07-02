@@ -18,6 +18,7 @@ import {
 
 import { dirname, join, basename, delimiter } from "node:path";
 import { cp, readFile, writeFile, rm } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import { platform as osPlatform, arch as osArch } from "node:os";
 import { kebabCase } from "change-case";
 import semver from "semver";
@@ -845,7 +846,7 @@ export const forge = async (
           log("Request error");
         }
       }
-      log(e);
+      log(e instanceof Error ? `${e.message}\n${e.stack}` : String(e));
       throw e;
     }
   } finally {
@@ -853,10 +854,17 @@ export const forge = async (
       if (action !== "preview") {
         const outDir = join(destinationFolder, "out");
         const finalOutDir = join(cwd, "out");
-        await cp(outDir, finalOutDir, { recursive: true });
+        if (existsSync(outDir)) {
+          await cp(outDir, finalOutDir, { recursive: true });
+        } else {
+          log("Warning: Build output directory 'out' was not found in staging folder.");
+        }
       }
     } catch (e) {
-      log("Failed to copy build output back to cwd:", e);
+      log(
+        "Failed to copy build output back to cwd:",
+        e instanceof Error ? `${e.message}\n${e.stack}` : String(e),
+      );
     }
     await rm(destinationFolder, { recursive: true, force: true });
   }

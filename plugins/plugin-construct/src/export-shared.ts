@@ -195,7 +195,7 @@ export const exportc3p = async <ACTION extends Action>(
       recursive: true,
     });
 
-    const indexedDbPathSource = join(newInputs.customProfile as string, "Default", "IndexedDB");
+    const indexedDbPathSource = join(newInputs.customProfile, "Default", "IndexedDB");
     const indexedDbPathDestination = join(customProfile, "Default", "IndexedDB");
     await mkdir(indexedDbPathDestination, { recursive: true });
 

@@ -100,14 +100,27 @@ export const handleActionExecute = async (
       inputs: resolvedInputs,
       log: (...args) => {
         const decorator = `[${node.node.name}]`;
-        const logArgs = [decorator, ...args];
+        const formattedArgs = args.map((arg) => {
+          if (arg instanceof Error) {
+            return arg.stack || arg.message || String(arg);
+          }
+          if (typeof arg === "object" && arg !== null) {
+            try {
+              return JSON.stringify(arg, null, 2);
+            } catch {
+              return String(arg);
+            }
+          }
+          return arg;
+        });
+        const logArgs = [decorator, ...formattedArgs];
         logger().info(...logArgs);
         send({
           type: "log",
           data: {
             decorator,
             time: Date.now(),
-            message: args,
+            message: formattedArgs,
           },
         });
       },

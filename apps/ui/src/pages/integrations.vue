@@ -58,7 +58,14 @@
                   ></i>
                 </template>
                 <i v-else class="pi pi-box plugin-icon-pi"></i>
-                <span class="plugin-label">{{ formatPluginName(plugin.name) }}</span>
+                <div class="flex flex-column gap-0.5 min-w-0">
+                  <span class="plugin-label">{{ formatPluginName(plugin.name) }}</span>
+                  <span
+                    v-if="getPluginVersion(plugin.name)"
+                    class="text-[9px] opacity-50 font-mono leading-none"
+                    >v{{ getPluginVersion(plugin.name) }}</span
+                  >
+                </div>
               </div>
               <span class="status-dot" :class="{ enabled: plugin.enabled }"></span>
             </div>
@@ -95,7 +102,15 @@
                     <i v-else class="pi pi-box plugin-large-icon-pi"></i>
                   </div>
                   <div>
-                    <h2 class="pane-title">{{ formatPluginName(selectedPlugin.name) }}</h2>
+                    <div class="flex items-center gap-2">
+                      <h2 class="pane-title">{{ formatPluginName(selectedPlugin.name) }}</h2>
+                      <Tag
+                        v-if="selectedPluginDefinition?.version"
+                        severity="secondary"
+                        :value="'v' + selectedPluginDefinition.version"
+                        class="text-[9px] font-mono py-0.5 px-1.5"
+                      />
+                    </div>
                     <p class="pane-desc">
                       {{ selectedPlugin.description || "No description provided." }}
                     </p>
@@ -601,6 +616,13 @@ const getPluginIcon = (packageName: string) => {
 const getPluginIconImage = (packageName: string) => {
   const icon = getPluginIcon(packageName);
   return icon?.type === "image" ? icon.image : undefined;
+};
+
+const getPluginVersion = (packageName: string): string | undefined => {
+  const def = pluginDefinitions.value.find(
+    (p) => p.packageName === packageName || p.id === packageName,
+  );
+  return def?.version;
 };
 
 const getIconClass = (iconObj: any) => {
