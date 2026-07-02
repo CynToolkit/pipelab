@@ -50,9 +50,10 @@ export async function serveCommand(options: ServeOptions, version: string, _dirn
 
   const server = http.createServer(async (request, response) => {
     // Serve local media files securely via HTTP
-    if (request.url?.startsWith("/media-file/")) {
+    const urlObj = request.url ? new URL(request.url, "http://localhost") : null;
+    if (urlObj && urlObj.pathname.startsWith("/media-file/")) {
       const prefix = "/media-file/";
-      const encodedPath = request.url.substring(prefix.length);
+      const encodedPath = urlObj.pathname.substring(prefix.length);
       const filePath = decodeURIComponent(encodedPath);
       // Strip leading slash on Windows if followed by a drive letter (e.g. /C:/...)
       const normalizedPath =

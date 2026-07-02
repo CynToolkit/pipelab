@@ -6,7 +6,7 @@ export const transformUrl = (url: string | undefined | null): string => {
   if (url && typeof url === "string") {
     const getHost = (): string => {
       if (typeof window !== "undefined") {
-        const isDev = window.location.port === "5173";
+        const isDev = process.env.NODE_ENV === "development";
         if (isDev) {
           return `http://${window.location.hostname}:33753`;
         } else {
@@ -17,11 +17,11 @@ export const transformUrl = (url: string | undefined | null): string => {
     };
 
     if (url.startsWith("file://")) {
-      const filePath = url.substring("file://".length);
+      const filePath = decodeURIComponent(url.substring("file://".length));
       return `${getHost()}/media-file/${encodeURIComponent(filePath)}`;
     }
     if (url.startsWith("media://")) {
-      const filePath = url.replace(/^media:\/\/+/, "/");
+      const filePath = decodeURIComponent(url.replace(/^media:\/\/+/, "/"));
       return `${getHost()}/media-file/${encodeURIComponent(filePath)}`;
     }
   }

@@ -48,7 +48,7 @@ export class WebSocketClient {
     let defaultUrl = `ws://localhost:${websocketPort}`;
 
     if (typeof window !== "undefined") {
-      const isDev = window.location.port === "5173";
+      const isDev = process.env.NODE_ENV === "development";
       if (!isDev) {
         const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
         defaultUrl = `${protocol}//${window.location.host}`;
