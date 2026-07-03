@@ -1,6 +1,6 @@
 import { expect, test, describe, afterEach } from "vitest";
 import { uploadToPokiRunner, POKI_CLI_VERSION } from "./export.js";
-import { mkdir, writeFile, readFile, access } from "node:fs/promises";
+import { mkdir, writeFile, readFile, access, readdir } from "node:fs/promises";
 import { join, resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createSandbox, runAction } from "@pipelab/test-utils";
@@ -82,7 +82,13 @@ describe("End-to-End: Poki Upload Action", () => {
       }
 
       // 4. Verification
-      const pokiJsonPath = join(sandbox.path, "poki.json");
+      const tempPath = join(sandbox.path, "user-data", "temp");
+      const files = await readdir(tempPath);
+      const uploadFolder = files.find((f) => f.startsWith("poki-upload-"));
+      if (!uploadFolder) throw new Error("Temp upload folder not found");
+      const tempUploadFolder = join(tempPath, uploadFolder);
+
+      const pokiJsonPath = join(tempUploadFolder, "poki.json");
       console.log("pokiJsonPath test", pokiJsonPath);
       await expect(access(pokiJsonPath)).resolves.not.toThrow();
 
@@ -90,7 +96,7 @@ describe("End-to-End: Poki Upload Action", () => {
       expect(pokiJsonContent.game_id).toBe("poki-game-123");
 
       // Verify that the Poki CLI process was indeed run with the sandboxed thirdparty environment variables
-      const mockEnvPath = join(sandbox.path, "mock-env.json");
+      const mockEnvPath = join(tempUploadFolder, "mock-env.json");
       await expect(access(mockEnvPath)).resolves.not.toThrow();
       const mockEnv = JSON.parse(await readFile(mockEnvPath, "utf-8"));
       const expectedSandboxConfigDir = join(sandbox.path, SandboxFolder.ThirdParty);
@@ -103,9 +109,10 @@ describe("End-to-End: Poki Upload Action", () => {
       expect(mockEnv.argv).toContain("E2E test notes");
 
       // Verify that the input files were copied to the dist directory
-      const distHtmlPath = join(sandbox.path, "dist", "index.html");
-      await expect(access(distHtmlPath)).resolves.not.toThrow();
-      const htmlContent = await readFile(distHtmlPath, "utf-8");
+      const absoluteBuildDir = join(tempUploadFolder, pokiJsonContent.build_dir);
+      const htmlPath = join(absoluteBuildDir, "index.html");
+      await expect(access(htmlPath)).resolves.not.toThrow();
+      const htmlContent = await readFile(htmlPath, "utf-8");
       expect(htmlContent).toBe("<html><body>Test</body></html>");
     },
     30 * 60 * 1000,

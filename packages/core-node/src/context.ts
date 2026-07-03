@@ -66,6 +66,12 @@ export interface PipelabContextOptions {
   releaseTag?: string;
 }
 
+type Join<T extends string[], D extends string> =
+  T extends [] ? "" :
+  T extends [infer F extends string] ? F :
+  T extends [infer F extends string, ...infer R extends string[]] ? `${F}${D}${Join<R, D>}` :
+  string;
+
 export class PipelabContext {
   public readonly userDataPath: string;
   public readonly releaseTag: string;
@@ -75,27 +81,30 @@ export class PipelabContext {
     this.releaseTag = options.releaseTag || "latest";
   }
 
-  getPackagesPath(...subpaths: string[]) {
+  getPackagesPath<S extends string[]>(...subpaths: S): `PACKAGES/${Join<S, "/">}`;
+  getPackagesPath(...subpaths: string[]): string {
     return join(this.userDataPath, "packages", ...subpaths);
   }
 
-  getThirdPartyPath(...subpaths: string[]) {
+  getThirdPartyPath<S extends string[]>(...subpaths: S): `THIRDPARTY/${Join<S, "/">}`;
+  getThirdPartyPath(...subpaths: string[]): string {
     return join(this.userDataPath, "thirdparty", ...subpaths);
   }
 
-  getConfigPath(...subpaths: string[]) {
+  getConfigPath<S extends string[]>(...subpaths: S): `CONFIG/${Join<S, "/">}`;
+  getConfigPath(...subpaths: string[]): string {
     return join(this.userDataPath, "config", ...subpaths);
   }
 
-  getSettingsPath() {
+  getSettingsPath(): `CONFIG/settings.json` {
     return this.getConfigPath("settings.json");
   }
 
-  getConnectionsPath() {
+  getConnectionsPath(): `CONFIG/connections.json` {
     return this.getConfigPath("connections.json");
   }
 
-  getProjectsPath() {
+  getProjectsPath(): `CONFIG/projects.json` {
     return this.getConfigPath("projects.json");
   }
 
@@ -121,22 +130,24 @@ export class PipelabContext {
     }
   }
 
-  getTempPath(...subpaths: string[]) {
+  getTempPath<S extends string[]>(...subpaths: S): `TEMP/${Join<S, "/">}`;
+  getTempPath(...subpaths: string[]): string {
     const settings = this.getSettings();
     const base = settings?.tempFolder || join(this.userDataPath, "temp");
     return join(base, ...subpaths);
   }
 
-  async createTempFolder(prefix = "pipelab-") {
+  createTempFolder<T extends string = "pipelab-">(prefix?: T): Promise<`TEMP/${T}${string}`>;
+  async createTempFolder(prefix = "pipelab-"): Promise<string> {
     const baseDir = this.getTempPath();
     await mkdir(baseDir, { recursive: true });
     const realBaseDir = await realpath(baseDir);
-    return await mkdtemp(join(realBaseDir, prefix));
+    return mkdtemp(join(realBaseDir, prefix));
   }
 
-  getCachePath(): string;
-  getCachePath(folder: CacheFolderType, ...subpaths: string[]): string;
-  getCachePath(folder?: CacheFolderType, ...subpaths: string[]) {
+  getCachePath(): `CACHE/`;
+  getCachePath<F extends CacheFolderType, S extends string[]>(folder: F, ...subpaths: S): `CACHE/${F}/${Join<S, "/">}`;
+  getCachePath(folder?: CacheFolderType, ...subpaths: string[]): string {
     const settings = this.getSettings();
     const base = settings?.cacheFolder || join(this.userDataPath, "cache");
     if (!folder) {
@@ -145,20 +156,24 @@ export class PipelabContext {
     return join(base, folder, ...subpaths);
   }
 
-  getPnpmPath(...subpaths: string[]) {
+  getPnpmPath<S extends string[]>(...subpaths: S): `PNPM/${Join<S, "/">}`;
+  getPnpmPath(...subpaths: string[]): string {
     return join(this.userDataPath, "pnpm", ...subpaths);
   }
 
-  getBuildHistoryPath(...subpaths: string[]) {
+  getBuildHistoryPath<S extends string[]>(...subpaths: S): `BUILD_HISTORY/${Join<S, "/">}`;
+  getBuildHistoryPath(...subpaths: string[]): string {
     return join(this.userDataPath, "build-history", ...subpaths);
   }
 
-  getNodePath(version = DEFAULT_NODE_VERSION) {
+  getNodePath<V extends string = typeof DEFAULT_NODE_VERSION>(version?: V): `THIRDPARTY/node/${V}/${string}`;
+  getNodePath(version = DEFAULT_NODE_VERSION): string {
     const isWindows = process.platform === "win32";
     return this.getThirdPartyPath("node", version, isWindows ? "node.exe" : "bin/node");
   }
 
-  getPnpmBinPath(version = DEFAULT_PNPM_VERSION) {
+  getPnpmBinPath<V extends string = typeof DEFAULT_PNPM_VERSION>(version?: V): `PACKAGES/pnpm/${V}/bin/pnpm.cjs`;
+  getPnpmBinPath(version = DEFAULT_PNPM_VERSION): string {
     return this.getPackagesPath("pnpm", version, "bin", "pnpm.cjs");
   }
 

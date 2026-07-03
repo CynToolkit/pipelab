@@ -15,6 +15,7 @@ import * as v from "valibot";
 import { BrowserContext } from "playwright";
 import { dirname, join, delimiter } from "node:path";
 import { cp, mkdir } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { createRequire } from "node:module";
 
@@ -190,6 +191,8 @@ export const exportc3p = async <ACTION extends Action>(
   // if (newInputs.customBrowser && newInputs.customProfile) {
   if (newInputs.customProfile) {
     const customProfile = join(cwd, "playwright-profile");
+    log("Setting up Playwright profile from custom Chrome profile...");
+    log(`  - Target playwright-profile folder: ${customProfile}`);
 
     await mkdir(customProfile, {
       recursive: true,
@@ -197,6 +200,15 @@ export const exportc3p = async <ACTION extends Action>(
 
     const indexedDbPathSource = join(newInputs.customProfile, "Default", "IndexedDB");
     const indexedDbPathDestination = join(customProfile, "Default", "IndexedDB");
+    log(`  - Source IndexedDB folder: ${indexedDbPathSource}`);
+    log(`  - Destination IndexedDB folder: ${indexedDbPathDestination}`);
+
+    if (!existsSync(indexedDbPathSource)) {
+      log(
+        `  [WARNING] Source IndexedDB directory does not exist: "${indexedDbPathSource}". Verify your custom profile path.`,
+      );
+    }
+
     await mkdir(indexedDbPathDestination, { recursive: true });
 
     const pathsToCopy = [
@@ -207,10 +219,19 @@ export const exportc3p = async <ACTION extends Action>(
     for (const p of pathsToCopy) {
       const from = join(indexedDbPathSource, p);
       const to = join(indexedDbPathDestination, p);
-      try {
-        await cp(from, to, { recursive: true });
-      } catch (e) {
-        // Skip files/directories that do not exist in the source profile
+      if (existsSync(from)) {
+        log(`  - Copying: "${p}" to "${indexedDbPathDestination}"`);
+        try {
+          await cp(from, to, { recursive: true });
+          log(`    [OK] Successfully copied "${p}"`);
+        } catch (e) {
+          log(
+            `    [ERROR] Failed to copy "${p}":`,
+            e instanceof Error ? `${e.message}\n${e.stack}` : String(e),
+          );
+        }
+      } else {
+        log(`  - Skipping: "${p}" (does not exist in source profile)`);
       }
     }
 
