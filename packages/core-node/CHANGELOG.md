@@ -1,5 +1,11 @@
 # @pipelab/core-node
 
+## 1.0.0-beta.27
+
+### Patch Changes
+
+- fix install
+
 ## 1.0.0-beta.26
 
 ### Patch Changes

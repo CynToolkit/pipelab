@@ -490,17 +490,10 @@ async function installDependencies(packageDir: string, packageName: string, opti
     return;
   }
 
-  // To prevent other processes from seeing a partially populated node_modules,
-  // we can create a temp directory next to packageDir, run pnpm there, and rename node_modules
-  const tempDir = `${packageDir}.tmp-deps-${Math.random().toString(36).slice(2)}`;
-  await mkdir(tempDir, { recursive: true });
   try {
-    // Copy package.json to tempDir so pnpm can install dependencies
-    await cp(join(packageDir, "package.json"), join(tempDir, "package.json"));
-
     console.log(`[Fetcher] ${packageName}: Ensuring dependencies are installed...`);
     const pnpmStart = Date.now();
-    const { all } = await runPnpm(tempDir, {
+    const { all } = await runPnpm(packageDir, {
       signal: options.signal,
       context: options.context,
     });
@@ -508,24 +501,17 @@ async function installDependencies(packageDir: string, packageName: string, opti
 
     if (all) console.log(`[Fetcher] ${packageName}: Installation trace:\n${all}`);
 
-    // Atomically rename node_modules from tempDir to packageDir/node_modules
-    const tempNodeModules = join(tempDir, "node_modules");
-    if (existsSync(nodeModulesPath)) {
-      await rm(nodeModulesPath, { recursive: true, force: true }).catch(() => {});
-    }
-    const renameStart = Date.now();
-    await rename(tempNodeModules, nodeModulesPath);
     console.log(
-      `[Fetcher] ${packageName}: Dependencies installed successfully (rename took ${Date.now() - renameStart}ms, total installDependencies took ${Date.now() - start}ms).`,
+      `[Fetcher] ${packageName}: Dependencies installed successfully (total installDependencies took ${Date.now() - start}ms).`,
     );
   } catch (err: any) {
     console.error(
       `[Fetcher] ${packageName}: CRITICAL ERROR during dependency installation: ${err.message}`,
     );
     if (err.all) console.error(`[Fetcher] ${packageName}: Error details:\n${err.all}`);
+    // Clean up node_modules on error to allow retries
+    await rm(nodeModulesPath, { recursive: true, force: true }).catch(() => {});
     throw new Error(`Failed to install dependencies for ${packageName}. See logs for details.`);
-  } finally {
-    await rm(tempDir, { recursive: true, force: true }).catch(() => {});
   }
 }
 

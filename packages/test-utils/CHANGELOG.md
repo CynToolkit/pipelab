@@ -1,5 +1,11 @@
 # @pipelab/test-utils
 
+## 1.0.0-beta.28
+
+### Patch Changes
+
+- @pipelab/plugin-core@1.0.0-beta.28
+
 ## 1.0.0-beta.27
 
 ### Patch Changes
