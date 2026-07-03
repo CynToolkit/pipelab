@@ -1,5 +1,13 @@
 # @pipelab/ui
 
+## 2.0.0-beta.26
+
+### Patch Changes
+
+- fix slashes
+- Updated dependencies
+  - @pipelab/shared@1.0.0-beta.22
+
 ## 2.0.0-beta.25
 
 ### Patch Changes

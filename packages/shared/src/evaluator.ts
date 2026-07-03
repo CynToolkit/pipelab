@@ -22,7 +22,6 @@ export const makeResolvedParams = async (
   for (const [paramName, param] of Object.entries(data.params)) {
     try {
       const parameterCodeValue = (param.value ?? "").toString();
-
       // Bypass QuickJS for simple static values
       try {
         result[paramName] = JSON.parse(parameterCodeValue);

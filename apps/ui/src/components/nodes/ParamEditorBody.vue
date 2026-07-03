@@ -142,6 +142,7 @@ import { computed, PropType, toRefs, ref, onMounted, watch } from "vue";
 import { useAPI } from "@renderer/composables/api";
 import { useShell } from "@renderer/composables/use-shell";
 import { useLogger } from "@pipelab/shared";
+import slash from "slash";
 import type { OpenDialogOptions } from "electron";
 import { SelectButtonChangeEvent } from "primevue/selectbutton";
 import { ListboxChangeEvent } from "primevue/listbox";
@@ -224,10 +225,9 @@ const onChangePathClick = async (options: OpenDialogOptions = {}) => {
   }
 
   const p = paths.filePaths[0];
-
-  emit("update:modelValue", `"${p}"`);
+  const normalized = slash(p);
+  emit("update:modelValue", `"${normalized}"`);
 };
-
 const onParamNetlifySiteChange = (event: string) => {
   console.log("event", event);
   emit("update:modelValue", `"${event}"`);

@@ -1,5 +1,11 @@
 # @pipelab/shared
 
+## 1.0.0-beta.22
+
+### Patch Changes
+
+- fix slashes
+
 ## 1.0.0-beta.21
 
 ### Patch Changes

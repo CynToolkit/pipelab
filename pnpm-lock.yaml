@@ -369,6 +369,9 @@ importers:
       set-value:
         specifier: 4.1.0
         version: 4.1.0
+      slash:
+        specifier: 3.0.0
+        version: 3.0.0
       string-strip-html:
         specifier: 13.4.8
         version: 13.4.8

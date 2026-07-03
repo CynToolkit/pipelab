@@ -1,5 +1,11 @@
 # @pipelab/plugin-itch
 
+## 1.0.0-beta.27
+
+### Patch Changes
+
+- @pipelab/plugin-core@1.0.0-beta.27
+
 ## 1.0.0-beta.26
 
 ### Patch Changes
