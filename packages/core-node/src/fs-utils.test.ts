@@ -24,7 +24,7 @@ describe("isPathBlacklisted", () => {
     expect(isPathBlacklisted(homedir() + "/")).toBe(true);
   });
 
-  test("should blacklist common system paths on Unix-like systems", () => {
+  test.skipIf(isWindows)("should blacklist common system paths on Unix-like systems", () => {
     // These Unix paths are checked as absolute paths starting with /
     expect(isPathBlacklisted("/usr")).toBe(true);
     expect(isPathBlacklisted("/var")).toBe(true);
