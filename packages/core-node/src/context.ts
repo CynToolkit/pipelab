@@ -66,11 +66,13 @@ export interface PipelabContextOptions {
   releaseTag?: string;
 }
 
-type Join<T extends string[], D extends string> =
-  T extends [] ? "" :
-  T extends [infer F extends string] ? F :
-  T extends [infer F extends string, ...infer R extends string[]] ? `${F}${D}${Join<R, D>}` :
-  string;
+type Join<T extends string[], D extends string> = T extends []
+  ? ""
+  : T extends [infer F extends string]
+    ? F
+    : T extends [infer F extends string, ...infer R extends string[]]
+      ? `${F}${D}${Join<R, D>}`
+      : string;
 
 export class PipelabContext {
   public readonly userDataPath: string;
@@ -146,7 +148,10 @@ export class PipelabContext {
   }
 
   getCachePath(): `CACHE/`;
-  getCachePath<F extends CacheFolderType, S extends string[]>(folder: F, ...subpaths: S): `CACHE/${F}/${Join<S, "/">}`;
+  getCachePath<F extends CacheFolderType, S extends string[]>(
+    folder: F,
+    ...subpaths: S
+  ): `CACHE/${F}/${Join<S, "/">}`;
   getCachePath(folder?: CacheFolderType, ...subpaths: string[]): string {
     const settings = this.getSettings();
     const base = settings?.cacheFolder || join(this.userDataPath, "cache");
@@ -166,13 +171,17 @@ export class PipelabContext {
     return join(this.userDataPath, "build-history", ...subpaths);
   }
 
-  getNodePath<V extends string = typeof DEFAULT_NODE_VERSION>(version?: V): `THIRDPARTY/node/${V}/${string}`;
+  getNodePath<V extends string = typeof DEFAULT_NODE_VERSION>(
+    version?: V,
+  ): `THIRDPARTY/node/${V}/${string}`;
   getNodePath(version = DEFAULT_NODE_VERSION): string {
     const isWindows = process.platform === "win32";
     return this.getThirdPartyPath("node", version, isWindows ? "node.exe" : "bin/node");
   }
 
-  getPnpmBinPath<V extends string = typeof DEFAULT_PNPM_VERSION>(version?: V): `PACKAGES/pnpm/${V}/bin/pnpm.cjs`;
+  getPnpmBinPath<V extends string = typeof DEFAULT_PNPM_VERSION>(
+    version?: V,
+  ): `PACKAGES/pnpm/${V}/bin/pnpm.cjs`;
   getPnpmBinPath(version = DEFAULT_PNPM_VERSION): string {
     return this.getPackagesPath("pnpm", version, "bin", "pnpm.cjs");
   }

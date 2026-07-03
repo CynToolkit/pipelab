@@ -124,11 +124,24 @@ export const useShell = () => {
     console.warn("showItemInFolder not supported on web");
   };
 
+  /**
+   * Relaunch the application
+   */
+  const relaunch = async () => {
+    if ((window as any).electron) {
+      await (window as any).pipelab.relaunch();
+    } else {
+      console.warn("relaunch not supported on web, reloading page...");
+      window.location.reload();
+    }
+  };
+
   return {
     openFile,
     openDirectory,
     saveFile,
     openExternal,
     showItemInFolder,
+    relaunch,
   };
 };

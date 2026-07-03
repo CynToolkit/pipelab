@@ -20,4 +20,30 @@ export const registerSystemHandlers = (options: { version: string; context: Pipe
       },
     });
   });
+
+  handle("system:packages:cleanup", async (_, { send }) => {
+    try {
+      const packagesDir = options.context.getPackagesPath();
+      const { existsSync } = await import("fs");
+      const { rm } = await import("fs/promises");
+      if (existsSync(packagesDir)) {
+        await rm(packagesDir, { recursive: true, force: true });
+      }
+      send({
+        type: "end",
+        data: {
+          type: "success",
+          result: true,
+        },
+      });
+    } catch (e: any) {
+      send({
+        type: "end",
+        data: {
+          type: "error",
+          ipcError: e.message,
+        },
+      });
+    }
+  });
 };

@@ -223,6 +223,7 @@ export type IpcDefinition = {
     EndEvent<{ data: any | null; error: any | null }>,
   ];
   "agent:version:get": [void, EndEvent<{ version: string; channel: ReleaseChannel }>];
+  "system:packages:cleanup": [void, EndEvent<boolean>];
   "startup:progress": [
     void,
     { type: "progress"; data: { message: string } } | { type: "ready" } | { type: "done" },

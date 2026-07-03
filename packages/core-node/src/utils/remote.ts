@@ -131,6 +131,7 @@ export async function fetchPackage(
   const ctx = options.context;
   const baseDir = ctx.getPackagesPath(packageName);
   let resolvedVersion: string;
+  const includePrerelease = !!(ctx.releaseTag && ctx.releaseTag !== "latest");
 
   let resolvedVersionOrRange = versionOrRange;
   if (resolvedVersionOrRange === "local") {
@@ -151,6 +152,7 @@ export async function fetchPackage(
       new Error("Offline"),
       baseDir,
       packageName,
+      includePrerelease,
     );
     if (fallbackVersion) {
       resolvedVersion = fallbackVersion;
@@ -175,7 +177,9 @@ export async function fetchPackage(
       const range = resolvedVersionOrRange || "latest";
 
       // Prioritize tags (like 'latest', 'beta', etc.) over semver ranges
-      let foundVersion = packument["dist-tags"]?.[range] || semver.maxSatisfying(versions, range);
+      let foundVersion =
+        packument["dist-tags"]?.[range] ||
+        semver.maxSatisfying(versions, range, { includePrerelease });
 
       // If we are in a non-latest releaseTag channel (like "beta" or "dev"),
       // and we are resolving "latest", we prefer the releaseTag version if it exists
@@ -218,6 +222,7 @@ export async function fetchPackage(
         error,
         baseDir,
         packageName,
+        includePrerelease,
       );
       if (fallbackVersion) {
         resolvedVersion = fallbackVersion;
@@ -661,6 +666,7 @@ async function tryLocalFallback(
   _error: unknown,
   baseDir: string,
   logPrefix: string,
+  includePrerelease = false,
 ): Promise<string | null> {
   if (!existsSync(baseDir)) return null;
   try {
@@ -682,7 +688,7 @@ async function tryLocalFallback(
         return latestLocal;
       }
     } else {
-      const matched = semver.maxSatisfying(localVersions, range);
+      const matched = semver.maxSatisfying(localVersions, range, { includePrerelease });
       if (matched) {
         console.info(
           `[Fetcher] ${logPrefix}: Using locally cached matching version: ${matched} for range ${range}`,

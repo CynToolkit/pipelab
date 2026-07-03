@@ -89,11 +89,7 @@ export const uploadToPokiRunner = createActionRunner<typeof uploadToPoki>(
     log(`poki.json configuration content:\n${JSON.stringify(pokiConfig, null, 2)}`);
 
     // create file at the same place the folder to upload
-    await writeFile(
-      pokiJsonPath,
-      JSON.stringify(pokiConfig, undefined, 2),
-      "utf-8",
-    );
+    await writeFile(pokiJsonPath, JSON.stringify(pokiConfig, undefined, 2), "utf-8");
 
     // Direct Poki CLI to read/write credentials inside Pipelab's thirdparty folder
     const sandboxConfigDir = thirdparty;
@@ -117,9 +113,15 @@ export const uploadToPokiRunner = createActionRunner<typeof uploadToPoki>(
     if (authFileFound) {
       log(`[Poki] Authentication file found at: ${foundPath}`);
     } else {
-      log("[Poki] [WARNING] No authentication file (auth.json) found in the sandboxed config directory.");
-      log("[Poki] [WARNING] Poki CLI might try to open a browser for interactive login, which could hang/fail in headless environments.");
-      log(`[Poki] Expected location: ${join(sandboxConfigDir, "poki", "auth.json")} or ${join(sandboxConfigDir, "Poki", "auth.json")}`);
+      log(
+        "[Poki] [WARNING] No authentication file (auth.json) found in the sandboxed config directory.",
+      );
+      log(
+        "[Poki] [WARNING] Poki CLI might try to open a browser for interactive login, which could hang/fail in headless environments.",
+      );
+      log(
+        `[Poki] Expected location: ${join(sandboxConfigDir, "poki", "auth.json")} or ${join(sandboxConfigDir, "Poki", "auth.json")}`,
+      );
     }
 
     log("Configuring environment variables:");
@@ -136,7 +138,9 @@ export const uploadToPokiRunner = createActionRunner<typeof uploadToPoki>(
       PATH: `${dirname(node)}${delimiter}${process.env.PATH}`,
     };
 
-    log(`Running Poki CLI upload command: node ${poki} upload --name "${inputs.name}" --notes "${inputs.notes}"`);
+    log(
+      `Running Poki CLI upload command: node ${poki} upload --name "${inputs.name}" --notes "${inputs.notes}"`,
+    );
 
     await runWithLiveLogs(
       node,

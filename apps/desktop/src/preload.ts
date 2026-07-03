@@ -47,6 +47,7 @@ if (process.contextIsolated) {
       openExternal: (url: string) => ipcRenderer.invoke("shell:openExternal", url),
       showItemInFolder: (path: string) => ipcRenderer.invoke("shell:showItemInFolder", path),
       isPathBlacklisted: (path: string) => ipcRenderer.invoke("path:isBlacklisted", path),
+      relaunch: () => ipcRenderer.invoke("app:relaunch"),
     });
     contextBridge.exposeInMainWorld("version", version);
     contextBridge.exposeInMainWorld("isPackaged", process.env.NODE_ENV !== "development");
@@ -68,6 +69,7 @@ if (process.contextIsolated) {
     openExternal: (url: string) => ipcRenderer.invoke("shell:openExternal", url),
     showItemInFolder: (path: string) => ipcRenderer.invoke("shell:showItemInFolder", path),
     isPathBlacklisted: (path: string) => ipcRenderer.invoke("path:isBlacklisted", path),
+    relaunch: () => ipcRenderer.invoke("app:relaunch"),
   };
   window.version = version;
   window.isPackaged = process.env.NODE_ENV !== "development";

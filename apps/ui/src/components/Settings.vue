@@ -332,6 +332,36 @@
           </div>
         </div>
 
+        <!-- Cache Cleanup Group -->
+        <div class="settings-group mt-4">
+          <div class="setting-item">
+            <div class="setting-content">
+              <span class="setting-title">{{
+                t("settings.clean-packages-title", "Clean Package Cache")
+              }}</span>
+              <span class="setting-description">
+                {{
+                  t(
+                    "settings.clean-packages-desc",
+                    "Deletes all downloaded packages and cached runner dependencies. Force-reinstalls them cleanly on the next run.",
+                  )
+                }}
+              </span>
+            </div>
+            <div class="setting-action">
+              <Button
+                :label="t('settings.clean-packages-btn', 'Clean Packages')"
+                severity="danger"
+                size="small"
+                outlined
+                icon="pi pi-trash"
+                :loading="cleaningPackages"
+                @click="cleanPackagesCache"
+              />
+            </div>
+          </div>
+        </div>
+
         <!-- Custom Paths Settings Group -->
         <div class="settings-group mt-4">
           <div class="setting-item flex-column align-items-stretch">
@@ -733,9 +763,11 @@ import { Locales, MessageSchema } from "@pipelab/shared";
 import { watchDebounced } from "@vueuse/core";
 import InputText from "primevue/inputtext";
 import { useToast } from "primevue/usetoast";
+import { useConfirm } from "primevue/useconfirm";
 
 const { t, locale } = useI18n<{ message: MessageSchema }, Locales>();
 
+const confirm = useConfirm();
 const appSettings = useAppSettings();
 const appStore = useAppStore();
 const authStore = useAuth();
@@ -885,6 +917,58 @@ const refreshStorageInfo = async () => {
   } catch (error) {
     console.error("Failed to refresh storage info:", error);
   }
+};
+
+const cleaningPackages = ref(false);
+
+const cleanPackagesCache = () => {
+  confirm.require({
+    message: t(
+      "settings.clean-packages-confirm-msg",
+      "Are you sure you want to clean the package cache? The application will restart automatically to complete the operation.",
+    ),
+    header: t("settings.clean-packages-confirm-header", "Clean Package Cache"),
+    icon: "pi pi-exclamation-triangle",
+    rejectClass: "p-button-secondary p-button-outlined",
+    acceptClass: "p-button-danger",
+    accept: async () => {
+      cleaningPackages.value = true;
+      try {
+        const result = await api.execute("system:packages:cleanup");
+        if (result.type === "success") {
+          toast.add({
+            severity: "success",
+            summary: t("base.success", "Success"),
+            detail: t("settings.packages-cleaned-restarting", "Package cache cleared. Relaunching the application..."),
+            life: 2000,
+          });
+          setTimeout(async () => {
+            await shell.relaunch();
+            cleaningPackages.value = false;
+          }, 1500);
+        } else {
+          toast.add({
+            severity: "error",
+            summary: t("base.error", "Error"),
+            detail: result.ipcError || "Failed to clear package cache.",
+            life: 3000,
+          });
+          cleaningPackages.value = false;
+        }
+      } catch (e: any) {
+        toast.add({
+          severity: "error",
+          summary: t("base.error", "Error"),
+          detail: e.message || "Failed to clear package cache.",
+          life: 3000,
+        });
+        cleaningPackages.value = false;
+      }
+    },
+    reject: () => {
+      // do nothing
+    },
+  });
 };
 
 const restartTour = (tourId: "dashboard" | "editor") => {

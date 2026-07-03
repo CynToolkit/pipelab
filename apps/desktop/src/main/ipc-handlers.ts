@@ -53,4 +53,9 @@ export const registerIpcHandlers = () => {
   ipcMain.handle("path:isBlacklisted", (event, pathToCheck: string) => {
     return isPathBlacklisted(pathToCheck);
   });
+
+  ipcMain.handle("app:relaunch", () => {
+    app.relaunch();
+    app.exit(0);
+  });
 };

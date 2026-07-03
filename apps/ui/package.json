@@ -1,6 +1,6 @@
 {
   "name": "@pipelab/ui",
-  "version": "2.0.0-beta.27",
+  "version": "2.0.0-beta.28",
   "private": true,
   "license": "FSL-1.1-MIT",
   "repository": {
@@ -64,6 +64,7 @@
     "quickjs-emscripten-sync": "1.6.0",
     "semver": "7.8.1",
     "set-value": "4.1.0",
+    "slash": "3.0.0",
     "string-strip-html": "13.4.8",
     "thememirror": "2.0.1",
     "tinykeys": "2.1.0",
@@ -75,8 +76,7 @@
     "vue": "3.5.13",
     "vue-dompurify-html": "5.1.0",
     "vue-i18n": "10",
-    "vue-router": "4.4.5",
-    "slash": "3.0.0"
+    "vue-router": "4.4.5"
   },
   "devDependencies": {
     "@pipelab/tsconfig": "workspace:*",

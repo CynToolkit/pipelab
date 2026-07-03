@@ -1,6 +1,6 @@
 {
   "name": "@pipelab/cloud",
-  "version": "1.0.0-beta.21",
+  "version": "1.0.0-beta.22",
   "private": true,
   "description": "Cloud provider interfaces for Pipelab",
   "license": "FSL-1.1-MIT",
