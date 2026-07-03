@@ -1,6 +1,6 @@
 {
   "name": "@pipelab/plugin-nvpatch",
-  "version": "1.0.0-beta.25",
+  "version": "1.0.0-beta.26",
   "description": "Pipelab plugin for patching NW.js game exports",
   "keywords": [
     "automation",

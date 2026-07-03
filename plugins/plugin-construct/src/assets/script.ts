@@ -112,10 +112,15 @@ export const script = async (
   log("Got loading progress dialog");
 
   const progressInterval = setInterval(async () => {
-    const text = await progessBar.getAttribute("value");
-    const textAsNumber = parseFloat(text);
-    const finalText = Number.isNaN(textAsNumber) ? 0 : textAsNumber;
-    log("progress", `${finalText * 100}%`);
+    try {
+      const text = await progessBar.getAttribute("value", { timeout: 100 });
+      if (text === null) return;
+      const textAsNumber = parseFloat(text);
+      const finalText = Number.isNaN(textAsNumber) ? 0 : textAsNumber;
+      log("progress", `${finalText * 100}%`);
+    } catch {
+      clearInterval(progressInterval);
+    }
   }, 500);
 
   registerInstallButtonListener(page, log);
@@ -130,7 +135,7 @@ export const script = async (
     timeout: 0,
   });
   log("Got progress dialog to disapear");
-  clearTimeout(progressInterval);
+  clearInterval(progressInterval);
 
   await page.getByRole("button", { name: "Menu" }).click();
   await page.getByRole("menuitem", { name: "Project" }).click();

@@ -1,6 +1,6 @@
 {
   "name": "@pipelab/cloud-azure",
-  "version": "1.0.0-beta.20",
+  "version": "1.0.0-beta.21",
   "private": true,
   "description": "Azure ACI provider for Pipelab",
   "license": "FSL-1.1-MIT",

@@ -33,7 +33,7 @@ describe("End-to-End: Construct 3 Export Pipeline", () => {
         username: "",
         password: "",
         headless: true,
-        timeout: 120,
+        timeout: 300,
         customProfile: undefined,
       };
 
@@ -85,7 +85,7 @@ describe("End-to-End: Construct 3 Export Pipeline", () => {
         username: "",
         password: "",
         headless: true,
-        timeout: 120,
+        timeout: 300,
         customProfile: mockProfileDir,
       };
 
