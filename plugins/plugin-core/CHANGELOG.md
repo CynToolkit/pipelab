@@ -1,5 +1,13 @@
 # @pipelab/plugin-core
 
+## 1.0.0-beta.24
+
+### Patch Changes
+
+- sd
+- Updated dependencies
+  - @pipelab/core-node@1.0.0-beta.23
+
 ## 1.0.0-beta.23
 
 ### Patch Changes
