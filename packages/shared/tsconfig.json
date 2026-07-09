@@ -5,7 +5,7 @@
     "outDir": "dist",
     "baseUrl": "."
   },
-  "include": ["src/**/*", "tests/**/*", "*.ts", "src/**/*.json"],
+  "include": ["src/**/*", "src/**/*.json"],
   "exclude": ["node_modules", "dist"],
   "references": [{ "path": "../migration" }]
 }

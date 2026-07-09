@@ -9,10 +9,6 @@
     "sourceMap": true,
     "baseUrl": ".",
     "paths": {
-      "@pipelab/shared": ["../../packages/shared/src/index.ts"],
-      "@pipelab/constants": ["../../packages/constants/src/index.ts"],
-      "@pipelab/core-node": ["../../packages/core-node/src/index.ts"],
-      "@pipelab/migration": ["../../packages/migration/src/index.ts"],
       "@pipelab/*": ["../../packages/shared/src/libs/*"],
       "@core-node/*": ["../../packages/core-node/src/*"]
     }

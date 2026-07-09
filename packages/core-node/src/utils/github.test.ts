@@ -7,9 +7,15 @@ import {
 
 describe("GitHub Release Updates API", () => {
   let fetchSpy: any;
+  let consoleLogSpy: any;
+  let consoleWarnSpy: any;
+  let consoleErrorSpy: any;
 
   beforeEach(() => {
     fetchSpy = vi.spyOn(global, "fetch");
+    consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     // Clean up environment variables
     delete process.env.PIPELAB_OVERRIDE_RELEASE;
   });

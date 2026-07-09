@@ -7,9 +7,6 @@
     "baseUrl": ".",
     "paths": {
       "@renderer/*": ["./src/*"],
-      "@pipelab/shared": ["../../packages/shared/src/index.ts"],
-      "@pipelab/constants": ["../../packages/constants/src/index.ts"],
-      "@pipelab/migration": ["../../packages/migration/src/index.ts"],
       "@pipelab/*": ["../../packages/shared/src/libs/*"]
     }
   },
@@ -21,6 +18,9 @@
     },
     {
       "path": "../../packages/shared"
+    },
+    {
+      "path": "../../packages/migration"
     }
   ]
 }

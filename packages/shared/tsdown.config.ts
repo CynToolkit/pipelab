@@ -9,15 +9,4 @@ export default defineConfig({
     },
   },
   clean: true,
-  shims: true,
-  loader: {
-    ".webp": "dataurl",
-    ".png": "dataurl",
-    ".jpg": "dataurl",
-    ".jpeg": "dataurl",
-    ".svg": "dataurl",
-  },
-  deps: {
-    alwaysBundle: [/.*/],
-  },
 });

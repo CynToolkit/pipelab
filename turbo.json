@@ -28,7 +28,8 @@
     },
     "typecheck": {
       // dependsOn is required so dependencies build declarations via tsc -b before apps typecheck
-      "dependsOn": ["^typecheck"]
+      "dependsOn": ["^typecheck"],
+      "outputs": ["dist/**/*.d.ts", "dist/**/*.d.ts.map", "dist/tsconfig.tsbuildinfo"]
     },
     "format": {
       "outputs": []
