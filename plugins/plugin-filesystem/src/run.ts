@@ -127,11 +127,12 @@ export const runRunner = createActionRunner<typeof run>(
       console.log("error", error);
       if (inputs.stopOnError === true) {
         throw error;
-      } else if (error /*  instanceof ExecaError */) {
-        setOutput("exitCode", error.exitCode === undefined ? -1 : error.exitCode);
-        setOutput("stdout", error.stdout ?? "");
-        setOutput("stderr", error.stderr ?? "");
-        setOutput("duration", error.durationMs ?? 0);
+      } else if (error) {
+        const err = error as any;
+        setOutput("exitCode", err.exitCode === undefined ? -1 : err.exitCode);
+        setOutput("stdout", err.stdout ?? "");
+        setOutput("stderr", err.stderr ?? "");
+        setOutput("duration", err.durationMs ?? 0);
       }
     }
   },

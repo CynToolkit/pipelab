@@ -38,12 +38,16 @@ export const buildNetlifySite = createAction({
       required: true,
       label: "Personal Access Token",
     }),
+    site: createNetlifySiteParam("", "token", {
+      required: true,
+      label: "Netlify Site",
+    }),
   },
   outputs: {},
 });
 
 export const buildNetlifySiteRunner = createActionRunner<typeof buildNetlifySite>(
-  async ({ log, inputs, cwd, abortSignal, paths }) => {
+  async ({ log, inputs, cwd, abortSignal, paths, context }) => {
     log("Building netlify site");
 
     const { node } = paths;
@@ -119,6 +123,7 @@ export const buildNetlifySiteRunner = createActionRunner<typeof buildNetlifySite
         NETLIFY_AUTH_TOKEN: inputs.token,
       },
       signal: abortSignal,
+      context,
     });
     if (buildOut) log(buildOut);
 
@@ -148,6 +153,7 @@ export const buildNetlifySiteRunner = createActionRunner<typeof buildNetlifySite
         NETLIFY_AUTH_TOKEN: inputs.token,
       },
       signal: abortSignal,
+      context,
     });
     if (deployOut) log(deployOut);
 

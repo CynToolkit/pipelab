@@ -20,6 +20,9 @@ export const previewRunner = createActionRunner<ReturnType<typeof createPreviewP
     ) as DesktopApp.Electron;
 
     const output = await forge("package", undefined, options, completeConfiguration);
+    if (!output || !output.binary) {
+      throw new Error("Failed to build electron package for preview");
+    }
     options.log("Opening preview", JSON.stringify(output));
     options.log("Opening url", url);
     await runWithLiveLogs(

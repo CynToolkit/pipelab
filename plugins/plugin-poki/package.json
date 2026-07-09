@@ -1,6 +1,6 @@
 {
   "name": "@pipelab/plugin-poki",
-  "version": "1.0.0-beta.29",
+  "version": "1.0.0-beta.30",
   "description": "Pipelab plugin for publishing HTML5 games to Poki",
   "keywords": [
     "automation",
@@ -42,6 +42,7 @@
   },
   "scripts": {
     "format": "oxfmt .",
+    "typecheck": "tsc -b",
     "lint": "oxlint .",
     "test": "vitest run",
     "build": "tsdown"

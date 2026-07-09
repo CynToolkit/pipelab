@@ -1,4 +1,9 @@
-import { createAction, createActionRunner, createStringParam } from "@pipelab/plugin-core";
+import {
+  createAction,
+  createActionRunner,
+  createStringParam,
+  usePluginAPI,
+} from "@pipelab/plugin-core";
 
 export const ID = "system:prompt";
 
@@ -29,8 +34,9 @@ export const promptAction = createAction({
 });
 
 export const promptActionRunner = createActionRunner<typeof promptAction>(
-  async ({ log, inputs, api, setOutput, browserWindow }) => {
+  async ({ log, inputs, setOutput, browserWindow }) => {
     browserWindow.flashFrame(true);
+    const api = usePluginAPI(browserWindow);
     //    'cancel' | 'ok'
     const _answer = await api.execute("dialog:prompt", {
       message: inputs.message,

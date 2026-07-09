@@ -17,7 +17,7 @@ export const packageV2Runner = createActionRunner<ReturnType<typeof createPackag
       description: options.inputs["description"],
       tauriVersion: options.inputs["tauriVersion"],
       enableExtraLogging: options.inputs["enableExtraLogging"],
-      clearServiceWorkerOnBoot: options.inputs["clearServiceWorkerOnBoot"],
+      clearServiceWorkerOnBoot: (options.inputs as any)["clearServiceWorkerOnBoot"],
       frame: options.inputs["frame"],
       fullscreen: options.inputs["fullscreen"],
       icon: options.inputs["icon"],
@@ -32,9 +32,9 @@ export const packageV2Runner = createActionRunner<ReturnType<typeof createPackag
       openDevtoolsOnStart: options.inputs["openDevtoolsOnStart"],
       enableDiscordSupport: options.inputs["enableDiscordSupport"],
       discordAppId: options.inputs["discordAppId"],
-      customPackages: options.inputs["customPackages"],
-      backgroundColor: options.inputs["backgroundColor"],
-    } satisfies DesktopApp.Tauri) as DesktopApp.Tauri;
+      customPackages: (options.inputs as any)["customPackages"],
+      backgroundColor: (options.inputs as any)["backgroundColor"],
+    }) as unknown as DesktopApp.Tauri;
 
     console.log("completeConfiguration", completeConfiguration);
 

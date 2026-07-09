@@ -556,20 +556,7 @@ export const createPreviewProps = (
 export const forge = async (
   action: "make" | "package" | "preview",
   appFolder: string | undefined,
-  {
-    cwd,
-    log,
-    inputs,
-    setOutput,
-    paths,
-    abortSignal,
-    context,
-  }: ActionRunnerData<
-    | ReturnType<typeof createMakeProps>
-    | ReturnType<typeof createPackageProps>
-    | ReturnType<typeof createPackageV2Props>
-    | ReturnType<typeof createPreviewProps>
-  >,
+  { cwd, log, inputs, setOutput, paths, abortSignal, context }: ActionRunnerData<any>,
   completeConfiguration: DesktopApp.Electron,
 ): Promise<{ folder: string; binary: string | undefined } | undefined> => {
   log("Building electron");

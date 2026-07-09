@@ -10,6 +10,7 @@ export const ListFilesAction = createAction({
     "`List files \"${params.recursive ? 'recursively' : ''}\" from \"${params.folder}`",
   params: {
     folder: {
+      required: true,
       control: {
         type: "path",
         options: {
@@ -20,6 +21,7 @@ export const ListFilesAction = createAction({
       label: "Folder",
     },
     recursive: {
+      required: true,
       control: {
         type: "boolean",
       },
@@ -40,7 +42,7 @@ export const ListFilesAction = createAction({
 });
 
 export const ListFilesActionRun = createActionRunner<typeof ListFilesAction>(
-  async ({ log, inputs, setOutput }) => {
+  async ({ log, inputs, setOutput, abortSignal }) => {
     const readdir = fs.readdir;
 
     log("");
@@ -48,14 +50,22 @@ export const ListFilesActionRun = createActionRunner<typeof ListFilesAction>(
     log("inputs", inputs);
 
     const folder = inputs.folder;
-    const recursive = inputs.recursive;
+    if (typeof folder !== "string") {
+      throw new Error("Folder path must be a string");
+    }
+
+    const recursive = typeof inputs.recursive === "boolean" ? inputs.recursive : false;
 
     log("folder", folder);
+
+    abortSignal?.throwIfAborted();
 
     const response = await readdir(folder, {
       withFileTypes: true,
       recursive,
     });
+
+    abortSignal?.throwIfAborted();
 
     log("response", response);
 
@@ -64,7 +74,7 @@ export const ListFilesActionRun = createActionRunner<typeof ListFilesAction>(
     log("-- setValue('paths')");
     setOutput(
       "paths",
-      files.map((x) => path.join(x.path, x.name)),
+      files.map((x) => path.join(x.parentPath ?? (x as any).path, x.name)),
     );
   },
 );

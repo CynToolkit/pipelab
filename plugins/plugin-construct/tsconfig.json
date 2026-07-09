@@ -6,5 +6,10 @@
     "types": ["node"],
     "skipLibCheck": true
   },
-  "include": ["src"]
+  "include": ["src"],
+  "references": [
+    {
+      "path": "../plugin-core"
+    }
+  ]
 }

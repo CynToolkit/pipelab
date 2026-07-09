@@ -314,6 +314,9 @@ DISCORD_CLIENT_SECRET=yJ4vRnzDtKAqg2Le3_Sap2CqHybkTp2U`,
         (async () => {
           const tunnel = await startTunnel({ port, acceptCloudflareNotice: true });
           console.log("tunnel", tunnel);
+          if (!tunnel) {
+            throw new Error("Failed to start tunnel");
+          }
           const url = await tunnel.getURL();
           console.log("Public URL:", url);
         })(),

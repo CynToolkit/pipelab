@@ -30,22 +30,36 @@ export const minifyCode = createAction({
 
 const getAllJsFiles = async (dir: string): Promise<string[]> => {
   const files = await readdir(dir, { withFileTypes: true });
-  return files.flatMap((file) => {
-    const fullPath = join(dir, file.name);
-    if (file.isDirectory()) {
-      return getAllJsFiles(fullPath);
-    } else if (file.isFile() && fullPath.endsWith(".js")) {
-      return fullPath;
-    }
-    return [];
-  });
+  const results = await Promise.all(
+    files.map(async (file) => {
+      const fullPath = join(dir, file.name);
+      if (file.isDirectory()) {
+        return getAllJsFiles(fullPath);
+      } else if (file.isFile() && fullPath.endsWith(".js")) {
+        return [fullPath];
+      }
+      return [];
+    }),
+  );
+  return results.flat();
 };
 
 export const minifyCodeRunner = createActionRunner<typeof minifyCode>(
   async ({ log, inputs, cwd, abortSignal }) => {
+    if (abortSignal.aborted) {
+      const abortError = new Error("Aborted");
+      abortError.name = "AbortError";
+      throw abortError;
+    }
+
     const jsFiles = await getAllJsFiles(inputs["input-folder"]);
 
     for (const file of jsFiles) {
+      if (abortSignal.aborted) {
+        const abortError = new Error("Aborted");
+        abortError.name = "AbortError";
+        throw abortError;
+      }
       await esbuild.build({
         entryPoints: [file], // Process one file at a time
         outfile: file, // Write directly to the original file

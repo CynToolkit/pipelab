@@ -77,18 +77,57 @@ export const zipFolder = async (
   from: string,
   to: string,
   log: typeof console.log = console.log,
+  abortSignal?: AbortSignal,
 ) => {
+  if (abortSignal?.aborted) {
+    const abortError = new Error("Aborted");
+    abortError.name = "AbortError";
+    throw abortError;
+  }
+
   const output = createWriteStream(to);
   const archive = archiver("zip", { zlib: { level: 9 } });
+
   return new Promise<string>((resolve, reject) => {
+    const onAbort = () => {
+      try {
+        archive.abort();
+      } catch {}
+      try {
+        output.destroy();
+      } catch {}
+      const abortError = new Error("Aborted");
+      abortError.name = "AbortError";
+      reject(abortError);
+    };
+
+    if (abortSignal) {
+      abortSignal.addEventListener("abort", onAbort);
+    }
+
     output.on("close", () => {
+      if (abortSignal) {
+        abortSignal.removeEventListener("abort", onAbort);
+      }
       log(archive.pointer() + " total bytes");
       resolve(to);
     });
-    archive.on("error", reject);
+
+    archive.on("error", (err) => {
+      if (abortSignal) {
+        abortSignal.removeEventListener("abort", onAbort);
+      }
+      reject(err);
+    });
+
     archive.pipe(output);
     archive.directory(from, false);
-    archive.finalize();
+    archive.finalize().catch((err) => {
+      if (abortSignal) {
+        abortSignal.removeEventListener("abort", onAbort);
+      }
+      reject(err);
+    });
   });
 };
 
@@ -149,7 +188,7 @@ export const runWithLiveLogs = async (
       TERM: "xterm-256color",
       FORCE_STDERR_LOGGING: "1",
     },
-    cancelSignal: abortSignal,
+    cancelSignal: abortSignal ?? execaOptions.cancelSignal,
   });
 
   hooks?.onCreated?.(subprocess);

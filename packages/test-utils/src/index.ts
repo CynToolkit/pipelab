@@ -157,7 +157,6 @@ process.exit(result.status ?? 0);`,
     },
     cwd: options.sandboxPath,
     paths: {
-      assets: join(options.sandboxPath, "assets"),
       cache: join(options.sandboxPath, "cache"),
       pnpm: pnpmShimPath,
       node: process.execPath,

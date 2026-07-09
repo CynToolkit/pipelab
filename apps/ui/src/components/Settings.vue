@@ -939,7 +939,10 @@ const cleanPackagesCache = () => {
           toast.add({
             severity: "success",
             summary: t("base.success", "Success"),
-            detail: t("settings.packages-cleaned-restarting", "Package cache cleared. Relaunching the application..."),
+            detail: t(
+              "settings.packages-cleaned-restarting",
+              "Package cache cleared. Relaunching the application...",
+            ),
             life: 2000,
           });
           setTimeout(async () => {

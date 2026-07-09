@@ -1,4 +1,9 @@
-import { createAction, createActionRunner, createStringParam } from "@pipelab/plugin-core";
+import {
+  createAction,
+  createActionRunner,
+  createStringParam,
+  usePluginAPI,
+} from "@pipelab/plugin-core";
 
 export const ID = "system:alert";
 
@@ -29,17 +34,18 @@ export const alertAction = createAction({
 });
 
 export const alertActionRunner = createActionRunner<typeof alertAction>(
-  async ({ log, inputs, api, setOutput, browserWindow }) => {
+  async ({ log, inputs, setOutput, browserWindow }) => {
     browserWindow.flashFrame(true);
+    const api = usePluginAPI(browserWindow);
     //    'cancel' | 'ok'
     const _answer = await api.execute("dialog:alert", {
       message: inputs.message,
     });
 
-    if ("content" in _answer) {
-      setOutput("answer", _answer.content.toString());
+    if (_answer.type === "success") {
+      setOutput("answer", _answer.result.answer);
     } else {
-      log("error");
+      throw new Error(_answer.ipcError);
     }
   },
 );

@@ -1,9 +1,7 @@
 import { expect, test, vi } from "vitest";
-import { makeRunner } from "./make.js";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { type fs } from "memfs";
-import { browserWindow } from "@pipelab/shared";
 
 // ...
 

@@ -1,8 +1,4 @@
 import { describe, expect, test } from "vitest";
-import { copyRunner } from "./copy.js";
-import mock from "mock-fs";
-import { readFile } from "node:fs/promises";
-import { browserWindow } from "@pipelab/shared";
 
 describe("copy", () => {
   test("copy file to file", async () => {

@@ -46,9 +46,11 @@ export const zipV2 = createAction({
 
 export const zipV2Runner = createActionRunner<typeof zipV2>(
   async ({ log, inputs, setOutput, abortSignal, paths }) => {
-    abortSignal.addEventListener("abort", () => {
-      throw new Error("Aborted");
-    });
+    if (abortSignal.aborted) {
+      const abortError = new Error("Aborted");
+      abortError.name = "AbortError";
+      throw abortError;
+    }
 
     const outputDir = paths.cache;
     const outputFile = join(outputDir, "output.zip");
@@ -61,11 +63,23 @@ export const zipV2Runner = createActionRunner<typeof zipV2>(
       zlib: { level: 9 }, // Sets the compression level.
     });
 
-    return new Promise((resolve, reject) => {
-      output.on("close", function () {
-        console.log(archive.pointer() + " total bytes");
-        console.log("archiver has been finalized and the output file descriptor has closed.");
+    return new Promise<void>((resolve, reject) => {
+      const onAbort = () => {
+        try {
+          archive.abort();
+        } catch {}
+        try {
+          output.destroy();
+        } catch {}
+        const abortError = new Error("Aborted");
+        abortError.name = "AbortError";
+        reject(abortError);
+      };
 
+      abortSignal.addEventListener("abort", onAbort);
+
+      output.on("close", function () {
+        abortSignal.removeEventListener("abort", onAbort);
         setOutput("path", outputFile);
         resolve();
       });
@@ -78,11 +92,13 @@ export const zipV2Runner = createActionRunner<typeof zipV2>(
         if (err.code === "ENOENT") {
           console.log("Archiver warning: ENOENT");
         } else {
+          abortSignal.removeEventListener("abort", onAbort);
           reject(err);
         }
       });
 
       archive.on("error", function (err) {
+        abortSignal.removeEventListener("abort", onAbort);
         reject(err);
       });
 

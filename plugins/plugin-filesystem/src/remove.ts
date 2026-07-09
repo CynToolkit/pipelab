@@ -40,26 +40,28 @@ export const remove = createAction({
   meta: {},
 });
 
-export const removeRunner = createActionRunner<typeof remove>(async ({ log, inputs }) => {
-  log("");
+export const removeRunner = createActionRunner<typeof remove>(
+  async ({ log, inputs, abortSignal }) => {
+    log("");
 
-  const from = inputs.from;
+    const from = inputs.from;
 
-  log("Removing", from, inputs.recursive);
+    log("Removing", from, inputs.recursive);
 
-  if (!from) {
-    log("From", from);
-    throw new Error("Missing source");
-  }
+    if (!from) {
+      log("From", from);
+      throw new Error("Missing source");
+    }
 
-  try {
-    await assertSafeDirectoryCleanup(from);
-    process.noAsar = true;
-    await rm(from, { recursive: true, force: true, maxRetries: 3 });
-    process.noAsar = false;
-    log("Removed", from);
-  } catch (e) {
-    log("Error removeing file", e);
-    throw e;
-  }
-});
+    try {
+      await assertSafeDirectoryCleanup(from);
+      process.noAsar = true;
+      await rm(from, { recursive: true, force: true, maxRetries: 3 });
+      process.noAsar = false;
+      log("Removed", from);
+    } catch (e) {
+      log("Error removeing file", e);
+      throw e;
+    }
+  },
+);

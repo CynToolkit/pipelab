@@ -6,5 +6,16 @@
     "types": ["node"],
     "skipLibCheck": true
   },
-  "include": ["src"]
+  "include": ["src"],
+  "references": [
+    {
+      "path": "../../packages/constants"
+    },
+    {
+      "path": "../plugin-core"
+    },
+    {
+      "path": "../../packages/shared"
+    }
+  ]
 }

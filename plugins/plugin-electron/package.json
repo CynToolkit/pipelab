@@ -1,6 +1,6 @@
 {
   "name": "@pipelab/plugin-electron",
-  "version": "1.0.0-beta.29",
+  "version": "1.0.0-beta.30",
   "description": "Pipelab plugin for packaging apps with Electron",
   "keywords": [
     "automation",
@@ -42,6 +42,7 @@
   },
   "scripts": {
     "format": "oxfmt .",
+    "typecheck": "tsc -b",
     "lint": "oxlint .",
     "build": "tsdown",
     "test": "vitest run -c tests/e2e/vitest.config.mts"

@@ -87,41 +87,70 @@ export async function extractZip(archivePath: string, destinationDir: string): P
   });
 }
 
-export const zipFolder = async (from: string, to: string, log: typeof console.log) => {
+export const zipFolder = async (
+  from: string,
+  to: string,
+  log: typeof console.log,
+  abortSignal?: AbortSignal,
+) => {
+  if (abortSignal?.aborted) {
+    const abortError = new Error("Aborted");
+    abortError.name = "AbortError";
+    throw abortError;
+  }
+
   const output = createWriteStream(to);
 
   const archive = archiver("zip", {
     zlib: { level: 9 }, // Sets the compression level.
   });
 
-  // eslint-disable-next-line no-async-promise-executor
-  return new Promise<string>(async (resolve, reject) => {
-    // listen for all archive data to be written
-    // 'close' event is fired only when a file descriptor is involved
+  return new Promise<string>((resolve, reject) => {
+    const onAbort = () => {
+      try {
+        archive.abort();
+      } catch {}
+      try {
+        output.destroy();
+      } catch {}
+      const abortError = new Error("Aborted");
+      abortError.name = "AbortError";
+      reject(abortError);
+    };
+
+    if (abortSignal) {
+      abortSignal.addEventListener("abort", onAbort);
+    }
+
     output.on("close", function () {
+      if (abortSignal) {
+        abortSignal.removeEventListener("abort", onAbort);
+      }
       log(archive.pointer() + " total bytes");
       log("archiver has been finalized and the output file descriptor has closed.");
       resolve(to);
     });
 
-    // This event is fired when the data source is drained no matter what was the data source.
-    // It is not part of this library but part of NodeJS.
     output.on("end", function () {
       log("Data has been drained");
     });
 
-    // good practice to catch this error and expose it to the user
     archive.on("error", function (err) {
+      if (abortSignal) {
+        abortSignal.removeEventListener("abort", onAbort);
+      }
       reject(err);
     });
 
-    // pipe archive data to the file
     archive.pipe(output);
 
     archive.directory(from, false);
 
-    // finalize the archive (ie we are done appending files but streams have to finish yet)
-    // 'close', 'end' or 'finish' may be fired right after calling this method so register to them beforehand
-    await archive.finalize();
+    archive.finalize().catch((err) => {
+      if (abortSignal) {
+        abortSignal.removeEventListener("abort", onAbort);
+      }
+      reject(err);
+    });
   });
 };

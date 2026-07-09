@@ -17,8 +17,9 @@ export const join = createExpression({
   meta: {},
   params: {
     input: {
+      required: true,
       label: "Input",
-      value: [],
+      value: [] as string[],
       control: {
         type: "input",
         options: {
@@ -27,6 +28,7 @@ export const join = createExpression({
       },
     },
     separator: {
+      required: true,
       label: "Separator",
       value: DEFAULT_SEPARATOR,
       control: {
@@ -47,11 +49,8 @@ export const join = createExpression({
 });
 
 export const evaluator = createExpressionRunner<typeof join>(async ({ inputs }) => {
-  const inputArr = inputs?.input;
-  const separatorArr = inputs?.separator;
-
-  const input = inputArr ? inputArr[0] : [];
-  const separator = separatorArr?.[0] ?? DEFAULT_SEPARATOR;
+  const input = (inputs?.input ?? []) as unknown as string[];
+  const separator = (inputs?.separator ?? DEFAULT_SEPARATOR) as unknown as string;
 
   const result = input.join(separator);
   return result;

@@ -66,22 +66,46 @@ export const zip = createAction({
 
 export const zipRunner = createActionRunner<typeof zip>(
   async ({ log, inputs, setOutput, abortSignal }) => {
-    abortSignal.addEventListener("abort", () => {
-      throw new Error("Aborted");
-    });
+    const { folder, output: outputPath } = inputs;
 
-    const output = createWriteStream(inputs.output);
+    if (!folder) {
+      throw new Error("Missing folder");
+    }
+
+    if (!outputPath) {
+      throw new Error("Missing output path");
+    }
+
+    if (abortSignal.aborted) {
+      const abortError = new Error("Aborted");
+      abortError.name = "AbortError";
+      throw abortError;
+    }
+
+    const output = createWriteStream(outputPath);
 
     const archive = archiver("zip", {
       zlib: { level: 9 }, // Sets the compression level.
     });
 
-    return new Promise((resolve, reject) => {
-      output.on("close", function () {
-        console.log(archive.pointer() + " total bytes");
-        console.log("archiver has been finalized and the output file descriptor has closed.");
+    return new Promise<void>((resolve, reject) => {
+      const onAbort = () => {
+        try {
+          archive.abort();
+        } catch {}
+        try {
+          output.destroy();
+        } catch {}
+        const abortError = new Error("Aborted");
+        abortError.name = "AbortError";
+        reject(abortError);
+      };
 
-        setOutput("path", inputs.output);
+      abortSignal.addEventListener("abort", onAbort);
+
+      output.on("close", function () {
+        abortSignal.removeEventListener("abort", onAbort);
+        setOutput("path", outputPath);
         resolve();
       });
 
@@ -93,11 +117,13 @@ export const zipRunner = createActionRunner<typeof zip>(
         if (err.code === "ENOENT") {
           console.log("Archiver warning: ENOENT");
         } else {
+          abortSignal.removeEventListener("abort", onAbort);
           reject(err);
         }
       });
 
       archive.on("error", function (err) {
+        abortSignal.removeEventListener("abort", onAbort);
         reject(err);
       });
 
@@ -128,7 +154,7 @@ export const zipRunner = createActionRunner<typeof zip>(
 
       archive.pipe(output);
 
-      archive.directory(inputs.folder, false);
+      archive.directory(folder, false);
 
       archive.finalize();
     });

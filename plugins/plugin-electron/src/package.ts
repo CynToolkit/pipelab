@@ -16,7 +16,6 @@ export const packageRunner = createActionRunner<ReturnType<typeof createPackageP
       options.inputs.configuration,
     ) as DesktopApp.Electron;
 
-    // @ts-expect-error options is not really compatible
-    return await forge("package", appFolder, options, completeConfiguration);
+    await forge("package", appFolder, options, completeConfiguration);
   },
 );

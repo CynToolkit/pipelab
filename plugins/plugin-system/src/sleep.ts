@@ -21,6 +21,28 @@ export const sleepAction = createAction({
 
 const sleep = (duration: number) => new Promise((resolve) => setTimeout(resolve, duration));
 
-export const sleepActionRunner = createActionRunner<typeof sleepAction>(async ({ inputs }) => {
-  await sleep(inputs.duration);
-});
+export const sleepActionRunner = createActionRunner<typeof sleepAction>(
+  async ({ inputs, abortSignal }) => {
+    if (abortSignal.aborted) {
+      const abortError = new Error("Aborted");
+      abortError.name = "AbortError";
+      throw abortError;
+    }
+
+    await new Promise<void>((resolve, reject) => {
+      const onAbort = () => {
+        clearTimeout(timeout);
+        const abortError = new Error("Aborted");
+        abortError.name = "AbortError";
+        reject(abortError);
+      };
+
+      abortSignal.addEventListener("abort", onAbort);
+
+      const timeout = setTimeout(() => {
+        abortSignal.removeEventListener("abort", onAbort);
+        resolve();
+      }, inputs.duration);
+    });
+  },
+);

@@ -56,7 +56,7 @@ export const NVPatchRunner = createActionRunner<typeof NVPatch>(
 
     log("Ensuring nvpatch is installed...");
     const { thirdparty } = paths;
-    const nvpatchCommand = await ensureNVPatch(thirdparty);
+    const nvpatchCommand = await ensureNVPatch(thirdparty, abortSignal);
 
     // Detect platform and set up platform-specific configuration
     const isMacOS = process.platform === "darwin";

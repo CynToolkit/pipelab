@@ -5,8 +5,22 @@
     { "path": "./packages/migration" },
     { "path": "./packages/shared" },
     { "path": "./packages/core-node" },
+    { "path": "./packages/test-utils" },
     { "path": "./apps/ui" },
     { "path": "./apps/cli" },
-    { "path": "./apps/desktop" }
+    { "path": "./apps/desktop" },
+    { "path": "./plugins/plugin-construct" },
+    { "path": "./plugins/plugin-core" },
+    { "path": "./plugins/plugin-discord" },
+    { "path": "./plugins/plugin-electron" },
+    { "path": "./plugins/plugin-filesystem" },
+    { "path": "./plugins/plugin-itch" },
+    { "path": "./plugins/plugin-minify" },
+    { "path": "./plugins/plugin-netlify" },
+    { "path": "./plugins/plugin-nvpatch" },
+    { "path": "./plugins/plugin-poki" },
+    { "path": "./plugins/plugin-steam" },
+    { "path": "./plugins/plugin-system" },
+    { "path": "./plugins/plugin-tauri" }
   ]
 }

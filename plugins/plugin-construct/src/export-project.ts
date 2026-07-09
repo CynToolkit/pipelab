@@ -59,14 +59,19 @@ export const exportProjectAction = createAction({
 
 export const ExportProjectActionRunner = createActionRunner<typeof exportProjectAction>(
   async (options) => {
-    const c3pFolderExists = await fileExists(options.inputs.folder);
+    const folder = options.inputs.folder;
+    if (!folder) {
+      throw new Error("You must specify a valid construct project folder");
+    }
+
+    const c3pFolderExists = await fileExists(folder);
     if (!c3pFolderExists) {
       throw new Error("You must specify a valid construct project folder");
     }
 
     const outputPath = join(options.cwd, "c3_tmp_proj.c3p");
 
-    const to = await zipFolder(options.inputs.folder, outputPath, options.log);
+    const to = await zipFolder(folder, outputPath, options.log, options.abortSignal);
 
     await exportc3p(to, options);
   },

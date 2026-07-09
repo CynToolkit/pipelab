@@ -37,10 +37,10 @@ export const openInExplorer = createAction({
 });
 
 export const openInExplorerRunner = createActionRunner<typeof openInExplorer>(
-  async ({ log, inputs, setOutput }) => {
+  async ({ log, inputs, setOutput, abortSignal }) => {
     log(`Opening ${inputs.path}`);
 
-    return new Promise((resolve, reject) => {
+    return new Promise<void>((resolve, reject) => {
       let command = "";
       const p = platform();
 
@@ -52,8 +52,14 @@ export const openInExplorerRunner = createActionRunner<typeof openInExplorer>(
         command = `xdg-open "${inputs.path}"`;
       }
 
-      exec(command, (error) => {
+      const child = exec(command, { signal: abortSignal }, (error) => {
         if (error) {
+          if (abortSignal.aborted) {
+            const abortError = new Error("Aborted");
+            abortError.name = "AbortError";
+            reject(abortError);
+            return;
+          }
           log(`Error opening path: ${error.message}`);
           setOutput("message", error.message);
           resolve();

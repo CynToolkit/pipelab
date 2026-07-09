@@ -33,26 +33,39 @@ export const unzip = createAction({
 });
 
 export const unzipRunner = createActionRunner<typeof unzip>(
-  async ({ log, inputs, setOutput, cwd }) => {
-    console.log("inputs", inputs);
+  async ({ log, inputs, setOutput, cwd, abortSignal }) => {
+    if (abortSignal.aborted) {
+      const abortError = new Error("Aborted");
+      abortError.name = "AbortError";
+      throw abortError;
+    }
 
-    console.log("inputs.file", inputs.file);
     const file = inputs.file;
-    console.log("file", file);
     const output = join(cwd);
-
-    console.log("file", file);
-    console.log("output", output);
 
     log("Unzip file", inputs.file, "to", output);
 
     const zip = new StreamZip.async({ file });
 
-    const bytes = await zip.extract(null, output);
-    await zip.close();
+    const onAbort = () => {
+      zip.close().catch(() => {});
+    };
 
-    console.log("bytes", bytes);
+    abortSignal.addEventListener("abort", onAbort);
 
-    setOutput("output", output);
+    try {
+      await zip.extract(null, output);
+      await zip.close();
+      setOutput("output", output);
+    } catch (e: any) {
+      if (abortSignal.aborted) {
+        const abortError = new Error("Aborted");
+        abortError.name = "AbortError";
+        throw abortError;
+      }
+      throw e;
+    } finally {
+      abortSignal.removeEventListener("abort", onAbort);
+    }
   },
 );

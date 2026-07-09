@@ -41,7 +41,7 @@ export const previewRunner = createActionRunner<ReturnType<typeof createPreviewP
       discordAppId: options.inputs.configuration["discordAppId"],
       customPackages: options.inputs.configuration["customPackages"],
       backgroundColor: options.inputs.configuration["backgroundColor"],
-    } satisfies DesktopApp.Tauri) as DesktopApp.Tauri;
+    }) as unknown as DesktopApp.Tauri;
 
     console.log("completeConfiguration", completeConfiguration);
 

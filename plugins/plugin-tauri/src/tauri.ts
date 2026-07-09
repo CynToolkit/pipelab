@@ -15,7 +15,7 @@ import {
   fetchPipelabAsset,
 } from "@pipelab/plugin-core";
 import { dirname, join, basename, delimiter } from "node:path";
-import { existsSync, readFile, writeFile } from "node:fs";
+import { existsSync } from "node:fs";
 import { cp, readFile as readFilePromise, writeFile as writeFilePromise } from "node:fs/promises";
 import { homedir, platform as osPlatform, arch as osArch } from "node:os";
 import { execa } from "execa";
@@ -499,15 +499,7 @@ export const createPreviewProps = (
 export const tauri = async (
   action: "make" | "package" | "preview",
   appFolder: string | undefined,
-  {
-    cwd,
-    log,
-    inputs,
-    setOutput,
-    paths,
-    abortSignal,
-    context,
-  }: ActionRunnerData<ReturnType<typeof createPackageV2Props>>,
+  { cwd, log, inputs, setOutput, paths, abortSignal, context }: ActionRunnerData<any>,
   completeConfiguration: DesktopApp.Config,
 ): Promise<{ folder: string; binary: string | undefined } | undefined> => {
   console.log("appFolder", appFolder);
@@ -559,13 +551,13 @@ export const tauri = async (
   // package.json update
   log("Package.json update");
   const pkgJSONPath = join(destinationFolder, "package.json");
-  const pkgJSONContent = await readFile(pkgJSONPath, "utf8");
+  const pkgJSONContent = await readFilePromise(pkgJSONPath, "utf8");
   const pkgJSON = JSON.parse(pkgJSONContent);
   log("Setting name to", sanitizedName);
   pkgJSON.name = sanitizedName;
   log("Setting productName to", completeConfiguration.name);
   pkgJSON.productName = completeConfiguration.name;
-  await writeFile(pkgJSONPath, JSON.stringify(pkgJSON, null, 2));
+  await writeFilePromise(pkgJSONPath, JSON.stringify(pkgJSON, null, 2));
 
   // Cargo.toml update
   log("Cargo.toml update");
@@ -583,7 +575,7 @@ export const tauri = async (
   // tauri.conf.json update
   log("Tauri.conf.json update");
   const tauriConfJSONPath = join(destinationFolder, "src-tauri", "tauri.conf.json");
-  const tauriConfJSONContent = await readFile(tauriConfJSONPath, "utf8");
+  const tauriConfJSONContent = await readFilePromise(tauriConfJSONPath, "utf8");
   const tauriConfJSON = JSON.parse(tauriConfJSONContent);
   log("Setting productName to", completeConfiguration.name);
   tauriConfJSON.productName = completeConfiguration.name;

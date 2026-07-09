@@ -114,11 +114,12 @@ export const exportc3p = async <ACTION extends Action>(
   let browserContext: BrowserContext | undefined = undefined;
   let browser: any | undefined = undefined;
 
-  abortSignal.addEventListener("abort", () => {
+  const onAbort = () => {
     console.error("aborted");
 
     browserContext?.close();
-  });
+  };
+  abortSignal.addEventListener("abort", onAbort);
   const newInputs = inputs as Inputs;
 
   // const { addonsFolder } = newInputs
@@ -300,6 +301,7 @@ export const exportc3p = async <ACTION extends Action>(
     log("error, no result, crashed", e);
     throw new Error("ConstructExport failed: " + e.message);
   } finally {
+    abortSignal.removeEventListener("abort", onAbort);
     if (browserContext) {
       await browserContext.close();
     }

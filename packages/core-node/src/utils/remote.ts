@@ -96,6 +96,27 @@ export type FetchOptions = {
   context: PipelabContext;
 };
 
+function allowPrereleaseInRange(rangeStr: string): string {
+  try {
+    const r = new semver.Range(rangeStr);
+    return r.set
+      .map((conj) =>
+        conj
+          .map((c) => {
+            const v = c.semver;
+            if (v.prerelease && v.prerelease.length) {
+              return c.operator + v.format();
+            }
+            return c.operator + v.major + "." + v.minor + "." + v.patch + "-0";
+          })
+          .join(" "),
+      )
+      .join(" || ");
+  } catch {
+    return rangeStr;
+  }
+}
+
 /**
  * Robust utility to fetch, cache, and resolve an NPM package.
  * Centralized in core-node to avoid circular dependencies.
@@ -180,6 +201,38 @@ export async function fetchPackage(
       let foundVersion =
         packument["dist-tags"]?.[range] ||
         semver.maxSatisfying(versions, range, { includePrerelease });
+
+      // If we are in a non-latest releaseTag channel (like "beta" or "dev"),
+      // and we are resolving a range, we can prefer the releaseTag version if it exists
+      // and satisfies the range (ignoring strict prerelease constraints if includePrerelease is true).
+      if (!foundVersion && ctx.releaseTag && ctx.releaseTag !== "latest") {
+        const releaseTagVersion = packument["dist-tags"]?.[ctx.releaseTag];
+        if (releaseTagVersion && semver.valid(releaseTagVersion)) {
+          const rewrittenRangeForCheck = allowPrereleaseInRange(range);
+          if (
+            semver.satisfies(releaseTagVersion, rewrittenRangeForCheck, { includePrerelease: true })
+          ) {
+            console.log(
+              `[Fetcher] Using release tag "${ctx.releaseTag}" (${releaseTagVersion}) for ${packageName}@${range} because it satisfies the range`,
+            );
+            foundVersion = releaseTagVersion;
+          }
+        }
+      }
+
+      // If we still don't have a version, and includePrerelease is true, try rewriting the range to allow prerelease matching
+      if (!foundVersion && includePrerelease) {
+        const rewrittenRange = allowPrereleaseInRange(range);
+        if (rewrittenRange !== range) {
+          const matched = semver.maxSatisfying(versions, rewrittenRange, { includePrerelease });
+          if (matched) {
+            console.log(
+              `[Fetcher] Resolved ${packageName}@${range} to ${matched} via rewritten range ${rewrittenRange}`,
+            );
+            foundVersion = matched;
+          }
+        }
+      }
 
       // If we are in a non-latest releaseTag channel (like "beta" or "dev"),
       // and we are resolving "latest", we prefer the releaseTag version if it exists
