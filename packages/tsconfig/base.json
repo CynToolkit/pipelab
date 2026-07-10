@@ -4,6 +4,7 @@
     "declaration": true,
     "declarationMap": true,
     "emitDeclarationOnly": true,
+    "tsBuildInfoFile": "${configDir}/dist/tsconfig.tsbuildinfo",
     "target": "ESNext",
     "module": "ESNext",
     "esModuleInterop": true,

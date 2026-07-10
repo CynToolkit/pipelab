@@ -37,11 +37,11 @@ if (isProduction && process.env.POSTHOG_API_KEY) {
 import { Command } from "commander";
 import { getDefaultUserDataPath } from "./paths";
 
-// Resolve version from package.json with fallbacks for production
-let version = "0.0.0";
+// Resolve version from injected env or package.json with fallbacks for production
+let version = process.env.CLI_VERSION || "0.0.0";
 if (isDev) {
   version = "workspace";
-} else {
+} else if (version === "0.0.0") {
   try {
     const packageJsonPath = existsSync(join(__dirname, "package.json"))
       ? join(__dirname, "package.json")

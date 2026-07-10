@@ -58,8 +58,10 @@ export async function runPipelineCommand(file: string, options: RunOptions, vers
   console.log(`Executing pipeline: ${effectiveProjectName} (${effectivePipelineId})`);
 
   if (!options.userData) throw new Error("userDataPath is required for runPipelineCommand");
+  const releaseTag = version.includes("beta") ? "beta" : "latest";
   const context = new PipelabContext({
     userDataPath: options.userData,
+    releaseTag,
   });
 
   await registerAllHandlers({ version, context });
