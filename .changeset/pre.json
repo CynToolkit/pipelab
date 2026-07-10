@@ -33,6 +33,7 @@
     "mini-c3-electron": "0.0.0"
   },
   "changesets": [
+    "brown-nights-stop",
     "bumpy-falcons-obey",
     "busy-trains-guess",
     "chatty-ways-happen",
