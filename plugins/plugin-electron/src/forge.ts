@@ -17,7 +17,7 @@ import {
 } from "@pipelab/plugin-core";
 
 import { dirname, join, basename, delimiter } from "node:path";
-import { cp, readFile, writeFile, rm } from "node:fs/promises";
+import { cp, readFile, writeFile, rm, mkdir } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { platform as osPlatform, arch as osArch } from "node:os";
 import { kebabCase } from "change-case";
@@ -570,6 +570,25 @@ export const forge = async (
   log(`Staging build in ${destinationFolder}`);
 
   try {
+    const shimDir = join(destinationFolder, ".bin");
+    await mkdir(shimDir, { recursive: true });
+
+    const pnpmCjsPath = paths.pnpm;
+
+    // Write pnpm.cmd for Windows support
+    await writeFile(
+      join(shimDir, "pnpm.cmd"),
+      `@echo off\r\n"${node}" "${pnpmCjsPath}" %*\r\n`,
+      "utf8",
+    );
+
+    // Write pnpm shell script for Unix/Linux/macOS support
+    await writeFile(
+      join(shimDir, "pnpm"),
+      `#!/bin/sh\nexec "${node}" "${pnpmCjsPath}" "$@"\n`,
+      { encoding: "utf8", mode: 0o755 },
+    );
+
     const forge = join(
       destinationFolder,
       "node_modules",
@@ -786,7 +805,7 @@ export const forge = async (
           env: {
             DEBUG: completeConfiguration.enableExtraLogging ? "*" : "",
             ELECTRON_NO_ASAR: "1",
-            PATH: `${dirname(node)}${delimiter}${process.env.PATH}`,
+            PATH: `${shimDir}${delimiter}${dirname(node)}${delimiter}${process.env.PATH}`,
             // DEBUG: "electron-packager"
           },
           cancelSignal: abortSignal,
@@ -853,6 +872,13 @@ export const forge = async (
         e instanceof Error ? `${e.message}\n${e.stack}` : String(e),
       );
     }
-    await rm(destinationFolder, { recursive: true, force: true });
+    try {
+      await rm(destinationFolder, { recursive: true, force: true });
+    } catch (e) {
+      log(
+        "Failed to clean up staging directory:",
+        e instanceof Error ? `${e.message}\n${e.stack}` : String(e),
+      );
+    }
   }
 };
