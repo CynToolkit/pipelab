@@ -1,5 +1,11 @@
 # @pipelab/plugin-electron
 
+## 1.0.0-beta.34
+
+### Patch Changes
+
+- fix shim
+
 ## 1.0.0-beta.33
 
 ### Patch Changes

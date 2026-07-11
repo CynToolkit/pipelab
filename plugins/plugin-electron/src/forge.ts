@@ -575,19 +575,21 @@ export const forge = async (
 
     const pnpmCjsPath = paths.pnpm;
 
-    // Write pnpm.cmd for Windows support
-    await writeFile(
-      join(shimDir, "pnpm.cmd"),
-      `@echo off\r\n"${node}" "${pnpmCjsPath}" %*\r\n`,
-      "utf8",
-    );
-
-    // Write pnpm shell script for Unix/Linux/macOS support
-    await writeFile(
-      join(shimDir, "pnpm"),
-      `#!/bin/sh\nexec "${node}" "${pnpmCjsPath}" "$@"\n`,
-      { encoding: "utf8", mode: 0o755 },
-    );
+    if (osPlatform() === "win32") {
+      // Write pnpm.cmd for Windows support
+      await writeFile(
+        join(shimDir, "pnpm.cmd"),
+        `@echo off\r\n"${node}" "${pnpmCjsPath}" %*\r\n`,
+        "utf8",
+      );
+    } else {
+      // Write pnpm shell script for Unix/Linux/macOS support
+      await writeFile(
+        join(shimDir, "pnpm"),
+        `#!/bin/sh\nexec "${node}" "${pnpmCjsPath}" "$@"\n`,
+        { encoding: "utf8", mode: 0o755 },
+      );
+    }
 
     const forge = join(
       destinationFolder,
