@@ -137,12 +137,30 @@ export const runAction = async <A extends Action>(
 ): Promise<{ outputs: Record<string, unknown> }> => {
   const outputs: Record<string, unknown> = {};
 
+  let realPnpm = "pnpm";
+  try {
+    const { execSync } = require("child_process");
+    const isWindows = process.platform === "win32";
+    const cmd = isWindows ? "where pnpm" : "which pnpm";
+    const stdout = execSync(cmd, { encoding: "utf8" });
+    const lines = stdout.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    if (isWindows) {
+      realPnpm = lines.find(l => l.endsWith(".cmd") || l.endsWith(".exe")) || lines[0] || "pnpm";
+    } else {
+      realPnpm = lines[0] || "pnpm";
+    }
+    // Need to escape backslashes for JS string literal
+    realPnpm = realPnpm.replace(/\\/g, "\\\\");
+  } catch (e) {
+    // fallback
+  }
+
   // Create a pnpm shim because ensureNPMPackage expects a JS file runnable by node
   const pnpmShimPath = join(options.sandboxPath, "pnpm-shim.cjs");
   await writeFile(
     pnpmShimPath,
     `const { spawnSync } = require('child_process');
-const result = spawnSync('pnpm', process.argv.slice(2), { stdio: 'inherit', shell: true });
+const result = spawnSync('${realPnpm}', process.argv.slice(2), { stdio: 'inherit', shell: true });
 process.exit(result.status ?? 0);`,
   );
 

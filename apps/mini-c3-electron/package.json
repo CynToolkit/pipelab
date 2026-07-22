@@ -1,7 +1,7 @@
 {
   "name": "mini-c3-electron",
   "private": true,
-  "version": "0.0.1-beta.17",
+  "version": "0.0.1-beta.18",
   "type": "module",
   "scripts": {
     "dev": "vite",

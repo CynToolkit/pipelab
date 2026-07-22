@@ -1,5 +1,13 @@
 # @pipelab/plugin-steam
 
+## 1.0.0-beta.33
+
+### Patch Changes
+
+- sd
+- Updated dependencies
+  - @pipelab/plugin-core@1.0.0-beta.33
+
 ## 1.0.0-beta.32
 
 ### Patch Changes
