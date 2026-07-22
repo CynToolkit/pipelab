@@ -81,21 +81,15 @@ const fetchPlansFromPolar = async () => {
     isLoading.value = true;
     error.value = null;
 
-    // Call the actual polar-available-plans cloud function
-    const supabaseClient = supabase();
-    if (!supabaseClient) {
-      error.value = "Upgrades are currently unavailable (Cloud services not configured).";
-      return;
-    }
-    const { data, error: apiError } =
-      await supabaseClient.functions.invoke("polar-available-plans");
+    // Call the actual polar-available-plans cloud function via IPC
+    const result: any = await api.execute("auth:invoke", { name: "polar-available-plans" });
 
-    if (apiError) {
-      throw apiError;
+    if (result.type === "error" || result.result?.error) {
+      throw result.ipcError || result.result?.error;
     }
 
     // Process the response data
-    plans.value = data.plans || [];
+    plans.value = result.result?.data?.plans || [];
   } catch (err) {
     error.value = "Failed to fetch plans. Please try again later.";
     console.error("Error fetching plans:", err);
@@ -156,21 +150,19 @@ const handlePlanAction = (plan: any) => {
 };
 
 const upgradeToPlan = async (plan: any) => {
-  const supabaseClient = supabase();
-  if (!supabaseClient) {
-    console.error("Supabase client is not available for checkout");
-    return;
-  }
-  const result = await supabaseClient.functions.invoke("checkout", {
-    body: {
-      itemIds: [plan.id],
+  const result: any = await api.execute("auth:invoke", {
+    name: "checkout",
+    options: {
+      body: {
+        itemIds: [plan.id],
+      },
     },
   });
   console.log("result", result);
-  if (result.data && result.data.checkoutURL) {
-    window.open(result.data.checkoutURL);
+  if (result.type === "success" && result.result?.data?.checkoutURL) {
+    window.open(result.result.data.checkoutURL);
   } else {
-    console.error("No checkout URL returned", result);
+    console.error("No checkout URL returned or error occurred", result);
   }
 };
 

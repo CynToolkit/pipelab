@@ -882,14 +882,14 @@ const isBillingPortalUrlLoading = ref(false);
 const openBillingPortal = async () => {
   isBillingPortalUrlLoading.value = true;
   try {
-    const client = supabase();
-    if (!client) {
-      throw new Error("Supabase is not configured");
-    }
-    const result = await client.functions.invoke("customer-portal");
+    const result: any = await api.execute("auth:invoke", { name: "customer-portal" });
     console.log("result", result);
-    if (result.data?.customerPortal) {
-      window.open(result.data.customerPortal);
+    if (result.type === "success" && result.result.data?.customerPortal) {
+      window.open(result.result.data.customerPortal);
+    } else if (result.type === "error") {
+      console.error("Error from auth:invoke:", result.ipcError);
+    } else if (result.result.error) {
+      console.error("Error from Edge Function:", result.result.error);
     }
   } catch (error) {
     console.error("Error opening billing portal:", error);

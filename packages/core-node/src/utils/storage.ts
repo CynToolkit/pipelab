@@ -25,7 +25,7 @@ export class JsonFileStorage {
     }
   }
 
-  getItem(key: string): string | null {
+  getItem = (key: string): string | null => {
     try {
       if (!fs.existsSync(this.filePath)) return null;
       const content = fs.readFileSync(this.filePath, "utf8");
@@ -39,7 +39,7 @@ export class JsonFileStorage {
     }
   }
 
-  setItem(key: string, value: string): void {
+  setItem = (key: string, value: string): void => {
     try {
       let data: any = {};
       if (fs.existsSync(this.filePath)) {
@@ -56,7 +56,7 @@ export class JsonFileStorage {
     }
   }
 
-  removeItem(key: string): void {
+  removeItem = (key: string): void => {
     try {
       if (!fs.existsSync(this.filePath)) return;
       const content = fs.readFileSync(this.filePath, "utf8");
@@ -73,7 +73,7 @@ export class JsonFileStorage {
   /**
    * Helper to get the entire data object
    */
-  getAll(): Record<string, any> {
+  getAll = (): Record<string, any> => {
     try {
       if (!fs.existsSync(this.filePath)) return {};
       const content = fs.readFileSync(this.filePath, "utf8");
@@ -87,7 +87,7 @@ export class JsonFileStorage {
   /**
    * Helper to clear the entire storage file
    */
-  clear(): void {
+  clear = (): void => {
     try {
       if (fs.existsSync(this.filePath)) {
         fs.unlinkSync(this.filePath);
