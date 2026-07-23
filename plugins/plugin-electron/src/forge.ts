@@ -17,7 +17,7 @@ import {
 } from "@pipelab/plugin-core";
 
 import { dirname, join, basename, delimiter } from "node:path";
-import { cp, readFile, writeFile, rm, mkdir } from "node:fs/promises";
+import { cp, readFile, writeFile, rm, mkdir, appendFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { platform as osPlatform, arch as osArch } from "node:os";
 import { kebabCase } from "change-case";
@@ -616,6 +616,9 @@ export const forge = async (
     });
 
     console.log("copy done");
+
+    // Force hoisted node-linker for pnpm to avoid electron-forge errors
+    await appendFile(join(destinationFolder, ".npmrc"), "\nnode-linker=hoisted\n", "utf-8");
 
     const pkgJSONPath = join(destinationFolder, "package.json");
     const pkgJSONContent = await readFile(pkgJSONPath, "utf8");
