@@ -271,27 +271,12 @@ export const registerPluginsHandlers = (context: PipelabContext) => {
       });
 
       if (isRegistered) {
-        continue; // already loaded, nothing to do
+        loaded.push(packageName);
+        continue;
       }
 
-      try {
-        console.log(
-          `[Plugins] JIT loading plugin "${packageName}@${mappedVersion}" for pipeline...`,
-        );
-        const plugin = await loadCustomPlugin(packageName, mappedVersion, { context });
-        if (plugin) {
-          registerPlugins([plugin]);
-          webSocketServer.broadcast("plugin:loaded", { plugin });
-          loaded.push(packageName);
-          console.log(`[Plugins] JIT loaded "${packageName}" successfully.`);
-        } else {
-          console.warn(`[Plugins] JIT load for "${packageName}" returned no plugin.`);
-          failed.push(packageName);
-        }
-      } catch (e: any) {
-        console.error(`[Plugins] JIT load failed for "${packageName}":`, e);
-        failed.push(packageName);
-      }
+      console.warn(`[Plugins] Plugin "${packageName}" is required but not loaded at startup.`);
+      failed.push(packageName);
     }
 
     send({

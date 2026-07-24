@@ -138,8 +138,7 @@ export async function fetchPackage(
       const localStart = Date.now();
       const local = await tryResolveMonorepoPackage(packageName);
       if (local) {
-        console.log(
-          `[Fetcher] ${packageName}: Resolved to local source at ${local.packageDir} (${Date.now() - localStart}ms)`,
+        console.debug(`[Fetcher] ${packageName}: Resolved to local source at ${local.packageDir} (${Date.now() - localStart}ms)`,
         );
         return {
           ...local,
@@ -159,7 +158,7 @@ export async function fetchPackage(
     resolvedVersionOrRange = "latest";
   }
 
-  console.log(`[Fetcher] Resolving ${packageName}@${resolvedVersionOrRange || "latest"}...`);
+  console.debug(`[Fetcher] Resolving ${packageName}@${resolvedVersionOrRange || "latest"}...`);
   const resolveStart = Date.now();
 
   const online = await isOnline();
@@ -177,8 +176,7 @@ export async function fetchPackage(
     );
     if (fallbackVersion) {
       resolvedVersion = fallbackVersion;
-      console.log(
-        `[Fetcher] ${packageName}: Resolved to local fallback ${resolvedVersion} (${Date.now() - fallbackStart}ms)`,
+      console.debug(`[Fetcher] ${packageName}: Resolved to local fallback ${resolvedVersion} (${Date.now() - fallbackStart}ms)`,
       );
     } else {
       throw new Error(`Offline and no local fallback version available for ${packageName}`);
@@ -212,8 +210,7 @@ export async function fetchPackage(
           if (
             semver.satisfies(releaseTagVersion, rewrittenRangeForCheck, { includePrerelease: true })
           ) {
-            console.log(
-              `[Fetcher] Using release tag "${ctx.releaseTag}" (${releaseTagVersion}) for ${packageName}@${range} because it satisfies the range`,
+            console.debug(`[Fetcher] Using release tag "${ctx.releaseTag}" (${releaseTagVersion}) for ${packageName}@${range} because it satisfies the range`,
             );
             foundVersion = releaseTagVersion;
           }
@@ -226,8 +223,7 @@ export async function fetchPackage(
         if (rewrittenRange !== range) {
           const matched = semver.maxSatisfying(versions, rewrittenRange, { includePrerelease });
           if (matched) {
-            console.log(
-              `[Fetcher] Resolved ${packageName}@${range} to ${matched} via rewritten range ${rewrittenRange}`,
+            console.debug(`[Fetcher] Resolved ${packageName}@${range} to ${matched} via rewritten range ${rewrittenRange}`,
             );
             foundVersion = matched;
           }
@@ -244,8 +240,7 @@ export async function fetchPackage(
             !foundVersion ||
             (semver.valid(foundVersion) && semver.gte(releaseTagVersion, foundVersion))
           ) {
-            console.log(
-              `[Fetcher] Using release tag "${ctx.releaseTag}" (${releaseTagVersion}) instead of "latest" (${foundVersion || "none"}) for ${packageName}`,
+            console.debug(`[Fetcher] Using release tag "${ctx.releaseTag}" (${releaseTagVersion}) instead of "latest" (${foundVersion || "none"}) for ${packageName}`,
             );
             foundVersion = releaseTagVersion;
           } else if (foundVersion) {
@@ -262,8 +257,7 @@ export async function fetchPackage(
         );
       }
       resolvedVersion = foundVersion;
-      console.log(
-        `[Fetcher] ${packageName}: Resolved to v${resolvedVersion} via npm (${Date.now() - resolveStart}ms)`,
+      console.debug(`[Fetcher] ${packageName}: Resolved to v${resolvedVersion} via npm (${Date.now() - resolveStart}ms)`,
       );
     } catch (error) {
       console.warn(
@@ -279,8 +273,7 @@ export async function fetchPackage(
       );
       if (fallbackVersion) {
         resolvedVersion = fallbackVersion;
-        console.log(
-          `[Fetcher] ${packageName}: Resolved to local fallback ${resolvedVersion} (${Date.now() - fallbackStart}ms)`,
+        console.debug(`[Fetcher] ${packageName}: Resolved to local fallback ${resolvedVersion} (${Date.now() - fallbackStart}ms)`,
         );
       } else {
         throw error;
@@ -299,8 +292,7 @@ export async function fetchPackage(
   const checkDuration = Date.now() - checkStart;
 
   if (isInstalled) {
-    console.log(
-      `[Fetcher] ${packageName}@${resolvedVersion}: Already installed (check took ${checkDuration}ms, fetchPackage took ${Date.now() - start}ms)`,
+    console.debug(`[Fetcher] ${packageName}@${resolvedVersion}: Already installed (check took ${checkDuration}ms, fetchPackage took ${Date.now() - start}ms)`,
     );
     return { packageDir, resolvedVersion };
   }
@@ -308,7 +300,7 @@ export async function fetchPackage(
   const lockKey = `package:${packageName}:${resolvedVersion}`;
   return withLock(lockKey, async () => {
     if (!isPackageComplete(packageDir)) {
-      console.log(`[Fetcher] ${packageName}@${resolvedVersion}: Downloading to ${packageDir}...`);
+      console.debug(`[Fetcher] ${packageName}@${resolvedVersion}: Downloading to ${packageDir}...`);
       const downloadStart = Date.now();
 
       const tempDir = join(
@@ -334,13 +326,12 @@ export async function fetchPackage(
           await rename(tempDir, packageDir);
         } catch (err: any) {
           if (isPackageComplete(packageDir)) {
-            console.log(`[Fetcher] Destination ${packageDir} already exists and is valid.`);
+            console.debug(`[Fetcher] Destination ${packageDir} already exists and is valid.`);
           } else {
             throw err;
           }
         }
-        console.log(
-          `[Fetcher] ${packageName}@${resolvedVersion}: Downloaded and extracted in ${Date.now() - downloadStart}ms`,
+        console.debug(`[Fetcher] ${packageName}@${resolvedVersion}: Downloaded and extracted in ${Date.now() - downloadStart}ms`,
         );
       } catch (err) {
         await rm(tempDir, { recursive: true, force: true }).catch(() => {});
@@ -351,20 +342,17 @@ export async function fetchPackage(
     // 2. Resolve entry point from package.json for downloaded package
     const entryStart = Date.now();
     const entryPoint = await resolveEntryPoint(packageDir, packageName);
-    console.log(
-      `[Fetcher] ${packageName}@${resolvedVersion}: Resolved entry point in ${Date.now() - entryStart}ms`,
+    console.debug(`[Fetcher] ${packageName}@${resolvedVersion}: Resolved entry point in ${Date.now() - entryStart}ms`,
     );
 
     if (options?.installDeps) {
       const depsStart = Date.now();
       await installDependencies(packageDir, packageName, options);
-      console.log(
-        `[Fetcher] ${packageName}@${resolvedVersion}: Installed dependencies in ${Date.now() - depsStart}ms`,
+      console.debug(`[Fetcher] ${packageName}@${resolvedVersion}: Installed dependencies in ${Date.now() - depsStart}ms`,
       );
     }
 
-    console.log(
-      `[Fetcher] ${packageName}@${resolvedVersion}: FetchPackage complete in ${Date.now() - start}ms`,
+    console.debug(`[Fetcher] ${packageName}@${resolvedVersion}: FetchPackage complete in ${Date.now() - start}ms`,
     );
     return { packageDir, resolvedVersion, entryPoint };
   });
@@ -429,8 +417,7 @@ export async function ensureNodeJS(context: PipelabContext, version = DEFAULT_NO
   const finalNodePath = join(nodeDir, isWindows ? "node.exe" : "bin/node");
 
   if (isNodeJSComplete(finalNodePath)) {
-    console.log(
-      `[Environment] Node.js check took ${Date.now() - checkStart}ms (found at ${finalNodePath})`,
+    console.debug(`[Environment] Node.js check took ${Date.now() - checkStart}ms (found at ${finalNodePath})`,
     );
     return finalNodePath;
   }
@@ -453,7 +440,7 @@ export async function ensureNodeJS(context: PipelabContext, version = DEFAULT_NO
     console.log(`Downloading Node.js from ${downloadUrl}...`);
     const dlStart = Date.now();
     await downloadFile(downloadUrl, archivePath);
-    console.log(`[Environment] Node.js download took ${Date.now() - dlStart}ms`);
+    console.debug(`[Environment] Node.js download took ${Date.now() - dlStart}ms`);
 
     sendStartupProgress(`Extracting Node.js v${version}...`);
     console.log(`Extracting Node.js to ${tempDir}...`);
@@ -496,18 +483,18 @@ export async function ensureNodeJS(context: PipelabContext, version = DEFAULT_NO
         await rename(tempNodeDir, nodeDir);
       } catch (err: any) {
         if (isNodeJSComplete(finalNodePath)) {
-          console.log(`[Fetcher] Node.js directory already exists and is valid.`);
+          console.debug(`[Fetcher] Node.js directory already exists and is valid.`);
         } else {
           throw err;
         }
       }
-      console.log(`[Environment] Node.js extraction took ${Date.now() - extStart}ms`);
+      console.debug(`[Environment] Node.js extraction took ${Date.now() - extStart}ms`);
     } finally {
       await rm(tempNodeDir, { recursive: true, force: true }).catch(() => {});
       await rm(tempDir, { recursive: true, force: true }).catch(() => {});
     }
 
-    console.log(`[Environment] Node.js set up complete in ${Date.now() - checkStart}ms`);
+    console.debug(`[Environment] Node.js set up complete in ${Date.now() - checkStart}ms`);
     return finalNodePath;
   });
 }
@@ -521,8 +508,7 @@ export async function ensurePNPM(context: PipelabContext, version = DEFAULT_PNPM
   const pnpmPath = join(pnpmDir, "bin", "pnpm.cjs");
 
   if (existsSync(pnpmPath)) {
-    console.log(
-      `[Environment] PNPM check took ${Date.now() - checkStart}ms (found at ${pnpmPath})`,
+    console.debug(`[Environment] PNPM check took ${Date.now() - checkStart}ms (found at ${pnpmPath})`,
     );
     return pnpmPath;
   }
@@ -534,7 +520,7 @@ export async function ensurePNPM(context: PipelabContext, version = DEFAULT_PNPM
     const { packageDir } = await fetchPackage("pnpm", version, {
       context,
     });
-    console.log(`[Environment] PNPM set up complete in ${Date.now() - checkStart}ms`);
+    console.debug(`[Environment] PNPM set up complete in ${Date.now() - checkStart}ms`);
     return join(packageDir, "bin", "pnpm.cjs");
   });
 }
@@ -544,23 +530,22 @@ async function installDependencies(packageDir: string, packageName: string, opti
   const nodeModulesPath = join(packageDir, "node_modules");
 
   if (isDependenciesInstalledSync(packageDir)) {
-    console.log(`[Fetcher] ${packageName}: Dependencies already installed, skipping.`);
+    console.debug(`[Fetcher] ${packageName}: Dependencies already installed, skipping.`);
     return;
   }
 
   try {
-    console.log(`[Fetcher] ${packageName}: Ensuring dependencies are installed...`);
+    console.debug(`[Fetcher] ${packageName}: Ensuring dependencies are installed...`);
     const pnpmStart = Date.now();
     const { all } = await runPnpm(packageDir, {
       signal: options.signal,
       context: options.context,
     });
-    console.log(`[Fetcher] ${packageName}: pnpm install command took ${Date.now() - pnpmStart}ms`);
+    console.debug(`[Fetcher] ${packageName}: pnpm install command took ${Date.now() - pnpmStart}ms`);
 
-    if (all) console.log(`[Fetcher] ${packageName}: Installation trace:\n${all}`);
+    if (all) console.debug(`[Fetcher] ${packageName}: Installation trace:\n${all}`);
 
-    console.log(
-      `[Fetcher] ${packageName}: Dependencies installed successfully (total installDependencies took ${Date.now() - start}ms).`,
+    console.debug(`[Fetcher] ${packageName}: Dependencies installed successfully (total installDependencies took ${Date.now() - start}ms).`,
     );
   } catch (err: any) {
     console.error(

@@ -21,7 +21,6 @@ export interface ServeOptions {
 }
 
 export const sendStartupProgress = (message: string) => {
-  console.log(`[Startup Progress] ${message}`);
   webSocketServer.broadcast("startup:progress", {
     type: "progress",
     data: { message },

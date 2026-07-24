@@ -129,23 +129,24 @@ export const executeGraphWithHistory = async ({
 
   // Ensure all plugins used in the graph are downloaded and registered
   const { registerPlugins, plugins: registeredPlugins } = usePlugins();
+  // JIT loading is intentionally removed here so plugins must be loaded at app startup.
+  // Fail-fast if any required plugin is not loaded
   const pluginIds = new Set(
     graph.map((node: any) => node.origin?.pluginId).filter(Boolean),
   ) as Set<string>;
 
+  const missingPlugins: string[] = [];
   for (const pluginId of pluginIds) {
     const isRegistered = registeredPlugins.value.some((p) => p.id === pluginId);
     if (!isRegistered) {
-      logger().info(`[Runner] Plugin "${pluginId}" not found, attempting to load...`);
-      const pluginDefinition = await loadPipelabPlugin(pluginId, { context: ctx });
-
-      if (pluginDefinition) {
-        registerPlugins([pluginDefinition]);
-        logger().info(`[Runner] Plugin "${pluginId}" loaded and registered successfully`);
-      } else {
-        logger().error(`[Runner] Failed to load or register plugin "${pluginId}"`);
-      }
+      missingPlugins.push(pluginId);
     }
+  }
+
+  if (missingPlugins.length > 0) {
+    const errorMsg = `Fail-fast: The following required plugins are not loaded: ${missingPlugins.join(", ")}. Please ensure they are installed and enabled in settings.`;
+    logger().error(`[Runner] ${errorMsg}`);
+    throw new Error(errorMsg);
   }
 
   logger().info(`[Sandbox] Execution sandbox created at: ${sandboxPath}`);

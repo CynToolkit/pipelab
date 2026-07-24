@@ -115,7 +115,7 @@ end tell`;
     // Oops! No PowerShell? Fallback to CMD.
     return execa(
       "cmd.exe",
-      [keepOpen ? "/k" : "/c", "start", "cmd.exe", "/c", command, ...args],
+      [keepOpen ? "/k" : "/c", "start", "/WAIT", "cmd.exe", "/c", command, ...args],
       options,
     );
     // }

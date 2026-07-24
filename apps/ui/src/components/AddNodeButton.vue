@@ -334,22 +334,8 @@ watchEffect(() => {
 watchDebounced(
   search,
   async (newQuery) => {
-    const q = newQuery.trim();
-    if (!q) {
-      registryResults.value = [];
-      return;
-    }
-    searchingRegistry.value = true;
-    try {
-      const res = await api.execute("plugin:search", { query: q });
-      if (res.type === "success") {
-        registryResults.value = res.result.results;
-      }
-    } catch (e) {
-      console.error("Registry search error:", e);
-    } finally {
-      searchingRegistry.value = false;
-    }
+    // Disable remote registry search for now
+    registryResults.value = [];
   },
   { debounce: 500 },
 );

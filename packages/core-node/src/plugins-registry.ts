@@ -80,12 +80,12 @@ export const loadPipelabPlugin = async (id: string, options: { context: PipelabC
     );
     const fetchDuration = Date.now() - fetchStart;
 
-    console.log(`[Plugins] [${id}] Attempting to import from: ${entryPoint}`);
+    console.debug(`[Plugins] [${id}] Attempting to import from: ${entryPoint}`);
     if (!existsSync(entryPoint)) {
       console.error(`[Plugins] [${id}] CRITICAL: Plugin entry point not found at ${entryPoint}`);
       try {
         const files = await readdir(packageDir, { recursive: true });
-        console.log(`[Plugins] [${id}] Directory contents:`, files);
+        console.debug(`[Plugins] [${id}] Directory contents:`, files);
       } catch (e) {}
     }
 
@@ -93,8 +93,7 @@ export const loadPipelabPlugin = async (id: string, options: { context: PipelabC
     const pluginModule = await import(pathToFileURL(entryPoint).href);
     const importDuration = Date.now() - importStart;
     const totalDuration = Date.now() - start;
-    console.log(
-      `[Plugins] [${id}] Successfully loaded from: ${packageDir} (fetch: ${fetchDuration}ms, import: ${importDuration}ms, total: ${totalDuration}ms)`,
+    console.debug(`[Plugins] [${id}] Successfully loaded from: ${packageDir} (fetch: ${fetchDuration}ms, import: ${importDuration}ms, total: ${totalDuration}ms)`,
     );
 
     const plugin = pluginModule.default;
@@ -125,8 +124,7 @@ export const loadCustomPlugin = async (
     });
     const fetchDuration = Date.now() - fetchStart;
 
-    console.log(
-      `[Plugins] [${packageName}] Attempting to import custom plugin from: ${entryPoint}`,
+    console.debug(`[Plugins] [${packageName}] Attempting to import custom plugin from: ${entryPoint}`,
     );
     if (!existsSync(entryPoint)) {
       console.error(
@@ -139,8 +137,7 @@ export const loadCustomPlugin = async (
     const pluginModule = await import(pathToFileURL(entryPoint).href);
     const importDuration = Date.now() - importStart;
     const totalDuration = Date.now() - start;
-    console.log(
-      `[Plugins] [${packageName}] Successfully loaded custom plugin from: ${packageDir} (fetch: ${fetchDuration}ms, import: ${importDuration}ms, total: ${totalDuration}ms)`,
+    console.debug(`[Plugins] [${packageName}] Successfully loaded custom plugin from: ${packageDir} (fetch: ${fetchDuration}ms, import: ${importDuration}ms, total: ${totalDuration}ms)`,
     );
 
     const plugin = pluginModule.default;
@@ -204,13 +201,13 @@ export async function findInstalledPlugins(
 }
 
 export const builtInPlugins = async (options: { context: PipelabContext }): Promise<void> => {
-  console.log("[Plugins] Starting background plugin loading...");
+  console.debug("[Plugins] Starting background plugin loading...");
 
   // Pre-ensure Node.js and PNPM once in parallel so plugins don't have to wait for them
   sendStartupProgress("Preparing environment...");
   const envStart = Date.now();
   await Promise.all([ensureNodeJS(options.context), ensurePNPM(options.context)]);
-  console.log(`[Plugins] Environment preparation took ${Date.now() - envStart}ms`);
+  console.debug(`[Plugins] Environment preparation took ${Date.now() - envStart}ms`);
 
   const { usePlugins } = await import("@pipelab/shared");
   const { registerPlugins } = usePlugins();
@@ -296,7 +293,10 @@ export const builtInPlugins = async (options: { context: PipelabContext }): Prom
       console.error(`[Plugins] Failed to load settings config on startup:`, e);
     }
 
-    console.log(`[Plugins] Total plugins to load on startup:`, Array.from(pluginsToLoad.entries()));
+    const pluginList = Array.from(pluginsToLoad.keys())
+      .map((p) => `  - ${p}`)
+      .join("\n");
+    console.log(`\n[Plugins] Loading plugins in background:\n${pluginList}\n`);
 
     // Now load all collected plugins in parallel
     const loadPromises = Array.from(pluginsToLoad.entries()).map(async ([packageName, version]) => {
@@ -307,8 +307,7 @@ export const builtInPlugins = async (options: { context: PipelabContext }): Prom
         if (plugin) {
           registerPlugins([plugin]);
           webSocketServer.broadcast("plugin:loaded", { plugin });
-          console.log(
-            `[Plugins] Loaded ${packageName}@${version} in ${Date.now() - pluginStart}ms`,
+          console.debug(`[Plugins] Loaded ${packageName}@${version} in ${Date.now() - pluginStart}ms`,
           );
         }
       } catch (err) {
@@ -317,7 +316,7 @@ export const builtInPlugins = async (options: { context: PipelabContext }): Prom
     });
     await Promise.all(loadPromises);
 
-    console.log(`[Plugins] All startup plugins loaded in ${Date.now() - totalStart}ms.`);
+    console.log(`\n[Plugins] All startup plugins loaded in ${Date.now() - totalStart}ms.\n`);
     sendStartupProgress("All plugins loaded.");
     setTimeout(() => {
       webSocketServer.broadcast("startup:progress", { type: "done" });
