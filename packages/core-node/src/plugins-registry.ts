@@ -172,7 +172,11 @@ export async function findInstalledPlugins(
         try {
           const content = await readFile(join(dir, "package.json"), "utf8");
           const pkg = JSON.parse(content);
-          if (pkg.name && pkg.name !== "pnpm") {
+          if (
+            pkg.name &&
+            pkg.name !== "pnpm" &&
+            (pkg.pipelab || (pkg.keywords && pkg.keywords.includes("pipelab-plugin")))
+          ) {
             installed.push({
               name: pkg.name,
               version: pkg.version || "0.0.0",
@@ -222,20 +226,12 @@ export const builtInPlugins = async (options: { context: PipelabContext }): Prom
     const pluginsToLoad = new Map<string, string>(); // packageName -> version
 
     // Load default/native plugins by default
-    const defaultPlugins = [
-      "@pipelab/plugin-construct",
-      "@pipelab/plugin-filesystem",
-      "@pipelab/plugin-system",
-      "@pipelab/plugin-steam",
-      "@pipelab/plugin-itch",
-      "@pipelab/plugin-electron",
-      "@pipelab/plugin-discord",
-      "@pipelab/plugin-poki",
-      "@pipelab/plugin-nvpatch",
-      "@pipelab/plugin-tauri",
-      "@pipelab/plugin-minify",
-      "@pipelab/plugin-netlify",
-    ];
+    const { DEFAULT_PLUGIN_IDS, DEV_ONLY_PLUGIN_IDS } = await import("@pipelab/shared");
+    const defaultPlugins = [...DEFAULT_PLUGIN_IDS].map((id) => `@pipelab/plugin-${id}`);
+
+    if (isDev) {
+      defaultPlugins.push(...DEV_ONLY_PLUGIN_IDS.map((id) => `@pipelab/plugin-${id}`));
+    }
     for (const name of defaultPlugins) {
       pluginsToLoad.set(name, "latest");
     }

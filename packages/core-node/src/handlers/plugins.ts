@@ -202,24 +202,16 @@ export const registerPluginsHandlers = (context: PipelabContext) => {
       const packagesDir = context.getPackagesPath();
       const rawInstalled = await findInstalledPlugins(packagesDir);
 
-      const DEFAULT_PLUGIN_IDS = [
-        "construct",
-        "filesystem",
-        "system",
-        "steam",
-        "itch",
-        "electron",
-        "discord",
-        "poki",
-        "nvpatch",
-        "tauri",
-        "minify",
-        "netlify",
-      ];
+      const { DEFAULT_PLUGIN_IDS, DEV_ONLY_PLUGIN_IDS } = await import("@pipelab/shared");
+      const defaultPluginIds = [...DEFAULT_PLUGIN_IDS];
+
+      if (isDev) {
+        defaultPluginIds.push(...DEV_ONLY_PLUGIN_IDS);
+      }
 
       const installed = rawInstalled
         .filter((item) => {
-          const isDefault = DEFAULT_PLUGIN_IDS.some((id) => item.name === `@pipelab/plugin-${id}`);
+          const isDefault = defaultPluginIds.some((id) => item.name === `@pipelab/plugin-${id}`);
           return !isDefault;
         })
         .map((item) => ({

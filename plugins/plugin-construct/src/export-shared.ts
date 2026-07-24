@@ -215,6 +215,8 @@ export const exportc3p = async <ACTION extends Action>(
     const pathsToCopy = [
       "https_editor.construct.net_0.indexeddb.blob",
       "https_editor.construct.net_0.indexeddb.leveldb",
+      "https_preview.construct.net_0.indexeddb.leveldb",
+      "https_account.construct.net_0.indexeddb.leveldb",
     ];
 
     for (const p of pathsToCopy) {
