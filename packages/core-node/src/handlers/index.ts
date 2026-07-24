@@ -15,6 +15,7 @@ import { PipelabContext } from "../context";
 export const registerAllHandlers = async (options: {
   version: string;
   context: PipelabContext;
+  waitForPlugins?: boolean;
 }) => {
   const context = options.context;
 
@@ -31,9 +32,13 @@ export const registerAllHandlers = async (options: {
 
   const { registerPlugins } = usePlugins();
   // Execute in the background! The plugins will be dynamically registered and broadcasted to the UI.
-  builtInPlugins({
+  const pluginsPromise = builtInPlugins({
     context,
   });
+
+  if (options.waitForPlugins) {
+    await pluginsPromise;
+  }
 };
 
 export { registerShellHandlers } from "./shell";

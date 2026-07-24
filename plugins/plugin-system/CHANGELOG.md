@@ -1,5 +1,13 @@
 # @pipelab/plugin-system
 
+## 1.0.0-beta.35
+
+### Patch Changes
+
+- sd
+- Updated dependencies
+  - @pipelab/plugin-core@1.0.0-beta.35
+
 ## 1.0.0-beta.34
 
 ### Patch Changes

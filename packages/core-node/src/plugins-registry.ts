@@ -217,7 +217,7 @@ export const builtInPlugins = async (options: { context: PipelabContext }): Prom
   webSocketServer.broadcast("startup:progress", { type: "ready" });
 
   // Load plugins asynchronously in the background
-  (async () => {
+  return (async () => {
     const totalStart = Date.now();
     const pluginsToLoad = new Map<string, string>(); // packageName -> version
 

@@ -64,7 +64,7 @@ export async function runPipelineCommand(file: string, options: RunOptions, vers
     releaseTag,
   });
 
-  await registerAllHandlers({ version, context });
+  await registerAllHandlers({ version, context, waitForPlugins: true });
 
   const cachePath = context.getCachePath(CacheFolder.Pipelines, effectivePipelineId);
   await mkdir(cachePath, { recursive: true });
