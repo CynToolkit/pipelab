@@ -20,16 +20,23 @@ export const checkSteamAuth = async (options: Options) => {
       options.steamcmdPath,
       ["+login", options.username, "+quit"],
       {
-        shell: process.platform === "win32",
+        shell: false,
       },
       options.context.log,
       {
         onStdout: (data, subprocess) => {
           options.context.log("[Steam Cmd]", data);
-          // TODO: handle password input dynamically
-          if (data.includes("Cached credentials not found")) {
+          // Detect if SteamCMD is prompting for input or failed to auth automatically
+          const lowercaseData = data.toLowerCase();
+          if (
+            lowercaseData.includes("cached credentials not found") ||
+            lowercaseData.includes("password:") ||
+            lowercaseData.includes("steam guard") ||
+            lowercaseData.includes("two-factor code") ||
+            lowercaseData.includes("failed (") ||
+            lowercaseData.includes("failed to login")
+          ) {
             error = "LOGGED_OUT";
-
             subprocess.kill();
           }
         },
@@ -115,7 +122,7 @@ end tell`;
     // Oops! No PowerShell? Fallback to CMD.
     return execa(
       "cmd.exe",
-      [keepOpen ? "/k" : "/c", "start", "/WAIT", "cmd.exe", "/c", command, ...args],
+      [keepOpen ? "/k" : "/c", "start", '""', "/WAIT", "cmd.exe", "/c", command, ...args],
       options,
     );
     // }
