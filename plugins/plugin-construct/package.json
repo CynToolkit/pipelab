@@ -1,6 +1,6 @@
 {
   "name": "@pipelab/plugin-construct",
-  "version": "1.0.0-beta.35",
+  "version": "1.0.0-beta.36",
   "description": "Pipelab plugin for exporting and packaging Construct 3 projects",
   "keywords": [
     "automation",
