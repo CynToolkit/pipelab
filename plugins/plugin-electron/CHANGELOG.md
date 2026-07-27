@@ -1,5 +1,11 @@
 # @pipelab/plugin-electron
 
+## 1.0.0-beta.40
+
+### Patch Changes
+
+- fix electron copy
+
 ## 1.0.0-beta.39
 
 ### Patch Changes
