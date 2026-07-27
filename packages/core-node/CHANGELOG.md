@@ -1,5 +1,14 @@
 # @pipelab/core-node
 
+## 1.0.0-beta.36
+
+### Patch Changes
+
+- improve dark theme and improve build history
+- Updated dependencies
+  - @pipelab/constants@1.0.0-beta.32
+  - @pipelab/shared@1.0.0-beta.31
+
 ## 1.0.0-beta.35
 
 ### Patch Changes

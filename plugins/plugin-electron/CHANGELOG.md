@@ -1,5 +1,15 @@
 # @pipelab/plugin-electron
 
+## 1.0.0-beta.41
+
+### Patch Changes
+
+- improve dark theme and improve build history
+- Updated dependencies
+  - @pipelab/plugin-core@1.0.0-beta.37
+  - @pipelab/constants@1.0.0-beta.32
+  - @pipelab/shared@1.0.0-beta.31
+
 ## 1.0.0-beta.40
 
 ### Patch Changes

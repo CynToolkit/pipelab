@@ -1,5 +1,11 @@
 # @pipelab/app
 
+## 2.0.0-beta.31
+
+### Patch Changes
+
+- improve dark theme and improve build history
+
 ## 2.0.0-beta.30
 
 ### Patch Changes

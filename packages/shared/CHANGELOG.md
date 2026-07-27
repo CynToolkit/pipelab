@@ -1,5 +1,14 @@
 # @pipelab/shared
 
+## 1.0.0-beta.31
+
+### Patch Changes
+
+- improve dark theme and improve build history
+- Updated dependencies
+  - @pipelab/constants@1.0.0-beta.32
+  - @pipelab/migration@1.0.0-beta.30
+
 ## 1.0.0-beta.30
 
 ### Patch Changes

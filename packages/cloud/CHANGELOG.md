@@ -1,5 +1,11 @@
 # @pipelab/cloud
 
+## 1.0.0-beta.30
+
+### Patch Changes
+
+- improve dark theme and improve build history
+
 ## 1.0.0-beta.29
 
 ### Patch Changes

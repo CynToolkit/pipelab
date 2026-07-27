@@ -1,6 +1,6 @@
 {
   "name": "@pipelab/plugin-tauri",
-  "version": "1.0.0-beta.36",
+  "version": "1.0.0-beta.37",
   "description": "Pipelab plugin for packaging apps with Tauri",
   "keywords": [
     "automation",
