@@ -93,7 +93,7 @@
 
               <!-- Actions -->
               <div class="action-buttons">
-                <Button id="tour-new-pipeline" size="small" @click="openNewProjectDialog">
+                <Button id="tour-new-pipeline" size="small" severity="secondary" @click="openNewProjectDialog">
                   <i class="mdi mdi-plus-circle-outline mr-2"></i>
                   {{ $t("home.new-pipeline") }}
                 </Button>
@@ -1349,11 +1349,6 @@ const importPipeline = async () => {
 };
 
 const viewProjectBuildHistory = async (file: EnhancedFile) => {
-  if (!hasBuildHistoryBenefit) {
-    openUpgradeDialog();
-    return;
-  }
-
   selectedPipelineId.value = file.id;
   showBuildHistoryDialog.value = true;
 };

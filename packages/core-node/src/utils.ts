@@ -6,21 +6,15 @@ import {
   useLogger,
   BuildHistoryEntry,
   Variable,
-  AppConfig,
   transformUrl,
 } from "@pipelab/shared";
-import { downloadFile, DownloadHooks } from "./utils/fs-extras";
-import { access, chmod, mkdir, rm, writeFile, readdir, cp } from "node:fs/promises";
-import { dirname, join } from "node:path";
-import { pathToFileURL } from "node:url";
-import { isDev, projectRoot, PipelabContext } from "./context";
-import { constants, existsSync } from "node:fs";
+import { mkdir, rm, cp, stat } from "node:fs/promises";
+import { join } from "node:path";
+import { PipelabContext } from "./context";
 import { handleActionExecute } from "./handler-func";
 import { BuildHistoryStorage } from "./handlers/build-history";
 
-import { ensure, extractTarGz, extractZip, zipFolder } from "./utils/fs-extras";
-import { fetchPipelabAsset } from "./utils/remote";
-import { loadPipelabPlugin } from "./plugins-registry";
+import { getFolderSize } from "./utils/fs-extras";
 import { setupSettingsConfigFile } from "./config";
 
 export const getFinalPlugins = () => {
@@ -61,7 +55,6 @@ export const getFinalPlugins = () => {
   return finalPlugins;
 };
 
-import { ensureNodeJS, ensurePNPM } from "./utils/remote";
 
 export const executeGraphWithHistory = async ({
   graph,
@@ -72,6 +65,8 @@ export const executeGraphWithHistory = async ({
   onNodeEnter,
   onNodeExit,
   onLog,
+  onArtifact,
+  onArtifactsFinalized,
   abortSignal,
   mainWindow,
   cachePath,
@@ -85,6 +80,8 @@ export const executeGraphWithHistory = async ({
   onNodeEnter?: (node: any) => void;
   onNodeExit?: (node: any) => void;
   onLog?: (data: any, node?: any) => void;
+  onArtifact?: (name: string, path: string, node?: any) => void;
+  onArtifactsFinalized?: (artifacts: import("@pipelab/shared").Artifact[]) => void;
   abortSignal: AbortSignal;
   mainWindow?: any;
   cachePath: string;
@@ -107,6 +104,11 @@ export const executeGraphWithHistory = async ({
     status: "running",
     logs: [],
     steps: [],
+    metadata: {
+      os: process.platform,
+      arch: process.arch,
+      nodeVersion: process.version,
+    },
     totalSteps: graph.length,
     completedSteps: 0,
     failedSteps: 0,
@@ -114,6 +116,7 @@ export const executeGraphWithHistory = async ({
     createdAt: now,
     updatedAt: now,
   };
+  const executionSteps = initialEntry.steps;
   const shouldDisableHistory = process.env.PIPELAB_DISABLE_HISTORY === "true";
 
   if (!shouldDisableHistory) {
@@ -126,6 +129,7 @@ export const executeGraphWithHistory = async ({
   let completedSteps = 0;
   let failedSteps = 0;
   let cancelledSteps = 0;
+  const collectedArtifacts: import("@pipelab/shared").Artifact[] = [];
 
   // Ensure all plugins used in the graph are downloaded and registered
   const { registerPlugins, plugins: registeredPlugins } = usePlugins();
@@ -172,12 +176,15 @@ export const executeGraphWithHistory = async ({
               if (data.type === "log") {
                 const logEntry = {
                   id: nanoid(),
-                  level: "info",
+                  level: "info" as const,
                   message: data.data.message,
                   timestamp: data.data.time,
-                  nodeUid: node?.uid,
                 };
                 logs.push(logEntry);
+                const step = executionSteps.find(s => s.id === node.uid);
+                if (step) {
+                  step.logs.push(logEntry);
+                }
                 onLog?.(data, node);
               }
             },
@@ -185,18 +192,41 @@ export const executeGraphWithHistory = async ({
             sandboxPath,
             cachePath,
             ctx,
+            (name, path) => {
+              collectedArtifacts.push({
+                id: nanoid(),
+                name,
+                path,
+                size: 0,
+                type: "folder", // we'll determine type and size later
+              });
+              onArtifact?.(name, path, node);
+            },
           );
         }
         throw new Error(`Execution of node type ${node.type} not implemented in utils.ts`);
       },
       onNodeEnter: (node) => {
+        executionSteps.push({
+          id: node.uid,
+          name: node.origin?.nodeId || node.uid,
+          status: "running",
+          startTime: Date.now(),
+          logs: [],
+        });
         onNodeEnter?.(node);
       },
       onNodeExit: async (node) => {
         completedSteps++;
+        const step = executionSteps.find(s => s.id === node.uid);
+        if (step) {
+          step.status = "completed";
+          step.endTime = Date.now();
+          step.duration = step.endTime - step.startTime;
+        }
         if (!shouldDisableHistory) {
           // Update progress in the background
-          buildHistoryStorage.update(buildId, { completedSteps }, pipelineId).catch((err) => {
+          buildHistoryStorage.update(buildId, { completedSteps, steps: executionSteps }, pipelineId).catch((err) => {
             logger().error(`Failed to update progress for build ${buildId}:`, err);
           });
         }
@@ -207,6 +237,38 @@ export const executeGraphWithHistory = async ({
 
     const endTime = Date.now();
     if (!shouldDisableHistory) {
+      // Process artifacts
+      if (collectedArtifacts.length > 0) {
+        const artifactsDir = ctx.getArtifactsPath(pipelineId, buildId);
+        await mkdir(artifactsDir, { recursive: true });
+        for (const artifact of collectedArtifacts) {
+          try {
+            const destPath = join(artifactsDir, artifact.name);
+            const originalNoAsar = process.noAsar;
+            process.noAsar = true;
+            try {
+              await cp(artifact.path, destPath, { recursive: true });
+            } finally {
+              process.noAsar = originalNoAsar;
+            }
+            
+            // update size and type
+            try {
+              const s = await stat(destPath);
+              artifact.type = s.isDirectory() ? "folder" : "file";
+              artifact.size = s.isDirectory() ? await getFolderSize(destPath) : s.size;
+              artifact.path = destPath; // update path to persistent location
+            } catch (e) {
+              logger().warn(`Failed to get size for artifact ${artifact.name}:`, e);
+            }
+          } catch (e) {
+            logger().error(`Failed to copy artifact ${artifact.name}:`, e);
+          }
+        }
+      }
+      
+      onArtifactsFinalized?.(collectedArtifacts);
+
       await buildHistoryStorage.update(
         buildId,
         {
@@ -215,7 +277,9 @@ export const executeGraphWithHistory = async ({
           duration: endTime - startTime,
           output: result.steps,
           logs,
+          steps: executionSteps,
           completedSteps,
+          artifacts: collectedArtifacts,
         },
         pipelineId,
       );
@@ -227,23 +291,69 @@ export const executeGraphWithHistory = async ({
     const isCanceled = error instanceof Error && error.name === "AbortError";
 
     if (!shouldDisableHistory) {
-      await buildHistoryStorage.update(
-        buildId,
-        {
-          status: isCanceled ? "cancelled" : "failed",
-          endTime,
-          duration: endTime - startTime,
-          error: {
-            message: error instanceof Error ? error.message : String(error),
-            stack: error instanceof Error ? error.stack : undefined,
-            timestamp: endTime,
+      // Process artifacts even on failure
+      if (collectedArtifacts.length > 0) {
+        const artifactsDir = ctx.getArtifactsPath(pipelineId, buildId);
+        await mkdir(artifactsDir, { recursive: true });
+        for (const artifact of collectedArtifacts) {
+          try {
+            const destPath = join(artifactsDir, artifact.name);
+            const originalNoAsar = process.noAsar;
+            process.noAsar = true;
+            try {
+              await cp(artifact.path, destPath, { recursive: true });
+            } finally {
+              process.noAsar = originalNoAsar;
+            }
+            
+            // update size and type
+            try {
+              const s = await stat(destPath);
+              artifact.type = s.isDirectory() ? "folder" : "file";
+              artifact.size = s.isDirectory() ? await getFolderSize(destPath) : s.size;
+              artifact.path = destPath; // update path to persistent location
+            } catch (e) {
+              logger().warn(`Failed to get size for artifact ${artifact.name}:`, e);
+            }
+          } catch (e) {
+            logger().error(`Failed to copy artifact ${artifact.name}:`, e);
+          }
+        }
+      }
+      
+      onArtifactsFinalized?.(collectedArtifacts);
+
+        for (const step of executionSteps) {
+          if (step.status === "running") {
+            step.status = isCanceled ? "cancelled" : "failed";
+            step.endTime = endTime;
+            step.duration = endTime - step.startTime;
+            step.error = {
+              message: error instanceof Error ? error.message : String(error),
+              timestamp: endTime,
+            };
+          }
+        }
+
+        await buildHistoryStorage.update(
+          buildId,
+          {
+            status: isCanceled ? "cancelled" : "failed",
+            endTime,
+            duration: endTime - startTime,
+            error: {
+              message: error instanceof Error ? error.message : String(error),
+              stack: error instanceof Error ? error.stack : undefined,
+              timestamp: endTime,
+            },
+            logs,
+            steps: executionSteps,
+            completedSteps,
+            failedSteps: isCanceled ? 0 : 1,
+            cancelledSteps: isCanceled ? 1 : 0,
+            artifacts: collectedArtifacts,
           },
-          logs,
-          completedSteps,
-          failedSteps: isCanceled ? 0 : 1,
-          cancelledSteps: isCanceled ? 1 : 0,
-        },
-        pipelineId,
+          pipelineId,
       );
     }
 

@@ -194,6 +194,23 @@ export const registerEngineHandlers = (context: PipelabContext) => {
             });
           }
         },
+        onArtifact: (name, path, node) => {
+          send({
+            type: "node-artifact",
+            data: {
+              nodeUid: node?.uid || "unknown",
+              artifact: { name, path },
+            },
+          });
+        },
+        onArtifactsFinalized: (artifacts) => {
+          send({
+            type: "node-artifacts-finalized",
+            data: {
+              artifacts,
+            },
+          });
+        },
         abortSignal: abortControllerGraph!.signal,
         cachePath: effectiveCachePath,
         context,

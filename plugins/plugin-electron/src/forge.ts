@@ -556,7 +556,7 @@ export const createPreviewProps = (
 export const forge = async (
   action: "make" | "package" | "preview",
   appFolder: string | undefined,
-  { cwd, log, inputs, setOutput, paths, abortSignal, context }: ActionRunnerData<any>,
+  { cwd, log, inputs, setOutput, paths, abortSignal, context, setArtifact }: ActionRunnerData<any>,
   completeConfiguration: DesktopApp.Electron,
 ): Promise<{ folder: string; binary: string | undefined } | undefined> => {
   log("Building electron");
@@ -836,6 +836,7 @@ export const forge = async (
 
         const output = join(cwd, "out", outName);
         setOutput("output", output);
+        setArtifact("electron-build", output);
         return {
           folder: output,
           binary: join(output, binName),
@@ -843,6 +844,7 @@ export const forge = async (
       } else {
         const output = join(cwd, "out", "make");
         setOutput("output", output);
+        setArtifact("electron-build", output);
         return {
           folder: output,
           binary: undefined,

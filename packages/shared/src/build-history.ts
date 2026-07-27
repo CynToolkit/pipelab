@@ -29,6 +29,14 @@ export interface LogEntry {
   data?: Record<string, unknown>;
 }
 
+export interface Artifact {
+  id: string;
+  name: string;
+  path: string;
+  size: number;
+  type: "file" | "folder";
+}
+
 export interface BuildHistoryEntry {
   id: string;
   pipelineId: string;
@@ -51,6 +59,7 @@ export interface BuildHistoryEntry {
   userId?: string;
   createdAt: number;
   updatedAt: number;
+  artifacts?: Artifact[];
 }
 
 // Query interface supporting both pipeline and scenario filtering

@@ -85,6 +85,7 @@ export const SandboxFolder = {
   Temp: "temp",
   Cache: "cache",
   Pnpm: "pnpm",
+  Artifacts: "artifacts",
 } as const;
 
 export type SandboxFolder = (typeof SandboxFolder)[keyof typeof SandboxFolder];

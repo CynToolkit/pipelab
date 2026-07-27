@@ -210,6 +210,8 @@ export type IpcDefinition = {
       | { type: "node-enter"; data: { nodeUid: string; nodeName: string } }
       | { type: "node-exit"; data: { nodeUid: string; nodeName: string } }
       | { type: "node-log"; data: { nodeUid: string; logData: any } }
+      | { type: "node-artifact"; data: { nodeUid: string; artifact: { name: string; path: string } } }
+      | { type: "node-artifacts-finalized"; data: { artifacts: import("@pipelab/shared").Artifact[] } }
       | EndEvent<{ result: any; buildId: string }>
     ),
   ];

@@ -119,6 +119,7 @@ export const useEditor = defineStore("editor", () => {
 
   /** All log lines relative to their plugin instance */
   const logLines = ref<Record<string, unknown[]>>({});
+  const artifactsLog = ref<Record<string, { name: string; path: string }[]>>({});
 
   const nodeStatuses = ref<Record<string, Status>>({});
 
@@ -186,8 +187,16 @@ export const useEditor = defineStore("editor", () => {
     logLines.value[nodeUid].push(data);
   };
 
+  const pushArtifact = (nodeUid: string, artifact: { name: string; path: string }) => {
+    if (!artifactsLog.value[nodeUid]) {
+      artifactsLog.value[nodeUid] = [];
+    }
+    artifactsLog.value[nodeUid].push(artifact);
+  };
+
   const clearLogs = () => {
     logLines.value = {};
+    artifactsLog.value = {};
   };
 
   const currentFilePointer = computed(() => {
@@ -717,8 +726,11 @@ export const useEditor = defineStore("editor", () => {
     currentFilePointer,
 
     pushLine,
+    pushArtifact,
     clearLogs,
     logLines,
+    asyncErrors,
+    artifactsLog,
 
     nodeStatuses,
 

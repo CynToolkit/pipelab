@@ -171,6 +171,11 @@ export class PipelabContext {
     return join(this.userDataPath, "build-history", ...subpaths);
   }
 
+  getArtifactsPath<S extends string[]>(...subpaths: S): `ARTIFACTS/${Join<S, "/">}`;
+  getArtifactsPath(...subpaths: string[]): string {
+    return join(this.userDataPath, "artifacts", ...subpaths);
+  }
+
   getNodePath<V extends string = typeof DEFAULT_NODE_VERSION>(
     version?: V,
   ): `THIRDPARTY/node/${V}/${string}`;
@@ -194,6 +199,7 @@ export class PipelabContext {
       [SandboxFolder.Temp]: { label: "Temporary Files", path: this.getTempPath() },
       [SandboxFolder.Cache]: { label: "Cache", path: this.getCachePath() },
       [SandboxFolder.Pnpm]: { label: "PNPM Home", path: this.getPnpmPath() },
+      [SandboxFolder.Artifacts]: { label: "Artifacts", path: this.getArtifactsPath() },
     };
 
     return (Object.keys(foldersRecord) as SandboxFolder[]).map((key) => ({
