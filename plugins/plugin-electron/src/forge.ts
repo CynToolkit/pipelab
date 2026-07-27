@@ -861,6 +861,8 @@ export const forge = async (
       throw e;
     }
   } finally {
+    const originalNoAsar = process.noAsar;
+    process.noAsar = true;
     try {
       if (action !== "preview") {
         const outDir = join(destinationFolder, "out");
@@ -884,6 +886,8 @@ export const forge = async (
         "Failed to clean up staging directory:",
         e instanceof Error ? `${e.message}\n${e.stack}` : String(e),
       );
+    } finally {
+      process.noAsar = originalNoAsar;
     }
   }
 };

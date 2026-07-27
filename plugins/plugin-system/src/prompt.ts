@@ -35,6 +35,10 @@ export const promptAction = createAction({
 
 export const promptActionRunner = createActionRunner<typeof promptAction>(
   async ({ log, inputs, setOutput, browserWindow }) => {
+    if (!browserWindow) {
+      throw new Error("Prompt action cannot be executed in headless mode because it requires user input.");
+    }
+    
     browserWindow.flashFrame(true);
     const api = usePluginAPI(browserWindow);
     //    'cancel' | 'ok'
