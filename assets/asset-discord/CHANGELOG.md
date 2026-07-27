@@ -1,5 +1,11 @@
 # @pipelab/asset-discord
 
+## 1.0.0-beta.31
+
+### Patch Changes
+
+- -
+
 ## 1.0.0-beta.30
 
 ### Patch Changes

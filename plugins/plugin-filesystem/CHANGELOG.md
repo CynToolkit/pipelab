@@ -1,5 +1,13 @@
 # @pipelab/plugin-filesystem
 
+## 1.0.0-beta.38
+
+### Patch Changes
+
+- -
+- Updated dependencies
+  - @pipelab/plugin-core@1.0.0-beta.38
+
 ## 1.0.0-beta.37
 
 ### Patch Changes

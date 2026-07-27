@@ -173,6 +173,9 @@ process.exit(result.status ?? 0);`,
       console.log(`[Runner Output] ${key} = ${value}`);
       outputs[key] = value;
     },
+    setArtifact: (key: string, path: string) => {
+      console.log(`[Runner Artifact] ${key} = ${path}`);
+    },
     cwd: options.sandboxPath,
     paths: {
       cache: join(options.sandboxPath, "cache"),

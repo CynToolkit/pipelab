@@ -1,5 +1,15 @@
 # @pipelab/plugin-electron
 
+## 1.0.0-beta.42
+
+### Patch Changes
+
+- -
+- Updated dependencies
+  - @pipelab/plugin-core@1.0.0-beta.38
+  - @pipelab/constants@1.0.0-beta.33
+  - @pipelab/shared@1.0.0-beta.32
+
 ## 1.0.0-beta.41
 
 ### Patch Changes
