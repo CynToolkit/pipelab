@@ -1025,7 +1025,16 @@ export const tauri = async (
         // Self-heal the Android toolchain (SDK/NDK + Rust target) when building
         // for Android on a host that doesn't have them installed yet.
         if (isAndroidBuild) {
-          const androidHome = await ensureAndroidEnvironment(cache, cargoBinDir, node, log, abortSignal);
+          // Store the SDK in a pipeline-independent location so it is shared by
+          // every Android pipeline instead of being re-downloaded (several GB)
+          // per pipeline.
+          const androidHome = await ensureAndroidEnvironment(
+            context.getCachePath("Pipelines"),
+            cargoBinDir,
+            node,
+            log,
+            abortSignal,
+          );
           // Make sure the SDK tooling is on PATH for the Tauri CLI / Gradle.
           process.env.PATH = `${join(androidHome, "cmdline-tools", "latest", "bin")}${delimiter}${join(
             androidHome,
