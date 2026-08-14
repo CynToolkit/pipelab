@@ -42,8 +42,7 @@
           "enableSteamSupport": { "editor": "simple", "value": false },
           "steamGameId": { "editor": "simple", "value": 480 },
           "enableDiscordSupport": { "editor": "simple", "value": false },
-          "discordAppId": { "editor": "simple", "value": "\"\"" },
-          "mobileConfig": { "editor": "simple", "value": "{}" }
+          "discordAppId": { "editor": "simple", "value": "\"\"" }
         }
       }
     ],

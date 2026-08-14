@@ -266,14 +266,6 @@ const params = {
       },
     },
   },
-  configuration: {
-    label: "Tauri configuration",
-    value: undefined as Partial<DesktopApp.Tauri> | undefined,
-    required: true,
-    control: {
-      type: "json",
-    },
-  },
 } satisfies InputsDefinition;
 
 export const configureParams = {
@@ -468,18 +460,6 @@ export const configureParams = {
     description: "The Discord application ID",
   }),
 
-  // Mobile specific configuration (android/ios). Merged into the generated
-  // `app.mobile` section of tauri.conf.json when packaging for a mobile target.
-  mobileConfig: {
-    label: "Mobile configuration",
-    required: false,
-    description:
-      "Optional Tauri mobile configuration (android/ios overrides). Only used when packaging for a mobile platform.",
-    value: "{}",
-    control: {
-      type: "json",
-    },
-  },
 } satisfies InputsDefinition;
 
 const outputs = {

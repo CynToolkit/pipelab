@@ -3,16 +3,6 @@ import { createPackageV2Props, tauri } from "./tauri";
 import { merge } from "ts-deepmerge";
 import { defaultTauriConfig } from "./utils";
 
-function parseMobileConfig(value: unknown): DesktopApp.Tauri["mobile"] {
-  if (!value) return {};
-  if (typeof value === "object") return value as DesktopApp.Tauri["mobile"];
-  try {
-    return JSON.parse(value as string) as DesktopApp.Tauri["mobile"];
-  } catch {
-    return {};
-  }
-}
-
 export const packageV2Runner = createActionRunner<ReturnType<typeof createPackageV2Props>>(
   async (options) => {
     const appFolder = options.inputs["input-folder"];
@@ -44,7 +34,6 @@ export const packageV2Runner = createActionRunner<ReturnType<typeof createPackag
       discordAppId: options.inputs["discordAppId"],
       customPackages: (options.inputs as any)["customPackages"],
       backgroundColor: (options.inputs as any)["backgroundColor"],
-      mobile: parseMobileConfig(options.inputs["mobileConfig"]),
     }) as unknown as DesktopApp.Tauri;
 
     console.log("completeConfiguration", completeConfiguration);
