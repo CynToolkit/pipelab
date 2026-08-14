@@ -1025,11 +1025,13 @@ export const tauri = async (
         // Self-heal the Android toolchain (SDK/NDK + Rust target) when building
         // for Android on a host that doesn't have them installed yet.
         if (isAndroidBuild) {
-          // Store the SDK in a pipeline-independent location so it is shared by
-          // every Android pipeline instead of being re-downloaded (several GB)
-          // per pipeline.
+          // Store the SDK in a pipeline-independent location (top-level cache,
+          // alongside `pacote`) so it is shared by every Android pipeline instead
+          // of being re-downloaded (several GB) per pipeline. It is also
+          // regenerable, so it belongs in the cache folder (which is relocatable
+          // via settings.cacheFolder).
           const androidHome = await ensureAndroidEnvironment(
-            context.getCachePath("Pipelines"),
+            context.getCachePath(),
             cargoBinDir,
             node,
             log,
