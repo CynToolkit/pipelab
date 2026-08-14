@@ -26,4 +26,5 @@ export const defaultTauriConfig = {
   openDevtoolsOnStart: false,
   enableDoctor: false,
   serverMode: "default" as const,
+  mobile: {},
 } satisfies DesktopApp.Tauri;

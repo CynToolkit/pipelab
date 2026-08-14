@@ -14,9 +14,10 @@ import {
   runWithLiveLogs,
   fetchPipelabAsset,
 } from "@pipelab/plugin-core";
-import { dirname, join, basename, delimiter } from "node:path";
+import { dirname, join, basename, delimiter, sep } from "node:path";
 import { existsSync } from "node:fs";
-import { cp, readFile as readFilePromise, writeFile as writeFilePromise } from "node:fs/promises";
+import { readdirSync } from "node:fs";
+import { cp, mkdir, readFile as readFilePromise, writeFile as writeFilePromise } from "node:fs/promises";
 import { homedir, platform as osPlatform, arch as osArch } from "node:os";
 import { execa } from "execa";
 import { kebabCase } from "change-case";
@@ -92,6 +93,80 @@ async function resolveCargoPath(): Promise<string> {
   }
 
   throw new Error("Cargo not found. Please install it first");
+}
+
+/**
+ * Resolves the target token accepted by the `tauri android/ios build --target`
+ * flag (an Android ABI or an iOS device/simulator slice), or undefined to let
+ * Tauri pick its default.
+ */
+function resolveMobileCliTarget(
+  platform: NodeJS.Platform,
+  arch: NodeJS.Architecture,
+): string | undefined {
+  if (platform === "android") {
+    switch (arch) {
+      case "arm64":
+        return "aarch64";
+      case "x64":
+        return "x86_64";
+      case "ia32":
+        return "i686";
+      case "armv7l":
+        return "armv7";
+      default:
+        return "aarch64"; // mobile defaults to 64-bit ARM
+    }
+  }
+
+  if (platform === "ios") {
+    // iOS simulators use the `-sim` slice
+    if (arch === "x64" || arch === "ia32") {
+      return "x86_64-sim";
+    }
+    if (arch === "arm64") {
+      // Apple Silicon simulators build for the `aarch64-sim` slice;
+      // fall back to the device slice on non-Apple hosts.
+      return process.platform === "darwin" ? "aarch64-sim" : "aarch64";
+    }
+    return "aarch64"; // physical devices
+  }
+
+  return undefined;
+}
+
+/**
+ * Resolves the Rust target triple actually produced by the build, used to
+ * locate the generated artifact on disk.
+ */
+function resolveMobileOutputTriple(
+  platform: NodeJS.Platform,
+  arch: NodeJS.Architecture,
+): string | undefined {
+  if (platform === "android") {
+    switch (arch) {
+      case "x64":
+        return "x86_64-linux-android";
+      case "ia32":
+        return "i686-linux-android";
+      case "armv7l":
+        return "armv7-linux-androideabi";
+      default:
+        return "aarch64-linux-android";
+    }
+  }
+
+  if (platform === "ios") {
+    if (arch === "x64" || arch === "ia32") {
+      return "x86_64-apple-ios-sim";
+    }
+    if (arch === "arm64") {
+      return "aarch64-apple-ios-sim";
+    }
+    return "aarch64-apple-ios";
+  }
+
+  return undefined;
 }
 
 // TODO: https://js.electronforge.io/modules/_electron_forge_core.html
@@ -392,6 +467,19 @@ export const configureParams = {
     label: "Discord application ID",
     description: "The Discord application ID",
   }),
+
+  // Mobile specific configuration (android/ios). Merged into the generated
+  // `app.mobile` section of tauri.conf.json when packaging for a mobile target.
+  mobileConfig: {
+    label: "Mobile configuration",
+    required: false,
+    description:
+      "Optional Tauri mobile configuration (android/ios overrides). Only used when packaging for a mobile platform.",
+    value: "{}",
+    control: {
+      type: "json",
+    },
+  },
 } satisfies InputsDefinition;
 
 const outputs = {
@@ -475,6 +563,222 @@ export const createPackageV2Props = (
   });
 };
 
+/**
+ * Keeps the npm `@tauri-apps/*` packages in lock-step with the Rust Tauri
+ * crates used by the scaffolded app. Tauri aborts the build when the major.minor
+ * of an npm package and its matching Rust crate diverge, but the two ecosystems
+ * float independently (e.g. `^2` on npm vs `"2"` in Cargo.toml can resolve to
+ * different minors depending on what each registry currently serves). Reading the
+ * actual resolved crate versions from `cargo metadata` and pinning the npm
+ * packages to them guarantees a match.
+ */
+const TAURI_NPM_MAP: Record<string, string> = {
+  tauri: "@tauri-apps/api",
+  "tauri-plugin-shell": "@tauri-apps/plugin-shell",
+  "tauri-plugin-fs": "@tauri-apps/plugin-fs",
+  "tauri-plugin-opener": "@tauri-apps/plugin-opener",
+  "tauri-plugin-devtools": "@tauri-apps/plugin-devtools",
+  "tauri-plugin-localhost": "@tauri-apps/plugin-localhost",
+};
+
+async function alignTauriNpmVersions(
+  destinationFolder: string,
+  cargo: string,
+  node: string,
+  log: (message: string) => void,
+): Promise<void> {
+  const srcTauri = join(destinationFolder, "src-tauri");
+  try {
+    const { stdout } = await execa(cargo, ["metadata", "--format-version", "1"], {
+      cwd: srcTauri,
+      env: {
+        ...process.env,
+        PATH: `${dirname(cargo)}${delimiter}${dirname(node)}${delimiter}${process.env.PATH}`,
+      },
+    });
+    const meta = JSON.parse(stdout) as { packages?: { name: string; version: string }[] };
+    const versions: Record<string, string> = {};
+    for (const p of meta.packages ?? []) versions[p.name] = p.version;
+
+    const pkgPath = join(destinationFolder, "package.json");
+    const pkg = JSON.parse(await readFilePromise(pkgPath, "utf8")) as {
+      dependencies?: Record<string, string>;
+      devDependencies?: Record<string, string>;
+    };
+
+    let changed = false;
+    for (const [crate, npm] of Object.entries(TAURI_NPM_MAP)) {
+      const version = versions[crate];
+      if (!version) continue;
+      if (pkg.dependencies?.[npm]) {
+        pkg.dependencies[npm] = version;
+        changed = true;
+      }
+      if (pkg.devDependencies?.[npm]) {
+        pkg.devDependencies[npm] = version;
+        changed = true;
+      }
+    }
+
+    if (changed) {
+      log("Aligning @tauri-apps npm versions to resolved Rust crate versions");
+      await writeFilePromise(pkgPath, JSON.stringify(pkg, null, 2));
+    }
+  } catch (error) {
+    log(`Skipping tauri npm version alignment: ${String(error)}`);
+  }
+}
+
+const ANDROID_CMDLINE_TOOLS_URL =
+  "https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip";
+
+/**
+ * Recursively finds the produced Android APK under the Gradle outputs folder.
+ * Tauri may name/locate it differently (e.g. `app-universal-release-unsigned.apk`
+ * inside a `universal/release` subfolder) depending on the build target, so we
+ * search for it instead of hard-coding a single path.
+ */
+function findAndroidApk(root: string): string | undefined {
+  if (!existsSync(root)) return undefined;
+  let releaseApk: string | undefined;
+  const walk = (dir: string): void => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const p = join(dir, entry.name);
+      if (entry.isDirectory()) {
+        walk(p);
+      } else if (entry.name.endsWith(".apk")) {
+        const isRelease = p.split(sep).includes("release");
+        if (isRelease && !releaseApk) {
+          releaseApk = p;
+        } else if (!releaseApk) {
+          releaseApk = p;
+        }
+      }
+    }
+  };
+  walk(root);
+  return releaseApk;
+}
+
+/**
+ * Looks for an already-installed Android SDK on the host so we can reuse it
+ * instead of downloading one. Checks `ANDROID_HOME`, the conventional
+ * `~/Android/Sdk` location, common version managers (mise/asdf) and `/opt`.
+ */
+function findExistingAndroidSdk(): string | undefined {
+  const candidates: string[] = [];
+  if (process.env.ANDROID_HOME) candidates.push(process.env.ANDROID_HOME);
+  candidates.push(join(homedir(), "Android", "Sdk"));
+  const miseBase = join(homedir(), ".local", "share", "mise", "installs", "android-sdk");
+  if (existsSync(miseBase)) {
+    try {
+      for (const entry of readdirSync(miseBase)) candidates.push(join(miseBase, entry));
+    } catch {
+      /* ignore */
+    }
+  }
+  candidates.push("/opt/android-sdk", "/usr/lib/android-sdk");
+  for (const candidate of candidates) {
+    if (
+      existsSync(candidate) &&
+      (existsSync(join(candidate, "cmdline-tools")) ||
+        existsSync(join(candidate, "platform-tools")) ||
+        existsSync(join(candidate, "ndk")))
+    ) {
+      return candidate;
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Downloads the Android command-line tools and uses `sdkmanager` to install the
+ * NDK, build-tools, platform and platform-tools required to build a Tauri app.
+ */
+async function provisionAndroidSdk(
+  androidHome: string,
+  log: (message: string) => void,
+  abortSignal?: AbortSignal,
+): Promise<void> {
+  await mkdir(join(androidHome, "cmdline-tools"), { recursive: true });
+  const zipPath = join(androidHome, "commandlinetools.zip");
+  log(`Downloading Android command-line tools from ${ANDROID_CMDLINE_TOOLS_URL}`);
+  await execa("curl", ["-sL", ANDROID_CMDLINE_TOOLS_URL, "-o", zipPath], {
+    cancelSignal: abortSignal as any,
+  });
+  const extractDir = join(androidHome, "cmdline-tools-extract");
+  await execa("unzip", ["-q", "-o", zipPath, "-d", extractDir], {
+    cancelSignal: abortSignal as any,
+  });
+  // The archive extracts to a `cmdline-tools/` folder; Tauri expects it at
+  // `cmdline-tools/latest`.
+  const extracted = join(extractDir, "cmdline-tools");
+  const target = join(androidHome, "cmdline-tools", "latest");
+  await execa("rm", ["-rf", target], { cancelSignal: abortSignal as any });
+  await execa("mv", [extracted, target], { cancelSignal: abortSignal as any });
+  await execa("rm", ["-rf", extractDir, zipPath], { cancelSignal: abortSignal as any });
+
+  const sdkmanager = join(target, "bin", "sdkmanager");
+  const env = { ...process.env, ANDROID_HOME: androidHome };
+  log("Accepting Android SDK licenses");
+  await execa("bash", ["-c", `yes | "${sdkmanager}" --licenses`], {
+    env,
+    cancelSignal: abortSignal as any,
+  });
+  log("Installing Android SDK packages (NDK, build-tools, platform, platform-tools)");
+  await execa(
+    "bash",
+    [
+      "-c",
+      `"${sdkmanager}" --install "platform-tools" "platforms;android-34" "build-tools;34.0.0" "ndk;26.1.10909125"`,
+    ],
+    { env, cancelSignal: abortSignal as any },
+  );
+}
+
+/**
+ * Self-heals the Android toolchain so a pipeline can build for Android on a host
+ * that ships without the Android SDK pre-installed (only node/pnpm + a Rust
+ * toolchain are assumed). It reuses an existing SDK when present and otherwise
+ * downloads the command-line tools and provisions the NDK/build-tools/platform
+ * into a cache directory, then exposes it via `ANDROID_HOME`.
+ */
+async function ensureAndroidEnvironment(
+  cacheDir: string,
+  cargoBinDir: string,
+  node: string,
+  log: (message: string) => void,
+  abortSignal?: AbortSignal,
+): Promise<string> {
+  const existing = findExistingAndroidSdk();
+  const androidHome =
+    existing ?? join(cacheDir, "android-sdk");
+
+  if (existing) {
+    log(`Reusing existing Android SDK at ${androidHome}`);
+  } else {
+    log(`No Android SDK found; provisioning one at ${androidHome}`);
+    await provisionAndroidSdk(androidHome, log, abortSignal);
+  }
+
+  log(`Ensuring Rust target aarch64-linux-android for Android builds`);
+  try {
+    await execa("rustup", ["target", "add", "aarch64-linux-android"], {
+      env: {
+        ...process.env,
+        PATH: `${cargoBinDir}${delimiter}${dirname(node)}${delimiter}${process.env.PATH}`,
+      },
+      stdout: "ignore",
+      stderr: "ignore",
+    });
+  } catch (error) {
+    log(`rustup target add aarch64-linux-android failed (continuing): ${String(error)}`);
+  }
+
+  process.env.ANDROID_HOME = androidHome;
+  return androidHome;
+}
+
 export const createPreviewProps = (
   id: string,
   name: string,
@@ -499,7 +803,7 @@ export const createPreviewProps = (
 export const tauri = async (
   action: "make" | "package" | "preview",
   appFolder: string | undefined,
-  { cwd, log, inputs, setOutput, paths, abortSignal, context }: ActionRunnerData<any>,
+  { cwd, log, inputs, setOutput, paths, abortSignal, context, setArtifact }: ActionRunnerData<any>,
   completeConfiguration: DesktopApp.Config,
 ): Promise<{ folder: string; binary: string | undefined } | undefined> => {
   console.log("appFolder", appFolder);
@@ -583,16 +887,41 @@ export const tauri = async (
   tauriConfJSON.version = completeConfiguration.appVersion;
   log("Setting identifier to", completeConfiguration.appBundleId);
   tauriConfJSON.identifier = completeConfiguration.appBundleId;
+
+  const isAndroid = inputs.platform === "android";
+  const isIOS = inputs.platform === "ios";
+  const isMobile = isAndroid || isIOS;
+
+  if (isMobile) {
+    tauriConfJSON.bundle = tauriConfJSON.bundle || {};
+    // Mobile artifacts (APK/AAB/IPA) are produced by `tauri android/ios build`
+    // itself; the `bundle.targets` enum only knows desktop formats, so we use
+    // "all" (the schema-valid catch-all) and let the platform drive the output.
+    tauriConfJSON.bundle.targets = "all";
+    // `app.mobile` is optional and only understood by newer Tauri versions.
+    // It is intentionally omitted here so the generated config validates
+    // against every Tauri 2.x release; mobile-specific settings from
+    // `completeConfiguration.mobile` can be applied to the generated
+    // android/ios project after `tauri <platform> init` when desired.
+    if (tauriConfJSON.app) {
+      delete (tauriConfJSON.app as Record<string, unknown>).mobile;
+    }
+    log("Setting mobile bundle target to", tauriConfJSON.bundle.targets);
+  }
+
   if (action === "preview") {
     log("Setting build.devUrl to", appFolder);
     tauriConfJSON.build.devUrl = appFolder;
-    await writeFilePromise(tauriConfJSONPath, JSON.stringify(tauriConfJSON, null, 2));
+  } else {
+    log("Setting build.frontendDist to ../src/app");
+    tauriConfJSON.build.frontendDist = "../src/app";
   }
-  /* else {
-    log('Setting build.frontendDist to', appFolder)
-    tauriConfJSON.build.frontendDist = appFolder
-    await writeFile(tauriConfJSONPath, JSON.stringify(tauriConfJSON, null, 2))
-  } */
+  await writeFilePromise(tauriConfJSONPath, JSON.stringify(tauriConfJSON, null, 2));
+
+  // Pin the npm @tauri-apps packages to the Rust crate versions so the Tauri
+  // CLI version check passes (see alignTauriNpmVersions).
+  const cargoForAlign = await resolveCargoPath();
+  await alignTauriNpmVersions(destinationFolder, cargoForAlign, node, log);
 
   log("Installing packages");
   const { all } = await runPnpm(destinationFolder, {
@@ -628,114 +957,39 @@ export const tauri = async (
   //   )
   // }
 
-  const inputPlatform = inputs.platform === "" ? undefined : inputs.platform;
-  const inputArch = inputs.arch === "" ? undefined : inputs.arch;
+    const inputPlatform = inputs.platform === "" ? undefined : inputs.platform;
+    const inputArch = inputs.arch === "" ? undefined : inputs.arch;
 
-  try {
-    log("typeof inputs.platform", typeof inputs.platform);
-    const finalPlatform: NodeJS.Platform = inputPlatform ?? osPlatform();
-    log("finalPlatform", finalPlatform);
-    const finalArch: NodeJS.Architecture = inputArch ?? (osArch() as NodeJS.Architecture);
-    log("finalArch", finalArch);
+    try {
+      log("typeof inputs.platform", typeof inputs.platform);
+      const finalPlatform: NodeJS.Platform = inputPlatform ?? osPlatform();
+      log("finalPlatform", finalPlatform);
+      const finalArch: NodeJS.Architecture = inputArch ?? (osArch() as NodeJS.Architecture);
+      log("finalArch", finalArch);
 
-    let tauriPlatform = "";
-    if (finalPlatform === "win32") {
-      tauriPlatform = "pc-windows-msvc";
-    } else if (finalPlatform === "linux") {
-      tauriPlatform = "unknown-linux-gnu";
-    } else {
-      throw new Error("Unsupported platform");
-    }
+      const isAndroidBuild = finalPlatform === "android";
+      const isIOSBuild = finalPlatform === "ios";
+      const isMobileBuild = isAndroidBuild || isIOSBuild;
 
-    let tauriArch = "";
-    if (finalArch === "x64") {
-      tauriArch = "x86_64";
-    } else {
-      throw new Error("Unsupported arch");
-    }
+      // Resolve cargo path using the new function
+      const cargo = await resolveCargoPath();
+      const cargoBinDir = dirname(cargo);
 
-    const target = `${tauriArch}-${tauriPlatform}`;
+      log("cargoBinDir", cargoBinDir);
+      console.log("cargo", cargo);
 
-    // Resolve cargo path using the new function
-    const cargo = await resolveCargoPath();
-    const cargoBinDir = dirname(cargo);
+      log("destinationFolder", destinationFolder);
 
-    log("cargoBinDir", cargoBinDir);
-    console.log("cargo", cargo);
+      const cargoTargetDir = join(cache, "cargo", "target", completeConfiguration.appBundleId);
 
-    log("destinationFolder", destinationFolder);
+      log("cargoTargetDir", cargoTargetDir);
 
-    const cargoTargetDir = join(cache, "cargo", "target", completeConfiguration.appBundleId);
-    const cargoOutputPath = join(cargoTargetDir, target, "release");
+      log("Starting compiling");
 
-    log("cargoTargetDir", cargoTargetDir);
-    log("cargoOutputPath", cargoOutputPath);
-
-    log("Starting compiling");
-
-    // by default add the tauri cli
-    await runWithLiveLogs(
-      cargo,
-      ["install", "tauri-cli", "--version", "^2.0.0", "--locked"],
-      {
-        cwd: join(destinationFolder, "src-tauri"),
-        env: {
-          ...process.env,
-          DEBUG: completeConfiguration.enableExtraLogging ? "*" : "",
-          ELECTRON_NO_ASAR: "1",
-          CARGO_TARGET_DIR: cargoTargetDir,
-          PATH: `${cargoBinDir}${delimiter}${dirname(node)}${delimiter}${process.env.PATH}`,
-        },
-        cancelSignal: abortSignal,
-      },
-      log,
-      {
-        onStderr(data) {
-          // on ci, do not log
-          if (!process.env.CI) {
-            log(data);
-          }
-        },
-        onStdout(data) {
-          // on ci, do not log
-          if (!process.env.CI) {
-            log(data);
-          }
-        },
-      },
-    );
-
-    // if preview, run tauri dev
-    if (action === "preview") {
+      // by default add the tauri cli
       await runWithLiveLogs(
         cargo,
-        ["tauri", "dev", "--target", target],
-        {
-          cwd: join(destinationFolder, "src-tauri"),
-          env: {
-            ...process.env,
-            DEBUG: completeConfiguration.enableExtraLogging ? "*" : "",
-            ELECTRON_NO_ASAR: "1",
-            CARGO_TARGET_DIR: cargoTargetDir,
-            PATH: `${cargoBinDir}${delimiter}${dirname(node)}${delimiter}${process.env.PATH}`,
-          },
-          cancelSignal: abortSignal,
-        },
-        log,
-        {
-          onStderr(data) {
-            log(data);
-          },
-          onStdout(data) {
-            log(data);
-          },
-        },
-      );
-    } else {
-      // otherwise build, but don't bundle
-      await runWithLiveLogs(
-        cargo,
-        ["tauri", "build", "--target", target, "--no-bundle"],
+        ["install", "tauri-cli", "--version", "^2.0.0", "--locked"],
         {
           cwd: join(destinationFolder, "src-tauri"),
           env: {
@@ -764,15 +1018,167 @@ export const tauri = async (
         },
       );
 
-      // if make, bundle
-      if (action === "make") {
+      // ---------------------------------------------------------------------------
+      // Mobile build path (android / ios)
+      // ---------------------------------------------------------------------------
+      if (isMobileBuild) {
+        // Self-heal the Android toolchain (SDK/NDK + Rust target) when building
+        // for Android on a host that doesn't have them installed yet.
+        if (isAndroidBuild) {
+          const androidHome = await ensureAndroidEnvironment(cache, cargoBinDir, node, log, abortSignal);
+          // Make sure the SDK tooling is on PATH for the Tauri CLI / Gradle.
+          process.env.PATH = `${join(androidHome, "cmdline-tools", "latest", "bin")}${delimiter}${join(
+            androidHome,
+            "platform-tools",
+          )}${delimiter}${process.env.PATH}`;
+          log(`Android SDK ready at ANDROID_HOME=${androidHome}`);
+        }
+
+        const cliTarget = resolveMobileCliTarget(finalPlatform, finalArch);
+        const outputTriple = resolveMobileOutputTriple(finalPlatform, finalArch);
+        const mobileArgs = ["tauri", isAndroidBuild ? "android" : "ios", "build"];
+        if (cliTarget) {
+          mobileArgs.push("--target", cliTarget);
+        }
+        if (isAndroidBuild) {
+          // Produce a standalone APK in addition to the default AAB
+          mobileArgs.push("--apk");
+        }
+
+        log(`Building for ${isAndroidBuild ? "android" : "ios"} (target: ${cliTarget ?? "default"})`);
+
+        // `tauri <platform> init` generates the native project
+        // (src-tauri/gen/android|ios) required before the first build.
+        log(`Initializing ${isAndroidBuild ? "android" : "ios"} project`);
         await runWithLiveLogs(
           cargo,
-          // TODO: https://v2.tauri.app/fr/distribute/#bundling
-          ["tauri", "bundle", "--", "--bundles", "appimage"],
+          ["tauri", isAndroidBuild ? "android" : "ios", "init"],
           {
             cwd: join(destinationFolder, "src-tauri"),
             env: {
+              ...process.env,
+              DEBUG: completeConfiguration.enableExtraLogging ? "*" : "",
+              ELECTRON_NO_ASAR: "1",
+              CARGO_TARGET_DIR: cargoTargetDir,
+              PATH: `${cargoBinDir}${delimiter}${dirname(node)}${delimiter}${process.env.PATH}`,
+            },
+            cancelSignal: abortSignal,
+          },
+          log,
+          {
+            onStderr(data) {
+              if (!process.env.CI) log(data);
+            },
+            onStdout(data) {
+              if (!process.env.CI) log(data);
+            },
+          },
+        );
+
+        await runWithLiveLogs(cargo, mobileArgs, {
+          cwd: join(destinationFolder, "src-tauri"),
+          env: {
+            ...process.env,
+            DEBUG: completeConfiguration.enableExtraLogging ? "*" : "",
+            ELECTRON_NO_ASAR: "1",
+            CARGO_TARGET_DIR: cargoTargetDir,
+            PATH: `${cargoBinDir}${delimiter}${dirname(node)}${delimiter}${process.env.PATH}`,
+          },
+          cancelSignal: abortSignal,
+        }, log, {
+          onStderr(data) {
+            if (!process.env.CI) log(data);
+          },
+          onStdout(data) {
+            if (!process.env.CI) log(data);
+          },
+        });
+
+        if (isAndroidBuild) {
+          const apkRoot = join(
+            destinationFolder,
+            "src-tauri",
+            "gen",
+            "android",
+            "app",
+            "build",
+            "outputs",
+            "apk",
+          );
+          const apkPath = findAndroidApk(apkRoot) ?? join(apkRoot, "release", "app-release.apk");
+          const outFolder = dirname(apkPath);
+          const binName = basename(apkPath);
+          log("Android APK output", apkPath);
+          setOutput("output", outFolder);
+          setOutput("binary", apkPath);
+          // Persist the APK to the pipeline's artifacts folder so it survives
+          // the build sandbox cleanup. The runner copies it to
+          // getArtifactsPath(pipelineId, buildId)/<name>.
+          setArtifact(binName, apkPath);
+          return { folder: outFolder, binary: apkPath };
+        }
+
+        // iOS
+        const triple = outputTriple || "aarch64-apple-ios";
+        const outFolder = join(destinationFolder, "src-tauri", "target", triple, "release");
+        const binName = getBinName(sanitizedName, "ios");
+        const binPath = join(outFolder, binName);
+        log("iOS output", binPath);
+        setOutput("output", outFolder);
+        setOutput("binary", binPath);
+        setArtifact(binName, binPath);
+        return { folder: outFolder, binary: binPath };
+      }
+
+      // ---------------------------------------------------------------------------
+      // Desktop build path (win32 / linux / darwin)
+      // ---------------------------------------------------------------------------
+      let tauriPlatform = "";
+      if (finalPlatform === "win32") {
+        tauriPlatform = "pc-windows-msvc";
+      } else if (finalPlatform === "linux") {
+        tauriPlatform = "unknown-linux-gnu";
+      } else if (finalPlatform === "darwin") {
+        tauriPlatform = "apple-darwin";
+      } else {
+        throw new Error(`Unsupported platform: ${finalPlatform}`);
+      }
+
+      let target: string;
+      if (finalArch === "universal") {
+        if (finalPlatform !== "darwin") {
+          throw new Error("Universal architecture is only supported on macOS");
+        }
+        target = "universal-apple-darwin";
+      } else {
+        let tauriArch = "";
+        if (finalArch === "x64") {
+          tauriArch = "x86_64";
+        } else if (finalArch === "arm64") {
+          tauriArch = "aarch64";
+        } else if (finalArch === "ia32") {
+          tauriArch = "i686";
+        } else if (finalArch === "armv7l") {
+          tauriArch = "armv7";
+        } else {
+          throw new Error(`Unsupported arch: ${finalArch}`);
+        }
+        target = `${tauriArch}-${tauriPlatform}`;
+      }
+
+      const cargoOutputPath = join(cargoTargetDir, target, "release");
+
+      log("cargoOutputPath", cargoOutputPath);
+
+      // if preview, run tauri dev
+      if (action === "preview") {
+        await runWithLiveLogs(
+          cargo,
+          ["tauri", "dev", "--target", target],
+          {
+            cwd: join(destinationFolder, "src-tauri"),
+            env: {
+              ...process.env,
               DEBUG: completeConfiguration.enableExtraLogging ? "*" : "",
               ELECTRON_NO_ASAR: "1",
               CARGO_TARGET_DIR: cargoTargetDir,
@@ -790,35 +1196,94 @@ export const tauri = async (
             },
           },
         );
+      } else {
+        // otherwise build, but don't bundle
+        await runWithLiveLogs(
+          cargo,
+          ["tauri", "build", "--target", target, "--no-bundle"],
+          {
+            cwd: join(destinationFolder, "src-tauri"),
+            env: {
+              ...process.env,
+              DEBUG: completeConfiguration.enableExtraLogging ? "*" : "",
+              ELECTRON_NO_ASAR: "1",
+              CARGO_TARGET_DIR: cargoTargetDir,
+              PATH: `${cargoBinDir}${delimiter}${dirname(node)}${delimiter}${process.env.PATH}`,
+            },
+            cancelSignal: abortSignal,
+          },
+          log,
+          {
+            onStderr(data) {
+              // on ci, do not log
+              if (!process.env.CI) {
+                log(data);
+              }
+            },
+            onStdout(data) {
+              // on ci, do not log
+              if (!process.env.CI) {
+                log(data);
+              }
+            },
+          },
+        );
+
+        // if make, bundle
+        if (action === "make") {
+          await runWithLiveLogs(
+            cargo,
+            // TODO: https://v2.tauri.app/fr/distribute/#bundling
+            ["tauri", "bundle", "--", "--bundles", "appimage"],
+            {
+              cwd: join(destinationFolder, "src-tauri"),
+              env: {
+                DEBUG: completeConfiguration.enableExtraLogging ? "*" : "",
+                ELECTRON_NO_ASAR: "1",
+                CARGO_TARGET_DIR: cargoTargetDir,
+                PATH: `${cargoBinDir}${delimiter}${dirname(node)}${delimiter}${process.env.PATH}`,
+              },
+              cancelSignal: abortSignal,
+            },
+            log,
+            {
+              onStderr(data) {
+                log(data);
+              },
+              onStdout(data) {
+                log(data);
+              },
+            },
+          );
+        }
       }
-    }
 
-    if (action === "package") {
-      const binName = getBinName(sanitizedName);
+      if (action === "package") {
+        const binName = getBinName(sanitizedName);
 
-      log("cargoOutputPath", cargoOutputPath);
+        log("cargoOutputPath", cargoOutputPath);
 
-      setOutput("output", cargoOutputPath);
-      setOutput("binary", join(cargoOutputPath, binName));
-      return {
-        folder: cargoOutputPath,
-        binary: join(cargoOutputPath, binName),
-      };
-    } else if (action === "make") {
-      // TODO:
-      throw new Error("Unsupported action");
-    } else if (action === "preview") {
-      // continue
-    } else {
-      throw new Error("Unsupported action");
-      // const output = join(destinationFolder, 'out', 'make')
-      // setOutput('output', output)
-      // return {
-      //   folder: output,
-      //   binary: undefined
-      // }
-    }
-  } catch (e) {
+        setOutput("output", cargoOutputPath);
+        setOutput("binary", join(cargoOutputPath, binName));
+        return {
+          folder: cargoOutputPath,
+          binary: join(cargoOutputPath, binName),
+        };
+      } else if (action === "make") {
+        // TODO:
+        throw new Error("Unsupported action");
+      } else if (action === "preview") {
+        // continue
+      } else {
+        throw new Error("Unsupported action");
+        // const output = join(destinationFolder, 'out', 'make')
+        // setOutput('output', output)
+        // return {
+        //   folder: output,
+        //   binary: undefined
+        // }
+      }
+    } catch (e) {
     if (e instanceof Error) {
       if (e.name === "RequestError") {
         log("Request error");
