@@ -1,10 +1,50 @@
 {
   "version": "3.0.0",
-  "name": "Mobile Tauri Package",
-  "description": "Packages the sample web app into an Android (or iOS) build using @pipelab/plugin-tauri with mobile targets enabled.",
+  "name": "Mobile + Desktop Tauri Package",
+  "description": "Packages the SAME sample web app into both a desktop bundle (Linux) and an Android build using @pipelab/plugin-tauri, demonstrating one Tauri project targeting mobile and desktop.",
   "variables": [],
   "canvas": {
     "blocks": [
+      {
+        "uid": "tauri-package-desktop",
+        "type": "action",
+        "origin": { "nodeId": "tauri:package:v2", "pluginId": "tauri" },
+        "params": {
+          "arch": { "editor": "simple", "value": "\"x64\"" },
+          "platform": { "editor": "simple", "value": "\"linux\"" },
+          "input-folder": {
+            "editor": "simple",
+            "value": "\"/workspaces/pipelab/examples/tauri-mobile-pipeline/html-export\""
+          },
+          "name": { "editor": "simple", "value": "\"Pipelab Mobile\"" },
+          "appBundleId": { "editor": "simple", "value": "\"app.pipelab.mobile\"" },
+          "appCopyright": { "editor": "simple", "value": "\"Copyright © 2024 Pipelab\"" },
+          "appVersion": { "editor": "simple", "value": "\"1.0.0\"" },
+          "icon": { "editor": "simple", "value": "\"\"" },
+          "author": { "editor": "simple", "value": "\"Pipelab\"" },
+          "description": { "editor": "simple", "value": "\"A Pipelab mobile demo app\"" },
+          "appCategoryType": {
+            "editor": "simple",
+            "value": "\"public.app-category.developer-tools\""
+          },
+          "width": { "editor": "simple", "value": 400 },
+          "height": { "editor": "simple", "value": 800 },
+          "fullscreen": { "editor": "simple", "value": false },
+          "frame": { "editor": "simple", "value": true },
+          "transparent": { "editor": "simple", "value": false },
+          "toolbar": { "editor": "simple", "value": true },
+          "alwaysOnTop": { "editor": "simple", "value": false },
+          "tauriVersion": { "editor": "simple", "value": "\"\"" },
+          "enableExtraLogging": { "editor": "simple", "value": false },
+          "openDevtoolsOnStart": { "editor": "simple", "value": false },
+          "websocketApi": { "editor": "simple", "value": "[]" },
+          "ignore": { "editor": "editor", "value": "[\n]" },
+          "enableSteamSupport": { "editor": "simple", "value": false },
+          "steamGameId": { "editor": "simple", "value": 480 },
+          "enableDiscordSupport": { "editor": "simple", "value": false },
+          "discordAppId": { "editor": "simple", "value": "\"\"" }
+        }
+      },
       {
         "uid": "tauri-package-mobile",
         "type": "action",

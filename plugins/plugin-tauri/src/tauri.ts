@@ -23,6 +23,14 @@ import { execa } from "execa";
 import { kebabCase } from "change-case";
 import { parseTOML, stringifyTOML } from "confbox";
 
+// Platforms this plugin can target. `NodeJS.Platform` only knows the desktop
+// operating systems, so we extend it with the mobile targets Tauri supports.
+export type TargetPlatform = NodeJS.Platform | "android" | "ios";
+
+// Architectures this plugin can target. `NodeJS.Architecture` is missing a few
+// values surfaced by the architecture selector (armv7l, universal, mips64el).
+export type TargetArch = NodeJS.Architecture | "armv7l" | "universal" | "mips64el";
+
 /**
  * Searches for common cargo paths and resolves to a valid cargo executable path
  * @returns The path to the cargo executable
@@ -100,9 +108,9 @@ async function resolveCargoPath(): Promise<string> {
  * flag (an Android ABI or an iOS device/simulator slice), or undefined to let
  * Tauri pick its default.
  */
-function resolveMobileCliTarget(
-  platform: NodeJS.Platform,
-  arch: NodeJS.Architecture,
+export function resolveMobileCliTarget(
+  platform: TargetPlatform,
+  arch: TargetArch,
 ): string | undefined {
   if (platform === "android") {
     switch (arch) {
@@ -139,9 +147,9 @@ function resolveMobileCliTarget(
  * Resolves the Rust target triple actually produced by the build, used to
  * locate the generated artifact on disk.
  */
-function resolveMobileOutputTriple(
-  platform: NodeJS.Platform,
-  arch: NodeJS.Architecture,
+export function resolveMobileOutputTriple(
+  platform: TargetPlatform,
+  arch: TargetArch,
 ): string | undefined {
   if (platform === "android") {
     switch (arch) {
@@ -197,7 +205,7 @@ const paramsInputURL = {
 
 const params = {
   arch: {
-    value: "" as NodeJS.Architecture | "", // MakeOptions['arch'],
+    value: "" as TargetArch | "", // MakeOptions['arch'],
     label: "Architecture",
     required: false,
     control: {
@@ -234,7 +242,7 @@ const params = {
     },
   },
   platform: {
-    value: "" as NodeJS.Platform | "", // MakeOptions['platform'],
+    value: "" as TargetPlatform | "", // MakeOptions['platform'],
     label: "Platform",
     required: false,
     control: {
@@ -618,7 +626,7 @@ const ANDROID_CMDLINE_TOOLS_URL =
  * inside a `universal/release` subfolder) depending on the build target, so we
  * search for it instead of hard-coding a single path.
  */
-function findAndroidApk(root: string): string | undefined {
+export function findAndroidApk(root: string): string | undefined {
   if (!existsSync(root)) return undefined;
   let releaseApk: string | undefined;
   const walk = (dir: string): void => {
@@ -723,7 +731,7 @@ async function provisionAndroidSdk(
  * downloads the command-line tools and provisions the NDK/build-tools/platform
  * into a cache directory, then exposes it via `ANDROID_HOME`.
  */
-async function ensureAndroidEnvironment(
+export async function ensureAndroidEnvironment(
   cacheDir: string,
   cargoBinDir: string,
   node: string,
@@ -942,9 +950,9 @@ export const tauri = async (
 
     try {
       log("typeof inputs.platform", typeof inputs.platform);
-      const finalPlatform: NodeJS.Platform = inputPlatform ?? osPlatform();
+      const finalPlatform: TargetPlatform = inputPlatform ?? osPlatform();
       log("finalPlatform", finalPlatform);
-      const finalArch: NodeJS.Architecture = inputArch ?? (osArch() as NodeJS.Architecture);
+      const finalArch: TargetArch = inputArch ?? osArch();
       log("finalArch", finalArch);
 
       const isAndroidBuild = finalPlatform === "android";
