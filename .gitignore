@@ -114,3 +114,4 @@ apps/cli/bin
 .turbo
 apps/desktop/bin/
 apps/cli/assets/ui
+.aider*
