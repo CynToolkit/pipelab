@@ -20,6 +20,7 @@ export const packageV2Runner = createActionRunner<ReturnType<typeof createPackag
       electronVersion: options.inputs['electronVersion'],
       disableAsarPackaging: options.inputs['disableAsarPackaging'],
       forceHighPerformanceGpu: options.inputs['forceHighPerformanceGpu'],
+      patchExecutable: options.inputs['patchExecutable'],
       enableExtraLogging: options.inputs['enableExtraLogging'],
       clearServiceWorkerOnBoot: options.inputs['clearServiceWorkerOnBoot'],
       enableDisableRendererBackgrounding: options.inputs['enableDisableRendererBackgrounding'],
