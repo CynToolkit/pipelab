@@ -886,12 +886,11 @@ export const tauri = async (
     // itself; the `bundle.targets` enum only knows desktop formats, so we use
     // "all" (the schema-valid catch-all) and let the platform drive the output.
     tauriConfJSON.bundle.targets = "all";
-    // `app.mobile` is optional and only understood by newer Tauri versions.
-    // It is intentionally omitted here so the generated config validates
-    // against every Tauri 2.x release; mobile-specific settings from
-    // `completeConfiguration.mobile` can be applied to the generated
-    // android/ios project after `tauri <platform> init` when desired.
-    if (tauriConfJSON.app) {
+    // `app.mobile` is optional and only consumed when building for a mobile
+    // target. The template ships a schema-valid `app.mobile` block (target:
+    // "all"), so we keep it for mobile builds (it is ignored on desktop) and
+    // only strip it when targeting desktop to avoid confusing the toolchain.
+    if (tauriConfJSON.app && !isMobile) {
       delete (tauriConfJSON.app as Record<string, unknown>).mobile;
     }
     log("Setting mobile bundle target to", tauriConfJSON.bundle.targets);
