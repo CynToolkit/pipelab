@@ -136,6 +136,7 @@ export const registerNotNowListener = (page: Page, log: typeof console.log) => {
     .then(async () => {
       await notNowBtn.click();
       log("notNowBtn clicked");
+      registerNotNowListener(page, log);
     })
     .catch(async (e) => {
       if (e.message.includes("Target page, context or browser has been closed")) return;
