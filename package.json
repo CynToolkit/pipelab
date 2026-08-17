@@ -12,7 +12,10 @@
     "package": "pnpm --filter @pipelab/app package",
     "make": "pnpm --filter @pipelab/app make",
     "changeset": "changeset",
-    "supa:types": "supabase gen types typescript --project-id $SUPABASE_PROJECT_ID > packages/shared/src/database.types.ts"
+    "supa:types": "supabase gen types typescript --project-id $SUPABASE_PROJECT_ID > packages/shared/src/database.types.ts",
+    "docs": "pnpm --filter @pipelab/documentation dev",
+    "docs:build": "pnpm --filter @pipelab/documentation build",
+    "docs:preview": "pnpm --filter @pipelab/documentation preview"
   },
   "devDependencies": {
     "@changesets/cli": "^2.27.11",
