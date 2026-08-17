@@ -1,0 +1,41 @@
+flowchart TD
+  Start --> NeedDesktopSupport
+
+  NeedDesktopSupport -- Yes --> NeedMobileSupport
+  NeedDesktopSupport -- No --> NeedMobileSupport2
+
+  NeedMobileSupport -- No --> NeedSteamOverlaySupport
+  NeedMobileSupport -- Yes --> NeedMultipleEngines
+
+  NeedMobileSupport2 -- Yes --> UseTauriIntegration
+  NeedMobileSupport2 -- No --> NeedDiscordActivitiesSupport
+
+  NeedDiscordActivitiesSupport -- Yes --> UseDiscordIntegration
+  NeedDiscordActivitiesSupport -- No --> NoIntegrationFound
+
+  NeedSteamOverlaySupport -- Yes --> UseElectronIntegration
+  NeedSteamOverlaySupport -- No --> NeedSmallPackage
+
+  NeedSmallPackage -- No --> UseElectronIntegration
+  NeedSmallPackage -- Yes --> UseTauriIntegration
+
+  NeedMultipleEngines -- "the desktop part" --> NeedSteamOverlaySupport
+  NeedMultipleEngines -- "the mobile part" --> UseTauriIntegration
+
+  %% Nodes
+  Start{What platforms do you need to support?}
+
+  NeedDesktopSupport{Need desktop support?}
+  NeedMobileSupport{Need Mobile Support?}
+  NeedMobileSupport2{Need Mobile support?}
+  NeedDiscordActivitiesSupport{Need Discord Activities support?}
+  NeedMultipleEngines{You need multiple engine, let's choose for:}
+  NeedSteamOverlaySupport{Need Steam Overlay Support?}
+  NeedSmallPackage{Need small package?}
+  NeedSmallPackage{Need small package?}
+
+  UseTauriIntegration{Use Tauri integration}
+  UseDiscordIntegration{Use Discord integration}
+  UseElectronIntegration{Use Electron integration}
+
+  NoIntegrationFound{It seems Pipelab doesn't have the integration you need}

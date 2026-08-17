@@ -1,0 +1,35 @@
+graph TD
+  classDef standardNode fill:#f0f4f8,stroke:#90caf9,stroke-width:1px,font-size:14px,text-align:center,color:#263238
+  classDef currentFocus fill:#e3f2fd,stroke:#2196f3,stroke-width:2px,color:#1e88e5,font-weight:bold
+  classDef bigWin fill:#e8f5e9,stroke:#66bb6a,stroke-width:2px,color:#388e3c,font-weight:bold
+
+  subgraph "🚀 Phase 1: Start"
+    A["✅ MVP Done!"]:::bigWin
+    B["📝 More Integrations"]:::currentFocus
+  end
+
+  subgraph "💰 Phase 2: Scale"
+    C["💳 Paid Plans"]
+    D["📦 Code Revamp!"]
+  end
+
+  subgraph "☁️ Phase 3: Cloud"
+    E["🌍 Basic Cloud"]
+    F["🧰 Cloud Runners"]
+  end
+
+  subgraph "🌟 Phase 4: Expansion"
+    G["📊 Analytics"]
+    H["🔌 Plugin Marketplace"]
+  end
+
+  I["📢 Public Launch!"]:::bigWin
+
+  A --> B
+  B --> C
+  C --> D
+  D --> E
+  E --> F
+  F --> G
+  G --> H
+  H --> I
