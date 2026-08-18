@@ -2,8 +2,6 @@ import { Page } from 'playwright'
 import { join } from 'node:path'
 
 const registerInstallButtonListener = (page: Page, log: typeof console.log) => {
-  // as soon as it appear, without blocking flow
-  // accept installing plugins
   const installDialog = page.locator('#addonConfirmInstallDialog')
   const installBtn = installDialog.locator('.okButton')
   installBtn
@@ -15,14 +13,13 @@ const registerInstallButtonListener = (page: Page, log: typeof console.log) => {
       log('installBtn clicked')
       registerInstallButtonListener(page, log)
     })
-    .catch(async () => {
+    .catch(async (e) => {
+      if (e.message.includes('Target page, context or browser has been closed')) return
       log('installBtn.click() failed')
     })
 }
 
 const registerSaveLoginExpiredistener = (page: Page, log: typeof console.log) => {
-  // as soon as it appear, without blocking flow
-  // accept installing plugins
   const installDialog = page.locator('#confirmDialog')
   const cancelBtn = installDialog.locator('.cancelConfirmButton')
   cancelBtn
@@ -34,14 +31,13 @@ const registerSaveLoginExpiredistener = (page: Page, log: typeof console.log) =>
       log('cancelBtn clicked')
       registerSaveLoginExpiredistener(page, log)
     })
-    .catch(async () => {
+    .catch(async (e) => {
+      if (e.message.includes('Target page, context or browser has been closed')) return
       log('cancelBtn.click() failed')
     })
 }
 
 const registerWebglErrorListener = (page: Page, log: typeof console.log) => {
-  // as soon as it appear, without blocking flow
-  // ignore webgl error
   const okDialog = page.locator('#okDialog')
   const webglErrorButton = okDialog.locator('.okButton')
   webglErrorButton
@@ -52,18 +48,17 @@ const registerWebglErrorListener = (page: Page, log: typeof console.log) => {
       const text = await okDialog.allInnerTexts()
 
       if (text.join().toLowerCase().includes('webgl')) {
-        webglErrorButton.click()
+        await webglErrorButton.click()
         log('webglErrorButton clicked')
         registerWebglErrorListener(page, log)
       }
     })
-    .catch(async () => {
+    .catch(async (e) => {
+      if (e.message.includes('Target page, context or browser has been closed')) return
       log('webglErrorButton.click() failed')
     })
 }
 const registerDeprecatedFeatures = (page: Page, log: typeof console.log) => {
-  // as soon as it appear, without blocking flow
-  // ignore deprecated feature
   const deprecatedFeaturesDialog = page.locator('#deprecatedFeaturesDialog')
   const okButton = deprecatedFeaturesDialog.locator('.okButton')
   okButton
@@ -75,13 +70,12 @@ const registerDeprecatedFeatures = (page: Page, log: typeof console.log) => {
       log('okButton clicked')
       registerDeprecatedFeatures(page, log)
     })
-    .catch(async () => {
+    .catch(async (e) => {
+      if (e.message.includes('Target page, context or browser has been closed')) return
       log('okButton.click() failed')
     })
 }
 const registerWelcomeToConstructListener = (page: Page, log: typeof console.log) => {
-  // as soon as it appear, without blocking flow
-  // ignore deprecated feature
   const welcomeTourDialog = page.locator('#welcomeTourDialog')
   const okButton = welcomeTourDialog.locator('.noThanksLink')
   okButton
@@ -90,17 +84,50 @@ const registerWelcomeToConstructListener = (page: Page, log: typeof console.log)
     })
     .then(async () => {
       await okButton.click()
-      log('okButton clicked')
-      registerDeprecatedFeatures(page, log)
+      log('welcomeTour dismissed')
     })
-    .catch(async () => {
-      log('okButton.click() failed')
+    .catch(async (e) => {
+      if (e.message.includes('Target page, context or browser has been closed')) return
+      log('welcomeTour.noThanksLink.click() failed')
+    })
+}
+
+const registerNewVersionAvailableListener = (page: Page, log: typeof console.log) => {
+  const newVersionAvailableDialog = page.locator('#confirmDialog')
+  const cancelButton = newVersionAvailableDialog.locator('.cancelConfirmButton')
+  cancelButton
+    .waitFor({
+      timeout: 0
+    })
+    .then(async () => {
+      await cancelButton.click()
+      log('cancelButton clicked (new version)')
+      registerNewVersionAvailableListener(page, log)
+    })
+    .catch(async (e) => {
+      if (e.message.includes('Target page, context or browser has been closed')) return
+      log('cancelButton.click() failed')
+    })
+}
+
+const registerNotNowListener = (page: Page, log: typeof console.log) => {
+  const notNowBtn = page.getByText('Not now')
+  notNowBtn
+    .waitFor({
+      timeout: 0
+    })
+    .then(async () => {
+      await notNowBtn.click()
+      log('notNowBtn clicked')
+      registerNotNowListener(page, log)
+    })
+    .catch(async (e) => {
+      if (e.message.includes('Target page, context or browser has been closed')) return
+      log('notNowBtn.click() failed')
     })
 }
 
 const registerMissingAddonErrorListener = (page: Page, log: typeof console.log) => {
-  // as soon as it appear, without blocking flow
-  // ignore missing addon and throw
   const okDialog = page.locator('#missingAddonsDialog')
   const webglErrorButton = okDialog.locator('.okButton')
   webglErrorButton
@@ -110,8 +137,9 @@ const registerMissingAddonErrorListener = (page: Page, log: typeof console.log) 
     .then(async () => {
       throw new Error('Missing addon. You should bundle addons with your project')
     })
-    .catch(async () => {
-      log('webglErrorButton.click() failed')
+    .catch(async (e) => {
+      if (e.message.includes('Target page, context or browser has been closed')) return
+      log('missingAddon.okButton.waitFor() failed')
     })
 }
 
@@ -123,100 +151,67 @@ export const script = async (
   password: string | undefined,
   version: string | undefined,
   downloadDir: string
-  // addonsFolder: string | undefined
 ) => {
   let url = 'https://editor.construct.net/'
   if (version) {
     url += version
   }
   log('Navigating to URL', url)
-  // const serviceWorkerPromise = page.waitForEvent("serviceworker");
-  await page.goto(url)
-  log('after navigating')
+  await page.goto(url, { waitUntil: 'load' })
+  log('after navigating, current URL:', page.url())
 
-  // const serviceworker = await serviceWorkerPromise;
+  if (username && password) {
+    log('Directly authenticating via Construct 3 account API...')
+    const formData = new FormData()
+    formData.append('username', username)
+    formData.append('password', password)
+    formData.append('productType', 'games')
+
+    const res = await fetch('https://account.construct.net/login.json', {
+      method: 'POST',
+      body: formData
+    })
+    const json = (await res.json()) as any
+
+    if (json.request.status !== 'ok') {
+      throw new Error(json.request.errorMessage || 'Invalid credentials')
+    }
+
+    const { userID, token } = json.response
+    log('API login successful, injecting credentials into browser context...')
+    log('Current URL before injection:', page.url())
+
+    // Wait for localforage to be available (initialized by the editor's JS)
+    await page.waitForFunction(() => typeof localforage !== 'undefined', { timeout: 30000 })
+    log('localforage is available')
+
+    // Inject credentials using the editor's own localforage instance
+    await page.evaluate(
+      async ({ userID, token }) => {
+        await localforage.setItem('login-data', { userID, token })
+      },
+      { userID, token }
+    )
+    log('Credentials injected successfully.')
+
+    // Reload to pick up the new login state
+    log('Reloading page to apply login state...')
+    await page.reload()
+    log('Page reloaded.')
+  }
+
   registerWelcomeToConstructListener(page, log)
-
-  // as soon as it appear, without blocking flow
-  // ignore asking for update
-  const notNowBtn = page.getByText('Not now')
-  notNowBtn
-    .waitFor({
-      timeout: 0
-    })
-    .then(async () => {
-      return notNowBtn.click()
-    })
-    .then(() => {
-      log('notNowBtn clicked')
-    })
-    .catch(async () => {
-      log('notNowBtn.click() failed')
-    })
+  registerNewVersionAvailableListener(page, log)
+  registerNotNowListener(page, log)
+  registerInstallButtonListener(page, log)
+  registerWebglErrorListener(page, log)
+  registerMissingAddonErrorListener(page, log)
+  registerDeprecatedFeatures(page, log)
+  registerSaveLoginExpiredistener(page, log)
 
   log('after event')
 
-  // if (addonsFolder) {
-  //   const _files = await readdir(addonsFolder)
-  //   const addonFiles = _files
-  //     .filter((x) => extname(x) === '.c3addon')
-  //     .map((x) => join(addonsFolder, x))
-  //   console.log('addonFiles', addonFiles)
-
-  //   await page.pause()
-  //   await page.getByRole('button', { name: 'Menu' }).click();
-  //   await page.mouse.move(30, 150)
-  //   await page.mouse.move(150, 100)
-  //   await page.mouse.click(150, 100);
-
-  //   const [fileChooserAddons] = await Promise.all([
-  //     page.waitForEvent('filechooser'),
-  //     await page.getByRole('button', { name: 'Install new addon...' }).click()
-  //   ])
-
-  //   await fileChooserAddons.setFiles(addonFiles)
-
-  //   // await page.pause()
-  //   // if (addonFiles.length > 0) {
-  //   //   for (let i = 0; i < addonFiles.length - 1; i += 1) {
-  //   //     const [fileChooser] = await Promise.all([
-  //   //       page.waitForEvent('filechooser'),
-  //   //       page.keyboard.press('ControlOrMeta+O')
-  //   //     ])
-
-  //   //     await fileChooser.setFiles(addonFiles[i])
-  //   //     log('Set addon files', addonFiles[i])
-
-  //   //     await page.pause()
-  //   //   }
-  //   // }
-  // }
-
-  await page.waitForTimeout(2000)
-  log('after wait')
-
-  if (username && password) {
-    log('Authenticating')
-    await page.getByTitle('User account').locator('ui-icon').click()
-    await page.getByRole('menuitem', { name: 'Log in' }).locator('span').click()
-    await page.frameLocator('#loginDialog iframe').getByLabel('Username').fill(username)
-    await page.frameLocator('#loginDialog iframe').getByLabel('Password').fill(password)
-
-    const tokenPromise = page.waitForResponse(/https:\/\/account.*\.construct\.net\/login.json/i)
-
-    await page.frameLocator('#loginDialog iframe').getByRole('button', { name: 'Log in' }).click()
-
-    const response = await tokenPromise
-    const jsonResponse = await response.json()
-
-    if (jsonResponse.request.status === 'error') {
-      await page.close()
-
-      throw new Error('Invalid credentials')
-    }
-    log('Authenticated')
-  }
-
+  // Wait for filesystem API (Ctrl+O handler) to be registered
   await page.waitForTimeout(2000)
 
   const [fileChooser] = await Promise.all([
@@ -229,12 +224,7 @@ export const script = async (
   await fileChooser.setFiles([filePath])
   log('Set file')
 
-  // await page.getByText("Not now").click({
-  //   timeout: 1000
-  // });
-
   const progressDialog = page.locator('#progressDialog')
-  // <progress class="progressBar" value="0.293996941070648" max="1"></progress>
   const progessBar = progressDialog.locator('.progressBar')
 
   log('Waiting for progress dialog')
@@ -244,17 +234,16 @@ export const script = async (
   log('Got loading progress dialog')
 
   const progressInterval = setInterval(async () => {
-    const text = await progessBar.getAttribute('value')
-    const textAsNumber = parseFloat(text)
-    const finalText = Number.isNaN(textAsNumber) ? 0 : textAsNumber
-    log('progress', `${finalText * 100}%`)
+    try {
+      const text = await progessBar.getAttribute('value', { timeout: 100 })
+      if (text === null) return
+      const textAsNumber = parseFloat(text)
+      const finalText = Number.isNaN(textAsNumber) ? 0 : textAsNumber
+      log('progress', `${finalText * 100}%`)
+    } catch {
+      clearInterval(progressInterval)
+    }
   }, 500)
-
-  registerInstallButtonListener(page, log)
-  registerWebglErrorListener(page, log)
-  registerMissingAddonErrorListener(page, log)
-  registerDeprecatedFeatures(page, log)
-  registerSaveLoginExpiredistener(page, log)
 
   log('Waiting for progress dialog to disapear')
   await progressDialog.waitFor({
@@ -262,7 +251,7 @@ export const script = async (
     timeout: 0
   })
   log('Got progress dialog to disapear')
-  clearTimeout(progressInterval)
+  clearInterval(progressInterval)
 
   await page.getByRole('button', { name: 'Menu' }).click()
   await page.getByRole('menuitem', { name: 'Project' }).click()
