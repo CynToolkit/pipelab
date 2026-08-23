@@ -602,7 +602,20 @@ async fn start_websocket_server<R: Runtime>(app_handle: AppHandle<R>) {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    // The engine bridge needs the shell/fs/opener plugins on every platform.
+    // Devtools and localhost are desktop-only (no devtools on mobile, and
+    // localhost would try to serve a dev server that doesn't exist on device).
+    let mut builder = tauri::Builder::default()
+        .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_opener::init());
+    #[cfg(desktop)]
+    {
+        builder = builder
+            .plugin(tauri_plugin_devtools::init())
+            .plugin(tauri_plugin_localhost::init());
+    }
+    builder
         .setup(move |app| {
             let app_handle = app.handle().clone();
             async_runtime::spawn(async move {

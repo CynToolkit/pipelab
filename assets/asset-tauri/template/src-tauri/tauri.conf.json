@@ -20,11 +20,14 @@
     ],
     "security": {
       "csp": null
+    },
+    "mobile": {
+      "target": "all"
     }
   },
   "bundle": {
     "active": true,
-    "targets": "all",
+    "targets": ["desktop", "mobile"],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

@@ -13,6 +13,13 @@ import {
 import { configureRunner, props } from "./configure";
 import { packageV2Runner } from "./package";
 
+export {
+  ensureAndroidEnvironment,
+  findAndroidApk,
+  resolveMobileCliTarget,
+  resolveMobileOutputTriple,
+} from "./tauri";
+
 export default createNodeDefinition({
   nodes: [
     // make and package
