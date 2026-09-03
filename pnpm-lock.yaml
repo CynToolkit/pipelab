@@ -155,7 +155,7 @@ importers:
         version: 0.1.3
       geist:
         specifier: 1.3.1
-        version: 1.3.1(next@15.3.3(@babel/core@7.27.4)(@opentelemetry/api@1.9.0)(@playwright/test@1.48.1)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(sass@1.80.4))
+        version: 1.3.1(next@15.3.3(@babel/core@7.27.4)(@opentelemetry/api@1.9.0)(@playwright/test@1.62.1)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(sass@1.80.4))
       get-value:
         specifier: 3.0.1
         version: 3.0.1
@@ -181,11 +181,11 @@ importers:
         specifier: 4.1.1
         version: 4.1.1(pinia@2.2.4(typescript@5.8.3)(vue@3.5.13(typescript@5.8.3)))
       playwright:
-        specifier: 1.48.1
-        version: 1.48.1
+        specifier: 1.62.1
+        version: 1.62.1
       playwright-core:
-        specifier: 1.48.1
-        version: 1.48.1
+        specifier: 1.62.1
+        version: 1.62.1
       pnpm:
         specifier: 9.12.2
         version: 9.12.2
@@ -329,8 +329,8 @@ importers:
         specifier: 7.4.47
         version: 7.4.47
       '@playwright/test':
-        specifier: 1.48.1
-        version: 1.48.1
+        specifier: 1.62.1
+        version: 1.62.1
       '@primevue/auto-import-resolver':
         specifier: 4.1.1
         version: 4.1.1
@@ -2093,9 +2093,9 @@ packages:
     resolution: {integrity: sha512-YLT9Zo3oNPJoBjBc4q8G2mjU4tqIbf5CEOORbUUr48dCD9q3umJ3IPlVqOqDakPfd2HuwccBaqlGhN4Gmr5OWg==}
     engines: {node: ^12.20.0 || ^14.18.0 || >=16.0.0}
 
-  '@playwright/test@1.48.1':
-    resolution: {integrity: sha512-s9RtWoxkOLmRJdw3oFvhFbs9OJS0BzrLUc8Hf6l2UdCNd1rqeEyD4BhCJkvzeEoD1FsK4mirsWwGerhVmYKtZg==}
-    engines: {node: '>=18'}
+  '@playwright/test@1.62.1':
+    resolution: {integrity: sha512-DTcUc8qii+cpHvtOwggMtBRMjKZHXYWdw8syRYu2vtzuq4Wxphqq4NfCs5Zt44L6mA8rfDfj+PHnxFc/FeK6mQ==}
+    engines: {node: '>=20'}
     hasBin: true
 
   '@poki/cli@0.1.16':
@@ -2896,6 +2896,7 @@ packages:
   '@xmldom/xmldom@0.8.10':
     resolution: {integrity: sha512-2WALfTl4xo2SkGCYRt6rDTFfk9R1czmBvUQy12gK2KuRKIpWEhcbbzy8EZXtz/jkRqHX8bFEc6FC1HjX4TUWYw==}
     engines: {node: '>=10.0.0'}
+    deprecated: this version has critical issues, please update to the latest version
 
   abbrev@1.1.1:
     resolution: {integrity: sha512-nne9/IiQ/hzIhY6pdDnbBtz7DjPTKrY00P/zvPSm5pOFkl6xuGrGnXn/VtTNNfNtAfZ9/1RtehkszU9qcTii0Q==}
@@ -5647,6 +5648,7 @@ packages:
   next@15.3.3:
     resolution: {integrity: sha512-JqNj29hHNmCLtNvd090SyRbXJiivQ+58XjCcrC50Crb5g5u2zi7Y2YivbsEfzk6AtVI80akdOQbaMZwWB1Hthw==}
     engines: {node: ^18.18.0 || ^19.8.0 || >= 20.0.0}
+    deprecated: This version has a security vulnerability. Please upgrade to a patched version. See https://nextjs.org/blog/CVE-2025-66478 for more details.
     hasBin: true
     peerDependencies:
       '@opentelemetry/api': ^1.1.0
@@ -6176,14 +6178,14 @@ packages:
   pkg-types@2.1.0:
     resolution: {integrity: sha512-wmJwA+8ihJixSoHKxZJRBQG1oY8Yr9pGLzRmSsNms0iNWyHHAlZCa7mmKiFR10YPZuz/2k169JiS/inOjBCZ2A==}
 
-  playwright-core@1.48.1:
-    resolution: {integrity: sha512-Yw/t4VAFX/bBr1OzwCuOMZkY1Cnb4z/doAFSwf4huqAGWmf9eMNjmK7NiOljCdLmxeRYcGPPmcDgU0zOlzP0YA==}
-    engines: {node: '>=18'}
+  playwright-core@1.62.1:
+    resolution: {integrity: sha512-wPYSwEBJY9GHraISXqyqtx0na0LpO3XEX7jNDhntbex7tzUS7kLnZsOlFruFJB4Hi/rhDMjXGqHewDZ68nYZVw==}
+    engines: {node: '>=20'}
     hasBin: true
 
-  playwright@1.48.1:
-    resolution: {integrity: sha512-j8CiHW/V6HxmbntOfyB4+T/uk08tBy6ph0MpBXwuoofkSnLmlfdYNNkFTYD6ofzzlSqLA1fwH4vwvVFvJgLN0w==}
-    engines: {node: '>=18'}
+  playwright@1.62.1:
+    resolution: {integrity: sha512-0M+L3LAD8/nm554LOla9Ayx0j0tmFZ0FBcoQ7F1VuVHpM/XpiC8RcDzBQB8W5+hA8L22THxELzeF+2WcUzvcLg==}
+    engines: {node: '>=20'}
     hasBin: true
 
   plist@3.1.0:
@@ -7480,7 +7482,7 @@ packages:
 
   uuid@3.4.0:
     resolution: {integrity: sha512-HjSDRw6gZE5JMggctHBcjVak08+KEVhSIiDzFnT9S9aegmp85S/bReBVTb4QTFaRNptJ9kuYaNhnbNEOkbKb/A==}
-    deprecated: Please upgrade  to version 7 or higher.  Older versions may use Math.random() in certain circumstances, which is known to be problematic.  See https://v8.dev/blog/math-random for details.
+    deprecated: uuid@10 and below is no longer supported.  For ESM codebases, update to uuid@latest.  For CommonJS codebases, use uuid@11 (but be aware this version will likely be deprecated in 2028).
     hasBin: true
 
   v8-compile-cache-lib@3.0.1:
@@ -9887,9 +9889,9 @@ snapshots:
 
   '@pkgr/core@0.2.7': {}
 
-  '@playwright/test@1.48.1':
+  '@playwright/test@1.62.1':
     dependencies:
-      playwright: 1.48.1
+      playwright: 1.62.1
 
   '@poki/cli@0.1.16':
     dependencies:
@@ -12764,9 +12766,9 @@ snapshots:
       strip-ansi: 3.0.1
       wide-align: 1.1.5
 
-  geist@1.3.1(next@15.3.3(@babel/core@7.27.4)(@opentelemetry/api@1.9.0)(@playwright/test@1.48.1)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(sass@1.80.4)):
+  geist@1.3.1(next@15.3.3(@babel/core@7.27.4)(@opentelemetry/api@1.9.0)(@playwright/test@1.62.1)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(sass@1.80.4)):
     dependencies:
-      next: 15.3.3(@babel/core@7.27.4)(@opentelemetry/api@1.9.0)(@playwright/test@1.48.1)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(sass@1.80.4)
+      next: 15.3.3(@babel/core@7.27.4)(@opentelemetry/api@1.9.0)(@playwright/test@1.62.1)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(sass@1.80.4)
 
   generate-function@2.3.1:
     dependencies:
@@ -14046,7 +14048,7 @@ snapshots:
 
   negotiator@0.6.4: {}
 
-  next@15.3.3(@babel/core@7.27.4)(@opentelemetry/api@1.9.0)(@playwright/test@1.48.1)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(sass@1.80.4):
+  next@15.3.3(@babel/core@7.27.4)(@opentelemetry/api@1.9.0)(@playwright/test@1.62.1)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(sass@1.80.4):
     dependencies:
       '@next/env': 15.3.3
       '@swc/counter': 0.1.3
@@ -14067,7 +14069,7 @@ snapshots:
       '@next/swc-win32-arm64-msvc': 15.3.3
       '@next/swc-win32-x64-msvc': 15.3.3
       '@opentelemetry/api': 1.9.0
-      '@playwright/test': 1.48.1
+      '@playwright/test': 1.62.1
       sass: 1.80.4
       sharp: 0.34.2
     transitivePeerDependencies:
@@ -14666,11 +14668,11 @@ snapshots:
       exsolve: 1.0.5
       pathe: 2.0.3
 
-  playwright-core@1.48.1: {}
+  playwright-core@1.62.1: {}
 
-  playwright@1.48.1:
+  playwright@1.62.1:
     dependencies:
-      playwright-core: 1.48.1
+      playwright-core: 1.62.1
     optionalDependencies:
       fsevents: 2.3.2
 

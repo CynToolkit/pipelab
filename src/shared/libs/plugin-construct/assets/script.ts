@@ -196,25 +196,40 @@ export const script = async (
   log('after wait')
 
   if (username && password) {
-    log('Authenticating')
+    // Peek at the user account menu to see if the session from the copied profile
+    // is already active. If "Log in" is absent, we're already authenticated.
+    log('Checking authentication state')
     await page.getByTitle('User account').locator('ui-icon').click()
-    await page.getByRole('menuitem', { name: 'Log in' }).locator('span').click()
-    await page.frameLocator('#loginDialog iframe').getByLabel('Username').fill(username)
-    await page.frameLocator('#loginDialog iframe').getByLabel('Password').fill(password)
-
-    const tokenPromise = page.waitForResponse(/https:\/\/account.*\.construct\.net\/login.json/i)
-
-    await page.frameLocator('#loginDialog iframe').getByRole('button', { name: 'Log in' }).click()
-
-    const response = await tokenPromise
-    const jsonResponse = await response.json()
-
-    if (jsonResponse.request.status === 'error') {
-      await page.close()
-
-      throw new Error('Invalid credentials')
+    const loginMenuItem = page.getByRole('menuitem', { name: 'Log in' }).locator('span')
+    let isAuthenticated = false
+    try {
+      await loginMenuItem.waitFor({ timeout: 2000 })
+    } catch {
+      isAuthenticated = true
     }
-    log('Authenticated')
+
+    if (isAuthenticated) {
+      log('Already authenticated via copied profile, skipping login')
+      await page.keyboard.press('Escape')
+    } else {
+      log('Not authenticated, logging in')
+      await loginMenuItem.click()
+      await page.frameLocator('#loginDialog iframe').getByLabel('Username').fill(username)
+      await page.frameLocator('#loginDialog iframe').getByLabel('Password').fill(password)
+
+      const tokenPromise = page.waitForResponse(/https:\/\/account.*\.construct\.net\/login.json/i)
+
+      await page.frameLocator('#loginDialog iframe').getByRole('button', { name: 'Log in' }).click()
+
+      const response = await tokenPromise
+      const jsonResponse = await response.json()
+
+      if (jsonResponse.request.status === 'error') {
+        await page.close()
+        throw new Error('Invalid credentials')
+      }
+      log('Authenticated')
+    }
   }
 
   await page.waitForTimeout(2000)

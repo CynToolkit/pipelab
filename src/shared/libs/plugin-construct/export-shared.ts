@@ -13,7 +13,7 @@ import { script } from './assets/script.js'
 import * as v from 'valibot'
 import { BrowserContext } from 'playwright'
 import { join } from 'node:path'
-import { homedir } from 'node:os'
+import { homedir, tmpdir } from 'node:os'
 
 const platform = process.platform
 const { LOCALAPPDATA, XDG_CONFIG_HOME } = process.env
@@ -107,11 +107,18 @@ export const exportc3p = async <ACTION extends Action>(
   { cwd, log, inputs, setOutput, paths, abortSignal }: ActionRunnerData<ACTION>
 ) => {
   let context: BrowserContext | undefined = undefined
+  let customProfile: string | undefined = undefined
+
+  const cleanup = async () => {
+    await context?.close().catch(() => {})
+    if (customProfile) {
+      await rm(customProfile, { recursive: true, force: true }).catch(() => {})
+    }
+  }
 
   abortSignal.addEventListener('abort', () => {
     console.error('aborted')
-
-    context?.close()
+    cleanup()
   })
   const newInputs = inputs as Inputs
 
@@ -119,7 +126,7 @@ export const exportc3p = async <ACTION extends Action>(
 
   const playwright = await import('playwright')
   const { join, dirname } = await import('node:path')
-  const { cp, mkdir } = await import('node:fs/promises')
+  const { cp, mkdtemp, rm } = await import('node:fs/promises')
 
   const { unpack, node } = paths
   const modulesPath = join(unpack, 'node_modules')
@@ -176,26 +183,29 @@ export const exportc3p = async <ACTION extends Action>(
   // }
 
   // if (newInputs.customBrowser && newInputs.customProfile) {
+  console.log('newInputs', newInputs)
+  // Use a fresh temp directory every run so there is no stale LevelDB data
+  // from a previous Playwright session that could corrupt the copied profile.
+  customProfile = await mkdtemp(join(tmpdir(), 'pipelab-playwright-'))
   if (newInputs.customProfile) {
-    const customProfile = join(cwd, 'playwright-profile')
-
-    await mkdir(customProfile, {
-      recursive: true
-    })
 
     const indexedDbPathSource = join(newInputs.customProfile, 'Default', 'IndexedDB')
     const indexedDbPathDestination = join(customProfile, 'Default', 'IndexedDB')
     const pathsToCopy = [
+      'https_account.construct.net_0.indexeddb.leveldb',
       'https_editor.construct.net_0.indexeddb.blob',
-      'https_editor.construct.net_0.indexeddb.leveldb'
+      'https_editor.construct.net_0.indexeddb.leveldb',
+      'https_preview.construct.net_0.indexeddb.leveldb'
     ]
 
     for (const p of pathsToCopy) {
       const from = join(indexedDbPathSource, p)
       const to = join(indexedDbPathDestination, p)
-      await cp(from, to, {
-        recursive: true
-      })
+      log(`copying ${from} to ${to}`)
+      await cp(from, to, { recursive: true })
+      // Remove the LOCK file so the new Chromium instance can acquire a clean lock.
+      await rm(join(to, 'LOCK'), { force: true })
+      log(`copied and unlocked ${to}`)
     }
 
     context = await browserInstance.launchPersistentContext(customProfile, {
@@ -203,7 +213,7 @@ export const exportc3p = async <ACTION extends Action>(
       locale: 'en-US',
       recordVideo: isCI
         ? {
-            dir: join(process.cwd(), 'playwright')
+            dir: customProfile
           }
         : undefined
     })
@@ -216,7 +226,7 @@ export const exportc3p = async <ACTION extends Action>(
       locale: 'en-US',
       recordVideo: isCI
         ? {
-            dir: join(process.cwd(), 'playwright')
+            dir: customProfile
           }
         : undefined
     })
@@ -259,8 +269,7 @@ export const exportc3p = async <ACTION extends Action>(
     log('error, no result, crashed', e)
     throw new Error('ConstructExport failed: ' + e.message)
   } finally {
-    // await context.browser().close()
-    await context.close()
+    await cleanup()
   }
 }
 
