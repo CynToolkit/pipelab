@@ -122,12 +122,6 @@ export const useBuildHistory = defineStore("build-history", () => {
     console.trace("query", query);
     isLoading.value = true;
 
-    // Check authorization before attempting to load
-    if (!canUseHistory.value) {
-      isLoading.value = false;
-      return;
-    }
-
     try {
       const response = await buildHistoryAPI.getAll(query);
       entries.value = response.entries;
@@ -160,12 +154,6 @@ export const useBuildHistory = defineStore("build-history", () => {
   const loadEntry = async (id: string): Promise<BuildHistoryEntry | undefined> => {
     isLoading.value = true;
 
-    // Check authorization before attempting to load
-    if (!canUseHistory.value) {
-      isLoading.value = false;
-      return undefined;
-    }
-
     try {
       const entry = await buildHistoryAPI.get(id);
       if (entry) {
@@ -189,12 +177,6 @@ export const useBuildHistory = defineStore("build-history", () => {
 
   const saveEntry = async (entry: BuildHistoryEntry): Promise<void> => {
     isLoading.value = true;
-
-    // Check authorization before attempting to save
-    if (!canUseHistory.value) {
-      isLoading.value = false;
-      return;
-    }
 
     try {
       await buildHistoryAPI.save(entry);
@@ -223,12 +205,6 @@ export const useBuildHistory = defineStore("build-history", () => {
 
   const updateEntry = async (id: string, updates: Partial<BuildHistoryEntry>): Promise<void> => {
     isLoading.value = true;
-
-    // Check authorization before attempting to update
-    if (!canUseHistory.value) {
-      isLoading.value = false;
-      return;
-    }
 
     try {
       await buildHistoryAPI.update(id, updates);
@@ -264,12 +240,6 @@ export const useBuildHistory = defineStore("build-history", () => {
   const deleteEntry = async (id: string): Promise<void> => {
     isLoading.value = true;
 
-    // Check authorization before attempting to delete
-    if (!canUseHistory.value) {
-      isLoading.value = false;
-      return;
-    }
-
     try {
       await buildHistoryAPI.delete(id);
 
@@ -296,12 +266,6 @@ export const useBuildHistory = defineStore("build-history", () => {
   const clearHistory = async (): Promise<void> => {
     isLoading.value = true;
 
-    // Check authorization before attempting to clear
-    if (!canUseHistory.value) {
-      isLoading.value = false;
-      return;
-    }
-
     try {
       await buildHistoryAPI.clear();
       entries.value = [];
@@ -318,11 +282,6 @@ export const useBuildHistory = defineStore("build-history", () => {
 
   const clearHistoryByPipeline = async (pipelineId: string): Promise<void> => {
     isLoading.value = true;
-
-    if (!canUseHistory.value) {
-      isLoading.value = false;
-      return;
-    }
 
     try {
       // We need to add this to buildHistoryAPI but let's see if we can use delete with just pipelineId or similar
@@ -350,11 +309,6 @@ export const useBuildHistory = defineStore("build-history", () => {
   };
 
   const refreshStorageInfo = async (): Promise<void> => {
-    // Check authorization before attempting to get storage info
-    if (!canUseHistory.value) {
-      return;
-    }
-
     try {
       storageInfo.value = await buildHistoryAPI.getStorageInfo();
     } catch (err) {

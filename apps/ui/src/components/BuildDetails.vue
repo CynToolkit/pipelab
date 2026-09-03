@@ -1,56 +1,20 @@
 <template>
-  <Dialog
-    :visible="visible"
-    modal
-    :header="`Build Details - ${entry?.projectName || 'Unknown'}`"
-    :style="{ width: '90vw', maxWidth: '1200px' }"
-    :closable="true"
-    @update:visible="onHide"
-  >
-    <div v-if="entry" class="build-details-modal">
-      <!-- Build Overview -->
-      <div class="build-overview">
-        <div class="overview-header">
-          <div class="build-title">
-            <h3>{{ entry.projectName }}</h3>
-            <BuildStatusBadge :status="entry.status" size="large" />
-          </div>
-          <div class="build-meta">
-            <div class="meta-item">
-              <label>Project ID:</label>
-              <span>{{ entry.pipelineId }}</span>
-            </div>
-            <div class="meta-item">
-              <label>Started:</label>
-              <span>{{ formatDateTime(entry.startTime) }}</span>
-            </div>
-            <div v-if="entry.endTime" class="meta-item">
-              <label>Ended:</label>
-              <span>{{ formatDateTime(entry.endTime) }}</span>
-            </div>
-            <div v-if="entry.duration" class="meta-item">
-              <label>Duration:</label>
-              <span>{{ formatDuration(entry.duration) }}</span>
-            </div>
-            <div class="meta-item">
-              <label>Progress:</label>
-              <span>{{ entry.completedSteps }}/{{ entry.totalSteps }} steps</span>
-            </div>
-          </div>
-        </div>
-      </div>
+  <div v-if="entry" class="build-details-inline">
+
+
 
       <!-- Tab Navigation -->
-      <Tabs value="steps" class="details-tabs">
+      <Tabs :value="defaultTab" class="details-tabs">
         <TabList>
-          <Tab value="steps">Execution Steps</Tab>
-          <Tab value="logs">Build Logs</Tab>
-          <Tab v-if="entry.error" value="error">Error Details</Tab>
-          <Tab value="metadata">Metadata</Tab>
+          <Tab v-if="canUseHistory" value="steps">Execution Steps</Tab>
+
+          <Tab v-if="canUseHistory && entry.error" value="error">Error Details</Tab>
+          <Tab value="artifacts">Artifacts</Tab>
+
         </TabList>
 
         <TabPanels>
-          <TabPanel value="steps">
+          <TabPanel v-if="canUseHistory" value="steps">
             <div class="steps-container">
               <div v-if="!entry.steps || entry.steps.length === 0" class="no-steps">
                 <p>No execution steps available.</p>
@@ -147,30 +111,7 @@
             </div>
           </TabPanel>
 
-          <TabPanel value="logs">
-            <div class="logs-container">
-              <div v-if="!entry.logs || entry.logs.length === 0" class="no-logs">
-                <p>No build logs available.</p>
-              </div>
-              <div v-else class="logs-list">
-                <div
-                  v-for="log in entry.logs || []"
-                  :key="log.id"
-                  class="log-entry"
-                  :class="`log-${log.level || 'info'}`"
-                >
-                  <span class="log-time">{{ formatTime(log.timestamp) }}</span>
-                  <span class="log-level">{{ (log.level || "info").toUpperCase() }}</span>
-                  <span class="log-message">{{
-                    Array.isArray(log.message) ? log.message.join(" ") : log.message
-                  }}</span>
-                  <span v-if="log.source" class="log-source">({{ log.source }})</span>
-                </div>
-              </div>
-            </div>
-          </TabPanel>
-
-          <TabPanel v-if="entry.error" value="error">
+          <TabPanel v-if="canUseHistory && entry.error" value="error">
             <div class="error-container">
               <div class="error-header">
                 <h4>Build Error</h4>
@@ -192,61 +133,64 @@
             </div>
           </TabPanel>
 
-          <TabPanel value="metadata">
-            <div class="metadata-container">
-              <div v-if="!entry.metadata" class="no-metadata">
-                <p>No metadata available.</p>
+          <TabPanel value="artifacts">
+            <div class="artifacts-container p-4">
+              <div v-if="!entry.artifacts || entry.artifacts.length === 0" class="no-artifacts">
+                <p>No artifacts generated during this build.</p>
               </div>
-              <div v-else class="metadata-content">
-                <pre>{{ JSON.stringify(entry.metadata, null, 2) }}</pre>
+              <div v-else class="artifacts-list flex flex-col gap-2">
+                <div
+                  v-for="artifact in entry.artifacts"
+                  :key="artifact.id"
+                  class="flex items-center gap-2 p-2 surface-ground border-round"
+                >
+                  <i class="pi pi-file"></i>
+                  <span class="flex-grow-1 font-bold">{{ artifact.name }}</span>
+                  <span class="text-sm text-secondary mr-2">{{ artifact.type === 'folder' ? 'Folder' : (artifact.size ? (artifact.size / 1024 / 1024).toFixed(2) + ' MB' : 'Unknown size') }}</span>
+                  <Button
+                    icon="pi pi-folder-open"
+                    label="Open Location"
+                    size="small"
+                    severity="secondary"
+                    @click="openFolder(artifact.path)"
+                  ></Button>
+                </div>
               </div>
             </div>
           </TabPanel>
+
+
         </TabPanels>
       </Tabs>
 
-      <!-- Modal Actions -->
-      <div class="modal-actions">
-        <Button label="Close" severity="secondary" @click="closeModal" />
-        <Button
-          v-if="canRetry && entry.status === 'failed'"
-          label="Retry Build"
-          severity="info"
-          @click="retryBuild"
-        />
-        <Button v-if="canDelete" label="Delete Entry" severity="danger" @click="deleteEntry" />
-      </div>
     </div>
-  </Dialog>
 </template>
 
 <script setup lang="ts">
+import { computed } from "vue";
 import type { BuildHistoryEntry } from "@pipelab/shared";
 import BuildStatusBadge from "./BuildStatusBadge.vue";
+import { useBuildHistory } from "../store/build-history";
+
+const buildHistoryStore = useBuildHistory();
+const canUseHistory = computed(() => buildHistoryStore.canUseHistory);
+const defaultTab = computed(() => canUseHistory.value ? "steps" : "artifacts");
 
 interface Props {
   entry: BuildHistoryEntry | null;
-  visible: boolean;
-  canDelete?: boolean;
-  canRetry?: boolean;
 }
 
-interface Emits {
-  (e: "hide"): void;
-  (e: "retry", entry: BuildHistoryEntry): void;
-  (e: "delete", entry: BuildHistoryEntry): void;
-}
-
-const props = withDefaults(defineProps<Props>(), {
-  canDelete: false,
-  canRetry: false,
-});
-
-const emit = defineEmits<Emits>();
+const props = defineProps<Props>();
 
 // Methods
 const formatDateTime = (timestamp: number): string => {
   return new Date(timestamp).toLocaleString();
+};
+
+const openFolder = async (path: string) => {
+  if ((window as any).pipelab) {
+    await (window as any).pipelab.showItemInFolder(path);
+  }
 };
 
 const formatTime = (timestamp: number): string => {
@@ -278,25 +222,7 @@ const getStepIcon = (status: string): string => {
   return icons[status as keyof typeof icons] || "pi pi-circle";
 };
 
-const closeModal = () => {
-  emit("hide");
-};
 
-const onHide = () => {
-  emit("hide");
-};
-
-const retryBuild = () => {
-  if (props.entry) {
-    emit("retry", props.entry);
-  }
-};
-
-const deleteEntry = () => {
-  if (props.entry) {
-    emit("delete", props.entry);
-  }
-};
 </script>
 
 <style scoped>
@@ -305,65 +231,15 @@ const deleteEntry = () => {
   overflow-y: auto;
 }
 
-.build-overview {
-  margin-bottom: 2rem;
-  padding-bottom: 1.5rem;
-  border-bottom: 1px solid #e9ecef;
-}
-
-.overview-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 2rem;
-}
-
-.build-title {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.build-title h3 {
-  margin: 0;
-  color: #495057;
-  font-size: 1.5rem;
-}
-
-.build-meta {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1rem;
-  background: #f8f9fa;
-  padding: 1rem;
-  border-radius: 8px;
-}
-
-.meta-item {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.meta-item label {
-  font-weight: 600;
-  color: #6c757d;
-  font-size: 0.875rem;
-}
-
-.meta-item span {
-  color: #495057;
-}
 
 .details-tabs {
   margin-bottom: 2rem;
 }
 
 .steps-container,
-.logs-container,
 .error-container,
 .metadata-container {
-  max-height: 50vh;
+  max-height: 60vh;
   overflow-y: auto;
 }
 
@@ -372,7 +248,7 @@ const deleteEntry = () => {
 .no-metadata {
   text-align: center;
   padding: 3rem;
-  color: #6c757d;
+  color: var(--text-color-secondary);
 }
 
 .steps-timeline {
@@ -382,7 +258,7 @@ const deleteEntry = () => {
 
 .step-timeline-item {
   position: relative;
-  margin-bottom: 2rem;
+  margin-bottom: 1rem;
   padding-left: 1rem;
 }
 
@@ -396,12 +272,12 @@ const deleteEntry = () => {
 }
 
 .step-icon {
-  background: #fff;
-  border: 2px solid #e9ecef;
+  background: var(--surface-card);
+  border: 2px solid var(--surface-border);
   border-radius: 50%;
   padding: 0.5rem;
   font-size: 1.2rem;
-  color: #6c757d;
+  color: var(--text-color-secondary);
 }
 
 .step-timeline-item.completed .step-icon {
@@ -432,7 +308,7 @@ const deleteEntry = () => {
 .step-connector {
   width: 2px;
   height: 100%;
-  background: #e9ecef;
+  background: var(--surface-border);
   margin-top: 0.5rem;
 }
 
@@ -441,24 +317,22 @@ const deleteEntry = () => {
 }
 
 .step-timeline-content {
-  background: #fff;
-  border: 1px solid #e9ecef;
-  border-radius: 8px;
-  padding: 1rem;
+  background: transparent;
+  padding: 0.5rem 1rem;
 }
 
 .step-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1rem;
-  padding-bottom: 0.5rem;
-  border-bottom: 1px solid #e9ecef;
+  margin-bottom: 0.5rem;
+  padding-bottom: 0.25rem;
+  border-bottom: 1px solid var(--surface-border);
 }
 
 .step-name {
   margin: 0;
-  color: #495057;
+  color: var(--text-color);
   font-size: 1.1rem;
 }
 
@@ -470,32 +344,32 @@ const deleteEntry = () => {
 
 .step-duration {
   font-size: 0.875rem;
-  color: #6c757d;
+  color: var(--text-color-secondary);
 }
 
 .step-details {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0.5rem;
 }
 
 .step-timing {
   display: flex;
   gap: 1rem;
   font-size: 0.875rem;
-  color: #6c757d;
+  color: var(--text-color-secondary);
 }
 
 .step-logs,
 .step-error,
 .step-output {
-  margin-top: 1rem;
+  margin-top: 0.5rem;
 }
 
 .logs-details,
 .error-details,
 .output-details {
-  border: 1px solid #e9ecef;
+  border: 1px solid var(--surface-border);
   border-radius: 6px;
   overflow: hidden;
 }
@@ -504,16 +378,16 @@ const deleteEntry = () => {
 .error-details summary,
 .output-details summary {
   padding: 0.75rem;
-  background: #f8f9fa;
+  background: var(--surface-ground);
   cursor: pointer;
   font-weight: 500;
-  color: #495057;
+  color: var(--text-color);
 }
 
 .logs-details summary:hover,
 .error-details summary:hover,
 .output-details summary:hover {
-  background: #e9ecef;
+  background: var(--surface-hover);
 }
 
 .logs-content,
@@ -529,7 +403,7 @@ const deleteEntry = () => {
   grid-template-columns: auto auto 1fr auto;
   gap: 0.75rem;
   padding: 0.5rem 0;
-  border-bottom: 1px solid #f8f9fa;
+  border-bottom: 1px solid var(--surface-border);
   font-size: 0.875rem;
 }
 
@@ -538,7 +412,7 @@ const deleteEntry = () => {
 }
 
 .log-time {
-  color: #6c757d;
+  color: var(--text-color-secondary);
   font-family: monospace;
 }
 
@@ -570,11 +444,11 @@ const deleteEntry = () => {
 }
 
 .log-message {
-  color: #495057;
+  color: var(--text-color);
 }
 
 .log-source {
-  color: #6c757d;
+  color: var(--text-color-secondary);
   font-style: italic;
 }
 
@@ -592,11 +466,11 @@ const deleteEntry = () => {
 }
 
 .error-stack pre {
-  background: #f8f9fa;
+  background: var(--surface-ground);
   padding: 1rem;
   border-radius: 4px;
   font-size: 0.875rem;
-  color: #495057;
+  color: var(--text-color);
   overflow-x: auto;
   margin: 0.5rem 0 0 0;
 }
@@ -608,11 +482,11 @@ const deleteEntry = () => {
 }
 
 .metadata-content pre {
-  background: #f8f9fa;
+  background: var(--surface-ground);
   padding: 1rem;
   border-radius: 4px;
   font-size: 0.875rem;
-  color: #495057;
+  color: var(--text-color);
   overflow-x: auto;
   margin: 0;
 }
@@ -622,7 +496,7 @@ const deleteEntry = () => {
   justify-content: flex-end;
   gap: 0.75rem;
   padding-top: 1.5rem;
-  border-top: 1px solid #e9ecef;
+  border-top: 1px solid var(--surface-border);
 }
 
 /* Responsive adjustments */

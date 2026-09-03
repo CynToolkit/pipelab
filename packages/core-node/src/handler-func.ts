@@ -48,6 +48,7 @@ export const handleActionExecute = async (
   cwd: string,
   cachePath: string,
   context: PipelabContext,
+  onArtifact?: (name: string, path: string) => void,
 ): Promise<End<"action:execute">> => {
   const ctx = context;
   const { plugins } = usePlugins();
@@ -145,6 +146,9 @@ export const handleActionExecute = async (
       browserWindow: mainWindow,
       abortSignal,
       context: ctx,
+      setArtifact: (name: string, path: string) => {
+        onArtifact?.(name, path);
+      },
     });
 
     mainWindow?.setProgressBar(1, { mode: "normal" });

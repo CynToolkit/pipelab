@@ -488,11 +488,16 @@ const performMigration = async () => {
 }
 
 .migration-card {
-  background: var(--p-surface-card, #ffffff);
+  background: var(--surface-card, var(--p-surface-800, #ffffff));
   border: 1px solid var(--p-surface-border, #e2e8f0);
   border-radius: 8px;
   padding: 16px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+
+  :root.dark & {
+    background: var(--surface-card, var(--p-surface-800, #1e1e1e));
+    border-color: var(--surface-border, var(--p-surface-700, #333333));
+  }
 
   .item-title {
     font-weight: 600;
@@ -574,17 +579,30 @@ const performMigration = async () => {
 }
 
 .project-card {
-  border: 1px solid var(--p-surface-border, #e2e8f0);
+  border: 1px solid var(--surface-border, var(--p-surface-border, #e2e8f0));
   border-radius: 8px;
-  background: var(--p-surface-ground, #f8fafc);
+  background: var(--surface-ground, var(--p-surface-ground, #f8fafc));
   overflow: hidden;
 
+  :root.dark & {
+    background: var(--surface-ground, var(--p-surface-900, #121212));
+    border-color: var(--surface-border, var(--p-surface-700, #333333));
+  }
+
   .project-header {
-    background: var(--p-surface-card, #ffffff);
+    background: var(--surface-card, var(--p-surface-card, #ffffff));
+
+    :root.dark & {
+      background: var(--surface-card, var(--p-surface-800, #1e1e1e));
+    }
   }
 
   .pipelines-list {
-    background: var(--p-surface-ground, #f8fafc);
+    background: var(--surface-ground, var(--p-surface-ground, #f8fafc));
+
+    :root.dark & {
+      background: var(--surface-ground, var(--p-surface-900, #121212));
+    }
 
     .pipeline-item {
       &:not(:last-child) {

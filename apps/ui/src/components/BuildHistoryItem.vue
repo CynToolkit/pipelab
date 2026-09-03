@@ -12,11 +12,13 @@
         </div>
         <div class="status-and-time">
           <BuildStatusBadge :status="entry.status" size="medium" />
-          <span class="start-time">{{ formatDate(entry.startTime) }}</span>
+          <span class="start-time text-color-secondary">{{ formatDateTime(entry.startTime) }}</span>
+          <span v-if="entry.duration" class="duration text-color-secondary">({{ formatDuration(entry.duration) }})</span>
         </div>
       </div>
 
       <div class="item-actions">
+
         <Button
           v-if="showActions && canDelete"
           v-tooltip.top="'Delete Entry'"
@@ -38,83 +40,11 @@
     <!-- Expanded Content -->
     <div v-if="expanded" class="item-expanded" @click.stop>
       <div class="expanded-content">
-        <!-- Basic Information -->
-        <div class="info-section">
-          <h5>Build Information</h5>
-          <div class="info-grid">
-            <div class="info-item">
-              <label>Project ID:</label>
-              <span>{{ entry.pipelineId }}</span>
-            </div>
-            <div class="info-item">
-              <label>Status:</label>
-              <BuildStatusBadge :status="entry.status" />
-            </div>
-            <div class="info-item">
-              <label>Started:</label>
-              <span>{{ formatDateTime(entry.startTime) }}</span>
-            </div>
-            <div v-if="entry.endTime" class="info-item">
-              <label>Ended:</label>
-              <span>{{ formatDateTime(entry.endTime) }}</span>
-            </div>
-            <div v-if="entry.duration" class="info-item">
-              <label>Duration:</label>
-              <span>{{ formatDuration(entry.duration) }}</span>
-            </div>
-            <div class="info-item">
-              <label>Progress:</label>
-              <span>{{ entry.completedSteps }}/{{ entry.totalSteps }} steps</span>
-            </div>
-          </div>
-        </div>
 
-        <!-- Steps Overview -->
-        <div v-if="entry.steps.length > 0" class="steps-section">
-          <h5>Execution Steps</h5>
-          <div class="steps-list">
-            <div
-              v-for="buildStep in entry.steps.slice(0, showAllSteps ? undefined : 3)"
-              :key="buildStep.id"
-              class="step-item"
-              :class="buildStep.status"
-            >
-              <div class="step-header">
-                <span class="step-name">{{ buildStep.name }}</span>
-                <BuildStatusBadge :status="buildStep.status" size="small" />
-              </div>
-              <div class="step-details">
-                <span v-if="buildStep.duration" class="step-duration">
-                  {{ formatDuration(buildStep.duration) }}
-                </span>
-                <span v-if="buildStep.startTime" class="step-time">
-                  {{ formatTime(buildStep.startTime) }}
-                </span>
-              </div>
-            </div>
-            <div v-if="entry.steps.length > 3 && !showAllSteps" class="steps-more">
-              <Button text size="small" @click.stop="showAllSteps = true">
-                Show {{ entry.steps.length - 3 }} more steps...
-              </Button>
-            </div>
-          </div>
-        </div>
 
-        <!-- Error Information -->
-        <div v-if="entry.error" class="error-section">
-          <h5>Error Details</h5>
-          <div class="error-content">
-            <p class="error-message">{{ entry.error.message }}</p>
-          </div>
-        </div>
+        <BuildDetails :entry="entry" />
 
-        <!-- Metadata -->
-        <div v-if="entry.metadata" class="metadata-section">
-          <h5>Metadata</h5>
-          <div class="metadata-content">
-            <pre>{{ JSON.stringify(entry.metadata, null, 2) }}</pre>
-          </div>
-        </div>
+
       </div>
     </div>
   </div>
@@ -124,6 +54,8 @@
 import { ref, inject } from "vue";
 import type { BuildHistoryEntry } from "@pipelab/shared";
 import BuildStatusBadge from "./BuildStatusBadge.vue";
+import BuildDetails from "./BuildDetails.vue";
+import { OpenUpgradeDialogKey } from "../utils/injection-keys";
 import { useAuth } from "../store/auth";
 
 interface Props {
@@ -134,7 +66,7 @@ interface Props {
 }
 
 interface Emits {
-  (e: "view-details", entry: BuildHistoryEntry): void;
+
   (e: "delete", entry: BuildHistoryEntry): void;
   (e: "toggle", entry: BuildHistoryEntry, expanded: boolean): void;
 }
@@ -149,7 +81,7 @@ const emit = defineEmits<Emits>();
 
 // Composables
 const authStore = useAuth();
-const openUpgradeDialog = inject("openUpgradeDialog") as () => void;
+const openUpgradeDialog = inject(OpenUpgradeDialogKey) as () => void;
 
 // Local state
 const expanded = ref(false);
@@ -189,10 +121,6 @@ const handleClick = () => {
     expanded.value = !expanded.value;
     emit("toggle", props.entry, expanded.value);
   }
-};
-
-const viewDetails = () => {
-  emit("view-details", props.entry);
 };
 
 const deleteEntry = () => {
@@ -273,7 +201,7 @@ const deleteEntry = () => {
 .status-and-time {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.5rem;
 }
 
 .start-time {

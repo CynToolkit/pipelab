@@ -50,7 +50,8 @@
     <div v-else-if="paramDefinition.control.type === 'path'" class="path">
       <Button
         class="w-full"
-        :severity="isBlacklisted ? 'danger' : undefined"
+        outlined
+        :severity="isBlacklisted ? 'danger' : 'secondary'"
         @click="onChangePathClick(paramDefinition.control.options)"
       >
         {{ modelValue ? modelValue : (paramDefinition.control.label ?? "Browse path") }}
@@ -131,7 +132,7 @@
     <div v-else-if="paramDefinition.control.type === 'color'" class="color">
       <ColorPicker :model-value="modelValueColor" @update:model-value="onParamColorChange" />
     </div>
-    <Button v-else class="w-full" @click="onSwitch">Switch to editor to edit value</Button>
+    <Button v-else class="w-full" severity="secondary" outlined @click="onSwitch">Switch to editor to edit value</Button>
   </div>
 </template>
 

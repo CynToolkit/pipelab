@@ -1,5 +1,41 @@
 # @pipelab/constants
 
+## 1.0.0-beta.33
+
+### Patch Changes
+
+- -
+
+## 1.0.0-beta.32
+
+### Patch Changes
+
+- improve dark theme and improve build history
+
+## 1.0.0-beta.31
+
+### Patch Changes
+
+- sd
+
+## 1.0.0-beta.30
+
+### Patch Changes
+
+- sd
+
+## 1.0.0-beta.29
+
+### Patch Changes
+
+- sd
+
+## 1.0.0-beta.28
+
+### Patch Changes
+
+- sd
+
 ## 1.0.0-beta.27
 
 ### Patch Changes

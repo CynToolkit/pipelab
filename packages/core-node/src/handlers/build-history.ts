@@ -210,6 +210,7 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
               cachePathsToDelete.add(entry.cachePath);
             }
           }
+          await rm(this.context.getArtifactsPath(pipelineId), { recursive: true, force: true }).catch(() => {});
         }
         await unlink(join(this.getStoragePath(), file));
       }
@@ -241,6 +242,7 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
       for (const cachePath of cachePathsToDelete) {
         await rm(cachePath, { recursive: true, force: true }).catch(() => {});
       }
+      await rm(this.context.getArtifactsPath(pipelineId), { recursive: true, force: true }).catch(() => {});
     } catch (error: any) {
       if (error.code === "ENOENT") {
         this.logger

@@ -20,6 +20,14 @@ export const script = async (
   version: string | undefined,
   downloadDir: string,
 ) => {
+  let url = "https://editor.construct.net/";
+  if (version) {
+    url += version;
+  }
+  log("Navigating to URL", url);
+  await page.goto(url, { waitUntil: "load" });
+  log("after navigating, current URL:", page.url());
+
   if (username && password) {
     log("Directly authenticating via Construct 3 account API...");
     const formData = new FormData();
@@ -38,53 +46,39 @@ export const script = async (
 
     const { userID, token } = json.response;
     log("API login successful, injecting credentials into browser context...");
+    log("Current URL before injection:", page.url());
 
-    // Navigate to account.construct.net to set the origin context for IndexedDB
-    await page.goto("https://account.construct.net/");
+    // Wait for localforage to be available (initialized by the editor's JS)
+    await page.waitForFunction(() => typeof localforage !== "undefined", { timeout: 30000 });
+    log("localforage is available");
 
-    // Inject token into IndexedDB
+    // Inject credentials using the editor's own localforage instance
     await page.evaluate(
       async ({ userID, token }) => {
-        return new Promise<void>((resolve, reject) => {
-          const request = indexedDB.open("localforage", 1);
-          request.onerror = () => reject(new Error("Failed to open DB"));
-          request.onsuccess = (e: any) => {
-            const db = e.target.result;
-            try {
-              const transaction = db.transaction(["keyvaluepairs"], "readwrite");
-              const store = transaction.objectStore("keyvaluepairs");
-              const putRequest = store.put({ userID, token }, "login-data");
-              putRequest.onsuccess = () => resolve();
-              putRequest.onerror = () => reject(new Error("Failed to put item"));
-            } catch (err) {
-              reject(err);
-            }
-          };
-          request.onupgradeneeded = (e: any) => {
-            const db = e.target.result;
-            db.createObjectStore("keyvaluepairs");
-          };
-        });
+        await localforage.setItem("login-data", { userID, token });
       },
       { userID, token },
     );
     log("Credentials injected successfully.");
-  }
 
-  let url = "https://editor.construct.net/";
-  if (version) {
-    url += version;
+    // Reload to pick up the new login state
+    log("Reloading page to apply login state...");
+    await page.reload();
+    log("Page reloaded.");
   }
-  log("Navigating to URL", url);
-  await page.goto(url);
-  log("after navigating");
 
   registerWelcomeToConstructListener(page, log);
   registerNewVersionAvailableListener(page, log);
   registerNotNowListener(page, log);
+  registerInstallButtonListener(page, log);
+  registerWebglErrorListener(page, log);
+  registerMissingAddonErrorListener(page, log);
+  registerDeprecatedFeatures(page, log);
+  registerSaveLoginExpiredistener(page, log);
 
   log("after event");
 
+  // Wait for filesystem API (Ctrl+O handler) to be registered
   await page.waitForTimeout(2000);
 
   const [fileChooser] = await Promise.all([
@@ -97,12 +91,7 @@ export const script = async (
   await fileChooser.setFiles([filePath]);
   log("Set file");
 
-  // await page.getByText("Not now").click({
-  //   timeout: 1000
-  // });
-
   const progressDialog = page.locator("#progressDialog");
-  // <progress class="progressBar" value="0.293996941070648" max="1"></progress>
   const progessBar = progressDialog.locator(".progressBar");
 
   log("Waiting for progress dialog");
@@ -122,12 +111,6 @@ export const script = async (
       clearInterval(progressInterval);
     }
   }, 500);
-
-  registerInstallButtonListener(page, log);
-  registerWebglErrorListener(page, log);
-  registerMissingAddonErrorListener(page, log);
-  registerDeprecatedFeatures(page, log);
-  registerSaveLoginExpiredistener(page, log);
 
   log("Waiting for progress dialog to disapear");
   await progressDialog.waitFor({

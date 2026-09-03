@@ -133,32 +133,38 @@ export const exportc3p = async <ACTION extends Action>(
     context: ctx,
   });
   const playwrightCli = join(playwrightPkgPath, "cli.js");
-  const browsersPath = join(thirdparty, "playwright-browsers");
+  const browsersPath =
+    process.env.PLAYWRIGHT_BROWSERS_PATH || join(thirdparty, "playwright-browsers");
 
   process.env.PLAYWRIGHT_BROWSERS_PATH = browsersPath;
 
-  log("Downloading browser to", browsersPath);
-  await runWithLiveLogs(
-    node,
-    [playwrightCli, "install", browserName],
-    {
-      env: {
-        ...process.env,
-        PLAYWRIGHT_BROWSERS_PATH: browsersPath,
-        PATH: `${dirname(node)}${delimiter}${process.env.PATH}`,
+  const chromeBinary = join(browsersPath, "chromium-1140", "chrome-linux", "chrome");
+  if (existsSync(chromeBinary)) {
+    log("Browser already exists at", browsersPath, "- skipping download");
+  } else {
+    log("Downloading browser to", browsersPath);
+    await runWithLiveLogs(
+      node,
+      [playwrightCli, "install", browserName],
+      {
+        env: {
+          ...process.env,
+          PLAYWRIGHT_BROWSERS_PATH: browsersPath,
+          PATH: `${dirname(node)}${delimiter}${process.env.PATH}`,
+        },
+        cancelSignal: abortSignal,
       },
-      cancelSignal: abortSignal,
-    },
-    log,
-    {
-      onStdout(data) {
-        log(data);
+      log,
+      {
+        onStdout(data) {
+          log(data);
+        },
+        onStderr(data) {
+          log(data);
+        },
       },
-      onStderr(data) {
-        log(data);
-      },
-    },
-  );
+    );
+  }
 
   const require = createRequire(import.meta.url);
   const playwrightModule = require(join(playwrightPkgPath, "index.js"));
@@ -215,6 +221,8 @@ export const exportc3p = async <ACTION extends Action>(
     const pathsToCopy = [
       "https_editor.construct.net_0.indexeddb.blob",
       "https_editor.construct.net_0.indexeddb.leveldb",
+      "https_preview.construct.net_0.indexeddb.leveldb",
+      "https_account.construct.net_0.indexeddb.leveldb",
     ];
 
     for (const p of pathsToCopy) {

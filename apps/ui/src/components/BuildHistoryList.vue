@@ -66,7 +66,6 @@
               :expandable="true"
               :show-actions="true"
               :can-delete="canDelete"
-              @view-details="onViewDetails"
               @delete="onDeleteEntry"
               @toggle="onEntryToggle"
             />
@@ -82,7 +81,6 @@
                 :expandable="false"
                 :show-actions="true"
                 :can-delete="canDelete"
-                @view-details="onViewDetails"
                 @delete="onDeleteEntry"
               />
             </div>
@@ -98,6 +96,7 @@ import { ref, computed, inject } from "vue";
 import type { BuildHistoryEntry } from "@pipelab/shared";
 import BuildHistoryItem from "./BuildHistoryItem.vue";
 import { useAuth } from "../store/auth";
+import { OpenUpgradeDialogKey } from "../utils/injection-keys";
 
 interface Props {
   entries: BuildHistoryEntry[];
@@ -112,7 +111,7 @@ interface Props {
 interface Emits {
   (e: "load-more"): void;
   (e: "retry-load"): void;
-  (e: "view-details", entry: BuildHistoryEntry): void;
+
   (e: "delete", entry: BuildHistoryEntry): void;
   (e: "clear-all"): void;
   (e: "start-build"): void;
@@ -135,7 +134,7 @@ const emit = defineEmits<Emits>();
 
 // Composables
 const authStore = useAuth();
-const openUpgradeDialog = inject("openUpgradeDialog") as () => void;
+const openUpgradeDialog = inject(OpenUpgradeDialogKey) as () => void;
 
 // Local state
 const viewMode = ref<"list" | "grid">("list");
@@ -161,16 +160,10 @@ const retryLoad = () => {
 };
 
 const startNewBuild = () => {
-  if (!authStore.hasBuildHistoryBenefit) {
-    openUpgradeDialog();
-    return;
-  }
   emit("start-build");
 };
 
-const onViewDetails = (entry: BuildHistoryEntry) => {
-  emit("view-details", entry);
-};
+
 
 const onDeleteEntry = (entry: BuildHistoryEntry) => {
   emit("delete", entry);

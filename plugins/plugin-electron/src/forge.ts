@@ -17,7 +17,7 @@ import {
 } from "@pipelab/plugin-core";
 
 import { dirname, join, basename, delimiter } from "node:path";
-import { cp, readFile, writeFile, rm, mkdir } from "node:fs/promises";
+import { cp, readFile, writeFile, rm, mkdir, appendFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { platform as osPlatform, arch as osArch } from "node:os";
 import { kebabCase } from "change-case";
@@ -556,7 +556,7 @@ export const createPreviewProps = (
 export const forge = async (
   action: "make" | "package" | "preview",
   appFolder: string | undefined,
-  { cwd, log, inputs, setOutput, paths, abortSignal, context }: ActionRunnerData<any>,
+  { cwd, log, inputs, setOutput, paths, abortSignal, context, setArtifact }: ActionRunnerData<any>,
   completeConfiguration: DesktopApp.Electron,
 ): Promise<{ folder: string; binary: string | undefined } | undefined> => {
   log("Building electron");
@@ -616,6 +616,9 @@ export const forge = async (
     });
 
     console.log("copy done");
+
+    // Force hoisted node-linker for pnpm to avoid electron-forge errors
+    await appendFile(join(destinationFolder, ".npmrc"), "\nnode-linker=hoisted\n", "utf-8");
 
     const pkgJSONPath = join(destinationFolder, "package.json");
     const pkgJSONContent = await readFile(pkgJSONPath, "utf8");
@@ -833,6 +836,7 @@ export const forge = async (
 
         const output = join(cwd, "out", outName);
         setOutput("output", output);
+        setArtifact("electron-build", output);
         return {
           folder: output,
           binary: join(output, binName),
@@ -840,6 +844,7 @@ export const forge = async (
       } else {
         const output = join(cwd, "out", "make");
         setOutput("output", output);
+        setArtifact("electron-build", output);
         return {
           folder: output,
           binary: undefined,
@@ -858,6 +863,8 @@ export const forge = async (
       throw e;
     }
   } finally {
+    const originalNoAsar = process.noAsar;
+    process.noAsar = true;
     try {
       if (action !== "preview") {
         const outDir = join(destinationFolder, "out");
@@ -881,6 +888,8 @@ export const forge = async (
         "Failed to clean up staging directory:",
         e instanceof Error ? `${e.message}\n${e.stack}` : String(e),
       );
+    } finally {
+      process.noAsar = originalNoAsar;
     }
   }
 };

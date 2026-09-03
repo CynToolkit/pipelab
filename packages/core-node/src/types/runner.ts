@@ -47,6 +47,7 @@ export type ActionRunnerData<ACTION extends Action> = {
   browserWindow: BrowserWindow;
   abortSignal: AbortSignal;
   context: PipelabContext;
+  setArtifact: (name: string, path: string) => void;
 };
 
 export type ActionRunner<ACTION extends Action> = (data: ActionRunnerData<ACTION>) => Promise<void>;

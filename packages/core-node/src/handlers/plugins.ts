@@ -202,24 +202,16 @@ export const registerPluginsHandlers = (context: PipelabContext) => {
       const packagesDir = context.getPackagesPath();
       const rawInstalled = await findInstalledPlugins(packagesDir);
 
-      const DEFAULT_PLUGIN_IDS = [
-        "construct",
-        "filesystem",
-        "system",
-        "steam",
-        "itch",
-        "electron",
-        "discord",
-        "poki",
-        "nvpatch",
-        "tauri",
-        "minify",
-        "netlify",
-      ];
+      const { DEFAULT_PLUGIN_IDS, DEV_ONLY_PLUGIN_IDS } = await import("@pipelab/shared");
+      const defaultPluginIds = [...DEFAULT_PLUGIN_IDS];
+
+      if (isDev) {
+        defaultPluginIds.push(...DEV_ONLY_PLUGIN_IDS);
+      }
 
       const installed = rawInstalled
         .filter((item) => {
-          const isDefault = DEFAULT_PLUGIN_IDS.some((id) => item.name === `@pipelab/plugin-${id}`);
+          const isDefault = defaultPluginIds.some((id) => item.name === `@pipelab/plugin-${id}`);
           return !isDefault;
         })
         .map((item) => ({
@@ -271,27 +263,12 @@ export const registerPluginsHandlers = (context: PipelabContext) => {
       });
 
       if (isRegistered) {
-        continue; // already loaded, nothing to do
+        loaded.push(packageName);
+        continue;
       }
 
-      try {
-        console.log(
-          `[Plugins] JIT loading plugin "${packageName}@${mappedVersion}" for pipeline...`,
-        );
-        const plugin = await loadCustomPlugin(packageName, mappedVersion, { context });
-        if (plugin) {
-          registerPlugins([plugin]);
-          webSocketServer.broadcast("plugin:loaded", { plugin });
-          loaded.push(packageName);
-          console.log(`[Plugins] JIT loaded "${packageName}" successfully.`);
-        } else {
-          console.warn(`[Plugins] JIT load for "${packageName}" returned no plugin.`);
-          failed.push(packageName);
-        }
-      } catch (e: any) {
-        console.error(`[Plugins] JIT load failed for "${packageName}":`, e);
-        failed.push(packageName);
-      }
+      console.warn(`[Plugins] Plugin "${packageName}" is required but not loaded at startup.`);
+      failed.push(packageName);
     }
 
     send({

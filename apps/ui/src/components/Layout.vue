@@ -224,6 +224,7 @@
 <script setup lang="ts">
 import { ref, computed, inject, watch } from "vue";
 import { useAuth } from "@renderer/store/auth";
+import { OpenUpgradeDialogKey } from "../utils/injection-keys";
 import { useShell } from "@renderer/composables/use-shell";
 interface MenuItem {
   label?: string;
@@ -259,7 +260,7 @@ const shell = useShell();
 
 const isElectron = !!window.electron;
 
-const openUpgradeDialog = inject("openUpgradeDialog") as () => void;
+const openUpgradeDialog = inject(OpenUpgradeDialogKey) as () => void;
 
 const $helpMenu = ref();
 

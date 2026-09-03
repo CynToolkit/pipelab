@@ -1,5 +1,59 @@
 # @pipelab/cloud-azure
 
+## 1.0.0-beta.32
+
+### Patch Changes
+
+- -
+- Updated dependencies
+  - @pipelab/shared@1.0.0-beta.32
+  - @pipelab/cloud@1.0.0-beta.31
+
+## 1.0.0-beta.31
+
+### Patch Changes
+
+- improve dark theme and improve build history
+- Updated dependencies
+  - @pipelab/shared@1.0.0-beta.31
+  - @pipelab/cloud@1.0.0-beta.30
+
+## 1.0.0-beta.30
+
+### Patch Changes
+
+- sd
+- Updated dependencies
+  - @pipelab/shared@1.0.0-beta.30
+  - @pipelab/cloud@1.0.0-beta.29
+
+## 1.0.0-beta.29
+
+### Patch Changes
+
+- sd
+- Updated dependencies
+  - @pipelab/shared@1.0.0-beta.29
+  - @pipelab/cloud@1.0.0-beta.28
+
+## 1.0.0-beta.28
+
+### Patch Changes
+
+- sd
+- Updated dependencies
+  - @pipelab/shared@1.0.0-beta.28
+  - @pipelab/cloud@1.0.0-beta.27
+
+## 1.0.0-beta.27
+
+### Patch Changes
+
+- sd
+- Updated dependencies
+  - @pipelab/shared@1.0.0-beta.27
+  - @pipelab/cloud@1.0.0-beta.26
+
 ## 1.0.0-beta.26
 
 ### Patch Changes

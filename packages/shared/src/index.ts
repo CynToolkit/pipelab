@@ -50,6 +50,7 @@ export * from "./ipc.types";
 export * from "./logger";
 export * from "./model";
 export * from "./plugins";
+export * from "./plugins-list";
 export * from "./plugins/definitions"; // <-- RE-ADDED
 export * from "./quickjs";
 export * from "./save-location";

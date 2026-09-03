@@ -59,7 +59,6 @@
             </div>
             <div class="right">
               <Button
-                v-if="hasBuildHistoryBenefit"
                 outlined
                 :label="t('editor.view-history')"
                 :disabled="isRunning"
@@ -158,6 +157,8 @@
                         icon="pi pi-times"
                         class="flex"
                         size="small"
+                        severity="secondary"
+                        text
                         @click="setSelectedNode(undefined)"
                       ></Button>
                     </div>
@@ -276,7 +277,40 @@
                         class="line"
                         v-html="line"
                       ></div>
-                      <!-- </ScrollPanel> -->
+                    </AccordionContent>
+                  </AccordionPanel>
+
+                  <!-- Artifacts Section -->
+                  <AccordionPanel v-if="Object.keys(artifactsLog).length > 0" value="artifacts" class="accordion-panel">
+                    <AccordionHeader>
+                      <span class="flex items-center gap-2 w-full">
+                        <i class="mdi mr-1 mdi-folder-multiple text-primary"></i>
+                        <span class="font-bold whitespace-nowrap">Artifacts</span>
+                      </span>
+                    </AccordionHeader>
+                    <AccordionContent class="content">
+                      <div v-for="(artifacts, key) in artifactsLog" :key="key">
+                        <div v-if="artifacts && artifacts.length > 0">
+                          <div class="font-bold text-sm mb-2 mt-4 text-primary">{{ keyToNodeName(key) }}</div>
+                          <div class="flex flex-col gap-2">
+                            <div
+                              v-for="(artifact, aIndex) of artifacts"
+                              :key="aIndex"
+                              class="flex items-center gap-2 p-2 surface-ground border-round"
+                            >
+                              <i class="pi pi-file"></i>
+                              <span class="flex-grow-1">{{ artifact.name }}</span>
+                              <Button
+                                icon="pi pi-folder-open"
+                                size="small"
+                                text
+                                v-tooltip.top="'Open in File Explorer'"
+                                @click="openFolder(artifact.path)"
+                              ></Button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                     </AccordionContent>
                   </AccordionPanel>
                 </Accordion>
@@ -375,6 +409,7 @@ import SplitterPanel from "primevue/splitterpanel";
 import { useEditor } from "@renderer/store/editor";
 import NodesEditor from "@renderer/pages/nodes-editor.vue";
 import EditorNodeDummy from "@renderer/components/nodes/EditorNodeDummy.vue";
+import { OpenUpgradeDialogKey } from "../utils/injection-keys";
 import { storeToRefs } from "pinia";
 import { useRouter } from "vue-router";
 import { BlockAction, SavedFile } from "@pipelab/shared";
@@ -412,7 +447,7 @@ import { useAppStore } from "@renderer/store/app";
 type Param = ValueOf<BlockAction["params"]>;
 
 const router = useRouter();
-const openUpgradeDialog = inject("openUpgradeDialog") as () => void;
+const openUpgradeDialog = inject(OpenUpgradeDialogKey) as () => void;
 
 const api = useAPI();
 
@@ -438,11 +473,13 @@ const {
   isRunning,
   selectedNode,
   plugins,
+  artifactsLog,
 } = storeToRefs(instance);
 const {
   loadSavedFile,
   setIsRunning,
   pushLine,
+  pushArtifact,
   clearLogs,
   getNodeDefinition,
   removeNode,
@@ -652,6 +689,12 @@ const cancel = async () => {
   await api.execute("action:cancel");
 };
 
+const openFolder = async (path: string) => {
+  if ((window as any).pipelab) {
+    await (window as any).pipelab.showItemInFolder(path);
+  }
+};
+
 const run = async () => {
   if (!isLoggedIn.value && authStore.hasLoginProvider) {
     authStore.displayAuthModal(
@@ -763,6 +806,20 @@ const run = async () => {
               nodeUid,
               [format(logData.timestamp, "dd/MM/yyyy - hh:mm:ss"), content].join(" "),
             );
+          }
+        } else if (data.type === "node-artifact") {
+          const { nodeUid, artifact } = data.data;
+          pushArtifact(nodeUid, artifact);
+        } else if (data.type === "node-artifacts-finalized") {
+          const { artifacts } = data.data;
+          // Loop through all collected artifacts and update the paths in the log
+          for (const finalArtifact of artifacts) {
+            for (const [nodeUid, nodeArtifacts] of Object.entries(artifactsLog.value)) {
+              const matchedArtifact = nodeArtifacts.find((a) => a.name === finalArtifact.name);
+              if (matchedArtifact) {
+                matchedArtifact.path = finalArtifact.path;
+              }
+            }
           }
         }
       },
@@ -957,11 +1014,6 @@ const onCloseRequest = async () => {
 };
 
 const navigateToBuildHistory = async () => {
-  if (!authStore.hasBuildHistoryBenefit) {
-    openUpgradeDialog();
-    return;
-  }
-
   showBuildHistoryDialog.value = true;
 };
 

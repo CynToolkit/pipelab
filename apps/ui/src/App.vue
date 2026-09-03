@@ -236,7 +236,7 @@ onMounted(async () => {
   console.log("[App] onMounted: UI mounted, connecting to agent");
 
   on("startup:progress", (event) => {
-    if (event.type === "ready" || event.type === "progress" || event.type === "done") {
+    if (event.type === "done") {
       console.log(`[App] Startup event received: ${event.type}`);
       isServerReady.value = true;
     }

@@ -5,8 +5,7 @@ import type { Extension } from "@codemirror/state";
 import { autocompletion } from "@codemirror/autocomplete";
 import { javascript } from "@codemirror/lang-javascript";
 import { createEventHook } from "@vueuse/core";
-import { tomorrow } from "thememirror";
-import { stepsPlaceholders } from "./code-editor/step-plugin";
+import { dracula } from "thememirror";
 
 export const createCodeEditor = (
   element: Ref<HTMLDivElement | undefined>,
@@ -41,7 +40,7 @@ export const createCodeEditor = (
         javascript(),
         autocompletion(),
         history(),
-        tomorrow,
+        dracula,
         EditorView.updateListener.of((v: ViewUpdate) => {
           if (v.docChanged) {
             const data = v.state.doc.toString();

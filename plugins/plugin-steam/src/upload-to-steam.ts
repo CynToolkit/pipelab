@@ -221,6 +221,14 @@ export const uploadToSteamRunner = createActionRunner<typeof uploadToSteam>(
 }`;
 
     console.log("script", script);
+    /* 
+    // TEMPORARILY DISABLED AUTO-LOGIN
+    // Context: Pipelab should not try to interactively authenticate mid-pipeline execution.
+    // Opening an external terminal mid-run breaks automated CI/CD pipelines and causes hangs
+    // when SteamCMD waits for 2FA or password inputs.
+    // TODO: Move explicit authentication (openExternalTerminal) to a button in the Plugin Settings UI.
+    // The pipeline runner will now just attempt to run the build natively and fail fast if the cache is expired.
+    
     const isAuthenticated = await checkSteamAuth({
       context: {
         log,
@@ -251,6 +259,7 @@ export const uploadToSteamRunner = createActionRunner<typeof uploadToSteam>(
         throw new Error("Not authenticated");
       }
     }
+    */
 
     log("Writing script");
     await writeFile(scriptPath, script, {
@@ -266,7 +275,7 @@ export const uploadToSteamRunner = createActionRunner<typeof uploadToSteam>(
         steamcmdPath,
         ["+login", username, "+run_app_build", scriptPath, "+quit"],
         {
-          shell: platform() === "win32",
+          shell: false,
         },
         log,
         {

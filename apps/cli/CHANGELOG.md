@@ -1,5 +1,65 @@
 # @pipelab/cli
 
+## 2.0.0-beta.37
+
+### Patch Changes
+
+- -
+- Updated dependencies
+  - @pipelab/constants@1.0.0-beta.33
+  - @pipelab/core-node@1.0.0-beta.37
+  - @pipelab/shared@1.0.0-beta.32
+
+## 2.0.0-beta.36
+
+### Patch Changes
+
+- improve dark theme and improve build history
+- Updated dependencies
+  - @pipelab/constants@1.0.0-beta.32
+  - @pipelab/core-node@1.0.0-beta.36
+  - @pipelab/shared@1.0.0-beta.31
+
+## 2.0.0-beta.35
+
+### Patch Changes
+
+- sd
+- Updated dependencies
+  - @pipelab/constants@1.0.0-beta.31
+  - @pipelab/core-node@1.0.0-beta.35
+  - @pipelab/shared@1.0.0-beta.30
+
+## 2.0.0-beta.34
+
+### Patch Changes
+
+- sd
+- Updated dependencies
+  - @pipelab/constants@1.0.0-beta.30
+  - @pipelab/core-node@1.0.0-beta.34
+  - @pipelab/shared@1.0.0-beta.29
+
+## 2.0.0-beta.33
+
+### Patch Changes
+
+- sd
+- Updated dependencies
+  - @pipelab/constants@1.0.0-beta.29
+  - @pipelab/core-node@1.0.0-beta.33
+  - @pipelab/shared@1.0.0-beta.28
+
+## 2.0.0-beta.32
+
+### Patch Changes
+
+- sd
+- Updated dependencies
+  - @pipelab/constants@1.0.0-beta.28
+  - @pipelab/core-node@1.0.0-beta.32
+  - @pipelab/shared@1.0.0-beta.27
+
 ## 2.0.0-beta.31
 
 ### Patch Changes

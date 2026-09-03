@@ -60,6 +60,51 @@ describe("End-to-End: Construct 3 Export Pipeline", () => {
   );
 
   test(
+    "should export with login credentials from env vars",
+    async () => {
+      const username = process.env.C3_USERNAME;
+      const password = process.env.C3_PASSWORD;
+
+      if (!username || !password) {
+        console.log("Skipping login test: C3_USERNAME and C3_PASSWORD not set");
+        return;
+      }
+
+      sandbox = await createSandbox("c3-login-e2e");
+      const fixtures = fixturesPath;
+
+      const testC3pPath = resolve(fixtures, "c3-export/test.c3p");
+
+      const inputs = {
+        file: testC3pPath,
+        version: "stable",
+        username,
+        password,
+        headless: true,
+        timeout: 300,
+        customProfile: undefined,
+      };
+
+      const result = await runAction(ExportActionRunner, {
+        inputs,
+        sandboxPath: sandbox.path,
+      });
+
+      const outputs = result.outputs;
+      expect(outputs).toBeDefined();
+
+      expect(outputs.folder).toEqual(expect.any(String));
+      expect(outputs.parentFolder).toEqual(expect.any(String));
+      expect(outputs.zipFile).toEqual(expect.any(String));
+
+      await expect(access(outputs.folder as string)).resolves.not.toThrow();
+      await expect(access(outputs.parentFolder as string)).resolves.not.toThrow();
+      await expect(access(outputs.zipFile as string)).resolves.not.toThrow();
+    },
+    30 * 60 * 1000,
+  );
+
+  test(
     "should copy the custom Chrome profile IndexedDB databases to the Playwright profile",
     async () => {
       sandbox = await createSandbox("c3-profile-clone-e2e");

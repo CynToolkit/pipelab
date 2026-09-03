@@ -136,7 +136,11 @@
               <div class="steps-list">
                 <template v-for="(step, stepUid) in steps" :key="stepUid">
                   <div v-if="Object.keys(step.outputs).length > 0" class="step-item">
-                    <div class="step-name">{{ getStepLabel(stepUid) }}</div>
+                    <div class="step-name flex align-items-center gap-2">
+                      <PluginIcon v-if="getPluginIconProps(stepUid)" width="16px" :icon="getPluginIconProps(stepUid)" />
+                      <i v-else :class="getStepIcon(stepUid)"></i>
+                      <span>{{ getStepLabel(stepUid) }}</span>
+                    </div>
 
                     <div class="step-outputs">
                       <div
@@ -164,7 +168,7 @@
                 </template>
               </div>
             </Panel>
-            <Panel header="Variables" toggleable>
+            <Panel v-if="variables && variables.length > 0" header="Variables" toggleable>
               <div class="variables-list">
                 <div
                   v-for="(variable, variableIndex) in variables"
@@ -208,6 +212,7 @@ import { useEditor } from "@renderer/store/editor";
 import { storeToRefs } from "pinia";
 import { useLogger } from "@pipelab/shared";
 import ParamEditorBody from "./ParamEditorBody.vue";
+import PluginIcon from "./PluginIcon.vue";
 import { Variable } from "@pipelab/shared";
 import { variableToFormattedVariable } from "@pipelab/shared";
 import { useConfirm } from "primevue/useconfirm";
@@ -261,7 +266,7 @@ const { paramKey, paramDefinition, steps, variables, param } = toRefs(props);
 const confirm = useConfirm();
 
 const editor = useEditor();
-const { getNodeDefinition } = editor;
+const { getNodeDefinition, getPluginDefinition } = editor;
 const { nodes, vm } = storeToRefs(editor);
 
 const confirmSwitchMode = (event: MouseEvent) => {
@@ -564,6 +569,28 @@ const getStepLabel = (key: string) => {
   return key;
 };
 
+const getStepIcon = (key: string) => {
+  const nodeOrigin = nodes.value.find((n) => n.uid === key)?.origin;
+  if (nodeOrigin) {
+    const nodeDef = getNodeDefinition(nodeOrigin.nodeId, nodeOrigin.pluginId);
+    if (nodeDef && nodeDef.node.icon) {
+      return nodeDef.node.icon;
+    }
+  }
+  return 'pi pi-cog';
+};
+
+const getPluginIconProps = (key: string) => {
+  const nodeOrigin = nodes.value.find((n) => n.uid === key)?.origin;
+  if (nodeOrigin) {
+    const pluginDef = getPluginDefinition(nodeOrigin.pluginId);
+    if (pluginDef && pluginDef.icon) {
+      return pluginDef.icon;
+    }
+  }
+  return undefined;
+};
+
 const paramType = computed(() => {
   return controlsToType(paramDefinition.value.control);
 });
@@ -609,7 +636,7 @@ const expectedTooltip = computed(() => {
 
   :deep(.cm-editor) {
     // height: 28px;
-    border: 1px solid #bdbdbd;
+    border: 1px solid var(--surface-border);
     border-radius: 4px;
 
     .cm-gutters {
@@ -628,12 +655,12 @@ const expectedTooltip = computed(() => {
 }
 
 .floating {
-  border: 1px solid grey;
+  border: 1px solid var(--surface-border);
   min-width: 424px;
   padding: 8px;
   border-radius: 4px;
-  background-color: white;
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  background-color: var(--surface-card, var(--p-surface-800, #1e1e1e));
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
   z-index: 2 !important;
 }
 
@@ -669,7 +696,7 @@ const expectedTooltip = computed(() => {
 
       &:hover {
         cursor: pointer;
-        background-color: #f5f5f5;
+        background-color: var(--surface-hover, var(--p-surface-700, #333333));
       }
 
       .step {
@@ -691,6 +718,9 @@ const expectedTooltip = computed(() => {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  :deep(.p-panel-header), :deep(.p-panel-content) {
+    background-color: var(--surface-ground, var(--p-surface-900, #121212)) !important;
+  }
 }
 
 .required {
@@ -718,7 +748,7 @@ const expectedTooltip = computed(() => {
   .variable {
     &:hover {
       cursor: pointer;
-      background-color: #f5f5f5;
+      background-color: var(--surface-hover, var(--p-surface-700, #333333));
     }
   }
 }

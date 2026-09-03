@@ -1,5 +1,41 @@
 # mini-c3-electron
 
+## 0.0.1-beta.23
+
+### Patch Changes
+
+- -
+
+## 0.0.1-beta.22
+
+### Patch Changes
+
+- improve dark theme and improve build history
+
+## 0.0.1-beta.21
+
+### Patch Changes
+
+- sd
+
+## 0.0.1-beta.20
+
+### Patch Changes
+
+- sd
+
+## 0.0.1-beta.19
+
+### Patch Changes
+
+- sd
+
+## 0.0.1-beta.18
+
+### Patch Changes
+
+- sd
+
 ## 0.0.1-beta.17
 
 ### Patch Changes

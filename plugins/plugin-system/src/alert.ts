@@ -35,6 +35,12 @@ export const alertAction = createAction({
 
 export const alertActionRunner = createActionRunner<typeof alertAction>(
   async ({ log, inputs, setOutput, browserWindow }) => {
+    if (!browserWindow) {
+      log(`Alert (Headless): ${inputs.message}`);
+      setOutput("answer", "ok");
+      return;
+    }
+    
     browserWindow.flashFrame(true);
     const api = usePluginAPI(browserWindow);
     //    'cancel' | 'ok'
