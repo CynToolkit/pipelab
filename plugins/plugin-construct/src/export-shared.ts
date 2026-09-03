@@ -13,8 +13,8 @@ import {
 import { script } from "./assets/script.js";
 import * as v from "valibot";
 import { BrowserContext } from "playwright";
-import { dirname, join, delimiter } from "node:path";
-import { cp, mkdir } from "node:fs/promises";
+import { dirname, join, delimiter, basename } from "node:path";
+import { cp, mkdir, readdir, stat, copyFile, chmod } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { createRequire } from "node:module";
@@ -106,6 +106,35 @@ export const sharedParams = {
 } satisfies InputsDefinition;
 
 type Inputs = ParamsToInput<typeof sharedParams>;
+
+async function resilientCopy(src: string, dest: string, log: any) {
+  try {
+    const s = await stat(src);
+    if (s.isDirectory()) {
+      await mkdir(dest, { recursive: true });
+      const entries = await readdir(src, { withFileTypes: true });
+      for (const entry of entries) {
+        const srcPath = join(src, entry.name);
+        const destPath = join(dest, entry.name);
+        await resilientCopy(srcPath, destPath, log);
+      }
+    } else {
+      try {
+        await copyFile(src, dest);
+        try {
+          // Remove read-only attribute on the copied file so Playwright can use it
+          await chmod(dest, 0o666);
+        } catch (e) {
+          // ignore chmod errors
+        }
+      } catch (err) {
+        log(`    [WARNING] Failed to copy file ${src}: ${err}`);
+      }
+    }
+  } catch (err) {
+    log(`  [WARNING] Failed to access ${src}: ${err}`);
+  }
+}
 
 export const exportc3p = async <ACTION extends Action>(
   file: string,
@@ -219,6 +248,7 @@ export const exportc3p = async <ACTION extends Action>(
     await mkdir(indexedDbPathDestination, { recursive: true });
 
     const pathsToCopy = [
+      "https_account.construct.net_0.indexeddb.leveldb",
       "https_editor.construct.net_0.indexeddb.blob",
       "https_editor.construct.net_0.indexeddb.leveldb",
       "https_preview.construct.net_0.indexeddb.leveldb",
@@ -231,7 +261,7 @@ export const exportc3p = async <ACTION extends Action>(
       if (existsSync(from)) {
         log(`  - Copying: "${p}" to "${indexedDbPathDestination}"`);
         try {
-          await cp(from, to, { recursive: true });
+          await resilientCopy(from, to, log);
           log(`    [OK] Successfully copied "${p}"`);
         } catch (e) {
           log(
