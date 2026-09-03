@@ -1,5 +1,13 @@
 # @pipelab/plugin-core
 
+## 1.0.0-beta.39
+
+### Patch Changes
+
+- fix construct export
+- Updated dependencies
+  - @pipelab/core-node@1.0.0-beta.38
+
 ## 1.0.0-beta.38
 
 ### Patch Changes

@@ -1,5 +1,14 @@
 # @pipelab/shared
 
+## 1.0.0-beta.33
+
+### Patch Changes
+
+- fix construct export
+- Updated dependencies
+  - @pipelab/constants@1.0.0-beta.34
+  - @pipelab/migration@1.0.0-beta.32
+
 ## 1.0.0-beta.32
 
 ### Patch Changes

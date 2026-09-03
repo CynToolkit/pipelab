@@ -1,5 +1,11 @@
 # mini-c3-electron
 
+## 0.0.1-beta.24
+
+### Patch Changes
+
+- fix construct export
+
 ## 0.0.1-beta.23
 
 ### Patch Changes

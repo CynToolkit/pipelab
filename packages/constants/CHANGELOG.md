@@ -1,5 +1,11 @@
 # @pipelab/constants
 
+## 1.0.0-beta.34
+
+### Patch Changes
+
+- fix construct export
+
 ## 1.0.0-beta.33
 
 ### Patch Changes

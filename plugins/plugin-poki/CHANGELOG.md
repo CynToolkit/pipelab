@@ -1,5 +1,14 @@
 # @pipelab/plugin-poki
 
+## 1.0.0-beta.39
+
+### Patch Changes
+
+- fix construct export
+- Updated dependencies
+  - @pipelab/plugin-core@1.0.0-beta.39
+  - @pipelab/constants@1.0.0-beta.34
+
 ## 1.0.0-beta.38
 
 ### Patch Changes

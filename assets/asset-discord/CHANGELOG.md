@@ -1,5 +1,11 @@
 # @pipelab/asset-discord
 
+## 1.0.0-beta.32
+
+### Patch Changes
+
+- fix construct export
+
 ## 1.0.0-beta.31
 
 ### Patch Changes

@@ -1,5 +1,15 @@
 # @pipelab/cli
 
+## 2.0.0-beta.38
+
+### Patch Changes
+
+- fix construct export
+- Updated dependencies
+  - @pipelab/constants@1.0.0-beta.34
+  - @pipelab/core-node@1.0.0-beta.38
+  - @pipelab/shared@1.0.0-beta.33
+
 ## 2.0.0-beta.37
 
 ### Patch Changes
