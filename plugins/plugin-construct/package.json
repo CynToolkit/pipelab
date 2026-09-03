@@ -51,7 +51,7 @@
   "dependencies": {
     "@pipelab/plugin-core": "workspace:*",
     "es-toolkit": "1.25.2",
-    "playwright": "1.48.2",
+    "playwright": "1.62.1",
     "valibot": "0.42.1"
   },
   "devDependencies": {

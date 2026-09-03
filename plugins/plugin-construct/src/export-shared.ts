@@ -14,9 +14,9 @@ import { script } from "./assets/script.js";
 import * as v from "valibot";
 import { BrowserContext } from "playwright";
 import { dirname, join, delimiter, basename } from "node:path";
-import { cp, mkdir, readdir, stat, copyFile, chmod } from "node:fs/promises";
+import { cp, mkdir, readdir, stat, copyFile, chmod, rm, mkdtemp } from "node:fs/promises";
 import { existsSync } from "node:fs";
-import { homedir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { createRequire } from "node:module";
 
 const platform = process.platform;
@@ -142,11 +142,19 @@ export const exportc3p = async <ACTION extends Action>(
 ) => {
   let browserContext: BrowserContext | undefined = undefined;
   let browser: any | undefined = undefined;
+  let customProfile: string | undefined = undefined;
+
+  const cleanup = async () => {
+    await browserContext?.close().catch(() => {});
+    await browser?.close().catch(() => {});
+    if (customProfile) {
+      await rm(customProfile, { recursive: true, force: true }).catch(() => {});
+    }
+  };
 
   const onAbort = () => {
     console.error("aborted");
-
-    browserContext?.close();
+    cleanup();
   };
   abortSignal.addEventListener("abort", onAbort);
   const newInputs = inputs as Inputs;
@@ -157,7 +165,7 @@ export const exportc3p = async <ACTION extends Action>(
 
   const browserName: "chromium" | "firefox" | "webkit" = "chromium";
 
-  const { packageDir: playwrightPkgPath } = await fetchPackage("playwright-core", "1.48.2", {
+  const { packageDir: playwrightPkgPath } = await fetchPackage("playwright-core", "1.62.1", {
     installDeps: true,
     context: ctx,
   });
@@ -167,7 +175,7 @@ export const exportc3p = async <ACTION extends Action>(
 
   process.env.PLAYWRIGHT_BROWSERS_PATH = browsersPath;
 
-  const chromeBinary = join(browsersPath, "chromium-1140", "chrome-linux", "chrome");
+  const chromeBinary = join(browsersPath, "chromium-1234", "chrome-linux", "chrome");
   if (existsSync(chromeBinary)) {
     log("Browser already exists at", browsersPath, "- skipping download");
   } else {
@@ -225,14 +233,13 @@ export const exportc3p = async <ACTION extends Action>(
   // }
 
   // if (newInputs.customBrowser && newInputs.customProfile) {
+  // Use a fresh temp directory every run so there is no stale LevelDB data
+  // from a previous Playwright session that could corrupt the copied profile.
+  customProfile = await mkdtemp(join(tmpdir(), "pipelab-playwright-"));
+
   if (newInputs.customProfile) {
-    const customProfile = join(cwd, "playwright-profile");
     log("Setting up Playwright profile from custom Chrome profile...");
     log(`  - Target playwright-profile folder: ${customProfile}`);
-
-    await mkdir(customProfile, {
-      recursive: true,
-    });
 
     const indexedDbPathSource = join(newInputs.customProfile, "Default", "IndexedDB");
     const indexedDbPathDestination = join(customProfile, "Default", "IndexedDB");
@@ -252,7 +259,6 @@ export const exportc3p = async <ACTION extends Action>(
       "https_editor.construct.net_0.indexeddb.blob",
       "https_editor.construct.net_0.indexeddb.leveldb",
       "https_preview.construct.net_0.indexeddb.leveldb",
-      "https_account.construct.net_0.indexeddb.leveldb",
     ];
 
     for (const p of pathsToCopy) {
@@ -262,6 +268,8 @@ export const exportc3p = async <ACTION extends Action>(
         log(`  - Copying: "${p}" to "${indexedDbPathDestination}"`);
         try {
           await resilientCopy(from, to, log);
+          // Remove the LOCK file so the new Chromium instance can acquire a clean lock.
+          await rm(join(to, "LOCK"), { force: true });
           log(`    [OK] Successfully copied "${p}"`);
         } catch (e) {
           log(
@@ -340,12 +348,7 @@ export const exportc3p = async <ACTION extends Action>(
     throw new Error("ConstructExport failed: " + e.message);
   } finally {
     abortSignal.removeEventListener("abort", onAbort);
-    if (browserContext) {
-      await browserContext.close();
-    }
-    if (browser) {
-      await browser.close();
-    }
+    await cleanup();
   }
 };
 

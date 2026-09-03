@@ -29,42 +29,52 @@ export const script = async (
   log("after navigating, current URL:", page.url());
 
   if (username && password) {
-    log("Directly authenticating via Construct 3 account API...");
-    const formData = new FormData();
-    formData.append("username", username);
-    formData.append("password", password);
-    formData.append("productType", "games");
-
-    const res = await fetch("https://account.construct.net/login.json", {
-      method: "POST",
-      body: formData,
-    });
-    const json = (await res.json()) as any;
-    if (json.request.status !== "ok") {
-      throw new Error(json.request.errorMessage || "Invalid credentials");
-    }
-
-    const { userID, token } = json.response;
-    log("API login successful, injecting credentials into browser context...");
-    log("Current URL before injection:", page.url());
-
-    // Wait for localforage to be available (initialized by the editor's JS)
+    // Wait for localforage to be available before checking existing auth state.
     await page.waitForFunction(() => typeof localforage !== "undefined", { timeout: 30000 });
-    log("localforage is available");
 
-    // Inject credentials using the editor's own localforage instance
-    await page.evaluate(
-      async ({ userID, token }) => {
-        await localforage.setItem("login-data", { userID, token });
-      },
-      { userID, token },
-    );
-    log("Credentials injected successfully.");
+    // If a custom profile was used, the IndexedDB may already contain a valid
+    // login session — skip the API call if credentials are already present.
+    const alreadyLoggedIn = await page.evaluate(async () => {
+      const data = await localforage.getItem("login-data");
+      return data != null;
+    });
 
-    // Reload to pick up the new login state
-    log("Reloading page to apply login state...");
-    await page.reload();
-    log("Page reloaded.");
+    if (alreadyLoggedIn) {
+      log("Already authenticated via copied profile, skipping login");
+    } else {
+      log("Directly authenticating via Construct 3 account API...");
+      const formData = new FormData();
+      formData.append("username", username);
+      formData.append("password", password);
+      formData.append("productType", "games");
+
+      const res = await fetch("https://account.construct.net/login.json", {
+        method: "POST",
+        body: formData,
+      });
+      const json = (await res.json()) as any;
+      if (json.request.status !== "ok") {
+        throw new Error(json.request.errorMessage || "Invalid credentials");
+      }
+
+      const { userID, token } = json.response;
+      log("API login successful, injecting credentials into browser context...");
+      log("Current URL before injection:", page.url());
+
+      // Inject credentials using the editor's own localforage instance
+      await page.evaluate(
+        async ({ userID, token }) => {
+          await localforage.setItem("login-data", { userID, token });
+        },
+        { userID, token },
+      );
+      log("Credentials injected successfully.");
+
+      // Reload to pick up the new login state
+      log("Reloading page to apply login state...");
+      await page.reload();
+      log("Page reloaded.");
+    }
   }
 
   registerWelcomeToConstructListener(page, log);
