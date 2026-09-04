@@ -360,48 +360,26 @@ const handlePluginClick = async (plugin: any) => {
     return;
   }
 
-  installingPlugins.value[plugin.id] = true;
-  try {
-    toast.add({
-      severity: "info",
-      summary: "Installing plugin",
-      detail: `Installing and enabling ${formatPluginName(plugin.id)}...`,
-      life: 3000,
-    });
-
-    const res = await api.execute("plugin:install", {
-      packageName: plugin.id,
-      version: "latest",
-    });
-    if (res.type === "success") {
-      toast.add({
-        severity: "success",
-        summary: "Plugin loaded",
-        detail: `${formatPluginName(plugin.id)} is now active!`,
-        life: 3000,
-      });
-
-      await fetchCachedPlugins();
-      expandedPlugins.value[plugin.id] = true;
-    } else {
-      toast.add({
-        severity: "error",
-        summary: "Installation failed",
-        detail: res.ipcError || `Could not install ${plugin.id}`,
-        life: 5000,
-      });
-    }
-  } catch (err: any) {
-    console.error("Installation failed:", err);
-    toast.add({
-      severity: "error",
-      summary: "Installation error",
-      detail: err.message || `Could not install ${plugin.id}`,
-      life: 5000,
-    });
-  } finally {
-    installingPlugins.value[plugin.id] = false;
-  }
+  // [DISABLED] Dynamic plugin installation is disabled in bundled mode.
+  // Plugins are statically bundled with the CLI — only bundled plugins are active.
+  // Re-enable: uncomment + restore the plugin:install API call.
+  // installingPlugins.value[plugin.id] = true;
+  // try {
+  //   toast.add({ severity: "info", summary: "Installing plugin", detail: `Installing and enabling ${formatPluginName(plugin.id)}...`, life: 3000 });
+  //   const res = await api.execute("plugin:install", { packageName: plugin.id, version: "latest" });
+  //   if (res.type === "success") {
+  //     toast.add({ severity: "success", summary: "Plugin loaded", detail: `${formatPluginName(plugin.id)} is now active!`, life: 3000 });
+  //     await fetchCachedPlugins();
+  //     expandedPlugins.value[plugin.id] = true;
+  //   } else {
+  //     toast.add({ severity: "error", summary: "Installation failed", detail: res.ipcError || `Could not install ${plugin.id}`, life: 5000 });
+  //   }
+  // } catch (err: any) {
+  //   console.error("Installation failed:", err);
+  //   toast.add({ severity: "error", summary: "Installation error", detail: err.message || `Could not install ${plugin.id}`, life: 5000 });
+  // } finally {
+  //   installingPlugins.value[plugin.id] = false;
+  // }
 };
 
 const isNodePicked = (node: PipelabNode, searchedValue: string) => {

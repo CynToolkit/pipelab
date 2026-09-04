@@ -1046,144 +1046,81 @@ const searchingRegistry = ref(false);
 const registryResults = ref<any[]>([]);
 const loadingPlugins = ref<Record<string, boolean>>({});
 
-// Watch search input to query the registry with a 500ms debounce
-watchDebounced(
-  searchQuery,
-  async (newQuery) => {
-    const q = newQuery.trim();
-    if (!q) {
-      registryResults.value = [];
-      return;
-    }
-    searchingRegistry.value = true;
-    try {
-      const res = await api.execute("plugin:search", { query: q });
-      if (res.type === "success") {
-        registryResults.value = res.result.results;
-      }
-    } catch (e) {
-      console.error("Registry search error:", e);
-    } finally {
-      searchingRegistry.value = false;
-    }
-  },
-  { debounce: 500 },
-);
+// [DISABLED] Registry search is disabled in bundled mode.
+// Re-enable: uncomment + restore the plugin:search API call.
+// watchDebounced(
+//   searchQuery,
+//   async (newQuery) => {
+//     const q = newQuery.trim();
+//     if (!q) {
+//       registryResults.value = [];
+//       return;
+//     }
+//     searchingRegistry.value = true;
+//     try {
+//       const res = await api.execute("plugin:search", { query: q });
+//       if (res.type === "success") {
+//         registryResults.value = res.result.results;
+//       }
+//     } catch (e) {
+//       console.error("Registry search error:", e);
+//     } finally {
+//       searchingRegistry.value = false;
+//     }
+//   },
+//   { debounce: 500 },
+// );
 
 const isInstalled = (packageName: string) => {
   return (settingsRef.value?.plugins || []).some((p) => p.name === packageName);
 };
 
-const installPlugin = async (packageName: string, description = "") => {
-  loadingPlugins.value[packageName] = true;
-  try {
-    toast.add({
-      severity: "info",
-      summary: "Installing plugin",
-      detail: `Downloading and installing ${packageName}...`,
-      life: 3000,
-    });
+// [DISABLED] Plugin install is disabled in bundled mode.
+// Re-enable: uncomment + restore the plugin:install API call.
+// const installPlugin = async (packageName: string, description = "") => {
+//   loadingPlugins.value[packageName] = true;
+//   try {
+//     toast.add({ severity: "info", summary: "Installing plugin", detail: `Downloading and installing ${packageName}...`, life: 3000 });
+//     const res = await api.execute("plugin:install", { packageName, version: "latest" });
+//     if (res.type === "success") {
+//       const currentPlugins = [...(settingsRef.value?.plugins || [])];
+//       if (!currentPlugins.some((p) => p.name === packageName)) {
+//         currentPlugins.push({ name: packageName, enabled: true, description: description || "Community plugin" });
+//         await appSettings.updateSettings({ ...toRaw(settingsRef.value) as any, plugins: currentPlugins });
+//       }
+//       toast.add({ severity: "success", summary: "Plugin installed", detail: `${packageName} has been installed successfully!`, life: 3000 });
+//     } else {
+//       toast.add({ severity: "error", summary: "Installation failed", detail: res.ipcError || `Could not install ${packageName}`, life: 5000 });
+//     }
+//   } catch (err: any) {
+//     console.error("Plugin installation failed:", err);
+//     toast.add({ severity: "error", summary: "Installation error", detail: err.message || `Could not install ${packageName}`, life: 5000 });
+//   } finally {
+//     loadingPlugins.value[packageName] = false;
+//   }
+// };
 
-    const res = await api.execute("plugin:install", {
-      packageName,
-      version: "latest",
-    });
-
-    if (res.type === "success") {
-      const currentPlugins = [...(settingsRef.value?.plugins || [])];
-      if (!currentPlugins.some((p) => p.name === packageName)) {
-        currentPlugins.push({
-          name: packageName,
-          enabled: true,
-          description: description || "Community plugin",
-        });
-        await appSettings.updateSettings({
-          ...(toRaw(settingsRef.value) as any),
-          plugins: currentPlugins,
-        });
-      }
-
-      toast.add({
-        severity: "success",
-        summary: "Plugin installed",
-        detail: `${packageName} has been installed successfully!`,
-        life: 3000,
-      });
-    } else {
-      toast.add({
-        severity: "error",
-        summary: "Installation failed",
-        detail: res.ipcError || `Could not install ${packageName}`,
-        life: 5000,
-      });
-    }
-  } catch (err: any) {
-    console.error("Plugin installation failed:", err);
-    toast.add({
-      severity: "error",
-      summary: "Installation error",
-      detail: err.message || `Could not install ${packageName}`,
-      life: 5000,
-    });
-  } finally {
-    loadingPlugins.value[packageName] = false;
-  }
-};
-
-const uninstallPlugin = async (packageName: string) => {
-  loadingPlugins.value[packageName] = true;
-  try {
-    toast.add({
-      severity: "info",
-      summary: "Uninstalling plugin",
-      detail: `Removing ${packageName}...`,
-      life: 3000,
-    });
-
-    const res = await api.execute("plugin:uninstall", {
-      packageName,
-    });
-
-    if (res.type === "success") {
-      const currentPlugins = (settingsRef.value?.plugins || []).filter(
-        (p) => p.name !== packageName,
-      );
-      await appSettings.updateSettings({
-        ...(toRaw(settingsRef.value) as any),
-        plugins: currentPlugins,
-      });
-
-      // If active section was this plugin's settings panel, switch back to community-plugins
-      if (currentSection.value === `community-plugin-${packageName}`) {
-        currentSection.value = "community-plugins";
-      }
-
-      toast.add({
-        severity: "success",
-        summary: "Plugin uninstalled",
-        detail: `${packageName} has been uninstalled!`,
-        life: 3000,
-      });
-    } else {
-      toast.add({
-        severity: "error",
-        summary: "Uninstall failed",
-        detail: res.ipcError || `Could not uninstall ${packageName}`,
-        life: 5000,
-      });
-    }
-  } catch (err: any) {
-    console.error("Plugin uninstallation failed:", err);
-    toast.add({
-      severity: "error",
-      summary: "Uninstall error",
-      detail: err.message || `Could not uninstall ${packageName}`,
-      life: 5000,
-    });
-  } finally {
-    loadingPlugins.value[packageName] = false;
-  }
-};
+// [DISABLED] Plugin uninstall is disabled in bundled mode.
+// Re-enable: uncomment + restore the plugin:uninstall API call.
+// const uninstallPlugin = async (packageName: string) => {
+//   loadingPlugins.value[packageName] = true;
+//   try {
+//     toast.add({ severity: "info", summary: "Uninstalling plugin", detail: `Removing ${packageName}...`, life: 3000 });
+//     const res = await api.execute("plugin:uninstall", { packageName });
+//     if (res.type === "success") {
+//       const currentPlugins = (settingsRef.value?.plugins || []).filter((p) => p.name !== packageName);
+//       await appSettings.updateSettings({ ...toRaw(settingsRef.value) as any, plugins: currentPlugins });
+//       toast.add({ severity: "success", summary: "Plugin uninstalled", detail: `${packageName} has been uninstalled!`, life: 3000 });
+//     } else {
+//       toast.add({ severity: "error", summary: "Uninstall failed", detail: res.ipcError || `Could not uninstall ${packageName}`, life: 5000 });
+//     }
+//   } catch (err: any) {
+//     console.error("Plugin uninstallation failed:", err);
+//     toast.add({ severity: "error", summary: "Uninstall error", detail: err.message || `Could not uninstall ${packageName}`, life: 5000 });
+//   } finally {
+//     loadingPlugins.value[packageName] = false;
+//   }
+// };
 
 // Obsidian refactoring additions
 const currentSection = ref("general");

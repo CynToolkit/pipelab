@@ -26,20 +26,6 @@
   "main": "./src/index.ts",
   "module": "./src/index.ts",
   "types": "./src/index.ts",
-  "publishConfig": {
-    "access": "public",
-    "exports": {
-      ".": {
-        "types": "./dist/index.d.mts",
-        "import": "./dist/index.mjs",
-        "require": "./dist/index.cjs",
-        "default": "./dist/index.mjs"
-      }
-    },
-    "main": "./dist/index.cjs",
-    "module": "./dist/index.mjs",
-    "types": "./dist/index.d.mts"
-  },
   "scripts": {
     "format": "oxfmt .",
     "typecheck": "tsc -b",
