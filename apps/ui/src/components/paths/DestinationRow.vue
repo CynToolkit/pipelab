@@ -8,7 +8,7 @@
       <i class="mdi platform-icon" :class="meta.icon" :style="{ color: meta.color }"></i>
       <div class="platform-text">
         <span class="platform-name">{{ meta.name }}</span>
-        <span class="platform-delivery" :class="deliveryTextClass">
+        <span class="platform-delivery" :class="{ failed: state?.state === 'failed' }">
           {{ deliveryText }}
         </span>
       </div>
@@ -49,7 +49,7 @@
           :key="opt"
           class="seg"
           :class="{ active: destination.delivery === opt }"
-          :disabled="opt !== destination.delivery && !isDeliveryValid(opt)"
+          :disabled="opt !== destination.delivery && !validDeliveries.includes(opt)"
           @click="$emit('update-delivery', opt)"
         >
           {{ opt }}
@@ -113,7 +113,6 @@ import type { Destination, DeliveryKind, DestinationRun } from "@pipelab/shared"
 const props = defineProps<{
   destination: Destination;
   state?: DestinationRun;
-  credentialSaving: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -153,8 +152,6 @@ const validDeliveries = computed<DeliveryKind[]>(
   () => DELIVERY_OPTIONS[props.destination.type] ?? [],
 );
 
-const isDeliveryValid = (d: DeliveryKind) => validDeliveries.value.includes(d);
-
 const needsCredentials = computed(() => {
   const t = props.destination.type;
   return t === "steam" || t === "itch" || t === "poki" || t === "discord-activity" || t === "netlify";
@@ -168,11 +165,6 @@ const hasCredential = computed(() => {
 const deliveryText = computed(() => {
   const d = props.destination.delivery;
   return d.charAt(0).toUpperCase() + d.slice(1);
-});
-
-const deliveryTextClass = computed(() => {
-  if (props.state?.state === "failed") return "failed";
-  return "";
 });
 
 const rowClass = computed(() => {

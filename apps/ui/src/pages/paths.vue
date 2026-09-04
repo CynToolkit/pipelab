@@ -22,7 +22,6 @@
             :key="index"
             :destination="dest"
             :state="runState.destinations[index]"
-            :credential-saving="savingCredential === index"
             @update-delivery="(d) => updateDelivery(index, d)"
             @remove="removeDestination(index)"
             @ship="ship(index)"
@@ -90,16 +89,12 @@ import type {
   PathRunState,
 } from "@pipelab/shared";
 
-// ─── Project / Path ─────────────────────────────────────────────────────────
-
 const projectName = ref("My Game");
 const lastExport = ref<Date | null>(null);
 const sourceWarning = ref(false);
 const editingSource = ref(false);
 const showAddDestination = ref(false);
 const savingCredential = ref<number | null>(null);
-
-// ─── Path state ─────────────────────────────────────────────────────────────
 
 const path = ref<Path>({
   version: "1.0.0",
@@ -111,14 +106,11 @@ const runState = ref<PathRunState>({
   destinations: {},
 });
 
-// ─── Derived ─────────────────────────────────────────────────────────────────
-
 const readyCount = computed(
   () =>
-    path.value.destinations.filter((d, i) => {
-      const s = runState.value.destinations[i];
-      return s?.state === "ready";
-    }).length,
+    path.value.destinations.filter(
+      (_, i) => runState.value.destinations[i]?.state === "ready",
+    ).length,
 );
 
 const isAnyShipping = computed(
@@ -133,15 +125,11 @@ const shipAllLabel = computed(() => {
   return `Ship ${n} ready`;
 });
 
-// ─── Source ─────────────────────────────────────────────────────────────────
-
 const saveSource = (source: Source) => {
   path.value.source = source;
   sourceWarning.value = false;
   editingSource.value = false;
 };
-
-// ─── Destinations ───────────────────────────────────────────────────────────
 
 const addDestination = (type: Destination["type"]) => {
   const newDest = createDestination(type);
@@ -191,8 +179,6 @@ const saveCredential = async (index: number, credentialId: string) => {
   savingCredential.value = null;
 };
 
-// ─── Run ────────────────────────────────────────────────────────────────────
-
 const ship = (index: number) => {
   runState.value.destinations[index] = {
     state: "shipping",
@@ -228,8 +214,6 @@ const skip = (index: number) => {
     finishedAt: Date.now(),
   };
 };
-
-// ─── Navigation ─────────────────────────────────────────────────────────────
 
 const router = useRouter();
 const goAdvanced = () => {

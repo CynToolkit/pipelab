@@ -10,7 +10,7 @@
           :key="opt.value"
           class="engine-option"
           :class="{ active: source.type === opt.value }"
-          @click="onEnginePick(opt.value)"
+          @click="currentType = opt.value"
         >
           <i class="mdi" :class="opt.icon"></i>
           <span>{{ opt.label }}</span>
@@ -38,7 +38,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from "vue";
+import { ref } from "vue";
 import type { Source, EngineType } from "@pipelab/shared";
 import { useAPI } from "@renderer/composables/api";
 
@@ -51,23 +51,11 @@ const emit = defineEmits<{
 const path = ref(props.source.path);
 const currentType = ref<EngineType>(props.source.type);
 
-watch(
-  () => props.source,
-  (s) => {
-    path.value = s.path;
-    currentType.value = s.type;
-  },
-);
-
 const engineOptions: { value: EngineType; label: string; icon: string }[] = [
   { value: "construct3", label: "Construct 3", icon: "mdi-cube-outline" },
   { value: "godot", label: "Godot", icon: "mdi-cube" },
   { value: "folder", label: "Folder", icon: "mdi-folder-outline" },
 ];
-
-const onEnginePick = (type: EngineType) => {
-  currentType.value = type;
-};
 
 const api = useAPI();
 const browse = async () => {
