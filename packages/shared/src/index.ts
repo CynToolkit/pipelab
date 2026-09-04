@@ -61,6 +61,7 @@ export * from "./utils";
 export * from "./validation";
 export * from "./variables";
 export * from "./websocket.types";
+export * from "./path";
 
 // 4. Configuration Sub-packages
 export * from "./config/projects-definition"; // <-- RE-ADDED
