@@ -91,7 +91,9 @@ describe("remote utilities & offline mode", () => {
     expect(pacote.packument).not.toHaveBeenCalled();
   });
 
-  test("fetchPipelabPlugin maps latest to releaseTag for official plugins", async () => {
+  // [DISABLED] Bundled mode: @pipelab/* packages resolve from monorepo/local cache, never npm.
+  // Re-enable: restore the pacote.packument mock + expect(packument).toHaveBeenCalledWith(...) assertion below.
+  test("fetchPipelabPlugin resolves official plugins from local cache without npm in bundled mode", async () => {
     vi.advanceTimersByTime(30000); // Bypass 10s caching
     const context = new PipelabContext({
       userDataPath: "/tmp/pipelab-test-remote",
@@ -103,15 +105,12 @@ describe("remote utilities & offline mode", () => {
 
     vi.spyOn(dns, "lookup").mockResolvedValue({ address: "1.2.3.4", family: 4 } as any);
 
-    vi.mocked(pacote.packument).mockResolvedValue({
-      name: pluginName,
-      versions: {
-        "1.0.0-beta.15": {},
-      },
-      "dist-tags": {
-        beta: "1.0.0-beta.15",
-      },
-    } as any);
+    // Original npm-path setup (re-enable with the fetchPackage npm guard):
+    // vi.mocked(pacote.packument).mockResolvedValue({
+    //   name: pluginName,
+    //   versions: { "1.0.0-beta.15": {} },
+    //   "dist-tags": { beta: "1.0.0-beta.15" },
+    // } as any);
 
     await fs.mkdir(cachedVersionDir, { recursive: true });
     await fs.writeFile(
@@ -125,7 +124,8 @@ describe("remote utilities & offline mode", () => {
 
     const result = await fetchPipelabPlugin(pluginName, "latest", { context });
 
-    expect(pacote.packument).toHaveBeenCalledWith(pluginName, expect.any(Object));
+    // Bundled mode: npm is never consulted for @pipelab/* packages.
+    expect(pacote.packument).not.toHaveBeenCalled();
     expect(result.packageDir).toBe(cachedVersionDir);
   });
 
