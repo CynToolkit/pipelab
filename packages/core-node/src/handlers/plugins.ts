@@ -1,11 +1,11 @@
 import { useAPI } from "../ipc-core";
 import { PipelabContext, isDev, projectRoot } from "../context";
 // import pacote from "pacote"; // [DISABLED] npm registry lookup — plugin marketplace disabled
-import { rm } from "node:fs/promises";
+// import { rm } from "node:fs/promises"; // [DISABLED] only used by plugin:uninstall body — re-enable with it
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { usePlugins } from "@pipelab/shared";
-import { webSocketServer } from "../websocket-server";
+// import { webSocketServer } from "../websocket-server"; // [DISABLED] only used by plugin:install body — re-enable with it
 // import { fetchPipelabPlugin } from "../utils/remote"; // [DISABLED] dynamic plugin fetch
 // import { loadCustomPlugin, findInstalledPlugins } from "../plugins-registry"; // [DISABLED] dynamic load
 
@@ -61,6 +61,8 @@ export function resolvePluginVersion(packageName: string, requestedVersion?: str
   return requestedVersion || "latest";
 }
 
+// Note: `context` is unused while the install/uninstall bodies below are commented out.
+// Signatures are intentionally left unchanged so re-enable = delete guard + uncomment body.
 export const registerPluginsHandlers = (context: PipelabContext) => {
   const { handle } = useAPI();
 

@@ -1,11 +1,15 @@
 import { pathToFileURL } from "node:url";
-import { readdir, readFile } from "node:fs/promises";
+// import { readdir } from "node:fs/promises"; // [DISABLED] only used by findInstalledPlugins scan — re-enable with it
+import { readFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { PipelabContext, isDev, projectRoot } from "./context";
+import { PipelabContext } from "./context";
+// import { isDev, projectRoot } from "./context"; // [DISABLED] only used by dynamic loader scan — re-enable with it
 import { sendStartupProgress } from "./server";
 
-const enhancePluginDefinition = async (
+// [DISABLED] Kept for re-enable of loadPipelabPlugin/loadCustomPlugin above.
+// Exported to avoid an unused warning while the dynamic loaders are gated.
+export const enhancePluginDefinition = async (
   plugin: any,
   packageDir: string,
   fallbackName: string,
