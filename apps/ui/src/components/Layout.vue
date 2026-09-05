@@ -60,7 +60,9 @@
           <span v-show="!isSidebarCollapsed" class="coming-soon-badge">Soon</span>
         </div>
 
-        <router-link
+        <!-- [DISABLED] Plugins page hidden in bundled mode — plugin management UI disabled.
+             Re-enable: uncomment the router-link below. Route (/plugins) and page stay intact. -->
+        <!-- <router-link
           to="/plugins"
           class="sidebar-nav-item"
           active-class="active"
@@ -68,7 +70,7 @@
         >
           <i class="mdi mdi-puzzle-outline nav-icon" />
           <span v-show="!isSidebarCollapsed" class="nav-label">Plugins</span>
-        </router-link>
+        </router-link> -->
 
         <div
           class="sidebar-nav-item disabled"
