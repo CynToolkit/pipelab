@@ -48,5 +48,14 @@ declare namespace DesktopApp {
 
   interface Tauri extends Config {
     tauriVersion: string;
+    /**
+     * Optional Tauri `app.mobile` configuration (e.g. android/ios specific overrides).
+     * Only used when packaging for the `android` or `ios` platforms.
+     */
+    mobile?: {
+      target?: "all" | "android" | "ios";
+      android?: Record<string, unknown>;
+      ios?: Record<string, unknown>;
+    };
   }
 }

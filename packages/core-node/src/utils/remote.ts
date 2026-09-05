@@ -563,7 +563,11 @@ export async function fetchPipelabAsset(
   versionOrRange: string,
   options: FetchOptions,
 ): Promise<string> {
-  if (isDev && projectRoot) {
+  // Prefer the local monorepo asset when it exists (dev workflow). This avoids
+  // pulling a published template that may pin Tauri crate versions inconsistently
+  // with what the local scaffold expects. `PIPELAB_FORCE_NPM` can still force the
+  // published package (used by CI/prod).
+  if (projectRoot && process.env.PIPELAB_FORCE_NPM !== "true") {
     const assetId = packageName.replace("@pipelab/asset-", "");
     const localPath = join(projectRoot, "assets", `asset-${assetId}`);
     if (existsSync(localPath)) return localPath;
