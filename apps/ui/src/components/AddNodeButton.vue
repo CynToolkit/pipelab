@@ -262,22 +262,27 @@ const compareVersions = (a: string, b: string): number => {
   return semver.compare(semver.coerce(a) || "0.0.0", semver.coerce(b) || "0.0.0");
 };
 
+// [DISABLED] User-installed plugin cache is disabled in bundled mode —
+// the backend plugin:list-installed always returns []. Bundled plugins come
+// from the store (pluginDefinitions), so the list still renders fully.
+// Re-enable: uncomment the api.execute body below.
 // Fetch installed plugins from local cache, keeping only the latest version of each
 const fetchCachedPlugins = async () => {
-  try {
-    const res = await api.execute("plugin:list-installed");
-    if (res.type === "success" && res.result?.installed) {
-      const groups: Record<string, (typeof res.result.installed)[0]> = {};
-      for (const item of res.result.installed) {
-        if (!groups[item.name] || compareVersions(item.version, groups[item.name].version) > 0) {
-          groups[item.name] = item;
-        }
-      }
-      cachedPlugins.value = Object.values(groups);
-    }
-  } catch (e) {
-    console.error("Failed to fetch cached plugins:", e);
-  }
+  return;
+  // try {
+  //   const res = await api.execute("plugin:list-installed");
+  //   if (res.type === "success" && res.result?.installed) {
+  //     const groups: Record<string, (typeof res.result.installed)[0]> = {};
+  //     for (const item of res.result.installed) {
+  //       if (!groups[item.name] || compareVersions(item.version, groups[item.name].version) > 0) {
+  //         groups[item.name] = item;
+  //       }
+  //     }
+  //     cachedPlugins.value = Object.values(groups);
+  //   }
+  // } catch (e) {
+  //   console.error("Failed to fetch cached plugins:", e);
+  // }
 };
 
 watch(visible, async (newVal) => {
