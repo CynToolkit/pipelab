@@ -13,7 +13,8 @@ const builtInPlugins = async () => {
     (await import('./libs/plugin-discord')).default,
     (await import('./libs/plugin-poki')).default,
     (await import('./libs/plugin-nvpatch')).default,
-    (await import('./libs/plugin-tauri')).default
+    (await import('./libs/plugin-tauri')).default,
+    (await import('./libs/plugin-godot')).default
   ]
 
   if (is.dev) {
