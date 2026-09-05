@@ -18,12 +18,17 @@ const routes: RouterOptions["routes"] = [
     },
   },
   {
-    path: "/integrations",
+    path: "/plugins",
     name: "Plugins",
-    component: () => import("../pages/integrations.vue"),
+    component: () => import("../pages/plugins.vue"),
     meta: {
       title: "Plugins",
     },
+  },
+  {
+    // Legacy path — the page used to live at /integrations.
+    path: "/integrations",
+    redirect: "/plugins",
   },
   {
     path: "/connections",

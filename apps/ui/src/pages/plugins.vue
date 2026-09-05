@@ -1,5 +1,5 @@
 <template>
-  <div class="integrations-page">
+  <div class="plugins-page">
     <Toast />
     <Layout>
       <div class="main-layout">
@@ -228,7 +228,7 @@
                         </div>
                       </div>
 
-                      <div class="integrations-grid">
+                      <div class="plugins-grid">
                         <div
                           v-for="integration in selectedPluginDefinition.integrations"
                           :key="integration.name"
@@ -615,7 +615,7 @@ const togglePlugin = async (packageName: string) => {
 </script>
 
 <style lang="scss" scoped>
-.integrations-page {
+.plugins-page {
   width: 100%;
   height: 100%;
   overflow: hidden;
@@ -978,7 +978,7 @@ const togglePlugin = async (packageName: string) => {
 }
 
 /* ─── Integrations Schema Grid ──────────────────────────── */
-.integrations-grid {
+.plugins-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 16px;

@@ -61,7 +61,7 @@
         </div>
 
         <router-link
-          to="/integrations"
+          to="/plugins"
           class="sidebar-nav-item"
           active-class="active"
           v-tooltip.right="isSidebarCollapsed ? 'Plugins' : undefined"
