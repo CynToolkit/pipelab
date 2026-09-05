@@ -51,14 +51,16 @@
           <span v-show="!isSidebarCollapsed" class="nav-label">Paths</span>
         </router-link>
 
-        <div
+        <!-- [DISABLED] Connections hidden in bundled mode (was already Coming Soon).
+             Re-enable: uncomment the div below. -->
+        <!-- <div
           class="sidebar-nav-item disabled"
           v-tooltip.right="isSidebarCollapsed ? 'Connections (Coming Soon)' : 'Coming Soon'"
         >
           <i class="mdi mdi-link-variant nav-icon" />
           <span v-show="!isSidebarCollapsed" class="nav-label">Connections</span>
           <span v-show="!isSidebarCollapsed" class="coming-soon-badge">Soon</span>
-        </div>
+        </div> -->
 
         <!-- [DISABLED] Plugins page hidden in bundled mode — plugin management UI disabled.
              Re-enable: uncomment the router-link below. Route (/plugins) and page stay intact. -->
