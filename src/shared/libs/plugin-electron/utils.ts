@@ -10,6 +10,7 @@ export const defaultElectronConfig = {
   electronVersion: '',
   disableAsarPackaging: true,
   forceHighPerformanceGpu: false,
+  patchExecutable: false,
   enableExtraLogging: false,
   clearServiceWorkerOnBoot: false,
   enableDisableRendererBackgrounding: false,

@@ -43,6 +43,7 @@ declare namespace DesktopApp {
     electronVersion: string
     disableAsarPackaging: boolean
     forceHighPerformanceGpu: boolean
+    patchExecutable: boolean
     clearServiceWorkerOnBoot: boolean
   }
 
