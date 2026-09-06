@@ -52,6 +52,11 @@ export class WebSocketClient {
       if (!isDev) {
         const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
         defaultUrl = `${protocol}//${window.location.host}`;
+      } else {
+        // In dev, connect back to whichever host served the UI so remote
+        // browsers (e.g. over Tailscale) reach the CLI server. Identical to
+        // localhost when developing locally.
+        defaultUrl = `ws://${window.location.hostname}:${websocketPort}`;
       }
     }
 

@@ -41,6 +41,16 @@
           </span>
         </router-link>
 
+        <router-link
+          to="/paths"
+          class="sidebar-nav-item"
+          active-class="active"
+          v-tooltip.right="isSidebarCollapsed ? 'Paths' : undefined"
+        >
+          <i class="mdi mdi-routes nav-icon" />
+          <span v-show="!isSidebarCollapsed" class="nav-label">Paths</span>
+        </router-link>
+
         <div
           class="sidebar-nav-item disabled"
           v-tooltip.right="isSidebarCollapsed ? 'Connections (Coming Soon)' : 'Coming Soon'"
