@@ -10,14 +10,12 @@ declare global {
   }
 }
 
+// No "workspace" pseudo-version: main always passes --app-version (dev included),
+// so parse it unconditionally and fall back to 1.0.0 only if truly absent.
 let version = "1.0.0";
 try {
-  if (process.env.NODE_ENV === "development") {
-    version = "workspace";
-  } else {
-    const versionArg = process.argv.find((arg) => arg.startsWith("--app-version="));
-    version = versionArg ? versionArg.split("=")[1] : "1.0.0";
-  }
+  const versionArg = process.argv.find((arg) => arg.startsWith("--app-version="));
+  version = versionArg ? versionArg.split("=")[1] : "1.0.0";
 } catch (error) {
   console.error("Failed to parse version in preload:", error);
 }

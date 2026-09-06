@@ -145,7 +145,8 @@ export async function fetchPackage(
       const local = await tryResolveMonorepoPackage(packageName);
       if (local) {
         console.debug(`[Fetcher] ${packageName}: Resolved to local source at ${local.packageDir} (${Date.now() - start}ms)`);
-        return { ...local, resolvedVersion: "workspace" };
+        // Real version from the package.json — no "workspace" pseudo-version.
+        return { ...local, resolvedVersion: local.version ?? versionOrRange };
       }
     }
     const fallbackVersion = await tryLocalFallback(
@@ -655,7 +656,7 @@ let monorepoCache: Record<string, string> | null = null;
 
 async function tryResolveMonorepoPackage(
   packageName: string,
-): Promise<{ packageDir: string; isLocal: boolean; entryPoint: string } | null> {
+): Promise<{ packageDir: string; isLocal: boolean; entryPoint: string; version?: string } | null> {
   if (!monorepoCache) {
     monorepoCache = await crawlMonorepoPackages();
   }
@@ -665,9 +666,11 @@ async function tryResolveMonorepoPackage(
 
   // Find best entry point from package.json
   let entryPoint: string | undefined;
+  let version: string | undefined;
   try {
     const pkgPath = join(packageDir, "package.json");
     const pkg = JSON.parse(await readFile(pkgPath, "utf-8"));
+    if (pkg.version) version = pkg.version;
 
     // 1. Try to find the entry point from package.json
     // User tip: main is usually source in dev, publishConfig.main is compiled for prod
@@ -703,6 +706,7 @@ async function tryResolveMonorepoPackage(
     packageDir,
     isLocal: true,
     entryPoint: entryPoint || join(packageDir, "dist", "index.mjs"),
+    version,
   };
 }
 

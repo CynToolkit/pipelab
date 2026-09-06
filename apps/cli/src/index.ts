@@ -37,11 +37,11 @@ if (isProduction && process.env.POSTHOG_API_KEY) {
 import { Command } from "commander";
 import { getDefaultUserDataPath } from "./paths";
 
-// Resolve version from injected env or package.json with fallbacks for production
+// Resolve version from injected env or package.json. No "workspace"/"local"
+// pseudo-versions: in dev the package.json lookup below resolves the real
+// workspace version (apps/cli/package.json sits next to src/).
 let version = process.env.CLI_VERSION || "0.0.0";
-if (isDev) {
-  version = "workspace";
-} else if (version === "0.0.0") {
+if (version === "0.0.0") {
   try {
     const packageJsonPath = existsSync(join(__dirname, "package.json"))
       ? join(__dirname, "package.json")

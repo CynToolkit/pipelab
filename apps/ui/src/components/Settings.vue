@@ -989,10 +989,12 @@ const restartTour = (tourId: "dashboard" | "editor") => {
 
 const toast = useToast();
 
-const isDevMode = import.meta.env.DEV;
-const appVersion = ref(isDevMode ? "workspace" : window.version || "1.0.0");
+// No "workspace" pseudo-version: window.version is real even in dev (preload
+// parses --app-version unconditionally), and UI_VERSION is define-injected
+// from the real package version by vite (npm_package_version).
+const appVersion = ref(window.version || "1.0.0");
 const agentVersion = ref("...");
-const uiVersion = isDevMode ? "workspace" : process.env.UI_VERSION || "1.0.0";
+const uiVersion = process.env.UI_VERSION || "1.0.0";
 const electronVersion = window.pipelab?.versions?.electron || "N/A";
 const isElectron = !!window.electron;
 
