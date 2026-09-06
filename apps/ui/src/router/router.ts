@@ -67,11 +67,11 @@ const routes: RouterOptions["routes"] = [
     },
   },
   {
-    path: "/simple-editor",
-    name: "SimpleEditor",
-    component: () => import("../pages/simple-editor.vue"),
+    path: "/paths",
+    name: "Paths",
+    component: () => import("../pages/paths.vue"),
     meta: {
-      title: "Simple Editor",
+      title: "Paths",
     },
   },
 ];

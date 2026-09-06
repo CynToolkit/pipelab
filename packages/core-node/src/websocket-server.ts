@@ -108,7 +108,9 @@ export class WebSocketServer {
         });
 
         if (!server.listening) {
-          server.listen(port, "127.0.0.1", () => {
+          // Bind all interfaces so remote browsers (e.g. over Tailscale) can
+          // reach the dev server. Local dev is unaffected.
+          server.listen(port, "0.0.0.0", () => {
             this.connectionState = "connected";
             logger().info(`WebSocket server listening on port ${port}`);
             this.isReady = true;
