@@ -21,14 +21,16 @@
           <i class="mdi mdi-server mr-2"></i>
           <span>{{ t("settings.tabs.advanced") }}</span>
         </div>
-        <div
+        <!-- Versions tab hidden in bundled mode — one bundle, one version; connection
+             and update status already live in the sidebar. Re-enable: uncomment. -->
+        <!-- <div
           class="sidebar-item"
           :class="{ active: currentSection === 'versions' }"
           @click="currentSection = 'versions'"
         >
           <i class="mdi mdi-information mr-2"></i>
           <span>{{ t("settings.tabs.versions") }}</span>
-        </div>
+        </div> -->
       </div>
 
       <!-- Account Group -->
@@ -442,7 +444,7 @@
         </div>
       </div>
 
-      <!-- Versions Tab Content -->
+      <!-- Versions Tab Content (hidden in bundled mode — see sidebar-item above).
       <div v-if="currentSection === 'versions'" class="settings-panel">
         <div class="section-header">
           <h3>{{ t("settings.tabs.versions") }}</h3>
@@ -527,6 +529,7 @@
           </div>
         </div>
       </div>
+      -->
 
       <!-- Billing Tab Content -->
       <div v-if="currentSection === 'billing'" class="settings-panel">
@@ -989,49 +992,50 @@ const restartTour = (tourId: "dashboard" | "editor") => {
 
 const toast = useToast();
 
-// No "workspace" pseudo-version: window.version is real even in dev (preload
-// parses --app-version unconditionally), and UI_VERSION is define-injected
-// from the real package version by vite (npm_package_version).
-const appVersion = ref(window.version || "1.0.0");
-const agentVersion = ref("...");
-const uiVersion = process.env.UI_VERSION || "1.0.0";
-const electronVersion = window.pipelab?.versions?.electron || "N/A";
-const isElectron = !!window.electron;
+// [DISABLED] Versions tab hidden in bundled mode — one bundle, one version.
+// Connection/update status already live in the sidebar. Re-enable: uncomment.
+// (App/UI versions resolve real values, no pseudo-versions: window.version via
+// preload --app-version, UI_VERSION define-injected from npm_package_version.)
+// const appVersion = ref(window.version || "1.0.0");
+// const agentVersion = ref("...");
+// const uiVersion = process.env.UI_VERSION || "1.0.0";
+// const electronVersion = window.pipelab?.versions?.electron || "N/A";
+// const isElectron = !!window.electron;
 
-const formatVersion = (version: string) => {
-  if (!version || version === "N/A" || version === "..." || version === "Unknown") {
-    return version;
-  }
-  return version.startsWith("v") ? version : `v${version}`;
-};
+// const formatVersion = (version: string) => {
+//   if (!version || version === "N/A" || version === "..." || version === "Unknown") {
+//     return version;
+//   }
+//   return version.startsWith("v") ? version : `v${version}`;
+// };
 
-const updateVersions = async () => {
-  if (websocketManager.isConnected()) {
-    try {
-      const response = await websocketManager.send("agent:version:get");
-      if (response.type === "success") {
-        agentVersion.value = response.result.version;
-      }
-    } catch (error) {
-      console.error("Failed to fetch agent version in Settings:", error);
-      agentVersion.value = "Unknown";
-    }
-  } else {
-    agentVersion.value = "...";
-  }
-};
+// const updateVersions = async () => {
+//   if (websocketManager.isConnected()) {
+//     try {
+//       const response = await websocketManager.send("agent:version:get");
+//       if (response.type === "success") {
+//         agentVersion.value = response.result.version;
+//       }
+//     } catch (error) {
+//       console.error("Failed to fetch agent version in Settings:", error);
+//       agentVersion.value = "Unknown";
+//     }
+//   } else {
+//     agentVersion.value = "...";
+//   }
+// };
 
-websocketManager.onStateChange((state) => {
-  if (state === "connected") {
-    updateVersions();
-  } else {
-    agentVersion.value = "...";
-  }
-});
+// websocketManager.onStateChange((state) => {
+//   if (state === "connected") {
+//     updateVersions();
+//   } else {
+//     agentVersion.value = "...";
+//   }
+// });
 
-if (websocketManager.isConnected()) {
-  updateVersions();
-}
+// if (websocketManager.isConnected()) {
+//   updateVersions();
+// }
 
 const copyToClipboard = (text: string) => {
   navigator.clipboard.writeText(text);
