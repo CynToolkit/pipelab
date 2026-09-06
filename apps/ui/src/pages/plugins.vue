@@ -178,11 +178,13 @@
                                 <span class="node-title font-bold text-xs">{{
                                   nodeDef.node.name
                                 }}</span>
-                                <span
+                                <!-- Node version hidden in bundled mode — all blocks share the bundled release.
+                                     Re-enable: uncomment the span below. -->
+                                <!-- <span
                                   v-if="nodeDef.node.version"
                                   class="node-version text-[9px] opacity-60"
                                   >v{{ nodeDef.node.version }}</span
-                                >
+                                > -->
                               </div>
                             </div>
                             <div class="flex gap-1">

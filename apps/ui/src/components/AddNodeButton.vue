@@ -147,9 +147,11 @@
                     <div class="node-details">
                       <span class="node-name">
                         {{ node.node.name }}
-                        <span v-if="node.node.version" class="version"
+                        <!-- Node version hidden in bundled mode — all blocks share the bundled release.
+                             Re-enable: uncomment the span below. -->
+                        <!-- <span v-if="node.node.version" class="version"
                           >v{{ node.node.version }}</span
-                        >
+                        > -->
                       </span>
                       <p v-if="node.node.description" class="node-description">
                         {{ node.node.description }}
