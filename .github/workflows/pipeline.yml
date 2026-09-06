@@ -172,15 +172,47 @@ jobs:
             apps/desktop/.vite/**
             apps/ui/dist/**
 
-  # publish-preview is disabled: npm publishing and plugin publishing are disabled in bundled mode.
-  # Keeping the job structure (skipped) to avoid breaking the needs: [] dependency.
+  # [DISABLED] publish-preview is disabled in bundled mode — npm publishing is off.
+  # Original job body preserved below as comments. Re-enable: delete the echo step
+  # and uncomment the original steps. Job shell kept so `needs:` references don't break.
   publish-preview:
     name: Publish Preview
     needs: build-all
+    # if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    # permissions:
+    #   pull-requests: write
+    #   contents: read
     steps:
       - name: Plugin publishing disabled in bundled mode
         run: echo "publish-preview is disabled — plugins and packages are bundled with the CLI, not published to npm"
+      # - uses: actions/checkout@v4
+      # - uses: pnpm/action-setup@v4
+      #   with:
+      #     run_install: false
+      # - name: Use Node.js 24
+      #   uses: actions/setup-node@v4
+      #   with:
+      #     node-version: 24.15.0
+      #     cache: "pnpm"
+      # - name: Install dependencies
+      #   run: pnpm install
+      # - name: Download monorepo-dist
+      #   uses: actions/download-artifact@v4
+      #   with:
+      #     name: monorepo-dist
+      #     path: .
+      # - name: Publish to pkg.pr.new
+      #   run: |
+      #     npx pkg-pr-new publish \
+      #       packages/shared \
+      #       packages/core-node \
+      #       plugins/plugin-* \
+      #       assets/asset-* \
+      #       packages/migration \
+      #       packages/constants \
+      #       apps/cli \
+      #       --comment=update
 
   release:
     name: Release & Deploy
@@ -196,6 +228,9 @@ jobs:
       (github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'develop')))
     runs-on: ubuntu-latest
     outputs:
+      # [DISABLED] Original output wired to the changesets step below.
+      # Re-enable: uncomment and remove the hardcoded "true".
+      # published: ${{ steps.changesets.outputs.published }}
       published: "true"  # NPM publishing disabled — desktop binaries always released via GitHub releases in bundled mode.
     steps:
       - uses: actions/checkout@v4
@@ -222,8 +257,21 @@ jobs:
           name: monorepo-dist
           path: .
 
-      # NPM publishing disabled in bundled mode — plugins and packages are bundled with the CLI.
+      # [DISABLED] NPM publishing step — plugins and packages are bundled with the CLI.
+      # Re-enable: uncomment the changesets step below and restore the original
+      # `if:` conditions referencing steps.changesets.outputs.published.
+      # - name: Publish to NPM & Create GitHub Release
+      #   id: changesets
+      #   uses: changesets/action@v1
+      #   with:
+      #     publish: pnpm changeset publish --provenance
+      #     createGithubReleases: true
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #     NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+      #     NPM_CONFIG_PROVENANCE: true
       - name: Download all artifacts
+        # Original: if: steps.changesets.outputs.published == 'true' || github.event.inputs.forcePublish == 'true'
         if: github.event_name == 'workflow_dispatch'
         uses: actions/download-artifact@v4
         with:
@@ -260,6 +308,7 @@ jobs:
           echo "prerelease=$IS_PRERELEASE" >> $GITHUB_OUTPUT
 
       - name: Upload Desktop Binaries
+        # Original: if: steps.changesets.outputs.published == 'true' || github.event.inputs.forcePublish == 'true'
         if: github.event_name == 'workflow_dispatch'
         uses: softprops/action-gh-release@v2
         with:
@@ -274,13 +323,23 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # NPM publishing is disabled in bundled mode. Apps are released via GitHub releases.
+      # [DISABLED] NPM publishing is disabled in bundled mode. Apps are released via GitHub releases.
+      # Re-enable: uncomment both steps below (original `if:` + `env:` preserved).
       # - name: Publish @pipelab/ui dynamically
+      #   if: steps.changesets.outputs.published == 'true' || github.event_name == 'workflow_dispatch'
       #   run: node scripts/publish-app.mjs ui
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #     NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+      #     POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
 
-      # NPM publishing is disabled in bundled mode.
       # - name: Publish @pipelab/cli dynamically
+      #   if: steps.changesets.outputs.published == 'true' || github.event_name == 'workflow_dispatch'
       #   run: node scripts/publish-app.mjs cli
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #     NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+      #     POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
 
   build-desktop:
     name: Build Desktop (${{ matrix.os }} - ${{ matrix.arch }})
