@@ -52,11 +52,13 @@
                 <i v-else class="pi pi-box plugin-icon-pi"></i>
                 <div class="flex flex-column gap-0.5 min-w-0">
                   <span class="plugin-label">{{ formatPluginName(plugin.name) }}</span>
-                  <span
+                  <!-- Plugin version hidden in bundled mode — all plugins share the bundled release.
+                       Re-enable: uncomment the span below. -->
+                  <!-- <span
                     v-if="getPluginVersion(plugin.name)"
                     class="text-[9px] opacity-50 font-mono leading-none"
                     >v{{ getPluginVersion(plugin.name) }}</span
-                  >
+                  > -->
                 </div>
               </div>
               <span class="status-dot" :class="{ enabled: plugin.enabled }"></span>
@@ -96,12 +98,14 @@
                   <div>
                     <div class="flex items-center gap-2">
                       <h2 class="pane-title">{{ formatPluginName(selectedPlugin.name) }}</h2>
-                      <Tag
+                      <!-- Plugin version hidden in bundled mode — all plugins share the bundled release.
+                           Re-enable: uncomment the Tag below. -->
+                      <!-- <Tag
                         v-if="selectedPluginDefinition?.version"
                         severity="secondary"
                         :value="'v' + selectedPluginDefinition.version"
                         class="text-[9px] font-mono py-0.5 px-1.5"
-                      />
+                      /> -->
                     </div>
                     <p class="pane-desc">
                       {{ selectedPlugin.description || "No description provided." }}
