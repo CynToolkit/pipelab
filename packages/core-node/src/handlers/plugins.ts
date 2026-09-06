@@ -183,19 +183,20 @@ export const registerPluginsHandlers = (context: PipelabContext) => {
     // send({ type: "end", data: { type: "success", result: { installed } } });
   });
 
-  // Ensures all required plugin IDs are loaded, JIT-installing any that are missing.
+  // Ensures all required plugin IDs are loaded. Bundled mode: no versions —
+  // callers pass a plain plugin-ID list, missing = not in bundle.
   // Called before opening a pipeline in the editor.
   handle("plugin:ensure-loaded", async (_, { send, value }) => {
-    const { plugins } = value as { plugins: Record<string, unknown> };
+    const { plugins } = value as { plugins: string[] };
     const { plugins: registeredPlugins } = usePlugins();
 
     const loaded: string[] = [];
     const failed: string[] = [];
 
     // [DISABLED] JIT-install missing plugins — plugins are bundled, so missing = not in bundle.
-    // Re-enable: uncomment the original "for (... resolvePluginVersion ...)" block below.
-    if (plugins && typeof plugins === "object") {
-      for (const pluginId of Object.keys(plugins)) {
+    // Re-enable: accept Record<string, string> again + uncomment the original block below.
+    if (Array.isArray(plugins)) {
+      for (const pluginId of plugins) {
         if (pluginId && registeredPlugins.value.some((p) => p.id === pluginId)) {
           loaded.push(pluginId);
         } else {

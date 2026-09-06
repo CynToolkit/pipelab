@@ -300,8 +300,7 @@ describe("model", () => {
             origin: {
               pluginId: "@pipelab/plugin-electron",
               nodeId: "open",
-              // "electron" wasn't in the old plugins map, so version falls back to "latest"
-              version: "latest",
+              // No versions in bundled mode — only the strict plugin ID remains.
             },
             params: {},
           },
@@ -311,8 +310,7 @@ describe("model", () => {
             origin: {
               pluginId: "@pipelab/plugin-discord",
               nodeId: "send",
-              // "dicord" mapped to "@pipelab/plugin-discord" which had version "1.0.0" in the old map
-              version: "1.0.0",
+              // "dicord" mapped to "@pipelab/plugin-discord"; old map versions are dropped.
             },
             params: {},
           },

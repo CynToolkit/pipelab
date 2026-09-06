@@ -18,7 +18,6 @@ export const testC3Unzip: PresetFn = async () => {
           origin: {
             pluginId: "@pipelab/plugin-system",
             nodeId: "manual",
-            version: "latest",
           },
           uid: "manual-start",
           params: {},
@@ -31,7 +30,6 @@ export const testC3Unzip: PresetFn = async () => {
           origin: {
             nodeId: "export-construct-project",
             pluginId: "@pipelab/plugin-construct",
-            version: "latest",
           },
           params: {
             file: {
@@ -62,7 +60,6 @@ export const testC3Unzip: PresetFn = async () => {
           origin: {
             nodeId: "unzip-file-node",
             pluginId: "@pipelab/plugin-filesystem",
-            version: "latest",
           },
           params: {
             file: {
@@ -77,7 +74,6 @@ export const testC3Unzip: PresetFn = async () => {
           origin: {
             nodeId: "electron:package",
             pluginId: "@pipelab/plugin-electron",
-            version: "latest",
           },
           params: {
             "input-folder": {
@@ -100,7 +96,6 @@ export const testC3Unzip: PresetFn = async () => {
           origin: {
             nodeId: "steam-upload",
             pluginId: "@pipelab/plugin-steam",
-            version: "latest",
           },
           params: {
             folder: {

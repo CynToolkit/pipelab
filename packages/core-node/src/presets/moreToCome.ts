@@ -15,7 +15,6 @@ export const moreToCome: PresetFn = async () => {
           origin: {
             pluginId: "@pipelab/plugin-system",
             nodeId: "manual",
-            version: "latest",
           },
           uid: startId,
           params: {},

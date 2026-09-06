@@ -32,14 +32,6 @@ export type Position = {
 export const OriginValidator = object({
   pluginId: string(),
   nodeId: string(),
-  version: optional(
-    pipe(
-      string(),
-      description(
-        'Pinned version of the plugin for this block. Falls back to "latest" when absent.',
-      ),
-    ),
-  ),
 });
 
 export type Origin = InferOutput<typeof OriginValidator>;

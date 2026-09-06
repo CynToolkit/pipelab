@@ -437,13 +437,6 @@ const getPluginIconImage = (packageName: string) => {
   return icon?.type === "image" ? icon.image : undefined;
 };
 
-const getPluginVersion = (packageName: string): string | undefined => {
-  const def = pluginDefinitions.value.find(
-    (p) => p.packageName === packageName || p.id === packageName,
-  );
-  return def?.version;
-};
-
 const getIconClass = (iconObj: any) => {
   if (!iconObj || !iconObj.icon) return "";
   const iconName = iconObj.icon;

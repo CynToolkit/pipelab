@@ -16,12 +16,10 @@ export const enhancePluginDefinition = async (
   plugin: any,
   packageDir: string,
   fallbackName: string,
-  fallbackVersion: string,
 ) => {
   if (!plugin) return plugin;
 
   let packageName = fallbackName;
-  let version = fallbackVersion;
   let pipelabMeta: any = null;
   let pkgDescription = "";
 
@@ -31,7 +29,6 @@ export const enhancePluginDefinition = async (
       const pkgContent = await readFile(pkgJsonPath, "utf8");
       const pkg = JSON.parse(pkgContent);
       if (pkg.name) packageName = pkg.name;
-      if (pkg.version) version = pkg.version;
       if (pkg.description) pkgDescription = pkg.description;
       if (pkg.pipelab) pipelabMeta = pkg.pipelab;
     }
@@ -41,7 +38,6 @@ export const enhancePluginDefinition = async (
 
   plugin.packageName = packageName;
   plugin.id = packageName;
-  plugin.version = fallbackVersion === "local" ? "local" : version;
   plugin.isOfficial = packageName.startsWith("@pipelab/");
 
   plugin.name = pipelabMeta?.name || packageName;
@@ -72,7 +68,7 @@ export const loadPipelabPlugin = async (id: string, options: { context: PipelabC
   // const { packageDir, entryPoint } = await fetchPipelabPlugin(id, options.context.releaseTag, { context: options.context, installDeps: false });
   // const pluginModule = await import(pathToFileURL(entryPoint).href);
   // const plugin = pluginModule.default;
-  // return await enhancePluginDefinition(plugin, packageDir, id, options.context.releaseTag);
+  // return await enhancePluginDefinition(plugin, packageDir, id);
 };
 
 // [DISABLED] Custom plugin loading is disabled — plugins are bundled with the CLI.
@@ -83,7 +79,7 @@ export const loadCustomPlugin = async (packageName: string, version: string, opt
   // const { packageDir, entryPoint } = await fetchPipelabPlugin(packageName, version, { context: options.context, installDeps: false });
   // const pluginModule = await import(pathToFileURL(entryPoint).href);
   // const plugin = pluginModule.default;
-  // return await enhancePluginDefinition(plugin, packageDir, packageName, version);
+  // return await enhancePluginDefinition(plugin, packageDir, packageName);
 };
 
 // [DISABLED] Scanning for user-installed plugins is disabled — no user installs in bundled mode.
@@ -150,12 +146,7 @@ export const builtInPlugins = async (options: { context: PipelabContext }): Prom
         } catch {
           console.warn(`[Plugins] Could not resolve package dir for ${packageName}, using fallbacks`);
         }
-        const plugin = await enhancePluginDefinition(
-          raw,
-          packageDir,
-          packageName,
-          options.context.releaseTag,
-        );
+        const plugin = await enhancePluginDefinition(raw, packageDir, packageName);
         registerPlugins([plugin]);
         webSocketServer.broadcast("plugin:loaded", { plugin });
         console.debug(`[Plugins] Loaded bundled ${packageName} in ${Date.now() - pluginStart}ms`);

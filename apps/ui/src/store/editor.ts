@@ -74,30 +74,23 @@ export const useEditor = defineStore("editor", () => {
   const description = ref("");
 
   /**
-   * Derived map of { pluginId → version } built from all block/trigger origins.
-   * Version is taken from origin.version; if two blocks pin the same plugin at
-   * different versions, the most-specific (non-"latest") version wins.
+   * Derived list of plugin IDs referenced by all block/trigger origins.
+   * Bundled mode: no versions — every referenced plugin is expected to be
+   * registered (see plugin:ensure-loaded).
    */
-  const plugins = computed<Record<string, string>>(() => {
-    const map: Record<string, string> = {};
-    const record = (pluginId: string, version: string | undefined) => {
-      if (!pluginId) return;
-      const ver = version ?? "latest";
-      if (!map[pluginId] || map[pluginId] === "latest") {
-        map[pluginId] = ver;
-      }
-    };
+  const plugins = computed<string[]>(() => {
+    const ids = new Set<string>();
     for (const block of blocks.value) {
       if (block?.origin?.pluginId) {
-        record(block.origin.pluginId, block.origin.version);
+        ids.add(block.origin.pluginId);
       }
     }
     for (const trigger of triggers.value) {
       if (trigger?.origin?.pluginId) {
-        record(trigger.origin.pluginId, trigger.origin.version);
+        ids.add(trigger.origin.pluginId);
       }
     }
-    return map;
+    return [...ids];
   });
 
   const isRunning = ref(false);
@@ -518,7 +511,6 @@ export const useEditor = defineStore("editor", () => {
           origin: {
             nodeId: nodeDefinition.id,
             pluginId: pluginDefinition.id,
-            version: pluginDefinition.version ?? "latest",
           },
           params: createParams,
         };
@@ -540,7 +532,6 @@ export const useEditor = defineStore("editor", () => {
           origin: {
             nodeId: triggerDefinition.id,
             pluginId: pluginDefinition.id,
-            version: pluginDefinition.version ?? "latest",
           },
           params: {},
         };

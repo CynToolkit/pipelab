@@ -156,7 +156,6 @@ export type IconType =
     };
 export interface PluginDefinition {
   packageName?: string;
-  version?: string;
 }
 
 export type RendererNodeDefinition = {
@@ -182,7 +181,6 @@ export interface RendererPluginDefinition extends PluginDefinition {
   description: string;
   isOfficial: boolean;
   packageName: string;
-  version: string;
   nodes: Array<RendererNodeDefinition>;
   integrations?: Array<IntegrationDefinition>;
 }
