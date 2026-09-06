@@ -515,6 +515,45 @@ importers:
       '@pipelab/constants':
         specifier: workspace:*
         version: link:../constants
+      '@pipelab/plugin-construct':
+        specifier: workspace:*
+        version: link:../../plugins/plugin-construct
+      '@pipelab/plugin-core':
+        specifier: workspace:*
+        version: link:../../plugins/plugin-core
+      '@pipelab/plugin-discord':
+        specifier: workspace:*
+        version: link:../../plugins/plugin-discord
+      '@pipelab/plugin-electron':
+        specifier: workspace:*
+        version: link:../../plugins/plugin-electron
+      '@pipelab/plugin-filesystem':
+        specifier: workspace:*
+        version: link:../../plugins/plugin-filesystem
+      '@pipelab/plugin-itch':
+        specifier: workspace:*
+        version: link:../../plugins/plugin-itch
+      '@pipelab/plugin-minify':
+        specifier: workspace:*
+        version: link:../../plugins/plugin-minify
+      '@pipelab/plugin-netlify':
+        specifier: workspace:*
+        version: link:../../plugins/plugin-netlify
+      '@pipelab/plugin-nvpatch':
+        specifier: workspace:*
+        version: link:../../plugins/plugin-nvpatch
+      '@pipelab/plugin-poki':
+        specifier: workspace:*
+        version: link:../../plugins/plugin-poki
+      '@pipelab/plugin-steam':
+        specifier: workspace:*
+        version: link:../../plugins/plugin-steam
+      '@pipelab/plugin-system':
+        specifier: workspace:*
+        version: link:../../plugins/plugin-system
+      '@pipelab/plugin-tauri':
+        specifier: workspace:*
+        version: link:../../plugins/plugin-tauri
       '@pipelab/shared':
         specifier: workspace:*
         version: link:../shared
