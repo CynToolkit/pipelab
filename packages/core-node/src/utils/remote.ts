@@ -1,4 +1,7 @@
 import { dirname, delimiter, join } from "node:path";
+import { createRequire } from "node:module";
+
+const require = createRequire(import.meta.url);
 import {
   mkdir,
   readdir,
@@ -568,13 +571,23 @@ export async function fetchPipelabAsset(
   versionOrRange: string,
   options: FetchOptions,
 ): Promise<string> {
-  // [DISABLED] Bundled mode: assets are pre-bundled with the CLI.
-  // Re-enable: remove the early return below + uncomment the original body.
-  if (projectRoot) {
-    const assetId = packageName.replace("@pipelab/asset-", "");
-    const localPath = join(projectRoot, "assets", `asset-${assetId}`);
-    if (existsSync(localPath)) return localPath;
+  // Bundled mode: asset packages (@pipelab/asset-*, tiny project templates) are
+  // declared workspace deps, so they resolve identically in dev, packaged apps,
+  // and npm installs. This replaces the old fetch-to-user-cache path entirely —
+  // in production there is no monorepo and npm is disabled, so the fallbacks
+  // below would only throw.
+  try {
+    return dirname(require.resolve(`${packageName}/package.json`));
+  } catch {
+    // Not linked (shouldn't happen) — fall through to legacy paths.
   }
+  // [DISABLED] Legacy monorepo lookup — kept for reference, unreachable while
+  // assets are real dependencies. Re-enable: remove the resolve-first block above.
+  // if (projectRoot) {
+  //   const assetId = packageName.replace("@pipelab/asset-", "");
+  //   const localPath = join(projectRoot, "assets", `asset-${assetId}`);
+  //   if (existsSync(localPath)) return localPath;
+  // }
   // Fall back to fetchPackage (which is monorepo-only for @pipelab/* in bundled mode).
   const { packageDir } = await fetchPackage(packageName, versionOrRange, options);
   return packageDir;

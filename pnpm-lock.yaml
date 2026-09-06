@@ -512,6 +512,18 @@ importers:
 
   packages/core-node:
     dependencies:
+      '@pipelab/asset-discord':
+        specifier: workspace:*
+        version: link:../../assets/asset-discord
+      '@pipelab/asset-electron':
+        specifier: workspace:*
+        version: link:../../assets/asset-electron
+      '@pipelab/asset-netlify':
+        specifier: workspace:*
+        version: link:../../assets/asset-netlify
+      '@pipelab/asset-tauri':
+        specifier: workspace:*
+        version: link:../../assets/asset-tauri
       '@pipelab/constants':
         specifier: workspace:*
         version: link:../constants

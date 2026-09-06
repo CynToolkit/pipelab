@@ -29,6 +29,10 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@pipelab/asset-discord": "workspace:*",
+    "@pipelab/asset-electron": "workspace:*",
+    "@pipelab/asset-netlify": "workspace:*",
+    "@pipelab/asset-tauri": "workspace:*",
     "@pipelab/constants": "workspace:*",
     "@pipelab/shared": "workspace:*",
     "@pipelab/plugin-construct": "workspace:*",
