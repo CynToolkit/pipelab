@@ -2,10 +2,13 @@ import { pathToFileURL } from "node:url";
 // import { readdir } from "node:fs/promises"; // [DISABLED] only used by findInstalledPlugins scan — re-enable with it
 import { readFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { createRequire } from "node:module";
 import { PipelabContext } from "./context";
 // import { isDev, projectRoot } from "./context"; // [DISABLED] only used by dynamic loader scan — re-enable with it
 import { sendStartupProgress } from "./server";
+
+const require = createRequire(import.meta.url);
 
 // [DISABLED] Kept for re-enable of loadPipelabPlugin/loadCustomPlugin above.
 // Exported to avoid an unused warning while the dynamic loaders are gated.
@@ -135,8 +138,24 @@ export const builtInPlugins = async (options: { context: PipelabContext }): Prom
     const pluginStart = Date.now();
     try {
       const module = await import(packageName);
-      const plugin = module?.default;
-      if (plugin) {
+      const raw = module?.default;
+      if (raw) {
+        // Raw module defaults carry no id/packageName — without enhancement every
+        // plugin registers as id=undefined and overwrites the previous one, leaving
+        // a single plugin in the store. Resolve the package dir and enhance, exactly
+        // as the dynamic loaders did before bundling.
+        let packageDir = "";
+        try {
+          packageDir = dirname(require.resolve(`${packageName}/package.json`));
+        } catch {
+          console.warn(`[Plugins] Could not resolve package dir for ${packageName}, using fallbacks`);
+        }
+        const plugin = await enhancePluginDefinition(
+          raw,
+          packageDir,
+          packageName,
+          options.context.releaseTag,
+        );
         registerPlugins([plugin]);
         webSocketServer.broadcast("plugin:loaded", { plugin });
         console.debug(`[Plugins] Loaded bundled ${packageName} in ${Date.now() - pluginStart}ms`);
