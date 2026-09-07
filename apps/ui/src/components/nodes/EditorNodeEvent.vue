@@ -243,4 +243,17 @@ const showSidebar = ref(false);
     }
   }
 }
+
+@media (max-width: 768px) {
+  .node-event-wrapper {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .node-event {
+    width: 100%;
+    max-width: 100%;
+    padding: 12px;
+  }
+}
 </style>

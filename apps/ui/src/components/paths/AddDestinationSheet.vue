@@ -105,4 +105,26 @@ const availableOptions = computed(() =>
   font-size: 12px;
   color: #e4e4e7;
 }
+
+@media (max-width: 640px) {
+  .add-backdrop {
+    align-items: flex-end;
+    padding-top: 0;
+  }
+
+  .add-sheet {
+    width: 100%;
+    max-width: 100%;
+    border-radius: 16px 16px 0 0;
+    padding: 20px 16px calc(20px + env(safe-area-inset-bottom));
+  }
+
+  .platform-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .platform-option {
+    min-height: 88px;
+  }
+}
 </style>

@@ -281,6 +281,51 @@ $sizes: 12, 14, 16, 18, 20, 24, 28, 32, 36, 40, 44, 48, 52, 56, 60, 64, 72, 80, 
   }
 }
 
+/* ─── Mobile baseline ─────────────────────────────────── */
+html,
+body {
+  overscroll-behavior-y: none;
+}
+
+img,
+video,
+canvas,
+svg {
+  max-width: 100%;
+}
+
+@media (max-width: 768px) {
+  .p-dialog {
+    max-width: 95vw !important;
+  }
+
+  .p-dialog-content {
+    max-height: 70vh;
+    overflow-y: auto;
+  }
+
+  .p-toast {
+    width: calc(100vw - 24px);
+    max-width: 400px;
+  }
+
+  /* ponytail: coarse-pointer floor only, per-component sizes win above 40px */
+  @media (pointer: coarse) {
+    .p-button,
+    button {
+      min-height: 40px;
+    }
+
+    .p-inputtext,
+    .p-select,
+    input,
+    select,
+    textarea {
+      font-size: 16px !important; /* prevents iOS zoom on focus */
+    }
+  }
+}
+
 /* Fix for PrimeVue v4 IconField / InputIcon positioning */
 .p-iconfield,
 .p-icon-field {

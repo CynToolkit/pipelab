@@ -2070,4 +2070,81 @@ const startTour = (force = false) => {
     grid-template-columns: repeat(4, 1fr);
   }
 }
+
+/* ─── Mobile: drawer becomes top chips, rows wrap ───────── */
+@media (max-width: 860px) {
+  .main-layout {
+    flex-direction: column;
+  }
+
+  .drawer {
+    width: 100%;
+    flex: 0 0 auto;
+    border-right: none;
+    border-bottom: 1px solid var(--p-surface-200);
+
+    :root.dark & {
+      border-bottom-color: var(--p-surface-700);
+    }
+
+    .project-list {
+      flex-direction: row;
+      overflow-x: auto;
+      overflow-y: hidden;
+      padding: 0 12px 10px;
+    }
+
+    .project-item {
+      flex-shrink: 0;
+      max-width: 200px;
+    }
+
+    .project-item-actions {
+      opacity: 1;
+    }
+  }
+
+  .your-projects {
+    padding: 12px;
+    overflow-x: hidden;
+  }
+
+  .action-buttons {
+    width: 100%;
+
+    :deep(.p-button) {
+      flex: 1;
+      justify-content: center;
+      min-height: 40px;
+    }
+  }
+
+  .pipeline-row {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 12px;
+  }
+
+  .pipeline-tech-stack {
+    margin-right: 0;
+  }
+
+  .pipeline-info {
+    flex: 1 1 calc(100% - 60px);
+    padding-right: 0;
+  }
+
+  .pipeline-meta-actions {
+    flex: 1 1 100%;
+    justify-content: space-between;
+  }
+
+  .pipeline-updated {
+    font-size: 0.7rem;
+  }
+
+  .row-actions {
+    opacity: 1;
+  }
+}
 </style>

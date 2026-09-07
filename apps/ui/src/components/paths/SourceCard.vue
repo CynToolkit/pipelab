@@ -146,4 +146,17 @@ const formatTimeAgo = (d: Date) => {
 .edit-btn .mdi {
   font-size: 14px;
 }
+
+@media (max-width: 640px) {
+  .last-export,
+  .warning-text {
+    display: none;
+  }
+
+  .edit-btn {
+    opacity: 1;
+    width: 40px;
+    height: 40px;
+  }
+}
 </style>

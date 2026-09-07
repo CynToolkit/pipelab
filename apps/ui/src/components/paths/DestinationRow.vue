@@ -578,4 +578,36 @@ const saveCredential = () => {
 .ship-btn .mdi {
   font-size: 14px;
 }
+
+@media (max-width: 640px) {
+  .dest-row {
+    flex-direction: column;
+    gap: 12px;
+    padding: 12px;
+  }
+
+  .zone-platform,
+  .zone-right {
+    width: 100%;
+  }
+
+  .remove-btn {
+    opacity: 1;
+    width: 32px;
+    height: 32px;
+  }
+
+  .cred-warning {
+    flex-wrap: wrap;
+  }
+
+  .cred-save-btn {
+    min-height: 40px;
+    flex: 1;
+  }
+
+  .ship-btn {
+    min-height: 44px;
+  }
+}
 </style>
