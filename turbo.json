@@ -1,12 +1,22 @@
 {
   "$schema": "https://turbo.build/schema.json",
   "tasks": {
+    // No ^build ordering: every workspace package's main points at source
+    // (./src/index.ts), so bundlers resolve sources directly and no package
+    // needs another's dist first. Topological ordering is also incompatible
+    // with the bundled model, where core-node statically depends on all
+    // plugins while plugins depend back on core-node (a build-graph cycle
+    // turbo rejects). tsc -b ordering for typecheck is unaffected (it follows
+    // tsconfig references, and ^typecheck below is kept).
     "build": {
-      "dependsOn": ["^build"],
+      "dependsOn": [],
       "outputs": ["dist/**", ".vite/**", "out/**"]
     },
     "@pipelab/cli#build": {
       "dependsOn": ["^build"]
+    },
+    "@pipelab/core-node#build": {
+      "dependsOn": []
     },
     "package": {
       "dependsOn": ["build"],
