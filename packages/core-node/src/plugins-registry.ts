@@ -4,6 +4,18 @@ import { readFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { createRequire } from "node:module";
+import constructPlugin from "@pipelab/plugin-construct";
+import filesystemPlugin from "@pipelab/plugin-filesystem";
+import systemPlugin from "@pipelab/plugin-system";
+import electronPlugin from "@pipelab/plugin-electron";
+import discordPlugin from "@pipelab/plugin-discord";
+import steamPlugin from "@pipelab/plugin-steam";
+import itchPlugin from "@pipelab/plugin-itch";
+import minifyPlugin from "@pipelab/plugin-minify";
+import netlifyPlugin from "@pipelab/plugin-netlify";
+import nvpatchPlugin from "@pipelab/plugin-nvpatch";
+import pokiPlugin from "@pipelab/plugin-poki";
+import tauriPlugin from "@pipelab/plugin-tauri";
 import { PipelabContext } from "./context";
 // import { isDev, projectRoot } from "./context"; // [DISABLED] only used by dynamic loader scan — re-enable with it
 import { sendStartupProgress } from "./server";
@@ -101,21 +113,22 @@ export async function findInstalledPlugins(
   // return installed;
 }
 
-// All plugins are bundled with the CLI — no dynamic loading.
-const BUNDLED_PLUGIN_PACKAGES = [
-  "@pipelab/plugin-construct",
-  "@pipelab/plugin-filesystem",
-  "@pipelab/plugin-system",
-  "@pipelab/plugin-electron",
-  "@pipelab/plugin-discord",
-  "@pipelab/plugin-steam",
-  "@pipelab/plugin-itch",
-  "@pipelab/plugin-minify",
-  "@pipelab/plugin-netlify",
-  "@pipelab/plugin-nvpatch",
-  "@pipelab/plugin-poki",
-  "@pipelab/plugin-tauri",
-  // NOTE: @pipelab/plugin-core intentionally absent — utils package, no default export.
+// All plugins are statically imported so app bundles include them and startup never
+// resolves a plugin package dynamically. @pipelab/plugin-core is intentionally absent:
+// it is a utilities package and has no plugin definition to register.
+const BUNDLED_PLUGINS = [
+  { packageName: "@pipelab/plugin-construct", plugin: constructPlugin },
+  { packageName: "@pipelab/plugin-filesystem", plugin: filesystemPlugin },
+  { packageName: "@pipelab/plugin-system", plugin: systemPlugin },
+  { packageName: "@pipelab/plugin-electron", plugin: electronPlugin },
+  { packageName: "@pipelab/plugin-discord", plugin: discordPlugin },
+  { packageName: "@pipelab/plugin-steam", plugin: steamPlugin },
+  { packageName: "@pipelab/plugin-itch", plugin: itchPlugin },
+  { packageName: "@pipelab/plugin-minify", plugin: minifyPlugin },
+  { packageName: "@pipelab/plugin-netlify", plugin: netlifyPlugin },
+  { packageName: "@pipelab/plugin-nvpatch", plugin: nvpatchPlugin },
+  { packageName: "@pipelab/plugin-poki", plugin: pokiPlugin },
+  { packageName: "@pipelab/plugin-tauri", plugin: tauriPlugin },
 ];
 
 export const builtInPlugins = async (options: { context: PipelabContext }): Promise<void> => {
@@ -129,12 +142,10 @@ export const builtInPlugins = async (options: { context: PipelabContext }): Prom
 
   const totalStart = Date.now();
 
-  const loadPromises = BUNDLED_PLUGIN_PACKAGES.map(async (packageName) => {
+  const loadPromises = BUNDLED_PLUGINS.map(async ({ packageName, plugin: raw }) => {
     sendStartupProgress(`Loading bundled plugin: ${packageName}`);
     const pluginStart = Date.now();
     try {
-      const module = await import(packageName);
-      const raw = module?.default;
       if (raw) {
         // Raw module defaults carry no id/packageName — without enhancement every
         // plugin registers as id=undefined and overwrites the previous one, leaving

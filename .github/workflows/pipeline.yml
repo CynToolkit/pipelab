@@ -272,7 +272,7 @@ jobs:
       #     NPM_CONFIG_PROVENANCE: true
       - name: Download all artifacts
         # Original: if: steps.changesets.outputs.published == 'true' || github.event.inputs.forcePublish == 'true'
-        if: github.event_name == 'workflow_dispatch'
+        if: github.event_name == 'workflow_dispatch' || github.event_name == 'push'
         uses: actions/download-artifact@v4
         with:
           path: artifacts
@@ -309,7 +309,7 @@ jobs:
 
       - name: Upload Desktop Binaries
         # Original: if: steps.changesets.outputs.published == 'true' || github.event.inputs.forcePublish == 'true'
-        if: github.event_name == 'workflow_dispatch'
+        if: github.event_name == 'workflow_dispatch' || github.event_name == 'push'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: "@pipelab/app@${{ steps.versions.outputs.app_version }}"
