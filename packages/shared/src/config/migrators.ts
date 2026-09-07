@@ -384,9 +384,7 @@ export const savedFileMigrator = savedFileMigratorInternal.createMigrations({
           ...(state.canvas?.blocks ?? []),
           ...(state.canvas?.triggers ?? []),
         ]) {
-          if (item?.origin && "version" in item.origin) {
-            delete item.origin.version;
-          }
+          delete item?.origin?.version;
         }
         const { plugins: _dropped, ...rest } = state;
         return rest;

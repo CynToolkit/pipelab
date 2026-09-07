@@ -1,6 +1,6 @@
 import { useAPI } from "../ipc-core";
 import { PipelabContext, isDev, projectRoot } from "../context";
-import { existsSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 // In dev the caller passes version "local" (monorepo source, not a release).
@@ -8,11 +8,10 @@ import { join } from "node:path";
 function resolveDevVersion(fallback: string): string {
   if (!isDev || !projectRoot || fallback !== "local") return fallback;
   try {
-    const pkgPath = join(projectRoot, "apps", "cli", "package.json");
-    if (existsSync(pkgPath)) {
-      const pkg = JSON.parse(readFileSync(pkgPath, "utf-8"));
-      if (pkg.version) return pkg.version;
-    }
+    const pkg = JSON.parse(
+      readFileSync(join(projectRoot, "apps", "cli", "package.json"), "utf-8"),
+    );
+    if (pkg.version) return pkg.version;
   } catch {
     // fall through to caller-provided version
   }

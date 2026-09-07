@@ -115,7 +115,7 @@ const BUNDLED_PLUGIN_PACKAGES = [
   "@pipelab/plugin-nvpatch",
   "@pipelab/plugin-poki",
   "@pipelab/plugin-tauri",
-  "@pipelab/plugin-core",
+  // NOTE: @pipelab/plugin-core intentionally absent — utils package, no default export.
 ];
 
 export const builtInPlugins = async (options: { context: PipelabContext }): Promise<void> => {

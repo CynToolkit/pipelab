@@ -252,7 +252,6 @@ const displayAdvancedNodes = ref(false);
 
 const registryResults = ref<Array<{ name: string; version: string; description?: string }>>([]);
 const searchingRegistry = ref(false);
-const installingPackage = ref<string | null>(null);
 
 const cachedPlugins = ref<Array<{ name: string; version: string; description?: string }>>([]);
 const expandedPlugins = ref<Record<string, boolean>>({});
