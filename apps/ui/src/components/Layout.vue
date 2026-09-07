@@ -938,6 +938,7 @@ handle("update:set-status", async (event, { value }) => {
 
   .sidebar,
   .sidebar-collapsed .sidebar {
+    box-sizing: border-box;
     width: 100%;
     min-width: 0;
     height: calc(60px + env(safe-area-inset-bottom));

@@ -366,6 +366,11 @@ const goAdvanced = () => {
 }
 
 @media (max-width: 640px) {
+  .paths-page {
+    height: 100%;
+    min-height: 0;
+  }
+
   .paths-content {
     padding: 0 12px 96px;
   }

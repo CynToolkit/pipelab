@@ -113,6 +113,7 @@ const availableOptions = computed(() =>
   }
 
   .add-sheet {
+    box-sizing: border-box;
     width: 100%;
     max-width: 100%;
     border-radius: 16px 16px 0 0;
