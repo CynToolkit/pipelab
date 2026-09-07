@@ -265,7 +265,7 @@ export type IpcDefinition = {
     }>,
   ];
   "plugin:ensure-loaded": [
-    { plugins: Record<string, string> },
+    { plugins: string[] },
     EndEvent<{ loaded: string[]; failed: string[] }>,
   ];
   "migration:scan-stable": [{ sourceChannel?: MigrationChannel }, EndEvent<StableDataReport>];

@@ -11,8 +11,5 @@
   },
   "files": [
     "template"
-  ],
-  "publishConfig": {
-    "access": "public"
-  }
+  ]
 }

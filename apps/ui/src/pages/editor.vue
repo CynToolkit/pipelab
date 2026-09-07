@@ -496,29 +496,24 @@ const appStore = useAppStore();
 const { pluginDefinitions } = storeToRefs(appStore);
 
 /**
- * Before loading a pipeline into the editor, check which plugin IDs it uses
- * and JIT-install any that are not yet registered.
- * Plugin versions come from each block/trigger's origin.version.
+ * Before loading a pipeline into the editor, check which plugin IDs it uses.
+ * Bundled mode: no versions — referenced plugins are expected to be registered.
  */
 const ensurePluginsLoaded = async (file: SavedFile) => {
-  // Collect (pluginId → version) from all block/trigger origins
-  const pluginsMap: Record<string, string> = {};
+  // Collect plugin IDs from all block/trigger origins
+  const pluginsMap: string[] = [];
   for (const block of file.canvas.blocks) {
-    if (block?.origin?.pluginId) {
-      const id = block.origin.pluginId;
-      const ver = block.origin.version ?? "latest";
-      if (!pluginsMap[id] || pluginsMap[id] === "latest") pluginsMap[id] = ver;
+    if (block?.origin?.pluginId && !pluginsMap.includes(block.origin.pluginId)) {
+      pluginsMap.push(block.origin.pluginId);
     }
   }
   for (const trigger of file.canvas.triggers) {
-    if (trigger?.origin?.pluginId) {
-      const id = trigger.origin.pluginId;
-      const ver = trigger.origin.version ?? "latest";
-      if (!pluginsMap[id] || pluginsMap[id] === "latest") pluginsMap[id] = ver;
+    if (trigger?.origin?.pluginId && !pluginsMap.includes(trigger.origin.pluginId)) {
+      pluginsMap.push(trigger.origin.pluginId);
     }
   }
 
-  if (Object.keys(pluginsMap).length === 0) return;
+  if (pluginsMap.length === 0) return;
   console.log("[Editor] Requesting ensure-loaded for pipeline plugins:", pluginsMap);
   isJitInstalling.value = true;
   try {
@@ -666,7 +661,7 @@ watch(
   plugins,
   async (newPlugins) => {
     if (!isLoaded.value) return;
-    console.log("[Editor] Plugins config changed, JIT ensuring loaded:", newPlugins);
+    console.log("[Editor] Plugins config changed, ensuring loaded:", newPlugins);
     isDirty.value = true;
     debouncedSave();
     isJitInstalling.value = true;
@@ -973,7 +968,7 @@ const exportPipeline = async () => {
   }
 
   const result: SavedFile = {
-    version: "5.0.0",
+    version: "6.0.0",
     name: name.value,
     description: description.value,
     canvas: {
@@ -1019,7 +1014,7 @@ const navigateToBuildHistory = async () => {
 
 const saveLocal = async (path: string, silent = false) => {
   const result: SavedFile = {
-    version: "5.0.0",
+    version: "6.0.0",
     name: name.value,
     description: "",
     canvas: {
@@ -1056,7 +1051,7 @@ const saveLocal = async (path: string, silent = false) => {
 
 const saveInternal = async (configName: string, silent = false) => {
   const result: SavedFile = {
-    version: "5.0.0",
+    version: "6.0.0",
     name: name.value,
     description: "",
     canvas: {

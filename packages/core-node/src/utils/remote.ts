@@ -1,4 +1,7 @@
 import { dirname, delimiter, join } from "node:path";
+import { createRequire } from "node:module";
+
+const require = createRequire(import.meta.url);
 import {
   mkdir,
   readdir,
@@ -132,23 +135,29 @@ export async function fetchPackage(
   entryPoint?: string;
 }> {
   const start = Date.now();
-  // 0. Check for local monorepo package in development
-  if (isDev && projectRoot && process.env.PIPELAB_FORCE_NPM !== "true") {
-    if (packageName.startsWith("@pipelab/")) {
-      const localStart = Date.now();
-      const local = await tryResolveMonorepoPackage(packageName);
-      if (local) {
-        console.debug(`[Fetcher] ${packageName}: Resolved to local source at ${local.packageDir} (${Date.now() - localStart}ms)`,
-        );
-        return {
-          ...local,
-          resolvedVersion: "workspace",
-        };
-      }
-    }
-  }
 
   const ctx = options.context;
+
+  // [DISABLED] Bundled mode: npm/pacote fetch for @pipelab/* packages is disabled.
+  // Plugins and packages are pre-bundled with the CLI. Re-enable: remove this block.
+  if (packageName.startsWith("@pipelab/")) {
+    if (isDev && projectRoot && process.env.PIPELAB_FORCE_NPM !== "true") {
+      const local = await tryResolveMonorepoPackage(packageName);
+      if (local) {
+        console.debug(`[Fetcher] ${packageName}: Resolved to local source at ${local.packageDir} (${Date.now() - start}ms)`);
+        // Real version from the package.json — no "workspace" pseudo-version.
+        return { ...local, resolvedVersion: local.version ?? versionOrRange };
+      }
+    }
+    const fallbackVersion = await tryLocalFallback(
+      versionOrRange, new Error("Bundled mode"), ctx.getPackagesPath(packageName), packageName, !!(ctx.releaseTag && ctx.releaseTag !== "latest"),
+    );
+    if (fallbackVersion) {
+      return { packageDir: join(ctx.getPackagesPath(packageName), fallbackVersion), resolvedVersion: fallbackVersion };
+    }
+    throw new Error(`Bundled mode: ${packageName} not found in monorepo or local cache. All @pipelab/* packages must be bundled.`);
+  }
+
   const baseDir = ctx.getPackagesPath(packageName);
   let resolvedVersion: string;
   const includePrerelease = !!(ctx.releaseTag && ctx.releaseTag !== "latest");
@@ -563,13 +572,29 @@ export async function fetchPipelabAsset(
   versionOrRange: string,
   options: FetchOptions,
 ): Promise<string> {
-  if (isDev && projectRoot) {
-    const assetId = packageName.replace("@pipelab/asset-", "");
-    const localPath = join(projectRoot, "assets", `asset-${assetId}`);
-    if (existsSync(localPath)) return localPath;
+  // Bundled mode: asset packages (@pipelab/asset-*, tiny project templates) are
+  // declared workspace deps, so they resolve identically in dev, packaged apps,
+  // and npm installs. This replaces the old fetch-to-user-cache path entirely —
+  // in production there is no monorepo and npm is disabled, so the fallbacks
+  // below would only throw.
+  try {
+    return dirname(require.resolve(`${packageName}/package.json`));
+  } catch {
+    // Not linked (shouldn't happen) — fall through to legacy paths.
   }
+  // [DISABLED] Legacy monorepo lookup — kept for reference, unreachable while
+  // assets are real dependencies. Re-enable: remove the resolve-first block above.
+  // if (projectRoot) {
+  //   const assetId = packageName.replace("@pipelab/asset-", "");
+  //   const localPath = join(projectRoot, "assets", `asset-${assetId}`);
+  //   if (existsSync(localPath)) return localPath;
+  // }
+  // Fall back to fetchPackage (which is monorepo-only for @pipelab/* in bundled mode).
   const { packageDir } = await fetchPackage(packageName, versionOrRange, options);
   return packageDir;
+  // Original full body (uses pacote.extract directly + installs deps):
+  // const { packageDir } = await fetchPackage(packageName, versionOrRange, { ...options, installDeps: true });
+  // return packageDir;
 }
 
 export async function fetchPipelabPlugin(
@@ -577,39 +602,51 @@ export async function fetchPipelabPlugin(
   versionOrRange: string,
   options: FetchOptions,
 ): Promise<{ packageDir: string; entryPoint: string; isLocal: boolean }> {
-  const { packageDir, isLocal, entryPoint } = await fetchPackage(pluginName, versionOrRange, {
-    installDeps: false,
-    ...options,
-  });
-
-  // Default entry point if not provided by fetchPackage
+  // [DISABLED] Bundled mode: plugins are pre-bundled. Try monorepo, then local cache.
+  // Re-enable: remove the early returns below + restore the original body.
+  if (isDev && projectRoot && process.env.PIPELAB_FORCE_NPM !== "true") {
+    const local = await tryResolveMonorepoPackage(pluginName);
+    if (local) {
+      return { packageDir: local.packageDir, entryPoint: local.entryPoint, isLocal: true };
+    }
+  }
+  const { packageDir, resolvedVersion, isLocal, entryPoint } = await fetchPackage(
+    pluginName, versionOrRange, { ...options, installDeps: false },
+  );
   let finalEntryPoint = entryPoint;
   if (!finalEntryPoint) {
     const patterns = [join(packageDir, "dist", "index.mjs"), join(packageDir, "index.mjs")];
     finalEntryPoint = patterns.find((p) => existsSync(p)) || patterns[0];
   }
-
   return { packageDir, entryPoint: finalEntryPoint, isLocal: !!isLocal };
 }
 
 export async function fetchPipelabCli(
-  versionOrRange: string,
-  options: FetchOptions,
+  _versionOrRange: string,
+  _options: FetchOptions,
 ): Promise<{ packageDir: string; entryPoint: string; isLocal: boolean }> {
-  const { packageDir, isLocal, entryPoint } = await fetchPackage(
-    "@pipelab/cli",
-    versionOrRange,
-    options,
-  );
-
-  // Default entry point for CLI if not provided
-  let finalEntryPoint = entryPoint;
-  if (!finalEntryPoint) {
-    const patterns = [join(packageDir, "dist", "index.mjs"), join(packageDir, "index.mjs")];
-    finalEntryPoint = patterns.find((p) => existsSync(p)) || patterns[0];
+  // [DISABLED] Bundled mode: CLI is pre-bundled, resolved from monorepo or packaged resources.
+  // Re-enable: remove the early returns below + restore the original pacote body.
+  if (projectRoot) {
+    const local = await tryResolveMonorepoPackage("@pipelab/cli");
+    if (local) {
+      return { packageDir: local.packageDir, entryPoint: local.entryPoint, isLocal: true };
+    }
   }
-
-  return { packageDir, entryPoint: finalEntryPoint, isLocal: !!isLocal };
+  if (process.resourcesPath) {
+    const bundledCliDist = join(process.resourcesPath, "app", "dist", "cli");
+    if (existsSync(bundledCliDist)) {
+      const pkgPath = join(bundledCliDist, "package.json");
+      if (existsSync(pkgPath)) {
+        const pkg = JSON.parse(await readFile(pkgPath, "utf-8"));
+        const main = pkg.bin?.pipelab || pkg.bin?.plab || "index.mjs";
+        const entryPoint = join(bundledCliDist, main);
+        return { packageDir: bundledCliDist, entryPoint, isLocal: false };
+      }
+    }
+  }
+  throw new Error("CLI fetching is disabled in bundled mode. CLI must be bundled alongside the desktop app.");
+  // Original body: pacote.extract("@pipelab/cli@version", tempDir, ...) + copy to packages dir.
 }
 
 /**
@@ -619,7 +656,7 @@ let monorepoCache: Record<string, string> | null = null;
 
 async function tryResolveMonorepoPackage(
   packageName: string,
-): Promise<{ packageDir: string; isLocal: boolean; entryPoint: string } | null> {
+): Promise<{ packageDir: string; isLocal: boolean; entryPoint: string; version?: string } | null> {
   if (!monorepoCache) {
     monorepoCache = await crawlMonorepoPackages();
   }
@@ -629,9 +666,11 @@ async function tryResolveMonorepoPackage(
 
   // Find best entry point from package.json
   let entryPoint: string | undefined;
+  let version: string | undefined;
   try {
     const pkgPath = join(packageDir, "package.json");
     const pkg = JSON.parse(await readFile(pkgPath, "utf-8"));
+    if (pkg.version) version = pkg.version;
 
     // 1. Try to find the entry point from package.json
     // User tip: main is usually source in dev, publishConfig.main is compiled for prod
@@ -667,6 +706,7 @@ async function tryResolveMonorepoPackage(
     packageDir,
     isLocal: true,
     entryPoint: entryPoint || join(packageDir, "dist", "index.mjs"),
+    version,
   };
 }
 

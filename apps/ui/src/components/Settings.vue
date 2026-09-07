@@ -21,14 +21,16 @@
           <i class="mdi mdi-server mr-2"></i>
           <span>{{ t("settings.tabs.advanced") }}</span>
         </div>
-        <div
+        <!-- Versions tab hidden in bundled mode — one bundle, one version; connection
+             and update status already live in the sidebar. Re-enable: uncomment. -->
+        <!-- <div
           class="sidebar-item"
           :class="{ active: currentSection === 'versions' }"
           @click="currentSection = 'versions'"
         >
           <i class="mdi mdi-information mr-2"></i>
           <span>{{ t("settings.tabs.versions") }}</span>
-        </div>
+        </div> -->
       </div>
 
       <!-- Account Group -->
@@ -442,7 +444,7 @@
         </div>
       </div>
 
-      <!-- Versions Tab Content -->
+      <!-- Versions Tab Content (hidden in bundled mode — see sidebar-item above).
       <div v-if="currentSection === 'versions'" class="settings-panel">
         <div class="section-header">
           <h3>{{ t("settings.tabs.versions") }}</h3>
@@ -527,6 +529,7 @@
           </div>
         </div>
       </div>
+      -->
 
       <!-- Billing Tab Content -->
       <div v-if="currentSection === 'billing'" class="settings-panel">
@@ -989,47 +992,50 @@ const restartTour = (tourId: "dashboard" | "editor") => {
 
 const toast = useToast();
 
-const isDevMode = import.meta.env.DEV;
-const appVersion = ref(isDevMode ? "workspace" : window.version || "1.0.0");
-const agentVersion = ref("...");
-const uiVersion = isDevMode ? "workspace" : process.env.UI_VERSION || "1.0.0";
-const electronVersion = window.pipelab?.versions?.electron || "N/A";
-const isElectron = !!window.electron;
+// [DISABLED] Versions tab hidden in bundled mode — one bundle, one version.
+// Connection/update status already live in the sidebar. Re-enable: uncomment.
+// (App/UI versions resolve real values, no pseudo-versions: window.version via
+// preload --app-version, UI_VERSION define-injected from npm_package_version.)
+// const appVersion = ref(window.version || "1.0.0");
+// const agentVersion = ref("...");
+// const uiVersion = process.env.UI_VERSION || "1.0.0";
+// const electronVersion = window.pipelab?.versions?.electron || "N/A";
+// const isElectron = !!window.electron;
 
-const formatVersion = (version: string) => {
-  if (!version || version === "N/A" || version === "..." || version === "Unknown") {
-    return version;
-  }
-  return version.startsWith("v") ? version : `v${version}`;
-};
+// const formatVersion = (version: string) => {
+//   if (!version || version === "N/A" || version === "..." || version === "Unknown") {
+//     return version;
+//   }
+//   return version.startsWith("v") ? version : `v${version}`;
+// };
 
-const updateVersions = async () => {
-  if (websocketManager.isConnected()) {
-    try {
-      const response = await websocketManager.send("agent:version:get");
-      if (response.type === "success") {
-        agentVersion.value = response.result.version;
-      }
-    } catch (error) {
-      console.error("Failed to fetch agent version in Settings:", error);
-      agentVersion.value = "Unknown";
-    }
-  } else {
-    agentVersion.value = "...";
-  }
-};
+// const updateVersions = async () => {
+//   if (websocketManager.isConnected()) {
+//     try {
+//       const response = await websocketManager.send("agent:version:get");
+//       if (response.type === "success") {
+//         agentVersion.value = response.result.version;
+//       }
+//     } catch (error) {
+//       console.error("Failed to fetch agent version in Settings:", error);
+//       agentVersion.value = "Unknown";
+//     }
+//   } else {
+//     agentVersion.value = "...";
+//   }
+// };
 
-websocketManager.onStateChange((state) => {
-  if (state === "connected") {
-    updateVersions();
-  } else {
-    agentVersion.value = "...";
-  }
-});
+// websocketManager.onStateChange((state) => {
+//   if (state === "connected") {
+//     updateVersions();
+//   } else {
+//     agentVersion.value = "...";
+//   }
+// });
 
-if (websocketManager.isConnected()) {
-  updateVersions();
-}
+// if (websocketManager.isConnected()) {
+//   updateVersions();
+// }
 
 const copyToClipboard = (text: string) => {
   navigator.clipboard.writeText(text);
@@ -1046,144 +1052,81 @@ const searchingRegistry = ref(false);
 const registryResults = ref<any[]>([]);
 const loadingPlugins = ref<Record<string, boolean>>({});
 
-// Watch search input to query the registry with a 500ms debounce
-watchDebounced(
-  searchQuery,
-  async (newQuery) => {
-    const q = newQuery.trim();
-    if (!q) {
-      registryResults.value = [];
-      return;
-    }
-    searchingRegistry.value = true;
-    try {
-      const res = await api.execute("plugin:search", { query: q });
-      if (res.type === "success") {
-        registryResults.value = res.result.results;
-      }
-    } catch (e) {
-      console.error("Registry search error:", e);
-    } finally {
-      searchingRegistry.value = false;
-    }
-  },
-  { debounce: 500 },
-);
+// [DISABLED] Registry search is disabled in bundled mode.
+// Re-enable: uncomment + restore the plugin:search API call.
+// watchDebounced(
+//   searchQuery,
+//   async (newQuery) => {
+//     const q = newQuery.trim();
+//     if (!q) {
+//       registryResults.value = [];
+//       return;
+//     }
+//     searchingRegistry.value = true;
+//     try {
+//       const res = await api.execute("plugin:search", { query: q });
+//       if (res.type === "success") {
+//         registryResults.value = res.result.results;
+//       }
+//     } catch (e) {
+//       console.error("Registry search error:", e);
+//     } finally {
+//       searchingRegistry.value = false;
+//     }
+//   },
+//   { debounce: 500 },
+// );
 
 const isInstalled = (packageName: string) => {
   return (settingsRef.value?.plugins || []).some((p) => p.name === packageName);
 };
 
-const installPlugin = async (packageName: string, description = "") => {
-  loadingPlugins.value[packageName] = true;
-  try {
-    toast.add({
-      severity: "info",
-      summary: "Installing plugin",
-      detail: `Downloading and installing ${packageName}...`,
-      life: 3000,
-    });
+// [DISABLED] Plugin install is disabled in bundled mode.
+// Re-enable: uncomment + restore the plugin:install API call.
+// const installPlugin = async (packageName: string, description = "") => {
+//   loadingPlugins.value[packageName] = true;
+//   try {
+//     toast.add({ severity: "info", summary: "Installing plugin", detail: `Downloading and installing ${packageName}...`, life: 3000 });
+//     const res = await api.execute("plugin:install", { packageName, version: "latest" });
+//     if (res.type === "success") {
+//       const currentPlugins = [...(settingsRef.value?.plugins || [])];
+//       if (!currentPlugins.some((p) => p.name === packageName)) {
+//         currentPlugins.push({ name: packageName, enabled: true, description: description || "Community plugin" });
+//         await appSettings.updateSettings({ ...toRaw(settingsRef.value) as any, plugins: currentPlugins });
+//       }
+//       toast.add({ severity: "success", summary: "Plugin installed", detail: `${packageName} has been installed successfully!`, life: 3000 });
+//     } else {
+//       toast.add({ severity: "error", summary: "Installation failed", detail: res.ipcError || `Could not install ${packageName}`, life: 5000 });
+//     }
+//   } catch (err: any) {
+//     console.error("Plugin installation failed:", err);
+//     toast.add({ severity: "error", summary: "Installation error", detail: err.message || `Could not install ${packageName}`, life: 5000 });
+//   } finally {
+//     loadingPlugins.value[packageName] = false;
+//   }
+// };
 
-    const res = await api.execute("plugin:install", {
-      packageName,
-      version: "latest",
-    });
-
-    if (res.type === "success") {
-      const currentPlugins = [...(settingsRef.value?.plugins || [])];
-      if (!currentPlugins.some((p) => p.name === packageName)) {
-        currentPlugins.push({
-          name: packageName,
-          enabled: true,
-          description: description || "Community plugin",
-        });
-        await appSettings.updateSettings({
-          ...(toRaw(settingsRef.value) as any),
-          plugins: currentPlugins,
-        });
-      }
-
-      toast.add({
-        severity: "success",
-        summary: "Plugin installed",
-        detail: `${packageName} has been installed successfully!`,
-        life: 3000,
-      });
-    } else {
-      toast.add({
-        severity: "error",
-        summary: "Installation failed",
-        detail: res.ipcError || `Could not install ${packageName}`,
-        life: 5000,
-      });
-    }
-  } catch (err: any) {
-    console.error("Plugin installation failed:", err);
-    toast.add({
-      severity: "error",
-      summary: "Installation error",
-      detail: err.message || `Could not install ${packageName}`,
-      life: 5000,
-    });
-  } finally {
-    loadingPlugins.value[packageName] = false;
-  }
-};
-
-const uninstallPlugin = async (packageName: string) => {
-  loadingPlugins.value[packageName] = true;
-  try {
-    toast.add({
-      severity: "info",
-      summary: "Uninstalling plugin",
-      detail: `Removing ${packageName}...`,
-      life: 3000,
-    });
-
-    const res = await api.execute("plugin:uninstall", {
-      packageName,
-    });
-
-    if (res.type === "success") {
-      const currentPlugins = (settingsRef.value?.plugins || []).filter(
-        (p) => p.name !== packageName,
-      );
-      await appSettings.updateSettings({
-        ...(toRaw(settingsRef.value) as any),
-        plugins: currentPlugins,
-      });
-
-      // If active section was this plugin's settings panel, switch back to community-plugins
-      if (currentSection.value === `community-plugin-${packageName}`) {
-        currentSection.value = "community-plugins";
-      }
-
-      toast.add({
-        severity: "success",
-        summary: "Plugin uninstalled",
-        detail: `${packageName} has been uninstalled!`,
-        life: 3000,
-      });
-    } else {
-      toast.add({
-        severity: "error",
-        summary: "Uninstall failed",
-        detail: res.ipcError || `Could not uninstall ${packageName}`,
-        life: 5000,
-      });
-    }
-  } catch (err: any) {
-    console.error("Plugin uninstallation failed:", err);
-    toast.add({
-      severity: "error",
-      summary: "Uninstall error",
-      detail: err.message || `Could not uninstall ${packageName}`,
-      life: 5000,
-    });
-  } finally {
-    loadingPlugins.value[packageName] = false;
-  }
-};
+// [DISABLED] Plugin uninstall is disabled in bundled mode.
+// Re-enable: uncomment + restore the plugin:uninstall API call.
+// const uninstallPlugin = async (packageName: string) => {
+//   loadingPlugins.value[packageName] = true;
+//   try {
+//     toast.add({ severity: "info", summary: "Uninstalling plugin", detail: `Removing ${packageName}...`, life: 3000 });
+//     const res = await api.execute("plugin:uninstall", { packageName });
+//     if (res.type === "success") {
+//       const currentPlugins = (settingsRef.value?.plugins || []).filter((p) => p.name !== packageName);
+//       await appSettings.updateSettings({ ...toRaw(settingsRef.value) as any, plugins: currentPlugins });
+//       toast.add({ severity: "success", summary: "Plugin uninstalled", detail: `${packageName} has been uninstalled!`, life: 3000 });
+//     } else {
+//       toast.add({ severity: "error", summary: "Uninstall failed", detail: res.ipcError || `Could not uninstall ${packageName}`, life: 5000 });
+//     }
+//   } catch (err: any) {
+//     console.error("Plugin uninstallation failed:", err);
+//     toast.add({ severity: "error", summary: "Uninstall error", detail: err.message || `Could not uninstall ${packageName}`, life: 5000 });
+//   } finally {
+//     loadingPlugins.value[packageName] = false;
+//   }
+// };
 
 // Obsidian refactoring additions
 const currentSection = ref("general");

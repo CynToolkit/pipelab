@@ -1,5 +1,22 @@
 import { useAPI } from "../ipc-core";
-import { PipelabContext, isDev } from "../context";
+import { PipelabContext, isDev, projectRoot } from "../context";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
+// In dev the caller passes version "local" (monorepo source, not a release).
+// Report the real CLI version from the workspace instead of a pseudo-version.
+function resolveDevVersion(fallback: string): string {
+  if (!isDev || !projectRoot || fallback !== "local") return fallback;
+  try {
+    const pkg = JSON.parse(
+      readFileSync(join(projectRoot, "apps", "cli", "package.json"), "utf-8"),
+    );
+    if (pkg.version) return pkg.version;
+  } catch {
+    // fall through to caller-provided version
+  }
+  return fallback;
+}
 
 export const registerSystemHandlers = (options: { version: string; context: PipelabContext }) => {
   const { handle } = useAPI();
@@ -14,7 +31,7 @@ export const registerSystemHandlers = (options: { version: string; context: Pipe
       data: {
         type: "success",
         result: {
-          version: isDev ? "workspace" : options.version,
+          version: resolveDevVersion(options.version),
           channel: isDev ? "dev" : isStable ? "stable" : "beta",
         },
       },

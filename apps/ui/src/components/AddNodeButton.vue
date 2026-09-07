@@ -147,9 +147,11 @@
                     <div class="node-details">
                       <span class="node-name">
                         {{ node.node.name }}
-                        <span v-if="node.node.version" class="version"
+                        <!-- Node version hidden in bundled mode — all blocks share the bundled release.
+                             Re-enable: uncomment the span below. -->
+                        <!-- <span v-if="node.node.version" class="version"
                           >v{{ node.node.version }}</span
-                        >
+                        > -->
                       </span>
                       <p v-if="node.node.description" class="node-description">
                         {{ node.node.description }}
@@ -213,7 +215,6 @@ import PluginIcon from "./nodes/PluginIcon.vue";
 import { useAPI } from "@renderer/composables/api";
 import { useToast } from "primevue/usetoast";
 import { watchDebounced } from "@vueuse/core";
-import semver from "semver";
 
 type ButtonProps = InstanceType<typeof Button>["$props"];
 
@@ -251,33 +252,32 @@ const displayAdvancedNodes = ref(false);
 
 const registryResults = ref<Array<{ name: string; version: string; description?: string }>>([]);
 const searchingRegistry = ref(false);
-const installingPackage = ref<string | null>(null);
 
 const cachedPlugins = ref<Array<{ name: string; version: string; description?: string }>>([]);
 const expandedPlugins = ref<Record<string, boolean>>({});
 const installingPlugins = ref<Record<string, boolean>>({});
 
-// Simple semver comparison helper
-const compareVersions = (a: string, b: string): number => {
-  return semver.compare(semver.coerce(a) || "0.0.0", semver.coerce(b) || "0.0.0");
-};
-
+// [DISABLED] User-installed plugin cache is disabled in bundled mode —
+// the backend plugin:list-installed always returns []. Bundled plugins come
+// from the store (pluginDefinitions), so the list still renders fully.
+// Re-enable: uncomment the api.execute body below.
 // Fetch installed plugins from local cache, keeping only the latest version of each
 const fetchCachedPlugins = async () => {
-  try {
-    const res = await api.execute("plugin:list-installed");
-    if (res.type === "success" && res.result?.installed) {
-      const groups: Record<string, (typeof res.result.installed)[0]> = {};
-      for (const item of res.result.installed) {
-        if (!groups[item.name] || compareVersions(item.version, groups[item.name].version) > 0) {
-          groups[item.name] = item;
-        }
-      }
-      cachedPlugins.value = Object.values(groups);
-    }
-  } catch (e) {
-    console.error("Failed to fetch cached plugins:", e);
-  }
+  return;
+  // try {
+  //   const res = await api.execute("plugin:list-installed");
+  //   if (res.type === "success" && res.result?.installed) {
+  //     const groups: Record<string, (typeof res.result.installed)[0]> = {};
+  //     for (const item of res.result.installed) {
+  //       if (!groups[item.name] || compareVersions(item.version, groups[item.name].version) > 0) {
+  //         groups[item.name] = item;
+  //       }
+  //     }
+  //     cachedPlugins.value = Object.values(groups);
+  //   }
+  // } catch (e) {
+  //   console.error("Failed to fetch cached plugins:", e);
+  // }
 };
 
 watch(visible, async (newVal) => {
@@ -360,48 +360,26 @@ const handlePluginClick = async (plugin: any) => {
     return;
   }
 
-  installingPlugins.value[plugin.id] = true;
-  try {
-    toast.add({
-      severity: "info",
-      summary: "Installing plugin",
-      detail: `Installing and enabling ${formatPluginName(plugin.id)}...`,
-      life: 3000,
-    });
-
-    const res = await api.execute("plugin:install", {
-      packageName: plugin.id,
-      version: "latest",
-    });
-    if (res.type === "success") {
-      toast.add({
-        severity: "success",
-        summary: "Plugin loaded",
-        detail: `${formatPluginName(plugin.id)} is now active!`,
-        life: 3000,
-      });
-
-      await fetchCachedPlugins();
-      expandedPlugins.value[plugin.id] = true;
-    } else {
-      toast.add({
-        severity: "error",
-        summary: "Installation failed",
-        detail: res.ipcError || `Could not install ${plugin.id}`,
-        life: 5000,
-      });
-    }
-  } catch (err: any) {
-    console.error("Installation failed:", err);
-    toast.add({
-      severity: "error",
-      summary: "Installation error",
-      detail: err.message || `Could not install ${plugin.id}`,
-      life: 5000,
-    });
-  } finally {
-    installingPlugins.value[plugin.id] = false;
-  }
+  // [DISABLED] Dynamic plugin installation is disabled in bundled mode.
+  // Plugins are statically bundled with the CLI — only bundled plugins are active.
+  // Re-enable: uncomment + restore the plugin:install API call.
+  // installingPlugins.value[plugin.id] = true;
+  // try {
+  //   toast.add({ severity: "info", summary: "Installing plugin", detail: `Installing and enabling ${formatPluginName(plugin.id)}...`, life: 3000 });
+  //   const res = await api.execute("plugin:install", { packageName: plugin.id, version: "latest" });
+  //   if (res.type === "success") {
+  //     toast.add({ severity: "success", summary: "Plugin loaded", detail: `${formatPluginName(plugin.id)} is now active!`, life: 3000 });
+  //     await fetchCachedPlugins();
+  //     expandedPlugins.value[plugin.id] = true;
+  //   } else {
+  //     toast.add({ severity: "error", summary: "Installation failed", detail: res.ipcError || `Could not install ${plugin.id}`, life: 5000 });
+  //   }
+  // } catch (err: any) {
+  //   console.error("Installation failed:", err);
+  //   toast.add({ severity: "error", summary: "Installation error", detail: err.message || `Could not install ${plugin.id}`, life: 5000 });
+  // } finally {
+  //   installingPlugins.value[plugin.id] = false;
+  // }
 };
 
 const isNodePicked = (node: PipelabNode, searchedValue: string) => {
@@ -433,9 +411,6 @@ const displayPlugins = computed(() => {
       description: string;
       icon?: any;
       status: "active" | "cached" | "registry";
-      loadedVersion?: string;
-      cachedVersion?: string;
-      registryVersion?: string;
       nodes: any[];
     }
   > = {};
@@ -448,38 +423,31 @@ const displayPlugins = computed(() => {
       description: def.description || "",
       icon: def.icon,
       status: "active",
-      loadedVersion: def.version,
       nodes: def.nodes.map((n) => ({ ...n })),
     };
   }
 
-  // 2. Add cached plugins
+  // 2. Add cached plugins (list-installed is gated in bundled mode — always empty)
   for (const cached of cachedPlugins.value) {
-    if (pluginsMap[cached.name]) {
-      pluginsMap[cached.name].cachedVersion = cached.version;
-    } else {
+    if (!pluginsMap[cached.name]) {
       pluginsMap[cached.name] = {
         id: cached.name,
         name: formatPluginName(cached.name),
         description: cached.description || "",
         status: "cached",
-        cachedVersion: cached.version,
         nodes: [],
       };
     }
   }
 
-  // 3. Add registry search results
+  // 3. Add registry search results (registry search is gated — always empty)
   for (const reg of registryResults.value) {
-    if (pluginsMap[reg.name]) {
-      pluginsMap[reg.name].registryVersion = reg.version;
-    } else {
+    if (!pluginsMap[reg.name]) {
       pluginsMap[reg.name] = {
         id: reg.name,
         name: formatPluginName(reg.name),
         description: reg.description || "",
         status: "registry",
-        registryVersion: reg.version,
         nodes: [],
       };
     }

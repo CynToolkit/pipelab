@@ -4,7 +4,7 @@ export const c3toSteamPreset: PresetFn = async () => {
   const startId = "manual-start";
 
   const data: SavedFile = {
-    version: "5.0.0",
+    version: "6.0.0",
     name: "Construct 3 to Steam",
     description: "A basic project to get you started with Construct 3 and Steam",
     variables: [],
@@ -15,7 +15,6 @@ export const c3toSteamPreset: PresetFn = async () => {
           origin: {
             pluginId: "@pipelab/plugin-system",
             nodeId: "manual",
-            version: "latest",
           },
           uid: startId,
           params: {},
@@ -28,7 +27,6 @@ export const c3toSteamPreset: PresetFn = async () => {
           origin: {
             nodeId: "export-construct-project",
             pluginId: "@pipelab/plugin-construct",
-            version: "latest",
           },
           params: {
             file: {
@@ -67,7 +65,6 @@ export const c3toSteamPreset: PresetFn = async () => {
           origin: {
             nodeId: "unzip-file-node",
             pluginId: "@pipelab/plugin-filesystem",
-            version: "latest",
           },
           params: {
             file: {
@@ -82,7 +79,6 @@ export const c3toSteamPreset: PresetFn = async () => {
           origin: {
             nodeId: "electron:package:v2",
             pluginId: "@pipelab/plugin-electron",
-            version: "latest",
           },
           params: {
             arch: {
@@ -213,7 +209,6 @@ export const c3toSteamPreset: PresetFn = async () => {
           origin: {
             nodeId: "steam-upload",
             pluginId: "@pipelab/plugin-steam",
-            version: "latest",
           },
           params: {
             sdk: {
@@ -257,7 +252,6 @@ export const c3toSteamPreset: PresetFn = async () => {
           origin: {
             nodeId: "fs:open-in-explorer",
             pluginId: "@pipelab/plugin-filesystem",
-            version: "latest",
           },
           params: {
             path: {

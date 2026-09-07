@@ -10,9 +10,6 @@
     "url": "https://github.com/CynToolkit/pipelab.git",
     "directory": "packages/tsconfig"
   },
-  "publishConfig": {
-    "access": "public"
-  },
   "scripts": {
     "format": "oxfmt .",
     "lint": "oxlint ."

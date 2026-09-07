@@ -2,8 +2,6 @@ import { Options, Subprocess } from "execa";
 export {
   fetchPackage,
   fetchPipelabAsset,
-  fetchPipelabPlugin,
-  fetchPipelabCli,
   runPnpm,
   downloadFile,
   runWithLiveLogs,

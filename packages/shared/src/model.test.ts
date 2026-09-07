@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { SavedFileV1, SavedFileV2, SavedFileV3, SavedFileV4, SavedFileV5 } from "./model";
+import { SavedFileV1, SavedFileV2, SavedFileV3, SavedFileV4, SavedFileV5, SavedFileV6 } from "./model";
 import {
   savedFileMigrator,
   normalizePipelineConfig,
@@ -323,7 +323,85 @@ describe("model", () => {
       name: "name",
       variables: [],
       // plugins top-level map is dropped in V5 for default pipelines
-    } satisfies SavedFileV5);
+      // NOTE: no `satisfies SavedFileV5` — historical V5 output intentionally
+      // carries origin.version keys, which no longer exist in current types.
+    });
+  });
+
+  it("should migrate 5.0.0 to 6.0.0 by stripping versions", async () => {
+    // NOTE: typed as any — real 5.0.0 files on disk carry origin.version keys
+    // and may carry a top-level plugins map, both gone from current types.
+    const v5: any = {
+      version: "5.0.0",
+      name: "name",
+      description: "desc",
+      canvas: {
+        blocks: [
+          {
+            uid: "b1",
+            type: "action",
+            origin: {
+              pluginId: "@pipelab/plugin-steam",
+              nodeId: "upload",
+              version: "2.3.1",
+            },
+            params: {},
+          },
+        ],
+        triggers: [
+          {
+            uid: "t1",
+            type: "event",
+            origin: {
+              pluginId: "@pipelab/plugin-system",
+              nodeId: "manual",
+              version: "latest",
+            },
+            params: {},
+          },
+        ],
+      },
+      variables: [],
+      plugins: {
+        "@pipelab/plugin-steam": "2.3.1",
+      },
+    };
+
+    const v6 = await savedFileMigrator.migrate(v5, {
+      debug: true,
+      target: "6.0.0",
+    });
+
+    expect(v6).toStrictEqual({
+      version: "6.0.0",
+      name: "name",
+      description: "desc",
+      canvas: {
+        blocks: [
+          {
+            uid: "b1",
+            type: "action",
+            origin: {
+              pluginId: "@pipelab/plugin-steam",
+              nodeId: "upload",
+            },
+            params: {},
+          },
+        ],
+        triggers: [
+          {
+            uid: "t1",
+            type: "event",
+            origin: {
+              pluginId: "@pipelab/plugin-system",
+              nodeId: "manual",
+            },
+            params: {},
+          },
+        ],
+      },
+      variables: [],
+    } satisfies SavedFileV6);
   });
 
   it("should migrate AppConfigV6 to AppConfigV7", async () => {

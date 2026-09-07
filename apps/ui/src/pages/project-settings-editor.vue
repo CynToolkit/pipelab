@@ -1,16 +1,16 @@
 <template>
   <div class="project-settings-editor flex flex-column gap-4">
     <div class="section-header mb-2">
-      <Message severity="info" :closable="false" class="mb-4">
-        Plugins are managed globally in Settings. Below is a read-only list of active plugins used
-        by this pipeline. To install or uninstall plugins, please open global Settings.
-      </Message>
+        <Message severity="info" :closable="false" class="mb-4">
+          All plugins are bundled with the CLI. Below is a read-only list of the bundled plugins
+          used by this pipeline.
+        </Message>
     </div>
 
     <!-- Active Plugins List -->
     <div class="plugins-list flex flex-column gap-3">
       <div
-        v-for="(version, packageName) in plugins"
+        v-for="packageName in plugins"
         :key="packageName"
         class="plugin-card flex items-center justify-between p-3 border border-surface rounded-lg bg-card"
       >

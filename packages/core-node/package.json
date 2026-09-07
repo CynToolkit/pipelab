@@ -21,20 +21,6 @@
       "default": "./src/index.ts"
     }
   },
-  "publishConfig": {
-    "access": "public",
-    "exports": {
-      ".": {
-        "types": "./dist/index.d.mts",
-        "import": "./dist/index.mjs",
-        "require": "./dist/index.cjs",
-        "default": "./dist/index.mjs"
-      }
-    },
-    "main": "./dist/index.cjs",
-    "module": "./dist/index.mjs",
-    "types": "./dist/index.d.mts"
-  },
   "scripts": {
     "build": "tsdown",
     "format": "oxfmt .",
@@ -43,8 +29,25 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@pipelab/asset-discord": "workspace:*",
+    "@pipelab/asset-electron": "workspace:*",
+    "@pipelab/asset-netlify": "workspace:*",
+    "@pipelab/asset-tauri": "workspace:*",
     "@pipelab/constants": "workspace:*",
     "@pipelab/shared": "workspace:*",
+    "@pipelab/plugin-construct": "workspace:*",
+    "@pipelab/plugin-core": "workspace:*",
+    "@pipelab/plugin-discord": "workspace:*",
+    "@pipelab/plugin-electron": "workspace:*",
+    "@pipelab/plugin-filesystem": "workspace:*",
+    "@pipelab/plugin-itch": "workspace:*",
+    "@pipelab/plugin-minify": "workspace:*",
+    "@pipelab/plugin-netlify": "workspace:*",
+    "@pipelab/plugin-nvpatch": "workspace:*",
+    "@pipelab/plugin-poki": "workspace:*",
+    "@pipelab/plugin-steam": "workspace:*",
+    "@pipelab/plugin-system": "workspace:*",
+    "@pipelab/plugin-tauri": "workspace:*",
     "@supabase/supabase-js": "2.99.3",
     "adm-zip": "0.5.16",
     "archiver": "7.0.1",

@@ -45,6 +45,7 @@ import {
   SavedFileV3,
   SavedFileV4,
   SavedFileV5,
+  SavedFileV6,
   SavedFile,
 } from "../model";
 
@@ -242,7 +243,7 @@ const savedFileDefaultValue = savedFileMigratorInternal.createDefault({
   description: "",
   name: "",
   variables: [],
-  version: "5.0.0",
+  version: "6.0.0",
 });
 
 export const savedFileMigrator = savedFileMigratorInternal.createMigrations({
@@ -368,8 +369,29 @@ export const savedFileMigrator = savedFileMigratorInternal.createMigrations({
         return rest;
       },
     }),
-    createMigration<SavedFileV5, never>({
+    createMigration<SavedFileV5, SavedFileV6>({
       version: "5.0.0" as SemVer,
+      up: (_state) => {
+        // Runtime data at 5.0.0 still carries versions (V4→V5 stamped them),
+        // but the V5 types no longer declare them — hence the loose cast.
+        const state = _state as OmitVersion<SavedFileV5> & {
+          plugins?: unknown;
+          canvas?: { blocks?: any[]; triggers?: any[] };
+        };
+        // Bundled mode has no plugin versions: strip origin.version from every
+        // block and trigger, and drop the legacy top-level plugins map if present.
+        for (const item of [
+          ...(state.canvas?.blocks ?? []),
+          ...(state.canvas?.triggers ?? []),
+        ]) {
+          delete item?.origin?.version;
+        }
+        const { plugins: _dropped, ...rest } = state;
+        return rest;
+      },
+    }),
+    createMigration<SavedFileV6, never>({
+      version: "6.0.0" as SemVer,
       up: finalVersion,
     }),
   ],

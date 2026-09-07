@@ -1,5 +1,5 @@
 <template>
-  <div class="integrations-page">
+  <div class="plugins-page">
     <Toast />
     <Layout>
       <div class="main-layout">
@@ -11,15 +11,7 @@
               Plugins
             </div>
             <div class="drawer-header-actions">
-              <Button
-                text
-                size="small"
-                class="drawer-header-icon-btn"
-                v-tooltip.top="'Explore Marketplace'"
-                @click="isMarketplaceVisible = true"
-              >
-                <i class="icon mdi mdi-earth fs-16"></i>
-              </Button>
+              <!-- Marketplace button hidden: plugin marketplace disabled in bundled mode -->
             </div>
           </div>
 
@@ -60,11 +52,13 @@
                 <i v-else class="pi pi-box plugin-icon-pi"></i>
                 <div class="flex flex-column gap-0.5 min-w-0">
                   <span class="plugin-label">{{ formatPluginName(plugin.name) }}</span>
-                  <span
+                  <!-- Plugin version hidden in bundled mode — all plugins share the bundled release.
+                       Re-enable: uncomment the span below. -->
+                  <!-- <span
                     v-if="getPluginVersion(plugin.name)"
                     class="text-[9px] opacity-50 font-mono leading-none"
                     >v{{ getPluginVersion(plugin.name) }}</span
-                  >
+                  > -->
                 </div>
               </div>
               <span class="status-dot" :class="{ enabled: plugin.enabled }"></span>
@@ -104,12 +98,14 @@
                   <div>
                     <div class="flex items-center gap-2">
                       <h2 class="pane-title">{{ formatPluginName(selectedPlugin.name) }}</h2>
-                      <Tag
+                      <!-- Plugin version hidden in bundled mode — all plugins share the bundled release.
+                           Re-enable: uncomment the Tag below. -->
+                      <!-- <Tag
                         v-if="selectedPluginDefinition?.version"
                         severity="secondary"
                         :value="'v' + selectedPluginDefinition.version"
                         class="text-[9px] font-mono py-0.5 px-1.5"
-                      />
+                      /> -->
                     </div>
                     <p class="pane-desc">
                       {{ selectedPlugin.description || "No description provided." }}
@@ -131,18 +127,9 @@
                       @update:model-value="togglePlugin(selectedPlugin.name)"
                     />
                   </div>
-                  <Button
-                    v-if="!isOfficial(selectedPlugin.name)"
-                    label="Uninstall"
-                    severity="danger"
-                    outlined
-                    size="small"
-                    icon="pi pi-trash"
-                    :loading="loadingPlugins[selectedPlugin.name]"
-                    @click="uninstallPlugin(selectedPlugin.name)"
-                  />
+                  <!-- Uninstall button hidden: plugin marketplace disabled in bundled mode. -->
+                  </div>
                 </div>
-              </div>
 
               <!-- Tabs: Blocks & Setup (Read-only) -->
               <Tabs v-model:value="activeTab" class="w-full flex-grow-1 flex flex-column mt-4">
@@ -191,11 +178,13 @@
                                 <span class="node-title font-bold text-xs">{{
                                   nodeDef.node.name
                                 }}</span>
-                                <span
+                                <!-- Node version hidden in bundled mode — all blocks share the bundled release.
+                                     Re-enable: uncomment the span below. -->
+                                <!-- <span
                                   v-if="nodeDef.node.version"
                                   class="node-version text-[9px] opacity-60"
                                   >v{{ nodeDef.node.version }}</span
-                                >
+                                > -->
                               </div>
                             </div>
                             <div class="flex gap-1">
@@ -245,7 +234,7 @@
                         </div>
                       </div>
 
-                      <div class="integrations-grid">
+                      <div class="plugins-grid">
                         <div
                           v-for="integration in selectedPluginDefinition.integrations"
                           :key="integration.name"
@@ -310,162 +299,12 @@
       header="Explore Plugin Marketplace"
       :style="{ width: '600px', maxWidth: '90vw' }"
     >
-      <div class="flex flex-column gap-3 py-2">
-        <div class="search-marketplace-wrap flex gap-2 w-full">
-          <IconField class="flex-grow-1">
-            <InputIcon class="pi pi-search text-xs" />
-            <InputText
-              v-model="registrySearchQuery"
-              placeholder="Search NPM for community plugins (e.g. @pipelab/plugin-)..."
-              class="w-full search-input"
-              size="small"
-            />
-          </IconField>
-          <Button
-            v-if="registrySearchQuery"
-            icon="pi pi-times"
-            severity="secondary"
-            text
-            size="small"
-            @click="registrySearchQuery = ''"
-          />
-        </div>
-
-        <!-- Loading state for search -->
-        <div v-if="searchingRegistry" class="flex justify-content-center items-center py-6">
-          <i class="pi pi-spin pi-spinner text-primary text-xl mr-2"></i>
-          <span class="text-xs">Searching registry...</span>
-        </div>
-
-        <!-- Search results vs Installed items -->
-        <div v-else class="marketplace-results max-h-[350px] overflow-y-auto pr-1">
-          <template v-if="registrySearchQuery">
-            <h4 class="text-xs font-bold opacity-60 mb-2 uppercase tracking-wider">
-              Search Results
-            </h4>
-            <div v-if="registryResults.length === 0" class="text-center py-6 text-xs opacity-50">
-              No community plugins found matching query.
-            </div>
-            <div v-else class="plugins-list-group">
-              <div
-                v-for="pkg in registryResults"
-                :key="pkg.name"
-                class="plugin-row flex items-center justify-between p-2"
-              >
-                <div class="flex items-center gap-3">
-                  <div class="plugin-icon-wrapper flex items-center justify-center">
-                    <i class="pi pi-box text-primary text-sm"></i>
-                  </div>
-                  <div class="flex flex-column">
-                    <div class="flex items-center gap-2">
-                      <span class="plugin-title font-bold text-xs">{{
-                        formatPluginName(pkg.name)
-                      }}</span>
-                      <Tag
-                        v-if="isInstalled(pkg.name)"
-                        severity="success"
-                        value="Installed"
-                        class="text-[9px]"
-                      />
-                    </div>
-                    <span class="plugin-description text-[10px] text-secondary mt-0.5">{{
-                      pkg.description || "No description available."
-                    }}</span>
-                  </div>
-                </div>
-                <div class="flex items-center gap-2">
-                  <Button
-                    v-if="isInstalled(pkg.name)"
-                    label="Uninstall"
-                    severity="danger"
-                    outlined
-                    size="small"
-                    :loading="loadingPlugins[pkg.name]"
-                    @click="uninstallPlugin(pkg.name)"
-                  />
-                  <Button
-                    v-else
-                    label="Install"
-                    size="small"
-                    :loading="loadingPlugins[pkg.name]"
-                    @click="installPlugin(pkg.name, pkg.description)"
-                  />
-                </div>
-              </div>
-            </div>
-          </template>
-
-          <template v-else>
-            <h4 class="text-xs font-bold opacity-60 mb-2 uppercase tracking-wider">
-              Installed Community Plugins
-            </h4>
-            <div
-              v-if="communityPlugins.length === 0"
-              class="text-center py-8 text-xs opacity-50 border border-dashed rounded-lg"
-            >
-              No community plugins installed. Search above to install new plugins.
-            </div>
-            <div v-else class="plugins-list-group">
-              <div
-                v-for="plugin in communityPlugins"
-                :key="plugin.name"
-                class="plugin-row flex items-center justify-between p-2"
-              >
-                <div class="flex items-center gap-3">
-                  <div class="plugin-icon-wrapper flex items-center justify-center">
-                    <template v-if="getPluginIcon(plugin.name)">
-                      <img
-                        v-if="getPluginIcon(plugin.name)?.type === 'image'"
-                        :src="getPluginIconImage(plugin.name)"
-                        class="plugin-row-icon"
-                      />
-                      <i
-                        v-else
-                        :class="getIconClass(getPluginIcon(plugin.name))"
-                        class="text-sm text-primary"
-                      ></i>
-                    </template>
-                    <i v-else class="pi pi-box text-primary text-sm"></i>
-                  </div>
-                  <div class="flex flex-column">
-                    <span class="plugin-title font-bold text-xs">{{
-                      formatPluginName(plugin.name)
-                    }}</span>
-                    <span class="plugin-description text-[10px] text-secondary mt-0.5">{{
-                      plugin.description || "No description available."
-                    }}</span>
-                  </div>
-                </div>
-                <div class="flex items-center gap-2">
-                  <ToggleSwitch
-                    :model-value="plugin.enabled"
-                    class="scale-90"
-                    @update:model-value="togglePlugin(plugin.name)"
-                  />
-                  <Button
-                    icon="pi pi-trash"
-                    severity="danger"
-                    text
-                    rounded
-                    size="small"
-                    :loading="loadingPlugins[plugin.name]"
-                    v-tooltip.top="'Uninstall'"
-                    @click="uninstallPlugin(plugin.name)"
-                  />
-                </div>
-              </div>
-            </div>
-          </template>
-        </div>
+      <!-- Marketplace dialog hidden: plugin marketplace is disabled in bundled mode. -->
+      <div class="text-center py-8 opacity-50 text-xs">
+        <i class="pi pi-lock mb-2 block text-lg"></i>
+        Plugin marketplace is disabled in bundled mode.<br>
+        All plugins are pre-bundled with the CLI.
       </div>
-      <template #footer>
-        <Button
-          label="Close"
-          size="small"
-          severity="secondary"
-          @click="isMarketplaceVisible = false"
-        />
-      </template>
     </Dialog>
   </div>
 </template>
@@ -553,28 +392,8 @@ watch(
   { immediate: true },
 );
 
-watchDebounced(
-  registrySearchQuery,
-  async (newQuery) => {
-    const q = newQuery.trim();
-    if (!q) {
-      registryResults.value = [];
-      return;
-    }
-    searchingRegistry.value = true;
-    try {
-      const res = await api.execute("plugin:search", { query: q });
-      if (res.type === "success") {
-        registryResults.value = res.result.results;
-      }
-    } catch (e) {
-      console.error("Registry search error in Plugins:", e);
-    } finally {
-      searchingRegistry.value = false;
-    }
-  },
-  { debounce: 500 },
-);
+// Registry search disabled in bundled mode — plugins are statically bundled with the CLI.
+// (Previously used watchDebounced to call plugin:search.)
 
 // --- Helpers ---
 const isOfficial = (packageName: string) => {
@@ -616,13 +435,6 @@ const getPluginIcon = (packageName: string) => {
 const getPluginIconImage = (packageName: string) => {
   const icon = getPluginIcon(packageName);
   return icon?.type === "image" ? icon.image : undefined;
-};
-
-const getPluginVersion = (packageName: string): string | undefined => {
-  const def = pluginDefinitions.value.find(
-    (p) => p.packageName === packageName || p.id === packageName,
-  );
-  return def?.version;
 };
 
 const getIconClass = (iconObj: any) => {
@@ -688,117 +500,121 @@ const togglePlugin = async (packageName: string) => {
   });
 };
 
-const installPlugin = async (packageName: string, description = "") => {
-  loadingPlugins.value[packageName] = true;
-  try {
-    toast.add({
-      severity: "info",
-      summary: "Installing plugin",
-      detail: `Downloading and installing ${packageName}...`,
-      life: 3000,
-    });
+// [DISABLED] Plugins are statically bundled — no install/uninstall needed.
+// Re-enable: uncomment + restore the plugin:install API call.
+// const installPlugin = async (packageName: string, description = "") => {
+//   loadingPlugins.value[packageName] = true;
+//   try {
+//     toast.add({
+//       severity: "info",
+//       summary: "Installing plugin",
+//       detail: `Downloading and installing ${packageName}...`,
+//       life: 3000,
+//     });
 
-    const res = await api.execute("plugin:install", {
-      packageName,
-      version: "latest",
-    });
+//     const res = await api.execute("plugin:install", {
+//       packageName,
+//       version: "latest",
+//     });
 
-    if (res.type === "success") {
-      const currentPlugins = [...allInstalledPlugins.value];
-      if (!currentPlugins.some((p) => p.name === packageName)) {
-        currentPlugins.push({
-          name: packageName,
-          enabled: true,
-          description: description || "Community plugin",
-        });
-        await appSettings.updateSettings({
-          ...(toRaw(settingsRef.value) as any),
-          plugins: currentPlugins,
-        });
-      }
+//     if (res.type === "success") {
+//       const currentPlugins = [...allInstalledPlugins.value];
+//       if (!currentPlugins.some((p) => p.name === packageName)) {
+//         currentPlugins.push({
+//           name: packageName,
+//           enabled: true,
+//           description: description || "Community plugin",
+//         });
+//         await appSettings.updateSettings({
+//           ...(toRaw(settingsRef.value) as any),
+//           plugins: currentPlugins,
+//         });
+//       }
 
-      toast.add({
-        severity: "success",
-        summary: "Plugin installed",
-        detail: `${packageName} has been installed successfully!`,
-        life: 3000,
-      });
-    } else {
-      toast.add({
-        severity: "error",
-        summary: "Installation failed",
-        detail: res.ipcError || `Could not install ${packageName}`,
-        life: 5000,
-      });
-    }
-  } catch (err: any) {
-    console.error("Plugin installation failed:", err);
-    toast.add({
-      severity: "error",
-      summary: "Installation error",
-      detail: err.message || `Could not install ${packageName}`,
-      life: 5000,
-    });
-  } finally {
-    loadingPlugins.value[packageName] = false;
-  }
-};
+//       toast.add({
+//         severity: "success",
+//         summary: "Plugin installed",
+//         detail: `${packageName} has been installed successfully!`,
+//         life: 3000,
+//       });
+//     } else {
+//       toast.add({
+//         severity: "error",
+//         summary: "Installation failed",
+//         detail: res.ipcError || `Could not install ${packageName}`,
+//         life: 5000,
+//       });
+//     }
+//   } catch (err: any) {
+//     console.error("Plugin installation failed:", err);
+//     toast.add({
+//       severity: "error",
+//       summary: "Installation error",
+//       detail: err.message || `Could not install ${packageName}`,
+//       life: 5000,
+//     });
+//   } finally {
+//     loadingPlugins.value[packageName] = false;
+//   }
+// };
 
-const uninstallPlugin = async (packageName: string) => {
-  loadingPlugins.value[packageName] = true;
-  try {
-    toast.add({
-      severity: "info",
-      summary: "Uninstalling plugin",
-      detail: `Removing ${packageName}...`,
-      life: 3000,
-    });
+// [DISABLED] Plugins are statically bundled — no install/uninstall needed.
+// Re-enable: uncomment + restore the plugin:uninstall API call.
+// const uninstallPlugin = async (packageName: string) => {
+//   loadingPlugins.value[packageName] = true;
+//   try {
+//     toast.add({
+//       severity: "info",
+//       summary: "Uninstalling plugin",
+//       detail: `Removing ${packageName}...`,
+//       life: 3000,
+//     });
 
-    const res = await api.execute("plugin:uninstall", {
-      packageName,
-    });
+//     const res = await api.execute("plugin:uninstall", {
+//       packageName,
+//     });
 
-    if (res.type === "success") {
-      const currentPlugins = allInstalledPlugins.value.filter((p) => p.name !== packageName);
-      await appSettings.updateSettings({
-        ...(toRaw(settingsRef.value) as any),
-        plugins: currentPlugins,
-      });
+//     if (res.type === "success") {
+//       const currentPlugins = allInstalledPlugins.value.filter((p) => p.name !== packageName);
+//       await appSettings.updateSettings({
+//         ...(toRaw(settingsRef.value) as any),
+//         plugins: currentPlugins,
+//       });
 
-      if (selectedPluginName.value === packageName) {
-        selectedPluginName.value = "";
-      }
+//       if (selectedPluginName.value === packageName) {
+//         selectedPluginName.value = "";
+//       }
 
-      toast.add({
-        severity: "success",
-        summary: "Plugin uninstalled",
-        detail: `${packageName} has been uninstalled!`,
-        life: 3000,
-      });
-    } else {
-      toast.add({
-        severity: "error",
-        summary: "Uninstall failed",
-        detail: res.ipcError || `Could not uninstall ${packageName}`,
-        life: 5000,
-      });
-    }
-  } catch (err: any) {
-    console.error("Plugin uninstallation failed:", err);
-    toast.add({
-      severity: "error",
-      summary: "Uninstall error",
-      detail: err.message || `Could not uninstall ${packageName}`,
-      life: 5000,
-    });
-  } finally {
-    loadingPlugins.value[packageName] = false;
-  }
-};
+//       toast.add({
+//         severity: "success",
+//         summary: "Plugin uninstalled",
+//         detail: `${packageName} has been uninstalled!`,
+//         life: 3000,
+//       });
+//     } else {
+//       toast.add({
+//         severity: "error",
+//         summary: "Uninstall failed",
+//         detail: res.ipcError || `Could not uninstall ${packageName}`,
+//         life: 5000,
+//       });
+//     }
+//   } catch (err: any) {
+//     console.error("Plugin uninstallation failed:", err);
+//     toast.add({
+//       severity: "error",
+//       summary: "Uninstall error",
+//       detail: err.message || `Could not uninstall ${packageName}`,
+//       life: 5000,
+//     });
+//   } finally {
+//     loadingPlugins.value[packageName] = false;
+//   }
+// };
 </script>
 
 <style lang="scss" scoped>
-.integrations-page {
+.plugins-page {
   width: 100%;
   height: 100%;
   overflow: hidden;
@@ -1161,7 +977,7 @@ const uninstallPlugin = async (packageName: string) => {
 }
 
 /* ─── Integrations Schema Grid ──────────────────────────── */
-.integrations-grid {
+.plugins-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 16px;
