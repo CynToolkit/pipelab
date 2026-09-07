@@ -4,7 +4,7 @@ export const moreToCome: PresetFn = async () => {
   const startId = "manual-start";
 
   const data: SavedFile = {
-    version: "5.0.0",
+    version: "6.0.0",
     name: "More to come!",
     description: "Do not hesitate to suggest templates you would see here",
     variables: [],

@@ -208,19 +208,51 @@ export const SavedFileSimpleValidatorV5 = object({
 export type SavedFileDefault = InferOutput<typeof SavedFileDefaultValidatorV5>;
 export type SavedFileSimple = InferOutput<typeof SavedFileSimpleValidatorV5>;
 
+// V6: identical shapes to V5, minus every version field. Bundled mode has one
+// release, so per-plugin/per-block versions and the top-level plugins map
+// (name → version) are gone. The V5→V6 migration strips them from old files.
+export const SavedFileDefaultValidatorV6 = object({
+  version: literal("6.0.0"),
+  name: string(),
+  description: string(),
+  canvas: CanvasValidatorV3,
+  variables: array(VariableValidatorV1),
+});
+
+export const SavedFileSimpleValidatorV6 = object({
+  version: literal("6.0.0"),
+  type: literal("simple"),
+  name: string(),
+  description: string(),
+  source: object({
+    type: union([literal("c3-html"), literal("c3-nwjs"), literal("godot"), literal("html")]),
+    path: string(),
+  }),
+  packaging: object({
+    enabled: boolean(),
+  }),
+  publishing: object({
+    steam: object({ enabled: boolean(), appId: optional(string()) }),
+    itch: object({ enabled: boolean(), project: optional(string()) }),
+    poki: object({ enabled: boolean(), gameId: optional(string()) }),
+  }),
+});
+
 export const SavedFileValidatorV4 = union([
   SavedFileDefaultValidatorV4,
   SavedFileSimpleValidatorV4,
 ]);
 export const SavedFileValidatorV5 = SavedFileDefaultValidatorV5;
+export const SavedFileValidatorV6 = SavedFileDefaultValidatorV6;
 
 export type SavedFileV1 = InferOutput<typeof SavedFileValidatorV1>;
 export type SavedFileV2 = InferOutput<typeof SavedFileValidatorV2>;
 export type SavedFileV3 = InferOutput<typeof SavedFileValidatorV3>;
 export type SavedFileV4 = InferOutput<typeof SavedFileValidatorV4>;
 export type SavedFileV5 = InferOutput<typeof SavedFileValidatorV5>;
-export type SavedFile = SavedFileV5;
-export const SavedFileValidator = SavedFileValidatorV5;
+export type SavedFileV6 = InferOutput<typeof SavedFileValidatorV6>;
+export type SavedFile = SavedFileV6;
+export const SavedFileValidator = SavedFileValidatorV6;
 
 export type Preset = SavedFile;
 export type PresetResult = { data: Preset; hightlight?: boolean; disabled?: boolean };

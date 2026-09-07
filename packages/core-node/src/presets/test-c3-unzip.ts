@@ -7,7 +7,7 @@ export const testC3Unzip: PresetFn = async () => {
   const steamUpload = "steam-upload-node";
 
   const data: SavedFile = {
-    version: "5.0.0",
+    version: "6.0.0",
     name: "From Construct to Steam",
     description: "Export from Construct, package with Electron, then upload to Steam",
     variables: [],

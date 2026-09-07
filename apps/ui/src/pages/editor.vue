@@ -968,7 +968,7 @@ const exportPipeline = async () => {
   }
 
   const result: SavedFile = {
-    version: "5.0.0",
+    version: "6.0.0",
     name: name.value,
     description: description.value,
     canvas: {
@@ -1014,7 +1014,7 @@ const navigateToBuildHistory = async () => {
 
 const saveLocal = async (path: string, silent = false) => {
   const result: SavedFile = {
-    version: "5.0.0",
+    version: "6.0.0",
     name: name.value,
     description: "",
     canvas: {
@@ -1051,7 +1051,7 @@ const saveLocal = async (path: string, silent = false) => {
 
 const saveInternal = async (configName: string, silent = false) => {
   const result: SavedFile = {
-    version: "5.0.0",
+    version: "6.0.0",
     name: name.value,
     description: "",
     canvas: {

@@ -9,7 +9,7 @@ export const demoPreset: PresetFn = async () => {
   const logOkId = "log-ok";
 
   const data: SavedFile = {
-    version: "5.0.0",
+    version: "6.0.0",
     variables: [],
     name: "demo",
     description: "demo",

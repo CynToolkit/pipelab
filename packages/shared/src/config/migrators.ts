@@ -45,6 +45,7 @@ import {
   SavedFileV3,
   SavedFileV4,
   SavedFileV5,
+  SavedFileV6,
   SavedFile,
 } from "../model";
 
@@ -242,7 +243,7 @@ const savedFileDefaultValue = savedFileMigratorInternal.createDefault({
   description: "",
   name: "",
   variables: [],
-  version: "5.0.0",
+  version: "6.0.0",
 });
 
 export const savedFileMigrator = savedFileMigratorInternal.createMigrations({
@@ -336,34 +337,63 @@ export const savedFileMigrator = savedFileMigratorInternal.createMigrations({
           };
         }
 
-        const migrateBlock = (block: any) => {
+        const migrateBlock = (block: any, pluginsMap: Record<string, string>) => {
           if (!block) return;
           if (block.origin?.pluginId) {
             block.origin.pluginId = getStrictPluginId(block.origin.pluginId);
+            // Stamp the version from the old top-level plugins map, falling back to "latest"
+            block.origin.version = pluginsMap[block.origin.pluginId] ?? "latest";
           }
-          // No version stamping — bundled mode has no plugin versions.
-          // Pre-existing origin.version keys on old blocks pass through here
-          // and are stripped by validation.
-          delete block.origin?.version;
         };
 
-        // Normalise plugin IDs on every block and trigger
-        if (state.canvas) {
-          for (const block of state.canvas.blocks ?? []) {
-            migrateBlock(block);
-          }
-          for (const trigger of state.canvas.triggers ?? []) {
-            migrateBlock(trigger);
+        // Normalise the old plugins map's keys first so lookups are consistent
+        const normalizedPlugins: Record<string, string> = {};
+        if (state.plugins) {
+          for (const [key, val] of Object.entries(state.plugins)) {
+            normalizedPlugins[getStrictPluginId(key)] = val;
           }
         }
 
-        // Drop the top-level plugins map — bundled mode has no versions. Omit type.
+        // Stamp origin.version on every block and trigger
+        if (state.canvas) {
+          for (const block of state.canvas.blocks ?? []) {
+            migrateBlock(block, normalizedPlugins);
+          }
+          for (const trigger of state.canvas.triggers ?? []) {
+            migrateBlock(trigger, normalizedPlugins);
+          }
+        }
+
+        // Drop the top-level plugins map — version is now per-block. Omit type.
         const { plugins: _dropped, type: _type, ...rest } = state;
         return rest;
       },
     }),
-    createMigration<SavedFileV5, never>({
+    createMigration<SavedFileV5, SavedFileV6>({
       version: "5.0.0" as SemVer,
+      up: (_state) => {
+        // Runtime data at 5.0.0 still carries versions (V4→V5 stamped them),
+        // but the V5 types no longer declare them — hence the loose cast.
+        const state = _state as OmitVersion<SavedFileV5> & {
+          plugins?: unknown;
+          canvas?: { blocks?: any[]; triggers?: any[] };
+        };
+        // Bundled mode has no plugin versions: strip origin.version from every
+        // block and trigger, and drop the legacy top-level plugins map if present.
+        for (const item of [
+          ...(state.canvas?.blocks ?? []),
+          ...(state.canvas?.triggers ?? []),
+        ]) {
+          if (item?.origin && "version" in item.origin) {
+            delete item.origin.version;
+          }
+        }
+        const { plugins: _dropped, ...rest } = state;
+        return rest;
+      },
+    }),
+    createMigration<SavedFileV6, never>({
+      version: "6.0.0" as SemVer,
       up: finalVersion,
     }),
   ],
@@ -408,7 +438,8 @@ export const normalizePipelineConfig = (state: any): boolean => {
   if (!state) return false;
   let changed = false;
 
-  // Normalise plugin IDs in block and trigger origins (pluginId field only)
+  // Normalise plugin IDs in block and trigger origins (pluginId field only;
+  // version strings don't need normalisation)
   if (state.canvas) {
     if (Array.isArray(state.canvas.blocks)) {
       for (const block of state.canvas.blocks) {
