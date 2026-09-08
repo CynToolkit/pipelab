@@ -47,7 +47,7 @@ class PlaceholderWidget extends WidgetType {
 
     span.classList.add("step-placeholder");
     if (result !== undefined && result !== null) {
-      span.innerHTML = String(result);
+      span.textContent = String(result);
     } else {
       span.textContent = "Step missing";
       span.classList.add("step-missing");

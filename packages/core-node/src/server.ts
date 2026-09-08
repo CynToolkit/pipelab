@@ -12,12 +12,21 @@ import { readFile } from "node:fs/promises";
 import http from "http";
 // @ts-expect-error serve-handler has no type definitions
 import handler from "serve-handler";
+import {
+  DEFAULT_ALLOWED_ORIGINS,
+  DEFAULT_SERVER_HOST,
+  isAuthorizedRequest,
+  type ServerSecurityOptions,
+} from "./server-security";
 
 export interface ServeOptions {
   port: string | number;
   userData?: string;
   nodePath?: string;
   pnpmPath?: string;
+  host?: string;
+  authToken?: string;
+  allowedOrigin?: string;
 }
 
 export const sendStartupProgress = (message: string) => {
@@ -41,6 +50,14 @@ export async function serveCommand(options: ServeOptions, version: string, _dirn
     userDataPath: options.userData,
     releaseTag,
   });
+  const security: ServerSecurityOptions & { host: string } = {
+    host: options.host || DEFAULT_SERVER_HOST,
+    authToken: options.authToken || process.env.PIPELAB_AUTH_TOKEN,
+    allowedOrigins: [
+      ...DEFAULT_ALLOWED_ORIGINS,
+      ...(options.allowedOrigin ? [options.allowedOrigin] : []),
+    ],
+  };
 
   let rawAssetFolder: string | undefined;
   if (!isDev) {
@@ -51,6 +68,12 @@ export async function serveCommand(options: ServeOptions, version: string, _dirn
     // Serve local media files securely via HTTP
     const urlObj = request.url ? new URL(request.url, "http://localhost") : null;
     if (urlObj && urlObj.pathname.startsWith("/media-file/")) {
+      if (!isAuthorizedRequest(request, security)) {
+        response.writeHead(401, { "Content-Type": "text/plain" });
+        response.end("Unauthorized");
+        return;
+      }
+
       const prefix = "/media-file/";
       const encodedPath = urlObj.pathname.substring(prefix.length);
       const filePath = decodeURIComponent(encodedPath);
@@ -73,7 +96,6 @@ export async function serveCommand(options: ServeOptions, version: string, _dirn
 
           response.writeHead(200, {
             "Content-Type": contentType,
-            "Access-Control-Allow-Origin": "*",
           });
           response.end(content);
           return;
@@ -127,7 +149,7 @@ export async function serveCommand(options: ServeOptions, version: string, _dirn
   }
 
   // Start the server EARLY so the UI can connect and receive progress updates
-  await webSocketServer.start(Number(options.port), server);
+  await webSocketServer.start(Number(options.port), server, security);
 
   await registerAllHandlers({
     version,

@@ -4,18 +4,6 @@ import { readFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { createRequire } from "node:module";
-import constructPlugin from "@pipelab/plugin-construct";
-import filesystemPlugin from "@pipelab/plugin-filesystem";
-import systemPlugin from "@pipelab/plugin-system";
-import electronPlugin from "@pipelab/plugin-electron";
-import discordPlugin from "@pipelab/plugin-discord";
-import steamPlugin from "@pipelab/plugin-steam";
-import itchPlugin from "@pipelab/plugin-itch";
-import minifyPlugin from "@pipelab/plugin-minify";
-import netlifyPlugin from "@pipelab/plugin-netlify";
-import nvpatchPlugin from "@pipelab/plugin-nvpatch";
-import pokiPlugin from "@pipelab/plugin-poki";
-import tauriPlugin from "@pipelab/plugin-tauri";
 import { PipelabContext } from "./context";
 // import { isDev, projectRoot } from "./context"; // [DISABLED] only used by dynamic loader scan — re-enable with it
 import { sendStartupProgress } from "./server";
@@ -74,8 +62,13 @@ export const enhancePluginDefinition = async (
 
 // [DISABLED] Dynamic plugin loading is disabled — plugins are bundled with the CLI.
 // Re-enable: uncomment the body below + restore the fetchPipelabPlugin import.
-export const loadPipelabPlugin = async (id: string, options: { context: PipelabContext }): Promise<any> => {
-  console.warn(`[Plugins] Dynamic plugin loading is disabled in bundled mode. Cannot load "${id}".`);
+export const loadPipelabPlugin = async (
+  id: string,
+  options: { context: PipelabContext },
+): Promise<any> => {
+  console.warn(
+    `[Plugins] Dynamic plugin loading is disabled in bundled mode. Cannot load "${id}".`,
+  );
   return null;
   // const { packageDir, entryPoint } = await fetchPipelabPlugin(id, options.context.releaseTag, { context: options.context, installDeps: false });
   // const pluginModule = await import(pathToFileURL(entryPoint).href);
@@ -85,8 +78,14 @@ export const loadPipelabPlugin = async (id: string, options: { context: PipelabC
 
 // [DISABLED] Custom plugin loading is disabled — plugins are bundled with the CLI.
 // Re-enable: uncomment the body below + restore the fetchPipelabPlugin import.
-export const loadCustomPlugin = async (packageName: string, version: string, options: { context: PipelabContext }): Promise<any> => {
-  console.warn(`[Plugins] Custom plugin loading is disabled in bundled mode. Cannot load "${packageName}".`);
+export const loadCustomPlugin = async (
+  packageName: string,
+  version: string,
+  options: { context: PipelabContext },
+): Promise<any> => {
+  console.warn(
+    `[Plugins] Custom plugin loading is disabled in bundled mode. Cannot load "${packageName}".`,
+  );
   return null;
   // const { packageDir, entryPoint } = await fetchPipelabPlugin(packageName, version, { context: options.context, installDeps: false });
   // const pluginModule = await import(pathToFileURL(entryPoint).href);
@@ -116,23 +115,48 @@ export async function findInstalledPlugins(
 // All plugins are statically imported so app bundles include them and startup never
 // resolves a plugin package dynamically. @pipelab/plugin-core is intentionally absent:
 // it is a utilities package and has no plugin definition to register.
-const BUNDLED_PLUGINS = [
-  { packageName: "@pipelab/plugin-construct", plugin: constructPlugin },
-  { packageName: "@pipelab/plugin-filesystem", plugin: filesystemPlugin },
-  { packageName: "@pipelab/plugin-system", plugin: systemPlugin },
-  { packageName: "@pipelab/plugin-electron", plugin: electronPlugin },
-  { packageName: "@pipelab/plugin-discord", plugin: discordPlugin },
-  { packageName: "@pipelab/plugin-steam", plugin: steamPlugin },
-  { packageName: "@pipelab/plugin-itch", plugin: itchPlugin },
-  { packageName: "@pipelab/plugin-minify", plugin: minifyPlugin },
-  { packageName: "@pipelab/plugin-netlify", plugin: netlifyPlugin },
-  { packageName: "@pipelab/plugin-nvpatch", plugin: nvpatchPlugin },
-  { packageName: "@pipelab/plugin-poki", plugin: pokiPlugin },
-  { packageName: "@pipelab/plugin-tauri", plugin: tauriPlugin },
+const getBundledPlugins = async () => [
+  {
+    packageName: "@pipelab/plugin-construct",
+    plugin: (await import("@pipelab/plugin-construct")).default,
+  },
+  {
+    packageName: "@pipelab/plugin-filesystem",
+    plugin: (await import("@pipelab/plugin-filesystem")).default,
+  },
+  {
+    packageName: "@pipelab/plugin-system",
+    plugin: (await import("@pipelab/plugin-system")).default,
+  },
+  {
+    packageName: "@pipelab/plugin-electron",
+    plugin: (await import("@pipelab/plugin-electron")).default,
+  },
+  {
+    packageName: "@pipelab/plugin-discord",
+    plugin: (await import("@pipelab/plugin-discord")).default,
+  },
+  { packageName: "@pipelab/plugin-steam", plugin: (await import("@pipelab/plugin-steam")).default },
+  { packageName: "@pipelab/plugin-itch", plugin: (await import("@pipelab/plugin-itch")).default },
+  {
+    packageName: "@pipelab/plugin-minify",
+    plugin: (await import("@pipelab/plugin-minify")).default,
+  },
+  {
+    packageName: "@pipelab/plugin-netlify",
+    plugin: (await import("@pipelab/plugin-netlify")).default,
+  },
+  {
+    packageName: "@pipelab/plugin-nvpatch",
+    plugin: (await import("@pipelab/plugin-nvpatch")).default,
+  },
+  { packageName: "@pipelab/plugin-poki", plugin: (await import("@pipelab/plugin-poki")).default },
+  { packageName: "@pipelab/plugin-tauri", plugin: (await import("@pipelab/plugin-tauri")).default },
 ];
 
 export const builtInPlugins = async (options: { context: PipelabContext }): Promise<void> => {
   console.debug("[Plugins] Starting bundled plugin loading...");
+  const bundledPlugins = await getBundledPlugins();
 
   const { usePlugins } = await import("@pipelab/shared");
   const { registerPlugins } = usePlugins();
@@ -142,7 +166,7 @@ export const builtInPlugins = async (options: { context: PipelabContext }): Prom
 
   const totalStart = Date.now();
 
-  const loadPromises = BUNDLED_PLUGINS.map(async ({ packageName, plugin: raw }) => {
+  const loadPromises = bundledPlugins.map(async ({ packageName, plugin: raw }) => {
     sendStartupProgress(`Loading bundled plugin: ${packageName}`);
     const pluginStart = Date.now();
     try {
@@ -155,7 +179,9 @@ export const builtInPlugins = async (options: { context: PipelabContext }): Prom
         try {
           packageDir = dirname(require.resolve(`${packageName}/package.json`));
         } catch {
-          console.warn(`[Plugins] Could not resolve package dir for ${packageName}, using fallbacks`);
+          console.warn(
+            `[Plugins] Could not resolve package dir for ${packageName}, using fallbacks`,
+          );
         }
         const plugin = await enhancePluginDefinition(raw, packageDir, packageName);
         registerPlugins([plugin]);

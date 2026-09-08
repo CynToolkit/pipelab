@@ -37,8 +37,9 @@
       "outputs": []
     },
     "typecheck": {
-      // dependsOn is required so dependencies build declarations via tsc -b before apps typecheck
-      "dependsOn": ["^typecheck"],
+      // Workspace packages intentionally form a bundled source cycle. Typecheck
+      // each package independently instead of making Turbo reject the graph.
+      "dependsOn": [],
       "outputs": ["dist/**/*.d.ts", "dist/**/*.d.ts.map", "dist/tsconfig.tsbuildinfo"]
     },
     "format": {

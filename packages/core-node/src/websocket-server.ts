@@ -15,6 +15,13 @@ import {
   Events,
 } from "@pipelab/shared";
 import { websocketPort } from "@pipelab/constants";
+import {
+  DEFAULT_ALLOWED_ORIGINS,
+  DEFAULT_SERVER_HOST,
+  isAuthorizedRequest,
+  requiresAuthentication,
+  type ServerSecurityOptions,
+} from "./server-security";
 
 export interface ConnectedClient {
   id: string;
@@ -32,8 +39,24 @@ export class WebSocketServer {
   private clients: Map<WSWebSocket, ConnectedClient> = new Map();
   private lastBroadcasts: Map<Channels, string> = new Map();
 
-  async start(port: number = websocketPort, existingServer?: import("http").Server): Promise<void> {
+  async start(
+    port: number = websocketPort,
+    existingServer?: import("http").Server,
+    security: ServerSecurityOptions = {},
+  ): Promise<void> {
     const { logger } = useLogger();
+    const securityOptions = {
+      host: security.host || DEFAULT_SERVER_HOST,
+      authToken: security.authToken,
+      allowedOrigins: security.allowedOrigins || DEFAULT_ALLOWED_ORIGINS,
+    };
+
+    if (requiresAuthentication(securityOptions.host) && !securityOptions.authToken) {
+      throw new WebSocketError(
+        "Remote server access requires PIPELAB_AUTH_TOKEN or --auth-token.",
+        "AUTH_REQUIRED",
+      );
+    }
 
     return new Promise((resolve, reject) => {
       try {
@@ -47,6 +70,11 @@ export class WebSocketServer {
         this.wss = new WSWebSocketServer({ server });
 
         this.wss.on("connection", (ws: WSWebSocket, request: IncomingMessage) => {
+          if (!isAuthorizedRequest(request, securityOptions)) {
+            ws.close(1008, "Unauthorized");
+            return;
+          }
+
           const clientId = nanoid();
           const clientName = `Agent ${clientId.substring(0, 4)}`;
           const connectedAt = Date.now();
@@ -62,7 +90,6 @@ export class WebSocketServer {
           console.log("WebSocket client connected", {
             id: clientId,
             name: clientName,
-            url: request.url,
           });
 
           // Replay last known state for each channel that has been broadcasted
@@ -108,9 +135,9 @@ export class WebSocketServer {
         });
 
         if (!server.listening) {
-          // Bind all interfaces so remote browsers (e.g. over Tailscale) can
-          // reach the dev server. Local dev is unaffected.
-          server.listen(port, "0.0.0.0", () => {
+          // Bind only to the configured interface. Remote access is opt-in and
+          // requires an auth token; local development stays loopback-only.
+          server.listen(port, securityOptions.host, () => {
             this.connectionState = "connected";
             logger().info(`WebSocket server listening on port ${port}`);
             this.isReady = true;

@@ -38,7 +38,7 @@
     "@pipelab/plugin-core": "workspace:*",
     "es-toolkit": "1.25.2",
     "playwright": "1.62.1",
-    "valibot": "0.42.1"
+    "valibot": "1.4.2"
   },
   "devDependencies": {
     "@pipelab/test-utils": "workspace:*",

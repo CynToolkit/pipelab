@@ -70,7 +70,7 @@ export class WebSocketClient {
   }
 
   public connect(url?: string) {
-    const targetUrl = url || this.currentUrl;
+    const targetUrl = this.withBrowserAuthToken(url || this.currentUrl);
     this.currentUrl = targetUrl;
 
     // Clear any pending reconnection attempt
@@ -136,6 +136,16 @@ export class WebSocketClient {
       this.notifyStateChange();
       this.scheduleReconnect();
     }
+  }
+
+  private withBrowserAuthToken(targetUrl: string): string {
+    if (typeof window === "undefined") return targetUrl;
+    const token = new URLSearchParams(window.location.hash.replace(/^#/, "")).get("token");
+    if (!token) return targetUrl;
+
+    const url = new URL(targetUrl);
+    url.searchParams.set("token", token);
+    return url.toString();
   }
 
   private notifyStateChange() {

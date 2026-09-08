@@ -16,13 +16,19 @@ export const transformUrl = (url: string | undefined | null): string => {
       return "http://localhost:33753";
     };
 
+    const getAuthQuery = (): string => {
+      if (typeof window === "undefined") return "";
+      const token = new URLSearchParams(window.location.hash.replace(/^#/, "")).get("token");
+      return token ? `?token=${encodeURIComponent(token)}` : "";
+    };
+
     if (url.startsWith("file://")) {
       const filePath = decodeURIComponent(url.substring("file://".length));
-      return `${getHost()}/media-file/${encodeURIComponent(filePath)}`;
+      return `${getHost()}/media-file/${encodeURIComponent(filePath)}${getAuthQuery()}`;
     }
     if (url.startsWith("media://")) {
       const filePath = decodeURIComponent(url.replace(/^media:\/\/+/, "/"));
-      return `${getHost()}/media-file/${encodeURIComponent(filePath)}`;
+      return `${getHost()}/media-file/${encodeURIComponent(filePath)}${getAuthQuery()}`;
     }
   }
   return url || "";

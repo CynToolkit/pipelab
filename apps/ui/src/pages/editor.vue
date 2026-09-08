@@ -210,7 +210,7 @@
                       'slide-in': !log.isExiting,
                     }"
                   >
-                    <span v-html="log.text"></span>
+                    <span>{{ log.text }}</span>
                   </div>
                 </div>
               </div>
@@ -275,8 +275,7 @@
                         v-for="(line, index) of log"
                         :key="index"
                         class="line"
-                        v-html="line"
-                      ></div>
+                      >{{ line }}</div>
                     </AccordionContent>
                   </AccordionPanel>
 
@@ -916,8 +915,9 @@ const onSaveRequest = async (silent = true) => {
   } else if (filePointer.type === "internal") {
     await saveInternal(filePointer.configName, silent);
   } else {
-    // TODO: save to cloud
-    throw new Error("TODO");
+    console.warn("Cloud pipeline save is not available in this beta");
+    isSaving.value = false;
+    return;
   }
   await sleep(500);
   isSaving.value = false;

@@ -23,6 +23,7 @@ export default createNodeDefinition({
         "Create a distributable installer for your chosen platform",
         "",
         "`Build package for ${fmt.param(params['input-folder'], 'primary', 'Input folder not set')}`",
+        "Tauri installer creation is not available in this beta",
       ),
       runner: makeRunner,
       // disabled: platform === 'linux' ? 'Tauri is not supported on Linux' : undefined

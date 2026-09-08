@@ -176,7 +176,9 @@ function createWindow(): void {
     ...position,
     webPreferences: {
       preload: join(__dirname, "preload.cjs"),
-      sandbox: false,
+      sandbox: true,
+      contextIsolation: true,
+      nodeIntegration: false,
       devTools: is.dev,
       additionalArguments: [`--app-version=${app.getVersion()}`],
     },
@@ -198,7 +200,14 @@ function createWindow(): void {
   });
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
-    shell.openExternal(details.url);
+    try {
+      const url = new URL(details.url);
+      if (url.protocol === "http:" || url.protocol === "https:") {
+        shell.openExternal(details.url);
+      }
+    } catch {
+      console.warn("Blocked invalid external URL", details.url);
+    }
     return { action: "deny" };
   });
 }

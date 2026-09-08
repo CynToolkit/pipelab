@@ -425,6 +425,7 @@ export const createMakeProps = (
   description: string,
   icon: string,
   displayString: string,
+  disabled?: boolean | string,
 ) =>
   createAction({
     id,
@@ -432,6 +433,7 @@ export const createMakeProps = (
     description,
     icon,
     displayString,
+    disabled,
     meta: {},
     params: {
       ...params,
