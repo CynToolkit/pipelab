@@ -127,7 +127,7 @@ export async function findInstalledPlugins(
 // All plugins are statically imported so app bundles include them and startup never
 // resolves a plugin package dynamically. @pipelab/plugin-core is intentionally absent:
 // it is a utilities package and has no plugin definition to register.
-const getBundledPlugins = () => [
+const bundledPlugins = [
   { packageName: "@pipelab/plugin-construct", plugin: constructPlugin },
   { packageName: "@pipelab/plugin-filesystem", plugin: filesystemPlugin },
   { packageName: "@pipelab/plugin-system", plugin: systemPlugin },
@@ -144,7 +144,6 @@ const getBundledPlugins = () => [
 
 export const builtInPlugins = async (options: { context: PipelabContext }): Promise<void> => {
   console.debug("[Plugins] Starting bundled plugin loading...");
-  const bundledPlugins = getBundledPlugins();
 
   const { usePlugins } = await import("@pipelab/shared");
   const { registerPlugins } = usePlugins();
