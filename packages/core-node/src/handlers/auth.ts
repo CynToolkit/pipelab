@@ -14,6 +14,18 @@ export const registerAuthHandlers = (context: PipelabContext) => {
   const supabaseAvailable = isSupabaseAvailable();
   if (!supabaseAvailable) {
     logger().warn("[Auth] Supabase is not available. Auth handlers will not be functional.");
+    // Register the invoke channel even when cloud services are unavailable.
+    // Otherwise browser requests remain pending forever (for example, the
+    // upgrade dialog stays on "Loading plans...").
+    handle("auth:invoke", async (_, { send }) => {
+      return send({
+        type: "end",
+        data: {
+          type: "error",
+          ipcError: "Supabase is not configured; cloud functions are unavailable.",
+        },
+      });
+    });
     return;
   }
 

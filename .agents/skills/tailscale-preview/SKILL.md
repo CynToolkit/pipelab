@@ -7,19 +7,26 @@ laptop) can open the UI over Tailscale. Use when asked to "start the app",
 ## Procedure
 
 1. Confirm Tailscale is up: `tailscale ip -4`. Note the machine IP
-   (e.g. `100.111.167.123`). The UI URL is `http://<ip>:5173`.
+   (e.g. `100.111.167.123`). The UI URL is `http://<ip>:5173` (or the
+   alternate Vite port selected below).
 2. Launch both servers **detached** (stdin from `/dev/null`, own session —
    never plain `&` from a terminal, see Gotchas):
    - CLI: `setsid bash -c 'pnpm --filter @pipelab/cli dev > /tmp/pipelab-cli.log 2>&1 < /dev/null' &`
    - UI: `setsid bash -c 'pnpm --filter @pipelab/ui exec vite --host 0.0.0.0 --port 5173 > /tmp/pipelab-ui.log 2>&1 < /dev/null' &`
    - `disown -a` afterwards if launched from an interactive shell.
+   The UI and CLI are separate servers. Opening the UI URL alone does not
+   start the backend; the CLI must be running on the same machine and its
+   WebSocket port (`33753`) must be reachable over Tailscale.
+   If port `5173` is already occupied, stop the stale Vite process or launch
+   the UI on another port, e.g. `--port 5174`, and use that port in the URL.
 3. Wait ~30s. Verify in order:
    - CLI log shows `WebSocket server listening on port 33753` and
      `[Startup Progress] Ready!`: `grep -E 'listening on port|Ready!' /tmp/pipelab-cli.log`
    - CLI process is **not** in `T (stopped)` state:
      `cat /proc/$(pgrep -f 'tsx/dist/loader' | head -1)/status | grep State`
      (must read `S`, never `T`).
-   - WebSocket handshake succeeds over the Tailscale IP:
+   - WebSocket handshake succeeds over the Tailscale IP (this is the backend
+     check; a successful HTTP request to the UI is not sufficient):
      `node -e "new (require('<repo>/node_modules/ws'))('ws://<ip>:33753').on('open', () => { console.log('WS-OK'); process.exit(0); })"`
    - UI serves 200 over the Tailscale IP:
      `curl -o /dev/null -w "%{http_code}\n" http://<ip>:5173/paths`
