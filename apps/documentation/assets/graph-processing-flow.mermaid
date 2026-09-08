@@ -1,0 +1,11 @@
+graph TD
+    A[Start Graph Processing] --> B{Process Each Node}
+
+    B --> C{Node Type: Action}
+    C --> C1[onNodeEnter Hook]
+    C1 --> C2[Execute Action Logic]
+    C2 --> C3[onNodeExit Hook]
+    C3 --> B
+
+    B -- No More Nodes --> Cleanup[Artifacts cleanup]
+    Cleanup --> H[End Graph Processing]
