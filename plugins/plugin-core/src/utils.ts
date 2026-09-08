@@ -1,11 +1,17 @@
-import { Options, Subprocess } from "execa";
-export {
-  fetchPackage,
-  fetchPipelabAsset,
-  runPnpm,
-  downloadFile,
-  runWithLiveLogs,
-} from "@pipelab/core-node";
+type CoreNodeModule = typeof import("@pipelab/core-node");
+
+const coreNode = () => import("@pipelab/core-node");
+
+export const fetchPackage: CoreNodeModule["fetchPackage"] = (...args) =>
+  coreNode().then(({ fetchPackage }) => fetchPackage(...args));
+export const fetchPipelabAsset: CoreNodeModule["fetchPipelabAsset"] = (...args) =>
+  coreNode().then(({ fetchPipelabAsset }) => fetchPipelabAsset(...args));
+export const runPnpm: CoreNodeModule["runPnpm"] = (...args) =>
+  coreNode().then(({ runPnpm }) => runPnpm(...args));
+export const downloadFile: CoreNodeModule["downloadFile"] = (...args) =>
+  coreNode().then(({ downloadFile }) => downloadFile(...args));
+export const runWithLiveLogs: CoreNodeModule["runWithLiveLogs"] = (...args) =>
+  coreNode().then(({ runWithLiveLogs }) => runWithLiveLogs(...args));
 
 /**
  * Re-exporting hooks type for backward compatibility

@@ -1,9 +1,15 @@
-import { homedir } from "node:os";
-import { resolve, join } from "node:path";
-import { stat, readdir, writeFile, mkdir } from "node:fs/promises";
+import { resolve, join, dirname } from "node:path";
+import { stat, readdir, writeFile, mkdir, mkdir as mkdirP } from "node:fs/promises";
 
-import { ensure, isPathBlacklisted } from "@pipelab/core-node";
-export { ensure, isPathBlacklisted };
+export const ensure = async (filesPath: string, defaultContent = "{}") => {
+  await mkdirP(dirname(filesPath), { recursive: true });
+  try {
+    const current = await stat(filesPath);
+    if (current.size === 0) await writeFile(filesPath, defaultContent);
+  } catch {
+    await writeFile(filesPath, defaultContent);
+  }
+};
 
 /**
  * Asserts that a directory is safe to be deleted/cleaned up.
@@ -12,6 +18,7 @@ export { ensure, isPathBlacklisted };
 export async function assertSafeDirectoryCleanup(directoryPath: string): Promise<void> {
   if (!directoryPath) return;
   const resolvedPath = resolve(directoryPath);
+  const { isPathBlacklisted } = await import("@pipelab/core-node");
 
   if (isPathBlacklisted(resolvedPath)) {
     throw new Error(`Cannot cleanup/delete protected system or user directory: ${resolvedPath}`);

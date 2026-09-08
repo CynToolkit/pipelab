@@ -18,9 +18,8 @@ import {
   type ExpressionRunner,
   type EventRunner,
   type Runner,
-  PipelabContext,
-  usePluginAPI,
 } from "@pipelab/core-node";
+import type { PipelabContext } from "@pipelab/core-node";
 
 export {
   type RunnerCallbackFnArgument,
@@ -29,9 +28,8 @@ export {
   type ExpressionRunner,
   type EventRunner,
   type Runner,
-  PipelabContext,
-  usePluginAPI,
 };
+export type { PipelabContext };
 
 export const createActionRunner = <ACTION extends Action>(
   runner: (data: ActionRunnerData<ACTION>) => Promise<void>,
