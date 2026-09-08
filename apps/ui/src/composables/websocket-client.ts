@@ -70,7 +70,7 @@ export class WebSocketClient {
   }
 
   public connect(url?: string) {
-    const targetUrl = this.withBrowserAuthToken(url || this.currentUrl);
+    const targetUrl = url || this.currentUrl;
     this.currentUrl = targetUrl;
 
     // Clear any pending reconnection attempt
@@ -138,21 +138,6 @@ export class WebSocketClient {
       this.notifyStateChange();
       this.scheduleReconnect();
     }
-  }
-
-  private withBrowserAuthToken(targetUrl: string): string {
-    if (typeof window === "undefined") return targetUrl;
-
-    // The CLI accepts the token in the URL query string for browser WebSockets,
-    // because the browser WebSocket API cannot set an Authorization header.
-    // The UI receives it from the URL fragment (#token=...), which is not sent
-    // to the UI server as an HTTP referrer.
-    const token = new URLSearchParams(window.location.hash.replace(/^#/, "")).get("token");
-    if (!token) return targetUrl;
-
-    const url = new URL(targetUrl);
-    url.searchParams.set("token", token);
-    return url.toString();
   }
 
   private notifyStateChange() {
