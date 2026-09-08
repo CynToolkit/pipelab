@@ -7,6 +7,18 @@ import { createRequire } from "node:module";
 import { PipelabContext } from "./context";
 // import { isDev, projectRoot } from "./context"; // [DISABLED] only used by dynamic loader scan — re-enable with it
 import { sendStartupProgress } from "./server";
+import constructPlugin from "@pipelab/plugin-construct";
+import filesystemPlugin from "@pipelab/plugin-filesystem";
+import systemPlugin from "@pipelab/plugin-system";
+import electronPlugin from "@pipelab/plugin-electron";
+import discordPlugin from "@pipelab/plugin-discord";
+import steamPlugin from "@pipelab/plugin-steam";
+import itchPlugin from "@pipelab/plugin-itch";
+import minifyPlugin from "@pipelab/plugin-minify";
+import netlifyPlugin from "@pipelab/plugin-netlify";
+import nvpatchPlugin from "@pipelab/plugin-nvpatch";
+import pokiPlugin from "@pipelab/plugin-poki";
+import tauriPlugin from "@pipelab/plugin-tauri";
 
 const require = createRequire(import.meta.url);
 
@@ -115,48 +127,24 @@ export async function findInstalledPlugins(
 // All plugins are statically imported so app bundles include them and startup never
 // resolves a plugin package dynamically. @pipelab/plugin-core is intentionally absent:
 // it is a utilities package and has no plugin definition to register.
-const getBundledPlugins = async () => [
-  {
-    packageName: "@pipelab/plugin-construct",
-    plugin: (await import("@pipelab/plugin-construct")).default,
-  },
-  {
-    packageName: "@pipelab/plugin-filesystem",
-    plugin: (await import("@pipelab/plugin-filesystem")).default,
-  },
-  {
-    packageName: "@pipelab/plugin-system",
-    plugin: (await import("@pipelab/plugin-system")).default,
-  },
-  {
-    packageName: "@pipelab/plugin-electron",
-    plugin: (await import("@pipelab/plugin-electron")).default,
-  },
-  {
-    packageName: "@pipelab/plugin-discord",
-    plugin: (await import("@pipelab/plugin-discord")).default,
-  },
-  { packageName: "@pipelab/plugin-steam", plugin: (await import("@pipelab/plugin-steam")).default },
-  { packageName: "@pipelab/plugin-itch", plugin: (await import("@pipelab/plugin-itch")).default },
-  {
-    packageName: "@pipelab/plugin-minify",
-    plugin: (await import("@pipelab/plugin-minify")).default,
-  },
-  {
-    packageName: "@pipelab/plugin-netlify",
-    plugin: (await import("@pipelab/plugin-netlify")).default,
-  },
-  {
-    packageName: "@pipelab/plugin-nvpatch",
-    plugin: (await import("@pipelab/plugin-nvpatch")).default,
-  },
-  { packageName: "@pipelab/plugin-poki", plugin: (await import("@pipelab/plugin-poki")).default },
-  { packageName: "@pipelab/plugin-tauri", plugin: (await import("@pipelab/plugin-tauri")).default },
+const getBundledPlugins = () => [
+  { packageName: "@pipelab/plugin-construct", plugin: constructPlugin },
+  { packageName: "@pipelab/plugin-filesystem", plugin: filesystemPlugin },
+  { packageName: "@pipelab/plugin-system", plugin: systemPlugin },
+  { packageName: "@pipelab/plugin-electron", plugin: electronPlugin },
+  { packageName: "@pipelab/plugin-discord", plugin: discordPlugin },
+  { packageName: "@pipelab/plugin-steam", plugin: steamPlugin },
+  { packageName: "@pipelab/plugin-itch", plugin: itchPlugin },
+  { packageName: "@pipelab/plugin-minify", plugin: minifyPlugin },
+  { packageName: "@pipelab/plugin-netlify", plugin: netlifyPlugin },
+  { packageName: "@pipelab/plugin-nvpatch", plugin: nvpatchPlugin },
+  { packageName: "@pipelab/plugin-poki", plugin: pokiPlugin },
+  { packageName: "@pipelab/plugin-tauri", plugin: tauriPlugin },
 ];
 
 export const builtInPlugins = async (options: { context: PipelabContext }): Promise<void> => {
   console.debug("[Plugins] Starting bundled plugin loading...");
-  const bundledPlugins = await getBundledPlugins();
+  const bundledPlugins = getBundledPlugins();
 
   const { usePlugins } = await import("@pipelab/shared");
   const { registerPlugins } = usePlugins();
