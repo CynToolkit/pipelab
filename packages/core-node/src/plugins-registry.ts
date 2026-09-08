@@ -1,11 +1,9 @@
 import { pathToFileURL } from "node:url";
-// import { readdir } from "node:fs/promises"; // [DISABLED] only used by findInstalledPlugins scan — re-enable with it
 import { readFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { createRequire } from "node:module";
 import { PipelabContext } from "./context";
-// import { isDev, projectRoot } from "./context"; // [DISABLED] only used by dynamic loader scan — re-enable with it
 import { sendStartupProgress } from "./server";
 import constructPlugin from "@pipelab/plugin-construct";
 import filesystemPlugin from "@pipelab/plugin-filesystem";
@@ -22,8 +20,6 @@ import tauriPlugin from "@pipelab/plugin-tauri";
 
 const require = createRequire(import.meta.url);
 
-// [DISABLED] Kept for re-enable of loadPipelabPlugin/loadCustomPlugin above.
-// Exported to avoid an unused warning while the dynamic loaders are gated.
 export const enhancePluginDefinition = async (
   plugin: any,
   packageDir: string,
@@ -72,62 +68,10 @@ export const enhancePluginDefinition = async (
   return plugin;
 };
 
-// [DISABLED] Dynamic plugin loading is disabled — plugins are bundled with the CLI.
-// Re-enable: uncomment the body below + restore the fetchPipelabPlugin import.
-export const loadPipelabPlugin = async (
-  id: string,
-  options: { context: PipelabContext },
-): Promise<any> => {
-  console.warn(
-    `[Plugins] Dynamic plugin loading is disabled in bundled mode. Cannot load "${id}".`,
-  );
-  return null;
-  // const { packageDir, entryPoint } = await fetchPipelabPlugin(id, options.context.releaseTag, { context: options.context, installDeps: false });
-  // const pluginModule = await import(pathToFileURL(entryPoint).href);
-  // const plugin = pluginModule.default;
-  // return await enhancePluginDefinition(plugin, packageDir, id);
-};
-
-// [DISABLED] Custom plugin loading is disabled — plugins are bundled with the CLI.
-// Re-enable: uncomment the body below + restore the fetchPipelabPlugin import.
-export const loadCustomPlugin = async (
-  packageName: string,
-  version: string,
-  options: { context: PipelabContext },
-): Promise<any> => {
-  console.warn(
-    `[Plugins] Custom plugin loading is disabled in bundled mode. Cannot load "${packageName}".`,
-  );
-  return null;
-  // const { packageDir, entryPoint } = await fetchPipelabPlugin(packageName, version, { context: options.context, installDeps: false });
-  // const pluginModule = await import(pathToFileURL(entryPoint).href);
-  // const plugin = pluginModule.default;
-  // return await enhancePluginDefinition(plugin, packageDir, packageName);
-};
-
-// [DISABLED] Scanning for user-installed plugins is disabled — no user installs in bundled mode.
-// Re-enable: uncomment the body below.
-export async function findInstalledPlugins(
-  _packagesDir: string,
-): Promise<Array<{ name: string; version: string; packageDir: string; description: string }>> {
-  return [];
-  // Recursively scan packagesDir for package.json files with pipelab plugin keywords.
-  // const installed: ... = [];
-  // async function scan(dir: string, depth = 0) {
-  //   if (depth > 4) return;
-  //   const entries = await readdir(dir, { withFileTypes: true });
-  //   const hasPkgJson = entries.some((e) => e.isFile() && e.name === "package.json");
-  //   if (hasPkgJson) { ... parse pkg.json; if (pipelab || keywords.includes("pipelab-plugin")) installed.push(...) }
-  //   for (const entry of entries) if (entry.isDirectory() && entry.name !== "node_modules") await scan(join(dir, entry.name), depth + 1);
-  // }
-  // await scan(packagesDir);
-  // return installed;
-}
-
 // All plugins are statically imported so app bundles include them and startup never
 // resolves a plugin package dynamically. @pipelab/plugin-core is intentionally absent:
 // it is a utilities package and has no plugin definition to register.
-const bundledPlugins = [
+const BUNDLED_PLUGINS = [
   { packageName: "@pipelab/plugin-construct", plugin: constructPlugin },
   { packageName: "@pipelab/plugin-filesystem", plugin: filesystemPlugin },
   { packageName: "@pipelab/plugin-system", plugin: systemPlugin },
@@ -153,7 +97,7 @@ export const builtInPlugins = async (options: { context: PipelabContext }): Prom
 
   const totalStart = Date.now();
 
-  const loadPromises = bundledPlugins.map(async ({ packageName, plugin: raw }) => {
+  const loadPromises = BUNDLED_PLUGINS.map(async ({ packageName, plugin: raw }) => {
     sendStartupProgress(`Loading bundled plugin: ${packageName}`);
     const pluginStart = Date.now();
     try {

@@ -210,7 +210,7 @@
                       'slide-in': !log.isExiting,
                     }"
                   >
-                    <span>{{ log.text }}</span>
+                    <span v-dompurify-html="log.text"></span>
                   </div>
                 </div>
               </div>

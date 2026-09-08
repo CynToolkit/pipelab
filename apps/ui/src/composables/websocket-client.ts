@@ -91,7 +91,9 @@ export class WebSocketClient {
       this.ws = new WebSocket(targetUrl);
 
       this.ws.onopen = () => {
-        console.log("WebSocket connected to", targetUrl);
+        const safeTargetUrl = new URL(targetUrl);
+        safeTargetUrl.searchParams.delete("token");
+        console.log("WebSocket connected to", safeTargetUrl.toString());
         this.isConnecting = false;
         this.reconnectAttempts = 0;
         this.connectionState = "connected";
@@ -140,6 +142,11 @@ export class WebSocketClient {
 
   private withBrowserAuthToken(targetUrl: string): string {
     if (typeof window === "undefined") return targetUrl;
+
+    // The CLI accepts the token in the URL query string for browser WebSockets,
+    // because the browser WebSocket API cannot set an Authorization header.
+    // The UI receives it from the URL fragment (#token=...), which is not sent
+    // to the UI server as an HTTP referrer.
     const token = new URLSearchParams(window.location.hash.replace(/^#/, "")).get("token");
     if (!token) return targetUrl;
 
