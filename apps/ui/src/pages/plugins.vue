@@ -1063,4 +1063,37 @@ const togglePlugin = async (packageName: string) => {
     border-left-color: var(--p-red-600);
   }
 }
+
+/* ─── Mobile: drawer becomes top strip, grids single column ─ */
+@media (max-width: 860px) {
+  .main-layout {
+    flex-direction: column;
+  }
+
+  .drawer {
+    width: 100%;
+    flex: 0 0 auto;
+    border-right: none;
+    border-bottom: 1px solid var(--p-surface-200);
+    max-height: 38vh;
+
+    :root.dark & {
+      border-bottom-color: var(--p-surface-700);
+    }
+  }
+
+  .pane-content {
+    padding: 12px;
+  }
+
+  .pane-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .nodes-grid,
+  .integrations-grid {
+    grid-template-columns: 1fr;
+  }
+}
 </style>

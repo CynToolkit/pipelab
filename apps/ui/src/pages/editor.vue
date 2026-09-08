@@ -1888,4 +1888,98 @@ const onValueChanged = (newValue: Param, paramKey: string) => {
     box-shadow: 0 0 30px rgba(91, 82, 244, 0.15);
   }
 }
+
+/* ─── Mobile: wrapping toolbar, full-width nodes, bottom-sheet params ─ */
+@media (max-width: 768px) {
+  .editor .buttons {
+    height: auto;
+    min-height: 56px;
+    flex-wrap: wrap;
+    padding: 8px;
+    row-gap: 8px;
+
+    .left,
+    .right {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+    }
+
+    .center {
+      order: 3;
+      flex: 1 1 100%;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      text-align: center;
+    }
+
+    :deep(.p-button) {
+      min-width: 40px;
+      min-height: 40px;
+    }
+
+    :deep(.p-button .p-button-label) {
+      display: none;
+    }
+
+    :deep(.p-button .mdi),
+    :deep(.p-button .pi) {
+      margin-right: 0 !important;
+    }
+  }
+
+  .editor .editor-content {
+    height: calc(100% - 40px);
+  }
+
+  .main {
+    padding: 16px 0 140px;
+  }
+
+  .editor .node-editor-wrapper {
+    margin: 8px;
+    width: calc(100% - 16px);
+  }
+
+  /* Params drawer becomes a bottom sheet overlay */
+  .editor-wrapper .drawer.right {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    top: auto;
+    height: 72vh;
+    height: 72dvh;
+    z-index: 900;
+    border-top-left-radius: 16px;
+    border-top-right-radius: 16px;
+    border-top: 1px solid #ddd;
+    box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.2);
+
+    :root.dark & {
+      border-top-color: var(--p-surface-700);
+    }
+
+    .drawer-content-inner {
+      min-width: 0;
+    }
+  }
+
+  .editor .bottom {
+    left: 4px;
+    right: 4px;
+    bottom: calc(60px + env(safe-area-inset-bottom));
+    margin: 4px;
+
+    &.expanded {
+      height: 62%;
+    }
+  }
+
+  .logs-header .logs-animated {
+    display: none;
+  }
+}
 </style>

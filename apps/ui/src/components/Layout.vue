@@ -929,4 +929,94 @@ handle("update:set-status", async (event, { value }) => {
   flex: 1;
   overflow: auto;
 }
+
+/* ─── Mobile: bottom tab bar ─────────────────────────────── */
+@media (max-width: 768px) {
+  .layout-shell {
+    flex-direction: column;
+  }
+
+  .sidebar,
+  .sidebar-collapsed .sidebar {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    height: calc(60px + env(safe-area-inset-bottom));
+    padding-bottom: env(safe-area-inset-bottom);
+    flex-direction: row;
+    align-items: center;
+    order: 2;
+    border-right: none;
+    border-top: 1px solid var(--p-surface-200);
+    overflow-x: auto;
+    overflow-y: hidden;
+
+    :root.dark & {
+      border-top-color: var(--p-surface-700);
+    }
+  }
+
+  .sidebar-header,
+  .sidebar-spacer,
+  .sidebar-status,
+  .sidebar-divider,
+  .sidebar-upgrade-wrap,
+  .sidebar-nav-item.disabled,
+  .sidebar-nav-item .nav-label,
+  .sidebar-nav-item .coming-soon-badge,
+  .sidebar-account-row .account-left,
+  .sidebar-bottom .sidebar-divider {
+    display: none !important;
+  }
+
+  .sidebar-nav,
+  .sidebar-bottom {
+    flex-direction: row;
+    align-items: center;
+    padding: 0 4px;
+    gap: 0;
+  }
+
+  .sidebar-nav {
+    flex: 1;
+    justify-content: space-around;
+  }
+
+  .sidebar-nav-item,
+  .sidebar-collapsed .sidebar-nav-item {
+    flex: 1;
+    justify-content: center;
+    padding: 8px 4px;
+    min-width: 56px;
+    min-height: 44px;
+
+    .nav-icon {
+      font-size: 22px;
+      width: auto;
+    }
+  }
+
+  .sidebar-bottom {
+    padding: 0 4px;
+  }
+
+  .sidebar-account-row {
+    background: transparent;
+    padding: 0;
+    margin: 0;
+  }
+
+  .account-logout-btn,
+  .account-logout-btn.collapsed-logout {
+    width: 44px;
+    height: 44px;
+    padding: 8px;
+  }
+
+  .layout-main {
+    order: 1;
+    padding-bottom: 0;
+    min-height: 0;
+  }
+}
 </style>

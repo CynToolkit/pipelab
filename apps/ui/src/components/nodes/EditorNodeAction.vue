@@ -545,6 +545,23 @@ const hasErrored = computed(() => {
   color: red;
 }
 
+@media (max-width: 768px) {
+  .node-action-wrapper {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .node-action {
+    width: 100%;
+    max-width: 100%;
+    padding: 8px 12px;
+  }
+
+  .vertical {
+    gap: 12px;
+  }
+}
+
 @keyframes clippath {
   0%,
   100% {

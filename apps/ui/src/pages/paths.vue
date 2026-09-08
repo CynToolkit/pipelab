@@ -364,4 +364,25 @@ const goAdvanced = () => {
   opacity: 0.4;
   cursor: not-allowed;
 }
+
+@media (max-width: 640px) {
+  .paths-page {
+    height: 100%;
+    min-height: 0;
+  }
+
+  .paths-content {
+    padding: 0 12px 96px;
+  }
+
+  .paths-header {
+    flex-wrap: wrap;
+  }
+
+  .ship-all-btn {
+    min-height: 48px;
+    position: sticky;
+    bottom: calc(72px + env(safe-area-inset-bottom));
+  }
+}
 </style>
