@@ -6,14 +6,14 @@ import { resolveBundledAsset, resolveBundledCli, resolveBundledUiFolder } from "
 
 describe("resolveBundledCli", () => {
   test("resolves the UI beside the CLI entrypoint", () => {
-    expect(resolveBundledUiFolder("/resources/app.asar/dist/cli")).toBe(
-      join("/resources/app.asar/dist/cli", "ui"),
+    expect(resolveBundledUiFolder("/resources/cli")).toBe(
+      join("/resources/cli", "ui"),
     );
   });
 
-  test("resolves the CLI from an asar app and its generated manifest", async () => {
+  test("resolves the extracted CLI from its generated manifest", async () => {
     const resourcesPath = await mkdtemp(join(tmpdir(), "pipelab-cli-"));
-    const cliPath = join(resourcesPath, "app.asar", "dist", "cli");
+    const cliPath = join(resourcesPath, "cli");
     await mkdir(cliPath, { recursive: true });
     await writeFile(
       join(cliPath, "package.json"),

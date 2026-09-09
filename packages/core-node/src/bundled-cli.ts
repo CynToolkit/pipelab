@@ -38,9 +38,7 @@ export function resolveBundledAsset(packageName: string, cliDirname?: string): s
 }
 
 const bundledCliCandidates = (resourcesPath: string) => [
-  join(resourcesPath, "app.asar", "dist", "cli"),
-  join(resourcesPath, "app", "dist", "cli"),
-  join(resourcesPath, "dist", "cli"),
+  join(resourcesPath, "cli"),
 ];
 
 export async function resolveBundledCli(resourcesPath: string): Promise<BundledCli | null> {

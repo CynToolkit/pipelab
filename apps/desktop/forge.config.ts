@@ -19,21 +19,19 @@ console.log(`[Forge Config] npm_config_arch: ${process.env.npm_config_arch}`);
 const getStandardOs = (p: string) => ({ win32: "win", darwin: "macos", linux: "linux" })[p] || p;
 
 // The Vite plugin normally keeps only its generated `.vite` output in the
-// package. Keep the embedded CLI and the runtime icons as well. This also
-// excludes pnpm workspace links, which point outside the desktop package and
-// cannot be represented inside app.asar.
+// package. Keep the runtime icons as well. The CLI is copied as an external
+// resource, so it does not enter app.asar or bring workspace links with it.
 const ignoreDesktopSource = (filePath: string) => {
-  const file = filePath.replaceAll("\\\\", "/");
+  const file = filePath.replaceAll("\\", "/");
   const isViteBuild = file === "/.vite" || file.startsWith("/.vite/");
-  const isBundledCli =
-    file === "/dist" || file === "/dist/cli" || file.startsWith("/dist/cli/");
   const isRuntimeAssets =
     file === "/assets" || file === "/assets/build" || file.startsWith("/assets/build/");
   const isPackageManifest =
     (file === "package.json" || file.endsWith("/package.json")) &&
-    !file.includes("/node_modules/");
+    !file.includes("/node_modules/") &&
+    !file.includes("/dist/cli/");
 
-  return !(isViteBuild || isBundledCli || isRuntimeAssets || isPackageManifest);
+  return !(isViteBuild || isRuntimeAssets || isPackageManifest);
 };
 
 /**
@@ -95,7 +93,7 @@ const config: ForgeConfig = {
     appBundleId: bundleId,
     asar: true,
     ignore: ignoreDesktopSource,
-    extraResource: [],
+    extraResource: [path.join(__dirname, "dist/cli")],
     name: productName,
     icon: path.join(__dirname, "assets/build/icon"),
     extendInfo: {
