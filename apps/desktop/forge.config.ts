@@ -24,7 +24,11 @@ const getStandardOs = (p: string) => ({ win32: "win", darwin: "macos", linux: "l
 const ignoreDesktopSource = (filePath: string) => {
   const file = filePath.replaceAll("\\", "/");
   const isViteBuild = file === "/.vite" || file.startsWith("/.vite/");
-  const isBundledCli = file === "/dist/cli" || file.startsWith("/dist/cli/");
+  // Packager evaluates directory entries before their contents. Keep `dist`
+  // itself so it can descend into the CLI, while excluding every other
+  // generated desktop artifact under it.
+  const isBundledCli =
+    file === "/dist" || file === "/dist/cli" || file.startsWith("/dist/cli/");
   const isRuntimeAssets =
     file === "/assets" || file === "/assets/build" || file.startsWith("/assets/build/");
   const isPackageManifest =
