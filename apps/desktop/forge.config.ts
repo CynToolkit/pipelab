@@ -19,16 +19,11 @@ console.log(`[Forge Config] npm_config_arch: ${process.env.npm_config_arch}`);
 const getStandardOs = (p: string) => ({ win32: "win", darwin: "macos", linux: "linux" })[p] || p;
 
 // The Vite plugin normally keeps only its generated `.vite` output in the
-// package. Keep the runtime icons and the staged, unpacked CLI as ordinary
-// application files so Windows never runs Packager's extraResource copy.
+// package. Keep the runtime icons; the CLI is staged into the copied app by
+// the packageAfterCopy hook, avoiding Packager's extraResource copy.
 const ignoreDesktopSource = (filePath: string) => {
   const file = filePath.replaceAll("\\", "/");
   const isViteBuild = file === "/.vite" || file.startsWith("/.vite/");
-  // Packager evaluates directory entries before their contents. Keep `dist`
-  // itself so it can descend into the CLI, while excluding every other
-  // generated desktop artifact under it. Electron Packager supplies a
-  // source-relative name here; tolerate both slash-prefixed forms it has used.
-  const isBundledCli = /(^|\/)dist(?:\/cli(?:\/|$)|$)/.test(file);
   const isRuntimeAssets =
     file === "/assets" || file === "/assets/build" || file.startsWith("/assets/build/");
   const isPackageManifest =
@@ -36,7 +31,7 @@ const ignoreDesktopSource = (filePath: string) => {
     !file.includes("/node_modules/") &&
     !file.includes("/dist/cli/");
 
-  return !(isViteBuild || isBundledCli || isRuntimeAssets || isPackageManifest);
+  return !(isViteBuild || isRuntimeAssets || isPackageManifest);
 };
 
 /**
@@ -69,9 +64,8 @@ async function renameInstallers(platform: string, arch: string) {
   }
 }
 
-async function stageBundledCli() {
+async function stageBundledCli(target: string) {
   const source = path.join(__dirname, "../../apps/cli/dist");
-  const target = path.join(__dirname, "dist/cli");
 
   await fs.rm(target, { recursive: true, force: true });
   const staged = await copyTreeWithoutSymlinks(source, target);
@@ -188,9 +182,6 @@ const config: ForgeConfig = {
     },
   ],
   hooks: {
-    prePackage: async () => {
-      await stageBundledCli();
-    },
     packageAfterCopy: async (_, buildPath) => {
       // Electron Packager may omit the source manifest when the app is
       // reduced to Vite output. The Vite plugin rewrites this file in the
@@ -200,7 +191,7 @@ const config: ForgeConfig = {
       await fs.cp(path.join(__dirname, ".vite"), path.join(buildPath, ".vite"), {
         recursive: true,
       });
-      await verifyBundledCliLayout(path.join(buildPath, "dist/cli"));
+      await stageBundledCli(path.join(buildPath, "dist/cli"));
     },
     postMake: async (_, makeResults) => {
       for (const target of new Set(makeResults.map((r) => `${r.platform}:${r.arch}`))) {
