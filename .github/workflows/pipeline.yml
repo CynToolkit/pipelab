@@ -401,12 +401,18 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          Write-Host "Reparse points under the desktop workspace:"
-          Get-ChildItem -Force -Recurse -Attributes ReparsePoint | Select-Object FullName, LinkType, Target
-          Write-Host "Staged CLI size and link count:"
-          $cli = Resolve-Path "apps/desktop/dist/cli"
-          (Get-ChildItem -Force -Recurse $cli | Measure-Object -Property Length -Sum).Sum
-          (Get-ChildItem -Force -Recurse -Attributes ReparsePoint $cli | Measure-Object).Count
+          $ErrorActionPreference = "Continue"
+          try {
+            Write-Host "Reparse points under the desktop workspace:"
+            Get-ChildItem -Force -Recurse -Attributes ReparsePoint -ErrorAction SilentlyContinue | Select-Object FullName, LinkType, Target
+            Write-Host "Staged CLI size and link count:"
+            $cli = Resolve-Path "apps/desktop/dist/cli"
+            (Get-ChildItem -Force -Recurse -File $cli -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum
+            (Get-ChildItem -Force -Recurse -Attributes ReparsePoint $cli -ErrorAction SilentlyContinue | Measure-Object).Count
+          } catch {
+            Write-Warning $_
+          }
+          exit 0
 
       - name: Package & Make Desktop
         env:
