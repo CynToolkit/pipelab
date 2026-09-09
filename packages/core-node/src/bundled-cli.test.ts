@@ -1,4 +1,5 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, test } from "vitest";
 import { resolveBundledCli, resolveBundledUiFolder } from "./bundled-cli";
@@ -11,9 +12,7 @@ describe("resolveBundledCli", () => {
   });
 
   test("resolves the CLI from an asar app and its generated manifest", async () => {
-    const resourcesPath = await import("node:fs/promises").then(({ mkdtemp }) =>
-      mkdtemp(join(process.env.TMPDIR || "/tmp", "pipelab-cli-")),
-    );
+    const resourcesPath = await mkdtemp(join(tmpdir(), "pipelab-cli-"));
     const cliPath = join(resourcesPath, "app.asar", "dist", "cli");
     await mkdir(cliPath, { recursive: true });
     await writeFile(
@@ -30,9 +29,7 @@ describe("resolveBundledCli", () => {
   });
 
   test("ignores a manifest whose configured entrypoint is missing", async () => {
-    const resourcesPath = await import("node:fs/promises").then(({ mkdtemp }) =>
-      mkdtemp(join(process.env.TMPDIR || "/tmp", "pipelab-cli-")),
-    );
+    const resourcesPath = await mkdtemp(join(tmpdir(), "pipelab-cli-"));
     const cliPath = join(resourcesPath, "dist", "cli");
     await mkdir(cliPath, { recursive: true });
     await writeFile(join(cliPath, "package.json"), JSON.stringify({ main: "missing.mjs" }));
