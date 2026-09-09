@@ -22,15 +22,13 @@ const getStandardOs = (p: string) => ({ win32: "win", darwin: "macos", linux: "l
 // package. Keep the runtime icons and the staged, unpacked CLI as ordinary
 // application files so Windows never runs Packager's extraResource copy.
 const ignoreDesktopSource = (filePath: string) => {
-  // Electron Packager supplies absolute paths here. Normalize them to the
-  // desktop source root before applying this deliberately narrow allowlist.
-  const file = `/${path.relative(__dirname, filePath).replaceAll("\\", "/")}`;
+  const file = filePath.replaceAll("\\", "/");
   const isViteBuild = file === "/.vite" || file.startsWith("/.vite/");
   // Packager evaluates directory entries before their contents. Keep `dist`
   // itself so it can descend into the CLI, while excluding every other
-  // generated desktop artifact under it.
-  const isBundledCli =
-    file === "/dist" || file === "/dist/cli" || file.startsWith("/dist/cli/");
+  // generated desktop artifact under it. Electron Packager supplies a
+  // source-relative name here; tolerate both slash-prefixed forms it has used.
+  const isBundledCli = /(^|\/)dist(?:\/cli(?:\/|$)|$)/.test(file);
   const isRuntimeAssets =
     file === "/assets" || file === "/assets/build" || file.startsWith("/assets/build/");
   const isPackageManifest =
