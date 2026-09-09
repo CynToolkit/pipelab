@@ -69,7 +69,7 @@ async function stageBundledCli() {
   const target = path.join(__dirname, "dist/cli");
 
   await fs.rm(target, { recursive: true, force: true });
-  await fs.cp(source, target, { recursive: true });
+  await copyTreeWithoutSymlinks(source, target);
 
   const manifestPath = path.join(target, "package.json");
   const uiIndexPath = path.join(target, "ui/index.html");
@@ -77,6 +77,28 @@ async function stageBundledCli() {
   await fs.access(path.join(target, "index.mjs"));
   await fs.access(uiIndexPath);
   console.log(`[Forge Config] Staged bundled CLI and UI at ${target}`);
+}
+
+async function copyTreeWithoutSymlinks(source: string, target: string) {
+  const sourceEntries = await fs.readdir(source, { withFileTypes: true });
+  await fs.mkdir(target, { recursive: true });
+
+  for (const entry of sourceEntries) {
+    const sourcePath = path.join(source, entry.name);
+    const targetPath = path.join(target, entry.name);
+
+    if (entry.isSymbolicLink()) {
+      throw new Error(`Bundled CLI contains an unsupported symlink: ${sourcePath}`);
+    }
+
+    if (entry.isDirectory()) {
+      await copyTreeWithoutSymlinks(sourcePath, targetPath);
+    } else if (entry.isFile()) {
+      await fs.copyFile(sourcePath, targetPath);
+    } else {
+      throw new Error(`Bundled CLI contains an unsupported filesystem entry: ${sourcePath}`);
+    }
+  }
 }
 
 import { getAppBundleId, getProductName } from "@pipelab/constants";
