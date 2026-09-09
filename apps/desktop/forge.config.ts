@@ -135,6 +135,13 @@ const config: ForgeConfig = {
     prePackage: async () => {
       await stageBundledCli();
     },
+    packageAfterCopy: async (buildPath) => {
+      // Electron Packager may omit the source manifest when the app is
+      // reduced to Vite output. The Vite plugin rewrites this file in the
+      // same hook, so ensure its parent exists before that rewrite runs.
+      await fs.mkdir(buildPath, { recursive: true });
+      await fs.copyFile(path.join(__dirname, "package.json"), path.join(buildPath, "package.json"));
+    },
     postMake: async (_, makeResults) => {
       for (const target of new Set(makeResults.map((r) => `${r.platform}:${r.arch}`))) {
         const [p, a] = target.split(":");
