@@ -86,14 +86,17 @@ async function copyTreeWithoutSymlinks(source: string, target: string) {
   for (const entry of sourceEntries) {
     const sourcePath = path.join(source, entry.name);
     const targetPath = path.join(target, entry.name);
+    const sourceStats = await fs.lstat(sourcePath);
 
-    if (entry.isSymbolicLink()) {
+    // On Windows, junctions can be reported as directories by Dirent. lstat
+    // is required here or recursive copying will follow the workspace graph.
+    if (sourceStats.isSymbolicLink()) {
       throw new Error(`Bundled CLI contains an unsupported symlink: ${sourcePath}`);
     }
 
-    if (entry.isDirectory()) {
+    if (sourceStats.isDirectory()) {
       await copyTreeWithoutSymlinks(sourcePath, targetPath);
-    } else if (entry.isFile()) {
+    } else if (sourceStats.isFile()) {
       await fs.copyFile(sourcePath, targetPath);
     } else {
       throw new Error(`Bundled CLI contains an unsupported filesystem entry: ${sourcePath}`);
