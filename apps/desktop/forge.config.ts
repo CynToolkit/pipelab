@@ -22,16 +22,18 @@ const getStandardOs = (p: string) => ({ win32: "win", darwin: "macos", linux: "l
 // package. Keep the runtime icons; the CLI is staged into the copied app by
 // the packageAfterCopy hook, avoiding Packager's extraResource copy.
 const ignoreDesktopSource = (filePath: string) => {
-  const file = filePath.replaceAll("\\", "/");
-  const isViteBuild = file === "/.vite" || file.startsWith("/.vite/");
-  const isRuntimeAssets =
-    file === "/assets" || file === "/assets/build" || file.startsWith("/assets/build/");
-  const isPackageManifest =
-    (file === "package.json" || file.endsWith("/package.json")) &&
-    !file.includes("/node_modules/") &&
-    !file.includes("/dist/cli/");
+  // Forge passes an absolute path here. Resolve it before comparing so the
+  // filter behaves identically on POSIX and Windows. In particular, never
+  // allow Packager to walk workspace-linked node_modules: Windows junctions
+  // can turn that walk into a very large/repeated traversal.
+  const relativeFile = path
+    .relative(__dirname, path.resolve(filePath))
+    .replaceAll("\\", "/");
 
-  return !(isViteBuild || isRuntimeAssets || isPackageManifest);
+  // `.vite` is copied explicitly below with copyTreeWithoutSymlinks after
+  // Packager has finished. Ignoring it here prevents Packager from walking it
+  // once and then making us walk it again.
+  return relativeFile !== "package.json";
 };
 
 /**
@@ -188,9 +190,7 @@ const config: ForgeConfig = {
       // same hook, so ensure its parent exists before that rewrite runs.
       await fs.mkdir(buildPath, { recursive: true });
       await fs.copyFile(path.join(__dirname, "package.json"), path.join(buildPath, "package.json"));
-      await fs.cp(path.join(__dirname, ".vite"), path.join(buildPath, ".vite"), {
-        recursive: true,
-      });
+      await copyTreeWithoutSymlinks(path.join(__dirname, ".vite"), path.join(buildPath, ".vite"));
       await stageBundledCli(path.join(buildPath, "dist/cli"));
     },
     postMake: async (_, makeResults) => {
