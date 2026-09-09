@@ -90,6 +90,10 @@ const config: ForgeConfig = {
     // @ts-expect-error - Force architecture as Forge CLI sometimes ignores --arch flag in CI
     arch: process.env.TARGET_ARCH || process.env.npm_config_arch || process.arch,
     prune: false,
+    // pnpm workspace installs contain symlinks. Resolve them while Forge
+    // copies the desktop app so Windows packaging never tries to preserve a
+    // workspace link in app.asar.
+    derefSymlinks: true,
     appBundleId: bundleId,
     asar: true,
     ignore: ignoreDesktopSource,
