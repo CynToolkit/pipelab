@@ -5,7 +5,6 @@ import { VitePlugin } from "@electron-forge/plugin-vite";
 import { FusesPlugin } from "@electron-forge/plugin-fuses";
 import { MakerDMG } from "@electron-forge/maker-dmg";
 import { FuseV1Options, FuseVersion } from "@electron/fuses";
-import { name } from "@pipelab/constants";
 import fs from "node:fs/promises";
 import path from "path";
 import { fileURLToPath } from "node:url";
@@ -18,6 +17,21 @@ console.log(`[Forge Config] Target arch (env.TARGET_ARCH): ${process.env.TARGET_
 console.log(`[Forge Config] npm_config_arch: ${process.env.npm_config_arch}`);
 
 const getStandardOs = (p: string) => ({ win32: "win", darwin: "macos", linux: "linux" })[p] || p;
+
+// The Vite plugin normally keeps only its generated `.vite` output in the
+// package. Keep the embedded CLI and the runtime icons as well. This also
+// excludes pnpm workspace links, which point outside the desktop package and
+// cannot be represented inside app.asar.
+const ignoreDesktopSource = (filePath: string) => {
+  const file = filePath.replaceAll("\\\\", "/");
+  const isViteBuild = file === "/.vite" || file.startsWith("/.vite/");
+  const isBundledCli =
+    file === "/dist" || file === "/dist/cli" || file.startsWith("/dist/cli/");
+  const isRuntimeAssets =
+    file === "/assets" || file === "/assets/build" || file.startsWith("/assets/build/");
+
+  return !(isViteBuild || isBundledCli || isRuntimeAssets);
+};
 
 /**
  * Renames Forge-generated installers in /out/make.
@@ -77,6 +91,7 @@ const config: ForgeConfig = {
     prune: false,
     appBundleId: bundleId,
     asar: true,
+    ignore: ignoreDesktopSource,
     extraResource: [],
     name: productName,
     icon: path.join(__dirname, "assets/build/icon"),
