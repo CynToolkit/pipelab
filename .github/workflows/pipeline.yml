@@ -397,26 +397,8 @@ jobs:
           TARGET_ARCH: ${{ matrix.arch }}
           npm_config_arch: ${{ matrix.arch }}
 
-      - name: Inspect Windows packaging inputs
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = "Continue"
-          try {
-            Write-Host "Reparse points under the desktop workspace:"
-            Get-ChildItem -Force -Recurse -Attributes ReparsePoint -ErrorAction SilentlyContinue | Select-Object FullName, LinkType, Target
-            Write-Host "Staged CLI size and link count:"
-            $cli = Resolve-Path "apps/desktop/dist/cli"
-            (Get-ChildItem -Force -Recurse -File $cli -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum
-            (Get-ChildItem -Force -Recurse -Attributes ReparsePoint $cli -ErrorAction SilentlyContinue | Measure-Object).Count
-          } catch {
-            Write-Warning $_
-          }
-          exit 0
-
       - name: Package & Make Desktop
         env:
-          DEBUG: "electron-osx-sign*,electron-forge:*,electron-packager:*,electron-winstaller:*,electron-installer-zip:*"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}

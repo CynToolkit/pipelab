@@ -38,6 +38,11 @@ export function resolveBundledAsset(packageName: string, cliDirname?: string): s
 }
 
 const bundledCliCandidates = (resourcesPath: string) => [
+  // Desktop packaging keeps the CLI in the unpacked app tree so Forge does
+  // not recursively copy it as an extra resource on Windows.
+  join(resourcesPath, "app", "dist", "cli"),
+  // Compatibility with desktop packages created before the CLI moved into
+  // the unpacked application tree.
   join(resourcesPath, "cli"),
 ];
 

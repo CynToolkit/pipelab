@@ -19,11 +19,12 @@ console.log(`[Forge Config] npm_config_arch: ${process.env.npm_config_arch}`);
 const getStandardOs = (p: string) => ({ win32: "win", darwin: "macos", linux: "linux" })[p] || p;
 
 // The Vite plugin normally keeps only its generated `.vite` output in the
-// package. Keep the runtime icons as well. The CLI is copied as an external
-// resource, so it does not enter app.asar or bring workspace links with it.
+// package. Keep the runtime icons and the staged, unpacked CLI as ordinary
+// application files so Windows never runs Packager's extraResource copy.
 const ignoreDesktopSource = (filePath: string) => {
   const file = filePath.replaceAll("\\", "/");
   const isViteBuild = file === "/.vite" || file.startsWith("/.vite/");
+  const isBundledCli = file === "/dist/cli" || file.startsWith("/dist/cli/");
   const isRuntimeAssets =
     file === "/assets" || file === "/assets/build" || file.startsWith("/assets/build/");
   const isPackageManifest =
@@ -31,7 +32,7 @@ const ignoreDesktopSource = (filePath: string) => {
     !file.includes("/node_modules/") &&
     !file.includes("/dist/cli/");
 
-  return !(isViteBuild || isRuntimeAssets || isPackageManifest);
+  return !(isViteBuild || isBundledCli || isRuntimeAssets || isPackageManifest);
 };
 
 /**
@@ -69,19 +70,36 @@ async function stageBundledCli() {
   const target = path.join(__dirname, "dist/cli");
 
   await fs.rm(target, { recursive: true, force: true });
-  await copyTreeWithoutSymlinks(source, target);
+  const staged = await copyTreeWithoutSymlinks(source, target);
 
-  const manifestPath = path.join(target, "package.json");
-  const uiIndexPath = path.join(target, "ui/index.html");
-  await fs.access(manifestPath);
-  await fs.access(path.join(target, "index.mjs"));
-  await fs.access(uiIndexPath);
-  console.log(`[Forge Config] Staged bundled CLI and UI at ${target}`);
+  await verifyBundledCliLayout(target);
+  console.log(
+    `[Forge Config] Staged bundled CLI and UI at ${target} ` +
+      `(${staged.fileCount} files, ${staged.directoryCount} directories, ${staged.byteCount} bytes)`,
+  );
 }
 
-async function copyTreeWithoutSymlinks(source: string, target: string) {
+async function verifyBundledCliLayout(cliPath: string) {
+  await Promise.all([
+    fs.access(path.join(cliPath, "package.json")),
+    fs.access(path.join(cliPath, "index.mjs")),
+    fs.access(path.join(cliPath, "ui/index.html")),
+  ]);
+}
+
+interface StagedTreeMetrics {
+  fileCount: number;
+  directoryCount: number;
+  byteCount: number;
+}
+
+async function copyTreeWithoutSymlinks(
+  source: string,
+  target: string,
+): Promise<StagedTreeMetrics> {
   const sourceEntries = await fs.readdir(source, { withFileTypes: true });
   await fs.mkdir(target, { recursive: true });
+  const metrics: StagedTreeMetrics = { fileCount: 0, directoryCount: 1, byteCount: 0 };
 
   for (const entry of sourceEntries) {
     const sourcePath = path.join(source, entry.name);
@@ -95,13 +113,20 @@ async function copyTreeWithoutSymlinks(source: string, target: string) {
     }
 
     if (sourceStats.isDirectory()) {
-      await copyTreeWithoutSymlinks(sourcePath, targetPath);
+      const childMetrics = await copyTreeWithoutSymlinks(sourcePath, targetPath);
+      metrics.fileCount += childMetrics.fileCount;
+      metrics.directoryCount += childMetrics.directoryCount;
+      metrics.byteCount += childMetrics.byteCount;
     } else if (sourceStats.isFile()) {
       await fs.copyFile(sourcePath, targetPath);
+      metrics.fileCount += 1;
+      metrics.byteCount += sourceStats.size;
     } else {
       throw new Error(`Bundled CLI contains an unsupported filesystem entry: ${sourcePath}`);
     }
   }
+
+  return metrics;
 }
 
 import { getAppBundleId, getProductName } from "@pipelab/constants";
@@ -115,15 +140,12 @@ const config: ForgeConfig = {
     // @ts-expect-error - Force architecture as Forge CLI sometimes ignores --arch flag in CI
     arch: process.env.TARGET_ARCH || process.env.npm_config_arch || process.arch,
     prune: false,
-    // The CLI is an external resource at resources/cli. Keep the desktop
-    // runtime unpacked: Electron's Windows asar finalization exhausts the
-    // runner's Node heap when it walks the workspace-installed dependency
-    // graph, even though those links are ignored from the final app.
-    derefSymlinks: true,
+    // The CLI is staged under the unpacked desktop app at resources/app/dist/cli.
+    // Keeping the app unpacked makes the CLI directly extractable and avoids
+    // Electron Packager's Windows recursive extraResource copy.
     appBundleId: bundleId,
     asar: false,
     ignore: ignoreDesktopSource,
-    extraResource: [path.join(__dirname, "dist/cli")],
     name: productName,
     icon: path.join(__dirname, "assets/build/icon"),
     extendInfo: {
@@ -174,6 +196,7 @@ const config: ForgeConfig = {
       await fs.cp(path.join(__dirname, ".vite"), path.join(buildPath, ".vite"), {
         recursive: true,
       });
+      await verifyBundledCliLayout(path.join(buildPath, "dist/cli"));
     },
     postMake: async (_, makeResults) => {
       for (const target of new Set(makeResults.map((r) => `${r.platform}:${r.arch}`))) {

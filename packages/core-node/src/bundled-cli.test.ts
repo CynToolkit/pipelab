@@ -30,11 +30,43 @@ describe("resolveBundledCli", () => {
 
   test("ignores a manifest whose configured entrypoint is missing", async () => {
     const resourcesPath = await mkdtemp(join(tmpdir(), "pipelab-cli-"));
-    const cliPath = join(resourcesPath, "dist", "cli");
+    const cliPath = join(resourcesPath, "app", "dist", "cli");
     await mkdir(cliPath, { recursive: true });
     await writeFile(join(cliPath, "package.json"), JSON.stringify({ main: "missing.mjs" }));
 
     await expect(resolveBundledCli(resourcesPath)).resolves.toBeNull();
+  });
+
+  test("resolves the CLI from the unpacked desktop app", async () => {
+    const resourcesPath = await mkdtemp(join(tmpdir(), "pipelab-cli-"));
+    const cliPath = join(resourcesPath, "app", "dist", "cli");
+    await mkdir(cliPath, { recursive: true });
+    await writeFile(join(cliPath, "package.json"), JSON.stringify({ main: "index.mjs" }));
+    await writeFile(join(cliPath, "index.mjs"), "");
+
+    await expect(resolveBundledCli(resourcesPath)).resolves.toEqual({
+      packageDir: cliPath,
+      entryPoint: join(cliPath, "index.mjs"),
+      isLocal: false,
+    });
+  });
+
+  test("prefers the unpacked desktop app over the legacy resource location", async () => {
+    const resourcesPath = await mkdtemp(join(tmpdir(), "pipelab-cli-"));
+    const legacyCliPath = join(resourcesPath, "cli");
+    const packagedCliPath = join(resourcesPath, "app", "dist", "cli");
+
+    await mkdir(legacyCliPath, { recursive: true });
+    await writeFile(join(legacyCliPath, "package.json"), JSON.stringify({ main: "index.mjs" }));
+    await writeFile(join(legacyCliPath, "index.mjs"), "");
+
+    await mkdir(packagedCliPath, { recursive: true });
+    await writeFile(join(packagedCliPath, "package.json"), JSON.stringify({ main: "index.mjs" }));
+    await writeFile(join(packagedCliPath, "index.mjs"), "");
+
+    await expect(resolveBundledCli(resourcesPath)).resolves.toMatchObject({
+      packageDir: packagedCliPath,
+    });
   });
 
   test("resolves an asset template from the CLI distribution", async () => {
