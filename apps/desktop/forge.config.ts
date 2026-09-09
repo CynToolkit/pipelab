@@ -90,12 +90,13 @@ const config: ForgeConfig = {
     // @ts-expect-error - Force architecture as Forge CLI sometimes ignores --arch flag in CI
     arch: process.env.TARGET_ARCH || process.env.npm_config_arch || process.arch,
     prune: false,
-    // pnpm workspace installs contain symlinks. Resolve them while Forge
-    // copies the desktop app so Windows packaging never tries to preserve a
-    // workspace link in app.asar.
+    // The CLI is an external resource at resources/cli. Keep the desktop
+    // runtime unpacked: Electron's Windows asar finalization exhausts the
+    // runner's Node heap when it walks the workspace-installed dependency
+    // graph, even though those links are ignored from the final app.
     derefSymlinks: true,
     appBundleId: bundleId,
-    asar: true,
+    asar: false,
     ignore: ignoreDesktopSource,
     extraResource: [path.join(__dirname, "dist/cli")],
     name: productName,
