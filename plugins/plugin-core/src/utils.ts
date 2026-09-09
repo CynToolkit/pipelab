@@ -4,8 +4,8 @@ const coreNode = () => import("@pipelab/core-node");
 
 export const fetchPackage: CoreNodeModule["fetchPackage"] = (...args) =>
   coreNode().then(({ fetchPackage }) => fetchPackage(...args));
-export const fetchPipelabAsset: CoreNodeModule["fetchPipelabAsset"] = (...args) =>
-  coreNode().then(({ fetchPipelabAsset }) => fetchPipelabAsset(...args));
+export const resolveBundledAsset: CoreNodeModule["resolveBundledAsset"] = (...args) =>
+  Promise.resolve(coreNode()).then(({ resolveBundledAsset }) => resolveBundledAsset(...args));
 export const runPnpm: CoreNodeModule["runPnpm"] = (...args) =>
   coreNode().then(({ runPnpm }) => runPnpm(...args));
 export const downloadFile: CoreNodeModule["downloadFile"] = (...args) =>

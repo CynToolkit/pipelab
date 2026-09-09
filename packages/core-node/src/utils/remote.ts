@@ -1,19 +1,6 @@
 import { dirname, delimiter, join } from "node:path";
-import { createRequire } from "node:module";
-
-const require = createRequire(import.meta.url);
-import {
-  mkdir,
-  readdir,
-  readFile,
-  writeFile,
-  access,
-  chmod,
-  rm,
-  cp,
-  rename,
-} from "node:fs/promises";
-import { existsSync, constants, statSync, readdirSync } from "node:fs";
+import { mkdir, readdir, readFile, chmod, rm, cp, rename } from "node:fs/promises";
+import { existsSync, statSync, readdirSync } from "node:fs";
 import dns from "node:dns/promises";
 import pacote from "pacote";
 import semver from "semver";
@@ -593,36 +580,6 @@ async function installDependencies(packageDir: string, packageName: string, opti
     await rm(nodeModulesPath, { recursive: true, force: true }).catch(() => {});
     throw new Error(`Failed to install dependencies for ${packageName}. See logs for details.`);
   }
-}
-
-export async function fetchPipelabAsset(
-  packageName: string,
-  versionOrRange: string,
-  options: FetchOptions,
-): Promise<string> {
-  // Bundled mode: asset packages (@pipelab/asset-*, tiny project templates) are
-  // declared workspace deps, so they resolve identically in dev, packaged apps,
-  // and npm installs. This replaces the old fetch-to-user-cache path entirely —
-  // in production there is no monorepo and npm is disabled, so the fallbacks
-  // below would only throw.
-  try {
-    return dirname(require.resolve(`${packageName}/package.json`));
-  } catch {
-    // Not linked (shouldn't happen) — fall through to legacy paths.
-  }
-  // [DISABLED] Legacy monorepo lookup — kept for reference, unreachable while
-  // assets are real dependencies. Re-enable: remove the resolve-first block above.
-  // if (projectRoot) {
-  //   const assetId = packageName.replace("@pipelab/asset-", "");
-  //   const localPath = join(projectRoot, "assets", `asset-${assetId}`);
-  //   if (existsSync(localPath)) return localPath;
-  // }
-  // Fall back to fetchPackage (which is monorepo-only for @pipelab/* in bundled mode).
-  const { packageDir } = await fetchPackage(packageName, versionOrRange, options);
-  return packageDir;
-  // Original full body (uses pacote.extract directly + installs deps):
-  // const { packageDir } = await fetchPackage(packageName, versionOrRange, { ...options, installDeps: true });
-  // return packageDir;
 }
 
 export async function fetchPipelabPlugin(

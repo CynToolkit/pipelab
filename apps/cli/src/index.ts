@@ -17,6 +17,7 @@ import { PostHog } from "posthog-node";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+process.env.PIPELAB_CLI_DIR ||= __dirname;
 
 // Only load .env in development as values are bundled in production by tsdown
 if (isDev) {

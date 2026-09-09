@@ -2,7 +2,7 @@ import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, test } from "vitest";
-import { resolveBundledCli, resolveBundledUiFolder } from "./bundled-cli";
+import { resolveBundledAsset, resolveBundledCli, resolveBundledUiFolder } from "./bundled-cli";
 
 describe("resolveBundledCli", () => {
   test("resolves the UI beside the CLI entrypoint", () => {
@@ -35,5 +35,25 @@ describe("resolveBundledCli", () => {
     await writeFile(join(cliPath, "package.json"), JSON.stringify({ main: "missing.mjs" }));
 
     await expect(resolveBundledCli(resourcesPath)).resolves.toBeNull();
+  });
+
+  test("resolves an asset template from the CLI distribution", async () => {
+    const cliDir = await mkdtemp(join(tmpdir(), "pipelab-cli-"));
+    const assetDir = join(cliDir, "assets", "asset-discord");
+    await mkdir(assetDir, { recursive: true });
+    await writeFile(
+      join(assetDir, "package.json"),
+      JSON.stringify({ name: "@pipelab/asset-discord" }),
+    );
+
+    expect(resolveBundledAsset("@pipelab/asset-discord", cliDir)).toBe(assetDir);
+  });
+
+  test("rejects asset packages that are not staged in the CLI", async () => {
+    const cliDir = await mkdtemp(join(tmpdir(), "pipelab-cli-"));
+
+    expect(() => resolveBundledAsset("@pipelab/asset-tauri", cliDir)).toThrow(
+      "Bundled asset @pipelab/asset-tauri was not found",
+    );
   });
 });

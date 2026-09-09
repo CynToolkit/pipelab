@@ -7,7 +7,7 @@ import {
   InputsDefinition,
   OutputsDefinition,
   runWithLiveLogs,
-  fetchPipelabAsset,
+  resolveBundledAsset,
   runPnpm,
 } from "@pipelab/plugin-core";
 import { dirname, join, basename, delimiter } from "node:path";
@@ -197,7 +197,7 @@ export const discord = async (
 
   const destinationFolder = join(cwd, "build");
 
-  const rawAssetFolder = await fetchPipelabAsset("@pipelab/asset-discord", "^1.0.0", { context });
+  const rawAssetFolder = await resolveBundledAsset("@pipelab/asset-discord");
   const templateFolder = join(rawAssetFolder, "template");
 
   // copy template to destination
