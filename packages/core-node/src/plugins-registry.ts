@@ -32,8 +32,8 @@ export const enhancePluginDefinition = async (
   let pkgDescription = "";
 
   try {
-    const pkgJsonPath = join(packageDir, "package.json");
-    if (existsSync(pkgJsonPath)) {
+    const pkgJsonPath = packageDir ? join(packageDir, "package.json") : "";
+    if (pkgJsonPath && existsSync(pkgJsonPath)) {
       const pkgContent = await readFile(pkgJsonPath, "utf8");
       const pkg = JSON.parse(pkgContent);
       if (pkg.name) packageName = pkg.name;
