@@ -23,6 +23,7 @@ import { sendStartupProgress } from "../server";
 import { downloadFile, extractZip, extractTarGz } from "./fs-extras";
 
 import { DEFAULT_NODE_VERSION, DEFAULT_PNPM_VERSION } from "@pipelab/constants";
+import { resolveBundledCli } from "../bundled-cli";
 
 function isPackageComplete(packageDir: string): boolean {
   return existsSync(join(packageDir, "package.json"));
@@ -144,18 +145,29 @@ export async function fetchPackage(
     if (isDev && projectRoot && process.env.PIPELAB_FORCE_NPM !== "true") {
       const local = await tryResolveMonorepoPackage(packageName);
       if (local) {
-        console.debug(`[Fetcher] ${packageName}: Resolved to local source at ${local.packageDir} (${Date.now() - start}ms)`);
+        console.debug(
+          `[Fetcher] ${packageName}: Resolved to local source at ${local.packageDir} (${Date.now() - start}ms)`,
+        );
         // Real version from the package.json — no "workspace" pseudo-version.
         return { ...local, resolvedVersion: local.version ?? versionOrRange };
       }
     }
     const fallbackVersion = await tryLocalFallback(
-      versionOrRange, new Error("Bundled mode"), ctx.getPackagesPath(packageName), packageName, !!(ctx.releaseTag && ctx.releaseTag !== "latest"),
+      versionOrRange,
+      new Error("Bundled mode"),
+      ctx.getPackagesPath(packageName),
+      packageName,
+      !!(ctx.releaseTag && ctx.releaseTag !== "latest"),
     );
     if (fallbackVersion) {
-      return { packageDir: join(ctx.getPackagesPath(packageName), fallbackVersion), resolvedVersion: fallbackVersion };
+      return {
+        packageDir: join(ctx.getPackagesPath(packageName), fallbackVersion),
+        resolvedVersion: fallbackVersion,
+      };
     }
-    throw new Error(`Bundled mode: ${packageName} not found in monorepo or local cache. All @pipelab/* packages must be bundled.`);
+    throw new Error(
+      `Bundled mode: ${packageName} not found in monorepo or local cache. All @pipelab/* packages must be bundled.`,
+    );
   }
 
   const baseDir = ctx.getPackagesPath(packageName);
@@ -185,7 +197,8 @@ export async function fetchPackage(
     );
     if (fallbackVersion) {
       resolvedVersion = fallbackVersion;
-      console.debug(`[Fetcher] ${packageName}: Resolved to local fallback ${resolvedVersion} (${Date.now() - fallbackStart}ms)`,
+      console.debug(
+        `[Fetcher] ${packageName}: Resolved to local fallback ${resolvedVersion} (${Date.now() - fallbackStart}ms)`,
       );
     } else {
       throw new Error(`Offline and no local fallback version available for ${packageName}`);
@@ -219,7 +232,8 @@ export async function fetchPackage(
           if (
             semver.satisfies(releaseTagVersion, rewrittenRangeForCheck, { includePrerelease: true })
           ) {
-            console.debug(`[Fetcher] Using release tag "${ctx.releaseTag}" (${releaseTagVersion}) for ${packageName}@${range} because it satisfies the range`,
+            console.debug(
+              `[Fetcher] Using release tag "${ctx.releaseTag}" (${releaseTagVersion}) for ${packageName}@${range} because it satisfies the range`,
             );
             foundVersion = releaseTagVersion;
           }
@@ -232,7 +246,8 @@ export async function fetchPackage(
         if (rewrittenRange !== range) {
           const matched = semver.maxSatisfying(versions, rewrittenRange, { includePrerelease });
           if (matched) {
-            console.debug(`[Fetcher] Resolved ${packageName}@${range} to ${matched} via rewritten range ${rewrittenRange}`,
+            console.debug(
+              `[Fetcher] Resolved ${packageName}@${range} to ${matched} via rewritten range ${rewrittenRange}`,
             );
             foundVersion = matched;
           }
@@ -249,7 +264,8 @@ export async function fetchPackage(
             !foundVersion ||
             (semver.valid(foundVersion) && semver.gte(releaseTagVersion, foundVersion))
           ) {
-            console.debug(`[Fetcher] Using release tag "${ctx.releaseTag}" (${releaseTagVersion}) instead of "latest" (${foundVersion || "none"}) for ${packageName}`,
+            console.debug(
+              `[Fetcher] Using release tag "${ctx.releaseTag}" (${releaseTagVersion}) instead of "latest" (${foundVersion || "none"}) for ${packageName}`,
             );
             foundVersion = releaseTagVersion;
           } else if (foundVersion) {
@@ -266,7 +282,8 @@ export async function fetchPackage(
         );
       }
       resolvedVersion = foundVersion;
-      console.debug(`[Fetcher] ${packageName}: Resolved to v${resolvedVersion} via npm (${Date.now() - resolveStart}ms)`,
+      console.debug(
+        `[Fetcher] ${packageName}: Resolved to v${resolvedVersion} via npm (${Date.now() - resolveStart}ms)`,
       );
     } catch (error) {
       console.warn(
@@ -282,7 +299,8 @@ export async function fetchPackage(
       );
       if (fallbackVersion) {
         resolvedVersion = fallbackVersion;
-        console.debug(`[Fetcher] ${packageName}: Resolved to local fallback ${resolvedVersion} (${Date.now() - fallbackStart}ms)`,
+        console.debug(
+          `[Fetcher] ${packageName}: Resolved to local fallback ${resolvedVersion} (${Date.now() - fallbackStart}ms)`,
         );
       } else {
         throw error;
@@ -301,7 +319,8 @@ export async function fetchPackage(
   const checkDuration = Date.now() - checkStart;
 
   if (isInstalled) {
-    console.debug(`[Fetcher] ${packageName}@${resolvedVersion}: Already installed (check took ${checkDuration}ms, fetchPackage took ${Date.now() - start}ms)`,
+    console.debug(
+      `[Fetcher] ${packageName}@${resolvedVersion}: Already installed (check took ${checkDuration}ms, fetchPackage took ${Date.now() - start}ms)`,
     );
     return { packageDir, resolvedVersion };
   }
@@ -340,7 +359,8 @@ export async function fetchPackage(
             throw err;
           }
         }
-        console.debug(`[Fetcher] ${packageName}@${resolvedVersion}: Downloaded and extracted in ${Date.now() - downloadStart}ms`,
+        console.debug(
+          `[Fetcher] ${packageName}@${resolvedVersion}: Downloaded and extracted in ${Date.now() - downloadStart}ms`,
         );
       } catch (err) {
         await rm(tempDir, { recursive: true, force: true }).catch(() => {});
@@ -351,17 +371,20 @@ export async function fetchPackage(
     // 2. Resolve entry point from package.json for downloaded package
     const entryStart = Date.now();
     const entryPoint = await resolveEntryPoint(packageDir, packageName);
-    console.debug(`[Fetcher] ${packageName}@${resolvedVersion}: Resolved entry point in ${Date.now() - entryStart}ms`,
+    console.debug(
+      `[Fetcher] ${packageName}@${resolvedVersion}: Resolved entry point in ${Date.now() - entryStart}ms`,
     );
 
     if (options?.installDeps) {
       const depsStart = Date.now();
       await installDependencies(packageDir, packageName, options);
-      console.debug(`[Fetcher] ${packageName}@${resolvedVersion}: Installed dependencies in ${Date.now() - depsStart}ms`,
+      console.debug(
+        `[Fetcher] ${packageName}@${resolvedVersion}: Installed dependencies in ${Date.now() - depsStart}ms`,
       );
     }
 
-    console.debug(`[Fetcher] ${packageName}@${resolvedVersion}: FetchPackage complete in ${Date.now() - start}ms`,
+    console.debug(
+      `[Fetcher] ${packageName}@${resolvedVersion}: FetchPackage complete in ${Date.now() - start}ms`,
     );
     return { packageDir, resolvedVersion, entryPoint };
   });
@@ -426,7 +449,8 @@ export async function ensureNodeJS(context: PipelabContext, version = DEFAULT_NO
   const finalNodePath = join(nodeDir, isWindows ? "node.exe" : "bin/node");
 
   if (isNodeJSComplete(finalNodePath)) {
-    console.debug(`[Environment] Node.js check took ${Date.now() - checkStart}ms (found at ${finalNodePath})`,
+    console.debug(
+      `[Environment] Node.js check took ${Date.now() - checkStart}ms (found at ${finalNodePath})`,
     );
     return finalNodePath;
   }
@@ -517,7 +541,8 @@ export async function ensurePNPM(context: PipelabContext, version = DEFAULT_PNPM
   const pnpmPath = join(pnpmDir, "bin", "pnpm.cjs");
 
   if (existsSync(pnpmPath)) {
-    console.debug(`[Environment] PNPM check took ${Date.now() - checkStart}ms (found at ${pnpmPath})`,
+    console.debug(
+      `[Environment] PNPM check took ${Date.now() - checkStart}ms (found at ${pnpmPath})`,
     );
     return pnpmPath;
   }
@@ -550,11 +575,14 @@ async function installDependencies(packageDir: string, packageName: string, opti
       signal: options.signal,
       context: options.context,
     });
-    console.debug(`[Fetcher] ${packageName}: pnpm install command took ${Date.now() - pnpmStart}ms`);
+    console.debug(
+      `[Fetcher] ${packageName}: pnpm install command took ${Date.now() - pnpmStart}ms`,
+    );
 
     if (all) console.debug(`[Fetcher] ${packageName}: Installation trace:\n${all}`);
 
-    console.debug(`[Fetcher] ${packageName}: Dependencies installed successfully (total installDependencies took ${Date.now() - start}ms).`,
+    console.debug(
+      `[Fetcher] ${packageName}: Dependencies installed successfully (total installDependencies took ${Date.now() - start}ms).`,
     );
   } catch (err: any) {
     console.error(
@@ -611,7 +639,9 @@ export async function fetchPipelabPlugin(
     }
   }
   const { packageDir, resolvedVersion, isLocal, entryPoint } = await fetchPackage(
-    pluginName, versionOrRange, { ...options, installDeps: false },
+    pluginName,
+    versionOrRange,
+    { ...options, installDeps: false },
   );
   let finalEntryPoint = entryPoint;
   if (!finalEntryPoint) {
@@ -634,18 +664,12 @@ export async function fetchPipelabCli(
     }
   }
   if (process.resourcesPath) {
-    const bundledCliDist = join(process.resourcesPath, "app", "dist", "cli");
-    if (existsSync(bundledCliDist)) {
-      const pkgPath = join(bundledCliDist, "package.json");
-      if (existsSync(pkgPath)) {
-        const pkg = JSON.parse(await readFile(pkgPath, "utf-8"));
-        const main = pkg.bin?.pipelab || pkg.bin?.plab || "index.mjs";
-        const entryPoint = join(bundledCliDist, main);
-        return { packageDir: bundledCliDist, entryPoint, isLocal: false };
-      }
-    }
+    const bundledCli = await resolveBundledCli(process.resourcesPath);
+    if (bundledCli) return bundledCli;
   }
-  throw new Error("CLI fetching is disabled in bundled mode. CLI must be bundled alongside the desktop app.");
+  throw new Error(
+    "CLI fetching is disabled in bundled mode. CLI must be bundled alongside the desktop app.",
+  );
   // Original body: pacote.extract("@pipelab/cli@version", tempDir, ...) + copy to packages dir.
 }
 

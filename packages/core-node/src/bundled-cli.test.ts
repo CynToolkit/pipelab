@@ -1,0 +1,42 @@
+import { mkdir, writeFile } from "node:fs/promises";
+import { join } from "node:path";
+import { describe, expect, test } from "vitest";
+import { resolveBundledCli, resolveBundledUiFolder } from "./bundled-cli";
+
+describe("resolveBundledCli", () => {
+  test("resolves the UI beside the CLI entrypoint", () => {
+    expect(resolveBundledUiFolder("/resources/app.asar/dist/cli")).toBe(
+      join("/resources/app.asar/dist/cli", "ui"),
+    );
+  });
+
+  test("resolves the CLI from an asar app and its generated manifest", async () => {
+    const resourcesPath = await import("node:fs/promises").then(({ mkdtemp }) =>
+      mkdtemp(join(process.env.TMPDIR || "/tmp", "pipelab-cli-")),
+    );
+    const cliPath = join(resourcesPath, "app.asar", "dist", "cli");
+    await mkdir(cliPath, { recursive: true });
+    await writeFile(
+      join(cliPath, "package.json"),
+      JSON.stringify({ bin: { pipelab: "index.mjs" } }),
+    );
+    await writeFile(join(cliPath, "index.mjs"), "");
+
+    await expect(resolveBundledCli(resourcesPath)).resolves.toEqual({
+      packageDir: cliPath,
+      entryPoint: join(cliPath, "index.mjs"),
+      isLocal: false,
+    });
+  });
+
+  test("ignores a manifest whose configured entrypoint is missing", async () => {
+    const resourcesPath = await import("node:fs/promises").then(({ mkdtemp }) =>
+      mkdtemp(join(process.env.TMPDIR || "/tmp", "pipelab-cli-")),
+    );
+    const cliPath = join(resourcesPath, "dist", "cli");
+    await mkdir(cliPath, { recursive: true });
+    await writeFile(join(cliPath, "package.json"), JSON.stringify({ main: "missing.mjs" }));
+
+    await expect(resolveBundledCli(resourcesPath)).resolves.toBeNull();
+  });
+});

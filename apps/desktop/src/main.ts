@@ -6,7 +6,10 @@ import { electronApp, optimizer, is } from "@electron-toolkit/utils";
 import { startServer, stopServer } from "./main/server-process";
 import { websocketPort, uiDevPort, getProtocolName, getAppBundleId } from "@pipelab/constants";
 import { registerIpcHandlers } from "./main/ipc-handlers";
-import { getDefaultUserDataPath, fetchLatestDesktopRelease } from "@pipelab/core-node";
+import {
+  getDefaultUserDataPath,
+  fetchLatestDesktopRelease,
+} from "../../../packages/core-node/src/desktop";
 import started from "electron-squirrel-startup";
 import { PostHog } from "posthog-node";
 import { parseArgs } from "node:util";

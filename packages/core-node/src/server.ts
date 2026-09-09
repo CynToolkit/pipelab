@@ -1,11 +1,5 @@
-import {
-  ensurePNPM,
-  PipelabContext,
-  isDev,
-  fetchPipelabAsset,
-  registerAllHandlers,
-  webSocketServer,
-} from "./index";
+import { PipelabContext, isDev, registerAllHandlers, webSocketServer } from "./index";
+import { resolveBundledUiFolder } from "./bundled-cli";
 import { getUiDevServerMissingWarning, uiDevPort } from "@pipelab/constants";
 import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
@@ -43,7 +37,7 @@ export const sendStartupReady = () => {
   });
 };
 
-export async function serveCommand(options: ServeOptions, version: string, _dirname: string) {
+export async function serveCommand(options: ServeOptions, version: string, cliDirname: string) {
   if (!options.userData) throw new Error("userDataPath is required for serveCommand");
   const releaseTag = version.includes("beta") ? "beta" : "latest";
   const context = new PipelabContext({
@@ -61,7 +55,7 @@ export async function serveCommand(options: ServeOptions, version: string, _dirn
 
   let rawAssetFolder: string | undefined;
   if (!isDev) {
-    rawAssetFolder = await fetchPipelabAsset("@pipelab/ui", releaseTag, { context });
+    rawAssetFolder = resolveBundledUiFolder(cliDirname);
   }
 
   const server = http.createServer(async (request, response) => {

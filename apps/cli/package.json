@@ -16,7 +16,7 @@
   },
   "type": "module",
   "scripts": {
-    "build": "cross-env NODE_ENV=production tsdown",
+    "build": "cross-env NODE_ENV=production tsdown && node scripts/stage-bundle.mjs",
     "dev": "cross-env NODE_ENV=development tsx watch src/index.ts serve",
     "watch": "tsdown --watch",
     "start": "tsx src/index.ts",

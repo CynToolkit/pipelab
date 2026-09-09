@@ -49,6 +49,21 @@ async function renameInstallers(platform: string, arch: string) {
   }
 }
 
+async function stageBundledCli() {
+  const source = path.join(__dirname, "../../apps/cli/dist");
+  const target = path.join(__dirname, "dist/cli");
+
+  await fs.rm(target, { recursive: true, force: true });
+  await fs.cp(source, target, { recursive: true });
+
+  const manifestPath = path.join(target, "package.json");
+  const uiIndexPath = path.join(target, "ui/index.html");
+  await fs.access(manifestPath);
+  await fs.access(path.join(target, "index.mjs"));
+  await fs.access(uiIndexPath);
+  console.log(`[Forge Config] Staged bundled CLI and UI at ${target}`);
+}
+
 import { getAppBundleId, getProductName } from "@pipelab/constants";
 import { version } from "./package.json";
 
@@ -101,6 +116,9 @@ const config: ForgeConfig = {
     },
   ],
   hooks: {
+    prePackage: async () => {
+      await stageBundledCli();
+    },
     postMake: async (_, makeResults) => {
       for (const target of new Set(makeResults.map((r) => `${r.platform}:${r.arch}`))) {
         const [p, a] = target.split(":");
