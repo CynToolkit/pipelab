@@ -709,6 +709,9 @@ importers:
       quickjs-emscripten:
         specifier: 0.31.0
         version: 0.31.0
+      quickjs-emscripten-core:
+        specifier: 0.31.0
+        version: 0.31.0
       quickjs-emscripten-sync:
         specifier: 1.6.0
         version: 1.6.0(quickjs-emscripten@0.31.0)

@@ -1,5 +1,6 @@
 import { useLogger } from "./logger";
-import { newQuickJSWASMModuleFromVariant, newVariant, RELEASE_SYNC } from "quickjs-emscripten";
+import { newQuickJSWASMModuleFromVariant, newVariant } from "quickjs-emscripten-core";
+import RELEASE_SYNC from "@jitl/quickjs-wasmfile-release-sync";
 import { Arena } from "quickjs-emscripten-sync";
 import { fmt } from "./fmt";
 

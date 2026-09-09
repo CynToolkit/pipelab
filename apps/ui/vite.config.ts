@@ -7,6 +7,34 @@ import AutoImport from "unplugin-auto-import/vite";
 import VueDevTools from "vite-plugin-vue-devtools";
 import { uiDevPort } from "@pipelab/constants";
 
+const iconFontStylesheets = [
+  "/@mdi/font/css/materialdesignicons.css",
+  "/primeicons/primeicons.css",
+] as const;
+
+function modernIconFonts() {
+  return {
+    name: "modern-icon-fonts",
+    enforce: "pre",
+    transform(code: string, id: string) {
+      if (!iconFontStylesheets.some((stylesheet) => id.endsWith(stylesheet))) return;
+
+      const sourceBlock = /src:\s*url\([^;]+;\s*src:\s*([^;]+);/s;
+      const match = code.match(sourceBlock);
+      const woff2 = match?.[1].match(/url\(([^)]+)\)\s*format\((["'])woff2\2\)/);
+
+      if (!match || !woff2) {
+        throw new Error(`Could not replace legacy font sources in ${id}`);
+      }
+
+      return {
+        code: code.replace(sourceBlock, `src: url(${woff2[1]}) format("woff2");`),
+        map: null,
+      };
+    },
+  };
+}
+
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   const rootPath = resolve(__dirname, "../../");
@@ -29,6 +57,7 @@ export default defineConfig(({ mode }) => {
           }
         },
       },
+      modernIconFonts(),
       mode === "development" && VueDevTools(),
       vue(),
       Components({

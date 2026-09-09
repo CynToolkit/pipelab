@@ -37,6 +37,7 @@
     "@types/node": "^24.12.2",
     "klona": "2.0.6",
     "nanoid": "5.1.16",
+    "quickjs-emscripten-core": "0.31.0",
     "quickjs-emscripten": "0.31.0",
     "quickjs-emscripten-sync": "1.6.0",
     "tslog": "4.9.3",
