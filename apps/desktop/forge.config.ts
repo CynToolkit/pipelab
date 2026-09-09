@@ -141,6 +141,9 @@ const config: ForgeConfig = {
       // same hook, so ensure its parent exists before that rewrite runs.
       await fs.mkdir(buildPath, { recursive: true });
       await fs.copyFile(path.join(__dirname, "package.json"), path.join(buildPath, "package.json"));
+      await fs.cp(path.join(__dirname, ".vite"), path.join(buildPath, ".vite"), {
+        recursive: true,
+      });
     },
     postMake: async (_, makeResults) => {
       for (const target of new Set(makeResults.map((r) => `${r.platform}:${r.arch}`))) {
