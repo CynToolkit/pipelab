@@ -29,7 +29,9 @@ const ignoreDesktopSource = (filePath: string) => {
     file === "/dist" || file === "/dist/cli" || file.startsWith("/dist/cli/");
   const isRuntimeAssets =
     file === "/assets" || file === "/assets/build" || file.startsWith("/assets/build/");
-  const isPackageManifest = file === "/package.json" || file === "package.json";
+  const isPackageManifest =
+    (file === "package.json" || file.endsWith("/package.json")) &&
+    !file.includes("/node_modules/");
 
   return !(isViteBuild || isBundledCli || isRuntimeAssets || isPackageManifest);
 };
