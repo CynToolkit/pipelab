@@ -105,6 +105,11 @@ export default defineConfig(({ mode }) => {
       ],
       alias: {
         "@renderer": resolve(__dirname, "src"),
+        // Shared evaluation code has a Node default variant for the CLI. The
+        // UI already loads the separate-WASM browser variant; avoid bundling
+        // the 692 KiB single-file Node runtime into the browser build.
+        "@jitl/quickjs-singlefile-mjs-release-sync":
+          "@jitl/quickjs-wasmfile-release-sync",
       },
     },
   };

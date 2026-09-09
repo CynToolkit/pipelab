@@ -354,12 +354,6 @@ importers:
       primevue:
         specifier: 4.5.4
         version: 4.5.4(vue@3.5.13(typescript@5.8.3))
-      quickjs-emscripten:
-        specifier: 0.31.0
-        version: 0.31.0
-      quickjs-emscripten-sync:
-        specifier: 1.6.0
-        version: 1.6.0(quickjs-emscripten@0.31.0)
       semver:
         specifier: 7.8.1
         version: 7.8.1
