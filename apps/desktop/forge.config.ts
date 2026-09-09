@@ -135,7 +135,7 @@ const config: ForgeConfig = {
     prePackage: async () => {
       await stageBundledCli();
     },
-    packageAfterCopy: async (buildPath) => {
+    packageAfterCopy: async (_, buildPath) => {
       // Electron Packager may omit the source manifest when the app is
       // reduced to Vite output. The Vite plugin rewrites this file in the
       // same hook, so ensure its parent exists before that rewrite runs.
