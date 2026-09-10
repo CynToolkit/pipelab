@@ -5,7 +5,10 @@ import Components from "unplugin-vue-components/vite";
 import { PrimeVueResolver } from "@primevue/auto-import-resolver";
 import AutoImport from "unplugin-auto-import/vite";
 import VueDevTools from "vite-plugin-vue-devtools";
-import { uiDevPort } from "@pipelab/constants";
+// Keep the config self-contained when pnpm injects workspace packages into
+// node_modules. Node 24 deliberately refuses to type-strip injected .ts
+// package entrypoints, while Vite can load this workspace source directly.
+import { uiDevPort } from "../../packages/constants/src/index";
 
 const iconFontStylesheets = [
   "/@mdi/font/css/materialdesignicons.css",
