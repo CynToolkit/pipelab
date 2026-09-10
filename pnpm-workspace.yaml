@@ -3,3 +3,24 @@ packages:
   - "packages/*"
   - "assets/*"
   - "plugins/*"
+
+injectWorkspacePackages: true
+
+syncInjectedDepsAfterScripts:
+  - build
+
+overrides:
+  "@codemirror/state": "6.4.1"
+
+onlyBuiltDependencies:
+  - "@parcel/watcher"
+  - "@sentry/cli"
+  - "core-js"
+  - "electron"
+  - "electron-winstaller"
+  - "esbuild"
+  - "fs-xattr"
+  - "macos-alias"
+  - "msw"
+  - "sharp"
+  - "vue-demi"

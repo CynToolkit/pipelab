@@ -4,18 +4,18 @@
     <meta charset="UTF-8" />
     <title>Pipelab</title>
     <!-- https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP -->
-    <!-- <meta
+    <meta
     http-equiv="Content-Security-Policy"
     content="
         default-src 'self';
         script-src 'self' 'unsafe-eval';
-        img-src 'self' data:;
+        img-src 'self' data: blob:;
         style-src 'self' 'unsafe-inline';
         style-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com;
         font-src 'self' https://fonts.gstatic.com;
-        connect-src 'self' https://*.supabase.co https://webhook.site/*;
+        connect-src 'self' ws: wss: https://*.supabase.co https://webhook.site/*;
       "
-  /> -->
+  />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link

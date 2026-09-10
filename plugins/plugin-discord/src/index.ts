@@ -5,6 +5,12 @@ import { createPackageProps, createPreviewProps, IDPreview, IDPackage } from "./
 import { packageV2Runner } from "./package";
 
 export default createNodeDefinition({
+  id: "@pipelab/plugin-discord",
+  packageName: "@pipelab/plugin-discord",
+  name: "Discord",
+  description: "Pipelab plugin for Discord Rich Presence and notifications",
+  icon: { type: "icon", icon: "pi-discord" },
+  isOfficial: true,
   nodes: [
     {
       node: createPackageProps(

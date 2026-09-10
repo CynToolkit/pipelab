@@ -6,6 +6,7 @@
     "outDir": "dist",
     "inlineSourceMap": true,
     "paths": {
+      "@pipelab/core-node/desktop": ["../../packages/core-node/src/desktop.ts"],
       "@pipelab/*": ["../../packages/shared/src/libs/*"]
     }
   },

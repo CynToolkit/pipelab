@@ -36,12 +36,13 @@
     "@supabase/supabase-js": "2.99.3",
     "@types/node": "^24.12.2",
     "klona": "2.0.6",
-    "nanoid": "5.0.7",
+    "nanoid": "5.1.16",
+    "quickjs-emscripten-core": "0.31.0",
     "quickjs-emscripten": "0.31.0",
     "quickjs-emscripten-sync": "1.6.0",
     "tslog": "4.9.3",
     "type-fest": "4.26.1",
-    "valibot": "0.42.1"
+    "valibot": "1.4.2"
   },
   "devDependencies": {
     "@pipelab/tsconfig": "workspace:*",

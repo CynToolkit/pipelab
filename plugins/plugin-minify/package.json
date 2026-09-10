@@ -22,7 +22,8 @@
     "directory": "plugins/plugin-minify"
   },
   "files": [
-    "dist"
+    "dist",
+    "src"
   ],
   "type": "module",
   "main": "./src/index.ts",

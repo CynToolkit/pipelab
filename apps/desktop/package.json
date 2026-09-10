@@ -15,16 +15,32 @@
   "scripts": {
     "format": "oxfmt .",
     "lint": "oxlint .",
+    "test": "node --test scripts/run-forge-deployed.test.mjs",
+    "test:e2e": "node scripts/electron-smoke-test.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.json --composite false",
     "start": "electron-forge start",
     "start:args": "electron-forge start -- --project ./tests/e2e/fixtures/folder-to-electron.json --action run",
     "dev": "cross-env NODE_OPTIONS=--enable-source-maps electron-forge start",
-    "package": "cross-env DEBUG='electron-osx-sign*,electron-forge:*' electron-forge package",
-    "make": "electron-forge make",
+    "package": "cross-env DEBUG='electron-osx-sign*,electron-forge:*' node scripts/run-forge-deployed.mjs package",
+    "package:forge": "electron-forge package",
+    "make": "node scripts/run-forge-deployed.mjs make",
+    "make:forge": "electron-forge make",
     "publish": "electron-forge publish",
     "make-dev-prerelease": "pnpm version prerelease --preid=dev",
     "migrate-file": "tsx scripts/migrate-file.mts"
   },
+  "files": [
+    "assets/build",
+    "src",
+    "forge.config.ts",
+    "forge.env.d.ts",
+    "index.html",
+    "tsconfig.json",
+    "vite.base.config.mts",
+    "vite.main.config.mts",
+    "vite.preload.config.mts",
+    "vite.renderer.config.mts"
+  ],
   "dependencies": {
     "electron-squirrel-startup": "1.0.1",
     "posthog-node": "5.30.6"
@@ -50,7 +66,7 @@
     "@types/node": "24.12.2",
     "@types/semver": "7.7.1",
     "cross-env": "7.0.3",
-    "electron": "32.1.2",
+    "electron": "39.8.10",
     "semver": "7.8.0",
     "tsx": "4.19.1",
     "typescript": "5.8.3",

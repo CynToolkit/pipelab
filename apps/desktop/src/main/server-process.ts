@@ -10,7 +10,7 @@ import {
   projectRoot,
   PipelabContext,
   getDefaultUserDataPath,
-} from "@pipelab/core-node";
+} from "@pipelab/core-node/desktop";
 
 let serverProcess: ChildProcess | null = null;
 

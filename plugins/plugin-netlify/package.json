@@ -21,7 +21,8 @@
     "directory": "plugins/plugin-netlify"
   },
   "files": [
-    "dist"
+    "dist",
+    "src"
   ],
   "type": "module",
   "main": "./src/index.ts",
@@ -36,7 +37,7 @@
   "dependencies": {
     "@pipelab/plugin-core": "workspace:*",
     "@types/node": "^24.12.2",
-    "electron": "32.1.2",
+    "electron": "39.8.10",
     "untun": "0.1.3"
   },
   "devDependencies": {

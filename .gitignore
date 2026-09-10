@@ -113,4 +113,5 @@ apps/cli/bin
 
 .turbo
 apps/desktop/bin/
+.desktop-stage/
 apps/cli/assets/ui

@@ -9,6 +9,12 @@ import { run, runRunner } from "./run";
 import { openInExplorer, openInExplorerRunner } from "./open";
 
 export default createNodeDefinition({
+  id: "@pipelab/plugin-filesystem",
+  packageName: "@pipelab/plugin-filesystem",
+  name: "Filesystem",
+  description: "Pipelab plugin for filesystem operations (copy, move, delete, zip)",
+  icon: { type: "icon", icon: "mdi-folder-zip-outline" },
+  isOfficial: true,
   nodes: [
     // {
     //     node: ListFilesAction,

@@ -17,6 +17,7 @@ import { PostHog } from "posthog-node";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+process.env.PIPELAB_CLI_DIR ||= __dirname;
 
 // Only load .env in development as values are bundled in production by tsdown
 if (isDev) {
@@ -71,6 +72,9 @@ program
   .command("serve")
   .description("Start the standalone WebSocket server")
   .option("-p, --port <port>", "Port to listen on", "33753")
+  .option("--host <host>", "Interface to bind to", "127.0.0.1")
+  .option("--auth-token <token>", "Bearer token required for non-loopback access")
+  .option("--allowed-origin <origin>", "Additional allowed browser origin")
   .option("--user-data <path>", "Custom user data path")
   .action(async (options) => {
     try {

@@ -12,7 +12,7 @@ import {
   OutputsDefinition,
   runPnpm,
   runWithLiveLogs,
-  fetchPipelabAsset,
+  resolveBundledAsset,
 } from "@pipelab/plugin-core";
 import { dirname, join, basename, delimiter } from "node:path";
 import { existsSync } from "node:fs";
@@ -425,6 +425,7 @@ export const createMakeProps = (
   description: string,
   icon: string,
   displayString: string,
+  disabled?: boolean | string,
 ) =>
   createAction({
     id,
@@ -432,6 +433,7 @@ export const createMakeProps = (
     description,
     icon,
     displayString,
+    disabled,
     meta: {},
     params: {
       ...params,
@@ -514,7 +516,7 @@ export const tauri = async (
 
   const destinationFolder = join(cwd, "build");
 
-  const rawAssetFolder = await fetchPipelabAsset("@pipelab/asset-tauri", "^1.0.0", { context });
+  const rawAssetFolder = await resolveBundledAsset("@pipelab/asset-tauri");
   const templateFolder = join(rawAssetFolder, "template");
 
   // copy template to destination

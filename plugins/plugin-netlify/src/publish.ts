@@ -9,7 +9,7 @@ import {
   fileExists,
   runWithLiveLogs,
   runPnpm,
-  fetchPipelabAsset,
+  resolveBundledAsset,
 } from "@pipelab/plugin-core";
 import { createReadStream } from "node:fs";
 import { cp, mkdir, rm, writeFile } from "node:fs/promises";
@@ -90,7 +90,7 @@ export const uploadToNetlifyRunner = createActionRunner<typeof uploadToNetlify>(
     // 1. Prepare input folder with temmplate
     // Assume input folder is always a static site
     const destinationFolder = join(cwd);
-    const rawAssetFolder = await fetchPipelabAsset("@pipelab/asset-netlify", "^1.0.0", { context });
+    const rawAssetFolder = await resolveBundledAsset("@pipelab/asset-netlify");
     const templateFolder = join(rawAssetFolder, "template");
 
     // copy template to destination

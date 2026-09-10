@@ -34,23 +34,5 @@
     "@codemirror/state": "6.4.1",
     "vue-demi": "0.14.10"
   },
-  "packageManager": "pnpm@10.33.0",
-  "pnpm": {
-    "overrides": {
-      "@codemirror/state": "6.4.1"
-    },
-    "onlyBuiltDependencies": [
-      "@parcel/watcher",
-      "@sentry/cli",
-      "core-js",
-      "electron",
-      "electron-winstaller",
-      "esbuild",
-      "fs-xattr",
-      "macos-alias",
-      "msw",
-      "sharp",
-      "vue-demi"
-    ]
-  }
+  "packageManager": "pnpm@10.33.0"
 }

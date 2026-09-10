@@ -2,7 +2,7 @@ import { createWriteStream } from "node:fs";
 import { execa, Options, Subprocess } from "execa";
 import { mkdir as mkdirP, writeFile, stat, readdir } from "node:fs/promises";
 import { join, dirname } from "node:path";
-import tar from "tar";
+import * as tar from "tar";
 import yauzl from "yauzl";
 import archiver from "archiver";
 import { pipeline } from "node:stream/promises";

@@ -91,7 +91,9 @@ export class WebSocketClient {
       this.ws = new WebSocket(targetUrl);
 
       this.ws.onopen = () => {
-        console.log("WebSocket connected to", targetUrl);
+        const safeTargetUrl = new URL(targetUrl);
+        safeTargetUrl.searchParams.delete("token");
+        console.log("WebSocket connected to", safeTargetUrl.toString());
         this.isConnecting = false;
         this.reconnectAttempts = 0;
         this.connectionState = "connected";
