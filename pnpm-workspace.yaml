@@ -4,6 +4,11 @@ packages:
   - "assets/*"
   - "plugins/*"
 
+injectWorkspacePackages: true
+
+syncInjectedDepsAfterScripts:
+  - build
+
 overrides:
   "@codemirror/state": "6.4.1"
 

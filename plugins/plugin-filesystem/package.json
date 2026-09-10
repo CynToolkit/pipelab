@@ -22,7 +22,8 @@
     "directory": "plugins/plugin-filesystem"
   },
   "files": [
-    "dist"
+    "dist",
+    "src"
   ],
   "type": "module",
   "main": "./src/index.ts",

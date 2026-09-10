@@ -21,7 +21,8 @@
     "directory": "plugins/plugin-netlify"
   },
   "files": [
-    "dist"
+    "dist",
+    "src"
   ],
   "type": "module",
   "main": "./src/index.ts",

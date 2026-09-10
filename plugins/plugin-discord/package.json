@@ -18,7 +18,8 @@
     "directory": "plugins/plugin-discord"
   },
   "files": [
-    "dist"
+    "dist",
+    "src"
   ],
   "type": "module",
   "main": "./src/index.ts",

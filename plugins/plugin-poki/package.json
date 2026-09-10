@@ -20,7 +20,8 @@
     "directory": "plugins/plugin-poki"
   },
   "files": [
-    "dist"
+    "dist",
+    "src"
   ],
   "type": "module",
   "main": "./src/index.ts",

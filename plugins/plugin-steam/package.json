@@ -21,7 +21,8 @@
     "directory": "plugins/plugin-steam"
   },
   "files": [
-    "dist"
+    "dist",
+    "src"
   ],
   "type": "module",
   "main": "./src/index.ts",

@@ -19,7 +19,8 @@
     "directory": "plugins/plugin-core"
   },
   "files": [
-    "dist"
+    "dist",
+    "src"
   ],
   "type": "module",
   "main": "./src/index.ts",
@@ -31,6 +32,11 @@
       "types": "./src/index.ts",
       "import": "./src/index.ts",
       "default": "./src/index.ts"
+    },
+    "./fs-utils": {
+      "types": "./src/fs-utils.ts",
+      "import": "./src/fs-utils.ts",
+      "default": "./src/fs-utils.ts"
     }
   },
   "scripts": {
