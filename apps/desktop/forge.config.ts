@@ -69,7 +69,9 @@ async function renameInstallers(platform: string, arch: string) {
 async function stageBundledCli(target: string) {
   const source = path.join(__dirname, "../../apps/cli/dist");
 
+  logStagingMetrics("before CLI staging", source, target);
   await fs.rm(target, { recursive: true, force: true });
+  logStagingMetrics("after CLI target removal", source, target);
   const staged = await copyTreeWithoutSymlinks(source, target);
 
   await verifyBundledCliLayout(target);
@@ -97,6 +99,9 @@ async function copyTreeWithoutSymlinks(
   source: string,
   target: string,
 ): Promise<StagedTreeMetrics> {
+  if (process.platform === "win32") {
+    console.log(`[Forge Config] Copying tree: ${source} -> ${target}`);
+  }
   const sourceEntries = await fs.readdir(source, { withFileTypes: true });
   await fs.mkdir(target, { recursive: true });
   const metrics: StagedTreeMetrics = { fileCount: 0, directoryCount: 1, byteCount: 0 };
@@ -129,6 +134,16 @@ async function copyTreeWithoutSymlinks(
   return metrics;
 }
 
+function logStagingMetrics(label: string, source: string, target: string) {
+  if (process.platform !== "win32") return;
+  const memory = process.memoryUsage();
+  console.log(
+    `[Forge Config] ${label}: source=${source} target=${target} ` +
+      `rss=${Math.round(memory.rss / 1024 / 1024)}MiB ` +
+      `heap=${Math.round(memory.heapUsed / 1024 / 1024)}/${Math.round(memory.heapTotal / 1024 / 1024)}MiB`,
+  );
+}
+
 import { getAppBundleId, getProductName } from "@pipelab/constants";
 import { version } from "./package.json";
 
@@ -140,6 +155,9 @@ const config: ForgeConfig = {
     // @ts-expect-error - Force architecture as Forge CLI sometimes ignores --arch flag in CI
     arch: process.env.TARGET_ARCH || process.env.npm_config_arch || process.arch,
     prune: false,
+    // The workspace contains pnpm links/junctions. Do not dereference them
+    // while Packager finalizes an unpacked Windows application.
+    derefSymlinks: false,
     // The CLI is staged under the unpacked desktop app at resources/app/dist/cli.
     // Keeping the app unpacked makes the CLI directly extractable and avoids
     // Electron Packager's Windows recursive extraResource copy.
@@ -185,13 +203,18 @@ const config: ForgeConfig = {
   ],
   hooks: {
     packageAfterCopy: async (_, buildPath) => {
+      logStagingMetrics("packageAfterCopy start", __dirname, buildPath);
       // Electron Packager may omit the source manifest when the app is
       // reduced to Vite output. The Vite plugin rewrites this file in the
       // same hook, so ensure its parent exists before that rewrite runs.
       await fs.mkdir(buildPath, { recursive: true });
+      logStagingMetrics("after build directory creation", __dirname, buildPath);
       await fs.copyFile(path.join(__dirname, "package.json"), path.join(buildPath, "package.json"));
+      logStagingMetrics("after package manifest copy", __dirname, buildPath);
       await copyTreeWithoutSymlinks(path.join(__dirname, ".vite"), path.join(buildPath, ".vite"));
+      logStagingMetrics("after Vite staging", __dirname, buildPath);
       await stageBundledCli(path.join(buildPath, "dist/cli"));
+      logStagingMetrics("packageAfterCopy complete", __dirname, buildPath);
     },
     postMake: async (_, makeResults) => {
       for (const target of new Set(makeResults.map((r) => `${r.platform}:${r.arch}`))) {
