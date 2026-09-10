@@ -31,6 +31,17 @@ const appendOutput = (chunk) => {
   output += chunk.toString();
 };
 
+const stopProcessTree = (processToStop) => {
+  if (!processToStop.pid) return;
+  if (process.platform === "win32") {
+    spawn("taskkill.exe", ["/pid", String(processToStop.pid), "/t", "/f"], {
+      stdio: "ignore",
+    });
+  } else {
+    processToStop.kill();
+  }
+};
+
 uiProcess.stdout.on("data", appendOutput);
 uiProcess.stderr.on("data", appendOutput);
 
@@ -56,8 +67,8 @@ const finish = (error) => {
   if (settled) return;
   settled = true;
   clearTimeout(timer);
-  uiProcess.kill();
-  if (error) child.kill();
+  stopProcessTree(uiProcess);
+  stopProcessTree(child);
   if (error) {
     console.error(output);
     throw error;
