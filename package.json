@@ -4,11 +4,13 @@
   "license": "FSL-1.1-MIT",
   "scripts": {
     "build": "turbo build",
-    "dev": "turbo dev",
+    "dev": "turbo dev --filter=@pipelab/ui --filter=@pipelab/app",
     "lint": "turbo lint",
     "test": "turbo test",
     "typecheck": "turbo typecheck",
     "format": "turbo format",
+    "package": "pnpm --filter @pipelab/app package",
+    "make": "pnpm --filter @pipelab/app make",
     "changeset": "changeset",
     "supa:types": "supabase gen types typescript --project-id $SUPABASE_PROJECT_ID > packages/shared/src/database.types.ts"
   },

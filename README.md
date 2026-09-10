@@ -38,11 +38,11 @@ graph TD
 
 ---
 
-## 🛠️ Setup & Development
+## 🛠️ Start Pipelab
 
 ### 1. Prerequisites
 
-Tool versions are managed via **mise**. Check [`.mise.toml`](.mise.toml) for the current requirements.
+Tool versions are managed via **mise**. Check [`mise.toml`](mise.toml) for the current requirements (Node 24 and pnpm 10.33.0).
 
 ### 2. Environment Configuration
 
@@ -54,13 +54,15 @@ SUPABASE_ANON_KEY=your_key
 POSTHOG_API_KEY=your_key
 ```
 
+`SUPABASE_URL` and `SUPABASE_ANON_KEY` enable authentication. `POSTHOG_API_KEY` enables telemetry. The app still starts without them, with the related cloud features disabled.
+
 ### 3. Installation
 
 ```bash
 pnpm install
 ```
 
-### 4. Running Development Mode
+### 4. Development
 
 The fastest way to start the entire ecosystem is from the root:
 
@@ -69,7 +71,36 @@ pnpm dev
 ```
 
 > [!TIP]
-> This command uses **Turborepo** to start the UI dev server, the Electron process, and the CLI server concurrently.
+> This starts the UI dev server and Electron. Electron starts and manages the local CLI sidecar itself, so do not start `@pipelab/cli` separately for the desktop workflow.
+
+The Electron window opens after the UI is available on port 5173. Use `Ctrl+C` in the terminal to stop the development processes.
+
+### 5. Production package
+
+Create a runnable application bundle for the current operating system:
+
+```bash
+pnpm package
+```
+
+Create an installable distributable instead:
+
+```bash
+pnpm make
+```
+
+Both commands build the CLI bundle and include it with the desktop application as its production sidecar. Forge writes results to `apps/desktop/out/`; `package` creates an unpacked application bundle, while `make` creates the platform-specific installer/archive. Build on each target operating system for its native installer format.
+
+### Useful commands
+
+| Command | Purpose |
+| --- | --- |
+| `pnpm dev` | Start the desktop app in development mode. |
+| `pnpm build` | Build all workspace packages. |
+| `pnpm package` | Create a production desktop bundle for the current platform. |
+| `pnpm make` | Create a production installer/archive for the current platform. |
+| `pnpm test` | Run the workspace test suites. |
+| `pnpm typecheck` | Run TypeScript checks across the workspace. |
 
 ---
 
