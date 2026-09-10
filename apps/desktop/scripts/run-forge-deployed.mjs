@@ -27,6 +27,7 @@ function run(command, args, cwd) {
       cwd,
       env: process.env,
       stdio: "inherit",
+      shell: process.platform === "win32",
       windowsVerbatimArguments: false,
     });
 
