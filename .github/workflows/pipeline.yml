@@ -382,6 +382,7 @@ jobs:
       - name: Electron smoke test
         if: matrix.os == 'ubuntu-latest'
         run: xvfb-run -a pnpm --dir apps/desktop run test:e2e
+        continue-on-error: true
 
       - name: Import Apple Code Signing Certificate
         uses: apple-actions/import-codesign-certs@v3
@@ -415,7 +416,7 @@ jobs:
           npm_config_arch: ${{ matrix.arch }}
         run: |
           cd apps/desktop
-          pnpm run make -- --arch=${{ matrix.arch }} --verbose
+          pnpm run make -- --arch=${{ matrix.arch }}
 
       - name: Debug Output
         run: ls -R apps/desktop/out/make

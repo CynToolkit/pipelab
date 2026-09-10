@@ -4,6 +4,12 @@ import { exportProjectAction, ExportProjectActionRunner } from "./export-project
 import { constructVersionValidator } from "./export-shared";
 
 export default createNodeDefinition({
+  id: "@pipelab/plugin-construct",
+  packageName: "@pipelab/plugin-construct",
+  name: "Construct",
+  description: "Pipelab plugin for exporting and packaging Construct 3 projects",
+  icon: { type: "icon", icon: "pi-clone" },
+  isOfficial: true,
   nodes: [
     {
       node: exportAction,

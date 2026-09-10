@@ -4,13 +4,12 @@ import { existsSync, statSync, readdirSync } from "node:fs";
 import dns from "node:dns/promises";
 import pacote from "pacote";
 import semver from "semver";
-import { isDev, projectRoot, PipelabContext, CacheFolder } from "../context";
+import { PipelabContext, CacheFolder } from "../context";
 import { execa } from "execa";
 import { sendStartupProgress } from "../server";
 import { downloadFile, extractZip, extractTarGz } from "./fs-extras";
 
 import { DEFAULT_NODE_VERSION, DEFAULT_PNPM_VERSION } from "@pipelab/constants";
-import { resolveBundledCli } from "../bundled-cli";
 
 function isPackageComplete(packageDir: string): boolean {
   return existsSync(join(packageDir, "package.json"));
@@ -124,39 +123,13 @@ export async function fetchPackage(
 }> {
   const start = Date.now();
 
-  const ctx = options.context;
-
-  // [DISABLED] Bundled mode: npm/pacote fetch for @pipelab/* packages is disabled.
-  // Plugins and packages are pre-bundled with the CLI. Re-enable: remove this block.
   if (packageName.startsWith("@pipelab/")) {
-    if (isDev && projectRoot && process.env.PIPELAB_FORCE_NPM !== "true") {
-      const local = await tryResolveMonorepoPackage(packageName);
-      if (local) {
-        console.debug(
-          `[Fetcher] ${packageName}: Resolved to local source at ${local.packageDir} (${Date.now() - start}ms)`,
-        );
-        // Real version from the package.json — no "workspace" pseudo-version.
-        return { ...local, resolvedVersion: local.version ?? versionOrRange };
-      }
-    }
-    const fallbackVersion = await tryLocalFallback(
-      versionOrRange,
-      new Error("Bundled mode"),
-      ctx.getPackagesPath(packageName),
-      packageName,
-      !!(ctx.releaseTag && ctx.releaseTag !== "latest"),
-    );
-    if (fallbackVersion) {
-      return {
-        packageDir: join(ctx.getPackagesPath(packageName), fallbackVersion),
-        resolvedVersion: fallbackVersion,
-      };
-    }
     throw new Error(
-      `Bundled mode: ${packageName} not found in monorepo or local cache. All @pipelab/* packages must be bundled.`,
+      `${packageName} must be provided by the CLI bundle; runtime Pipelab package fetching is disabled.`,
     );
   }
 
+  const ctx = options.context;
   const baseDir = ctx.getPackagesPath(packageName);
   let resolvedVersion: string;
   const includePrerelease = !!(ctx.releaseTag && ctx.releaseTag !== "latest");
@@ -580,144 +553,6 @@ async function installDependencies(packageDir: string, packageName: string, opti
     await rm(nodeModulesPath, { recursive: true, force: true }).catch(() => {});
     throw new Error(`Failed to install dependencies for ${packageName}. See logs for details.`);
   }
-}
-
-export async function fetchPipelabPlugin(
-  pluginName: string,
-  versionOrRange: string,
-  options: FetchOptions,
-): Promise<{ packageDir: string; entryPoint: string; isLocal: boolean }> {
-  // [DISABLED] Bundled mode: plugins are pre-bundled. Try monorepo, then local cache.
-  // Re-enable: remove the early returns below + restore the original body.
-  if (isDev && projectRoot && process.env.PIPELAB_FORCE_NPM !== "true") {
-    const local = await tryResolveMonorepoPackage(pluginName);
-    if (local) {
-      return { packageDir: local.packageDir, entryPoint: local.entryPoint, isLocal: true };
-    }
-  }
-  const { packageDir, resolvedVersion, isLocal, entryPoint } = await fetchPackage(
-    pluginName,
-    versionOrRange,
-    { ...options, installDeps: false },
-  );
-  let finalEntryPoint = entryPoint;
-  if (!finalEntryPoint) {
-    const patterns = [join(packageDir, "dist", "index.mjs"), join(packageDir, "index.mjs")];
-    finalEntryPoint = patterns.find((p) => existsSync(p)) || patterns[0];
-  }
-  return { packageDir, entryPoint: finalEntryPoint, isLocal: !!isLocal };
-}
-
-export async function fetchPipelabCli(
-  _versionOrRange: string,
-  _options: FetchOptions,
-): Promise<{ packageDir: string; entryPoint: string; isLocal: boolean }> {
-  // [DISABLED] Bundled mode: CLI is pre-bundled, resolved from monorepo or packaged resources.
-  // Re-enable: remove the early returns below + restore the original pacote body.
-  if (projectRoot) {
-    const local = await tryResolveMonorepoPackage("@pipelab/cli");
-    if (local) {
-      return { packageDir: local.packageDir, entryPoint: local.entryPoint, isLocal: true };
-    }
-  }
-  if (process.resourcesPath) {
-    const bundledCli = await resolveBundledCli(process.resourcesPath);
-    if (bundledCli) return bundledCli;
-  }
-  throw new Error(
-    "CLI fetching is disabled in bundled mode. CLI must be bundled alongside the desktop app.",
-  );
-  // Original body: pacote.extract("@pipelab/cli@version", tempDir, ...) + copy to packages dir.
-}
-
-/**
- * Cache for monorepo package locations to avoid repeated disk crawling.
- */
-let monorepoCache: Record<string, string> | null = null;
-
-async function tryResolveMonorepoPackage(
-  packageName: string,
-): Promise<{ packageDir: string; isLocal: boolean; entryPoint: string; version?: string } | null> {
-  if (!monorepoCache) {
-    monorepoCache = await crawlMonorepoPackages();
-  }
-
-  const packageDir = monorepoCache[packageName];
-  if (!packageDir) return null;
-
-  // Find best entry point from package.json
-  let entryPoint: string | undefined;
-  let version: string | undefined;
-  try {
-    const pkgPath = join(packageDir, "package.json");
-    const pkg = JSON.parse(await readFile(pkgPath, "utf-8"));
-    if (pkg.version) version = pkg.version;
-
-    // 1. Try to find the entry point from package.json
-    // User tip: main is usually source in dev, publishConfig.main is compiled for prod
-    const publishMain = pkg.publishConfig?.module || pkg.publishConfig?.main;
-    const devMain = pkg.module || pkg.main;
-
-    // Check bin field if it's a CLI
-    const binField =
-      typeof pkg.bin === "string"
-        ? pkg.bin
-        : pkg.bin?.[packageName.replace("@pipelab/", "")] ||
-          (pkg.bin ? pkg.bin[Object.keys(pkg.bin)[0]] : undefined);
-
-    // In dev, we prefer the "main" field if it points to TS, or a hardcoded src/index.ts
-    const tsSource = join(packageDir, "src", "index.ts");
-
-    if (devMain && devMain.endsWith(".ts")) {
-      entryPoint = join(packageDir, devMain);
-    } else if (existsSync(tsSource)) {
-      entryPoint = tsSource;
-    } else if (binField) {
-      entryPoint = join(packageDir, binField);
-    } else if (publishMain) {
-      entryPoint = join(packageDir, publishMain);
-    } else if (devMain) {
-      entryPoint = join(packageDir, devMain);
-    }
-  } catch (e) {
-    console.warn(`[Fetcher] Failed to parse package.json for ${packageName}:`, e);
-  }
-
-  return {
-    packageDir,
-    isLocal: true,
-    entryPoint: entryPoint || join(packageDir, "dist", "index.mjs"),
-    version,
-  };
-}
-
-async function crawlMonorepoPackages(): Promise<Record<string, string>> {
-  const cache: Record<string, string> = {};
-  if (!projectRoot) return cache;
-
-  const searchDirs = ["plugins", "packages", "apps"];
-  for (const dir of searchDirs) {
-    const fullDir = join(projectRoot, dir);
-    if (!existsSync(fullDir)) continue;
-
-    try {
-      const entries = await readdir(fullDir, { withFileTypes: true });
-      for (const entry of entries) {
-        if (entry.isDirectory()) {
-          const pkgPath = join(fullDir, entry.name, "package.json");
-          if (existsSync(pkgPath)) {
-            try {
-              const pkg = JSON.parse(await readFile(pkgPath, "utf-8"));
-              if (pkg.name) {
-                cache[pkg.name] = join(fullDir, entry.name);
-              }
-            } catch (e) {}
-          }
-        }
-      }
-    } catch (e) {}
-  }
-  return cache;
 }
 
 async function tryLocalFallback(

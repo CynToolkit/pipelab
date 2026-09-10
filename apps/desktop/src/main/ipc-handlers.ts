@@ -1,5 +1,5 @@
 import { ipcMain, dialog, BrowserWindow, shell, app } from "electron";
-import { isPathBlacklisted } from "@pipelab/plugin-core/fs-utils";
+import { isPathBlacklisted } from "@pipelab/plugin-core";
 
 export const registerIpcHandlers = () => {
   console.log("[Main] Registering IPC handlers");

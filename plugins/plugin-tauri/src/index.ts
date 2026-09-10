@@ -14,6 +14,12 @@ import { configureRunner, props } from "./configure";
 import { packageV2Runner } from "./package";
 
 export default createNodeDefinition({
+  id: "@pipelab/plugin-tauri",
+  packageName: "@pipelab/plugin-tauri",
+  name: "Tauri",
+  description: "Pipelab plugin for packaging apps with Tauri",
+  icon: { type: "icon", icon: "pi-box" },
+  isOfficial: true,
   nodes: [
     // make and package
     {

@@ -1,33 +1,19 @@
 import { describe, expect, test } from "vitest";
-import { enhancePluginDefinition } from "./plugins-registry";
+import { bundledPlugins } from "./plugins-registry";
 
-describe("enhancePluginDefinition", () => {
-  test("keeps the bundled package name when its package directory is unavailable", async () => {
-    const plugin = await enhancePluginDefinition(
-      { nodes: [] },
-      "",
-      "@pipelab/plugin-discord",
-    );
+describe("bundledPlugins", () => {
+  test("has stable source-owned identities for every statically imported plugin", () => {
+    const ids = bundledPlugins.map((plugin) => plugin.id);
 
-    expect(plugin.id).toBe("@pipelab/plugin-discord");
-    expect(plugin.packageName).toBe("@pipelab/plugin-discord");
-    expect(plugin.isOfficial).toBe(true);
-  });
+    expect(bundledPlugins).toHaveLength(12);
+    expect(new Set(ids)).toHaveLength(bundledPlugins.length);
 
-  test("uses static metadata without resolving a package directory", async () => {
-    const plugin = await enhancePluginDefinition(
-      { nodes: [] },
-      "",
-      "@pipelab/plugin-construct",
-      {
-        name: "Construct",
-        description: "Construct plugin",
-        icon: "./dist/assets/construct.webp",
-      },
-    );
-
-    expect(plugin.name).toBe("Construct");
-    expect(plugin.description).toBe("Construct plugin");
-    expect(plugin.icon).toEqual({ type: "icon", icon: "pi pi-box" });
+    for (const plugin of bundledPlugins) {
+      expect(plugin.id).toMatch(/^@pipelab\/plugin-/);
+      expect(plugin.packageName).toBe(plugin.id);
+      expect(plugin.name).not.toBe("");
+      expect(plugin.nodes.length).toBeGreaterThan(0);
+      expect(plugin.isOfficial).toBe(true);
+    }
   });
 });

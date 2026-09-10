@@ -211,8 +211,6 @@ import { useAppStore } from "@renderer/store/app";
 import { PipelabNode, RendererNodeDefinition } from "@pipelab/shared";
 import { useLogger } from "@pipelab/shared";
 import PluginIcon from "./nodes/PluginIcon.vue";
-import { useAPI } from "@renderer/composables/api";
-import { useToast } from "primevue/usetoast";
 import { watchDebounced } from "@vueuse/core";
 
 type ButtonProps = InstanceType<typeof Button>["$props"];
@@ -238,8 +236,6 @@ const { path, isRunning } = toRefs(props);
 
 const instance = useEditor();
 const appStore = useAppStore();
-const api = useAPI();
-const toast = useToast();
 
 const { plugins } = storeToRefs(instance);
 const { pluginDefinitions } = storeToRefs(appStore);
@@ -284,25 +280,6 @@ watch(visible, async (newVal) => {
     await fetchCachedPlugins();
   }
 });
-
-const isOfficial = (name: string) => {
-  return name.startsWith("@pipelab/");
-};
-
-const formatPluginName = (name: string) => {
-  const def = pluginDefinitions.value.find((p) => p.packageName === name || p.id === name);
-  if (def?.name && def.name !== name) {
-    return def.name;
-  }
-  if (name.startsWith("@pipelab/plugin-")) {
-    return name
-      .replace("@pipelab/plugin-", "")
-      .split(/[-_]+/)
-      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-      .join(" ");
-  }
-  return name;
-};
 
 const getFallbackIcon = (name: string) => {
   const n = name.toLowerCase();
@@ -367,10 +344,10 @@ const handlePluginClick = async (plugin: any) => {
   // Re-enable: uncomment + restore the plugin:install API call.
   // installingPlugins.value[plugin.id] = true;
   // try {
-  //   toast.add({ severity: "info", summary: "Installing plugin", detail: `Installing and enabling ${formatPluginName(plugin.id)}...`, life: 3000 });
+  //   toast.add({ severity: "info", summary: "Installing plugin", detail: `Installing and enabling ${plugin.name}...`, life: 3000 });
   //   const res = await api.execute("plugin:install", { packageName: plugin.id, version: "latest" });
   //   if (res.type === "success") {
-  //     toast.add({ severity: "success", summary: "Plugin loaded", detail: `${formatPluginName(plugin.id)} is now active!`, life: 3000 });
+  //     toast.add({ severity: "success", summary: "Plugin loaded", detail: `${plugin.name} is now active!`, life: 3000 });
   //     await fetchCachedPlugins();
   //     expandedPlugins.value[plugin.id] = true;
   //   } else {
@@ -421,7 +398,7 @@ const displayPlugins = computed(() => {
   for (const def of pluginDefinitions.value) {
     pluginsMap[def.id] = {
       id: def.id,
-      name: formatPluginName(def.id),
+      name: def.name || def.id,
       description: def.description || "",
       icon: def.icon,
       status: "active",
@@ -434,7 +411,7 @@ const displayPlugins = computed(() => {
     if (!pluginsMap[cached.name]) {
       pluginsMap[cached.name] = {
         id: cached.name,
-        name: formatPluginName(cached.name),
+        name: cached.name,
         description: cached.description || "",
         status: "cached",
         nodes: [],
@@ -447,7 +424,7 @@ const displayPlugins = computed(() => {
     if (!pluginsMap[reg.name]) {
       pluginsMap[reg.name] = {
         id: reg.name,
-        name: formatPluginName(reg.name),
+        name: reg.name,
         description: reg.description || "",
         status: "registry",
         nodes: [],

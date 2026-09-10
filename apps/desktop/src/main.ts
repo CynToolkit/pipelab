@@ -9,7 +9,7 @@ import { registerIpcHandlers } from "./main/ipc-handlers";
 import {
   getDefaultUserDataPath,
   fetchLatestDesktopRelease,
-} from "../../../packages/core-node/src/desktop";
+} from "@pipelab/core-node/desktop";
 import started from "electron-squirrel-startup";
 import { PostHog } from "posthog-node";
 import { parseArgs } from "node:util";
