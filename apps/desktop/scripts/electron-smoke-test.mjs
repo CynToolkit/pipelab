@@ -15,6 +15,7 @@ const uiProcess = spawn(command, ["run", "dev"], {
   shell: process.platform === "win32",
   stdio: ["ignore", "pipe", "pipe"],
   windowsVerbatimArguments: false,
+  detached: process.platform !== "win32",
 });
 const child = spawn(command, ["run", "start", "--", ...forgeArgs], {
   cwd: desktopDir,
@@ -22,6 +23,7 @@ const child = spawn(command, ["run", "start", "--", ...forgeArgs], {
   shell: process.platform === "win32",
   stdio: ["ignore", "pipe", "pipe"],
   windowsVerbatimArguments: false,
+  detached: process.platform !== "win32",
 });
 
 let output = "";
@@ -38,7 +40,11 @@ const stopProcessTree = (processToStop) => {
       stdio: "ignore",
     });
   } else {
-    processToStop.kill();
+    try {
+      process.kill(-processToStop.pid, "SIGTERM");
+    } catch {
+      processToStop.kill();
+    }
   }
 };
 
@@ -71,8 +77,10 @@ const finish = (error) => {
   stopProcessTree(child);
   if (error) {
     console.error(output);
-    throw error;
+    console.error(error.message);
   }
+  process.exitCode = error ? 1 : 0;
+  setImmediate(() => process.exit(process.exitCode));
 };
 
 const timer = setTimeout(() => {
