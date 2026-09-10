@@ -5,8 +5,9 @@ import { fileURLToPath } from "node:url";
 const desktopDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const command = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
 const timeoutMs = 120_000;
+const forgeArgs = process.platform === "linux" ? ["--headless", "--no-sandbox"] : ["--headless"];
 
-const child = spawn(command, ["run", "start", "--", "--headless"], {
+const child = spawn(command, ["run", "start", "--", ...forgeArgs], {
   cwd: desktopDir,
   env: { ...process.env, PIPELAB_E2E: "1" },
   shell: process.platform === "win32",
@@ -21,7 +22,7 @@ const finish = (error) => {
   if (settled) return;
   settled = true;
   clearTimeout(timer);
-  child.kill();
+  if (error) child.kill();
   if (error) {
     console.error(output);
     throw error;
