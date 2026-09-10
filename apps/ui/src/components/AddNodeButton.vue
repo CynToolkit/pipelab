@@ -82,7 +82,6 @@
               <div class="flex flex-column">
                 <div class="flex align-items-center gap-2 flex-wrap">
                   <span class="font-bold text-sm text-color">{{ plugin.name }}</span>
-                  <span class="text-xs text-secondary font-mono">{{ plugin.id }}</span>
                   <!-- Badges -->
                   <span v-if="isPluginLoadedWithSelectedVersion(plugin)" class="badge active-badge">
                     Active
@@ -292,12 +291,15 @@ const isOfficial = (name: string) => {
 
 const formatPluginName = (name: string) => {
   const def = pluginDefinitions.value.find((p) => p.packageName === name || p.id === name);
-  if (def?.name) {
+  if (def?.name && def.name !== name) {
     return def.name;
   }
   if (name.startsWith("@pipelab/plugin-")) {
-    const raw = name.replace("@pipelab/plugin-", "");
-    return raw.charAt(0).toUpperCase() + raw.slice(1);
+    return name
+      .replace("@pipelab/plugin-", "")
+      .split(/[-_]+/)
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(" ");
   }
   return name;
 };
@@ -419,7 +421,7 @@ const displayPlugins = computed(() => {
   for (const def of pluginDefinitions.value) {
     pluginsMap[def.id] = {
       id: def.id,
-      name: def.name,
+      name: formatPluginName(def.id),
       description: def.description || "",
       icon: def.icon,
       status: "active",
