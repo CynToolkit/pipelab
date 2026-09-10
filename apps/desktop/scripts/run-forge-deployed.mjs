@@ -141,7 +141,8 @@ async function moveOutputBack() {
 }
 
 async function main() {
-  const [mode, ...forgeArgs] = process.argv.slice(2);
+  const [mode, ...rawForgeArgs] = process.argv.slice(2);
+  const forgeArgs = rawForgeArgs[0] === "--" ? rawForgeArgs.slice(1) : rawForgeArgs;
   if (mode !== "make" && mode !== "package") {
     throw new Error("Usage: run-forge-deployed.mjs <make|package> [Forge arguments...]");
   }
