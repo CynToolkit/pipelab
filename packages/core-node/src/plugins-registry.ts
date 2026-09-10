@@ -24,12 +24,13 @@ export const enhancePluginDefinition = async (
   plugin: any,
   packageDir: string,
   fallbackName: string,
+  staticMetadata?: { name?: string; description?: string; icon?: any },
 ) => {
   if (!plugin) return plugin;
 
   let packageName = fallbackName;
-  let pipelabMeta: any = null;
-  let pkgDescription = "";
+  let pipelabMeta: any = staticMetadata || null;
+  let pkgDescription = staticMetadata?.description || "";
 
   try {
     const pkgJsonPath = packageDir ? join(packageDir, "package.json") : "";
@@ -38,7 +39,7 @@ export const enhancePluginDefinition = async (
       const pkg = JSON.parse(pkgContent);
       if (pkg.name) packageName = pkg.name;
       if (pkg.description) pkgDescription = pkg.description;
-      if (pkg.pipelab) pipelabMeta = pkg.pipelab;
+      if (pkg.pipelab) pipelabMeta = { ...pipelabMeta, ...pkg.pipelab };
     }
   } catch (e) {
     console.error(`[Plugins] Failed to read package.json in ${packageDir}:`, e);
@@ -54,10 +55,12 @@ export const enhancePluginDefinition = async (
   if (pipelabMeta?.icon) {
     if (typeof pipelabMeta.icon === "string") {
       let iconPath = pipelabMeta.icon;
-      if (iconPath.startsWith(".")) {
+      if (iconPath.startsWith(".") && packageDir) {
         iconPath = pathToFileURL(join(packageDir, iconPath)).href;
       }
-      plugin.icon = { type: "image", image: iconPath };
+      plugin.icon = packageDir
+        ? { type: "image", image: iconPath }
+        : { type: "icon", icon: "pi pi-box" };
     } else {
       plugin.icon = pipelabMeta.icon;
     }
@@ -72,18 +75,66 @@ export const enhancePluginDefinition = async (
 // resolves a plugin package dynamically. @pipelab/plugin-core is intentionally absent:
 // it is a utilities package and has no plugin definition to register.
 const BUNDLED_PLUGINS = [
-  { packageName: "@pipelab/plugin-construct", plugin: constructPlugin },
-  { packageName: "@pipelab/plugin-filesystem", plugin: filesystemPlugin },
-  { packageName: "@pipelab/plugin-system", plugin: systemPlugin },
-  { packageName: "@pipelab/plugin-electron", plugin: electronPlugin },
-  { packageName: "@pipelab/plugin-discord", plugin: discordPlugin },
-  { packageName: "@pipelab/plugin-steam", plugin: steamPlugin },
-  { packageName: "@pipelab/plugin-itch", plugin: itchPlugin },
-  { packageName: "@pipelab/plugin-minify", plugin: minifyPlugin },
-  { packageName: "@pipelab/plugin-netlify", plugin: netlifyPlugin },
-  { packageName: "@pipelab/plugin-nvpatch", plugin: nvpatchPlugin },
-  { packageName: "@pipelab/plugin-poki", plugin: pokiPlugin },
-  { packageName: "@pipelab/plugin-tauri", plugin: tauriPlugin },
+  {
+    packageName: "@pipelab/plugin-construct",
+    plugin: constructPlugin,
+    metadata: { name: "Construct", description: "Pipelab plugin for exporting and packaging Construct 3 projects", icon: "./dist/assets/construct.webp" },
+  },
+  {
+    packageName: "@pipelab/plugin-filesystem",
+    plugin: filesystemPlugin,
+    metadata: { name: "Filesystem", description: "Pipelab plugin for filesystem operations (copy, move, delete, zip)", icon: { type: "icon", icon: "mdi-folder-zip-outline" } },
+  },
+  {
+    packageName: "@pipelab/plugin-system",
+    plugin: systemPlugin,
+    metadata: { name: "System", description: "Pipelab plugin for running shell commands and system operations", icon: { type: "icon", icon: "mdi-cog-outline" } },
+  },
+  {
+    packageName: "@pipelab/plugin-electron",
+    plugin: electronPlugin,
+    metadata: { name: "Electron", description: "Pipelab plugin for packaging apps with Electron", icon: "./dist/public/electron.webp" },
+  },
+  {
+    packageName: "@pipelab/plugin-discord",
+    plugin: discordPlugin,
+    metadata: { name: "Discord", description: "Pipelab plugin for Discord Rich Presence and notifications", icon: "./dist/public/discord.webp" },
+  },
+  {
+    packageName: "@pipelab/plugin-steam",
+    plugin: steamPlugin,
+    metadata: { name: "Steam", description: "Pipelab plugin for publishing games to Steam via SteamCMD", icon: "./dist/steam.webp" },
+  },
+  {
+    packageName: "@pipelab/plugin-itch",
+    plugin: itchPlugin,
+    metadata: { name: "Itch.io", description: "Pipelab plugin for publishing games to itch.io", icon: "./dist/assets/itch-icon.webp" },
+  },
+  {
+    packageName: "@pipelab/plugin-minify",
+    plugin: minifyPlugin,
+    metadata: { name: "Minifyer", description: "Pipelab plugin for minifying HTML, CSS, and JavaScript assets", icon: { type: "icon", icon: "mdi-zip-box" } },
+  },
+  {
+    packageName: "@pipelab/plugin-netlify",
+    plugin: netlifyPlugin,
+    metadata: { name: "Netlify", description: "Pipelab plugin for deploying web projects to Netlify", icon: "./dist/assets/netlify-icon.webp" },
+  },
+  {
+    packageName: "@pipelab/plugin-nvpatch",
+    plugin: nvpatchPlugin,
+    metadata: { name: "NVPatch", description: "Pipelab plugin for patching NW.js game exports", icon: { type: "icon", icon: "mdi-wrench" } },
+  },
+  {
+    packageName: "@pipelab/plugin-poki",
+    plugin: pokiPlugin,
+    metadata: { name: "Poki", description: "Pipelab plugin for publishing HTML5 games to Poki", icon: "./dist/assets/poki-icon.webp" },
+  },
+  {
+    packageName: "@pipelab/plugin-tauri",
+    plugin: tauriPlugin,
+    metadata: { name: "Tauri", description: "Pipelab plugin for packaging apps with Tauri", icon: "./dist/public/tauri.webp" },
+  },
 ];
 
 export const builtInPlugins = async (options: { context: PipelabContext }): Promise<void> => {
@@ -97,24 +148,30 @@ export const builtInPlugins = async (options: { context: PipelabContext }): Prom
 
   const totalStart = Date.now();
 
-  const loadPromises = BUNDLED_PLUGINS.map(async ({ packageName, plugin: raw }) => {
+  const loadPromises = BUNDLED_PLUGINS.map(async ({ packageName, plugin: raw, metadata }) => {
     sendStartupProgress(`Loading bundled plugin: ${packageName}`);
     const pluginStart = Date.now();
     try {
       if (raw) {
         // Raw module defaults carry no id/packageName — without enhancement every
         // plugin registers as id=undefined and overwrites the previous one, leaving
-        // a single plugin in the store. Resolve the package dir and enhance, exactly
-        // as the dynamic loaders did before bundling.
+        // a single plugin in the store. Static metadata is used in production;
+        // package metadata is only enriched during development.
         let packageDir = "";
-        try {
-          packageDir = dirname(require.resolve(`${packageName}/package.json`));
-        } catch {
-          console.warn(
-            `[Plugins] Could not resolve package dir for ${packageName}, using fallbacks`,
-          );
+        if (process.env.NODE_ENV !== "production") {
+          try {
+            packageDir = dirname(require.resolve(packageName));
+            while (
+              packageDir !== dirname(packageDir) &&
+              !existsSync(join(packageDir, "package.json"))
+            ) {
+              packageDir = dirname(packageDir);
+            }
+          } catch {
+            // Development package metadata is optional; static metadata remains available.
+          }
         }
-        const plugin = await enhancePluginDefinition(raw, packageDir, packageName);
+        const plugin = await enhancePluginDefinition(raw, packageDir, packageName, metadata);
         registerPlugins([plugin]);
         webSocketServer.broadcast("plugin:loaded", { plugin });
         console.debug(`[Plugins] Loaded bundled ${packageName} in ${Date.now() - pluginStart}ms`);
