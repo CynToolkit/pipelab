@@ -16,6 +16,7 @@ import { parseArgs } from "node:util";
 import semver from "semver";
 
 const isProduction = app.isPackaged && process.env.TEST !== "true";
+const isE2ESmokeTest = process.env.PIPELAB_E2E === "1";
 
 let posthog: PostHog | undefined;
 if (isProduction) {
@@ -195,6 +196,24 @@ function createWindow(): void {
     if (pendingUrl) {
       mainWindow?.webContents.send("protocol-url", pendingUrl);
       pendingUrl = null;
+    }
+
+    if (isE2ESmokeTest) {
+      void mainWindow.webContents
+        .executeJavaScript(
+          "document.readyState === 'complete' && document.body && document.body.innerHTML.trim().length > 0",
+        )
+        .then((loaded) => {
+          if (!loaded) {
+            throw new Error("Renderer loaded an empty document");
+          }
+          console.info("[E2E] renderer-loaded");
+          app.exit(0);
+        })
+        .catch((error) => {
+          console.error("[E2E] renderer-load-failed:", error);
+          app.exit(1);
+        });
     }
   });
 

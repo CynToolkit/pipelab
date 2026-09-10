@@ -16,6 +16,7 @@
     "format": "oxfmt .",
     "lint": "oxlint .",
     "test": "node --test scripts/run-forge-deployed.test.mjs",
+    "test:e2e": "node scripts/electron-smoke-test.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.json --composite false",
     "start": "electron-forge start",
     "start:args": "electron-forge start -- --project ./tests/e2e/fixtures/folder-to-electron.json --action run",

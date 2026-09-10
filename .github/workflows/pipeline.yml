@@ -379,6 +379,9 @@ jobs:
           name: monorepo-dist
           path: .
 
+      - name: Electron smoke test
+        run: pnpm --dir apps/desktop run test:e2e
+
       - name: Import Apple Code Signing Certificate
         uses: apple-actions/import-codesign-certs@v3
         if: startsWith(matrix.os, 'macos-')
