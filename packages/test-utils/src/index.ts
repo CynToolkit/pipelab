@@ -7,8 +7,8 @@ import {
   type ActionRunner,
   type ActionRunnerData,
   type Action,
-  PipelabContext,
 } from "@pipelab/plugin-core";
+import { PipelabContext as NodePipelabContext } from "@pipelab/core-node";
 import { execa } from "execa";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -204,7 +204,7 @@ process.exit(result.status ?? 0);`,
     // @ts-ignore - Mocking BrowserWindow
     browserWindow: undefined,
     abortSignal: new AbortController().signal,
-    context: new PipelabContext({
+    context: new NodePipelabContext({
       userDataPath: join(options.sandboxPath, "user-data"),
     }),
     // @ts-ignore - Mocking setMeta

@@ -738,6 +738,9 @@ importers:
 
   packages/test-utils:
     dependencies:
+      '@pipelab/core-node':
+        specifier: workspace:*
+        version: file:packages/core-node(typescript@5.9.3)
       '@pipelab/plugin-core':
         specifier: workspace:*
         version: file:plugins/plugin-core(typescript@5.9.3)

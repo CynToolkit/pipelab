@@ -203,7 +203,9 @@ export const exportc3p = async <ACTION extends Action>(
     );
   }
 
-  const require = createRequire(import.meta.url);
+  // Electron's Vite main-process bundle is CommonJS, where import.meta.url is
+  // undefined. Use an absolute anchor that works in both ESM and CommonJS.
+  const require = createRequire(join(process.cwd(), "package.json"));
   const playwrightModule = require(join(playwrightPkgPath, "index.js"));
   const playwright = playwrightModule.default || playwrightModule;
 

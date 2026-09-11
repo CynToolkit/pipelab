@@ -1,9 +1,6 @@
 import { exec } from "node:child_process";
 import { platform } from "node:os";
-import { createRequire } from "node:module";
 import { createAction, createActionRunner, createPathParam } from "@pipelab/plugin-core";
-
-const require = createRequire(import.meta.url);
 // import displayString from './displayStringRun.lua?raw'
 
 export const ID = "fs:open-in-explorer";
