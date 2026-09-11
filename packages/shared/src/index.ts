@@ -63,7 +63,6 @@ export * from "./variables";
 export * from "./websocket.types";
 export * from "./path";
 export * from "./plugin-api";
-export * from "./pipelab-context";
 
 // 4. Configuration Sub-packages
 export * from "./config/projects-definition"; // <-- RE-ADDED

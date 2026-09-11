@@ -9,6 +9,9 @@ import type {
   ExtractInputsFromEvent,
   ExtractInputsFromExpression,
 } from "@pipelab/shared";
+import type { PipelabContext } from "@pipelab/core-node";
+
+export type { PipelabContext } from "@pipelab/core-node";
 
 export * from "@pipelab/shared";
 import {
