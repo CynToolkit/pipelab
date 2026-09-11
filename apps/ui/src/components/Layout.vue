@@ -20,7 +20,7 @@
       <!-- Navigation -->
       <nav class="sidebar-nav">
         <router-link
-          to="/dashboard"
+          to="/release-flows"
           class="sidebar-nav-item"
           active-class="active"
           :class="{ active: route.name === 'Editor' }"
@@ -42,13 +42,13 @@
         </router-link>
 
         <router-link
-          to="/paths"
+          to="/dashboard"
           class="sidebar-nav-item"
           active-class="active"
-          v-tooltip.right="isSidebarCollapsed ? 'Paths' : undefined"
+          v-tooltip.right="isSidebarCollapsed ? 'Release flows' : undefined"
         >
           <i class="mdi mdi-routes nav-icon" />
-          <span v-show="!isSidebarCollapsed" class="nav-label">Paths</span>
+          <span v-show="!isSidebarCollapsed" class="nav-label">Release flows</span>
         </router-link>
 
         <!-- [DISABLED] Connections hidden in bundled mode (was already Coming Soon).

@@ -4,6 +4,7 @@ import type { Tagged } from "type-fest";
 import { PresetResult, Steps, SavedFile } from "./model";
 import { AppConfig, ConnectionsConfig } from "./config.schema";
 import { FileRepo } from "./config/projects-definition";
+import type { ReleaseFlow } from "./release-flow";
 import { Agent } from "./websocket.types";
 import { BuildHistoryEntry, BuildHistoryQuery, BuildHistoryResponse } from "./build-history";
 
@@ -171,6 +172,9 @@ export type IpcDefinition = {
   "pipeline:save-by-path": [{ path: string; data: string }, EndEvent<"ok">];
   "pipeline:delete-by-name": [{ name: string }, EndEvent<"ok">];
   "pipeline:delete-by-path": [{ path: string }, EndEvent<"ok">];
+  "release-flow:load-by-name": [{ name: string }, EndEvent<ReleaseFlow>];
+  "release-flow:save-by-name": [{ name: string; data: string }, EndEvent<"ok">];
+  "release-flow:delete-by-name": [{ name: string }, EndEvent<"ok">];
   "action:cancel": [void, EndEvent<{ result: "ok" | "ko" }>];
 
   // Build History APIs

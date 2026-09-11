@@ -72,12 +72,14 @@ const routes: RouterOptions["routes"] = [
     },
   },
   {
-    path: "/paths",
-    name: "Paths",
-    component: () => import("../pages/paths.vue"),
-    meta: {
-      title: "Paths",
-    },
+    path: "/release-flows",
+    redirect: "/dashboard",
+  },
+  {
+    path: "/release-flows/:flowId/:projectId",
+    name: "ReleaseFlow",
+    component: () => import("../pages/release-flow.vue"),
+    meta: { title: "Release flow" },
   },
 ];
 
