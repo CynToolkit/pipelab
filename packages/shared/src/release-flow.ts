@@ -1,24 +1,42 @@
 import { array, boolean, literal, object, optional, string, union, InferInput } from "valibot";
 
 export const ReleaseFlowSourceValidator = union([
-  object({ type: literal("construct3"), path: string(), outputDir: optional(string()) }),
+  object({
+    type: literal("construct3"),
+    path: string(),
+    profileConnectionId: optional(string()),
+    version: optional(string()),
+  }),
   object({ type: literal("folder"), path: string() }),
 ]);
 
 export const ReleaseFlowDestinationValidator = union([
   object({
     type: literal("steam"),
-    connectionId: string(),
+    sdkConnectionId: optional(string()),
+    accountConnectionId: optional(string()),
     appId: string(),
+    depotId: string(),
+    description: string(),
+    appName: string(),
+    appBundleId: string(),
+    appVersion: string(),
+    icon: optional(string()),
     branch: optional(string()),
   }),
   object({
     type: literal("itch"),
-    connectionId: string(),
+    accountConnectionId: string(),
+    user: string(),
     project: string(),
     channel: string(),
   }),
-  object({ type: literal("web"), outputDir: string() }),
+  object({
+    type: literal("web"),
+    outputDir: string(),
+    overwrite: boolean(),
+    cleanup: boolean(),
+  }),
 ]);
 
 export const ReleaseFlowValidator = object({
@@ -29,6 +47,7 @@ export const ReleaseFlowValidator = object({
   description: optional(string()),
   source: ReleaseFlowSourceValidator,
   destinations: array(ReleaseFlowDestinationValidator),
+  continueOnError: optional(boolean(), true),
   osOverrides: optional(
     object({
       windows: optional(object({ outputDir: optional(string()), path: optional(string()) })),
@@ -50,7 +69,8 @@ export const releaseFlowMigrator = {
     name: "",
     description: "",
     source: { type: "folder" as const, path: "" },
-    destinations: [],
+    destinations: [] as ReleaseFlowDestination[],
+    continueOnError: true,
   } satisfies ReleaseFlow,
   migrate: async (value: unknown) => value as ReleaseFlow,
 };

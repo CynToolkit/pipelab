@@ -8,6 +8,7 @@ import { registerAuthHandlers } from "./auth";
 import { registerSystemHandlers } from "./system";
 import { registerPluginsHandlers } from "./plugins";
 import { registerMigrationHandlers } from "./migration";
+import { registerReleaseFlowHandlers } from "./release-flow";
 import { builtInPlugins } from "../plugins-registry";
 import { usePlugins } from "@pipelab/shared";
 import { PipelabContext } from "../context";
@@ -29,6 +30,7 @@ export const registerAllHandlers = async (options: {
   registerSystemHandlers(options);
   registerPluginsHandlers(context);
   registerMigrationHandlers(context);
+  registerReleaseFlowHandlers(context);
 
   const { registerPlugins } = usePlugins();
   // Execute in the background! The plugins will be dynamically registered and broadcasted to the UI.
@@ -48,3 +50,4 @@ export { registerHistoryHandlers } from "./history";
 export { registerEngineHandlers } from "./engine";
 export { registerAgentsHandlers } from "./agents";
 export { BuildHistoryStorage } from "./build-history";
+export { registerReleaseFlowHandlers } from "./release-flow";

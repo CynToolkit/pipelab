@@ -144,6 +144,7 @@ export const AppSettingsValidatorV7 = object({
 export const ConnectionValidator = looseObject({
   id: string(),
   pluginName: string(),
+  integrationName: optional(string()),
   name: string(),
   createdAt: string(),
   isDefault: boolean(),

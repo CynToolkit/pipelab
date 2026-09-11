@@ -537,7 +537,7 @@ const { startTour: triggerTour, isCompleted } = useTour("dashboard");
 // Table data
 const fileStore = useFiles();
 const { files } = storeToRefs(fileStore);
-const { update: updateFileStore, remove, removeProject, transferPipeline } = fileStore;
+const { update: updateFileStore, remove, removeProject, transferPipeline, load: reloadFiles } = fileStore;
 
 const filesEnhanced = ref<EnhancedFile[]>([]);
 const releaseFlowsEnhanced = ref<Array<{ id: string; project: string; lastModified: string; content: ReleaseFlow }>>([]);
@@ -805,6 +805,7 @@ const createReleaseFlow = async (flow: ReleaseFlow) => {
 const openReleaseFlow = (id: string) => router.push(`/release-flows/${id}/${activeProjectId.value}`);
 const toggleReleaseMenu = (_event: Event, _flow: any) => { /* lifecycle actions land in the flow editor menu */ };
 const destinationLabel = (d: ReleaseFlow["destinations"][number]) => d.type === "web" ? "Web folder" : d.type === "steam" ? "Steam" : "Itch.io";
+onMounted(() => reloadFiles(true));
 const onNewProjectCreation = async () => {
   const projectId = nanoid();
   updateFileStore((state) => {

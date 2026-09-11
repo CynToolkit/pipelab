@@ -16,14 +16,17 @@ export async function listPipelinesCommand(options: { userData?: string }) {
     const projectsConfig = await setupProjectsConfigFile(context);
     const repo = await projectsConfig.getConfig();
 
-    if (!repo.pipelines || repo.pipelines.length === 0) {
-      console.log("No pipelines found.");
+    const pipelines = repo.pipelines || [];
+    const releaseFlows = repo.releaseFlows || [];
+
+    if (pipelines.length === 0 && releaseFlows.length === 0) {
+      console.log("No pipelines or release flows found.");
       return;
     }
 
-    console.log(`Found ${repo.pipelines.length} pipelines:\n`);
+    console.log(`Found ${pipelines.length} pipelines and ${releaseFlows.length} release flows:\n`);
 
-    for (const pipeline of repo.pipelines) {
+    for (const pipeline of pipelines) {
       let content: any;
       try {
         if (pipeline.type === "internal") {
@@ -63,6 +66,28 @@ export async function listPipelinesCommand(options: { userData?: string }) {
         console.log(`   Path: ${pipeline.path}`);
       }
       console.log(`   Plugins: ${Array.from(plugins).join(", ") || "None"}`);
+    }
+
+    for (const flow of releaseFlows) {
+      try {
+        const flowPath = context.getConfigPath(`${flow.configName}.json`);
+        const content = JSON.parse(await readFile(flowPath, "utf-8"));
+
+        console.log(
+          `--------------------------------------------------------------------------------`,
+        );
+        console.log(`Release flow: ${content.name || "Unnamed"} (${flow.id})`);
+        console.log(`   Source: ${content.source?.path || "None"}`);
+        console.log(
+          `   Destinations: ${content.destinations?.map((destination: { type: string }) => destination.type).join(", ") || "None"}`,
+        );
+      } catch (e: any) {
+        console.log(
+          `--------------------------------------------------------------------------------`,
+        );
+        console.log(`Error: Could not read release flow ${flow.id}`);
+        console.log(`    Reason: ${e.message}`);
+      }
     }
   } catch (error: any) {
     console.error("Failed to list pipelines:", error.message);

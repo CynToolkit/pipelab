@@ -39,6 +39,17 @@ export default createNodeDefinition({
         },
       ],
     },
+    {
+      name: "Browser Profile",
+      fields: [
+        {
+          key: "path",
+          label: "Chrome profile directory",
+          type: "directory",
+          placeholder: "e.g., ~/.config/google-chrome",
+        },
+      ],
+    },
   ],
 });
 

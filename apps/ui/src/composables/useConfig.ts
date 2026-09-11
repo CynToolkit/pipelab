@@ -9,8 +9,6 @@ import {
   defaultFileRepo,
 } from "@pipelab/shared";
 
-const isElectron = typeof window !== "undefined" && !!window.electron;
-
 function createConfigComposable<T>(
   loadChannel: "settings:load" | "connections:load" | "projects:load",
   saveChannel: "settings:save" | "connections:save" | "projects:save",
@@ -28,11 +26,6 @@ function createConfigComposable<T>(
     }
 
     loadedPromise = (async () => {
-      console.log(`[useConfig] load "${loadChannel}": isElectron =`, isElectron);
-      if (!isElectron) {
-        return;
-      }
-
       if (!api.isConnected()) {
         console.warn(`[useConfig] API not connected for loading "${loadChannel}"`);
         loadedPromise = null;
@@ -60,7 +53,7 @@ function createConfigComposable<T>(
 
   const save = async (newValue: T): Promise<void> => {
     data.value = newValue;
-    if (isElectron && api.isConnected()) {
+    if (api.isConnected()) {
       try {
         const result = await api.execute(saveChannel as any, { data: newValue });
         if (result.type === "error") {
@@ -73,7 +66,7 @@ function createConfigComposable<T>(
   };
 
   const reset = async (key: keyof T): Promise<void> => {
-    if (isElectron && api.isConnected()) {
+    if (api.isConnected()) {
       try {
         const result = await api.execute(resetChannel as any, { key: String(key) });
         if (result.type === "success") {

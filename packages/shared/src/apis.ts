@@ -124,6 +124,8 @@ export type IpcDefinition = {
       }[];
     }>,
   ];
+  "fs:createDirectory": [{ path: string }, EndEvent<{ ok: boolean }>];
+  "fs:getRoots": [void, EndEvent<{ roots: { name: string; path: string }[] }>];
   "fs:isPathBlacklisted": [{ path: string }, EndEvent<{ isBlacklisted: boolean }>];
   "fs:getHomeDirectory": [void, EndEvent<{ path: string }>];
   "dialog:showOpenDialog": [
@@ -175,6 +177,16 @@ export type IpcDefinition = {
   "release-flow:load-by-name": [{ name: string }, EndEvent<ReleaseFlow>];
   "release-flow:save-by-name": [{ name: string; data: string }, EndEvent<"ok">];
   "release-flow:delete-by-name": [{ name: string }, EndEvent<"ok">];
+  "release-flow:execute": [
+    { name: string; destinations?: string[] },
+    (
+      | { type: "release-stage"; data: { stage: string; status: "running" | "completed" | "failed" } }
+      | { type: "release-destination"; data: { type: string; status: "running" | "completed" | "failed"; error?: string } }
+      | { type: "release-log"; data: { message: string; time: number } }
+      | EndEvent<{ destinations: Record<string, { status: "completed" | "failed"; error?: string }> }>
+    ),
+  ];
+  "release-flow:cancel": [void, EndEvent<{ result: "ok" | "ko" }>];
   "action:cancel": [void, EndEvent<{ result: "ok" | "ko" }>];
 
   // Build History APIs
