@@ -4,7 +4,7 @@
   "license": "FSL-1.1-MIT",
   "scripts": {
     "build": "turbo build",
-    "dev": "turbo dev --filter=@pipelab/ui --filter=@pipelab/app",
+    "dev": "turbo dev",
     "lint": "turbo lint",
     "test": "turbo test",
     "typecheck": "turbo typecheck",
