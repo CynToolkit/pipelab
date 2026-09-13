@@ -518,6 +518,7 @@ describe("model", () => {
             },
           },
         ],
+        releaseFlows: [],
       });
     });
 
