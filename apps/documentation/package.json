@@ -7,7 +7,7 @@
     "dev": "vitepress dev",
     "build": "vitepress build",
     "preview": "vitepress preview",
-    "generate-mermaid": "mmdc -i assets/*.mermaid -o assets/ -t default -b transparent"
+    "generate-mermaid": "pnpm exec mmdc -i assets/architecture/architecture.mermaid -o assets/architecture/architecture.svg -t default -b transparent && pnpm exec mmdc -i assets/roadmap.mermaid -o assets/roadmap.svg -t default -b transparent && pnpm exec mmdc -i assets/engine-choose.mermaid -o assets/engine-choose.svg -t default -b transparent && pnpm exec mmdc -i assets/graph-processing-flow.mermaid -o assets/graph-processing-flow.svg -t default -b transparent"
   },
   "license": "FSL-1.1-MIT",
   "devDependencies": {

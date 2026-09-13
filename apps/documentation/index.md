@@ -28,8 +28,7 @@ features:
     icon: 🔌
   - title: API reference
     details: Learn how to use Pipelab's API
-    link: /api/pipelab
+    link: /api
     icon: 📖
 
 ---
-

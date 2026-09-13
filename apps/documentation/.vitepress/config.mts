@@ -16,7 +16,7 @@ export default defineConfig({
     // https://vitepress.dev/reference/default-theme-config
     nav: [
       { text: 'Guide', link: '/guide/usage' },
-      { text: 'Reference', link: '/reference' },
+      { text: 'API Reference', link: '/api' },
       // { text: 'Blog', link: '/blog' },
       { text: 'Website', link: 'https://pipelab.app' }
     ],

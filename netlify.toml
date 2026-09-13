@@ -1,10 +1,10 @@
 [build]
   base = "apps/documentation/"
   command = "cd ../.. && pnpm install --frozen-lockfile && pnpm --filter @pipelab/documentation build"
-  publish = "apps/documentation/.vitepress/dist"
+  publish = ".vitepress/dist"
 
 [build.environment]
-  NODE_VERSION = "22"
+  NODE_VERSION = "24"
 
 [[redirects]]
   from = "/*"
