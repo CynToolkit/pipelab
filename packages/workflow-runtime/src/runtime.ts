@@ -1,0 +1,243 @@
+import {
+  WORKFLOW_VERSION,
+  type Workflow,
+  type WorkflowArtifact,
+  type WorkflowError,
+  type WorkflowEventInput,
+  type WorkflowResult,
+  type WorkflowRunContext,
+  type WorkflowStep,
+  type WorkflowStepResult,
+  type WorkflowTaskRegistry,
+} from "./types";
+import { RUN_COMMAND_TASK_ID, runCommandTask } from "./tasks/run-command";
+
+const builtInTasks: WorkflowTaskRegistry = {
+  [RUN_COMMAND_TASK_ID]: runCommandTask,
+};
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+const toError = (value: unknown): Error =>
+  value instanceof Error ? value : new Error(typeof value === "string" ? value : String(value));
+
+const serializeError = (value: unknown): WorkflowError => {
+  const error = toError(value);
+  return { name: error.name || "Error", message: error.message };
+};
+
+const abortError = (reason: unknown): Error => {
+  const error = new Error(
+    reason instanceof Error ? reason.message : String(reason || "Workflow cancelled"),
+  );
+  error.name = "AbortError";
+  return error;
+};
+
+const ensureNotAborted = (signal: AbortSignal): void => {
+  if (signal.aborted) throw abortError(signal.reason);
+};
+
+const formatLogValue = (value: unknown): string => {
+  if (value instanceof Error) return value.stack || value.message;
+  if (typeof value === "string") return value;
+  if (typeof value === "object" && value !== null) {
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return String(value);
+    }
+  }
+  return String(value);
+};
+
+const formatLog = (args: unknown[]): string => args.map(formatLogValue).join(" ");
+
+const getPath = (value: Record<string, unknown>, path: string): unknown => {
+  let current: unknown = value;
+  for (const segment of path.split(".")) {
+    if (!isRecord(current) || !(segment in current)) {
+      throw new Error(`Workflow reference not found: ${path}`);
+    }
+    current = current[segment];
+  }
+  return current;
+};
+
+const resolveReference = (
+  reference: string,
+  variables: Record<string, unknown>,
+  outputs: Record<string, Record<string, unknown>>,
+): unknown => {
+  if (reference.startsWith("variables.")) {
+    return getPath(variables, reference.slice("variables.".length));
+  }
+  if (reference.startsWith("steps.")) {
+    const match = /^steps\.([^.]+)\.outputs\.(.+)$/.exec(reference);
+    if (!match) throw new Error(`Invalid workflow reference: ${reference}`);
+    const stepOutputs = outputs[match[1]];
+    if (!stepOutputs) throw new Error(`Workflow step output not found: ${match[1]}`);
+    return getPath(stepOutputs, match[2]);
+  }
+  throw new Error(`Invalid workflow reference: ${reference}`);
+};
+
+const referencePattern = /\$\{\{\s*([^{}]+?)\s*\}\}/g;
+
+const resolveValue = (
+  value: unknown,
+  variables: Record<string, unknown>,
+  outputs: Record<string, Record<string, unknown>>,
+): unknown => {
+  if (Array.isArray(value)) return value.map((item) => resolveValue(item, variables, outputs));
+  if (isRecord(value)) {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [key, resolveValue(item, variables, outputs)]),
+    );
+  }
+  if (typeof value !== "string") return value;
+
+  const exact = /^\$\{\{\s*([^{}]+?)\s*\}\}$/.exec(value);
+  if (exact) return resolveReference(exact[1], variables, outputs);
+
+  return value.replace(referencePattern, (_match, reference: string) =>
+    formatLogValue(resolveReference(reference.trim(), variables, outputs)),
+  );
+};
+
+const resolveInputs = (
+  step: WorkflowStep,
+  variables: Record<string, unknown>,
+  outputs: Record<string, Record<string, unknown>>,
+): Record<string, unknown> => {
+  if (!step.with) return {};
+  return resolveValue(step.with, variables, outputs) as Record<string, unknown>;
+};
+
+const validateWorkflow = (workflow: Workflow): void => {
+  if (!isRecord(workflow) || workflow.version !== WORKFLOW_VERSION) {
+    throw new Error(`Unsupported workflow version: ${String(workflow?.version)}`);
+  }
+  if (!Array.isArray(workflow.steps)) throw new Error("Workflow steps must be an array");
+
+  const ids = new Set<string>();
+  for (const step of workflow.steps) {
+    if (!isRecord(step) || typeof step.id !== "string" || step.id.length === 0) {
+      throw new Error("Every workflow step must have a non-empty id");
+    }
+    if (ids.has(step.id)) throw new Error(`Duplicate workflow step id: ${step.id}`);
+    ids.add(step.id);
+    if (typeof step.uses !== "string" || step.uses.length === 0) {
+      throw new Error(`Workflow step ${step.id} must have a non-empty uses value`);
+    }
+    if (step.with !== undefined && !isRecord(step.with)) {
+      throw new Error(`Workflow step ${step.id} inputs must be an object`);
+    }
+  }
+};
+
+export const runWorkflow = async (
+  workflow: Workflow,
+  context: WorkflowRunContext,
+): Promise<WorkflowResult> => {
+  validateWorkflow(workflow);
+  const signal = context.signal ?? new AbortController().signal;
+  const tasks = { ...builtInTasks, ...context.tasks };
+  const variables = context.variables ?? {};
+  const outputs: Record<string, Record<string, unknown>> = {};
+  const steps: Record<string, WorkflowStepResult> = {};
+  const artifacts: WorkflowArtifact[] = [];
+  const startedAt = Date.now();
+  const emit = (event: WorkflowEventInput): void => {
+    context.onEvent?.({ ...event, timestamp: Date.now() });
+  };
+
+  emit({ type: "workflow.started", workflow });
+
+  try {
+    for (const step of workflow.steps) {
+      const stepStartedAt = Date.now();
+      const stepArtifacts: WorkflowArtifact[] = [];
+      emit({ type: "step.started", stepId: step.id, uses: step.uses });
+
+      try {
+        ensureNotAborted(signal);
+        const task = tasks[step.uses];
+        if (!task) throw new Error(`Workflow task not found: ${step.uses}`);
+        const inputs = resolveInputs(step, variables, outputs);
+        const result =
+          (await task({
+            step,
+            inputs,
+            workspace: context.host.workspace,
+            filesystem: context.host.filesystem,
+            processes: context.host.processes,
+            logger: context.host.logger,
+            signal,
+            log: (...args) => {
+              context.host.logger.info(...args);
+              emit({
+                type: "step.log",
+                stepId: step.id,
+                stream: "stdout",
+                message: formatLog(args),
+              });
+            },
+            logStream: (stream, ...args) => {
+              context.host.logger.info(...args);
+              emit({ type: "step.log", stepId: step.id, stream, message: formatLog(args) });
+            },
+            setArtifact: (name, path) => stepArtifacts.push({ name, path }),
+          })) ?? {};
+        ensureNotAborted(signal);
+        if (!isRecord(result))
+          throw new Error(`Workflow task ${step.uses} returned invalid outputs`);
+
+        const completedAt = Date.now();
+        const stepResult: WorkflowStepResult = {
+          id: step.id,
+          uses: step.uses,
+          outputs: result,
+          artifacts: [...stepArtifacts],
+          startedAt: stepStartedAt,
+          completedAt,
+          duration: completedAt - stepStartedAt,
+        };
+        outputs[step.id] = result;
+        steps[step.id] = stepResult;
+        artifacts.push(...stepArtifacts);
+        emit({
+          type: "step.completed",
+          stepId: step.id,
+          uses: step.uses,
+          outputs: result,
+          artifacts: [...stepArtifacts],
+          duration: stepResult.duration,
+        });
+      } catch (error) {
+        const normalized = signal.aborted ? abortError(signal.reason) : toError(error);
+        emit({
+          type: "step.failed",
+          stepId: step.id,
+          uses: step.uses,
+          error: serializeError(normalized),
+          duration: Date.now() - stepStartedAt,
+        });
+        throw normalized;
+      }
+    }
+
+    const result: WorkflowResult = { outputs, artifacts, steps };
+    emit({ type: "workflow.completed", result, duration: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    const normalized = signal.aborted ? abortError(signal.reason) : toError(error);
+    emit({
+      type: "workflow.failed",
+      error: serializeError(normalized),
+      duration: Date.now() - startedAt,
+    });
+    throw normalized;
+  }
+};
