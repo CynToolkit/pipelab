@@ -97,7 +97,7 @@
                   <i class="mdi mdi-plus-circle-outline mr-2"></i>
                   {{ $t("home.new-pipeline") }}
                 </Button>
-                <Button size="small" severity="secondary" outlined @click="openReleaseFlowWizard">
+                <Button v-if="isDevMode" size="small" severity="secondary" outlined @click="openReleaseFlowWizard">
                   <i class="mdi mdi-rocket-launch-outline mr-2"></i>
                   New release flow
                 </Button>

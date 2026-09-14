@@ -42,6 +42,7 @@
         </router-link>
 
         <router-link
+          v-if="isDevMode"
           to="/connections"
           class="sidebar-nav-item"
           active-class="active"
@@ -262,6 +263,7 @@ const route = useRoute();
 const shell = useShell();
 
 const isElectron = !!window.electron;
+const isDevMode = process.env.NODE_ENV === "development";
 
 const openUpgradeDialog = inject(OpenUpgradeDialogKey) as () => void;
 
