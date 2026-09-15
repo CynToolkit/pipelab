@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { WorkflowTaskContext } from "@pipelab/workflow-runtime";
 import { PipelabContext } from "./context";
 import type { ActionRunner } from "./types/runner";
-import { createWorkflowActionTask } from "./workflow-tasks";
+import { createPipelabWorkflowTasks, createWorkflowActionTask } from "./workflow-tasks";
 
 const makeTaskContext = (): WorkflowTaskContext => ({
   step: { id: "test", uses: "test:action" },
@@ -46,5 +46,45 @@ describe("createWorkflowActionTask", () => {
     });
     expect(taskContext.log).toHaveBeenCalledWith("export started");
     expect(taskContext.setArtifact).toHaveBeenCalledWith("export", "/tmp/workflow/export");
+  });
+
+  it("registers the real workflow task IDs without the graph engine", async () => {
+    const runner = async () => undefined;
+    const plugin = (id: string, nodeIds: string[]) => ({
+      id,
+      nodes: nodeIds.map((nodeId) => ({ node: { id: nodeId }, runner })),
+    });
+    const tasks = createPipelabWorkflowTasks(
+      {
+        context: new PipelabContext({ userDataPath: "/tmp/pipelab-user-data" }),
+        paths: {
+          cache: "/tmp/cache",
+          pnpm: "/tmp/pnpm",
+          node: "/tmp/node",
+          userData: "/tmp/pipelab-user-data",
+          modules: "",
+          thirdparty: "/tmp/thirdparty",
+        },
+      },
+      [
+        plugin("@pipelab/plugin-construct", [
+          "export-construct-project",
+          "export-construct-project-folder",
+        ]),
+        plugin("@pipelab/plugin-filesystem", ["unzip-file-node"]),
+        plugin("@pipelab/plugin-electron", ["electron:package:v2"]),
+        plugin("@pipelab/plugin-steam", ["steam-upload"]),
+        plugin("@pipelab/plugin-itch", ["itch-upload"]),
+      ],
+    );
+
+    expect(Object.keys(tasks)).toEqual([
+      "construct:export",
+      "construct:export-folder",
+      "source:extract",
+      "electron:bundle",
+      "steam:upload",
+      "itch:upload",
+    ]);
   });
 });

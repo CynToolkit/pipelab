@@ -1,7 +1,5 @@
 import { uploadToItch, uploadToItchRunner } from "./export";
 
-export { uploadToItchRunner } from "./export";
-
 import { createNodeDefinition } from "@pipelab/plugin-core";
 
 export default createNodeDefinition({

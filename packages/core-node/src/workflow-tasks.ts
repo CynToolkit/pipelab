@@ -3,6 +3,7 @@ import type {
   WorkflowTaskContext,
   WorkflowTaskRegistry,
 } from "@pipelab/workflow-runtime";
+import { usePlugins } from "@pipelab/shared";
 import type { PipelabContext } from "./context";
 import type { ActionRunner, ActionRunnerData } from "./types/runner";
 
@@ -63,47 +64,71 @@ export const createWorkflowTaskRegistry = (
     Object.entries(runners).map(([id, runner]) => [id, createWorkflowActionTask(runner, options)]),
   );
 
-export const createPipelabWorkflowTasks = async (
+type RegisteredPlugin = {
+  id: string;
+  nodes: Array<{ node: { id: string }; runner: ActionRunner<any> }>;
+};
+
+const findRunner = (
+  pluginId: string,
+  nodeId: string,
+  registeredPlugins: RegisteredPlugin[],
+): ActionRunner<any> => {
+  const plugin = registeredPlugins.find((candidate) => candidate.id === pluginId);
+  const runner = plugin?.nodes.find((candidate) => candidate.node.id === nodeId)?.runner;
+  if (!runner) throw new Error(`Workflow plugin task not loaded: ${pluginId}/${nodeId}`);
+  return runner;
+};
+
+export const createPipelabWorkflowTasks = (
   options: WorkflowTaskOptions,
-): Promise<WorkflowTaskRegistry> => {
-  // Load plugin modules after core-node has initialized. Importing them at the
-  // top level would re-enter plugin-core through its core-node type boundary.
-  const [
-    { ExportActionRunner, ExportProjectActionRunner },
-    { unzipRunner },
-    { packageV2Runner },
-    { uploadToSteamRunner },
-    { uploadToItchRunner },
-  ] = await Promise.all([
-    import("@pipelab/plugin-construct"),
-    import("@pipelab/plugin-filesystem"),
-    import("@pipelab/plugin-electron"),
-    import("@pipelab/plugin-steam"),
-    import("@pipelab/plugin-itch"),
-  ]);
+  registeredPlugins = usePlugins().plugins.value as RegisteredPlugin[],
+): WorkflowTaskRegistry => {
+  const constructExport = findRunner(
+    "@pipelab/plugin-construct",
+    "export-construct-project",
+    registeredPlugins,
+  );
+  const constructExportFolder = findRunner(
+    "@pipelab/plugin-construct",
+    "export-construct-project-folder",
+    registeredPlugins,
+  );
+  const sourceExtract = findRunner(
+    "@pipelab/plugin-filesystem",
+    "unzip-file-node",
+    registeredPlugins,
+  );
+  const electronBundle = findRunner(
+    "@pipelab/plugin-electron",
+    "electron:package:v2",
+    registeredPlugins,
+  );
+  const steamUpload = findRunner("@pipelab/plugin-steam", "steam-upload", registeredPlugins);
+  const itchUpload = findRunner("@pipelab/plugin-itch", "itch-upload", registeredPlugins);
 
   return {
-    "construct:export": createWorkflowActionTask(ExportActionRunner, {
+    "construct:export": createWorkflowActionTask(constructExport, {
       ...options,
       outputAliases: { outputDirectory: "zipFile" },
       artifacts: { "source-export": "zipFile" },
     }),
-    "construct:export-folder": createWorkflowActionTask(ExportProjectActionRunner, {
+    "construct:export-folder": createWorkflowActionTask(constructExportFolder, {
       ...options,
       outputAliases: { outputDirectory: "zipFile" },
       artifacts: { "source-export": "zipFile" },
     }),
-    "source:extract": createWorkflowActionTask(unzipRunner, {
+    "source:extract": createWorkflowActionTask(sourceExtract, {
       ...options,
       outputAliases: { outputDirectory: "output" },
       artifacts: { "source-directory": "output" },
     }),
-    "electron:bundle": createWorkflowActionTask(packageV2Runner, {
+    "electron:bundle": createWorkflowActionTask(electronBundle, {
       ...options,
       outputAliases: { bundleDirectory: "output" },
       artifacts: { bundle: "output" },
     }),
-    "steam:upload": createWorkflowActionTask(uploadToSteamRunner, options),
-    "itch:upload": createWorkflowActionTask(uploadToItchRunner, options),
+    "steam:upload": createWorkflowActionTask(steamUpload, options),
+    "itch:upload": createWorkflowActionTask(itchUpload, options),
   };
 };

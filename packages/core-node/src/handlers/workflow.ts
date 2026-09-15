@@ -22,7 +22,7 @@ export const registerWorkflowHandlers = (context: PipelabContext) => {
       await mkdir(workspaceRoot, { recursive: true });
       const node = await ensureNodeJS(context);
       const pnpm = await ensurePNPM(context);
-      const tasks = await createPipelabWorkflowTasks({
+      const tasks = createPipelabWorkflowTasks({
         context,
         paths: {
           cache: context.getCachePath(
