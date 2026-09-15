@@ -16,6 +16,8 @@ import {
 import { configureRunner, props } from "./configure";
 import { packageV2Runner } from "./package-v2";
 
+export { packageV2Runner } from "./package-v2";
+
 export default createNodeDefinition({
   nodes: [
     // make and package

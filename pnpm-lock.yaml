@@ -569,6 +569,9 @@ importers:
       '@pipelab/shared':
         specifier: workspace:*
         version: link:../shared
+      '@pipelab/workflow-runtime':
+        specifier: workspace:*
+        version: link:../workflow-runtime
       '@supabase/supabase-js':
         specifier: 2.99.3
         version: 2.99.3
