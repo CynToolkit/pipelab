@@ -580,6 +580,9 @@ importers:
       '@pipelab/shared':
         specifier: workspace:*
         version: file:packages/shared(typescript@5.9.3)
+      '@pipelab/workflow-runtime':
+        specifier: workspace:*
+        version: link:../workflow-runtime
       '@supabase/supabase-js':
         specifier: 2.99.3
         version: 2.99.3
@@ -708,6 +711,9 @@ importers:
       '@pipelab/migration':
         specifier: workspace:*
         version: file:packages/migration(typescript@5.9.3)
+      '@pipelab/workflow-runtime':
+        specifier: workspace:*
+        version: link:../workflow-runtime
       '@supabase/supabase-js':
         specifier: 2.99.3
         version: 2.99.3
@@ -785,6 +791,30 @@ importers:
       '@types/node':
         specifier: ^24.12.2
         version: 24.12.2
+
+  packages/workflow-runtime:
+    devDependencies:
+      '@pipelab/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      '@types/node':
+        specifier: 24.12.2
+        version: 24.12.2
+      oxfmt:
+        specifier: 0.40.0
+        version: 0.40.0
+      oxlint:
+        specifier: 1.55.0
+        version: 1.55.0
+      tsdown:
+        specifier: 0.21.2
+        version: 0.21.2(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)(@vitejs/devtools@0.1.13)(publint@0.3.18)(typescript@5.9.3)
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 3.1.4
+        version: 3.1.4(@types/node@24.12.2)(jiti@2.6.1)(lightningcss@1.32.0)(msw@2.7.5(@types/node@24.12.2)(typescript@5.9.3))(sass-embedded@1.99.0)(sass@1.99.0)(terser@5.46.1)(tsx@4.19.1)
 
   plugins/plugin-construct:
     dependencies:

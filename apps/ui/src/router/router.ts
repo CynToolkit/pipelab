@@ -56,6 +56,14 @@ const routes: RouterOptions["routes"] = [
     },
   },
   {
+    path: "/workflow",
+    name: "Workflow",
+    component: () => import("../pages/simple-editor.vue"),
+    meta: {
+      title: "Workflow",
+    },
+  },
+  {
     path: "/billing",
     name: "Billing",
     component: () => import("../pages/editor.vue"),

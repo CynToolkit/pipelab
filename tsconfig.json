@@ -5,6 +5,7 @@
     { "path": "./packages/migration" },
     { "path": "./packages/shared" },
     { "path": "./packages/core-node" },
+    { "path": "./packages/workflow-runtime" },
     { "path": "./packages/test-utils" },
     { "path": "./apps/ui" },
     { "path": "./apps/cli" },

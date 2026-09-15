@@ -93,6 +93,10 @@
 
               <!-- Actions -->
               <div class="action-buttons">
+                <Button size="small" severity="secondary" variant="outlined" @click="router.push('/workflow')">
+                  <i class="mdi mdi-rocket-launch-outline mr-2"></i>
+                  Workflow
+                </Button>
                 <Button id="tour-new-pipeline" size="small" severity="secondary" @click="openNewProjectDialog">
                   <i class="mdi mdi-plus-circle-outline mr-2"></i>
                   {{ $t("home.new-pipeline") }}

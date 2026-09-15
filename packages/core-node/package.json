@@ -48,6 +48,7 @@
     "@pipelab/plugin-system": "workspace:*",
     "@pipelab/plugin-tauri": "workspace:*",
     "@pipelab/shared": "workspace:*",
+    "@pipelab/workflow-runtime": "workspace:*",
     "@supabase/supabase-js": "2.99.3",
     "adm-zip": "0.6.0",
     "archiver": "7.0.1",

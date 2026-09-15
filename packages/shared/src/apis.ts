@@ -7,6 +7,7 @@ import { FileRepo } from "./config/projects-definition";
 import type { ReleaseFlow } from "./release-flow";
 import { Agent } from "./websocket.types";
 import { BuildHistoryEntry, BuildHistoryQuery, BuildHistoryResponse } from "./build-history";
+import type { Workflow, WorkflowEvent, WorkflowResult } from "@pipelab/workflow-runtime";
 
 type Event<TYPE extends string, DATA> =
   | { type: TYPE; data: DATA }
@@ -188,6 +189,19 @@ export type IpcDefinition = {
   ];
   "release-flow:cancel": [void, EndEvent<{ result: "ok" | "ko" }>];
   "action:cancel": [void, EndEvent<{ result: "ok" | "ko" }>];
+  "workflow:execute": [
+    {
+      workflow: Workflow;
+      variables?: Record<string, unknown>;
+      pipelineId?: string;
+      projectName?: string;
+    },
+    (
+      | { type: "workflow-event"; data: WorkflowEvent }
+      | EndEvent<{ result: WorkflowResult; buildId: string }>
+    ),
+  ];
+  "workflow:cancel": [void, EndEvent<{ result: "ok" | "ko" }>];
 
   // Build History APIs
   "build-history:save": [{ entry: BuildHistoryEntry }, EndEvent<{ result: "ok" | "ko" }>];
