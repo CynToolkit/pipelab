@@ -6,13 +6,17 @@ import { electronApp, optimizer, is } from "@electron-toolkit/utils";
 import { startServer, stopServer } from "./main/server-process";
 import { websocketPort, uiDevPort, getProtocolName, getAppBundleId } from "@pipelab/constants";
 import { registerIpcHandlers } from "./main/ipc-handlers";
-import { getDefaultUserDataPath, fetchLatestDesktopRelease } from "@pipelab/core-node";
+import {
+  getDefaultUserDataPath,
+  fetchLatestDesktopRelease,
+} from "@pipelab/core-node/desktop";
 import started from "electron-squirrel-startup";
 import { PostHog } from "posthog-node";
 import { parseArgs } from "node:util";
 import semver from "semver";
 
 const isProduction = app.isPackaged && process.env.TEST !== "true";
+const isE2ESmokeTest = process.env.PIPELAB_E2E === "1";
 
 let posthog: PostHog | undefined;
 if (isProduction) {
@@ -176,7 +180,9 @@ function createWindow(): void {
     ...position,
     webPreferences: {
       preload: join(__dirname, "preload.cjs"),
-      sandbox: false,
+      sandbox: true,
+      contextIsolation: true,
+      nodeIntegration: false,
       devTools: is.dev,
       additionalArguments: [`--app-version=${app.getVersion()}`],
     },
@@ -191,6 +197,24 @@ function createWindow(): void {
       mainWindow?.webContents.send("protocol-url", pendingUrl);
       pendingUrl = null;
     }
+
+    if (isE2ESmokeTest) {
+      void mainWindow.webContents
+        .executeJavaScript(
+          "document.readyState === 'complete' && document.body && document.body.innerHTML.trim().length > 0",
+        )
+        .then((loaded) => {
+          if (!loaded) {
+            throw new Error("Renderer loaded an empty document");
+          }
+          console.info("[E2E] renderer-loaded");
+          app.exit(0);
+        })
+        .catch((error) => {
+          console.error("[E2E] renderer-load-failed:", error);
+          app.exit(1);
+        });
+    }
   });
 
   mainWindow.on("close", function () {
@@ -198,7 +222,14 @@ function createWindow(): void {
   });
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
-    shell.openExternal(details.url);
+    try {
+      const url = new URL(details.url);
+      if (url.protocol === "http:" || url.protocol === "https:") {
+        shell.openExternal(details.url);
+      }
+    } catch {
+      console.warn("Blocked invalid external URL", details.url);
+    }
     return { action: "deny" };
   });
 }

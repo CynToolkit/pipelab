@@ -28,7 +28,16 @@ export const registerIpcHandlers = () => {
   });
 
   ipcMain.handle("shell:openExternal", async (event, url) => {
-    return await shell.openExternal(url);
+    try {
+      const parsed = new URL(url);
+      if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+        throw new Error("Only HTTP and HTTPS URLs may be opened externally");
+      }
+      return await shell.openExternal(parsed.toString());
+    } catch (error) {
+      console.warn("Blocked external URL:", error);
+      return false;
+    }
   });
 
   ipcMain.handle("shell:showItemInFolder", (event, path) => {

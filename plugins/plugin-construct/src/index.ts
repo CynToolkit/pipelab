@@ -4,6 +4,12 @@ import { exportProjectAction, ExportProjectActionRunner } from "./export-project
 import { constructVersionValidator } from "./export-shared";
 
 export default createNodeDefinition({
+  id: "@pipelab/plugin-construct",
+  packageName: "@pipelab/plugin-construct",
+  name: "Construct",
+  description: "Pipelab plugin for exporting and packaging Construct 3 projects",
+  icon: { type: "icon", icon: "pi-clone" },
+  isOfficial: true,
   nodes: [
     {
       node: exportAction,
@@ -30,6 +36,17 @@ export default createNodeDefinition({
           label: "Browser Executable Path",
           type: "file",
           placeholder: "e.g., /usr/bin/google-chrome",
+        },
+      ],
+    },
+    {
+      name: "Browser Profile",
+      fields: [
+        {
+          key: "path",
+          label: "Chrome profile directory",
+          type: "directory",
+          placeholder: "e.g., ~/.config/google-chrome",
         },
       ],
     },

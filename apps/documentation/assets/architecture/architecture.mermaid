@@ -1,0 +1,27 @@
+graph TD
+    %% Define meaningful variables for elements and links
+    WEB_APP[Web Application]
+    DESKTOP_APP[Desktop Application]
+    AGENT_ONE[Agent 1]
+    AGENT_TWO[Agent 2]
+    AGENT_N[Agent N]
+    HOST_ENV[Host Environment]
+
+    subgraph "Client Applications"
+        WEB_APP
+        DESKTOP_APP
+    end
+
+    subgraph "Distributed Agents"
+        AGENT_ONE
+        AGENT_TWO
+        AGENT_N
+    end
+
+    %% Grouped arrows with the same text labels
+    DESKTOP_APP -- "Loads Web Application" --> WEB_APP
+    DESKTOP_APP -- "Downloads and Installs Agents" --> AGENT_ONE & AGENT_TWO & AGENT_N
+
+    WEB_APP -- "WebSocket Communication" <--> AGENT_ONE & AGENT_TWO & AGENT_N
+
+    AGENT_ONE & AGENT_TWO & AGENT_N -- "Installs on: Any OS/Server/PC" --> HOST_ENV

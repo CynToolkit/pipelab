@@ -1,4 +1,4 @@
-import { createActionRunner, fetchPipelabAsset } from "@pipelab/plugin-core";
+import { createActionRunner, resolveBundledAsset } from "@pipelab/plugin-core";
 import { createPackageProps, discord } from "./discord";
 import { merge } from "ts-deepmerge";
 import { defaultTauriConfig } from "./utils";
@@ -11,7 +11,7 @@ export const packageV2Runner = createActionRunner<ReturnType<typeof createPackag
 
     const { cache, node, pnpm } = paths;
     const destinationFolder = join(cwd);
-    const rawAssetFolder = await fetchPipelabAsset("@pipelab/asset-discord", "^1.0.0", { context });
+    const rawAssetFolder = await resolveBundledAsset("@pipelab/asset-discord");
     const templateFolder = join(rawAssetFolder, "template");
 
     // copy template to destination

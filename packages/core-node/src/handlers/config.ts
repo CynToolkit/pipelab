@@ -13,6 +13,8 @@ import {
   setupPipelineConfigFileByPath,
   deletePipelineConfigFileByName,
   deletePipelineConfigFileByPath,
+  setupReleaseFlowConfigFileByName,
+  deleteReleaseFlowConfigFileByName,
 } from "../config";
 import { PipelabContext } from "../context";
 
@@ -360,5 +362,29 @@ export const registerConfigHandlers = (context: PipelabContext) => {
         },
       });
     }
+  });
+
+  handle("release-flow:load-by-name", async (_, { send, value }) => {
+    try {
+      const manager = await setupReleaseFlowConfigFileByName(value.name, context);
+      send({ type: "end", data: { type: "success", result: await manager.getConfig() } });
+    } catch (e) {
+      send({ type: "end", data: { type: "error", ipcError: e instanceof Error ? e.message : "Unable to load release flow" } });
+    }
+  });
+
+  handle("release-flow:save-by-name", async (_, { send, value }) => {
+    try {
+      const manager = await setupReleaseFlowConfigFileByName(value.name, context);
+      await manager.setConfig(JSON.parse(value.data));
+      send({ type: "end", data: { type: "success", result: "ok" } });
+    } catch (e) {
+      send({ type: "end", data: { type: "error", ipcError: e instanceof Error ? e.message : "Unable to save release flow" } });
+    }
+  });
+
+  handle("release-flow:delete-by-name", async (_, { send, value }) => {
+    try { await deleteReleaseFlowConfigFileByName(value.name, context); send({ type: "end", data: { type: "success", result: "ok" } }); }
+    catch (e) { send({ type: "end", data: { type: "error", ipcError: e instanceof Error ? e.message : "Unable to delete release flow" } }); }
   });
 };

@@ -41,7 +41,7 @@
               {{ "Deprecated" }}
             </Button>
           </div>
-          <div v-if="subtitle" class="subtitle" v-html="subtitle"></div>
+          <div v-if="subtitle" class="subtitle" v-dompurify-html="subtitle"></div>
           <Skeleton v-else width="300px" height="28px"></Skeleton>
         </div>
 

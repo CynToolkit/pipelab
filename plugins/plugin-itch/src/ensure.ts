@@ -1,7 +1,8 @@
 import { join } from "node:path";
 import { access, mkdir, chmod, rm } from "node:fs/promises";
 import { constants } from "node:fs";
-import { downloadFile, extractZip, PipelabContext } from "@pipelab/plugin-core";
+import { downloadFile, extractZip } from "@pipelab/plugin-core";
+import type { PipelabContext } from "@pipelab/plugin-core";
 
 /**
  * Installs itch.io butler CLI if not already present.

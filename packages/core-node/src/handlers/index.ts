@@ -9,6 +9,7 @@ import { registerSystemHandlers } from "./system";
 import { registerPluginsHandlers } from "./plugins";
 import { registerMigrationHandlers } from "./migration";
 import { registerWorkflowHandlers } from "./workflow";
+import { registerReleaseFlowHandlers } from "./release-flow";
 import { builtInPlugins } from "../plugins-registry";
 import { PipelabContext } from "../context";
 
@@ -33,6 +34,7 @@ export const registerAllHandlers = async (options: {
   registerSystemHandlers(options);
   registerPluginsHandlers(context);
   registerMigrationHandlers(context);
+  registerReleaseFlowHandlers(context);
 
   if (options.waitForPlugins) {
     await pluginsPromise;
@@ -47,3 +49,4 @@ export { registerEngineHandlers } from "./engine";
 export { registerAgentsHandlers } from "./agents";
 export { BuildHistoryStorage } from "./build-history";
 export { registerWorkflowHandlers } from "./workflow";
+export { registerReleaseFlowHandlers } from "./release-flow";

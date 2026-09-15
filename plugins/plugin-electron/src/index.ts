@@ -17,6 +17,12 @@ import { configureRunner, props } from "./configure";
 import { packageV2Runner } from "./package-v2";
 
 export default createNodeDefinition({
+  id: "@pipelab/plugin-electron",
+  packageName: "@pipelab/plugin-electron",
+  name: "Electron",
+  description: "Pipelab plugin for packaging apps with Electron",
+  icon: { type: "icon", icon: "pi-desktop" },
+  isOfficial: true,
   nodes: [
     // make and package
     {

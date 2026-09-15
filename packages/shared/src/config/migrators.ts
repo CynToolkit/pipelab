@@ -187,6 +187,7 @@ export const defaultFileRepo = fileRepoMigratorInternal.createDefault({
     },
   ],
   pipelines: [],
+  releaseFlows: [],
 });
 
 export const fileRepoMigrations = fileRepoMigratorInternal.createMigrations({
@@ -222,6 +223,7 @@ export const fileRepoMigrations = fileRepoMigratorInternal.createMigrations({
       up: (state) => {
         return {
           ...state,
+          releaseFlows: [],
         };
       },
     }),

@@ -4,7 +4,21 @@ import { ref } from "vue";
 export interface FilePickerOptions {
   title?: string;
   defaultPath?: string;
-  properties?: string[];
+  buttonLabel?: string;
+  message?: string;
+  nameFieldLabel?: string;
+  properties?: Array<
+    | "openFile"
+    | "openDirectory"
+    | "multiSelections"
+    | "showHiddenFiles"
+    | "createDirectory"
+    | "promptToCreate"
+    | "noResolveAliases"
+    | "treatPackageAsDirectory"
+    | "dontAddToRecent"
+    | "showOverwriteConfirmation"
+  >;
   filters?: { name: string; extensions: string[] }[];
   mode: "open" | "save";
 }

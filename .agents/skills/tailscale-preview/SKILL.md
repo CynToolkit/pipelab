@@ -1,3 +1,8 @@
+---
+name: tailscale-preview
+description: Serve the Pipelab UI and CLI dev servers for remote browser access over Tailscale.
+---
+
 # Tailscale Preview — serve the app for remote browser access
 
 Run the Pipelab UI + CLI dev servers so a remote browser (e.g. the developer's

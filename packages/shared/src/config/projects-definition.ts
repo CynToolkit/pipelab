@@ -12,6 +12,14 @@ export const FileRepoProjectValidatorV2 = object({
   description: string(),
 });
 
+export const SaveLocationReleaseFlowValidator = object({
+  id: string(),
+  project: string(),
+  lastModified: string(),
+  type: literal("internal-release-flow"),
+  configName: string(),
+});
+
 export const FileRepoValidatorV2 = object({
   version: literal("2.0.0"),
   projects: array(FileRepoProjectValidatorV2),
@@ -22,7 +30,10 @@ export const FileRepoValidatorV3 = object({
   version: literal("3.0.0"),
   projects: array(FileRepoProjectValidatorV2),
   pipelines: optional(array(SaveLocationValidator), []),
+  releaseFlows: optional(array(SaveLocationReleaseFlowValidator), []),
 });
+
+export type SaveLocationReleaseFlow = InferInput<typeof SaveLocationReleaseFlowValidator>;
 
 export type FileRepoV1 = InferInput<typeof FileRepoValidatorV1>;
 export type FileRepoV2 = InferInput<typeof FileRepoValidatorV2>;

@@ -4,6 +4,7 @@ import type { Tagged } from "type-fest";
 import { PresetResult, Steps, SavedFile } from "./model";
 import { AppConfig, ConnectionsConfig } from "./config.schema";
 import { FileRepo } from "./config/projects-definition";
+import type { ReleaseFlow } from "./release-flow";
 import { Agent } from "./websocket.types";
 import { BuildHistoryEntry, BuildHistoryQuery, BuildHistoryResponse } from "./build-history";
 import type { Workflow, WorkflowEvent, WorkflowResult } from "@pipelab/workflow-runtime";
@@ -124,6 +125,8 @@ export type IpcDefinition = {
       }[];
     }>,
   ];
+  "fs:createDirectory": [{ path: string }, EndEvent<{ ok: boolean }>];
+  "fs:getRoots": [void, EndEvent<{ roots: { name: string; path: string }[] }>];
   "fs:isPathBlacklisted": [{ path: string }, EndEvent<{ isBlacklisted: boolean }>];
   "fs:getHomeDirectory": [void, EndEvent<{ path: string }>];
   "dialog:showOpenDialog": [
@@ -172,6 +175,19 @@ export type IpcDefinition = {
   "pipeline:save-by-path": [{ path: string; data: string }, EndEvent<"ok">];
   "pipeline:delete-by-name": [{ name: string }, EndEvent<"ok">];
   "pipeline:delete-by-path": [{ path: string }, EndEvent<"ok">];
+  "release-flow:load-by-name": [{ name: string }, EndEvent<ReleaseFlow>];
+  "release-flow:save-by-name": [{ name: string; data: string }, EndEvent<"ok">];
+  "release-flow:delete-by-name": [{ name: string }, EndEvent<"ok">];
+  "release-flow:execute": [
+    { name: string; destinations?: string[] },
+    (
+      | { type: "release-stage"; data: { stage: string; status: "running" | "completed" | "failed" } }
+      | { type: "release-destination"; data: { type: string; status: "running" | "completed" | "failed"; error?: string } }
+      | { type: "release-log"; data: { message: string; time: number } }
+      | EndEvent<{ destinations: Record<string, { status: "completed" | "failed"; error?: string }> }>
+    ),
+  ];
+  "release-flow:cancel": [void, EndEvent<{ result: "ok" | "ko" }>];
   "action:cancel": [void, EndEvent<{ result: "ok" | "ko" }>];
   "workflow:execute": [
     {

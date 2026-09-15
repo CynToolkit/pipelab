@@ -504,6 +504,7 @@ import Layout from "@renderer/components/Layout.vue";
 interface ConnectedAccount {
   id: string;
   pluginName: string;
+  integrationName?: string;
   name: string;
   email?: string;
   apiKey?: string;
@@ -652,6 +653,10 @@ const selectedConnectionIntegration = computed(() => {
   const def = selectedConnectionPluginDefinition.value;
   if (!conn || !def?.integrations || def.integrations.length === 0) return null;
 
+  if (conn.integrationName) {
+    const named = def.integrations.find((integration) => integration.name === conn.integrationName);
+    if (named) return named;
+  }
   if (def.integrations.length === 1) return def.integrations[0];
 
   // Find the integration that matches the saved connection fields best
@@ -958,6 +963,7 @@ const saveNewAccount = async () => {
     const newAcc: ConnectedAccount = {
       id: newId,
       pluginName,
+      integrationName: target?.integrationName,
       name: newConnectionName.value,
       email: email || undefined,
       apiKey: apiKey || undefined,
@@ -997,9 +1003,8 @@ const saveConnectionEdits = async () => {
 
   const updated = connectedAccounts.value.map((conn) => {
     if (conn.id === selectedConnectionId.value) {
-      const copy = { ...conn, name: editConnectionName.value };
-
       const integration = selectedConnectionIntegration.value;
+      const copy = { ...conn, name: editConnectionName.value, integrationName: integration?.name };
       if (integration?.fields) {
         copy.email = undefined;
         copy.apiKey = undefined;

@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeEach, afterEach, vi } from "vitest";
-import { isOnline, fetchPackage, fetchPipelabPlugin } from "./remote";
+import { isOnline, fetchPackage } from "./remote";
 import dns from "node:dns/promises";
 import pacote from "pacote";
 import { vol } from "memfs";
@@ -91,119 +91,12 @@ describe("remote utilities & offline mode", () => {
     expect(pacote.packument).not.toHaveBeenCalled();
   });
 
-  // [DISABLED] Bundled mode: @pipelab/* packages resolve from monorepo/local cache, never npm.
-  // Re-enable: restore the pacote.packument mock + expect(packument).toHaveBeenCalledWith(...) assertion below.
-  test("fetchPipelabPlugin resolves official plugins from local cache without npm in bundled mode", async () => {
-    vi.advanceTimersByTime(30000); // Bypass 10s caching
-    const context = new PipelabContext({
-      userDataPath: "/tmp/pipelab-test-remote",
-      releaseTag: "beta",
-    });
-    const pluginName = "@pipelab/plugin-poki";
-    const packageBaseDir = context.getPackagesPath(pluginName);
-    const cachedVersionDir = path.join(packageBaseDir, "1.0.0-beta.15");
+  test("rejects Pipelab packages because the released CLI bundles them", async () => {
+    const context = new PipelabContext({ userDataPath: "/tmp/pipelab-test-remote" });
 
-    vi.spyOn(dns, "lookup").mockResolvedValue({ address: "1.2.3.4", family: 4 } as any);
-
-    // Original npm-path setup (re-enable with the fetchPackage npm guard):
-    // vi.mocked(pacote.packument).mockResolvedValue({
-    //   name: pluginName,
-    //   versions: { "1.0.0-beta.15": {} },
-    //   "dist-tags": { beta: "1.0.0-beta.15" },
-    // } as any);
-
-    await fs.mkdir(cachedVersionDir, { recursive: true });
-    await fs.writeFile(
-      path.join(cachedVersionDir, "package.json"),
-      JSON.stringify({
-        name: pluginName,
-        version: "1.0.0-beta.15",
-        main: "dist/index.mjs",
-      }),
+    await expect(fetchPackage("@pipelab/plugin-poki", "latest", { context })).rejects.toThrow(
+      "must be provided by the CLI bundle",
     );
-
-    const result = await fetchPipelabPlugin(pluginName, "latest", { context });
-
-    // Bundled mode: npm is never consulted for @pipelab/* packages.
     expect(pacote.packument).not.toHaveBeenCalled();
-    expect(result.packageDir).toBe(cachedVersionDir);
-  });
-
-  test("fetchPipelabPlugin maps latest to releaseTag for custom plugins and falls back to latest if tag is missing", async () => {
-    vi.advanceTimersByTime(40000); // Bypass 10s caching
-    const context = new PipelabContext({
-      userDataPath: "/tmp/pipelab-test-remote-custom",
-      releaseTag: "beta",
-    });
-    const pluginName = "custom-cool-plugin";
-    const packageBaseDir = context.getPackagesPath(pluginName);
-    const cachedVersionDir = path.join(packageBaseDir, "2.0.0");
-
-    vi.spyOn(dns, "lookup").mockResolvedValue({ address: "1.2.3.4", family: 4 } as any);
-
-    vi.mocked(pacote.packument).mockResolvedValue({
-      name: pluginName,
-      versions: {
-        "2.0.0": {},
-      },
-      "dist-tags": {
-        latest: "2.0.0",
-      },
-    } as any);
-
-    await fs.mkdir(cachedVersionDir, { recursive: true });
-    await fs.writeFile(
-      path.join(cachedVersionDir, "package.json"),
-      JSON.stringify({
-        name: pluginName,
-        version: "2.0.0",
-        main: "dist/index.mjs",
-      }),
-    );
-
-    const result = await fetchPipelabPlugin(pluginName, "latest", { context });
-
-    expect(pacote.packument).toHaveBeenCalledWith(pluginName, expect.any(Object));
-    expect(result.packageDir).toBe(cachedVersionDir);
-  });
-
-  test("fetchPipelabPlugin maps latest to releaseTag for custom plugins and falls back to latest if beta is stale", async () => {
-    vi.advanceTimersByTime(50000); // Bypass 10s caching
-    const context = new PipelabContext({
-      userDataPath: "/tmp/pipelab-test-remote-stale",
-      releaseTag: "beta",
-    });
-    const pluginName = "stale-beta-plugin";
-    const packageBaseDir = context.getPackagesPath(pluginName);
-    const cachedVersionDir = path.join(packageBaseDir, "2.0.0");
-
-    vi.spyOn(dns, "lookup").mockResolvedValue({ address: "1.2.3.4", family: 4 } as any);
-
-    vi.mocked(pacote.packument).mockResolvedValue({
-      name: pluginName,
-      versions: {
-        "1.0.0-beta.1": {},
-        "2.0.0": {},
-      },
-      "dist-tags": {
-        beta: "1.0.0-beta.1",
-        latest: "2.0.0",
-      },
-    } as any);
-
-    await fs.mkdir(cachedVersionDir, { recursive: true });
-    await fs.writeFile(
-      path.join(cachedVersionDir, "package.json"),
-      JSON.stringify({
-        name: pluginName,
-        version: "2.0.0",
-        main: "dist/index.mjs",
-      }),
-    );
-
-    const result = await fetchPipelabPlugin(pluginName, "latest", { context });
-
-    expect(pacote.packument).toHaveBeenCalledWith(pluginName, expect.any(Object));
-    expect(result.packageDir).toBe(cachedVersionDir);
   });
 });

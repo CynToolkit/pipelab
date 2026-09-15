@@ -5,64 +5,105 @@ import { VitePlugin } from "@electron-forge/plugin-vite";
 import { FusesPlugin } from "@electron-forge/plugin-fuses";
 import { MakerDMG } from "@electron-forge/maker-dmg";
 import { FuseV1Options, FuseVersion } from "@electron/fuses";
-import { name } from "@pipelab/constants";
 import fs from "node:fs/promises";
 import path from "path";
 import { fileURLToPath } from "node:url";
+import { getAppBundleId, getProductName } from "@pipelab/constants";
+import { version } from "./package.json";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-console.log(`[Forge Config] Host arch: ${process.arch}`);
-console.log(`[Forge Config] Target arch (env.TARGET_ARCH): ${process.env.TARGET_ARCH}`);
-console.log(`[Forge Config] npm_config_arch: ${process.env.npm_config_arch}`);
+console.log("[Forge Config] Host arch: " + process.arch);
+console.log("[Forge Config] Target arch (env.TARGET_ARCH): " + process.env.TARGET_ARCH);
+console.log("[Forge Config] npm_config_arch: " + process.env.npm_config_arch);
 
-const getStandardOs = (p: string) => ({ win32: "win", darwin: "macos", linux: "linux" })[p] || p;
+const getStandardOs = (platform: string) =>
+  ({ win32: "win", darwin: "macos", linux: "linux" })[platform] || platform;
 
-/**
- * Renames Forge-generated installers in /out/make.
- */
+const packagedSourceRoots = ["/.vite", "/dist/cli", "/assets/build"];
+const packagedSourceFiles = ["/package.json"];
+
+// Electron Packager supplies a normalized source-relative path beginning with
+// "/". Keep only the built runtime and never traverse the deploy node_modules.
+const ignoreDesktopSource = (filePath: string) => {
+  if (!filePath) return false;
+
+  let normalized = filePath.replaceAll("\\", "/");
+  const sourceRoot = __dirname.replaceAll("\\", "/");
+  if (normalized === sourceRoot || normalized.startsWith(sourceRoot + "/")) {
+    normalized = "/" + path.relative(__dirname, filePath).replaceAll("\\", "/");
+  } else if (!normalized.startsWith("/")) {
+    normalized = "/" + normalized;
+  }
+
+  if (normalized === "/") return false;
+
+  const allowed = packagedSourceFiles.concat(packagedSourceRoots);
+  return !allowed.some(
+    (root) =>
+      normalized === root ||
+      normalized.startsWith(root + "/") ||
+      root.startsWith(normalized + "/"),
+  );
+};
+
+async function verifyPackagedLayout(buildPath: string) {
+  const cliPath = path.join(buildPath, "dist/cli");
+  await Promise.all([
+    fs.access(path.join(buildPath, ".vite/build/main.js")),
+    fs.access(path.join(cliPath, "package.json")),
+    fs.access(path.join(cliPath, "index.mjs")),
+    fs.access(path.join(cliPath, "ui/index.html")),
+  ]);
+}
+
 async function renameInstallers(platform: string, arch: string) {
   const pkgPath = path.join(__dirname, "package.json");
-  const { version } = JSON.parse(await fs.readFile(pkgPath, "utf-8"));
-  const os = getStandardOs(platform);
+  const packageJson = JSON.parse(await fs.readFile(pkgPath, "utf-8"));
   const makeDir = path.join(__dirname, "out/make");
-
   const exists = await fs
     .access(makeDir)
     .then(() => true)
     .catch(() => false);
   if (!exists) return;
 
+  const os = getStandardOs(platform);
   const files = await fs.readdir(makeDir, { recursive: true });
-
-  for (const relFile of files) {
-    const file = path.join(makeDir, relFile);
+  for (const relativeFile of files) {
+    const file = path.join(makeDir, relativeFile);
     if ((await fs.stat(file)).isDirectory()) continue;
 
-    const ext = path.extname(file);
+    const extension = path.extname(file);
     const basename = path.basename(file);
-    if ([".zip", ".dmg", ".exe", ".deb", ".rpm"].includes(ext) && !basename.includes("-v")) {
-      const newName = `pipelab-desktop-v${version}-${os}-${arch}${ext}`;
-      await fs.rename(file, path.join(path.dirname(file), newName));
+    if (
+      [".zip", ".dmg", ".exe", ".deb", ".rpm"].includes(extension) &&
+      !basename.includes("-v")
+    ) {
+      const renamed =
+        "pipelab-desktop-v" +
+        packageJson.version +
+        "-" +
+        os +
+        "-" +
+        arch +
+        extension;
+      await fs.rename(file, path.join(path.dirname(file), renamed));
     }
   }
 }
-
-import { getAppBundleId, getProductName } from "@pipelab/constants";
-import { version } from "./package.json";
 
 const productName = getProductName(version);
 const bundleId = getAppBundleId(version);
 
 const config: ForgeConfig = {
+  outDir: path.resolve(__dirname, "../out"),
   packagerConfig: {
     // @ts-expect-error - Force architecture as Forge CLI sometimes ignores --arch flag in CI
     arch: process.env.TARGET_ARCH || process.env.npm_config_arch || process.arch,
     prune: false,
     appBundleId: bundleId,
-    asar: true,
-    extraResource: [],
+    asar: false,
+    ignore: ignoreDesktopSource,
     name: productName,
     icon: path.join(__dirname, "assets/build/icon"),
     extendInfo: {
@@ -74,7 +115,10 @@ const config: ForgeConfig = {
       teamId: process.env.APPLE_TEAM_ID || "",
     },
     osxSign: {
-      identity: `Developer ID Application: Quentin Goinaud (${process.env.APPLE_TEAM_ID})`,
+      identity:
+        "Developer ID Application: Quentin Goinaud (" +
+        (process.env.APPLE_TEAM_ID || "") +
+        ")",
       hardenedRuntime: true,
       entitlements: path.join(__dirname, "assets/build/entitlements.mac.plist"),
       "entitlements-inherit": path.join(__dirname, "assets/build/entitlements.mac.plist"),
@@ -101,10 +145,15 @@ const config: ForgeConfig = {
     },
   ],
   hooks: {
+    packageAfterCopy: async (_, buildPath) => {
+      await verifyPackagedLayout(buildPath);
+    },
     postMake: async (_, makeResults) => {
-      for (const target of new Set(makeResults.map((r) => `${r.platform}:${r.arch}`))) {
-        const [p, a] = target.split(":");
-        await renameInstallers(p, a);
+      for (const target of new Set(
+        makeResults.map((result) => result.platform + ":" + result.arch),
+      )) {
+        const [platform, arch] = target.split(":");
+        await renameInstallers(platform, arch);
       }
       return makeResults;
     },

@@ -13,7 +13,7 @@ import {
   OutputsDefinition,
   runPnpm,
   runWithLiveLogs,
-  fetchPipelabAsset,
+  resolveBundledAsset,
 } from "@pipelab/plugin-core";
 
 import { dirname, join, basename, delimiter } from "node:path";
@@ -584,11 +584,10 @@ export const forge = async (
       );
     } else {
       // Write pnpm shell script for Unix/Linux/macOS support
-      await writeFile(
-        join(shimDir, "pnpm"),
-        `#!/bin/sh\nexec "${node}" "${pnpmCjsPath}" "$@"\n`,
-        { encoding: "utf8", mode: 0o755 },
-      );
+      await writeFile(join(shimDir, "pnpm"), `#!/bin/sh\nexec "${node}" "${pnpmCjsPath}" "$@"\n`, {
+        encoding: "utf8",
+        mode: 0o755,
+      });
     }
 
     const forge = join(
@@ -600,9 +599,7 @@ export const forge = async (
       "electron-forge.js",
     );
 
-    const rawAssetFolder = await fetchPipelabAsset("@pipelab/asset-electron", "^1.0.0", {
-      context,
-    });
+    const rawAssetFolder = await resolveBundledAsset("@pipelab/asset-electron");
     const templateFolder = join(rawAssetFolder, "template");
     console.log("templateFolder", templateFolder);
     console.log("destinationFolder", destinationFolder);

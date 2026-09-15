@@ -1,69 +1,15 @@
 import { useAPI } from "../ipc-core";
-import { PipelabContext, isDev, projectRoot } from "../context";
+import type { PipelabContext } from "../context";
 // import pacote from "pacote"; // [DISABLED] npm registry lookup — plugin marketplace disabled
 // import { rm } from "node:fs/promises"; // [DISABLED] only used by plugin:uninstall body — re-enable with it
-import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
 import { usePlugins } from "@pipelab/shared";
 // import { webSocketServer } from "../websocket-server"; // [DISABLED] only used by plugin:install body — re-enable with it
-// import { fetchPipelabPlugin } from "../utils/remote"; // [DISABLED] dynamic plugin fetch
-// import { loadCustomPlugin, findInstalledPlugins } from "../plugins-registry"; // [DISABLED] dynamic load
 
 // [DISABLED] Plugin dynamic loading is disabled. Plugins are statically bundled with the CLI.
 // All original handler bodies are preserved below, commented out, for easy re-enable.
 // Re-enable: remove the early-return stub blocks and uncomment the original bodies + imports.
 
-// Maps workspace plugin package names (e.g. "@pipelab/plugin-steam") to their physical directory paths.
-// This is populated at startup in dev mode, supporting plugin folders whose directory names
-// differ from their actual package.json name.
-const localPluginsMap = new Map<string, string>();
-
-if (isDev && projectRoot) {
-  const pluginsDir = join(projectRoot, "plugins");
-  if (existsSync(pluginsDir)) {
-    try {
-      const entries = readdirSync(pluginsDir, { withFileTypes: true });
-      for (const entry of entries) {
-        if (entry.isDirectory()) {
-          const pkgPath = join(pluginsDir, entry.name, "package.json");
-          if (existsSync(pkgPath)) {
-            try {
-              const pkg = JSON.parse(readFileSync(pkgPath, "utf-8"));
-              if (pkg.name) {
-                localPluginsMap.set(pkg.name, join(pluginsDir, entry.name));
-              }
-            } catch (e) {
-              console.error(`[Plugins] Failed to parse package.json for ${entry.name}:`, e);
-            }
-          }
-        }
-      }
-    } catch (e) {
-      console.error(`[Plugins] Failed to scan local workspace plugins directory:`, e);
-    }
-  }
-}
-
-/**
- * Resolves a requested plugin version.
- * If the plugin is present in the local workspace map during development,
- * its version is overridden to "local" so Pipelab loads it from the source files.
- */
-export function resolvePluginVersion(packageName: string, requestedVersion?: string): string {
-  if (
-    isDev &&
-    projectRoot &&
-    process.env.PIPELAB_FORCE_NPM !== "true" &&
-    localPluginsMap.has(packageName)
-  ) {
-    return "local";
-  }
-  return requestedVersion || "latest";
-}
-
-// Note: `context` is unused while the install/uninstall bodies below are commented out.
-// Signatures are intentionally left unchanged so re-enable = delete guard + uncomment body.
-export const registerPluginsHandlers = (context: PipelabContext) => {
+export const registerPluginsHandlers = (_context: PipelabContext) => {
   const { handle } = useAPI();
 
   handle("plugin:search", async (_, { send, value }) => {
@@ -133,13 +79,6 @@ export const registerPluginsHandlers = (context: PipelabContext) => {
     });
     return;
     // const { packageName, version } = value;
-    // const mappedVersion = resolvePluginVersion(packageName, version);
-    // const { packageDir } = await fetchPipelabPlugin(packageName, mappedVersion, { context, installDeps: false });
-    // const plugin = await loadCustomPlugin(packageName, mappedVersion, { context });
-    // if (!plugin) throw new Error("Failed to load installed plugin module.");
-    // const { registerPlugins } = usePlugins();
-    // registerPlugins([plugin]);
-    // webSocketServer.broadcast("plugin:loaded", { plugin });
     // send({ type: "end", data: { type: "success", result: { result: "ok" } } });
   });
 
@@ -156,7 +95,6 @@ export const registerPluginsHandlers = (context: PipelabContext) => {
     });
     return;
     // const { packageName } = value;
-    // const targetDir = context.getPackagesPath(packageName);
     // if (existsSync(targetDir)) await rm(targetDir, { recursive: true, force: true });
     // send({ type: "end", data: { type: "success", result: { result: "ok" } } });
   });
@@ -172,7 +110,6 @@ export const registerPluginsHandlers = (context: PipelabContext) => {
       },
     });
     return;
-    // const packagesDir = context.getPackagesPath();
     // const rawInstalled = await findInstalledPlugins(packagesDir);
     // const { DEFAULT_PLUGIN_IDS, DEV_ONLY_PLUGIN_IDS } = await import("@pipelab/shared");
     // const defaultPluginIds = [...DEFAULT_PLUGIN_IDS];
@@ -219,7 +156,6 @@ export const registerPluginsHandlers = (context: PipelabContext) => {
     // }
     // const { registerPlugins } = usePlugins();
     // for (const packageName of pluginsToEnsure) {
-    //   const mappedVersion = resolvePluginVersion(packageName);
     //   const isRegistered = registeredPlugins.value.some((p) => {
     //     if (p.packageName !== packageName) return false;
     //     if (mappedVersion === "latest") return true;

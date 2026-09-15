@@ -16,7 +16,7 @@
   },
   "type": "module",
   "scripts": {
-    "build": "cross-env NODE_ENV=production tsdown",
+    "build": "cross-env NODE_ENV=production tsdown && node scripts/stage-bundle.mjs",
     "dev": "cross-env NODE_ENV=development tsx watch src/index.ts serve",
     "watch": "tsdown --watch",
     "start": "tsx src/index.ts",
@@ -33,7 +33,7 @@
     "commander": "^12.1.0",
     "dotenv": "17.4.2",
     "execa": "9.5.1",
-    "nanoid": "5.0.8",
+    "nanoid": "5.1.16",
     "posthog-node": "5.30.6",
     "serve-handler": "6.1.7"
   },

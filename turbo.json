@@ -13,7 +13,8 @@
       "outputs": ["dist/**", ".vite/**", "out/**"]
     },
     "@pipelab/cli#build": {
-      "dependsOn": ["^build"]
+      "dependsOn": ["^build", "@pipelab/ui#build"],
+      "outputs": ["dist/**"]
     },
     "@pipelab/core-node#build": {
       "dependsOn": []
@@ -37,8 +38,9 @@
       "outputs": []
     },
     "typecheck": {
-      // dependsOn is required so dependencies build declarations via tsc -b before apps typecheck
-      "dependsOn": ["^typecheck"],
+      // Workspace packages intentionally form a bundled source cycle. Typecheck
+      // each package independently instead of making Turbo reject the graph.
+      "dependsOn": [],
       "outputs": ["dist/**/*.d.ts", "dist/**/*.d.ts.map", "dist/tsconfig.tsbuildinfo"]
     },
     "format": {

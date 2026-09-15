@@ -186,6 +186,12 @@ export interface RendererPluginDefinition extends PluginDefinition {
 }
 
 export interface MainPluginDefinition extends PluginDefinition {
+  id: string;
+  name: string;
+  description: string;
+  icon: IconType;
+  isOfficial: boolean;
+  packageName: string;
   nodes: ({
     runner: any; // We use 'any' here to avoid importing Node runners in the safe definition
   } & RendererNodeDefinition)[];

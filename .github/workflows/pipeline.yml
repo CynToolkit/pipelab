@@ -379,6 +379,11 @@ jobs:
           name: monorepo-dist
           path: .
 
+      - name: Electron smoke test
+        if: matrix.os == 'ubuntu-latest'
+        run: xvfb-run -a pnpm --dir apps/desktop run test:e2e
+        continue-on-error: true
+
       - name: Import Apple Code Signing Certificate
         uses: apple-actions/import-codesign-certs@v3
         if: startsWith(matrix.os, 'macos-')
@@ -399,7 +404,6 @@ jobs:
 
       - name: Package & Make Desktop
         env:
-          DEBUG: "electron-osx-sign*,electron-forge:*"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
