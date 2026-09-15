@@ -7,7 +7,10 @@ import { ensureNodeJS, ensurePNPM } from "../utils/remote";
 import { createPipelabWorkflowTasks } from "../workflow-tasks";
 import { useAPI } from "../ipc-core";
 
-export const registerWorkflowHandlers = (context: PipelabContext) => {
+export const registerWorkflowHandlers = (
+  context: PipelabContext,
+  pluginsReady?: Promise<void>,
+) => {
   const { handle } = useAPI();
   const { logger } = useLogger();
   let abortController: AbortController | undefined;
@@ -19,6 +22,7 @@ export const registerWorkflowHandlers = (context: PipelabContext) => {
     const workspaceRoot = context.getArtifactsPath("workflow", buildId);
 
     try {
+      await pluginsReady;
       await mkdir(workspaceRoot, { recursive: true });
       const node = await ensureNodeJS(context);
       const pnpm = await ensurePNPM(context);

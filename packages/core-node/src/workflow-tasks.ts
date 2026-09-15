@@ -32,7 +32,7 @@ export const createWorkflowActionTask = (
       inputs: taskContext.inputs,
       log,
       setOutput: (key, value) => {
-        outputs[key] = value;
+        outputs[String(key)] = value;
       },
       setMeta: () => undefined,
       meta: { definition: "workflow" },
@@ -82,7 +82,9 @@ const findRunner = (
 
 export const createPipelabWorkflowTasks = (
   options: WorkflowTaskOptions,
-  registeredPlugins = usePlugins().plugins.value as RegisteredPlugin[],
+  // The shared registry intentionally exposes renderer-safe plugin types. At
+  // runtime the main process registry retains each node's action runner.
+  registeredPlugins = usePlugins().plugins.value as unknown as RegisteredPlugin[],
 ): WorkflowTaskRegistry => {
   const constructExport = findRunner(
     "@pipelab/plugin-construct",
