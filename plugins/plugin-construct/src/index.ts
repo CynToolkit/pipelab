@@ -2,6 +2,8 @@ import { createNodeDefinition } from "@pipelab/plugin-core";
 import { exportAction, ExportActionRunner } from "./export-c3p";
 import { exportProjectAction, ExportProjectActionRunner } from "./export-project";
 import { constructVersionValidator } from "./export-shared";
+export { discoverBrowserProfiles, inspectChromiumProfile } from "./browser-profiles";
+export type { BrowserProfileCandidate } from "./browser-profiles";
 
 export default createNodeDefinition({
   id: "@pipelab/plugin-construct",

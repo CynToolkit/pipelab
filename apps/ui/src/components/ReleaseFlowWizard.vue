@@ -3,7 +3,7 @@
     v-model:visible="visible"
     modal
     :style="{ width: '620px', maxWidth: '96vw' }"
-    header="New release flow"
+    header="New workflow"
   >
     <Stepper v-model:value="activeStep" linear class="wizard">
       <StepList>
@@ -31,7 +31,7 @@
       <StepPanels>
         <StepPanel v-slot="{ activateCallback }" value="details">
           <div class="form">
-            <h3>Name your release flow</h3>
+            <h3>Name your workflow</h3>
             <p>Keep it recognizable in your project list.</p>
             <label
               >Name <InputText v-model="draft.name" autofocus placeholder="Release to Steam"
@@ -132,7 +132,7 @@
           ><div class="form review">
             <h3>Ready to create</h3>
             <div class="summary">
-              <b>{{ draft.name || "Untitled release flow" }}</b
+              <b>{{ draft.name || "Untitled workflow" }}</b
               ><span
                 >{{ draft.source.type === "construct3" ? "Construct 3" : "Built folder" }} ·
                 {{ draft.source.path || "No path yet" }}</span
@@ -145,7 +145,7 @@
                 text
                 severity="secondary"
                 @click="activeStep = 'destinations'"
-              /><Button label="Create release flow" @click="create" />
+              /><Button label="Create workflow" @click="create" />
             </div></div
         ></StepPanel>
       </StepPanels>
@@ -165,12 +165,12 @@ import InputText from "primevue/inputtext";
 import Textarea from "primevue/textarea";
 import Button from "primevue/button";
 import { nanoid } from "nanoid";
-import type { ReleaseFlow } from "@pipelab/shared";
+import type { WorkflowConfig } from "@pipelab/shared";
 import { useAPI } from "../composables/api";
 const props = defineProps<{ visible: boolean; projectId: string }>();
 const emit = defineEmits<{
   (e: "update:visible", v: boolean): void;
-  (e: "create", flow: ReleaseFlow): void;
+  (e: "create", flow: WorkflowConfig): void;
 }>();
 const visible = computed({ get: () => props.visible, set: (v) => emit("update:visible", v) });
 const activeStep = ref("details");
@@ -226,18 +226,14 @@ const toggleTarget = (type: string) => {
       type === "steam"
         ? {
             type,
-            sdkConnectionId: "",
+            enabled: true,
             accountConnectionId: "",
             appId: "",
             depotId: "",
-            description: draft.value.name || "Release build",
-            appName: draft.value.name || "Pipelab game",
-            appBundleId: "com.pipelab.game",
-            appVersion: "1.0.0",
           }
         : type === "itch"
-          ? { type, accountConnectionId: "", user: "", project: "", channel: "web" }
-          : { type, outputDir: "", overwrite: false, cleanup: false },
+          ? { type, enabled: true, accountConnectionId: "", project: "", channel: "web" }
+          : { type, enabled: true, outputDir: "", overwrite: false, cleanup: false },
     );
 };
 const destinationLabels = computed(() =>

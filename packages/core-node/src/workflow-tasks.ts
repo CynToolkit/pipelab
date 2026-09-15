@@ -101,6 +101,7 @@ export const createPipelabWorkflowTasks = (
     "unzip-file-node",
     registeredPlugins,
   );
+  const copy = findRunner("@pipelab/plugin-filesystem", "fs:copy", registeredPlugins);
   const electronBundle = findRunner(
     "@pipelab/plugin-electron",
     "electron:package:v2",
@@ -125,6 +126,7 @@ export const createPipelabWorkflowTasks = (
       outputAliases: { outputDirectory: "output" },
       artifacts: { "source-directory": "output" },
     }),
+    "filesystem:copy": createWorkflowActionTask(copy, options),
     "electron:bundle": createWorkflowActionTask(electronBundle, {
       ...options,
       outputAliases: { bundleDirectory: "output" },

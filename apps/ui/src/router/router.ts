@@ -56,14 +56,6 @@ const routes: RouterOptions["routes"] = [
     },
   },
   {
-    path: "/workflow",
-    name: "Workflow",
-    component: () => import("../pages/simple-editor.vue"),
-    meta: {
-      title: "Workflow",
-    },
-  },
-  {
     path: "/billing",
     name: "Billing",
     component: () => import("../pages/editor.vue"),
@@ -80,14 +72,14 @@ const routes: RouterOptions["routes"] = [
     },
   },
   {
-    path: "/release-flows",
+    path: "/workflows",
     redirect: "/dashboard",
   },
   {
-    path: "/release-flows/:flowId/:projectId",
-    name: "ReleaseFlow",
+    path: "/workflows/:flowId/:projectId",
+    name: "Workflow",
     component: () => import("../pages/release-flow.vue"),
-    meta: { title: "Release flow" },
+    meta: { title: "Workflow" },
   },
 ];
 

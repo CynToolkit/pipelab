@@ -211,10 +211,6 @@ export const c3toSteamPreset: PresetFn = async () => {
             pluginId: "@pipelab/plugin-steam",
           },
           params: {
-            sdk: {
-              editor: "simple",
-              value: "",
-            },
             username: {
               editor: "simple",
               value: "",

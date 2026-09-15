@@ -243,7 +243,9 @@ export const exportc3p = async <ACTION extends Action>(
     log("Setting up Playwright profile from custom Chrome profile...");
     log(`  - Target playwright-profile folder: ${customProfile}`);
 
-    const indexedDbPathSource = join(newInputs.customProfile, "Default", "IndexedDB");
+    const indexedDbPathSource = existsSync(join(newInputs.customProfile, "IndexedDB"))
+      ? join(newInputs.customProfile, "IndexedDB")
+      : join(newInputs.customProfile, "Default", "IndexedDB");
     const indexedDbPathDestination = join(customProfile, "Default", "IndexedDB");
     log(`  - Source IndexedDB folder: ${indexedDbPathSource}`);
     log(`  - Destination IndexedDB folder: ${indexedDbPathDestination}`);

@@ -181,6 +181,7 @@ export const runWorkflow = async (
 
   try {
     const pending = new Set(workflow.steps.map((step) => step.id));
+    const continueOnError = workflow.continueOnError ?? false;
 
     const runStep = async (step: WorkflowStep): Promise<void> => {
       const stepStartedAt = Date.now();
@@ -224,6 +225,7 @@ export const runWorkflow = async (
         const stepResult: WorkflowStepResult = {
           id: step.id,
           uses: step.uses,
+          status: "completed",
           outputs: result,
           artifacts: [...stepArtifacts],
           startedAt: stepStartedAt,
@@ -243,12 +245,25 @@ export const runWorkflow = async (
         });
       } catch (error) {
         const normalized = signal.aborted ? abortError(signal.reason) : toError(error);
+        const completedAt = Date.now();
+        const serialized = serializeError(normalized);
+        steps[step.id] = {
+          id: step.id,
+          uses: step.uses,
+          status: "failed",
+          outputs: {},
+          artifacts: [...stepArtifacts],
+          startedAt: stepStartedAt,
+          completedAt,
+          duration: completedAt - stepStartedAt,
+          error: serialized,
+        };
         emit({
           type: "step.failed",
           stepId: step.id,
           uses: step.uses,
-          error: serializeError(normalized),
-          duration: Date.now() - stepStartedAt,
+          error: serialized,
+          duration: completedAt - stepStartedAt,
         });
         throw normalized;
       }
@@ -256,10 +271,35 @@ export const runWorkflow = async (
 
     while (pending.size > 0) {
       ensureNotAborted(signal);
+      for (const step of workflow.steps) {
+        if (!pending.has(step.id)) continue;
+        const blockedBy = dependenciesFor(workflow, step).filter(
+          (dependency) =>
+            steps[dependency]?.status === "failed" || steps[dependency]?.status === "skipped",
+        );
+        if (!blockedBy.length) continue;
+        const now = Date.now();
+        steps[step.id] = {
+          id: step.id,
+          uses: step.uses,
+          status: "skipped",
+          outputs: {},
+          artifacts: [],
+          startedAt: now,
+          completedAt: now,
+          duration: 0,
+          blockedBy,
+        };
+        pending.delete(step.id);
+        emit({ type: "step.skipped", stepId: step.id, uses: step.uses, blockedBy });
+      }
+      if (pending.size === 0) break;
       const ready = workflow.steps.filter(
         (step) =>
           pending.has(step.id) &&
-          dependenciesFor(workflow, step).every((dependency) => !pending.has(dependency)),
+          dependenciesFor(workflow, step).every(
+            (dependency) => steps[dependency]?.status === "completed",
+          ),
       );
 
       if (ready.length === 0) {
@@ -272,10 +312,17 @@ export const runWorkflow = async (
       const failure = results.find(
         (result): result is PromiseRejectedResult => result.status === "rejected",
       );
-      if (failure) throw failure.reason;
+      if (failure && !continueOnError) throw failure.reason;
     }
 
-    const result: WorkflowResult = { outputs, artifacts, steps };
+    const result: WorkflowResult = {
+      status: Object.values(steps).some((step) => step.status !== "completed")
+        ? "completed-with-errors"
+        : "completed",
+      outputs,
+      artifacts,
+      steps,
+    };
     emit({ type: "workflow.completed", result, duration: Date.now() - startedAt });
     return result;
   } catch (error) {

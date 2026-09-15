@@ -64,10 +64,6 @@ export const testC3Offline: PresetFn = async () => {
               editor: "editor",
               value: "3047201",
             },
-            sdk: {
-              editor: "editor",
-              value: "/home/quentin/Documents/steamworkssdk/sdk",
-            },
             username: {
               editor: "editor",
               value: "armaldio",

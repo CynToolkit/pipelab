@@ -13,14 +13,31 @@ import {
   setupPipelineConfigFileByPath,
   deletePipelineConfigFileByName,
   deletePipelineConfigFileByPath,
-  setupReleaseFlowConfigFileByName,
-  deleteReleaseFlowConfigFileByName,
+  setupWorkflowConfigFileByName,
+  deleteWorkflowConfigFileByName,
 } from "../config";
 import { PipelabContext } from "../context";
+import { discoverBrowserProfiles, inspectChromiumProfile } from "@pipelab/plugin-construct";
 
 export const registerConfigHandlers = (context: PipelabContext) => {
   const { handle } = useAPI();
   const { logger } = useLogger();
+
+  handle("construct:profiles:discover", async (_, { send, value }) => {
+    try {
+      let profiles = await discoverBrowserProfiles();
+      if (value.path) {
+        const manual = profiles.find((profile) => profile.path === value.path);
+        if (!manual) {
+          const inspected = await inspectChromiumProfile(value.path);
+          profiles.unshift({ browser: "Manual", profileName: value.path.split(/[\\/]/).pop() || value.path, path: value.path, isDefault: false, ...inspected, score: null, reason: inspected.usable ? undefined : "Folder is not a readable Chromium profile" });
+        }
+      }
+      send({ type: "end", data: { type: "success", result: profiles } });
+    } catch (error) {
+      send({ type: "end", data: { type: "error", ipcError: error instanceof Error ? error.message : "Unable to discover browser profiles" } });
+    }
+  });
 
   // Settings
   handle("settings:load", async (_, { send }) => {
@@ -364,27 +381,27 @@ export const registerConfigHandlers = (context: PipelabContext) => {
     }
   });
 
-  handle("release-flow:load-by-name", async (_, { send, value }) => {
+  handle("workflow:load-by-name", async (_, { send, value }) => {
     try {
-      const manager = await setupReleaseFlowConfigFileByName(value.name, context);
+      const manager = await setupWorkflowConfigFileByName(value.name, context);
       send({ type: "end", data: { type: "success", result: await manager.getConfig() } });
     } catch (e) {
-      send({ type: "end", data: { type: "error", ipcError: e instanceof Error ? e.message : "Unable to load release flow" } });
+      send({ type: "end", data: { type: "error", ipcError: e instanceof Error ? e.message : "Unable to load workflow" } });
     }
   });
 
-  handle("release-flow:save-by-name", async (_, { send, value }) => {
+  handle("workflow:save-by-name", async (_, { send, value }) => {
     try {
-      const manager = await setupReleaseFlowConfigFileByName(value.name, context);
+      const manager = await setupWorkflowConfigFileByName(value.name, context);
       await manager.setConfig(JSON.parse(value.data));
       send({ type: "end", data: { type: "success", result: "ok" } });
     } catch (e) {
-      send({ type: "end", data: { type: "error", ipcError: e instanceof Error ? e.message : "Unable to save release flow" } });
+      send({ type: "end", data: { type: "error", ipcError: e instanceof Error ? e.message : "Unable to save workflow" } });
     }
   });
 
-  handle("release-flow:delete-by-name", async (_, { send, value }) => {
-    try { await deleteReleaseFlowConfigFileByName(value.name, context); send({ type: "end", data: { type: "success", result: "ok" } }); }
-    catch (e) { send({ type: "end", data: { type: "error", ipcError: e instanceof Error ? e.message : "Unable to delete release flow" } }); }
+  handle("workflow:delete-by-name", async (_, { send, value }) => {
+    try { await deleteWorkflowConfigFileByName(value.name, context); send({ type: "end", data: { type: "success", result: "ok" } }); }
+    catch (e) { send({ type: "end", data: { type: "error", ipcError: e instanceof Error ? e.message : "Unable to delete workflow" } }); }
   });
 };

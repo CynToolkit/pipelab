@@ -3,6 +3,7 @@ export * from "./bundled-cli";
 export * from "./websocket-server";
 export * from "./ipc-core";
 export * from "./handlers/index";
+export { executeWorkflow } from "./handlers/workflow";
 export {
   setupSettingsConfigFile,
   setupConnectionsConfigFile,
@@ -11,6 +12,8 @@ export {
   setupPipelineConfigFileByPath,
   deletePipelineConfigFileByName,
   deletePipelineConfigFileByPath,
+  setupWorkflowConfigFileByName,
+  deleteWorkflowConfigFileByName,
 } from "./config";
 export * from "./paths";
 export * from "./api";

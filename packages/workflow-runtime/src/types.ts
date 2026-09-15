@@ -3,6 +3,7 @@ export const WORKFLOW_VERSION = 1;
 export interface Workflow {
   version: number;
   steps: WorkflowStep[];
+  continueOnError?: boolean;
 }
 
 export interface WorkflowStep {
@@ -84,14 +85,18 @@ export interface WorkflowError {
 export interface WorkflowStepResult {
   id: string;
   uses: string;
+  status: "completed" | "failed" | "skipped";
   outputs: Record<string, unknown>;
   artifacts: WorkflowArtifact[];
   startedAt: number;
   completedAt: number;
   duration: number;
+  error?: WorkflowError;
+  blockedBy?: string[];
 }
 
 export interface WorkflowResult {
+  status: "completed" | "completed-with-errors";
   outputs: Record<string, Record<string, unknown>>;
   artifacts: WorkflowArtifact[];
   steps: Record<string, WorkflowStepResult>;
@@ -127,6 +132,12 @@ export type WorkflowEventInput =
       uses: string;
       error: WorkflowError;
       duration: number;
+    }
+  | {
+      type: "step.skipped";
+      stepId: string;
+      uses: string;
+      blockedBy: string[];
     }
   | {
       type: "workflow.completed";

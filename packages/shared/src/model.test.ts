@@ -518,7 +518,7 @@ describe("model", () => {
             },
           },
         ],
-        releaseFlows: [],
+        workflows: [],
       });
     });
 

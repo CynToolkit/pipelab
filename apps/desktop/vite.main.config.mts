@@ -45,6 +45,8 @@ export default defineConfig((env) => {
           }),
           "bufferutil",
           "utf-8-validate",
+          "playwright",
+          "playwright-core",
         ],
       },
     },

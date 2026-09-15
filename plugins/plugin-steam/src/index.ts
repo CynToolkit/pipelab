@@ -16,17 +16,6 @@ export default createNodeDefinition({
   ],
   integrations: [
     {
-      name: "Steam SDK",
-      fields: [
-        {
-          key: "sdk",
-          label: "Steam SDK Path",
-          type: "directory",
-          placeholder: "e.g., /home/user/steam-sdk",
-        },
-      ],
-    },
-    {
       name: "Steam Account",
       fields: [
         {
@@ -34,6 +23,12 @@ export default createNodeDefinition({
           label: "Steam Username",
           type: "text",
           placeholder: "e.g., steam_user",
+        },
+        {
+          key: "password",
+          label: "Steam Password",
+          type: "password",
+          placeholder: "Steam password",
         },
       ],
     },

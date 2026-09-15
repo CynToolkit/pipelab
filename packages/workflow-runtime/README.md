@@ -32,4 +32,5 @@ Step inputs can reference run variables with `${{ variables.name }}` or a
 previous step's outputs with `${{ steps.step-id.outputs.name }}`. Steps run in
 definition order by default; add `needs` to declare dependencies explicitly
 and allow independent steps to run concurrently. The runtime also exposes
-`fs:run` as a built-in task.
+`fs:run` as a built-in task. Set `continueOnError` to keep independent
+branches running after a failure; dependent steps are reported as skipped.

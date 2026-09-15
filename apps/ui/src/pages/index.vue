@@ -93,17 +93,13 @@
 
               <!-- Actions -->
               <div class="action-buttons">
-                <Button size="small" severity="secondary" variant="outlined" @click="router.push('/workflow')">
+                <Button size="small" severity="secondary" variant="outlined" @click="openWorkflowWizard">
                   <i class="mdi mdi-rocket-launch-outline mr-2"></i>
-                  Workflow
+                  New workflow
                 </Button>
                 <Button id="tour-new-pipeline" size="small" severity="secondary" @click="openNewProjectDialog">
                   <i class="mdi mdi-plus-circle-outline mr-2"></i>
                   {{ $t("home.new-pipeline") }}
-                </Button>
-                <Button v-if="isDevMode" size="small" severity="secondary" outlined @click="openReleaseFlowWizard">
-                  <i class="mdi mdi-rocket-launch-outline mr-2"></i>
-                  New release flow
                 </Button>
                 <Button
                   variant="outlined"
@@ -133,7 +129,7 @@
           </div>
 
           <!-- Empty State (No Pipelines) -->
-          <div v-else-if="filesEnhanced.length === 0 && releaseFlowsEnhanced.length === 0" class="no-projects">
+          <div v-else-if="filesEnhanced.length === 0 && workflowsEnhanced.length === 0" class="no-projects">
             <i class="mdi mdi-folder-open-outline empty-icon"></i>
             <div class="no-pipelines-text">{{ $t("home.no-pipelines-yet") }}</div>
             <Button
@@ -148,7 +144,7 @@
           </div>
 
           <!-- No Search Results -->
-          <div v-else-if="filteredFilesEnhanced.length === 0 && filteredReleaseFlowsEnhanced.length === 0" class="no-search-results">
+          <div v-else-if="filteredFilesEnhanced.length === 0 && filteredWorkflowsEnhanced.length === 0" class="no-search-results">
             <i class="mdi mdi-magnify-close empty-icon"></i>
             <div class="no-results-text">No pipelines found matching "{{ searchQuery }}"</div>
             <Button text severity="secondary" @click="searchQuery = ''"> Clear search </Button>
@@ -227,10 +223,10 @@
                 </div>
               </div>
             </div>
-            <div v-for="flow in filteredReleaseFlowsEnhanced" :key="flow.id" class="pipeline-row release-flow-row" @click="openReleaseFlow(flow.id)">
-              <div class="pipeline-tech-stack release-flow-icon"><i class="mdi mdi-rocket-launch-outline"></i></div>
-              <div class="pipeline-info"><div class="pipeline-title-row"><span class="pipeline-name">{{ flow.content.name }}</span><Tag severity="info" value="Release flow" class="type-tag" /></div><div class="pipeline-desc">{{ flow.content.source.type === 'construct3' ? 'Construct 3' : 'Built folder' }} → {{ flow.content.destinations.map(destinationLabel).join(', ') }}</div></div>
-              <div class="pipeline-meta-actions"><span class="pipeline-updated">Updated {{ formatLastModified(flow.lastModified) }}</span><div class="row-actions" @click.stop><Button icon="mdi mdi-pencil" text rounded severity="secondary" size="small" v-tooltip.top="'Edit release flow'" @click="openReleaseFlow(flow.id)" /><Button icon="mdi mdi-dots-vertical" text rounded severity="secondary" size="small" @click="toggleReleaseMenu($event, flow)" /></div></div>
+            <div v-for="flow in filteredWorkflowsEnhanced" :key="flow.id" class="pipeline-row workflow-row" @click="openWorkflow(flow.id)">
+              <div class="pipeline-tech-stack workflow-icon"><i class="mdi mdi-rocket-launch-outline"></i></div>
+              <div class="pipeline-info"><div class="pipeline-title-row"><span class="pipeline-name">{{ flow.content.name }}</span><Tag severity="info" value="Workflow" class="type-tag" /></div><div class="pipeline-desc">{{ flow.content.source.type === 'construct3' ? 'Construct 3' : 'Built folder' }} → {{ flow.content.destinations.map(destinationLabel).join(', ') }}</div></div>
+              <div class="pipeline-meta-actions"><span class="pipeline-updated">Updated {{ formatLastModified(flow.lastModified) }}</span><div class="row-actions" @click.stop><Button icon="mdi mdi-pencil" text rounded severity="secondary" size="small" v-tooltip.top="'Edit workflow'" @click="openWorkflow(flow.id)" /><Button icon="mdi mdi-dots-vertical" text rounded severity="secondary" size="small" @click="toggleWorkflowMenu($event, flow)" /></div></div>
             </div>
           </div>
         </div>
@@ -425,7 +421,7 @@
 
     <Menu ref="menu" :model="menuItems" :popup="true" />
     <Menu ref="importMenu" :model="importMenuItems" :popup="true" />
-    <ReleaseFlowWizard v-model:visible="isReleaseFlowWizardVisible" :project-id="activeProjectId" @create="createReleaseFlow" />
+    <ReleaseFlowWizard v-model:visible="isWorkflowWizardVisible" :project-id="activeProjectId" @create="createWorkflow" />
 
     <Dialog
       v-model:visible="isTransferModalVisible"
@@ -487,7 +483,7 @@ import {
   savedFileMigrator,
   AppConfig,
   MigrationChannel,
-  ReleaseFlow,
+  WorkflowConfig,
 } from "@pipelab/shared";
 import { nanoid } from "nanoid";
 import { useRouter } from "vue-router";
@@ -544,8 +540,8 @@ const { files } = storeToRefs(fileStore);
 const { update: updateFileStore, remove, removeProject, transferPipeline, load: reloadFiles } = fileStore;
 
 const filesEnhanced = ref<EnhancedFile[]>([]);
-const releaseFlowsEnhanced = ref<Array<{ id: string; project: string; lastModified: string; content: ReleaseFlow }>>([]);
-const isReleaseFlowWizardVisible = ref(false);
+const workflowsEnhanced = ref<Array<{ id: string; project: string; lastModified: string; content: WorkflowConfig }>>([]);
+const isWorkflowWizardVisible = ref(false);
 
 const searchQuery = ref("");
 const newProjectDescription = ref("");
@@ -625,8 +621,8 @@ const pipelines = computed(() =>
     : [],
 );
 
-const releaseFlows = computed(() => activeProjectId.value ? (files.value.releaseFlows || []).filter((flow) => flow.project === activeProjectId.value) : []);
-const filteredReleaseFlowsEnhanced = computed(() => { const q = searchQuery.value.trim().toLowerCase(); return !q ? releaseFlowsEnhanced.value : releaseFlowsEnhanced.value.filter((flow) => flow.content.name.toLowerCase().includes(q) || (flow.content.description || '').toLowerCase().includes(q)); });
+const workflows = computed(() => activeProjectId.value ? (files.value.workflows || []).filter((flow) => flow.project === activeProjectId.value) : []);
+const filteredWorkflowsEnhanced = computed(() => { const q = searchQuery.value.trim().toLowerCase(); return !q ? workflowsEnhanced.value : workflowsEnhanced.value.filter((flow) => flow.content.name.toLowerCase().includes(q) || (flow.content.description || '').toLowerCase().includes(q)); });
 
 const hasExternalPipelines = computed(() => {
   return (files.value.pipelines || []).some((p) => p.type === "external");
@@ -746,12 +742,12 @@ watchEffect(async () => {
 });
 
 watchEffect(async () => {
-  const result: Array<{ id: string; project: string; lastModified: string; content: ReleaseFlow }> = [];
-  for (const flow of releaseFlows.value) {
-    const loaded = await api.execute("release-flow:load-by-name", { name: flow.configName });
-    if (loaded.type === "success") result.push({ id: flow.id, project: flow.project, lastModified: flow.lastModified, content: loaded.result as ReleaseFlow });
+  const result: Array<{ id: string; project: string; lastModified: string; content: WorkflowConfig }> = [];
+  for (const flow of workflows.value) {
+    const loaded = await api.execute("workflow:load-by-name", { name: flow.configName });
+    if (loaded.type === "success") result.push({ id: flow.id, project: flow.project, lastModified: flow.lastModified, content: loaded.result as WorkflowConfig });
   }
-  releaseFlowsEnhanced.value = result;
+  workflowsEnhanced.value = result;
 });
 
 watch(
@@ -801,14 +797,14 @@ const openNewProjectDialog = async () => {
   isNewPipelineModalVisible.value = true;
 };
 
-const openReleaseFlowWizard = () => { isReleaseFlowWizardVisible.value = true; };
-const createReleaseFlow = async (flow: ReleaseFlow) => {
-  await fileStore.saveReleaseFlow(flow);
-  await router.push(`/release-flows/${flow.id}/${flow.project}`);
+const openWorkflowWizard = () => { isWorkflowWizardVisible.value = true; };
+const createWorkflow = async (flow: WorkflowConfig) => {
+  await fileStore.saveWorkflow(flow);
+  await router.push(`/workflows/${flow.id}/${flow.project}`);
 };
-const openReleaseFlow = (id: string) => router.push(`/release-flows/${id}/${activeProjectId.value}`);
-const toggleReleaseMenu = (_event: Event, _flow: any) => { /* lifecycle actions land in the flow editor menu */ };
-const destinationLabel = (d: ReleaseFlow["destinations"][number]) => d.type === "web" ? "Web folder" : d.type === "steam" ? "Steam" : "Itch.io";
+const openWorkflow = (id: string) => router.push(`/workflows/${id}/${activeProjectId.value}`);
+const toggleWorkflowMenu = (_event: Event, _flow: any) => { /* lifecycle actions land in the workflow editor menu */ };
+const destinationLabel = (d: WorkflowConfig["destinations"][number]) => d.type === "web" ? "Web folder" : d.type === "steam" ? "Steam" : "Itch.io";
 onMounted(() => reloadFiles(true));
 const onNewProjectCreation = async () => {
   const projectId = nanoid();
@@ -1445,9 +1441,9 @@ const startTour = (force = false) => {
 </script>
 
 <style lang="scss" scoped>
-.release-flow-row { border-left: 3px solid var(--primary-color); background: color-mix(in srgb, var(--primary-color) 4%, transparent); }
-.release-flow-row:hover { background: color-mix(in srgb, var(--primary-color) 9%, transparent); }
-.release-flow-icon { color: var(--primary-color); font-size: 24px; display:flex; justify-content:center; }
+.workflow-row { border-left: 3px solid var(--primary-color); background: color-mix(in srgb, var(--primary-color) 4%, transparent); }
+.workflow-row:hover { background: color-mix(in srgb, var(--primary-color) 9%, transparent); }
+.workflow-icon { color: var(--primary-color); font-size: 24px; display:flex; justify-content:center; }
 /* ─── Index Page ────────────────────────────────────────── */
 .index {
   display: flex;

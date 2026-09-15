@@ -8,6 +8,12 @@ import {
   showPipelineCommand,
 } from "./commands/pipelines";
 import { setupCommand } from "./commands/setup";
+import {
+  deleteWorkflowCommand,
+  listWorkflowsCommand,
+  runWorkflowCommand,
+  workflowRunOptions,
+} from "./commands/workflows";
 import { readFileSync, existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -160,6 +166,49 @@ program
   });
 
 const pipelines = program.command("pipelines").alias("pipeline").description("Manage pipelines");
+
+const workflows = program.command("workflow").alias("workflows").description("Manage workflows");
+
+workflows
+  .command("ls")
+  .alias("list")
+  .description("List all workflows")
+  .action(async () => {
+    try {
+      await listWorkflowsCommand();
+    } catch (e) {
+      console.error(e);
+      process.exit(1);
+    }
+  });
+
+const workflowRun = workflows
+  .command("run <id-or-name>")
+  .description("Run a workflow from the default profile");
+workflowRunOptions.forEach((option) => workflowRun.addOption(option));
+workflowRun.action(async (id, options) => {
+  try {
+    await runWorkflowCommand(id, options);
+  } catch (e) {
+    console.error("Workflow execution failed:", e);
+    process.exit(1);
+  }
+});
+
+workflows
+  .command("rm <id>")
+  .alias("remove")
+  .alias("delete")
+  .description("Delete a workflow")
+  .option("-f, --force", "Confirm deletion")
+  .action(async (id, options) => {
+    try {
+      await deleteWorkflowCommand(id, options);
+    } catch (e) {
+      console.error(e);
+      process.exit(1);
+    }
+  });
 
 pipelines
   .command("ls")

@@ -507,6 +507,7 @@ interface ConnectedAccount {
   integrationName?: string;
   name: string;
   email?: string;
+  password?: string;
   apiKey?: string;
   path?: string;
   gameId?: string;
@@ -699,6 +700,7 @@ watch(
       for (const field of integration.fields) {
         let val = "";
         if (field.key === "username" || field.key === "email") val = conn.email || "";
+        else if (field.key === "password") val = conn.password || "";
         else if (field.key === "apiKey" || field.key === "token" || field.key === "key")
           val = conn.apiKey || "";
         else if (field.key === "path" || field.key === "sdk") val = conn.path || "";
@@ -941,6 +943,7 @@ const saveNewAccount = async () => {
 
     let email = "";
     let apiKey = "";
+    let password = "";
     let path = "";
     let gameId = "";
 
@@ -948,6 +951,7 @@ const saveNewAccount = async () => {
       for (const field of target.fields) {
         const val = dynamicFields.value[field.key] || "";
         if (field.key === "username" || field.key === "email") email = val;
+        else if (field.key === "password") password = val;
         else if (field.key === "apiKey" || field.key === "token" || field.key === "key")
           apiKey = val;
         else if (field.key === "path" || field.key === "sdk") path = val;
@@ -966,6 +970,7 @@ const saveNewAccount = async () => {
       integrationName: target?.integrationName,
       name: newConnectionName.value,
       email: email || undefined,
+      password: password || undefined,
       apiKey: apiKey || undefined,
       path: path || undefined,
       gameId: gameId || undefined,
@@ -1007,12 +1012,14 @@ const saveConnectionEdits = async () => {
       const copy = { ...conn, name: editConnectionName.value, integrationName: integration?.name };
       if (integration?.fields) {
         copy.email = undefined;
+        copy.password = undefined;
         copy.apiKey = undefined;
         copy.path = undefined;
         copy.gameId = undefined;
         for (const field of integration.fields) {
           const val = editDynamicFields.value[field.key] || "";
           if (field.key === "username" || field.key === "email") copy.email = val;
+          else if (field.key === "password") copy.password = val;
           else if (field.key === "apiKey" || field.key === "token" || field.key === "key")
             copy.apiKey = val;
           else if (field.key === "path" || field.key === "sdk") copy.path = val;

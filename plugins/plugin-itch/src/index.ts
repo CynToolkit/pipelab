@@ -22,9 +22,9 @@ export default createNodeDefinition({
       fields: [
         {
           key: "apiKey",
-          label: "Butler API Key",
+          label: "API key",
           type: "password",
-          placeholder: "butler API key",
+          placeholder: "API key",
         },
       ],
     },

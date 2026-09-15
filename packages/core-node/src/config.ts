@@ -13,8 +13,8 @@ import {
   connectionsMigrator,
   fileRepoMigrations,
   savedFileMigrator,
-  ReleaseFlow,
-  releaseFlowMigrator,
+  WorkflowConfig,
+  workflowConfigMigrator,
 } from "@pipelab/shared";
 
 export const setupConfigFile = async <T>(
@@ -159,9 +159,9 @@ export const setupPipelineConfigFileByPath = (absolutePath: string, context: Pip
   });
 };
 
-export const setupReleaseFlowConfigFileByName = (name: string, context: PipelabContext) => {
+export const setupWorkflowConfigFileByName = (name: string, context: PipelabContext) => {
   const filesPath = context.getConfigPath(`${name}.json`);
-  return setupConfigFile<ReleaseFlow>(filesPath, { context, migrator: releaseFlowMigrator });
+  return setupConfigFile<WorkflowConfig>(filesPath, { context, migrator: workflowConfigMigrator });
 };
 
 const deleteConfigFile = async (filesPath: string) => {
@@ -173,7 +173,7 @@ export const deletePipelineConfigFileByName = async (name: string, context: Pipe
   await deleteConfigFile(filesPath);
 };
 
-export const deleteReleaseFlowConfigFileByName = async (name: string, context: PipelabContext) => {
+export const deleteWorkflowConfigFileByName = async (name: string, context: PipelabContext) => {
   await deleteConfigFile(context.getConfigPath(`${name}.json`));
 };
 

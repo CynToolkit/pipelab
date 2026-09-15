@@ -119,7 +119,11 @@ async function prepareStage() {
   await rm(stageDir, { recursive: true, force: true });
   await mkdir(stageRoot, { recursive: true });
 
-  await run(pnpmCommand, ["--filter", "@pipelab/app", "deploy", stageDir], repoDir);
+  await run(
+    pnpmCommand,
+    ["--config.inject-workspace-packages=true", "--filter", "@pipelab/app", "deploy", stageDir],
+    repoDir,
+  );
   await verifyStageLinks(stageDir);
 
   await copyTreeWithoutSymlinks(cliSource, path.join(stageDir, "dist", "cli"));

@@ -110,10 +110,6 @@ export const testC3Unzip: PresetFn = async () => {
               editor: "editor",
               value: "'3047201'",
             },
-            sdk: {
-              editor: "editor",
-              value: "'/home/armaldio/Documents/steamworkssdk/sdk'",
-            },
             username: {
               editor: "editor",
               value: "'armaldio'",

@@ -2,7 +2,7 @@ import { SavedFile } from "@pipelab/shared";
 import { defineStore } from "pinia";
 import { Draft, create } from "mutative";
 import { klona } from "klona";
-import { FileRepo, ReleaseFlow } from "@pipelab/shared";
+import { FileRepo, WorkflowConfig } from "@pipelab/shared";
 import { useAPI } from "@renderer/composables/api";
 import { useProjectsConfig } from "@renderer/composables/useConfig";
 
@@ -46,31 +46,31 @@ export const useFiles = defineStore("files", () => {
     });
   };
 
-  const saveReleaseFlow = async (flow: ReleaseFlow) => {
-    await api.execute("release-flow:save-by-name", {
-      name: `release-flows/${flow.id}`,
+  const saveWorkflow = async (flow: WorkflowConfig) => {
+    await api.execute("workflow:save-by-name", {
+      name: `workflows/${flow.id}`,
       data: JSON.stringify(flow),
     });
     await update((state) => {
-      state.releaseFlows = state.releaseFlows || [];
+      state.workflows = state.workflows || [];
       const next = {
         id: flow.id,
         project: flow.project,
         lastModified: new Date().toISOString(),
-        type: "internal-release-flow" as const,
-        configName: `release-flows/${flow.id}`,
+        type: "internal-workflow" as const,
+        configName: `workflows/${flow.id}`,
       };
-      const index = state.releaseFlows.findIndex((item) => item.id === flow.id);
-      if (index === -1) state.releaseFlows.push(next);
-      else state.releaseFlows[index] = next;
+      const index = state.workflows.findIndex((item) => item.id === flow.id);
+      if (index === -1) state.workflows.push(next);
+      else state.workflows[index] = next;
     });
   };
 
-  const removeReleaseFlow = async (id: string) => {
-    const flow = files.value.releaseFlows?.find((item) => item.id === id);
-    if (flow) await api.execute("release-flow:delete-by-name", { name: flow.configName });
+  const removeWorkflow = async (id: string) => {
+    const flow = files.value.workflows?.find((item) => item.id === id);
+    if (flow) await api.execute("workflow:delete-by-name", { name: flow.configName });
     await update((state) => {
-      state.releaseFlows = (state.releaseFlows || []).filter((item) => item.id !== id);
+      state.workflows = (state.workflows || []).filter((item) => item.id !== id);
     });
   };
 
@@ -82,7 +82,7 @@ export const useFiles = defineStore("files", () => {
     remove,
     removeProject,
     transferPipeline,
-    saveReleaseFlow,
-    removeReleaseFlow,
+    saveWorkflow,
+    removeWorkflow,
   };
 });

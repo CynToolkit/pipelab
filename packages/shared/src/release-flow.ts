@@ -1,52 +1,53 @@
 import { array, boolean, literal, object, optional, string, union, InferInput } from "valibot";
 
-export const ReleaseFlowSourceValidator = union([
+export const WorkflowSourceValidator = union([
   object({
     type: literal("construct3"),
     path: string(),
-    profileConnectionId: optional(string()),
+    profilePath: optional(string()),
     version: optional(string()),
   }),
   object({ type: literal("folder"), path: string() }),
 ]);
 
-export const ReleaseFlowDestinationValidator = union([
+export const WorkflowDestinationValidator = union([
   object({
     type: literal("steam"),
-    sdkConnectionId: optional(string()),
+    enabled: optional(boolean(), true),
     accountConnectionId: optional(string()),
     appId: string(),
     depotId: string(),
-    description: string(),
-    appName: string(),
-    appBundleId: string(),
-    appVersion: string(),
+    description: optional(string()),
+    appName: optional(string()),
+    appBundleId: optional(string()),
+    appVersion: optional(string()),
     icon: optional(string()),
     branch: optional(string()),
   }),
   object({
     type: literal("itch"),
+    enabled: optional(boolean(), true),
     accountConnectionId: string(),
-    user: string(),
     project: string(),
     channel: string(),
   }),
   object({
     type: literal("web"),
+    enabled: optional(boolean(), true),
     outputDir: string(),
     overwrite: boolean(),
     cleanup: boolean(),
   }),
 ]);
 
-export const ReleaseFlowValidator = object({
+export const WorkflowConfigValidator = object({
   version: literal("1.0.0"),
   id: string(),
   project: string(),
   name: string(),
   description: optional(string()),
-  source: ReleaseFlowSourceValidator,
-  destinations: array(ReleaseFlowDestinationValidator),
+  source: WorkflowSourceValidator,
+  destinations: array(WorkflowDestinationValidator),
   continueOnError: optional(boolean(), true),
   osOverrides: optional(
     object({
@@ -57,11 +58,11 @@ export const ReleaseFlowValidator = object({
   ),
 });
 
-export type ReleaseFlowSource = InferInput<typeof ReleaseFlowSourceValidator>;
-export type ReleaseFlowDestination = InferInput<typeof ReleaseFlowDestinationValidator>;
-export type ReleaseFlow = InferInput<typeof ReleaseFlowValidator>;
+export type WorkflowSource = InferInput<typeof WorkflowSourceValidator>;
+export type WorkflowDestination = InferInput<typeof WorkflowDestinationValidator>;
+export type WorkflowConfig = InferInput<typeof WorkflowConfigValidator>;
 
-export const releaseFlowMigrator = {
+export const workflowConfigMigrator = {
   defaultValue: {
     version: "1.0.0" as const,
     id: "",
@@ -69,8 +70,8 @@ export const releaseFlowMigrator = {
     name: "",
     description: "",
     source: { type: "folder" as const, path: "" },
-    destinations: [] as ReleaseFlowDestination[],
+    destinations: [] as WorkflowDestination[],
     continueOnError: true,
-  } satisfies ReleaseFlow,
-  migrate: async (value: unknown) => value as ReleaseFlow,
+  } satisfies WorkflowConfig,
+  migrate: async (value: unknown) => value as WorkflowConfig,
 };

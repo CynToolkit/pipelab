@@ -184,6 +184,38 @@ describe("runWorkflow", () => {
       },
     });
   });
+
+  it("continues independent branches and skips dependents after a failure", async () => {
+    const events: WorkflowEvent[] = [];
+    const result = await runWorkflow(
+      {
+        version: 1,
+        continueOnError: true,
+        steps: [
+          { id: "fail", uses: "test:fail" },
+          { id: "blocked", uses: "test:blocked", needs: ["fail"] },
+          { id: "independent", uses: "test:independent", needs: [] },
+        ],
+      },
+      {
+        host: makeHost(),
+        onEvent: (event) => events.push(event),
+        tasks: {
+          "test:fail": async () => {
+            throw new Error("branch failed");
+          },
+          "test:blocked": async () => ({ ran: true }),
+          "test:independent": async () => ({ ran: true }),
+        },
+      },
+    );
+
+    expect(result.status).toBe("completed-with-errors");
+    expect(result.steps.fail.status).toBe("failed");
+    expect(result.steps.blocked.status).toBe("skipped");
+    expect(result.steps.independent.status).toBe("completed");
+    expect(events.some((event) => event.type === "step.skipped")).toBe(true);
+  });
 });
 
 describe("createLocalHost", () => {

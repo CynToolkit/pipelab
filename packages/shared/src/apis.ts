@@ -4,10 +4,21 @@ import type { Tagged } from "type-fest";
 import { PresetResult, Steps, SavedFile } from "./model";
 import { AppConfig, ConnectionsConfig } from "./config.schema";
 import { FileRepo } from "./config/projects-definition";
-import type { ReleaseFlow } from "./release-flow";
+import type { WorkflowConfig } from "./release-flow";
 import { Agent } from "./websocket.types";
 import { BuildHistoryEntry, BuildHistoryQuery, BuildHistoryResponse } from "./build-history";
-import type { Workflow, WorkflowEvent, WorkflowResult } from "@pipelab/workflow-runtime";
+import type { WorkflowEvent, WorkflowResult } from "@pipelab/workflow-runtime";
+export type BrowserProfileCandidate = {
+  browser: string;
+  profileName: string;
+  path: string;
+  isDefault: boolean;
+  addonCount: number | null;
+  lastUpdatedAt: number | null;
+  score: number | null;
+  usable: boolean;
+  reason?: string;
+};
 
 type Event<TYPE extends string, DATA> =
   | { type: TYPE; data: DATA }
@@ -164,6 +175,7 @@ export type IpcDefinition = {
   "connections:load": [void, EndEvent<ConnectionsConfig>];
   "connections:save": [{ data: ConnectionsConfig }, EndEvent<"ok">];
   "connections:reset": [{ key: string }, EndEvent<"ok">];
+  "construct:profiles:discover": [{ path?: string }, EndEvent<BrowserProfileCandidate[]>];
 
   "projects:load": [void, EndEvent<FileRepo>];
   "projects:save": [{ data: FileRepo }, EndEvent<"ok">];
@@ -175,33 +187,18 @@ export type IpcDefinition = {
   "pipeline:save-by-path": [{ path: string; data: string }, EndEvent<"ok">];
   "pipeline:delete-by-name": [{ name: string }, EndEvent<"ok">];
   "pipeline:delete-by-path": [{ path: string }, EndEvent<"ok">];
-  "release-flow:load-by-name": [{ name: string }, EndEvent<ReleaseFlow>];
-  "release-flow:save-by-name": [{ name: string; data: string }, EndEvent<"ok">];
-  "release-flow:delete-by-name": [{ name: string }, EndEvent<"ok">];
-  "release-flow:execute": [
-    { name: string; destinations?: string[] },
-    (
-      | { type: "release-stage"; data: { stage: string; status: "running" | "completed" | "failed" } }
-      | { type: "release-destination"; data: { type: string; status: "running" | "completed" | "failed"; error?: string } }
-      | { type: "release-log"; data: { message: string; time: number } }
-      | EndEvent<{ destinations: Record<string, { status: "completed" | "failed"; error?: string }> }>
-    ),
-  ];
-  "release-flow:cancel": [void, EndEvent<{ result: "ok" | "ko" }>];
-  "action:cancel": [void, EndEvent<{ result: "ok" | "ko" }>];
+  "workflow:load-by-name": [{ name: string }, EndEvent<WorkflowConfig>];
+  "workflow:save-by-name": [{ name: string; data: string }, EndEvent<"ok">];
+  "workflow:delete-by-name": [{ name: string }, EndEvent<"ok">];
   "workflow:execute": [
-    {
-      workflow: Workflow;
-      variables?: Record<string, unknown>;
-      pipelineId?: string;
-      projectName?: string;
-    },
+    { name: string; destinations?: string[]; release?: { version: string; description: string } },
     (
       | { type: "workflow-event"; data: WorkflowEvent }
       | EndEvent<{ result: WorkflowResult; buildId: string }>
     ),
   ];
   "workflow:cancel": [void, EndEvent<{ result: "ok" | "ko" }>];
+  "action:cancel": [void, EndEvent<{ result: "ok" | "ko" }>];
 
   // Build History APIs
   "build-history:save": [{ entry: BuildHistoryEntry }, EndEvent<{ result: "ok" | "ko" }>];
