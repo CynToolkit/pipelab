@@ -6,6 +6,7 @@ import { AppConfig, ConnectionsConfig } from "./config.schema";
 import { FileRepo } from "./config/projects-definition";
 import { Agent } from "./websocket.types";
 import { BuildHistoryEntry, BuildHistoryQuery, BuildHistoryResponse } from "./build-history";
+import type { Workflow, WorkflowEvent, WorkflowResult } from "@pipelab/workflow-runtime";
 
 type Event<TYPE extends string, DATA> =
   | { type: TYPE; data: DATA }
@@ -172,6 +173,19 @@ export type IpcDefinition = {
   "pipeline:delete-by-name": [{ name: string }, EndEvent<"ok">];
   "pipeline:delete-by-path": [{ path: string }, EndEvent<"ok">];
   "action:cancel": [void, EndEvent<{ result: "ok" | "ko" }>];
+  "workflow:execute": [
+    {
+      workflow: Workflow;
+      variables?: Record<string, unknown>;
+      pipelineId?: string;
+      projectName?: string;
+    },
+    (
+      | { type: "workflow-event"; data: WorkflowEvent }
+      | EndEvent<{ result: WorkflowResult; buildId: string }>
+    ),
+  ];
+  "workflow:cancel": [void, EndEvent<{ result: "ok" | "ko" }>];
 
   // Build History APIs
   "build-history:save": [{ entry: BuildHistoryEntry }, EndEvent<{ result: "ok" | "ko" }>];

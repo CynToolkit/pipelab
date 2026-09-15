@@ -33,6 +33,7 @@
     "@jitl/quickjs-wasmfile-release-sync": "0.31.0",
     "@pipelab/constants": "workspace:*",
     "@pipelab/migration": "workspace:*",
+    "@pipelab/workflow-runtime": "workspace:*",
     "@supabase/supabase-js": "2.99.3",
     "@types/node": "^24.12.2",
     "klona": "2.0.6",

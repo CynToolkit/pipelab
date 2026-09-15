@@ -19,6 +19,7 @@ export * from "./utils/remote";
 export * from "./utils/fs-extras";
 export * from "./types/runner";
 export * from "./runner";
+export * from "./workflow-tasks";
 export * from "./server";
 export * from "./utils";
 export * from "./utils/github";

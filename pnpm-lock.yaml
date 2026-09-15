@@ -700,6 +700,9 @@ importers:
       '@pipelab/migration':
         specifier: workspace:*
         version: link:../migration
+      '@pipelab/workflow-runtime':
+        specifier: workspace:*
+        version: link:../workflow-runtime
       '@supabase/supabase-js':
         specifier: 2.99.3
         version: 2.99.3
@@ -766,6 +769,12 @@ importers:
         specifier: ^5.0.0
         version: 5.9.3
 
+  packages/tsconfig:
+    dependencies:
+      '@types/node':
+        specifier: ^24.12.2
+        version: 24.12.2
+
   packages/workflow-runtime:
     devDependencies:
       '@pipelab/tsconfig':
@@ -789,12 +798,6 @@ importers:
       vitest:
         specifier: 3.1.4
         version: 3.1.4(@types/node@24.12.2)(jiti@2.6.1)(lightningcss@1.32.0)(msw@2.7.5(@types/node@24.12.2)(typescript@5.9.3))(sass-embedded@1.99.0)(sass@1.99.0)(terser@5.46.1)(tsx@4.19.1)
-
-  packages/tsconfig:
-    dependencies:
-      '@types/node':
-        specifier: ^24.12.2
-        version: 24.12.2
 
   plugins/plugin-construct:
     dependencies:
