@@ -142,6 +142,48 @@ describe("runWorkflow", () => {
       "workflow.failed",
     ]);
   });
+
+  it("runs ready dependency branches concurrently", async () => {
+    const host = makeHost();
+    const started: string[] = [];
+    let releaseBranches: (() => void) | undefined;
+    const branchesReleased = new Promise<void>((resolve) => {
+      releaseBranches = resolve;
+    });
+
+    const resultPromise = runWorkflow(
+      {
+        version: 1,
+        steps: [
+          { id: "bundle", uses: "test:bundle" },
+          { id: "steam", uses: "test:upload", needs: ["bundle"] },
+          { id: "itch", uses: "test:upload", needs: ["bundle"] },
+        ],
+      },
+      {
+        host,
+        tasks: {
+          "test:bundle": async () => ({ folder: "/workspace/bundle" }),
+          "test:upload": async ({ step }) => {
+            started.push(step.id);
+            await branchesReleased;
+            return { status: "uploaded" };
+          },
+        },
+      },
+    );
+
+    while (started.length < 2) await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(started).toEqual(["steam", "itch"]);
+    releaseBranches?.();
+
+    await expect(resultPromise).resolves.toMatchObject({
+      outputs: {
+        steam: { status: "uploaded" },
+        itch: { status: "uploaded" },
+      },
+    });
+  });
 });
 
 describe("createLocalHost", () => {

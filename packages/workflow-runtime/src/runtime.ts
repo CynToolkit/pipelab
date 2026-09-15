@@ -131,10 +131,34 @@ const validateWorkflow = (workflow: Workflow): void => {
     if (typeof step.uses !== "string" || step.uses.length === 0) {
       throw new Error(`Workflow step ${step.id} must have a non-empty uses value`);
     }
+    if (
+      step.needs !== undefined &&
+      (!Array.isArray(step.needs) ||
+        step.needs.some((dependency) => typeof dependency !== "string"))
+    ) {
+      throw new Error(`Workflow step ${step.id} dependencies must be an array of step ids`);
+    }
+    if (step.needs?.includes(step.id)) {
+      throw new Error(`Workflow step ${step.id} cannot depend on itself`);
+    }
     if (step.with !== undefined && !isRecord(step.with)) {
       throw new Error(`Workflow step ${step.id} inputs must be an object`);
     }
   }
+
+  for (const [index, step] of workflow.steps.entries()) {
+    const dependencies = step.needs ?? (index > 0 ? [workflow.steps[index - 1].id] : []);
+    for (const dependency of dependencies) {
+      if (!ids.has(dependency)) {
+        throw new Error(`Workflow step ${step.id} depends on unknown step: ${dependency}`);
+      }
+    }
+  }
+};
+
+const dependenciesFor = (workflow: Workflow, step: WorkflowStep): string[] => {
+  const index = workflow.steps.findIndex((candidate) => candidate.id === step.id);
+  return step.needs ?? (index > 0 ? [workflow.steps[index - 1].id] : []);
 };
 
 export const runWorkflow = async (
@@ -156,7 +180,9 @@ export const runWorkflow = async (
   emit({ type: "workflow.started", workflow });
 
   try {
-    for (const step of workflow.steps) {
+    const pending = new Set(workflow.steps.map((step) => step.id));
+
+    const runStep = async (step: WorkflowStep): Promise<void> => {
       const stepStartedAt = Date.now();
       const stepArtifacts: WorkflowArtifact[] = [];
       emit({ type: "step.started", stepId: step.id, uses: step.uses });
@@ -226,6 +252,27 @@ export const runWorkflow = async (
         });
         throw normalized;
       }
+    };
+
+    while (pending.size > 0) {
+      ensureNotAborted(signal);
+      const ready = workflow.steps.filter(
+        (step) =>
+          pending.has(step.id) &&
+          dependenciesFor(workflow, step).every((dependency) => !pending.has(dependency)),
+      );
+
+      if (ready.length === 0) {
+        throw new Error("Workflow dependencies contain a cycle");
+      }
+
+      const results = await Promise.allSettled(ready.map((step) => runStep(step)));
+      ready.forEach((step) => pending.delete(step.id));
+
+      const failure = results.find(
+        (result): result is PromiseRejectedResult => result.status === "rejected",
+      );
+      if (failure) throw failure.reason;
     }
 
     const result: WorkflowResult = { outputs, artifacts, steps };

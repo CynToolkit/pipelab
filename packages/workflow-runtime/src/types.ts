@@ -8,6 +8,8 @@ export interface Workflow {
 export interface WorkflowStep {
   id: string;
   uses: string;
+  /** Steps that must complete before this step can start. */
+  needs?: string[];
   with?: Record<string, unknown>;
 }
 
