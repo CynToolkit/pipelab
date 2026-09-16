@@ -3,7 +3,6 @@ import { resolveBundledUiFolder } from "./bundled-cli";
 import {
   getUiDevServerMissingWarning,
   uiDevPort,
-  uiDevServerInstruction,
 } from "@pipelab/constants";
 import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
@@ -29,17 +28,39 @@ export interface ServeOptions {
   allowedOrigin?: string;
 }
 
+const uiDevServerStartupGraceMs = 2_000;
+const uiDevServerProbeIntervalMs = 100;
+
+export const waitForUiDevServer = async ({
+  timeoutMs = uiDevServerStartupGraceMs,
+  intervalMs = uiDevServerProbeIntervalMs,
+}: { timeoutMs?: number; intervalMs?: number } = {}): Promise<boolean> => {
+  const deadline = Date.now() + timeoutMs;
+
+  do {
+    try {
+      await fetch(`http://127.0.0.1:${uiDevPort}/`, {
+        signal: AbortSignal.timeout(Math.min(250, Math.max(1, intervalMs))),
+      });
+      return true;
+    } catch {
+      // The UI may still be starting in another workspace task.
+    }
+
+    if (Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, intervalMs));
+    }
+  } while (Date.now() < deadline);
+
+  return false;
+};
+
 const startUiDevServer = async (
   host: string,
   cliPort: string | number,
   cliDirname: string,
 ): Promise<void> => {
-  try {
-    await fetch(`http://127.0.0.1:${uiDevPort}/`, { signal: AbortSignal.timeout(500) });
-    return;
-  } catch {
-    // Vite is not running yet; start it below.
-  }
+  if (await waitForUiDevServer()) return;
 
   const projectRoot = resolve(cliDirname, "../../..");
   const uiProcess = spawn("pnpm", ["--filter", "@pipelab/ui", "dev", "--host", host], {
