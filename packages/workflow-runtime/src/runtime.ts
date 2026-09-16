@@ -163,6 +163,18 @@ const dependenciesFor = (workflow: Workflow, step: WorkflowStep): string[] => {
   return step.needs ?? (index > 0 ? [workflow.steps[index - 1].id] : []);
 };
 
+const artifactForDelivery = (
+  step: WorkflowStep,
+  artifacts: Array<WorkflowArtifact | WorkflowArtifactInstance>,
+): WorkflowArtifactInstance | undefined => {
+  const outputId = step.with?.artifactOutput;
+  if (typeof outputId !== "string") return undefined;
+  return artifacts.find(
+    (artifact): artifact is WorkflowArtifactInstance =>
+      "outputId" in artifact && artifact.outputId === outputId,
+  );
+};
+
 export const runWorkflow = async (
   workflow: Workflow,
   context: WorkflowRunContext,
@@ -224,6 +236,10 @@ export const runWorkflow = async (
                 return;
               }
               const definition = ARTIFACT_OUTPUTS[outputId as keyof typeof ARTIFACT_OUTPUTS];
+              if (!definition) return;
+              if (stepArtifacts.some((artifact) =>
+                "outputId" in artifact && artifact.outputId === outputId && artifact.path === path,
+              )) return;
               stepArtifacts.push(
                 Object.freeze({
                   id: `artifact-${context.buildId ?? startedAt}-${artifactSequence++}`,
@@ -255,6 +271,18 @@ export const runWorkflow = async (
           completedAt,
           duration: completedAt - stepStartedAt,
         };
+        if (step.delivery) {
+          stepResult.delivery = {
+            id: step.id,
+            destinationId: step.delivery.destinationId,
+            slotId: step.delivery.slotId,
+            artifactId: artifactForDelivery(step, artifacts)?.id ?? "",
+            status: "completed",
+            startedAt: stepStartedAt,
+            completedAt,
+            duration: completedAt - stepStartedAt,
+          };
+        }
         outputs[step.id] = result;
         steps[step.id] = stepResult;
         artifacts.push(...stepArtifacts);
@@ -270,7 +298,7 @@ export const runWorkflow = async (
         const normalized = signal.aborted ? abortError(signal.reason) : toError(error);
         const completedAt = Date.now();
         const serialized = serializeError(normalized);
-        steps[step.id] = {
+        const failedStep: WorkflowStepResult = {
           id: step.id,
           uses: step.uses,
           status: "failed",
@@ -281,6 +309,20 @@ export const runWorkflow = async (
           duration: completedAt - stepStartedAt,
           error: serialized,
         };
+        if (step.delivery) {
+          failedStep.delivery = {
+            id: step.id,
+            destinationId: step.delivery.destinationId,
+            slotId: step.delivery.slotId,
+            artifactId: artifactForDelivery(step, artifacts)?.id ?? "",
+            status: "failed",
+            startedAt: stepStartedAt,
+            completedAt,
+            duration: completedAt - stepStartedAt,
+            error: serialized.message,
+          };
+        }
+        steps[step.id] = failedStep;
         emit({
           type: "step.failed",
           stepId: step.id,
@@ -302,7 +344,7 @@ export const runWorkflow = async (
         );
         if (!blockedBy.length) continue;
         const now = Date.now();
-        steps[step.id] = {
+        const skippedStep: WorkflowStepResult = {
           id: step.id,
           uses: step.uses,
           status: "skipped",
@@ -313,6 +355,20 @@ export const runWorkflow = async (
           duration: 0,
           blockedBy,
         };
+        if (step.delivery) {
+          skippedStep.delivery = {
+            id: step.id,
+            destinationId: step.delivery.destinationId,
+            slotId: step.delivery.slotId,
+            artifactId: artifactForDelivery(step, artifacts)?.id ?? "",
+            status: "failed",
+            startedAt: now,
+            completedAt: now,
+            duration: 0,
+            error: `Skipped because ${blockedBy.join(", ")} failed`,
+          };
+        }
+        steps[step.id] = skippedStep;
         pending.delete(step.id);
         emit({ type: "step.skipped", stepId: step.id, uses: step.uses, blockedBy });
       }
@@ -342,8 +398,12 @@ export const runWorkflow = async (
       status: Object.values(steps).some((step) => step.status !== "completed")
         ? "completed-with-errors"
         : "completed",
+      version: context.version,
       outputs,
       artifacts,
+      deliveries: workflow.steps
+        .map((step) => steps[step.id]?.delivery)
+        .filter((delivery): delivery is NonNullable<typeof delivery> => Boolean(delivery)),
       steps,
     };
     emit({ type: "workflow.completed", result, duration: Date.now() - startedAt });

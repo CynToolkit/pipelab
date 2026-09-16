@@ -116,6 +116,7 @@ export const compileWorkflow = (configuration: LegacyWorkflowConfiguration | Wor
         id: `delivery-${destination.id}-${slot.id}`,
         uses: destination.serviceId === "web-folder" ? "filesystem:copy" : destination.serviceId === "zip" ? "filesystem:zip" : `${destination.serviceId}:upload`,
         needs: [producer],
+        delivery: { destinationId: destination.id, slotId: slot.id },
         with: {
           ...(destination.config || {}), ...(slot.config || {}), artifactOutput: slot.input.outputId, packagerId: slot.input.packagerId, version: "${{ variables.version }}",
           ...(destination.serviceId === "steam" ? { folder: `\${{ steps.${producer}.outputs.bundleDirectory }}` } : {}),

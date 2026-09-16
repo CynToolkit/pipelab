@@ -30,6 +30,13 @@ export const createWorkflowActionTask = (
   return async (taskContext: WorkflowTaskContext) => {
     const outputs: Record<string, unknown> = {};
     const log: typeof console.log = (...args) => taskContext.log(...args);
+    const stableOutputId = taskContext.step.with?.outputId;
+
+    const setArtifact = (outputId: string, path: string, metadata?: { checksum?: string; size?: number; name?: string }) => {
+      const stableId = typeof stableOutputId === "string" ? stableOutputId : outputId;
+      if (metadata === undefined) taskContext.setArtifact(stableId, path);
+      else taskContext.setArtifact(stableId, path, metadata);
+    };
 
     await runner({
       inputs: taskContext.inputs,
@@ -44,7 +51,7 @@ export const createWorkflowActionTask = (
       browserWindow: undefined as any,
       abortSignal: taskContext.signal,
       context: options.context,
-      setArtifact: taskContext.setArtifact,
+      setArtifact,
     });
 
     for (const [alias, output] of Object.entries(options.outputAliases ?? {})) {

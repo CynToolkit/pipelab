@@ -14,6 +14,12 @@ export interface WorkflowStep {
   /** Steps that must complete before this step can start. */
   needs?: string[];
   with?: Record<string, unknown>;
+  delivery?: WorkflowDeliveryDefinition;
+}
+
+export interface WorkflowDeliveryDefinition {
+  destinationId: string;
+  slotId: string;
 }
 
 export interface Workspace {
@@ -101,12 +107,27 @@ export interface WorkflowStepResult {
   duration: number;
   error?: WorkflowError;
   blockedBy?: string[];
+  delivery?: WorkflowDeliveryResult;
+}
+
+export interface WorkflowDeliveryResult {
+  id: string;
+  destinationId: string;
+  slotId: string;
+  artifactId: string;
+  status: "completed" | "failed";
+  startedAt: number;
+  completedAt: number;
+  duration: number;
+  error?: string;
 }
 
 export interface WorkflowResult {
   status: "completed" | "completed-with-errors";
+  version?: string;
   outputs: Record<string, Record<string, unknown>>;
   artifacts: Array<WorkflowArtifact | WorkflowArtifactInstance>;
+  deliveries: WorkflowDeliveryResult[];
   steps: Record<string, WorkflowStepResult>;
 }
 

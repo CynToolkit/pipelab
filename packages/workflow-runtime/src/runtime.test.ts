@@ -282,4 +282,65 @@ describe("workflow artifact instances", () => {
     ]);
     expect(Object.isFrozen(result.artifacts[0])).toBe(true);
   });
+
+  it("records independent delivery results against the produced artifact", async () => {
+    const result = await runWorkflow(
+      {
+        version: 1,
+        continueOnError: true,
+        steps: [
+          {
+            id: "windows",
+            uses: "test:build",
+            with: { outputId: "electron.windows" },
+          },
+          {
+            id: "steam-windows",
+            uses: "test:deliver",
+            needs: ["windows"],
+            delivery: { destinationId: "steam", slotId: "windows" },
+            with: { artifactOutput: "electron.windows" },
+          },
+          {
+            id: "itch-windows",
+            uses: "test:deliver-fails",
+            needs: ["windows"],
+            delivery: { destinationId: "itch", slotId: "windows" },
+            with: { artifactOutput: "electron.windows" },
+          },
+        ],
+      },
+      {
+        host: makeHost(),
+        version: "1.4.0",
+        buildId: "build-456",
+        tasks: {
+          "test:build": async ({ setArtifact }) => {
+            setArtifact("electron.windows", "/workspace/game.zip", { size: 184000000 });
+          },
+          "test:deliver": async () => undefined,
+          "test:deliver-fails": async () => {
+            throw new Error("Itch rejected the upload");
+          },
+        },
+      },
+    );
+
+    expect(result.version).toBe("1.4.0");
+    expect(result.deliveries).toEqual([
+      expect.objectContaining({
+        destinationId: "steam",
+        slotId: "windows",
+        artifactId: "artifact-build-456-0",
+        status: "completed",
+      }),
+      expect.objectContaining({
+        destinationId: "itch",
+        slotId: "windows",
+        artifactId: "artifact-build-456-0",
+        status: "failed",
+        error: "Itch rejected the upload",
+      }),
+    ]);
+  });
 });

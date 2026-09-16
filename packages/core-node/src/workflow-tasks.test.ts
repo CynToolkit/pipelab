@@ -48,6 +48,30 @@ describe("createWorkflowActionTask", () => {
     expect(taskContext.setArtifact).toHaveBeenCalledWith("export", "/tmp/workflow/export");
   });
 
+  it("maps legacy packager artifact names to the stable workflow output", async () => {
+    const actionRunner: ActionRunner<any> = async ({ setArtifact }) => {
+      setArtifact("electron-build", "/tmp/workflow/game");
+    };
+    const taskContext = {
+      ...makeTaskContext(),
+      step: { id: "packager", uses: "electron:bundle", with: { outputId: "electron.windows" } },
+    };
+
+    await createWorkflowActionTask(actionRunner, {
+      context: new PipelabContext({ userDataPath: "/tmp/pipelab-user-data" }),
+      paths: {
+        cache: "/tmp/cache",
+        pnpm: "/tmp/pnpm",
+        node: "/tmp/node",
+        userData: "/tmp/pipelab-user-data",
+        modules: "",
+        thirdparty: "/tmp/thirdparty",
+      },
+    })(taskContext);
+
+    expect(taskContext.setArtifact).toHaveBeenCalledWith("electron.windows", "/tmp/workflow/game");
+  });
+
   it("registers the real workflow task IDs without the graph engine", async () => {
     const runner = async () => undefined;
     const plugin = (id: string, nodeIds: string[]) => ({
