@@ -1,25 +1,20 @@
 import type { WorkflowSource } from "./release-flow";
+import {
+  PACKAGER_DEFINITIONS as CANONICAL_PACKAGER_DEFINITIONS,
+  SERVICE_DEFINITIONS as CANONICAL_SERVICE_DEFINITIONS,
+  type ArtifactOutputDescriptor as CanonicalArtifactOutputDescriptor,
+  type ReleaseHostPlatform as CanonicalReleaseHostPlatform,
+  type WorkflowArtifactOutputId as CanonicalWorkflowArtifactOutputId,
+  type WorkflowPackagerDefinitionId as CanonicalWorkflowPackagerDefinitionId,
+  type WorkflowServiceId as CanonicalWorkflowServiceId,
+} from "@pipelab/constants";
 
-export type WorkflowPackagerDefinitionId = "electron" | "tauri" | "web";
-export type WorkflowServiceId = "steam" | "itch" | "web-folder" | "zip" | "poki";
-export type WorkflowArtifactOutputId =
-  | "electron.windows"
-  | "electron.linux"
-  | "electron.macos.arm64"
-  | "tauri.windows"
-  | "tauri.linux"
-  | "tauri.macos.arm64"
-  | "web.html5";
-export type ReleaseHostPlatform = "win32" | "linux" | "darwin";
+export type WorkflowPackagerDefinitionId = CanonicalWorkflowPackagerDefinitionId;
+export type WorkflowServiceId = CanonicalWorkflowServiceId;
+export type WorkflowArtifactOutputId = CanonicalWorkflowArtifactOutputId;
+export type ReleaseHostPlatform = CanonicalReleaseHostPlatform;
 
-export interface ArtifactOutputDescriptor {
-  id: WorkflowArtifactOutputId;
-  platform: "windows" | "linux" | "macos" | "web";
-  architecture: string;
-  format: string;
-  label: string;
-  capabilities: string[];
-}
+export type ArtifactOutputDescriptor = CanonicalArtifactOutputDescriptor;
 
 export interface PackagerEditorField {
   key: string;
@@ -82,14 +77,7 @@ export const PACKAGER_DEFINITIONS: Record<WorkflowPackagerDefinitionId, {
   fields: PackagerEditorField[];
 }> = {
   electron: {
-    id: "electron",
-    label: "Electron",
-    description: "Package the game as a desktop application.",
-    outputs: [
-      { id: "electron.windows", label: "Windows x64", platform: "windows", architecture: "x64", format: "zip", capabilities: ["Steam Overlay"] },
-      { id: "electron.linux", label: "Linux x64", platform: "linux", architecture: "x64", format: "zip", capabilities: ["Steam Overlay"] },
-      { id: "electron.macos.arm64", label: "macOS arm64", platform: "macos", architecture: "arm64", format: "zip", capabilities: ["Steam Overlay"] },
-    ],
+    ...CANONICAL_PACKAGER_DEFINITIONS.electron,
     features: ["Steam Overlay", "Steam Game ID", "WebSocket APIs"],
     fields: [
       { key: "name", label: "Application name", kind: "text", defaultValue: "Pipelab" },
@@ -129,43 +117,18 @@ export const PACKAGER_DEFINITIONS: Record<WorkflowPackagerDefinitionId, {
     ],
   },
   tauri: {
-    id: "tauri",
-    label: "Tauri",
-    description: "Package a lightweight desktop application.",
-    outputs: [
-      { id: "tauri.windows", label: "Windows x64", platform: "windows", architecture: "x64", format: "zip", capabilities: [] },
-      { id: "tauri.linux", label: "Linux x64", platform: "linux", architecture: "x64", format: "zip", capabilities: [] },
-      { id: "tauri.macos.arm64", label: "macOS arm64", platform: "macos", architecture: "arm64", format: "zip", capabilities: [] },
-    ],
+    ...CANONICAL_PACKAGER_DEFINITIONS.tauri,
     features: ["WebSocket APIs"],
     fields: [],
   },
   web: {
-    id: "web",
-    label: "Web",
-    description: "Prepare an HTML5 artifact.",
-    outputs: [
-      { id: "web.html5", label: "HTML5", platform: "web", architecture: "none", format: "folder", capabilities: [] },
-    ],
+    ...CANONICAL_PACKAGER_DEFINITIONS.web,
     features: ["WebSocket APIs"],
     fields: [],
   },
 };
 
-export const SERVICE_DEFINITIONS: Record<WorkflowServiceId, {
-  id: WorkflowServiceId;
-  label: string;
-  icon: string;
-  slotLabel: string;
-  compatiblePackagers: WorkflowPackagerDefinitionId[];
-  compatiblePlatforms: Array<ArtifactOutputDescriptor["platform"]>;
-}> = {
-  steam: { id: "steam", label: "Steam", icon: "mdi-steam", slotLabel: "slot", compatiblePackagers: ["electron", "tauri"], compatiblePlatforms: ["windows", "linux", "macos"] },
-  itch: { id: "itch", label: "Itch.io", icon: "mdi-puzzle-outline", slotLabel: "slot", compatiblePackagers: ["electron", "tauri", "web"], compatiblePlatforms: ["windows", "linux", "macos", "web"] },
-  "web-folder": { id: "web-folder", label: "Folder", icon: "mdi-folder-upload-outline", slotLabel: "slot", compatiblePackagers: ["web"], compatiblePlatforms: ["web"] },
-  zip: { id: "zip", label: "ZIP", icon: "mdi-folder-zip-outline", slotLabel: "slot", compatiblePackagers: ["electron", "tauri", "web"], compatiblePlatforms: ["windows", "linux", "macos", "web"] },
-  poki: { id: "poki", label: "Poki", icon: "mdi-gamepad-variant-outline", slotLabel: "slot", compatiblePackagers: ["web"], compatiblePlatforms: ["web"] },
-};
+export const SERVICE_DEFINITIONS = CANONICAL_SERVICE_DEFINITIONS;
 
 const hostName = (platform: ReleaseHostPlatform) => platform === "darwin" ? "macOS" : platform === "win32" ? "Windows" : "Linux";
 

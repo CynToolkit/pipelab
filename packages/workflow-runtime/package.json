@@ -26,6 +26,9 @@
     "typecheck": "tsc -b",
     "test": "vitest run"
   },
+  "dependencies": {
+    "@pipelab/constants": "workspace:*"
+  },
   "devDependencies": {
     "@pipelab/tsconfig": "workspace:*",
     "@types/node": "24.12.2",

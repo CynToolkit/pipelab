@@ -177,7 +177,9 @@ export const executeGraphWithHistory = async ({
                 const logEntry = {
                   id: nanoid(),
                   level: "info" as const,
-                  message: data.data.message,
+                  message: Array.isArray(data.data.message)
+                    ? data.data.message.join(" ")
+                    : String(data.data.message),
                   timestamp: data.data.time,
                 };
                 logs.push(logEntry);

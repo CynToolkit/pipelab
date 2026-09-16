@@ -1,7 +1,7 @@
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import { createWorkflowDefinition } from "./workflow";
+import { createWorkflowDefinition, workflowHistoryUpdateFromResult } from "./workflow";
 
 describe("createWorkflowDefinition", () => {
   it("builds parallel web and itch branches from a built folder", async () => {
@@ -152,5 +152,56 @@ describe("createWorkflowDefinition", () => {
     } finally {
       await rm(workspace, { recursive: true, force: true });
     }
+  });
+});
+
+describe("workflow history results", () => {
+  it("preserves the run version, artifact instances, and independent deliveries", () => {
+    const update = workflowHistoryUpdateFromResult({
+      version: "1.4.0",
+      status: "completed-with-errors",
+      outputs: {},
+      artifacts: [{
+        id: "artifact-run-0",
+        outputId: "electron.windows",
+        version: "1.4.0",
+        platform: "windows",
+        architecture: "x64",
+        format: "zip",
+        path: "/artifacts/game.zip",
+        producerStep: "packager-windows",
+        size: 184000000,
+      }],
+      deliveries: [{
+        id: "delivery-steam-windows",
+        destinationId: "steam",
+        slotId: "windows",
+        artifactId: "artifact-run-0",
+        status: "completed",
+        startedAt: 10,
+        completedAt: 20,
+        duration: 10,
+      }, {
+        id: "delivery-itch-windows",
+        destinationId: "itch",
+        slotId: "windows",
+        artifactId: "artifact-run-0",
+        status: "failed",
+        startedAt: 20,
+        completedAt: 30,
+        duration: 10,
+        error: "Itch rejected the upload",
+      }],
+      steps: {},
+    });
+
+    expect(update).toEqual(expect.objectContaining({
+      status: "completed-with-errors",
+      version: "1.4.0",
+      artifacts: expect.any(Array),
+      deliveries: expect.any(Array),
+    }));
+    expect(update.artifacts?.[0]).toMatchObject({ outputId: "electron.windows", producerStep: "packager-windows" });
+    expect(update.deliveries?.[1]).toMatchObject({ destinationId: "itch", error: "Itch rejected the upload" });
   });
 });

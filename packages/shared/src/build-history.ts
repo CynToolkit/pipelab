@@ -1,10 +1,14 @@
 // Build History Storage Types and Interfaces
 import { SandboxFolder } from "@pipelab/constants";
+import type {
+  ArtifactInstance as WorkflowArtifactInstance,
+  WorkflowDeliveryResult,
+} from "@pipelab/workflow-runtime";
 
 export interface ExecutionStep {
   id: string;
   name: string;
-  status: "pending" | "running" | "completed" | "failed" | "cancelled";
+  status: "pending" | "running" | "completed" | "failed" | "cancelled" | "skipped";
   startTime: number;
   endTime?: number;
   duration?: number;
@@ -43,7 +47,8 @@ export interface BuildHistoryEntry {
   projectName: string;
   projectPath: string;
   cachePath?: string;
-  status: "running" | "completed" | "failed" | "cancelled";
+  status: "running" | "completed" | "completed-with-errors" | "failed" | "cancelled";
+  version?: string;
   startTime: number;
   endTime?: number;
   duration?: number;
@@ -59,7 +64,8 @@ export interface BuildHistoryEntry {
   userId?: string;
   createdAt: number;
   updatedAt: number;
-  artifacts?: Artifact[];
+  artifacts?: Array<Artifact | WorkflowArtifactInstance>;
+  deliveries?: WorkflowDeliveryResult[];
 }
 
 // Query interface supporting both pipeline and scenario filtering

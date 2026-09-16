@@ -1,4 +1,4 @@
-import { compileWorkflow, createLocalHost, runWorkflow, type Workflow, type WorkflowRunContext } from "@pipelab/workflow-runtime";
+import { compileWorkflow, createLocalHost, runWorkflow, type Workflow, type WorkflowEvent, type WorkflowResult } from "@pipelab/workflow-runtime";
 import { nanoid } from "nanoid";
 import { access, mkdir } from "node:fs/promises";
 import { dirname, join } from "node:path";
@@ -9,6 +9,43 @@ import { ensureNodeJS, ensurePNPM } from "../utils/remote";
 import { createPipelabWorkflowTasks } from "../workflow-tasks";
 import { useAPI } from "../ipc-core";
 import { getReleaseHostCapabilities, migrateWorkflowConfig, validateWorkflowConfigV2 } from "@pipelab/shared";
+import type { BuildHistoryEntry, ExecutionStep, LogEntry } from "@pipelab/shared";
+import { BuildHistoryStorage } from "./build-history";
+
+export const workflowHistoryUpdateFromResult = (
+  result: WorkflowResult,
+): Pick<BuildHistoryEntry, "status" | "version" | "steps" | "artifacts" | "deliveries" | "output"> => ({
+  status: result.status,
+  version: result.version,
+  steps: Object.values(result.steps).map((step): ExecutionStep => ({
+    id: step.id,
+    name: step.id,
+    status: step.status,
+    startTime: step.startedAt,
+    endTime: step.completedAt,
+    duration: step.duration,
+    logs: [],
+    output: step.outputs,
+    ...(step.error ? {
+      error: {
+        message: step.error.message,
+        timestamp: step.completedAt,
+      },
+    } : {}),
+  })),
+  artifacts: result.artifacts.filter((artifact) => "outputId" in artifact),
+  deliveries: result.deliveries,
+  output: result.outputs,
+});
+
+const workflowHistoryLogs = (events: WorkflowEvent[]): LogEntry[] =>
+  events.flatMap((event, index) => event.type === "step.log" ? [{
+    id: `workflow-log-${event.timestamp}-${index}`,
+    timestamp: event.timestamp,
+    level: event.stream === "stderr" ? "error" : "info",
+    message: event.message,
+    source: event.stepId,
+  }] : []);
 
 const itchUsernameFor = async (apiKey: string) => {
   const response = await fetch("https://api.itch.io/profile", { headers: { Authorization: `Bearer ${apiKey}` } });
@@ -100,6 +137,30 @@ export const executeWorkflow = async (
   };
   const workflow = compileWorkflow(runtimeWorkflowConfig);
   const buildId = nanoid();
+  const version = options.release?.version?.trim() || "0.0.0";
+  const pipelineId = workflowConfig.project || workflowConfig.id || "workflow";
+  const startTime = Date.now();
+  const history = new BuildHistoryStorage(context);
+  const events: WorkflowEvent[] = [];
+  await history.save({
+    id: buildId,
+    pipelineId,
+    projectName: workflowConfig.name,
+    projectPath: workflowConfig.source.path,
+    status: "running",
+    version,
+    startTime,
+    steps: [],
+    totalSteps: workflow.steps.length,
+    completedSteps: 0,
+    failedSteps: 0,
+    cancelledSteps: 0,
+    logs: [],
+    artifacts: [],
+    deliveries: [],
+    createdAt: startTime,
+    updatedAt: startTime,
+  });
   const workspaceRoot = context.getArtifactsPath("workflow", buildId);
   await mkdir(workspaceRoot, { recursive: true });
   const node = await ensureNodeJS(context);
@@ -123,16 +184,46 @@ export const executeWorkflow = async (
       error: (...args) => logger().error(...args),
     },
   });
-  const result = await runWorkflow(workflow, {
-    host,
-    variables: { version: options.release?.version || "", sourcePath: workflowConfig.source.path },
-    version: options.release?.version || undefined,
-    buildId,
-    tasks,
-    onEvent: options.onEvent,
-    signal: options.signal,
-  });
-  return { result, buildId };
+  try {
+    const result = await runWorkflow(workflow, {
+      host,
+      variables: { version, sourcePath: workflowConfig.source.path },
+      version,
+      buildId,
+      tasks,
+      onEvent: (event) => {
+        events.push(event);
+        options.onEvent?.(event);
+      },
+      signal: options.signal,
+    });
+    const update = workflowHistoryUpdateFromResult(result);
+    const logs = workflowHistoryLogs(events);
+    const endTime = Date.now();
+    await history.update(buildId, {
+      ...update,
+      logs,
+      endTime,
+      duration: endTime - startTime,
+      completedSteps: result.steps ? Object.values(result.steps).filter((step) => step.status === "completed").length : 0,
+      failedSteps: Object.values(result.steps).filter((step) => step.status === "failed" || step.status === "skipped").length,
+      steps: update.steps.map((step) => ({ ...step, logs: logs.filter((log) => log.source === step.id) })),
+    }, pipelineId);
+    return { result, buildId };
+  } catch (error) {
+    const endTime = Date.now();
+    await history.update(buildId, {
+      status: error instanceof Error && error.name === "AbortError" ? "cancelled" : "failed",
+      endTime,
+      duration: endTime - startTime,
+      logs: workflowHistoryLogs(events),
+      error: {
+        message: error instanceof Error ? error.message : String(error),
+        timestamp: endTime,
+      },
+    }, pipelineId);
+    throw error;
+  }
 };
 
 export const registerWorkflowHandlers = (context: PipelabContext, pluginsReady?: Promise<void>) => {
