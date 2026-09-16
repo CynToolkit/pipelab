@@ -795,6 +795,10 @@ importers:
         version: 24.12.2
 
   packages/workflow-runtime:
+    dependencies:
+      '@pipelab/constants':
+        specifier: workspace:*
+        version: link:../constants
     devDependencies:
       '@pipelab/tsconfig':
         specifier: workspace:*

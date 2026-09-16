@@ -61,9 +61,44 @@
           @add-connection="openConnection($event === 'itch' ? 'itch-account' : 'steam-account')"
           @update:model-value="flow = $event"
         />
-        <section v-if="runArtifacts.length" class="build-results card" aria-label="Build artifacts">
-          <div class="section-title"><div><h2>Build {{ releaseVersion }} ✓</h2><span>Immutable artifacts produced by this run</span></div><Tag value="Ready" severity="success" /></div>
-          <div class="artifact-summary"><div v-for="artifact in runArtifacts" :key="artifact.id" class="artifact-summary-row"><i class="mdi mdi-package-variant-closed" /><strong>{{ artifactOutputLabel(artifact.outputId) }}</strong><span>{{ formatSize(artifact.size) }}</span><small>{{ artifact.path }}</small></div></div>
+        <section v-if="runArtifacts.length || runDeliveries.length" class="build-results card" aria-label="Build results">
+          <div class="section-title">
+            <div><h2>Build {{ releaseVersion }}</h2><span>Build once, then deliver the same artifacts independently.</span></div>
+            <Tag :value="buildResultStatus === 'completed' ? 'Completed' : 'Completed with errors'" :severity="buildResultStatus === 'completed' ? 'success' : 'danger'" />
+          </div>
+          <div class="results-section">
+            <h3>Artifacts</h3>
+            <div class="artifact-summary">
+              <div v-for="artifact in runArtifacts" :key="artifact.id" class="artifact-summary-row">
+                <i class="mdi mdi-package-variant-closed" aria-hidden="true" />
+                <div class="artifact-main">
+                  <strong>{{ artifactOutputLabel(artifact.outputId) }}</strong>
+                  <span>{{ packagerLabel(artifact) }} · {{ artifact.format }} · {{ formatSize(artifact.size) }}</span>
+                  <small>{{ artifact.path }}</small>
+                </div>
+                <div class="artifact-consumers" aria-label="Artifact deliveries">
+                  <span>Used by</span>
+                  <span v-for="delivery in deliveriesForArtifact(artifact.id)" :key="delivery.id" class="consumer-chip">
+                    {{ destinationLabelForId(delivery.destinationId) }} / {{ deliverySlotLabel(delivery) }}
+                    <i :class="delivery.status === 'completed' ? 'pi pi-check' : 'pi pi-times'" aria-hidden="true" />
+                  </span>
+                  <small v-if="!deliveriesForArtifact(artifact.id).length">No deliveries</small>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="results-section deliveries-section">
+            <h3>Deliveries</h3>
+            <div v-if="!runDeliveries.length" class="results-empty">No deliveries recorded.</div>
+            <div v-for="group in deliveryGroups" :key="group.destinationId" class="delivery-group">
+              <h4>{{ group.label }}</h4>
+              <div v-for="delivery in group.deliveries" :key="delivery.id" class="delivery-row">
+                <span>{{ deliverySlotLabel(delivery) }}</span>
+                <Tag :value="delivery.status === 'completed' ? 'Delivered' : 'Failed'" :severity="delivery.status === 'completed' ? 'success' : 'danger'" />
+                <small v-if="delivery.error" class="delivery-error">{{ delivery.error }}</small>
+              </div>
+            </div>
+          </div>
         </section>
         <section v-if="logs.length || Object.keys(runSteps).length" class="logs card">
           <div class="section-title">
@@ -281,7 +316,7 @@ import Checkbox from "primevue/checkbox";
 import Dialog from "primevue/dialog";
 import WorkflowArtifactsPanel from "@renderer/components/WorkflowArtifactsPanel.vue";
 import { useAPI } from "@renderer/composables/api";
-import { getReleaseHostCapabilities, migrateWorkflowConfig, outputDescriptor, type BrowserProfileCandidate, type WorkflowConfig, type WorkflowDestination } from "@pipelab/shared";
+import { getReleaseHostCapabilities, migrateWorkflowConfig, outputDescriptor, SERVICE_DEFINITIONS, type BrowserProfileCandidate, type WorkflowConfig, type WorkflowDestination } from "@pipelab/shared";
 const route = useRoute();
 const router = useRouter();
 const api = useAPI();
@@ -303,7 +338,8 @@ const releaseDescription = ref("");
 const logs = ref<string[]>([]);
 const runSteps = ref<Record<string, string>>({});
 const runArtifacts = ref<any[]>([]);
-const runResults = ref<Record<string, { status: string; error?: string }>>({});
+const runDeliveries = ref<any[]>([]);
+const buildResultStatus = ref<"completed" | "completed-with-errors">("completed");
 const connectionDialog = ref({
   visible: false,
   saving: false,
@@ -366,21 +402,19 @@ const readiness = computed(() => {
   return [...new Set(errors)];
 });
 const canShip = computed(() => !!flow.value && !readiness.value.length && !running.value);
-const destinationReady = (destination: WorkflowDestination) => {
-  if (destination.type === "web") return !!destination.outputDir;
-  if (destination.type === "itch") {
-    return !!(
-      destination.accountConnectionId &&
-      destination.project &&
-      destination.channel
-    );
+const deliveryGroups = computed(() => {
+  const groups = new Map<string, { destinationId: string; label: string; deliveries: any[] }>();
+  for (const delivery of runDeliveries.value) {
+    const group: { destinationId: string; label: string; deliveries: any[] } = groups.get(delivery.destinationId) || {
+      destinationId: delivery.destinationId,
+      label: destinationLabelForId(delivery.destinationId),
+      deliveries: [],
+    };
+    group.deliveries.push(delivery);
+    groups.set(delivery.destinationId, group);
   }
-  return !!(
-    steamAccountReady(destination.accountConnectionId) &&
-    destination.appId &&
-    destination.depotId
-  );
-};
+  return [...groups.values()];
+});
 const load = async () => {
   const [loaded, accountResult, hostResult] = await Promise.all([
     api.execute("workflow:load-by-name", { name: `workflows/${route.params.flowId}` }),
@@ -562,8 +596,9 @@ const runShip = async () => {
   running.value = true;
   logs.value = [];
   runSteps.value = {};
-  runResults.value = {};
   runArtifacts.value = [];
+  runDeliveries.value = [];
+  buildResultStatus.value = "completed";
   const result = await api.execute(
     "workflow:execute",
     {
@@ -577,45 +612,25 @@ const runShip = async () => {
         logs.value.push(`[${workflowEvent.stepId}] ${workflowEvent.message}`);
       }
       if (workflowEvent.type === "step.started") runSteps.value[workflowEvent.stepId] = "running";
-      if (workflowEvent.type === "step.started" && ["web", "itch", "steam"].includes(workflowEvent.stepId)) {
-        runResults.value[workflowEvent.stepId] = { status: "running" };
-      }
       if (workflowEvent.type === "step.completed") runSteps.value[workflowEvent.stepId] = "completed";
-      if (workflowEvent.type === "step.completed" && ["web", "itch", "steam"].includes(workflowEvent.stepId)) {
-        runResults.value[workflowEvent.stepId] = { status: "completed" };
-      }
       if (workflowEvent.type === "step.failed") {
         runSteps.value[workflowEvent.stepId] = "failed";
         logs.value.push(`[${workflowEvent.stepId}] ${workflowEvent.error.message}`);
-        if (["web", "itch", "steam"].includes(workflowEvent.stepId)) {
-          runResults.value[workflowEvent.stepId] = {
-            status: "failed",
-            error: workflowEvent.error.message,
-          };
-        }
       }
       if (workflowEvent.type === "step.skipped") runSteps.value[workflowEvent.stepId] = "skipped";
       if (workflowEvent.type === "step.skipped") {
         const reason = `Skipped because ${workflowEvent.blockedBy.join(", ")} failed`;
         logs.value.push(`[${workflowEvent.stepId}] ${reason}`);
-        if (["web", "itch", "steam"].includes(workflowEvent.stepId)) {
-          runResults.value[workflowEvent.stepId] = { status: "failed", error: reason };
-        }
       }
     },
   );
   if (result.type === "success") {
+    releaseVersion.value = result.result.result.version || releaseVersion.value;
     runArtifacts.value = result.result.result.artifacts || [];
+    runDeliveries.value = result.result.result.deliveries || [];
+    buildResultStatus.value = result.result.result.status;
     if (result.result.result.status === "completed-with-errors")
       logs.value.push("Workflow completed with errors.");
-    for (const type of ["web", "itch", "steam"]) {
-      const step = result.result.result.steps[type];
-      if (step?.status === "completed") runResults.value[type] = { status: "completed" };
-      if (step?.status === "failed")
-        runResults.value[type] = { status: "failed", error: step.error?.message };
-      if (step?.status === "skipped")
-        runResults.value[type] = { status: "failed", error: `Skipped because ${step.blockedBy?.join(", ")}` };
-    }
   }
   else logs.value.push(result.ipcError);
   running.value = false;
@@ -625,17 +640,22 @@ const cancel = async () => {
 };
 const artifactOutputLabel = (id: string) => outputDescriptor(id as any)?.label || id;
 const formatSize = (size?: number) => typeof size === "number" ? `${Math.round(size / 1024 / 1024)} MB` : "Size pending";
+const packagerLabel = (artifact: any) => {
+  const packager = flow.value?.packagers.find((item: any) => artifact.producerStep?.startsWith(`packager-${item.id}-`));
+  return packager?.name || artifact.producerStep || "Packager";
+};
+const deliveriesForArtifact = (artifactId: string) => runDeliveries.value.filter((delivery) => delivery.artifactId === artifactId);
+const destinationLabelForId = (id: string) => {
+  const destination = flow.value?.destinations.find((item: any) => item.id === id);
+  return destination ? SERVICE_DEFINITIONS[destination.serviceId as keyof typeof SERVICE_DEFINITIONS]?.label || id : id;
+};
+const deliverySlotLabel = (delivery: any) => {
+  const destination = flow.value?.destinations.find((item: any) => item.id === delivery.destinationId);
+  const slot = destination?.slots.find((item: any) => item.id === delivery.slotId);
+  return slot?.input?.outputId ? artifactOutputLabel(slot.input.outputId) : delivery.slotId;
+};
 const destinationLabel = (type: string) =>
   type === "steam" ? "Steam" : type === "itch" ? "Itch.io" : "Web folder";
-const destinationIcon = (type: string) =>
-  type === "steam" ? "mdi-steam" : type === "itch" ? "mdi-puzzle-outline" : "mdi-web";
-const destinationStatus = (type: string) =>
-  flow.value?.destinations.find((destination: any) => destination.type === type)?.enabled === false
-    ? "Inactive"
-    : runResults.value[type]?.error ||
-  (runResults.value[type]?.status === "completed"
-    ? "Published successfully"
-    : "Configure this destination");
 const steam = (destination: WorkflowDestination) =>
   destination as Extract<WorkflowDestination, { type: "steam" }>;
 </script>
@@ -825,6 +845,80 @@ h1 {
   color: var(--text-color-secondary);
   font-size: 12px;
 }
+.results-section + .results-section {
+  border-top: 1px solid var(--surface-border);
+  margin-top: 16px;
+  padding-top: 16px;
+}
+.build-results h3,
+.build-results h4 {
+  margin: 0;
+  font-size: 13px;
+}
+.artifact-main {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+}
+.artifact-main strong {
+  font-size: 13px;
+}
+.artifact-main span,
+.artifact-main small,
+.results-empty {
+  color: var(--text-color-secondary);
+  font-size: 12px;
+}
+.artifact-main small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.artifact-consumers {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 5px;
+  color: var(--text-color-secondary);
+  font-size: 11px;
+}
+.consumer-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid var(--surface-border);
+  border-radius: 4px;
+  padding: 3px 5px;
+  color: var(--text-color);
+}
+.consumer-chip .pi-check {
+  color: var(--green-500, #22c55e);
+}
+.consumer-chip .pi-times {
+  color: var(--red-500, #ef4444);
+}
+.delivery-group + .delivery-group {
+  margin-top: 12px;
+}
+.delivery-group h4 {
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+.delivery-row {
+  display: grid;
+  grid-template-columns: minmax(130px, 0.3fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  border-top: 1px solid var(--surface-border);
+  padding: 7px 0;
+  font-size: 12px;
+}
+.delivery-error {
+  color: var(--red-500, #ef4444);
+  overflow-wrap: anywhere;
+}
 .artifact-summary {
   display: grid;
   gap: 7px;
@@ -832,8 +926,8 @@ h1 {
 }
 .artifact-summary-row {
   display: grid;
-  grid-template-columns: 22px 1fr auto;
-  align-items: center;
+  grid-template-columns: 22px minmax(0, 1fr) minmax(220px, auto);
+  align-items: start;
   gap: 8px;
   font-size: 12px;
 }
@@ -841,15 +935,20 @@ h1 {
   color: var(--primary-color);
   font-size: 17px;
 }
-.artifact-summary-row span,
-.artifact-summary-row small {
-  color: var(--text-color-secondary);
-}
-.artifact-summary-row small {
-  grid-column: 2 / -1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+@media (max-width: 700px) {
+  .artifact-summary-row {
+    grid-template-columns: 22px minmax(0, 1fr);
+  }
+  .artifact-consumers {
+    grid-column: 2;
+    justify-content: flex-start;
+  }
+  .delivery-row {
+    grid-template-columns: 1fr auto;
+  }
+  .delivery-error {
+    grid-column: 1 / -1;
+  }
 }
 .run-steps {
   display: flex;

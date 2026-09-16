@@ -10,7 +10,7 @@ import { computed } from "vue";
 import type { BuildHistoryEntry } from "@pipelab/shared";
 
 interface Props {
-  status: BuildHistoryEntry["status"] | "pending";
+  status: BuildHistoryEntry["status"] | "pending" | "skipped";
   showIcon?: boolean;
   size?: "small" | "medium" | "large";
 }
@@ -35,6 +35,13 @@ const statusConfig = {
     color: "#28a745",
     tooltip: "Build completed successfully",
   },
+  "completed-with-errors": {
+    class: "status-completed-with-errors",
+    icon: "pi pi-exclamation-triangle",
+    text: "Completed with errors",
+    color: "#c2410c",
+    tooltip: "Build completed, but one or more deliveries failed",
+  },
   failed: {
     class: "status-failed",
     icon: "pi pi-times",
@@ -55,6 +62,13 @@ const statusConfig = {
     text: "Pending",
     color: "#ffc107",
     tooltip: "Step is waiting to execute",
+  },
+  skipped: {
+    class: "status-skipped",
+    icon: "pi pi-minus",
+    text: "Skipped",
+    color: "#6c757d",
+    tooltip: "Step was skipped because a dependency failed",
   },
 };
 

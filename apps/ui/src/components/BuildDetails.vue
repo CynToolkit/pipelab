@@ -6,6 +6,7 @@
       <!-- Tab Navigation -->
       <Tabs :value="defaultTab" class="details-tabs">
         <TabList>
+          <Tab v-if="entry.version" value="results">Build Results</Tab>
           <Tab v-if="canUseHistory" value="steps">Execution Steps</Tab>
 
           <Tab v-if="canUseHistory && entry.error" value="error">Error Details</Tab>
@@ -14,6 +15,39 @@
         </TabList>
 
         <TabPanels>
+          <TabPanel v-if="entry.version" value="results">
+            <div class="build-results-summary">
+              <div class="results-header">
+                <h3>Build {{ entry.version }}</h3>
+                <BuildStatusBadge :status="entry.status" />
+              </div>
+              <h4>Artifacts</h4>
+              <div v-if="!entry.artifacts?.length" class="no-artifacts"><p>No artifacts generated during this build.</p></div>
+              <div v-else class="result-artifact-list">
+                <div v-for="artifact in entry.artifacts" :key="artifact.id" class="result-artifact-row">
+                  <div>
+                    <strong>{{ artifactName(artifact) }}</strong>
+                    <small v-if="'outputId' in artifact">{{ artifact.platform }} {{ artifact.architecture }} · {{ artifact.format }} · {{ artifact.producerStep }}</small>
+                    <small>{{ artifact.path }}</small>
+                  </div>
+                  <div class="result-consumers">
+                    <span v-for="delivery in entry.deliveries?.filter((item) => item.artifactId === artifact.id) || []" :key="delivery.id">
+                      {{ delivery.destinationId }} / {{ delivery.slotId }} {{ delivery.status === 'completed' ? '✓' : '✕' }}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <h4>Deliveries</h4>
+              <div v-if="!entry.deliveries?.length" class="no-artifacts"><p>No deliveries recorded.</p></div>
+              <div v-else class="result-delivery-list">
+                <div v-for="delivery in entry.deliveries" :key="delivery.id" class="result-delivery-row">
+                  <span>{{ delivery.destinationId }} / {{ delivery.slotId }}</span>
+                  <BuildStatusBadge :status="delivery.status" size="small" />
+                  <small v-if="delivery.error">{{ delivery.error }}</small>
+                </div>
+              </div>
+            </div>
+          </TabPanel>
           <TabPanel v-if="canUseHistory" value="steps">
             <div class="steps-container">
               <div v-if="!entry.steps || entry.steps.length === 0" class="no-steps">
@@ -145,8 +179,8 @@
                   class="flex items-center gap-2 p-2 surface-ground border-round"
                 >
                   <i class="pi pi-file"></i>
-                  <span class="flex-grow-1 font-bold">{{ artifact.name }}</span>
-                  <span class="text-sm text-secondary mr-2">{{ artifact.type === 'folder' ? 'Folder' : (artifact.size ? (artifact.size / 1024 / 1024).toFixed(2) + ' MB' : 'Unknown size') }}</span>
+                  <span class="flex-grow-1 font-bold">{{ artifactName(artifact) }}</span>
+                  <span class="text-sm text-secondary mr-2">{{ artifactFormat(artifact) }}</span>
                   <Button
                     icon="pi pi-folder-open"
                     label="Open Location"
@@ -174,13 +208,25 @@ import { useBuildHistory } from "../store/build-history";
 
 const buildHistoryStore = useBuildHistory();
 const canUseHistory = computed(() => buildHistoryStore.canUseHistory);
-const defaultTab = computed(() => canUseHistory.value ? "steps" : "artifacts");
 
 interface Props {
   entry: BuildHistoryEntry | null;
 }
 
 const props = defineProps<Props>();
+const defaultTab = computed(() => props.entry?.version ? "results" : canUseHistory.value ? "steps" : "artifacts");
+
+const artifactName = (artifact: NonNullable<BuildHistoryEntry["artifacts"]>[number]) =>
+  "outputId" in artifact ? artifact.outputId : artifact.name;
+
+const artifactFormat = (artifact: NonNullable<BuildHistoryEntry["artifacts"]>[number]) =>
+  "outputId" in artifact
+    ? `${artifact.format}${artifact.size ? ` · ${(artifact.size / 1024 / 1024).toFixed(2)} MB` : ""}`
+    : artifact.type === "folder"
+      ? "Folder"
+      : artifact.size
+        ? `${(artifact.size / 1024 / 1024).toFixed(2)} MB`
+        : "Unknown size";
 
 // Methods
 const formatDateTime = (timestamp: number): string => {
@@ -229,6 +275,63 @@ const getStepIcon = (status: string): string => {
 .build-details-modal {
   max-height: 80vh;
   overflow-y: auto;
+}
+
+.build-results-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.results-header,
+.result-artifact-row,
+.result-delivery-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.build-results-summary h3,
+.build-results-summary h4 {
+  margin: 0;
+}
+
+.result-artifact-list,
+.result-delivery-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.result-artifact-row,
+.result-delivery-row {
+  align-items: flex-start;
+  border: 1px solid var(--surface-border);
+  border-radius: 6px;
+  padding: 0.65rem;
+}
+
+.result-artifact-row > div:first-child {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.result-artifact-row small,
+.result-delivery-row small {
+  color: var(--text-color-secondary);
+  overflow-wrap: anywhere;
+}
+
+.result-consumers {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.35rem;
+  color: var(--text-color-secondary);
+  font-size: 0.8rem;
 }
 
 
