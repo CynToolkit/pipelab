@@ -9,21 +9,24 @@ Run the Pipelab UI + CLI dev servers so a remote browser (e.g. the developer's
 laptop) can open the UI over Tailscale. Use when asked to "start the app",
 "preview from tailscale", or expose a dev URL.
 
-## Procedure
+## Start
+
+Run this simple command from the repository root:
+
+```bash
+pnpm dev-remote --filter=@pipelab/ui --filter=@pipelab/cli
+```
+
+It starts both services with remote-safe bindings. Leave the terminal running
+while using the preview.
 
 1. Confirm Tailscale is up: `tailscale ip -4`. Note the machine IP
-   (e.g. `100.111.167.123`). The UI URL is `http://<ip>:5173` (or the
-   alternate Vite port selected below).
-2. Launch both servers **detached** (stdin from `/dev/null`, own session —
-   never plain `&` from a terminal, see Gotchas):
-   - CLI: `setsid bash -c 'pnpm --filter @pipelab/cli dev > /tmp/pipelab-cli.log 2>&1 < /dev/null' &`
-   - UI: `setsid bash -c 'pnpm --filter @pipelab/ui exec vite --host 0.0.0.0 --port 5173 > /tmp/pipelab-ui.log 2>&1 < /dev/null' &`
-   - `disown -a` afterwards if launched from an interactive shell.
+   (e.g. `100.111.167.123`). The UI URL is `http://<ip>:5173`.
+2. Use the `pnpm dev-remote` command above. Do not add another `--` before
+   the filters.
    The UI and CLI are separate servers. Opening the UI URL alone does not
    start the backend; the CLI must be running on the same machine and its
    WebSocket port (`33753`) must be reachable over Tailscale.
-   If port `5173` is already occupied, stop the stale Vite process or launch
-   the UI on another port, e.g. `--port 5174`, and use that port in the URL.
 3. Wait ~30s. Verify in order:
    - CLI log shows `WebSocket server listening on port 33753` and
      `[Startup Progress] Ready!`: `grep -E 'listening on port|Ready!' /tmp/pipelab-cli.log`
@@ -43,16 +46,27 @@ laptop) can open the UI over Tailscale. Use when asked to "start the app",
 
 ## Gotchas (learned the hard way)
 
-- **Suspended process**: launching with plain `&` from a terminal leaves the
-  process group attached; the kernel SIGSTOPs it (`State: T`,
-  `wchan: do_signal_stop`) on terminal I/O and connections pile up in the
-  listen backlog (`ss -tln` shows Recv-Q > 0) with zero CPU. Always `setsid`
-  + `< /dev/null`. If stuck: `kill -9` the pipeline and relaunch detached.
-- **Localhost-only defaults**: the CLI WebSocket server must bind `0.0.0.0`
-  (`packages/core-node/src/websocket-server.ts`) and the UI dev client must
-  connect to `window.location.hostname`, not `localhost`
-  (`apps/ui/src/composables/websocket-client.ts`). Both fixes are in the
-  codebase; if remote init hangs, re-check these two lines first.
+- **Keep the startup terminal running.** `dev-remote` runs in the foreground
+  and stops when its terminal/session is closed.
+- **Host binding and client target**: the CLI supports binding through
+  `packages/core-node/src/websocket-server.ts`, but its default is deliberately
+  loopback; pass `--host 0.0.0.0` for Tailscale. The UI dev client connects to
+  `window.location.hostname`, not `localhost`
+  (`apps/ui/src/composables/websocket-client.ts`). If remote initialization
+  hangs, re-check both the CLI bind and this UI client target first.
 - **Vite needs `--host 0.0.0.0`** or the dev server only listens on loopback.
+- **CLI needs `--host 0.0.0.0` too**. Its application default is deliberately
+  `127.0.0.1`; passing the host to the `serve` command is what exposes the
+  WebSocket/API listener to Tailscale.
 - Port `33753` is the CLI WebSocket/API port (`@pipelab/constants`
   `websocketPort`); UI dev port is `5173`.
+
+## Verify
+
+```bash
+grep -E 'listening on port|Ready!' /tmp/pipelab-cli.log
+curl -o /dev/null -w '%{http_code}\n' "http://$(tailscale ip -4):5173/paths"
+```
+
+The expected UI response is `200`. If an old process already owns either
+port, stop the old dev process before running `dev-remote` again.

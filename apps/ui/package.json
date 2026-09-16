@@ -12,6 +12,7 @@
   "main": "src/main.ts",
   "scripts": {
     "dev": "vite",
+    "dev:remote": "vite --host 0.0.0.0",
     "build": "vite build",
     "typecheck": "vue-tsc --noEmit -p tsconfig.json --composite false",
     "preview": "vite preview",

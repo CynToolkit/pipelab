@@ -18,6 +18,7 @@
   "scripts": {
     "build": "cross-env NODE_ENV=production tsdown && node scripts/stage-bundle.mjs",
     "dev": "cross-env NODE_ENV=development tsx watch src/index.ts serve",
+    "dev:remote": "cross-env NODE_ENV=development tsx watch src/index.ts serve --host 0.0.0.0 --port 33753",
     "watch": "tsdown --watch",
     "start": "tsx src/index.ts",
     "test": "vitest run -c tests/e2e/vitest.config.mts",
