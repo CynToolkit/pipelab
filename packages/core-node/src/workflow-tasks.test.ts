@@ -84,6 +84,8 @@ describe("createWorkflowActionTask", () => {
       "source:extract",
       "filesystem:copy",
       "electron:bundle",
+      "web:bundle",
+      "filesystem:zip",
       "steam:upload",
       "itch:upload",
     ]);

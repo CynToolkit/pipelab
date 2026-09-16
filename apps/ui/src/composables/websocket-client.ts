@@ -56,8 +56,14 @@ export class WebSocketClient {
         // In dev, connect back to whichever host served the UI so remote
         // browsers (e.g. over Tailscale) reach the CLI server. Identical to
         // localhost when developing locally.
-        defaultUrl = `ws://${window.location.hostname}:${websocketPort}`;
+        const cliPort = import.meta.env.VITE_PIPELAB_SERVER_PORT || websocketPort;
+        defaultUrl = `ws://${window.location.hostname}:${cliPort}`;
       }
+
+      const token =
+        new URLSearchParams(window.location.search).get("token") ||
+        new URLSearchParams(window.location.hash.replace(/^#/, "")).get("token");
+      if (token) defaultUrl += `?token=${encodeURIComponent(token)}`;
     }
 
     const { url = defaultUrl, maxReconnectAttempts = Infinity, reconnectDelay = 1000 } = config;

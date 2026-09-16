@@ -63,4 +63,14 @@ describe("server security policy", () => {
       ),
     ).toBe(false);
   });
+
+  test("allows unauthenticated development access when explicitly enabled", () => {
+    expect(
+      isAuthorizedRequest(request({ host: "example.test", origin: "http://example.test" }), {
+        host: "0.0.0.0",
+        allowedOrigins: [],
+        allowUnauthenticated: true,
+      }),
+    ).toBe(true);
+  });
 });

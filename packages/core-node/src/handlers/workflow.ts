@@ -1,254 +1,113 @@
-import {
-  createLocalHost,
-  runWorkflow,
-  type Workflow,
-  type WorkflowRunContext,
-} from "@pipelab/workflow-runtime";
+import { compileWorkflow, createLocalHost, runWorkflow, type Workflow, type WorkflowRunContext } from "@pipelab/workflow-runtime";
 import { nanoid } from "nanoid";
-import { access, mkdir, stat } from "node:fs/promises";
+import { access, mkdir } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import process from "node:process";
 import { useLogger, type WorkflowConfig } from "@pipelab/shared";
 import { CacheFolder, PipelabContext } from "../context";
-import { setupConnectionsConfigFile, setupWorkflowConfigFileByName } from "../config";
+import { setupConnectionsConfigFile } from "../config";
 import { ensureNodeJS, ensurePNPM } from "../utils/remote";
 import { createPipelabWorkflowTasks } from "../workflow-tasks";
 import { useAPI } from "../ipc-core";
-
-const hostPlatform =
-  process.platform === "win32" ? "win32" : process.platform === "darwin" ? "darwin" : "linux";
-const hostArch = process.arch === "arm64" ? "arm64" : "x64";
+import { getReleaseHostCapabilities, migrateWorkflowConfig, validateWorkflowConfigV2 } from "@pipelab/shared";
 
 const itchUsernameFor = async (apiKey: string) => {
-  const response = await fetch("https://api.itch.io/profile", {
-    headers: { Authorization: `Bearer ${apiKey}` },
-  });
+  const response = await fetch("https://api.itch.io/profile", { headers: { Authorization: `Bearer ${apiKey}` } });
   if (!response.ok) throw new Error(`Unable to resolve Itch.io username (${response.status})`);
   const profile = (await response.json()) as { user?: { username?: string } };
-  const username = profile.user?.username?.trim();
-  if (!username) throw new Error("Itch.io API key did not return an account username");
-  return username;
+  return profile.user?.username || "";
 };
 
-const bundleIdFor = (name: string) =>
-  `com.pipelab.${
-    name
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, ".")
-      .replace(/^\.|\.$/g, "") || "game"
-  }`;
-
 const sourceIcon = async (flow: WorkflowConfig) => {
-  // ponytail: conventional filenames only; parse source metadata if custom icons are needed.
   const root = flow.source.type === "folder" ? flow.source.path : dirname(flow.source.path);
   for (const name of ["icon.png", "icon.ico", "icon.icns"]) {
-    const path = join(root, name);
-    try {
-      await access(path);
-      return path;
-    } catch {
-      // Try the next conventional icon name.
-    }
+    try { await access(join(root, name)); return join(root, name); } catch { /* optional */ }
   }
   return "";
 };
 
-const createWorkflowDefinition = async (
+/** Compatibility builder retained for legacy callers; new execution uses the v2 compiler below. */
+export const createWorkflowDefinition = async (
   flow: WorkflowConfig,
   connections: Map<string, any>,
   selectedTypes?: string[],
   release?: { version: string; description: string; headless?: boolean },
 ): Promise<{ workflow: Workflow; variables: Record<string, unknown> }> => {
   if (!flow.source.path) throw new Error("Choose a source before running the workflow");
-  const sourceStats = await stat(flow.source.path);
-  if (flow.source.type === "folder" && !sourceStats.isDirectory())
-    throw new Error("The build folder does not exist");
-  if (flow.source.type === "construct3" && !sourceStats.isFile())
-    throw new Error("The Construct project file does not exist");
-
-  const destinations = flow.destinations.filter(
-    (destination) =>
-      destination.enabled !== false && (!selectedTypes || selectedTypes.includes(destination.type)),
-  );
-  if (!destinations.length) throw new Error("Choose at least one destination");
-  if (new Set(destinations.map((destination) => destination.type)).size !== destinations.length)
-    throw new Error("A workflow can only contain one destination of each type");
-
-  const steps: Workflow["steps"] = [];
+  const active = flow.destinations.filter((destination: any) => destination.enabled !== false && (!selectedTypes || selectedTypes.includes(destination.type))) as any[];
   const variables: Record<string, unknown> = { sourcePath: flow.source.path };
-  let sourceReference = "${{ variables.sourcePath }}";
-  let sourceNeeds: string[] = [];
-
-  if (flow.source.type === "construct3") {
-    if (!flow.source.profilePath)
-      throw new Error("Choose a browser profile before running the workflow");
-    const profileStats = await stat(flow.source.profilePath);
-    if (!profileStats.isDirectory()) throw new Error("The selected browser profile does not exist");
-    variables.profilePath = flow.source.profilePath;
-    steps.push({
-      id: "source-export",
-      uses: "construct:export",
-      with: {
-        file: "${{ variables.sourcePath }}",
-        username: "",
-        password: "",
-        version: flow.source.version || "",
-        headless: release?.headless ?? false,
-        timeout: 120,
-        customProfile: "${{ variables.profilePath }}",
-      },
-    });
-    steps.push({
-      id: "source-extract",
-      uses: "source:extract",
-      needs: ["source-export"],
-      with: { file: "${{ steps.source-export.outputs.zipFile }}" },
-    });
-    sourceReference = "${{ steps.source-extract.outputs.outputDirectory }}";
-    sourceNeeds = ["source-extract"];
+  const steps: Workflow["steps"] = [];
+  const needs: string[] = [];
+  const source = flow.source;
+  if (source.type === "construct3") {
+    if (!source.profilePath) throw new Error("Choose a browser profile before running the workflow");
+    variables.profilePath = source.profilePath;
+    steps.push({ id: "source-export", uses: "construct:export", with: { file: "${{ variables.sourcePath }}", customProfile: "${{ variables.profilePath }}", version: source.version || "", headless: release?.headless ?? false } });
+    steps.push({ id: "source-extract", uses: "source:extract", needs: ["source-export"], with: { file: "${{ steps.source-export.outputs.zipFile }}" } });
+    needs.push("source-extract");
   }
-
-  for (const destination of destinations) {
-    if (destination.type === "web") {
-      steps.push({
-        id: "web",
-        uses: "filesystem:copy",
-        needs: sourceNeeds,
-        with: {
-          from: sourceReference,
-          to: destination.outputDir,
-          recursive: true,
-          overwrite: destination.overwrite ?? false,
-          cleanup: destination.cleanup ?? false,
-        },
-      });
-    }
-
+  for (const destination of active) {
+    if (destination.type === "web") steps.push({ id: "web", uses: "filesystem:copy", needs, with: { from: "${{ variables.sourcePath }}", to: destination.outputDir, recursive: true, overwrite: destination.overwrite ?? false, cleanup: destination.cleanup ?? false } });
     if (destination.type === "itch") {
-      const account = connections.get(destination.accountConnectionId);
-      const apiKey = account?.apiKey;
+      const apiKey = connections.get(destination.accountConnectionId)?.apiKey;
       if (!apiKey) throw new Error("No Itch.io API key connection found");
-      const user = await itchUsernameFor(apiKey);
       variables.itchApiKey = apiKey;
-      steps.push({
-        id: "itch",
-        uses: "itch:upload",
-        needs: sourceNeeds,
-        with: {
-          "input-folder": sourceReference,
-          user,
-          project: destination.project,
-          channel: destination.channel,
-          "api-key": "${{ variables.itchApiKey }}",
-        },
-      });
+      steps.push({ id: "itch", uses: "itch:upload", needs, with: { "input-folder": "${{ variables.sourcePath }}", user: await itchUsernameFor(apiKey), project: destination.project, channel: destination.channel, "api-key": "${{ variables.itchApiKey }}" } });
     }
-
     if (destination.type === "steam") {
-      const account = destination.accountConnectionId
-        ? connections.get(destination.accountConnectionId)
-        : undefined;
-      const username = account?.username || account?.email || "";
-      const password = account?.password || "";
-      if (!username || !password)
-        throw new Error("Select a Steam account connection before running the workflow");
-      variables.steamUsername = username;
-      variables.steamPassword = password;
-      const appName = destination.appName || flow.name || "Pipelab game";
-      const appBundleId = destination.appBundleId || bundleIdFor(appName);
-      const appVersion = release?.version || destination.appVersion || "1.0.0";
-      const description =
-        release?.description || destination.description || flow.description || flow.name;
-      const icon = destination.icon || (await sourceIcon(flow));
-
-      steps.push({
-        id: "steam-bundle",
-        uses: "electron:bundle",
-        needs: sourceNeeds,
-        with: {
-          "input-folder": sourceReference,
-          platform: hostPlatform,
-          arch: hostArch,
-          configuration: "{}",
-          name: appName,
-          appBundleId,
-          appVersion,
-          author: "Pipelab",
-          description,
-          icon,
-        },
-      });
-      steps.push({
-        id: "steam",
-        uses: "steam:upload",
-        needs: ["steam-bundle"],
-        with: {
-          username: "${{ variables.steamUsername }}",
-          password: "${{ variables.steamPassword }}",
-          appId: destination.appId,
-          depotId: destination.depotId,
-          description,
-          folder: "${{ steps.steam-bundle.outputs.bundleDirectory }}",
-        },
-      });
+      const account = connections.get(destination.accountConnectionId);
+      if (!account?.username && !account?.email) throw new Error("Select a Steam account connection before running the workflow");
+      variables.steamUsername = account.username || account.email; variables.steamPassword = account.password || "";
+      const description = release?.description || destination.description || flow.description || flow.name;
+      const appBundleId = `com.pipelab.${flow.name.toLowerCase().replace(/[^a-z0-9]+/g, ".").replace(/^\.|\.$/g, "") || "game"}`;
+      steps.push({ id: "steam-bundle", uses: "electron:bundle", needs, with: { "input-folder": "${{ variables.sourcePath }}", platform: process.platform, arch: process.arch, name: flow.name, appBundleId, appVersion: release?.version || "1.0.0", description, icon: await sourceIcon(flow) } });
+      steps.push({ id: "steam", uses: "steam:upload", needs: ["steam-bundle"], with: { username: "${{ variables.steamUsername }}", password: "${{ variables.steamPassword }}", appId: destination.appId, depotId: destination.depotId, description } });
     }
   }
-
-  return {
-    workflow: {
-      version: 1,
-      continueOnError: flow.continueOnError ?? true,
-      steps,
-    },
-    variables,
-  };
+  return { workflow: { version: 1, continueOnError: flow.continueOnError ?? true, steps }, variables };
 };
 
-export interface WorkflowExecutionOptions {
-  destinations?: string[];
-  release?: { version: string; description: string; headless?: boolean };
-  dryRun?: boolean;
+export type ExecuteWorkflowOptions = {
+  release?: { version?: string; description?: string; headless?: boolean };
   verbose?: boolean;
+  dryRun?: boolean;
+  onEvent?: (event: any) => void;
   signal?: AbortSignal;
-  onEvent?: (event: Parameters<NonNullable<WorkflowRunContext["onEvent"]>>[0]) => void;
-}
+};
 
 export const executeWorkflow = async (
   context: PipelabContext,
-  name: string,
-  options: WorkflowExecutionOptions = {},
-  pluginsReady?: Promise<void>,
+  configName: string,
+  options: ExecuteWorkflowOptions = {},
 ) => {
+  const config = await (await import("../config")).setupWorkflowConfigFileByName(configName, context);
+  const workflowConfig = migrateWorkflowConfig(await config.getConfig());
+  const capabilities = getReleaseHostCapabilities({ platform: process.platform as "win32" | "linux" | "darwin", architecture: process.arch });
+  const validationErrors = validateWorkflowConfigV2(workflowConfig, capabilities);
+  if (validationErrors.length) throw new Error(validationErrors.join("\n"));
+  const connectionsConfig = await (await setupConnectionsConfigFile(context)).getConfig();
+  const connections = new Map(connectionsConfig.connections.map((connection: any) => [connection.id, connection]));
+  const runtimeWorkflowConfig = {
+    ...workflowConfig,
+    destinations: await Promise.all(workflowConfig.destinations.map(async (destination) => {
+      const account = connections.get(destination.config.accountConnectionId as string) as any;
+      if (destination.serviceId === "steam") return { ...destination, config: { ...destination.config, username: account?.username || account?.email || "", password: account?.password || "" } };
+      if (destination.serviceId === "itch") {
+        const apiKey = account?.apiKey || "";
+        return { ...destination, config: { ...destination.config, "api-key": apiKey, user: apiKey ? await itchUsernameFor(apiKey) : "" } };
+      }
+      return destination;
+    })),
+  };
+  const workflow = compileWorkflow(runtimeWorkflowConfig);
   const buildId = nanoid();
   const workspaceRoot = context.getArtifactsPath("workflow", buildId);
-  await pluginsReady;
-  const flow = await (await setupWorkflowConfigFileByName(name, context)).getConfig();
-  const connections = await (await setupConnectionsConfigFile(context)).getConfig();
-  const connectionById = new Map(
-    connections.connections.map((connection: any) => [connection.id, connection]),
-  );
-  const definition = await createWorkflowDefinition(
-    flow,
-    connectionById,
-    options.destinations,
-    options.release,
-  );
-  if (options.dryRun) {
-    return {
-      result: {
-        status: "dry-run" as const,
-        steps: definition.workflow.steps.map((step) => step.id),
-      },
-      buildId,
-    };
-  }
   await mkdir(workspaceRoot, { recursive: true });
   const node = await ensureNodeJS(context);
   const pnpm = await ensurePNPM(context);
   const tasks = createPipelabWorkflowTasks({
     context,
     paths: {
-      cache: context.getCachePath(CacheFolder.Pipelines, name, buildId),
+      cache: context.getCachePath(CacheFolder.Pipelines, workflowConfig.project ?? "workflow", buildId),
       pnpm,
       node,
       userData: context.userDataPath,
@@ -257,25 +116,22 @@ export const executeWorkflow = async (
     },
   });
   const { logger } = useLogger();
-  const hostLogger =
-    options.verbose === false
-      ? { info: () => undefined, warn: () => undefined, error: () => undefined }
-      : logger();
   const host = createLocalHost(workspaceRoot, {
     logger: {
-      info: (...args) => hostLogger.info(...args),
-      warn: (...args) => hostLogger.warn(...args),
-      error: (...args) => hostLogger.error(...args),
+      info: (...args) => logger().info(...args),
+      warn: (...args) => logger().warn(...args),
+      error: (...args) => logger().error(...args),
     },
   });
-  const runContext: WorkflowRunContext = {
+  const result = await runWorkflow(workflow, {
     host,
-    variables: definition.variables,
-    signal: options.signal,
+    variables: { version: options.release?.version || "", sourcePath: workflowConfig.source.path },
+    version: options.release?.version || undefined,
+    buildId,
     tasks,
     onEvent: options.onEvent,
-  };
-  const result = await runWorkflow(definition.workflow, runContext);
+    signal: options.signal,
+  });
   return { result, buildId };
 };
 
@@ -284,22 +140,34 @@ export const registerWorkflowHandlers = (context: PipelabContext, pluginsReady?:
   const { logger } = useLogger();
   let abortController: AbortController | undefined;
 
+  handle("workflow:capabilities:get", async (_, { send }) => {
+    await send({
+      type: "end",
+      data: {
+        type: "success",
+        result: getReleaseHostCapabilities({ platform: process.platform as "win32" | "linux" | "darwin", architecture: process.arch }),
+      },
+    });
+  });
+
   handle("workflow:execute", async (_, { send, value }) => {
     const controller = new AbortController();
     abortController = controller;
     try {
-      const execution = await executeWorkflow(
-        context,
-        value.name,
-        {
-          destinations: value.destinations,
-          release: value.release,
-          signal: controller.signal,
-          onEvent: (event) => void send({ type: "workflow-event", data: event }),
+      await pluginsReady;
+      const { result, buildId } = await executeWorkflow(context, value.name, {
+        release: value.release,
+        signal: controller.signal,
+        onEvent: (event) => void send({ type: "workflow-event", data: event }),
+      });
+
+      await send({
+        type: "end",
+        data: {
+          type: "success",
+          result: { result, buildId },
         },
-        pluginsReady,
-      );
-      await send({ type: "end", data: { type: "success", result: execution } });
+      });
     } catch (error) {
       const isCancelled =
         controller.signal.aborted || (error instanceof Error && error.name === "AbortError");
@@ -319,8 +187,12 @@ export const registerWorkflowHandlers = (context: PipelabContext, pluginsReady?:
 
   handle("workflow:cancel", async (_, { send }) => {
     abortController?.abort("Interrupted by user");
-    await send({ type: "end", data: { type: "success", result: { result: "ok" } } });
+    await send({
+      type: "end",
+      data: {
+        type: "success",
+        result: { result: "ok" },
+      },
+    });
   });
 };
-
-export { createWorkflowDefinition };

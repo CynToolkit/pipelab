@@ -7,6 +7,7 @@ export interface ServerSecurityOptions {
   host?: string;
   authToken?: string;
   allowedOrigins?: string[];
+  allowUnauthenticated?: boolean;
 }
 
 export const isLoopbackHost = (host: string): boolean =>
@@ -47,6 +48,17 @@ export const isAuthorizedRequest = (
   request: IncomingMessage,
   options: ServerSecurityOptions & { host: string },
 ): boolean => {
+  if (options.allowUnauthenticated) {
+    const origin = request.headers.origin;
+    if (!origin) return true;
+    try {
+      const originHost = new URL(origin).hostname;
+      const requestHost = new URL(`http://${request.headers.host || "localhost"}`).hostname;
+      return originHost === requestHost;
+    } catch {
+      return false;
+    }
+  }
   if (!isAllowedOrigin(request, options.allowedOrigins, options.host)) return false;
   if (!requiresAuthentication(options.host)) return true;
   return hasValidAuthToken(request, options.authToken);

@@ -1,9 +1,15 @@
 import { PipelabContext, isDev, registerAllHandlers, webSocketServer } from "./index";
 import { resolveBundledUiFolder } from "./bundled-cli";
-import { getUiDevServerMissingWarning, uiDevPort } from "@pipelab/constants";
+import {
+  getUiDevServerMissingWarning,
+  uiDevPort,
+  uiDevServerInstruction,
+} from "@pipelab/constants";
 import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
+import { spawn } from "node:child_process";
 import http from "http";
+import { resolve } from "node:path";
 // @ts-expect-error serve-handler has no type definitions
 import handler from "serve-handler";
 import {
@@ -22,6 +28,31 @@ export interface ServeOptions {
   authToken?: string;
   allowedOrigin?: string;
 }
+
+const startUiDevServer = async (
+  host: string,
+  cliPort: string | number,
+  cliDirname: string,
+): Promise<void> => {
+  try {
+    await fetch(`http://127.0.0.1:${uiDevPort}/`, { signal: AbortSignal.timeout(500) });
+    return;
+  } catch {
+    // Vite is not running yet; start it below.
+  }
+
+  const projectRoot = resolve(cliDirname, "../../..");
+  const uiProcess = spawn("pnpm", ["--filter", "@pipelab/ui", "dev", "--host", host], {
+    cwd: projectRoot,
+    stdio: "inherit",
+    env: { ...process.env, VITE_PIPELAB_SERVER_PORT: String(cliPort) },
+  });
+  uiProcess.once("error", (error) => {
+    console.error(`[CLI] Failed to start the UI dev server: ${error.message}`);
+  });
+  process.once("exit", () => uiProcess.kill());
+  console.log(`Starting UI dev server on port ${uiDevPort}...`);
+};
 
 export const sendStartupProgress = (message: string) => {
   webSocketServer.broadcast("startup:progress", {
@@ -47,11 +78,14 @@ export async function serveCommand(options: ServeOptions, version: string, cliDi
   const security: ServerSecurityOptions & { host: string } = {
     host: options.host || DEFAULT_SERVER_HOST,
     authToken: options.authToken || process.env.PIPELAB_AUTH_TOKEN,
+    allowUnauthenticated: isDev,
     allowedOrigins: [
       ...DEFAULT_ALLOWED_ORIGINS,
       ...(options.allowedOrigin ? [options.allowedOrigin] : []),
     ],
   };
+
+  if (isDev) await startUiDevServer(security.host, options.port, cliDirname);
 
   let rawAssetFolder: string | undefined;
   if (!isDev) {
@@ -106,16 +140,11 @@ export async function serveCommand(options: ServeOptions, version: string, cliDi
     }
 
     if (isDev) {
-      response.writeHead(200, { "Content-Type": "text/html" });
-      response.end(`
-        <html>
-          <body style="font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #0f172a; color: #f8fafc;">
-            <h1 style="color: #38bdf8;">Pipelab Dev Mode</h1>
-            <p>The CLI server is running (API/WebSocket), but the UI is not served here in development.</p>
-            <p>Please open the UI through its own dev server (usually <a href="http://localhost:5173" style="color: #38bdf8;">http://localhost:5173</a>).</p>
-          </body>
-        </html>
-      `);
+      const requestHost = request.headers.host?.split(":")[0] || "localhost";
+      response.writeHead(302, {
+        Location: `http://${requestHost}:${uiDevPort}${request.url || "/"}`,
+      });
+      response.end();
       return;
     }
 

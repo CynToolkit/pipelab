@@ -54,56 +54,16 @@
             @click="openSourceSettings"
           />
         </section>
-        <section class="destinations-section" aria-label="Release destinations">
-          <article
-            v-for="destination in flow.destinations"
-            :key="destination.type"
-            class="destination card"
-            :class="{ inactive: destination.enabled === false }"
-          >
-            <div class="destination-heading">
-              <div class="card-icon">
-                <i class="mdi" :class="destinationIcon(destination.type)" />
-              </div>
-              <div class="destination-details">
-                <h3>{{ destinationLabel(destination.type) }}</h3>
-                <span>{{ destinationStatus(destination.type) }}</span>
-              </div>
-              <span class="destination-active-label">{{
-                destination.enabled === false ? "Inactive" : "Active"
-              }}</span>
-              <ToggleSwitch
-                v-model="destination.enabled"
-                :inputId="`destination-${destination.type}`"
-                :aria-label="`${destinationLabel(destination.type)} active`"
-              />
-              <i
-                v-if="!destinationReady(destination)"
-                class="mdi mdi-alert-circle destination-warning"
-                aria-label="Destination needs configuration"
-                v-tooltip.bottom="'Destination needs configuration'"
-              />
-              <Tag
-                v-if="runResults[destination.type]"
-                :value="runResults[destination.type].status"
-                :severity="
-                  runResults[destination.type].status === 'completed'
-                    ? 'success'
-                    : runResults[destination.type].status === 'failed'
-                      ? 'danger'
-                      : 'info'
-                "
-              />
-              <Button
-                icon="mdi mdi-cog-outline"
-                text
-                rounded
-                :aria-label="`Configure ${destinationLabel(destination.type)}`"
-                v-tooltip.bottom="`Configure ${destinationLabel(destination.type)}`"
-                @click="openDestinationSettings(destination)"
-              />
-            </div>
-          </article>
+        <WorkflowArtifactsPanel
+          :model-value="flow"
+          :capabilities="capabilities"
+          :connections="connections"
+          @add-connection="openConnection($event === 'itch' ? 'itch-account' : 'steam-account')"
+          @update:model-value="flow = $event"
+        />
+        <section v-if="runArtifacts.length" class="build-results card" aria-label="Build artifacts">
+          <div class="section-title"><div><h2>Build {{ releaseVersion }} ✓</h2><span>Immutable artifacts produced by this run</span></div><Tag value="Ready" severity="success" /></div>
+          <div class="artifact-summary"><div v-for="artifact in runArtifacts" :key="artifact.id" class="artifact-summary-row"><i class="mdi mdi-package-variant-closed" /><strong>{{ artifactOutputLabel(artifact.outputId) }}</strong><span>{{ formatSize(artifact.size) }}</span><small>{{ artifact.path }}</small></div></div>
         </section>
         <section v-if="logs.length || Object.keys(runSteps).length" class="logs card">
           <div class="section-title">
@@ -232,10 +192,6 @@
           ><i class="mdi mdi-information-outline" /> App name, bundle ID, version, description, and
           icon are taken from the workflow/source when shipping.</small
         >
-        <small class="wide platform-note"
-          ><i class="mdi mdi-information-outline" /> Steam builds use this computer’s
-          {{ platformLabel }} {{ processArch }} target.</small
-        >
       </div>
       <template #footer><Button label="Done" @click="destinationDialogVisible = false" /></template>
     </Dialog>
@@ -322,14 +278,15 @@ import Tag from "primevue/tag";
 import InputText from "primevue/inputtext";
 import Select from "primevue/select";
 import Checkbox from "primevue/checkbox";
-import ToggleSwitch from "primevue/toggleswitch";
 import Dialog from "primevue/dialog";
+import WorkflowArtifactsPanel from "@renderer/components/WorkflowArtifactsPanel.vue";
 import { useAPI } from "@renderer/composables/api";
-import type { BrowserProfileCandidate, WorkflowConfig, WorkflowDestination } from "@pipelab/shared";
+import { getReleaseHostCapabilities, migrateWorkflowConfig, outputDescriptor, type BrowserProfileCandidate, type WorkflowConfig, type WorkflowDestination } from "@pipelab/shared";
 const route = useRoute();
 const router = useRouter();
 const api = useAPI();
-const flow = ref<WorkflowConfig>();
+const flow = ref<any>();
+const capabilities = ref<ReturnType<typeof getReleaseHostCapabilities>>();
 const connections = ref<any[]>([]);
 const loadError = ref("");
 const saving = ref(false);
@@ -345,6 +302,7 @@ const releaseVersion = ref("1.0.0");
 const releaseDescription = ref("");
 const logs = ref<string[]>([]);
 const runSteps = ref<Record<string, string>>({});
+const runArtifacts = ref<any[]>([]);
 const runResults = ref<Record<string, { status: string; error?: string }>>({});
 const connectionDialog = ref({
   visible: false,
@@ -360,15 +318,6 @@ const failureOptions = [
   { label: "Continue independent destinations", value: true },
   { label: "Stop on failure", value: false },
 ];
-const platformLabel = navigator.platform.includes("Mac")
-  ? "macOS"
-  : navigator.platform.includes("Win")
-    ? "Windows"
-    : "Linux";
-const processArch =
-  navigator.userAgent.includes("arm64") || navigator.userAgent.includes("aarch64")
-    ? "ARM64"
-    : "x64";
 const browserProfiles = computed(() => profileCandidates.value.map((p) => ({ ...p, disabled: !p.usable, label: `${p.browser} — ${p.profileName} (${p.addonCount ?? "?"} addons${p.score !== null ? `, score ${p.score}` : ", unavailable"})` })));
 const steamAccountConnections = computed(() =>
   connections.value.filter(
@@ -389,20 +338,30 @@ const readiness = computed(() => {
   const errors: string[] = [];
   if (!flow.value.source.path) errors.push("Choose a source");
   if (flow.value.source.type === "construct3" && !flow.value.source.profilePath) errors.push("Choose a browser profile");
-  if (!flow.value.destinations.some((destination) => destination.enabled !== false))
+  if (!flow.value.destinations.some((destination: any) => destination.enabled))
     errors.push("Enable at least one destination");
   for (const d of flow.value.destinations) {
-    if (d.enabled === false) continue;
-    if (d.type === "web" && !d.outputDir) errors.push("Choose a web output folder");
-    if (d.type === "itch" && (!d.accountConnectionId || !d.project || !d.channel))
-      errors.push("Complete the Itch.io destination");
-    if (
-      d.type === "steam" &&
-      (!steamAccountReady(d.accountConnectionId) ||
-        !d.appId ||
-        !d.depotId)
-    )
-      errors.push("Complete the Steam destination");
+    if (!d.enabled) continue;
+    if (!d.slots.length) errors.push(`Add a delivery slot to ${d.serviceId}`);
+    if (d.config.migration?.unresolved) errors.push(`Resolve migrated ${d.serviceId} slots`);
+    if (d.serviceId === "steam") {
+      if (!d.config.accountConnectionId || !steamAccountReady(String(d.config.accountConnectionId))) errors.push("Select a valid Steam account connection");
+      if (!String(d.config.appId || "").trim()) errors.push("Add a Steam App ID");
+      if (d.slots.some((slot: any) => !String(slot.config.depotId || "").trim())) errors.push("Add a Depot ID to every Steam depot");
+    }
+    if (d.serviceId === "itch") {
+      if (!d.config.accountConnectionId) errors.push("Select an Itch.io account connection");
+      if (!String(d.config.project || "").trim()) errors.push("Add an Itch.io project");
+      if (d.slots.some((slot: any) => !String(slot.config.channel || "").trim())) errors.push("Add a channel to every Itch.io channel");
+    }
+    if (d.serviceId === "web-folder" && d.slots.some((slot: any) => !String(slot.config.outputDir || d.config.outputDir || "").trim())) errors.push("Add an output folder to every web folder");
+    if (d.serviceId === "zip" && d.slots.some((slot: any) => !String(slot.config.outputPath || "").trim())) errors.push("Choose a ZIP file path for every ZIP file");
+    for (const slot of d.slots as any[]) {
+      const packager = flow.value.packagers.find((item: any) => item.id === slot.input.packagerId);
+      const output = outputDescriptor(slot.input.outputId);
+      const availability = (capabilities.value?.packagers as Record<string, any> | undefined)?.[packager?.definitionId || "electron"]?.targets.find((target: any) => target.outputId === slot.input.outputId);
+      if (slot.config.migration?.unresolved || !packager || !packager.enabled || !output || !availability?.available) errors.push(`Resolve ${d.serviceId} delivery inputs`);
+    }
   }
   return [...new Set(errors)];
 });
@@ -422,37 +381,21 @@ const destinationReady = (destination: WorkflowDestination) => {
     destination.depotId
   );
 };
-const normalize = (value: WorkflowConfig) => {
-  value.continueOnError ??= true;
-  for (const d of value.destinations) {
-    d.enabled ??= true;
-    if (d.type === "web") {
-      d.overwrite ??= false;
-      d.cleanup ??= false;
-    }
-    if (d.type === "steam") {
-      d.accountConnectionId ??= "";
-      d.depotId ??= "";
-    }
-    if (d.type === "itch") {
-      d.accountConnectionId ??= "";
-    }
-  }
-  return value;
-};
 const load = async () => {
-  const [loaded, accountResult] = await Promise.all([
+  const [loaded, accountResult, hostResult] = await Promise.all([
     api.execute("workflow:load-by-name", { name: `workflows/${route.params.flowId}` }),
     api.execute("connections:load"),
+    api.execute("workflow:capabilities:get"),
   ]);
   if (loaded.type === "success") {
-    flow.value = normalize(loaded.result as WorkflowConfig);
+    flow.value = migrateWorkflowConfig(loaded.result);
     if (flow.value.source.type === "construct3" && flow.value.source.profilePath) {
       await discoverProfiles(flow.value.source.profilePath);
     }
   }
   else loadError.value = loaded.ipcError;
   if (accountResult.type === "success") connections.value = accountResult.result.connections;
+  if (hostResult.type === "success") capabilities.value = hostResult.result;
 };
 onMounted(load);
 const openDestinationSettings = (destination: WorkflowDestination) => {
@@ -554,14 +497,9 @@ const createConnection = async () => {
   }
   connections.value.push(record);
   if (flow.value) {
-      const destination = flow.value.destinations.find((d) =>
-        dialog.kind === "itch-account" ? d.type === "itch" : d.type === "steam",
-      );
-      if (destination?.type === "steam") {
-        destination.accountConnectionId = record.id;
-      } else if (destination?.type === "itch") {
-        destination.accountConnectionId = record.id;
-      }
+    const serviceId = dialog.kind === "itch-account" ? "itch" : "steam";
+    const destination = flow.value.destinations.find((d: any) => d.serviceId === serviceId);
+    if (destination) destination.config.accountConnectionId = record.id;
   }
   dialog.visible = false;
 };
@@ -616,7 +554,7 @@ const runShip = async () => {
   if (!flow.value || !canShip.value) return;
   releaseDialogVisible.value = false;
   if (
-    flow.value.destinations.some((d) => d.type === "web" && d.cleanup) &&
+    flow.value.destinations.some((d: any) => d.type === "web" && d.cleanup) &&
     !window.confirm("This release will clean the selected output folder before copying. Continue?")
   )
     return;
@@ -625,6 +563,7 @@ const runShip = async () => {
   logs.value = [];
   runSteps.value = {};
   runResults.value = {};
+  runArtifacts.value = [];
   const result = await api.execute(
     "workflow:execute",
     {
@@ -666,6 +605,7 @@ const runShip = async () => {
     },
   );
   if (result.type === "success") {
+    runArtifacts.value = result.result.result.artifacts || [];
     if (result.result.result.status === "completed-with-errors")
       logs.value.push("Workflow completed with errors.");
     for (const type of ["web", "itch", "steam"]) {
@@ -683,12 +623,14 @@ const runShip = async () => {
 const cancel = async () => {
   await api.execute("workflow:cancel");
 };
+const artifactOutputLabel = (id: string) => outputDescriptor(id as any)?.label || id;
+const formatSize = (size?: number) => typeof size === "number" ? `${Math.round(size / 1024 / 1024)} MB` : "Size pending";
 const destinationLabel = (type: string) =>
   type === "steam" ? "Steam" : type === "itch" ? "Itch.io" : "Web folder";
 const destinationIcon = (type: string) =>
   type === "steam" ? "mdi-steam" : type === "itch" ? "mdi-puzzle-outline" : "mdi-web";
 const destinationStatus = (type: string) =>
-  flow.value?.destinations.find((destination) => destination.type === type)?.enabled === false
+  flow.value?.destinations.find((destination: any) => destination.type === type)?.enabled === false
     ? "Inactive"
     : runResults.value[type]?.error ||
   (runResults.value[type]?.status === "completed"
@@ -864,6 +806,50 @@ h1 {
 .logs.card {
   margin-top: 12px;
   padding: 16px;
+}
+.build-results.card {
+  margin-top: 12px;
+  padding: 16px;
+}
+.build-results .section-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.build-results h2 {
+  margin: 0 0 3px;
+  font-size: 15px;
+}
+.build-results .section-title span {
+  color: var(--text-color-secondary);
+  font-size: 12px;
+}
+.artifact-summary {
+  display: grid;
+  gap: 7px;
+  margin-top: 12px;
+}
+.artifact-summary-row {
+  display: grid;
+  grid-template-columns: 22px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+.artifact-summary-row i {
+  color: var(--primary-color);
+  font-size: 17px;
+}
+.artifact-summary-row span,
+.artifact-summary-row small {
+  color: var(--text-color-secondary);
+}
+.artifact-summary-row small {
+  grid-column: 2 / -1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .run-steps {
   display: flex;

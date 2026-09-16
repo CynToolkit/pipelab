@@ -251,3 +251,35 @@ describe("createLocalHost", () => {
     }
   });
 });
+
+describe("workflow artifact instances", () => {
+  it("creates an immutable, versioned instance from a stable output", async () => {
+    const result = await runWorkflow(
+      { version: 1, steps: [{ id: "windows", uses: "test:build" }] },
+      {
+        host: makeHost(),
+        version: "1.4.0",
+        buildId: "build-123",
+        tasks: {
+          "test:build": async ({ setArtifact }) => {
+            setArtifact("electron.windows", "/workspace/game.zip", { size: 184000000 });
+          },
+        },
+      },
+    );
+
+    expect(result.artifacts).toEqual([
+      expect.objectContaining({
+        id: "artifact-build-123-0",
+        outputId: "electron.windows",
+        version: "1.4.0",
+        platform: "windows",
+        architecture: "x64",
+        format: "zip",
+        producerStep: "windows",
+        size: 184000000,
+      }),
+    ]);
+    expect(Object.isFrozen(result.artifacts[0])).toBe(true);
+  });
+});

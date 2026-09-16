@@ -2,6 +2,7 @@ import {
   WORKFLOW_VERSION,
   type Workflow,
   type WorkflowArtifact,
+  type WorkflowArtifactInstance,
   type WorkflowError,
   type WorkflowEventInput,
   type WorkflowResult,
@@ -11,6 +12,7 @@ import {
   type WorkflowTaskRegistry,
 } from "./types";
 import { RUN_COMMAND_TASK_ID, runCommandTask } from "./tasks/run-command";
+import { ARTIFACT_OUTPUTS } from "./artifacts";
 
 const builtInTasks: WorkflowTaskRegistry = {
   [RUN_COMMAND_TASK_ID]: runCommandTask,
@@ -171,7 +173,8 @@ export const runWorkflow = async (
   const variables = context.variables ?? {};
   const outputs: Record<string, Record<string, unknown>> = {};
   const steps: Record<string, WorkflowStepResult> = {};
-  const artifacts: WorkflowArtifact[] = [];
+  const artifacts: Array<WorkflowArtifact | WorkflowArtifactInstance> = [];
+  let artifactSequence = 0;
   const startedAt = Date.now();
   const emit = (event: WorkflowEventInput): void => {
     context.onEvent?.({ ...event, timestamp: Date.now() });
@@ -185,7 +188,7 @@ export const runWorkflow = async (
 
     const runStep = async (step: WorkflowStep): Promise<void> => {
       const stepStartedAt = Date.now();
-      const stepArtifacts: WorkflowArtifact[] = [];
+      const stepArtifacts: Array<WorkflowArtifact | WorkflowArtifactInstance> = [];
       emit({ type: "step.started", stepId: step.id, uses: step.uses });
 
       try {
@@ -215,7 +218,27 @@ export const runWorkflow = async (
               context.host.logger.info(...args);
               emit({ type: "step.log", stepId: step.id, stream, message: formatLog(args) });
             },
-            setArtifact: (name, path) => stepArtifacts.push({ name, path }),
+            setArtifact: (outputId, path, metadata) => {
+              if (!context.version) {
+                stepArtifacts.push({ name: metadata?.name ?? outputId, path });
+                return;
+              }
+              const definition = ARTIFACT_OUTPUTS[outputId as keyof typeof ARTIFACT_OUTPUTS];
+              stepArtifacts.push(
+                Object.freeze({
+                  id: `artifact-${context.buildId ?? startedAt}-${artifactSequence++}`,
+                  outputId: outputId as WorkflowArtifactInstance["outputId"],
+                  version: context.version,
+                  platform: definition?.platform ?? "unknown",
+                  architecture: definition?.architecture ?? "unknown",
+                  format: definition?.format ?? "unknown",
+                  path,
+                  producerStep: step.id,
+                  checksum: metadata?.checksum,
+                  size: metadata?.size,
+                }) as WorkflowArtifactInstance,
+              );
+            },
           })) ?? {};
         ensureNotAborted(signal);
         if (!isRecord(result))

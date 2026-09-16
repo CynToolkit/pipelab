@@ -5,6 +5,7 @@ import { PresetResult, Steps, SavedFile } from "./model";
 import { AppConfig, ConnectionsConfig } from "./config.schema";
 import { FileRepo } from "./config/projects-definition";
 import type { WorkflowConfig } from "./release-flow";
+import type { ReleaseHostCapabilities } from "./release-definitions";
 import { Agent } from "./websocket.types";
 import { BuildHistoryEntry, BuildHistoryQuery, BuildHistoryResponse } from "./build-history";
 import type { WorkflowEvent, WorkflowResult } from "@pipelab/workflow-runtime";
@@ -188,6 +189,7 @@ export type IpcDefinition = {
   "pipeline:delete-by-name": [{ name: string }, EndEvent<"ok">];
   "pipeline:delete-by-path": [{ path: string }, EndEvent<"ok">];
   "workflow:load-by-name": [{ name: string }, EndEvent<WorkflowConfig>];
+  "workflow:capabilities:get": [void, EndEvent<ReleaseHostCapabilities>];
   "workflow:save-by-name": [{ name: string; data: string }, EndEvent<"ok">];
   "workflow:delete-by-name": [{ name: string }, EndEvent<"ok">];
   "workflow:execute": [

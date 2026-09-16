@@ -1,5 +1,16 @@
 import { array, boolean, literal, object, optional, string, union, InferInput } from "valibot";
 
+export const ArtifactOutputIdValidator = union([
+  literal("electron.windows"),
+  literal("electron.linux"),
+  literal("electron.macos.arm64"),
+  literal("tauri.windows"),
+  literal("tauri.linux"),
+  literal("tauri.macos.arm64"),
+  literal("web.html5"),
+]);
+export type ArtifactOutputId = InferInput<typeof ArtifactOutputIdValidator>;
+
 export const WorkflowSourceValidator = union([
   object({
     type: literal("construct3"),
@@ -47,6 +58,7 @@ export const WorkflowConfigValidator = object({
   name: string(),
   description: optional(string()),
   source: WorkflowSourceValidator,
+  outputs: optional(array(ArtifactOutputIdValidator)),
   destinations: array(WorkflowDestinationValidator),
   continueOnError: optional(boolean(), true),
   osOverrides: optional(
@@ -70,6 +82,7 @@ export const workflowConfigMigrator = {
     name: "",
     description: "",
     source: { type: "folder" as const, path: "" },
+    outputs: [] as ArtifactOutputId[],
     destinations: [] as WorkflowDestination[],
     continueOnError: true,
   } satisfies WorkflowConfig,

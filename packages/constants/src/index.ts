@@ -73,9 +73,8 @@ export const getUiDevServerFatalError = (port: number) => `
 export const getUiDevServerMissingWarning = () => `
 --------------------------------------------------------------------------------
   [DEVELOPMENT MODE] CLI server started (API/WebSocket).
-  NOTE: The UI is NOT served from this process in development.
-  Please ensure the UI dev server is running:
-    '${uiDevServerInstruction}'
+  The CLI starts the UI dev server separately on port ${uiDevPort}.
+  Open the UI at http://<host>:${uiDevPort}.
 --------------------------------------------------------------------------------`;
 
 export const SandboxFolder = {

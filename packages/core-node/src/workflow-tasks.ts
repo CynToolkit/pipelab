@@ -3,9 +3,12 @@ import type {
   WorkflowTaskContext,
   WorkflowTaskRegistry,
 } from "@pipelab/workflow-runtime";
+import { mkdir } from "node:fs/promises";
+import { dirname } from "node:path";
 import { usePlugins } from "@pipelab/shared";
 import type { PipelabContext } from "./context";
 import type { ActionRunner, ActionRunnerData } from "./types/runner";
+import { zipFolder } from "./utils/fs-extras";
 
 export interface WorkflowTaskOptions {
   context: PipelabContext;
@@ -49,7 +52,10 @@ export const createWorkflowActionTask = (
     }
     for (const [name, output] of Object.entries(options.artifacts ?? {})) {
       const path = outputs[output];
-      if (typeof path === "string") taskContext.setArtifact(name, path);
+      if (typeof path === "string") {
+        const outputId = typeof taskContext.step.with?.outputId === "string" ? taskContext.step.with.outputId : name;
+        taskContext.setArtifact(outputId, path);
+      }
     }
 
     return outputs;
@@ -107,6 +113,9 @@ export const createPipelabWorkflowTasks = (
     "electron:package:v2",
     registeredPlugins,
   );
+  const tauriBundle = registeredPlugins.some((plugin) => plugin.id === "@pipelab/plugin-tauri")
+    ? findRunner("@pipelab/plugin-tauri", "tauri:package:v2", registeredPlugins)
+    : undefined;
   const steamUpload = findRunner("@pipelab/plugin-steam", "steam-upload", registeredPlugins);
   const itchUpload = findRunner("@pipelab/plugin-itch", "itch-upload", registeredPlugins);
 
@@ -132,6 +141,25 @@ export const createPipelabWorkflowTasks = (
       outputAliases: { bundleDirectory: "output" },
       artifacts: { bundle: "output" },
     }),
+    ...(tauriBundle ? { "tauri:bundle": createWorkflowActionTask(tauriBundle, {
+      ...options,
+      outputAliases: { bundleDirectory: "output" },
+      artifacts: { bundle: "output" },
+    }) } : {}),
+    "web:bundle": async (taskContext) => {
+      const path = taskContext.inputs["input-folder"];
+      if (typeof path !== "string") throw new Error("Web packager requires an input folder");
+      taskContext.setArtifact(String(taskContext.step.with?.outputId || "web.html5"), path);
+      return { output: path };
+    },
+    "filesystem:zip": async (taskContext) => {
+      const from = taskContext.inputs.from;
+      const to = taskContext.inputs.to;
+      if (typeof from !== "string" || typeof to !== "string" || !to.trim()) throw new Error("ZIP destination requires a source folder and output path");
+      await mkdir(dirname(to), { recursive: true });
+      const output = await zipFolder(from, to, taskContext.log, taskContext.signal);
+      return { output, path: output };
+    },
     "steam:upload": createWorkflowActionTask(steamUpload, options),
     "itch:upload": createWorkflowActionTask(itchUpload, options),
   };

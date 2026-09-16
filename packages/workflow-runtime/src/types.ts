@@ -1,3 +1,5 @@
+import type { ArtifactInstance } from "./artifacts";
+
 export const WORKFLOW_VERSION = 1;
 
 export interface Workflow {
@@ -58,6 +60,8 @@ export interface WorkflowArtifact {
   path: string;
 }
 
+export type WorkflowArtifactInstance = ArtifactInstance;
+
 export interface WorkflowTaskContext {
   step: WorkflowStep;
   inputs: Record<string, unknown>;
@@ -68,7 +72,11 @@ export interface WorkflowTaskContext {
   signal: AbortSignal;
   log(...args: unknown[]): void;
   logStream(stream: WorkflowLogStream, ...args: unknown[]): void;
-  setArtifact(name: string, path: string): void;
+  setArtifact(
+    outputId: string,
+    path: string,
+    metadata?: { checksum?: string; size?: number; name?: string },
+  ): void;
 }
 
 export type WorkflowTask = (
@@ -87,7 +95,7 @@ export interface WorkflowStepResult {
   uses: string;
   status: "completed" | "failed" | "skipped";
   outputs: Record<string, unknown>;
-  artifacts: WorkflowArtifact[];
+  artifacts: Array<WorkflowArtifact | WorkflowArtifactInstance>;
   startedAt: number;
   completedAt: number;
   duration: number;
@@ -98,7 +106,7 @@ export interface WorkflowStepResult {
 export interface WorkflowResult {
   status: "completed" | "completed-with-errors";
   outputs: Record<string, Record<string, unknown>>;
-  artifacts: WorkflowArtifact[];
+  artifacts: Array<WorkflowArtifact | WorkflowArtifactInstance>;
   steps: Record<string, WorkflowStepResult>;
 }
 
@@ -123,7 +131,7 @@ export type WorkflowEventInput =
       stepId: string;
       uses: string;
       outputs: Record<string, unknown>;
-      artifacts: WorkflowArtifact[];
+      artifacts: Array<WorkflowArtifact | WorkflowArtifactInstance>;
       duration: number;
     }
   | {
@@ -154,6 +162,8 @@ export type WorkflowEvent = WorkflowEventInput & { timestamp: number };
 
 export interface WorkflowRunContext {
   host: WorkflowHost;
+  version?: string;
+  buildId?: string;
   variables?: Record<string, unknown>;
   signal?: AbortSignal;
   tasks?: WorkflowTaskRegistry;

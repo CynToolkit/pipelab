@@ -49,9 +49,14 @@ export class WebSocketServer {
       host: security.host || DEFAULT_SERVER_HOST,
       authToken: security.authToken,
       allowedOrigins: security.allowedOrigins || DEFAULT_ALLOWED_ORIGINS,
+      allowUnauthenticated: security.allowUnauthenticated,
     };
 
-    if (requiresAuthentication(securityOptions.host) && !securityOptions.authToken) {
+    if (
+      requiresAuthentication(securityOptions.host) &&
+      !securityOptions.allowUnauthenticated &&
+      !securityOptions.authToken
+    ) {
       throw new WebSocketError(
         "Remote server access requires PIPELAB_AUTH_TOKEN or --auth-token.",
         "AUTH_REQUIRED",

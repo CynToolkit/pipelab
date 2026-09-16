@@ -123,7 +123,6 @@ import { watchDebounced } from "@vueuse/core";
 import ParamEditor from "./ParamEditor.vue";
 import PluginIcon from "./PluginIcon.vue";
 import { createQuickJs } from "@pipelab/shared";
-// @ts-expect-error - dompurify missing type declarations
 import DOMPurify from "dompurify";
 import { makeResolvedParams } from "@pipelab/shared";
 import { ValidationError } from "@renderer/models/error";

@@ -165,16 +165,17 @@ import InputText from "primevue/inputtext";
 import Textarea from "primevue/textarea";
 import Button from "primevue/button";
 import { nanoid } from "nanoid";
-import type { WorkflowConfig } from "@pipelab/shared";
+import { createDefaultDestination, createDefaultPackager, type ReleaseHostCapabilities, type WorkflowConfigV2 } from "@pipelab/shared";
 import { useAPI } from "../composables/api";
 const props = defineProps<{ visible: boolean; projectId: string }>();
 const emit = defineEmits<{
   (e: "update:visible", v: boolean): void;
-  (e: "create", flow: WorkflowConfig): void;
+  (e: "create", flow: WorkflowConfigV2): void;
 }>();
 const visible = computed({ get: () => props.visible, set: (v) => emit("update:visible", v) });
 const activeStep = ref("details");
 const api = useAPI();
+const hostCapabilities = ref<ReleaseHostCapabilities>();
 const draft = ref<any>({
   name: "",
   description: "",
@@ -194,6 +195,9 @@ watch(
   () => props.visible,
   (open) => {
     if (open) {
+      void api.execute("workflow:capabilities:get").then((result) => {
+        if (result.type === "success") hostCapabilities.value = result.result;
+      });
       activeStep.value = "details";
       draft.value = {
         name: "",
@@ -253,8 +257,21 @@ const browseSource = async () => {
     draft.value.source.path = result.result.filePaths[0];
   }
 };
-const create = () => {
-  emit("create", { version: "1.0.0", id: nanoid(), project: props.projectId, ...draft.value });
+const create = async () => {
+  if (!hostCapabilities.value) {
+    const result = await api.execute("workflow:capabilities:get");
+    if (result.type === "success") hostCapabilities.value = result.result;
+  }
+  const needsDesktop = draft.value.destinations.some((destination: any) => ["steam", "itch"].includes(destination.type));
+  const needsWeb = draft.value.destinations.some((destination: any) => ["itch", "web"].includes(destination.type));
+  const packagers = [
+    ...(needsDesktop ? [createDefaultPackager("electron", "electron-default", hostCapabilities.value)] : []),
+    ...(needsWeb ? [createDefaultPackager("web", "web-default", hostCapabilities.value)] : []),
+  ];
+  const destinations = draft.value.destinations.map((destination: any) =>
+    createDefaultDestination(destination.type === "web" ? "web-folder" : destination.type, packagers, hostCapabilities.value),
+  );
+  emit("create", { version: "2.0.0", id: nanoid(), project: props.projectId, name: draft.value.name, description: draft.value.description, source: draft.value.source, packagers, destinations });
   visible.value = false;
   activeStep.value = "details";
 };

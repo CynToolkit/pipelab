@@ -484,6 +484,8 @@ import {
   AppConfig,
   MigrationChannel,
   WorkflowConfig,
+  WorkflowConfigV2,
+  SERVICE_DEFINITIONS,
 } from "@pipelab/shared";
 import { nanoid } from "nanoid";
 import { useRouter } from "vue-router";
@@ -540,7 +542,7 @@ const { files } = storeToRefs(fileStore);
 const { update: updateFileStore, remove, removeProject, transferPipeline, load: reloadFiles } = fileStore;
 
 const filesEnhanced = ref<EnhancedFile[]>([]);
-const workflowsEnhanced = ref<Array<{ id: string; project: string; lastModified: string; content: WorkflowConfig }>>([]);
+const workflowsEnhanced = ref<Array<{ id: string; project: string; lastModified: string; content: WorkflowConfig | WorkflowConfigV2 }>>([]);
 const isWorkflowWizardVisible = ref(false);
 
 const searchQuery = ref("");
@@ -742,10 +744,10 @@ watchEffect(async () => {
 });
 
 watchEffect(async () => {
-  const result: Array<{ id: string; project: string; lastModified: string; content: WorkflowConfig }> = [];
+  const result: Array<{ id: string; project: string; lastModified: string; content: WorkflowConfig | WorkflowConfigV2 }> = [];
   for (const flow of workflows.value) {
     const loaded = await api.execute("workflow:load-by-name", { name: flow.configName });
-    if (loaded.type === "success") result.push({ id: flow.id, project: flow.project, lastModified: flow.lastModified, content: loaded.result as WorkflowConfig });
+    if (loaded.type === "success") result.push({ id: flow.id, project: flow.project, lastModified: flow.lastModified, content: loaded.result as WorkflowConfig | WorkflowConfigV2 });
   }
   workflowsEnhanced.value = result;
 });
@@ -798,13 +800,13 @@ const openNewProjectDialog = async () => {
 };
 
 const openWorkflowWizard = () => { isWorkflowWizardVisible.value = true; };
-const createWorkflow = async (flow: WorkflowConfig) => {
+const createWorkflow = async (flow: WorkflowConfigV2) => {
   await fileStore.saveWorkflow(flow);
   await router.push(`/workflows/${flow.id}/${flow.project}`);
 };
 const openWorkflow = (id: string) => router.push(`/workflows/${id}/${activeProjectId.value}`);
 const toggleWorkflowMenu = (_event: Event, _flow: any) => { /* lifecycle actions land in the workflow editor menu */ };
-const destinationLabel = (d: WorkflowConfig["destinations"][number]) => d.type === "web" ? "Web folder" : d.type === "steam" ? "Steam" : "Itch.io";
+const destinationLabel = (d: WorkflowConfig["destinations"][number] | WorkflowConfigV2["destinations"][number]) => "serviceId" in d ? SERVICE_DEFINITIONS[d.serviceId].label : d.type === "web" ? "Web folder" : d.type === "steam" ? "Steam" : "Itch.io";
 onMounted(() => reloadFiles(true));
 const onNewProjectCreation = async () => {
   const projectId = nanoid();
