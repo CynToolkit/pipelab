@@ -6,9 +6,7 @@ import {
 } from "@pipelab/constants";
 import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
-import { spawn } from "node:child_process";
 import http from "http";
-import { resolve } from "node:path";
 // @ts-expect-error serve-handler has no type definitions
 import handler from "serve-handler";
 import {
@@ -27,53 +25,6 @@ export interface ServeOptions {
   authToken?: string;
   allowedOrigin?: string;
 }
-
-const uiDevServerStartupGraceMs = 2_000;
-const uiDevServerProbeIntervalMs = 100;
-
-export const waitForUiDevServer = async ({
-  timeoutMs = uiDevServerStartupGraceMs,
-  intervalMs = uiDevServerProbeIntervalMs,
-}: { timeoutMs?: number; intervalMs?: number } = {}): Promise<boolean> => {
-  const deadline = Date.now() + timeoutMs;
-
-  do {
-    try {
-      await fetch(`http://127.0.0.1:${uiDevPort}/`, {
-        signal: AbortSignal.timeout(Math.min(250, Math.max(1, intervalMs))),
-      });
-      return true;
-    } catch {
-      // The UI may still be starting in another workspace task.
-    }
-
-    if (Date.now() < deadline) {
-      await new Promise((resolve) => setTimeout(resolve, intervalMs));
-    }
-  } while (Date.now() < deadline);
-
-  return false;
-};
-
-const startUiDevServer = async (
-  host: string,
-  cliPort: string | number,
-  cliDirname: string,
-): Promise<void> => {
-  if (await waitForUiDevServer()) return;
-
-  const projectRoot = resolve(cliDirname, "../../..");
-  const uiProcess = spawn("pnpm", ["--filter", "@pipelab/ui", "dev", "--host", host], {
-    cwd: projectRoot,
-    stdio: "inherit",
-    env: { ...process.env, VITE_PIPELAB_SERVER_PORT: String(cliPort) },
-  });
-  uiProcess.once("error", (error) => {
-    console.error(`[CLI] Failed to start the UI dev server: ${error.message}`);
-  });
-  process.once("exit", () => uiProcess.kill());
-  console.log(`Starting UI dev server on port ${uiDevPort}...`);
-};
 
 export const sendStartupProgress = (message: string) => {
   webSocketServer.broadcast("startup:progress", {
@@ -105,8 +56,6 @@ export async function serveCommand(options: ServeOptions, version: string, cliDi
       ...(options.allowedOrigin ? [options.allowedOrigin] : []),
     ],
   };
-
-  if (isDev) await startUiDevServer(security.host, options.port, cliDirname);
 
   let rawAssetFolder: string | undefined;
   if (!isDev) {

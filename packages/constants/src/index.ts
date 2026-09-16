@@ -73,7 +73,7 @@ export const getUiDevServerFatalError = (port: number) => `
 export const getUiDevServerMissingWarning = () => `
 --------------------------------------------------------------------------------
   [DEVELOPMENT MODE] CLI server started (API/WebSocket).
-  The CLI starts the UI dev server separately on port ${uiDevPort}.
+  Start the UI dev server separately on port ${uiDevPort}.
   Open the UI at http://<host>:${uiDevPort}.
 --------------------------------------------------------------------------------`;
 
