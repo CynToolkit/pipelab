@@ -1,0 +1,21 @@
+{
+  "name": "@pipelab/cloud-workers",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --config pipelab-cloud/wrangler.jsonc --port 8788",
+    "dev:r2": "wrangler dev --config local-r2/wrangler.jsonc --port 8787",
+    "deploy": "wrangler deploy --config pipelab-cloud/wrangler.jsonc",
+    "deploy:secrets": "doppler run -- node scripts/deploy-secrets.mjs",
+    "test": "vitest run pipelab-cloud/index.test.ts"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "3.821.0",
+    "@aws-sdk/s3-request-presigner": "3.821.0",
+    "@supabase/supabase-js": "2.99.3"
+  },
+  "devDependencies": {
+    "vitest": "3.1.4",
+    "wrangler": "4.132.0"
+  }
+}

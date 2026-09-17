@@ -115,3 +115,11 @@ apps/cli/bin
 apps/desktop/bin/
 .desktop-stage/
 apps/cli/assets/ui
+
+# Wrangler local development state and secrets
+supabase/**/.wrangler/
+workers/**/.wrangler/
+supabase/.temp/
+supabase/.branches/
+supabase/**/.dev.vars*
+workers/**/.dev.vars*

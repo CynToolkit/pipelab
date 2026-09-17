@@ -17,11 +17,12 @@ export default defineConfig({
     NODE_ENV: process.env.NODE_ENV || "production",
     SUPABASE_URL: process.env.SUPABASE_URL || "",
     SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY || "",
+    PIPELAB_CLOUD_WORKER_URL: process.env.PIPELAB_CLOUD_WORKER_URL || "",
     POSTHOG_API_KEY: process.env.POSTHOG_API_KEY || "",
     CLI_VERSION: pkg.version,
   },
   envFile: existsSync(envFile) ? envFile : undefined,
-  envPrefix: ["SUPABASE_", "POSTHOG_", "NODE_ENV", "CLI_VERSION"],
+  envPrefix: ["SUPABASE_", "PIPELAB_CLOUD_", "POSTHOG_", "NODE_ENV", "CLI_VERSION"],
   deps: {
     alwaysBundle: [/.*/],
   },

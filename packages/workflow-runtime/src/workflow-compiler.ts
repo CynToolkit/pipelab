@@ -9,7 +9,7 @@ export interface WorkflowDestinationConfiguration {
 
 export interface LegacyWorkflowConfiguration {
   readonly version: string;
-  readonly source: { type: "c3p" | "folder"; path: string };
+  readonly source: { type: "c3p" | "folder"; path: string; profilePath?: string };
   readonly outputs: readonly ArtifactOutputId[];
   readonly destinations: readonly WorkflowDestinationConfiguration[];
 }
@@ -39,7 +39,7 @@ export interface WorkflowDestinationV2Configuration {
 
 export interface WorkflowConfigurationV2 {
   readonly version: "2.0.0";
-  readonly source: { type: "construct3" | "folder"; path: string };
+  readonly source: { type: "construct3" | "folder"; path: string; profilePath?: string };
   readonly packagers: readonly WorkflowPackagerConfiguration[];
   readonly destinations: readonly WorkflowDestinationV2Configuration[];
 }
@@ -51,7 +51,9 @@ const sourceSteps = (source: WorkflowConfigurationV2["source"] | LegacyWorkflowC
   {
     id: "source-export",
     uses: source.type === "c3p" || source.type === "construct3" ? "construct:export" : "construct:export-folder",
-    with: source.type === "c3p" || source.type === "construct3" ? { file: "${{ variables.sourcePath }}" } : { folder: "${{ variables.sourcePath }}" },
+    with: source.type === "c3p" || source.type === "construct3"
+      ? { file: "${{ variables.sourcePath }}", ...(source.profilePath ? { customProfile: source.profilePath } : {}) }
+      : { folder: "${{ variables.sourcePath }}" },
   },
   { id: "prebundle", uses: "source:extract", needs: ["source-export"], with: { file: "${{ steps.source-export.outputs.zipFile }}" } },
 ];
@@ -88,6 +90,24 @@ const compileLegacy = (configuration: LegacyWorkflowConfiguration): Workflow => 
     if (!definition) continue;
     const outputIds = definition.outputs.filter((outputId) => enabledOutputs.includes(outputId));
     if (!outputIds.length) continue;
+    if (destination.id === "pipelab-cloud") {
+      for (const outputId of outputIds) {
+        const producer = `packager-${outputId.replace(".", "-")}`;
+        steps.push({
+          id: `delivery-pipelab-cloud-${outputId.replaceAll(".", "-")}`,
+          uses: "pipelab-cloud:upload",
+          needs: [producer],
+          delivery: { destinationId: "pipelab-cloud", slotId: outputId },
+          with: {
+            version: "${{ variables.version }}",
+            outputId,
+            artifactOutput: outputId,
+            from: `\${{ steps.${producer}.outputs.output }}`,
+          },
+        });
+      }
+      continue;
+    }
     steps.push({ id: `destination-${destination.id}`, uses: `${destination.id}:upload`, needs: outputIds.map((outputId) => `packager-${outputId.replace(".", "-")}`), with: { ...destination.with, version: "${{ variables.version }}", artifactOutputs: outputIds } });
   }
   return { version: 1, steps };
@@ -121,6 +141,7 @@ export const compileWorkflow = (configuration: LegacyWorkflowConfiguration | Wor
           ...(destination.config || {}), ...(slot.config || {}), artifactOutput: slot.input.outputId, packagerId: slot.input.packagerId, version: "${{ variables.version }}",
           ...(destination.serviceId === "steam" ? { folder: `\${{ steps.${producer}.outputs.bundleDirectory }}` } : {}),
           ...(destination.serviceId === "itch" ? { "input-folder": `\${{ steps.${producer}.outputs.bundleDirectory }}` } : {}),
+          ...(destination.serviceId === "pipelab-cloud" ? { from: `\${{ steps.${producer}.outputs.output }}` } : {}),
           ...(destination.serviceId === "web-folder" ? { from: `\${{ steps.${producer}.outputs.output }}`, to: slot.config?.outputDir || destination.config?.outputDir, recursive: true } : {}),
           ...(destination.serviceId === "zip" ? { from: `\${{ steps.${producer}.outputs.output }}`, to: slot.config?.outputPath } : {}),
         },

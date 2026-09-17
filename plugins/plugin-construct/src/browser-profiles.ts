@@ -92,13 +92,22 @@ const executable = (browser: string) => {
   return names.map((name) => dirs.map((dir) => join(dir, name)).find(existsSync)).find(Boolean);
 };
 
-const chromiumProfiles = async (root: string) => {
+type ChromiumProfile = { path: string; name: string };
+
+export const chromiumProfiles = async (root: string): Promise<ChromiumProfile[]> => {
   try {
     const state = JSON.parse(await readFile(join(root, "Local State"), "utf8")) as {
       profile?: { info_cache?: Record<string, { name?: string }> };
     };
     const profiles = Object.entries(state.profile?.info_cache || {}).map(([path, info]) => ({ path, name: info.name || path }));
-    if (profiles.length) return profiles;
+    if (profiles.length) {
+      return (await Promise.all(profiles.map(async (profile) => {
+        const nestedRoot = join(root, profile.path);
+        if (!existsSync(join(nestedRoot, "Local State"))) return [profile];
+        const nestedProfiles = await chromiumProfiles(nestedRoot);
+        return nestedProfiles.map((nested) => ({ path: join(profile.path, nested.path), name: nested.name }));
+      }))).flat();
+    }
   } catch { /* older or damaged browser state */ }
   try {
     return (await readdir(root, { withFileTypes: true }))
@@ -153,7 +162,7 @@ const discoverChromium = async () => {
       const path = normalize(join(root, profile.path));
       if (!existsSync(join(path, "Preferences"))) continue;
       const addonCount = await countChromiumAddons(path, browser);
-      found.push({ browser, profileName: profile.name, path, isDefault: profile.path === "Default", addonCount, lastUpdatedAt: await constructStorageUpdatedAt(path), score: null, usable: addonCount !== null, reason: addonCount === null ? "Browser unavailable or profile is locked" : undefined });
+      found.push({ browser, profileName: profile.name, path, isDefault: profile.path.split(/[\\/]/).pop() === "Default", addonCount, lastUpdatedAt: await constructStorageUpdatedAt(path), score: null, usable: addonCount !== null, reason: addonCount === null ? "Browser unavailable or profile is locked" : undefined });
     }
   }
   return found;

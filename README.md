@@ -51,10 +51,11 @@ Create a `.env` file in the **root directory**. This is the single source of tru
 ```env
 SUPABASE_URL=your_project_url
 SUPABASE_ANON_KEY=your_key
+PIPELAB_CLOUD_WORKER_URL=https://pipelab-cloud.your-account.workers.dev
 POSTHOG_API_KEY=your_key
 ```
 
-`SUPABASE_URL` and `SUPABASE_ANON_KEY` enable authentication. `POSTHOG_API_KEY` enables telemetry. The app still starts without them, with the related cloud features disabled.
+`SUPABASE_URL` and `SUPABASE_ANON_KEY` enable authentication. `PIPELAB_CLOUD_WORKER_URL` configures the Cloudflare Worker used for artifact uploads. `POSTHOG_API_KEY` enables telemetry. The app still starts without them, with the related cloud features disabled.
 
 ### 3. Installation
 

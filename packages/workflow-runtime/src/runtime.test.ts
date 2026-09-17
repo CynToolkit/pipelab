@@ -343,4 +343,36 @@ describe("workflow artifact instances", () => {
       }),
     ]);
   });
+
+  it("passes the produced artifact ID to delivery tasks", async () => {
+    let receivedArtifactId: unknown;
+    await runWorkflow(
+      {
+        version: 1,
+        steps: [
+          { id: "web", uses: "test:build", with: { outputId: "web.html5" } },
+          {
+            id: "cloud",
+            uses: "test:deliver",
+            needs: ["web"],
+            delivery: { destinationId: "pipelab-cloud", slotId: "web" },
+            with: { artifactOutput: "web.html5" },
+          },
+        ],
+      },
+      {
+        host: makeHost(),
+        version: "1.4.0",
+        buildId: "build-cloud",
+        tasks: {
+          "test:build": async ({ setArtifact }) => setArtifact("web.html5", "/workspace/site"),
+          "test:deliver": async ({ inputs }) => {
+            receivedArtifactId = inputs.artifactId;
+          },
+        },
+      },
+    );
+
+    expect(receivedArtifactId).toBe("artifact-build-cloud-0");
+  });
 });

@@ -33,6 +33,12 @@
         />
       </header>
       <Message v-if="loadError" severity="error">{{ loadError }}</Message>
+      <Message v-if="flow && readiness.length" severity="warn" aria-live="polite">
+        <strong>Ship is unavailable</strong>
+        <ul class="readiness-errors">
+          <li v-for="error in readiness" :key="error">{{ error }}</li>
+        </ul>
+      </Message>
       <template v-if="flow">
         <section class="card source-card">
           <div class="card-icon"><i class="mdi mdi-source-branch" /></div>
@@ -64,7 +70,10 @@
         <section v-if="runArtifacts.length || runDeliveries.length" class="build-results card" aria-label="Build results">
           <div class="section-title">
             <div><h2>Build {{ releaseVersion }}</h2><span>Build once, then deliver the same artifacts independently.</span></div>
-            <Tag :value="buildResultStatus === 'completed' ? 'Completed' : 'Completed with errors'" :severity="buildResultStatus === 'completed' ? 'success' : 'danger'" />
+            <Tag
+              :value="buildResultStatus === 'completed' ? 'Completed' : buildResultStatus === 'cancelled' ? 'Cancelled' : 'Completed with errors'"
+              :severity="buildResultStatus === 'completed' ? 'success' : buildResultStatus === 'cancelled' ? 'warn' : 'danger'"
+            />
           </div>
           <div class="results-section">
             <h3>Artifacts</h3>
@@ -103,7 +112,29 @@
         <section v-if="logs.length || Object.keys(runSteps).length" class="logs card">
           <div class="section-title">
             <h2>Run log</h2>
-            <Button v-if="running" label="Cancel" text severity="danger" @click="cancel" />
+            <div class="section-actions">
+              <Button
+                v-if="recordingPath"
+                label="Show crash recording"
+                icon="pi pi-video"
+                text
+                @click="showRecording"
+              />
+              <Button
+                v-if="running"
+                :label="cancelRequested ? 'Cancelling…' : 'Cancel'"
+                text
+                severity="danger"
+                :disabled="cancelRequested"
+                @click="cancel"
+              />
+            </div>
+          </div>
+          <div v-if="recordingPath" class="recording-path" aria-label="Playwright crash recording">
+            <span>Recording path</span>
+            <code>{{ recordingPath }}</code>
+            <Button label="Copy path" icon="pi pi-copy" text @click="copyRecordingPath" />
+            <small role="status" aria-live="polite">{{ recordingCopyStatus }}</small>
           </div>
           <div v-if="Object.keys(runSteps).length" class="run-steps">
             <div v-for="(status, id) in runSteps" :key="id" class="run-step">
@@ -121,7 +152,7 @@
       :style="{ width: '440px', maxWidth: '94vw' }"
     >
       <div class="settings-grid">
-        <div class="field">
+        <div class="field wide">
           <span>Browser profile</span>
           <div class="input-row">
             <Select
@@ -317,15 +348,19 @@ import Dialog from "primevue/dialog";
 import WorkflowArtifactsPanel from "@renderer/components/WorkflowArtifactsPanel.vue";
 import { useAPI } from "@renderer/composables/api";
 import { getReleaseHostCapabilities, migrateWorkflowConfig, outputDescriptor, SERVICE_DEFINITIONS, type BrowserProfileCandidate, type WorkflowConfig, type WorkflowDestination } from "@pipelab/shared";
+import { getWorkflowReadiness } from "./release-flow-readiness";
+import { useShell } from "@renderer/composables/use-shell";
 const route = useRoute();
 const router = useRouter();
 const api = useAPI();
+const shell = useShell();
 const flow = ref<any>();
 const capabilities = ref<ReturnType<typeof getReleaseHostCapabilities>>();
 const connections = ref<any[]>([]);
 const loadError = ref("");
 const saving = ref(false);
 const running = ref(false);
+const cancelRequested = ref(false);
 const activeDestination = ref<WorkflowDestination>();
 const destinationDialogVisible = ref(false);
 const sourceDialogVisible = ref(false);
@@ -336,10 +371,12 @@ const releaseDialogVisible = ref(false);
 const releaseVersion = ref("1.0.0");
 const releaseDescription = ref("");
 const logs = ref<string[]>([]);
+const recordingPath = ref("");
+const recordingCopyStatus = ref("");
 const runSteps = ref<Record<string, string>>({});
 const runArtifacts = ref<any[]>([]);
 const runDeliveries = ref<any[]>([]);
-const buildResultStatus = ref<"completed" | "completed-with-errors">("completed");
+const buildResultStatus = ref<"completed" | "completed-with-errors" | "cancelled">("completed");
 const connectionDialog = ref({
   visible: false,
   saving: false,
@@ -365,42 +402,7 @@ const itchAccountConnections = computed(() =>
     (c) => c.pluginName === "@pipelab/plugin-itch" && c.integrationName === "Itch Butler Account",
   ),
 );
-const steamAccountReady = (id?: string) => {
-  const account = connections.value.find((connection) => connection.id === id);
-  return !!(account?.password && (account.username || account.email));
-};
-const readiness = computed(() => {
-  if (!flow.value) return [];
-  const errors: string[] = [];
-  if (!flow.value.source.path) errors.push("Choose a source");
-  if (flow.value.source.type === "construct3" && !flow.value.source.profilePath) errors.push("Choose a browser profile");
-  if (!flow.value.destinations.some((destination: any) => destination.enabled))
-    errors.push("Enable at least one destination");
-  for (const d of flow.value.destinations) {
-    if (!d.enabled) continue;
-    if (!d.slots.length) errors.push(`Add a delivery slot to ${d.serviceId}`);
-    if (d.config.migration?.unresolved) errors.push(`Resolve migrated ${d.serviceId} slots`);
-    if (d.serviceId === "steam") {
-      if (!d.config.accountConnectionId || !steamAccountReady(String(d.config.accountConnectionId))) errors.push("Select a valid Steam account connection");
-      if (!String(d.config.appId || "").trim()) errors.push("Add a Steam App ID");
-      if (d.slots.some((slot: any) => !String(slot.config.depotId || "").trim())) errors.push("Add a Depot ID to every Steam depot");
-    }
-    if (d.serviceId === "itch") {
-      if (!d.config.accountConnectionId) errors.push("Select an Itch.io account connection");
-      if (!String(d.config.project || "").trim()) errors.push("Add an Itch.io project");
-      if (d.slots.some((slot: any) => !String(slot.config.channel || "").trim())) errors.push("Add a channel to every Itch.io channel");
-    }
-    if (d.serviceId === "web-folder" && d.slots.some((slot: any) => !String(slot.config.outputDir || d.config.outputDir || "").trim())) errors.push("Add an output folder to every web folder");
-    if (d.serviceId === "zip" && d.slots.some((slot: any) => !String(slot.config.outputPath || "").trim())) errors.push("Choose a ZIP file path for every ZIP file");
-    for (const slot of d.slots as any[]) {
-      const packager = flow.value.packagers.find((item: any) => item.id === slot.input.packagerId);
-      const output = outputDescriptor(slot.input.outputId);
-      const availability = (capabilities.value?.packagers as Record<string, any> | undefined)?.[packager?.definitionId || "electron"]?.targets.find((target: any) => target.outputId === slot.input.outputId);
-      if (slot.config.migration?.unresolved || !packager || !packager.enabled || !output || !availability?.available) errors.push(`Resolve ${d.serviceId} delivery inputs`);
-    }
-  }
-  return [...new Set(errors)];
-});
+const readiness = computed(() => getWorkflowReadiness(flow.value, capabilities.value, connections.value, profileError.value));
 const canShip = computed(() => !!flow.value && !readiness.value.length && !running.value);
 const deliveryGroups = computed(() => {
   const groups = new Map<string, { destinationId: string; label: string; deliveries: any[] }>();
@@ -594,49 +596,97 @@ const runShip = async () => {
     return;
   await save();
   running.value = true;
+  cancelRequested.value = false;
   logs.value = [];
+  recordingPath.value = "";
+  recordingCopyStatus.value = "";
   runSteps.value = {};
   runArtifacts.value = [];
   runDeliveries.value = [];
   buildResultStatus.value = "completed";
-  const result = await api.execute(
-    "workflow:execute",
-    {
-      name: `workflows/${flow.value.id}`,
-      release: { version: releaseVersion.value.trim(), description: releaseDescription.value.trim() },
-    },
-    async (event: any) => {
-      if (event.type !== "workflow-event") return;
-      const workflowEvent = event.data;
-      if (workflowEvent.type === "step.log") {
-        logs.value.push(`[${workflowEvent.stepId}] ${workflowEvent.message}`);
-      }
-      if (workflowEvent.type === "step.started") runSteps.value[workflowEvent.stepId] = "running";
-      if (workflowEvent.type === "step.completed") runSteps.value[workflowEvent.stepId] = "completed";
-      if (workflowEvent.type === "step.failed") {
-        runSteps.value[workflowEvent.stepId] = "failed";
-        logs.value.push(`[${workflowEvent.stepId}] ${workflowEvent.error.message}`);
-      }
-      if (workflowEvent.type === "step.skipped") runSteps.value[workflowEvent.stepId] = "skipped";
-      if (workflowEvent.type === "step.skipped") {
-        const reason = `Skipped because ${workflowEvent.blockedBy.join(", ")} failed`;
-        logs.value.push(`[${workflowEvent.stepId}] ${reason}`);
-      }
-    },
-  );
-  if (result.type === "success") {
-    releaseVersion.value = result.result.result.version || releaseVersion.value;
-    runArtifacts.value = result.result.result.artifacts || [];
-    runDeliveries.value = result.result.result.deliveries || [];
-    buildResultStatus.value = result.result.result.status;
-    if (result.result.result.status === "completed-with-errors")
-      logs.value.push("Workflow completed with errors.");
+  try {
+    const result = await api.execute(
+      "workflow:execute",
+      {
+        name: `workflows/${flow.value.id}`,
+        release: { version: releaseVersion.value.trim(), description: releaseDescription.value.trim() },
+      },
+      async (event: any) => {
+        if (event.type !== "workflow-event") return;
+        const workflowEvent = event.data;
+        if (workflowEvent.type === "step.log") {
+          logs.value.push(`[${workflowEvent.stepId}] ${workflowEvent.message}`);
+        }
+        if (workflowEvent.type === "step.started") runSteps.value[workflowEvent.stepId] = "running";
+        if (workflowEvent.type === "step.completed") runSteps.value[workflowEvent.stepId] = "completed";
+        if (workflowEvent.type === "step.failed") {
+          const cancelled = workflowEvent.error.name === "AbortError";
+          runSteps.value[workflowEvent.stepId] = cancelled ? "cancelled" : "failed";
+          const message = workflowEvent.error.message as string;
+          const recording = message.match(/(?:^|\n)PLAYWRIGHT_VIDEO: (.+)$/m)?.[1];
+          if (recording) recordingPath.value = recording.trim();
+          logs.value.push(cancelled ? `[${workflowEvent.stepId}] Cancelled.` : `[${workflowEvent.stepId}] ${message}`);
+        }
+        if (workflowEvent.type === "step.skipped") runSteps.value[workflowEvent.stepId] = "skipped";
+        if (workflowEvent.type === "step.skipped") {
+          const reason = `Skipped because ${workflowEvent.blockedBy.join(", ")} failed`;
+          logs.value.push(`[${workflowEvent.stepId}] ${reason}`);
+        }
+      },
+    );
+    if (result.type === "success") {
+      releaseVersion.value = result.result.result.version || releaseVersion.value;
+      runArtifacts.value = result.result.result.artifacts || [];
+      runDeliveries.value = result.result.result.deliveries || [];
+      buildResultStatus.value = result.result.result.status;
+      if (result.result.result.status === "completed-with-errors")
+        logs.value.push("Workflow completed with errors.");
+    } else if (result.code === "canceled" || cancelRequested.value) {
+      buildResultStatus.value = "cancelled";
+      logs.value.push("Workflow cancelled.");
+    } else {
+      logs.value.push(result.ipcError);
+    }
+  } catch (error) {
+    if (cancelRequested.value) {
+      buildResultStatus.value = "cancelled";
+      logs.value.push("Workflow cancelled.");
+    } else {
+      buildResultStatus.value = "completed-with-errors";
+      logs.value.push(error instanceof Error ? error.message : String(error));
+    }
+  } finally {
+    for (const [stepId, status] of Object.entries(runSteps.value)) {
+      if (status === "running") runSteps.value[stepId] = cancelRequested.value ? "cancelled" : "failed";
+    }
+    running.value = false;
+    cancelRequested.value = false;
   }
-  else logs.value.push(result.ipcError);
-  running.value = false;
 };
 const cancel = async () => {
-  await api.execute("workflow:cancel");
+  if (!running.value || cancelRequested.value) return;
+  cancelRequested.value = true;
+  try {
+    const result = await api.execute("workflow:cancel");
+    if (result.type === "error") {
+      cancelRequested.value = false;
+      logs.value.push(`Unable to cancel workflow: ${result.ipcError}`);
+    }
+  } catch (error) {
+    cancelRequested.value = false;
+    logs.value.push(`Unable to cancel workflow: ${error instanceof Error ? error.message : String(error)}`);
+  }
+};
+const showRecording = () => {
+  if (recordingPath.value) shell.showItemInFolder(recordingPath.value);
+};
+const copyRecordingPath = async () => {
+  try {
+    await navigator.clipboard.writeText(recordingPath.value);
+    recordingCopyStatus.value = "Recording path copied.";
+  } catch {
+    recordingCopyStatus.value = "Clipboard unavailable. Select and copy the path above.";
+  }
 };
 const artifactOutputLabel = (id: string) => outputDescriptor(id as any)?.label || id;
 const formatSize = (size?: number) => typeof size === "number" ? `${Math.round(size / 1024 / 1024)} MB` : "Size pending";
@@ -674,6 +724,10 @@ const steam = (destination: WorkflowDestination) =>
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 16px;
+}
+.flow-header > .p-button,
+.failure-policy {
+  flex: 0 0 auto;
 }
 .flow-heading {
   display: flex;
@@ -808,6 +862,12 @@ h1 {
 .input-row {
   display: flex;
   gap: 8px;
+  min-width: 0;
+}
+.input-row > :deep(.p-select),
+.input-row > .p-inputtext {
+  min-width: 0;
+  flex: 1 1 auto;
 }
 .check {
   flex-direction: row !important;
@@ -826,6 +886,33 @@ h1 {
 .logs.card {
   margin-top: 12px;
   padding: 16px;
+}
+.logs .section-title,
+.section-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.logs .section-title {
+  justify-content: space-between;
+}
+.recording-path {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  font-size: 12px;
+}
+.recording-path code {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  user-select: text;
+  color: var(--text-color-secondary);
+}
+.recording-path small {
+  grid-column: 2 / -1;
+  color: var(--text-color-secondary);
 }
 .build-results.card {
   margin-top: 12px;
@@ -936,6 +1023,21 @@ h1 {
   font-size: 17px;
 }
 @media (max-width: 700px) {
+  .flow-page {
+    padding-inline: 16px;
+  }
+  .flow-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+  }
+  .flow-heading {
+    min-width: 0;
+  }
+  .failure-policy {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
   .artifact-summary-row {
     grid-template-columns: 22px minmax(0, 1fr);
   }
@@ -970,25 +1072,49 @@ h1 {
   margin: 0;
   color: var(--text-color-secondary);
 }
+.readiness-errors {
+  margin: 6px 0 0;
+  padding-left: 20px;
+}
 @media (max-width: 640px) {
   .flow-page {
-    padding: 24px 16px 48px;
+    padding: 20px 12px 40px;
   }
   .flow-header {
-    align-items: flex-start;
+    grid-template-columns: 1fr;
+    align-items: stretch;
+    gap: 10px;
   }
-  .flow-header .p-button:last-child {
-    margin-left: auto;
+  .flow-header > .p-button {
+    grid-row: 2;
+    width: 100%;
+  }
+  .failure-policy {
+    grid-row: 3;
+  }
+  .flow-heading {
+    gap: 8px;
+  }
+  .flow-title-icon {
+    width: 36px;
+    height: 36px;
+  }
+  h1 {
+    font-size: 1rem;
+  }
+  .heading p {
+    line-height: 1.35;
   }
   .source-card {
     align-items: flex-start;
     flex-wrap: wrap;
+    gap: 10px;
   }
   .source-card .card-body {
-    flex-basis: calc(100% - 48px);
+    flex: 1 1 calc(100% - 48px);
   }
   .source-card .p-button {
-    margin-left: 48px;
+    margin-left: 42px;
   }
   .destination-heading {
     align-items: flex-start;
@@ -1005,6 +1131,24 @@ h1 {
   }
   .settings-grid {
     grid-template-columns: 1fr;
+  }
+  .card {
+    padding-inline: 10px;
+  }
+  .logs.card,
+  .build-results.card {
+    padding: 12px;
+  }
+}
+@media (max-width: 380px) {
+  .flow-heading {
+    align-items: center;
+  }
+  .flow-heading > .p-button {
+    padding-inline: 6px;
+  }
+  .source-card .p-button {
+    margin-left: 40px;
   }
 }
 </style>

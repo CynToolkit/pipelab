@@ -112,6 +112,7 @@ describe("createWorkflowActionTask", () => {
       "filesystem:zip",
       "steam:upload",
       "itch:upload",
+      "pipelab-cloud:upload",
     ]);
   });
 });

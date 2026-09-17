@@ -63,7 +63,7 @@ const availableServices = computed(() => Object.values(SERVICE_DEFINITIONS).filt
 const host = computed(() => props.capabilities?.host || { platform: "linux" as const, architecture: "x64" });
 const definition = (id: WorkflowPackager["definitionId"]) => PACKAGER_DEFINITIONS[id];
 const service = (id: WorkflowDestinationV2["serviceId"]) => SERVICE_DEFINITIONS[id];
-const slotIcon = (id: WorkflowDestinationV2["serviceId"]) => id === "steam" ? "mdi-package-variant-closed" : id === "itch" || id === "poki" ? "mdi-transit-connection-variant" : id === "web-folder" ? "mdi-folder-upload-outline" : "mdi-folder-zip-outline";
+const slotIcon = (id: WorkflowDestinationV2["serviceId"]) => id === "steam" ? "mdi-package-variant-closed" : id === "itch" || id === "poki" ? "mdi-transit-connection-variant" : id === "web-folder" ? "mdi-folder-upload-outline" : id === "pipelab-cloud" ? "mdi-cloud-upload-outline" : "mdi-folder-zip-outline";
 const outputs = (packager: WorkflowPackager) => outputsForPackager(packager);
 const touch = () => emit("update:modelValue", modelValue);
 const addPackager = () => { if (!packagerToAdd.value) return; modelValue.packagers.push(createDefaultPackager(packagerToAdd.value as WorkflowPackager["definitionId"], undefined, props.capabilities)); packagerToAdd.value = undefined; touch(); };
@@ -88,7 +88,9 @@ const connectionOptions = (serviceId: WorkflowDestinationV2["serviceId"]) => {
 const destinationSummary = (destination: WorkflowDestinationV2) => {
   if (destination.serviceId === "steam") return String(destination.config.appId || "App ID not set");
   if (destination.serviceId === "itch") return String(destination.config.project || "Project not set");
-  return destination.serviceId === "zip" ? "Select an artifact and ZIP path" : "Select an artifact and output folder";
+  if (destination.serviceId === "zip") return "Select an artifact and ZIP path";
+  if (destination.serviceId === "pipelab-cloud") return "Selected artifacts are hosted for 7 days; latest is kept";
+  return "Select an artifact and output folder";
 };
 const setDestinationField = (destination: WorkflowDestinationV2, key: string, value: unknown) => { destination.config[key] = value; touch(); };
 const compatible = (destination: WorkflowDestinationV2, packager: WorkflowPackager, output: ArtifactOutputDescriptor) => packager.enabled && service(destination.serviceId).compatiblePackagers.includes(packager.definitionId) && service(destination.serviceId).compatiblePlatforms.includes(output.platform);
@@ -103,6 +105,7 @@ const slotSummary = (destination: WorkflowDestinationV2, slot: WorkflowDeliveryS
   if (destination.serviceId === "itch") return `Channel ${String(slot.config.channel || "not set")}`;
   if (destination.serviceId === "web-folder") return String(slot.config.outputDir || destination.config.outputDir || "Output folder not set");
   if (destination.serviceId === "zip") return String(slot.config.outputPath || "ZIP file not set");
+  if (destination.serviceId === "pipelab-cloud") return "7-day retention · latest automatically pinned";
   return "Select an artifact";
 };
 const availability = (packager: WorkflowPackager, outputId: WorkflowArtifactOutputId) => props.capabilities?.packagers[packager.definitionId]?.targets.find((target) => target.outputId === outputId) || getTargetAvailability(packager.definitionId, outputDescriptor(outputId)!, host.value);
@@ -158,4 +161,19 @@ const destinationStatus = (destination: WorkflowDestinationV2) => destination.en
 .slot-fields input { width: 100%; }
 .dialog-form { display: grid; gap: 14px; }.dialog-section { border-top: 1px solid var(--p-surface-200, var(--surface-border, #d9dee8)); padding-top: 10px; }.dialog-section h3 { margin: 0 0 3px; font-size: 12px; }.dialog-targets { display: grid; gap: 2px; margin-top: 8px; }.field-help { color: var(--text-color-secondary); font-size: 9px; }.packager-summary { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; border-top: 1px solid var(--p-surface-200, var(--surface-border, #d9dee8)); padding: 6px 9px 7px; }.summary-chip { border: 1px solid var(--p-surface-200, var(--surface-border, #d9dee8)); border-radius: 999px; padding: 3px 6px; color: var(--text-color-secondary); font-size: 10px; }.summary-chip i { color: var(--primary-color); margin-right: 2px; }.slot-card { padding: 0; overflow: hidden; }.slot-card.invalid { border-color: color-mix(in srgb, var(--orange-500, #f59e0b) 45%, var(--p-surface-200, #d9dee8)); }.slot-heading { padding: 5px 6px; }.slot-title { display: grid; gap: 1px; flex: 1; min-width: 0; }.slot-title small { color: var(--text-color-secondary); font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }.slot-details { padding: 0 9px 7px 36px; }.target-row { cursor: default; }.target-row > i { color: var(--primary-color); font-size: 14px; }.dialog-targets .target-row { cursor: pointer; }.destination-dialog-fields { grid-template-columns: 1fr; }
 .connection-picker { display: flex; align-items: center; gap: 6px; }.connection-picker .p-select { flex: 1; min-width: 0; }.slot-leading { width: 32px; flex: 0 0 32px; }.slot-icon { display: grid; place-items: center; width: 24px; height: 24px; flex: 0 0 24px; border: 1px solid var(--p-surface-200, var(--surface-border, #d9dee8)); border-radius: 5px; color: var(--primary-color); font-size: 12px; }.entity-icon img, .slot-icon img { width: 17px; height: 17px; object-fit: contain; }.slot-card.inactive { opacity: .52; }.slot-dialog-fields { grid-template-columns: minmax(0, 1.35fr) minmax(0, .85fr); }.slot-dialog-fields .option-field { min-width: 0; }.slot-dialog-fields .artifact-field { grid-column: 1 / -1; }.slot-dialog-fields :deep(.p-select) { display: flex; width: 100%; min-width: 0; }.slot-dialog-fields :deep(.p-select-label) { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }@media (max-width: 680px) { .slot-dialog-fields { grid-template-columns: 1fr; } .slot-dialog-fields .artifact-field { grid-column: auto; } }
+@media (max-width: 480px) {
+  .release-editor { padding: 6px; }
+  .entity-header { align-items: flex-start; flex-wrap: wrap; }
+  .entity-title { flex: 1 1 calc(100% - 42px); }
+  .entity-header > :deep(.p-toggleswitch) { margin-left: 36px; }
+  .entity-header > :deep(.p-button) { flex: 0 0 auto; }
+  .packager-summary { align-items: flex-start; }
+  .target-row { grid-template-columns: 20px minmax(0, 1fr); }
+  .target-row em { grid-column: 2; }
+  .option-grid { grid-template-columns: 1fr; }
+  .option-name { grid-column: auto; }
+  .connection-picker { min-width: 0; }
+  .connection-picker :deep(.p-select) { min-width: 0; }
+  .slot-details { padding-left: 9px; }
+}
 </style>

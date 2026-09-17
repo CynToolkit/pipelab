@@ -1,5 +1,7 @@
 import type { Page } from "playwright";
 
+const isPageCrashError = (error: Error) => /(?:page|target) crashed/i.test(error.message);
+
 export const registerInstallButtonListener = (page: Page, log: typeof console.log) => {
   const installDialog = page.locator("#addonConfirmInstallDialog");
   const installBtn = installDialog.locator(".okButton");
@@ -13,7 +15,7 @@ export const registerInstallButtonListener = (page: Page, log: typeof console.lo
       registerInstallButtonListener(page, log);
     })
     .catch(async (e) => {
-      if (e.message.includes("Target page, context or browser has been closed")) return;
+      if (e.message.includes("Target page, context or browser has been closed") || isPageCrashError(e)) return;
       log("installBtn.click() failed", e.message);
     });
 };
@@ -31,7 +33,7 @@ export const registerSaveLoginExpiredistener = (page: Page, log: typeof console.
       registerSaveLoginExpiredistener(page, log);
     })
     .catch(async (e) => {
-      if (e.message.includes("Target page, context or browser has been closed")) return;
+      if (e.message.includes("Target page, context or browser has been closed") || isPageCrashError(e)) return;
       log("cancelBtn.click() failed", e.message);
     });
 };
@@ -53,7 +55,7 @@ export const registerWebglErrorListener = (page: Page, log: typeof console.log) 
       }
     })
     .catch(async (e) => {
-      if (e.message.includes("Target page, context or browser has been closed")) return;
+      if (e.message.includes("Target page, context or browser has been closed") || isPageCrashError(e)) return;
       log("webglErrorButton.click() failed", e.message);
     });
 };
@@ -71,7 +73,7 @@ export const registerDeprecatedFeatures = (page: Page, log: typeof console.log) 
       registerDeprecatedFeatures(page, log);
     })
     .catch(async (e) => {
-      if (e.message.includes("Target page, context or browser has been closed")) return;
+      if (e.message.includes("Target page, context or browser has been closed") || isPageCrashError(e)) return;
       log("deprecatedFeatures.okButton.click() failed", e.message);
     });
 };
@@ -88,7 +90,7 @@ export const registerWelcomeToConstructListener = (page: Page, log: typeof conso
       log("okButton clicked");
     })
     .catch(async (e) => {
-      if (e.message.includes("Target page, context or browser has been closed")) return;
+      if (e.message.includes("Target page, context or browser has been closed") || isPageCrashError(e)) return;
       log("welcomeTour.okButton.click() failed", e.message);
     });
 };
@@ -104,7 +106,7 @@ export const registerMissingAddonErrorListener = (page: Page, log: typeof consol
       throw new Error("Missing addon. You should bundle addons with your project");
     })
     .catch(async (e) => {
-      if (e.message.includes("Target page, context or browser has been closed")) return;
+      if (e.message.includes("Target page, context or browser has been closed") || isPageCrashError(e)) return;
       log("missingAddon.okButton.waitFor() failed", e.message);
     });
 };
@@ -122,7 +124,7 @@ export const registerNewVersionAvailableListener = (page: Page, log: typeof cons
       registerNewVersionAvailableListener(page, log);
     })
     .catch(async (e) => {
-      if (e.message.includes("Target page, context or browser has been closed")) return;
+      if (e.message.includes("Target page, context or browser has been closed") || isPageCrashError(e)) return;
       log("cancelButton.click() failed", e.message);
     });
 };

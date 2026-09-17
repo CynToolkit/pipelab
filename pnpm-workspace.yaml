@@ -3,6 +3,7 @@ packages:
   - "packages/*"
   - "assets/*"
   - "plugins/*"
+  - "workers"
 
 overrides:
   "@codemirror/state": "6.4.1"
