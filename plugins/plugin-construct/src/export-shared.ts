@@ -18,6 +18,11 @@ import { cp, mkdir, readdir, stat, copyFile, chmod, rm, mkdtemp } from "node:fs/
 import { existsSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { createRequire } from "node:module";
+import {
+  formatRendererCrash,
+  readLinuxMemorySnapshot,
+  shouldRecordPlaywrightVideo,
+} from "./runtime-diagnostics.js";
 
 const platform = process.platform;
 const { LOCALAPPDATA, XDG_CONFIG_HOME } = process.env;
@@ -186,8 +191,9 @@ export const exportc3p = async <ACTION extends Action>(
     console.error("aborted");
     cleanup();
   };
-  abortSignal.addEventListener("abort", onAbort);
   const newInputs = inputs as Inputs;
+
+  abortSignal.addEventListener("abort", onAbort);
 
   // const { addonsFolder } = newInputs
 
@@ -255,6 +261,9 @@ export const exportc3p = async <ACTION extends Action>(
     version = `r${version}`;
   }
   const headless = newInputs.headless;
+  const recordVideo = shouldRecordPlaywrightVideo(process.env.NODE_ENV, isCI)
+    ? { dir: downloadDir }
+    : undefined;
 
   // if (newInputs.customBrowser && !newInputs.customProfile) {
   //   throw new Error('You must specify a custom profile when using a custom browser')
@@ -285,11 +294,7 @@ export const exportc3p = async <ACTION extends Action>(
     browserContext = await browserInstance.launchPersistentContext(customProfile, {
       headless: headless as boolean,
       locale: "en-US",
-      recordVideo: isCI
-        ? {
-            dir: join(process.cwd(), "playwright"),
-          }
-        : undefined,
+      recordVideo,
     });
   } else {
     browser = await browserInstance.launch({
@@ -298,11 +303,7 @@ export const exportc3p = async <ACTION extends Action>(
 
     browserContext = await browser.newContext({
       locale: "en-US",
-      recordVideo: isCI
-        ? {
-            dir: join(process.cwd(), "playwright"),
-          }
-        : undefined,
+      recordVideo,
     });
     await browserContext?.clearPermissions();
   }
@@ -312,6 +313,12 @@ export const exportc3p = async <ACTION extends Action>(
   }
 
   const page = await browserContext.newPage();
+  const video = page.video();
+  let pageCrashed = false;
+  page.on("crash", () => {
+    pageCrashed = true;
+    log("Construct renderer crashed");
+  });
 
   page.setDefaultTimeout((newInputs.timeout as number) * 1000);
 
@@ -345,6 +352,11 @@ export const exportc3p = async <ACTION extends Action>(
     setOutput("zipFile", result);
   } catch (e: any) {
     log("error, no result, crashed", e);
+    if (pageCrashed || /(?:page|target) crashed/i.test(e.message)) {
+      const recordingPath = await video?.path().catch(() => undefined);
+      const recordingLink = recordingPath ? `\nPLAYWRIGHT_VIDEO: ${recordingPath}` : "";
+      throw new Error(`${formatRendererCrash(await readLinuxMemorySnapshot())}${recordingLink}`);
+    }
     throw new Error("ConstructExport failed: " + e.message);
   } finally {
     abortSignal.removeEventListener("abort", onAbort);

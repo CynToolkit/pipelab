@@ -109,7 +109,22 @@
         <section v-if="logs.length || Object.keys(runSteps).length" class="logs card">
           <div class="section-title">
             <h2>Run log</h2>
-            <Button v-if="running" label="Cancel" text severity="danger" @click="cancel" />
+            <div class="section-actions">
+              <Button
+                v-if="recordingPath"
+                label="Show crash recording"
+                icon="pi pi-video"
+                text
+                @click="showRecording"
+              />
+              <Button v-if="running" label="Cancel" text severity="danger" @click="cancel" />
+            </div>
+          </div>
+          <div v-if="recordingPath" class="recording-path" aria-label="Playwright crash recording">
+            <span>Recording path</span>
+            <code>{{ recordingPath }}</code>
+            <Button label="Copy path" icon="pi pi-copy" text @click="copyRecordingPath" />
+            <small role="status" aria-live="polite">{{ recordingCopyStatus }}</small>
           </div>
           <div v-if="Object.keys(runSteps).length" class="run-steps">
             <div v-for="(status, id) in runSteps" :key="id" class="run-step">
@@ -324,9 +339,11 @@ import WorkflowArtifactsPanel from "@renderer/components/WorkflowArtifactsPanel.
 import { useAPI } from "@renderer/composables/api";
 import { getReleaseHostCapabilities, migrateWorkflowConfig, outputDescriptor, SERVICE_DEFINITIONS, type BrowserProfileCandidate, type WorkflowConfig, type WorkflowDestination } from "@pipelab/shared";
 import { getWorkflowReadiness } from "./release-flow-readiness";
+import { useShell } from "@renderer/composables/use-shell";
 const route = useRoute();
 const router = useRouter();
 const api = useAPI();
+const shell = useShell();
 const flow = ref<any>();
 const capabilities = ref<ReturnType<typeof getReleaseHostCapabilities>>();
 const connections = ref<any[]>([]);
@@ -343,6 +360,8 @@ const releaseDialogVisible = ref(false);
 const releaseVersion = ref("1.0.0");
 const releaseDescription = ref("");
 const logs = ref<string[]>([]);
+const recordingPath = ref("");
+const recordingCopyStatus = ref("");
 const runSteps = ref<Record<string, string>>({});
 const runArtifacts = ref<any[]>([]);
 const runDeliveries = ref<any[]>([]);
@@ -567,6 +586,8 @@ const runShip = async () => {
   await save();
   running.value = true;
   logs.value = [];
+  recordingPath.value = "";
+  recordingCopyStatus.value = "";
   runSteps.value = {};
   runArtifacts.value = [];
   runDeliveries.value = [];
@@ -587,7 +608,10 @@ const runShip = async () => {
       if (workflowEvent.type === "step.completed") runSteps.value[workflowEvent.stepId] = "completed";
       if (workflowEvent.type === "step.failed") {
         runSteps.value[workflowEvent.stepId] = "failed";
-        logs.value.push(`[${workflowEvent.stepId}] ${workflowEvent.error.message}`);
+        const message = workflowEvent.error.message as string;
+        const recording = message.match(/(?:^|\n)PLAYWRIGHT_VIDEO: (.+)$/m)?.[1];
+        if (recording) recordingPath.value = recording.trim();
+        logs.value.push(`[${workflowEvent.stepId}] ${message}`);
       }
       if (workflowEvent.type === "step.skipped") runSteps.value[workflowEvent.stepId] = "skipped";
       if (workflowEvent.type === "step.skipped") {
@@ -609,6 +633,17 @@ const runShip = async () => {
 };
 const cancel = async () => {
   await api.execute("workflow:cancel");
+};
+const showRecording = () => {
+  if (recordingPath.value) shell.showItemInFolder(recordingPath.value);
+};
+const copyRecordingPath = async () => {
+  try {
+    await navigator.clipboard.writeText(recordingPath.value);
+    recordingCopyStatus.value = "Recording path copied.";
+  } catch {
+    recordingCopyStatus.value = "Clipboard unavailable. Select and copy the path above.";
+  }
 };
 const artifactOutputLabel = (id: string) => outputDescriptor(id as any)?.label || id;
 const formatSize = (size?: number) => typeof size === "number" ? `${Math.round(size / 1024 / 1024)} MB` : "Size pending";
@@ -808,6 +843,33 @@ h1 {
 .logs.card {
   margin-top: 12px;
   padding: 16px;
+}
+.logs .section-title,
+.section-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.logs .section-title {
+  justify-content: space-between;
+}
+.recording-path {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  font-size: 12px;
+}
+.recording-path code {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  user-select: text;
+  color: var(--text-color-secondary);
+}
+.recording-path small {
+  grid-column: 2 / -1;
+  color: var(--text-color-secondary);
 }
 .build-results.card {
   margin-top: 12px;
