@@ -70,7 +70,10 @@
         <section v-if="runArtifacts.length || runDeliveries.length" class="build-results card" aria-label="Build results">
           <div class="section-title">
             <div><h2>Build {{ releaseVersion }}</h2><span>Build once, then deliver the same artifacts independently.</span></div>
-            <Tag :value="buildResultStatus === 'completed' ? 'Completed' : 'Completed with errors'" :severity="buildResultStatus === 'completed' ? 'success' : 'danger'" />
+            <Tag
+              :value="buildResultStatus === 'completed' ? 'Completed' : buildResultStatus === 'cancelled' ? 'Cancelled' : 'Completed with errors'"
+              :severity="buildResultStatus === 'completed' ? 'success' : buildResultStatus === 'cancelled' ? 'warn' : 'danger'"
+            />
           </div>
           <div class="results-section">
             <h3>Artifacts</h3>
@@ -117,7 +120,14 @@
                 text
                 @click="showRecording"
               />
-              <Button v-if="running" label="Cancel" text severity="danger" @click="cancel" />
+              <Button
+                v-if="running"
+                :label="cancelRequested ? 'Cancelling…' : 'Cancel'"
+                text
+                severity="danger"
+                :disabled="cancelRequested"
+                @click="cancel"
+              />
             </div>
           </div>
           <div v-if="recordingPath" class="recording-path" aria-label="Playwright crash recording">
@@ -350,6 +360,7 @@ const connections = ref<any[]>([]);
 const loadError = ref("");
 const saving = ref(false);
 const running = ref(false);
+const cancelRequested = ref(false);
 const activeDestination = ref<WorkflowDestination>();
 const destinationDialogVisible = ref(false);
 const sourceDialogVisible = ref(false);
@@ -365,7 +376,7 @@ const recordingCopyStatus = ref("");
 const runSteps = ref<Record<string, string>>({});
 const runArtifacts = ref<any[]>([]);
 const runDeliveries = ref<any[]>([]);
-const buildResultStatus = ref<"completed" | "completed-with-errors">("completed");
+const buildResultStatus = ref<"completed" | "completed-with-errors" | "cancelled">("completed");
 const connectionDialog = ref({
   visible: false,
   saving: false,
@@ -585,6 +596,7 @@ const runShip = async () => {
     return;
   await save();
   running.value = true;
+  cancelRequested.value = false;
   logs.value = [];
   recordingPath.value = "";
   recordingCopyStatus.value = "";
@@ -592,47 +604,78 @@ const runShip = async () => {
   runArtifacts.value = [];
   runDeliveries.value = [];
   buildResultStatus.value = "completed";
-  const result = await api.execute(
-    "workflow:execute",
-    {
-      name: `workflows/${flow.value.id}`,
-      release: { version: releaseVersion.value.trim(), description: releaseDescription.value.trim() },
-    },
-    async (event: any) => {
-      if (event.type !== "workflow-event") return;
-      const workflowEvent = event.data;
-      if (workflowEvent.type === "step.log") {
-        logs.value.push(`[${workflowEvent.stepId}] ${workflowEvent.message}`);
-      }
-      if (workflowEvent.type === "step.started") runSteps.value[workflowEvent.stepId] = "running";
-      if (workflowEvent.type === "step.completed") runSteps.value[workflowEvent.stepId] = "completed";
-      if (workflowEvent.type === "step.failed") {
-        runSteps.value[workflowEvent.stepId] = "failed";
-        const message = workflowEvent.error.message as string;
-        const recording = message.match(/(?:^|\n)PLAYWRIGHT_VIDEO: (.+)$/m)?.[1];
-        if (recording) recordingPath.value = recording.trim();
-        logs.value.push(`[${workflowEvent.stepId}] ${message}`);
-      }
-      if (workflowEvent.type === "step.skipped") runSteps.value[workflowEvent.stepId] = "skipped";
-      if (workflowEvent.type === "step.skipped") {
-        const reason = `Skipped because ${workflowEvent.blockedBy.join(", ")} failed`;
-        logs.value.push(`[${workflowEvent.stepId}] ${reason}`);
-      }
-    },
-  );
-  if (result.type === "success") {
-    releaseVersion.value = result.result.result.version || releaseVersion.value;
-    runArtifacts.value = result.result.result.artifacts || [];
-    runDeliveries.value = result.result.result.deliveries || [];
-    buildResultStatus.value = result.result.result.status;
-    if (result.result.result.status === "completed-with-errors")
-      logs.value.push("Workflow completed with errors.");
+  try {
+    const result = await api.execute(
+      "workflow:execute",
+      {
+        name: `workflows/${flow.value.id}`,
+        release: { version: releaseVersion.value.trim(), description: releaseDescription.value.trim() },
+      },
+      async (event: any) => {
+        if (event.type !== "workflow-event") return;
+        const workflowEvent = event.data;
+        if (workflowEvent.type === "step.log") {
+          logs.value.push(`[${workflowEvent.stepId}] ${workflowEvent.message}`);
+        }
+        if (workflowEvent.type === "step.started") runSteps.value[workflowEvent.stepId] = "running";
+        if (workflowEvent.type === "step.completed") runSteps.value[workflowEvent.stepId] = "completed";
+        if (workflowEvent.type === "step.failed") {
+          const cancelled = workflowEvent.error.name === "AbortError";
+          runSteps.value[workflowEvent.stepId] = cancelled ? "cancelled" : "failed";
+          const message = workflowEvent.error.message as string;
+          const recording = message.match(/(?:^|\n)PLAYWRIGHT_VIDEO: (.+)$/m)?.[1];
+          if (recording) recordingPath.value = recording.trim();
+          logs.value.push(cancelled ? `[${workflowEvent.stepId}] Cancelled.` : `[${workflowEvent.stepId}] ${message}`);
+        }
+        if (workflowEvent.type === "step.skipped") runSteps.value[workflowEvent.stepId] = "skipped";
+        if (workflowEvent.type === "step.skipped") {
+          const reason = `Skipped because ${workflowEvent.blockedBy.join(", ")} failed`;
+          logs.value.push(`[${workflowEvent.stepId}] ${reason}`);
+        }
+      },
+    );
+    if (result.type === "success") {
+      releaseVersion.value = result.result.result.version || releaseVersion.value;
+      runArtifacts.value = result.result.result.artifacts || [];
+      runDeliveries.value = result.result.result.deliveries || [];
+      buildResultStatus.value = result.result.result.status;
+      if (result.result.result.status === "completed-with-errors")
+        logs.value.push("Workflow completed with errors.");
+    } else if (result.code === "canceled" || cancelRequested.value) {
+      buildResultStatus.value = "cancelled";
+      logs.value.push("Workflow cancelled.");
+    } else {
+      logs.value.push(result.ipcError);
+    }
+  } catch (error) {
+    if (cancelRequested.value) {
+      buildResultStatus.value = "cancelled";
+      logs.value.push("Workflow cancelled.");
+    } else {
+      buildResultStatus.value = "completed-with-errors";
+      logs.value.push(error instanceof Error ? error.message : String(error));
+    }
+  } finally {
+    for (const [stepId, status] of Object.entries(runSteps.value)) {
+      if (status === "running") runSteps.value[stepId] = cancelRequested.value ? "cancelled" : "failed";
+    }
+    running.value = false;
+    cancelRequested.value = false;
   }
-  else logs.value.push(result.ipcError);
-  running.value = false;
 };
 const cancel = async () => {
-  await api.execute("workflow:cancel");
+  if (!running.value || cancelRequested.value) return;
+  cancelRequested.value = true;
+  try {
+    const result = await api.execute("workflow:cancel");
+    if (result.type === "error") {
+      cancelRequested.value = false;
+      logs.value.push(`Unable to cancel workflow: ${result.ipcError}`);
+    }
+  } catch (error) {
+    cancelRequested.value = false;
+    logs.value.push(`Unable to cancel workflow: ${error instanceof Error ? error.message : String(error)}`);
+  }
 };
 const showRecording = () => {
   if (recordingPath.value) shell.showItemInFolder(recordingPath.value);

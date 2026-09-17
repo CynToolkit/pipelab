@@ -1,3 +1,41 @@
 [tools]
 node = "24"
 pnpm = "10.33.0"
+
+[tasks.install]
+run = "pnpm install"
+dir = "apps/desktop"
+
+[tasks.dev]
+run = "doppler run -- pnpm dev"
+dir = "apps/desktop"
+depends = ["install"]
+
+[tasks.package]
+run = "doppler run -- pnpm package"
+dir = "apps/desktop"
+depends = ["install"]
+
+[tasks.test-e2e-local]
+run = "doppler run -- pnpm test:e2e"
+dir = "apps/desktop"
+depends = ["package"]
+
+[tasks.docs-install]
+run = "pnpm install"
+dir = "apps/documentation"
+
+[tasks.docs-dev]
+run = "pnpm dev"
+dir = "apps/documentation"
+depends = ["docs-install", "docs-generate-mermaid"]
+
+[tasks.docs-generate-mermaid]
+run = [
+  "pnpm exec mmdc -i assets/architecture/architecture.mermaid -o assets/architecture/architecture.svg",
+  "pnpm exec mmdc -i assets/roadmap.mermaid -o assets/roadmap.svg",
+  "pnpm exec mmdc -i assets/engine-choose.mermaid -o assets/engine-choose.svg",
+  "pnpm exec mmdc -i assets/graph-processing-flow.mermaid -o assets/graph-processing-flow.svg",
+]
+dir = "apps/documentation"
+depends = ["docs-install"]

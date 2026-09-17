@@ -112,6 +112,21 @@ export const sharedParams = {
 
 type Inputs = ParamsToInput<typeof sharedParams>;
 
+const transientProfileEntries = new Set([
+  "Cache",
+  "Code Cache",
+  "GPUCache",
+  "DawnCache",
+  "GrShaderCache",
+  "ShaderCache",
+  "Service Worker",
+  "Sessions",
+  "Current Session",
+  "Current Tabs",
+  "Last Session",
+  "Last Tabs",
+]);
+
 async function resilientCopy(src: string, dest: string, log: any) {
   try {
     const s = await stat(src);
@@ -119,6 +134,10 @@ async function resilientCopy(src: string, dest: string, log: any) {
       await mkdir(dest, { recursive: true });
       const entries = await readdir(src, { withFileTypes: true });
       for (const entry of entries) {
+        if (transientProfileEntries.has(entry.name)) {
+          log(`  Skipping transient Chromium profile data: ${entry.name}`);
+          continue;
+        }
         const srcPath = join(src, entry.name);
         const destPath = join(dest, entry.name);
         await resilientCopy(srcPath, destPath, log);
@@ -246,6 +265,7 @@ export const exportc3p = async <ACTION extends Action>(
   const playwright = playwrightModule.default || playwrightModule;
 
   const downloadDir = join(cwd, "playwright");
+  await mkdir(downloadDir, { recursive: true });
 
   log("Browser downloaded to", downloadDir);
 
@@ -341,6 +361,7 @@ export const exportc3p = async <ACTION extends Action>(
       newInputs.password as string,
       version as string,
       downloadDir,
+      abortSignal,
       // addonsFolder,
     );
 
