@@ -33,6 +33,12 @@
         />
       </header>
       <Message v-if="loadError" severity="error">{{ loadError }}</Message>
+      <Message v-if="flow && readiness.length" severity="warn" aria-live="polite">
+        <strong>Ship is unavailable</strong>
+        <ul class="readiness-errors">
+          <li v-for="error in readiness" :key="error">{{ error }}</li>
+        </ul>
+      </Message>
       <template v-if="flow">
         <section class="card source-card">
           <div class="card-icon"><i class="mdi mdi-source-branch" /></div>
@@ -317,6 +323,7 @@ import Dialog from "primevue/dialog";
 import WorkflowArtifactsPanel from "@renderer/components/WorkflowArtifactsPanel.vue";
 import { useAPI } from "@renderer/composables/api";
 import { getReleaseHostCapabilities, migrateWorkflowConfig, outputDescriptor, SERVICE_DEFINITIONS, type BrowserProfileCandidate, type WorkflowConfig, type WorkflowDestination } from "@pipelab/shared";
+import { getWorkflowReadiness } from "./release-flow-readiness";
 const route = useRoute();
 const router = useRouter();
 const api = useAPI();
@@ -365,42 +372,7 @@ const itchAccountConnections = computed(() =>
     (c) => c.pluginName === "@pipelab/plugin-itch" && c.integrationName === "Itch Butler Account",
   ),
 );
-const steamAccountReady = (id?: string) => {
-  const account = connections.value.find((connection) => connection.id === id);
-  return !!(account?.password && (account.username || account.email));
-};
-const readiness = computed(() => {
-  if (!flow.value) return [];
-  const errors: string[] = [];
-  if (!flow.value.source.path) errors.push("Choose a source");
-  if (flow.value.source.type === "construct3" && !flow.value.source.profilePath) errors.push("Choose a browser profile");
-  if (!flow.value.destinations.some((destination: any) => destination.enabled))
-    errors.push("Enable at least one destination");
-  for (const d of flow.value.destinations) {
-    if (!d.enabled) continue;
-    if (!d.slots.length) errors.push(`Add a delivery slot to ${d.serviceId}`);
-    if (d.config.migration?.unresolved) errors.push(`Resolve migrated ${d.serviceId} slots`);
-    if (d.serviceId === "steam") {
-      if (!d.config.accountConnectionId || !steamAccountReady(String(d.config.accountConnectionId))) errors.push("Select a valid Steam account connection");
-      if (!String(d.config.appId || "").trim()) errors.push("Add a Steam App ID");
-      if (d.slots.some((slot: any) => !String(slot.config.depotId || "").trim())) errors.push("Add a Depot ID to every Steam depot");
-    }
-    if (d.serviceId === "itch") {
-      if (!d.config.accountConnectionId) errors.push("Select an Itch.io account connection");
-      if (!String(d.config.project || "").trim()) errors.push("Add an Itch.io project");
-      if (d.slots.some((slot: any) => !String(slot.config.channel || "").trim())) errors.push("Add a channel to every Itch.io channel");
-    }
-    if (d.serviceId === "web-folder" && d.slots.some((slot: any) => !String(slot.config.outputDir || d.config.outputDir || "").trim())) errors.push("Add an output folder to every web folder");
-    if (d.serviceId === "zip" && d.slots.some((slot: any) => !String(slot.config.outputPath || "").trim())) errors.push("Choose a ZIP file path for every ZIP file");
-    for (const slot of d.slots as any[]) {
-      const packager = flow.value.packagers.find((item: any) => item.id === slot.input.packagerId);
-      const output = outputDescriptor(slot.input.outputId);
-      const availability = (capabilities.value?.packagers as Record<string, any> | undefined)?.[packager?.definitionId || "electron"]?.targets.find((target: any) => target.outputId === slot.input.outputId);
-      if (slot.config.migration?.unresolved || !packager || !packager.enabled || !output || !availability?.available) errors.push(`Resolve ${d.serviceId} delivery inputs`);
-    }
-  }
-  return [...new Set(errors)];
-});
+const readiness = computed(() => getWorkflowReadiness(flow.value, capabilities.value, connections.value, profileError.value));
 const canShip = computed(() => !!flow.value && !readiness.value.length && !running.value);
 const deliveryGroups = computed(() => {
   const groups = new Map<string, { destinationId: string; label: string; deliveries: any[] }>();
@@ -675,6 +647,10 @@ const steam = (destination: WorkflowDestination) =>
   gap: 12px;
   margin-bottom: 16px;
 }
+.flow-header > .p-button,
+.failure-policy {
+  flex: 0 0 auto;
+}
 .flow-heading {
   display: flex;
   align-items: flex-start;
@@ -808,6 +784,12 @@ h1 {
 .input-row {
   display: flex;
   gap: 8px;
+  min-width: 0;
+}
+.input-row > :deep(.p-select),
+.input-row > .p-inputtext {
+  min-width: 0;
+  flex: 1 1 auto;
 }
 .check {
   flex-direction: row !important;
@@ -936,6 +918,21 @@ h1 {
   font-size: 17px;
 }
 @media (max-width: 700px) {
+  .flow-page {
+    padding-inline: 16px;
+  }
+  .flow-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+  }
+  .flow-heading {
+    min-width: 0;
+  }
+  .failure-policy {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
   .artifact-summary-row {
     grid-template-columns: 22px minmax(0, 1fr);
   }
@@ -970,25 +967,49 @@ h1 {
   margin: 0;
   color: var(--text-color-secondary);
 }
+.readiness-errors {
+  margin: 6px 0 0;
+  padding-left: 20px;
+}
 @media (max-width: 640px) {
   .flow-page {
-    padding: 24px 16px 48px;
+    padding: 20px 12px 40px;
   }
   .flow-header {
-    align-items: flex-start;
+    grid-template-columns: 1fr;
+    align-items: stretch;
+    gap: 10px;
   }
-  .flow-header .p-button:last-child {
-    margin-left: auto;
+  .flow-header > .p-button {
+    grid-row: 2;
+    width: 100%;
+  }
+  .failure-policy {
+    grid-row: 3;
+  }
+  .flow-heading {
+    gap: 8px;
+  }
+  .flow-title-icon {
+    width: 36px;
+    height: 36px;
+  }
+  h1 {
+    font-size: 1rem;
+  }
+  .heading p {
+    line-height: 1.35;
   }
   .source-card {
     align-items: flex-start;
     flex-wrap: wrap;
+    gap: 10px;
   }
   .source-card .card-body {
-    flex-basis: calc(100% - 48px);
+    flex: 1 1 calc(100% - 48px);
   }
   .source-card .p-button {
-    margin-left: 48px;
+    margin-left: 42px;
   }
   .destination-heading {
     align-items: flex-start;
@@ -1005,6 +1026,24 @@ h1 {
   }
   .settings-grid {
     grid-template-columns: 1fr;
+  }
+  .card {
+    padding-inline: 10px;
+  }
+  .logs.card,
+  .build-results.card {
+    padding: 12px;
+  }
+}
+@media (max-width: 380px) {
+  .flow-heading {
+    align-items: center;
+  }
+  .flow-heading > .p-button {
+    padding-inline: 6px;
+  }
+  .source-card .p-button {
+    margin-left: 40px;
   }
 }
 </style>

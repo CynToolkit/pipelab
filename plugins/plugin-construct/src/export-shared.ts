@@ -136,6 +136,41 @@ async function resilientCopy(src: string, dest: string, log: any) {
   }
 }
 
+const profileLockNames = new Set(["LOCK", "SingletonCookie", "SingletonLock", "SingletonSocket"]);
+
+const removeProfileLocks = async (root: string): Promise<void> => {
+  for (const entry of await readdir(root, { withFileTypes: true })) {
+    const path = join(root, entry.name);
+    if (entry.isDirectory()) {
+      await removeProfileLocks(path).catch(() => {});
+    } else if (profileLockNames.has(entry.name)) {
+      await rm(path, { force: true }).catch(() => {});
+    }
+  }
+};
+
+/**
+ * Copies a browser profile into a fresh Playwright user-data directory.
+ *
+ * Construct stores addon metadata alongside the IndexedDB LevelDB files. Copying
+ * only the individual LevelDB folders loses that metadata, so Chromium opens an
+ * empty `c3-addon-files` database and reports the addon as missing.
+ */
+export const preparePlaywrightProfile = async (
+  source: string,
+  destination: string,
+  log: (...args: any[]) => void = () => {},
+) => {
+  const sourceProfile = existsSync(join(source, "IndexedDB"))
+    ? source
+    : existsSync(join(source, "Default", "IndexedDB"))
+    ? join(source, "Default")
+    : source;
+
+  await resilientCopy(sourceProfile, destination, log);
+  await removeProfileLocks(destination);
+};
+
 export const exportc3p = async <ACTION extends Action>(
   file: string,
   { cwd, log, inputs, setOutput, paths, abortSignal, context: ctx }: ActionRunnerData<ACTION>,
@@ -246,45 +281,13 @@ export const exportc3p = async <ACTION extends Action>(
     const indexedDbPathSource = existsSync(join(newInputs.customProfile, "IndexedDB"))
       ? join(newInputs.customProfile, "IndexedDB")
       : join(newInputs.customProfile, "Default", "IndexedDB");
-    const indexedDbPathDestination = join(customProfile, "Default", "IndexedDB");
     log(`  - Source IndexedDB folder: ${indexedDbPathSource}`);
-    log(`  - Destination IndexedDB folder: ${indexedDbPathDestination}`);
-
     if (!existsSync(indexedDbPathSource)) {
       log(
         `  [WARNING] Source IndexedDB directory does not exist: "${indexedDbPathSource}". Verify your custom profile path.`,
       );
     }
-
-    await mkdir(indexedDbPathDestination, { recursive: true });
-
-    const pathsToCopy = [
-      "https_account.construct.net_0.indexeddb.leveldb",
-      "https_editor.construct.net_0.indexeddb.blob",
-      "https_editor.construct.net_0.indexeddb.leveldb",
-      "https_preview.construct.net_0.indexeddb.leveldb",
-    ];
-
-    for (const p of pathsToCopy) {
-      const from = join(indexedDbPathSource, p);
-      const to = join(indexedDbPathDestination, p);
-      if (existsSync(from)) {
-        log(`  - Copying: "${p}" to "${indexedDbPathDestination}"`);
-        try {
-          await resilientCopy(from, to, log);
-          // Remove the LOCK file so the new Chromium instance can acquire a clean lock.
-          await rm(join(to, "LOCK"), { force: true });
-          log(`    [OK] Successfully copied "${p}"`);
-        } catch (e) {
-          log(
-            `    [ERROR] Failed to copy "${p}":`,
-            e instanceof Error ? `${e.message}\n${e.stack}` : String(e),
-          );
-        }
-      } else {
-        log(`  - Skipping: "${p}" (does not exist in source profile)`);
-      }
-    }
+    await preparePlaywrightProfile(newInputs.customProfile, customProfile, log);
 
     browserContext = await browserInstance.launchPersistentContext(customProfile, {
       headless: headless as boolean,
