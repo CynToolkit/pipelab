@@ -207,7 +207,13 @@ export const runWorkflow = async (
         ensureNotAborted(signal);
         const task = tasks[step.uses];
         if (!task) throw new Error(`Workflow task not found: ${step.uses}`);
-        const inputs = resolveInputs(step, variables, outputs);
+        const deliveryArtifact = step.delivery ? artifactForDelivery(step, artifacts) : undefined;
+        const inputs = {
+          ...resolveInputs(step, variables, outputs),
+          ...(step.delivery?.destinationId === "pipelab-cloud" && deliveryArtifact && "outputId" in deliveryArtifact
+            ? { artifactId: deliveryArtifact.id }
+            : {}),
+        };
         const result =
           (await task({
             step,

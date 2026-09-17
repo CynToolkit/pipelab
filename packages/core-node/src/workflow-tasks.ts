@@ -9,6 +9,7 @@ import { usePlugins } from "@pipelab/shared";
 import type { PipelabContext } from "./context";
 import type { ActionRunner, ActionRunnerData } from "./types/runner";
 import { zipFolder } from "./utils/fs-extras";
+import { createPipelabCloudUploadTask } from "./pipelab-cloud";
 
 export interface WorkflowTaskOptions {
   context: PipelabContext;
@@ -169,5 +170,6 @@ export const createPipelabWorkflowTasks = (
     },
     "steam:upload": createWorkflowActionTask(steamUpload, options),
     "itch:upload": createWorkflowActionTask(itchUpload, options),
+    "pipelab-cloud:upload": createPipelabCloudUploadTask(options.context),
   };
 };

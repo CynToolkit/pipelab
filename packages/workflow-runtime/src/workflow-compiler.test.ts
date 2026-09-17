@@ -104,4 +104,47 @@ describe("compileWorkflow", () => {
       with: { to: "/publish/game.zip" },
     });
   });
+
+  it("compiles Pipelab Cloud as an artifact upload destination", () => {
+    const workflow = compileWorkflow({
+      version: "2.0.0",
+      source: { type: "folder", path: "/game" },
+      packagers: [{ id: "web", definitionId: "web", enabled: true, config: { targets: ["web.html5"] } }],
+      destinations: [{ serviceId: "pipelab-cloud", id: "cloud", enabled: true, config: {}, slots: [
+        { id: "html", config: {}, input: { packagerId: "web", outputId: "web.html5" } },
+      ] }],
+    });
+
+    expect(workflow.steps.find((step) => step.id === "delivery-cloud-html")).toMatchObject({
+      uses: "pipelab-cloud:upload",
+      needs: ["packager-web-web-html5"],
+      with: {
+        artifactOutput: "web.html5",
+        from: "${{ steps.packager-web-web-html5.outputs.output }}",
+        version: "${{ variables.version }}",
+      },
+    });
+  });
+
+  it("keeps Pipelab Cloud compatible with legacy workflows", () => {
+    const workflow = compileWorkflow({
+      version: "1.4.0",
+      source: { type: "folder", path: "/game" },
+      outputs: ["electron.windows", "electron.linux"],
+      destinations: [{ id: "pipelab-cloud", enabled: true }],
+    });
+
+    expect(workflow.steps.filter((step) => step.uses === "pipelab-cloud:upload")).toMatchObject([
+      {
+        needs: ["packager-electron-windows"],
+        delivery: { destinationId: "pipelab-cloud", slotId: "electron.windows" },
+        with: { artifactOutput: "electron.windows", from: "${{ steps.packager-electron-windows.outputs.output }}" },
+      },
+      {
+        needs: ["packager-electron-linux"],
+        delivery: { destinationId: "pipelab-cloud", slotId: "electron.linux" },
+        with: { artifactOutput: "electron.linux", from: "${{ steps.packager-electron-linux.outputs.output }}" },
+      },
+    ]);
+  });
 });

@@ -63,7 +63,7 @@ const availableServices = computed(() => Object.values(SERVICE_DEFINITIONS).filt
 const host = computed(() => props.capabilities?.host || { platform: "linux" as const, architecture: "x64" });
 const definition = (id: WorkflowPackager["definitionId"]) => PACKAGER_DEFINITIONS[id];
 const service = (id: WorkflowDestinationV2["serviceId"]) => SERVICE_DEFINITIONS[id];
-const slotIcon = (id: WorkflowDestinationV2["serviceId"]) => id === "steam" ? "mdi-package-variant-closed" : id === "itch" || id === "poki" ? "mdi-transit-connection-variant" : id === "web-folder" ? "mdi-folder-upload-outline" : "mdi-folder-zip-outline";
+const slotIcon = (id: WorkflowDestinationV2["serviceId"]) => id === "steam" ? "mdi-package-variant-closed" : id === "itch" || id === "poki" ? "mdi-transit-connection-variant" : id === "web-folder" ? "mdi-folder-upload-outline" : id === "pipelab-cloud" ? "mdi-cloud-upload-outline" : "mdi-folder-zip-outline";
 const outputs = (packager: WorkflowPackager) => outputsForPackager(packager);
 const touch = () => emit("update:modelValue", modelValue);
 const addPackager = () => { if (!packagerToAdd.value) return; modelValue.packagers.push(createDefaultPackager(packagerToAdd.value as WorkflowPackager["definitionId"], undefined, props.capabilities)); packagerToAdd.value = undefined; touch(); };
@@ -88,7 +88,9 @@ const connectionOptions = (serviceId: WorkflowDestinationV2["serviceId"]) => {
 const destinationSummary = (destination: WorkflowDestinationV2) => {
   if (destination.serviceId === "steam") return String(destination.config.appId || "App ID not set");
   if (destination.serviceId === "itch") return String(destination.config.project || "Project not set");
-  return destination.serviceId === "zip" ? "Select an artifact and ZIP path" : "Select an artifact and output folder";
+  if (destination.serviceId === "zip") return "Select an artifact and ZIP path";
+  if (destination.serviceId === "pipelab-cloud") return "Selected artifacts are hosted for 7 days; latest is kept";
+  return "Select an artifact and output folder";
 };
 const setDestinationField = (destination: WorkflowDestinationV2, key: string, value: unknown) => { destination.config[key] = value; touch(); };
 const compatible = (destination: WorkflowDestinationV2, packager: WorkflowPackager, output: ArtifactOutputDescriptor) => packager.enabled && service(destination.serviceId).compatiblePackagers.includes(packager.definitionId) && service(destination.serviceId).compatiblePlatforms.includes(output.platform);
@@ -103,6 +105,7 @@ const slotSummary = (destination: WorkflowDestinationV2, slot: WorkflowDeliveryS
   if (destination.serviceId === "itch") return `Channel ${String(slot.config.channel || "not set")}`;
   if (destination.serviceId === "web-folder") return String(slot.config.outputDir || destination.config.outputDir || "Output folder not set");
   if (destination.serviceId === "zip") return String(slot.config.outputPath || "ZIP file not set");
+  if (destination.serviceId === "pipelab-cloud") return "7-day retention · latest automatically pinned";
   return "Select an artifact";
 };
 const availability = (packager: WorkflowPackager, outputId: WorkflowArtifactOutputId) => props.capabilities?.packagers[packager.definitionId]?.targets.find((target) => target.outputId === outputId) || getTargetAvailability(packager.definitionId, outputDescriptor(outputId)!, host.value);

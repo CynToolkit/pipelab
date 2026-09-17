@@ -6,6 +6,7 @@ import {
   migrateWorkflowConfig,
   outputsForPackager,
   PACKAGER_DEFINITIONS,
+  SERVICE_DEFINITIONS,
   validateWorkflowConfigV2,
 } from "./release-definitions";
 
@@ -22,6 +23,18 @@ describe("release definitions", () => {
     electron.config.targets = ["electron.linux"];
     const steam = createDefaultDestination("steam", [electron], getReleaseHostCapabilities({ platform: "linux", architecture: "x64" }));
     expect(steam.slots).toHaveLength(0);
+  });
+
+  it("allows Pipelab Cloud to host every stable artifact output", () => {
+    expect(SERVICE_DEFINITIONS["pipelab-cloud"].outputs).toEqual([
+      "electron.windows",
+      "electron.linux",
+      "electron.macos.arm64",
+      "tauri.windows",
+      "tauri.linux",
+      "tauri.macos.arm64",
+      "web.html5",
+    ]);
   });
 
   it("migrates the legacy flat output list to packagers and exact slot inputs", () => {

@@ -88,6 +88,24 @@ const compileLegacy = (configuration: LegacyWorkflowConfiguration): Workflow => 
     if (!definition) continue;
     const outputIds = definition.outputs.filter((outputId) => enabledOutputs.includes(outputId));
     if (!outputIds.length) continue;
+    if (destination.id === "pipelab-cloud") {
+      for (const outputId of outputIds) {
+        const producer = `packager-${outputId.replace(".", "-")}`;
+        steps.push({
+          id: `delivery-pipelab-cloud-${outputId.replaceAll(".", "-")}`,
+          uses: "pipelab-cloud:upload",
+          needs: [producer],
+          delivery: { destinationId: "pipelab-cloud", slotId: outputId },
+          with: {
+            version: "${{ variables.version }}",
+            outputId,
+            artifactOutput: outputId,
+            from: `\${{ steps.${producer}.outputs.output }}`,
+          },
+        });
+      }
+      continue;
+    }
     steps.push({ id: `destination-${destination.id}`, uses: `${destination.id}:upload`, needs: outputIds.map((outputId) => `packager-${outputId.replace(".", "-")}`), with: { ...destination.with, version: "${{ variables.version }}", artifactOutputs: outputIds } });
   }
   return { version: 1, steps };
@@ -121,6 +139,7 @@ export const compileWorkflow = (configuration: LegacyWorkflowConfiguration | Wor
           ...(destination.config || {}), ...(slot.config || {}), artifactOutput: slot.input.outputId, packagerId: slot.input.packagerId, version: "${{ variables.version }}",
           ...(destination.serviceId === "steam" ? { folder: `\${{ steps.${producer}.outputs.bundleDirectory }}` } : {}),
           ...(destination.serviceId === "itch" ? { "input-folder": `\${{ steps.${producer}.outputs.bundleDirectory }}` } : {}),
+          ...(destination.serviceId === "pipelab-cloud" ? { from: `\${{ steps.${producer}.outputs.output }}` } : {}),
           ...(destination.serviceId === "web-folder" ? { from: `\${{ steps.${producer}.outputs.output }}`, to: slot.config?.outputDir || destination.config?.outputDir, recursive: true } : {}),
           ...(destination.serviceId === "zip" ? { from: `\${{ steps.${producer}.outputs.output }}`, to: slot.config?.outputPath } : {}),
         },
