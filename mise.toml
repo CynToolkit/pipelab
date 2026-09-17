@@ -1,6 +1,7 @@
 [tools]
 node = "24"
 pnpm = "10.33.0"
+supabase = "2.117.0"
 
 [tasks.install]
 run = "pnpm install"
@@ -39,3 +40,66 @@ run = [
 ]
 dir = "apps/documentation"
 depends = ["docs-install"]
+
+[tasks."local:setup"]
+description = "Initialize Supabase locally and apply migrations"
+run = '''
+set -eu
+pnpm install
+if [ ! -f supabase/config.toml ]; then
+  supabase init
+fi
+supabase start
+supabase migration up --local
+'''
+
+[tasks."local:r2"]
+description = "Run the local S3-compatible R2 Worker"
+run = "pnpm --filter @pipelab/cloud-workers dev:r2"
+
+[tasks."local:api"]
+description = "Run the Pipelab Cloud Worker against local Supabase and R2"
+run = '''
+set -eu
+eval "$(supabase status --output env)"
+export SUPABASE_URL="${API_URL:-${SUPABASE_URL:-}}"
+export SUPABASE_ANON_KEY="${ANON_KEY:-${PUBLISHABLE_KEY:-${SUPABASE_ANON_KEY:-}}}"
+export SUPABASE_SERVICE_ROLE_KEY="${SERVICE_ROLE_KEY:-${SECRET_KEY:-${SUPABASE_SERVICE_ROLE_KEY:-}}}"
+: "${SUPABASE_URL:?Could not read local Supabase URL; run mise run local:setup first}"
+: "${SUPABASE_ANON_KEY:?Could not read local Supabase publishable key}"
+: "${SUPABASE_SERVICE_ROLE_KEY:?Could not read local Supabase service key}"
+export R2_ENDPOINT_URL="http://127.0.0.1:8787"
+export R2_ACCOUNT_ID="local"
+export R2_ACCESS_KEY_ID="local"
+export R2_SECRET_ACCESS_KEY="local"
+export R2_BUCKET_NAME="pipelab-cloud-local"
+export CLOUDFLARE_INCLUDE_PROCESS_ENV="true"
+pnpm --filter @pipelab/cloud-workers dev
+'''
+
+[tasks."local:cleanup"]
+description = "Run the local Worker's scheduled cleanup handler once"
+run = "curl --fail-with-body 'http://127.0.0.1:8788/cdn-cgi/local/scheduled?format=json'"
+
+[tasks."deploy:artifacts"]
+description = "Deploy the Pipelab Cloud Worker and inject Doppler secrets"
+run = [
+  "doppler run -- pnpm --filter @pipelab/cloud-workers deploy",
+  "pnpm --filter @pipelab/cloud-workers deploy:secrets",
+]
+depends = ["install"]
+
+[tasks."local:app"]
+description = "Run the desktop app against local Supabase and Pipelab Cloud"
+run = '''
+set -eu
+eval "$(supabase status --output env)"
+local_supabase_url="${API_URL:-${SUPABASE_URL:-}}"
+local_anon_key="${ANON_KEY:-${PUBLISHABLE_KEY:-${SUPABASE_ANON_KEY:-}}}"
+local_service_role_key="${SERVICE_ROLE_KEY:-${SECRET_KEY:-${SUPABASE_SERVICE_ROLE_KEY:-}}}"
+: "${local_supabase_url:?Could not read local Supabase URL; run mise run local:setup first}"
+: "${local_anon_key:?Could not read local Supabase publishable key}"
+: "${local_service_role_key:?Could not read local Supabase service key}"
+doppler run -- env SUPABASE_URL="$local_supabase_url" SUPABASE_ANON_KEY="$local_anon_key" SUPABASE_SERVICE_ROLE_KEY="$local_service_role_key" PIPELAB_CLOUD_WORKER_URL="http://127.0.0.1:8788" pnpm dev
+'''
+dir = "apps/desktop"

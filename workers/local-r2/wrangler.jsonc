@@ -1,0 +1,17 @@
+{
+  "name": "pipelab-local-r2",
+  "main": "worker.ts",
+  "compatibility_date": "2026-09-17",
+  "dev": {
+    "ip": "127.0.0.1"
+  },
+  "vars": {
+    "BUCKET_NAME": "pipelab-cloud-local"
+  },
+  "r2_buckets": [
+    {
+      "binding": "BUCKET",
+      "bucket_name": "pipelab-cloud-local"
+    }
+  ]
+}
