@@ -161,14 +161,9 @@ export const preparePlaywrightProfile = async (
   destination: string,
   log: (...args: any[]) => void = () => {},
 ) => {
-  const sourceProfile = existsSync(join(source, "IndexedDB"))
-    ? source
-    : existsSync(join(source, "Default", "IndexedDB"))
-    ? join(source, "Default")
-    : source;
-
-  await resilientCopy(sourceProfile, destination, log);
-  await removeProfileLocks(destination);
+  const playwrightProfile = join(destination, "Default");
+  await resilientCopy(source, playwrightProfile, log);
+  await removeProfileLocks(playwrightProfile);
 };
 
 export const exportc3p = async <ACTION extends Action>(
@@ -278,9 +273,7 @@ export const exportc3p = async <ACTION extends Action>(
     log("Setting up Playwright profile from custom Chrome profile...");
     log(`  - Target playwright-profile folder: ${customProfile}`);
 
-    const indexedDbPathSource = existsSync(join(newInputs.customProfile, "IndexedDB"))
-      ? join(newInputs.customProfile, "IndexedDB")
-      : join(newInputs.customProfile, "Default", "IndexedDB");
+    const indexedDbPathSource = join(newInputs.customProfile, "IndexedDB");
     log(`  - Source IndexedDB folder: ${indexedDbPathSource}`);
     if (!existsSync(indexedDbPathSource)) {
       log(

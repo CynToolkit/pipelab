@@ -6,7 +6,6 @@ import {
   registerWebglErrorListener,
   registerDeprecatedFeatures,
   registerWelcomeToConstructListener,
-  registerMissingAddonErrorListener,
   registerNewVersionAvailableListener,
   registerNotNowListener,
 } from "./listeners.js";
@@ -82,7 +81,6 @@ export const script = async (
   registerNotNowListener(page, log);
   registerInstallButtonListener(page, log);
   registerWebglErrorListener(page, log);
-  registerMissingAddonErrorListener(page, log);
   registerDeprecatedFeatures(page, log);
   registerSaveLoginExpiredistener(page, log);
 
@@ -129,6 +127,12 @@ export const script = async (
   });
   log("Got progress dialog to disapear");
   clearInterval(progressInterval);
+
+  const missingAddonsDialog = page.locator("#missingAddonsDialog");
+  if (await missingAddonsDialog.isVisible()) {
+    const details = (await missingAddonsDialog.innerText()).trim();
+    throw new Error(`Construct reports a missing addon${details ? `: ${details}` : ""}`);
+  }
 
   await page.getByRole("button", { name: "Menu" }).click();
   await page.getByRole("menuitem", { name: "Project" }).click();

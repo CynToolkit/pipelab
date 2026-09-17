@@ -9,7 +9,7 @@ export interface WorkflowDestinationConfiguration {
 
 export interface LegacyWorkflowConfiguration {
   readonly version: string;
-  readonly source: { type: "c3p" | "folder"; path: string };
+  readonly source: { type: "c3p" | "folder"; path: string; profilePath?: string };
   readonly outputs: readonly ArtifactOutputId[];
   readonly destinations: readonly WorkflowDestinationConfiguration[];
 }
@@ -39,7 +39,7 @@ export interface WorkflowDestinationV2Configuration {
 
 export interface WorkflowConfigurationV2 {
   readonly version: "2.0.0";
-  readonly source: { type: "construct3" | "folder"; path: string };
+  readonly source: { type: "construct3" | "folder"; path: string; profilePath?: string };
   readonly packagers: readonly WorkflowPackagerConfiguration[];
   readonly destinations: readonly WorkflowDestinationV2Configuration[];
 }
@@ -51,7 +51,9 @@ const sourceSteps = (source: WorkflowConfigurationV2["source"] | LegacyWorkflowC
   {
     id: "source-export",
     uses: source.type === "c3p" || source.type === "construct3" ? "construct:export" : "construct:export-folder",
-    with: source.type === "c3p" || source.type === "construct3" ? { file: "${{ variables.sourcePath }}" } : { folder: "${{ variables.sourcePath }}" },
+    with: source.type === "c3p" || source.type === "construct3"
+      ? { file: "${{ variables.sourcePath }}", ...(source.profilePath ? { customProfile: source.profilePath } : {}) }
+      : { folder: "${{ variables.sourcePath }}" },
   },
   { id: "prebundle", uses: "source:extract", needs: ["source-export"], with: { file: "${{ steps.source-export.outputs.zipFile }}" } },
 ];

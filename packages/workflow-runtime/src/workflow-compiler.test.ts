@@ -2,6 +2,21 @@ import { describe, expect, it } from "vitest";
 import { compileWorkflow } from "./workflow-compiler";
 
 describe("compileWorkflow", () => {
+  it("passes the explicitly selected Construct profile to the source exporter", () => {
+    const workflow = compileWorkflow({
+      version: "2.0.0",
+      source: { type: "construct3", path: "/game.c3p", profilePath: "/browser/Construct/Default" },
+      packagers: [],
+      destinations: [],
+    });
+
+    expect(workflow.steps[0]).toMatchObject({
+      id: "source-export",
+      uses: "construct:export",
+      with: { file: "${{ variables.sourcePath }}", customProfile: "/browser/Construct/Default" },
+    });
+  });
+
   it("creates one producer per stable output and fans destinations out from producers", () => {
     const workflow = compileWorkflow({
       version: "1.4.0",

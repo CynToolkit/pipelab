@@ -127,7 +127,7 @@
       :style="{ width: '440px', maxWidth: '94vw' }"
     >
       <div class="settings-grid">
-        <div class="field">
+        <div class="field wide">
           <span>Browser profile</span>
           <div class="input-row">
             <Select

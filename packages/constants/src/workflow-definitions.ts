@@ -73,7 +73,7 @@ export const SERVICE_DEFINITIONS: Record<WorkflowServiceId, DestinationDefinitio
   "web-folder": { id: "web-folder", label: "Folder", icon: "mdi-folder-upload-outline", slotLabel: "slot", outputs: ["web.html5"], compatiblePackagers: ["web"], compatiblePlatforms: ["web"] },
   zip: { id: "zip", label: "ZIP", icon: "mdi-folder-zip-outline", slotLabel: "slot", outputs: ["electron.windows", "electron.linux", "electron.macos.arm64", "tauri.windows", "tauri.linux", "tauri.macos.arm64", "web.html5"], compatiblePackagers: ["electron", "tauri", "web"], compatiblePlatforms: ["windows", "linux", "macos", "web"] },
   poki: { id: "poki", label: "Poki", icon: "mdi-gamepad-variant-outline", slotLabel: "slot", outputs: ["web.html5"], compatiblePackagers: ["web"], compatiblePlatforms: ["web"] },
-  "pipelab-cloud": { id: "pipelab-cloud", label: "Pipelab Cloud", icon: "mdi-cloud-upload-outline", slotLabel: "artifact", outputs: ["electron.windows", "electron.linux", "electron.macos.arm64", "tauri.windows", "tauri.linux", "tauri.macos.arm64", "web.html5"], compatiblePackagers: ["electron", "tauri", "web"], compatiblePlatforms: ["windows", "linux", "macos", "web"] },
+  "pipelab-cloud": { id: "pipelab-cloud", label: "Pipelab Cloud", icon: "mdi-cloud-upload-outline", slotLabel: "slot", outputs: ["electron.windows", "electron.linux", "electron.macos.arm64", "tauri.windows", "tauri.linux", "tauri.macos.arm64", "web.html5"], compatiblePackagers: ["electron", "tauri", "web"], compatiblePlatforms: ["windows", "linux", "macos", "web"] },
 };
 
 export interface ArtifactOutputDefinition extends ArtifactOutputDescriptor {
