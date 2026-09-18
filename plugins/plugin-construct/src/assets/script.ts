@@ -334,7 +334,34 @@ export const script = async (
     .click();
   log('"Web" clicked');
 
-  await page.locator("#exportSelectPlatformDialog").getByRole("button", { name: "Next" }).click();
+  const platformDialog = page.locator("#exportSelectPlatformDialog");
+  log("Waiting for Construct's export platform dialog");
+  try {
+    await platformDialog.waitFor({ state: "visible", timeout: 30_000 });
+  } catch (error) {
+    const pageText = await page
+      .locator("body")
+      .innerText({ timeout: 2_000 })
+      .catch(() => "");
+    const context = pageText.replace(/\s+/g, " ").trim().slice(0, 500);
+    throw new Error(
+      `Construct did not open the export platform dialog after selecting Web${context ? `; page says: ${context}` : ""}${error instanceof Error ? ` (${error.message})` : ""}`,
+    );
+  }
+
+  const platformNext = platformDialog.getByRole("button", { name: "Next" });
+  try {
+    await platformNext.waitFor({ state: "visible", timeout: 30_000 });
+    if (!(await platformNext.isEnabled())) {
+      throw new Error("the Next button is disabled");
+    }
+    await platformNext.click({ timeout: 30_000 });
+  } catch (error) {
+    throw new Error(
+      `Construct's export platform dialog did not become ready${error instanceof Error ? `: ${error.message}` : ""}`,
+    );
+  }
+  log("Export platform selected");
 
   await page.getByLabel("Offline support").uncheck();
   log("Disabled offline support");
