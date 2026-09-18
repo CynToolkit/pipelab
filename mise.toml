@@ -17,6 +17,28 @@ description = "Stop the local Pipelab backend"
 run = "pnpm --filter @pipelab/cli start -- stop"
 env = { NODE_ENV = "development" }
 
+[tasks.local]
+description = "Start the local desktop stack or UI only"
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+
+target="${1:-desktop}"
+case "$target" in
+  ui)
+    pnpm --filter @pipelab/ui dev
+    ;;
+  desktop)
+    mise run local:setup
+    mise run local:r2 ::: local:api ::: local:app
+    ;;
+  *)
+    echo "Usage: mise run local [desktop|ui]" >&2
+    exit 2
+    ;;
+esac
+'''
+
 [tasks.package]
 run = "doppler run -- pnpm package"
 dir = "apps/desktop"
