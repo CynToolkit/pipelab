@@ -373,12 +373,16 @@ export const exportc3p = async <ACTION extends Action>(
     setOutput("zipFile", result);
   } catch (e: any) {
     log("error, no result, crashed", e);
+    // Playwright finalizes the video when its context closes. Close it before
+    // asking for the path so failed automation runs can expose the recording.
+    await cleanup();
+    const recordingPath = await video?.path().catch(() => undefined);
+    const recordingLink = recordingPath ? `\nPLAYWRIGHT_VIDEO: ${recordingPath}` : "";
+    if (recordingPath) log(`PLAYWRIGHT_VIDEO: ${recordingPath}`);
     if (pageCrashed || /(?:page|target) crashed/i.test(e.message)) {
-      const recordingPath = await video?.path().catch(() => undefined);
-      const recordingLink = recordingPath ? `\nPLAYWRIGHT_VIDEO: ${recordingPath}` : "";
       throw new Error(`${formatRendererCrash(await readLinuxMemorySnapshot())}${recordingLink}`);
     }
-    throw new Error("ConstructExport failed: " + e.message);
+    throw new Error("ConstructExport failed: " + e.message + recordingLink);
   } finally {
     abortSignal.removeEventListener("abort", onAbort);
     await cleanup();
