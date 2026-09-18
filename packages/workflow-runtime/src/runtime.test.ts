@@ -489,8 +489,6 @@ describe("workflow artifact instances", () => {
             cloud: {
               hostedArtifactId: "hosted-123",
               uploadedAt: "2026-09-18T00:00:00.000Z",
-              expiresAt: "2026-09-25T00:00:00.000Z",
-              pinned: true,
             },
           }),
         },
@@ -500,7 +498,7 @@ describe("workflow artifact instances", () => {
     expect(result.artifacts).toHaveLength(1);
     expect(result.artifacts[0]).toMatchObject({
       id: "artifact-cloud-123-0",
-      cloud: { hostedArtifactId: "hosted-123", pinned: true },
+      cloud: { hostedArtifactId: "hosted-123", uploadedAt: "2026-09-18T00:00:00.000Z" },
     });
   });
 

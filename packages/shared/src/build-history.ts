@@ -54,12 +54,9 @@ export interface Artifact {
   format?: WorkflowArtifactInstance["format"];
   producerStep?: string;
   checksum?: string;
-  local?: { path: string };
   cloud?: {
     hostedArtifactId: string;
     uploadedAt: string;
-    expiresAt: string;
-    pinned: boolean;
   };
 }
 

@@ -36,7 +36,6 @@ const workflowHistoryArtifacts = (artifacts: WorkflowResult["artifacts"]): NonNu
     format: artifact.format,
     producerStep: artifact.producerStep,
     checksum: artifact.checksum,
-    local: { path: artifact.path },
     cloud: artifact.cloud,
   } : {
     id: `workflow-artifact-${index}`,

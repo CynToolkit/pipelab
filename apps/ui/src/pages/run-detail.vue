@@ -224,8 +224,6 @@
               <span class="artifact-locations">
                 <Tag v-if="'path' in artifact && artifact.path" value="Local" severity="secondary" />
                 <Tag v-if="artifactCloud(artifact)" value="Cloud" severity="info" />
-                <Tag v-if="artifactCloud(artifact)?.pinned" value="Pinned" severity="success" />
-                <small v-else-if="artifactCloud(artifact)">{{ expiryLabel(artifactCloud(artifact)!.expiresAt) }}</small>
               </span>
               <div class="artifact-actions">
                 <Button v-if="'path' in artifact && artifact.path" label="Open" icon="mdi mdi-folder-open-outline" text size="small" :aria-label="`Open ${artifactTitle(artifact)}`" @click="openArtifact(artifact.path)" />
@@ -407,10 +405,6 @@ const artifactDescription = (artifact: NonNullable<BuildHistoryEntry["artifacts"
   artifactDisplayDescription(artifact, entry.value?.steps || []);
 const artifactKind = (artifact: NonNullable<BuildHistoryEntry["artifacts"]>[number]) =>
   artifact.format || ("type" in artifact ? artifact.type : "Artifact");
-const expiryLabel = (expiresAt: string) => {
-  const days = Math.ceil((new Date(expiresAt).getTime() - Date.now()) / 86400000);
-  return days <= 0 ? "Expired" : `${days}d left`;
-};
 const openArtifact = async (path: string) => {
   const response = await api.execute("shell:openPath", { path });
   if (response.type === "error") error.value = response.ipcError;

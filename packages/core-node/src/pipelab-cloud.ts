@@ -299,11 +299,17 @@ export const createPipelabCloudUploadTask =
             : "Could not save Pipelab Cloud metadata";
         throw new Error(message);
       }
-      const uploaded = (
-        completionData as {
-          artifact?: { id?: string; uploaded_at?: string; expires_at?: string; pinned?: boolean };
-        } | null
-      )?.artifact;
+      const uploaded = (completionData as { artifact?: { id?: string; uploaded_at?: string } } | null)
+        ?.artifact;
+      if (
+        typeof uploaded?.id !== "string" ||
+        !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(uploaded.id)
+      ) {
+        throw new Error("Pipelab Cloud did not return a valid hosted artifact ID");
+      }
+      if (typeof uploaded.uploaded_at !== "string" || !Number.isFinite(Date.parse(uploaded.uploaded_at))) {
+        throw new Error("Pipelab Cloud did not return a valid upload timestamp");
+      }
       log(`${artifactOutputId} uploaded to Pipelab Cloud`);
 
       return {
@@ -313,10 +319,8 @@ export const createPipelabCloudUploadTask =
         checksum,
         storageKey: prepared.storageKey,
         cloud: {
-          hostedArtifactId: uploaded?.id || artifactId,
-          uploadedAt: uploaded?.uploaded_at || new Date().toISOString(),
-          expiresAt: uploaded?.expires_at || new Date(Date.now() + 7 * 86400000).toISOString(),
-          pinned: uploaded?.pinned === true,
+          hostedArtifactId: uploaded.id,
+          uploadedAt: uploaded.uploaded_at,
         },
       };
     } finally {

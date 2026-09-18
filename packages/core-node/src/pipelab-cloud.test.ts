@@ -54,10 +54,8 @@ describe("Pipelab Cloud artifact upload task", () => {
               }
             : {
                 artifact: {
-                  id: "hosted-123",
+                  id: "00000000-0000-4000-8000-000000000123",
                   uploaded_at: "2026-09-16T00:00:00Z",
-                  expires_at: "2026-09-23T00:00:00Z",
-                  pinned: true,
                 },
               };
         return Response.json(result);
@@ -128,10 +126,68 @@ describe("Pipelab Cloud artifact upload task", () => {
         }),
       );
       expect(outputs).toMatchObject({
-        cloud: { hostedArtifactId: "hosted-123", pinned: true, expiresAt: "2026-09-23T00:00:00Z" },
+        cloud: {
+          hostedArtifactId: "00000000-0000-4000-8000-000000000123",
+          uploadedAt: "2026-09-16T00:00:00Z",
+        },
         artifactOutputId: "electron.windows",
         size: 13,
       });
+    } finally {
+      vi.unstubAllGlobals();
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("fails when cloud completion omits the hosted artifact ID", async () => {
+    const root = await mkdtemp(join(tmpdir(), "pipelab-cloud-missing-id-"));
+    const source = join(root, "game.zip");
+    await writeFile(source, "game artifact");
+    process.env.PIPELAB_CLOUD_WORKER_URL = "http://127.0.0.1:8788";
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === "http://127.0.0.1:8788/") {
+        const body = JSON.parse(String(init?.body));
+        return Response.json(body.action === "prepareUpload"
+          ? {
+              uploadUrl: "http://127.0.0.1:8787/upload",
+              storageKey: "user/electron.windows/file.zip",
+              headers: { "content-type": "application/zip" },
+            }
+          : { artifact: { uploaded_at: "2026-09-16T00:00:00Z" } });
+      }
+      return new Response(null, { status: 200 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    try {
+      const task = createPipelabCloudUploadTask(new PipelabContext({ userDataPath: root }));
+      await expect(task({
+        step: { id: "cloud", uses: "pipelab-cloud:upload" },
+        inputs: {},
+        delivery: {
+          destinationId: "pipelab-cloud-bzohqr1g",
+          slotId: "windows",
+          artifact: {
+            id: "artifact-build-1-0",
+            outputId: "electron.windows",
+            version: "1.4.0",
+            platform: "windows",
+            architecture: "x64",
+            format: "zip",
+            path: source,
+            producerStep: "packager-electron-windows",
+          },
+        },
+        workspace: { root },
+        filesystem: { ensureDirectory: async () => undefined },
+        processes: { execute: vi.fn() },
+        logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+        signal: new AbortController().signal,
+        log: vi.fn(),
+        logStream: vi.fn(),
+        setArtifact: vi.fn(),
+      })).rejects.toThrow("Pipelab Cloud did not return a valid hosted artifact ID");
     } finally {
       vi.unstubAllGlobals();
       await rm(root, { recursive: true, force: true });
