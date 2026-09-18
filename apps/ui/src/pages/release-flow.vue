@@ -267,11 +267,13 @@ import Dialog from "primevue/dialog";
 import WorkflowArtifactsPanel from "@renderer/components/WorkflowArtifactsPanel.vue";
 import WorkflowShell from "@renderer/components/WorkflowShell.vue";
 import { useAPI } from "@renderer/composables/api";
+import { useAuth } from "@renderer/store/auth";
 import { getReleaseHostCapabilities, migrateWorkflowConfig, type BrowserProfileCandidate, type WorkflowConfig, type WorkflowDestination } from "@pipelab/shared";
 import { getWorkflowReadiness } from "./release-flow-readiness";
 const route = useRoute();
 const router = useRouter();
 const api = useAPI();
+const auth = useAuth();
 const flow = ref<any>();
 const capabilities = ref<ReturnType<typeof getReleaseHostCapabilities>>();
 const connections = ref<any[]>([]);
@@ -492,12 +494,20 @@ const browseFolder = async (d: Extract<WorkflowDestination, { type: "web" }>) =>
 };
 const ship = async () => {
   if (!flow.value || !canShip.value) return;
+  if (!auth.isLoggedIn) {
+    auth.displayAuthModal("Login Required", "Please sign in to run this workflow.");
+    return;
+  }
   releaseVersion.value = "1.0.0";
   releaseDescription.value = flow.value.description || flow.value.name;
   releaseDialogVisible.value = true;
 };
 const runShip = async () => {
   if (!flow.value || !canShip.value) return;
+  if (!auth.isLoggedIn) {
+    auth.displayAuthModal("Login Required", "Please sign in to run this workflow.");
+    return;
+  }
   releaseDialogVisible.value = false;
   if (
     flow.value.destinations.some((d: any) => d.type === "web" && d.cleanup) &&
