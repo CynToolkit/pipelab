@@ -1,7 +1,7 @@
 import { expect, test } from "vitest";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { chromiumProfiles, detectConstructAuthStatus } from "./browser-profiles";
+import { chromiumProfiles, detectConstructAuthStatusFromResponse } from "./browser-profiles";
 
 test("discovers a nested Chromium profile as its own exact selection", async () => {
   const root = await mkdtemp(join("/tmp", "construct-nested-profile-"));
@@ -29,10 +29,12 @@ test("discovers a nested Chromium profile as its own exact selection", async () 
 });
 
 test.each([
-  ["Free edition\nGuest", "not-authenticated"],
-  ["Free edition\narmaldio", "authenticated"],
-  ["Free edition", "unknown"],
-  [null, "unknown"],
-] as const)("reports Construct auth status for account label %s", (label, expected) => {
-  expect(detectConstructAuthStatus(label)).toBe(expected);
+  ["https://account.construct.net/login.json", 200, { request: { status: "ok" }, response: { userID: 123, token: "session" } }, "authenticated"],
+  ["https://account.construct.net/account.json", 200, { request: { status: "ok" }, response: { userID: 123 } }, "authenticated"],
+  ["https://account.construct.net/login.json", 200, { request: { status: "error" } }, "not-authenticated"],
+  ["https://account.construct.net/login.json", 401, null, "not-authenticated"],
+  ["https://editor.construct.net/", 200, { request: { status: "ok" } }, "unknown"],
+  ["not a URL", 200, null, "unknown"],
+] as const)("reports Construct auth status from login response %s", (url, status, payload, expected) => {
+  expect(detectConstructAuthStatusFromResponse(url, status, payload)).toBe(expected);
 });

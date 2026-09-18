@@ -330,6 +330,7 @@ export const executeWorkflow = async (
       },
     });
     const { logger } = useLogger();
+    // The local host supplies filesystem and process execution for workflow tasks.
     const host = createLocalHost(workspaceRoot, {
       logger: {
         info: (...args) => logger().info(...args),

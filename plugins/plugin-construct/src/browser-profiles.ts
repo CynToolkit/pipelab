@@ -20,16 +20,45 @@ export type BrowserProfileCandidate = {
   reason?: string;
 };
 
-export const detectConstructAuthStatus = (accountLabel: string | null | undefined): BrowserProfileAuthStatus => {
-  const label = accountLabel?.trim();
-  if (!label) return "unknown";
-  const parts = label.split(/\s+/).filter(Boolean);
-  const accountName = parts.at(-1);
-  if (!accountName) return "unknown";
-  if (/^guest$/i.test(accountName)) return "not-authenticated";
-  if (/^(free|edition)$/i.test(accountName)) return "unknown";
-  return "authenticated";
+export const detectConstructAuthStatusFromResponse = (
+  url: string,
+  httpStatus: number,
+  payload: unknown,
+): BrowserProfileAuthStatus => {
+  let requestUrl: URL;
+  try { requestUrl = new URL(url); } catch { return "unknown"; }
+  if (requestUrl.hostname !== "account.construct.net") return "unknown";
+  if (httpStatus === 401 || httpStatus === 403) return "not-authenticated";
+  if (!payload || typeof payload !== "object") return "unknown";
+  const body = payload as { request?: { status?: unknown }; response?: { userID?: unknown; token?: unknown } };
+  if (body.request?.status === "ok" && (body.response?.userID || body.response?.token)) {
+    return "authenticated";
+  }
+  if (
+    requestUrl.pathname === "/login.json" &&
+    body.request?.status && body.request.status !== "ok"
+  ) {
+    return "not-authenticated";
+  }
+  return "unknown";
 };
+
+const waitForConstructAuthResponse = (page: import("playwright").Page) =>
+  new Promise<BrowserProfileAuthStatus>((resolve) => {
+    const timeout = setTimeout(() => finish("unknown"), 5000);
+    const finish = (status: BrowserProfileAuthStatus) => {
+      clearTimeout(timeout);
+      page.off("response", onResponse);
+      resolve(status);
+    };
+    const onResponse = async (response: import("playwright").Response) => {
+      if (new URL(response.url()).hostname !== "account.construct.net") return;
+      const payload = await response.json().catch(() => null);
+      const status = detectConstructAuthStatusFromResponse(response.url(), response.status(), payload);
+      if (status !== "unknown") finish(status);
+    };
+    page.on("response", onResponse);
+  });
 
 const files = async (root: string): Promise<string[]> => {
   try {
@@ -151,8 +180,9 @@ const inspectChromiumProfileForBrowser = async (profile: string, browser: string
     const context = await chromium.launchPersistentContext(temp, { executablePath: browserPath, headless: true });
     try {
       const page = await context.newPage();
+      const authStatusPromise = waitForConstructAuthResponse(page);
       await page.goto("https://editor.construct.net/", { waitUntil: "domcontentloaded", timeout: 15000 }).catch(() => {});
-      const accountLabel = await page.getByRole("button", { name: /Free edition/ }).first().innerText({ timeout: 5000 }).catch(() => null);
+      const authStatus = await authStatusPromise;
       const addonCount = await page.evaluate(async () => {
         const db = await new Promise<IDBDatabase | null>((resolve) => {
           const request = indexedDB.open("c3-addon-files");
@@ -168,7 +198,7 @@ const inspectChromiumProfileForBrowser = async (profile: string, browser: string
           request.onerror = () => resolve(0);
         });
       });
-      return { addonCount, authStatus: detectConstructAuthStatus(accountLabel) };
+      return { addonCount, authStatus };
     } finally { await context.close(); }
   } catch { return { addonCount: null, authStatus: "unknown" as const }; } finally { await rm(temp, { recursive: true, force: true }).catch(() => {}); }
 };
