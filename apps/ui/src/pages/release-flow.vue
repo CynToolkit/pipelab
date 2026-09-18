@@ -91,7 +91,7 @@
               aria-label="Refresh browser profiles"
               :loading="profileLoading"
               :disabled="profileLoading"
-              @click="() => discoverProfiles()"
+              @click="() => discoverProfiles(constructSource().profilePath, true)"
             /></div>
           <small v-if="profileLoading">Searching browser profiles and Construct addons…</small>
           <small v-if="profileError" class="error">{{ profileError }}</small>
@@ -335,9 +335,6 @@ const load = async () => {
   ]);
   if (loaded.type === "success") {
     flow.value = migrateWorkflowConfig(loaded.result);
-    if (flow.value.source.type === "construct3" && flow.value.source.profilePath) {
-      await discoverProfiles(flow.value.source.profilePath);
-    }
   }
   else loadError.value = loaded.ipcError;
   if (accountResult.type === "success") connections.value = accountResult.result.connections;
@@ -354,12 +351,15 @@ const openSourceSettings = async () => {
   sourceDialogVisible.value = true;
   if (!profileCandidates.value.length) await discoverProfiles();
 };
-const discoverProfiles = async (path?: string) => {
+const discoverProfiles = async (path?: string, forceRefresh = false) => {
   const selectedPath = constructSource().profilePath;
   profileLoading.value = true;
   profileError.value = "";
   try {
-    const result = await api.execute("construct:profiles:discover", path ? { path } : {});
+    const result = await api.execute("construct:profiles:discover", {
+      ...(path ? { path } : {}),
+      ...(forceRefresh ? { forceRefresh: true } : {}),
+    });
     if (result.type === "success") {
       profileCandidates.value = result.result;
       if (selectedPath) {

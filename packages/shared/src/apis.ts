@@ -177,7 +177,10 @@ export type IpcDefinition = {
   "connections:load": [void, EndEvent<ConnectionsConfig>];
   "connections:save": [{ data: ConnectionsConfig }, EndEvent<"ok">];
   "connections:reset": [{ key: string }, EndEvent<"ok">];
-  "construct:profiles:discover": [{ path?: string }, EndEvent<BrowserProfileCandidate[]>];
+  "construct:profiles:discover": [
+    { path?: string; forceRefresh?: boolean },
+    EndEvent<BrowserProfileCandidate[]>,
+  ];
 
   "projects:load": [void, EndEvent<FileRepo>];
   "projects:save": [{ data: FileRepo }, EndEvent<"ok">];

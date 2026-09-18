@@ -4,6 +4,7 @@ import {
   appSettingsMigrator,
   connectionsMigrator,
   fileRepoMigrations,
+  type BrowserProfileCandidate,
 } from "@pipelab/shared";
 import {
   setupSettingsConfigFile,
@@ -18,22 +19,29 @@ import {
 } from "../config";
 import { PipelabContext } from "../context";
 import { discoverBrowserProfiles, inspectChromiumProfile } from "@pipelab/plugin-construct";
+import { ConstructProfileDiscoveryCache } from "./construct-profile-cache";
 
 export const registerConfigHandlers = (context: PipelabContext) => {
   process.env.PLAYWRIGHT_BROWSERS_PATH ||= context.getThirdPartyPath("playwright-browsers");
   const { handle } = useAPI();
   const { logger } = useLogger();
+  const profileCache = new ConstructProfileDiscoveryCache(discoverBrowserProfiles, async (path) => {
+    const inspected = await inspectChromiumProfile(path);
+    const candidate: BrowserProfileCandidate = {
+      browser: "Manual",
+      profileName: path.split(/[\\/]/).pop() || path,
+      path,
+      isDefault: false,
+      ...inspected,
+      score: null,
+      reason: inspected.usable ? undefined : "Folder is not a readable Chromium profile",
+    };
+    return candidate;
+  });
 
   handle("construct:profiles:discover", async (_, { send, value }) => {
     try {
-      let profiles = await discoverBrowserProfiles();
-      if (value.path) {
-        const manual = profiles.find((profile) => profile.path === value.path);
-        if (!manual) {
-          const inspected = await inspectChromiumProfile(value.path);
-          profiles.unshift({ browser: "Manual", profileName: value.path.split(/[\\/]/).pop() || value.path, path: value.path, isDefault: false, ...inspected, score: null, reason: inspected.usable ? undefined : "Folder is not a readable Chromium profile" });
-        }
-      }
+      const profiles = await profileCache.get(value.path, value.forceRefresh);
       send({ type: "end", data: { type: "success", result: profiles } });
     } catch (error) {
       send({ type: "end", data: { type: "error", ipcError: error instanceof Error ? error.message : "Unable to discover browser profiles" } });
