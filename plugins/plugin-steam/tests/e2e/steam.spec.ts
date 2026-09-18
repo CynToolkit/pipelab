@@ -1,8 +1,19 @@
-import { expect, test, describe, afterEach } from "vitest";
+import { expect, test, describe, afterEach, vi } from "vitest";
 import { mkdir, writeFile, access } from "node:fs/promises";
 import { join } from "node:path";
 import { createSandbox, runAction, isWindows } from "@pipelab/test-utils";
+import { runWithLiveLogs } from "@pipelab/plugin-core";
 import { uploadToSteamRunner } from "../../src/upload-to-steam";
+
+vi.mock("@pipelab/plugin-core", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@pipelab/plugin-core")>();
+  return {
+    ...actual,
+    runWithLiveLogs: vi.fn(async (...args: Parameters<typeof actual.runWithLiveLogs>) => {
+      args[4]?.onStdout?.("Authenticated");
+    }),
+  };
+});
 
 describe("End-to-End: Steam Integration", () => {
   let sandbox: Awaited<ReturnType<typeof createSandbox>>;
@@ -55,6 +66,18 @@ describe("End-to-End: Steam Integration", () => {
       expect(outputs["script-path"]).toBeDefined();
       expect(outputs["output-folder"]).toBeDefined();
       expect(outputs["status"]).toBe("success");
+      expect(runWithLiveLogs).toHaveBeenCalled();
+      const invocation = vi.mocked(runWithLiveLogs).mock.calls[0];
+      expect(invocation?.[0]).toContain(isWindows ? "steamcmd.exe" : "steamcmd.sh");
+      expect(invocation?.[1]).toEqual([
+        "+login",
+        "testuser",
+        "test-password",
+        "+run_app_build",
+        expect.any(String),
+        "+quit",
+      ]);
+      expect(invocation?.[2]).toMatchObject({ shell: false });
 
       // Verify files exist
       await expect(access(outputs["script-path"] as string)).resolves.not.toThrow();
