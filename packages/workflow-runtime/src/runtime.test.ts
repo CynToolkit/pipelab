@@ -2,7 +2,13 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import { createLocalHost, runWorkflow, type WorkflowEvent, type WorkflowHost } from "./index";
+import {
+  createLocalHost,
+  runWorkflow,
+  type Workflow,
+  type WorkflowEvent,
+  type WorkflowHost,
+} from "./index";
 
 const makeHost = (): WorkflowHost => ({
   workspace: { root: "/workspace" },
@@ -298,15 +304,21 @@ describe("workflow artifact instances", () => {
             id: "steam-windows",
             uses: "test:deliver",
             needs: ["windows"],
-            delivery: { destinationId: "steam", slotId: "windows" },
-            with: { artifactOutput: "electron.windows" },
+            delivery: {
+              destinationId: "steam",
+              slotId: "windows",
+              artifactOutputId: "electron.windows",
+            },
           },
           {
             id: "itch-windows",
             uses: "test:deliver-fails",
             needs: ["windows"],
-            delivery: { destinationId: "itch", slotId: "windows" },
-            with: { artifactOutput: "electron.windows" },
+            delivery: {
+              destinationId: "itch",
+              slotId: "windows",
+              artifactOutputId: "electron.windows",
+            },
           },
         ],
       },
@@ -344,35 +356,159 @@ describe("workflow artifact instances", () => {
     ]);
   });
 
-  it("passes the produced artifact ID to delivery tasks", async () => {
-    let receivedArtifactId: unknown;
-    await runWorkflow(
+  it.each(["pipelab-cloud-bzohqr1g", "third-party-destination-42"])(
+    "passes the produced artifact to a delivery task for destination %s",
+    async (destinationId) => {
+      let receivedDelivery: unknown;
+      await runWorkflow(
+        {
+          version: 1,
+          steps: [
+            { id: "web", uses: "test:build", with: { outputId: "web.html5" } },
+            {
+              id: "cloud",
+              uses: "test:deliver",
+              needs: ["web"],
+              delivery: {
+                destinationId,
+                slotId: "web",
+                artifactOutputId: "web.html5",
+              },
+            },
+          ],
+        },
+        {
+          host: makeHost(),
+          version: "1.4.0",
+          buildId: "build-cloud",
+          tasks: {
+            "test:build": async ({ setArtifact }) =>
+              setArtifact("web.html5", "/workspace/site"),
+            "test:deliver": async ({ delivery }) => {
+              receivedDelivery = delivery;
+            },
+          },
+        },
+      );
+
+      expect(receivedDelivery).toEqual({
+        destinationId,
+        slotId: "web",
+        artifact: expect.objectContaining({
+          id: "artifact-build-cloud-0",
+          outputId: "web.html5",
+          version: "1.4.0",
+          path: "/workspace/site",
+        }),
+      });
+    },
+  );
+
+  it("fails a delivery before invoking its task when the artifact was not produced", async () => {
+    let deliveryTaskRan = false;
+    const result = await runWorkflow(
       {
         version: 1,
+        continueOnError: true,
         steps: [
-          { id: "web", uses: "test:build", with: { outputId: "web.html5" } },
+          { id: "build", uses: "test:build", with: { outputId: "web.html5" } },
           {
-            id: "cloud",
+            id: "publish",
             uses: "test:deliver",
-            needs: ["web"],
-            delivery: { destinationId: "pipelab-cloud", slotId: "web" },
-            with: { artifactOutput: "web.html5" },
+            needs: ["build"],
+            delivery: {
+              destinationId: "cloud-instance-1",
+              slotId: "web",
+              artifactOutputId: "web.html5",
+            },
           },
         ],
       },
       {
         host: makeHost(),
         version: "1.4.0",
-        buildId: "build-cloud",
+        buildId: "build-missing-artifact",
         tasks: {
-          "test:build": async ({ setArtifact }) => setArtifact("web.html5", "/workspace/site"),
-          "test:deliver": async ({ inputs }) => {
-            receivedArtifactId = inputs.artifactId;
+          "test:build": async () => undefined,
+          "test:deliver": async () => {
+            deliveryTaskRan = true;
           },
         },
       },
     );
 
-    expect(receivedArtifactId).toBe("artifact-build-cloud-0");
+    expect(deliveryTaskRan).toBe(false);
+    expect(result.steps.publish).toMatchObject({
+      status: "failed",
+      error: {
+        message: 'Workflow delivery step publish requires artifact output "web.html5", but no artifact was produced.',
+      },
+      delivery: {
+        destinationId: "cloud-instance-1",
+        artifactId: "",
+        status: "failed",
+      },
+    });
+  });
+
+  it("does not substitute a different artifact output for a delivery", async () => {
+    let deliveryTaskRan = false;
+    const result = await runWorkflow(
+      {
+        version: 1,
+        continueOnError: true,
+        steps: [
+          { id: "build", uses: "test:build", with: { outputId: "electron.windows" } },
+          {
+            id: "publish",
+            uses: "test:deliver",
+            needs: ["build"],
+            delivery: {
+              destinationId: "cloud-instance-1",
+              slotId: "web",
+              artifactOutputId: "web.html5",
+            },
+          },
+        ],
+      },
+      {
+        host: makeHost(),
+        version: "1.4.0",
+        buildId: "build-wrong-artifact",
+        tasks: {
+          "test:build": async ({ setArtifact }) =>
+            setArtifact("electron.windows", "/workspace/windows.zip"),
+          "test:deliver": async () => {
+            deliveryTaskRan = true;
+          },
+        },
+      },
+    );
+
+    expect(deliveryTaskRan).toBe(false);
+    expect(result.steps.publish).toMatchObject({
+      status: "failed",
+      error: {
+        message: 'Workflow delivery step publish requires artifact output "web.html5", but no artifact was produced.',
+      },
+    });
+  });
+
+  it("rejects a delivery that only specifies the removed artifact input", async () => {
+    const oldWorkflow = {
+      version: 1,
+      steps: [
+        {
+          id: "publish",
+          uses: "test:deliver",
+          delivery: { destinationId: "cloud", slotId: "web" },
+          with: { artifactOutput: "web.html5" },
+        },
+      ],
+    } as unknown as Workflow;
+
+    await expect(runWorkflow(oldWorkflow, { host: makeHost() })).rejects.toThrow(
+      "Workflow delivery step publish must declare a destination, slot, and artifact output",
+    );
   });
 });

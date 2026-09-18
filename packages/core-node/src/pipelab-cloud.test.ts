@@ -64,11 +64,20 @@ describe("Pipelab Cloud artifact upload task", () => {
         new PipelabContext({ userDataPath: root }),
       )({
         step: { id: "cloud", uses: "pipelab-cloud:upload" },
-        inputs: {
-          from: source,
-          artifactId: "artifact-build-1-0",
-          artifactOutput: "electron.windows",
-          version: "1.4.0",
+        inputs: {},
+        delivery: {
+          destinationId: "pipelab-cloud-bzohqr1g",
+          slotId: "windows",
+          artifact: {
+            id: "artifact-build-1-0",
+            outputId: "electron.windows",
+            version: "1.4.0",
+            platform: "windows",
+            architecture: "x64",
+            format: "zip",
+            path: source,
+            producerStep: "packager-electron-windows",
+          },
         },
         workspace: { root },
         filesystem: { ensureDirectory: async () => undefined },
@@ -120,5 +129,24 @@ describe("Pipelab Cloud artifact upload task", () => {
       vi.unstubAllGlobals();
       await rm(root, { recursive: true, force: true });
     }
+  });
+
+  it("requires artifact metadata from the workflow delivery context", async () => {
+    const task = createPipelabCloudUploadTask(new PipelabContext({ userDataPath: tmpdir() }));
+
+    await expect(
+      task({
+        step: { id: "cloud", uses: "pipelab-cloud:upload" },
+        inputs: {},
+        workspace: { root: "/workspace" },
+        filesystem: { ensureDirectory: async () => undefined },
+        processes: { execute: vi.fn() },
+        logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+        signal: new AbortController().signal,
+        log: vi.fn(),
+        logStream: vi.fn(),
+        setArtifact: vi.fn(),
+      }),
+    ).rejects.toThrow("Pipelab Cloud upload requires a resolved workflow delivery artifact");
   });
 });
