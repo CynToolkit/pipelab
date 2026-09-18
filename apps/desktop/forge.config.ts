@@ -94,6 +94,8 @@ async function renameInstallers(platform: string, arch: string) {
 
 const productName = getProductName(version);
 const bundleId = getAppBundleId(version);
+const isPullRequestBuild = process.env.GITHUB_EVENT_NAME === "pull_request";
+const enableMacSigning = !isPullRequestBuild;
 
 const config: ForgeConfig = {
   outDir: path.resolve(__dirname, "../out"),
@@ -109,21 +111,25 @@ const config: ForgeConfig = {
     extendInfo: {
       NSAppleEventsUsageDescription: "This app need to run commands through Terminal.",
     },
-    osxNotarize: {
-      appleId: process.env.APPLE_ID || "",
-      appleIdPassword: process.env.APPLE_ID_PASSWORD || "",
-      teamId: process.env.APPLE_TEAM_ID || "",
-    },
-    osxSign: {
-      identity:
-        "Developer ID Application: Quentin Goinaud (" +
-        (process.env.APPLE_TEAM_ID || "") +
-        ")",
-      hardenedRuntime: true,
-      entitlements: path.join(__dirname, "assets/build/entitlements.mac.plist"),
-      "entitlements-inherit": path.join(__dirname, "assets/build/entitlements.mac.plist"),
-      strictVerify: false,
-    } as any,
+    ...(enableMacSigning
+      ? {
+          osxNotarize: {
+            appleId: process.env.APPLE_ID || "",
+            appleIdPassword: process.env.APPLE_ID_PASSWORD || "",
+            teamId: process.env.APPLE_TEAM_ID || "",
+          },
+          osxSign: {
+            identity:
+              "Developer ID Application: Quentin Goinaud (" +
+              (process.env.APPLE_TEAM_ID || "") +
+              ")",
+            hardenedRuntime: true,
+            entitlements: path.join(__dirname, "assets/build/entitlements.mac.plist"),
+            "entitlements-inherit": path.join(__dirname, "assets/build/entitlements.mac.plist"),
+            strictVerify: false,
+          } as any,
+        }
+      : {}),
   },
   makers: [
     new MakerSquirrel({
@@ -131,7 +137,9 @@ const config: ForgeConfig = {
       setupIcon: path.join(__dirname, "assets/build/icon.ico"),
     }),
     new MakerZIP(undefined, ["linux", "win32"]),
-    new MakerDMG({ name: productName }),
+    ...(isPullRequestBuild
+      ? [new MakerZIP(undefined, ["darwin"])]
+      : [new MakerDMG({ name: productName })]),
   ],
   publishers: [
     {

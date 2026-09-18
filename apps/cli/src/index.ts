@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { isDev, runPipelineCommand, serveCommand } from "@pipelab/core-node";
+import { isDev, runPipelineCommand, serveCommand, stopLocalBackend } from "@pipelab/core-node";
 import { historyCommand } from "./commands/history";
 import { usageCommand, purgeCommand } from "./commands/maintenance";
 import {
@@ -86,6 +86,20 @@ program
     try {
       options.userData = options.userData || getDefaultUserDataPath();
       await serveCommand(options, version, __dirname);
+    } catch (e) {
+      console.error(e);
+      process.exit(1);
+    }
+  });
+
+program
+  .command("stop")
+  .description("Stop the local Pipelab backend")
+  .option("--user-data <path>", "Custom user data path")
+  .action(async (options) => {
+    try {
+      const stopped = await stopLocalBackend(options.userData || getDefaultUserDataPath());
+      console.log(stopped ? "Local Pipelab backend stopped." : "No local Pipelab backend is running.");
     } catch (e) {
       console.error(e);
       process.exit(1);

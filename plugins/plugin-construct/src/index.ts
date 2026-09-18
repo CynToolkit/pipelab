@@ -1,3 +1,4 @@
+/// <reference path="./declarations.d.ts" />
 import { createNodeDefinition } from "@pipelab/plugin-core";
 import { exportAction, ExportActionRunner } from "./export-c3p";
 import { exportProjectAction, ExportProjectActionRunner } from "./export-project";

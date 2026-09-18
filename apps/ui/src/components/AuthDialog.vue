@@ -2,7 +2,12 @@
   <Dialog
     v-model:visible="isAuthModalVisible"
     modal
-    :style="{ width: '420px', maxWidth: '95vw' }"
+    :style="{
+      width: '420px',
+      maxWidth: 'calc(100vw - 1rem)',
+      maxHeight: 'calc(100dvh - 1rem)',
+    }"
+    :breakpoints="{ '575px': 'calc(100vw - 1rem)' }"
     class="auth-dialog-custom"
   >
     <!-- Custom Header with Brand Mark and Dynamic Titles -->
@@ -535,6 +540,8 @@ const onSubmit = handleSubmit(onSuccess, onInvalidSubmit);
   border: 1px solid var(--p-surface-200) !important;
   box-shadow: 0 24px 48px -12px rgba(0, 0, 0, 0.18) !important;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
   background: var(--p-surface-0) !important;
 
   :root.dark & {
@@ -552,6 +559,11 @@ const onSubmit = handleSubmit(onSuccess, onInvalidSubmit);
   .p-dialog-content {
     background: transparent !important;
     padding-top: 0 !important;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain;
   }
 
   // Compact scaling for custom close button override
@@ -818,9 +830,10 @@ const onSubmit = handleSubmit(onSuccess, onInvalidSubmit);
   white-space: nowrap;
 }
 
-/* Hide PrimeVue default dialog scrollbars during transition animations */
+/* Keep the submit action reachable when the mobile viewport is short. */
 :deep(.p-dialog-content) {
-  overflow: hidden !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
 }
 
 /* Custom styling inside the floating Password tooltip overlay */

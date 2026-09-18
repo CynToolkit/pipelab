@@ -15,6 +15,7 @@ export type BrowserProfileCandidate = {
   path: string;
   isDefault: boolean;
   addonCount: number | null;
+  authStatus?: "authenticated" | "not-authenticated" | "unknown";
   lastUpdatedAt: number | null;
   score: number | null;
   usable: boolean;
@@ -176,7 +177,10 @@ export type IpcDefinition = {
   "connections:load": [void, EndEvent<ConnectionsConfig>];
   "connections:save": [{ data: ConnectionsConfig }, EndEvent<"ok">];
   "connections:reset": [{ key: string }, EndEvent<"ok">];
-  "construct:profiles:discover": [{ path?: string }, EndEvent<BrowserProfileCandidate[]>];
+  "construct:profiles:discover": [
+    { path?: string; forceRefresh?: boolean },
+    EndEvent<BrowserProfileCandidate[]>,
+  ];
 
   "projects:load": [void, EndEvent<FileRepo>];
   "projects:save": [{ data: FileRepo }, EndEvent<"ok">];
@@ -196,10 +200,11 @@ export type IpcDefinition = {
     { name: string; destinations?: string[]; release?: { version: string; description: string } },
     (
       | { type: "workflow-event"; data: WorkflowEvent }
-      | EndEvent<{ result: WorkflowResult; buildId: string }>
+      | { type: "workflow-run"; data: { runId: string } }
+      | EndEvent<{ result: WorkflowResult; runId: string }>
     ),
   ];
-  "workflow:cancel": [void, EndEvent<{ result: "ok" | "ko" }>];
+  "workflow:cancel": [{ runId: string }, EndEvent<{ result: "ok" | "ko" }>];
   "action:cancel": [void, EndEvent<{ result: "ok" | "ko" }>];
 
   // Build History APIs

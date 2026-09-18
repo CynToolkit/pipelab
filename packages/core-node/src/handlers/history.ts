@@ -1,5 +1,5 @@
 import { useAPI, WsEvent } from "../ipc-core";
-import { useLogger, AppConfig } from "@pipelab/shared";
+import { useLogger, AppConfig, type BuildHistoryEntry, type BuildHistoryQuery } from "@pipelab/shared";
 import { BuildHistoryStorage } from "./build-history";
 import { SubscriptionRequiredError } from "@pipelab/shared";
 import { PipelabContext } from "../context";
@@ -19,6 +19,12 @@ const checkBuildHistoryAuthorization = async (event: WsEvent): Promise<boolean> 
 
   return true;
 };
+
+export const filterBuildHistoryEntries = (entries: BuildHistoryEntry[], query?: BuildHistoryQuery) =>
+  entries.filter((entry) =>
+    (!query?.pipelineId || entry.pipelineId === query.pipelineId) &&
+    (!query?.workflowId || entry.workflowId === query.workflowId),
+  );
 
 export const registerHistoryHandlers = (context: PipelabContext) => {
   const { handle } = useAPI();
@@ -98,9 +104,7 @@ export const registerHistoryHandlers = (context: PipelabContext) => {
       await checkBuildHistoryAuthorization(event);
 
       const allEntries = await buildHistoryStorage.getAll();
-      const filteredEntries = value?.query?.pipelineId
-        ? allEntries.filter((entry) => entry.pipelineId === value?.query?.pipelineId)
-        : allEntries;
+      const filteredEntries = filterBuildHistoryEntries(allEntries, value?.query);
 
       send({
         type: "end",

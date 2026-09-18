@@ -17,44 +17,6 @@ describe("compileWorkflow", () => {
     });
   });
 
-  it("creates one producer per stable output and fans destinations out from producers", () => {
-    const workflow = compileWorkflow({
-      version: "1.4.0",
-      source: { type: "folder", path: "/game" },
-      outputs: ["electron.windows", "electron.linux", "web.html5"],
-      destinations: [
-        { id: "steam", enabled: true },
-        { id: "itch", enabled: true },
-        { id: "poki", enabled: true },
-      ],
-    });
-
-    expect(workflow.steps.map((step) => step.id)).toEqual([
-      "source-export",
-      "prebundle",
-      "packager-electron-windows",
-      "packager-electron-linux",
-      "packager-web-html5",
-      "destination-steam",
-      "destination-itch",
-      "destination-poki",
-    ]);
-    expect(workflow.steps.at(-3)?.needs).toEqual([
-      "packager-electron-windows",
-      "packager-electron-linux",
-    ]);
-    expect(workflow.steps.at(-2)?.needs).toEqual([
-      "packager-electron-windows",
-      "packager-electron-linux",
-      "packager-web-html5",
-    ]);
-    expect(workflow.steps.at(-1)?.needs).toEqual(["packager-web-html5"]);
-    expect(workflow.steps[2].with).toMatchObject({
-      outputId: "electron.windows",
-      version: "${{ variables.version }}",
-    });
-  });
-
   it("produces each packager output once and gives every slot its exact producer", () => {
     const workflow = compileWorkflow({
       version: "2.0.0",
@@ -87,7 +49,10 @@ describe("compileWorkflow", () => {
     expect(workflow.steps.find((step) => step.id === "delivery-docs-html")?.with?.to).toBe("/publish/site");
     expect(workflow.steps.find((step) => step.id === "delivery-docs-html")?.delivery).toEqual({
       destinationId: "docs",
+      serviceId: "web-folder",
+      destinationName: "Folder",
       slotId: "html",
+      artifactOutputId: "web.html5",
     });
   });
 
@@ -133,33 +98,11 @@ describe("compileWorkflow", () => {
     expect(workflow.steps.find((step) => step.id === "delivery-cloud-html")).toMatchObject({
       uses: "pipelab-cloud:upload",
       needs: ["packager-web-web-html5"],
-      with: {
-        artifactOutput: "web.html5",
-        from: "${{ steps.packager-web-web-html5.outputs.output }}",
-        version: "${{ variables.version }}",
+      delivery: {
+        destinationId: "cloud",
+        slotId: "html",
+        artifactOutputId: "web.html5",
       },
     });
-  });
-
-  it("keeps Pipelab Cloud compatible with legacy workflows", () => {
-    const workflow = compileWorkflow({
-      version: "1.4.0",
-      source: { type: "folder", path: "/game" },
-      outputs: ["electron.windows", "electron.linux"],
-      destinations: [{ id: "pipelab-cloud", enabled: true }],
-    });
-
-    expect(workflow.steps.filter((step) => step.uses === "pipelab-cloud:upload")).toMatchObject([
-      {
-        needs: ["packager-electron-windows"],
-        delivery: { destinationId: "pipelab-cloud", slotId: "electron.windows" },
-        with: { artifactOutput: "electron.windows", from: "${{ steps.packager-electron-windows.outputs.output }}" },
-      },
-      {
-        needs: ["packager-electron-linux"],
-        delivery: { destinationId: "pipelab-cloud", slotId: "electron.linux" },
-        with: { artifactOutput: "electron.linux", from: "${{ steps.packager-electron-linux.outputs.output }}" },
-      },
-    ]);
   });
 });

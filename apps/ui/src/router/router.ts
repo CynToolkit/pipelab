@@ -81,6 +81,18 @@ const routes: RouterOptions["routes"] = [
     component: () => import("../pages/release-flow.vue"),
     meta: { title: "Workflow" },
   },
+  {
+    path: "/workflows/:flowId/:projectId/runs",
+    name: "WorkflowRuns",
+    component: () => import("../pages/workflow-runs.vue"),
+    meta: { title: "Runs" },
+  },
+  {
+    path: "/workflows/:flowId/:projectId/runs/:runId",
+    name: "WorkflowRunDetail",
+    component: () => import("../pages/run-detail.vue"),
+    meta: { title: "Run" },
+  },
 ];
 
 export const router = createRouter({

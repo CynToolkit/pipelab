@@ -3,6 +3,9 @@ import { existsSync } from "node:fs";
 import { homedir, platform } from "node:os";
 import { delimiter, join, normalize } from "node:path";
 import { chromium } from "playwright";
+import { preparePlaywrightProfile } from "./export-shared.js";
+
+export type BrowserProfileAuthStatus = "authenticated" | "not-authenticated" | "unknown";
 
 export type BrowserProfileCandidate = {
   browser: string;
@@ -10,10 +13,22 @@ export type BrowserProfileCandidate = {
   path: string;
   isDefault: boolean;
   addonCount: number | null;
+  authStatus: BrowserProfileAuthStatus;
   lastUpdatedAt: number | null;
   score: number | null;
   usable: boolean;
   reason?: string;
+};
+
+export const detectConstructAuthStatus = (accountLabel: string | null | undefined): BrowserProfileAuthStatus => {
+  const label = accountLabel?.trim();
+  if (!label) return "unknown";
+  const parts = label.split(/\s+/).filter(Boolean);
+  const accountName = parts.at(-1);
+  if (!accountName) return "unknown";
+  if (/^guest$/i.test(accountName)) return "not-authenticated";
+  if (/^(free|edition)$/i.test(accountName)) return "unknown";
+  return "authenticated";
 };
 
 const files = async (root: string): Promise<string[]> => {
@@ -89,7 +104,10 @@ const executable = (browser: string) => {
       browser === "Chromium" ? ["chromium", "chromium-browser"] :
         browser === "Brave" ? ["brave-browser"] : browser === "Vivaldi" ? ["vivaldi"] : ["opera"];
   const dirs = (process.env.PATH || "").split(delimiter);
-  return names.map((name) => dirs.map((dir) => join(dir, name)).find(existsSync)).find(Boolean);
+  const installedBrowser = names.map((name) => dirs.map((dir) => join(dir, name)).find(existsSync)).find(Boolean);
+  if (installedBrowser) return installedBrowser;
+  const playwrightBrowser = chromium.executablePath();
+  return existsSync(playwrightBrowser) ? playwrightBrowser : undefined;
 };
 
 type ChromiumProfile = { path: string; name: string };
@@ -116,27 +134,26 @@ export const chromiumProfiles = async (root: string): Promise<ChromiumProfile[]>
   } catch { return []; }
 };
 
-export const inspectChromiumProfile = async (profile: string) => {
-  const addonCount = await countChromiumAddons(profile, "Chrome");
-  return { addonCount, lastUpdatedAt: await constructStorageUpdatedAt(profile), usable: addonCount !== null };
+export const inspectChromiumProfile = async (
+  profile: string,
+): Promise<Pick<BrowserProfileCandidate, "addonCount" | "authStatus" | "lastUpdatedAt" | "usable">> => {
+  const inspection = await inspectChromiumProfileForBrowser(profile, "Chrome");
+  return { ...inspection, lastUpdatedAt: await constructStorageUpdatedAt(profile), usable: inspection.addonCount !== null };
 };
 
-const countChromiumAddons = async (profile: string, browser: string) => {
+const inspectChromiumProfileForBrowser = async (profile: string, browser: string) => {
   const browserPath = executable(browser);
-  if (!browserPath) return null;
-  const source = join(profile, "IndexedDB");
-  try { await access(source); } catch { return 0; }
+  if (!browserPath) return { addonCount: null, authStatus: "unknown" as const };
+  try { await access(join(profile, "Preferences")); } catch { return { addonCount: null, authStatus: "unknown" as const }; }
   const temp = await mkdtemp(join(process.env.TMPDIR || "/tmp", "pipelab-profile-"));
   try {
-    const destination = join(temp, "Default", "IndexedDB");
-    const { cp, mkdir } = await import("node:fs/promises");
-    await mkdir(destination, { recursive: true });
-    await cp(source, destination, { recursive: true });
+    await preparePlaywrightProfile(profile, temp, () => {});
     const context = await chromium.launchPersistentContext(temp, { executablePath: browserPath, headless: true });
     try {
       const page = await context.newPage();
       await page.goto("https://editor.construct.net/", { waitUntil: "domcontentloaded", timeout: 15000 }).catch(() => {});
-      return await page.evaluate(async () => {
+      const accountLabel = await page.getByRole("button", { name: /Free edition/ }).first().innerText({ timeout: 5000 }).catch(() => null);
+      const addonCount = await page.evaluate(async () => {
         const db = await new Promise<IDBDatabase | null>((resolve) => {
           const request = indexedDB.open("c3-addon-files");
           request.onsuccess = () => resolve(request.result);
@@ -151,8 +168,9 @@ const countChromiumAddons = async (profile: string, browser: string) => {
           request.onerror = () => resolve(0);
         });
       });
+      return { addonCount, authStatus: detectConstructAuthStatus(accountLabel) };
     } finally { await context.close(); }
-  } catch { return null; } finally { await rm(temp, { recursive: true, force: true }).catch(() => {}); }
+  } catch { return { addonCount: null, authStatus: "unknown" as const }; } finally { await rm(temp, { recursive: true, force: true }).catch(() => {}); }
 };
 
 const discoverChromium = async () => {
@@ -161,8 +179,8 @@ const discoverChromium = async () => {
     for (const profile of await chromiumProfiles(root)) {
       const path = normalize(join(root, profile.path));
       if (!existsSync(join(path, "Preferences"))) continue;
-      const addonCount = await countChromiumAddons(path, browser);
-      found.push({ browser, profileName: profile.name, path, isDefault: profile.path.split(/[\\/]/).pop() === "Default", addonCount, lastUpdatedAt: await constructStorageUpdatedAt(path), score: null, usable: addonCount !== null, reason: addonCount === null ? "Browser unavailable or profile is locked" : undefined });
+      const inspection = await inspectChromiumProfileForBrowser(path, browser);
+      found.push({ browser, profileName: profile.name, path, isDefault: profile.path.split(/[\\/]/).pop() === "Default", ...inspection, lastUpdatedAt: await constructStorageUpdatedAt(path), score: null, usable: inspection.addonCount !== null, reason: inspection.addonCount === null ? "Browser unavailable or profile is locked" : undefined });
     }
   }
   return found;
@@ -181,7 +199,7 @@ const discoverFirefox = async () => {
       if (!path) return [];
       const full = section.match(/^IsRelative=0$/m) ? path : join(root, path);
       const name = section.match(/^Name=(.+)$/m)?.[1] || full.split("/").pop() || "Firefox";
-      return [{ browser: "Firefox", profileName: name, path: normalize(full), isDefault: /^Default=1$/m.test(section), addonCount: null, lastUpdatedAt: null, score: null, usable: false, reason: "Firefox profile discovery is read-only; Construct export uses Chromium" }];
+      return [{ browser: "Firefox", profileName: name, path: normalize(full), isDefault: /^Default=1$/m.test(section), addonCount: null, authStatus: "unknown" as const, lastUpdatedAt: null, score: null, usable: false, reason: "Firefox profile discovery is read-only; Construct export uses Chromium" }];
     });
   } catch { return []; }
 };
@@ -191,7 +209,7 @@ const discoverSafari = async (): Promise<BrowserProfileCandidate[]> => {
   const root = join(homedir(), "Library", "Containers", "com.apple.Safari", "Data", "Library", "Safari", "Profiles");
   try {
     return (await readdir(root, { withFileTypes: true })).filter((entry) => entry.isDirectory()).map((entry) => ({
-      browser: "Safari", profileName: entry.name, path: join(root, entry.name), isDefault: false, addonCount: null, lastUpdatedAt: null, score: null, usable: false,
+      browser: "Safari", profileName: entry.name, path: join(root, entry.name), isDefault: false, addonCount: null, authStatus: "unknown" as const, lastUpdatedAt: null, score: null, usable: false,
       reason: "Safari automation cannot access normal browsing storage",
     }));
   } catch { return []; }

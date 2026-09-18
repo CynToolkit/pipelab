@@ -4,7 +4,7 @@ const coreNode = () => import("@pipelab/core-node");
 
 export const fetchPackage: CoreNodeModule["fetchPackage"] = (...args) =>
   coreNode().then(({ fetchPackage }) => fetchPackage(...args));
-export const resolveBundledAsset: CoreNodeModule["resolveBundledAsset"] = (...args) =>
+export const resolveBundledAsset = (...args: Parameters<CoreNodeModule["resolveBundledAsset"]>) =>
   Promise.resolve(coreNode()).then(({ resolveBundledAsset }) => resolveBundledAsset(...args));
 export const runPnpm: CoreNodeModule["runPnpm"] = (...args) =>
   coreNode().then(({ runPnpm }) => runPnpm(...args));

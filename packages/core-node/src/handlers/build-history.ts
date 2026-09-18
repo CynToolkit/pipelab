@@ -1,12 +1,27 @@
 import { PipelabContext } from "../context";
 import { join } from "node:path";
-import { writeFile, readFile, unlink, mkdir, stat, readdir, rm } from "node:fs/promises";
+import { writeFile, readFile, unlink, mkdir, stat, readdir, rename, rm } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
 import { useLogger, BuildHistoryEntry, IBuildHistoryStorage, AppConfig } from "@pipelab/shared";
 import checkDiskSpace from "check-disk-space";
 import { getFolderSize } from "../utils/fs-extras";
 import { SandboxFolder } from "@pipelab/constants";
 
 // Simplified storage - one file per pipeline containing array of build entries
+
+const mutationTails = new Map<string, Promise<void>>();
+
+const serializePipelineMutation = async <T>(path: string, mutation: () => Promise<T>): Promise<T> => {
+  const previous = mutationTails.get(path) || Promise.resolve();
+  const current = previous.catch(() => undefined).then(mutation);
+  const tail = current.then(() => undefined, () => undefined);
+  mutationTails.set(path, tail);
+  try {
+    return await current;
+  } finally {
+    if (mutationTails.get(path) === tail) mutationTails.delete(path);
+  }
+};
 
 export class BuildHistoryStorage implements IBuildHistoryStorage {
   private logger = useLogger();
@@ -33,13 +48,20 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
   }
 
   private async loadPipelineHistory(pipelineId: string): Promise<BuildHistoryEntry[]> {
+    const pipelinePath = this.getPipelinePath(pipelineId);
+    let data: string;
     try {
-      const pipelinePath = this.getPipelinePath(pipelineId);
-      const data = await readFile(pipelinePath, "utf-8");
-      return JSON.parse(data);
+      data = await readFile(pipelinePath, "utf-8");
     } catch (error) {
-      // File doesn't exist or is corrupted, return empty array
-      return [];
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
+      throw error;
+    }
+    try {
+      const entries: unknown = JSON.parse(data);
+      if (!Array.isArray(entries)) throw new Error("History document must contain an array");
+      return entries as BuildHistoryEntry[];
+    } catch (error) {
+      throw new Error(`Invalid build history for pipeline ${pipelineId}: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -50,7 +72,13 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
     try {
       await this.ensureStoragePath();
       const pipelinePath = this.getPipelinePath(pipelineId);
-      await writeFile(pipelinePath, JSON.stringify(entries, null, 2), "utf-8");
+      const temporaryPath = `${pipelinePath}.${randomUUID()}.tmp`;
+      try {
+        await writeFile(temporaryPath, JSON.stringify(entries, null, 2), { encoding: "utf-8", flag: "wx" });
+        await rename(temporaryPath, pipelinePath);
+      } finally {
+        await rm(temporaryPath, { force: true }).catch(() => {});
+      }
     } catch (error) {
       this.logger.logger().error("Failed to save pipeline history:", error);
       throw new Error(`Failed to save pipeline history: ${error}`);
@@ -58,46 +86,44 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
   }
 
   async save(entry: BuildHistoryEntry): Promise<void> {
-    try {
-      const entries = await this.loadPipelineHistory(entry.pipelineId);
-      const existingIndex = entries.findIndex((e) => e.id === entry.id);
+    const pipelinePath = this.getPipelinePath(entry.pipelineId);
+    return serializePipelineMutation(pipelinePath, async () => {
+      try {
+        const entries = await this.loadPipelineHistory(entry.pipelineId);
+        const existingIndex = entries.findIndex((e) => e.id === entry.id);
 
-      if (existingIndex >= 0) {
-        entries[existingIndex] = entry;
-      } else {
-        entries.push(entry);
+        if (existingIndex >= 0) {
+          entries[existingIndex] = entry;
+        } else {
+          entries.push(entry);
+        }
+
+        await this.savePipelineHistory(entry.pipelineId, entries);
+        this.logger
+          .logger()
+          .info(`Saved build history entry: ${entry.id} for pipeline: ${entry.pipelineId}`);
+      } catch (error) {
+        this.logger.logger().error("Failed to save build history entry:", error);
+        throw new Error(`Failed to save build history entry: ${error}`);
       }
-
-      await this.savePipelineHistory(entry.pipelineId, entries);
-      this.logger
-        .logger()
-        .info(`Saved build history entry: ${entry.id} for pipeline: ${entry.pipelineId}`);
-    } catch (error) {
-      this.logger.logger().error("Failed to save build history entry:", error);
-      throw new Error(`Failed to save build history entry: ${error}`);
-    }
+    });
   }
 
   async get(id: string, pipelineId?: string): Promise<BuildHistoryEntry | undefined> {
-    try {
-      if (pipelineId) {
-        const entries = await this.loadPipelineHistory(pipelineId);
-        return entries.find((e) => e.id === id);
-      }
-
-      const files = await this.getAllPipelineFiles();
-      for (const file of files) {
-        const pId = this.parsePipelineIdFromFilename(file);
-        if (!pId) continue;
-        const entries = await this.loadPipelineHistory(pId);
-        const entry = entries.find((e) => e.id === id);
-        if (entry) return entry;
-      }
-      return undefined;
-    } catch (error) {
-      this.logger.logger().error(`Failed to get build history entry ${id}:`, error);
-      return undefined;
+    if (pipelineId) {
+      const entries = await this.loadPipelineHistory(pipelineId);
+      return entries.find((e) => e.id === id);
     }
+
+    const files = await this.getAllPipelineFiles();
+    for (const file of files) {
+      const pId = this.parsePipelineIdFromFilename(file);
+      if (!pId) continue;
+      const entries = await this.loadPipelineHistory(pId);
+      const entry = entries.find((e) => e.id === id);
+      if (entry) return entry;
+    }
+    return undefined;
   }
 
   async getAll(): Promise<BuildHistoryEntry[]> {
@@ -117,6 +143,38 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
     }
   }
 
+  async reconcileInterruptedRuns(timestamp = Date.now()): Promise<number> {
+    const interrupted = (await this.getAll()).filter((entry) => entry.status === "running");
+    for (const entry of interrupted) {
+      const interruption = "Execution was interrupted because the app or backend stopped before the run finished.";
+      const steps = entry.steps.map((step) => {
+        if (step.status === "running") {
+          return {
+            ...step,
+            status: "failed" as const,
+            endTime: timestamp,
+            duration: Math.max(0, timestamp - step.startTime),
+            error: { message: interruption, code: "INTERRUPTED", timestamp },
+          };
+        }
+        if (step.status === "pending") {
+          return { ...step, status: "cancelled" as const, endTime: timestamp, duration: 0 };
+        }
+        return step;
+      });
+      await this.update(entry.id, {
+        status: "failed",
+        endTime: timestamp,
+        duration: Math.max(0, timestamp - entry.startTime),
+        failedSteps: steps.filter((step) => step.status === "failed" || step.status === "skipped").length,
+        cancelledSteps: steps.filter((step) => step.status === "cancelled").length,
+        steps,
+        error: { message: interruption, code: "INTERRUPTED", timestamp },
+      }, entry.pipelineId);
+    }
+    return interrupted.length;
+  }
+
   async getByPipeline(pipelineId: string): Promise<BuildHistoryEntry[]> {
     try {
       const entries = await this.loadPipelineHistory(pipelineId);
@@ -134,25 +192,13 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
   ): Promise<void> {
     try {
       if (pipelineId) {
-        const entries = await this.loadPipelineHistory(pipelineId);
-        const entryIndex = entries.findIndex((e) => e.id === id);
-        if (entryIndex >= 0) {
-          entries[entryIndex] = { ...entries[entryIndex], ...updates, updatedAt: Date.now() };
-          await this.savePipelineHistory(pipelineId, entries);
-          return;
-        }
+        if (await this.updateInPipeline(id, updates, pipelineId)) return;
       } else {
         const files = await this.getAllPipelineFiles();
         for (const file of files) {
           const pId = this.parsePipelineIdFromFilename(file);
           if (!pId) continue;
-          const entries = await this.loadPipelineHistory(pId);
-          const entryIndex = entries.findIndex((e) => e.id === id);
-          if (entryIndex >= 0) {
-            entries[entryIndex] = { ...entries[entryIndex], ...updates, updatedAt: Date.now() };
-            await this.savePipelineHistory(pId, entries);
-            return;
-          }
+          if (await this.updateInPipeline(id, updates, pId)) return;
         }
       }
       throw new Error(`Build history entry ${id} not found`);
@@ -162,14 +208,25 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
     }
   }
 
+  private async updateInPipeline(
+    id: string,
+    updates: Partial<BuildHistoryEntry>,
+    pipelineId: string,
+  ): Promise<boolean> {
+    return serializePipelineMutation(this.getPipelinePath(pipelineId), async () => {
+      const entries = await this.loadPipelineHistory(pipelineId);
+      const entryIndex = entries.findIndex((entry) => entry.id === id);
+      if (entryIndex < 0) return false;
+      entries[entryIndex] = { ...entries[entryIndex], ...updates, updatedAt: Date.now() };
+      await this.savePipelineHistory(pipelineId, entries);
+      return true;
+    });
+  }
+
   async delete(id: string, pipelineId?: string): Promise<void> {
     try {
       if (pipelineId) {
-        const entries = await this.loadPipelineHistory(pipelineId);
-        const entryIndex = entries.findIndex((e) => e.id === id);
-        if (entryIndex >= 0) {
-          entries.splice(entryIndex, 1);
-          await this.savePipelineHistory(pipelineId, entries);
+        if (await this.deleteFromPipeline(id, pipelineId)) {
           this.logger.logger().info(`Deleted build history entry: ${id}`);
           return;
         }
@@ -178,11 +235,7 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
         for (const file of files) {
           const pId = this.parsePipelineIdFromFilename(file);
           if (!pId) continue;
-          const entries = await this.loadPipelineHistory(pId);
-          const entryIndex = entries.findIndex((e) => e.id === id);
-          if (entryIndex >= 0) {
-            entries.splice(entryIndex, 1);
-            await this.savePipelineHistory(pId, entries);
+          if (await this.deleteFromPipeline(id, pId)) {
             this.logger.logger().info(`Deleted build history entry: ${id}`);
             return;
           }
@@ -195,6 +248,17 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
     }
   }
 
+  private async deleteFromPipeline(id: string, pipelineId: string): Promise<boolean> {
+    return serializePipelineMutation(this.getPipelinePath(pipelineId), async () => {
+      const entries = await this.loadPipelineHistory(pipelineId);
+      const entryIndex = entries.findIndex((entry) => entry.id === id);
+      if (entryIndex < 0) return false;
+      entries.splice(entryIndex, 1);
+      await this.savePipelineHistory(pipelineId, entries);
+      return true;
+    });
+  }
+
   async clear(): Promise<void> {
     try {
       await this.ensureStoragePath();
@@ -203,16 +267,17 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
 
       for (const file of files) {
         const pipelineId = this.parsePipelineIdFromFilename(file);
-        if (pipelineId) {
+        if (!pipelineId) continue;
+        await serializePipelineMutation(this.getPipelinePath(pipelineId), async () => {
           const entries = await this.loadPipelineHistory(pipelineId);
           for (const entry of entries) {
-            if (entry.cachePath) {
-              cachePathsToDelete.add(entry.cachePath);
-            }
+            if (entry.cachePath) cachePathsToDelete.add(entry.cachePath);
           }
           await rm(this.context.getArtifactsPath(pipelineId), { recursive: true, force: true }).catch(() => {});
-        }
-        await unlink(join(this.getStoragePath(), file));
+          await unlink(join(this.getStoragePath(), file)).catch((error) => {
+            if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+          });
+        });
       }
 
       this.logger.logger().info("Cleared all build history");
@@ -228,21 +293,23 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
 
   async clearByPipeline(pipelineId: string): Promise<void> {
     try {
-      const pipelinePath = this.getPipelinePath(pipelineId);
-      const entries = await this.loadPipelineHistory(pipelineId);
-      await unlink(pipelinePath);
-      this.logger.logger().info(`Cleared history for pipeline "${pipelineId}"`);
+      await serializePipelineMutation(this.getPipelinePath(pipelineId), async () => {
+        const pipelinePath = this.getPipelinePath(pipelineId);
+        const entries = await this.loadPipelineHistory(pipelineId);
+        await unlink(pipelinePath).catch((error) => {
+          if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+        });
+        this.logger.logger().info(`Cleared history for pipeline "${pipelineId}"`);
 
-      const cachePathsToDelete = new Set<string>();
-      for (const entry of entries) {
-        if (entry.cachePath) {
-          cachePathsToDelete.add(entry.cachePath);
+        const cachePathsToDelete = new Set<string>();
+        for (const entry of entries) {
+          if (entry.cachePath) cachePathsToDelete.add(entry.cachePath);
         }
-      }
-      for (const cachePath of cachePathsToDelete) {
-        await rm(cachePath, { recursive: true, force: true }).catch(() => {});
-      }
-      await rm(this.context.getArtifactsPath(pipelineId), { recursive: true, force: true }).catch(() => {});
+        for (const cachePath of cachePathsToDelete) {
+          await rm(cachePath, { recursive: true, force: true }).catch(() => {});
+        }
+        await rm(this.context.getArtifactsPath(pipelineId), { recursive: true, force: true }).catch(() => {});
+      });
     } catch (error: any) {
       if (error.code === "ENOENT") {
         this.logger

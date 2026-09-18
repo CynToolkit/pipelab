@@ -1,3 +1,4 @@
+/// <reference path="./declarations.d.ts" />
 import { previewRunner } from "./preview";
 
 import { createNodeDefinition } from "@pipelab/plugin-core";

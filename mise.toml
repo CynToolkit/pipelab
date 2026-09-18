@@ -12,6 +12,34 @@ run = "doppler run -- pnpm dev"
 dir = "apps/desktop"
 depends = ["install"]
 
+[tasks.stop]
+description = "Stop the local Pipelab backend"
+run = "pnpm --filter @pipelab/cli start -- stop"
+env = { NODE_ENV = "development" }
+
+[tasks.local]
+description = "Start local Supabase and workers with the desktop app or standalone UI"
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+
+target="${1:-desktop}"
+case "$target" in
+  ui)
+    mise run local:setup
+    mise run local:r2 ::: local:api ::: local:ui
+    ;;
+  desktop)
+    mise run local:setup
+    mise run local:r2 ::: local:api ::: local:app
+    ;;
+  *)
+    echo "Usage: mise run local [desktop|ui] (both modes start Supabase and local workers)" >&2
+    exit 2
+    ;;
+esac
+'''
+
 [tasks.package]
 run = "doppler run -- pnpm package"
 dir = "apps/desktop"
@@ -103,3 +131,16 @@ local_service_role_key="${SERVICE_ROLE_KEY:-${SECRET_KEY:-${SUPABASE_SERVICE_ROL
 doppler run -- env SUPABASE_URL="$local_supabase_url" SUPABASE_ANON_KEY="$local_anon_key" SUPABASE_SERVICE_ROLE_KEY="$local_service_role_key" PIPELAB_CLOUD_WORKER_URL="http://127.0.0.1:8788" pnpm dev
 '''
 dir = "apps/desktop"
+
+[tasks."local:ui"]
+description = "Run the standalone UI and CLI backend through Turbo"
+run = '''
+set -eu
+eval "$(supabase status --output env)"
+export SUPABASE_URL="${API_URL:-${SUPABASE_URL:-}}"
+export SUPABASE_ANON_KEY="${ANON_KEY:-${PUBLISHABLE_KEY:-${SUPABASE_ANON_KEY:-}}}"
+export PIPELAB_CLOUD_WORKER_URL="http://127.0.0.1:8788"
+: "${SUPABASE_URL:?Could not read local Supabase URL; run mise run local:setup first}"
+: "${SUPABASE_ANON_KEY:?Could not read local Supabase publishable key}"
+pnpm exec turbo run dev:remote --filter=@pipelab/cli --filter=@pipelab/ui
+'''

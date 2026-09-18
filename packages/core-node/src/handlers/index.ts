@@ -9,6 +9,7 @@ import { registerSystemHandlers } from "./system";
 import { registerPluginsHandlers } from "./plugins";
 import { registerMigrationHandlers } from "./migration";
 import { registerWorkflowHandlers } from "./workflow";
+import { BuildHistoryStorage } from "./build-history";
 import { builtInPlugins } from "../plugins-registry";
 import { PipelabContext } from "../context";
 
@@ -18,6 +19,7 @@ export const registerAllHandlers = async (options: {
   waitForPlugins?: boolean;
 }) => {
   const context = options.context;
+  await new BuildHistoryStorage(context).reconcileInterruptedRuns();
   const pluginsPromise = builtInPlugins({
     context,
   });

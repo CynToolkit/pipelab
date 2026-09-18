@@ -146,6 +146,21 @@ const validateWorkflow = (workflow: Workflow): void => {
     if (step.with !== undefined && !isRecord(step.with)) {
       throw new Error(`Workflow step ${step.id} inputs must be an object`);
     }
+    if (step.delivery !== undefined) {
+      if (
+        !isRecord(step.delivery) ||
+        typeof step.delivery.destinationId !== "string" ||
+        !step.delivery.destinationId ||
+        typeof step.delivery.slotId !== "string" ||
+        !step.delivery.slotId ||
+        typeof step.delivery.artifactOutputId !== "string" ||
+        !step.delivery.artifactOutputId
+      ) {
+        throw new Error(
+          `Workflow delivery step ${step.id} must declare a destination, slot, and artifact output`,
+        );
+      }
+    }
   }
 
   for (const [index, step] of workflow.steps.entries()) {
@@ -164,11 +179,9 @@ const dependenciesFor = (workflow: Workflow, step: WorkflowStep): string[] => {
 };
 
 const artifactForDelivery = (
-  step: WorkflowStep,
+  outputId: string,
   artifacts: Array<WorkflowArtifact | WorkflowArtifactInstance>,
 ): WorkflowArtifactInstance | undefined => {
-  const outputId = step.with?.artifactOutput;
-  if (typeof outputId !== "string") return undefined;
   return artifacts.find(
     (artifact): artifact is WorkflowArtifactInstance =>
       "outputId" in artifact && artifact.outputId === outputId,
@@ -207,17 +220,28 @@ export const runWorkflow = async (
         ensureNotAborted(signal);
         const task = tasks[step.uses];
         if (!task) throw new Error(`Workflow task not found: ${step.uses}`);
-        const deliveryArtifact = step.delivery ? artifactForDelivery(step, artifacts) : undefined;
-        const inputs = {
-          ...resolveInputs(step, variables, outputs),
-          ...(step.delivery?.destinationId === "pipelab-cloud" && deliveryArtifact && "outputId" in deliveryArtifact
-            ? { artifactId: deliveryArtifact.id }
-            : {}),
-        };
+        const deliveryArtifact = step.delivery
+          ? artifactForDelivery(step.delivery.artifactOutputId, artifacts)
+          : undefined;
+        if (step.delivery && !deliveryArtifact) {
+          throw new Error(
+            `Workflow delivery step ${step.id} requires artifact output "${step.delivery.artifactOutputId}", but no artifact was produced.`,
+          );
+        }
+        const inputs = resolveInputs(step, variables, outputs);
         const result =
           (await task({
             step,
             inputs,
+            ...(step.delivery && deliveryArtifact
+              ? {
+                  delivery: {
+                    destinationId: step.delivery.destinationId,
+                    slotId: step.delivery.slotId,
+                    artifact: deliveryArtifact,
+                  },
+                }
+              : {}),
             workspace: context.host.workspace,
             filesystem: context.host.filesystem,
             processes: context.host.processes,
@@ -281,8 +305,10 @@ export const runWorkflow = async (
           stepResult.delivery = {
             id: step.id,
             destinationId: step.delivery.destinationId,
+            ...(step.delivery.serviceId ? { serviceId: step.delivery.serviceId } : {}),
+            ...(step.delivery.destinationName ? { destinationName: step.delivery.destinationName } : {}),
             slotId: step.delivery.slotId,
-            artifactId: artifactForDelivery(step, artifacts)?.id ?? "",
+            artifactId: artifactForDelivery(step.delivery.artifactOutputId, artifacts)?.id ?? "",
             status: "completed",
             startedAt: stepStartedAt,
             completedAt,
@@ -319,8 +345,10 @@ export const runWorkflow = async (
           failedStep.delivery = {
             id: step.id,
             destinationId: step.delivery.destinationId,
+            ...(step.delivery.serviceId ? { serviceId: step.delivery.serviceId } : {}),
+            ...(step.delivery.destinationName ? { destinationName: step.delivery.destinationName } : {}),
             slotId: step.delivery.slotId,
-            artifactId: artifactForDelivery(step, artifacts)?.id ?? "",
+            artifactId: artifactForDelivery(step.delivery.artifactOutputId, artifacts)?.id ?? "",
             status: "failed",
             startedAt: stepStartedAt,
             completedAt,
@@ -365,8 +393,10 @@ export const runWorkflow = async (
           skippedStep.delivery = {
             id: step.id,
             destinationId: step.delivery.destinationId,
+            ...(step.delivery.serviceId ? { serviceId: step.delivery.serviceId } : {}),
+            ...(step.delivery.destinationName ? { destinationName: step.delivery.destinationName } : {}),
             slotId: step.delivery.slotId,
-            artifactId: artifactForDelivery(step, artifacts)?.id ?? "",
+            artifactId: artifactForDelivery(step.delivery.artifactOutputId, artifacts)?.id ?? "",
             status: "failed",
             startedAt: now,
             completedAt: now,

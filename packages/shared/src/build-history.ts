@@ -4,10 +4,12 @@ import type {
   ArtifactInstance as WorkflowArtifactInstance,
   WorkflowDeliveryResult,
 } from "@pipelab/workflow-runtime";
+import type { WorkflowArtifactOutputId } from "@pipelab/constants";
 
 export interface ExecutionStep {
   id: string;
   name: string;
+  uses?: string;
   status: "pending" | "running" | "completed" | "failed" | "cancelled" | "skipped";
   startTime: number;
   endTime?: number;
@@ -15,6 +17,11 @@ export interface ExecutionStep {
   logs: LogEntry[];
   error?: ExecutionError;
   output?: Record<string, unknown>;
+  destinationId?: string;
+  serviceId?: string;
+  destinationName?: string;
+  slotId?: string;
+  outputId?: WorkflowArtifactOutputId;
 }
 
 export interface ExecutionError {
@@ -39,11 +46,20 @@ export interface Artifact {
   path: string;
   size: number;
   type: "file" | "folder";
+  outputId?: WorkflowArtifactOutputId;
+  version?: string;
+  platform?: WorkflowArtifactInstance["platform"];
+  architecture?: WorkflowArtifactInstance["architecture"];
+  format?: WorkflowArtifactInstance["format"];
+  producerStep?: string;
+  checksum?: string;
 }
 
 export interface BuildHistoryEntry {
   id: string;
   pipelineId: string;
+  workflowId?: string;
+  workflowName?: string;
   projectName: string;
   projectPath: string;
   cachePath?: string;
@@ -71,6 +87,7 @@ export interface BuildHistoryEntry {
 // Query interface supporting both pipeline and scenario filtering
 export interface BuildHistoryQuery {
   pipelineId?: string;
+  workflowId?: string;
 }
 
 export interface BuildHistoryResponse {

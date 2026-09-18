@@ -1,3 +1,4 @@
+/// <reference path="./declarations.d.ts" />
 import { makeRunner } from "./make";
 import { packageRunner } from "./package";
 import { previewRunner } from "./preview";

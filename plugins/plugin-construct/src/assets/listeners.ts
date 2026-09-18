@@ -48,9 +48,11 @@ export const registerWebglErrorListener = (page: Page, log: typeof console.log) 
     .then(async () => {
       const text = await okDialog.allInnerTexts();
 
-      if (text.join().toLowerCase().includes("webgl")) {
+      const dialogText = text.join(" ");
+      const isFreeEditionNotice = /this project exceeds the free edition limits/i.test(dialogText);
+      if (dialogText.toLowerCase().includes("webgl") || isFreeEditionNotice) {
         await webglErrorButton.click();
-        log("webglErrorButton clicked");
+        log(isFreeEditionNotice ? "Construct free edition notice acknowledged" : "webglErrorButton clicked");
         registerWebglErrorListener(page, log);
       }
     })

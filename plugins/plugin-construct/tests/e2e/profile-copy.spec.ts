@@ -1,10 +1,11 @@
 import { expect, test } from "vitest";
 import { access, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { preparePlaywrightProfile } from "../../src/export-shared";
 
 test("preserves selected-profile addon and login data while omitting stale browser state", async () => {
-  const root = await mkdtemp(join("/tmp", "construct-profile-copy-"));
+  const root = await mkdtemp(join(tmpdir(), "construct-profile-copy-"));
   const source = join(root, "PipelabConstruct", "Default");
   const destination = join(root, "playwright-profile");
   const addonDatabase = join(

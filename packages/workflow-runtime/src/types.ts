@@ -1,3 +1,4 @@
+import type { WorkflowArtifactOutputId } from "@pipelab/constants";
 import type { ArtifactInstance } from "./artifacts";
 
 export const WORKFLOW_VERSION = 1;
@@ -19,7 +20,10 @@ export interface WorkflowStep {
 
 export interface WorkflowDeliveryDefinition {
   destinationId: string;
+  serviceId?: string;
+  destinationName?: string;
   slotId: string;
+  artifactOutputId: WorkflowArtifactOutputId;
 }
 
 export interface Workspace {
@@ -71,6 +75,7 @@ export type WorkflowArtifactInstance = ArtifactInstance;
 export interface WorkflowTaskContext {
   step: WorkflowStep;
   inputs: Record<string, unknown>;
+  delivery?: WorkflowTaskDeliveryContext;
   workspace: Workspace;
   filesystem: FileSystem;
   processes: ProcessExecutor;
@@ -83,6 +88,12 @@ export interface WorkflowTaskContext {
     path: string,
     metadata?: { checksum?: string; size?: number; name?: string },
   ): void;
+}
+
+export interface WorkflowTaskDeliveryContext {
+  destinationId: string;
+  slotId: string;
+  artifact: WorkflowArtifactInstance;
 }
 
 export type WorkflowTask = (
@@ -113,6 +124,8 @@ export interface WorkflowStepResult {
 export interface WorkflowDeliveryResult {
   id: string;
   destinationId: string;
+  serviceId?: string;
+  destinationName?: string;
   slotId: string;
   artifactId: string;
   status: "completed" | "failed";

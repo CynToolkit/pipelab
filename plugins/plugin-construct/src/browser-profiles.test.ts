@@ -1,7 +1,7 @@
 import { expect, test } from "vitest";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { chromiumProfiles } from "./browser-profiles";
+import { chromiumProfiles, detectConstructAuthStatus } from "./browser-profiles";
 
 test("discovers a nested Chromium profile as its own exact selection", async () => {
   const root = await mkdtemp(join("/tmp", "construct-nested-profile-"));
@@ -26,4 +26,13 @@ test("discovers a nested Chromium profile as its own exact selection", async () 
   } finally {
     await rm(root, { recursive: true, force: true });
   }
+});
+
+test.each([
+  ["Free edition\nGuest", "not-authenticated"],
+  ["Free edition\narmaldio", "authenticated"],
+  ["Free edition", "unknown"],
+  [null, "unknown"],
+] as const)("reports Construct auth status for account label %s", (label, expected) => {
+  expect(detectConstructAuthStatus(label)).toBe(expected);
 });

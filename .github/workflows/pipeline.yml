@@ -48,6 +48,9 @@ jobs:
       - name: Test change detection
         run: node --test scripts/detect-changes-logic.test.mjs
 
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
       - name: Detect Changes
         id: detect
         run: |
@@ -67,7 +70,7 @@ jobs:
           git diff --name-only "$BASE_REF" HEAD > changed-files.txt
 
           # Use turbo to list affected packages
-          npx turbo ls -F "...[$BASE_REF]" --output=json > affected.json
+          pnpm exec turbo ls -F "...[$BASE_REF]" --output=json > affected.json
 
           # Run our detection script
           npx tsx scripts/detect-changes.ts affected.json changed-files.txt
@@ -101,11 +104,10 @@ jobs:
           AFFECTED_PACKAGES: ${{ needs.changes.outputs.affected }}
         shell: bash
         run: |
-          mapfile -t affected_packages < <(node -e 'JSON.parse(process.env.AFFECTED_PACKAGES).forEach((name) => console.log(name))')
           filter_args=()
-          for package in "${affected_packages[@]}"; do
+          while IFS= read -r package; do
             filter_args+=(--filter "$package")
-          done
+          done < <(node -e 'JSON.parse(process.env.AFFECTED_PACKAGES).forEach((name) => console.log(name))')
           pnpm turbo lint "${filter_args[@]}" --cache-dir=".turbo"
         continue-on-error: true
 
@@ -138,11 +140,10 @@ jobs:
           AFFECTED_PACKAGES: ${{ needs.changes.outputs.affected }}
         shell: bash
         run: |
-          mapfile -t affected_packages < <(node -e 'JSON.parse(process.env.AFFECTED_PACKAGES).forEach((name) => console.log(name))')
           filter_args=()
-          for package in "${affected_packages[@]}"; do
+          while IFS= read -r package; do
             filter_args+=(--filter "$package")
-          done
+          done < <(node -e 'JSON.parse(process.env.AFFECTED_PACKAGES).forEach((name) => console.log(name))')
           pnpm turbo typecheck "${filter_args[@]}" --concurrency=2 --cache-dir=".turbo"
         continue-on-error: true
 
@@ -496,7 +497,7 @@ jobs:
 
       - name: Import Apple Code Signing Certificate
         uses: apple-actions/import-codesign-certs@v3
-        if: startsWith(matrix.os, 'macos-')
+        if: startsWith(matrix.os, 'macos-') && github.event_name != 'pull_request'
         with:
           p12-file-base64: ${{ secrets.CERTIFICATE_OSX_APPLICATION }}
           p12-password: ${{ secrets.CERTIFICATE_OSX_APPLICATION_PASSWORD }}
@@ -572,9 +573,8 @@ jobs:
           AFFECTED_PACKAGES: ${{ needs.changes.outputs.affected }}
         shell: bash
         run: |
-          mapfile -t affected_packages < <(node -e 'JSON.parse(process.env.AFFECTED_PACKAGES).forEach((name) => console.log(name))')
           filter_args=()
-          for package in "${affected_packages[@]}"; do
+          while IFS= read -r package; do
             filter_args+=(--filter "$package")
-          done
+          done < <(node -e 'JSON.parse(process.env.AFFECTED_PACKAGES).forEach((name) => console.log(name))')
           pnpm turbo test "${filter_args[@]}" --cache-dir=".turbo" --log-order=grouped --concurrency 1

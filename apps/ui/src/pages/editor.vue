@@ -690,7 +690,7 @@ const openFolder = async (path: string) => {
 };
 
 const run = async () => {
-  if (!isLoggedIn.value && authStore.hasLoginProvider) {
+  if (!isLoggedIn.value) {
     authStore.displayAuthModal(
       t("editor.welcome-back"),
       t("editor.please-log-in-to-run-a-pipeline"),

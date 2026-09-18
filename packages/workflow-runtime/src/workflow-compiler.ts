@@ -1,18 +1,6 @@
-import { ARTIFACT_OUTPUTS, DESTINATIONS, type ArtifactOutputId, type DestinationDefinition } from "./artifacts";
+import { SERVICE_DEFINITIONS } from "@pipelab/constants";
+import { ARTIFACT_OUTPUTS, type ArtifactOutputId } from "./artifacts";
 import type { Workflow, WorkflowStep } from "./types";
-
-export interface WorkflowDestinationConfiguration {
-  readonly id: DestinationDefinition["id"];
-  readonly enabled: boolean;
-  readonly with?: Record<string, unknown>;
-}
-
-export interface LegacyWorkflowConfiguration {
-  readonly version: string;
-  readonly source: { type: "c3p" | "folder"; path: string; profilePath?: string };
-  readonly outputs: readonly ArtifactOutputId[];
-  readonly destinations: readonly WorkflowDestinationConfiguration[];
-}
 
 export interface WorkflowPackagerConfiguration {
   readonly id: string;
@@ -47,11 +35,11 @@ export interface WorkflowConfigurationV2 {
 const stepIdForOutput = (packagerId: string, outputId: ArtifactOutputId) =>
   `packager-${packagerId}-${outputId.replaceAll(".", "-")}`;
 
-const sourceSteps = (source: WorkflowConfigurationV2["source"] | LegacyWorkflowConfiguration["source"]): WorkflowStep[] => [
+const sourceSteps = (source: WorkflowConfigurationV2["source"]): WorkflowStep[] => [
   {
     id: "source-export",
-    uses: source.type === "c3p" || source.type === "construct3" ? "construct:export" : "construct:export-folder",
-    with: source.type === "c3p" || source.type === "construct3"
+    uses: source.type === "construct3" ? "construct:export" : "construct:export-folder",
+    with: source.type === "construct3"
       ? { file: "${{ variables.sourcePath }}", ...(source.profilePath ? { customProfile: source.profilePath } : {}) }
       : { folder: "${{ variables.sourcePath }}" },
   },
@@ -76,45 +64,7 @@ const producerStep = (packager: WorkflowPackagerConfiguration, outputId: Artifac
   };
 };
 
-const legacyProducerStep = (outputId: ArtifactOutputId): WorkflowStep => ({
-  ...producerStep({ id: outputId, definitionId: ARTIFACT_OUTPUTS[outputId].packager, enabled: true }, outputId),
-  id: `packager-${outputId.replace(".", "-")}`,
-});
-
-const compileLegacy = (configuration: LegacyWorkflowConfiguration): Workflow => {
-  const steps = sourceSteps(configuration.source);
-  const enabledOutputs = [...new Set(configuration.outputs)];
-  steps.push(...enabledOutputs.map(legacyProducerStep));
-  for (const destination of configuration.destinations.filter((item) => item.enabled)) {
-    const definition = DESTINATIONS.find((item) => item.id === destination.id);
-    if (!definition) continue;
-    const outputIds = definition.outputs.filter((outputId) => enabledOutputs.includes(outputId));
-    if (!outputIds.length) continue;
-    if (destination.id === "pipelab-cloud") {
-      for (const outputId of outputIds) {
-        const producer = `packager-${outputId.replace(".", "-")}`;
-        steps.push({
-          id: `delivery-pipelab-cloud-${outputId.replaceAll(".", "-")}`,
-          uses: "pipelab-cloud:upload",
-          needs: [producer],
-          delivery: { destinationId: "pipelab-cloud", slotId: outputId },
-          with: {
-            version: "${{ variables.version }}",
-            outputId,
-            artifactOutput: outputId,
-            from: `\${{ steps.${producer}.outputs.output }}`,
-          },
-        });
-      }
-      continue;
-    }
-    steps.push({ id: `destination-${destination.id}`, uses: `${destination.id}:upload`, needs: outputIds.map((outputId) => `packager-${outputId.replace(".", "-")}`), with: { ...destination.with, version: "${{ variables.version }}", artifactOutputs: outputIds } });
-  }
-  return { version: 1, steps };
-};
-
-export const compileWorkflow = (configuration: LegacyWorkflowConfiguration | WorkflowConfigurationV2): Workflow => {
-  if (!("packagers" in configuration)) return compileLegacy(configuration);
+export const compileWorkflow = (configuration: WorkflowConfigurationV2): Workflow => {
   const steps = sourceSteps(configuration.source);
   const producers = new Map<string, string>();
   for (const packager of configuration.packagers.filter((item) => item.enabled)) {
@@ -136,12 +86,17 @@ export const compileWorkflow = (configuration: LegacyWorkflowConfiguration | Wor
         id: `delivery-${destination.id}-${slot.id}`,
         uses: destination.serviceId === "web-folder" ? "filesystem:copy" : destination.serviceId === "zip" ? "filesystem:zip" : `${destination.serviceId}:upload`,
         needs: [producer],
-        delivery: { destinationId: destination.id, slotId: slot.id },
+        delivery: {
+          destinationId: destination.id,
+          serviceId: destination.serviceId,
+          destinationName: SERVICE_DEFINITIONS[destination.serviceId as keyof typeof SERVICE_DEFINITIONS]?.label || destination.serviceId,
+          slotId: slot.id,
+          artifactOutputId: slot.input.outputId,
+        },
         with: {
-          ...(destination.config || {}), ...(slot.config || {}), artifactOutput: slot.input.outputId, packagerId: slot.input.packagerId, version: "${{ variables.version }}",
+          ...(destination.config || {}), ...(slot.config || {}), packagerId: slot.input.packagerId, version: "${{ variables.version }}",
           ...(destination.serviceId === "steam" ? { folder: `\${{ steps.${producer}.outputs.bundleDirectory }}` } : {}),
           ...(destination.serviceId === "itch" ? { "input-folder": `\${{ steps.${producer}.outputs.bundleDirectory }}` } : {}),
-          ...(destination.serviceId === "pipelab-cloud" ? { from: `\${{ steps.${producer}.outputs.output }}` } : {}),
           ...(destination.serviceId === "web-folder" ? { from: `\${{ steps.${producer}.outputs.output }}`, to: slot.config?.outputDir || destination.config?.outputDir, recursive: true } : {}),
           ...(destination.serviceId === "zip" ? { from: `\${{ steps.${producer}.outputs.output }}`, to: slot.config?.outputPath } : {}),
         },

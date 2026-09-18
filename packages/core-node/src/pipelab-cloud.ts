@@ -112,19 +112,15 @@ const invokeCloudWorker = async (
 
 export const createPipelabCloudUploadTask =
   (context: PipelabContext): WorkflowTask =>
-  async ({ inputs, log, signal }) => {
-    const sourcePath = inputs.from;
-    const artifactId = inputs.artifactId;
-    const artifactOutputId = inputs.artifactOutput;
-    const version = inputs.version;
-    if (typeof sourcePath !== "string" || !sourcePath)
-      throw new Error("Pipelab Cloud requires an artifact path");
-    if (typeof artifactId !== "string" || !artifactId)
-      throw new Error("Workflow did not provide an artifact ID");
-    if (typeof artifactOutputId !== "string" || !artifactOutputId)
-      throw new Error("Workflow did not provide an artifact output ID");
-    if (typeof version !== "string" || !version)
-      throw new Error("Workflow did not provide an artifact version");
+  async ({ delivery, log, signal }) => {
+    const artifact = delivery?.artifact;
+    if (!artifact) {
+      throw new Error("Pipelab Cloud upload requires a resolved workflow delivery artifact");
+    }
+    const { id: artifactId, outputId: artifactOutputId, version, path: sourcePath } = artifact;
+    if (!sourcePath || !artifactId || !artifactOutputId || !version) {
+      throw new Error("Pipelab Cloud upload received incomplete artifact metadata");
+    }
 
     const client = supabase({
       auth: {
