@@ -8,6 +8,15 @@
       active="runs"
     >
       <main v-if="entry" class="run-page">
+        <div class="run-navigation">
+          <Button
+            label="Back to runs"
+            icon="mdi mdi-arrow-left"
+            text
+            size="small"
+            @click="backToRuns"
+          />
+        </div>
         <Message v-if="error" severity="error" :closable="false" role="alert" class="run-error">{{
           error
         }}</Message>
@@ -45,6 +54,25 @@
         <Message v-if="entry.error" severity="error" :closable="false" class="run-error">{{
           entry.error.message
         }}</Message>
+        <section
+          v-if="playwrightVideoPath"
+          class="video-output"
+          aria-label="Playwright video output"
+        >
+          <i class="mdi mdi-video-outline" aria-hidden="true" />
+          <div class="video-path">
+            <strong>Playwright video output</strong>
+            <code>{{ playwrightVideoPath }}</code>
+            <small v-if="copyVideoFeedback" aria-live="polite">{{ copyVideoFeedback }}</small>
+          </div>
+          <Button
+            :label="videoCopied ? 'Copied' : 'Copy path'"
+            :icon="videoCopied ? 'pi pi-check' : 'pi pi-copy'"
+            text
+            size="small"
+            @click="copyVideoPath"
+          />
+        </section>
         <div class="run-summary" aria-label="Run summary">
           <span
             ><i class="mdi mdi-check-circle-outline" />{{ entry.completedSteps }}/{{
@@ -267,8 +295,21 @@ let timer: ReturnType<typeof setTimeout> | undefined;
 const shortId = computed(() =>
   entry.value?.id ? entry.value.id.slice(0, 8) : String(route.params.runId).slice(0, 8),
 );
-const flowId = computed(() => entry.value?.workflowId || String(route.params.flowId));
-const projectId = computed(() => entry.value?.pipelineId || String(route.params.projectId));
+const flowId = computed(() => String(route.params.flowId || entry.value?.workflowId || ""));
+const projectId = computed(() => String(route.params.projectId || entry.value?.pipelineId || ""));
+const playwrightVideoPath = computed(() => {
+  const messages = [
+    entry.value?.error?.message,
+    ...(entry.value?.steps || []).map((step) => step.error?.message),
+  ];
+  for (const message of messages) {
+    const match = message?.match(/PLAYWRIGHT_VIDEO:\s*([^\r\n]+)/i);
+    if (match?.[1]) return match[1].trim();
+  }
+  return "";
+});
+const videoCopied = ref(false);
+const copyVideoFeedback = ref("");
 const duration = computed(() =>
   entry.value
     ? formatDurationMs(
@@ -371,6 +412,30 @@ const destinationIcon = (id: string) =>
       ? "mdi mdi-controller-classic"
       : "mdi mdi-folder-upload-outline";
 const backToRuns = () => router.push(`/workflows/${flowId.value}/${projectId.value}/runs`);
+const copyVideoPath = async () => {
+  if (!playwrightVideoPath.value) return;
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(playwrightVideoPath.value);
+    } else {
+      const input = document.createElement("textarea");
+      input.value = playwrightVideoPath.value;
+      input.style.position = "fixed";
+      input.style.opacity = "0";
+      document.body.append(input);
+      input.select();
+      const copied = document.execCommand("copy");
+      input.remove();
+      if (!copied) throw new Error("Clipboard access is unavailable");
+    }
+    videoCopied.value = true;
+    copyVideoFeedback.value = "Video path copied to clipboard.";
+    window.setTimeout(() => (videoCopied.value = false), 2000);
+  } catch {
+    videoCopied.value = false;
+    copyVideoFeedback.value = "Could not copy automatically. Select the path above to copy it.";
+  }
+};
 const cancel = async () => {
   cancelling.value = true;
   try {
@@ -427,6 +492,42 @@ onUnmounted(() => {
 <style scoped>
 .run-page {
   color: var(--text-color);
+}
+.run-navigation {
+  margin: -8px 0 8px -8px;
+}
+.video-output {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid var(--p-surface-200, var(--surface-border));
+  border-radius: 8px;
+  background: var(--p-surface-50, var(--surface-ground));
+}
+.video-output > i {
+  color: var(--primary-color);
+  font-size: 20px;
+}
+.video-path {
+  display: grid;
+  flex: 1;
+  gap: 4px;
+  min-width: 0;
+}
+.video-path strong {
+  font-size: 0.82rem;
+}
+.video-path code {
+  overflow-wrap: anywhere;
+  color: var(--p-text-muted-color, var(--text-color-secondary));
+  font-size: 0.75rem;
+  user-select: all;
+}
+.video-path small {
+  color: var(--p-text-muted-color, var(--text-color-secondary));
+  font-size: 0.72rem;
 }
 .run-header {
   display: flex;
