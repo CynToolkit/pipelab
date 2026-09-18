@@ -141,6 +141,6 @@ export SUPABASE_URL="${API_URL:-${SUPABASE_URL:-}}"
 export SUPABASE_ANON_KEY="${ANON_KEY:-${PUBLISHABLE_KEY:-${SUPABASE_ANON_KEY:-}}}"
 : "${SUPABASE_URL:?Could not read local Supabase URL; run mise run local:setup first}"
 : "${SUPABASE_ANON_KEY:?Could not read local Supabase publishable key}"
-pnpm --filter @pipelab/ui dev
+pnpm --filter @pipelab/ui dev --host 0.0.0.0
 '''
 dir = "apps/ui"
