@@ -6,6 +6,7 @@ import {
   HeadObjectCommand,
   ListPartsCommand,
   PutObjectCommand,
+  GetObjectCommand,
   S3Client,
   UploadPartCommand,
 } from "@aws-sdk/client-s3";
@@ -340,6 +341,33 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
       });
       if (error) throw error;
       return json({ artifact });
+    }
+
+    if (body.action === "getArtifactDownloadUrl") {
+      const { hostedArtifactId } = body;
+      if (typeof hostedArtifactId !== "string" || !/^[0-9a-f-]{36}$/i.test(hostedArtifactId))
+        return json({ error: "Invalid hosted artifact ID" }, 422);
+      const { data: artifact, error } = await userClient
+        .from("hosted_artifacts")
+        .select(
+          "id, artifact_id, artifact_output_id, size, uploaded_at, expires_at, pinned, storage_key",
+        )
+        .eq("id", hostedArtifactId)
+        .maybeSingle();
+      if (error) throw error;
+      if (!artifact || (!artifact.pinned && new Date(artifact.expires_at).getTime() <= Date.now()))
+        return json({ error: "Hosted artifact is unavailable or expired" }, 404);
+      const url = await getSignedUrl(
+        storage.client,
+        new GetObjectCommand({
+          Bucket: storage.bucket,
+          Key: artifact.storage_key,
+          ResponseContentDisposition: "attachment",
+        }),
+        { expiresIn: 60 },
+      );
+      const { storage_key: _storageKey, ...metadata } = artifact;
+      return json({ artifact: metadata, downloadUrl: url });
     }
 
     return json({ error: "Unsupported action" }, 400);

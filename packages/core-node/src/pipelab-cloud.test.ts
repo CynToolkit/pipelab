@@ -52,7 +52,14 @@ describe("Pipelab Cloud artifact upload task", () => {
                 storageKey: "user/electron.windows/file.zip",
                 headers: { "content-type": "application/zip" },
               }
-            : { artifact: { expires_at: "2026-09-23T00:00:00Z" } };
+            : {
+                artifact: {
+                  id: "hosted-123",
+                  uploaded_at: "2026-09-16T00:00:00Z",
+                  expires_at: "2026-09-23T00:00:00Z",
+                  pinned: true,
+                },
+              };
         return Response.json(result);
       }
       return new Response(null, { status: 200 });
@@ -121,7 +128,7 @@ describe("Pipelab Cloud artifact upload task", () => {
         }),
       );
       expect(outputs).toMatchObject({
-        pinned: true,
+        cloud: { hostedArtifactId: "hosted-123", pinned: true, expiresAt: "2026-09-23T00:00:00Z" },
         artifactOutputId: "electron.windows",
         size: 13,
       });

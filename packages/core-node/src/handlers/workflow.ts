@@ -20,6 +20,7 @@ import { getReleaseHostCapabilities, migrateWorkflowConfig, validateWorkflowConf
 import type { BuildHistoryEntry, ExecutionStep, LogEntry } from "@pipelab/shared";
 import { BuildHistoryStorage } from "./build-history";
 import { WorkflowRunCancellationRegistry } from "./workflow-run-cancellation";
+import { getPipelabCloudDownloadUrl } from "../pipelab-cloud";
 
 const workflowHistoryArtifacts = (artifacts: WorkflowResult["artifacts"]): NonNullable<BuildHistoryEntry["artifacts"]> =>
   artifacts.map((artifact, index) => "outputId" in artifact ? {
@@ -35,6 +36,8 @@ const workflowHistoryArtifacts = (artifacts: WorkflowResult["artifacts"]): NonNu
     format: artifact.format,
     producerStep: artifact.producerStep,
     checksum: artifact.checksum,
+    local: { path: artifact.path },
+    cloud: artifact.cloud,
   } : {
     id: `workflow-artifact-${index}`,
     name: artifact.name,
@@ -275,7 +278,9 @@ export const executeWorkflow = async (
     if (event.type === "step.completed") {
       const artifacts = workflowHistoryArtifacts(event.artifacts);
       for (const artifact of artifacts) {
-        if (!liveArtifacts.some((existing) => existing.id === artifact.id)) liveArtifacts.push(artifact);
+        const existingIndex = liveArtifacts.findIndex((existing) => existing.id === artifact.id);
+        if (existingIndex < 0) liveArtifacts.push(artifact);
+        else liveArtifacts[existingIndex] = artifact;
       }
     }
     if (event.type === "step.completed" || event.type === "step.failed" || event.type === "step.skipped") {
@@ -413,6 +418,15 @@ export const registerWorkflowHandlers = (context: PipelabContext, pluginsReady?:
   const { handle } = useAPI();
   const { logger } = useLogger();
   const activeRuns = new WorkflowRunCancellationRegistry();
+
+  handle("pipelab-cloud:artifact-download-url", async (_, { send, value }) => {
+    try {
+      const url = await getPipelabCloudDownloadUrl(context, String(value?.hostedArtifactId || ""));
+      await send({ type: "end", data: { type: "success", result: { url } } });
+    } catch (error) {
+      await send({ type: "end", data: { type: "error", ipcError: error instanceof Error ? error.message : String(error) } });
+    }
+  });
 
   handle("workflow:capabilities:get", async (_, { send }) => {
     await send({

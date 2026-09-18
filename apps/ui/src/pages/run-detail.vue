@@ -221,7 +221,16 @@
               </div>
               <span>{{ artifactKind(artifact) }}</span>
               <span>{{ formatSize(artifact.size) }}</span>
-              <code :title="artifact.path">{{ artifact.path }}</code>
+              <span class="artifact-locations">
+                <Tag v-if="'path' in artifact && artifact.path" value="Local" severity="secondary" />
+                <Tag v-if="artifactCloud(artifact)" value="Cloud" severity="info" />
+                <Tag v-if="artifactCloud(artifact)?.pinned" value="Pinned" severity="success" />
+                <small v-else-if="artifactCloud(artifact)">{{ expiryLabel(artifactCloud(artifact)!.expiresAt) }}</small>
+              </span>
+              <div class="artifact-actions">
+                <Button v-if="'path' in artifact && artifact.path" label="Open" icon="mdi mdi-folder-open-outline" text size="small" :aria-label="`Open ${artifactTitle(artifact)}`" @click="openArtifact(artifact.path)" />
+                <Button v-if="artifactCloud(artifact)" label="Download" icon="mdi mdi-download" text size="small" :aria-label="`Download ${artifactTitle(artifact)}`" @click="downloadArtifact(artifactCloud(artifact)!.hostedArtifactId)" />
+              </div>
             </article>
           </div>
         </section>
@@ -392,10 +401,32 @@ const formatSize = (bytes?: number) => {
 };
 const artifactTitle = (artifact: NonNullable<BuildHistoryEntry["artifacts"]>[number]) =>
   artifactDisplayName(artifact);
+const artifactCloud = (artifact: NonNullable<BuildHistoryEntry["artifacts"]>[number]) =>
+  "cloud" in artifact ? artifact.cloud : undefined;
 const artifactDescription = (artifact: NonNullable<BuildHistoryEntry["artifacts"]>[number]) =>
   artifactDisplayDescription(artifact, entry.value?.steps || []);
 const artifactKind = (artifact: NonNullable<BuildHistoryEntry["artifacts"]>[number]) =>
   artifact.format || ("type" in artifact ? artifact.type : "Artifact");
+const expiryLabel = (expiresAt: string) => {
+  const days = Math.ceil((new Date(expiresAt).getTime() - Date.now()) / 86400000);
+  return days <= 0 ? "Expired" : `${days}d left`;
+};
+const openArtifact = async (path: string) => {
+  const response = await api.execute("shell:openPath", { path });
+  if (response.type === "error") error.value = response.ipcError;
+};
+const downloadArtifact = async (hostedArtifactId: string) => {
+  const response = await api.execute("pipelab-cloud:artifact-download-url", { hostedArtifactId });
+  if (response.type === "error") {
+    error.value = response.ipcError;
+    return;
+  }
+  const link = document.createElement("a");
+  link.href = response.result.url;
+  link.target = "_blank";
+  link.rel = "noopener noreferrer";
+  link.click();
+};
 const stepDuration = (step: ExecutionStep) =>
   step.duration != null
     ? formatDurationMs(step.duration)
@@ -928,7 +959,7 @@ onUnmounted(() => {
 }
 .artifact-row {
   display: grid;
-  grid-template-columns: 24px minmax(130px, 1fr) 100px 80px minmax(120px, 1.3fr);
+  grid-template-columns: 24px minmax(130px, 1fr) 100px 80px minmax(140px, auto) auto;
   align-items: center;
   gap: 12px;
   min-height: 58px;
@@ -946,8 +977,7 @@ onUnmounted(() => {
   min-width: 0;
 }
 .artifact-name strong,
-.artifact-name small,
-.artifact-row code {
+.artifact-name small {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -961,9 +991,14 @@ onUnmounted(() => {
 .artifact-row > span {
   color: var(--p-text-muted-color, var(--text-color-secondary));
 }
-.artifact-row code {
+.artifact-locations,
+.artifact-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.artifact-locations small {
   color: var(--p-text-muted-color, var(--text-color-secondary));
-  font-size: 0.72rem;
 }
 .delivery-group {
   border-bottom: 1px solid var(--p-surface-200, var(--surface-border));
@@ -1115,8 +1150,10 @@ onUnmounted(() => {
   .artifact-row > span:nth-of-type(2) {
     grid-column: 3;
   }
-  .artifact-row code {
+  .artifact-locations,
+  .artifact-actions {
     grid-column: 2 / -1;
+    flex-wrap: wrap;
   }
   .delivery-row {
     flex-wrap: wrap;
