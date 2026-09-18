@@ -30,6 +30,7 @@ jobs:
     outputs:
       affected: ${{ steps.detect.outputs.affected }}
       needs_build: ${{ steps.detect.outputs.needs_build }}
+      desktop_changed: ${{ steps.detect.outputs.desktop_changed }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -44,16 +45,12 @@ jobs:
         with:
           node-version: 24.15.0
 
+      - name: Test change detection
+        run: node --test scripts/detect-changes-logic.test.mjs
+
       - name: Detect Changes
         id: detect
         run: |
-          if [ "${{ github.ref_name }}" == "main" ] || [ "${{ github.ref_name }}" == "develop" ]; then
-            echo "affected=['ALL']" >> $GITHUB_OUTPUT
-            echo "needs_build=true" >> $GITHUB_OUTPUT
-            echo "Bypassing change detection for release branch: ${{ github.ref_name }}"
-            exit 0
-          fi
-
           if [ "${{ github.event_name }}" == "pull_request" ]; then
             BASE_REF="origin/${{ github.base_ref }}"
           else
@@ -67,12 +64,13 @@ jobs:
           fi
 
           echo "Comparing against: $BASE_REF"
+          git diff --name-only "$BASE_REF" HEAD > changed-files.txt
 
           # Use turbo to list affected packages
-          npx turbo ls -F "[$BASE_REF]" --output=json > affected.json
+          npx turbo ls -F "...[$BASE_REF]" --output=json > affected.json
 
           # Run our detection script
-          npx tsx scripts/detect-changes.ts affected.json
+          npx tsx scripts/detect-changes.ts affected.json changed-files.txt
 
   verify-lint:
     name: Verify Lint
@@ -99,7 +97,16 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-turbo-${{ github.job }}-
       - name: Lint
-        run: pnpm turbo lint --cache-dir=".turbo"
+        env:
+          AFFECTED_PACKAGES: ${{ needs.changes.outputs.affected }}
+        shell: bash
+        run: |
+          mapfile -t affected_packages < <(node -e 'JSON.parse(process.env.AFFECTED_PACKAGES).forEach((name) => console.log(name))')
+          filter_args=()
+          for package in "${affected_packages[@]}"; do
+            filter_args+=(--filter "$package")
+          done
+          pnpm turbo lint "${filter_args[@]}" --cache-dir=".turbo"
         continue-on-error: true
 
   verify-typecheck:
@@ -127,13 +134,24 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-turbo-${{ github.job }}-
       - name: Typecheck
-        run: pnpm turbo typecheck --cache-dir=".turbo"
+        env:
+          AFFECTED_PACKAGES: ${{ needs.changes.outputs.affected }}
+        shell: bash
+        run: |
+          mapfile -t affected_packages < <(node -e 'JSON.parse(process.env.AFFECTED_PACKAGES).forEach((name) => console.log(name))')
+          filter_args=()
+          for package in "${affected_packages[@]}"; do
+            filter_args+=(--filter "$package")
+          done
+          pnpm turbo typecheck "${filter_args[@]}" --concurrency=2 --cache-dir=".turbo"
         continue-on-error: true
 
   build-all:
     name: Build All
     needs: [verify-lint, verify-typecheck, test-matrix, changes]
-    if: needs.changes.outputs.affected != '[]' && needs.changes.outputs.needs_build == 'true'
+    if: |
+      needs.changes.outputs.affected != '[]' &&
+      (needs.changes.outputs.needs_build == 'true' || needs.changes.outputs.desktop_changed == 'true')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -160,7 +178,7 @@ jobs:
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
           SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
           POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
-        run: pnpm build --cache-dir=".turbo"
+        run: pnpm build --concurrency=2 --cache-dir=".turbo"
       - name: Upload monorepo-dist
         uses: actions/upload-artifact@v4
         with:
@@ -171,6 +189,93 @@ jobs:
             apps/*/dist/**
             apps/desktop/.vite/**
             apps/ui/dist/**
+
+  deploy-website:
+    name: Deploy Website
+    needs: [build-all, changes]
+    if: |
+      needs.build-all.result == 'success' &&
+      contains(fromJson(needs.changes.outputs.affected), '@pipelab/website') &&
+      github.event_name == 'push' &&
+      (github.ref_name == 'main' || github.ref_name == 'develop')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      deployments: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - name: Use Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.15.0
+
+      - name: Download monorepo-dist
+        uses: actions/download-artifact@v4
+        with:
+          name: monorepo-dist
+          path: .
+
+      - name: Validate Cloudflare deployment configuration
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_PAGES_PROJECT_NAME: ${{ secrets.CLOUDFLARE_PAGES_PROJECT_NAME }}
+        run: |
+          : "${CLOUDFLARE_API_TOKEN:?CLOUDFLARE_API_TOKEN repository secret is required}"
+          : "${CLOUDFLARE_ACCOUNT_ID:?CLOUDFLARE_ACCOUNT_ID repository secret is required}"
+          : "${CLOUDFLARE_PAGES_PROJECT_NAME:?CLOUDFLARE_PAGES_PROJECT_NAME repository variable is required}"
+
+      - name: Deploy website to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+          command: pages deploy apps/website/dist --project-name=${{ secrets.CLOUDFLARE_PAGES_PROJECT_NAME }} --branch=${{ github.ref_name }}
+
+  deploy-editor-ui:
+    name: Deploy Editor UI
+    needs: [build-all, changes]
+    if: |
+      needs.build-all.result == 'success' &&
+      contains(fromJson(needs.changes.outputs.affected), '@pipelab/ui') &&
+      github.event_name == 'push' &&
+      (github.ref_name == 'main' || github.ref_name == 'develop')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      deployments: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download monorepo-dist
+        uses: actions/download-artifact@v4
+        with:
+          name: monorepo-dist
+          path: .
+
+      - name: Validate Cloudflare deployment configuration
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_EDITOR_UI_PROJECT_NAME: ${{ secrets.CLOUDFLARE_EDITOR_UI_PROJECT_NAME }}
+        run: |
+          : "${CLOUDFLARE_API_TOKEN:?CLOUDFLARE_API_TOKEN repository secret is required}"
+          : "${CLOUDFLARE_ACCOUNT_ID:?CLOUDFLARE_ACCOUNT_ID repository secret is required}"
+          : "${CLOUDFLARE_EDITOR_UI_PROJECT_NAME:?CLOUDFLARE_EDITOR_UI_PROJECT_NAME repository variable is required}"
+
+      - name: Deploy editor UI to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+          command: pages deploy apps/ui/dist --project-name=${{ secrets.CLOUDFLARE_EDITOR_UI_PROJECT_NAME }} --branch=${{ github.ref_name }}
 
   # [DISABLED] publish-preview is disabled in bundled mode — npm publishing is off.
   # Original job body preserved below as comments. Re-enable: delete the echo step
@@ -224,6 +329,9 @@ jobs:
       needs.verify-lint.result == 'success' &&
       needs.verify-typecheck.result == 'success' &&
       needs.test-matrix.result == 'success' &&
+      (((needs.changes.outputs.desktop_changed == 'true') &&
+        contains(fromJson(needs.changes.outputs.affected), '@pipelab/app')) ||
+        github.event.inputs.forcePublish == 'true') &&
       (github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'develop')))
     runs-on: ubuntu-latest
@@ -348,7 +456,9 @@ jobs:
       always() &&
       (needs.build-all.result == 'success') &&
       (needs.test-matrix.result == 'success' || needs.test-matrix.result == 'skipped') &&
-      (contains(needs.changes.outputs.affected, 'ALL') || contains(fromJson(needs.changes.outputs.affected), '@pipelab/app') || github.event.inputs.forcePublish == 'true')
+      (((needs.changes.outputs.desktop_changed == 'true') &&
+        contains(fromJson(needs.changes.outputs.affected), '@pipelab/app')) ||
+        github.event.inputs.forcePublish == 'true')
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -458,4 +568,13 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-turbo-${{ github.job }}-
       - name: Run Tests
-        run: pnpm turbo test --cache-dir=".turbo" --log-order=grouped --concurrency 1
+        env:
+          AFFECTED_PACKAGES: ${{ needs.changes.outputs.affected }}
+        shell: bash
+        run: |
+          mapfile -t affected_packages < <(node -e 'JSON.parse(process.env.AFFECTED_PACKAGES).forEach((name) => console.log(name))')
+          filter_args=()
+          for package in "${affected_packages[@]}"; do
+            filter_args+=(--filter "$package")
+          done
+          pnpm turbo test "${filter_args[@]}" --cache-dir=".turbo" --log-order=grouped --concurrency 1
