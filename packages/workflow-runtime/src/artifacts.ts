@@ -27,6 +27,10 @@ export interface ArtifactInstance {
   readonly architecture: ArtifactOutputDefinition["architecture"];
   readonly format: ArtifactOutputDefinition["format"];
   readonly path: string;
+  readonly cloud?: {
+    readonly hostedArtifactId: string;
+    readonly uploadedAt: string;
+  };
   readonly producerStep: string;
   readonly checksum?: string;
   readonly size?: number;

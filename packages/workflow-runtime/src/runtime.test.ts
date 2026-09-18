@@ -460,6 +460,48 @@ describe("workflow artifact instances", () => {
     },
   );
 
+  it("attaches cloud metadata to the produced artifact after a successful delivery", async () => {
+    const result = await runWorkflow(
+      {
+        version: 1,
+        steps: [
+          { id: "build", uses: "test:build" },
+          {
+            id: "upload",
+            uses: "test:upload",
+            needs: ["build"],
+            delivery: {
+              destinationId: "cloud",
+              slotId: "windows",
+              artifactOutputId: "electron.windows",
+              producerStep: "build",
+            },
+          },
+        ],
+      },
+      {
+        host: makeHost(),
+        version: "1.4.0",
+        buildId: "cloud-123",
+        tasks: {
+          "test:build": async ({ setArtifact }) => setArtifact("electron.windows", "/game.zip"),
+          "test:upload": async () => ({
+            cloud: {
+              hostedArtifactId: "hosted-123",
+              uploadedAt: "2026-09-18T00:00:00.000Z",
+            },
+          }),
+        },
+      },
+    );
+
+    expect(result.artifacts).toHaveLength(1);
+    expect(result.artifacts[0]).toMatchObject({
+      id: "artifact-cloud-123-0",
+      cloud: { hostedArtifactId: "hosted-123", uploadedAt: "2026-09-18T00:00:00.000Z" },
+    });
+  });
+
   it("fails a delivery before invoking its task when the artifact was not produced", async () => {
     let deliveryTaskRan = false;
     const result = await runWorkflow(

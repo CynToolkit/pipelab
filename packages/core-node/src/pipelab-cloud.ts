@@ -110,6 +110,34 @@ const invokeCloudWorker = async (
   return data;
 };
 
+export const getPipelabCloudDownloadUrl = async (
+  context: PipelabContext,
+  hostedArtifactId: string,
+) => {
+  const client = supabase({
+    auth: {
+      storage: new JsonFileStorage("auth-session.json", context),
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: false,
+    },
+  });
+  if (!client) throw new Error("Pipelab Cloud is not configured");
+  const {
+    data: { session },
+    error,
+  } = await client.auth.getSession();
+  if (error || !session?.access_token || session.user.is_anonymous)
+    throw new Error("Sign in to your Pipelab account to download hosted artifacts");
+  const response = await invokeCloudWorker(getCloudWorkerUrl(), session.access_token, {
+    action: "getArtifactDownloadUrl",
+    hostedArtifactId,
+  });
+  const url = (response as { downloadUrl?: unknown } | null)?.downloadUrl;
+  if (typeof url !== "string") throw new Error("Pipelab Cloud returned an invalid download URL");
+  return url;
+};
+
 export const createPipelabCloudUploadTask =
   (context: PipelabContext): WorkflowTask =>
   async ({ delivery, log, signal }) => {
@@ -271,8 +299,18 @@ export const createPipelabCloudUploadTask =
             : "Could not save Pipelab Cloud metadata";
         throw new Error(message);
       }
-      const artifact = (completionData as { artifact?: { expires_at?: string } } | null)?.artifact;
-      log(`${artifactOutputId} uploaded and pinned as the latest artifact for this output`);
+      const uploaded = (completionData as { artifact?: { id?: string; uploaded_at?: string } } | null)
+        ?.artifact;
+      if (
+        typeof uploaded?.id !== "string" ||
+        !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(uploaded.id)
+      ) {
+        throw new Error("Pipelab Cloud did not return a valid hosted artifact ID");
+      }
+      if (typeof uploaded.uploaded_at !== "string" || !Number.isFinite(Date.parse(uploaded.uploaded_at))) {
+        throw new Error("Pipelab Cloud did not return a valid upload timestamp");
+      }
+      log(`${artifactOutputId} uploaded to Pipelab Cloud`);
 
       return {
         artifactId,
@@ -280,8 +318,10 @@ export const createPipelabCloudUploadTask =
         size,
         checksum,
         storageKey: prepared.storageKey,
-        expiresAt: artifact?.expires_at,
-        pinned: true,
+        cloud: {
+          hostedArtifactId: uploaded.id,
+          uploadedAt: uploaded.uploaded_at,
+        },
       };
     } finally {
       if (temporaryDirectory) await rm(temporaryDirectory, { recursive: true, force: true });

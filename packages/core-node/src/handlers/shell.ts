@@ -2,10 +2,45 @@ import { useAPI } from "../ipc-core";
 import { useLogger } from "@pipelab/shared";
 import { PipelabContext } from "../context";
 import { homedir } from "node:os";
+import { execFile } from "node:child_process";
+import { isAbsolute, relative, resolve, sep } from "node:path";
 
-export const registerShellHandlers = (_context: PipelabContext) => {
+export const registerShellHandlers = (context: PipelabContext) => {
   const { handle } = useAPI();
   const { logger } = useLogger();
+
+  handle("shell:openPath", async (_, { value, send }) => {
+    const path = typeof value?.path === "string" ? value.path : "";
+    const artifactRoot = resolve(context.getArtifactsPath());
+    const artifactPath = resolve(path);
+    const pathFromRoot = relative(artifactRoot, artifactPath);
+    if (
+      !path ||
+      !isAbsolute(path) ||
+      pathFromRoot === ".." ||
+      pathFromRoot.startsWith(`..${sep}`) ||
+      isAbsolute(pathFromRoot)
+    ) {
+      await send({
+        type: "end",
+        data: { type: "error", ipcError: "Only local artifact paths can be opened" },
+      });
+      return;
+    }
+    const command =
+      process.platform === "win32"
+        ? "explorer.exe"
+        : process.platform === "darwin"
+          ? "open"
+          : "xdg-open";
+    execFile(command, [artifactPath], (error) => {
+      void send(
+        error
+          ? { type: "end", data: { type: "error", ipcError: error.message } }
+          : { type: "end", data: { type: "success", result: undefined } },
+      );
+    });
+  });
 
   handle("dialog:showOpenDialog", async (event, { value, send }) => {
     logger().info("value", value);

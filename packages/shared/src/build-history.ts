@@ -54,6 +54,10 @@ export interface Artifact {
   format?: WorkflowArtifactInstance["format"];
   producerStep?: string;
   checksum?: string;
+  cloud?: {
+    hostedArtifactId: string;
+    uploadedAt: string;
+  };
 }
 
 export interface BuildHistoryEntry {

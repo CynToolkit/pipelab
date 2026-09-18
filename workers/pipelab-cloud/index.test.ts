@@ -5,12 +5,14 @@ const mocks = vi.hoisted(() => ({
   rpc: vi.fn(),
   send: vi.fn(),
   getSignedUrl: vi.fn(),
+  from: vi.fn(),
 }));
 
 vi.mock("@supabase/supabase-js", () => ({
   createClient: vi.fn(() => ({
     auth: { getUser: mocks.getUser },
     rpc: mocks.rpc,
+    from: mocks.from,
   })),
 }));
 
@@ -32,6 +34,7 @@ vi.mock("@aws-sdk/client-s3", () => {
     HeadObjectCommand: makeCommand("HeadObjectCommand"),
     ListPartsCommand: makeCommand("ListPartsCommand"),
     PutObjectCommand: makeCommand("PutObjectCommand"),
+    GetObjectCommand: makeCommand("GetObjectCommand"),
     UploadPartCommand: makeCommand("UploadPartCommand"),
   };
 });
@@ -67,6 +70,25 @@ describe("Pipelab Cloud Worker", () => {
       error: null,
     });
     mocks.rpc.mockResolvedValue({ data: null, error: null });
+    mocks.from.mockReturnValue({
+      select: vi.fn(() => ({
+        eq: vi.fn(() => ({
+          maybeSingle: vi.fn(async () => ({
+            data: {
+              id: "00000000-0000-4000-8000-000000000001",
+              artifact_id: "build-1",
+              artifact_output_id: "electron.windows",
+              size: 42,
+              uploaded_at: "2026-09-18T00:00:00Z",
+              expires_at: "2026-09-25T00:00:00Z",
+              pinned: true,
+              storage_key: "user-1/electron.windows/build.zip",
+            },
+            error: null,
+          })),
+        })),
+      })),
+    });
     mocks.getSignedUrl.mockResolvedValue(
       "http://127.0.0.1:8787/pipelab-cloud-local/user-1/electron.windows/build.zip",
     );
@@ -128,6 +150,25 @@ describe("Pipelab Cloud Worker", () => {
       uploadUrl: expect.stringContaining("127.0.0.1:8787"),
       headers: { "content-type": "application/zip", "x-amz-meta-ownerid": "user-1" },
     });
+    expect(mocks.getSignedUrl).toHaveBeenCalledOnce();
+  });
+
+  it("returns a short-lived signed URL for an owned hosted artifact without exposing its storage key", async () => {
+    const response = await handleRequest(
+      authorizedRequest({
+        action: "getArtifactDownloadUrl",
+        hostedArtifactId: "00000000-0000-4000-8000-000000000001",
+      }),
+      env,
+    );
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body).toMatchObject({
+      downloadUrl: expect.stringContaining("127.0.0.1:8787"),
+      artifact: { id: "00000000-0000-4000-8000-000000000001", pinned: true },
+    });
+    expect(JSON.stringify(body)).not.toContain("storage_key");
     expect(mocks.getSignedUrl).toHaveBeenCalledOnce();
   });
 

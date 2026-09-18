@@ -294,6 +294,16 @@ export const runWorkflow = async (
         if (!isRecord(result))
           throw new Error(`Workflow task ${step.uses} returned invalid outputs`);
 
+        const cloud = result.cloud as WorkflowArtifactInstance["cloud"] | undefined;
+        if (deliveryArtifact && cloud && typeof cloud.hostedArtifactId === "string") {
+          const updatedArtifact = Object.freeze({ ...deliveryArtifact, cloud });
+          const artifactIndex = artifacts.findIndex((artifact) =>
+            "outputId" in artifact && artifact.id === deliveryArtifact.id,
+          );
+          if (artifactIndex >= 0) artifacts[artifactIndex] = updatedArtifact;
+          stepArtifacts.push(updatedArtifact);
+        }
+
         const completedAt = Date.now();
         const stepResult: WorkflowStepResult = {
           id: step.id,
@@ -322,7 +332,13 @@ export const runWorkflow = async (
         }
         outputs[step.id] = result;
         steps[step.id] = stepResult;
-        artifacts.push(...stepArtifacts);
+        for (const artifact of stepArtifacts) {
+          const existingIndex = "outputId" in artifact
+            ? artifacts.findIndex((existing) => "outputId" in existing && existing.id === artifact.id)
+            : -1;
+          if (existingIndex >= 0) artifacts[existingIndex] = artifact;
+          else artifacts.push(artifact);
+        }
         emit({
           type: "step.completed",
           stepId: step.id,

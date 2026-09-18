@@ -142,6 +142,7 @@ export type IpcDefinition = {
   "fs:getRoots": [void, EndEvent<{ roots: { name: string; path: string }[] }>];
   "fs:isPathBlacklisted": [{ path: string }, EndEvent<{ isBlacklisted: boolean }>];
   "fs:getHomeDirectory": [void, EndEvent<{ path: string }>];
+  "shell:openPath": [{ path: string }, EndEvent<void>];
   "dialog:showOpenDialog": [
     // input
     Electron.OpenDialogOptions,
@@ -205,6 +206,7 @@ export type IpcDefinition = {
     ),
   ];
   "workflow:cancel": [{ runId: string }, EndEvent<{ result: "ok" | "ko" }>];
+  "pipelab-cloud:artifact-download-url": [{ hostedArtifactId: string }, EndEvent<{ url: string }>];
   "action:cancel": [void, EndEvent<{ result: "ok" | "ko" }>];
 
   // Build History APIs
@@ -308,7 +310,11 @@ export type IpcDefinition = {
 
 export type Channels = keyof IpcDefinition;
 
-export const ShellChannels: Channels[] = ["dialog:showOpenDialog", "dialog:showSaveDialog"];
+export const ShellChannels: Channels[] = [
+  "dialog:showOpenDialog",
+  "dialog:showSaveDialog",
+  "shell:openPath",
+];
 
 export type Data<KEY extends Channels> = IpcDefinition[KEY][0];
 export type Events<KEY extends Channels> = IpcDefinition[KEY][1];
