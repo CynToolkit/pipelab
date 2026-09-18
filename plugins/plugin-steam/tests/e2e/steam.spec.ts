@@ -10,7 +10,7 @@ vi.mock("@pipelab/plugin-core", async (importOriginal) => {
   return {
     ...actual,
     runWithLiveLogs: vi.fn(async (...args: Parameters<typeof actual.runWithLiveLogs>) => {
-      args[4]?.onStdout?.("Authenticated");
+      if (args[1].includes("+run_app_build")) args[4]?.onStdout?.("Authenticated");
     }),
   };
 });
@@ -67,7 +67,9 @@ describe("End-to-End: Steam Integration", () => {
       expect(outputs["output-folder"]).toBeDefined();
       expect(outputs["status"]).toBe("success");
       expect(runWithLiveLogs).toHaveBeenCalled();
-      const invocation = vi.mocked(runWithLiveLogs).mock.calls[0];
+      const invocation = vi
+        .mocked(runWithLiveLogs)
+        .mock.calls.find((call) => call[1].includes("+run_app_build"));
       expect(invocation?.[0]).toContain(isWindows ? "steamcmd.exe" : "steamcmd.sh");
       expect(invocation?.[1]).toEqual([
         "+login",
