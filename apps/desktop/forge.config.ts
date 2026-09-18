@@ -94,7 +94,8 @@ async function renameInstallers(platform: string, arch: string) {
 
 const productName = getProductName(version);
 const bundleId = getAppBundleId(version);
-const enableMacSigning = process.env.GITHUB_EVENT_NAME !== "pull_request";
+const isPullRequestBuild = process.env.GITHUB_EVENT_NAME === "pull_request";
+const enableMacSigning = !isPullRequestBuild;
 
 const config: ForgeConfig = {
   outDir: path.resolve(__dirname, "../out"),
@@ -136,7 +137,9 @@ const config: ForgeConfig = {
       setupIcon: path.join(__dirname, "assets/build/icon.ico"),
     }),
     new MakerZIP(undefined, ["linux", "win32"]),
-    new MakerDMG({ name: productName }),
+    ...(isPullRequestBuild
+      ? [new MakerZIP(undefined, ["darwin"])]
+      : [new MakerDMG({ name: productName })]),
   ],
   publishers: [
     {
