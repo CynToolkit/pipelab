@@ -145,8 +145,10 @@ describe("runWorkflow", () => {
       "workflow.started",
       "step.started",
       "step.failed",
+      "step.skipped",
       "workflow.failed",
     ]);
+    expect(events).toContainEqual(expect.objectContaining({ type: "step.skipped", stepId: "never", blockedBy: ["fail"] }));
   });
 
   it("runs ready dependency branches concurrently", async () => {
@@ -223,26 +225,37 @@ describe("runWorkflow", () => {
     expect(events.some((event) => event.type === "step.skipped")).toBe(true);
   });
 
-  it("stops further runnable work after a failure when continueOnError is false", async () => {
+  it.each([
+    { policy: "explicit false", continueOnError: false },
+    { policy: "omitted", continueOnError: undefined },
+  ])("stops scheduling after a failure with $policy while ready siblings finish", async ({ continueOnError }) => {
     const ran: string[] = [];
     const events: WorkflowEvent[] = [];
-    await expect(runWorkflow({
-      version: 1, continueOnError: false,
+    const failure = new Error("original failure");
+    const workflow: Workflow = {
+      version: 1,
+      ...(continueOnError === undefined ? {} : { continueOnError }),
       steps: [
         { id: "fail", uses: "test:fail", needs: [] },
-        { id: "later", uses: "test:later", needs: [] },
+        { id: "sibling", uses: "test:sibling", needs: [] },
+        { id: "downstream", uses: "test:downstream", needs: ["sibling"] },
       ],
-    }, {
-      host: makeHost(), onEvent: (event) => events.push(event),
-      tasks: {
-        "test:fail": async () => { ran.push("fail"); throw new Error("failed"); },
-        "test:later": async () => { ran.push("later"); },
-      },
-    })).rejects.toThrow("failed");
+    };
 
-    expect(ran).toEqual(["fail"]);
+    await expect(runWorkflow(workflow, {
+      host: makeHost(),
+      onEvent: (event) => events.push(event),
+      tasks: {
+        "test:fail": async () => { ran.push("fail"); throw failure; },
+        "test:sibling": async () => { ran.push("sibling"); return { finished: true }; },
+        "test:downstream": async () => { ran.push("downstream"); },
+      },
+    })).rejects.toBe(failure);
+
+    expect(ran).toEqual(["fail", "sibling"]);
     expect(events).toContainEqual(expect.objectContaining({ type: "step.failed", stepId: "fail" }));
-    expect(events).toContainEqual(expect.objectContaining({ type: "step.skipped", stepId: "later", blockedBy: ["fail"] }));
+    expect(events).toContainEqual(expect.objectContaining({ type: "step.completed", stepId: "sibling" }));
+    expect(events).toContainEqual(expect.objectContaining({ type: "step.skipped", stepId: "downstream", blockedBy: ["fail"] }));
   });
 });
 

@@ -34,3 +34,7 @@ definition order by default; add `needs` to declare dependencies explicitly
 and allow independent steps to run concurrently. The runtime also exposes
 `fs:run` as a built-in task. Set `continueOnError` to keep independent
 branches running after a failure; dependent steps are reported as skipped.
+When `continueOnError` is false or omitted, the runtime stops scheduling new
+work after a failed ready batch and marks remaining steps as skipped. Steps
+already running in that batch finish first, so independent branches remain
+parallel; this policy stops later work without serializing ready steps.

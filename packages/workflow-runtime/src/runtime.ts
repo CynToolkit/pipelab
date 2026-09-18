@@ -213,7 +213,7 @@ export const runWorkflow = async (
   try {
     const pending = new Set(workflow.steps.map((step) => step.id));
     const continueOnError = workflow.continueOnError ?? false;
-    const failFast = workflow.continueOnError === false;
+    const failFast = !continueOnError;
 
     const runStep = async (step: WorkflowStep): Promise<void> => {
       const stepStartedAt = Date.now();
@@ -428,35 +428,33 @@ export const runWorkflow = async (
         throw new Error("Workflow dependencies contain a cycle");
       }
 
-      const batch = failFast ? ready.slice(0, 1) : ready;
+      const batch = ready;
       const results = await Promise.allSettled(batch.map((step) => runStep(step)));
       batch.forEach((step) => pending.delete(step.id));
 
       const failure = results.find(
         (result): result is PromiseRejectedResult => result.status === "rejected",
       );
-      if (failure && !continueOnError) {
-        if (failFast) {
-          const failedStepId = batch[results.findIndex((result) => result.status === "rejected")].id;
-          const now = Date.now();
-          for (const step of workflow.steps) {
-            if (!pending.has(step.id)) continue;
-            const skippedStep: WorkflowStepResult = {
-              id: step.id, uses: step.uses, status: "skipped", outputs: {}, artifacts: [],
-              startedAt: now, completedAt: now, duration: 0, blockedBy: [failedStepId],
-            };
-            if (step.delivery) skippedStep.delivery = {
-              id: step.id, destinationId: step.delivery.destinationId,
-              ...(step.delivery.serviceId ? { serviceId: step.delivery.serviceId } : {}),
-              ...(step.delivery.destinationName ? { destinationName: step.delivery.destinationName } : {}),
-              slotId: step.delivery.slotId, producerStep: step.delivery.producerStep, artifactId: "",
-              status: "failed", startedAt: now, completedAt: now, duration: 0,
-              error: `Skipped after ${failedStepId} failed`,
-            };
-            steps[step.id] = skippedStep;
-            pending.delete(step.id);
-            emit({ type: "step.skipped", stepId: step.id, uses: step.uses, blockedBy: [failedStepId] });
-          }
+      if (failure && failFast) {
+        const failedStepId = batch[results.findIndex((result) => result.status === "rejected")].id;
+        const now = Date.now();
+        for (const step of workflow.steps) {
+          if (!pending.has(step.id)) continue;
+          const skippedStep: WorkflowStepResult = {
+            id: step.id, uses: step.uses, status: "skipped", outputs: {}, artifacts: [],
+            startedAt: now, completedAt: now, duration: 0, blockedBy: [failedStepId],
+          };
+          if (step.delivery) skippedStep.delivery = {
+            id: step.id, destinationId: step.delivery.destinationId,
+            ...(step.delivery.serviceId ? { serviceId: step.delivery.serviceId } : {}),
+            ...(step.delivery.destinationName ? { destinationName: step.delivery.destinationName } : {}),
+            slotId: step.delivery.slotId, producerStep: step.delivery.producerStep, artifactId: "",
+            status: "failed", startedAt: now, completedAt: now, duration: 0,
+            error: `Skipped after ${failedStepId} failed`,
+          };
+          steps[step.id] = skippedStep;
+          pending.delete(step.id);
+          emit({ type: "step.skipped", stepId: step.id, uses: step.uses, blockedBy: [failedStepId] });
         }
         throw failure.reason;
       }
