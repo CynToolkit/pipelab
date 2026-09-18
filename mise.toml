@@ -18,7 +18,7 @@ run = "pnpm --filter @pipelab/cli start -- stop"
 env = { NODE_ENV = "development" }
 
 [tasks.local]
-description = "Start the local desktop stack or UI only"
+description = "Start local Supabase and workers with the desktop app or standalone UI"
 run = '''
 #!/usr/bin/env bash
 set -euo pipefail
@@ -26,14 +26,15 @@ set -euo pipefail
 target="${1:-desktop}"
 case "$target" in
   ui)
-    pnpm --filter @pipelab/ui dev
+    mise run local:setup
+    mise run local:r2 ::: local:api ::: local:ui
     ;;
   desktop)
     mise run local:setup
     mise run local:r2 ::: local:api ::: local:app
     ;;
   *)
-    echo "Usage: mise run local [desktop|ui]" >&2
+    echo "Usage: mise run local [desktop|ui] (both modes start Supabase and local workers)" >&2
     exit 2
     ;;
 esac
@@ -130,3 +131,16 @@ local_service_role_key="${SERVICE_ROLE_KEY:-${SECRET_KEY:-${SUPABASE_SERVICE_ROL
 doppler run -- env SUPABASE_URL="$local_supabase_url" SUPABASE_ANON_KEY="$local_anon_key" SUPABASE_SERVICE_ROLE_KEY="$local_service_role_key" PIPELAB_CLOUD_WORKER_URL="http://127.0.0.1:8788" pnpm dev
 '''
 dir = "apps/desktop"
+
+[tasks."local:ui"]
+description = "Run the standalone UI against local Supabase"
+run = '''
+set -eu
+eval "$(supabase status --output env)"
+export SUPABASE_URL="${API_URL:-${SUPABASE_URL:-}}"
+export SUPABASE_ANON_KEY="${ANON_KEY:-${PUBLISHABLE_KEY:-${SUPABASE_ANON_KEY:-}}}"
+: "${SUPABASE_URL:?Could not read local Supabase URL; run mise run local:setup first}"
+: "${SUPABASE_ANON_KEY:?Could not read local Supabase publishable key}"
+pnpm --filter @pipelab/ui dev
+'''
+dir = "apps/ui"
