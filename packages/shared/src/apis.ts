@@ -15,6 +15,7 @@ export type BrowserProfileCandidate = {
   path: string;
   isDefault: boolean;
   addonCount: number | null;
+  authStatus?: "authenticated" | "not-authenticated" | "unknown";
   lastUpdatedAt: number | null;
   score: number | null;
   usable: boolean;

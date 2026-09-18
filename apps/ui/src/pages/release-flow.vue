@@ -302,7 +302,19 @@ const failureOptions = [
   { label: "Continue independent destinations", value: true },
   { label: "Stop on failure", value: false },
 ];
-const browserProfiles = computed(() => profileCandidates.value.map((p) => ({ ...p, disabled: !p.usable, label: `${p.browser} — ${p.profileName} (${p.addonCount ?? "?"} addons${p.score !== null ? `, score ${p.score}` : ", unavailable"})` })));
+const profileAuthLabel = (status?: BrowserProfileCandidate["authStatus"]) =>
+  status === "authenticated"
+    ? "signed in"
+    : status === "not-authenticated"
+      ? "not signed in"
+      : "auth unknown";
+const browserProfiles = computed(() =>
+  profileCandidates.value.map((profile) => ({
+    ...profile,
+    disabled: !profile.usable,
+    label: `${profile.browser} — ${profile.profileName} (${profile.addonCount ?? "?"} addons · ${profileAuthLabel(profile.authStatus)}${profile.score !== null ? ` · score ${profile.score}` : " · unavailable"})`,
+  })),
+);
 const steamAccountConnections = computed(() =>
   connections.value.filter(
     (c) => c.pluginName === "@pipelab/plugin-steam" && c.integrationName === "Steam Account",

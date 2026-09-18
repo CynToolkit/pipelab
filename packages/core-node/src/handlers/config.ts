@@ -20,6 +20,7 @@ import { PipelabContext } from "../context";
 import { discoverBrowserProfiles, inspectChromiumProfile } from "@pipelab/plugin-construct";
 
 export const registerConfigHandlers = (context: PipelabContext) => {
+  process.env.PLAYWRIGHT_BROWSERS_PATH ||= context.getThirdPartyPath("playwright-browsers");
   const { handle } = useAPI();
   const { logger } = useLogger();
 
