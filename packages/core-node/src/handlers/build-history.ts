@@ -143,6 +143,38 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
     }
   }
 
+  async reconcileInterruptedRuns(timestamp = Date.now()): Promise<number> {
+    const interrupted = (await this.getAll()).filter((entry) => entry.status === "running");
+    for (const entry of interrupted) {
+      const interruption = "Execution was interrupted because the app or backend stopped before the run finished.";
+      const steps = entry.steps.map((step) => {
+        if (step.status === "running") {
+          return {
+            ...step,
+            status: "failed" as const,
+            endTime: timestamp,
+            duration: Math.max(0, timestamp - step.startTime),
+            error: { message: interruption, code: "INTERRUPTED", timestamp },
+          };
+        }
+        if (step.status === "pending") {
+          return { ...step, status: "cancelled" as const, endTime: timestamp, duration: 0 };
+        }
+        return step;
+      });
+      await this.update(entry.id, {
+        status: "failed",
+        endTime: timestamp,
+        duration: Math.max(0, timestamp - entry.startTime),
+        failedSteps: steps.filter((step) => step.status === "failed" || step.status === "skipped").length,
+        cancelledSteps: steps.filter((step) => step.status === "cancelled").length,
+        steps,
+        error: { message: interruption, code: "INTERRUPTED", timestamp },
+      }, entry.pipelineId);
+    }
+    return interrupted.length;
+  }
+
   async getByPipeline(pipelineId: string): Promise<BuildHistoryEntry[]> {
     try {
       const entries = await this.loadPipelineHistory(pipelineId);

@@ -19,6 +19,37 @@ afterEach(async () => {
 });
 
 describe("BuildHistoryStorage workflow runs", () => {
+  it("marks persisted running entries interrupted during startup recovery", async () => {
+    const root = await mkdtemp(join(tmpdir(), "pipelab-runs-"));
+    workspaces.push(root);
+    const storage = new BuildHistoryStorage(new PipelabContext({ userDataPath: root }));
+    await storage.save({
+      ...entry("run-active", "workflow-a", 10),
+      steps: [
+        { id: "done", name: "Prepare project files", status: "completed", startTime: 11, endTime: 20, duration: 9, logs: [] },
+        { id: "running", name: "Electron · Windows x64", status: "running", startTime: 21, logs: [] },
+        { id: "pending", name: "Steam · Windows x64", status: "pending", startTime: 10, logs: [] },
+      ],
+    });
+    await storage.save({ ...entry("run-done", "workflow-a", 5), status: "completed" });
+
+    await storage.reconcileInterruptedRuns(50);
+
+    const recovered = await storage.get("run-active", "project-1");
+    expect(recovered).toMatchObject({
+      status: "failed",
+      endTime: 50,
+      duration: 40,
+      error: { code: "INTERRUPTED" },
+      steps: [
+        { id: "done", status: "completed" },
+        { id: "running", status: "failed", error: { code: "INTERRUPTED" } },
+        { id: "pending", status: "cancelled" },
+      ],
+    });
+    expect((await storage.get("run-done", "project-1"))?.status).toBe("completed");
+  });
+
   it("creates, updates, lists by workflow and retrieves persisted run details", async () => {
     const root = await mkdtemp(join(tmpdir(), "pipelab-runs-"));
     workspaces.push(root);

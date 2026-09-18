@@ -131,7 +131,7 @@
               class="step-item all-logs"
               :class="{ selected: selectedStep === null }"
               :aria-pressed="selectedStep === null"
-              @click="selectedStep = null"
+              @click="selectStep(null)"
             >
               <i class="mdi mdi-text-box-multiple-outline" aria-hidden="true" /><span>All logs</span
               ><small>{{ allLogs.length }}</small>
@@ -143,7 +143,7 @@
               class="step-item"
               :class="[{ selected: selectedStep === step.id }, `step-${step.status}`]"
               :aria-pressed="selectedStep === step.id"
-              @click="selectedStep = step.id"
+              @click="selectStep(step.id)"
             >
               <span class="step-icon" :class="`status-${step.status}`"
                 ><i :class="statusIcon(step.status)" aria-hidden="true"
@@ -231,9 +231,9 @@
           <div v-else class="delivery-list">
             <article v-for="group in deliveryGroups" :key="group.id" class="delivery-group">
               <header>
-                <div class="destination-icon"><i :class="destinationIcon(group.id)" /></div>
+                <div class="destination-icon"><i :class="destinationIcon(group.serviceId)" /></div>
                 <div>
-                  <strong>{{ destinationName(group.id) }}</strong
+                  <strong>{{ group.name }}</strong
                   ><small
                     >{{ group.items.length }}
                     {{ group.items.length === 1 ? "delivery" : "deliveries" }}</small
@@ -271,7 +271,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
+import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import Layout from "@renderer/components/Layout.vue";
 import WorkflowShell from "@renderer/components/WorkflowShell.vue";
@@ -281,6 +281,16 @@ import Message from "primevue/message";
 import { useAPI } from "@renderer/composables/api";
 import type { BuildHistoryEntry, ExecutionStep } from "@pipelab/shared";
 import { loadRunEntryWithRetry } from "./run-detail-loader";
+import {
+  artifactDisplayName,
+  artifactDisplayDescription,
+  autoSelectInitialRunStep,
+  createRunStepSelectionState,
+  deliveryDisplayMetadata,
+  isRunContextValid,
+  resetRunStepSelectionState,
+  selectRunStep,
+} from "./run-detail-state";
 
 type Panel = "logs" | "artifacts" | "deliveries";
 const route = useRoute();
@@ -288,7 +298,11 @@ const router = useRouter();
 const api = useAPI();
 const entry = ref<BuildHistoryEntry>();
 const error = ref("");
-const selectedStep = ref<string | null>(null);
+const stepSelection = reactive(createRunStepSelectionState());
+const selectedStep = computed({
+  get: () => stepSelection.selectedStepId,
+  set: (stepId: string | null) => selectRunStep(stepSelection, stepId),
+});
 const activePanel = ref<Panel>("logs");
 const cancelling = ref(false);
 const logViewport = ref<HTMLElement>();
@@ -335,13 +349,14 @@ const visibleLogs = computed(() =>
   selectedStep.value === null ? allLogs.value : selectedStepEntry.value?.logs || [],
 );
 const deliveryGroups = computed(() => {
-  const groups = new Map<string, NonNullable<BuildHistoryEntry["deliveries"]>>();
+  const groups = new Map<string, { id: string; serviceId: string; name: string; items: NonNullable<BuildHistoryEntry["deliveries"]> }>();
   for (const delivery of entry.value?.deliveries || []) {
-    const items = groups.get(delivery.destinationId) || [];
-    items.push(delivery);
-    groups.set(delivery.destinationId, items);
+    const metadata = deliveryDisplayMetadata(delivery);
+    const group = groups.get(metadata.id) || { ...metadata, items: [] };
+    group.items.push(delivery);
+    groups.set(metadata.id, group);
   }
-  return [...groups].map(([id, items]) => ({ id, items }));
+  return [...groups.values()];
 });
 const formatDurationMs = (milliseconds: number) => {
   const seconds = Math.max(0, Math.floor(milliseconds / 1000));
@@ -371,9 +386,9 @@ const formatSize = (bytes?: number) => {
   return `${size.toFixed(size >= 10 ? 0 : 1)} ${units[unit]}`;
 };
 const artifactTitle = (artifact: NonNullable<BuildHistoryEntry["artifacts"]>[number]) =>
-  artifact.outputId || ("name" in artifact ? artifact.name : "Artifact");
+  artifactDisplayName(artifact);
 const artifactDescription = (artifact: NonNullable<BuildHistoryEntry["artifacts"]>[number]) =>
-  "name" in artifact ? artifact.name : artifact.producerStep;
+  artifactDisplayDescription(artifact, entry.value?.steps || []);
 const artifactKind = (artifact: NonNullable<BuildHistoryEntry["artifacts"]>[number]) =>
   artifact.format || ("type" in artifact ? artifact.type : "Artifact");
 const stepDuration = (step: ExecutionStep) =>
@@ -405,12 +420,10 @@ const statusSeverity = (status: string) =>
         : status === "running"
           ? "info"
           : "secondary";
-const destinationName = (id: string) =>
-  id === "steam" ? "Steam" : id === "itch" ? "Itch.io" : id === "web" ? "Web folder" : id;
-const destinationIcon = (id: string) =>
-  id === "steam"
+const destinationIcon = (serviceId: string) =>
+  serviceId === "steam"
     ? "mdi mdi-steam"
-    : id === "itch"
+    : serviceId === "itch"
       ? "mdi mdi-controller-classic"
       : "mdi mdi-folder-upload-outline";
 const backToRuns = () => router.push(`/workflows/${flowId.value}/${projectId.value}/runs`);
@@ -441,7 +454,7 @@ const copyVideoPath = async () => {
 const cancel = async () => {
   cancelling.value = true;
   try {
-    const result = await api.execute("workflow:cancel");
+    const result = await api.execute("workflow:cancel", { runId: entry.value?.id || String(route.params.runId) });
     if (result.type === "error") error.value = result.ipcError;
   } catch (cause) {
     error.value = cause instanceof Error ? cause.message : String(cause);
@@ -449,13 +462,18 @@ const cancel = async () => {
     cancelling.value = false;
   }
 };
+const selectStep = (stepId: string | null) => selectRunStep(stepSelection, stepId);
 const load = async () => {
   if (timer) clearTimeout(timer);
   const generation = ++loadGeneration;
   const runId = String(route.params.runId);
   const pipelineId = String(route.params.projectId || "");
+  const workflowId = String(route.params.flowId || "");
   const isCurrentRun = () =>
-    generation === loadGeneration && String(route.params.runId) === runId;
+    generation === loadGeneration &&
+    String(route.params.runId) === runId &&
+    String(route.params.projectId || "") === pipelineId &&
+    String(route.params.flowId || "") === workflowId;
   try {
     const loadedEntry = await loadRunEntryWithRetry(async () => {
       const response = await api.execute("build-history:get", {
@@ -467,6 +485,11 @@ const load = async () => {
     }, 4, 250, isCurrentRun);
     if (!isCurrentRun()) return;
     if (loadedEntry) {
+      if (!isRunContextValid(loadedEntry, workflowId, pipelineId)) {
+        entry.value = undefined;
+        await router.replace(`/workflows/${workflowId}/${pipelineId}/runs`);
+        return;
+      }
       const wasNearBottom =
         !logViewport.value ||
         logViewport.value.scrollHeight -
@@ -475,10 +498,7 @@ const load = async () => {
           80;
       entry.value = loadedEntry;
       error.value = "";
-      if (selectedStep.value === null && entry.value.steps.length && activePanel.value === "logs")
-        selectedStep.value =
-          entry.value.steps.find((step) => step.status === "running")?.id ||
-          entry.value.steps[0].id;
+      if (activePanel.value === "logs") autoSelectInitialRunStep(stepSelection, entry.value.steps);
       await nextTick();
       if (wasNearBottom && logViewport.value)
         logViewport.value.scrollTop = logViewport.value.scrollHeight;
@@ -490,11 +510,11 @@ const load = async () => {
   if (entry.value?.status === "running") timer = setTimeout(() => void load(), 1000);
 };
 watch(
-  () => route.params.runId,
+  () => [route.params.flowId, route.params.projectId, route.params.runId],
   () => {
     entry.value = undefined;
     error.value = "";
-    selectedStep.value = null;
+    resetRunStepSelectionState(stepSelection);
     activePanel.value = "logs";
     void load();
   },

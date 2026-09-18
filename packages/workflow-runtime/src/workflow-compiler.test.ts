@@ -49,6 +49,8 @@ describe("compileWorkflow", () => {
     expect(workflow.steps.find((step) => step.id === "delivery-docs-html")?.with?.to).toBe("/publish/site");
     expect(workflow.steps.find((step) => step.id === "delivery-docs-html")?.delivery).toEqual({
       destinationId: "docs",
+      serviceId: "web-folder",
+      destinationName: "Folder",
       slotId: "html",
       artifactOutputId: "web.html5",
     });

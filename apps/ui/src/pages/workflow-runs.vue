@@ -90,7 +90,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import Layout from "@renderer/components/Layout.vue";
 import WorkflowShell from "@renderer/components/WorkflowShell.vue";
@@ -98,6 +98,7 @@ import Button from "primevue/button";
 import Message from "primevue/message";
 import { useAPI } from "@renderer/composables/api";
 import type { BuildHistoryEntry } from "@pipelab/shared";
+import { isWorkflowRouteContextValid, scheduleWorkflowRunsRefresh } from "./workflow-runs-state";
 
 const route = useRoute();
 const router = useRouter();
@@ -109,22 +110,42 @@ const entries = ref<BuildHistoryEntry[]>([]);
 const workflowName = ref("Workflow");
 const loading = ref(true);
 const error = ref("");
+let refreshTimer: ReturnType<typeof setTimeout> | undefined;
+let loadGeneration = 0;
 
 const loadRuns = async () => {
-  loading.value = true;
+  if (refreshTimer) clearTimeout(refreshTimer);
+  const generation = ++loadGeneration;
+  if (!entries.value.length) loading.value = true;
   error.value = "";
   try {
     const [history, workflow] = await Promise.all([
-      api.execute("build-history:get-all", { query: { workflowId: flowId.value } }),
+      api.execute("build-history:get-all", {
+        query: { workflowId: flowId.value, pipelineId: projectId.value },
+      }),
       api.execute("workflow:load-by-name", { name: `workflows/${flowId.value}` }),
     ]);
+    if (generation !== loadGeneration) return;
     if (history.type === "error") error.value = history.ipcError;
-    else entries.value = history.result.entries.sort((a, b) => b.startTime - a.startTime);
-    if (workflow.type === "success") workflowName.value = workflow.result.name || "Workflow";
+    else entries.value = history.result.entries
+      .filter((entry) => entry.workflowId === flowId.value && entry.pipelineId === projectId.value)
+      .sort((a, b) => b.startTime - a.startTime);
+    if (workflow.type === "success") {
+      if (!isWorkflowRouteContextValid(workflow.result, flowId.value, projectId.value)) {
+        entries.value = [];
+        await router.replace("/dashboard");
+        return;
+      }
+      workflowName.value = workflow.result.name || "Workflow";
+    }
   } catch (cause) {
+    if (generation !== loadGeneration) return;
     error.value = cause instanceof Error ? cause.message : String(cause);
   } finally {
-    loading.value = false;
+    if (generation === loadGeneration) {
+      loading.value = false;
+      refreshTimer = scheduleWorkflowRunsRefresh(entries.value, () => void loadRuns());
+    }
   }
 };
 const openRun = (entry: BuildHistoryEntry) => router.push(`${basePath.value}/runs/${entry.id}`);
@@ -160,6 +181,15 @@ const statusIcon = (status: BuildHistoryEntry["status"]) =>
   })[status];
 const statusLabel = (status: BuildHistoryEntry["status"]) => status.replaceAll("-", " ");
 onMounted(loadRuns);
+watch([flowId, projectId], () => {
+  entries.value = [];
+  workflowName.value = "Workflow";
+  void loadRuns();
+});
+onUnmounted(() => {
+  loadGeneration++;
+  if (refreshTimer) clearTimeout(refreshTimer);
+});
 </script>
 
 <style scoped>

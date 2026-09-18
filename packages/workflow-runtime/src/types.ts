@@ -20,6 +20,8 @@ export interface WorkflowStep {
 
 export interface WorkflowDeliveryDefinition {
   destinationId: string;
+  serviceId?: string;
+  destinationName?: string;
   slotId: string;
   artifactOutputId: WorkflowArtifactOutputId;
 }
@@ -122,6 +124,8 @@ export interface WorkflowStepResult {
 export interface WorkflowDeliveryResult {
   id: string;
   destinationId: string;
+  serviceId?: string;
+  destinationName?: string;
   slotId: string;
   artifactId: string;
   status: "completed" | "failed";

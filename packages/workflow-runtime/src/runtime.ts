@@ -305,6 +305,8 @@ export const runWorkflow = async (
           stepResult.delivery = {
             id: step.id,
             destinationId: step.delivery.destinationId,
+            ...(step.delivery.serviceId ? { serviceId: step.delivery.serviceId } : {}),
+            ...(step.delivery.destinationName ? { destinationName: step.delivery.destinationName } : {}),
             slotId: step.delivery.slotId,
             artifactId: artifactForDelivery(step.delivery.artifactOutputId, artifacts)?.id ?? "",
             status: "completed",
@@ -343,6 +345,8 @@ export const runWorkflow = async (
           failedStep.delivery = {
             id: step.id,
             destinationId: step.delivery.destinationId,
+            ...(step.delivery.serviceId ? { serviceId: step.delivery.serviceId } : {}),
+            ...(step.delivery.destinationName ? { destinationName: step.delivery.destinationName } : {}),
             slotId: step.delivery.slotId,
             artifactId: artifactForDelivery(step.delivery.artifactOutputId, artifacts)?.id ?? "",
             status: "failed",
@@ -389,6 +393,8 @@ export const runWorkflow = async (
           skippedStep.delivery = {
             id: step.id,
             destinationId: step.delivery.destinationId,
+            ...(step.delivery.serviceId ? { serviceId: step.delivery.serviceId } : {}),
+            ...(step.delivery.destinationName ? { destinationName: step.delivery.destinationName } : {}),
             slotId: step.delivery.slotId,
             artifactId: artifactForDelivery(step.delivery.artifactOutputId, artifacts)?.id ?? "",
             status: "failed",

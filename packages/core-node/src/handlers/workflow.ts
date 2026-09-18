@@ -2,7 +2,15 @@ import { compileWorkflow, createLocalHost, runWorkflow, type Workflow, type Work
 import { nanoid } from "nanoid";
 import { access, mkdir } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import { useLogger, type WorkflowConfig } from "@pipelab/shared";
+import {
+  useLogger,
+  outputDescriptor,
+  PACKAGER_DEFINITIONS,
+  SERVICE_DEFINITIONS,
+  type WorkflowArtifactOutputId,
+  type WorkflowConfig,
+  type WorkflowConfigV2,
+} from "@pipelab/shared";
 import { CacheFolder, PipelabContext } from "../context";
 import { setupConnectionsConfigFile } from "../config";
 import { ensureNodeJS, ensurePNPM } from "../utils/remote";
@@ -11,6 +19,29 @@ import { useAPI } from "../ipc-core";
 import { getReleaseHostCapabilities, migrateWorkflowConfig, validateWorkflowConfigV2 } from "@pipelab/shared";
 import type { BuildHistoryEntry, ExecutionStep, LogEntry } from "@pipelab/shared";
 import { BuildHistoryStorage } from "./build-history";
+import { WorkflowRunCancellationRegistry } from "./workflow-run-cancellation";
+
+const workflowHistoryArtifacts = (artifacts: WorkflowResult["artifacts"]): NonNullable<BuildHistoryEntry["artifacts"]> =>
+  artifacts.map((artifact, index) => "outputId" in artifact ? {
+    id: artifact.id,
+    name: artifact.outputId,
+    path: artifact.path,
+    size: artifact.size ?? 0,
+    type: "file" as const,
+    outputId: artifact.outputId,
+    version: artifact.version,
+    platform: artifact.platform,
+    architecture: artifact.architecture,
+    format: artifact.format,
+    producerStep: artifact.producerStep,
+    checksum: artifact.checksum,
+  } : {
+    id: `workflow-artifact-${index}`,
+    name: artifact.name,
+    path: artifact.path,
+    size: 0,
+    type: "file" as const,
+  });
 
 export const workflowHistoryUpdateFromResult = (
   result: WorkflowResult,
@@ -33,28 +64,50 @@ export const workflowHistoryUpdateFromResult = (
       },
     } : {}),
   })),
-  artifacts: result.artifacts.map((artifact, index) => "outputId" in artifact ? {
-    id: artifact.id,
-    name: artifact.outputId,
-    path: artifact.path,
-    size: artifact.size ?? 0,
-    type: "file" as const,
-    outputId: artifact.outputId,
-    version: artifact.version,
-    platform: artifact.platform,
-    architecture: artifact.architecture,
-    format: artifact.format,
-    producerStep: artifact.producerStep,
-    checksum: artifact.checksum,
-  } : {
-    id: `workflow-artifact-${index}`,
-    name: artifact.name,
-    path: artifact.path,
-    size: 0,
-    type: "file" as const,
-  }),
+  artifacts: workflowHistoryArtifacts(result.artifacts),
   deliveries: result.deliveries,
   output: result.outputs,
+});
+
+export const createWorkflowExecutionPlan = (
+  workflow: Workflow,
+  config: WorkflowConfigV2,
+  startTime: number,
+): ExecutionStep[] => workflow.steps.map((step) => {
+  const outputId = step.delivery?.artifactOutputId || String(step.with?.outputId || "");
+  const output = outputId ? outputDescriptor(outputId as WorkflowArtifactOutputId) : undefined;
+  const packager = config.packagers.find((item) => item.id === step.with?.packagerId);
+  const destination = step.delivery
+    ? config.destinations.find((item) => item.id === step.delivery?.destinationId)
+    : undefined;
+  const serviceId = step.delivery?.serviceId || destination?.serviceId;
+  const destinationName = step.delivery?.destinationName || (serviceId ? SERVICE_DEFINITIONS[serviceId as keyof typeof SERVICE_DEFINITIONS]?.label : undefined);
+  let name = step.id;
+
+  if (step.uses === "construct:export") name = "Export Construct project";
+  else if (step.uses === "construct:export-folder") name = "Prepare project folder";
+  else if (step.uses === "source:extract") name = "Prepare project files";
+  else if (step.delivery) name = `${destinationName || serviceId || "Delivery"} · ${output?.label || step.delivery.slotId}`;
+  else if (output) {
+    const packagerName = packager?.name || (packager ? PACKAGER_DEFINITIONS[packager.definitionId].label : undefined);
+    name = packagerName ? `${packagerName} · ${output.label}` : output.label;
+  } else if (step.uses) name = step.uses.split(":").map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(" · ");
+
+  return {
+    id: step.id,
+    name,
+    uses: step.uses,
+    status: "pending",
+    startTime,
+    logs: [],
+    ...(step.delivery ? {
+      destinationId: step.delivery.destinationId,
+      serviceId,
+      destinationName,
+      slotId: step.delivery.slotId,
+      outputId: step.delivery.artifactOutputId,
+    } : outputId ? { outputId: outputId as ExecutionStep["outputId"] } : {}),
+  };
 });
 
 const workflowHistoryLogs = (events: WorkflowEvent[]): LogEntry[] =>
@@ -73,17 +126,21 @@ export const applyWorkflowHistoryEvent = (
 ) => {
   const timestamp = event.timestamp;
   if (event.type === "step.started") {
-    steps[event.stepId] = { id: event.stepId, name: event.stepId, status: "running", startTime: timestamp, logs: [] };
+    const current = steps[event.stepId];
+    steps[event.stepId] = { ...current, id: event.stepId, name: current?.name || event.stepId, uses: event.uses, status: "running", startTime: timestamp, endTime: undefined, duration: undefined, logs: current?.logs || [] };
   } else if (event.type === "step.log") {
     const log: LogEntry = { id: `workflow-log-${timestamp}-${logs.length}`, timestamp, level: event.stream === "stderr" ? "error" : "info", message: event.message, source: event.stepId };
     logs.push(log);
     steps[event.stepId]?.logs.push(log);
   } else if (event.type === "step.completed") {
-    steps[event.stepId] = { ...(steps[event.stepId] || { id: event.stepId, name: event.stepId, startTime: timestamp, logs: [] }), status: "completed", endTime: timestamp, duration: event.duration, output: event.outputs };
+    const current = steps[event.stepId];
+    steps[event.stepId] = { ...(current || { id: event.stepId, name: event.stepId, startTime: timestamp, logs: [] }), name: current?.name || event.stepId, uses: event.uses, status: "completed", endTime: timestamp, duration: event.duration, output: event.outputs };
   } else if (event.type === "step.failed") {
-    steps[event.stepId] = { ...(steps[event.stepId] || { id: event.stepId, name: event.stepId, startTime: timestamp, logs: [] }), status: event.error.name === "AbortError" ? "cancelled" : "failed", endTime: timestamp, duration: event.duration, error: { message: event.error.message, timestamp } };
+    const current = steps[event.stepId];
+    steps[event.stepId] = { ...(current || { id: event.stepId, name: event.stepId, startTime: timestamp, logs: [] }), name: current?.name || event.stepId, uses: event.uses, status: event.error.name === "AbortError" ? "cancelled" : "failed", endTime: timestamp, duration: event.duration, error: { message: event.error.message, timestamp } };
   } else if (event.type === "step.skipped") {
-    steps[event.stepId] = { ...(steps[event.stepId] || { id: event.stepId, name: event.stepId, startTime: timestamp, logs: [] }), status: "skipped", endTime: timestamp };
+    const current = steps[event.stepId];
+    steps[event.stepId] = { ...(current || { id: event.stepId, name: event.stepId, startTime: timestamp, logs: [] }), name: current?.name || event.stepId, uses: event.uses, status: "skipped", endTime: timestamp };
   }
 };
 
@@ -182,6 +239,7 @@ export const executeWorkflow = async (
   const pipelineId = workflowConfig.project || workflowConfig.id || "workflow";
   const startTime = Date.now();
   const history = new BuildHistoryStorage(context);
+  const executionPlan = createWorkflowExecutionPlan(workflow, workflowConfig, startTime);
   const events: WorkflowEvent[] = [];
   await history.save({
     id: buildId,
@@ -193,7 +251,7 @@ export const executeWorkflow = async (
     status: "running",
     version,
     startTime,
-    steps: [],
+    steps: executionPlan,
     totalSteps: workflow.steps.length,
     completedSteps: 0,
     failedSteps: 0,
@@ -205,16 +263,50 @@ export const executeWorkflow = async (
     updatedAt: startTime,
   });
   await options.onRunCreated?.(buildId);
-  const liveSteps: Record<string, ExecutionStep> = {};
+  const liveSteps = Object.fromEntries(executionPlan.map((step) => [step.id, step]));
   const liveLogs: LogEntry[] = [];
+  const liveArtifacts: NonNullable<BuildHistoryEntry["artifacts"]> = [];
+  const liveDeliveries: NonNullable<BuildHistoryEntry["deliveries"]> = [];
   let historyWrites = Promise.resolve();
   const persistEvent = (event: WorkflowEvent) => {
     events.push(event);
     applyWorkflowHistoryEvent(event, liveSteps, liveLogs);
-    const steps = Object.values(liveSteps);
+    if (event.type === "step.completed") {
+      const artifacts = workflowHistoryArtifacts(event.artifacts);
+      for (const artifact of artifacts) {
+        if (!liveArtifacts.some((existing) => existing.id === artifact.id)) liveArtifacts.push(artifact);
+      }
+    }
+    if (event.type === "step.completed" || event.type === "step.failed" || event.type === "step.skipped") {
+      const step = liveSteps[event.stepId];
+      if (step?.destinationId && step.slotId) {
+        const delivery: NonNullable<BuildHistoryEntry["deliveries"]>[number] = {
+          id: event.stepId,
+          destinationId: step.destinationId,
+          serviceId: step.serviceId,
+          destinationName: step.destinationName,
+          slotId: step.slotId,
+          artifactId: liveArtifacts.find((artifact) => artifact.outputId === step.outputId)?.id || "",
+          status: event.type === "step.completed" ? "completed" : "failed",
+          startedAt: step.startTime,
+          completedAt: event.timestamp,
+          duration: "duration" in event ? event.duration : 0,
+          ...("error" in event ? { error: event.error.message } : {}),
+        };
+        const deliveryIndex = liveDeliveries.findIndex((item) => item.id === delivery.id);
+        if (deliveryIndex < 0) liveDeliveries.push(delivery);
+        else liveDeliveries[deliveryIndex] = delivery;
+      }
+    }
+    const steps = Object.values(liveSteps).map((step) => ({ ...step, logs: [...step.logs] }));
+    const logs = [...liveLogs];
+    const artifacts = [...liveArtifacts];
+    const deliveries = [...liveDeliveries];
     historyWrites = historyWrites.then(() => history.update(buildId, {
       steps,
-      logs: liveLogs,
+      logs,
+      artifacts,
+      deliveries,
       completedSteps: steps.filter((step) => step.status === "completed").length,
       failedSteps: steps.filter((step) => step.status === "failed" || step.status === "skipped").length,
       cancelledSteps: steps.filter((step) => step.status === "cancelled").length,
@@ -260,25 +352,39 @@ export const executeWorkflow = async (
     await historyWrites.catch(() => undefined);
     const logs = workflowHistoryLogs(events);
     const endTime = Date.now();
+    const finalSteps = update.steps.map((step) => {
+      const planStep = liveSteps[step.id];
+      return { ...planStep, ...step, name: planStep?.name || step.name, logs: planStep?.logs || [] };
+    });
+    const deliveries = update.deliveries?.map((delivery) => {
+      const planStep = liveSteps[delivery.id];
+      return {
+        ...delivery,
+        destinationId: planStep?.destinationId || delivery.destinationId,
+        serviceId: planStep?.serviceId || delivery.serviceId,
+        destinationName: planStep?.destinationName || delivery.destinationName,
+      };
+    });
     await history.update(buildId, {
       ...update,
+      deliveries,
       logs,
       endTime,
       duration: endTime - startTime,
       completedSteps: result.steps ? Object.values(result.steps).filter((step) => step.status === "completed").length : 0,
       failedSteps: Object.values(result.steps).filter((step) => step.status === "failed" || step.status === "skipped").length,
-      steps: update.steps.map((step) => ({ ...step, logs: logs.filter((log) => log.source === step.id) })),
+      steps: finalSteps.map((step) => ({ ...step, logs: logs.filter((log) => log.source === step.id) })),
     }, pipelineId);
     return { result, runId: buildId };
   } catch (error) {
     await historyWrites.catch(() => undefined);
     const endTime = Date.now();
     const cancelled = error instanceof Error && error.name === "AbortError";
-    const steps = Object.values(liveSteps).map((step) => step.status === "running" ? {
+    const steps = Object.values(liveSteps).map((step) => step.status === "running" || step.status === "pending" ? {
       ...step,
-      status: cancelled ? "cancelled" as const : "failed" as const,
+      status: cancelled || step.status === "pending" ? "cancelled" as const : "failed" as const,
       endTime,
-      duration: endTime - step.startTime,
+      duration: step.status === "pending" ? 0 : endTime - step.startTime,
     } : step);
     await history.update(buildId, {
       status: cancelled ? "cancelled" : "failed",
@@ -286,6 +392,8 @@ export const executeWorkflow = async (
       duration: endTime - startTime,
       logs: workflowHistoryLogs(events),
       steps,
+      artifacts: liveArtifacts,
+      deliveries: liveDeliveries,
       failedSteps: steps.filter((step) => step.status === "failed" || step.status === "skipped").length,
       cancelledSteps: steps.filter((step) => step.status === "cancelled").length,
       error: {
@@ -301,7 +409,7 @@ export const executeWorkflow = async (
 export const registerWorkflowHandlers = (context: PipelabContext, pluginsReady?: Promise<void>) => {
   const { handle } = useAPI();
   const { logger } = useLogger();
-  let abortController: AbortController | undefined;
+  const activeRuns = new WorkflowRunCancellationRegistry();
 
   handle("workflow:capabilities:get", async (_, { send }) => {
     await send({
@@ -315,13 +423,17 @@ export const registerWorkflowHandlers = (context: PipelabContext, pluginsReady?:
 
   handle("workflow:execute", async (_, { send, value }) => {
     const controller = new AbortController();
-    abortController = controller;
+    let runId: string | undefined;
     try {
       await pluginsReady;
-      const { result, runId } = await executeWorkflow(context, value.name, {
+      const { result, runId: workflowRunId } = await executeWorkflow(context, value.name, {
         release: value.release,
         signal: controller.signal,
-        onRunCreated: (runId) => send({ type: "workflow-run", data: { runId } }),
+        onRunCreated: (createdRunId) => {
+          runId = createdRunId;
+          activeRuns.register(createdRunId, controller);
+          return send({ type: "workflow-run", data: { runId: createdRunId } });
+        },
         onEvent: (event) => void send({ type: "workflow-event", data: event }),
       });
 
@@ -329,7 +441,7 @@ export const registerWorkflowHandlers = (context: PipelabContext, pluginsReady?:
         type: "end",
         data: {
           type: "success",
-          result: { result, runId },
+          result: { result, runId: workflowRunId },
         },
       });
     } catch (error) {
@@ -345,17 +457,17 @@ export const registerWorkflowHandlers = (context: PipelabContext, pluginsReady?:
         },
       });
     } finally {
-      if (abortController === controller) abortController = undefined;
+      if (runId) activeRuns.remove(runId, controller);
     }
   });
 
-  handle("workflow:cancel", async (_, { send }) => {
-    abortController?.abort("Interrupted by user");
+  handle("workflow:cancel", async (_, { send, value }) => {
+    const cancelled = activeRuns.cancel(value.runId);
     await send({
       type: "end",
       data: {
         type: "success",
-        result: { result: "ok" },
+        result: { result: cancelled ? "ok" : "ko" },
       },
     });
   });

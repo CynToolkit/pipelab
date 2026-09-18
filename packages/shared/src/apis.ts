@@ -204,7 +204,7 @@ export type IpcDefinition = {
       | EndEvent<{ result: WorkflowResult; runId: string }>
     ),
   ];
-  "workflow:cancel": [void, EndEvent<{ result: "ok" | "ko" }>];
+  "workflow:cancel": [{ runId: string }, EndEvent<{ result: "ok" | "ko" }>];
   "action:cancel": [void, EndEvent<{ result: "ok" | "ko" }>];
 
   // Build History APIs

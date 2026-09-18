@@ -1,3 +1,4 @@
+import { SERVICE_DEFINITIONS } from "@pipelab/constants";
 import { ARTIFACT_OUTPUTS, type ArtifactOutputId } from "./artifacts";
 import type { Workflow, WorkflowStep } from "./types";
 
@@ -87,6 +88,8 @@ export const compileWorkflow = (configuration: WorkflowConfigurationV2): Workflo
         needs: [producer],
         delivery: {
           destinationId: destination.id,
+          serviceId: destination.serviceId,
+          destinationName: SERVICE_DEFINITIONS[destination.serviceId as keyof typeof SERVICE_DEFINITIONS]?.label || destination.serviceId,
           slotId: slot.id,
           artifactOutputId: slot.input.outputId,
         },

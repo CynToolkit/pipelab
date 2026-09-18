@@ -9,6 +9,7 @@ import type { WorkflowArtifactOutputId } from "@pipelab/constants";
 export interface ExecutionStep {
   id: string;
   name: string;
+  uses?: string;
   status: "pending" | "running" | "completed" | "failed" | "cancelled" | "skipped";
   startTime: number;
   endTime?: number;
@@ -16,6 +17,11 @@ export interface ExecutionStep {
   logs: LogEntry[];
   error?: ExecutionError;
   output?: Record<string, unknown>;
+  destinationId?: string;
+  serviceId?: string;
+  destinationName?: string;
+  slotId?: string;
+  outputId?: WorkflowArtifactOutputId;
 }
 
 export interface ExecutionError {
