@@ -16,6 +16,12 @@
           </div>
         </div>
         <Button
+          label="Runs"
+          icon="mdi mdi-history"
+          text
+          @click="router.push(`/workflows/${route.params.flowId}/${route.params.projectId}/runs`)"
+        />
+        <Button
           label="Ship"
           icon="mdi mdi-rocket-launch-outline"
           :loading="running"
@@ -33,6 +39,7 @@
         />
       </header>
       <Message v-if="loadError" severity="error">{{ loadError }}</Message>
+      <Message v-if="runError" severity="error">{{ runError }}</Message>
       <Message v-if="flow && readiness.length" severity="warn" aria-live="polite">
         <strong>Ship is unavailable</strong>
         <ul class="readiness-errors">
@@ -67,82 +74,6 @@
           @add-connection="openConnection($event === 'itch' ? 'itch-account' : 'steam-account')"
           @update:model-value="flow = $event"
         />
-        <section v-if="runArtifacts.length || runDeliveries.length" class="build-results card" aria-label="Build results">
-          <div class="section-title">
-            <div><h2>Build {{ releaseVersion }}</h2><span>Build once, then deliver the same artifacts independently.</span></div>
-            <Tag
-              :value="buildResultStatus === 'completed' ? 'Completed' : buildResultStatus === 'cancelled' ? 'Cancelled' : 'Completed with errors'"
-              :severity="buildResultStatus === 'completed' ? 'success' : buildResultStatus === 'cancelled' ? 'warn' : 'danger'"
-            />
-          </div>
-          <div class="results-section">
-            <h3>Artifacts</h3>
-            <div class="artifact-summary">
-              <div v-for="artifact in runArtifacts" :key="artifact.id" class="artifact-summary-row">
-                <i class="mdi mdi-package-variant-closed" aria-hidden="true" />
-                <div class="artifact-main">
-                  <strong>{{ artifactOutputLabel(artifact.outputId) }}</strong>
-                  <span>{{ packagerLabel(artifact) }} · {{ artifact.format }} · {{ formatSize(artifact.size) }}</span>
-                  <small>{{ artifact.path }}</small>
-                </div>
-                <div class="artifact-consumers" aria-label="Artifact deliveries">
-                  <span>Used by</span>
-                  <span v-for="delivery in deliveriesForArtifact(artifact.id)" :key="delivery.id" class="consumer-chip">
-                    {{ destinationLabelForId(delivery.destinationId) }} / {{ deliverySlotLabel(delivery) }}
-                    <i :class="delivery.status === 'completed' ? 'pi pi-check' : 'pi pi-times'" aria-hidden="true" />
-                  </span>
-                  <small v-if="!deliveriesForArtifact(artifact.id).length">No deliveries</small>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="results-section deliveries-section">
-            <h3>Deliveries</h3>
-            <div v-if="!runDeliveries.length" class="results-empty">No deliveries recorded.</div>
-            <div v-for="group in deliveryGroups" :key="group.destinationId" class="delivery-group">
-              <h4>{{ group.label }}</h4>
-              <div v-for="delivery in group.deliveries" :key="delivery.id" class="delivery-row">
-                <span>{{ deliverySlotLabel(delivery) }}</span>
-                <Tag :value="delivery.status === 'completed' ? 'Delivered' : 'Failed'" :severity="delivery.status === 'completed' ? 'success' : 'danger'" />
-                <small v-if="delivery.error" class="delivery-error">{{ delivery.error }}</small>
-              </div>
-            </div>
-          </div>
-        </section>
-        <section v-if="logs.length || Object.keys(runSteps).length" class="logs card">
-          <div class="section-title">
-            <h2>Run log</h2>
-            <div class="section-actions">
-              <Button
-                v-if="recordingPath"
-                label="Show crash recording"
-                icon="pi pi-video"
-                text
-                @click="showRecording"
-              />
-              <Button
-                v-if="running"
-                :label="cancelRequested ? 'Cancelling…' : 'Cancel'"
-                text
-                severity="danger"
-                :disabled="cancelRequested"
-                @click="cancel"
-              />
-            </div>
-          </div>
-          <div v-if="recordingPath" class="recording-path" aria-label="Playwright crash recording">
-            <span>Recording path</span>
-            <code>{{ recordingPath }}</code>
-            <Button label="Copy path" icon="pi pi-copy" text @click="copyRecordingPath" />
-            <small role="status" aria-live="polite">{{ recordingCopyStatus }}</small>
-          </div>
-          <div v-if="Object.keys(runSteps).length" class="run-steps">
-            <div v-for="(status, id) in runSteps" :key="id" class="run-step">
-              <span>{{ id }}</span><Tag :value="status" />
-            </div>
-          </div>
-          <pre>{{ logs.join("\n") }}</pre>
-        </section>
       </template>
     </div>
     <Dialog
@@ -347,17 +278,16 @@ import Checkbox from "primevue/checkbox";
 import Dialog from "primevue/dialog";
 import WorkflowArtifactsPanel from "@renderer/components/WorkflowArtifactsPanel.vue";
 import { useAPI } from "@renderer/composables/api";
-import { getReleaseHostCapabilities, migrateWorkflowConfig, outputDescriptor, SERVICE_DEFINITIONS, type BrowserProfileCandidate, type WorkflowConfig, type WorkflowDestination } from "@pipelab/shared";
+import { getReleaseHostCapabilities, migrateWorkflowConfig, type BrowserProfileCandidate, type WorkflowConfig, type WorkflowDestination } from "@pipelab/shared";
 import { getWorkflowReadiness } from "./release-flow-readiness";
-import { useShell } from "@renderer/composables/use-shell";
 const route = useRoute();
 const router = useRouter();
 const api = useAPI();
-const shell = useShell();
 const flow = ref<any>();
 const capabilities = ref<ReturnType<typeof getReleaseHostCapabilities>>();
 const connections = ref<any[]>([]);
 const loadError = ref("");
+const runError = ref("");
 const saving = ref(false);
 const running = ref(false);
 const cancelRequested = ref(false);
@@ -370,13 +300,6 @@ const profileLoading = ref(false);
 const releaseDialogVisible = ref(false);
 const releaseVersion = ref("1.0.0");
 const releaseDescription = ref("");
-const logs = ref<string[]>([]);
-const recordingPath = ref("");
-const recordingCopyStatus = ref("");
-const runSteps = ref<Record<string, string>>({});
-const runArtifacts = ref<any[]>([]);
-const runDeliveries = ref<any[]>([]);
-const buildResultStatus = ref<"completed" | "completed-with-errors" | "cancelled">("completed");
 const connectionDialog = ref({
   visible: false,
   saving: false,
@@ -404,19 +327,6 @@ const itchAccountConnections = computed(() =>
 );
 const readiness = computed(() => getWorkflowReadiness(flow.value, capabilities.value, connections.value, profileError.value));
 const canShip = computed(() => !!flow.value && !readiness.value.length && !running.value);
-const deliveryGroups = computed(() => {
-  const groups = new Map<string, { destinationId: string; label: string; deliveries: any[] }>();
-  for (const delivery of runDeliveries.value) {
-    const group: { destinationId: string; label: string; deliveries: any[] } = groups.get(delivery.destinationId) || {
-      destinationId: delivery.destinationId,
-      label: destinationLabelForId(delivery.destinationId),
-      deliveries: [],
-    };
-    group.deliveries.push(delivery);
-    groups.set(delivery.destinationId, group);
-  }
-  return [...groups.values()];
-});
 const load = async () => {
   const [loaded, accountResult, hostResult] = await Promise.all([
     api.execute("workflow:load-by-name", { name: `workflows/${route.params.flowId}` }),
@@ -597,68 +507,22 @@ const runShip = async () => {
   await save();
   running.value = true;
   cancelRequested.value = false;
-  logs.value = [];
-  recordingPath.value = "";
-  recordingCopyStatus.value = "";
-  runSteps.value = {};
-  runArtifacts.value = [];
-  runDeliveries.value = [];
-  buildResultStatus.value = "completed";
+  runError.value = "";
   try {
-    const result = await api.execute(
+    const response = await api.execute(
       "workflow:execute",
       {
         name: `workflows/${flow.value.id}`,
         release: { version: releaseVersion.value.trim(), description: releaseDescription.value.trim() },
       },
       async (event: any) => {
-        if (event.type !== "workflow-event") return;
-        const workflowEvent = event.data;
-        if (workflowEvent.type === "step.log") {
-          logs.value.push(`[${workflowEvent.stepId}] ${workflowEvent.message}`);
-        }
-        if (workflowEvent.type === "step.started") runSteps.value[workflowEvent.stepId] = "running";
-        if (workflowEvent.type === "step.completed") runSteps.value[workflowEvent.stepId] = "completed";
-        if (workflowEvent.type === "step.failed") {
-          const cancelled = workflowEvent.error.name === "AbortError";
-          runSteps.value[workflowEvent.stepId] = cancelled ? "cancelled" : "failed";
-          const message = workflowEvent.error.message as string;
-          const recording = message.match(/(?:^|\n)PLAYWRIGHT_VIDEO: (.+)$/m)?.[1];
-          if (recording) recordingPath.value = recording.trim();
-          logs.value.push(cancelled ? `[${workflowEvent.stepId}] Cancelled.` : `[${workflowEvent.stepId}] ${message}`);
-        }
-        if (workflowEvent.type === "step.skipped") runSteps.value[workflowEvent.stepId] = "skipped";
-        if (workflowEvent.type === "step.skipped") {
-          const reason = `Skipped because ${workflowEvent.blockedBy.join(", ")} failed`;
-          logs.value.push(`[${workflowEvent.stepId}] ${reason}`);
-        }
+        if (event.type === "workflow-run") await router.push(`/runs/${event.data.runId}`);
       },
     );
-    if (result.type === "success") {
-      releaseVersion.value = result.result.result.version || releaseVersion.value;
-      runArtifacts.value = result.result.result.artifacts || [];
-      runDeliveries.value = result.result.result.deliveries || [];
-      buildResultStatus.value = result.result.result.status;
-      if (result.result.result.status === "completed-with-errors")
-        logs.value.push("Workflow completed with errors.");
-    } else if (result.code === "canceled" || cancelRequested.value) {
-      buildResultStatus.value = "cancelled";
-      logs.value.push("Workflow cancelled.");
-    } else {
-      logs.value.push(result.ipcError);
-    }
+    if (response.type === "error") runError.value = response.ipcError;
   } catch (error) {
-    if (cancelRequested.value) {
-      buildResultStatus.value = "cancelled";
-      logs.value.push("Workflow cancelled.");
-    } else {
-      buildResultStatus.value = "completed-with-errors";
-      logs.value.push(error instanceof Error ? error.message : String(error));
-    }
+    runError.value = error instanceof Error ? error.message : String(error);
   } finally {
-    for (const [stepId, status] of Object.entries(runSteps.value)) {
-      if (status === "running") runSteps.value[stepId] = cancelRequested.value ? "cancelled" : "failed";
-    }
     running.value = false;
     cancelRequested.value = false;
   }
@@ -670,39 +534,10 @@ const cancel = async () => {
     const result = await api.execute("workflow:cancel");
     if (result.type === "error") {
       cancelRequested.value = false;
-      logs.value.push(`Unable to cancel workflow: ${result.ipcError}`);
     }
   } catch (error) {
     cancelRequested.value = false;
-    logs.value.push(`Unable to cancel workflow: ${error instanceof Error ? error.message : String(error)}`);
   }
-};
-const showRecording = () => {
-  if (recordingPath.value) shell.showItemInFolder(recordingPath.value);
-};
-const copyRecordingPath = async () => {
-  try {
-    await navigator.clipboard.writeText(recordingPath.value);
-    recordingCopyStatus.value = "Recording path copied.";
-  } catch {
-    recordingCopyStatus.value = "Clipboard unavailable. Select and copy the path above.";
-  }
-};
-const artifactOutputLabel = (id: string) => outputDescriptor(id as any)?.label || id;
-const formatSize = (size?: number) => typeof size === "number" ? `${Math.round(size / 1024 / 1024)} MB` : "Size pending";
-const packagerLabel = (artifact: any) => {
-  const packager = flow.value?.packagers.find((item: any) => artifact.producerStep?.startsWith(`packager-${item.id}-`));
-  return packager?.name || artifact.producerStep || "Packager";
-};
-const deliveriesForArtifact = (artifactId: string) => runDeliveries.value.filter((delivery) => delivery.artifactId === artifactId);
-const destinationLabelForId = (id: string) => {
-  const destination = flow.value?.destinations.find((item: any) => item.id === id);
-  return destination ? SERVICE_DEFINITIONS[destination.serviceId as keyof typeof SERVICE_DEFINITIONS]?.label || id : id;
-};
-const deliverySlotLabel = (delivery: any) => {
-  const destination = flow.value?.destinations.find((item: any) => item.id === delivery.destinationId);
-  const slot = destination?.slots.find((item: any) => item.id === delivery.slotId);
-  return slot?.input?.outputId ? artifactOutputLabel(slot.input.outputId) : delivery.slotId;
 };
 const destinationLabel = (type: string) =>
   type === "steam" ? "Steam" : type === "itch" ? "Itch.io" : "Web folder";
@@ -883,145 +718,6 @@ h1 {
   color: var(--red-500, #ef4444);
   font-size: 20px;
 }
-.logs.card {
-  margin-top: 12px;
-  padding: 16px;
-}
-.logs .section-title,
-.section-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.logs .section-title {
-  justify-content: space-between;
-}
-.recording-path {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 10px;
-  font-size: 12px;
-}
-.recording-path code {
-  min-width: 0;
-  overflow-wrap: anywhere;
-  user-select: text;
-  color: var(--text-color-secondary);
-}
-.recording-path small {
-  grid-column: 2 / -1;
-  color: var(--text-color-secondary);
-}
-.build-results.card {
-  margin-top: 12px;
-  padding: 16px;
-}
-.build-results .section-title {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-.build-results h2 {
-  margin: 0 0 3px;
-  font-size: 15px;
-}
-.build-results .section-title span {
-  color: var(--text-color-secondary);
-  font-size: 12px;
-}
-.results-section + .results-section {
-  border-top: 1px solid var(--surface-border);
-  margin-top: 16px;
-  padding-top: 16px;
-}
-.build-results h3,
-.build-results h4 {
-  margin: 0;
-  font-size: 13px;
-}
-.artifact-main {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: 3px;
-}
-.artifact-main strong {
-  font-size: 13px;
-}
-.artifact-main span,
-.artifact-main small,
-.results-empty {
-  color: var(--text-color-secondary);
-  font-size: 12px;
-}
-.artifact-main small {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.artifact-consumers {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 5px;
-  color: var(--text-color-secondary);
-  font-size: 11px;
-}
-.consumer-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  border: 1px solid var(--surface-border);
-  border-radius: 4px;
-  padding: 3px 5px;
-  color: var(--text-color);
-}
-.consumer-chip .pi-check {
-  color: var(--green-500, #22c55e);
-}
-.consumer-chip .pi-times {
-  color: var(--red-500, #ef4444);
-}
-.delivery-group + .delivery-group {
-  margin-top: 12px;
-}
-.delivery-group h4 {
-  margin-bottom: 6px;
-  font-weight: 600;
-}
-.delivery-row {
-  display: grid;
-  grid-template-columns: minmax(130px, 0.3fr) auto minmax(0, 1fr);
-  align-items: center;
-  gap: 8px;
-  border-top: 1px solid var(--surface-border);
-  padding: 7px 0;
-  font-size: 12px;
-}
-.delivery-error {
-  color: var(--red-500, #ef4444);
-  overflow-wrap: anywhere;
-}
-.artifact-summary {
-  display: grid;
-  gap: 7px;
-  margin-top: 12px;
-}
-.artifact-summary-row {
-  display: grid;
-  grid-template-columns: 22px minmax(0, 1fr) minmax(220px, auto);
-  align-items: start;
-  gap: 8px;
-  font-size: 12px;
-}
-.artifact-summary-row i {
-  color: var(--primary-color);
-  font-size: 17px;
-}
 @media (max-width: 700px) {
   .flow-page {
     padding-inline: 16px;
@@ -1038,39 +734,6 @@ h1 {
     grid-column: 1 / -1;
     width: 100%;
   }
-  .artifact-summary-row {
-    grid-template-columns: 22px minmax(0, 1fr);
-  }
-  .artifact-consumers {
-    grid-column: 2;
-    justify-content: flex-start;
-  }
-  .delivery-row {
-    grid-template-columns: 1fr auto;
-  }
-  .delivery-error {
-    grid-column: 1 / -1;
-  }
-}
-.run-steps {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-.run-step {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12px;
-}
-.logs pre {
-  max-height: 280px;
-  overflow: auto;
-  white-space: pre-wrap;
-  font-size: 12px;
-  margin: 0;
-  color: var(--text-color-secondary);
 }
 .readiness-errors {
   margin: 6px 0 0;
@@ -1134,10 +797,6 @@ h1 {
   }
   .card {
     padding-inline: 10px;
-  }
-  .logs.card,
-  .build-results.card {
-    padding: 12px;
   }
 }
 @media (max-width: 380px) {

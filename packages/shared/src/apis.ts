@@ -196,7 +196,8 @@ export type IpcDefinition = {
     { name: string; destinations?: string[]; release?: { version: string; description: string } },
     (
       | { type: "workflow-event"; data: WorkflowEvent }
-      | EndEvent<{ result: WorkflowResult; buildId: string }>
+      | { type: "workflow-run"; data: { runId: string } }
+      | EndEvent<{ result: WorkflowResult; runId: string }>
     ),
   ];
   "workflow:cancel": [void, EndEvent<{ result: "ok" | "ko" }>];

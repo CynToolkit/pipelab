@@ -5,10 +5,12 @@ import {
   uiDevPort,
 } from "@pipelab/constants";
 import { existsSync } from "node:fs";
-import { readFile } from "node:fs/promises";
 import http from "http";
-// @ts-expect-error serve-handler has no type definitions
+import { randomBytes, timingSafeEqual } from "node:crypto";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { dirname } from "node:path";
 import handler from "serve-handler";
+import { BACKEND_CONTROL_FILE, type BackendControl } from "./backend-control";
 import {
   DEFAULT_ALLOWED_ORIGINS,
   DEFAULT_SERVER_HOST,
@@ -56,6 +58,21 @@ export async function serveCommand(options: ServeOptions, version: string, cliDi
       ...(options.allowedOrigin ? [options.allowedOrigin] : []),
     ],
   };
+  const stopToken = randomBytes(32).toString("hex");
+  const controlPath = context.getConfigPath(BACKEND_CONTROL_FILE);
+  const control: BackendControl = {
+    host: security.host,
+    port: Number(options.port),
+    token: stopToken,
+  };
+  const removeControlFile = async () => {
+    try {
+      const current = JSON.parse(await readFile(controlPath, "utf8")) as Partial<BackendControl>;
+      if (current.token === stopToken) await rm(controlPath, { force: true });
+    } catch {
+      // Another shutdown path may already have removed the file.
+    }
+  };
 
   let rawAssetFolder: string | undefined;
   if (!isDev) {
@@ -63,8 +80,30 @@ export async function serveCommand(options: ServeOptions, version: string, cliDi
   }
 
   const server = http.createServer(async (request, response) => {
-    // Serve local media files securely via HTTP
     const urlObj = request.url ? new URL(request.url, "http://localhost") : null;
+    if (urlObj?.pathname === "/_pipelab/stop") {
+      const expected = Buffer.from(`Bearer ${stopToken}`);
+      const supplied = Buffer.from(request.headers.authorization || "");
+      if (request.method !== "POST") {
+        response.writeHead(405, { Allow: "POST" });
+        response.end();
+        return;
+      }
+      if (expected.length !== supplied.length || !timingSafeEqual(expected, supplied)) {
+        response.writeHead(403, { "Content-Type": "text/plain" });
+        response.end("Invalid backend stop token");
+        return;
+      }
+
+      response.writeHead(202, { "Content-Type": "application/json" });
+      response.end(JSON.stringify({ result: "stopping" }));
+      setTimeout(() => {
+        void webSocketServer.stop().finally(removeControlFile);
+      }, 25);
+      return;
+    }
+
+    // Serve local media files securely via HTTP
     if (urlObj && urlObj.pathname.startsWith("/media-file/")) {
       if (!isAuthorizedRequest(request, security)) {
         response.writeHead(401, { "Content-Type": "text/plain" });
@@ -148,6 +187,10 @@ export async function serveCommand(options: ServeOptions, version: string, cliDi
     version,
     context,
   });
+
+  await mkdir(dirname(controlPath), { recursive: true });
+  await writeFile(controlPath, JSON.stringify(control), { mode: 0o600 });
+  server.on("close", () => void removeControlFile());
 
   sendStartupReady();
 

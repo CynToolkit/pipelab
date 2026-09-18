@@ -1,0 +1,50 @@
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterEach, describe, expect, it } from "vitest";
+import { PipelabContext } from "../context";
+import { BuildHistoryStorage } from "./build-history";
+import { filterBuildHistoryEntries } from "./history";
+
+const workspaces: string[] = [];
+const entry = (id: string, workflowId: string, startTime: number) => ({
+  id, pipelineId: "project-1", workflowId, workflowName: "Release",
+  projectName: "Release", projectPath: "/game", status: "running" as const,
+  startTime, steps: [], totalSteps: 1, completedSteps: 0, failedSteps: 0,
+  cancelledSteps: 0, logs: [], artifacts: [], deliveries: [], createdAt: startTime, updatedAt: startTime,
+});
+
+afterEach(async () => {
+  await Promise.all(workspaces.splice(0).map((path) => rm(path, { recursive: true, force: true })));
+});
+
+describe("BuildHistoryStorage workflow runs", () => {
+  it("creates, updates, lists by workflow and retrieves persisted run details", async () => {
+    const root = await mkdtemp(join(tmpdir(), "pipelab-runs-"));
+    workspaces.push(root);
+    const storage = new BuildHistoryStorage(new PipelabContext({ userDataPath: root }));
+    await storage.save(entry("run-1", "workflow-a", 10));
+    await storage.save(entry("run-2", "workflow-b", 20));
+    await storage.update("run-1", {
+      status: "completed", endTime: 30, duration: 20, completedSteps: 1,
+      steps: [{ id: "package", name: "package", status: "completed", startTime: 12, endTime: 30, duration: 18, logs: [{ id: "log-1", timestamp: 20, level: "info", message: "packed", source: "package" }], output: { file: "/game.zip" } }],
+      artifacts: [{ id: "artifact-1", outputId: "electron.windows", version: "1.0.0", platform: "windows", architecture: "x64", format: "zip", path: "/game.zip", producerStep: "package" }],
+      deliveries: [{ id: "delivery-1", destinationId: "steam", slotId: "windows", artifactId: "artifact-1", status: "completed", startedAt: 25, completedAt: 30, duration: 5 }],
+    }, "project-1");
+
+    expect((await storage.get("run-1"))?.status).toBe("completed");
+    expect((await storage.get("run-1"))?.steps[0].logs[0].message).toBe("packed");
+    expect((await storage.getByPipeline("project-1")).map((item) => item.id)).toEqual(["run-2", "run-1"]);
+    expect(filterBuildHistoryEntries(await storage.getAll(), { workflowId: "workflow-a" }).map((item) => item.id)).toEqual(["run-1"]);
+  });
+
+  it("retains failed run status and error details", async () => {
+    const root = await mkdtemp(join(tmpdir(), "pipelab-runs-"));
+    workspaces.push(root);
+    const storage = new BuildHistoryStorage(new PipelabContext({ userDataPath: root }));
+    await storage.save(entry("run-failed", "workflow-a", 10));
+    await storage.update("run-failed", { status: "failed", endTime: 15, duration: 5, error: { message: "publish failed", timestamp: 15 } }, "project-1");
+
+    expect(await storage.get("run-failed")).toMatchObject({ status: "failed", duration: 5, error: { message: "publish failed" } });
+  });
+});

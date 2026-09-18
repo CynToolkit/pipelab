@@ -12,6 +12,11 @@ run = "doppler run -- pnpm dev"
 dir = "apps/desktop"
 depends = ["install"]
 
+[tasks.stop]
+description = "Stop the local Pipelab backend"
+run = "pnpm --filter @pipelab/cli start -- stop"
+env = { NODE_ENV = "development" }
+
 [tasks.package]
 run = "doppler run -- pnpm package"
 dir = "apps/desktop"

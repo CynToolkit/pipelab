@@ -242,6 +242,9 @@ export class WebSocketServer {
       this.connectionState = "disconnected";
 
       if (this.wss) {
+        for (const ws of this.clients.keys()) {
+          ws.close(1001, "Server stopping");
+        }
         this.wss.close(() => {
           logger().info("WebSocket server closed");
           resolve();

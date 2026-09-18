@@ -1,7 +1,8 @@
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import { createWorkflowDefinition, workflowHistoryUpdateFromResult } from "./workflow";
+import { applyWorkflowHistoryEvent, createWorkflowDefinition, workflowHistoryUpdateFromResult } from "./workflow";
+import type { ExecutionStep, LogEntry } from "@pipelab/shared";
 
 describe("createWorkflowDefinition", () => {
   it("builds parallel web and itch branches from a built folder", async () => {
@@ -152,6 +153,30 @@ describe("createWorkflowDefinition", () => {
     } finally {
       await rm(workspace, { recursive: true, force: true });
     }
+  });
+});
+
+describe("workflow Build History updates", () => {
+  it("persists live step status, outputs, timestamps and scoped logs", () => {
+    const steps: Record<string, ExecutionStep> = {};
+    const logs: LogEntry[] = [];
+    applyWorkflowHistoryEvent({ type: "step.started", stepId: "package", uses: "packager:build", timestamp: 100 }, steps, logs);
+    applyWorkflowHistoryEvent({ type: "step.log", stepId: "package", stream: "stdout", message: "created archive", timestamp: 110 }, steps, logs);
+    applyWorkflowHistoryEvent({ type: "step.completed", stepId: "package", uses: "packager:build", outputs: { file: "/tmp/game.zip" }, artifacts: [], duration: 25, timestamp: 125 }, steps, logs);
+
+    expect(steps.package).toMatchObject({ status: "completed", startTime: 100, endTime: 125, duration: 25, output: { file: "/tmp/game.zip" } });
+    expect(steps.package.logs).toEqual(logs);
+    expect(logs[0]).toMatchObject({ source: "package", message: "created archive", timestamp: 110 });
+  });
+
+  it("records failed and skipped steps for terminal run detail", () => {
+    const steps: Record<string, ExecutionStep> = {};
+    const logs: LogEntry[] = [];
+    applyWorkflowHistoryEvent({ type: "step.failed", stepId: "publish", uses: "steam:upload", error: { name: "Error", message: "upload rejected" }, duration: 9, timestamp: 209 }, steps, logs);
+    applyWorkflowHistoryEvent({ type: "step.skipped", stepId: "notify", uses: "notify:release", blockedBy: ["publish"], timestamp: 210 }, steps, logs);
+
+    expect(steps.publish).toMatchObject({ status: "failed", endTime: 209, error: { message: "upload rejected", timestamp: 209 } });
+    expect(steps.notify).toMatchObject({ status: "skipped", endTime: 210 });
   });
 });
 

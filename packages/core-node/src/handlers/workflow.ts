@@ -33,7 +33,26 @@ export const workflowHistoryUpdateFromResult = (
       },
     } : {}),
   })),
-  artifacts: result.artifacts.filter((artifact) => "outputId" in artifact),
+  artifacts: result.artifacts.map((artifact, index) => "outputId" in artifact ? {
+    id: artifact.id,
+    name: artifact.outputId,
+    path: artifact.path,
+    size: artifact.size ?? 0,
+    type: "file" as const,
+    outputId: artifact.outputId,
+    version: artifact.version,
+    platform: artifact.platform,
+    architecture: artifact.architecture,
+    format: artifact.format,
+    producerStep: artifact.producerStep,
+    checksum: artifact.checksum,
+  } : {
+    id: `workflow-artifact-${index}`,
+    name: artifact.name,
+    path: artifact.path,
+    size: 0,
+    type: "file" as const,
+  }),
   deliveries: result.deliveries,
   output: result.outputs,
 });
@@ -46,6 +65,27 @@ const workflowHistoryLogs = (events: WorkflowEvent[]): LogEntry[] =>
     message: event.message,
     source: event.stepId,
   }] : []);
+
+export const applyWorkflowHistoryEvent = (
+  event: WorkflowEvent,
+  steps: Record<string, ExecutionStep>,
+  logs: LogEntry[],
+) => {
+  const timestamp = event.timestamp;
+  if (event.type === "step.started") {
+    steps[event.stepId] = { id: event.stepId, name: event.stepId, status: "running", startTime: timestamp, logs: [] };
+  } else if (event.type === "step.log") {
+    const log: LogEntry = { id: `workflow-log-${timestamp}-${logs.length}`, timestamp, level: event.stream === "stderr" ? "error" : "info", message: event.message, source: event.stepId };
+    logs.push(log);
+    steps[event.stepId]?.logs.push(log);
+  } else if (event.type === "step.completed") {
+    steps[event.stepId] = { ...(steps[event.stepId] || { id: event.stepId, name: event.stepId, startTime: timestamp, logs: [] }), status: "completed", endTime: timestamp, duration: event.duration, output: event.outputs };
+  } else if (event.type === "step.failed") {
+    steps[event.stepId] = { ...(steps[event.stepId] || { id: event.stepId, name: event.stepId, startTime: timestamp, logs: [] }), status: event.error.name === "AbortError" ? "cancelled" : "failed", endTime: timestamp, duration: event.duration, error: { message: event.error.message, timestamp } };
+  } else if (event.type === "step.skipped") {
+    steps[event.stepId] = { ...(steps[event.stepId] || { id: event.stepId, name: event.stepId, startTime: timestamp, logs: [] }), status: "skipped", endTime: timestamp };
+  }
+};
 
 const itchUsernameFor = async (apiKey: string) => {
   const response = await fetch("https://api.itch.io/profile", { headers: { Authorization: `Bearer ${apiKey}` } });
@@ -108,6 +148,7 @@ export type ExecuteWorkflowOptions = {
   verbose?: boolean;
   dryRun?: boolean;
   onEvent?: (event: any) => void;
+  onRunCreated?: (runId: string) => void | Promise<void>;
   signal?: AbortSignal;
 };
 
@@ -145,6 +186,8 @@ export const executeWorkflow = async (
   await history.save({
     id: buildId,
     pipelineId,
+    workflowId: workflowConfig.id,
+    workflowName: workflowConfig.name,
     projectName: workflowConfig.name,
     projectPath: workflowConfig.source.path,
     status: "running",
@@ -161,30 +204,47 @@ export const executeWorkflow = async (
     createdAt: startTime,
     updatedAt: startTime,
   });
-  const workspaceRoot = context.getArtifactsPath("workflow", buildId);
-  await mkdir(workspaceRoot, { recursive: true });
-  const node = await ensureNodeJS(context);
-  const pnpm = await ensurePNPM(context);
-  const tasks = createPipelabWorkflowTasks({
-    context,
-    paths: {
-      cache: context.getCachePath(CacheFolder.Pipelines, workflowConfig.project ?? "workflow", buildId),
-      pnpm,
-      node,
-      userData: context.userDataPath,
-      modules: context.getPackagesPath(),
-      thirdparty: context.getThirdPartyPath(),
-    },
-  });
-  const { logger } = useLogger();
-  const host = createLocalHost(workspaceRoot, {
-    logger: {
-      info: (...args) => logger().info(...args),
-      warn: (...args) => logger().warn(...args),
-      error: (...args) => logger().error(...args),
-    },
-  });
+  await options.onRunCreated?.(buildId);
+  const liveSteps: Record<string, ExecutionStep> = {};
+  const liveLogs: LogEntry[] = [];
+  let historyWrites = Promise.resolve();
+  const persistEvent = (event: WorkflowEvent) => {
+    events.push(event);
+    applyWorkflowHistoryEvent(event, liveSteps, liveLogs);
+    const steps = Object.values(liveSteps);
+    historyWrites = historyWrites.then(() => history.update(buildId, {
+      steps,
+      logs: liveLogs,
+      completedSteps: steps.filter((step) => step.status === "completed").length,
+      failedSteps: steps.filter((step) => step.status === "failed" || step.status === "skipped").length,
+      cancelledSteps: steps.filter((step) => step.status === "cancelled").length,
+    }, pipelineId));
+    options.onEvent?.(event);
+  };
   try {
+    const workspaceRoot = context.getArtifactsPath("workflow", buildId);
+    await mkdir(workspaceRoot, { recursive: true });
+    const node = await ensureNodeJS(context);
+    const pnpm = await ensurePNPM(context);
+    const tasks = createPipelabWorkflowTasks({
+      context,
+      paths: {
+        cache: context.getCachePath(CacheFolder.Pipelines, workflowConfig.project ?? "workflow", buildId),
+        pnpm,
+        node,
+        userData: context.userDataPath,
+        modules: context.getPackagesPath(),
+        thirdparty: context.getThirdPartyPath(),
+      },
+    });
+    const { logger } = useLogger();
+    const host = createLocalHost(workspaceRoot, {
+      logger: {
+        info: (...args) => logger().info(...args),
+        warn: (...args) => logger().warn(...args),
+        error: (...args) => logger().error(...args),
+      },
+    });
     const result = await runWorkflow(workflow, {
       host,
       variables: { version, sourcePath: workflowConfig.source.path },
@@ -192,12 +252,12 @@ export const executeWorkflow = async (
       buildId,
       tasks,
       onEvent: (event) => {
-        events.push(event);
-        options.onEvent?.(event);
+        persistEvent(event);
       },
       signal: options.signal,
     });
     const update = workflowHistoryUpdateFromResult(result);
+    await historyWrites.catch(() => undefined);
     const logs = workflowHistoryLogs(events);
     const endTime = Date.now();
     await history.update(buildId, {
@@ -209,16 +269,28 @@ export const executeWorkflow = async (
       failedSteps: Object.values(result.steps).filter((step) => step.status === "failed" || step.status === "skipped").length,
       steps: update.steps.map((step) => ({ ...step, logs: logs.filter((log) => log.source === step.id) })),
     }, pipelineId);
-    return { result, buildId };
+    return { result, runId: buildId };
   } catch (error) {
+    await historyWrites.catch(() => undefined);
     const endTime = Date.now();
+    const cancelled = error instanceof Error && error.name === "AbortError";
+    const steps = Object.values(liveSteps).map((step) => step.status === "running" ? {
+      ...step,
+      status: cancelled ? "cancelled" as const : "failed" as const,
+      endTime,
+      duration: endTime - step.startTime,
+    } : step);
     await history.update(buildId, {
-      status: error instanceof Error && error.name === "AbortError" ? "cancelled" : "failed",
+      status: cancelled ? "cancelled" : "failed",
       endTime,
       duration: endTime - startTime,
       logs: workflowHistoryLogs(events),
+      steps,
+      failedSteps: steps.filter((step) => step.status === "failed" || step.status === "skipped").length,
+      cancelledSteps: steps.filter((step) => step.status === "cancelled").length,
       error: {
         message: error instanceof Error ? error.message : String(error),
+        ...(error instanceof Error && error.stack ? { stack: error.stack } : {}),
         timestamp: endTime,
       },
     }, pipelineId);
@@ -246,9 +318,10 @@ export const registerWorkflowHandlers = (context: PipelabContext, pluginsReady?:
     abortController = controller;
     try {
       await pluginsReady;
-      const { result, buildId } = await executeWorkflow(context, value.name, {
+      const { result, runId } = await executeWorkflow(context, value.name, {
         release: value.release,
         signal: controller.signal,
+        onRunCreated: (runId) => send({ type: "workflow-run", data: { runId } }),
         onEvent: (event) => void send({ type: "workflow-event", data: event }),
       });
 
@@ -256,7 +329,7 @@ export const registerWorkflowHandlers = (context: PipelabContext, pluginsReady?:
         type: "end",
         data: {
           type: "success",
-          result: { result, buildId },
+          result: { result, runId },
         },
       });
     } catch (error) {
