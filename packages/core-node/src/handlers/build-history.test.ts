@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -46,5 +46,33 @@ describe("BuildHistoryStorage workflow runs", () => {
     await storage.update("run-failed", { status: "failed", endTime: 15, duration: 5, error: { message: "publish failed", timestamp: 15 } }, "project-1");
 
     expect(await storage.get("run-failed")).toMatchObject({ status: "failed", duration: 5, error: { message: "publish failed" } });
+  });
+
+  it("does not report a corrupt history document as a missing run", async () => {
+    const root = await mkdtemp(join(tmpdir(), "pipelab-runs-"));
+    workspaces.push(root);
+    const storage = new BuildHistoryStorage(new PipelabContext({ userDataPath: root }));
+    const historyPath = join(root, "config", "pipelines", "project-1.history.json");
+    await mkdir(join(root, "config", "pipelines"), { recursive: true });
+    await writeFile(historyPath, "{ incomplete", "utf8");
+
+    await expect(storage.get("run-1", "project-1")).rejects.toThrow(/invalid|json|parse/i);
+  });
+
+  it("preserves concurrent saves made by separate storage instances", async () => {
+    const root = await mkdtemp(join(tmpdir(), "pipelab-runs-"));
+    workspaces.push(root);
+    const first = new BuildHistoryStorage(new PipelabContext({ userDataPath: root }));
+    const second = new BuildHistoryStorage(new PipelabContext({ userDataPath: root }));
+
+    await Promise.all([
+      first.save(entry("run-a", "workflow-a", 10)),
+      second.save(entry("run-b", "workflow-b", 20)),
+    ]);
+
+    expect((await first.getByPipeline("project-1")).map((run) => run.id).sort()).toEqual([
+      "run-a",
+      "run-b",
+    ]);
   });
 });

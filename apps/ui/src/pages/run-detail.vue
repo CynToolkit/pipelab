@@ -280,6 +280,7 @@ import Tag from "primevue/tag";
 import Message from "primevue/message";
 import { useAPI } from "@renderer/composables/api";
 import type { BuildHistoryEntry, ExecutionStep } from "@pipelab/shared";
+import { loadRunEntryWithRetry } from "./run-detail-loader";
 
 type Panel = "logs" | "artifacts" | "deliveries";
 const route = useRoute();
@@ -292,6 +293,7 @@ const activePanel = ref<Panel>("logs");
 const cancelling = ref(false);
 const logViewport = ref<HTMLElement>();
 let timer: ReturnType<typeof setTimeout> | undefined;
+let loadGeneration = 0;
 const shortId = computed(() =>
   entry.value?.id ? entry.value.id.slice(0, 8) : String(route.params.runId).slice(0, 8),
 );
@@ -449,17 +451,29 @@ const cancel = async () => {
 };
 const load = async () => {
   if (timer) clearTimeout(timer);
+  const generation = ++loadGeneration;
+  const runId = String(route.params.runId);
+  const pipelineId = String(route.params.projectId || "");
+  const isCurrentRun = () =>
+    generation === loadGeneration && String(route.params.runId) === runId;
   try {
-    const response = await api.execute("build-history:get", { id: String(route.params.runId) });
-    if (response.type === "error") error.value = response.ipcError;
-    else if (response.result.entry) {
+    const loadedEntry = await loadRunEntryWithRetry(async () => {
+      const response = await api.execute("build-history:get", {
+        id: runId,
+        ...(pipelineId ? { pipelineId } : {}),
+      });
+      if (response.type === "error") throw new Error(response.ipcError);
+      return response.result.entry;
+    }, 4, 250, isCurrentRun);
+    if (!isCurrentRun()) return;
+    if (loadedEntry) {
       const wasNearBottom =
         !logViewport.value ||
         logViewport.value.scrollHeight -
           logViewport.value.scrollTop -
           logViewport.value.clientHeight <
           80;
-      entry.value = response.result.entry;
+      entry.value = loadedEntry;
       error.value = "";
       if (selectedStep.value === null && entry.value.steps.length && activePanel.value === "logs")
         selectedStep.value =
@@ -470,14 +484,16 @@ const load = async () => {
         logViewport.value.scrollTop = logViewport.value.scrollHeight;
     } else error.value = "This run could not be found.";
   } catch (cause) {
+    if (!isCurrentRun()) return;
     error.value = cause instanceof Error ? cause.message : String(cause);
   }
-  if (entry.value?.status === "running") timer = setTimeout(load, 1000);
+  if (entry.value?.status === "running") timer = setTimeout(() => void load(), 1000);
 };
 watch(
   () => route.params.runId,
   () => {
     entry.value = undefined;
+    error.value = "";
     selectedStep.value = null;
     activePanel.value = "logs";
     void load();
@@ -485,6 +501,7 @@ watch(
 );
 onMounted(load);
 onUnmounted(() => {
+  loadGeneration++;
   if (timer) clearTimeout(timer);
 });
 </script>
