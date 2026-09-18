@@ -133,14 +133,14 @@ doppler run -- env SUPABASE_URL="$local_supabase_url" SUPABASE_ANON_KEY="$local_
 dir = "apps/desktop"
 
 [tasks."local:ui"]
-description = "Run the standalone UI against local Supabase"
+description = "Run the standalone UI and CLI backend through Turbo"
 run = '''
 set -eu
 eval "$(supabase status --output env)"
 export SUPABASE_URL="${API_URL:-${SUPABASE_URL:-}}"
 export SUPABASE_ANON_KEY="${ANON_KEY:-${PUBLISHABLE_KEY:-${SUPABASE_ANON_KEY:-}}}"
+export PIPELAB_CLOUD_WORKER_URL="http://127.0.0.1:8788"
 : "${SUPABASE_URL:?Could not read local Supabase URL; run mise run local:setup first}"
 : "${SUPABASE_ANON_KEY:?Could not read local Supabase publishable key}"
-pnpm --filter @pipelab/ui dev --host 0.0.0.0
+pnpm exec turbo run dev:remote --filter=@pipelab/cli --filter=@pipelab/ui
 '''
-dir = "apps/ui"
