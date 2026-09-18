@@ -497,7 +497,7 @@ jobs:
 
       - name: Import Apple Code Signing Certificate
         uses: apple-actions/import-codesign-certs@v3
-        if: startsWith(matrix.os, 'macos-')
+        if: startsWith(matrix.os, 'macos-') && github.event_name != 'pull_request'
         with:
           p12-file-base64: ${{ secrets.CERTIFICATE_OSX_APPLICATION }}
           p12-password: ${{ secrets.CERTIFICATE_OSX_APPLICATION_PASSWORD }}

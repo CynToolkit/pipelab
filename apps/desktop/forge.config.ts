@@ -94,6 +94,7 @@ async function renameInstallers(platform: string, arch: string) {
 
 const productName = getProductName(version);
 const bundleId = getAppBundleId(version);
+const enableMacSigning = process.env.GITHUB_EVENT_NAME !== "pull_request";
 
 const config: ForgeConfig = {
   outDir: path.resolve(__dirname, "../out"),
@@ -109,21 +110,25 @@ const config: ForgeConfig = {
     extendInfo: {
       NSAppleEventsUsageDescription: "This app need to run commands through Terminal.",
     },
-    osxNotarize: {
-      appleId: process.env.APPLE_ID || "",
-      appleIdPassword: process.env.APPLE_ID_PASSWORD || "",
-      teamId: process.env.APPLE_TEAM_ID || "",
-    },
-    osxSign: {
-      identity:
-        "Developer ID Application: Quentin Goinaud (" +
-        (process.env.APPLE_TEAM_ID || "") +
-        ")",
-      hardenedRuntime: true,
-      entitlements: path.join(__dirname, "assets/build/entitlements.mac.plist"),
-      "entitlements-inherit": path.join(__dirname, "assets/build/entitlements.mac.plist"),
-      strictVerify: false,
-    } as any,
+    ...(enableMacSigning
+      ? {
+          osxNotarize: {
+            appleId: process.env.APPLE_ID || "",
+            appleIdPassword: process.env.APPLE_ID_PASSWORD || "",
+            teamId: process.env.APPLE_TEAM_ID || "",
+          },
+          osxSign: {
+            identity:
+              "Developer ID Application: Quentin Goinaud (" +
+              (process.env.APPLE_TEAM_ID || "") +
+              ")",
+            hardenedRuntime: true,
+            entitlements: path.join(__dirname, "assets/build/entitlements.mac.plist"),
+            "entitlements-inherit": path.join(__dirname, "assets/build/entitlements.mac.plist"),
+            strictVerify: false,
+          } as any,
+        }
+      : {}),
   },
   makers: [
     new MakerSquirrel({

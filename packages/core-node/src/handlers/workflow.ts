@@ -99,7 +99,7 @@ export const createWorkflowExecutionPlan = (
     uses: step.uses,
     status: "pending",
     startTime,
-    logs: [],
+    logs: [] as LogEntry[],
     ...(step.delivery ? {
       destinationId: step.delivery.destinationId,
       serviceId,
@@ -349,7 +349,7 @@ export const executeWorkflow = async (
       signal: options.signal,
     });
     const update = workflowHistoryUpdateFromResult(result);
-    await historyWrites.catch(() => undefined);
+    await historyWrites.catch((): undefined => undefined);
     const logs = workflowHistoryLogs(events);
     const endTime = Date.now();
     const finalSteps = update.steps.map((step) => {
@@ -377,7 +377,7 @@ export const executeWorkflow = async (
     }, pipelineId);
     return { result, runId: buildId };
   } catch (error) {
-    await historyWrites.catch(() => undefined);
+    await historyWrites.catch((): undefined => undefined);
     const endTime = Date.now();
     const cancelled = error instanceof Error && error.name === "AbortError";
     const steps = Object.values(liveSteps).map((step) => step.status === "running" || step.status === "pending" ? {
