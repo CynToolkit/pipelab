@@ -154,7 +154,9 @@ const validateWorkflow = (workflow: Workflow): void => {
         typeof step.delivery.slotId !== "string" ||
         !step.delivery.slotId ||
         typeof step.delivery.artifactOutputId !== "string" ||
-        !step.delivery.artifactOutputId
+        !step.delivery.artifactOutputId ||
+        typeof step.delivery.producerStep !== "string" ||
+        !step.delivery.producerStep
       ) {
         throw new Error(
           `Workflow delivery step ${step.id} must declare a destination, slot, and artifact output`,
@@ -180,11 +182,12 @@ const dependenciesFor = (workflow: Workflow, step: WorkflowStep): string[] => {
 
 const artifactForDelivery = (
   outputId: string,
+  producerStep: string,
   artifacts: Array<WorkflowArtifact | WorkflowArtifactInstance>,
 ): WorkflowArtifactInstance | undefined => {
   return artifacts.find(
     (artifact): artifact is WorkflowArtifactInstance =>
-      "outputId" in artifact && artifact.outputId === outputId,
+      "outputId" in artifact && artifact.outputId === outputId && artifact.producerStep === producerStep,
   );
 };
 
@@ -210,6 +213,7 @@ export const runWorkflow = async (
   try {
     const pending = new Set(workflow.steps.map((step) => step.id));
     const continueOnError = workflow.continueOnError ?? false;
+    const failFast = workflow.continueOnError === false;
 
     const runStep = async (step: WorkflowStep): Promise<void> => {
       const stepStartedAt = Date.now();
@@ -221,11 +225,11 @@ export const runWorkflow = async (
         const task = tasks[step.uses];
         if (!task) throw new Error(`Workflow task not found: ${step.uses}`);
         const deliveryArtifact = step.delivery
-          ? artifactForDelivery(step.delivery.artifactOutputId, artifacts)
+          ? artifactForDelivery(step.delivery.artifactOutputId, step.delivery.producerStep, artifacts)
           : undefined;
         if (step.delivery && !deliveryArtifact) {
           throw new Error(
-            `Workflow delivery step ${step.id} requires artifact output "${step.delivery.artifactOutputId}", but no artifact was produced.`,
+            `Workflow delivery step ${step.id} requires artifact output "${step.delivery.artifactOutputId}" from producer "${step.delivery.producerStep}", but that producer artifact was not produced.`,
           );
         }
         const inputs = resolveInputs(step, variables, outputs);
@@ -308,7 +312,8 @@ export const runWorkflow = async (
             ...(step.delivery.serviceId ? { serviceId: step.delivery.serviceId } : {}),
             ...(step.delivery.destinationName ? { destinationName: step.delivery.destinationName } : {}),
             slotId: step.delivery.slotId,
-            artifactId: artifactForDelivery(step.delivery.artifactOutputId, artifacts)?.id ?? "",
+            producerStep: step.delivery.producerStep,
+            artifactId: artifactForDelivery(step.delivery.artifactOutputId, step.delivery.producerStep, artifacts)?.id ?? "",
             status: "completed",
             startedAt: stepStartedAt,
             completedAt,
@@ -348,7 +353,8 @@ export const runWorkflow = async (
             ...(step.delivery.serviceId ? { serviceId: step.delivery.serviceId } : {}),
             ...(step.delivery.destinationName ? { destinationName: step.delivery.destinationName } : {}),
             slotId: step.delivery.slotId,
-            artifactId: artifactForDelivery(step.delivery.artifactOutputId, artifacts)?.id ?? "",
+            producerStep: step.delivery.producerStep,
+            artifactId: artifactForDelivery(step.delivery.artifactOutputId, step.delivery.producerStep, artifacts)?.id ?? "",
             status: "failed",
             startedAt: stepStartedAt,
             completedAt,
@@ -396,7 +402,8 @@ export const runWorkflow = async (
             ...(step.delivery.serviceId ? { serviceId: step.delivery.serviceId } : {}),
             ...(step.delivery.destinationName ? { destinationName: step.delivery.destinationName } : {}),
             slotId: step.delivery.slotId,
-            artifactId: artifactForDelivery(step.delivery.artifactOutputId, artifacts)?.id ?? "",
+            producerStep: step.delivery.producerStep,
+            artifactId: artifactForDelivery(step.delivery.artifactOutputId, step.delivery.producerStep, artifacts)?.id ?? "",
             status: "failed",
             startedAt: now,
             completedAt: now,
@@ -421,13 +428,38 @@ export const runWorkflow = async (
         throw new Error("Workflow dependencies contain a cycle");
       }
 
-      const results = await Promise.allSettled(ready.map((step) => runStep(step)));
-      ready.forEach((step) => pending.delete(step.id));
+      const batch = failFast ? ready.slice(0, 1) : ready;
+      const results = await Promise.allSettled(batch.map((step) => runStep(step)));
+      batch.forEach((step) => pending.delete(step.id));
 
       const failure = results.find(
         (result): result is PromiseRejectedResult => result.status === "rejected",
       );
-      if (failure && !continueOnError) throw failure.reason;
+      if (failure && !continueOnError) {
+        if (failFast) {
+          const failedStepId = batch[results.findIndex((result) => result.status === "rejected")].id;
+          const now = Date.now();
+          for (const step of workflow.steps) {
+            if (!pending.has(step.id)) continue;
+            const skippedStep: WorkflowStepResult = {
+              id: step.id, uses: step.uses, status: "skipped", outputs: {}, artifacts: [],
+              startedAt: now, completedAt: now, duration: 0, blockedBy: [failedStepId],
+            };
+            if (step.delivery) skippedStep.delivery = {
+              id: step.id, destinationId: step.delivery.destinationId,
+              ...(step.delivery.serviceId ? { serviceId: step.delivery.serviceId } : {}),
+              ...(step.delivery.destinationName ? { destinationName: step.delivery.destinationName } : {}),
+              slotId: step.delivery.slotId, producerStep: step.delivery.producerStep, artifactId: "",
+              status: "failed", startedAt: now, completedAt: now, duration: 0,
+              error: `Skipped after ${failedStepId} failed`,
+            };
+            steps[step.id] = skippedStep;
+            pending.delete(step.id);
+            emit({ type: "step.skipped", stepId: step.id, uses: step.uses, blockedBy: [failedStepId] });
+          }
+        }
+        throw failure.reason;
+      }
     }
 
     const result: WorkflowResult = {

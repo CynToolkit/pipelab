@@ -172,7 +172,7 @@ describe("workflow Build History updates", () => {
       steps: [
         { id: "source-export", uses: "construct:export" },
         { id: "packager-electron-windows", uses: "electron:bundle", with: { packagerId: "electron-1", outputId: "electron.windows" } },
-        { id: "delivery-steam-instance-windows", uses: "steam:upload", delivery: { destinationId: "steam-instance", slotId: "windows", artifactOutputId: "electron.windows" } },
+        { id: "delivery-steam-instance-windows", uses: "steam:upload", delivery: { destinationId: "steam-instance", slotId: "windows", artifactOutputId: "electron.windows", producerStep: "packager-electron-windows" } },
       ],
     };
 
@@ -183,7 +183,7 @@ describe("workflow Build History updates", () => {
       { id: "packager-electron-windows", name: "Electron · Windows x64", status: "pending" },
       { id: "delivery-steam-instance-windows", name: "Steam · Windows x64", status: "pending" },
     ]);
-    expect(plan[2]).toMatchObject({ destinationId: "steam-instance", serviceId: "steam", destinationName: "Steam", outputId: "electron.windows" });
+    expect(plan[2]).toMatchObject({ destinationId: "steam-instance", serviceId: "steam", destinationName: "Steam", outputId: "electron.windows", producerStep: "packager-electron-windows" });
   });
 
   it("updates a pending step in place while preserving its user-facing metadata", () => {
@@ -260,6 +260,7 @@ describe("workflow history results", () => {
         serviceId: "steam",
         destinationName: "Steam",
         slotId: "windows",
+        producerStep: "packager-windows",
         artifactId: "artifact-run-0",
         status: "completed",
         startedAt: 10,
@@ -271,6 +272,7 @@ describe("workflow history results", () => {
         serviceId: "itch",
         destinationName: "Itch.io",
         slotId: "windows",
+        producerStep: "packager-windows",
         artifactId: "artifact-run-0",
         status: "failed",
         startedAt: 20,

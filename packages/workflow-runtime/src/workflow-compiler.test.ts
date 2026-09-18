@@ -2,6 +2,12 @@ import { describe, expect, it } from "vitest";
 import { compileWorkflow } from "./workflow-compiler";
 
 describe("compileWorkflow", () => {
+  it("propagates the configured failure policy and keeps the default", () => {
+    const base = { version: "2.0.0" as const, source: { type: "folder" as const, path: "/game" }, packagers: [], destinations: [] };
+    expect(compileWorkflow({ ...base, continueOnError: false }).continueOnError).toBe(false);
+    expect(compileWorkflow(base).continueOnError).toBe(true);
+  });
+
   it("passes the explicitly selected Construct profile to the source exporter", () => {
     const workflow = compileWorkflow({
       version: "2.0.0",
@@ -35,6 +41,41 @@ describe("compileWorkflow", () => {
       ["packager-electron-linux-electron-linux"], ["packager-tauri-windows-tauri-windows"],
     ]);
     expect(workflow.steps.filter((step) => step.uses === "steam:upload").map((step) => step.with?.depotId)).toEqual(["depot-linux", "depot-windows"]);
+    expect(workflow.steps.filter((step) => step.uses === "steam:upload").map((step) => step.delivery?.producerStep)).toEqual([
+      "packager-electron-linux-electron-linux", "packager-tauri-windows-tauri-windows",
+    ]);
+  });
+
+  it("keeps same-type packager outputs distinct for their configured slots", () => {
+    const workflow = compileWorkflow({
+      version: "2.0.0", source: { type: "folder", path: "/game" },
+      packagers: [
+        { id: "electron-a", definitionId: "electron", enabled: true, config: { targets: ["electron.windows"] } },
+        { id: "electron-b", definitionId: "electron", enabled: true, config: { targets: ["electron.windows"] } },
+      ],
+      destinations: [{ id: "steam", serviceId: "steam", enabled: true, config: {}, slots: [
+        { id: "a", config: {}, input: { packagerId: "electron-a", outputId: "electron.windows" } },
+        { id: "b", config: {}, input: { packagerId: "electron-b", outputId: "electron.windows" } },
+      ] }],
+    });
+    expect(workflow.steps.filter((step) => step.delivery).map((step) => step.delivery)).toEqual([
+      expect.objectContaining({ artifactOutputId: "electron.windows", producerStep: "packager-electron-a-electron-windows" }),
+      expect.objectContaining({ artifactOutputId: "electron.windows", producerStep: "packager-electron-b-electron-windows" }),
+    ]);
+  });
+
+  it("preserves the single-packager delivery mapping", () => {
+    const workflow = compileWorkflow({
+      version: "2.0.0", source: { type: "folder", path: "/game" },
+      packagers: [{ id: "electron", definitionId: "electron", enabled: true, config: { targets: ["electron.windows"] } }],
+      destinations: [{ id: "steam", serviceId: "steam", enabled: true, config: {}, slots: [
+        { id: "windows", config: {}, input: { packagerId: "electron", outputId: "electron.windows" } },
+      ] }],
+    });
+    expect(workflow.steps.find((step) => step.delivery)).toMatchObject({
+      needs: ["packager-electron-electron-windows"],
+      delivery: { artifactOutputId: "electron.windows", producerStep: "packager-electron-electron-windows" },
+    });
   });
 
   it("uses the folder configured on a web-folder slot", () => {
@@ -53,6 +94,7 @@ describe("compileWorkflow", () => {
       destinationName: "Folder",
       slotId: "html",
       artifactOutputId: "web.html5",
+      producerStep: "packager-web-web-html5",
     });
   });
 

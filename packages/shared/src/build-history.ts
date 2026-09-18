@@ -22,6 +22,7 @@ export interface ExecutionStep {
   destinationName?: string;
   slotId?: string;
   outputId?: WorkflowArtifactOutputId;
+  producerStep?: string;
 }
 
 export interface ExecutionError {

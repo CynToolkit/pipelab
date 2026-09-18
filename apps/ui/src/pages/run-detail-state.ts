@@ -36,6 +36,11 @@ export const isRunContextValid = (
   projectId: string,
 ) => entry.pipelineId === projectId && entry.workflowId === flowId;
 
+export const workflowCancellationFeedback = (result: { type: string; result?: { result?: string } }) =>
+  result.type === "success" && result.result?.result === "ko"
+    ? "This run is no longer active."
+    : "";
+
 export const artifactDisplayName = (
   artifact: NonNullable<BuildHistoryEntry["artifacts"]>[number],
 ) => "outputId" in artifact && artifact.outputId
