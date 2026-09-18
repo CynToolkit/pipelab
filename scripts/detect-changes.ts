@@ -1,5 +1,6 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { affectedPackagesForChanges, hasDesktopRelatedChanges } from "./detect-changes-logic.mjs";
 
 /**
  * This script parses the JSON output of `turbo ls --output=json`
@@ -21,20 +22,33 @@ interface TurboLsOutput {
 function main() {
   const inputFile = process.argv[2];
   if (!inputFile) {
-    console.error("Usage: tsx detect-changes.ts <turbo-ls-output.json>");
+    console.error("Usage: tsx detect-changes.ts <turbo-ls-output.json> <changed-files.txt>");
     process.exit(1);
   }
 
   try {
     const rawData = readFileSync(inputFile, "utf-8");
     const data: TurboLsOutput = JSON.parse(rawData);
+    const changedFilesFile = process.argv[3];
+    if (!changedFilesFile) {
+      console.error("Missing changed files input");
+      process.exit(1);
+    }
+    const changedFiles = readFileSync(changedFilesFile, "utf-8")
+      .split(/\r?\n/)
+      .filter(Boolean);
 
-    // Extract all package names
-    const affectedPackages = data.packages.items.map((p) => p.name);
+    // Avoid root lockfile/CI fanout when those changes accompany website-only work.
+    const affectedPackages = affectedPackagesForChanges(
+      data.packages.items.map((p) => p.name),
+      changedFiles,
+    );
+    const affectedPackageSet = new Set(affectedPackages);
+    const affectedPackageItems = data.packages.items.filter((p) => affectedPackageSet.has(p.name));
 
     // Check if any affected package needs a build
     let needsBuild = false;
-    for (const p of data.packages.items) {
+    for (const p of affectedPackageItems) {
       try {
         const pkgJsonPath = join(process.cwd(), p.path, "package.json");
         const pkgJson = JSON.parse(readFileSync(pkgJsonPath, "utf-8"));
@@ -58,7 +72,8 @@ function main() {
       // The array needs to be stringified for GHA to handle it as a single string
       writeFileSync(githubOutput, `affected=${JSON.stringify(affectedPackages)}\n`, { flag: "a" });
       writeFileSync(githubOutput, `needs_build=${needsBuild}\n`, { flag: "a" });
-      console.log("Successfully set GITHUB_OUTPUT: affected, needs_build");
+      writeFileSync(githubOutput, `desktop_changed=${hasDesktopRelatedChanges(changedFiles)}\n`, { flag: "a" });
+      console.log("Successfully set GITHUB_OUTPUT: affected, needs_build, desktop_changed");
     } else {
       console.log("Not running in GitHub Actions, skipping GITHUB_OUTPUT");
     }
