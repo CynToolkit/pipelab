@@ -1,7 +1,6 @@
 export * from "./context";
 export * from "./bundled-cli";
 export * from "./websocket-server";
-export * from "./backend-control";
 export * from "./ipc-core";
 export * from "./handlers/index";
 export { executeWorkflow } from "./handlers/workflow";

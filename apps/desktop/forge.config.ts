@@ -95,7 +95,12 @@ async function renameInstallers(platform: string, arch: string) {
 const productName = getProductName(version);
 const bundleId = getAppBundleId(version);
 const isPullRequestBuild = process.env.GITHUB_EVENT_NAME === "pull_request";
-const enableMacSigning = !isPullRequestBuild;
+const hasMacSigningCredentials = Boolean(
+  process.env.APPLE_ID && process.env.APPLE_ID_PASSWORD && process.env.APPLE_TEAM_ID,
+);
+// Forked pull requests do not receive signing secrets, so keep their macOS
+// validation builds unsigned. Other builds are signed when credentials exist.
+const enableMacSigning = !isPullRequestBuild && hasMacSigningCredentials;
 
 const config: ForgeConfig = {
   outDir: path.resolve(__dirname, "../out"),
