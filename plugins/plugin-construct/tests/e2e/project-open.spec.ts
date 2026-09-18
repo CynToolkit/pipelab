@@ -147,11 +147,13 @@ test("captures a screenshot and reports a bounded failure after the retry", asyn
   const page = new FakePage();
 
   await expect(open(page)).rejects.toThrow(
-    /after one reload.*Screenshot: \/diagnostics\/construct-open-failure-/,
+    /after one reload.*Screenshot: [\\/]diagnostics[\\/]construct-open-failure-/,
   );
 
   expect(page.reloadCount).toBe(1);
-  expect(page.screenshotPath).toMatch(/^\/diagnostics\/construct-open-failure-\d+\.png$/);
+  expect(page.screenshotPath.replaceAll("\\", "/")).toMatch(
+    /^\/diagnostics\/construct-open-failure-\d+\.png$/,
+  );
 });
 
 test("honors cancellation while waiting for Construct readiness", async () => {

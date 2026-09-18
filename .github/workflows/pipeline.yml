@@ -48,6 +48,9 @@ jobs:
       - name: Test change detection
         run: node --test scripts/detect-changes-logic.test.mjs
 
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
       - name: Detect Changes
         id: detect
         run: |
@@ -67,7 +70,7 @@ jobs:
           git diff --name-only "$BASE_REF" HEAD > changed-files.txt
 
           # Use turbo to list affected packages
-          npx turbo ls -F "...[$BASE_REF]" --output=json > affected.json
+          pnpm exec turbo ls -F "...[$BASE_REF]" --output=json > affected.json
 
           # Run our detection script
           npx tsx scripts/detect-changes.ts affected.json changed-files.txt
