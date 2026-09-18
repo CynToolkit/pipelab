@@ -9,6 +9,7 @@ import {
   autoSelectInitialRunStep,
   selectRunStep,
   resetRunStepSelectionState,
+  workflowCancellationFeedback,
 } from "./run-detail-state";
 
 const steps: ExecutionStep[] = [
@@ -37,6 +38,11 @@ describe("run detail state", () => {
     expect(isRunContextValid(entry, "flow-1", "project-1")).toBe(true);
     expect(isRunContextValid(entry, "another-flow", "project-1")).toBe(false);
     expect(isRunContextValid(entry, "flow-1", "another-project")).toBe(false);
+  });
+
+  it("reports a non-active cancellation without implying it succeeded", () => {
+    expect(workflowCancellationFeedback({ type: "success", result: { result: "ko" } })).toBe("This run is no longer active.");
+    expect(workflowCancellationFeedback({ type: "success", result: { result: "ok" } })).toBe("");
   });
 
   it("uses artifact definitions and persisted destination metadata for readable labels", () => {

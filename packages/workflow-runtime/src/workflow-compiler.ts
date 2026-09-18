@@ -27,6 +27,7 @@ export interface WorkflowDestinationV2Configuration {
 
 export interface WorkflowConfigurationV2 {
   readonly version: "2.0.0";
+  readonly continueOnError?: boolean;
   readonly source: { type: "construct3" | "folder"; path: string; profilePath?: string };
   readonly packagers: readonly WorkflowPackagerConfiguration[];
   readonly destinations: readonly WorkflowDestinationV2Configuration[];
@@ -92,6 +93,7 @@ export const compileWorkflow = (configuration: WorkflowConfigurationV2): Workflo
           destinationName: SERVICE_DEFINITIONS[destination.serviceId as keyof typeof SERVICE_DEFINITIONS]?.label || destination.serviceId,
           slotId: slot.id,
           artifactOutputId: slot.input.outputId,
+          producerStep: producer,
         },
         with: {
           ...(destination.config || {}), ...(slot.config || {}), packagerId: slot.input.packagerId, version: "${{ variables.version }}",
@@ -103,5 +105,5 @@ export const compileWorkflow = (configuration: WorkflowConfigurationV2): Workflo
       });
     }
   }
-  return { version: 1, steps, continueOnError: true };
+  return { version: 1, steps, continueOnError: configuration.continueOnError ?? true };
 };

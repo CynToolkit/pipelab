@@ -106,6 +106,7 @@ export const createWorkflowExecutionPlan = (
       destinationName,
       slotId: step.delivery.slotId,
       outputId: step.delivery.artifactOutputId,
+      producerStep: step.delivery.producerStep,
     } : outputId ? { outputId: outputId as ExecutionStep["outputId"] } : {}),
   };
 });
@@ -286,7 +287,8 @@ export const executeWorkflow = async (
           serviceId: step.serviceId,
           destinationName: step.destinationName,
           slotId: step.slotId,
-          artifactId: liveArtifacts.find((artifact) => artifact.outputId === step.outputId)?.id || "",
+          producerStep: step.producerStep,
+          artifactId: liveArtifacts.find((artifact) => artifact.outputId === step.outputId && artifact.producerStep === step.producerStep)?.id || "",
           status: event.type === "step.completed" ? "completed" : "failed",
           startedAt: step.startTime,
           completedAt: event.timestamp,

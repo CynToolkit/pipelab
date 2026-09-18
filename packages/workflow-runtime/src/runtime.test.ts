@@ -145,8 +145,10 @@ describe("runWorkflow", () => {
       "workflow.started",
       "step.started",
       "step.failed",
+      "step.skipped",
       "workflow.failed",
     ]);
+    expect(events).toContainEqual(expect.objectContaining({ type: "step.skipped", stepId: "never", blockedBy: ["fail"] }));
   });
 
   it("runs ready dependency branches concurrently", async () => {
@@ -222,6 +224,39 @@ describe("runWorkflow", () => {
     expect(result.steps.independent.status).toBe("completed");
     expect(events.some((event) => event.type === "step.skipped")).toBe(true);
   });
+
+  it.each([
+    { policy: "explicit false", continueOnError: false },
+    { policy: "omitted", continueOnError: undefined },
+  ])("stops scheduling after a failure with $policy while ready siblings finish", async ({ continueOnError }) => {
+    const ran: string[] = [];
+    const events: WorkflowEvent[] = [];
+    const failure = new Error("original failure");
+    const workflow: Workflow = {
+      version: 1,
+      ...(continueOnError === undefined ? {} : { continueOnError }),
+      steps: [
+        { id: "fail", uses: "test:fail", needs: [] },
+        { id: "sibling", uses: "test:sibling", needs: [] },
+        { id: "downstream", uses: "test:downstream", needs: ["sibling"] },
+      ],
+    };
+
+    await expect(runWorkflow(workflow, {
+      host: makeHost(),
+      onEvent: (event) => events.push(event),
+      tasks: {
+        "test:fail": async () => { ran.push("fail"); throw failure; },
+        "test:sibling": async () => { ran.push("sibling"); return { finished: true }; },
+        "test:downstream": async () => { ran.push("downstream"); },
+      },
+    })).rejects.toBe(failure);
+
+    expect(ran).toEqual(["fail", "sibling"]);
+    expect(events).toContainEqual(expect.objectContaining({ type: "step.failed", stepId: "fail" }));
+    expect(events).toContainEqual(expect.objectContaining({ type: "step.completed", stepId: "sibling" }));
+    expect(events).toContainEqual(expect.objectContaining({ type: "step.skipped", stepId: "downstream", blockedBy: ["fail"] }));
+  });
 });
 
 describe("createLocalHost", () => {
@@ -289,6 +324,24 @@ describe("workflow artifact instances", () => {
     expect(Object.isFrozen(result.artifacts[0])).toBe(true);
   });
 
+  it("resolves same-output artifacts by configured producer", async () => {
+    const received: string[] = [];
+    const result = await runWorkflow({ version: 1, steps: [
+      { id: "packager-a", uses: "test:build", needs: [] },
+      { id: "packager-b", uses: "test:build", needs: [] },
+      { id: "deliver-a", uses: "test:deliver", needs: ["packager-a"], delivery: { destinationId: "a", slotId: "windows", artifactOutputId: "electron.windows", producerStep: "packager-a" } },
+      { id: "deliver-b", uses: "test:deliver", needs: ["packager-b"], delivery: { destinationId: "b", slotId: "windows", artifactOutputId: "electron.windows", producerStep: "packager-b" } },
+    ] }, {
+      host: makeHost(), version: "1.0.0", tasks: {
+        "test:build": async ({ step, setArtifact }) => { setArtifact("electron.windows", `/${step.id}.zip`); },
+        "test:deliver": async ({ delivery }) => { received.push(delivery!.artifact.producerStep); },
+      },
+    });
+
+    expect(received).toEqual(["packager-a", "packager-b"]);
+    expect(result.deliveries.map((delivery) => delivery.producerStep)).toEqual(["packager-a", "packager-b"]);
+  });
+
   it("records independent delivery results against the produced artifact", async () => {
     const result = await runWorkflow(
       {
@@ -308,6 +361,7 @@ describe("workflow artifact instances", () => {
               destinationId: "steam",
               slotId: "windows",
               artifactOutputId: "electron.windows",
+              producerStep: "windows",
             },
           },
           {
@@ -318,6 +372,7 @@ describe("workflow artifact instances", () => {
               destinationId: "itch",
               slotId: "windows",
               artifactOutputId: "electron.windows",
+              producerStep: "windows",
             },
           },
         ],
@@ -373,6 +428,7 @@ describe("workflow artifact instances", () => {
                 destinationId,
                 slotId: "web",
                 artifactOutputId: "web.html5",
+                producerStep: "web",
               },
             },
           ],
@@ -420,6 +476,7 @@ describe("workflow artifact instances", () => {
               destinationId: "cloud-instance-1",
               slotId: "web",
               artifactOutputId: "web.html5",
+              producerStep: "build",
             },
           },
         ],
@@ -441,7 +498,7 @@ describe("workflow artifact instances", () => {
     expect(result.steps.publish).toMatchObject({
       status: "failed",
       error: {
-        message: 'Workflow delivery step publish requires artifact output "web.html5", but no artifact was produced.',
+        message: 'Workflow delivery step publish requires artifact output "web.html5" from producer "build", but that producer artifact was not produced.',
       },
       delivery: {
         destinationId: "cloud-instance-1",
@@ -467,6 +524,7 @@ describe("workflow artifact instances", () => {
               destinationId: "cloud-instance-1",
               slotId: "web",
               artifactOutputId: "web.html5",
+              producerStep: "build",
             },
           },
         ],
@@ -489,7 +547,7 @@ describe("workflow artifact instances", () => {
     expect(result.steps.publish).toMatchObject({
       status: "failed",
       error: {
-        message: 'Workflow delivery step publish requires artifact output "web.html5", but no artifact was produced.',
+        message: 'Workflow delivery step publish requires artifact output "web.html5" from producer "build", but that producer artifact was not produced.',
       },
     });
   });

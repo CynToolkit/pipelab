@@ -20,6 +20,9 @@
         <Message v-if="error" severity="error" :closable="false" role="alert" class="run-error">{{
           error
         }}</Message>
+        <Message v-if="cancelFeedback" severity="info" :closable="false" class="run-error">{{
+          cancelFeedback
+        }}</Message>
         <header class="run-header">
           <div class="run-title-row">
             <span
@@ -289,6 +292,7 @@ import {
   deliveryDisplayMetadata,
   isRunContextValid,
   resetRunStepSelectionState,
+  workflowCancellationFeedback,
   selectRunStep,
 } from "./run-detail-state";
 
@@ -298,6 +302,7 @@ const router = useRouter();
 const api = useAPI();
 const entry = ref<BuildHistoryEntry>();
 const error = ref("");
+const cancelFeedback = ref("");
 const stepSelection = reactive(createRunStepSelectionState());
 const selectedStep = computed({
   get: () => stepSelection.selectedStepId,
@@ -453,9 +458,11 @@ const copyVideoPath = async () => {
 };
 const cancel = async () => {
   cancelling.value = true;
+  cancelFeedback.value = "";
   try {
     const result = await api.execute("workflow:cancel", { runId: entry.value?.id || String(route.params.runId) });
     if (result.type === "error") error.value = result.ipcError;
+    else cancelFeedback.value = workflowCancellationFeedback(result);
   } catch (cause) {
     error.value = cause instanceof Error ? cause.message : String(cause);
   } finally {
