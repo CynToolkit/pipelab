@@ -88,8 +88,8 @@ const routes: RouterOptions["routes"] = [
     meta: { title: "Runs" },
   },
   {
-    path: "/runs/:runId",
-    name: "RunDetail",
+    path: "/workflows/:flowId/:projectId/runs/:runId",
+    name: "WorkflowRunDetail",
     component: () => import("../pages/run-detail.vue"),
     meta: { title: "Run" },
   },

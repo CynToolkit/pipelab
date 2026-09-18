@@ -1,26 +1,13 @@
 <template>
   <Layout>
-    <div class="flow-page">
-      <header class="flow-header">
-        <div class="flow-heading">
-          <Button
-            text
-            icon="mdi mdi-arrow-left"
-            aria-label="Back"
-            @click="router.push('/dashboard')"
-          />
-          <div class="flow-title-icon"><i class="mdi mdi-rocket-launch-outline" /></div>
-          <div class="heading">
-            <h1>{{ flow?.name || "Workflow" }}</h1>
-            <p>{{ flow?.description || "Build once, then ship everywhere." }}</p>
-          </div>
-        </div>
-        <Button
-          label="Runs"
-          icon="mdi mdi-history"
-          text
-          @click="router.push(`/workflows/${route.params.flowId}/${route.params.projectId}/runs`)"
-        />
+    <WorkflowShell
+      :flow-id="String(route.params.flowId)"
+      :project-id="String(route.params.projectId)"
+      :title="flow?.name"
+      :subtitle="flow?.description || 'Build once, then ship everywhere.'"
+      active="configuration"
+    >
+      <template #actions>
         <Button
           label="Ship"
           icon="mdi mdi-rocket-launch-outline"
@@ -37,7 +24,8 @@
           aria-label="Workflow failure policy"
           class="failure-policy"
         />
-      </header>
+      </template>
+      <div class="flow-page">
       <Message v-if="loadError" severity="error">{{ loadError }}</Message>
       <Message v-if="runError" severity="error">{{ runError }}</Message>
       <Message v-if="flow && readiness.length" severity="warn" aria-live="polite">
@@ -75,7 +63,8 @@
           @update:model-value="flow = $event"
         />
       </template>
-    </div>
+      </div>
+    </WorkflowShell>
     <Dialog
       v-model:visible="sourceDialogVisible"
       modal
@@ -271,12 +260,12 @@ import { useRoute, useRouter } from "vue-router";
 import Layout from "@renderer/components/Layout.vue";
 import Button from "primevue/button";
 import Message from "primevue/message";
-import Tag from "primevue/tag";
 import InputText from "primevue/inputtext";
 import Select from "primevue/select";
 import Checkbox from "primevue/checkbox";
 import Dialog from "primevue/dialog";
 import WorkflowArtifactsPanel from "@renderer/components/WorkflowArtifactsPanel.vue";
+import WorkflowShell from "@renderer/components/WorkflowShell.vue";
 import { useAPI } from "@renderer/composables/api";
 import { getReleaseHostCapabilities, migrateWorkflowConfig, type BrowserProfileCandidate, type WorkflowConfig, type WorkflowDestination } from "@pipelab/shared";
 import { getWorkflowReadiness } from "./release-flow-readiness";
@@ -290,7 +279,6 @@ const loadError = ref("");
 const runError = ref("");
 const saving = ref(false);
 const running = ref(false);
-const cancelRequested = ref(false);
 const activeDestination = ref<WorkflowDestination>();
 const destinationDialogVisible = ref(false);
 const sourceDialogVisible = ref(false);
@@ -506,7 +494,6 @@ const runShip = async () => {
     return;
   await save();
   running.value = true;
-  cancelRequested.value = false;
   runError.value = "";
   try {
     const response = await api.execute(
@@ -516,7 +503,10 @@ const runShip = async () => {
         release: { version: releaseVersion.value.trim(), description: releaseDescription.value.trim() },
       },
       async (event: any) => {
-        if (event.type === "workflow-run") await router.push(`/runs/${event.data.runId}`);
+        if (event.type === "workflow-run")
+          await router.push(
+            `/workflows/${route.params.flowId}/${route.params.projectId}/runs/${event.data.runId}`,
+          );
       },
     );
     if (response.type === "error") runError.value = response.ipcError;
@@ -524,19 +514,6 @@ const runShip = async () => {
     runError.value = error instanceof Error ? error.message : String(error);
   } finally {
     running.value = false;
-    cancelRequested.value = false;
-  }
-};
-const cancel = async () => {
-  if (!running.value || cancelRequested.value) return;
-  cancelRequested.value = true;
-  try {
-    const result = await api.execute("workflow:cancel");
-    if (result.type === "error") {
-      cancelRequested.value = false;
-    }
-  } catch (error) {
-    cancelRequested.value = false;
   }
 };
 const destinationLabel = (type: string) =>
@@ -551,54 +528,6 @@ const steam = (destination: WorkflowDestination) =>
   max-width: 1100px;
   box-sizing: border-box;
   margin: 0 auto;
-  padding: 24px clamp(16px, 2.5vw, 32px) 48px;
-}
-.flow-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-.flow-header > .p-button,
-.failure-policy {
-  flex: 0 0 auto;
-}
-.flow-heading {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  min-width: 0;
-}
-.flow-heading > .p-button {
-  flex: 0 0 auto;
-}
-.heading {
-  min-width: 0;
-  flex: 1;
-}
-.flow-title-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  flex-shrink: 0;
-  border-radius: 8px;
-  color: var(--primary-color);
-  background: var(--p-surface-100, var(--surface-ground));
-}
-h1 {
-  margin: 0;
-  font-size: 1.05rem;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-}
-.heading p {
-  margin: 0;
-  font-size: 0.8rem;
-  font-weight: 500;
-  color: var(--p-text-muted-color, var(--text-color-secondary));
 }
 .card {
   border: 1px solid var(--p-surface-200, var(--surface-border));
@@ -718,56 +647,11 @@ h1 {
   color: var(--red-500, #ef4444);
   font-size: 20px;
 }
-@media (max-width: 700px) {
-  .flow-page {
-    padding-inline: 16px;
-  }
-  .flow-header {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: center;
-  }
-  .flow-heading {
-    min-width: 0;
-  }
-  .failure-policy {
-    grid-column: 1 / -1;
-    width: 100%;
-  }
-}
 .readiness-errors {
   margin: 6px 0 0;
   padding-left: 20px;
 }
 @media (max-width: 640px) {
-  .flow-page {
-    padding: 20px 12px 40px;
-  }
-  .flow-header {
-    grid-template-columns: 1fr;
-    align-items: stretch;
-    gap: 10px;
-  }
-  .flow-header > .p-button {
-    grid-row: 2;
-    width: 100%;
-  }
-  .failure-policy {
-    grid-row: 3;
-  }
-  .flow-heading {
-    gap: 8px;
-  }
-  .flow-title-icon {
-    width: 36px;
-    height: 36px;
-  }
-  h1 {
-    font-size: 1rem;
-  }
-  .heading p {
-    line-height: 1.35;
-  }
   .source-card {
     align-items: flex-start;
     flex-wrap: wrap;
@@ -800,12 +684,6 @@ h1 {
   }
 }
 @media (max-width: 380px) {
-  .flow-heading {
-    align-items: center;
-  }
-  .flow-heading > .p-button {
-    padding-inline: 6px;
-  }
   .source-card .p-button {
     margin-left: 40px;
   }
