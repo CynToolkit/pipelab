@@ -34,7 +34,19 @@ describe("release definitions", () => {
       "tauri.linux",
       "tauri.macos.arm64",
       "web.html5",
+      "godot.windows",
+      "godot.linux",
+      "godot.macos.arm64",
+      "godot.web",
     ]);
+  });
+
+  it("routes Godot outputs to their supported destinations", () => {
+    expect(SERVICE_DEFINITIONS.steam.outputs).toEqual(expect.arrayContaining(["godot.windows", "godot.linux", "godot.macos.arm64"]));
+    expect(SERVICE_DEFINITIONS.itch.outputs).toContain("godot.web");
+    expect(SERVICE_DEFINITIONS.poki.outputs).toContain("godot.web");
+    expect(SERVICE_DEFINITIONS["web-folder"].outputs).toContain("godot.web");
+    expect(SERVICE_DEFINITIONS.zip.outputs).toEqual(expect.arrayContaining(["godot.windows", "godot.linux", "godot.macos.arm64", "godot.web"]));
   });
 
   it("migrates the legacy flat output list to packagers and exact slot inputs", () => {

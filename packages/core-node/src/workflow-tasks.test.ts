@@ -1,4 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
+import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
 import type { WorkflowTaskContext } from "@pipelab/workflow-runtime";
 import { PipelabContext } from "./context";
 import type { ActionRunner } from "./types/runner";
@@ -18,6 +21,43 @@ const makeTaskContext = (): WorkflowTaskContext => ({
 });
 
 describe("createWorkflowActionTask", () => {
+  it("runs a Godot export, streams output and records a checksummed artifact", async () => {
+    const project = await mkdtemp(join(tmpdir(), "pipelab-godot-test-"));
+    const root = join(project, "workflow");
+    try {
+      const processExecute = vi.fn(async (command: string, args: string[], options: { onStdout?: (chunk: string) => void }) => {
+        expect(command).toBe("godot4");
+        expect(args).toEqual(["--headless", "--path", project, "--export-release", "Windows Desktop", join(root, ".pipelab-godot", "godot", "godot.windows", "My-Game.exe")]);
+        await mkdir(join(root, ".pipelab-godot", "godot", "godot.windows"), { recursive: true });
+        await writeFile(args.at(-1)!, "exported binary");
+        options.onStdout?.("export complete");
+        return { exitCode: 0, stdout: "export complete", stderr: "", duration: 10 };
+      });
+      const taskContext = {
+        ...makeTaskContext(),
+        step: { id: "godot-export", uses: "godot:export", with: { outputId: "godot.windows" } },
+        inputs: { project, preset: "Windows Desktop", outputId: "godot.windows", packagerId: "godot", godotExecutable: "godot4", platform: "windows", projectName: "My Game" },
+        workspace: { root },
+        filesystem: { ensureDirectory: async (path: string) => mkdir(path, { recursive: true }).then(() => undefined) },
+        processes: { execute: processExecute as any },
+      };
+      const tasks = createPipelabWorkflowTasks(
+        { context: new PipelabContext({ userDataPath: "/tmp/pipelab-user-data" }), paths: { cache: "/tmp/cache", pnpm: "/tmp/pnpm", node: "/tmp/node", userData: "/tmp/pipelab-user-data", modules: "", thirdparty: "/tmp/thirdparty" } },
+        [
+          { id: "@pipelab/plugin-construct", nodes: ["export-construct-project", "export-construct-project-folder"].map((id) => ({ node: { id }, runner: async () => undefined })) },
+          { id: "@pipelab/plugin-filesystem", nodes: ["unzip-file-node", "fs:copy"].map((id) => ({ node: { id }, runner: async () => undefined })) },
+          { id: "@pipelab/plugin-electron", nodes: [{ node: { id: "electron:package:v2" }, runner: async () => undefined }] },
+          { id: "@pipelab/plugin-steam", nodes: [{ node: { id: "steam-upload" }, runner: async () => undefined }] },
+          { id: "@pipelab/plugin-itch", nodes: [{ node: { id: "itch-upload" }, runner: async () => undefined }] },
+        ] as any,
+      );
+      await tasks["godot:export"](taskContext as any);
+      expect(taskContext.logStream).toHaveBeenCalledWith("stdout", "export complete");
+      expect(taskContext.setArtifact).toHaveBeenCalledWith("godot.windows", join(root, ".pipelab-godot", "godot", "godot.windows"), expect.objectContaining({ size: 15, checksum: expect.any(String) }));
+      expect(await readFile(join(root, ".pipelab-godot", "godot", "godot.windows", "My-Game.exe"), "utf8")).toBe("exported binary");
+    } finally { await rm(project, { recursive: true, force: true }); }
+  });
+
   it("adapts action outputs, logs, artifacts, and cancellation", async () => {
     const actionRunner: ActionRunner<any> = async (options) => {
       options.log("export started");
@@ -99,10 +139,12 @@ describe("createWorkflowActionTask", () => {
         plugin("@pipelab/plugin-electron", ["electron:package:v2"]),
         plugin("@pipelab/plugin-steam", ["steam-upload"]),
         plugin("@pipelab/plugin-itch", ["itch-upload"]),
+        plugin("@pipelab/plugin-poki", ["poki-upload"]),
       ],
     );
 
     expect(Object.keys(tasks)).toEqual([
+      "godot:export",
       "construct:export",
       "construct:export-folder",
       "source:extract",
@@ -112,6 +154,7 @@ describe("createWorkflowActionTask", () => {
       "filesystem:zip",
       "steam:upload",
       "itch:upload",
+      "poki:upload",
       "pipelab-cloud:upload",
     ]);
   });

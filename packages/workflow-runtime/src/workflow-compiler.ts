@@ -4,7 +4,7 @@ import type { Workflow, WorkflowStep } from "./types";
 
 export interface WorkflowPackagerConfiguration {
   readonly id: string;
-  readonly definitionId: "electron" | "tauri" | "web";
+  readonly definitionId: "electron" | "tauri" | "web" | "godot";
   readonly name?: string;
   readonly enabled: boolean;
   readonly config?: Record<string, unknown>;
@@ -28,7 +28,7 @@ export interface WorkflowDestinationV2Configuration {
 export interface WorkflowConfigurationV2 {
   readonly version: "2.0.0";
   readonly continueOnError?: boolean;
-  readonly source: { type: "construct3" | "folder"; path: string; profilePath?: string };
+  readonly source: { type: "construct3" | "folder" | "godot"; path: string; profilePath?: string };
   readonly packagers: readonly WorkflowPackagerConfiguration[];
   readonly destinations: readonly WorkflowDestinationV2Configuration[];
 }
@@ -36,7 +36,7 @@ export interface WorkflowConfigurationV2 {
 const stepIdForOutput = (packagerId: string, outputId: ArtifactOutputId) =>
   `packager-${packagerId}-${outputId.replaceAll(".", "-")}`;
 
-const sourceSteps = (source: WorkflowConfigurationV2["source"]): WorkflowStep[] => [
+const sourceSteps = (source: WorkflowConfigurationV2["source"]): WorkflowStep[] => source.type === "godot" ? [] : [
   {
     id: "source-export",
     uses: source.type === "construct3" ? "construct:export" : "construct:export-folder",
@@ -49,6 +49,21 @@ const sourceSteps = (source: WorkflowConfigurationV2["source"]): WorkflowStep[] 
 
 const producerStep = (packager: WorkflowPackagerConfiguration, outputId: ArtifactOutputId): WorkflowStep => {
   const output = ARTIFACT_OUTPUTS[outputId];
+  if (packager.definitionId === "godot") return {
+    id: stepIdForOutput(packager.id, outputId),
+    uses: "godot:export",
+    with: {
+      packagerId: packager.id,
+      outputId,
+      project: "${{ variables.sourcePath }}",
+      preset: (packager.config?.presets as Record<string, string> | undefined)?.[outputId] || "",
+      godotExecutable: String(packager.config?.godotExecutable || "godot"),
+      format: output.format,
+      projectName: String(packager.config?.projectName || "game"),
+      platform: output.platform,
+      architecture: output.architecture,
+    },
+  };
   return {
     id: stepIdForOutput(packager.id, outputId),
     uses: output.packager === "electron" ? "electron:bundle" : output.packager === "tauri" ? "tauri:bundle" : "web:bundle",
@@ -71,6 +86,7 @@ export const compileWorkflow = (configuration: WorkflowConfigurationV2): Workflo
   for (const packager of configuration.packagers.filter((item) => item.enabled)) {
     const configuredTargets = packager.config?.targets;
     const targets = Array.isArray(configuredTargets) ? configuredTargets as ArtifactOutputId[] : Object.values(ARTIFACT_OUTPUTS).filter((output) => output.packager === packager.definitionId).map((output) => output.id);
+    if ((configuration.source.type === "godot") !== (packager.definitionId === "godot")) continue;
     for (const outputId of [...new Set(targets)]) {
       const output = ARTIFACT_OUTPUTS[outputId];
       if (!output || output.packager !== packager.definitionId) continue;
@@ -99,6 +115,7 @@ export const compileWorkflow = (configuration: WorkflowConfigurationV2): Workflo
           ...(destination.config || {}), ...(slot.config || {}), packagerId: slot.input.packagerId, version: "${{ variables.version }}",
           ...(destination.serviceId === "steam" ? { folder: `\${{ steps.${producer}.outputs.bundleDirectory }}` } : {}),
           ...(destination.serviceId === "itch" ? { "input-folder": `\${{ steps.${producer}.outputs.bundleDirectory }}` } : {}),
+          ...(destination.serviceId === "poki" ? { "input-folder": `\${{ steps.${producer}.outputs.output }}`, project: destination.config?.project, name: destination.config?.name, notes: destination.config?.notes } : {}),
           ...(destination.serviceId === "web-folder" ? { from: `\${{ steps.${producer}.outputs.output }}`, to: slot.config?.outputDir || destination.config?.outputDir, recursive: true } : {}),
           ...(destination.serviceId === "zip" ? { from: `\${{ steps.${producer}.outputs.output }}`, to: slot.config?.outputPath } : {}),
         },

@@ -8,6 +8,10 @@ export const ArtifactOutputIdValidator = union([
   literal("tauri.linux"),
   literal("tauri.macos.arm64"),
   literal("web.html5"),
+  literal("godot.windows"),
+  literal("godot.linux"),
+  literal("godot.macos.arm64"),
+  literal("godot.web"),
 ]);
 export type ArtifactOutputId = InferInput<typeof ArtifactOutputIdValidator>;
 
@@ -19,6 +23,7 @@ export const WorkflowSourceValidator = union([
     version: optional(string()),
   }),
   object({ type: literal("folder"), path: string() }),
+  object({ type: literal("godot"), path: string() }),
 ]);
 
 export const WorkflowDestinationValidator = union([

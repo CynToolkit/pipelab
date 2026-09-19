@@ -2,7 +2,7 @@
   <section class="release-editor" aria-label="Release workflow configuration">
     <div class="editor-tabs" role="tablist" aria-label="Workflow configuration">
       <button :class="{ active: activeTab === 'destinations' }" role="tab" :aria-selected="activeTab === 'destinations'" @click="activeTab = 'destinations'"><i class="mdi mdi-upload-multiple" /> Destinations <span>{{ modelValue.destinations.length }}</span></button>
-      <button :class="{ active: activeTab === 'packagers' }" role="tab" :aria-selected="activeTab === 'packagers'" @click="activeTab = 'packagers'"><i class="mdi mdi-package-variant-closed" /> Packagers <span>{{ modelValue.packagers.length }}</span></button>
+      <button :class="{ active: activeTab === 'packagers' }" role="tab" :aria-selected="activeTab === 'packagers'" @click="activeTab = 'packagers'"><i class="mdi mdi-package-variant-closed" /> Builds <span>{{ modelValue.packagers.length }}</span></button>
     </div>
 
     <div v-if="activeTab === 'destinations'" class="tab-panel" role="tabpanel">
@@ -17,12 +17,12 @@
     </div>
 
     <div v-else class="tab-panel" role="tabpanel">
-      <div class="panel-toolbar"><div><h2>Packagers</h2><p>Configure targets once; destinations select exact outputs.</p></div><Select v-model="packagerToAdd" :options="packagerDefinitions" optionLabel="label" optionValue="id" placeholder="Add packager" class="add-select" @change="addPackager" /></div>
-      <div v-if="!modelValue.packagers.length" class="empty-state">Add a packager to create build outputs.</div>
+      <div class="panel-toolbar"><div><h2>Builds</h2><p>Choose build outputs and Godot export presets.</p></div><Select v-model="packagerToAdd" :options="packagerDefinitions" optionLabel="label" optionValue="id" placeholder="Add build tool" class="add-select" @change="addPackager" /></div>
+      <div v-if="!modelValue.packagers.length" class="empty-state">Add a build tool to create outputs.</div>
       <article v-for="packager in modelValue.packagers" :key="packager.id" class="entity-card packager-card" :class="{ inactive: !packager.enabled }">
         <div class="entity-header"><div class="entity-icon"><i class="mdi" :class="packager.definitionId === 'web' ? 'mdi-web' : packager.definitionId === 'tauri' ? 'mdi-lightning-bolt-outline' : 'mdi-desktop-classic'" /></div><div class="entity-title"><strong>{{ packager.name }}</strong><small>{{ definition(packager.definitionId).label }} · {{ outputs(packager).length }} artifacts</small></div><ToggleSwitch v-model="packager.enabled" :inputId="`packager-enabled-${packager.id}`" :aria-label="`${packager.name} enabled`" /><Button icon="mdi mdi-content-copy" text rounded :aria-label="`Duplicate ${packager.name}`" @click="duplicatePackager(packager)" /><Button icon="mdi mdi-cog-outline" text rounded :aria-label="`Configure ${packager.name}`" @click="openPackager(packager)" /><Button icon="mdi mdi-delete-outline" text rounded severity="danger" :disabled="consumers(packager.id).length > 0" :aria-label="`Delete ${packager.name}`" v-tooltip.bottom="consumers(packager.id).length ? `Used by ${consumers(packager.id).join(', ')}` : `Delete ${packager.name}`" @click="removePackager(packager.id)" /></div>
         <div class="packager-summary"><span v-for="target in outputs(packager)" :key="target.id" class="summary-chip"><i class="mdi mdi-package-variant-closed" /> {{ target.label }}</span><span v-for="feature in definition(packager.definitionId).features" :key="feature" class="feature"><i class="mdi mdi-check-circle-outline" /> {{ feature }}</span><span v-if="!outputs(packager).length" class="unavailable">No targets selected</span></div>
-        <div class="target-list"><div v-for="target in definition(packager.definitionId).outputs" :key="target.id" class="target-row" :class="{ unavailable: !availability(packager, target.id).available }" v-tooltip.bottom="targetLockReason(packager, target.id)"><i class="mdi" :class="selectedTarget(packager, target.id) ? 'mdi-check-circle-outline' : 'mdi-circle-outline'" /><span><strong>{{ target.label }}</strong><small>{{ target.platform }} · {{ target.format }} · {{ target.architecture }}</small></span><em v-if="!availability(packager, target.id).available"><i class="mdi mdi-lock-outline" /> {{ availability(packager, target.id).reason }}</em></div></div>
+        <div class="target-list"><div v-for="target in definition(packager.definitionId).outputs" :key="target.id" class="target-row" :class="{ unavailable: !availability(packager, target.id).available }" v-tooltip.bottom="targetLockReason(packager, target.id)"><i class="mdi" :class="selectedTarget(packager, target.id) ? 'mdi-check-circle-outline' : 'mdi-circle-outline'" /><span><strong>{{ target.label }}</strong><small>{{ target.platform }} · {{ target.format }} · {{ target.architecture }}</small></span><label v-if="packager.definitionId === 'godot'" class="preset-picker">Godot export preset<Select :model-value="(packager.config.presets as Record<string, string> | undefined)?.[target.id] || ''" :options="godotPresets || []" placeholder="Select preset" @update:modelValue="setGodotPreset(packager, target.id, $event)" /></label><em v-if="!availability(packager, target.id).available"><i class="mdi mdi-lock-outline" /> {{ availability(packager, target.id).reason }}</em></div></div>
         <div v-if="consumers(packager.id).length" class="consumer-note"><i class="mdi mdi-link-variant" /> Used by {{ consumers(packager.id).join(', ') }}</div>
       </article>
     </div>
@@ -48,7 +48,7 @@ import itchIcon from "../../../../plugins/plugin-itch/src/assets/itch-icon.webp"
 import pokiIcon from "../../../../plugins/plugin-poki/src/assets/poki-icon.webp";
 import { PACKAGER_DEFINITIONS, SERVICE_DEFINITIONS, createDefaultDestination, createDefaultPackager, getTargetAvailability, outputDescriptor, outputsForPackager, type ArtifactOutputDescriptor, type ReleaseHostCapabilities, type WorkflowArtifactOutputId, type WorkflowConfigV2, type WorkflowDestinationV2, type WorkflowDeliverySlot, type WorkflowPackager } from "@pipelab/shared";
 
-const props = defineProps<{ modelValue: WorkflowConfigV2; capabilities?: ReleaseHostCapabilities; connections?: Array<{ id: string; name: string; pluginName?: string; integrationName?: string }> }>();
+const props = defineProps<{ modelValue: WorkflowConfigV2; capabilities?: ReleaseHostCapabilities; connections?: Array<{ id: string; name: string; pluginName?: string; integrationName?: string }>; godotPresets?: string[] }>();
 const emit = defineEmits<{ "update:modelValue": [value: WorkflowConfigV2]; "add-connection": [serviceId: WorkflowDestinationV2["serviceId"]] }>();
 const activeTab = ref<"destinations" | "packagers">("destinations");
 const destinationToAdd = ref<string>();
@@ -58,7 +58,7 @@ const packagerDialog = ref<WorkflowPackager>();
 const destinationDialog = ref<WorkflowDestinationV2>();
 const slotDialog = ref<{ destination: WorkflowDestinationV2; slot: WorkflowDeliverySlot }>();
 const modelValue = props.modelValue;
-const packagerDefinitions = Object.values(PACKAGER_DEFINITIONS);
+const packagerDefinitions = computed(() => Object.values(PACKAGER_DEFINITIONS).filter((definition) => modelValue.source.type === "godot" ? definition.id === "godot" : definition.id !== "godot"));
 const availableServices = computed(() => Object.values(SERVICE_DEFINITIONS).filter((service) => !modelValue.destinations.some((destination) => destination.serviceId === service.id)));
 const host = computed(() => props.capabilities?.host || { platform: "linux" as const, architecture: "x64" });
 const definition = (id: WorkflowPackager["definitionId"]) => PACKAGER_DEFINITIONS[id];
@@ -74,12 +74,12 @@ const packagerDialogVisible = computed({ get: () => !!packagerDialog.value, set:
 const destinationDialogVisible = computed({ get: () => !!destinationDialog.value, set: (visible: boolean) => { if (!visible) destinationDialog.value = undefined; } });
 const slotDialogVisible = computed({ get: () => !!slotDialog.value, set: (visible: boolean) => { if (!visible) slotDialog.value = undefined; } });
 const openPackager = (packager: WorkflowPackager) => { packagerDialog.value = packager; };
-const addDestination = () => { if (!destinationToAdd.value) return; const destination = createDefaultDestination(destinationToAdd.value as WorkflowDestinationV2["serviceId"], modelValue.packagers, props.capabilities); const hasCompatiblePackager = modelValue.packagers.some((packager) => packager.enabled && service(destination.serviceId).compatiblePackagers.includes(packager.definitionId)); if (!hasCompatiblePackager) { const definitionId = service(destination.serviceId).compatiblePackagers[0]; modelValue.packagers.push(createDefaultPackager(definitionId, undefined, props.capabilities)); } modelValue.destinations.push(destination); destinationToAdd.value = undefined; touch(); };
+const addDestination = () => { if (!destinationToAdd.value) return; const destination = createDefaultDestination(destinationToAdd.value as WorkflowDestinationV2["serviceId"], modelValue.packagers, props.capabilities); const hasCompatiblePackager = modelValue.packagers.some((packager) => packager.enabled && service(destination.serviceId).compatiblePackagers.includes(packager.definitionId)); if (!hasCompatiblePackager) { const definitionId = modelValue.source.type === "godot" ? "godot" : service(destination.serviceId).compatiblePackagers[0]; modelValue.packagers.push(createDefaultPackager(definitionId, undefined, props.capabilities)); } modelValue.destinations.push(destination); destinationToAdd.value = undefined; touch(); };
 const removeDestination = (id: string) => { modelValue.destinations = modelValue.destinations.filter((destination) => destination.id !== id); touch(); };
 const openDestination = (destination: WorkflowDestinationV2) => { destinationDialog.value = destination; };
 const toggleDestination = (id: string) => { const next = new Set(expandedDestinationIds.value); if (next.has(id)) next.delete(id); else next.add(id); expandedDestinationIds.value = next; };
 const openSlot = (destination: WorkflowDestinationV2, slot: WorkflowDeliverySlot) => { slotDialog.value = { destination, slot }; };
-const destinationFields = (id: WorkflowDestinationV2["serviceId"]) => id === "steam" ? [{ key: "accountConnectionId", label: "Steam account", placeholder: "Search saved Steam connections" }, { key: "appId", label: "Steam App ID", placeholder: "123456" }, { key: "description", label: "Build description", placeholder: "Release build" }] : id === "itch" ? [{ key: "accountConnectionId", label: "Itch.io account", placeholder: "Search saved Itch.io connections" }, { key: "project", label: "Itch.io project", placeholder: "owner/project-slug", description: "Use the owner and project slug from the Itch.io project URL, for example studio-name/my-game." }] : [];
+const destinationFields = (id: WorkflowDestinationV2["serviceId"]) => id === "steam" ? [{ key: "accountConnectionId", label: "Steam account", placeholder: "Search saved Steam connections" }, { key: "appId", label: "Steam App ID", placeholder: "123456" }, { key: "description", label: "Build description", placeholder: "Release build" }] : id === "itch" ? [{ key: "accountConnectionId", label: "Itch.io account", placeholder: "Search saved Itch.io connections" }, { key: "project", label: "Itch.io project", placeholder: "owner/project-slug", description: "Use the owner and project slug from the Itch.io project URL, for example studio-name/my-game." }] : id === "poki" ? [{ key: "project", label: "Poki Game ID", placeholder: "Your Poki game ID" }, { key: "name", label: "Version name", placeholder: "1.0.0" }, { key: "notes", label: "Release notes", placeholder: "What changed in this build?" }] : [];
 const connectionOptions = (serviceId: WorkflowDestinationV2["serviceId"]) => {
   const pluginName = serviceId === "itch" ? "@pipelab/plugin-itch" : "@pipelab/plugin-steam";
   const integrationName = serviceId === "itch" ? "Itch Butler Account" : "Steam Account";
@@ -88,6 +88,7 @@ const connectionOptions = (serviceId: WorkflowDestinationV2["serviceId"]) => {
 const destinationSummary = (destination: WorkflowDestinationV2) => {
   if (destination.serviceId === "steam") return String(destination.config.appId || "App ID not set");
   if (destination.serviceId === "itch") return String(destination.config.project || "Project not set");
+  if (destination.serviceId === "poki") return String(destination.config.project || "Game ID not set");
   if (destination.serviceId === "zip") return "Select an artifact and ZIP path";
   if (destination.serviceId === "pipelab-cloud") return "Selected artifacts are hosted for 7 days; latest is kept";
   return "Select an artifact and output folder";
@@ -116,6 +117,7 @@ const targetLockReason = (packager: WorkflowPackager, outputId: WorkflowArtifact
 const fieldValue = (packager: WorkflowPackager, field: (typeof PACKAGER_DEFINITIONS.electron.fields)[number]) => packager.config[field.key] ?? field.defaultValue;
 const setField = (packager: WorkflowPackager, field: (typeof PACKAGER_DEFINITIONS.electron.fields)[number], value: unknown) => { packager.config[field.key] = field.kind === "array" ? String(value || "").split(",").map((item) => item.trim()).filter(Boolean) : value; touch(); };
 const setTarget = (packager: WorkflowPackager, outputId: WorkflowArtifactOutputId, checked: boolean) => { const targets = Array.isArray(packager.config.targets) ? [...packager.config.targets as WorkflowArtifactOutputId[]] : definition(packager.definitionId).outputs.map((output) => output.id); packager.config.targets = checked ? [...new Set([...targets, outputId])] : targets.filter((id) => id !== outputId); touch(); };
+const setGodotPreset = (packager: WorkflowPackager, outputId: WorkflowArtifactOutputId, preset: string) => { const presets = { ...((packager.config.presets as Record<string, string> | undefined) || {}) }; presets[outputId] = preset; packager.config.presets = presets; touch(); };
 const slotIsAvailable = (destination: WorkflowDestinationV2, slot: WorkflowDeliverySlot) => { const packager = modelValue.packagers.find((item) => item.id === slot.input.packagerId); const output = packager && outputDescriptor(slot.input.outputId); return !(slot.config.migration as { unresolved?: boolean } | undefined)?.unresolved && !!(packager && output && compatible(destination, packager, output) && selectedTarget(packager, output.id) && availability(packager, output.id).available); };
 const addSlot = (destination: WorkflowDestinationV2) => { const option = slotOptions(destination)[0]; if (!option) return; destination.slots.push({ id: `${destination.id}-slot-${Math.random().toString(36).slice(2, 8)}`, enabled: true, config: {}, input: option.value }); touch(); };
 const removeSlot = (destination: WorkflowDestinationV2, id: string) => { destination.slots = destination.slots.filter((slot) => slot.id !== id); if (slotDialog.value?.slot.id === id) slotDialog.value = undefined; touch(); };
@@ -124,6 +126,7 @@ const destinationInfoReady = (destination: WorkflowDestinationV2) => {
   if (!slots.length) return false;
   if (destination.serviceId === "steam") return Boolean(String(destination.config.accountConnectionId || "").trim() && String(destination.config.appId || "").trim() && slots.every((slot) => String(slot.config.depotId || "").trim()));
   if (destination.serviceId === "itch") return Boolean(String(destination.config.accountConnectionId || "").trim() && String(destination.config.project || "").trim() && slots.every((slot) => String(slot.config.channel || "").trim()));
+  if (destination.serviceId === "poki") return Boolean(String(destination.config.project || "").trim() && String(destination.config.name || "").trim() && String(destination.config.notes || "").trim());
   if (destination.serviceId === "web-folder") return Boolean(slots.every((slot) => String(slot.config.outputDir || destination.config.outputDir || "").trim()));
   if (destination.serviceId === "zip") return Boolean(slots.every((slot) => String(slot.config.outputPath || "").trim()));
   return true;
@@ -139,6 +142,11 @@ const destinationInfoReason = (destination: WorkflowDestinationV2) => {
     if (!String(destination.config.accountConnectionId || "").trim()) return "Select an Itch.io account connection.";
     if (!String(destination.config.project || "").trim()) return "Add an Itch.io project.";
     if (destination.slots.some((slot) => !String(slot.config.channel || "").trim())) return "Add a channel to every channel slot.";
+  }
+  if (destination.serviceId === "poki") {
+    if (!String(destination.config.project || "").trim()) return "Add a Poki Game ID.";
+    if (!String(destination.config.name || "").trim()) return "Add a version name.";
+    if (!String(destination.config.notes || "").trim()) return "Add release notes.";
   }
   if (destination.serviceId === "web-folder" && destination.slots.some((slot) => !String(slot.config.outputDir || destination.config.outputDir || "").trim())) return "Add an output folder to every folder slot.";
   if (destination.serviceId === "zip" && destination.slots.some((slot) => !String(slot.config.outputPath || "").trim())) return "Choose a ZIP file path for every ZIP file.";
