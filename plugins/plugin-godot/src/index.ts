@@ -1,5 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { createAction, createActionRunner, createNodeDefinition } from "@pipelab/plugin-core";
 import type { ReleaseProducerDefinition, ReleaseSourceDefinition } from "@pipelab/shared";
@@ -11,6 +12,16 @@ const targetDescriptors = {
   "linux-x64": { kind: "application" as const, technology: "godot", platform: "linux", architecture: "x64", container: "directory" as const },
   "macos-arm64": { kind: "application" as const, technology: "godot", platform: "macos", architecture: "arm64", container: "directory" as const },
   web: { kind: "application" as const, technology: "godot", platform: "web", container: "directory" as const },
+};
+
+const presetPlatformForProject = (projectPath: string, preset: string): string | undefined => {
+  try {
+    const config = readFileSync(join(projectPath, "export_presets.cfg"), "utf8");
+    for (const section of config.split(/(?=^\[preset\.\d+\]\s*$)/m)) {
+      if (section.match(new RegExp(`^name\\s*=\\s*"${preset.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&")}"`, "m"))) return section.match(/^platform\s*=\s*"([^"]+)"/m)?.[1];
+    }
+  } catch { /* Inspection reports missing presets. */ }
+  return undefined;
 };
 
 const inspect = async (path: string) => {
@@ -67,9 +78,14 @@ export const godotExporter: ReleaseProducerDefinition = {
   accepts: { kind: "project", technology: "godot", container: "directory" },
   targets: Object.entries(targetDescriptors).map(([id, output]) => ({ id, label: id, output, fields: [{ key: "preset", type: "select" as const, label: "Godot export preset", required: true }], createDefaultConfig: () => ({ preset: "" }), isAvailable: () => ({ available: true }) })),
   createDefaultConfig: () => ({ executable: "" }),
-  validate: (config) => config.targets.filter((target) => target.enabled).flatMap((target) => !String(target.config.preset || "").trim() ? [{ code: "godot.preset.required", message: `Choose a preset for ${target.id}.`, severity: "error" as const, path: `targets.${target.id}.config.preset` }] : String(target.config.presetPlatform || "") && !godotPresetMatchesTarget(String(target.config.presetPlatform), target.id) ? [{ code: "godot.preset.target-mismatch", message: `Preset ${target.config.preset} does not match target ${target.id}.`, severity: "error" as const, path: `targets.${target.id}.config.preset` }] : []),
-  inspect: async (config) => ({ fieldOptions: Object.fromEntries(config.targets.filter((target) => target.enabled).map((target) => [`target:${config.id}:${target.id}.preset`, []])), issues: [...(!findGodotExecutable() ? [{ code: "godot.executable.missing", message: "Godot executable not found.", severity: "error" as const }] : []), ...config.targets.filter((target) => target.enabled).flatMap((target) => { const preset = String(target.config.preset || ""); const presetPlatform = String(target.config.presetPlatform || ""); return !preset ? [{ code: "godot.preset.required", message: `Choose a preset for ${target.id}.`, severity: "error" as const }] : presetPlatform && !godotPresetMatchesTarget(presetPlatform, target.id) ? [{ code: "godot.preset.target-mismatch", message: `Preset ${preset} does not match target ${target.id}.`, severity: "error" as const }] : []; })] }),
-  compile: (input, config) => ({ steps: config.targets.filter((target) => target.enabled).map((target) => ({ id: `${config.id}-${target.id}`, uses: "@pipelab/plugin-godot/godot:export", needs: [input.stepId], artifactInputs: { project: input }, with: { preset: target.config.preset, target: target.id, executable: config.config.executable || findGodotExecutable() }, artifacts: { output: { descriptor: targetDescriptors[target.id as keyof typeof targetDescriptors] } } })), artifacts: Object.fromEntries(config.targets.filter((target) => target.enabled).map((target) => [target.id, { reference: { stepId: `${config.id}-${target.id}`, artifact: "output" }, descriptor: targetDescriptors[target.id as keyof typeof targetDescriptors] }])) }),
+  validate: (config, context) => config.targets.filter((target) => target.enabled).flatMap((target) => {
+    const preset = String(target.config.preset || "").trim();
+    if (!preset) return [{ code: "godot.preset.required", message: `Choose a preset for ${target.id}.`, severity: "error" as const, path: `targets.${target.id}.config.preset` }];
+    const platform = context.sourceConfig?.path ? presetPlatformForProject(String(context.sourceConfig.path), preset) : undefined;
+    return platform && !godotPresetMatchesTarget(platform, target.id) ? [{ code: "godot.preset.target-mismatch", message: `Preset ${preset} does not match target ${target.id}.`, severity: "error" as const, path: `targets.${target.id}.config.preset` }] : [];
+  }),
+  inspect: async (config) => ({ fieldOptions: Object.fromEntries(config.targets.filter((target) => target.enabled).map((target) => [`target:${config.id}:${target.id}.preset`, []])), issues: [...(!findGodotExecutable() ? [{ code: "godot.executable.missing", message: "Godot executable not found.", severity: "error" as const }] : []), ...config.targets.filter((target) => target.enabled).flatMap((target) => !String(target.config.preset || "").trim() ? [{ code: "godot.preset.required", message: `Choose a preset for ${target.id}.`, severity: "error" as const }] : [])] }),
+  compile: (input, config) => ({ steps: config.targets.filter((target) => target.enabled).map((target) => ({ id: `${config.id}-${target.id}`, uses: "@pipelab/plugin-godot/godot:export", needs: [input.reference.stepId], artifactInputs: { project: input.reference }, with: { preset: target.config.preset, target: target.id, executable: config.config.executable || findGodotExecutable() }, artifacts: { output: { descriptor: targetDescriptors[target.id as keyof typeof targetDescriptors] } } })), artifacts: Object.fromEntries(config.targets.filter((target) => target.enabled).map((target) => [target.id, { reference: { stepId: `${config.id}-${target.id}`, artifact: "output" }, descriptor: targetDescriptors[target.id as keyof typeof targetDescriptors] }])) }),
 };
 
 export default createNodeDefinition({ id: "@pipelab/plugin-godot", packageName: "@pipelab/plugin-godot", name: "Godot", description: "Godot release integration", icon: { type: "icon", icon: "pi-gamepad" }, isOfficial: true, nodes: [{ node: godotExportAction, runner: godotExportRunner }], release: { sources: [godotSource], producers: [godotExporter] } });

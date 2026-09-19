@@ -37,12 +37,15 @@ export interface ReleaseProducerConfig {
   enabled: boolean;
   targets: ReleaseProducerTarget[];
   config: Record<string, unknown>;
+  input?: ArtifactRef;
 }
+
+export type ArtifactRef = { source: true } | { producerId: string; outputId: string };
 
 export interface ReleaseDestinationSlot {
   id: string;
   enabled: boolean;
-  input: { producerId: string; outputId: string };
+  input: ArtifactRef;
   config: Record<string, unknown>;
 }
 
@@ -60,7 +63,6 @@ export interface ReleaseConfig {
   project: string;
   name: string;
   description?: string;
-  integration?: string;
   source: ReleaseSourceConfig;
   producers: ReleaseProducerConfig[];
   destinations: ReleaseDestinationConfig[];
@@ -108,6 +110,7 @@ export interface ReleaseCompileContext extends ReleaseProviderContext {
 
 export interface ReleaseValidationContext extends ReleaseProviderContext {
   source?: ArtifactDescriptor;
+  sourceConfig?: Record<string, unknown>;
 }
 
 export interface Availability {
@@ -120,21 +123,28 @@ export interface ReleaseFieldDefinition {
   type: "text" | "password" | "number" | "directory" | "file" | "select" | "connection";
   label: string;
   description?: string;
+  integration?: string;
   required?: boolean;
-  options?: Array<{ label: string; value: string }>;
+  options?: ReleaseFieldOption[];
+}
+
+export interface ReleaseFieldOption {
+  label: string;
+  value: string;
+  metadata?: Record<string, unknown>;
 }
 
 export interface SourceInspection {
   metadata?: Record<string, unknown>;
   data?: Record<string, unknown>;
-  fieldOptions?: Record<string, Array<{ label: string; value: string }>>;
+  fieldOptions?: Record<string, ReleaseFieldOption[]>;
   fieldValues?: Record<string, unknown>;
   issues: ValidationIssue[];
 }
 
 export interface ProducerInspection {
   data?: Record<string, unknown>;
-  fieldOptions?: Record<string, Array<{ label: string; value: string }>>;
+  fieldOptions?: Record<string, ReleaseFieldOption[]>;
   fieldValues?: Record<string, unknown>;
   issues: ValidationIssue[];
 }
@@ -155,10 +165,16 @@ export interface ReleaseSourceDefinition {
 export interface ReleaseProducerTargetDefinition {
   id: string;
   label: string;
-  output: ArtifactDescriptor;
+  output?: ArtifactDescriptor;
+  transform?: ArtifactDescriptorTransform;
   fields?: ReleaseFieldDefinition[];
   createDefaultConfig(): Record<string, unknown>;
   isAvailable?(context: ReleaseHostContext): Availability;
+}
+
+export interface ArtifactDescriptorTransform {
+  changes?: Partial<ArtifactDescriptor>;
+  remove?: Array<"technology" | "platform" | "architecture" | "format" | "capabilities">;
 }
 
 export interface ReleaseProducerDefinition {
@@ -172,7 +188,7 @@ export interface ReleaseProducerDefinition {
   createDefaultConfig(): Record<string, unknown>;
   validate(config: ReleaseProducerConfig, context: ReleaseValidationContext): ValidationIssue[];
   inspect?(config: ReleaseProducerConfig, context: ReleaseProviderContext): Promise<ProducerInspection>;
-  compile(input: CompiledArtifactReference, config: ReleaseProducerConfig, context: ReleaseCompileContext): CompiledProducer;
+  compile(input: CompiledArtifact, config: ReleaseProducerConfig, context: ReleaseCompileContext): CompiledProducer;
 }
 
 export interface ReleaseDestinationDefinition {
@@ -185,7 +201,7 @@ export interface ReleaseDestinationDefinition {
   accepts: ArtifactConstraint;
   createDefaultConfig(): Record<string, unknown>;
   validate(config: ReleaseDestinationConfig, context: ReleaseValidationContext): ValidationIssue[];
-  compile(artifact: CompiledArtifactReference, destination: ReleaseDestinationConfig, slot: ReleaseDestinationSlot, context: ReleaseCompileContext): WorkflowStep[];
+  compile(artifact: CompiledArtifact, destination: ReleaseDestinationConfig, slot: ReleaseDestinationSlot, context: ReleaseCompileContext): WorkflowStep[];
 }
 
 export interface PluginReleaseDefinition {
@@ -203,7 +219,8 @@ export interface ReleaseRegistry {
 export interface ReleaseCatalogTarget {
   id: string;
   label: string;
-  output: ArtifactDescriptor;
+  output?: ArtifactDescriptor;
+  transform?: ArtifactDescriptorTransform;
   defaultConfig: Record<string, unknown>;
   fields?: ReleaseFieldDefinition[];
   availability?: Availability;

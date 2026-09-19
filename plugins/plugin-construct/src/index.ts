@@ -11,7 +11,7 @@ export type { BrowserProfileCandidate } from "./browser-profiles";
 const constructSource: ReleaseSourceDefinition = {
   id: "@pipelab/plugin-construct/source",
   label: "Construct project",
-  fields: [{ key: "path", type: "directory", label: "Project path", required: true }, { key: "profilePath", type: "directory", label: "Browser profile path", required: true }],
+  fields: [{ key: "path", type: "file", label: "Project file", required: true }, { key: "profilePath", type: "directory", label: "Browser profile path", required: true }],
   output: { kind: "application", platform: "web", container: "directory" },
   createDefaultConfig: () => ({ path: "", profilePath: "" }),
   validate: (config) => [

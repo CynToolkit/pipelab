@@ -34,6 +34,7 @@ export const buildReleaseCatalog = (
       id: target.id,
       label: target.label,
       output: target.output,
+      transform: target.transform,
       defaultConfig: target.createDefaultConfig(),
       fields: target.fields,
       availability: host && target.isAvailable ? target.isAvailable(host) : undefined,

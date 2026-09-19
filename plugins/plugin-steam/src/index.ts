@@ -14,7 +14,7 @@ const steamDestination: ReleaseDestinationDefinition = {
     ...(!String(config.config.appId || "").trim() ? [{ code: "steam.app-id.required", message: "Steam App ID is required.", severity: "error" as const }] : []),
     ...config.slots.filter((slot) => slot.enabled && !String(slot.config.depotId || "").trim()).map((slot) => ({ code: "steam.depot.required", message: `Depot ID is required for slot ${slot.id}.`, severity: "error" as const, path: `slots.${slot.id}.config.depotId` })),
   ],
-  compile: (artifact, destination, slot) => [{ id: `steam-${destination.id}-${slot.id}`, uses: "@pipelab/plugin-steam/steam-upload", needs: [artifact.stepId], artifactInputs: { folder: artifact }, with: { ...destination.config, ...slot.config }, delivery: { destinationId: destination.id, slotId: slot.id, artifact } }],
+  compile: (artifact, destination, slot) => [{ id: `steam-${destination.id}-${slot.id}`, uses: "@pipelab/plugin-steam/steam-upload", needs: [artifact.reference.stepId], artifactInputs: { folder: artifact.reference }, with: { ...destination.config, ...slot.config }, delivery: { destinationId: destination.id, slotId: slot.id, artifact: artifact.reference } }],
 };
 
 export default createNodeDefinition({

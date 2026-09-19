@@ -15,7 +15,7 @@ const itchDestination: ReleaseDestinationDefinition = {
     ...(!String(config.config.project || "").trim() ? [{ code: "itch.project.required", message: "An Itch project is required.", severity: "error" as const }] : []),
     ...config.slots.filter((slot) => slot.enabled && !String(slot.config.channel || "").trim()).map((slot) => ({ code: "itch.channel.required", message: `A channel is required for slot ${slot.id}.`, severity: "error" as const, path: `slots.${slot.id}.config.channel` })),
   ],
-  compile: (artifact, destination, slot) => [{ id: `itch-${destination.id}-${slot.id}`, uses: "@pipelab/plugin-itch/itch-upload", needs: [artifact.stepId], artifactInputs: { "input-folder": artifact }, with: { ...destination.config, ...slot.config }, delivery: { destinationId: destination.id, slotId: slot.id, artifact } }],
+  compile: (artifact, destination, slot) => [{ id: `itch-${destination.id}-${slot.id}`, uses: "@pipelab/plugin-itch/itch-upload", needs: [artifact.reference.stepId], artifactInputs: { "input-folder": artifact.reference }, with: { ...destination.config, ...slot.config }, delivery: { destinationId: destination.id, slotId: slot.id, artifact: artifact.reference } }],
 };
 
 export default createNodeDefinition({
