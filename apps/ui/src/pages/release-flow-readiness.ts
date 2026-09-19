@@ -1,6 +1,8 @@
 import {
   outputDescriptor,
+  godotPresetMatchesOutput,
   type ReleaseHostCapabilities,
+  type WorkflowArtifactOutputId,
   type WorkflowConfigV2,
 } from "@pipelab/shared";
 
@@ -42,10 +44,11 @@ export const getWorkflowReadiness = (
     if (godot?.enabled) {
       const targets = Array.isArray(godot.config.targets) ? godot.config.targets as string[] : [];
       const presets = godot.config.presets as Record<string, string> | undefined;
-      if (targets.includes("godot.windows") && !godotInfo?.presets.some((preset) => /windows/i.test(godotInfo.presetPlatforms[preset] || preset))) errors.push("No Windows export preset");
+      if (targets.includes("godot.windows") && !godotInfo?.presets.some((preset) => godotPresetMatchesOutput("godot.windows", godotInfo.presetPlatforms[preset] || preset))) errors.push("No Windows export preset");
       for (const target of targets) {
         const selected = presets?.[target];
         if (!selected || (godotInfo && !godotInfo.presets.includes(selected))) errors.push(godotInfo && selected ? "Selected preset unavailable" : `Choose an export preset for ${target.replace("godot.", "").toUpperCase()}`);
+        else if (godotInfo && !godotPresetMatchesOutput(target as WorkflowArtifactOutputId, godotInfo.presetPlatforms[selected] || selected)) errors.push(`Selected preset does not match ${target.replace("godot.", "").toUpperCase()}`);
       }
     }
   }

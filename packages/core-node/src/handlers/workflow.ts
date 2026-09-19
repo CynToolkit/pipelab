@@ -9,6 +9,7 @@ import {
   outputDescriptor,
   PACKAGER_DEFINITIONS,
   SERVICE_DEFINITIONS,
+  godotPresetMatchesOutput,
   type WorkflowArtifactOutputId,
   type WorkflowConfig,
   type WorkflowConfigV2,
@@ -271,11 +272,12 @@ export const executeWorkflow = async (
     const godot = workflowConfig.packagers.find((packager) => packager.definitionId === "godot");
     const targets = Array.isArray(godot?.config.targets) ? godot.config.targets as string[] : [];
     const presets = godot?.config.presets as Record<string, string> | undefined;
-    if (targets.includes("godot.windows") && !inspection.presets.some((preset) => /windows/i.test(inspection.presetPlatforms[preset] || preset))) throw new Error("No Windows export preset");
+    if (targets.includes("godot.windows") && !inspection.presets.some((preset) => godotPresetMatchesOutput("godot.windows", inspection.presetPlatforms[preset] || preset))) throw new Error("No Windows export preset");
     for (const target of targets) {
       const selected = presets?.[target];
       if (!selected) throw new Error(`Choose an export preset for ${target.replace("godot.", "").toUpperCase()}`);
       if (!inspection.presets.includes(selected)) throw new Error(`Selected preset unavailable: ${selected}`);
+      if (!godotPresetMatchesOutput(target as WorkflowArtifactOutputId, inspection.presetPlatforms[selected] || selected)) throw new Error(`Selected preset does not match ${target.replace("godot.", "").toUpperCase()}: ${selected}`);
     }
   }
   const connectionsConfig = await (await setupConnectionsConfigFile(context)).getConfig();

@@ -168,6 +168,16 @@ export const outputsForPackager = (packager: WorkflowPackager): ArtifactOutputDe
 export const outputDescriptor = (outputId: WorkflowArtifactOutputId) =>
   Object.values(PACKAGER_DEFINITIONS).flatMap((definition) => definition.outputs).find((output) => output.id === outputId);
 
+export const godotPresetMatchesOutput = (outputId: WorkflowArtifactOutputId, platform: string | undefined): boolean => {
+  if (!platform) return false;
+  const normalized = platform.toLowerCase();
+  if (outputId === "godot.windows") return /windows|win32/.test(normalized);
+  if (outputId === "godot.linux") return /linux|x11/.test(normalized);
+  if (outputId === "godot.macos.arm64") return /macos|mac os|osx/.test(normalized);
+  if (outputId === "godot.web") return /web|html5/.test(normalized);
+  return false;
+};
+
 export const createDefaultPackager = (
   definitionId: WorkflowPackagerDefinitionId,
   id = `${definitionId}-${cryptoRandomId()}`,
