@@ -114,7 +114,7 @@ const app = createApp(Root);
 
 app.use(router);
 app.use(pinia);
-app.use(VueDOMPurifyHTML);
+app.use(VueDOMPurifyHTML as any);
 app.use(PrimeVue, {
   theme: {
     preset: PipelabPreset,
@@ -123,13 +123,13 @@ app.use(PrimeVue, {
     },
   },
 });
-app.use(ToastService);
-app.use(ConfirmationService);
+app.use(ToastService as any);
+app.use(ConfirmationService as any);
 if (window.isPackaged && process.env.TEST !== "true") {
-  app.use(posthogPlugin);
+  app.use(posthogPlugin as any);
 }
 app.use(i18n);
-app.directive("tooltip", Tooltip);
+app.directive("tooltip", Tooltip as any);
 
 const { logger } = useLogger();
 

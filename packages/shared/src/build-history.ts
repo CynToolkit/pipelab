@@ -4,7 +4,7 @@ import type {
   ArtifactInstance as WorkflowArtifactInstance,
   WorkflowDeliveryResult,
 } from "@pipelab/workflow-runtime";
-import type { WorkflowArtifactOutputId } from "@pipelab/constants";
+import type { ArtifactDescriptor } from "./release/types";
 
 export interface ExecutionStep {
   id: string;
@@ -21,8 +21,7 @@ export interface ExecutionStep {
   serviceId?: string;
   destinationName?: string;
   slotId?: string;
-  outputId?: WorkflowArtifactOutputId;
-  producerStep?: string;
+  artifact?: string;
 }
 
 export interface ExecutionError {
@@ -47,12 +46,10 @@ export interface Artifact {
   path: string;
   size: number;
   type: "file" | "folder";
-  outputId?: WorkflowArtifactOutputId;
+  descriptor?: ArtifactDescriptor;
   version?: string;
-  platform?: WorkflowArtifactInstance["platform"];
-  architecture?: WorkflowArtifactInstance["architecture"];
-  format?: WorkflowArtifactInstance["format"];
-  producerStep?: string;
+  stepId?: string;
+  artifact?: string;
   checksum?: string;
   cloud?: {
     hostedArtifactId: string;

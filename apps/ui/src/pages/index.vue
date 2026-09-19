@@ -225,7 +225,7 @@
             </div>
             <div v-for="flow in filteredWorkflowsEnhanced" :key="flow.id" class="pipeline-row workflow-row" @click="openWorkflow(flow.id)">
               <div class="pipeline-tech-stack workflow-icon"><i class="mdi mdi-rocket-launch-outline"></i></div>
-              <div class="pipeline-info"><div class="pipeline-title-row"><span class="pipeline-name">{{ flow.content.name }}</span><Tag severity="info" value="Workflow" class="type-tag" /></div><div class="pipeline-desc">{{ flow.content.source.type === 'construct3' ? 'Construct 3' : 'Built folder' }} → {{ flow.content.destinations.map(destinationLabel).join(', ') }}</div></div>
+              <div class="pipeline-info"><div class="pipeline-title-row"><span class="pipeline-name">{{ flow.content.name }}</span><Tag severity="info" value="Release" class="type-tag" /></div><div class="pipeline-desc">{{ flow.content.source.provider }} → {{ flow.content.destinations.map(destinationLabel).join(', ') }}</div></div>
               <div class="pipeline-meta-actions"><span class="pipeline-updated">Updated {{ formatLastModified(flow.lastModified) }}</span><div class="row-actions" @click.stop><Button icon="mdi mdi-pencil" text rounded severity="secondary" size="small" v-tooltip.top="'Edit workflow'" @click="openWorkflow(flow.id)" /><Button icon="mdi mdi-dots-vertical" text rounded severity="secondary" size="small" @click="toggleWorkflowMenu($event, flow)" /></div></div>
             </div>
           </div>
@@ -483,9 +483,7 @@ import {
   savedFileMigrator,
   AppConfig,
   MigrationChannel,
-  WorkflowConfig,
-  WorkflowConfigV2,
-  SERVICE_DEFINITIONS,
+  ReleaseConfig,
 } from "@pipelab/shared";
 import { nanoid } from "nanoid";
 import { useRouter } from "vue-router";
@@ -542,7 +540,7 @@ const { files } = storeToRefs(fileStore);
 const { update: updateFileStore, remove, removeProject, transferPipeline, load: reloadFiles } = fileStore;
 
 const filesEnhanced = ref<EnhancedFile[]>([]);
-const workflowsEnhanced = ref<Array<{ id: string; project: string; lastModified: string; content: WorkflowConfig | WorkflowConfigV2 }>>([]);
+const workflowsEnhanced = ref<Array<{ id: string; project: string; lastModified: string; content: ReleaseConfig }>>([]);
 const isWorkflowWizardVisible = ref(false);
 
 const searchQuery = ref("");
@@ -744,10 +742,10 @@ watchEffect(async () => {
 });
 
 watchEffect(async () => {
-  const result: Array<{ id: string; project: string; lastModified: string; content: WorkflowConfig | WorkflowConfigV2 }> = [];
+  const result: Array<{ id: string; project: string; lastModified: string; content: ReleaseConfig }> = [];
   for (const flow of workflows.value) {
     const loaded = await api.execute("workflow:load-by-name", { name: flow.configName });
-    if (loaded.type === "success") result.push({ id: flow.id, project: flow.project, lastModified: flow.lastModified, content: loaded.result as WorkflowConfig | WorkflowConfigV2 });
+    if (loaded.type === "success") result.push({ id: flow.id, project: flow.project, lastModified: flow.lastModified, content: loaded.result as ReleaseConfig });
   }
   workflowsEnhanced.value = result;
 });
@@ -800,13 +798,13 @@ const openNewProjectDialog = async () => {
 };
 
 const openWorkflowWizard = () => { isWorkflowWizardVisible.value = true; };
-const createWorkflow = async (flow: WorkflowConfigV2) => {
+const createWorkflow = async (flow: ReleaseConfig) => {
   await fileStore.saveWorkflow(flow);
   await router.push(`/workflows/${flow.id}/${flow.project}`);
 };
 const openWorkflow = (id: string) => router.push(`/workflows/${id}/${activeProjectId.value}`);
 const toggleWorkflowMenu = (_event: Event, _flow: any) => { /* lifecycle actions land in the workflow editor menu */ };
-const destinationLabel = (d: WorkflowConfig["destinations"][number] | WorkflowConfigV2["destinations"][number]) => "serviceId" in d ? SERVICE_DEFINITIONS[d.serviceId].label : d.type === "web" ? "Web folder" : d.type === "steam" ? "Steam" : "Itch.io";
+const destinationLabel = (d: ReleaseConfig["destinations"][number]) => d.provider;
 onMounted(() => reloadFiles(true));
 const onNewProjectCreation = async () => {
   const projectId = nanoid();

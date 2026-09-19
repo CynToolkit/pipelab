@@ -38,6 +38,7 @@
     "@pipelab/plugin-core": "workspace:*",
     "@pipelab/plugin-discord": "workspace:*",
     "@pipelab/plugin-electron": "workspace:*",
+    "@pipelab/plugin-godot": "workspace:*",
     "@pipelab/plugin-filesystem": "workspace:*",
     "@pipelab/plugin-itch": "workspace:*",
     "@pipelab/plugin-minify": "workspace:*",

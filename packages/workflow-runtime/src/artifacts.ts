@@ -1,37 +1,29 @@
-import type { ArtifactOutputDefinition, WorkflowArtifactOutputId } from "@pipelab/constants";
+export type ArtifactKind = "project" | "application" | "files";
 
-export type ArtifactOutputId = WorkflowArtifactOutputId;
+export interface ArtifactDescriptor {
+  kind: ArtifactKind;
+  technology?: string;
+  platform?: string;
+  architecture?: string;
+  container: "file" | "directory" | "archive";
+  format?: string;
+  capabilities?: string[];
+}
 
-export {
-  ARTIFACT_OUTPUTS,
-  DESTINATIONS,
-  PACKAGERS,
-  PACKAGER_DEFINITIONS,
-  SERVICE_DEFINITIONS,
-} from "@pipelab/constants";
-export type {
-  ArtifactOutputDescriptor,
-  ArtifactOutputDefinition,
-  DestinationDefinition,
-  PackagerDefinition,
-  WorkflowArtifactOutputId,
-  WorkflowPackagerDefinitionId,
-  WorkflowServiceId,
-} from "@pipelab/constants";
-
-export interface ArtifactInstance {
+export interface WorkflowArtifactInstance {
   readonly id: string;
-  readonly outputId: WorkflowArtifactOutputId;
-  readonly version: string;
-  readonly platform: ArtifactOutputDefinition["platform"];
-  readonly architecture: ArtifactOutputDefinition["architecture"];
-  readonly format: ArtifactOutputDefinition["format"];
+  readonly descriptor: ArtifactDescriptor;
+  readonly version?: string;
   readonly path: string;
+  readonly stepId: string;
+  readonly artifact: string;
   readonly cloud?: {
     readonly hostedArtifactId: string;
     readonly uploadedAt: string;
   };
-  readonly producerStep: string;
   readonly checksum?: string;
   readonly size?: number;
+  readonly [key: string]: unknown;
 }
+
+export type ArtifactInstance = WorkflowArtifactInstance;

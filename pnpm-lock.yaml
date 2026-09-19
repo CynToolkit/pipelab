@@ -252,7 +252,7 @@ importers:
         version: 6.0.3
       vite:
         specifier: ^8.0.12
-        version: 8.0.14(@types/node@24.12.4)(esbuild@0.28.1)(jiti@2.6.1)(sass-embedded@1.99.0)(sass@1.99.0)(terser@5.46.1)(tsx@4.19.1)
+        version: 8.0.14(@types/node@24.12.4)(@vitejs/devtools@0.1.13)(esbuild@0.28.1)(jiti@2.6.1)(sass-embedded@1.99.0)(sass@1.99.0)(terser@5.46.1)(tsx@4.19.1)
       vue-tsc:
         specifier: ^3.2.8
         version: 3.3.1(typescript@6.0.3)
@@ -554,7 +554,7 @@ importers:
         version: 22.5.0(@vue/compiler-sfc@3.5.34)
       vite:
         specifier: ^8.0.8
-        version: 8.0.14(@types/node@24.12.4)(esbuild@0.28.1)(jiti@2.6.1)(sass-embedded@1.99.0)(sass@1.99.0)(terser@5.46.1)(tsx@4.19.1)
+        version: 8.0.14(@types/node@24.12.4)(@vitejs/devtools@0.1.13)(esbuild@0.28.1)(jiti@2.6.1)(sass-embedded@1.99.0)(sass@1.99.0)(terser@5.46.1)(tsx@4.19.1)
       vitest:
         specifier: ^4.0.14
         version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.12.4)(jsdom@27.4.0(@noble/hashes@1.8.0))(msw@2.7.5(@types/node@24.12.4)(typescript@5.9.3))(vite@8.0.14(@types/node@24.12.4)(esbuild@0.28.1)(jiti@2.6.1)(sass-embedded@1.99.0)(sass@1.99.0)(terser@5.46.1)(tsx@4.19.1))
@@ -652,6 +652,9 @@ importers:
       '@pipelab/plugin-filesystem':
         specifier: workspace:*
         version: link:../../plugins/plugin-filesystem
+      '@pipelab/plugin-godot':
+        specifier: workspace:*
+        version: link:../../plugins/plugin-godot
       '@pipelab/plugin-itch':
         specifier: workspace:*
         version: link:../../plugins/plugin-itch
@@ -892,10 +895,6 @@ importers:
         version: 24.12.2
 
   packages/workflow-runtime:
-    dependencies:
-      '@pipelab/constants':
-        specifier: workspace:*
-        version: link:../constants
     devDependencies:
       '@pipelab/tsconfig':
         specifier: workspace:*
@@ -924,6 +923,9 @@ importers:
       '@pipelab/plugin-core':
         specifier: workspace:*
         version: link:../plugin-core
+      '@pipelab/workflow-runtime':
+        specifier: workspace:*
+        version: link:../../packages/workflow-runtime
       es-toolkit:
         specifier: 1.25.2
         version: 1.25.2
@@ -1112,6 +1114,31 @@ importers:
       vitest:
         specifier: 3.1.4
         version: 3.1.4(@types/node@24.12.2)(jiti@2.6.1)(jsdom@27.4.0(@noble/hashes@1.8.0))(lightningcss@1.32.0)(msw@2.7.5(@types/node@24.12.2)(typescript@5.9.3))(sass-embedded@1.99.0)(sass@1.99.0)(terser@5.46.1)(tsx@4.19.1)
+
+  plugins/plugin-godot:
+    dependencies:
+      '@pipelab/plugin-core':
+        specifier: workspace:*
+        version: link:../plugin-core
+      '@pipelab/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+      adm-zip:
+        specifier: 0.6.0
+        version: 0.6.0
+    devDependencies:
+      '@pipelab/tsconfig':
+        specifier: workspace:*
+        version: link:../../packages/tsconfig
+      tsdown:
+        specifier: 0.21.2
+        version: 0.21.2(@emnapi/core@1.10.0)(@emnapi/runtime@1.11.3)(@vitejs/devtools@0.1.13)(publint@0.3.18)(typescript@5.9.3)
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 3.1.4
+        version: 3.1.4(@types/node@24.12.4)(jiti@2.6.1)(jsdom@27.4.0(@noble/hashes@1.8.0))(lightningcss@1.32.0)(msw@2.7.5(@types/node@24.12.4)(typescript@5.9.3))(sass-embedded@1.99.0)(sass@1.99.0)(terser@5.46.1)(tsx@4.19.1)
 
   plugins/plugin-itch:
     dependencies:
@@ -3361,12 +3388,6 @@ packages:
   '@napi-rs/canvas@0.1.100':
     resolution: {integrity: sha512-xglYA6q3XO5P3BNJYxVZ1IV7DLVjp1Py6nwag88YntrS+3vKHyYcMqXVS4ZztJmwz2uGvz1FWhI/4LgbR5uQDA==}
     engines: {node: '>= 10'}
-
-  '@napi-rs/wasm-runtime@1.1.3':
-    resolution: {integrity: sha512-xK9sGVbJWYb08+mTJt3/YV24WxvxpXcXtP6B172paPZ+Ts69Re9dAr7lKwJoeIx8OoeuimEiRZ7umkiUVClmmQ==}
-    peerDependencies:
-      '@emnapi/core': ^1.7.1
-      '@emnapi/runtime': ^1.7.1
 
   '@napi-rs/wasm-runtime@1.1.4':
     resolution: {integrity: sha512-3NQNNgA1YSlJb/kMH1ildASP9HW7/7kYnRI2szWJaofaS1hWmbGI4H+d3+22aGzXXN9IJ+n+GiFVcGipJP18ow==}
@@ -13279,24 +13300,24 @@ snapshots:
       '@napi-rs/canvas-win32-x64-msvc': 0.1.100
     optional: true
 
-  '@napi-rs/wasm-runtime@1.1.3(@emnapi/core@1.10.0)(@emnapi/runtime@1.11.3)':
+  '@napi-rs/wasm-runtime@1.1.4(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)':
+    dependencies:
+      '@emnapi/core': 1.10.0
+      '@emnapi/runtime': 1.10.0
+      '@tybys/wasm-util': 0.10.1
+    optional: true
+
+  '@napi-rs/wasm-runtime@1.1.4(@emnapi/core@1.10.0)(@emnapi/runtime@1.11.3)':
     dependencies:
       '@emnapi/core': 1.10.0
       '@emnapi/runtime': 1.11.3
       '@tybys/wasm-util': 0.10.1
     optional: true
 
-  '@napi-rs/wasm-runtime@1.1.3(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)':
+  '@napi-rs/wasm-runtime@1.1.4(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)':
     dependencies:
       '@emnapi/core': 1.9.2
       '@emnapi/runtime': 1.9.2
-      '@tybys/wasm-util': 0.10.1
-    optional: true
-
-  '@napi-rs/wasm-runtime@1.1.4(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)':
-    dependencies:
-      '@emnapi/core': 1.10.0
-      '@emnapi/runtime': 1.10.0
       '@tybys/wasm-util': 0.10.1
     optional: true
 
@@ -13985,12 +14006,12 @@ snapshots:
     dependencies:
       '@emnapi/core': 1.9.2
       '@emnapi/runtime': 1.9.2
-      '@napi-rs/wasm-runtime': 1.1.3(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)
+      '@napi-rs/wasm-runtime': 1.1.4(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)
     optional: true
 
   '@rolldown/binding-wasm32-wasi@1.0.0-rc.9(@emnapi/core@1.10.0)(@emnapi/runtime@1.11.3)':
     dependencies:
-      '@napi-rs/wasm-runtime': 1.1.3(@emnapi/core@1.10.0)(@emnapi/runtime@1.11.3)
+      '@napi-rs/wasm-runtime': 1.1.4(@emnapi/core@1.10.0)(@emnapi/runtime@1.11.3)
     transitivePeerDependencies:
       - '@emnapi/core'
       - '@emnapi/runtime'
@@ -15197,6 +15218,15 @@ snapshots:
     optionalDependencies:
       msw: 2.7.5(@types/node@24.12.2)(typescript@5.9.3)
       vite: 6.3.3(@types/node@24.12.2)(jiti@2.6.1)(lightningcss@1.32.0)(sass-embedded@1.99.0)(sass@1.99.0)(terser@5.46.1)(tsx@4.19.1)
+
+  '@vitest/mocker@3.1.4(msw@2.7.5(@types/node@24.12.4)(typescript@5.9.3))(vite@6.3.3(@types/node@24.12.4)(jiti@2.6.1)(lightningcss@1.32.0)(sass-embedded@1.99.0)(sass@1.99.0)(terser@5.46.1)(tsx@4.19.1))':
+    dependencies:
+      '@vitest/spy': 3.1.4
+      estree-walker: 3.0.3
+      magic-string: 0.30.21
+    optionalDependencies:
+      msw: 2.7.5(@types/node@24.12.4)(typescript@5.9.3)
+      vite: 6.3.3(@types/node@24.12.4)(jiti@2.6.1)(lightningcss@1.32.0)(sass-embedded@1.99.0)(sass@1.99.0)(terser@5.46.1)(tsx@4.19.1)
 
   '@vitest/mocker@3.1.4(msw@2.7.5(@types/node@24.12.4)(typescript@6.0.3))(vite@6.3.3(@types/node@24.12.4)(jiti@2.6.1)(lightningcss@1.32.0)(sass-embedded@1.99.0)(sass@1.99.0)(terser@5.46.1)(tsx@4.19.1))':
     dependencies:
@@ -20077,8 +20107,8 @@ snapshots:
       picomatch: 4.0.4
       rolldown: 1.0.0-rc.9(@emnapi/core@1.10.0)(@emnapi/runtime@1.11.3)
       rolldown-plugin-dts: 0.22.5(rolldown@1.0.0-rc.9(@emnapi/core@1.10.0)(@emnapi/runtime@1.11.3))(typescript@5.9.3)
-      semver: 7.8.0
-      tinyexec: 1.1.1
+      semver: 7.8.1
+      tinyexec: 1.3.1
       tinyglobby: 0.2.16
       tree-kill: 1.2.2
       unconfig-core: 7.5.0
@@ -20561,6 +20591,24 @@ snapshots:
       tsx: 4.19.1
     optional: true
 
+  vite@8.0.14(@types/node@24.12.4)(@vitejs/devtools@0.1.13)(esbuild@0.28.1)(jiti@2.6.1)(sass-embedded@1.99.0)(sass@1.99.0)(terser@5.46.1)(tsx@4.19.1):
+    dependencies:
+      lightningcss: 1.32.0
+      picomatch: 4.0.4
+      postcss: 8.5.15
+      rolldown: 1.0.2
+      tinyglobby: 0.2.16
+    optionalDependencies:
+      '@types/node': 24.12.4
+      '@vitejs/devtools': 0.1.13(@pnpm/logger@1001.0.1)(typescript@5.9.3)(vite@8.0.14)
+      esbuild: 0.28.1
+      fsevents: 2.3.3
+      jiti: 2.6.1
+      sass: 1.99.0
+      sass-embedded: 1.99.0
+      terser: 5.46.1
+      tsx: 4.19.1
+
   vite@8.0.14(@types/node@24.12.4)(esbuild@0.28.1)(jiti@2.6.1)(sass-embedded@1.99.0)(sass@1.99.0)(terser@5.46.1)(tsx@4.19.1):
     dependencies:
       lightningcss: 1.32.0
@@ -20717,6 +20765,46 @@ snapshots:
       why-is-node-running: 2.3.0
     optionalDependencies:
       '@types/node': 24.12.2
+      jsdom: 27.4.0(@noble/hashes@1.8.0)
+    transitivePeerDependencies:
+      - jiti
+      - less
+      - lightningcss
+      - msw
+      - sass
+      - sass-embedded
+      - stylus
+      - sugarss
+      - supports-color
+      - terser
+      - tsx
+      - yaml
+
+  vitest@3.1.4(@types/node@24.12.4)(jiti@2.6.1)(jsdom@27.4.0(@noble/hashes@1.8.0))(lightningcss@1.32.0)(msw@2.7.5(@types/node@24.12.4)(typescript@5.9.3))(sass-embedded@1.99.0)(sass@1.99.0)(terser@5.46.1)(tsx@4.19.1):
+    dependencies:
+      '@vitest/expect': 3.1.4
+      '@vitest/mocker': 3.1.4(msw@2.7.5(@types/node@24.12.4)(typescript@5.9.3))(vite@6.3.3(@types/node@24.12.4)(jiti@2.6.1)(lightningcss@1.32.0)(sass-embedded@1.99.0)(sass@1.99.0)(terser@5.46.1)(tsx@4.19.1))
+      '@vitest/pretty-format': 3.2.4
+      '@vitest/runner': 3.1.4
+      '@vitest/snapshot': 3.1.4
+      '@vitest/spy': 3.1.4
+      '@vitest/utils': 3.1.4
+      chai: 5.3.3
+      debug: 4.4.3
+      expect-type: 1.3.0
+      magic-string: 0.30.21
+      pathe: 2.0.3
+      std-env: 3.10.0
+      tinybench: 2.9.0
+      tinyexec: 0.3.2
+      tinyglobby: 0.2.16
+      tinypool: 1.1.1
+      tinyrainbow: 2.0.0
+      vite: 6.3.3(@types/node@24.12.4)(jiti@2.6.1)(lightningcss@1.32.0)(sass-embedded@1.99.0)(sass@1.99.0)(terser@5.46.1)(tsx@4.19.1)
+      vite-node: 3.1.4(@types/node@24.12.4)(jiti@2.6.1)(lightningcss@1.32.0)(sass-embedded@1.99.0)(sass@1.99.0)(terser@5.46.1)(tsx@4.19.1)
+      why-is-node-running: 2.3.0
+    optionalDependencies:
+      '@types/node': 24.12.4
       jsdom: 27.4.0(@noble/hashes@1.8.0)
     transitivePeerDependencies:
       - jiti

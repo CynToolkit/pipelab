@@ -44,7 +44,8 @@ export const createQuickJsFromVariant = async (variant: any) => {
       } catch (e) {
         logger().error("error", e);
         logger().error("Final code was", finalCode);
-        throw new EvaluationError(e.name, e.message);
+        const error = e instanceof Error ? e : new Error(String(e));
+        throw new EvaluationError(error.name, error.message);
       }
     };
 

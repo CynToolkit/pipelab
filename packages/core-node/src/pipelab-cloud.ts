@@ -145,8 +145,8 @@ export const createPipelabCloudUploadTask =
     if (!artifact) {
       throw new Error("Pipelab Cloud upload requires a resolved workflow delivery artifact");
     }
-    const { id: artifactId, outputId: artifactOutputId, version, path: sourcePath } = artifact;
-    if (!sourcePath || !artifactId || !artifactOutputId || !version) {
+    const { id: artifactId, artifact: artifactName, version, path: sourcePath } = artifact;
+    if (!sourcePath || !artifactId || !artifactName || !version) {
       throw new Error("Pipelab Cloud upload received incomplete artifact metadata");
     }
 
@@ -182,19 +182,19 @@ export const createPipelabCloudUploadTask =
 
       const { size } = await stat(uploadPath);
       const checksum = await hashFile(uploadPath, signal);
-      log(`Preparing ${artifactOutputId} for Pipelab Cloud (${size} bytes)`);
+      log(`Preparing ${artifactName} for Pipelab Cloud (${size} bytes)`);
 
       const prepareData = await invokeCloudWorker(cloudWorkerUrl, session.access_token, {
         action: "prepareUpload",
         artifactId,
-        artifactOutputId,
+        artifactName,
         version,
         size,
         checksum,
       });
       const prepared = readPreparedUpload(prepareData);
 
-      log(`Uploading ${artifactOutputId} to Pipelab Cloud`);
+      log(`Uploading ${artifactName} to Pipelab Cloud`);
       let multipartParts: Array<{ PartNumber: number; ETag: string }> | undefined;
       if ("uploadUrl" in prepared) {
         const uploadResponse = await fetch(prepared.uploadUrl, {
@@ -273,7 +273,7 @@ export const createPipelabCloudUploadTask =
         completionData = await invokeCloudWorker(cloudWorkerUrl, session.access_token, {
           action: "completeUpload",
           artifactId,
-          artifactOutputId,
+          artifactName,
           version,
           size,
           checksum,
@@ -310,11 +310,11 @@ export const createPipelabCloudUploadTask =
       if (typeof uploaded.uploaded_at !== "string" || !Number.isFinite(Date.parse(uploaded.uploaded_at))) {
         throw new Error("Pipelab Cloud did not return a valid upload timestamp");
       }
-      log(`${artifactOutputId} uploaded to Pipelab Cloud`);
+      log(`${artifactName} uploaded to Pipelab Cloud`);
 
       return {
         artifactId,
-        artifactOutputId,
+        artifactName,
         size,
         checksum,
         storageKey: prepared.storageKey,

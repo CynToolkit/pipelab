@@ -1,731 +1,148 @@
 <template>
   <Layout>
-    <WorkflowShell
-      :flow-id="String(route.params.flowId)"
-      :project-id="String(route.params.projectId)"
-      :title="flow?.name"
-      :subtitle="flow?.description || 'Build once, then ship everywhere.'"
-      active="configuration"
-    >
+    <WorkflowShell :flow-id="String(route.params.flowId)" :project-id="String(route.params.projectId)" :title="flow?.name || 'Release'" :subtitle="flow?.description || 'Build once, then ship everywhere.'" active="configuration">
       <template #actions>
-        <Button
-          label="Ship"
-          icon="mdi mdi-rocket-launch-outline"
-          :loading="running"
-          :disabled="!canShip"
-          @click="ship"
-        />
-        <Select
-          v-if="flow"
-          v-model="flow.continueOnError"
-          :options="failureOptions"
-          optionLabel="label"
-          optionValue="value"
-          aria-label="Workflow failure policy"
-          class="failure-policy"
-        />
+        <span v-if="flow" class="autosave-state"><i class="pi pi-check-circle" /> Saved automatically</span>
+        <Button label="Ship" icon="mdi mdi-rocket-launch-outline" :loading="running" :disabled="!flow || running" @click="ship" />
       </template>
-      <div class="flow-page">
-      <Message v-if="loadError" severity="error">{{ loadError }}</Message>
-      <Message v-if="runError" severity="error">{{ runError }}</Message>
-      <Message v-if="flow && readiness.length" severity="warn" aria-live="polite">
-        <strong>Ship is unavailable</strong>
-        <ul class="readiness-errors">
-          <li v-for="error in readiness" :key="error">{{ error }}</li>
-        </ul>
-      </Message>
-      <template v-if="flow">
-        <section class="card source-card">
-          <div class="card-icon"><i class="mdi mdi-source-branch" /></div>
-          <div class="card-body">
-            <strong>{{
-              flow.source.type === "construct3" ? "Construct 3 project" : flow.source.type === "godot" ? `Godot · ${godotInfo?.projectName || 'Project'}` : "Built folder"
-            }}</strong
-            ><span>{{ flow.source.path ? `${flow.source.path}${flow.source.type === 'godot' ? '/project.godot' : ''}` : "No source selected" }}</span>
-            <small v-if="flow.source.type === 'construct3' && profileError" class="error">{{ profileError }}</small>
-            <small v-if="flow.source.type === 'godot' && godotInfo">Godot {{ godotInfo.godotVersion || "not found" }} · {{ godotInfo.presets.length }} export presets</small>
-          </div>
-          <Button label="Change" text @click="browseSource" />
-          <Button
-            v-if="flow.source.type === 'construct3'"
-            icon="mdi mdi-cog-outline"
-            text
-            rounded
-            aria-label="Configure source"
-            v-tooltip.bottom="'Configure source'"
-            @click="openSourceSettings"
-          />
+
+      <main v-if="flow" class="release-page">
+        <Message v-if="error" severity="error">{{ error }}</Message>
+        <Message v-if="issues.length" severity="warn" aria-live="polite">
+          <strong>{{ issueCount }} configuration issue{{ issueCount === 1 ? "" : "s" }}</strong>
+          <span class="summary-copy">Review the highlighted source, build, or deploy job before shipping.</span>
+        </Message>
+
+        <section class="release-section source-section">
+          <div class="section-heading"><div><span class="eyebrow">Pipeline</span><h2>Source</h2><p>Choose the project or files this release represents.</p></div><Button label="Change" text icon="pi pi-pencil" @click="sourcePickerVisible = true" /></div>
+          <article class="source-card" :class="{ invalid: cardIssues('source').length }">
+            <div class="provider-icon"><i :class="providerIcon(sourceDefinition?.icon, 'mdi mdi-source-branch')" /></div>
+            <div class="source-copy"><strong>{{ sourceDefinition?.label || flow.source.provider }}</strong><span :title="sourcePath">{{ sourcePath || "No source selected" }}</span><small v-if="sourcePath">{{ sourceDefinition?.description || "Source artifact is declared by the selected provider." }}</small></div>
+            <Tag :value="cardIssues('source').length ? 'Needs attention' : sourcePath ? 'Ready' : 'Not configured'" :severity="cardIssues('source').length ? 'warn' : sourcePath ? 'success' : 'secondary'" />
+            <Button v-if="sourceDefinition?.fields?.length" icon="pi pi-cog" text rounded aria-label="Source settings" @click="sourceSettingsVisible = true" />
+          </article>
+          <Message v-if="cardIssues('source').length" severity="warn"><ul><li v-for="issue in cardIssues('source')" :key="issue.code + issue.path">{{ issue.message }}</li></ul></Message>
         </section>
-        <WorkflowArtifactsPanel
-            :model-value="flow"
-            :capabilities="capabilities"
-            :connections="connections"
-            :godot-presets="godotInfo?.presets || []"
-          @add-connection="openConnection($event === 'itch' ? 'itch-account' : 'steam-account')"
-          @update:model-value="flow = $event"
-        />
-      </template>
-      </div>
+
+        <div class="pipeline-divider"><span>Build</span></div>
+        <section class="release-section">
+          <div class="section-heading"><div><span class="eyebrow">Jobs</span><h2>Build</h2><p>Build jobs create the artifacts that can be deployed below.</p></div><Select v-model="producerToAdd" :options="availableProducers" optionLabel="label" optionValue="id" placeholder="Add build job" class="add-job" @change="addProducer" /></div>
+          <div v-if="!flow.producers.length" class="empty-card"><i class="mdi mdi-hammer-wrench" /><strong>No build jobs yet</strong><span>Add a build provider to create release artifacts.</span></div>
+          <article v-for="(producer, producerIndex) in flow.producers" :key="producer.id" class="job-card" :class="{ disabled: !producer.enabled, invalid: cardIssues(`producers.${producerIndex}`).length || (producer.enabled && producerInputs(producer).length === 0) }">
+            <div class="job-header"><div class="provider-icon"><i :class="providerIcon(producerDefinition(producer.provider)?.icon, 'mdi mdi-hammer-wrench')" /></div><div class="job-title"><strong>{{ producerDefinition(producer.provider)?.label || producer.provider }}</strong><span>{{ enabledTargetCount(producer) }} target{{ enabledTargetCount(producer) === 1 ? '' : 's' }} selected</span></div><Tag v-if="!producer.enabled" value="Disabled" severity="secondary" /><Tag v-else :value="cardIssues(`producers.${producerIndex}`).length || producerInputs(producer).length === 0 ? 'Needs attention' : 'Ready'" :severity="cardIssues(`producers.${producerIndex}`).length || producerInputs(producer).length === 0 ? 'warn' : 'success'" /><ToggleSwitch v-model="producer.enabled" :inputId="`producer-${producer.id}`" :aria-label="`${producerDefinition(producer.provider)?.label || producer.provider} enabled`" /><Button v-if="hasProducerSettings(producer)" icon="pi pi-cog" text rounded :aria-label="`Configure ${producerDefinition(producer.provider)?.label || producer.provider}`" @click="openProducerSettings(producer)" /><Button icon="pi pi-trash" text rounded severity="danger" :aria-label="`Remove ${producerDefinition(producer.provider)?.label || producer.provider}`" @click="removeProducer(producer.id)" /></div>
+            <div v-if="producer.enabled" class="target-list"><button v-for="target in producerDefinition(producer.provider)?.targets || []" :key="target.id" class="target-row" :class="{ selected: isTargetEnabled(producer, target.id) }" :aria-pressed="isTargetEnabled(producer, target.id)" @click="toggleTarget(producer, target.id, !isTargetEnabled(producer, target.id))"><i :class="isTargetEnabled(producer, target.id) ? 'mdi mdi-check-circle' : 'mdi mdi-circle-outline'" /><span><strong>{{ target.label }}</strong><small>{{ targetDescriptorLabel(target.output) }}</small></span></button></div>
+            <div v-if="producer.enabled && producerInputs(producer).length > 1" class="routing-row"><span><i class="mdi mdi-source-branch" /> Build input</span><Select :model-value="artifactRefValue(producer.input || { source: true })" :options="producerInputs(producer)" optionLabel="label" optionValue="value" @update:model-value="setProducerInput(producer, $event)" /></div>
+            <div v-if="producer.enabled && producerInputs(producer).length === 0" class="inline-warning"><i class="pi pi-exclamation-triangle" /> No compatible upstream artifact is available.</div>
+            <Message v-if="cardIssues(`producers.${producerIndex}`).length" severity="warn"><ul><li v-for="issue in cardIssues(`producers.${producerIndex}`)" :key="issue.code + issue.path">{{ issue.message }}</li></ul></Message>
+          </article>
+        </section>
+
+        <div class="pipeline-divider"><span>Deploy</span></div>
+        <section class="release-section">
+          <div class="section-heading"><div><span class="eyebrow">Environments</span><h2>Deploy</h2><p>Send selected build artifacts to one or more destinations.</p></div><Select v-model="destinationToAdd" :options="availableDestinations" optionLabel="label" optionValue="id" placeholder="Add destination" class="add-job" @change="addDestination" /></div>
+          <div v-if="!flow.destinations.length" class="empty-card"><i class="mdi mdi-cloud-upload-outline" /><strong>No deployment jobs yet</strong><span>Add a destination to create deployment slots.</span></div>
+          <article v-for="(destination, destinationIndex) in flow.destinations" :key="destination.id" class="job-card destination-card" :class="{ disabled: !destination.enabled, invalid: cardIssues(`destinations.${destinationIndex}`).length }">
+            <div class="job-header"><div class="provider-icon"><i :class="providerIcon(destinationDefinition(destination.provider)?.icon, 'mdi mdi-cloud-upload-outline')" /></div><div class="job-title"><strong>{{ destinationDefinition(destination.provider)?.label || destination.provider }}</strong><span>{{ destination.slots.length }} deployment slot{{ destination.slots.length === 1 ? '' : 's' }}</span></div><Tag v-if="!destination.enabled" value="Disabled" severity="secondary" /><Tag v-else :value="cardIssues(`destinations.${destinationIndex}`).length ? 'Needs attention' : destination.slots.length ? 'Ready' : 'Configure slots'" :severity="cardIssues(`destinations.${destinationIndex}`).length ? 'warn' : destination.slots.length ? 'success' : 'secondary'" /><ToggleSwitch v-model="destination.enabled" :inputId="`destination-${destination.id}`" :aria-label="`${destinationDefinition(destination.provider)?.label || destination.provider} enabled`" /><Button v-if="destinationDefinition(destination.provider)?.fields?.length" icon="pi pi-cog" text rounded :aria-label="`Configure ${destinationDefinition(destination.provider)?.label || destination.provider}`" @click="openDestinationSettings(destination)" /><Button icon="pi pi-trash" text rounded severity="danger" :aria-label="`Remove ${destinationDefinition(destination.provider)?.label || destination.provider}`" @click="removeDestination(destination.id)" /></div>
+            <div v-if="destination.enabled" class="deployment-list"><div v-for="slot in destination.slots" :key="slot.id" class="deployment-row"><div class="deployment-main"><i class="mdi mdi-package-variant-closed" /><div><strong>{{ artifactLabel(slot.input) }}</strong><span>{{ slot.id }}</span></div></div><Button icon="pi pi-cog" text rounded aria-label="Configure deployment slot" @click="openSlotSettings(destination, slot)" /><Button icon="pi pi-trash" text rounded severity="danger" aria-label="Remove deployment slot" @click="removeSlot(destination, slot.id)" /></div><Button label="Add deployment" icon="pi pi-plus" text size="small" :disabled="!compatibleArtifacts(destination.provider).length" @click="addSlot(destination)" /></div>
+            <Message v-if="cardIssues(`destinations.${destinationIndex}`).length" severity="warn"><ul><li v-for="issue in cardIssues(`destinations.${destinationIndex}`)" :key="issue.code + issue.path">{{ issue.message }}</li></ul></Message>
+          </article>
+        </section>
+      </main>
     </WorkflowShell>
-    <Dialog
-      v-model:visible="sourceDialogVisible"
-      modal
-      header="Source settings"
-      :style="{ width: '440px', maxWidth: '94vw' }"
-    >
-      <div class="settings-grid">
-        <div class="field wide">
-          <span>Browser profile</span>
-          <div class="input-row">
-            <Select
-              v-model="constructSource().profilePath"
-              :options="browserProfiles"
-              optionLabel="label"
-              optionValue="path"
-              optionDisabled="disabled"
-              placeholder="Choose a browser profile"
-              :disabled="profileLoading"
-              class="w-full"
-            /><Button
-              icon="pi pi-refresh"
-              text
-              rounded
-              aria-label="Refresh browser profiles"
-              :loading="profileLoading"
-              :disabled="profileLoading"
-              @click="() => discoverProfiles(constructSource().profilePath, true)"
-            /></div>
-          <small v-if="profileLoading">Searching browser profiles and Construct addons…</small>
-          <small v-if="profileError" class="error">{{ profileError }}</small>
-          <small v-if="!browserProfiles.some((profile) => profile.usable) && !profileError">No usable browser profile found. Choose a folder manually.</small>
-          <Button label="Choose folder manually" text @click="browseProfile" />
-        </div>
-      </div>
-      <template #footer><Button label="Done" @click="sourceDialogVisible = false" /></template>
-    </Dialog>
-    <Dialog
-      v-if="activeDestination"
-      v-model:visible="destinationDialogVisible"
-      modal
-      :header="`${destinationLabel(activeDestination.type)} settings`"
-      :style="{ width: '560px', maxWidth: '94vw' }"
-    >
-      <div v-if="activeDestination.type === 'web'" class="settings-grid">
-        <label class="wide"
-          >Output folder
-          <div class="input-row">
-            <InputText v-model="activeDestination.outputDir" class="w-full" /><Button
-              icon="pi pi-folder-open"
-              outlined
-              aria-label="Choose output folder"
-              @click="browseFolder(activeDestination)"
-            /></div
-        ></label>
-        <label class="check"
-          ><Checkbox v-model="activeDestination.overwrite" binary /> Overwrite existing files</label
-        >
-        <label class="check"
-          ><Checkbox v-model="activeDestination.cleanup" binary /> Clean destination first</label
-        >
-      </div>
-      <div v-else-if="activeDestination.type === 'itch'" class="settings-grid">
-        <div class="field">
-          <span>Itch.io account</span>
-          <div class="input-row">
-            <Select
-              v-model="activeDestination.accountConnectionId"
-              :options="itchAccountConnections"
-              optionLabel="name"
-              optionValue="id"
-              placeholder="Select account"
-              class="w-full"
-            /><Button
-              icon="pi pi-plus"
-              text
-              rounded
-              aria-label="Add Itch.io account connection"
-              @click="openConnection('itch-account')"
-            />
-          </div>
-        </div>
-        <label>Project<InputText v-model="activeDestination.project" placeholder="game" /></label
-        ><label>Channel<InputText v-model="activeDestination.channel" placeholder="web" /></label>
-        <small class="wide platform-note"
-          ><i class="mdi mdi-information-outline" /> Butler is downloaded automatically. The
-          account connection supplies the API key and the owner username is read from it.</small
-        >
-      </div>
-      <div v-else class="settings-grid">
-        <div class="field">
-          <span>Steam account</span>
-          <div class="input-row">
-            <Select
-              v-model="steam(activeDestination).accountConnectionId"
-              :options="steamAccountConnections"
-              optionLabel="name"
-              optionValue="id"
-              placeholder="Select account"
-              class="w-full"
-            /><Button
-              icon="pi pi-plus"
-              text
-              rounded
-              aria-label="Add Steam account connection"
-              @click="openConnection('steam-account')"
-            /></div>
-        </div>
-        <label>App ID<InputText v-model="steam(activeDestination).appId" /></label
-        ><label>Depot ID<InputText v-model="steam(activeDestination).depotId" /></label
-        /><small class="wide platform-note"
-          ><i class="mdi mdi-information-outline" /> App name, bundle ID, version, description, and
-          icon are taken from the workflow/source when shipping.</small
-        >
-      </div>
-      <template #footer><Button label="Done" @click="destinationDialogVisible = false" /></template>
-    </Dialog>
-    <Dialog
-      v-model:visible="releaseDialogVisible"
-      modal
-      header="Release details"
-      :style="{ width: '440px', maxWidth: '94vw' }"
-    >
-      <div class="connection-form">
-        <label>Version<InputText v-model="releaseVersion" placeholder="1.0.0" /></label>
-        <label>Description<InputText v-model="releaseDescription" placeholder="Build description" /></label>
-      </div>
-      <template #footer>
-        <Button label="Cancel" text severity="secondary" @click="releaseDialogVisible = false" />
-        <Button
-          label="Ship"
-          :disabled="!releaseVersion.trim() || !releaseDescription.trim()"
-          @click="runShip"
-        />
-      </template>
-    </Dialog>
-    <Dialog
-      v-model:visible="connectionDialog.visible"
-      modal
-      :header="`Add ${connectionDialog.label}`"
-      :style="{ width: '440px', maxWidth: '94vw' }"
-    >
-      <div class="connection-form">
-        <label
-          >Name<InputText
-            v-model="connectionDialog.name"
-            autofocus
-            placeholder="My connection" /></label
-        ><template v-if="connectionDialog.kind === 'steam-account'"
-          ><label>Steam username<InputText v-model="connectionDialog.value" class="w-full" /></label
-          ><label
-            >Steam password<InputText
-              v-model="connectionDialog.password"
-              type="password"
-              class="w-full" /></label></template
-        ><label v-else
-          >{{ connectionDialog.fieldLabel }}
-          <div class="input-row">
-            <InputText
-              v-model="connectionDialog.value"
-              class="w-full"
-              :type="connectionDialog.kind === 'itch-account' ? 'password' : 'text'"
-            /><Button
-              v-if="!['steam-account', 'itch-account'].includes(connectionDialog.kind)"
-              icon="pi pi-folder-open"
-              outlined
-              aria-label="Choose path"
-              @click="browseConnectionPath"
-            /></div
-        ></label>
-      </div>
-      <template #footer
-        ><Button
-          label="Cancel"
-          text
-          severity="secondary"
-          @click="connectionDialog.visible = false" /><Button
-          label="Add connection"
-          :loading="connectionDialog.saving"
-          :disabled="
-            !connectionDialog.name.trim() ||
-            !connectionDialog.value.trim() ||
-            (connectionDialog.kind === 'steam-account' && !connectionDialog.password.trim())
-          "
-          @click="createConnection"
-      /></template>
-    </Dialog>
+
+    <Dialog v-model:visible="sourcePickerVisible" modal header="Choose source" :style="dialogStyle"><div class="choice-grid"><button v-for="source in catalog.sources" :key="source.id" class="choice-card" :class="{ selected: flow?.source.provider === source.id }" @click="selectSource(source.id)"><i :class="providerIcon(source.icon, 'mdi mdi-source-branch')" /><strong>{{ source.label }}</strong><small>{{ source.description }}</small></button></div></Dialog>
+    <Dialog v-model:visible="sourceSettingsVisible" modal header="Source settings" :style="dialogStyle"><div v-if="flow && sourceDefinition" class="settings-grid"><ReleaseFieldControl v-for="field in sourceDefinition.fields || []" :key="field.key" :field="field" :value="fieldValue(flow.source.config, field.key)" :options="fieldOptions('source', field)" :input-id="`source-${field.key}`" @update:value="setSourceField(field.key, $event)" @add-connection="openConnection" /></div><template #footer><Button label="Done" @click="sourceSettingsVisible = false" /></template></Dialog>
+    <Dialog v-model:visible="providerSettingsVisible" modal :header="settingsTitle" :style="wideDialogStyle"><div v-if="settingsProducer" class="settings-grid"><ReleaseFieldControl v-for="field in producerDefinition(settingsProducer.provider)?.fields || []" :key="field.key" :field="field" :value="fieldValue(settingsProducer.config, field.key)" :options="fieldOptions(`producer:${settingsProducer.id}`, field)" :input-id="`producer-${settingsProducer.id}-${field.key}`" @update:value="setField(settingsProducer.config, field.key, $event)" @add-connection="openConnection" /><template v-for="target in settingsProducer.targets.filter((item) => item.enabled)" :key="target.id"><ReleaseFieldControl v-for="field in targetDefinition(settingsProducer.provider, target.id)?.fields || []" :key="`${target.id}-${field.key}`" :field="field" :value="fieldValue(target.config, field.key)" :options="fieldOptions(`target:${settingsProducer.id}:${target.id}`, field)" :input-id="`target-${settingsProducer.id}-${target.id}-${field.key}`" @update:value="setField(target.config, field.key, $event)" @add-connection="openConnection" /></template></div><template #footer><Button label="Done" @click="providerSettingsVisible = false" /></template></Dialog>
+    <Dialog v-model:visible="destinationSettingsVisible" modal :header="settingsTitle" :style="dialogStyle"><div v-if="settingsDestination" class="settings-grid"><ReleaseFieldControl v-for="field in destinationDefinition(settingsDestination.provider)?.fields || []" :key="field.key" :field="field" :value="fieldValue(settingsDestination.config, field.key)" :options="fieldOptions(`destination:${settingsDestination.id}`, field)" :input-id="`destination-${settingsDestination.id}-${field.key}`" @update:value="setField(settingsDestination.config, field.key, $event)" @add-connection="openConnection" /></div><template #footer><Button label="Done" @click="destinationSettingsVisible = false" /></template></Dialog>
+    <Dialog v-model:visible="slotSettingsVisible" modal header="Deployment settings" :style="dialogStyle"><div v-if="settingsDestination && settingsSlot" class="settings-grid"><div class="release-field wide"><label>Build artifact</label><Select :model-value="artifactRefValue(settingsSlot.input)" :options="compatibleArtifacts(settingsDestination.provider)" optionLabel="label" optionValue="value" @update:model-value="setSlotArtifact(settingsSlot, $event)" /></div><ReleaseFieldControl v-for="field in destinationDefinition(settingsDestination.provider)?.slotFields || []" :key="field.key" :field="field" :value="fieldValue(settingsSlot.config, field.key)" :options="fieldOptions(`slot:${settingsDestination.id}:${settingsSlot.id}`, field)" :input-id="`slot-${settingsSlot.id}-${field.key}`" @update:value="setField(settingsSlot.config, field.key, $event)" @add-connection="openConnection" /></div><template #footer><Button label="Done" @click="slotSettingsVisible = false" /></template></Dialog>
+    <Dialog v-model:visible="releaseDetailsVisible" modal header="Release details" :style="dialogStyle"><div class="settings-grid"><div class="release-field"><label for="release-version">Version</label><InputText id="release-version" v-model="releaseVersion" placeholder="1.0.0" /></div><div class="release-field wide"><label for="release-description">Description</label><Textarea id="release-description" v-model="releaseDescription" rows="3" placeholder="What is included in this release?" /></div></div><template #footer><Button label="Cancel" text severity="secondary" @click="releaseDetailsVisible = false" /><Button label="Ship release" icon="mdi mdi-rocket-launch-outline" :loading="running" :disabled="!releaseVersion.trim()" @click="runShip" /></template></Dialog>
+    <Dialog v-model:visible="connectionVisible" modal header="Add connection" :style="dialogStyle"><div class="settings-grid"><div class="release-field"><label for="connection-name">Name</label><InputText id="connection-name" v-model="connectionDraft.name" placeholder="My account" /></div><div class="release-field"><label for="connection-value">Credential</label><InputText id="connection-value" v-model="connectionDraft.value" type="password" placeholder="Stored securely" /></div></div><template #footer><Button label="Cancel" text @click="connectionVisible = false" /><Button label="Add connection" :loading="connectionSaving" :disabled="!connectionDraft.name.trim() || !connectionDraft.value.trim()" @click="createConnection" /></template></Dialog>
   </Layout>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import Layout from "@renderer/components/Layout.vue";
 import Button from "primevue/button";
-import Message from "primevue/message";
-import InputText from "primevue/inputtext";
-import Select from "primevue/select";
-import Checkbox from "primevue/checkbox";
 import Dialog from "primevue/dialog";
-import WorkflowArtifactsPanel from "@renderer/components/WorkflowArtifactsPanel.vue";
-import WorkflowShell from "@renderer/components/WorkflowShell.vue";
-import { useAPI } from "@renderer/composables/api";
-import { useAuth } from "@renderer/store/auth";
-import { getReleaseHostCapabilities, migrateWorkflowConfig, type BrowserProfileCandidate, type WorkflowConfig, type WorkflowDestination } from "@pipelab/shared";
-import { getWorkflowReadiness } from "./release-flow-readiness";
-const route = useRoute();
-const router = useRouter();
-const api = useAPI();
-const auth = useAuth();
-const flow = ref<any>();
-const capabilities = ref<ReturnType<typeof getReleaseHostCapabilities>>();
-const connections = ref<any[]>([]);
-const loadError = ref("");
-const runError = ref("");
-const saving = ref(false);
-const running = ref(false);
-const activeDestination = ref<WorkflowDestination>();
-const destinationDialogVisible = ref(false);
-const sourceDialogVisible = ref(false);
-const profileCandidates = ref<BrowserProfileCandidate[]>([]);
-const profileError = ref("");
-const profileLoading = ref(false);
-const godotInfo = ref<{ projectName: string; presets: string[]; presetPlatforms: Record<string, string>; executableAvailable: boolean; executable?: string; godotVersion?: string; templatesAvailable: boolean }>();
-const releaseDialogVisible = ref(false);
-const releaseVersion = ref("1.0.0");
-const releaseDescription = ref("");
-const connectionDialog = ref({
-  visible: false,
-  saving: false,
-  kind: "",
-  label: "",
-  fieldLabel: "",
-  name: "",
-  value: "",
-  password: "",
-});
-const failureOptions = [
-  { label: "Continue independent destinations", value: true },
-  { label: "Stop on failure", value: false },
-];
-const profileAuthLabel = (status?: BrowserProfileCandidate["authStatus"]) =>
-  status === "authenticated"
-    ? "signed in"
-    : status === "not-authenticated"
-      ? "not signed in"
-      : "auth unknown";
-const browserProfiles = computed(() =>
-  profileCandidates.value.map((profile) => ({
-    ...profile,
-    disabled: !profile.usable,
-    label: `${profile.browser} — ${profile.profileName} (${profile.addonCount ?? "?"} addons · ${profileAuthLabel(profile.authStatus)}${profile.score !== null ? ` · score ${profile.score}` : " · unavailable"})`,
-  })),
-);
-const steamAccountConnections = computed(() =>
-  connections.value.filter(
-    (c) => c.pluginName === "@pipelab/plugin-steam" && c.integrationName === "Steam Account",
-  ),
-);
-const itchAccountConnections = computed(() =>
-  connections.value.filter(
-    (c) => c.pluginName === "@pipelab/plugin-itch" && c.integrationName === "Itch Butler Account",
-  ),
-);
-const readiness = computed(() => getWorkflowReadiness(flow.value, capabilities.value, connections.value, profileError.value, godotInfo.value));
-const canShip = computed(() => !!flow.value && !readiness.value.length && !running.value);
-const load = async () => {
-  const [loaded, accountResult, hostResult] = await Promise.all([
-    api.execute("workflow:load-by-name", { name: `workflows/${route.params.flowId}` }),
-    api.execute("connections:load"),
-    api.execute("workflow:capabilities:get"),
-  ]);
-  if (loaded.type === "success") {
-    flow.value = migrateWorkflowConfig(loaded.result);
-    if (flow.value.source.type === "godot" && flow.value.source.path) await inspectGodot(flow.value.source.path);
-  }
-  else loadError.value = loaded.ipcError;
-  if (accountResult.type === "success") connections.value = accountResult.result.connections;
-  if (hostResult.type === "success") capabilities.value = hostResult.result;
-};
-onMounted(load);
-const openDestinationSettings = (destination: WorkflowDestination) => {
-  activeDestination.value = destination;
-  destinationDialogVisible.value = true;
-};
-const constructSource = () =>
-  flow.value!.source as Extract<WorkflowConfig["source"], { type: "construct3" }>;
-const openSourceSettings = async () => {
-  sourceDialogVisible.value = true;
-  if (!profileCandidates.value.length) await discoverProfiles();
-};
-const discoverProfiles = async (path?: string, forceRefresh = false) => {
-  const selectedPath = constructSource().profilePath;
-  profileLoading.value = true;
-  profileError.value = "";
-  try {
-    const result = await api.execute("construct:profiles:discover", {
-      ...(path ? { path } : {}),
-      ...(forceRefresh ? { forceRefresh: true } : {}),
-    });
-    if (result.type === "success") {
-      profileCandidates.value = result.result;
-      if (selectedPath) {
-        const selected = result.result.find((profile) => profile.path === selectedPath);
-        if (!selected) profileError.value = `The selected browser profile was not found: ${selectedPath}`;
-        else if (!selected.usable) profileError.value = `The selected browser profile is unavailable or locked: ${selectedPath}`;
-      }
-    } else profileError.value = result.ipcError;
-  } finally {
-    profileLoading.value = false;
-  }
-};
-const browseProfile = async () => {
-  const result = await api.execute("dialog:showOpenDialog", { title: "Choose browser profile folder", properties: ["openDirectory"] });
-  const path = result.type === "success" && !result.result.canceled ? result.result.filePaths[0] : undefined;
-  if (!path) return;
-  await discoverProfiles(path);
-  const match = profileCandidates.value.find((candidate) => candidate.path === path);
-  if (match?.usable) constructSource().profilePath = path;
-  else profileError.value = "This folder is not a readable supported browser profile";
-};
-const openConnection = (kind: string) => {
-  const details: Record<string, { label: string; fieldLabel: string }> = {
-    "steam-account": { label: "Steam account", fieldLabel: "Steam username" },
-    "itch-account": { label: "Itch.io account", fieldLabel: "Butler API key" },
-  };
-  const detail = details[kind];
-  if (!detail) return;
-  Object.assign(connectionDialog.value, {
-    visible: true,
-    saving: false,
-    kind,
-    ...detail,
-    name: "",
-    value: "",
-    password: "",
-  });
-};
-const browseConnectionPath = async () => {
-  const result = await api.execute("dialog:showOpenDialog", {
-    title: connectionDialog.value.fieldLabel,
-    properties: ["openDirectory"],
-  });
-  if (result.type === "success" && !result.result.canceled)
-    connectionDialog.value.value = result.result.filePaths[0] || "";
-};
-const createConnection = async () => {
-  const dialog = connectionDialog.value;
-  const config = {
-    "steam-account": {
-      pluginName: "@pipelab/plugin-steam",
-      integrationName: "Steam Account",
-      field: "username",
-    },
-    "itch-account": {
-      pluginName: "@pipelab/plugin-itch",
-      integrationName: "Itch Butler Account",
-      field: "apiKey",
-    },
-  }[dialog.kind as "steam-account" | "itch-account"];
-  if (!config) return;
-  dialog.saving = true;
-  const record: any = {
-    id: crypto.randomUUID(),
-    pluginName: config.pluginName,
-    integrationName: config.integrationName,
-    name: dialog.name.trim(),
-    createdAt: new Date().toISOString(),
-    isDefault: false,
-    [config.field]: dialog.value.trim(),
-    ...(dialog.kind === "steam-account" ? { email: dialog.value.trim() } : {}),
-    ...(dialog.kind === "steam-account" ? { password: dialog.password.trim() } : {}),
-  };
-  const result = await api.execute("connections:save", {
-    data: { version: "1.0.0", connections: [...connections.value, record] },
-  });
-  dialog.saving = false;
-  if (result.type === "error") {
-    loadError.value = result.ipcError;
-    return;
-  }
-  connections.value.push(record);
-  if (flow.value) {
-    const serviceId = dialog.kind === "itch-account" ? "itch" : "steam";
-    const destination = flow.value.destinations.find((d: any) => d.serviceId === serviceId);
-    if (destination) destination.config.accountConnectionId = record.id;
-  }
-  dialog.visible = false;
-};
-const save = async () => {
-  if (!flow.value) return;
-  saving.value = true;
-  const result = await api.execute("workflow:save-by-name", {
-    name: `workflows/${flow.value.id}`,
-    data: JSON.stringify(flow.value),
-  });
-  saving.value = false;
-  if (result.type === "error") loadError.value = result.ipcError;
-};
-let saveTimer: ReturnType<typeof setTimeout> | undefined;
-watch(
-  flow,
-  () => {
-    if (!flow.value) return;
-    clearTimeout(saveTimer);
-    saveTimer = setTimeout(save, 300);
-  },
-  { deep: true },
-);
-const browseSource = async () => {
-  if (!flow.value) return;
-  const isFolder = flow.value.source.type === "folder" || flow.value.source.type === "godot";
-  const result = await api.execute("dialog:showOpenDialog", {
-    title: flow.value.source.type === "godot" ? "Choose Godot project folder" : isFolder ? "Choose build folder" : "Choose Construct project",
-    properties: [isFolder ? "openDirectory" : "openFile"],
-    ...(isFolder
-      ? {}
-      : { filters: [{ name: "Construct project", extensions: ["c3p", "c3proj"] }] }),
-  });
-  if (result.type === "success" && !result.result.canceled) {
-    const path = result.result.filePaths[0] || "";
-    if (flow.value.source.type === "godot") await inspectGodot(path);
-    else flow.value.source.path = path;
-  }
-};
-const inspectGodot = async (path: string) => {
-  const result = await api.execute("workflow:godot:inspect", { path });
-  if (result.type === "success") {
-    godotInfo.value = result.result;
-    flow.value.source.path = path;
-    for (const packager of flow.value.packagers.filter((item: any) => item.definitionId === "godot")) {
-      packager.config.projectName = result.result.projectName;
-      if (result.result.executable) packager.config.godotExecutable = result.result.executable;
-    }
-  } else runError.value = result.ipcError;
-};
-const browseFolder = async (d: Extract<WorkflowDestination, { type: "web" }>) => {
-  const result = await api.execute("dialog:showOpenDialog", {
-    title: "Choose output folder",
-    properties: ["openDirectory", "createDirectory", "promptToCreate"],
-  });
-  if (result.type === "success" && !result.result.canceled)
-    d.outputDir = result.result.filePaths[0] || "";
-};
-const ship = async () => {
-  if (!flow.value || !canShip.value) return;
-  if (!auth.isLoggedIn) {
-    auth.displayAuthModal("Login Required", "Please sign in to run this workflow.");
-    return;
-  }
-  releaseVersion.value = "1.0.0";
-  releaseDescription.value = flow.value.description || flow.value.name;
-  releaseDialogVisible.value = true;
-};
-const runShip = async () => {
-  if (!flow.value || !canShip.value) return;
-  if (!auth.isLoggedIn) {
-    auth.displayAuthModal("Login Required", "Please sign in to run this workflow.");
-    return;
-  }
-  releaseDialogVisible.value = false;
-  if (
-    flow.value.destinations.some((d: any) => d.type === "web" && d.cleanup) &&
-    !window.confirm("This release will clean the selected output folder before copying. Continue?")
-  )
-    return;
-  await save();
-  running.value = true;
-  runError.value = "";
-  try {
-    const response = await api.execute(
-      "workflow:execute",
-      {
-        name: `workflows/${flow.value.id}`,
-        release: { version: releaseVersion.value.trim(), description: releaseDescription.value.trim() },
-      },
-      async (event: any) => {
-        if (event.type === "workflow-run")
-          await router.push(
-            `/workflows/${route.params.flowId}/${route.params.projectId}/runs/${event.data.runId}`,
-          );
-      },
-    );
-    if (response.type === "error") runError.value = response.ipcError;
-  } catch (error) {
-    runError.value = error instanceof Error ? error.message : String(error);
-  } finally {
-    running.value = false;
-  }
-};
-const destinationLabel = (type: string) =>
-  type === "steam" ? "Steam" : type === "itch" ? "Itch.io" : "Web folder";
-const steam = (destination: WorkflowDestination) =>
-  destination as Extract<WorkflowDestination, { type: "steam" }>;
+import InputText from "primevue/inputtext";
+import Message from "primevue/message";
+import Select from "primevue/select";
+import Tag from "primevue/tag";
+import Textarea from "primevue/textarea";
+import ToggleSwitch from "primevue/toggleswitch";
+import { matchesArtifact, resolveTargetDescriptor, type ArtifactRef, type IconType, type ReleaseCatalog, type ReleaseConfig, type ReleaseDestinationConfig, type ReleaseDestinationSlot, type ReleaseFieldDefinition, type ReleaseFieldOption, type ReleaseProducerConfig, type ValidationIssue } from "@pipelab/shared";
+import Layout from "../components/Layout.vue";
+import WorkflowShell from "../components/WorkflowShell.vue";
+import ReleaseFieldControl from "../components/ReleaseFieldControl.vue";
+import { useAPI } from "../composables/api";
+import { useAuth } from "../store/auth";
+import { useConnectionsStore } from "../store/connections";
+
+const route = useRoute(); const router = useRouter(); const api = useAPI(); const auth = useAuth(); const connectionsStore = useConnectionsStore();
+const catalog = ref<ReleaseCatalog>({ sources: [], producers: [], destinations: [] }); const flow = ref<ReleaseConfig>(); const issues = ref<ValidationIssue[]>([]); const error = ref(""); const running = ref(false); const inspectionOptions = ref<Record<string, ReleaseFieldOption[]>>({});
+const producerToAdd = ref<string>(); const destinationToAdd = ref<string>(); const sourcePickerVisible = ref(false); const sourceSettingsVisible = ref(false); const providerSettingsVisible = ref(false); const destinationSettingsVisible = ref(false); const slotSettingsVisible = ref(false); const releaseDetailsVisible = ref(false); const connectionVisible = ref(false); const settingsProducer = ref<ReleaseProducerConfig>(); const settingsDestination = ref<ReleaseDestinationConfig>(); const settingsSlot = ref<ReleaseDestinationSlot>(); const releaseVersion = ref("1.0.0"); const releaseDescription = ref(""); const connectionSaving = ref(false); const connectionDraft = ref({ name: "", value: "", integration: "" });
+const dialogStyle = { width: "560px", maxWidth: "94vw" }; const wideDialogStyle = { width: "760px", maxWidth: "94vw" };
+const sourceDefinition = computed(() => catalog.value.sources.find((item) => item.id === flow.value?.source.provider)); const issueCount = computed(() => issues.value.filter((issue) => issue.severity === "error").length || issues.value.length); const settingsTitle = computed(() => settingsProducer.value ? `Configure ${producerDefinition(settingsProducer.value.provider)?.label || "build job"}` : settingsDestination.value ? `Configure ${destinationDefinition(settingsDestination.value.provider)?.label || "destination"}` : "Settings");
+const availableProducers = computed(() => catalog.value.producers.filter((item) => !flow.value?.producers.some((producer) => producer.provider === item.id))); const availableDestinations = computed(() => catalog.value.destinations.filter((item) => !flow.value?.destinations.some((destination) => destination.provider === item.id)));
+const producerDefinition = (id: string) => catalog.value.producers.find((item) => item.id === id); const targetDefinition = (provider: string, id: string) => producerDefinition(provider)?.targets.find((item) => item.id === id); const destinationDefinition = (id: string) => catalog.value.destinations.find((item) => item.id === id);
+const providerIcon = (icon: IconType | undefined, fallback: string) => { if (!icon || icon.type !== "icon") return fallback; return icon.icon.includes("mdi") || icon.icon.includes("pi-") ? icon.icon : `mdi ${icon.icon}`; };
+const fieldValue = (config: Record<string, unknown>, key: string) => String(config[key] ?? ""); const setField = (config: Record<string, unknown>, key: string, value: unknown) => { config[key] = String(value ?? ""); };
+const connections = computed(() => connectionsStore.connections?.connections || []); const connectionOptions = (field: ReleaseFieldDefinition) => connections.value.filter((connection) => !field.integration || connection.pluginName === field.integration || connection.integrationName === field.integration).map((connection) => ({ label: connection.name || connection.id, value: connection.id })); const fieldOptions = (scope: string, field: ReleaseFieldDefinition) => field.type === "connection" ? connectionOptions(field) : inspectionOptions.value[`${scope}.${field.key}`] || inspectionOptions.value[field.key] || field.options || [];
+const cardIssues = (prefix: string) => issues.value.filter((issue) => issue.path === prefix || issue.path?.startsWith(`${prefix}.`));
+const artifactRefValue = (ref: ArtifactRef) => "source" in ref ? "source" : `${ref.producerId}:${ref.outputId}`;
+const producedArtifacts = computed(() => { const source = sourceDefinition.value; const result: Array<{ value: string; label: string; ref: ArtifactRef; descriptor: NonNullable<typeof source>["output"] }> = []; if (source) result.push({ value: "source", label: `Source — ${source.label}`, ref: { source: true }, descriptor: source.output }); const pending = [...(flow.value?.producers.filter((item) => item.enabled) || [])]; while (pending.length) { const index = pending.findIndex((producer) => result.some((artifact) => artifact.value === artifactRefValue(producer.input || { source: true }))); if (index < 0) break; const producer = pending.splice(index, 1)[0]; const input = result.find((artifact) => artifact.value === artifactRefValue(producer.input || { source: true })); for (const target of producer.targets.filter((item) => item.enabled)) { const definition = targetDefinition(producer.provider, target.id); const descriptor = input && definition ? resolveTargetDescriptor(input.descriptor, definition) : undefined; const label = producerDefinition(producer.provider)?.targets.find((item) => item.id === target.id)?.label || target.id; if (descriptor) result.push({ value: `${producer.id}:${target.id}`, label: `${producerDefinition(producer.provider)?.label || producer.provider} — ${label}`, ref: { producerId: producer.id, outputId: target.id }, descriptor }); } } return result; });
+const producerInputs = (producer: ReleaseProducerConfig) => producedArtifacts.value.filter((artifact) => !("producerId" in artifact.ref && artifact.ref.producerId === producer.id) && matchesArtifact(artifact.descriptor, producerDefinition(producer.provider)?.accepts || {})).map((artifact) => ({ value: artifact.value, label: artifact.label })); const compatibleArtifacts = (provider: string) => producedArtifacts.value.filter((artifact) => matchesArtifact(artifact.descriptor, destinationDefinition(provider)?.accepts || {})); const artifactLabel = (ref: ArtifactRef) => producedArtifacts.value.find((artifact) => artifact.value === artifactRefValue(ref))?.label || "Select a build artifact";
+const sourcePath = computed(() => { const definition = sourceDefinition.value; const key = definition?.fields?.find((field) => field.type === "file" || field.type === "directory")?.key || "path"; return flow.value ? fieldValue(flow.value.source.config, key) : ""; });
+const targetDescriptorLabel = (descriptor: unknown) => { if (!descriptor || typeof descriptor !== "object") return "Output artifact"; const value = descriptor as Record<string, unknown>; return [value.platform, value.architecture, value.container].filter(Boolean).join(" · ") || "Output artifact"; }; const enabledTargetCount = (producer: ReleaseProducerConfig) => producer.targets.filter((target) => target.enabled).length; const isTargetEnabled = (producer: ReleaseProducerConfig, id: string) => producer.targets.some((target) => target.id === id && target.enabled); const hasProducerSettings = (producer: ReleaseProducerConfig) => Boolean(producerDefinition(producer.provider)?.fields?.length || producerDefinition(producer.provider)?.targets.some((target) => target.fields?.length));
+const inspectResult = (result: { issues?: ValidationIssue[]; fieldOptions?: Record<string, ReleaseFieldOption[]>; fieldValues?: Record<string, unknown> }) => { inspectionOptions.value = { ...inspectionOptions.value, ...Object.fromEntries(Object.entries(result.fieldOptions || {}).filter(([, options]) => options.length)) }; issues.value = result.issues || []; if (flow.value) for (const [key, value] of Object.entries(result.fieldValues || {})) { const [scope, field] = key.split("."); if (scope === "source") flow.value.source.config[field] = value; } };
+const inspectSource = async () => { if (!flow.value) return; const result = await api.execute("release:source:inspect", { provider: flow.value.source.provider, config: flow.value.source.config }); if (result.type === "success") inspectResult(result.result as { issues?: ValidationIssue[]; fieldOptions?: Record<string, ReleaseFieldOption[]>; fieldValues?: Record<string, unknown> }); };
+const selectSource = async (provider: string) => { if (!flow.value || provider === flow.value.source.provider) { sourcePickerVisible.value = false; return; } const definition = catalog.value.sources.find((item) => item.id === provider); if (definition) flow.value.source = { provider, config: { ...definition.defaultConfig } }; sourcePickerVisible.value = false; await inspectSource(); };
+const setSourceField = (key: string, value: unknown) => { if (!flow.value) return; setField(flow.value.source.config, key, value); void inspectSource(); };
+const addProducer = () => { if (!flow.value || !producerToAdd.value) return; const definition = producerDefinition(producerToAdd.value); if (!definition) return; flow.value.producers.push({ id: producerToAdd.value.split("/").pop() || producerToAdd.value, provider: producerToAdd.value, enabled: true, input: { source: true }, targets: definition.targets.map((target, index) => ({ id: target.id, enabled: index === 0, config: { ...target.defaultConfig } })), config: { ...definition.defaultConfig } }); producerToAdd.value = undefined; };
+const removeProducer = (id: string) => { if (flow.value) flow.value.producers = flow.value.producers.filter((producer) => producer.id !== id); }; const toggleTarget = (producer: ReleaseProducerConfig, id: string, enabled: boolean) => { const target = producer.targets.find((item) => item.id === id); if (target) target.enabled = enabled; else { const definition = targetDefinition(producer.provider, id); producer.targets.push({ id, enabled, config: { ...definition?.defaultConfig } }); } }; const setProducerInput = (producer: ReleaseProducerConfig, value: string) => { const artifact = producedArtifacts.value.find((item) => item.value === value); if (artifact) producer.input = artifact.ref; };
+const addDestination = () => { if (!flow.value || !destinationToAdd.value) return; const definition = destinationDefinition(destinationToAdd.value); if (!definition) return; flow.value.destinations.push({ id: destinationToAdd.value.split("/").pop() || destinationToAdd.value, provider: destinationToAdd.value, enabled: true, config: { ...definition.defaultConfig }, slots: [] }); destinationToAdd.value = undefined; }; const removeDestination = (id: string) => { if (flow.value) flow.value.destinations = flow.value.destinations.filter((destination) => destination.id !== id); }; const addSlot = (destination: ReleaseDestinationConfig) => { const artifact = compatibleArtifacts(destination.provider)[0]; if (artifact) destination.slots.push({ id: `${destination.id}-${destination.slots.length + 1}`, enabled: true, input: artifact.ref, config: {} }); }; const removeSlot = (destination: ReleaseDestinationConfig, id: string) => { destination.slots = destination.slots.filter((slot) => slot.id !== id); };
+const openProducerSettings = (producer: ReleaseProducerConfig) => { settingsProducer.value = producer; providerSettingsVisible.value = true; }; const openDestinationSettings = (destination: ReleaseDestinationConfig) => { settingsDestination.value = destination; destinationSettingsVisible.value = true; }; const openSlotSettings = (destination: ReleaseDestinationConfig, slot: ReleaseDestinationSlot) => { settingsDestination.value = destination; settingsSlot.value = slot; slotSettingsVisible.value = true; }; const setSlotArtifact = (slot: ReleaseDestinationSlot, value: string) => { const artifact = producedArtifacts.value.find((item) => item.value === value); if (artifact) slot.input = artifact.ref; };
+const openConnection = (integration: string) => { connectionDraft.value = { name: "", value: "", integration }; connectionVisible.value = true; }; const createConnection = async () => { connectionSaving.value = true; const integration = connectionDraft.value.integration; const record = { id: crypto.randomUUID(), pluginName: integration, integrationName: integration, name: connectionDraft.value.name.trim(), value: connectionDraft.value.value.trim(), createdAt: new Date().toISOString(), isDefault: false }; const result = await api.execute("connections:save", { data: { version: "1.0.0", connections: [...connections.value, record] } }); connectionSaving.value = false; if (result.type === "error") { error.value = result.ipcError; return; } await connectionsStore.init(); connectionVisible.value = false; };
+const validate = async () => { if (!flow.value) return false; const result = await api.execute("release:validate", { config: flow.value }); if (result.type === "error") { error.value = result.ipcError; return false; } issues.value = result.result.issues; return !issues.value.some((issue) => issue.severity === "error"); }; const save = async () => { if (!flow.value) return; const result = await api.execute("workflow:save-by-name", { name: `workflows/${route.params.flowId}`, data: JSON.stringify(flow.value) }); if (result.type === "error") error.value = result.ipcError; };
+const ship = async () => { if (!flow.value || !(await validate())) return; if (!auth.isLoggedIn) { auth.displayAuthModal("Login Required", "Please sign in to run this workflow."); return; } releaseVersion.value = "1.0.0"; releaseDescription.value = flow.value.description || flow.value.name; releaseDetailsVisible.value = true; }; const runShip = async () => { if (!flow.value || !releaseVersion.value.trim()) return; releaseDetailsVisible.value = false; running.value = true; await save(); const result = await api.execute("workflow:execute", { name: `workflows/${route.params.flowId}`, release: { version: releaseVersion.value.trim(), description: releaseDescription.value.trim() } }, async (event) => { if (event.type === "workflow-run") await router.push(`/workflows/${route.params.flowId}/${route.params.projectId}/runs/${event.data.runId}`); }); if (result.type === "error") error.value = result.ipcError; running.value = false; };
+let saveTimer: ReturnType<typeof setTimeout> | undefined; watch(flow, () => { clearTimeout(saveTimer); if (flow.value) saveTimer = setTimeout(save, 700); }, { deep: true }); onMounted(async () => { await connectionsStore.init(); const [catalogResult, flowResult] = await Promise.all([api.execute("release:catalog:get"), api.execute("workflow:load-by-name", { name: `workflows/${route.params.flowId}` })]); if (catalogResult.type === "success") catalog.value = catalogResult.result; if (flowResult.type === "success") { flow.value = flowResult.result as ReleaseConfig; await inspectSource(); } else error.value = flowResult.ipcError; });
 </script>
 
 <style scoped>
-.flow-page {
-  width: 100%;
-  max-width: 1100px;
-  box-sizing: border-box;
-  margin: 0 auto;
-}
-.card {
-  border: 1px solid var(--p-surface-200, var(--surface-border));
-  border-radius: 8px;
-  padding: 8px 12px;
-  margin: 0;
-  background: var(--p-surface-0, var(--surface-card));
-  transition: border-color 0.2s;
-}
-.source-card:hover,
-.destination:hover {
-  border-color: var(--p-surface-300, var(--p-surface-200, var(--surface-border)));
-}
-.destinations-section {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-top: 16px;
-}
-.source-card,
-.destination-heading {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-.destination-heading {
-  min-width: 0;
-}
-.source-card {
-  min-width: 0;
-}
-.card-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 28px;
-  flex-shrink: 0;
-  color: var(--primary-color);
-  font-size: 20px;
-  background: var(--p-surface-50, var(--surface-ground));
-  border: 1px solid var(--p-surface-100, var(--surface-border));
-  border-radius: 6px;
-}
-.card-body,
-.destination-details {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  flex: 1;
-  min-width: 0;
-}
-.card-body strong,
-.destination h3 {
-  font-size: 0.875rem;
-  font-weight: 600;
-}
-.card-body span,
-.destination-heading span {
-  font-size: 0.75rem;
-  color: var(--p-text-muted-color, var(--text-color-secondary));
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.destination h3 {
-  margin: 0;
-}
-.destination {
-  min-width: 0;
-}
-.destination.inactive {
-  opacity: 0.58;
-}
-.destination-active-label {
-  font-size: 11px;
-  color: var(--p-text-muted-color, var(--text-color-secondary));
-}
-.settings-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
-  margin-top: 18px;
-}
-.settings-grid label,
-.settings-grid .field {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  font-size: 12px;
-}
-.settings-grid .wide,
-.platform-note {
-  grid-column: 1/-1;
-}
-.input-row {
-  display: flex;
-  gap: 8px;
-  min-width: 0;
-}
-.input-row > :deep(.p-select),
-.input-row > .p-inputtext {
-  min-width: 0;
-  flex: 1 1 auto;
-}
-.check {
-  flex-direction: row !important;
-  align-items: center;
-}
-.platform-note {
-  color: var(--text-color-secondary);
-}
-.platform-note i {
-  color: var(--primary-color);
-}
-.destination-warning {
-  color: var(--red-500, #ef4444);
-  font-size: 20px;
-}
-.readiness-errors {
-  margin: 6px 0 0;
-  padding-left: 20px;
-}
-@media (max-width: 640px) {
-  .source-card {
-    align-items: flex-start;
-    flex-wrap: wrap;
-    gap: 10px;
-  }
-  .source-card .card-body {
-    flex: 1 1 calc(100% - 48px);
-  }
-  .source-card .p-button {
-    margin-left: 42px;
-  }
-  .destination-heading {
-    align-items: flex-start;
-    flex-wrap: wrap;
-  }
-  .destination-heading .destination-details {
-    padding-top: 2px;
-  }
-  .destination-heading .destination-warning {
-    margin-left: auto;
-  }
-  .destination-heading > .p-button {
-    margin-left: auto;
-  }
-  .settings-grid {
-    grid-template-columns: 1fr;
-  }
-  .card {
-    padding-inline: 10px;
-  }
-}
-@media (max-width: 380px) {
-  .source-card .p-button {
-    margin-left: 40px;
-  }
-}
+.release-page { max-width: 1040px; margin: 0 auto; padding-bottom: 48px; }
+.autosave-state { color: var(--p-text-muted-color, var(--text-color-secondary)); font-size: .75rem; }
+.autosave-state i { color: var(--green-500, #22c55e); margin-right: 4px; }
+.summary-copy { display: block; margin-top: 4px; font-size: .8rem; }
+.release-section { display: grid; gap: 12px; }
+.section-heading { display: flex; align-items: end; justify-content: space-between; gap: 16px; margin: 22px 2px 4px; }
+.section-heading h2 { margin: 3px 0 0; font-size: 1.15rem; letter-spacing: -.02em; }
+.section-heading p { margin: 4px 0 0; color: var(--p-text-muted-color, var(--text-color-secondary)); font-size: .8rem; }
+.eyebrow { color: var(--p-text-muted-color, var(--text-color-secondary)); font-size: .68rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+.add-job { min-width: 190px; }
+.source-card, .job-card, .empty-card { border: 1px solid var(--p-surface-200, var(--surface-border)); border-radius: 10px; background: var(--p-surface-0, var(--surface-card)); }
+.source-card, .job-header { display: flex; align-items: center; gap: 12px; }
+.source-card { padding: 12px 14px; }
+.source-copy, .job-title { display: grid; gap: 3px; min-width: 0; flex: 1; }
+.source-copy strong, .job-title strong { font-size: .9rem; }
+.source-copy span, .job-title span { overflow: hidden; color: var(--p-text-muted-color, var(--text-color-secondary)); font-size: .75rem; text-overflow: ellipsis; white-space: nowrap; }
+.source-copy small { color: var(--p-text-muted-color, var(--text-color-secondary)); font-size: .7rem; }
+.provider-icon { display: grid; place-items: center; width: 36px; height: 36px; flex: 0 0 auto; border: 1px solid var(--p-surface-200, var(--surface-border)); border-radius: 8px; color: var(--primary-color); background: var(--p-surface-50, var(--surface-ground)); font-size: 18px; }
+.job-card { overflow: hidden; }
+.job-header { padding: 12px 14px; }
+.job-card.disabled { opacity: .6; }
+.job-card.invalid, .source-card.invalid { border-color: color-mix(in srgb, var(--orange-500, #f59e0b) 55%, var(--p-surface-200, var(--surface-border))); }
+.target-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 7px; border-top: 1px solid var(--p-surface-100, var(--surface-border)); padding: 10px 14px; }
+.target-row { display: flex; align-items: center; gap: 8px; padding: 8px 9px; border: 1px solid var(--p-surface-200, var(--surface-border)); border-radius: 7px; color: var(--text-color); background: transparent; text-align: left; cursor: pointer; }
+.target-row:hover, .target-row.selected { border-color: var(--primary-color); background: color-mix(in srgb, var(--primary-color) 7%, transparent); }
+.target-row > i { color: var(--p-text-muted-color, var(--text-color-secondary)); font-size: 16px; }.target-row.selected > i { color: var(--green-500, #22c55e); }
+.target-row span { display: grid; gap: 2px; }.target-row strong { font-size: .78rem; }.target-row small { color: var(--p-text-muted-color, var(--text-color-secondary)); font-size: .66rem; }
+.routing-row { display: flex; align-items: center; gap: 10px; border-top: 1px solid var(--p-surface-100, var(--surface-border)); padding: 9px 14px; color: var(--p-text-muted-color, var(--text-color-secondary)); font-size: .75rem; }.routing-row span { display: flex; align-items: center; gap: 5px; }.routing-row .p-select { flex: 1; max-width: 360px; }
+.inline-warning { display: flex; gap: 7px; align-items: center; border-top: 1px solid var(--p-surface-100, var(--surface-border)); padding: 9px 14px; color: var(--orange-600, #d97706); font-size: .75rem; }
+.deployment-list { display: grid; gap: 6px; border-top: 1px solid var(--p-surface-100, var(--surface-border)); padding: 10px 14px; }.deployment-row { display: flex; align-items: center; gap: 8px; border: 1px solid var(--p-surface-200, var(--surface-border)); border-radius: 7px; padding: 7px 9px; }.deployment-main { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1; }.deployment-main > i { color: var(--primary-color); }.deployment-main div { display: grid; gap: 2px; min-width: 0; }.deployment-main strong { overflow: hidden; font-size: .78rem; text-overflow: ellipsis; white-space: nowrap; }.deployment-main span { color: var(--p-text-muted-color, var(--text-color-secondary)); font-size: .68rem; }
+.empty-card { display: grid; justify-items: center; gap: 5px; padding: 28px; color: var(--p-text-muted-color, var(--text-color-secondary)); text-align: center; }.empty-card i { color: var(--primary-color); font-size: 24px; }.empty-card strong { color: var(--text-color); font-size: .85rem; }.empty-card span { font-size: .75rem; }
+.pipeline-divider { display: flex; align-items: center; gap: 10px; margin: 18px 0 0; color: var(--p-text-muted-color, var(--text-color-secondary)); font-size: .72rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }.pipeline-divider::after { height: 1px; flex: 1; background: var(--p-surface-200, var(--surface-border)); content: ""; }
+.choice-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 9px; }.choice-card { display: grid; gap: 6px; padding: 14px; border: 1px solid var(--p-surface-200, var(--surface-border)); border-radius: 8px; background: transparent; color: var(--text-color); text-align: left; cursor: pointer; }.choice-card:hover, .choice-card.selected { border-color: var(--primary-color); background: color-mix(in srgb, var(--primary-color) 7%, transparent); }.choice-card i { color: var(--primary-color); font-size: 20px; }.choice-card strong { font-size: .8rem; }.choice-card small { color: var(--p-text-muted-color, var(--text-color-secondary)); font-size: .7rem; }
+.settings-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }.wide { grid-column: 1 / -1; }.release-field { display: grid; gap: 5px; }.release-field label { font-size: .75rem; font-weight: 600; }.release-field .p-select { width: 100%; }
+@media (max-width: 640px) { .section-heading { align-items: stretch; flex-direction: column; }.add-job { width: 100%; }.source-card, .job-header { align-items: flex-start; flex-wrap: wrap; }.source-copy, .job-title { flex: 1 1 calc(100% - 52px); }.source-card > .p-tag { margin-left: 48px; }.settings-grid { grid-template-columns: 1fr; }.wide { grid-column: auto; }.routing-row { align-items: stretch; flex-direction: column; }.routing-row .p-select { max-width: none; width: 100%; }}
 </style>

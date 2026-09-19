@@ -8,7 +8,7 @@ import VueDevTools from "vite-plugin-vue-devtools";
 // Keep the config self-contained when pnpm injects workspace packages into
 // node_modules. Node 24 deliberately refuses to type-strip injected .ts
 // package entrypoints, while Vite can load this workspace source directly.
-import { uiDevPort } from "../../packages/constants/src/index";
+import { uiDevPort } from "../../packages/constants/src/index.ts";
 
 const iconFontStylesheets = [
   "/@mdi/font/css/materialdesignicons.css",

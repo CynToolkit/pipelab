@@ -40,6 +40,7 @@ export {
 // 3. Core Library exports (Systematic restoration)
 export * from "./apis";
 export * from "./build-history";
+export * from "./release/descriptor";
 export * from "./config.schema";
 export * from "./database.types";
 export * from "./evaluator";
@@ -62,8 +63,12 @@ export * from "./validation";
 export * from "./variables";
 export * from "./websocket.types";
 export * from "./path";
-export * from "./release-flow";
-export * from "./release-definitions";
+export * from "./release/types";
+export * from "./release/matcher";
+export * from "./release/config";
+export * from "./release/catalog";
+export * from "./release/compiler";
+export * from "./release/validate";
 export * from "./plugin-api";
 
 // 4. Configuration Sub-packages
