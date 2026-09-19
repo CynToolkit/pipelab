@@ -9,7 +9,7 @@ const itchDestination: ReleaseDestinationDefinition = {
   accepts: { kind: ["application", "archive"] },
   createDefaultConfig: () => ({ accountConnectionId: "", project: "" }),
   validate: () => [],
-  compile: (artifact, destination, slot) => [{ id: `itch-${destination.id}-${slot.id}`, uses: "@pipelab/plugin-itch/itch-upload", needs: [artifact.stepId], with: { ...destination.config, ...slot.config }, delivery: { destinationId: destination.id, slotId: slot.id, artifact } }],
+  compile: (artifact, destination, slot) => [{ id: `itch-${destination.id}-${slot.id}`, uses: "@pipelab/plugin-itch/itch-upload", needs: [artifact.stepId], artifactInputs: { "input-folder": artifact }, with: { ...destination.config, ...slot.config }, delivery: { destinationId: destination.id, slotId: slot.id, artifact } }],
 };
 
 export default createNodeDefinition({

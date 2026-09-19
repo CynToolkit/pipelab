@@ -1,7 +1,7 @@
-import { compileWorkflow, createLocalHost, runWorkflow, type Workflow, type WorkflowEvent, type WorkflowResult } from "@pipelab/workflow-runtime";
+import { createLocalHost, runWorkflow, type Workflow, type WorkflowEvent, type WorkflowResult } from "@pipelab/workflow-runtime";
 import { nanoid } from "nanoid";
 import { mkdir } from "node:fs/promises";
-import { buildReleaseCatalog, validateReleaseConfigShape, type BuildHistoryEntry, type ReleaseConfig, type ValidationIssue, useLogger, usePlugins } from "@pipelab/shared";
+import { buildReleaseCatalog, buildReleaseRegistry, compileWorkflow, validateRelease, type BuildHistoryEntry, type ReleaseConfig, useLogger, usePlugins } from "@pipelab/shared";
 import { CacheFolder, PipelabContext } from "../context";
 import { setupWorkflowConfigFileByName } from "../config";
 import { ensureNodeJS, ensurePNPM } from "../utils/remote";
@@ -12,27 +12,10 @@ import { WorkflowRunCancellationRegistry } from "./workflow-run-cancellation";
 import { getPipelabCloudDownloadUrl } from "../pipelab-cloud";
 
 const host = () => ({ platform: process.platform, architecture: process.arch });
-const catalog = () => buildReleaseCatalog(usePlugins().plugins.value);
+const registry = () => buildReleaseRegistry(usePlugins().plugins.value);
+const catalog = () => buildReleaseCatalog(registry(), host());
 
-const issuesFor = (config: ReleaseConfig): ValidationIssue[] => {
-  const releaseCatalog = catalog();
-  const issues = validateReleaseConfigShape(config);
-  const context = { host: host() };
-  const source = releaseCatalog.sources.find((candidate) => candidate.id === config.source.provider);
-  if (!source) issues.push({ code: "release.source.unknown", message: `Unknown source provider: ${config.source.provider}`, severity: "error", path: "source.provider" });
-  else issues.push(...source.validate(config.source.config));
-  for (const producer of config.producers) {
-    const definition = releaseCatalog.producers.find((candidate) => candidate.id === producer.provider);
-    if (!definition) issues.push({ code: "release.producer.unknown", message: `Unknown producer provider: ${producer.provider}`, severity: "error" });
-    else issues.push(...definition.validate(producer, { ...context, source: source?.output }));
-  }
-  for (const destination of config.destinations) {
-    const definition = releaseCatalog.destinations.find((candidate) => candidate.id === destination.provider);
-    if (!definition) issues.push({ code: "release.destination.unknown", message: `Unknown destination provider: ${destination.provider}`, severity: "error" });
-    else issues.push(...definition.validate(destination, context));
-  }
-  return issues;
-};
+const issuesFor = (config: ReleaseConfig) => validateRelease(config, registry(), { host: host() });
 
 const executionPlan = (workflow: Workflow) => workflow.steps.map((step) => ({
   id: step.id,
@@ -57,7 +40,7 @@ export const executeWorkflow = async (context: PipelabContext, configName: strin
   if (errors.length) throw new Error(errors.map((issue) => issue.message).join("\n"));
   const buildId = nanoid();
   const version = options.release?.version?.trim() || "0.0.0";
-  const workflow = compileWorkflow(config, catalog(), { host: host(), variables: { version, sourcePath: config.source.config.path } });
+  const workflow = compileWorkflow(config, registry(), { host: host(), variables: { version, sourcePath: config.source.config.path } });
   const history = new BuildHistoryStorage(context);
   const startTime = Date.now();
   await history.save({ id: buildId, pipelineId: config.project || config.id, workflowId: config.id, workflowName: config.name, projectName: config.name, projectPath: String(config.source.config.path || ""), status: "running", version, startTime, steps: executionPlan(workflow), totalSteps: workflow.steps.length, completedSteps: 0, failedSteps: 0, cancelledSteps: 0, logs: [], artifacts: [], deliveries: [], createdAt: startTime, updatedAt: startTime });
@@ -79,10 +62,10 @@ export const registerWorkflowHandlers = (context: PipelabContext, pluginsReady?:
   const activeRuns = new WorkflowRunCancellationRegistry();
   handle("release:catalog:get", async (_, { send }) => await send({ type: "end", data: { type: "success", result: catalog() } }));
   handle("release:source:inspect", async (_, { send, value }) => {
-    try { const source = catalog().sources.find((candidate) => candidate.id === value.provider); if (!source) throw new Error(`Unknown source provider: ${value.provider}`); const result = source.inspect ? await source.inspect(value.config, { host: host() }) : { issues: [] }; await send({ type: "end", data: { type: "success", result } }); } catch (error) { await send({ type: "end", data: { type: "error", ipcError: error instanceof Error ? error.message : String(error) } }); }
+    try { const source = registry().sources.find((candidate) => candidate.id === value.provider); if (!source) throw new Error(`Unknown source provider: ${value.provider}`); const result = source.inspect ? await source.inspect(value.config, { host: host() }) : { issues: [] }; await send({ type: "end", data: { type: "success", result } }); } catch (error) { await send({ type: "end", data: { type: "error", ipcError: error instanceof Error ? error.message : String(error) } }); }
   });
   handle("release:producer:inspect", async (_, { send, value }) => {
-    try { const producer = catalog().producers.find((candidate) => candidate.id === value.provider); if (!producer) throw new Error(`Unknown producer provider: ${value.provider}`); const result = producer.inspect ? await producer.inspect(value.config, { host: host() }) : { issues: [] }; await send({ type: "end", data: { type: "success", result } }); } catch (error) { await send({ type: "end", data: { type: "error", ipcError: error instanceof Error ? error.message : String(error) } }); }
+    try { const producer = registry().producers.find((candidate) => candidate.id === value.provider); if (!producer) throw new Error(`Unknown producer provider: ${value.provider}`); const result = producer.inspect ? await producer.inspect(value.config, { host: host() }) : { issues: [] }; await send({ type: "end", data: { type: "success", result } }); } catch (error) { await send({ type: "end", data: { type: "error", ipcError: error instanceof Error ? error.message : String(error) } }); }
   });
   handle("release:validate", async (_, { send, value }) => await send({ type: "end", data: { type: "success", result: { issues: issuesFor(value.config) } } }));
   handle("workflow:execute", async (_, { send, value }) => {

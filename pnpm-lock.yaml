@@ -895,10 +895,6 @@ importers:
         version: 24.12.2
 
   packages/workflow-runtime:
-    dependencies:
-      '@pipelab/shared':
-        specifier: workspace:*
-        version: link:../shared
     devDependencies:
       '@pipelab/tsconfig':
         specifier: workspace:*
@@ -1127,6 +1123,9 @@ importers:
       '@pipelab/shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      adm-zip:
+        specifier: 0.6.0
+        version: 0.6.0
     devDependencies:
       '@pipelab/tsconfig':
         specifier: workspace:*

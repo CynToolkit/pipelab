@@ -8,7 +8,7 @@ const steamDestination: ReleaseDestinationDefinition = {
   accepts: { kind: "application", platform: ["windows", "linux", "macos"] },
   createDefaultConfig: () => ({ accountConnectionId: "", appId: "" }),
   validate: (config) => !String(config.config.appId || "").trim() ? [{ code: "steam.app-id.required", message: "Steam App ID is required.", severity: "error" }] : [],
-  compile: (artifact, destination, slot) => [{ id: `steam-${destination.id}-${slot.id}`, uses: "@pipelab/plugin-steam/steam-upload", needs: [artifact.stepId], with: { ...destination.config, ...slot.config }, delivery: { destinationId: destination.id, slotId: slot.id, artifact } }],
+  compile: (artifact, destination, slot) => [{ id: `steam-${destination.id}-${slot.id}`, uses: "@pipelab/plugin-steam/steam-upload", needs: [artifact.stepId], artifactInputs: { folder: artifact }, with: { ...destination.config, ...slot.config }, delivery: { destinationId: destination.id, slotId: slot.id, artifact } }],
 };
 
 export default createNodeDefinition({

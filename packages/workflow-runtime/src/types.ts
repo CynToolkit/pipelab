@@ -1,6 +1,5 @@
-import type { ArtifactDescriptor } from "@pipelab/shared";
-import type { WorkflowArtifactInstance } from "./artifacts";
-export type { WorkflowArtifactInstance } from "./artifacts";
+import type { ArtifactDescriptor, WorkflowArtifactInstance } from "./artifacts";
+export type { ArtifactDescriptor, ArtifactKind, WorkflowArtifactInstance } from "./artifacts";
 
 export const WORKFLOW_VERSION = 1;
 
@@ -17,6 +16,7 @@ export interface WorkflowStep {
   needs?: readonly string[];
   with?: Record<string, unknown>;
   artifacts?: Record<string, WorkflowArtifactDefinition>;
+  artifactInputs?: Record<string, WorkflowArtifactReference>;
   delivery?: WorkflowDeliveryDefinition;
 }
 

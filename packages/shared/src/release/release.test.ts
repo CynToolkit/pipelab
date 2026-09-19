@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildReleaseCatalog, matchesArtifact, validateReleaseConfigShape, type MainPluginDefinition } from "../index";
+import { buildReleaseCatalog, buildReleaseRegistry, matchesArtifact, validateReleaseConfigShape, type MainPluginDefinition } from "../index";
 
 const fakePlugin = (id: string): MainPluginDefinition => ({
   id,
@@ -31,8 +31,9 @@ describe("release descriptors", () => {
   });
 
   it("builds a catalog from a newly registered plugin", () => {
-    const catalog = buildReleaseCatalog([fakePlugin("@example/fake-engine")]);
+    const catalog = buildReleaseCatalog(buildReleaseRegistry([fakePlugin("@example/fake-engine")]));
     expect(catalog.sources.map((source) => source.id)).toEqual(["@example/fake-engine/source"]);
+    expect(catalog.sources[0]).not.toHaveProperty("compile");
   });
 
   it("accepts only the V3 release shape", () => {

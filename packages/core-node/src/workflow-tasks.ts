@@ -101,7 +101,7 @@ export const createPipelabWorkflowTasks = (
     "@pipelab/core/passthrough": async (taskContext) => {
       const path = taskContext.inputs.path;
       if (typeof path !== "string" || !path) throw new Error("Passthrough source requires a path");
-      taskContext.setArtifact("project", path);
+      taskContext.setArtifact("output", path);
       return { output: path };
     },
     "filesystem:zip": async (taskContext) => {

@@ -11,4 +11,34 @@ describe("artifact-aware workflow runtime", () => {
     expect(deliveredPath).toBe("/tmp/game");
     expect(result.artifacts).toEqual([expect.objectContaining({ descriptor: { kind: "application", platform: "windows" }, stepId: "build", artifact: "output", path: "/tmp/game" })]);
   });
+
+  it("resolves artifact inputs to runtime paths before executing a task", async () => {
+    const workflow = {
+      version: 1,
+      steps: [
+        {
+          id: "build",
+          uses: "test:build",
+          artifacts: { output: { descriptor: { kind: "application", platform: "web" } } },
+        },
+        {
+          id: "ship",
+          uses: "test:ship",
+          needs: ["build"],
+          artifactInputs: { "input-folder": { stepId: "build", artifact: "output" } },
+        },
+      ],
+    } as const;
+    let inputs: Record<string, unknown> | undefined;
+    await runWorkflow(workflow, {
+      host,
+      tasks: {
+        "test:build": async ({ setArtifact }) => setArtifact("output", "/workspace/web-build"),
+        "test:ship": async (context) => {
+          inputs = context.inputs;
+        },
+      },
+    });
+    expect(inputs).toEqual({ "input-folder": "/workspace/web-build" });
+  });
 });

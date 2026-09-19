@@ -27,7 +27,7 @@
                 <div v-for="artifact in entry.artifacts" :key="artifact.id" class="result-artifact-row">
                   <div>
                     <strong>{{ artifactName(artifact) }}</strong>
-                    <small v-if="'descriptor' in artifact">{{ artifact.descriptor.platform }} {{ artifact.descriptor.architecture }} · {{ artifact.descriptor.format }} · {{ artifact.stepId }}</small>
+                    <small v-if="'descriptor' in artifact && artifact.descriptor">{{ artifact.descriptor.platform }} {{ artifact.descriptor.architecture }} · {{ artifact.descriptor.format }} · {{ artifact.stepId }}</small>
                     <small>{{ artifact.path }}</small>
                   </div>
                   <div class="result-consumers">
@@ -221,7 +221,9 @@ const artifactName = (artifact: NonNullable<BuildHistoryEntry["artifacts"]>[numb
 
 const artifactFormat = (artifact: NonNullable<BuildHistoryEntry["artifacts"]>[number]) =>
   "descriptor" in artifact
-    ? `${artifact.descriptor.format || artifact.descriptor.kind}${artifact.size ? ` · ${(artifact.size / 1024 / 1024).toFixed(2)} MB` : ""}`
+    ? artifact.descriptor
+      ? `${artifact.descriptor.format || artifact.descriptor.kind}${artifact.size ? ` · ${(artifact.size / 1024 / 1024).toFixed(2)} MB` : ""}`
+      : "Unknown artifact"
     : artifact.type === "folder"
       ? "Folder"
       : artifact.size

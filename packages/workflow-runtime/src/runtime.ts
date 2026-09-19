@@ -117,6 +117,23 @@ const resolveInputs = (
   return resolveValue(step.with, variables, outputs) as Record<string, unknown>;
 };
 
+const resolveArtifactInputs = (
+  step: WorkflowStep,
+  artifacts: Array<WorkflowArtifact | WorkflowArtifactInstance>,
+): Record<string, string> => {
+  const resolved: Record<string, string> = {};
+  for (const [inputName, reference] of Object.entries(step.artifactInputs ?? {})) {
+    const artifact = artifactForDelivery(reference, artifacts);
+    if (!artifact) {
+      throw new Error(
+        `Workflow step ${step.id} requires artifact "${reference.artifact}" from step "${reference.stepId}", but that artifact was not produced.`,
+      );
+    }
+    resolved[inputName] = artifact.path;
+  }
+  return resolved;
+};
+
 const validateWorkflow = (workflow: Workflow): void => {
   if (!isRecord(workflow) || workflow.version !== WORKFLOW_VERSION) {
     throw new Error(`Unsupported workflow version: ${String(workflow?.version)}`);
@@ -145,6 +162,9 @@ const validateWorkflow = (workflow: Workflow): void => {
     }
     if (step.with !== undefined && !isRecord(step.with)) {
       throw new Error(`Workflow step ${step.id} inputs must be an object`);
+    }
+    if (step.artifactInputs !== undefined && !isRecord(step.artifactInputs)) {
+      throw new Error(`Workflow step ${step.id} artifact inputs must be an object`);
     }
     if (step.delivery !== undefined) {
       if (
@@ -232,7 +252,10 @@ export const runWorkflow = async (
             `Workflow delivery step ${step.id} requires artifact "${step.delivery.artifact.artifact}" from step "${step.delivery.artifact.stepId}", but that artifact was not produced.`,
           );
         }
-        const inputs = resolveInputs(step, variables, outputs);
+        const inputs = {
+          ...resolveInputs(step, variables, outputs),
+          ...resolveArtifactInputs(step, artifacts),
+        };
         const result =
           (await task({
             step,

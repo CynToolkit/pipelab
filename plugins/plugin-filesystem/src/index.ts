@@ -24,7 +24,7 @@ const folderDestination: ReleaseDestinationDefinition = {
   accepts: {},
   createDefaultConfig: () => ({ outputDir: "" }),
   validate: () => [],
-  compile: (artifact, destination, slot, context) => [{ id: `release-folder-${destination.id}-${slot.id}`, uses: "@pipelab/plugin-filesystem/fs:copy", needs: [artifact.stepId], with: { ...destination.config, ...slot.config }, delivery: { destinationId: destination.id, slotId: slot.id, artifact } }],
+  compile: (artifact, destination, slot, context) => [{ id: `release-folder-${destination.id}-${slot.id}`, uses: "@pipelab/plugin-filesystem/fs:copy", needs: [artifact.stepId], artifactInputs: { from: artifact }, with: { ...destination.config, ...slot.config }, delivery: { destinationId: destination.id, slotId: slot.id, artifact } }],
 };
 
 const zipDestination: ReleaseDestinationDefinition = {
@@ -33,7 +33,7 @@ const zipDestination: ReleaseDestinationDefinition = {
   accepts: {},
   createDefaultConfig: () => ({ outputPath: "" }),
   validate: () => [],
-  compile: (artifact, destination, slot) => [{ id: `release-zip-${destination.id}-${slot.id}`, uses: "@pipelab/plugin-filesystem/zip-v2-node", needs: [artifact.stepId], with: { ...destination.config, ...slot.config }, delivery: { destinationId: destination.id, slotId: slot.id, artifact } }],
+  compile: (artifact, destination, slot) => [{ id: `release-zip-${destination.id}-${slot.id}`, uses: "@pipelab/plugin-filesystem/zip-v2-node", needs: [artifact.stepId], artifactInputs: { folder: artifact }, with: { ...destination.config, ...slot.config }, delivery: { destinationId: destination.id, slotId: slot.id, artifact } }],
 };
 
 const passthroughProducer: ReleaseProducerDefinition = {

@@ -1,4 +1,13 @@
-import type { ArtifactDescriptor } from "@pipelab/shared";
+export type ArtifactKind = "project" | "application" | "archive";
+
+export interface ArtifactDescriptor {
+  kind: ArtifactKind;
+  technology?: string;
+  platform?: string;
+  architecture?: string;
+  format?: string;
+  capabilities?: string[];
+}
 
 export interface WorkflowArtifactInstance {
   readonly id: string;

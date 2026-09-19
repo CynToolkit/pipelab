@@ -3,6 +3,7 @@ import { readFile, readdir, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { createAction, createActionRunner, createNodeDefinition } from "@pipelab/plugin-core";
 import type { ReleaseProducerDefinition, ReleaseSourceDefinition } from "@pipelab/shared";
+import { exportGodotProject, hasGodotTemplates } from "./export";
 
 const targetDescriptors = {
   "windows-x64": { kind: "application" as const, technology: "godot", platform: "windows", architecture: "x64", format: "directory" },
@@ -30,7 +31,7 @@ const inspect = async (path: string) => {
     try { godotVersion = execFileSync(candidate, ["--version"], { encoding: "utf8", timeout: 3000 }).trim(); executable = candidate; break; } catch { /* Try next executable. */ }
   }
   let templatesAvailable = false;
-  try { templatesAvailable = (await readdir(join(process.env.HOME || "", ".local/share/godot/export_templates"))).length > 0; } catch { /* Missing templates. */ }
+  templatesAvailable = await hasGodotTemplates(process.platform);
   return { metadata: { projectName, godotVersion }, data: { executable, templatesAvailable, presets, presetPlatforms }, issues: [
     ...(!executable ? [{ code: "godot.executable.missing", message: "Godot executable not found.", severity: "error" as const }] : []),
     ...(!templatesAvailable ? [{ code: "godot.templates.missing", message: "Godot export templates are missing.", severity: "warning" as const }] : []),
@@ -44,20 +45,29 @@ export const godotSource: ReleaseSourceDefinition = {
   createDefaultConfig: () => ({ path: "" }),
   validate: (config) => typeof config.path === "string" && config.path ? [] : [{ code: "source.path.required", message: "A project path is required.", severity: "error" }],
   inspect: async (config) => inspect(String(config.path || "")),
-  compile: (config) => ({ steps: [{ id: "release-godot-source", uses: "@pipelab/core/passthrough", with: { path: config.path }, artifacts: { project: { descriptor: godotSource.output } } }], artifact: { reference: { stepId: "release-godot-source", artifact: "project" }, descriptor: godotSource.output } }),
+  compile: (config) => ({ steps: [{ id: "release-godot-source", uses: "@pipelab/core/passthrough", with: { path: config.path }, artifacts: { output: { descriptor: godotSource.output } } }], artifact: { reference: { stepId: "release-godot-source", artifact: "output" }, descriptor: godotSource.output } }),
 };
 
 const godotExportAction = createAction({ id: "godot:export", name: "Export Godot project", displayString: "Export Godot project", icon: "", description: "Export a Godot project", meta: {}, params: {}, outputs: {} });
-const godotExportRunner = createActionRunner(async ({ log }) => { log("Godot export is provided by the release producer."); });
+const godotExportRunner = createActionRunner(async (data) => {
+  const inputs = data.inputs as Record<string, unknown>;
+  const project = String(inputs.project || "");
+  const preset = String(inputs.preset || "").trim();
+  const target = String(inputs.target || "");
+  if (!project || !preset) throw new Error("Godot export requires a project folder and preset.");
+  const result = await exportGodotProject({ executable: String(inputs.executable || "godot"), project, preset, platform: target.startsWith("windows") ? "windows" : target.startsWith("linux") ? "linux" : target.startsWith("macos") ? "macos" : "web", projectName: String(inputs.projectName || "game"), outputDirectory: join(data.cwd, ".pipelab-godot", target), signal: data.abortSignal, log: (stream, chunk) => data.log(chunk), ensureDirectory: async (path) => { await (await import("node:fs/promises")).mkdir(path, { recursive: true }); } });
+  data.setArtifact("output", result.path);
+  data.setOutput("output", result.path);
+});
 
 export const godotExporter: ReleaseProducerDefinition = {
   id: "@pipelab/plugin-godot/producer",
   label: "Godot exporter",
   accepts: { kind: "project", technology: "godot" },
-  targets: Object.entries(targetDescriptors).map(([id, output]) => ({ id, label: id, output, createDefaultConfig: () => ({ preset: "" }), isAvailable: (host) => id === "macos-arm64" && host.platform !== "darwin" ? { available: false, reason: "macOS exports require a macOS host." } : { available: true } })),
+  targets: Object.entries(targetDescriptors).map(([id, output]) => ({ id, label: id, output, createDefaultConfig: () => ({ preset: "" }), isAvailable: () => ({ available: true }) })),
   createDefaultConfig: () => ({ executable: "godot" }),
   validate: (config) => config.targets.filter((target) => target.enabled && !String(target.config.preset || "").trim()).map((target) => ({ code: "godot.preset.required", message: `Choose a preset for ${target.id}.`, severity: "error" as const, path: `targets.${target.id}.config.preset` })),
-  compile: (input, config) => ({ steps: config.targets.filter((target) => target.enabled).map((target) => ({ id: `${config.id}-${target.id}`, uses: "@pipelab/plugin-godot/godot:export", needs: [input.stepId], with: { project: "${{ variables.sourcePath }}", preset: target.config.preset, target: target.id }, artifacts: { output: { descriptor: targetDescriptors[target.id as keyof typeof targetDescriptors] } } })), artifacts: Object.fromEntries(config.targets.filter((target) => target.enabled).map((target) => [target.id, { reference: { stepId: `${config.id}-${target.id}`, artifact: "output" }, descriptor: targetDescriptors[target.id as keyof typeof targetDescriptors] }])) }),
+  compile: (input, config) => ({ steps: config.targets.filter((target) => target.enabled).map((target) => ({ id: `${config.id}-${target.id}`, uses: "@pipelab/plugin-godot/godot:export", needs: [input.stepId], artifactInputs: { project: input }, with: { preset: target.config.preset, target: target.id, executable: config.config.executable }, artifacts: { output: { descriptor: targetDescriptors[target.id as keyof typeof targetDescriptors] } } })), artifacts: Object.fromEntries(config.targets.filter((target) => target.enabled).map((target) => [target.id, { reference: { stepId: `${config.id}-${target.id}`, artifact: "output" }, descriptor: targetDescriptors[target.id as keyof typeof targetDescriptors] }])) }),
 };
 
 export default createNodeDefinition({ id: "@pipelab/plugin-godot", packageName: "@pipelab/plugin-godot", name: "Godot", description: "Godot release integration", icon: { type: "icon", icon: "pi-gamepad" }, isOfficial: true, nodes: [{ node: godotExportAction, runner: godotExportRunner }], release: { sources: [godotSource], producers: [godotExporter] } });

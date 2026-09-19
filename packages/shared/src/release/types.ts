@@ -1,16 +1,7 @@
-import type { WorkflowStep } from "@pipelab/workflow-runtime";
+import type { ArtifactDescriptor, WorkflowStep } from "@pipelab/workflow-runtime";
 import type { IconType } from "../plugins/definitions";
 
-export type ArtifactKind = "project" | "application" | "archive";
-
-export interface ArtifactDescriptor {
-  kind: ArtifactKind;
-  technology?: string;
-  platform?: string;
-  architecture?: string;
-  format?: string;
-  capabilities?: string[];
-}
+export type { ArtifactDescriptor, ArtifactKind } from "@pipelab/workflow-runtime";
 
 export interface ArtifactConstraint {
   kind?: string | string[];
@@ -183,8 +174,50 @@ export interface PluginReleaseDefinition {
   destinations?: ReleaseDestinationDefinition[];
 }
 
-export interface ReleaseCatalog {
+export interface ReleaseRegistry {
   sources: ReleaseSourceDefinition[];
   producers: ReleaseProducerDefinition[];
   destinations: ReleaseDestinationDefinition[];
+}
+
+export interface ReleaseCatalogTarget {
+  id: string;
+  label: string;
+  output: ArtifactDescriptor;
+  defaultConfig: Record<string, unknown>;
+  availability?: Availability;
+}
+
+export interface ReleaseCatalogSource {
+  id: string;
+  label: string;
+  description?: string;
+  icon?: IconType;
+  output: ArtifactDescriptor;
+  defaultConfig: Record<string, unknown>;
+}
+
+export interface ReleaseCatalogProducer {
+  id: string;
+  label: string;
+  description?: string;
+  icon?: IconType;
+  accepts: ArtifactConstraint;
+  defaultConfig: Record<string, unknown>;
+  targets: ReleaseCatalogTarget[];
+}
+
+export interface ReleaseCatalogDestination {
+  id: string;
+  label: string;
+  description?: string;
+  icon?: IconType;
+  accepts: ArtifactConstraint;
+  defaultConfig: Record<string, unknown>;
+}
+
+export interface ReleaseCatalog {
+  sources: ReleaseCatalogSource[];
+  producers: ReleaseCatalogProducer[];
+  destinations: ReleaseCatalogDestination[];
 }
