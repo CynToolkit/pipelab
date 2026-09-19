@@ -143,9 +143,9 @@ export const runAction = async <A extends Action>(
     const isWindows = process.platform === "win32";
     const cmd = isWindows ? "where pnpm" : "which pnpm";
     const stdout = execSync(cmd, { encoding: "utf8" });
-    const lines = stdout.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    const lines = stdout.split(/\r?\n/).map((line: string) => line.trim()).filter(Boolean);
     if (isWindows) {
-      realPnpm = lines.find(l => l.endsWith(".cmd") || l.endsWith(".exe")) || lines[0] || "pnpm";
+      realPnpm = lines.find((line: string) => line.endsWith(".cmd") || line.endsWith(".exe")) || lines[0] || "pnpm";
     } else {
       realPnpm = lines[0] || "pnpm";
     }

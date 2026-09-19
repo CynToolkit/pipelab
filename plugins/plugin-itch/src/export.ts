@@ -1,13 +1,11 @@
-import { join, dirname, delimiter } from "node:path";
+import { dirname, delimiter } from "node:path";
 import { readFile } from "node:fs/promises";
 import { ensureButler } from "./ensure.js";
-import { extractZip } from "@pipelab/plugin-core";
 import {
   createAction,
   createActionRunner,
   createPathParam,
   createStringParam,
-  downloadFile,
   runWithLiveLogs,
 } from "@pipelab/plugin-core";
 
@@ -79,7 +77,7 @@ export const uploadToItch = createAction({
 });
 
 export const uploadToItchRunner = createActionRunner<typeof uploadToItch>(
-  async ({ log, inputs, cwd, abortSignal, context }) => {
+  async ({ log, inputs, abortSignal, context }) => {
     const runtimeInputs = inputs as typeof inputs & { accountConnectionId?: string };
     if (runtimeInputs.accountConnectionId && (!inputs.user || !inputs["api-key"])) {
       const saved = JSON.parse(await readFile(context.getConnectionsPath(), "utf8")) as { connections?: Array<Record<string, unknown>> };
@@ -114,7 +112,7 @@ export const uploadToItchRunner = createActionRunner<typeof uploadToItch>(
       },
       log,
       {
-        onStdout(data, subprocess) {
+        onStdout(data) {
           const jsons = data.trim().split("\n");
           for (const jsonData of jsons) {
             const json = JSON.parse(jsonData) as ButlerJSONOutput;

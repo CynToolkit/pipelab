@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { readFile, readdir, stat } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { createAction, createActionRunner, createNodeDefinition } from "@pipelab/plugin-core";
 import type { ReleaseProducerDefinition, ReleaseSourceDefinition } from "@pipelab/shared";

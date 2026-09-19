@@ -1,5 +1,5 @@
 import type { MainPluginDefinition, RendererPluginDefinition } from "../plugins/definitions";
-import type { ReleaseCatalog, ReleaseRegistry } from "./types";
+import type { ReleaseRegistry } from "./types";
 
 export const buildReleaseRegistry = (
   plugins: Array<MainPluginDefinition | RendererPluginDefinition>,
