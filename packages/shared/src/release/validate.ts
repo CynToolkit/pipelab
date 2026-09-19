@@ -21,6 +21,7 @@ export const validateRelease = (config: ReleaseConfig, registry: ReleaseRegistry
     const producerPath = `producers.${producerIndex}`;
     if (producerConfigs.has(producer.id)) issues.push(error("release.producer.id.duplicate", `Producer ID is not unique: ${producer.id}`, `${producerPath}.id`));
     producerConfigs.set(producer.id, producer);
+    if (!producer.enabled) continue;
     const definition = registry.producers.find((candidate) => candidate.id === producer.provider);
     if (!definition) { issues.push(error("release.producer.unknown", `Unknown producer provider: ${producer.provider}`, `${producerPath}.provider`)); continue; }
     producerDefinitions.set(producer.id, definition);
@@ -41,8 +42,9 @@ export const validateRelease = (config: ReleaseConfig, registry: ReleaseRegistry
     if (resolving.has(producerId)) { report(error("release.producer.input.cycle", `Producer cycle detected while resolving ${producerId}.`, path)); return undefined; }
     const producer = producerConfigs.get(producerId);
     const definition = producerDefinitions.get(producerId);
-    if (!producer || !definition) { report(error("release.producer.input.unknown", `Referenced producer does not exist: ${producerId}.`, path)); return undefined; }
+    if (!producer) { report(error("release.producer.input.unknown", `Referenced producer does not exist: ${producerId}.`, path)); return undefined; }
     if (!producer.enabled) { report(error("release.producer.disabled", `Referenced producer is disabled: ${producerId}.`, path)); return undefined; }
+    if (!definition) { report(error("release.producer.input.unknown", `Referenced producer provider is unavailable: ${producerId}.`, path)); return undefined; }
     const configuredTarget = producer.targets.find((candidate) => candidate.id === outputId);
     if (!configuredTarget || !configuredTarget.enabled) { report(error("release.producer.target.disabled", `Referenced producer target is disabled: ${producerId}/${outputId}.`, path)); return undefined; }
     const target = definition.targets.find((candidate) => candidate.id === outputId);
@@ -62,7 +64,6 @@ export const validateRelease = (config: ReleaseConfig, registry: ReleaseRegistry
     const producerPath = `producers.${producerIndex}`;
     const definition = producerDefinitions.get(producer.id);
     if (!definition) continue;
-    if (!producer.enabled) continue;
     const input = producer.input ?? { source: true as const };
     if (!isSourceRef(input) && !producerConfigs.has(input.producerId)) report(error("release.producer.input.unknown", `Producer ${producer.id} references unknown producer ${input.producerId}.`, `${producerPath}.input`));
     const inputDescriptor = isSourceRef(input) ? source.output : resolveProducerOutput(input.producerId, input.outputId, `${producerPath}.input`);
@@ -82,9 +83,9 @@ export const validateRelease = (config: ReleaseConfig, registry: ReleaseRegistry
 
   for (const [destinationIndex, destination] of config.destinations.entries()) {
     const destinationPath = `destinations.${destinationIndex}`;
+    if (!destination.enabled) continue;
     const definition = registry.destinations.find((candidate) => candidate.id === destination.provider);
     if (!definition) { issues.push(error("release.destination.unknown", `Unknown destination provider: ${destination.provider}`, `${destinationPath}.provider`)); continue; }
-    if (!destination.enabled) continue;
     issues.push(...prefixIssues(definition.validate(destination, context), destinationPath));
     const enabledSlots = destination.slots.filter((slot) => slot.enabled);
     if (destination.enabled && enabledSlots.length === 0) issues.push(error("release.destination.slot.required", `Destination ${destination.id} must have an enabled slot.`, `${destinationPath}.slots`));
