@@ -45,7 +45,7 @@ export const folderDestination: ReleaseDestinationDefinition = {
 export const zipDestination: ReleaseDestinationDefinition = {
   id: "@pipelab/plugin-filesystem/zip-destination",
   label: "ZIP",
-  accepts: {},
+  accepts: { container: "directory" },
   fields: [{ key: "outputPath", type: "file", label: "ZIP output path", required: true }],
   createDefaultConfig: () => ({ outputPath: "" }),
   validate: (destination) => typeof destination.config.outputPath === "string" && destination.config.outputPath.trim() ? [] : [{ code: "zip.output-path.required", message: "A ZIP destination requires an output path.", severity: "error" }],

@@ -1,7 +1,8 @@
 import { matchesArtifact } from "./matcher";
 import { validateReleaseConfigShape } from "./config";
 import { validateRelease } from "./validate";
-import type { CompiledArtifact, ReleaseCompileContext, ReleaseConfig, ReleaseProducerConfig, ReleaseRegistry } from "./types";
+import { descriptorsEqual } from "./descriptor";
+import type { CompiledArtifact, ReleaseCompileContext, ReleaseConfig, ReleaseRegistry } from "./types";
 import type { ArtifactRef } from "./types";
 import type { Workflow, WorkflowStep } from "@pipelab/workflow-runtime";
 
@@ -21,7 +22,7 @@ export const compileWorkflow = (configuration: ReleaseConfig, registry: ReleaseR
 
   const sourceDefinition = findProvider(registry.sources, configuration.source.provider, "source");
   const source = sourceDefinition.compile(configuration.source.config, context);
-  if (JSON.stringify(source.artifact.descriptor) !== JSON.stringify(sourceDefinition.output)) throw new Error(`Source ${sourceDefinition.id} compiled an artifact different from its declared output.`);
+  if (!descriptorsEqual(source.artifact.descriptor, sourceDefinition.output)) throw new Error(`Source ${sourceDefinition.id} compiled an artifact different from its declared output.`);
   const steps: WorkflowStep[] = [...source.steps];
   const artifacts = new Map<string, CompiledArtifact>([["source", source.artifact]]);
   const producers = new Map(configuration.producers.map((producer) => [producer.id, producer]));
