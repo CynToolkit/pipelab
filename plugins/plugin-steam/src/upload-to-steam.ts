@@ -16,6 +16,13 @@ export const ID = "steam-upload";
 const vdfValue = (value: string) =>
   value.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/[\r\n]/g, " ");
 
+export const resolveSteamCredentials = async (connectionsPath: string, accountConnectionId: string, current: { username?: string; password?: string }): Promise<{ username: string; password: string }> => {
+  if (current.username && current.password) return { username: current.username, password: current.password };
+  const saved = JSON.parse(await readFile(connectionsPath, "utf8")) as { connections?: Array<Record<string, unknown>> };
+  const connection = saved.connections?.find((candidate) => candidate.id === accountConnectionId);
+  return { username: current.username || String(connection?.username || ""), password: current.password || String(connection?.password || "") };
+};
+
 export const uploadToSteam = createAction({
   id: ID,
   name: "Upload to Steam",
@@ -50,12 +57,7 @@ export const uploadToSteamRunner = createActionRunner<typeof uploadToSteam>(
     const depotId = inputs.depotId as string;
     let username = inputs.username as string;
     let password = inputs.password as string;
-    if ((!username || !password) && runtimeInputs.accountConnectionId) {
-      const saved = JSON.parse(await readFile(context.getConnectionsPath(), "utf8")) as { connections?: Array<Record<string, unknown>> };
-      const connection = saved.connections?.find((candidate) => candidate.id === runtimeInputs.accountConnectionId);
-      username ||= String(connection?.username || "");
-      password ||= String(connection?.password || "");
-    }
+    if (runtimeInputs.accountConnectionId) ({ username, password } = await resolveSteamCredentials(context.getConnectionsPath(), runtimeInputs.accountConnectionId, { username, password }));
     const description = inputs.description as string;
 
     if (!/^\d+$/.test(appId) || !/^\d+$/.test(depotId))

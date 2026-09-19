@@ -113,6 +113,15 @@ export interface Availability {
   reason?: string;
 }
 
+export interface ReleaseFieldDefinition {
+  key: string;
+  type: "text" | "password" | "number" | "directory" | "file" | "select";
+  label: string;
+  description?: string;
+  required?: boolean;
+  options?: Array<{ label: string; value: string }>;
+}
+
 export interface SourceInspection {
   metadata?: Record<string, unknown>;
   data?: Record<string, unknown>;
@@ -129,6 +138,7 @@ export interface ReleaseSourceDefinition {
   label: string;
   description?: string;
   icon?: IconType;
+  fields?: ReleaseFieldDefinition[];
   output: ArtifactDescriptor;
   createDefaultConfig(): Record<string, unknown>;
   validate(config: Record<string, unknown>): ValidationIssue[];
@@ -140,6 +150,7 @@ export interface ReleaseProducerTargetDefinition {
   id: string;
   label: string;
   output: ArtifactDescriptor;
+  fields?: ReleaseFieldDefinition[];
   createDefaultConfig(): Record<string, unknown>;
   isAvailable?(context: ReleaseHostContext): Availability;
 }
@@ -149,6 +160,7 @@ export interface ReleaseProducerDefinition {
   label: string;
   description?: string;
   icon?: IconType;
+  fields?: ReleaseFieldDefinition[];
   accepts: ArtifactConstraint;
   targets: ReleaseProducerTargetDefinition[];
   createDefaultConfig(): Record<string, unknown>;
@@ -162,6 +174,8 @@ export interface ReleaseDestinationDefinition {
   label: string;
   description?: string;
   icon?: IconType;
+  fields?: ReleaseFieldDefinition[];
+  slotFields?: ReleaseFieldDefinition[];
   accepts: ArtifactConstraint;
   createDefaultConfig(): Record<string, unknown>;
   validate(config: ReleaseDestinationConfig, context: ReleaseValidationContext): ValidationIssue[];
@@ -185,6 +199,7 @@ export interface ReleaseCatalogTarget {
   label: string;
   output: ArtifactDescriptor;
   defaultConfig: Record<string, unknown>;
+  fields?: ReleaseFieldDefinition[];
   availability?: Availability;
 }
 
@@ -193,6 +208,7 @@ export interface ReleaseCatalogSource {
   label: string;
   description?: string;
   icon?: IconType;
+  fields?: ReleaseFieldDefinition[];
   output: ArtifactDescriptor;
   defaultConfig: Record<string, unknown>;
 }
@@ -202,6 +218,7 @@ export interface ReleaseCatalogProducer {
   label: string;
   description?: string;
   icon?: IconType;
+  fields?: ReleaseFieldDefinition[];
   accepts: ArtifactConstraint;
   defaultConfig: Record<string, unknown>;
   targets: ReleaseCatalogTarget[];
@@ -212,6 +229,8 @@ export interface ReleaseCatalogDestination {
   label: string;
   description?: string;
   icon?: IconType;
+  fields?: ReleaseFieldDefinition[];
+  slotFields?: ReleaseFieldDefinition[];
   accepts: ArtifactConstraint;
   defaultConfig: Record<string, unknown>;
 }

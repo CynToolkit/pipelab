@@ -19,6 +19,14 @@ export const hasGodotTemplates = async (platform: NodeJS.Platform, home?: string
   return false;
 };
 
+export const godotPresetMatchesTarget = (presetPlatform: string, targetId: string): boolean => {
+  const value = presetPlatform.toLowerCase();
+  if (targetId.startsWith("windows-")) return value.includes("windows");
+  if (targetId.startsWith("linux-")) return value.includes("linux") || value.includes("x11");
+  if (targetId.startsWith("macos-")) return value.includes("mac") || value.includes("osx");
+  return value.includes("web") || value.includes("html");
+};
+
 const run = (executable: string, args: string[], cwd: string, signal: AbortSignal, log: (stream: "stdout" | "stderr", chunk: string) => void): Promise<{ exitCode: number }> => new Promise((resolveRun, reject) => {
   const child = spawn(executable, args, { cwd, stdio: ["ignore", "pipe", "pipe"] });
   const onAbort = () => child.kill();

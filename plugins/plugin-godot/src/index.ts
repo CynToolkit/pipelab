@@ -3,7 +3,8 @@ import { readFile, readdir, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { createAction, createActionRunner, createNodeDefinition } from "@pipelab/plugin-core";
 import type { ReleaseProducerDefinition, ReleaseSourceDefinition } from "@pipelab/shared";
-import { exportGodotProject, hasGodotTemplates } from "./export";
+import { exportGodotProject, godotPresetMatchesTarget, hasGodotTemplates } from "./export";
+export { godotPresetMatchesTarget } from "./export";
 
 const targetDescriptors = {
   "windows-x64": { kind: "application" as const, technology: "godot", platform: "windows", architecture: "x64", format: "directory" },
@@ -64,9 +65,10 @@ export const godotExporter: ReleaseProducerDefinition = {
   id: "@pipelab/plugin-godot/producer",
   label: "Godot exporter",
   accepts: { kind: "project", technology: "godot" },
-  targets: Object.entries(targetDescriptors).map(([id, output]) => ({ id, label: id, output, createDefaultConfig: () => ({ preset: "" }), isAvailable: () => ({ available: true }) })),
+  targets: Object.entries(targetDescriptors).map(([id, output]) => ({ id, label: id, output, fields: [{ key: "preset", type: "select" as const, label: "Godot export preset", required: true }], createDefaultConfig: () => ({ preset: "" }), isAvailable: () => ({ available: true }) })),
   createDefaultConfig: () => ({ executable: "godot" }),
   validate: (config) => config.targets.filter((target) => target.enabled && !String(target.config.preset || "").trim()).map((target) => ({ code: "godot.preset.required", message: `Choose a preset for ${target.id}.`, severity: "error" as const, path: `targets.${target.id}.config.preset` })),
+  inspect: async (config) => ({ issues: config.targets.filter((target) => target.enabled).flatMap((target) => { const preset = String(target.config.preset || ""); const presetPlatform = String(target.config.presetPlatform || ""); return !preset ? [{ code: "godot.preset.required", message: `Choose a preset for ${target.id}.`, severity: "error" as const }] : presetPlatform && !godotPresetMatchesTarget(presetPlatform, target.id) ? [{ code: "godot.preset.target-mismatch", message: `Preset ${preset} does not match target ${target.id}.`, severity: "error" as const }] : []; }) }),
   compile: (input, config) => ({ steps: config.targets.filter((target) => target.enabled).map((target) => ({ id: `${config.id}-${target.id}`, uses: "@pipelab/plugin-godot/godot:export", needs: [input.stepId], artifactInputs: { project: input }, with: { preset: target.config.preset, target: target.id, executable: config.config.executable }, artifacts: { output: { descriptor: targetDescriptors[target.id as keyof typeof targetDescriptors] } } })), artifacts: Object.fromEntries(config.targets.filter((target) => target.enabled).map((target) => [target.id, { reference: { stepId: `${config.id}-${target.id}`, artifact: "output" }, descriptor: targetDescriptors[target.id as keyof typeof targetDescriptors] }])) }),
 };
 
