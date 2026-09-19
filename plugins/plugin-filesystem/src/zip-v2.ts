@@ -1,5 +1,6 @@
 import { createWriteStream } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { mkdir } from "node:fs/promises";
 import archiver from "archiver";
 import { createAction, createActionRunner, createPathParam } from "@pipelab/plugin-core";
 
@@ -53,7 +54,9 @@ export const zipV2Runner = createActionRunner<typeof zipV2>(
     }
 
     const outputDir = paths.cache;
-    const outputFile = join(outputDir, "output.zip");
+    const requestedOutput = (inputs as Record<string, unknown>).outputPath;
+    const outputFile = typeof requestedOutput === "string" && requestedOutput.trim() ? requestedOutput : join(outputDir, "output.zip");
+    await mkdir(dirname(outputFile), { recursive: true });
 
     console.log("outputFile", outputFile);
 

@@ -18,22 +18,22 @@ const folderSource: ReleaseSourceDefinition = {
   compile: () => ({ steps: [{ id: "release-folder-source", uses: "@pipelab/plugin-filesystem/fs:copy", with: { from: "${{ variables.sourcePath }}", to: "${{ variables.workspace }}/source" }, artifacts: { output: { descriptor: folderSource.output } } }], artifact: { reference: { stepId: "release-folder-source", artifact: "output" }, descriptor: folderSource.output } }),
 };
 
-const folderDestination: ReleaseDestinationDefinition = {
+export const folderDestination: ReleaseDestinationDefinition = {
   id: "@pipelab/plugin-filesystem/folder-destination",
   label: "Folder",
   accepts: {},
   createDefaultConfig: () => ({ outputDir: "" }),
-  validate: () => [],
-  compile: (artifact, destination, slot, context) => [{ id: `release-folder-${destination.id}-${slot.id}`, uses: "@pipelab/plugin-filesystem/fs:copy", needs: [artifact.stepId], artifactInputs: { from: artifact }, with: { ...destination.config, ...slot.config }, delivery: { destinationId: destination.id, slotId: slot.id, artifact } }],
+  validate: (destination) => typeof destination.config.outputDir === "string" && destination.config.outputDir.trim() ? [] : [{ code: "folder.output-dir.required", message: "A folder destination requires an output directory.", severity: "error" }],
+  compile: (artifact, destination, slot) => [{ id: `release-folder-${destination.id}-${slot.id}`, uses: "@pipelab/plugin-filesystem/fs:copy", needs: [artifact.stepId], artifactInputs: { from: artifact }, with: { to: destination.config.outputDir, recursive: true, overwrite: true, cleanup: true, ...slot.config }, delivery: { destinationId: destination.id, slotId: slot.id, artifact } }],
 };
 
-const zipDestination: ReleaseDestinationDefinition = {
+export const zipDestination: ReleaseDestinationDefinition = {
   id: "@pipelab/plugin-filesystem/zip-destination",
   label: "ZIP",
   accepts: {},
   createDefaultConfig: () => ({ outputPath: "" }),
-  validate: () => [],
-  compile: (artifact, destination, slot) => [{ id: `release-zip-${destination.id}-${slot.id}`, uses: "@pipelab/plugin-filesystem/zip-v2-node", needs: [artifact.stepId], artifactInputs: { folder: artifact }, with: { ...destination.config, ...slot.config }, delivery: { destinationId: destination.id, slotId: slot.id, artifact } }],
+  validate: (destination) => typeof destination.config.outputPath === "string" && destination.config.outputPath.trim() ? [] : [{ code: "zip.output-path.required", message: "A ZIP destination requires an output path.", severity: "error" }],
+  compile: (artifact, destination, slot) => [{ id: `release-zip-${destination.id}-${slot.id}`, uses: "@pipelab/plugin-filesystem/zip-v2-node", needs: [artifact.stepId], artifactInputs: { folder: artifact }, with: { outputPath: destination.config.outputPath, ...slot.config }, delivery: { destinationId: destination.id, slotId: slot.id, artifact } }],
 };
 
 const passthroughProducer: ReleaseProducerDefinition = {
@@ -43,7 +43,7 @@ const passthroughProducer: ReleaseProducerDefinition = {
   targets: [{ id: "output", label: "Output", output: folderSource.output, createDefaultConfig: () => ({}) }],
   createDefaultConfig: () => ({}),
   validate: () => [],
-  compile: (input, config) => ({ steps: [{ id: `${config.id}-output`, uses: "@pipelab/core/passthrough", needs: [input.stepId], with: { path: `\${{ steps.${input.stepId}.outputs.output }}` }, artifacts: { output: { descriptor: folderSource.output } } }], artifacts: { output: { reference: { stepId: `${config.id}-output`, artifact: "output" }, descriptor: folderSource.output } } }),
+  compile: (input, config) => ({ steps: [{ id: `${config.id}-output`, uses: "@pipelab/core/passthrough", needs: [input.stepId], artifactInputs: { path: input }, artifacts: { output: { descriptor: folderSource.output } } }], artifacts: { output: { reference: { stepId: `${config.id}-output`, artifact: "output" }, descriptor: folderSource.output } } }),
 };
 
 export default createNodeDefinition({
