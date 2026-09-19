@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { compileWorkflow } from "./compiler";
+import { validateRelease } from "./validate";
 import type { ReleaseRegistry } from "./types";
 
 const registry: ReleaseRegistry = {
@@ -33,5 +34,32 @@ describe("generic release compiler", () => {
     const directRegistry: ReleaseRegistry = { ...registry, destinations: [{ id: "direct", label: "Direct", accepts: { kind: "project", technology: "fake" }, createDefaultConfig: () => ({}), validate: () => [], compile: (artifact) => [{ id: "direct-deploy", uses: "fake/direct", needs: [artifact.reference.stepId], artifactInputs: { input: artifact.reference } }] }] };
     const workflow = compileWorkflow({ version: "3.0.0", id: "direct", project: "project", name: "Direct", source: { provider: "fake/source", config: {} }, producers: [], destinations: [{ id: "deploy", provider: "direct", enabled: true, config: {}, slots: [{ id: "source", enabled: true, input: { source: true }, config: {} }] }] }, directRegistry, { host: { platform: "linux", architecture: "x64" } });
     expect(workflow.steps.map((step) => step.id)).toEqual(["source", "direct-deploy"]);
+  });
+
+  it("rejects references to disabled producers and targets", () => {
+    const disabledProducerConfig = { version: "3.0.0" as const, id: "disabled", project: "project", name: "Disabled", source: { provider: "fake/source", config: {} }, producers: [{ id: "disabled", provider: "fake/producer", enabled: false, targets: [{ id: "windows-x64", enabled: true, config: {} }], config: {} }, { id: "active", provider: "fake/producer", enabled: true, input: { producerId: "disabled", outputId: "windows-x64" }, targets: [{ id: "windows-x64", enabled: true, config: {} }], config: {} }], destinations: [] };
+    expect(validateRelease(disabledProducerConfig, registry, { host: { platform: "linux", architecture: "x64" } }).map((issue) => issue.code)).toContain("release.producer.disabled");
+    const disabledProducerDestination = { ...disabledProducerConfig, producers: disabledProducerConfig.producers.slice(0, 1), destinations: [{ id: "ship", provider: "fake/destination", enabled: true, config: {}, slots: [{ id: "windows", enabled: true, input: { producerId: "disabled", outputId: "windows-x64" }, config: {} }] }] };
+    expect(validateRelease(disabledProducerDestination, registry, { host: { platform: "linux", architecture: "x64" } }).map((issue) => issue.code)).toContain("release.producer.disabled");
+
+    const disabledTargetConfig = { ...disabledProducerConfig, producers: [{ id: "disabled", provider: "fake/producer", enabled: true, targets: [{ id: "windows-x64", enabled: false, config: {} }], config: {} }, { id: "active", provider: "fake/producer", enabled: true, input: { producerId: "disabled", outputId: "windows-x64" }, targets: [{ id: "windows-x64", enabled: true, config: {} }], config: {} }] };
+    expect(validateRelease(disabledTargetConfig, registry, { host: { platform: "linux", architecture: "x64" } }).map((issue) => issue.code)).toContain("release.producer.target.disabled");
+    const disabledTargetDestination = { ...disabledTargetConfig, producers: disabledTargetConfig.producers.slice(0, 1), destinations: [{ id: "ship", provider: "fake/destination", enabled: true, config: {}, slots: [{ id: "windows", enabled: true, input: { producerId: "disabled", outputId: "windows-x64" }, config: {} }] }] };
+    expect(validateRelease(disabledTargetDestination, registry, { host: { platform: "linux", architecture: "x64" } }).map((issue) => issue.code)).toContain("release.producer.target.disabled");
+  });
+
+  it("does not validate disabled provider nodes", () => {
+    const invalidProducer = { ...registry.producers[0], id: "invalid", validate: () => [{ code: "fake.required", message: "Required", severity: "error" as const }] };
+    const invalidDestination = { ...registry.destinations[0], id: "invalid-destination", validate: () => [{ code: "fake.destination.required", message: "Required", severity: "error" as const }] };
+    const inactiveConfig = { version: "3.0.0" as const, id: "inactive", project: "project", name: "Inactive", source: { provider: "fake/source", config: {} }, producers: [{ id: "invalid", provider: "invalid", enabled: false, targets: [], config: {} }], destinations: [{ id: "invalid-destination", provider: "invalid-destination", enabled: false, config: {}, slots: [] }] };
+    expect(validateRelease(inactiveConfig, { ...registry, producers: [invalidProducer], destinations: [invalidDestination] }, { host: { platform: "linux", architecture: "x64" } })).toEqual([]);
+  });
+
+  it("rejects producer artifacts that violate declared contracts", () => {
+    const mismatched = { ...registry.producers[0], compile: () => ({ steps: [], artifacts: { "windows-x64": { reference: { stepId: "bad", artifact: "output" }, descriptor: { kind: "application" as const, platform: "linux", container: "directory" as const } } } }) };
+    const missing = { ...registry.producers[0], compile: () => ({ steps: [], artifacts: {} }) };
+    const config = { version: "3.0.0" as const, id: "contract", project: "project", name: "Contract", source: { provider: "fake/source", config: {} }, producers: [{ id: "build", provider: "fake/producer", enabled: true, targets: [{ id: "windows-x64", enabled: true, config: {} }], config: {} }], destinations: [] };
+    expect(() => compileWorkflow(config, { ...registry, producers: [mismatched] }, { host: { platform: "linux", architecture: "x64" } })).toThrow(/descriptor different/);
+    expect(() => compileWorkflow(config, { ...registry, producers: [missing] }, { host: { platform: "linux", architecture: "x64" } })).toThrow(/did not compile artifact/);
   });
 });

@@ -1,7 +1,7 @@
 import { matchesArtifact } from "./matcher";
 import { validateReleaseConfigShape } from "./config";
 import { validateRelease } from "./validate";
-import { descriptorsEqual } from "./descriptor";
+import { descriptorsEqual, resolveTargetDescriptor } from "./descriptor";
 import type { CompiledArtifact, ReleaseCompileContext, ReleaseConfig, ReleaseRegistry } from "./types";
 import type { ArtifactRef } from "./types";
 import type { Workflow, WorkflowStep } from "@pipelab/workflow-runtime";
@@ -41,6 +41,15 @@ export const compileWorkflow = (configuration: ReleaseConfig, registry: ReleaseR
     if (!input) throw new Error(`Producer ${producer.id} references an unknown artifact.`);
     if (!matchesArtifact(input.descriptor, definition.accepts)) throw new Error(`Producer ${producer.id} cannot consume its selected artifact.`);
     const compiled = definition.compile(input, producer, context);
+    for (const target of producer.targets.filter((candidate) => candidate.enabled)) {
+      const targetDefinition = definition.targets.find((candidate) => candidate.id === target.id);
+      if (!targetDefinition) throw new Error(`Producer ${producer.id} references an unknown target ${target.id}.`);
+      const expected = resolveTargetDescriptor(input.descriptor, targetDefinition);
+      if (!expected) throw new Error(`Producer ${producer.id} target ${target.id} does not declare an artifact descriptor.`);
+      const actual = compiled.artifacts[target.id];
+      if (!actual) throw new Error(`Producer ${producer.id} did not compile artifact ${target.id}.`);
+      if (!descriptorsEqual(expected, actual.descriptor)) throw new Error(`Producer ${producer.id} compiled artifact ${target.id} with a descriptor different from its declared output.`);
+    }
     steps.push(...compiled.steps);
     for (const [outputId, artifact] of Object.entries(compiled.artifacts)) artifacts.set(`${producer.id}:${outputId}`, artifact);
     states.set(producerId, "compiled");
