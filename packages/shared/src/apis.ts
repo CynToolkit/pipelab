@@ -4,8 +4,7 @@ import type { Tagged } from "type-fest";
 import { PresetResult, Steps, SavedFile } from "./model";
 import { AppConfig, ConnectionsConfig } from "./config.schema";
 import { FileRepo } from "./config/projects-definition";
-import type { WorkflowConfig } from "./release-flow";
-import type { ReleaseHostCapabilities } from "./release-definitions";
+import type { ReleaseCatalog, ReleaseConfig, ValidationIssue } from "./release/types";
 import { Agent } from "./websocket.types";
 import { BuildHistoryEntry, BuildHistoryQuery, BuildHistoryResponse } from "./build-history";
 import type { WorkflowEvent, WorkflowResult } from "@pipelab/workflow-runtime";
@@ -193,9 +192,11 @@ export type IpcDefinition = {
   "pipeline:save-by-path": [{ path: string; data: string }, EndEvent<"ok">];
   "pipeline:delete-by-name": [{ name: string }, EndEvent<"ok">];
   "pipeline:delete-by-path": [{ path: string }, EndEvent<"ok">];
-  "workflow:load-by-name": [{ name: string }, EndEvent<WorkflowConfig>];
-  "workflow:capabilities:get": [void, EndEvent<ReleaseHostCapabilities>];
-  "workflow:godot:inspect": [{ path: string }, EndEvent<{ projectName: string; presets: string[]; presetPlatforms: Record<string, string>; executableAvailable: boolean; executable?: string; godotVersion?: string; templatesAvailable: boolean }>];
+  "workflow:load-by-name": [{ name: string }, EndEvent<ReleaseConfig>];
+  "release:catalog:get": [void, EndEvent<ReleaseCatalog>];
+  "release:source:inspect": [{ provider: string; config: Record<string, unknown> }, EndEvent<unknown>];
+  "release:producer:inspect": [{ provider: string; config: ReleaseConfig["producers"][number] }, EndEvent<unknown>];
+  "release:validate": [{ config: ReleaseConfig }, EndEvent<{ issues: ValidationIssue[] }>];
   "workflow:save-by-name": [{ name: string; data: string }, EndEvent<"ok">];
   "workflow:delete-by-name": [{ name: string }, EndEvent<"ok">];
   "workflow:execute": [

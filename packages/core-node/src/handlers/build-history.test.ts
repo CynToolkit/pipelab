@@ -59,7 +59,7 @@ describe("BuildHistoryStorage workflow runs", () => {
     await storage.update("run-1", {
       status: "completed", endTime: 30, duration: 20, completedSteps: 1,
       steps: [{ id: "package", name: "package", status: "completed", startTime: 12, endTime: 30, duration: 18, logs: [{ id: "log-1", timestamp: 20, level: "info", message: "packed", source: "package" }], output: { file: "/game.zip" } }],
-      artifacts: [{ id: "artifact-1", outputId: "electron.windows", version: "1.0.0", platform: "windows", architecture: "x64", format: "zip", path: "/game.zip", producerStep: "package" }],
+      artifacts: [{ id: "artifact-1", descriptor: { kind: "archive", platform: "windows", architecture: "x64", format: "zip" }, version: "1.0.0", path: "/game.zip", stepId: "package", artifact: "output", size: 1, type: "file" }],
       deliveries: [{ id: "delivery-1", destinationId: "steam", slotId: "windows", artifactId: "artifact-1", status: "completed", startedAt: 25, completedAt: 30, duration: 5 }],
     }, "project-1");
 

@@ -1,126 +1,50 @@
-import { SERVICE_DEFINITIONS } from "@pipelab/constants";
-import { ARTIFACT_OUTPUTS, type ArtifactOutputId } from "./artifacts";
+import type { ReleaseCatalog, ReleaseConfig, ReleaseCompileContext } from "@pipelab/shared";
+import { matchesArtifact, validateReleaseConfigShape } from "@pipelab/shared";
 import type { Workflow, WorkflowStep } from "./types";
 
-export interface WorkflowPackagerConfiguration {
-  readonly id: string;
-  readonly definitionId: "electron" | "tauri" | "web" | "godot";
-  readonly name?: string;
-  readonly enabled: boolean;
-  readonly config?: Record<string, unknown>;
-}
-
-export interface WorkflowSlotConfiguration {
-  readonly id: string;
-  readonly enabled?: boolean;
-  readonly config?: Record<string, unknown>;
-  readonly input: { packagerId: string; outputId: ArtifactOutputId };
-}
-
-export interface WorkflowDestinationV2Configuration {
-  readonly id: string;
-  readonly serviceId: string;
-  readonly enabled: boolean;
-  readonly config?: Record<string, unknown>;
-  readonly slots: readonly WorkflowSlotConfiguration[];
-}
-
-export interface WorkflowConfigurationV2 {
-  readonly version: "2.0.0";
-  readonly continueOnError?: boolean;
-  readonly source: { type: "construct3" | "folder" | "godot"; path: string; profilePath?: string };
-  readonly packagers: readonly WorkflowPackagerConfiguration[];
-  readonly destinations: readonly WorkflowDestinationV2Configuration[];
-}
-
-const stepIdForOutput = (packagerId: string, outputId: ArtifactOutputId) =>
-  `packager-${packagerId}-${outputId.replaceAll(".", "-")}`;
-
-const sourceSteps = (source: WorkflowConfigurationV2["source"]): WorkflowStep[] => source.type === "godot" ? [] : [
-  {
-    id: "source-export",
-    uses: source.type === "construct3" ? "construct:export" : "construct:export-folder",
-    with: source.type === "construct3"
-      ? { file: "${{ variables.sourcePath }}", ...(source.profilePath ? { customProfile: source.profilePath } : {}) }
-      : { folder: "${{ variables.sourcePath }}" },
-  },
-  { id: "prebundle", uses: "source:extract", needs: ["source-export"], with: { file: "${{ steps.source-export.outputs.zipFile }}" } },
-];
-
-const producerStep = (packager: WorkflowPackagerConfiguration, outputId: ArtifactOutputId): WorkflowStep => {
-  const output = ARTIFACT_OUTPUTS[outputId];
-  if (packager.definitionId === "godot") return {
-    id: stepIdForOutput(packager.id, outputId),
-    uses: "godot:export",
-    with: {
-      packagerId: packager.id,
-      outputId,
-      project: "${{ variables.sourcePath }}",
-      preset: (packager.config?.presets as Record<string, string> | undefined)?.[outputId] || "",
-      godotExecutable: String(packager.config?.godotExecutable || "godot"),
-      format: output.format,
-      projectName: String(packager.config?.projectName || "game"),
-      platform: output.platform,
-      architecture: output.architecture,
-    },
-  };
-  return {
-    id: stepIdForOutput(packager.id, outputId),
-    uses: output.packager === "electron" ? "electron:bundle" : output.packager === "tauri" ? "tauri:bundle" : "web:bundle",
-    needs: ["prebundle"],
-    with: {
-      packagerId: packager.id,
-      outputId,
-      version: "${{ variables.version }}",
-      "input-folder": "${{ steps.prebundle.outputs.outputDirectory }}",
-      ...(packager.config || {}),
-      platform: output.platform === "windows" ? "win32" : output.platform === "macos" ? "darwin" : output.platform,
-      arch: output.architecture,
-    },
-  };
+const findProvider = <T extends { id: string }>(providers: T[], id: string, kind: string): T => {
+  const provider = providers.find((candidate) => candidate.id === id);
+  if (!provider) throw new Error(`Unknown release ${kind} provider: ${id}`);
+  return provider;
 };
 
-export const compileWorkflow = (configuration: WorkflowConfigurationV2): Workflow => {
-  const steps = sourceSteps(configuration.source);
-  const producers = new Map<string, string>();
-  for (const packager of configuration.packagers.filter((item) => item.enabled)) {
-    const configuredTargets = packager.config?.targets;
-    const targets = Array.isArray(configuredTargets) ? configuredTargets as ArtifactOutputId[] : Object.values(ARTIFACT_OUTPUTS).filter((output) => output.packager === packager.definitionId).map((output) => output.id);
-    if ((configuration.source.type === "godot") !== (packager.definitionId === "godot")) continue;
-    for (const outputId of [...new Set(targets)]) {
-      const output = ARTIFACT_OUTPUTS[outputId];
-      if (!output || output.packager !== packager.definitionId) continue;
-      const producer = producerStep(packager, outputId);
-      steps.push(producer);
-      producers.set(`${packager.id}:${outputId}`, producer.id);
+export const compileWorkflow = (
+  configuration: ReleaseConfig,
+  catalog: ReleaseCatalog,
+  context: ReleaseCompileContext,
+): Workflow => {
+  const shapeIssues = validateReleaseConfigShape(configuration);
+  const errors = shapeIssues.filter((issue) => issue.severity === "error");
+  if (errors.length) throw new Error(errors.map((issue) => issue.message).join("\n"));
+
+  const sourceDefinition = findProvider(catalog.sources, configuration.source.provider, "source");
+  const source = sourceDefinition.compile(configuration.source.config, context);
+  const steps: WorkflowStep[] = [...source.steps];
+  const artifacts = new Map<string, { reference: { stepId: string; artifact: string }; descriptor: import("@pipelab/shared").ArtifactDescriptor }>();
+
+  for (const producer of configuration.producers.filter((item) => item.enabled)) {
+    const definition = findProvider(catalog.producers, producer.provider, "producer");
+    if (!matchesArtifact(source.artifact.descriptor, definition.accepts)) {
+      throw new Error(`Producer ${producer.id} cannot consume the source artifact.`);
+    }
+    const enabledTargets = producer.targets.filter((target) => target.enabled);
+    const compiled = definition.compile(source.artifact.reference, { ...producer, targets: enabledTargets }, context);
+    steps.push(...compiled.steps);
+    for (const [outputId, artifact] of Object.entries(compiled.artifacts)) {
+      artifacts.set(`${producer.id}:${outputId}`, artifact);
     }
   }
+
   for (const destination of configuration.destinations.filter((item) => item.enabled)) {
-    for (const slot of destination.slots.filter((item) => item.enabled !== false)) {
-      const producer = producers.get(`${slot.input.packagerId}:${slot.input.outputId}`);
-      if (!producer) continue;
-      steps.push({
-        id: `delivery-${destination.id}-${slot.id}`,
-        uses: destination.serviceId === "web-folder" ? "filesystem:copy" : destination.serviceId === "zip" ? "filesystem:zip" : `${destination.serviceId}:upload`,
-        needs: [producer],
-        delivery: {
-          destinationId: destination.id,
-          serviceId: destination.serviceId,
-          destinationName: SERVICE_DEFINITIONS[destination.serviceId as keyof typeof SERVICE_DEFINITIONS]?.label || destination.serviceId,
-          slotId: slot.id,
-          artifactOutputId: slot.input.outputId,
-          producerStep: producer,
-        },
-        with: {
-          ...(destination.config || {}), ...(slot.config || {}), packagerId: slot.input.packagerId, version: "${{ variables.version }}",
-          ...(destination.serviceId === "steam" ? { folder: `\${{ steps.${producer}.outputs.bundleDirectory }}` } : {}),
-          ...(destination.serviceId === "itch" ? { "input-folder": `\${{ steps.${producer}.outputs.bundleDirectory }}` } : {}),
-          ...(destination.serviceId === "poki" ? { "input-folder": `\${{ steps.${producer}.outputs.output }}`, project: destination.config?.project, name: destination.config?.name, notes: destination.config?.notes } : {}),
-          ...(destination.serviceId === "web-folder" ? { from: `\${{ steps.${producer}.outputs.output }}`, to: slot.config?.outputDir || destination.config?.outputDir, recursive: true } : {}),
-          ...(destination.serviceId === "zip" ? { from: `\${{ steps.${producer}.outputs.output }}`, to: slot.config?.outputPath } : {}),
-        },
-      });
+    const definition = findProvider(catalog.destinations, destination.provider, "destination");
+    for (const slot of destination.slots.filter((item) => item.enabled)) {
+      const artifact = artifacts.get(`${slot.input.producerId}:${slot.input.outputId}`);
+      if (!artifact) throw new Error(`Destination ${destination.id} references an unknown producer artifact.`);
+      if (!matchesArtifact(artifact.descriptor, definition.accepts)) throw new Error(`Destination ${destination.id} cannot consume producer artifact ${slot.input.outputId}.`);
+      const compiled = definition.compile(artifact.reference, destination, slot, context);
+      steps.push(...compiled);
     }
   }
-  return { version: 1, steps, continueOnError: configuration.continueOnError ?? true };
+
+  return { version: 1, steps, continueOnError: configuration.continueOnError ?? false };
 };

@@ -1,5 +1,6 @@
 import type { ConditionalPick } from "type-fest";
 import type { BrowserWindow, OpenDialogOptions } from "electron";
+import type { PluginReleaseDefinition } from "../release/types";
 
 export type PathOptions = {
   filter?: RegExp;
@@ -183,6 +184,7 @@ export interface RendererPluginDefinition extends PluginDefinition {
   packageName: string;
   nodes: Array<RendererNodeDefinition>;
   integrations?: Array<IntegrationDefinition>;
+  release?: PluginReleaseDefinition;
 }
 
 export interface MainPluginDefinition extends PluginDefinition {
@@ -201,6 +203,7 @@ export interface MainPluginDefinition extends PluginDefinition {
     validator: (options: any) => any;
   }>;
   integrations?: Array<IntegrationDefinition>;
+  release?: PluginReleaseDefinition;
 }
 
 export const createNodeDefinition = (def: MainPluginDefinition) => {

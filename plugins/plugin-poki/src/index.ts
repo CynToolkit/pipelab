@@ -1,6 +1,16 @@
 import { uploadToPoki, uploadToPokiRunner } from "./export";
 
 import { createNodeDefinition } from "@pipelab/plugin-core";
+import type { ReleaseDestinationDefinition } from "@pipelab/shared";
+
+const pokiDestination: ReleaseDestinationDefinition = {
+  id: "@pipelab/plugin-poki/destination",
+  label: "Poki",
+  accepts: { kind: "application", platform: "web" },
+  createDefaultConfig: () => ({ project: "", name: "", notes: "" }),
+  validate: () => [],
+  compile: (artifact, destination, slot) => [{ id: `poki-${destination.id}-${slot.id}`, uses: "@pipelab/plugin-poki/poki-upload", needs: [artifact.stepId], with: { ...destination.config, ...slot.config }, delivery: { destinationId: destination.id, slotId: slot.id, artifact } }],
+};
 
 export default createNodeDefinition({
   id: "@pipelab/plugin-poki",
@@ -35,4 +45,5 @@ export default createNodeDefinition({
       ],
     },
   ],
+  release: { destinations: [pokiDestination] },
 });

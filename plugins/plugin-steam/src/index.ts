@@ -1,5 +1,15 @@
 import { uploadToSteam, uploadToSteamRunner } from "./upload-to-steam";
 import { createNodeDefinition } from "@pipelab/plugin-core";
+import type { ReleaseDestinationDefinition } from "@pipelab/shared";
+
+const steamDestination: ReleaseDestinationDefinition = {
+  id: "@pipelab/plugin-steam/destination",
+  label: "Steam",
+  accepts: { kind: "application", platform: ["windows", "linux", "macos"] },
+  createDefaultConfig: () => ({ accountConnectionId: "", appId: "" }),
+  validate: (config) => !String(config.config.appId || "").trim() ? [{ code: "steam.app-id.required", message: "Steam App ID is required.", severity: "error" }] : [],
+  compile: (artifact, destination, slot) => [{ id: `steam-${destination.id}-${slot.id}`, uses: "@pipelab/plugin-steam/steam-upload", needs: [artifact.stepId], with: { ...destination.config, ...slot.config }, delivery: { destinationId: destination.id, slotId: slot.id, artifact } }],
+};
 
 export default createNodeDefinition({
   id: "@pipelab/plugin-steam",
@@ -33,4 +43,5 @@ export default createNodeDefinition({
       ],
     },
   ],
+  release: { destinations: [steamDestination] },
 });

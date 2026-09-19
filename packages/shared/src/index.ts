@@ -62,8 +62,10 @@ export * from "./validation";
 export * from "./variables";
 export * from "./websocket.types";
 export * from "./path";
-export * from "./release-flow";
-export * from "./release-definitions";
+export * from "./release/types";
+export * from "./release/matcher";
+export * from "./release/config";
+export * from "./release/catalog";
 export * from "./plugin-api";
 
 // 4. Configuration Sub-packages

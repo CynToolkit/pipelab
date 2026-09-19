@@ -111,7 +111,7 @@ export const processGraph = async (options: {
         ) {
           throw result.ipcError;
         }
-        throw new Error(`"${nodeDefinition.node.name}" action error: ${result.ipcError}`);
+        throw new Error(`"${nodeDefinition?.node.name || rawNode.origin.nodeId}" action error: ${result.ipcError}`);
       }
 
       if (result.type === "success") {

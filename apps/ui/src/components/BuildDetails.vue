@@ -27,7 +27,7 @@
                 <div v-for="artifact in entry.artifacts" :key="artifact.id" class="result-artifact-row">
                   <div>
                     <strong>{{ artifactName(artifact) }}</strong>
-                    <small v-if="'outputId' in artifact">{{ artifact.platform }} {{ artifact.architecture }} · {{ artifact.format }} · {{ artifact.producerStep }}</small>
+                    <small v-if="'descriptor' in artifact">{{ artifact.descriptor.platform }} {{ artifact.descriptor.architecture }} · {{ artifact.descriptor.format }} · {{ artifact.stepId }}</small>
                     <small>{{ artifact.path }}</small>
                   </div>
                   <div class="result-consumers">
@@ -217,11 +217,11 @@ const props = defineProps<Props>();
 const defaultTab = computed(() => props.entry?.version ? "results" : canUseHistory.value ? "steps" : "artifacts");
 
 const artifactName = (artifact: NonNullable<BuildHistoryEntry["artifacts"]>[number]) =>
-  "outputId" in artifact ? artifact.outputId : artifact.name;
+  "descriptor" in artifact ? artifact.artifact : artifact.name;
 
 const artifactFormat = (artifact: NonNullable<BuildHistoryEntry["artifacts"]>[number]) =>
-  "outputId" in artifact
-    ? `${artifact.format}${artifact.size ? ` · ${(artifact.size / 1024 / 1024).toFixed(2)} MB` : ""}`
+  "descriptor" in artifact
+    ? `${artifact.descriptor.format || artifact.descriptor.kind}${artifact.size ? ` · ${(artifact.size / 1024 / 1024).toFixed(2)} MB` : ""}`
     : artifact.type === "folder"
       ? "Folder"
       : artifact.size

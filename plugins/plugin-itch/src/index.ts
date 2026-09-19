@@ -1,6 +1,16 @@
 import { uploadToItch, uploadToItchRunner } from "./export";
 
 import { createNodeDefinition } from "@pipelab/plugin-core";
+import type { ReleaseDestinationDefinition } from "@pipelab/shared";
+
+const itchDestination: ReleaseDestinationDefinition = {
+  id: "@pipelab/plugin-itch/destination",
+  label: "Itch.io",
+  accepts: { kind: ["application", "archive"] },
+  createDefaultConfig: () => ({ accountConnectionId: "", project: "" }),
+  validate: () => [],
+  compile: (artifact, destination, slot) => [{ id: `itch-${destination.id}-${slot.id}`, uses: "@pipelab/plugin-itch/itch-upload", needs: [artifact.stepId], with: { ...destination.config, ...slot.config }, delivery: { destinationId: destination.id, slotId: slot.id, artifact } }],
+};
 
 export default createNodeDefinition({
   id: "@pipelab/plugin-itch",
@@ -29,4 +39,5 @@ export default createNodeDefinition({
       ],
     },
   ],
+  release: { destinations: [itchDestination] },
 });

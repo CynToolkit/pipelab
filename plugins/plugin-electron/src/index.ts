@@ -16,6 +16,20 @@ import {
 } from "./forge";
 import { configureRunner, props } from "./configure";
 import { packageV2Runner } from "./package-v2";
+import type { ReleaseProducerDefinition } from "@pipelab/shared";
+
+const electronProducer: ReleaseProducerDefinition = {
+  id: "@pipelab/plugin-electron/producer",
+  label: "Electron",
+  accepts: { kind: "application", platform: "web" },
+  targets: ["windows-x64", "linux-x64", "macos-arm64"].map((id) => ({ id, label: id, output: { kind: "application" as const, technology: "electron", platform: id.split("-")[0] === "macos" ? "macos" : id.split("-")[0], architecture: id.split("-")[1], format: "directory" }, createDefaultConfig: () => ({}) })),
+  createDefaultConfig: () => ({}),
+  validate: () => [],
+  compile: (input, config) => ({
+    steps: config.targets.filter((target) => target.enabled).map((target) => ({ id: `${config.id}-${target.id}`, uses: "@pipelab/plugin-electron/electron:package:v2", needs: [input.stepId], with: { "input-folder": "${{ variables.sourcePath }}", ...config.config, ...target.config, target: target.id }, artifacts: { output: { descriptor: electronProducer.targets.find((candidate) => candidate.id === target.id)!.output } } })),
+    artifacts: Object.fromEntries(config.targets.filter((target) => target.enabled).map((target) => [target.id, { reference: { stepId: `${config.id}-${target.id}`, artifact: "output" }, descriptor: electronProducer.targets.find((candidate) => candidate.id === target.id)!.output }])),
+  }),
+};
 
 export default createNodeDefinition({
   id: "@pipelab/plugin-electron",
@@ -90,4 +104,5 @@ export default createNodeDefinition({
     //   runner: packageRunner,
     // },
   ],
+  release: { producers: [electronProducer] },
 });

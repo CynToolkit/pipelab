@@ -27,7 +27,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@pipelab/constants": "workspace:*"
+    "@pipelab/shared": "workspace:*"
   },
   "devDependencies": {
     "@pipelab/tsconfig": "workspace:*",

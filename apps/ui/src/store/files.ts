@@ -2,7 +2,7 @@ import { SavedFile } from "@pipelab/shared";
 import { defineStore } from "pinia";
 import { Draft, create } from "mutative";
 import { klona } from "klona";
-import { FileRepo, WorkflowConfig, WorkflowConfigV2 } from "@pipelab/shared";
+import { FileRepo, ReleaseConfig } from "@pipelab/shared";
 import { useAPI } from "@renderer/composables/api";
 import { useProjectsConfig } from "@renderer/composables/useConfig";
 
@@ -46,7 +46,7 @@ export const useFiles = defineStore("files", () => {
     });
   };
 
-  const saveWorkflow = async (flow: WorkflowConfig | WorkflowConfigV2) => {
+  const saveWorkflow = async (flow: ReleaseConfig) => {
     await api.execute("workflow:save-by-name", {
       name: `workflows/${flow.id}`,
       data: JSON.stringify(flow),

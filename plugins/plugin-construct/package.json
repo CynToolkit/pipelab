@@ -37,6 +37,7 @@
   },
   "dependencies": {
     "@pipelab/plugin-core": "workspace:*",
+    "@pipelab/workflow-runtime": "workspace:*",
     "es-toolkit": "1.25.2",
     "playwright": "1.62.1",
     "valibot": "1.4.2"

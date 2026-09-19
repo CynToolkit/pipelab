@@ -13,6 +13,17 @@ import {
 } from "./tauri";
 import { configureRunner, props } from "./configure";
 import { packageV2Runner } from "./package";
+import type { ReleaseProducerDefinition } from "@pipelab/shared";
+
+const tauriProducer: ReleaseProducerDefinition = {
+  id: "@pipelab/plugin-tauri/producer",
+  label: "Tauri",
+  accepts: { kind: "application", platform: "web" },
+  targets: ["windows-x64", "linux-x64", "macos-arm64"].map((id) => ({ id, label: id, output: { kind: "application" as const, technology: "tauri", platform: id.split("-")[0] === "macos" ? "macos" : id.split("-")[0], architecture: id.split("-")[1], format: "directory" }, createDefaultConfig: () => ({}) })),
+  createDefaultConfig: () => ({}),
+  validate: () => [],
+  compile: (input, config) => ({ steps: config.targets.filter((target) => target.enabled).map((target) => ({ id: `${config.id}-${target.id}`, uses: "@pipelab/plugin-tauri/tauri:package:v2", needs: [input.stepId], with: { "input-folder": "${{ variables.sourcePath }}", ...config.config, ...target.config, target: target.id }, artifacts: { output: { descriptor: tauriProducer.targets.find((candidate) => candidate.id === target.id)!.output } } })), artifacts: Object.fromEntries(config.targets.filter((target) => target.enabled).map((target) => [target.id, { reference: { stepId: `${config.id}-${target.id}`, artifact: "output" }, descriptor: tauriProducer.targets.find((candidate) => candidate.id === target.id)!.output }])) }),
+};
 
 export default createNodeDefinition({
   id: "@pipelab/plugin-tauri",
@@ -65,4 +76,5 @@ export default createNodeDefinition({
       runner: configureRunner,
     },
   ],
+  release: { producers: [tauriProducer] },
 });

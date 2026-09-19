@@ -3,8 +3,25 @@ import { createNodeDefinition } from "@pipelab/plugin-core";
 import { exportAction, ExportActionRunner } from "./export-c3p";
 import { exportProjectAction, ExportProjectActionRunner } from "./export-project";
 import { constructVersionValidator } from "./export-shared";
+import type { ReleaseSourceDefinition } from "@pipelab/shared";
+import type { WorkflowStep } from "@pipelab/workflow-runtime";
 export { discoverBrowserProfiles, inspectChromiumProfile } from "./browser-profiles";
 export type { BrowserProfileCandidate } from "./browser-profiles";
+
+const constructSource: ReleaseSourceDefinition = {
+  id: "@pipelab/plugin-construct/source",
+  label: "Construct project",
+  output: { kind: "application", platform: "web", format: "directory" },
+  createDefaultConfig: () => ({ path: "", profilePath: "" }),
+  validate: (config) => typeof config.path === "string" && config.path ? [] : [{ code: "source.path.required", message: "A Construct project path is required.", severity: "error" }],
+  compile: (config) => {
+    const steps: WorkflowStep[] = [
+      { id: "construct-source-export", uses: "@pipelab/plugin-construct/export-construct-project", with: { file: String(config.path || ""), customProfile: String(config.profilePath || "") }, artifacts: { archive: { descriptor: { kind: "archive", technology: "construct", format: "zip" } } } },
+      { id: "construct-source-extract", uses: "@pipelab/plugin-filesystem/unzip-file-node", needs: ["construct-source-export"], with: { file: "${{ steps.construct-source-export.outputs.zipFile }}" }, artifacts: { output: { descriptor: { kind: "application", platform: "web", format: "directory" } } } },
+    ];
+    return { steps, artifact: { reference: { stepId: "construct-source-extract", artifact: "output" }, descriptor: constructSource.output } };
+  },
+};
 
 export default createNodeDefinition({
   id: "@pipelab/plugin-construct",
@@ -54,6 +71,7 @@ export default createNodeDefinition({
       ],
     },
   ],
+  release: { sources: [constructSource] },
 });
 
 export type { Params as ExportParams } from "./export-c3p";

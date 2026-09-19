@@ -1,4 +1,3 @@
-import { outputDescriptor, SERVICE_DEFINITIONS } from "@pipelab/shared";
 import type { BuildHistoryEntry, ExecutionStep } from "@pipelab/shared";
 
 export interface RunStepSelectionState {
@@ -43,28 +42,19 @@ export const workflowCancellationFeedback = (result: { type: string; result?: { 
 
 export const artifactDisplayName = (
   artifact: NonNullable<BuildHistoryEntry["artifacts"]>[number],
-) => "outputId" in artifact && artifact.outputId
-  ? outputDescriptor(artifact.outputId)?.label || artifact.outputId
-  : artifact.name;
+) => "descriptor" in artifact && artifact.descriptor ? `${artifact.descriptor.platform || artifact.descriptor.kind}${artifact.descriptor.format ? ` · ${artifact.descriptor.format}` : ""}` : artifact.name;
 
 export const artifactDisplayDescription = (
   artifact: NonNullable<BuildHistoryEntry["artifacts"]>[number],
   steps: ExecutionStep[],
-) => "outputId" in artifact
-  ? steps.find((step) => step.id === artifact.producerStep)?.name || "Generated artifact"
-  : artifact.name;
-
-const legacyServiceId = (destinationId: string) =>
-  destinationId === "web" ? "web-folder" : destinationId;
+) => "stepId" in artifact ? steps.find((step) => step.id === artifact.stepId)?.name || "Generated artifact" : artifact.name;
 
 export const deliveryDisplayMetadata = (
   delivery: NonNullable<BuildHistoryEntry["deliveries"]>[number],
 ) => {
-  const serviceId = delivery.serviceId || legacyServiceId(delivery.destinationId);
-  const definition = SERVICE_DEFINITIONS[serviceId as keyof typeof SERVICE_DEFINITIONS];
   return {
     id: delivery.destinationId,
-    serviceId: definition?.id || serviceId,
-    name: delivery.destinationName || definition?.label || delivery.destinationId,
+    serviceId: delivery.destinationId,
+    name: delivery.destinationName || delivery.destinationId,
   };
 };

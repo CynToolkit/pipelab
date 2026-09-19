@@ -10,7 +10,6 @@ import type { PipelabContext } from "./context";
 import type { ActionRunner, ActionRunnerData } from "./types/runner";
 import { zipFolder } from "./utils/fs-extras";
 import { createPipelabCloudUploadTask } from "./pipelab-cloud";
-import { createGodotExportTask } from "./godot-export-task";
 
 export interface WorkflowTaskOptions {
   context: PipelabContext;
@@ -32,12 +31,9 @@ export const createWorkflowActionTask = (
   return async (taskContext: WorkflowTaskContext) => {
     const outputs: Record<string, unknown> = {};
     const log: typeof console.log = (...args) => taskContext.log(...args);
-    const stableOutputId = taskContext.step.with?.outputId;
-
     const setArtifact = (outputId: string, path: string, metadata?: { checksum?: string; size?: number; name?: string }) => {
-      const stableId = typeof stableOutputId === "string" ? stableOutputId : outputId;
-      if (metadata === undefined) taskContext.setArtifact(stableId, path);
-      else taskContext.setArtifact(stableId, path, metadata);
+      if (metadata === undefined) taskContext.setArtifact(outputId, path);
+      else taskContext.setArtifact(outputId, path, metadata);
     };
 
     await runner({
@@ -62,9 +58,12 @@ export const createWorkflowActionTask = (
     for (const [name, output] of Object.entries(options.artifacts ?? {})) {
       const path = outputs[output];
       if (typeof path === "string") {
-        const outputId = typeof taskContext.step.with?.outputId === "string" ? taskContext.step.with.outputId : name;
-        taskContext.setArtifact(outputId, path);
+        taskContext.setArtifact(name, path);
       }
+    }
+    for (const name of Object.keys(taskContext.step.artifacts ?? {})) {
+      const path = outputs[name];
+      if (typeof path === "string") taskContext.setArtifact(name, path);
     }
 
     return outputs;
@@ -84,87 +83,25 @@ type RegisteredPlugin = {
   nodes: Array<{ node: { id: string }; runner: ActionRunner<any> }>;
 };
 
-const findRunner = (
-  pluginId: string,
-  nodeId: string,
-  registeredPlugins: RegisteredPlugin[],
-): ActionRunner<any> => {
-  const plugin = registeredPlugins.find((candidate) => candidate.id === pluginId);
-  const runner = plugin?.nodes.find((candidate) => candidate.node.id === nodeId)?.runner;
-  if (!runner) throw new Error(`Workflow plugin task not loaded: ${pluginId}/${nodeId}`);
-  return runner;
-};
-
 export const createPipelabWorkflowTasks = (
   options: WorkflowTaskOptions,
   // The shared registry intentionally exposes renderer-safe plugin types. At
   // runtime the main process registry retains each node's action runner.
   registeredPlugins = usePlugins().plugins.value as unknown as RegisteredPlugin[],
 ): WorkflowTaskRegistry => {
-  const constructExport = findRunner(
-    "@pipelab/plugin-construct",
-    "export-construct-project",
-    registeredPlugins,
+  const pluginTasks = Object.fromEntries(
+    registeredPlugins.flatMap((plugin) => plugin.nodes.map((node) => [
+      `${plugin.id}/${node.node.id}`,
+      createWorkflowActionTask(node.runner, options),
+    ] as const)),
   );
-  const constructExportFolder = findRunner(
-    "@pipelab/plugin-construct",
-    "export-construct-project-folder",
-    registeredPlugins,
-  );
-  const sourceExtract = findRunner(
-    "@pipelab/plugin-filesystem",
-    "unzip-file-node",
-    registeredPlugins,
-  );
-  const copy = findRunner("@pipelab/plugin-filesystem", "fs:copy", registeredPlugins);
-  const electronBundle = findRunner(
-    "@pipelab/plugin-electron",
-    "electron:package:v2",
-    registeredPlugins,
-  );
-  const tauriBundle = registeredPlugins.some((plugin) => plugin.id === "@pipelab/plugin-tauri")
-    ? findRunner("@pipelab/plugin-tauri", "tauri:package:v2", registeredPlugins)
-    : undefined;
-  const steamUpload = findRunner("@pipelab/plugin-steam", "steam-upload", registeredPlugins);
-  const itchUpload = findRunner("@pipelab/plugin-itch", "itch-upload", registeredPlugins);
-  const pokiUpload = registeredPlugins.some((plugin) => plugin.id === "@pipelab/plugin-poki")
-    ? findRunner("@pipelab/plugin-poki", "poki-upload", registeredPlugins)
-    : undefined;
-
-  const godotExport = createGodotExportTask();
 
   return {
-    "godot:export": godotExport,
-    "construct:export": createWorkflowActionTask(constructExport, {
-      ...options,
-      outputAliases: { outputDirectory: "zipFile" },
-      artifacts: { "source-export": "zipFile" },
-    }),
-    "construct:export-folder": createWorkflowActionTask(constructExportFolder, {
-      ...options,
-      outputAliases: { outputDirectory: "zipFile" },
-      artifacts: { "source-export": "zipFile" },
-    }),
-    "source:extract": createWorkflowActionTask(sourceExtract, {
-      ...options,
-      outputAliases: { outputDirectory: "output" },
-      artifacts: { "source-directory": "output" },
-    }),
-    "filesystem:copy": createWorkflowActionTask(copy, options),
-    "electron:bundle": createWorkflowActionTask(electronBundle, {
-      ...options,
-      outputAliases: { bundleDirectory: "output" },
-      artifacts: { bundle: "output" },
-    }),
-    ...(tauriBundle ? { "tauri:bundle": createWorkflowActionTask(tauriBundle, {
-      ...options,
-      outputAliases: { bundleDirectory: "output" },
-      artifacts: { bundle: "output" },
-    }) } : {}),
-    "web:bundle": async (taskContext) => {
-      const path = taskContext.inputs["input-folder"];
-      if (typeof path !== "string") throw new Error("Web packager requires an input folder");
-      taskContext.setArtifact(String(taskContext.step.with?.outputId || "web.html5"), path);
+    ...pluginTasks,
+    "@pipelab/core/passthrough": async (taskContext) => {
+      const path = taskContext.inputs.path;
+      if (typeof path !== "string" || !path) throw new Error("Passthrough source requires a path");
+      taskContext.setArtifact("project", path);
       return { output: path };
     },
     "filesystem:zip": async (taskContext) => {
@@ -175,9 +112,6 @@ export const createPipelabWorkflowTasks = (
       const output = await zipFolder(from, to, taskContext.log, taskContext.signal);
       return { output, path: output };
     },
-    "steam:upload": createWorkflowActionTask(steamUpload, options),
-    "itch:upload": createWorkflowActionTask(itchUpload, options),
-    ...(pokiUpload ? { "poki:upload": createWorkflowActionTask(pokiUpload, options) } : {}),
     "pipelab-cloud:upload": createPipelabCloudUploadTask(options.context),
   };
 };
