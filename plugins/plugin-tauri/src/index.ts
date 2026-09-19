@@ -15,14 +15,26 @@ import { configureRunner, props } from "./configure";
 import { packageV2Runner } from "./package";
 import type { ReleaseProducerDefinition } from "@pipelab/shared";
 
+export const tauriTargetInputs = (targetId: string): { platform: "win32" | "linux" | "darwin"; arch: "x64" | "arm64" } => {
+  const [target, arch] = targetId.split("-");
+  const platform = target === "windows" ? "win32" : target === "macos" ? "darwin" : "linux";
+  if (!(["x64", "arm64"] as string[]).includes(arch)) throw new Error(`Unsupported Tauri target: ${targetId}`);
+  return { platform, arch: arch as "x64" | "arm64" };
+};
+
+const tauriTargetDescriptor = (id: string) => {
+  const inputs = tauriTargetInputs(id);
+  return { kind: "application" as const, technology: "tauri", platform: inputs.platform === "win32" ? "windows" : inputs.platform === "darwin" ? "macos" : "linux", architecture: inputs.arch, format: "directory" };
+};
+
 const tauriProducer: ReleaseProducerDefinition = {
   id: "@pipelab/plugin-tauri/producer",
   label: "Tauri",
   accepts: { kind: "application", platform: "web" },
-  targets: ["windows-x64", "linux-x64", "macos-arm64"].map((id) => ({ id, label: id, output: { kind: "application" as const, technology: "tauri", platform: id.split("-")[0] === "macos" ? "macos" : id.split("-")[0], architecture: id.split("-")[1], format: "directory" }, createDefaultConfig: () => ({}) })),
+  targets: ["windows-x64", "linux-x64", "macos-arm64"].map((id) => ({ id, label: id, output: tauriTargetDescriptor(id), createDefaultConfig: () => ({}), isAvailable: (host) => { const target = tauriTargetInputs(id); return host.platform === target.platform ? { available: true } : { available: false, reason: `Tauri target ${id} requires a ${target.platform} host.` }; } })),
   createDefaultConfig: () => ({}),
   validate: () => [],
-  compile: (input, config) => ({ steps: config.targets.filter((target) => target.enabled).map((target) => ({ id: `${config.id}-${target.id}`, uses: "@pipelab/plugin-tauri/tauri:package:v2", needs: [input.stepId], artifactInputs: { "input-folder": input }, with: { ...config.config, ...target.config, target: target.id }, artifacts: { output: { descriptor: tauriProducer.targets.find((candidate) => candidate.id === target.id)!.output } } })), artifacts: Object.fromEntries(config.targets.filter((target) => target.enabled).map((target) => [target.id, { reference: { stepId: `${config.id}-${target.id}`, artifact: "output" }, descriptor: tauriProducer.targets.find((candidate) => candidate.id === target.id)!.output }])) }),
+  compile: (input, config) => ({ steps: config.targets.filter((target) => target.enabled).map((target) => ({ id: `${config.id}-${target.id}`, uses: "@pipelab/plugin-tauri/tauri:package:v2", needs: [input.stepId], artifactInputs: { "input-folder": input }, with: { ...config.config, ...target.config, ...tauriTargetInputs(target.id) }, artifacts: { output: { descriptor: tauriProducer.targets.find((candidate) => candidate.id === target.id)!.output } } })), artifacts: Object.fromEntries(config.targets.filter((target) => target.enabled).map((target) => [target.id, { reference: { stepId: `${config.id}-${target.id}`, artifact: "output" }, descriptor: tauriProducer.targets.find((candidate) => candidate.id === target.id)!.output }])) }),
 };
 
 export default createNodeDefinition({
