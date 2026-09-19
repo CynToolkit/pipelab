@@ -134,7 +134,7 @@
             <div class="summary">
               <b>{{ draft.name || "Untitled workflow" }}</b
               ><span
-                >{{ draft.source.type === "construct3" ? "Construct 3" : "Built folder" }} ·
+                >{{ draft.source.type === "construct3" ? "Construct 3" : draft.source.type === "godot" ? "Godot" : "Built folder" }} ·
                 {{ draft.source.path || "No path yet" }}</span
               ><span>{{ destinationLabels }}</span>
             </div>
@@ -182,13 +182,15 @@ const draft = ref<any>({
   source: { type: "construct3", path: "" },
   destinations: [],
 });
-const sourceOptions: Array<{ type: "construct3" | "folder"; label: string; icon: string }> = [
+const sourceOptions: Array<{ type: "construct3" | "folder" | "godot"; label: string; icon: string }> = [
   { type: "construct3", label: "Construct 3", icon: "mdi-cube-outline" },
+  { type: "godot", label: "Godot", icon: "mdi-gamepad-variant-outline" },
   { type: "folder", label: "Built folder", icon: "mdi-folder-outline" },
 ];
 const targetOptions = [
   { type: "steam", label: "Steam", icon: "mdi-steam" },
   { type: "itch", label: "Itch.io", icon: "mdi-puzzle-outline" },
+  { type: "poki", label: "Poki", icon: "mdi-gamepad-variant-outline" },
   { type: "web", label: "Web folder", icon: "mdi-web" },
 ];
 watch(
@@ -214,9 +216,9 @@ watch(
     draft.value.source.path = "";
   },
 );
-const isFolderSource = computed(() => draft.value.source.type === "folder");
+const isFolderSource = computed(() => draft.value.source.type === "folder" || draft.value.source.type === "godot");
 const sourceInputLabel = computed(() =>
-  isFolderSource.value ? "Build folder" : "Construct 3 project",
+  draft.value.source.type === "godot" ? "Godot project folder" : isFolderSource.value ? "Build folder" : "Construct 3 project",
 );
 const sourcePlaceholder = computed(() =>
   isFolderSource.value ? "Choose a folder" : "Choose a .c3p project file",
@@ -237,12 +239,14 @@ const toggleTarget = (type: string) => {
           }
         : type === "itch"
           ? { type, enabled: true, accountConnectionId: "", project: "", channel: "web" }
-          : { type, enabled: true, outputDir: "", overwrite: false, cleanup: false },
+          : type === "poki"
+            ? { type, enabled: true, project: "", name: "", notes: "" }
+            : { type, enabled: true, outputDir: "", overwrite: false, cleanup: false },
     );
 };
 const destinationLabels = computed(() =>
   draft.value.destinations
-    .map((d: any) => (d.type === "web" ? "Web folder" : d.type === "steam" ? "Steam" : "Itch.io"))
+    .map((d: any) => (d.type === "web" ? "Web folder" : d.type === "steam" ? "Steam" : d.type === "poki" ? "Poki" : "Itch.io"))
     .join(" · "),
 );
 const browseSource = async () => {
@@ -262,9 +266,10 @@ const create = async () => {
     const result = await api.execute("workflow:capabilities:get");
     if (result.type === "success") hostCapabilities.value = result.result;
   }
-  const needsDesktop = draft.value.destinations.some((destination: any) => ["steam", "itch"].includes(destination.type));
-  const needsWeb = draft.value.destinations.some((destination: any) => ["itch", "web"].includes(destination.type));
+  const needsDesktop = draft.value.source.type !== "godot" && draft.value.destinations.some((destination: any) => ["steam", "itch"].includes(destination.type));
+  const needsWeb = draft.value.source.type !== "godot" && draft.value.destinations.some((destination: any) => ["itch", "web", "poki"].includes(destination.type));
   const packagers = [
+    ...(draft.value.source.type === "godot" ? [createDefaultPackager("godot", "godot-default", hostCapabilities.value)] : []),
     ...(needsDesktop ? [createDefaultPackager("electron", "electron-default", hostCapabilities.value)] : []),
     ...(needsWeb ? [createDefaultPackager("web", "web-default", hostCapabilities.value)] : []),
   ];

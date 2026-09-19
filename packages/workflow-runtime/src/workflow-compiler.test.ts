@@ -23,6 +23,21 @@ describe("compileWorkflow", () => {
     });
   });
 
+  it("exports Godot directly from its project using the selected preset", () => {
+    const workflow = compileWorkflow({
+      version: "2.0.0",
+      source: { type: "godot", path: "/games/my-game" },
+      packagers: [{ id: "godot", definitionId: "godot", enabled: true, config: { targets: ["godot.windows"], projectName: "My Game", presets: { "godot.windows": "Windows Desktop" } } }],
+      destinations: [],
+    });
+    expect(workflow.steps).toHaveLength(1);
+    expect(workflow.steps[0]).toMatchObject({
+      uses: "godot:export",
+      with: expect.objectContaining({ project: "${{ variables.sourcePath }}", preset: "Windows Desktop", outputId: "godot.windows" }),
+    });
+    expect(workflow.steps.some((step) => step.uses === "source:extract")).toBe(false);
+  });
+
   it("produces each packager output once and gives every slot its exact producer", () => {
     const workflow = compileWorkflow({
       version: "2.0.0",
@@ -145,6 +160,21 @@ describe("compileWorkflow", () => {
         slotId: "html",
         artifactOutputId: "web.html5",
       },
+    });
+  });
+
+  it("routes Godot web artifacts into the existing Poki upload task", () => {
+    const workflow = compileWorkflow({
+      version: "2.0.0",
+      source: { type: "godot", path: "/game" },
+      packagers: [{ id: "godot", definitionId: "godot", enabled: true, config: { targets: ["godot.web"], presets: { "godot.web": "Web" } } }],
+      destinations: [{ id: "poki", serviceId: "poki", enabled: true, config: { project: "game-id", name: "1.0", notes: "First release" }, slots: [
+        { id: "web", config: {}, input: { packagerId: "godot", outputId: "godot.web" } },
+      ] }],
+    });
+    expect(workflow.steps.find((step) => step.uses === "poki:upload")).toMatchObject({
+      needs: ["packager-godot-godot-web"],
+      with: { "input-folder": "${{ steps.packager-godot-godot-web.outputs.output }}", project: "game-id", name: "1.0", notes: "First release" },
     });
   });
 });

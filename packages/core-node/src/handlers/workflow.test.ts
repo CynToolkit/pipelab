@@ -1,11 +1,23 @@
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import { applyWorkflowHistoryEvent, createWorkflowDefinition, createWorkflowExecutionPlan, workflowHistoryUpdateFromResult } from "./workflow";
+import { applyWorkflowHistoryEvent, createWorkflowDefinition, createWorkflowExecutionPlan, inspectGodotProject, workflowHistoryUpdateFromResult } from "./workflow";
 import type { ExecutionStep, LogEntry } from "@pipelab/shared";
 import type { Workflow } from "@pipelab/workflow-runtime";
 import type { WorkflowConfigV2 } from "@pipelab/shared";
 import { WorkflowRunCancellationRegistry } from "./workflow-run-cancellation";
+
+describe("inspectGodotProject", () => {
+  it("reads the project name and configured export presets", async () => {
+    const project = await mkdtemp(join(process.cwd(), ".godot-inspect-test-"));
+    try {
+      await writeFile(join(project, "project.godot"), '[application]\nconfig/name="My Game"\n');
+      await writeFile(join(project, "export_presets.cfg"), '[preset.0]\nname="Windows Desktop"\nplatform="Windows Desktop"\n[preset.1]\nname="Web"\nplatform="Web"\n');
+      const result = await inspectGodotProject(project);
+      expect(result).toMatchObject({ projectName: "My Game", presets: ["Windows Desktop", "Web"], presetPlatforms: { "Windows Desktop": "Windows Desktop", Web: "Web" } });
+    } finally { await rm(project, { recursive: true, force: true }); }
+  });
+});
 
 describe("createWorkflowDefinition", () => {
   it("builds parallel web and itch branches from a built folder", async () => {

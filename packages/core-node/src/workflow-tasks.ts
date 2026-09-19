@@ -10,6 +10,7 @@ import type { PipelabContext } from "./context";
 import type { ActionRunner, ActionRunnerData } from "./types/runner";
 import { zipFolder } from "./utils/fs-extras";
 import { createPipelabCloudUploadTask } from "./pipelab-cloud";
+import { createGodotExportTask } from "./godot-export-task";
 
 export interface WorkflowTaskOptions {
   context: PipelabContext;
@@ -126,8 +127,14 @@ export const createPipelabWorkflowTasks = (
     : undefined;
   const steamUpload = findRunner("@pipelab/plugin-steam", "steam-upload", registeredPlugins);
   const itchUpload = findRunner("@pipelab/plugin-itch", "itch-upload", registeredPlugins);
+  const pokiUpload = registeredPlugins.some((plugin) => plugin.id === "@pipelab/plugin-poki")
+    ? findRunner("@pipelab/plugin-poki", "poki-upload", registeredPlugins)
+    : undefined;
+
+  const godotExport = createGodotExportTask();
 
   return {
+    "godot:export": godotExport,
     "construct:export": createWorkflowActionTask(constructExport, {
       ...options,
       outputAliases: { outputDirectory: "zipFile" },
@@ -170,6 +177,7 @@ export const createPipelabWorkflowTasks = (
     },
     "steam:upload": createWorkflowActionTask(steamUpload, options),
     "itch:upload": createWorkflowActionTask(itchUpload, options),
+    ...(pokiUpload ? { "poki:upload": createWorkflowActionTask(pokiUpload, options) } : {}),
     "pipelab-cloud:upload": createPipelabCloudUploadTask(options.context),
   };
 };

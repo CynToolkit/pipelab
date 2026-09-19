@@ -54,4 +54,15 @@ describe("getWorkflowReadiness", () => {
 
     expect(errors).toContain("The selected browser profile is unavailable or locked: /tmp/profile");
   });
+
+  it("reports missing Godot prerequisites and presets", () => {
+    const workflow = {
+      version: "2.0.0" as const, id: "godot", project: "game", name: "Game",
+      source: { type: "godot" as const, path: "/tmp/game" },
+      packagers: [{ id: "godot", definitionId: "godot" as const, name: "Godot", enabled: true, config: { targets: ["godot.windows"], presets: {} } }],
+      destinations: [],
+    };
+    const errors = getWorkflowReadiness(workflow, capabilities, [], "", { presets: [], presetPlatforms: {}, executableAvailable: false, templatesAvailable: false });
+    expect(errors).toEqual(expect.arrayContaining(["Godot executable not found", "No Windows export preset", "Choose an export preset for WINDOWS"]));
+  });
 });

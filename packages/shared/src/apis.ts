@@ -195,6 +195,7 @@ export type IpcDefinition = {
   "pipeline:delete-by-path": [{ path: string }, EndEvent<"ok">];
   "workflow:load-by-name": [{ name: string }, EndEvent<WorkflowConfig>];
   "workflow:capabilities:get": [void, EndEvent<ReleaseHostCapabilities>];
+  "workflow:godot:inspect": [{ path: string }, EndEvent<{ projectName: string; presets: string[]; presetPlatforms: Record<string, string>; executableAvailable: boolean; executable?: string; godotVersion?: string; templatesAvailable: boolean }>];
   "workflow:save-by-name": [{ name: string; data: string }, EndEvent<"ok">];
   "workflow:delete-by-name": [{ name: string }, EndEvent<"ok">];
   "workflow:execute": [

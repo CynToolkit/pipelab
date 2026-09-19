@@ -1,4 +1,4 @@
-export type WorkflowPackagerDefinitionId = "electron" | "tauri" | "web";
+export type WorkflowPackagerDefinitionId = "electron" | "tauri" | "web" | "godot";
 export type WorkflowServiceId = "steam" | "itch" | "web-folder" | "zip" | "poki" | "pipelab-cloud";
 export type WorkflowArtifactOutputId =
   | "electron.windows"
@@ -7,7 +7,11 @@ export type WorkflowArtifactOutputId =
   | "tauri.windows"
   | "tauri.linux"
   | "tauri.macos.arm64"
-  | "web.html5";
+  | "web.html5"
+  | "godot.windows"
+  | "godot.linux"
+  | "godot.macos.arm64"
+  | "godot.web";
 export type ReleaseHostPlatform = "win32" | "linux" | "darwin";
 
 export interface ArtifactOutputDescriptor {
@@ -65,15 +69,26 @@ export const PACKAGER_DEFINITIONS: Record<WorkflowPackagerDefinitionId, Packager
       { id: "web.html5", label: "HTML5", platform: "web", architecture: "none", format: "folder", capabilities: [] },
     ],
   },
+  godot: {
+    id: "godot",
+    label: "Godot",
+    description: "Export a Godot project with its configured export presets.",
+    outputs: [
+      { id: "godot.windows", label: "Windows x64", platform: "windows", architecture: "x64", format: "folder", capabilities: [] },
+      { id: "godot.linux", label: "Linux x64", platform: "linux", architecture: "x64", format: "folder", capabilities: [] },
+      { id: "godot.macos.arm64", label: "macOS arm64", platform: "macos", architecture: "arm64", format: "app", capabilities: [] },
+      { id: "godot.web", label: "Web", platform: "web", architecture: "none", format: "folder", capabilities: [] },
+    ],
+  },
 };
 
 export const SERVICE_DEFINITIONS: Record<WorkflowServiceId, DestinationDefinition> = {
-  steam: { id: "steam", label: "Steam", icon: "mdi-steam", slotLabel: "slot", outputs: ["electron.windows", "electron.linux", "electron.macos.arm64", "tauri.windows", "tauri.linux", "tauri.macos.arm64"], compatiblePackagers: ["electron", "tauri"], compatiblePlatforms: ["windows", "linux", "macos"] },
-  itch: { id: "itch", label: "Itch.io", icon: "mdi-puzzle-outline", slotLabel: "slot", outputs: ["electron.windows", "electron.linux", "electron.macos.arm64", "tauri.windows", "tauri.linux", "tauri.macos.arm64", "web.html5"], compatiblePackagers: ["electron", "tauri", "web"], compatiblePlatforms: ["windows", "linux", "macos", "web"] },
-  "web-folder": { id: "web-folder", label: "Folder", icon: "mdi-folder-upload-outline", slotLabel: "slot", outputs: ["web.html5"], compatiblePackagers: ["web"], compatiblePlatforms: ["web"] },
-  zip: { id: "zip", label: "ZIP", icon: "mdi-folder-zip-outline", slotLabel: "slot", outputs: ["electron.windows", "electron.linux", "electron.macos.arm64", "tauri.windows", "tauri.linux", "tauri.macos.arm64", "web.html5"], compatiblePackagers: ["electron", "tauri", "web"], compatiblePlatforms: ["windows", "linux", "macos", "web"] },
-  poki: { id: "poki", label: "Poki", icon: "mdi-gamepad-variant-outline", slotLabel: "slot", outputs: ["web.html5"], compatiblePackagers: ["web"], compatiblePlatforms: ["web"] },
-  "pipelab-cloud": { id: "pipelab-cloud", label: "Pipelab Cloud", icon: "mdi-cloud-upload-outline", slotLabel: "slot", outputs: ["electron.windows", "electron.linux", "electron.macos.arm64", "tauri.windows", "tauri.linux", "tauri.macos.arm64", "web.html5"], compatiblePackagers: ["electron", "tauri", "web"], compatiblePlatforms: ["windows", "linux", "macos", "web"] },
+  steam: { id: "steam", label: "Steam", icon: "mdi-steam", slotLabel: "slot", outputs: ["electron.windows", "electron.linux", "electron.macos.arm64", "tauri.windows", "tauri.linux", "tauri.macos.arm64", "godot.windows", "godot.linux", "godot.macos.arm64"], compatiblePackagers: ["electron", "tauri", "godot"], compatiblePlatforms: ["windows", "linux", "macos"] },
+  itch: { id: "itch", label: "Itch.io", icon: "mdi-puzzle-outline", slotLabel: "slot", outputs: ["electron.windows", "electron.linux", "electron.macos.arm64", "tauri.windows", "tauri.linux", "tauri.macos.arm64", "web.html5", "godot.windows", "godot.linux", "godot.macos.arm64", "godot.web"], compatiblePackagers: ["electron", "tauri", "web", "godot"], compatiblePlatforms: ["windows", "linux", "macos", "web"] },
+  "web-folder": { id: "web-folder", label: "Folder", icon: "mdi-folder-upload-outline", slotLabel: "slot", outputs: ["web.html5", "godot.web"], compatiblePackagers: ["web", "godot"], compatiblePlatforms: ["web"] },
+  zip: { id: "zip", label: "ZIP", icon: "mdi-folder-zip-outline", slotLabel: "slot", outputs: ["electron.windows", "electron.linux", "electron.macos.arm64", "tauri.windows", "tauri.linux", "tauri.macos.arm64", "web.html5", "godot.windows", "godot.linux", "godot.macos.arm64", "godot.web"], compatiblePackagers: ["electron", "tauri", "web", "godot"], compatiblePlatforms: ["windows", "linux", "macos", "web"] },
+  poki: { id: "poki", label: "Poki", icon: "mdi-gamepad-variant-outline", slotLabel: "slot", outputs: ["web.html5", "godot.web"], compatiblePackagers: ["web", "godot"], compatiblePlatforms: ["web"] },
+  "pipelab-cloud": { id: "pipelab-cloud", label: "Pipelab Cloud", icon: "mdi-cloud-upload-outline", slotLabel: "slot", outputs: ["electron.windows", "electron.linux", "electron.macos.arm64", "tauri.windows", "tauri.linux", "tauri.macos.arm64", "web.html5", "godot.windows", "godot.linux", "godot.macos.arm64", "godot.web"], compatiblePackagers: ["electron", "tauri", "web", "godot"], compatiblePlatforms: ["windows", "linux", "macos", "web"] },
 };
 
 export interface ArtifactOutputDefinition extends ArtifactOutputDescriptor {

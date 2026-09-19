@@ -39,10 +39,11 @@
           <div class="card-icon"><i class="mdi mdi-source-branch" /></div>
           <div class="card-body">
             <strong>{{
-              flow.source.type === "construct3" ? "Construct 3 project" : "Built folder"
+              flow.source.type === "construct3" ? "Construct 3 project" : flow.source.type === "godot" ? `Godot · ${godotInfo?.projectName || 'Project'}` : "Built folder"
             }}</strong
-            ><span>{{ flow.source.path || "No source selected" }}</span>
+            ><span>{{ flow.source.path ? `${flow.source.path}${flow.source.type === 'godot' ? '/project.godot' : ''}` : "No source selected" }}</span>
             <small v-if="flow.source.type === 'construct3' && profileError" class="error">{{ profileError }}</small>
+            <small v-if="flow.source.type === 'godot' && godotInfo">Godot {{ godotInfo.godotVersion || "not found" }} · {{ godotInfo.presets.length }} export presets</small>
           </div>
           <Button label="Change" text @click="browseSource" />
           <Button
@@ -56,9 +57,10 @@
           />
         </section>
         <WorkflowArtifactsPanel
-          :model-value="flow"
-          :capabilities="capabilities"
-          :connections="connections"
+            :model-value="flow"
+            :capabilities="capabilities"
+            :connections="connections"
+            :godot-presets="godotInfo?.presets || []"
           @add-connection="openConnection($event === 'itch' ? 'itch-account' : 'steam-account')"
           @update:model-value="flow = $event"
         />
@@ -287,6 +289,7 @@ const sourceDialogVisible = ref(false);
 const profileCandidates = ref<BrowserProfileCandidate[]>([]);
 const profileError = ref("");
 const profileLoading = ref(false);
+const godotInfo = ref<{ projectName: string; presets: string[]; presetPlatforms: Record<string, string>; executableAvailable: boolean; executable?: string; godotVersion?: string; templatesAvailable: boolean }>();
 const releaseDialogVisible = ref(false);
 const releaseVersion = ref("1.0.0");
 const releaseDescription = ref("");
@@ -327,7 +330,7 @@ const itchAccountConnections = computed(() =>
     (c) => c.pluginName === "@pipelab/plugin-itch" && c.integrationName === "Itch Butler Account",
   ),
 );
-const readiness = computed(() => getWorkflowReadiness(flow.value, capabilities.value, connections.value, profileError.value));
+const readiness = computed(() => getWorkflowReadiness(flow.value, capabilities.value, connections.value, profileError.value, godotInfo.value));
 const canShip = computed(() => !!flow.value && !readiness.value.length && !running.value);
 const load = async () => {
   const [loaded, accountResult, hostResult] = await Promise.all([
@@ -337,6 +340,7 @@ const load = async () => {
   ]);
   if (loaded.type === "success") {
     flow.value = migrateWorkflowConfig(loaded.result);
+    if (flow.value.source.type === "godot" && flow.value.source.path) await inspectGodot(flow.value.source.path);
   }
   else loadError.value = loaded.ipcError;
   if (accountResult.type === "success") connections.value = accountResult.result.connections;
@@ -473,16 +477,30 @@ watch(
 );
 const browseSource = async () => {
   if (!flow.value) return;
-  const isFolder = flow.value.source.type === "folder";
+  const isFolder = flow.value.source.type === "folder" || flow.value.source.type === "godot";
   const result = await api.execute("dialog:showOpenDialog", {
-    title: isFolder ? "Choose build folder" : "Choose Construct project",
+    title: flow.value.source.type === "godot" ? "Choose Godot project folder" : isFolder ? "Choose build folder" : "Choose Construct project",
     properties: [isFolder ? "openDirectory" : "openFile"],
     ...(isFolder
       ? {}
       : { filters: [{ name: "Construct project", extensions: ["c3p", "c3proj"] }] }),
   });
-  if (result.type === "success" && !result.result.canceled)
-    flow.value.source.path = result.result.filePaths[0] || "";
+  if (result.type === "success" && !result.result.canceled) {
+    const path = result.result.filePaths[0] || "";
+    if (flow.value.source.type === "godot") await inspectGodot(path);
+    else flow.value.source.path = path;
+  }
+};
+const inspectGodot = async (path: string) => {
+  const result = await api.execute("workflow:godot:inspect", { path });
+  if (result.type === "success") {
+    godotInfo.value = result.result;
+    flow.value.source.path = path;
+    for (const packager of flow.value.packagers.filter((item: any) => item.definitionId === "godot")) {
+      packager.config.projectName = result.result.projectName;
+      if (result.result.executable) packager.config.godotExecutable = result.result.executable;
+    }
+  } else runError.value = result.ipcError;
 };
 const browseFolder = async (d: Extract<WorkflowDestination, { type: "web" }>) => {
   const result = await api.execute("dialog:showOpenDialog", {

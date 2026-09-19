@@ -1,12 +1,15 @@
 import { compileWorkflow, createLocalHost, runWorkflow, type Workflow, type WorkflowEvent, type WorkflowResult } from "@pipelab/workflow-runtime";
 import { nanoid } from "nanoid";
-import { access, mkdir } from "node:fs/promises";
+import { access, mkdir, readFile, readdir } from "node:fs/promises";
 import { dirname, join } from "node:path";
+import { homedir } from "node:os";
+import { execFileSync } from "node:child_process";
 import {
   useLogger,
   outputDescriptor,
   PACKAGER_DEFINITIONS,
   SERVICE_DEFINITIONS,
+  godotPresetMatchesOutput,
   type WorkflowArtifactOutputId,
   type WorkflowConfig,
   type WorkflowConfigV2,
@@ -21,6 +24,46 @@ import type { BuildHistoryEntry, ExecutionStep, LogEntry } from "@pipelab/shared
 import { BuildHistoryStorage } from "./build-history";
 import { WorkflowRunCancellationRegistry } from "./workflow-run-cancellation";
 import { getPipelabCloudDownloadUrl } from "../pipelab-cloud";
+
+export const inspectGodotProject = async (path: string) => {
+  const projectFile = join(path, "project.godot");
+  const projectConfig = await readFile(projectFile, "utf8");
+  const projectName = projectConfig.match(/^config\/name\s*=\s*"([^"]+)"/m)?.[1] || "Godot project";
+  let presets: string[] = [];
+  const presetPlatforms: Record<string, string> = {};
+  try {
+    const exportConfig = await readFile(join(path, "export_presets.cfg"), "utf8");
+    for (const section of exportConfig.split(/(?=^\[preset\.\d+\]\s*$)/m)) {
+      if (!/^\[preset\.\d+\]/.test(section)) continue;
+      const name = section.match(/^name\s*=\s*"([^"]+)"/m)?.[1];
+      const platform = section.match(/^platform\s*=\s*"([^"]+)"/m)?.[1];
+      if (name) {
+        presets.push(name);
+        if (platform) presetPlatforms[name] = platform;
+      }
+    }
+  } catch { /* presets are optional until a Godot build is configured */ }
+  let godotVersion: string | undefined;
+  let executable: string | undefined;
+  for (const candidate of ["godot", "godot4"]) {
+    try {
+      godotVersion = execFileSync(candidate, ["--version"], { encoding: "utf8", timeout: 3000 }).trim();
+      executable = candidate;
+      break;
+    } catch { /* try the next standard executable name */ }
+  }
+  const templatesRoot = process.platform === "win32"
+    ? join(process.env.APPDATA || homedir(), "Godot", "export_templates")
+    : process.platform === "darwin"
+      ? join(homedir(), "Library", "Application Support", "Godot", "export_templates")
+      : join(homedir(), ".local", "share", "godot", "export_templates");
+  let templatesAvailable = false;
+  try {
+    const versions = await readdir(templatesRoot);
+    templatesAvailable = versions.some((version) => version === godotVersion || (godotVersion && version.startsWith(godotVersion.split(".").slice(0, 2).join("."))));
+  } catch { /* missing directory */ }
+  return { projectName, presets, presetPlatforms, executableAvailable: !!executable, executable, godotVersion, templatesAvailable };
+};
 
 const workflowHistoryArtifacts = (artifacts: WorkflowResult["artifacts"]): NonNullable<BuildHistoryEntry["artifacts"]> =>
   artifacts.map((artifact, index) => "outputId" in artifact ? {
@@ -222,6 +265,21 @@ export const executeWorkflow = async (
   const capabilities = getReleaseHostCapabilities({ platform: process.platform as "win32" | "linux" | "darwin", architecture: process.arch });
   const validationErrors = validateWorkflowConfigV2(workflowConfig, capabilities);
   if (validationErrors.length) throw new Error(validationErrors.join("\n"));
+  if (workflowConfig.source.type === "godot") {
+    const inspection = await inspectGodotProject(workflowConfig.source.path);
+    if (!inspection.executableAvailable) throw new Error("Godot executable not found");
+    if (!inspection.templatesAvailable) throw new Error("Godot export templates missing");
+    const godot = workflowConfig.packagers.find((packager) => packager.definitionId === "godot");
+    const targets = Array.isArray(godot?.config.targets) ? godot.config.targets as string[] : [];
+    const presets = godot?.config.presets as Record<string, string> | undefined;
+    if (targets.includes("godot.windows") && !inspection.presets.some((preset) => godotPresetMatchesOutput("godot.windows", inspection.presetPlatforms[preset] || preset))) throw new Error("No Windows export preset");
+    for (const target of targets) {
+      const selected = presets?.[target];
+      if (!selected) throw new Error(`Choose an export preset for ${target.replace("godot.", "").toUpperCase()}`);
+      if (!inspection.presets.includes(selected)) throw new Error(`Selected preset unavailable: ${selected}`);
+      if (!godotPresetMatchesOutput(target as WorkflowArtifactOutputId, inspection.presetPlatforms[selected] || selected)) throw new Error(`Selected preset does not match ${target.replace("godot.", "").toUpperCase()}: ${selected}`);
+    }
+  }
   const connectionsConfig = await (await setupConnectionsConfigFile(context)).getConfig();
   const connections = new Map(connectionsConfig.connections.map((connection: any) => [connection.id, connection]));
   const runtimeWorkflowConfig = {
@@ -435,6 +493,15 @@ export const registerWorkflowHandlers = (context: PipelabContext, pluginsReady?:
         result: getReleaseHostCapabilities({ platform: process.platform as "win32" | "linux" | "darwin", architecture: process.arch }),
       },
     });
+  });
+
+  handle("workflow:godot:inspect", async (_, { send, value }) => {
+    try {
+      const result = await inspectGodotProject(value.path);
+      await send({ type: "end", data: { type: "success", result } });
+    } catch (error) {
+      await send({ type: "end", data: { type: "error", ipcError: error instanceof Error ? error.message : String(error) } });
+    }
   });
 
   handle("workflow:execute", async (_, { send, value }) => {

@@ -126,6 +126,11 @@ export const PACKAGER_DEFINITIONS: Record<WorkflowPackagerDefinitionId, {
     features: ["WebSocket APIs"],
     fields: [],
   },
+  godot: {
+    ...CANONICAL_PACKAGER_DEFINITIONS.godot,
+    features: ["Godot export presets"],
+    fields: [],
+  },
 };
 
 export const SERVICE_DEFINITIONS = CANONICAL_SERVICE_DEFINITIONS;
@@ -137,10 +142,10 @@ export const getTargetAvailability = (
   output: ArtifactOutputDescriptor,
   host: ReleaseHostCapabilities["host"],
 ): { available: boolean; reason?: string } => {
-  if (output.platform === "macos" && host.platform !== "darwin") {
+  if (definitionId !== "godot" && output.platform === "macos" && host.platform !== "darwin") {
     return { available: false, reason: `${PACKAGER_DEFINITIONS[definitionId].label} macOS builds require a macOS host.` };
   }
-  if (output.platform === "windows" && host.architecture !== "x64") {
+  if (definitionId !== "godot" && output.platform === "windows" && host.architecture !== "x64") {
     return { available: false, reason: `${PACKAGER_DEFINITIONS[definitionId].label} Windows builds require an x64 host.` };
   }
   return { available: true };
@@ -162,6 +167,16 @@ export const outputsForPackager = (packager: WorkflowPackager): ArtifactOutputDe
 
 export const outputDescriptor = (outputId: WorkflowArtifactOutputId) =>
   Object.values(PACKAGER_DEFINITIONS).flatMap((definition) => definition.outputs).find((output) => output.id === outputId);
+
+export const godotPresetMatchesOutput = (outputId: WorkflowArtifactOutputId, platform: string | undefined): boolean => {
+  if (!platform) return false;
+  const normalized = platform.toLowerCase();
+  if (outputId === "godot.windows") return /windows|win32/.test(normalized);
+  if (outputId === "godot.linux") return /linux|x11/.test(normalized);
+  if (outputId === "godot.macos.arm64") return /macos|mac os|osx/.test(normalized);
+  if (outputId === "godot.web") return /web|html5/.test(normalized);
+  return false;
+};
 
 export const createDefaultPackager = (
   definitionId: WorkflowPackagerDefinitionId,
@@ -220,6 +235,11 @@ export const validateWorkflowConfigV2 = (
     if (destination.serviceId === "itch") {
       if (!String(destination.config.accountConnectionId || "").trim()) errors.push("Itch.io requires an account connection.");
       if (!String(destination.config.project || "").trim()) errors.push("Itch.io requires a project.");
+    }
+    if (destination.serviceId === "poki") {
+      if (!String(destination.config.project || "").trim()) errors.push("Poki requires a Game ID.");
+      if (!String(destination.config.name || "").trim()) errors.push("Poki requires a version name.");
+      if (!String(destination.config.notes || "").trim()) errors.push("Poki requires release notes.");
     }
     if (destination.serviceId === "web-folder" && !activeSlots.every((slot) => String(slot.config.outputDir || destination.config.outputDir || "").trim())) errors.push("Folder requires an output folder for every enabled folder slot.");
     if (destination.serviceId === "zip" && !activeSlots.every((slot) => String(slot.config.outputPath || "").trim())) errors.push("ZIP file requires an output path.");

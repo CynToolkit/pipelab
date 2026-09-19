@@ -8,6 +8,7 @@ import {
   PACKAGER_DEFINITIONS,
   SERVICE_DEFINITIONS,
   validateWorkflowConfigV2,
+  godotPresetMatchesOutput,
 } from "./release-definitions";
 
 describe("release definitions", () => {
@@ -34,7 +35,27 @@ describe("release definitions", () => {
       "tauri.linux",
       "tauri.macos.arm64",
       "web.html5",
+      "godot.windows",
+      "godot.linux",
+      "godot.macos.arm64",
+      "godot.web",
     ]);
+  });
+
+  it("routes Godot outputs to their supported destinations", () => {
+    expect(SERVICE_DEFINITIONS.steam.outputs).toEqual(expect.arrayContaining(["godot.windows", "godot.linux", "godot.macos.arm64"]));
+    expect(SERVICE_DEFINITIONS.itch.outputs).toContain("godot.web");
+    expect(SERVICE_DEFINITIONS.poki.outputs).toContain("godot.web");
+    expect(SERVICE_DEFINITIONS["web-folder"].outputs).toContain("godot.web");
+    expect(SERVICE_DEFINITIONS.zip.outputs).toEqual(expect.arrayContaining(["godot.windows", "godot.linux", "godot.macos.arm64", "godot.web"]));
+  });
+
+  it("matches each Godot output to its export preset platform", () => {
+    expect(godotPresetMatchesOutput("godot.windows", "Windows Desktop")).toBe(true);
+    expect(godotPresetMatchesOutput("godot.linux", "Linux/X11")).toBe(true);
+    expect(godotPresetMatchesOutput("godot.macos.arm64", "macOS")).toBe(true);
+    expect(godotPresetMatchesOutput("godot.web", "Web")).toBe(true);
+    expect(godotPresetMatchesOutput("godot.windows", "Web")).toBe(false);
   });
 
   it("migrates the legacy flat output list to packagers and exact slot inputs", () => {
