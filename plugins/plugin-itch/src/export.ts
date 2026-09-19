@@ -1,4 +1,5 @@
 import { join, dirname, delimiter } from "node:path";
+import { readFile } from "node:fs/promises";
 import { ensureButler } from "./ensure.js";
 import { extractZip } from "@pipelab/plugin-core";
 import {
@@ -70,6 +71,15 @@ export const uploadToItch = createAction({
 
 export const uploadToItchRunner = createActionRunner<typeof uploadToItch>(
   async ({ log, inputs, cwd, abortSignal, context }) => {
+    const runtimeInputs = inputs as typeof inputs & { accountConnectionId?: string };
+    if (runtimeInputs.accountConnectionId && !inputs.user && !inputs["api-key"]) {
+      const saved = JSON.parse(await readFile(context.getConnectionsPath(), "utf8")) as { connections?: Array<Record<string, unknown>> };
+      const connection = saved.connections?.find((candidate) => candidate.id === runtimeInputs.accountConnectionId);
+      if (connection) {
+        (inputs as Record<string, unknown>).user = connection.user || connection.username || "";
+        (inputs as Record<string, unknown>)["api-key"] = connection.apiKey || connection.api_key || "";
+      }
+    }
     const node = context.getNodePath();
     const butlerPath = await ensureButler(context);
 
