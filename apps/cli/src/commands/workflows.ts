@@ -9,6 +9,7 @@ import { Listr, ListrTaskState, type ListrTaskWrapper } from "listr2";
 import type { WorkflowEvent } from "../../../../packages/workflow-runtime/src/index";
 import { Option } from "commander";
 import { getDefaultUserDataPath } from "../paths";
+import { buildReleaseRegistry, compileWorkflow, usePlugins } from "@pipelab/shared";
 
 const contextFor = () => new PipelabContext({ userDataPath: getDefaultUserDataPath() });
 
@@ -91,6 +92,7 @@ export async function runWorkflowCommand(
   }
   const { builtInPlugins } = await import("@pipelab/core-node");
   await builtInPlugins({ context });
+  const workflow = compileWorkflow(flow, buildReleaseRegistry(usePlugins().plugins.value), { host: { platform: process.platform, architecture: process.arch } });
   const completion = new Map<string, { resolve: () => void; reject: (error: Error) => void }>();
   const waiters = new Map<string, Promise<void>>();
   const taskControls = new Map<string, ListrTaskWrapper<any, any, any>>();
@@ -116,19 +118,12 @@ export async function runWorkflowCommand(
     waiters.set(stepId, promise);
     return promise;
   };
-  const destinations = flow.destinations.filter((destination) => destination.enabled !== false);
   const stepGroups = [
     {
-      id: "source",
-      title: flow.source.provider,
-      steps: [{ id: "source", title: "Source" }],
+      id: "workflow",
+      title: flow.name,
+      steps: workflow.steps.map((step) => ({ id: step.id, title: step.id })),
     },
-    ...destinations.map((destination) => ({
-      id: destination.id,
-      title: destination.provider,
-      steps:
-        destination.slots.map((slot) => ({ id: `${destination.id}-${slot.id}`, title: `${destination.provider} / ${slot.id}` })),
-    })),
   ];
   const stepTasks = stepGroups.flatMap((group) => group.steps);
   const stepTask = (step: (typeof stepTasks)[number]) => ({

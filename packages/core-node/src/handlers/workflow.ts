@@ -40,10 +40,10 @@ export const executeWorkflow = async (context: PipelabContext, configName: strin
   if (errors.length) throw new Error(errors.map((issue) => issue.message).join("\n"));
   const buildId = nanoid();
   const version = options.release?.version?.trim() || "0.0.0";
-  const workflow = compileWorkflow(config, registry(), { host: host(), variables: { version, sourcePath: config.source.config.path } });
+  const workflow = compileWorkflow(config, registry(), { host: host(), variables: { version } });
   const history = new BuildHistoryStorage(context);
   const startTime = Date.now();
-  await history.save({ id: buildId, pipelineId: config.project || config.id, workflowId: config.id, workflowName: config.name, projectName: config.name, projectPath: String(config.source.config.path || ""), status: "running", version, startTime, steps: executionPlan(workflow), totalSteps: workflow.steps.length, completedSteps: 0, failedSteps: 0, cancelledSteps: 0, logs: [], artifacts: [], deliveries: [], createdAt: startTime, updatedAt: startTime });
+  await history.save({ id: buildId, pipelineId: config.project || config.id, workflowId: config.id, workflowName: config.name, projectName: config.name, projectPath: "", status: "running", version, startTime, steps: executionPlan(workflow), totalSteps: workflow.steps.length, completedSteps: 0, failedSteps: 0, cancelledSteps: 0, logs: [], artifacts: [], deliveries: [], createdAt: startTime, updatedAt: startTime });
   await options.onRunCreated?.(buildId);
   const workspaceRoot = context.getArtifactsPath("workflow", buildId);
   await mkdir(workspaceRoot, { recursive: true });
@@ -51,8 +51,24 @@ export const executeWorkflow = async (context: PipelabContext, configName: strin
   const pnpm = await ensurePNPM(context);
   const tasks = createPipelabWorkflowTasks({ context, paths: { cache: context.getCachePath(CacheFolder.Pipelines, config.project || "workflow", buildId), pnpm, node, userData: context.userDataPath, modules: context.getPackagesPath(), thirdparty: context.getThirdPartyPath() } });
   const { logger } = useLogger();
-  const result = await runWorkflow(workflow, { host: createLocalHost(workspaceRoot, { logger: { info: (...args) => logger().info(...args), warn: (...args) => logger().warn(...args), error: (...args) => logger().error(...args) } }), variables: { version, sourcePath: config.source.config.path, workspace: workspaceRoot }, version, buildId, tasks, signal: options.signal, onEvent: options.onEvent });
-  await history.update(buildId, { status: result.status, endTime: Date.now(), duration: Date.now() - startTime, artifacts: historyArtifacts(result), deliveries: result.deliveries, output: result.outputs, steps: executionPlan(workflow), completedSteps: Object.values(result.steps).filter((step) => step.status === "completed").length, failedSteps: Object.values(result.steps).filter((step) => step.status !== "completed").length }, config.project || config.id);
+  const observedSteps = new Map<string, "pending" | "running" | "completed" | "failed" | "cancelled" | "skipped">(workflow.steps.map((step) => [step.id, "pending"]));
+  const onEvent = (event: WorkflowEvent) => {
+    if (event.type === "step.started") observedSteps.set(event.stepId, "running" as const);
+    if (event.type === "step.completed") observedSteps.set(event.stepId, "completed" as const);
+    if (event.type === "step.failed") observedSteps.set(event.stepId, options.signal?.aborted ? "cancelled" as const : "failed" as const);
+    if (event.type === "step.skipped") observedSteps.set(event.stepId, "skipped" as const);
+    options.onEvent?.(event);
+  };
+  let result: WorkflowResult;
+  try {
+    result = await runWorkflow(workflow, { host: createLocalHost(workspaceRoot, { logger: { info: (...args) => logger().info(...args), warn: (...args) => logger().warn(...args), error: (...args) => logger().error(...args) } }), variables: { version, workspace: workspaceRoot }, version, buildId, tasks, signal: options.signal, onEvent });
+  } catch (error) {
+    const finalStatus = options.signal?.aborted ? "cancelled" as const : "failed" as const;
+    const steps = executionPlan(workflow).map((step) => ({ ...step, status: observedSteps.get(step.id) === "completed" ? "completed" as const : observedSteps.get(step.id) === "skipped" ? "skipped" as const : observedSteps.get(step.id) === "cancelled" || finalStatus === "cancelled" ? "cancelled" as const : "failed" as const, endTime: Date.now() }));
+    await history.update(buildId, { status: finalStatus, endTime: Date.now(), duration: Date.now() - startTime, steps, completedSteps: steps.filter((step) => step.status === "completed").length, failedSteps: steps.filter((step) => step.status === "failed" || step.status === "skipped").length, cancelledSteps: steps.filter((step) => step.status === "cancelled").length, error: { message: error instanceof Error ? error.message : String(error), code: finalStatus === "cancelled" ? "CANCELLED" : "FAILED", timestamp: Date.now() } }, config.project || config.id);
+    throw error;
+  }
+  await history.update(buildId, { status: result.status, endTime: Date.now(), duration: Date.now() - startTime, artifacts: historyArtifacts(result), deliveries: result.deliveries, output: result.outputs, steps: Object.values(result.steps).map((step) => ({ id: step.id, name: step.id, uses: step.uses, status: step.status, startTime: step.startedAt, endTime: step.completedAt, duration: step.duration, logs: [], output: step.outputs, error: step.error ? { message: step.error.message, code: step.error.name, timestamp: step.completedAt } : undefined })), completedSteps: Object.values(result.steps).filter((step) => step.status === "completed").length, failedSteps: Object.values(result.steps).filter((step) => step.status === "failed" || step.status === "skipped").length, cancelledSteps: 0 }, config.project || config.id);
   return { result, runId: buildId };
 };
 

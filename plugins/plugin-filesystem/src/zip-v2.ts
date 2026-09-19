@@ -1,6 +1,6 @@
 import { createWriteStream } from "node:fs";
 import { dirname, join } from "node:path";
-import { mkdir } from "node:fs/promises";
+import { mkdir, stat } from "node:fs/promises";
 import archiver from "archiver";
 import { createAction, createActionRunner, createPathParam } from "@pipelab/plugin-core";
 
@@ -57,6 +57,8 @@ export const zipV2Runner = createActionRunner<typeof zipV2>(
     const requestedOutput = (inputs as Record<string, unknown>).outputPath;
     const outputFile = typeof requestedOutput === "string" && requestedOutput.trim() ? requestedOutput : join(outputDir, "output.zip");
     await mkdir(dirname(outputFile), { recursive: true });
+    const inputPath = String(inputs.folder || "");
+    const inputIsDirectory = (await stat(inputPath)).isDirectory();
 
     console.log("outputFile", outputFile);
 
@@ -132,7 +134,8 @@ export const zipV2Runner = createActionRunner<typeof zipV2>(
 
       archive.pipe(output);
 
-      archive.directory(inputs.folder, false);
+      if (inputIsDirectory) archive.directory(inputPath, false);
+      else archive.file(inputPath, { name: inputPath.split(/[\\/]/).pop() || "artifact" });
 
       archive.finalize();
     });

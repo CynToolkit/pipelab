@@ -1,8 +1,15 @@
-import { spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { readFile, readdir, rm, stat } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import AdmZip from "adm-zip";
+
+export const findGodotExecutable = (): string | undefined => {
+  for (const executable of ["godot", "godot4"]) {
+    try { execFileSync(executable, ["--version"], { stdio: "ignore", timeout: 3000 }); return executable; } catch { /* try the next executable */ }
+  }
+  return undefined;
+};
 
 export const godotTemplateDirectories = (platform: NodeJS.Platform, home = process.env.HOME ?? ""): string[] => {
   if (platform === "win32") return [join(process.env.APPDATA ?? join(home, "AppData", "Roaming"), "Godot", "export_templates")];

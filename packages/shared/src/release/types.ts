@@ -8,6 +8,7 @@ export interface ArtifactConstraint {
   technology?: string | string[];
   platform?: string | string[];
   architecture?: string | string[];
+  container?: "file" | "directory" | "archive" | Array<"file" | "directory" | "archive">;
   format?: string | string[];
   capabilities?: string[];
 }
@@ -59,6 +60,7 @@ export interface ReleaseConfig {
   project: string;
   name: string;
   description?: string;
+  integration?: string;
   source: ReleaseSourceConfig;
   producers: ReleaseProducerConfig[];
   destinations: ReleaseDestinationConfig[];
@@ -115,7 +117,7 @@ export interface Availability {
 
 export interface ReleaseFieldDefinition {
   key: string;
-  type: "text" | "password" | "number" | "directory" | "file" | "select";
+  type: "text" | "password" | "number" | "directory" | "file" | "select" | "connection";
   label: string;
   description?: string;
   required?: boolean;
@@ -125,11 +127,15 @@ export interface ReleaseFieldDefinition {
 export interface SourceInspection {
   metadata?: Record<string, unknown>;
   data?: Record<string, unknown>;
+  fieldOptions?: Record<string, Array<{ label: string; value: string }>>;
+  fieldValues?: Record<string, unknown>;
   issues: ValidationIssue[];
 }
 
 export interface ProducerInspection {
   data?: Record<string, unknown>;
+  fieldOptions?: Record<string, Array<{ label: string; value: string }>>;
+  fieldValues?: Record<string, unknown>;
   issues: ValidationIssue[];
 }
 

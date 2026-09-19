@@ -1,19 +1,21 @@
 import { describe, expect, it } from "vitest";
-import { folderDestination, zipDestination } from "./index";
+import filesystem from "./index";
 
-const artifact = { stepId: "build", artifact: "output" };
-const destination = { id: "ship", provider: "filesystem", enabled: true, config: { outputDir: "/dist" }, slots: [] };
-
-describe("filesystem release destinations", () => {
-  it("maps a folder destination to fs copy input and output", () => {
-    const [step] = folderDestination.compile(artifact, destination, { id: "folder", enabled: true, input: { producerId: "build", outputId: "output" }, config: {} }, { host: { platform: "linux", architecture: "x64" } });
-    expect(step.artifactInputs).toEqual({ from: artifact });
-    expect(step.with).toMatchObject({ to: "/dist", recursive: true, overwrite: true });
+describe("filesystem release sources", () => {
+  it("keeps generic folder semantics neutral", () => {
+    const source = filesystem.release?.sources?.find((candidate) => candidate.id.endsWith("folder-source"));
+    expect(source?.output).toEqual({ kind: "files", container: "directory" });
   });
 
-  it("passes the final ZIP path to the ZIP runner", () => {
-    const [step] = zipDestination.compile(artifact, { ...destination, config: { outputPath: "/dist/game.zip" } }, { id: "zip", enabled: true, input: { producerId: "build", outputId: "output" }, config: {} }, { host: { platform: "linux", architecture: "x64" } });
-    expect(step.artifactInputs).toEqual({ folder: artifact });
-    expect(step.with).toMatchObject({ outputPath: "/dist/game.zip" });
+  it("keeps generic ZIP semantics neutral and extracts to the same semantic kind", () => {
+    const source = filesystem.release?.sources?.find((candidate) => candidate.id.endsWith("zip-source"));
+    expect(source?.output).toEqual({ kind: "files", container: "archive", format: "zip" });
+    expect(source?.compile({ path: "/tmp/input.zip" }, { host: { platform: "linux", architecture: "x64" } }).artifact.descriptor).toEqual({ kind: "files", container: "directory", format: undefined });
+  });
+
+  it("keeps Web ZIP semantic meaning while changing only its container", () => {
+    const source = filesystem.release?.sources?.find((candidate) => candidate.id.endsWith("web-zip-source"));
+    expect(source?.output).toEqual({ kind: "application", platform: "web", container: "archive", format: "zip" });
+    expect(source?.compile({ path: "/tmp/web.zip" }, { host: { platform: "linux", architecture: "x64" } }).artifact.descriptor).toEqual({ kind: "application", platform: "web", container: "directory", format: undefined });
   });
 });

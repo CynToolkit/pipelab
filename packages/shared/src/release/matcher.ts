@@ -11,5 +11,6 @@ export const matchesArtifact = (descriptor: ArtifactDescriptor, constraint: Arti
   matchesValue(descriptor.technology, constraint.technology) &&
   matchesValue(descriptor.platform, constraint.platform) &&
   matchesValue(descriptor.architecture, constraint.architecture) &&
+  matchesValue(descriptor.container, constraint.container) &&
   matchesValue(descriptor.format, constraint.format) &&
   (constraint.capabilities ?? []).every((capability) => descriptor.capabilities?.includes(capability));

@@ -6,8 +6,8 @@ import type { ReleaseDestinationDefinition } from "@pipelab/shared";
 const itchDestination: ReleaseDestinationDefinition = {
   id: "@pipelab/plugin-itch/destination",
   label: "Itch.io",
-  accepts: { kind: ["application", "archive"] },
-  fields: [{ key: "accountConnectionId", type: "select", label: "Itch account", required: true }, { key: "project", type: "text", label: "Project", required: true }],
+  accepts: { kind: ["application", "files"], container: ["directory", "archive"] },
+  fields: [{ key: "accountConnectionId", type: "connection", integration: "@pipelab/plugin-itch", label: "Itch account", required: true }, { key: "project", type: "text", label: "Project", required: true }],
   slotFields: [{ key: "channel", type: "text", label: "Channel", required: true }],
   createDefaultConfig: () => ({ accountConnectionId: "", project: "" }),
   validate: (config) => [

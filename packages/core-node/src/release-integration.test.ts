@@ -12,7 +12,7 @@ describe("release provider integration wiring", () => {
   it("connects Construct web output to Electron and Steam", () => {
     const config: ReleaseConfig = {
       version: "3.0.0", id: "construct-release", project: "project", name: "Construct release",
-      source: { provider: "@pipelab/plugin-construct/source", config: { path: "/game.c3p", profilePath: "" } },
+      source: { provider: "@pipelab/plugin-construct/source", config: { path: "/game.c3p", profilePath: "/profile" } },
       producers: [{ id: "electron", provider: "@pipelab/plugin-electron/producer", enabled: true, config: {}, targets: [{ id: "windows-x64", enabled: true, config: {} }] }],
       destinations: [{ id: "steam", provider: "@pipelab/plugin-steam/destination", enabled: true, config: { accountConnectionId: "steam", appId: "123" }, slots: [{ id: "windows", enabled: true, input: { producerId: "electron", outputId: "windows-x64" }, config: { depotId: "456" } }] }],
     };

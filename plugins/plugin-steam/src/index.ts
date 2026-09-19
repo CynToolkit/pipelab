@@ -5,8 +5,8 @@ import type { ReleaseDestinationDefinition } from "@pipelab/shared";
 const steamDestination: ReleaseDestinationDefinition = {
   id: "@pipelab/plugin-steam/destination",
   label: "Steam",
-  accepts: { kind: "application", platform: ["windows", "linux", "macos"] },
-  fields: [{ key: "accountConnectionId", type: "select", label: "Steam account", required: true }, { key: "appId", type: "text", label: "Steam App ID", required: true }, { key: "description", type: "text", label: "Build description" }],
+  accepts: { kind: "application", platform: ["windows", "linux", "macos"], container: "directory" },
+  fields: [{ key: "accountConnectionId", type: "connection", integration: "@pipelab/plugin-steam", label: "Steam account", required: true }, { key: "appId", type: "text", label: "Steam App ID", required: true }, { key: "description", type: "text", label: "Build description" }],
   slotFields: [{ key: "depotId", type: "text", label: "Depot ID", required: true }],
   createDefaultConfig: () => ({ accountConnectionId: "", appId: "", description: "" }),
   validate: (config) => [

@@ -40,6 +40,7 @@ export {
 // 3. Core Library exports (Systematic restoration)
 export * from "./apis";
 export * from "./build-history";
+export * from "./release/descriptor";
 export * from "./config.schema";
 export * from "./database.types";
 export * from "./evaluator";

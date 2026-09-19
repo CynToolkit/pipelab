@@ -11,13 +11,17 @@ export type { BrowserProfileCandidate } from "./browser-profiles";
 const constructSource: ReleaseSourceDefinition = {
   id: "@pipelab/plugin-construct/source",
   label: "Construct project",
-  output: { kind: "application", platform: "web", format: "directory" },
+  fields: [{ key: "path", type: "directory", label: "Project path", required: true }, { key: "profilePath", type: "directory", label: "Browser profile path", required: true }],
+  output: { kind: "application", platform: "web", container: "directory" },
   createDefaultConfig: () => ({ path: "", profilePath: "" }),
-  validate: (config) => typeof config.path === "string" && config.path ? [] : [{ code: "source.path.required", message: "A Construct project path is required.", severity: "error" }],
+  validate: (config) => [
+    ...(typeof config.path === "string" && config.path ? [] : [{ code: "construct.project.required", message: "A Construct project path is required.", severity: "error" as const }]),
+    ...(typeof config.profilePath === "string" && config.profilePath ? [] : [{ code: "construct.profile.required", message: "A browser profile path is required.", severity: "error" as const }]),
+  ],
   compile: (config) => {
     const steps: WorkflowStep[] = [
-      { id: "construct-source-export", uses: "@pipelab/plugin-construct/export-construct-project", with: { file: String(config.path || ""), customProfile: String(config.profilePath || "") }, artifacts: { zipFile: { descriptor: { kind: "archive", technology: "construct", format: "zip" } } } },
-      { id: "construct-source-extract", uses: "@pipelab/plugin-filesystem/unzip-file-node", needs: ["construct-source-export"], artifactInputs: { file: { stepId: "construct-source-export", artifact: "zipFile" } }, artifacts: { output: { descriptor: { kind: "application", platform: "web", format: "directory" } } } },
+      { id: "construct-source-export", uses: "@pipelab/plugin-construct/export-construct-project", with: { file: String(config.path || ""), customProfile: String(config.profilePath || "") }, artifacts: { zipFile: { descriptor: { kind: "files", technology: "construct", container: "archive", format: "zip" } } } },
+      { id: "construct-source-extract", uses: "@pipelab/plugin-filesystem/unzip-file-node", needs: ["construct-source-export"], artifactInputs: { file: { stepId: "construct-source-export", artifact: "zipFile" } }, artifacts: { output: { descriptor: constructSource.output } } },
     ];
     return { steps, artifact: { reference: { stepId: "construct-source-extract", artifact: "output" }, descriptor: constructSource.output } };
   },

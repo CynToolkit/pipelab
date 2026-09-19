@@ -24,14 +24,14 @@ export const tauriTargetInputs = (targetId: string): { platform: "win32" | "linu
 
 const tauriTargetDescriptor = (id: string) => {
   const inputs = tauriTargetInputs(id);
-  return { kind: "application" as const, technology: "tauri", platform: inputs.platform === "win32" ? "windows" : inputs.platform === "darwin" ? "macos" : "linux", architecture: inputs.arch, format: "directory" };
+  return { kind: "application" as const, technology: "tauri", platform: inputs.platform === "win32" ? "windows" : inputs.platform === "darwin" ? "macos" : "linux", architecture: inputs.arch, container: "directory" as const };
 };
 
 const tauriProducer: ReleaseProducerDefinition = {
   id: "@pipelab/plugin-tauri/producer",
   label: "Tauri",
-  accepts: { kind: "application", platform: "web" },
-  targets: ["windows-x64", "linux-x64", "macos-arm64"].map((id) => ({ id, label: id, output: tauriTargetDescriptor(id), createDefaultConfig: () => ({}), isAvailable: (host) => { const target = tauriTargetInputs(id); return host.platform === target.platform ? { available: true } : { available: false, reason: `Tauri target ${id} requires a ${target.platform} host.` }; } })),
+  accepts: { kind: "application", platform: "web", container: "directory" },
+  targets: ["windows-x64", "linux-x64", "macos-arm64"].map((id) => ({ id, label: id, output: tauriTargetDescriptor(id), createDefaultConfig: () => ({}), isAvailable: () => ({ available: true }) })),
   createDefaultConfig: () => ({}),
   validate: () => [],
   compile: (input, config) => ({ steps: config.targets.filter((target) => target.enabled).map((target) => ({ id: `${config.id}-${target.id}`, uses: "@pipelab/plugin-tauri/tauri:package:v2", needs: [input.stepId], artifactInputs: { "input-folder": input }, with: { ...config.config, ...target.config, ...tauriTargetInputs(target.id) }, artifacts: { output: { descriptor: tauriProducer.targets.find((candidate) => candidate.id === target.id)!.output } } })), artifacts: Object.fromEntries(config.targets.filter((target) => target.enabled).map((target) => [target.id, { reference: { stepId: `${config.id}-${target.id}`, artifact: "output" }, descriptor: tauriProducer.targets.find((candidate) => candidate.id === target.id)!.output }])) }),

@@ -6,7 +6,7 @@ import type { ReleaseDestinationDefinition } from "@pipelab/shared";
 const pokiDestination: ReleaseDestinationDefinition = {
   id: "@pipelab/plugin-poki/destination",
   label: "Poki",
-  accepts: { kind: "application", platform: "web" },
+  accepts: { kind: "application", platform: "web", container: "directory" },
   fields: [{ key: "project", type: "text", label: "Poki project", required: true }, { key: "name", type: "text", label: "Version name", required: true }, { key: "notes", type: "text", label: "Release notes", required: true }],
   createDefaultConfig: () => ({ project: "", name: "", notes: "" }),
   validate: (config) => ["project", "name", "notes"].filter((key) => !String(config.config[key] || "").trim()).map((key) => ({ code: `poki.${key}.required`, message: `Poki ${key} is required.`, severity: "error" as const, path: `config.${key}` })),

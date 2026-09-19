@@ -5,11 +5,11 @@ const host: WorkflowHost = { workspace: { root: "/tmp" }, filesystem: { ensureDi
 
 describe("artifact-aware workflow runtime", () => {
   it("materializes declared artifact descriptors without a global registry", async () => {
-    const workflow = { version: 1, steps: [{ id: "build", uses: "test:build", artifacts: { output: { descriptor: { kind: "application", platform: "windows" } } } }, { id: "deliver", uses: "test:deliver", needs: ["build"], delivery: { destinationId: "folder", slotId: "windows", artifact: { stepId: "build", artifact: "output" } } }] } as const;
+    const workflow = { version: 1, steps: [{ id: "build", uses: "test:build", artifacts: { output: { descriptor: { kind: "application", platform: "windows", container: "directory" } } } }, { id: "deliver", uses: "test:deliver", needs: ["build"], delivery: { destinationId: "folder", slotId: "windows", artifact: { stepId: "build", artifact: "output" } } }] } as const;
     let deliveredPath = "";
     const result = await runWorkflow(workflow, { host, tasks: { "test:build": async ({ setArtifact }) => { setArtifact("output", "/tmp/game"); }, "test:deliver": async ({ delivery }) => { deliveredPath = delivery!.artifact.path; } } });
     expect(deliveredPath).toBe("/tmp/game");
-    expect(result.artifacts).toEqual([expect.objectContaining({ descriptor: { kind: "application", platform: "windows" }, stepId: "build", artifact: "output", path: "/tmp/game" })]);
+    expect(result.artifacts).toEqual([expect.objectContaining({ descriptor: { kind: "application", platform: "windows", container: "directory" }, stepId: "build", artifact: "output", path: "/tmp/game" })]);
   });
 
   it("resolves artifact inputs to runtime paths before executing a task", async () => {
@@ -19,7 +19,7 @@ describe("artifact-aware workflow runtime", () => {
         {
           id: "build",
           uses: "test:build",
-          artifacts: { output: { descriptor: { kind: "application", platform: "web" } } },
+          artifacts: { output: { descriptor: { kind: "application", platform: "web", container: "directory" } } },
         },
         {
           id: "ship",

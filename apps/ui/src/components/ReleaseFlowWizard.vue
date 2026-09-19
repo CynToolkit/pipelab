@@ -4,7 +4,7 @@
       <label>Name <InputText v-model="draft.name" /></label>
       <label>Description <Textarea v-model="draft.description" rows="2" /></label>
       <label>Source <Select v-model="draft.source.provider" :options="catalog.sources" optionLabel="label" optionValue="id" placeholder="Choose a source" /></label>
-      <label>Source path <InputText :model-value="String(draft.source.config.path || '')" @update:model-value="draft.source.config.path = String($event)" /></label>
+      <label v-for="field in sourceDefinition?.fields || []" :key="field.key">{{ field.label }} <Select v-if="field.type === 'select'" :model-value="String(draft.source.config[field.key] || '')" :options="field.options || []" optionLabel="label" optionValue="value" @update:model-value="draft.source.config[field.key] = $event" /><InputText v-else :type="field.type === 'password' ? 'password' : 'text'" :model-value="String(draft.source.config[field.key] || '')" @update:model-value="draft.source.config[field.key] = String($event)" /></label>
       <div class="catalog-list"><span v-for="provider in catalog.destinations" :key="provider.id" class="catalog-chip">{{ provider.label }}</span></div>
       <div class="footer"><Button label="Cancel" text @click="visible = false" /><Button label="Create" :disabled="!draft.name || !draft.source.provider" @click="create" /></div>
     </div>
@@ -27,6 +27,7 @@ const api = useAPI();
 const visible = computed({ get: () => props.visible, set: (value) => emit("update:visible", value) });
 const catalog = ref<ReleaseCatalog>({ sources: [], producers: [], destinations: [] });
 const draft = ref<{ name: string; description: string; source: { provider: string; config: Record<string, unknown> } }>({ name: "", description: "", source: { provider: "", config: {} } });
+const sourceDefinition = computed(() => catalog.value.sources.find((source) => source.id === draft.value.source.provider));
 watch(() => props.visible, async (open) => { if (!open) return; const result = await api.execute("release:catalog:get"); if (result.type === "success") { catalog.value = result.result; const source = catalog.value.sources[0]; draft.value.source = { provider: source?.id || "", config: { ...(source?.defaultConfig || {}) } }; } });
 const create = () => { emit("create", { version: "3.0.0", id: nanoid(), project: props.projectId, name: draft.value.name, description: draft.value.description, source: draft.value.source, producers: [], destinations: [] }); visible.value = false; };
 </script>

@@ -1,10 +1,11 @@
-export type ArtifactKind = "project" | "application" | "archive";
+export type ArtifactKind = "project" | "application" | "files";
 
 export interface ArtifactDescriptor {
   kind: ArtifactKind;
   technology?: string;
   platform?: string;
   architecture?: string;
+  container: "file" | "directory" | "archive";
   format?: string;
   capabilities?: string[];
 }

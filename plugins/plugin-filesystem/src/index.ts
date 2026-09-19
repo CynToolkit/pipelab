@@ -7,16 +7,33 @@ import { copy, copyRunner } from "./copy";
 import { remove, removeRunner } from "./remove";
 import { run, runRunner } from "./run";
 import { openInExplorer, openInExplorerRunner } from "./open";
-import type { ReleaseDestinationDefinition, ReleaseProducerDefinition, ReleaseSourceDefinition } from "@pipelab/shared";
+import { transformArtifactDescriptor, type ReleaseDestinationDefinition, type ReleaseProducerDefinition, type ReleaseSourceDefinition } from "@pipelab/shared";
 
 const folderSource: ReleaseSourceDefinition = {
   id: "@pipelab/plugin-filesystem/folder-source",
   label: "Folder",
-  output: { kind: "application", platform: "web", format: "directory" },
+  fields: [{ key: "path", type: "directory", label: "Folder path", required: true }],
+  output: { kind: "files", container: "directory" },
   createDefaultConfig: () => ({ path: "" }),
   validate: (config) => typeof config.path === "string" && config.path ? [] : [{ code: "source.path.required", message: "A folder path is required.", severity: "error" }],
-  compile: () => ({ steps: [{ id: "release-folder-source", uses: "@pipelab/plugin-filesystem/fs:copy", with: { from: "${{ variables.sourcePath }}", to: "${{ variables.workspace }}/source" }, artifacts: { output: { descriptor: folderSource.output } } }], artifact: { reference: { stepId: "release-folder-source", artifact: "output" }, descriptor: folderSource.output } }),
+  compile: (config) => ({ steps: [{ id: "release-folder-source", uses: "@pipelab/plugin-filesystem/fs:copy", with: { from: config.path, to: "${{ variables.workspace }}/source" }, artifacts: { output: { descriptor: folderSource.output } } }], artifact: { reference: { stepId: "release-folder-source", artifact: "output" }, descriptor: folderSource.output } }),
 };
+
+const webFolderSource: ReleaseSourceDefinition = { ...folderSource, id: "@pipelab/plugin-filesystem/web-folder-source", label: "Web app folder", output: { kind: "application", platform: "web", container: "directory" } };
+const zipSource = (id: string, label: string, output: ReleaseSourceDefinition["output"]): ReleaseSourceDefinition => ({
+  id,
+  label,
+  fields: [{ key: "path", type: "file", label: "ZIP path", required: true }],
+  output,
+  createDefaultConfig: () => ({ path: "" }),
+  validate: (config) => typeof config.path === "string" && config.path ? [] : [{ code: "source.path.required", message: "A ZIP path is required.", severity: "error" }],
+  compile: (config) => {
+    const extracted = transformArtifactDescriptor(output, { container: "directory", format: undefined });
+    return { steps: [{ id: `${id}-source`, uses: "@pipelab/plugin-filesystem/unzip-file-node", with: { file: config.path }, artifacts: { output: { descriptor: extracted } } }], artifact: { reference: { stepId: `${id}-source`, artifact: "output" }, descriptor: extracted } };
+  },
+});
+const genericZipSource = zipSource("@pipelab/plugin-filesystem/zip-source", "ZIP", { kind: "files", container: "archive", format: "zip" });
+const webZipSource = zipSource("@pipelab/plugin-filesystem/web-zip-source", "Web app ZIP", { kind: "application", platform: "web", container: "archive", format: "zip" });
 
 export const folderDestination: ReleaseDestinationDefinition = {
   id: "@pipelab/plugin-filesystem/folder-destination",
@@ -89,5 +106,5 @@ export default createNodeDefinition({
       runner: openInExplorerRunner,
     },
   ],
-  release: { sources: [folderSource], producers: [passthroughProducer], destinations: [folderDestination, zipDestination] },
+  release: { sources: [folderSource, webFolderSource, genericZipSource, webZipSource], producers: [passthroughProducer], destinations: [folderDestination, zipDestination] },
 });

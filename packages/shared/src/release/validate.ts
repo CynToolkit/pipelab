@@ -6,6 +6,7 @@ import type {
   ReleaseValidationContext,
   ValidationIssue,
 } from "./types";
+import type { ArtifactDescriptor } from "./types";
 
 const error = (code: string, message: string, path?: string): ValidationIssue => ({ code, message, severity: "error", path });
 
@@ -25,7 +26,9 @@ export const validateRelease = (
   issues.push(...source.validate(config.source.config));
 
   const producerIds = new Set<string>();
-  const producerArtifacts = new Map<string, { descriptor: typeof source.output }>();
+  const producerArtifacts = new Map<string, { descriptor: ArtifactDescriptor }>();
+  let sourceArtifact = source.output;
+  try { sourceArtifact = source.compile(config.source.config, context).artifact.descriptor; } catch { /* Provider validation reports source configuration errors. */ }
   for (const [producerIndex, producer] of config.producers.entries()) {
     const producerPath = `producers.${producerIndex}`;
     if (producerIds.has(producer.id)) issues.push(error("release.producer.id.duplicate", `Producer ID is not unique: ${producer.id}`, `${producerPath}.id`));
@@ -35,8 +38,8 @@ export const validateRelease = (
       issues.push(error("release.producer.unknown", `Unknown producer provider: ${producer.provider}`, `${producerPath}.provider`));
       continue;
     }
-    if (!matchesArtifact(source.output, definition.accepts)) issues.push(error("release.producer.input.incompatible", `Producer ${producer.id} cannot consume the source artifact.`, producerPath));
-    issues.push(...definition.validate(producer, { ...context, source: source.output }));
+    if (!matchesArtifact(sourceArtifact, definition.accepts)) issues.push(error("release.producer.input.incompatible", `Producer ${producer.id} cannot consume the source artifact.`, producerPath));
+    issues.push(...definition.validate(producer, { ...context, source: sourceArtifact }));
     const targets = new Set<string>();
     for (const [targetIndex, target] of producer.targets.entries()) {
       const targetPath = `${producerPath}.targets.${targetIndex}`;

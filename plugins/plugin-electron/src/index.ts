@@ -27,14 +27,14 @@ export const electronTargetInputs = (targetId: string): { platform: "win32" | "l
 
 const electronTargetDescriptor = (id: string) => {
   const inputs = electronTargetInputs(id);
-  return { kind: "application" as const, technology: "electron", platform: inputs.platform === "win32" ? "windows" : inputs.platform === "darwin" ? "macos" : "linux", architecture: inputs.arch, format: "directory" };
+  return { kind: "application" as const, technology: "electron", platform: inputs.platform === "win32" ? "windows" : inputs.platform === "darwin" ? "macos" : "linux", architecture: inputs.arch, container: "directory" as const };
 };
 
 const electronProducer: ReleaseProducerDefinition = {
   id: "@pipelab/plugin-electron/producer",
   label: "Electron",
-  accepts: { kind: "application", platform: "web" },
-  targets: ["windows-x64", "linux-x64", "macos-arm64"].map((id) => ({ id, label: id, output: electronTargetDescriptor(id), createDefaultConfig: () => ({}), isAvailable: (host) => { const target = electronTargetInputs(id); return host.platform === target.platform ? { available: true } : { available: false, reason: `Electron target ${id} requires a ${target.platform} host.` }; } })),
+  accepts: { kind: "application", platform: "web", container: "directory" },
+  targets: ["windows-x64", "linux-x64", "macos-arm64"].map((id) => ({ id, label: id, output: electronTargetDescriptor(id), createDefaultConfig: () => ({}), isAvailable: () => ({ available: true }) })),
   createDefaultConfig: () => ({}),
   validate: () => [],
   compile: (input, config) => ({
