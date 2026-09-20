@@ -192,9 +192,6 @@ export const planRelease = (config: ReleaseConfig, registry: ReleaseRegistry, co
         (sourceRef(candidate.ref) || !candidate.ref.buildId.startsWith("__auto__")) &&
         !(!sourceRef(candidate.ref) && candidate.ref.buildId === buildId),
       );
-      for (const candidate of potentialBuildOutputs(buildId, definition)) {
-        if (!resolved.has(keyFor(candidate.ref))) candidates.push(candidate);
-      }
     }
     let selected: Candidate | undefined;
     let selectedTransforms: AutomaticStep[] = [];

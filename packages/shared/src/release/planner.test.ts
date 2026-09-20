@@ -134,6 +134,30 @@ describe("release planner", () => {
     expect(plan.issues).toContainEqual(expect.objectContaining({ code: "release.build.target.type", path: "builds.0.targets" }));
   });
 
+  it("does not treat an unresolved profile output as an implicit input", () => {
+    const webSource = { kind: "application" as const, platform: "web", container: "directory" as const };
+    const godotProject = { kind: "project" as const, technology: "godot", container: "directory" as const };
+    const unresolvedRegistry: ReleaseRegistry = {
+      sources: [{ ...registry.sources[0], output: webSource }],
+      producers: [
+        { ...registry.producers[0], id: "godot-export", accepts: godotProject, targets: [{ id: "web", label: "Web", output: webSource, createDefaultConfig: () => ({}) }] },
+        { ...registry.producers[1], id: "web-build", accepts: webSource, targets: [{ id: "web", label: "Web", output: webSource, createDefaultConfig: () => ({}) }] },
+      ],
+      destinations: [],
+    };
+    const build = (id: string, engine: string): ReleaseBuildProfileConfig => ({ id, type: "web", engine, enabled: true, config: {}, targets: [{ id: "web", enabled: true, config: {} }] });
+    const plans = [
+      planRelease(config([build("a", "godot-export"), build("b", "web-build")]), unresolvedRegistry, { host: { platform: "linux", architecture: "x64" } }),
+      planRelease(config([build("b", "web-build"), build("a", "godot-export")]), unresolvedRegistry, { host: { platform: "linux", architecture: "x64" } }),
+      planRelease(config([build("z", "godot-export"), build("a", "web-build")]), unresolvedRegistry, { host: { platform: "linux", architecture: "x64" } }),
+      planRelease(config([build("a", "web-build"), build("z", "godot-export")]), unresolvedRegistry, { host: { platform: "linux", architecture: "x64" } }),
+    ];
+    for (const plan of plans) {
+      expect(plan.issues.map((issue) => issue.code)).toContain("release.build.input.missing");
+      expect(plan.issues.map((issue) => issue.code)).not.toContain("release.build.input.ambiguous");
+    }
+  });
+
   it("resolves implicit inputs independently of Build Profile order", () => {
     const webSource = { kind: "application" as const, platform: "web", container: "directory" as const };
     const webRegistry: ReleaseRegistry = {
