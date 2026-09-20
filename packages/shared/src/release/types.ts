@@ -317,8 +317,8 @@ export interface ReleaseCatalog {
 }
 
 export interface PlannedReleaseOutput {
-  buildId: string;
-  targetId: string;
+  buildId?: string;
+  targetId?: string;
   ref: ReleaseOutputRef;
   artifactRef: ArtifactRef;
   descriptor: ArtifactDescriptor;

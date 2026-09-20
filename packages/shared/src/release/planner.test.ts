@@ -97,4 +97,48 @@ describe("release planner", () => {
     const ambiguous = planRelease(config([{ id: "a", type: "web", engine: "engine-a", enabled: true, config: {}, targets: [{ id: "web", enabled: true, config: {} }] }, { id: "b", type: "web", engine: "engine-b", enabled: true, config: {}, targets: [{ id: "web", enabled: true, config: {} }] }, { id: "merge", type: "web", engine: "merge", enabled: true, config: {}, targets: [{ id: "out", enabled: true, config: {} }] }]), mergeRegistry, { host: { platform: "linux", architecture: "x64" } });
     expect(ambiguous.issues.map((issue) => issue.code)).toContain("release.build.input.ambiguous");
   });
+
+  it("rejects destination references to missing and disabled targets", () => {
+    const base = config([{ id: "build", type: "web", engine: "engine-a", enabled: true, config: {}, targets: [{ id: "web", enabled: true, config: {} }] }]);
+    const missingTarget = planRelease({ ...base, destinations: [{ id: "deploy", provider: "deploy", enabled: true, config: {}, slots: [{ id: "slot", enabled: true, input: { buildId: "build", targetId: "missing" }, config: {} }] }] }, registry, { host: { platform: "linux", architecture: "x64" } });
+    expect(missingTarget.issues).toContainEqual(expect.objectContaining({ code: "release.destination.input.invalid", path: "destinations.0.slots.0.input" }));
+
+    const disabledTarget = planRelease({ ...base, builds: [{ ...base.builds[0], targets: [{ id: "web", enabled: false, config: {} }] }], destinations: [{ id: "deploy", provider: "deploy", enabled: true, config: {}, slots: [{ id: "slot", enabled: true, input: { buildId: "build", targetId: "web" }, config: {} }] }] }, registry, { host: { platform: "linux", architecture: "x64" } });
+    expect(disabledTarget.issues).toContainEqual(expect.objectContaining({ code: "release.destination.input.invalid", path: "destinations.0.slots.0.input" }));
+
+    const missingBuild = planRelease({ ...config([]), destinations: [{ id: "deploy", provider: "deploy", enabled: true, config: {}, slots: [{ id: "slot", enabled: true, input: { buildId: "missing", targetId: "web" }, config: {} }] }] }, registry, { host: { platform: "linux", architecture: "x64" } });
+    expect(missingBuild.issues).toContainEqual(expect.objectContaining({ code: "release.build.reference.disabled", path: "destinations.0.slots.0.input" }));
+
+    const disabledBuild = planRelease({ ...base, builds: [{ ...base.builds[0], enabled: false }], destinations: [{ id: "deploy", provider: "deploy", enabled: true, config: {}, slots: [{ id: "slot", enabled: true, input: { buildId: "build", targetId: "web" }, config: {} }] }] }, registry, { host: { platform: "linux", architecture: "x64" } });
+    expect(disabledBuild.issues).toContainEqual(expect.objectContaining({ code: "release.build.reference.disabled", path: "destinations.0.slots.0.input" }));
+  });
+
+  it("keeps automatic outputs internal and includes source in public outputs", () => {
+    const zip: ReleaseRegistry = { ...registry, sources: [{ ...registry.sources[0], output: { kind: "application" as const, platform: "web", container: "archive" as const, format: "zip" } }], producers: [{ ...registry.producers[2] }, { ...registry.producers[0], accepts: { kind: "application", platform: "web", container: "directory" as const } }] };
+    const plan = planRelease(config([{ id: "desktop", type: "web", engine: "engine-a", enabled: true, config: {}, targets: [{ id: "web", enabled: true, config: {} }] }]), zip, { host: { platform: "linux", architecture: "x64" } });
+    expect(plan.issues).toEqual([]);
+    expect(plan.outputs.map((output) => output.ref)).toEqual([{ source: true }, { buildId: "desktop", targetId: "web" }]);
+    expect(plan.outputs.every((output) => !("buildId" in output.ref) || !output.ref.buildId.startsWith("__auto__"))).toBe(true);
+  });
+
+  it("does not treat automatic outputs as additional implicit inputs", () => {
+    const zip: ReleaseRegistry = { ...registry, sources: [{ ...registry.sources[0], output: { kind: "application" as const, platform: "web", container: "archive" as const, format: "zip" } }], producers: [{ ...registry.producers[2] }, { ...registry.producers[0], accepts: { kind: "application", platform: "web", container: "directory" as const } }] };
+    const plan = planRelease(config([
+      { id: "transform-only", type: "web", engine: "engine-a", enabled: true, config: {}, targets: [{ id: "web", enabled: false, config: {} }] },
+      { id: "build", type: "web", engine: "engine-a", enabled: true, config: {}, targets: [{ id: "web", enabled: true, config: {} }] },
+    ]), zip, { host: { platform: "linux", architecture: "x64" } });
+    expect(plan.issues.map((issue) => issue.code)).not.toContain("release.build.input.ambiguous");
+  });
+
+  it("does not crash when planning malformed configuration", () => {
+    const plan = planRelease({} as ReleaseConfig, registry, { host: { platform: "linux", architecture: "x64" } });
+    expect(plan.issues.some((issue) => issue.code === "release.config.version")).toBe(true);
+    expect(plan.producers).toEqual([]);
+    expect(plan.destinations).toEqual([]);
+  });
+
+  it("uses array indexes in build validation paths", () => {
+    const plan = planRelease(config([{ id: "desktop", type: "desktop", engine: "engine-a", enabled: true, config: {}, targets: [{ id: "web", enabled: true, config: {} }] }]), registry, { host: { platform: "linux", architecture: "x64" } });
+    expect(plan.issues).toContainEqual(expect.objectContaining({ code: "release.build.target.type", path: "builds.0.targets" }));
+  });
 });

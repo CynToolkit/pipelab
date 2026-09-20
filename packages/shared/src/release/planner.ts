@@ -83,7 +83,16 @@ export interface ReleasePlanningContext {
 }
 
 export const planRelease = (config: ReleaseConfig, registry: ReleaseRegistry, context: ReleasePlanningContext): ReleasePlan => {
-  const issues = [...validateReleaseConfigShape(config)];
+  const shapeIssues = validateReleaseConfigShape(config);
+  const emptyPlan = (): ReleasePlan => ({
+    producers: [],
+    outputs: [],
+    destinations: [],
+    issues: shapeIssues,
+    graph: { nodes: [{ id: "source", kind: "source" }], edges: [] },
+  });
+  if (shapeIssues.some((issue) => issue.severity === "error")) return emptyPlan();
+  const issues = [...shapeIssues];
   const producers: ReleaseProducerConfig[] = [];
   const outputs: ReleasePlan["outputs"] = [];
   const graph: ReleasePlan["graph"] = { nodes: [{ id: "source", kind: "source" }], edges: [] };
@@ -92,13 +101,19 @@ export const planRelease = (config: ReleaseConfig, registry: ReleaseRegistry, co
   else issues.push(...source.validate(config.source.config).map((issue) => ({ ...issue, path: issue.path ? `source.${issue.path}` : "source" })));
 
   const builds = new Map<string, ReleaseBuildProfileConfig>();
+  const buildIndexes = new Map<string, number>();
   for (const [index, build] of (config.builds ?? []).entries()) {
     if (builds.has(build.id)) issues.push(error("release.build.id.duplicate", `Build ID is not unique: ${build.id}.`, `builds.${index}.id`));
     builds.set(build.id, build);
+    buildIndexes.set(build.id, index);
   }
+  const buildPath = (buildId: string, suffix = ""): string => `builds.${buildIndexes.get(buildId) ?? buildId}${suffix}`;
 
   const resolved = new Map<string, Candidate>();
-  if (source) resolved.set("source", { ref: { source: true }, artifactRef: { source: true }, descriptor: source.output });
+  if (source) {
+    resolved.set("source", { ref: { source: true }, artifactRef: { source: true }, descriptor: source.output });
+    outputs.push({ ref: { source: true }, artifactRef: { source: true }, descriptor: source.output });
+  }
   const resolving = new Set<string>();
   const automaticCounter = new Map<string, number>();
 
@@ -122,7 +137,6 @@ export const planRelease = (config: ReleaseConfig, registry: ReleaseRegistry, co
       graph.edges.push({ from: sourceRef(candidate.ref) ? "source" : candidate.ref.buildId, to: id });
       candidate = { ref: { buildId: id, targetId: step.targetId }, artifactRef: { producerId: id, outputId: step.targetId }, descriptor: step.descriptor };
       resolved.set(keyFor(candidate.ref), candidate);
-      outputs.push({ buildId: id, targetId: step.targetId, ref: candidate.ref, artifactRef: candidate.artifactRef, descriptor: candidate.descriptor });
     }
     return candidate;
   };
@@ -131,24 +145,28 @@ export const planRelease = (config: ReleaseConfig, registry: ReleaseRegistry, co
     const build = builds.get(buildId);
     if (!build || !build.enabled) return undefined;
     if (resolving.has(buildId)) {
-      issues.push(error("release.build.input.cycle", `Build cycle detected at ${buildId}.`, `builds.${buildId}.input`));
+      issues.push(error("release.build.input.cycle", `Build cycle detected at ${buildId}.`, buildPath(buildId, ".input")));
       return undefined;
     }
     const existing = resolved.get(`${buildId}:__profile__`);
     if (existing) return { candidateByTarget: new Map(), producer: producers.find((item) => item.id === buildId)! };
     const definition = registry.producers.find((candidate) => candidate.id === build.engine);
     if (!definition) {
-      issues.push(error("release.build.engine.unknown", `Unknown build engine: ${build.engine}.`, `builds.${buildId}.engine`));
+      issues.push(error("release.build.engine.unknown", `Unknown build engine: ${build.engine}.`, buildPath(buildId, ".engine")));
       return undefined;
     }
-    if (definition.planning.mode === "automatic") issues.push(error("release.build.engine.automatic", `Automatic producer ${build.engine} cannot be selected as a build engine.`, `builds.${buildId}.engine`));
+    if (definition.planning.mode === "automatic") issues.push(error("release.build.engine.automatic", `Automatic producer ${build.engine} cannot be selected as a build engine.`, buildPath(buildId, ".engine")));
     resolving.add(buildId);
     let candidates: Candidate[] = [];
     if (build.input) {
-      const inputCandidate = resolveRef(build.input);
+      const inputCandidate = resolveRef(build.input, buildPath(buildId, ".input"));
       if (inputCandidate) candidates = [inputCandidate];
     } else {
-      candidates = [...resolved.values()].filter((candidate) => (sourceRef(candidate.ref) || candidate.ref.targetId !== "__profile__") && !(!sourceRef(candidate.ref) && candidate.ref.buildId === buildId));
+      candidates = [...resolved.values()].filter((candidate) =>
+        (sourceRef(candidate.ref) || candidate.ref.targetId !== "__profile__") &&
+        (sourceRef(candidate.ref) || !candidate.ref.buildId.startsWith("__auto__")) &&
+        !(!sourceRef(candidate.ref) && candidate.ref.buildId === buildId),
+      );
     }
     let selected: Candidate | undefined;
     let selectedTransforms: AutomaticStep[] = [];
@@ -157,17 +175,17 @@ export const planRelease = (config: ReleaseConfig, registry: ReleaseRegistry, co
       const path = findAutomaticPath(candidate, definition, registry, context.host);
       if (path) {
         if (selected) {
-          issues.push(error("release.build.input.ambiguous", `Build ${buildId} has multiple compatible inputs.`, `builds.${buildId}.input`));
+          issues.push(error("release.build.input.ambiguous", `Build ${buildId} has multiple compatible inputs.`, buildPath(buildId, ".input")));
           break;
         }
         selected = candidate;
         selectedTransforms = path;
       } else if (matchesArtifact(candidate.descriptor, definition.accepts) && !directAcceptance.accepted && "reason" in directAcceptance && directAcceptance.reason) {
-        issues.push(error("release.build.input.rejected", directAcceptance.reason, `builds.${buildId}.input`));
+        issues.push(error("release.build.input.rejected", directAcceptance.reason, buildPath(buildId, ".input")));
       }
     }
     if (!selected) {
-      if (build.input) issues.push(error("release.build.input.missing", `Build ${buildId} has no compatible input.`, `builds.${buildId}.input`));
+      if (build.input) issues.push(error("release.build.input.missing", `Build ${buildId} has no compatible input.`, buildPath(buildId, ".input")));
       resolving.delete(buildId);
       return undefined;
     }
@@ -175,18 +193,18 @@ export const planRelease = (config: ReleaseConfig, registry: ReleaseRegistry, co
     const targetConfigs = build.targets.filter((target) => target.enabled).map((target) => {
       const targetDefinition = definition.targets.find((item) => item.id === target.id);
       if (!targetDefinition) {
-        issues.push(error("release.build.target.unknown", `Unknown target ${target.id} for ${build.engine}.`, `builds.${buildId}.targets`));
+        issues.push(error("release.build.target.unknown", `Unknown target ${target.id} for ${build.engine}.`, buildPath(buildId, ".targets")));
         return target;
       }
-      if (targetDefinition.buildType && targetDefinition.buildType !== build.type) issues.push(error("release.build.target.type", `Target ${target.id} is not a ${build.type} target.`, `builds.${buildId}.targets`));
+      if (targetDefinition.buildType && targetDefinition.buildType !== build.type) issues.push(error("release.build.target.type", `Target ${target.id} is not a ${build.type} target.`, buildPath(buildId, ".targets")));
       if (targetDefinition.isAvailable) {
         const availability = targetDefinition.isAvailable(context.host);
-        if (!availability.available) issues.push(error("release.build.target.unavailable", availability.reason ?? `Target ${target.id} is unavailable.`, `builds.${buildId}.targets`));
+        if (!availability.available) issues.push(error("release.build.target.unavailable", availability.reason ?? `Target ${target.id} is unavailable.`, buildPath(buildId, ".targets")));
       }
       return target;
     });
     const producer: ReleaseProducerConfig = { id: build.id, provider: build.engine, enabled: true, input: selected.artifactRef, config: build.config, targets: targetConfigs };
-    issues.push(...definition.validate(producer, { host: context.host, source: selected.descriptor, sourceConfig: config.source.config }).map((issue) => ({ ...issue, path: issue.path ? `builds.${buildId}.${issue.path}` : `builds.${buildId}` })));
+    issues.push(...definition.validate(producer, { host: context.host, source: selected.descriptor, sourceConfig: config.source.config }).map((issue) => ({ ...issue, path: issue.path ? `${buildPath(buildId)}.${issue.path}` : buildPath(buildId) })));
     producers.push(producer);
     graph.nodes.push({ id: build.id, kind: "build" });
     graph.edges.push({ from: sourceRef(selected.ref) ? "source" : selected.ref.buildId, to: build.id });
@@ -196,7 +214,7 @@ export const planRelease = (config: ReleaseConfig, registry: ReleaseRegistry, co
       if (!targetDefinition || !target.enabled) continue;
       const descriptor = resolveTargetDescriptor(selected.descriptor, targetDefinition);
       if (!descriptor) {
-        issues.push(error("release.build.target.descriptor", `Target ${target.id} does not declare an output descriptor.`, `builds.${buildId}.targets`));
+        issues.push(error("release.build.target.descriptor", `Target ${target.id} does not declare an output descriptor.`, buildPath(buildId, ".targets")));
         continue;
       }
       const candidate: Candidate = { ref: { buildId, targetId: target.id }, artifactRef: { producerId: buildId, outputId: target.id }, descriptor };
@@ -209,14 +227,23 @@ export const planRelease = (config: ReleaseConfig, registry: ReleaseRegistry, co
     return resolution;
   };
 
-  function resolveRef(ref: ReleaseOutputRef): Candidate | undefined {
+  function resolveRef(ref: ReleaseOutputRef, issuePath?: string): Candidate | undefined {
     if (sourceRef(ref)) return resolved.get("source");
     const build = builds.get(ref.buildId);
     if (!build || !build.enabled) {
-      issues.push(error("release.build.reference.disabled", `Referenced build is missing or disabled: ${ref.buildId}.`));
+      issues.push(error("release.build.reference.disabled", `Referenced build is missing or disabled: ${ref.buildId}.`, issuePath));
       return undefined;
     }
     if (!resolved.has(`${ref.buildId}:${ref.targetId}`)) resolveBuild(ref.buildId);
+    const target = build.targets.find((candidate) => candidate.id === ref.targetId);
+    if (!target) {
+      issues.push(error("release.destination.input.invalid", `Referenced target is missing: ${ref.buildId}/${ref.targetId}.`, issuePath));
+      return undefined;
+    }
+    if (!target.enabled) {
+      issues.push(error("release.destination.input.invalid", `Referenced target is disabled: ${ref.buildId}/${ref.targetId}.`, issuePath));
+      return undefined;
+    }
     return resolved.get(`${ref.buildId}:${ref.targetId}`);
   }
 
@@ -227,7 +254,7 @@ export const planRelease = (config: ReleaseConfig, registry: ReleaseRegistry, co
     for (const build of config.builds ?? []) if (build.enabled) resolveBuild(build.id);
     if (resolved.size > before) changed = true;
   }
-  for (const build of config.builds ?? []) if (build.enabled && !resolved.has(`${build.id}:__profile__`)) issues.push(error("release.build.input.missing", `Build ${build.id} has no compatible input.`, `builds.${build.id}.input`));
+  for (const build of config.builds ?? []) if (build.enabled && !resolved.has(`${build.id}:__profile__`)) issues.push(error("release.build.input.missing", `Build ${build.id} has no compatible input.`, buildPath(build.id, ".input")));
   const destinations: ReleasePlan["destinations"] = [];
   for (const [index, destination] of (config.destinations ?? []).entries()) {
     if (!destination.enabled) continue;
@@ -238,14 +265,15 @@ export const planRelease = (config: ReleaseConfig, registry: ReleaseRegistry, co
     }
     issues.push(...definition.validate(destination, { host: context.host }).map((issue) => ({ ...issue, path: issue.path ? `destinations.${index}.${issue.path}` : `destinations.${index}` })));
     if (!destination.slots.some((slot) => slot.enabled)) issues.push(error("release.destination.slot.required", `Destination ${destination.id} must have an enabled slot.`, `destinations.${index}.slots`));
-    const slots = destination.slots.filter((slot) => slot.enabled).map((slot) => {
-      const candidate = resolveRef(slot.input);
-      if (!candidate) return { ...slot, input: internalRef(slot.input) };
+    const slots = destination.slots.flatMap((slot, slotIndex) => {
+      if (!slot.enabled) return [];
+      const candidate = resolveRef(slot.input, `destinations.${index}.slots.${slotIndex}.input`);
+      if (!candidate) return [{ ...slot, input: internalRef(slot.input) }];
       const acceptance = evaluateArtifactAcceptance(candidate.descriptor, definition.accepts, () => definition.acceptsWhen?.(candidate.descriptor, { host: context.host, destination: definition }) ?? { accepted: true });
-      if (!acceptance.accepted) issues.push(error("release.destination.input.incompatible", "reason" in acceptance && acceptance.reason ? acceptance.reason : `Destination ${destination.id} cannot consume the selected output.`, `destinations.${index}.slots`));
+      if (!acceptance.accepted) issues.push(error("release.destination.input.incompatible", "reason" in acceptance && acceptance.reason ? acceptance.reason : `Destination ${destination.id} cannot consume the selected output.`, `destinations.${index}.slots.${slotIndex}.input`));
       graph.nodes.push({ id: `${destination.id}:${slot.id}`, kind: "destination" });
       graph.edges.push({ from: sourceRef(candidate.ref) ? "source" : candidate.ref.buildId, to: `${destination.id}:${slot.id}` });
-      return { ...slot, input: candidate.artifactRef };
+      return [{ ...slot, input: candidate.artifactRef }];
     });
     destinations.push({ ...destination, slots });
   }
