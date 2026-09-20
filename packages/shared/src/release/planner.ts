@@ -116,6 +116,7 @@ export const planRelease = (config: ReleaseConfig, registry: ReleaseRegistry, co
   }
   const resolving = new Set<string>();
   const automaticCounter = new Map<string, number>();
+  const orderedBuilds = [...(config.builds ?? [])].sort((left, right) => left.id.localeCompare(right.id));
 
   const addAutomatic = (steps: AutomaticStep[], destinationBuildId: string): Candidate => {
     let candidate = steps[0].input;
@@ -162,6 +163,14 @@ export const planRelease = (config: ReleaseConfig, registry: ReleaseRegistry, co
       const inputCandidate = resolveRef(build.input, buildPath(buildId, ".input"));
       if (inputCandidate) candidates = [inputCandidate];
     } else {
+      // Resolve explicitly routed upstream profiles before selecting an
+      // implicit input. Their descriptors may be derived through an
+      // automatic transform and therefore cannot be inferred from the target
+      // definition alone.
+      for (const upstream of orderedBuilds) {
+        const directlyDependsOnCurrent = upstream.input && "buildId" in upstream.input && upstream.input.buildId === buildId;
+        if (upstream.enabled && upstream.id !== buildId && upstream.input && !directlyDependsOnCurrent && !resolving.has(upstream.id) && !resolved.has(`${upstream.id}:__profile__`)) resolveBuild(upstream.id);
+      }
       candidates = [...resolved.values()].filter((candidate) =>
         (sourceRef(candidate.ref) || candidate.ref.targetId !== "__profile__") &&
         (sourceRef(candidate.ref) || !candidate.ref.buildId.startsWith("__auto__")) &&
@@ -188,6 +197,14 @@ export const planRelease = (config: ReleaseConfig, registry: ReleaseRegistry, co
       if (build.input) issues.push(error("release.build.input.missing", `Build ${buildId} has no compatible input.`, buildPath(buildId, ".input")));
       resolving.delete(buildId);
       return undefined;
+    }
+    if (!sourceRef(selected.ref) && !resolved.has(keyFor(selected.ref))) {
+      const resolvedInput = resolveRef(selected.ref, buildPath(buildId, ".input"));
+      if (!resolvedInput) {
+        resolving.delete(buildId);
+        return undefined;
+      }
+      selected = resolvedInput;
     }
     if (selectedTransforms.length) selected = addAutomatic(selectedTransforms, buildId);
     const targetConfigs = build.targets.filter((target) => target.enabled).map((target) => {
@@ -251,7 +268,7 @@ export const planRelease = (config: ReleaseConfig, registry: ReleaseRegistry, co
   while (changed) {
     changed = false;
     const before = resolved.size;
-    for (const build of config.builds ?? []) if (build.enabled) resolveBuild(build.id);
+    for (const build of orderedBuilds) if (build.enabled) resolveBuild(build.id);
     if (resolved.size > before) changed = true;
   }
   for (const build of config.builds ?? []) if (build.enabled && !resolved.has(`${build.id}:__profile__`)) issues.push(error("release.build.input.missing", `Build ${build.id} has no compatible input.`, buildPath(build.id, ".input")));

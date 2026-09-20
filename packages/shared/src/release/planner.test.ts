@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { planRelease } from "./planner";
-import type { ReleaseConfig, ReleaseRegistry } from "./types";
+import type { ReleaseBuildProfileConfig, ReleaseConfig, ReleaseRegistry } from "./types";
 
 const project = { kind: "project" as const, technology: "engine", container: "directory" as const };
 const web = { kind: "application" as const, platform: "web", container: "directory" as const };
@@ -46,6 +46,7 @@ describe("release planner", () => {
     const zip: ReleaseRegistry = { ...registry, sources: [{ ...registry.sources[0], output: { kind: "application" as const, platform: "web", container: "archive" as const, format: "zip" } }], producers: [{ ...registry.producers[2] }, { ...registry.producers[0], accepts: { kind: "application", platform: "web", container: "directory" as const } }] };
     const plan = planRelease(config([{ id: "desktop", type: "web", engine: "engine-a", enabled: true, config: {}, targets: [{ id: "web", enabled: true, config: {} }] }]), zip, { host: { platform: "linux", architecture: "x64" } });
     expect(plan.issues).toEqual([]);
+    expect(plan.issues.map((issue) => issue.code)).not.toContain("release.build.input.ambiguous");
     expect(plan.producers.map((producer) => producer.provider)).toEqual(["extract", "engine-a"]);
     const genericZip: ReleaseRegistry = { ...zip, sources: [{ ...zip.sources[0], output: { kind: "files" as const, container: "archive" as const, format: "zip" } }] };
     expect(planRelease(config([{ id: "desktop", type: "web", engine: "engine-a", enabled: true, config: {}, targets: [{ id: "web", enabled: true, config: {} }] }]), genericZip, { host: { platform: "linux", architecture: "x64" } }).issues.map((issue) => issue.code)).toContain("release.build.input.missing");
@@ -121,15 +122,6 @@ describe("release planner", () => {
     expect(plan.outputs.every((output) => !("buildId" in output.ref) || !output.ref.buildId.startsWith("__auto__"))).toBe(true);
   });
 
-  it("does not treat automatic outputs as additional implicit inputs", () => {
-    const zip: ReleaseRegistry = { ...registry, sources: [{ ...registry.sources[0], output: { kind: "application" as const, platform: "web", container: "archive" as const, format: "zip" } }], producers: [{ ...registry.producers[2] }, { ...registry.producers[0], accepts: { kind: "application", platform: "web", container: "directory" as const } }] };
-    const plan = planRelease(config([
-      { id: "transform-only", type: "web", engine: "engine-a", enabled: true, config: {}, targets: [{ id: "web", enabled: false, config: {} }] },
-      { id: "build", type: "web", engine: "engine-a", enabled: true, config: {}, targets: [{ id: "web", enabled: true, config: {} }] },
-    ]), zip, { host: { platform: "linux", architecture: "x64" } });
-    expect(plan.issues.map((issue) => issue.code)).not.toContain("release.build.input.ambiguous");
-  });
-
   it("does not crash when planning malformed configuration", () => {
     const plan = planRelease({} as ReleaseConfig, registry, { host: { platform: "linux", architecture: "x64" } });
     expect(plan.issues.some((issue) => issue.code === "release.config.version")).toBe(true);
@@ -140,5 +132,30 @@ describe("release planner", () => {
   it("uses array indexes in build validation paths", () => {
     const plan = planRelease(config([{ id: "desktop", type: "desktop", engine: "engine-a", enabled: true, config: {}, targets: [{ id: "web", enabled: true, config: {} }] }]), registry, { host: { platform: "linux", architecture: "x64" } });
     expect(plan.issues).toContainEqual(expect.objectContaining({ code: "release.build.target.type", path: "builds.0.targets" }));
+  });
+
+  it("resolves implicit inputs independently of Build Profile order", () => {
+    const webSource = { kind: "application" as const, platform: "web", container: "directory" as const };
+    const webRegistry: ReleaseRegistry = {
+      sources: [{ ...registry.sources[0], output: webSource }],
+      producers: [
+        { ...registry.producers[0], id: "engine-a", accepts: webSource, targets: [{ id: "web", label: "Web", buildType: "web", output: webSource, createDefaultConfig: () => ({}) }] },
+        { ...registry.producers[0], id: "engine-b", accepts: webSource, targets: [{ id: "web", label: "Web", buildType: "web", output: webSource, createDefaultConfig: () => ({}) }] },
+      ],
+      destinations: [],
+    };
+    const buildA: ReleaseBuildProfileConfig = { id: "a", type: "web", engine: "engine-a", enabled: true, input: { source: true }, config: {}, targets: [{ id: "web", enabled: true, config: {} }] };
+    const buildB: ReleaseBuildProfileConfig = { id: "b", type: "web", engine: "engine-b", enabled: true, config: {}, targets: [{ id: "web", enabled: true, config: {} }] };
+    const ordered = (builds: ReleaseBuildProfileConfig[]) => planRelease(config(builds), webRegistry, { host: { platform: "linux", architecture: "x64" } });
+
+    for (const plan of [ordered([buildA, buildB]), ordered([buildB, buildA])]) {
+      expect(plan.issues.map((issue) => issue.code)).toContain("release.build.input.ambiguous");
+    }
+
+    for (const input of [{ buildId: "a", targetId: "web" }, { source: true }] as const) {
+      for (const builds of [[{ ...buildA, input: { source: true as const } }, { ...buildB, input }], [{ ...buildB, input }, { ...buildA, input: { source: true as const } }]]) {
+        expect(ordered(builds).issues).toEqual([]);
+      }
+    }
   });
 });
