@@ -42,11 +42,38 @@ export interface ReleaseProducerConfig {
 
 export type ArtifactRef = { source: true } | { producerId: string; outputId: string };
 
+export type ReleaseOutputRef = { source: true } | { buildId: string; targetId: string };
+
+export interface ReleaseBuildProfileConfig {
+  id: string;
+  type: string;
+  engine: string;
+  enabled: boolean;
+  input?: ReleaseOutputRef;
+  config: Record<string, unknown>;
+  targets: ReleaseBuildTargetConfig[];
+  name?: string;
+}
+
+export interface ReleaseBuildTargetConfig {
+  id: string;
+  enabled: boolean;
+  config: Record<string, unknown>;
+}
+
 export interface ReleaseDestinationSlot {
   id: string;
   enabled: boolean;
-  input: ArtifactRef;
+  input: ReleaseOutputRef;
   config: Record<string, unknown>;
+}
+
+export interface ResolvedReleaseDestinationSlot extends Omit<ReleaseDestinationSlot, "input"> {
+  input: ArtifactRef;
+}
+
+export interface ResolvedReleaseDestinationConfig extends Omit<ReleaseDestinationConfig, "slots"> {
+  slots: ResolvedReleaseDestinationSlot[];
 }
 
 export interface ReleaseDestinationConfig {
@@ -64,7 +91,7 @@ export interface ReleaseConfig {
   name: string;
   description?: string;
   source: ReleaseSourceConfig;
-  producers: ReleaseProducerConfig[];
+  builds: ReleaseBuildProfileConfig[];
   destinations: ReleaseDestinationConfig[];
   continueOnError?: boolean;
 }
@@ -170,6 +197,7 @@ export interface ReleaseProducerTargetDefinition {
   fields?: ReleaseFieldDefinition[];
   createDefaultConfig(): Record<string, unknown>;
   isAvailable?(context: ReleaseHostContext): Availability;
+  buildType?: string;
 }
 
 export interface ArtifactDescriptorTransform {
@@ -184,11 +212,24 @@ export interface ReleaseProducerDefinition {
   icon?: IconType;
   fields?: ReleaseFieldDefinition[];
   accepts: ArtifactConstraint;
+  planning: ReleaseProducerPlanning;
   targets: ReleaseProducerTargetDefinition[];
   createDefaultConfig(): Record<string, unknown>;
   validate(config: ReleaseProducerConfig, context: ReleaseValidationContext): ValidationIssue[];
   inspect?(config: ReleaseProducerConfig, context: ReleaseProviderContext): Promise<ProducerInspection>;
   compile(input: CompiledArtifact, config: ReleaseProducerConfig, context: ReleaseCompileContext): CompiledProducer;
+  acceptsWhen?(artifact: ArtifactDescriptor, context: ReleaseAcceptanceContext): ArtifactAcceptance;
+}
+
+export interface ReleaseProducerPlanning {
+  mode: "build" | "automatic";
+}
+
+export type ArtifactAcceptance = { accepted: true } | { accepted: false; reason?: string };
+
+export interface ReleaseAcceptanceContext extends ReleaseProviderContext {
+  producer?: ReleaseProducerDefinition;
+  destination?: ReleaseDestinationDefinition;
 }
 
 export interface ReleaseDestinationDefinition {
@@ -201,7 +242,15 @@ export interface ReleaseDestinationDefinition {
   accepts: ArtifactConstraint;
   createDefaultConfig(): Record<string, unknown>;
   validate(config: ReleaseDestinationConfig, context: ReleaseValidationContext): ValidationIssue[];
-  compile(artifact: CompiledArtifact, destination: ReleaseDestinationConfig, slot: ReleaseDestinationSlot, context: ReleaseCompileContext): WorkflowStep[];
+  compile(artifact: CompiledArtifact, destination: ResolvedReleaseDestinationConfig, slot: ResolvedReleaseDestinationSlot, context: ReleaseCompileContext): WorkflowStep[];
+  acceptsWhen?(artifact: ArtifactDescriptor, context: ReleaseAcceptanceContext): ArtifactAcceptance;
+}
+
+export interface ReleaseBuildTypeDefinition {
+  id: string;
+  label: string;
+  description?: string;
+  icon?: IconType;
 }
 
 export interface PluginReleaseDefinition {
@@ -219,6 +268,7 @@ export interface ReleaseRegistry {
 export interface ReleaseCatalogTarget {
   id: string;
   label: string;
+  buildType?: string;
   output?: ArtifactDescriptor;
   transform?: ArtifactDescriptorTransform;
   defaultConfig: Record<string, unknown>;
@@ -243,6 +293,7 @@ export interface ReleaseCatalogProducer {
   icon?: IconType;
   fields?: ReleaseFieldDefinition[];
   accepts: ArtifactConstraint;
+  planning: ReleaseProducerPlanning;
   defaultConfig: Record<string, unknown>;
   targets: ReleaseCatalogTarget[];
 }
@@ -259,7 +310,29 @@ export interface ReleaseCatalogDestination {
 }
 
 export interface ReleaseCatalog {
+  buildTypes: ReleaseBuildTypeDefinition[];
   sources: ReleaseCatalogSource[];
   producers: ReleaseCatalogProducer[];
   destinations: ReleaseCatalogDestination[];
+}
+
+export interface PlannedReleaseOutput {
+  buildId: string;
+  targetId: string;
+  ref: ReleaseOutputRef;
+  artifactRef: ArtifactRef;
+  descriptor: ArtifactDescriptor;
+}
+
+export interface ReleasePlanGraph {
+  nodes: Array<{ id: string; kind: "source" | "build" | "automatic" | "destination" }>;
+  edges: Array<{ from: string; to: string }>;
+}
+
+export interface ReleasePlan {
+  producers: ReleaseProducerConfig[];
+  outputs: PlannedReleaseOutput[];
+  destinations: ResolvedReleaseDestinationConfig[];
+  issues: ValidationIssue[];
+  graph: ReleasePlanGraph;
 }

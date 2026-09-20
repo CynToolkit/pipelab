@@ -69,6 +69,7 @@ export * from "./release/config";
 export * from "./release/catalog";
 export * from "./release/compiler";
 export * from "./release/validate";
+export * from "./release/planner";
 export * from "./plugin-api";
 
 // 4. Configuration Sub-packages

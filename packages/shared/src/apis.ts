@@ -4,7 +4,7 @@ import type { Tagged } from "type-fest";
 import { PresetResult, Steps, SavedFile } from "./model";
 import { AppConfig, ConnectionsConfig } from "./config.schema";
 import { FileRepo } from "./config/projects-definition";
-import type { ReleaseCatalog, ReleaseConfig, ValidationIssue } from "./release/types";
+import type { ReleaseCatalog, ReleaseConfig, ReleaseProducerConfig, ValidationIssue } from "./release/types";
 import { Agent } from "./websocket.types";
 import { BuildHistoryEntry, BuildHistoryQuery, BuildHistoryResponse } from "./build-history";
 import type { WorkflowEvent, WorkflowResult } from "@pipelab/workflow-runtime";
@@ -195,7 +195,7 @@ export type IpcDefinition = {
   "workflow:load-by-name": [{ name: string }, EndEvent<ReleaseConfig>];
   "release:catalog:get": [void, EndEvent<ReleaseCatalog>];
   "release:source:inspect": [{ provider: string; config: Record<string, unknown> }, EndEvent<unknown>];
-  "release:producer:inspect": [{ provider: string; config: ReleaseConfig["producers"][number] }, EndEvent<unknown>];
+  "release:producer:inspect": [{ provider: string; config: ReleaseProducerConfig }, EndEvent<unknown>];
   "release:validate": [{ config: ReleaseConfig }, EndEvent<{ issues: ValidationIssue[] }>];
   "workflow:save-by-name": [{ name: string; data: string }, EndEvent<"ok">];
   "workflow:delete-by-name": [{ name: string }, EndEvent<"ok">];

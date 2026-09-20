@@ -83,7 +83,7 @@ export async function runWorkflowCommand(
   const entry = await loadEntry(context, id);
   const flow = await (await setupWorkflowConfigFileByName(entry.configName, context)).getConfig();
   if (options.dryRun) {
-    console.log(`Dry run for ${id}: ${flow.producers.length} producer(s), ${flow.destinations.length} destination(s)`);
+    console.log(`Dry run for ${id}: ${flow.builds.length} build profile(s), ${flow.destinations.length} destination(s)`);
     if (options.output) {
       const { writeFile } = await import("node:fs/promises");
       await writeFile(options.output, JSON.stringify(flow, null, 2));

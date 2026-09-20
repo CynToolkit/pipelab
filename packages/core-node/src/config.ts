@@ -166,7 +166,7 @@ export const setupWorkflowConfigFileByName = (name: string, context: PipelabCont
     project: "",
     name: "",
     source: { provider: "@pipelab/plugin-filesystem/folder-source", config: { path: "" } },
-    producers: [],
+    builds: [],
     destinations: [],
   });
 };

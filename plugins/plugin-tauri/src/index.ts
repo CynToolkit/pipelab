@@ -30,11 +30,12 @@ const tauriTargetDescriptor = (id: string) => {
 const tauriProducer: ReleaseProducerDefinition = {
   id: "@pipelab/plugin-tauri/producer",
   label: "Tauri",
+  planning: { mode: "build" },
   accepts: { kind: "application", platform: "web", container: "directory" },
-  targets: ["windows-x64", "linux-x64", "macos-arm64"].map((id) => ({ id, label: id, output: tauriTargetDescriptor(id), createDefaultConfig: () => ({}), isAvailable: () => ({ available: true }) })),
+  targets: ["windows-x64", "linux-x64", "macos-arm64"].map((id) => ({ id, label: id, buildType: "desktop", output: tauriTargetDescriptor(id), createDefaultConfig: () => ({}), isAvailable: () => ({ available: true }) })),
   createDefaultConfig: () => ({}),
   validate: () => [],
-  compile: (input, config) => ({ steps: config.targets.filter((target) => target.enabled).map((target) => ({ id: `${config.id}-${target.id}`, uses: "@pipelab/plugin-tauri/tauri:package:v2", needs: [input.reference.stepId], artifactInputs: { "input-folder": input.reference }, with: { ...config.config, ...target.config, ...tauriTargetInputs(target.id) }, artifacts: { output: { descriptor: tauriProducer.targets.find((candidate) => candidate.id === target.id)!.output } } })), artifacts: Object.fromEntries(config.targets.filter((target) => target.enabled).map((target) => [target.id, { reference: { stepId: `${config.id}-${target.id}`, artifact: "output" }, descriptor: tauriProducer.targets.find((candidate) => candidate.id === target.id)!.output }])) }),
+  compile: (input, config) => ({ steps: config.targets.filter((target) => target.enabled).map((target) => ({ id: `${config.id}-${target.id}`, uses: "@pipelab/plugin-tauri/tauri:package:v2", needs: [input.reference.stepId], artifactInputs: { "input-folder": input.reference }, with: { ...config.config, ...target.config, ...tauriTargetInputs(target.id) }, artifacts: { output: { descriptor: tauriProducer.targets.find((candidate) => candidate.id === target.id)!.output! } } })), artifacts: Object.fromEntries(config.targets.filter((target) => target.enabled).map((target) => [target.id, { reference: { stepId: `${config.id}-${target.id}`, artifact: "output" }, descriptor: tauriProducer.targets.find((candidate) => candidate.id === target.id)!.output! }])) }),
 };
 
 export default createNodeDefinition({

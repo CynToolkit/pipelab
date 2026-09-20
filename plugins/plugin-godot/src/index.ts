@@ -76,13 +76,14 @@ const godotExportRunner = createActionRunner(async (data) => {
 export const godotExporter: ReleaseProducerDefinition = {
   id: "@pipelab/plugin-godot/producer",
   label: "Godot exporter",
+  planning: { mode: "build" },
   accepts: { kind: "project", technology: "godot", container: "directory" },
-  targets: Object.entries(targetDescriptors).map(([id, output]) => ({ id, label: id, output, fields: [{ key: "preset", type: "select" as const, label: "Godot export preset", required: true }], createDefaultConfig: () => ({ preset: "" }), isAvailable: () => ({ available: true }) })),
+  targets: Object.entries(targetDescriptors).map(([id, output]) => ({ id, label: id, buildType: id === "web" ? "web" : "desktop", output, fields: [{ key: "preset", type: "select" as const, label: "Godot export preset", required: true }], createDefaultConfig: () => ({ preset: "" }), isAvailable: () => ({ available: true }) })),
   createDefaultConfig: () => ({ executable: "" }),
   validate: (config, context) => config.targets.filter((target) => target.enabled).flatMap((target) => {
     const preset = String(target.config.preset || "").trim();
     if (!preset) return [{ code: "godot.preset.required", message: `Choose a preset for ${target.id}.`, severity: "error" as const, path: `targets.${target.id}.config.preset` }];
-    const presetInfo = context.sourceConfig?.path ? presetInfoForProject(String(context.sourceConfig.path), preset) : { found: true };
+    const presetInfo = context.sourceConfig?.path ? presetInfoForProject(String(context.sourceConfig.path), preset) : { found: true, checked: false };
     if (presetInfo.checked && !presetInfo.found) return [{ code: "godot.preset.unknown", message: `Preset ${preset} does not exist in export_presets.cfg.`, severity: "error" as const, path: `targets.${target.id}.config.preset` }];
     return presetInfo.platform && !godotPresetMatchesTarget(presetInfo.platform, target.id) ? [{ code: "godot.preset.target-mismatch", message: `Preset ${preset} does not match target ${target.id}.`, severity: "error" as const, path: `targets.${target.id}.config.preset` }] : [];
   }),

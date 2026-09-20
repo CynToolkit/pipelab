@@ -55,6 +55,7 @@ export const zipDestination: ReleaseDestinationDefinition = {
 const unzipProducer: ReleaseProducerDefinition = {
   id: "@pipelab/plugin-filesystem/unzip",
   label: "Extract ZIP",
+  planning: { mode: "automatic" },
   accepts: { container: "archive", format: "zip" },
   targets: [{ id: "output", label: "Extracted files", transform: { changes: { container: "directory" }, remove: ["format"] }, createDefaultConfig: () => ({}) }],
   createDefaultConfig: () => ({}),
@@ -69,8 +70,9 @@ const unzipProducer: ReleaseProducerDefinition = {
 const passthroughProducer: ReleaseProducerDefinition = {
   id: "@pipelab/core/passthrough",
   label: "Passthrough",
+  planning: { mode: "automatic" },
   accepts: {},
-  targets: [{ id: "output", label: "Output", output: folderSource.output, createDefaultConfig: () => ({}) }],
+  targets: [{ id: "output", label: "Output", transform: { changes: {} }, createDefaultConfig: () => ({}) }],
   createDefaultConfig: () => ({}),
   validate: () => [],
   compile: (input, config) => { const stepId = `${config.id}-output`; return { steps: [{ id: stepId, uses: "@pipelab/core/passthrough", needs: [input.reference.stepId], artifactInputs: { path: input.reference }, artifacts: { output: { descriptor: input.descriptor } } }], artifacts: { output: { reference: { stepId, artifact: "output" }, descriptor: input.descriptor } } }; },

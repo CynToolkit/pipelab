@@ -13,6 +13,12 @@ export const buildReleaseCatalog = (
   registry: ReleaseRegistry,
   host?: Parameters<NonNullable<ReleaseRegistry["producers"][number]["targets"][number]["isAvailable"]>>[0],
 ): import("./types").ReleaseCatalog => ({
+  buildTypes: [
+    { id: "desktop", label: "Desktop" },
+    { id: "web", label: "Web" },
+    { id: "mobile", label: "Mobile" },
+    { id: "console", label: "Console" },
+  ],
   sources: registry.sources.map((source) => ({
     id: source.id,
     label: source.label,
@@ -29,10 +35,12 @@ export const buildReleaseCatalog = (
     icon: producer.icon,
     fields: producer.fields,
     accepts: producer.accepts,
+    planning: producer.planning ?? { mode: "build" },
     defaultConfig: producer.createDefaultConfig(),
     targets: producer.targets.map((target) => ({
       id: target.id,
       label: target.label,
+      buildType: target.buildType,
       output: target.output,
       transform: target.transform,
       defaultConfig: target.createDefaultConfig(),
