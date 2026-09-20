@@ -116,7 +116,23 @@ export const planRelease = (config: ReleaseConfig, registry: ReleaseRegistry, co
   }
   const resolving = new Set<string>();
   const automaticCounter = new Map<string, number>();
-  const orderedBuilds = [...(config.builds ?? [])].sort((left, right) => left.id.localeCompare(right.id));
+  const configuredBuilds = config.builds ?? [];
+
+  const potentialBuildOutputs = (buildId: string, definition: ReleaseProducerDefinition): Candidate[] => configuredBuilds
+    .filter((build) => build.enabled && build.id !== buildId)
+    .flatMap((build) => {
+      const producer = registry.producers.find((candidate) => candidate.id === build.engine);
+      if (!producer) return [];
+      return build.targets.filter((target) => target.enabled).flatMap((target) => {
+        const targetDefinition = producer.targets.find((candidate) => candidate.id === target.id);
+        if (!targetDefinition?.output || !accepted(targetDefinition.output, definition, context.host).accepted) return [];
+        return [{
+          ref: { buildId: build.id, targetId: target.id },
+          artifactRef: { producerId: build.id, outputId: target.id },
+          descriptor: targetDefinition.output,
+        }];
+      });
+    });
 
   const addAutomatic = (steps: AutomaticStep[], destinationBuildId: string): Candidate => {
     let candidate = steps[0].input;
@@ -163,19 +179,22 @@ export const planRelease = (config: ReleaseConfig, registry: ReleaseRegistry, co
       const inputCandidate = resolveRef(build.input, buildPath(buildId, ".input"));
       if (inputCandidate) candidates = [inputCandidate];
     } else {
-      // Resolve explicitly routed upstream profiles before selecting an
-      // implicit input. Their descriptors may be derived through an
-      // automatic transform and therefore cannot be inferred from the target
-      // definition alone.
-      for (const upstream of orderedBuilds) {
+      // Resolve every other active profile before selecting an implicit input.
+      // This makes the candidate set independent of config array order and
+      // includes descriptors derived through automatic transforms.
+      for (const upstream of configuredBuilds) {
         const directlyDependsOnCurrent = upstream.input && "buildId" in upstream.input && upstream.input.buildId === buildId;
-        if (upstream.enabled && upstream.id !== buildId && upstream.input && !directlyDependsOnCurrent && !resolving.has(upstream.id) && !resolved.has(`${upstream.id}:__profile__`)) resolveBuild(upstream.id);
+        const hasStaticCompatibleOutput = potentialBuildOutputs(buildId, definition).some((candidate) => "buildId" in candidate.ref && candidate.ref.buildId === upstream.id);
+        if (upstream.enabled && upstream.id !== buildId && (upstream.input || hasStaticCompatibleOutput) && !directlyDependsOnCurrent && !resolving.has(upstream.id) && !resolved.has(`${upstream.id}:__profile__`)) resolveBuild(upstream.id);
       }
       candidates = [...resolved.values()].filter((candidate) =>
         (sourceRef(candidate.ref) || candidate.ref.targetId !== "__profile__") &&
         (sourceRef(candidate.ref) || !candidate.ref.buildId.startsWith("__auto__")) &&
         !(!sourceRef(candidate.ref) && candidate.ref.buildId === buildId),
       );
+      for (const candidate of potentialBuildOutputs(buildId, definition)) {
+        if (!resolved.has(keyFor(candidate.ref))) candidates.push(candidate);
+      }
     }
     let selected: Candidate | undefined;
     let selectedTransforms: AutomaticStep[] = [];
@@ -268,7 +287,7 @@ export const planRelease = (config: ReleaseConfig, registry: ReleaseRegistry, co
   while (changed) {
     changed = false;
     const before = resolved.size;
-    for (const build of orderedBuilds) if (build.enabled) resolveBuild(build.id);
+    for (const build of configuredBuilds) if (build.enabled) resolveBuild(build.id);
     if (resolved.size > before) changed = true;
   }
   for (const build of config.builds ?? []) if (build.enabled && !resolved.has(`${build.id}:__profile__`)) issues.push(error("release.build.input.missing", `Build ${build.id} has no compatible input.`, buildPath(build.id, ".input")));

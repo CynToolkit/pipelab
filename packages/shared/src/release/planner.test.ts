@@ -144,12 +144,12 @@ describe("release planner", () => {
       ],
       destinations: [],
     };
-    const buildA: ReleaseBuildProfileConfig = { id: "a", type: "web", engine: "engine-a", enabled: true, input: { source: true }, config: {}, targets: [{ id: "web", enabled: true, config: {} }] };
+    const buildA: ReleaseBuildProfileConfig = { id: "a", type: "web", engine: "engine-a", enabled: true, config: {}, targets: [{ id: "web", enabled: true, config: {} }] };
     const buildB: ReleaseBuildProfileConfig = { id: "b", type: "web", engine: "engine-b", enabled: true, config: {}, targets: [{ id: "web", enabled: true, config: {} }] };
     const ordered = (builds: ReleaseBuildProfileConfig[]) => planRelease(config(builds), webRegistry, { host: { platform: "linux", architecture: "x64" } });
 
-    for (const plan of [ordered([buildA, buildB]), ordered([buildB, buildA])]) {
-      expect(plan.issues.map((issue) => issue.code)).toContain("release.build.input.ambiguous");
+    for (const builds of [[buildA, buildB], [buildB, buildA], [{ ...buildA, id: "z" }, { ...buildB, id: "a" }], [{ ...buildB, id: "a" }, { ...buildA, id: "z" }]]) {
+      expect(ordered(builds).issues.map((issue) => issue.code)).toContain("release.build.input.ambiguous");
     }
 
     for (const input of [{ buildId: "a", targetId: "web" }, { source: true }] as const) {
