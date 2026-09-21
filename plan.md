@@ -782,7 +782,7 @@ Keep existing tests for:
 * [ ] Remove obsolete `browser-profile` field type if unused
 * [ ] Remove dead BrowserProfilePicker component
 * [ ] Remove dead imports/references
-* [ ] Keep Construct inspection behavior unchanged
+* [x] Keep Construct inspection behavior unchanged
 
 ## Tests
 
@@ -800,10 +800,10 @@ Keep existing tests for:
 
 ## Verification
 
-* [ ] UI tests
-* [ ] Shared planner/compiler tests
-* [ ] Typecheck
-* [ ] Lint
+* [x] UI tests
+* [x] Shared planner/compiler tests
+* [x] Typecheck
+* [x] Lint
 * [ ] Full CI
 * [ ] Manually test Construct → Poki
 * [ ] Manually test Construct → Steam
