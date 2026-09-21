@@ -260,5 +260,87 @@ describe("release flow model", () => {
       id: "desktop-default",
       engine: "engine-a",
     });
+    expect(configWithDestination.destinations[0].slots[0].input).toEqual({
+      buildId: "desktop-default",
+      targetId: "windows",
+    });
+  });
+
+  it("reuses one generated build for multiple compatible destinations", () => {
+    const destinationCatalog: ReleaseCatalog = {
+      ...catalog,
+      producers: [
+        {
+          ...catalog.producers[0],
+          targets: [
+            {
+              ...catalog.producers[0].targets[0],
+              output: { kind: "application", platform: "windows", container: "directory" },
+            },
+          ],
+        },
+      ],
+      destinations: [
+        {
+          id: "desktop-destination",
+          label: "Desktop destination",
+          accepts: { kind: "application", platform: "windows", container: "directory" },
+          defaultConfig: {},
+        },
+      ],
+    };
+    const configWithDestinations: ReleaseConfig = {
+      ...config,
+      destinations: [
+        {
+          id: "first",
+          provider: "desktop-destination",
+          enabled: true,
+          config: {},
+          slots: [{ id: "slot", enabled: true, config: {} }],
+        },
+        {
+          id: "second",
+          provider: "desktop-destination",
+          enabled: true,
+          config: {},
+          slots: [{ id: "slot", enabled: true, config: {} }],
+        },
+      ],
+    };
+    const plan = {
+      outputs: [],
+      issues: [
+        {
+          code: "release.destination.input.required",
+          message: "Choose an output.",
+          severity: "error" as const,
+          path: "destinations.0.slots.0.input",
+        },
+        {
+          code: "release.destination.input.required",
+          message: "Choose an output.",
+          severity: "error" as const,
+          path: "destinations.1.slots.0.input",
+        },
+      ],
+      producers: [],
+      destinations: [],
+      graph: { nodes: [], edges: [] },
+    } as ReleasePlan;
+    expect(
+      resolveMissingDestinationInputs(configWithDestinations, plan, destinationCatalog, {
+        buildTypes: { desktop: { engine: "engine-a", targets: ["windows"] } },
+      }),
+    ).toBe(true);
+    expect(configWithDestinations.builds).toHaveLength(1);
+    expect(configWithDestinations.destinations[0].slots[0].input).toEqual({
+      buildId: "desktop-default",
+      targetId: "windows",
+    });
+    expect(configWithDestinations.destinations[1].slots[0].input).toEqual({
+      buildId: "desktop-default",
+      targetId: "windows",
+    });
   });
 });

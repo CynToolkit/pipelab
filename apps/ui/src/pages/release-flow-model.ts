@@ -104,12 +104,43 @@ export const resolveMissingDestinationInputs = (
         changed = true;
         continue;
       }
+      const compatibleBuild = config.builds.find(
+        (build) =>
+          build.enabled &&
+          build.targets.some((target) => {
+            if (!target.enabled) return false;
+            const targetDefinition = catalog.producers
+              .find((producer) => producer.id === build.engine)
+              ?.targets.find((candidate) => candidate.id === target.id);
+            return (
+              targetDefinition?.output &&
+              evaluateArtifactAcceptance(targetDefinition.output, definition.accepts).accepted
+            );
+          }),
+      );
+      if (compatibleBuild) {
+        const target = compatibleBuild.targets.find((candidate) => {
+          if (!candidate.enabled) return false;
+          const targetDefinition = catalog.producers
+            .find((producer) => producer.id === compatibleBuild.engine)
+            ?.targets.find((target) => target.id === candidate.id);
+          return (
+            targetDefinition?.output &&
+            evaluateArtifactAcceptance(targetDefinition.output, definition.accepts).accepted
+          );
+        });
+        if (target) {
+          slot.input = { buildId: compatibleBuild.id, targetId: target.id };
+          changed = true;
+          continue;
+        }
+      }
       for (const buildType of Object.keys(preferences.buildTypes)) {
         const buildId = `${buildType}-default`;
         if (config.builds.some((build) => build.id === buildId)) continue;
         const build = defaultBuildProfile(catalog, buildType, buildId, preferences);
         if (!build || !build.targets.some((target) => target.enabled)) continue;
-        const targetMatches = build.targets.some((target) => {
+        const matchingTarget = build.targets.find((target) => {
           const targetDefinition = catalog.producers
             .find((producer) => producer.id === build.engine)
             ?.targets.find((candidate) => candidate.id === target.id);
@@ -119,8 +150,9 @@ export const resolveMissingDestinationInputs = (
             evaluateArtifactAcceptance(targetDefinition.output, definition.accepts).accepted
           );
         });
-        if (targetMatches) {
+        if (matchingTarget) {
           config.builds.push(build);
+          slot.input = { buildId: build.id, targetId: matchingTarget.id };
           changed = true;
           break;
         }
