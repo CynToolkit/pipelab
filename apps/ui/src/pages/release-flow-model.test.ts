@@ -3,6 +3,7 @@ import {
   buildEnginesFor,
   buildTargetsFor,
   createBuildProfile,
+  createSerializedTaskQueue,
   defaultBuildProfile,
   issuesForPath,
   planOutputOptions,
@@ -73,6 +74,27 @@ const config: ReleaseConfig = {
 };
 
 describe("release flow model", () => {
+  it("serializes autosave requests and keeps the latest request", async () => {
+    let releaseFirst: (() => void) | undefined;
+    let calls = 0;
+    const queue = createSerializedTaskQueue(
+      () =>
+        new Promise<void>((resolve) => {
+          calls += 1;
+          if (calls === 1) releaseFirst = resolve;
+          else resolve();
+        }),
+    );
+
+    const first = queue();
+    const second = queue();
+    expect(second).toBe(first);
+    expect(calls).toBe(1);
+    releaseFirst?.();
+    await first;
+    expect(calls).toBe(2);
+  });
+
   it("shows only build engines and targets for the selected type", () => {
     expect(buildEnginesFor(catalog, "desktop").map((engine) => engine.id)).toEqual([
       "engine-a",

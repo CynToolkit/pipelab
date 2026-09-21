@@ -682,6 +682,7 @@ import {
   buildEnginesFor,
   buildTargetsFor,
   createBuildProfile,
+  createSerializedTaskQueue,
   issuesForPath,
   planOutputOptions,
   removeBuildProfile,
@@ -1083,34 +1084,23 @@ const refreshPlan = async (resolveDefaults = false) => {
 let latestPlanRequest = 0;
 let changeRevision = 0;
 let persistedRevision = 0;
-let saveRequested = false;
-let savePromise: Promise<void> | undefined;
-const save = () => {
-  saveRequested = true;
-  if (savePromise) return savePromise;
-  savePromise = (async () => {
-    while (saveRequested && flow.value) {
-      saveRequested = false;
-      const revision = changeRevision;
-      saveState.value = "saving";
-      const result = await api.execute("workflow:save-by-name", {
-        name: `workflows/${flowId.value}`,
-        data: JSON.stringify(flow.value),
-      });
-      if (result.type === "error") {
-        saveState.value = "error";
-        error.value = result.ipcError;
-        return;
-      }
-      persistedRevision = revision;
-      if (persistedRevision !== changeRevision) saveRequested = true;
-    }
-    saveState.value = "saved";
-  })().finally(() => {
-    savePromise = undefined;
+const save = createSerializedTaskQueue(async () => {
+  if (!flow.value) return;
+  const revision = changeRevision;
+  saveState.value = "saving";
+  const result = await api.execute("workflow:save-by-name", {
+    name: `workflows/${flowId.value}`,
+    data: JSON.stringify(flow.value),
   });
-  return savePromise;
-};
+  if (result.type === "error") {
+    saveState.value = "error";
+    error.value = result.ipcError;
+    return;
+  }
+  persistedRevision = revision;
+  if (persistedRevision !== changeRevision) save();
+  else saveState.value = "saved";
+});
 const validate = async () => {
   await refreshPlan();
   return !issues.value.some((issue) => issue.severity === "error");

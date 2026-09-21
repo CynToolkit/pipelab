@@ -15,6 +15,27 @@ export interface ReleaseOutputOption {
   ref: ReleaseOutputRef;
 }
 
+export const createSerializedTaskQueue = (task: () => Promise<void>) => {
+  let requested = false;
+  let active: Promise<void> | undefined;
+
+  const request = () => {
+    requested = true;
+    if (active) return active;
+    active = (async () => {
+      while (requested) {
+        requested = false;
+        await task();
+      }
+    })().finally(() => {
+      active = undefined;
+    });
+    return active;
+  };
+
+  return request;
+};
+
 export const buildTypesFor = (catalog: ReleaseCatalog) => catalog.buildTypes;
 
 export const buildEnginesFor = (catalog: ReleaseCatalog, type: string) =>
