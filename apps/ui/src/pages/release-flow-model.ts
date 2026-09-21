@@ -50,6 +50,20 @@ export const buildTargetsFor = (catalog: ReleaseCatalog, engine: string, type: s
     .find((producer) => producer.id === engine)
     ?.targets.filter((target) => target.buildType === type) ?? [];
 
+export const buildProfileSummary = (catalog: ReleaseCatalog, build: ReleaseBuildProfileConfig) => {
+  const producer = catalog.producers.find((candidate) => candidate.id === build.engine);
+  const targets = producer?.targets
+    .filter((target) => target.buildType === build.type)
+    .filter((target) =>
+      build.targets.some((selected) => selected.id === target.id && selected.enabled),
+    )
+    .map((target) => target.label);
+  return {
+    engineLabel: producer?.label || build.engine,
+    targetLabels: targets || [],
+  };
+};
+
 export const createBuildProfile = (
   catalog: ReleaseCatalog,
   type: string,

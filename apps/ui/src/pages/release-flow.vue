@@ -147,16 +147,9 @@
               <div class="job-title">
                 <strong>{{ build.name || buildTypeLabel(build.type) }}</strong
                 ><span
-                  >{{ producerDefinition(build.engine)?.label || build.engine }} ·
+                  >{{ buildProfileSummary(catalog, build).engineLabel }} ·
                   {{
-                    build.targets
-                      .filter((target) => target.enabled)
-                      .map(
-                        (target) =>
-                          buildTargets(build).find((item) => item.id === target.id)?.label ||
-                          target.id,
-                      )
-                      .join(", ") || "No targets"
+                    buildProfileSummary(catalog, build).targetLabels.join(", ") || "No targets"
                   }}</span
                 >
               </div>
@@ -680,6 +673,7 @@ import { useAPI } from "../composables/api";
 import { useConnectionsStore } from "../store/connections";
 import {
   buildEnginesFor,
+  buildProfileSummary,
   buildTargetsFor,
   createBuildProfile,
   createSerializedTaskQueue,

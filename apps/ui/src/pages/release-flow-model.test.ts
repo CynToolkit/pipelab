@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildEnginesFor,
+  buildProfileSummary,
   buildTargetsFor,
   createBuildProfile,
   createSerializedTaskQueue,
@@ -74,6 +75,14 @@ const config: ReleaseConfig = {
 };
 
 describe("release flow model", () => {
+  it("provides the compact build-card summary without inline settings", () => {
+    const build = createBuildProfile(catalog, "desktop", "engine-a", "desktop-one")!;
+    expect(buildProfileSummary(catalog, build)).toEqual({
+      engineLabel: "Engine A",
+      targetLabels: ["Windows x64"],
+    });
+  });
+
   it("serializes autosave requests and keeps the latest request", async () => {
     let releaseFirst: (() => void) | undefined;
     let calls = 0;
