@@ -792,7 +792,7 @@ Keep existing tests for:
 * [x] Test existing compatible build reuse
 * [x] Test deterministic fallback defaults
 * [x] Test no automatic producer becomes Build Profile
-* [ ] Test generated build remains editable/removable
+* [x] Test generated build remains editable/removable
 * [x] Test deleted generated build is not instantly recreated
 * [x] Test explicit deployment routing
 * [ ] Test compact UI
