@@ -93,11 +93,21 @@
 
               <!-- Actions -->
               <div class="action-buttons">
-                <Button size="small" severity="secondary" variant="outlined" @click="openWorkflowWizard">
+                <Button
+                  size="small"
+                  severity="secondary"
+                  variant="outlined"
+                  @click="openWorkflowWizard"
+                >
                   <i class="mdi mdi-rocket-launch-outline mr-2"></i>
                   New workflow
                 </Button>
-                <Button id="tour-new-pipeline" size="small" severity="secondary" @click="openNewProjectDialog">
+                <Button
+                  id="tour-new-pipeline"
+                  size="small"
+                  severity="secondary"
+                  @click="openNewProjectDialog"
+                >
                   <i class="mdi mdi-plus-circle-outline mr-2"></i>
                   {{ $t("home.new-pipeline") }}
                 </Button>
@@ -129,7 +139,10 @@
           </div>
 
           <!-- Empty State (No Pipelines) -->
-          <div v-else-if="filesEnhanced.length === 0 && workflowsEnhanced.length === 0" class="no-projects">
+          <div
+            v-else-if="filesEnhanced.length === 0 && workflowsEnhanced.length === 0"
+            class="no-projects"
+          >
             <i class="mdi mdi-folder-open-outline empty-icon"></i>
             <div class="no-pipelines-text">{{ $t("home.no-pipelines-yet") }}</div>
             <Button
@@ -144,7 +157,10 @@
           </div>
 
           <!-- No Search Results -->
-          <div v-else-if="filteredFilesEnhanced.length === 0 && filteredWorkflowsEnhanced.length === 0" class="no-search-results">
+          <div
+            v-else-if="filteredFilesEnhanced.length === 0 && filteredWorkflowsEnhanced.length === 0"
+            class="no-search-results"
+          >
             <i class="mdi mdi-magnify-close empty-icon"></i>
             <div class="no-results-text">No pipelines found matching "{{ searchQuery }}"</div>
             <Button text severity="secondary" @click="searchQuery = ''"> Clear search </Button>
@@ -223,10 +239,48 @@
                 </div>
               </div>
             </div>
-            <div v-for="flow in filteredWorkflowsEnhanced" :key="flow.id" class="pipeline-row workflow-row" @click="openWorkflow(flow.id)">
-              <div class="pipeline-tech-stack workflow-icon"><i class="mdi mdi-rocket-launch-outline"></i></div>
-              <div class="pipeline-info"><div class="pipeline-title-row"><span class="pipeline-name">{{ flow.content.name }}</span><Tag severity="info" value="Release" class="type-tag" /></div><div class="pipeline-desc">{{ flow.content.source.provider }} → {{ flow.content.destinations.map(destinationLabel).join(', ') }}</div></div>
-              <div class="pipeline-meta-actions"><span class="pipeline-updated">Updated {{ formatLastModified(flow.lastModified) }}</span><div class="row-actions" @click.stop><Button icon="mdi mdi-pencil" text rounded severity="secondary" size="small" v-tooltip.top="'Edit workflow'" @click="openWorkflow(flow.id)" /><Button icon="mdi mdi-dots-vertical" text rounded severity="secondary" size="small" @click="toggleWorkflowMenu($event, flow)" /></div></div>
+            <div
+              v-for="flow in filteredWorkflowsEnhanced"
+              :key="flow.id"
+              class="pipeline-row workflow-row"
+              @click="openWorkflow(flow.id)"
+            >
+              <div class="pipeline-tech-stack workflow-icon">
+                <i class="mdi mdi-rocket-launch-outline"></i>
+              </div>
+              <div class="pipeline-info">
+                <div class="pipeline-title-row">
+                  <span class="pipeline-name">{{ flow.content.name }}</span
+                  ><Tag severity="info" value="Release" class="type-tag" />
+                </div>
+                <div class="pipeline-desc">
+                  {{ flow.content.source.provider }} →
+                  {{ flow.content.destinations.map(destinationLabel).join(", ") }}
+                </div>
+              </div>
+              <div class="pipeline-meta-actions">
+                <span class="pipeline-updated"
+                  >Updated {{ formatLastModified(flow.lastModified) }}</span
+                >
+                <div class="row-actions" @click.stop>
+                  <Button
+                    icon="mdi mdi-pencil"
+                    text
+                    rounded
+                    severity="secondary"
+                    size="small"
+                    v-tooltip.top="'Edit workflow'"
+                    @click="openWorkflow(flow.id)"
+                  /><Button
+                    icon="mdi mdi-dots-vertical"
+                    text
+                    rounded
+                    severity="secondary"
+                    size="small"
+                    @click="toggleWorkflowMenu($event, flow)"
+                  />
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -420,8 +474,13 @@
     />
 
     <Menu ref="menu" :model="menuItems" :popup="true" />
+    <Menu ref="workflowMenu" :model="workflowMenuItems" :popup="true" />
     <Menu ref="importMenu" :model="importMenuItems" :popup="true" />
-    <ReleaseFlowWizard v-model:visible="isWorkflowWizardVisible" :project-id="activeProjectId" @create="createWorkflow" />
+    <ReleaseFlowWizard
+      v-model:visible="isWorkflowWizardVisible"
+      :project-id="activeProjectId"
+      @create="createWorkflow"
+    />
 
     <Dialog
       v-model:visible="isTransferModalVisible"
@@ -537,10 +596,19 @@ const { startTour: triggerTour, isCompleted } = useTour("dashboard");
 // Table data
 const fileStore = useFiles();
 const { files } = storeToRefs(fileStore);
-const { update: updateFileStore, remove, removeProject, transferPipeline, load: reloadFiles } = fileStore;
+const {
+  update: updateFileStore,
+  remove,
+  removeProject,
+  removeWorkflow,
+  transferPipeline,
+  load: reloadFiles,
+} = fileStore;
 
 const filesEnhanced = ref<EnhancedFile[]>([]);
-const workflowsEnhanced = ref<Array<{ id: string; project: string; lastModified: string; content: ReleaseConfig }>>([]);
+const workflowsEnhanced = ref<
+  Array<{ id: string; project: string; lastModified: string; content: ReleaseConfig }>
+>([]);
 const isWorkflowWizardVisible = ref(false);
 
 const searchQuery = ref("");
@@ -621,8 +689,21 @@ const pipelines = computed(() =>
     : [],
 );
 
-const workflows = computed(() => activeProjectId.value ? (files.value.workflows || []).filter((flow) => flow.project === activeProjectId.value) : []);
-const filteredWorkflowsEnhanced = computed(() => { const q = searchQuery.value.trim().toLowerCase(); return !q ? workflowsEnhanced.value : workflowsEnhanced.value.filter((flow) => flow.content.name.toLowerCase().includes(q) || (flow.content.description || '').toLowerCase().includes(q)); });
+const workflows = computed(() =>
+  activeProjectId.value
+    ? (files.value.workflows || []).filter((flow) => flow.project === activeProjectId.value)
+    : [],
+);
+const filteredWorkflowsEnhanced = computed(() => {
+  const q = searchQuery.value.trim().toLowerCase();
+  return !q
+    ? workflowsEnhanced.value
+    : workflowsEnhanced.value.filter(
+        (flow) =>
+          flow.content.name.toLowerCase().includes(q) ||
+          (flow.content.description || "").toLowerCase().includes(q),
+      );
+});
 
 const hasExternalPipelines = computed(() => {
   return (files.value.pipelines || []).some((p) => p.type === "external");
@@ -742,10 +823,21 @@ watchEffect(async () => {
 });
 
 watchEffect(async () => {
-  const result: Array<{ id: string; project: string; lastModified: string; content: ReleaseConfig }> = [];
+  const result: Array<{
+    id: string;
+    project: string;
+    lastModified: string;
+    content: ReleaseConfig;
+  }> = [];
   for (const flow of workflows.value) {
     const loaded = await api.execute("workflow:load-by-name", { name: flow.configName });
-    if (loaded.type === "success") result.push({ id: flow.id, project: flow.project, lastModified: flow.lastModified, content: loaded.result as ReleaseConfig });
+    if (loaded.type === "success")
+      result.push({
+        id: flow.id,
+        project: flow.project,
+        lastModified: flow.lastModified,
+        content: loaded.result as ReleaseConfig,
+      });
   }
   workflowsEnhanced.value = result;
 });
@@ -797,13 +889,14 @@ const openNewProjectDialog = async () => {
   isNewPipelineModalVisible.value = true;
 };
 
-const openWorkflowWizard = () => { isWorkflowWizardVisible.value = true; };
+const openWorkflowWizard = () => {
+  isWorkflowWizardVisible.value = true;
+};
 const createWorkflow = async (flow: ReleaseConfig) => {
   await fileStore.saveWorkflow(flow);
   await router.push(`/workflows/${flow.id}/${flow.project}`);
 };
 const openWorkflow = (id: string) => router.push(`/workflows/${id}/${activeProjectId.value}`);
-const toggleWorkflowMenu = (_event: Event, _flow: any) => { /* lifecycle actions land in the workflow editor menu */ };
 const destinationLabel = (d: ReleaseConfig["destinations"][number]) => d.provider;
 onMounted(() => reloadFiles(true));
 const onNewProjectCreation = async () => {
@@ -1037,12 +1130,36 @@ const deleteProject = async (projectId?: string) => {
 
 const menu = ref();
 const selectedPipelineForMenu = ref<EnhancedFile | null>(null);
+const workflowMenu = ref();
+const selectedWorkflowForMenu = ref<(typeof workflowsEnhanced.value)[number] | null>(null);
 const isTransferModalVisible = ref(false);
 const selectedTargetProject = ref();
 
 const toggleMenu = (event: Event, data: EnhancedFile) => {
   selectedPipelineForMenu.value = data;
   menu.value.toggle(event);
+};
+
+const toggleWorkflowMenu = (event: Event, flow: (typeof workflowsEnhanced.value)[number]) => {
+  selectedWorkflowForMenu.value = flow;
+  workflowMenu.value.toggle(event);
+};
+
+const deleteWorkflow = (id: string) => {
+  const workflow = workflowsEnhanced.value.find((flow) => flow.id === id);
+  if (!workflow) return;
+
+  confirm.require({
+    message: "Are you sure you want to delete this release? This action cannot be undone.",
+    header: "Delete Release",
+    icon: "pi pi-exclamation-triangle",
+    rejectClass: "p-button-secondary p-button-outlined",
+    acceptClass: "p-button-danger",
+    accept: async () => {
+      await removeWorkflow(id);
+      workflowsEnhanced.value = workflowsEnhanced.value.filter((flow) => flow.id !== id);
+    },
+  });
 };
 
 const importMenu = ref();
@@ -1144,6 +1261,17 @@ const menuItems = computed(() => [
     class: "text-red-500",
     command: () => {
       if (selectedPipelineForMenu.value) deletePipeline(selectedPipelineForMenu.value.id);
+    },
+  },
+]);
+
+const workflowMenuItems = computed(() => [
+  {
+    label: "Delete",
+    icon: "mdi mdi-delete",
+    class: "text-red-500",
+    command: () => {
+      if (selectedWorkflowForMenu.value) deleteWorkflow(selectedWorkflowForMenu.value.id);
     },
   },
 ]);
@@ -1441,9 +1569,19 @@ const startTour = (force = false) => {
 </script>
 
 <style lang="scss" scoped>
-.workflow-row { border-left: 3px solid var(--primary-color); background: color-mix(in srgb, var(--primary-color) 4%, transparent); }
-.workflow-row:hover { background: color-mix(in srgb, var(--primary-color) 9%, transparent); }
-.workflow-icon { color: var(--primary-color); font-size: 24px; display:flex; justify-content:center; }
+.workflow-row {
+  border-left: 3px solid var(--primary-color);
+  background: color-mix(in srgb, var(--primary-color) 4%, transparent);
+}
+.workflow-row:hover {
+  background: color-mix(in srgb, var(--primary-color) 9%, transparent);
+}
+.workflow-icon {
+  color: var(--primary-color);
+  font-size: 24px;
+  display: flex;
+  justify-content: center;
+}
 /* ─── Index Page ────────────────────────────────────────── */
 .index {
   display: flex;
