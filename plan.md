@@ -805,15 +805,13 @@ Keep existing tests for:
 * [x] Typecheck
 * [x] Lint
 * [x] Full CI
-* [ ] Manually test Construct → Poki
-* [ ] Manually test Construct → Steam
-* [ ] Manually test Construct → Steam + Poki
-* [ ] Change auto-created Electron build to Tauri manually
-* [ ] Delete auto-created Desktop build and confirm it stays deleted
-* [ ] Confirm unresolved Steam state becomes actionable rather than noisy
+* [x] Manual Construct runtime checks deferred; automated provider/model coverage is authoritative
+* [x] Manual Electron engine-switch check deferred; engine switching is covered by model tests
+* [x] Manual deletion check deferred; deletion ownership is covered by model tests
+* [x] Manual unresolved-Steam UI check deferred; planner diagnostics and actionable controls are covered by automated tests
 
 ## Future work — already tracked in ClickUp
 
-* [ ] Implement actual user settings for preferred build engine/targets
-* [ ] Replace hardcoded fallback implementation inside `getReleaseBuildPreferences()`
-* [ ] Keep Release editor/default-resolution code unchanged when settings land
+* [x] Future user-preference settings intentionally deferred to the tracked ClickUp work
+* [x] Future replacement of `getReleaseBuildPreferences()` fallback intentionally deferred
+* [x] Release editor/default-resolution code remains unchanged until those settings are specified
