@@ -83,6 +83,7 @@
               "
             /><Button
               v-if="cardIssues('source').length"
+              class="needs-attention-button"
               label="Needs attention"
               icon="pi pi-exclamation-triangle"
               text
@@ -152,6 +153,7 @@
                 "
               /><Button
                 v-if="cardIssues(`builds.${index}`).length"
+                class="needs-attention-button"
                 label="Needs attention"
                 icon="pi pi-exclamation-triangle"
                 text
@@ -232,6 +234,7 @@
               </div>
               <Button
                 v-if="cardIssues(`destinations.${index}`).length"
+                class="needs-attention-button"
                 label="Needs attention"
                 icon="pi pi-exclamation-triangle"
                 text
@@ -1156,6 +1159,10 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   gap: 12px;
+}
+.needs-attention-button {
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 .source-card {
   padding: 12px 14px;
