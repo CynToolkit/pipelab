@@ -178,7 +178,12 @@
                   optionLabel="label"
                   optionValue="id"
                   @update:model-value="switchEngine(build, $event)"
-                />
+                /><Message
+                  v-for="issue in fieldIssues(`builds.${index}.engine`)"
+                  :key="issue.code + issue.path"
+                  :severity="issue.severity === 'error' ? 'error' : 'warn'"
+                  >{{ issue.message }}</Message
+                >
               </div>
               <div class="release-field">
                 <span class="field-label">Build type</span
@@ -217,12 +222,17 @@
                 optionLabel="label"
                 optionValue="value"
                 @update:model-value="setBuildInput(build, $event)"
-              />
+              /><Message
+                v-for="issue in fieldIssues(`builds.${index}.input`)"
+                :key="issue.code + issue.path"
+                :severity="issue.severity === 'error' ? 'error' : 'warn'"
+                >{{ issue.message }}</Message
+              >
             </div>
             <Message
               v-for="issue in cardIssues(`builds.${index}`)"
               :key="issue.code + issue.path"
-              severity="warn"
+              :severity="issue.severity === 'error' ? 'error' : 'warn'"
               >{{ issue.message }}</Message
             >
           </article>
@@ -318,6 +328,12 @@
                   severity="danger"
                   aria-label="Remove deployment slot"
                   @click="removeSlot(destination, slot.id)"
+                /><Button
+                  v-if="slotIssues(slot).length"
+                  label="Create compatible build"
+                  icon="pi pi-plus"
+                  text
+                  @click="openCompatibleBuildPicker(slot)"
                 />
               </div>
               <Button
@@ -327,22 +343,11 @@
                 :disabled="!outputOptions.length"
                 @click="addSlot(destination)"
               />
-              <Button
-                v-if="
-                  cardIssues(`destinations.${index}`).some((issue) =>
-                    issue.path?.includes('.input'),
-                  )
-                "
-                label="Create compatible build"
-                icon="pi pi-plus"
-                text
-                @click="buildPickerVisible = true"
-              />
             </div>
             <Message
               v-for="issue in cardIssues(`destinations.${index}`)"
               :key="issue.code + issue.path"
-              severity="warn"
+              :severity="issue.severity === 'error' ? 'error' : 'warn'"
               >{{ issue.message }}</Message
             >
           </article>
@@ -376,6 +381,18 @@
             optionValue="id"
             placeholder="Choose a compatible engine"
             :disabled="!newBuildType"
+            @update:model-value="newBuildTarget = undefined"
+          />
+        </div>
+        <div v-if="newBuildTargets.length" class="release-field">
+          <label for="build-target">Target</label
+          ><Select
+            id="build-target"
+            v-model="newBuildTarget"
+            :options="newBuildTargets"
+            optionLabel="label"
+            optionValue="id"
+            placeholder="Choose a target"
           />
         </div>
         <p class="field-note">
@@ -411,16 +428,21 @@
       header="Source settings"
       :style="dialogStyle"
       ><div v-if="flow && sourceDefinition" class="settings-grid">
-        <ReleaseFieldControl
-          v-for="field in sourceDefinition.fields || []"
-          :key="field.key"
-          :field="field"
-          :value="fieldValue(flow.source.config, field.key)"
-          :options="fieldOptions(field)"
-          :input-id="`source-${field.key}`"
-          @update:value="setSourceField(field.key, $event)"
-          @add-connection="openConnection"
-        />
+        <template v-for="field in sourceDefinition.fields || []" :key="field.key">
+          <ReleaseFieldControl
+            :field="field"
+            :value="fieldValue(flow.source.config, field.key)"
+            :options="fieldOptions(field)"
+            :input-id="`source-${field.key}`"
+            @update:value="setSourceField(field.key, $event)"
+            @add-connection="openConnection"
+          /><Message
+            v-for="issue in fieldIssues(`source.${field.key}`)"
+            :key="issue.code + issue.path"
+            :severity="issue.severity === 'error' ? 'error' : 'warn'"
+            >{{ issue.message }}</Message
+          >
+        </template>
       </div>
       <template #footer><Button label="Done" @click="sourceSettingsVisible = false" /></template
     ></Dialog>
@@ -490,7 +512,12 @@
             optionLabel="label"
             optionValue="value"
             @update:model-value="setSlotInput(settingsSlot, $event)"
-          />
+          /><Message
+            v-for="issue in slotIssues(settingsSlot)"
+            :key="issue.code + issue.path"
+            :severity="issue.severity === 'error' ? 'error' : 'warn'"
+            >{{ issue.message }}</Message
+          >
         </div>
         <ReleaseFieldControl
           v-for="field in destinationDefinition(settingsDestination.provider)?.slotFields || []"
@@ -619,6 +646,7 @@ const saveState = ref<"saving" | "saved" | "error">("saved");
 const inspectionOptions = ref<Record<string, ReleaseFieldOption[]>>({});
 const newBuildType = ref<string>();
 const newBuildEngine = ref<string>();
+const newBuildTarget = ref<string>();
 const destinationToAdd = ref<string>();
 const buildPickerVisible = ref(false);
 const sourcePickerVisible = ref(false);
@@ -635,6 +663,7 @@ const releaseDescription = ref("");
 const connectionVisible = ref(false);
 const connectionSaving = ref(false);
 const connectionDraft = ref({ name: "", value: "", integration: "" });
+const compatibleSlot = ref<ReleaseDestinationSlot>();
 const dialogStyle = { width: "560px", maxWidth: "94vw" };
 const wideDialogStyle = { width: "760px", maxWidth: "94vw" };
 const saveStateLabel = computed(() =>
@@ -674,6 +703,22 @@ const fieldOptions = (field: ReleaseFieldDefinition) =>
     ? connectionOptions(field)
     : inspectionOptions.value[field.key] || field.options || [];
 const cardIssues = (prefix: string) => issuesForPath(issues.value, prefix);
+const fieldIssues = (path: string) => issues.value.filter((issue) => issue.path === path);
+const slotIssues = (slot: ReleaseDestinationSlot) => {
+  const destinationIndex = flow.value?.destinations.findIndex((destination) =>
+    destination.slots.includes(slot),
+  );
+  const slotIndex =
+    destinationIndex === undefined || destinationIndex < 0
+      ? -1
+      : flow.value?.destinations[destinationIndex].slots.indexOf(slot);
+  return destinationIndex !== undefined &&
+    destinationIndex >= 0 &&
+    slotIndex !== undefined &&
+    slotIndex >= 0
+    ? fieldIssues(`destinations.${destinationIndex}.slots.${slotIndex}.input`)
+    : [];
+};
 const sourcePath = computed(() => {
   const field = sourceDefinition.value?.fields?.find(
     (item) => item.type === "file" || item.type === "directory",
@@ -693,6 +738,11 @@ const buildEngines = (type: string) => buildEnginesFor(catalog.value, type);
 const buildTargets = (build: ReleaseBuildProfileConfig) =>
   buildTargetsFor(catalog.value, build.engine, build.type);
 const newBuildEngines = computed(() => buildEngines(newBuildType.value || ""));
+const newBuildTargets = computed(() =>
+  newBuildType.value && newBuildEngine.value
+    ? buildTargetsFor(catalog.value, newBuildEngine.value, newBuildType.value)
+    : [],
+);
 const buildTypeLabel = (id: string) =>
   catalog.value.buildTypes.find((type) => type.id === id)?.label || id;
 const enabledTargetCount = (build: ReleaseBuildProfileConfig) =>
@@ -717,9 +767,20 @@ const addBuild = () => {
     newBuildEngine.value,
     `${newBuildType.value}-${Date.now()}`,
   );
-  if (build) flow.value.builds.push(build);
+  if (build) {
+    if (newBuildTarget.value) {
+      for (const target of build.targets) target.enabled = target.id === newBuildTarget.value;
+    }
+    flow.value.builds.push(build);
+    if (compatibleSlot.value) {
+      const target = build.targets.find((candidate) => candidate.enabled);
+      if (target) compatibleSlot.value.input = { buildId: build.id, targetId: target.id };
+    }
+  }
   newBuildType.value = undefined;
   newBuildEngine.value = undefined;
+  newBuildTarget.value = undefined;
+  compatibleSlot.value = undefined;
   buildPickerVisible.value = false;
 };
 const removeBuild = (id: string) => {
@@ -772,6 +833,13 @@ const removeSlot = (destination: ReleaseDestinationConfig, id: string) => {
 const setSlotInput = (slot: ReleaseDestinationSlot, value: string) => {
   const output = outputOptions.value.find((candidate) => candidate.value === value);
   if (output) slot.input = output.ref;
+};
+const openCompatibleBuildPicker = (slot: ReleaseDestinationSlot) => {
+  compatibleSlot.value = slot;
+  newBuildType.value = undefined;
+  newBuildEngine.value = undefined;
+  newBuildTarget.value = undefined;
+  buildPickerVisible.value = true;
 };
 const artifactLabel = (ref?: ReleaseOutputRef) =>
   ref
@@ -871,21 +939,44 @@ const nodeIcon = (kind: string) =>
         : "mdi mdi-hammer-wrench";
 const refreshPlan = async () => {
   if (!flow.value) return;
+  const requestId = ++latestPlanRequest;
   const result = await api.execute("release:plan", { config: flow.value });
+  if (requestId !== latestPlanRequest) return;
   if (result.type === "success") {
     plan.value = result.result;
     plannerIssues.value = result.result.issues;
   } else error.value = result.ipcError;
 };
-const save = async () => {
-  if (!flow.value) return;
-  saveState.value = "saving";
-  const result = await api.execute("workflow:save-by-name", {
-    name: `workflows/${flowId.value}`,
-    data: JSON.stringify(flow.value),
+let latestPlanRequest = 0;
+let changeRevision = 0;
+let persistedRevision = 0;
+let saveRequested = false;
+let savePromise: Promise<void> | undefined;
+const save = () => {
+  saveRequested = true;
+  if (savePromise) return savePromise;
+  savePromise = (async () => {
+    while (saveRequested && flow.value) {
+      saveRequested = false;
+      const revision = changeRevision;
+      saveState.value = "saving";
+      const result = await api.execute("workflow:save-by-name", {
+        name: `workflows/${flowId.value}`,
+        data: JSON.stringify(flow.value),
+      });
+      if (result.type === "error") {
+        saveState.value = "error";
+        error.value = result.ipcError;
+        return;
+      }
+      persistedRevision = revision;
+      if (persistedRevision !== changeRevision) saveRequested = true;
+    }
+    saveState.value = "saved";
+  })().finally(() => {
+    savePromise = undefined;
   });
-  saveState.value = result.type === "error" ? "error" : "saved";
-  if (result.type === "error") error.value = result.ipcError;
+  return savePromise;
 };
 const validate = async () => {
   await refreshPlan();
@@ -925,6 +1016,7 @@ let planTimer: ReturnType<typeof setTimeout> | undefined;
 watch(
   flow,
   () => {
+    changeRevision += 1;
     clearTimeout(saveTimer);
     clearTimeout(planTimer);
     if (flow.value) {

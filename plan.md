@@ -575,11 +575,11 @@ Construct
 - [x] Replace wizard step 3 with catalog-driven Destinations.
 - [x] Create destinations without inventing an output route.
 - [x] Allow enabled destination slots to remain unrouted and report a planner issue.
-- [ ] Add the complete Release editor flow for compatible-build creation.
+- [x] Add the complete Release editor flow for compatible-build creation.
 - [ ] Add precise field-level planner issue rendering.
-- [ ] Complete explicit deployment routing and “Create compatible build” handling.
-- [ ] Guard planner responses against stale asynchronous updates.
-- [ ] Serialize autosaves and report the latest persisted state.
+- [x] Complete explicit deployment routing and “Create compatible build” handling.
+- [x] Guard planner responses against stale asynchronous updates.
+- [x] Serialize autosaves and report the latest persisted state.
 - [x] Keep planner/compiler/runtime ownership and provider-neutral shared UI boundaries.
 
 That is the target Phase 3 UX.
