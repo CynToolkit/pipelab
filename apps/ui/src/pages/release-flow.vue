@@ -30,13 +30,22 @@
       </template>
       <main v-if="flow" class="release-page">
         <Message v-if="error" severity="error">{{ error }}</Message>
-        <Message v-if="issues.length" :severity="errorCount ? 'error' : 'warn'"
-          ><strong
-            >{{ issues.length }} configuration issue{{ issues.length === 1 ? "" : "s" }}</strong
-          ><span class="summary-copy"
+        <Message v-if="issues.length" :severity="errorCount ? 'error' : 'warn'">
+          <div class="diagnostic-summary">
+            <strong
+              >{{ issues.length }} configuration issue{{ issues.length === 1 ? "" : "s" }}</strong
+            >
+            <Button
+              :label="issuesExpanded ? 'Hide issues' : 'View issues'"
+              text
+              size="small"
+              @click="issuesExpanded = !issuesExpanded"
+            />
+          </div>
+          <span class="summary-copy"
             >The planner is authoritative. Fix the highlighted fields before shipping.</span
           >
-          <ul class="issue-summary">
+          <ul v-if="issuesExpanded" class="issue-summary">
             <li v-for="issue in issues" :key="`${issue.code}:${issue.path}`">
               <Tag
                 :value="issue.severity"
@@ -44,8 +53,8 @@
               />
               {{ issue.message }}
             </li>
-          </ul></Message
-        >
+          </ul>
+        </Message>
         <section v-if="plan?.graph.nodes.length" class="plan-panel">
           <div class="section-heading">
             <div>
@@ -53,8 +62,14 @@
               <h2>Build plan</h2>
               <p>Automatic transforms appear as plumbing, never as configurable builds.</p>
             </div>
+            <Button
+              :label="planExpanded ? 'Collapse' : 'View plan'"
+              text
+              size="small"
+              @click="planExpanded = !planExpanded"
+            />
           </div>
-          <ol class="plan-list">
+          <ol v-if="planExpanded" class="plan-list">
             <li v-for="node in plan.graph.nodes" :key="node.id">
               <i :class="nodeIcon(node.kind)" /><span>{{ planNodeLabel(node.id, node.kind) }}</span>
             </li>
@@ -690,6 +705,8 @@ const plan = ref<ReleasePlan>();
 const plannerIssues = ref<ValidationIssue[]>([]);
 const inspectionIssues = ref<ValidationIssue[]>([]);
 const issues = computed(() => [...plannerIssues.value, ...inspectionIssues.value]);
+const issuesExpanded = ref(false);
+const planExpanded = ref(false);
 const error = ref("");
 const running = ref(false);
 const saveState = ref<"saving" | "saved" | "error">("saved");
