@@ -779,9 +779,9 @@ Keep existing tests for:
 
 ## Cleanup
 
-* [ ] Remove obsolete `browser-profile` field type if unused
-* [ ] Remove dead BrowserProfilePicker component
-* [ ] Remove dead imports/references
+* [x] Verify `browser-profile` remains used by the generic editor control
+* [x] Verify BrowserProfilePicker is live editor functionality
+* [x] Verify no dead browser-profile imports/references remain
 * [x] Keep Construct inspection behavior unchanged
 
 ## Tests
