@@ -9,14 +9,25 @@ const command = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
 const timeoutMs = 120_000;
 const forgeArgs = process.platform === "linux" ? ["--headless", "--no-sandbox"] : ["--headless"];
 
-const uiProcess = spawn(command, ["run", "dev"], {
-  cwd: uiDir,
-  env: process.env,
-  shell: process.platform === "win32",
-  stdio: ["ignore", "pipe", "pipe"],
-  windowsVerbatimArguments: false,
-  detached: process.platform !== "win32",
-});
+const isUiUp = () =>
+  new Promise((resolve) => {
+    const request = http.get("http://127.0.0.1:5173", (response) => {
+      response.resume();
+      resolve(true);
+    });
+    request.on("error", () => resolve(false));
+  });
+const uiAlreadyRunning = await isUiUp();
+const uiProcess = uiAlreadyRunning
+  ? undefined
+  : spawn(command, ["run", "dev"], {
+      cwd: uiDir,
+      env: process.env,
+      shell: process.platform === "win32",
+      stdio: ["ignore", "pipe", "pipe"],
+      windowsVerbatimArguments: false,
+      detached: process.platform !== "win32",
+    });
 const child = spawn(command, ["run", "start", "--", ...forgeArgs], {
   cwd: desktopDir,
   env: { ...process.env, PIPELAB_E2E: "1" },
@@ -34,7 +45,7 @@ const appendOutput = (chunk) => {
 };
 
 const stopProcessTree = (processToStop) => {
-  if (!processToStop.pid) return;
+  if (!processToStop?.pid) return;
   if (process.platform === "win32") {
     spawn("taskkill.exe", ["/pid", String(processToStop.pid), "/t", "/f"], {
       stdio: "ignore",
@@ -48,26 +59,28 @@ const stopProcessTree = (processToStop) => {
   }
 };
 
-uiProcess.stdout.on("data", appendOutput);
-uiProcess.stderr.on("data", appendOutput);
+uiProcess?.stdout.on("data", appendOutput);
+uiProcess?.stderr.on("data", appendOutput);
 
-const waitForUi = new Promise((resolve, reject) => {
-  const deadline = Date.now() + 30_000;
-  const check = () => {
-    const request = http.get("http://127.0.0.1:5173", (response) => {
-      response.resume();
-      resolve();
+const waitForUi = uiAlreadyRunning
+  ? Promise.resolve()
+  : new Promise((resolve, reject) => {
+      const deadline = Date.now() + 30_000;
+      const check = () => {
+        const request = http.get("http://127.0.0.1:5173", (response) => {
+          response.resume();
+          resolve();
+        });
+        request.on("error", () => {
+          if (Date.now() >= deadline) {
+            reject(new Error("UI Vite server did not start on port 5173"));
+          } else {
+            setTimeout(check, 250);
+          }
+        });
+      };
+      check();
     });
-    request.on("error", () => {
-      if (Date.now() >= deadline) {
-        reject(new Error("UI Vite server did not start on port 5173"));
-      } else {
-        setTimeout(check, 250);
-      }
-    });
-  };
-  check();
-});
 
 const finish = (error) => {
   if (settled) return;
