@@ -307,7 +307,7 @@ describe("release flow model", () => {
     });
   });
 
-  it("uses the central Desktop fallback when no preferences are supplied", () => {
+  it("creates the Desktop fallback for Construct to Steam", () => {
     const buildCatalog: ReleaseCatalog = {
       ...catalog,
       producers: [
@@ -335,6 +335,10 @@ describe("release flow model", () => {
     const configWithDestination: ReleaseConfig = {
       ...config,
       builds: [],
+      source: {
+        provider: "@pipelab/plugin-construct/source",
+        config: { path: "/game.c3p", profilePath: "/profile" },
+      },
       destinations: [
         {
           id: "steam",
@@ -370,15 +374,17 @@ describe("release flow model", () => {
     });
   });
 
-  it("reuses one generated build for multiple compatible destinations", () => {
+  it("creates one Desktop build for Construct to Steam and Poki", () => {
     const destinationCatalog: ReleaseCatalog = {
       ...catalog,
       producers: [
         {
           ...catalog.producers[0],
+          id: "@pipelab/plugin-electron/producer",
           targets: [
             {
               ...catalog.producers[0].targets[0],
+              id: "windows-x64",
               output: { kind: "application", platform: "windows", container: "directory" },
             },
           ],
@@ -386,9 +392,15 @@ describe("release flow model", () => {
       ],
       destinations: [
         {
-          id: "desktop-destination",
-          label: "Desktop destination",
+          id: "@pipelab/plugin-steam/destination",
+          label: "Steam",
           accepts: { kind: "application", platform: "windows", container: "directory" },
+          defaultConfig: {},
+        },
+        {
+          id: "@pipelab/plugin-poki/destination",
+          label: "Poki",
+          accepts: { kind: "application", platform: "web", container: "directory" },
           defaultConfig: {},
         },
       ],
@@ -396,17 +408,21 @@ describe("release flow model", () => {
     const configWithDestinations: ReleaseConfig = {
       ...config,
       builds: [],
+      source: {
+        provider: "@pipelab/plugin-construct/source",
+        config: { path: "/game.c3p", profilePath: "/profile" },
+      },
       destinations: [
         {
           id: "first",
-          provider: "desktop-destination",
+          provider: "@pipelab/plugin-steam/destination",
           enabled: true,
           config: {},
           slots: [{ id: "slot", enabled: true, config: {} }],
         },
         {
           id: "second",
-          provider: "desktop-destination",
+          provider: "@pipelab/plugin-poki/destination",
           enabled: true,
           config: {},
           slots: [{ id: "slot", enabled: true, config: {} }],
@@ -414,7 +430,13 @@ describe("release flow model", () => {
       ],
     };
     const plan = {
-      outputs: [],
+      outputs: [
+        {
+          ref: { source: true },
+          artifactRef: { source: true },
+          descriptor: { kind: "application", platform: "web", container: "directory" },
+        },
+      ],
       issues: [
         {
           code: "release.destination.input.required",
@@ -435,17 +457,16 @@ describe("release flow model", () => {
     } as ReleasePlan;
     expect(
       resolveMissingDestinationInputs(configWithDestinations, plan, destinationCatalog, {
-        buildTypes: { desktop: { engine: "engine-a", targets: ["windows"] } },
+        buildTypes: {},
       }),
     ).toBe(true);
     expect(configWithDestinations.builds).toHaveLength(1);
     expect(configWithDestinations.destinations[0].slots[0].input).toEqual({
       buildId: "desktop-default",
-      targetId: "windows",
+      targetId: "windows-x64",
     });
     expect(configWithDestinations.destinations[1].slots[0].input).toEqual({
-      buildId: "desktop-default",
-      targetId: "windows",
+      source: true,
     });
   });
 
