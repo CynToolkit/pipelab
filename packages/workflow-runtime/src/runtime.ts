@@ -166,6 +166,19 @@ const validateWorkflow = (workflow: Workflow): void => {
     if (step.artifactInputs !== undefined && !isRecord(step.artifactInputs)) {
       throw new Error(`Workflow step ${step.id} artifact inputs must be an object`);
     }
+    for (const [inputName, reference] of Object.entries(step.artifactInputs ?? {})) {
+      if (
+        !isRecord(reference) ||
+        typeof reference.stepId !== "string" ||
+        !reference.stepId ||
+        typeof reference.artifact !== "string" ||
+        !reference.artifact
+      ) {
+        throw new Error(
+          `Workflow step ${step.id} artifact input ${inputName} must reference a step artifact`,
+        );
+      }
+    }
     if (step.delivery !== undefined) {
       if (
         !isRecord(step.delivery) ||
@@ -193,12 +206,67 @@ const validateWorkflow = (workflow: Workflow): void => {
         throw new Error(`Workflow step ${step.id} depends on unknown step: ${dependency}`);
       }
     }
+    for (const reference of Object.values(step.artifactInputs ?? {})) {
+      if (
+        isRecord(reference) &&
+        typeof reference.stepId === "string" &&
+        !ids.has(reference.stepId)
+      ) {
+        throw new Error(
+          `Workflow step ${step.id} references an unknown artifact step: ${reference.stepId}`,
+        );
+      }
+      if (
+        isRecord(reference) &&
+        typeof reference.stepId === "string" &&
+        typeof reference.artifact === "string" &&
+        ids.has(reference.stepId)
+      ) {
+        const referencedStep = workflow.steps.find(
+          (candidate) => candidate.id === reference.stepId,
+        );
+        if (
+          !referencedStep?.artifacts ||
+          !Object.prototype.hasOwnProperty.call(referencedStep.artifacts, reference.artifact)
+        ) {
+          throw new Error(
+            `Workflow step ${step.id} references undeclared artifact "${reference.artifact}" on workflow step "${reference.stepId}"`,
+          );
+        }
+      }
+    }
+    if (step.delivery?.artifact && ids.has(step.delivery.artifact.stepId)) {
+      const referencedStep = workflow.steps.find(
+        (candidate) => candidate.id === step.delivery!.artifact.stepId,
+      );
+      if (
+        !referencedStep?.artifacts ||
+        !Object.prototype.hasOwnProperty.call(
+          referencedStep.artifacts,
+          step.delivery.artifact.artifact,
+        )
+      ) {
+        throw new Error(
+          `Workflow step ${step.id} references undeclared artifact "${step.delivery.artifact.artifact}" on workflow step "${step.delivery.artifact.stepId}"`,
+        );
+      }
+    }
+    if (step.delivery?.artifact && !ids.has(step.delivery.artifact.stepId)) {
+      throw new Error(
+        `Workflow step ${step.id} references an unknown artifact step: ${step.delivery.artifact.stepId}`,
+      );
+    }
   }
 };
 
 const dependenciesFor = (workflow: Workflow, step: WorkflowStep): readonly string[] => {
   const index = workflow.steps.findIndex((candidate) => candidate.id === step.id);
-  return step.needs ?? (index > 0 ? [workflow.steps[index - 1].id] : []);
+  return [
+    ...new Set([
+      ...(step.needs ?? (index > 0 ? [workflow.steps[index - 1].id] : [])),
+      ...Object.values(step.artifactInputs ?? {}).map((reference) => reference.stepId),
+    ]),
+  ];
 };
 
 const artifactForDelivery = (
@@ -207,7 +275,9 @@ const artifactForDelivery = (
 ): WorkflowArtifactInstance | undefined => {
   return artifacts.find(
     (artifact): artifact is WorkflowArtifactInstance =>
-      "descriptor" in artifact && artifact.stepId === reference.stepId && artifact.artifact === reference.artifact,
+      "descriptor" in artifact &&
+      artifact.stepId === reference.stepId &&
+      artifact.artifact === reference.artifact,
   );
 };
 
@@ -289,10 +359,19 @@ export const runWorkflow = async (
             },
             setArtifact: (outputId, path, metadata) => {
               const definition = step.artifacts?.[outputId];
-              if (!definition) throw new Error(`Workflow step ${step.id} declared no artifact named "${outputId}"`);
-              if (stepArtifacts.some((artifact) =>
-                "descriptor" in artifact && artifact.artifact === outputId && artifact.path === path,
-              )) return;
+              if (!definition)
+                throw new Error(
+                  `Workflow step ${step.id} declared no artifact named "${outputId}"`,
+                );
+              if (
+                stepArtifacts.some(
+                  (artifact) =>
+                    "descriptor" in artifact &&
+                    artifact.artifact === outputId &&
+                    artifact.path === path,
+                )
+              )
+                return;
               stepArtifacts.push(
                 Object.freeze({
                   id: `artifact-${context.buildId ?? startedAt}-${artifactSequence++}`,
@@ -314,8 +393,8 @@ export const runWorkflow = async (
         const cloud = result.cloud as WorkflowArtifactInstance["cloud"] | undefined;
         if (deliveryArtifact && cloud && typeof cloud.hostedArtifactId === "string") {
           const updatedArtifact = Object.freeze({ ...deliveryArtifact, cloud });
-          const artifactIndex = artifacts.findIndex((artifact) =>
-            "descriptor" in artifact && artifact.id === deliveryArtifact.id,
+          const artifactIndex = artifacts.findIndex(
+            (artifact) => "descriptor" in artifact && artifact.id === deliveryArtifact.id,
           );
           if (artifactIndex >= 0) artifacts[artifactIndex] = updatedArtifact;
           stepArtifacts.push(updatedArtifact);
@@ -347,9 +426,12 @@ export const runWorkflow = async (
         outputs[step.id] = result;
         steps[step.id] = stepResult;
         for (const artifact of stepArtifacts) {
-          const existingIndex = "descriptor" in artifact
-            ? artifacts.findIndex((existing) => "descriptor" in existing && existing.id === artifact.id)
-            : -1;
+          const existingIndex =
+            "descriptor" in artifact
+              ? artifacts.findIndex(
+                  (existing) => "descriptor" in existing && existing.id === artifact.id,
+                )
+              : -1;
           if (existingIndex >= 0) artifacts[existingIndex] = artifact;
           else artifacts.push(artifact);
         }
@@ -465,18 +547,36 @@ export const runWorkflow = async (
         for (const step of workflow.steps) {
           if (!pending.has(step.id)) continue;
           const skippedStep: WorkflowStepResult = {
-            id: step.id, uses: step.uses, status: "skipped", outputs: {}, artifacts: [],
-            startedAt: now, completedAt: now, duration: 0, blockedBy: [failedStepId],
+            id: step.id,
+            uses: step.uses,
+            status: "skipped",
+            outputs: {},
+            artifacts: [],
+            startedAt: now,
+            completedAt: now,
+            duration: 0,
+            blockedBy: [failedStepId],
           };
-          if (step.delivery) skippedStep.delivery = {
-            id: step.id, destinationId: step.delivery.destinationId,
-            slotId: step.delivery.slotId, artifactId: "",
-            status: "failed", startedAt: now, completedAt: now, duration: 0,
-            error: `Skipped after ${failedStepId} failed`,
-          };
+          if (step.delivery)
+            skippedStep.delivery = {
+              id: step.id,
+              destinationId: step.delivery.destinationId,
+              slotId: step.delivery.slotId,
+              artifactId: "",
+              status: "failed",
+              startedAt: now,
+              completedAt: now,
+              duration: 0,
+              error: `Skipped after ${failedStepId} failed`,
+            };
           steps[step.id] = skippedStep;
           pending.delete(step.id);
-          emit({ type: "step.skipped", stepId: step.id, uses: step.uses, blockedBy: [failedStepId] });
+          emit({
+            type: "step.skipped",
+            stepId: step.id,
+            uses: step.uses,
+            blockedBy: [failedStepId],
+          });
         }
         throw failure.reason;
       }
