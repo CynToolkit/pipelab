@@ -3,11 +3,18 @@ import {
   buildEnginesFor,
   buildTargetsFor,
   createBuildProfile,
+  defaultBuildProfile,
+  resolveMissingDestinationInputs,
   issuesForPath,
   planOutputOptions,
   switchBuildProfileEngine,
 } from "./release-flow-model";
-import type { ReleaseCatalog, ReleaseConfig, ReleasePlan } from "@pipelab/shared";
+import type {
+  ReleaseBuildPreferences,
+  ReleaseCatalog,
+  ReleaseConfig,
+  ReleasePlan,
+} from "@pipelab/shared";
 
 const catalog: ReleaseCatalog = {
   buildTypes: [
@@ -84,6 +91,17 @@ describe("release flow model", () => {
     expect(first).not.toBe(second);
   });
 
+  it("creates a profile from explicit build preferences", () => {
+    const preferences: ReleaseBuildPreferences = {
+      buildTypes: { desktop: { engine: "engine-b", targets: ["linux"] } },
+    };
+    expect(defaultBuildProfile(catalog, "desktop", "desktop-default", preferences)).toMatchObject({
+      id: "desktop-default",
+      engine: "engine-b",
+      targets: [{ id: "linux", enabled: true }],
+    });
+  });
+
   it("renders explicit outputs from the planner without compatibility logic", () => {
     const plan = {
       outputs: [
@@ -128,5 +146,119 @@ describe("release flow model", () => {
     ];
     expect(issuesForPath(issues, "destinations.0")).toEqual(issues);
     expect(issuesForPath(issues, "builds.0")).toEqual([]);
+  });
+
+  it("routes an unresolved destination to an existing compatible output", () => {
+    const destinationCatalog = {
+      ...catalog,
+      destinations: [
+        {
+          id: "desktop-destination",
+          label: "Desktop destination",
+          accepts: { kind: "project" },
+          defaultConfig: {},
+        },
+      ],
+    };
+    const configWithDestination = {
+      ...config,
+      destinations: [
+        {
+          id: "destination",
+          provider: "desktop-destination",
+          enabled: true,
+          config: {},
+          slots: [{ id: "default", enabled: true, config: {} }],
+        },
+      ],
+    };
+    const plan = {
+      outputs: [
+        {
+          ref: { source: true },
+          artifactRef: { source: true },
+          descriptor: { kind: "project", container: "directory" },
+        },
+      ],
+      issues: [
+        {
+          code: "release.destination.input.required",
+          message: "Choose an output.",
+          severity: "error" as const,
+          path: "destinations.0.slots.0.input",
+        },
+      ],
+      producers: [],
+      destinations: [],
+      graph: { nodes: [], edges: [] },
+    } as ReleasePlan;
+    expect(
+      resolveMissingDestinationInputs(configWithDestination, plan, destinationCatalog, {
+        buildTypes: {},
+      }),
+    ).toBe(true);
+    expect(configWithDestination.destinations[0].slots[0].input).toEqual({ source: true });
+    expect(configWithDestination.builds).toHaveLength(0);
+  });
+
+  it("creates one configured default build when no compatible output exists", () => {
+    const buildCatalog = {
+      ...catalog,
+      producers: [
+        {
+          ...catalog.producers[0],
+          targets: [
+            {
+              ...catalog.producers[0].targets[0],
+              output: { kind: "application", platform: "windows", container: "directory" },
+            },
+          ],
+        },
+      ],
+      destinations: [
+        {
+          id: "desktop-destination",
+          label: "Desktop destination",
+          accepts: { kind: "application", platform: "windows", container: "directory" },
+          defaultConfig: {},
+        },
+      ],
+    };
+    const configWithDestination = {
+      ...config,
+      destinations: [
+        {
+          id: "destination",
+          provider: "desktop-destination",
+          enabled: true,
+          config: {},
+          slots: [{ id: "default", enabled: true, config: {} }],
+        },
+      ],
+    };
+    const plan = {
+      outputs: [],
+      issues: [
+        {
+          code: "release.destination.input.required",
+          message: "Choose an output.",
+          severity: "error" as const,
+          path: "destinations.0.slots.0.input",
+        },
+      ],
+      producers: [],
+      destinations: [],
+      graph: { nodes: [], edges: [] },
+    } as ReleasePlan;
+    expect(
+      resolveMissingDestinationInputs(configWithDestination, plan, buildCatalog, {
+        buildTypes: { desktop: { engine: "engine-a", targets: ["windows"] } },
+      }),
+    ).toBe(true);
+    expect(configWithDestination.builds).toHaveLength(1);
+    expect(configWithDestination.builds[0]).toMatchObject({
+      id: "desktop-default",
+      engine: "engine-a",
+    });
   });
 });

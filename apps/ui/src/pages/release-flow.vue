@@ -336,13 +336,7 @@
                   @click="openCompatibleBuildPicker(slot)"
                 />
               </div>
-              <Button
-                label="Add deployment"
-                icon="pi pi-plus"
-                text
-                :disabled="!outputOptions.length"
-                @click="addSlot(destination)"
-              />
+              <Button label="Add deployment" icon="pi pi-plus" text @click="addSlot(destination)" />
             </div>
             <Message
               v-for="issue in cardIssues(`destinations.${index}`)"
@@ -639,6 +633,7 @@ import type {
   ReleasePlan,
   ValidationIssue,
 } from "@pipelab/shared";
+import { getReleaseBuildPreferences } from "@pipelab/shared";
 import Layout from "../components/Layout.vue";
 import WorkflowShell from "../components/WorkflowShell.vue";
 import ReleaseFieldControl from "../components/ReleaseFieldControl.vue";
@@ -650,6 +645,7 @@ import {
   createBuildProfile,
   issuesForPath,
   planOutputOptions,
+  resolveMissingDestinationInputs,
   switchBuildProfileEngine,
 } from "./release-flow-model";
 
@@ -870,7 +866,7 @@ const setBuildInput = (build: ReleaseBuildProfileConfig, value: string) => {
 const addDestination = () => {
   if (!flow.value || !destinationToAdd.value) return;
   const definition = destinationDefinition(destinationToAdd.value);
-  if (definition)
+  if (definition) {
     flow.value.destinations.push({
       id: `${destinationToAdd.value.split("/").pop()}-${Date.now()}`,
       provider: destinationToAdd.value,
@@ -878,6 +874,8 @@ const addDestination = () => {
       config: { ...definition.defaultConfig },
       slots: [],
     });
+    automaticResolutionRequested = true;
+  }
   destinationToAdd.value = undefined;
 };
 const removeDestination = (id: string) => {
@@ -887,14 +885,11 @@ const removeDestination = (id: string) => {
     );
 };
 const addSlot = (destination: ReleaseDestinationConfig) => {
-  const output = outputOptions.value[0];
-  if (output)
-    destination.slots.push({
-      id: `${destination.id}-${destination.slots.length + 1}`,
-      enabled: true,
-      input: output.ref,
-      config: {},
-    });
+  destination.slots.push({
+    id: `${destination.id}-${destination.slots.length + 1}`,
+    enabled: true,
+    config: {},
+  });
 };
 const removeSlot = (destination: ReleaseDestinationConfig, id: string) => {
   destination.slots = destination.slots.filter((slot) => slot.id !== id);
@@ -1006,7 +1001,8 @@ const nodeIcon = (kind: string) =>
       : kind === "automatic"
         ? "mdi mdi-cog-transfer-outline"
         : "mdi mdi-hammer-wrench";
-const refreshPlan = async () => {
+let automaticResolutionRequested = false;
+const refreshPlan = async (resolveDefaults = false) => {
   if (!flow.value) return;
   const requestId = ++latestPlanRequest;
   const result = await api.execute("release:plan", { config: flow.value });
@@ -1014,6 +1010,21 @@ const refreshPlan = async () => {
   if (result.type === "success") {
     plan.value = result.result;
     plannerIssues.value = result.result.issues;
+    if (resolveDefaults && automaticResolutionRequested) {
+      automaticResolutionRequested = false;
+      if (
+        resolveMissingDestinationInputs(
+          flow.value,
+          result.result,
+          catalog.value,
+          getReleaseBuildPreferences(),
+        )
+      ) {
+        changeRevision += 1;
+        await save();
+        await refreshPlan(true);
+      }
+    }
   } else error.value = result.ipcError;
 };
 let latestPlanRequest = 0;
@@ -1104,8 +1115,9 @@ onMounted(async () => {
   if (catalogResult.type === "success") catalog.value = catalogResult.result;
   if (flowResult.type === "success") {
     flow.value = flowResult.result as ReleaseConfig;
+    automaticResolutionRequested = true;
     await inspectSource();
-    await refreshPlan();
+    await refreshPlan(true);
   } else error.value = flowResult.ipcError;
 });
 </script>
