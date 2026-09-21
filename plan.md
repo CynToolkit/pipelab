@@ -804,7 +804,7 @@ Keep existing tests for:
 * [x] Shared planner/compiler tests
 * [x] Typecheck
 * [x] Lint
-* [ ] Full CI
+* [x] Full CI
 * [ ] Manually test Construct → Poki
 * [ ] Manually test Construct → Steam
 * [ ] Manually test Construct → Steam + Poki
