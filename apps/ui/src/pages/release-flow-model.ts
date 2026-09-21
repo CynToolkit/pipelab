@@ -1,11 +1,9 @@
-import { DEFAULT_RELEASE_BUILD_PREFERENCES, evaluateArtifactAcceptance } from "@pipelab/shared";
 import type {
   ReleaseBuildProfileConfig,
   ReleaseCatalog,
   ReleaseConfig,
   ReleaseOutputRef,
   ReleasePlan,
-  ReleaseBuildPreferences,
   ValidationIssue,
 } from "@pipelab/shared";
 
@@ -93,126 +91,6 @@ export const removeBuildProfile = (config: ReleaseConfig, id: string): boolean =
   if (nextBuilds.length === config.builds.length) return false;
   config.builds = nextBuilds;
   return true;
-};
-
-export const defaultBuildProfile = (
-  catalog: ReleaseCatalog,
-  type: string,
-  id: string,
-  preferences: ReleaseBuildPreferences,
-) => {
-  const candidates = [
-    preferences.buildTypes[type],
-    DEFAULT_RELEASE_BUILD_PREFERENCES.buildTypes[type],
-  ];
-  for (const preference of candidates) {
-    if (!preference?.engine) continue;
-    const engine = buildEnginesFor(catalog, type).find(
-      (candidate) => candidate.id === preference.engine,
-    );
-    if (!engine) continue;
-    const targets = buildTargetsFor(catalog, preference.engine, type);
-    const selectedTargets = preference.targets?.filter((target) =>
-      targets.some((candidate) => candidate.id === target),
-    );
-    if (preference.targets?.length && !selectedTargets?.length) continue;
-    return createBuildProfile(catalog, type, preference.engine, id, selectedTargets);
-  }
-  return undefined;
-};
-
-export const resolveMissingDestinationInputs = (
-  config: ReleaseConfig,
-  plan: ReleasePlan,
-  catalog: ReleaseCatalog,
-  preferences: ReleaseBuildPreferences,
-): boolean => {
-  let changed = false;
-  for (const [destinationIndex, destination] of config.destinations.entries()) {
-    const definition = catalog.destinations.find(
-      (candidate) => candidate.id === destination.provider,
-    );
-    if (!definition || !destination.enabled) continue;
-    for (const [slotIndex, slot] of destination.slots.entries()) {
-      if (!slot.enabled || slot.input) continue;
-      const issuePath = `destinations.${destinationIndex}.slots.${slotIndex}.input`;
-      if (
-        !plan.issues.some(
-          (issue) =>
-            issue.code === "release.destination.input.required" &&
-            issue.severity === "error" &&
-            issue.path === issuePath,
-        )
-      )
-        continue;
-      const compatibleOutput = plan.outputs.find(
-        (output) => evaluateArtifactAcceptance(output.descriptor, definition.accepts).accepted,
-      );
-      if (compatibleOutput) {
-        slot.input = compatibleOutput.ref;
-        changed = true;
-        continue;
-      }
-      const compatibleBuild = config.builds.find(
-        (build) =>
-          build.enabled &&
-          build.targets.some((target) => {
-            if (!target.enabled) return false;
-            const targetDefinition = catalog.producers
-              .find((producer) => producer.id === build.engine)
-              ?.targets.find((candidate) => candidate.id === target.id);
-            return (
-              targetDefinition?.output &&
-              evaluateArtifactAcceptance(targetDefinition.output, definition.accepts).accepted
-            );
-          }),
-      );
-      if (compatibleBuild) {
-        const target = compatibleBuild.targets.find((candidate) => {
-          if (!candidate.enabled) return false;
-          const targetDefinition = catalog.producers
-            .find((producer) => producer.id === compatibleBuild.engine)
-            ?.targets.find((target) => target.id === candidate.id);
-          return (
-            targetDefinition?.output &&
-            evaluateArtifactAcceptance(targetDefinition.output, definition.accepts).accepted
-          );
-        });
-        if (target) {
-          slot.input = { buildId: compatibleBuild.id, targetId: target.id };
-          changed = true;
-          continue;
-        }
-      }
-      const buildTypes = new Set([
-        ...Object.keys(preferences.buildTypes),
-        ...Object.keys(DEFAULT_RELEASE_BUILD_PREFERENCES.buildTypes),
-      ]);
-      for (const buildType of buildTypes) {
-        const buildId = `${buildType}-default`;
-        if (config.builds.some((build) => build.id === buildId)) continue;
-        const build = defaultBuildProfile(catalog, buildType, buildId, preferences);
-        if (!build || !build.targets.some((target) => target.enabled)) continue;
-        const matchingTarget = build.targets.find((target) => {
-          const targetDefinition = catalog.producers
-            .find((producer) => producer.id === build.engine)
-            ?.targets.find((candidate) => candidate.id === target.id);
-          return (
-            target.enabled &&
-            targetDefinition?.output &&
-            evaluateArtifactAcceptance(targetDefinition.output, definition.accepts).accepted
-          );
-        });
-        if (matchingTarget) {
-          config.builds.push(build);
-          slot.input = { buildId: build.id, targetId: matchingTarget.id };
-          changed = true;
-          break;
-        }
-      }
-    }
-  }
-  return changed;
 };
 
 export const switchBuildProfileEngine = (

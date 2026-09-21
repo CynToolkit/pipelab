@@ -12,6 +12,7 @@ import {
   buildReleaseRegistry,
   compileWorkflow,
   planRelease,
+  resolveReleaseDefaults,
   validateRelease,
   type BuildHistoryEntry,
   type ReleaseConfig,
@@ -284,6 +285,17 @@ export const registerWorkflowHandlers = (context: PipelabContext, pluginsReady?:
       await send({
         type: "end",
         data: { type: "success", result: planRelease(value.config, registry(), { host: host() }) },
+      }),
+  );
+  handle(
+    "release:resolve-defaults",
+    async (_, { send, value }) =>
+      await send({
+        type: "end",
+        data: {
+          type: "success",
+          result: resolveReleaseDefaults(value.config, registry(), { host: host() }),
+        },
       }),
   );
   handle("workflow:execute", async (_, { send, value }) => {

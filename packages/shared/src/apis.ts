@@ -210,6 +210,7 @@ export type IpcDefinition = {
   ];
   "release:validate": [{ config: ReleaseConfig }, EndEvent<{ issues: ValidationIssue[] }>];
   "release:plan": [{ config: ReleaseConfig }, EndEvent<ReleasePlan>];
+  "release:resolve-defaults": [{ config: ReleaseConfig }, EndEvent<ReleaseConfig>];
   "workflow:save-by-name": [{ name: string; data: string }, EndEvent<"ok">];
   "workflow:delete-by-name": [{ name: string }, EndEvent<"ok">];
   "workflow:execute": [

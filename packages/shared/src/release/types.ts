@@ -147,15 +147,7 @@ export interface Availability {
 
 export interface ReleaseFieldDefinition {
   key: string;
-  type:
-    | "text"
-    | "password"
-    | "number"
-    | "directory"
-    | "file"
-    | "select"
-    | "connection"
-    | "browser-profile";
+  type: "text" | "password" | "number" | "directory" | "file" | "select" | "connection";
   label: string;
   description?: string;
   deferUntilEditor?: boolean;

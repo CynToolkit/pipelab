@@ -319,7 +319,7 @@
             optionValue="id"
             placeholder="Choose a compatible engine"
             :disabled="!newBuildType"
-            @update:model-value="newBuildTarget = undefined"
+            @update:model-value="selectBuildEngine"
           />
         </div>
         <div v-if="newBuildTargets.length" class="release-field">
@@ -341,7 +341,9 @@
         ><Button label="Cancel" text @click="buildPickerVisible = false" /><Button
           label="Add build"
           icon="pi pi-plus"
-          :disabled="!newBuildType || !newBuildEngine"
+          :disabled="
+            !newBuildType || !newBuildEngine || (newBuildTargets.length > 0 && !newBuildTarget)
+          "
           @click="addBuild" /></template
     ></Dialog>
     <Dialog v-model:visible="sourcePickerVisible" modal header="Choose source" :style="dialogStyle"
@@ -372,6 +374,7 @@
             :value="fieldValue(flow.source.config, field.key)"
             :options="fieldOptions(field)"
             :input-id="`source-${field.key}`"
+            :issues="fieldIssues(`source.${field.key}`)"
             @update:value="setSourceField(field.key, $event)"
             @add-connection="openConnection"
           />
@@ -395,6 +398,13 @@
             optionValue="id"
             @update:model-value="switchEngine(settingsBuild, $event)"
           />
+          <small
+            v-for="issue in fieldIssues(`builds.${flow?.builds.indexOf(settingsBuild)}.engine`)"
+            :key="`${issue.code}:${issue.path}`"
+            class="field-issue"
+            :class="issue.severity === 'error' ? 'field-issue-error' : 'field-issue-warning'"
+            >{{ issue.message }}</small
+          >
         </div>
         <div class="release-field wide">
           <span class="field-label">Targets</span>
@@ -429,6 +439,13 @@
             optionValue="value"
             @update:model-value="setBuildInput(settingsBuild, $event)"
           />
+          <small
+            v-for="issue in fieldIssues(`builds.${flow?.builds.indexOf(settingsBuild)}.input`)"
+            :key="`${issue.code}:${issue.path}`"
+            class="field-issue"
+            :class="issue.severity === 'error' ? 'field-issue-error' : 'field-issue-warning'"
+            >{{ issue.message }}</small
+          >
         </div>
         <template
           v-for="field in producerDefinition(settingsBuild.engine)?.fields || []"
@@ -439,6 +456,9 @@
             :value="fieldValue(settingsBuild.config, field.key)"
             :options="fieldOptions(field)"
             :input-id="`build-${settingsBuild.id}-${field.key}`"
+            :issues="
+              fieldIssues(`builds.${flow?.builds.indexOf(settingsBuild)}.config.${field.key}`)
+            "
             @update:value="setField(settingsBuild.config, field.key, $event)"
             @add-connection="openConnection"
           /> </template
@@ -454,6 +474,11 @@
               :value="fieldValue(target.config, field.key)"
               :options="fieldOptions(field)"
               :input-id="`target-${settingsBuild.id}-${target.id}-${field.key}`"
+              :issues="
+                fieldIssues(
+                  `builds.${flow?.builds.indexOf(settingsBuild)}.targets.${settingsBuild.targets.indexOf(target)}.config.${field.key}`,
+                )
+              "
               @update:value="setField(target.config, field.key, $event)"
               @add-connection="openConnection" /></template
         ></template>
@@ -474,6 +499,11 @@
             :value="fieldValue(settingsDestination.config, field.key)"
             :options="fieldOptions(field)"
             :input-id="`destination-${settingsDestination.id}-${field.key}`"
+            :issues="
+              fieldIssues(
+                `destinations.${flow?.destinations.indexOf(settingsDestination)}.config.${field.key}`,
+              )
+            "
             @update:value="setField(settingsDestination.config, field.key, $event)"
             @add-connection="openConnection"
         /></template>
@@ -496,6 +526,13 @@
             optionValue="value"
             @update:model-value="setSlotInput(settingsSlot, $event)"
           />
+          <small
+            v-for="issue in slotIssues(settingsSlot)"
+            :key="`${issue.code}:${issue.path}`"
+            class="field-issue"
+            :class="issue.severity === 'error' ? 'field-issue-error' : 'field-issue-warning'"
+            >{{ issue.message }}</small
+          >
         </div>
         <template
           v-for="field in destinationDefinition(settingsDestination.provider)?.slotFields || []"
@@ -505,6 +542,11 @@
             :value="fieldValue(settingsSlot.config, field.key)"
             :options="fieldOptions(field)"
             :input-id="`slot-${settingsSlot.id}-${field.key}`"
+            :issues="
+              fieldIssues(
+                `destinations.${flow?.destinations.indexOf(settingsDestination)}.slots.${settingsDestination?.slots.indexOf(settingsSlot)}.config.${field.key}`,
+              )
+            "
             @update:value="setField(settingsSlot.config, field.key, $event)"
             @add-connection="openConnection"
         /></template>
@@ -606,7 +648,6 @@ import type {
   ReleasePlan,
   ValidationIssue,
 } from "@pipelab/shared";
-import { getReleaseBuildPreferences } from "@pipelab/shared";
 import Layout from "../components/Layout.vue";
 import WorkflowShell from "../components/WorkflowShell.vue";
 import ReleaseFieldControl from "../components/ReleaseFieldControl.vue";
@@ -621,7 +662,6 @@ import {
   issuesForPath,
   planOutputOptions,
   removeBuildProfile,
-  resolveMissingDestinationInputs,
   switchBuildProfileEngine,
 } from "./release-flow-model";
 
@@ -752,6 +792,10 @@ const newBuildTargets = computed(() =>
     ? buildTargetsFor(catalog.value, newBuildEngine.value, newBuildType.value)
     : [],
 );
+const selectBuildEngine = (engine: string | undefined) => {
+  newBuildEngine.value = engine;
+  newBuildTarget.value = engine ? newBuildTargets.value[0]?.id : undefined;
+};
 const buildTypeLabel = (id: string) =>
   catalog.value.buildTypes.find((type) => type.id === id)?.label || id;
 const enabledTargetCount = (build: ReleaseBuildProfileConfig) =>
@@ -812,7 +856,13 @@ const addDestination = () => {
       provider: destinationToAdd.value,
       enabled: true,
       config: { ...definition.defaultConfig },
-      slots: [],
+      slots: [
+        {
+          id: `${destinationToAdd.value.split("/").pop()}-${Date.now()}-1`,
+          enabled: true,
+          config: {},
+        },
+      ],
     });
     automaticResolutionRequested = true;
   }
@@ -926,7 +976,14 @@ const inspectSource = async () => {
       issues?: ValidationIssue[];
       fieldOptions?: Record<string, ReleaseFieldOption[]>;
     };
-    inspectionIssues.value = data.issues || [];
+    inspectionIssues.value = (data.issues || []).map((issue) => ({
+      ...issue,
+      path: issue.path?.startsWith("source.")
+        ? issue.path
+        : issue.path
+          ? `source.${issue.path}`
+          : "source",
+    }));
     for (const [key, options] of Object.entries(data.fieldOptions || {}))
       inspectionOptions.value[key] = options;
   }
@@ -964,17 +1021,17 @@ const refreshPlan = async (resolveDefaults = false) => {
     plannerIssues.value = result.result.issues;
     if (resolveDefaults && automaticResolutionRequested) {
       automaticResolutionRequested = false;
+      const resolved = await api.execute("release:resolve-defaults", { config: flow.value });
       if (
-        resolveMissingDestinationInputs(
-          flow.value,
-          result.result,
-          catalog.value,
-          getReleaseBuildPreferences(),
-        )
+        resolved.type === "success" &&
+        JSON.stringify(resolved.result) !== JSON.stringify(flow.value)
       ) {
+        flow.value = resolved.result as ReleaseConfig;
         changeRevision += 1;
         await save();
-        await refreshPlan(true);
+        await refreshPlan(false);
+      } else if (resolved.type === "error") {
+        error.value = resolved.ipcError;
       }
     }
   } else error.value = result.ipcError;
@@ -1145,6 +1202,17 @@ onMounted(async () => {
 .needs-attention-button {
   flex: 0 0 auto;
   white-space: nowrap;
+}
+.field-issue {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.72rem;
+}
+.field-issue-error {
+  color: var(--red-500, #ef4444);
+}
+.field-issue-warning {
+  color: var(--orange-500, #f97316);
 }
 .source-card {
   padding: 12px 14px;
