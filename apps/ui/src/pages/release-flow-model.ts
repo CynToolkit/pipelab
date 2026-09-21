@@ -149,7 +149,11 @@ export const resolveMissingDestinationInputs = (
           continue;
         }
       }
-      for (const buildType of Object.keys(preferences.buildTypes)) {
+      const buildTypes = new Set([
+        ...Object.keys(preferences.buildTypes),
+        ...Object.keys(DEFAULT_RELEASE_BUILD_PREFERENCES.buildTypes),
+      ]);
+      for (const buildType of buildTypes) {
         const buildId = `${buildType}-default`;
         if (config.builds.some((build) => build.id === buildId)) continue;
         const build = defaultBuildProfile(catalog, buildType, buildId, preferences);

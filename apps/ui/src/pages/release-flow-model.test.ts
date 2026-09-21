@@ -285,6 +285,69 @@ describe("release flow model", () => {
     });
   });
 
+  it("uses the central Desktop fallback when no preferences are supplied", () => {
+    const buildCatalog: ReleaseCatalog = {
+      ...catalog,
+      producers: [
+        {
+          ...catalog.producers[0],
+          id: "@pipelab/plugin-electron/producer",
+          targets: [
+            {
+              ...catalog.producers[0].targets[0],
+              id: "windows-x64",
+              output: { kind: "application", platform: "windows", container: "directory" },
+            },
+          ],
+        },
+      ],
+      destinations: [
+        {
+          id: "steam",
+          label: "Steam",
+          accepts: { kind: "application", platform: "windows", container: "directory" },
+          defaultConfig: {},
+        },
+      ],
+    };
+    const configWithDestination: ReleaseConfig = {
+      ...config,
+      builds: [],
+      destinations: [
+        {
+          id: "steam",
+          provider: "steam",
+          enabled: true,
+          config: {},
+          slots: [{ id: "windows", enabled: true, config: {} }],
+        },
+      ],
+    };
+    const plan = {
+      outputs: [],
+      issues: [
+        {
+          code: "release.destination.input.required",
+          message: "Choose an output.",
+          severity: "error" as const,
+          path: "destinations.0.slots.0.input",
+        },
+      ],
+      producers: [],
+      destinations: [],
+      graph: { nodes: [], edges: [] },
+    } as ReleasePlan;
+    expect(
+      resolveMissingDestinationInputs(configWithDestination, plan, buildCatalog, {
+        buildTypes: {},
+      }),
+    ).toBe(true);
+    expect(configWithDestination.builds[0]).toMatchObject({
+      engine: "@pipelab/plugin-electron/producer",
+      targets: [{ id: "windows-x64", enabled: true }],
+    });
+  });
+
   it("reuses one generated build for multiple compatible destinations", () => {
     const destinationCatalog: ReleaseCatalog = {
       ...catalog,
