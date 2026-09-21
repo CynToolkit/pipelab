@@ -158,6 +158,7 @@ export interface ReleaseFieldDefinition {
     | "browser-profile";
   label: string;
   description?: string;
+  deferUntilEditor?: boolean;
   integration?: string;
   required?: boolean;
   options?: ReleaseFieldOption[];

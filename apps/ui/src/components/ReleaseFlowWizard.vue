@@ -61,7 +61,8 @@
               </button>
             </div>
             <ReleaseFieldControl
-              v-for="field in sourceDefinition?.fields || []"
+              v-for="field in sourceDefinition?.fields?.filter((item) => !item.deferUntilEditor) ||
+              []"
               :key="field.key"
               :field="field"
               :value="String(draft.source.config[field.key] || '')"
@@ -209,9 +210,11 @@ const sourceDefinition = computed(() =>
 const sourceReady = computed(() =>
   Boolean(
     draft.value.source.provider &&
-    sourceDefinition.value?.fields?.every(
-      (field) => !field.required || String(draft.value.source.config[field.key] || "").trim(),
-    ),
+    sourceDefinition.value?.fields
+      ?.filter((field) => !field.deferUntilEditor)
+      .every(
+        (field) => !field.required || String(draft.value.source.config[field.key] || "").trim(),
+      ),
   ),
 );
 const providerIcon = (icon?: IconType) =>

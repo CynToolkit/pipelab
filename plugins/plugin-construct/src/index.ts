@@ -14,7 +14,13 @@ const constructSource: ReleaseSourceDefinition = {
   label: "Construct project",
   fields: [
     { key: "path", type: "file", label: "Project file", required: true, fileExtensions: ["c3p"] },
-    { key: "profilePath", type: "select", label: "Browser profile", required: true },
+    {
+      key: "profilePath",
+      type: "select",
+      label: "Browser profile",
+      required: true,
+      deferUntilEditor: true,
+    },
   ],
   output: { kind: "application", platform: "web", container: "directory" },
   createDefaultConfig: () => ({ path: "", profilePath: "" }),
