@@ -787,8 +787,8 @@ Keep existing tests for:
 ## Tests
 
 * [x] Test Construct → Poki: no build created
-* [ ] Test Construct → Steam: Desktop default created
-* [ ] Test Construct → Steam + Poki: one Desktop build
+* [x] Test Construct → Steam: Desktop default created
+* [x] Test Construct → Steam + Poki: one Desktop build
 * [x] Test existing compatible build reuse
 * [x] Test deterministic fallback defaults
 * [x] Test no automatic producer becomes Build Profile
