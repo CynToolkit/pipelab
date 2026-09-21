@@ -261,6 +261,12 @@
                   }}</span>
                 </div>
                 <Button
+                  v-if="!slot.input"
+                  label="Choose output"
+                  text
+                  @click="openOutputPicker(slot)"
+                />
+                <Button
                   icon="pi pi-cog"
                   text
                   rounded
@@ -556,6 +562,24 @@
       </div>
       <template #footer><Button label="Done" @click="slotSettingsVisible = false" /></template
     ></Dialog>
+    <Dialog v-model:visible="outputPickerVisible" modal header="Choose output" :style="dialogStyle">
+      <div class="release-field wide">
+        <label for="output-picker">Output</label>
+        <Select
+          id="output-picker"
+          v-model="outputPickerValue"
+          :options="outputOptions"
+          optionLabel="label"
+          optionValue="value"
+          placeholder="Choose a source or build output"
+        />
+      </div>
+      <template #footer
+        ><Button label="Cancel" text @click="outputPickerVisible = false" /><Button
+          label="Use output"
+          :disabled="!outputPickerValue"
+          @click="confirmOutputPicker" /></template
+    ></Dialog>
     <Dialog v-model:visible="connectionVisible" modal header="Add connection" :style="dialogStyle"
       ><div class="settings-grid">
         <div class="release-field">
@@ -680,10 +704,13 @@ const sourceSettingsVisible = ref(false);
 const buildSettingsVisible = ref(false);
 const destinationSettingsVisible = ref(false);
 const slotSettingsVisible = ref(false);
+const outputPickerVisible = ref(false);
 const releaseDetailsVisible = ref(false);
 const settingsBuild = ref<ReleaseBuildProfileConfig>();
 const settingsDestination = ref<ReleaseDestinationConfig>();
 const settingsSlot = ref<ReleaseDestinationSlot>();
+const outputPickerSlot = ref<ReleaseDestinationSlot>();
+const outputPickerValue = ref("");
 const releaseVersion = ref("1.0.0");
 const releaseDescription = ref("");
 const connectionVisible = ref(false);
@@ -814,11 +841,7 @@ const enabledTargetCount = (build: ReleaseBuildProfileConfig) =>
   build.targets.filter((target) => target.enabled).length;
 const isTargetEnabled = (build: ReleaseBuildProfileConfig, id: string) =>
   build.targets.some((target) => target.id === id && target.enabled);
-const hasBuildSettings = (build: ReleaseBuildProfileConfig) =>
-  Boolean(
-    producerDefinition(build.engine)?.fields?.length ||
-    buildTargets(build).some((target) => target.fields?.length),
-  );
+const hasBuildSettings = (build: ReleaseBuildProfileConfig) => Boolean(build);
 const availableDestinations = computed(() =>
   catalog.value.destinations.filter(
     (item) => !flow.value?.destinations.some((destination) => destination.provider === item.id),
@@ -897,6 +920,18 @@ const removeSlot = (destination: ReleaseDestinationConfig, id: string) => {
 const setSlotInput = (slot: ReleaseDestinationSlot, value: string) => {
   const output = outputOptions.value.find((candidate) => candidate.value === value);
   if (output) slot.input = output.ref;
+};
+const openOutputPicker = (slot: ReleaseDestinationSlot) => {
+  outputPickerSlot.value = slot;
+  outputPickerValue.value = outputRefValue(slot.input);
+  outputPickerVisible.value = true;
+};
+const confirmOutputPicker = () => {
+  if (outputPickerSlot.value && outputPickerValue.value)
+    setSlotInput(outputPickerSlot.value, outputPickerValue.value);
+  outputPickerSlot.value = undefined;
+  outputPickerValue.value = "";
+  outputPickerVisible.value = false;
 };
 const openCompatibleBuildPicker = (slot: ReleaseDestinationSlot) => {
   compatibleSlot.value = slot;
