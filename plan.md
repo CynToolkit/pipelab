@@ -793,7 +793,7 @@ Keep existing tests for:
 * [x] Test deterministic fallback defaults
 * [x] Test no automatic producer becomes Build Profile
 * [ ] Test generated build remains editable/removable
-* [ ] Test deleted generated build is not instantly recreated
+* [x] Test deleted generated build is not instantly recreated
 * [x] Test explicit deployment routing
 * [ ] Test compact UI
 * [ ] Preserve planner/compiler/autosave tests
