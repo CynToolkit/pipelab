@@ -42,11 +42,6 @@
       :file-extensions="field.fileExtensions"
       @update:model-value="emitValue"
     />
-    <BrowserProfilePicker
-      v-else-if="field.type === 'browser-profile'"
-      :model-value="value"
-      @update:model-value="emitValue"
-    />
     <InputText
       v-else
       :id="inputId"
@@ -65,7 +60,6 @@ import InputText from "primevue/inputtext";
 import Select from "primevue/select";
 import type { ReleaseFieldDefinition, ReleaseFieldOption } from "@pipelab/shared";
 import PathPicker from "./PathPicker.vue";
-import BrowserProfilePicker from "./BrowserProfilePicker.vue";
 
 defineProps<{
   field: ReleaseFieldDefinition;

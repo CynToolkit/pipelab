@@ -1,388 +1,585 @@
-# Add Build Profiles and Release Planner on Top of PR #90
+Phase 3 UX Correction — Intent-First Release Creation
+Objective
 
-Work from the current PR #90 architecture. Do not redesign the compiler, runtime, or UI in this task.
+Simplify release creation so the wizard captures only what the user wants to ship, while the full Release editor handles how it gets built.
 
-## Goal
+Replace:
 
-Replace the user-facing concept of raw producers with a semantic Build Profile model while keeping the existing producer/artifact DAG internally.
+Details
+→ Source
+→ Build & deploy
+→ Review
 
-```text
-Source
-  → Build Profiles
-  → Destinations
-```
+with:
 
-Internally:
+Details
+→ Source
+→ Destinations
+→ Review
 
-```text
-Source → Producer → Artifact → Producer → Artifact → Destination
-```
+The creation wizard must not expose producers, engines, automatic transforms, targets, or Build Profiles.
 
-This task covers shared models, planning logic, and tests.
+Product rule
 
-## 1. Change `ReleaseConfig`
+The responsibilities are:
 
-Replace persisted raw `producers` with `builds`.
+Creation wizard
+→ capture release intent
 
-```ts
-interface ReleaseConfig {
-  version: "3.0.0";
+Planner
+→ determine what is already compatible and what is missing
 
-  id: string;
-  project: string;
-  name: string;
-  description?: string;
+Release editor
+→ configure builds, engines, targets and routing
 
-  source: ReleaseSourceConfig;
-  builds: ReleaseBuildProfileConfig[];
-  destinations: ReleaseDestinationConfig[];
+Example:
 
-  continueOnError?: boolean;
+Source: Construct
+
+Destinations:
+- Steam
+- Poki
+
+After creation:
+
+Construct source
+├─ Poki ✓
+└─ Steam
+   └─ Desktop-compatible output required
+      [ Create compatible build ]
+
+The wizard must not silently create Electron, Tauri, Godot, unzip, passthrough, or any other producer.
+
+1. Remove Build & Deploy from the wizard
+
+Remove the current producer cards entirely.
+
+The wizard must never display things such as:
+
+Passthrough
+Extract ZIP
+Electron
+Tauri
+Godot exporter
+
+Those are implementation details.
+
+Automatic producers are planner plumbing.
+
+Build engines belong in the Release editor.
+
+2. Step 3 becomes Destinations
+
+Display only entries from:
+
+catalog.destinations
+
+UX:
+
+Where do you want to ship?
+
+[✓] Steam
+[✓] Poki
+[ ] Itch.io
+[ ] Folder
+[ ] ZIP
+
+Allow selecting multiple destinations.
+
+Do not show compatibility filtering here unless it comes directly from planner output.
+
+Do not require the release to already be executable.
+
+3. Destination creation
+
+For each selected destination, persist:
+
+{
+  id,
+  provider,
+  enabled: true,
+  config: {
+    ...destination.defaultConfig
+  },
+  slots: ...
 }
-```
 
-PR #90 V3 is not released yet, so make this a straight cut. Do not add migrations.
+Do not choose:
 
-## 2. Add Build Profile Types
+outputOptions[0]
 
-```ts
-interface ReleaseBuildProfileConfig {
+Do not default to:
+
+{ source: true }
+
+unless Source was explicitly selected as the route.
+
+A destination may be created in an unconfigured routing state.
+
+4. Support unrouted destinations explicitly
+
+The current model assumes:
+
+ReleaseDestinationSlot.input: ReleaseOutputRef
+
+That forces the UI to invent an input.
+
+Change the model so an unconfigured slot can exist explicitly.
+
+Preferred:
+
+interface ReleaseDestinationSlot {
   id: string;
-  type: string; // desktop, web, mobile, console, etc.
-  engine: string; // ReleaseProducerDefinition.id
   enabled: boolean;
   input?: ReleaseOutputRef;
   config: Record<string, unknown>;
-  targets: ReleaseBuildTargetConfig[];
-  name?: string;
 }
 
-interface ReleaseBuildTargetConfig {
-  id: string;
-  enabled: boolean;
-  config: Record<string, unknown>;
-}
-```
+Planner behavior:
 
-Multiple profiles with the same `type` and/or `engine` are valid:
+enabled destination slot
++ no input
+→ release.destination.input.required
 
-```text
-Desktop / Electron
-Desktop / Tauri
-Desktop / Electron
-```
+This is a normal validation issue, not malformed configuration.
 
-They are separate profile instances.
+Compiler still refuses plans containing errors.
 
-## 3. Add User-Facing Output References
+Do not represent missing routing using fake Source references.
 
-Do not expose the internal producer `ArtifactRef` in `ReleaseConfig`.
+5. Review step
 
-```ts
-type ReleaseOutputRef =
-  | { source: true }
-  | {
-      buildId: string;
-      targetId: string;
-    };
-```
-
-Destination slots should use `ReleaseOutputRef`. The planner lowers these to the existing internal `ArtifactRef`.
-
-## 4. Add Build-Type Metadata
-
-```ts
-interface ReleaseBuildTypeDefinition {
-  id: string;
-  label: string;
-  description?: string;
-  icon?: IconType;
-}
-```
-
-Provide built-in definitions for:
-
-- `desktop`
-- `web`
-- `mobile`
-- `console`
-
-These are presentation and planning metadata only. Do not add compiler branches such as `if (build.type === "desktop")`.
-
-## 5. Extend Producer Target Definitions
-
-```ts
-interface ReleaseProducerTargetDefinition {
-  // Existing fields...
-  buildType?: string;
-}
-```
-
-A producer may expose targets belonging to multiple build types.
+The final wizard step should summarize intent only.
 
 Example:
 
-```text
-Godot:
-  windows-x64 → desktop
-  linux-x64   → desktop
-  macos-arm64 → desktop
-  web         → web
-```
+New release
 
-Do not change current plugins in this task unless needed in test fixtures.
+Details
+My Game — Production
 
-## 6. Distinguish Build Engines from Automatic Transforms
+Source
+Construct project
+game.c3p
 
-```ts
-interface ReleaseProducerPlanning {
-  mode: "build" | "automatic";
-}
+Destinations
+✓ Steam
+✓ Poki
 
-interface ReleaseProducerDefinition {
-  // Existing fields...
-  planning: ReleaseProducerPlanning;
-}
-```
+If planner information is available, show useful status:
 
-Meaning:
+Poki
+✓ Source can be used directly
 
-- `build`: selected explicitly as a Build Profile engine.
-- `automatic`: the planner may insert it as invisible plumbing.
+Steam
+⚠ Additional build configuration required
 
-The planner must never automatically choose a `build` producer.
+Do not solve the missing build from the wizard.
 
-## 7. Add Dynamic Artifact Acceptance
+Primary action:
 
-Keep the declarative:
+Create release
+6. Open the Release editor after creation
 
-```ts
-accepts: ArtifactConstraint;
-```
+Immediately navigate to the normal Release editor.
 
-Add:
+The editor becomes responsible for completing the graph.
 
-```ts
-type ArtifactAcceptance =
-  | { accepted: true }
-  | {
-      accepted: false;
-      reason?: string;
-    };
-```
+Example:
+
+Steam
+
+⚠ No compatible output selected.
+
+Steam requires an application output compatible
+with this destination.
+
+[ Create compatible build ]
+
+If Source already satisfies another destination:
+
+Poki
+
+✓ Construct source
+Web application
+
+No fake Web Build Profile should be created.
+
+7. Create compatible build
+
+Create compatible build should open the normal Add Build flow.
+
+Example:
+
+Create build
+
+Type
+Desktop
+
+Engine
+[ Electron ▾ ]
+
+Targets
+☑ Windows x64
+☐ Linux x64
+☐ macOS
+
+                    Add build
+
+This is an explicit user action.
+
+The UI may preselect sensible values inside this dialog, but must not persist them until the user confirms.
+
+No planner-selected engine.
+
+8. Add Build flow
+
+The full editor should own:
+
+Add Build
+→ Build Type
+→ Engine
+→ Targets
+→ Add
+
+Then detailed configuration can happen through the normal Build Profile settings.
 
 Support:
 
-```ts
-acceptsWhen?(
-  artifact: ArtifactDescriptor,
-  context: ReleaseAcceptanceContext,
-): ArtifactAcceptance;
-```
+Add
+Duplicate
+Delete
+Enable/disable
+Change engine
+Change targets
+Configure build
+Configure target
 
-Add `acceptsWhen` to both `ReleaseProducerDefinition` and `ReleaseDestinationDefinition`.
+Multiple profiles of the same type remain valid.
 
-Compatibility means:
+9. Fix generic release fields
 
-```text
-matchesArtifact(artifact, accepts)
-AND acceptsWhen does not reject
-```
+Remove the Construct-specific:
 
-Create one shared helper for the planner, validation, and compiler. Do not serialize executable predicates into `ReleaseCatalog`.
+type: "browser-profile"
 
-## 8. Implement the Release Planner
+frontend behavior.
 
-Add:
+The generic Release UI must not call:
 
-```text
-packages/shared/src/release/planner.ts
-```
+construct:profiles:discover
+
+Instead, Construct should expose browser profile choices through its provider inspection.
 
 Conceptually:
 
-```ts
-planRelease(
-  config: ReleaseConfig,
-  registry: ReleaseRegistry,
-  context: ReleasePlanningContext,
-): ReleasePlan;
-```
+Construct source.inspect()
+→ discover profiles
+→ fieldOptions.profilePath
 
-The planner must:
+And its catalog field should remain generic:
 
-1. Resolve the selected source descriptor.
-2. Resolve every enabled Build Profile to its selected producer engine.
-3. Validate that enabled targets belong to the Build Profile's `type`.
-4. Resolve Build Profile inputs.
-5. Insert only producers where `planning.mode === "automatic"` when needed.
-6. Produce resolved internal producer configurations.
-7. Resolve every Build Profile target to an artifact descriptor.
-8. Resolve destination `ReleaseOutputRef` values.
-9. Evaluate destination compatibility using static and dynamic acceptance.
-10. Detect cycles.
-11. Return user-facing validation issues instead of throwing for normal invalid configuration.
+{
+  key: "profilePath",
+  type: "select",
+  label: "Browser profile"
+}
 
-## 9. Input Resolution Rules
+Then:
 
-Candidate inputs are:
+ReleaseFieldControl
+→ generic Select
 
-```text
-source output
-+
-outputs from other enabled Build Profiles
-```
+No Construct-specific Vue component or IPC knowledge in the generic Release editor.
 
-For each candidate:
+10. Field-level planner issues
 
-```text
-candidate
-  → direct engine acceptance
-  OR
-  → zero or more automatic transforms
-  → engine acceptance
-```
+Use ValidationIssue.path precisely.
 
-Rules:
-
-- An explicit `build.input` resolves only that requested semantic input.
-- With no input selected and exactly one compatible semantic upstream output, select it.
-- Multiple distinct compatible outputs produce an ambiguity issue.
-- Never silently select between multiple semantic upstream Build Profile outputs.
-- Automatic transform chains may be resolved automatically.
-- Never infer meaning from filesystem contents.
-
-## 10. Automatic Transform Search
-
-Only producers with:
-
-```ts
-planning.mode === "automatic";
-```
-
-may be inserted.
+Current behavior of showing everything at card level is insufficient.
 
 Example:
 
-```text
-application/web/archive(zip)
-  → Unzip
-  → application/web/directory
-  → Electron
-```
+destinations.0.slots.0.input
 
-The search must be bounded, deterministic, cycle-safe, descriptor-driven, and based on declared `output`/`transform` metadata. It must preserve strict descriptor semantics.
+must place the error beside the Output selector.
 
-Do not add a generic heuristic or semantic detector system.
+Similarly:
 
-## 11. Planner Output
+builds.1.targets.0.config.preset
+
+must appear beside that target field.
+
+Extend ReleaseFieldControl to accept issues:
+
+issues?: ValidationIssue[]
+
+Render:
+
+Preset
+[ Windows ]
+
+⚠ Preset does not match target Windows x64
+
+Preserve severity:
+
+error   → error UI
+warning → warning UI
+
+Card-level summaries can remain as secondary information.
+
+11. Explicit destination routing
+
+In the full editor, adding a deployment must not silently choose the first output.
+
+Instead:
+
+Add deployment
+
+Output
+[ Choose output… ]
+
+Settings
+...
+
+[ Add ]
+
+Output options come from planner outputs.
+
+If there are none:
+
+No compatible output is currently available.
+
+[ Create compatible build ]
+
+Do not implement compatibility matching in Vue.
+
+12. Planner refresh correctness
+
+Planner requests are debounced, but asynchronous responses must not race.
+
+Use a request generation/version:
+
+let planGeneration = 0;
+
+const refreshPlan = async () => {
+  const generation = ++planGeneration;
+
+  const result = await ...
+
+  if (generation !== planGeneration)
+    return;
+
+  plan.value = result;
+}
+
+Only the newest planner response may update UI state.
+
+13. Autosave correctness
+
+Do not allow overlapping saves to persist stale configuration.
+
+Serialize saves.
 
 Conceptually:
 
-```ts
-interface ReleasePlan {
-  producers: ReleaseProducerConfig[];
-  outputs: PlannedReleaseOutput[];
-  destinations: ResolvedReleaseDestinationConfig[];
-  issues: ValidationIssue[];
-  graph: ReleasePlanGraph;
-}
-```
+edit
+→ debounce
+→ save snapshot A
 
-Adjust details as needed while preserving these concepts.
+more edits while A saves
+→ mark dirty
 
-`PlannedReleaseOutput` should expose:
+A completes
+→ save latest snapshot B
 
-- source/build identity;
-- target identity;
-- descriptor;
-- internal artifact reference.
+Desired states:
 
-The graph must be renderer-safe data, not executable objects.
+Saving…
+Saved
+Error
 
-## 12. Preserve Internal `ArtifactRef`
+Saved must mean the latest local state has actually been persisted.
 
-Do not delete:
+14. Preserve architecture
 
-```ts
-type ArtifactRef =
-  | { source: true }
-  | { producerId: string; outputId: string };
-```
+Do not change the architectural ownership established in Phases 1–2.
 
-It remains useful for planner output, the compiler, and the runtime graph.
+Keep:
 
-```text
-ReleaseOutputRef → persisted/user-facing
-ArtifactRef      → resolved/internal
-```
+ReleaseConfig
+→ planner
+→ compiler
+→ workflow
+→ runtime
 
-## 13. Validation Paths
+Do not add routing or compatibility logic to Vue.
 
-Planner issues must refer to the user model:
+Do not add provider-specific IDs to generic UI code.
 
-```text
-builds.0.engine
-builds.0.input
-builds.0.targets.1
+Do not infer artifact semantics from files.
+
+Do not make automatic producers configurable.
+
+Tests
+Wizard
+
+Test:
+
+wizard contains Details / Source / Destinations / Review
+
+Test:
+
+catalog producers never appear in creation wizard
+
+Test multiple destination selection.
+
+Test:
+
+Construct + Steam + Poki
+
+can be created without creating any Build Profile.
+
+Assert:
+
+config.builds.length === 0
+Unconfigured routing
+
+Test an enabled destination with no input.
+
+Planner must return:
+
+release.destination.input.required
+
+It must not crash.
+
+Compiler must refuse the invalid plan.
+
+Existing compatible source
+
+Test:
+
+Web Source
+→ Poki
+
+Planner should expose Source as the compatible output without introducing a build.
+
+Missing build
+
+Test:
+
+Web Source
+→ Steam
+
+Planner/editor should report that no compatible output has been configured.
+
+No Electron/Tauri profile is created automatically.
+
+Build creation
+
+Test Create compatible build opens Add Build.
+
+Test user can choose:
+
+Desktop
+Electron
+Windows
+
+and explicitly confirm.
+
+Generic fields
+
+Test generic select fields consume inspection-provided fieldOptions.
+
+No UI test should reference Construct provider IDs.
+
+Diagnostics
+
+Test a planner issue targeting:
+
 destinations.0.slots.0.input
-```
 
-Do not surface generated producer IDs in normal errors.
+appears next to that output control.
 
-## 14. Required Tests
+Test error/warning severities remain distinct.
 
-Add focused unit tests for:
+Async state
 
-- **Basic Build Profile:** Web source → Desktop / Electron / Windows resolves to one internal producer.
-- **Multiple profiles of the same type:** Desktop / Electron and Desktop / Tauri coexist.
-- **Multiple profiles using the same engine:** Two Electron profiles remain separate.
-- **Build-type validation:** A `desktop` profile cannot enable a target declared only as `web`.
-- **Automatic transform:** Web ZIP → automatic Unzip → Electron resolves without an explicit Unzip profile.
-- **Direct compatibility:** No automatic transform is inserted when the engine directly accepts the source.
-- **Ambiguous input:** Multiple compatible upstream outputs require explicit `input`.
-- **Cycles:** Reject Build A → Build B → Build A.
-- **Missing engine:** An unavailable engine is invalid and is not silently replaced.
-- **Dynamic producer acceptance:** `acceptsWhen` can reject a statically compatible artifact.
-- **Dynamic destination acceptance:** `acceptsWhen` preserves its rejection reason.
-- **Destination references:** `{ buildId, targetId }` resolves to the correct internal artifact.
+Test stale planner responses cannot replace newer plans.
 
-## 15. Explicit Non-Goals
+Test overlapping autosaves cannot mark stale state as Saved.
 
-Do not:
+Acceptance scenario
 
-- redesign `release-flow.vue`;
-- modify the wizard UX;
-- build the Build Profile UI;
-- fix connection dialogs;
-- implement autosave/readiness UI;
-- change workflow runtime;
-- remove the existing compiler DAG;
-- add Electron/Tauri-specific planner branches;
-- add Steam-specific planner logic;
-- implement mobile/console plugins;
-- add semantic filesystem inspection;
-- automatically choose between Electron and Tauri;
-- create a graph editor.
+Starting from:
 
-## 16. Architectural Invariant
+New Release
 
-> Build Profiles are the user model. Producers are the execution model.
+the user does:
 
-> Pipelab may compose declared artifact metadata, but must never infer semantic meaning from file contents.
+1. Details
+   Production
 
-## 17. Completion Criteria
+2. Source
+   Construct
+   game.c3p
 
-This phase is complete when:
+3. Destinations
+   ✓ Steam
+   ✓ Poki
 
-- `ReleaseConfig` uses `builds`;
-- user-facing references use `ReleaseOutputRef`;
-- producer targets support `buildType`;
-- producers distinguish `build` vs. `automatic`;
-- static and dynamic artifact acceptance share one implementation;
-- `planRelease()` resolves Build Profiles into the existing internal producer graph;
-- automatic transforms work;
-- ambiguity, cycles, and missing engines are reported cleanly;
-- planner output is deterministic;
-- comprehensive planner tests pass;
-- existing compiler/runtime behavior has not been redesigned.
+4. Review
+   Create release
+
+No producer selection appears.
+
+No Build Profile is silently created.
+
+The Release editor opens:
+
+Source
+Construct ✓
+
+Builds
+No builds configured
+
+Deploy
+
+Poki
+✓ Source → Poki
+
+Steam
+⚠ Compatible build required
+[ Create compatible build ]
+
+User clicks:
+
+Create compatible build
+
+and explicitly chooses:
+
+Desktop
+Electron
+Windows x64
+
+After confirmation:
+
+Construct
+├─ Poki
+└─ Desktop / Electron / Windows
+   └─ Steam
+
+## Implementation checklist
+
+- [x] Remove Build & Deploy from the creation wizard.
+- [x] Replace wizard step 3 with catalog-driven Destinations.
+- [x] Create destinations without inventing an output route.
+- [x] Allow enabled destination slots to remain unrouted and report a planner issue.
+- [ ] Add the complete Release editor flow for compatible-build creation.
+- [ ] Add precise field-level planner issue rendering.
+- [ ] Complete explicit deployment routing and “Create compatible build” handling.
+- [ ] Guard planner responses against stale asynchronous updates.
+- [ ] Serialize autosaves and report the latest persisted state.
+- [x] Keep planner/compiler/runtime ownership and provider-neutral shared UI boundaries.
+
+That is the target Phase 3 UX.

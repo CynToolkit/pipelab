@@ -64,12 +64,12 @@ export interface ReleaseBuildTargetConfig {
 export interface ReleaseDestinationSlot {
   id: string;
   enabled: boolean;
-  input: ReleaseOutputRef;
+  input?: ReleaseOutputRef;
   config: Record<string, unknown>;
 }
 
 export interface ResolvedReleaseDestinationSlot extends Omit<ReleaseDestinationSlot, "input"> {
-  input: ArtifactRef;
+  input?: ArtifactRef;
 }
 
 export interface ResolvedReleaseDestinationConfig extends Omit<ReleaseDestinationConfig, "slots"> {

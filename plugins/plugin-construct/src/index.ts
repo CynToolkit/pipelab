@@ -3,6 +3,7 @@ import { createNodeDefinition } from "@pipelab/plugin-core";
 import { exportAction, ExportActionRunner } from "./export-c3p";
 import { exportProjectAction, ExportProjectActionRunner } from "./export-project";
 import { constructVersionValidator } from "./export-shared";
+import { discoverBrowserProfiles } from "./browser-profiles";
 import type { ReleaseSourceDefinition } from "@pipelab/shared";
 import type { WorkflowStep } from "@pipelab/workflow-runtime";
 export { discoverBrowserProfiles, inspectChromiumProfile } from "./browser-profiles";
@@ -13,7 +14,7 @@ const constructSource: ReleaseSourceDefinition = {
   label: "Construct project",
   fields: [
     { key: "path", type: "file", label: "Project file", required: true, fileExtensions: ["c3p"] },
-    { key: "profilePath", type: "browser-profile", label: "Browser profile", required: true },
+    { key: "profilePath", type: "select", label: "Browser profile", required: true },
   ],
   output: { kind: "application", platform: "web", container: "directory" },
   createDefaultConfig: () => ({ path: "", profilePath: "" }),
@@ -37,6 +38,15 @@ const constructSource: ReleaseSourceDefinition = {
           },
         ]),
   ],
+  inspect: async () => ({
+    issues: [],
+    fieldOptions: {
+      profilePath: (await discoverBrowserProfiles()).map((profile) => ({
+        label: `${profile.browser} / ${profile.profileName}`,
+        value: profile.path,
+      })),
+    },
+  }),
   compile: (config) => {
     const steps: WorkflowStep[] = [
       {

@@ -680,8 +680,8 @@ const sourcePath = computed(() => {
   );
   return field && flow.value ? fieldValue(flow.value.source.config, field.key) : "";
 });
-const outputRefValue = (ref: ReleaseOutputRef) =>
-  "source" in ref ? "source" : `${ref.buildId}:${ref.targetId}`;
+const outputRefValue = (ref?: ReleaseOutputRef) =>
+  ref ? ("source" in ref ? "source" : `${ref.buildId}:${ref.targetId}`) : "";
 const outputOptions = computed(() =>
   flow.value && plan.value ? planOutputOptions(flow.value, plan.value, catalog.value) : [],
 );
@@ -773,9 +773,11 @@ const setSlotInput = (slot: ReleaseDestinationSlot, value: string) => {
   const output = outputOptions.value.find((candidate) => candidate.value === value);
   if (output) slot.input = output.ref;
 };
-const artifactLabel = (ref: ReleaseOutputRef) =>
-  outputOptions.value.find((output) => output.value === outputRefValue(ref))?.label ||
-  "Invalid output reference";
+const artifactLabel = (ref?: ReleaseOutputRef) =>
+  ref
+    ? outputOptions.value.find((output) => output.value === outputRefValue(ref))?.label ||
+      "Invalid output reference"
+    : "Choose output";
 const openBuildSettings = (build: ReleaseBuildProfileConfig) => {
   settingsBuild.value = build;
   buildSettingsVisible.value = true;

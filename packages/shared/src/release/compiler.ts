@@ -107,6 +107,10 @@ export const compileReleasePlan = (
   for (const destination of plan.destinations) {
     const definition = provider(registry.destinations, destination.provider, "destination");
     for (const slot of destination.slots.filter((item) => item.enabled)) {
+      if (!slot.input)
+        throw new Error(
+          `Destination ${destination.id} slot ${slot.id} has no configured artifact input.`,
+        );
       const artifact = artifacts.get(
         isSourceRef(slot.input) ? "source" : `${slot.input.producerId}:${slot.input.outputId}`,
       );
