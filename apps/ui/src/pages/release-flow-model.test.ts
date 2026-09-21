@@ -160,7 +160,7 @@ describe("release flow model", () => {
         },
       ],
     };
-    const configWithDestination = {
+    const configWithDestination: ReleaseConfig = {
       ...config,
       destinations: [
         {
@@ -202,7 +202,7 @@ describe("release flow model", () => {
   });
 
   it("creates one configured default build when no compatible output exists", () => {
-    const buildCatalog = {
+    const buildCatalog: ReleaseCatalog = {
       ...catalog,
       producers: [
         {
@@ -224,7 +224,7 @@ describe("release flow model", () => {
         },
       ],
     };
-    const configWithDestination = {
+    const configWithDestination: ReleaseConfig = {
       ...config,
       destinations: [
         {

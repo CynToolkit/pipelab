@@ -131,7 +131,19 @@
               </div>
               <div class="job-title">
                 <strong>{{ build.name || buildTypeLabel(build.type) }}</strong
-                ><span>{{ producerDefinition(build.engine)?.label || build.engine }}</span>
+                ><span
+                  >{{ producerDefinition(build.engine)?.label || build.engine }} ·
+                  {{
+                    build.targets
+                      .filter((target) => target.enabled)
+                      .map(
+                        (target) =>
+                          buildTargets(build).find((item) => item.id === target.id)?.label ||
+                          target.id,
+                      )
+                      .join(", ") || "No targets"
+                  }}</span
+                >
               </div>
               <Tag
                 :value="
@@ -168,73 +180,6 @@
                 @click="removeBuild(build.id)"
               />
             </div>
-            <div v-if="build.enabled" class="profile-fields">
-              <div class="release-field">
-                <label :for="`engine-${build.id}`">Engine</label
-                ><Select
-                  :id="`engine-${build.id}`"
-                  :model-value="build.engine"
-                  :options="buildEngines(build.type)"
-                  optionLabel="label"
-                  optionValue="id"
-                  @update:model-value="switchEngine(build, $event)"
-                /><Message
-                  v-for="issue in fieldIssues(`builds.${index}.engine`)"
-                  :key="issue.code + issue.path"
-                  :severity="issue.severity === 'error' ? 'error' : 'warn'"
-                  >{{ issue.message }}</Message
-                >
-              </div>
-              <div class="release-field">
-                <span class="field-label">Build type</span
-                ><span class="field-value">{{ buildTypeLabel(build.type) }}</span>
-              </div>
-            </div>
-            <div v-if="build.enabled" class="target-list">
-              <span class="field-label">Targets</span
-              ><button
-                v-for="target in buildTargets(build)"
-                :key="target.id"
-                class="target-row"
-                :class="{ selected: isTargetEnabled(build, target.id) }"
-                :aria-pressed="isTargetEnabled(build, target.id)"
-                @click="toggleTarget(build, target.id, !isTargetEnabled(build, target.id))"
-              >
-                <i
-                  :class="
-                    isTargetEnabled(build, target.id)
-                      ? 'mdi mdi-check-circle'
-                      : 'mdi mdi-circle-outline'
-                  "
-                /><span
-                  ><strong>{{ target.label }}</strong
-                  ><small>{{
-                    target.buildType ? buildTypeLabel(target.buildType) : "Output target"
-                  }}</small></span
-                >
-              </button>
-            </div>
-            <div v-if="build.enabled && buildInputs(build).length" class="routing-row">
-              <span><i class="mdi mdi-source-branch" /> Input</span
-              ><Select
-                :model-value="outputRefValue(build.input || { source: true })"
-                :options="buildInputs(build)"
-                optionLabel="label"
-                optionValue="value"
-                @update:model-value="setBuildInput(build, $event)"
-              /><Message
-                v-for="issue in fieldIssues(`builds.${index}.input`)"
-                :key="issue.code + issue.path"
-                :severity="issue.severity === 'error' ? 'error' : 'warn'"
-                >{{ issue.message }}</Message
-              >
-            </div>
-            <Message
-              v-for="issue in cardIssues(`builds.${index}`)"
-              :key="issue.code + issue.path"
-              :severity="issue.severity === 'error' ? 'error' : 'warn'"
-              >{{ issue.message }}</Message
-            >
           </article>
         </section>
         <div class="pipeline-divider"><span>Deploy</span></div>
@@ -446,6 +391,61 @@
       header="Build settings"
       :style="wideDialogStyle"
       ><div v-if="settingsBuild" class="settings-grid">
+        <div class="release-field wide">
+          <label :for="`settings-engine-${settingsBuild.id}`">Engine</label
+          ><Select
+            :id="`settings-engine-${settingsBuild.id}`"
+            :model-value="settingsBuild.engine"
+            :options="buildEngines(settingsBuild.type)"
+            optionLabel="label"
+            optionValue="id"
+            @update:model-value="switchEngine(settingsBuild, $event)"
+          /><Message
+            v-for="issue in buildFieldIssues(settingsBuild, 'engine')"
+            :key="issue.code + issue.path"
+            :severity="issue.severity === 'error' ? 'error' : 'warn'"
+            >{{ issue.message }}</Message
+          >
+        </div>
+        <div class="release-field wide">
+          <span class="field-label">Targets</span>
+          <div class="target-list">
+            <button
+              v-for="target in buildTargets(settingsBuild)"
+              :key="target.id"
+              class="target-row"
+              :class="{ selected: isTargetEnabled(settingsBuild, target.id) }"
+              :aria-pressed="isTargetEnabled(settingsBuild, target.id)"
+              @click="
+                toggleTarget(settingsBuild, target.id, !isTargetEnabled(settingsBuild, target.id))
+              "
+            >
+              <i
+                :class="
+                  isTargetEnabled(settingsBuild, target.id)
+                    ? 'mdi mdi-check-circle'
+                    : 'mdi mdi-circle-outline'
+                "
+              /><span>{{ target.label }}</span>
+            </button>
+          </div>
+        </div>
+        <div v-if="buildInputs(settingsBuild).length" class="release-field wide">
+          <label :for="`settings-input-${settingsBuild.id}`">Input</label
+          ><Select
+            :id="`settings-input-${settingsBuild.id}`"
+            :model-value="outputRefValue(settingsBuild.input || { source: true })"
+            :options="buildInputs(settingsBuild)"
+            optionLabel="label"
+            optionValue="value"
+            @update:model-value="setBuildInput(settingsBuild, $event)"
+          /><Message
+            v-for="issue in buildFieldIssues(settingsBuild, 'input')"
+            :key="issue.code + issue.path"
+            :severity="issue.severity === 'error' ? 'error' : 'warn'"
+            >{{ issue.message }}</Message
+          >
+        </div>
         <template
           v-for="field in producerDefinition(settingsBuild.engine)?.fields || []"
           :key="field.key"
