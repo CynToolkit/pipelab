@@ -4,7 +4,13 @@ import type { Tagged } from "type-fest";
 import { PresetResult, Steps, SavedFile } from "./model";
 import { AppConfig, ConnectionsConfig } from "./config.schema";
 import { FileRepo } from "./config/projects-definition";
-import type { ReleaseCatalog, ReleaseConfig, ReleaseProducerConfig, ValidationIssue } from "./release/types";
+import type {
+  ReleaseCatalog,
+  ReleaseConfig,
+  ReleasePlan,
+  ReleaseProducerConfig,
+  ValidationIssue,
+} from "./release/types";
 import { Agent } from "./websocket.types";
 import { BuildHistoryEntry, BuildHistoryQuery, BuildHistoryResponse } from "./build-history";
 import type { WorkflowEvent, WorkflowResult } from "@pipelab/workflow-runtime";
@@ -194,9 +200,16 @@ export type IpcDefinition = {
   "pipeline:delete-by-path": [{ path: string }, EndEvent<"ok">];
   "workflow:load-by-name": [{ name: string }, EndEvent<ReleaseConfig>];
   "release:catalog:get": [void, EndEvent<ReleaseCatalog>];
-  "release:source:inspect": [{ provider: string; config: Record<string, unknown> }, EndEvent<unknown>];
-  "release:producer:inspect": [{ provider: string; config: ReleaseProducerConfig }, EndEvent<unknown>];
+  "release:source:inspect": [
+    { provider: string; config: Record<string, unknown> },
+    EndEvent<unknown>,
+  ];
+  "release:producer:inspect": [
+    { provider: string; config: ReleaseProducerConfig },
+    EndEvent<unknown>,
+  ];
   "release:validate": [{ config: ReleaseConfig }, EndEvent<{ issues: ValidationIssue[] }>];
+  "release:plan": [{ config: ReleaseConfig }, EndEvent<ReleasePlan>];
   "workflow:save-by-name": [{ name: string; data: string }, EndEvent<"ok">];
   "workflow:delete-by-name": [{ name: string }, EndEvent<"ok">];
   "workflow:execute": [
@@ -248,8 +261,14 @@ export type IpcDefinition = {
       | { type: "node-enter"; data: { nodeUid: string; nodeName: string } }
       | { type: "node-exit"; data: { nodeUid: string; nodeName: string } }
       | { type: "node-log"; data: { nodeUid: string; logData: any } }
-      | { type: "node-artifact"; data: { nodeUid: string; artifact: { name: string; path: string } } }
-      | { type: "node-artifacts-finalized"; data: { artifacts: import("@pipelab/shared").Artifact[] } }
+      | {
+          type: "node-artifact";
+          data: { nodeUid: string; artifact: { name: string; path: string } };
+        }
+      | {
+          type: "node-artifacts-finalized";
+          data: { artifacts: import("@pipelab/shared").Artifact[] };
+        }
       | EndEvent<{ result: any; buildId: string }>
     ),
   ];
@@ -302,10 +321,7 @@ export type IpcDefinition = {
       }>;
     }>,
   ];
-  "plugin:ensure-loaded": [
-    { plugins: string[] },
-    EndEvent<{ loaded: string[]; failed: string[] }>,
-  ];
+  "plugin:ensure-loaded": [{ plugins: string[] }, EndEvent<{ loaded: string[]; failed: string[] }>];
   "migration:scan-stable": [{ sourceChannel?: MigrationChannel }, EndEvent<StableDataReport>];
   "migration:perform": [MigrationOptions, EndEvent<{ result: "ok" }>];
 };
