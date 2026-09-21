@@ -16,7 +16,8 @@
     "supa:types": "supabase gen types typescript --project-id $SUPABASE_PROJECT_ID > packages/shared/src/database.types.ts",
     "docs": "pnpm --filter @pipelab/documentation dev",
     "docs:build": "pnpm --filter @pipelab/documentation build",
-    "docs:preview": "pnpm --filter @pipelab/documentation preview"
+    "docs:preview": "pnpm --filter @pipelab/documentation preview",
+    "prepare": "husky"
   },
   "devDependencies": {
     "@changesets/cli": "^2.27.11",
@@ -29,12 +30,20 @@
     "@types/tar": "^6.1.13",
     "cross-env": "7.0.3",
     "execa": "9.5.1",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.4.0",
     "nanoid": "5.0.8",
     "oxfmt": "0.40.0",
     "oxlint": "1.55.0",
     "turbo": "^2.8.15",
     "typescript": "5.9.3",
     "vitest": "3.1.4"
+  },
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx,mjs,cjs}": [
+      "oxfmt",
+      "oxlint --fix"
+    ]
   },
   "resolutions": {
     "@codemirror/state": "6.4.1",
