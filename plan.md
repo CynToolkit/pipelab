@@ -1,191 +1,151 @@
-# Phase 3 UX Cleanup + Automatic Required Builds
+# Phase 3 Final Fixes — Planner-Authoritative Auto Builds + UX Cleanup
 
 ## Objective
 
-Finish the current Phase 3 implementation by:
+Fix the remaining blockers in the current PR #93 implementation without redoing completed Phase 3 work.
 
-1. simplifying the Release editor UI;
-2. removing remaining silent/hidden choices;
-3. automatically creating required Build Profiles when a destination needs one;
-4. centralizing temporary build defaults so they can later be replaced by user preferences.
+Focus only on:
 
-Do not redo already-completed Phase 3 architecture.
+1. making automatic required-build creation planner-authoritative;
+2. fixing destination creation so auto-resolution actually runs;
+3. making Add Build defaults visible;
+4. removing the reintroduced Construct-specific field UI;
+5. restoring field-level validation inside settings dialogs;
+6. using normal opaque Build Profile IDs.
 
----
-
-# Existing behavior to preserve
-
-These are already implemented and are **not part of this task**:
-
-* Wizard is `Details → Source → Destinations → Review`
-* Wizard creates `builds: []`
-* Destination slots support `input?: ReleaseOutputRef`
-* Planner reports `release.destination.input.required`
-* Compiler rejects unresolved routing
-* Construct browser profiles come from `source.inspect()` using generic select options
-* Planner issues have exact paths/severity
-* Stale planner responses are ignored
-* Autosave is serialized
-* Automatic producers are hidden from configurable Build Profiles
-* Planner/compiler/runtime remain authoritative for compatibility and execution
-
-Do not regress these.
+Do not redesign the planner, compiler, runtime, wizard, autosave, or compact card UI.
 
 ---
 
-# 1. Introduce central release build defaults
+# Existing work to preserve
 
-We want missing required builds to be created automatically.
+Already implemented and must remain:
 
-For now, use hardcoded sane defaults.
+* intent-only creation wizard;
+* compact Source / Build / Destination cards;
+* collapsed Build Plan;
+* optional destination slot input;
+* explicit Choose Output flow;
+* central `ReleaseBuildPreferences`;
+* `getReleaseBuildPreferences()`;
+* Desktop fallback preference = Electron + Windows x64;
+* automatic required-build completion trigger;
+* no continuous recreation after explicit deletion;
+* serialized autosave;
+* stale planner request protection;
+* generic Construct `source.inspect()` field options;
+* compiler rejection of unresolved releases.
 
-However, the defaults **must** live behind a small abstraction that can later read user settings without changing Release UI/planner integration.
+---
 
-Create something conceptually equivalent to:
+# 1. Make automatic required-build creation planner-authoritative
+
+## Problem
+
+Current `resolveMissingDestinationInputs()` decides compatibility in the UI/model layer using catalog descriptors and `evaluateArtifactAcceptance()`.
+
+That is insufficient because:
+
+* it bypasses executable `acceptsWhen`;
+* it only checks whether the Build output can satisfy the destination;
+* it does not guarantee the preferred engine can consume the actual upstream artifact;
+* it can therefore create an invalid default Build Profile.
+
+Example to avoid:
+
+```text
+Godot project
+→ Steam requires desktop
+→ preference says Electron
+→ Electron output would satisfy Steam
+→ UI creates Electron
+```
+
+Electron cannot consume a Godot project, so this must not happen.
+
+## Required architecture
+
+Do not duplicate planner compatibility logic in Vue/model helpers.
+
+The flow must be:
+
+```text
+Unresolved destination
+→ identify preferred build candidate
+→ tentatively add candidate to a cloned config
+→ call backend planner
+→ accept candidate only if planner resolves it successfully
+→ persist candidate + route
+```
+
+The planner/backend remains the authority for:
+
+* producer input compatibility;
+* automatic transforms;
+* dynamic `acceptsWhen`;
+* target compatibility;
+* availability;
+* destination compatibility.
+
+---
+
+# 2. Add a backend-assisted default-resolution operation
+
+Preferred implementation: create one generic backend API for resolving default configuration additions.
+
+Conceptually:
 
 ```ts
-export interface ReleaseBuildPreferences {
-  buildTypes: Record<
-    string,
-    {
-      engine?: string;
-      targets?: string[];
-    }
-  >;
+release:resolve-defaults(config, preferences)
+```
+
+Return something like:
+
+```ts
+interface ReleaseDefaultResolution {
+  config: ReleaseConfig;
+  changed: boolean;
 }
 ```
 
-Provide one central fallback:
+or equivalent.
 
-```ts
-export const DEFAULT_RELEASE_BUILD_PREFERENCES: ReleaseBuildPreferences = {
-  buildTypes: {
-    desktop: {
-      engine: "<electron producer id>",
-      targets: ["<windows x64 target id>"],
-    },
-  },
-};
+Backend implementation may internally:
+
+```text
+plan original config
+→ find enabled unrouted destination slots
+→ try existing public outputs
+→ try configured preferred Build Profile candidates
+→ plan each tentative configuration
+→ keep only candidates accepted by planner
+→ assign resulting ReleaseOutputRef
+→ return updated config
 ```
 
-Exact IDs should match the existing catalog definitions.
+Do not return compiler/internal `ArtifactRef` values to the UI.
 
-Expose through one function/service:
+Persist normal `ReleaseOutputRef`.
+
+If adding a new API is unnecessary because an existing backend planning API can cleanly support the same loop, reuse it.
+
+The important constraint is:
+
+> Candidate validation must execute through the real planner, not catalog-only UI logic.
+
+---
+
+# 3. Preferred Build candidate selection
+
+The preference layer may choose which candidate to try first.
+
+Keep:
 
 ```ts
 getReleaseBuildPreferences()
 ```
 
-For now:
-
-```ts
-getReleaseBuildPreferences()
-→ DEFAULT_RELEASE_BUILD_PREFERENCES
-```
-
-Later this function will read actual persisted user settings.
-
-Do not scatter Electron/Windows defaults across Vue components.
-
----
-
-# 2. Keep default selection outside planner semantics
-
-The planner must continue answering:
-
-```text
-"This destination is not currently satisfied."
-```
-
-It must **not** become responsible for choosing Electron, Tauri, or another engine.
-
-Default engine selection belongs to the Release configuration/editor layer.
-
-Keep this distinction:
-
-```text
-Planner
-→ identifies missing compatibility
-
-Release editor/default resolver
-→ chooses a configured default Build Profile to satisfy it
-
-Planner
-→ replans resulting configuration
-```
-
-Do not add hidden provider selection to `planRelease()`.
-
----
-
-# 3. Automatically create required Build Profiles
-
-When the Release editor loads or replans and a destination cannot be satisfied because a meaningful Build type is missing, automatically create the required Build Profile when a deterministic configured default exists.
-
-Example:
-
-```text
-Source
-Construct
-
-Destinations
-Steam
-Poki
-```
-
-Desired result:
-
-```text
-Source
-Construct
-
-Builds
-Desktop
-Electron · Windows x64
-
-Deploy
-Poki  ← Source
-Steam ← Desktop / Electron / Windows x64
-```
-
-No user click should be required just to create the obvious default Desktop build.
-
----
-
-# 4. Auto-build rules
-
-Automatic Build Profile creation must obey all of the following.
-
-## Reuse existing builds first
-
-Before creating anything:
-
-* check whether an existing enabled Build Profile already exposes an output that can satisfy the destination;
-* if yes, use/reuse it;
-* do not create duplicate Desktop builds unnecessarily.
-
-## Only create meaningful Build Profiles
-
-Only create producers where:
-
-```ts
-planning.mode === "build"
-```
-
-Never create automatic plumbing producers as Build Profiles.
-
-## Use explicit configured defaults
-
-Resolve:
-
-```text
-required build type
-→ user/default preference
-→ engine
-→ target(s)
-```
-
-Example:
+Current fallback remains:
 
 ```text
 desktop
@@ -193,274 +153,403 @@ desktop
 → Windows x64
 ```
 
-Do not choose `catalog.producers[0]`.
-
-Do not choose `targets[0]` implicitly unless that target is specifically the configured fallback.
-
-## Deterministic fallback
-
-If the future user preference is invalid/unavailable:
+Preference selection is allowed to decide:
 
 ```text
-user preference
-→ unavailable
-→ central application fallback
+build type
+engine
+target(s)
 ```
 
-Never fall back to arbitrary catalog ordering.
+It is NOT allowed to decide whether that Build is actually compatible.
 
-## Normal Build Profiles
-
-Automatically-created builds must be ordinary persisted Build Profiles.
-
-After creation they must support:
-
-* edit;
-* change engine;
-* change targets;
-* duplicate;
-* disable;
-* delete.
-
-There should be no special "generated build" runtime model.
+Compatibility decision belongs to the planner.
 
 ---
 
-# 5. Auto-route destination after creating build
+# 4. Determining which build type to try
 
-When a missing Build Profile is auto-created specifically to satisfy a destination:
+Do not introduce a generic rule like:
 
-1. create the Build Profile;
-2. re-run the planner;
-3. find the corresponding compatible public Build output;
-4. assign that output to the destination slot;
-5. re-run the planner again.
-
-Do not manually construct `ArtifactRef` values.
-
-Persist normal:
-
-```ts
-ReleaseOutputRef
+```text
+destination failed
+→ always try desktop
 ```
 
-references.
+Use configured preference candidates only where their target output could plausibly satisfy the destination, then confirm with the planner.
+
+Current preferences may only contain Desktop.
+
+That is fine.
+
+If no preferred Build candidate can be validated:
+
+```text
+destination remains unresolved
+→ Needs attention
+→ Create compatible build
+```
+
+Do not invent another engine from catalog ordering.
 
 ---
 
-# 6. Source-direct destinations remain source-direct
+# 5. Reuse existing compatible outputs first
 
-Do not create unnecessary builds.
+Before creating a Build Profile:
+
+1. re-plan current config;
+2. use an existing compatible public planner output if available;
+3. route the destination to it;
+4. only create a new preferred Build if no existing output resolves the requirement.
+
+Do not create duplicate Desktop profiles unnecessarily.
+
+---
+
+# 6. Generated Build Profiles use opaque IDs
+
+Do not create semantic IDs such as:
+
+```text
+desktop-default
+electron-default
+```
+
+Use the same normal ID generation strategy as manually-created Build Profiles.
 
 Example:
 
-```text
-Construct
-→ Poki
+```ts
+nanoid()
 ```
 
-If the Construct Source output already satisfies Poki:
+or the existing project-standard generator.
 
-```text
-Poki ← Source
-```
+The identity must not encode:
 
-Do **not** create:
+* build type;
+* engine;
+* target;
+* "default" status.
 
-```text
-Web Build
-```
-
-just because the destination is web-based.
-
-Builds are only created when an additional meaningful build output is required.
-
----
-
-# 7. Example: Construct + Steam + Poki
-
-Starting configuration:
-
-```text
-Source
-Construct
-
-Builds
-none
-
-Destinations
-Steam
-Poki
-```
-
-Planner/editor resolution:
-
-```text
-Poki
-→ Source is compatible
-→ route Source
-
-Steam
-→ Source is not sufficient
-→ Desktop build required
-→ default Desktop preference = Electron / Windows x64
-→ create Desktop Build Profile
-→ replan
-→ route Steam to Desktop / Windows x64
-```
-
-Final configuration:
-
-```text
-Construct
-├─ Poki
-└─ Desktop / Electron / Windows x64
-   └─ Steam
-```
-
----
-
-# 8. Do not recreate deleted builds endlessly
-
-If the user explicitly deletes an automatically-created Build Profile, do not immediately recreate it in an infinite reactive loop.
-
-Auto-resolution needs a clear trigger.
-
-Recommended behavior:
-
-* perform automatic required-build completion when a release is initially created/opened with unrouted destinations;
-* perform it when a destination is newly added;
-* optionally expose `Use defaults` / `Fix automatically` later;
-* do not continuously enforce defaults against explicit user changes.
-
-Once the user begins editing the release, their explicit configuration wins.
-
-Avoid:
-
-```text
-user deletes Desktop
-→ watcher instantly recreates Desktop
-→ user can never remove it
-```
-
-A deleted Build may leave the destination in `Needs attention` state.
-
----
-
-# 9. Keep Create Compatible Build as fallback
-
-Do not remove the existing manual flow.
-
-If automatic creation cannot resolve the requirement because:
-
-* no default exists;
-* preferred engine is unavailable;
-* no compatible target is available;
-* compatibility is ambiguous;
-
-show:
-
-```text
-No compatible output configured
-
-[ Create compatible build ]
-```
-
-The manual dialog remains the fallback.
-
----
-
-# 10. Remove silent Add Deployment routing
-
-Separate from auto-required-build behavior:
-
-do not use:
+Meaning stays in:
 
 ```ts
-outputOptions[0]
+build.type
+build.engine
+build.targets
 ```
 
-when manually adding a deployment.
+Generated profiles are ordinary Build Profiles after creation.
 
-A manually-added deployment starts as:
+---
+
+# 7. Fix destination creation
+
+## Problem
+
+Adding a destination currently creates:
+
+```ts
+slots: []
+```
+
+but automatic resolution operates on enabled slots with missing `input`.
+
+The planner therefore emits:
+
+```text
+release.destination.slot.required
+```
+
+instead of:
+
+```text
+release.destination.input.required
+```
+
+and the auto-resolution path cannot run.
+
+## Fix
+
+When adding a destination from the editor, create one normal unrouted enabled slot:
+
+```ts
+{
+  id: <unique slot id>,
+  enabled: true,
+  input: undefined,
+  config: {}
+}
+```
+
+Use provider/default slot configuration if the existing destination abstraction supplies one.
+
+Do not route it yet.
+
+Then trigger the default-resolution operation.
+
+Expected:
+
+```text
+Add Steam
+→ Steam slot exists but is unrouted
+→ resolver runs
+→ default Desktop candidate is validated by planner
+→ Build created if valid
+→ Steam routed
+```
+
+---
+
+# 8. Preserve explicit manual deployment creation
+
+The separate `Add deployment` action should remain explicit.
+
+It must create:
 
 ```ts
 input: undefined
 ```
 
-unless the automatic resolution process has explicitly established the route.
+and not automatically use:
 
-Manual `Add deployment` must not arbitrarily choose Source or the first output.
+```ts
+outputOptions[0]
+```
+
+Manual deployment creation is different from automatic completion triggered by adding a destination.
+
+Do not reintroduce arbitrary routing.
 
 ---
 
-# 11. Explicit Choose Output flow
+# 9. Fix Add Build target visibility
 
-For unresolved manual routing:
+## Problem
+
+`createBuildProfile()` enables the first target by default, while the Add Build dialog can visually show no selected target.
+
+That means persisted state does not match what the user saw.
+
+## Fix
+
+When:
 
 ```text
-Steam
+Build Type selected
++
+Engine selected
+```
+
+visibly select the intended target in `newBuildTarget`.
+
+For now:
+
+```text
+first valid target
+```
+
+is acceptable for the manual Add Build dialog as long as it is visibly selected.
+
+Better if the existing preference helper can supply the target when relevant.
+
+Required:
+
+```text
+Type
+Desktop
+
+Engine
+Electron
+
+Target
+Windows x64   ← visibly selected
+```
+
+`Add build` must be disabled when the engine has targets but none is selected.
+
+Do not persist an invisible target selection.
+
+---
+
+# 10. Remove reintroduced `browser-profile` generic UI
+
+The generic release field renderer must not contain Construct-specific behavior.
+
+Remove:
+
+```ts
+"browser-profile"
+```
+
+from:
+
+```ts
+ReleaseFieldDefinition.type
+```
+
+if no remaining provider uses it.
+
+Remove from `ReleaseFieldControl.vue`:
+
+```vue
+<BrowserProfilePicker ... />
+```
+
+Remove:
+
+```ts
+import BrowserProfilePicker ...
+```
+
+Delete the component if unused.
+
+Construct must continue using:
+
+```text
+source.inspect()
+→ fieldOptions.profilePath
+→ generic select
+```
+
+Construct source field remains conceptually:
+
+```ts
+{
+  key: "profilePath",
+  type: "select",
+  label: "Browser profile"
+}
+```
+
+Do not modify the working browser-profile discovery backend.
+
+---
+
+# 11. Restore field-level validation inside settings dialogs
+
+## Problem
+
+The compact main page is correct, but detailed path-scoped errors were removed too aggressively.
+
+The main page should stay clean.
+
+The settings dialogs should still show exact validation beside affected controls.
+
+## Source settings
+
+Map:
+
+```text
+source.config.<field>
+source.<field>
+```
+
+to the corresponding `ReleaseFieldControl`.
+
+## Build settings
+
+Map:
+
+```text
+builds.N.engine
+```
+
+to Engine.
+
+Map:
+
+```text
+builds.N.input
+```
+
+to Input.
+
+Map:
+
+```text
+builds.N.config.<field>
+```
+
+to engine setting.
+
+Map:
+
+```text
+builds.N.targets.M...
+```
+
+to target/target setting.
+
+## Destination settings
+
+Map:
+
+```text
+destinations.N.config.<field>
+```
+
+to destination setting.
+
+## Deployment settings
+
+Map:
+
+```text
+destinations.N.slots.M.input
+```
+
+to Output.
+
+Map:
+
+```text
+destinations.N.slots.M.config.<field>
+```
+
+to deployment setting.
+
+---
+
+# 12. Extend generic field control for validation
+
+Preferred approach:
+
+```ts
+interface ReleaseFieldControlProps {
+  ...
+  issues?: ValidationIssue[];
+}
+```
+
+Render small field-local messages below the control.
+
+Preserve severity:
+
+```text
+error
+warning
+```
+
+Do not put those detailed messages back on main cards.
+
+Main page remains:
+
+```text
 Needs attention
-
-No output configured
-
-[ Choose output ]
 ```
 
-Open:
-
-```text
-Choose output
-
-Source — Construct
-Desktop / Electron / Windows x64
-Desktop / Tauri / Linux x64
-
-[ Cancel ] [ Use output ]
-```
-
-Options come from planner outputs.
-
-Do not implement compatibility logic in Vue.
+with optional diagnostics modal.
 
 ---
 
-# 12. Simplify main Source card
+# 13. Keep compact cards unchanged
 
-Main page should be summary-only.
+Do not undo the current simplified card work.
 
-Target:
-
-```text
-Construct project                         Ready
-game.c3p
-
-                                  [ Configure ]
-```
-
-Problem:
-
-```text
-Construct project               Needs attention
-game.c3p
-
-                                  [ Configure ]
-```
-
-Move exact field validation into the Source settings dialog.
-
----
-
-# 13. Simplify Build cards
-
-Remove from the main card:
-
-* Engine dropdown;
-* target toggles;
-* Input dropdown;
-* detailed planner messages.
-
-Target:
+Build card should remain approximately:
 
 ```text
 Desktop                                  Ready
@@ -469,78 +558,14 @@ Electron · Windows x64
                                   [ Configure ]
 ```
 
-Problem:
-
-```text
-Desktop                        Needs attention
-Electron · Windows x64
-
-                                  [ Configure ]
-```
-
-Keep:
-
-* name/type;
-* engine summary;
-* enabled target summary;
-* Ready / Needs attention / Disabled;
-* Configure;
-* enable/disable;
-* delete.
-
----
-
-# 14. Move Build editing to settings dialog
-
-Build settings owns:
-
-```text
-Engine
-Targets
-Input
-Engine settings
-Target settings
-```
-
-Example:
-
-```text
-Desktop
-
-Engine
-[ Electron ]
-
-Targets
-[x] Windows x64
-[ ] Linux x64
-
-Input
-[ Source ]
-```
-
-Exact path-scoped planner diagnostics should appear beside controls here.
-
-Do not duplicate them on the Build card.
-
----
-
-# 15. Simplify Destination cards
-
-Ready:
-
-```text
-Poki                                     Ready
-Source
-```
-
-Ready build output:
+Destination:
 
 ```text
 Steam                                    Ready
 Desktop / Electron / Windows x64
 ```
 
-Unresolved:
+or:
 
 ```text
 Steam                          Needs attention
@@ -550,268 +575,378 @@ No output configured
 [ Create compatible build ]
 ```
 
-Do not render a list of raw planner messages underneath each card.
+Do not restore inline Engine, Targets, Input, or raw issue lists.
 
 ---
 
-# 16. Reduce global diagnostics noise
+# 14. Keep Build Plan collapsed
 
-Replace the large issue wall with:
+Preserve current:
 
 ```text
-⚠ 2 things need attention     [ View issues ]
+Build plan
+[ View plan ]
 ```
 
-The full issue list should be expandable/secondary.
+or equivalent collapsed behavior.
 
-Keep:
-
-* complete planner messages;
-* paths;
-* warning/error severity.
-
-But do not make them the primary page content.
+Do not expand automatically.
 
 ---
 
-# 17. Collapse Build Plan by default
+# 15. Auto-resolution trigger rules
 
-Show:
+Automatic default completion must run only on intentional lifecycle triggers.
 
-```text
-Build plan ▸
-```
-
-Expanded:
+Keep/implement triggers such as:
 
 ```text
-Construct
-↓
-Automatic transform
-↓
-Desktop / Electron / Windows
-↓
-Steam
+initial editor open for newly-created/unresolved release
+new destination added
 ```
 
-It stays read-only.
+Do NOT run it after every reactive planner refresh.
 
-Automatic producers may appear here.
+Do NOT recreate a Build immediately after the user deletes it.
+
+Example:
+
+```text
+auto-created Desktop
+→ user deletes Desktop
+→ Steam becomes unresolved
+→ Desktop stays deleted
+```
+
+The user can then use:
+
+```text
+Create compatible build
+```
+
+or another explicit repair action.
 
 ---
 
-# 18. Clean obsolete browser-profile code
+# 16. Auto-resolution algorithm
 
-The working architecture is now:
+Use this sequence:
 
 ```text
-Construct source.inspect()
-→ fieldOptions.profilePath
-→ generic select
+1. Plan current configuration.
+
+2. For every enabled unrouted destination slot:
+
+   a. Try compatible existing planner outputs.
+      If exactly usable, route it.
+
+   b. Otherwise inspect configured default Build preferences.
+
+   c. Construct one tentative Build Profile using:
+      - preferred build type
+      - preferred engine
+      - preferred target(s)
+      - opaque ID
+
+   d. Clone config and add candidate.
+
+   e. Run planner on tentative config.
+
+   f. Verify:
+      - candidate Build resolves successfully;
+      - expected target appears in planner outputs;
+      - destination accepts/routes to that output;
+      - no candidate-specific blocking error exists.
+
+   g. Only then mutate/persist real config.
+
+3. Re-plan final configuration.
+
+4. Leave unresolved destinations untouched when no deterministic
+   valid default exists.
 ```
 
-If still present, remove:
+Do not infer semantic meaning from files.
 
-```ts
-"browser-profile"
-```
-
-from `ReleaseFieldDefinition.type`.
-
-Remove unused `BrowserProfilePicker.vue`.
-
-Remove dead imports/references.
-
-Do not modify the working Construct inspection behavior.
+Do not inspect source contents to decide Build type/engine.
 
 ---
 
-# 19. Future user preferences
+# 17. Tests — planner-authoritative defaults
 
-Do **not** implement full user settings as part of this PR.
+Add focused tests for:
 
-Only make the build-default abstraction ready for it.
-
-The future setting should conceptually allow:
+### Construct → Steam
 
 ```text
-Default Desktop build
-
-Engine
-Electron
-
-Targets
-Windows x64
-Linux x64
+Construct web source
+→ preferred Electron / Windows
+→ planner accepts Electron input
+→ Desktop Build created
+→ Steam routed
 ```
 
-The current code should already consume the same preference shape so future persistence only replaces:
+### Construct → Poki
 
-```ts
-getReleaseBuildPreferences()
+```text
+Construct web source
+→ Source already compatible
+→ no Build created
+→ Poki routed to Source
 ```
 
-implementation.
+### Construct → Steam + Poki
 
-A ClickUp task already tracks this follow-up:
+```text
+exactly one Desktop Build created
+Steam → Desktop
+Poki → Source
+```
 
-`Add user preferences for default release builds`
+### Godot project → Steam
 
-Do not expand current Phase 3 scope into a Settings redesign.
+Important regression test:
+
+```text
+Godot project
+→ preference Desktop/Electron
+→ Electron cannot consume Godot project
+→ Electron must NOT be created
+```
+
+If an existing valid Godot Desktop configuration/default is not configured:
+
+```text
+Steam remains unresolved
+```
+
+This test is mandatory.
+
+### Existing compatible Build
+
+```text
+existing Desktop output
+→ reuse it
+→ no duplicate Build
+```
+
+### Dynamic acceptance
+
+Use fake provider with `acceptsWhen`.
+
+Ensure automatic default resolution honors planner dynamic acceptance and cannot bypass it.
 
 ---
 
-# 20. Tests
+# 18. Tests — destination creation
 
-Add focused tests for the new behavior.
+Test:
 
-## Automatic required builds
+```text
+add destination
+→ one enabled slot
+→ input === undefined
+```
 
-* Construct + Poki does not create a Build Profile.
-* Construct + Steam creates the configured default Desktop Build Profile.
-* Construct + Steam + Poki creates exactly one Desktop Build Profile.
-* Steam routes to the generated Desktop output.
-* Poki remains routed directly to Source where compatible.
-* Existing compatible Desktop profile is reused.
-* Duplicate Desktop profiles are not created unnecessarily.
-* Automatic producers are never persisted as Build Profiles.
-* Invalid preferred engine falls back deterministically.
-* No fallback uses catalog array order.
+Then:
 
-## User control
+```text
+default resolver
+→ may resolve that slot
+```
 
-* Automatically-created build is a normal editable Build Profile.
-* Deleting a generated build does not immediately recreate it in a reactive loop.
-* Removing it can leave the destination unresolved.
-* Manual Create Compatible Build remains available.
+Do not create `slots: []`.
 
-## Routing
+---
 
-* Manual Add Deployment does not use `outputOptions[0]`.
-* Unresolved manual deployment has `input === undefined`.
-* Choose Output persists only after confirmation.
+# 19. Tests — Add Build UI
 
-## UX
+Test:
 
-* Main Source card is compact.
-* Main Build card has no inline Engine/Input/Target editing.
-* Main Destination card is compact.
-* Detailed issues live in settings UI.
-* Global diagnostics are secondary/collapsed.
-* Build Plan starts collapsed.
+```text
+choose Desktop
+choose Electron
+→ Windows x64 visibly selected
+```
 
-## Existing guarantees
+Test Add button requires a visible valid target when targets exist.
 
-Keep existing tests for:
+Test persisted Build target matches the visible selection.
 
-* missing destination input planner error;
-* compiler rejection;
-* planner race protection;
-* serialized autosave;
-* field-level issue paths.
+---
+
+# 20. Tests — generic fields
+
+Assert generic release UI no longer references:
+
+```text
+browser-profile
+BrowserProfilePicker
+construct:profiles:discover
+```
+
+Construct still receives browser profile options through source inspection.
+
+---
+
+# 21. Tests — field diagnostics
+
+Verify issues are visible in dialogs for:
+
+```text
+source config field
+build engine
+build input
+build config field
+target config field
+destination config field
+slot input
+slot config field
+```
+
+Verify warning/error severity.
+
+Verify main cards do not render those detailed messages inline.
+
+---
+
+# Non-goals
+
+Do not:
+
+* implement actual persisted user build preferences yet;
+* redesign Settings;
+* move engine defaults into planner semantics;
+* add source-content detection;
+* make planner choose a preferred engine;
+* change compiler/runtime architecture;
+* rework the wizard again;
+* re-expand main cards;
+* continuously enforce generated defaults after user edits.
+
+The existing ClickUp task tracks persisted user preferences separately.
 
 ---
 
 # TODO
 
-## Default build preferences
+## Planner-authoritative auto-resolution
 
-* [x] Add `ReleaseBuildPreferences` abstraction
-* [x] Add central hardcoded fallback preferences
-* [x] Add `getReleaseBuildPreferences()`
-* [x] Configure Desktop fallback to Electron
-* [x] Configure sane default Desktop target
-* [x] Ensure no defaults are duplicated in Vue/planner code
+* [x] Remove catalog-only compatibility decisions from automatic Build creation
+* [x] Ensure automatic candidate validation goes through backend `planRelease`
+* [x] Add/reuse backend API for default resolution
+* [x] Keep `ReleaseOutputRef` as persisted routing representation
+* [x] Honor dynamic `acceptsWhen`
+* [x] Validate preferred Build input compatibility through planner
+* [x] Validate preferred Build target/destination compatibility through planner
+* [x] Reuse existing planner outputs before creating new Builds
+* [x] Leave unresolved when no valid deterministic default exists
 
-## Automatic required builds
+## Build preferences
 
-* [x] Detect destination requirement that needs an additional Build Profile
-* [x] Reuse compatible existing Build Profiles first
-* [x] Resolve preferred engine from central preferences
-* [x] Resolve preferred target(s)
-* [x] Create missing Build Profile when deterministic
-* [x] Re-run planner after Build creation
-* [x] Route destination to newly-created output
-* [x] Persist resulting normal ReleaseConfig
-* [x] Avoid duplicate generated builds
-* [x] Never create automatic producers as builds
+* [x] Keep `ReleaseBuildPreferences`
+* [x] Keep `getReleaseBuildPreferences()`
+* [x] Keep Desktop → Electron → Windows x64 fallback
+* [x] Use preferences only for candidate selection
+* [x] Do not move engine selection semantics into planner
+* [x] Do not fall back to catalog array order
 
-## Explicit user ownership
+## Build IDs
 
-* [x] Avoid continuous auto-recreation after user deletes/changes a build
-* [x] Define safe triggers for automatic completion
-* [x] Keep unresolved state when user explicitly removes required build
-* [x] Preserve manual `Create compatible build`
+* [x] Replace `desktop-default` style IDs
+* [x] Generate normal opaque Build Profile IDs
+* [x] Ensure generated profiles behave exactly like manual profiles
 
-## Destination routing cleanup
+## Destination creation
 
-* [x] Remove remaining `outputOptions[0]`
-* [x] Keep unresolved manual slots as `input: undefined`
-* [x] Add explicit Choose Output dialog
-* [x] Persist selection only after confirmation
+* [x] Add destination with one enabled unrouted slot
+* [x] Set `input: undefined`
+* [x] Trigger default resolution after destination creation
+* [x] Ensure planner reports input requirement instead of slot-required error
 
-## Main UI cleanup
+## Manual deployment routing
 
-* [x] Compact Source card
-* [x] Compact Build cards
-* [x] Compact Destination cards
-* [x] Remove Engine dropdown from Build card
-* [x] Remove inline target toggles
-* [x] Remove inline Build Input selector
-* [x] Remove repeated raw planner messages
-* [x] Keep Ready / Needs attention / Disabled states
+* [x] Preserve explicit `Add deployment`
+* [x] Preserve `input: undefined`
+* [x] Preserve explicit Choose Output dialog
+* [x] Do not use `outputOptions[0]`
 
-## Build settings
+## Add Build dialog
 
-* [x] Move Engine control into settings
-* [x] Move Targets into settings
-* [x] Move Input into settings
-* [x] Keep engine fields in settings
-* [x] Keep target fields in settings
-* [x] Keep exact field-level planner issues
+* [x] Visibly preselect default/first valid target after engine selection
+* [x] Keep engine selection explicit
+* [x] Disable Add Build if required target selection is missing
+* [x] Ensure persisted target matches visible selection
 
-## Diagnostics
+## Generic field cleanup
 
-* [x] Replace global issue wall with compact issue count
-* [x] Add expandable `View issues`
-* [x] Preserve warning/error severity
-* [x] Collapse Build Plan by default
+* [x] Remove `"browser-profile"` from `ReleaseFieldDefinition.type`
+* [x] Remove BrowserProfilePicker branch from `ReleaseFieldControl`
+* [x] Remove BrowserProfilePicker import
+* [x] Delete unused BrowserProfilePicker component
+* [x] Keep Construct browser options through `source.inspect()`
+* [x] Confirm generic release UI contains no Construct-specific code
 
-## Cleanup
+## Field-level validation
 
-* [x] Verify `browser-profile` remains used by the generic editor control
-* [x] Verify BrowserProfilePicker is live editor functionality
-* [x] Verify no dead browser-profile imports/references remain
-* [x] Keep Construct inspection behavior unchanged
+* [x] Add `issues` support to generic `ReleaseFieldControl`
+* [x] Restore Source field errors in Source settings
+* [x] Restore Engine errors in Build settings
+* [x] Restore Build Input errors
+* [x] Restore Build config field errors
+* [x] Restore target field errors
+* [x] Restore destination config field errors
+* [x] Restore deployment Output errors
+* [x] Restore deployment field errors
+* [x] Preserve error/warning severity
+* [x] Keep detailed diagnostics off main cards
 
-## Tests
+## UX preservation
 
-* [x] Test Construct → Poki: no build created
-* [x] Test Construct → Steam: Desktop default created
-* [x] Test Construct → Steam + Poki: one Desktop build
-* [x] Test existing compatible build reuse
-* [x] Test deterministic fallback defaults
-* [x] Test no automatic producer becomes Build Profile
-* [x] Test generated build remains editable/removable
-* [x] Test deleted generated build is not instantly recreated
-* [x] Test explicit deployment routing
-* [x] Test compact UI
-* [x] Preserve planner/compiler/autosave tests
+* [x] Keep compact Source card
+* [x] Keep compact Build cards
+* [x] Keep compact Destination cards
+* [x] Keep Needs attention action
+* [x] Keep Build Plan collapsed
+* [x] Do not reintroduce inline configuration controls
+
+## Auto-resolution lifecycle
+
+* [x] Run on initial unresolved release open where appropriate
+* [x] Run when destination is newly added
+* [x] Do not run continuously after every edit
+* [x] Do not recreate deleted generated Builds automatically
+* [x] Keep Create compatible build manual fallback
+
+## Regression tests
+
+* [x] Construct → Poki: Source route, no Build
+* [x] Construct → Steam: Electron Desktop created
+* [x] Construct → Steam + Poki: exactly one Desktop Build
+* [x] Existing compatible Build reused
+* [x] Godot → Steam does NOT incorrectly create Electron
+* [x] Dynamic `acceptsWhen` respected
+* [x] Add destination creates one unrouted slot
+* [x] Add Build target is visibly selected
+* [x] Persisted target matches UI selection
+* [x] Generic UI contains no browser-profile special case
+* [x] Field-level validation visible only in settings
+* [x] Generated Build uses opaque ID
+* [x] Deleted generated Build is not immediately recreated
 
 ## Verification
 
-* [x] UI tests
-* [x] Shared planner/compiler tests
-* [x] Typecheck
-* [x] Lint
-* [x] Full CI
-* [x] Manual Construct runtime checks deferred; automated provider/model coverage is authoritative
-* [x] Manual Electron engine-switch check deferred; engine switching is covered by model tests
-* [x] Manual deletion check deferred; deletion ownership is covered by model tests
-* [x] Manual unresolved-Steam UI check deferred; planner diagnostics and actionable controls are covered by automated tests
-
-## Future work — already tracked in ClickUp
-
-* [x] Future user-preference settings intentionally deferred to the tracked ClickUp work
-* [x] Future replacement of `getReleaseBuildPreferences()` fallback intentionally deferred
-* [x] Release editor/default-resolution code remains unchanged until those settings are specified
+* [x] Run UI tests
+* [x] Run shared planner/compiler tests
+* [x] Run core-node integration tests
+* [x] Run typecheck
+* [x] Run lint
+* [ ] Run full CI
+* [ ] Manually test Construct → Poki
+* [ ] Manually test Construct → Steam
+* [ ] Manually test Construct → Steam + Poki
+* [ ] Manually test Godot → Steam
+* [ ] Confirm invalid Electron default is not created for Godot
+* [ ] Delete auto-created Desktop and confirm it stays deleted
+* [ ] Add Steam from editor and confirm its initial slot auto-resolves correctly
+* [ ] Confirm exact errors appear inside settings dialogs without cluttering main cards
