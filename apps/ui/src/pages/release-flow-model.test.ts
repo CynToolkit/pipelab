@@ -162,6 +162,7 @@ describe("release flow model", () => {
     };
     const configWithDestination: ReleaseConfig = {
       ...config,
+      builds: [],
       destinations: [
         {
           id: "destination",
@@ -226,6 +227,7 @@ describe("release flow model", () => {
     };
     const configWithDestination: ReleaseConfig = {
       ...config,
+      builds: [],
       destinations: [
         {
           id: "destination",
@@ -291,6 +293,7 @@ describe("release flow model", () => {
     };
     const configWithDestinations: ReleaseConfig = {
       ...config,
+      builds: [],
       destinations: [
         {
           id: "first",
@@ -339,6 +342,64 @@ describe("release flow model", () => {
       targetId: "windows",
     });
     expect(configWithDestinations.destinations[1].slots[0].input).toEqual({
+      buildId: "desktop-default",
+      targetId: "windows",
+    });
+  });
+
+  it("does not recreate a build after the user removes its referenced profile", () => {
+    const destinationCatalog: ReleaseCatalog = {
+      ...catalog,
+      destinations: [
+        {
+          id: "desktop-destination",
+          label: "Desktop destination",
+          accepts: { kind: "application", platform: "windows", container: "directory" },
+          defaultConfig: {},
+        },
+      ],
+    };
+    const configAfterRemoval: ReleaseConfig = {
+      ...config,
+      builds: [],
+      destinations: [
+        {
+          id: "destination",
+          provider: "desktop-destination",
+          enabled: true,
+          config: {},
+          slots: [
+            {
+              id: "default",
+              enabled: true,
+              input: { buildId: "desktop-default", targetId: "windows" },
+              config: {},
+            },
+          ],
+        },
+      ],
+    };
+    const plan = {
+      outputs: [],
+      issues: [
+        {
+          code: "release.destination.input.invalid",
+          message: "The selected build output no longer exists.",
+          severity: "error" as const,
+          path: "destinations.0.slots.0.input",
+        },
+      ],
+      producers: [],
+      destinations: [],
+      graph: { nodes: [], edges: [] },
+    } as ReleasePlan;
+    expect(
+      resolveMissingDestinationInputs(configAfterRemoval, plan, destinationCatalog, {
+        buildTypes: { desktop: { engine: "engine-a", targets: ["windows"] } },
+      }),
+    ).toBe(false);
+    expect(configAfterRemoval.builds).toEqual([]);
+    expect(configAfterRemoval.destinations[0].slots[0].input).toEqual({
       buildId: "desktop-default",
       targetId: "windows",
     });

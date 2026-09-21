@@ -94,7 +94,14 @@ export const resolveMissingDestinationInputs = (
     for (const [slotIndex, slot] of destination.slots.entries()) {
       if (!slot.enabled || slot.input) continue;
       const issuePath = `destinations.${destinationIndex}.slots.${slotIndex}.input`;
-      if (!plan.issues.some((issue) => issue.severity === "error" && issue.path === issuePath))
+      if (
+        !plan.issues.some(
+          (issue) =>
+            issue.code === "release.destination.input.required" &&
+            issue.severity === "error" &&
+            issue.path === issuePath,
+        )
+      )
         continue;
       const compatibleOutput = plan.outputs.find(
         (output) => evaluateArtifactAcceptance(output.descriptor, definition.accepts).accepted,
