@@ -45,6 +45,40 @@ describe("release provider integration wiring", () => {
     expect(plan.destinations[0]?.slots[0]?.input).toEqual({ source: true });
   });
 
+  it("reports the unresolved Construct to Steam output without inventing a producer", () => {
+    const config: ReleaseConfig = {
+      version: "3.0.0",
+      id: "construct-steam",
+      project: "project",
+      name: "Construct Steam",
+      source: {
+        provider: "@pipelab/plugin-construct/source",
+        config: { path: "/game.c3p", profilePath: "/profile" },
+      },
+      builds: [],
+      destinations: [
+        {
+          id: "steam",
+          provider: "@pipelab/plugin-steam/destination",
+          enabled: true,
+          config: { accountConnectionId: "steam", appId: "123" },
+          slots: [{ id: "windows", enabled: true, config: { depotId: "456" } }],
+        },
+      ],
+    };
+    const plan = planRelease(config, buildReleaseRegistry([construct, steam]), {
+      host: context.host,
+    });
+    expect(plan.producers).toEqual([]);
+    expect(
+      plan.issues.some(
+        (issue) =>
+          issue.code === "release.destination.input.required" &&
+          issue.path === "destinations.0.slots.0.input",
+      ),
+    ).toBe(true);
+  });
+
   it("connects Construct web output to Electron and Steam", () => {
     const config: ReleaseConfig = {
       version: "3.0.0",
