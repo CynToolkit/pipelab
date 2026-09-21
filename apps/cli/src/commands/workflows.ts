@@ -11,9 +11,11 @@ import { Option } from "commander";
 import { getDefaultUserDataPath } from "../paths";
 import { buildReleaseRegistry, compileWorkflow, usePlugins } from "@pipelab/shared";
 
-const contextFor = () => new PipelabContext({ userDataPath: getDefaultUserDataPath() });
+const contextFor = (userDataPath = getDefaultUserDataPath()) =>
+  new PipelabContext({ userDataPath });
 
 export const workflowRunOptions = [
+  new Option("--user-data <path>", "Custom user-data directory"),
   new Option("-o, --output <path>", "Path to write the result file"),
   new Option("--dry-run", "Validate the workflow without executing deployments"),
   new Option("--fail-on-error", "Exit nonzero when a deployment fails"),
@@ -77,13 +79,21 @@ export async function deleteWorkflowCommand(id: string, options: { force?: boole
 
 export async function runWorkflowCommand(
   id: string,
-  options: { output?: string; failOnError?: boolean; dryRun?: boolean; verbose?: boolean },
+  options: {
+    userData?: string;
+    output?: string;
+    failOnError?: boolean;
+    dryRun?: boolean;
+    verbose?: boolean;
+  },
 ) {
-  const context = contextFor();
+  const context = contextFor(options.userData);
   const entry = await loadEntry(context, id);
   const flow = await (await setupWorkflowConfigFileByName(entry.configName, context)).getConfig();
   if (options.dryRun) {
-    console.log(`Dry run for ${id}: ${flow.builds.length} build profile(s), ${flow.destinations.length} destination(s)`);
+    console.log(
+      `Dry run for ${id}: ${flow.builds.length} build profile(s), ${flow.destinations.length} destination(s)`,
+    );
     if (options.output) {
       const { writeFile } = await import("node:fs/promises");
       await writeFile(options.output, JSON.stringify(flow, null, 2));
@@ -92,7 +102,9 @@ export async function runWorkflowCommand(
   }
   const { builtInPlugins } = await import("@pipelab/core-node");
   await builtInPlugins({ context });
-  const workflow = compileWorkflow(flow, buildReleaseRegistry(usePlugins().plugins.value), { host: { platform: process.platform, architecture: process.arch } });
+  const workflow = compileWorkflow(flow, buildReleaseRegistry(usePlugins().plugins.value), {
+    host: { platform: process.platform, architecture: process.arch },
+  });
   const completion = new Map<string, { resolve: () => void; reject: (error: Error) => void }>();
   const waiters = new Map<string, Promise<void>>();
   const taskControls = new Map<string, ListrTaskWrapper<any, any, any>>();

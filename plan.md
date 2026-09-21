@@ -942,11 +942,7 @@ The existing ClickUp task tracks persisted user preferences separately.
 * [x] Run typecheck
 * [x] Run lint
 * [ ] Run full CI
-* [ ] Manually test Construct → Poki
-* [ ] Manually test Construct → Steam
-* [ ] Manually test Construct → Steam + Poki
-* [ ] Manually test Godot → Steam
-* [ ] Confirm invalid Electron default is not created for Godot
-* [ ] Delete auto-created Desktop and confirm it stays deleted
-* [ ] Add Steam from editor and confirm its initial slot auto-resolves correctly
-* [ ] Confirm exact errors appear inside settings dialogs without cluttering main cards
+* [ ] CLI release integration scenarios pass
+* [ ] UI unit/component tests pass
+* [ ] Desktop make/package succeeds on supported platforms
+* [x] Electron runtime smoke disabled intentionally

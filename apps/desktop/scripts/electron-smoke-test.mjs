@@ -1,3 +1,8 @@
+// Intentionally not an E2E test runner. If re-enabled, this may only verify
+// that the Electron shell starts, the renderer loads, and the host bridge
+// initializes. Workflow, release, plugin, planner, compiler, runtime, and UI
+// behavior must be tested through their appropriate lightweight test hosts.
+
 import { spawn } from "node:child_process";
 import http from "node:http";
 import path from "node:path";
