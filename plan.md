@@ -795,7 +795,7 @@ Keep existing tests for:
 * [x] Test generated build remains editable/removable
 * [x] Test deleted generated build is not instantly recreated
 * [x] Test explicit deployment routing
-* [ ] Test compact UI
+* [x] Test compact UI
 * [x] Preserve planner/compiler/autosave tests
 
 ## Verification
