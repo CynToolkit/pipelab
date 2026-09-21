@@ -30,31 +30,6 @@
       </template>
       <main v-if="flow" class="release-page">
         <Message v-if="error" severity="error">{{ error }}</Message>
-        <Message v-if="issues.length" :severity="errorCount ? 'error' : 'warn'">
-          <div class="diagnostic-summary">
-            <strong
-              >{{ issues.length }} configuration issue{{ issues.length === 1 ? "" : "s" }}</strong
-            >
-            <Button
-              :label="issuesExpanded ? 'Hide issues' : 'View issues'"
-              text
-              size="small"
-              @click="issuesExpanded = !issuesExpanded"
-            />
-          </div>
-          <span class="summary-copy"
-            >The planner is authoritative. Fix the highlighted fields before shipping.</span
-          >
-          <ul v-if="issuesExpanded" class="issue-summary">
-            <li v-for="issue in issues" :key="`${issue.code}:${issue.path}`">
-              <Tag
-                :value="issue.severity"
-                :severity="issue.severity === 'error' ? 'danger' : 'warn'"
-              />
-              {{ issue.message }}
-            </li>
-          </ul>
-        </Message>
         <section v-if="plan?.graph.nodes.length" class="plan-panel">
           <div class="section-heading">
             <div>
@@ -106,6 +81,13 @@
               :severity="
                 cardIssues('source').length ? 'warn' : sourcePath ? 'success' : 'secondary'
               "
+            /><Button
+              v-if="cardIssues('source').length"
+              label="Needs attention"
+              icon="pi pi-exclamation-triangle"
+              text
+              size="small"
+              @click="openAttention(cardIssues('source'))"
             /><Button
               v-if="sourceDefinition?.fields?.length"
               icon="pi pi-cog"
@@ -168,6 +150,13 @@
                       : 'success'
                     : 'secondary'
                 "
+              /><Button
+                v-if="cardIssues(`builds.${index}`).length"
+                label="Needs attention"
+                icon="pi pi-exclamation-triangle"
+                text
+                size="small"
+                @click="openAttention(cardIssues(`builds.${index}`))"
               /><ToggleSwitch
                 v-model="build.enabled"
                 :inputId="`build-${build.id}`"
@@ -241,6 +230,14 @@
                   }}</span
                 >
               </div>
+              <Button
+                v-if="cardIssues(`destinations.${index}`).length"
+                label="Needs attention"
+                icon="pi pi-exclamation-triangle"
+                text
+                size="small"
+                @click="openAttention(cardIssues(`destinations.${index}`))"
+              />
               <ToggleSwitch
                 v-model="destination.enabled"
                 :inputId="`destination-${destination.id}`"
@@ -297,16 +294,19 @@
               </div>
               <Button label="Add deployment" icon="pi pi-plus" text @click="addSlot(destination)" />
             </div>
-            <Message
-              v-for="issue in cardIssues(`destinations.${index}`)"
-              :key="issue.code + issue.path"
-              :severity="issue.severity === 'error' ? 'error' : 'warn'"
-              >{{ issue.message }}</Message
-            >
           </article>
         </section>
       </main>
     </WorkflowShell>
+    <Dialog v-model:visible="attentionVisible" modal header="Needs attention" :style="dialogStyle">
+      <p class="attention-copy">The planner is authoritative. Fix these issues before shipping.</p>
+      <ul class="issue-summary">
+        <li v-for="issue in attentionIssues" :key="`${issue.code}:${issue.path}`">
+          <Tag :value="issue.severity" :severity="issue.severity === 'error' ? 'danger' : 'warn'" />
+          <span>{{ issue.message }}</span>
+        </li>
+      </ul>
+    </Dialog>
     <Dialog
       v-model:visible="buildPickerVisible"
       modal
@@ -389,12 +389,7 @@
             :input-id="`source-${field.key}`"
             @update:value="setSourceField(field.key, $event)"
             @add-connection="openConnection"
-          /><Message
-            v-for="issue in fieldIssues(`source.${field.key}`)"
-            :key="issue.code + issue.path"
-            :severity="issue.severity === 'error' ? 'error' : 'warn'"
-            >{{ issue.message }}</Message
-          >
+          />
         </template>
       </div>
       <template #footer><Button label="Done" @click="sourceSettingsVisible = false" /></template
@@ -414,12 +409,7 @@
             optionLabel="label"
             optionValue="id"
             @update:model-value="switchEngine(settingsBuild, $event)"
-          /><Message
-            v-for="issue in buildFieldIssues(settingsBuild, 'engine')"
-            :key="issue.code + issue.path"
-            :severity="issue.severity === 'error' ? 'error' : 'warn'"
-            >{{ issue.message }}</Message
-          >
+          />
         </div>
         <div class="release-field wide">
           <span class="field-label">Targets</span>
@@ -453,12 +443,7 @@
             optionLabel="label"
             optionValue="value"
             @update:model-value="setBuildInput(settingsBuild, $event)"
-          /><Message
-            v-for="issue in buildFieldIssues(settingsBuild, 'input')"
-            :key="issue.code + issue.path"
-            :severity="issue.severity === 'error' ? 'error' : 'warn'"
-            >{{ issue.message }}</Message
-          >
+          />
         </div>
         <template
           v-for="field in producerDefinition(settingsBuild.engine)?.fields || []"
@@ -471,12 +456,7 @@
             :input-id="`build-${settingsBuild.id}-${field.key}`"
             @update:value="setField(settingsBuild.config, field.key, $event)"
             @add-connection="openConnection"
-          /><Message
-            v-for="issue in buildFieldIssues(settingsBuild, field.key)"
-            :key="issue.code + issue.path"
-            :severity="issue.severity === 'error' ? 'error' : 'warn'"
-            >{{ issue.message }}</Message
-          > </template
+          /> </template
         ><template
           v-for="target in settingsBuild.targets.filter((item) => item.enabled)"
           :key="target.id"
@@ -490,15 +470,8 @@
               :options="fieldOptions(field)"
               :input-id="`target-${settingsBuild.id}-${target.id}-${field.key}`"
               @update:value="setField(target.config, field.key, $event)"
-              @add-connection="openConnection"
-            /><Message
-              v-for="issue in targetFieldIssues(settingsBuild, target, field.key)"
-              :key="issue.code + issue.path"
-              :severity="issue.severity === 'error' ? 'error' : 'warn'"
-              >{{ issue.message }}</Message
-            ></template
-          ></template
-        >
+              @add-connection="openConnection" /></template
+        ></template>
       </div>
       <template #footer><Button label="Done" @click="buildSettingsVisible = false" /></template
     ></Dialog>
@@ -518,13 +491,7 @@
             :input-id="`destination-${settingsDestination.id}-${field.key}`"
             @update:value="setField(settingsDestination.config, field.key, $event)"
             @add-connection="openConnection"
-          /><Message
-            v-for="issue in destinationFieldIssues(settingsDestination, field.key)"
-            :key="issue.code + issue.path"
-            :severity="issue.severity === 'error' ? 'error' : 'warn'"
-            >{{ issue.message }}</Message
-          ></template
-        >
+        /></template>
       </div>
       <template #footer
         ><Button label="Done" @click="destinationSettingsVisible = false" /></template
@@ -543,12 +510,7 @@
             optionLabel="label"
             optionValue="value"
             @update:model-value="setSlotInput(settingsSlot, $event)"
-          /><Message
-            v-for="issue in slotIssues(settingsSlot)"
-            :key="issue.code + issue.path"
-            :severity="issue.severity === 'error' ? 'error' : 'warn'"
-            >{{ issue.message }}</Message
-          >
+          />
         </div>
         <template
           v-for="field in destinationDefinition(settingsDestination.provider)?.slotFields || []"
@@ -560,13 +522,7 @@
             :input-id="`slot-${settingsSlot.id}-${field.key}`"
             @update:value="setField(settingsSlot.config, field.key, $event)"
             @add-connection="openConnection"
-          /><Message
-            v-for="issue in slotFieldIssues(settingsSlot, field.key)"
-            :key="issue.code + issue.path"
-            :severity="issue.severity === 'error' ? 'error' : 'warn'"
-            >{{ issue.message }}</Message
-          ></template
-        >
+        /></template>
       </div>
       <template #footer><Button label="Done" @click="slotSettingsVisible = false" /></template
     ></Dialog>
@@ -701,7 +657,8 @@ const plan = ref<ReleasePlan>();
 const plannerIssues = ref<ValidationIssue[]>([]);
 const inspectionIssues = ref<ValidationIssue[]>([]);
 const issues = computed(() => [...plannerIssues.value, ...inspectionIssues.value]);
-const issuesExpanded = ref(false);
+const attentionVisible = ref(false);
+const attentionIssues = ref<ValidationIssue[]>([]);
 const planExpanded = ref(false);
 const error = ref("");
 const running = ref(false);
@@ -735,9 +692,10 @@ const wideDialogStyle = { width: "760px", maxWidth: "94vw" };
 const saveStateLabel = computed(() =>
   saveState.value === "saving" ? "Saving…" : saveState.value === "error" ? "Error" : "Saved",
 );
-const errorCount = computed(
-  () => issues.value.filter((issue) => issue.severity === "error").length,
-);
+const openAttention = (cardIssues: ValidationIssue[]) => {
+  attentionIssues.value = cardIssues;
+  attentionVisible.value = true;
+};
 const sourceDefinition = computed(() =>
   catalog.value.sources.find((item) => item.id === flow.value?.source.provider),
 );
@@ -770,45 +728,6 @@ const fieldOptions = (field: ReleaseFieldDefinition) =>
     : inspectionOptions.value[field.key] || field.options || [];
 const cardIssues = (prefix: string) => issuesForPath(issues.value, prefix);
 const fieldIssues = (path: string) => issues.value.filter((issue) => issue.path === path);
-const fieldPathIssues = (...paths: string[]) =>
-  issues.value.filter((issue) => issue.path && paths.includes(issue.path));
-const buildFieldIssues = (build: ReleaseBuildProfileConfig, key: string) => {
-  const index = flow.value?.builds.indexOf(build) ?? -1;
-  return index < 0
-    ? []
-    : fieldPathIssues(`builds.${index}.${key}`, `builds.${index}.config.${key}`);
-};
-const targetFieldIssues = (
-  build: ReleaseBuildProfileConfig,
-  target: ReleaseBuildProfileConfig["targets"][number],
-  key: string,
-) => {
-  const buildIndex = flow.value?.builds.indexOf(build) ?? -1;
-  const targetIndex = build.targets.indexOf(target);
-  return buildIndex < 0 || targetIndex < 0
-    ? []
-    : fieldPathIssues(
-        `builds.${buildIndex}.targets.${targetIndex}.${key}`,
-        `builds.${buildIndex}.targets.${targetIndex}.config.${key}`,
-      );
-};
-const destinationFieldIssues = (destination: ReleaseDestinationConfig, key: string) => {
-  const index = flow.value?.destinations.indexOf(destination) ?? -1;
-  return index < 0
-    ? []
-    : fieldPathIssues(`destinations.${index}.${key}`, `destinations.${index}.config.${key}`);
-};
-const slotFieldIssues = (slot: ReleaseDestinationSlot, key: string) => {
-  const destination = flow.value?.destinations.find((candidate) => candidate.slots.includes(slot));
-  const destinationIndex = destination ? flow.value?.destinations.indexOf(destination) : -1;
-  const slotIndex = destination?.slots.indexOf(slot) ?? -1;
-  return destinationIndex === undefined || destinationIndex < 0 || slotIndex < 0
-    ? []
-    : fieldPathIssues(
-        `destinations.${destinationIndex}.slots.${slotIndex}.${key}`,
-        `destinations.${destinationIndex}.slots.${slotIndex}.config.${key}`,
-      );
-};
 const slotIssues = (slot: ReleaseDestinationSlot) => {
   const destinationIndex = flow.value?.destinations.findIndex((destination) =>
     destination.slots.includes(slot),
