@@ -684,6 +684,7 @@ import {
   createBuildProfile,
   issuesForPath,
   planOutputOptions,
+  removeBuildProfile,
   resolveMissingDestinationInputs,
   switchBuildProfileEngine,
 } from "./release-flow-model";
@@ -889,7 +890,7 @@ const addBuild = () => {
   buildPickerVisible.value = false;
 };
 const removeBuild = (id: string) => {
-  if (flow.value) flow.value.builds = flow.value.builds.filter((build) => build.id !== id);
+  if (flow.value) removeBuildProfile(flow.value, id);
 };
 const toggleTarget = (build: ReleaseBuildProfileConfig, id: string, enabled: boolean) => {
   const target = build.targets.find((candidate) => candidate.id === id);

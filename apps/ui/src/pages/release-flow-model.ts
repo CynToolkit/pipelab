@@ -53,6 +53,13 @@ export const createBuildProfile = (
   };
 };
 
+export const removeBuildProfile = (config: ReleaseConfig, id: string): boolean => {
+  const nextBuilds = config.builds.filter((build) => build.id !== id);
+  if (nextBuilds.length === config.builds.length) return false;
+  config.builds = nextBuilds;
+  return true;
+};
+
 export const defaultBuildProfile = (
   catalog: ReleaseCatalog,
   type: string,

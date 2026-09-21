@@ -4,9 +4,10 @@ import {
   buildTargetsFor,
   createBuildProfile,
   defaultBuildProfile,
-  resolveMissingDestinationInputs,
   issuesForPath,
   planOutputOptions,
+  removeBuildProfile,
+  resolveMissingDestinationInputs,
   switchBuildProfileEngine,
 } from "./release-flow-model";
 import type {
@@ -89,6 +90,22 @@ describe("release flow model", () => {
     expect(first?.id).toBe("desktop-one");
     expect(second?.id).toBe("desktop-two");
     expect(first).not.toBe(second);
+  });
+
+  it("keeps generated profiles editable and removable", () => {
+    const editable = defaultBuildProfile(catalog, "desktop", "desktop-default", {
+      buildTypes: { desktop: { engine: "engine-a", targets: ["windows"] } },
+    });
+    expect(editable).toBeDefined();
+    expect(switchBuildProfileEngine(catalog, editable!, "engine-b")?.id).toBe("desktop-default");
+
+    const configWithGenerated: ReleaseConfig = {
+      ...config,
+      builds: [editable!],
+    };
+    expect(removeBuildProfile(configWithGenerated, "desktop-default")).toBe(true);
+    expect(configWithGenerated.builds).toEqual([]);
+    expect(removeBuildProfile(configWithGenerated, "desktop-default")).toBe(false);
   });
 
   it("creates a profile from explicit build preferences", () => {
