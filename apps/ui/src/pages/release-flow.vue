@@ -71,16 +71,9 @@
               }}</small>
             </div>
             <Tag
-              :value="
-                cardIssues('source').length
-                  ? 'Needs attention'
-                  : sourcePath
-                    ? 'Ready'
-                    : 'Not configured'
-              "
-              :severity="
-                cardIssues('source').length ? 'warn' : sourcePath ? 'success' : 'secondary'
-              "
+              v-if="!cardIssues('source').length"
+              :value="sourcePath ? 'Ready' : 'Not configured'"
+              :severity="sourcePath ? 'success' : 'secondary'"
             /><Button
               v-if="cardIssues('source').length"
               class="needs-attention-button"
@@ -137,20 +130,9 @@
                 >
               </div>
               <Tag
-                :value="
-                  build.enabled
-                    ? cardIssues(`builds.${index}`).length
-                      ? 'Needs attention'
-                      : 'Ready'
-                    : 'Disabled'
-                "
-                :severity="
-                  build.enabled
-                    ? cardIssues(`builds.${index}`).length
-                      ? 'warn'
-                      : 'success'
-                    : 'secondary'
-                "
+                v-if="!cardIssues(`builds.${index}`).length"
+                :value="build.enabled ? 'Ready' : 'Disabled'"
+                :severity="build.enabled ? 'success' : 'secondary'"
               /><Button
                 v-if="cardIssues(`builds.${index}`).length"
                 class="needs-attention-button"
