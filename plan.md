@@ -786,7 +786,7 @@ Keep existing tests for:
 
 ## Tests
 
-* [ ] Test Construct → Poki: no build created
+* [x] Test Construct → Poki: no build created
 * [ ] Test Construct → Steam: Desktop default created
 * [ ] Test Construct → Steam + Poki: one Desktop build
 * [x] Test existing compatible build reuse
