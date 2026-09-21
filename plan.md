@@ -576,7 +576,7 @@ Construct
 - [x] Create destinations without inventing an output route.
 - [x] Allow enabled destination slots to remain unrouted and report a planner issue.
 - [x] Add the complete Release editor flow for compatible-build creation.
-- [ ] Add precise field-level planner issue rendering.
+- [x] Add precise field-level planner issue rendering.
 - [x] Complete explicit deployment routing and “Create compatible build” handling.
 - [x] Guard planner responses against stale asynchronous updates.
 - [x] Serialize autosaves and report the latest persisted state.

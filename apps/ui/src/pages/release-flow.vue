@@ -452,29 +452,45 @@
       header="Build settings"
       :style="wideDialogStyle"
       ><div v-if="settingsBuild" class="settings-grid">
-        <ReleaseFieldControl
+        <template
           v-for="field in producerDefinition(settingsBuild.engine)?.fields || []"
           :key="field.key"
-          :field="field"
-          :value="fieldValue(settingsBuild.config, field.key)"
-          :options="fieldOptions(field)"
-          :input-id="`build-${settingsBuild.id}-${field.key}`"
-          @update:value="setField(settingsBuild.config, field.key, $event)"
-          @add-connection="openConnection"
-        /><template
+        >
+          <ReleaseFieldControl
+            :field="field"
+            :value="fieldValue(settingsBuild.config, field.key)"
+            :options="fieldOptions(field)"
+            :input-id="`build-${settingsBuild.id}-${field.key}`"
+            @update:value="setField(settingsBuild.config, field.key, $event)"
+            @add-connection="openConnection"
+          /><Message
+            v-for="issue in buildFieldIssues(settingsBuild, field.key)"
+            :key="issue.code + issue.path"
+            :severity="issue.severity === 'error' ? 'error' : 'warn'"
+            >{{ issue.message }}</Message
+          > </template
+        ><template
           v-for="target in settingsBuild.targets.filter((item) => item.enabled)"
           :key="target.id"
-          ><ReleaseFieldControl
+          ><template
             v-for="field in buildTargets(settingsBuild).find((item) => item.id === target.id)
               ?.fields || []"
             :key="`${target.id}-${field.key}`"
-            :field="field"
-            :value="fieldValue(target.config, field.key)"
-            :options="fieldOptions(field)"
-            :input-id="`target-${settingsBuild.id}-${target.id}-${field.key}`"
-            @update:value="setField(target.config, field.key, $event)"
-            @add-connection="openConnection"
-        /></template>
+            ><ReleaseFieldControl
+              :field="field"
+              :value="fieldValue(target.config, field.key)"
+              :options="fieldOptions(field)"
+              :input-id="`target-${settingsBuild.id}-${target.id}-${field.key}`"
+              @update:value="setField(target.config, field.key, $event)"
+              @add-connection="openConnection"
+            /><Message
+              v-for="issue in targetFieldIssues(settingsBuild, target, field.key)"
+              :key="issue.code + issue.path"
+              :severity="issue.severity === 'error' ? 'error' : 'warn'"
+              >{{ issue.message }}</Message
+            ></template
+          ></template
+        >
       </div>
       <template #footer><Button label="Done" @click="buildSettingsVisible = false" /></template
     ></Dialog>
@@ -484,16 +500,23 @@
       header="Destination settings"
       :style="dialogStyle"
       ><div v-if="settingsDestination" class="settings-grid">
-        <ReleaseFieldControl
+        <template
           v-for="field in destinationDefinition(settingsDestination.provider)?.fields || []"
           :key="field.key"
-          :field="field"
-          :value="fieldValue(settingsDestination.config, field.key)"
-          :options="fieldOptions(field)"
-          :input-id="`destination-${settingsDestination.id}-${field.key}`"
-          @update:value="setField(settingsDestination.config, field.key, $event)"
-          @add-connection="openConnection"
-        />
+          ><ReleaseFieldControl
+            :field="field"
+            :value="fieldValue(settingsDestination.config, field.key)"
+            :options="fieldOptions(field)"
+            :input-id="`destination-${settingsDestination.id}-${field.key}`"
+            @update:value="setField(settingsDestination.config, field.key, $event)"
+            @add-connection="openConnection"
+          /><Message
+            v-for="issue in destinationFieldIssues(settingsDestination, field.key)"
+            :key="issue.code + issue.path"
+            :severity="issue.severity === 'error' ? 'error' : 'warn'"
+            >{{ issue.message }}</Message
+          ></template
+        >
       </div>
       <template #footer
         ><Button label="Done" @click="destinationSettingsVisible = false" /></template
@@ -519,16 +542,23 @@
             >{{ issue.message }}</Message
           >
         </div>
-        <ReleaseFieldControl
+        <template
           v-for="field in destinationDefinition(settingsDestination.provider)?.slotFields || []"
           :key="field.key"
-          :field="field"
-          :value="fieldValue(settingsSlot.config, field.key)"
-          :options="fieldOptions(field)"
-          :input-id="`slot-${settingsSlot.id}-${field.key}`"
-          @update:value="setField(settingsSlot.config, field.key, $event)"
-          @add-connection="openConnection"
-        />
+          ><ReleaseFieldControl
+            :field="field"
+            :value="fieldValue(settingsSlot.config, field.key)"
+            :options="fieldOptions(field)"
+            :input-id="`slot-${settingsSlot.id}-${field.key}`"
+            @update:value="setField(settingsSlot.config, field.key, $event)"
+            @add-connection="openConnection"
+          /><Message
+            v-for="issue in slotFieldIssues(settingsSlot, field.key)"
+            :key="issue.code + issue.path"
+            :severity="issue.severity === 'error' ? 'error' : 'warn'"
+            >{{ issue.message }}</Message
+          ></template
+        >
       </div>
       <template #footer><Button label="Done" @click="slotSettingsVisible = false" /></template
     ></Dialog>
@@ -704,6 +734,45 @@ const fieldOptions = (field: ReleaseFieldDefinition) =>
     : inspectionOptions.value[field.key] || field.options || [];
 const cardIssues = (prefix: string) => issuesForPath(issues.value, prefix);
 const fieldIssues = (path: string) => issues.value.filter((issue) => issue.path === path);
+const fieldPathIssues = (...paths: string[]) =>
+  issues.value.filter((issue) => issue.path && paths.includes(issue.path));
+const buildFieldIssues = (build: ReleaseBuildProfileConfig, key: string) => {
+  const index = flow.value?.builds.indexOf(build) ?? -1;
+  return index < 0
+    ? []
+    : fieldPathIssues(`builds.${index}.${key}`, `builds.${index}.config.${key}`);
+};
+const targetFieldIssues = (
+  build: ReleaseBuildProfileConfig,
+  target: ReleaseBuildProfileConfig["targets"][number],
+  key: string,
+) => {
+  const buildIndex = flow.value?.builds.indexOf(build) ?? -1;
+  const targetIndex = build.targets.indexOf(target);
+  return buildIndex < 0 || targetIndex < 0
+    ? []
+    : fieldPathIssues(
+        `builds.${buildIndex}.targets.${targetIndex}.${key}`,
+        `builds.${buildIndex}.targets.${targetIndex}.config.${key}`,
+      );
+};
+const destinationFieldIssues = (destination: ReleaseDestinationConfig, key: string) => {
+  const index = flow.value?.destinations.indexOf(destination) ?? -1;
+  return index < 0
+    ? []
+    : fieldPathIssues(`destinations.${index}.${key}`, `destinations.${index}.config.${key}`);
+};
+const slotFieldIssues = (slot: ReleaseDestinationSlot, key: string) => {
+  const destination = flow.value?.destinations.find((candidate) => candidate.slots.includes(slot));
+  const destinationIndex = destination ? flow.value?.destinations.indexOf(destination) : -1;
+  const slotIndex = destination?.slots.indexOf(slot) ?? -1;
+  return destinationIndex === undefined || destinationIndex < 0 || slotIndex < 0
+    ? []
+    : fieldPathIssues(
+        `destinations.${destinationIndex}.slots.${slotIndex}.${key}`,
+        `destinations.${destinationIndex}.slots.${slotIndex}.config.${key}`,
+      );
+};
 const slotIssues = (slot: ReleaseDestinationSlot) => {
   const destinationIndex = flow.value?.destinations.findIndex((destination) =>
     destination.slots.includes(slot),
