@@ -1,5 +1,5 @@
 import { dirname, join, resolve } from "node:path";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import {
   createAction,
   createActionRunner,
@@ -15,6 +15,13 @@ export const ID = "steam-upload";
 
 const vdfValue = (value: string) =>
   value.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/[\r\n]/g, " ");
+
+export const resolveSteamCredentials = async (connectionsPath: string, accountConnectionId: string, current: { username?: string; password?: string }): Promise<{ username: string; password: string }> => {
+  if (current.username && current.password) return { username: current.username, password: current.password };
+  const saved = JSON.parse(await readFile(connectionsPath, "utf8")) as { connections?: Array<Record<string, unknown>> };
+  const connection = saved.connections?.find((candidate) => candidate.id === accountConnectionId);
+  return { username: current.username || String(connection?.username || ""), password: current.password || String(connection?.password || "") };
+};
 
 export const uploadToSteam = createAction({
   id: ID,
@@ -44,11 +51,13 @@ export const uploadToSteam = createAction({
 
 export const uploadToSteamRunner = createActionRunner<typeof uploadToSteam>(
   async ({ log, inputs, cwd, abortSignal, setOutput, context }) => {
+    const runtimeInputs = inputs as typeof inputs & { accountConnectionId?: string };
     const folder = resolve(inputs.folder as string);
     const appId = inputs.appId as string;
     const depotId = inputs.depotId as string;
-    const username = inputs.username as string;
-    const password = inputs.password as string;
+    let username = inputs.username as string;
+    let password = inputs.password as string;
+    if (runtimeInputs.accountConnectionId) ({ username, password } = await resolveSteamCredentials(context.getConnectionsPath(), runtimeInputs.accountConnectionId, { username, password }));
     const description = inputs.description as string;
 
     if (!/^\d+$/.test(appId) || !/^\d+$/.test(depotId))

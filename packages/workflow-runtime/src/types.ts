@@ -1,11 +1,11 @@
-import type { WorkflowArtifactOutputId } from "@pipelab/constants";
-import type { ArtifactInstance } from "./artifacts";
+import type { ArtifactDescriptor, WorkflowArtifactInstance } from "./artifacts";
+export type { ArtifactDescriptor, ArtifactKind, WorkflowArtifactInstance } from "./artifacts";
 
 export const WORKFLOW_VERSION = 1;
 
 export interface Workflow {
   version: number;
-  steps: WorkflowStep[];
+  steps: readonly WorkflowStep[];
   continueOnError?: boolean;
 }
 
@@ -13,18 +13,26 @@ export interface WorkflowStep {
   id: string;
   uses: string;
   /** Steps that must complete before this step can start. */
-  needs?: string[];
+  needs?: readonly string[];
   with?: Record<string, unknown>;
+  artifacts?: Record<string, WorkflowArtifactDefinition>;
+  artifactInputs?: Record<string, WorkflowArtifactReference>;
   delivery?: WorkflowDeliveryDefinition;
+}
+
+export interface WorkflowArtifactDefinition {
+  descriptor: ArtifactDescriptor;
+}
+
+export interface WorkflowArtifactReference {
+  stepId: string;
+  artifact: string;
 }
 
 export interface WorkflowDeliveryDefinition {
   destinationId: string;
-  serviceId?: string;
-  destinationName?: string;
   slotId: string;
-  artifactOutputId: WorkflowArtifactOutputId;
-  producerStep: string;
+  artifact: WorkflowArtifactReference;
 }
 
 export interface Workspace {
@@ -70,8 +78,6 @@ export interface WorkflowArtifact {
   name: string;
   path: string;
 }
-
-export type WorkflowArtifactInstance = ArtifactInstance;
 
 export interface WorkflowTaskContext {
   step: WorkflowStep;
@@ -128,7 +134,6 @@ export interface WorkflowDeliveryResult {
   serviceId?: string;
   destinationName?: string;
   slotId: string;
-  producerStep?: string;
   artifactId: string;
   status: "completed" | "failed";
   startedAt: number;

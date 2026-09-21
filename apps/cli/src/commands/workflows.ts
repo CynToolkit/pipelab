@@ -9,6 +9,7 @@ import { Listr, ListrTaskState, type ListrTaskWrapper } from "listr2";
 import type { WorkflowEvent } from "../../../../packages/workflow-runtime/src/index";
 import { Option } from "commander";
 import { getDefaultUserDataPath } from "../paths";
+import { buildReleaseRegistry, compileWorkflow, usePlugins } from "@pipelab/shared";
 
 const contextFor = () => new PipelabContext({ userDataPath: getDefaultUserDataPath() });
 
@@ -52,9 +53,9 @@ export async function listWorkflowsCommand() {
   for (const entry of entries) {
     const flow = await (await setupWorkflowConfigFileByName(entry.configName, context)).getConfig();
     console.log(`${flow.name || "Unnamed workflow"} (${entry.id})`);
-    console.log(`   Source: ${flow.source?.path || "None"}`);
+    console.log(`   Source: ${flow.source?.provider || "None"}`);
     console.log(
-      `   Destinations: ${flow.destinations?.map((item) => item.type).join(", ") || "None"}`,
+      `   Destinations: ${flow.destinations?.map((item) => item.provider).join(", ") || "None"}`,
     );
     console.log(`   Last modified: ${entry.lastModified || "Unknown"}`);
   }
@@ -82,27 +83,16 @@ export async function runWorkflowCommand(
   const entry = await loadEntry(context, id);
   const flow = await (await setupWorkflowConfigFileByName(entry.configName, context)).getConfig();
   if (options.dryRun) {
-    const execution = await executeWorkflow(context, entry.configName, {
-      dryRun: true,
-      release: { version: "", description: "", headless: true },
-    } as any);
-    const destinations = flow.destinations.filter((destination) => destination.enabled !== false);
-    await new Listr(
-      destinations.map((destination) => ({
-        title: `${destination.type} (dry run)`,
-        task: async () => new Promise((resolve) => setTimeout(resolve, 5000)),
-      })),
-      { concurrent: true },
-    ).run();
-    console.log(`Dry run for ${id}: ${(execution.result as any).steps.join(", ")}`);
+    console.log(`Dry run for ${id}: ${flow.builds.length} build profile(s), ${flow.destinations.length} destination(s)`);
     if (options.output) {
       const { writeFile } = await import("node:fs/promises");
-      await writeFile(options.output, JSON.stringify(execution, null, 2));
+      await writeFile(options.output, JSON.stringify(flow, null, 2));
     }
     return;
   }
   const { builtInPlugins } = await import("@pipelab/core-node");
   await builtInPlugins({ context });
+  const workflow = compileWorkflow(flow, buildReleaseRegistry(usePlugins().plugins.value), { host: { platform: process.platform, architecture: process.arch } });
   const completion = new Map<string, { resolve: () => void; reject: (error: Error) => void }>();
   const waiters = new Map<string, Promise<void>>();
   const taskControls = new Map<string, ListrTaskWrapper<any, any, any>>();
@@ -128,31 +118,12 @@ export async function runWorkflowCommand(
     waiters.set(stepId, promise);
     return promise;
   };
-  const destinations = flow.destinations.filter((destination) => destination.enabled !== false);
   const stepGroups = [
-    ...(flow.source.type === "construct3"
-      ? [
-          {
-            id: "source",
-            title: "Source",
-            steps: [
-              { id: "source-export", title: "Construct export" },
-              { id: "source-extract", title: "Extract exported source" },
-            ],
-          },
-        ]
-      : []),
-    ...destinations.map((destination) => ({
-      id: destination.type,
-      title: destination.type,
-      steps:
-        destination.type === "steam"
-          ? [
-              { id: "steam-bundle", title: "Bundle Steam build" },
-              { id: "steam", title: "Upload to Steam" },
-            ]
-          : [{ id: destination.type, title: destination.type }],
-    })),
+    {
+      id: "workflow",
+      title: flow.name,
+      steps: workflow.steps.map((step) => ({ id: step.id, title: step.id })),
+    },
   ];
   const stepTasks = stepGroups.flatMap((group) => group.steps);
   const stepTask = (step: (typeof stepTasks)[number]) => ({
@@ -169,8 +140,7 @@ export async function runWorkflowCommand(
   waitFor("__workflow__");
   for (const task of stepTasks) waitFor(task.id);
   const execution = executeWorkflow(context, entry.configName, {
-    release: { version: "", description: "", headless: true },
-    verbose: options.verbose ?? false,
+    release: { version: "", description: "" },
     onEvent: (event: WorkflowEvent) => {
       if (event.type === "step.started") updateTask(event.stepId, ListrTaskState.STARTED);
       if (event.type === "step.log")

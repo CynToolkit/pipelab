@@ -404,7 +404,7 @@ const artifactCloud = (artifact: NonNullable<BuildHistoryEntry["artifacts"]>[num
 const artifactDescription = (artifact: NonNullable<BuildHistoryEntry["artifacts"]>[number]) =>
   artifactDisplayDescription(artifact, entry.value?.steps || []);
 const artifactKind = (artifact: NonNullable<BuildHistoryEntry["artifacts"]>[number]) =>
-  artifact.format || ("type" in artifact ? artifact.type : "Artifact");
+  ("descriptor" in artifact && artifact.descriptor ? artifact.descriptor.format || artifact.descriptor.kind : artifact.type);
 const openArtifact = async (path: string) => {
   const response = await api.execute("shell:openPath", { path });
   if (response.type === "error") error.value = response.ipcError;

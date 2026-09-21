@@ -23,7 +23,7 @@
             <Button
               v-for="artifact in entry.artifacts"
               :key="artifact.id"
-              :label="'Open ' + ('outputId' in artifact ? artifact.outputId : artifact.name)"
+              :label="'Open ' + ('descriptor' in artifact ? artifact.artifact : artifact.name)"
               icon="pi pi-folder-open"
               severity="secondary"
               size="small"

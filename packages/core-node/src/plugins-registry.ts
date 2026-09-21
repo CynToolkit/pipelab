@@ -13,6 +13,7 @@ import netlifyPlugin from "@pipelab/plugin-netlify";
 import nvpatchPlugin from "@pipelab/plugin-nvpatch";
 import pokiPlugin from "@pipelab/plugin-poki";
 import tauriPlugin from "@pipelab/plugin-tauri";
+import godotPlugin from "@pipelab/plugin-godot";
 
 // Built-in plugin definitions are statically imported into the CLI. Their identities
 // live with the plugin sources, so startup never reads package metadata or resolves
@@ -30,6 +31,7 @@ export const bundledPlugins: RendererPluginDefinition[] = [
   nvpatchPlugin,
   pokiPlugin,
   tauriPlugin,
+  godotPlugin,
 ];
 
 export const builtInPlugins = async (_options: { context: PipelabContext }): Promise<void> => {
