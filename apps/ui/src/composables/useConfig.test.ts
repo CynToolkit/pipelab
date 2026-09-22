@@ -33,4 +33,16 @@ describe("useConnectionsConfig", () => {
       "connections:load",
     ]);
   });
+
+  it("rejects when the connection save is refused", async () => {
+    execute.mockResolvedValueOnce({
+      type: "error",
+      ipcError: "Unable to save connections",
+    });
+
+    const config = useConnectionsConfig();
+    await expect(config.save({ version: "1.0.0", connections: [] })).rejects.toThrow(
+      "Unable to save connections",
+    );
+  });
 });

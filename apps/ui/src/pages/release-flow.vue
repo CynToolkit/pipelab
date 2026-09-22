@@ -1093,28 +1093,33 @@ const openConnection = (integration: string) => {
 };
 const createConnection = async () => {
   connectionSaving.value = true;
-  const integration = connectionDraft.value.integration;
-  const record = {
-    id: nanoid(),
-    pluginName: integration,
-    integrationName: connectionDraft.value.integrationName || undefined,
-    name: connectionDraft.value.name.trim(),
-    ...Object.fromEntries(
-      Object.entries(connectionDraft.value.values).map(([key, value]) => [key, value.trim()]),
-    ),
-    createdAt: new Date().toISOString(),
-    isDefault: false,
-  };
-  const result = await api.execute("connections:save", {
-    data: { version: "1.0.0", connections: [...connections.value, record] },
-  });
-  connectionSaving.value = false;
-  if (result.type === "error") {
-    error.value = result.ipcError;
-    return;
+  try {
+    const integration = connectionDraft.value.integration;
+    const record = {
+      id: nanoid(),
+      pluginName: integration,
+      integrationName: connectionDraft.value.integrationName || undefined,
+      name: connectionDraft.value.name.trim(),
+      ...Object.fromEntries(
+        Object.entries(connectionDraft.value.values).map(([key, value]) => [key, value.trim()]),
+      ),
+      createdAt: new Date().toISOString(),
+      isDefault: false,
+    };
+    const result = await api.execute("connections:save", {
+      data: { version: "1.0.0", connections: [...connections.value, record] },
+    });
+    if (result.type === "error") {
+      error.value = result.ipcError;
+      return;
+    }
+    await connectionsStore.load(true);
+    connectionVisible.value = false;
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : "Unable to save connection.";
+  } finally {
+    connectionSaving.value = false;
   }
-  await connectionsStore.load(true);
-  connectionVisible.value = false;
 };
 const inspectSource = async () => {
   if (!flow.value) return;
