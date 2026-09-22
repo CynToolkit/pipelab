@@ -37,7 +37,7 @@ Important constraint: persistence validity and release readiness are different t
   - Reject unknown/future versions.
   - Do not globally change legacy `setupPipelineConfigFile*`, `savedFileMigrator`, `processGraph()` behavior.
 
-- [ ] Make workflow identity and project references authoritative and impossible to mismatch.
+- [x] Make workflow identity and project references authoritative and impossible to mismatch.
   - Add a domain-level workflow loader/saver based on workflow identity.
   - Derive the canonical workflow file internally instead of trusting arbitrary config filenames.
   - On load/save verify:
@@ -53,7 +53,7 @@ Important constraint: persistence validity and release readiness are different t
   - Prevent deleting a project while a new-engine workflow references it.
   - Do not expand these rules into legacy pipeline behavior.
 
-- [ ] Make workflow create/save/delete and workflow-index mutations failure-safe.
+- [x] Make workflow create/save/delete and workflow-index mutations failure-safe.
   - Move coordination between workflow files and `projects.json` behind the core-node/domain boundary.
   - Stop implementing the transaction in `apps/ui/src/store/files.ts`.
   - Creation:
@@ -71,7 +71,7 @@ Important constraint: persistence validity and release readiness are different t
     - use reversible rename/snapshot rollback where needed.
   - Renderer receives one success/error result for the complete operation.
 
-- [ ] Stop the UI from hiding persistence corruption or stale references.
+- [x] Stop the UI from hiding persistence corruption or stale references.
   - Do not treat backend load failure as defaults, empty state or success.
   - `apps/ui/src/pages/index.vue` currently silently drops workflows when `workflow:load-by-name` fails: replace this with an explicit broken/error state.
   - `release-flow.vue` must reject a loaded workflow whose ID/project does not match the route.
