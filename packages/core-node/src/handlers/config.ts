@@ -2,8 +2,11 @@ import { useAPI } from "../ipc-core";
 import {
   useLogger,
   appSettingsMigrator,
+  buildReleaseRegistry,
   connectionsMigrator,
   fileRepoMigrations,
+  validateReleaseConnectionReferences,
+  usePlugins,
   type BrowserProfileCandidate,
 } from "@pipelab/shared";
 import {
@@ -43,6 +46,16 @@ export const registerConfigHandlers = (context: PipelabContext) => {
     };
     return candidate;
   });
+  const validateWorkflowConnections = async (
+    config: Parameters<typeof validateReleaseConnectionReferences>[0],
+  ) => {
+    const issues = validateReleaseConnectionReferences(
+      config,
+      buildReleaseRegistry(usePlugins().plugins.value),
+      await loadStrictConnections(context),
+    );
+    if (issues.length) throw new Error(issues.map((issue) => issue.message).join(" "));
+  };
 
   handle("construct:profiles:discover", async (_, { send, value }) => {
     try {
@@ -400,11 +413,13 @@ export const registerConfigHandlers = (context: PipelabContext) => {
   handle("workflow:load-by-name", async (_, { send, value }) => {
     try {
       const workflowId = value.name.replace(/^workflows\//, "").replace(/\.json$/, "");
+      const result = await new ReleasePersistence(context).load(workflowId, value.projectId);
+      await validateWorkflowConnections(result);
       send({
         type: "end",
         data: {
           type: "success",
-          result: await new ReleasePersistence(context).load(workflowId, value.projectId),
+          result,
         },
       });
     } catch (e) {
@@ -424,6 +439,7 @@ export const registerConfigHandlers = (context: PipelabContext) => {
       const data = JSON.parse(value.data);
       if (workflowId !== data.id)
         throw new Error(`Workflow path '${workflowId}' does not match persisted workflow ID.`);
+      await validateWorkflowConnections(data);
       await new ReleasePersistence(context).save(data, value.projectId);
       send({ type: "end", data: { type: "success", result: "ok" } });
     } catch (e) {

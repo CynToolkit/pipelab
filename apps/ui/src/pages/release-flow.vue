@@ -1064,7 +1064,7 @@ const refreshCompatibleChoices = async (slot: ReleaseDestinationSlot) => {
           [target.id],
         );
         if (!candidate) continue;
-        const candidateConfig = JSON.parse(JSON.stringify(flow.value)) as ReleaseConfig;
+    const candidateConfig = structuredClone(flow.value);
         candidateConfig.builds.push(candidate);
         candidateConfig.destinations[destinationIndex].slots[slotIndex].input = {
           buildId: candidate.id,
@@ -1274,7 +1274,7 @@ const refreshPlan = async (resolveDefaults = false) => {
           resolved.type === "success" &&
           JSON.stringify(resolved.result) !== JSON.stringify(flow.value)
         ) {
-          flow.value = resolved.result as ReleaseConfig;
+          flow.value = resolved.result;
           changeRevision += 1;
           try {
             await save();
@@ -1383,7 +1383,7 @@ onMounted(async () => {
   ]);
   if (catalogResult.type === "success") catalog.value = catalogResult.result;
   if (flowResult.type === "success") {
-    const loaded = flowResult.result as ReleaseConfig;
+    const loaded = flowResult.result;
     if (loaded.id !== flowId.value || loaded.project !== projectId.value) {
       error.value = "Loaded workflow identity does not match the requested route.";
       return;

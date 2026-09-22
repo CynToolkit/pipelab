@@ -1,4 +1,10 @@
-import { RELEASE_CONFIG_VERSION, type ReleaseConfig, type ValidationIssue } from "./types";
+import {
+  RELEASE_CONFIG_VERSION,
+  type ReleaseConfig,
+  type ReleaseRegistry,
+  type ValidationIssue,
+} from "./types";
+import type { ConnectionsConfig } from "../config.schema";
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
@@ -223,3 +229,76 @@ export const createReleaseConfig = (
   builds: [],
   destinations: [],
 });
+
+export const validateReleaseConnectionReferences = (
+  config: ReleaseConfig,
+  registry: ReleaseRegistry,
+  connections: ConnectionsConfig,
+): ValidationIssue[] => {
+  const issues: ValidationIssue[] = [];
+  const known = new Map(connections.connections.map((connection) => [connection.id, connection]));
+  const check = (
+    fields: ReleaseRegistry["sources"][number]["fields"] | undefined,
+    values: Record<string, unknown>,
+    path: string,
+  ) => {
+    for (const field of fields || []) {
+      if (field.type !== "connection") continue;
+      const selected = values[field.key];
+      if (selected === undefined || selected === null || selected === "") continue;
+      if (typeof selected !== "string" || !known.has(selected)) {
+        issues.push({
+          code: "release.connection.missing",
+          message: `Connection '${String(selected)}' does not exist.`,
+          severity: "error",
+          path: `${path}.${field.key}`,
+        });
+        continue;
+      }
+      const connection = known.get(selected)!;
+      if (
+        field.integration &&
+        connection.pluginName !== field.integration &&
+        connection.integrationName !== field.integration
+      )
+        issues.push({
+          code: "release.connection.integration",
+          message: `Connection '${selected}' does not belong to integration '${field.integration}'.`,
+          severity: "error",
+          path: `${path}.${field.key}`,
+        });
+    }
+  };
+  check(
+    registry.sources.find((source) => source.id === config.source.provider)?.fields,
+    config.source.config,
+    "source.config",
+  );
+  for (const build of config.builds) {
+    const producer = registry.producers.find((candidate) => candidate.id === build.engine);
+    check(producer?.fields, build.config, `builds.${config.builds.indexOf(build)}.config`);
+    for (const target of build.targets)
+      check(
+        producer?.targets.find((candidate) => candidate.id === target.id)?.fields,
+        target.config,
+        `builds.${config.builds.indexOf(build)}.targets.${build.targets.indexOf(target)}.config`,
+      );
+  }
+  for (const destination of config.destinations) {
+    const definition = registry.destinations.find(
+      (candidate) => candidate.id === destination.provider,
+    );
+    check(
+      definition?.fields,
+      destination.config,
+      `destinations.${config.destinations.indexOf(destination)}.config`,
+    );
+    for (const slot of destination.slots)
+      check(
+        definition?.slotFields,
+        slot.config,
+        `destinations.${config.destinations.indexOf(destination)}.slots.${destination.slots.indexOf(slot)}.config`,
+      );
+  }
+  return issues;
+};

@@ -45,4 +45,11 @@ describe("useConnectionsConfig", () => {
       "Unable to save connections",
     );
   });
+
+  it("propagates connection load failures instead of presenting defaults as loaded", async () => {
+    execute.mockResolvedValueOnce({ type: "error", ipcError: "Corrupt connections file" });
+    const config = useConnectionsConfig();
+    await expect(config.load()).rejects.toThrow("Corrupt connections file");
+    expect(config.error.value).toBe("Corrupt connections file");
+  });
 });

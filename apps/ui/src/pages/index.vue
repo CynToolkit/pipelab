@@ -587,6 +587,7 @@ import IconField from "primevue/iconfield";
 import InputIcon from "primevue/inputicon";
 import Textarea from "primevue/textarea";
 import ReleaseFlowWizard from "@renderer/components/ReleaseFlowWizard.vue";
+import { partitionWorkflowLoads } from "./workflow-load-state";
 
 const router = useRouter();
 const api = useAPI();
@@ -833,30 +834,11 @@ watchEffect(async () => {
 });
 
 watchEffect(async () => {
-  const result: Array<{
-    id: string;
-    project: string;
-    lastModified: string;
-    content: ReleaseConfig;
-  }> = [];
-  const broken: Array<{ id: string; error: string }> = [];
-  for (const flow of workflows.value) {
-    const loaded = await api.execute("workflow:load-by-name", { name: flow.configName, projectId: flow.project });
-    if (loaded.type === "success") {
-      if (loaded.result.id !== flow.id || loaded.result.project !== flow.project) {
-        broken.push({ id: flow.id, error: "Persisted workflow identity does not match its project index entry." });
-        continue;
-      }
-      result.push({
-        id: flow.id,
-        project: flow.project,
-        lastModified: flow.lastModified,
-        content: loaded.result as ReleaseConfig,
-      });
-    } else broken.push({ id: flow.id, error: loaded.ipcError });
-  }
-  workflowsEnhanced.value = result;
-  brokenWorkflows.value = broken;
+  const entries = workflows.value.map((flow) => ({ ...flow }));
+  const results = await Promise.all(entries.map((flow) => api.execute("workflow:load-by-name", { name: flow.configName, projectId: flow.project })));
+  const partitioned = partitionWorkflowLoads(entries, results);
+  workflowsEnhanced.value = partitioned.loaded;
+  brokenWorkflows.value = partitioned.broken;
 });
 
 watch(

@@ -9,6 +9,7 @@ import {
   resolveTargetDescriptor,
   transformArtifactDescriptor,
   validateRelease,
+  validateReleaseConnectionReferences,
   validateReleaseConfigShape,
   type MainPluginDefinition,
   type ReleaseConfig,
@@ -156,6 +157,59 @@ describe("release descriptors", () => {
       source: { provider: "source", config: {} },
     });
     expect(parseReleaseConfig(JSON.parse(JSON.stringify(config)))).toEqual(config);
+  });
+
+  it("reports missing and wrong-integration connection references", () => {
+    const config = createReleaseConfig({
+      id: "r",
+      project: "p",
+      name: "n",
+      source: { provider: "source", config: { account: "missing" } },
+    });
+    const registry: ReleaseRegistry = {
+      sources: [
+        {
+          id: "source",
+          label: "Source",
+          fields: [{ key: "account", type: "connection", label: "Account", integration: "github" }],
+          output: { kind: "project", container: "directory" },
+          createDefaultConfig: () => ({}),
+          validate: () => [],
+          compile: () => ({
+            steps: [],
+            artifact: {
+              reference: { stepId: "source", artifact: "output" },
+              descriptor: { kind: "project", container: "directory" },
+            },
+          }),
+        },
+      ],
+      producers: [],
+      destinations: [],
+    };
+    expect(
+      validateReleaseConnectionReferences(config, registry, {
+        version: "1.0.0",
+        connections: [],
+      })[0].code,
+    ).toBe("release.connection.missing");
+    const wrong = validateReleaseConnectionReferences(
+      { ...config, source: { provider: "source", config: { account: "c1" } } },
+      registry,
+      {
+        version: "1.0.0",
+        connections: [
+          {
+            id: "c1",
+            pluginName: "gitlab",
+            name: "GitLab",
+            createdAt: "2026-01-01",
+            isDefault: false,
+          },
+        ],
+      },
+    );
+    expect(wrong[0].code).toBe("release.connection.integration");
   });
 
   it("compares descriptors structurally regardless of key order", () => {

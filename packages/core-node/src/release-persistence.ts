@@ -1,4 +1,3 @@
-import { join } from "node:path";
 import { rename, rm } from "node:fs/promises";
 import {
   parseReleaseConfig,
@@ -44,7 +43,10 @@ const findWorkflow = (repo: FileRepo, workflowId: string): SaveLocationWorkflow 
 };
 
 export class ReleasePersistence {
-  constructor(private readonly context: PipelabContext) {}
+  constructor(
+    private readonly context: PipelabContext,
+    private readonly writeJson: typeof writeJsonFileAtomically = writeJsonFileAtomically,
+  ) {}
 
   async load(workflowId: string, routeProjectId?: string): Promise<ReleaseConfig> {
     const repo = await loadProjects(this.context);
@@ -144,11 +146,11 @@ export class ReleasePersistence {
         },
       ],
     };
-    await writeJsonFileAtomically(file, validated);
+    await this.writeJson(file, validated);
     try {
-      await writeJsonFileAtomically(this.context.getProjectsPath(), nextRepo);
+      await this.writeJson(this.context.getProjectsPath(), nextRepo);
     } catch (error) {
-      if (previous) await writeJsonFileAtomically(file, previous);
+      if (previous) await this.writeJson(file, previous);
       else await rm(file, { force: true });
       throw new ReleasePersistenceError(
         `Unable to update the workflow index for '${validated.id}'.`,
@@ -169,7 +171,7 @@ export class ReleasePersistence {
     const snapshot = `${file}.deleting-${Date.now()}`;
     await rename(file, snapshot);
     try {
-      await writeJsonFileAtomically(this.context.getProjectsPath(), {
+      await this.writeJson(this.context.getProjectsPath(), {
         ...repo,
         workflows: (repo.workflows || []).filter((candidate) => candidate.id !== workflowId),
       });
