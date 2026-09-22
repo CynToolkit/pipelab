@@ -3,6 +3,7 @@ import {
   buildEnginesFor,
   buildProfileSummary,
   buildTargetsFor,
+  applyProducerInspection,
   createBuildProfile,
   createSerializedTaskQueue,
   issuesForPath,
@@ -33,6 +34,7 @@ const catalog: ReleaseCatalog = {
       defaultConfig: { preset: "default" },
       targets: [
         { id: "windows", label: "Windows x64", buildType: "desktop", defaultConfig: {} },
+        { id: "macos", label: "macOS", buildType: "desktop", defaultConfig: {} },
         { id: "web", label: "Web", buildType: "web", defaultConfig: {} },
       ],
     },
@@ -73,6 +75,10 @@ describe("release flow model", () => {
       engineLabel: "Engine A",
       targetLabels: ["Windows x64"],
     });
+    expect(build.targets).toEqual([
+      { id: "windows", enabled: true, config: {} },
+      { id: "macos", enabled: false, config: {} },
+    ]);
   });
 
   it("serializes autosave requests and keeps the latest request", async () => {
@@ -103,6 +109,7 @@ describe("release flow model", () => {
     ]);
     expect(buildTargetsFor(catalog, "engine-a", "desktop").map((target) => target.id)).toEqual([
       "windows",
+      "macos",
     ]);
     expect(buildTargetsFor(catalog, "engine-a", "web").map((target) => target.id)).toEqual(["web"]);
   });
@@ -159,5 +166,24 @@ describe("release flow model", () => {
     ];
     expect(issuesForPath(issues, "destinations.0")).toEqual(issues);
     expect(issuesForPath(issues, "builds.0")).toEqual([]);
+  });
+
+  it("applies producer inspection values and indexed issues", () => {
+    const build = createBuildProfile(catalog, "desktop", "engine-a", "desktop-one")!;
+    const result = applyProducerInspection(build, 2, {
+      fieldValues: { "targets.windows.config.preset": "release" },
+      fieldOptions: { preset: [{ label: "Release", value: "release" }] },
+      issues: [
+        {
+          code: "preset.required",
+          message: "Choose a preset",
+          severity: "error",
+          path: "targets.windows.config.preset",
+        },
+      ],
+    });
+    expect(build.targets[0].config.preset).toBe("release");
+    expect(result.options.preset).toEqual([{ label: "Release", value: "release" }]);
+    expect(result.issues[0].path).toBe("builds.2.targets.0.config.preset");
   });
 });

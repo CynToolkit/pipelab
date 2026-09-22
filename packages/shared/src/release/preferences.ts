@@ -78,6 +78,20 @@ const preferredBuild = (
   };
 };
 
+const preferredBuildCandidates = (
+  registry: ReleaseRegistry,
+  type: string,
+  id: string,
+  preferences: Array<{ engine?: string; targets?: string[] } | undefined>,
+) => {
+  for (const preference of preferences) {
+    if (!preference) continue;
+    const build = preferredBuild(registry, type, id, preference);
+    if (build) return build;
+  }
+  return undefined;
+};
+
 const hasBlockingIssue = (plan: ReleasePlan, paths: string[]) =>
   plan.issues.some(
     (issue) =>
@@ -149,16 +163,10 @@ export const resolveReleaseDefaults = (
       }
 
       for (const buildType of buildTypes) {
-        const preference =
-          preferences.buildTypes[buildType] ||
-          DEFAULT_RELEASE_BUILD_PREFERENCES.buildTypes[buildType];
-        if (!preference) continue;
-        const build = preferredBuild(
-          registry,
-          buildType,
-          `release-build-${nanoid(10)}`,
-          preference,
-        );
+        const build = preferredBuildCandidates(registry, buildType, `release-build-${nanoid(10)}`, [
+          preferences.buildTypes[buildType],
+          DEFAULT_RELEASE_BUILD_PREFERENCES.buildTypes[buildType],
+        ]);
         if (!build) continue;
         const buildIndex = resolved.builds.length;
         resolved.builds.push(build);

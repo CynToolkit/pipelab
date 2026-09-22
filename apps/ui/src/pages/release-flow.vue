@@ -336,6 +336,12 @@
         <p class="field-note">
           Automatic transforms are planner plumbing and are intentionally hidden from this list.
         </p>
+        <p v-if="compatibleSlot && compatibleChecking" class="field-note">
+          Checking planner-compatible builds…
+        </p>
+        <p v-else-if="compatibleSlot && !compatibleChoiceKeys.size" class="field-note">
+          No compatible build candidate is available for this destination.
+        </p>
       </div>
       <template #footer
         ><Button label="Cancel" text @click="buildPickerVisible = false" /><Button
@@ -454,7 +460,7 @@
           <ReleaseFieldControl
             :field="field"
             :value="fieldValue(settingsBuild.config, field.key)"
-            :options="fieldOptions(field)"
+            :options="producerFieldOptions(field)"
             :input-id="`build-${settingsBuild.id}-${field.key}`"
             :issues="
               fieldIssues(`builds.${flow?.builds.indexOf(settingsBuild)}.config.${field.key}`)
@@ -472,7 +478,7 @@
             ><ReleaseFieldControl
               :field="field"
               :value="fieldValue(target.config, field.key)"
-              :options="fieldOptions(field)"
+              :options="producerFieldOptions(field)"
               :input-id="`target-${settingsBuild.id}-${target.id}-${field.key}`"
               :issues="
                 fieldIssues(
@@ -659,6 +665,7 @@ import {
   buildEnginesFor,
   buildProfileSummary,
   buildTargetsFor,
+  applyProducerInspection,
   createBuildProfile,
   createSerializedTaskQueue,
   issuesForPath,
@@ -684,7 +691,12 @@ const flow = ref<ReleaseConfig>();
 const plan = ref<ReleasePlan>();
 const plannerIssues = ref<ValidationIssue[]>([]);
 const inspectionIssues = ref<ValidationIssue[]>([]);
-const issues = computed(() => [...plannerIssues.value, ...inspectionIssues.value]);
+const producerInspectionIssues = ref<ValidationIssue[]>([]);
+const issues = computed(() => [
+  ...plannerIssues.value,
+  ...inspectionIssues.value,
+  ...producerInspectionIssues.value,
+]);
 const attentionVisible = ref(false);
 const attentionIssues = ref<ValidationIssue[]>([]);
 const planExpanded = ref(false);
@@ -692,9 +704,12 @@ const error = ref("");
 const running = ref(false);
 const saveState = ref<"saving" | "saved" | "error">("saved");
 const inspectionOptions = ref<Record<string, ReleaseFieldOption[]>>({});
+const producerInspectionOptions = ref<Record<string, ReleaseFieldOption[]>>({});
 const newBuildType = ref<string>();
 const newBuildEngine = ref<string>();
 const newBuildTarget = ref<string>();
+const compatibleChoiceKeys = ref(new Set<string>());
+const compatibleChecking = ref(false);
 const destinationToAdd = ref<string>();
 const buildPickerVisible = ref(false);
 const sourcePickerVisible = ref(false);
@@ -776,6 +791,8 @@ const fieldOptions = (field: ReleaseFieldDefinition) =>
   field.type === "connection"
     ? connectionOptions(field)
     : inspectionOptions.value[field.key] || field.options || [];
+const producerFieldOptions = (field: ReleaseFieldDefinition) =>
+  producerInspectionOptions.value[field.key] || field.options || [];
 const cardIssues = (prefix: string) => issuesForPath(issues.value, prefix);
 const fieldIssues = (path: string) => issues.value.filter((issue) => issue.path === path);
 const slotIssues = (slot: ReleaseDestinationSlot) => {
@@ -811,10 +828,24 @@ const buildInputs = (build: ReleaseBuildProfileConfig) =>
 const buildEngines = (type: string) => buildEnginesFor(catalog.value, type);
 const buildTargets = (build: ReleaseBuildProfileConfig) =>
   buildTargetsFor(catalog.value, build.engine, build.type);
-const newBuildEngines = computed(() => buildEngines(newBuildType.value || ""));
+const newBuildEngines = computed(() =>
+  buildEngines(newBuildType.value || "").filter(
+    (engine) =>
+      !compatibleSlot.value ||
+      [...compatibleChoiceKeys.value].some((key) =>
+        key.startsWith(`${newBuildType.value}:${engine.id}:`),
+      ),
+  ),
+);
 const newBuildTargets = computed(() =>
   newBuildType.value && newBuildEngine.value
-    ? buildTargetsFor(catalog.value, newBuildEngine.value, newBuildType.value)
+    ? buildTargetsFor(catalog.value, newBuildEngine.value, newBuildType.value).filter(
+        (target) =>
+          !compatibleSlot.value ||
+          compatibleChoiceKeys.value.has(
+            `${newBuildType.value}:${newBuildEngine.value}:${target.id}`,
+          ),
+      )
     : [],
 );
 const selectBuildEngine = (engine: string | undefined) => {
@@ -833,13 +864,22 @@ const availableDestinations = computed(() =>
     (item) => !flow.value?.destinations.some((destination) => destination.provider === item.id),
   ),
 );
-const addBuild = () => {
+const addBuild = async () => {
   if (!flow.value || !newBuildType.value || !newBuildEngine.value) return;
+  if (
+    compatibleSlot.value &&
+    !compatibleChoiceKeys.value.has(
+      `${newBuildType.value}:${newBuildEngine.value}:${newBuildTarget.value}`,
+    )
+  ) {
+    error.value = "The selected build is not compatible with this destination.";
+    return;
+  }
   const build = createBuildProfile(
     catalog.value,
     newBuildType.value,
     newBuildEngine.value,
-    `${newBuildType.value}-${Date.now()}`,
+    nanoid(),
   );
   if (build) {
     if (newBuildTarget.value) {
@@ -854,6 +894,8 @@ const addBuild = () => {
   newBuildType.value = undefined;
   newBuildEngine.value = undefined;
   newBuildTarget.value = undefined;
+  compatibleChoiceKeys.value = new Set();
+  compatibleChecking.value = false;
   compatibleSlot.value = undefined;
   buildPickerVisible.value = false;
 };
@@ -866,7 +908,10 @@ const toggleTarget = (build: ReleaseBuildProfileConfig, id: string, enabled: boo
 };
 const switchEngine = (build: ReleaseBuildProfileConfig, engine: string) => {
   const switched = switchBuildProfileEngine(catalog.value, build, engine);
-  if (switched) Object.assign(build, switched);
+  if (switched) {
+    Object.assign(build, switched);
+    void inspectProducer(build);
+  }
 };
 const setBuildInput = (build: ReleaseBuildProfileConfig, value: string) => {
   const output = outputOptions.value.find((candidate) => candidate.value === value);
@@ -877,13 +922,13 @@ const addDestination = () => {
   const definition = destinationDefinition(destinationToAdd.value);
   if (definition) {
     flow.value.destinations.push({
-      id: `${destinationToAdd.value.split("/").pop()}-${Date.now()}`,
+      id: nanoid(),
       provider: destinationToAdd.value,
       enabled: true,
       config: { ...definition.defaultConfig },
       slots: [
         {
-          id: `${destinationToAdd.value.split("/").pop()}-${Date.now()}-1`,
+          id: nanoid(),
           enabled: true,
           config: {},
         },
@@ -901,7 +946,7 @@ const removeDestination = (id: string) => {
 };
 const addSlot = (destination: ReleaseDestinationConfig) => {
   destination.slots.push({
-    id: `${destination.id}-${destination.slots.length + 1}`,
+    id: nanoid(),
     enabled: true,
     config: {},
   });
@@ -925,11 +970,59 @@ const confirmOutputPicker = () => {
   outputPickerValue.value = "";
   outputPickerVisible.value = false;
 };
+const refreshCompatibleChoices = async (slot: ReleaseDestinationSlot) => {
+  if (!flow.value) return;
+  compatibleChecking.value = true;
+  const choices = new Set<string>();
+  const destination = flow.value.destinations.find((candidate) => candidate.slots.includes(slot));
+  if (!destination) return;
+  const destinationIndex = flow.value.destinations.indexOf(destination);
+  const slotIndex = destination.slots.indexOf(slot);
+  for (const buildType of catalog.value.buildTypes) {
+    for (const engine of buildEnginesFor(catalog.value, buildType.id)) {
+      for (const target of buildTargetsFor(catalog.value, engine.id, buildType.id)) {
+        const candidate = createBuildProfile(
+          catalog.value,
+          buildType.id,
+          engine.id,
+          `candidate-${nanoid()}`,
+          [target.id],
+        );
+        if (!candidate) continue;
+        const candidateConfig = JSON.parse(JSON.stringify(flow.value)) as ReleaseConfig;
+        candidateConfig.builds.push(candidate);
+        candidateConfig.destinations[destinationIndex].slots[slotIndex].input = {
+          buildId: candidate.id,
+          targetId: target.id,
+        };
+        const result = await api.execute("release:plan", { config: candidateConfig });
+        if (result.type !== "success") continue;
+        const buildPath = `builds.${candidateConfig.builds.length - 1}`;
+        const slotPath = `destinations.${destinationIndex}.slots.${slotIndex}.input`;
+        const valid =
+          result.result.producers.some((producer) => producer.id === candidate.id) &&
+          !result.result.issues.some(
+            (issue) =>
+              issue.severity === "error" &&
+              (issue.path === buildPath ||
+                issue.path?.startsWith(`${buildPath}.`) ||
+                issue.path === slotPath ||
+                issue.path?.startsWith(`${slotPath}.`)),
+          );
+        if (valid) choices.add(`${buildType.id}:${engine.id}:${target.id}`);
+      }
+    }
+  }
+  compatibleChoiceKeys.value = choices;
+  compatibleChecking.value = false;
+};
 const openCompatibleBuildPicker = (slot: ReleaseDestinationSlot) => {
   compatibleSlot.value = slot;
   newBuildType.value = undefined;
   newBuildEngine.value = undefined;
   newBuildTarget.value = undefined;
+  compatibleChoiceKeys.value = new Set();
+  void refreshCompatibleChoices(slot);
   buildPickerVisible.value = true;
 };
 const artifactLabel = (ref?: ReleaseOutputRef) =>
@@ -939,6 +1032,7 @@ const artifactLabel = (ref?: ReleaseOutputRef) =>
     : "Choose output";
 const openBuildSettings = (build: ReleaseBuildProfileConfig) => {
   settingsBuild.value = build;
+  void inspectProducer(build);
   buildSettingsVisible.value = true;
 };
 const openDestinationSettings = (destination: ReleaseDestinationConfig) => {
@@ -1000,7 +1094,7 @@ const createConnection = async () => {
     error.value = result.ipcError;
     return;
   }
-  await connectionsStore.init();
+  await connectionsStore.load(true);
   connectionVisible.value = false;
 };
 const inspectSource = async () => {
@@ -1025,6 +1119,42 @@ const inspectSource = async () => {
     for (const [key, options] of Object.entries(data.fieldOptions || {}))
       inspectionOptions.value[key] = options;
   }
+};
+const inspectProducer = async (build: ReleaseBuildProfileConfig) => {
+  const buildIndex = flow.value?.builds.indexOf(build) ?? -1;
+  if (buildIndex < 0) return;
+  const result = await api.execute("release:producer:inspect", {
+    provider: build.engine,
+    config: {
+      id: build.id,
+      provider: build.engine,
+      enabled: build.enabled,
+      config: build.config,
+      targets: build.targets,
+    },
+  });
+  if (result.type !== "success") {
+    producerInspectionIssues.value = [
+      {
+        code: "release.producer.inspect",
+        message: result.ipcError,
+        severity: "error",
+        path: `builds.${buildIndex}`,
+      },
+    ];
+    return;
+  }
+  const data = result.result as {
+    fieldOptions?: Record<string, ReleaseFieldOption[]>;
+    fieldValues?: Record<string, unknown>;
+    issues?: ValidationIssue[];
+  };
+  const applied = applyProducerInspection(build, buildIndex, {
+    ...data,
+    issues: data.issues || [],
+  });
+  producerInspectionOptions.value = applied.options;
+  producerInspectionIssues.value = applied.issues;
 };
 const planNodeLabel = (id: string, kind: string) => {
   if (kind === "source") return sourceDefinition.value?.label || id;

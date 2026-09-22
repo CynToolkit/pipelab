@@ -4,6 +4,7 @@ import type {
   ReleaseConfig,
   ReleaseOutputRef,
   ReleasePlan,
+  ProducerInspection,
   ValidationIssue,
 } from "@pipelab/shared";
 
@@ -127,6 +128,39 @@ export const switchBuildProfileEngine = (
 
 export const issuesForPath = (issues: ValidationIssue[], path: string) =>
   issues.filter((issue) => issue.path === path || issue.path?.startsWith(`${path}.`));
+
+export const applyProducerInspection = (
+  build: ReleaseBuildProfileConfig,
+  buildIndex: number,
+  inspection: ProducerInspection,
+) => {
+  for (const [key, value] of Object.entries(inspection.fieldValues || {})) {
+    const targetMatch = key.match(/^targets\.([^.]+)\.config\.(.+)$/);
+    if (targetMatch) {
+      const target = build.targets.find((candidate) => candidate.id === targetMatch[1]);
+      if (target) target.config[targetMatch[2]] = value;
+      continue;
+    }
+    build.config[key.replace(/^config\./, "")] = value;
+  }
+  const issues = (inspection.issues || []).map((issue) => {
+    const targetMatch = issue.path?.match(/^targets\.([^.]+)(?:\.(.*))?$/);
+    if (!targetMatch)
+      return {
+        ...issue,
+        path: issue.path ? `builds.${buildIndex}.${issue.path}` : `builds.${buildIndex}`,
+      };
+    const targetIndex = build.targets.findIndex((target) => target.id === targetMatch[1]);
+    return {
+      ...issue,
+      path:
+        targetIndex >= 0
+          ? `builds.${buildIndex}.targets.${targetIndex}${targetMatch[2] ? `.${targetMatch[2]}` : ""}`
+          : `builds.${buildIndex}`,
+    };
+  });
+  return { options: inspection.fieldOptions || {}, issues };
+};
 
 const outputKey = (ref: ReleaseOutputRef) =>
   "source" in ref ? "source" : `${ref.buildId}:${ref.targetId}`;

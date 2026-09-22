@@ -131,4 +131,22 @@ describe("resolveReleaseDefaults", () => {
     expect(resolved.builds).toHaveLength(0);
     expect(resolved.destinations[0].slots[0].input).toBeUndefined();
   });
+
+  it("tries the central default after an unavailable preferred engine", () => {
+    const centralFallback = {
+      ...build,
+      id: "@pipelab/plugin-electron/producer",
+      targets: [{ ...build.targets[0], id: "windows-x64" }],
+    };
+    const resolved = resolveReleaseDefaults(
+      config(),
+      { ...registry(), producers: [centralFallback] },
+      context,
+      { buildTypes: { desktop: { engine: "missing-engine", targets: ["windows"] } } },
+    );
+
+    expect(resolved.builds).toHaveLength(1);
+    expect(resolved.builds[0].engine).toBe("@pipelab/plugin-electron/producer");
+    expect(resolved.destinations[0].slots[0].input).toMatchObject({ targetId: "windows-x64" });
+  });
 });

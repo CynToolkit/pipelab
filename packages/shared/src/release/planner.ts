@@ -159,6 +159,16 @@ export const planRelease = (
   }
   const buildPath = (buildId: string, suffix = ""): string =>
     `builds.${buildIndexes.get(buildId) ?? buildId}${suffix}`;
+  const buildProviderPath = (build: ReleaseBuildProfileConfig, issuePath?: string) => {
+    if (!issuePath) return buildPath(build.id);
+    const targetMatch = issuePath.match(/^targets\.([^.]+)(?:\.(.*))?$/);
+    if (targetMatch) {
+      const targetIndex = build.targets.findIndex((target) => target.id === targetMatch[1]);
+      if (targetIndex >= 0)
+        return `${buildPath(build.id)}.targets.${targetIndex}${targetMatch[2] ? `.${targetMatch[2]}` : ""}`;
+    }
+    return `${buildPath(build.id)}.${issuePath}`;
+  };
 
   const resolved = new Map<string, Candidate>();
   if (source) {
@@ -371,7 +381,10 @@ export const planRelease = (
             error(
               "release.build.target.unknown",
               `Unknown target ${target.id} for ${build.engine}.`,
-              buildPath(buildId, ".targets"),
+              buildPath(
+                buildId,
+                `.targets.${build.targets.findIndex((candidate) => candidate.id === target.id)}`,
+              ),
             ),
           );
           return target;
@@ -381,7 +394,10 @@ export const planRelease = (
             error(
               "release.build.target.type",
               `Target ${target.id} is not a ${build.type} target.`,
-              buildPath(buildId, ".targets"),
+              buildPath(
+                buildId,
+                `.targets.${build.targets.findIndex((candidate) => candidate.id === target.id)}`,
+              ),
             ),
           );
         if (targetDefinition.isAvailable) {
@@ -391,7 +407,10 @@ export const planRelease = (
               error(
                 "release.build.target.unavailable",
                 availability.reason ?? `Target ${target.id} is unavailable.`,
-                buildPath(buildId, ".targets"),
+                buildPath(
+                  buildId,
+                  `.targets.${build.targets.findIndex((candidate) => candidate.id === target.id)}`,
+                ),
               ),
             );
         }
@@ -414,7 +433,7 @@ export const planRelease = (
         })
         .map((issue) => ({
           ...issue,
-          path: issue.path ? `${buildPath(buildId)}.${issue.path}` : buildPath(buildId),
+          path: buildProviderPath(build, issue.path),
         })),
     );
     producers.push(producer);
@@ -535,7 +554,17 @@ export const planRelease = (
     issues.push(
       ...definition.validate(destination, { host: context.host }).map((issue) => ({
         ...issue,
-        path: issue.path ? `destinations.${index}.${issue.path}` : `destinations.${index}`,
+        path: issue.path
+          ? (() => {
+              const slotMatch = issue.path.match(/^slots\.([^.]+)(?:\.(.*))?$/);
+              if (slotMatch) {
+                const slotIndex = destination.slots.findIndex((slot) => slot.id === slotMatch[1]);
+                if (slotIndex >= 0)
+                  return `destinations.${index}.slots.${slotIndex}${slotMatch[2] ? `.${slotMatch[2]}` : ""}`;
+              }
+              return `destinations.${index}.${issue.path}`;
+            })()
+          : `destinations.${index}`,
       })),
     );
     if (!destination.slots.some((slot) => slot.enabled))

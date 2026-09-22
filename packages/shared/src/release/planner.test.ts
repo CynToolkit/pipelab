@@ -696,7 +696,71 @@ describe("release planner", () => {
       { host: { platform: "linux", architecture: "x64" } },
     );
     expect(plan.issues).toContainEqual(
-      expect.objectContaining({ code: "release.build.target.type", path: "builds.0.targets" }),
+      expect.objectContaining({ code: "release.build.target.type", path: "builds.0.targets.0" }),
+    );
+  });
+
+  it("normalizes provider target and slot validation paths to indexes", () => {
+    const indexedRegistry: ReleaseRegistry = {
+      ...registry,
+      producers: [
+        {
+          ...registry.producers[0],
+          validate: () => [
+            {
+              code: "producer.field",
+              message: "Preset required",
+              severity: "error" as const,
+              path: "targets.web.config.preset",
+            },
+          ],
+        },
+      ],
+      destinations: [
+        {
+          ...registry.destinations[0],
+          accepts: {},
+          validate: () => [
+            {
+              code: "destination.field",
+              message: "Channel required",
+              severity: "error" as const,
+              path: "slots.deploy.config.channel",
+            },
+          ],
+        },
+      ],
+    };
+    const plan = planRelease(
+      {
+        ...config([
+          {
+            id: "desktop",
+            type: "web",
+            engine: "engine-a",
+            enabled: true,
+            config: {},
+            targets: [{ id: "web", enabled: true, config: {} }],
+          },
+        ]),
+        destinations: [
+          {
+            id: "deploy",
+            provider: "deploy",
+            enabled: true,
+            config: {},
+            slots: [{ id: "deploy", enabled: true, input: { source: true }, config: {} }],
+          },
+        ],
+      },
+      indexedRegistry,
+      { host: { platform: "linux", architecture: "x64" } },
+    );
+    expect(plan.issues).toContainEqual(
+      expect.objectContaining({ path: "builds.0.targets.0.config.preset" }),
+    );
+    expect(plan.issues).toContainEqual(
+      expect.objectContaining({ path: "destinations.0.slots.0.config.channel" }),
     );
   });
 
