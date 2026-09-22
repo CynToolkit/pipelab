@@ -93,12 +93,14 @@ const preferredBuildCandidates = (
 };
 
 const hasBlockingIssue = (plan: ReleasePlan, paths: string[]) =>
-  plan.issues.some(
-    (issue) =>
+  plan.issues.some((issue) => {
+    const issuePath = issue.path;
+    return (
       issue.severity === "error" &&
-      issue.path &&
-      paths.some((path) => issue.path === path || issue.path.startsWith(`${path}.`)),
-  );
+      issuePath !== undefined &&
+      paths.some((path) => issuePath === path || issuePath.startsWith(`${path}.`))
+    );
+  });
 
 const plannerAcceptsOutput = (
   config: ReleaseConfig,

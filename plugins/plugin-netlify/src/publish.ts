@@ -86,6 +86,7 @@ export const uploadToNetlifyRunner = createActionRunner<typeof uploadToNetlify>(
     }
 
     const appFolder = inputs["input-folder"];
+    if (!appFolder) throw new Error("An input folder is required");
 
     // 1. Prepare input folder with temmplate
     // Assume input folder is always a static site

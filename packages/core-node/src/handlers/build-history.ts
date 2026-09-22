@@ -11,10 +11,16 @@ import { SandboxFolder } from "@pipelab/constants";
 
 const mutationTails = new Map<string, Promise<void>>();
 
-const serializePipelineMutation = async <T>(path: string, mutation: () => Promise<T>): Promise<T> => {
+const serializePipelineMutation = async <T>(
+  path: string,
+  mutation: () => Promise<T>,
+): Promise<T> => {
   const previous = mutationTails.get(path) || Promise.resolve();
-  const current = previous.catch(() => undefined).then(mutation);
-  const tail = current.then(() => undefined, () => undefined);
+  const current = previous.catch((): undefined => undefined).then(mutation);
+  const tail = current.then(
+    (): undefined => undefined,
+    (): undefined => undefined,
+  );
   mutationTails.set(path, tail);
   try {
     return await current;
@@ -61,7 +67,9 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
       if (!Array.isArray(entries)) throw new Error("History document must contain an array");
       return entries as BuildHistoryEntry[];
     } catch (error) {
-      throw new Error(`Invalid build history for pipeline ${pipelineId}: ${error instanceof Error ? error.message : String(error)}`);
+      throw new Error(
+        `Invalid build history for pipeline ${pipelineId}: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
 
@@ -74,7 +82,10 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
       const pipelinePath = this.getPipelinePath(pipelineId);
       const temporaryPath = `${pipelinePath}.${randomUUID()}.tmp`;
       try {
-        await writeFile(temporaryPath, JSON.stringify(entries, null, 2), { encoding: "utf-8", flag: "wx" });
+        await writeFile(temporaryPath, JSON.stringify(entries, null, 2), {
+          encoding: "utf-8",
+          flag: "wx",
+        });
         await rename(temporaryPath, pipelinePath);
       } finally {
         await rm(temporaryPath, { force: true }).catch(() => {});
@@ -146,7 +157,8 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
   async reconcileInterruptedRuns(timestamp = Date.now()): Promise<number> {
     const interrupted = (await this.getAll()).filter((entry) => entry.status === "running");
     for (const entry of interrupted) {
-      const interruption = "Execution was interrupted because the app or backend stopped before the run finished.";
+      const interruption =
+        "Execution was interrupted because the app or backend stopped before the run finished.";
       const steps = entry.steps.map((step) => {
         if (step.status === "running") {
           return {
@@ -162,15 +174,20 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
         }
         return step;
       });
-      await this.update(entry.id, {
-        status: "failed",
-        endTime: timestamp,
-        duration: Math.max(0, timestamp - entry.startTime),
-        failedSteps: steps.filter((step) => step.status === "failed" || step.status === "skipped").length,
-        cancelledSteps: steps.filter((step) => step.status === "cancelled").length,
-        steps,
-        error: { message: interruption, code: "INTERRUPTED", timestamp },
-      }, entry.pipelineId);
+      await this.update(
+        entry.id,
+        {
+          status: "failed",
+          endTime: timestamp,
+          duration: Math.max(0, timestamp - entry.startTime),
+          failedSteps: steps.filter((step) => step.status === "failed" || step.status === "skipped")
+            .length,
+          cancelledSteps: steps.filter((step) => step.status === "cancelled").length,
+          steps,
+          error: { message: interruption, code: "INTERRUPTED", timestamp },
+        },
+        entry.pipelineId,
+      );
     }
     return interrupted.length;
   }
@@ -273,7 +290,10 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
           for (const entry of entries) {
             if (entry.cachePath) cachePathsToDelete.add(entry.cachePath);
           }
-          await rm(this.context.getArtifactsPath(pipelineId), { recursive: true, force: true }).catch(() => {});
+          await rm(this.context.getArtifactsPath(pipelineId), {
+            recursive: true,
+            force: true,
+          }).catch(() => {});
           await unlink(join(this.getStoragePath(), file)).catch((error) => {
             if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
           });
@@ -308,7 +328,9 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
         for (const cachePath of cachePathsToDelete) {
           await rm(cachePath, { recursive: true, force: true }).catch(() => {});
         }
-        await rm(this.context.getArtifactsPath(pipelineId), { recursive: true, force: true }).catch(() => {});
+        await rm(this.context.getArtifactsPath(pipelineId), { recursive: true, force: true }).catch(
+          () => {},
+        );
       });
     } catch (error: any) {
       if (error.code === "ENOENT") {

@@ -124,7 +124,7 @@ export const registerFsHandlers = (_context: PipelabContext) => {
             const path = `${letter}:\\`;
             return access(path, constants.R_OK)
               .then(() => ({ name: `${letter}:`, path }))
-              .catch(() => null);
+              .catch((): null => null);
           }),
         );
         roots.push(...available.filter((root): root is { name: string; path: string } => !!root));

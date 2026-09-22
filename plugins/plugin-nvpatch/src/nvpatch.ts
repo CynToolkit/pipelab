@@ -57,6 +57,8 @@ export const NVPatchRunner = createActionRunner<typeof NVPatch>(
     log("Ensuring nvpatch is installed...");
     const { thirdparty } = paths;
     const nvpatchCommand = await ensureNVPatch(thirdparty, abortSignal);
+    const input = inputs["input"];
+    if (!input) throw new Error("An input binary is required");
 
     // Detect platform and set up platform-specific configuration
     const isMacOS = process.platform === "darwin";
@@ -76,7 +78,7 @@ export const NVPatchRunner = createActionRunner<typeof NVPatch>(
 
     await runWithLiveLogs(
       nvpatchCommand,
-      ["--enable", inputs["input"]],
+      ["--enable", input],
       {
         cancelSignal: abortSignal,
       },

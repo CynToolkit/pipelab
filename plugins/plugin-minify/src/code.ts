@@ -52,7 +52,9 @@ export const minifyCodeRunner = createActionRunner<typeof minifyCode>(
       throw abortError;
     }
 
-    const jsFiles = await getAllJsFiles(inputs["input-folder"]);
+    const inputFolder = inputs["input-folder"];
+    if (!inputFolder) throw new Error("An input folder is required");
+    const jsFiles = await getAllJsFiles(inputFolder);
 
     for (const file of jsFiles) {
       if (abortSignal.aborted) {

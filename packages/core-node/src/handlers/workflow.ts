@@ -15,6 +15,7 @@ import {
   resolveReleaseDefaults,
   validateRelease,
   type BuildHistoryEntry,
+  type LogEntry,
   type ReleaseConfig,
   useLogger,
   usePlugins,
@@ -56,7 +57,7 @@ const executionPlan = (workflow: Workflow) =>
     uses: step.uses,
     status: "pending" as const,
     startTime: 0,
-    logs: [],
+    logs: [] as LogEntry[],
     ...(step.delivery
       ? { destinationId: step.delivery.destinationId, slotId: step.delivery.slotId }
       : {}),
@@ -227,7 +228,7 @@ export const executeWorkflow = async (
         startTime: step.startedAt,
         endTime: step.completedAt,
         duration: step.duration,
-        logs: [],
+        logs: [] as LogEntry[],
         output: step.outputs,
         error: step.error
           ? { message: step.error.message, code: step.error.name, timestamp: step.completedAt }

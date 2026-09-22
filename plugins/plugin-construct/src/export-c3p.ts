@@ -61,6 +61,7 @@ export const exportAction = createAction({
 
 export const ExportActionRunner = createActionRunner<typeof exportAction>(async (options) => {
   const file = options.inputs.file;
+  if (!file) throw new Error("You must specify a .c3p file");
 
   const c3pFileExists = await fileExists(file);
 
