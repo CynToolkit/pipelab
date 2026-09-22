@@ -215,27 +215,9 @@
                 >
               </div>
               <Tag
-                :value="
-                  readinessLabel(
-                    destination.enabled,
-                    destination.slots.length > 0 &&
-                      destination.slots
-                        .filter((slot) => slot.enabled)
-                        .every((slot) => Boolean(slot.input)),
-                    Boolean(cardIssues(`destinations.${index}`).length),
-                  )
-                "
+                :value="destinationReadiness(destination, index)"
                 :severity="
-                  readinessLabel(
-                    destination.enabled,
-                    destination.slots.length > 0 &&
-                      destination.slots
-                        .filter((slot) => slot.enabled)
-                        .every((slot) => Boolean(slot.input)),
-                    Boolean(cardIssues(`destinations.${index}`).length),
-                  ) === 'Ready'
-                    ? 'success'
-                    : 'secondary'
+                  destinationReadiness(destination, index) === 'Ready' ? 'success' : 'secondary'
                 "
               /><Button
                 v-if="cardIssues(`destinations.${index}`).length"
@@ -279,14 +261,14 @@
                     readinessLabel(
                       slot.enabled,
                       Boolean(slot.input),
-                      Boolean(slotIssues(slot).length),
+                      Boolean(slotCardIssues(slot).length),
                     )
                   "
                   :severity="
                     readinessLabel(
                       slot.enabled,
                       Boolean(slot.input),
-                      Boolean(slotIssues(slot).length),
+                      Boolean(slotCardIssues(slot).length),
                     ) === 'Ready'
                       ? 'success'
                       : 'secondary'
@@ -312,13 +294,13 @@
                   aria-label="Remove deployment slot"
                   @click="removeSlot(destination, slot.id)"
                 /><Button
-                  v-if="slotIssues(slot).length"
+                  v-if="slotCardIssues(slot).length"
                   class="needs-attention-button"
                   label="Needs attention"
                   icon="pi pi-exclamation-triangle"
                   text
                   size="small"
-                  @click="openAttention(slotIssues(slot))"
+                  @click="openAttention(slotCardIssues(slot))"
                 /><Button
                   v-if="slotIssues(slot).length"
                   label="Create compatible build"
@@ -858,7 +840,7 @@ const producerFieldOptions = (field: ReleaseFieldDefinition) =>
   producerInspectionOptions.value[field.key] || field.options || [];
 const cardIssues = (prefix: string) => issuesForPath(issues.value, prefix);
 const fieldIssues = (path: string) => issues.value.filter((issue) => issue.path === path);
-const slotIssues = (slot: ReleaseDestinationSlot) => {
+const slotIssuePath = (slot: ReleaseDestinationSlot) => {
   const destinationIndex = flow.value?.destinations.findIndex((destination) =>
     destination.slots.includes(slot),
   );
@@ -870,8 +852,27 @@ const slotIssues = (slot: ReleaseDestinationSlot) => {
     destinationIndex >= 0 &&
     slotIndex !== undefined &&
     slotIndex >= 0
-    ? fieldIssues(`destinations.${destinationIndex}.slots.${slotIndex}.input`)
-    : [];
+    ? `destinations.${destinationIndex}.slots.${slotIndex}`
+    : undefined;
+};
+const slotIssues = (slot: ReleaseDestinationSlot) => {
+  const path = slotIssuePath(slot);
+  return path ? fieldIssues(`${path}.input`) : [];
+};
+const slotCardIssues = (slot: ReleaseDestinationSlot) => {
+  const path = slotIssuePath(slot);
+  return path ? issuesForPath(issues.value, path) : [];
+};
+const destinationReadiness = (destination: ReleaseDestinationConfig, index: number) => {
+  const enabledSlots = destination.slots.filter((slot) => slot.enabled);
+  const childrenReady =
+    enabledSlots.length > 0 &&
+    enabledSlots.every((slot) => Boolean(slot.input) && !slotCardIssues(slot).length);
+  return readinessLabel(
+    destination.enabled,
+    childrenReady,
+    Boolean(cardIssues(`destinations.${index}`).length),
+  );
 };
 const sourcePath = computed(() => {
   const field = sourceDefinition.value?.fields?.find(
