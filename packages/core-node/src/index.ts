@@ -3,7 +3,6 @@ export * from "./bundled-cli";
 export * from "./websocket-server";
 export * from "./ipc-core";
 export * from "./handlers/index";
-export { executeWorkflow } from "./handlers/workflow";
 export {
   setupSettingsConfigFile,
   setupConnectionsConfigFile,

@@ -63,13 +63,14 @@ export interface ReleaseBuildTargetConfig {
 
 export interface ReleaseDestinationSlot {
   id: string;
+  name?: string;
   enabled: boolean;
-  input: ReleaseOutputRef;
+  input?: ReleaseOutputRef;
   config: Record<string, unknown>;
 }
 
 export interface ResolvedReleaseDestinationSlot extends Omit<ReleaseDestinationSlot, "input"> {
-  input: ArtifactRef;
+  input?: ArtifactRef;
 }
 
 export interface ResolvedReleaseDestinationConfig extends Omit<ReleaseDestinationConfig, "slots"> {
@@ -128,6 +129,7 @@ export interface ReleaseHostCapabilities {
 
 export interface ReleaseProviderContext {
   host: ReleaseHostContext;
+  sourceConfig?: Record<string, unknown>;
   [key: string]: unknown;
 }
 
@@ -150,9 +152,11 @@ export interface ReleaseFieldDefinition {
   type: "text" | "password" | "number" | "directory" | "file" | "select" | "connection";
   label: string;
   description?: string;
+  deferUntilEditor?: boolean;
   integration?: string;
   required?: boolean;
   options?: ReleaseFieldOption[];
+  fileExtensions?: string[];
 }
 
 export interface ReleaseFieldOption {
@@ -185,7 +189,10 @@ export interface ReleaseSourceDefinition {
   output: ArtifactDescriptor;
   createDefaultConfig(): Record<string, unknown>;
   validate(config: Record<string, unknown>): ValidationIssue[];
-  inspect?(config: Record<string, unknown>, context: ReleaseProviderContext): Promise<SourceInspection>;
+  inspect?(
+    config: Record<string, unknown>,
+    context: ReleaseProviderContext,
+  ): Promise<SourceInspection>;
   compile(config: Record<string, unknown>, context: ReleaseCompileContext): CompiledSource;
 }
 
@@ -216,8 +223,15 @@ export interface ReleaseProducerDefinition {
   targets: ReleaseProducerTargetDefinition[];
   createDefaultConfig(): Record<string, unknown>;
   validate(config: ReleaseProducerConfig, context: ReleaseValidationContext): ValidationIssue[];
-  inspect?(config: ReleaseProducerConfig, context: ReleaseProviderContext): Promise<ProducerInspection>;
-  compile(input: CompiledArtifact, config: ReleaseProducerConfig, context: ReleaseCompileContext): CompiledProducer;
+  inspect?(
+    config: ReleaseProducerConfig,
+    context: ReleaseProviderContext,
+  ): Promise<ProducerInspection>;
+  compile(
+    input: CompiledArtifact,
+    config: ReleaseProducerConfig,
+    context: ReleaseCompileContext,
+  ): CompiledProducer;
   acceptsWhen?(artifact: ArtifactDescriptor, context: ReleaseAcceptanceContext): ArtifactAcceptance;
 }
 
@@ -242,7 +256,12 @@ export interface ReleaseDestinationDefinition {
   accepts: ArtifactConstraint;
   createDefaultConfig(): Record<string, unknown>;
   validate(config: ReleaseDestinationConfig, context: ReleaseValidationContext): ValidationIssue[];
-  compile(artifact: CompiledArtifact, destination: ResolvedReleaseDestinationConfig, slot: ResolvedReleaseDestinationSlot, context: ReleaseCompileContext): WorkflowStep[];
+  compile(
+    artifact: CompiledArtifact,
+    destination: ResolvedReleaseDestinationConfig,
+    slot: ResolvedReleaseDestinationSlot,
+    context: ReleaseCompileContext,
+  ): WorkflowStep[];
   acceptsWhen?(artifact: ArtifactDescriptor, context: ReleaseAcceptanceContext): ArtifactAcceptance;
 }
 

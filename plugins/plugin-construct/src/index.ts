@@ -3,27 +3,90 @@ import { createNodeDefinition } from "@pipelab/plugin-core";
 import { exportAction, ExportActionRunner } from "./export-c3p";
 import { exportProjectAction, ExportProjectActionRunner } from "./export-project";
 import { constructVersionValidator } from "./export-shared";
+import { discoverBrowserProfiles } from "./browser-profiles";
 import type { ReleaseSourceDefinition } from "@pipelab/shared";
 import type { WorkflowStep } from "@pipelab/workflow-runtime";
 export { discoverBrowserProfiles, inspectChromiumProfile } from "./browser-profiles";
 export type { BrowserProfileCandidate } from "./browser-profiles";
 
-const constructSource: ReleaseSourceDefinition = {
+export const constructSource: ReleaseSourceDefinition = {
   id: "@pipelab/plugin-construct/source",
   label: "Construct project",
-  fields: [{ key: "path", type: "file", label: "Project file", required: true }, { key: "profilePath", type: "directory", label: "Browser profile path", required: true }],
+  fields: [
+    { key: "path", type: "file", label: "Project file", required: true, fileExtensions: ["c3p"] },
+    {
+      key: "profilePath",
+      type: "select",
+      label: "Browser profile",
+      required: true,
+      deferUntilEditor: true,
+    },
+  ],
   output: { kind: "application", platform: "web", container: "directory" },
   createDefaultConfig: () => ({ path: "", profilePath: "" }),
   validate: (config) => [
-    ...(typeof config.path === "string" && config.path ? [] : [{ code: "construct.project.required", message: "A Construct project path is required.", severity: "error" as const }]),
-    ...(typeof config.profilePath === "string" && config.profilePath ? [] : [{ code: "construct.profile.required", message: "A browser profile path is required.", severity: "error" as const }]),
+    ...(typeof config.path === "string" && config.path
+      ? []
+      : [
+          {
+            code: "construct.project.required",
+            message: "A Construct project path is required.",
+            severity: "error" as const,
+            path: "path",
+          },
+        ]),
+    ...(typeof config.profilePath === "string" && config.profilePath
+      ? []
+      : [
+          {
+            code: "construct.profile.required",
+            message: "A browser profile path is required.",
+            severity: "error" as const,
+            path: "profilePath",
+          },
+        ]),
   ],
+  inspect: async () => ({
+    issues: [],
+    fieldOptions: {
+      profilePath: (await discoverBrowserProfiles()).map((profile) => ({
+        label: `${profile.browser} / ${profile.profileName}`,
+        value: profile.path,
+      })),
+    },
+  }),
   compile: (config) => {
     const steps: WorkflowStep[] = [
-      { id: "construct-source-export", uses: "@pipelab/plugin-construct/export-construct-project", with: { file: String(config.path || ""), customProfile: String(config.profilePath || "") }, artifacts: { zipFile: { descriptor: { kind: "files", technology: "construct", container: "archive", format: "zip" } } } },
-      { id: "construct-source-extract", uses: "@pipelab/plugin-filesystem/unzip-file-node", needs: ["construct-source-export"], artifactInputs: { file: { stepId: "construct-source-export", artifact: "zipFile" } }, artifacts: { output: { descriptor: constructSource.output } } },
+      {
+        id: "construct-source-export",
+        uses: "@pipelab/plugin-construct/export-construct-project",
+        with: { file: String(config.path || ""), customProfile: String(config.profilePath || "") },
+        artifacts: {
+          zipFile: {
+            descriptor: {
+              kind: "files",
+              technology: "construct",
+              container: "archive",
+              format: "zip",
+            },
+          },
+        },
+      },
+      {
+        id: "construct-source-extract",
+        uses: "@pipelab/plugin-filesystem/unzip-file-node",
+        needs: ["construct-source-export"],
+        artifactInputs: { file: { stepId: "construct-source-export", artifact: "zipFile" } },
+        artifacts: { output: { descriptor: constructSource.output } },
+      },
     ];
-    return { steps, artifact: { reference: { stepId: "construct-source-extract", artifact: "output" }, descriptor: constructSource.output } };
+    return {
+      steps,
+      artifact: {
+        reference: { stepId: "construct-source-extract", artifact: "output" },
+        descriptor: constructSource.output,
+      },
+    };
   },
 };
 

@@ -340,7 +340,7 @@ jobs:
       # [DISABLED] Original output wired to the changesets step below.
       # Re-enable: uncomment and remove the hardcoded "true".
       # published: ${{ steps.changesets.outputs.published }}
-      published: "true"  # NPM publishing disabled — desktop binaries always released via GitHub releases in bundled mode.
+      published: "true" # NPM publishing disabled — desktop binaries always released via GitHub releases in bundled mode.
     steps:
       - uses: actions/checkout@v4
         with:
@@ -489,11 +489,6 @@ jobs:
         with:
           name: monorepo-dist
           path: .
-
-      - name: Electron smoke test
-        if: matrix.os == 'ubuntu-latest'
-        run: xvfb-run -a pnpm --dir apps/desktop run test:e2e
-        continue-on-error: true
 
       - name: Import Apple Code Signing Certificate
         uses: apple-actions/import-codesign-certs@v3

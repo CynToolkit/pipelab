@@ -263,7 +263,7 @@ export const createPipelabCloudUploadTask =
             action: "abortUpload",
             storageKey: prepared.storageKey,
             uploadId: prepared.uploadId,
-          }).catch(() => undefined);
+          }).catch((): undefined => undefined);
           throw error;
         }
       }
@@ -291,7 +291,7 @@ export const createPipelabCloudUploadTask =
             action: "abortUpload",
             storageKey: prepared.storageKey,
             uploadId: prepared.uploadId,
-          }).catch(() => undefined);
+          }).catch((): undefined => undefined);
         }
         const message =
           completionError instanceof Error
@@ -299,15 +299,21 @@ export const createPipelabCloudUploadTask =
             : "Could not save Pipelab Cloud metadata";
         throw new Error(message);
       }
-      const uploaded = (completionData as { artifact?: { id?: string; uploaded_at?: string } } | null)
-        ?.artifact;
+      const uploaded = (
+        completionData as { artifact?: { id?: string; uploaded_at?: string } } | null
+      )?.artifact;
       if (
         typeof uploaded?.id !== "string" ||
-        !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(uploaded.id)
+        !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+          uploaded.id,
+        )
       ) {
         throw new Error("Pipelab Cloud did not return a valid hosted artifact ID");
       }
-      if (typeof uploaded.uploaded_at !== "string" || !Number.isFinite(Date.parse(uploaded.uploaded_at))) {
+      if (
+        typeof uploaded.uploaded_at !== "string" ||
+        !Number.isFinite(Date.parse(uploaded.uploaded_at))
+      ) {
         throw new Error("Pipelab Cloud did not return a valid upload timestamp");
       }
       log(`${artifactName} uploaded to Pipelab Cloud`);

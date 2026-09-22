@@ -52,16 +52,20 @@ function createConfigComposable<T>(
   };
 
   const save = async (newValue: T): Promise<void> => {
-    data.value = newValue;
-    if (api.isConnected()) {
-      try {
-        const result = await api.execute(saveChannel as any, { data: newValue });
-        if (result.type === "error") {
-          console.error(`[useConfig] failed to save "${saveChannel}":`, result.ipcError);
-        }
-      } catch (err) {
-        console.error(`[useConfig] error saving "${saveChannel}":`, err);
+    if (!api.isConnected()) {
+      data.value = newValue;
+      return;
+    }
+
+    try {
+      const result = await api.execute(saveChannel as any, { data: newValue });
+      if (result.type === "error") {
+        throw new Error(result.ipcError || `Unable to save ${saveChannel}`);
       }
+      data.value = newValue;
+    } catch (err) {
+      console.error(`[useConfig] error saving "${saveChannel}":`, err);
+      throw err;
     }
   };
 

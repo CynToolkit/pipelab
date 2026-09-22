@@ -55,6 +55,7 @@ export const buildNetlifySiteRunner = createActionRunner<typeof buildNetlifySite
     const buildDir = join(cwd, "build");
 
     const inputFolder = inputs["input-folder"];
+    if (!inputFolder) throw new Error("An input folder is required");
     // ensure input folder have apackage.json
     const packageJsonPath = join(inputFolder, "package.json");
     const packageJson = await fileExists(packageJsonPath);
@@ -62,7 +63,7 @@ export const buildNetlifySiteRunner = createActionRunner<typeof buildNetlifySite
       throw new Error("No package.json found in input folder");
     }
 
-    await cp(inputs["input-folder"], buildDir, { recursive: true });
+    await cp(inputFolder, buildDir, { recursive: true });
 
     const netlifyDir = join(buildDir, ".netlify");
     const netlifyState = join(netlifyDir, "state.json");

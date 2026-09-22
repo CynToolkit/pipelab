@@ -376,7 +376,7 @@ export const exportc3p = async <ACTION extends Action>(
     // Playwright finalizes the video when its context closes. Close it before
     // asking for the path so failed automation runs can expose the recording.
     await cleanup();
-    const recordingPath = await video?.path().catch(() => undefined);
+    const recordingPath = await video?.path().catch((): undefined => undefined);
     const recordingLink = recordingPath ? `\nPLAYWRIGHT_VIDEO: ${recordingPath}` : "";
     if (recordingPath) log(`PLAYWRIGHT_VIDEO: ${recordingPath}`);
     if (pageCrashed || /(?:page|target) crashed/i.test(e.message)) {

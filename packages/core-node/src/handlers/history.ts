@@ -1,15 +1,10 @@
-import { useAPI, WsEvent } from "../ipc-core";
-import { useLogger, AppConfig, type BuildHistoryEntry, type BuildHistoryQuery } from "@pipelab/shared";
+import { useAPI } from "../ipc-core";
+import { useLogger, type BuildHistoryEntry, type BuildHistoryQuery } from "@pipelab/shared";
 import { BuildHistoryStorage } from "./build-history";
 import { SubscriptionRequiredError } from "@pipelab/shared";
 import { PipelabContext } from "../context";
-import { setupConfigFile } from "../config";
 
-// Helper function to check build history authorization
-const checkBuildHistoryAuthorization = async (event: WsEvent): Promise<boolean> => {
-  const { logger } = useLogger();
-  logger().info("AUTH BYPASS: Skipping auth verification for build history access");
-
+const checkBuildHistoryAuthorization = async (): Promise<boolean> => {
   // Always authorize for now - relying on frontend auth checks only
   const isAuthorized = true;
 
@@ -20,10 +15,14 @@ const checkBuildHistoryAuthorization = async (event: WsEvent): Promise<boolean> 
   return true;
 };
 
-export const filterBuildHistoryEntries = (entries: BuildHistoryEntry[], query?: BuildHistoryQuery) =>
-  entries.filter((entry) =>
-    (!query?.pipelineId || entry.pipelineId === query.pipelineId) &&
-    (!query?.workflowId || entry.workflowId === query.workflowId),
+export const filterBuildHistoryEntries = (
+  entries: BuildHistoryEntry[],
+  query?: BuildHistoryQuery,
+) =>
+  entries.filter(
+    (entry) =>
+      (!query?.pipelineId || entry.pipelineId === query.pipelineId) &&
+      (!query?.workflowId || entry.workflowId === query.workflowId),
   );
 
 export const registerHistoryHandlers = (context: PipelabContext) => {
@@ -34,9 +33,7 @@ export const registerHistoryHandlers = (context: PipelabContext) => {
   // Build History Handlers
   handle("build-history:save", async (event, { send, value }) => {
     try {
-      // Check authorization before allowing save
-      logger().info("AUTH BYPASS: Processing build-history:save request");
-      await checkBuildHistoryAuthorization(event);
+      await checkBuildHistoryAuthorization();
 
       await buildHistoryStorage.save(value.entry);
       send({
@@ -69,8 +66,8 @@ export const registerHistoryHandlers = (context: PipelabContext) => {
 
   handle("build-history:get", async (event, { send, value }) => {
     try {
-      logger().info("AUTH BYPASS: Processing build-history:get request");
-      await checkBuildHistoryAuthorization(event);
+      logger().debug("Processing build-history:get request");
+      await checkBuildHistoryAuthorization();
 
       const entry = await buildHistoryStorage.get(value.id, value.pipelineId);
       send({
@@ -100,8 +97,8 @@ export const registerHistoryHandlers = (context: PipelabContext) => {
 
   handle("build-history:get-all", async (event, { send, value }) => {
     try {
-      logger().info("AUTH BYPASS: Processing build-history:get-all request");
-      await checkBuildHistoryAuthorization(event);
+      logger().debug("Processing build-history:get-all request");
+      await checkBuildHistoryAuthorization();
 
       const allEntries = await buildHistoryStorage.getAll();
       const filteredEntries = filterBuildHistoryEntries(allEntries, value?.query);
@@ -139,7 +136,7 @@ export const registerHistoryHandlers = (context: PipelabContext) => {
 
   handle("build-history:update", async (event, { send, value }) => {
     try {
-      await checkBuildHistoryAuthorization(event);
+      await checkBuildHistoryAuthorization();
 
       await buildHistoryStorage.update(value.id, value.updates, value.pipelineId);
       send({
@@ -169,7 +166,7 @@ export const registerHistoryHandlers = (context: PipelabContext) => {
 
   handle("build-history:delete", async (event, { send, value }) => {
     try {
-      await checkBuildHistoryAuthorization(event);
+      await checkBuildHistoryAuthorization();
 
       await buildHistoryStorage.delete(value.id, value.pipelineId);
       send({
@@ -199,7 +196,7 @@ export const registerHistoryHandlers = (context: PipelabContext) => {
 
   handle("build-history:clear", async (event, { send }) => {
     try {
-      await checkBuildHistoryAuthorization(event);
+      await checkBuildHistoryAuthorization();
 
       await buildHistoryStorage.clear();
       send({
@@ -229,7 +226,7 @@ export const registerHistoryHandlers = (context: PipelabContext) => {
 
   handle("build-history:clear-by-pipeline", async (event, { send, value }) => {
     try {
-      await checkBuildHistoryAuthorization(event);
+      await checkBuildHistoryAuthorization();
 
       await buildHistoryStorage.clearByPipeline(value.pipelineId);
       send({
@@ -260,7 +257,7 @@ export const registerHistoryHandlers = (context: PipelabContext) => {
 
   handle("build-history:get-storage-info", async (event, { send }) => {
     try {
-      await checkBuildHistoryAuthorization(event);
+      await checkBuildHistoryAuthorization();
 
       const info = await buildHistoryStorage.getStorageInfo();
       send({

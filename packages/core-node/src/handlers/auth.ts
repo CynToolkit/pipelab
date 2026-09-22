@@ -38,6 +38,7 @@ export const registerAuthHandlers = (context: PipelabContext) => {
       detectSessionInUrl: false,
     },
   });
+  if (!client) return;
 
   handle("auth:getUser", async (_, { send }) => {
     try {
@@ -102,9 +103,12 @@ export const registerAuthHandlers = (context: PipelabContext) => {
       event,
       session?.user?.email || "anonymous",
     );
-    webSocketServer.broadcast("auth:getUser" as any, {
-      type: "end",
-      data: { type: "success", result: { user: session?.user || null } },
-    } as any);
+    webSocketServer.broadcast(
+      "auth:getUser" as any,
+      {
+        type: "end",
+        data: { type: "success", result: { user: session?.user || null } },
+      } as any,
+    );
   });
 };

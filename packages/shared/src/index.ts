@@ -70,6 +70,7 @@ export * from "./release/catalog";
 export * from "./release/compiler";
 export * from "./release/validate";
 export * from "./release/planner";
+export * from "./release/preferences";
 export * from "./plugin-api";
 
 // 4. Configuration Sub-packages

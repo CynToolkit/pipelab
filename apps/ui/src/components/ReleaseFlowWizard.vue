@@ -1,12 +1,161 @@
 <template>
-  <Dialog v-model:visible="visible" modal header="New release" :style="{ width: '720px', maxWidth: '96vw' }">
+  <Dialog
+    v-model:visible="visible"
+    modal
+    header="New release"
+    :style="{ width: '720px', maxWidth: '96vw' }"
+  >
     <Stepper v-model:value="step" linear>
-      <StepList><Step v-for="item in steps" :key="item.value" :value="item.value" asChild v-slot="{ activateCallback, a11yAttrs }"><button class="step" v-bind="a11yAttrs.header" @click="activateCallback">{{ item.number }} <span>{{ item.label }}</span></button></Step></StepList>
+      <StepList
+        ><Step
+          v-for="item in steps"
+          :key="item.value"
+          :value="item.value"
+          asChild
+          v-slot="{ activateCallback, a11yAttrs }"
+          ><button class="step" v-bind="a11yAttrs.header" @click="activateCallback">
+            {{ item.number }} <span>{{ item.label }}</span>
+          </button></Step
+        ></StepList
+      >
       <StepPanels>
-        <StepPanel value="details" v-slot="{ activateCallback }"><div class="wizard-panel"><span class="eyebrow">Release setup</span><h2>Name this release</h2><p>Give the pipeline a recognizable name so it is easy to find in Runs.</p><div class="form-grid"><div class="field wide"><label for="release-name">Name</label><InputText id="release-name" v-model="draft.name" autofocus placeholder="Desktop release" /></div><div class="field wide"><label for="release-description">Description</label><Textarea id="release-description" v-model="draft.description" rows="3" placeholder="Optional release notes" /></div></div><div class="wizard-actions"><Button label="Continue" icon="pi pi-arrow-right" iconPos="right" :disabled="!draft.name.trim()" @click="activateCallback('source')" /></div></div></StepPanel>
-        <StepPanel value="source" v-slot="{ activateCallback }"><div class="wizard-panel"><span class="eyebrow">Pipeline source</span><h2>What are you releasing?</h2><p>Choose the semantic source type explicitly. Pipelab never guesses from file contents.</p><div class="choice-grid"><button v-for="source in catalog.sources" :key="source.id" class="choice-card" :class="{ selected: draft.source.provider === source.id }" @click="chooseSource(source.id)"><i :class="providerIcon(source.icon)" /><strong>{{ source.label }}</strong><small>{{ source.description || 'Provider-defined release source' }}</small></button></div><ReleaseFieldControl v-for="field in sourceDefinition?.fields || []" :key="field.key" :field="field" :value="String(draft.source.config[field.key] || '')" :options="field.options || []" :input-id="`wizard-source-${field.key}`" @update:value="draft.source.config[field.key] = $event" /><div class="wizard-actions"><Button label="Back" text severity="secondary" @click="activateCallback('details')" /><Button label="Continue" icon="pi pi-arrow-right" iconPos="right" :disabled="!sourceReady" @click="activateCallback('jobs')" /></div></div></StepPanel>
-        <StepPanel value="jobs" v-slot="{ activateCallback }"><div class="wizard-panel"><span class="eyebrow">Pipeline jobs</span><h2>Build and deploy</h2><p>Select the jobs this release should run. Detailed settings can be configured after creation.</p><h3>Build jobs</h3><div class="choice-grid"><button v-for="provider in catalog.producers" :key="provider.id" class="choice-card" :class="{ selected: hasBuild(provider.id) }" @click="toggleBuild(provider.id)"><i :class="providerIcon(provider.icon)" /><strong>{{ provider.label }}</strong><small>{{ provider.targets.length }} target{{ provider.targets.length === 1 ? '' : 's' }}</small></button></div><h3>Deploy jobs</h3><div class="choice-grid"><button v-for="provider in catalog.destinations" :key="provider.id" class="choice-card" :class="{ selected: hasDestination(provider.id) }" @click="toggleDestination(provider.id)"><i :class="providerIcon(provider.icon)" /><strong>{{ provider.label }}</strong><small>Destination</small></button></div><div class="wizard-actions"><Button label="Back" text severity="secondary" @click="activateCallback('source')" /><Button label="Review" icon="pi pi-arrow-right" iconPos="right" :disabled="!draft.destinations.length" @click="activateCallback('review')" /></div></div></StepPanel>
-        <StepPanel value="review"><div class="wizard-panel"><span class="eyebrow">Ready to configure</span><h2>{{ draft.name || 'Untitled release' }}</h2><div class="review-list"><div><i class="mdi mdi-source-branch" /><span><small>Source</small><strong>{{ sourceDefinition?.label || 'Not selected' }}</strong></span></div><div><i class="mdi mdi-hammer-wrench" /><span><small>Build</small><strong>{{ draft.builds.length ? draft.builds.map((item) => buildLabel(item.engine)).join(' · ') : 'No build jobs' }}</strong></span></div><div><i class="mdi mdi-cloud-upload-outline" /><span><small>Deploy</small><strong>{{ draft.destinations.map((item) => destinationLabel(item.provider)).join(' · ') }}</strong></span></div></div><p class="review-copy">Create the release, then configure target presets, connections, and deployment slots from the pipeline cards.</p><div class="wizard-actions"><Button label="Back" text severity="secondary" @click="step = 'jobs'" /><Button label="Create release" icon="mdi mdi-rocket-launch-outline" @click="create" /></div></div></StepPanel>
+        <StepPanel value="details" v-slot="{ activateCallback }"
+          ><div class="wizard-panel">
+            <span class="eyebrow">Release setup</span>
+            <h2>Name this release</h2>
+            <p>Give the release a recognizable name.</p>
+            <div class="form-grid">
+              <div class="field wide">
+                <label for="release-name">Name</label
+                ><InputText id="release-name" v-model="draft.name" autofocus />
+              </div>
+              <div class="field wide">
+                <label for="release-description">Description</label
+                ><Textarea id="release-description" v-model="draft.description" rows="3" />
+              </div>
+            </div>
+            <div class="wizard-actions">
+              <Button
+                label="Continue"
+                icon="pi pi-arrow-right"
+                iconPos="right"
+                :disabled="!draft.name.trim()"
+                @click="activateCallback('source')"
+              />
+            </div></div
+        ></StepPanel>
+        <StepPanel value="source" v-slot="{ activateCallback }"
+          ><div class="wizard-panel">
+            <span class="eyebrow">Release intent</span>
+            <h2>What are you releasing?</h2>
+            <div class="choice-grid">
+              <button
+                v-for="source in catalog.sources"
+                :key="source.id"
+                class="choice-card"
+                :class="{ selected: draft.source.provider === source.id }"
+                @click="chooseSource(source.id)"
+              >
+                <i :class="providerIcon(source.icon)" /><strong>{{ source.label }}</strong
+                ><small>{{ source.description || "Provider-defined source" }}</small>
+              </button>
+            </div>
+            <ReleaseFieldControl
+              v-for="field in sourceDefinition?.fields?.filter((item) => !item.deferUntilEditor) ||
+              []"
+              :key="field.key"
+              :field="field"
+              :value="String(draft.source.config[field.key] || '')"
+              :options="fieldOptions(field.key, field.options || [])"
+              :input-id="`wizard-source-${field.key}`"
+              @update:value="draft.source.config[field.key] = $event"
+            />
+            <div class="wizard-actions">
+              <Button
+                label="Back"
+                text
+                severity="secondary"
+                @click="activateCallback('details')"
+              /><Button
+                label="Continue"
+                icon="pi pi-arrow-right"
+                iconPos="right"
+                :disabled="!sourceReady"
+                @click="activateCallback('destinations')"
+              />
+            </div></div
+        ></StepPanel>
+        <StepPanel value="destinations" v-slot="{ activateCallback }"
+          ><div class="wizard-panel">
+            <span class="eyebrow">Where do you want to ship?</span>
+            <h2>Destinations</h2>
+            <p>
+              Choose where this release should be delivered. Builds and routing are configured after
+              creation.
+            </p>
+            <div class="choice-grid">
+              <button
+                v-for="destination in catalog.destinations"
+                :key="destination.id"
+                class="choice-card"
+                :class="{ selected: hasDestination(destination.id) }"
+                @click="toggleDestination(destination.id)"
+              >
+                <i :class="providerIcon(destination.icon)" /><strong>{{ destination.label }}</strong
+                ><small>Destination</small>
+              </button>
+            </div>
+            <div class="wizard-actions">
+              <Button
+                label="Back"
+                text
+                severity="secondary"
+                @click="activateCallback('source')"
+              /><Button
+                label="Review"
+                icon="pi pi-arrow-right"
+                iconPos="right"
+                :disabled="!draft.destinations.length"
+                @click="activateCallback('review')"
+              />
+            </div></div
+        ></StepPanel>
+        <StepPanel value="review"
+          ><div class="wizard-panel">
+            <span class="eyebrow">Ready to create</span>
+            <h2>{{ draft.name }}</h2>
+            <div class="review-list">
+              <div>
+                <i class="mdi mdi-source-branch" /><span
+                  ><small>Source</small
+                  ><strong>{{ sourceDefinition?.label || "Not selected" }}</strong></span
+                >
+              </div>
+              <div>
+                <i class="mdi mdi-cloud-upload-outline" /><span
+                  ><small>Destinations</small
+                  ><strong>{{
+                    draft.destinations.map((item) => destinationLabel(item.provider)).join(" · ")
+                  }}</strong></span
+                >
+              </div>
+            </div>
+            <p class="review-copy">
+              The Release editor will handle builds, engines, targets, and output routing.
+            </p>
+            <div class="wizard-actions">
+              <Button
+                label="Back"
+                text
+                severity="secondary"
+                @click="step = 'destinations'"
+              /><Button
+                label="Create release"
+                icon="mdi mdi-rocket-launch-outline"
+                @click="create"
+              />
+            </div></div
+        ></StepPanel>
       </StepPanels>
     </Stepper>
   </Dialog>
@@ -24,33 +173,245 @@ import InputText from "primevue/inputtext";
 import Textarea from "primevue/textarea";
 import Button from "primevue/button";
 import { nanoid } from "nanoid";
-import type { IconType, ReleaseBuildProfileConfig, ReleaseCatalog, ReleaseConfig } from "@pipelab/shared";
+import type { IconType, ReleaseCatalog, ReleaseConfig, ReleaseFieldOption } from "@pipelab/shared";
 import { useAPI } from "../composables/api";
 import ReleaseFieldControl from "./ReleaseFieldControl.vue";
 
 const props = defineProps<{ visible: boolean; projectId: string }>();
 const emit = defineEmits<{ "update:visible": [value: boolean]; create: [flow: ReleaseConfig] }>();
 const api = useAPI();
-const visible = computed({ get: () => props.visible, set: (value) => emit("update:visible", value) });
-const steps = [{ value: "details", label: "Details", number: "01" }, { value: "source", label: "Source", number: "02" }, { value: "jobs", label: "Build & deploy", number: "03" }, { value: "review", label: "Review", number: "04" }];
+const visible = computed({
+  get: () => props.visible,
+  set: (value) => emit("update:visible", value),
+});
+const steps = [
+  { value: "details", label: "Details", number: "01" },
+  { value: "source", label: "Source", number: "02" },
+  { value: "destinations", label: "Destinations", number: "03" },
+  { value: "review", label: "Review", number: "04" },
+];
 const step = ref("details");
-const catalog = ref<ReleaseCatalog>({ buildTypes: [], sources: [], producers: [], destinations: [] });
-const draft = ref<{ name: string; description: string; source: ReleaseConfig["source"]; builds: ReleaseConfig["builds"]; destinations: ReleaseConfig["destinations"] }>({ name: "", description: "", source: { provider: "", config: {} }, builds: [], destinations: [] });
-const sourceDefinition = computed(() => catalog.value.sources.find((source) => source.id === draft.value.source.provider));
-const sourceReady = computed(() => Boolean(draft.value.source.provider && sourceDefinition.value?.fields?.every((field) => !field.required || String(draft.value.source.config[field.key] || "").trim())));
-const providerIcon = (icon?: IconType) => icon?.type === "icon" ? (icon.icon.includes("mdi") ? icon.icon : `mdi ${icon.icon}`) : "mdi mdi-puzzle-outline";
-const buildLabel = (id: string) => catalog.value.producers.find((item) => item.id === id)?.label || id;
-const destinationLabel = (id: string) => catalog.value.destinations.find((item) => item.id === id)?.label || id;
-const hasBuild = (id: string) => draft.value.builds.some((item) => item.engine === id);
-const hasDestination = (id: string) => draft.value.destinations.some((item) => item.provider === id);
-const chooseSource = (provider: string) => { const definition = catalog.value.sources.find((source) => source.id === provider); if (definition) draft.value.source = { provider, config: { ...definition.defaultConfig } }; };
-const toggleBuild = (engine: string) => { const index = draft.value.builds.findIndex((item) => item.engine === engine); if (index >= 0) draft.value.builds.splice(index, 1); else { const definition = catalog.value.producers.find((item) => item.id === engine); if (!definition) return; const firstTarget = definition.targets[0]; const build: ReleaseBuildProfileConfig = { id: `${engine.split("/").pop()}-${nanoid(6)}`, type: firstTarget?.buildType || "desktop", engine, enabled: true, config: { ...definition.defaultConfig }, targets: definition.targets.map((target, targetIndex) => ({ id: target.id, enabled: targetIndex === 0, config: { ...target.defaultConfig } })) }; draft.value.builds.push(build); } };
-const toggleDestination = (provider: string) => { const index = draft.value.destinations.findIndex((item) => item.provider === provider); if (index >= 0) draft.value.destinations.splice(index, 1); else { const definition = catalog.value.destinations.find((item) => item.id === provider); if (definition) draft.value.destinations.push({ id: `${provider.split("/").pop()}-${nanoid(6)}`, provider, enabled: true, config: { ...definition.defaultConfig }, slots: [] }); } };
-const create = () => { emit("create", { version: "3.0.0", id: nanoid(), project: props.projectId, name: draft.value.name.trim(), description: draft.value.description.trim() || undefined, source: draft.value.source, builds: draft.value.builds, destinations: draft.value.destinations }); visible.value = false; };
-watch(() => props.visible, async (open) => { if (!open) return; step.value = "details"; draft.value = { name: "", description: "", source: { provider: "", config: {} }, builds: [], destinations: [] }; const result = await api.execute("release:catalog:get"); if (result.type === "success") { catalog.value = result.result; if (catalog.value.sources[0]) chooseSource(catalog.value.sources[0].id); } });
+const catalog = ref<ReleaseCatalog>({
+  buildTypes: [],
+  sources: [],
+  producers: [],
+  destinations: [],
+});
+const draft = ref<{
+  name: string;
+  description: string;
+  source: ReleaseConfig["source"];
+  destinations: ReleaseConfig["destinations"];
+}>({ name: "", description: "", source: { provider: "", config: {} }, destinations: [] });
+const inspectionOptions = ref<Record<string, ReleaseFieldOption[]>>({});
+const sourceDefinition = computed(() =>
+  catalog.value.sources.find((source) => source.id === draft.value.source.provider),
+);
+const sourceReady = computed(() =>
+  Boolean(
+    draft.value.source.provider &&
+    sourceDefinition.value?.fields
+      ?.filter((field) => !field.deferUntilEditor)
+      .every(
+        (field) => !field.required || String(draft.value.source.config[field.key] || "").trim(),
+      ),
+  ),
+);
+const providerIcon = (icon?: IconType) =>
+  icon?.type === "icon"
+    ? icon.icon.includes("mdi")
+      ? icon.icon
+      : `mdi ${icon.icon}`
+    : "mdi mdi-puzzle-outline";
+const destinationLabel = (id: string) =>
+  catalog.value.destinations.find((item) => item.id === id)?.label || id;
+const hasDestination = (id: string) =>
+  draft.value.destinations.some((item) => item.provider === id);
+const fieldOptions = (key: string, fallback: ReleaseFieldOption[]) =>
+  inspectionOptions.value[key] || fallback;
+const chooseSource = async (provider: string) => {
+  const definition = catalog.value.sources.find((source) => source.id === provider);
+  if (!definition) return;
+  draft.value.source = { provider, config: { ...definition.defaultConfig } };
+  inspectionOptions.value = {};
+  const result = await api.execute("release:source:inspect", {
+    provider,
+    config: draft.value.source.config,
+  });
+  if (result.type === "success") {
+    const inspected = result.result as { fieldOptions?: Record<string, ReleaseFieldOption[]> };
+    inspectionOptions.value = inspected.fieldOptions || {};
+  }
+};
+const toggleDestination = (provider: string) => {
+  const index = draft.value.destinations.findIndex((item) => item.provider === provider);
+  if (index >= 0) draft.value.destinations.splice(index, 1);
+  else {
+    const definition = catalog.value.destinations.find((item) => item.id === provider);
+    if (definition)
+      draft.value.destinations.push({
+        id: `${provider.split("/").pop()}-${nanoid(6)}`,
+        provider,
+        enabled: true,
+        config: { ...definition.defaultConfig },
+        slots: [{ id: "output", enabled: true, config: {} }],
+      });
+  }
+};
+const create = () => {
+  emit("create", {
+    version: "3.0.0",
+    id: nanoid(),
+    project: props.projectId,
+    name: draft.value.name.trim(),
+    description: draft.value.description.trim() || undefined,
+    source: draft.value.source,
+    builds: [],
+    destinations: draft.value.destinations,
+  });
+  visible.value = false;
+};
+watch(
+  () => props.visible,
+  async (open) => {
+    if (!open) return;
+    step.value = "details";
+    draft.value = {
+      name: "",
+      description: "",
+      source: { provider: "", config: {} },
+      destinations: [],
+    };
+    const result = await api.execute("release:catalog:get");
+    if (result.type === "success") {
+      catalog.value = result.result;
+      if (catalog.value.sources[0]) await chooseSource(catalog.value.sources[0].id);
+    }
+  },
+);
 </script>
 
 <style scoped>
-.step { display: flex; gap: 7px; align-items: center; border: 0; border-bottom: 2px solid transparent; padding: 9px 10px; background: transparent; color: var(--p-text-muted-color, var(--text-color-secondary)); font-size: .72rem; cursor: pointer; }.step[aria-selected="true"] { border-bottom-color: var(--primary-color); color: var(--text-color); }.step span { font-weight: 600; }
-.wizard-panel { display: grid; gap: 12px; padding: 20px 4px 4px; }.wizard-panel h2 { margin: 0; font-size: 1.2rem; }.wizard-panel h3 { margin: 12px 0 0; font-size: .82rem; }.wizard-panel p { margin: -4px 0 6px; color: var(--p-text-muted-color, var(--text-color-secondary)); font-size: .8rem; }.eyebrow { color: var(--p-text-muted-color, var(--text-color-secondary)); font-size: .68rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }.form-grid, .review-list { display: grid; gap: 12px; }.field { display: grid; gap: 5px; }.field label { font-size: .75rem; font-weight: 600; }.wide { grid-column: 1 / -1; }.choice-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); gap: 8px; }.choice-card { display: grid; gap: 5px; border: 1px solid var(--p-surface-200, var(--surface-border)); border-radius: 8px; padding: 12px; background: transparent; color: var(--text-color); text-align: left; cursor: pointer; }.choice-card:hover, .choice-card.selected { border-color: var(--primary-color); background: color-mix(in srgb, var(--primary-color) 7%, transparent); }.choice-card i { color: var(--primary-color); font-size: 20px; }.choice-card strong { font-size: .78rem; }.choice-card small { color: var(--p-text-muted-color, var(--text-color-secondary)); font-size: .68rem; }.wizard-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }.review-list > div { display: flex; align-items: center; gap: 10px; border: 1px solid var(--p-surface-200, var(--surface-border)); border-radius: 7px; padding: 9px; }.review-list i { color: var(--primary-color); font-size: 18px; }.review-list span { display: grid; gap: 2px; }.review-list small { color: var(--p-text-muted-color, var(--text-color-secondary)); font-size: .68rem; }.review-list strong { font-size: .8rem; }.review-copy { padding: 8px 10px; border-left: 3px solid var(--primary-color); background: var(--p-surface-50, var(--surface-ground)); }
+.step {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  padding: 9px 10px;
+  background: transparent;
+  color: var(--p-text-muted-color, var(--text-color-secondary));
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+.step[aria-selected="true"] {
+  border-bottom-color: var(--primary-color);
+  color: var(--text-color);
+}
+.step span {
+  font-weight: 600;
+}
+.wizard-panel {
+  display: grid;
+  gap: 12px;
+  padding: 20px 4px 4px;
+}
+.wizard-panel h2 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+.wizard-panel p {
+  margin: -4px 0 6px;
+  color: var(--p-text-muted-color, var(--text-color-secondary));
+  font-size: 0.8rem;
+}
+.eyebrow {
+  color: var(--p-text-muted-color, var(--text-color-secondary));
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.form-grid,
+.review-list {
+  display: grid;
+  gap: 12px;
+}
+.field {
+  display: grid;
+  gap: 5px;
+}
+.field label {
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.wide {
+  grid-column: 1 / -1;
+}
+.choice-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
+  gap: 8px;
+}
+.choice-card {
+  display: grid;
+  gap: 5px;
+  border: 1px solid var(--p-surface-200, var(--surface-border));
+  border-radius: 8px;
+  padding: 12px;
+  background: transparent;
+  color: var(--text-color);
+  text-align: left;
+  cursor: pointer;
+}
+.choice-card:hover,
+.choice-card.selected {
+  border-color: var(--primary-color);
+  background: color-mix(in srgb, var(--primary-color) 7%, transparent);
+}
+.choice-card i {
+  color: var(--primary-color);
+  font-size: 20px;
+}
+.choice-card strong {
+  font-size: 0.78rem;
+}
+.choice-card small {
+  color: var(--p-text-muted-color, var(--text-color-secondary));
+  font-size: 0.68rem;
+}
+.wizard-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+}
+.review-list > div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--p-surface-200, var(--surface-border));
+  border-radius: 7px;
+  padding: 9px;
+}
+.review-list i {
+  color: var(--primary-color);
+  font-size: 18px;
+}
+.review-list span {
+  display: grid;
+  gap: 2px;
+}
+.review-list small {
+  color: var(--p-text-muted-color, var(--text-color-secondary));
+  font-size: 0.68rem;
+}
+.review-list strong {
+  font-size: 0.8rem;
+}
+.review-copy {
+  padding: 8px 10px;
+  border-left: 3px solid var(--primary-color);
+  background: var(--p-surface-50, var(--surface-ground));
+}
 </style>

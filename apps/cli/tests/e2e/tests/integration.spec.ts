@@ -13,10 +13,79 @@ describe("End-to-End: Multi-Plugin Integration Test", () => {
   });
 
   test(
+    "executes a release source through the CLI workflow host",
+    async () => {
+      sandbox = await createSandbox("release-e2e");
+      const { paths } = sandbox;
+      const sourcePath = join(paths.input, "release-source");
+      const destinationPath = join(paths.output, "release-destination");
+      const configPath = join(paths.userData, "config");
+
+      await mkdir(sourcePath, { recursive: true });
+      await mkdir(configPath, { recursive: true });
+      await writeFile(join(sourcePath, "index.html"), "<h1>CLI release</h1>");
+      await writeFile(
+        join(configPath, "projects.json"),
+        JSON.stringify({
+          version: "3.0.0",
+          projects: [{ id: "main", name: "Main", description: "CLI test" }],
+          pipelines: [],
+          workflows: [
+            {
+              id: "release-e2e",
+              project: "main",
+              lastModified: new Date().toISOString(),
+              type: "internal-workflow",
+              configName: "release-e2e",
+            },
+          ],
+        }),
+      );
+      await writeFile(
+        join(configPath, "release-e2e.json"),
+        JSON.stringify({
+          version: "3.0.0",
+          id: "release-e2e",
+          project: "main",
+          name: "CLI release",
+          source: {
+            provider: "@pipelab/plugin-filesystem/folder-source",
+            config: { path: sourcePath },
+          },
+          builds: [],
+          destinations: [
+            {
+              id: "copy-output",
+              provider: "@pipelab/plugin-filesystem/folder-destination",
+              enabled: true,
+              config: { outputDir: destinationPath },
+              slots: [{ id: "source", enabled: true, input: { source: true }, config: {} }],
+            },
+          ],
+        }),
+      );
+
+      const resultPath = join(sandbox.path, "release-result.json");
+      await runCLI([
+        "workflow",
+        "run",
+        "release-e2e",
+        "--user-data",
+        paths.userData,
+        "--output",
+        resultPath,
+      ]);
+
+      await expect(access(join(destinationPath, "index.html"))).resolves.not.toThrow();
+      await expect(access(resultPath)).resolves.not.toThrow();
+    },
+    30 * 60 * 1000,
+  );
+
+  test(
     "should run a pipeline with filesystem nodes",
     async () => {
       sandbox = await createSandbox("integration-e2e");
-      const { paths } = sandbox;
 
       const projectSourcePath = join(sandbox.path, "my-app-source");
       const projectStagingPath = join(sandbox.path, "my-app-staging");

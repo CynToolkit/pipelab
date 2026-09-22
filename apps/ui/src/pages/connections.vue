@@ -830,7 +830,17 @@ const disconnectAccount = async (accountId: string) => {
 
   const updated = connectedAccounts.value.filter((a) => a.id !== accountId);
 
-  await saveConnections(updated);
+  try {
+    await saveConnections(updated);
+  } catch (err) {
+    toast.add({
+      severity: "error",
+      summary: "Connection Delete Failed",
+      detail: err instanceof Error ? err.message : "Unable to save connections.",
+      life: 5000,
+    });
+    return;
+  }
 
   if (selectedConnectionId.value === accountId) {
     if (updated.length > 0) {
@@ -1034,7 +1044,17 @@ const saveConnectionEdits = async () => {
     return conn;
   });
 
-  await saveConnections(updated);
+  try {
+    await saveConnections(updated);
+  } catch (err) {
+    toast.add({
+      severity: "error",
+      summary: "Connection Save Failed",
+      detail: err instanceof Error ? err.message : "Unable to save connections.",
+      life: 5000,
+    });
+    return;
+  }
   toast.add({
     severity: "success",
     summary: "Connection Saved",
