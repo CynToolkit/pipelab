@@ -10,6 +10,7 @@ import {
   issuesForPath,
   planOutputOptions,
   plannerAcceptsBuildCandidate,
+  setBuildTargetEnabled,
   switchBuildProfileEngine,
 } from "./release-flow-model";
 import type { ReleaseCatalog, ReleaseConfig, ReleasePlan } from "@pipelab/shared";
@@ -122,6 +123,18 @@ describe("release flow model", () => {
     expect(first?.id).toBe("desktop-one");
     expect(second?.id).toBe("desktop-two");
     expect(first).not.toBe(second);
+  });
+
+  it("allows an auto-created profile to toggle its targets", () => {
+    const build = createBuildProfile(catalog, "desktop", "engine-a", "generated-profile")!;
+    expect(build.targets.map((target) => target.enabled)).toEqual([true, false]);
+
+    expect(setBuildTargetEnabled(build, "macos", true)).toBe(true);
+    expect(build.targets.map((target) => target.enabled)).toEqual([true, true]);
+
+    expect(setBuildTargetEnabled(build, "windows", false)).toBe(true);
+    expect(build.targets.map((target) => target.enabled)).toEqual([false, true]);
+    expect(setBuildTargetEnabled(build, "missing", true)).toBe(false);
   });
 
   it("renders explicit outputs from the planner without compatibility logic", () => {

@@ -673,6 +673,7 @@ import {
   planOutputOptions,
   plannerAcceptsBuildCandidate,
   removeBuildProfile,
+  setBuildTargetEnabled,
   switchBuildProfileEngine,
 } from "./release-flow-model";
 
@@ -900,8 +901,7 @@ const removeBuild = (id: string) => {
   if (flow.value) removeBuildProfile(flow.value, id);
 };
 const toggleTarget = (build: ReleaseBuildProfileConfig, id: string, enabled: boolean) => {
-  const target = build.targets.find((candidate) => candidate.id === id);
-  if (target) target.enabled = enabled;
+  setBuildTargetEnabled(build, id, enabled);
 };
 const switchEngine = (build: ReleaseBuildProfileConfig, engine: string) => {
   const switched = switchBuildProfileEngine(catalog.value, build, engine);

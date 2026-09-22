@@ -95,6 +95,17 @@ export const removeBuildProfile = (config: ReleaseConfig, id: string): boolean =
   return true;
 };
 
+export const setBuildTargetEnabled = (
+  build: ReleaseBuildProfileConfig,
+  id: string,
+  enabled: boolean,
+): boolean => {
+  const target = build.targets.find((candidate) => candidate.id === id);
+  if (!target) return false;
+  target.enabled = enabled;
+  return true;
+};
+
 export const switchBuildProfileEngine = (
   catalog: ReleaseCatalog,
   build: ReleaseBuildProfileConfig,
