@@ -151,7 +151,8 @@ export const executeWorkflow = async (
   } = {},
 ) => {
   const workflowId = configName.replace(/^workflows\//, "").replace(/\.json$/, "");
-  const stored = await new ReleasePersistence(context).load(workflowId);
+  const storedEntity = await new ReleasePersistence(context).loadWithProject(workflowId);
+  const stored = storedEntity.config;
   const version = options.release?.version?.trim() || "0.0.0";
   const prepared = options.prepared || prepareReleaseWorkflow(stored as ReleaseConfig, version);
   const { config, workflow } = prepared;
@@ -167,7 +168,7 @@ export const executeWorkflow = async (
     pipelineId,
     workflowId: config.id,
     workflowName: config.name,
-    projectName: config.name,
+    projectName: storedEntity.project.name,
     projectPath: "",
     status: "running",
     version,

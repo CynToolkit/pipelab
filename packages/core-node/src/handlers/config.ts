@@ -4,8 +4,6 @@ import {
   appSettingsMigrator,
   connectionsMigrator,
   fileRepoMigrations,
-  defaultConnections,
-  parseConnectionsConfig,
   type BrowserProfileCandidate,
 } from "@pipelab/shared";
 import {
@@ -16,13 +14,17 @@ import {
   setupPipelineConfigFileByPath,
   deletePipelineConfigFileByName,
   deletePipelineConfigFileByPath,
-  deleteWorkflowConfigFileByName,
 } from "../config";
 import { PipelabContext } from "../context";
 import { discoverBrowserProfiles, inspectChromiumProfile } from "@pipelab/plugin-construct";
 import { ConstructProfileDiscoveryCache } from "./construct-profile-cache";
 import { ReleasePersistence } from "../release-persistence";
-import { JsonFileMissingError, readJsonFile, writeJsonFileAtomically } from "../utils/atomic-json";
+import {
+  loadStrictConnections,
+  loadStrictProjects,
+  saveStrictConnections,
+  saveStrictProjects,
+} from "../strict-config-persistence";
 
 export const registerConfigHandlers = (context: PipelabContext) => {
   process.env.PLAYWRIGHT_BROWSERS_PATH ||= context.getThirdPartyPath("playwright-browsers");
@@ -41,17 +43,6 @@ export const registerConfigHandlers = (context: PipelabContext) => {
     };
     return candidate;
   });
-  const loadConnectionsStrict = async () => {
-    try {
-      return parseConnectionsConfig(await readJsonFile(context.getConnectionsPath()));
-    } catch (error) {
-      if (error instanceof JsonFileMissingError) {
-        await writeJsonFileAtomically(context.getConnectionsPath(), defaultConnections);
-        return defaultConnections;
-      }
-      throw error;
-    }
-  };
 
   handle("construct:profiles:discover", async (_, { send, value }) => {
     try {
@@ -142,7 +133,7 @@ export const registerConfigHandlers = (context: PipelabContext) => {
   handle("connections:load", async (_, { send }) => {
     logger().info("connections:load");
     try {
-      const json = await loadConnectionsStrict();
+      const json = await loadStrictConnections(context);
       send({
         type: "end",
         data: { type: "success", result: json },
@@ -163,8 +154,7 @@ export const registerConfigHandlers = (context: PipelabContext) => {
     const { data } = value;
     try {
       const json = typeof data === "string" ? JSON.parse(data) : data;
-      const validated = parseConnectionsConfig(json);
-      await writeJsonFileAtomically(context.getConnectionsPath(), validated);
+      await saveStrictConnections(context, json);
       send({
         type: "end",
         data: { type: "success", result: "ok" },
@@ -211,8 +201,7 @@ export const registerConfigHandlers = (context: PipelabContext) => {
   handle("projects:load", async (_, { send }) => {
     logger().info("projects:load");
     try {
-      const manager = await setupProjectsConfigFile(context);
-      const json = await manager.getConfig();
+      const json = await loadStrictProjects(context);
       send({
         type: "end",
         data: { type: "success", result: json },
@@ -232,9 +221,8 @@ export const registerConfigHandlers = (context: PipelabContext) => {
   handle("projects:save", async (_, { send, value }) => {
     const { data } = value;
     try {
-      const manager = await setupProjectsConfigFile(context);
       const json = typeof data === "string" ? JSON.parse(data) : data;
-      await manager.setConfig(json);
+      await saveStrictProjects(context, json);
       send({
         type: "end",
         data: { type: "success", result: "ok" },

@@ -1,8 +1,6 @@
 import { join } from "node:path";
 import { rename, rm } from "node:fs/promises";
 import {
-  fileRepoMigrations,
-  parseFileRepo,
   parseReleaseConfig,
   type FileRepo,
   type ReleaseConfig,
@@ -10,6 +8,7 @@ import {
 } from "@pipelab/shared";
 import { PipelabContext } from "./context";
 import { JsonFileMissingError, readJsonFile, writeJsonFileAtomically } from "./utils/atomic-json";
+import { loadStrictProjects } from "./strict-config-persistence";
 
 export class ReleasePersistenceError extends Error {
   constructor(
@@ -25,20 +24,8 @@ const workflowPath = (context: PipelabContext, workflowId: string) =>
   context.getConfigPath("workflows", `${workflowId}.json`);
 
 const loadProjects = async (context: PipelabContext): Promise<FileRepo> => {
-  const raw = await readJsonFile(context.getProjectsPath());
-  if (
-    typeof raw !== "object" ||
-    raw === null ||
-    Array.isArray(raw) ||
-    typeof (raw as Record<string, unknown>).version !== "string"
-  )
-    throw new ReleasePersistenceError("Project index is malformed.");
   try {
-    return parseFileRepo(
-      await fileRepoMigrations.migrate(raw as { version: `${number}.${number}.${number}` }, {
-        debug: false,
-      }),
-    );
+    return await loadStrictProjects(context);
   } catch (error) {
     throw new ReleasePersistenceError(
       "Project index is invalid or uses an unsupported version.",
@@ -101,6 +88,17 @@ export class ReleasePersistence {
         `Workflow '${workflowId}' project '${config.project}' does not match index project '${indexed.project}'.`,
       );
     return config;
+  }
+
+  async loadWithProject(workflowId: string, routeProjectId?: string) {
+    const config = await this.load(workflowId, routeProjectId);
+    const repo = await loadProjects(this.context);
+    const project = repo.projects.find((candidate) => candidate.id === config.project);
+    if (!project)
+      throw new ReleasePersistenceError(
+        `Workflow '${workflowId}' references missing project '${config.project}'.`,
+      );
+    return { config, project };
   }
 
   async save(config: ReleaseConfig, routeProjectId?: string): Promise<void> {

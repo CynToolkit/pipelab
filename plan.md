@@ -25,7 +25,7 @@ Important constraint: persistence validity and release readiness are different t
   - Do not synthesize a fake filesystem workflow when loading a missing workflow.
   - A missing workflow must be treated as `not found`.
 
-- [ ] Introduce strict, atomic JSON persistence for new-engine stores without changing legacy Pipeline/SavedFile behavior.
+- [x] Introduce strict, atomic JSON persistence for new-engine stores without changing legacy Pipeline/SavedFile behavior.
   - Add/reuse a core-node JSON persistence helper using write-to-temp + rename in the same directory.
   - Use it for ReleaseConfig files and release-relevant project/connections persistence.
   - Align with the existing atomic strategy in `BuildHistoryStorage`.
@@ -90,7 +90,7 @@ Important constraint: persistence validity and release readiness are different t
   - Return validation/reference issues instead of selecting another connection automatically.
   - Do not turn provider internals into shared Pipelab schemas.
 
-- [ ] Version and structurally validate persisted workflow run history and artifacts.
+- [x] Version and structurally validate persisted workflow run history and artifacts.
   - Replace unchecked `JSON.parse(...) as BuildHistoryEntry[]` with a versioned history document schema.
   - Cover Pipelab-owned:
     - run entries;
@@ -107,7 +107,7 @@ Important constraint: persistence validity and release readiness are different t
   - Keep provider/runtime-owned output and metadata generic where appropriate.
   - Historical workflow/project IDs must not require the current workflow to still exist.
 
-- [ ] Remove new-engine fallback identities and untrustworthy persisted metadata during execution.
+- [x] Remove new-engine fallback identities and untrustworthy persisted metadata during execution.
   - Remove `config.project || config.id`.
   - Remove `config.project || "workflow"`.
   - Require the validated project ID.

@@ -128,6 +128,74 @@ const parseEntry = (value: unknown, path: string): BuildHistoryEntry => {
       throw new BuildHistoryParseError(`${path}.${key}`, "must be a number");
   if (!Array.isArray(value.steps) || !Array.isArray(value.logs))
     throw new BuildHistoryParseError(path, "steps and logs must be arrays");
+  const stepStatuses = ["pending", "running", "completed", "failed", "cancelled", "skipped"];
+  value.steps.forEach((step, index) => {
+    if (!isRecord(step) || typeof step.id !== "string" || typeof step.name !== "string")
+      throw new BuildHistoryParseError(`${path}.steps.${index}`, "step requires id and name");
+    if (typeof step.status !== "string" || !stepStatuses.includes(step.status))
+      throw new BuildHistoryParseError(`${path}.steps.${index}.status`, "has an unsupported value");
+    if (typeof step.startTime !== "number" || !Array.isArray(step.logs))
+      throw new BuildHistoryParseError(
+        `${path}.steps.${index}`,
+        "step requires numeric startTime and logs array",
+      );
+  });
+  const logLevels = ["debug", "info", "warn", "error"];
+  value.logs.forEach((log, index) => {
+    if (
+      !isRecord(log) ||
+      typeof log.id !== "string" ||
+      typeof log.timestamp !== "number" ||
+      typeof log.message !== "string" ||
+      typeof log.level !== "string" ||
+      !logLevels.includes(log.level)
+    )
+      throw new BuildHistoryParseError(`${path}.logs.${index}`, "log has an invalid shape");
+  });
+  if (value.artifacts !== undefined) {
+    if (!Array.isArray(value.artifacts))
+      throw new BuildHistoryParseError(`${path}.artifacts`, "must be an array");
+    value.artifacts.forEach((artifact, index) => {
+      if (!isRecord(artifact))
+        throw new BuildHistoryParseError(
+          `${path}.artifacts.${index}`,
+          "artifact must be an object",
+        );
+      if (
+        typeof artifact.id !== "string" ||
+        typeof artifact.path !== "string" ||
+        typeof artifact.stepId !== "string" ||
+        typeof artifact.artifact !== "string"
+      )
+        throw new BuildHistoryParseError(
+          `${path}.artifacts.${index}`,
+          "artifact requires id, path, stepId, and artifact",
+        );
+      if (
+        !isRecord(artifact.descriptor) ||
+        typeof artifact.descriptor.kind !== "string" ||
+        typeof artifact.descriptor.container !== "string"
+      )
+        throw new BuildHistoryParseError(
+          `${path}.artifacts.${index}.descriptor`,
+          "has an invalid shape",
+        );
+      if (artifact.size !== undefined && typeof artifact.size !== "number")
+        throw new BuildHistoryParseError(`${path}.artifacts.${index}.size`, "must be a number");
+      if (
+        artifact.cloud !== undefined &&
+        (!isRecord(artifact.cloud) ||
+          typeof artifact.cloud.hostedArtifactId !== "string" ||
+          typeof artifact.cloud.uploadedAt !== "string")
+      )
+        throw new BuildHistoryParseError(
+          `${path}.artifacts.${index}.cloud`,
+          "has an invalid hosted-artifact shape",
+        );
+    });
+  }
+  if (value.deliveries !== undefined && !Array.isArray(value.deliveries))
+    throw new BuildHistoryParseError(`${path}.deliveries`, "must be an array");
   return value as unknown as BuildHistoryEntry;
 };
 
