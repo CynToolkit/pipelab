@@ -179,10 +179,14 @@ describe("CLI release dry-run", () => {
       });
 
       expect(result.config.builds).toHaveLength(1);
-      expect(result.config.builds[0]).toMatchObject({
-        engine: "@pipelab/plugin-electron/producer",
-        targets: [{ id: "windows-x64", enabled: true }],
-      });
+      expect(result.config.builds[0].engine).toBe("@pipelab/plugin-electron/producer");
+      expect(result.config.builds[0].targets).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ id: "windows-x64", enabled: true }),
+          expect.objectContaining({ id: "linux-x64", enabled: false }),
+          expect.objectContaining({ id: "macos-arm64", enabled: false }),
+        ]),
+      );
       expect(result.plan.destinations[0].slots[0].input).toEqual({
         producerId: result.config.builds[0].id,
         outputId: "windows-x64",

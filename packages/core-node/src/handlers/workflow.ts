@@ -275,7 +275,7 @@ export const registerWorkflowHandlers = (context: PipelabContext, pluginsReady?:
       const producer = registry().producers.find((candidate) => candidate.id === value.provider);
       if (!producer) throw new Error(`Unknown producer provider: ${value.provider}`);
       const result = producer.inspect
-        ? await producer.inspect(value.config, { host: host() })
+        ? await producer.inspect(value.config, { host: host(), sourceConfig: value.sourceConfig })
         : { issues: [] };
       await send({ type: "end", data: { type: "success", result } });
     } catch (error) {

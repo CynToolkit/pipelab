@@ -1119,6 +1119,7 @@ const inspectProducer = async (build: ReleaseBuildProfileConfig) => {
   if (buildIndex < 0) return;
   const result = await api.execute("release:producer:inspect", {
     provider: build.engine,
+    sourceConfig: flow.value?.source.config,
     config: {
       id: build.id,
       provider: build.engine,

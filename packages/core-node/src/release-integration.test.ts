@@ -16,6 +16,40 @@ import itch from "@pipelab/plugin-itch";
 const context = { host: { platform: "win32", architecture: "x64" } };
 
 describe("release provider integration wiring", () => {
+  it("maps real provider validation issues to indexed UI fields", () => {
+    const plan = planRelease(
+      {
+        version: "3.0.0",
+        id: "invalid-release",
+        project: "project",
+        name: "Invalid release",
+        source: { provider: "@pipelab/plugin-construct/source", config: {} },
+        builds: [],
+        destinations: [
+          {
+            id: "steam",
+            provider: "@pipelab/plugin-steam/destination",
+            enabled: true,
+            config: {},
+            slots: [{ id: "windows", enabled: true, input: { source: true }, config: {} }],
+          },
+        ],
+      },
+      buildReleaseRegistry([construct, steam]),
+      { host: context.host },
+    );
+
+    expect(plan.issues.map((issue) => issue.path)).toEqual(
+      expect.arrayContaining([
+        "source.path",
+        "source.profilePath",
+        "destinations.0.config.accountConnectionId",
+        "destinations.0.config.appId",
+        "destinations.0.slots.0.config.depotId",
+      ]),
+    );
+  });
+
   it("plans Construct directly to Poki without creating a build", () => {
     const config: ReleaseConfig = {
       version: "3.0.0",

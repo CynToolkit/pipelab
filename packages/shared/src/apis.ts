@@ -205,7 +205,7 @@ export type IpcDefinition = {
     EndEvent<unknown>,
   ];
   "release:producer:inspect": [
-    { provider: string; config: ReleaseProducerConfig },
+    { provider: string; config: ReleaseProducerConfig; sourceConfig?: Record<string, unknown> },
     EndEvent<unknown>,
   ];
   "release:validate": [{ config: ReleaseConfig }, EndEvent<{ issues: ValidationIssue[] }>];

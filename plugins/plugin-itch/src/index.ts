@@ -3,19 +3,62 @@ import { uploadToItch, uploadToItchRunner } from "./export";
 import { createNodeDefinition } from "@pipelab/plugin-core";
 import type { ReleaseDestinationDefinition } from "@pipelab/shared";
 
-const itchDestination: ReleaseDestinationDefinition = {
+export const itchDestination: ReleaseDestinationDefinition = {
   id: "@pipelab/plugin-itch/destination",
   label: "Itch.io",
   accepts: { kind: ["application", "files"], container: ["directory", "archive"] },
-  fields: [{ key: "accountConnectionId", type: "connection", integration: "@pipelab/plugin-itch", label: "Itch account", required: true }, { key: "project", type: "text", label: "Project", required: true }],
+  fields: [
+    {
+      key: "accountConnectionId",
+      type: "connection",
+      integration: "@pipelab/plugin-itch",
+      label: "Itch account",
+      required: true,
+    },
+    { key: "project", type: "text", label: "Project", required: true },
+  ],
   slotFields: [{ key: "channel", type: "text", label: "Channel", required: true }],
   createDefaultConfig: () => ({ accountConnectionId: "", project: "" }),
   validate: (config) => [
-    ...(!String(config.config.accountConnectionId || "").trim() ? [{ code: "itch.account.required", message: "An Itch account connection is required.", severity: "error" as const }] : []),
-    ...(!String(config.config.project || "").trim() ? [{ code: "itch.project.required", message: "An Itch project is required.", severity: "error" as const }] : []),
-    ...config.slots.filter((slot) => slot.enabled && !String(slot.config.channel || "").trim()).map((slot) => ({ code: "itch.channel.required", message: `A channel is required for slot ${slot.id}.`, severity: "error" as const, path: `slots.${slot.id}.config.channel` })),
+    ...(!String(config.config.accountConnectionId || "").trim()
+      ? [
+          {
+            code: "itch.account.required",
+            message: "An Itch account connection is required.",
+            severity: "error" as const,
+            path: "config.accountConnectionId",
+          },
+        ]
+      : []),
+    ...(!String(config.config.project || "").trim()
+      ? [
+          {
+            code: "itch.project.required",
+            message: "An Itch project is required.",
+            severity: "error" as const,
+            path: "config.project",
+          },
+        ]
+      : []),
+    ...config.slots
+      .filter((slot) => slot.enabled && !String(slot.config.channel || "").trim())
+      .map((slot) => ({
+        code: "itch.channel.required",
+        message: `A channel is required for slot ${slot.id}.`,
+        severity: "error" as const,
+        path: `slots.${slot.id}.config.channel`,
+      })),
   ],
-  compile: (artifact, destination, slot) => [{ id: `itch-${destination.id}-${slot.id}`, uses: "@pipelab/plugin-itch/itch-upload", needs: [artifact.reference.stepId], artifactInputs: { "input-folder": artifact.reference }, with: { ...destination.config, ...slot.config }, delivery: { destinationId: destination.id, slotId: slot.id, artifact: artifact.reference } }],
+  compile: (artifact, destination, slot) => [
+    {
+      id: `itch-${destination.id}-${slot.id}`,
+      uses: "@pipelab/plugin-itch/itch-upload",
+      needs: [artifact.reference.stepId],
+      artifactInputs: { "input-folder": artifact.reference },
+      with: { ...destination.config, ...slot.config },
+      delivery: { destinationId: destination.id, slotId: slot.id, artifact: artifact.reference },
+    },
+  ],
 };
 
 export default createNodeDefinition({

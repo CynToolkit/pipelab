@@ -128,6 +128,7 @@ export interface ReleaseHostCapabilities {
 
 export interface ReleaseProviderContext {
   host: ReleaseHostContext;
+  sourceConfig?: Record<string, unknown>;
   [key: string]: unknown;
 }
 

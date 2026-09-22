@@ -33,6 +33,13 @@ const build: ReleaseProducerDefinition = {
       output: application,
       createDefaultConfig: () => ({}),
     },
+    {
+      id: "linux",
+      label: "Linux",
+      buildType: "desktop",
+      output: { ...application, platform: "linux" },
+      createDefaultConfig: () => ({}),
+    },
   ],
   createDefaultConfig: () => ({}),
   validate: () => [],
@@ -96,7 +103,11 @@ describe("resolveReleaseDefaults", () => {
     });
 
     expect(resolved.builds).toHaveLength(1);
-    expect(resolved.builds[0].id).toMatch(/^release-build-/);
+    expect(resolved.builds[0].id).not.toMatch(/^release-build-/);
+    expect(resolved.builds[0].targets).toEqual([
+      { id: "windows", enabled: true, config: {} },
+      { id: "linux", enabled: false, config: {} },
+    ]);
     expect(resolved.destinations[0].slots[0].input).toEqual({
       buildId: resolved.builds[0].id,
       targetId: "windows",
@@ -147,6 +158,30 @@ describe("resolveReleaseDefaults", () => {
 
     expect(resolved.builds).toHaveLength(1);
     expect(resolved.builds[0].engine).toBe("@pipelab/plugin-electron/producer");
+    expect(resolved.destinations[0].slots[0].input).toMatchObject({ targetId: "windows-x64" });
+  });
+
+  it("tries the central default when the preferred engine is incompatible", () => {
+    const incompatible = {
+      ...build,
+      id: "preferred-incompatible",
+      accepts: { kind: "project", technology: "other-engine" },
+      targets: [{ ...build.targets[0], id: "preferred-windows" }],
+    };
+    const centralFallback = {
+      ...build,
+      id: "@pipelab/plugin-electron/producer",
+      targets: [{ ...build.targets[0], id: "windows-x64" }],
+    };
+    const resolved = resolveReleaseDefaults(
+      config(),
+      { ...registry(), producers: [incompatible, centralFallback] },
+      context,
+      { buildTypes: { desktop: { engine: incompatible.id, targets: ["preferred-windows"] } } },
+    );
+
+    expect(resolved.builds).toHaveLength(1);
+    expect(resolved.builds[0].engine).toBe(centralFallback.id);
     expect(resolved.destinations[0].slots[0].input).toMatchObject({ targetId: "windows-x64" });
   });
 });

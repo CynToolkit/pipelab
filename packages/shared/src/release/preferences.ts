@@ -60,36 +60,19 @@ const preferredBuild = (
   if (!producer) return undefined;
   const targets = producer.targets.filter((target) => target.buildType === type);
   if (!targets.length) return undefined;
-  const selected = preference.targets?.length
-    ? targets.filter((target) => preference.targets?.includes(target.id))
-    : targets.slice(0, 1);
-  if (!selected.length) return undefined;
+  const enabledTargets = preference.targets?.length ? preference.targets : [targets[0].id];
   return {
     id,
     type,
     engine: producer.id,
     enabled: true,
     config: producer.createDefaultConfig(),
-    targets: selected.map((target) => ({
+    targets: targets.map((target) => ({
       id: target.id,
-      enabled: true,
+      enabled: enabledTargets.includes(target.id),
       config: target.createDefaultConfig(),
     })),
   };
-};
-
-const preferredBuildCandidates = (
-  registry: ReleaseRegistry,
-  type: string,
-  id: string,
-  preferences: Array<{ engine?: string; targets?: string[] } | undefined>,
-) => {
-  for (const preference of preferences) {
-    if (!preference) continue;
-    const build = preferredBuild(registry, type, id, preference);
-    if (build) return build;
-  }
-  return undefined;
 };
 
 const hasBlockingIssue = (plan: ReleasePlan, paths: string[]) =>
@@ -165,39 +148,44 @@ export const resolveReleaseDefaults = (
       }
 
       for (const buildType of buildTypes) {
-        const build = preferredBuildCandidates(registry, buildType, `release-build-${nanoid(10)}`, [
+        for (const preference of [
           preferences.buildTypes[buildType],
           DEFAULT_RELEASE_BUILD_PREFERENCES.buildTypes[buildType],
-        ]);
-        if (!build) continue;
-        const buildIndex = resolved.builds.length;
-        resolved.builds.push(build);
-        const target = build.targets.find((candidate) => candidate.enabled);
-        const outputRef = target ? { buildId: build.id, targetId: target.id } : undefined;
-        const candidateAccepted =
-          target &&
-          outputRef &&
-          plannerAcceptsOutput(
-            resolved,
-            registry,
-            context,
-            destinationIndex,
-            slotIndex,
-            outputRef,
-            { producerId: build.id, outputId: target.id },
-          );
-        if (candidateAccepted) {
-          slot.input = outputRef;
-          if (
-            !hasBlockingIssue(planRelease(resolved, registry, context), [
-              `builds.${buildIndex}`,
-              path,
-            ])
-          )
-            break;
-          slot.input = undefined;
+        ]) {
+          const build = preference
+            ? preferredBuild(registry, buildType, nanoid(), preference)
+            : undefined;
+          if (!build) continue;
+          const buildIndex = resolved.builds.length;
+          resolved.builds.push(build);
+          const target = build.targets.find((candidate) => candidate.enabled);
+          const outputRef = target ? { buildId: build.id, targetId: target.id } : undefined;
+          const candidateAccepted =
+            target &&
+            outputRef &&
+            plannerAcceptsOutput(
+              resolved,
+              registry,
+              context,
+              destinationIndex,
+              slotIndex,
+              outputRef,
+              { producerId: build.id, outputId: target.id },
+            );
+          if (candidateAccepted) {
+            slot.input = outputRef;
+            if (
+              !hasBlockingIssue(planRelease(resolved, registry, context), [
+                `builds.${buildIndex}`,
+                path,
+              ])
+            )
+              break;
+            slot.input = undefined;
+          }
+          resolved.builds.pop();
         }
-        resolved.builds.pop();
+        if (slot.input) break;
       }
     }
   }

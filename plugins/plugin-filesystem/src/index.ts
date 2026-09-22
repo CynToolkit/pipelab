@@ -28,6 +28,7 @@ const folderSource: ReleaseSourceDefinition = {
             code: "source.path.required",
             message: "A folder path is required.",
             severity: "error",
+            path: "path",
           },
         ],
   compile: (config) => ({
@@ -93,7 +94,14 @@ const zipSource = (
   validate: (config) =>
     typeof config.path === "string" && config.path
       ? []
-      : [{ code: "source.path.required", message: "A ZIP path is required.", severity: "error" }],
+      : [
+          {
+            code: "source.path.required",
+            message: "A ZIP path is required.",
+            severity: "error",
+            path: "path",
+          },
+        ],
   compile: (config) => ({
     steps: [
       {
@@ -132,6 +140,7 @@ export const folderDestination: ReleaseDestinationDefinition = {
             code: "folder.output-dir.required",
             message: "A folder destination requires an output directory.",
             severity: "error",
+            path: "config.outputDir",
           },
         ],
   compile: (artifact, destination, slot) => [
@@ -166,6 +175,7 @@ export const zipDestination: ReleaseDestinationDefinition = {
             code: "zip.output-path.required",
             message: "A ZIP destination requires an output path.",
             severity: "error",
+            path: "config.outputPath",
           },
         ],
   compile: (artifact, destination, slot) => [

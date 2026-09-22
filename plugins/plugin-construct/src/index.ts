@@ -9,7 +9,7 @@ import type { WorkflowStep } from "@pipelab/workflow-runtime";
 export { discoverBrowserProfiles, inspectChromiumProfile } from "./browser-profiles";
 export type { BrowserProfileCandidate } from "./browser-profiles";
 
-const constructSource: ReleaseSourceDefinition = {
+export const constructSource: ReleaseSourceDefinition = {
   id: "@pipelab/plugin-construct/source",
   label: "Construct project",
   fields: [
@@ -32,6 +32,7 @@ const constructSource: ReleaseSourceDefinition = {
             code: "construct.project.required",
             message: "A Construct project path is required.",
             severity: "error" as const,
+            path: "path",
           },
         ]),
     ...(typeof config.profilePath === "string" && config.profilePath
@@ -41,6 +42,7 @@ const constructSource: ReleaseSourceDefinition = {
             code: "construct.profile.required",
             message: "A browser profile path is required.",
             severity: "error" as const,
+            path: "profilePath",
           },
         ]),
   ],

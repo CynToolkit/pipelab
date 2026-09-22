@@ -98,7 +98,13 @@ const inspect = async (path: string) => {
   return {
     metadata: { projectName, godotVersion },
     data: { executable, templatesAvailable, presets, presetPlatforms },
-    fieldOptions: { preset: presets.map((preset) => ({ label: preset, value: preset })) },
+    fieldOptions: {
+      preset: presets.map((preset) => ({
+        label: preset,
+        value: preset,
+        metadata: { platform: presetPlatforms[preset] },
+      })),
+    },
     issues: [
       ...(!executable
         ? [
@@ -136,6 +142,7 @@ export const godotSource: ReleaseSourceDefinition = {
             code: "source.path.required",
             message: "A project path is required.",
             severity: "error",
+            path: "path",
           },
         ],
   inspect: async (config) => {
@@ -256,32 +263,55 @@ export const godotExporter: ReleaseProducerDefinition = {
             ]
           : [];
       }),
-  inspect: async (config) => ({
-    issues: [
-      ...(!findGodotExecutable()
-        ? [
-            {
-              code: "godot.executable.missing",
-              message: "Godot executable not found.",
-              severity: "error" as const,
-            },
-          ]
-        : []),
+  inspect: async (config, context) => {
+    const sourcePath = String(context.sourceConfig?.path || "").trim();
+    if (!sourcePath)
+      return {
+        issues: config.targets
+          .filter((target) => target.enabled)
+          .map((target) => ({
+            code: "godot.preset.required",
+            message: `Choose a preset for ${target.id}.`,
+            severity: "error" as const,
+            path: `targets.${target.id}.config.preset`,
+          })),
+      };
+
+    const sourceInspection = await inspect(sourcePath);
+    const options = sourceInspection.fieldOptions?.preset || [];
+    const fieldValues: Record<string, unknown> = {};
+    const issues = [
+      ...sourceInspection.issues,
       ...config.targets
         .filter((target) => target.enabled)
-        .flatMap((target) =>
-          !String(target.config.preset || "").trim()
-            ? [
-                {
-                  code: "godot.preset.required",
-                  message: `Choose a preset for ${target.id}.`,
-                  severity: "error" as const,
-                },
-              ]
-            : [],
-        ),
-    ],
-  }),
+        .flatMap((target) => {
+          if (String(target.config.preset || "").trim()) return [];
+          const matchingPreset = options.find((option) => {
+            const platform = String(option.metadata?.platform || "");
+            return platform && godotPresetMatchesTarget(platform, target.id);
+          });
+          if (matchingPreset) {
+            fieldValues[`targets.${target.id}.config.preset`] = matchingPreset.value;
+            return [];
+          }
+          return [
+            {
+              code: "godot.preset.required",
+              message: `Choose a preset for ${target.id}.`,
+              severity: "error" as const,
+              path: `targets.${target.id}.config.preset`,
+            },
+          ];
+        }),
+    ];
+
+    return {
+      data: sourceInspection.data,
+      fieldOptions: sourceInspection.fieldOptions,
+      fieldValues,
+      issues,
+    };
+  },
   compile: (input, config) => ({
     steps: config.targets
       .filter((target) => target.enabled)
