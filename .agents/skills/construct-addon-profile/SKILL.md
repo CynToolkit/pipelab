@@ -7,7 +7,8 @@ description: Prepare or troubleshoot a real Chromium profile with Construct 3 ad
 
 This skill is limited to the Construct integration in
 `plugins/plugin-construct`. Before changing code, inspect
-`src/browser-profiles.ts`, `src/export-shared.ts`, and their focused tests.
+`plugins/plugin-construct/src/browser-profiles.ts`,
+`plugins/plugin-construct/src/export-shared.ts`, and their focused tests.
 
 Use this skill when a Construct 3 export reports a missing addon, a Pipelab browser-profile candidate reports zero addons unexpectedly, or the user asks to install a genuine Construct addon into the profile used for export. It is specific to Construct profiles used by Pipelab; it is not general browser automation guidance.
 
@@ -45,6 +46,7 @@ retrieve or expose account credentials.
 3. Verify Pipelab’s profile-copy path using a temporary destination and the existing `preparePlaywrightProfile` implementation. Chromium reads persistent state from the profile directory under the temporary User Data Directory; ensure the copy places the selected profile’s data where the launched context actually reads it. Do not fall back to a different source profile if the selected path is wrong.
 4. When practical, open the copied profile in an isolated temporary browser context and verify the addon is recognized; then rerun the focused Construct tests and, if authorized, the workflow’s source export. Success means the expected addon is recognized and the `missingAddon` failure is gone—not merely that IndexedDB contains an arbitrary record.
 
-Before editing Pipelab code, inspect `plugins/plugin-construct/src/browser-profiles.ts`, `plugins/plugin-construct/src/export-shared.ts`, and their focused tests. Preserve strict selected-path semantics across discovery, counting, workflow configuration, and export-copying.
+Preserve strict selected-path semantics across discovery, counting, workflow
+configuration, and export-copying.
 
 Construct’s installation guidance: [Installing third-party addons](https://www.construct.net/en/make-games/manuals/construct-3/tips-and-guides/installing-third-party-addons). Playwright’s current `launchPersistentContext` API documents that its `userDataDir` is the parent of Chromium’s profile path: [BrowserType API](https://playwright.dev/docs/api/class-browsertype#browser-type-launch-persistent-context).

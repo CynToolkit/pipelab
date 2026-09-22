@@ -67,9 +67,12 @@ for an isolated documentation edit. Record any unavailable check and why.
 
 Integration, workflow, plugin, runtime, and release execution tests belong in
 the CLI host (`apps/cli/tests/e2e`) using the existing test utilities. Keep
-Electron coverage to the single minimal startup smoke; it is not a feature
-test harness. UI behavior belongs in UI tests. Prefer fake or mocked provider
-boundaries when a third-party service is not the subject of the test.
+Electron coverage to the single minimal startup smoke, which is manual-only
+and disabled from CI; it is not a feature-test harness. Planner/compiler
+integration tests that must not execute providers should use
+`workflow run --dry-run`. UI behavior belongs in UI tests. Prefer fake or
+mocked provider boundaries when a third-party service is not the subject of
+the test.
 
 ## TypeScript and code boundaries
 
