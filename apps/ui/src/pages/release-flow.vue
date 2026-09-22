@@ -626,6 +626,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
+import { nanoid } from "nanoid";
 import { useRoute, useRouter } from "vue-router";
 import Button from "primevue/button";
 import Dialog from "primevue/dialog";
@@ -946,7 +947,7 @@ const createConnection = async () => {
   connectionSaving.value = true;
   const integration = connectionDraft.value.integration;
   const record = {
-    id: crypto.randomUUID(),
+    id: nanoid(),
     pluginName: integration,
     integrationName: integration,
     name: connectionDraft.value.name.trim(),
