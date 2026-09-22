@@ -10,7 +10,7 @@ import { mkdir } from "node:fs/promises";
 import {
   buildReleaseCatalog,
   buildReleaseRegistry,
-  compileWorkflow,
+  compileReleasePlan,
   planRelease,
   resolveReleaseDefaults,
   validateRelease,
@@ -33,6 +33,21 @@ const registry = () => buildReleaseRegistry(usePlugins().plugins.value);
 const catalog = () => buildReleaseCatalog(registry(), host());
 
 const issuesFor = (config: ReleaseConfig) => validateRelease(config, registry(), { host: host() });
+
+export const prepareReleaseWorkflow = (config: ReleaseConfig, version = "0.0.0") => {
+  const releaseRegistry = registry();
+  const context = { host: host(), variables: { version } };
+  const resolvedConfig = resolveReleaseDefaults(config, releaseRegistry, context);
+  const plan = planRelease(resolvedConfig, releaseRegistry, context);
+  const errors = plan.issues.filter((issue) => issue.severity === "error");
+  if (errors.length) throw new Error(errors.map((issue) => issue.message).join("\n"));
+  return {
+    config: resolvedConfig,
+    plan,
+    registry: releaseRegistry,
+    workflow: compileReleasePlan(resolvedConfig, plan, releaseRegistry, context),
+  };
+};
 
 const executionPlan = (workflow: Workflow) =>
   workflow.steps.map((step) => ({
@@ -77,19 +92,17 @@ export const executeWorkflow = async (
   configName: string,
   options: {
     release?: { version?: string; description?: string };
+    prepared?: ReturnType<typeof prepareReleaseWorkflow>;
     signal?: AbortSignal;
     onEvent?: (event: WorkflowEvent) => void;
     onRunCreated?: (id: string) => void | Promise<void>;
   } = {},
 ) => {
   const stored = await (await setupWorkflowConfigFileByName(configName, context)).getConfig();
-  const config = stored as ReleaseConfig;
-  const issues = issuesFor(config);
-  const errors = issues.filter((issue) => issue.severity === "error");
-  if (errors.length) throw new Error(errors.map((issue) => issue.message).join("\n"));
-  const buildId = nanoid();
   const version = options.release?.version?.trim() || "0.0.0";
-  const workflow = compileWorkflow(config, registry(), { host: host(), variables: { version } });
+  const prepared = options.prepared || prepareReleaseWorkflow(stored as ReleaseConfig, version);
+  const { config, workflow } = prepared;
+  const buildId = nanoid();
   const history = new BuildHistoryStorage(context);
   const startTime = Date.now();
   await history.save({

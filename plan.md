@@ -638,12 +638,12 @@ Replace vague/manual checks with deterministic CLI acceptance.
 Phase 3 verification should become:
 
 ```text
-✓ shared planner/default-resolution tests
+□ shared planner/default-resolution tests (not run for this cleanup)
 ✓ core compiler/runtime tests
-✓ UI tests
+□ UI tests (not run for this cleanup)
 ✓ CLI release dry-run integration tests
 ✓ CLI runtime integration tests
-✓ Desktop make/package matrix
+□ Desktop make/package matrix (not run for this cleanup)
 ✓ Electron feature/E2E intentionally absent
 ```
 
@@ -695,8 +695,8 @@ This task is complete when:
 ✓ failure case covered
 ✓ no Electron feature/E2E tests added
 ✓ Electron smoke remains disabled from CI
-✓ Desktop packaging matrix remains intact
-✓ full CI passes
+□ Desktop packaging matrix remains intact (not run for this cleanup)
+□ full CI passes
 ```
 
 ---
@@ -711,7 +711,7 @@ This task is complete when:
 * [x] Resolve release defaults through canonical resolver
 * [x] Run `planRelease`
 * [x] Fail on blocking planner errors
-* [x] Run `compileWorkflow`
+* [x] Run the canonical release compiler (`compileReleasePlan`)
 * [x] Return before `executeWorkflow`
 * [x] Keep dry-run non-mutating
 * [x] Support `--output` with structured dry-run result
@@ -744,7 +744,7 @@ This task is complete when:
 * [x] Assert compiled step dependencies
 * [x] Assert fan-out uses one build
 * [x] Assert no fake Web build
-* [x] Assert no Electron build for incompatible Godot source
+* [ ] Assert no Electron build for incompatible Godot source (failure occurs before compilation)
 * [x] Assert no runner side effects in dry-run
 
 ## Test infrastructure
@@ -778,13 +778,13 @@ This task is complete when:
 
 ## Final verification
 
-* [x] Run shared tests
+* [ ] Run shared tests
 * [x] Run core-node tests
-* [x] Run UI tests
+* [ ] Run UI tests
 * [x] Run CLI E2E tests
 * [x] Run lint
 * [x] Run typecheck
-* [x] Run full CI
+* [ ] Run full CI
 * [x] Confirm dry-run executes no workflow steps
 * [x] Confirm no CI job launches Electron for feature testing
-* [x] Confirm Desktop package/make still succeeds
+* [ ] Confirm Desktop package/make still succeeds

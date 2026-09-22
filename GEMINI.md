@@ -31,6 +31,7 @@ Uses `pnpm` and Turborepo.
 - Do not add Electron E2E or feature tests.
 - Electron is responsible for the desktop shell, startup smoke coverage, and packaging only.
 - The single permitted Electron startup smoke is currently disabled from CI.
+- Use CLI `workflow run --dry-run` for release planner/compiler integration tests that must not execute providers.
 - UI behavior belongs in UI unit/component tests.
 - See `.agents/rules/testing.md` for the detailed policy.
 

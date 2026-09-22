@@ -32,6 +32,10 @@ Use the existing Vitest suite under `apps/cli/tests/e2e`, with
 deterministic fake or mocked provider boundaries when a third-party service is
 not the behavior under test.
 
+Use CLI `workflow run --dry-run` for release planner/compiler integration tests
+that must not execute providers. Dry-run must load plugins, plan, compile, and
+return before workflow execution.
+
 ## Unit and UI tests
 
 Keep planner, compiler, runtime, descriptor, validation, and default-resolution
