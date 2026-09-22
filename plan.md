@@ -9,3 +9,4 @@
 * [x] Needs attention buttons should be orange and consistently styled
 * [x] Needs attention is available directly on deployment cards.
 * [x] Steam validation uses the deployment name instead of a numeric slot label.
+* [x] Build, source, deploy, and deployment cards show ready indicators.

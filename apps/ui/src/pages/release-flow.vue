@@ -214,7 +214,30 @@
                   }}</span
                 >
               </div>
-              <Button
+              <Tag
+                :value="
+                  readinessLabel(
+                    destination.enabled,
+                    destination.slots.length > 0 &&
+                      destination.slots
+                        .filter((slot) => slot.enabled)
+                        .every((slot) => Boolean(slot.input)),
+                    Boolean(cardIssues(`destinations.${index}`).length),
+                  )
+                "
+                :severity="
+                  readinessLabel(
+                    destination.enabled,
+                    destination.slots.length > 0 &&
+                      destination.slots
+                        .filter((slot) => slot.enabled)
+                        .every((slot) => Boolean(slot.input)),
+                    Boolean(cardIssues(`destinations.${index}`).length),
+                  ) === 'Ready'
+                    ? 'success'
+                    : 'secondary'
+                "
+              /><Button
                 v-if="cardIssues(`destinations.${index}`).length"
                 class="needs-attention-button"
                 label="Needs attention"
@@ -251,6 +274,24 @@
                     ><small>{{ artifactLabel(slot.input) }}</small></span
                   >
                 </div>
+                <Tag
+                  :value="
+                    readinessLabel(
+                      slot.enabled,
+                      Boolean(slot.input),
+                      Boolean(slotIssues(slot).length),
+                    )
+                  "
+                  :severity="
+                    readinessLabel(
+                      slot.enabled,
+                      Boolean(slot.input),
+                      Boolean(slotIssues(slot).length),
+                    ) === 'Ready'
+                      ? 'success'
+                      : 'secondary'
+                  "
+                />
                 <Button
                   v-if="!slot.input"
                   label="Choose output"
@@ -690,6 +731,7 @@ import {
   issuesForPath,
   planOutputOptions,
   plannerAcceptsBuildCandidate,
+  readinessLabel,
   releaseCanRun,
   removeBuildProfile,
   setBuildTargetEnabled,

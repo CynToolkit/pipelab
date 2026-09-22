@@ -156,6 +156,11 @@ export const releaseCanRun = (
 export const deploymentSlotLabel = (slot: ReleaseDestinationSlot, index: number) =>
   slot.name?.trim() || `Deployment ${index + 1}`;
 
+export const readinessLabel = (enabled: boolean, configured: boolean, hasIssues: boolean) => {
+  if (!enabled) return "Disabled";
+  return configured && !hasIssues ? "Ready" : "Not configured";
+};
+
 export const applyProducerInspection = (
   build: ReleaseBuildProfileConfig,
   buildIndex: number,

@@ -11,6 +11,7 @@ import {
   planOutputOptions,
   plannerAcceptsBuildCandidate,
   deploymentSlotLabel,
+  readinessLabel,
   releaseCanRun,
   setBuildTargetEnabled,
   switchBuildProfileEngine,
@@ -283,5 +284,12 @@ describe("release flow model", () => {
     expect(deploymentSlotLabel({ id: "opaque", enabled: true, config: {} }, 1)).toBe(
       "Deployment 2",
     );
+  });
+
+  it("labels destination readiness consistently", () => {
+    expect(readinessLabel(true, true, false)).toBe("Ready");
+    expect(readinessLabel(true, false, false)).toBe("Not configured");
+    expect(readinessLabel(true, true, true)).toBe("Not configured");
+    expect(readinessLabel(false, true, false)).toBe("Disabled");
   });
 });
