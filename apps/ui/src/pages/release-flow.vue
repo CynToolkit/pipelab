@@ -1330,12 +1330,10 @@ const runShip = async () => {
         description: releaseDescription.value.trim(),
       },
     },
-    async (event) => {
-      if (event.type === "workflow-run")
-        await router.push(`/workflows/${flowId.value}/${projectId.value}/runs/${event.data.runId}`);
-    },
+    async () => {},
   );
   if (result.type === "error") error.value = result.ipcError;
+  else await router.push(`/workflows/${flowId.value}/${projectId.value}/runs/${result.result.runId}`);
   running.value = false;
 };
 let saveTimer: ReturnType<typeof setTimeout> | undefined;
