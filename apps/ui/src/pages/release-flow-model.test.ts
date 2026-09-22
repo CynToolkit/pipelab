@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   buildEnginesFor,
   buildProfileSummary,
@@ -13,6 +13,7 @@ import {
   deploymentSlotLabel,
   readinessLabel,
   releaseCanRun,
+  runAfterSuccessfulSave,
   setBuildTargetEnabled,
   switchBuildProfileEngine,
 } from "./release-flow-model";
@@ -275,6 +276,18 @@ describe("release flow model", () => {
     ).toBe(true);
     expect(releaseCanRun(flow, plan, [], true, false)).toBe(false);
     expect(releaseCanRun(flow, plan, [], false, true)).toBe(false);
+    expect(releaseCanRun(flow, plan, [], false, false, "error")).toBe(false);
+  });
+
+  it("does not run a release when persistence fails", async () => {
+    const execute = vi.fn(async () => "executed");
+
+    await expect(
+      runAfterSuccessfulSave(async () => {
+        throw new Error("save failed");
+      }, execute),
+    ).rejects.toThrow("save failed");
+    expect(execute).not.toHaveBeenCalled();
   });
 
   it("uses a deployment name with a friendly fallback", () => {

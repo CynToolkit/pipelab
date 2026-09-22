@@ -21,4 +21,33 @@ describe("run event stream", () => {
     expect(received).toEqual([event]);
     unsubscribe();
   });
+
+  it("drops buffered events after a terminal event is replayed", () => {
+    const runId = "run-event-terminal-cleanup";
+    const log: WorkflowEvent = {
+      type: "step.log",
+      stepId: "build",
+      stream: "stdout",
+      message: "built",
+      timestamp: 10,
+    };
+    const failed: WorkflowEvent = {
+      type: "workflow.failed",
+      error: { name: "Failed", message: "nope" },
+      duration: 11,
+      timestamp: 12,
+    };
+    const first: WorkflowEvent[] = [];
+    const second: WorkflowEvent[] = [];
+
+    publishRunEvent(runId, log);
+    publishRunEvent(runId, failed);
+    const unsubscribe = subscribeToRunEvents(runId, (event) => first.push(event));
+    const unsubscribeSecond = subscribeToRunEvents(runId, (event) => second.push(event));
+
+    expect(first).toEqual([log, failed]);
+    expect(second).toEqual([]);
+    unsubscribe();
+    unsubscribeSecond();
+  });
 });

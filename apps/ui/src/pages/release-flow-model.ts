@@ -37,6 +37,14 @@ export const createSerializedTaskQueue = (task: () => Promise<void>) => {
   return request;
 };
 
+export const runAfterSuccessfulSave = async <T>(
+  save: () => Promise<void>,
+  run: () => Promise<T>,
+) => {
+  await save();
+  return run();
+};
+
 export const buildTypesFor = (catalog: ReleaseCatalog) => catalog.buildTypes;
 
 export const buildEnginesFor = (catalog: ReleaseCatalog, type: string) =>
@@ -148,9 +156,15 @@ export const releaseCanRun = (
   issues: ValidationIssue[],
   running: boolean,
   planning: boolean,
+  saveState: "saving" | "saved" | "error" = "saved",
 ) =>
   Boolean(
-    flow && plan && !running && !planning && !issues.some((issue) => issue.severity === "error"),
+    flow &&
+    plan &&
+    !running &&
+    !planning &&
+    saveState !== "error" &&
+    !issues.some((issue) => issue.severity === "error"),
   );
 
 export const deploymentSlotLabel = (slot: ReleaseDestinationSlot, index: number) =>

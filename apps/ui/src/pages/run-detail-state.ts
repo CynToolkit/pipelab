@@ -3,6 +3,34 @@ import { nanoid } from "nanoid";
 
 type WorkflowEvent = Extract<Events<"workflow:execute">, { type: "workflow-event" }>["data"];
 
+const workflowArtifacts = (
+  artifacts: Extract<WorkflowEvent, { type: "workflow.completed" }>["result"]["artifacts"],
+): NonNullable<BuildHistoryEntry["artifacts"]> =>
+  artifacts.map((artifact, index) => {
+    if (!("descriptor" in artifact)) {
+      return {
+        id: `workflow-artifact-${index}`,
+        name: artifact.name,
+        path: artifact.path,
+        size: 0,
+        type: "file" as const,
+      };
+    }
+    return {
+      id: artifact.id,
+      name: artifact.artifact,
+      path: artifact.path,
+      size: artifact.size ?? 0,
+      type: "file" as const,
+      descriptor: artifact.descriptor,
+      version: artifact.version,
+      stepId: artifact.stepId,
+      artifact: artifact.artifact,
+      checksum: artifact.checksum,
+      cloud: artifact.cloud,
+    };
+  });
+
 export interface RunStepSelectionState {
   selectedStepId: string | null;
   initialSelectionMade: boolean;
@@ -48,9 +76,49 @@ export const workflowCancellationFeedback = (result: {
 
 export const applyWorkflowEventToRunEntry = (entry: BuildHistoryEntry, event: WorkflowEvent) => {
   if (event.type === "workflow.completed") {
+    const previousSteps = new Map(entry.steps.map((step) => [step.id, step]));
+    entry.steps = Object.values(event.result.steps).map((resultStep) => {
+      const previous = previousSteps.get(resultStep.id);
+      return {
+        id: resultStep.id,
+        name: previous?.name || resultStep.id,
+        uses: resultStep.uses,
+        status: resultStep.status,
+        startTime: resultStep.startedAt,
+        endTime: resultStep.completedAt,
+        duration: resultStep.duration,
+        logs: previous?.logs || [],
+        output: resultStep.outputs,
+        ...(resultStep.error
+          ? {
+              error: {
+                message: resultStep.error.message,
+                code: resultStep.error.name,
+                timestamp: resultStep.completedAt,
+              },
+            }
+          : {}),
+        ...(resultStep.delivery
+          ? {
+              destinationId: resultStep.delivery.destinationId,
+              slotId: resultStep.delivery.slotId,
+            }
+          : {}),
+      };
+    });
     entry.status = event.result.status;
     entry.endTime = event.timestamp;
     entry.duration = event.duration;
+    entry.output = event.result.outputs;
+    entry.artifacts = workflowArtifacts(event.result.artifacts);
+    entry.deliveries = event.result.deliveries;
+    entry.totalSteps = entry.steps.length;
+    entry.completedSteps = entry.steps.filter((step) => step.status === "completed").length;
+    entry.failedSteps = entry.steps.filter(
+      (step) => step.status === "failed" || step.status === "skipped",
+    ).length;
+    entry.cancelledSteps = entry.steps.filter((step) => step.status === "cancelled").length;
+    entry.updatedAt = event.timestamp;
     return;
   }
   if (event.type === "workflow.failed") {
@@ -62,6 +130,12 @@ export const applyWorkflowEventToRunEntry = (entry: BuildHistoryEntry, event: Wo
       code: event.error.name,
       timestamp: event.timestamp,
     };
+    entry.completedSteps = entry.steps.filter((step) => step.status === "completed").length;
+    entry.failedSteps = entry.steps.filter(
+      (step) => step.status === "failed" || step.status === "skipped",
+    ).length;
+    entry.cancelledSteps = entry.steps.filter((step) => step.status === "cancelled").length;
+    entry.updatedAt = event.timestamp;
     return;
   }
   const step =

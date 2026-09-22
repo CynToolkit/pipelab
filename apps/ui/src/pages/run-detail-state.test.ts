@@ -54,15 +54,48 @@ describe("applyWorkflowEventToRunEntry", () => {
       type: "workflow.completed",
       result: {
         status: "completed",
-        outputs: {},
-        artifacts: [],
-        deliveries: [],
-        steps: {},
+        outputs: { package: { path: "/tmp/package.zip" } },
+        artifacts: [{ name: "package.zip", path: "/tmp/package.zip" }],
+        deliveries: [
+          {
+            id: "delivery-1",
+            destinationId: "filesystem",
+            slotId: "release",
+            artifactId: "workflow-artifact-0",
+            status: "completed",
+            startedAt: 5,
+            completedAt: 8,
+            duration: 3,
+          },
+        ],
+        steps: {
+          build: {
+            id: "build",
+            uses: "fake.build",
+            status: "completed",
+            outputs: { package: "/tmp/package.zip" },
+            artifacts: [],
+            startedAt: 2,
+            completedAt: 8,
+            duration: 6,
+          },
+        },
       },
       duration: 9,
       timestamp: 10,
     });
 
-    expect(run).toMatchObject({ status: "completed", endTime: 10, duration: 9 });
+    expect(run).toMatchObject({
+      status: "completed",
+      endTime: 10,
+      duration: 9,
+      output: { package: { path: "/tmp/package.zip" } },
+      completedSteps: 1,
+      failedSteps: 0,
+      cancelledSteps: 0,
+    });
+    expect(run.artifacts).toHaveLength(1);
+    expect(run.deliveries).toHaveLength(1);
+    expect(run.steps[0]).toMatchObject({ id: "build", status: "completed", duration: 6 });
   });
 });

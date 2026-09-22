@@ -725,6 +725,7 @@ import {
   readinessLabel,
   releaseCanRun,
   removeBuildProfile,
+  runAfterSuccessfulSave,
   setBuildTargetEnabled,
   switchBuildProfileEngine,
 } from "./release-flow-model";
@@ -797,7 +798,7 @@ const saveStateLabel = computed(() =>
   saveState.value === "saving" ? "Saving…" : saveState.value === "error" ? "Error" : "Saved",
 );
 const canShip = computed(() =>
-  releaseCanRun(flow.value, plan.value, issues.value, running.value, planning.value),
+  releaseCanRun(flow.value, plan.value, issues.value, running.value, planning.value, saveState.value),
 );
 const openAttention = (cardIssues: ValidationIssue[]) => {
   attentionIssues.value = cardIssues;
@@ -1275,7 +1276,12 @@ const refreshPlan = async (resolveDefaults = false) => {
         ) {
           flow.value = resolved.result as ReleaseConfig;
           changeRevision += 1;
-          await save();
+          try {
+            await save();
+          } catch (cause) {
+            error.value = cause instanceof Error ? cause.message : String(cause);
+            return;
+          }
           await refreshPlan(false);
         } else if (resolved.type === "error") {
           error.value = resolved.ipcError;
@@ -1300,10 +1306,10 @@ const save = createSerializedTaskQueue(async () => {
   if (result.type === "error") {
     saveState.value = "error";
     error.value = result.ipcError;
-    return;
+    throw new Error(result.ipcError);
   }
   persistedRevision = revision;
-  if (persistedRevision !== changeRevision) save();
+  if (persistedRevision !== changeRevision) void save().catch(() => {});
   else saveState.value = "saved";
 });
 const validate = async () => {
@@ -1321,29 +1327,36 @@ const runShip = async () => {
   if (!flow.value) return;
   releaseDetailsVisible.value = false;
   running.value = true;
-  await save();
-  let runId = "";
-  const result = await api.execute(
-    "workflow:execute",
-    {
-      name: `workflows/${flowId.value}`,
-      release: {
-        version: releaseVersion.value.trim(),
-        description: releaseDescription.value.trim(),
-      },
-    },
-    async (event) => {
-      if (event.type === "workflow-run") {
-        runId = event.data.runId;
-        await router.push(`/workflows/${flowId.value}/${projectId.value}/runs/${runId}`);
-      } else if (event.type === "workflow-event" && runId) {
-        publishRunEvent(runId, event.data);
-      }
-    },
-  );
-  if (result.type === "error") error.value = result.ipcError;
-  else if (!runId) await router.push(`/workflows/${flowId.value}/${projectId.value}/runs/${result.result.runId}`);
-  running.value = false;
+  try {
+    await runAfterSuccessfulSave(save, async () => {
+      let runId = "";
+      const result = await api.execute(
+        "workflow:execute",
+        {
+          name: `workflows/${flowId.value}`,
+          release: {
+            version: releaseVersion.value.trim(),
+            description: releaseDescription.value.trim(),
+          },
+        },
+        async (event) => {
+          if (event.type === "workflow-run") {
+            runId = event.data.runId;
+            await router.push(`/workflows/${flowId.value}/${projectId.value}/runs/${runId}`);
+          } else if (event.type === "workflow-event" && runId) {
+            publishRunEvent(runId, event.data);
+          }
+        },
+      );
+      if (result.type === "error") error.value = result.ipcError;
+      else if (!runId)
+        await router.push(`/workflows/${flowId.value}/${projectId.value}/runs/${result.result.runId}`);
+    });
+  } catch (cause) {
+    if (!error.value) error.value = cause instanceof Error ? cause.message : String(cause);
+  } finally {
+    running.value = false;
+  }
 };
 let saveTimer: ReturnType<typeof setTimeout> | undefined;
 let planTimer: ReturnType<typeof setTimeout> | undefined;
@@ -1355,7 +1368,7 @@ watch(
     clearTimeout(saveTimer);
     clearTimeout(planTimer);
     if (flow.value) {
-      saveTimer = setTimeout(() => void save(), 700);
+      saveTimer = setTimeout(() => void save().catch(() => {}), 700);
       planTimer = setTimeout(() => void refreshPlan(), 300);
     }
   },

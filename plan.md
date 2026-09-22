@@ -1,13 +1,6 @@
-* [x] **Fix resolver-generated Build Profiles:** `resolveReleaseDefaults()` must create the full target list for the selected engine/type, enabling only preferred targets. Use a normal opaque `nanoid()` ID, not `release-build-*`. Add a regression test against the actual resolver output, not just `createBuildProfile()`.
-* [x] **Complete exact provider validation paths:** update real provider validators so field errors map to UI fields instead of only cards. Cover at least Construct source path, Godot source path, Steam account/App ID/depot, and filesystem destination paths. Preserve planner index normalization for target/slot IDs.
-* [x] **Make producer inspection self-sufficient for Godot:** `release:producer:inspect` must return Godot target preset options/values/issues without relying on source inspection state. Pass whatever source context is needed generically, and add an integration test proving Build Settings receives preset options.
-* [x] **Finish preference → fallback behavior:** if the preferred engine exists but is planner-incompatible/unusable, try the central deterministic fallback for the same build type before leaving the destination unresolved. Never fall back to catalog order. Add a test for “preferred engine exists but is incompatible”.
-* [x] **Keep the already-correct behavior unchanged:** preserve planner-authoritative “Create compatible build”, compact cards, CLI-first tests, Electron test restrictions, source-direct routing, no duplicate builds, and fresh connection reload behavior.
-* [x] **Verify the real paths:** add focused resolver/provider/Godot integration regressions for the fixes above, then run shared/UI/CLI tests and full CI. Do not mark this complete based only on helper-unit tests.
-* [x] Steam validation uses the deployment name instead of an opaque slot ID.
-* [x] Ship button should be disabled when the release cannot run.
-* [x] Needs attention buttons should be orange and consistently styled
-* [x] Needs attention is available directly on deployment cards.
-* [x] Steam validation uses the deployment name instead of a numeric slot label.
-* [x] Build, source, deploy, and deployment cards show ready indicators.
-* [x] Top-level deploy cards combine their own state with the state of inner deployments.
+* [x] **Fix live run completion projection:** when `workflow.completed` arrives, update the live `BuildHistoryEntry` with the complete final result—artifacts, deliveries, outputs, final step states/logs, completed/failed/cancelled counters, status, duration, and end time—so the run detail is correct without a refresh.
+* [x] **Clean up buffered live events:** once a run receives a terminal `workflow.completed` or `workflow.failed` event, stop retaining its buffered events in `run-events.ts` after current subscribers have consumed them. Keep replay for events published before the detail page subscribes, but avoid unbounded per-run memory growth.
+* [x] **Make save failure block execution:** change the release autosave/save path so `save()` reports failure or throws instead of swallowing backend errors. `runShip()` must abort immediately if the latest config cannot be persisted and must never execute an older stored release.
+* [x] **Reflect persistence failure in Ship availability:** include `saveState === "error"` in `canShip`/`releaseCanRun` so Ship stays disabled while the current release is not safely persisted. Preserve the existing planner-error/running/planning checks.
+* [x] **Add focused regressions:** test terminal live-event projection including artifacts/deliveries/counters, terminal event-buffer cleanup, `runShip()` aborting after save failure, and Ship disabled on save error. Keep these as UI/core unit tests; no Electron tests.
+* [ ] **Final verification:** run UI/core/CLI tests, lint, typecheck, and full CI. Preserve all other PR #93 behavior and do not refactor unrelated release architecture during this pass.
