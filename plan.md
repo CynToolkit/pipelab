@@ -1,948 +1,790 @@
-# Phase 3 Final Fixes — Planner-Authoritative Auto Builds + UX Cleanup
+# CLI Dry-Run + Release Integration Test Plan
 
 ## Objective
 
-Fix the remaining blockers in the current PR #93 implementation without redoing completed Phase 3 work.
+Finish the testing strategy cleanup by making the CLI the canonical lightweight host for release integration verification.
 
-Focus only on:
+Electron testing is already intentionally limited and must stay that way.
 
-1. making automatic required-build creation planner-authoritative;
-2. fixing destination creation so auto-resolution actually runs;
-3. making Add Build defaults visible;
-4. removing the reintroduced Construct-specific field UI;
-5. restoring field-level validation inside settings dialogs;
-6. using normal opaque Build Profile IDs.
+This task should:
 
-Do not redesign the planner, compiler, runtime, wizard, autosave, or compact card UI.
+1. make `workflow run --dry-run` perform real release planning/compilation;
+2. ensure dry-run never executes workflow/plugin side effects;
+3. add representative release integration scenarios through the CLI;
+4. remove the remaining need for manual Electron release testing;
+5. preserve the new repository rule forbidding Electron E2E/feature tests.
 
----
-
-# Existing work to preserve
-
-Already implemented and must remain:
-
-* intent-only creation wizard;
-* compact Source / Build / Destination cards;
-* collapsed Build Plan;
-* optional destination slot input;
-* explicit Choose Output flow;
-* central `ReleaseBuildPreferences`;
-* `getReleaseBuildPreferences()`;
-* Desktop fallback preference = Electron + Windows x64;
-* automatic required-build completion trigger;
-* no continuous recreation after explicit deletion;
-* serialized autosave;
-* stale planner request protection;
-* generic Construct `source.inspect()` field options;
-* compiler rejection of unresolved releases.
+Do not add any new Electron tests.
 
 ---
 
-# 1. Make automatic required-build creation planner-authoritative
+# Existing testing policy to preserve
 
-## Problem
-
-Current `resolveMissingDestinationInputs()` decides compatibility in the UI/model layer using catalog descriptors and `evaluateArtifactAcceptance()`.
-
-That is insufficient because:
-
-* it bypasses executable `acceptsWhen`;
-* it only checks whether the Build output can satisfy the destination;
-* it does not guarantee the preferred engine can consume the actual upstream artifact;
-* it can therefore create an invalid default Build Profile.
-
-Example to avoid:
+The repo now has the intended testing split:
 
 ```text
-Godot project
-→ Steam requires desktop
-→ preference says Electron
-→ Electron output would satisfy Steam
-→ UI creates Electron
+Unit/component tests
+        +
+CLI integration/E2E
+        +
+Desktop package/make
 ```
-
-Electron cannot consume a Godot project, so this must not happen.
-
-## Required architecture
-
-Do not duplicate planner compatibility logic in Vue/model helpers.
-
-The flow must be:
-
-```text
-Unresolved destination
-→ identify preferred build candidate
-→ tentatively add candidate to a cloned config
-→ call backend planner
-→ accept candidate only if planner resolves it successfully
-→ persist candidate + route
-```
-
-The planner/backend remains the authority for:
-
-* producer input compatibility;
-* automatic transforms;
-* dynamic `acceptsWhen`;
-* target compatibility;
-* availability;
-* destination compatibility.
-
----
-
-# 2. Add a backend-assisted default-resolution operation
-
-Preferred implementation: create one generic backend API for resolving default configuration additions.
-
-Conceptually:
-
-```ts
-release:resolve-defaults(config, preferences)
-```
-
-Return something like:
-
-```ts
-interface ReleaseDefaultResolution {
-  config: ReleaseConfig;
-  changed: boolean;
-}
-```
-
-or equivalent.
-
-Backend implementation may internally:
-
-```text
-plan original config
-→ find enabled unrouted destination slots
-→ try existing public outputs
-→ try configured preferred Build Profile candidates
-→ plan each tentative configuration
-→ keep only candidates accepted by planner
-→ assign resulting ReleaseOutputRef
-→ return updated config
-```
-
-Do not return compiler/internal `ArtifactRef` values to the UI.
-
-Persist normal `ReleaseOutputRef`.
-
-If adding a new API is unnecessary because an existing backend planning API can cleanly support the same loop, reuse it.
-
-The important constraint is:
-
-> Candidate validation must execute through the real planner, not catalog-only UI logic.
-
----
-
-# 3. Preferred Build candidate selection
-
-The preference layer may choose which candidate to try first.
 
 Keep:
 
+* `.agents/rules/testing.md`
+* `GEMINI.md` testing guidance
+* Electron smoke disabled from CI
+* `smoke:electron:manual`
+* Desktop make/package matrix
+* CLI E2E under `apps/cli/tests/e2e`
+* UI behavior tested without Electron
+
+Do not reintroduce Electron as an integration host.
+
+---
+
+# 1. Make CLI `--dry-run` a real compile-only release test
+
+## Current problem
+
+Current `workflow run --dry-run` exits too early.
+
+Conceptually it currently does:
+
 ```ts
-getReleaseBuildPreferences()
+if (options.dryRun) {
+  printSummary();
+  writeConfig();
+  return;
+}
 ```
 
-Current fallback remains:
+This means dry-run does not prove that:
 
-```text
-desktop
-→ Electron
-→ Windows x64
-```
+* plugins can load;
+* release planning succeeds;
+* builds resolve;
+* destinations resolve;
+* compilation succeeds;
+* artifact routing is valid.
 
-Preference selection is allowed to decide:
-
-```text
-build type
-engine
-target(s)
-```
-
-It is NOT allowed to decide whether that Build is actually compatible.
-
-Compatibility decision belongs to the planner.
+That makes it too weak for release integration testing.
 
 ---
 
-# 4. Determining which build type to try
+# 2. Redefine `--dry-run`
 
-Do not introduce a generic rule like:
-
-```text
-destination failed
-→ always try desktop
-```
-
-Use configured preference candidates only where their target output could plausibly satisfy the destination, then confirm with the planner.
-
-Current preferences may only contain Desktop.
-
-That is fine.
-
-If no preferred Build candidate can be validated:
+`workflow run --dry-run` should mean:
 
 ```text
-destination remains unresolved
-→ Needs attention
-→ Create compatible build
+Load workflow/release config
+→ load built-in plugins
+→ build ReleaseRegistry
+→ resolve defaults if appropriate
+→ plan/validate release
+→ compile workflow
+→ serialize result
+→ STOP before workflow execution
 ```
 
-Do not invent another engine from catalog ordering.
+It must never execute plugin runners.
+
+No filesystem writes from workflow steps.
+
+No Steam upload.
+
+No Poki publish.
+
+No Electron packaging.
+
+No Godot process launch.
+
+No external network side effects.
 
 ---
 
-# 5. Reuse existing compatible outputs first
-
-Before creating a Build Profile:
-
-1. re-plan current config;
-2. use an existing compatible public planner output if available;
-3. route the destination to it;
-4. only create a new preferred Build if no existing output resolves the requirement.
-
-Do not create duplicate Desktop profiles unnecessarily.
-
----
-
-# 6. Generated Build Profiles use opaque IDs
-
-Do not create semantic IDs such as:
-
-```text
-desktop-default
-electron-default
-```
-
-Use the same normal ID generation strategy as manually-created Build Profiles.
+# 3. Expected CLI behavior
 
 Example:
 
-```ts
-nanoid()
+```bash
+pipelab workflow run my-release --dry-run
 ```
 
-or the existing project-standard generator.
+Should:
 
-The identity must not encode:
-
-* build type;
-* engine;
-* target;
-* "default" status.
-
-Meaning stays in:
-
-```ts
-build.type
-build.engine
-build.targets
+```text
+✓ load config
+✓ load plugins
+✓ validate/plan
+✓ compile workflow
+✓ exit 0
 ```
 
-Generated profiles are ordinary Build Profiles after creation.
+If compilation/planning fails:
+
+```text
+✗ print useful errors
+✗ exit non-zero
+```
 
 ---
 
-# 7. Fix destination creation
+# 4. `--output` behavior in dry-run
 
-## Problem
+When used with:
 
-Adding a destination currently creates:
+```bash
+pipelab workflow run my-release --dry-run --output result.json
+```
+
+write a deterministic machine-readable result.
+
+Preferred shape:
 
 ```ts
-slots: []
-```
-
-but automatic resolution operates on enabled slots with missing `input`.
-
-The planner therefore emits:
-
-```text
-release.destination.slot.required
-```
-
-instead of:
-
-```text
-release.destination.input.required
-```
-
-and the auto-resolution path cannot run.
-
-## Fix
-
-When adding a destination from the editor, create one normal unrouted enabled slot:
-
-```ts
-{
-  id: <unique slot id>,
-  enabled: true,
-  input: undefined,
-  config: {}
+interface WorkflowDryRunResult {
+  workflowId: string;
+  release: ReleaseConfig;
+  plan: ReleasePlan;
+  workflow: Workflow;
 }
 ```
 
-Use provider/default slot configuration if the existing destination abstraction supplies one.
+Exact shape may differ if existing CLI result conventions suggest something simpler.
 
-Do not route it yet.
+The important part is that tests can inspect:
 
-Then trigger the default-resolution operation.
+* resolved Build Profiles;
+* selected targets;
+* destination routing;
+* compiled workflow steps;
+* artifact dependencies.
 
-Expected:
+Do not output only the original input config.
+
+---
+
+# 5. Keep planning and compilation authoritative
+
+Do not reproduce planner/compiler logic inside the CLI command.
+
+Use existing core APIs:
 
 ```text
-Add Steam
-→ Steam slot exists but is unrouted
-→ resolver runs
-→ default Desktop candidate is validated by planner
-→ Build created if valid
-→ Steam routed
+resolveReleaseDefaults(...)
+planRelease(...)
+compileWorkflow(...)
+```
+
+or the canonical existing equivalents.
+
+CLI is only an orchestration/test host.
+
+---
+
+# 6. Default resolution in dry-run
+
+If normal Release execution automatically resolves defaults before execution, dry-run must follow the same logic.
+
+Example:
+
+```text
+Construct
+→ Steam
+```
+
+must dry-run through:
+
+```text
+Construct
+→ auto default Desktop
+→ Electron
+→ Windows x64
+→ Steam
+```
+
+Dry-run must represent the same configuration/execution plan the real release would use.
+
+Avoid having:
+
+```text
+real execution behavior ≠ dry-run behavior
 ```
 
 ---
 
-# 8. Preserve explicit manual deployment creation
+# 7. Dry-run must not persist automatic fixes unless intended
 
-The separate `Add deployment` action should remain explicit.
+Prefer treating dry-run as non-mutating.
 
-It must create:
-
-```ts
-input: undefined
-```
-
-and not automatically use:
-
-```ts
-outputOptions[0]
-```
-
-Manual deployment creation is different from automatic completion triggered by adding a destination.
-
-Do not reintroduce arbitrary routing.
-
----
-
-# 9. Fix Add Build target visibility
-
-## Problem
-
-`createBuildProfile()` enables the first target by default, while the Add Build dialog can visually show no selected target.
-
-That means persisted state does not match what the user saw.
-
-## Fix
-
-When:
+If default resolution produces:
 
 ```text
-Build Type selected
-+
-Engine selected
-```
-
-visibly select the intended target in `newBuildTarget`.
-
-For now:
-
-```text
-first valid target
-```
-
-is acceptable for the manual Add Build dialog as long as it is visibly selected.
-
-Better if the existing preference helper can supply the target when relevant.
-
-Required:
-
-```text
-Type
-Desktop
-
-Engine
-Electron
-
-Target
-Windows x64   ← visibly selected
-```
-
-`Add build` must be disabled when the engine has targets but none is selected.
-
-Do not persist an invisible target selection.
-
----
-
-# 10. Remove reintroduced `browser-profile` generic UI
-
-The generic release field renderer must not contain Construct-specific behavior.
-
-Remove:
-
-```ts
-"browser-profile"
-```
-
-from:
-
-```ts
-ReleaseFieldDefinition.type
-```
-
-if no remaining provider uses it.
-
-Remove from `ReleaseFieldControl.vue`:
-
-```vue
-<BrowserProfilePicker ... />
-```
-
-Remove:
-
-```ts
-import BrowserProfilePicker ...
-```
-
-Delete the component if unused.
-
-Construct must continue using:
-
-```text
-source.inspect()
-→ fieldOptions.profilePath
-→ generic select
-```
-
-Construct source field remains conceptually:
-
-```ts
-{
-  key: "profilePath",
-  type: "select",
-  label: "Browser profile"
-}
-```
-
-Do not modify the working browser-profile discovery backend.
-
----
-
-# 11. Restore field-level validation inside settings dialogs
-
-## Problem
-
-The compact main page is correct, but detailed path-scoped errors were removed too aggressively.
-
-The main page should stay clean.
-
-The settings dialogs should still show exact validation beside affected controls.
-
-## Source settings
-
-Map:
-
-```text
-source.config.<field>
-source.<field>
-```
-
-to the corresponding `ReleaseFieldControl`.
-
-## Build settings
-
-Map:
-
-```text
-builds.N.engine
-```
-
-to Engine.
-
-Map:
-
-```text
-builds.N.input
-```
-
-to Input.
-
-Map:
-
-```text
-builds.N.config.<field>
-```
-
-to engine setting.
-
-Map:
-
-```text
-builds.N.targets.M...
-```
-
-to target/target setting.
-
-## Destination settings
-
-Map:
-
-```text
-destinations.N.config.<field>
-```
-
-to destination setting.
-
-## Deployment settings
-
-Map:
-
-```text
-destinations.N.slots.M.input
-```
-
-to Output.
-
-Map:
-
-```text
-destinations.N.slots.M.config.<field>
-```
-
-to deployment setting.
-
----
-
-# 12. Extend generic field control for validation
-
-Preferred approach:
-
-```ts
-interface ReleaseFieldControlProps {
-  ...
-  issues?: ValidationIssue[];
-}
-```
-
-Render small field-local messages below the control.
-
-Preserve severity:
-
-```text
-error
-warning
-```
-
-Do not put those detailed messages back on main cards.
-
-Main page remains:
-
-```text
-Needs attention
-```
-
-with optional diagnostics modal.
-
----
-
-# 13. Keep compact cards unchanged
-
-Do not undo the current simplified card work.
-
-Build card should remain approximately:
-
-```text
-Desktop                                  Ready
-Electron · Windows x64
-
-                                  [ Configure ]
-```
-
-Destination:
-
-```text
-Steam                                    Ready
 Desktop / Electron / Windows x64
 ```
 
-or:
+for an incomplete ReleaseConfig:
+
+* include the resolved version in dry-run output;
+* do not write it back to the stored workflow config.
+
+Dry-run should answer:
 
 ```text
-Steam                          Needs attention
-No output configured
-
-[ Choose output ]
-[ Create compatible build ]
+"What would Pipelab run?"
 ```
 
-Do not restore inline Engine, Targets, Input, or raw issue lists.
+not:
+
+```text
+"Modify my release."
+```
 
 ---
 
-# 14. Keep Build Plan collapsed
+# 8. Add CLI release integration test file
 
-Preserve current:
+Create or extend:
 
 ```text
-Build plan
-[ View plan ]
+apps/cli/tests/e2e/tests/releases.spec.ts
 ```
 
-or equivalent collapsed behavior.
+Prefer a separate file rather than continuing to grow generic `integration.spec.ts`.
 
-Do not expand automatically.
+Use the existing test helpers:
+
+```ts
+createSandbox()
+runCLI()
+```
+
+Do not introduce another framework.
+
+Do not introduce Playwright.
 
 ---
 
-# 15. Auto-resolution trigger rules
+# 9. Test: Construct → Poki
 
-Automatic default completion must run only on intentional lifecycle triggers.
-
-Keep/implement triggers such as:
+Create a lightweight release fixture/config representing:
 
 ```text
-initial editor open for newly-created/unresolved release
-new destination added
+Construct source
+→ Poki
 ```
 
-Do NOT run it after every reactive planner refresh.
-
-Do NOT recreate a Build immediately after the user deletes it.
-
-Example:
+Run:
 
 ```text
-auto-created Desktop
-→ user deletes Desktop
-→ Steam becomes unresolved
-→ Desktop stays deleted
+workflow run <id> --dry-run --output <result>
 ```
 
-The user can then use:
+Assert:
 
 ```text
-Create compatible build
+no Desktop build generated
+Poki routes from Source
+no Electron producer step
+compiled release is valid
 ```
 
-or another explicit repair action.
+Do not contact Poki.
 
 ---
 
-# 16. Auto-resolution algorithm
-
-Use this sequence:
-
-```text
-1. Plan current configuration.
-
-2. For every enabled unrouted destination slot:
-
-   a. Try compatible existing planner outputs.
-      If exactly usable, route it.
-
-   b. Otherwise inspect configured default Build preferences.
-
-   c. Construct one tentative Build Profile using:
-      - preferred build type
-      - preferred engine
-      - preferred target(s)
-      - opaque ID
-
-   d. Clone config and add candidate.
-
-   e. Run planner on tentative config.
-
-   f. Verify:
-      - candidate Build resolves successfully;
-      - expected target appears in planner outputs;
-      - destination accepts/routes to that output;
-      - no candidate-specific blocking error exists.
-
-   g. Only then mutate/persist real config.
-
-3. Re-plan final configuration.
-
-4. Leave unresolved destinations untouched when no deterministic
-   valid default exists.
-```
-
-Do not infer semantic meaning from files.
-
-Do not inspect source contents to decide Build type/engine.
-
----
-
-# 17. Tests — planner-authoritative defaults
-
-Add focused tests for:
-
-### Construct → Steam
-
-```text
-Construct web source
-→ preferred Electron / Windows
-→ planner accepts Electron input
-→ Desktop Build created
-→ Steam routed
-```
-
-### Construct → Poki
-
-```text
-Construct web source
-→ Source already compatible
-→ no Build created
-→ Poki routed to Source
-```
-
-### Construct → Steam + Poki
-
-```text
-exactly one Desktop Build created
-Steam → Desktop
-Poki → Source
-```
-
-### Godot project → Steam
-
-Important regression test:
-
-```text
-Godot project
-→ preference Desktop/Electron
-→ Electron cannot consume Godot project
-→ Electron must NOT be created
-```
-
-If an existing valid Godot Desktop configuration/default is not configured:
-
-```text
-Steam remains unresolved
-```
-
-This test is mandatory.
-
-### Existing compatible Build
-
-```text
-existing Desktop output
-→ reuse it
-→ no duplicate Build
-```
-
-### Dynamic acceptance
-
-Use fake provider with `acceptsWhen`.
-
-Ensure automatic default resolution honors planner dynamic acceptance and cannot bypass it.
-
----
-
-# 18. Tests — destination creation
+# 10. Test: Construct → Steam
 
 Test:
 
 ```text
-add destination
-→ one enabled slot
-→ input === undefined
+Construct
+→ Steam
+```
+
+Expected automatic resolution:
+
+```text
+Desktop
+Electron
+Windows x64
+```
+
+Assert:
+
+```text
+exactly one Desktop build exists
+engine is Electron
+Windows x64 enabled
+Construct feeds Electron
+Electron feeds Steam
+compiled workflow is valid
+```
+
+Do not actually run Electron packaging.
+
+Do not contact Steam.
+
+---
+
+# 11. Test: Construct → Steam + Poki
+
+Test:
+
+```text
+Construct
+├─ Poki
+└─ Steam
+```
+
+Expected:
+
+```text
+Poki ← Source
+
+Steam ← Desktop / Electron / Windows x64
+```
+
+Assert:
+
+```text
+exactly one Desktop build
+Poki uses Source
+Steam uses Desktop
+Electron build is not duplicated
+compiled graph contains correct fan-out
+```
+
+---
+
+# 12. Test: Godot → Steam
+
+Critical regression case.
+
+Input:
+
+```text
+Godot project
+→ Steam
+```
+
+Current preferred Desktop fallback:
+
+```text
+Electron / Windows x64
+```
+
+Electron cannot consume a Godot project.
+
+Assert:
+
+```text
+Electron is NOT created
+invalid preferred default is rejected
+release remains unresolved OR uses a valid Godot Desktop build only if configured
+dry-run exits non-zero when no valid route exists
+```
+
+This protects planner-authoritative default resolution.
+
+---
+
+# 13. Test existing compatible build reuse
+
+Input config already contains:
+
+```text
+Desktop
+Electron
+Windows x64
+```
+
+with Steam unrouted.
+
+Dry-run should reuse it.
+
+Assert:
+
+```text
+no second Desktop build
+existing build ID preserved
+Steam routes to existing target
+```
+
+---
+
+# 14. Test source-direct destination
+
+Use a Web Folder or Construct-style web output with a compatible destination.
+
+Assert:
+
+```text
+destination uses Source directly
+no fake Web build generated
+```
+
+This keeps the original source-direct invariant protected at integration level.
+
+---
+
+# 15. Test automatic transforms
+
+Add one representative test where planner uses automatic plumbing such as:
+
+```text
+ZIP
+→ automatic unzip
+→ destination
+```
+
+Assert:
+
+```text
+automatic producer appears in compiled workflow
+automatic producer does NOT appear as persisted Build Profile
+```
+
+Do not duplicate every transform case.
+
+One representative path is enough.
+
+---
+
+# 16. Test failure output
+
+Add a dry-run failure case.
+
+Example:
+
+```text
+Generic files
+→ incompatible destination
+```
+
+Expected:
+
+```text
+exit non-zero
+useful planner/validation error
+no runner execution
+```
+
+Tests should be able to distinguish:
+
+```text
+invalid release
+```
+
+from:
+
+```text
+runtime/plugin execution failure
+```
+
+because dry-run must never reach execution.
+
+---
+
+# 17. Make dry-run side-effect safe
+
+Add a regression test proving workflow steps are not executed.
+
+Use a test plugin/action or filesystem output that would create a marker if executed.
+
+Run:
+
+```text
+--dry-run
+```
+
+Assert:
+
+```text
+compiled step exists
+marker/output file does NOT exist
+```
+
+This is important.
+
+Dry-run must never accidentally become:
+
+```text
+"run everything except deployments"
+```
+
+It should run nothing.
+
+---
+
+# 18. CLI command architecture
+
+Keep the command flow simple.
+
+Preferred structure:
+
+```ts
+load release config
+
+await builtInPlugins(...)
+
+const registry = buildReleaseRegistry(...)
+
+const resolved = resolveReleaseDefaults(...)
+
+const plan = planRelease(...)
+
+assertNoBlockingErrors(plan)
+
+const workflow = compileWorkflow(...)
+
+if (dryRun) {
+  writeDryRunResult(...)
+  return
+}
+
+executeWorkflow(...)
+```
+
+Avoid duplicating this logic between dry-run and normal execution.
+
+Factor shared preparation into a helper if needed:
+
+```ts
+prepareReleaseExecution(...)
+```
+
+returning:
+
+```ts
+{
+  config,
+  plan,
+  workflow
+}
 ```
 
 Then:
 
 ```text
-default resolver
-→ may resolve that slot
+dry-run → serialize
+normal  → execute
 ```
-
-Do not create `slots: []`.
 
 ---
 
-# 19. Tests — Add Build UI
+# 19. Do not let CLI tests become provider live tests
 
-Test:
+For Steam/Poki/etc., integration tests should verify:
 
 ```text
-choose Desktop
-choose Electron
-→ Windows x64 visibly selected
+planner
+compiler
+artifact routing
+generated task inputs
 ```
 
-Test Add button requires a visible valid target when targets exist.
+Do not require:
 
-Test persisted Build target matches the visible selection.
+* Steam credentials;
+* Poki credentials;
+* real uploads;
+* external service availability.
+
+Use current deterministic test boundaries/mocks.
 
 ---
 
-# 20. Tests — generic fields
+# 20. Update testing documentation
 
-Assert generic release UI no longer references:
+Add a short note to `.agents/rules/testing.md`:
 
 ```text
-browser-profile
-BrowserProfilePicker
-construct:profiles:discover
+Release integration scenarios should prefer:
+
+pipelab workflow run <id> --dry-run
+
+when verifying planner/compiler/routing behavior without executing runners.
 ```
 
-Construct still receives browser profile options through source inspection.
+Keep the existing strict Electron rule unchanged.
 
----
-
-# 21. Tests — field diagnostics
-
-Verify issues are visible in dialogs for:
+Do not weaken:
 
 ```text
-source config field
-build engine
-build input
-build config field
-target config field
-destination config field
-slot input
-slot config field
+Do not add Electron E2E tests.
 ```
-
-Verify warning/error severity.
-
-Verify main cards do not render those detailed messages inline.
 
 ---
 
-# Non-goals
+# 21. Update `GEMINI.md`
 
-Do not:
+Add one concise line:
 
-* implement actual persisted user build preferences yet;
-* redesign Settings;
-* move engine defaults into planner semantics;
-* add source-content detection;
-* make planner choose a preferred engine;
-* change compiler/runtime architecture;
-* rework the wizard again;
-* re-expand main cards;
-* continuously enforce generated defaults after user edits.
+```text
+Use CLI `workflow run --dry-run` for release planner/compiler integration tests that must not execute providers.
+```
 
-The existing ClickUp task tracks persisted user preferences separately.
+No need for a large documentation expansion.
+
+---
+
+# 22. Update Phase 3 verification checklist
+
+Replace vague/manual checks with deterministic CLI acceptance.
+
+Phase 3 verification should become:
+
+```text
+✓ shared planner/default-resolution tests
+✓ core compiler/runtime tests
+✓ UI tests
+✓ CLI release dry-run integration tests
+✓ CLI runtime integration tests
+✓ Desktop make/package matrix
+✓ Electron feature/E2E intentionally absent
+```
+
+Remove any requirement for manual Electron release-flow testing.
+
+---
+
+# 23. Do not add more Electron testing
+
+This is a hard constraint.
+
+Do not add:
+
+```text
+Electron release tests
+Electron workflow tests
+Electron plugin tests
+Electron UI automation
+Playwright Electron tests
+BrowserWindow test harnesses
+xvfb application feature tests
+desktop IPC feature tests
+```
+
+The only permitted Electron runtime test remains:
+
+```text
+one manual startup smoke
+```
+
+and it stays disabled from CI for now.
+
+---
+
+# 24. Definition of done
+
+This task is complete when:
+
+```text
+✓ `workflow run --dry-run` performs plugin load + plan + compile
+✓ dry-run executes zero workflow steps
+✓ dry-run can output plan/workflow result
+✓ Construct → Poki covered through CLI
+✓ Construct → Steam covered through CLI
+✓ Construct → Steam + Poki covered through CLI
+✓ Godot → Steam invalid Electron default covered through CLI
+✓ existing compatible build reuse covered
+✓ one automatic-transform path covered
+✓ failure case covered
+✓ no Electron feature/E2E tests added
+✓ Electron smoke remains disabled from CI
+✓ Desktop packaging matrix remains intact
+✓ full CI passes
+```
 
 ---
 
 # TODO
 
-## Planner-authoritative auto-resolution
+## CLI dry-run
 
-* [x] Remove catalog-only compatibility decisions from automatic Build creation
-* [x] Ensure automatic candidate validation goes through backend `planRelease`
-* [x] Add/reuse backend API for default resolution
-* [x] Keep `ReleaseOutputRef` as persisted routing representation
-* [x] Honor dynamic `acceptsWhen`
-* [x] Validate preferred Build input compatibility through planner
-* [x] Validate preferred Build target/destination compatibility through planner
-* [x] Reuse existing planner outputs before creating new Builds
-* [x] Leave unresolved when no valid deterministic default exists
+* [x] Refactor `workflow run --dry-run`
+* [x] Load built-in plugins during dry-run
+* [x] Build ReleaseRegistry during dry-run
+* [x] Resolve release defaults through canonical resolver
+* [x] Run `planRelease`
+* [x] Fail on blocking planner errors
+* [x] Run `compileWorkflow`
+* [x] Return before `executeWorkflow`
+* [x] Keep dry-run non-mutating
+* [x] Support `--output` with structured dry-run result
 
-## Build preferences
+## CLI execution preparation
 
-* [x] Keep `ReleaseBuildPreferences`
-* [x] Keep `getReleaseBuildPreferences()`
-* [x] Keep Desktop → Electron → Windows x64 fallback
-* [x] Use preferences only for candidate selection
-* [x] Do not move engine selection semantics into planner
-* [x] Do not fall back to catalog array order
+* [x] Factor shared release preparation helper if useful
+* [x] Use same preparation path for real execution and dry-run
+* [x] Avoid planner/compiler duplication
+* [x] Preserve current normal execution behavior
 
-## Build IDs
+## CLI release tests
 
-* [x] Replace `desktop-default` style IDs
-* [x] Generate normal opaque Build Profile IDs
-* [x] Ensure generated profiles behave exactly like manual profiles
+* [x] Add `releases.spec.ts`
+* [x] Test Construct → Poki
+* [x] Test Construct → Steam
+* [x] Test Construct → Steam + Poki
+* [x] Test Godot → Steam rejects Electron default
+* [x] Test existing compatible Desktop build reuse
+* [x] Test source-direct destination
+* [x] Test representative automatic transform
+* [x] Test incompatible release failure
+* [x] Test dry-run causes no runtime side effects
 
-## Destination creation
+## Assertions
 
-* [x] Add destination with one enabled unrouted slot
-* [x] Set `input: undefined`
-* [x] Trigger default resolution after destination creation
-* [x] Ensure planner reports input requirement instead of slot-required error
+* [x] Assert generated Build Profile count
+* [x] Assert preferred engine/target
+* [x] Assert destination `ReleaseOutputRef`
+* [x] Assert compiled step dependencies
+* [x] Assert fan-out uses one build
+* [x] Assert no fake Web build
+* [x] Assert no Electron build for incompatible Godot source
+* [x] Assert no runner side effects in dry-run
 
-## Manual deployment routing
+## Test infrastructure
 
-* [x] Preserve explicit `Add deployment`
-* [x] Preserve `input: undefined`
-* [x] Preserve explicit Choose Output dialog
-* [x] Do not use `outputOptions[0]`
+* [x] Keep Vitest
+* [x] Keep `createSandbox()`
+* [x] Keep `runCLI()`
+* [x] Avoid Playwright
+* [x] Avoid live third-party services
+* [x] Keep fixtures deterministic
 
-## Add Build dialog
+## Documentation
 
-* [x] Visibly preselect default/first valid target after engine selection
-* [x] Keep engine selection explicit
-* [x] Disable Add Build if required target selection is missing
-* [x] Ensure persisted target matches visible selection
+* [x] Update `.agents/rules/testing.md` with CLI dry-run guidance
+* [x] Keep explicit ban on Electron feature/E2E tests
+* [x] Update `GEMINI.md` with dry-run guidance
+* [x] Do not weaken existing Electron restrictions
 
-## Generic field cleanup
+## Phase 3 plan
 
-* [x] Remove `"browser-profile"` from `ReleaseFieldDefinition.type`
-* [x] Remove BrowserProfilePicker branch from `ReleaseFieldControl`
-* [x] Remove BrowserProfilePicker import
-* [x] Delete unused BrowserProfilePicker component
-* [x] Keep Construct browser options through `source.inspect()`
-* [x] Confirm generic release UI contains no Construct-specific code
+* [x] Replace manual release smoke items with CLI dry-run integration acceptance
+* [x] Mark Electron feature testing as intentionally out of scope
+* [x] Keep Desktop make/package as desktop acceptance
 
-## Field-level validation
+## Electron
 
-* [x] Add `issues` support to generic `ReleaseFieldControl`
-* [x] Restore Source field errors in Source settings
-* [x] Restore Engine errors in Build settings
-* [x] Restore Build Input errors
-* [x] Restore Build config field errors
-* [x] Restore target field errors
-* [x] Restore destination config field errors
-* [x] Restore deployment Output errors
-* [x] Restore deployment field errors
-* [x] Preserve error/warning severity
-* [x] Keep detailed diagnostics off main cards
+* [x] Do not add any Electron tests
+* [x] Keep smoke manual-only
+* [x] Keep Electron smoke disabled from CI
+* [x] Keep Desktop package/make matrix
 
-## UX preservation
+## Final verification
 
-* [x] Keep compact Source card
-* [x] Keep compact Build cards
-* [x] Keep compact Destination cards
-* [x] Keep Needs attention action
-* [x] Keep Build Plan collapsed
-* [x] Do not reintroduce inline configuration controls
-
-## Auto-resolution lifecycle
-
-* [x] Run on initial unresolved release open where appropriate
-* [x] Run when destination is newly added
-* [x] Do not run continuously after every edit
-* [x] Do not recreate deleted generated Builds automatically
-* [x] Keep Create compatible build manual fallback
-
-## Regression tests
-
-* [x] Construct → Poki: Source route, no Build
-* [x] Construct → Steam: Electron Desktop created
-* [x] Construct → Steam + Poki: exactly one Desktop Build
-* [x] Existing compatible Build reused
-* [x] Godot → Steam does NOT incorrectly create Electron
-* [x] Dynamic `acceptsWhen` respected
-* [x] Add destination creates one unrouted slot
-* [x] Add Build target is visibly selected
-* [x] Persisted target matches UI selection
-* [x] Generic UI contains no browser-profile special case
-* [x] Field-level validation visible only in settings
-* [x] Generated Build uses opaque ID
-* [x] Deleted generated Build is not immediately recreated
-
-## Verification
-
+* [x] Run shared tests
+* [x] Run core-node tests
 * [x] Run UI tests
-* [x] Run shared planner/compiler tests
-* [x] Run core-node integration tests
-* [x] Run typecheck
+* [x] Run CLI E2E tests
 * [x] Run lint
-* [ ] Run full CI
-* [ ] CLI release integration scenarios pass
-* [ ] UI unit/component tests pass
-* [ ] Desktop make/package succeeds on supported platforms
-* [x] Electron runtime smoke disabled intentionally
+* [x] Run typecheck
+* [x] Run full CI
+* [x] Confirm dry-run executes no workflow steps
+* [x] Confirm no CI job launches Electron for feature testing
+* [x] Confirm Desktop package/make still succeeds
