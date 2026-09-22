@@ -620,6 +620,7 @@ const workflowsEnhanced = ref<
   Array<{ id: string; project: string; lastModified: string; content: ReleaseConfig }>
 >([]);
 const brokenWorkflows = ref<Array<{ id: string; error: string }>>([]);
+let workflowLoadRevision = 0;
 const isWorkflowWizardVisible = ref(false);
 
 const searchQuery = ref("");
@@ -834,8 +835,10 @@ watchEffect(async () => {
 });
 
 watchEffect(async () => {
+  const revision = ++workflowLoadRevision;
   const entries = workflows.value.map((flow) => ({ ...flow }));
   const results = await Promise.all(entries.map((flow) => api.execute("workflow:load-by-name", { name: flow.configName, projectId: flow.project })));
+  if (revision !== workflowLoadRevision) return;
   const partitioned = partitionWorkflowLoads(entries, results);
   workflowsEnhanced.value = partitioned.loaded;
   brokenWorkflows.value = partitioned.broken;

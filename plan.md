@@ -4,7 +4,7 @@ Goal: make persisted data used by the new Release Workflow experience trustworth
 
 Important constraint: persistence validity and release readiness are different things. A structurally valid workflow draft must remain saveable even if it is not ready to Ship. Provider-required fields, missing routing, etc. remain planner/validation issues and must not become persistence errors.
 
-- [ ] Create authoritative persisted schemas and parsers for the new Release Workflow data.
+- [x] Create authoritative persisted schemas and parsers for the new Release Workflow data.
   - Define a real versioned ReleaseConfig v3 schema in `packages/shared`.
   - Cover the complete Pipelab-owned structure: top-level config, source envelope, builds, targets, destinations, slots and output refs.
   - Keep provider-owned `config` payloads generic.
@@ -17,7 +17,7 @@ Important constraint: persistence validity and release readiness are different t
   - Preserve provider-specific extra connection fields.
   - Do not use full `validateRelease()` as the persistence schema.
 
-- [ ] Centralize ReleaseConfig version and creation defaults.
+- [x] Centralize ReleaseConfig version and creation defaults.
   - Remove duplicated `"3.0.0"` and blank ReleaseConfig construction from `packages/core-node/src/config.ts` and `apps/ui/src/components/ReleaseFlowWizard.vue`.
   - Add one shared `RELEASE_CONFIG_VERSION`.
   - Add a typed ReleaseConfig creation factory for deterministic Pipelab-owned defaults.
@@ -25,7 +25,7 @@ Important constraint: persistence validity and release readiness are different t
   - Do not synthesize a fake filesystem workflow when loading a missing workflow.
   - A missing workflow must be treated as `not found`.
 
-- [ ] Introduce strict, atomic JSON persistence for new-engine stores without changing legacy Pipeline/SavedFile behavior.
+- [x] Introduce strict, atomic JSON persistence for new-engine stores without changing legacy Pipeline/SavedFile behavior.
   - Add/reuse a core-node JSON persistence helper using write-to-temp + rename in the same directory.
   - Use it for ReleaseConfig files and release-relevant project/connections persistence.
   - Align with the existing atomic strategy in `BuildHistoryStorage`.
@@ -37,7 +37,7 @@ Important constraint: persistence validity and release readiness are different t
   - Reject unknown/future versions.
   - Do not globally change legacy `setupPipelineConfigFile*`, `savedFileMigrator`, `processGraph()` behavior.
 
-- [ ] Make workflow identity and project references authoritative and impossible to mismatch.
+- [x] Make workflow identity and project references authoritative and impossible to mismatch.
   - Add a domain-level workflow loader/saver based on workflow identity.
   - Derive the canonical workflow file internally instead of trusting arbitrary config filenames.
   - On load/save verify:
@@ -53,7 +53,7 @@ Important constraint: persistence validity and release readiness are different t
   - Prevent deleting a project while a new-engine workflow references it.
   - Do not expand these rules into legacy pipeline behavior.
 
-- [ ] Make workflow create/save/delete and workflow-index mutations failure-safe.
+- [x] Make workflow create/save/delete and workflow-index mutations failure-safe.
   - Move coordination between workflow files and `projects.json` behind the core-node/domain boundary.
   - Stop implementing the transaction in `apps/ui/src/store/files.ts`.
   - Creation:
@@ -71,14 +71,14 @@ Important constraint: persistence validity and release readiness are different t
     - use reversible rename/snapshot rollback where needed.
   - Renderer receives one success/error result for the complete operation.
 
-- [ ] Stop the UI from hiding persistence corruption or stale references.
+- [x] Stop the UI from hiding persistence corruption or stale references.
   - Do not treat backend load failure as defaults, empty state or success.
   - `apps/ui/src/pages/index.vue` currently silently drops workflows when `workflow:load-by-name` fails: replace this with an explicit broken/error state.
   - `release-flow.vue` must reject a loaded workflow whose ID/project does not match the route.
   - Make config-load errors propagate from `useConfig` instead of leaving default data looking successfully loaded.
   - Keep recovery UX minimal; full recovery UI belongs to later phases.
 
-- [ ] Harden connections persistence while preserving plugin extensibility.
+- [x] Harden connections persistence while preserving plugin extensibility.
   - Validate connections on both load and save.
   - Enforce version, Pipelab-owned envelope and unique IDs.
   - Reject malformed/unsupported connection files predictably.
@@ -90,7 +90,7 @@ Important constraint: persistence validity and release readiness are different t
   - Return validation/reference issues instead of selecting another connection automatically.
   - Do not turn provider internals into shared Pipelab schemas.
 
-- [ ] Version and structurally validate persisted workflow run history and artifacts.
+- [x] Version and structurally validate persisted workflow run history and artifacts.
   - Replace unchecked `JSON.parse(...) as BuildHistoryEntry[]` with a versioned history document schema.
   - Cover Pipelab-owned:
     - run entries;
@@ -107,7 +107,7 @@ Important constraint: persistence validity and release readiness are different t
   - Keep provider/runtime-owned output and metadata generic where appropriate.
   - Historical workflow/project IDs must not require the current workflow to still exist.
 
-- [ ] Remove new-engine fallback identities and untrustworthy persisted metadata during execution.
+- [x] Remove new-engine fallback identities and untrustworthy persisted metadata during execution.
   - Remove `config.project || config.id`.
   - Remove `config.project || "workflow"`.
   - Require the validated project ID.
@@ -117,7 +117,7 @@ Important constraint: persistence validity and release readiness are different t
   - Do not persist fabricated metadata such as `projectName = config.name`.
   - If a legacy history field has no truthful value for release workflows, make it optional/version it rather than inventing data.
 
-- [ ] Tighten Pipelab-owned types without destroying provider/runtime extension points.
+- [x] Tighten Pipelab-owned types without destroying provider/runtime extension points.
   - Remove unjustified broad casts and index signatures at persistence boundaries.
   - Prioritize:
     - ReleaseConfig envelopes;
@@ -136,7 +136,7 @@ Important constraint: persistence validity and release readiness are different t
   - Parsing must perform runtime narrowing.
   - Avoid unrelated cleanup/refactors.
 
-- [ ] Add regression coverage for every Phase-4 acceptance case and run repository-required verification.
+- [x] Add regression coverage for every Phase-4 acceptance case and run repository-required verification.
   - Shared tests:
     - valid ReleaseConfig v3 round-trip;
     - malformed structure;

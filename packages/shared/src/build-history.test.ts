@@ -31,4 +31,44 @@ describe("parseBuildHistoryDocument", () => {
       parseBuildHistoryDocument({ version: "1.0.0", entries: [{ ...entry, status: "unknown" }] }),
     ).toThrow("unsupported value");
   });
+
+  it("rejects malformed persisted artifacts and deliveries", () => {
+    const artifact = {
+      id: "artifact-1",
+      path: "/tmp/build.zip",
+      stepId: "step-1",
+      artifact: "output",
+      descriptor: { kind: "files", container: "archive" },
+    };
+    expect(() =>
+      parseBuildHistoryDocument({
+        version: "1.0.0",
+        entries: [
+          {
+            ...entry,
+            artifacts: [{ ...artifact, descriptor: { kind: "unknown", container: "archive" } }],
+          },
+        ],
+      }),
+    ).toThrow("descriptor");
+    expect(() =>
+      parseBuildHistoryDocument({
+        version: "1.0.0",
+        entries: [{ ...entry, deliveries: [{ id: "delivery-1", status: "pending" }] }],
+      }),
+    ).toThrow("delivery");
+    expect(
+      parseBuildHistoryDocument({
+        version: "1.0.0",
+        entries: [
+          {
+            ...entry,
+            artifacts: [
+              { id: "legacy", path: "/tmp/output", stepId: "step-1", artifact: "output" },
+            ],
+          },
+        ],
+      }).entries[0]?.artifacts,
+    ).toHaveLength(1);
+  });
 });

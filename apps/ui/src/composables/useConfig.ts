@@ -48,6 +48,7 @@ function createConfigComposable<T>(
       } catch (err) {
         console.error(`[useConfig] error loading "${loadChannel}":`, err);
         error.value = err instanceof Error ? err.message : String(err);
+        loadedPromise = null;
         throw err;
       } finally {
         loading.value = false;

@@ -52,4 +52,18 @@ describe("useConnectionsConfig", () => {
     await expect(config.load()).rejects.toThrow("Corrupt connections file");
     expect(config.error.value).toBe("Corrupt connections file");
   });
+
+  it("allows a failed load to be retried without requiring force", async () => {
+    execute
+      .mockResolvedValueOnce({ type: "error", ipcError: "Temporary read failure" })
+      .mockResolvedValueOnce({
+        type: "success",
+        result: { version: "1.0.0", connections: [] },
+      });
+    const config = useConnectionsConfig();
+
+    await expect(config.load()).rejects.toThrow("Temporary read failure");
+    await expect(config.load()).resolves.toBeUndefined();
+    expect(execute).toHaveBeenCalledTimes(2);
+  });
 });

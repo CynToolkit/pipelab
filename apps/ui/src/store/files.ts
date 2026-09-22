@@ -56,7 +56,7 @@ export const useFiles = defineStore("files", () => {
       projectId: flow.project,
     });
     if (result.type === "error") throw new Error(result.ipcError);
-    await load();
+    await load(true);
   };
 
   const removeWorkflow = async (id: string) => {
@@ -67,7 +67,7 @@ export const useFiles = defineStore("files", () => {
         projectId: flow.project,
       });
       if (result.type === "error") throw new Error(result.ipcError);
-      await load();
+      await load(true);
     }
   };
 
