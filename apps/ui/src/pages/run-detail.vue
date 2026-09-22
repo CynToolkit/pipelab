@@ -318,7 +318,6 @@ const selectedStep = computed({
 const activePanel = ref<Panel>("logs");
 const cancelling = ref(false);
 const logViewport = ref<HTMLElement>();
-let timer: ReturnType<typeof setTimeout> | undefined;
 let loadGeneration = 0;
 const shortId = computed(() =>
   entry.value?.id ? entry.value.id.slice(0, 8) : String(route.params.runId).slice(0, 8),
@@ -496,7 +495,6 @@ const cancel = async () => {
 };
 const selectStep = (stepId: string | null) => selectRunStep(stepSelection, stepId);
 const load = async () => {
-  if (timer) clearTimeout(timer);
   const generation = ++loadGeneration;
   const runId = String(route.params.runId);
   const pipelineId = String(route.params.projectId || "");
@@ -539,7 +537,6 @@ const load = async () => {
     if (!isCurrentRun()) return;
     error.value = cause instanceof Error ? cause.message : String(cause);
   }
-  if (entry.value?.status === "running") timer = setTimeout(() => void load(), 1000);
 };
 watch(
   () => [route.params.flowId, route.params.projectId, route.params.runId],
@@ -554,7 +551,6 @@ watch(
 onMounted(load);
 onUnmounted(() => {
   loadGeneration++;
-  if (timer) clearTimeout(timer);
 });
 </script>
 
