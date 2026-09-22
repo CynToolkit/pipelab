@@ -288,8 +288,8 @@ describe("release flow model", () => {
 
   it("labels destination readiness consistently", () => {
     expect(readinessLabel(true, true, false)).toBe("Ready");
-    expect(readinessLabel(true, false, false)).toBe("Not configured");
-    expect(readinessLabel(true, true, true)).toBe("Not configured");
+    expect(readinessLabel(true, false, false)).toBe("Needs attention");
+    expect(readinessLabel(true, true, true)).toBe("Needs attention");
     expect(readinessLabel(false, true, false)).toBe("Disabled");
   });
 });

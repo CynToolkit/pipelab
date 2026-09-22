@@ -215,6 +215,7 @@
                 >
               </div>
               <Tag
+                v-if="destinationReadiness(destination, index) !== 'Needs attention'"
                 :value="destinationReadiness(destination, index)"
                 :severity="
                   destinationReadiness(destination, index) === 'Ready' ? 'success' : 'secondary'
@@ -257,6 +258,13 @@
                   >
                 </div>
                 <Tag
+                  v-if="
+                    readinessLabel(
+                      slot.enabled,
+                      Boolean(slot.input),
+                      Boolean(slotCardIssues(slot).length),
+                    ) !== 'Needs attention'
+                  "
                   :value="
                     readinessLabel(
                       slot.enabled,

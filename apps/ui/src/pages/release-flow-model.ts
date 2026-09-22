@@ -158,7 +158,7 @@ export const deploymentSlotLabel = (slot: ReleaseDestinationSlot, index: number)
 
 export const readinessLabel = (enabled: boolean, configured: boolean, hasIssues: boolean) => {
   if (!enabled) return "Disabled";
-  return configured && !hasIssues ? "Ready" : "Not configured";
+  return configured && !hasIssues ? "Ready" : "Needs attention";
 };
 
 export const applyProducerInspection = (
