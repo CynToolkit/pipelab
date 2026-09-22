@@ -41,10 +41,11 @@ export const steamDestination: ReleaseDestinationDefinition = {
         ]
       : []),
     ...config.slots
-      .filter((slot) => slot.enabled && !String(slot.config.depotId || "").trim())
-      .map((slot) => ({
+      .map((slot, index) => ({ slot, index }))
+      .filter(({ slot }) => slot.enabled && !String(slot.config.depotId || "").trim())
+      .map(({ slot, index }) => ({
         code: "steam.depot.required",
-        message: `Depot ID is required for slot ${slot.id}.`,
+        message: `Depot ID is required for ${slot.name?.trim() || `Deployment ${index + 1}`}.`,
         severity: "error" as const,
         path: `slots.${slot.id}.config.depotId`,
       })),

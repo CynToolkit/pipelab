@@ -10,6 +10,8 @@ import {
   issuesForPath,
   planOutputOptions,
   plannerAcceptsBuildCandidate,
+  deploymentSlotLabel,
+  releaseCanRun,
   setBuildTargetEnabled,
   switchBuildProfileEngine,
 } from "./release-flow-model";
@@ -245,5 +247,41 @@ describe("release flow model", () => {
     } as never;
     expect(connectionMatchesIntegration(connection, "@pipelab/plugin-steam")).toBe(true);
     expect(connectionMatchesIntegration(connection, "@pipelab/plugin-itch")).toBe(false);
+  });
+
+  it("only allows shipping a fully planned release without blocking issues", () => {
+    const flow = {} as ReleaseConfig;
+    const plan = { issues: [] } as unknown as ReleasePlan;
+    expect(releaseCanRun(flow, plan, [], false, false)).toBe(true);
+    expect(releaseCanRun(flow, undefined, [], false, false)).toBe(false);
+    expect(
+      releaseCanRun(
+        flow,
+        plan,
+        [{ code: "invalid", message: "Fix it", severity: "error" }],
+        false,
+        false,
+      ),
+    ).toBe(false);
+    expect(
+      releaseCanRun(
+        flow,
+        plan,
+        [{ code: "warn", message: "Review it", severity: "warning" }],
+        false,
+        false,
+      ),
+    ).toBe(true);
+    expect(releaseCanRun(flow, plan, [], true, false)).toBe(false);
+    expect(releaseCanRun(flow, plan, [], false, true)).toBe(false);
+  });
+
+  it("uses a deployment name with a friendly fallback", () => {
+    expect(
+      deploymentSlotLabel({ id: "opaque", enabled: true, config: {}, name: "Windows build" }, 0),
+    ).toBe("Windows build");
+    expect(deploymentSlotLabel({ id: "opaque", enabled: true, config: {} }, 1)).toBe(
+      "Deployment 2",
+    );
   });
 });

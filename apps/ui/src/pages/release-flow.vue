@@ -24,7 +24,7 @@
           label="Ship"
           icon="mdi mdi-rocket-launch-outline"
           :loading="running"
-          :disabled="!flow || running"
+          :disabled="!canShip"
           @click="ship"
         />
       </template>
@@ -244,11 +244,12 @@
               />
             </div>
             <div v-if="destination.enabled" class="slot-list">
-              <div v-for="slot in destination.slots" :key="slot.id" class="slot-row">
+              <div v-for="(slot, slotIndex) in destination.slots" :key="slot.id" class="slot-row">
                 <div class="deployment-main">
-                  <i class="mdi mdi-package-variant-closed" /><span>{{
-                    artifactLabel(slot.input)
-                  }}</span>
+                  <i class="mdi mdi-package-variant-closed" /><span
+                    ><strong>{{ deploymentSlotLabel(slot, slotIndex) }}</strong
+                    ><small>{{ artifactLabel(slot.input) }}</small></span
+                  >
                 </div>
                 <Button
                   v-if="!slot.input"
@@ -269,6 +270,14 @@
                   severity="danger"
                   aria-label="Remove deployment slot"
                   @click="removeSlot(destination, slot.id)"
+                /><Button
+                  v-if="slotIssues(slot).length"
+                  class="needs-attention-button"
+                  label="Needs attention"
+                  icon="pi pi-exclamation-triangle"
+                  text
+                  size="small"
+                  @click="openAttention(slotIssues(slot))"
                 /><Button
                   v-if="slotIssues(slot).length"
                   label="Create compatible build"
@@ -524,6 +533,14 @@
       :style="dialogStyle"
       ><div v-if="settingsDestination && settingsSlot" class="settings-grid">
         <div class="release-field wide">
+          <label :for="`slot-${settingsSlot.id}-name`">Deployment name</label>
+          <InputText
+            :id="`slot-${settingsSlot.id}-name`"
+            v-model="settingsSlot.name"
+            placeholder="Deployment name"
+          />
+        </div>
+        <div class="release-field wide">
           <label>Output</label
           ><Select
             :model-value="outputRefValue(settingsSlot.input)"
@@ -624,7 +641,7 @@
           label="Ship release"
           icon="mdi mdi-rocket-launch-outline"
           :loading="running"
-          :disabled="!releaseVersion.trim()"
+          :disabled="!releaseVersion.trim() || !canShip"
           @click="runShip" /></template
     ></Dialog>
   </Layout>
@@ -669,9 +686,11 @@ import {
   connectionMatchesIntegration,
   createBuildProfile,
   createSerializedTaskQueue,
+  deploymentSlotLabel,
   issuesForPath,
   planOutputOptions,
   plannerAcceptsBuildCandidate,
+  releaseCanRun,
   removeBuildProfile,
   setBuildTargetEnabled,
   switchBuildProfileEngine,
@@ -705,6 +724,7 @@ const attentionIssues = ref<ValidationIssue[]>([]);
 const planExpanded = ref(false);
 const error = ref("");
 const running = ref(false);
+const planning = ref(false);
 const saveState = ref<"saving" | "saved" | "error">("saved");
 const inspectionOptions = ref<Record<string, ReleaseFieldOption[]>>({});
 const producerInspectionOptions = ref<Record<string, ReleaseFieldOption[]>>({});
@@ -742,6 +762,9 @@ const dialogStyle = { width: "560px", maxWidth: "94vw" };
 const wideDialogStyle = { width: "760px", maxWidth: "94vw" };
 const saveStateLabel = computed(() =>
   saveState.value === "saving" ? "Saving…" : saveState.value === "error" ? "Error" : "Saved",
+);
+const canShip = computed(() =>
+  releaseCanRun(flow.value, plan.value, issues.value, running.value, planning.value),
 );
 const openAttention = (cardIssues: ValidationIssue[]) => {
   attentionIssues.value = cardIssues;
@@ -926,6 +949,7 @@ const addDestination = () => {
       slots: [
         {
           id: nanoid(),
+          name: "Deployment 1",
           enabled: true,
           config: {},
         },
@@ -944,6 +968,7 @@ const removeDestination = (id: string) => {
 const addSlot = (destination: ReleaseDestinationConfig) => {
   destination.slots.push({
     id: nanoid(),
+    name: `Deployment ${destination.slots.length + 1}`,
     enabled: true,
     config: {},
   });
@@ -1177,27 +1202,32 @@ let automaticResolutionRequested = false;
 const refreshPlan = async (resolveDefaults = false) => {
   if (!flow.value) return;
   const requestId = ++latestPlanRequest;
-  const result = await api.execute("release:plan", { config: flow.value });
-  if (requestId !== latestPlanRequest) return;
-  if (result.type === "success") {
-    plan.value = result.result;
-    plannerIssues.value = result.result.issues;
-    if (resolveDefaults && automaticResolutionRequested) {
-      automaticResolutionRequested = false;
-      const resolved = await api.execute("release:resolve-defaults", { config: flow.value });
-      if (
-        resolved.type === "success" &&
-        JSON.stringify(resolved.result) !== JSON.stringify(flow.value)
-      ) {
-        flow.value = resolved.result as ReleaseConfig;
-        changeRevision += 1;
-        await save();
-        await refreshPlan(false);
-      } else if (resolved.type === "error") {
-        error.value = resolved.ipcError;
+  planning.value = true;
+  try {
+    const result = await api.execute("release:plan", { config: flow.value });
+    if (requestId !== latestPlanRequest) return;
+    if (result.type === "success") {
+      plan.value = result.result;
+      plannerIssues.value = result.result.issues;
+      if (resolveDefaults && automaticResolutionRequested) {
+        automaticResolutionRequested = false;
+        const resolved = await api.execute("release:resolve-defaults", { config: flow.value });
+        if (
+          resolved.type === "success" &&
+          JSON.stringify(resolved.result) !== JSON.stringify(flow.value)
+        ) {
+          flow.value = resolved.result as ReleaseConfig;
+          changeRevision += 1;
+          await save();
+          await refreshPlan(false);
+        } else if (resolved.type === "error") {
+          error.value = resolved.ipcError;
+        }
       }
-    }
-  } else error.value = result.ipcError;
+    } else error.value = result.ipcError;
+  } finally {
+    if (requestId === latestPlanRequest) planning.value = false;
+  }
 };
 let latestPlanRequest = 0;
 let changeRevision = 0;
@@ -1258,6 +1288,7 @@ watch(
   flow,
   () => {
     changeRevision += 1;
+    planning.value = true;
     clearTimeout(saveTimer);
     clearTimeout(planTimer);
     if (flow.value) {
@@ -1364,7 +1395,21 @@ onMounted(async () => {
 }
 .needs-attention-button {
   flex: 0 0 auto;
+  border: 1px solid color-mix(in srgb, var(--p-orange-500, #f97316) 45%, transparent);
+  border-radius: 6px;
+  padding: 0.35rem 0.6rem;
+  color: var(--p-orange-700, #c2410c);
+  background: color-mix(in srgb, var(--p-orange-100, #ffedd5) 72%, transparent);
+  font-weight: 600;
   white-space: nowrap;
+}
+.needs-attention-button:hover {
+  border-color: var(--p-orange-500, #f97316);
+  background: color-mix(in srgb, var(--p-orange-100, #ffedd5) 100%, transparent);
+}
+.needs-attention-button:focus-visible {
+  outline: 2px solid var(--p-orange-500, #f97316);
+  outline-offset: 2px;
 }
 .field-issue {
   display: block;
@@ -1479,6 +1524,18 @@ onMounted(async () => {
 }
 .slot-row > :first-child {
   flex: 1;
+}
+.deployment-main > span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.deployment-main small {
+  overflow: hidden;
+  color: var(--p-text-muted-color, var(--text-color-secondary));
+  font-size: 0.7rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .empty-card {
   display: grid;

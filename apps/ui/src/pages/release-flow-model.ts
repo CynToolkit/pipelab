@@ -5,6 +5,7 @@ import type {
   Connection,
   ReleaseOutputRef,
   ReleasePlan,
+  ReleaseDestinationSlot,
   ProducerInspection,
   ValidationIssue,
 } from "@pipelab/shared";
@@ -140,6 +141,20 @@ export const switchBuildProfileEngine = (
 
 export const issuesForPath = (issues: ValidationIssue[], path: string) =>
   issues.filter((issue) => issue.path === path || issue.path?.startsWith(`${path}.`));
+
+export const releaseCanRun = (
+  flow: ReleaseConfig | undefined,
+  plan: ReleasePlan | undefined,
+  issues: ValidationIssue[],
+  running: boolean,
+  planning: boolean,
+) =>
+  Boolean(
+    flow && plan && !running && !planning && !issues.some((issue) => issue.severity === "error"),
+  );
+
+export const deploymentSlotLabel = (slot: ReleaseDestinationSlot, index: number) =>
+  slot.name?.trim() || `Deployment ${index + 1}`;
 
 export const applyProducerInspection = (
   build: ReleaseBuildProfileConfig,

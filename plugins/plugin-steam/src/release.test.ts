@@ -13,7 +13,7 @@ describe("Steam release credentials", () => {
         provider: steamDestination.id,
         enabled: true,
         config: {},
-        slots: [{ id: "windows", enabled: true, config: {} }],
+        slots: [{ id: "windows", name: "Windows build", enabled: true, config: {} }],
       },
       { host: { platform: "linux", architecture: "x64" } },
     );
@@ -24,6 +24,9 @@ describe("Steam release credentials", () => {
         expect.objectContaining({ path: "config.appId" }),
         expect.objectContaining({ path: "slots.windows.config.depotId" }),
       ]),
+    );
+    expect(issues.find((issue) => issue.code === "steam.depot.required")?.message).toBe(
+      "Depot ID is required for Windows build.",
     );
   });
 

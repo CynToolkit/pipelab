@@ -63,6 +63,7 @@ export interface ReleaseBuildTargetConfig {
 
 export interface ReleaseDestinationSlot {
   id: string;
+  name?: string;
   enabled: boolean;
   input?: ReleaseOutputRef;
   config: Record<string, unknown>;

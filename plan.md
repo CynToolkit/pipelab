@@ -4,5 +4,8 @@
 * [x] **Finish preference → fallback behavior:** if the preferred engine exists but is planner-incompatible/unusable, try the central deterministic fallback for the same build type before leaving the destination unresolved. Never fall back to catalog order. Add a test for “preferred engine exists but is incompatible”.
 * [x] **Keep the already-correct behavior unchanged:** preserve planner-authoritative “Create compatible build”, compact cards, CLI-first tests, Electron test restrictions, source-direct routing, no duplicate builds, and fresh connection reload behavior.
 * [x] **Verify the real paths:** add focused resolver/provider/Godot integration regressions for the fixes above, then run shared/UI/CLI tests and full CI. Do not mark this complete based only on helper-unit tests.
-* [ ] Steam say: "Depot ID is required for slot sFe9nJwXtKd2GDhWsx66g." Names should be friendly names
-* [ ] Sjip button should be disabed if not possible to run
+* [x] Steam validation uses the deployment name instead of an opaque slot ID.
+* [x] Ship button should be disabled when the release cannot run.
+* [x] Needs attention buttons should be orange and consistently styled
+* [x] Needs attention is available directly on deployment cards.
+* [x] Steam validation uses the deployment name instead of a numeric slot label.
