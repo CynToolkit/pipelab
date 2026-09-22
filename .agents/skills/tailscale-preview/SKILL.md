@@ -3,7 +3,11 @@ name: tailscale-preview
 description: Serve the Pipelab UI and CLI dev servers for remote browser access over Tailscale.
 ---
 
-# Tailscale Preview — serve the app for remote browser access
+# Tailscale Preview
+
+Serve the local Supabase/workers, standalone UI, and CLI over Tailscale. This
+procedure uses the repository's `mise run local ui` task, which starts the
+remote-bound UI and CLI through Turbo.
 
 Run the Pipelab UI + CLI dev servers so a remote browser (e.g. the developer's
 laptop) can open the UI over Tailscale. Use when asked to "start the app",
@@ -11,36 +15,41 @@ laptop) can open the UI over Tailscale. Use when asked to "start the app",
 
 ## Start
 
-Run this simple command from the repository root:
+From the repository root, run this command and keep the terminal open:
 
 ```bash
-pnpm dev-remote --filter=@pipelab/ui --filter=@pipelab/cli
+mise run local ui 2>&1 | tee /tmp/pipelab-local-ui.log
 ```
 
-It starts both services with remote-safe bindings. Leave the terminal running
-while using the preview.
+The task starts local Supabase and workers, then starts the UI on port `5173`
+and the CLI on port `33753` with remote-safe bindings.
 
 1. Confirm Tailscale is up: `tailscale ip -4`. Note the machine IP
    (e.g. `100.111.167.123`). The UI URL is `http://<ip>:5173`.
-2. Use the `pnpm dev-remote` command above. Do not add another `--` before
-   the filters.
-   The UI and CLI are separate servers. Opening the UI URL alone does not
-   start the backend; the CLI must be running on the same machine and its
-   WebSocket port (`33753`) must be reachable over Tailscale.
-3. Wait ~30s. Verify in order:
-   - CLI log shows `WebSocket server listening on port 33753` and
-     `[Startup Progress] Ready!`: `grep -E 'listening on port|Ready!' /tmp/pipelab-cli.log`
-   - CLI process is **not** in `T (stopped)` state:
-     `cat /proc/$(pgrep -f 'tsx/dist/loader' | head -1)/status | grep State`
-     (must read `S`, never `T`).
-   - WebSocket handshake succeeds over the Tailscale IP (this is the backend
-     check; a successful HTTP request to the UI is not sufficient):
-     `node -e "new (require('<repo>/node_modules/ws'))('ws://<ip>:33753').on('open', () => { console.log('WS-OK'); process.exit(0); })"`
-   - UI serves 200 over the Tailscale IP:
-     `curl -o /dev/null -w "%{http_code}\n" http://<ip>:5173/paths`
-4. Hand the user `http://<ip>:5173`. Tell them to **hard-refresh** if the
+2. Wait for startup, then verify the same log captured by the command above:
+
+```bash
+rg 'WebSocket server listening on port 33753|\[Startup Progress\] Ready!' /tmp/pipelab-local-ui.log
+```
+
+3. Verify the CLI process is running and not stopped:
+
+```bash
+cli_pid="$(pgrep -f 'tsx.*src/index.ts serve' | head -1)"
+test -n "$cli_pid" && rg '^State:\s+[SR]' "/proc/$cli_pid/status"
+```
+
+4. Verify the backend and UI separately over the Tailscale IP. A successful
+   UI request alone is not sufficient:
+
+```bash
+node -e "const WebSocket=require('./node_modules/ws'); const ws=new WebSocket('ws://<ip>:33753'); ws.on('open',()=>{console.log('WS-OK'); process.exit(0)}); ws.on('error',()=>process.exit(1))"
+curl --fail -o /dev/null -w '%{http_code}\n' http://<ip>:5173/paths
+```
+
+5. Hand the user `http://<ip>:5173`. Tell them to **hard-refresh** if the
    bundle changed since their last visit.
-5. The user confirming the page loads past "initializing environment" is the
+6. The user confirming the page loads past "initializing environment" is the
    done gate. The UI stays connected via WebSocket; "initializing
    environment" stuck = the browser can't reach the CLI server.
 
@@ -64,8 +73,8 @@ while using the preview.
 ## Verify
 
 ```bash
-grep -E 'listening on port|Ready!' /tmp/pipelab-cli.log
-curl -o /dev/null -w '%{http_code}\n' "http://$(tailscale ip -4):5173/paths"
+rg 'WebSocket server listening on port 33753|\[Startup Progress\] Ready!' /tmp/pipelab-local-ui.log
+curl --fail -o /dev/null -w '%{http_code}\n' "http://$(tailscale ip -4):5173/paths"
 ```
 
 The expected UI response is `200`. If an old process already owns either

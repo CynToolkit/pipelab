@@ -1,6 +1,20 @@
-* [x] **Fix live run completion projection:** when `workflow.completed` arrives, update the live `BuildHistoryEntry` with the complete final result—artifacts, deliveries, outputs, final step states/logs, completed/failed/cancelled counters, status, duration, and end time—so the run detail is correct without a refresh.
-* [x] **Clean up buffered live events:** once a run receives a terminal `workflow.completed` or `workflow.failed` event, stop retaining its buffered events in `run-events.ts` after current subscribers have consumed them. Keep replay for events published before the detail page subscribes, but avoid unbounded per-run memory growth.
-* [x] **Make save failure block execution:** change the release autosave/save path so `save()` reports failure or throws instead of swallowing backend errors. `runShip()` must abort immediately if the latest config cannot be persisted and must never execute an older stored release.
-* [x] **Reflect persistence failure in Ship availability:** include `saveState === "error"` in `canShip`/`releaseCanRun` so Ship stays disabled while the current release is not safely persisted. Preserve the existing planner-error/running/planning checks.
-* [x] **Add focused regressions:** test terminal live-event projection including artifacts/deliveries/counters, terminal event-buffer cleanup, `runShip()` aborting after save failure, and Ship disabled on save error. Keep these as UI/core unit tests; no Electron tests.
-* [x] **Final verification:** run UI/core/CLI tests, lint, typecheck, and full CI. Preserve all other PR #93 behavior and do not refactor unrelated release architecture during this pass.
+- [x] Add a root AGENTS.md as the single source of truth for all coding-agent instructions.
+- [x] Remove the obsolete alternate root instruction file entirely from the repository.
+- [x] Delete the obsolete vendor-specific rules file.
+- [x] Remove every vendor-specific command instruction, example, and assumption from agent documentation.
+- [x] Keep .agents/skills/ as the canonical location for task-specific agent skills.
+- [x] Rewrite AGENTS.md around the current monorepo architecture: apps/, packages/, plugins/, workers/, and supabase/.
+- [x] Document the actual package-manager and Turbo commands used by develop.
+- [x] Replace the blanket “never typecheck/lint” rule with scoped verification after relevant changes.
+- [x] Require focused tests first and broader checks only when the change warrants them.
+- [x] Replace the blanket TypeScript assertion ban with “avoid any and unjustified casts; prefer narrowing and validated boundaries.”
+- [x] Remove mandatory external tool usage and prefer repository code/docs before external documentation.
+- [x] Add rules for respecting package exports and avoiding unsupported workspace subpath imports.
+- [x] Add concise guidance for plugin changes, UI changes, Supabase changes, and Changesets.
+- [x] Audit construct-addon-profile against current develop paths and remove stale or overly procedural instructions.
+- [x] Fix tailscale-preview so every verification command matches what dev-remote actually starts and logs.
+- [x] Standardize skill metadata and naming without adding vendor-specific configuration files.
+- [x] Remove stale agent/task instructions that duplicate or conflict with AGENTS.md.
+- [x] Add lightweight safety rules around destructive Git, release, database, and credential operations.
+- [x] Verify the final setup contains none of the removed legacy terms.
+- [x] Review the finished agent setup against representative UI, plugin, backend, and release task surfaces before merging.
