@@ -5,8 +5,9 @@ description: Serve the Pipelab UI and CLI dev servers for remote browser access 
 
 # Tailscale Preview
 
-Serve the standalone UI and CLI over Tailscale. This procedure applies to
-the current `dev:remote` scripts in `apps/ui` and `apps/cli`.
+Serve the local Supabase/workers, standalone UI, and CLI over Tailscale. This
+procedure uses the repository's `mise run local ui` task, which starts the
+remote-bound UI and CLI through Turbo.
 
 Run the Pipelab UI + CLI dev servers so a remote browser (e.g. the developer's
 laptop) can open the UI over Tailscale. Use when asked to "start the app",
@@ -17,18 +18,18 @@ laptop) can open the UI over Tailscale. Use when asked to "start the app",
 From the repository root, run this command and keep the terminal open:
 
 ```bash
-pnpm dev-remote --filter=@pipelab/ui --filter=@pipelab/cli 2>&1 | tee /tmp/pipelab-dev-remote.log
+mise run local ui 2>&1 | tee /tmp/pipelab-local-ui.log
 ```
 
-The root script delegates to Turbo, which starts the UI on port `5173` and the
-CLI on port `33753` with remote-safe bindings.
+The task starts local Supabase and workers, then starts the UI on port `5173`
+and the CLI on port `33753` with remote-safe bindings.
 
 1. Confirm Tailscale is up: `tailscale ip -4`. Note the machine IP
    (e.g. `100.111.167.123`). The UI URL is `http://<ip>:5173`.
 2. Wait for startup, then verify the same log captured by the command above:
 
 ```bash
-rg 'WebSocket server listening on port 33753|\[Startup Progress\] Ready!' /tmp/pipelab-dev-remote.log
+rg 'WebSocket server listening on port 33753|\[Startup Progress\] Ready!' /tmp/pipelab-local-ui.log
 ```
 
 3. Verify the CLI process is running and not stopped:
@@ -72,7 +73,7 @@ curl --fail -o /dev/null -w '%{http_code}\n' http://<ip>:5173/paths
 ## Verify
 
 ```bash
-rg 'WebSocket server listening on port 33753|\[Startup Progress\] Ready!' /tmp/pipelab-dev-remote.log
+rg 'WebSocket server listening on port 33753|\[Startup Progress\] Ready!' /tmp/pipelab-local-ui.log
 curl --fail -o /dev/null -w '%{http_code}\n' "http://$(tailscale ip -4):5173/paths"
 ```
 
