@@ -15,6 +15,7 @@ import {
   resolveReleaseDefaults,
   validateRelease,
   type BuildHistoryEntry,
+  type ExecutionStep,
   type LogEntry,
   type ReleaseConfig,
   useLogger,
@@ -63,6 +64,56 @@ const executionPlan = (workflow: Workflow) =>
       : {}),
   }));
 
+export const applyWorkflowEventToHistory = (
+  steps: ExecutionStep[],
+  logs: LogEntry[],
+  event: WorkflowEvent,
+) => {
+  const step =
+    "stepId" in event ? steps.find((candidate) => candidate.id === event.stepId) : undefined;
+  if (!step) return;
+
+  switch (event.type) {
+    case "step.started":
+      step.status = "running";
+      step.startTime = event.timestamp;
+      return;
+    case "step.log": {
+      const log: LogEntry = {
+        id: nanoid(),
+        timestamp: event.timestamp,
+        level: event.stream === "stderr" ? "error" : "info",
+        message: event.message,
+        source: event.stepId,
+      };
+      step.logs.push(log);
+      logs.push(log);
+      return;
+    }
+    case "step.completed":
+      step.status = "completed";
+      step.endTime = event.timestamp;
+      step.duration = event.duration;
+      step.output = event.outputs;
+      return;
+    case "step.failed":
+      step.status = "failed";
+      step.endTime = event.timestamp;
+      step.duration = event.duration;
+      step.error = {
+        message: event.error.message,
+        code: event.error.name,
+        timestamp: event.timestamp,
+      };
+      return;
+    case "step.skipped":
+      step.status = "skipped";
+      step.endTime = event.timestamp;
+      step.duration = 0;
+      return;
+  }
+};
+
 const historyArtifacts = (result: WorkflowResult): NonNullable<BuildHistoryEntry["artifacts"]> =>
   result.artifacts.map((artifact, index) => {
     if (!("descriptor" in artifact))
@@ -103,12 +154,16 @@ export const executeWorkflow = async (
   const version = options.release?.version?.trim() || "0.0.0";
   const prepared = options.prepared || prepareReleaseWorkflow(stored as ReleaseConfig, version);
   const { config, workflow } = prepared;
+  const { logger } = useLogger();
   const buildId = nanoid();
   const history = new BuildHistoryStorage(context);
   const startTime = Date.now();
+  const pipelineId = config.project || config.id;
+  const liveSteps: ExecutionStep[] = executionPlan(workflow);
+  const liveLogs: LogEntry[] = [];
   await history.save({
     id: buildId,
-    pipelineId: config.project || config.id,
+    pipelineId,
     workflowId: config.id,
     workflowName: config.name,
     projectName: config.name,
@@ -116,7 +171,7 @@ export const executeWorkflow = async (
     status: "running",
     version,
     startTime,
-    steps: executionPlan(workflow),
+    steps: liveSteps,
     totalSteps: workflow.steps.length,
     completedSteps: 0,
     failedSteps: 0,
@@ -127,6 +182,46 @@ export const executeWorkflow = async (
     createdAt: startTime,
     updatedAt: startTime,
   });
+  let historyWriteTimer: ReturnType<typeof setTimeout> | undefined;
+  let historyWriteTail: Promise<void> = Promise.resolve();
+  const writeLiveHistory = () => {
+    const steps = liveSteps.map((step) => ({ ...step, logs: [...step.logs] }));
+    const logs = [...liveLogs];
+    historyWriteTail = historyWriteTail
+      .then(async () => {
+        await history.update(
+          buildId,
+          {
+            steps,
+            logs,
+            completedSteps: steps.filter((step) => step.status === "completed").length,
+            failedSteps: steps.filter(
+              (step) => step.status === "failed" || step.status === "skipped",
+            ).length,
+            cancelledSteps: steps.filter((step) => step.status === "cancelled").length,
+          },
+          pipelineId,
+        );
+      })
+      .catch((error) => {
+        logger().error(`Failed to update workflow history for ${buildId}:`, error);
+      });
+  };
+  const scheduleLiveHistory = () => {
+    if (historyWriteTimer) return;
+    historyWriteTimer = setTimeout(() => {
+      historyWriteTimer = undefined;
+      writeLiveHistory();
+    }, 200);
+  };
+  const flushLiveHistory = async () => {
+    if (historyWriteTimer) {
+      clearTimeout(historyWriteTimer);
+      historyWriteTimer = undefined;
+      writeLiveHistory();
+    }
+    await historyWriteTail;
+  };
   await options.onRunCreated?.(buildId);
   const workspaceRoot = context.getArtifactsPath("workflow", buildId);
   await mkdir(workspaceRoot, { recursive: true });
@@ -143,7 +238,6 @@ export const executeWorkflow = async (
       thirdparty: context.getThirdPartyPath(),
     },
   });
-  const { logger } = useLogger();
   const observedSteps = new Map<
     string,
     "pending" | "running" | "completed" | "failed" | "cancelled" | "skipped"
@@ -157,6 +251,8 @@ export const executeWorkflow = async (
         options.signal?.aborted ? ("cancelled" as const) : ("failed" as const),
       );
     if (event.type === "step.skipped") observedSteps.set(event.stepId, "skipped" as const);
+    applyWorkflowEventToHistory(liveSteps, liveLogs, event);
+    scheduleLiveHistory();
     options.onEvent?.(event);
   };
   let result: WorkflowResult;
@@ -177,8 +273,9 @@ export const executeWorkflow = async (
       onEvent,
     });
   } catch (error) {
+    await flushLiveHistory();
     const finalStatus = options.signal?.aborted ? ("cancelled" as const) : ("failed" as const);
-    const steps = executionPlan(workflow).map((step) => ({
+    const steps = liveSteps.map((step) => ({
       ...step,
       status:
         observedSteps.get(step.id) === "completed"
@@ -197,6 +294,7 @@ export const executeWorkflow = async (
         endTime: Date.now(),
         duration: Date.now() - startTime,
         steps,
+        logs: [...liveLogs],
         completedSteps: steps.filter((step) => step.status === "completed").length,
         failedSteps: steps.filter((step) => step.status === "failed" || step.status === "skipped")
           .length,
@@ -207,10 +305,11 @@ export const executeWorkflow = async (
           timestamp: Date.now(),
         },
       },
-      config.project || config.id,
+      pipelineId,
     );
     throw error;
   }
+  await flushLiveHistory();
   await history.update(
     buildId,
     {
@@ -220,6 +319,7 @@ export const executeWorkflow = async (
       artifacts: historyArtifacts(result),
       deliveries: result.deliveries,
       output: result.outputs,
+      logs: [...liveLogs],
       steps: Object.values(result.steps).map((step) => ({
         id: step.id,
         name: step.id,
@@ -228,7 +328,7 @@ export const executeWorkflow = async (
         startTime: step.startedAt,
         endTime: step.completedAt,
         duration: step.duration,
-        logs: [] as LogEntry[],
+        logs: [...(liveSteps.find((candidate) => candidate.id === step.id)?.logs || [])],
         output: step.outputs,
         error: step.error
           ? { message: step.error.message, code: step.error.name, timestamp: step.completedAt }
@@ -241,7 +341,7 @@ export const executeWorkflow = async (
       ).length,
       cancelledSteps: 0,
     },
-    config.project || config.id,
+    pipelineId,
   );
   return { result, runId: buildId };
 };
