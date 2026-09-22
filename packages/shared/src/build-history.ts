@@ -86,6 +86,65 @@ export interface BuildHistoryEntry {
   deliveries?: WorkflowDeliveryResult[];
 }
 
+export const BUILD_HISTORY_VERSION = "1.0.0" as const;
+export interface BuildHistoryDocument {
+  version: typeof BUILD_HISTORY_VERSION;
+  entries: BuildHistoryEntry[];
+}
+
+export class BuildHistoryParseError extends Error {
+  constructor(
+    public readonly path: string,
+    message: string,
+  ) {
+    super(`${path}: ${message}`);
+    this.name = "BuildHistoryParseError";
+  }
+}
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+const parseEntry = (value: unknown, path: string): BuildHistoryEntry => {
+  if (!isRecord(value)) throw new BuildHistoryParseError(path, "run entry must be an object");
+  for (const key of ["id", "pipelineId", "projectName", "projectPath"])
+    if (typeof value[key] !== "string")
+      throw new BuildHistoryParseError(`${path}.${key}`, "must be a string");
+  if (
+    typeof value.status !== "string" ||
+    !["running", "completed", "completed-with-errors", "failed", "cancelled"].includes(value.status)
+  )
+    throw new BuildHistoryParseError(`${path}.status`, "has an unsupported value");
+  for (const key of [
+    "startTime",
+    "totalSteps",
+    "completedSteps",
+    "failedSteps",
+    "cancelledSteps",
+    "createdAt",
+    "updatedAt",
+  ])
+    if (typeof value[key] !== "number")
+      throw new BuildHistoryParseError(`${path}.${key}`, "must be a number");
+  if (!Array.isArray(value.steps) || !Array.isArray(value.logs))
+    throw new BuildHistoryParseError(path, "steps and logs must be arrays");
+  return value as unknown as BuildHistoryEntry;
+};
+
+export const parseBuildHistoryDocument = (value: unknown): BuildHistoryDocument => {
+  if (Array.isArray(value))
+    return {
+      version: BUILD_HISTORY_VERSION,
+      entries: value.map((entry, index) => parseEntry(entry, `entries.${index}`)),
+    };
+  if (!isRecord(value) || value.version !== BUILD_HISTORY_VERSION || !Array.isArray(value.entries))
+    throw new BuildHistoryParseError("history", "unsupported version or invalid document");
+  return {
+    version: BUILD_HISTORY_VERSION,
+    entries: value.entries.map((entry, index) => parseEntry(entry, `entries.${index}`)),
+  };
+};
+
 // Query interface supporting both pipeline and scenario filtering
 export interface BuildHistoryQuery {
   pipelineId?: string;

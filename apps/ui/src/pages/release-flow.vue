@@ -1302,6 +1302,7 @@ const save = createSerializedTaskQueue(async () => {
   const result = await api.execute("workflow:save-by-name", {
     name: `workflows/${flowId.value}`,
     data: JSON.stringify(flow.value),
+    projectId: projectId.value,
   });
   if (result.type === "error") {
     saveState.value = "error";
@@ -1378,11 +1379,16 @@ onMounted(async () => {
   await connectionsStore.init();
   const [catalogResult, flowResult] = await Promise.all([
     api.execute("release:catalog:get"),
-    api.execute("workflow:load-by-name", { name: `workflows/${flowId.value}` }),
+    api.execute("workflow:load-by-name", { name: `workflows/${flowId.value}`, projectId: projectId.value }),
   ]);
   if (catalogResult.type === "success") catalog.value = catalogResult.result;
   if (flowResult.type === "success") {
-    flow.value = flowResult.result as ReleaseConfig;
+    const loaded = flowResult.result as ReleaseConfig;
+    if (loaded.id !== flowId.value || loaded.project !== projectId.value) {
+      error.value = "Loaded workflow identity does not match the requested route.";
+      return;
+    }
+    flow.value = loaded;
     automaticResolutionRequested = true;
     await inspectSource();
     await refreshPlan(true);

@@ -173,7 +173,7 @@ import InputText from "primevue/inputtext";
 import Textarea from "primevue/textarea";
 import Button from "primevue/button";
 import { nanoid } from "nanoid";
-import type { IconType, ReleaseCatalog, ReleaseConfig, ReleaseFieldOption } from "@pipelab/shared";
+import { createReleaseConfig, type IconType, type ReleaseCatalog, type ReleaseConfig, type ReleaseFieldOption } from "@pipelab/shared";
 import { useAPI } from "../composables/api";
 import ReleaseFieldControl from "./ReleaseFieldControl.vue";
 
@@ -260,13 +260,13 @@ const toggleDestination = (provider: string) => {
 };
 const create = () => {
   emit("create", {
-    version: "3.0.0",
+    ...createReleaseConfig({
     id: nanoid(),
     project: props.projectId,
     name: draft.value.name.trim(),
     description: draft.value.description.trim() || undefined,
     source: draft.value.source,
-    builds: [],
+    }),
     destinations: draft.value.destinations,
   });
   visible.value = false;

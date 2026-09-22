@@ -2,7 +2,13 @@ import { PipelabContext } from "../context";
 import { join } from "node:path";
 import { writeFile, readFile, unlink, mkdir, stat, readdir, rename, rm } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
-import { useLogger, BuildHistoryEntry, IBuildHistoryStorage, AppConfig } from "@pipelab/shared";
+import {
+  useLogger,
+  parseBuildHistoryDocument,
+  BuildHistoryEntry,
+  IBuildHistoryStorage,
+  AppConfig,
+} from "@pipelab/shared";
 import checkDiskSpace from "check-disk-space";
 import { getFolderSize } from "../utils/fs-extras";
 import { SandboxFolder } from "@pipelab/constants";
@@ -63,9 +69,7 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
       throw error;
     }
     try {
-      const entries: unknown = JSON.parse(data);
-      if (!Array.isArray(entries)) throw new Error("History document must contain an array");
-      return entries as BuildHistoryEntry[];
+      return parseBuildHistoryDocument(JSON.parse(data)).entries;
     } catch (error) {
       throw new Error(
         `Invalid build history for pipeline ${pipelineId}: ${error instanceof Error ? error.message : String(error)}`,
@@ -82,7 +86,7 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
       const pipelinePath = this.getPipelinePath(pipelineId);
       const temporaryPath = `${pipelinePath}.${randomUUID()}.tmp`;
       try {
-        await writeFile(temporaryPath, JSON.stringify(entries, null, 2), {
+        await writeFile(temporaryPath, JSON.stringify({ version: "1.0.0", entries }, null, 2), {
           encoding: "utf-8",
           flag: "wx",
         });

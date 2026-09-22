@@ -140,7 +140,7 @@
 
           <!-- Empty State (No Pipelines) -->
           <div
-            v-else-if="filesEnhanced.length === 0 && workflowsEnhanced.length === 0"
+            v-else-if="filesEnhanced.length === 0 && workflowsEnhanced.length === 0 && brokenWorkflows.length === 0"
             class="no-projects"
           >
             <i class="mdi mdi-folder-open-outline empty-icon"></i>
@@ -278,9 +278,18 @@
                     severity="secondary"
                     size="small"
                     @click="toggleWorkflowMenu($event, flow)"
-                  />
-                </div>
-              </div>
+              />
+            </div>
+            <Message
+              v-for="broken in brokenWorkflows"
+              :key="broken.id"
+              severity="error"
+              class="workflow-row-error"
+            >
+              Release workflow <strong>{{ broken.id }}</strong> could not be loaded:
+              {{ broken.error }}
+            </Message>
+          </div>
             </div>
           </div>
         </div>
@@ -609,6 +618,7 @@ const filesEnhanced = ref<EnhancedFile[]>([]);
 const workflowsEnhanced = ref<
   Array<{ id: string; project: string; lastModified: string; content: ReleaseConfig }>
 >([]);
+const brokenWorkflows = ref<Array<{ id: string; error: string }>>([]);
 const isWorkflowWizardVisible = ref(false);
 
 const searchQuery = ref("");
@@ -829,17 +839,24 @@ watchEffect(async () => {
     lastModified: string;
     content: ReleaseConfig;
   }> = [];
+  const broken: Array<{ id: string; error: string }> = [];
   for (const flow of workflows.value) {
-    const loaded = await api.execute("workflow:load-by-name", { name: flow.configName });
-    if (loaded.type === "success")
+    const loaded = await api.execute("workflow:load-by-name", { name: flow.configName, projectId: flow.project });
+    if (loaded.type === "success") {
+      if (loaded.result.id !== flow.id || loaded.result.project !== flow.project) {
+        broken.push({ id: flow.id, error: "Persisted workflow identity does not match its project index entry." });
+        continue;
+      }
       result.push({
         id: flow.id,
         project: flow.project,
         lastModified: flow.lastModified,
         content: loaded.result as ReleaseConfig,
       });
+    } else broken.push({ id: flow.id, error: loaded.ipcError });
   }
   workflowsEnhanced.value = result;
+  brokenWorkflows.value = broken;
 });
 
 watch(

@@ -11,7 +11,6 @@ export {
   setupPipelineConfigFileByPath,
   deletePipelineConfigFileByName,
   deletePipelineConfigFileByPath,
-  setupWorkflowConfigFileByName,
   deleteWorkflowConfigFileByName,
 } from "./config";
 export * from "./paths";

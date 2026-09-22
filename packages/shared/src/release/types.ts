@@ -3,6 +3,8 @@ import type { IconType } from "../plugins/definitions";
 
 export type { ArtifactDescriptor, ArtifactKind } from "@pipelab/workflow-runtime";
 
+export const RELEASE_CONFIG_VERSION = "3.0.0" as const;
+
 export interface ArtifactConstraint {
   kind?: string | string[];
   technology?: string | string[];
@@ -86,7 +88,7 @@ export interface ReleaseDestinationConfig {
 }
 
 export interface ReleaseConfig {
-  version: "3.0.0";
+  version: typeof RELEASE_CONFIG_VERSION;
   id: string;
   project: string;
   name: string;

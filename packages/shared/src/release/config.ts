@@ -1,4 +1,4 @@
-import type { ReleaseConfig, ValidationIssue } from "./types";
+import { RELEASE_CONFIG_VERSION, type ReleaseConfig, type ValidationIssue } from "./types";
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
@@ -16,16 +16,16 @@ export const validateReleaseConfigShape = (config: unknown): ValidationIssue[] =
       },
     ];
   }
-  const value = config as Partial<ReleaseConfig>;
-  if (value.version !== "3.0.0")
+  const value = config as Record<string, unknown>;
+  if (value.version !== RELEASE_CONFIG_VERSION)
     issues.push({
       code: "release.config.version",
-      message: "Only release configuration version 3.0.0 is supported.",
+      message: `Only release configuration version ${RELEASE_CONFIG_VERSION} is supported.`,
       severity: "error",
       path: "version",
     });
   for (const key of ["id", "project", "name"] as const) {
-    if (typeof value[key] !== "string" || !value[key])
+    if (!requiredString(value[key]))
       issues.push({
         code: "release.config.required",
         message: `${key} is required.`,
@@ -59,6 +59,21 @@ export const validateReleaseConfigShape = (config: unknown): ValidationIssue[] =
       severity: "error",
       path: "destinations",
     });
+  const ids = new Map<string, string>();
+  const addId = (scope: string, id: unknown, path: string) => {
+    if (!requiredString(id)) return;
+    const key = `${scope}:${id}`;
+    const previous = ids.get(key);
+    if (previous) {
+      issues.push({
+        code: "release.config.duplicate-id",
+        message: `ID '${id}' is already used at ${previous}.`,
+        severity: "error",
+        path,
+      });
+    } else ids.set(key, path);
+  };
+
   for (const [index, build] of (Array.isArray(value.builds) ? value.builds : []).entries()) {
     const path = `builds.${index}`;
     if (
@@ -78,6 +93,7 @@ export const validateReleaseConfigShape = (config: unknown): ValidationIssue[] =
       });
       continue;
     }
+    addId("build", build.id, `${path}.id`);
     for (const [targetIndex, target] of build.targets.entries()) {
       if (
         !isRecord(target) ||
@@ -91,7 +107,23 @@ export const validateReleaseConfigShape = (config: unknown): ValidationIssue[] =
           severity: "error",
           path: `${path}.targets.${targetIndex}`,
         });
+      else addId(`${path}.targets`, target.id, `${path}.targets.${targetIndex}.id`);
+      if (isRecord(target) && target.input !== undefined && !validOutputRef(target.input)) {
+        issues.push({
+          code: "release.build.target.input.invalid",
+          message: "Build target input must be a source or build/target reference.",
+          severity: "error",
+          path: `${path}.targets.${targetIndex}.input`,
+        });
+      }
     }
+    if (build.input !== undefined && !validOutputRef(build.input))
+      issues.push({
+        code: "release.build.input.invalid",
+        message: "Build input must be a source or build/target reference.",
+        severity: "error",
+        path: `${path}.input`,
+      });
   }
   for (const [index, destination] of (Array.isArray(value.destinations)
     ? value.destinations
@@ -114,6 +146,7 @@ export const validateReleaseConfigShape = (config: unknown): ValidationIssue[] =
       });
       continue;
     }
+    addId("destination", destination.id, `${path}.id`);
     for (const [slotIndex, slot] of destination.slots.entries()) {
       const slotPath = `${path}.slots.${slotIndex}`;
       const input = isRecord(slot) ? slot.input : undefined;
@@ -138,7 +171,55 @@ export const validateReleaseConfigShape = (config: unknown): ValidationIssue[] =
           severity: "error",
           path: slotPath,
         });
+      else addId(`${path}.slots`, slot.id, `${slotPath}.id`);
     }
   }
+  if (value.continueOnError !== undefined && typeof value.continueOnError !== "boolean")
+    issues.push({
+      code: "release.config.continue-on-error",
+      message: "continueOnError must be a boolean.",
+      severity: "error",
+      path: "continueOnError",
+    });
   return issues;
 };
+
+const validOutputRef = (value: unknown): value is ReleaseConfig["builds"][number]["input"] =>
+  isRecord(value) &&
+  ((value.source === true && Object.keys(value).length === 1) ||
+    (requiredString(value.buildId) &&
+      requiredString(value.targetId) &&
+      Object.keys(value).every((key) => key === "buildId" || key === "targetId")));
+
+export class ReleaseConfigParseError extends Error {
+  readonly issues: ValidationIssue[];
+
+  constructor(issues: ValidationIssue[]) {
+    super(
+      issues.map((issue) => `${issue.path ? `${issue.path}: ` : ""}${issue.message}`).join(" "),
+    );
+    this.name = "ReleaseConfigParseError";
+    this.issues = issues;
+  }
+}
+
+export const parseReleaseConfig = (value: unknown): ReleaseConfig => {
+  const issues = validateReleaseConfigShape(value);
+  if (issues.length > 0) throw new ReleaseConfigParseError(issues);
+  return value as ReleaseConfig;
+};
+
+export const createReleaseConfig = (
+  input: Pick<ReleaseConfig, "id" | "project" | "name" | "source"> &
+    Partial<Pick<ReleaseConfig, "description" | "continueOnError">>,
+): ReleaseConfig => ({
+  version: RELEASE_CONFIG_VERSION,
+  id: input.id,
+  project: input.project,
+  name: input.name,
+  ...(input.description === undefined ? {} : { description: input.description }),
+  ...(input.continueOnError === undefined ? {} : { continueOnError: input.continueOnError }),
+  source: input.source,
+  builds: [],
+  destinations: [],
+});

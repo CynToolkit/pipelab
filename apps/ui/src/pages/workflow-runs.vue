@@ -123,7 +123,7 @@ const loadRuns = async () => {
       api.execute("build-history:get-all", {
         query: { workflowId: flowId.value, pipelineId: projectId.value },
       }),
-      api.execute("workflow:load-by-name", { name: `workflows/${flowId.value}` }),
+      api.execute("workflow:load-by-name", { name: `workflows/${flowId.value}`, projectId: projectId.value }),
     ]);
     if (generation !== loadGeneration) return;
     if (history.type === "error") error.value = history.ipcError;

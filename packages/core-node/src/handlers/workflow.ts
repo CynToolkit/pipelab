@@ -22,7 +22,7 @@ import {
   usePlugins,
 } from "@pipelab/shared";
 import { CacheFolder, PipelabContext } from "../context";
-import { setupWorkflowConfigFileByName } from "../config";
+import { ReleasePersistence } from "../release-persistence";
 import { ensureNodeJS, ensurePNPM } from "../utils/remote";
 import { createPipelabWorkflowTasks } from "../workflow-tasks";
 import { useAPI } from "../ipc-core";
@@ -150,7 +150,8 @@ export const executeWorkflow = async (
     onRunCreated?: (id: string) => void | Promise<void>;
   } = {},
 ) => {
-  const stored = await (await setupWorkflowConfigFileByName(configName, context)).getConfig();
+  const workflowId = configName.replace(/^workflows\//, "").replace(/\.json$/, "");
+  const stored = await new ReleasePersistence(context).load(workflowId);
   const version = options.release?.version?.trim() || "0.0.0";
   const prepared = options.prepared || prepareReleaseWorkflow(stored as ReleaseConfig, version);
   const { config, workflow } = prepared;
@@ -158,7 +159,7 @@ export const executeWorkflow = async (
   const buildId = nanoid();
   const history = new BuildHistoryStorage(context);
   const startTime = Date.now();
-  const pipelineId = config.project || config.id;
+  const pipelineId = config.project;
   const liveSteps: ExecutionStep[] = executionPlan(workflow);
   const liveLogs: LogEntry[] = [];
   await history.save({
@@ -230,7 +231,7 @@ export const executeWorkflow = async (
   const tasks = createPipelabWorkflowTasks({
     context,
     paths: {
-      cache: context.getCachePath(CacheFolder.Pipelines, config.project || "workflow", buildId),
+      cache: context.getCachePath(CacheFolder.Pipelines, config.project, buildId),
       pnpm,
       node,
       userData: context.userDataPath,

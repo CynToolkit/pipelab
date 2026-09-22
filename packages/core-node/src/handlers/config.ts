@@ -4,6 +4,8 @@ import {
   appSettingsMigrator,
   connectionsMigrator,
   fileRepoMigrations,
+  defaultConnections,
+  parseConnectionsConfig,
   type BrowserProfileCandidate,
 } from "@pipelab/shared";
 import {
@@ -14,12 +16,13 @@ import {
   setupPipelineConfigFileByPath,
   deletePipelineConfigFileByName,
   deletePipelineConfigFileByPath,
-  setupWorkflowConfigFileByName,
   deleteWorkflowConfigFileByName,
 } from "../config";
 import { PipelabContext } from "../context";
 import { discoverBrowserProfiles, inspectChromiumProfile } from "@pipelab/plugin-construct";
 import { ConstructProfileDiscoveryCache } from "./construct-profile-cache";
+import { ReleasePersistence } from "../release-persistence";
+import { JsonFileMissingError, readJsonFile, writeJsonFileAtomically } from "../utils/atomic-json";
 
 export const registerConfigHandlers = (context: PipelabContext) => {
   process.env.PLAYWRIGHT_BROWSERS_PATH ||= context.getThirdPartyPath("playwright-browsers");
@@ -38,13 +41,30 @@ export const registerConfigHandlers = (context: PipelabContext) => {
     };
     return candidate;
   });
+  const loadConnectionsStrict = async () => {
+    try {
+      return parseConnectionsConfig(await readJsonFile(context.getConnectionsPath()));
+    } catch (error) {
+      if (error instanceof JsonFileMissingError) {
+        await writeJsonFileAtomically(context.getConnectionsPath(), defaultConnections);
+        return defaultConnections;
+      }
+      throw error;
+    }
+  };
 
   handle("construct:profiles:discover", async (_, { send, value }) => {
     try {
       const profiles = await profileCache.get(value.path, value.forceRefresh);
       send({ type: "end", data: { type: "success", result: profiles } });
     } catch (error) {
-      send({ type: "end", data: { type: "error", ipcError: error instanceof Error ? error.message : "Unable to discover browser profiles" } });
+      send({
+        type: "end",
+        data: {
+          type: "error",
+          ipcError: error instanceof Error ? error.message : "Unable to discover browser profiles",
+        },
+      });
     }
   });
 
@@ -122,8 +142,7 @@ export const registerConfigHandlers = (context: PipelabContext) => {
   handle("connections:load", async (_, { send }) => {
     logger().info("connections:load");
     try {
-      const manager = await setupConnectionsConfigFile(context);
-      const json = await manager.getConfig();
+      const json = await loadConnectionsStrict();
       send({
         type: "end",
         data: { type: "success", result: json },
@@ -143,9 +162,9 @@ export const registerConfigHandlers = (context: PipelabContext) => {
   handle("connections:save", async (_, { send, value }) => {
     const { data } = value;
     try {
-      const manager = await setupConnectionsConfigFile(context);
       const json = typeof data === "string" ? JSON.parse(data) : data;
-      await manager.setConfig(json);
+      const validated = parseConnectionsConfig(json);
+      await writeJsonFileAtomically(context.getConnectionsPath(), validated);
       send({
         type: "end",
         data: { type: "success", result: "ok" },
@@ -392,25 +411,57 @@ export const registerConfigHandlers = (context: PipelabContext) => {
 
   handle("workflow:load-by-name", async (_, { send, value }) => {
     try {
-      const manager = await setupWorkflowConfigFileByName(value.name, context);
-      send({ type: "end", data: { type: "success", result: await manager.getConfig() } });
+      const workflowId = value.name.replace(/^workflows\//, "").replace(/\.json$/, "");
+      send({
+        type: "end",
+        data: {
+          type: "success",
+          result: await new ReleasePersistence(context).load(workflowId, value.projectId),
+        },
+      });
     } catch (e) {
-      send({ type: "end", data: { type: "error", ipcError: e instanceof Error ? e.message : "Unable to load workflow" } });
+      send({
+        type: "end",
+        data: {
+          type: "error",
+          ipcError: e instanceof Error ? e.message : "Unable to load workflow",
+        },
+      });
     }
   });
 
   handle("workflow:save-by-name", async (_, { send, value }) => {
     try {
-      const manager = await setupWorkflowConfigFileByName(value.name, context);
-      await manager.setConfig(JSON.parse(value.data));
+      const workflowId = value.name.replace(/^workflows\//, "").replace(/\.json$/, "");
+      const data = JSON.parse(value.data);
+      if (workflowId !== data.id)
+        throw new Error(`Workflow path '${workflowId}' does not match persisted workflow ID.`);
+      await new ReleasePersistence(context).save(data, value.projectId);
       send({ type: "end", data: { type: "success", result: "ok" } });
     } catch (e) {
-      send({ type: "end", data: { type: "error", ipcError: e instanceof Error ? e.message : "Unable to save workflow" } });
+      send({
+        type: "end",
+        data: {
+          type: "error",
+          ipcError: e instanceof Error ? e.message : "Unable to save workflow",
+        },
+      });
     }
   });
 
   handle("workflow:delete-by-name", async (_, { send, value }) => {
-    try { await deleteWorkflowConfigFileByName(value.name, context); send({ type: "end", data: { type: "success", result: "ok" } }); }
-    catch (e) { send({ type: "end", data: { type: "error", ipcError: e instanceof Error ? e.message : "Unable to delete workflow" } }); }
+    try {
+      const workflowId = value.name.replace(/^workflows\//, "").replace(/\.json$/, "");
+      await new ReleasePersistence(context).delete(workflowId, value.projectId);
+      send({ type: "end", data: { type: "success", result: "ok" } });
+    } catch (e) {
+      send({
+        type: "end",
+        data: {
+          type: "error",
+          ipcError: e instanceof Error ? e.message : "Unable to delete workflow",
+        },
+      });
+    }
   });
 };

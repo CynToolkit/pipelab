@@ -32,6 +32,9 @@ export const useFiles = defineStore("files", () => {
   };
 
   const removeProject = async (id: string) => {
+    if ((files.value.workflows || []).some((workflow) => workflow.project === id)) {
+      throw new Error(`Project '${id}' cannot be deleted while a release workflow references it.`);
+    }
     update((state) => {
       state.projects = state.projects.filter((project) => project.id !== id);
     });
@@ -47,31 +50,25 @@ export const useFiles = defineStore("files", () => {
   };
 
   const saveWorkflow = async (flow: ReleaseConfig) => {
-    await api.execute("workflow:save-by-name", {
+    const result = await api.execute("workflow:save-by-name", {
       name: `workflows/${flow.id}`,
       data: JSON.stringify(flow),
+      projectId: flow.project,
     });
-    await update((state) => {
-      state.workflows = state.workflows || [];
-      const next = {
-        id: flow.id,
-        project: flow.project,
-        lastModified: new Date().toISOString(),
-        type: "internal-workflow" as const,
-        configName: `workflows/${flow.id}`,
-      };
-      const index = state.workflows.findIndex((item) => item.id === flow.id);
-      if (index === -1) state.workflows.push(next);
-      else state.workflows[index] = next;
-    });
+    if (result.type === "error") throw new Error(result.ipcError);
+    await load();
   };
 
   const removeWorkflow = async (id: string) => {
     const flow = files.value.workflows?.find((item) => item.id === id);
-    if (flow) await api.execute("workflow:delete-by-name", { name: flow.configName });
-    await update((state) => {
-      state.workflows = (state.workflows || []).filter((item) => item.id !== id);
-    });
+    if (flow) {
+      const result = await api.execute("workflow:delete-by-name", {
+        name: flow.configName,
+        projectId: flow.project,
+      });
+      if (result.type === "error") throw new Error(result.ipcError);
+      await load();
+    }
   };
 
   return {
