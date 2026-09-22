@@ -581,13 +581,13 @@
             placeholder="My account"
           />
         </div>
-        <div class="release-field">
-          <label for="connection-value">Credential</label
+        <div v-for="field in connectionFields" :key="field.key" class="release-field">
+          <label :for="`connection-${field.key}`">{{ field.label }}</label
           ><InputText
-            id="connection-value"
-            v-model="connectionDraft.value"
-            type="password"
-            placeholder="Stored securely"
+            :id="`connection-${field.key}`"
+            v-model="connectionDraft.values[field.key]"
+            :type="field.type === 'password' ? 'password' : 'text'"
+            :placeholder="field.placeholder || 'Stored securely'"
           />
         </div>
       </div>
@@ -595,7 +595,7 @@
         ><Button label="Cancel" text @click="connectionVisible = false" /><Button
           label="Add connection"
           :loading="connectionSaving"
-          :disabled="!connectionDraft.name.trim() || !connectionDraft.value.trim()"
+          :disabled="!connectionDraft.name.trim() || !connectionHasValue"
           @click="createConnection" /></template
     ></Dialog>
     <Dialog
@@ -653,6 +653,7 @@ import Layout from "../components/Layout.vue";
 import WorkflowShell from "../components/WorkflowShell.vue";
 import ReleaseFieldControl from "../components/ReleaseFieldControl.vue";
 import { useAPI } from "../composables/api";
+import { useAppStore } from "../store/app";
 import { useConnectionsStore } from "../store/connections";
 import {
   buildEnginesFor,
@@ -669,6 +670,7 @@ import {
 const route = useRoute();
 const router = useRouter();
 const api = useAPI();
+const appStore = useAppStore();
 const connectionsStore = useConnectionsStore();
 const flowId = computed(() => String(route.params.flowId));
 const projectId = computed(() => String(route.params.projectId));
@@ -711,7 +713,12 @@ const releaseVersion = ref("1.0.0");
 const releaseDescription = ref("");
 const connectionVisible = ref(false);
 const connectionSaving = ref(false);
-const connectionDraft = ref({ name: "", value: "", integration: "" });
+const connectionDraft = ref({
+  name: "",
+  integration: "",
+  integrationName: "",
+  values: {} as Record<string, string>,
+});
 const compatibleSlot = ref<ReleaseDestinationSlot>();
 const dialogStyle = { width: "560px", maxWidth: "94vw" };
 const wideDialogStyle = { width: "760px", maxWidth: "94vw" };
@@ -748,6 +755,23 @@ const connectionOptions = (field: ReleaseFieldDefinition) =>
         connection.integrationName === field.integration,
     )
     .map((connection) => ({ label: connection.name || connection.id, value: connection.id }));
+const connectionFields = computed(() => {
+  const definition = appStore.pluginDefinitions.find(
+    (plugin) =>
+      plugin.packageName === connectionDraft.value.integration ||
+      plugin.id === connectionDraft.value.integration,
+  );
+  return (
+    definition?.integrations?.find(
+      (integration) => integration.name === connectionDraft.value.integrationName,
+    )?.fields || [{ key: "value", label: "Credential", type: "password" as const }]
+  );
+});
+const connectionHasValue = computed(() =>
+  connectionFields.value.length
+    ? connectionFields.value.some((field) => connectionDraft.value.values[field.key]?.trim())
+    : Object.values(connectionDraft.value.values).some((value) => value.trim()),
+);
 const fieldOptions = (field: ReleaseFieldDefinition) =>
   field.type === "connection"
     ? connectionOptions(field)
@@ -940,7 +964,18 @@ const setSourceField = (key: string, value: unknown) => {
   }
 };
 const openConnection = (integration: string) => {
-  connectionDraft.value = { name: "", value: "", integration };
+  const definition = appStore.pluginDefinitions.find(
+    (plugin) => plugin.packageName === integration || plugin.id === integration,
+  );
+  const integrationDefinition = definition?.integrations?.[0];
+  connectionDraft.value = {
+    name: "",
+    integration,
+    integrationName: integrationDefinition?.name || "",
+    values: Object.fromEntries(
+      (integrationDefinition?.fields || [{ key: "value" }]).map((field) => [field.key, ""]),
+    ),
+  };
   connectionVisible.value = true;
 };
 const createConnection = async () => {
@@ -949,9 +984,11 @@ const createConnection = async () => {
   const record = {
     id: nanoid(),
     pluginName: integration,
-    integrationName: integration,
+    integrationName: connectionDraft.value.integrationName || undefined,
     name: connectionDraft.value.name.trim(),
-    value: connectionDraft.value.value.trim(),
+    ...Object.fromEntries(
+      Object.entries(connectionDraft.value.values).map(([key, value]) => [key, value.trim()]),
+    ),
     createdAt: new Date().toISOString(),
     isDefault: false,
   };
