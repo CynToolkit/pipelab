@@ -707,6 +707,7 @@ import Layout from "../components/Layout.vue";
 import WorkflowShell from "../components/WorkflowShell.vue";
 import ReleaseFieldControl from "../components/ReleaseFieldControl.vue";
 import { useAPI } from "../composables/api";
+import { publishRunEvent } from "./run-events";
 import { useAppStore } from "../store/app";
 import { useConnectionsStore } from "../store/connections";
 import {
@@ -1321,6 +1322,7 @@ const runShip = async () => {
   releaseDetailsVisible.value = false;
   running.value = true;
   await save();
+  let runId = "";
   const result = await api.execute(
     "workflow:execute",
     {
@@ -1330,10 +1332,17 @@ const runShip = async () => {
         description: releaseDescription.value.trim(),
       },
     },
-    async () => {},
+    async (event) => {
+      if (event.type === "workflow-run") {
+        runId = event.data.runId;
+        await router.push(`/workflows/${flowId.value}/${projectId.value}/runs/${runId}`);
+      } else if (event.type === "workflow-event" && runId) {
+        publishRunEvent(runId, event.data);
+      }
+    },
   );
   if (result.type === "error") error.value = result.ipcError;
-  else await router.push(`/workflows/${flowId.value}/${projectId.value}/runs/${result.result.runId}`);
+  else if (!runId) await router.push(`/workflows/${flowId.value}/${projectId.value}/runs/${result.result.runId}`);
   running.value = false;
 };
 let saveTimer: ReturnType<typeof setTimeout> | undefined;

@@ -301,7 +301,9 @@ import {
   resetRunStepSelectionState,
   workflowCancellationFeedback,
   selectRunStep,
+  applyWorkflowEventToRunEntry,
 } from "./run-detail-state";
+import { subscribeToRunEvents } from "./run-events";
 
 type Panel = "logs" | "artifacts" | "deliveries";
 const route = useRoute();
@@ -319,6 +321,7 @@ const activePanel = ref<Panel>("logs");
 const cancelling = ref(false);
 const logViewport = ref<HTMLElement>();
 let loadGeneration = 0;
+let stopRunEvents: (() => void) | undefined;
 const shortId = computed(() =>
   entry.value?.id ? entry.value.id.slice(0, 8) : String(route.params.runId).slice(0, 8),
 );
@@ -528,6 +531,10 @@ const load = async () => {
           80;
       entry.value = loadedEntry;
       error.value = "";
+      stopRunEvents?.();
+      stopRunEvents = subscribeToRunEvents(runId, (event) => {
+        if (entry.value) applyWorkflowEventToRunEntry(entry.value, event);
+      });
       if (activePanel.value === "logs") autoSelectInitialRunStep(stepSelection, entry.value.steps);
       await nextTick();
       if (wasNearBottom && logViewport.value)
@@ -551,6 +558,7 @@ watch(
 onMounted(load);
 onUnmounted(() => {
   loadGeneration++;
+  stopRunEvents?.();
 });
 </script>
 
