@@ -666,10 +666,12 @@ import {
   buildProfileSummary,
   buildTargetsFor,
   applyProducerInspection,
+  connectionMatchesIntegration,
   createBuildProfile,
   createSerializedTaskQueue,
   issuesForPath,
   planOutputOptions,
+  plannerAcceptsBuildCandidate,
   removeBuildProfile,
   switchBuildProfileEngine,
 } from "./release-flow-model";
@@ -763,12 +765,7 @@ const setField = (config: Record<string, unknown>, key: string, value: unknown) 
 const connections = computed(() => connectionsStore.connections?.connections || []);
 const connectionOptions = (field: ReleaseFieldDefinition) =>
   connections.value
-    .filter(
-      (connection) =>
-        !field.integration ||
-        connection.pluginName === field.integration ||
-        connection.integrationName === field.integration,
-    )
+    .filter((connection) => connectionMatchesIntegration(connection, field.integration))
     .map((connection) => ({ label: connection.name || connection.id, value: connection.id }));
 const connectionFields = computed(() => {
   const definition = appStore.pluginDefinitions.find(
@@ -997,19 +994,16 @@ const refreshCompatibleChoices = async (slot: ReleaseDestinationSlot) => {
         };
         const result = await api.execute("release:plan", { config: candidateConfig });
         if (result.type !== "success") continue;
-        const buildPath = `builds.${candidateConfig.builds.length - 1}`;
-        const slotPath = `destinations.${destinationIndex}.slots.${slotIndex}.input`;
-        const valid =
-          result.result.producers.some((producer) => producer.id === candidate.id) &&
-          !result.result.issues.some(
-            (issue) =>
-              issue.severity === "error" &&
-              (issue.path === buildPath ||
-                issue.path?.startsWith(`${buildPath}.`) ||
-                issue.path === slotPath ||
-                issue.path?.startsWith(`${slotPath}.`)),
-          );
-        if (valid) choices.add(`${buildType.id}:${engine.id}:${target.id}`);
+        if (
+          plannerAcceptsBuildCandidate(
+            result.result,
+            candidate.id,
+            candidateConfig.builds.length - 1,
+            destinationIndex,
+            slotIndex,
+          )
+        )
+          choices.add(`${buildType.id}:${engine.id}:${target.id}`);
       }
     }
   }

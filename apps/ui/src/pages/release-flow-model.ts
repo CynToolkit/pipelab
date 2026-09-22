@@ -2,6 +2,7 @@ import type {
   ReleaseBuildProfileConfig,
   ReleaseCatalog,
   ReleaseConfig,
+  Connection,
   ReleaseOutputRef,
   ReleasePlan,
   ProducerInspection,
@@ -161,6 +162,33 @@ export const applyProducerInspection = (
   });
   return { options: inspection.fieldOptions || {}, issues };
 };
+
+export const plannerAcceptsBuildCandidate = (
+  plan: ReleasePlan,
+  candidateId: string,
+  buildIndex: number,
+  destinationIndex: number,
+  slotIndex: number,
+) => {
+  const buildPath = `builds.${buildIndex}`;
+  const slotPath = `destinations.${destinationIndex}.slots.${slotIndex}.input`;
+  return (
+    plan.producers.some((producer) => producer.id === candidateId) &&
+    !plan.issues.some(
+      (issue) =>
+        issue.severity === "error" &&
+        (issue.path === buildPath ||
+          issue.path?.startsWith(`${buildPath}.`) ||
+          issue.path === slotPath ||
+          issue.path?.startsWith(`${slotPath}.`)),
+    )
+  );
+};
+
+export const connectionMatchesIntegration = (connection: Connection, integration?: string) =>
+  !integration ||
+  connection.pluginName === integration ||
+  connection.integrationName === integration;
 
 const outputKey = (ref: ReleaseOutputRef) =>
   "source" in ref ? "source" : `${ref.buildId}:${ref.targetId}`;

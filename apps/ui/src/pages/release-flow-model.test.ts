@@ -4,10 +4,12 @@ import {
   buildProfileSummary,
   buildTargetsFor,
   applyProducerInspection,
+  connectionMatchesIntegration,
   createBuildProfile,
   createSerializedTaskQueue,
   issuesForPath,
   planOutputOptions,
+  plannerAcceptsBuildCandidate,
   switchBuildProfileEngine,
 } from "./release-flow-model";
 import type { ReleaseCatalog, ReleaseConfig, ReleasePlan } from "@pipelab/shared";
@@ -185,5 +187,50 @@ describe("release flow model", () => {
     expect(build.targets[0].config.preset).toBe("release");
     expect(result.options.preset).toEqual([{ label: "Release", value: "release" }]);
     expect(result.issues[0].path).toBe("builds.2.targets.0.config.preset");
+  });
+
+  it("accepts only planner-resolved compatible build candidates", () => {
+    const basePlan = {
+      outputs: [],
+      producers: [{ id: "candidate" }],
+      destinations: [],
+      issues: [],
+      graph: { nodes: [], edges: [] },
+    } as unknown as ReleasePlan;
+    expect(plannerAcceptsBuildCandidate(basePlan, "candidate", 1, 0, 0)).toBe(true);
+    expect(
+      plannerAcceptsBuildCandidate(
+        {
+          ...basePlan,
+          issues: [
+            {
+              code: "release.destination.input.incompatible",
+              message: "No route",
+              severity: "error",
+              path: "destinations.0.slots.0.input",
+            },
+          ],
+        },
+        "candidate",
+        1,
+        0,
+        0,
+      ),
+    ).toBe(false);
+  });
+
+  it("matches a newly saved connection by plugin integration", () => {
+    const connection = {
+      id: "steam-account",
+      pluginName: "@pipelab/plugin-steam",
+      integrationName: "Steam Account",
+      name: "Build account",
+      username: "steam-user",
+      password: "secret",
+      createdAt: new Date().toISOString(),
+      isDefault: false,
+    } as never;
+    expect(connectionMatchesIntegration(connection, "@pipelab/plugin-steam")).toBe(true);
+    expect(connectionMatchesIntegration(connection, "@pipelab/plugin-itch")).toBe(false);
   });
 });
