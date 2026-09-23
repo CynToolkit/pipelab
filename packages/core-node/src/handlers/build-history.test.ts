@@ -1,6 +1,7 @@
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { spawn } from "node:child_process";
 import { afterEach, describe, expect, it } from "vitest";
 import { PipelabContext } from "../context";
 import { BuildHistoryStorage } from "./build-history";
@@ -227,6 +228,49 @@ describe("BuildHistoryStorage workflow runs", () => {
     expect((await first.getByPipeline("project-1")).map((run) => run.id).sort()).toEqual([
       "run-a",
       "run-b",
+    ]);
+  });
+
+  it("preserves separate-process saves for the same pipeline", async () => {
+    const root = await mkdtemp(join(tmpdir(), "pipelab-runs-"));
+    workspaces.push(root);
+    const contextUrl = new URL("../context.ts", import.meta.url).href;
+    const storageUrl = new URL("./build-history.ts", import.meta.url).href;
+    const script = [
+      `import { PipelabContext } from ${JSON.stringify(contextUrl)};`,
+      `import { BuildHistoryStorage } from ${JSON.stringify(storageUrl)};`,
+      `const context = new PipelabContext({ userDataPath: process.argv[1] });`,
+      `await new BuildHistoryStorage(context).save(JSON.parse(process.argv[2]));`,
+    ].join("\n");
+    const run = (id: string, startTime: number) =>
+      new Promise<void>((resolve, reject) => {
+        const child = spawn(
+          process.execPath,
+          [
+            "--import",
+            "tsx/esm",
+            "--input-type=module",
+            "-e",
+            script,
+            root,
+            JSON.stringify(entry(id, "workflow-a", startTime)),
+          ],
+          { cwd: process.cwd(), stdio: ["ignore", "pipe", "pipe"] },
+        );
+        let stderr = "";
+        child.stderr.setEncoding("utf8").on("data", (chunk: string) => (stderr += chunk));
+        child.once("error", reject);
+        child.once("exit", (code) =>
+          code === 0 ? resolve() : reject(new Error(`History child failed (${code}): ${stderr}`)),
+        );
+      });
+
+    await Promise.all([run("run-process-a", 10), run("run-process-b", 20)]);
+
+    const storage = new BuildHistoryStorage(new PipelabContext({ userDataPath: root }));
+    expect((await storage.getByPipeline("project-1")).map((run) => run.id).sort()).toEqual([
+      "run-process-a",
+      "run-process-b",
     ]);
   });
 });

@@ -678,6 +678,13 @@ const canCreateProject = computed(() => {
 });
 
 const { t } = useI18n();
+const notifyPersistenceError = (error: unknown) =>
+  toast.add({
+    severity: "error",
+    summary: t("base.error"),
+    detail: error instanceof Error ? error.message : String(error),
+    life: 5000,
+  });
 
 const isLoading = ref(false);
 
@@ -913,7 +920,9 @@ const createWorkflow = async (flow: ReleaseConfig) => {
 };
 const openWorkflow = (id: string) => router.push(`/workflows/${id}/${activeProjectId.value}`);
 const destinationLabel = (d: ReleaseConfig["destinations"][number]) => d.provider;
-onMounted(() => reloadFiles(true));
+onMounted(() => {
+  void reloadFiles(true).catch(notifyPersistenceError);
+});
 const onNewProjectCreation = async () => {
   const projectId = nanoid();
   try {
@@ -1144,7 +1153,11 @@ const deletePipeline = async (id: string) => {
     rejectClass: "p-button-secondary p-button-outlined",
     acceptClass: "p-button-danger",
     accept: async () => {
-      await remove(id);
+      try {
+        await remove(id);
+      } catch (error) {
+        notifyPersistenceError(error);
+      }
     },
     reject: () => {
       // do nothing
@@ -1177,7 +1190,11 @@ const deleteProject = async (projectId?: string) => {
     rejectClass: "p-button-secondary p-button-outlined",
     acceptClass: "p-button-danger",
     accept: async () => {
-      await removeProject(id);
+      try {
+        await removeProject(id);
+      } catch (error) {
+        notifyPersistenceError(error);
+      }
     },
     reject: () => {
       // do nothing
@@ -1213,8 +1230,12 @@ const deleteWorkflow = (id: string) => {
     rejectClass: "p-button-secondary p-button-outlined",
     acceptClass: "p-button-danger",
     accept: async () => {
-      await removeWorkflow(id);
-      workflowsEnhanced.value = workflowsEnhanced.value.filter((flow) => flow.id !== id);
+      try {
+        await removeWorkflow(id);
+        workflowsEnhanced.value = workflowsEnhanced.value.filter((flow) => flow.id !== id);
+      } catch (error) {
+        notifyPersistenceError(error);
+      }
     },
   });
 };
@@ -1340,14 +1361,18 @@ const openTransferDialog = () => {
 
 const performTransfer = async () => {
   if (selectedPipelineForMenu.value && selectedTargetProject.value) {
-    await transferPipeline(selectedPipelineForMenu.value.id, selectedTargetProject.value.id);
-    isTransferModalVisible.value = false;
-    toast.add({
-      severity: "success",
-      summary: t("home.transfer-successful"),
-      detail: t("home.pipeline-transferred"),
-      life: 3000,
-    });
+    try {
+      await transferPipeline(selectedPipelineForMenu.value.id, selectedTargetProject.value.id);
+      isTransferModalVisible.value = false;
+      toast.add({
+        severity: "success",
+        summary: t("home.transfer-successful"),
+        detail: t("home.pipeline-transferred"),
+        life: 3000,
+      });
+    } catch (error) {
+      notifyPersistenceError(error);
+    }
   }
 };
 

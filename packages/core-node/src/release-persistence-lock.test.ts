@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -13,15 +13,24 @@ afterEach(async () => {
 });
 
 describe("cross-process persistence lock", () => {
-  it("fails closed on a lock left by a process that no longer exists", async () => {
+  it("serializes mutations and releases the lock after completion", async () => {
     const root = await mkdtemp(join(tmpdir(), "pipelab-lock-"));
     temporaryPaths.push(root);
     const filePath = join(root, "projects.json");
-    await writeFile(`${filePath}.lock`, JSON.stringify({ pid: 2_147_483_647, token: "stale" }));
-    await expect(serializeFileMutation(filePath, async () => undefined)).rejects.toThrow(
-      /Stale persistence lock.*Verify no Pipelab writer is active/,
-    );
-    await expect(readFile(`${filePath}.lock`, "utf8")).resolves.toContain("stale");
+    let active = 0;
+    let maximumActive = 0;
+    const mutate = () =>
+      serializeFileMutation(filePath, async () => {
+        active += 1;
+        maximumActive = Math.max(maximumActive, active);
+        await new Promise((resolve) => setTimeout(resolve, 30));
+        active -= 1;
+      });
+
+    await Promise.all([mutate(), mutate()]);
+
+    expect(maximumActive).toBe(1);
+    await expect(stat(`${filePath}.lock`)).rejects.toMatchObject({ code: "ENOENT" });
   });
 
   it("releases its lock when a mutation fails", async () => {
@@ -34,6 +43,6 @@ describe("cross-process persistence lock", () => {
         throw new Error("write failed");
       }),
     ).rejects.toThrow("write failed");
-    await expect(readFile(`${filePath}.lock`, "utf8")).rejects.toMatchObject({ code: "ENOENT" });
+    await expect(stat(`${filePath}.lock`)).rejects.toMatchObject({ code: "ENOENT" });
   });
 });

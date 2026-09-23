@@ -22,7 +22,8 @@ export const useFiles = defineStore("files", () => {
   const remove = async (id: string) => {
     const pipeline = files.value.pipelines?.find((file) => file.id === id);
     if (pipeline && pipeline.type === "internal") {
-      await api.execute("pipeline:delete-by-name", { name: pipeline.configName });
+      const result = await api.execute("pipeline:delete-by-name", { name: pipeline.configName });
+      if (result.type === "error") throw new Error(result.ipcError);
     }
 
     await update((state) => {

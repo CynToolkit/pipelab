@@ -128,4 +128,14 @@ describe("useFiles persistence boundaries", () => {
     await transfer;
     expect(settled).toBe(true);
   });
+
+  it("does not remove a pipeline from the index when its file delete fails", async () => {
+    execute.mockResolvedValueOnce({ type: "error", ipcError: "disk unavailable" });
+    const store = useFiles();
+
+    await expect(store.remove("pipeline-1")).rejects.toThrow("disk unavailable");
+
+    expect(store.files.pipelines?.map((pipeline) => pipeline.id)).toEqual(["pipeline-1"]);
+    expect(save).not.toHaveBeenCalled();
+  });
 });
