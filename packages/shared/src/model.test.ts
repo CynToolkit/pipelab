@@ -543,6 +543,29 @@ describe("model", () => {
       expect(v3.workflows).toEqual([]);
     });
 
+    it("should migrate a V2 project while preserving pipelines", async () => {
+      const v2 = {
+        version: "2.0.0" as const,
+        projects: [
+          { id: "main", name: "Default project", description: "The initial default project" },
+        ],
+        pipelines: [
+          {
+            id: "pipeline-1",
+            project: "main",
+            type: "internal" as const,
+            configName: "pipeline-1",
+            lastModified: "2026-06-04",
+          },
+        ],
+      };
+
+      const v3 = await fileRepoMigrations.migrate(v2, { target: "3.0.0" });
+
+      expect(v3.pipelines).toEqual(v2.pipelines);
+      expect(v3.workflows).toEqual([]);
+    });
+
     it("should fallback to default value for corrupted config", async () => {
       const corrupted: any = {
         version: "1.0.0",

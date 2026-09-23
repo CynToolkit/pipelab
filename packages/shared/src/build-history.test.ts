@@ -99,42 +99,55 @@ describe("parseBuildHistoryDocument", () => {
     ).toThrow(field);
   });
 
-  it("rejects malformed execution step fields", () => {
-    expect(() =>
-      parseBuildHistoryDocument({
-        version: "1.0.0",
-        entries: [
-          {
-            ...entry,
-            steps: [
-              { id: "step", name: "step", status: "pending", startTime: 0, logs: [], uses: 1 },
-            ],
-          },
-        ],
-      }),
-    ).toThrow("uses");
-  });
+  it.each(["uses", "destinationId", "serviceId", "destinationName", "slotId", "artifact"])(
+    "rejects malformed execution step field %s",
+    (field) => {
+      expect(() =>
+        parseBuildHistoryDocument({
+          version: "1.0.0",
+          entries: [
+            {
+              ...entry,
+              steps: [
+                {
+                  id: "step",
+                  name: "step",
+                  status: "pending",
+                  startTime: 0,
+                  logs: [],
+                  [field]: 1,
+                },
+              ],
+            },
+          ],
+        }),
+      ).toThrow(field);
+    },
+  );
 
-  it("rejects malformed artifact descriptor fields", () => {
-    expect(() =>
-      parseBuildHistoryDocument({
-        version: "1.0.0",
-        entries: [
-          {
-            ...entry,
-            artifacts: [
-              {
-                id: "artifact-1",
-                name: "build.zip",
-                path: "/tmp/build.zip",
-                size: 12,
-                type: "file",
-                descriptor: { kind: "files", container: "archive", platform: 1 },
-              },
-            ],
-          },
-        ],
-      }),
-    ).toThrow("platform");
-  });
+  it.each(["technology", "platform", "architecture", "format"])(
+    "rejects malformed artifact descriptor field %s",
+    (field) => {
+      expect(() =>
+        parseBuildHistoryDocument({
+          version: "1.0.0",
+          entries: [
+            {
+              ...entry,
+              artifacts: [
+                {
+                  id: "artifact-1",
+                  name: "build.zip",
+                  path: "/tmp/build.zip",
+                  size: 12,
+                  type: "file",
+                  descriptor: { kind: "files", container: "archive", [field]: 1 },
+                },
+              ],
+            },
+          ],
+        }),
+      ).toThrow(field);
+    },
+  );
 });
