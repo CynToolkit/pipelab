@@ -42,19 +42,40 @@ describe("CLI release dry-run", () => {
     sandbox = await createSandbox(String(config.id));
     const configPath = join(sandbox.paths.userData, "config");
     const resultPath = join(sandbox.path, "dry-run.json");
-    await mkdir(configPath, { recursive: true });
+    await mkdir(join(configPath, "workflows"), { recursive: true });
     await writeFile(
       join(configPath, "projects.json"),
       JSON.stringify({
         version: "3.0.0",
-        projects: [{ id: "main", name: "Main" }],
+        projects: [{ id: "main", name: "Main", description: "CLI test" }],
         pipelines: [],
         workflows: [
-          { id: config.id, project: "main", type: "internal-workflow", configName: config.id },
+          {
+            id: config.id,
+            project: "main",
+            lastModified: new Date().toISOString(),
+            type: "internal-workflow",
+            configName: `workflows/${config.id}`,
+          },
         ],
       }),
     );
-    await writeFile(join(configPath, `${config.id}.json`), JSON.stringify(config));
+    await writeFile(
+      join(configPath, "connections.json"),
+      JSON.stringify({
+        version: "1.0.0",
+        connections: [
+          {
+            id: "steam",
+            pluginName: "@pipelab/plugin-steam",
+            name: "Steam test account",
+            createdAt: new Date().toISOString(),
+            isDefault: true,
+          },
+        ],
+      }),
+    );
+    await writeFile(join(configPath, "workflows", `${config.id}.json`), JSON.stringify(config));
     await runCLI([
       "workflow",
       "run",
@@ -69,6 +90,107 @@ describe("CLI release dry-run", () => {
   };
 
   test(
+    "fails predictably for malformed persisted workflows",
+    async () => {
+      sandbox = await createSandbox("workflow-malformed-e2e");
+      const configPath = join(sandbox.paths.userData, "config");
+      const workflowId = "malformed-workflow";
+      await mkdir(join(configPath, "workflows"), { recursive: true });
+      await writeFile(
+        join(configPath, "projects.json"),
+        JSON.stringify({
+          version: "3.0.0",
+          projects: [{ id: "main", name: "Main", description: "CLI test" }],
+          pipelines: [],
+          workflows: [
+            {
+              id: workflowId,
+              project: "main",
+              lastModified: new Date().toISOString(),
+              type: "internal-workflow",
+              configName: `workflows/${workflowId}`,
+            },
+          ],
+        }),
+      );
+      await writeFile(join(configPath, "workflows", `${workflowId}.json`), "{broken");
+
+      await expect(
+        runCLI(["workflow", "run", workflowId, "--user-data", sandbox.paths.userData, "--dry-run"]),
+      ).rejects.toThrow(/invalid persisted data|Malformed JSON/);
+    },
+    30 * 60 * 1000,
+  );
+
+  test(
+    "lists, resolves by name, and deletes workflows through strict persistence",
+    async () => {
+      sandbox = await createSandbox("workflow-commands-e2e");
+      const configPath = join(sandbox.paths.userData, "config");
+      const workflowId = "workflow-command-test";
+      await mkdir(join(configPath, "workflows"), { recursive: true });
+      await writeFile(
+        join(configPath, "projects.json"),
+        JSON.stringify({
+          version: "3.0.0",
+          projects: [{ id: "main", name: "Main", description: "CLI test" }],
+          pipelines: [],
+          workflows: [
+            {
+              id: workflowId,
+              project: "main",
+              lastModified: new Date().toISOString(),
+              type: "internal-workflow",
+              configName: `workflows/${workflowId}`,
+            },
+          ],
+        }),
+      );
+      await writeFile(
+        join(configPath, "workflows", `${workflowId}.json`),
+        JSON.stringify({
+          version: "3.0.0",
+          id: workflowId,
+          project: "main",
+          name: "Command workflow",
+          source: {
+            provider: "@pipelab/plugin-filesystem/folder-source",
+            config: { path: sandbox.paths.input },
+          },
+          builds: [],
+          destinations: [],
+        }),
+      );
+
+      const listed = await runCLI(["workflow", "list", "--user-data", sandbox.paths.userData]);
+      expect(listed.stdout).toContain("Command workflow (workflow-command-test)");
+
+      const dryRun = await runCLI([
+        "workflow",
+        "run",
+        "Command workflow",
+        "--user-data",
+        sandbox.paths.userData,
+        "--dry-run",
+      ]);
+      expect(dryRun.stdout).toContain("Dry run for Command workflow");
+
+      await runCLI([
+        "workflow",
+        "delete",
+        workflowId,
+        "--user-data",
+        sandbox.paths.userData,
+        "--force",
+      ]);
+      const projects = JSON.parse(await readFile(join(configPath, "projects.json"), "utf8"));
+      expect(projects.workflows).toEqual([]);
+      await expect(access(join(configPath, "workflows", `${workflowId}.json`))).rejects.toThrow();
+    },
+    30 * 60 * 1000,
+  );
+
+  test(
     "loads plugins, plans, compiles, and does not execute workflow steps",
     async () => {
       sandbox = await createSandbox("release-dry-run");
@@ -78,26 +200,27 @@ describe("CLI release dry-run", () => {
       const resultPath = join(sandbox.path, "dry-run.json");
 
       await mkdir(sourcePath, { recursive: true });
-      await mkdir(configPath, { recursive: true });
+      await mkdir(join(configPath, "workflows"), { recursive: true });
       await writeFile(join(sourcePath, "index.html"), "<h1>dry run</h1>");
       await writeFile(
         join(configPath, "projects.json"),
         JSON.stringify({
           version: "3.0.0",
-          projects: [{ id: "main", name: "Main" }],
+          projects: [{ id: "main", name: "Main", description: "CLI test" }],
           pipelines: [],
           workflows: [
             {
               id: "release-dry-run",
               project: "main",
               type: "internal-workflow",
-              configName: "release-dry-run",
+              lastModified: new Date().toISOString(),
+              configName: "workflows/release-dry-run",
             },
           ],
         }),
       );
       await writeFile(
-        join(configPath, "release-dry-run.json"),
+        join(configPath, "workflows", "release-dry-run.json"),
         JSON.stringify({
           version: "3.0.0",
           id: "release-dry-run",
@@ -274,7 +397,7 @@ describe("CLI release dry-run", () => {
     async () => {
       sandbox = await createSandbox("godot-steam");
       const configPath = join(sandbox.paths.userData, "config");
-      await mkdir(configPath, { recursive: true });
+      await mkdir(join(configPath, "workflows"), { recursive: true });
       const config = {
         version: "3.0.0",
         id: "godot-steam",
@@ -288,19 +411,20 @@ describe("CLI release dry-run", () => {
         join(configPath, "projects.json"),
         JSON.stringify({
           version: "3.0.0",
-          projects: [{ id: "main", name: "Main" }],
+          projects: [{ id: "main", name: "Main", description: "CLI test" }],
           pipelines: [],
           workflows: [
             {
               id: "godot-steam",
               project: "main",
               type: "internal-workflow",
-              configName: "godot-steam",
+              lastModified: new Date().toISOString(),
+              configName: "workflows/godot-steam",
             },
           ],
         }),
       );
-      await writeFile(join(configPath, "godot-steam.json"), JSON.stringify(config));
+      await writeFile(join(configPath, "workflows", "godot-steam.json"), JSON.stringify(config));
 
       await expect(
         runCLI([

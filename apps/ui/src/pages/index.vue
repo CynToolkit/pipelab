@@ -139,10 +139,7 @@
           </div>
 
           <!-- Empty State (No Pipelines) -->
-          <div
-            v-else-if="filesEnhanced.length === 0 && workflowsEnhanced.length === 0 && brokenWorkflows.length === 0"
-            class="no-projects"
-          >
+          <div v-else-if="dashboardState === 'empty'" class="no-projects">
             <i class="mdi mdi-folder-open-outline empty-icon"></i>
             <div class="no-pipelines-text">{{ $t("home.no-pipelines-yet") }}</div>
             <Button
@@ -157,10 +154,7 @@
           </div>
 
           <!-- No Search Results -->
-          <div
-            v-else-if="filteredFilesEnhanced.length === 0 && filteredWorkflowsEnhanced.length === 0"
-            class="no-search-results"
-          >
+          <div v-else-if="dashboardState === 'search-empty'" class="no-search-results">
             <i class="mdi mdi-magnify-close empty-icon"></i>
             <div class="no-results-text">No pipelines found matching "{{ searchQuery }}"</div>
             <Button text severity="secondary" @click="searchQuery = ''"> Clear search </Button>
@@ -278,7 +272,9 @@
                     severity="secondary"
                     size="small"
                     @click="toggleWorkflowMenu($event, flow)"
-              />
+                  />
+                </div>
+              </div>
             </div>
             <Message
               v-for="broken in brokenWorkflows"
@@ -289,8 +285,6 @@
               Release workflow <strong>{{ broken.id }}</strong> could not be loaded:
               {{ broken.error }}
             </Message>
-          </div>
-            </div>
           </div>
         </div>
       </div>
@@ -588,6 +582,7 @@ import InputIcon from "primevue/inputicon";
 import Textarea from "primevue/textarea";
 import ReleaseFlowWizard from "@renderer/components/ReleaseFlowWizard.vue";
 import { partitionWorkflowLoads } from "./workflow-load-state";
+import { getDashboardDisplayState } from "./dashboard-state";
 
 const router = useRouter();
 const api = useAPI();
@@ -717,6 +712,16 @@ const filteredWorkflowsEnhanced = computed(() => {
       );
 });
 
+const dashboardState = computed(() =>
+  getDashboardDisplayState({
+    files: filesEnhanced.value.length,
+    workflows: workflowsEnhanced.value.length,
+    brokenWorkflows: brokenWorkflows.value.length,
+    filteredFiles: filteredFilesEnhanced.value.length,
+    filteredWorkflows: filteredWorkflowsEnhanced.value.length,
+  }),
+);
+
 const hasExternalPipelines = computed(() => {
   return (files.value.pipelines || []).some((p) => p.type === "external");
 });
@@ -837,7 +842,11 @@ watchEffect(async () => {
 watchEffect(async () => {
   const revision = ++workflowLoadRevision;
   const entries = workflows.value.map((flow) => ({ ...flow }));
-  const results = await Promise.all(entries.map((flow) => api.execute("workflow:load-by-name", { name: flow.configName, projectId: flow.project })));
+  const results = await Promise.all(
+    entries.map((flow) =>
+      api.execute("workflow:load", { workflowId: flow.id, projectId: flow.project }),
+    ),
+  );
   if (revision !== workflowLoadRevision) return;
   const partitioned = partitionWorkflowLoads(entries, results);
   workflowsEnhanced.value = partitioned.loaded;

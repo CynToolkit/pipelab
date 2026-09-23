@@ -48,6 +48,8 @@ export const saveStrictProjects = async (
       throw new Error(
         `Project '${workflow.project}' cannot be deleted while workflow '${workflow.id}' references it.`,
       );
+  if (JSON.stringify(current.workflows || []) !== JSON.stringify(next.workflows || []))
+    throw new Error("Workflow index entries can only be changed through ReleasePersistence.");
   await writeJsonFileAtomically(context.getProjectsPath(), next);
 };
 

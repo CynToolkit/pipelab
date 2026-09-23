@@ -17,7 +17,7 @@ export class ConnectionsParseError extends Error {
   }
 }
 
-export const parseConnectionsConfig = (value: unknown): ConnectionsConfig => {
+const assertConnectionsConfig: (value: unknown) => asserts value is ConnectionsConfig = (value) => {
   const issues: ConnectionsParseIssue[] = [];
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     throw new ConnectionsParseError([
@@ -61,6 +61,16 @@ export const parseConnectionsConfig = (value: unknown): ConnectionsConfig => {
         message: "isDefault must be a boolean.",
         path: `${path}.isDefault`,
       });
+    if (
+      candidate.integrationName !== undefined &&
+      (typeof candidate.integrationName !== "string" ||
+        candidate.integrationName.trim().length === 0)
+    )
+      issues.push({
+        code: "connections.invalid",
+        message: "integrationName must be a non-empty string when present.",
+        path: `${path}.integrationName`,
+      });
     if (typeof candidate.id === "string") {
       if (ids.has(candidate.id))
         issues.push({
@@ -72,5 +82,9 @@ export const parseConnectionsConfig = (value: unknown): ConnectionsConfig => {
     }
   }
   if (issues.length > 0) throw new ConnectionsParseError(issues);
-  return value as ConnectionsConfig;
+};
+
+export const parseConnectionsConfig = (value: unknown): ConnectionsConfig => {
+  assertConnectionsConfig(value);
+  return value;
 };

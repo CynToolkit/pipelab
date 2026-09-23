@@ -22,7 +22,7 @@ describe("End-to-End: Multi-Plugin Integration Test", () => {
       const configPath = join(paths.userData, "config");
 
       await mkdir(sourcePath, { recursive: true });
-      await mkdir(configPath, { recursive: true });
+      await mkdir(join(configPath, "workflows"), { recursive: true });
       await writeFile(join(sourcePath, "index.html"), "<h1>CLI release</h1>");
       await writeFile(
         join(configPath, "projects.json"),
@@ -36,13 +36,13 @@ describe("End-to-End: Multi-Plugin Integration Test", () => {
               project: "main",
               lastModified: new Date().toISOString(),
               type: "internal-workflow",
-              configName: "release-e2e",
+              configName: "workflows/release-e2e",
             },
           ],
         }),
       );
       await writeFile(
-        join(configPath, "release-e2e.json"),
+        join(configPath, "workflows", "release-e2e.json"),
         JSON.stringify({
           version: "3.0.0",
           id: "release-e2e",
@@ -123,7 +123,14 @@ describe("End-to-End: Multi-Plugin Integration Test", () => {
       await writeFile(pipelineFile, JSON.stringify(pipeline, null, 2));
 
       // Run the CLI using the helper
-      await runCLI(["run", pipelineFile, "--output", resultFile]);
+      await runCLI([
+        "run",
+        pipelineFile,
+        "--user-data",
+        sandbox.paths.userData,
+        "--output",
+        resultFile,
+      ]);
 
       const resultJson = JSON.parse(await readFile(resultFile, "utf-8"));
 

@@ -63,7 +63,7 @@ export interface BuildHistoryEntry {
   workflowId?: string;
   workflowName?: string;
   projectName: string;
-  projectPath: string;
+  projectPath?: string;
   cachePath?: string;
   status: "running" | "completed" | "completed-with-errors" | "failed" | "cancelled";
   version?: string;
@@ -134,14 +134,85 @@ const parseLog = (value: unknown, path: string): void => {
     throw new BuildHistoryParseError(`${path}.data`, "must be an object");
 };
 
-const parseEntry = (value: unknown, path: string): BuildHistoryEntry => {
+const parseArtifactDescriptor = (value: unknown, path: string): void => {
+  if (
+    !isRecord(value) ||
+    !["project", "application", "files"].includes(String(value.kind)) ||
+    !["file", "directory", "archive"].includes(String(value.container))
+  )
+    throw new BuildHistoryParseError(path, "has an invalid shape");
+  if (
+    value.capabilities !== undefined &&
+    (!Array.isArray(value.capabilities) ||
+      value.capabilities.some((capability) => typeof capability !== "string"))
+  )
+    throw new BuildHistoryParseError(`${path}.capabilities`, "must be an array of strings");
+};
+
+const parseArtifactCloud = (value: unknown, path: string): void => {
+  if (
+    !isRecord(value) ||
+    !isNonEmptyString(value.hostedArtifactId) ||
+    !isNonEmptyString(value.uploadedAt)
+  )
+    throw new BuildHistoryParseError(path, "has an invalid hosted-artifact shape");
+};
+
+const parseArtifact = (value: unknown, path: string): void => {
+  if (!isRecord(value)) throw new BuildHistoryParseError(path, "artifact must be an object");
+
+  // Legacy persisted artifacts have a human-readable name and file type, but
+  // no runtime step/artifact reference. Runtime artifacts are identified by
+  // their descriptor and require those execution references.
+  const isRuntimeArtifact =
+    value.descriptor !== undefined &&
+    isNonEmptyString(value.stepId) &&
+    isNonEmptyString(value.artifact);
+  if (isRuntimeArtifact) {
+    if (
+      !isNonEmptyString(value.id) ||
+      !isNonEmptyString(value.path) ||
+      !isNonEmptyString(value.stepId) ||
+      !isNonEmptyString(value.artifact)
+    )
+      throw new BuildHistoryParseError(
+        path,
+        "runtime artifact requires id, path, stepId, and artifact",
+      );
+    parseArtifactDescriptor(value.descriptor, `${path}.descriptor`);
+  } else if (
+    !isNonEmptyString(value.id) ||
+    !isNonEmptyString(value.name) ||
+    !isNonEmptyString(value.path) ||
+    typeof value.size !== "number" ||
+    !["file", "folder"].includes(String(value.type))
+  ) {
+    throw new BuildHistoryParseError(
+      path,
+      "legacy artifact requires id, name, path, size, and type",
+    );
+  }
+  if (!isRuntimeArtifact && value.descriptor !== undefined)
+    parseArtifactDescriptor(value.descriptor, `${path}.descriptor`);
+  for (const key of ["version", "stepId", "artifact", "checksum"])
+    if (value[key] !== undefined && typeof value[key] !== "string")
+      throw new BuildHistoryParseError(`${path}.${key}`, "must be a string");
+  if (value.size !== undefined && typeof value.size !== "number")
+    throw new BuildHistoryParseError(`${path}.size`, "must be a number");
+  if (value.cloud !== undefined) parseArtifactCloud(value.cloud, `${path}.cloud`);
+};
+
+const assertEntry: (value: unknown, path: string) => asserts value is BuildHistoryEntry = (
+  value,
+  path,
+) => {
   if (!isRecord(value)) throw new BuildHistoryParseError(path, "run entry must be an object");
   for (const key of ["id", "pipelineId"])
     if (!isNonEmptyString(value[key]))
       throw new BuildHistoryParseError(`${path}.${key}`, "must be a string");
   if (typeof value.projectName !== "string")
     throw new BuildHistoryParseError(`${path}.projectName`, "must be a string");
-  if (typeof value.projectPath !== "string")
+  if (value.projectPath !== undefined && typeof value.projectPath !== "string")
     throw new BuildHistoryParseError(`${path}.projectPath`, "must be a string");
   for (const key of ["workflowId", "workflowName", "cachePath", "version", "userId"])
     if (value[key] !== undefined && typeof value[key] !== "string")
@@ -188,53 +259,7 @@ const parseEntry = (value: unknown, path: string): BuildHistoryEntry => {
     if (!Array.isArray(value.artifacts))
       throw new BuildHistoryParseError(`${path}.artifacts`, "must be an array");
     value.artifacts.forEach((artifact, index) => {
-      if (!isRecord(artifact))
-        throw new BuildHistoryParseError(
-          `${path}.artifacts.${index}`,
-          "artifact must be an object",
-        );
-      if (
-        !isNonEmptyString(artifact.id) ||
-        !isNonEmptyString(artifact.path) ||
-        !isNonEmptyString(artifact.stepId) ||
-        !isNonEmptyString(artifact.artifact)
-      )
-        throw new BuildHistoryParseError(
-          `${path}.artifacts.${index}`,
-          "artifact requires id, path, stepId, and artifact",
-        );
-      if (artifact.descriptor !== undefined) {
-        if (
-          !isRecord(artifact.descriptor) ||
-          !["project", "application", "files"].includes(String(artifact.descriptor.kind)) ||
-          !["file", "directory", "archive"].includes(String(artifact.descriptor.container))
-        )
-          throw new BuildHistoryParseError(
-            `${path}.artifacts.${index}.descriptor`,
-            "has an invalid shape",
-          );
-        if (
-          artifact.descriptor.capabilities !== undefined &&
-          (!Array.isArray(artifact.descriptor.capabilities) ||
-            artifact.descriptor.capabilities.some((capability) => typeof capability !== "string"))
-        )
-          throw new BuildHistoryParseError(
-            `${path}.artifacts.${index}.descriptor.capabilities`,
-            "must be an array of strings",
-          );
-      }
-      if (artifact.size !== undefined && typeof artifact.size !== "number")
-        throw new BuildHistoryParseError(`${path}.artifacts.${index}.size`, "must be a number");
-      if (
-        artifact.cloud !== undefined &&
-        (!isRecord(artifact.cloud) ||
-          !isNonEmptyString(artifact.cloud.hostedArtifactId) ||
-          !isNonEmptyString(artifact.cloud.uploadedAt))
-      )
-        throw new BuildHistoryParseError(
-          `${path}.artifacts.${index}.cloud`,
-          "has an invalid hosted-artifact shape",
-        );
+      parseArtifact(artifact, `${path}.artifacts.${index}`);
     });
   }
   if (value.deliveries !== undefined) {
@@ -270,7 +295,11 @@ const parseEntry = (value: unknown, path: string): BuildHistoryEntry => {
         throw new BuildHistoryParseError(`${path}.deliveries.${index}.error`, "must be a string");
     });
   }
-  return value as unknown as BuildHistoryEntry;
+};
+
+const parseEntry = (value: unknown, path: string): BuildHistoryEntry => {
+  assertEntry(value, path);
+  return value;
 };
 
 export const parseBuildHistoryDocument = (value: unknown): BuildHistoryDocument => {

@@ -50,9 +50,9 @@ export const useFiles = defineStore("files", () => {
   };
 
   const saveWorkflow = async (flow: ReleaseConfig) => {
-    const result = await api.execute("workflow:save-by-name", {
-      name: `workflows/${flow.id}`,
-      data: JSON.stringify(flow),
+    const result = await api.execute("workflow:save", {
+      workflowId: flow.id,
+      data: flow,
       projectId: flow.project,
     });
     if (result.type === "error") throw new Error(result.ipcError);
@@ -62,8 +62,8 @@ export const useFiles = defineStore("files", () => {
   const removeWorkflow = async (id: string) => {
     const flow = files.value.workflows?.find((item) => item.id === id);
     if (flow) {
-      const result = await api.execute("workflow:delete-by-name", {
-        name: flow.configName,
+      const result = await api.execute("workflow:delete", {
+        workflowId: flow.id,
         projectId: flow.project,
       });
       if (result.type === "error") throw new Error(result.ipcError);

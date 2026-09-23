@@ -2,17 +2,14 @@ import { useAPI } from "../ipc-core";
 import {
   useLogger,
   appSettingsMigrator,
-  buildReleaseRegistry,
-  connectionsMigrator,
-  fileRepoMigrations,
-  validateReleaseConnectionReferences,
-  usePlugins,
+  defaultConnections,
+  defaultFileRepo,
+  type ConnectionsConfig,
+  type FileRepo,
   type BrowserProfileCandidate,
 } from "@pipelab/shared";
 import {
   setupSettingsConfigFile,
-  setupConnectionsConfigFile,
-  setupProjectsConfigFile,
   setupPipelineConfigFileByName,
   setupPipelineConfigFileByPath,
   deletePipelineConfigFileByName,
@@ -46,17 +43,6 @@ export const registerConfigHandlers = (context: PipelabContext) => {
     };
     return candidate;
   });
-  const validateWorkflowConnections = async (
-    config: Parameters<typeof validateReleaseConnectionReferences>[0],
-  ) => {
-    const issues = validateReleaseConnectionReferences(
-      config,
-      buildReleaseRegistry(usePlugins().plugins.value),
-      await loadStrictConnections(context),
-    );
-    if (issues.length) throw new Error(issues.map((issue) => issue.message).join(" "));
-  };
-
   handle("construct:profiles:discover", async (_, { send, value }) => {
     try {
       const profiles = await profileCache.get(value.path, value.forceRefresh);
@@ -187,13 +173,13 @@ export const registerConfigHandlers = (context: PipelabContext) => {
   handle("connections:reset", async (_, { send, value }) => {
     const { key } = value;
     try {
-      const manager = await setupConnectionsConfigFile(context);
-      const currentConfig = await manager.getConfig();
-      const defaultValue = (connectionsMigrator.defaultValue as any)[key];
-      await manager.setConfig({
-        ...(currentConfig ? (currentConfig as any) : {}),
-        [key]: defaultValue,
-      } as any);
+      const currentConfig = await loadStrictConnections(context);
+      if (key !== "connections") throw new Error(`Unknown connections reset key '${key}'.`);
+      const next: ConnectionsConfig = {
+        ...currentConfig,
+        connections: defaultConnections.connections,
+      };
+      await saveStrictConnections(context, next);
       send({
         type: "end",
         data: { type: "success", result: "ok" },
@@ -255,13 +241,17 @@ export const registerConfigHandlers = (context: PipelabContext) => {
   handle("projects:reset", async (_, { send, value }) => {
     const { key } = value;
     try {
-      const manager = await setupProjectsConfigFile(context);
-      const currentConfig = await manager.getConfig();
-      const defaultValue = (fileRepoMigrations.defaultValue as any)[key];
-      await manager.setConfig({
-        ...(currentConfig ? (currentConfig as any) : {}),
-        [key]: defaultValue,
-      } as any);
+      const currentConfig = await loadStrictProjects(context);
+      if (!(key in currentConfig) || key === "version")
+        throw new Error(`Unknown projects reset key '${key}'.`);
+      let next: FileRepo;
+      if (key === "projects") next = { ...currentConfig, projects: defaultFileRepo.projects };
+      else if (key === "pipelines")
+        next = { ...currentConfig, pipelines: defaultFileRepo.pipelines };
+      else if (key === "workflows")
+        next = { ...currentConfig, workflows: defaultFileRepo.workflows };
+      else throw new Error(`Unknown projects reset key '${key}'.`);
+      await saveStrictProjects(context, next);
       send({
         type: "end",
         data: { type: "success", result: "ok" },
@@ -410,11 +400,13 @@ export const registerConfigHandlers = (context: PipelabContext) => {
     }
   });
 
-  handle("workflow:load-by-name", async (_, { send, value }) => {
+  handle("workflow:load", async (_, { send, value }) => {
     try {
-      const workflowId = value.name.replace(/^workflows\//, "").replace(/\.json$/, "");
-      const result = await new ReleasePersistence(context).load(workflowId, value.projectId);
-      await validateWorkflowConnections(result);
+      const entity = await new ReleasePersistence(context).loadWithProject(
+        value.workflowId,
+        value.projectId,
+      );
+      const result = entity.config;
       send({
         type: "end",
         data: {
@@ -433,14 +425,11 @@ export const registerConfigHandlers = (context: PipelabContext) => {
     }
   });
 
-  handle("workflow:save-by-name", async (_, { send, value }) => {
+  handle("workflow:save", async (_, { send, value }) => {
     try {
-      const workflowId = value.name.replace(/^workflows\//, "").replace(/\.json$/, "");
-      const data = JSON.parse(value.data);
-      if (workflowId !== data.id)
-        throw new Error(`Workflow path '${workflowId}' does not match persisted workflow ID.`);
-      await validateWorkflowConnections(data);
-      await new ReleasePersistence(context).save(data, value.projectId);
+      if (value.workflowId !== value.data.id)
+        throw new Error(`Workflow ID '${value.workflowId}' does not match persisted workflow ID.`);
+      await new ReleasePersistence(context).save(value.data, value.projectId);
       send({ type: "end", data: { type: "success", result: "ok" } });
     } catch (e) {
       send({
@@ -453,10 +442,9 @@ export const registerConfigHandlers = (context: PipelabContext) => {
     }
   });
 
-  handle("workflow:delete-by-name", async (_, { send, value }) => {
+  handle("workflow:delete", async (_, { send, value }) => {
     try {
-      const workflowId = value.name.replace(/^workflows\//, "").replace(/\.json$/, "");
-      await new ReleasePersistence(context).delete(workflowId, value.projectId);
+      await new ReleasePersistence(context).delete(value.workflowId, value.projectId);
       send({ type: "end", data: { type: "success", result: "ok" } });
     } catch (e) {
       send({

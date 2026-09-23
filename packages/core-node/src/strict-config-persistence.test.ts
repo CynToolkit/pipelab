@@ -43,4 +43,40 @@ describe("strict config persistence", () => {
       saveStrictProjects(context, { version: "3.0.0", projects: [], pipelines: [], workflows: [] }),
     ).rejects.toThrow("cannot be deleted");
   });
+
+  it("prevents generic project saves from mutating workflow index entries", async () => {
+    const context = await setup();
+    const workflow = {
+      id: "w1",
+      project: "p1",
+      lastModified: "2026-01-01",
+      type: "internal-workflow" as const,
+      configName: "workflows/w1",
+    };
+    await writeFile(
+      context.getProjectsPath(),
+      JSON.stringify({
+        version: "3.0.0",
+        projects: [{ id: "p1", name: "Project", description: "" }],
+        pipelines: [],
+        workflows: [workflow],
+      }),
+    );
+    await expect(
+      saveStrictProjects(context, {
+        version: "3.0.0",
+        projects: [{ id: "p1", name: "Renamed", description: "" }],
+        pipelines: [],
+        workflows: [{ ...workflow, lastModified: "2026-01-02" }],
+      }),
+    ).rejects.toThrow("only be changed through ReleasePersistence");
+    await expect(
+      saveStrictProjects(context, {
+        version: "3.0.0",
+        projects: [{ id: "p1", name: "Renamed", description: "" }],
+        pipelines: [],
+        workflows: [workflow],
+      }),
+    ).resolves.toBeUndefined();
+  });
 });

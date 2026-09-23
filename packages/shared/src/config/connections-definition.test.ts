@@ -45,4 +45,23 @@ describe("parseConnectionsConfig", () => {
       }),
     ).toThrow("duplicated");
   });
+
+  it("rejects malformed integration metadata while preserving valid provider fields", () => {
+    expect(() =>
+      parseConnectionsConfig({
+        version: "1.0.0",
+        connections: [
+          {
+            id: "c1",
+            pluginName: "provider",
+            integrationName: "   ",
+            name: "Account",
+            createdAt: "2026-01-01",
+            isDefault: false,
+            token: "opaque",
+          },
+        ],
+      }),
+    ).toThrow("integrationName must be a non-empty string");
+  });
 });

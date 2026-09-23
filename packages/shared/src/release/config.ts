@@ -5,6 +5,7 @@ import {
   type ValidationIssue,
 } from "./types";
 import type { ConnectionsConfig } from "../config.schema";
+import { isSafePersistedId } from "../persisted-id";
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
@@ -39,6 +40,27 @@ export const validateReleaseConfigShape = (config: unknown): ValidationIssue[] =
         path: key,
       });
   }
+  if (value.description !== undefined && typeof value.description !== "string")
+    issues.push({
+      code: "release.config.description",
+      message: "description must be a string when present.",
+      severity: "error",
+      path: "description",
+    });
+  if (!isSafePersistedId(value.id))
+    issues.push({
+      code: "release.config.id.invalid",
+      message: "id must be a safe non-empty persisted ID.",
+      severity: "error",
+      path: "id",
+    });
+  if (!isSafePersistedId(value.project))
+    issues.push({
+      code: "release.config.project.invalid",
+      message: "project must be a safe non-empty persisted ID.",
+      severity: "error",
+      path: "project",
+    });
   if (
     !isRecord(value.source) ||
     !requiredString(value.source.provider) ||
@@ -100,6 +122,13 @@ export const validateReleaseConfigShape = (config: unknown): ValidationIssue[] =
       continue;
     }
     addId("build", build.id, `${path}.id`);
+    if (build.name !== undefined && !requiredString(build.name))
+      issues.push({
+        code: "release.build.name",
+        message: "Build name must be a non-empty string when present.",
+        severity: "error",
+        path: `${path}.name`,
+      });
     for (const [targetIndex, target] of build.targets.entries()) {
       if (
         !isRecord(target) ||
@@ -177,7 +206,16 @@ export const validateReleaseConfigShape = (config: unknown): ValidationIssue[] =
           severity: "error",
           path: slotPath,
         });
-      else addId(`${path}.slots`, slot.id, `${slotPath}.id`);
+      else {
+        addId(`${path}.slots`, slot.id, `${slotPath}.id`);
+        if (slot.name !== undefined && !requiredString(slot.name))
+          issues.push({
+            code: "release.destination.slot.name",
+            message: "Destination slot name must be a non-empty string when present.",
+            severity: "error",
+            path: `${slotPath}.name`,
+          });
+      }
     }
   }
   if (value.continueOnError !== undefined && typeof value.continueOnError !== "boolean")
@@ -209,10 +247,14 @@ export class ReleaseConfigParseError extends Error {
   }
 }
 
-export const parseReleaseConfig = (value: unknown): ReleaseConfig => {
+const assertReleaseConfigShape: (value: unknown) => asserts value is ReleaseConfig = (value) => {
   const issues = validateReleaseConfigShape(value);
   if (issues.length > 0) throw new ReleaseConfigParseError(issues);
-  return value as ReleaseConfig;
+};
+
+export const parseReleaseConfig = (value: unknown): ReleaseConfig => {
+  assertReleaseConfigShape(value);
+  return value;
 };
 
 export const createReleaseConfig = (

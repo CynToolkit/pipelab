@@ -198,7 +198,7 @@ export type IpcDefinition = {
   "pipeline:save-by-path": [{ path: string; data: string }, EndEvent<"ok">];
   "pipeline:delete-by-name": [{ name: string }, EndEvent<"ok">];
   "pipeline:delete-by-path": [{ path: string }, EndEvent<"ok">];
-  "workflow:load-by-name": [{ name: string; projectId?: string }, EndEvent<ReleaseConfig>];
+  "workflow:load": [{ workflowId: string; projectId?: string }, EndEvent<ReleaseConfig>];
   "release:catalog:get": [void, EndEvent<ReleaseCatalog>];
   "release:source:inspect": [
     { provider: string; config: Record<string, unknown> },
@@ -211,8 +211,11 @@ export type IpcDefinition = {
   "release:validate": [{ config: ReleaseConfig }, EndEvent<{ issues: ValidationIssue[] }>];
   "release:plan": [{ config: ReleaseConfig }, EndEvent<ReleasePlan>];
   "release:resolve-defaults": [{ config: ReleaseConfig }, EndEvent<ReleaseConfig>];
-  "workflow:save-by-name": [{ name: string; data: string; projectId?: string }, EndEvent<"ok">];
-  "workflow:delete-by-name": [{ name: string; projectId?: string }, EndEvent<"ok">];
+  "workflow:save": [
+    { workflowId: string; data: ReleaseConfig; projectId?: string },
+    EndEvent<"ok">,
+  ];
+  "workflow:delete": [{ workflowId: string; projectId?: string }, EndEvent<"ok">];
   "workflow:execute": [
     { name: string; destinations?: string[]; release?: { version: string; description: string } },
     (

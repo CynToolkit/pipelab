@@ -26,3 +26,14 @@ export * from "./server";
 export * from "./utils";
 export * from "./utils/github";
 export * from "./fs-utils";
+export {
+  ReleasePersistence,
+  ReleasePersistenceError,
+  type LoadedReleaseWorkflow,
+} from "./release-persistence";
+export {
+  loadStrictProjects,
+  loadStrictConnections,
+  saveStrictProjects,
+  saveStrictConnections,
+} from "./strict-config-persistence";

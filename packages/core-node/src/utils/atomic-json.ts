@@ -37,6 +37,6 @@ export const writeJsonFileAtomically = async (filePath: string, value: unknown):
     });
     await rename(temporaryPath, filePath);
   } finally {
-    await rm(temporaryPath, { force: true }).catch(() => undefined);
+    await rm(temporaryPath, { force: true }).catch((): void => undefined);
   }
 };

@@ -149,6 +149,35 @@ describe("release descriptors", () => {
     expect(() => parseReleaseConfig(invalid)).toThrow("already used");
   });
 
+  it("rejects output references with missing or unexpected fields", () => {
+    const config = createReleaseConfig({
+      id: "r",
+      project: "p",
+      name: "n",
+      source: { provider: "source", config: {} },
+    });
+    const invalid = {
+      ...config,
+      destinations: [
+        {
+          id: "destination",
+          provider: "destination",
+          enabled: true,
+          config: {},
+          slots: [
+            {
+              id: "slot",
+              enabled: true,
+              input: { buildId: "build-only" },
+              config: {},
+            },
+          ],
+        },
+      ],
+    };
+    expect(() => parseReleaseConfig(invalid)).toThrow("Destination slots require");
+  });
+
   it("creates and round-trips a structurally valid draft", () => {
     const config = createReleaseConfig({
       id: "r",
@@ -157,6 +186,52 @@ describe("release descriptors", () => {
       source: { provider: "source", config: {} },
     });
     expect(parseReleaseConfig(JSON.parse(JSON.stringify(config)))).toEqual(config);
+  });
+
+  it("rejects IDs that could escape persisted workflow paths", () => {
+    const config = createReleaseConfig({
+      id: "../connections",
+      project: "project-1",
+      name: "Release",
+      source: { provider: "source", config: {} },
+    });
+    expect(() => parseReleaseConfig(config)).toThrow("safe non-empty persisted ID");
+  });
+
+  it("rejects unsafe project IDs used by persisted artifacts", () => {
+    const config = createReleaseConfig({
+      id: "workflow-1",
+      project: "../project",
+      name: "Release",
+      source: { provider: "source", config: {} },
+    });
+    expect(() => parseReleaseConfig(config)).toThrow("project must be a safe");
+  });
+
+  it("rejects malformed optional Pipelab-owned fields", () => {
+    const config = createReleaseConfig({
+      id: "workflow-1",
+      project: "project-1",
+      name: "Release",
+      source: { provider: "source", config: {} },
+      description: "valid",
+    });
+    expect(() =>
+      parseReleaseConfig({
+        ...config,
+        description: 42,
+        builds: [],
+        destinations: [
+          {
+            id: "destination-1",
+            provider: "destination",
+            enabled: true,
+            config: {},
+            slots: [{ id: "slot-1", name: 42, enabled: true, config: {} }],
+          },
+        ],
+      }),
+    ).toThrow("description");
   });
 
   it("reports missing and wrong-integration connection references", () => {

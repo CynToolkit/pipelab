@@ -41,4 +41,15 @@ describe("parseFileRepo", () => {
       }),
     ).toThrow("duplicated");
   });
+
+  it("rejects unsafe project and workflow IDs", () => {
+    expect(() =>
+      parseFileRepo({
+        version: "3.0.0",
+        projects: [{ id: "../project", name: "Project", description: "Description" }],
+        pipelines: [],
+        workflows: [],
+      }),
+    ).toThrow("safe non-empty persisted ID");
+  });
 });

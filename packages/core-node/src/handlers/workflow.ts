@@ -169,7 +169,6 @@ export const executeWorkflow = async (
     workflowId: config.id,
     workflowName: config.name,
     projectName: storedEntity.project.name,
-    projectPath: "",
     status: "running",
     version,
     startTime,

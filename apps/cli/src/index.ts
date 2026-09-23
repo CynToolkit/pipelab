@@ -11,6 +11,7 @@ import { setupCommand } from "./commands/setup";
 import {
   deleteWorkflowCommand,
   listWorkflowsCommand,
+  workflowUserDataOption,
   runWorkflowCommand,
   workflowRunOptions,
 } from "./commands/workflows";
@@ -173,9 +174,10 @@ workflows
   .command("ls")
   .alias("list")
   .description("List all workflows")
-  .action(async () => {
+  .addOption(workflowUserDataOption())
+  .action(async (options) => {
     try {
-      await listWorkflowsCommand();
+      await listWorkflowsCommand(options);
     } catch (e) {
       console.error(e);
       process.exit(1);
@@ -201,6 +203,7 @@ workflows
   .alias("delete")
   .description("Delete a workflow")
   .option("-f, --force", "Confirm deletion")
+  .addOption(workflowUserDataOption())
   .action(async (id, options) => {
     try {
       await deleteWorkflowCommand(id, options);

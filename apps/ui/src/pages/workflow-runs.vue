@@ -123,13 +123,16 @@ const loadRuns = async () => {
       api.execute("build-history:get-all", {
         query: { workflowId: flowId.value, pipelineId: projectId.value },
       }),
-      api.execute("workflow:load-by-name", { name: `workflows/${flowId.value}`, projectId: projectId.value }),
+      api.execute("workflow:load", { workflowId: flowId.value, projectId: projectId.value }),
     ]);
     if (generation !== loadGeneration) return;
     if (history.type === "error") error.value = history.ipcError;
-    else entries.value = history.result.entries
-      .filter((entry) => entry.workflowId === flowId.value && entry.pipelineId === projectId.value)
-      .sort((a, b) => b.startTime - a.startTime);
+    else
+      entries.value = history.result.entries
+        .filter(
+          (entry) => entry.workflowId === flowId.value && entry.pipelineId === projectId.value,
+        )
+        .sort((a, b) => b.startTime - a.startTime);
     if (workflow.type === "success") {
       if (!isWorkflowRouteContextValid(workflow.result, flowId.value, projectId.value)) {
         entries.value = [];

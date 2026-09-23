@@ -33,8 +33,15 @@ describe("parseBuildHistoryDocument", () => {
   });
 
   it("rejects malformed persisted artifacts and deliveries", () => {
-    const artifact = {
+    const legacyArtifact = {
       id: "artifact-1",
+      name: "build.zip",
+      path: "/tmp/build.zip",
+      size: 12,
+      type: "file",
+    };
+    const runtimeArtifact = {
+      id: "runtime-artifact-1",
       path: "/tmp/build.zip",
       stepId: "step-1",
       artifact: "output",
@@ -46,7 +53,9 @@ describe("parseBuildHistoryDocument", () => {
         entries: [
           {
             ...entry,
-            artifacts: [{ ...artifact, descriptor: { kind: "unknown", container: "archive" } }],
+            artifacts: [
+              { ...runtimeArtifact, descriptor: { kind: "unknown", container: "archive" } },
+            ],
           },
         ],
       }),
@@ -63,11 +72,15 @@ describe("parseBuildHistoryDocument", () => {
         entries: [
           {
             ...entry,
-            artifacts: [
-              { id: "legacy", path: "/tmp/output", stepId: "step-1", artifact: "output" },
-            ],
+            artifacts: [legacyArtifact],
           },
         ],
+      }).entries[0]?.artifacts,
+    ).toHaveLength(1);
+    expect(
+      parseBuildHistoryDocument({
+        version: "1.0.0",
+        entries: [{ ...entry, artifacts: [runtimeArtifact] }],
       }).entries[0]?.artifacts,
     ).toHaveLength(1);
   });

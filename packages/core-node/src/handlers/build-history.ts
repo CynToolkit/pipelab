@@ -5,6 +5,7 @@ import { randomUUID } from "node:crypto";
 import {
   useLogger,
   parseBuildHistoryDocument,
+  isSafePersistedId,
   BuildHistoryEntry,
   IBuildHistoryStorage,
   AppConfig,
@@ -47,6 +48,7 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
   }
 
   private getPipelinePath(pipelineId: string): string {
+    if (!isSafePersistedId(pipelineId)) throw new Error(`Unsafe pipeline ID '${pipelineId}'.`);
     return join(this.getStoragePath(), `${pipelineId}.history.json`);
   }
 
@@ -82,6 +84,7 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
     entries: BuildHistoryEntry[],
   ): Promise<void> {
     try {
+      parseBuildHistoryDocument({ version: "1.0.0", entries });
       await this.ensureStoragePath();
       const pipelinePath = this.getPipelinePath(pipelineId);
       const temporaryPath = `${pipelinePath}.${randomUUID()}.tmp`;

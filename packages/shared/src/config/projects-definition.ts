@@ -1,5 +1,6 @@
 import { SaveLocationValidator } from "../save-location";
 import { object, string, optional, record, InferInput, literal, array } from "valibot";
+import { isSafePersistedId } from "../persisted-id";
 
 export const FileRepoValidatorV1 = object({
   version: literal("1.0.0"),
@@ -49,7 +50,7 @@ export class FileRepoParseError extends Error {
   }
 }
 
-export const parseFileRepo = (value: unknown): FileRepo => {
+const assertFileRepo: (value: unknown) => asserts value is FileRepo = (value) => {
   const issues: string[] = [];
   if (typeof value !== "object" || value === null || Array.isArray(value))
     throw new FileRepoParseError(["Project index must be an object."]);
@@ -75,6 +76,8 @@ export const parseFileRepo = (value: unknown): FileRepo => {
     if (typeof candidate.description !== "string")
       issues.push(`projects.${index}.description must be a string.`);
     if (typeof candidate.id === "string") {
+      if (!isSafePersistedId(candidate.id))
+        issues.push(`projects.${index}.id must be a safe non-empty persisted ID.`);
       if (projectIds.has(candidate.id)) issues.push(`Project ID '${candidate.id}' is duplicated.`);
       projectIds.add(candidate.id);
     }
@@ -93,6 +96,8 @@ export const parseFileRepo = (value: unknown): FileRepo => {
       if (typeof candidate[key] !== "string" || candidate[key].trim().length === 0)
         issues.push(`workflows.${index}.${key} must be non-empty.`);
     if (typeof candidate.id === "string") {
+      if (!isSafePersistedId(candidate.id))
+        issues.push(`workflows.${index}.id must be a safe non-empty persisted ID.`);
       if (workflowIds.has(candidate.id))
         issues.push(`Workflow ID '${candidate.id}' is duplicated.`);
       workflowIds.add(candidate.id);
@@ -103,5 +108,9 @@ export const parseFileRepo = (value: unknown): FileRepo => {
       issues.push(`Workflow '${candidate.id}' references missing project '${candidate.project}'.`);
   }
   if (issues.length > 0) throw new FileRepoParseError(issues);
-  return value as FileRepo;
+};
+
+export const parseFileRepo = (value: unknown): FileRepo => {
+  assertFileRepo(value);
+  return value;
 };
