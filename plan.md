@@ -59,7 +59,7 @@ Be conservative: delete only BuildHistory files that are incompatible with the c
 * [x] restart the local dev stack with the cleaned history directory
 * [x] execute a workflow with a successful delivery and verify history reloads
 * [x] execute a workflow with a failed/skipped delivery and verify history reloads
-* [ ] push
+* [x] push
 * [ ] confirm GitHub Actions is green on the exact final PR head
 
 Do not weaken the strict BuildHistory schema and do not introduce automatic production cleanup for incompatible history.
