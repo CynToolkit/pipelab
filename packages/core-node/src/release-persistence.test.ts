@@ -187,11 +187,8 @@ describe("ReleasePersistence", () => {
     await Promise.all([first.save(config("workflow-a")), second.save(config("workflow-b"))]);
 
     const repo = JSON.parse(await readFile(context.getProjectsPath(), "utf8"));
-    expect(repo.workflows.map((workflow: { id: string }) => workflow.id).sort()).toEqual([
-      "workflow-1",
-      "workflow-a",
-      "workflow-b",
-    ]);
+    const workflowIds = repo.workflows.map((workflow: { id: string }) => workflow.id).sort();
+    expect(workflowIds).toEqual(["workflow-1", "workflow-a", "workflow-b"]);
   });
 
   it("preserves workflow index entries created by separate processes", async () => {

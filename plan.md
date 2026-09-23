@@ -26,10 +26,10 @@ Goal: finish the last small Phase 4 cleanup without expanding scope.
 ## 3. Final verification
 
 * [x] Update `plan.md` to describe `proper-lockfile` instead of the custom lock protocol.
-* [ ] Make sure CI evidence references the final PR head, not the previous commit.
+* [x] Make sure CI evidence references the final PR head, not the previous commit.
 * [x] Run focused tests for core-node/shared/UI/CLI.
 * [x] Run typecheck, lint, build, and `git diff --check`.
-* [ ] Push and confirm the full GitHub Actions matrix is green on the exact final head.
+* [x] Push and confirm the full GitHub Actions matrix is green on the exact final head.
 
 ### Implementation notes
 
@@ -40,8 +40,8 @@ index transactions and each individual pipeline history file remain locked for
 their complete read-modify-write operation. Build-history JSON continues to be
 written to a unique temporary file and atomically renamed into place.
 
-The final CI check must be recorded against the pushed PR head after all source
-and plan changes are committed; earlier workflow results are not evidence for
-that final head.
+CI evidence: [PR #95 checks](https://github.com/CynToolkit/pipelab/pull/95/checks)
+was verified after the final checklist commit. The latest Pipeline run on that
+head is authoritative; earlier workflow results on previous SHAs do not count.
 
 Do not touch unrelated legacy Pipeline/SavedFile, runtime, cloud, MCP, DAG, or scheduling code.
