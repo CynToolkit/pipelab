@@ -137,6 +137,42 @@ describe("ReleasePersistence", () => {
     ]);
   });
 
+  it("serializes a workflow save racing with delete without stale index state", async () => {
+    const { context } = await setup();
+    const persistence = new ReleasePersistence(context);
+    const workflowPath = context.getConfigPath("workflows", "workflow-1.json");
+    await mkdir(context.getConfigPath("workflows"), { recursive: true });
+    await writeFile(
+      workflowPath,
+      JSON.stringify(
+        createReleaseConfig({
+          id: "workflow-1",
+          project: "project-1",
+          name: "Existing",
+          source: { provider: "source", config: {} },
+        }),
+      ),
+    );
+    const newConfig = createReleaseConfig({
+      id: "workflow-a",
+      project: "project-1",
+      name: "New",
+      source: { provider: "source", config: {} },
+    });
+
+    await Promise.all([persistence.save(newConfig), persistence.delete("workflow-1")]);
+
+    const repo = JSON.parse(await readFile(context.getProjectsPath(), "utf8"));
+    expect(repo.workflows.map((workflow: { id: string }) => workflow.id)).toContain("workflow-a");
+    expect(repo.workflows.map((workflow: { id: string }) => workflow.id)).not.toContain(
+      "workflow-1",
+    );
+    await expect(stat(workflowPath)).rejects.toMatchObject({ code: "ENOENT" });
+    await expect(
+      stat(context.getConfigPath("workflows", "workflow-a.json")),
+    ).resolves.toBeDefined();
+  });
+
   it("does not overwrite an orphaned workflow file during creation", async () => {
     const { context, persistence } = await setup();
     const workflowPath = context.getConfigPath("workflows", "orphan.json");

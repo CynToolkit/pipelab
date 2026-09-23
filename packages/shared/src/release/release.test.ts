@@ -149,6 +149,47 @@ describe("release descriptors", () => {
     expect(() => parseReleaseConfig(invalid)).toThrow("already used");
   });
 
+  it("validates release output references exactly", () => {
+    const base = createReleaseConfig({
+      id: "workflow",
+      project: "project",
+      name: "Release",
+      source: { provider: "source", config: {} },
+    });
+    const build = {
+      id: "build",
+      type: "desktop",
+      engine: "engine",
+      enabled: true,
+      config: {},
+      targets: [{ id: "target", enabled: true, config: {} }],
+    };
+    const destination = {
+      id: "destination",
+      provider: "destination",
+      enabled: true,
+      config: {},
+      slots: [{ id: "slot", enabled: true, config: {} }],
+    };
+    const withRefs = (input: unknown) => ({
+      ...base,
+      builds: [{ ...build, input }],
+      destinations: [{ ...destination, slots: [{ ...destination.slots[0], input }] }],
+    });
+
+    for (const input of [
+      { source: true, extra: 1 },
+      { source: true, buildId: "x", targetId: "y" },
+      { buildId: "x" },
+    ]) {
+      expect(
+        validateReleaseConfigShape(withRefs(input)).some((issue) => issue.path?.endsWith("input")),
+      ).toBe(true);
+    }
+    expect(validateReleaseConfigShape(withRefs({ source: true }))).toEqual([]);
+    expect(validateReleaseConfigShape(withRefs({ buildId: "x", targetId: "y" }))).toEqual([]);
+  });
+
   it("rejects output references with missing or unexpected fields", () => {
     const config = createReleaseConfig({
       id: "r",
