@@ -64,8 +64,12 @@ export const loadStrictConnections = async (
     return parseConnectionsConfig(await readJsonFile(context.getConnectionsPath()));
   } catch (error) {
     if (error instanceof JsonFileMissingError) {
-      await writeJsonFileAtomically(context.getConnectionsPath(), defaultConnections);
-      return defaultConnections;
+      const created = await writeJsonFileAtomicallyIfMissing(
+        context.getConnectionsPath(),
+        defaultConnections,
+      );
+      if (created) return defaultConnections;
+      return parseConnectionsConfig(await readJsonFile(context.getConnectionsPath()));
     }
     throw error;
   }

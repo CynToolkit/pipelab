@@ -1,4 +1,5 @@
 import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -98,6 +99,35 @@ describe("strict config persistence", () => {
     await writeFile(context.getConnectionsPath(), "{broken");
     await expect(loadStrictConnections(context)).rejects.toThrow("Malformed JSON");
     await expect(readFile(context.getConnectionsPath(), "utf8")).resolves.toBe("{broken");
+  });
+
+  it("re-reads a connections file created by another process during initialization", async () => {
+    const context = await setup();
+    const competingConfig = {
+      version: "1.0.0",
+      connections: [
+        {
+          id: "racing-connection",
+          pluginName: "provider",
+          name: "Racing connection",
+          createdAt: "2026-09-23T00:00:00.000Z",
+          isDefault: true,
+        },
+      ],
+    };
+    const getConnectionsPath = context.getConnectionsPath.bind(context);
+    let pathRequests = 0;
+    context.getConnectionsPath = () => {
+      const path = getConnectionsPath();
+      pathRequests += 1;
+      if (pathRequests === 2) writeFileSync(path, JSON.stringify(competingConfig), "utf8");
+      return path;
+    };
+
+    await expect(loadStrictConnections(context)).resolves.toEqual(competingConfig);
+    await expect(readFile(getConnectionsPath(), "utf8")).resolves.toBe(
+      JSON.stringify(competingConfig),
+    );
   });
 
   it("does not replace malformed project JSON with an empty index", async () => {
