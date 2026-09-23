@@ -9,6 +9,7 @@ import {
 } from "@pipelab/shared";
 import { PipelabContext } from "./context";
 import { JsonFileMissingError, readJsonFile, writeJsonFileAtomically } from "./utils/atomic-json";
+import { serializeReleaseMutation } from "./release-persistence-lock";
 
 const migratedProject = async (raw: unknown): Promise<FileRepo> => {
   if (
@@ -41,16 +42,18 @@ export const saveStrictProjects = async (
   context: PipelabContext,
   value: FileRepo,
 ): Promise<void> => {
-  const next = parseFileRepo(value);
-  const current = await loadStrictProjects(context);
-  for (const workflow of current.workflows || [])
-    if (!next.projects.some((project) => project.id === workflow.project))
-      throw new Error(
-        `Project '${workflow.project}' cannot be deleted while workflow '${workflow.id}' references it.`,
-      );
-  if (JSON.stringify(current.workflows || []) !== JSON.stringify(next.workflows || []))
-    throw new Error("Workflow index entries can only be changed through ReleasePersistence.");
-  await writeJsonFileAtomically(context.getProjectsPath(), next);
+  await serializeReleaseMutation(context.getProjectsPath(), async () => {
+    const next = parseFileRepo(value);
+    const current = await loadStrictProjects(context);
+    for (const workflow of current.workflows || [])
+      if (!next.projects.some((project) => project.id === workflow.project))
+        throw new Error(
+          `Project '${workflow.project}' cannot be deleted while workflow '${workflow.id}' references it.`,
+        );
+    if (JSON.stringify(current.workflows || []) !== JSON.stringify(next.workflows || []))
+      throw new Error("Workflow index entries can only be changed through ReleasePersistence.");
+    await writeJsonFileAtomically(context.getProjectsPath(), next);
+  });
 };
 
 export const loadStrictConnections = async (

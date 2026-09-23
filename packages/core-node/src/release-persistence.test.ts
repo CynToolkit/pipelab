@@ -110,6 +110,33 @@ describe("ReleasePersistence", () => {
     await expect(readFile(workflowPath, "utf8")).resolves.toContain('"name": "Updated"');
   });
 
+  it("preserves both concurrently-created workflow index entries", async () => {
+    const { context } = await setup();
+    const delayedWriter = async (filePath: string, value: unknown) => {
+      if (filePath === context.getProjectsPath())
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      await writeJsonFileAtomically(filePath, value);
+    };
+    const first = new ReleasePersistence(context, delayedWriter);
+    const second = new ReleasePersistence(context, delayedWriter);
+    const config = (id: string) =>
+      createReleaseConfig({
+        id,
+        project: "project-1",
+        name: id,
+        source: { provider: "source", config: {} },
+      });
+
+    await Promise.all([first.save(config("workflow-a")), second.save(config("workflow-b"))]);
+
+    const repo = JSON.parse(await readFile(context.getProjectsPath(), "utf8"));
+    expect(repo.workflows.map((workflow: { id: string }) => workflow.id)).toEqual([
+      "workflow-1",
+      "workflow-a",
+      "workflow-b",
+    ]);
+  });
+
   it("does not overwrite an orphaned workflow file during creation", async () => {
     const { context, persistence } = await setup();
     const workflowPath = context.getConfigPath("workflows", "orphan.json");
@@ -253,7 +280,7 @@ describe("ReleasePersistence", () => {
       },
     });
 
-    await expect(persistence.delete("workflow-1")).rejects.toThrow("Unable to delete workflow");
+    await expect(persistence.delete("workflow-1")).resolves.toBeUndefined();
     await expect(stat(workflowPath)).rejects.toMatchObject({ code: "ENOENT" });
     const repo = JSON.parse(await readFile(context.getProjectsPath(), "utf8"));
     expect(repo.workflows).toEqual([]);

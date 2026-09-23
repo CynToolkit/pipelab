@@ -169,7 +169,6 @@ export async function runWorkflowCommand(
   for (const task of stepTasks) waitFor(task.id);
   const execution = executeWorkflow(context, `workflows/${entry.id}`, {
     release: { version: "", description: "" },
-    prepared,
     onEvent: (event: WorkflowEvent) => {
       if (event.type === "step.started") updateTask(event.stepId, ListrTaskState.STARTED);
       if (event.type === "step.log")

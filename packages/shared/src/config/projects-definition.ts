@@ -57,7 +57,8 @@ const assertFileRepo: (value: unknown) => asserts value is FileRepo = (value) =>
   const record = value as Record<string, unknown>;
   if (record.version !== "3.0.0") issues.push("Only project index version 3.0.0 is supported.");
   if (!Array.isArray(record.projects)) issues.push("projects must be an array.");
-  if (!Array.isArray(record.pipelines)) issues.push("pipelines must be an array.");
+  if (record.pipelines !== undefined && !Array.isArray(record.pipelines))
+    issues.push("pipelines must be an array.");
   if (record.workflows !== undefined && !Array.isArray(record.workflows))
     issues.push("workflows must be an array.");
   const projectIds = new Set<string>();
@@ -95,6 +96,8 @@ const assertFileRepo: (value: unknown) => asserts value is FileRepo = (value) =>
     for (const key of ["id", "project", "lastModified", "configName"])
       if (typeof candidate[key] !== "string" || candidate[key].trim().length === 0)
         issues.push(`workflows.${index}.${key} must be non-empty.`);
+    if (candidate.type !== "internal-workflow")
+      issues.push(`workflows.${index}.type must be 'internal-workflow'.`);
     if (typeof candidate.id === "string") {
       if (!isSafePersistedId(candidate.id))
         issues.push(`workflows.${index}.id must be a safe non-empty persisted ID.`);
@@ -112,5 +115,9 @@ const assertFileRepo: (value: unknown) => asserts value is FileRepo = (value) =>
 
 export const parseFileRepo = (value: unknown): FileRepo => {
   assertFileRepo(value);
-  return value;
+  return {
+    ...value,
+    pipelines: value.pipelines || [],
+    workflows: value.workflows || [],
+  };
 };

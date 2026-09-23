@@ -52,4 +52,30 @@ describe("parseFileRepo", () => {
       }),
     ).toThrow("safe non-empty persisted ID");
   });
+
+  it("rejects workflow entries with a non-internal type", () => {
+    expect(() =>
+      parseFileRepo({
+        version: "3.0.0",
+        projects: [project],
+        pipelines: [],
+        workflows: [
+          {
+            id: "w1",
+            project: "p1",
+            lastModified: "2026-01-01",
+            type: "external-workflow",
+            configName: "workflows/w1",
+          },
+        ],
+      }),
+    ).toThrow("type must be 'internal-workflow'");
+  });
+
+  it("normalizes supported omitted optional arrays", () => {
+    expect(parseFileRepo({ version: "3.0.0", projects: [project] })).toMatchObject({
+      pipelines: [],
+      workflows: [],
+    });
+  });
 });

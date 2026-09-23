@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { SavedFileV1, SavedFileV2, SavedFileV3, SavedFileV4, SavedFileV5, SavedFileV6 } from "./model";
+import {
+  SavedFileV1,
+  SavedFileV2,
+  SavedFileV3,
+  SavedFileV4,
+  SavedFileV5,
+  SavedFileV6,
+} from "./model";
 import {
   savedFileMigrator,
   normalizePipelineConfig,
@@ -520,6 +527,20 @@ describe("model", () => {
         ],
         workflows: [],
       });
+    });
+
+    it("should preserve a V2 project without an omitted pipelines array", async () => {
+      const v2 = {
+        version: "2.0.0" as const,
+        projects: [
+          { id: "main", name: "Default project", description: "The initial default project" },
+        ],
+      };
+
+      const v3 = await fileRepoMigrations.migrate(v2, { target: "3.0.0" });
+
+      expect(v3.pipelines).toEqual([]);
+      expect(v3.workflows).toEqual([]);
     });
 
     it("should fallback to default value for corrupted config", async () => {

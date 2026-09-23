@@ -84,4 +84,57 @@ describe("parseBuildHistoryDocument", () => {
       }).entries[0]?.artifacts,
     ).toHaveLength(1);
   });
+
+  it.each([
+    ["endTime", "not-a-number"],
+    ["duration", "not-a-number"],
+    ["output", "not-an-object"],
+    ["metadata", "not-an-object"],
+  ])("rejects malformed optional history field %s", (field, value) => {
+    expect(() =>
+      parseBuildHistoryDocument({
+        version: "1.0.0",
+        entries: [{ ...entry, [field]: value }],
+      }),
+    ).toThrow(field);
+  });
+
+  it("rejects malformed execution step fields", () => {
+    expect(() =>
+      parseBuildHistoryDocument({
+        version: "1.0.0",
+        entries: [
+          {
+            ...entry,
+            steps: [
+              { id: "step", name: "step", status: "pending", startTime: 0, logs: [], uses: 1 },
+            ],
+          },
+        ],
+      }),
+    ).toThrow("uses");
+  });
+
+  it("rejects malformed artifact descriptor fields", () => {
+    expect(() =>
+      parseBuildHistoryDocument({
+        version: "1.0.0",
+        entries: [
+          {
+            ...entry,
+            artifacts: [
+              {
+                id: "artifact-1",
+                name: "build.zip",
+                path: "/tmp/build.zip",
+                size: 12,
+                type: "file",
+                descriptor: { kind: "files", container: "archive", platform: 1 },
+              },
+            ],
+          },
+        ],
+      }),
+    ).toThrow("platform");
+  });
 });

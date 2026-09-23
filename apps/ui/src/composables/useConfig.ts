@@ -28,9 +28,10 @@ function createConfigComposable<T>(
 
     loadedPromise = (async () => {
       if (!api.isConnected()) {
-        console.warn(`[useConfig] API not connected for loading "${loadChannel}"`);
+        const unavailable = new Error("API is not connected");
+        error.value = unavailable.message;
         loadedPromise = null;
-        return;
+        throw unavailable;
       }
 
       loading.value = true;
@@ -60,8 +61,9 @@ function createConfigComposable<T>(
 
   const save = async (newValue: T): Promise<void> => {
     if (!api.isConnected()) {
-      data.value = newValue;
-      return;
+      const unavailable = new Error("API is not connected");
+      error.value = unavailable.message;
+      throw unavailable;
     }
 
     try {

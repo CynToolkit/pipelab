@@ -144,7 +144,6 @@ export const executeWorkflow = async (
   configName: string,
   options: {
     release?: { version?: string; description?: string };
-    prepared?: ReturnType<typeof prepareReleaseWorkflow>;
     signal?: AbortSignal;
     onEvent?: (event: WorkflowEvent) => void;
     onRunCreated?: (id: string) => void | Promise<void>;
@@ -154,7 +153,7 @@ export const executeWorkflow = async (
   const storedEntity = await new ReleasePersistence(context).loadWithProject(workflowId);
   const stored = storedEntity.config;
   const version = options.release?.version?.trim() || "0.0.0";
-  const prepared = options.prepared || prepareReleaseWorkflow(stored, version);
+  const prepared = prepareReleaseWorkflow(stored, version);
   const { config, workflow } = prepared;
   const { logger } = useLogger();
   const buildId = nanoid();

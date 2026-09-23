@@ -186,6 +186,16 @@ describe("BuildHistoryStorage workflow runs", () => {
     await expect(storage.get("run-1", "project-1")).rejects.toThrow(/invalid|json|parse/i);
   });
 
+  it("propagates unexpected history directory failures", async () => {
+    const root = await mkdtemp(join(tmpdir(), "pipelab-runs-"));
+    workspaces.push(root);
+    await mkdir(join(root, "config"), { recursive: true });
+    await writeFile(join(root, "config", "pipelines"), "not a directory", "utf8");
+    const storage = new BuildHistoryStorage(new PipelabContext({ userDataPath: root }));
+
+    await expect(storage.getAll()).rejects.toThrow("EEXIST");
+  });
+
   it("rejects malformed updates before changing the existing history file", async () => {
     const root = await mkdtemp(join(tmpdir(), "pipelab-runs-"));
     workspaces.push(root);

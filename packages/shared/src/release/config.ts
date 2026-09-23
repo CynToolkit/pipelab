@@ -143,7 +143,7 @@ export const validateReleaseConfigShape = (config: unknown): ValidationIssue[] =
           path: `${path}.targets.${targetIndex}`,
         });
       else addId(`${path}.targets`, target.id, `${path}.targets.${targetIndex}.id`);
-      if (isRecord(target) && target.input !== undefined && !validOutputRef(target.input)) {
+      if (isRecord(target) && target.input !== undefined && !isReleaseOutputRef(target.input)) {
         issues.push({
           code: "release.build.target.input.invalid",
           message: "Build target input must be a source or build/target reference.",
@@ -152,7 +152,7 @@ export const validateReleaseConfigShape = (config: unknown): ValidationIssue[] =
         });
       }
     }
-    if (build.input !== undefined && !validOutputRef(build.input))
+    if (build.input !== undefined && !isReleaseOutputRef(build.input))
       issues.push({
         code: "release.build.input.invalid",
         message: "Build input must be a source or build/target reference.",
@@ -185,14 +185,7 @@ export const validateReleaseConfigShape = (config: unknown): ValidationIssue[] =
     for (const [slotIndex, slot] of destination.slots.entries()) {
       const slotPath = `${path}.slots.${slotIndex}`;
       const input = isRecord(slot) ? slot.input : undefined;
-      const validInput =
-        input === undefined ||
-        (isRecord(input) &&
-          (("source" in input && input.source === true) ||
-            ("buildId" in input &&
-              "targetId" in input &&
-              requiredString(input.buildId) &&
-              requiredString(input.targetId))));
+      const validInput = input === undefined || isReleaseOutputRef(input);
       if (
         !isRecord(slot) ||
         !requiredString(slot.id) ||
@@ -228,7 +221,9 @@ export const validateReleaseConfigShape = (config: unknown): ValidationIssue[] =
   return issues;
 };
 
-const validOutputRef = (value: unknown): value is ReleaseConfig["builds"][number]["input"] =>
+export const isReleaseOutputRef = (
+  value: unknown,
+): value is ReleaseConfig["builds"][number]["input"] =>
   isRecord(value) &&
   ((value.source === true && Object.keys(value).length === 1) ||
     (requiredString(value.buildId) &&

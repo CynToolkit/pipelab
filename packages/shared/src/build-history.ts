@@ -147,6 +147,9 @@ const parseArtifactDescriptor = (value: unknown, path: string): void => {
       value.capabilities.some((capability) => typeof capability !== "string"))
   )
     throw new BuildHistoryParseError(`${path}.capabilities`, "must be an array of strings");
+  for (const key of ["technology", "platform", "architecture", "format"])
+    if (value[key] !== undefined && typeof value[key] !== "string")
+      throw new BuildHistoryParseError(`${path}.${key}`, "must be a string");
 };
 
 const parseArtifactCloud = (value: unknown, path: string): void => {
@@ -233,6 +236,12 @@ const assertEntry: (value: unknown, path: string) => asserts value is BuildHisto
   ])
     if (typeof value[key] !== "number")
       throw new BuildHistoryParseError(`${path}.${key}`, "must be a number");
+  for (const key of ["endTime", "duration"])
+    if (value[key] !== undefined && typeof value[key] !== "number")
+      throw new BuildHistoryParseError(`${path}.${key}`, "must be a number");
+  for (const key of ["output", "metadata"])
+    if (value[key] !== undefined && !isRecord(value[key]))
+      throw new BuildHistoryParseError(`${path}.${key}`, "must be an object");
   if (!Array.isArray(value.steps) || !Array.isArray(value.logs))
     throw new BuildHistoryParseError(path, "steps and logs must be arrays");
   const stepStatuses = ["pending", "running", "completed", "failed", "cancelled", "skipped"];
@@ -250,6 +259,18 @@ const assertEntry: (value: unknown, path: string) => asserts value is BuildHisto
       throw new BuildHistoryParseError(`${path}.steps.${index}.endTime`, "must be a number");
     if (step.duration !== undefined && typeof step.duration !== "number")
       throw new BuildHistoryParseError(`${path}.steps.${index}.duration`, "must be a number");
+    for (const key of [
+      "uses",
+      "destinationId",
+      "serviceId",
+      "destinationName",
+      "slotId",
+      "artifact",
+    ])
+      if (step[key] !== undefined && typeof step[key] !== "string")
+        throw new BuildHistoryParseError(`${path}.steps.${index}.${key}`, "must be a string");
+    if (step.output !== undefined && !isRecord(step.output))
+      throw new BuildHistoryParseError(`${path}.steps.${index}.output`, "must be an object");
     if (step.error !== undefined) parseError(step.error, `${path}.steps.${index}.error`);
     step.logs.forEach((log, logIndex) => parseLog(log, `${path}.steps.${index}.logs.${logIndex}`));
   });

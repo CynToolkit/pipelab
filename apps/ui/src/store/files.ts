@@ -15,9 +15,8 @@ export const useFiles = defineStore("files", () => {
   const { data: files, load, save } = useProjectsConfig();
 
   const update = async (callback: (state: Draft<FileRepo>) => void) => {
-    files.value = create(files.value, callback);
-    console.log("files.value", files.value);
-    await save(klona(files.value));
+    const next = create(klona(files.value), callback);
+    await save(klona(next));
   };
 
   const remove = async (id: string) => {
@@ -26,7 +25,7 @@ export const useFiles = defineStore("files", () => {
       await api.execute("pipeline:delete-by-name", { name: pipeline.configName });
     }
 
-    update((state) => {
+    await update((state) => {
       state.pipelines = (state.pipelines || []).filter((file) => file.id !== id);
     });
   };
@@ -35,13 +34,13 @@ export const useFiles = defineStore("files", () => {
     if ((files.value.workflows || []).some((workflow) => workflow.project === id)) {
       throw new Error(`Project '${id}' cannot be deleted while a release workflow references it.`);
     }
-    update((state) => {
+    await update((state) => {
       state.projects = state.projects.filter((project) => project.id !== id);
     });
   };
 
   const transferPipeline = async (pipelineId: string, projectId: string) => {
-    update((state) => {
+    await update((state) => {
       const pipeline = state.pipelines?.find((p) => p.id === pipelineId);
       if (pipeline) {
         pipeline.project = projectId;

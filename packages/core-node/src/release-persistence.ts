@@ -10,10 +10,12 @@ import {
   type ReleaseRegistry,
   type ReleaseConfig,
   type SaveLocationWorkflow,
+  useLogger,
 } from "@pipelab/shared";
 import { PipelabContext } from "./context";
 import { JsonFileMissingError, readJsonFile, writeJsonFileAtomically } from "./utils/atomic-json";
 import { loadStrictConnections, loadStrictProjects } from "./strict-config-persistence";
+import { serializeReleaseMutation } from "./release-persistence-lock";
 
 export type ReleasePersistenceErrorCode =
   | "unsafe-id"
@@ -180,6 +182,12 @@ export class ReleasePersistence {
   }
 
   async save(config: ReleaseConfig, routeProjectId?: string): Promise<void> {
+    return serializeReleaseMutation(this.context.getProjectsPath(), () =>
+      this.saveUnlocked(config, routeProjectId),
+    );
+  }
+
+  private async saveUnlocked(config: ReleaseConfig, routeProjectId?: string): Promise<void> {
     const validated = parseReleaseConfig(config);
     assertSafeWorkflowId(validated.id);
     const registry = buildReleaseRegistry(usePlugins().plugins.value);
@@ -263,6 +271,12 @@ export class ReleasePersistence {
   }
 
   async delete(workflowId: string, routeProjectId?: string): Promise<void> {
+    return serializeReleaseMutation(this.context.getProjectsPath(), () =>
+      this.deleteUnlocked(workflowId, routeProjectId),
+    );
+  }
+
+  private async deleteUnlocked(workflowId: string, routeProjectId?: string): Promise<void> {
     assertSafeWorkflowId(workflowId);
     const repo = await loadProjects(this.context);
     const indexed = findWorkflow(repo, workflowId);
@@ -281,7 +295,16 @@ export class ReleasePersistence {
         workflows: (repo.workflows || []).filter((candidate) => candidate.id !== workflowId),
       });
       indexCommitted = true;
-      await this.fileOps.rm(snapshot, { force: true });
+      try {
+        await this.fileOps.rm(snapshot, { force: true });
+      } catch (cleanupError) {
+        useLogger()
+          .logger()
+          .error(
+            `Workflow '${workflowId}' was deleted but tombstone cleanup failed:`,
+            cleanupError,
+          );
+      }
     } catch (error) {
       if (!indexCommitted) await this.fileOps.rename(snapshot, file).catch((): void => undefined);
       throw new ReleasePersistenceError(

@@ -223,6 +223,7 @@ export const fileRepoMigrations = fileRepoMigratorInternal.createMigrations({
       up: (state) => {
         return {
           ...state,
+          pipelines: state.pipelines || [],
           workflows: [],
         };
       },
@@ -382,10 +383,7 @@ export const savedFileMigrator = savedFileMigratorInternal.createMigrations({
         };
         // Bundled mode has no plugin versions: strip origin.version from every
         // block and trigger, and drop the legacy top-level plugins map if present.
-        for (const item of [
-          ...(state.canvas?.blocks ?? []),
-          ...(state.canvas?.triggers ?? []),
-        ]) {
+        for (const item of [...(state.canvas?.blocks ?? []), ...(state.canvas?.triggers ?? [])]) {
           delete item?.origin?.version;
         }
         const { plugins: _dropped, ...rest } = state;

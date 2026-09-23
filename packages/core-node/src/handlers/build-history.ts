@@ -57,7 +57,7 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
       await mkdir(this.getStoragePath(), { recursive: true });
     } catch (error) {
       this.logger.logger().error("Failed to create storage path:", error);
-      throw new Error(`Failed to create storage directory: ${error}`);
+      throw error;
     }
   }
 
@@ -436,7 +436,8 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
       const files = await readdir(this.getStoragePath());
       return files.filter((file) => file.endsWith(".history.json"));
     } catch (error) {
-      return [];
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
+      throw error;
     }
   }
 
