@@ -100,11 +100,8 @@ If concurrent multi-process access **is supported**:
 * [x] Handle stale/crashed locks safely.
 * [x] Add multi-process integration coverage where practical.
 
-If concurrent multi-process access is intentionally **unsupported**:
-
-* [ ] Document the single-writer invariant clearly in the owning persistence code.
-* [ ] Prevent unsupported simultaneous mutation where practical.
-* [ ] Do not describe the persistence layer as fully concurrency-safe without qualifying that guarantee.
+The unsupported single-writer alternative is not selected; the supported
+multi-process behavior above is implemented.
 
 ## P2 — Make workflow persistence validation independent of plugin startup races
 
@@ -133,13 +130,8 @@ Preferred Phase 4 option:
 * [x] Reject persisted target-level `input` as unsupported if strict owned-key validation requires it.
 * [x] Keep build-profile input as the authoritative build input mechanism.
 
-Only implement target-specific inputs instead if they are already part of the intended Release Workflow design:
-
-* [ ] planner resolves each target's input.
-* [ ] cycle/reference validation handles target inputs.
-* [ ] compiler/runtime uses the resolved target input.
-* [ ] UI supports editing it.
-* [ ] tests cover it end-to-end.
+Target-specific inputs are not selected; the preferred removal and rejection
+behavior above is implemented.
 
 Do not leave a persisted Pipelab-owned field whose semantics are silently ignored.
 
