@@ -85,6 +85,31 @@ describe("parseBuildHistoryDocument", () => {
     ).toHaveLength(1);
   });
 
+  it("requires delivery artifact ids to be non-empty", () => {
+    expect(() =>
+      parseBuildHistoryDocument({
+        version: "1.0.0",
+        entries: [
+          {
+            ...entry,
+            deliveries: [
+              {
+                id: "delivery-1",
+                destinationId: "folder",
+                slotId: "main",
+                artifactId: "",
+                status: "failed",
+                startedAt: 1,
+                completedAt: 2,
+                duration: 1,
+              },
+            ],
+          },
+        ],
+      }),
+    ).toThrow("delivery has an invalid shape");
+  });
+
   it.each([
     ["endTime", "not-a-number"],
     ["duration", "not-a-number"],

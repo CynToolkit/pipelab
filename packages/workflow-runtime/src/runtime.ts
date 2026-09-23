@@ -308,20 +308,22 @@ export const runWorkflow = async (
     const runStep = async (step: WorkflowStep): Promise<void> => {
       const stepStartedAt = Date.now();
       const stepArtifacts: Array<WorkflowArtifact | WorkflowArtifactInstance> = [];
+      let deliveryArtifact: WorkflowArtifactInstance | undefined;
       emit({ type: "step.started", stepId: step.id, uses: step.uses });
 
       try {
         ensureNotAborted(signal);
-        const task = tasks[step.uses];
-        if (!task) throw new Error(`Workflow task not found: ${step.uses}`);
-        const deliveryArtifact = step.delivery
+        const resolvedDeliveryArtifact = step.delivery
           ? artifactForDelivery(step.delivery.artifact, artifacts)
           : undefined;
-        if (step.delivery && !deliveryArtifact) {
+        deliveryArtifact = resolvedDeliveryArtifact;
+        if (step.delivery && !resolvedDeliveryArtifact) {
           throw new Error(
             `Workflow delivery step ${step.id} requires artifact "${step.delivery.artifact.artifact}" from step "${step.delivery.artifact.stepId}", but that artifact was not produced.`,
           );
         }
+        const task = tasks[step.uses];
+        if (!task) throw new Error(`Workflow task not found: ${step.uses}`);
         const inputs = {
           ...resolveInputs(step, variables, outputs),
           ...resolveArtifactInputs(step, artifacts),
@@ -330,12 +332,12 @@ export const runWorkflow = async (
           (await task({
             step,
             inputs,
-            ...(step.delivery && deliveryArtifact
+            ...(step.delivery && resolvedDeliveryArtifact
               ? {
                   delivery: {
                     destinationId: step.delivery.destinationId,
                     slotId: step.delivery.slotId,
-                    artifact: deliveryArtifact,
+                    artifact: resolvedDeliveryArtifact,
                   },
                 }
               : {}),
@@ -391,10 +393,10 @@ export const runWorkflow = async (
           throw new Error(`Workflow task ${step.uses} returned invalid outputs`);
 
         const cloud = result.cloud as WorkflowArtifactInstance["cloud"] | undefined;
-        if (deliveryArtifact && cloud && typeof cloud.hostedArtifactId === "string") {
-          const updatedArtifact = Object.freeze({ ...deliveryArtifact, cloud });
+        if (resolvedDeliveryArtifact && cloud && typeof cloud.hostedArtifactId === "string") {
+          const updatedArtifact = Object.freeze({ ...resolvedDeliveryArtifact, cloud });
           const artifactIndex = artifacts.findIndex(
-            (artifact) => "descriptor" in artifact && artifact.id === deliveryArtifact.id,
+            (artifact) => "descriptor" in artifact && artifact.id === resolvedDeliveryArtifact.id,
           );
           if (artifactIndex >= 0) artifacts[artifactIndex] = updatedArtifact;
           stepArtifacts.push(updatedArtifact);
@@ -411,12 +413,12 @@ export const runWorkflow = async (
           completedAt,
           duration: completedAt - stepStartedAt,
         };
-        if (step.delivery) {
+        if (step.delivery && resolvedDeliveryArtifact) {
           stepResult.delivery = {
             id: step.id,
             destinationId: step.delivery.destinationId,
             slotId: step.delivery.slotId,
-            artifactId: artifactForDelivery(step.delivery.artifact, artifacts)?.id ?? "",
+            artifactId: resolvedDeliveryArtifact.id,
             status: "completed",
             startedAt: stepStartedAt,
             completedAt,
@@ -458,12 +460,12 @@ export const runWorkflow = async (
           duration: completedAt - stepStartedAt,
           error: serialized,
         };
-        if (step.delivery) {
+        if (step.delivery && deliveryArtifact) {
           failedStep.delivery = {
             id: step.id,
             destinationId: step.delivery.destinationId,
             slotId: step.delivery.slotId,
-            artifactId: artifactForDelivery(step.delivery.artifact, artifacts)?.id ?? "",
+            artifactId: deliveryArtifact.id,
             status: "failed",
             startedAt: stepStartedAt,
             completedAt,
@@ -504,19 +506,6 @@ export const runWorkflow = async (
           duration: 0,
           blockedBy,
         };
-        if (step.delivery) {
-          skippedStep.delivery = {
-            id: step.id,
-            destinationId: step.delivery.destinationId,
-            slotId: step.delivery.slotId,
-            artifactId: artifactForDelivery(step.delivery.artifact, artifacts)?.id ?? "",
-            status: "failed",
-            startedAt: now,
-            completedAt: now,
-            duration: 0,
-            error: `Skipped because ${blockedBy.join(", ")} failed`,
-          };
-        }
         steps[step.id] = skippedStep;
         pending.delete(step.id);
         emit({ type: "step.skipped", stepId: step.id, uses: step.uses, blockedBy });
@@ -557,18 +546,6 @@ export const runWorkflow = async (
             duration: 0,
             blockedBy: [failedStepId],
           };
-          if (step.delivery)
-            skippedStep.delivery = {
-              id: step.id,
-              destinationId: step.delivery.destinationId,
-              slotId: step.delivery.slotId,
-              artifactId: "",
-              status: "failed",
-              startedAt: now,
-              completedAt: now,
-              duration: 0,
-              error: `Skipped after ${failedStepId} failed`,
-            };
           steps[step.id] = skippedStep;
           pending.delete(step.id);
           emit({

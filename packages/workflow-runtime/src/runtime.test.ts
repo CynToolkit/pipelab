@@ -47,6 +47,8 @@ describe("artifact-aware workflow runtime", () => {
       },
     });
     expect(deliveredPath).toBe("/tmp/game");
+    expect(result.steps.deliver.delivery?.artifactId).toBeTruthy();
+    expect(result.deliveries).toEqual([result.steps.deliver.delivery]);
     expect(result.artifacts).toEqual([
       expect.objectContaining({
         descriptor: { kind: "application", platform: "windows", container: "directory" },
@@ -150,6 +152,121 @@ describe("artifact-aware workflow runtime", () => {
     ).rejects.toThrow(
       'requires artifact "output" from step "build", but that artifact was not produced',
     );
+  });
+
+  it("retains the resolved artifact id when a delivery task fails", async () => {
+    const workflow = {
+      version: 1,
+      continueOnError: true,
+      steps: [
+        {
+          id: "build",
+          uses: "test:build",
+          artifacts: { output: { descriptor: { kind: "files", container: "directory" } } },
+        },
+        {
+          id: "deliver",
+          uses: "test:deliver",
+          needs: ["build"],
+          delivery: {
+            destinationId: "folder",
+            slotId: "main",
+            artifact: { stepId: "build", artifact: "output" },
+          },
+        },
+      ],
+    } as const;
+
+    const result = await runWorkflow(workflow, {
+      host,
+      tasks: {
+        "test:build": async ({ setArtifact }) => setArtifact("output", "/tmp/game"),
+        "test:deliver": async () => {
+          throw new Error("upload failed");
+        },
+      },
+    });
+
+    expect(result.steps.deliver).toMatchObject({
+      status: "failed",
+      delivery: { status: "failed", error: "upload failed", artifactId: expect.any(String) },
+    });
+    expect(result.steps.deliver.delivery?.artifactId).not.toBe("");
+    expect(result.deliveries).toEqual([result.steps.deliver.delivery]);
+  });
+
+  it("does not create a delivery result when its artifact producer fails", async () => {
+    const workflow = {
+      version: 1,
+      continueOnError: true,
+      steps: [
+        {
+          id: "build",
+          uses: "test:build",
+          artifacts: { output: { descriptor: { kind: "files", container: "directory" } } },
+        },
+        {
+          id: "deliver",
+          uses: "test:deliver",
+          needs: ["build"],
+          delivery: {
+            destinationId: "folder",
+            slotId: "main",
+            artifact: { stepId: "build", artifact: "output" },
+          },
+        },
+      ],
+    } as const;
+
+    const result = await runWorkflow(workflow, {
+      host,
+      tasks: {
+        "test:build": async () => {
+          throw new Error("build failed");
+        },
+        "test:deliver": async () => ({ delivered: true }),
+      },
+    });
+
+    expect(result.steps.deliver).toMatchObject({ status: "skipped", blockedBy: ["build"] });
+    expect(result.steps.deliver.delivery).toBeUndefined();
+    expect(result.deliveries).toEqual([]);
+  });
+
+  it("does not create a delivery result when its completed producer creates no artifact", async () => {
+    const workflow = {
+      version: 1,
+      continueOnError: true,
+      steps: [
+        {
+          id: "build",
+          uses: "test:build",
+          artifacts: { output: { descriptor: { kind: "files", container: "directory" } } },
+        },
+        {
+          id: "deliver",
+          uses: "test:deliver",
+          needs: ["build"],
+          delivery: {
+            destinationId: "folder",
+            slotId: "main",
+            artifact: { stepId: "build", artifact: "output" },
+          },
+        },
+      ],
+    } as const;
+
+    const result = await runWorkflow(workflow, {
+      host,
+      tasks: {
+        "test:build": async () => undefined,
+        "test:deliver": async () => ({ delivered: true }),
+      },
+    });
+
+    expect(result.steps.deliver).toMatchObject({ status: "failed" });
+    expect(result.steps.deliver.delivery).toBeUndefined();
+    expect(result.deliveries).toEqual([]);
   });
 
   it("fails before execution when an artifact input names an undeclared artifact", async () => {
