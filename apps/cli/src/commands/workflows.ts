@@ -1,10 +1,10 @@
 import {
-  deleteWorkflowConfigFileByName,
   PipelabContext,
+  ReleasePersistence,
+  loadStrictProjects,
   prepareReleaseWorkflow,
-  setupProjectsConfigFile,
-  setupWorkflowConfigFileByName,
 } from "@pipelab/core-node";
+import type { SaveLocationWorkflow } from "@pipelab/shared";
 import { executeWorkflow } from "../../../../packages/core-node/src/handlers/workflow";
 import { Listr, ListrTaskState, type ListrTaskWrapper } from "listr2";
 import type { WorkflowEvent } from "../../../../packages/workflow-runtime/src/index";
@@ -22,19 +22,21 @@ export const workflowRunOptions = [
   new Option("-v, --verbose", "Show workflow logs after completion"),
 ];
 
+export const workflowUserDataOption = () =>
+  new Option("--user-data <path>", "Custom user-data directory");
+
 const workflowEntries = async (context: PipelabContext) => {
-  const repo = await (await setupProjectsConfigFile(context)).getConfig();
+  const repo = await loadStrictProjects(context);
   return repo.workflows || [];
 };
 
 const loadEntry = async (context: PipelabContext, id: string) => {
   const entries = await workflowEntries(context);
+  const persistence = new ReleasePersistence(context);
   const matches = entries.filter((entry) => entry.id === id);
   if (!matches.length) {
     for (const entry of entries) {
-      const flow = await (
-        await setupWorkflowConfigFileByName(entry.configName, context)
-      ).getConfig();
+      const flow = (await persistence.loadWithProject(entry.id, entry.project)).config;
       if (flow.name === id) matches.push(entry);
     }
   }
@@ -48,12 +50,18 @@ const loadEntry = async (context: PipelabContext, id: string) => {
   return matches[0];
 };
 
-export async function listWorkflowsCommand() {
-  const context = contextFor();
+const loadWorkflow = async (context: PipelabContext, entry: SaveLocationWorkflow) =>
+  (await new ReleasePersistence(context).loadWithProject(entry.id, entry.project)).config;
+
+export async function listWorkflowsCommand(options: { userData?: string } = {}) {
+  const context = contextFor(options.userData);
+  const { builtInPlugins } = await import("@pipelab/core-node");
+  await builtInPlugins({ context });
   const entries = await workflowEntries(context);
+  const persistence = new ReleasePersistence(context);
   if (!entries.length) return console.log("No workflows found.");
   for (const entry of entries) {
-    const flow = await (await setupWorkflowConfigFileByName(entry.configName, context)).getConfig();
+    const flow = (await persistence.loadWithProject(entry.id, entry.project)).config;
     console.log(`${flow.name || "Unnamed workflow"} (${entry.id})`);
     console.log(`   Source: ${flow.source?.provider || "None"}`);
     console.log(
@@ -63,17 +71,14 @@ export async function listWorkflowsCommand() {
   }
 }
 
-export async function deleteWorkflowCommand(id: string, options: { force?: boolean }) {
+export async function deleteWorkflowCommand(
+  id: string,
+  options: { force?: boolean; userData?: string },
+) {
   if (!options.force) throw new Error("Deleting a workflow requires the --force flag.");
-  const context = contextFor();
-  const projects = await setupProjectsConfigFile(context);
-  const repo = await projects.getConfig();
-  const index = repo.workflows?.findIndex((entry) => entry.id === id) ?? -1;
-  if (index < 0) throw new Error(`Workflow "${id}" not found`);
-  const entry = repo.workflows![index];
-  await deleteWorkflowConfigFileByName(entry.configName, context);
-  repo.workflows!.splice(index, 1);
-  await projects.setConfig(repo);
+  const context = contextFor(options.userData);
+  const persistence = new ReleasePersistence(context);
+  await persistence.delete(id);
   console.log(`Deleted workflow "${id}".`);
 }
 
@@ -88,10 +93,10 @@ export async function runWorkflowCommand(
   },
 ) {
   const context = contextFor(options.userData);
-  const entry = await loadEntry(context, id);
-  const flow = await (await setupWorkflowConfigFileByName(entry.configName, context)).getConfig();
   const { builtInPlugins } = await import("@pipelab/core-node");
   await builtInPlugins({ context });
+  const entry = await loadEntry(context, id);
+  const flow = await loadWorkflow(context, entry);
   const prepared = prepareReleaseWorkflow(flow);
   if (options.dryRun) {
     console.log(
@@ -162,9 +167,8 @@ export async function runWorkflowCommand(
   });
   waitFor("__workflow__");
   for (const task of stepTasks) waitFor(task.id);
-  const execution = executeWorkflow(context, entry.configName, {
+  const execution = executeWorkflow(context, `workflows/${entry.id}`, {
     release: { version: "", description: "" },
-    prepared,
     onEvent: (event: WorkflowEvent) => {
       if (event.type === "step.started") updateTask(event.stepId, ListrTaskState.STARTED);
       if (event.type === "step.log")

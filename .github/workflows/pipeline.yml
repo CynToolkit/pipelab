@@ -459,6 +459,9 @@ jobs:
       (needs.test-matrix.result == 'success' || needs.test-matrix.result == 'skipped') &&
       (((needs.changes.outputs.desktop_changed == 'true') &&
         contains(fromJson(needs.changes.outputs.affected), '@pipelab/app')) ||
+        (github.event_name == 'pull_request' &&
+          needs.changes.outputs.needs_build == 'true' &&
+          contains(fromJson(needs.changes.outputs.affected), '@pipelab/app')) ||
         github.event.inputs.forcePublish == 'true')
     runs-on: ${{ matrix.os }}
     strategy:

@@ -31,8 +31,7 @@ export const DEFAULT_RELEASE_BUILD_PREFERENCES: ReleaseBuildPreferences = {
 export const getReleaseBuildPreferences = (): ReleaseBuildPreferences =>
   DEFAULT_RELEASE_BUILD_PREFERENCES;
 
-const cloneConfig = (config: ReleaseConfig): ReleaseConfig =>
-  JSON.parse(JSON.stringify(config)) as ReleaseConfig;
+const cloneConfig = (config: ReleaseConfig): ReleaseConfig => structuredClone(config);
 
 const artifactRefEquals = (
   left: ReleasePlan["destinations"][number]["slots"][number]["input"] | undefined,

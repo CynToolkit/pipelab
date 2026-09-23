@@ -139,10 +139,7 @@
           </div>
 
           <!-- Empty State (No Pipelines) -->
-          <div
-            v-else-if="filesEnhanced.length === 0 && workflowsEnhanced.length === 0"
-            class="no-projects"
-          >
+          <div v-else-if="dashboardState === 'empty'" class="no-projects">
             <i class="mdi mdi-folder-open-outline empty-icon"></i>
             <div class="no-pipelines-text">{{ $t("home.no-pipelines-yet") }}</div>
             <Button
@@ -157,10 +154,7 @@
           </div>
 
           <!-- No Search Results -->
-          <div
-            v-else-if="filteredFilesEnhanced.length === 0 && filteredWorkflowsEnhanced.length === 0"
-            class="no-search-results"
-          >
+          <div v-else-if="dashboardState === 'search-empty'" class="no-search-results">
             <i class="mdi mdi-magnify-close empty-icon"></i>
             <div class="no-results-text">No pipelines found matching "{{ searchQuery }}"</div>
             <Button text severity="secondary" @click="searchQuery = ''"> Clear search </Button>
@@ -282,6 +276,15 @@
                 </div>
               </div>
             </div>
+            <Message
+              v-for="broken in brokenWorkflows"
+              :key="broken.id"
+              severity="error"
+              class="workflow-row-error"
+            >
+              Release workflow <strong>{{ broken.id }}</strong> could not be loaded:
+              {{ broken.error }}
+            </Message>
           </div>
         </div>
       </div>
@@ -578,6 +581,8 @@ import IconField from "primevue/iconfield";
 import InputIcon from "primevue/inputicon";
 import Textarea from "primevue/textarea";
 import ReleaseFlowWizard from "@renderer/components/ReleaseFlowWizard.vue";
+import { partitionWorkflowLoads } from "./workflow-load-state";
+import { getDashboardDisplayState } from "./dashboard-state";
 
 const router = useRouter();
 const api = useAPI();
@@ -609,6 +614,8 @@ const filesEnhanced = ref<EnhancedFile[]>([]);
 const workflowsEnhanced = ref<
   Array<{ id: string; project: string; lastModified: string; content: ReleaseConfig }>
 >([]);
+const brokenWorkflows = ref<Array<{ id: string; error: string }>>([]);
+let workflowLoadRevision = 0;
 const isWorkflowWizardVisible = ref(false);
 
 const searchQuery = ref("");
@@ -671,6 +678,13 @@ const canCreateProject = computed(() => {
 });
 
 const { t } = useI18n();
+const notifyPersistenceError = (error: unknown) =>
+  toast.add({
+    severity: "error",
+    summary: t("base.error"),
+    detail: error instanceof Error ? error.message : String(error),
+    life: 5000,
+  });
 
 const isLoading = ref(false);
 
@@ -704,6 +718,16 @@ const filteredWorkflowsEnhanced = computed(() => {
           (flow.content.description || "").toLowerCase().includes(q),
       );
 });
+
+const dashboardState = computed(() =>
+  getDashboardDisplayState({
+    files: filesEnhanced.value.length,
+    workflows: workflowsEnhanced.value.length,
+    brokenWorkflows: brokenWorkflows.value.length,
+    filteredFiles: filteredFilesEnhanced.value.length,
+    filteredWorkflows: filteredWorkflowsEnhanced.value.length,
+  }),
+);
 
 const hasExternalPipelines = computed(() => {
   return (files.value.pipelines || []).some((p) => p.type === "external");
@@ -764,11 +788,15 @@ watchEffect(async () => {
           return false;
         });
         if (foundPipeline) {
-          updateFileStore((state) => {
-            state.pipelines = (state.pipelines || []).filter(
-              (value) => value.id !== foundPipeline.id,
-            );
-          });
+          try {
+            await updateFileStore((state) => {
+              state.pipelines = (state.pipelines || []).filter(
+                (value) => value.id !== foundPipeline.id,
+              );
+            });
+          } catch (error) {
+            console.error("Unable to remove missing pipeline from project index", error);
+          }
         }
         continue;
       }
@@ -823,23 +851,17 @@ watchEffect(async () => {
 });
 
 watchEffect(async () => {
-  const result: Array<{
-    id: string;
-    project: string;
-    lastModified: string;
-    content: ReleaseConfig;
-  }> = [];
-  for (const flow of workflows.value) {
-    const loaded = await api.execute("workflow:load-by-name", { name: flow.configName });
-    if (loaded.type === "success")
-      result.push({
-        id: flow.id,
-        project: flow.project,
-        lastModified: flow.lastModified,
-        content: loaded.result as ReleaseConfig,
-      });
-  }
-  workflowsEnhanced.value = result;
+  const revision = ++workflowLoadRevision;
+  const entries = workflows.value.map((flow) => ({ ...flow }));
+  const results = await Promise.all(
+    entries.map((flow) =>
+      api.execute("workflow:load", { workflowId: flow.id, projectId: flow.project }),
+    ),
+  );
+  if (revision !== workflowLoadRevision) return;
+  const partitioned = partitionWorkflowLoads(entries, results);
+  workflowsEnhanced.value = partitioned.loaded;
+  brokenWorkflows.value = partitioned.broken;
 });
 
 watch(
@@ -898,16 +920,28 @@ const createWorkflow = async (flow: ReleaseConfig) => {
 };
 const openWorkflow = (id: string) => router.push(`/workflows/${id}/${activeProjectId.value}`);
 const destinationLabel = (d: ReleaseConfig["destinations"][number]) => d.provider;
-onMounted(() => reloadFiles(true));
+onMounted(() => {
+  void reloadFiles(true).catch(notifyPersistenceError);
+});
 const onNewProjectCreation = async () => {
   const projectId = nanoid();
-  updateFileStore((state) => {
-    state.projects.push({
-      id: projectId,
-      name: newProjectName.value,
-      description: "",
+  try {
+    await updateFileStore((state) => {
+      state.projects.push({
+        id: projectId,
+        name: newProjectName.value,
+        description: "",
+      });
     });
-  });
+  } catch (error) {
+    toast.add({
+      severity: "error",
+      summary: t("base.error"),
+      detail: error instanceof Error ? error.message : String(error),
+      life: 3000,
+    });
+    return;
+  }
   isNewProjectModalVisible.value = false;
   // Select the new project
   selectedKey.value = { [projectId]: true };
@@ -940,12 +974,22 @@ const openRenameProjectDialog = (projectId?: string) => {
 
 const onRenameProject = async () => {
   if (projectToRenameId.value && renameProjectName.value) {
-    updateFileStore((state) => {
-      const project = state.projects.find((p) => p.id === projectToRenameId.value);
-      if (project) {
-        project.name = renameProjectName.value;
-      }
-    });
+    try {
+      await updateFileStore((state) => {
+        const project = state.projects.find((p) => p.id === projectToRenameId.value);
+        if (project) {
+          project.name = renameProjectName.value;
+        }
+      });
+    } catch (error) {
+      toast.add({
+        severity: "error",
+        summary: t("base.error"),
+        detail: error instanceof Error ? error.message : String(error),
+        life: 3000,
+      });
+      return;
+    }
     isRenameProjectModalVisible.value = false;
     projectToRenameId.value = null;
   }
@@ -994,53 +1038,75 @@ const onNewFileCreation = async (preset?: Preset) => {
     description: newProjectDescription.value,
   } satisfies Preset;
 
-  // write file
-  if (type === "internal") {
-    await api.execute("pipeline:save-by-name", {
-      name: pathOrConfigName,
-      data: JSON.stringify(updatedPreset),
+  try {
+    if (type === "internal") {
+      const result = await api.execute("pipeline:save-by-name", {
+        name: pathOrConfigName,
+        data: JSON.stringify(updatedPreset),
+      });
+      if (result.type === "error") throw new Error(result.ipcError);
+    } else if (type === "external") {
+      const result = await api.execute("fs:write", {
+        path: pathOrConfigName,
+        content: JSON.stringify(updatedPreset, null, 2),
+      });
+      if (result.type === "error" || !result.result.ok)
+        throw new Error(result.type === "error" ? result.ipcError : "Unable to save pipeline file");
+    } else if (type === "pipelab-cloud") {
+      // TODO:
+    }
+  } catch (error) {
+    toast.add({
+      severity: "error",
+      summary: t("base.error"),
+      detail: error instanceof Error ? error.message : String(error),
+      life: 3000,
     });
-  } else if (type === "external") {
-    await api.execute("fs:write", {
-      path: pathOrConfigName,
-      content: JSON.stringify(updatedPreset, null, 2),
-    });
-  } else if (type === "pipelab-cloud") {
-    // TODO:
+    return;
   }
 
   // update file store
-  updateFileStore((state) => {
-    state.pipelines = state.pipelines || [];
-    if (type === "internal") {
-      state.pipelines.push({
-        lastModified: new Date().toISOString(),
-        configName: pathOrConfigName,
-        type: "internal",
-        project: projectId,
-        id: pipelineId,
-      });
-    } else if (type === "pipelab-cloud") {
-      state.pipelines.push({
-        type: "pipelab-cloud",
-        project: projectId,
-        id: pipelineId,
-      });
-    } else {
-      state.pipelines.push({
-        lastModified: new Date().toISOString(),
-        path: pathOrConfigName,
-        summary: {
-          description: newProjectDescription.value,
-          name: newProjectName.value,
-          plugins: [],
-        },
-        type: "external",
-        project: projectId,
-        id: pipelineId,
-      });
-    }
-  });
+  try {
+    await updateFileStore((state) => {
+      state.pipelines = state.pipelines || [];
+      if (type === "internal") {
+        state.pipelines.push({
+          lastModified: new Date().toISOString(),
+          configName: pathOrConfigName,
+          type: "internal",
+          project: projectId,
+          id: pipelineId,
+        });
+      } else if (type === "pipelab-cloud") {
+        state.pipelines.push({
+          type: "pipelab-cloud",
+          project: projectId,
+          id: pipelineId,
+        });
+      } else {
+        state.pipelines.push({
+          lastModified: new Date().toISOString(),
+          path: pathOrConfigName,
+          summary: {
+            description: newProjectDescription.value,
+            name: newProjectName.value,
+            plugins: [],
+          },
+          type: "external",
+          project: projectId,
+          id: pipelineId,
+        });
+      }
+    });
+  } catch (error) {
+    toast.add({
+      severity: "error",
+      summary: t("base.error"),
+      detail: error instanceof Error ? error.message : String(error),
+      life: 3000,
+    });
+    return;
+  }
 
   newProjectName.value = "";
   newProjectDescription.value = "";
@@ -1087,7 +1153,11 @@ const deletePipeline = async (id: string) => {
     rejectClass: "p-button-secondary p-button-outlined",
     acceptClass: "p-button-danger",
     accept: async () => {
-      await remove(id);
+      try {
+        await remove(id);
+      } catch (error) {
+        notifyPersistenceError(error);
+      }
     },
     reject: () => {
       // do nothing
@@ -1120,7 +1190,11 @@ const deleteProject = async (projectId?: string) => {
     rejectClass: "p-button-secondary p-button-outlined",
     acceptClass: "p-button-danger",
     accept: async () => {
-      await removeProject(id);
+      try {
+        await removeProject(id);
+      } catch (error) {
+        notifyPersistenceError(error);
+      }
     },
     reject: () => {
       // do nothing
@@ -1156,8 +1230,12 @@ const deleteWorkflow = (id: string) => {
     rejectClass: "p-button-secondary p-button-outlined",
     acceptClass: "p-button-danger",
     accept: async () => {
-      await removeWorkflow(id);
-      workflowsEnhanced.value = workflowsEnhanced.value.filter((flow) => flow.id !== id);
+      try {
+        await removeWorkflow(id);
+        workflowsEnhanced.value = workflowsEnhanced.value.filter((flow) => flow.id !== id);
+      } catch (error) {
+        notifyPersistenceError(error);
+      }
     },
   });
 };
@@ -1283,14 +1361,18 @@ const openTransferDialog = () => {
 
 const performTransfer = async () => {
   if (selectedPipelineForMenu.value && selectedTargetProject.value) {
-    await transferPipeline(selectedPipelineForMenu.value.id, selectedTargetProject.value.id);
-    isTransferModalVisible.value = false;
-    toast.add({
-      severity: "success",
-      summary: t("home.transfer-successful"),
-      detail: t("home.pipeline-transferred"),
-      life: 3000,
-    });
+    try {
+      await transferPipeline(selectedPipelineForMenu.value.id, selectedTargetProject.value.id);
+      isTransferModalVisible.value = false;
+      toast.add({
+        severity: "success",
+        summary: t("home.transfer-successful"),
+        detail: t("home.pipeline-transferred"),
+        life: 3000,
+      });
+    } catch (error) {
+      notifyPersistenceError(error);
+    }
   }
 };
 
@@ -1316,34 +1398,41 @@ const migratePipeline = async (file: EnhancedFile) => {
     acceptClass: "p-button-primary",
     accept: async () => {
       const newConfigName = `pipelines/${nanoid()}`;
+      try {
+        const result = await api.execute("pipeline:save-by-name", {
+          name: newConfigName,
+          data: JSON.stringify(file.content),
+        });
+        if (result.type === "error") throw new Error(result.ipcError);
 
-      // Save content to internal config
-      await api.execute("pipeline:save-by-name", {
-        name: newConfigName,
-        data: JSON.stringify(file.content),
-      });
+        await updateFileStore((state) => {
+          state.pipelines = state.pipelines || [];
+          const index = state.pipelines.findIndex((p) => p.id === file.id);
+          if (index !== -1) {
+            state.pipelines[index] = {
+              id: file.id,
+              project: file.project,
+              lastModified: new Date().toISOString(),
+              type: "internal",
+              configName: newConfigName,
+            };
+          }
+        });
 
-      // Update store: replace external pipeline definition with internal one
-      updateFileStore((state) => {
-        state.pipelines = state.pipelines || [];
-        const index = state.pipelines.findIndex((p) => p.id === file.id);
-        if (index !== -1) {
-          state.pipelines[index] = {
-            id: file.id,
-            project: file.project,
-            lastModified: new Date().toISOString(),
-            type: "internal",
-            configName: newConfigName,
-          };
-        }
-      });
-
-      toast.add({
-        severity: "success",
-        summary: t("base.success"),
-        detail: t("home.migration-success"),
-        life: 3000,
-      });
+        toast.add({
+          severity: "success",
+          summary: t("base.success"),
+          detail: t("home.migration-success"),
+          life: 3000,
+        });
+      } catch (error) {
+        toast.add({
+          severity: "error",
+          summary: t("base.error"),
+          detail: error instanceof Error ? error.message : String(error),
+          life: 3000,
+        });
+      }
     },
   });
 };
@@ -1469,13 +1558,14 @@ const importPipeline = async () => {
           const configName = `pipelines/${pipelineId}`;
 
           // Save migrated file to internal storage
-          await api.execute("pipeline:save-by-name", {
+          const result = await api.execute("pipeline:save-by-name", {
             name: configName,
             data: JSON.stringify(fileData),
           });
+          if (result.type === "error") throw new Error(result.ipcError);
 
           // Add to store
-          updateFileStore((state) => {
+          await updateFileStore((state) => {
             state.pipelines = state.pipelines || [];
             state.pipelines.push({
               lastModified: new Date().toISOString(),
@@ -1496,7 +1586,7 @@ const importPipeline = async () => {
           toast.add({
             severity: "error",
             summary: t("base.error"),
-            detail: t("editor.invalid-file-content"),
+            detail: err instanceof Error ? err.message : t("editor.invalid-file-content"),
             life: 3000,
           });
         }

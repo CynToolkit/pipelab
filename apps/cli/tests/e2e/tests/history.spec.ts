@@ -50,10 +50,11 @@ describe("End-to-End: Build History", () => {
       const historyContent = await readFile(historyFile, "utf-8");
       const history = JSON.parse(historyContent);
 
-      expect(Array.isArray(history)).toBe(true);
-      expect(history.length).toBeGreaterThan(0);
+      expect(history.version).toBe("1.0.0");
+      expect(Array.isArray(history.entries)).toBe(true);
+      expect(history.entries.length).toBeGreaterThan(0);
 
-      const lastEntry = history[history.length - 1];
+      const lastEntry = history.entries[history.entries.length - 1];
       expect(lastEntry.pipelineId).toBe(pipelineId);
       expect(lastEntry.status).toBe("completed");
     },

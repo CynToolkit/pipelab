@@ -798,7 +798,14 @@ const saveStateLabel = computed(() =>
   saveState.value === "saving" ? "Saving…" : saveState.value === "error" ? "Error" : "Saved",
 );
 const canShip = computed(() =>
-  releaseCanRun(flow.value, plan.value, issues.value, running.value, planning.value, saveState.value),
+  releaseCanRun(
+    flow.value,
+    plan.value,
+    issues.value,
+    running.value,
+    planning.value,
+    saveState.value,
+  ),
 );
 const openAttention = (cardIssues: ValidationIssue[]) => {
   attentionIssues.value = cardIssues;
@@ -1064,7 +1071,7 @@ const refreshCompatibleChoices = async (slot: ReleaseDestinationSlot) => {
           [target.id],
         );
         if (!candidate) continue;
-        const candidateConfig = JSON.parse(JSON.stringify(flow.value)) as ReleaseConfig;
+        const candidateConfig = structuredClone(flow.value);
         candidateConfig.builds.push(candidate);
         candidateConfig.destinations[destinationIndex].slots[slotIndex].input = {
           buildId: candidate.id,
@@ -1274,7 +1281,7 @@ const refreshPlan = async (resolveDefaults = false) => {
           resolved.type === "success" &&
           JSON.stringify(resolved.result) !== JSON.stringify(flow.value)
         ) {
-          flow.value = resolved.result as ReleaseConfig;
+          flow.value = resolved.result;
           changeRevision += 1;
           try {
             await save();
@@ -1299,9 +1306,10 @@ const save = createSerializedTaskQueue(async () => {
   if (!flow.value) return;
   const revision = changeRevision;
   saveState.value = "saving";
-  const result = await api.execute("workflow:save-by-name", {
-    name: `workflows/${flowId.value}`,
-    data: JSON.stringify(flow.value),
+  const result = await api.execute("workflow:save", {
+    workflowId: flowId.value,
+    data: flow.value,
+    projectId: projectId.value,
   });
   if (result.type === "error") {
     saveState.value = "error";
@@ -1350,7 +1358,9 @@ const runShip = async () => {
       );
       if (result.type === "error") error.value = result.ipcError;
       else if (!runId)
-        await router.push(`/workflows/${flowId.value}/${projectId.value}/runs/${result.result.runId}`);
+        await router.push(
+          `/workflows/${flowId.value}/${projectId.value}/runs/${result.result.runId}`,
+        );
     });
   } catch (cause) {
     if (!error.value) error.value = cause instanceof Error ? cause.message : String(cause);
@@ -1378,11 +1388,16 @@ onMounted(async () => {
   await connectionsStore.init();
   const [catalogResult, flowResult] = await Promise.all([
     api.execute("release:catalog:get"),
-    api.execute("workflow:load-by-name", { name: `workflows/${flowId.value}` }),
+    api.execute("workflow:load", { workflowId: flowId.value, projectId: projectId.value }),
   ]);
   if (catalogResult.type === "success") catalog.value = catalogResult.result;
   if (flowResult.type === "success") {
-    flow.value = flowResult.result as ReleaseConfig;
+    const loaded = flowResult.result;
+    if (loaded.id !== flowId.value || loaded.project !== projectId.value) {
+      error.value = "Loaded workflow identity does not match the requested route.";
+      return;
+    }
+    flow.value = loaded;
     automaticResolutionRequested = true;
     await inspectSource();
     await refreshPlan(true);

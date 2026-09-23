@@ -18,6 +18,7 @@ function createConfigComposable<T>(
   const api = useAPI();
   const data = ref<T>(defaultValue);
   const loading = ref(false);
+  const error = ref<string>();
   let loadedPromise: Promise<void> | null = null;
 
   const load = async (force = false): Promise<void> => {
@@ -27,12 +28,14 @@ function createConfigComposable<T>(
 
     loadedPromise = (async () => {
       if (!api.isConnected()) {
-        console.warn(`[useConfig] API not connected for loading "${loadChannel}"`);
+        const unavailable = new Error("API is not connected");
+        error.value = unavailable.message;
         loadedPromise = null;
-        return;
+        throw unavailable;
       }
 
       loading.value = true;
+      error.value = undefined;
       try {
         const result = await api.execute(loadChannel as any);
         if (result.type === "success") {
@@ -40,9 +43,14 @@ function createConfigComposable<T>(
           data.value = loadedValue;
         } else {
           console.error(`[useConfig] failed to load "${loadChannel}":`, result.ipcError);
+          error.value = result.ipcError;
+          throw new Error(result.ipcError);
         }
       } catch (err) {
         console.error(`[useConfig] error loading "${loadChannel}":`, err);
+        error.value = err instanceof Error ? err.message : String(err);
+        loadedPromise = null;
+        throw err;
       } finally {
         loading.value = false;
       }
@@ -53,8 +61,9 @@ function createConfigComposable<T>(
 
   const save = async (newValue: T): Promise<void> => {
     if (!api.isConnected()) {
-      data.value = newValue;
-      return;
+      const unavailable = new Error("API is not connected");
+      error.value = unavailable.message;
+      throw unavailable;
     }
 
     try {
@@ -93,6 +102,7 @@ function createConfigComposable<T>(
   return {
     data,
     loading: readonly(loading),
+    error: readonly(error),
     load,
     save,
     reset,

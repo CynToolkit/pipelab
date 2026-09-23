@@ -13,25 +13,35 @@
             <h2>Runs</h2>
             <p>Recent executions for this workflow.</p>
           </div>
-          <span v-if="!loading && !error" class="run-count"
+          <span v-if="!loading && !historyError && !workflowError" class="run-count"
             >{{ entries.length }} {{ entries.length === 1 ? "run" : "runs" }}</span
           >
         </div>
-        <Message v-if="error" severity="error" :closable="false" role="alert">
+        <Message v-if="workflowError" severity="error" :closable="false" role="alert">
           <div class="state-copy">
-            <strong>Couldn’t load runs</strong><span>{{ error }}</span
+            <strong>Couldn’t load workflow</strong><span>{{ workflowError }}</span
+            ><Button label="Try again" text size="small" @click="loadRuns" />
+          </div>
+        </Message>
+        <Message v-if="historyError" severity="error" :closable="false" role="alert">
+          <div class="state-copy">
+            <strong>Couldn’t load run history</strong><span>{{ historyError }}</span
             ><Button label="Try again" text size="small" @click="loadRuns" />
           </div>
         </Message>
         <div
-          v-else-if="loading"
+          v-if="loading && !entries.length"
           class="history-skeleton"
           aria-busy="true"
           aria-label="Loading runs"
         >
           <div v-for="n in 4" :key="n" class="skeleton-row"><span /><span /><span /></div>
         </div>
-        <div v-else-if="!entries.length" class="empty-state" role="status">
+        <div
+          v-else-if="!loading && !historyError && !workflowError && !entries.length"
+          class="empty-state"
+          role="status"
+        >
           <i class="mdi mdi-rocket-launch-outline" aria-hidden="true" />
           <strong>No runs yet</strong
           ><span>Ship this workflow to see its execution history here.</span>
@@ -42,7 +52,12 @@
             @click="router.push(basePath)"
           />
         </div>
-        <div v-else class="run-list" role="list" aria-label="Workflow runs">
+        <div
+          v-else-if="!loading && !historyError && !workflowError"
+          class="run-list"
+          role="list"
+          aria-label="Workflow runs"
+        >
           <button
             v-for="entry in entries"
             :key="entry.id"
@@ -98,7 +113,7 @@ import Button from "primevue/button";
 import Message from "primevue/message";
 import { useAPI } from "@renderer/composables/api";
 import type { BuildHistoryEntry } from "@pipelab/shared";
-import { isWorkflowRouteContextValid, scheduleWorkflowRunsRefresh } from "./workflow-runs-state";
+import { resolveWorkflowRunsState, scheduleWorkflowRunsRefresh } from "./workflow-runs-state";
 
 const route = useRoute();
 const router = useRouter();
@@ -109,7 +124,8 @@ const basePath = computed(() => `/workflows/${flowId.value}/${projectId.value}`)
 const entries = ref<BuildHistoryEntry[]>([]);
 const workflowName = ref("Workflow");
 const loading = ref(true);
-const error = ref("");
+const historyError = ref("");
+const workflowError = ref("");
 let refreshTimer: ReturnType<typeof setTimeout> | undefined;
 let loadGeneration = 0;
 
@@ -117,34 +133,37 @@ const loadRuns = async () => {
   if (refreshTimer) clearTimeout(refreshTimer);
   const generation = ++loadGeneration;
   if (!entries.value.length) loading.value = true;
-  error.value = "";
+  historyError.value = "";
+  workflowError.value = "";
   try {
-    const [history, workflow] = await Promise.all([
+    const [historyResult, workflowResult] = await Promise.allSettled([
       api.execute("build-history:get-all", {
         query: { workflowId: flowId.value, pipelineId: projectId.value },
       }),
-      api.execute("workflow:load-by-name", { name: `workflows/${flowId.value}` }),
+      api.execute("workflow:load", { workflowId: flowId.value, projectId: projectId.value }),
     ]);
     if (generation !== loadGeneration) return;
-    if (history.type === "error") error.value = history.ipcError;
-    else entries.value = history.result.entries
-      .filter((entry) => entry.workflowId === flowId.value && entry.pipelineId === projectId.value)
-      .sort((a, b) => b.startTime - a.startTime);
-    if (workflow.type === "success") {
-      if (!isWorkflowRouteContextValid(workflow.result, flowId.value, projectId.value)) {
-        entries.value = [];
-        await router.replace("/dashboard");
-        return;
-      }
-      workflowName.value = workflow.result.name || "Workflow";
-    }
+    const history =
+      historyResult.status === "fulfilled"
+        ? historyResult.value
+        : { type: "error" as const, ipcError: String(historyResult.reason) };
+    const workflow =
+      workflowResult.status === "fulfilled"
+        ? workflowResult.value
+        : { type: "error" as const, ipcError: String(workflowResult.reason) };
+    const state = resolveWorkflowRunsState(history, workflow, flowId.value, projectId.value);
+    entries.value = state.entries;
+    historyError.value = state.historyError;
+    workflowError.value = state.workflowError;
+    workflowName.value = state.workflowName;
   } catch (cause) {
     if (generation !== loadGeneration) return;
-    error.value = cause instanceof Error ? cause.message : String(cause);
+    historyError.value = cause instanceof Error ? cause.message : String(cause);
   } finally {
     if (generation === loadGeneration) {
       loading.value = false;
-      refreshTimer = scheduleWorkflowRunsRefresh(entries.value, () => void loadRuns());
+      if (!historyError.value && !workflowError.value)
+        refreshTimer = scheduleWorkflowRunsRefresh(entries.value, () => void loadRuns());
     }
   }
 };

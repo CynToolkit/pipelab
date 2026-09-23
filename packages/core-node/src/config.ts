@@ -13,7 +13,6 @@ import {
   connectionsMigrator,
   fileRepoMigrations,
   savedFileMigrator,
-  type ReleaseConfig,
 } from "@pipelab/shared";
 
 export const setupConfigFile = async <T>(
@@ -156,27 +155,6 @@ export const setupPipelineConfigFileByPath = (absolutePath: string, context: Pip
     context,
     migrator: savedFileMigrator,
   });
-};
-
-export const setupWorkflowConfigFileByName = (name: string, context: PipelabContext) => {
-  const filesPath = context.getConfigPath(`${name}.json`);
-  return setupRawConfigFile<ReleaseConfig>(filesPath, {
-    version: "3.0.0",
-    id: "",
-    project: "",
-    name: "",
-    source: { provider: "@pipelab/plugin-filesystem/folder-source", config: { path: "" } },
-    builds: [],
-    destinations: [],
-  });
-};
-
-const setupRawConfigFile = async <T>(filesPath: string, defaultValue: T) => {
-  await ensure(filesPath, JSON.stringify(defaultValue));
-  return {
-    setConfig: async (config: T) => { await fs.writeFile(filesPath, JSON.stringify(config)); return true; },
-    getConfig: async () => JSON.parse(await fs.readFile(filesPath, "utf8")) as T,
-  };
 };
 
 const deleteConfigFile = async (filesPath: string) => {

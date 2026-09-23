@@ -63,6 +63,7 @@ export * from "./validation";
 export * from "./variables";
 export * from "./websocket.types";
 export * from "./path";
+export * from "./persisted-id";
 export * from "./release/types";
 export * from "./release/matcher";
 export * from "./release/config";

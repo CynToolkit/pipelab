@@ -2,32 +2,20 @@ import { PipelabContext } from "../context";
 import { join } from "node:path";
 import { writeFile, readFile, unlink, mkdir, stat, readdir, rename, rm } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
-import { useLogger, BuildHistoryEntry, IBuildHistoryStorage, AppConfig } from "@pipelab/shared";
+import {
+  useLogger,
+  parseBuildHistoryDocument,
+  isSafePersistedId,
+  BuildHistoryEntry,
+  IBuildHistoryStorage,
+  AppConfig,
+} from "@pipelab/shared";
 import checkDiskSpace from "check-disk-space";
 import { getFolderSize } from "../utils/fs-extras";
 import { SandboxFolder } from "@pipelab/constants";
+import { serializeFileMutation } from "../release-persistence-lock";
 
 // Simplified storage - one file per pipeline containing array of build entries
-
-const mutationTails = new Map<string, Promise<void>>();
-
-const serializePipelineMutation = async <T>(
-  path: string,
-  mutation: () => Promise<T>,
-): Promise<T> => {
-  const previous = mutationTails.get(path) || Promise.resolve();
-  const current = previous.catch((): undefined => undefined).then(mutation);
-  const tail = current.then(
-    (): undefined => undefined,
-    (): undefined => undefined,
-  );
-  mutationTails.set(path, tail);
-  try {
-    return await current;
-  } finally {
-    if (mutationTails.get(path) === tail) mutationTails.delete(path);
-  }
-};
 
 export class BuildHistoryStorage implements IBuildHistoryStorage {
   private logger = useLogger();
@@ -41,6 +29,7 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
   }
 
   private getPipelinePath(pipelineId: string): string {
+    if (!isSafePersistedId(pipelineId)) throw new Error(`Unsafe pipeline ID '${pipelineId}'.`);
     return join(this.getStoragePath(), `${pipelineId}.history.json`);
   }
 
@@ -49,7 +38,7 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
       await mkdir(this.getStoragePath(), { recursive: true });
     } catch (error) {
       this.logger.logger().error("Failed to create storage path:", error);
-      throw new Error(`Failed to create storage directory: ${error}`);
+      throw error;
     }
   }
 
@@ -63,9 +52,7 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
       throw error;
     }
     try {
-      const entries: unknown = JSON.parse(data);
-      if (!Array.isArray(entries)) throw new Error("History document must contain an array");
-      return entries as BuildHistoryEntry[];
+      return parseBuildHistoryDocument(JSON.parse(data)).entries;
     } catch (error) {
       throw new Error(
         `Invalid build history for pipeline ${pipelineId}: ${error instanceof Error ? error.message : String(error)}`,
@@ -78,11 +65,12 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
     entries: BuildHistoryEntry[],
   ): Promise<void> {
     try {
+      parseBuildHistoryDocument({ version: "1.0.0", entries });
       await this.ensureStoragePath();
       const pipelinePath = this.getPipelinePath(pipelineId);
       const temporaryPath = `${pipelinePath}.${randomUUID()}.tmp`;
       try {
-        await writeFile(temporaryPath, JSON.stringify(entries, null, 2), {
+        await writeFile(temporaryPath, JSON.stringify({ version: "1.0.0", entries }, null, 2), {
           encoding: "utf-8",
           flag: "wx",
         });
@@ -98,7 +86,7 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
 
   async save(entry: BuildHistoryEntry): Promise<void> {
     const pipelinePath = this.getPipelinePath(entry.pipelineId);
-    return serializePipelineMutation(pipelinePath, async () => {
+    return serializeFileMutation(pipelinePath, async () => {
       try {
         const entries = await this.loadPipelineHistory(entry.pipelineId);
         const existingIndex = entries.findIndex((e) => e.id === entry.id);
@@ -230,7 +218,7 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
     updates: Partial<BuildHistoryEntry>,
     pipelineId: string,
   ): Promise<boolean> {
-    return serializePipelineMutation(this.getPipelinePath(pipelineId), async () => {
+    return serializeFileMutation(this.getPipelinePath(pipelineId), async () => {
       const entries = await this.loadPipelineHistory(pipelineId);
       const entryIndex = entries.findIndex((entry) => entry.id === id);
       if (entryIndex < 0) return false;
@@ -266,7 +254,7 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
   }
 
   private async deleteFromPipeline(id: string, pipelineId: string): Promise<boolean> {
-    return serializePipelineMutation(this.getPipelinePath(pipelineId), async () => {
+    return serializeFileMutation(this.getPipelinePath(pipelineId), async () => {
       const entries = await this.loadPipelineHistory(pipelineId);
       const entryIndex = entries.findIndex((entry) => entry.id === id);
       if (entryIndex < 0) return false;
@@ -285,7 +273,7 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
       for (const file of files) {
         const pipelineId = this.parsePipelineIdFromFilename(file);
         if (!pipelineId) continue;
-        await serializePipelineMutation(this.getPipelinePath(pipelineId), async () => {
+        await serializeFileMutation(this.getPipelinePath(pipelineId), async () => {
           const entries = await this.loadPipelineHistory(pipelineId);
           for (const entry of entries) {
             if (entry.cachePath) cachePathsToDelete.add(entry.cachePath);
@@ -313,7 +301,7 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
 
   async clearByPipeline(pipelineId: string): Promise<void> {
     try {
-      await serializePipelineMutation(this.getPipelinePath(pipelineId), async () => {
+      await serializeFileMutation(this.getPipelinePath(pipelineId), async () => {
         const pipelinePath = this.getPipelinePath(pipelineId);
         const entries = await this.loadPipelineHistory(pipelineId);
         await unlink(pipelinePath).catch((error) => {
@@ -429,7 +417,8 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
       const files = await readdir(this.getStoragePath());
       return files.filter((file) => file.endsWith(".history.json"));
     } catch (error) {
-      return [];
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
+      throw error;
     }
   }
 

@@ -7,10 +7,20 @@
         <div class="container">
           <div class="content">
             <div class="main">
-              <router-view v-if="!isLoading"></router-view>
+              <section v-if="initialDataFailure" class="initial-data-error" role="alert">
+                <h1>Unable to load Pipelab data</h1>
+                <p>{{ initialDataFailureLabel }}</p>
+                <p>{{ initialDataFailure.message }}</p>
+                <Button
+                  label="Try again"
+                  icon="pi pi-refresh"
+                  :loading="isLoading"
+                  @click="fetchInitialData"
+                />
+              </section>
+              <router-view v-else-if="isDataLoaded"></router-view>
               <div v-else>
-                <SubscriptionLoadingIndicator v-if="isLoading" />
-                <Skeleton v-else width="100%" height="100%"></Skeleton>
+                <SubscriptionLoadingIndicator v-if="isLoading || !isDataLoaded" />
               </div>
             </div>
           </div>
@@ -60,6 +70,8 @@ import { useAPI } from "./composables/api";
 import { OpenMigrationModalKey, OpenUpgradeDialogKey } from "./utils/injection-keys";
 import { websocketManager } from "./composables/websocket-manager";
 import { useWebSocketAPI } from "./composables/websocket-client";
+import Button from "primevue/button";
+import { loadInitialData, type InitialDataFailureKind } from "./initial-data-state";
 
 const appStore = useAppStore();
 const filesStore = useFiles();
@@ -76,6 +88,7 @@ const { init } = appStore;
 const { on } = useWebSocketAPI();
 const isLoading = ref(false);
 const isDataLoaded = ref(false);
+const initialDataFailure = ref<{ kind: InitialDataFailureKind; message: string }>();
 const isInitialized = ref(false);
 const isServerReady = ref(false);
 const isUpgradeDialogVisible = ref(false);
@@ -104,6 +117,19 @@ const isConnecting = computed(
     websocketManager.connectionState.value === "connecting" ||
     !isServerReady.value,
 );
+
+const initialDataFailureLabel = computed(() => {
+  switch (initialDataFailure.value?.kind) {
+    case "backend-disconnected":
+      return "The Pipelab backend disconnected while loading required data.";
+    case "project-config":
+      return "Projects or application configuration could not be loaded.";
+    case "connections":
+      return "Saved connections could not be loaded.";
+    default:
+      return "Required startup data could not be loaded.";
+  }
+});
 
 const openUpgradeDialog = () => {
   isUpgradeDialogVisible.value = true;
@@ -188,22 +214,37 @@ handle("log:message", async (event, { value, send }) => {
   });
 });
 
-const fetchInitialData = async () => {
+let initialDataPromise: Promise<void> | undefined;
+const fetchInitialData = () => {
+  if (initialDataPromise) return initialDataPromise;
   console.log("[App] fetchInitialData: Starting remote data fetch");
-  try {
-    await filesStore.load();
-    await init();
-    // settingsStore.init() is no longer needed here as it's local, but we call loadRemoteSettings to sync
-    await settingsStore.load();
-    await connectionsStore.load();
-
-    await authInit();
-    await fetchSubscription();
+  isLoading.value = true;
+  isDataLoaded.value = false;
+  initialDataFailure.value = undefined;
+  initialDataPromise = (async () => {
+    const result = await loadInitialData(
+      [
+        { section: "projects", load: () => filesStore.load() },
+        { section: "plugins", load: () => init() },
+        { section: "settings", load: () => settingsStore.load() },
+        { section: "connections", load: () => connectionsStore.load() },
+        { section: "auth", load: () => authInit() },
+        { section: "subscription", load: () => fetchSubscription() },
+      ],
+      () => websocketManager.connectionState.value === "connected",
+    );
+    if (result.type === "error") {
+      initialDataFailure.value = result.failure;
+      logger().error("Failed to fetch initial data:", result.failure);
+      return;
+    }
     isDataLoaded.value = true;
-    logger().info("Remote data fetch complete");
-  } catch (error) {
-    logger().error("Failed to fetch remote data:", error);
-  }
+    logger().info("Initial data fetch complete");
+  })().finally(() => {
+    isLoading.value = false;
+    initialDataPromise = undefined;
+  });
+  return initialDataPromise;
 };
 
 // Watch for WebSocket connection and server readiness to trigger data fetch
@@ -274,6 +315,16 @@ onMounted(async () => {
     width: 100%;
     height: 100%;
   }
+}
+
+.initial-data-error {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 2rem;
+  text-align: center;
 }
 
 .container {

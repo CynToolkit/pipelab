@@ -63,7 +63,7 @@ export interface BuildHistoryEntry {
   workflowId?: string;
   workflowName?: string;
   projectName: string;
-  projectPath: string;
+  projectPath?: string;
   cachePath?: string;
   status: "running" | "completed" | "completed-with-errors" | "failed" | "cancelled";
   version?: string;
@@ -85,6 +85,262 @@ export interface BuildHistoryEntry {
   artifacts?: Array<Artifact | WorkflowArtifactInstance>;
   deliveries?: WorkflowDeliveryResult[];
 }
+
+export const BUILD_HISTORY_VERSION = "1.0.0" as const;
+export interface BuildHistoryDocument {
+  version: typeof BUILD_HISTORY_VERSION;
+  entries: BuildHistoryEntry[];
+}
+
+export class BuildHistoryParseError extends Error {
+  constructor(
+    public readonly path: string,
+    message: string,
+  ) {
+    super(`${path}: ${message}`);
+    this.name = "BuildHistoryParseError";
+  }
+}
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+const isNonEmptyString = (value: unknown): value is string =>
+  typeof value === "string" && value.trim().length > 0;
+const isFiniteNumber = (value: unknown): value is number =>
+  typeof value === "number" && Number.isFinite(value);
+
+const parseError = (value: unknown, path: string): void => {
+  if (!isRecord(value) || !isNonEmptyString(value.message) || !isFiniteNumber(value.timestamp))
+    throw new BuildHistoryParseError(path, "error has an invalid shape");
+  if (value.stack !== undefined && typeof value.stack !== "string")
+    throw new BuildHistoryParseError(`${path}.stack`, "must be a string");
+  if (value.code !== undefined && typeof value.code !== "string")
+    throw new BuildHistoryParseError(`${path}.code`, "must be a string");
+};
+
+const parseLog = (value: unknown, path: string): void => {
+  const levels = ["debug", "info", "warn", "error"];
+  if (
+    !isRecord(value) ||
+    !isNonEmptyString(value.id) ||
+    !isFiniteNumber(value.timestamp) ||
+    typeof value.message !== "string" ||
+    typeof value.level !== "string" ||
+    !levels.includes(value.level)
+  )
+    throw new BuildHistoryParseError(path, "log has an invalid shape");
+  if (value.source !== undefined && typeof value.source !== "string")
+    throw new BuildHistoryParseError(`${path}.source`, "must be a string");
+  if (value.data !== undefined && !isRecord(value.data))
+    throw new BuildHistoryParseError(`${path}.data`, "must be an object");
+};
+
+const parseArtifactDescriptor = (value: unknown, path: string): void => {
+  if (
+    !isRecord(value) ||
+    !["project", "application", "files"].includes(String(value.kind)) ||
+    !["file", "directory", "archive"].includes(String(value.container))
+  )
+    throw new BuildHistoryParseError(path, "has an invalid shape");
+  if (
+    value.capabilities !== undefined &&
+    (!Array.isArray(value.capabilities) ||
+      value.capabilities.some((capability) => typeof capability !== "string"))
+  )
+    throw new BuildHistoryParseError(`${path}.capabilities`, "must be an array of strings");
+  for (const key of ["technology", "platform", "architecture", "format"])
+    if (value[key] !== undefined && typeof value[key] !== "string")
+      throw new BuildHistoryParseError(`${path}.${key}`, "must be a string");
+};
+
+const parseArtifactCloud = (value: unknown, path: string): void => {
+  if (
+    !isRecord(value) ||
+    !isNonEmptyString(value.hostedArtifactId) ||
+    !isNonEmptyString(value.uploadedAt)
+  )
+    throw new BuildHistoryParseError(path, "has an invalid hosted-artifact shape");
+};
+
+const parseArtifact = (value: unknown, path: string): void => {
+  if (!isRecord(value)) throw new BuildHistoryParseError(path, "artifact must be an object");
+
+  // Legacy persisted artifacts have a human-readable name and file type, but
+  // no runtime step/artifact reference. Runtime artifacts are identified by
+  // their descriptor and require those execution references.
+  const isRuntimeArtifact =
+    value.descriptor !== undefined &&
+    isNonEmptyString(value.stepId) &&
+    isNonEmptyString(value.artifact);
+  if (isRuntimeArtifact) {
+    if (
+      !isNonEmptyString(value.id) ||
+      !isNonEmptyString(value.path) ||
+      !isNonEmptyString(value.stepId) ||
+      !isNonEmptyString(value.artifact)
+    )
+      throw new BuildHistoryParseError(
+        path,
+        "runtime artifact requires id, path, stepId, and artifact",
+      );
+    parseArtifactDescriptor(value.descriptor, `${path}.descriptor`);
+  } else if (
+    !isNonEmptyString(value.id) ||
+    !isNonEmptyString(value.name) ||
+    !isNonEmptyString(value.path) ||
+    !isFiniteNumber(value.size) ||
+    !["file", "folder"].includes(String(value.type))
+  ) {
+    throw new BuildHistoryParseError(
+      path,
+      "legacy artifact requires id, name, path, size, and type",
+    );
+  }
+  if (!isRuntimeArtifact && value.descriptor !== undefined)
+    parseArtifactDescriptor(value.descriptor, `${path}.descriptor`);
+  for (const key of ["version", "stepId", "artifact", "checksum"])
+    if (value[key] !== undefined && typeof value[key] !== "string")
+      throw new BuildHistoryParseError(`${path}.${key}`, "must be a string");
+  if (value.size !== undefined && !isFiniteNumber(value.size))
+    throw new BuildHistoryParseError(`${path}.size`, "must be a finite number");
+  if (value.cloud !== undefined) parseArtifactCloud(value.cloud, `${path}.cloud`);
+};
+
+const assertEntry: (value: unknown, path: string) => asserts value is BuildHistoryEntry = (
+  value,
+  path,
+) => {
+  if (!isRecord(value)) throw new BuildHistoryParseError(path, "run entry must be an object");
+  for (const key of ["id", "pipelineId"])
+    if (!isNonEmptyString(value[key]))
+      throw new BuildHistoryParseError(`${path}.${key}`, "must be a string");
+  if (typeof value.projectName !== "string")
+    throw new BuildHistoryParseError(`${path}.projectName`, "must be a string");
+  if (value.projectPath !== undefined && typeof value.projectPath !== "string")
+    throw new BuildHistoryParseError(`${path}.projectPath`, "must be a string");
+  for (const key of ["workflowId", "workflowName", "cachePath", "version", "userId"])
+    if (value[key] !== undefined && typeof value[key] !== "string")
+      throw new BuildHistoryParseError(`${path}.${key}`, "must be a string");
+  if (
+    typeof value.status !== "string" ||
+    !["running", "completed", "completed-with-errors", "failed", "cancelled"].includes(value.status)
+  )
+    throw new BuildHistoryParseError(`${path}.status`, "has an unsupported value");
+  for (const key of [
+    "startTime",
+    "totalSteps",
+    "completedSteps",
+    "failedSteps",
+    "cancelledSteps",
+    "createdAt",
+    "updatedAt",
+  ])
+    if (!isFiniteNumber(value[key]))
+      throw new BuildHistoryParseError(`${path}.${key}`, "must be a finite number");
+  for (const key of ["endTime", "duration"])
+    if (value[key] !== undefined && !isFiniteNumber(value[key]))
+      throw new BuildHistoryParseError(`${path}.${key}`, "must be a finite number");
+  for (const key of ["output", "metadata"])
+    if (value[key] !== undefined && !isRecord(value[key]))
+      throw new BuildHistoryParseError(`${path}.${key}`, "must be an object");
+  if (!Array.isArray(value.steps) || !Array.isArray(value.logs))
+    throw new BuildHistoryParseError(path, "steps and logs must be arrays");
+  const stepStatuses = ["pending", "running", "completed", "failed", "cancelled", "skipped"];
+  value.steps.forEach((step, index) => {
+    if (!isRecord(step) || !isNonEmptyString(step.id) || !isNonEmptyString(step.name))
+      throw new BuildHistoryParseError(`${path}.steps.${index}`, "step requires id and name");
+    if (typeof step.status !== "string" || !stepStatuses.includes(step.status))
+      throw new BuildHistoryParseError(`${path}.steps.${index}.status`, "has an unsupported value");
+    if (!isFiniteNumber(step.startTime) || !Array.isArray(step.logs))
+      throw new BuildHistoryParseError(
+        `${path}.steps.${index}`,
+        "step requires numeric startTime and logs array",
+      );
+    if (step.endTime !== undefined && !isFiniteNumber(step.endTime))
+      throw new BuildHistoryParseError(`${path}.steps.${index}.endTime`, "must be a finite number");
+    if (step.duration !== undefined && !isFiniteNumber(step.duration))
+      throw new BuildHistoryParseError(
+        `${path}.steps.${index}.duration`,
+        "must be a finite number",
+      );
+    for (const key of [
+      "uses",
+      "destinationId",
+      "serviceId",
+      "destinationName",
+      "slotId",
+      "artifact",
+    ])
+      if (step[key] !== undefined && typeof step[key] !== "string")
+        throw new BuildHistoryParseError(`${path}.steps.${index}.${key}`, "must be a string");
+    if (step.output !== undefined && !isRecord(step.output))
+      throw new BuildHistoryParseError(`${path}.steps.${index}.output`, "must be an object");
+    if (step.error !== undefined) parseError(step.error, `${path}.steps.${index}.error`);
+    step.logs.forEach((log, logIndex) => parseLog(log, `${path}.steps.${index}.logs.${logIndex}`));
+  });
+  value.logs.forEach((log, index) => parseLog(log, `${path}.logs.${index}`));
+  if (value.error !== undefined) parseError(value.error, `${path}.error`);
+  if (value.artifacts !== undefined) {
+    if (!Array.isArray(value.artifacts))
+      throw new BuildHistoryParseError(`${path}.artifacts`, "must be an array");
+    value.artifacts.forEach((artifact, index) => {
+      parseArtifact(artifact, `${path}.artifacts.${index}`);
+    });
+  }
+  if (value.deliveries !== undefined) {
+    if (!Array.isArray(value.deliveries))
+      throw new BuildHistoryParseError(`${path}.deliveries`, "must be an array");
+    value.deliveries.forEach((delivery, index) => {
+      if (
+        !isRecord(delivery) ||
+        !isNonEmptyString(delivery.id) ||
+        !isNonEmptyString(delivery.destinationId) ||
+        !isNonEmptyString(delivery.slotId) ||
+        !isNonEmptyString(delivery.artifactId) ||
+        !["completed", "failed"].includes(String(delivery.status)) ||
+        !isFiniteNumber(delivery.startedAt) ||
+        !isFiniteNumber(delivery.completedAt) ||
+        !isFiniteNumber(delivery.duration)
+      )
+        throw new BuildHistoryParseError(
+          `${path}.deliveries.${index}`,
+          "delivery has an invalid shape",
+        );
+      if (delivery.serviceId !== undefined && typeof delivery.serviceId !== "string")
+        throw new BuildHistoryParseError(
+          `${path}.deliveries.${index}.serviceId`,
+          "must be a string",
+        );
+      if (delivery.destinationName !== undefined && typeof delivery.destinationName !== "string")
+        throw new BuildHistoryParseError(
+          `${path}.deliveries.${index}.destinationName`,
+          "must be a string",
+        );
+      if (delivery.error !== undefined && typeof delivery.error !== "string")
+        throw new BuildHistoryParseError(`${path}.deliveries.${index}.error`, "must be a string");
+    });
+  }
+};
+
+const parseEntry = (value: unknown, path: string): BuildHistoryEntry => {
+  assertEntry(value, path);
+  return value;
+};
+
+export const parseBuildHistoryDocument = (value: unknown): BuildHistoryDocument => {
+  if (Array.isArray(value))
+    return {
+      version: BUILD_HISTORY_VERSION,
+      entries: value.map((entry, index) => parseEntry(entry, `entries.${index}`)),
+    };
+  if (!isRecord(value) || value.version !== BUILD_HISTORY_VERSION || !Array.isArray(value.entries))
+    throw new BuildHistoryParseError("history", "unsupported version or invalid document");
+  return {
+    version: BUILD_HISTORY_VERSION,
+    entries: value.entries.map((entry, index) => parseEntry(entry, `entries.${index}`)),
+  };
+};
 
 // Query interface supporting both pipeline and scenario filtering
 export interface BuildHistoryQuery {
