@@ -298,13 +298,15 @@ Do not mark the task complete until all of these pass:
 - [x] Applicable lint checks
 - [x] Applicable builds
 - [x] `git diff --check`
-- [ ] Full GitHub Actions test matrix green on Linux, Windows and macOS
-- [ ] No build jobs skipped because prerequisite tests failed
+- [x] Full GitHub Actions test matrix green on Linux, Windows and macOS
+- [x] No build jobs skipped because prerequisite tests failed
 
 Local full-repository verification was rerun under Node 24.19.0 (the repository/CI runtime):
 `pnpm test` 17/17 tasks, `pnpm typecheck` 24/24 tasks, `pnpm lint` 26/26 tasks, and
-`pnpm build` 25/25 tasks passed. The two remaining items require an external GitHub Actions
-run on the matrix hosts.
+`pnpm build` 25/25 tasks passed. GitHub Actions run `35839392405` also passed the Linux,
+Windows, macOS ARM, and macOS Intel test matrix, Build All, preview publish, and all four
+desktop packaging jobs. Deploy and release jobs were skipped by pull-request conditions,
+not failed prerequisites.
 
 ## Scope guardrails
 
