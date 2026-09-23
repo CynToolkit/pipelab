@@ -224,16 +224,21 @@ Do not mark this task complete until all applicable checks are green on the fina
 * [x] repository lint
 * [x] repository build
 * [x] `git diff --check`
-* [ ] Linux test matrix
-* [ ] Windows test matrix
-* [ ] macOS ARM test matrix
-* [ ] macOS Intel test matrix
-* [ ] Build All
-* [ ] desktop Linux packaging
-* [ ] desktop Windows packaging
-* [ ] desktop macOS ARM packaging
-* [ ] desktop macOS Intel packaging
-* [ ] no relevant job skipped because of a failed prerequisite
+* [x] Linux test matrix
+* [x] Windows test matrix
+* [x] macOS ARM test matrix
+* [x] macOS Intel test matrix
+* [x] Build All
+* [x] desktop Linux packaging
+* [x] desktop Windows packaging
+* [x] desktop macOS ARM packaging
+* [x] desktop macOS Intel packaging
+* [x] no relevant job skipped because of a failed prerequisite
+
+CI evidence: Pipeline run [35862033504](https://github.com/CynToolkit/pipelab/actions/runs/35862033504)
+passed on source commit `a19c86168e9e5d64d52df265d093c21efe6cc5e5`. All matrix,
+Build All, and four desktop packaging jobs completed successfully. Deploy and
+release jobs were conditionally skipped for this pull request.
 
 ## Scope guardrails
 
