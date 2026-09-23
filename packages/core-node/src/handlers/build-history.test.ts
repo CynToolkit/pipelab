@@ -207,6 +207,9 @@ describe("BuildHistoryStorage workflow runs", () => {
     await expect(
       storage.update("run-valid", { status: "not-a-status" as never }, "project-1"),
     ).rejects.toThrow("unsupported value");
+    await expect(
+      storage.save({ ...entry("run-invalid", "workflow-a", 10), startTime: Infinity }),
+    ).rejects.toThrow("finite number");
     await expect(readFile(historyPath, "utf8")).resolves.toBe(original);
   });
 

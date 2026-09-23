@@ -190,6 +190,30 @@ describe("release descriptors", () => {
     expect(validateReleaseConfigShape(withRefs({ buildId: "x", targetId: "y" }))).toEqual([]);
   });
 
+  it("rejects unsupported build-target input references", () => {
+    const config = createReleaseConfig({
+      id: "workflow",
+      project: "project",
+      name: "Release",
+      source: { provider: "source", config: {} },
+    });
+    const invalid = {
+      ...config,
+      builds: [
+        {
+          id: "build",
+          type: "desktop",
+          engine: "engine",
+          enabled: true,
+          config: {},
+          targets: [{ id: "target", enabled: true, config: {}, input: { source: true } }],
+        },
+      ],
+    };
+
+    expect(() => parseReleaseConfig(invalid)).toThrow("Build target input is not supported");
+  });
+
   it("rejects output references with missing or unexpected fields", () => {
     const config = createReleaseConfig({
       id: "r",

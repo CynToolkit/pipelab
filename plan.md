@@ -1,542 +1,217 @@
-# PR #95 — Phase 4 Audit Fixes
+# PR #95 — Final Remaining Phase 4 Goals
 
-Goal: bring PR #95 fully in line with the Phase 4 Data Integrity & Schema Hardening plan.
+Goal: close the last persistence-integrity gaps found in the full PR audit.
 
-Do not mark this complete until the full repository test matrix is green and all persistence boundaries below are enforced.
+Do not stop until every applicable checkbox is complete and the current PR head passes the full verification gate.
 
-## P0 — Fix the broken CLI integration
+## P1 — Make strict project migration reject corrupt legacy input
 
-- [x] Remove all CLI usage of the deleted `setupWorkflowConfigFileByName`.
-- [x] Update `apps/cli/src/commands/workflows.ts` to load Release Workflows through the new strict Release Workflow persistence/domain boundary.
-- [x] Do not restore the unsafe old helper just to make the CLI compile.
-- [x] Make CLI workflow listing use validated ReleaseConfig loading.
-- [x] Make CLI lookup-by-name use validated ReleaseConfig loading.
-- [x] Make CLI workflow deletion use the same coordinated delete behavior as the desktop/backend.
-- [x] Make CLI workflow execution use the same validated persisted entity used by desktop execution.
-- [x] Preserve existing CLI behavior where possible.
-- [x] Run the CLI E2E suite and confirm the current `setupWorkflowConfigFileByName` import failure is gone.
+* [x] Harden `loadStrictProjects()` so it validates the raw project document against the schema for its declared version before migration.
+* [x] Do not change the generic legacy migrator behavior globally.
+* [x] Keep the strictness local to the new strict project persistence boundary.
+* [x] For `1.0.0`, validate the actual V1 shape before running the V1→V2 migration.
+* [x] For `2.0.0`, validate the actual V2 shape before running the V2→V3 migration.
+* [x] For `3.0.0`, validate the V3 shape directly.
+* [x] Reject unknown/future versions explicitly.
+* [x] After migration, always validate the normalized V3 result with `parseFileRepo()`.
+* [x] A malformed legacy document must never be converted into an empty/default-looking valid project index.
 
-## P1 — Make file-backed IDs path-safe
+Add regression coverage for:
 
-- [x] Define one shared validator/helper for persisted IDs that become filesystem paths.
-- [x] Reject IDs containing path separators, traversal segments, absolute paths or other unsafe path syntax.
-- [x] Apply it to `ReleaseConfig.id`.
-- [x] Apply it to workflow IDs in the project/workflow index.
-- [x] Apply it to project IDs where those IDs are used as persisted filenames or directory components.
-- [x] Ensure existing nanoid-generated IDs remain valid.
-- [x] Add tests for:
-  - `../connections`
-  - `../../foo`
-  - `foo/bar`
-  - `foo\\bar`
-  - absolute paths
-  - empty/whitespace IDs
-  - normal nanoid IDs
+* [x] V1 with valid `data`.
+* [x] V1 with `data: null` → reject.
+* [x] V1 with malformed pipeline entries → reject.
+* [x] V2 with omitted optional `pipelines` → migrate successfully.
+* [x] V2 with malformed `projects` → reject.
+* [x] V3 with omitted supported optional arrays → normalize successfully.
+* [x] unsupported future version → reject with actionable error.
+* [x] corrupt source file remains untouched after failure.
 
-- [x] Prefer IPC/domain APIs based on `workflowId` rather than trusting arbitrary config filenames.
+## P1 — Surface project/config load failures at the application level
 
-## P1 — Prevent generic project saves from mutating the workflow index
+* [x] Do not allow `App.vue` to catch initial persistence load failures and then continue rendering normal application content from in-memory defaults.
+* [x] Introduce an explicit initial-data failure state.
+* [x] Distinguish at minimum:
 
-- [x] Make `ReleasePersistence` the only code path allowed to create, update or delete workflow-index entries.
-- [x] `projects:save` must not be able to arbitrarily:
-  - add workflow entries;
-  - delete workflow entries;
-  - move workflows between projects;
-  - change workflow `configName`;
-  - change workflow identity metadata.
+  * backend disconnected;
+  * projects/config load failure;
+  * connections load failure;
+  * other initial-data failure.
+* [x] Do not set the application into a normal loaded state when required persisted data failed to load.
+* [x] Show an actionable UI error instead of presenting `defaultFileRepo` / `defaultConnections` as if they came from disk.
+* [x] Preserve retry capability.
+* [x] A successful retry should replace the error state and load real persisted data.
 
-- [x] When saving general project changes, preserve the current persisted workflow index or reject attempted workflow-index mutations.
-- [x] Continue allowing normal project metadata changes.
-- [x] Continue preventing deletion of projects referenced by workflows.
-- [x] Add tests proving `projects:save` cannot create stale or mismatched workflow references.
+Add UI tests for:
 
-## P1 — Harden workflow transaction/rollback behavior
+* [x] corrupt `projects.json` load failure.
+* [x] corrupt `connections.json` load failure.
+* [x] failed initial load does not render normal persisted project state.
+* [x] retry after a transient load failure succeeds.
 
-- [x] On workflow creation, detect if the canonical workflow file already exists while no index entry exists.
+## P1 — Await every project-index mutation that affects user-visible state
 
-- [x] Treat that situation as corrupt/orphaned state.
+Audit all `updateFileStore(...)` calls in the dashboard and related project/pipeline flows.
 
-- [x] Do not overwrite or adopt the orphan automatically.
+* [x] `await updateFileStore(...)` when creating a project.
+* [x] Do not close the create-project modal or select the new project until persistence succeeds.
+* [x] `await updateFileStore(...)` when renaming a project.
+* [x] Do not close the rename modal until persistence succeeds.
+* [x] Await pipeline-index mutations after pipeline creation.
+* [x] Await pipeline migration index updates.
+* [x] Await imported-pipeline index updates.
+* [x] Audit all other `updateFileStore(...)` calls and await them wherever subsequent UI state assumes persistence succeeded.
+* [x] Failed writes must not produce success toasts.
+* [x] Failed writes must not navigate/select/close UI as though the mutation succeeded.
+* [x] Surface persistence failures through the existing toast/error UX.
 
-- [x] Do not delete an existing orphan during rollback.
+Add tests proving:
 
-- [x] Add a regression test for:
-  - orphan workflow file exists;
-  - no project-index entry exists;
-  - create/save is attempted;
-  - operation fails explicitly;
-  - original file remains byte-for-byte untouched.
+* [x] project create failure leaves UI/project list unchanged.
+* [x] project rename failure leaves original name visible.
+* [x] pipeline index save failure does not report successful creation/import/migration.
 
-- [x] Review workflow delete rollback.
+## P1 — Decide and enforce the cross-process persistence model
 
-- [x] Rename the workflow file to a reversible tombstone before index mutation.
+The current mutation queues are process-local.
 
-- [x] Update the index atomically.
+First make the supported behavior explicit.
 
-- [x] Once the index update succeeds, tombstone cleanup failure must not restore the workflow file and create an orphan.
+Supported: yes. Multiple Pipelab processes may mutate one user-data directory;
+project-index transactions and per-pipeline history mutations use cross-process
+lockfiles. Stale locks fail closed with recovery instructions rather than being
+removed automatically.
 
-- [x] Treat tombstone cleanup as cleanup after the committed transaction.
+* [x] Determine whether simultaneous access to the same user-data directory by:
 
-- [x] Ensure an index-write failure restores the workflow file.
+  * desktop backend / `pipelab serve`;
+  * standalone CLI workflow commands;
+  * another Pipelab process
+    is supported.
 
-- [x] Add tests for index-write failure and tombstone-cleanup failure.
+If concurrent multi-process access **is supported**:
 
-## P1 — Fix run-history compatibility
+* [x] Replace or augment process-local workflow/project locking with a cross-process persistence strategy.
+* [x] Use a filesystem lock, lockfile protocol, optimistic revision/CAS, or another robust cross-process mechanism.
+* [x] Coordinate `projects.json` read-modify-write operations across processes.
+* [x] Ensure two processes creating different workflows cannot lose one workflow-index entry.
+* [x] Ensure workflow create/delete/save cannot race with project saves across processes.
+* [x] Apply equivalent protection to BuildHistory files if multiple processes can mutate the same history.
+* [x] Handle stale/crashed locks safely.
+* [x] Add multi-process integration coverage where practical.
 
-- [x] Make the history parser accept the actual persisted artifact union.
-- [x] Support legacy `Artifact`:
-  - `id`
-  - `name`
-  - `path`
-  - `size`
-  - `type`
-  - optional descriptor/version/cloud/etc. where valid.
+If concurrent multi-process access is intentionally **unsupported**:
 
-- [x] Support Workflow Runtime artifact instances separately.
-- [x] Do not require `stepId` and `artifact` for valid legacy `Artifact` entries.
-- [x] Validate each union branch explicitly.
-- [x] Replace the current fake “legacy artifact” test with a real legacy `Artifact` fixture that has no `stepId` or `artifact`.
-- [x] Verify existing valid raw-array history documents continue to load.
+* [ ] Document the single-writer invariant clearly in the owning persistence code.
+* [ ] Prevent unsupported simultaneous mutation where practical.
+* [ ] Do not describe the persistence layer as fully concurrency-safe without qualifying that guarantee.
 
-## P1 — Validate history before every persisted write
+## P2 — Make workflow persistence validation independent of plugin startup races
 
-- [x] Validate the complete versioned history document before writing it to disk.
-- [x] Apply this to:
-  - `save`;
-  - `update`;
-  - interrupted-run reconciliation;
-  - any other mutation path.
+* [x] Ensure `workflow:load` cannot perform registry-dependent connection validation against a partially initialized plugin registry.
+* [x] Ensure `workflow:save` cannot perform registry-dependent connection validation against a partially initialized plugin registry.
+* [x] Ensure execution continues to wait for complete plugin readiness.
+* [x] Prefer one explicit ready registry/dependency passed into the Release Workflow persistence/domain boundary.
+* [x] Alternatively, make workflow load/save handlers await the same plugin initialization promise used by execution.
+* [x] Do not rely solely on the official UI waiting for `startup:progress = done`; the backend boundary itself must be correct.
 
-- [x] Never allow malformed runtime/IPC data to be persisted and only discovered during the next read.
-- [x] Keep atomic temp-file + rename writes.
-- [x] Add tests proving malformed updates fail without altering the existing history file.
+Add a regression test proving:
 
-## P1 — Use one validated Release Workflow load boundary everywhere
+* [x] a workflow request issued before plugin initialization completes cannot silently skip integration validation.
+* [x] the same request after plugin readiness validates connection integration correctly.
 
-- [x] Create/reuse one domain operation that loads:
-  - ReleaseConfig;
-  - workflow index entry;
-  - project;
-  - connections;
-  - plugin release registry/reference validation.
+## P2 — Remove or implement ignored build-target input semantics
 
-- [x] Use the same operation from:
-  - desktop workflow load;
-  - Release Workflow editor;
-  - workflow execution;
-  - CLI workflow commands.
+Currently `ReleaseBuildTargetConfig.input` is persisted and validated but the planner does not consume it.
 
-- [x] Ensure execution validates persisted connection references before planning/running.
-- [x] A stale connection ID must prevent execution.
-- [x] A connection belonging to the wrong declared integration must prevent execution.
-- [x] Do not auto-select or guess another connection.
-- [x] Add an execution-level test for stale/wrong connection references.
+Choose one behavior and make the contract consistent.
 
-## P2 — Finish the ReleaseConfig persisted schema
+Preferred Phase 4 option:
 
-- [x] Make parsing validate the complete Pipelab-owned ReleaseConfig contract.
-- [x] Validate optional owned fields when present, including:
-  - `description`;
-  - build `name`;
-  - destination-slot `name`;
-  - other optional Pipelab-owned fields.
+* [x] Remove `input?: ReleaseOutputRef` from `ReleaseBuildTargetConfig`.
+* [x] Remove target-input persistence validation.
+* [x] Reject persisted target-level `input` as unsupported if strict owned-key validation requires it.
+* [x] Keep build-profile input as the authoritative build input mechanism.
 
-- [x] Validate output references exactly.
-- [x] Reject unexpected/malformed combinations in Pipelab-owned envelopes.
-- [x] Keep provider-owned `config` objects extensible/generic.
-- [x] Keep provider readiness separate from persistence validity.
-- [x] Prefer a real Valibot versioned schema/parser if practical instead of an expanding handwritten validator.
+Only implement target-specific inputs instead if they are already part of the intended Release Workflow design:
 
-  Reviewed during implementation: the persisted envelope is structurally validated by the
-  focused parser while provider-owned `config` objects remain extensible; duplicate-ID,
-  exact-reference, and registry-aware checks are cross-field/domain rules. Replacing this
-  boundary with a Valibot schema would duplicate those rules without improving the narrowed
-  result, so the current parser is the practical choice.
-- [x] Remove the final unchecked `as ReleaseConfig` persistence assertion if the schema can return a narrowed type.
-- [x] Add malformed optional-field tests.
+* [ ] planner resolves each target's input.
+* [ ] cycle/reference validation handles target inputs.
+* [ ] compiler/runtime uses the resolved target input.
+* [ ] UI supports editing it.
+* [ ] tests cover it end-to-end.
 
-## P2 — Finish connections schema validation
+Do not leave a persisted Pipelab-owned field whose semantics are silently ignored.
 
-- [x] Validate `integrationName` when present.
-- [x] Preserve provider-owned extra fields.
-- [x] Continue detecting duplicate connection IDs.
-- [x] Keep connection version errors explicit.
-- [x] Add malformed `integrationName` coverage.
+## P2 — Reject non-finite persisted BuildHistory numbers
 
-## P2 — Make persistence errors actionable
+* [x] Replace persisted numeric validation based only on `typeof value === "number"` with finite-number checks where appropriate.
+* [x] Reject:
 
-- [x] Do not collapse ReleaseConfig parse failures into only:
-      `Workflow '<id>' has invalid persisted data.`
-- [x] Surface the useful reason to IPC/UI, including:
-  - unsupported version;
-  - malformed field/path;
-  - missing required identity;
-  - invalid reference shape.
+  * `NaN`;
+  * `Infinity`;
+  * `-Infinity`.
+* [x] Apply this to persisted numeric fields including:
 
-- [x] Preserve stable error categories/codes where useful.
-- [x] Keep the underlying cause available for logging/debugging.
-- [x] Add tests asserting the caller receives useful error details.
+  * timestamps;
+  * durations;
+  * counters;
+  * artifact sizes;
+  * delivery timing fields;
+  * log timestamps;
+  * error timestamps.
+* [x] Preserve legitimate zero and negative values only where the domain type intentionally permits them.
+* [x] Ensure no value can pass validation and then become `null` during `JSON.stringify()`.
 
-## P2 — Fix broken-workflow dashboard rendering
+Add regression tests for:
 
-- [x] Fix the dashboard branch where:
-  - there are zero valid pipelines;
-  - zero valid workflows;
-  - one or more broken workflows.
+* [x] `startTime: NaN`.
+* [x] `duration: Infinity`.
+* [x] artifact `size: NaN`.
+* [x] delivery duration/timestamps with non-finite values.
+* [x] invalid history write leaves the previous file unchanged.
 
-- [x] In that state, broken workflow errors must render.
-- [x] Do not show the generic “No pipelines found” state instead.
-- [x] Ensure search-result empty state does not hide broken persisted workflows.
-- [x] Add a UI test for an all-broken-workflows project.
+## P2 — Surface workflow-load failures on the runs page
 
-## P2 — Route reset operations through strict persistence
+* [x] In `workflow-runs.vue`, handle `workflow.type === "error"`.
+* [x] Display the workflow load error instead of silently ignoring it.
+* [x] Do not continue presenting the run page as a healthy workflow when the persisted workflow is missing/corrupt/mismatched.
+* [x] Preserve history errors independently if both workflow and history loads fail.
+* [x] Avoid scheduling misleading automatic refresh behavior when the workflow itself cannot be loaded.
 
-- [x] Stop `connections:reset` from using the old fallback/direct-write config manager.
-- [x] Stop `projects:reset` from using the old fallback/direct-write config manager.
-- [x] Perform reset using:
-  - strict load;
-  - explicit default for the requested key;
-  - strict validation;
-  - atomic save.
+Add UI/state coverage for:
 
-- [x] Corrupt persisted files must not be silently replaced with defaults during reset.
-- [x] Keep legacy Pipeline/SavedFile behavior unchanged.
+* [x] history succeeds but workflow load fails.
+* [x] workflow route/project identity mismatch.
+* [x] corrupt workflow.
+* [x] successful retry if the persisted workflow becomes valid again.
 
-## P2 — Remove fabricated workflow history metadata
+## Regression re-audit
 
-- [x] Do not persist `projectPath: ""` purely to satisfy the legacy type.
-- [x] Make `projectPath` optional/version-appropriate for Release Workflow history if no truthful value exists.
-- [x] Preserve compatibility with existing legacy history entries that have a real project path.
-- [x] Ensure `projectName` continues to come from the validated project entity.
-- [x] Do not reintroduce fallback project identity values.
+After implementing the above, recheck that the previously fixed Phase 4 invariants remain true:
 
-## P2 — Tighten persistence-boundary casts
-
-- [x] Remove remaining unjustified persistence casts such as:
-  - `as ReleaseConfig`;
-  - `as unknown as BuildHistoryEntry`;
-  - equivalent unchecked boundary casts.
-
-- [x] Runtime parsers should return properly narrowed values.
-- [x] Keep generic types only for genuinely extensible provider/runtime-owned payloads.
-
-## Regression verification
-
-- [x] Add/update ReleaseConfig tests:
-  - valid v3 round-trip;
-  - unsupported version;
-  - malformed optional owned fields;
-  - unsafe workflow IDs;
-  - malformed output refs;
-  - duplicate IDs.
-
-- [x] Add/update ReleasePersistence tests:
-  - missing workflow;
-  - stale index;
-  - wrong workflow ID;
-  - wrong project ID;
-  - route/project mismatch;
-  - unsafe ID;
-  - existing orphan file;
-  - create rollback;
-  - update rollback;
-  - delete rollback;
-  - tombstone cleanup failure.
-
-- [x] Add/update project persistence tests:
-  - duplicate IDs;
-  - stale workflow project;
-  - project deletion with workflow reference;
-  - generic `projects:save` cannot mutate workflow index.
-
-- [x] Add/update connection tests:
-  - malformed file;
-  - unsupported version;
-  - duplicate IDs;
-  - malformed `integrationName`;
-  - missing selected connection;
-  - wrong integration;
-  - execution rejects stale connection refs.
-
-- [x] Add/update history tests:
-  - legacy raw-array compatibility;
-  - versioned-document compatibility;
-  - real legacy `Artifact`;
-  - Workflow Runtime artifact;
-  - malformed artifact;
-  - malformed delivery;
-  - unsupported history version;
-  - invalid update rejected before write;
-  - interrupted-run persistence.
-
-- [x] Add/update UI tests:
-  - failed workflow load stays visible;
-  - all-broken workflow state renders errors;
-  - config load failure does not masquerade as defaults;
-  - failed load can be retried.
-
-- [x] Add/update CLI E2E coverage:
-  - list workflows through strict persistence;
-  - lookup by ID/name through strict persistence;
-  - dry-run;
-  - execute;
-  - delete;
-  - malformed/stale persisted workflow fails predictably.
+* [x] missing workflow never creates a file.
+* [x] orphan workflow file is never overwritten.
+* [x] project/workflow/file IDs must match.
+* [x] generic project save cannot modify workflow index entries.
+* [x] project deletion is blocked when workflows reference it.
+* [x] stale connection references block workflow execution.
+* [x] wrong-integration connections block workflow execution.
+* [x] execution always compiles from the validated persisted workflow.
+* [x] history supports real legacy artifacts.
+* [x] history is validated before every write.
+* [x] corrupt history is never replaced with defaults.
+* [x] strict connection loading never falls back from corrupt data.
+* [x] Release output references remain exact.
+* [x] persisted IDs remain cross-platform filename-safe.
+* [x] dashboard broken workflows remain visible.
+* [x] disconnected `useConfig` loads/saves reject explicitly.
+* [x] `useFiles.update()` remains persistence-first.
+* [x] changeset remains present and accurate.
 
 ## Final verification gate
 
-Do not mark the task complete until all of these pass:
-
-- [x] `pnpm --filter @pipelab/shared test`
-- [x] `pnpm --filter @pipelab/core-node test`
-- [x] `pnpm --filter @pipelab/ui test`
-- [x] CLI E2E tests
-- [x] Shared typecheck
-- [x] Core-node typecheck
-- [x] UI typecheck
-- [x] Applicable CLI typecheck
-- [x] Applicable lint checks
-- [x] Applicable builds
-- [x] `git diff --check`
-- [x] Full GitHub Actions test matrix green on Linux, Windows and macOS
-- [x] No build jobs skipped because prerequisite tests failed
-
-Local full-repository verification was rerun under Node 24.19.0 (the repository/CI runtime):
-`pnpm test` 17/17 tasks, `pnpm typecheck` 24/24 tasks, `pnpm lint` 26/26 tasks, and
-`pnpm build` 25/25 tasks passed. GitHub Actions run `35839392405` also passed the Linux,
-Windows, macOS ARM, and macOS Intel test matrix, Build All, preview publish, and all four
-desktop packaging jobs. Deploy and release jobs were skipped by pull-request conditions,
-not failed prerequisites.
-
-## Scope guardrails
-
-Do not expand this work into:
-
-- legacy Pipeline/SavedFile migrations;
-- `processGraph()` modernization;
-- release preference UI;
-- cloud/remote execution;
-- MCP;
-- visual DAG editing;
-- triggers/scheduling;
-- unrelated runtime refactors.
-
-The objective is to finish Phase 4 correctly, not redesign unrelated legacy systems.
-
-- [x] Re-audit and recheck every verifiable item; leave external CI gates unchecked until independently green.
-
-# PR #95 — Final Phase 4 Audit Fixes
-
-Goal: close the remaining integrity gaps in PR #95 without expanding scope.
-
-Do not stop until every checkbox is complete and the full CI matrix is green.
-
-## P1 — Remove the execution persistence bypass
-
-* [x] Make persisted workflow state the single source of truth for execution.
-* [x] `executeWorkflow()` must not validate persisted workflow A and then execute a caller-provided prepared workflow B.
-* [x] Remove `options.prepared` from the execution boundary, or otherwise guarantee it was generated from the exact validated persisted config loaded inside `executeWorkflow()`.
-* [x] CLI execution must use the same authoritative execution path.
-* [x] Desktop execution must use the same authoritative execution path.
-* [x] History metadata, project identity, workflow identity and compiled steps must all originate from the same validated persisted entity.
-* [x] Add a regression test proving a caller cannot supply a different prepared config than the persisted workflow.
-* [x] Keep dry-run planning separate from actual execution if needed.
-
-## P1 — Serialize workflow/project index mutations
-
-* [x] Prevent concurrent Release Workflow mutations from losing `projects.json` updates.
-* [x] Serialize all mutations affecting the Release Workflow index, including:
-
-  * workflow create;
-  * workflow save;
-  * workflow delete;
-  * strict project saves that may race with workflow mutations.
-* [x] Use one mutation queue/lock keyed by the project-index file or equivalent domain-level coordination.
-* [x] Do not rely on atomic rename alone; atomic writes prevent torn files but not lost updates.
-* [x] Ensure two concurrent workflow creations preserve both workflow index entries.
-* [x] Ensure concurrent workflow save/delete operations cannot orphan workflow files or stale index entries.
-* [x] Add regression tests for:
-
-  * concurrent create of workflow A and B;
-  * concurrent save/delete;
-  * workflow mutation racing with project save.
-
-## P1 — Fix supported project migration compatibility
-
-* [x] Align `parseFileRepo()` with the existing persisted schema/migration contract.
-* [x] `pipelines` is historically optional and must default to `[]` when omitted where supported.
-* [x] `workflows` must likewise respect its supported optional/default semantics.
-* [x] A valid V1/V2 project file must still migrate successfully into valid V3.
-* [x] Validate the migrated result after defaults are normalized.
-* [x] Do not reject previously valid project data merely because an optional array was omitted.
-* [x] Add tests for:
-
-  * [x] V2 without `pipelines`;
-  * [x] V2 with pipelines;
-  * [x] V3 without optional arrays if supported by the schema;
-  * [x] migrated output satisfying the strict parser.
-
-## P1 — Complete BuildHistory persisted validation
-
-* [x] Make the history parser validate the complete Pipelab-owned `BuildHistoryEntry` contract.
-* [x] Validate optional entry fields when present:
-
-  * [x] `endTime`;
-  * [x] `duration`;
-  * [x] `output`;
-  * [x] `metadata`.
-* [x] Validate the complete `ExecutionStep` contract when fields are present:
-
-  * [x] `uses`;
-  * [x] `output`;
-  * [x] `destinationId`;
-  * [x] `serviceId`;
-  * [x] `destinationName`;
-  * [x] `slotId`;
-  * [x] `artifact`.
-* [x] Validate `output` and `metadata` are objects where required by their declared types.
-* [x] Validate the complete artifact descriptor:
-
-  * [x] `kind`;
-  * [x] `technology`;
-  * [x] `platform`;
-  * [x] `architecture`;
-  * [x] `container`;
-  * [x] `format`;
-  * [x] `capabilities`.
-* [x] Reject malformed descriptor values such as numeric platform/architecture/format.
-* [x] Preserve deliberately extensible runtime/provider metadata only where the type explicitly permits it.
-* [x] Continue accepting both:
-
-  * [x] legacy `Artifact`;
-  * [x] `WorkflowArtifactInstance`.
-* [x] Keep raw-array history compatibility.
-* [x] Add malformed-but-valid-JSON regression tests for every newly validated optional field.
-
-## P1 — Stop UI config persistence from silently succeeding offline
-
-* [x] `useConfig.load()` must not silently return defaults as though a successful persisted load occurred when the API is disconnected.
-* [x] Expose an explicit load error/unavailable state instead.
-* [x] `useConfig.save()` must not update local state and resolve successfully when persistence could not occur.
-* [x] A failed save must reject and leave the caller aware that data was not persisted.
-* [x] Review `useFiles.update()` so local project state is not permanently committed before persistence succeeds.
-* [x] Either:
-
-  * [x] persist first and update local state after success; or
-  * [x] optimistically update but rollback on failure.
-* [x] Await `update()` in callers where persistence completion matters.
-* [x] Ensure project deletion, project creation, pipeline transfer and other project mutations cannot appear successful while disk persistence failed.
-* [x] Add tests for:
-
-  * [x] disconnected config load;
-  * [x] disconnected config save;
-  * [x] project save failure;
-  * [x] optimistic update rollback or delayed local commit.
-
-## P2 — Make ReleaseConfig output references exact everywhere
-
-* [x] Use one authoritative `ReleaseOutputRef` validator.
-* [x] Apply it to:
-
-  * [x] build input;
-  * [x] build target input if supported;
-  * [x] destination slot input.
-* [x] Accept only:
-
-  * [x] `{ source: true }`;
-  * [x] `{ buildId: string, targetId: string }`.
-* [x] Reject extra keys.
-* [x] Reject mixed source/build references.
-* [x] Reject incomplete build refs.
-* [x] Add tests for:
-
-  * [x] `{ source: true, extra: 1 }`;
-  * [x] `{ source: true, buildId: "x", targetId: "y" }`;
-  * [x] `{ buildId: "x" }`;
-  * [x] valid source ref;
-  * [x] valid build ref.
-
-## P2 — Validate workflow-index owned fields completely
-
-* [x] Make `parseFileRepo()` validate `workflow.type === "internal-workflow"`.
-* [x] Validate all other Pipelab-owned workflow index fields before narrowing to `FileRepo`.
-* [x] Do not rely on a TypeScript assertion for fields the runtime parser did not check.
-* [x] Add malformed workflow `type` coverage.
-
-## P2 — Do not convert BuildHistory I/O failures into empty history
-
-* [x] Update `getAllPipelineFiles()` so only genuinely missing directories/files are treated as empty state.
-* [x] Propagate permission errors, device errors and other unexpected filesystem failures.
-* [x] Do not return `[]` for arbitrary exceptions.
-* [x] Add a regression test for a simulated non-ENOENT filesystem failure.
-
-## P2 — Make post-commit workflow delete cleanup semantics accurate
-
-* [x] Treat workflow deletion as committed once:
-
-  * [x] the workflow file has been tombstoned;
-  * [x] the project index has successfully removed the workflow entry.
-* [x] Tombstone cleanup failure after that commit must not report that the delete transaction itself failed.
-* [x] Log/surface cleanup failure separately if useful.
-* [x] Do not restore the workflow after the index commit.
-* [x] Ensure retry behavior is predictable.
-* [x] Add a test proving:
-
-  * [x] index mutation succeeds;
-  * [x] tombstone deletion fails;
-  * [x] workflow remains deleted;
-  * [x] API does not falsely report an uncommitted deletion.
-
-## P2 — Make persisted IDs cross-platform filename-safe
-
-* [x] Harden `isSafePersistedId()` for all supported desktop platforms.
-* [x] Reject characters invalid in Windows filename components, including at least:
-
-  * [x] `<`
-  * [x] `>`
-  * [x] `:`
-  * [x] `"`
-  * [x] `|`
-  * [x] `?`
-  * [x] `*`
-* [x] Reject Windows reserved device names such as:
-
-  * [x] `CON`
-  * [x] `PRN`
-  * [x] `AUX`
-  * [x] `NUL`
-  * [x] `COM1`–`COM9`
-  * [x] `LPT1`–`LPT9`
-* [x] Reject trailing dots/spaces where they would produce invalid/ambiguous filenames.
-* [x] Preserve existing valid nanoid/project IDs.
-* [x] Add cross-platform persisted-ID tests.
-
-## Process — Add release tracking if required
-
-* [x] Review the repo changeset requirement for this PR.
-* [x] If these exported/public package behavior changes require release tracking, add an appropriate changeset for affected public packages such as:
-
-  * [x] `@pipelab/shared`;
-  * [x] `@pipelab/core-node`.
-* [x] Keep the changeset focused on the user-visible/public API impact.
-* [x] Do not manually change package versions.
-
-## Regression verification
-
-* [x] Add execution-boundary test preventing mismatched prepared workflow execution.
-* [x] Add concurrent workflow mutation tests.
-* [x] Add project migration compatibility tests.
-* [x] Add complete BuildHistory malformed-field tests.
-* [x] Add offline/disconnected config persistence tests.
-* [x] Add exact ReleaseOutputRef tests.
-* [x] Add workflow-index `type` validation test.
-* [x] Add unexpected history filesystem-error test.
-* [x] Add post-commit tombstone cleanup test.
-* [x] Add Windows-safe ID tests.
-
-## Final verification gate
-
-Do not mark this complete until all of these pass:
+Do not mark this task complete until all applicable checks are green on the final commit:
 
 * [x] `pnpm --filter @pipelab/shared test`
 * [x] `pnpm --filter @pipelab/core-node test`
@@ -546,27 +221,33 @@ Do not mark this complete until all of these pass:
 * [x] core-node typecheck
 * [x] UI typecheck
 * [x] CLI typecheck
-* [x] applicable lint checks
-* [x] applicable builds
+* [x] repository lint
+* [x] repository build
 * [x] `git diff --check`
-* [x] full GitHub Actions test matrix green on Linux, Windows and macOS
-* [x] Build All green
-* [x] desktop packaging jobs green
-* [x] no test/build job skipped because of a failed prerequisite
-
-CI evidence: GitHub Actions run `35850644908` passed on commit `49c9a65`.
+* [ ] Linux test matrix
+* [ ] Windows test matrix
+* [ ] macOS ARM test matrix
+* [ ] macOS Intel test matrix
+* [ ] Build All
+* [ ] desktop Linux packaging
+* [ ] desktop Windows packaging
+* [ ] desktop macOS ARM packaging
+* [ ] desktop macOS Intel packaging
+* [ ] no relevant job skipped because of a failed prerequisite
 
 ## Scope guardrails
 
 Do not expand this pass into:
 
-* legacy Pipeline/SavedFile migration redesign;
-* `processGraph()` modernization;
-* release preference UI;
-* cloud/remote execution;
+* legacy Pipeline/SavedFile runtime modernization;
+* global migration-framework redesign;
+* `processGraph()` changes;
+* Release preference UI;
+* cloud execution;
 * MCP;
-* visual DAG editing;
-* triggers/scheduling;
-* unrelated runtime refactors.
+* DAG editor work;
+* scheduling/triggers;
+* unrelated plugin refactors;
+* unrelated persistence cleanup.
 
-Keep the implementation narrowly focused on closing the remaining Phase 4 integrity gaps.
+The goal is to finish Phase 4's data-integrity guarantees, not broaden the project scope.

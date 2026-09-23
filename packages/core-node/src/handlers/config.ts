@@ -26,10 +26,12 @@ import {
   saveStrictProjects,
 } from "../strict-config-persistence";
 
-export const registerConfigHandlers = (context: PipelabContext) => {
+export const registerConfigHandlers = (context: PipelabContext, pluginsReady?: Promise<void>) => {
   process.env.PLAYWRIGHT_BROWSERS_PATH ||= context.getThirdPartyPath("playwright-browsers");
   const { handle } = useAPI();
   const { logger } = useLogger();
+  const releasePersistence = () =>
+    new ReleasePersistence(context, undefined, undefined, pluginsReady);
   const profileCache = new ConstructProfileDiscoveryCache(discoverBrowserProfiles, async (path) => {
     const inspected = await inspectChromiumProfile(path);
     const candidate: BrowserProfileCandidate = {
@@ -402,10 +404,8 @@ export const registerConfigHandlers = (context: PipelabContext) => {
 
   handle("workflow:load", async (_, { send, value }) => {
     try {
-      const entity = await new ReleasePersistence(context).loadWithProject(
-        value.workflowId,
-        value.projectId,
-      );
+      await pluginsReady;
+      const entity = await releasePersistence().loadWithProject(value.workflowId, value.projectId);
       const result = entity.config;
       send({
         type: "end",
@@ -429,7 +429,8 @@ export const registerConfigHandlers = (context: PipelabContext) => {
     try {
       if (value.workflowId !== value.data.id)
         throw new Error(`Workflow ID '${value.workflowId}' does not match persisted workflow ID.`);
-      await new ReleasePersistence(context).save(value.data, value.projectId);
+      await pluginsReady;
+      await releasePersistence().save(value.data, value.projectId);
       send({ type: "end", data: { type: "success", result: "ok" } });
     } catch (e) {
       send({

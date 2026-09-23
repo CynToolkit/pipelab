@@ -143,10 +143,10 @@ export const validateReleaseConfigShape = (config: unknown): ValidationIssue[] =
           path: `${path}.targets.${targetIndex}`,
         });
       else addId(`${path}.targets`, target.id, `${path}.targets.${targetIndex}.id`);
-      if (isRecord(target) && target.input !== undefined && !isReleaseOutputRef(target.input)) {
+      if (isRecord(target) && target.input !== undefined) {
         issues.push({
-          code: "release.build.target.input.invalid",
-          message: "Build target input must be a source or build/target reference.",
+          code: "release.build.target.input.unsupported",
+          message: "Build target input is not supported; configure input on the build profile.",
           severity: "error",
           path: `${path}.targets.${targetIndex}.input`,
         });

@@ -15,7 +15,7 @@ import {
 import { PipelabContext } from "./context";
 import { JsonFileMissingError, readJsonFile, writeJsonFileAtomically } from "./utils/atomic-json";
 import { loadStrictConnections, loadStrictProjects } from "./strict-config-persistence";
-import { serializeReleaseMutation } from "./release-persistence-lock";
+import { serializeFileMutation } from "./release-persistence-lock";
 
 export type ReleasePersistenceErrorCode =
   | "unsafe-id"
@@ -91,6 +91,7 @@ export class ReleasePersistence {
     private readonly context: PipelabContext,
     private readonly writeJson: typeof writeJsonFileAtomically = writeJsonFileAtomically,
     private readonly fileOps: ReleasePersistenceFileOps = { rename, rm },
+    private readonly pluginsReady: Promise<void> = Promise.resolve(),
   ) {}
 
   async load(workflowId: string, routeProjectId?: string): Promise<ReleaseConfig> {
@@ -157,6 +158,7 @@ export class ReleasePersistence {
     workflowId: string,
     routeProjectId?: string,
   ): Promise<LoadedReleaseWorkflow> {
+    await this.pluginsReady;
     const config = await this.load(workflowId, routeProjectId);
     const repo = await loadProjects(this.context);
     const index = findWorkflow(repo, workflowId);
@@ -182,12 +184,13 @@ export class ReleasePersistence {
   }
 
   async save(config: ReleaseConfig, routeProjectId?: string): Promise<void> {
-    return serializeReleaseMutation(this.context.getProjectsPath(), () =>
+    return serializeFileMutation(this.context.getProjectsPath(), () =>
       this.saveUnlocked(config, routeProjectId),
     );
   }
 
   private async saveUnlocked(config: ReleaseConfig, routeProjectId?: string): Promise<void> {
+    await this.pluginsReady;
     const validated = parseReleaseConfig(config);
     assertSafeWorkflowId(validated.id);
     const registry = buildReleaseRegistry(usePlugins().plugins.value);
@@ -271,7 +274,7 @@ export class ReleasePersistence {
   }
 
   async delete(workflowId: string, routeProjectId?: string): Promise<void> {
-    return serializeReleaseMutation(this.context.getProjectsPath(), () =>
+    return serializeFileMutation(this.context.getProjectsPath(), () =>
       this.deleteUnlocked(workflowId, routeProjectId),
     );
   }

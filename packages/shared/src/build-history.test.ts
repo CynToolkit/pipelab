@@ -150,4 +150,78 @@ describe("parseBuildHistoryDocument", () => {
       ).toThrow(field);
     },
   );
+
+  it.each([
+    ["entry startTime", { startTime: Number.NaN }],
+    ["entry duration", { duration: Number.POSITIVE_INFINITY }],
+    ["counter", { totalSteps: Number.NEGATIVE_INFINITY }],
+    [
+      "step timestamp",
+      { steps: [{ id: "step", name: "Step", status: "pending", startTime: Number.NaN, logs: [] }] },
+    ],
+    [
+      "log timestamp",
+      { logs: [{ id: "log", timestamp: Number.POSITIVE_INFINITY, level: "info", message: "x" }] },
+    ],
+    ["error timestamp", { error: { message: "failed", timestamp: Number.NEGATIVE_INFINITY } }],
+    [
+      "artifact size",
+      { artifacts: [{ id: "a", name: "a", path: "/a", size: Number.NaN, type: "file" }] },
+    ],
+    [
+      "delivery start",
+      {
+        deliveries: [
+          {
+            id: "d",
+            destinationId: "dest",
+            slotId: "slot",
+            artifactId: "a",
+            status: "completed",
+            startedAt: Number.NaN,
+            completedAt: 1,
+            duration: 1,
+          },
+        ],
+      },
+    ],
+    [
+      "delivery completion",
+      {
+        deliveries: [
+          {
+            id: "d",
+            destinationId: "dest",
+            slotId: "slot",
+            artifactId: "a",
+            status: "completed",
+            startedAt: 1,
+            completedAt: Number.POSITIVE_INFINITY,
+            duration: 1,
+          },
+        ],
+      },
+    ],
+    [
+      "delivery duration",
+      {
+        deliveries: [
+          {
+            id: "d",
+            destinationId: "dest",
+            slotId: "slot",
+            artifactId: "a",
+            status: "completed",
+            startedAt: 1,
+            completedAt: 2,
+            duration: Number.NEGATIVE_INFINITY,
+          },
+        ],
+      },
+    ],
+  ])("rejects non-finite %s", (_label, changes) => {
+    expect(() =>
+      parseBuildHistoryDocument({ version: "1.0.0", entries: [{ ...entry, ...changes }] }),
+    ).toThrow();
+  });
 });

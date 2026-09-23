@@ -1,10 +1,39 @@
 import { SaveLocationValidator } from "../save-location";
-import { object, string, optional, record, InferInput, literal, array } from "valibot";
+import {
+  object,
+  string,
+  optional,
+  record,
+  InferInput,
+  literal,
+  array,
+  parse,
+  union,
+} from "valibot";
 import { isSafePersistedId } from "../persisted-id";
+
+const FileRepoV1PipelineValidator = union([
+  object({
+    id: optional(string()),
+    project: string(),
+    type: literal("internal"),
+    configName: string(),
+    lastModified: string(),
+  }),
+  object({
+    id: optional(string()),
+    project: string(),
+    type: literal("external"),
+    path: string(),
+    lastModified: string(),
+    summary: object({ plugins: array(string()), name: string(), description: string() }),
+  }),
+  object({ id: optional(string()), project: optional(string()), type: literal("pipelab-cloud") }),
+]);
 
 export const FileRepoValidatorV1 = object({
   version: literal("1.0.0"),
-  data: optional(record(string(), SaveLocationValidator), {}),
+  data: optional(record(string(), FileRepoV1PipelineValidator), {}),
 });
 
 export const FileRepoProjectValidatorV2 = object({
@@ -42,6 +71,24 @@ export type FileRepoV3 = InferInput<typeof FileRepoValidatorV3>;
 
 export const FileRepoValidator = FileRepoValidatorV3;
 export type FileRepo = InferInput<typeof FileRepoValidator>;
+
+export const parseVersionedFileRepo = (value: unknown): FileRepoV1 | FileRepoV2 | FileRepoV3 => {
+  if (typeof value !== "object" || value === null || Array.isArray(value))
+    throw new FileRepoParseError(["Project index must be an object."]);
+  const version = (value as Record<string, unknown>).version;
+  switch (version) {
+    case "1.0.0":
+      return parse(FileRepoValidatorV1, value);
+    case "2.0.0":
+      return parse(FileRepoValidatorV2, value);
+    case "3.0.0":
+      return parse(FileRepoValidatorV3, value);
+    default:
+      throw new FileRepoParseError([
+        `Unsupported project index version '${String(version)}'. Supported versions are 1.0.0, 2.0.0, and 3.0.0.`,
+      ]);
+  }
+};
 
 export class FileRepoParseError extends Error {
   constructor(public readonly issues: string[]) {

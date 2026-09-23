@@ -107,9 +107,11 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 
 const isNonEmptyString = (value: unknown): value is string =>
   typeof value === "string" && value.trim().length > 0;
+const isFiniteNumber = (value: unknown): value is number =>
+  typeof value === "number" && Number.isFinite(value);
 
 const parseError = (value: unknown, path: string): void => {
-  if (!isRecord(value) || !isNonEmptyString(value.message) || typeof value.timestamp !== "number")
+  if (!isRecord(value) || !isNonEmptyString(value.message) || !isFiniteNumber(value.timestamp))
     throw new BuildHistoryParseError(path, "error has an invalid shape");
   if (value.stack !== undefined && typeof value.stack !== "string")
     throw new BuildHistoryParseError(`${path}.stack`, "must be a string");
@@ -122,7 +124,7 @@ const parseLog = (value: unknown, path: string): void => {
   if (
     !isRecord(value) ||
     !isNonEmptyString(value.id) ||
-    typeof value.timestamp !== "number" ||
+    !isFiniteNumber(value.timestamp) ||
     typeof value.message !== "string" ||
     typeof value.level !== "string" ||
     !levels.includes(value.level)
@@ -187,7 +189,7 @@ const parseArtifact = (value: unknown, path: string): void => {
     !isNonEmptyString(value.id) ||
     !isNonEmptyString(value.name) ||
     !isNonEmptyString(value.path) ||
-    typeof value.size !== "number" ||
+    !isFiniteNumber(value.size) ||
     !["file", "folder"].includes(String(value.type))
   ) {
     throw new BuildHistoryParseError(
@@ -200,8 +202,8 @@ const parseArtifact = (value: unknown, path: string): void => {
   for (const key of ["version", "stepId", "artifact", "checksum"])
     if (value[key] !== undefined && typeof value[key] !== "string")
       throw new BuildHistoryParseError(`${path}.${key}`, "must be a string");
-  if (value.size !== undefined && typeof value.size !== "number")
-    throw new BuildHistoryParseError(`${path}.size`, "must be a number");
+  if (value.size !== undefined && !isFiniteNumber(value.size))
+    throw new BuildHistoryParseError(`${path}.size`, "must be a finite number");
   if (value.cloud !== undefined) parseArtifactCloud(value.cloud, `${path}.cloud`);
 };
 
@@ -234,11 +236,11 @@ const assertEntry: (value: unknown, path: string) => asserts value is BuildHisto
     "createdAt",
     "updatedAt",
   ])
-    if (typeof value[key] !== "number")
-      throw new BuildHistoryParseError(`${path}.${key}`, "must be a number");
+    if (!isFiniteNumber(value[key]))
+      throw new BuildHistoryParseError(`${path}.${key}`, "must be a finite number");
   for (const key of ["endTime", "duration"])
-    if (value[key] !== undefined && typeof value[key] !== "number")
-      throw new BuildHistoryParseError(`${path}.${key}`, "must be a number");
+    if (value[key] !== undefined && !isFiniteNumber(value[key]))
+      throw new BuildHistoryParseError(`${path}.${key}`, "must be a finite number");
   for (const key of ["output", "metadata"])
     if (value[key] !== undefined && !isRecord(value[key]))
       throw new BuildHistoryParseError(`${path}.${key}`, "must be an object");
@@ -250,15 +252,18 @@ const assertEntry: (value: unknown, path: string) => asserts value is BuildHisto
       throw new BuildHistoryParseError(`${path}.steps.${index}`, "step requires id and name");
     if (typeof step.status !== "string" || !stepStatuses.includes(step.status))
       throw new BuildHistoryParseError(`${path}.steps.${index}.status`, "has an unsupported value");
-    if (typeof step.startTime !== "number" || !Array.isArray(step.logs))
+    if (!isFiniteNumber(step.startTime) || !Array.isArray(step.logs))
       throw new BuildHistoryParseError(
         `${path}.steps.${index}`,
         "step requires numeric startTime and logs array",
       );
-    if (step.endTime !== undefined && typeof step.endTime !== "number")
-      throw new BuildHistoryParseError(`${path}.steps.${index}.endTime`, "must be a number");
-    if (step.duration !== undefined && typeof step.duration !== "number")
-      throw new BuildHistoryParseError(`${path}.steps.${index}.duration`, "must be a number");
+    if (step.endTime !== undefined && !isFiniteNumber(step.endTime))
+      throw new BuildHistoryParseError(`${path}.steps.${index}.endTime`, "must be a finite number");
+    if (step.duration !== undefined && !isFiniteNumber(step.duration))
+      throw new BuildHistoryParseError(
+        `${path}.steps.${index}.duration`,
+        "must be a finite number",
+      );
     for (const key of [
       "uses",
       "destinationId",
@@ -294,9 +299,9 @@ const assertEntry: (value: unknown, path: string) => asserts value is BuildHisto
         !isNonEmptyString(delivery.slotId) ||
         !isNonEmptyString(delivery.artifactId) ||
         !["completed", "failed"].includes(String(delivery.status)) ||
-        typeof delivery.startedAt !== "number" ||
-        typeof delivery.completedAt !== "number" ||
-        typeof delivery.duration !== "number"
+        !isFiniteNumber(delivery.startedAt) ||
+        !isFiniteNumber(delivery.completedAt) ||
+        !isFiniteNumber(delivery.duration)
       )
         throw new BuildHistoryParseError(
           `${path}.deliveries.${index}`,

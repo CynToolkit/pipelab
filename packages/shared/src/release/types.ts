@@ -61,7 +61,6 @@ export interface ReleaseBuildTargetConfig {
   id: string;
   enabled: boolean;
   config: Record<string, unknown>;
-  input?: ReleaseOutputRef;
 }
 
 export interface ReleaseDestinationSlot {

@@ -1,6 +1,7 @@
 import { mkdir, mkdtemp, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { spawn } from "node:child_process";
 import { describe, expect, it } from "vitest";
 import { createReleaseConfig, usePlugins } from "@pipelab/shared";
 import steam from "@pipelab/plugin-steam";
@@ -35,6 +36,61 @@ const setup = async () => {
 };
 
 describe("ReleasePersistence", () => {
+  it("waits for plugin readiness before validating persisted workflow connections", async () => {
+    const { context } = await setup();
+    usePlugins().plugins.value = [];
+    const config = {
+      ...createReleaseConfig({
+        id: "workflow-1",
+        project: "project-1",
+        name: "Release",
+        source: { provider: "source", config: {} },
+      }),
+      destinations: [
+        {
+          id: "steam",
+          provider: "@pipelab/plugin-steam/destination",
+          enabled: true,
+          config: { accountConnectionId: "account-1", appId: "123" },
+          slots: [],
+        },
+      ],
+    };
+    await mkdir(context.getConfigPath("workflows"), { recursive: true });
+    await writeFile(context.getConfigPath("workflows", "workflow-1.json"), JSON.stringify(config));
+    await writeFile(
+      context.getConnectionsPath(),
+      JSON.stringify({
+        version: "1.0.0",
+        connections: [
+          {
+            id: "account-1",
+            pluginName: "@pipelab/plugin-other",
+            name: "Other account",
+            createdAt: "2026-01-01",
+            isDefault: false,
+          },
+        ],
+      }),
+    );
+
+    let resolvePlugins!: () => void;
+    const pluginsReady = new Promise<void>((resolve) => {
+      resolvePlugins = resolve;
+    });
+    const persistence = new ReleasePersistence(context, undefined, undefined, pluginsReady);
+    let settled = false;
+    const load = persistence.loadWithProject("workflow-1", "project-1").finally(() => {
+      settled = true;
+    });
+    await Promise.resolve();
+    expect(settled).toBe(false);
+
+    usePlugins().registerPlugins([steam]);
+    resolvePlugins();
+    await expect(load).rejects.toThrow("does not belong to integration '@pipelab/plugin-steam'");
+  });
+
   it("rejects stale connection references before workflow execution starts", async () => {
     const { context, persistence } = await setup();
     usePlugins().registerPlugins([steam]);
@@ -132,6 +188,45 @@ describe("ReleasePersistence", () => {
 
     const repo = JSON.parse(await readFile(context.getProjectsPath(), "utf8"));
     expect(repo.workflows.map((workflow: { id: string }) => workflow.id)).toEqual([
+      "workflow-1",
+      "workflow-a",
+      "workflow-b",
+    ]);
+  });
+
+  it("preserves workflow index entries created by separate processes", async () => {
+    const { context } = await setup();
+    const sourceUrl = new URL("./release-persistence.ts", import.meta.url).href;
+    const contextUrl = new URL("./context.ts", import.meta.url).href;
+    const script = [
+      `import { PipelabContext } from ${JSON.stringify(contextUrl)};`,
+      `import { ReleasePersistence } from ${JSON.stringify(sourceUrl)};`,
+      `import { createReleaseConfig } from "@pipelab/shared";`,
+      `const context = new PipelabContext({ userDataPath: process.argv[1] });`,
+      `const id = process.argv[2];`,
+      `const config = createReleaseConfig({ id, project: "project-1", name: id, source: { provider: "source", config: {} } });`,
+      `await new ReleasePersistence(context).save(config, "project-1");`,
+    ].join("\n");
+    const run = (id: string) =>
+      new Promise<void>((resolve, reject) => {
+        const child = spawn(
+          process.execPath,
+          ["--import", "tsx/esm", "--input-type=module", "-e", script, context.userDataPath, id],
+          { cwd: process.cwd(), stdio: ["ignore", "pipe", "pipe"] },
+        );
+        let stderr = "";
+        child.stderr.setEncoding("utf8").on("data", (chunk: string) => (stderr += chunk));
+        child.once("error", reject);
+        child.once("exit", (code) =>
+          code === 0
+            ? resolve()
+            : reject(new Error(`Persistence child failed (${code}): ${stderr}`)),
+        );
+      });
+
+    await Promise.all([run("workflow-a"), run("workflow-b")]);
+    const index = JSON.parse(await readFile(context.getProjectsPath(), "utf8"));
+    expect(index.workflows.map((workflow: { id: string }) => workflow.id).sort()).toEqual([
       "workflow-1",
       "workflow-a",
       "workflow-b",

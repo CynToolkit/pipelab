@@ -781,11 +781,15 @@ watchEffect(async () => {
           return false;
         });
         if (foundPipeline) {
-          updateFileStore((state) => {
-            state.pipelines = (state.pipelines || []).filter(
-              (value) => value.id !== foundPipeline.id,
-            );
-          });
+          try {
+            await updateFileStore((state) => {
+              state.pipelines = (state.pipelines || []).filter(
+                (value) => value.id !== foundPipeline.id,
+              );
+            });
+          } catch (error) {
+            console.error("Unable to remove missing pipeline from project index", error);
+          }
         }
         continue;
       }
@@ -912,13 +916,23 @@ const destinationLabel = (d: ReleaseConfig["destinations"][number]) => d.provide
 onMounted(() => reloadFiles(true));
 const onNewProjectCreation = async () => {
   const projectId = nanoid();
-  updateFileStore((state) => {
-    state.projects.push({
-      id: projectId,
-      name: newProjectName.value,
-      description: "",
+  try {
+    await updateFileStore((state) => {
+      state.projects.push({
+        id: projectId,
+        name: newProjectName.value,
+        description: "",
+      });
     });
-  });
+  } catch (error) {
+    toast.add({
+      severity: "error",
+      summary: t("base.error"),
+      detail: error instanceof Error ? error.message : String(error),
+      life: 3000,
+    });
+    return;
+  }
   isNewProjectModalVisible.value = false;
   // Select the new project
   selectedKey.value = { [projectId]: true };
@@ -951,12 +965,22 @@ const openRenameProjectDialog = (projectId?: string) => {
 
 const onRenameProject = async () => {
   if (projectToRenameId.value && renameProjectName.value) {
-    updateFileStore((state) => {
-      const project = state.projects.find((p) => p.id === projectToRenameId.value);
-      if (project) {
-        project.name = renameProjectName.value;
-      }
-    });
+    try {
+      await updateFileStore((state) => {
+        const project = state.projects.find((p) => p.id === projectToRenameId.value);
+        if (project) {
+          project.name = renameProjectName.value;
+        }
+      });
+    } catch (error) {
+      toast.add({
+        severity: "error",
+        summary: t("base.error"),
+        detail: error instanceof Error ? error.message : String(error),
+        life: 3000,
+      });
+      return;
+    }
     isRenameProjectModalVisible.value = false;
     projectToRenameId.value = null;
   }
@@ -1005,53 +1029,75 @@ const onNewFileCreation = async (preset?: Preset) => {
     description: newProjectDescription.value,
   } satisfies Preset;
 
-  // write file
-  if (type === "internal") {
-    await api.execute("pipeline:save-by-name", {
-      name: pathOrConfigName,
-      data: JSON.stringify(updatedPreset),
+  try {
+    if (type === "internal") {
+      const result = await api.execute("pipeline:save-by-name", {
+        name: pathOrConfigName,
+        data: JSON.stringify(updatedPreset),
+      });
+      if (result.type === "error") throw new Error(result.ipcError);
+    } else if (type === "external") {
+      const result = await api.execute("fs:write", {
+        path: pathOrConfigName,
+        content: JSON.stringify(updatedPreset, null, 2),
+      });
+      if (result.type === "error" || !result.result.ok)
+        throw new Error(result.type === "error" ? result.ipcError : "Unable to save pipeline file");
+    } else if (type === "pipelab-cloud") {
+      // TODO:
+    }
+  } catch (error) {
+    toast.add({
+      severity: "error",
+      summary: t("base.error"),
+      detail: error instanceof Error ? error.message : String(error),
+      life: 3000,
     });
-  } else if (type === "external") {
-    await api.execute("fs:write", {
-      path: pathOrConfigName,
-      content: JSON.stringify(updatedPreset, null, 2),
-    });
-  } else if (type === "pipelab-cloud") {
-    // TODO:
+    return;
   }
 
   // update file store
-  updateFileStore((state) => {
-    state.pipelines = state.pipelines || [];
-    if (type === "internal") {
-      state.pipelines.push({
-        lastModified: new Date().toISOString(),
-        configName: pathOrConfigName,
-        type: "internal",
-        project: projectId,
-        id: pipelineId,
-      });
-    } else if (type === "pipelab-cloud") {
-      state.pipelines.push({
-        type: "pipelab-cloud",
-        project: projectId,
-        id: pipelineId,
-      });
-    } else {
-      state.pipelines.push({
-        lastModified: new Date().toISOString(),
-        path: pathOrConfigName,
-        summary: {
-          description: newProjectDescription.value,
-          name: newProjectName.value,
-          plugins: [],
-        },
-        type: "external",
-        project: projectId,
-        id: pipelineId,
-      });
-    }
-  });
+  try {
+    await updateFileStore((state) => {
+      state.pipelines = state.pipelines || [];
+      if (type === "internal") {
+        state.pipelines.push({
+          lastModified: new Date().toISOString(),
+          configName: pathOrConfigName,
+          type: "internal",
+          project: projectId,
+          id: pipelineId,
+        });
+      } else if (type === "pipelab-cloud") {
+        state.pipelines.push({
+          type: "pipelab-cloud",
+          project: projectId,
+          id: pipelineId,
+        });
+      } else {
+        state.pipelines.push({
+          lastModified: new Date().toISOString(),
+          path: pathOrConfigName,
+          summary: {
+            description: newProjectDescription.value,
+            name: newProjectName.value,
+            plugins: [],
+          },
+          type: "external",
+          project: projectId,
+          id: pipelineId,
+        });
+      }
+    });
+  } catch (error) {
+    toast.add({
+      severity: "error",
+      summary: t("base.error"),
+      detail: error instanceof Error ? error.message : String(error),
+      life: 3000,
+    });
+    return;
+  }
 
   newProjectName.value = "";
   newProjectDescription.value = "";
@@ -1327,34 +1373,41 @@ const migratePipeline = async (file: EnhancedFile) => {
     acceptClass: "p-button-primary",
     accept: async () => {
       const newConfigName = `pipelines/${nanoid()}`;
+      try {
+        const result = await api.execute("pipeline:save-by-name", {
+          name: newConfigName,
+          data: JSON.stringify(file.content),
+        });
+        if (result.type === "error") throw new Error(result.ipcError);
 
-      // Save content to internal config
-      await api.execute("pipeline:save-by-name", {
-        name: newConfigName,
-        data: JSON.stringify(file.content),
-      });
+        await updateFileStore((state) => {
+          state.pipelines = state.pipelines || [];
+          const index = state.pipelines.findIndex((p) => p.id === file.id);
+          if (index !== -1) {
+            state.pipelines[index] = {
+              id: file.id,
+              project: file.project,
+              lastModified: new Date().toISOString(),
+              type: "internal",
+              configName: newConfigName,
+            };
+          }
+        });
 
-      // Update store: replace external pipeline definition with internal one
-      updateFileStore((state) => {
-        state.pipelines = state.pipelines || [];
-        const index = state.pipelines.findIndex((p) => p.id === file.id);
-        if (index !== -1) {
-          state.pipelines[index] = {
-            id: file.id,
-            project: file.project,
-            lastModified: new Date().toISOString(),
-            type: "internal",
-            configName: newConfigName,
-          };
-        }
-      });
-
-      toast.add({
-        severity: "success",
-        summary: t("base.success"),
-        detail: t("home.migration-success"),
-        life: 3000,
-      });
+        toast.add({
+          severity: "success",
+          summary: t("base.success"),
+          detail: t("home.migration-success"),
+          life: 3000,
+        });
+      } catch (error) {
+        toast.add({
+          severity: "error",
+          summary: t("base.error"),
+          detail: error instanceof Error ? error.message : String(error),
+          life: 3000,
+        });
+      }
     },
   });
 };
@@ -1480,13 +1533,14 @@ const importPipeline = async () => {
           const configName = `pipelines/${pipelineId}`;
 
           // Save migrated file to internal storage
-          await api.execute("pipeline:save-by-name", {
+          const result = await api.execute("pipeline:save-by-name", {
             name: configName,
             data: JSON.stringify(fileData),
           });
+          if (result.type === "error") throw new Error(result.ipcError);
 
           // Add to store
-          updateFileStore((state) => {
+          await updateFileStore((state) => {
             state.pipelines = state.pipelines || [];
             state.pipelines.push({
               lastModified: new Date().toISOString(),
@@ -1507,7 +1561,7 @@ const importPipeline = async () => {
           toast.add({
             severity: "error",
             summary: t("base.error"),
-            detail: t("editor.invalid-file-content"),
+            detail: err instanceof Error ? err.message : t("editor.invalid-file-content"),
             life: 3000,
           });
         }

@@ -2,28 +2,25 @@ import {
   defaultConnections,
   defaultFileRepo,
   fileRepoMigrations,
+  parseVersionedFileRepo,
   parseConnectionsConfig,
   parseFileRepo,
   type ConnectionsConfig,
   type FileRepo,
 } from "@pipelab/shared";
 import { PipelabContext } from "./context";
-import { JsonFileMissingError, readJsonFile, writeJsonFileAtomically } from "./utils/atomic-json";
-import { serializeReleaseMutation } from "./release-persistence-lock";
+import {
+  JsonFileMissingError,
+  readJsonFile,
+  writeJsonFileAtomically,
+  writeJsonFileAtomicallyIfMissing,
+} from "./utils/atomic-json";
+import { serializeFileMutation } from "./release-persistence-lock";
 
 const migratedProject = async (raw: unknown): Promise<FileRepo> => {
-  if (
-    typeof raw !== "object" ||
-    raw === null ||
-    Array.isArray(raw) ||
-    typeof (raw as Record<string, unknown>).version !== "string"
-  )
-    throw new Error("Project index is malformed.");
-  return parseFileRepo(
-    await fileRepoMigrations.migrate(raw as { version: `${number}.${number}.${number}` }, {
-      debug: false,
-    }),
-  );
+  const versioned = parseVersionedFileRepo(raw);
+  if (versioned.version === "3.0.0") return parseFileRepo(versioned);
+  return parseFileRepo(await fileRepoMigrations.migrate(versioned, { debug: false }));
 };
 
 export const loadStrictProjects = async (context: PipelabContext): Promise<FileRepo> => {
@@ -31,8 +28,12 @@ export const loadStrictProjects = async (context: PipelabContext): Promise<FileR
     return await migratedProject(await readJsonFile(context.getProjectsPath()));
   } catch (error) {
     if (error instanceof JsonFileMissingError) {
-      await writeJsonFileAtomically(context.getProjectsPath(), defaultFileRepo);
-      return defaultFileRepo;
+      const created = await writeJsonFileAtomicallyIfMissing(
+        context.getProjectsPath(),
+        defaultFileRepo,
+      );
+      if (created) return defaultFileRepo;
+      return migratedProject(await readJsonFile(context.getProjectsPath()));
     }
     throw error;
   }
@@ -42,7 +43,7 @@ export const saveStrictProjects = async (
   context: PipelabContext,
   value: FileRepo,
 ): Promise<void> => {
-  await serializeReleaseMutation(context.getProjectsPath(), async () => {
+  await serializeFileMutation(context.getProjectsPath(), async () => {
     const next = parseFileRepo(value);
     const current = await loadStrictProjects(context);
     for (const workflow of current.workflows || [])

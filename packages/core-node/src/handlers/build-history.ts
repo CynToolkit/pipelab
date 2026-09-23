@@ -13,28 +13,9 @@ import {
 import checkDiskSpace from "check-disk-space";
 import { getFolderSize } from "../utils/fs-extras";
 import { SandboxFolder } from "@pipelab/constants";
+import { serializeFileMutation } from "../release-persistence-lock";
 
 // Simplified storage - one file per pipeline containing array of build entries
-
-const mutationTails = new Map<string, Promise<void>>();
-
-const serializePipelineMutation = async <T>(
-  path: string,
-  mutation: () => Promise<T>,
-): Promise<T> => {
-  const previous = mutationTails.get(path) || Promise.resolve();
-  const current = previous.catch((): undefined => undefined).then(mutation);
-  const tail = current.then(
-    (): undefined => undefined,
-    (): undefined => undefined,
-  );
-  mutationTails.set(path, tail);
-  try {
-    return await current;
-  } finally {
-    if (mutationTails.get(path) === tail) mutationTails.delete(path);
-  }
-};
 
 export class BuildHistoryStorage implements IBuildHistoryStorage {
   private logger = useLogger();
@@ -105,7 +86,7 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
 
   async save(entry: BuildHistoryEntry): Promise<void> {
     const pipelinePath = this.getPipelinePath(entry.pipelineId);
-    return serializePipelineMutation(pipelinePath, async () => {
+    return serializeFileMutation(pipelinePath, async () => {
       try {
         const entries = await this.loadPipelineHistory(entry.pipelineId);
         const existingIndex = entries.findIndex((e) => e.id === entry.id);
@@ -237,7 +218,7 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
     updates: Partial<BuildHistoryEntry>,
     pipelineId: string,
   ): Promise<boolean> {
-    return serializePipelineMutation(this.getPipelinePath(pipelineId), async () => {
+    return serializeFileMutation(this.getPipelinePath(pipelineId), async () => {
       const entries = await this.loadPipelineHistory(pipelineId);
       const entryIndex = entries.findIndex((entry) => entry.id === id);
       if (entryIndex < 0) return false;
@@ -273,7 +254,7 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
   }
 
   private async deleteFromPipeline(id: string, pipelineId: string): Promise<boolean> {
-    return serializePipelineMutation(this.getPipelinePath(pipelineId), async () => {
+    return serializeFileMutation(this.getPipelinePath(pipelineId), async () => {
       const entries = await this.loadPipelineHistory(pipelineId);
       const entryIndex = entries.findIndex((entry) => entry.id === id);
       if (entryIndex < 0) return false;
@@ -292,7 +273,7 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
       for (const file of files) {
         const pipelineId = this.parsePipelineIdFromFilename(file);
         if (!pipelineId) continue;
-        await serializePipelineMutation(this.getPipelinePath(pipelineId), async () => {
+        await serializeFileMutation(this.getPipelinePath(pipelineId), async () => {
           const entries = await this.loadPipelineHistory(pipelineId);
           for (const entry of entries) {
             if (entry.cachePath) cachePathsToDelete.add(entry.cachePath);
@@ -320,7 +301,7 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
 
   async clearByPipeline(pipelineId: string): Promise<void> {
     try {
-      await serializePipelineMutation(this.getPipelinePath(pipelineId), async () => {
+      await serializeFileMutation(this.getPipelinePath(pipelineId), async () => {
         const pipelinePath = this.getPipelinePath(pipelineId);
         const entries = await this.loadPipelineHistory(pipelineId);
         await unlink(pipelinePath).catch((error) => {

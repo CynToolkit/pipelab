@@ -26,7 +26,7 @@ export const registerAllHandlers = async (options: {
 
   registerShellHandlers(context);
   registerFsHandlers(context);
-  registerConfigHandlers(context);
+  registerConfigHandlers(context, pluginsPromise);
   registerHistoryHandlers(context);
   registerEngineHandlers(context);
   registerWorkflowHandlers(context, pluginsPromise);

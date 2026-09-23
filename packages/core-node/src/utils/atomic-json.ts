@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { link, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 
 export class JsonFileMissingError extends Error {
@@ -36,6 +36,29 @@ export const writeJsonFileAtomically = async (filePath: string, value: unknown):
       flag: "wx",
     });
     await rename(temporaryPath, filePath);
+  } finally {
+    await rm(temporaryPath, { force: true }).catch((): void => undefined);
+  }
+};
+
+export const writeJsonFileAtomicallyIfMissing = async (
+  filePath: string,
+  value: unknown,
+): Promise<boolean> => {
+  await mkdir(dirname(filePath), { recursive: true });
+  const temporaryPath = `${filePath}.${randomUUID()}.tmp`;
+  try {
+    await writeFile(temporaryPath, JSON.stringify(value, null, 2), {
+      encoding: "utf8",
+      flag: "wx",
+    });
+    try {
+      await link(temporaryPath, filePath);
+      return true;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "EEXIST") return false;
+      throw error;
+    }
   } finally {
     await rm(temporaryPath, { force: true }).catch((): void => undefined);
   }
