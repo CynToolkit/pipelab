@@ -258,3 +258,12 @@ export const planOutputOptions = (
     label: outputLabel(config, catalog, output.ref),
     ref: output.ref,
   }));
+
+export const plannerAcceptsBuildInput = (plan: ReleasePlan, buildId: string, buildIndex: number) =>
+  plan.producers.some((producer) => producer.id === buildId) &&
+  !plan.issues.some(
+    (issue) =>
+      issue.severity === "error" &&
+      issue.path === `builds.${buildIndex}.input` &&
+      issue.code.startsWith("release.build.input."),
+  );

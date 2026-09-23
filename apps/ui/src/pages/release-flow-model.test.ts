@@ -9,6 +9,7 @@ import {
   createSerializedTaskQueue,
   issuesForPath,
   planOutputOptions,
+  plannerAcceptsBuildInput,
   plannerAcceptsBuildCandidate,
   deploymentSlotLabel,
   readinessLabel,
@@ -158,6 +159,35 @@ describe("release flow model", () => {
     expect(planOutputOptions(config, plan, catalog)).toEqual([
       { value: "source", label: "Source — Project", ref: { source: true } },
     ]);
+  });
+
+  it("accepts planner-resolved build inputs and rejects missing or invalid inputs", () => {
+    const plan = {
+      outputs: [],
+      producers: [{ id: "build" }],
+      destinations: [],
+      issues: [],
+      graph: { nodes: [], edges: [] },
+    } as unknown as ReleasePlan;
+    expect(plannerAcceptsBuildInput(plan, "build", 0)).toBe(true);
+    expect(
+      plannerAcceptsBuildInput(
+        {
+          ...plan,
+          issues: [
+            {
+              code: "release.build.input.missing",
+              message: "No compatible input",
+              severity: "error",
+              path: "builds.0.input",
+            },
+          ],
+        },
+        "build",
+        0,
+      ),
+    ).toBe(false);
+    expect(plannerAcceptsBuildInput(plan, "missing-build", 0)).toBe(false);
   });
 
   it("preserves the profile id and compatible settings while dropping invalid targets", () => {
