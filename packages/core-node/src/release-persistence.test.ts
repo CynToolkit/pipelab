@@ -187,7 +187,7 @@ describe("ReleasePersistence", () => {
     await Promise.all([first.save(config("workflow-a")), second.save(config("workflow-b"))]);
 
     const repo = JSON.parse(await readFile(context.getProjectsPath(), "utf8"));
-    expect(repo.workflows.map((workflow: { id: string }) => workflow.id)).toEqual([
+    expect(repo.workflows.map((workflow: { id: string }) => workflow.id).sort()).toEqual([
       "workflow-1",
       "workflow-a",
       "workflow-b",
