@@ -549,10 +549,12 @@ Do not mark this complete until all of these pass:
 * [x] applicable lint checks
 * [x] applicable builds
 * [x] `git diff --check`
-* [ ] full GitHub Actions test matrix green on Linux, Windows and macOS
-* [ ] Build All green
-* [ ] desktop packaging jobs green
-* [ ] no test/build job skipped because of a failed prerequisite
+* [x] full GitHub Actions test matrix green on Linux, Windows and macOS
+* [x] Build All green
+* [x] desktop packaging jobs green
+* [x] no test/build job skipped because of a failed prerequisite
+
+CI evidence: GitHub Actions run `35850644908` passed on commit `49c9a65`.
 
 ## Scope guardrails
 
