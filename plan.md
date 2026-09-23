@@ -324,3 +324,247 @@ Do not expand this work into:
 The objective is to finish Phase 4 correctly, not redesign unrelated legacy systems.
 
 - [x] Re-audit and recheck every verifiable item; leave external CI gates unchecked until independently green.
+
+# PR #95 — Final Phase 4 Audit Fixes
+
+Goal: close the remaining integrity gaps in PR #95 without expanding scope.
+
+Do not stop until every checkbox is complete and the full CI matrix is green.
+
+## P1 — Remove the execution persistence bypass
+
+* [x] Make persisted workflow state the single source of truth for execution.
+* [x] `executeWorkflow()` must not validate persisted workflow A and then execute a caller-provided prepared workflow B.
+* [x] Remove `options.prepared` from the execution boundary, or otherwise guarantee it was generated from the exact validated persisted config loaded inside `executeWorkflow()`.
+* [x] CLI execution must use the same authoritative execution path.
+* [x] Desktop execution must use the same authoritative execution path.
+* [x] History metadata, project identity, workflow identity and compiled steps must all originate from the same validated persisted entity.
+* [x] Add a regression test proving a caller cannot supply a different prepared config than the persisted workflow.
+* [x] Keep dry-run planning separate from actual execution if needed.
+
+## P1 — Serialize workflow/project index mutations
+
+* [x] Prevent concurrent Release Workflow mutations from losing `projects.json` updates.
+* [x] Serialize all mutations affecting the Release Workflow index, including:
+
+  * workflow create;
+  * workflow save;
+  * workflow delete;
+  * strict project saves that may race with workflow mutations.
+* [x] Use one mutation queue/lock keyed by the project-index file or equivalent domain-level coordination.
+* [x] Do not rely on atomic rename alone; atomic writes prevent torn files but not lost updates.
+* [x] Ensure two concurrent workflow creations preserve both workflow index entries.
+* [x] Ensure concurrent workflow save/delete operations cannot orphan workflow files or stale index entries.
+* [x] Add regression tests for:
+
+  * concurrent create of workflow A and B;
+  * concurrent save/delete;
+  * workflow mutation racing with project save.
+
+## P1 — Fix supported project migration compatibility
+
+* [x] Align `parseFileRepo()` with the existing persisted schema/migration contract.
+* [x] `pipelines` is historically optional and must default to `[]` when omitted where supported.
+* [x] `workflows` must likewise respect its supported optional/default semantics.
+* [x] A valid V1/V2 project file must still migrate successfully into valid V3.
+* [x] Validate the migrated result after defaults are normalized.
+* [x] Do not reject previously valid project data merely because an optional array was omitted.
+* [x] Add tests for:
+
+  * [x] V2 without `pipelines`;
+  * [x] V2 with pipelines;
+  * [x] V3 without optional arrays if supported by the schema;
+  * [x] migrated output satisfying the strict parser.
+
+## P1 — Complete BuildHistory persisted validation
+
+* [x] Make the history parser validate the complete Pipelab-owned `BuildHistoryEntry` contract.
+* [x] Validate optional entry fields when present:
+
+  * [x] `endTime`;
+  * [x] `duration`;
+  * [x] `output`;
+  * [x] `metadata`.
+* [x] Validate the complete `ExecutionStep` contract when fields are present:
+
+  * [x] `uses`;
+  * [x] `output`;
+  * [x] `destinationId`;
+  * [x] `serviceId`;
+  * [x] `destinationName`;
+  * [x] `slotId`;
+  * [x] `artifact`.
+* [x] Validate `output` and `metadata` are objects where required by their declared types.
+* [x] Validate the complete artifact descriptor:
+
+  * [x] `kind`;
+  * [x] `technology`;
+  * [x] `platform`;
+  * [x] `architecture`;
+  * [x] `container`;
+  * [x] `format`;
+  * [x] `capabilities`.
+* [x] Reject malformed descriptor values such as numeric platform/architecture/format.
+* [x] Preserve deliberately extensible runtime/provider metadata only where the type explicitly permits it.
+* [x] Continue accepting both:
+
+  * [x] legacy `Artifact`;
+  * [x] `WorkflowArtifactInstance`.
+* [x] Keep raw-array history compatibility.
+* [x] Add malformed-but-valid-JSON regression tests for every newly validated optional field.
+
+## P1 — Stop UI config persistence from silently succeeding offline
+
+* [x] `useConfig.load()` must not silently return defaults as though a successful persisted load occurred when the API is disconnected.
+* [x] Expose an explicit load error/unavailable state instead.
+* [x] `useConfig.save()` must not update local state and resolve successfully when persistence could not occur.
+* [x] A failed save must reject and leave the caller aware that data was not persisted.
+* [x] Review `useFiles.update()` so local project state is not permanently committed before persistence succeeds.
+* [x] Either:
+
+  * [x] persist first and update local state after success; or
+  * [x] optimistically update but rollback on failure.
+* [x] Await `update()` in callers where persistence completion matters.
+* [x] Ensure project deletion, project creation, pipeline transfer and other project mutations cannot appear successful while disk persistence failed.
+* [x] Add tests for:
+
+  * [x] disconnected config load;
+  * [x] disconnected config save;
+  * [x] project save failure;
+  * [x] optimistic update rollback or delayed local commit.
+
+## P2 — Make ReleaseConfig output references exact everywhere
+
+* [x] Use one authoritative `ReleaseOutputRef` validator.
+* [x] Apply it to:
+
+  * [x] build input;
+  * [x] build target input if supported;
+  * [x] destination slot input.
+* [x] Accept only:
+
+  * [x] `{ source: true }`;
+  * [x] `{ buildId: string, targetId: string }`.
+* [x] Reject extra keys.
+* [x] Reject mixed source/build references.
+* [x] Reject incomplete build refs.
+* [x] Add tests for:
+
+  * [x] `{ source: true, extra: 1 }`;
+  * [x] `{ source: true, buildId: "x", targetId: "y" }`;
+  * [x] `{ buildId: "x" }`;
+  * [x] valid source ref;
+  * [x] valid build ref.
+
+## P2 — Validate workflow-index owned fields completely
+
+* [x] Make `parseFileRepo()` validate `workflow.type === "internal-workflow"`.
+* [x] Validate all other Pipelab-owned workflow index fields before narrowing to `FileRepo`.
+* [x] Do not rely on a TypeScript assertion for fields the runtime parser did not check.
+* [x] Add malformed workflow `type` coverage.
+
+## P2 — Do not convert BuildHistory I/O failures into empty history
+
+* [x] Update `getAllPipelineFiles()` so only genuinely missing directories/files are treated as empty state.
+* [x] Propagate permission errors, device errors and other unexpected filesystem failures.
+* [x] Do not return `[]` for arbitrary exceptions.
+* [x] Add a regression test for a simulated non-ENOENT filesystem failure.
+
+## P2 — Make post-commit workflow delete cleanup semantics accurate
+
+* [x] Treat workflow deletion as committed once:
+
+  * [x] the workflow file has been tombstoned;
+  * [x] the project index has successfully removed the workflow entry.
+* [x] Tombstone cleanup failure after that commit must not report that the delete transaction itself failed.
+* [x] Log/surface cleanup failure separately if useful.
+* [x] Do not restore the workflow after the index commit.
+* [x] Ensure retry behavior is predictable.
+* [x] Add a test proving:
+
+  * [x] index mutation succeeds;
+  * [x] tombstone deletion fails;
+  * [x] workflow remains deleted;
+  * [x] API does not falsely report an uncommitted deletion.
+
+## P2 — Make persisted IDs cross-platform filename-safe
+
+* [x] Harden `isSafePersistedId()` for all supported desktop platforms.
+* [x] Reject characters invalid in Windows filename components, including at least:
+
+  * [x] `<`
+  * [x] `>`
+  * [x] `:`
+  * [x] `"`
+  * [x] `|`
+  * [x] `?`
+  * [x] `*`
+* [x] Reject Windows reserved device names such as:
+
+  * [x] `CON`
+  * [x] `PRN`
+  * [x] `AUX`
+  * [x] `NUL`
+  * [x] `COM1`–`COM9`
+  * [x] `LPT1`–`LPT9`
+* [x] Reject trailing dots/spaces where they would produce invalid/ambiguous filenames.
+* [x] Preserve existing valid nanoid/project IDs.
+* [x] Add cross-platform persisted-ID tests.
+
+## Process — Add release tracking if required
+
+* [x] Review the repo changeset requirement for this PR.
+* [x] If these exported/public package behavior changes require release tracking, add an appropriate changeset for affected public packages such as:
+
+  * [x] `@pipelab/shared`;
+  * [x] `@pipelab/core-node`.
+* [x] Keep the changeset focused on the user-visible/public API impact.
+* [x] Do not manually change package versions.
+
+## Regression verification
+
+* [x] Add execution-boundary test preventing mismatched prepared workflow execution.
+* [x] Add concurrent workflow mutation tests.
+* [x] Add project migration compatibility tests.
+* [x] Add complete BuildHistory malformed-field tests.
+* [x] Add offline/disconnected config persistence tests.
+* [x] Add exact ReleaseOutputRef tests.
+* [x] Add workflow-index `type` validation test.
+* [x] Add unexpected history filesystem-error test.
+* [x] Add post-commit tombstone cleanup test.
+* [x] Add Windows-safe ID tests.
+
+## Final verification gate
+
+Do not mark this complete until all of these pass:
+
+* [x] `pnpm --filter @pipelab/shared test`
+* [x] `pnpm --filter @pipelab/core-node test`
+* [x] `pnpm --filter @pipelab/ui test`
+* [x] `pnpm --filter @pipelab/cli test`
+* [x] shared typecheck
+* [x] core-node typecheck
+* [x] UI typecheck
+* [x] CLI typecheck
+* [x] applicable lint checks
+* [x] applicable builds
+* [x] `git diff --check`
+* [ ] full GitHub Actions test matrix green on Linux, Windows and macOS
+* [ ] Build All green
+* [ ] desktop packaging jobs green
+* [ ] no test/build job skipped because of a failed prerequisite
+
+## Scope guardrails
+
+Do not expand this pass into:
+
+* legacy Pipeline/SavedFile migration redesign;
+* `processGraph()` modernization;
+* release preference UI;
+* cloud/remote execution;
+* MCP;
+* visual DAG editing;
+* triggers/scheduling;
+* unrelated runtime refactors.
+
+Keep the implementation narrowly focused on closing the remaining Phase 4 integrity gaps.
