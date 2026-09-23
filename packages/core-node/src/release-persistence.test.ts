@@ -8,6 +8,7 @@ import { PipelabContext } from "./context";
 import { ReleasePersistence } from "./release-persistence";
 import { writeJsonFileAtomically } from "./utils/atomic-json";
 import { executeWorkflow } from "./handlers/workflow";
+import { saveStrictProjects } from "./strict-config-persistence";
 
 const setup = async () => {
   const root = await mkdtemp(join(tmpdir(), "pipelab-release-persistence-"));
@@ -171,6 +172,35 @@ describe("ReleasePersistence", () => {
     await expect(
       stat(context.getConfigPath("workflows", "workflow-a.json")),
     ).resolves.toBeDefined();
+  });
+
+  it("keeps workflow state consistent when a project save races with creation", async () => {
+    const { context } = await setup();
+    const persistence = new ReleasePersistence(context);
+    const current = JSON.parse(await readFile(context.getProjectsPath(), "utf8"));
+    const config = createReleaseConfig({
+      id: "workflow-a",
+      project: "project-1",
+      name: "New",
+      source: { provider: "source", config: {} },
+    });
+
+    await Promise.allSettled([
+      persistence.save(config),
+      saveStrictProjects(context, {
+        ...current,
+        projects: [{ ...current.projects[0], name: "Renamed" }],
+      }),
+    ]);
+
+    const repo = JSON.parse(await readFile(context.getProjectsPath(), "utf8"));
+    const workflowFile = context.getConfigPath("workflows", "workflow-a.json");
+    const workflowExists = await stat(workflowFile)
+      .then(() => true)
+      .catch(() => false);
+    expect(repo.workflows.some((workflow: { id: string }) => workflow.id === "workflow-a")).toBe(
+      workflowExists,
+    );
   });
 
   it("does not overwrite an orphaned workflow file during creation", async () => {
@@ -350,6 +380,44 @@ describe("ReleasePersistence", () => {
     await expect(executeWorkflow(context, "workflows/workflow-1")).rejects.toThrow(
       "file is missing",
     );
+  });
+
+  it("does not execute a caller-supplied prepared workflow", async () => {
+    const { context } = await setup();
+    const persisted = createReleaseConfig({
+      id: "workflow-1",
+      project: "project-1",
+      name: "Persisted",
+      source: { provider: "missing-provider", config: {} },
+    });
+    await mkdir(context.getConfigPath("workflows"), { recursive: true });
+    await writeFile(
+      context.getConfigPath("workflows", "workflow-1.json"),
+      JSON.stringify(persisted),
+    );
+
+    await expect(
+      executeWorkflow(context, "workflows/workflow-1", {
+        // @ts-expect-error The execution boundary deliberately no longer accepts prepared workflows.
+        prepared: {
+          config: createReleaseConfig({
+            id: "workflow-1",
+            project: "project-1",
+            name: "Caller supplied",
+            source: { provider: "source", config: {} },
+          }),
+          plan: {
+            issues: [],
+            producers: [],
+            outputs: [],
+            destinations: [],
+            graph: { nodes: [], edges: [] },
+          },
+          registry: { sources: [], producers: [], destinations: [] },
+          workflow: { steps: [] },
+        },
+      }),
+    ).rejects.toThrow("Unknown source provider: missing-provider");
   });
 
   it.each(["../connections", "../../foo", "foo/bar", "foo\\bar", "/tmp/workflow"])(
