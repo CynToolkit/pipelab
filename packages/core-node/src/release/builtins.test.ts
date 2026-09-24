@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { compileReleasePlan, planRelease, type ReleaseConfig } from "@pipelab/shared";
 import electron from "@pipelab/plugin-electron";
-import construct from "@pipelab/plugin-construct";
 import steam from "@pipelab/plugin-steam";
 import { createCoreFilesystemWorkflowTasks } from "../workflow-tasks/filesystem";
-import { builtInReleaseDefinitions, CORE_WORKFLOW_TASKS } from "./builtins";
+import { CORE_WORKFLOW_TASKS } from "@pipelab/workflow-runtime";
+import { builtInReleaseDefinitions } from "./builtins";
 import { buildCoreReleaseRegistry } from "./registry";
 
 const host = { platform: "linux", architecture: "x64" };
@@ -171,19 +171,5 @@ describe("core Release filesystem providers", () => {
     expect(createCoreFilesystemWorkflowTasks()[CORE_WORKFLOW_TASKS.passthrough]).toBeTypeOf(
       "function",
     );
-  });
-
-  it("compiles Construct extraction through the core unzip task", () => {
-    const { workflow } = planAndCompile(
-      release(
-        "@pipelab/plugin-construct/source",
-        { path: "/game.c3p", profilePath: "/profile" },
-        [],
-        [],
-      ),
-      [construct],
-    );
-    expect(workflow.steps.map((step) => step.uses)).toContain(CORE_WORKFLOW_TASKS.unzip);
-    expect(createCoreFilesystemWorkflowTasks()[CORE_WORKFLOW_TASKS.unzip]).toBeTypeOf("function");
   });
 });

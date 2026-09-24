@@ -1,8 +1,12 @@
 import { mkdir } from "node:fs/promises";
 import { dirname } from "node:path";
-import { copyPath, removePath, type WorkflowTaskRegistry } from "@pipelab/workflow-runtime";
+import {
+  copyPath,
+  removePath,
+  CORE_WORKFLOW_TASKS,
+  type WorkflowTaskRegistry,
+} from "@pipelab/workflow-runtime";
 import { extractZip, zipFolder } from "../utils/fs-extras";
-import { CORE_WORKFLOW_TASKS } from "../release/builtins";
 
 const requiredPath = (value: unknown, description: string): string => {
   if (typeof value !== "string" || !value.trim()) throw new Error(`${description} requires a path`);

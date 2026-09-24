@@ -72,10 +72,17 @@ export async function extractZip(
       settled = true;
       cleanup();
       if (error) {
-        readStream?.destroy(error);
-        writeStream?.destroy(error);
         closeZip();
-        reject(error);
+        // yauzl's deflated entry stream may override destroy() without closing
+        // the exposed stream. Stop it, then settle once the destination is closed.
+        readStream?.destroy();
+        if (writeStream) {
+          const outputClosed = waitForClose(writeStream);
+          writeStream.destroy(error);
+          void outputClosed.then(() => reject(error));
+        } else {
+          reject(error);
+        }
       } else {
         closeZip();
         resolve();
@@ -162,6 +169,11 @@ function abortError(): Error {
   return error;
 }
 
+function waitForClose(stream: ReturnType<typeof createWriteStream>): Promise<void> {
+  if (stream.closed) return Promise.resolve();
+  return new Promise((resolve) => stream.once("close", resolve));
+}
+
 /**
  * Zips a folder.
  */
@@ -183,19 +195,22 @@ export const zipFolder = async (
       if (settled) return;
       settled = true;
       cleanup();
-      if (error) reject(error);
-      else resolve(to);
-    };
-    const onAbort = () => {
-      const error = abortError();
+      if (!error) {
+        resolve(to);
+        return;
+      }
+
       try {
         archive.abort();
       } catch {}
-      try {
-        output.destroy(error);
-      } catch {}
-      finish(error);
+      const closed = waitForClose(output);
+      output.destroy(error);
+      void closed.then(
+        () => reject(error),
+        () => reject(error),
+      );
     };
+    const onAbort = () => finish(abortError());
 
     output.on("close", () => {
       if (settled) return;

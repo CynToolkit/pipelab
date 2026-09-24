@@ -528,7 +528,9 @@ describe("CLI release dry-run", () => {
         signal: controller.signal,
         onEvent: (event) => {
           if (event.type === "step.started" && event.uses === "@pipelab/core/archive/unzip") {
-            setTimeout(() => controller.abort("test cancellation"), 20);
+            setTimeout(() => {
+              controller.abort("test cancellation");
+            }, 20);
           }
         },
       });

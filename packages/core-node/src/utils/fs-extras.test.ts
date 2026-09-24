@@ -2,14 +2,15 @@ import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Readable } from "node:stream";
-import { createWriteStream } from "node:fs";
-import archiver from "archiver";
+import { EventEmitter } from "node:events";
+import yauzl from "yauzl";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { extractZip, zipFolder } from "./fs-extras";
 
 const tempDirs: string[] = [];
 
 afterEach(async () => {
+  vi.restoreAllMocks();
   await Promise.all(tempDirs.splice(0).map((path) => rm(path, { recursive: true, force: true })));
 });
 
@@ -17,19 +18,6 @@ async function makeTempDir() {
   const dir = await mkdtemp(join(tmpdir(), "pipelab-zip-cancel-"));
   tempDirs.push(dir);
   return dir;
-}
-
-async function makeStoredZip(path: string, contents: Buffer) {
-  const output = createWriteStream(path);
-  const archive = archiver("zip");
-  const closed = new Promise<void>((resolve, reject) => {
-    output.once("close", resolve);
-    output.once("error", reject);
-  });
-  archive.pipe(output);
-  archive.append(Readable.from([contents]), { name: "large.bin", store: true });
-  await archive.finalize();
-  await closed;
 }
 
 describe("extractZip cancellation", () => {
@@ -50,7 +38,37 @@ describe("extractZip cancellation", () => {
     const archivePath = join(dir, "large.zip");
     const destination = join(dir, "out");
     const entryPath = join(destination, "large.bin");
-    await makeStoredZip(archivePath, Buffer.alloc(64 * 1024 * 1024, 0x5a));
+    const entry = Object.assign(new yauzl.Entry(), { fileName: "large.bin" });
+    let emittedChunk = false;
+    const readStream = new Readable({
+      read() {
+        if (emittedChunk) return;
+        emittedChunk = true;
+        this.push(Buffer.alloc(64 * 1024, 0x5a));
+      },
+    });
+    let sourceStopped = false;
+    readStream.destroy = () => {
+      // yauzl's deflated stream destroys its underlying file reader without
+      // closing the exposed inflate stream.
+      sourceStopped = true;
+      return readStream;
+    };
+    const zipfile = new EventEmitter() as unknown as yauzl.ZipFile;
+    zipfile.close = vi.fn();
+    zipfile.readEntry = vi.fn(() => zipfile.emit("entry", entry));
+    zipfile.openReadStream = vi.fn((_entry, callback) => callback(null, readStream));
+    type OpenCallback = (error: Error | null, openedZipfile: yauzl.ZipFile) => void;
+    vi.spyOn(yauzl, "open").mockImplementation(
+      (
+        _path: string,
+        optionsOrCallback?: yauzl.Options | OpenCallback,
+        callback?: OpenCallback,
+      ) => {
+        const done = typeof optionsOrCallback === "function" ? optionsOrCallback : callback;
+        done?.(null, zipfile);
+      },
+    );
 
     const controller = new AbortController();
     const removeListener = vi.spyOn(controller.signal, "removeEventListener");
@@ -58,8 +76,8 @@ describe("extractZip cancellation", () => {
     const deadline = Date.now() + 5000;
     while (Date.now() < deadline) {
       try {
-        const entry = await stat(entryPath);
-        if (entry.size < 64 * 1024 * 1024) {
+        const outputStat = await stat(entryPath);
+        if (outputStat.size > 0) {
           controller.abort();
           break;
         }
@@ -72,7 +90,9 @@ describe("extractZip cancellation", () => {
     expect(controller.signal.aborted).toBe(true);
     await expect(extraction).rejects.toMatchObject({ name: "AbortError" });
     expect(removeListener).toHaveBeenCalledWith("abort", expect.any(Function));
-    expect((await readFile(entryPath)).byteLength).toBeLessThan(64 * 1024 * 1024);
+    expect(sourceStopped).toBe(true);
+    expect(readStream.closed).toBe(false);
+    expect((await readFile(entryPath)).byteLength).toBe(64 * 1024);
   });
 
   it("rejects with AbortError when ZIP creation is already cancelled", async () => {

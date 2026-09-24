@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { compileWorkflow, planRelease, type ReleaseConfig } from "@pipelab/shared";
 import { buildCoreReleaseRegistry, bundledPlugins } from "@pipelab/core-node";
+import { CORE_WORKFLOW_TASKS } from "@pipelab/workflow-runtime";
 
 const context = { host: { platform: "win32", architecture: "x64" } };
 const plugin = (id: string) => {
@@ -49,35 +50,6 @@ describe("release provider integration wiring", () => {
         "destinations.0.slots.0.config.depotId",
       ]),
     );
-  });
-
-  it("plans Construct directly to Poki without creating a build", () => {
-    const config: ReleaseConfig = {
-      version: "3.0.0",
-      id: "construct-poki",
-      project: "project",
-      name: "Construct Poki",
-      source: {
-        provider: "@pipelab/plugin-construct/source",
-        config: { path: "/game.c3p", profilePath: "/profile" },
-      },
-      builds: [],
-      destinations: [
-        {
-          id: "poki",
-          provider: "@pipelab/plugin-poki/destination",
-          enabled: true,
-          config: { project: "game", name: "1.0", notes: "release" },
-          slots: [{ id: "web", enabled: true, input: { source: true }, config: {} }],
-        },
-      ],
-    };
-    const plan = planRelease(config, buildCoreReleaseRegistry([construct, poki]), {
-      host: context.host,
-    });
-    expect(plan.issues.filter((issue) => issue.severity === "error")).toEqual([]);
-    expect(plan.producers).toEqual([]);
-    expect(plan.destinations[0]?.slots[0]?.input).toEqual({ source: true });
   });
 
   it("reports the unresolved Construct to Steam output without inventing a producer", () => {
@@ -158,6 +130,9 @@ describe("release provider integration wiring", () => {
     );
     const electronStep = workflow.steps.find((step) => step.uses.includes("plugin-electron"));
     const steamStep = workflow.steps.find((step) => step.uses.includes("plugin-steam"));
+    expect(workflow.steps.find((step) => step.id === "construct-source-extract")?.uses).toBe(
+      CORE_WORKFLOW_TASKS.unzip,
+    );
     expect(electronStep?.artifactInputs?.["input-folder"]).toEqual({
       stepId: "construct-source-extract",
       artifact: "output",

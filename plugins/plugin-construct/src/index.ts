@@ -5,7 +5,7 @@ import { exportProjectAction, ExportProjectActionRunner } from "./export-project
 import { constructVersionValidator } from "./export-shared";
 import { discoverBrowserProfiles } from "./browser-profiles";
 import type { ReleaseSourceDefinition } from "@pipelab/shared";
-import type { WorkflowStep } from "@pipelab/workflow-runtime";
+import { CORE_WORKFLOW_TASKS, type WorkflowStep } from "@pipelab/workflow-runtime";
 export { discoverBrowserProfiles, inspectChromiumProfile } from "./browser-profiles";
 export type { BrowserProfileCandidate } from "./browser-profiles";
 
@@ -74,7 +74,7 @@ export const constructSource: ReleaseSourceDefinition = {
       },
       {
         id: "construct-source-extract",
-        uses: "@pipelab/core/archive/unzip",
+        uses: CORE_WORKFLOW_TASKS.unzip,
         needs: ["construct-source-export"],
         artifactInputs: { file: { stepId: "construct-source-export", artifact: "zipFile" } },
         artifacts: { output: { descriptor: constructSource.output } },

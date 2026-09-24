@@ -6,14 +6,8 @@ import {
   type ReleaseProducerDefinition,
   type ReleaseSourceDefinition,
 } from "@pipelab/shared";
-
-export const CORE_WORKFLOW_TASKS = {
-  copy: "@pipelab/core/fs/copy",
-  remove: "@pipelab/core/fs/remove",
-  zip: "@pipelab/core/archive/zip",
-  unzip: "@pipelab/core/archive/unzip",
-  passthrough: "@pipelab/core/passthrough",
-} as const;
+import { CORE_WORKFLOW_TASKS } from "@pipelab/workflow-runtime";
+export { CORE_WORKFLOW_TASKS } from "@pipelab/workflow-runtime";
 
 const folderOutput = { kind: "files", container: "directory" } as const;
 const webFolderOutput = {
