@@ -1,0 +1,235 @@
+name: Delivery
+
+on:
+  workflow_run:
+    workflows: [Pipeline]
+    types: [completed]
+    branches: [main, develop]
+  workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: Successful Pipeline run ID whose artifacts should be delivered
+        required: true
+        type: string
+      forcePublish:
+        description: Publish the desktop release even when its semantic version is unchanged
+        required: false
+        type: boolean
+        default: false
+      prerelease:
+        description: Mark the desktop release as a prerelease
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  prepare:
+    name: Select CI artifacts
+    if: >-
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') ||
+      github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+    outputs:
+      run_id: ${{ steps.source.outputs.run_id }}
+      sha: ${{ steps.metadata.outputs.sha }}
+      ref: ${{ steps.metadata.outputs.ref }}
+      affected: ${{ steps.metadata.outputs.affected }}
+      desktop_version: ${{ steps.metadata.outputs.desktop_version }}
+      desktop_version_changed: ${{ steps.metadata.outputs.desktop_version_changed }}
+      force_publish: ${{ steps.metadata.outputs.force_publish }}
+      prerelease: ${{ steps.metadata.outputs.prerelease }}
+    steps:
+      - name: Select source CI run
+        id: source
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id }}
+          WORKFLOW_RUN_SHA: ${{ github.event.workflow_run.head_sha }}
+          WORKFLOW_RUN_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          DISPATCH_RUN_ID: ${{ inputs.source_run_id }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          if [[ "$EVENT_NAME" == "workflow_run" ]]; then
+            run_id="$WORKFLOW_RUN_ID"
+            run_sha="$WORKFLOW_RUN_SHA"
+            run_branch="$WORKFLOW_RUN_BRANCH"
+          else
+            run_id="$DISPATCH_RUN_ID"
+            [[ "$run_id" =~ ^[0-9]+$ ]] || { echo "source_run_id must be numeric" >&2; exit 1; }
+            run_info=$(gh api "repos/$REPOSITORY/actions/runs/$run_id" --jq '[.name, .conclusion, .head_sha, .head_branch] | @tsv')
+            IFS=$'\t' read -r workflow_name conclusion run_sha run_branch <<< "$run_info"
+            [[ "$workflow_name" == "Pipeline" ]] || { echo "Run $run_id is not a Pipeline run" >&2; exit 1; }
+            [[ "$conclusion" == "success" ]] || { echo "Pipeline run $run_id did not succeed" >&2; exit 1; }
+          fi
+          echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
+          echo "sha=$run_sha" >> "$GITHUB_OUTPUT"
+          echo "branch=$run_branch" >> "$GITHUB_OUTPUT"
+
+      - name: Download CI metadata
+        uses: actions/download-artifact@v4
+        with:
+          name: change-metadata
+          run-id: ${{ steps.source.outputs.run_id }}
+          repository: ${{ github.repository }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: ci-metadata
+
+      - name: Validate metadata and select triggering SHA
+        id: metadata
+        env:
+          EXPECTED_SHA: ${{ steps.source.outputs.sha }}
+          EXPECTED_BRANCH: ${{ steps.source.outputs.branch }}
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('node:fs');
+          const metadata = JSON.parse(fs.readFileSync('ci-metadata/metadata.json', 'utf8'));
+          if (!/^[0-9a-f]{40}$/i.test(metadata.sha ?? '')) throw new Error('metadata.sha must be a full commit SHA');
+          if (!Array.isArray(metadata.affected)) throw new Error('metadata.affected must be an array');
+          if (typeof metadata.desktop_version_changed !== 'boolean') throw new Error('metadata.desktop_version_changed must be a boolean');
+          if (typeof metadata.desktop_version !== 'string' || !metadata.desktop_version) throw new Error('metadata.desktop_version is missing');
+          if (typeof metadata.force_publish !== 'boolean') throw new Error('metadata.force_publish must be a boolean');
+          if (typeof metadata.prerelease !== 'boolean') throw new Error('metadata.prerelease must be a boolean');
+          const allowedRefs = ['main', 'develop', 'refs/heads/main', 'refs/heads/develop'];
+          if (!allowedRefs.includes(metadata.ref)) throw new Error(`Delivery is restricted to main/develop, got ${metadata.ref}`);
+          if (metadata.sha !== process.env.EXPECTED_SHA) throw new Error('CI metadata SHA does not match the selected Pipeline run');
+          if (metadata.ref.replace(/^refs\/heads\//, '') !== process.env.EXPECTED_BRANCH) {
+            throw new Error('CI metadata ref does not match the selected Pipeline run branch');
+          }
+          const output = [
+            `sha=${metadata.sha}`,
+            `ref=${metadata.ref.replace(/^refs\/heads\//, '')}`,
+            `affected=${JSON.stringify(metadata.affected)}`,
+            `desktop_version=${metadata.desktop_version}`,
+            `desktop_version_changed=${metadata.desktop_version_changed}`,
+            `force_publish=${metadata.force_publish}`,
+            `prerelease=${metadata.prerelease}`,
+          ].join('\n') + '\n';
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, output);
+          NODE
+
+      - name: Check out triggering commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.metadata.outputs.sha }}
+          persist-credentials: false
+
+  deploy-website:
+    name: Deploy Website
+    needs: prepare
+    if: contains(fromJson(needs.prepare.outputs.affected), '@pipelab/website')
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      deployments: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.sha }}
+          persist-credentials: false
+
+      - name: Download monorepo-dist from CI
+        uses: actions/download-artifact@v4
+        with:
+          name: monorepo-dist
+          run-id: ${{ needs.prepare.outputs.run_id }}
+          repository: ${{ github.repository }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: .
+
+      - name: Deploy website to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+          command: pages deploy apps/website/dist --project-name=${{ secrets.CLOUDFLARE_PAGES_PROJECT_NAME }} --branch=${{ needs.prepare.outputs.ref }}
+
+  deploy-editor-ui:
+    name: Deploy Editor UI
+    needs: prepare
+    if: contains(fromJson(needs.prepare.outputs.affected), '@pipelab/ui')
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      deployments: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.sha }}
+          persist-credentials: false
+
+      - name: Download monorepo-dist from CI
+        uses: actions/download-artifact@v4
+        with:
+          name: monorepo-dist
+          run-id: ${{ needs.prepare.outputs.run_id }}
+          repository: ${{ github.repository }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: .
+
+      - name: Deploy editor UI to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+          command: pages deploy apps/ui/dist --project-name=${{ secrets.CLOUDFLARE_EDITOR_UI_PROJECT_NAME }} --branch=${{ needs.prepare.outputs.ref }}
+
+  publish-desktop:
+    name: Publish Desktop Release
+    needs: prepare
+    if: >-
+      needs.prepare.outputs.desktop_version_changed == 'true' ||
+      needs.prepare.outputs.force_publish == 'true' ||
+      (github.event_name == 'workflow_dispatch' && inputs.forcePublish)
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.sha }}
+          persist-credentials: false
+
+      - name: Download desktop artifacts from CI
+        uses: actions/download-artifact@v4
+        with:
+          pattern: desktop-artifacts-*
+          run-id: ${{ needs.prepare.outputs.run_id }}
+          repository: ${{ github.repository }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: artifacts
+
+      - name: Confirm desktop version matches CI metadata
+        env:
+          EXPECTED_VERSION: ${{ needs.prepare.outputs.desktop_version }}
+        run: |
+          actual_version=$(node -p "require('./apps/desktop/package.json').version")
+          test "$actual_version" = "$EXPECTED_VERSION"
+
+      - name: Create desktop GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: "@pipelab/app@${{ needs.prepare.outputs.desktop_version }}"
+          prerelease: ${{ contains(needs.prepare.outputs.desktop_version, '-') || needs.prepare.outputs.prerelease == 'true' || (github.event_name == 'workflow_dispatch' && inputs.prerelease) }}
+          files: |
+            artifacts/**/*.dmg
+            artifacts/**/*.exe
+            artifacts/**/*.zip
+            artifacts/**/RELEASES
+            artifacts/**/*.nupkg
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

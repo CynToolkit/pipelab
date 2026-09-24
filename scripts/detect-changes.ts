@@ -1,6 +1,13 @@
 import { readFileSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 import { join } from "node:path";
-import { affectedPackagesForChanges, hasDesktopRelatedChanges } from "./detect-changes-logic.mjs";
+import {
+  affectedPackagesForChanges,
+  desktopVersionChanged,
+  needsDesktopBuild,
+  needsMacosSmoke,
+  needsWindowsSmoke,
+} from "./detect-changes-logic.mjs";
 
 /**
  * This script parses the JSON output of `turbo ls --output=json`
@@ -22,7 +29,9 @@ interface TurboLsOutput {
 function main() {
   const inputFile = process.argv[2];
   if (!inputFile) {
-    console.error("Usage: tsx detect-changes.ts <turbo-ls-output.json> <changed-files.txt>");
+    console.error(
+      "Usage: tsx detect-changes.ts <turbo-ls-output.json> <changed-files.txt> [base-ref]",
+    );
     process.exit(1);
   }
 
@@ -34,9 +43,25 @@ function main() {
       console.error("Missing changed files input");
       process.exit(1);
     }
-    const changedFiles = readFileSync(changedFilesFile, "utf-8")
-      .split(/\r?\n/)
-      .filter(Boolean);
+    const changedFiles = readFileSync(changedFilesFile, "utf-8").split(/\r?\n/).filter(Boolean);
+    const baseRef = process.argv[4];
+    const desktopPackage = JSON.parse(
+      readFileSync(join(process.cwd(), "apps/desktop/package.json"), "utf-8"),
+    ) as { version?: unknown };
+    const desktopVersion = typeof desktopPackage.version === "string" ? desktopPackage.version : "";
+    let baseDesktopVersion: string | undefined;
+    if (baseRef) {
+      try {
+        const basePackage = JSON.parse(
+          execFileSync("git", ["show", `${baseRef}:apps/desktop/package.json`], {
+            encoding: "utf-8",
+          }),
+        ) as { version?: unknown };
+        if (typeof basePackage.version === "string") baseDesktopVersion = basePackage.version;
+      } catch {
+        // A missing base package (for example, an initial history) cannot prove a version change.
+      }
+    }
 
     // Avoid root lockfile/CI fanout when those changes accompany website-only work.
     const affectedPackages = affectedPackagesForChanges(
@@ -45,6 +70,10 @@ function main() {
     );
     const affectedPackageSet = new Set(affectedPackages);
     const affectedPackageItems = data.packages.items.filter((p) => affectedPackageSet.has(p.name));
+    const desktopBuild = needsDesktopBuild(changedFiles);
+    const windowsSmoke = needsWindowsSmoke(changedFiles);
+    const macosSmoke = needsMacosSmoke(changedFiles);
+    const versionChanged = desktopVersionChanged(changedFiles, baseDesktopVersion, desktopVersion);
 
     // Check if any affected package needs a build
     let needsBuild = false;
@@ -72,8 +101,15 @@ function main() {
       // The array needs to be stringified for GHA to handle it as a single string
       writeFileSync(githubOutput, `affected=${JSON.stringify(affectedPackages)}\n`, { flag: "a" });
       writeFileSync(githubOutput, `needs_build=${needsBuild}\n`, { flag: "a" });
-      writeFileSync(githubOutput, `desktop_changed=${hasDesktopRelatedChanges(changedFiles)}\n`, { flag: "a" });
-      console.log("Successfully set GITHUB_OUTPUT: affected, needs_build, desktop_changed");
+      writeFileSync(githubOutput, `desktop_changed=${desktopBuild}\n`, { flag: "a" });
+      writeFileSync(githubOutput, `needs_desktop_build=${desktopBuild}\n`, { flag: "a" });
+      writeFileSync(githubOutput, `needs_windows_smoke=${windowsSmoke}\n`, { flag: "a" });
+      writeFileSync(githubOutput, `needs_macos_smoke=${macosSmoke}\n`, { flag: "a" });
+      writeFileSync(githubOutput, `desktop_version_changed=${versionChanged}\n`, { flag: "a" });
+      writeFileSync(githubOutput, `desktop_version=${desktopVersion}\n`, { flag: "a" });
+      console.log(
+        "Successfully set GITHUB_OUTPUT: affected, needs_build, needs_desktop_build, needs_windows_smoke, needs_macos_smoke, desktop_version_changed, desktop_version",
+      );
     } else {
       console.log("Not running in GitHub Actions, skipping GITHUB_OUTPUT");
     }

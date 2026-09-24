@@ -1,121 +1,61 @@
-# PR #97 — Focused Final Cleanup
+Goal: Redesign Pipelab’s GitHub Actions pipeline so normal developer CI gives a trustworthy result in roughly 2–4 minutes, while preserving real Windows/macOS/Intel release assurance and moving expensive delivery work off the CI critical path.
 
-Goal: finish PR #97 with only the remaining necessary cleanup.
+☐ Establish a before/after benchmark using existing runs. Record run #417 as the lightweight/UI baseline (~4m16s) and run #413 as the heavy desktop baseline (~23m09s). Track separately: Detect Changes duration, first trustworthy CI result, Linux tests, platform checks, Build All, desktop builds, and final delivery duration. Do not optimize the 30–40s change-detection job first; the test/dependency graph is the dominant issue.
 
-## 1. Make core workflow task IDs authoritative
+### Baseline from GitHub Actions
 
-`CORE_WORKFLOW_TASKS` should have one owner.
+Durations below are job wall times from completed runs #417 and #413. The full correctness result waited for the slowest generic test-matrix leg; delivery then added more time after that gate.
 
-Move the generic task IDs to `@pipelab/workflow-runtime`, then import them from there in:
+| Measurement | Run #417 (UI/lightweight) | Run #413 (desktop/heavy) |
+| --- | ---: | ---: |
+| Whole workflow | 4m16s (ended in deployment failure) | 23m09s (ended in website/release failures) |
+| Detect Changes | 36s | 36s |
+| First full correctness result (slowest test leg) | 3m04s from run start (Intel test matrix) | 13m41s from run start (Intel test matrix) |
+| Linux tests | 33s | 2m24s |
+| Windows full test matrix | 1m02s | 6m30s |
+| macOS ARM full test matrix | 1m36s | 6m30s |
+| macOS Intel full test matrix | 2m21s | 12m55s |
+| Build All | 58s | 1m22s |
+| Desktop builds: Linux / Windows / macOS Intel / macOS ARM | Skipped | 1m05s / 3m40s / 6m46s / 5m50s |
+| Desktop build-to-release tail | Skipped | ~8m00s (desktop jobs began at 18:48:18Z; workflow ended 18:56:18Z) |
+| Release job | Skipped | 1m10s (failed uploading existing versioned assets) |
 
-* core Release built-ins;
-* core workflow task registration;
-* `plugin-construct`.
+Run links: [#417](https://github.com/CynToolkit/pipelab/actions/runs/35980922487) · [#413](https://github.com/CynToolkit/pipelab/actions/runs/35903259911). The root workflow duration and job timings are API-observed; no controlled after-change run exists yet.
 
-Do not hardcode:
+☐ Replace test-matrix with a Linux-first portable test job. Rename it to something like test-linux or verify-tests. Run the affected Turbo test set only on ubuntu-latest. Start with pnpm turbo test ... --concurrency=2 instead of --concurrency 1; the public Linux runner has enough cores and the current major package tests are isolated. Keep the affected-package filtering. Benchmark concurrency=2 before considering anything higher. The CLI E2E suite must run here exactly once, not once per OS.
 
-```text
-@pipelab/core/archive/unzip
-```
+☐ Delete macos-26-intel from generic tests entirely. Do not replace it with another full Intel test job. The repo has no Intel-specific test behavior that justifies running the complete test suite on native Intel hardware.
 
-inside Construct separately.
+☐ Replace the remaining full cross-platform test duplication with small targeted platform smoke jobs. Windows should cover only behavior that genuinely depends on Windows, particularly the Windows-specific packages/core-node/src/fs-utils.test.ts branch and relevant Steam/desktop/Electron host behavior when those packages are affected. macOS ARM should run host-dependent Electron packaging only when Electron/macOS-sensitive code is affected. Do not run CLI, shared, UI, release planner/compiler, workers, migration, Godot mapping, etc. again on those runners; those tests use platform values as data and are already covered on Linux.
 
-Keep:
+☐ Extend scripts/detect-changes-logic.mjs / detect-changes.ts with explicit CI-category outputs rather than encoding increasingly complicated expressions in YAML. Add booleans such as needs_windows_smoke, needs_macos_smoke, needs_desktop_build, and—after inspecting current release semantics—desktop_version_changed. Add unit tests for every classification. Preserve the website-only optimization already present.
 
-```text
-@pipelab/core/fs/copy
-@pipelab/core/fs/remove
-@pipelab/core/archive/zip
-@pipelab/core/archive/unzip
-@pipelab/core/passthrough
-```
+☐ Fix caching correctness. Any cache used by a host/architecture-dependent job must include both ${{ runner.os }} and ${{ runner.arch }}. Never allow Intel and ARM macOS tests to share the same Turbo cache archive. For very small platform smoke tests, consider disabling Turbo test caching entirely so the smoke really executes. Leave setup-node’s pnpm cache enabled; its generated keys already distinguish architecture, as visible in the current logs.
 
-No wider abstraction work.
+☐ Rewire the DAG for parallelism. Build All should no longer wait for the complete verification suite. After changes, start verify-lint, verify-typecheck, test-linux, applicable platform smoke checks, and build-all concurrently. build-all only needs change detection and its own build prerequisites. Desktop packaging should start once build-all is ready rather than waiting for unrelated portable tests. The final gate/release is where verification and produced artifacts converge. This deliberately trades a small amount of potentially wasted compute on a failing commit for several minutes less wall-clock latency.
 
-## 2. Keep the new core Release IDs
+☐ Make lint/typecheck real gates. Remove continue-on-error: true from both verification steps unless there is an explicitly documented reason they are informational only. GitHub applies continue-on-error after the step outcome, making the step conclusion successful even when the underlying command failed. The final CI gate must fail on lint, typecheck, portable tests, or required targeted platform checks.
 
-The removal of the old Release IDs is intentional.
+☐ Add one stable CI Gate job whose only purpose is to aggregate required verification results. Configure branch protection around this one stable job rather than individual matrix entries. It should finish as soon as code correctness is established; desktop release/deployment must not be required for this gate.
 
-Keep:
+☐ Keep the four real desktop artifact targets for delivery: Linux x64, Windows x64, macOS x64 on macos-26-intel, and macOS ARM64 on macos-26. Intel remains here because this is actual product output, not generic testing. After each macOS build, inspect the produced .app executable and assert x86_64 for Intel and arm64 for Apple Silicon using lipo. For signed non-PR builds, also run a lightweight signing verification. This gives stronger Intel assurance than the current Electron E2E, which only checks that a package path exists.
 
-```text
-@pipelab/core/source/folder
-@pipelab/core/source/web-folder
-@pipelab/core/source/zip
-@pipelab/core/source/web-zip
+☐ Do not put full generic tests back in front of desktop builds. build-desktop should depend on build-all and change classification. release should depend on CI Gate plus successful required desktop artifacts. Tests and desktop packaging should therefore overlap instead of forming tests → build → desktop.
 
-@pipelab/core/destination/folder
-@pipelab/core/destination/zip
-```
+☐ Separate CI from delivery after the DAG rewrite is proven. Move Cloudflare deployment and desktop GitHub Release publication out of the fast CI workflow into a delivery workflow triggered only after successful CI on develop/main, with a manual dispatch path preserved. Checkout the triggering SHA, not the default-branch SHA. Pass affected/change metadata as a small artifact if needed. CI failures then mean “the code is bad”; deployment/release failures mean “delivery is broken”, instead of one red Pipeline result ambiguously meaning either.
 
-Do not add aliases or migrations for the old `@pipelab/plugin-filesystem/...` Release IDs.
+☐ Preserve cross-workflow artifacts rather than rebuilding unnecessarily when splitting workflows. Have CI upload monorepo-dist plus a tiny JSON metadata artifact containing affected packages/change categories. The delivery workflow should download artifacts from the triggering successful CI run. Verify the currently supported actions/download-artifact cross-run syntax before implementation rather than guessing at it.
 
-`plugin-filesystem` remains only for legacy Pipeline compatibility.
+☐ Fix desktop release semantics while moving delivery. Today the release tag is derived from apps/desktop/package.json, so repeated develop pushes can attempt to republish the same semantic version; run #413 failed while deleting/replacing an asset from the existing release. Inspect updater expectations first. Preferred behavior: publish a versioned release only when the desktop version changes or forcePublish is explicitly requested. If Pipelab intentionally needs every develop commit published, introduce a distinct unique development-build/channel identifier instead of repeatedly mutating the same versioned release.
 
-## 3. Keep the unzip cancellation fix
+☐ Remove dead and unnecessary workflow work. Delete the disabled publish-preview job rather than running a four-second placeholder. Remove pnpm/install/setup work from release/deploy jobs that no longer execute Node workspace commands. Use pnpm install --frozen-lockfile consistently where installs remain. Keep change detection’s install optimization as a later task because it is not the current bottleneck.
 
-No redesign needed.
+☐ Add CI concurrency cancellation only to developer CI. New commits to the same PR/ref should cancel obsolete CI runs. Do not automatically cancel a delivery workflow halfway through signing/publishing. Splitting CI and delivery makes this distinction straightforward.
 
-Keep:
+☐ After the pipeline architecture is stable, profile the two remaining slow portable tests rather than prematurely rewriting them. @pipelab/cli is the dominant Linux test (~55s on run #413) and its Vitest config forces fileParallelism: false, maxWorkers: 1, and a single fork. Determine whether its sandboxing allows 2 workers safely. @pipelab/plugin-electron takes ~25s on Linux and should remain a real integration test, but only once in portable CI plus targeted platform validation when relevant.
 
-* `AbortSignal` passed to `extractZip()`;
-* active extraction stopped on abort;
-* `AbortError` returned;
-* focused cancellation coverage.
+☐ Validate the redesign with at least three controlled changes: a UI-only change, a portable core/CLI change, and an app/desktop packaging change. Confirm that affected-package detection still skips irrelevant work, platform smoke jobs execute rather than incorrectly hitting another architecture’s cache, all four release artifacts have the expected architecture, lint/typecheck failures really stop the CI gate, and delivery cannot run after a failed gate.
 
-## 4. Small test placement cleanup
+☐ Acceptance targets: UI-only CI Gate ≤2–2.5 minutes where runner availability permits; heavy monorepo CI Gate ≤4 minutes; actual signed four-platform desktop delivery roughly ≤10–12 minutes rather than ~23 minutes; zero generic tests on Intel; zero ARM↔Intel Turbo cache reuse; no GitHub release attempt for an unchanged semantic version unless explicitly forced.
 
-Keep package-local tests focused on:
-
-* built-in IDs;
-* registry composition;
-* primitive behavior;
-* cancellation.
-
-If a package-local test is just duplicating an existing CLI planner/compiler integration case, remove it.
-
-Do not add more tests than necessary.
-
-## 5. Update the PR description
-
-Remove the outdated statement that persisted Release IDs are preserved.
-
-Say instead that:
-
-* Folder/ZIP Release providers are now core built-ins;
-* they use new `@pipelab/core/...` IDs;
-* old Release IDs are intentionally not retained because Release Workflow is unreleased;
-* `plugin-filesystem` remains for legacy Pipeline compatibility;
-* unzip cancellation is supported.
-
-## Verification
-
-Only run the checks relevant to touched packages:
-
-```text
-pnpm --filter @pipelab/workflow-runtime test
-pnpm --filter @pipelab/workflow-runtime typecheck
-
-pnpm --filter @pipelab/core-node test
-pnpm --filter @pipelab/core-node typecheck
-
-pnpm --filter @pipelab/plugin-construct test
-pnpm --filter @pipelab/plugin-construct typecheck
-
-pnpm --filter @pipelab/cli test
-
-git diff --check
-```
-
-Then rely on CI for the broader repository verification.
-
-## Scope
-
-Do not:
-
-* implement hooks;
-* add Release ID compatibility;
-* redesign the planner/runtime;
-* delete `plugin-filesystem`;
-* rename legacy Pipeline node IDs;
-* add extra cleanup unrelated to PR #97.
+☐ FINAL GOAL: Pipelab should have a fast Linux-centric CI path that answers “is this commit correct?” quickly, a tiny set of targeted OS checks for genuinely host-dependent code, and a separate delivery path that answers “can we build/sign/deploy every product artifact?”. Intel hardware remains only where it provides real x64 product assurance, not as an expensive duplicate test runner.

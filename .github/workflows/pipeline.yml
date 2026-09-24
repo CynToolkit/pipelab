@@ -19,9 +19,14 @@ on:
         default: true
 
 permissions:
-  contents: write
-  pull-requests: write
-  id-token: write
+  contents: read
+  pull-requests: read
+
+# Obsolete push and PR CI runs are safe to cancel. Manual runs get a unique
+# group so an operator's run is never cancelled by a later commit.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}-${{ github.event_name == 'workflow_dispatch' && github.run_id || 'ci' }}
+  cancel-in-progress: true
 
 jobs:
   changes:
@@ -31,6 +36,11 @@ jobs:
       affected: ${{ steps.detect.outputs.affected }}
       needs_build: ${{ steps.detect.outputs.needs_build }}
       desktop_changed: ${{ steps.detect.outputs.desktop_changed }}
+      needs_windows_smoke: ${{ steps.detect.outputs.needs_windows_smoke }}
+      needs_macos_smoke: ${{ steps.detect.outputs.needs_macos_smoke }}
+      needs_desktop_build: ${{ steps.detect.outputs.needs_desktop_build }}
+      desktop_version_changed: ${{ steps.detect.outputs.desktop_version_changed }}
+      desktop_version: ${{ steps.detect.outputs.desktop_version }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -53,27 +63,66 @@ jobs:
 
       - name: Detect Changes
         id: detect
+        shell: bash
         run: |
           if [ "${{ github.event_name }}" == "pull_request" ]; then
             BASE_REF="origin/${{ github.base_ref }}"
           else
-            # On feature push, only compare against the previous commit (delta)
+            # On feature push, compare against the previous commit (delta).
             BASE_REF="${{ github.event.before }}"
           fi
 
-          # Fallback if BASE_REF is null or empty (initial push)
           if [ -z "$BASE_REF" ] || [ "$BASE_REF" == "0000000000000000000000000000000000000000" ]; then
             BASE_REF=$(git describe --tags --abbrev=0 2>/dev/null || echo "HEAD~10")
           fi
 
           echo "Comparing against: $BASE_REF"
           git diff --name-only "$BASE_REF" HEAD > changed-files.txt
-
-          # Use turbo to list affected packages
           pnpm exec turbo ls -F "...[$BASE_REF]" --output=json > affected.json
+          npx tsx scripts/detect-changes.ts affected.json changed-files.txt "$BASE_REF"
 
-          # Run our detection script
-          npx tsx scripts/detect-changes.ts affected.json changed-files.txt
+      - name: Write change metadata
+        env:
+          AFFECTED: ${{ steps.detect.outputs.affected }}
+          NEEDS_BUILD: ${{ steps.detect.outputs.needs_build }}
+          DESKTOP_CHANGED: ${{ steps.detect.outputs.desktop_changed }}
+          NEEDS_WINDOWS_SMOKE: ${{ steps.detect.outputs.needs_windows_smoke }}
+          NEEDS_MACOS_SMOKE: ${{ steps.detect.outputs.needs_macos_smoke }}
+          NEEDS_DESKTOP_BUILD: ${{ steps.detect.outputs.needs_desktop_build }}
+          DESKTOP_VERSION_CHANGED: ${{ steps.detect.outputs.desktop_version_changed }}
+          DESKTOP_VERSION: ${{ steps.detect.outputs.desktop_version }}
+          FORCE_PUBLISH: ${{ inputs.forcePublish }}
+          PRERELEASE: ${{ inputs.prerelease }}
+          GIT_REF: ${{ github.ref }}
+          GIT_EVENT_NAME: ${{ github.event_name }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { writeFileSync } from 'node:fs';
+
+          const boolean = (value) => value === 'true';
+          writeFileSync('metadata.json', `${JSON.stringify({
+            sha: process.env.GITHUB_SHA,
+            ref: process.env.GIT_REF,
+            event_name: process.env.GIT_EVENT_NAME,
+            affected: JSON.parse(process.env.AFFECTED),
+            needs_build: boolean(process.env.NEEDS_BUILD),
+            desktop_changed: boolean(process.env.DESKTOP_CHANGED),
+            needs_windows_smoke: boolean(process.env.NEEDS_WINDOWS_SMOKE),
+            needs_macos_smoke: boolean(process.env.NEEDS_MACOS_SMOKE),
+            needs_desktop_build: boolean(process.env.NEEDS_DESKTOP_BUILD),
+            desktop_version_changed: boolean(process.env.DESKTOP_VERSION_CHANGED),
+            desktop_version: process.env.DESKTOP_VERSION,
+            force_publish: boolean(process.env.FORCE_PUBLISH),
+            prerelease: boolean(process.env.PRERELEASE),
+          }, null, 2)}\n`);
+          NODE
+
+      - name: Upload change metadata
+        uses: actions/upload-artifact@v4
+        with:
+          name: change-metadata
+          path: metadata.json
+          if-no-files-found: error
 
   verify-lint:
     name: Verify Lint
@@ -89,17 +138,17 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 24.15.0
-          cache: "pnpm"
+          cache: pnpm
       - name: Install dependencies
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
       - name: Cache Turbo
         uses: actions/cache@v4
         with:
           path: .turbo
-          key: ${{ runner.os }}-turbo-${{ github.job }}-${{ github.sha }}
+          key: ${{ runner.os }}-${{ runner.arch }}-turbo-${{ github.job }}-${{ github.sha }}
           restore-keys: |
-            ${{ runner.os }}-turbo-${{ github.job }}-
-      - name: Lint
+            ${{ runner.os }}-${{ runner.arch }}-turbo-${{ github.job }}-
+      - name: Lint affected packages
         env:
           AFFECTED_PACKAGES: ${{ needs.changes.outputs.affected }}
         shell: bash
@@ -108,8 +157,7 @@ jobs:
           while IFS= read -r package; do
             filter_args+=(--filter "$package")
           done < <(node -e 'JSON.parse(process.env.AFFECTED_PACKAGES).forEach((name) => console.log(name))')
-          pnpm turbo lint "${filter_args[@]}" --cache-dir=".turbo"
-        continue-on-error: true
+          pnpm turbo lint "${filter_args[@]}" --cache-dir=.turbo
 
   verify-typecheck:
     name: Verify Typecheck
@@ -125,17 +173,17 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 24.15.0
-          cache: "pnpm"
+          cache: pnpm
       - name: Install dependencies
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
       - name: Cache Turbo
         uses: actions/cache@v4
         with:
           path: .turbo
-          key: ${{ runner.os }}-turbo-${{ github.job }}-${{ github.sha }}
+          key: ${{ runner.os }}-${{ runner.arch }}-turbo-${{ github.job }}-${{ github.sha }}
           restore-keys: |
-            ${{ runner.os }}-turbo-${{ github.job }}-
-      - name: Typecheck
+            ${{ runner.os }}-${{ runner.arch }}-turbo-${{ github.job }}-
+      - name: Typecheck affected packages
         env:
           AFFECTED_PACKAGES: ${{ needs.changes.outputs.affected }}
         shell: bash
@@ -144,15 +192,51 @@ jobs:
           while IFS= read -r package; do
             filter_args+=(--filter "$package")
           done < <(node -e 'JSON.parse(process.env.AFFECTED_PACKAGES).forEach((name) => console.log(name))')
-          pnpm turbo typecheck "${filter_args[@]}" --concurrency=2 --cache-dir=".turbo"
-        continue-on-error: true
+          pnpm turbo typecheck "${filter_args[@]}" --concurrency=2 --cache-dir=.turbo
+
+  test-linux:
+    name: Test Linux
+    needs: changes
+    if: needs.changes.outputs.affected != '[]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+      - name: Use Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.15.0
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Cache Turbo
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-${{ runner.arch }}-turbo-${{ github.job }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-turbo-${{ github.job }}-
+      - name: Test affected packages
+        env:
+          AFFECTED_PACKAGES: ${{ needs.changes.outputs.affected }}
+        shell: bash
+        run: |
+          filter_args=()
+          while IFS= read -r package; do
+            filter_args+=(--filter "$package")
+          done < <(node -e 'JSON.parse(process.env.AFFECTED_PACKAGES).forEach((name) => console.log(name))')
+          pnpm turbo test "${filter_args[@]}" --cache-dir=.turbo --log-order=grouped --concurrency=2
 
   build-all:
     name: Build All
-    needs: [verify-lint, verify-typecheck, test-matrix, changes]
-    if: |
-      needs.changes.outputs.affected != '[]' &&
-      (needs.changes.outputs.needs_build == 'true' || needs.changes.outputs.desktop_changed == 'true')
+    needs: changes
+    if: >-
+      needs.changes.outputs.needs_build == 'true' ||
+      needs.changes.outputs.needs_desktop_build == 'true' ||
+      inputs.forcePublish
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -163,23 +247,23 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 24.15.0
-          cache: "pnpm"
+          cache: pnpm
       - name: Install dependencies
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
       - name: Cache Turbo
         uses: actions/cache@v4
         with:
           path: .turbo
-          key: ${{ runner.os }}-turbo-${{ github.job }}-${{ github.sha }}
+          key: ${{ runner.os }}-${{ runner.arch }}-turbo-${{ github.job }}-${{ github.sha }}
           restore-keys: |
-            ${{ runner.os }}-turbo-${{ github.job }}-
+            ${{ runner.os }}-${{ runner.arch }}-turbo-${{ github.job }}-
       - name: Build packages
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
           SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
           POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
-        run: pnpm build --concurrency=2 --cache-dir=".turbo"
+        run: pnpm build --concurrency=2 --cache-dir=.turbo
       - name: Upload monorepo-dist
         uses: actions/upload-artifact@v4
         with:
@@ -190,281 +274,107 @@ jobs:
             apps/*/dist/**
             apps/desktop/.vite/**
             apps/ui/dist/**
+          if-no-files-found: error
 
-  deploy-website:
-    name: Deploy Website
-    needs: [build-all, changes]
-    if: |
-      needs.build-all.result == 'success' &&
-      contains(fromJson(needs.changes.outputs.affected), '@pipelab/website') &&
-      github.event_name == 'push' &&
-      (github.ref_name == 'main' || github.ref_name == 'develop')
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      deployments: write
+  windows-smoke:
+    name: Windows Smoke
+    needs: [changes]
+    if: needs.changes.outputs.needs_windows_smoke == 'true'
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: pnpm/action-setup@v4
         with:
           run_install: false
-
       - name: Use Node.js 24
         uses: actions/setup-node@v4
         with:
           node-version: 24.15.0
-
-      - name: Download monorepo-dist
-        uses: actions/download-artifact@v4
-        with:
-          name: monorepo-dist
-          path: .
-
-      - name: Validate Cloudflare deployment configuration
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          CLOUDFLARE_PAGES_PROJECT_NAME: ${{ secrets.CLOUDFLARE_PAGES_PROJECT_NAME }}
-        run: |
-          : "${CLOUDFLARE_API_TOKEN:?CLOUDFLARE_API_TOKEN repository secret is required}"
-          : "${CLOUDFLARE_ACCOUNT_ID:?CLOUDFLARE_ACCOUNT_ID repository secret is required}"
-          : "${CLOUDFLARE_PAGES_PROJECT_NAME:?CLOUDFLARE_PAGES_PROJECT_NAME repository variable is required}"
-
-      - name: Deploy website to Cloudflare Pages
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
-          command: pages deploy apps/website/dist --project-name=${{ secrets.CLOUDFLARE_PAGES_PROJECT_NAME }} --branch=${{ github.ref_name }}
-
-  deploy-editor-ui:
-    name: Deploy Editor UI
-    needs: [build-all, changes]
-    if: |
-      needs.build-all.result == 'success' &&
-      contains(fromJson(needs.changes.outputs.affected), '@pipelab/ui') &&
-      github.event_name == 'push' &&
-      (github.ref_name == 'main' || github.ref_name == 'develop')
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      deployments: write
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Download monorepo-dist
-        uses: actions/download-artifact@v4
-        with:
-          name: monorepo-dist
-          path: .
-
-      - name: Validate Cloudflare deployment configuration
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          CLOUDFLARE_EDITOR_UI_PROJECT_NAME: ${{ secrets.CLOUDFLARE_EDITOR_UI_PROJECT_NAME }}
-        run: |
-          : "${CLOUDFLARE_API_TOKEN:?CLOUDFLARE_API_TOKEN repository secret is required}"
-          : "${CLOUDFLARE_ACCOUNT_ID:?CLOUDFLARE_ACCOUNT_ID repository secret is required}"
-          : "${CLOUDFLARE_EDITOR_UI_PROJECT_NAME:?CLOUDFLARE_EDITOR_UI_PROJECT_NAME repository variable is required}"
-
-      - name: Deploy editor UI to Cloudflare Pages
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
-          command: pages deploy apps/ui/dist --project-name=${{ secrets.CLOUDFLARE_EDITOR_UI_PROJECT_NAME }} --branch=${{ github.ref_name }}
-
-  # [DISABLED] publish-preview is disabled in bundled mode — npm publishing is off.
-  # Original job body preserved below as comments. Re-enable: delete the echo step
-  # and uncomment the original steps. Job shell kept so `needs:` references don't break.
-  publish-preview:
-    name: Publish Preview
-    needs: build-all
-    # if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    # permissions:
-    #   pull-requests: write
-    #   contents: read
-    steps:
-      - name: Plugin publishing disabled in bundled mode
-        run: echo "publish-preview is disabled — plugins and packages are bundled with the CLI, not published to npm"
-      # - uses: actions/checkout@v4
-      # - uses: pnpm/action-setup@v4
-      #   with:
-      #     run_install: false
-      # - name: Use Node.js 24
-      #   uses: actions/setup-node@v4
-      #   with:
-      #     node-version: 24.15.0
-      #     cache: "pnpm"
-      # - name: Install dependencies
-      #   run: pnpm install
-      # - name: Download monorepo-dist
-      #   uses: actions/download-artifact@v4
-      #   with:
-      #     name: monorepo-dist
-      #     path: .
-      # - name: Publish to pkg.pr.new
-      #   run: |
-      #     npx pkg-pr-new publish \
-      #       packages/shared \
-      #       packages/core-node \
-      #       plugins/plugin-* \
-      #       assets/asset-* \
-      #       packages/migration \
-      #       packages/constants \
-      #       apps/cli \
-      #       --comment=update
-
-  release:
-    name: Release & Deploy
-    needs: [build-all, verify-lint, verify-typecheck, test-matrix, changes, build-desktop]
-    if: |
-      always() &&
-      (needs.build-desktop.result == 'success' || needs.build-desktop.result == 'skipped') &&
-      (needs.build-all.result == 'success' || needs.build-all.result == 'skipped') &&
-      needs.verify-lint.result == 'success' &&
-      needs.verify-typecheck.result == 'success' &&
-      needs.test-matrix.result == 'success' &&
-      (((needs.changes.outputs.desktop_changed == 'true') &&
-        contains(fromJson(needs.changes.outputs.affected), '@pipelab/app')) ||
-        github.event.inputs.forcePublish == 'true') &&
-      (github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'develop')))
-    runs-on: ubuntu-latest
-    outputs:
-      # [DISABLED] Original output wired to the changesets step below.
-      # Re-enable: uncomment and remove the hardcoded "true".
-      # published: ${{ steps.changesets.outputs.published }}
-      published: "true" # NPM publishing disabled — desktop binaries always released via GitHub releases in bundled mode.
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - uses: pnpm/action-setup@v4
-        with:
-          run_install: false
-
-      - name: Use Node.js 24
-        uses: actions/setup-node@v4
-        with:
-          node-version: 24.15.0
-          cache: "pnpm"
-
+          cache: pnpm
       - name: Install dependencies
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
+      - name: Test Windows filesystem behavior
+        if: contains(fromJSON(needs.changes.outputs.affected), '@pipelab/core-node')
+        run: pnpm --filter @pipelab/core-node exec vitest run src/fs-utils.test.ts
+      - name: Test Windows desktop host behavior
+        if: contains(fromJSON(needs.changes.outputs.affected), '@pipelab/app')
+        run: pnpm --filter @pipelab/app test
+      - name: Test Windows Electron integration behavior
+        if: contains(fromJSON(needs.changes.outputs.affected), '@pipelab/plugin-electron')
+        run: pnpm --filter @pipelab/plugin-electron test
+      - name: Test Windows Steam integration behavior
+        if: contains(fromJSON(needs.changes.outputs.affected), '@pipelab/plugin-steam')
+        run: pnpm --filter @pipelab/plugin-steam test
 
-      - name: Download monorepo-dist
-        if: needs.changes.outputs.needs_build == 'true'
-        uses: actions/download-artifact@v4
+  macos-smoke:
+    name: macOS ARM Smoke
+    needs: [changes]
+    if: needs.changes.outputs.needs_macos_smoke == 'true'
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
         with:
-          name: monorepo-dist
-          path: .
-
-      # [DISABLED] NPM publishing step — plugins and packages are bundled with the CLI.
-      # Re-enable: uncomment the changesets step below and restore the original
-      # `if:` conditions referencing steps.changesets.outputs.published.
-      # - name: Publish to NPM & Create GitHub Release
-      #   id: changesets
-      #   uses: changesets/action@v1
-      #   with:
-      #     publish: pnpm changeset publish --provenance
-      #     createGithubReleases: true
-      #   env:
-      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      #     NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-      #     NPM_CONFIG_PROVENANCE: true
-      - name: Download all artifacts
-        # Original: if: steps.changesets.outputs.published == 'true' || github.event.inputs.forcePublish == 'true'
-        if: github.event_name == 'workflow_dispatch' || github.event_name == 'push'
-        uses: actions/download-artifact@v4
+          run_install: false
+      - name: Use Node.js 24
+        uses: actions/setup-node@v4
         with:
-          path: artifacts
-        continue-on-error: true
+          node-version: 24.15.0
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build Electron and CLI dependency closures
+        run: >-
+          pnpm exec turbo build
+          --filter=@pipelab/app...
+          --filter=@pipelab/cli...
+          --concurrency=2
+          --force
+      - name: Package Electron app on macOS ARM
+        run: pnpm --filter @pipelab/app package
 
-      - name: Debug Artifacts
-        run: ls -R artifacts
-        continue-on-error: true
-
-      - name: Get Versions
-        id: versions
-        run: |
-          APP_VERSION=$(node -p "require('./apps/desktop/package.json').version")
-          CLI_VERSION=$(node -p "require('./apps/cli/package.json').version")
-          ASSET_ELECTRON_VERSION=$(node -p "require('./assets/asset-electron/package.json').version")
-          ASSET_DISCORD_VERSION=$(node -p "require('./assets/asset-discord/package.json').version")
-          ASSET_NETLIFY_VERSION=$(node -p "require('./assets/asset-netlify/package.json').version")
-          ASSET_TAURI_VERSION=$(node -p "require('./assets/asset-tauri/package.json').version")
-          UI_VERSION=$(node -p "require('./apps/ui/package.json').version")
-          echo "app_version=$APP_VERSION" >> $GITHUB_OUTPUT
-          echo "cli_version=$CLI_VERSION" >> $GITHUB_OUTPUT
-          echo "asset_electron_version=$ASSET_ELECTRON_VERSION" >> $GITHUB_OUTPUT
-          echo "asset_discord_version=$ASSET_DISCORD_VERSION" >> $GITHUB_OUTPUT
-          echo "asset_netlify_version=$ASSET_NETLIFY_VERSION" >> $GITHUB_OUTPUT
-          echo "asset_tauri_version=$ASSET_TAURI_VERSION" >> $GITHUB_OUTPUT
-          echo "ui_version=$UI_VERSION" >> $GITHUB_OUTPUT
-
-          IS_PRERELEASE="false"
-          if [[ $APP_VERSION == *"-"* ]] || [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ github.event.inputs.prerelease }}" == "true" ]]; then
-            IS_PRERELEASE="true"
-          fi
-
-          echo "prerelease=$IS_PRERELEASE" >> $GITHUB_OUTPUT
-
-      - name: Upload Desktop Binaries
-        # Original: if: steps.changesets.outputs.published == 'true' || github.event.inputs.forcePublish == 'true'
-        if: github.event_name == 'workflow_dispatch' || github.event_name == 'push'
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: "@pipelab/app@${{ steps.versions.outputs.app_version }}"
-          prerelease: ${{ steps.versions.outputs.prerelease == 'true' }}
-          files: |
-            artifacts/**/*.dmg
-            artifacts/**/*.exe
-            artifacts/**/*.zip
-            artifacts/**/RELEASES
-            artifacts/**/*.nupkg
+  ci-gate:
+    name: CI Gate
+    if: always()
+    needs: [changes, verify-lint, verify-typecheck, test-linux, windows-smoke, macos-smoke]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require all applicable verification jobs
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      # [DISABLED] NPM publishing is disabled in bundled mode. Apps are released via GitHub releases.
-      # Re-enable: uncomment both steps below (original `if:` + `env:` preserved).
-      # - name: Publish @pipelab/ui dynamically
-      #   if: steps.changesets.outputs.published == 'true' || github.event_name == 'workflow_dispatch'
-      #   run: node scripts/publish-app.mjs ui
-      #   env:
-      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      #     NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-      #     POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
-
-      # - name: Publish @pipelab/cli dynamically
-      #   if: steps.changesets.outputs.published == 'true' || github.event_name == 'workflow_dispatch'
-      #   run: node scripts/publish-app.mjs cli
-      #   env:
-      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      #     NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-      #     POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
+          CHANGES: ${{ needs.changes.result }}
+          LINT: ${{ needs.verify-lint.result }}
+          TYPECHECK: ${{ needs.verify-typecheck.result }}
+          TEST_LINUX: ${{ needs.test-linux.result }}
+          WINDOWS_SMOKE: ${{ needs.windows-smoke.result }}
+          MACOS_SMOKE: ${{ needs.macos-smoke.result }}
+          NEEDS_WINDOWS_SMOKE: ${{ needs.changes.outputs.needs_windows_smoke }}
+          NEEDS_MACOS_SMOKE: ${{ needs.changes.outputs.needs_macos_smoke }}
+        run: |
+          set -euo pipefail
+          [[ "$CHANGES" == success ]]
+          for result in "$LINT" "$TYPECHECK" "$TEST_LINUX"; do
+            [[ "$result" == success || "$result" == skipped ]]
+          done
+          if [[ "$NEEDS_WINDOWS_SMOKE" == true ]]; then
+            [[ "$WINDOWS_SMOKE" == success ]]
+          else
+            [[ "$WINDOWS_SMOKE" == success || "$WINDOWS_SMOKE" == skipped ]]
+          fi
+          if [[ "$NEEDS_MACOS_SMOKE" == true ]]; then
+            [[ "$MACOS_SMOKE" == success ]]
+          else
+            [[ "$MACOS_SMOKE" == success || "$MACOS_SMOKE" == skipped ]]
+          fi
 
   build-desktop:
     name: Build Desktop (${{ matrix.os }} - ${{ matrix.arch }})
-    needs: [build-all, test-matrix, changes]
-    if: |
-      always() &&
-      (needs.build-all.result == 'success') &&
-      (needs.test-matrix.result == 'success' || needs.test-matrix.result == 'skipped') &&
-      (((needs.changes.outputs.desktop_changed == 'true') &&
-        contains(fromJson(needs.changes.outputs.affected), '@pipelab/app')) ||
-        (github.event_name == 'pull_request' &&
-          needs.changes.outputs.needs_build == 'true' &&
-          contains(fromJson(needs.changes.outputs.affected), '@pipelab/app')) ||
-        github.event.inputs.forcePublish == 'true')
+    needs: [build-all, changes]
+    if: >-
+      always() && needs.build-all.result == 'success' &&
+      (needs.changes.outputs.needs_desktop_build == 'true' || inputs.forcePublish)
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         include:
           - os: ubuntu-latest
@@ -483,34 +393,20 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24.15.0
-          cache: "pnpm"
-      - run: pnpm install
-
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
       - name: Download monorepo-dist
-        if: needs.changes.outputs.needs_build == 'true'
         uses: actions/download-artifact@v4
         with:
           name: monorepo-dist
           path: .
-
       - name: Import Apple Code Signing Certificate
         uses: apple-actions/import-codesign-certs@v3
         if: startsWith(matrix.os, 'macos-') && github.event_name != 'pull_request'
         with:
           p12-file-base64: ${{ secrets.CERTIFICATE_OSX_APPLICATION }}
           p12-password: ${{ secrets.CERTIFICATE_OSX_APPLICATION_PASSWORD }}
-
-      - name: Debug Architectures
-        run: |
-          echo "Host Architecture (uname -m): $(uname -m)"
-          echo "Host Architecture (node process.arch): $(node -p 'process.arch')"
-          echo "Target Architecture (matrix.arch): ${{ matrix.arch }}"
-          echo "Target Architecture (env.TARGET_ARCH): $TARGET_ARCH"
-          echo "Target Architecture (env.npm_config_arch): $npm_config_arch"
-        env:
-          TARGET_ARCH: ${{ matrix.arch }}
-          npm_config_arch: ${{ matrix.arch }}
-
       - name: Package & Make Desktop
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -523,56 +419,30 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           TARGET_ARCH: ${{ matrix.arch }}
           npm_config_arch: ${{ matrix.arch }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+        run: pnpm --filter @pipelab/app make -- --arch=${{ matrix.arch }}
+      - name: Verify macOS executable architecture
+        if: startsWith(matrix.os, 'macos-')
+        env:
+          EXPECTED_ARCH: ${{ matrix.arch == 'x64' && 'x86_64' || 'arm64' }}
+        shell: bash
         run: |
-          cd apps/desktop
-          pnpm run make -- --arch=${{ matrix.arch }}
-
-      - name: Debug Output
-        run: ls -R apps/desktop/out/make
-        continue-on-error: true
-
+          app=$(find apps/desktop/out -type d -name '*.app' -print -quit)
+          test -n "$app"
+          executable=$(find "$app/Contents/MacOS" -maxdepth 1 -type f -print -quit)
+          test -n "$executable"
+          architectures=$(lipo -archs "$executable")
+          echo "Built architectures: $architectures"
+          [[ " $architectures " == *" $EXPECTED_ARCH "* ]]
+      - name: Verify macOS code signature
+        if: startsWith(matrix.os, 'macos-') && github.event_name != 'pull_request'
+        shell: bash
+        run: |
+          app=$(find apps/desktop/out -type d -name '*.app' -print -quit)
+          test -n "$app"
+          codesign --verify --deep --strict --verbose=2 "$app"
       - uses: actions/upload-artifact@v4
         with:
           name: desktop-artifacts-${{ matrix.os }}-${{ matrix.arch }}
           path: apps/desktop/out/make/**/*
-
-  test-matrix:
-    name: Test Matrix (${{ matrix.os }})
-    needs: [changes]
-    if: |
-      always() &&
-      needs.changes.outputs.affected != '[]'
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-26-intel, macos-26]
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          run_install: false
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24.15.0
-          cache: "pnpm"
-      - run: pnpm install
-
-      - name: Cache Turbo
-        uses: actions/cache@v4
-        with:
-          path: .turbo
-          key: ${{ runner.os }}-turbo-${{ github.job }}-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-turbo-${{ github.job }}-
-      - name: Run Tests
-        env:
-          AFFECTED_PACKAGES: ${{ needs.changes.outputs.affected }}
-        shell: bash
-        run: |
-          filter_args=()
-          while IFS= read -r package; do
-            filter_args+=(--filter "$package")
-          done < <(node -e 'JSON.parse(process.env.AFFECTED_PACKAGES).forEach((name) => console.log(name))')
-          pnpm turbo test "${filter_args[@]}" --cache-dir=".turbo" --log-order=grouped --concurrency 1
+          if-no-files-found: error
