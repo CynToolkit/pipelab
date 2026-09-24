@@ -144,3 +144,5 @@ app.mount("#app");
 logger().info("App mounted");
 
 // Connection logic is now handled by App.vue and agentsStore
+
+// CI path validation: UI-only change.
