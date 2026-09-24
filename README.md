@@ -123,3 +123,5 @@ pnpm changeset          # Document a change
 pnpm changeset version  # Bump versions
 pnpm changeset tag      # Create git tags
 ```
+
+<!-- Temporary CI validation: docs-only PR path. -->
