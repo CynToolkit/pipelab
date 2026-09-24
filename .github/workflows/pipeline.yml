@@ -14,10 +14,14 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  ci:
-    name: CI
+  verify:
+    name: CI / ${{ matrix.task }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        task: [lint, typecheck, test, build]
     steps:
       - uses: actions/checkout@v4
 
@@ -34,26 +38,24 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .turbo
-          key: ${{ runner.os }}-${{ runner.arch }}-turbo-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}
+          key: ${{ runner.os }}-${{ runner.arch }}-turbo-${{ hashFiles('pnpm-lock.yaml') }}-${{ matrix.task }}-${{ github.sha }}
           restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-turbo-${{ hashFiles('pnpm-lock.yaml') }}-${{ matrix.task }}-
             ${{ runner.os }}-${{ runner.arch }}-turbo-${{ hashFiles('pnpm-lock.yaml') }}-
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Lint
-        run: pnpm lint --concurrency=2
-
       - name: Build TypeScript project references
+        if: matrix.task == 'typecheck'
         run: pnpm exec tsc -b --force --pretty false packages/constants packages/migration packages/shared
 
-      - name: Typecheck
-        run: pnpm typecheck --concurrency=2
-
-      - name: Test
-        run: pnpm test --concurrency=2
+      - name: Run verification
+        if: matrix.task != 'build'
+        run: pnpm ${{ matrix.task }} --concurrency=2
 
       - name: Build
+        if: matrix.task == 'build'
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
@@ -62,4 +64,5 @@ jobs:
         run: pnpm build --concurrency=2
 
       - name: Package Linux desktop smoke
+        if: matrix.task == 'build'
         run: pnpm --filter @pipelab/app package
