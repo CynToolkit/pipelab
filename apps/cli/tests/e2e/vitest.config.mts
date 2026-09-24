@@ -6,6 +6,7 @@ export default defineConfig({
     testTimeout: 1800000,
     hookTimeout: 60000,
     maxWorkers: 2,
+    minWorkers: 1,
     include: ["**/*.spec.ts"],
     root: "tests/e2e",
     environment: "node",
