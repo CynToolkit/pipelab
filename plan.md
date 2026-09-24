@@ -249,7 +249,7 @@ Local verification completed:
 * [x] Repository build.
 * [x] `git diff --check`.
 
-* [ ] Confirm exact-head CI is green on the final PR head. Draft PR #97 is open to `develop`; checks are pending.
+* [x] Confirm exact-head CI is green on the final PR head. Draft PR #97 is open to `develop`.
 
 ## Scope
 
