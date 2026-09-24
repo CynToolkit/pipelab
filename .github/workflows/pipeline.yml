@@ -44,6 +44,9 @@ jobs:
       - name: Lint
         run: pnpm lint --concurrency=2
 
+      - name: Build TypeScript project references
+        run: pnpm exec tsc -b --force --pretty false packages/constants packages/migration packages/shared
+
       - name: Typecheck
         run: pnpm typecheck --concurrency=2
 
