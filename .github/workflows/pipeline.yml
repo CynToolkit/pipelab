@@ -183,6 +183,16 @@ jobs:
           key: ${{ runner.os }}-${{ runner.arch }}-turbo-${{ github.job }}-${{ github.sha }}
           restore-keys: |
             ${{ runner.os }}-${{ runner.arch }}-turbo-${{ github.job }}-
+      - name: Emit declarations for affected package dependencies
+        env:
+          AFFECTED_PACKAGES: ${{ needs.changes.outputs.affected }}
+        shell: bash
+        run: |
+          filter_args=()
+          while IFS= read -r package; do
+            filter_args+=(--filter "${package}^...")
+          done < <(node -e 'JSON.parse(process.env.AFFECTED_PACKAGES).forEach((name) => console.log(name))')
+          pnpm turbo typecheck "${filter_args[@]}" --concurrency=1 --cache-dir=.turbo
       - name: Typecheck affected packages
         env:
           AFFECTED_PACKAGES: ${{ needs.changes.outputs.affected }}
