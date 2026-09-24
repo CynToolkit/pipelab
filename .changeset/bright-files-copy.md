@@ -5,4 +5,4 @@
 "@pipelab/workflow-runtime": patch
 ---
 
-Move Release filesystem providers into core while preserving their persisted IDs and legacy filesystem nodes. Export reusable safe copy and remove helpers from workflow-runtime.
+Move Release Folder and ZIP providers into core so Release no longer depends on the Filesystem plugin. Generic filesystem and archive operations run as core workflow tasks. Keep `plugin-filesystem` for legacy Pipeline compatibility, and export reusable safe copy and remove helpers from `workflow-runtime`.

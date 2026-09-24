@@ -81,6 +81,8 @@ export const copy = createAction({
 
 export const copyRunner = createActionRunner<typeof copy>(async ({ log, inputs, setOutput }) => {
   log("");
+  if (!inputs.from) throw new Error("Missing source");
+  if (!inputs.to) throw new Error("Missing destination");
   const { output, input, parentDirectory } = await copyPath({
     from: inputs.from,
     to: inputs.to,

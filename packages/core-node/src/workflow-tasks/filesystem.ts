@@ -46,7 +46,7 @@ export const createCoreFilesystemWorkflowTasks = (): WorkflowTaskRegistry => ({
       typeof context.inputs.to === "string" && context.inputs.to.trim()
         ? context.inputs.to
         : context.workspace.root;
-    await extractZip(file, output);
+    await extractZip(file, output, context.signal);
     if (context.step.artifacts?.output) context.setArtifact("output", output);
     return { output, path: output };
   },

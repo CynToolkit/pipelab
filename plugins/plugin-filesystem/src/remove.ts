@@ -37,6 +37,7 @@ export const remove = createAction({
 
 export const removeRunner = createActionRunner<typeof remove>(async ({ log, inputs }) => {
   log("");
+  if (!inputs.from) throw new Error("Missing source");
   try {
     await removePath(inputs.from, { recursive: inputs.recursive, log });
   } catch (error) {

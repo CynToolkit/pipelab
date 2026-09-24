@@ -35,41 +35,40 @@ const planAndCompile = (
 };
 
 describe("core Release filesystem providers", () => {
-  it("keeps the persisted Folder and ZIP provider IDs in the core registry", () => {
+  it("registers core Folder and ZIP provider IDs without the Filesystem plugin", () => {
     const registry = buildCoreReleaseRegistry([]);
     expect(registry.sources.map((source) => source.id)).toEqual([
-      "@pipelab/plugin-filesystem/folder-source",
-      "@pipelab/plugin-filesystem/web-folder-source",
-      "@pipelab/plugin-filesystem/zip-source",
-      "@pipelab/plugin-filesystem/web-zip-source",
+      "@pipelab/core/source/folder",
+      "@pipelab/core/source/web-folder",
+      "@pipelab/core/source/zip",
+      "@pipelab/core/source/web-zip",
     ]);
     expect(registry.destinations.map((destination) => destination.id)).toEqual([
-      "@pipelab/plugin-filesystem/folder-destination",
-      "@pipelab/plugin-filesystem/zip-destination",
+      "@pipelab/core/destination/folder",
+      "@pipelab/core/destination/zip",
     ]);
     expect(registry.producers.map((producer) => producer.id)).toEqual([
       "@pipelab/core/passthrough",
       "@pipelab/core/unzip",
     ]);
+    expect(CORE_WORKFLOW_TASKS).toEqual({
+      copy: "@pipelab/core/fs/copy",
+      remove: "@pipelab/core/fs/remove",
+      zip: "@pipelab/core/archive/zip",
+      unzip: "@pipelab/core/archive/unzip",
+      passthrough: "@pipelab/core/passthrough",
+    });
     expect(builtInReleaseDefinitions.sources).toHaveLength(4);
   });
 
   it.each([
-    [
-      "Folder",
-      "@pipelab/plugin-filesystem/folder-source",
-      { kind: "files", container: "directory" },
-    ],
+    ["Folder", "@pipelab/core/source/folder", { kind: "files", container: "directory" }],
     [
       "Web folder",
-      "@pipelab/plugin-filesystem/web-folder-source",
+      "@pipelab/core/source/web-folder",
       { kind: "application", platform: "web", container: "directory" },
     ],
-    [
-      "ZIP",
-      "@pipelab/plugin-filesystem/zip-source",
-      { kind: "files", container: "archive", format: "zip" },
-    ],
+    ["ZIP", "@pipelab/core/source/zip", { kind: "files", container: "archive", format: "zip" }],
   ])(
     "plans and compiles the built-in %s source without the Filesystem plugin",
     (_label, provider, descriptor) => {
@@ -83,13 +82,13 @@ describe("core Release filesystem providers", () => {
   it("plans and compiles Folder destinations through the core copy primitive", () => {
     const { workflow } = planAndCompile(
       release(
-        "@pipelab/plugin-filesystem/folder-source",
+        "@pipelab/core/source/folder",
         { path: "/game" },
         [],
         [
           {
             id: "folder",
-            provider: "@pipelab/plugin-filesystem/folder-destination",
+            provider: "@pipelab/core/destination/folder",
             enabled: true,
             config: { outputDir: "/output" },
             slots: [{ id: "source", enabled: true, input: { source: true }, config: {} }],
@@ -106,13 +105,13 @@ describe("core Release filesystem providers", () => {
   it("plans and compiles ZIP destinations through the core ZIP primitive", () => {
     const { workflow } = planAndCompile(
       release(
-        "@pipelab/plugin-filesystem/folder-source",
+        "@pipelab/core/source/folder",
         { path: "/game" },
         [],
         [
           {
             id: "zip",
-            provider: "@pipelab/plugin-filesystem/zip-destination",
+            provider: "@pipelab/core/destination/zip",
             enabled: true,
             config: { outputPath: "/output/game.zip" },
             slots: [{ id: "source", enabled: true, input: { source: true }, config: {} }],
@@ -129,7 +128,7 @@ describe("core Release filesystem providers", () => {
   it("routes Web ZIP through internal unzip before Electron and keeps passthrough resolvable", () => {
     const { registry, plan, workflow } = planAndCompile(
       release(
-        "@pipelab/plugin-filesystem/web-zip-source",
+        "@pipelab/core/source/web-zip",
         { path: "/game.zip" },
         [
           {

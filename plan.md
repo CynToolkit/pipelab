@@ -1,115 +1,132 @@
-# Release Built-ins & Filesystem Cleanup
+# PR #97 — Remove Legacy Identity from New Release Workflows
 
-Goal: remove the Filesystem **plugin abstraction** from the new Release architecture while preserving the reusable filesystem/archive capabilities and all legacy compatibility.
+The new Release Workflow system is unreleased, so do **not** preserve legacy Filesystem plugin identities inside it.
 
-PR #96 is considered complete; do not mix further Build Input UX work into this task.
+Legacy compatibility should exist only for the old Pipeline/SavedFile system.
 
-## 1. Treat filesystem operations as internal workflow primitives
+## Goal
 
-For the new Release engine, operations such as:
-
-* copy
-* remove
-* zip
-* unzip
-* passthrough
-* run command
-
-are execution primitives, not user-facing plugins.
-
-Move/reuse them through the workflow/runtime task layer where appropriate.
-
-There is already precedent:
-
-* `@pipelab/core/passthrough` is registered as a core workflow task.
-* `filesystem:zip` already exists as a core-node workflow task.
-* `workflow-runtime` already owns a standalone `fs:run` task.
-
-Avoid creating a second abstraction.
-
-The end state should conceptually be:
+Reach a clean separation:
 
 ```text
-Release compiler
-      │
-      ├── normal Release operations
-      │
-      └── future hooks
-               │
-               ▼
-      workflow primitives
- copy / remove / zip / unzip /
- passthrough / run command / ...
+New Release Workflow
+├── core Release providers
+├── core workflow primitives
+└── plugin providers such as Construct / Electron / Steam
+
+Legacy Pipeline
+└── plugin-filesystem legacy nodes
 ```
 
-Do **not** implement hooks in this task.
+The new Release system should contain **no `@pipelab/plugin-filesystem/...` provider or task IDs**.
 
-## 2. Keep Folder and ZIP as built-in Release capabilities
+Do not add migrations for unreleased Release workflow data.
 
-These are legitimate user-facing Release choices and should remain available:
+---
 
-Sources:
+## 1. Give built-in Release providers clean core IDs
 
-* Folder
-* Web app folder
-* ZIP
-* Web app ZIP
+Replace the compatibility IDs currently used by the new built-ins.
 
-Destinations:
-
-* Folder
-* ZIP
-
-They should no longer conceptually require a user-facing "Filesystem plugin".
-
-Move their Release definitions into an appropriate built-in Release module owned by the new engine/core layer.
-
-Important: preserve persisted ReleaseConfig compatibility.
-
-Existing workflows currently store provider IDs such as:
+Do not use:
 
 ```text
 @pipelab/plugin-filesystem/folder-source
 @pipelab/plugin-filesystem/web-folder-source
 @pipelab/plugin-filesystem/zip-source
 @pipelab/plugin-filesystem/web-zip-source
+
 @pipelab/plugin-filesystem/folder-destination
 @pipelab/plugin-filesystem/zip-destination
 ```
 
-Do not rename those IDs casually.
+Use core-owned IDs instead.
 
-Prefer keeping the existing IDs as stable compatibility identifiers even if their implementation moves out of `plugin-filesystem`.
-
-If changing persisted IDs becomes desirable later, that requires an explicit ReleaseConfig migration/version decision and is outside this cleanup.
-
-## 3. Internalize automatic planner plumbing
-
-The automatic unzip producer and passthrough producer are invisible planner plumbing.
-
-They should not depend conceptually on the Filesystem plugin.
-
-Move them to built-in/internal Release planning definitions.
-
-Preserve behavior:
+Suggested naming:
 
 ```text
-Web ZIP source
-      ↓
-automatic unzip
-      ↓
-Electron/Tauri
+@pipelab/core/source/folder
+@pipelab/core/source/web-folder
+@pipelab/core/source/zip
+@pipelab/core/source/web-zip
+
+@pipelab/core/destination/folder
+@pipelab/core/destination/zip
 ```
 
-The automatic transform must remain invisible in normal user configuration.
+These are new Release providers, not compatibility aliases.
 
-`passthrough` should clearly live under core/internal ownership.
+Update:
 
-## 4. Keep `plugin-filesystem` as a legacy compatibility shell
+* built-in definitions;
+* defaults;
+* tests;
+* CLI fixtures;
+* UI/catalog expectations;
+* examples and docs;
+* any persisted test fixtures.
 
-Do **not** delete the package yet.
+Do not support both old and new Release IDs.
 
-Legacy Pipeline/SavedFile data may still reference node IDs such as:
+The Release Workflow feature is unreleased, so old Release IDs can simply disappear.
+
+---
+
+## 2. Clean up internal workflow task IDs as well
+
+Avoid carrying historical filesystem-plugin naming into newly compiled workflows.
+
+Current new-engine IDs such as:
+
+```text
+filesystem:copy
+filesystem:remove
+filesystem:zip
+filesystem:unzip
+```
+
+should move to an explicitly core-owned namespace.
+
+Suggested:
+
+```text
+@pipelab/core/fs/copy
+@pipelab/core/fs/remove
+
+@pipelab/core/archive/zip
+@pipelab/core/archive/unzip
+
+@pipelab/core/passthrough
+```
+
+Keep these centralized in `CORE_WORKFLOW_TASKS` or an equivalent authoritative definition.
+
+Do not scatter literal task IDs across producers/plugins.
+
+For example Construct should reference the authoritative core unzip task rather than hardcoding another filesystem identity.
+
+The compiled new workflow should look conceptually like:
+
+```text
+@pipelab/plugin-construct/export-construct-project
+                  ↓
+@pipelab/core/archive/unzip
+                  ↓
+@pipelab/plugin-electron/electron:package:v2
+```
+
+That clearly distinguishes:
+
+* provider-specific plugin behavior;
+* generic core workflow behavior.
+
+---
+
+## 3. Keep `plugin-filesystem` entirely legacy
+
+`@pipelab/plugin-filesystem` remains only because old Pipeline/SavedFile documents may reference its nodes.
+
+Keep exactly the legacy identities required there:
 
 ```text
 fs:copy
@@ -121,59 +138,95 @@ zip-v2-node
 fs:open-in-explorer
 ```
 
-Keep those registrations working exactly as they do today.
+Do not expose Release definitions from this package.
 
-The package can become effectively:
+Do not make new Release compilation depend on any of its runners.
 
-```text
-plugin-filesystem
-└── legacy pipeline compatibility
-```
+Do not reuse its IDs in new workflows.
 
-The new Release system should stop depending on it.
-
-Do not modernize the legacy Pipeline implementation while doing this.
-
-Do not migrate old Pipeline/SavedFile documents.
-
-Once the legacy Pipeline system is eventually removed, `plugin-filesystem` can be deleted entirely.
-
-## 5. Separate operations that were incorrectly grouped under "Filesystem"
-
-Do not preserve historical categorization just because it exists today.
-
-### Run Command
-
-`Run Command` is a generic workflow primitive, not a filesystem feature.
-
-Preserve it.
-
-It will likely be useful for the future hook system:
+Conceptually:
 
 ```text
-after build
-→ run ./sign-build.sh
+plugins/plugin-filesystem
+└── old Pipeline compatibility only
 ```
 
-But do not design or implement hook configuration yet.
+Its README/package description should make that explicit.
 
-### Open in Explorer
+When old Pipeline support is eventually removed, this entire package can be deleted.
 
-`Open in Explorer` is desktop/UI functionality rather than Release workflow plumbing.
+---
 
-Keep it only where legacy/UI behavior currently requires it.
+## 4. New Release must work without `plugin-filesystem`
 
-Do not promote it into the new Release primitive layer without an actual use case.
+Add an explicit architectural test proving this.
 
-### ZIP / unzip
+Given a Release registry containing **no Filesystem plugin**:
 
-Treat archive transformation as internal artifact/workflow functionality rather than a plugin feature.
+```text
+buildCoreReleaseRegistry([])
+```
 
-Reuse existing implementations rather than maintaining parallel Release-specific and plugin-specific implementations when practical.
+it must still provide:
 
-## 6. Prepare clean boundaries for future hooks — without implementing hooks
+```text
+Folder source
+Web Folder source
+ZIP source
+Web ZIP source
 
-Future hooks will allow users to modify behavior around lifecycle points such as:
+Folder destination
+ZIP destination
+
+automatic unzip
+passthrough
+```
+
+And these definitions must all use core IDs.
+
+Also verify a Release can compile and execute with no `plugin-filesystem` Release dependency.
+
+---
+
+## 5. Keep provider plugins provider-specific
+
+Real integrations remain plugins.
+
+Examples:
+
+```text
+Construct source
+→ @pipelab/plugin-construct/source
+
+Godot source/build
+→ @pipelab/plugin-godot/...
+
+Electron build
+→ @pipelab/plugin-electron/...
+
+Steam upload
+→ @pipelab/plugin-steam/...
+```
+
+Generic infrastructure should not become fake plugins merely because the existing plugin system can represent it.
+
+The distinction should be:
+
+```text
+core
+  generic execution/building blocks
+
+plugins
+  integrations with a particular engine/platform/service
+```
+
+---
+
+## 6. Preserve the primitive layer for future hooks
+
+Do not implement hooks yet.
+
+But keep the generic task layer suitable for future lifecycle hooks such as:
 
 ```text
 before source
@@ -186,96 +239,251 @@ before upload
 after upload
 ```
 
-Hooks may eventually use primitives such as:
+Future hooks may need:
 
 ```text
-copy files
-remove files
-zip/unzip
+copy
+remove
+zip
+unzip
 run command
 ```
 
-Therefore the primitive task layer should be reusable independently of Release providers and independently of the legacy plugin system.
+They should call the same core workflow primitives.
+
+Do not route future hooks through `plugin-filesystem`.
+
+Also, `Run Command` should eventually be treated as a generic workflow primitive rather than a filesystem concept.
+
+No hook schema, persistence, UI, or lifecycle execution should be added in PR #97.
+
+---
+
+## 7. Fix core unzip cancellation
+
+While finishing this refactor, fix the cancellation regression found in the audit.
+
+`filesystem:unzip` / its renamed core equivalent currently calls:
+
+```ts
+await extractZip(file, output);
+```
+
+without propagating the workflow `AbortSignal`.
+
+Update the ZIP extraction primitive to:
+
+* accept an optional `AbortSignal`;
+* stop/close ZIP processing on abort;
+* stop the active stream if necessary;
+* reject with an `AbortError`;
+* clean up listeners reliably.
+
+Pass:
+
+```ts
+context.signal
+```
+
+from the core unzip workflow task.
+
+Add focused cancellation coverage.
+
+ZIP and unzip should follow the same cancellation contract.
+
+---
+
+## 8. Do not preserve unreleased Release compatibility
+
+Specifically remove the assumption from the current PR that these IDs need persisted compatibility:
+
+```text
+@pipelab/plugin-filesystem/*-source
+@pipelab/plugin-filesystem/*-destination
+```
+
+They do not.
+
+We only need compatibility for **released legacy Pipeline/SavedFile data**.
 
 Do not add:
 
-* hook schemas;
-* hook persistence;
-* hook UI;
-* lifecycle execution points;
-* user-facing hook configuration.
+* ReleaseConfig aliases;
+* ReleaseConfig migrations;
+* fallback lookup of old Release provider IDs;
+* dual registration of legacy/new Release providers.
 
-Only avoid architectural choices that would force these primitives back through `plugin-filesystem` later.
+We want one clean model before Release Workflow ships.
 
-## 7. Remove the new Release dependency on the Filesystem plugin
+---
 
-After moving the relevant definitions/tasks:
+## 9. Tests
 
-* the Release catalog/planner/compiler must work without obtaining filesystem Release definitions from `plugin-filesystem`;
-* automatic unzip must still resolve correctly;
-* Folder/ZIP sources and destinations must still work;
-* compiled workflows must resolve all required tasks;
-* legacy filesystem nodes must continue to register.
+### Core Release registry
 
-Do not remove `filesystemPlugin` from the bundled plugin registry if doing so would break legacy pipelines.
+* [x] built-in source IDs all use `@pipelab/core/...`;
+* [x] built-in destination IDs all use `@pipelab/core/...`;
+* [x] automatic producer IDs are core-owned;
+* [x] no Release definition contains `@pipelab/plugin-filesystem`;
+* [x] registry works with no Filesystem plugin registered.
 
-The goal is to remove the **new Release dependency**, not legacy registration.
+### Compilation
 
-## 8. Tests
+* [x] Folder source compiles to core copy task;
+* [x] Web Folder source compiles to core copy task;
+* [x] ZIP source compiles to core copy task;
+* [x] Folder destination compiles to core copy task;
+* [x] ZIP destination compiles to core ZIP task;
+* [x] Web ZIP → automatic unzip → Electron uses core unzip;
+* [x] Construct extraction uses core unzip;
+* [x] passthrough uses core passthrough.
 
-Focused coverage added and passing:
+### Execution
 
-* [x] Folder, Web folder, and ZIP sources plan and compile without Filesystem plugin Release registration.
-* [x] Folder and ZIP destinations plan and execute through core workflow tasks.
-* [x] Web ZIP → automatic unzip → Electron executes successfully.
-* [x] Construct source extraction uses the core unzip task.
-* [x] Passthrough remains internal and resolvable.
-* [x] Legacy filesystem node IDs remain registered and usable.
+Keep execution/integration scenarios in:
 
-Keep Release/workflow integration execution tests under `apps/cli/tests/e2e` according to repository policy.
+```text
+apps/cli/tests/e2e
+```
 
-Keep pure primitive/helper tests package-local.
+Verify:
 
-## 9. Verification
+* [x] Folder → Folder executes;
+* [x] Folder → ZIP executes;
+* [x] Web ZIP → unzip → downstream build executes;
+* [x] cancellation during unzip aborts predictably.
 
-Local verification completed:
+### Legacy
 
-* [x] Shared tests and typecheck.
-* [x] Workflow-runtime tests and typecheck.
-* [x] Core-node tests and typecheck.
-* [x] CLI Release E2E tests.
-* [x] UI tests and typecheck.
-* [x] Repository lint.
-* [x] Repository build.
-* [x] `git diff --check`.
+* [x] `plugin-filesystem.release` remains undefined;
+* [x] old Pipeline node IDs remain registered with their existing runners;
+* [x] no legacy Pipeline IDs are renamed.
 
-* [x] Confirm exact-head CI is green on the final PR head. Draft PR #97 is open to `develop`.
+---
+
+## 10. Remove unnecessary integration tests from package-local suites
+
+Follow `AGENTS.md`.
+
+Keep package-local tests for genuine unit concerns such as:
+
+* registry composition;
+* ID ownership;
+* primitive behavior;
+* filesystem safety;
+* cancellation helpers.
+
+Keep workflow/planner/compiler execution integration in:
+
+```text
+apps/cli/tests/e2e
+```
+
+Do not duplicate full Release execution scenarios under `packages/core-node`.
+
+---
+
+## 11. Changeset
+
+Update the existing changeset to describe the final architecture.
+
+It should communicate that:
+
+* Release Folder/ZIP providers are now core built-ins;
+* Release no longer depends on the Filesystem plugin;
+* generic filesystem/archive primitives are core workflow tasks;
+* `plugin-filesystem` remains for legacy Pipeline compatibility.
+
+Because Release Workflow is unreleased, do not describe the new core IDs as a migration or compatibility rename.
+
+---
+
+## 12. Verification
+
+Run focused checks, then:
+
+```text
+pnpm --filter @pipelab/workflow-runtime test
+pnpm --filter @pipelab/workflow-runtime typecheck
+
+pnpm --filter @pipelab/core-node test
+pnpm --filter @pipelab/core-node typecheck
+
+pnpm --filter @pipelab/plugin-filesystem test
+pnpm --filter @pipelab/plugin-filesystem typecheck
+
+pnpm --filter @pipelab/plugin-construct test
+pnpm --filter @pipelab/plugin-construct typecheck
+
+pnpm --filter @pipelab/cli test
+
+pnpm lint
+pnpm typecheck
+pnpm build
+
+git diff --check
+```
+
+Then confirm exact-head CI is green.
+
+- [ ] Exact-head CI is green on the final PR head.
+
+---
 
 ## Scope
 
 Do not:
 
-* implement the hook system;
-* redesign the workflow runtime;
-* break or migrate legacy Pipeline/SavedFile data;
-* silently rename persisted Release provider IDs;
-* expose copy/zip/unzip/passthrough as configurable Release builds;
-* remove Folder/ZIP as user-facing Release source/destination choices;
-* delete `plugin-filesystem` while legacy pipelines still depend on its node IDs.
+* implement hooks;
+* add compatibility for unreleased Release Workflow IDs;
+* add a ReleaseConfig migration for these IDs;
+* modify legacy Pipeline/SavedFile structure;
+* delete `plugin-filesystem`;
+* expose generic filesystem/archive operations as configurable Release builds;
+* redesign the planner or workflow runtime.
 
-Target architecture:
+Final architecture:
 
 ```text
-New Release
-├── built-in Folder/ZIP providers
-├── internal automatic transforms
-└── workflow primitives
+NEW RELEASE WORKFLOW
 
-Future hooks
-└── same workflow primitives
+@pipelab/core/source/*
+@pipelab/core/destination/*
+        │
+        ▼
+@pipelab/core/fs/*
+@pipelab/core/archive/*
+@pipelab/core/passthrough
 
-Legacy Pipeline
-└── plugin-filesystem compatibility shell
+               +
+
+@pipelab/plugin-construct/*
+@pipelab/plugin-godot/*
+@pipelab/plugin-electron/*
+@pipelab/plugin-steam/*
+...
+
+
+FUTURE HOOKS
+
+before/after source/build/upload
+        │
+        ▼
+same @pipelab/core/* primitives
+
+
+LEGACY PIPELINE
+
+@pipelab/plugin-filesystem
+├── fs:copy
+├── fs:remove
+├── fs:run
+├── unzip-file-node
+├── zip-node
+├── zip-v2-node
+└── fs:open-in-explorer
 ```
 
-The Filesystem **plugin** becomes legacy-only; the useful filesystem/archive capabilities remain reusable infrastructure.
+- [x] Verify locally saved user-created Pipelines still run through the CLI host (legacy `fs:copy` graph E2E).
+
+Legacy identity should stop at the legacy Pipeline boundary

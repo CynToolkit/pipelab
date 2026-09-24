@@ -8,10 +8,10 @@ import {
 } from "@pipelab/shared";
 
 export const CORE_WORKFLOW_TASKS = {
-  copy: "filesystem:copy",
-  remove: "filesystem:remove",
-  zip: "filesystem:zip",
-  unzip: "filesystem:unzip",
+  copy: "@pipelab/core/fs/copy",
+  remove: "@pipelab/core/fs/remove",
+  zip: "@pipelab/core/archive/zip",
+  unzip: "@pipelab/core/archive/unzip",
   passthrough: "@pipelab/core/passthrough",
 } as const;
 
@@ -23,7 +23,7 @@ const webFolderOutput = {
 } as const;
 
 const folderSource: ReleaseSourceDefinition = {
-  id: "@pipelab/plugin-filesystem/folder-source",
+  id: "@pipelab/core/source/folder",
   label: "Folder",
   fields: [{ key: "path", type: "directory", label: "Folder path", required: true }],
   output: folderOutput,
@@ -63,7 +63,7 @@ const folderSource: ReleaseSourceDefinition = {
 
 const webFolderSource: ReleaseSourceDefinition = {
   ...folderSource,
-  id: "@pipelab/plugin-filesystem/web-folder-source",
+  id: "@pipelab/core/source/web-folder",
   label: "Web app folder",
   output: webFolderOutput,
   compile: (config) => ({
@@ -126,12 +126,12 @@ const zipSource = (
   }),
 });
 
-const genericZipSource = zipSource("@pipelab/plugin-filesystem/zip-source", "ZIP", {
+const genericZipSource = zipSource("@pipelab/core/source/zip", "ZIP", {
   kind: "files",
   container: "archive",
   format: "zip",
 });
-const webZipSource = zipSource("@pipelab/plugin-filesystem/web-zip-source", "Web app ZIP", {
+const webZipSource = zipSource("@pipelab/core/source/web-zip", "Web app ZIP", {
   kind: "application",
   platform: "web",
   container: "archive",
@@ -139,7 +139,7 @@ const webZipSource = zipSource("@pipelab/plugin-filesystem/web-zip-source", "Web
 });
 
 const folderDestination: ReleaseDestinationDefinition = {
-  id: "@pipelab/plugin-filesystem/folder-destination",
+  id: "@pipelab/core/destination/folder",
   label: "Folder",
   accepts: {},
   fields: [{ key: "outputDir", type: "directory", label: "Output folder", required: true }],
@@ -174,7 +174,7 @@ const folderDestination: ReleaseDestinationDefinition = {
 };
 
 const zipDestination: ReleaseDestinationDefinition = {
-  id: "@pipelab/plugin-filesystem/zip-destination",
+  id: "@pipelab/core/destination/zip",
   label: "ZIP",
   accepts: { container: "directory" },
   fields: [{ key: "outputPath", type: "file", label: "ZIP output path", required: true }],
