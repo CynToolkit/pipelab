@@ -426,7 +426,7 @@ git diff --check
 
 Then confirm exact-head CI is green.
 
-- [ ] Exact-head CI is green on the final PR head.
+- [x] Exact-head CI is green on the final PR head.
 
 ---
 
