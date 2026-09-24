@@ -1,0 +1,142 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - '@pipelab/app@*'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build (${{ matrix.os }} / ${{ matrix.arch }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            arch: x64
+          - os: windows-latest
+            arch: x64
+          - os: macos-26-intel
+            arch: x64
+          - os: macos-26
+            arch: arm64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Confirm tag matches desktop version
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          actual_version=$(node -p "require('./apps/desktop/package.json').version")
+          [[ "$RELEASE_TAG" == "@pipelab/app@$actual_version" ]]
+
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.15.0
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build desktop runtime dependencies
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+          POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
+        run: pnpm exec turbo build --filter=@pipelab/app... --filter=@pipelab/cli... --concurrency=2
+
+      - name: Import Apple Code Signing Certificate
+        if: startsWith(matrix.os, 'macos-')
+        uses: apple-actions/import-codesign-certs@v3
+        with:
+          p12-file-base64: ${{ secrets.CERTIFICATE_OSX_APPLICATION }}
+          p12-password: ${{ secrets.CERTIFICATE_OSX_APPLICATION_PASSWORD }}
+
+      - name: Package desktop release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+          POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          TARGET_ARCH: ${{ matrix.arch }}
+          npm_config_arch: ${{ matrix.arch }}
+          PRERELEASE: ${{ contains(github.ref_name, '-') }}
+        run: pnpm --filter @pipelab/app make -- --arch=${{ matrix.arch }}
+
+      - name: Verify macOS executable architecture
+        if: startsWith(matrix.os, 'macos-')
+        env:
+          EXPECTED_ARCH: ${{ matrix.arch == 'x64' && 'x86_64' || 'arm64' }}
+        shell: bash
+        run: |
+          app=$(find apps/desktop/out -type d -name '*.app' -print -quit)
+          test -n "$app"
+          executable=$(find "$app/Contents/MacOS" -maxdepth 1 -type f -print -quit)
+          test -n "$executable"
+          architectures=$(lipo -archs "$executable")
+          echo "Built architectures: $architectures"
+          [[ " $architectures " == *" $EXPECTED_ARCH "* ]]
+
+      - name: Verify macOS code signature
+        if: startsWith(matrix.os, 'macos-')
+        shell: bash
+        run: |
+          app=$(find apps/desktop/out -type d -name '*.app' -print -quit)
+          test -n "$app"
+          codesign --verify --deep --strict --verbose=2 "$app"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ matrix.os }}-${{ matrix.arch }}
+          path: apps/desktop/out/make/**/*
+          if-no-files-found: error
+
+  publish:
+    name: Publish GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          path: artifacts
+          merge-multiple: true
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          files: |
+            artifacts/**/*.dmg
+            artifacts/**/*.exe
+            artifacts/**/*.zip
+            artifacts/**/RELEASES
+            artifacts/**/*.nupkg
+            artifacts/**/*.deb
+            artifacts/**/*.rpm
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
