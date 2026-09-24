@@ -65,6 +65,11 @@ crosses package or runtime boundaries:
 Do not skip verification categorically, and do not run every expensive check
 for an isolated documentation edit. Record any unavailable check and why.
 
+During iteration, prefer fast, focused local checks and rerun them as changes
+evolve. Save slower, broad CI pipelines for final verification after local
+checks and review are complete, unless earlier CI feedback is needed to resolve
+a specific issue.
+
 Integration, workflow, plugin, runtime, and release execution tests belong in
 the CLI host (`apps/cli/tests/e2e`) using the existing test utilities. Keep
 Electron coverage to the single minimal startup smoke, which is manual-only

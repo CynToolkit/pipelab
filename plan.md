@@ -1,100 +1,121 @@
-# PR #96 — Last Input Repair Edge Case
+# PR #97 — Focused Final Cleanup
 
-One remaining UX edge case.
+Goal: finish PR #97 with only the remaining necessary cleanup.
 
-## Problem
+## 1. Make core workflow task IDs authoritative
 
-A stale explicit `build.input` is correctly preserved and its planner error is displayed.
+`CORE_WORKFLOW_TASKS` should have one owner.
 
-However, when candidate discovery finds exactly one valid replacement, the Input selector is still hidden because `buildInputSelectionMode()` only considers the candidate count.
+Move the generic task IDs to `@pipelab/workflow-runtime`, then import them from there in:
 
-This leaves the user unable to repair the stale reference explicitly.
+* core Release built-ins;
+* core workflow task registration;
+* `plugin-construct`.
 
-Example:
-
-```text
-Persisted input:
-Build B → deleted Build A / windows
-
-Current compatible candidates:
-Source
-```
-
-Expected:
+Do not hardcode:
 
 ```text
-Input
-[ Choose an input ▼ ]
-
-Referenced build A is missing.
+@pipelab/core/archive/unzip
 ```
 
-The user can explicitly choose Source.
+inside Construct separately.
 
-Current behavior:
+Keep:
 
 ```text
-Referenced build A is missing.
+@pipelab/core/fs/copy
+@pipelab/core/fs/remove
+@pipelab/core/archive/zip
+@pipelab/core/archive/unzip
+@pipelab/core/passthrough
 ```
 
-with no way to fix the input.
+No wider abstraction work.
 
-## Fix
+## 2. Keep the new core Release IDs
 
-Make the input selection mode account for input validation issues.
+The removal of the old Release IDs is intentional.
 
-Expected behavior:
-
-* [x] Exactly one compatible candidate + no input issue → hide selector.
-* [x] Exactly one compatible candidate + stale/invalid explicit input → show selector.
-* [x] Multiple compatible candidates → show selector.
-* [x] Zero compatible candidates → show validation/error state without an empty selector.
-* [x] Never automatically replace or delete the stale explicit input.
-* [x] Only change `build.input` after an explicit user selection.
-
-The simplest approach is to let the selection-mode helper receive the current input issues, or introduce a small helper expressing this rule explicitly.
-
-## Regression test
-
-Add a focused test for:
+Keep:
 
 ```text
-existing build.input = stale build/target
-planner reports input error
-candidate discovery returns exactly one valid candidate
+@pipelab/core/source/folder
+@pipelab/core/source/web-folder
+@pipelab/core/source/zip
+@pipelab/core/source/web-zip
+
+@pipelab/core/destination/folder
+@pipelab/core/destination/zip
 ```
 
-Verify:
+Do not add aliases or migrations for the old `@pipelab/plugin-filesystem/...` Release IDs.
 
-* [x] the Input control is visible;
-* [x] the selector is rendered;
-* [x] the stale `build.input` remains unchanged before interaction;
-* [x] selecting the sole candidate explicitly replaces `build.input`.
+`plugin-filesystem` remains only for legacy Pipeline compatibility.
 
-## Small documentation cleanup
+## 3. Keep the unzip cancellation fix
 
-While touching `plan.md`, fix the malformed examples currently rendered as:
+No redesign needed.
 
-```ts
-{ buildId, targetId }
-```
+Keep:
 
-and:
+* `AbortSignal` passed to `extractZip()`;
+* active extraction stopped on abort;
+* `AbortError` returned;
+* focused cancellation coverage.
 
-```ts
-release:plan
-```
+## 4. Small test placement cleanup
 
-They should describe `{ buildId, targetId }` and `release:plan` normally.
+Keep package-local tests focused on:
+
+* built-in IDs;
+* registry composition;
+* primitive behavior;
+* cancellation.
+
+If a package-local test is just duplicating an existing CLI planner/compiler integration case, remove it.
+
+Do not add more tests than necessary.
+
+## 5. Update the PR description
+
+Remove the outdated statement that persisted Release IDs are preserved.
+
+Say instead that:
+
+* Folder/ZIP Release providers are now core built-ins;
+* they use new `@pipelab/core/...` IDs;
+* old Release IDs are intentionally not retained because Release Workflow is unreleased;
+* `plugin-filesystem` remains for legacy Pipeline compatibility;
+* unzip cancellation is supported.
 
 ## Verification
 
-Verification completed:
+Only run the checks relevant to touched packages:
 
-- [x] `pnpm --filter @pipelab/ui test` (59 tests passed).
-- [x] `pnpm --filter @pipelab/ui typecheck`.
-- [x] `pnpm --filter @pipelab/ui lint` (23 warnings, no errors).
-- [x] `pnpm --filter @pipelab/ui build`.
-- [x] `git diff --check`.
+```text
+pnpm --filter @pipelab/workflow-runtime test
+pnpm --filter @pipelab/workflow-runtime typecheck
 
-Do not change planner semantics or automatically repair persisted inputs.
+pnpm --filter @pipelab/core-node test
+pnpm --filter @pipelab/core-node typecheck
+
+pnpm --filter @pipelab/plugin-construct test
+pnpm --filter @pipelab/plugin-construct typecheck
+
+pnpm --filter @pipelab/cli test
+
+git diff --check
+```
+
+Then rely on CI for the broader repository verification.
+
+## Scope
+
+Do not:
+
+* implement hooks;
+* add Release ID compatibility;
+* redesign the planner/runtime;
+* delete `plugin-filesystem`;
+* rename legacy Pipeline node IDs;
+* add extra cleanup unrelated to PR #97.

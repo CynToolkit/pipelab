@@ -81,6 +81,9 @@ importers:
       '@pipelab/shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      '@pipelab/workflow-runtime':
+        specifier: workspace:*
+        version: link:../../packages/workflow-runtime
       commander:
         specifier: ^12.1.0
         version: 12.1.0
@@ -972,6 +975,9 @@ importers:
       '@pipelab/core-node':
         specifier: workspace:*
         version: link:../../packages/core-node
+      '@pipelab/workflow-runtime':
+        specifier: workspace:*
+        version: link:../../packages/workflow-runtime
       '@types/node':
         specifier: ^24.12.2
         version: 24.12.2
@@ -1104,6 +1110,9 @@ importers:
       '@pipelab/plugin-core':
         specifier: workspace:*
         version: link:../plugin-core
+      '@pipelab/workflow-runtime':
+        specifier: workspace:*
+        version: link:../../packages/workflow-runtime
       '@types/node':
         specifier: ^24.12.2
         version: 24.12.2

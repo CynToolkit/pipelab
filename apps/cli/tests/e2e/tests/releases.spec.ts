@@ -1,7 +1,17 @@
 import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { randomBytes } from "node:crypto";
 import { afterEach, describe, expect, test } from "vitest";
 import { createSandbox, runCLI } from "@pipelab/test-utils";
+import {
+  buildCoreReleaseRegistry,
+  bundledPlugins,
+  createCoreFilesystemWorkflowTasks,
+  extractZip,
+  zipFolder,
+} from "@pipelab/core-node";
+import { compileReleasePlan, planRelease, type ReleaseConfig } from "@pipelab/shared";
+import { createLocalHost, runWorkflow } from "@pipelab/workflow-runtime";
 
 const constructSource = {
   provider: "@pipelab/plugin-construct/source",
@@ -27,7 +37,12 @@ const steam = (input?: Record<string, string>) => ({
   enabled: true,
   config: { accountConnectionId: "steam", appId: "123" },
   slots: [
-    { id: "windows", enabled: true, ...(input ? { input } : {}), config: { depotId: "456" } },
+    {
+      id: "windows",
+      enabled: true,
+      ...(input ? { input } : {}),
+      config: { depotId: "456" },
+    },
   ],
 });
 
@@ -87,6 +102,21 @@ describe("CLI release dry-run", () => {
       resultPath,
     ]);
     return JSON.parse(await readFile(resultPath, "utf8"));
+  };
+
+  const executeCoreRelease = async (config: ReleaseConfig, workspace: string) => {
+    const registry = buildCoreReleaseRegistry([]);
+    const context = {
+      host: { platform: process.platform, architecture: process.arch },
+    };
+    const plan = planRelease(config, registry, context);
+    expect(plan.issues.filter((issue) => issue.severity === "error")).toEqual([]);
+    const workflow = compileReleasePlan(config, plan, registry, context);
+    return runWorkflow(workflow, {
+      host: createLocalHost(workspace),
+      variables: { workspace },
+      tasks: createCoreFilesystemWorkflowTasks(),
+    });
   };
 
   test(
@@ -154,7 +184,7 @@ describe("CLI release dry-run", () => {
           project: "main",
           name: "Command workflow",
           source: {
-            provider: "@pipelab/plugin-filesystem/folder-source",
+            provider: "@pipelab/core/source/folder",
             config: { path: sandbox.paths.input },
           },
           builds: [],
@@ -227,17 +257,24 @@ describe("CLI release dry-run", () => {
           project: "main",
           name: "Release dry run",
           source: {
-            provider: "@pipelab/plugin-filesystem/folder-source",
+            provider: "@pipelab/core/source/folder",
             config: { path: sourcePath },
           },
           builds: [],
           destinations: [
             {
               id: "copy-output",
-              provider: "@pipelab/plugin-filesystem/folder-destination",
+              provider: "@pipelab/core/destination/folder",
               enabled: true,
               config: { outputDir: destinationPath },
-              slots: [{ id: "source", enabled: true, input: { source: true }, config: {} }],
+              slots: [
+                {
+                  id: "source",
+                  enabled: true,
+                  input: { source: true },
+                  config: {},
+                },
+              ],
             },
           ],
         }),
@@ -256,12 +293,250 @@ describe("CLI release dry-run", () => {
 
       const result = JSON.parse(await readFile(resultPath, "utf8"));
       expect(result.type).toBe("workflow-dry-run");
-      expect(result.plan.destinations[0].slots[0].input).toEqual({ source: true });
+      expect(result.plan.destinations[0].slots[0].input).toEqual({
+        source: true,
+      });
       expect(result.workflow.steps.map((step: { id: string }) => step.id)).toEqual([
         "release-folder-source",
         "release-folder-copy-output-source",
       ]);
       await expect(access(destinationPath)).rejects.toThrow();
+    },
+    30 * 60 * 1000,
+  );
+
+  test(
+    "executes Folder and ZIP destinations with core tasks and no filesystem plugin tasks",
+    async () => {
+      sandbox = await createSandbox("release-core-filesystem-tasks");
+      const sourcePath = join(sandbox.paths.input, "source");
+      const workspace = join(sandbox.path, "workflow-workspace");
+      const folderOutput = join(sandbox.paths.output, "folder-destination");
+      const zipOutput = join(sandbox.paths.output, "zip-destination", "game.zip");
+      const zipExtracted = join(sandbox.path, "zip-extracted");
+      await mkdir(sourcePath, { recursive: true });
+      await writeFile(join(sourcePath, "index.html"), "core release");
+      await mkdir(workspace, { recursive: true });
+
+      const folderResult = await executeCoreRelease(
+        {
+          version: "3.0.0",
+          id: "core-folder-release",
+          project: "main",
+          name: "Core Folder Release",
+          source: {
+            provider: "@pipelab/core/source/folder",
+            config: { path: sourcePath },
+          },
+          builds: [],
+          destinations: [
+            {
+              id: "folder",
+              provider: "@pipelab/core/destination/folder",
+              enabled: true,
+              config: { outputDir: folderOutput },
+              slots: [
+                {
+                  id: "source",
+                  enabled: true,
+                  input: { source: true },
+                  config: {},
+                },
+              ],
+            },
+          ],
+        },
+        workspace,
+      );
+      expect(folderResult.status).toBe("completed");
+      expect(await readFile(join(folderOutput, "index.html"), "utf8")).toBe("core release");
+
+      const zipResult = await executeCoreRelease(
+        {
+          version: "3.0.0",
+          id: "core-zip-release",
+          project: "main",
+          name: "Core ZIP Release",
+          source: {
+            provider: "@pipelab/core/source/folder",
+            config: { path: sourcePath },
+          },
+          builds: [],
+          destinations: [
+            {
+              id: "zip",
+              provider: "@pipelab/core/destination/zip",
+              enabled: true,
+              config: { outputPath: zipOutput },
+              slots: [
+                {
+                  id: "source",
+                  enabled: true,
+                  input: { source: true },
+                  config: {},
+                },
+              ],
+            },
+          ],
+        },
+        workspace,
+      );
+      expect(zipResult.status).toBe("completed");
+      await expect(access(zipOutput)).resolves.toBeUndefined();
+      await extractZip(zipOutput, zipExtracted);
+      expect(await readFile(join(zipExtracted, "index.html"), "utf8")).toBe("core release");
+    },
+    30 * 60 * 1000,
+  );
+
+  test(
+    "runs Web ZIP through the core unzip task before Electron",
+    async () => {
+      sandbox = await createSandbox("release-web-zip-electron-core-unzip");
+      const webFolder = join(sandbox.paths.input, "web");
+      const webZip = join(sandbox.paths.input, "web.zip");
+      const workspace = join(sandbox.path, "workflow-workspace");
+      const outputPath = join(sandbox.paths.output, "electron-output");
+      await mkdir(webFolder, { recursive: true });
+      await mkdir(workspace, { recursive: true });
+      await writeFile(join(webFolder, "index.html"), "web release");
+      await zipFolder(webFolder, webZip);
+
+      const electronPlugin = bundledPlugins.find(
+        (plugin) => plugin.id === "@pipelab/plugin-electron",
+      );
+      if (!electronPlugin) throw new Error("Electron Release provider is not bundled");
+      const registry = buildCoreReleaseRegistry([electronPlugin]);
+      const config: ReleaseConfig = {
+        version: "3.0.0",
+        id: "web-zip-electron-core-unzip",
+        project: "main",
+        name: "Web ZIP Electron Release",
+        source: {
+          provider: "@pipelab/core/source/web-zip",
+          config: { path: webZip },
+        },
+        builds: [
+          {
+            id: "electron",
+            type: "desktop",
+            engine: "@pipelab/plugin-electron/producer",
+            enabled: true,
+            config: {},
+            targets: [{ id: "windows-x64", enabled: true, config: {} }],
+          },
+        ],
+        destinations: [
+          {
+            id: "folder",
+            provider: "@pipelab/core/destination/folder",
+            enabled: true,
+            config: { outputDir: outputPath },
+            slots: [
+              {
+                id: "windows",
+                enabled: true,
+                input: { buildId: "electron", targetId: "windows-x64" },
+                config: {},
+              },
+            ],
+          },
+        ],
+      };
+      const context = {
+        host: { platform: process.platform, architecture: process.arch },
+      };
+      const plan = planRelease(config, registry, context);
+      expect(plan.issues.filter((issue) => issue.severity === "error")).toEqual([]);
+      expect(plan.producers.some((producer) => producer.provider === "@pipelab/core/unzip")).toBe(
+        true,
+      );
+      const workflow = compileReleasePlan(config, plan, registry, context);
+      expect(workflow.steps.some((step) => step.uses === "@pipelab/core/archive/unzip")).toBe(true);
+
+      const tasks = createCoreFilesystemWorkflowTasks();
+      tasks["@pipelab/plugin-electron/electron:package:v2"] = async (taskContext) => {
+        const input = taskContext.inputs["input-folder"];
+        if (typeof input !== "string")
+          throw new Error("Electron package task requires an input folder");
+        expect(await readFile(join(input, "index.html"), "utf8")).toBe("web release");
+        const output = join(taskContext.workspace.root, "electron-output");
+        await mkdir(output, { recursive: true });
+        await writeFile(join(output, "packaged.txt"), "packaged");
+        taskContext.setArtifact("electron-build", output);
+        return { "electron-build": output };
+      };
+      const result = await runWorkflow(workflow, {
+        host: createLocalHost(workspace),
+        variables: { workspace },
+        tasks,
+      });
+
+      expect(result.status).toBe("completed");
+      expect(await readFile(join(outputPath, "packaged.txt"), "utf8")).toBe("packaged");
+    },
+    30 * 60 * 1000,
+  );
+
+  test(
+    "cancels a Release workflow while the core unzip task is running",
+    async () => {
+      sandbox = await createSandbox("release-core-unzip-cancellation");
+      const webFolder = join(sandbox.paths.input, "web");
+      const webZip = join(sandbox.paths.input, "web.zip");
+      const workspace = join(sandbox.path, "workflow-workspace");
+      await mkdir(webFolder, { recursive: true });
+      await mkdir(workspace, { recursive: true });
+      await writeFile(join(webFolder, "large.bin"), randomBytes(32 * 1024 * 1024));
+      await zipFolder(webFolder, webZip, () => undefined);
+
+      const electronPlugin = bundledPlugins.find(
+        (plugin) => plugin.id === "@pipelab/plugin-electron",
+      );
+      if (!electronPlugin) throw new Error("Electron Release provider is not bundled");
+      const registry = buildCoreReleaseRegistry([electronPlugin]);
+      const config: ReleaseConfig = {
+        version: "3.0.0",
+        id: "web-zip-cancel-unzip",
+        project: "main",
+        name: "Cancel Web ZIP extraction",
+        source: {
+          provider: "@pipelab/core/source/web-zip",
+          config: { path: webZip },
+        },
+        builds: [
+          {
+            id: "electron",
+            type: "desktop",
+            engine: "@pipelab/plugin-electron/producer",
+            enabled: true,
+            config: {},
+            targets: [{ id: "windows-x64", enabled: true, config: {} }],
+          },
+        ],
+        destinations: [],
+      };
+      const context = { host: { platform: process.platform, architecture: process.arch } };
+      const plan = planRelease(config, registry, context);
+      expect(plan.issues.filter((issue) => issue.severity === "error")).toEqual([]);
+      const workflow = compileReleasePlan(config, plan, registry, context);
+      const controller = new AbortController();
+      const run = runWorkflow(workflow, {
+        host: createLocalHost(workspace),
+        variables: { workspace },
+        tasks: createCoreFilesystemWorkflowTasks(),
+        signal: controller.signal,
+        onEvent: (event) => {
+          if (event.type === "step.started" && event.uses === "@pipelab/core/archive/unzip") {
+            setTimeout(() => {
+              controller.abort("test cancellation");
+            }, 20);
+          }
+        },
+      });
+
+      await expect(run).rejects.toMatchObject({ name: "AbortError" });
+      expect(controller.signal.aborted).toBe(true);
     },
     30 * 60 * 1000,
   );
@@ -280,7 +555,9 @@ describe("CLI release dry-run", () => {
       });
 
       expect(result.config.builds).toHaveLength(0);
-      expect(result.plan.destinations[0].slots[0].input).toEqual({ source: true });
+      expect(result.plan.destinations[0].slots[0].input).toEqual({
+        source: true,
+      });
       expect(
         result.workflow.steps.some((step: { uses: string }) => step.uses.includes("electron")),
       ).toBe(false);
@@ -381,8 +658,12 @@ describe("CLI release dry-run", () => {
       });
 
       expect(result.config.builds).toHaveLength(1);
-      expect(result.plan.destinations[0].slots[0].input).toEqual({ source: true });
-      expect(result.plan.destinations[1].slots[0].input).toMatchObject({ outputId: "windows-x64" });
+      expect(result.plan.destinations[0].slots[0].input).toEqual({
+        source: true,
+      });
+      expect(result.plan.destinations[1].slots[0].input).toMatchObject({
+        outputId: "windows-x64",
+      });
       expect(
         result.workflow.steps.filter((step: { uses: string }) =>
           step.uses.includes("plugin-electron"),
@@ -449,7 +730,7 @@ describe("CLI release dry-run", () => {
         project: "main",
         name: "ZIP Poki",
         source: {
-          provider: "@pipelab/plugin-filesystem/web-zip-source",
+          provider: "@pipelab/core/source/web-zip",
           config: { path: "/game.zip" },
         },
         builds: [

@@ -49,14 +49,14 @@ describe("End-to-End: Multi-Plugin Integration Test", () => {
           project: "main",
           name: "CLI release",
           source: {
-            provider: "@pipelab/plugin-filesystem/folder-source",
+            provider: "@pipelab/core/source/folder",
             config: { path: sourcePath },
           },
           builds: [],
           destinations: [
             {
               id: "copy-output",
-              provider: "@pipelab/plugin-filesystem/folder-destination",
+              provider: "@pipelab/core/destination/folder",
               enabled: true,
               config: { outputDir: destinationPath },
               slots: [{ id: "source", enabled: true, input: { source: true }, config: {} }],

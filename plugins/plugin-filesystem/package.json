@@ -1,7 +1,7 @@
 {
   "name": "@pipelab/plugin-filesystem",
   "version": "1.0.0-beta.39",
-  "description": "Pipelab plugin for filesystem operations (copy, move, delete, zip)",
+  "description": "Legacy Pipeline filesystem node compatibility",
   "keywords": [
     "archive",
     "automation",
@@ -38,6 +38,7 @@
   },
   "dependencies": {
     "@pipelab/plugin-core": "workspace:*",
+    "@pipelab/workflow-runtime": "workspace:*",
     "@types/node": "^24.12.2",
     "node-stream-zip": "1.15.0"
   },
@@ -50,7 +51,7 @@
   },
   "pipelab": {
     "name": "Filesystem",
-    "description": "Pipelab plugin for filesystem operations (copy, move, delete, zip)",
+    "description": "Legacy Pipeline filesystem node compatibility",
     "icon": {
       "type": "icon",
       "icon": "mdi-folder-zip-outline"

@@ -1,3 +1,6 @@
 # @pipelab/plugin-filesystem
 
-Pipelab plugin for file and directory operations.
+Legacy Pipeline compatibility package for saved filesystem nodes, including
+copy, remove, run command, archive, and Open in Explorer actions.
+
+New Release Folder and ZIP providers are built into `@pipelab/core-node`.

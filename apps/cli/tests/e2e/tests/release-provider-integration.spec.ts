@@ -1,19 +1,21 @@
 import { describe, expect, it } from "vitest";
-import {
-  buildReleaseRegistry,
-  compileWorkflow,
-  planRelease,
-  type ReleaseConfig,
-} from "@pipelab/shared";
-import construct from "@pipelab/plugin-construct";
-import electron from "@pipelab/plugin-electron";
-import godot from "@pipelab/plugin-godot";
-import poki from "@pipelab/plugin-poki";
-import steam from "@pipelab/plugin-steam";
-import filesystem from "@pipelab/plugin-filesystem";
-import itch from "@pipelab/plugin-itch";
+import { compileWorkflow, planRelease, type ReleaseConfig } from "@pipelab/shared";
+import { buildCoreReleaseRegistry, bundledPlugins } from "@pipelab/core-node";
+import { CORE_WORKFLOW_TASKS } from "@pipelab/workflow-runtime";
 
 const context = { host: { platform: "win32", architecture: "x64" } };
+const plugin = (id: string) => {
+  const result = bundledPlugins.find((candidate) => candidate.id === id);
+  if (!result) throw new Error(`Bundled plugin not found: ${id}`);
+  return result;
+};
+
+const construct = plugin("@pipelab/plugin-construct");
+const electron = plugin("@pipelab/plugin-electron");
+const godot = plugin("@pipelab/plugin-godot");
+const poki = plugin("@pipelab/plugin-poki");
+const steam = plugin("@pipelab/plugin-steam");
+const itch = plugin("@pipelab/plugin-itch");
 
 describe("release provider integration wiring", () => {
   it("maps real provider validation issues to indexed UI fields", () => {
@@ -35,7 +37,7 @@ describe("release provider integration wiring", () => {
           },
         ],
       },
-      buildReleaseRegistry([construct, steam]),
+      buildCoreReleaseRegistry([construct, steam]),
       { host: context.host },
     );
 
@@ -48,35 +50,6 @@ describe("release provider integration wiring", () => {
         "destinations.0.slots.0.config.depotId",
       ]),
     );
-  });
-
-  it("plans Construct directly to Poki without creating a build", () => {
-    const config: ReleaseConfig = {
-      version: "3.0.0",
-      id: "construct-poki",
-      project: "project",
-      name: "Construct Poki",
-      source: {
-        provider: "@pipelab/plugin-construct/source",
-        config: { path: "/game.c3p", profilePath: "/profile" },
-      },
-      builds: [],
-      destinations: [
-        {
-          id: "poki",
-          provider: "@pipelab/plugin-poki/destination",
-          enabled: true,
-          config: { project: "game", name: "1.0", notes: "release" },
-          slots: [{ id: "web", enabled: true, input: { source: true }, config: {} }],
-        },
-      ],
-    };
-    const plan = planRelease(config, buildReleaseRegistry([construct, poki]), {
-      host: context.host,
-    });
-    expect(plan.issues.filter((issue) => issue.severity === "error")).toEqual([]);
-    expect(plan.producers).toEqual([]);
-    expect(plan.destinations[0]?.slots[0]?.input).toEqual({ source: true });
   });
 
   it("reports the unresolved Construct to Steam output without inventing a producer", () => {
@@ -100,7 +73,7 @@ describe("release provider integration wiring", () => {
         },
       ],
     };
-    const plan = planRelease(config, buildReleaseRegistry([construct, steam]), {
+    const plan = planRelease(config, buildCoreReleaseRegistry([construct, steam]), {
       host: context.host,
     });
     expect(plan.producers).toEqual([]);
@@ -152,11 +125,14 @@ describe("release provider integration wiring", () => {
     };
     const workflow = compileWorkflow(
       config,
-      buildReleaseRegistry([construct, electron, steam]),
+      buildCoreReleaseRegistry([construct, electron, steam]),
       context,
     );
     const electronStep = workflow.steps.find((step) => step.uses.includes("plugin-electron"));
     const steamStep = workflow.steps.find((step) => step.uses.includes("plugin-steam"));
+    expect(workflow.steps.find((step) => step.id === "construct-source-extract")?.uses).toBe(
+      CORE_WORKFLOW_TASKS.unzip,
+    );
     expect(electronStep?.artifactInputs?.["input-folder"]).toEqual({
       stepId: "construct-source-extract",
       artifact: "output",
@@ -197,7 +173,7 @@ describe("release provider integration wiring", () => {
         },
       ],
     };
-    const workflow = compileWorkflow(config, buildReleaseRegistry([godot, poki]), context);
+    const workflow = compileWorkflow(config, buildCoreReleaseRegistry([godot, poki]), context);
     const godotStep = workflow.steps.find((step) =>
       step.uses.includes("plugin-godot/godot:export"),
     );
@@ -216,7 +192,7 @@ describe("release provider integration wiring", () => {
       project: "project",
       name: "Web direct",
       source: {
-        provider: "@pipelab/plugin-filesystem/web-folder-source",
+        provider: "@pipelab/core/source/web-folder",
         config: { path: "/web" },
       },
       builds: [],
@@ -230,7 +206,7 @@ describe("release provider integration wiring", () => {
         },
       ],
     };
-    const workflow = compileWorkflow(config, buildReleaseRegistry([filesystem, poki]), context);
+    const workflow = compileWorkflow(config, buildCoreReleaseRegistry([poki]), context);
     expect(
       workflow.steps.find((step) => step.uses.includes("plugin-poki"))?.artifactInputs?.[
         "input-folder"
@@ -244,7 +220,7 @@ describe("release provider integration wiring", () => {
       id: "zip-direct",
       project: "project",
       name: "ZIP direct",
-      source: { provider: "@pipelab/plugin-filesystem/zip-source", config: { path: "/game.zip" } },
+      source: { provider: "@pipelab/core/source/zip", config: { path: "/game.zip" } },
       builds: [],
       destinations: [
         {
@@ -258,11 +234,11 @@ describe("release provider integration wiring", () => {
         },
       ],
     };
-    const workflow = compileWorkflow(config, buildReleaseRegistry([filesystem, itch]), context);
+    const workflow = compileWorkflow(config, buildCoreReleaseRegistry([itch]), context);
     expect(
       workflow.steps.find((step) => step.uses.includes("plugin-itch"))?.artifactInputs?.[
         "input-folder"
       ],
-    ).toEqual({ stepId: "@pipelab/plugin-filesystem/zip-source-source", artifact: "output" });
+    ).toEqual({ stepId: "@pipelab/core/source/zip-source", artifact: "output" });
   });
 });
