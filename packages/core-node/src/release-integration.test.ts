@@ -10,8 +10,8 @@ import electron from "@pipelab/plugin-electron";
 import godot from "@pipelab/plugin-godot";
 import poki from "@pipelab/plugin-poki";
 import steam from "@pipelab/plugin-steam";
-import filesystem from "@pipelab/plugin-filesystem";
 import itch from "@pipelab/plugin-itch";
+import { buildCoreReleaseRegistry } from "./release/registry";
 
 const context = { host: { platform: "win32", architecture: "x64" } };
 
@@ -230,7 +230,7 @@ describe("release provider integration wiring", () => {
         },
       ],
     };
-    const workflow = compileWorkflow(config, buildReleaseRegistry([filesystem, poki]), context);
+    const workflow = compileWorkflow(config, buildCoreReleaseRegistry([poki]), context);
     expect(
       workflow.steps.find((step) => step.uses.includes("plugin-poki"))?.artifactInputs?.[
         "input-folder"
@@ -258,7 +258,7 @@ describe("release provider integration wiring", () => {
         },
       ],
     };
-    const workflow = compileWorkflow(config, buildReleaseRegistry([filesystem, itch]), context);
+    const workflow = compileWorkflow(config, buildCoreReleaseRegistry([itch]), context);
     expect(
       workflow.steps.find((step) => step.uses.includes("plugin-itch"))?.artifactInputs?.[
         "input-folder"

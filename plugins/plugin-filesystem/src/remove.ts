@@ -1,10 +1,5 @@
-import { rm } from "node:fs/promises";
-import {
-  createAction,
-  createActionRunner,
-  createPathParam,
-  assertSafeDirectoryCleanup,
-} from "@pipelab/plugin-core";
+import { createAction, createActionRunner, createPathParam } from "@pipelab/plugin-core";
+import { removePath } from "@pipelab/workflow-runtime";
 
 export const ID = "fs:remove";
 
@@ -40,28 +35,12 @@ export const remove = createAction({
   meta: {},
 });
 
-export const removeRunner = createActionRunner<typeof remove>(
-  async ({ log, inputs, abortSignal }) => {
-    log("");
-
-    const from = inputs.from;
-
-    log("Removing", from, inputs.recursive);
-
-    if (!from) {
-      log("From", from);
-      throw new Error("Missing source");
-    }
-
-    try {
-      await assertSafeDirectoryCleanup(from);
-      process.noAsar = true;
-      await rm(from, { recursive: true, force: true, maxRetries: 3 });
-      process.noAsar = false;
-      log("Removed", from);
-    } catch (e) {
-      log("Error removeing file", e);
-      throw e;
-    }
-  },
-);
+export const removeRunner = createActionRunner<typeof remove>(async ({ log, inputs }) => {
+  log("");
+  try {
+    await removePath(inputs.from, { recursive: inputs.recursive, log });
+  } catch (error) {
+    log("Error removeing file", error);
+    throw error;
+  }
+});

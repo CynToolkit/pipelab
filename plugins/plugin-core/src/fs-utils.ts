@@ -1,8 +1,13 @@
 import { homedir } from "node:os";
 import { resolve, join, dirname } from "node:path";
-import { stat, readdir, writeFile, mkdir, mkdir as mkdirP } from "node:fs/promises";
+import { stat, writeFile, mkdir, mkdir as mkdirP } from "node:fs/promises";
+import { assertSafeDirectoryCleanup, writePipelabFolderMarker } from "@pipelab/workflow-runtime";
 
-const normalizePath = (value: string) => value.replace(/[\\/]+$/, "").replaceAll("\\", "/").toLowerCase();
+const normalizePath = (value: string) =>
+  value
+    .replace(/[\\/]+$/, "")
+    .replaceAll("\\", "/")
+    .toLowerCase();
 const homeDirectory = normalizePath(resolve(homedir()));
 const protectedDirectories = new Set(
   [
@@ -49,13 +54,19 @@ const protectedDirectories = new Set(
     "/var/tmp",
     process.env.TEMP,
     process.env.TMP,
-  ].filter((value): value is string => Boolean(value)).map(normalizePath),
+  ]
+    .filter((value): value is string => Boolean(value))
+    .map(normalizePath),
 );
 
 export function isPathBlacklisted(pathToCheck: string): boolean {
   if (!pathToCheck) return false;
   const normalized = normalizePath(resolve(pathToCheck));
-  return normalized === homeDirectory || protectedDirectories.has(normalized) || /^[a-z]:$/.test(normalized);
+  return (
+    normalized === homeDirectory ||
+    protectedDirectories.has(normalized) ||
+    /^[a-z]:$/.test(normalized)
+  );
 }
 
 export const ensure = async (filesPath: string, defaultContent = "{}") => {
@@ -68,50 +79,4 @@ export const ensure = async (filesPath: string, defaultContent = "{}") => {
   }
 };
 
-/**
- * Asserts that a directory is safe to be deleted/cleaned up.
- * Throws an error if the directory is protected or is not empty and lacks the Pipelab folder marker.
- */
-export async function assertSafeDirectoryCleanup(directoryPath: string): Promise<void> {
-  if (!directoryPath) return;
-  const resolvedPath = resolve(directoryPath);
-  if (isPathBlacklisted(resolvedPath)) {
-    throw new Error(`Cannot cleanup/delete protected system or user directory: ${resolvedPath}`);
-  }
-
-  try {
-    const destStats = await stat(resolvedPath);
-    if (destStats.isDirectory()) {
-      const files = await readdir(resolvedPath);
-      if (files.length > 0) {
-        const hasMarker = files.includes(".pipelab");
-        if (!hasMarker) {
-          throw new Error(
-            `Directory is not empty and was not created by Pipelab: ${resolvedPath}. Aborting to prevent data loss.`,
-          );
-        }
-      }
-    }
-  } catch (e: any) {
-    if (e.code !== "ENOENT") {
-      throw e;
-    }
-  }
-}
-
-/**
- * Creates a hidden Pipelab marker directory with metadata.json at the specified destination path.
- */
-export async function writePipelabFolderMarker(
-  directoryPath: string,
-  generator = "unknown",
-): Promise<void> {
-  if (!directoryPath) return;
-  const markerDir = join(directoryPath, ".pipelab");
-  await mkdir(markerDir, { recursive: true });
-  await writeFile(
-    join(markerDir, "metadata.json"),
-    JSON.stringify({ createdBy: generator, timestamp: Date.now() }, null, 2),
-    "utf-8",
-  );
-}
+export { assertSafeDirectoryCleanup, writePipelabFolderMarker };

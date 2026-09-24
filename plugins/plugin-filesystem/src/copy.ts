@@ -1,12 +1,5 @@
-import { cp, mkdir, rm, stat } from "node:fs/promises";
-import { basename, join, dirname } from "node:path";
-import {
-  createAction,
-  createActionRunner,
-  createPathParam,
-  assertSafeDirectoryCleanup,
-  writePipelabFolderMarker,
-} from "@pipelab/plugin-core";
+import { createAction, createActionRunner, createPathParam } from "@pipelab/plugin-core";
+import { copyPath } from "@pipelab/workflow-runtime";
 
 export const ID = "fs:copy";
 
@@ -86,84 +79,17 @@ export const copy = createAction({
   meta: {},
 });
 
-export const copyRunner = createActionRunner<typeof copy>(
-  async ({ log, inputs, setOutput, abortSignal }) => {
-    log("");
-
-    const from = inputs.from;
-    let to = inputs.to;
-
-    if (!from) {
-      log("From", from);
-      throw new Error("Missing source");
-    }
-
-    if (!to) {
-      log("To", to);
-      throw new Error("Missing destination");
-    }
-
-    let fromIsAFile = false;
-    try {
-      const stats = await stat(from);
-      if (stats.isFile()) {
-        fromIsAFile = true;
-      }
-    } catch (e) {
-      log("Error getting file stats", e);
-      throw e;
-    }
-    const fromFileName = fromIsAFile ? basename(from) : "";
-
-    // if from is a file, we only add the file name to the destination if 'to' is an existing directory
-    if (fromIsAFile) {
-      try {
-        const toStats = await stat(to);
-        if (toStats.isDirectory()) {
-          to = join(to, fromFileName);
-        }
-      } catch (e) {
-        // If 'to' doesn't exist, we assume the user provided the full destination path (including filename)
-      }
-    }
-
-    log("Copying", from, "to", to, "recursive", inputs.recursive, "overwrite", inputs.overwrite);
-
-    if (inputs.cleanup) {
-      try {
-        await assertSafeDirectoryCleanup(to);
-        log("Cleaning up", to);
-        process.noAsar = true;
-        await rm(to, { recursive: true, force: true, maxRetries: 3 });
-        if (!fromIsAFile) {
-          await mkdir(to, { recursive: true });
-        }
-        process.noAsar = false;
-      } catch (e) {
-        log("Error cleaning up file", e);
-        throw e;
-      }
-    }
-
-    try {
-      process.noAsar = true;
-      await cp(from, to, {
-        recursive: inputs.recursive && !fromIsAFile,
-        force: inputs.overwrite,
-      });
-
-      if (!fromIsAFile) {
-        await writePipelabFolderMarker(to, "fs:copy");
-      }
-
-      process.noAsar = false;
-      setOutput("output", to);
-      setOutput("input", from);
-      setOutput("parentDirectory", dirname(to));
-      log("Copied", from, "to", to);
-    } catch (e) {
-      log("Error copying file", e);
-      throw e;
-    }
-  },
-);
+export const copyRunner = createActionRunner<typeof copy>(async ({ log, inputs, setOutput }) => {
+  log("");
+  const { output, input, parentDirectory } = await copyPath({
+    from: inputs.from,
+    to: inputs.to,
+    recursive: inputs.recursive,
+    overwrite: inputs.overwrite,
+    cleanup: inputs.cleanup,
+    log,
+  });
+  setOutput("output", output);
+  setOutput("input", input);
+  setOutput("parentDirectory", parentDirectory);
+});

@@ -13,5 +13,9 @@
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"],
-  "references": [{ "path": "../constants" }, { "path": "../shared" }]
+  "references": [
+    { "path": "../constants" },
+    { "path": "../shared" },
+    { "path": "../workflow-runtime" }
+  ]
 }

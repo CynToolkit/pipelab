@@ -8,6 +8,9 @@
   "references": [
     {
       "path": "../plugin-core"
+    },
+    {
+      "path": "../../packages/workflow-runtime"
     }
   ]
 }

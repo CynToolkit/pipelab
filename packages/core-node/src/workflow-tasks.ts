@@ -3,13 +3,11 @@ import type {
   WorkflowTaskContext,
   WorkflowTaskRegistry,
 } from "@pipelab/workflow-runtime";
-import { mkdir } from "node:fs/promises";
-import { dirname } from "node:path";
 import { usePlugins } from "@pipelab/shared";
 import type { PipelabContext } from "./context";
 import type { ActionRunner, ActionRunnerData } from "./types/runner";
-import { zipFolder } from "./utils/fs-extras";
 import { createPipelabCloudUploadTask } from "./pipelab-cloud";
+import { createCoreFilesystemWorkflowTasks } from "./workflow-tasks/filesystem";
 
 export interface WorkflowTaskOptions {
   context: PipelabContext;
@@ -31,7 +29,11 @@ export const createWorkflowActionTask = (
   return async (taskContext: WorkflowTaskContext) => {
     const outputs: Record<string, unknown> = {};
     const log: typeof console.log = (...args) => taskContext.log(...args);
-    const setArtifact = (outputId: string, path: string, metadata?: { checksum?: string; size?: number; name?: string }) => {
+    const setArtifact = (
+      outputId: string,
+      path: string,
+      metadata?: { checksum?: string; size?: number; name?: string },
+    ) => {
       if (metadata === undefined) taskContext.setArtifact(outputId, path);
       else taskContext.setArtifact(outputId, path, metadata);
     };
@@ -90,28 +92,17 @@ export const createPipelabWorkflowTasks = (
   registeredPlugins = usePlugins().plugins.value as unknown as RegisteredPlugin[],
 ): WorkflowTaskRegistry => {
   const pluginTasks = Object.fromEntries(
-    registeredPlugins.flatMap((plugin) => plugin.nodes.map((node) => [
-      `${plugin.id}/${node.node.id}`,
-      createWorkflowActionTask(node.runner, options),
-    ] as const)),
+    registeredPlugins.flatMap((plugin) =>
+      plugin.nodes.map(
+        (node) =>
+          [`${plugin.id}/${node.node.id}`, createWorkflowActionTask(node.runner, options)] as const,
+      ),
+    ),
   );
 
   return {
     ...pluginTasks,
-    "@pipelab/core/passthrough": async (taskContext) => {
-      const path = taskContext.inputs.path;
-      if (typeof path !== "string" || !path) throw new Error("Passthrough source requires a path");
-      taskContext.setArtifact("output", path);
-      return { output: path };
-    },
-    "filesystem:zip": async (taskContext) => {
-      const from = taskContext.inputs.from;
-      const to = taskContext.inputs.to;
-      if (typeof from !== "string" || typeof to !== "string" || !to.trim()) throw new Error("ZIP destination requires a source folder and output path");
-      await mkdir(dirname(to), { recursive: true });
-      const output = await zipFolder(from, to, taskContext.log, taskContext.signal);
-      return { output, path: output };
-    },
+    ...createCoreFilesystemWorkflowTasks(),
     "pipelab-cloud:upload": createPipelabCloudUploadTask(options.context),
   };
 };

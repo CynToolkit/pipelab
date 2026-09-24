@@ -2,7 +2,6 @@ import { rename, rm, stat } from "node:fs/promises";
 import {
   parseReleaseConfig,
   isSafePersistedId,
-  buildReleaseRegistry,
   validateReleaseConnectionReferences,
   usePlugins,
   type ConnectionsConfig,
@@ -16,6 +15,7 @@ import { PipelabContext } from "./context";
 import { JsonFileMissingError, readJsonFile, writeJsonFileAtomically } from "./utils/atomic-json";
 import { loadStrictConnections, loadStrictProjects } from "./strict-config-persistence";
 import { serializeFileMutation } from "./release-persistence-lock";
+import { buildCoreReleaseRegistry } from "./release/registry";
 
 export type ReleasePersistenceErrorCode =
   | "unsafe-id"
@@ -170,7 +170,7 @@ export class ReleasePersistence {
         "identity-mismatch",
       );
     const connections = await loadStrictConnections(this.context);
-    const registry = buildReleaseRegistry(usePlugins().plugins.value);
+    const registry = buildCoreReleaseRegistry(usePlugins().plugins.value);
     const connectionIssues = validateReleaseConnectionReferences(config, registry, connections);
     if (connectionIssues.length)
       throw new ReleasePersistenceError(
@@ -193,7 +193,7 @@ export class ReleasePersistence {
     await this.pluginsReady;
     const validated = parseReleaseConfig(config);
     assertSafeWorkflowId(validated.id);
-    const registry = buildReleaseRegistry(usePlugins().plugins.value);
+    const registry = buildCoreReleaseRegistry(usePlugins().plugins.value);
     const connectionIssues = validateReleaseConnectionReferences(
       validated,
       registry,

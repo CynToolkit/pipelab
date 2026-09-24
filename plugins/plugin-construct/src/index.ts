@@ -74,7 +74,7 @@ export const constructSource: ReleaseSourceDefinition = {
       },
       {
         id: "construct-source-extract",
-        uses: "@pipelab/plugin-filesystem/unzip-file-node",
+        uses: "filesystem:unzip",
         needs: ["construct-source-export"],
         artifactInputs: { file: { stepId: "construct-source-export", artifact: "zipFile" } },
         artifacts: { output: { descriptor: constructSource.output } },

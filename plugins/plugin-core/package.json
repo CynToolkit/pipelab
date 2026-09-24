@@ -35,6 +35,7 @@
   },
   "dependencies": {
     "@pipelab/core-node": "workspace:*",
+    "@pipelab/workflow-runtime": "workspace:*",
     "@types/node": "^24.12.2",
     "archiver": "7.0.1",
     "electron": "39.8.10",

@@ -9,7 +9,6 @@ import { nanoid } from "nanoid";
 import { mkdir } from "node:fs/promises";
 import {
   buildReleaseCatalog,
-  buildReleaseRegistry,
   compileReleasePlan,
   planRelease,
   resolveReleaseDefaults,
@@ -29,9 +28,10 @@ import { useAPI } from "../ipc-core";
 import { BuildHistoryStorage } from "./build-history";
 import { WorkflowRunCancellationRegistry } from "./workflow-run-cancellation";
 import { getPipelabCloudDownloadUrl } from "../pipelab-cloud";
+import { buildCoreReleaseRegistry } from "../release/registry";
 
 const host = () => ({ platform: process.platform, architecture: process.arch });
-const registry = () => buildReleaseRegistry(usePlugins().plugins.value);
+const registry = () => buildCoreReleaseRegistry(usePlugins().plugins.value);
 const catalog = () => buildReleaseCatalog(registry(), host());
 
 const issuesFor = (config: ReleaseConfig) => validateRelease(config, registry(), { host: host() });
