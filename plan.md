@@ -249,7 +249,7 @@ Local verification completed:
 * [x] Repository build.
 * [x] `git diff --check`.
 
-* [ ] Confirm exact-head CI is green. The branch is pushed, but this workflow runs for PRs targeting `main` or `develop`; no PR has been opened for this branch.
+* [ ] Confirm exact-head CI is green on the final PR head. Draft PR #97 is open to `develop`; checks are pending.
 
 ## Scope
 
