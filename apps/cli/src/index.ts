@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// Controlled CI validation: portable CLI source change.
 import { isDev, runPipelineCommand, serveCommand } from "@pipelab/core-node";
 import { historyCommand } from "./commands/history";
 import { usageCommand, purgeCommand } from "./commands/maintenance";
