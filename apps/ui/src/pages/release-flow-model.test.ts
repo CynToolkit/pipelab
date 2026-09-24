@@ -1,23 +1,35 @@
 import { describe, expect, it, vi } from "vitest";
+import { reactive, toRaw, watch } from "vue";
 import {
   buildEnginesFor,
   buildProfileSummary,
   buildTargetsFor,
+  buildInputControlVisible,
   applyProducerInspection,
+  buildInputSelectionMode,
   connectionMatchesIntegration,
   createBuildProfile,
   createSerializedTaskQueue,
   issuesForPath,
   planOutputOptions,
+  plannerAcceptsBuildInput,
   plannerAcceptsBuildCandidate,
+  probeBuildInputCandidates,
   deploymentSlotLabel,
   readinessLabel,
   releaseCanRun,
+  releaseOutputRefValue,
   runAfterSuccessfulSave,
+  selectBuildInput,
   setBuildTargetEnabled,
   switchBuildProfileEngine,
 } from "./release-flow-model";
-import type { ReleaseCatalog, ReleaseConfig, ReleasePlan } from "@pipelab/shared";
+import type {
+  ReleaseBuildProfileConfig,
+  ReleaseCatalog,
+  ReleaseConfig,
+  ReleasePlan,
+} from "@pipelab/shared";
 
 const catalog: ReleaseCatalog = {
   buildTypes: [
@@ -160,6 +172,255 @@ describe("release flow model", () => {
     ]);
   });
 
+  it("hides a single input and preserves an explicit chained input during discovery", async () => {
+    const buildA = {
+      id: "build-a",
+      type: "desktop",
+      engine: "engine-a",
+      enabled: true,
+      config: {},
+      targets: [{ id: "windows", enabled: true, config: {} }],
+    };
+    const buildB = {
+      id: "build-b",
+      type: "desktop",
+      engine: "engine-a",
+      enabled: true,
+      input: { buildId: "build-a", targetId: "windows" },
+      config: {},
+      targets: [{ id: "windows", enabled: true, config: {} }],
+    };
+    const workflow = reactive<ReleaseConfig>({ ...config, builds: [buildA, buildB] });
+    const before = structuredClone(toRaw(workflow));
+    const persist = vi.fn();
+    const stopWatching = watch(workflow, persist, { deep: true, flush: "sync" });
+    const candidates = [
+      { value: "source", label: "Source", ref: { source: true as const } },
+      {
+        value: "build-a:windows",
+        label: "Build A — Windows",
+        ref: { buildId: "build-a", targetId: "windows" },
+      },
+      {
+        value: "build-b:windows",
+        label: "Build B — Windows",
+        ref: { buildId: "build-b", targetId: "windows" },
+      },
+    ];
+    const options = await probeBuildInputCandidates(
+      workflow,
+      "build-b",
+      candidates,
+      async (draft) =>
+        draft.builds[1].input && "buildId" in draft.builds[1].input
+          ? ({
+              outputs: [],
+              producers: [{ id: "build-b" }],
+              destinations: [],
+              issues: [],
+              graph: { nodes: [], edges: [] },
+            } as unknown as ReleasePlan)
+          : ({
+              outputs: [],
+              producers: [],
+              destinations: [],
+              issues: [
+                {
+                  code: "release.build.input.missing",
+                  message: "No compatible input",
+                  severity: "error",
+                  path: "builds.1.input",
+                },
+              ],
+              graph: { nodes: [], edges: [] },
+            } as unknown as ReleasePlan),
+    );
+
+    expect(options.map((option) => option.value)).toEqual(["build-a:windows"]);
+    expect(buildInputSelectionMode(options)).toBe("hidden");
+    expect(buildInputControlVisible(options, [])).toBe(false);
+    expect(workflow).toEqual(before);
+    expect(workflow.builds[1].input).toEqual({ buildId: "build-a", targetId: "windows" });
+    expect(persist).not.toHaveBeenCalled();
+    stopWatching();
+  });
+
+  it("leaves an implicit single input unset", async () => {
+    const workflow: ReleaseConfig = {
+      ...config,
+      builds: [
+        {
+          id: "build-b",
+          type: "desktop",
+          engine: "engine-a",
+          enabled: true,
+          config: {},
+          targets: [{ id: "windows", enabled: true, config: {} }],
+        },
+      ],
+    };
+    const options = await probeBuildInputCandidates(
+      workflow,
+      "build-b",
+      [{ value: "source", label: "Source", ref: { source: true } }],
+      async () =>
+        ({
+          outputs: [],
+          producers: [{ id: "build-b" }],
+          destinations: [],
+          issues: [],
+          graph: { nodes: [], edges: [] },
+        }) as unknown as ReleasePlan,
+    );
+
+    expect(buildInputSelectionMode(options)).toBe("hidden");
+    expect(workflow.builds[0].input).toBeUndefined();
+  });
+
+  it("shows ambiguous inputs with no implicit Source selection and persists an explicit choice", () => {
+    const build: ReleaseBuildProfileConfig = {
+      id: "build-b",
+      type: "desktop",
+      engine: "engine-a",
+      enabled: true,
+      config: {},
+      targets: [{ id: "windows", enabled: true, config: {} }],
+    };
+    const options = [
+      { value: "source", label: "Source", ref: { source: true as const } },
+      {
+        value: "build-a:windows",
+        label: "Build A — Windows",
+        ref: { buildId: "build-a", targetId: "windows" },
+      },
+    ];
+    expect(buildInputSelectionMode(options)).toBe("select");
+    expect(releaseOutputRefValue(build.input)).toBe("");
+
+    selectBuildInput(build, options, "build-a:windows");
+    expect(build.input).toEqual({ buildId: "build-a", targetId: "windows" });
+    expect(releaseOutputRefValue(build.input)).toBe("build-a:windows");
+  });
+
+  it("does not replace a stale explicit input during candidate discovery", async () => {
+    const build = {
+      id: "build-b",
+      type: "desktop",
+      engine: "engine-a",
+      enabled: true,
+      input: { buildId: "deleted-build", targetId: "output" },
+      config: {},
+      targets: [{ id: "windows", enabled: true, config: {} }],
+    };
+    const workflow: ReleaseConfig = { ...config, builds: [build] };
+    const before = structuredClone(workflow);
+    const issuePlan = {
+      outputs: [],
+      producers: [],
+      destinations: [],
+      issues: [
+        {
+          code: "release.build.input.missing",
+          message: "No compatible input",
+          severity: "error" as const,
+          path: "builds.0.input",
+        },
+      ],
+      graph: { nodes: [], edges: [] },
+    } as ReleasePlan;
+    const options = await probeBuildInputCandidates(
+      workflow,
+      "build-b",
+      [{ value: "source", label: "Source", ref: { source: true } }],
+      async () => issuePlan,
+    );
+
+    expect(options).toEqual([]);
+    expect(buildInputSelectionMode(options)).toBe("missing");
+    expect(buildInputControlVisible(options, issuePlan.issues)).toBe(true);
+    expect(workflow).toEqual(before);
+    expect(workflow.builds[0].input).toEqual({ buildId: "deleted-build", targetId: "output" });
+  });
+
+  it("shows the selector for one valid candidate when the explicit input is stale", async () => {
+    const build = {
+      id: "build-b",
+      type: "desktop",
+      engine: "engine-a",
+      enabled: true,
+      input: { buildId: "deleted-build", targetId: "output" },
+      config: {},
+      targets: [{ id: "windows", enabled: true, config: {} }],
+    };
+    const workflow: ReleaseConfig = { ...config, builds: [build] };
+    const staleInput = structuredClone(build.input);
+    const persistedPlan = {
+      outputs: [],
+      producers: [],
+      destinations: [],
+      issues: [
+        {
+          code: "release.build.input.missing",
+          message: "Referenced build is missing",
+          severity: "error" as const,
+          path: "builds.0.input",
+        },
+      ],
+      graph: { nodes: [], edges: [] },
+    } as ReleasePlan;
+    const inputIssues = issuesForPath(persistedPlan.issues, "builds.0.input");
+    const options = await probeBuildInputCandidates(
+      workflow,
+      "build-b",
+      [{ value: "source", label: "Source", ref: { source: true } }],
+      async () =>
+        ({
+          outputs: [],
+          producers: [{ id: "build-b" }],
+          destinations: [],
+          issues: [],
+          graph: { nodes: [], edges: [] },
+        }) as unknown as ReleasePlan,
+    );
+
+    expect(options).toHaveLength(1);
+    expect(buildInputControlVisible(options, inputIssues)).toBe(true);
+    expect(buildInputSelectionMode(options, inputIssues)).toBe("select");
+    expect(build.input).toEqual(staleInput);
+
+    selectBuildInput(build, options, "source");
+    expect(build.input).toEqual({ source: true });
+  });
+
+  it("accepts planner-resolved build inputs and rejects missing or invalid inputs", () => {
+    const plan = {
+      outputs: [],
+      producers: [{ id: "build" }],
+      destinations: [],
+      issues: [],
+      graph: { nodes: [], edges: [] },
+    } as unknown as ReleasePlan;
+    expect(plannerAcceptsBuildInput(plan, "build", 0)).toBe(true);
+    expect(
+      plannerAcceptsBuildInput(
+        {
+          ...plan,
+          issues: [
+            {
+              code: "release.build.input.missing",
+              message: "No compatible input",
+              severity: "error",
+              path: "builds.0.input",
+            },
+          ],
+        },
+        "build",
+        0,
+      ),
+    ).toBe(false);
+    expect(plannerAcceptsBuildInput(plan, "missing-build", 0)).toBe(false);
+  });
+
   it("preserves the profile id and compatible settings while dropping invalid targets", () => {
     const build = {
       ...createBuildProfile(catalog, "desktop", "engine-a", "desktop-one")!,
@@ -185,6 +446,21 @@ describe("release flow model", () => {
     ];
     expect(issuesForPath(issues, "destinations.0")).toEqual(issues);
     expect(issuesForPath(issues, "builds.0")).toEqual([]);
+
+    const inputIssue = {
+      code: "release.build.input.missing",
+      message: "Choose a compatible input",
+      severity: "error" as const,
+      path: "builds.0.input",
+    };
+    const buildIssues = issuesForPath([inputIssue], "builds.0.input");
+    expect(buildIssues).toEqual([inputIssue]);
+    expect(
+      buildInputControlVisible(
+        [{ value: "source", label: "Source", ref: { source: true } }],
+        buildIssues,
+      ),
+    ).toBe(true);
   });
 
   it("applies producer inspection values and indexed issues", () => {
@@ -204,6 +480,24 @@ describe("release flow model", () => {
     expect(build.targets[0].config.preset).toBe("release");
     expect(result.options.preset).toEqual([{ label: "Release", value: "release" }]);
     expect(result.issues[0].path).toBe("builds.2.targets.0.config.preset");
+  });
+
+  it("keeps producer inspection read-only when opening Build settings", () => {
+    const build = createBuildProfile(catalog, "desktop", "engine-a", "desktop-one")!;
+    const before = structuredClone(build);
+    const result = applyProducerInspection(
+      build,
+      0,
+      {
+        fieldValues: { preset: "release" },
+        fieldOptions: { preset: [{ label: "Release", value: "release" }] },
+        issues: [],
+      },
+      { applyFieldValues: false },
+    );
+
+    expect(build).toEqual(before);
+    expect(result.options.preset).toEqual([{ label: "Release", value: "release" }]);
   });
 
   it("accepts only planner-resolved compatible build candidates", () => {
