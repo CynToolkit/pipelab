@@ -494,3 +494,5 @@ app.on("before-quit", async (event) => {
   stopServer();
   app.exit(0);
 });
+
+// Temporary CI validation: desktop source change.
