@@ -484,7 +484,14 @@
           "
           class="release-field wide"
         >
-          <template v-if="buildInputSelectionMode(buildInputs(settingsBuild)) === 'select'">
+          <template
+            v-if="
+              buildInputSelectionMode(
+                buildInputs(settingsBuild),
+                fieldIssues(`builds.${flow?.builds.indexOf(settingsBuild)}.input`),
+              ) === 'select'
+            "
+          >
             <label :for="`settings-input-${settingsBuild.id}`">Input</label
             ><Select
               :id="`settings-input-${settingsBuild.id}`"

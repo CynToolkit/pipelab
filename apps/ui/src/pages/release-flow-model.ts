@@ -17,13 +17,20 @@ export interface ReleaseOutputOption {
   ref: ReleaseOutputRef;
 }
 
-export const buildInputSelectionMode = (options: ReleaseOutputOption[]) =>
-  options.length === 1 ? "hidden" : options.length > 1 ? "select" : "missing";
+export const buildInputSelectionMode = (
+  options: ReleaseOutputOption[],
+  inputIssues: ValidationIssue[] = [],
+) =>
+  options.length === 0
+    ? "missing"
+    : options.length === 1 && inputIssues.length === 0
+      ? "hidden"
+      : "select";
 
 export const buildInputControlVisible = (
   options: ReleaseOutputOption[],
   inputIssues: ValidationIssue[],
-) => buildInputSelectionMode(options) !== "hidden" || inputIssues.length > 0;
+) => buildInputSelectionMode(options, inputIssues) !== "hidden";
 
 export const releaseOutputRefValue = (ref?: ReleaseOutputRef) =>
   ref ? ("source" in ref ? "source" : `${ref.buildId}:${ref.targetId}`) : "";

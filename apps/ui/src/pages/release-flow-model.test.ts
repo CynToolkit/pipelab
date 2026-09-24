@@ -342,6 +342,56 @@ describe("release flow model", () => {
     expect(workflow.builds[0].input).toEqual({ buildId: "deleted-build", targetId: "output" });
   });
 
+  it("shows the selector for one valid candidate when the explicit input is stale", async () => {
+    const build = {
+      id: "build-b",
+      type: "desktop",
+      engine: "engine-a",
+      enabled: true,
+      input: { buildId: "deleted-build", targetId: "output" },
+      config: {},
+      targets: [{ id: "windows", enabled: true, config: {} }],
+    };
+    const workflow: ReleaseConfig = { ...config, builds: [build] };
+    const staleInput = structuredClone(build.input);
+    const persistedPlan = {
+      outputs: [],
+      producers: [],
+      destinations: [],
+      issues: [
+        {
+          code: "release.build.input.missing",
+          message: "Referenced build is missing",
+          severity: "error" as const,
+          path: "builds.0.input",
+        },
+      ],
+      graph: { nodes: [], edges: [] },
+    } as ReleasePlan;
+    const inputIssues = issuesForPath(persistedPlan.issues, "builds.0.input");
+    const options = await probeBuildInputCandidates(
+      workflow,
+      "build-b",
+      [{ value: "source", label: "Source", ref: { source: true } }],
+      async () =>
+        ({
+          outputs: [],
+          producers: [{ id: "build-b" }],
+          destinations: [],
+          issues: [],
+          graph: { nodes: [], edges: [] },
+        }) as unknown as ReleasePlan,
+    );
+
+    expect(options).toHaveLength(1);
+    expect(buildInputControlVisible(options, inputIssues)).toBe(true);
+    expect(buildInputSelectionMode(options, inputIssues)).toBe("select");
+    expect(build.input).toEqual(staleInput);
+
+    selectBuildInput(build, options, "source");
+    expect(build.input).toEqual({ source: true });
+  });
+
   it("accepts planner-resolved build inputs and rejects missing or invalid inputs", () => {
     const plan = {
       outputs: [],

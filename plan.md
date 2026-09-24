@@ -1,188 +1,100 @@
-# PR #96 — Final Build Input UX Fix
+# PR #96 — Last Input Repair Edge Case
 
-Keep the current planner-driven candidate detection, but fix two UI semantics before merging.
+One remaining UX edge case.
 
-## 1. Never mutate `build.input` while discovering candidates
+## Problem
 
-Current code in `release-flow.vue` does this:
+A stale explicit `build.input` is correctly preserved and its planner error is displayed.
 
-```ts
-if (options.length === 1 && build.input) delete build.input;
+However, when candidate discovery finds exactly one valid replacement, the Input selector is still hidden because `buildInputSelectionMode()` only considers the candidate count.
+
+This leaves the user unable to repair the stale reference explicitly.
+
+Example:
+
+```text
+Persisted input:
+Build B → deleted Build A / windows
+
+Current compatible candidates:
+Source
 ```
 
-Remove that behavior.
+Expected:
 
-`refreshBuildInputs()` must be read-only with respect to the workflow configuration.
+```text
+Input
+[ Choose an input ▼ ]
+
+Referenced build A is missing.
+```
+
+The user can explicitly choose Source.
+
+Current behavior:
+
+```text
+Referenced build A is missing.
+```
+
+with no way to fix the input.
+
+## Fix
+
+Make the input selection mode account for input validation issues.
 
 Expected behavior:
 
-- one compatible candidate + no explicit input:
-  - hide the Input selector;
-  - let the planner resolve the input implicitly.
+* [x] Exactly one compatible candidate + no input issue → hide selector.
+* [x] Exactly one compatible candidate + stale/invalid explicit input → show selector.
+* [x] Multiple compatible candidates → show selector.
+* [x] Zero compatible candidates → show validation/error state without an empty selector.
+* [x] Never automatically replace or delete the stale explicit input.
+* [x] Only change `build.input` after an explicit user selection.
 
-- one compatible candidate + valid explicit input:
-  - hide the Input selector;
-  - preserve the explicit `build.input`.
+The simplest approach is to let the selection-mode helper receive the current input issues, or introduce a small helper expressing this rule explicitly.
 
-- stale, missing, disabled, or incompatible explicit input:
-  - preserve the existing `build.input`;
-  - surface the planner validation error;
-  - do not silently replace or delete it.
+## Regression test
 
-Opening Build settings must never rewrite persisted workflow configuration.
+Add a focused test for:
 
-Do not silently repair explicit inputs.
-
-## 2. Do not visually default ambiguous inputs to Source
-
-Current selector binding uses:
-
-```vue
-:model-value="outputRefValue(settingsBuild.input || { source: true })"
+```text
+existing build.input = stale build/target
+planner reports input error
+candidate discovery returns exactly one valid candidate
 ```
 
-This is misleading when multiple compatible inputs exist and `build.input` is undefined.
+Verify:
 
-In that case the planner considers the build ambiguous, but the UI can visually appear as though Source is already selected.
+* [x] the Input control is visible;
+* [x] the selector is rendered;
+* [x] the stale `build.input` remains unchanged before interaction;
+* [x] selecting the sole candidate explicitly replaces `build.input`.
 
-Change the selector behavior so that:
+## Small documentation cleanup
 
-- multiple compatible candidates + no explicit `build.input`:
-  - show the Input selector;
-  - show no candidate as selected;
-  - use a placeholder such as `Choose an input`;
-  - require the user to explicitly select an input.
-
-Use the actual explicit input only:
-
-```vue
-:model-value="outputRefValue(settingsBuild.input)"
-```
-
-Do not use `{ source: true }` as a display fallback for an ambiguous build.
-
-## 3. Preserve the existing single-input UX
-
-Keep the intended behavior from this PR:
-
-- exactly one compatible input:
-  - hide the Input selector.
-
-- multiple compatible inputs:
-  - show the Input selector.
-
-- zero compatible inputs:
-  - do not show an empty selector;
-  - surface the planner validation/error state.
-
-Do not change planner semantics.
-
-Keep:
+While touching `plan.md`, fix the malformed examples currently rendered as:
 
 ```ts
-ReleaseBuildProfileConfig.input?: ReleaseOutputRef
-```
-
-Keep support for:
-
-```ts
-{
-  source: true;
-}
+{ buildId, targetId }
 ```
 
 and:
 
 ```ts
-{
-  (buildId, targetId);
-}
+release:plan
 ```
 
-Keep input at the build-profile level.
+They should describe `{ buildId, targetId }` and `release:plan` normally.
 
-Do not add target-level inputs.
-
-## 4. Keep compatibility detection planner-owned
-
-Do not duplicate artifact compatibility logic in the UI.
-
-Continue probing candidate configs through:
-
-```ts
-release: plan;
-```
-
-and only expose candidates accepted by the planner.
-
-The UI should remain a presentation layer over planner semantics.
-
-## 5. Add focused regression tests
-
-### Single compatible input
-
-- [x] Selector is hidden.
-- [x] An existing explicit `build.input` is preserved.
-- [x] Opening Build settings does not mutate the workflow.
-- [x] Opening Build settings does not trigger a persistence change solely because input discovery ran.
-
-### Explicit build chaining
-
-Given:
-
-```text
-Source → Build A → Build B
-```
-
-and Build A's output is Build B's only compatible input:
-
-- [x] Build B's selector is hidden.
-- [x] Build B's explicit `{ buildId, targetId }` input remains unchanged.
-
-### Invalid/stale explicit input
-
-- [x] Stale explicit input is not deleted.
-- [x] Stale explicit input is not replaced with Source.
-- [x] Planner validation remains visible.
-
-### Ambiguous input
-
-Given multiple compatible candidates:
-
-- [x] Selector is visible.
-- [x] Undefined `build.input` shows no selected option.
-- [x] Source is not visually selected by default.
-- [x] A `Choose an input` placeholder is shown.
-- [x] Selecting an option persists the selected `ReleaseOutputRef`.
-
-### Existing behavior
-
-- [x] Zero compatible inputs shows the existing actionable validation state.
-- [x] Build targets still do not expose individual Input settings.
-
-## 6. Verification
+## Verification
 
 Verification completed:
 
-- [x] `pnpm --filter @pipelab/ui test` (58 tests passed).
+- [x] `pnpm --filter @pipelab/ui test` (59 tests passed).
 - [x] `pnpm --filter @pipelab/ui typecheck`.
 - [x] `pnpm --filter @pipelab/ui lint` (23 warnings, no errors).
 - [x] `pnpm --filter @pipelab/ui build`.
 - [x] `git diff --check`.
 
-If shared code is touched, also run the relevant shared tests/typecheck.
-
-## Scope
-
-Do not:
-
-- redesign Release planning;
-- change the one-source Release model;
-- remove `build.input`;
-- remove build chaining;
-- add target-level inputs;
-- change destination input behavior;
-- add DAG/editor work;
-- introduce automatic repair of persisted workflow references.
-
-This should remain a small UI correctness fix on top of PR #96.
+Do not change planner semantics or automatically repair persisted inputs.
