@@ -1,0 +1,87 @@
+name: CLI Release
+
+on:
+  push:
+    tags:
+      - '@pipelab/cli@*'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cli-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Build and publish CLI
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Confirm tag matches CLI version
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          actual_version=$(node -p "require('./apps/cli/package.json').version")
+          [[ "$RELEASE_TAG" == "@pipelab/cli@$actual_version" ]]
+
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.15.0
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build bundled CLI
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+          POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
+        run: pnpm exec turbo build --filter=@pipelab/cli... --concurrency=2
+
+      - name: Validate generated npm package
+        working-directory: apps/cli/dist
+        run: |
+          test -s index.mjs
+          test -f ui/index.html
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import { readFileSync } from 'node:fs';
+
+          const manifest = JSON.parse(readFileSync('package.json', 'utf8'));
+          const sourceManifest = JSON.parse(readFileSync('../package.json', 'utf8'));
+          assert.equal(manifest.name, '@pipelab/cli');
+          assert.equal(manifest.version, sourceManifest.version);
+          assert.equal(manifest.main, 'index.mjs');
+          assert.deepEqual(manifest.bin, { pipelab: 'index.mjs', plab: 'index.mjs' });
+
+          NODE
+          npm pack --dry-run --json > "$RUNNER_TEMP/cli-pack.json"
+          node --input-type=module - "$RUNNER_TEMP/cli-pack.json" <<'NODE'
+          import assert from 'node:assert/strict';
+          import { readFileSync } from 'node:fs';
+
+          const [pack] = JSON.parse(readFileSync(process.argv[2], 'utf8'));
+          const files = new Set(pack.files.map(({ path }) => path));
+          for (const required of ['package.json', 'index.mjs', 'ui/index.html']) {
+            assert(files.has(required), `npm package is missing ${required}`);
+          }
+          assert([...files].some((path) => path.startsWith('assets/')), 'npm package is missing bundled assets');
+          NODE
+
+      - name: Publish to npm
+        working-directory: apps/cli/dist
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public
