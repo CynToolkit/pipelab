@@ -1,3 +1,4 @@
+// Controlled CI validation: desktop packaging source change.
 import { app, shell, BrowserWindow, dialog, autoUpdater, screen, protocol, net } from "electron";
 import { join, resolve, dirname } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -6,10 +7,7 @@ import { electronApp, optimizer, is } from "@electron-toolkit/utils";
 import { startServer, stopServer } from "./main/server-process";
 import { websocketPort, uiDevPort, getProtocolName, getAppBundleId } from "@pipelab/constants";
 import { registerIpcHandlers } from "./main/ipc-handlers";
-import {
-  getDefaultUserDataPath,
-  fetchLatestDesktopRelease,
-} from "@pipelab/core-node/desktop";
+import { getDefaultUserDataPath, fetchLatestDesktopRelease } from "@pipelab/core-node/desktop";
 import started from "electron-squirrel-startup";
 import { PostHog } from "posthog-node";
 import { parseArgs } from "node:util";
