@@ -37,6 +37,7 @@ jobs:
       - name: Confirm tag matches desktop version
         env:
           RELEASE_TAG: ${{ github.ref_name }}
+        shell: bash
         run: |
           actual_version=$(node -p "require('./apps/desktop/package.json').version")
           [[ "$RELEASE_TAG" == "@pipelab/app@$actual_version" ]]
@@ -110,6 +111,7 @@ jobs:
           name: release-${{ matrix.os }}-${{ matrix.arch }}
           path: apps/desktop/out/make/**/*
           if-no-files-found: error
+          overwrite: true
 
   publish:
     name: Publish GitHub Release
@@ -125,11 +127,12 @@ jobs:
           path: artifacts
           merge-multiple: true
 
-      - name: Publish release
+      - name: Publish or update same-tag release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
           prerelease: ${{ contains(github.ref_name, '-') }}
+          overwrite_files: true
           files: |
             artifacts/**/*.dmg
             artifacts/**/*.exe
