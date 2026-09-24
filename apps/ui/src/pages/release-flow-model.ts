@@ -1,3 +1,4 @@
+import { toRaw } from "vue";
 import type {
   ReleaseBuildProfileConfig,
   ReleaseCatalog,
@@ -15,6 +16,51 @@ export interface ReleaseOutputOption {
   label: string;
   ref: ReleaseOutputRef;
 }
+
+export const buildInputSelectionMode = (options: ReleaseOutputOption[]) =>
+  options.length === 1 ? "hidden" : options.length > 1 ? "select" : "missing";
+
+export const buildInputControlVisible = (
+  options: ReleaseOutputOption[],
+  inputIssues: ValidationIssue[],
+) => buildInputSelectionMode(options) !== "hidden" || inputIssues.length > 0;
+
+export const releaseOutputRefValue = (ref?: ReleaseOutputRef) =>
+  ref ? ("source" in ref ? "source" : `${ref.buildId}:${ref.targetId}`) : "";
+
+export const selectBuildInput = (
+  build: ReleaseBuildProfileConfig,
+  options: ReleaseOutputOption[],
+  value: string,
+) => {
+  const output = options.find((candidate) => candidate.value === value);
+  if (output) build.input = output.ref;
+};
+
+export const probeBuildInputCandidates = async (
+  config: ReleaseConfig,
+  buildId: string,
+  candidates: ReleaseOutputOption[],
+  planCandidate: (config: ReleaseConfig) => Promise<ReleasePlan | undefined>,
+  shouldContinue: () => boolean = () => true,
+) => {
+  const buildIndex = config.builds.findIndex((build) => build.id === buildId);
+  if (buildIndex < 0) return [];
+  const options: ReleaseOutputOption[] = [];
+  for (const option of candidates.filter(
+    (candidate) => !("buildId" in candidate.ref && candidate.ref.buildId === buildId),
+  )) {
+    if (!shouldContinue()) break;
+    const candidateConfig = structuredClone(toRaw(config));
+    const candidateBuild = candidateConfig.builds.find((candidate) => candidate.id === buildId);
+    if (!candidateBuild) continue;
+    candidateBuild.input = structuredClone(toRaw(option.ref));
+    const candidatePlan = await planCandidate(candidateConfig);
+    if (candidatePlan && plannerAcceptsBuildInput(candidatePlan, buildId, buildIndex))
+      options.push(option);
+  }
+  return options;
+};
 
 export const createSerializedTaskQueue = (task: () => Promise<void>) => {
   let requested = false;
@@ -179,8 +225,11 @@ export const applyProducerInspection = (
   build: ReleaseBuildProfileConfig,
   buildIndex: number,
   inspection: ProducerInspection,
+  options: { applyFieldValues?: boolean } = {},
 ) => {
-  for (const [key, value] of Object.entries(inspection.fieldValues || {})) {
+  for (const [key, value] of Object.entries(
+    options.applyFieldValues === false ? {} : inspection.fieldValues || {},
+  )) {
     const targetMatch = key.match(/^targets\.([^.]+)\.config\.(.+)$/);
     if (targetMatch) {
       const target = build.targets.find((candidate) => candidate.id === targetMatch[1]);

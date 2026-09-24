@@ -475,13 +475,22 @@
             </button>
           </div>
         </div>
-        <div v-if="buildInputs(settingsBuild).length !== 1" class="release-field wide">
-          <template v-if="buildInputs(settingsBuild).length > 1">
+        <div
+          v-if="
+            buildInputControlVisible(
+              buildInputs(settingsBuild),
+              fieldIssues(`builds.${flow?.builds.indexOf(settingsBuild)}.input`),
+            )
+          "
+          class="release-field wide"
+        >
+          <template v-if="buildInputSelectionMode(buildInputs(settingsBuild)) === 'select'">
             <label :for="`settings-input-${settingsBuild.id}`">Input</label
             ><Select
               :id="`settings-input-${settingsBuild.id}`"
-              :model-value="outputRefValue(settingsBuild.input || { source: true })"
+              :model-value="releaseOutputRefValue(settingsBuild.input)"
               :options="buildInputs(settingsBuild)"
+              placeholder="Choose an input"
               optionLabel="label"
               optionValue="value"
               @update:model-value="setBuildInput(settingsBuild, $event)"
@@ -588,7 +597,7 @@
         <div class="release-field wide">
           <label>Output</label
           ><Select
-            :model-value="outputRefValue(settingsSlot.input)"
+            :model-value="releaseOutputRefValue(settingsSlot.input)"
             :options="outputOptions"
             optionLabel="label"
             optionValue="value"
@@ -729,19 +738,23 @@ import {
   buildEnginesFor,
   buildProfileSummary,
   buildTargetsFor,
+  buildInputControlVisible,
   applyProducerInspection,
   connectionMatchesIntegration,
   createBuildProfile,
   createSerializedTaskQueue,
   deploymentSlotLabel,
+  buildInputSelectionMode,
   issuesForPath,
   planOutputOptions,
-  plannerAcceptsBuildInput,
+  probeBuildInputCandidates,
   plannerAcceptsBuildCandidate,
   readinessLabel,
   releaseCanRun,
+  releaseOutputRefValue,
   removeBuildProfile,
   runAfterSuccessfulSave,
+  selectBuildInput,
   setBuildTargetEnabled,
   switchBuildProfileEngine,
 } from "./release-flow-model";
@@ -913,8 +926,6 @@ const sourcePath = computed(() => {
   );
   return field && flow.value ? fieldValue(flow.value.source.config, field.key) : "";
 });
-const outputRefValue = (ref?: ReleaseOutputRef) =>
-  ref ? ("source" in ref ? "source" : `${ref.buildId}:${ref.targetId}`) : "";
 const outputOptions = computed(() =>
   flow.value && plan.value ? planOutputOptions(flow.value, plan.value, catalog.value) : [],
 );
@@ -930,35 +941,27 @@ const refreshBuildInputs = async (
   const requestId = ++latestBuildInputRequest;
   buildInputChecking.value = true;
   buildInputOptions.value = { ...buildInputOptions.value, [build.id]: [] };
-  const buildIndex = flow.value.builds.indexOf(build);
-  const options: ReleaseOutputOption[] = [];
-  for (const option of candidates.filter(
-    (candidate) => !("buildId" in candidate.ref && candidate.ref.buildId === build.id),
-  )) {
-    const candidateConfig = structuredClone(flow.value);
-    const candidateBuild = candidateConfig.builds.find((candidate) => candidate.id === build.id);
-    if (!candidateBuild) continue;
-    candidateBuild.input = option.ref;
-    const result = await api.execute("release:plan", { config: candidateConfig });
-    if (result.type === "success" && plannerAcceptsBuildInput(result.result, build.id, buildIndex))
-      options.push(option);
-    if (requestId !== latestBuildInputRequest) return;
-  }
+  const options = await probeBuildInputCandidates(
+    flow.value,
+    build.id,
+    candidates,
+    async (candidateConfig) => {
+      const result = await api.execute("release:plan", { config: candidateConfig });
+      return result.type === "success" ? result.result : undefined;
+    },
+    () => requestId === latestBuildInputRequest,
+  );
   if (requestId !== latestBuildInputRequest) return;
   buildInputOptions.value = { ...buildInputOptions.value, [build.id]: options };
   buildInputChecking.value = false;
-  if (options.length === 1 && build.input) delete build.input;
 };
-watch(
-  [settingsBuild, outputOptions, buildSettingsVisible],
-  ([build, candidates, visible]) => {
-    if (build && visible) void refreshBuildInputs(build, candidates);
-    else if (!visible) {
-      latestBuildInputRequest += 1;
-      buildInputChecking.value = false;
-    }
-  },
-);
+watch([settingsBuild, outputOptions, buildSettingsVisible], ([build, candidates, visible]) => {
+  if (build && visible) void refreshBuildInputs(build, candidates);
+  else if (!visible) {
+    latestBuildInputRequest += 1;
+    buildInputChecking.value = false;
+  }
+});
 const buildEngines = (type: string) => buildEnginesFor(catalog.value, type);
 const buildTargets = (build: ReleaseBuildProfileConfig) =>
   buildTargetsFor(catalog.value, build.engine, build.type);
@@ -1047,8 +1050,7 @@ const switchEngine = (build: ReleaseBuildProfileConfig, engine: string) => {
   }
 };
 const setBuildInput = (build: ReleaseBuildProfileConfig, value: string) => {
-  const output = outputOptions.value.find((candidate) => candidate.value === value);
-  if (output) build.input = output.ref;
+  selectBuildInput(build, buildInputs(build), value);
 };
 const addDestination = () => {
   if (!flow.value || !destinationToAdd.value) return;
@@ -1095,7 +1097,7 @@ const setSlotInput = (slot: ReleaseDestinationSlot, value: string) => {
 };
 const openOutputPicker = (slot: ReleaseDestinationSlot) => {
   outputPickerSlot.value = slot;
-  outputPickerValue.value = outputRefValue(slot.input);
+  outputPickerValue.value = releaseOutputRefValue(slot.input);
   outputPickerVisible.value = true;
 };
 const confirmOutputPicker = () => {
@@ -1159,12 +1161,12 @@ const openCompatibleBuildPicker = (slot: ReleaseDestinationSlot) => {
 };
 const artifactLabel = (ref?: ReleaseOutputRef) =>
   ref
-    ? outputOptions.value.find((output) => output.value === outputRefValue(ref))?.label ||
+    ? outputOptions.value.find((output) => output.value === releaseOutputRefValue(ref))?.label ||
       "Invalid output reference"
     : "Choose output";
 const openBuildSettings = (build: ReleaseBuildProfileConfig) => {
   settingsBuild.value = build;
-  void inspectProducer(build);
+  void inspectProducer(build, false);
   buildSettingsVisible.value = true;
 };
 const openDestinationSettings = (destination: ReleaseDestinationConfig) => {
@@ -1257,7 +1259,7 @@ const inspectSource = async () => {
       inspectionOptions.value[key] = options;
   }
 };
-const inspectProducer = async (build: ReleaseBuildProfileConfig) => {
+const inspectProducer = async (build: ReleaseBuildProfileConfig, applyFieldValues = true) => {
   const buildIndex = flow.value?.builds.indexOf(build) ?? -1;
   if (buildIndex < 0) return;
   const result = await api.execute("release:producer:inspect", {
@@ -1287,10 +1289,15 @@ const inspectProducer = async (build: ReleaseBuildProfileConfig) => {
     fieldValues?: Record<string, unknown>;
     issues?: ValidationIssue[];
   };
-  const applied = applyProducerInspection(build, buildIndex, {
-    ...data,
-    issues: data.issues || [],
-  });
+  const applied = applyProducerInspection(
+    build,
+    buildIndex,
+    {
+      ...data,
+      issues: data.issues || [],
+    },
+    { applyFieldValues },
+  );
   producerInspectionOptions.value = applied.options;
   producerInspectionIssues.value = applied.issues;
 };
