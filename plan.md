@@ -249,7 +249,7 @@ Local verification completed:
 * [x] Repository build.
 * [x] `git diff --check`.
 
-* [ ] Confirm exact-head CI is green after the branch is pushed. The branch remains local, so CI has not run against this exact head.
+* [ ] Confirm exact-head CI is green. The branch is pushed, but this workflow runs for PRs targeting `main` or `develop`; no PR has been opened for this branch.
 
 ## Scope
 
