@@ -20,7 +20,19 @@ Durations below are job wall times from completed runs #417 and #413. The full c
 | Desktop build-to-release tail | Skipped | ~8m00s (desktop jobs began at 18:48:18Z; workflow ended 18:56:18Z) |
 | Release job | Skipped | 1m10s (failed uploading existing versioned assets) |
 
-Run links: [#417](https://github.com/CynToolkit/pipelab/actions/runs/35980922487) · [#413](https://github.com/CynToolkit/pipelab/actions/runs/35903259911). The root workflow duration and job timings are API-observed; no controlled after-change run exists yet.
+Run links: [#417](https://github.com/CynToolkit/pipelab/actions/runs/35980922487) · [#413](https://github.com/CynToolkit/pipelab/actions/runs/35903259911). The root workflow duration and job timings are API-observed.
+
+### Controlled validation after the redesign
+
+| Change | Run | Affected work | CI Gate | Delivery artifacts |
+| --- | --- | --- | ---: | --- |
+| UI-only | [#36010023685](https://github.com/CynToolkit/pipelab/actions/runs/36010023685) | UI typecheck, lint, Linux tests, Build All; platform and desktop jobs skipped | 2m15s from run start | Not applicable |
+| Portable CLI | [#36012560329](https://github.com/CynToolkit/pipelab/actions/runs/36012560329) | CLI typecheck, lint, Linux E2E, Build All; platform and desktop jobs skipped | 2m10s from run start | Not applicable |
+| Desktop-only | [#36010948724](https://github.com/CynToolkit/pipelab/actions/runs/36010948724) | Linux tests, both platform smokes, lint/typecheck, Build All, all four desktop builds | 2m50s after Detect Changes completed; 4m10s runner queue preceded detection | All four artifacts uploaded in 10m33s from run creation, including queue; both macOS `lipo` checks passed |
+
+The UI-only run met the 2–2.5 minute gate target. The desktop trial finished every artifact target; it was a PR run, so signing and Delivery were not exercised. A separate UI-only run before the dependency declaration fix failed typecheck and the CI Gate, confirming that typecheck failures block the required gate.
+
+GitHub only starts `workflow_run` listeners when their workflow file exists on the repository default branch. The default branch is `main`, which currently has no Pipeline workflow. PR #102 registers `delivery.yml` there so it can receive successful Pipeline completions from `develop`; keep the `CI Gate` branch requirement on `develop` until a Pipeline workflow is installed on `main`.
 
 ☐ Replace test-matrix with a Linux-first portable test job. Rename it to something like test-linux or verify-tests. Run the affected Turbo test set only on ubuntu-latest. Start with pnpm turbo test ... --concurrency=2 instead of --concurrency 1; the public Linux runner has enough cores and the current major package tests are isolated. Keep the affected-package filtering. Benchmark concurrency=2 before considering anything higher. The CLI E2E suite must run here exactly once, not once per OS.
 
