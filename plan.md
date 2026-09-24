@@ -32,7 +32,7 @@ Run links: [#417](https://github.com/CynToolkit/pipelab/actions/runs/35980922487
 
 The UI-only run met the 2–2.5 minute gate target. The desktop trial finished every artifact target; it was a PR run, so signing and Delivery were not exercised. A separate UI-only run before the dependency declaration fix failed typecheck and the CI Gate, confirming that typecheck failures block the required gate.
 
-GitHub only starts `workflow_run` listeners when their workflow file exists on the repository default branch. The default branch is `main`, which currently has no Pipeline workflow. PR #102 registers `delivery.yml` there so it can receive successful Pipeline completions from `develop`; keep the `CI Gate` branch requirement on `develop` until a Pipeline workflow is installed on `main`.
+GitHub only starts `workflow_run` listeners when their workflow file exists on the repository default branch. The current default `main` is legacy, so Delivery will not automatically run from `develop` while that branch remains default. When `develop` is promoted to the new default `main`, this workflow will be on the default branch and can receive subsequent successful Pipeline runs. No changes to legacy `main` are part of this PR.
 
 ☐ Replace test-matrix with a Linux-first portable test job. Rename it to something like test-linux or verify-tests. Run the affected Turbo test set only on ubuntu-latest. Start with pnpm turbo test ... --concurrency=2 instead of --concurrency 1; the public Linux runner has enough cores and the current major package tests are isolated. Keep the affected-package filtering. Benchmark concurrency=2 before considering anything higher. The CLI E2E suite must run here exactly once, not once per OS.
 
