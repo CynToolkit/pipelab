@@ -84,4 +84,12 @@ jobs:
         working-directory: apps/cli/dist
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm publish --access public
+        run: |
+          version=$(node -p "require('./package.json').version")
+          if [[ "$version" == *-* ]]; then
+            npm_tag=${version#*-}
+            npm_tag=${npm_tag%%.*}
+          else
+            npm_tag=latest
+          fi
+          npm publish --access public --tag "$npm_tag"
