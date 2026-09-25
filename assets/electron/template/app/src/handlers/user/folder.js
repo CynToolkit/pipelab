@@ -5,6 +5,7 @@ import { join } from 'path'
 
 import slash from 'slash';
 import { getAppName } from '../../utils.js';
+import { resolveSaveDataFolder } from './save-data-folder.js'
 
 /**
  * @param {import('@pipelab/core').MakeInputOutput<import('@pipelab/core').MessagePaths, 'input'>} json
@@ -37,6 +38,14 @@ export default (json, ws, config) => {
       folder = localAppData
     } else if (name === 'localUserData') {
       folder = localUserData
+    } else if (name === 'saveData') {
+      folder = resolveSaveDataFolder({
+        platform: process.platform,
+        env,
+        homePath: app.getPath('home'),
+        appDataPath: appDataBackup,
+        appNameFolder,
+      })
     } else if (name === 'userData') {
       folder = userData
     } else {
