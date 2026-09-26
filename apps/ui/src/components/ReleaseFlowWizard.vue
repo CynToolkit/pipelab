@@ -68,7 +68,7 @@
               :value="String(draft.source.config[field.key] || '')"
               :options="fieldOptions(field.key, field.options || [])"
               :input-id="`wizard-source-${field.key}`"
-              @update:value="draft.source.config[field.key] = $event"
+              @update:value="setSourceField(field.key, $event)"
             />
             <div class="wizard-actions">
               <Button
@@ -90,8 +90,8 @@
             <span class="eyebrow">Where do you want to ship?</span>
             <h2>Destinations</h2>
             <p>
-              Choose where this release should be delivered. Builds and routing are configured after
-              creation.
+              Choose where this release should be delivered. We’ll prepare a recommended build setup
+              for these choices before creation.
             </p>
             <div class="choice-grid">
               <button
@@ -115,34 +115,49 @@
                 label="Review"
                 icon="pi pi-arrow-right"
                 iconPos="right"
-                :disabled="!draft.destinations.length"
+                :disabled="!sourceReady || !draft.destinations.length"
                 @click="activateCallback('review')"
               />
             </div></div
         ></StepPanel>
         <StepPanel value="review"
           ><div class="wizard-panel">
-            <span class="eyebrow">Ready to create</span>
-            <h2>{{ draft.name }}</h2>
-            <div class="review-list">
-              <div>
-                <i class="mdi mdi-source-branch" /><span
-                  ><small>Source</small
-                  ><strong>{{ sourceDefinition?.label || "Not selected" }}</strong></span
-                >
-              </div>
-              <div>
-                <i class="mdi mdi-cloud-upload-outline" /><span
-                  ><small>Destinations</small
-                  ><strong>{{
-                    draft.destinations.map((item) => destinationLabel(item.provider)).join(" · ")
-                  }}</strong></span
-                >
-              </div>
+            <span class="eyebrow">Review release</span>
+            <h2>{{ resolvedConfig?.name || draft.name }}</h2>
+            <div v-if="resolutionState === 'resolving'" class="resolution-state" role="status">
+              <i class="mdi mdi-progress-clock" aria-hidden="true" />
+              Resolving recommended build setup…
             </div>
-            <p class="review-copy">
-              The Release editor will handle builds, engines, targets, and output routing.
-            </p>
+            <div
+              v-else-if="resolutionState === 'error'"
+              class="resolution-state resolution-error"
+              role="alert"
+            >
+              <p>{{ resolutionError }}</p>
+              <Button label="Retry" icon="pi pi-refresh" @click="resolveDefaults" />
+            </div>
+            <template v-else-if="resolvedConfig">
+              <div class="review-list">
+                <div>
+                  <i class="mdi mdi-source-branch" aria-hidden="true" /><span
+                    ><small>Source</small><strong>{{ reviewSourceLabel }}</strong></span
+                  >
+                </div>
+                <div>
+                  <i class="mdi mdi-cloud-upload-outline" aria-hidden="true" /><span
+                    ><small>Destinations</small><strong>{{ reviewDestinationLabels }}</strong></span
+                  >
+                </div>
+                <div v-for="summary in buildSummaries" :key="summary">
+                  <i class="mdi mdi-hammer-wrench" aria-hidden="true" /><span
+                    ><small>Recommended setup</small><strong>{{ summary }}</strong></span
+                  >
+                </div>
+              </div>
+              <p v-if="needsAdditionalBuildSetup" class="review-copy">
+                Additional build setup required after creation.
+              </p>
+            </template>
             <div class="wizard-actions">
               <Button
                 label="Back"
@@ -152,6 +167,7 @@
               /><Button
                 label="Create release"
                 icon="mdi mdi-rocket-launch-outline"
+                :disabled="resolutionState !== 'ready' || !resolvedConfig"
                 @click="create"
               />
             </div></div
@@ -162,7 +178,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, ref, toRaw, watch } from "vue";
 import Dialog from "primevue/dialog";
 import Stepper from "primevue/stepper";
 import StepList from "primevue/steplist";
@@ -173,13 +189,28 @@ import InputText from "primevue/inputtext";
 import Textarea from "primevue/textarea";
 import Button from "primevue/button";
 import { nanoid } from "nanoid";
-import { createReleaseConfig, type IconType, type ReleaseCatalog, type ReleaseConfig, type ReleaseFieldOption } from "@pipelab/shared";
+import type { IconType, ReleaseCatalog, ReleaseConfig, ReleaseFieldOption } from "@pipelab/shared";
 import { useAPI } from "../composables/api";
 import ReleaseFieldControl from "./ReleaseFieldControl.vue";
+import {
+  buildReleaseWizardConfig,
+  createReleaseWizardDraft,
+  createWizardRequestRevision,
+  releaseWizardBuildSummaries,
+  releaseWizardCreationConfig,
+  releaseWizardNeedsAdditionalBuildSetup,
+  releaseWizardSourceIsReady,
+  releaseWizardResolutionIsPlannerValid,
+  type ReleaseWizardDraft,
+  type ReleaseWizardResolutionState,
+} from "./ReleaseFlowWizard-state";
 
 const props = defineProps<{ visible: boolean; projectId: string }>();
 const emit = defineEmits<{ "update:visible": [value: boolean]; create: [flow: ReleaseConfig] }>();
 const api = useAPI();
+const catalogRequests = createWizardRequestRevision();
+const sourceInspectionRequests = createWizardRequestRevision();
+const resolutionRequests = createWizardRequestRevision();
 const visible = computed({
   get: () => props.visible,
   set: (value) => emit("update:visible", value),
@@ -191,32 +222,22 @@ const steps = [
   { value: "review", label: "Review", number: "04" },
 ];
 const step = ref("details");
+const workflowId = ref("");
 const catalog = ref<ReleaseCatalog>({
   buildTypes: [],
   sources: [],
   producers: [],
   destinations: [],
 });
-const draft = ref<{
-  name: string;
-  description: string;
-  source: ReleaseConfig["source"];
-  destinations: ReleaseConfig["destinations"];
-}>({ name: "", description: "", source: { provider: "", config: {} }, destinations: [] });
+const draft = ref<ReleaseWizardDraft>(createReleaseWizardDraft());
 const inspectionOptions = ref<Record<string, ReleaseFieldOption[]>>({});
+const resolutionState = ref<ReleaseWizardResolutionState>("idle");
+const resolutionError = ref("");
+const resolvedConfig = ref<ReleaseConfig>();
 const sourceDefinition = computed(() =>
   catalog.value.sources.find((source) => source.id === draft.value.source.provider),
 );
-const sourceReady = computed(() =>
-  Boolean(
-    draft.value.source.provider &&
-    sourceDefinition.value?.fields
-      ?.filter((field) => !field.deferUntilEditor)
-      .every(
-        (field) => !field.required || String(draft.value.source.config[field.key] || "").trim(),
-      ),
-  ),
-);
+const sourceReady = computed(() => releaseWizardSourceIsReady(draft.value.source, catalog.value));
 const providerIcon = (icon?: IconType) =>
   icon?.type === "icon"
     ? icon.icon.includes("mdi")
@@ -234,14 +255,22 @@ const chooseSource = async (provider: string) => {
   if (!definition) return;
   draft.value.source = { provider, config: { ...definition.defaultConfig } };
   inspectionOptions.value = {};
-  const result = await api.execute("release:source:inspect", {
-    provider,
-    config: draft.value.source.config,
-  });
+  const requestId = sourceInspectionRequests.next();
+  const source = structuredClone(toRaw(draft.value.source));
+  const result = await api.execute("release:source:inspect", source);
+  if (
+    !sourceInspectionRequests.isCurrent(requestId) ||
+    JSON.stringify(source) !== JSON.stringify(draft.value.source)
+  )
+    return;
   if (result.type === "success") {
     const inspected = result.result as { fieldOptions?: Record<string, ReleaseFieldOption[]> };
     inspectionOptions.value = inspected.fieldOptions || {};
   }
+};
+const setSourceField = (key: string, value: unknown) => {
+  sourceInspectionRequests.invalidate();
+  draft.value.source.config[key] = value;
 };
 const toggleDestination = (provider: string) => {
   const index = draft.value.destinations.findIndex((item) => item.provider === provider);
@@ -258,34 +287,107 @@ const toggleDestination = (provider: string) => {
       });
   }
 };
+const reviewSourceLabel = computed(
+  () =>
+    catalog.value.sources.find((source) => source.id === resolvedConfig.value?.source.provider)
+      ?.label ||
+    resolvedConfig.value?.source.provider ||
+    "Not selected",
+);
+const reviewDestinationLabels = computed(
+  () =>
+    resolvedConfig.value?.destinations.map((item) => destinationLabel(item.provider)).join(" · ") ||
+    "",
+);
+const buildSummaries = computed(() =>
+  resolvedConfig.value ? releaseWizardBuildSummaries(resolvedConfig.value, catalog.value) : [],
+);
+const needsAdditionalBuildSetup = computed(
+  () =>
+    Boolean(resolvedConfig.value) && releaseWizardNeedsAdditionalBuildSetup(resolvedConfig.value!),
+);
+const resolveDefaults = async () => {
+  if (!sourceReady.value || !draft.value.destinations.length) {
+    resolutionState.value = "error";
+    resolutionError.value =
+      "Choose a source, complete its required fields, and select at least one destination before reviewing.";
+    resolvedConfig.value = undefined;
+    return;
+  }
+
+  const requestId = resolutionRequests.next();
+  const requestedConfig = buildReleaseWizardConfig(
+    toRaw(draft.value),
+    props.projectId,
+    workflowId.value,
+  );
+  resolutionState.value = "resolving";
+  resolutionError.value = "";
+  resolvedConfig.value = undefined;
+
+  try {
+    const result = await api.execute("release:resolve-defaults", { config: requestedConfig });
+    if (!resolutionRequests.isCurrent(requestId)) return;
+    if (result.type === "error") throw new Error(result.ipcError);
+
+    const config = structuredClone(result.result);
+    const planResult = await api.execute("release:plan", { config });
+    if (!resolutionRequests.isCurrent(requestId)) return;
+    if (planResult.type === "error") throw new Error(planResult.ipcError);
+    if (!releaseWizardResolutionIsPlannerValid(config, planResult.result))
+      throw new Error(
+        "The planner could not validate the recommended build setup. Retry to try again.",
+      );
+
+    resolvedConfig.value = config;
+    resolutionState.value = "ready";
+  } catch (error) {
+    if (!resolutionRequests.isCurrent(requestId)) return;
+    resolutionError.value =
+      error instanceof Error ? error.message : "Unable to resolve build defaults.";
+    resolutionState.value = "error";
+  }
+};
 const create = () => {
-  emit("create", {
-    ...createReleaseConfig({
-    id: nanoid(),
-    project: props.projectId,
-    name: draft.value.name.trim(),
-    description: draft.value.description.trim() || undefined,
-    source: draft.value.source,
-    }),
-    destinations: draft.value.destinations,
-  });
+  const config = releaseWizardCreationConfig(resolutionState.value, resolvedConfig.value);
+  if (!config) return;
+  emit("create", config);
   visible.value = false;
 };
 watch(
+  draft,
+  () => {
+    resolutionRequests.invalidate();
+    resolvedConfig.value = undefined;
+    resolutionState.value = "idle";
+    resolutionError.value = "";
+  },
+  { deep: true, flush: "sync" },
+);
+watch(step, (value) => {
+  if (value === "review" && resolutionState.value === "idle") void resolveDefaults();
+});
+watch(
   () => props.visible,
   async (open) => {
-    if (!open) return;
+    if (!open) {
+      catalogRequests.invalidate();
+      sourceInspectionRequests.invalidate();
+      resolutionRequests.invalidate();
+      return;
+    }
+    sourceInspectionRequests.invalidate();
+    const requestId = catalogRequests.next();
     step.value = "details";
-    draft.value = {
-      name: "",
-      description: "",
-      source: { provider: "", config: {} },
-      destinations: [],
-    };
+    workflowId.value = nanoid();
+    draft.value = createReleaseWizardDraft();
+    resolutionState.value = "idle";
+    resolvedConfig.value = undefined;
+    resolutionError.value = "";
     const result = await api.execute("release:catalog:get");
+    if (!catalogRequests.isCurrent(requestId) || !props.visible) return;
     if (result.type === "success") {
       catalog.value = result.result;
-      if (catalog.value.sources[0]) await chooseSource(catalog.value.sources[0].id);
     }
   },
 );
@@ -413,5 +515,21 @@ watch(
   padding: 8px 10px;
   border-left: 3px solid var(--primary-color);
   background: var(--p-surface-50, var(--surface-ground));
+}
+.resolution-state {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--p-text-muted-color, var(--text-color-secondary));
+  font-size: 0.8rem;
+}
+.resolution-error {
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 10px;
+}
+.resolution-error p {
+  margin: 0;
+  color: var(--p-red-600, #dc2626);
 }
 </style>

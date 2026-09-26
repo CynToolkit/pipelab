@@ -21,6 +21,18 @@
         <RouterLink :to="basePath" :aria-current="active === 'configuration' ? 'page' : undefined">
           <i class="mdi mdi-tune-variant" aria-hidden="true" />Configuration
         </RouterLink>
+        <RouterLink
+          :to="`${basePath}/builds`"
+          :aria-current="active === 'builds' ? 'page' : undefined"
+        >
+          <i class="mdi mdi-hammer-wrench" aria-hidden="true" />Builds
+        </RouterLink>
+        <RouterLink
+          :to="`${basePath}/artifacts`"
+          :aria-current="active === 'artifacts' ? 'page' : undefined"
+        >
+          <i class="mdi mdi-package-variant-closed" aria-hidden="true" />Artifacts
+        </RouterLink>
         <RouterLink :to="`${basePath}/runs`" :aria-current="active === 'runs' ? 'page' : undefined">
           <i class="mdi mdi-history" aria-hidden="true" />Runs
         </RouterLink>
@@ -40,7 +52,7 @@ const props = defineProps<{
   projectId: string;
   title?: string;
   subtitle?: string;
-  active: "configuration" | "runs";
+  active: "configuration" | "builds" | "artifacts" | "runs";
 }>();
 const router = useRouter();
 const basePath = computed(() => `/workflows/${props.flowId}/${props.projectId}`);
@@ -111,6 +123,7 @@ const basePath = computed(() => `/workflows/${props.flowId}/${props.projectId}`)
   display: flex;
   align-items: center;
   gap: 6px;
+  overflow-x: auto;
   border-bottom: 1px solid var(--p-surface-200, var(--surface-border));
 }
 .workflow-nav a {
@@ -124,6 +137,7 @@ const basePath = computed(() => `/workflows/${props.flowId}/${props.projectId}`)
   text-decoration: none;
   font-size: 0.875rem;
   font-weight: 600;
+  white-space: nowrap;
   transition:
     color 0.15s,
     border-color 0.15s,
@@ -134,13 +148,32 @@ const basePath = computed(() => `/workflows/${props.flowId}/${props.projectId}`)
   background: var(--p-surface-50, var(--surface-ground));
 }
 .workflow-nav a:focus-visible {
+  position: relative;
+  z-index: 1;
   outline: 2px solid var(--primary-color);
   outline-offset: 2px;
+  box-shadow:
+    0 0 0 2px var(--surface-ground, #fff),
+    0 0 0 4px var(--primary-color);
   border-radius: 4px;
 }
 .workflow-nav a[aria-current="page"] {
   color: var(--text-color);
   border-bottom-color: var(--primary-color);
+}
+:root.dark .workflow-icon {
+  background: var(--p-surface-800, #27272a);
+}
+:root.dark .workflow-nav {
+  border-color: var(--p-surface-700, #3f3f46);
+}
+:root.dark .workflow-nav a:hover {
+  background: var(--p-surface-800, #27272a);
+}
+:root.dark .workflow-nav a:focus-visible {
+  box-shadow:
+    0 0 0 2px var(--p-surface-900, #18181b),
+    0 0 0 4px var(--p-primary-400, #818cf8);
 }
 @media (max-width: 640px) {
   .workflow-shell {
@@ -162,7 +195,7 @@ const basePath = computed(() => `/workflows/${props.flowId}/${props.projectId}`)
     min-width: 0;
   }
   .workflow-nav a {
-    flex: 1;
+    flex: 0 0 auto;
     justify-content: center;
     padding-inline: 8px;
   }

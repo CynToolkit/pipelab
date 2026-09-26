@@ -4,6 +4,11 @@ Release workflow history is available from the workflow's **Runs** tab. Open a
 run to inspect its summary, task steps, logs, produced artifacts, and delivery
 results.
 
+The workflow's **Artifacts** tab collects artifact records across its runs for
+discovery. It links each artifact to the originating run; the run detail page
+continues to show artifacts alongside the steps and delivery results that
+produced them.
+
 ## Run list
 
 The Runs page lists saved execution records for the selected workflow. It has

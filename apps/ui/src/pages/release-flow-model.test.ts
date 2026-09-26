@@ -4,6 +4,8 @@ import {
   buildEnginesFor,
   buildProfileSummary,
   buildTargetsFor,
+  buildTargetAvailabilityReason,
+  buildTargetIsAvailable,
   buildInputControlVisible,
   applyProducerInspection,
   buildInputSelectionMode,
@@ -12,9 +14,12 @@ import {
   createSerializedTaskQueue,
   issuesForPath,
   planOutputOptions,
+  outputReferenceChangeImpact,
+  outputReferenceConsumers,
   plannerAcceptsBuildInput,
   plannerAcceptsBuildCandidate,
   probeBuildInputCandidates,
+  probeCompatibleBuildCandidates,
   deploymentSlotLabel,
   readinessLabel,
   releaseCanRun,
@@ -89,7 +94,7 @@ const config: ReleaseConfig = {
 
 describe("release flow model", () => {
   it("provides the compact build-card summary without inline settings", () => {
-    const build = createBuildProfile(catalog, "desktop", "engine-a", "desktop-one")!;
+    const build = createBuildProfile(catalog, "desktop", "engine-a", "desktop-one", ["windows"])!;
     expect(buildProfileSummary(catalog, build)).toEqual({
       engineLabel: "Engine A",
       targetLabels: ["Windows x64"],
@@ -143,10 +148,10 @@ describe("release flow model", () => {
 
   it("allows an auto-created profile to toggle its targets", () => {
     const build = createBuildProfile(catalog, "desktop", "engine-a", "generated-profile")!;
-    expect(build.targets.map((target) => target.enabled)).toEqual([true, false]);
+    expect(build.targets.map((target) => target.enabled)).toEqual([false, false]);
 
     expect(setBuildTargetEnabled(build, "macos", true)).toBe(true);
-    expect(build.targets.map((target) => target.enabled)).toEqual([true, true]);
+    expect(build.targets.map((target) => target.enabled)).toEqual([false, true]);
 
     expect(setBuildTargetEnabled(build, "windows", false)).toBe(true);
     expect(build.targets.map((target) => target.enabled)).toEqual([false, true]);
@@ -433,6 +438,314 @@ describe("release flow model", () => {
       config: { preset: "custom" },
     });
     expect(switched?.targets.map((target) => target.id)).toEqual(["linux"]);
+    expect(switched?.targets.every((target) => !target.enabled)).toBe(true);
+  });
+
+  it("keeps unavailable targets visible but never enables them by default", () => {
+    const catalogWithUnavailableTarget: ReleaseCatalog = {
+      ...catalog,
+      producers: catalog.producers.map((producer) =>
+        producer.id === "engine-a"
+          ? {
+              ...producer,
+              targets: producer.targets.map((target) =>
+                target.id === "windows"
+                  ? { ...target, availability: { available: false, reason: "SDK is missing" } }
+                  : target,
+              ),
+            }
+          : producer,
+      ),
+    };
+    const build = createBuildProfile(
+      catalogWithUnavailableTarget,
+      "desktop",
+      "engine-a",
+      "unavailable",
+      ["windows"],
+    )!;
+
+    expect(build.targets.find((target) => target.id === "windows")?.enabled).toBe(false);
+    const windows = buildTargetsFor(catalogWithUnavailableTarget, "engine-a", "desktop").find(
+      (target) => target.id === "windows",
+    )!;
+    expect(buildTargetIsAvailable(windows)).toBe(false);
+    expect(buildTargetAvailabilityReason(windows)).toBe("SDK is missing");
+    expect(
+      buildTargetIsAvailable(
+        buildTargetsFor(catalogWithUnavailableTarget, "engine-a", "desktop")[1],
+      ),
+    ).toBe(true);
+    expect(setBuildTargetEnabled(build, "windows", true, windows.availability)).toBe(false);
+    expect(build.targets.find((target) => target.id === "windows")?.enabled).toBe(false);
+  });
+
+  it("lists source and build output consumers with destination, slot, and downstream build labels", () => {
+    const workflow: ReleaseConfig = {
+      ...config,
+      builds: [
+        {
+          ...createBuildProfile(catalog, "desktop", "engine-a", "build-a", ["windows"])!,
+          name: "Windows package",
+        },
+        {
+          ...createBuildProfile(catalog, "desktop", "engine-a", "build-b", ["windows"])!,
+          name: "Installer",
+          input: { buildId: "build-a", targetId: "windows" },
+        },
+      ],
+      destinations: [
+        {
+          id: "destination-a",
+          provider: "store",
+          enabled: true,
+          config: {},
+          slots: [
+            {
+              id: "slot-a",
+              name: "Production",
+              enabled: true,
+              input: { buildId: "build-a", targetId: "windows" },
+              config: {},
+            },
+            {
+              id: "slot-source",
+              name: "Source upload",
+              enabled: true,
+              input: { source: true },
+              config: {},
+            },
+          ],
+        },
+      ],
+    };
+    const workflowCatalog: ReleaseCatalog = {
+      ...catalog,
+      buildTypes: [
+        { id: "desktop", label: "Desktop" },
+        { id: "web", label: "Web" },
+      ],
+      destinations: [
+        {
+          id: "store",
+          label: "Store",
+          accepts: {},
+          defaultConfig: {},
+        },
+      ],
+    };
+
+    expect(outputReferenceConsumers(workflow, { buildId: "build-a" }, workflowCatalog)).toEqual([
+      {
+        kind: "build",
+        ownerId: "build-b",
+        label: "Installer",
+        path: "builds.1.input",
+      },
+      {
+        kind: "destination-slot",
+        ownerId: "slot-a",
+        label: "Store · Production",
+        path: "destinations.0.slots.0.input",
+      },
+    ]);
+    expect(outputReferenceConsumers(workflow, { source: true }, workflowCatalog)).toEqual([
+      {
+        kind: "destination-slot",
+        ownerId: "slot-source",
+        label: "Store · Source upload",
+        path: "destinations.0.slots.1.input",
+      },
+    ]);
+  });
+
+  it("requires reference-aware confirmation only when a build change affects consumers", () => {
+    const consumer = {
+      kind: "destination-slot" as const,
+      ownerId: "slot-a",
+      label: "Store · Production",
+      path: "destinations.0.slots.0.input",
+    };
+    expect(
+      outputReferenceChangeImpact({ kind: "build-disable", buildName: "Windows package" }, [])
+        .confirmationRequired,
+    ).toBe(false);
+    expect(
+      outputReferenceChangeImpact({ kind: "build-disable", buildName: "Windows package" }, [
+        consumer,
+      ]),
+    ).toEqual({
+      confirmationRequired: true,
+      message:
+        "Disabling “Windows package” will leave the selected output unavailable to Store · Production. Its output reference will stay in place; update it manually if needed.",
+    });
+    expect(
+      outputReferenceChangeImpact({ kind: "build-remove", buildName: "Unused profile" }, []),
+    ).toEqual({
+      confirmationRequired: true,
+      message: "Removing “Unused profile” will delete its build configuration.",
+    });
+    expect(
+      outputReferenceChangeImpact(
+        {
+          kind: "build-engine",
+          buildName: "Windows package",
+          newEngine: "Linux Builder",
+          discardedSettings: ["signingKey"],
+          disabledTargets: ["Windows x64"],
+        },
+        [],
+      ),
+    ).toEqual({
+      confirmationRequired: true,
+      message:
+        "Changing “Windows package” to Linux Builder. Settings no longer supported by Linux Builder will be discarded: signingKey. Previously selected targets will be disabled: Windows x64.",
+    });
+    expect(
+      outputReferenceChangeImpact(
+        {
+          kind: "build-engine",
+          buildName: "Windows package",
+          newEngine: "Linux Builder",
+        },
+        [],
+      ),
+    ).toEqual({ confirmationRequired: false });
+    expect(
+      outputReferenceChangeImpact(
+        {
+          kind: "build-engine",
+          buildName: "Windows package",
+          newEngine: "Linux Builder",
+          disabledTargets: ["Windows x64"],
+        },
+        [consumer],
+      ).message,
+    ).toContain("Store · Production");
+  });
+
+  it("planner-filters compatible build candidates and excludes unavailable targets", async () => {
+    const workflow: ReleaseConfig = {
+      ...config,
+      destinations: [
+        {
+          id: "destination-a",
+          provider: "store",
+          enabled: true,
+          config: {},
+          slots: [{ id: "slot-a", name: "Production", enabled: true, config: {} }],
+        },
+      ],
+    };
+    const candidateCatalog: ReleaseCatalog = {
+      ...catalog,
+      producers: catalog.producers.map((producer) =>
+        producer.id === "engine-a"
+          ? {
+              ...producer,
+              targets: producer.targets.map((target) =>
+                target.id === "macos"
+                  ? { ...target, availability: { available: false, reason: "macOS SDK missing" } }
+                  : target,
+              ),
+            }
+          : producer,
+      ),
+    };
+    const choices = await probeCompatibleBuildCandidates(
+      workflow,
+      candidateCatalog,
+      "destination-a",
+      "slot-a",
+      async (candidate) => {
+        const added = candidate.builds.at(-1)!;
+        return {
+          outputs: [],
+          producers:
+            added.engine === "engine-a" &&
+            added.type === "desktop" &&
+            added.targets.some((target) => target.id === "windows" && target.enabled)
+              ? [{ id: added.id }]
+              : [],
+          destinations: [],
+          issues: [],
+          graph: { nodes: [], edges: [] },
+        } as unknown as ReleasePlan;
+      },
+    );
+
+    expect(choices).toHaveLength(1);
+    expect(choices[0]).toMatchObject({ type: "desktop", engine: "engine-a", target: "windows" });
+  });
+
+  it("discards a compatible-build probe result when its request becomes stale", async () => {
+    const workflow: ReleaseConfig = {
+      ...config,
+      destinations: [
+        {
+          id: "destination-a",
+          provider: "store",
+          enabled: true,
+          config: {},
+          slots: [{ id: "slot-a", name: "Production", enabled: true, config: {} }],
+        },
+      ],
+    };
+    let current = true;
+    const choices = await probeCompatibleBuildCandidates(
+      workflow,
+      catalog,
+      "destination-a",
+      "slot-a",
+      async (candidate) => {
+        current = false;
+        return {
+          outputs: [],
+          producers: [{ id: candidate.builds.at(-1)!.id }],
+          destinations: [],
+          issues: [],
+          graph: { nodes: [], edges: [] },
+        } as unknown as ReleasePlan;
+      },
+      () => current,
+    );
+
+    expect(choices).toEqual([]);
+  });
+
+  it("discards a build-input probe result when its request becomes stale", async () => {
+    const workflow: ReleaseConfig = {
+      ...config,
+      builds: [
+        {
+          id: "build-a",
+          type: "desktop",
+          engine: "engine-a",
+          enabled: true,
+          config: {},
+          targets: [{ id: "windows", enabled: true, config: {} }],
+        },
+      ],
+    };
+    let current = true;
+    const options = await probeBuildInputCandidates(
+      workflow,
+      "build-a",
+      [{ value: "source", label: "Source", ref: { source: true } }],
+      async () => {
+        current = false;
+        return {
+          outputs: [],
+          producers: [{ id: "build-a" }],
+          destinations: [],
+          issues: [],
+          graph: { nodes: [], edges: [] },
+        } as unknown as ReleasePlan;
+      },
+      () => current,
+    );
+
+    expect(options).toEqual([]);
   });
 
   it("maps planner diagnostics to the relevant field", () => {
