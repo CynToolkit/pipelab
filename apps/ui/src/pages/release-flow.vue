@@ -8,6 +8,14 @@
       active="configuration"
     >
       <template #actions>
+        <span
+          v-if="flow"
+          class="workflow-readiness"
+          :class="`state-${workflowReadinessState}`"
+          role="status"
+        >
+          <i :class="workflowReadinessIcon" aria-hidden="true" />{{ workflowReadinessLabel }}
+        </span>
         <span v-if="flow" class="autosave-state" :class="`state-${saveState}`"
           ><i
             :class="
@@ -29,160 +37,83 @@
         />
       </template>
       <main v-if="flow" class="release-page">
-        <Message v-if="error" severity="error">{{ error }}</Message>
-        <section v-if="plan?.graph.nodes.length" class="plan-panel">
-          <div class="section-heading">
-            <div>
-              <span class="eyebrow">Resolved by planner</span>
-              <h2>Build plan</h2>
-              <p>Automatic transforms appear as plumbing, never as configurable builds.</p>
-            </div>
-            <Button
-              :label="planExpanded ? 'Collapse' : 'View plan'"
-              text
-              size="small"
-              @click="planExpanded = !planExpanded"
-            />
+        <Message v-if="error" severity="error" role="alert">{{ error }}</Message>
+        <Message v-if="plannerError" severity="error" role="alert">
+          <div class="planner-error">
+            <span>Workflow readiness is unavailable: {{ plannerError }}</span>
+            <Button label="Retry planning" text size="small" @click="refreshPlan" />
           </div>
-          <ol v-if="planExpanded" class="plan-list">
-            <li v-for="node in plan.graph.nodes" :key="node.id">
-              <i :class="nodeIcon(node.kind)" /><span>{{ planNodeLabel(node.id, node.kind) }}</span>
-            </li>
-          </ol>
+        </Message>
+        <Message v-if="saveError" severity="error" role="alert">
+          <div class="planner-error">
+            <span>{{ saveError }}</span>
+            <Button label="Retry save" text size="small" @click="save().catch(() => {})" />
+          </div>
+        </Message>
+        <section v-if="plan?.graph.nodes.length" class="plan-shortcut">
+          <span>Need to inspect the compiled steps?</span>
+          <Button label="Advanced · View plan" text size="small" @click="planExpanded = true" />
+        </section>
+        <section v-if="blockingIssues.length" class="readiness-summary" aria-live="polite">
+          <div>
+            <strong
+              >{{ blockingIssues.length }} item{{ blockingIssues.length === 1 ? "" : "s" }} need
+              attention</strong
+            >
+            <span>Resolve these workflow issues before shipping.</span>
+          </div>
+          <Button label="Review issues" text @click="openAttention(blockingIssues)" />
         </section>
         <section class="release-section">
           <div class="section-heading">
             <div>
-              <span class="eyebrow">Pipeline</span>
+              <span class="eyebrow">Configuration</span>
               <h2>Source</h2>
               <p>Choose the project or files this release represents.</p>
             </div>
-            <Button label="Change" text icon="pi pi-pencil" @click="sourcePickerVisible = true" />
           </div>
           <article class="source-card" :class="{ invalid: cardIssues('source').length }">
             <div class="provider-icon">
               <i :class="providerIcon(sourceDefinition?.icon, 'mdi mdi-source-branch')" />
             </div>
             <div class="source-copy">
-              <strong>{{ sourceDefinition?.label || flow.source.provider }}</strong
-              ><span>{{ sourcePath || "No source selected" }}</span
-              ><small>{{
-                sourceDefinition?.description || "Source fields are defined by the catalog."
-              }}</small>
+              <strong>{{ sourceDefinition?.label || flow.source.provider }}</strong>
+              <span>{{ sourcePath || "No source selected" }}</span>
             </div>
-            <Tag
-              v-if="!cardIssues('source').length"
-              :value="sourcePath ? 'Ready' : 'Not configured'"
-              :severity="sourcePath ? 'success' : 'secondary'"
-            /><Button
-              v-if="cardIssues('source').length"
-              class="needs-attention-button"
-              label="Needs attention"
-              icon="pi pi-exclamation-triangle"
-              text
-              size="small"
-              @click="openAttention(cardIssues('source'))"
-            /><Button
-              v-if="sourceDefinition?.fields?.length"
-              icon="pi pi-cog"
-              text
-              rounded
-              aria-label="Source settings"
-              @click="sourceSettingsVisible = true"
-            />
+            <span
+              class="readiness-label"
+              :class="{ 'readiness-problem': cardIssues('source').length }"
+            >
+              {{
+                cardIssues("source").length
+                  ? "Needs attention"
+                  : sourcePath
+                    ? "Ready"
+                    : "Not configured"
+              }}
+            </span>
+            <Button label="Edit" text icon="pi pi-pencil" @click="sourceSettingsVisible = true" />
           </article>
         </section>
-        <div class="pipeline-divider"><span>Builds</span></div>
         <section class="release-section">
           <div class="section-heading">
             <div>
-              <span class="eyebrow">Build profiles</span>
-              <h2>Build</h2>
-              <p>Configure one or more profiles, including multiple profiles of the same type.</p>
+              <span class="eyebrow">Delivery</span>
+              <h2>Destinations</h2>
+              <p>
+                Choose where this release should be delivered and what each destination receives.
+              </p>
             </div>
-            <Button label="Add build" icon="pi pi-plus" @click="buildPickerVisible = true" />
-          </div>
-          <div v-if="!flow.builds.length" class="empty-card">
-            <i class="mdi mdi-hammer-wrench" /><strong>No build profiles yet</strong
-            ><span>Add a build profile to create release artifacts.</span>
-          </div>
-          <article
-            v-for="(build, index) in flow.builds"
-            :key="build.id"
-            class="job-card"
-            :class="{ disabled: !build.enabled, invalid: cardIssues(`builds.${index}`).length }"
-          >
-            <div class="job-header">
-              <div class="provider-icon">
-                <i
-                  :class="
-                    providerIcon(producerDefinition(build.engine)?.icon, 'mdi mdi-hammer-wrench')
-                  "
-                />
-              </div>
-              <div class="job-title">
-                <strong>{{ build.name || buildTypeLabel(build.type) }}</strong
-                ><span
-                  >{{ buildProfileSummary(catalog, build).engineLabel }} ·
-                  {{
-                    buildProfileSummary(catalog, build).targetLabels.join(", ") || "No targets"
-                  }}</span
-                >
-              </div>
-              <Tag
-                v-if="!cardIssues(`builds.${index}`).length"
-                :value="build.enabled ? 'Ready' : 'Disabled'"
-                :severity="build.enabled ? 'success' : 'secondary'"
-              /><Button
-                v-if="cardIssues(`builds.${index}`).length"
-                class="needs-attention-button"
-                label="Needs attention"
-                icon="pi pi-exclamation-triangle"
-                text
-                size="small"
-                @click="openAttention(cardIssues(`builds.${index}`))"
-              /><ToggleSwitch
-                v-model="build.enabled"
-                :inputId="`build-${build.id}`"
-                :aria-label="`${build.name || build.type} enabled`"
-              /><Button
-                v-if="hasBuildSettings(build)"
-                icon="pi pi-cog"
-                text
-                rounded
-                :aria-label="`Configure ${build.name || build.engine}`"
-                @click="openBuildSettings(build)"
-              /><Button
-                icon="pi pi-trash"
-                text
-                rounded
-                severity="danger"
-                aria-label="Remove build"
-                @click="removeBuild(build.id)"
-              />
-            </div>
-          </article>
-        </section>
-        <div class="pipeline-divider"><span>Deploy</span></div>
-        <section class="release-section">
-          <div class="section-heading">
-            <div>
-              <span class="eyebrow">Environments</span>
-              <h2>Deploy</h2>
-              <p>Select explicit Source or Build Profile outputs for each destination.</p>
-            </div>
-            <Select
-              v-model="destinationToAdd"
-              :options="availableDestinations"
-              optionLabel="label"
-              optionValue="id"
-              placeholder="Add destination"
-              @change="addDestination"
+            <Button
+              label="Add destination"
+              icon="pi pi-plus"
+              text
+              @click="addDestinationVisible = true"
             />
           </div>
           <div v-if="!flow.destinations.length" class="empty-card">
-            <i class="mdi mdi-cloud-upload-outline" /><strong>No deployment jobs yet</strong
-            ><span>Add a destination to create deployment slots.</span>
+            <i class="mdi mdi-cloud-upload-outline" /><strong>No destinations yet</strong>
+            <span>Add a destination when you are ready to ship this release.</span>
           </div>
           <article
             v-for="(destination, index) in flow.destinations"
@@ -214,39 +145,20 @@
                   }}</span
                 >
               </div>
-              <Tag
-                v-if="destinationReadiness(destination, index) !== 'Needs attention'"
-                :value="destinationReadiness(destination, index)"
-                :severity="
-                  destinationReadiness(destination, index) === 'Ready' ? 'success' : 'secondary'
-                "
-              /><Button
-                v-if="cardIssues(`destinations.${index}`).length"
-                class="needs-attention-button"
-                label="Needs attention"
-                icon="pi pi-exclamation-triangle"
+              <span
+                class="readiness-label"
+                :class="{
+                  'readiness-problem':
+                    destinationReadiness(destination, index) === 'Needs attention',
+                }"
+              >
+                {{ destinationReadiness(destination, index) }}
+              </span>
+              <Button
+                label="Edit"
                 text
-                size="small"
-                @click="openAttention(cardIssues(`destinations.${index}`))"
-              />
-              <ToggleSwitch
-                v-model="destination.enabled"
-                :inputId="`destination-${destination.id}`"
-                aria-label="Destination enabled"
-              /><Button
-                v-if="destinationDefinition(destination.provider)?.fields?.length"
-                icon="pi pi-cog"
-                text
-                rounded
-                aria-label="Destination settings"
+                icon="pi pi-pencil"
                 @click="openDestinationSettings(destination)"
-              /><Button
-                icon="pi pi-trash"
-                text
-                rounded
-                severity="danger"
-                aria-label="Remove destination"
-                @click="removeDestination(destination.id)"
               />
             </div>
             <div v-if="destination.enabled" class="slot-list">
@@ -257,163 +169,129 @@
                     ><small>{{ artifactLabel(slot.input) }}</small></span
                   >
                 </div>
-                <Tag
-                  v-if="
-                    readinessLabel(
-                      slot.enabled,
-                      Boolean(slot.input),
-                      Boolean(slotCardIssues(slot).length),
-                    ) !== 'Needs attention'
-                  "
-                  :value="
-                    readinessLabel(
-                      slot.enabled,
-                      Boolean(slot.input),
-                      Boolean(slotCardIssues(slot).length),
-                    )
-                  "
-                  :severity="
-                    readinessLabel(
-                      slot.enabled,
-                      Boolean(slot.input),
-                      Boolean(slotCardIssues(slot).length),
-                    ) === 'Ready'
-                      ? 'success'
-                      : 'secondary'
-                  "
+                <span
+                  class="readiness-label"
+                  :class="{ 'readiness-problem': slotCardIssues(slot).length || !slot.input }"
+                >
+                  {{
+                    slotCardIssues(slot).length
+                      ? "Needs attention"
+                      : slot.input
+                        ? "Ready"
+                        : "Output required"
+                  }}
+                </span>
+                <Button
+                  v-if="!slot.input || slotIssues(slot).length"
+                  label="Configure build"
+                  text
+                  icon="mdi mdi-hammer-wrench"
+                  @click="openBuildsForSlot(destination, slot)"
                 />
                 <Button
-                  v-if="!slot.input"
-                  label="Choose output"
+                  v-else
+                  label="Edit"
                   text
-                  @click="openOutputPicker(slot)"
-                />
-                <Button
-                  icon="pi pi-cog"
-                  text
-                  rounded
-                  aria-label="Configure deployment slot"
+                  icon="pi pi-pencil"
                   @click="openSlotSettings(destination, slot)"
-                /><Button
-                  icon="pi pi-trash"
-                  text
-                  rounded
-                  severity="danger"
-                  aria-label="Remove deployment slot"
-                  @click="removeSlot(destination, slot.id)"
-                /><Button
-                  v-if="slotCardIssues(slot).length"
-                  class="needs-attention-button"
-                  label="Needs attention"
-                  icon="pi pi-exclamation-triangle"
-                  text
-                  size="small"
-                  @click="openAttention(slotCardIssues(slot))"
-                /><Button
-                  v-if="slotIssues(slot).length"
-                  label="Create compatible build"
-                  icon="pi pi-plus"
-                  text
-                  @click="openCompatibleBuildPicker(slot)"
                 />
               </div>
-              <Button label="Add deployment" icon="pi pi-plus" text @click="addSlot(destination)" />
             </div>
           </article>
         </section>
+        <section v-if="planExpanded && plan" class="plan-panel" aria-label="Advanced workflow plan">
+          <div class="section-heading">
+            <div>
+              <span class="eyebrow">Advanced</span>
+              <h2>Resolved plan</h2>
+              <p>Automatic transforms are planner plumbing, not configurable builds.</p>
+            </div>
+            <Button label="Close" text size="small" @click="planExpanded = false" />
+          </div>
+          <ol class="plan-list">
+            <li v-for="node in plan.graph.nodes" :key="node.id">
+              <i :class="nodeIcon(node.kind)" /><span>{{ planNodeLabel(node.id, node.kind) }}</span>
+            </li>
+          </ol>
+        </section>
       </main>
     </WorkflowShell>
+    <ConfirmDialog group="workflow-destructive" />
+    <Dialog
+      v-model:visible="addDestinationVisible"
+      modal
+      header="Add destination"
+      :style="{ width: '500px', maxWidth: '94vw' }"
+    >
+      <div v-if="availableDestinations.length" class="destination-picker">
+        <button
+          v-for="destination in availableDestinations"
+          :key="destination.id"
+          type="button"
+          class="destination-choice"
+          @click="addDestination(destination.id)"
+        >
+          <span class="provider-icon">
+            <i :class="providerIcon(destination.icon, 'mdi mdi-cloud-upload-outline')" />
+          </span>
+          <span
+            ><strong>{{ destination.label }}</strong
+            ><small>Add destination</small></span
+          >
+          <i class="pi pi-plus" aria-hidden="true" />
+        </button>
+      </div>
+      <p v-else class="empty-card">All available destinations are already in this workflow.</p>
+      <template #footer>
+        <Button label="Cancel" text @click="addDestinationVisible = false" />
+      </template>
+    </Dialog>
     <Dialog v-model:visible="attentionVisible" modal header="Needs attention" :style="dialogStyle">
       <p class="attention-copy">The planner is authoritative. Fix these issues before shipping.</p>
       <ul class="issue-summary">
-        <li v-for="issue in attentionIssues" :key="`${issue.code}:${issue.path}`">
+        <li
+          v-for="issue in attentionIssues"
+          :key="`${issue.code}:${issue.path}:${issue.severity}:${issue.message}`"
+        >
           <Tag :value="issue.severity" :severity="issue.severity === 'error' ? 'danger' : 'warn'" />
           <span>{{ issue.message }}</span>
+          <Button
+            v-if="isBuildIssue(issue)"
+            label="Configure build"
+            text
+            size="small"
+            @click="openBuildIssue(issue)"
+          />
+          <Button
+            v-else-if="issue.path?.startsWith('source')"
+            label="Edit source"
+            text
+            size="small"
+            @click="openIssueEditor(issue)"
+          />
+          <Button
+            v-else-if="issue.path?.startsWith('destinations')"
+            label="Edit destination"
+            text
+            size="small"
+            @click="openIssueEditor(issue)"
+          />
         </li>
       </ul>
     </Dialog>
-    <Dialog
-      v-model:visible="buildPickerVisible"
-      modal
-      header="Add build profile"
-      :style="dialogStyle"
-      ><div class="settings-grid">
-        <div class="release-field">
-          <label for="build-type">Build type</label
-          ><Select
-            id="build-type"
-            v-model="newBuildType"
-            :options="catalog.buildTypes"
-            optionLabel="label"
-            optionValue="id"
-            placeholder="Choose a type"
-          />
-        </div>
-        <div class="release-field">
-          <label for="build-engine">Engine</label
-          ><Select
-            id="build-engine"
-            v-model="newBuildEngine"
-            :options="newBuildEngines"
-            optionLabel="label"
-            optionValue="id"
-            placeholder="Choose a compatible engine"
-            :disabled="!newBuildType"
-            @update:model-value="selectBuildEngine"
-          />
-        </div>
-        <div v-if="newBuildTargets.length" class="release-field">
-          <label for="build-target">Target</label
-          ><Select
-            id="build-target"
-            v-model="newBuildTarget"
-            :options="newBuildTargets"
-            optionLabel="label"
-            optionValue="id"
-            placeholder="Choose a target"
-          />
-        </div>
-        <p class="field-note">
-          Automatic transforms are planner plumbing and are intentionally hidden from this list.
-        </p>
-        <p v-if="compatibleSlot && compatibleChecking" class="field-note">
-          Checking planner-compatible builds…
-        </p>
-        <p v-else-if="compatibleSlot && !compatibleChoiceKeys.size" class="field-note">
-          No compatible build candidate is available for this destination.
-        </p>
-      </div>
-      <template #footer
-        ><Button label="Cancel" text @click="buildPickerVisible = false" /><Button
-          label="Add build"
-          icon="pi pi-plus"
-          :disabled="
-            !newBuildType || !newBuildEngine || (newBuildTargets.length > 0 && !newBuildTarget)
-          "
-          @click="addBuild" /></template
-    ></Dialog>
-    <Dialog v-model:visible="sourcePickerVisible" modal header="Choose source" :style="dialogStyle"
-      ><div class="choice-grid">
-        <button
-          v-for="source in catalog.sources"
-          :key="source.id"
-          class="choice-card"
-          :class="{ selected: flow?.source.provider === source.id }"
-          @click="selectSource(source.id)"
-        >
-          <i :class="providerIcon(source.icon, 'mdi mdi-source-branch')" /><strong>{{
-            source.label
-          }}</strong
-          ><small>{{ source.description }}</small>
-        </button>
-      </div></Dialog
-    >
-    <Dialog
-      v-model:visible="sourceSettingsVisible"
-      modal
-      header="Source settings"
-      :style="dialogStyle"
+    <Dialog v-model:visible="sourceSettingsVisible" modal header="Edit source" :style="dialogStyle"
       ><div v-if="flow && sourceDefinition" class="settings-grid">
+        <div class="release-field wide">
+          <label for="source-provider">Source</label>
+          <Select
+            id="source-provider"
+            :model-value="flow.source.provider"
+            :options="catalog.sources"
+            optionLabel="label"
+            optionValue="id"
+            @update:model-value="selectSource"
+          />
+        </div>
         <template v-for="field in sourceDefinition.fields || []" :key="field.key">
           <ReleaseFieldControl
             :field="field"
@@ -429,144 +307,20 @@
       <template #footer><Button label="Done" @click="sourceSettingsVisible = false" /></template
     ></Dialog>
     <Dialog
-      v-model:visible="buildSettingsVisible"
-      modal
-      header="Build settings"
-      :style="wideDialogStyle"
-      ><div v-if="settingsBuild" class="settings-grid">
-        <div class="release-field wide">
-          <label :for="`settings-engine-${settingsBuild.id}`">Engine</label
-          ><Select
-            :id="`settings-engine-${settingsBuild.id}`"
-            :model-value="settingsBuild.engine"
-            :options="buildEngines(settingsBuild.type)"
-            optionLabel="label"
-            optionValue="id"
-            @update:model-value="switchEngine(settingsBuild, $event)"
-          />
-          <small
-            v-for="issue in fieldIssues(`builds.${flow?.builds.indexOf(settingsBuild)}.engine`)"
-            :key="`${issue.code}:${issue.path}`"
-            class="field-issue"
-            :class="issue.severity === 'error' ? 'field-issue-error' : 'field-issue-warning'"
-            >{{ issue.message }}</small
-          >
-        </div>
-        <div class="release-field wide">
-          <span class="field-label">Targets</span>
-          <div class="target-list">
-            <button
-              v-for="target in buildTargets(settingsBuild)"
-              :key="target.id"
-              class="target-row"
-              :class="{ selected: isTargetEnabled(settingsBuild, target.id) }"
-              :aria-pressed="isTargetEnabled(settingsBuild, target.id)"
-              @click="
-                toggleTarget(settingsBuild, target.id, !isTargetEnabled(settingsBuild, target.id))
-              "
-            >
-              <i
-                :class="
-                  isTargetEnabled(settingsBuild, target.id)
-                    ? 'mdi mdi-check-circle'
-                    : 'mdi mdi-circle-outline'
-                "
-              /><span>{{ target.label }}</span>
-            </button>
-          </div>
-        </div>
-        <div
-          v-if="
-            buildInputControlVisible(
-              buildInputs(settingsBuild),
-              fieldIssues(`builds.${flow?.builds.indexOf(settingsBuild)}.input`),
-            )
-          "
-          class="release-field wide"
-        >
-          <template
-            v-if="
-              buildInputSelectionMode(
-                buildInputs(settingsBuild),
-                fieldIssues(`builds.${flow?.builds.indexOf(settingsBuild)}.input`),
-              ) === 'select'
-            "
-          >
-            <label :for="`settings-input-${settingsBuild.id}`">Input</label
-            ><Select
-              :id="`settings-input-${settingsBuild.id}`"
-              :model-value="releaseOutputRefValue(settingsBuild.input)"
-              :options="buildInputs(settingsBuild)"
-              placeholder="Choose an input"
-              optionLabel="label"
-              optionValue="value"
-              @update:model-value="setBuildInput(settingsBuild, $event)"
-            />
-          </template>
-          <p v-else-if="buildInputChecking" class="field-note">Checking compatible inputs…</p>
-          <template v-if="!buildInputChecking">
-            <small
-              v-for="issue in fieldIssues(`builds.${flow?.builds.indexOf(settingsBuild)}.input`)"
-              :key="`${issue.code}:${issue.path}`"
-              class="field-issue"
-              :class="issue.severity === 'error' ? 'field-issue-error' : 'field-issue-warning'"
-              >{{ issue.message }}</small
-            >
-            <p
-              v-if="
-                !buildInputs(settingsBuild).length &&
-                !fieldIssues(`builds.${flow?.builds.indexOf(settingsBuild)}.input`).length
-              "
-              class="field-note"
-            >
-              This build has no compatible input.
-            </p>
-          </template>
-        </div>
-        <template
-          v-for="field in producerDefinition(settingsBuild.engine)?.fields || []"
-          :key="field.key"
-        >
-          <ReleaseFieldControl
-            :field="field"
-            :value="fieldValue(settingsBuild.config, field.key)"
-            :options="producerFieldOptions(field)"
-            :input-id="`build-${settingsBuild.id}-${field.key}`"
-            :issues="
-              fieldIssues(`builds.${flow?.builds.indexOf(settingsBuild)}.config.${field.key}`)
-            "
-            @update:value="setField(settingsBuild.config, field.key, $event)"
-            @add-connection="openConnection"
-          /> </template
-        ><template
-          v-for="target in settingsBuild.targets.filter((item) => item.enabled)"
-          :key="target.id"
-          ><template
-            v-for="field in buildTargets(settingsBuild).find((item) => item.id === target.id)
-              ?.fields || []"
-            :key="`${target.id}-${field.key}`"
-            ><ReleaseFieldControl
-              :field="field"
-              :value="fieldValue(target.config, field.key)"
-              :options="producerFieldOptions(field)"
-              :input-id="`target-${settingsBuild.id}-${target.id}-${field.key}`"
-              :issues="
-                fieldIssues(
-                  `builds.${flow?.builds.indexOf(settingsBuild)}.targets.${settingsBuild.targets.indexOf(target)}.config.${field.key}`,
-                )
-              "
-              @update:value="setField(target.config, field.key, $event)"
-              @add-connection="openConnection" /></template
-        ></template>
-      </div>
-      <template #footer><Button label="Done" @click="buildSettingsVisible = false" /></template
-    ></Dialog>
-    <Dialog
       v-model:visible="destinationSettingsVisible"
       modal
-      header="Destination settings"
+      header="Edit destination"
       :style="dialogStyle"
       ><div v-if="settingsDestination" class="settings-grid">
+        <div class="release-field wide destination-toggle">
+          <label :for="`destination-enabled-${settingsDestination.id}`">Destination</label>
+          <ToggleSwitch
+            v-model="settingsDestination.enabled"
+            :inputId="`destination-enabled-${settingsDestination.id}`"
+            aria-label="Destination enabled"
+          />
+          <span>{{ settingsDestination.enabled ? "Included in this release" : "Disabled" }}</span>
+        </div>
         <template
           v-for="field in destinationDefinition(settingsDestination.provider)?.fields || []"
           :key="field.key"
@@ -585,7 +339,18 @@
         /></template>
       </div>
       <template #footer
-        ><Button label="Done" @click="destinationSettingsVisible = false" /></template
+        ><Button
+          label="Add deployment"
+          icon="pi pi-plus"
+          text
+          @click="settingsDestination && addSlot(settingsDestination)" /><Button
+          label="Remove destination"
+          icon="pi pi-trash"
+          text
+          severity="danger"
+          @click="settingsDestination && removeDestination(settingsDestination.id)" /><Button
+          label="Done"
+          @click="destinationSettingsVisible = false" /></template
     ></Dialog>
     <Dialog
       v-model:visible="slotSettingsVisible"
@@ -601,6 +366,15 @@
             placeholder="Deployment name"
           />
         </div>
+        <div class="release-field wide destination-toggle">
+          <label :for="`slot-enabled-${settingsSlot.id}`">Deployment</label>
+          <ToggleSwitch
+            v-model="settingsSlot.enabled"
+            :inputId="`slot-enabled-${settingsSlot.id}`"
+            aria-label="Deployment enabled"
+          />
+          <span>{{ settingsSlot.enabled ? "Included in this release" : "Disabled" }}</span>
+        </div>
         <div class="release-field wide">
           <label>Output</label
           ><Select
@@ -612,7 +386,7 @@
           />
           <small
             v-for="issue in slotIssues(settingsSlot)"
-            :key="`${issue.code}:${issue.path}`"
+            :key="`${issue.code}:${issue.path}:${issue.severity}:${issue.message}`"
             class="field-issue"
             :class="issue.severity === 'error' ? 'field-issue-error' : 'field-issue-warning'"
             >{{ issue.message }}</small
@@ -635,25 +409,15 @@
             @add-connection="openConnection"
         /></template>
       </div>
-      <template #footer><Button label="Done" @click="slotSettingsVisible = false" /></template
-    ></Dialog>
-    <Dialog v-model:visible="outputPickerVisible" modal header="Choose output" :style="dialogStyle">
-      <div class="release-field wide">
-        <label for="output-picker">Output</label>
-        <Select
-          id="output-picker"
-          v-model="outputPickerValue"
-          :options="outputOptions"
-          optionLabel="label"
-          optionValue="value"
-          placeholder="Choose a source or build output"
-        />
-      </div>
       <template #footer
-        ><Button label="Cancel" text @click="outputPickerVisible = false" /><Button
-          label="Use output"
-          :disabled="!outputPickerValue"
-          @click="confirmOutputPicker" /></template
+        ><Button
+          label="Remove deployment"
+          icon="pi pi-trash"
+          text
+          severity="danger"
+          @click="
+            settingsDestination && settingsSlot && removeSlot(settingsDestination, settingsSlot.id)
+          " /><Button label="Done" @click="slotSettingsVisible = false" /></template
     ></Dialog>
     <Dialog v-model:visible="connectionVisible" modal header="Add connection" :style="dialogStyle"
       ><div class="settings-grid">
@@ -709,10 +473,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, onMounted, ref, toRaw, watch } from "vue";
 import { nanoid } from "nanoid";
-import { useRoute, useRouter } from "vue-router";
+import { onBeforeRouteLeave, useRoute, useRouter } from "vue-router";
 import Button from "primevue/button";
+import ConfirmDialog from "primevue/confirmdialog";
 import Dialog from "primevue/dialog";
 import InputText from "primevue/inputtext";
 import Message from "primevue/message";
@@ -720,9 +485,9 @@ import Select from "primevue/select";
 import Tag from "primevue/tag";
 import Textarea from "primevue/textarea";
 import ToggleSwitch from "primevue/toggleswitch";
+import { useConfirm } from "primevue/useconfirm";
 import type {
   IconType,
-  ReleaseBuildProfileConfig,
   ReleaseCatalog,
   ReleaseConfig,
   ReleaseDestinationConfig,
@@ -740,35 +505,24 @@ import { useAPI } from "../composables/api";
 import { publishRunEvent } from "./run-events";
 import { useAppStore } from "../store/app";
 import { useConnectionsStore } from "../store/connections";
-import type { ReleaseOutputOption } from "./release-flow-model";
 import {
-  buildEnginesFor,
-  buildProfileSummary,
-  buildTargetsFor,
-  buildInputControlVisible,
-  applyProducerInspection,
   connectionMatchesIntegration,
-  createBuildProfile,
   createSerializedTaskQueue,
   deploymentSlotLabel,
-  buildInputSelectionMode,
   issuesForPath,
+  deduplicateValidationIssues,
+  outputReferenceConsumers,
   planOutputOptions,
-  probeBuildInputCandidates,
-  plannerAcceptsBuildCandidate,
   readinessLabel,
   releaseCanRun,
   releaseOutputRefValue,
-  removeBuildProfile,
   runAfterSuccessfulSave,
-  selectBuildInput,
-  setBuildTargetEnabled,
-  switchBuildProfileEngine,
 } from "./release-flow-model";
 
 const route = useRoute();
 const router = useRouter();
 const api = useAPI();
+const confirm = useConfirm();
 const appStore = useAppStore();
 const connectionsStore = useConnectionsStore();
 const flowId = computed(() => String(route.params.flowId));
@@ -783,40 +537,28 @@ const flow = ref<ReleaseConfig>();
 const plan = ref<ReleasePlan>();
 const plannerIssues = ref<ValidationIssue[]>([]);
 const inspectionIssues = ref<ValidationIssue[]>([]);
-const producerInspectionIssues = ref<ValidationIssue[]>([]);
-const issues = computed(() => [
-  ...plannerIssues.value,
-  ...inspectionIssues.value,
-  ...producerInspectionIssues.value,
-]);
+const issues = computed(() => [...plannerIssues.value, ...inspectionIssues.value]);
+const summaryIssues = computed(() => deduplicateValidationIssues(issues.value));
+const blockingIssues = computed(() =>
+  summaryIssues.value.filter((issue) => issue.severity === "error"),
+);
 const attentionVisible = ref(false);
 const attentionIssues = ref<ValidationIssue[]>([]);
 const planExpanded = ref(false);
 const error = ref("");
+const plannerError = ref("");
+const saveError = ref("");
 const running = ref(false);
 const planning = ref(false);
 const saveState = ref<"saving" | "saved" | "error">("saved");
 const inspectionOptions = ref<Record<string, ReleaseFieldOption[]>>({});
-const producerInspectionOptions = ref<Record<string, ReleaseFieldOption[]>>({});
-const newBuildType = ref<string>();
-const newBuildEngine = ref<string>();
-const newBuildTarget = ref<string>();
-const compatibleChoiceKeys = ref(new Set<string>());
-const compatibleChecking = ref(false);
-const destinationToAdd = ref<string>();
-const buildPickerVisible = ref(false);
-const sourcePickerVisible = ref(false);
+const addDestinationVisible = ref(false);
 const sourceSettingsVisible = ref(false);
-const buildSettingsVisible = ref(false);
 const destinationSettingsVisible = ref(false);
 const slotSettingsVisible = ref(false);
-const outputPickerVisible = ref(false);
 const releaseDetailsVisible = ref(false);
-const settingsBuild = ref<ReleaseBuildProfileConfig>();
 const settingsDestination = ref<ReleaseDestinationConfig>();
 const settingsSlot = ref<ReleaseDestinationSlot>();
-const outputPickerSlot = ref<ReleaseDestinationSlot>();
-const outputPickerValue = ref("");
 const releaseVersion = ref("1.0.0");
 const releaseDescription = ref("");
 const connectionVisible = ref(false);
@@ -827,11 +569,36 @@ const connectionDraft = ref({
   integrationName: "",
   values: {} as Record<string, string>,
 });
-const compatibleSlot = ref<ReleaseDestinationSlot>();
 const dialogStyle = { width: "560px", maxWidth: "94vw" };
-const wideDialogStyle = { width: "760px", maxWidth: "94vw" };
 const saveStateLabel = computed(() =>
   saveState.value === "saving" ? "Saving…" : saveState.value === "error" ? "Error" : "Saved",
+);
+const workflowReadinessState = computed(() =>
+  plannerError.value
+    ? "error"
+    : planning.value || !plan.value
+      ? "checking"
+      : blockingIssues.value.length
+        ? "attention"
+        : "ready",
+);
+const workflowReadinessLabel = computed(() =>
+  workflowReadinessState.value === "error"
+    ? "Readiness unavailable"
+    : workflowReadinessState.value === "checking"
+      ? "Checking readiness…"
+      : workflowReadinessState.value === "attention"
+        ? "Needs attention"
+        : "Ready to ship",
+);
+const workflowReadinessIcon = computed(() =>
+  workflowReadinessState.value === "error"
+    ? "pi pi-exclamation-circle"
+    : workflowReadinessState.value === "checking"
+      ? "pi pi-spin pi-spinner"
+      : workflowReadinessState.value === "attention"
+        ? "pi pi-exclamation-triangle"
+        : "pi pi-check-circle",
 );
 const canShip = computed(() =>
   releaseCanRun(
@@ -843,9 +610,50 @@ const canShip = computed(() =>
     saveState.value,
   ),
 );
+let latestSourceInspection = 0;
+let latestPlanRequest = 0;
+let changeRevision = 0;
+let persistedRevision = 0;
+let workflowHydrated = false;
 const openAttention = (cardIssues: ValidationIssue[]) => {
   attentionIssues.value = cardIssues;
   attentionVisible.value = true;
+};
+const isBuildIssue = (issue: ValidationIssue) =>
+  Boolean(
+    issue.path?.startsWith("builds.") ||
+    /^destinations\.\d+\.slots\.\d+\.input(?:\.|$)/.test(issue.path || ""),
+  );
+const openBuildIssue = (issue: ValidationIssue) => {
+  if (!flow.value) return;
+  attentionVisible.value = false;
+  const slotMatch = issue.path?.match(/^destinations\.(\d+)\.slots\.(\d+)/);
+  if (slotMatch) {
+    const destination = flow.value.destinations[Number(slotMatch[1])];
+    const slot = destination?.slots[Number(slotMatch[2])];
+    if (destination && slot) void openBuildsForSlot(destination, slot);
+    return;
+  }
+  const buildMatch = issue.path?.match(/^builds\.(\d+)/);
+  const build = buildMatch ? flow.value.builds[Number(buildMatch[1])] : undefined;
+  void router.push({
+    name: "WorkflowBuilds",
+    params: { flowId: flowId.value, projectId: projectId.value },
+    query: { ...(build ? { buildId: build.id } : {}), issuePath: issue.path },
+  });
+};
+const openIssueEditor = (issue: ValidationIssue) => {
+  if (!flow.value) return;
+  attentionVisible.value = false;
+  if (issue.path?.startsWith("source")) {
+    sourceSettingsVisible.value = true;
+    return;
+  }
+  const match = issue.path?.match(/^destinations\.(\d+)(?:\.slots\.(\d+))?/);
+  const destination = match ? flow.value.destinations[Number(match[1])] : undefined;
+  const slot = match && match[2] ? destination?.slots[Number(match[2])] : undefined;
+  if (destination && slot) openSlotSettings(destination, slot);
+  else if (destination) openDestinationSettings(destination);
 };
 const sourceDefinition = computed(() =>
   catalog.value.sources.find((item) => item.id === flow.value?.source.provider),
@@ -889,9 +697,7 @@ const fieldOptions = (field: ReleaseFieldDefinition) =>
   field.type === "connection"
     ? connectionOptions(field)
     : inspectionOptions.value[field.key] || field.options || [];
-const producerFieldOptions = (field: ReleaseFieldDefinition) =>
-  producerInspectionOptions.value[field.key] || field.options || [];
-const cardIssues = (prefix: string) => issuesForPath(issues.value, prefix);
+const cardIssues = (prefix: string) => issuesForPath(summaryIssues.value, prefix);
 const fieldIssues = (path: string) => issues.value.filter((issue) => issue.path === path);
 const slotIssuePath = (slot: ReleaseDestinationSlot) => {
   const destinationIndex = flow.value?.destinations.findIndex((destination) =>
@@ -914,7 +720,7 @@ const slotIssues = (slot: ReleaseDestinationSlot) => {
 };
 const slotCardIssues = (slot: ReleaseDestinationSlot) => {
   const path = slotIssuePath(slot);
-  return path ? issuesForPath(issues.value, path) : [];
+  return path ? issuesForPath(summaryIssues.value, path) : [];
 };
 const destinationReadiness = (destination: ReleaseDestinationConfig, index: number) => {
   const enabledSlots = destination.slots.filter((slot) => slot.enabled);
@@ -936,136 +742,18 @@ const sourcePath = computed(() => {
 const outputOptions = computed(() =>
   flow.value && plan.value ? planOutputOptions(flow.value, plan.value, catalog.value) : [],
 );
-const buildInputOptions = ref<Record<string, ReleaseOutputOption[]>>({});
-const buildInputChecking = ref(false);
-let latestBuildInputRequest = 0;
-const buildInputs = (build: ReleaseBuildProfileConfig) => buildInputOptions.value[build.id] || [];
-const refreshBuildInputs = async (
-  build: ReleaseBuildProfileConfig,
-  candidates = outputOptions.value,
-) => {
-  if (!flow.value || !buildSettingsVisible.value || settingsBuild.value?.id !== build.id) return;
-  const requestId = ++latestBuildInputRequest;
-  buildInputChecking.value = true;
-  buildInputOptions.value = { ...buildInputOptions.value, [build.id]: [] };
-  const options = await probeBuildInputCandidates(
-    flow.value,
-    build.id,
-    candidates,
-    async (candidateConfig) => {
-      const result = await api.execute("release:plan", { config: candidateConfig });
-      return result.type === "success" ? result.result : undefined;
-    },
-    () => requestId === latestBuildInputRequest,
-  );
-  if (requestId !== latestBuildInputRequest) return;
-  buildInputOptions.value = { ...buildInputOptions.value, [build.id]: options };
-  buildInputChecking.value = false;
-};
-watch([settingsBuild, outputOptions, buildSettingsVisible], ([build, candidates, visible]) => {
-  if (build && visible) void refreshBuildInputs(build, candidates);
-  else if (!visible) {
-    latestBuildInputRequest += 1;
-    buildInputChecking.value = false;
-  }
-});
-const buildEngines = (type: string) => buildEnginesFor(catalog.value, type);
-const buildTargets = (build: ReleaseBuildProfileConfig) =>
-  buildTargetsFor(catalog.value, build.engine, build.type);
-const newBuildEngines = computed(() =>
-  buildEngines(newBuildType.value || "").filter(
-    (engine) =>
-      !compatibleSlot.value ||
-      [...compatibleChoiceKeys.value].some((key) =>
-        key.startsWith(`${newBuildType.value}:${engine.id}:`),
-      ),
-  ),
-);
-const newBuildTargets = computed(() =>
-  newBuildType.value && newBuildEngine.value
-    ? buildTargetsFor(catalog.value, newBuildEngine.value, newBuildType.value).filter(
-        (target) =>
-          !compatibleSlot.value ||
-          compatibleChoiceKeys.value.has(
-            `${newBuildType.value}:${newBuildEngine.value}:${target.id}`,
-          ),
-      )
-    : [],
-);
-const selectBuildEngine = (engine: string | undefined) => {
-  newBuildEngine.value = engine;
-  newBuildTarget.value = engine ? newBuildTargets.value[0]?.id : undefined;
-};
-const buildTypeLabel = (id: string) =>
-  catalog.value.buildTypes.find((type) => type.id === id)?.label || id;
-const enabledTargetCount = (build: ReleaseBuildProfileConfig) =>
-  build.targets.filter((target) => target.enabled).length;
-const isTargetEnabled = (build: ReleaseBuildProfileConfig, id: string) =>
-  build.targets.some((target) => target.id === id && target.enabled);
-const hasBuildSettings = (build: ReleaseBuildProfileConfig) => Boolean(build);
 const availableDestinations = computed(() =>
   catalog.value.destinations.filter(
     (item) => !flow.value?.destinations.some((destination) => destination.provider === item.id),
   ),
 );
-const addBuild = async () => {
-  if (!flow.value || !newBuildType.value || !newBuildEngine.value) return;
-  if (
-    compatibleSlot.value &&
-    !compatibleChoiceKeys.value.has(
-      `${newBuildType.value}:${newBuildEngine.value}:${newBuildTarget.value}`,
-    )
-  ) {
-    error.value = "The selected build is not compatible with this destination.";
-    return;
-  }
-  const build = createBuildProfile(
-    catalog.value,
-    newBuildType.value,
-    newBuildEngine.value,
-    nanoid(),
-  );
-  if (build) {
-    if (newBuildTarget.value) {
-      for (const target of build.targets) target.enabled = target.id === newBuildTarget.value;
-    }
-    flow.value.builds.push(build);
-    if (compatibleSlot.value) {
-      const target = build.targets.find((candidate) => candidate.enabled);
-      if (target) compatibleSlot.value.input = { buildId: build.id, targetId: target.id };
-    }
-  }
-  newBuildType.value = undefined;
-  newBuildEngine.value = undefined;
-  newBuildTarget.value = undefined;
-  compatibleChoiceKeys.value = new Set();
-  compatibleChecking.value = false;
-  compatibleSlot.value = undefined;
-  buildPickerVisible.value = false;
-};
-const removeBuild = (id: string) => {
-  if (flow.value) removeBuildProfile(flow.value, id);
-};
-const toggleTarget = (build: ReleaseBuildProfileConfig, id: string, enabled: boolean) => {
-  setBuildTargetEnabled(build, id, enabled);
-};
-const switchEngine = (build: ReleaseBuildProfileConfig, engine: string) => {
-  const switched = switchBuildProfileEngine(catalog.value, build, engine);
-  if (switched) {
-    Object.assign(build, switched);
-    void inspectProducer(build);
-  }
-};
-const setBuildInput = (build: ReleaseBuildProfileConfig, value: string) => {
-  selectBuildInput(build, buildInputs(build), value);
-};
-const addDestination = () => {
-  if (!flow.value || !destinationToAdd.value) return;
-  const definition = destinationDefinition(destinationToAdd.value);
+const addDestination = (provider: string) => {
+  if (!flow.value) return;
+  const definition = destinationDefinition(provider);
   if (definition) {
     flow.value.destinations.push({
       id: nanoid(),
-      provider: destinationToAdd.value,
+      provider,
       enabled: true,
       config: { ...definition.defaultConfig },
       slots: [
@@ -1077,15 +765,49 @@ const addDestination = () => {
         },
       ],
     });
-    automaticResolutionRequested = true;
   }
-  destinationToAdd.value = undefined;
+  addDestinationVisible.value = false;
 };
+const hasConfiguredValue = (value: unknown): boolean => {
+  if (value === null || value === undefined) return false;
+  if (typeof value === "string") return value.trim().length > 0;
+  if (Array.isArray(value)) return value.some(hasConfiguredValue);
+  if (typeof value === "object")
+    return Object.values(value as Record<string, unknown>).some(hasConfiguredValue);
+  return true;
+};
+const confirmDestructiveChange = (
+  header: string,
+  message: string,
+  acceptLabel: string,
+  accept: () => void,
+) =>
+  confirm.require({
+    group: "workflow-destructive",
+    header,
+    message,
+    icon: "pi pi-exclamation-triangle",
+    acceptLabel,
+    rejectLabel: "Keep current setup",
+    accept,
+  });
 const removeDestination = (id: string) => {
-  if (flow.value)
-    flow.value.destinations = flow.value.destinations.filter(
-      (destination) => destination.id !== id,
+  const destination = flow.value?.destinations.find((item) => item.id === id);
+  if (!flow.value || !destination) return;
+  const label = destinationDefinition(destination.provider)?.label || destination.provider;
+  const remove = () => {
+    flow.value!.destinations = flow.value!.destinations.filter((item) => item.id !== id);
+    destinationSettingsVisible.value = false;
+    settingsDestination.value = undefined;
+  };
+  if (hasConfiguredValue(destination.config) || destination.slots.length) {
+    confirmDestructiveChange(
+      `Remove ${label}?`,
+      `This removes ${label}'s settings and ${destination.slots.length} deployment slot${destination.slots.length === 1 ? "" : "s"}, including their selected outputs.`,
+      "Remove destination",
+      remove,
     );
+  } else remove();
 };
 const addSlot = (destination: ReleaseDestinationConfig) => {
   destination.slots.push({
@@ -1096,86 +818,45 @@ const addSlot = (destination: ReleaseDestinationConfig) => {
   });
 };
 const removeSlot = (destination: ReleaseDestinationConfig, id: string) => {
-  destination.slots = destination.slots.filter((slot) => slot.id !== id);
+  const slot = destination.slots.find((item) => item.id === id);
+  if (!slot) return;
+  const remove = () => {
+    destination.slots = destination.slots.filter((item) => item.id !== id);
+    if (settingsSlot.value?.id === id) {
+      slotSettingsVisible.value = false;
+      settingsSlot.value = undefined;
+    }
+  };
+  const index = destination.slots.indexOf(slot);
+  const hasCustomName = Boolean(slot.name?.trim()) && slot.name !== `Deployment ${index + 1}`;
+  const configured = Boolean(slot.input) || hasConfiguredValue(slot.config) || hasCustomName;
+  if (configured) {
+    const destinationLabel =
+      destinationDefinition(destination.provider)?.label || destination.provider;
+    const output = artifactLabel(slot.input);
+    confirmDestructiveChange(
+      `Remove ${deploymentSlotLabel(slot, index)}?`,
+      `${destinationLabel} will lose this deployment${slot.input ? ` and its selected output (${output})` : ""}.`,
+      "Remove deployment",
+      remove,
+    );
+  } else remove();
 };
 const setSlotInput = (slot: ReleaseDestinationSlot, value: string) => {
   const output = outputOptions.value.find((candidate) => candidate.value === value);
   if (output) slot.input = output.ref;
 };
-const openOutputPicker = (slot: ReleaseDestinationSlot) => {
-  outputPickerSlot.value = slot;
-  outputPickerValue.value = releaseOutputRefValue(slot.input);
-  outputPickerVisible.value = true;
-};
-const confirmOutputPicker = () => {
-  if (outputPickerSlot.value && outputPickerValue.value)
-    setSlotInput(outputPickerSlot.value, outputPickerValue.value);
-  outputPickerSlot.value = undefined;
-  outputPickerValue.value = "";
-  outputPickerVisible.value = false;
-};
-const refreshCompatibleChoices = async (slot: ReleaseDestinationSlot) => {
-  if (!flow.value) return;
-  compatibleChecking.value = true;
-  const choices = new Set<string>();
-  const destination = flow.value.destinations.find((candidate) => candidate.slots.includes(slot));
-  if (!destination) return;
-  const destinationIndex = flow.value.destinations.indexOf(destination);
-  const slotIndex = destination.slots.indexOf(slot);
-  for (const buildType of catalog.value.buildTypes) {
-    for (const engine of buildEnginesFor(catalog.value, buildType.id)) {
-      for (const target of buildTargetsFor(catalog.value, engine.id, buildType.id)) {
-        const candidate = createBuildProfile(
-          catalog.value,
-          buildType.id,
-          engine.id,
-          `candidate-${nanoid()}`,
-          [target.id],
-        );
-        if (!candidate) continue;
-        const candidateConfig = structuredClone(flow.value);
-        candidateConfig.builds.push(candidate);
-        candidateConfig.destinations[destinationIndex].slots[slotIndex].input = {
-          buildId: candidate.id,
-          targetId: target.id,
-        };
-        const result = await api.execute("release:plan", { config: candidateConfig });
-        if (result.type !== "success") continue;
-        if (
-          plannerAcceptsBuildCandidate(
-            result.result,
-            candidate.id,
-            candidateConfig.builds.length - 1,
-            destinationIndex,
-            slotIndex,
-          )
-        )
-          choices.add(`${buildType.id}:${engine.id}:${target.id}`);
-      }
-    }
-  }
-  compatibleChoiceKeys.value = choices;
-  compatibleChecking.value = false;
-};
-const openCompatibleBuildPicker = (slot: ReleaseDestinationSlot) => {
-  compatibleSlot.value = slot;
-  newBuildType.value = undefined;
-  newBuildEngine.value = undefined;
-  newBuildTarget.value = undefined;
-  compatibleChoiceKeys.value = new Set();
-  void refreshCompatibleChoices(slot);
-  buildPickerVisible.value = true;
-};
+const openBuildsForSlot = (destination: ReleaseDestinationConfig, slot: ReleaseDestinationSlot) =>
+  router.push({
+    name: "WorkflowBuilds",
+    params: { flowId: flowId.value, projectId: projectId.value },
+    query: { destinationId: destination.id, slotId: slot.id },
+  });
 const artifactLabel = (ref?: ReleaseOutputRef) =>
   ref
     ? outputOptions.value.find((output) => output.value === releaseOutputRefValue(ref))?.label ||
       "Invalid output reference"
     : "Choose output";
-const openBuildSettings = (build: ReleaseBuildProfileConfig) => {
-  settingsBuild.value = build;
-  void inspectProducer(build, false);
-  buildSettingsVisible.value = true;
-};
 const openDestinationSettings = (destination: ReleaseDestinationConfig) => {
   settingsDestination.value = destination;
   destinationSettingsVisible.value = true;
@@ -1188,9 +869,41 @@ const openSlotSettings = (destination: ReleaseDestinationConfig, slot: ReleaseDe
 const selectSource = (provider: string) => {
   if (!flow.value) return;
   const definition = catalog.value.sources.find((source) => source.id === provider);
-  if (definition) flow.value.source = { provider, config: { ...definition.defaultConfig } };
-  sourcePickerVisible.value = false;
-  void inspectSource();
+  if (!definition || flow.value.source.provider === provider) return;
+  const currentConfig = flow.value.source.config;
+  const nextConfig = { ...definition.defaultConfig };
+  const discardedFields = Object.keys(currentConfig).filter(
+    (key) =>
+      hasConfiguredValue(currentConfig[key]) &&
+      JSON.stringify(currentConfig[key]) !== JSON.stringify(nextConfig[key]),
+  );
+  const consumers = outputReferenceConsumers(flow.value, { source: true }, catalog.value).map(
+    (consumer) => consumer.label,
+  );
+  const apply = () => {
+    if (!flow.value) return;
+    flow.value.source = { provider, config: nextConfig };
+    inspectionOptions.value = {};
+    void inspectSource();
+  };
+  if (discardedFields.length || consumers.length) {
+    const details = [
+      discardedFields.length
+        ? `Provider-specific settings will be replaced: ${discardedFields.join(", ")}.`
+        : "",
+      consumers.length
+        ? `Source output is selected by ${consumers.slice(0, 4).join(", ")}${consumers.length > 4 ? ` and ${consumers.length - 4} more` : ""}. Those routes will remain unchanged and may need a different output.`
+        : "",
+    ]
+      .filter(Boolean)
+      .join(" ");
+    confirmDestructiveChange(
+      `Change source to ${definition.label}?`,
+      details,
+      "Change source",
+      apply,
+    );
+  } else apply();
 };
 const setSourceField = (key: string, value: unknown) => {
   if (flow.value) {
@@ -1245,10 +958,42 @@ const createConnection = async () => {
 };
 const inspectSource = async () => {
   if (!flow.value) return;
-  const result = await api.execute("release:source:inspect", {
-    provider: flow.value.source.provider,
-    config: flow.value.source.config,
-  });
+  const requestId = ++latestSourceInspection;
+  const provider = flow.value.source.provider;
+  const config = structuredClone(toRaw(flow.value.source.config));
+  const isCurrent = () =>
+    requestId === latestSourceInspection &&
+    flow.value?.source.provider === provider &&
+    JSON.stringify(flow.value.source.config) === JSON.stringify(config);
+  let result: Awaited<ReturnType<typeof api.execute>>;
+  try {
+    result = await api.execute("release:source:inspect", { provider, config });
+  } catch (cause) {
+    if (!isCurrent()) return;
+    inspectionOptions.value = {};
+    inspectionIssues.value = [
+      {
+        code: "release.source.inspect",
+        message: cause instanceof Error ? cause.message : String(cause),
+        severity: "error",
+        path: "source",
+      },
+    ];
+    return;
+  }
+  if (!isCurrent()) return;
+  if (result.type === "error") {
+    inspectionOptions.value = {};
+    inspectionIssues.value = [
+      {
+        code: "release.source.inspect",
+        message: result.ipcError,
+        severity: "error",
+        path: "source",
+      },
+    ];
+    return;
+  }
   if (result.type === "success") {
     const data = result.result as {
       issues?: ValidationIssue[];
@@ -1262,58 +1007,15 @@ const inspectSource = async () => {
           ? `source.${issue.path}`
           : "source",
     }));
-    for (const [key, options] of Object.entries(data.fieldOptions || {}))
-      inspectionOptions.value[key] = options;
+    inspectionOptions.value = data.fieldOptions || {};
   }
-};
-const inspectProducer = async (build: ReleaseBuildProfileConfig, applyFieldValues = true) => {
-  const buildIndex = flow.value?.builds.indexOf(build) ?? -1;
-  if (buildIndex < 0) return;
-  const result = await api.execute("release:producer:inspect", {
-    provider: build.engine,
-    sourceConfig: flow.value?.source.config,
-    config: {
-      id: build.id,
-      provider: build.engine,
-      enabled: build.enabled,
-      config: build.config,
-      targets: build.targets,
-    },
-  });
-  if (result.type !== "success") {
-    producerInspectionIssues.value = [
-      {
-        code: "release.producer.inspect",
-        message: result.ipcError,
-        severity: "error",
-        path: `builds.${buildIndex}`,
-      },
-    ];
-    return;
-  }
-  const data = result.result as {
-    fieldOptions?: Record<string, ReleaseFieldOption[]>;
-    fieldValues?: Record<string, unknown>;
-    issues?: ValidationIssue[];
-  };
-  const applied = applyProducerInspection(
-    build,
-    buildIndex,
-    {
-      ...data,
-      issues: data.issues || [],
-    },
-    { applyFieldValues },
-  );
-  producerInspectionOptions.value = applied.options;
-  producerInspectionIssues.value = applied.issues;
 };
 const planNodeLabel = (id: string, kind: string) => {
   if (kind === "source") return sourceDefinition.value?.label || id;
   if (kind === "build") {
     const build = flow.value?.builds.find((candidate) => candidate.id === id);
     return build
-      ? `${buildTypeLabel(build.type)} / ${producerDefinition(build.engine)?.label || build.engine}`
+      ? `${catalog.value.buildTypes.find((type) => type.id === build.type)?.label || build.type} / ${producerDefinition(build.engine)?.label || build.engine}`
       : id;
   }
   const [destinationId, slotId] = id.split(":");
@@ -1330,72 +1032,86 @@ const nodeIcon = (kind: string) =>
       : kind === "automatic"
         ? "mdi mdi-cog-transfer-outline"
         : "mdi mdi-hammer-wrench";
-let automaticResolutionRequested = false;
-const refreshPlan = async (resolveDefaults = false) => {
-  if (!flow.value) return;
+const refreshPlan = async (): Promise<ReleasePlan | undefined> => {
+  if (!flow.value) return undefined;
   const requestId = ++latestPlanRequest;
+  const revision = changeRevision;
+  const config = structuredClone(toRaw(flow.value));
+  const fingerprint = JSON.stringify(config);
   planning.value = true;
+  plannerError.value = "";
   try {
-    const result = await api.execute("release:plan", { config: flow.value });
-    if (requestId !== latestPlanRequest) return;
-    if (result.type === "success") {
-      plan.value = result.result;
-      plannerIssues.value = result.result.issues;
-      if (resolveDefaults && automaticResolutionRequested) {
-        automaticResolutionRequested = false;
-        const resolved = await api.execute("release:resolve-defaults", { config: flow.value });
-        if (
-          resolved.type === "success" &&
-          JSON.stringify(resolved.result) !== JSON.stringify(flow.value)
-        ) {
-          flow.value = resolved.result;
-          changeRevision += 1;
-          try {
-            await save();
-          } catch (cause) {
-            error.value = cause instanceof Error ? cause.message : String(cause);
-            return;
-          }
-          await refreshPlan(false);
-        } else if (resolved.type === "error") {
-          error.value = resolved.ipcError;
-        }
-      }
-    } else error.value = result.ipcError;
+    const result = await api.execute("release:plan", { config });
+    if (
+      requestId !== latestPlanRequest ||
+      revision !== changeRevision ||
+      JSON.stringify(flow.value) !== fingerprint
+    )
+      return undefined;
+    if (result.type === "error") {
+      plan.value = undefined;
+      plannerIssues.value = [];
+      plannerError.value = result.ipcError;
+      return undefined;
+    }
+    plan.value = result.result;
+    plannerIssues.value = result.result.issues;
+    plannerError.value = "";
+    return result.result;
+  } catch (cause) {
+    if (requestId === latestPlanRequest && revision === changeRevision) {
+      plan.value = undefined;
+      plannerIssues.value = [];
+      plannerError.value = cause instanceof Error ? cause.message : String(cause);
+    }
+    return undefined;
   } finally {
     if (requestId === latestPlanRequest) planning.value = false;
   }
 };
-let latestPlanRequest = 0;
-let changeRevision = 0;
-let persistedRevision = 0;
 const save = createSerializedTaskQueue(async () => {
   if (!flow.value) return;
   const revision = changeRevision;
+  const snapshot = structuredClone(toRaw(flow.value));
   saveState.value = "saving";
   const result = await api.execute("workflow:save", {
     workflowId: flowId.value,
-    data: flow.value,
+    data: snapshot,
     projectId: projectId.value,
   });
   if (result.type === "error") {
     saveState.value = "error";
-    error.value = result.ipcError;
+    saveError.value = result.ipcError;
     throw new Error(result.ipcError);
   }
   persistedRevision = revision;
-  if (persistedRevision !== changeRevision) void save().catch(() => {});
+  saveError.value = "";
+  if (
+    persistedRevision !== changeRevision ||
+    JSON.stringify(flow.value) !== JSON.stringify(snapshot)
+  )
+    void save().catch(() => {});
   else saveState.value = "saved";
 });
-const validate = async () => {
-  await refreshPlan();
-  return !issues.value.some((issue) => issue.severity === "error");
-};
 const ship = async () => {
-  if (await validate()) {
+  if (!flow.value) return;
+  try {
+    await save();
+    const revision = changeRevision;
+    const fingerprint = JSON.stringify(flow.value);
+    const currentPlan = await refreshPlan();
+    if (
+      !currentPlan ||
+      revision !== changeRevision ||
+      JSON.stringify(flow.value) !== fingerprint ||
+      issues.value.some((issue) => issue.severity === "error")
+    )
+      return;
     releaseVersion.value = "1.0.0";
     releaseDescription.value = flow.value?.description || flow.value?.name || "";
     releaseDetailsVisible.value = true;
+  } catch {
+    // The autosave state provides the retry action and its error message.
   }
 };
 const runShip = async () => {
@@ -1404,6 +1120,18 @@ const runShip = async () => {
   running.value = true;
   try {
     await runAfterSuccessfulSave(save, async () => {
+      const revision = changeRevision;
+      const fingerprint = JSON.stringify(flow.value);
+      const currentPlan = await refreshPlan();
+      if (
+        !currentPlan ||
+        revision !== changeRevision ||
+        JSON.stringify(flow.value) !== fingerprint ||
+        persistedRevision !== revision ||
+        issues.value.some((issue) => issue.severity === "error")
+      ) {
+        throw new Error("The saved workflow is no longer ready to ship. Review the latest issues.");
+      }
       let runId = "";
       const result = await api.execute(
         "workflow:execute",
@@ -1440,7 +1168,12 @@ let planTimer: ReturnType<typeof setTimeout> | undefined;
 watch(
   flow,
   () => {
+    if (!workflowHydrated || !flow.value) return;
     changeRevision += 1;
+    latestPlanRequest += 1;
+    plan.value = undefined;
+    plannerIssues.value = [];
+    plannerError.value = "";
     planning.value = true;
     clearTimeout(saveTimer);
     clearTimeout(planTimer);
@@ -1449,8 +1182,19 @@ watch(
       planTimer = setTimeout(() => void refreshPlan(), 300);
     }
   },
-  { deep: true },
+  { deep: true, flush: "sync" },
 );
+onBeforeRouteLeave(async () => {
+  if (!flow.value || (saveState.value === "saved" && persistedRevision === changeRevision))
+    return true;
+  clearTimeout(saveTimer);
+  try {
+    await save();
+    return true;
+  } catch {
+    return false;
+  }
+});
 onMounted(async () => {
   await connectionsStore.init();
   const [catalogResult, flowResult] = await Promise.all([
@@ -1465,9 +1209,9 @@ onMounted(async () => {
       return;
     }
     flow.value = loaded;
-    automaticResolutionRequested = true;
+    workflowHydrated = true;
     await inspectSource();
-    await refreshPlan(true);
+    await refreshPlan();
   } else error.value = flowResult.ipcError;
 });
 </script>
@@ -1482,6 +1226,23 @@ onMounted(async () => {
   color: var(--p-text-muted-color, var(--text-color-secondary));
   font-size: 0.75rem;
 }
+.workflow-readiness {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--p-text-muted-color, var(--text-color-secondary));
+  font-size: 0.75rem;
+}
+.workflow-readiness i {
+  font-size: 0.7rem;
+}
+.workflow-readiness.state-ready i {
+  color: var(--green-500, #22c55e);
+}
+.workflow-readiness.state-attention,
+.workflow-readiness.state-error {
+  color: var(--p-orange-700, #c2410c);
+}
 .autosave-state i {
   margin-right: 4px;
 }
@@ -1491,10 +1252,54 @@ onMounted(async () => {
 .state-error i {
   color: var(--red-500, #ef4444);
 }
-.summary-copy {
-  display: block;
-  margin-top: 4px;
-  font-size: 0.8rem;
+.planner-error,
+.readiness-summary,
+.plan-shortcut {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.readiness-summary {
+  margin: 14px 0;
+  border: 1px solid color-mix(in srgb, var(--p-orange-500, #f97316) 28%, transparent);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: color-mix(in srgb, var(--p-orange-100, #ffedd5) 35%, transparent);
+}
+.readiness-summary > div {
+  display: grid;
+  gap: 3px;
+}
+.readiness-summary span,
+.plan-shortcut span {
+  color: var(--p-text-muted-color, var(--text-color-secondary));
+  font-size: 0.78rem;
+}
+.plan-shortcut {
+  justify-content: flex-end;
+  margin: 0 2px -8px;
+}
+.readiness-label {
+  flex: 0 0 auto;
+  color: var(--p-text-muted-color, var(--text-color-secondary));
+  font-size: 0.73rem;
+}
+.readiness-problem {
+  color: var(--p-orange-700, #c2410c);
+  font-weight: 600;
+}
+.destination-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.destination-toggle label {
+  margin-right: auto;
+}
+.destination-toggle span {
+  color: var(--p-text-muted-color, var(--text-color-secondary));
+  font-size: 0.75rem;
 }
 .issue-summary {
   display: grid;
@@ -1551,24 +1356,6 @@ onMounted(async () => {
   align-items: center;
   gap: 12px;
 }
-.needs-attention-button {
-  flex: 0 0 auto;
-  border: 1px solid color-mix(in srgb, var(--p-orange-500, #f97316) 45%, transparent);
-  border-radius: 6px;
-  padding: 0.35rem 0.6rem;
-  color: var(--p-orange-700, #c2410c);
-  background: color-mix(in srgb, var(--p-orange-100, #ffedd5) 72%, transparent);
-  font-weight: 600;
-  white-space: nowrap;
-}
-.needs-attention-button:hover {
-  border-color: var(--p-orange-500, #f97316);
-  background: color-mix(in srgb, var(--p-orange-100, #ffedd5) 100%, transparent);
-}
-.needs-attention-button:focus-visible {
-  outline: 2px solid var(--p-orange-500, #f97316);
-  outline-offset: 2px;
-}
 .field-issue {
   display: block;
   margin-top: 4px;
@@ -1622,19 +1409,43 @@ onMounted(async () => {
 .job-card {
   overflow: hidden;
 }
+.destination-picker {
+  display: grid;
+  gap: 8px;
+}
+.destination-choice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--p-surface-200, var(--surface-border));
+  border-radius: 8px;
+  background: var(--p-surface-0, var(--surface-card));
+  color: var(--text-color);
+  text-align: left;
+  cursor: pointer;
+}
+.destination-choice > span:nth-child(2) {
+  display: grid;
+  flex: 1;
+  gap: 3px;
+}
+.destination-choice small {
+  color: var(--p-text-muted-color, var(--text-color-secondary));
+  font-size: 0.7rem;
+}
+.destination-choice:hover {
+  border-color: var(--primary-color);
+}
 .job-header {
   padding: 12px 14px;
 }
-.profile-fields,
-.target-list,
 .settings-grid,
 .slot-list {
   display: grid;
   gap: 8px;
   padding: 0 14px 14px;
-}
-.profile-fields {
-  grid-template-columns: 1fr 1fr;
 }
 .release-field {
   display: grid;
@@ -1644,7 +1455,6 @@ onMounted(async () => {
 .field-label {
   letter-spacing: 0.02em;
 }
-.target-row,
 .slot-row {
   display: flex;
   align-items: center;
@@ -1655,30 +1465,6 @@ onMounted(async () => {
   background: transparent;
   color: var(--text-color);
   text-align: left;
-}
-.target-row {
-  cursor: pointer;
-}
-.target-row.selected {
-  border-color: var(--primary-color);
-  background: color-mix(in srgb, var(--primary-color) 7%, transparent);
-}
-.target-row span {
-  display: grid;
-  gap: 2px;
-  flex: 1;
-}
-.target-row small {
-  color: var(--p-text-muted-color, var(--text-color-secondary));
-  font-size: 0.7rem;
-}
-.routing-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 0 14px 14px;
-  font-size: 0.78rem;
 }
 .slot-row > :first-child {
   flex: 1;
@@ -1707,23 +1493,6 @@ onMounted(async () => {
   color: var(--primary-color);
   font-size: 25px;
 }
-.pipeline-divider {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin: 28px 0 -8px;
-  color: var(--p-text-muted-color, var(--text-color-secondary));
-  font-size: 0.68rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-.pipeline-divider::after {
-  height: 1px;
-  flex: 1;
-  background: var(--surface-border);
-  content: "";
-}
 .plan-panel {
   padding: 0 14px 14px;
 }
@@ -1748,6 +1517,27 @@ onMounted(async () => {
 .plan-list i {
   color: var(--primary-color);
 }
+:root.dark .source-card,
+:root.dark .job-card,
+:root.dark .empty-card,
+:root.dark .plan-panel {
+  border-color: var(--p-surface-700, #3f3f46);
+  background: var(--p-surface-900, #18181b);
+}
+:root.dark .provider-icon {
+  border-color: var(--p-surface-700, #3f3f46);
+  background: var(--p-surface-800, #27272a);
+}
+:root.dark .destination-choice {
+  border-color: var(--p-surface-700, #3f3f46);
+  background: var(--p-surface-900, #18181b);
+}
+:root.dark .slot-row {
+  border-color: var(--p-surface-700, #3f3f46);
+}
+:root.dark .slot-row:hover {
+  background: var(--p-surface-800, #27272a);
+}
 .field-note {
   margin: 0;
   color: var(--p-text-muted-color, var(--text-color-secondary));
@@ -1763,8 +1553,9 @@ onMounted(async () => {
     align-items: flex-start;
     flex-wrap: wrap;
   }
-  .profile-fields {
-    grid-template-columns: 1fr;
+  .slot-row {
+    align-items: flex-start;
+    flex-wrap: wrap;
   }
 }
 </style>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveReleaseDefaults } from "./preferences";
+import { DEFAULT_RELEASE_BUILD_PREFERENCES, resolveReleaseDefaults } from "./preferences";
 import type {
   ReleaseConfig,
   ReleaseDestinationDefinition,
@@ -86,6 +86,36 @@ const config = (withBuilds: ReleaseConfig["builds"] = []): ReleaseConfig => ({
 const context = { host: { platform: "linux", architecture: "x64" } };
 
 describe("resolveReleaseDefaults", () => {
+  it("uses the configured desktop default of Electron and Windows x64", () => {
+    expect(DEFAULT_RELEASE_BUILD_PREFERENCES.buildTypes.desktop).toEqual({
+      engine: "@pipelab/plugin-electron/producer",
+      targets: ["windows-x64"],
+    });
+
+    const electron = {
+      ...build,
+      id: "@pipelab/plugin-electron/producer",
+      targets: [{ ...build.targets[0], id: "windows-x64" }],
+    };
+    const resolved = resolveReleaseDefaults(
+      config(),
+      {
+        ...registry(),
+        producers: [electron],
+      },
+      context,
+    );
+
+    expect(resolved.builds[0]).toMatchObject({
+      engine: "@pipelab/plugin-electron/producer",
+      targets: [{ id: "windows-x64", enabled: true }],
+    });
+    expect(resolved.destinations[0].slots[0].input).toEqual({
+      buildId: resolved.builds[0].id,
+      targetId: "windows-x64",
+    });
+  });
+
   it("routes a source output through the planner without creating a build when accepted", () => {
     const resolved = resolveReleaseDefaults(
       config(),
@@ -130,6 +160,65 @@ describe("resolveReleaseDefaults", () => {
       buildId: "manual-build",
       targetId: "windows",
     });
+  });
+
+  it("preserves an explicit destination output", () => {
+    const explicit = config();
+    explicit.destinations[0].slots[0].input = { source: true };
+
+    const resolved = resolveReleaseDefaults(explicit, registry(), context);
+
+    expect(resolved.destinations[0].slots[0].input).toEqual({ source: true });
+    expect(resolved.builds).toHaveLength(0);
+  });
+
+  it("reuses one compatible build output for multiple destinations", () => {
+    const multiDestination = config();
+    multiDestination.destinations.push({
+      ...structuredClone(multiDestination.destinations[0]),
+      id: "second-destination",
+      slots: [{ id: "second-slot", enabled: true, config: {} }],
+    });
+
+    const resolved = resolveReleaseDefaults(multiDestination, registry(), context, {
+      buildTypes: { desktop: { engine: build.id, targets: ["windows"] } },
+    });
+
+    expect(resolved.builds).toHaveLength(1);
+    expect(resolved.destinations.map((item) => item.slots[0].input)).toEqual([
+      { buildId: resolved.builds[0].id, targetId: "windows" },
+      { buildId: resolved.builds[0].id, targetId: "windows" },
+    ]);
+  });
+
+  it("does not force an unavailable preferred target", () => {
+    const unavailableBuild = {
+      ...build,
+      targets: [
+        {
+          ...build.targets[0],
+          isAvailable: () => ({ available: false, reason: "Not installed" }),
+        },
+      ],
+    };
+
+    const resolved = resolveReleaseDefaults(
+      config(),
+      { ...registry(), producers: [unavailableBuild] },
+      context,
+      { buildTypes: { desktop: { engine: build.id, targets: ["windows"] } } },
+    );
+
+    expect(resolved.builds).toHaveLength(0);
+    expect(resolved.destinations[0].slots[0].input).toBeUndefined();
+  });
+
+  it("is idempotent after resolving defaults", () => {
+    const once = resolveReleaseDefaults(config(), registry(), context, {
+      buildTypes: { desktop: { engine: build.id, targets: ["windows"] } },
+    });
+
+    expect(resolveReleaseDefaults(once, registry(), context)).toEqual(once);
   });
 
   it("does not create a build when dynamic acceptance rejects the candidate", () => {
