@@ -4,7 +4,6 @@
       :flow-id="flowId"
       :project-id="projectId"
       :title="flow?.name || 'Workflow'"
-      subtitle="Build profiles and their outputs"
       active="builds"
     >
       <template #actions>

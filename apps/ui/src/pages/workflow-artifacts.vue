@@ -4,7 +4,6 @@
       :flow-id="flowId"
       :project-id="projectId"
       :title="workflowTitle"
-      subtitle="Artifacts across workflow runs"
       active="artifacts"
     >
       <main class="artifacts-page">
