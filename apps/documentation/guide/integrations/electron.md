@@ -1,45 +1,24 @@
 # Electron
 
-## Features
-- Web based project packaging
-- Installer creation
-- Native support for Steam overlay
-- [Construct 3](/guide/integrations/construct_3.md) and [Steam](/guide/integrations/steam.md) integrations
-- True fullscreen mode
-- OBS recording support
+The Electron plugin packages a web application as a desktop app. It also provides a Release workflow producer for web directory artifacts.
 
-## Create installer
-Create an installer for your game using Electron
+## Pipeline actions
 
-## Create package
-Create a package for your game using Electron generating an executable for the selected platform
+Registered actions include **Package app**, **Package app with configuration**, **Configure Electron**, **Create installer**, and **Preview app**. Package actions require a local input folder. The configuration form includes application name, bundle ID, version, author, icon, description, window size and behavior, optional extra npm packages, and integration/build options. Defaults include name `Pipelab`, bundle ID `com.pipelab.app`, version `1.0.0`, author `Pipelab`, and an 800×600 window. Preview requires a URL and configuration; it packages the app, then launches it with that URL. Empty URLs, missing configuration, and package failures stop preview.
 
-## Preview package
-Start the app by loading an URL. You can use it to preview your game using [Construct 3 remote preview](https://www.construct.net/en/blogs/construct-official-blog-1/introducing-remote-preview-877)
+Configure exposes configuration values without building. The configuration-based package action takes a JSON `configuration` object. A legacy packaging action remains registered; prefer the configuration-based action for new pipelines.
 
-## Advanced
-You may want to reuse your existing Electron configuration. You can do so by using the separate Package and Configure tasks.
+## Release workflow producer
 
-## Configure Electron
-Only the Configuration part.
+The Electron producer accepts a web application directory and declares Windows x64, Linux x64, and macOS arm64 desktop targets. Enable one or more targets in the producer profile. These are declared output targets; local toolchain and host constraints can affect whether a particular build can be made. The plugin does not promise universal cross-compilation.
 
-## Create package
-The same as the previous task but the configuration is a single parameter.
+## Minimal example
 
-## FAQ
-> Which version of Electron is used when no version is specified?
->
-The default version is the one specified in the [Pipelab repository](https://github.com/CynToolkit/pipelab/blob/develop/assets/electron/template/app/package.json#L27).
+For **Preview app**, provide a reachable URL and configuration. The preview action itself has no input-folder field; it packages the configured app before opening the URL.
 
-> Will my game show the little browser bubble when going fullscreen
->
-No
+```text
+input-url: http://localhost:3000
+configuration: { "name": "My Game" }
+```
 
-> Will my game exit fullscreen when hitting "Escape"
->
-If you use the [native Javascript API](https://developer.mozilla.org/en-US/docs/Web/API/Element/requestFullscreen), **Yes** \
-If you use the Pipelab fullscreen action, **No**
-
-> I get an error about module not found and Steamworks when running the game
->
-Install [Microsoft redistributables](https://www.microsoft.com/fr-fr/download/details.aspx?id=48145)
+The preview runner merges provided values with defaults. No credentials are required for local packaging. Build errors from Electron Forge or package installation appear in the task logs. Installer creation is a registered Electron action; it does not guarantee every host can produce every installer format.

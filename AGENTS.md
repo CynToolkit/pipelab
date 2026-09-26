@@ -97,6 +97,38 @@ details. Do not add speculative abstractions or unrelated cleanup.
 - Changesets: include only packages affected by the user-visible change and
   describe the release impact plainly.
 
+## Documentation
+
+Documentation is part of the product and must stay synchronized with the code.
+
+For every code change, explicitly review whether the documentation is affected.
+If a change modifies user-visible behavior, workflows, commands, configuration,
+APIs, integrations, plugin behavior, installation steps, deployment behavior,
+supported platforms, or other documented functionality, update the relevant
+documentation in the same change. Do not postpone documentation updates to a
+later task.
+
+If a code change does not require a documentation change, explicitly verify
+that the existing documentation remains accurate. The source of truth for
+current product documentation is `apps/documentation`.
+
+Documentation must describe the behavior of the branch being modified. When
+working on `develop`, do not copy behavior from `main` unless it is still valid
+on `develop`.
+
+When adding a feature:
+
+- identify where it belongs in the documentation;
+- add or update the relevant guide or reference page;
+- add navigation or sidebar entries when necessary;
+- include verified examples where useful;
+- update screenshots only when they materially help explain the feature.
+
+Before completing a user-facing code change, run the appropriate documentation
+build or validation when documentation was modified.
+
+This policy applies to both human contributors and coding agents.
+
 ## Safety
 
 Do not run destructive Git, release, database, or credential commands without

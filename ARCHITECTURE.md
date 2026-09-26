@@ -1,91 +1,46 @@
-# Pipelab Architecture
+# Repository architecture
 
-Pipelab has a modular architecture designed to support both a rich desktop experience and standalone execution in headless environments (like CI/CD pipelines).
+Pipelab is a pnpm/Turborepo workspace. Product behavior lives in app shells,
+shared packages, provider plugins, and worker services. The maintained
+contributor guide is [Develop Pipelab](apps/documentation/contributing/development.md)
+and [Contributor architecture](apps/documentation/contributing/architecture.md).
 
-## High-Level Diagram
+## Workspace boundaries
 
-The following diagram illustrates how the different packages in the monorepo interact, especially in the context of the Desktop Application.
+| Directory | Responsibility |
+| --- | --- |
+| `apps/desktop` | Electron lifecycle, native dialogs and shell operations, preload bridge, IPC, and starting the local CLI server. |
+| `apps/ui` | Vue interface, graph pipeline editor, Release workflow editor, and browser-side API calls. |
+| `apps/cli` | CLI command registration and packaged executable bundle. It starts the core-node server and exposes pipeline and Release workflow commands. |
+| `packages/core-node` | Node context, HTTP/WebSocket server, handlers, persistence, plugin registry, and workflow host adapters. |
+| `packages/shared` | Shared types, schemas, configuration, plugin definitions, and Release planning/compiler contracts. |
+| `packages/workflow-runtime` | Host-abstracted task workflow types, local host, and execution runtime. |
+| `plugins/*` | Provider-specific actions, workflow producers, sources, and destinations. Core-node statically registers the built-in plugins. |
+| `workers/*`, `supabase/` | Cloudflare Worker services and database migrations/functions for cloud features. |
 
-```mermaid
-graph TD
-    %% Define Packages
-    subgraph apps["Apps Workspace"]
-        Desktop["@pipelab/app<br/>(Electron Shell)"]
-        UI["@pipelab/ui<br/>(Vue 3 Web App)"]
-        CLI["@pipelab/cli<br/>(Node.js Server/CLI)"]
-    end
+## Runtime paths
 
-    subgraph packages["Packages Workspace"]
-        CoreNode["@pipelab/core-node<br/>(Business Logic & Plugins)"]
-        Shared["@pipelab/shared<br/>(Types, APIs, Utilities)"]
-        Constants["@pipelab/constants"]
-    end
+The desktop app starts or resolves a separate CLI server process. The Vue UI
+uses the local WebSocket server for engine requests and the Electron preload
+bridge for native operations such as file dialogs. The CLI server is
+implemented by `@pipelab/core-node`; `pipelab serve` binds to loopback at
+`127.0.0.1:33753` by default.
 
-    %% Dependencies & Data Flow
-    User([User]) -->|Interacts with| UI
+Pipelab has two execution models:
 
-    UI -->|1. Native Dialogs/OS Integration| Desktop
-    note1[IPC via Preload] -.-> UI
+- A **pipeline** is the graph editor model. The legacy evaluator runs its
+  enabled action blocks in saved order and records outputs for later blocks.
+- A **Release workflow** is planned from a source, producers, destinations,
+  artifacts, and dependencies. The compiled task workflow runs through
+  `@pipelab/workflow-runtime`; ready steps may run concurrently.
 
-    UI -->|2. Graph Execution & File IO| CLI
-    note2[WebSocket Connection] -.-> UI
+## Package imports
 
-    Desktop -->|Spawns & Manages Lifecycle| CLI
+Workspace package manifests define supported exports. Inspect the owning
+package's `package.json`, `src/index.ts`, README, and scripts before changing
+or importing from it. Do not assume an undeclared package subpath is supported.
+Provider-specific behavior belongs in its plugin package; generic runtime
+contracts belong in shared packages or the workflow runtime.
 
-    CLI -->|Executes Logic| CoreNode
-    Desktop -->|Hooks Native Capabilities| CoreNode
-
-    %% Shared Dependencies
-    UI -.-> Shared
-    Desktop -.-> Shared
-    CLI -.-> Shared
-    CoreNode -.-> Shared
-
-    UI -.-> Constants
-    Desktop -.-> Constants
-    CLI -.-> Constants
-    CoreNode -.-> Constants
-```
-
-## Core Components
-
-### 1. `@pipelab/ui` (The Frontend)
-
-A standalone Vite + Vue 3 Single Page Application (SPA).
-
-- **Responsibility**: Rendering the visual node editor, settings, and pipeline management interfaces.
-- **Agnostic**: It does not import any Node.js or Electron-specific code.
-- **Routing**: It uses an intelligent API composable (`useAPI`) that routes requests:
-  - **Native OS Tasks** (e.g., Opening a file picker dialog) are sent to the Electron shell via IPC.
-  - **Core Tasks** (e.g., Executing a pipeline, reading/writing project files) are sent to the standalone CLI server via WebSockets.
-
-### 2. `@pipelab/app` (The Desktop Shell)
-
-A thin Electron wrapper around the UI and the CLI.
-
-- **Responsibility**: Providing OS-level integration (File Dialogs, Auto-updates, System Tray) and managing the lifecycle of the underlying CLI server.
-- **Startup Flow**:
-  1. Electron starts up extremely fast as it loads minimal dependencies.
-  2. It spawns the `@pipelab/cli` server as a background child process.
-  3. It loads the `@pipelab/ui` web application in a `BrowserWindow`.
-- **Context Injection**: It injects native Electron capabilities (like `BrowserWindow` focus and `dialog` modules) into the shared `SystemContext` so the core logic can request UI prompts if necessary.
-
-### 3. `@pipelab/cli` (The Standalone Server & CLI)
-
-A Node.js command-line interface, bundled into standalone binaries using `pkg` for production.
-
-- **Responsibility**: Running the WebSocket server that the UI connects to, and eventually serving as a headless runner for CI/CD environments.
-- **Capabilities**: It has full file-system access and runs the heavy Node.js plugins (Docker, zip extraction, external command execution).
-
-### 4. `@pipelab/core-node` (The Brains)
-
-A shared library containing all the Node.js specific business logic.
-
-- **Responsibility**: Defining the WebSocket server, IPC handlers, plugin execution engine, and file system operations.
-- **Environment Agnostic**: It relies on an injected `SystemContext` to abstract away whether it is running inside an Electron main process or a headless CLI.
-
-### 5. `@pipelab/shared` & `@pipelab/constants`
-
-Shared libraries containing code that is safe to run in both Node.js and Browser environments.
-
-- **Responsibility**: Defining data models, IPC definitions, validation schemas, and common utilities used across the entire monorepo.
+For feature-specific architecture and setup, use the maintained
+[contributor docs](apps/documentation/contributing/architecture.md).
