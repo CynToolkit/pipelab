@@ -67,9 +67,36 @@
               :field="field"
               :value="String(draft.source.config[field.key] || '')"
               :options="fieldOptions(field.key, field.options || [])"
+              :issues="sourceFieldIssues(field.key)"
               :input-id="`wizard-source-${field.key}`"
               @update:value="setSourceField(field.key, $event)"
             />
+            <div
+              v-if="sourceInspection.state.status === 'checking'"
+              class="resolution-state"
+              role="status"
+            >
+              <i class="mdi mdi-progress-clock" aria-hidden="true" />Checking Source details…
+            </div>
+            <div
+              v-else-if="sourceInspection.state.status === 'error'"
+              class="resolution-state resolution-error"
+              role="alert"
+            >
+              <p>{{ sourceInspection.state.error }}</p>
+              <Button label="Retry" icon="pi pi-refresh" @click="retrySourceInspection" />
+            </div>
+            <div
+              v-if="sourceGeneralIssues.length"
+              class="source-inspection-issues"
+              :role="
+                sourceGeneralIssues.some((issue) => issue.severity === 'error') ? 'alert' : 'status'
+              "
+            >
+              <p v-for="issue in sourceGeneralIssues" :key="`${issue.code}:${issue.path || ''}`">
+                {{ issue.message }}
+              </p>
+            </div>
             <div class="wizard-actions">
               <Button
                 label="Back"
@@ -80,7 +107,7 @@
                 label="Continue"
                 icon="pi pi-arrow-right"
                 iconPos="right"
-                :disabled="!sourceReady"
+                :disabled="!canContinueSource"
                 @click="activateCallback('destinations')"
               />
             </div></div
@@ -196,10 +223,14 @@ import {
   buildReleaseWizardConfig,
   createReleaseWizardDraft,
   createWizardRequestRevision,
+  createWizardSourceInspection,
   releaseWizardBuildSummaries,
   releaseWizardCreationConfig,
   releaseWizardNeedsAdditionalBuildSetup,
   releaseWizardSourceIsReady,
+  releaseWizardSourceCanContinue,
+  releaseWizardSourceFieldIssues,
+  type ReleaseWizardSourceInspectionResult,
   releaseWizardResolutionIsPlannerValid,
   type ReleaseWizardDraft,
   type ReleaseWizardResolutionState,
@@ -209,7 +240,6 @@ const props = defineProps<{ visible: boolean; projectId: string }>();
 const emit = defineEmits<{ "update:visible": [value: boolean]; create: [flow: ReleaseConfig] }>();
 const api = useAPI();
 const catalogRequests = createWizardRequestRevision();
-const sourceInspectionRequests = createWizardRequestRevision();
 const resolutionRequests = createWizardRequestRevision();
 const visible = computed({
   get: () => props.visible,
@@ -230,7 +260,11 @@ const catalog = ref<ReleaseCatalog>({
   destinations: [],
 });
 const draft = ref<ReleaseWizardDraft>(createReleaseWizardDraft());
-const inspectionOptions = ref<Record<string, ReleaseFieldOption[]>>({});
+const sourceInspection = createWizardSourceInspection(async (source) => {
+  const result = await api.execute("release:source:inspect", source);
+  if (result.type === "error") throw new Error(result.ipcError);
+  return result.result as ReleaseWizardSourceInspectionResult;
+});
 const resolutionState = ref<ReleaseWizardResolutionState>("idle");
 const resolutionError = ref("");
 const resolvedConfig = ref<ReleaseConfig>();
@@ -238,6 +272,9 @@ const sourceDefinition = computed(() =>
   catalog.value.sources.find((source) => source.id === draft.value.source.provider),
 );
 const sourceReady = computed(() => releaseWizardSourceIsReady(draft.value.source, catalog.value));
+const canContinueSource = computed(() =>
+  releaseWizardSourceCanContinue(sourceReady.value, sourceInspection.state),
+);
 const providerIcon = (icon?: IconType) =>
   icon?.type === "icon"
     ? icon.icon.includes("mdi")
@@ -249,28 +286,28 @@ const destinationLabel = (id: string) =>
 const hasDestination = (id: string) =>
   draft.value.destinations.some((item) => item.provider === id);
 const fieldOptions = (key: string, fallback: ReleaseFieldOption[]) =>
-  inspectionOptions.value[key] || fallback;
-const chooseSource = async (provider: string) => {
+  sourceInspection.state.fieldOptions[key] || fallback;
+const sourceFieldIssues = (key: string) =>
+  releaseWizardSourceFieldIssues(sourceInspection.state.issues, key);
+const sourceGeneralIssues = computed(() =>
+  sourceInspection.state.issues.filter((issue) => {
+    if (!issue.path || issue.path === "source" || issue.path === "config") return true;
+    return (sourceDefinition.value?.fields || []).every(
+      (field) => !releaseWizardSourceFieldIssues([issue], field.key).length,
+    );
+  }),
+);
+const retrySourceInspection = () => sourceInspection.inspectNow(toRaw(draft.value.source));
+const chooseSource = (provider: string) => {
   const definition = catalog.value.sources.find((source) => source.id === provider);
   if (!definition) return;
+  sourceInspection.invalidate();
   draft.value.source = { provider, config: { ...definition.defaultConfig } };
-  inspectionOptions.value = {};
-  const requestId = sourceInspectionRequests.next();
-  const source = structuredClone(toRaw(draft.value.source));
-  const result = await api.execute("release:source:inspect", source);
-  if (
-    !sourceInspectionRequests.isCurrent(requestId) ||
-    JSON.stringify(source) !== JSON.stringify(draft.value.source)
-  )
-    return;
-  if (result.type === "success") {
-    const inspected = result.result as { fieldOptions?: Record<string, ReleaseFieldOption[]> };
-    inspectionOptions.value = inspected.fieldOptions || {};
-  }
+  void sourceInspection.inspectNow(toRaw(draft.value.source));
 };
 const setSourceField = (key: string, value: unknown) => {
-  sourceInspectionRequests.invalidate();
   draft.value.source.config[key] = value;
+  sourceInspection.schedule(toRaw(draft.value.source));
 };
 const toggleDestination = (provider: string) => {
   const index = draft.value.destinations.findIndex((item) => item.provider === provider);
@@ -372,11 +409,11 @@ watch(
   async (open) => {
     if (!open) {
       catalogRequests.invalidate();
-      sourceInspectionRequests.invalidate();
+      sourceInspection.invalidate();
       resolutionRequests.invalidate();
       return;
     }
-    sourceInspectionRequests.invalidate();
+    sourceInspection.invalidate();
     const requestId = catalogRequests.next();
     step.value = "details";
     workflowId.value = nanoid();

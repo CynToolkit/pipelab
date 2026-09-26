@@ -53,6 +53,15 @@
               <Button label="Retry save" text size="small" @click="save().catch(() => {})" />
             </div>
           </Message>
+          <Message v-if="requestedBuildUnavailable" severity="warn" role="status">
+            <div class="state-copy">
+              <span>
+                The requested build “{{ requestedBuildId }}” no longer exists. Choose another build
+                or return to Configuration.
+              </span>
+              <Button label="Dismiss" text size="small" @click="dismissBuildIssueRequest" />
+            </div>
+          </Message>
 
           <section v-if="compatibleRouteRequested" class="compatible-section">
             <div class="section-heading">
@@ -160,25 +169,18 @@
                     @update:model-value="setBuildEnabled(build, $event)"
                   />
                   <Button
+                    label="Configure"
                     icon="pi pi-cog"
                     text
-                    rounded
+                    size="small"
                     :aria-label="`Configure ${build.name || engineLabel(build.engine)}`"
                     @click="openBuildSettings(build)"
-                  />
-                  <Button
-                    icon="pi pi-trash"
-                    text
-                    rounded
-                    severity="danger"
-                    :aria-label="`Remove ${build.name || buildTypeLabel(build.type)}`"
-                    @click="removeBuild(build)"
                   />
                 </div>
                 <ul v-if="buildIssues(build, index).length" class="build-issues">
                   <li
                     v-for="issue in buildIssues(build, index)"
-                    :key="`${issue.code}:${issue.path}`"
+                    :key="`${issue.code}:${issue.path}:${issue.severity}:${issue.message}`"
                   >
                     {{ issue.message }}
                   </li>
@@ -260,13 +262,23 @@
       modal
       header="Build settings"
       :style="wideDialogStyle"
+      @show="focusSettingsIssue"
       @hide="discardBuildSettings"
     >
       <div v-if="draftBuild" class="settings-grid">
+        <div v-if="settingsIssuePath" class="build-issue-context" role="status">
+          <strong>Configuration needs this build setting</strong>
+          <span>{{ settingsIssueMessage }}</span>
+          <code>{{ settingsIssuePath }}</code>
+        </div>
+        <p v-if="producerInspectionChecking" class="inline-state" role="status">
+          Checking provider settings…
+        </p>
         <div class="release-field wide">
           <label :for="`settings-engine-${draftBuild.id}`">Engine</label>
           <Select
             :id="`settings-engine-${draftBuild.id}`"
+            :class="{ 'issue-focus': isSettingsIssueControl(`settings-engine-${draftBuild.id}`) }"
             :model-value="draftBuild.engine"
             :options="buildEnginesFor(catalog, draftBuild.type)"
             optionLabel="label"
@@ -285,8 +297,14 @@
               v-for="target in draftTargets"
               :key="target.id"
               type="button"
+              :id="buildTargetControlId(draftBuild.id, target.id)"
               class="target-row"
-              :class="{ selected: draftTargetEnabled(target.id) }"
+              :class="{
+                selected: draftTargetEnabled(target.id),
+                'issue-focus': isSettingsIssueControl(
+                  buildTargetControlId(draftBuild.id, target.id),
+                ),
+              }"
               :disabled="!buildTargetIsAvailable(target) && !draftTargetEnabled(target.id)"
               :aria-pressed="draftTargetEnabled(target.id)"
               @click="toggleDraftTarget(target)"
@@ -308,6 +326,7 @@
           <label :for="`settings-input-${draftBuild.id}`">Input</label>
           <Select
             :id="`settings-input-${draftBuild.id}`"
+            :class="{ 'issue-focus': isSettingsIssueControl(`settings-input-${draftBuild.id}`) }"
             :model-value="releaseOutputRefValue(draftBuild.input)"
             :options="draftBuildInputOptions"
             optionLabel="label"
@@ -334,6 +353,9 @@
         >
           <ReleaseFieldControl
             :field="field"
+            :class="{
+              'issue-focus': isSettingsIssueControl(`build-${draftBuild.id}-${field.key}`),
+            }"
             :value="fieldValue(draftBuild.config, field.key)"
             :options="fieldOptions(field)"
             :input-id="`build-${draftBuild.id}-${field.key}`"
@@ -353,6 +375,11 @@
           >
             <ReleaseFieldControl
               :field="field"
+              :class="{
+                'issue-focus': isSettingsIssueControl(
+                  `target-${draftBuild.id}-${target.id}-${field.key}`,
+                ),
+              }"
               :value="fieldValue(target.config, field.key)"
               :options="fieldOptions(field)"
               :input-id="`target-${draftBuild.id}-${target.id}-${field.key}`"
@@ -364,12 +391,23 @@
         </template>
       </div>
       <template #footer>
-        <Button label="Cancel" text @click="discardBuildSettings" />
-        <Button
-          label="Apply changes"
-          :disabled="!canApplyBuildSettings"
-          @click="applyBuildSettings"
-        />
+        <div class="settings-footer">
+          <Button
+            v-if="draftBuild"
+            label="Remove build"
+            icon="pi pi-trash"
+            text
+            severity="danger"
+            @click="removeBuild(draftBuild)"
+          />
+          <span class="settings-footer-spacer" />
+          <Button label="Cancel" text @click="discardBuildSettings" />
+          <Button
+            label="Apply changes"
+            :disabled="!canApplyBuildSettings"
+            @click="applyBuildSettings"
+          />
+        </div>
       </template>
     </Dialog>
 
@@ -410,7 +448,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, toRaw, watch } from "vue";
 import { nanoid } from "nanoid";
-import { useRoute, useRouter } from "vue-router";
+import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute, useRouter } from "vue-router";
 import Button from "primevue/button";
 import ConfirmDialog from "primevue/confirmdialog";
 import Dialog from "primevue/dialog";
@@ -449,6 +487,7 @@ import {
   createBuildProfile,
   createSerializedTaskQueue,
   deploymentSlotLabel,
+  deduplicateValidationIssues,
   issuesForPath,
   outputReferenceChangeImpact,
   outputReferenceConsumers,
@@ -463,6 +502,13 @@ import {
   type CompatibleBuildCandidate,
   type ReleaseOutputOption,
 } from "./release-flow-model";
+import {
+  buildIssueControlId,
+  buildInspectionSignature,
+  persistBuildChangesBeforeNavigation,
+  producerInspectionResponseIsCurrent,
+  resolveBuildIssueRequest,
+} from "./workflow-builds-state";
 
 const route = useRoute();
 const router = useRouter();
@@ -474,6 +520,13 @@ const flowId = computed(() => String(route.params.flowId));
 const projectId = computed(() => String(route.params.projectId));
 const basePath = computed(() => `/workflows/${flowId.value}/${projectId.value}`);
 const queryString = (value: unknown) => (typeof value === "string" ? value : "");
+const requestedBuildId = computed(() => queryString(route.query.buildId));
+const requestedIssuePath = computed(() => queryString(route.query.issuePath));
+const requestedBuildIssueKey = computed(() =>
+  requestedBuildId.value || requestedIssuePath.value
+    ? `${flowId.value}/${projectId.value}/${requestedBuildId.value}/${requestedIssuePath.value}`
+    : "",
+);
 const compatibleDestinationId = computed(() => queryString(route.query.destinationId));
 const compatibleSlotId = computed(() => queryString(route.query.slotId));
 const compatibleRouteRequested = computed(() =>
@@ -500,6 +553,10 @@ const compatibleError = ref("");
 const buildInputOptions = ref<Record<string, ReleaseOutputOption[]>>({});
 const buildInputChecking = ref(false);
 const buildInputError = ref("");
+const producerInspectionChecking = ref(false);
+const requestedBuildUnavailable = ref(false);
+const settingsIssuePath = ref("");
+const settingsIssueControlId = ref("");
 const addVisible = ref(false);
 const settingsVisible = ref(false);
 const connectionVisible = ref(false);
@@ -516,6 +573,12 @@ const connectionDraft = ref({
 });
 const dialogStyle = { width: "560px", maxWidth: "94vw" };
 const wideDialogStyle = { width: "760px", maxWidth: "94vw" };
+const settingsIssueMessage = computed(
+  () =>
+    [...(plan.value?.issues || []), ...producerInspectionIssues.value].find(
+      (issue) => issue.path === settingsIssuePath.value,
+    )?.message || "Review the highlighted control and update the build configuration.",
+);
 const saveStateLabel = computed(() =>
   saveState.value === "saving" ? "Saving…" : saveState.value === "error" ? "Save failed" : "Saved",
 );
@@ -591,6 +654,7 @@ const draftTargetSelectionSignature = computed(
     draftBuild.value?.targets.map((target) => `${target.id}:${target.enabled ? 1 : 0}`).join(",") ||
     "",
 );
+const producerInspectionSignature = computed(() => buildInspectionSignature(draftBuild.value));
 const engineChangeNotice = computed(() =>
   Boolean(draftBuild.value && draftBuild.value.engine !== originalEngine.value),
 );
@@ -624,12 +688,13 @@ const outputLabel = (ref?: ReleaseOutputRef) => {
   const target = build && targetDefinition(build.engine, build.type, ref.targetId);
   return `${build?.name || (build ? buildTypeLabel(build.type) : "Missing build")} · ${target?.label || ref.targetId}`;
 };
-const buildIssues = (build: ReleaseBuildProfileConfig, index: number) => [
-  ...(plan.value ? issuesForPath(plan.value.issues, `builds.${index}`) : []),
-  ...producerInspectionIssues.value.filter(
-    (issue) => issue.path === `builds.${index}` || issue.path?.startsWith(`builds.${index}.`),
-  ),
-];
+const buildIssues = (build: ReleaseBuildProfileConfig, index: number) =>
+  deduplicateValidationIssues([
+    ...(plan.value ? issuesForPath(plan.value.issues, `builds.${index}`) : []),
+    ...producerInspectionIssues.value.filter(
+      (issue) => issue.path === `builds.${index}` || issue.path?.startsWith(`builds.${index}.`),
+    ),
+  ]);
 const buildReadiness = (build: ReleaseBuildProfileConfig, index: number) => {
   if (!build.enabled) return "Disabled";
   if (!plan.value || planning.value) return "Checking";
@@ -686,6 +751,23 @@ let persistedRevision = 0;
 let hydrating = false;
 let saveTimer: ReturnType<typeof setTimeout> | undefined;
 let planTimer: ReturnType<typeof setTimeout> | undefined;
+let producerInspectTimer: ReturnType<typeof setTimeout> | undefined;
+let handledBuildIssueKey = "";
+const persistPendingChanges = () =>
+  persistBuildChangesBeforeNavigation(
+    () => changeRevision !== persistedRevision,
+    () => {
+      clearTimeout(saveTimer);
+      saveTimer = undefined;
+    },
+    save,
+  );
+onBeforeRouteLeave(() => persistPendingChanges());
+onBeforeRouteUpdate((to, from) => {
+  if (to.params.flowId === from.params.flowId && to.params.projectId === from.params.projectId)
+    return true;
+  return persistPendingChanges();
+});
 const loadWorkflow = async () => {
   const generation = ++loadGeneration;
   const requestedFlowId = flowId.value;
@@ -697,8 +779,11 @@ const loadWorkflow = async () => {
     (flow.value.id !== requestedFlowId || flow.value.project !== requestedProjectId)
   ) {
     clearTimeout(saveTimer);
+    saveTimer = undefined;
     clearTimeout(planTimer);
-    if (changeRevision !== persistedRevision) await save().catch(() => {});
+    if (!(await persistPendingChanges())) return;
+    discardBuildSettings();
+    handledBuildIssueKey = "";
   }
   if (generation !== loadGeneration) return;
   loadError.value = "";
@@ -727,6 +812,7 @@ const loadWorkflow = async () => {
     saveState.value = "saved";
     saveError.value = "";
     await refreshPlan();
+    if (generation === loadGeneration) await openRequestedBuildIssue();
     if (generation === loadGeneration && compatibleRouteRequested.value)
       await refreshCompatibleBuilds();
   } catch (cause) {
@@ -896,47 +982,73 @@ watch(
 const inspectDraftBuild = async () => {
   if (!flow.value || !draftBuild.value) return;
   const requestId = ++latestProducerInspectRequest;
-  const build = draftBuild.value;
+  const build = structuredClone(toRaw(draftBuild.value));
+  const sourceConfig = structuredClone(toRaw(flow.value.source.config));
   const buildIndex = flow.value.builds.findIndex((candidate) => candidate.id === build.id);
   if (buildIndex < 0) return;
-  const result = await api.execute("release:producer:inspect", {
-    provider: build.engine,
-    sourceConfig: flow.value.source.config,
-    config: {
-      id: build.id,
+  const isCurrent = () =>
+    producerInspectionResponseIsCurrent(
+      requestId,
+      latestProducerInspectRequest,
+      settingsVisible.value,
+      build.id,
+      draftBuild.value?.id,
+    );
+  producerInspectionChecking.value = true;
+  try {
+    const result = await api.execute("release:producer:inspect", {
       provider: build.engine,
-      enabled: build.enabled,
-      config: build.config,
-      targets: build.targets,
-    },
-  });
-  if (
-    requestId !== latestProducerInspectRequest ||
-    !settingsVisible.value ||
-    draftBuild.value?.id !== build.id
-  )
-    return;
-  if (result.type === "error") {
+      sourceConfig,
+      config: {
+        id: build.id,
+        provider: build.engine,
+        enabled: build.enabled,
+        config: build.config,
+        targets: build.targets,
+      },
+    });
+    if (!isCurrent()) return;
+    if (result.type === "error") throw new Error(result.ipcError);
+    const data = result.result as ProducerInspection;
+    const applied = applyProducerInspection(
+      build,
+      buildIndex,
+      { ...data, issues: data.issues || [] },
+      { applyFieldValues: false },
+    );
+    producerInspectionOptions.value = applied.options;
+    producerInspectionIssues.value = applied.issues;
+  } catch (cause) {
+    if (!isCurrent()) return;
+    producerInspectionOptions.value = {};
     producerInspectionIssues.value = [
       {
         code: "release.producer.inspect",
-        message: result.ipcError,
+        message: cause instanceof Error ? cause.message : String(cause),
         severity: "error",
         path: `builds.${buildIndex}`,
       },
     ];
-    return;
+  } finally {
+    if (isCurrent()) producerInspectionChecking.value = false;
   }
-  const data = result.result as ProducerInspection;
-  const applied = applyProducerInspection(
-    build,
-    buildIndex,
-    { ...data, issues: data.issues || [] },
-    { applyFieldValues: false },
-  );
-  producerInspectionOptions.value = applied.options;
-  producerInspectionIssues.value = applied.issues;
 };
+
+watch(
+  [settingsVisible, producerInspectionSignature],
+  ([visible]) => {
+    latestProducerInspectRequest += 1;
+    clearTimeout(producerInspectTimer);
+    producerInspectTimer = undefined;
+    producerInspectionChecking.value = false;
+    producerInspectionOptions.value = {};
+    producerInspectionIssues.value = [];
+    if (!visible || !draftBuild.value) return;
+    producerInspectionChecking.value = true;
+    producerInspectTimer = setTimeout(() => void inspectDraftBuild(), 250);
+  },
+  { flush: "sync" },
+);
 
 const openAddBuild = () => {
   newBuildType.value = undefined;
@@ -993,23 +1105,82 @@ const createCompatibleBuild = (choice: CompatibleBuildCandidate) => {
   );
 };
 const clearCompatibleRoute = () => router.replace({ path: `${basePath.value}/builds` });
+const openRequestedBuildIssue = async () => {
+  const routeKey = requestedBuildIssueKey.value;
+  if (
+    !routeKey ||
+    !flow.value ||
+    flow.value.id !== flowId.value ||
+    flow.value.project !== projectId.value ||
+    routeKey === handledBuildIssueKey
+  )
+    return;
+  handledBuildIssueKey = routeKey;
+  const build = resolveBuildIssueRequest(
+    flow.value.builds,
+    requestedBuildId.value,
+    requestedIssuePath.value,
+  );
+  if (!build) {
+    requestedBuildUnavailable.value = true;
+    return;
+  }
+  requestedBuildUnavailable.value = false;
+  await openBuildSettings(build, requestedIssuePath.value);
+};
+const dismissBuildIssueRequest = () => {
+  requestedBuildUnavailable.value = false;
+  handledBuildIssueKey = "";
+  void router.replace({
+    path: `${basePath.value}/builds`,
+    query: { ...route.query, buildId: undefined, issuePath: undefined },
+  });
+};
 
-const openBuildSettings = async (build: ReleaseBuildProfileConfig) => {
+const buildTargetControlId = (buildId: string, targetId: string) =>
+  `build-target-${buildId}-${targetId}`;
+const isSettingsIssueControl = (controlId: string) =>
+  Boolean(controlId && settingsIssueControlId.value === controlId);
+const focusSettingsIssue = () => {
+  const controlId = settingsIssueControlId.value;
+  if (!controlId) return;
+  requestAnimationFrame(() => {
+    if (settingsIssueControlId.value !== controlId) return;
+    const direct = document.getElementById(controlId);
+    const wrapper = [...document.querySelectorAll<HTMLElement>("[data-control-id]")].find(
+      (element) => element.dataset.controlId === controlId,
+    );
+    const target =
+      direct || wrapper?.querySelector<HTMLElement>("input, button, [tabindex]") || wrapper;
+    if (!target) return;
+    target.scrollIntoView({ block: "center", behavior: "smooth" });
+    target.focus({ preventScroll: true });
+  });
+};
+const openBuildSettings = (build: ReleaseBuildProfileConfig, issuePath = "") => {
   if (!flow.value) return;
   originalEngine.value = build.engine;
   draftBuild.value = structuredClone(toRaw(build));
+  settingsIssuePath.value = issuePath;
+  const buildIndex = flow.value.builds.findIndex((candidate) => candidate.id === build.id);
+  settingsIssueControlId.value =
+    issuePath && buildIndex >= 0 ? buildIssueControlId(build, buildIndex, issuePath) || "" : "";
   producerInspectionIssues.value = [];
   producerInspectionOptions.value = {};
   buildInputError.value = "";
   settingsVisible.value = true;
-  await nextTick();
-  void inspectDraftBuild();
+  void nextTick().then(focusSettingsIssue);
 };
 const discardBuildSettings = () => {
   settingsVisible.value = false;
   draftBuild.value = undefined;
+  settingsIssuePath.value = "";
+  settingsIssueControlId.value = "";
   latestBuildInputRequest += 1;
   latestProducerInspectRequest += 1;
+  clearTimeout(producerInspectTimer);
+  producerInspectTimer = undefined;
+  producerInspectionChecking.value = false;
   buildInputChecking.value = false;
 };
 const stageEngineChange = (engine: string) => {
@@ -1017,9 +1188,6 @@ const stageEngineChange = (engine: string) => {
   const switched = switchBuildProfileEngine(catalog.value, draftBuild.value, engine);
   if (!switched) return;
   draftBuild.value = switched;
-  producerInspectionIssues.value = [];
-  producerInspectionOptions.value = {};
-  void inspectDraftBuild();
 };
 const draftTargetEnabled = (targetId: string) =>
   Boolean(draftBuild.value?.targets.some((target) => target.id === targetId && target.enabled));
@@ -1136,6 +1304,7 @@ const removeBuild = (build: ReleaseBuildProfileConfig) => {
     rejectProps: { label: "Keep build", severity: "secondary", outlined: true },
     acceptProps: { label: "Remove build", severity: "danger" },
     accept: () => {
+      if (settingsVisible.value && draftBuild.value?.id === build.id) discardBuildSettings();
       if (flow.value) removeBuildProfile(flow.value, build.id);
     },
   });
@@ -1201,11 +1370,13 @@ onMounted(async () => {
 watch([flowId, projectId], () => {
   if (flow.value) void loadWorkflow();
 });
+watch(requestedBuildIssueKey, () => {
+  if (flow.value) void openRequestedBuildIssue();
+});
 watch([compatibleDestinationId, compatibleSlotId], () => {
   if (flow.value) void refreshCompatibleBuilds();
 });
 onUnmounted(() => {
-  if (flow.value && changeRevision !== persistedRevision) void save().catch(() => {});
   loadGeneration += 1;
   latestPlanRequest += 1;
   latestCompatibleRequest += 1;
@@ -1213,6 +1384,7 @@ onUnmounted(() => {
   latestProducerInspectRequest += 1;
   clearTimeout(saveTimer);
   clearTimeout(planTimer);
+  clearTimeout(producerInspectTimer);
 });
 </script>
 
@@ -1397,6 +1569,37 @@ onUnmounted(() => {
 .state-copy span {
   font-size: 0.8rem;
 }
+.build-issue-context {
+  display: grid;
+  grid-column: 1 / -1;
+  gap: 5px;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--primary-color) 35%, var(--surface-border));
+  border-radius: 7px;
+  background: var(--p-surface-50, var(--surface-ground));
+  font-size: 0.75rem;
+}
+.build-issue-context span {
+  color: var(--p-text-muted-color, var(--text-color-secondary));
+}
+.build-issue-context code {
+  overflow-wrap: anywhere;
+  color: var(--p-text-muted-color, var(--text-color-secondary));
+  font-size: 0.68rem;
+}
+.issue-focus {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 3px;
+}
+.settings-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+.settings-footer-spacer {
+  flex: 1;
+}
 .settings-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1476,6 +1679,10 @@ onUnmounted(() => {
 :root.dark .build-issues {
   border-color: var(--p-surface-700, #3f3f46);
   color: var(--p-orange-300, #fdba74);
+}
+:root.dark .build-issue-context {
+  border-color: var(--p-surface-700, #3f3f46);
+  background: var(--p-surface-900, #18181b);
 }
 @media (max-width: 720px) {
   .build-row {

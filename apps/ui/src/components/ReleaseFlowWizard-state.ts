@@ -1,5 +1,12 @@
+import { reactive } from "vue";
 import { createReleaseConfig } from "@pipelab/shared";
-import type { ReleaseCatalog, ReleaseConfig, ReleasePlan } from "@pipelab/shared";
+import type {
+  ReleaseCatalog,
+  ReleaseConfig,
+  ReleaseFieldOption,
+  ReleasePlan,
+  ValidationIssue,
+} from "@pipelab/shared";
 
 export interface ReleaseWizardDraft {
   name: string;
@@ -9,6 +16,19 @@ export interface ReleaseWizardDraft {
 }
 
 export type ReleaseWizardResolutionState = "idle" | "resolving" | "ready" | "error";
+export type ReleaseWizardSourceInspectionStatus = "idle" | "checking" | "ready" | "error";
+
+export interface ReleaseWizardSourceInspectionState {
+  status: ReleaseWizardSourceInspectionStatus;
+  error: string;
+  fieldOptions: Record<string, ReleaseFieldOption[]>;
+  issues: ValidationIssue[];
+}
+
+export interface ReleaseWizardSourceInspectionResult {
+  fieldOptions?: Record<string, ReleaseFieldOption[]>;
+  issues?: ValidationIssue[];
+}
 
 export const createReleaseWizardDraft = (): ReleaseWizardDraft => ({
   name: "",
@@ -41,6 +61,26 @@ export const releaseWizardSourceIsReady = (
   if (!definition) return false;
   return (definition.fields?.filter((field) => !field.deferUntilEditor) || []).every(
     (field) => !field.required || String(source.config[field.key] || "").trim(),
+  );
+};
+
+export const releaseWizardSourceCanContinue = (
+  sourceIsReady: boolean,
+  inspection: ReleaseWizardSourceInspectionState,
+) =>
+  sourceIsReady &&
+  inspection.status === "ready" &&
+  !inspection.issues.some((issue) => issue.severity === "error");
+
+export const releaseWizardSourceFieldIssues = (issues: ValidationIssue[], fieldKey: string) => {
+  const prefixes = [
+    fieldKey,
+    `config.${fieldKey}`,
+    `source.${fieldKey}`,
+    `source.config.${fieldKey}`,
+  ];
+  return issues.filter((issue) =>
+    prefixes.some((prefix) => issue.path === prefix || issue.path?.startsWith(`${prefix}.`)),
   );
 };
 
@@ -118,4 +158,66 @@ export const createWizardRequestRevision = () => {
     invalidate: () => ++revision,
     isCurrent: (requestId: number) => revision === requestId,
   };
+};
+
+export const createWizardSourceInspection = (
+  inspect: (source: ReleaseConfig["source"]) => Promise<ReleaseWizardSourceInspectionResult>,
+  debounceMs = 250,
+) => {
+  const state = reactive<ReleaseWizardSourceInspectionState>({
+    status: "idle",
+    error: "",
+    fieldOptions: {},
+    issues: [],
+  });
+  const requests = createWizardRequestRevision();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+
+  const clearTimer = () => {
+    if (timer) clearTimeout(timer);
+    timer = undefined;
+  };
+  const clearResult = () => {
+    state.error = "";
+    state.fieldOptions = {};
+    state.issues = [];
+  };
+  const run = async (source: ReleaseConfig["source"], requestId: number) => {
+    state.status = "checking";
+    clearResult();
+    try {
+      const result = await inspect(structuredClone(source));
+      if (!requests.isCurrent(requestId)) return;
+      state.fieldOptions = result.fieldOptions || {};
+      state.issues = result.issues || [];
+      state.status = "ready";
+    } catch (cause) {
+      if (!requests.isCurrent(requestId)) return;
+      state.error = cause instanceof Error ? cause.message : String(cause);
+      state.status = "error";
+    }
+  };
+  const inspectNow = (source: ReleaseConfig["source"]) => {
+    clearTimer();
+    const requestId = requests.next();
+    return run(source, requestId);
+  };
+  const schedule = (source: ReleaseConfig["source"]) => {
+    clearTimer();
+    const requestId = requests.next();
+    const snapshot = structuredClone(source);
+    state.status = "checking";
+    clearResult();
+    timer = setTimeout(() => {
+      if (requests.isCurrent(requestId)) void run(snapshot, requestId);
+    }, debounceMs);
+  };
+  const invalidate = () => {
+    clearTimer();
+    requests.invalidate();
+    state.status = "idle";
+    clearResult();
+  };
+
+  return { state, inspectNow, schedule, invalidate };
 };

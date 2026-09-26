@@ -1,14 +1,17 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { ReleaseCatalog, ReleaseConfig, ReleasePlan } from "@pipelab/shared";
 import {
   buildReleaseWizardConfig,
   createReleaseWizardDraft,
+  createWizardSourceInspection,
   createWizardRequestRevision,
   releaseWizardBuildSummaries,
   releaseWizardCreationConfig,
   releaseWizardNeedsAdditionalBuildSetup,
   releaseWizardResolutionIsPlannerValid,
   releaseWizardSourceIsReady,
+  releaseWizardSourceCanContinue,
+  releaseWizardSourceFieldIssues,
 } from "./ReleaseFlowWizard-state";
 
 const catalog: ReleaseCatalog = {
@@ -247,5 +250,108 @@ describe("ReleaseFlowWizard state", () => {
     const defaultsRequest = defaultsRevisions.next();
     defaultsRevisions.invalidate();
     expect(defaultsRevisions.isCurrent(defaultsRequest)).toBe(false);
+  });
+
+  it("reruns Source inspection after a field edit", async () => {
+    vi.useFakeTimers();
+    const inspect = vi.fn(async (source: ReleaseConfig["source"]) => ({
+      fieldOptions: {
+        path: [{ label: String(source.config.path), value: String(source.config.path) }],
+      },
+      issues: [],
+    }));
+    const inspection = createWizardSourceInspection(inspect, 200);
+    const initialSource = { provider: "source/project", config: { path: "/first" } };
+    const editedSource = { provider: "source/project", config: { path: "/second" } };
+
+    await inspection.inspectNow(initialSource);
+    expect(inspect).toHaveBeenCalledTimes(1);
+    inspection.schedule(editedSource);
+    expect(inspection.state.status).toBe("checking");
+    await vi.advanceTimersByTimeAsync(200);
+
+    expect(inspect).toHaveBeenCalledTimes(2);
+    expect(inspect).toHaveBeenLastCalledWith(editedSource);
+    expect(inspection.state.fieldOptions.path?.[0].value).toBe("/second");
+    vi.useRealTimers();
+  });
+
+  it("ignores stale Source inspection responses", async () => {
+    let resolveFirst!: (value: {
+      fieldOptions: Record<string, { label: string; value: string }[]>;
+    }) => void;
+    let resolveSecond!: (value: {
+      fieldOptions: Record<string, { label: string; value: string }[]>;
+    }) => void;
+    const inspect = vi
+      .fn()
+      .mockImplementationOnce(() => new Promise((resolve) => (resolveFirst = resolve)))
+      .mockImplementationOnce(() => new Promise((resolve) => (resolveSecond = resolve)));
+    const inspection = createWizardSourceInspection(inspect);
+
+    const older = inspection.inspectNow({ provider: "source/project", config: { path: "/old" } });
+    const newer = inspection.inspectNow({ provider: "source/project", config: { path: "/new" } });
+    resolveSecond({ fieldOptions: { path: [{ label: "new", value: "/new" }] } });
+    await newer;
+    resolveFirst({ fieldOptions: { path: [{ label: "old", value: "/old" }] } });
+    await older;
+
+    expect(inspection.state.fieldOptions.path?.[0].value).toBe("/new");
+  });
+
+  it("blocks Continue for inspection errors or blocking issues and allows Retry", async () => {
+    let attempt: "fail" | "blocking" | "ready" = "fail";
+    const inspection = createWizardSourceInspection(async () => {
+      if (attempt === "fail") throw new Error("Source inspection failed");
+      return {
+        fieldOptions: {},
+        issues:
+          attempt === "blocking"
+            ? [
+                {
+                  code: "source.path.invalid",
+                  message: "Choose a valid folder.",
+                  severity: "error" as const,
+                  path: "path",
+                },
+              ]
+            : [],
+      };
+    });
+    const source = { provider: "source/project", config: { path: "/game" } };
+
+    await inspection.inspectNow(source);
+    expect(inspection.state.status).toBe("error");
+    expect(inspection.state.error).toBe("Source inspection failed");
+    expect(releaseWizardSourceCanContinue(true, inspection.state)).toBe(false);
+
+    attempt = "blocking";
+    await inspection.inspectNow(source);
+    expect(inspection.state.status).toBe("ready");
+    expect(releaseWizardSourceCanContinue(true, inspection.state)).toBe(false);
+    expect(inspection.state.issues).toHaveLength(1);
+
+    attempt = "ready";
+    await inspection.inspectNow(source);
+    expect(releaseWizardSourceCanContinue(true, inspection.state)).toBe(true);
+  });
+
+  it("passes Source inspection issues only to the field matching the issue path", () => {
+    const issues = [
+      {
+        code: "source.path.invalid",
+        message: "Choose a valid folder.",
+        severity: "error" as const,
+        path: "source.path",
+      },
+      {
+        code: "source.name.invalid",
+        message: "Choose a valid name.",
+        severity: "error" as const,
+        path: "config.name",
+      },
+    ];
+    expect(releaseWizardSourceFieldIssues(issues, "path")).toEqual([issues[0]]);
+    expect(releaseWizardSourceFieldIssues(issues, "name")).toEqual([issues[1]]);
   });
 });

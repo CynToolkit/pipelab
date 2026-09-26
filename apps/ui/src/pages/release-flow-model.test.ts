@@ -12,6 +12,7 @@ import {
   connectionMatchesIntegration,
   createBuildProfile,
   createSerializedTaskQueue,
+  deduplicateValidationIssues,
   issuesForPath,
   planOutputOptions,
   outputReferenceChangeImpact,
@@ -911,5 +912,19 @@ describe("release flow model", () => {
     expect(readinessLabel(true, false, false)).toBe("Needs attention");
     expect(readinessLabel(true, true, true)).toBe("Needs attention");
     expect(readinessLabel(false, true, false)).toBe("Disabled");
+  });
+
+  it("deduplicates summary issues without collapsing different actionable paths", () => {
+    const duplicate = {
+      code: "release.build.input.invalid",
+      message: "Choose a compatible input.",
+      severity: "error" as const,
+      path: "builds.0.input",
+    };
+    const sameMessageAtDifferentPath = { ...duplicate, path: "builds.1.input" };
+
+    expect(
+      deduplicateValidationIssues([duplicate, { ...duplicate }, sameMessageAtDifferentPath]),
+    ).toEqual([duplicate, sameMessageAtDifferentPath]);
   });
 });

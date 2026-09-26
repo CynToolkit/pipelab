@@ -335,6 +335,16 @@ export const outputReferenceChangeImpact = (
 export const issuesForPath = (issues: ValidationIssue[], path: string) =>
   issues.filter((issue) => issue.path === path || issue.path?.startsWith(`${path}.`));
 
+export const deduplicateValidationIssues = (issues: ValidationIssue[]) => {
+  const seen = new Set<string>();
+  return issues.filter((issue) => {
+    const key = JSON.stringify([issue.code, issue.path || "", issue.message, issue.severity]);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
+
 export const releaseCanRun = (
   flow: ReleaseConfig | undefined,
   plan: ReleasePlan | undefined,

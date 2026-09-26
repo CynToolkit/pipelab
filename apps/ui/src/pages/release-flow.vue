@@ -104,13 +104,11 @@
                 Choose where this release should be delivered and what each destination receives.
               </p>
             </div>
-            <Select
-              v-model="destinationToAdd"
-              :options="availableDestinations"
-              optionLabel="label"
-              optionValue="id"
-              placeholder="Add destination"
-              @change="addDestination"
+            <Button
+              label="Add destination"
+              icon="pi pi-plus"
+              text
+              @click="addDestinationVisible = true"
             />
           </div>
           <div v-if="!flow.destinations.length" class="empty-card">
@@ -219,10 +217,42 @@
       </main>
     </WorkflowShell>
     <ConfirmDialog group="workflow-destructive" />
+    <Dialog
+      v-model:visible="addDestinationVisible"
+      modal
+      header="Add destination"
+      :style="{ width: '500px', maxWidth: '94vw' }"
+    >
+      <div v-if="availableDestinations.length" class="destination-picker">
+        <button
+          v-for="destination in availableDestinations"
+          :key="destination.id"
+          type="button"
+          class="destination-choice"
+          @click="addDestination(destination.id)"
+        >
+          <span class="provider-icon">
+            <i :class="providerIcon(destination.icon, 'mdi mdi-cloud-upload-outline')" />
+          </span>
+          <span
+            ><strong>{{ destination.label }}</strong
+            ><small>Add destination</small></span
+          >
+          <i class="pi pi-plus" aria-hidden="true" />
+        </button>
+      </div>
+      <p v-else class="empty-card">All available destinations are already in this workflow.</p>
+      <template #footer>
+        <Button label="Cancel" text @click="addDestinationVisible = false" />
+      </template>
+    </Dialog>
     <Dialog v-model:visible="attentionVisible" modal header="Needs attention" :style="dialogStyle">
       <p class="attention-copy">The planner is authoritative. Fix these issues before shipping.</p>
       <ul class="issue-summary">
-        <li v-for="issue in attentionIssues" :key="`${issue.code}:${issue.path}`">
+        <li
+          v-for="issue in attentionIssues"
+          :key="`${issue.code}:${issue.path}:${issue.severity}:${issue.message}`"
+        >
           <Tag :value="issue.severity" :severity="issue.severity === 'error' ? 'danger' : 'warn'" />
           <span>{{ issue.message }}</span>
           <Button
@@ -356,7 +386,7 @@
           />
           <small
             v-for="issue in slotIssues(settingsSlot)"
-            :key="`${issue.code}:${issue.path}`"
+            :key="`${issue.code}:${issue.path}:${issue.severity}:${issue.message}`"
             class="field-issue"
             :class="issue.severity === 'error' ? 'field-issue-error' : 'field-issue-warning'"
             >{{ issue.message }}</small
@@ -480,6 +510,7 @@ import {
   createSerializedTaskQueue,
   deploymentSlotLabel,
   issuesForPath,
+  deduplicateValidationIssues,
   outputReferenceConsumers,
   planOutputOptions,
   readinessLabel,
@@ -507,7 +538,10 @@ const plan = ref<ReleasePlan>();
 const plannerIssues = ref<ValidationIssue[]>([]);
 const inspectionIssues = ref<ValidationIssue[]>([]);
 const issues = computed(() => [...plannerIssues.value, ...inspectionIssues.value]);
-const blockingIssues = computed(() => issues.value.filter((issue) => issue.severity === "error"));
+const summaryIssues = computed(() => deduplicateValidationIssues(issues.value));
+const blockingIssues = computed(() =>
+  summaryIssues.value.filter((issue) => issue.severity === "error"),
+);
 const attentionVisible = ref(false);
 const attentionIssues = ref<ValidationIssue[]>([]);
 const planExpanded = ref(false);
@@ -518,7 +552,7 @@ const running = ref(false);
 const planning = ref(false);
 const saveState = ref<"saving" | "saved" | "error">("saved");
 const inspectionOptions = ref<Record<string, ReleaseFieldOption[]>>({});
-const destinationToAdd = ref<string>();
+const addDestinationVisible = ref(false);
 const sourceSettingsVisible = ref(false);
 const destinationSettingsVisible = ref(false);
 const slotSettingsVisible = ref(false);
@@ -663,7 +697,7 @@ const fieldOptions = (field: ReleaseFieldDefinition) =>
   field.type === "connection"
     ? connectionOptions(field)
     : inspectionOptions.value[field.key] || field.options || [];
-const cardIssues = (prefix: string) => issuesForPath(issues.value, prefix);
+const cardIssues = (prefix: string) => issuesForPath(summaryIssues.value, prefix);
 const fieldIssues = (path: string) => issues.value.filter((issue) => issue.path === path);
 const slotIssuePath = (slot: ReleaseDestinationSlot) => {
   const destinationIndex = flow.value?.destinations.findIndex((destination) =>
@@ -686,7 +720,7 @@ const slotIssues = (slot: ReleaseDestinationSlot) => {
 };
 const slotCardIssues = (slot: ReleaseDestinationSlot) => {
   const path = slotIssuePath(slot);
-  return path ? issuesForPath(issues.value, path) : [];
+  return path ? issuesForPath(summaryIssues.value, path) : [];
 };
 const destinationReadiness = (destination: ReleaseDestinationConfig, index: number) => {
   const enabledSlots = destination.slots.filter((slot) => slot.enabled);
@@ -713,13 +747,13 @@ const availableDestinations = computed(() =>
     (item) => !flow.value?.destinations.some((destination) => destination.provider === item.id),
   ),
 );
-const addDestination = () => {
-  if (!flow.value || !destinationToAdd.value) return;
-  const definition = destinationDefinition(destinationToAdd.value);
+const addDestination = (provider: string) => {
+  if (!flow.value) return;
+  const definition = destinationDefinition(provider);
   if (definition) {
     flow.value.destinations.push({
       id: nanoid(),
-      provider: destinationToAdd.value,
+      provider,
       enabled: true,
       config: { ...definition.defaultConfig },
       slots: [
@@ -732,7 +766,7 @@ const addDestination = () => {
       ],
     });
   }
-  destinationToAdd.value = undefined;
+  addDestinationVisible.value = false;
 };
 const hasConfiguredValue = (value: unknown): boolean => {
   if (value === null || value === undefined) return false;
@@ -1375,6 +1409,35 @@ onMounted(async () => {
 .job-card {
   overflow: hidden;
 }
+.destination-picker {
+  display: grid;
+  gap: 8px;
+}
+.destination-choice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--p-surface-200, var(--surface-border));
+  border-radius: 8px;
+  background: var(--p-surface-0, var(--surface-card));
+  color: var(--text-color);
+  text-align: left;
+  cursor: pointer;
+}
+.destination-choice > span:nth-child(2) {
+  display: grid;
+  flex: 1;
+  gap: 3px;
+}
+.destination-choice small {
+  color: var(--p-text-muted-color, var(--text-color-secondary));
+  font-size: 0.7rem;
+}
+.destination-choice:hover {
+  border-color: var(--primary-color);
+}
 .job-header {
   padding: 12px 14px;
 }
@@ -1464,6 +1527,10 @@ onMounted(async () => {
 :root.dark .provider-icon {
   border-color: var(--p-surface-700, #3f3f46);
   background: var(--p-surface-800, #27272a);
+}
+:root.dark .destination-choice {
+  border-color: var(--p-surface-700, #3f3f46);
+  background: var(--p-surface-900, #18181b);
 }
 :root.dark .slot-row {
   border-color: var(--p-surface-700, #3f3f46);

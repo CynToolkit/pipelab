@@ -8,7 +8,9 @@ destinations. It uses a different editor and runtime from the graph-based
 
 1. From the dashboard, choose **New workflow** in a project.
 2. Complete **Details**, select and configure a **Source**, then add
-   **Destinations** and their deployment slots.
+   **Destinations** and their deployment slots. Pipelab checks the selected
+   Source as you fill its fields. Blocking issues appear beside the relevant
+   field; retry the inspection if it fails.
 3. On **Review**, check the proposed setup. Pipelab resolves a recommended
    build when a destination needs one and validates the result with the
    workflow planner. For a typical desktop project, this can add an Electron
@@ -30,11 +32,15 @@ The workflow editor has four sections: **Configuration**, **Builds**,
 **Artifacts**, and **Runs**. Configuration is the main view for the source and
 destinations. Its settings save automatically as you edit; there is no Save
 button. Opening a workflow does not change its saved build or routing choices.
+Choose **Add destination** to open the provider picker. Provider-specific
+settings remain in each destination's edit view.
 
 Use **Builds** when you want to customize producers or targets. Adding a build
 is an explicit choice: select its type, engine, and target. Changing an engine
 clears incompatible targets until you select a replacement. The catalog shows
-when a target is unavailable on the current host and why.
+when a target is unavailable on the current host and why. Configure a build to
+edit its settings or remove it; references to its outputs are never rerouted
+automatically.
 
 Use **Artifacts** to find outputs across runs of this workflow. Artifact
 metadata is shown only when the run provides it. Local artifacts can be opened
