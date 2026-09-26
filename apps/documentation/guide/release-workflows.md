@@ -40,7 +40,11 @@ is an explicit choice: select its type, engine, and target. Changing an engine
 clears incompatible targets until you select a replacement. The catalog shows
 when a target is unavailable on the current host and why. Configure a build to
 edit its settings or remove it; references to its outputs are never rerouted
-automatically.
+automatically. Build settings take effect when you apply them. If you leave
+Builds with unapplied edits, Pipelab asks whether to keep editing or discard
+those edits. Pending workflow changes save automatically before navigation;
+the browser also warns if you reload or close while a save is pending or has
+failed, or while Build settings remain unapplied.
 
 Use **Artifacts** to find outputs across runs of this workflow. Artifact
 metadata is shown only when the run provides it. Local artifacts can be opened

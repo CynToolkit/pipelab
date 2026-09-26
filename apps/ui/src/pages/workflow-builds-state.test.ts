@@ -3,8 +3,11 @@ import type { ReleaseBuildProfileConfig } from "@pipelab/shared";
 import {
   buildIssueControlId,
   buildInspectionSignature,
+  hasUnsavedReleaseWorkflowState,
   persistBuildChangesBeforeNavigation,
+  preventBeforeUnloadIfUnsaved,
   producerInspectionResponseIsCurrent,
+  resolveUnappliedBuildNavigation,
   resolveBuildIssueRequest,
 } from "./workflow-builds-state";
 
@@ -18,6 +21,75 @@ const build: ReleaseBuildProfileConfig = {
 };
 
 describe("workflow builds page state", () => {
+  it("treats an unchanged staged build as clean using structural equality", () => {
+    const draft = {
+      ...build,
+      targets: [{ ...build.targets[0], config: { signing: false } }],
+      config: { project: { path: "/game" }, mode: "release" },
+    };
+    const current = {
+      ...draft,
+      config: { mode: "release", project: { path: "/game" } },
+      targets: [{ ...draft.targets[0], config: { signing: false } }],
+    };
+
+    expect(
+      hasUnsavedReleaseWorkflowState({
+        changeRevision: 3,
+        persistedRevision: 3,
+        saveState: "saved",
+        buildSettingsOpen: true,
+        draftBuild: draft,
+        currentBuild: current,
+      }),
+    ).toBe(false);
+  });
+
+  it("treats changed staged build settings as unsaved", () => {
+    expect(
+      hasUnsavedReleaseWorkflowState({
+        changeRevision: 3,
+        persistedRevision: 3,
+        saveState: "saved",
+        buildSettingsOpen: true,
+        draftBuild: { ...build, config: { projectPath: "/changed" } },
+        currentBuild: build,
+      }),
+    ).toBe(true);
+  });
+
+  it.each([
+    { changeRevision: 2, persistedRevision: 1, saveState: "saved" as const },
+    { changeRevision: 1, persistedRevision: 1, saveState: "saving" as const },
+    { changeRevision: 1, persistedRevision: 1, saveState: "error" as const },
+  ])("treats $saveState workflow state as unsaved", (state) => {
+    expect(hasUnsavedReleaseWorkflowState(state)).toBe(true);
+  });
+
+  it("prevents beforeunload only while unsaved state exists", () => {
+    const dirtyEvent = { preventDefault: vi.fn(), returnValue: "" };
+    const cleanEvent = { preventDefault: vi.fn(), returnValue: "" };
+
+    expect(preventBeforeUnloadIfUnsaved(dirtyEvent, true)).toBe(true);
+    expect(dirtyEvent.preventDefault).toHaveBeenCalledOnce();
+    expect(dirtyEvent.returnValue).toBe("");
+    expect(preventBeforeUnloadIfUnsaved(cleanEvent, false)).toBe(false);
+    expect(cleanEvent.preventDefault).not.toHaveBeenCalled();
+  });
+
+  it("keeps staged edits on Keep editing and discards them only on confirmation", async () => {
+    const discard = vi.fn();
+    await expect(resolveUnappliedBuildNavigation(true, async () => false, discard)).resolves.toBe(
+      false,
+    );
+    expect(discard).not.toHaveBeenCalled();
+
+    await expect(resolveUnappliedBuildNavigation(true, async () => true, discard)).resolves.toBe(
+      true,
+    );
+    expect(discard).toHaveBeenCalledOnce();
+  });
+
   it("waits for the edited build to save before allowing navigation", async () => {
     let dirty = true;
     let finishSave!: () => void;

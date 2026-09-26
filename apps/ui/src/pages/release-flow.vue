@@ -473,7 +473,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, toRaw, watch } from "vue";
+import { computed, onMounted, onUnmounted, ref, toRaw, watch } from "vue";
 import { nanoid } from "nanoid";
 import { onBeforeRouteLeave, useRoute, useRouter } from "vue-router";
 import Button from "primevue/button";
@@ -518,6 +518,10 @@ import {
   releaseOutputRefValue,
   runAfterSuccessfulSave,
 } from "./release-flow-model";
+import {
+  hasUnsavedReleaseWorkflowState,
+  preventBeforeUnloadIfUnsaved,
+} from "./workflow-builds-state";
 
 const route = useRoute();
 const router = useRouter();
@@ -612,9 +616,33 @@ const canShip = computed(() =>
 );
 let latestSourceInspection = 0;
 let latestPlanRequest = 0;
-let changeRevision = 0;
-let persistedRevision = 0;
+const changeRevision = ref(0);
+const persistedRevision = ref(0);
 let workflowHydrated = false;
+const hasUnsavedState = computed(() =>
+  hasUnsavedReleaseWorkflowState({
+    changeRevision: changeRevision.value,
+    persistedRevision: persistedRevision.value,
+    saveState: saveState.value,
+  }),
+);
+const beforeUnloadHandler = (event: BeforeUnloadEvent) =>
+  preventBeforeUnloadIfUnsaved(event, hasUnsavedState.value);
+let beforeUnloadRegistered = false;
+watch(
+  hasUnsavedState,
+  (dirty) => {
+    if (typeof window === "undefined") return;
+    if (dirty && !beforeUnloadRegistered) {
+      window.addEventListener("beforeunload", beforeUnloadHandler);
+      beforeUnloadRegistered = true;
+    } else if (!dirty && beforeUnloadRegistered) {
+      window.removeEventListener("beforeunload", beforeUnloadHandler);
+      beforeUnloadRegistered = false;
+    }
+  },
+  { flush: "sync", immediate: true },
+);
 const openAttention = (cardIssues: ValidationIssue[]) => {
   attentionIssues.value = cardIssues;
   attentionVisible.value = true;
@@ -1035,7 +1063,7 @@ const nodeIcon = (kind: string) =>
 const refreshPlan = async (): Promise<ReleasePlan | undefined> => {
   if (!flow.value) return undefined;
   const requestId = ++latestPlanRequest;
-  const revision = changeRevision;
+  const revision = changeRevision.value;
   const config = structuredClone(toRaw(flow.value));
   const fingerprint = JSON.stringify(config);
   planning.value = true;
@@ -1044,7 +1072,7 @@ const refreshPlan = async (): Promise<ReleasePlan | undefined> => {
     const result = await api.execute("release:plan", { config });
     if (
       requestId !== latestPlanRequest ||
-      revision !== changeRevision ||
+      revision !== changeRevision.value ||
       JSON.stringify(flow.value) !== fingerprint
     )
       return undefined;
@@ -1059,7 +1087,7 @@ const refreshPlan = async (): Promise<ReleasePlan | undefined> => {
     plannerError.value = "";
     return result.result;
   } catch (cause) {
-    if (requestId === latestPlanRequest && revision === changeRevision) {
+    if (requestId === latestPlanRequest && revision === changeRevision.value) {
       plan.value = undefined;
       plannerIssues.value = [];
       plannerError.value = cause instanceof Error ? cause.message : String(cause);
@@ -1071,7 +1099,7 @@ const refreshPlan = async (): Promise<ReleasePlan | undefined> => {
 };
 const save = createSerializedTaskQueue(async () => {
   if (!flow.value) return;
-  const revision = changeRevision;
+  const revision = changeRevision.value;
   const snapshot = structuredClone(toRaw(flow.value));
   saveState.value = "saving";
   const result = await api.execute("workflow:save", {
@@ -1084,10 +1112,10 @@ const save = createSerializedTaskQueue(async () => {
     saveError.value = result.ipcError;
     throw new Error(result.ipcError);
   }
-  persistedRevision = revision;
+  persistedRevision.value = revision;
   saveError.value = "";
   if (
-    persistedRevision !== changeRevision ||
+    persistedRevision.value !== changeRevision.value ||
     JSON.stringify(flow.value) !== JSON.stringify(snapshot)
   )
     void save().catch(() => {});
@@ -1097,12 +1125,12 @@ const ship = async () => {
   if (!flow.value) return;
   try {
     await save();
-    const revision = changeRevision;
+    const revision = changeRevision.value;
     const fingerprint = JSON.stringify(flow.value);
     const currentPlan = await refreshPlan();
     if (
       !currentPlan ||
-      revision !== changeRevision ||
+      revision !== changeRevision.value ||
       JSON.stringify(flow.value) !== fingerprint ||
       issues.value.some((issue) => issue.severity === "error")
     )
@@ -1120,14 +1148,14 @@ const runShip = async () => {
   running.value = true;
   try {
     await runAfterSuccessfulSave(save, async () => {
-      const revision = changeRevision;
+      const revision = changeRevision.value;
       const fingerprint = JSON.stringify(flow.value);
       const currentPlan = await refreshPlan();
       if (
         !currentPlan ||
-        revision !== changeRevision ||
+        revision !== changeRevision.value ||
         JSON.stringify(flow.value) !== fingerprint ||
-        persistedRevision !== revision ||
+        persistedRevision.value !== revision ||
         issues.value.some((issue) => issue.severity === "error")
       ) {
         throw new Error("The saved workflow is no longer ready to ship. Review the latest issues.");
@@ -1169,7 +1197,7 @@ watch(
   flow,
   () => {
     if (!workflowHydrated || !flow.value) return;
-    changeRevision += 1;
+    changeRevision.value += 1;
     latestPlanRequest += 1;
     plan.value = undefined;
     plannerIssues.value = [];
@@ -1185,8 +1213,7 @@ watch(
   { deep: true, flush: "sync" },
 );
 onBeforeRouteLeave(async () => {
-  if (!flow.value || (saveState.value === "saved" && persistedRevision === changeRevision))
-    return true;
+  if (!flow.value || !hasUnsavedState.value) return true;
   clearTimeout(saveTimer);
   try {
     await save();
@@ -1194,6 +1221,14 @@ onBeforeRouteLeave(async () => {
   } catch {
     return false;
   }
+});
+onUnmounted(() => {
+  if (beforeUnloadRegistered && typeof window !== "undefined") {
+    window.removeEventListener("beforeunload", beforeUnloadHandler);
+    beforeUnloadRegistered = false;
+  }
+  clearTimeout(saveTimer);
+  clearTimeout(planTimer);
 });
 onMounted(async () => {
   await connectionsStore.init();

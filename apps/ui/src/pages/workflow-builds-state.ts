@@ -14,6 +14,75 @@ export const persistBuildChangesBeforeNavigation = async (
   }
 };
 
+export type WorkflowSaveState = "saving" | "saved" | "error";
+
+export const structurallyEqual = (left: unknown, right: unknown): boolean => {
+  if (Object.is(left, right)) return true;
+  if (typeof left !== "object" || left === null || typeof right !== "object" || right === null)
+    return false;
+
+  if (Array.isArray(left) || Array.isArray(right)) {
+    return (
+      Array.isArray(left) &&
+      Array.isArray(right) &&
+      left.length === right.length &&
+      left.every((value, index) => structurallyEqual(value, right[index]))
+    );
+  }
+
+  const leftKeys = Object.keys(left).sort();
+  const rightKeys = Object.keys(right).sort();
+  return (
+    leftKeys.length === rightKeys.length &&
+    leftKeys.every(
+      (key, index) =>
+        key === rightKeys[index] &&
+        structurallyEqual(Reflect.get(left, key), Reflect.get(right, key)),
+    )
+  );
+};
+
+export const hasUnsavedReleaseWorkflowState = ({
+  changeRevision,
+  persistedRevision,
+  saveState,
+  buildSettingsOpen = false,
+  draftBuild,
+  currentBuild,
+}: {
+  changeRevision: number;
+  persistedRevision: number;
+  saveState: WorkflowSaveState;
+  buildSettingsOpen?: boolean;
+  draftBuild?: ReleaseBuildProfileConfig;
+  currentBuild?: ReleaseBuildProfileConfig;
+}) =>
+  changeRevision !== persistedRevision ||
+  saveState === "saving" ||
+  saveState === "error" ||
+  (buildSettingsOpen && Boolean(draftBuild) && !structurallyEqual(draftBuild, currentBuild));
+
+export const preventBeforeUnloadIfUnsaved = (
+  event: Pick<BeforeUnloadEvent, "preventDefault" | "returnValue">,
+  hasUnsavedState: boolean,
+) => {
+  if (!hasUnsavedState) return false;
+  event.preventDefault();
+  event.returnValue = "";
+  return true;
+};
+
+export const resolveUnappliedBuildNavigation = async (
+  hasStagedChanges: boolean,
+  confirmDiscard: () => Promise<boolean>,
+  discard: () => void,
+) => {
+  if (!hasStagedChanges) return true;
+  if (!(await confirmDiscard())) return false;
+  discard();
+  return true;
+};
+
 export const producerInspectionResponseIsCurrent = (
   requestId: number,
   currentRequestId: number,

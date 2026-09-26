@@ -260,6 +260,8 @@
     <Dialog
       v-model:visible="settingsVisible"
       modal
+      :closable="!hasUnappliedBuildChanges"
+      :close-on-escape="!hasUnappliedBuildChanges"
       header="Build settings"
       :style="wideDialogStyle"
       @show="focusSettingsIssue"
@@ -401,7 +403,11 @@
             @click="removeBuild(draftBuild)"
           />
           <span class="settings-footer-spacer" />
-          <Button label="Cancel" text @click="discardBuildSettings" />
+          <Button
+            :label="hasUnappliedBuildChanges ? 'Discard changes' : 'Cancel'"
+            text
+            @click="requestDiscardBuildSettings"
+          />
           <Button
             label="Apply changes"
             :disabled="!canApplyBuildSettings"
@@ -505,8 +511,11 @@ import {
 import {
   buildIssueControlId,
   buildInspectionSignature,
+  hasUnsavedReleaseWorkflowState,
   persistBuildChangesBeforeNavigation,
+  preventBeforeUnloadIfUnsaved,
   producerInspectionResponseIsCurrent,
+  resolveUnappliedBuildNavigation,
   resolveBuildIssueRequest,
 } from "./workflow-builds-state";
 
@@ -746,27 +755,105 @@ let latestPlanRequest = 0;
 let latestCompatibleRequest = 0;
 let latestBuildInputRequest = 0;
 let latestProducerInspectRequest = 0;
-let changeRevision = 0;
-let persistedRevision = 0;
+const changeRevision = ref(0);
+const persistedRevision = ref(0);
 let hydrating = false;
 let saveTimer: ReturnType<typeof setTimeout> | undefined;
 let planTimer: ReturnType<typeof setTimeout> | undefined;
 let producerInspectTimer: ReturnType<typeof setTimeout> | undefined;
 let handledBuildIssueKey = "";
+const persistedDraftBuild = computed(() =>
+  draftBuild.value
+    ? flow.value?.builds.find((build) => build.id === draftBuild.value?.id)
+    : undefined,
+);
+const hasUnappliedBuildChanges = computed(() =>
+  hasUnsavedReleaseWorkflowState({
+    changeRevision: 0,
+    persistedRevision: 0,
+    saveState: "saved",
+    buildSettingsOpen: settingsVisible.value,
+    draftBuild: draftBuild.value,
+    currentBuild: persistedDraftBuild.value,
+  }),
+);
+const hasUnsavedState = computed(() =>
+  hasUnsavedReleaseWorkflowState({
+    changeRevision: changeRevision.value,
+    persistedRevision: persistedRevision.value,
+    saveState: saveState.value,
+    buildSettingsOpen: settingsVisible.value,
+    draftBuild: draftBuild.value,
+    currentBuild: persistedDraftBuild.value,
+  }),
+);
+const hasUnsavedWorkflowChanges = () =>
+  hasUnsavedReleaseWorkflowState({
+    changeRevision: changeRevision.value,
+    persistedRevision: persistedRevision.value,
+    saveState: saveState.value,
+  });
+const beforeUnloadHandler = (event: BeforeUnloadEvent) =>
+  preventBeforeUnloadIfUnsaved(event, hasUnsavedState.value);
+let beforeUnloadRegistered = false;
+watch(
+  hasUnsavedState,
+  (dirty) => {
+    if (typeof window === "undefined") return;
+    if (dirty && !beforeUnloadRegistered) {
+      window.addEventListener("beforeunload", beforeUnloadHandler);
+      beforeUnloadRegistered = true;
+    } else if (!dirty && beforeUnloadRegistered) {
+      window.removeEventListener("beforeunload", beforeUnloadHandler);
+      beforeUnloadRegistered = false;
+    }
+  },
+  { flush: "sync", immediate: true },
+);
+const confirmDiscardStagedBuild = (leavingBuilds = false) =>
+  new Promise<boolean>((resolve) => {
+    let settled = false;
+    const settle = (discard: boolean) => {
+      if (settled) return;
+      settled = true;
+      resolve(discard);
+    };
+    confirm.require({
+      header: "Unapplied Build settings",
+      message: leavingBuilds
+        ? "Build settings have not been applied. Discard these changes to leave Builds?"
+        : "Build settings have not been applied. Discard these changes?",
+      icon: "pi pi-exclamation-triangle",
+      rejectProps: { label: "Keep editing", severity: "secondary", outlined: true },
+      acceptProps: { label: "Discard changes", severity: "danger" },
+      defaultFocus: "reject",
+      accept: () => settle(true),
+      reject: () => settle(false),
+      onHide: () => settle(false),
+    });
+  });
 const persistPendingChanges = () =>
   persistBuildChangesBeforeNavigation(
-    () => changeRevision !== persistedRevision,
+    hasUnsavedWorkflowChanges,
     () => {
       clearTimeout(saveTimer);
       saveTimer = undefined;
     },
     save,
   );
-onBeforeRouteLeave(() => persistPendingChanges());
+const prepareToLeaveBuilds = async () => {
+  if (!(await persistPendingChanges())) return false;
+  return resolveUnappliedBuildNavigation(
+    hasUnappliedBuildChanges.value,
+    () => confirmDiscardStagedBuild(true),
+    discardBuildSettings,
+  );
+};
+onBeforeRouteLeave(() => prepareToLeaveBuilds());
 onBeforeRouteUpdate((to, from) => {
   if (to.params.flowId === from.params.flowId && to.params.projectId === from.params.projectId)
     return true;
-  return persistPendingChanges();
+  return prepareToLeaveBuilds();
 });
 const loadWorkflow = async () => {
   const generation = ++loadGeneration;
@@ -807,8 +894,8 @@ const loadWorkflow = async () => {
     flow.value = workflowResult.result;
     await nextTick();
     hydrating = false;
-    changeRevision = 0;
-    persistedRevision = 0;
+    changeRevision.value = 0;
+    persistedRevision.value = 0;
     saveState.value = "saved";
     saveError.value = "";
     await refreshPlan();
@@ -850,7 +937,7 @@ const refreshPlan = async () => {
 
 const save = createSerializedTaskQueue(async () => {
   if (!flow.value) return;
-  const revision = changeRevision;
+  const revision = changeRevision.value;
   const snapshot = structuredClone(toRaw(flow.value));
   saveState.value = "saving";
   saveError.value = "";
@@ -864,8 +951,8 @@ const save = createSerializedTaskQueue(async () => {
     saveError.value = result.ipcError;
     throw new Error(result.ipcError);
   }
-  persistedRevision = revision;
-  if (persistedRevision !== changeRevision) void save().catch(() => {});
+  persistedRevision.value = revision;
+  if (persistedRevision.value !== changeRevision.value) void save().catch(() => {});
   else {
     saveState.value = "saved";
     saveError.value = "";
@@ -876,7 +963,7 @@ watch(
   flow,
   () => {
     if (hydrating || !flow.value) return;
-    changeRevision += 1;
+    changeRevision.value += 1;
     latestPlanRequest += 1;
     latestCompatibleRequest += 1;
     latestBuildInputRequest += 1;
@@ -1171,7 +1258,7 @@ const openBuildSettings = (build: ReleaseBuildProfileConfig, issuePath = "") => 
   settingsVisible.value = true;
   void nextTick().then(focusSettingsIssue);
 };
-const discardBuildSettings = () => {
+function discardBuildSettings() {
   settingsVisible.value = false;
   draftBuild.value = undefined;
   settingsIssuePath.value = "";
@@ -1182,6 +1269,10 @@ const discardBuildSettings = () => {
   producerInspectTimer = undefined;
   producerInspectionChecking.value = false;
   buildInputChecking.value = false;
+}
+const requestDiscardBuildSettings = async () => {
+  if (!hasUnappliedBuildChanges.value || (await confirmDiscardStagedBuild()))
+    discardBuildSettings();
 };
 const stageEngineChange = (engine: string) => {
   if (!draftBuild.value || engine === draftBuild.value.engine) return;
@@ -1377,6 +1468,10 @@ watch([compatibleDestinationId, compatibleSlotId], () => {
   if (flow.value) void refreshCompatibleBuilds();
 });
 onUnmounted(() => {
+  if (beforeUnloadRegistered && typeof window !== "undefined") {
+    window.removeEventListener("beforeunload", beforeUnloadHandler);
+    beforeUnloadRegistered = false;
+  }
   loadGeneration += 1;
   latestPlanRequest += 1;
   latestCompatibleRequest += 1;
