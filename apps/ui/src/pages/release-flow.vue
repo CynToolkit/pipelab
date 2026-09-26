@@ -98,11 +98,7 @@
         <section class="release-section">
           <div class="section-heading">
             <div>
-              <span class="eyebrow">Delivery</span>
               <h2>Destinations</h2>
-              <p>
-                Choose where this release should be delivered and what each destination receives.
-              </p>
             </div>
             <Button
               label="Add destination"
