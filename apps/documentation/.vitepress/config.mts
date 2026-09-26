@@ -1,111 +1,101 @@
 import { defineConfig } from 'vitepress'
 import lightbox from "vitepress-plugin-lightbox"
 
-// https://vitepress.dev/reference/site-config
 export default defineConfig({
   title: "Pipelab Documentation",
-  description: "Pipelab Documentation",
+  description: "Guides and references for Pipelab",
   lastUpdated: true,
   markdown: {
     config: (md) => {
-      // Use lightbox plugin
       md.use(lightbox, {});
     },
   },
   themeConfig: {
-    // https://vitepress.dev/reference/default-theme-config
     nav: [
-      { text: 'Guide', link: '/guide/usage' },
-      { text: 'API Reference', link: '/api' },
-      // { text: 'Blog', link: '/blog' },
-      { text: 'Website', link: 'https://pipelab.app' }
+      { text: 'User guide', link: '/guide/what-is-pipelab' },
+      { text: 'CLI', link: '/cli/installation' },
+      { text: 'Contributing', link: '/contributing/development' },
+      { text: 'Website', link: 'https://pipelab.app' },
     ],
 
-    sidebar: [
-      {
-        text: 'Introduction',
-        items: [
-          { text: 'What is Pipelab?', link: '/guide/what-is-pipelab' },
-          { text: 'Getting Started', link: '/guide/getting-started' },
-        ]
-      },
-      {
-        text: 'Desktop app',
-        items: [
-          { text: 'Usage', link: '/guide/usage' },
-        ]
-      },
-      {
-        text: 'Integrations',
-        items: [
-          {
-            text: 'Overview',
-            link: '/guide/integrations'
-          },
-          {
-            text: 'Game Engines',
-            items: [
-              { text: 'Godot', link: '/guide/integrations/godot' },
-              { text: 'Construct 3', link: '/guide/integrations/construct_3' },
-              { text: 'Unity', link: '/guide/integrations/unity' },
-              { text: 'GDevelop', link: '/guide/integrations/gdevelop' },
-            ]
-          },
-          {
-            text: 'Packaging',
-            items: [
-              { text: 'Electron', link: '/guide/integrations/electron' },
-              { text: 'Tauri', link: '/guide/integrations/tauri' },
-              { text: 'Neutralino', link: '/guide/integrations/neutralino' },
-            ]
-          },
-          {
-            text: 'Platforms',
-            items: [
-              { text: 'Steam', link: '/guide/integrations/steam' },
-              { text: 'Poki', link: '/guide/integrations/poki' },
-              { text: 'Itch.io', link: '/guide/integrations/itch_io' },
-              { text: 'Epic Game Store', link: '/guide/integrations/epic_game_store' },
-              { text: 'Discord', link: '/guide/integrations/discord' },
-            ]
-          },
-          {
-            text: 'File System',
-            link: '/guide/integrations/filesystem'
-          },
-          {
-            text: 'System',
-            link: '/guide/integrations/system'
-          },
-          {
-            text: 'Other',
-            items: [
-              { text: 'NVPatch', link: '/guide/integrations/nvpatch' },
-            ]
-          }
-        ]
-      },
-      {
-        text: 'API',
-        link: "/api"
-      },
-      {
-        text: 'FAQ',
-        link: "/faq"
-      },
-      {
-        text: 'Architecture',
-        link: "/architecture"
-      },
-      {
-        text: 'Roadmap',
-        link: "/roadmap"
-      },
-      {
-        text: 'Team',
-        link: "/team"
-      }
-    ],
+    sidebar: {
+      '/guide/': [
+        {
+          text: 'Get started',
+          items: [
+            { text: 'What is Pipelab?', link: '/guide/what-is-pipelab' },
+            { text: 'Install and start', link: '/guide/installation' },
+            { text: 'First project and pipeline', link: '/guide/getting-started' },
+          ],
+        },
+        {
+          text: 'Build and run',
+          items: [
+            { text: 'Edit and run a pipeline', link: '/guide/pipelines' },
+            { text: 'Release workflows', link: '/guide/release-workflows' },
+            { text: 'Workflow inputs and dependencies', link: '/guide/workflow-references' },
+            { text: 'Runs and history', link: '/guide/runs-and-history' },
+          ],
+        },
+        {
+          text: 'Providers and tasks',
+          items: [
+            { text: 'Catalog', link: '/guide/integrations/' },
+            { text: 'Folder and ZIP', link: '/guide/integrations/folder-zip' },
+            { text: 'Construct 3', link: '/guide/integrations/construct' },
+            { text: 'Godot', link: '/guide/integrations/godot' },
+            { text: 'Electron', link: '/guide/integrations/electron' },
+            { text: 'Tauri', link: '/guide/integrations/tauri' },
+            { text: 'Discord Activity', link: '/guide/integrations/discord-activity' },
+            { text: 'Filesystem', link: '/guide/integrations/filesystem' },
+            { text: 'System actions', link: '/guide/integrations/system' },
+            { text: 'Minify', link: '/guide/integrations/minify' },
+            { text: 'Netlify', link: '/guide/integrations/netlify' },
+            { text: 'NVPatch', link: '/guide/integrations/nvpatch' },
+            { text: 'Publishing overview', link: '/guide/publishing/' },
+            { text: 'Steam', link: '/guide/publishing/steam' },
+            { text: 'itch.io', link: '/guide/publishing/itch' },
+            { text: 'Poki', link: '/guide/publishing/poki' },
+          ],
+        },
+        {
+          text: 'Account and help',
+          items: [
+            { text: 'Settings, account, updates', link: '/guide/settings-account-updates' },
+            { text: 'Pipelab Cloud artifacts', link: '/guide/cloud-artifacts' },
+            { text: 'Architecture overview', link: '/guide/architecture' },
+            { text: 'Troubleshooting', link: '/guide/troubleshooting' },
+          ],
+        },
+      ],
+      '/cli/': [
+        {
+          text: 'Command-line interface',
+          items: [
+            { text: 'Install and configure', link: '/cli/installation' },
+            { text: 'Command reference', link: '/cli/reference' },
+          ],
+        },
+      ],
+      '/reference/': [
+        {
+          text: 'Technical reference',
+          items: [
+            { text: 'Workflow runtime format', link: '/reference/workflow-runtime' },
+          ],
+        },
+      ],
+      '/contributing/': [
+        {
+          text: 'Contributing',
+          items: [
+            { text: 'Development setup', link: '/contributing/development' },
+            { text: 'Architecture and packages', link: '/contributing/architecture' },
+            { text: 'Release process', link: '/contributing/releases' },
+          ],
+        },
+      ],
+    },
 
     socialLinks: [
       { icon: 'github', link: 'https://github.com/CynToolkit/pipelab' },

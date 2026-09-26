@@ -1,25 +1,39 @@
----
-category: guide
----
-
 # What is Pipelab?
-Pipelab is a task automation software designed to streamline common, tedious, or repetitive tasks for game developers.
 
-<iframe width="560" height="315" src="https://www.youtube.com/embed/akMziFN6PFA?si=RCAfSgOMLtBoj_jF" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+Pipelab is a desktop application and command-line tool for preparing and
+shipping game projects. It brings project files, build actions, and delivery
+steps into workflows you can configure and run.
 
-## Use cases
-- **Store Publication**
+## Two ways to work
 
-    Seamlessly publish your game to supported stores such as [Steam](/guide/integrations/steam.md), [Itch.io](/guide/integrations/itch_io.md), or the [Epic Game Store](/guide/integrations/epic_game_store.md).
+**Pipelines** use a graph editor with plugin-provided tasks. The graph runs in
+its saved order, and you can inspect task logs and outputs. Use a pipeline when
+you want to automate a sequence of local actions.
 
-- **Game Packaging**
+**Release workflows** start from a project or build source, select one or more
+build profiles and targets, and route produced artifacts to destinations. Use
+one when you want to prepare and deliver a release through supported providers.
+Their run history is shown separately from legacy pipeline Build History.
 
-    Easily port your web game to desktop using custom runtimes such as [Electron](/guide/integrations/electron.md), [Tauri](/guide/integrations/tauri.md), or [Neutralino](/guide/integrations/neutralino.md).
+These are related parts of Pipelab, but they do not share the same editor or
+execution model. See [pipelines](/guide/pipelines) and
+[Release workflows](/guide/release-workflows) for the details.
 
-- **Improved Scripting**
+## Providers and tasks
 
-    Replace handmade scripts with powerful pre-made building blocks.
+Pipelab includes registered providers for selected project sources, build
+tools, publishing destinations, and local actions. Availability depends on the
+provider and the host machine. The [provider catalog](/guide/integrations/)
+lists the current set and links to each provider's inputs, prerequisites, and
+limits.
 
-- **Automatic Editor Handling**
+Provider entries reflect the sources, builds, destinations, and tasks available
+in the current app.
 
-    Automatically export your game from editors such as [Godot](/guide/integrations/godot.md), [Construct 3](/guide/integrations/construct_3.md), [Unity](/guide/integrations/unity.md), or [GDevelop](/guide/integrations/gdevelop.md).
+## Where work runs
+
+The desktop application starts or connects to a local Pipelab engine. The
+editor sends work to that engine; some actions also use the Electron shell for
+native dialogs or opening files. The [architecture guide](/guide/architecture)
+shows this boundary and explains the difference between pipeline and Release
+workflow runs.

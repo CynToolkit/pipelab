@@ -1,0 +1,334 @@
+name: Deploy Documentation
+
+on:
+  push:
+    branches: [develop, main]
+    paths:
+      - "apps/documentation/**"
+      - "apps/ui/**"
+      - "apps/desktop/**"
+      - "apps/cli/**"
+      - "packages/**"
+      - "plugins/**"
+      - "workers/**"
+      - "supabase/**"
+      - "ARCHITECTURE.md"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "turbo.json"
+      - ".github/workflows/deploy-documentation.yml"
+  pull_request:
+    branches: [develop]
+    types: [opened, synchronize, reopened]
+    paths:
+      - "apps/documentation/**"
+      - "apps/ui/**"
+      - "apps/desktop/**"
+      - "apps/cli/**"
+      - "packages/**"
+      - "plugins/**"
+      - "workers/**"
+      - "supabase/**"
+      - "ARCHITECTURE.md"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "turbo.json"
+      - ".github/workflows/deploy-documentation.yml"
+
+permissions:
+  contents: read
+  deployments: write
+
+concurrency:
+  group: deploy-documentation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+          run_install: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.15.0
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build documentation
+        run: pnpm docs:build
+
+      - name: Resolve Cloudflare branch name
+        id: branch
+        env:
+          GH_EVENT_NAME: ${{ github.event_name }}
+          GH_REF_NAME: ${{ github.ref_name }}
+          GH_HEAD_REF: ${{ github.head_ref }}
+        run: |
+          branch="$GH_REF_NAME"
+          if [[ "$GH_EVENT_NAME" == 'pull_request' ]]; then
+            branch="$GH_HEAD_REF"
+          fi
+          branch="${branch//\//-}"
+          branch="${branch//[^a-zA-Z0-9_-]/-}"
+          if [[ -z "$branch" ]]; then
+            echo 'Could not determine the Cloudflare Pages branch name.' >&2
+            exit 1
+          fi
+          echo "name=$branch" >> "$GITHUB_OUTPUT"
+
+      - name: Ensure documentation Pages project uses main for production
+        if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+
+          : "${CLOUDFLARE_API_TOKEN:?Missing CLOUDFLARE_API_TOKEN secret}"
+          : "${CLOUDFLARE_ACCOUNT_ID:?Missing CLOUDFLARE_ACCOUNT_ID secret}"
+
+          project_name='pipelab-docs'
+          projects_url="https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects"
+
+          api_request() {
+            local method="$1"
+            local endpoint="$2"
+            local url="$3"
+            local payload="${4:-}"
+            local response status body
+
+            if [[ "$method" == 'GET' ]]; then
+              response=$(curl --silent --show-error --write-out '\n%{http_code}' \
+                --header "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+                --header 'Content-Type: application/json' \
+                "$url")
+            else
+              response=$(curl --silent --show-error --write-out '\n%{http_code}' \
+                --request "$method" \
+                --header "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+                --header 'Content-Type: application/json' \
+                --data "$payload" \
+                "$url")
+            fi
+
+            status="${response##*$'\n'}"
+            body="${response%$'\n'*}"
+            if [[ "$status" -ge 400 ]]; then
+              echo "Cloudflare Pages API $endpoint returned HTTP $status" >&2
+              if jq -e '.errors | type == "array"' <<< "$body" >/dev/null 2>&1; then
+                jq -c '{errors: [.errors[]? | {code, message}]}' <<< "$body" >&2
+              else
+                echo 'Cloudflare returned a non-JSON error response; body omitted.' >&2
+              fi
+              return 1
+            fi
+
+            printf '%s' "$body"
+          }
+
+          projects=$(api_request GET 'list Pages projects' "$projects_url")
+
+          project_count=$(jq --arg name "$project_name" \
+            '[.result[] | select(.name == $name)] | length' <<< "$projects")
+
+          if [[ "$project_count" == '0' ]]; then
+            response=$(api_request POST 'create Pages project' "$projects_url" \
+              '{"name":"pipelab-docs","production_branch":"main"}')
+          else
+            production_branch=$(jq -r --arg name "$project_name" \
+              '.result[] | select(.name == $name) | .production_branch' <<< "$projects")
+
+            if [[ "$production_branch" != 'main' ]]; then
+              response=$(api_request PATCH 'update production branch' \
+                "${projects_url}/${project_name}" '{"production_branch":"main"}')
+            else
+              response='{"success":true}'
+            fi
+          fi
+
+          jq --exit-status '.success == true' <<< "$response" >/dev/null
+
+      - name: Deploy documentation to Cloudflare Pages
+        if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+        id: deploy
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+          command: pages deploy apps/documentation/.vitepress/dist --project-name=pipelab-docs --branch=${{ steps.branch.outputs.name }}
+
+      - name: Configure develop preview domain
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/develop' }}
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+
+          : "${CLOUDFLARE_API_TOKEN:?Missing CLOUDFLARE_API_TOKEN secret}"
+          : "${CLOUDFLARE_ACCOUNT_ID:?Missing CLOUDFLARE_ACCOUNT_ID secret}"
+
+          project_name='pipelab-docs'
+          preview_domain='docs-v2.pipelab.app'
+          preview_target='develop.pipelab-docs.pages.dev'
+          api_base='https://api.cloudflare.com/client/v4'
+          project_url="${api_base}/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/${project_name}"
+
+          api_request() {
+            local method="$1"
+            local endpoint="$2"
+            local url="$3"
+            local payload="${4:-}"
+            local response status body
+
+            if [[ "$method" == 'GET' ]]; then
+              response=$(curl --silent --show-error --write-out '\n%{http_code}' \
+                --header "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+                --header 'Content-Type: application/json' \
+                "$url")
+            else
+              response=$(curl --silent --show-error --write-out '\n%{http_code}' \
+                --request "$method" \
+                --header "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+                --header 'Content-Type: application/json' \
+                --data "$payload" \
+                "$url")
+            fi
+
+            status="${response##*$'\n'}"
+            body="${response%$'\n'*}"
+            if [[ "$status" -ge 400 ]]; then
+              echo "Cloudflare API $endpoint returned HTTP $status" >&2
+              if jq -e '.errors | type == "array"' <<< "$body" >/dev/null 2>&1; then
+                jq -c '{errors: [.errors[]? | {code, message}]}' <<< "$body" >&2
+              else
+                echo 'Cloudflare returned a non-JSON error response; body omitted.' >&2
+              fi
+              return 1
+            fi
+
+            printf '%s' "$body"
+          }
+
+          domains=$(api_request GET 'list Pages custom domains' "${project_url}/domains")
+          domain_count=$(jq --arg name "$preview_domain" \
+            '[.result[] | select(.name == $name)] | length' <<< "$domains")
+
+          if [[ "$domain_count" == '0' ]]; then
+            response=$(api_request POST 'add Pages custom domain' "${project_url}/domains" \
+              "$(jq -nc --arg name "$preview_domain" '{name: $name}')")
+            jq --exit-status '.success == true' <<< "$response" >/dev/null
+          elif [[ "$domain_count" != '1' ]]; then
+            echo "Expected one Pages project entry for ${preview_domain}; found ${domain_count}." >&2
+            exit 1
+          fi
+
+          zones=$(api_request GET 'find pipelab.app zone' "${api_base}/zones?name=pipelab.app")
+          zone_count=$(jq '[.result[] | select(.name == "pipelab.app")] | length' <<< "$zones")
+          if [[ "$zone_count" != '1' ]]; then
+            echo "Expected one Cloudflare zone named pipelab.app; found ${zone_count}." >&2
+            exit 1
+          fi
+          zone_id=$(jq -r '.result[] | select(.name == "pipelab.app") | .id' <<< "$zones")
+
+          records=$(api_request GET 'inspect preview DNS records' \
+            "${api_base}/zones/${zone_id}/dns_records?name=${preview_domain}")
+          record_count=$(jq --arg name "$preview_domain" \
+            '[.result[] | select(.name == $name)] | length' <<< "$records")
+
+          if [[ "$record_count" == '0' ]]; then
+            record=$(jq -nc --arg name "$preview_domain" --arg content "$preview_target" \
+              '{name: $name, type: "CNAME", content: $content, ttl: 1, proxied: true}')
+            response=$(api_request POST 'create develop preview DNS record' \
+              "${api_base}/zones/${zone_id}/dns_records" "$record")
+            jq --exit-status '.success == true' <<< "$response" >/dev/null
+          elif [[ "$record_count" == '1' ]]; then
+            existing_record=$(jq -c --arg name "$preview_domain" \
+              '.result[] | select(.name == $name)' <<< "$records")
+            record_type=$(jq -r '.type' <<< "$existing_record")
+            record_content=$(jq -r '.content' <<< "$existing_record")
+            record_proxied=$(jq -r '.proxied' <<< "$existing_record")
+            project_target="${project_name}.pages.dev"
+
+            if [[ "$record_type" != 'CNAME' ]] || \
+              { [[ "$record_content" != "$preview_target" ]] && [[ "$record_content" != "$project_target" ]]; }; then
+              echo "Refusing to replace the existing DNS record for ${preview_domain}; inspect it manually." >&2
+              exit 1
+            fi
+
+            if [[ "$record_content" != "$preview_target" ]] || [[ "$record_proxied" != 'true' ]]; then
+              record_id=$(jq -r '.id' <<< "$existing_record")
+              record=$(jq -nc --arg name "$preview_domain" --arg content "$preview_target" \
+                '{name: $name, type: "CNAME", content: $content, ttl: 1, proxied: true}')
+              response=$(api_request PUT "update develop preview DNS record ${record_id}" \
+                "${api_base}/zones/${zone_id}/dns_records/${record_id}" "$record")
+              jq --exit-status '.success == true' <<< "$response" >/dev/null
+            fi
+          else
+            echo "Expected at most one DNS record for ${preview_domain}; found ${record_count}." >&2
+            exit 1
+          fi
+
+          verified_records=$(api_request GET 'verify develop preview DNS record' \
+            "${api_base}/zones/${zone_id}/dns_records?name=${preview_domain}")
+          verified_record_count=$(jq --arg name "$preview_domain" \
+            '[.result[] | select(.name == $name)] | length' <<< "$verified_records")
+          if [[ "$verified_record_count" != '1' ]]; then
+            echo "Expected one configured DNS record for ${preview_domain}; found ${verified_record_count}." >&2
+            exit 1
+          fi
+          verified_record=$(jq -c --arg name "$preview_domain" \
+            '.result[] | select(.name == $name)' <<< "$verified_records")
+          if [[ "$(jq -r '.type' <<< "$verified_record")" != 'CNAME' ]] || \
+            [[ "$(jq -r '.content' <<< "$verified_record")" != "$preview_target" ]] || \
+            [[ "$(jq -r '.proxied' <<< "$verified_record")" != 'true' ]]; then
+            echo "The DNS record for ${preview_domain} does not resolve through the develop branch alias." >&2
+            exit 1
+          fi
+
+          {
+            echo '## Documentation develop preview domain'
+            echo "- Custom domain: https://${preview_domain}"
+            echo "- Cloudflare Pages branch target: ${preview_target}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Add deployment URLs to the job summary
+        env:
+          DEPLOYMENT_URL: ${{ steps.deploy.outputs.deployment-url }}
+          DEPLOY_BRANCH: ${{ steps.branch.outputs.name }}
+          IS_FORK_PR: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository }}
+        run: |
+          if [[ "$IS_FORK_PR" == 'true' ]]; then
+            {
+              echo '## Documentation deployment'
+              printf -- '- Branch: `%s`\n' "$DEPLOY_BRANCH"
+              echo '- Preview skipped for fork PRs because GitHub does not provide repository secrets to them.'
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          if [[ "$DEPLOY_BRANCH" == 'main' ]]; then
+            stable_url='https://pipelab-docs.pages.dev'
+          else
+            stable_url="https://${DEPLOY_BRANCH}.pipelab-docs.pages.dev"
+          fi
+
+          {
+            echo '## Documentation deployment'
+            printf -- '- Branch: `%s`\n' "$DEPLOY_BRANCH"
+            echo "- Stable branch URL: $stable_url"
+            if [[ -n "$DEPLOYMENT_URL" ]]; then
+              echo "- Deployment URL: $DEPLOYMENT_URL"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
