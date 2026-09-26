@@ -4,7 +4,7 @@ import { mkdtemp, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { supabase } from "@pipelab/shared";
-import type { WorkflowTask } from "@pipelab/workflow-runtime";
+import type { WorkflowArtifactInstance, WorkflowTask } from "@pipelab/workflow-runtime";
 import type { PipelabContext } from "./context";
 import { JsonFileStorage } from "./utils/storage";
 import { zipFolder } from "./utils/fs-extras";
@@ -15,6 +15,18 @@ type PreparedUpload = {
   | { uploadUrl: string; headers: Record<string, string> }
   | { multipart: true; uploadId: string; partSize: number }
 );
+
+export const createCloudArtifactUploadMetadata = (
+  artifact: Pick<WorkflowArtifactInstance, "id" | "artifact"> & { version: string },
+  size: number,
+  checksum: string,
+) => ({
+  artifactId: artifact.id,
+  artifactOutputId: artifact.artifact,
+  version: artifact.version,
+  size,
+  checksum,
+});
 
 const hashFile = async (path: string, signal: AbortSignal) => {
   const hash = createHash("sha256");
@@ -182,15 +194,16 @@ export const createPipelabCloudUploadTask =
 
       const { size } = await stat(uploadPath);
       const checksum = await hashFile(uploadPath, signal);
+      const uploadMetadata = createCloudArtifactUploadMetadata(
+        { id: artifactId, artifact: artifactName, version },
+        size,
+        checksum,
+      );
       log(`Preparing ${artifactName} for Pipelab Cloud (${size} bytes)`);
 
       const prepareData = await invokeCloudWorker(cloudWorkerUrl, session.access_token, {
         action: "prepareUpload",
-        artifactId,
-        artifactName,
-        version,
-        size,
-        checksum,
+        ...uploadMetadata,
       });
       const prepared = readPreparedUpload(prepareData);
 
@@ -272,11 +285,7 @@ export const createPipelabCloudUploadTask =
       try {
         completionData = await invokeCloudWorker(cloudWorkerUrl, session.access_token, {
           action: "completeUpload",
-          artifactId,
-          artifactName,
-          version,
-          size,
-          checksum,
+          ...uploadMetadata,
           storageKey: prepared.storageKey,
           ...(multipartParts
             ? {
