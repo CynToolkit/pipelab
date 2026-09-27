@@ -244,7 +244,7 @@ onUnmounted(() => {
 .list-heading p {
   margin: 4px 0 0;
   color: var(--p-text-muted-color, var(--text-color-secondary));
-  font-size: 0.875rem;
+  font-size: 0.8rem;
 }
 .artifact-count {
   color: var(--p-text-muted-color, var(--text-color-secondary));

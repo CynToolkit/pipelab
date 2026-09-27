@@ -111,7 +111,6 @@
           <section class="build-section">
             <header class="section-heading">
               <div>
-                <span class="eyebrow">Workflow configuration</span>
                 <h2>Build profiles</h2>
                 <p>Choose engines and targets for outputs used by your destinations.</p>
               </div>
@@ -1503,7 +1502,7 @@ onUnmounted(() => {
 }
 .section-heading {
   display: flex;
-  align-items: center;
+  align-items: end;
   justify-content: space-between;
   gap: 16px;
   margin-bottom: 14px;
@@ -1516,8 +1515,8 @@ onUnmounted(() => {
   text-transform: uppercase;
 }
 .section-heading h2 {
-  margin: 3px 0 0;
-  font-size: 1rem;
+  margin: 0;
+  font-size: 1.15rem;
 }
 .section-heading p {
   margin: 4px 0 0;
@@ -1527,6 +1526,7 @@ onUnmounted(() => {
 .build-count {
   color: var(--p-text-muted-color, var(--text-color-secondary));
   font-size: 0.8rem;
+  white-space: nowrap;
 }
 .build-section,
 .compatible-section {

@@ -4,7 +4,6 @@
       :flow-id="flowId"
       :project-id="projectId"
       :title="flow?.name || 'Release'"
-      :subtitle="flow?.description || 'Build once, then ship everywhere.'"
       active="configuration"
     >
       <template #actions>
@@ -67,7 +66,6 @@
         <section class="release-section">
           <div class="section-heading">
             <div>
-              <span class="eyebrow">Configuration</span>
               <h2>Source</h2>
               <p>Choose the project or files this release represents.</p>
             </div>
@@ -1347,17 +1345,20 @@ onMounted(async () => {
 .release-section,
 .plan-panel {
   display: grid;
-  gap: 12px;
+  gap: 0;
+}
+.release-section + .release-section {
+  margin-top: 22px;
 }
 .section-heading {
   display: flex;
   align-items: end;
   justify-content: space-between;
   gap: 16px;
-  margin: 22px 2px 4px;
+  margin: 0 0 14px;
 }
 .section-heading h2 {
-  margin: 3px 0 0;
+  margin: 0;
   font-size: 1.15rem;
 }
 .section-heading p {
@@ -1526,6 +1527,9 @@ onMounted(async () => {
 }
 .plan-panel {
   padding: 0 14px 14px;
+}
+.plan-panel .section-heading {
+  margin-top: 22px;
 }
 .plan-list {
   display: grid;
