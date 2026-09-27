@@ -1518,6 +1518,9 @@ onUnmounted(() => {
   margin: 0;
   font-size: 1.15rem;
 }
+.compatible-section .section-heading h2 {
+  font-size: 1.05rem;
+}
 .section-heading p {
   margin: 4px 0 0;
   color: var(--p-text-muted-color, var(--text-color-secondary));

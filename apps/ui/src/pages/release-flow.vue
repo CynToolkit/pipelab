@@ -1526,10 +1526,11 @@ onMounted(async () => {
   font-size: 25px;
 }
 .plan-panel {
-  padding: 0 14px 14px;
+  margin-top: 8px;
+  padding: 14px;
 }
-.plan-panel .section-heading {
-  margin-top: 22px;
+.plan-panel .section-heading h2 {
+  font-size: 1.05rem;
 }
 .plan-list {
   display: grid;

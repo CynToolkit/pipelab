@@ -102,7 +102,7 @@ const basePath = computed(() => `/workflows/${props.flowId}/${props.projectId}`)
 }
 .workflow-heading h1 {
   margin: 1px 0 0;
-  font-size: 1.05rem;
+  font-size: 1.3rem;
   font-weight: 700;
   letter-spacing: -0.02em;
   overflow-wrap: anywhere;
@@ -194,10 +194,13 @@ const basePath = computed(() => `/workflows/${props.flowId}/${props.projectId}`)
   .workflow-actions :deep(.p-select) {
     min-width: 0;
   }
+  .workflow-nav {
+    gap: 2px;
+  }
   .workflow-nav a {
     flex: 0 0 auto;
     justify-content: center;
-    padding-inline: 8px;
+    padding-inline: 5px;
   }
 }
 </style>
