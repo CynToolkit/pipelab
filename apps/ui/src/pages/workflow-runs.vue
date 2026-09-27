@@ -4,7 +4,6 @@
       :flow-id="flowId"
       :project-id="projectId"
       :title="workflowName"
-      subtitle="Execution history"
       active="runs"
     >
       <main class="runs-page">
@@ -224,13 +223,12 @@ onUnmounted(() => {
 }
 .list-heading h2 {
   margin: 0;
-  font-size: 1.05rem;
-  font-weight: 650;
+  font-size: 1.15rem;
 }
 .list-heading p {
-  margin: 3px 0 0;
+  margin: 4px 0 0;
   color: var(--p-text-muted-color, var(--text-color-secondary));
-  font-size: 0.82rem;
+  font-size: 0.8rem;
 }
 .run-count {
   color: var(--p-text-muted-color, var(--text-color-secondary));

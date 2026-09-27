@@ -1,5 +1,5 @@
 <template>
-  <div class="release-field">
+  <div class="release-field" :data-control-id="inputId">
     <label :for="inputId">{{ field.label }}</label>
     <small v-if="field.description" class="field-help">{{ field.description }}</small>
     <div v-if="field.type === 'connection'" class="connection-field">
