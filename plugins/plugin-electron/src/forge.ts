@@ -823,6 +823,20 @@ export const forge = async (
         },
       );
 
+      if (action !== "preview") {
+        const originalNoAsar = process.noAsar;
+        process.noAsar = true;
+        try {
+          const outDir = join(destinationFolder, "out");
+          if (!existsSync(outDir)) {
+            throw new Error("Electron Forge completed without producing an output directory");
+          }
+          await cp(outDir, join(cwd, "out"), { recursive: true });
+        } finally {
+          process.noAsar = originalNoAsar;
+        }
+      }
+
       if (action === "package") {
         const outName = outFolderName(
           completeConfiguration.name,
@@ -832,6 +846,11 @@ export const forge = async (
         const binName = getBinName(completeConfiguration.name);
 
         const output = join(cwd, "out", outName);
+        if (!existsSync(output)) {
+          throw new Error(
+            `Electron Forge completed without producing the expected output for ${finalPlatform}/${finalArch}`,
+          );
+        }
         setOutput("output", output);
         setArtifact("electron-build", output);
         return {
@@ -840,6 +859,9 @@ export const forge = async (
         };
       } else {
         const output = join(cwd, "out", "make");
+        if (action !== "preview" && !existsSync(output)) {
+          throw new Error("Electron Forge completed without producing the expected make output");
+        }
         setOutput("output", output);
         setArtifact("electron-build", output);
         return {
@@ -863,28 +885,10 @@ export const forge = async (
     const originalNoAsar = process.noAsar;
     process.noAsar = true;
     try {
-      if (action !== "preview") {
-        const outDir = join(destinationFolder, "out");
-        const finalOutDir = join(cwd, "out");
-        if (existsSync(outDir)) {
-          await cp(outDir, finalOutDir, { recursive: true });
-        } else {
-          log("Warning: Build output directory 'out' was not found in staging folder.");
-        }
-      }
-    } catch (e) {
-      log(
-        "Failed to copy build output back to cwd:",
-        e instanceof Error ? `${e.message}\n${e.stack}` : String(e),
-      );
-    }
-    try {
       await rm(destinationFolder, { recursive: true, force: true });
     } catch (e) {
-      log(
-        "Failed to clean up staging directory:",
-        e instanceof Error ? `${e.message}\n${e.stack}` : String(e),
-      );
+      const message = e instanceof Error ? `${e.message}\n${e.stack}` : String(e);
+      log("Failed to clean up staging directory:", message);
     } finally {
       process.noAsar = originalNoAsar;
     }

@@ -8,14 +8,14 @@ export const packageV2Runner = createActionRunner<ReturnType<typeof createPackag
   async (options) => {
     const appFolder = options.inputs["input-folder"];
 
-    const completeConfiguration = merge(defaultElectronConfig, {
+    const inputConfiguration = {
       alwaysOnTop: options.inputs["alwaysOnTop"],
       appBundleId: options.inputs["appBundleId"],
       appCategoryType: options.inputs["appCategoryType"],
       appCopyright: options.inputs["appCopyright"],
-      appVersion: options.inputs["appVersion"] ?? defaultElectronConfig.appVersion,
-      author: options.inputs["author"] ?? defaultElectronConfig.author,
-      customMainCode: options.inputs["customMainCode"] ?? defaultElectronConfig.customMainCode,
+      appVersion: options.inputs["appVersion"],
+      author: options.inputs["author"],
+      customMainCode: options.inputs["customMainCode"],
       description: options.inputs["description"],
       electronVersion: options.inputs["electronVersion"],
       disableAsarPackaging: options.inputs["disableAsarPackaging"],
@@ -26,7 +26,7 @@ export const packageV2Runner = createActionRunner<ReturnType<typeof createPackag
       enableInProcessGPU: options.inputs["enableInProcessGPU"],
       frame: options.inputs["frame"],
       fullscreen: options.inputs["fullscreen"],
-      icon: options.inputs["icon"] ?? defaultElectronConfig.icon,
+      icon: options.inputs["icon"],
       height: options.inputs["height"],
       name: options.inputs["name"],
       toolbar: options.inputs["toolbar"],
@@ -42,7 +42,14 @@ export const packageV2Runner = createActionRunner<ReturnType<typeof createPackag
       backgroundColor: options.inputs["backgroundColor"],
       enableDoctor: options.inputs["enableDoctor"],
       serverMode: options.inputs["serverMode"],
-    } satisfies DesktopApp.Electron) as DesktopApp.Electron;
+    } satisfies Partial<DesktopApp.Electron>;
+    const definedConfiguration = Object.fromEntries(
+      Object.entries(inputConfiguration).filter(([, value]) => value !== undefined),
+    ) as Partial<DesktopApp.Electron>;
+    const completeConfiguration = merge(
+      defaultElectronConfig,
+      definedConfiguration,
+    ) as DesktopApp.Electron;
 
     options.log("completeConfiguration", completeConfiguration);
 

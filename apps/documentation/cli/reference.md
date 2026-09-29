@@ -5,6 +5,8 @@ The CLI has two separate execution paths:
 - `pipelab run <file>` executes a legacy graph pipeline from a JSON file.
 - `pipelab workflow run <id-or-name>` executes a saved **Release workflow** from Pipelab's user-data store.
 
+While it runs, the CLI shows readable operation names such as “Build desktop app (Linux x64)” and “Upload to Steam.”
+
 `--dry-run` belongs only to `workflow run`. It does not apply to `run <file>`. A Release workflow can build or deliver a user's game; it does not publish a Pipelab desktop or npm release. See [Release workflows](/guide/release-workflows) and [Release Pipelab](/contributing/releases).
 
 Run `pipelab --help` or a command's `--help` for help. Local CLI help confirms

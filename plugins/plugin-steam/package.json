@@ -25,6 +25,16 @@
     "src"
   ],
   "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./login": {
+      "types": "./src/login.ts",
+      "default": "./src/login.ts"
+    }
+  },
   "main": "./src/index.ts",
   "module": "./src/index.ts",
   "types": "./src/index.ts",

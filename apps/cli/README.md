@@ -21,3 +21,12 @@ pnpm dev        # Start the server in development mode
 pnpm build      # Generate the production CJS bundle
 pnpm pkg        # Create a standalone executable in the /bin folder
 ```
+
+### Integration sign-in
+
+```bash
+pipelab settings integrations steam login
+pipelab settings integrations poki login
+```
+
+Steam asks for the account username, then runs SteamCMD in the current terminal so you can enter the password and Steam Guard code. Poki prints a sign-in link and saves the returned token for Pipelab. If the server has no browser, open the link elsewhere, then paste the final browser URL into the waiting command. Neither command uploads a build. Both accept `--user-data <path>` to use a custom Pipelab data directory.

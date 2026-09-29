@@ -8,6 +8,7 @@ import {
   showPipelineCommand,
 } from "./commands/pipelines";
 import { setupCommand } from "./commands/setup";
+import { registerSettingsCommands } from "./commands/settings";
 import {
   deleteWorkflowCommand,
   listWorkflowsCommand,
@@ -169,6 +170,8 @@ program
 const pipelines = program.command("pipelines").alias("pipeline").description("Manage pipelines");
 
 const workflows = program.command("workflow").alias("workflows").description("Manage workflows");
+
+registerSettingsCommands(program);
 
 workflows
   .command("ls")
