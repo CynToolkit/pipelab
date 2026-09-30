@@ -10,8 +10,8 @@
 .opening-eyebrow,.card-kicker,.micro{font-family:ui-monospace,monospace;letter-spacing:.14em;text-transform:uppercase}
 .opening-eyebrow{font-size:20px;color:#8bb5ff;font-weight:650;margin-bottom:25px}
 .opening-headline{font-size:100px;line-height:.98;letter-spacing:-.07em;font-weight:760;white-space:nowrap}
-.opening-subline{position:absolute;left:180px;right:180px;bottom:39px;text-align:center;font-size:42px;line-height:1.12;letter-spacing:-.035em;color:#d5dae3;opacity:0;z-index:9}
-.context-copy{position:absolute;left:180px;right:180px;bottom:34px;width:auto;text-align:center;font-size:42px;line-height:1.08;letter-spacing:-.04em;font-weight:640;opacity:0;z-index:9}
+.opening-subline{position:absolute;left:180px;right:180px;bottom:30px;text-align:center;font-size:46px;line-height:1.12;letter-spacing:-.035em;color:#d5dae3;opacity:0;z-index:9}
+.context-copy{position:absolute;left:180px;right:180px;bottom:30px;width:auto;text-align:center;font-size:46px;line-height:1.08;letter-spacing:-.04em;font-weight:650;opacity:0;z-index:9}
 .context-copy span{color:#83b0ff}
 .app-shell{position:absolute;left:var(--frame-x);top:var(--frame-y);width:var(--frame-w);height:var(--frame-h);border-radius:26px;background:rgba(22,25,31,.67);box-shadow:0 34px 100px #0008;opacity:0;z-index:1}
 .route-map{position:absolute;inset:0;width:1920px;height:1080px;overflow:visible;pointer-events:none;z-index:2}
@@ -39,7 +39,7 @@
 .web-route-detail{position:absolute;left:30px;top:133px;color:#c3cad5;font:21px ui-monospace,monospace;opacity:0}
 .build-card{left:1000px;top:160px;width:490px;height:276px;padding:27px 30px;border-color:#4a5260}
 .build-heading{font-size:39px;line-height:1.08;letter-spacing:-.045em;font-weight:720;margin-top:31px;max-width:430px}
-.build-heading-generic{position:absolute;left:30px;top:80px;font-size:39px;line-height:1.08;letter-spacing:-.045em;font-weight:720;opacity:0}
+.build-heading-generic{position:absolute;left:30px;top:80px;font-size:39px;line-height:1.08;letter-spacing:-.045em;font-weight:720;opacity:0}.build-kicker .output-kicker{position:absolute;left:0;top:0;opacity:0}
 .build-detail{margin-top:20px;color:#bbc3d0;font:23px ui-monospace,monospace}
 .build-resolving{left:30px;top:80px;font-size:39px;line-height:1.08;letter-spacing:-.045em;font-weight:720}
 .resolve-bar{position:absolute;left:30px;right:30px;bottom:28px;height:4px;border-radius:4px;background:rgba(104,160,255,.19);transform-origin:left center;opacity:0}
@@ -63,31 +63,26 @@
 .delivery-result span{display:block;margin-top:11px;color:#58d9a0;font:21px ui-monospace,monospace}
 .exec-operation{position:absolute;left:30px;top:27px;font:650 17px ui-monospace,monospace;letter-spacing:.1em;color:#aab3c2;text-transform:uppercase;opacity:0}
 .exec-title{position:absolute;left:30px;top:75px;font-size:35px;line-height:1.1;letter-spacing:-.04em;font-weight:710;opacity:0}
-.state{position:absolute;left:30px;bottom:25px;font:24px ui-monospace,monospace;color:#b8c0ce;opacity:0}
+.build-card .exec-title{font-size:30px}.state{position:absolute;left:30px;bottom:25px;font:24px ui-monospace,monospace;color:#b8c0ce;opacity:0}
 .state-active{color:#8bb5ff}.state-success{color:#58d9a0}
 .row-progress{position:absolute;left:0;right:0;bottom:0;height:5px;background:rgba(59,130,246,.17);transform:scaleX(0);transform-origin:left center;opacity:0}
 .row-progress i{display:block;width:100%;height:100%;background:#65a0ff;transform:scaleX(0);transform-origin:left center;box-shadow:0 0 13px #3b82f6}
 .ready-title,.running-title{position:absolute;left:145px;top:245px;font-size:38px;line-height:1.05;letter-spacing:-.045em;font-weight:700;opacity:0;z-index:8}
-.context-ready,.context-execute{left:180px;right:180px;top:auto;bottom:34px;width:auto;font-size:42px;color:#d5dae3}
+.context-ready,.context-execute{left:180px;right:180px;top:auto;bottom:30px;width:auto;font-size:46px;color:#d5dae3}
 .running-title{color:#c7d9f9}
-.result-copy{position:absolute;left:180px;right:180px;top:auto;bottom:34px;width:auto;text-align:center;font-size:44px;line-height:1.02;letter-spacing:-.055em;font-weight:750;opacity:0;z-index:9}
+.result-copy{position:absolute;left:180px;right:180px;top:auto;bottom:30px;width:auto;text-align:center;font-size:46px;line-height:1.02;letter-spacing:-.055em;font-weight:750;opacity:0;z-index:9}
 .result-copy span{display:block;color:#83b0ff;margin-top:9px}
-.results-group{position:absolute;opacity:0;z-index:6}
-.artifacts-label,.deliveries-label{width:max-content;white-space:nowrap;font:650 19px ui-monospace,monospace;letter-spacing:.15em;text-transform:uppercase;color:#b5c0d1}
 .artifact-caption{position:absolute;left:25px;top:24px;font:650 16px ui-monospace,monospace;letter-spacing:.12em;color:#aab3c2;text-transform:uppercase;opacity:0}
-.artifacts-label{left:360px;top:378px}
-.deliveries-label{left:1280px;top:250px}
 .web-result-copy{left:26px;top:72px;font-size:34px;line-height:1.1;letter-spacing:-.04em;font-weight:710}
 .web-result-copy small{display:block;margin-top:15px;color:#58d9a0;font:22px ui-monospace,monospace}
 .end-card{position:absolute;inset:0;z-index:12;opacity:0;pointer-events:none}
 .end-headline{position:absolute;left:0;top:505px;width:100%;text-align:center;font-size:52px;font-weight:700;letter-spacing:-.045em;opacity:0}
-.route-line{fill:none;stroke:#68a0ff;stroke-width:5;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 0 8px rgba(59,130,246,.56));opacity:0}
+.profile-node{position:absolute;left:615px;top:498px;width:270px;height:68px;border:1px solid #62728a;border-radius:16px;background:#202938;display:flex;align-items:center;justify-content:center;gap:12px;font:700 16px ui-monospace,monospace;letter-spacing:.02em;color:#e3ebf7;box-shadow:0 12px 34px #0006;opacity:0;z-index:5}.profile-node span{color:#58d9a0;font-size:14px;font-weight:650}.route-line{fill:none;stroke:#68a0ff;stroke-width:5;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 0 8px rgba(59,130,246,.56));opacity:0}
 .route-line.route-desktop{stroke:#91b8ff}
-.route-pulse,.execution-pulse{fill:#d6e5ff;stroke:#4d91ff;stroke-width:3;filter:drop-shadow(0 0 12px #3b82f6);opacity:0}
-.execution-pulse{position:absolute;width:20px;height:20px;border-radius:50%;background:#d6e5ff;border:3px solid #4d91ff;box-shadow:0 0 20px #3b82f6;z-index:7}
+.route-pulse{fill:#d6e5ff;stroke:#4d91ff;stroke-width:3;filter:drop-shadow(0 0 12px #3b82f6);opacity:0}
 </style>
 <div id="root" data-composition-id="pipelab-continuous" data-width="1920" data-height="1080">
-  <div id="scene-stage" class="clip stage" data-start="0" data-duration="45" data-track-index="0">
+  <div id="scene-stage" class="clip stage" data-start="0" data-duration="40" data-track-index="0">
     <div class="camera" data-layout-allow-overflow>
       <div class="world">
         <div class="ambient"></div><div class="grid"></div>
@@ -95,19 +90,20 @@
           <div class="opening-eyebrow">YOUR NEXT RELEASE STARTS HERE</div>
           <div class="opening-headline">Your game is ready.</div>
         </div>
-        <div class="opening-subline">Now you have to ship it.</div>
-        <div class="context-copy context-organize">Pipelab organizes the release.</div>
+        <div class="opening-subline">Now it has to reach every platform.</div>
         <div class="context-copy context-destinations">Choose where you want to ship.</div>
-        <div class="context-copy context-routes">Pipelab prepares every required build.</div>
-        <div class="context-copy context-ready">Everything is ready to ship.</div>
+        <div class="context-copy context-routes">Pipelab prepares what each destination needs.</div>
+        <div class="context-copy context-ready">Everything is ready.</div>
         <div class="context-copy context-execute">Build and publish in one run.</div>
         <div class="app-shell"></div>
+        <div class="profile-node">BUILD PROFILE <span>Resolved</span></div>
         <svg class="route-map" viewBox="0 0 1920 1080" aria-hidden="true">
           <defs><marker id="route-arrow" markerWidth="12" markerHeight="12" refX="9" refY="6" orient="auto" markerUnits="userSpaceOnUse"><path d="M1 1 L10 6 L1 11 Z" fill="#8bb5ff"/></marker></defs>
           <rect class="frame-outline" x="59" y="127" width="1802" height="828" rx="26"/>
-          <path class="route-line route-source-web" marker-end="url(#route-arrow)"/>
+          <path class="route-line route-source-profile" marker-end="url(#route-arrow)"/>
+          <path class="route-line route-profile-web" marker-end="url(#route-arrow)"/>
+          <path class="route-line route-profile-build route-desktop" marker-end="url(#route-arrow)"/>
           <path class="route-line route-web-poki" marker-end="url(#route-arrow)"/>
-          <path class="route-line route-web-build route-desktop" marker-end="url(#route-arrow)"/>
           <path class="route-line route-build-steam route-desktop" marker-end="url(#route-arrow)"/>
           <path class="route-line route-build-itch route-desktop" marker-end="url(#route-arrow)"/>
           <circle class="route-pulse" r="11" cx="0" cy="0"/>
@@ -118,7 +114,6 @@
         <div class="ship-button"><span class="ship-label">Ship</span><span class="run-label">Running</span></div>
         <div class="focus-ring"></div>
         <div class="ready-title">Ready to ship</div>
-        <div class="running-title">Release running</div>
 
         <div class="card project-card" id="project-card">
           <div class="project-main">
@@ -146,7 +141,7 @@
         </div>
 
         <div class="card build-card" id="build-card">
-          <div class="card-kicker build-kicker">DESKTOP OUTPUT</div>
+          <div class="card-kicker build-kicker"><span class="profile-kicker">BUILD PROFILE</span><span class="output-kicker">BUILD OUTPUT</span></div>
           <div class="build-heading">Desktop build</div><div class="build-detail">Profile depends on destination</div>
           <div class="build-heading-generic">Build profile</div>
           <div class="build-resolving">Resolving…</div>
@@ -177,9 +172,6 @@
           <div class="state state-waiting">Waiting</div><div class="state state-active">Uploading…</div><div class="state state-success">✓ Delivered</div>
           <div class="row-progress"><i></i></div><div class="delivery-result">Poki<span>✓ Delivered</span></div>
         </div>
-        <div class="execution-pulse"></div>
-        <div class="artifacts-label results-group">ARTIFACTS</div>
-        <div class="deliveries-label results-group">DELIVERIES</div>
         <div class="result-copy"><div>One release.</div><span>Every destination.</span></div>
         <div class="end-card"><div class="end-headline">Ship games, not release scripts.</div></div>
       </div>
@@ -189,203 +181,177 @@
 <script>
 window.__timelines=window.__timelines||{};
 const tl=gsap.timeline({paused:true});
-tl.addLabel('intro',0).addLabel('organize',7).addLabel('destinations',11).addLabel('resolveRoutes',15).addLabel('ready',23).addLabel('execution',27).addLabel('results',36).addLabel('end',41);
+tl.addLabel('intro',0).addLabel('organize',6.8).addLabel('destinations',9.2).addLabel('resolveRoutes',11.4).addLabel('ready',21.3).addLabel('execution',23.8).addLabel('results',32.5).addLabel('end',37.3);
 gsap.set('.resolve-bar,.resolve-bar i',{scaleX:0});
-const frame={x:58,y:126,w:1804,h:830};
 const base={
   project:{x:100,y:570},web:{x:700,y:145},build:{x:1000,y:160},
   steam:{x:1510,y:425},itch:{x:1510,y:660},poki:{x:1510,y:850},ship:{x:1550,y:149}
 };
 const layout={
-  intro:{project:{x:190,y:430,w:520},web:{x:750,y:340,w:410},build:{x:750,y:620,w:410},poki:{x:1330,y:270,w:340},steam:{x:1330,y:480,w:340},itch:{x:1330,y:690,w:340}},
-  workspace:{project:{x:160,y:430,w:385},web:{x:590,y:430,w:385},build:{x:1025,y:575,w:385},poki:{x:1500,y:290,w:300},steam:{x:1500,y:505,w:300},itch:{x:1500,y:700,w:300}},
-  execution:{project:{x:110,y:440,w:400},web:{x:580,y:270,w:400},build:{x:1050,y:270,w:400},poki:{x:580,y:640,w:400},steam:{x:1050,y:640,w:400},itch:{x:1460,y:640,w:400}},
-  result:{web:{x:360,y:420,w:400},build:{x:790,y:420,w:400},poki:{x:1280,y:290,w:340},steam:{x:1280,y:510,w:340},itch:{x:1280,y:730,w:340}}
+  intro:{project:{x:185,y:420,w:520},poki:{x:1300,y:260,w:340},steam:{x:1300,y:470,w:340},itch:{x:1300,y:680,w:340}},
+  workspace:{project:{x:145,y:430,w:360},profile:{x:570,y:430,w:360},web:{x:1005,y:265,w:360},build:{x:1005,y:625,w:360},poki:{x:1445,y:275,w:330},steam:{x:1445,y:555,w:330},itch:{x:1445,y:750,w:330},ship:{x:1550,y:149,w:240}}
 };
 const elements={project:'.project-card',web:'.web-card',build:'.build-card',steam:'.steam-card',itch:'.itch-card',poki:'.poki-card',ship:'.ship-button'};
 Object.entries(layout.intro).forEach(([kind,target])=>{
   const el=document.querySelector(elements[kind]),origin=base[kind];
-  gsap.set(el,{x:target.x-origin.x,y:target.y-origin.y,scale:target.w/el.offsetWidth});
+  gsap.set(el,{x:target.x-origin.x,y:target.y-origin.y,scale:target.w/el.offsetWidth,opacity:0});
 });
 function move(kind,target,at,duration,ease='power2.inOut',extra={}){
   const selector=elements[kind],el=document.querySelector(selector),origin=base[kind];
-  const scale=target.w/el.offsetWidth;
-  tl.to(selector,{x:target.x-origin.x,y:target.y-origin.y,scale:scale,duration:duration,ease:ease,...extra},at);
+  tl.to(selector,{x:target.x-origin.x,y:target.y-origin.y,scale:target.w/el.offsetWidth,duration,ease,...extra},at);
 }
-function rect(kind,target){
-  const el=document.querySelector(elements[kind]),scale=target.w/el.offsetWidth;
-  return {x:target.x,y:target.y,w:el.offsetWidth*scale,h:el.offsetHeight*scale};
+function rect(key){
+  if(key==='profile')return {x:615,y:498,w:270,h:68};
+  const card=key==='project'?{...layout.workspace.project,h:203}:key==='web'?{...layout.workspace.web,h:203}:key==='build'?{...layout.workspace.build,h:203}:{...layout.workspace[key],h:184};
+  return card;
 }
-function center(kind,target){const r=rect(kind,target);return {x:r.x+r.w/2,y:r.y+r.h/2};}
 function routePath(from,to){
-  const a=rect(from,layout.workspace[from]),b=rect(to,layout.workspace[to]);
-  const ac={x:a.x+a.w/2,y:a.y+a.h/2},bc={x:b.x+b.w/2,y:b.y+b.h/2};
+  const a=rect(from),b=rect(to),ac={x:a.x+a.w/2,y:a.y+a.h/2},bc={x:b.x+b.w/2,y:b.y+b.h/2};
   const dx=bc.x-ac.x,dy=bc.y-ac.y;
   if(Math.abs(dx)>=Math.abs(dy)){
-    const sx=dx>=0?a.x+a.w:a.x,ex=dx>=0?b.x:b.x+b.w,sy=ac.y,ey=bc.y;
-    const bend=Math.max(34,Math.abs(ex-sx)*.42)*(dx>=0?1:-1);
-    return 'M '+sx+' '+sy+' C '+(sx+bend)+' '+sy+' '+(ex-bend)+' '+ey+' '+ex+' '+ey;
+    const sx=dx>=0?a.x+a.w:a.x,ex=dx>=0?b.x:b.x+b.w,sy=ac.y,ey=bc.y,bend=Math.max(34,Math.abs(ex-sx)*.42)*(dx>=0?1:-1);
+    return `M ${sx} ${sy} C ${sx+bend} ${sy} ${ex-bend} ${ey} ${ex} ${ey}`;
   }
-  const sy=dy>=0?a.y+a.h:a.y,ey=dy>=0?b.y:b.y+b.h,sx=ac.x,ex=bc.x;
-  const bend=Math.max(34,Math.abs(ey-sy)*.42)*(dy>=0?1:-1);
-  return 'M '+sx+' '+sy+' C '+sx+' '+(sy+bend)+' '+ex+' '+(ey-bend)+' '+ex+' '+ey;
+  const sy=dy>=0?a.y+a.h:a.y,ey=dy>=0?b.y:b.y+b.h,sx=ac.x,ex=bc.x,bend=Math.max(34,Math.abs(ey-sy)*.42)*(dy>=0?1:-1);
+  return `M ${sx} ${sy} C ${sx} ${sy+bend} ${ex} ${ey-bend} ${ex} ${ey}`;
 }
 const routeDefs=[
-  ['.route-source-web','project','web'],['.route-web-poki','web','poki'],['.route-web-build','web','build'],
-  ['.route-build-steam','build','steam'],['.route-build-itch','build','itch']
+  ['.route-source-profile','project','profile'],['.route-profile-web','profile','web'],['.route-profile-build','profile','build'],
+  ['.route-web-poki','web','poki'],['.route-build-steam','build','steam'],['.route-build-itch','build','itch']
 ];
 routeDefs.forEach(([selector,from,to])=>{
-  const path=document.querySelector(selector),d=routePath(from,to);path.setAttribute('d',d);
-  const length=path.getTotalLength();path.setAttribute('data-route-path',d);path.style.strokeDasharray=length;path.style.strokeDashoffset=length;path.setAttribute('d','');
+  const path=document.querySelector(selector),d=routePath(from,to),length=(()=>{path.setAttribute('d',d);return path.getTotalLength()})();
+  path.setAttribute('data-route-path',d);path.setAttribute('data-route-length',length);path.style.strokeDasharray=length;path.style.strokeDashoffset=length;path.setAttribute('d','');
 });
-const execCenters={};
-Object.keys(layout.execution).forEach(kind=>{execCenters[kind]=center(kind,layout.execution[kind]);});
 gsap.set('.brand-lockup',{x:760,y:-26,scale:1.08,opacity:1});
-tl.set('.frame-outline',{strokeDasharray:document.querySelector('.frame-outline').getTotalLength(),strokeDashoffset:document.querySelector('.frame-outline').getTotalLength()},0);
+const frame=document.querySelector('.frame-outline'),frameLength=frame.getTotalLength();
+tl.set('.frame-outline',{strokeDasharray:frameLength,strokeDashoffset:frameLength},0);
+function draw(selector,at,duration=.5){const path=document.querySelector(selector),length=Number(path.getAttribute('data-route-length'));tl.set(selector,{attr:{d:path.getAttribute('data-route-path')},strokeDashoffset:length,opacity:0},at);tl.to(selector,{opacity:1,strokeDashoffset:0,duration,ease:'power2.out'},at);}
+function caption(selector,at){tl.fromTo(selector,{opacity:0,y:9},{opacity:1,y:0,duration:.34,ease:'power2.out'},at);}
+function hideCaption(selector,at){tl.to(selector,{opacity:0,y:-5,duration:.2,ease:'power2.inOut'},at);}
 
-// Intro: brand first, then the developer's game and its growing release surface.
-tl.fromTo('.opening-copy',{opacity:0,y:12},{opacity:1,y:0,duration:.65,ease:'power3.out'},.68);
-move('project',layout.intro.project,1.85,.62,'power3.out',{opacity:1});
-tl.fromTo('.opening-subline',{opacity:0,y:8},{opacity:1,y:0,duration:.42,ease:'power2.out'},2.72);
-move('web',layout.intro.web,3.16,.55,'power2.out',{opacity:1});
-move('build',layout.intro.build,3.76,.55,'power2.out',{opacity:1});
-move('steam',layout.intro.steam,4.36,.5,'power2.out',{opacity:1});
-move('itch',layout.intro.itch,4.9,.5,'power2.out',{opacity:1});
-move('poki',layout.intro.poki,5.44,.5,'power2.out',{opacity:1});
-tl.to('.opening-copy',{opacity:0,y:-8,duration:.28,ease:'power2.inOut'},3.0);
-tl.to('.opening-subline',{opacity:0,y:-8,duration:.28,ease:'power2.inOut'},6.72);
+// Intro: identity, one game, then the real destination problem.
+tl.fromTo('.opening-copy',{opacity:0,y:12},{opacity:1,y:0,duration:.52,ease:'power3.out'},.22);
+move('project',layout.intro.project,.95,.6,'power3.out',{opacity:1});
+tl.fromTo('.opening-subline',{opacity:0,y:8},{opacity:1,y:0,duration:.38,ease:'power2.out'},2.15);
+move('poki',layout.intro.poki,3.0,.46,'power2.out',{opacity:1});
+move('steam',layout.intro.steam,3.75,.46,'power2.out',{opacity:1});
+move('itch',layout.intro.itch,4.5,.46,'power2.out',{opacity:1});
+tl.to('.opening-copy',{opacity:0,y:-7,duration:.25},2.65);
+tl.to('.opening-subline',{opacity:0,y:-6,duration:.22},6.3);
 
-// Organize: the Pipelab frame and header settle around the same objects.
-tl.to('.app-shell',{opacity:1,duration:.65,ease:'power2.out'},7.02);
-tl.to('.frame-outline',{strokeDashoffset:0,duration:1.05,ease:'power2.out'},7.03);
-tl.to('.top-rule',{scaleX:1,opacity:1,duration:.5,ease:'power2.out'},7.42);
-tl.to('.brand-lockup',{x:0,y:0,scale:1,duration:.78,ease:'power2.inOut'},7.0);
-tl.fromTo('.tabs',{opacity:0,y:8},{opacity:1,y:0,duration:.46,ease:'power2.out'},7.56);
-tl.fromTo('.ship-button',{opacity:0,y:-6},{opacity:1,y:0,duration:.4,ease:'power2.out'},7.14);
-move('project',layout.workspace.project,7.2,1.24,'power2.inOut',{opacity:1});
-move('web',layout.workspace.web,7.24,1.24,'power2.inOut',{opacity:1});
-move('build',layout.workspace.build,7.38,1.24,'power2.inOut',{opacity:1});
-move('steam',layout.workspace.steam,7.46,1.2,'power2.inOut',{opacity:1});
-move('itch',layout.workspace.itch,7.55,1.2,'power2.inOut',{opacity:1});
-move('poki',layout.workspace.poki,7.64,1.2,'power2.inOut',{opacity:1});
-tl.to('.web-title,.web-detail',{opacity:0,duration:.25},8.45);
-tl.to('.web-route-title,.web-route-detail',{opacity:1,duration:.35},8.62);
-tl.to('.build-heading,.build-detail',{opacity:0,duration:.24},8.5);
-tl.to('.build-heading-generic',{opacity:1,duration:.35},8.68);
-tl.fromTo('.context-organize',{opacity:0,y:8},{opacity:1,y:0,duration:.34,ease:'power2.out'},8.45);
+// Pipelab organizes the same game and destinations around a single release map.
+tl.to('.app-shell',{opacity:1,duration:.56,ease:'power2.out'},6.55);
+tl.to('.frame-outline',{strokeDashoffset:0,duration:.92,ease:'power2.out'},6.56);
+tl.to('.top-rule',{scaleX:1,opacity:1,duration:.42,ease:'power2.out'},6.92);
+tl.to('.brand-lockup',{x:0,y:0,scale:1,duration:.72,ease:'power2.inOut'},6.55);
+tl.fromTo('.tabs',{opacity:0,y:7},{opacity:1,y:0,duration:.4,ease:'power2.out'},7.02);
+tl.fromTo('.ship-button',{opacity:0,y:-5},{opacity:1,y:0,duration:.36,ease:'power2.out'},6.78);
+move('project',layout.workspace.project,6.75,.96,'power2.inOut',{opacity:1});
+move('poki',layout.workspace.poki,6.78,.96,'power2.inOut',{opacity:1});
+move('steam',layout.workspace.steam,6.84,.96,'power2.inOut',{opacity:1});
+move('itch',layout.workspace.itch,6.9,.96,'power2.inOut',{opacity:1});
+move('build',layout.workspace.profile,7.08,.96,'power2.inOut',{opacity:1});
+tl.to('.build-heading,.build-detail',{opacity:0,duration:.16},7.78);
+tl.to('.build-heading-generic',{opacity:1,duration:.25},7.94);
+tl.to('.build-kicker',{opacity:1,duration:.2},7.94);
+caption('.context-destinations',8.46);
 
-// Destinations: each real provider is selected in place.
-tl.to('.context-organize',{opacity:0,y:-6,duration:.22},10.72);
-tl.fromTo('.context-destinations',{opacity:0,y:8},{opacity:1,y:0,duration:.34,ease:'power2.out'},10.9);
-tl.to('.steam-card',{borderColor:'#68a0ff',duration:.22},11.12);
-tl.to('.steam-card .selection-mark',{opacity:1,backgroundColor:'#8bb5ff',borderColor:'#8bb5ff',duration:.18},11.14);
-tl.to('.itch-card',{borderColor:'#68a0ff',duration:.22},11.9);
-tl.to('.itch-card .selection-mark',{opacity:1,backgroundColor:'#8bb5ff',borderColor:'#8bb5ff',duration:.18},11.92);
-tl.to('.poki-card',{borderColor:'#68a0ff',duration:.22},12.68);
-tl.to('.poki-card .selection-mark',{opacity:1,backgroundColor:'#8bb5ff',borderColor:'#68a0ff',duration:.18},12.7);
-
-// Resolve routes: WEB BUILD serves Poki directly and feeds the Electron desktop build.
-tl.to('.context-destinations',{opacity:0,y:-6,duration:.22},14.58);
-tl.fromTo('.context-routes',{opacity:0,y:8},{opacity:1,y:0,duration:.34,ease:'power2.out'},14.76);
-function draw(selector,at,duration){const path=document.querySelector(selector);tl.set(selector,{attr:{d:path.getAttribute('data-route-path')}},at);tl.to(selector,{opacity:1,strokeDashoffset:0,duration:duration,ease:'power2.out'},at);}
-draw('.route-source-web',15.06,.52);
-tl.to('.route-pulse',{opacity:1,attr:{cx:center('project',layout.workspace.project).x,cy:center('project',layout.workspace.project).y},duration:.01},15.08);
-tl.to('.route-pulse',{attr:{cx:center('web',layout.workspace.web).x,cy:center('web',layout.workspace.web).y},duration:.5,ease:'none'},15.1);
-draw('.route-web-poki',15.68,.62);
-tl.to('.route-pulse',{attr:{cx:center('poki',layout.workspace.poki).x,cy:center('poki',layout.workspace.poki).y},duration:.62,ease:'none'},15.72);
-draw('.route-web-build',16.42,.58);
-tl.to('.route-pulse',{attr:{cx:center('build',layout.workspace.build).x,cy:center('build',layout.workspace.build).y},duration:.58,ease:'none'},16.46);
-tl.to('.route-pulse',{opacity:0,duration:.14},17.04);
-tl.to('.build-heading-generic',{opacity:0,duration:.12},17.04);
-tl.to('.build-resolving',{opacity:1,duration:.18},17.18);
-tl.to('.build-card',{borderColor:'#68a0ff',boxShadow:'0 0 36px rgba(59,130,246,.28),0 24px 70px #0007',duration:.22},17.06);
-tl.to('.resolve-bar',{opacity:1,scaleX:1,duration:.1},17.08);
-tl.to('.resolve-bar i',{scaleX:1,duration:1.02,ease:'power2.inOut'},17.14);
-tl.to('.build-resolving',{opacity:0,duration:.16},18.14);
-tl.to('.build-electron',{opacity:1,duration:.25},18.2);
-tl.to('.resolve-bar',{opacity:0,duration:.14},18.24);
-draw('.route-build-steam',18.78,.58);
-tl.to('.route-pulse',{opacity:1,attr:{cx:center('steam',layout.workspace.steam).x,cy:center('steam',layout.workspace.steam).y},duration:.58,ease:'none'},18.82);
-draw('.route-build-itch',19.42,.58);
-tl.to('.route-pulse',{attr:{cx:center('itch',layout.workspace.itch).x,cy:center('itch',layout.workspace.itch).y},duration:.58,ease:'none'},19.46);
-tl.to('.route-pulse',{opacity:0,duration:.14},20.06);
-tl.to('.route-line',{opacity:.92,duration:.28},20.08);
-
-// Ready: preserve the resolved objects as they reorganize around Ship.
-tl.to('.context-routes',{opacity:0,y:-6,duration:.22},22.72);
-tl.to('.route-line',{opacity:0,duration:.26},22.78);
-tl.to('.route-pulse',{opacity:0,duration:.1},22.78);
-tl.set('.route-line',{attr:{d:''}},23.08);
-tl.fromTo('.ready-title',{opacity:0,y:8},{opacity:1,y:0,duration:.34,ease:'power2.out'},22.9);
-tl.fromTo('.context-ready',{opacity:0,y:8},{opacity:1,y:0,duration:.32,ease:'power2.out'},23.04);
-Object.keys(layout.execution).forEach(kind=>move(kind,layout.execution[kind],22.86,.9,'power2.inOut',{opacity:1}));
-tl.to('.web-route-title,.web-route-detail',{opacity:0,duration:.16},22.94);
-tl.to('.web-card .exec-title',{opacity:1,duration:.2},23.08);
-tl.to('.build-electron',{opacity:0,duration:.16},22.94);
-tl.to('.project-main,.web-kicker,.web-mark,.build-kicker,.build-heading-generic,.steam-card .destination-main,.itch-card .destination-main,.poki-card .destination-main,.destination-logo',{opacity:0,duration:.2},23.0);
-tl.to('.steam-card .selection-mark,.itch-card .selection-mark,.poki-card .selection-mark',{opacity:0,duration:.16},22.94);
-tl.to('.exec-operation,.exec-title,.state-waiting',{opacity:1,duration:.25,stagger:.035},23.42);
-tl.to('.focus-ring',{opacity:1,scale:1,duration:.26,ease:'power2.out'},26.16);
-tl.to('.focus-ring',{scale:.7,duration:.1,ease:'power2.in'},26.52);
-tl.to('.ship-button',{scale:.93,backgroundColor:'#235ec1',duration:.1,ease:'power2.in'},26.52);
-tl.to('.focus-ring',{opacity:0,duration:.16},26.64);
-tl.to('.ship-label',{opacity:0,duration:.14},26.64);
-tl.to('.run-label',{opacity:1,duration:.14},26.68);
-tl.to('.ship-button',{scale:1,backgroundColor:'#3b82f6',duration:.18,ease:'power2.out'},26.68);
-tl.to('.context-ready,.ready-title',{opacity:0,duration:.18},26.74);
-tl.fromTo('.running-title',{opacity:0,y:8},{opacity:1,y:0,duration:.26,ease:'power2.out'},26.84);
-tl.fromTo('.context-execute',{opacity:0,y:8},{opacity:1,y:0,duration:.26,ease:'power2.out'},26.9);
-
-// Execution: progress travels through the source, both outputs, then each delivery.
-const steps=[
-  {kind:'project',op:'Prepare source',start:27.08,duration:1.0},
-  {kind:'web',op:'Web Build',start:28.26,duration:1.12},
-  {kind:'build',op:'Electron · Windows x64',start:29.55,duration:1.35},
-  {kind:'poki',op:'Poki delivery',start:31.05,duration:1.2},
-  {kind:'steam',op:'Steam delivery',start:32.4,duration:1.3},
-  {kind:'itch',op:'itch.io delivery',start:33.85,duration:1.35}
-];
-const first=steps[0],firstPoint=execCenters[first.kind];
-tl.set('.execution-pulse',{x:firstPoint.x-10,y:firstPoint.y-10,opacity:0},27.02);
-steps.forEach((step,index)=>{
-  const selector=elements[step.kind],point=execCenters[step.kind];
-  if(index===0)tl.to('.execution-pulse',{opacity:1,duration:.18},step.start);
-  else tl.to('.execution-pulse',{x:point.x-10,y:point.y-10,duration:.22,ease:'power2.inOut'},step.start);
-  tl.to(selector,{borderColor:'#68a0ff',boxShadow:'0 0 30px rgba(59,130,246,.3),0 22px 60px #0007',duration:.18},step.start);
-  tl.to(selector+' .state-waiting',{opacity:0,duration:.12},step.start);
-  tl.to(selector+' .state-active',{opacity:1,duration:.12},step.start);
-  tl.to(selector+' .row-progress',{opacity:1,scaleX:1,duration:.12},step.start);
-  tl.to(selector+' .row-progress i',{scaleX:1,duration:step.duration,ease:'power2.inOut'},step.start+.04);
-  tl.to(selector+' .state-active',{opacity:0,duration:.12},step.start+step.duration);
-  tl.to(selector+' .state-success',{opacity:1,duration:.14},step.start+step.duration);
-  tl.to(selector,{borderColor:'#58d9a0',boxShadow:'0 0 20px rgba(34,197,94,.17),0 22px 60px #0007',duration:.18},step.start+step.duration);
+// Select real destinations sequentially; the cards then hold their final positions.
+const picks=[['.poki-card',9.0],['.steam-card',9.58],['.itch-card',10.16]];
+picks.forEach(([sel,at])=>{
+  tl.to(sel,{borderColor:'#68a0ff',duration:.18},at);
+  tl.to(`${sel} .selection-mark`,{opacity:1,backgroundColor:'#8bb5ff',borderColor:'#8bb5ff',duration:.16},at+.02);
+  tl.to(sel,{scale:1.025,duration:.12,ease:'power2.out'},at);
+  tl.to(sel,{scale:1,duration:.14,ease:'power2.inOut'},at+.12);
 });
-tl.to('.execution-pulse',{opacity:0,duration:.18},35.22);
-tl.to('.context-execute,.running-title',{opacity:0,duration:.2},35.38);
-tl.to('.run-label',{opacity:0,duration:.18},35.44);
-tl.to('.ship-button',{opacity:.78,duration:.18},35.44);
 
-// Results: outputs become artifacts; destination cards become delivery receipts.
-tl.fromTo('.result-copy',{opacity:0,y:8},{opacity:1,y:0,duration:.38,ease:'power2.out'},36.0);
-tl.to('.artifacts-label',{opacity:1,duration:.25},36.08);
-tl.to('.deliveries-label',{opacity:1,duration:.25},36.08);
-tl.to('.project-card',{opacity:0,y:8,duration:.4,ease:'power2.inOut'},36.06);
-move('web',layout.result.web,36.04,.56,'power2.inOut',{opacity:1});
-move('build',layout.result.build,36.04,.56,'power2.inOut',{opacity:1});
-move('poki',layout.result.poki,36.04,.58,'power2.inOut',{opacity:1});
-move('steam',layout.result.steam,36.04,.58,'power2.inOut',{opacity:1});
-move('itch',layout.result.itch,36.04,.58,'power2.inOut',{opacity:1});
-tl.to('.exec-operation,.exec-title,.state-success,.row-progress,.destination-main',{opacity:0,duration:.16},36.08);
-tl.to('.web-result-copy,.build-result-copy,.artifact-caption,.delivery-result',{opacity:1,duration:.3,stagger:.035},36.3);
+// Resolve one Build Profile into both outputs; every connector is anchored to card bounds.
+hideCaption('.context-destinations',11.05);caption('.context-routes',11.24);
+draw('.route-source-profile',11.36,.48);
+tl.to('.build-card',{borderColor:'#68a0ff',boxShadow:'0 0 30px rgba(59,130,246,.28),0 24px 70px #0007',duration:.2},11.52);
+tl.to('.build-heading-generic',{opacity:0,duration:.16},11.7);
+tl.to('.build-resolving',{opacity:1,duration:.18},11.86);
+tl.to('.resolve-bar',{opacity:1,scaleX:1,duration:.1},11.86);
+tl.to('.resolve-bar i',{scaleX:1,duration:1.35,ease:'power2.inOut'},11.92);
+tl.to('.build-resolving',{opacity:0,duration:.16},13.34);
+tl.to('.resolve-bar',{opacity:0,duration:.12},13.38);
+// The profile card branches into two aligned outputs, one above and one below.
+tl.to('.route-source-profile',{opacity:0,duration:.12},13.34);
+tl.to('.build-card',{x:layout.workspace.build.x-base.build.x,y:layout.workspace.build.y-base.build.y,scale:layout.workspace.build.w/document.querySelector('.build-card').offsetWidth,duration:.64,ease:'power2.inOut'},13.44);
+tl.to('.build-electron',{opacity:1,duration:.22},13.44);
+tl.to('.build-kicker .profile-kicker',{opacity:0,duration:.14},13.42);
+tl.to('.build-kicker .output-kicker',{opacity:1,duration:.18},13.56);
+tl.to('.profile-node',{opacity:1,y:0,duration:.24,ease:'power2.out'},14.66);
+tl.set('.web-card',{x:layout.workspace.profile.x-base.web.x,y:layout.workspace.profile.y-base.web.y,scale:layout.workspace.profile.w/document.querySelector('.web-card').offsetWidth,opacity:1},14.1);
+tl.to('.web-card',{x:layout.workspace.web.x-base.web.x,y:layout.workspace.web.y-base.web.y,scale:layout.workspace.web.w/document.querySelector('.web-card').offsetWidth,duration:.55,ease:'power2.inOut'},14.12);
+tl.to('.web-title,.web-detail',{opacity:0,duration:.14},14.25);
+tl.to('.web-route-title,.web-route-detail',{opacity:1,duration:.2},14.38);
+// Branch connectors draw only after both output cards settle.
+draw('.route-source-profile',14.72,.38);draw('.route-profile-web',14.72,.5);draw('.route-profile-build',14.72,.5);
+tl.to('.route-pulse',{opacity:1,attr:{cx:rect('profile').x+rect('profile').w/2,cy:rect('profile').y+rect('profile').h/2},duration:.01},14.72);
+tl.to('.route-pulse',{attr:{cx:rect('web').x+rect('web').w/2,cy:rect('web').y+rect('web').h/2},duration:.5,ease:'none'},14.73);
+tl.to('.route-pulse',{attr:{cx:rect('build').x+rect('build').w/2,cy:rect('build').y+rect('build').h/2},duration:.5,ease:'none'},15.26);
+tl.to('.route-pulse',{opacity:0,duration:.12},15.78);
+draw('.route-web-poki',15.84,.48);draw('.route-build-steam',16.42,.48);draw('.route-build-itch',16.98,.48);
+tl.to('.route-line',{opacity:.92,duration:.24},17.54);
+tl.to('.build-card',{borderColor:'#414855',boxShadow:'0 24px 70px #0007',duration:.28},17.05);
+tl.to('.web-card,.build-card',{borderColor:'#414855',duration:.25},17.08);
 
-// End: the persistent Pipelab lockup centers as the result composition clears.
-tl.to('.ship-button,.top-rule,.tabs',{opacity:0,duration:.36},40.78);
-tl.to('.frame-outline,.app-shell',{opacity:0,duration:.38},40.78);
-tl.to('.result-copy,.artifacts-label,.deliveries-label,.artifact-caption,.web-result-copy,.build-result-copy,.delivery-result',{opacity:0,y:-6,duration:.36,ease:'power2.inOut',stagger:.02},40.84);
-tl.to('.web-card,.build-card,.poki-card,.steam-card,.itch-card',{opacity:0,y:-7,duration:.38,ease:'power2.inOut',stagger:.02},40.84);
-tl.to('.brand-lockup',{x:760,y:260,scale:1.08,duration:.58,ease:'power2.inOut'},40.78);
-tl.to('.end-card',{opacity:1,duration:.01},41.12);
-tl.fromTo('.end-headline',{opacity:0,y:12},{opacity:1,y:0,duration:.48,ease:'power2.out'},41.28);
+// Let the resolved map read before Ship; no card changes position after this point.
+hideCaption('.context-routes',20.6);
+caption('.context-ready',20.82);
+tl.fromTo('.ready-title',{opacity:0,y:7},{opacity:1,y:0,duration:.3,ease:'power2.out'},20.82);
+tl.to('.focus-ring',{opacity:1,scale:1,duration:.22,ease:'power2.out'},22.7);
+tl.to('.focus-ring',{scale:.72,duration:.1,ease:'power2.in'},23.16);
+tl.to('.ship-button',{scale:.94,backgroundColor:'#235ec1',duration:.1,ease:'power2.in'},23.16);
+tl.to('.focus-ring',{opacity:0,duration:.14},23.28);
+tl.to('.ship-button',{scale:1,backgroundColor:'#3b82f6',duration:.16,ease:'power2.out'},23.3);
+tl.to('.ready-title,.context-ready',{opacity:0,y:-5,duration:.18},23.38);
+tl.to('.ship-label',{opacity:0,duration:.12},23.38);
+tl.to('.run-label',{opacity:1,duration:.12},23.42);
+caption('.context-execute',23.52);
+
+// Execute in the release map itself, one operation at a time.
+const steps=[
+  {kind:'project',sel:'.project-card',start:23.82,duration:.82},
+  {kind:'web',sel:'.web-card',start:25.18,duration:1.04},
+  {kind:'build',sel:'.build-card',start:26.76,duration:1.18},
+  {kind:'poki',sel:'.poki-card',start:28.48,duration:.96},
+  {kind:'steam',sel:'.steam-card',start:29.98,duration:.98},
+  {kind:'itch',sel:'.itch-card',start:31.5,duration:1.04}
+];
+steps.forEach((step,index)=>{
+  const sel=step.sel,baseScale=(step.kind==='project'||step.kind==='web'||step.kind==='build')?360/490:1;
+  tl.to(sel,{borderColor:'#68a0ff',boxShadow:'0 0 28px rgba(59,130,246,.25),0 24px 70px #0007',scale:baseScale*1.025,duration:.18},step.start);
+  tl.to(`${sel} .project-main,${sel} .web-route-title,${sel} .web-route-detail,${sel} .build-heading-generic,${sel} .build-electron,${sel} .build-kicker,${sel} .web-kicker,${sel} .web-mark,${sel} .destination-main,${sel} .destination-logo,${sel} .selection-mark`,{opacity:0,duration:.12},step.start);
+  tl.to(`${sel} .exec-operation,${sel} .exec-title`,{opacity:1,duration:.16},step.start+.05);
+  tl.to(`${sel} .state-waiting`,{opacity:1,duration:.14},step.start+.05);
+  tl.to(`${sel} .state-waiting`,{opacity:0,duration:.12},step.start+.18);
+  tl.to(`${sel} .state-active`,{opacity:1,duration:.12},step.start+.34);
+  tl.to(`${sel} .row-progress`,{opacity:1,scaleX:1,duration:.1},step.start+.34);
+  tl.to(`${sel} .row-progress i`,{scaleX:1,duration:step.duration,ease:'power2.inOut'},step.start+.34);
+  tl.to(`${sel} .state-active`,{opacity:0,duration:.12},step.start+step.duration+.22);
+  tl.to(`${sel} .state-success`,{opacity:1,duration:.16},step.start+step.duration+.42);
+  tl.to(sel,{borderColor:'#58d9a0',boxShadow:'0 0 19px rgba(34,197,94,.15),0 24px 70px #0007',scale:baseScale,duration:.2},step.start+step.duration+.32);
+});
+tl.to('.route-line',{stroke:'#58d9a0',filter:'drop-shadow(0 0 7px rgba(34,197,94,.35))',duration:.28},32.98);
+tl.to('.run-label,.ship-button',{opacity:0,duration:.18},33.02);
+hideCaption('.context-execute',33.0);
+// Result copy lands while the exact same route and cards remain in place.
+tl.fromTo('.result-copy',{opacity:0,y:8},{opacity:1,y:0,duration:.38,ease:'power2.out'},33.24);
+tl.to('.project-card .exec-operation,.web-card .exec-operation,.build-card .exec-operation,.poki-card .exec-operation,.steam-card .exec-operation,.itch-card .exec-operation',{opacity:0,duration:.18},33.28);
+tl.to('.web-card .exec-title,.build-card .exec-title,.web-card .state-success,.build-card .state-success,.poki-card .exec-title,.steam-card .exec-title,.itch-card .exec-title,.poki-card .state-success,.steam-card .state-success,.itch-card .state-success',{opacity:0,duration:.16},33.28);
+tl.to('.artifact-caption,.delivery-result,.web-result-copy,.build-result-copy',{opacity:1,duration:.28,stagger:.08},33.5);
+
+// Continuous handoff: keep the same logo, gently simplify the map, then hold.
+tl.to('.result-copy',{opacity:0,y:-5,duration:.28,ease:'power2.inOut'},37.12);
+tl.to('.project-card,.web-card,.build-card,.poki-card,.steam-card,.itch-card,.route-line,.route-pulse',{opacity:0,duration:.34,ease:'power2.inOut',stagger:.025},37.2);
+tl.set('.route-line',{attr:{d:''}},37.56);
+tl.to('.ship-button,.top-rule,.tabs,.frame-outline,.app-shell,.profile-node',{opacity:0,duration:.34,ease:'power2.inOut'},37.2);
+tl.to('.brand-lockup',{x:760,y:210,scale:1.08,duration:.56,ease:'power2.inOut'},37.24);
+tl.fromTo('.end-card',{opacity:0},{opacity:1,duration:.01},37.55);
+tl.fromTo('.end-headline',{opacity:0,y:12},{opacity:1,y:0,duration:.42,ease:'power2.out'},37.62);
 window.__timelines['pipelab-continuous']=tl;
 </script>
 </template>

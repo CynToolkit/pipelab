@@ -2,47 +2,46 @@
 
 ## Goal
 
-A 45-second product commercial that clearly tells one release story: a developer starts with **Your Game**, chooses Poki, Steam, and itch.io, and Pipelab determines the web and desktop outputs, lets the user press **Ship**, then shows successful artifacts and deliveries. The muted version must make the story clear without relying on small interface copy.
+A 35–40 second product commercial that explains, even muted: a developer gives Pipelab **Your Game**, chooses Poki, Steam, and itch.io, Pipelab resolves the required outputs, then the user presses **Ship** and sees successful deliveries. The single release map remains stable through configuration, execution, and results.
 
 ## Audience and message
 
-Indie game developers and small studios who know the work that follows a finished game. Pipelab organizes a release, prepares the required outputs, and ships them to the selected destinations.
+Indie game developers and small studios who know the work that follows a finished game. Pipelab organizes a release, prepares the right output for each destination, and ships them in one run.
 
 ## Product truth shown
 
-- A generic web project starts the story; it is labeled **Your Game** and Construct 3.
-- The release includes three real destination entities: Poki, Steam, and itch.io.
-- The web project produces a **Web Build** that routes directly to Poki and into the desktop build path.
-- A generic **Build profile** resolves in place to **Electron · Windows x64** for Steam and itch.io.
-- The user presses **Ship**. Source preparation, builds, and deliveries execute sequentially.
-- Only after execution do the Web Build and Windows x64 outputs become visible as successful artifacts. Deliveries show successful results for Poki, Steam, and itch.io.
-- The release routes are conceptual commercial visuals inside structured Pipelab UI; they are not presented as a graph editor.
+- Pipelab identity opens the film; a generic **Your Game / Web project / Construct 3** source card follows. No fictional game name is used.
+- Poki, Steam, and itch.io appear progressively as destinations.
+- A single generic **Build profile** resolves into **Web Build** and **Electron · Windows x64**.
+- Web Build routes to Poki. Electron · Windows x64 routes to Steam and itch.io.
+- The user presses **Ship**. Source preparation, both builds, and all three deliveries execute sequentially in the same release map.
+- Successful Web Build and Windows x64 outputs and delivery states appear in place after execution. There is no Artifacts stage in the route.
+- Routes are conceptual commercial visuals inside structured Pipelab UI, not a graph editor.
 
 ## Story timing
 
 | Time | Beat | Message |
 | --- | --- | --- |
-| 0–3s | Brand and game | Pipelab identity, then “Your game is ready.” and the Your Game project card. |
-| 3–7s | Release problem | “Now you have to ship it.” Web, desktop, Steam, itch.io, and Poki appear sequentially. |
-| 7–11s | Organize | Pipelab frame and header form around the same cards. “Pipelab organizes the release.” |
-| 11–15s | Choose | Steam, itch.io, and Poki select in place. “Choose where you want to ship.” |
-| 15–23s | Resolve outputs | Source routes to Web Build; Web Build routes directly to Poki and to a Build profile that resolves to Electron · Windows x64, then Steam and itch.io. “Pipelab prepares every required build.” |
-| 23–27s | Ready | Objects reorganize into execution roles. “Everything is ready to ship.” Focus lands on **Ship** before the click. |
-| 27–36s | Execute | Sequentially: Prepare source → Web Build → Electron · Windows x64 → Poki → Steam → itch.io. “Build and publish in one run.” |
-| 36–41s | Results | Web Build and Windows x64 become successful artifacts; all three destinations become successful deliveries. “One release. Every destination.” |
-| 41–45s | End card | Persistent Pipelab mark centers above “Pipelab” and “Ship games, not release scripts.” Hold the settled card. |
+| 0–3s | Brand and game | Pipelab identity, “Your game is ready,” and the Your Game card. |
+| 3–6.5s | Destination problem | “Now it has to reach every platform.” Poki, Steam, and itch.io enter one at a time. |
+| 6.5–11.2s | Organize and choose | A calm Pipelab frame forms around the same objects; destinations select in place. |
+| 11.2–17.4s | Resolve | One Build profile resolves into Web Build and Electron · Windows x64; routes connect to their correct destinations. |
+| 17.4–21.3s | Understand the map | Hold the resolved release map so the two branches read clearly. |
+| 21.3–23.8s | Ready and Ship | “Everything is ready.” Focus on and click Ship without moving the map. |
+| 23.8–33s | Execute | Prepare source → Web Build → Electron → Poki → Steam → itch.io; each succeeds sequentially in place. |
+| 33–37.2s | Results | Outputs and deliveries show success in the same cards. “One release. Every destination.” |
+| 37.2–40s | End card | The map simplifies around the persistent Pipelab mark. “Ship games, not release scripts.” Hold. |
 
 ## Visual and motion rules
 
-- 1920×1080, 16:9, 60 fps feel; dark graphite, restrained Pipelab blue, and green only for completion.
-- One continuous composition and a stable camera at scale 1. Keep captions large, one sentence at a time, and anchored above the bottom safe margin.
-- The opening and ending both lead with the Pipelab mark and wordmark. The same mark persists through the result-to-end-card handoff.
-- Use the same project, Web Build, Build profile/Electron, and destination cards throughout. Align them to deliberate anchors as they change roles.
-- Draw routes from measured card bounds. Never insert Artifacts as a route stage; Artifacts are shown only after execution.
-- Use one traveling progress focus. Statuses complete sequentially; no simultaneous execution updates.
-- Keep interface hierarchy readable at normal playback size. Use small object emphasis and connector movement instead of camera zoom.
-- Result copy and end-card copy remain separate elements; no text morph or blackout. The end card uses only a subtle fade and vertical settle.
+- 1920×1080, 16:9, 60 fps feel; dark graphite, restrained Pipelab blue, green only for completion.
+- Keep the camera at scale 1. Captions are large, bottom-anchored, one sentence at a time.
+- Use one stable release map after destination selection. Once cards reach their route positions, execution and success update only their local states.
+- Build Profile starts as one unresolved decision. It resolves into Web Build and Electron · Windows x64; Web Build connects to Poki and Electron connects to Steam and itch.io.
+- Draw routes from settled card bounds. Do not show Artifacts inside the route.
+- Use sequential progress and restrained local emphasis; no unnecessary drift, global zoom, separate execution grid, or result grid.
+- Keep result and end-card typography separate. No blackout or text mutation. The end card uses only a subtle fade and vertical settle.
 
 ## Audio
 
-Retain the existing restrained MusicGen score and tactile sound design. The opening remains calm, destination selections get soft clicks, output resolution gets a short rising cue, Ship gets one clear click, and successful deliveries resolve with two restrained confirmation tones.
+Replace the previous music with an offline MusicGen score: minimal electronic ambience, restrained pulse, little melody, and no corporate-tech feel. Keep UI sound design prominent but sparse: soft destination clicks, restrained connector movement, a rising resolution cue that lands as both outputs appear, one clear Ship click, sequential completion pings, then a warm final tone. Let the score and SFX calm during the result and end card.

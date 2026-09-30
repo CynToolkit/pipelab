@@ -1,17 +1,22 @@
 # Product launch storyboard
 
-A single continuous 45-second product showcase. The Pipelab logo opens the film and persists through the result-to-end-card transition.
+**Length:** 40 seconds · **Format:** 1920×1080, 16:9 · **Style:** restrained continuous-motion product film
 
-| Time | Story beat | Visual proof |
+| Time | Visual | Caption / message |
 | --- | --- | --- |
-| 0–3s | Pipelab identity, then “Your game is ready.” | One Your Game / Web project / Construct 3 card enters. |
-| 3–7s | “Now you have to ship it.” | Web, desktop, Steam, itch.io, and Poki reveal sequentially around the project. |
-| 7–11s | Pipelab organizes the release. | The frame forms around the same objects; the cards settle into the workspace. |
-| 11–15s | Choose where you want to ship. | Poki, Steam, and itch.io select in place. |
-| 15–23s | Pipelab prepares every required build. | Your Game → Web Build → Poki; Web Build → Build profile → Electron · Windows x64 → Steam + itch.io. |
-| 23–27s | Everything is ready to ship. | The existing objects reorganize into execution roles; Ship is pressed. |
-| 27–36s | Build and publish in one run. | Prepare source → Web Build → Electron → Poki → Steam → itch.io, each completing in order. |
-| 36–41s | One release. Every destination. | Web Build and Windows x64 appear as artifacts; Poki, Steam, and itch.io appear as successful deliveries. |
-| 41–45s | Pipelab | The persistent logo settles above “Ship games, not release scripts.” |
+| 0–3s | Pipelab identity and Your Game / Construct 3 source card. | Your game is ready. |
+| 3–6.5s | Poki, Steam, and itch.io arrive one at a time. | Now it has to reach every platform. |
+| 6.5–11.2s | Pipelab frame forms; same cards settle; destinations select. | Choose where you want to ship. |
+| 11.2–17.4s | Build profile resolves into Web Build and Electron · Windows x64; correct routes appear. | Pipelab prepares what each destination needs. |
+| 17.4–21.3s | Hold the complete two-branch release map. | Let the route read. |
+| 21.3–23.8s | Ready state and Ship action, with no card rearrangement. | Everything is ready. |
+| 23.8–33s | Source, builds, Poki, Steam, and itch.io execute sequentially in place. | Build and publish in one run. |
+| 33–37.2s | Web/Desktop outputs and all destination deliveries succeed in place. | One release. Every destination. |
+| 37.2–40s | Map simplifies around Pipelab; separate stable end card. | Ship games, not release scripts. |
 
-See [MOTION-STORYBOARD.md](MOTION-STORYBOARD.md) for object continuity, layout anchors, caption timing, and muted validation criteria.
+## Continuity constraints
+
+- Preserve the same objects and route geography from selection through delivery results.
+- Do not zoom the global camera, crossfade full interfaces, or reposition resolved cards for a new section.
+- Use only local emphasis, connector draws, progress, and status changes after the map settles.
+- Keep result copy and end-card copy as separate elements. Hold the final brand card for the last 2+ seconds.
