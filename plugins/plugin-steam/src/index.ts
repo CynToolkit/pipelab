@@ -85,12 +85,6 @@ export default createNodeDefinition({
           type: "text",
           placeholder: "e.g., steam_user",
         },
-        {
-          key: "password",
-          label: "Steam Password",
-          type: "password",
-          placeholder: "Steam password",
-        },
       ],
     },
   ],

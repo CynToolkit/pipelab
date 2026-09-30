@@ -30,6 +30,8 @@
     "@clack/prompts": "1.2.0",
     "@pipelab/constants": "workspace:*",
     "@pipelab/core-node": "workspace:*",
+    "@pipelab/plugin-poki": "workspace:*",
+    "@pipelab/plugin-steam": "workspace:*",
     "@pipelab/shared": "workspace:*",
     "@pipelab/workflow-runtime": "workspace:*",
     "commander": "^12.1.0",

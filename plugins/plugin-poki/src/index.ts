@@ -7,10 +7,31 @@ const pokiDestination: ReleaseDestinationDefinition = {
   id: "@pipelab/plugin-poki/destination",
   label: "Poki",
   accepts: { kind: "application", platform: "web", container: "directory" },
-  fields: [{ key: "project", type: "text", label: "Poki project", required: true }, { key: "name", type: "text", label: "Version name", required: true }, { key: "notes", type: "text", label: "Release notes", required: true }],
+  fields: [
+    { key: "project", type: "text", label: "Poki project", required: true },
+    { key: "name", type: "text", label: "Version name", required: true },
+    { key: "notes", type: "text", label: "Release notes", required: true },
+  ],
   createDefaultConfig: () => ({ project: "", name: "", notes: "" }),
-  validate: (config) => ["project", "name", "notes"].filter((key) => !String(config.config[key] || "").trim()).map((key) => ({ code: `poki.${key}.required`, message: `Poki ${key} is required.`, severity: "error" as const, path: `config.${key}` })),
-  compile: (artifact, destination, slot) => [{ id: `poki-${destination.id}-${slot.id}`, uses: "@pipelab/plugin-poki/poki-upload", needs: [artifact.reference.stepId], artifactInputs: { "input-folder": artifact.reference }, with: { ...destination.config, ...slot.config }, delivery: { destinationId: destination.id, slotId: slot.id, artifact: artifact.reference } }],
+  validate: (config) =>
+    ["project", "name", "notes"]
+      .filter((key) => !String(config.config[key] || "").trim())
+      .map((key) => ({
+        code: `poki.${key}.required`,
+        message: `Poki ${key} is required.`,
+        severity: "error" as const,
+        path: `config.${key}`,
+      })),
+  compile: (artifact, destination, slot) => [
+    {
+      id: `poki-${destination.id}-${slot.id}`,
+      uses: "@pipelab/plugin-poki/poki-upload",
+      needs: [artifact.reference.stepId],
+      artifactInputs: { "input-folder": artifact.reference },
+      with: { ...destination.config, ...slot.config },
+      delivery: { destinationId: destination.id, slotId: slot.id, artifact: artifact.reference },
+    },
+  ],
 };
 
 export default createNodeDefinition({
@@ -25,25 +46,6 @@ export default createNodeDefinition({
     {
       node: uploadToPoki,
       runner: uploadToPokiRunner,
-    },
-  ],
-  integrations: [
-    {
-      name: "Poki Developer Profile",
-      fields: [
-        {
-          key: "gameId",
-          label: "Game ID",
-          type: "text",
-          placeholder: "e.g., poki-game-id",
-        },
-        {
-          key: "apiKey",
-          label: "Developer Token",
-          type: "password",
-          placeholder: "Poki Developer Token",
-        },
-      ],
     },
   ],
   release: { destinations: [pokiDestination] },

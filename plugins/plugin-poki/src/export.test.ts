@@ -1,18 +1,24 @@
-import { expect, test, describe, afterEach } from "vitest";
+import { expect, test, describe, afterEach, vi } from "vitest";
 import { uploadToPokiRunner, POKI_CLI_VERSION } from "./export.js";
 import { mkdir, writeFile, readFile, access, readdir } from "node:fs/promises";
-import { join, resolve, dirname } from "node:path";
+import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createSandbox, runAction } from "@pipelab/test-utils";
 import { SandboxFolder } from "@pipelab/constants";
+import pokiPlugin from "./index.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+
+test("does not expose an unsupported Poki API token connection", () => {
+  expect(pokiPlugin.integrations).toBeUndefined();
+});
 
 describe("End-to-End: Poki Upload Action", () => {
   let sandbox: Awaited<ReturnType<typeof createSandbox>>;
 
   afterEach(async () => {
+    vi.unstubAllEnvs();
     if (sandbox) {
       await sandbox.remove();
     }
@@ -27,6 +33,9 @@ describe("End-to-End: Poki Upload Action", () => {
 
       // Seed dummy input assets
       await writeFile(join(paths.input, "index.html"), "<html><body>Test</body></html>");
+      const authDir = join(sandbox.path, SandboxFolder.ThirdParty, "poki");
+      await mkdir(authDir, { recursive: true });
+      await writeFile(join(authDir, "auth.json"), JSON.stringify({ access_type: "Bearer" }));
 
       // 2. Pre-seed a mock Poki CLI to avoid downloads and network issues
       // Path matches new flat fetchPackage structure
@@ -51,7 +60,7 @@ describe("End-to-End: Poki Upload Action", () => {
             argv: process.argv
           }, null, 2)
         );
-        console.log('Mock Poki CLI execution');
+        console.log('Version uploaded successfully');
         process.exit(0);
         `,
       );
@@ -117,4 +126,82 @@ describe("End-to-End: Poki Upload Action", () => {
     },
     30 * 60 * 1000,
   );
+
+  test("fails before invoking the CLI upload when Poki authentication is missing", async () => {
+    sandbox = await createSandbox("poki-no-auth");
+    await writeFile(join(sandbox.paths.input, "index.html"), "<html></html>");
+    const browserAttemptPath = join(sandbox.path, "poki-browser-auth-attempted");
+    const relativePokiBin = join(
+      "user-data",
+      "packages",
+      "@poki/cli",
+      POKI_CLI_VERSION,
+      "bin",
+      "index.js",
+    );
+    await sandbox.mockBinary(
+      relativePokiBin,
+      `require("node:fs").writeFileSync(${JSON.stringify(browserAttemptPath)}, "attempted");`,
+    );
+    const pokiDir = join(sandbox.path, "user-data", "packages", "@poki/cli", POKI_CLI_VERSION);
+    await mkdir(join(pokiDir, "node_modules"), { recursive: true });
+    await writeFile(
+      join(pokiDir, "package.json"),
+      JSON.stringify({ name: "@poki/cli", version: POKI_CLI_VERSION }),
+    );
+    await writeFile(join(pokiDir, "node_modules", ".keep"), "");
+
+    await expect(
+      runAction(uploadToPokiRunner, {
+        inputs: {
+          "input-folder": sandbox.paths.input,
+          project: "poki-game-123",
+          name: "release-v1",
+          notes: "test notes",
+        },
+        sandboxPath: sandbox.path,
+      }),
+    ).rejects.toThrow("pipelab settings integrations poki login");
+    await expect(access(browserAttemptPath)).rejects.toThrow();
+  });
+
+  test("reports CLI authentication errors even when it exits successfully", async () => {
+    sandbox = await createSandbox("poki-cli-auth-error");
+    await writeFile(join(sandbox.paths.input, "index.html"), "<html></html>");
+    const authDir = join(sandbox.path, SandboxFolder.ThirdParty, "poki");
+    await mkdir(authDir, { recursive: true });
+    await writeFile(join(authDir, "auth.json"), JSON.stringify({ access_type: "Bearer" }));
+
+    const relativePokiBin = join(
+      "user-data",
+      "packages",
+      "@poki/cli",
+      POKI_CLI_VERSION,
+      "bin",
+      "index.js",
+    );
+    await sandbox.mockBinary(
+      relativePokiBin,
+      `console.error('Error: {"statusCode":401,"data":"Unauthorized"}');\nprocess.exit(0);`,
+    );
+    const pokiDir = join(sandbox.path, "user-data", "packages", "@poki/cli", POKI_CLI_VERSION);
+    await mkdir(join(pokiDir, "node_modules"), { recursive: true });
+    await writeFile(
+      join(pokiDir, "package.json"),
+      JSON.stringify({ name: "@poki/cli", version: POKI_CLI_VERSION }),
+    );
+    await writeFile(join(pokiDir, "node_modules", ".keep"), "");
+
+    await expect(
+      runAction(uploadToPokiRunner, {
+        inputs: {
+          "input-folder": sandbox.paths.input,
+          project: "poki-game-123",
+          name: "release-v1",
+          notes: "test notes",
+        },
+        sandboxPath: sandbox.path,
+      }),
+    ).rejects.toThrow("Poki rejected the cached authentication or denied access to this game.");
+  });
 });

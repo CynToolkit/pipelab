@@ -10,6 +10,8 @@ import { Listr, ListrTaskState, type ListrTaskWrapper } from "listr2";
 import type { WorkflowEvent } from "../../../../packages/workflow-runtime/src/index";
 import { Option } from "commander";
 import { getDefaultUserDataPath } from "../paths";
+import { workflowStepTitle } from "./workflow-task-title";
+import { workflowTaskOutputLines } from "./workflow-task-output";
 
 const contextFor = (userDataPath = getDefaultUserDataPath()) =>
   new PipelabContext({ userDataPath });
@@ -129,10 +131,10 @@ export async function runWorkflowCommand(
   const updateTask = (stepId: string, state: ListrTaskState, log?: string) => {
     taskStates.set(stepId, state);
     if (log) {
-      const lines = [...(taskLogs.get(stepId) || []), ...log.split("\n")].slice(-5);
+      const lines = [...(taskLogs.get(stepId) || []), ...workflowTaskOutputLines(log)].slice(-1);
       taskLogs.set(stepId, lines);
       const task = taskControls.get(stepId);
-      if (task) for (const line of log.split("\n")) task.output = line;
+      if (task) for (const line of workflowTaskOutputLines(log)) task.output = line;
     }
     const task = taskControls.get(stepId);
     if (task) task.task.state$ = state;
@@ -150,16 +152,19 @@ export async function runWorkflowCommand(
     {
       id: "workflow",
       title: flow.name,
-      steps: workflow.steps.map((step) => ({ id: step.id, title: step.id })),
+      steps: workflow.steps.map((step) => ({
+        id: step.id,
+        title: workflowStepTitle(step),
+      })),
     },
   ];
   const stepTasks = stepGroups.flatMap((group) => group.steps);
   const stepTask = (step: (typeof stepTasks)[number]) => ({
     title: step.title,
-    rendererOptions: { outputBar: 5, persistentOutput: false },
+    rendererOptions: { outputBar: 1, persistentOutput: false },
     task: (_ctx: unknown, task: ListrTaskWrapper<any, any, any>) => {
       taskControls.set(step.id, task);
-      task.task.state$ = taskStates.get(step.id) || ListrTaskState.PAUSED;
+      task.task.state$ = taskStates.get(step.id) || ListrTaskState.WAITING;
       const lines = taskLogs.get(step.id);
       if (lines?.length) for (const line of lines) task.output = line;
       return waitFor(step.id);
@@ -186,7 +191,7 @@ export async function runWorkflowCommand(
         const task = taskControls.get(event.stepId);
         if (task) {
           task.task.message$ = {
-            error: (taskLogs.get(event.stepId) || []).join("\n"),
+            error: workflowTaskOutputLines(event.error.message)[0] || "Workflow step failed",
           };
         }
         completion.get(event.stepId)?.reject(new Error(event.error.message));
@@ -213,7 +218,7 @@ export async function runWorkflowCommand(
                 task.newListr(group.steps.map(stepTask), {
                   concurrent: true,
                   exitOnError: false,
-                  rendererOptions: { collapseErrors: false, showErrorMessage: true },
+                  rendererOptions: { collapseErrors: false, outputBar: 1, showErrorMessage: true },
                 }),
             },
       ),
@@ -221,7 +226,7 @@ export async function runWorkflowCommand(
     {
       concurrent: true,
       exitOnError: false,
-      rendererOptions: { collapseErrors: false, showErrorMessage: true },
+      rendererOptions: { collapseErrors: false, outputBar: 1, showErrorMessage: true },
     },
   );
   const listRun = listr.run();

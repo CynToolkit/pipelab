@@ -2,7 +2,12 @@ import { describe, expect, it } from "vitest";
 import { mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { resolveSteamCredentials } from "./upload-to-steam";
+import {
+  createSteamLoginArgs,
+  createSteamManualLoginCommand,
+  createSteamUploadArgs,
+  resolveSteamUsername,
+} from "./upload-to-steam";
 import { steamDestination } from "./index";
 
 describe("Steam release credentials", () => {
@@ -30,16 +35,75 @@ describe("Steam release credentials", () => {
     );
   });
 
-  it("resolves credentials by connection ID at execution time", async () => {
+  it("resolves the account username by connection ID at execution time", async () => {
     const directory = await mkdtemp(join(tmpdir(), "pipelab-steam-"));
     const path = join(directory, "connections.json");
     await writeFile(
       path,
-      JSON.stringify({ connections: [{ id: "steam-1", username: "user", password: "pass" }] }),
+      JSON.stringify({
+        connections: [{ id: "steam-1", email: "cached-user", password: "unused-password" }],
+      }),
     );
-    await expect(resolveSteamCredentials(path, "steam-1", {})).resolves.toEqual({
-      username: "user",
-      password: "pass",
-    });
+    await expect(resolveSteamUsername(path, "steam-1")).resolves.toBe("cached-user");
+  });
+
+  it("rejects a selected connection with no account username", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "pipelab-steam-"));
+    const path = join(directory, "connections.json");
+    await writeFile(path, JSON.stringify({ connections: [{ id: "steam-1", password: "unused" }] }));
+
+    await expect(resolveSteamUsername(path, "steam-1")).rejects.toThrow(
+      "Steam account connection has no username",
+    );
+  });
+
+  it("logs in with the selected account and SteamCMD's cached credentials", () => {
+    expect(createSteamLoginArgs("steam-user")).toEqual([
+      "+@ShutdownOnFailedCommand",
+      "1",
+      "+@NoPromptForPassword",
+      "1",
+      "+login",
+      "steam-user",
+      "+quit",
+    ]);
+  });
+
+  it("uses cached login credentials for Steam uploads without a password", () => {
+    expect(createSteamUploadArgs("steam-user", "/tmp/app_build.vdf")).toEqual([
+      "+@ShutdownOnFailedCommand",
+      "1",
+      "+@NoPromptForPassword",
+      "1",
+      "+login",
+      "steam-user",
+      "+run_app_build",
+      "/tmp/app_build.vdf",
+      "+quit",
+    ]);
+  });
+
+  it("prints an absolute shell-safe command to refresh the same SteamCMD cache", () => {
+    expect(
+      createSteamManualLoginCommand(
+        "/opt/pipelab/steamcmd/linux/steamcmd.sh",
+        "steam-user",
+        "linux",
+      ),
+    ).toBe(
+      "cd '/opt/pipelab/steamcmd/linux' && '/opt/pipelab/steamcmd/linux/steamcmd.sh' +login 'steam-user' +quit",
+    );
+  });
+
+  it("prints a PowerShell-compatible absolute login command on Windows", () => {
+    expect(
+      createSteamManualLoginCommand(
+        "C:\\Pipelab SDK\\steamcmd\\steamcmd.exe",
+        "steam-user",
+        "win32",
+      ),
+    ).toBe(
+      "Set-Location -LiteralPath 'C:\\Pipelab SDK\\steamcmd'; & 'C:\\Pipelab SDK\\steamcmd\\steamcmd.exe' '+login' 'steam-user' '+quit'",
+    );
   });
 });

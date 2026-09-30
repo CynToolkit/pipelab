@@ -146,3 +146,34 @@ describe("extractZip cancellation", () => {
     expect((await stat(archivePath)).size).toBeLessThan(contents.length);
   });
 });
+
+describe("extractZip", () => {
+  it("finishes extracting large deflated entries without stalling", async () => {
+    const dir = await makeTempDir();
+    const source = join(dir, "source");
+    const destination = join(dir, "out");
+    await mkdir(source);
+
+    const contents = Buffer.alloc(1_459_808);
+    let seed = 0x12345678;
+    for (let index = 0; index < contents.length; index += 1) {
+      seed = (seed * 1664525 + 1013904223) >>> 0;
+      contents[index] = seed >>> 24;
+    }
+    await writeFile(join(source, "a-first.txt"), "first");
+    await writeFile(join(source, "b-large.bin"), contents);
+
+    const archivePath = join(dir, "large.zip");
+    await zipFolder(source, archivePath, () => {});
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 3000);
+    try {
+      await extractZip(archivePath, destination, controller.signal);
+    } finally {
+      clearTimeout(timeout);
+    }
+
+    expect((await readFile(join(destination, "b-large.bin"))).equals(contents)).toBe(true);
+  }, 8000);
+});

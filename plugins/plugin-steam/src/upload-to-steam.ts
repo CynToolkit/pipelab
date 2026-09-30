@@ -1,9 +1,8 @@
-import { dirname, join, resolve } from "node:path";
+import { dirname, join, resolve, win32 as win32Path } from "node:path";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import {
   createAction,
   createActionRunner,
-  createPasswordParam,
   createPathParam,
   createStringParam,
   ExternalCommandError,
@@ -13,14 +12,64 @@ import { ensureSteamCmd } from "./ensure";
 
 export const ID = "steam-upload";
 
-const vdfValue = (value: string) =>
-  value.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/[\r\n]/g, " ");
+export const createSteamLoginArgs = (username: string): string[] => [
+  "+@ShutdownOnFailedCommand",
+  "1",
+  "+@NoPromptForPassword",
+  "1",
+  "+login",
+  username,
+  "+quit",
+];
 
-export const resolveSteamCredentials = async (connectionsPath: string, accountConnectionId: string, current: { username?: string; password?: string }): Promise<{ username: string; password: string }> => {
-  if (current.username && current.password) return { username: current.username, password: current.password };
-  const saved = JSON.parse(await readFile(connectionsPath, "utf8")) as { connections?: Array<Record<string, unknown>> };
+export const createSteamUploadArgs = (username: string, appBuildPath: string): string[] => [
+  "+@ShutdownOnFailedCommand",
+  "1",
+  "+@NoPromptForPassword",
+  "1",
+  "+login",
+  username,
+  "+run_app_build",
+  appBuildPath,
+  "+quit",
+];
+
+const quotePosix = (value: string) => `'${value.replace(/'/g, `'"'"'`)}'`;
+
+export const createSteamManualLoginCommand = (
+  steamcmdPath: string,
+  username: string,
+  platform: NodeJS.Platform = process.platform,
+): string => {
+  const pathApi = platform === "win32" ? win32Path : { resolve, dirname };
+  const absolutePath = pathApi.resolve(steamcmdPath);
+  const workingDirectory = pathApi.dirname(absolutePath);
+
+  if (platform === "win32") {
+    const quotePowerShell = (value: string) => `'${value.replace(/'/g, "''")}'`;
+    return `Set-Location -LiteralPath ${quotePowerShell(workingDirectory)}; & ${quotePowerShell(absolutePath)} '+login' ${quotePowerShell(username)} '+quit'`;
+  }
+
+  return `cd ${quotePosix(workingDirectory)} && ${quotePosix(absolutePath)} +login ${quotePosix(username)} +quit`;
+};
+
+const vdfValue = (value: string) =>
+  value
+    .replace(/\\/g, "\\\\")
+    .replace(/"/g, '\\"')
+    .replace(/[\r\n]/g, " ");
+
+export const resolveSteamUsername = async (
+  connectionsPath: string,
+  accountConnectionId: string,
+): Promise<string> => {
+  const saved = JSON.parse(await readFile(connectionsPath, "utf8")) as {
+    connections?: Array<Record<string, unknown>>;
+  };
   const connection = saved.connections?.find((candidate) => candidate.id === accountConnectionId);
-  return { username: current.username || String(connection?.username || ""), password: current.password || String(connection?.password || "") };
+  const username = String(connection?.username || connection?.email || "").trim();
+  if (!username) throw new Error("Steam account connection has no username");
+  return username;
 };
 
 export const uploadToSteam = createAction({
@@ -31,8 +80,6 @@ export const uploadToSteam = createAction({
   displayString: "`Upload ${fmt.param(params['folder'], 'primary')} to steam`",
   meta: {},
   params: {
-    username: createStringParam("", { required: true, label: "Username" }),
-    password: createPasswordParam("", { required: true, label: "Password" }),
     appId: createStringParam("", { required: true, label: "App ID" }),
     depotId: createStringParam("", { required: true, label: "Depot ID" }),
     description: createStringParam("", { required: true, label: "Build Description" }),
@@ -55,9 +102,9 @@ export const uploadToSteamRunner = createActionRunner<typeof uploadToSteam>(
     const folder = resolve(inputs.folder as string);
     const appId = inputs.appId as string;
     const depotId = inputs.depotId as string;
-    let username = inputs.username as string;
-    let password = inputs.password as string;
-    if (runtimeInputs.accountConnectionId) ({ username, password } = await resolveSteamCredentials(context.getConnectionsPath(), runtimeInputs.accountConnectionId, { username, password }));
+    const accountConnectionId = String(runtimeInputs.accountConnectionId || "").trim();
+    if (!accountConnectionId) throw new Error("A Steam account connection is required");
+    const username = await resolveSteamUsername(context.getConnectionsPath(), accountConnectionId);
     const description = inputs.description as string;
 
     if (!/^\d+$/.test(appId) || !/^\d+$/.test(depotId))
@@ -107,25 +154,33 @@ export const uploadToSteamRunner = createActionRunner<typeof uploadToSteam>(
     setOutput("script-path", appBuildPath);
     setOutput("output-folder", buildOutput);
 
-    let authChallenge = false;
+    let authPrompt = false;
     const streamLog = (data: string, subprocess?: { kill: () => void }) => {
       const lower = data.toLowerCase();
       if (
-        ["steam guard", "two-factor", "password:", "login failure", "account login denied"].some(
-          (text) => lower.includes(text),
-        )
+        [
+          "cached credentials not found",
+          "steam guard",
+          "two-factor",
+          "password:",
+          "login failure",
+          "account login denied",
+          "failed to login",
+        ].some((text) => lower.includes(text))
       ) {
-        authChallenge = true;
+        authPrompt = true;
         subprocess?.kill();
       }
       log("[steamcmd]", data);
     };
 
-    try {
-      await runWithLiveLogs(
+    const workingDirectory = dirname(steamcmdPath);
+    const manualLoginCommand = createSteamManualLoginCommand(steamcmdPath, username);
+    const runSteamCommand = (args: string[]) =>
+      runWithLiveLogs(
         steamcmdPath,
-        ["+login", username, password, "+run_app_build", appBuildPath, "+quit"],
-        { cwd: dirname(steamcmdPath), shell: false },
+        args,
+        { cwd: workingDirectory, shell: false },
         log,
         {
           onStdout: (data, subprocess) => streamLog(data, subprocess),
@@ -133,17 +188,39 @@ export const uploadToSteamRunner = createActionRunner<typeof uploadToSteam>(
         },
         abortSignal,
       );
+
+    try {
+      authPrompt = false;
+      await runSteamCommand(createSteamLoginArgs(username));
+      if (authPrompt) throw new Error("SteamCMD requires an interactive login");
     } catch (error) {
-      if (authChallenge)
-        throw new Error("Steam authentication requires Steam Guard or interactive input");
-      if (error instanceof ExternalCommandError) {
-        if (error.code === 6)
-          throw new Error(
-            `Steam upload failed: depot ${depotId} could not connect to the content server`,
-          );
-        throw new Error(`SteamCMD upload failed (${error.code}): ${error.message}`);
+      if (abortSignal?.aborted || (error instanceof Error && error.name === "AbortError"))
+        throw error;
+      const reason = error instanceof Error ? error.message : String(error);
+      throw new Error(
+        `SteamCMD could not reuse the saved login for ${username}. Run this command in a terminal to authenticate the same SteamCMD installation, then retry:\n\n${manualLoginCommand}\n\n${reason}`,
+      );
+    }
+
+    try {
+      authPrompt = false;
+      await runSteamCommand(createSteamUploadArgs(username, appBuildPath));
+      if (authPrompt) throw new Error("SteamCMD requires an interactive login");
+    } catch (error) {
+      if (abortSignal?.aborted || (error instanceof Error && error.name === "AbortError"))
+        throw error;
+      if (authPrompt) {
+        const reason = error instanceof Error ? error.message : String(error);
+        throw new Error(
+          `SteamCMD lost the saved login for ${username}. Run this command in a terminal to authenticate the same SteamCMD installation, then retry:\n\n${manualLoginCommand}\n\n${reason}`,
+        );
       }
-      throw error instanceof Error ? error : new Error(String(error));
+      if (error instanceof ExternalCommandError && error.code === 6)
+        throw new Error(
+          `Steam upload failed: depot ${depotId} could not connect to the content server`,
+        );
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`SteamCMD upload failed: ${message}`);
     }
 
     setOutput("status", "success");

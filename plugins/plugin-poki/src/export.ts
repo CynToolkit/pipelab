@@ -6,7 +6,7 @@ import {
   fetchPackage,
   runWithLiveLogs,
 } from "@pipelab/plugin-core";
-import { dirname, join, delimiter, resolve, relative } from "node:path";
+import { dirname, join, delimiter, resolve } from "node:path";
 import { writeFile, cp, access } from "node:fs/promises";
 
 export const ID = "poki-upload";
@@ -51,10 +51,12 @@ export const uploadToPoki = createAction({
 });
 
 export const uploadToPokiRunner = createActionRunner<typeof uploadToPoki>(
-  async ({ log, inputs, paths, abortSignal, cwd, context }) => {
-    const { node, thirdparty, pnpm, userData } = paths;
+  async ({ log, inputs, paths, abortSignal, context }) => {
+    const { node, thirdparty } = paths;
 
     const absoluteInputFolder = resolve(inputs["input-folder"] as string);
+
+    const sandboxConfigDir = thirdparty;
 
     log("Starting Poki upload action...");
     log(`- Game ID: ${inputs.project}`);
@@ -91,36 +93,22 @@ export const uploadToPokiRunner = createActionRunner<typeof uploadToPoki>(
     // create file at the same place the folder to upload
     await writeFile(pokiJsonPath, JSON.stringify(pokiConfig, undefined, 2), "utf-8");
 
-    // Direct Poki CLI to read/write credentials inside Pipelab's thirdparty folder
-    const sandboxConfigDir = thirdparty;
-
-    log("Checking for sandboxed authentication credentials...");
-    const possibleAuthPaths = [
+    const authPaths = [
       join(sandboxConfigDir, "poki", "auth.json"),
       join(sandboxConfigDir, "Poki", "auth.json"),
     ];
     let authFileFound = false;
-    let foundPath = "";
-    for (const p of possibleAuthPaths) {
+    for (const authPath of authPaths) {
       try {
-        await access(p);
+        await access(authPath);
         authFileFound = true;
-        foundPath = p;
         break;
       } catch {}
     }
 
-    if (authFileFound) {
-      log(`[Poki] Authentication file found at: ${foundPath}`);
-    } else {
-      log(
-        "[Poki] [WARNING] No authentication file (auth.json) found in the sandboxed config directory.",
-      );
-      log(
-        "[Poki] [WARNING] Poki CLI might try to open a browser for interactive login, which could hang/fail in headless environments.",
-      );
-      log(
-        `[Poki] Expected location: ${join(sandboxConfigDir, "poki", "auth.json")} or ${join(sandboxConfigDir, "Poki", "auth.json")}`,
+    if (!authFileFound) {
+      throw new Error(
+        "Poki login is required. Run `pipelab settings integrations poki login` in an interactive terminal to sign in without uploading a build, then rerun this workflow.",
       );
     }
 
@@ -142,24 +130,42 @@ export const uploadToPokiRunner = createActionRunner<typeof uploadToPoki>(
       `Running Poki CLI upload command: node ${poki} upload --name "${inputs.name}" --notes "${inputs.notes}"`,
     );
 
-    await runWithLiveLogs(
-      node,
-      [poki, "upload", "--name", inputs.name as string, "--notes", inputs.notes as string],
-      {
-        cwd: tempUploadFolder,
-        env,
-        cancelSignal: abortSignal,
-      },
-      log,
-      {
-        onStderr(data, subprocess) {
-          log(data);
+    let cliOutput = "";
+    const captureCliOutput = (data: string) => {
+      cliOutput += data;
+      log(data);
+    };
+
+    try {
+      await runWithLiveLogs(
+        node,
+        [poki, "upload", "--name", inputs.name as string, "--notes", inputs.notes as string],
+        {
+          cwd: tempUploadFolder,
+          env,
+          cancelSignal: abortSignal,
         },
-        onStdout(data, subprocess) {
-          log(data);
+        log,
+        {
+          onStderr: captureCliOutput,
+          onStdout: captureCliOutput,
         },
-      },
-    );
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(message, { cause: error });
+    }
+
+    if (/\b401\b|\b403\b|unauthorized|invalid (?:developer )?token/i.test(cliOutput)) {
+      throw new Error(
+        "Poki rejected the cached authentication or denied access to this game. Run `pipelab settings integrations poki login` in an interactive terminal, then rerun this workflow.",
+      );
+    }
+    if (!cliOutput.includes("Version uploaded successfully")) {
+      throw new Error(
+        "Poki CLI exited without confirming that the upload succeeded. Check the CLI output above; run `pipelab settings integrations poki login` if authentication is missing, then rerun this workflow.",
+      );
+    }
 
     /*
       {
