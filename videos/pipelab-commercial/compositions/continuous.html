@@ -3,95 +3,190 @@
 #root{position:relative;width:100%;height:100%;overflow:hidden;background:#111318;color:#f4f4f5;font-family:Inter,system-ui,sans-serif}
 .stage{position:absolute;inset:0;overflow:hidden;background:#111318}
 .camera,.world{position:absolute;inset:0;width:1920px;height:1080px;transform-origin:50% 50%}
-.world{--frame-x:58px;--frame-y:126px;--frame-w:1804px;--frame-h:830px;--frame-pad:44px;--header-center:188px;--content-left:190px;--content-right:1818px;background:radial-gradient(ellipse at 50% 52%,#19202b 0,transparent 49%)}
-.wash{position:absolute;inset:-120px;background:radial-gradient(ellipse at 49% 50%,rgba(59,130,246,.2),transparent 39%);opacity:0;filter:blur(34px)}
-.grid{position:absolute;inset:0;background-image:radial-gradient(rgba(164,185,220,.18) .8px,transparent .8px);background-size:36px 36px;opacity:.13;mask-image:linear-gradient(90deg,#000 0,transparent 94%)}
-.headline{position:absolute;left:138px;top:165px;width:920px;font-size:108px;line-height:.87;letter-spacing:-.075em;font-weight:760;transform-origin:left top;opacity:1!important;z-index:10}
-.heading-primary{color:#f4f4f5!important}.headline .blue{display:block;color:#83b0ff!important}
-.eyebrow,.micro{font-family:ui-monospace,monospace;letter-spacing:.15em;text-transform:uppercase}
-.eyebrow{position:absolute;left:143px;top:118px;font-size:17px;font-weight:650;color:#8bb5ff}
-.echo{position:absolute;color:#747d8e;font:600 25px ui-monospace,monospace;letter-spacing:.08em;opacity:0;white-space:nowrap}
-.echo.e1{left:830px;top:290px}.echo.e2{left:1020px;top:640px}.echo.e3{left:410px;top:820px}.echo.e4{left:1390px;top:250px}.echo.e5{left:1260px;top:780px}
-.app-shell{position:absolute;left:var(--frame-x);top:var(--frame-y);width:var(--frame-w);height:var(--frame-h);border:2px solid rgba(148,163,184,.27);border-radius:26px;background:rgba(22,25,31,.72);transform-origin:center center;box-shadow:0 34px 100px #0008;opacity:0}
-.shell-glow{position:absolute;inset:-3px;border-radius:26px;box-shadow:inset 0 0 90px rgba(59,130,246,.075);opacity:0}
-.top-rule{position:absolute;left:44px;right:44px;top:86px;height:1px;background:#343a45;transform-origin:left center}
+.world{--frame-x:58px;--frame-y:126px;--frame-w:1804px;--frame-h:830px;--frame-pad:44px;--header-center:188px;background:radial-gradient(ellipse at 50% 52%,#19202b 0,transparent 49%)}
+.ambient{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 52%,rgba(59,130,246,.12),transparent 55%);opacity:.7}
+.grid{position:absolute;inset:0;background-image:radial-gradient(rgba(164,185,220,.18) .8px,transparent .8px);background-size:36px 36px;opacity:.1;mask-image:linear-gradient(90deg,#000 0,transparent 94%)}
+.opening-copy{position:absolute;left:145px;top:170px;width:1120px;z-index:8}
+.opening-eyebrow,.card-kicker,.micro{font-family:ui-monospace,monospace;letter-spacing:.14em;text-transform:uppercase}
+.opening-eyebrow{font-size:20px;color:#8bb5ff;font-weight:650;margin-bottom:25px}
+.opening-headline{font-size:100px;line-height:.98;letter-spacing:-.07em;font-weight:760;white-space:nowrap}
+.opening-subline{position:absolute;left:145px;top:370px;font-size:35px;line-height:1.12;letter-spacing:-.035em;color:#c8ced8;opacity:0;z-index:8}
+.context-copy{position:absolute;left:145px;top:240px;width:1450px;font-size:38px;line-height:1.08;letter-spacing:-.04em;font-weight:640;opacity:0;z-index:9}
+.context-copy span{color:#83b0ff}
+.app-shell{position:absolute;left:var(--frame-x);top:var(--frame-y);width:var(--frame-w);height:var(--frame-h);border-radius:26px;background:rgba(22,25,31,.67);box-shadow:0 34px 100px #0008;opacity:0;z-index:1}
+.route-map{position:absolute;inset:0;width:1920px;height:1080px;overflow:visible;pointer-events:none;z-index:2}
+.frame-outline{fill:none;stroke:rgba(148,163,184,.43);stroke-width:2}
+.top-rule{position:absolute;left:calc(var(--frame-x) + 44px);right:calc(var(--frame-x) + 44px);top:212px;height:1px;background:#343a45;transform-origin:left center;opacity:0;z-index:3}
 .brand-lockup{position:absolute;left:102px;top:calc(var(--header-center) - 26px);display:flex;align-items:center;gap:14px;transform-origin:left center;opacity:0;z-index:8}
 .brand-lockup img{width:52px;height:52px;object-fit:contain}.brand-name{font-size:32px;font-weight:710;letter-spacing:-.045em}
-.tabs{position:absolute;left:690px;top:calc(var(--header-center) - 15px);display:flex;gap:32px;color:#fff;font:700 24px ui-monospace,monospace;opacity:0}.tabs span{color:#fff!important;opacity:1!important}.tabs span:first-child{color:#fff!important}
-.project-card,.build-card,.package-card,.destination-card,.ship-button{position:absolute;overflow:hidden;border:2px solid #414855;background:#1a1e26;border-radius:20px;box-shadow:0 24px 70px #0007;transform-origin:top left;will-change:transform;z-index:4}
-.project-card{left:100px;top:570px;width:490px;height:276px;padding:28px 30px}
-.card-kicker{font:600 16px ui-monospace,monospace;letter-spacing:.12em;color:#a7afbd;text-transform:uppercase}
-.project-title{font-size:48px;line-height:1;letter-spacing:-.055em;font-weight:710;margin-top:30px}
-.project-files{margin-top:17px;color:#a6aebb;font:19px ui-monospace,monospace}
-.project-source{position:absolute;left:28px;bottom:24px;display:flex;align-items:center;gap:12px;color:#e8eaf0;font-size:21px;font-weight:650}
+.tabs{position:absolute;left:690px;top:calc(var(--header-center) - 15px);display:flex;gap:30px;color:#d9dce3;font:700 21px ui-monospace,monospace;opacity:0;z-index:8;white-space:nowrap}
+.ship-button{position:absolute;left:1550px;top:149px;width:240px;height:78px;display:grid;place-items:center;border:2px solid #73a7ff;border-radius:15px;background:#3b82f6;color:white;font-size:28px;font-weight:700;letter-spacing:-.03em;opacity:0;z-index:9;box-shadow:0 12px 30px rgba(30,87,171,.24)}
+.ship-button span{position:absolute}.run-label{opacity:0}
+.focus-ring{position:absolute;left:1644px;top:183px;width:52px;height:52px;border:2px solid #d9e8ff;border-radius:50%;box-shadow:0 0 0 10px rgba(59,130,246,.16),0 0 30px rgba(59,130,246,.55);opacity:0;z-index:10}
+.card,.destination-card{position:absolute;overflow:hidden;border:2px solid #414855;background:#1a1e26;border-radius:20px;box-shadow:0 24px 70px #0007;transform-origin:top left;will-change:transform;z-index:4;opacity:0}
+.project-card{left:100px;top:570px;width:490px;height:276px;padding:27px 30px}
+.card-kicker{font-size:17px;font-weight:650;color:#9ea8b8}
+.project-title{font-size:52px;line-height:1;letter-spacing:-.055em;font-weight:730;margin-top:28px}
+.project-detail{margin-top:19px;color:#c1c7d2;font:22px ui-monospace,monospace;letter-spacing:-.025em}
+.project-source{position:absolute;left:28px;bottom:21px;display:flex;align-items:center;gap:11px;color:#e8eaf0;font-size:22px;font-weight:650}
 .project-source img{width:38px;height:38px;object-fit:contain}
-.build-card{left:1000px;top:160px;width:485px;height:276px;padding:25px 28px;border-color:#4a5260}
-.build-heading{font-size:38px;line-height:1.12;letter-spacing:-.04em;font-weight:700;margin-top:25px;max-width:425px}
-.build-detail{margin-top:16px;color:#a8b0bd;font:20px ui-monospace,monospace}
-.build-profile{position:absolute;right:22px;bottom:20px;color:#8bb5ff;font:14px ui-monospace,monospace;letter-spacing:.1em}
-.package-card{left:770px;top:770px;width:348px;height:195px;padding:19px 22px;display:flex;align-items:center;gap:18px;border-color:#484e59}
-.package-icon{width:46px;height:40px;flex:0 0 auto}.package-title{font-size:28px;font-weight:680;letter-spacing:-.035em}.package-detail{margin-top:5px;color:#a1a8b4;font:14px ui-monospace,monospace}
-.destination-card{left:1510px;width:330px;height:184px;padding:24px 25px;display:flex;align-items:center;gap:21px;overflow:visible}
-.steam-card{top:425px}.itch-card{top:660px}
-.destination-card img{width:56px;height:56px;object-fit:contain;flex:0 0 auto}.destination-name{font-size:32px;line-height:1;font-weight:700;letter-spacing:-.035em}.destination-kind{margin-top:11px;color:#a3aab7;font:14px ui-monospace,monospace;letter-spacing:.06em;text-transform:uppercase}
-.ship-button{left:1550px;top:158px;width:240px;height:78px;border-color:#73a7ff;border-radius:15px;background:#3b82f6;color:white;display:grid;place-items:center;font-size:28px;font-weight:700;letter-spacing:-.03em;opacity:.92}
-.folder-piece,.artifact-piece{position:absolute;border:1px solid #4a505b;background:#1b1f27;border-radius:13px;padding:17px 20px;color:#c3c8d1;font:16px ui-monospace,monospace;letter-spacing:.04em;box-shadow:0 16px 40px #0006}
-.folder-piece{left:510px;top:820px}.artifact-piece{left:1340px;top:815px}.file-mini{position:absolute;left:1130px;top:800px;width:186px;height:66px;border:1px solid #474d57;border-radius:12px;background:#1a1e25;padding:13px 15px;color:#aab1bd;font:13px ui-monospace,monospace}
-.release-status{position:absolute;left:148px;top:254px;font-size:45px;font-weight:710;letter-spacing:-.05em;opacity:0}
-.route-map{position:absolute;inset:0;width:1920px;height:1080px;overflow:visible;pointer-events:none;z-index:2}
-.route-line{fill:none;stroke:#68a0ff;stroke-width:5;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 0 8px rgba(59,130,246,.62));opacity:0}
-.route-pulse{fill:#d6e5ff;stroke:#4d91ff;stroke-width:3;filter:drop-shadow(0 0 12px #3b82f6);opacity:0}
-.row-state{position:absolute;right:20px;bottom:19px;font:24px ui-monospace,monospace;color:#a6aebb;opacity:0}
-.row-progress{position:absolute;left:0;right:0;bottom:0;height:5px;background:rgba(59,130,246,.17);transform:scaleX(0);transform-origin:left center}
+.web-card{left:700px;top:145px;width:490px;height:276px;padding:27px 30px;border-color:#485160}
+.web-mark{position:absolute;right:28px;top:24px;width:46px;height:46px;color:#9fc0ff}
+.web-title{font-size:43px;line-height:1;letter-spacing:-.045em;font-weight:710;margin-top:33px}
+.web-detail{margin-top:18px;color:#bbc3d0;font:22px ui-monospace,monospace}
+.web-route-title,.web-exec-title,.web-result-copy,.build-resolving,.build-electron,.build-exec-title,.build-result-copy,.project-exec-title,.destination-exec-title,.delivery-result{position:absolute;opacity:0}
+.web-route-title{left:30px;top:79px;font-size:41px;line-height:1;letter-spacing:-.045em;font-weight:730}
+.web-route-detail{position:absolute;left:30px;top:133px;color:#c3cad5;font:21px ui-monospace,monospace;opacity:0}
+.build-card{left:1000px;top:160px;width:490px;height:276px;padding:27px 30px;border-color:#4a5260}
+.build-heading{font-size:39px;line-height:1.08;letter-spacing:-.045em;font-weight:720;margin-top:31px;max-width:430px}
+.build-heading-generic{position:absolute;left:30px;top:80px;font-size:39px;line-height:1.08;letter-spacing:-.045em;font-weight:720;opacity:0}
+.build-detail{margin-top:20px;color:#bbc3d0;font:23px ui-monospace,monospace}
+.build-resolving{left:30px;top:80px;font-size:39px;line-height:1.08;letter-spacing:-.045em;font-weight:720}
+.resolve-bar{position:absolute;left:30px;right:30px;bottom:28px;height:4px;border-radius:4px;background:rgba(104,160,255,.19);transform-origin:left center;opacity:0}
+.resolve-bar i{display:block;width:100%;height:100%;border-radius:4px;background:#68a0ff;transform-origin:left center}
+.build-electron{left:30px;top:76px}
+.build-electron strong{display:block;font-size:39px;line-height:1.08;letter-spacing:-.045em;font-weight:720}
+.build-electron small{display:block;margin-top:16px;color:#bbc3d0;font:23px ui-monospace,monospace}
+.build-result-copy{left:30px;top:78px}
+.build-result-copy strong{display:block;font-size:39px;line-height:1.08;letter-spacing:-.045em}
+.build-result-copy small{display:block;margin-top:18px;color:#58d9a0;font:24px ui-monospace,monospace}
+.destination-card{left:1510px;width:330px;height:184px;padding:24px 25px;display:flex;align-items:center;gap:20px;overflow:visible}
+.steam-card{top:425px}.itch-card{top:660px}.poki-card{top:850px}
+.destination-logo{width:54px;height:54px;object-fit:contain;flex:0 0 auto}
+.destination-name{font-size:32px;line-height:1;font-weight:720;letter-spacing:-.035em}
+.destination-kind{margin-top:10px;color:#aab2c0;font:16px ui-monospace,monospace;letter-spacing:.06em;text-transform:uppercase}
+.selection-mark{position:absolute;right:20px;top:20px;width:34px;height:34px;border:2px solid #687282;border-radius:50%;display:grid;place-items:center;color:#101720;font-size:21px;font-weight:800;background:transparent;opacity:0}
+.destination-exec{position:absolute;left:26px;top:29px;right:18px;opacity:0}
+.destination-exec-title{position:static;display:block;font-size:34px;font-weight:720;letter-spacing:-.04em;opacity:1}
+.destination-exec-sub{margin-top:12px;color:#c3cad5;font:20px ui-monospace,monospace}
+.delivery-result{left:24px;right:18px;top:32px;font-size:27px;font-weight:700;letter-spacing:-.03em;line-height:1.15}
+.delivery-result span{display:block;margin-top:11px;color:#58d9a0;font:21px ui-monospace,monospace}
+.exec-operation{position:absolute;left:30px;top:27px;font:650 17px ui-monospace,monospace;letter-spacing:.1em;color:#aab3c2;text-transform:uppercase;opacity:0}
+.exec-title{position:absolute;left:30px;top:75px;font-size:35px;line-height:1.1;letter-spacing:-.04em;font-weight:710;opacity:0}
+.state{position:absolute;left:30px;bottom:25px;font:24px ui-monospace,monospace;color:#b8c0ce;opacity:0}
+.state-active{color:#8bb5ff}.state-success{color:#58d9a0}
+.row-progress{position:absolute;left:0;right:0;bottom:0;height:5px;background:rgba(59,130,246,.17);transform:scaleX(0);transform-origin:left center;opacity:0}
 .row-progress i{display:block;width:100%;height:100%;background:#65a0ff;transform:scaleX(0);transform-origin:left center;box-shadow:0 0 13px #3b82f6}
-.success .row-state{color:#58d9a0}
-.build-on-card,.package-on-card,.destination-on-card{position:absolute;left:19px;top:15px;font:600 15px ui-monospace,monospace;letter-spacing:.12em;color:#aab3c2;text-transform:uppercase;opacity:0}
-.destination-on-card{left:17px;top:auto;bottom:14px;font-size:12px}
-.run-caption{position:absolute;left:148px;top:248px;color:#a6aebb;font:17px ui-monospace,monospace;letter-spacing:.08em;opacity:0}
-.result-headline{position:absolute;left:135px;top:188px;font-size:100px;line-height:.9;letter-spacing:-.075em;font-weight:740;opacity:0}
-.result-headline span{display:block;color:#83b0ff}
-.end-headline{position:absolute;left:0;top:607px;width:100%;text-align:center;font-size:54px;font-weight:700;letter-spacing:-.045em;opacity:0}
-.end-kicker{position:absolute;left:0;top:690px;width:100%;text-align:center;color:#83b0ff;font:600 17px ui-monospace,monospace;letter-spacing:.21em;opacity:0}
-.focus-ring{position:absolute;left:1660px;top:198px;width:42px;height:42px;border:2px solid #d9e8ff;border-radius:50%;box-shadow:0 0 0 10px rgba(59,130,246,.16),0 0 30px rgba(59,130,246,.55);opacity:0;z-index:12}
-.small-note{position:absolute;left:145px;bottom:160px;color:#c0c5ce;font:14px ui-monospace,monospace;letter-spacing:.12em;text-transform:uppercase;opacity:0}
+.ready-title,.running-title{position:absolute;left:145px;top:245px;font-size:38px;line-height:1.05;letter-spacing:-.045em;font-weight:700;opacity:0;z-index:8}
+.context-ready,.context-execute{left:515px;top:245px;width:1050px;font-size:30px;color:#c3cad5}
+.running-title{color:#c7d9f9}
+.result-copy{position:absolute;left:155px;top:232px;width:1060px;font-size:65px;line-height:.95;letter-spacing:-.065em;font-weight:750;opacity:0;z-index:8}
+.result-copy span{display:block;color:#83b0ff;margin-top:9px}
+.results-group{position:absolute;opacity:0;z-index:3}
+.artifacts-label,.deliveries-label{font:650 19px ui-monospace,monospace;letter-spacing:.15em;text-transform:uppercase;color:#9eabc0}
+.artifact-caption{position:absolute;left:25px;top:24px;font:650 16px ui-monospace,monospace;letter-spacing:.12em;color:#aab3c2;text-transform:uppercase;opacity:0}
+.artifacts-label{left:290px;top:478px}
+.deliveries-label{left:1260px;top:278px}
+.web-result-copy{left:26px;top:72px;font-size:34px;line-height:1.1;letter-spacing:-.04em;font-weight:710}
+.web-result-copy small{display:block;margin-top:15px;color:#58d9a0;font:22px ui-monospace,monospace}
+.end-card{position:absolute;inset:0;z-index:12;opacity:0;pointer-events:none}
+.end-brand{position:absolute;left:0;top:380px;width:100%;display:flex;align-items:center;justify-content:center;gap:18px;opacity:0}
+.end-brand img{width:64px;height:64px;object-fit:contain}.end-brand span{font-size:46px;font-weight:730;letter-spacing:-.05em}
+.end-headline{position:absolute;left:0;top:510px;width:100%;text-align:center;font-size:52px;font-weight:700;letter-spacing:-.045em;opacity:0}
+.route-line{fill:none;stroke:#68a0ff;stroke-width:5;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 0 8px rgba(59,130,246,.56));opacity:0}
+.route-line.route-desktop{stroke:#91b8ff}
+.route-pulse,.execution-pulse{fill:#d6e5ff;stroke:#4d91ff;stroke-width:3;filter:drop-shadow(0 0 12px #3b82f6);opacity:0}
+.execution-pulse{position:absolute;width:20px;height:20px;border-radius:50%;background:#d6e5ff;border:3px solid #4d91ff;box-shadow:0 0 20px #3b82f6;z-index:7}
 </style>
 <div id="root" data-composition-id="pipelab-continuous" data-width="1920" data-height="1080">
-  <div id="scene-stage" class="clip stage" data-start="0" data-duration="35" data-track-index="0">
+  <div id="scene-stage" class="clip stage" data-start="0" data-duration="45" data-track-index="0">
     <div class="camera" data-layout-allow-overflow>
       <div class="world">
-        <div class="wash"></div><div class="grid"></div>
-        <div class="eyebrow" data-layout-allow-overlap>RELEASE DAY / AFTER THE GAME</div>
-        <div class="headline"><span class="heading-primary" data-layout-allow-overlap data-layout-allow-occlusion>GAME:</span><span class="blue heading-secondary" data-layout-allow-occlusion>FINISHED.</span></div>
-        <div class="echo e1" data-layout-allow-overlap>EXPORT AGAIN</div><div class="echo e2" data-layout-allow-overlap>PACKAGE FOR PC</div><div class="echo e3" data-layout-allow-overlap>ZIP THE BUILD</div><div class="echo e4" data-layout-allow-overlap>UPLOAD FILES</div><div class="echo e5" data-layout-allow-overlap>CHECK THE STORE</div>
-        <div class="app-shell" data-layout-allow-overflow data-layout-allow-occlusion><div class="shell-glow"></div><div class="top-rule"></div></div>
+        <div class="ambient"></div><div class="grid"></div>
+        <div class="opening-copy">
+          <div class="opening-eyebrow">ONE GAME. MANY DESTINATIONS.</div>
+          <div class="opening-headline">Your game is ready.</div>
+        </div>
+        <div class="opening-subline">Now it needs to reach every platform.</div>
+        <div class="context-copy context-organize">One release. <span>Multiple destinations.</span></div>
+        <div class="context-copy context-destinations">Choose where you want to ship.</div>
+        <div class="context-copy context-routes">Pipelab prepares what each destination needs.</div>
+        <div class="context-copy context-ready">Everything is ready.</div>
+        <div class="context-copy context-execute">Build and publish in one run.</div>
+        <div class="app-shell"></div>
+        <svg class="route-map" viewBox="0 0 1920 1080" aria-hidden="true">
+          <defs><marker id="route-arrow" markerWidth="12" markerHeight="12" refX="9" refY="6" orient="auto" markerUnits="userSpaceOnUse"><path d="M1 1 L10 6 L1 11 Z" fill="#8bb5ff"/></marker></defs>
+          <rect class="frame-outline" x="59" y="127" width="1802" height="828" rx="26"/>
+          <path class="route-line route-source-web" marker-end="url(#route-arrow)"/>
+          <path class="route-line route-web-poki" marker-end="url(#route-arrow)"/>
+          <path class="route-line route-web-build route-desktop" marker-end="url(#route-arrow)"/>
+          <path class="route-line route-build-steam route-desktop" marker-end="url(#route-arrow)"/>
+          <path class="route-line route-build-itch route-desktop" marker-end="url(#route-arrow)"/>
+          <circle class="route-pulse" r="11" cx="0" cy="0"/>
+        </svg>
+        <div class="top-rule"></div>
         <div class="brand-lockup"><img src="assets/pipelab-icon.png" alt=""><span class="brand-name">Pipelab</span></div>
         <div class="tabs"><span>Configuration</span><span>Builds</span><span>Artifacts</span><span>Runs</span></div>
-        <div class="project-card">
-          <div class="card-kicker" data-layout-allow-overlap>Construct 3 project</div><div class="project-title" data-layout-allow-overlap>Moonbreak</div><div class="project-files" data-layout-allow-overlap>index.html　 assets/</div>
-          <div class="project-source" data-layout-allow-overlap><img src="assets/construct3.svg" alt=""><span>Construct 3</span></div>
-          <div class="row-state source-state">Waiting</div><div class="row-progress"><i></i></div>
-        </div>
-        <div class="build-card" data-layout-allow-occlusion>
-          <div class="card-kicker" data-layout-allow-overlap>Build</div><div class="build-heading" data-layout-allow-overlap>Build</div><div class="build-detail" data-layout-allow-overlap>Recommended profile</div><div class="build-profile" data-layout-allow-overlap>BUILD PROFILE</div>
-          <div class="row-state build-state">Waiting</div><div class="row-progress"><i></i></div>
-        </div>
-        <div class="package-card">
-          <svg class="package-icon" viewBox="0 0 48 42" fill="none" aria-hidden="true"><path d="M4 11.5h15l4 4h21v22H4z" stroke="#a9b5c7" stroke-width="2.5" stroke-linejoin="round"/><path d="M4 16h40" stroke="#a9b5c7" stroke-width="2.5"/></svg>
-          <div><div class="package-title" data-layout-allow-overlap>Package</div><div class="package-detail" data-layout-allow-overlap>Release artifact</div></div>
-          <div class="row-state package-state">Waiting</div><div class="row-progress"><i></i></div>
-        </div>
-        <div class="destination-card steam-card"><img src="assets/steam.svg" alt=""><div><div class="destination-name" data-layout-allow-overlap>Steam</div><div class="destination-kind" data-layout-allow-overlap>Destination</div></div><div class="row-state steam-state">Waiting</div><div class="row-progress"><i></i></div></div>
-        <div class="destination-card itch-card" data-layout-allow-occlusion><img src="assets/itchio.svg" alt=""><div><div class="destination-name" data-layout-allow-overlap>itch.io</div><div class="destination-kind" data-layout-allow-overlap>Destination</div></div><div class="row-state itch-state">Waiting</div><div class="row-progress"><i></i></div></div>
-        <div class="ship-button">Upload</div>
-        <div class="folder-piece" data-layout-allow-overlap>FOLDERS　 /　 EXPORTS</div><div class="artifact-piece" data-layout-allow-overlap data-layout-allow-occlusion>.ZIP　 .EXE　 BUILD</div><div class="file-mini" data-layout-allow-overlap>game-release.zip<br>Windows build</div>
-        <svg class="route-map" viewBox="0 0 1920 1080" aria-hidden="true">
-          <path class="route-line source-build" d="M680 550 C720 550 750 550 790 550"/>
-          <path class="route-line build-steam" d="M1275 550 C1325 550 1325 443 1395 443"/>
-          <path class="route-line build-itch" d="M1275 550 C1325 550 1325 657 1395 657"/>
-          <circle class="route-pulse" r="11" cx="680" cy="550"/>
-        </svg>
+        <div class="ship-button"><span class="ship-label">Ship</span><span class="run-label">Running</span></div>
         <div class="focus-ring"></div>
-        <div class="small-note">A finished game, ready for players.</div>
+        <div class="ready-title">Ready to ship</div>
+        <div class="running-title">Release running</div>
+
+        <div class="card project-card" id="project-card">
+          <div class="project-main">
+            <div class="card-kicker">YOUR GAME</div>
+            <div class="project-title">Your Game</div>
+            <div class="project-detail">Web project</div>
+            <div class="project-source"><img src="assets/construct3.svg" alt=""><span>Construct 3</span></div>
+          </div>
+          <div class="exec-operation">SOURCE</div>
+          <div class="exec-title">Prepare source</div>
+          <div class="state state-waiting">Waiting</div><div class="state state-active">Preparing…</div><div class="state state-success">✓ Prepared</div>
+          <div class="row-progress"><i></i></div>
+        </div>
+
+        <div class="card web-card" id="web-card">
+          <div class="card-kicker web-kicker">OUTPUT</div>
+          <svg class="web-mark" viewBox="0 0 48 48" fill="none" aria-hidden="true"><rect x="5" y="8" width="38" height="31" rx="5" stroke="currentColor" stroke-width="2.5"/><path d="M5 16h38M13 12h1M18 12h1M23 12h1" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/><path d="M15 25h18M15 31h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          <div class="web-title">Web build</div><div class="web-detail">Browser game</div>
+          <div class="web-route-title">WEB ARTIFACT</div><div class="web-route-detail">Web application directory</div>
+          <div class="exec-operation">WEB OUTPUT</div>
+          <div class="exec-title">Web artifact</div>
+          <div class="state state-waiting">Waiting</div><div class="state state-active">Building…</div><div class="state state-success">✓ Ready</div>
+          <div class="row-progress"><i></i></div>
+          <div class="artifact-caption">ARTIFACT</div><div class="web-result-copy">Web build<small>✓ Ready</small></div>
+        </div>
+
+        <div class="card build-card" id="build-card">
+          <div class="card-kicker build-kicker">DESKTOP OUTPUT</div>
+          <div class="build-heading">Desktop build</div><div class="build-detail">Profile depends on destination</div>
+          <div class="build-heading-generic">Build profile</div>
+          <div class="build-resolving">Resolving…</div>
+          <div class="build-electron"><strong>Electron</strong><small>Windows x64</small></div>
+          <div class="exec-operation">DESKTOP BUILD</div>
+          <div class="exec-title">Electron · Windows x64</div>
+          <div class="state state-waiting">Waiting</div><div class="state state-active">Building…</div><div class="state state-success">✓ Ready</div>
+          <div class="row-progress"><i></i></div>
+          <div class="artifact-caption">ARTIFACT</div><div class="build-result-copy"><strong>Windows x64</strong><small>✓ Ready</small></div>
+          <div class="resolve-bar"><i></i></div>
+        </div>
+
+        <div class="destination-card steam-card" id="steam-card">
+          <img class="destination-logo" src="assets/steam.svg" alt=""><div class="destination-main"><div class="destination-name">Steam</div><div class="destination-kind">Destination</div></div>
+          <div class="selection-mark">✓</div><div class="exec-operation">DELIVERY</div><div class="exec-title">Steam delivery</div>
+          <div class="state state-waiting">Waiting</div><div class="state state-active">Uploading…</div><div class="state state-success">✓ Delivered</div>
+          <div class="row-progress"><i></i></div><div class="delivery-result">Steam<span>✓ Delivered</span></div>
+        </div>
+        <div class="destination-card itch-card" id="itch-card">
+          <img class="destination-logo" src="assets/itchio.svg" alt=""><div class="destination-main"><div class="destination-name">itch.io</div><div class="destination-kind">Destination</div></div>
+          <div class="selection-mark">✓</div><div class="exec-operation">DELIVERY</div><div class="exec-title">itch.io delivery</div>
+          <div class="state state-waiting">Waiting</div><div class="state state-active">Uploading…</div><div class="state state-success">✓ Delivered</div>
+          <div class="row-progress"><i></i></div><div class="delivery-result">itch.io<span>✓ Delivered</span></div>
+        </div>
+        <div class="destination-card poki-card" id="poki-card">
+          <img class="destination-logo" src="assets/poki.ico" alt=""><div class="destination-main"><div class="destination-name">Poki</div><div class="destination-kind">Destination</div></div>
+          <div class="selection-mark">✓</div><div class="exec-operation">DELIVERY</div><div class="exec-title">Poki delivery</div>
+          <div class="state state-waiting">Waiting</div><div class="state state-active">Uploading…</div><div class="state state-success">✓ Delivered</div>
+          <div class="row-progress"><i></i></div><div class="delivery-result">Poki<span>✓ Delivered</span></div>
+        </div>
+        <div class="execution-pulse"></div>
+        <div class="artifacts-label results-group">ARTIFACTS</div>
+        <div class="deliveries-label results-group">DELIVERIES</div>
+        <div class="result-copy"><div>One release.</div><span>Every destination.</span></div>
+        <div class="end-card">
+          <div class="end-brand"><img src="assets/pipelab-icon.png" alt=""><span>Pipelab</span></div>
+          <div class="end-headline">Ship games, not release scripts.</div>
+        </div>
       </div>
     </div>
   </div>
@@ -99,162 +194,206 @@
 <script>
 window.__timelines=window.__timelines||{};
 const tl=gsap.timeline({paused:true});
-tl.addLabel('game-finished',0).addLabel('gather',3.6).addLabel('pipelab',7.2).addLabel('destinations',13).addLabel('build-resolved',17).addLabel('ready',22).addLabel('ship',25).addLabel('execution',26).addLabel('result',31).addLabel('end-card',33);
-const cardBase={
-  project:{x:100,y:570,w:490},
-  build:{x:1000,y:160,w:485},
-  package:{x:770,y:770,w:348},
-  steam:{x:1510,y:425,w:330},
-  itch:{x:1510,y:660,w:330}
+tl.addLabel('intro',0).addLabel('organize',7).addLabel('destinations',12).addLabel('resolveRoutes',17).addLabel('ready',25).addLabel('execution',29).addLabel('results',37).addLabel('end',41);
+gsap.set('.resolve-bar,.resolve-bar i',{scaleX:0});
+const frame={x:58,y:126,w:1804,h:830};
+const base={
+  project:{x:100,y:570},web:{x:700,y:145},build:{x:1000,y:160},
+  steam:{x:1510,y:425},itch:{x:1510,y:660},poki:{x:1510,y:850},ship:{x:1550,y:149}
 };
-const grid={
-  workspace:{project:{x:190,y:412,w:490},build:{x:790,y:412,w:485},steam:{x:1395,y:351,w:330},itch:{x:1395,y:565,w:330}},
-  execution:{project:{x:104,y:400,w:300},build:{x:455,y:400,w:300},package:{x:806,y:400,w:300},steam:{x:1157,y:400,w:300},itch:{x:1508,y:400,w:300}},
-  result:{build:{x:775,y:405,w:485},steam:{x:1295,y:345,w:330},itch:{x:1295,y:555,w:330}}
+const layout={
+  intro:{project:{x:190,y:430,w:520},web:{x:750,y:340,w:410},build:{x:750,y:620,w:410},poki:{x:1330,y:270,w:340},steam:{x:1330,y:480,w:340},itch:{x:1330,y:690,w:340}},
+  workspace:{project:{x:160,y:430,w:385},web:{x:590,y:430,w:385},build:{x:1025,y:575,w:385},poki:{x:1500,y:290,w:300},steam:{x:1500,y:505,w:300},itch:{x:1500,y:700,w:300}},
+  execution:{project:{x:170,y:330,w:500},web:{x:710,y:330,w:500},poki:{x:1250,y:330,w:500},build:{x:170,y:635,w:500},steam:{x:710,y:635,w:500},itch:{x:1250,y:635,w:500}},
+  result:{web:{x:290,y:520,w:430},build:{x:750,y:520,w:430},poki:{x:1260,y:320,w:350},steam:{x:1260,y:530,w:350},itch:{x:1260,y:740,w:350}}
 };
-function placeCard(kind,target,at,duration,ease,extra={}){
-  const base=cardBase[kind];
-  tl.to(`.${kind==='project'?'project':kind}-card`,{x:target.x-base.x,y:target.y-base.y,scale:target.w/base.w,duration,ease,...extra},at);
-}
-tl.set('.brand-lockup',{x:770,y:400,scale:.05,opacity:0},0);
-
-// Establish the finished project first; chores orbit it, then every original object travels inward.
-tl.fromTo('.headline',{opacity:0,y:24},{opacity:1,y:0,duration:.48,ease:'power3.out'},.18);
-tl.fromTo('.project-card',{opacity:0,y:18,scale:.97},{opacity:1,y:0,scale:1,duration:.55,ease:'power3.out'},.32);
-tl.fromTo('.build-card,.package-card,.ship-button,.steam-card,.itch-card,.folder-piece,.artifact-piece,.file-mini',{opacity:0,y:14,scale:.94},{opacity:1,y:0,scale:1,duration:.42,ease:'power3.out',stagger:.11},.82);
-tl.fromTo('.echo',{opacity:0,scale:.86,x:-12},{opacity:.78,scale:1,x:0,duration:.28,ease:'power2.out',stagger:.09},3.15);
-tl.to('.echo',{x:gsap.utils.wrap([28,45,-35,36,-30]),y:gsap.utils.wrap([-22,17,18,-16,26]),rotation:gsap.utils.wrap([-5,4,-3,5,-4]),duration:.38,ease:'power2.inOut',stagger:.045},3.46);
-tl.to('.echo',{x:gsap.utils.wrap([130,-60,550,-430,-300]),y:gsap.utils.wrap([250,-100,-280,290,-240]),scale:.12,opacity:.08,duration:1.05,ease:'power2.in',stagger:.04},4.05);
-tl.to('.echo',{opacity:0,duration:.2,ease:'power1.out'},5.2);
-tl.to('.camera',{scale:1.045,x:-38,y:-20,duration:1.6,ease:'power2.inOut'},3.6);
-tl.to('.wash',{opacity:.92,duration:.7,ease:'power2.out'},3.65);
-tl.to('.project-card',{x:750,y:-90,scale:.68,duration:1.22,ease:'power2.inOut'},3.85);
-tl.to('.build-card',{x:-275,y:250,scale:.62,duration:1.18,ease:'power2.inOut'},3.9);
-tl.to('.package-card',{x:115,y:-285,scale:.62,duration:1.05,ease:'power2.inOut'},3.95);
-tl.to('.ship-button',{x:-585,y:275,scale:.62,duration:1.05,ease:'power2.inOut'},3.98);
-tl.to('.steam-card',{x:-575,y:45,scale:.48,duration:1.05,ease:'power2.inOut'},4.0);
-tl.to('.itch-card',{x:-585,y:-180,scale:.48,duration:1.1,ease:'power2.inOut'},4.02);
-tl.to('.folder-piece',{x:440,y:-300,scale:.52,duration:1,ease:'power2.inOut'},4.03);
-tl.to('.artifact-piece',{x:-380,y:-285,scale:.55,duration:1.05,ease:'power2.inOut'},4.04);
-tl.to('.file-mini',{x:-165,y:-280,scale:.55,duration:1.04,ease:'power2.inOut'},4.05);
-// The Pipelab surface grows at the gather point; the source tile leaves it as the hero object.
-tl.fromTo('.app-shell',{opacity:0,scale:.035},{opacity:1,scale:1,duration:1.38,ease:'power3.out'},5.25);
-tl.fromTo('.shell-glow',{opacity:0,scale:.8},{opacity:.72,scale:1,duration:.72,ease:'power2.out'},6.05);
-tl.to('.headline',{x:-38,y:-55,scale:.3,duration:.62,ease:'power2.inOut'},6.55);
-tl.set('.heading-primary',{textContent:'NEW RELEASE'},7.16);
-tl.set('.heading-secondary',{textContent:''},7.16);
-tl.to('.headline',{x:0,y:90,scale:.34,duration:.5,ease:'power2.out'},7.18);
-tl.to('.eyebrow',{x:-26,y:-110,opacity:0,duration:.3,ease:'power2.inOut'},6.45);
-tl.to('.brand-lockup',{x:0,y:0,scale:1,opacity:1,duration:.9,ease:'power3.out'},6.65);
-tl.to('.tabs',{opacity:1,x:0,duration:.46,ease:'power2.out'},7.15);
-placeCard('project',grid.workspace.project,6.72,1.18,'power2.inOut');
-placeCard('build',grid.workspace.build,6.7,1.15,'power2.inOut');
-tl.set('.build-heading',{textContent:'Build profile'},7.86);
-placeCard('package',{x:420,y:145,w:160},6.72,1.05,'power2.inOut');
-tl.set('.package-title',{textContent:'Artifacts'},7.77);
-tl.to('.package-detail',{opacity:0,duration:.2},7.72);
-tl.to('.ship-button',{x:28,y:-9,scale:1,duration:.98,ease:'power2.inOut'},6.72);
-tl.set('.ship-button',{textContent:'Upload'},7.7);
-placeCard('steam',grid.workspace.steam,6.8,1.04,'power2.inOut');
-placeCard('itch',grid.workspace.itch,6.8,1.08,'power2.inOut');
-tl.to('.folder-piece',{x:450,y:-685,scale:.45,opacity:.5,duration:1.08,ease:'power2.inOut'},6.72);
-tl.to('.artifact-piece',{x:-700,y:-700,scale:.42,opacity:.5,duration:1.08,ease:'power2.inOut'},6.74);
-tl.to('.file-mini',{x:-780,y:-700,scale:.45,opacity:.45,duration:1.08,ease:'power2.inOut'},6.76);
-tl.to('.folder-piece,.artifact-piece,.file-mini',{opacity:0,duration:.28,ease:'power2.out'},8.35);
-tl.fromTo('.top-rule',{scaleX:0},{scaleX:1,duration:.58,ease:'power2.out'},7.25);
-tl.to('.camera',{scale:1.11,x:58,y:38,duration:1.2,ease:'power2.inOut'},7.15);
-tl.to('.camera',{scale:1.07,x:38,y:18,duration:1.2,ease:'power2.inOut'},11.25);
-tl.to('.small-note',{opacity:.8,duration:.3},9.4);
-// The game card remains visible and anchored while the real destination identities arrive.
-placeCard('steam',grid.workspace.steam,13.05,.68,'power3.out');
-placeCard('itch',grid.workspace.itch,13.32,.72,'power3.out');
-tl.to('.camera',{scale:1,x:0,y:0,duration:1.18,ease:'power2.inOut'},13.1);
-tl.to('.small-note',{opacity:0,duration:.22},12.95);
-// Build tile is the missing middle: it changes role in place, expands, then receives the route.
-tl.to('.build-card',{scale:1.08,borderColor:'#68a0ff',boxShadow:'0 0 42px rgba(59,130,246,.32), 0 24px 70px #0007',duration:.55,ease:'power2.out'},16.6);
-tl.set('.build-heading',{textContent:'Electron · Windows x64'},16.83);
-tl.set('.build-detail',{textContent:'Windows desktop artifact'},16.83);
-tl.to('.build-card',{scale:1,borderColor:'#68a0ff',duration:.42,ease:'power2.inOut'},17.16);
-tl.to('.route-line.source-build',{opacity:1,strokeDasharray:300,strokeDashoffset:300,duration:.01},17.35);
-tl.to('.route-line.source-build',{strokeDashoffset:0,duration:.62,ease:'power2.out'},17.37);
-tl.to('.route-pulse',{opacity:1,duration:.14},17.5);
-tl.to('.route-pulse',{attr:{cx:790,cy:550},duration:.46,ease:'none'},17.52);
-tl.to('.route-line.build-steam,.route-line.build-itch',{opacity:1,strokeDasharray:400,strokeDashoffset:400,duration:.01},18.02);
-tl.to('.route-line.build-steam',{strokeDashoffset:0,duration:.62,ease:'power2.out'},18.04);
-tl.to('.route-pulse',{attr:{cx:1395,cy:443},duration:.55,ease:'power2.inOut'},18.1);
-tl.to('.route-line.build-itch',{strokeDashoffset:0,duration:.62,ease:'power2.out'},18.65);
-tl.to('.route-pulse',{attr:{cx:1395,cy:657},duration:.55,ease:'power2.inOut'},18.7);
-tl.to('.route-pulse',{opacity:0,duration:.2},19.3);
-tl.to('.steam-card,.itch-card',{borderColor:'#65a0ff',duration:.3,stagger:.12},19.05);
-tl.to('.route-line',{opacity:.76,duration:.25},19.32);
-tl.to('.camera',{scale:1.035,x:-22,y:-10,duration:1.25,ease:'power2.inOut'},17.15);
-// Pull back and let the very same five pieces regroup into the execution rows.
-tl.to('.camera',{scale:.94,x:0,y:0,duration:1.05,ease:'power2.inOut'},21.45);
-tl.to('.build-profile',{opacity:0,duration:.2},21.65);
-placeCard('project',grid.execution.project,21.75,.9,'power2.inOut');
-placeCard('build',grid.execution.build,21.75,.9,'power2.inOut');
-placeCard('package',grid.execution.package,21.75,.9,'power2.inOut');
-placeCard('steam',grid.execution.steam,21.75,.9,'power2.inOut');
-placeCard('itch',grid.execution.itch,21.75,.9,'power2.inOut');
-tl.to('.route-line',{opacity:0,duration:.32},21.72);
-tl.set('.heading-primary',{textContent:'Ready to ship'},22.35);
-tl.to('.headline',{x:-36,y:90,scale:.44,duration:.4,ease:'power2.out'},22.35);
-tl.to('.ship-button',{scale:1.08,x:28,y:-9,borderColor:'#a7c7ff',boxShadow:'0 0 35px rgba(59,130,246,.42)',duration:.45,ease:'power2.out'},22.45);
-tl.set('.ship-button',{textContent:'Ship'},22.62);
-tl.to('.ship-button',{scale:1,x:28,y:-9,duration:.38,ease:'power2.out'},22.9);
-tl.to('.project-card .row-state,.build-card .row-state,.package-card .row-state,.steam-card .row-state,.itch-card .row-state',{opacity:1,duration:.24,stagger:.06},23.0);
-tl.to('.package-card',{borderColor:'#454c58',duration:.3},23.05);
-tl.to('.focus-ring',{opacity:1,scale:1,duration:.3,ease:'power2.out'},24.15);
-tl.to('.focus-ring',{x:-6,y:-2,duration:.4,ease:'power2.inOut'},24.35);
-tl.to('.focus-ring',{scale:.72,duration:.11,ease:'power2.in'},24.78);
-tl.to('.ship-button',{scale:.91,backgroundColor:'#235ec1',duration:.11,ease:'power2.in'},24.78);
-tl.to('.focus-ring',{scale:1,opacity:0,duration:.2,ease:'power2.out'},24.92);
-tl.to('.ship-button',{scale:.78,x:-82,y:72,opacity:.55,duration:.28,ease:'power2.inOut'},24.92);
-tl.set('.heading-primary',{textContent:'Release running'},25.03);
-tl.to('.ship-button',{opacity:0,scale:.14,x:-100,y:65,duration:.3,ease:'power2.inOut'},25.24);
-
-// Sequential execution. One travelling pulse hands off each state to the next card.
-const steps=[
-  {sel:'.project-card',state:'.source-state',x:254,y:485,start:25.15,dur:.74,label:'Preparing source'},
-  {sel:'.build-card',state:'.build-state',x:605,y:485,start:25.89,dur:1.28,label:'Building'},
-  {sel:'.package-card',state:'.package-state',x:956,y:485,start:27.17,dur:.82,label:'Packaging'},
-  {sel:'.steam-card',state:'.steam-state',x:1307,y:485,start:27.99,dur:1.25,label:'Uploading'},
-  {sel:'.itch-card',state:'.itch-state',x:1658,y:485,start:29.24,dur:1.25,label:'Uploading'}
-];
-steps.forEach((step,i)=>{
-  tl.to('.route-pulse',{opacity:1,attr:{cx:step.x,cy:step.y},duration:i===0?.22:.16,ease:'power2.inOut'},step.start);
-  tl.to(step.sel,{borderColor:'#68a0ff',boxShadow:'0 0 30px rgba(59,130,246,.26), 0 20px 60px #0007',duration:.2},step.start);
-  tl.set(step.state,{textContent:step.label,color:'#8bb5ff'},step.start);
-  tl.to(step.sel+' .row-progress',{scaleX:1,duration:.05},step.start);
-  tl.to(step.sel+' .row-progress i',{scaleX:1,duration:step.dur,ease:'power2.inOut'},step.start+.08);
-  tl.set(step.state,{textContent:'✓ Succeeded',color:'#58d9a0'},step.start+step.dur);
-  tl.to(step.sel,{borderColor:'#58d9a0',boxShadow:'0 0 20px rgba(34,197,94,.16), 0 20px 60px #0007',duration:.2},step.start+step.dur);
+const elements={project:'.project-card',web:'.web-card',build:'.build-card',steam:'.steam-card',itch:'.itch-card',poki:'.poki-card',ship:'.ship-button'};
+Object.entries(layout.intro).forEach(([kind,target])=>{
+  const el=document.querySelector(elements[kind]),origin=base[kind];
+  gsap.set(el,{x:target.x-origin.x,y:target.y-origin.y,scale:target.w/el.offsetWidth});
 });
-tl.to('.route-pulse',{opacity:0,duration:.18},30.72);
-tl.set('.heading-primary',{textContent:'Release complete'},30.72);
-// The successful build row becomes the artifact; delivery rows lift into receipts.
-placeCard('project',{x:800,y:500,w:157},31.0,.74,'power2.inOut',{opacity:0});
-tl.to('.build-profile',{opacity:0,duration:.22},30.92);
-tl.to('.package-detail',{opacity:0,duration:.22},30.92);
-placeCard('build',grid.result.build,31.0,.75,'power2.inOut');
-tl.set('.build-heading',{textContent:'Release 1.0.0'},31.24);
-tl.set('.build-detail',{textContent:'Windows x64 artifact  ✓'},31.24);
-placeCard('package',{x:785,y:414,w:160},31.0,.7,'power2.inOut',{opacity:0});
-placeCard('steam',grid.result.steam,31.0,.72,'power2.inOut');
-placeCard('itch',grid.result.itch,31.0,.72,'power2.inOut');
-tl.set('.heading-primary',{textContent:'Built once.',color:'#f4f4f5'},31.38);
-tl.set('.heading-secondary',{textContent:'Delivered.'},31.38);
-tl.to('.headline',{x:169,y:70,scale:.7,duration:.48,ease:'power2.out'},31.38);
-// The output and two successful receipts converge into the persistent Pipelab mark.
-tl.to('.headline',{x:180,y:300,scale:.54,duration:.86,ease:'power2.inOut'},32.55);
-tl.to('.project-card,.build-card,.package-card,.steam-card,.itch-card',{x:gsap.utils.wrap([810,350,665,1030,1030]),y:gsap.utils.wrap([-8,115,-130,-35,95]),scale:.22,opacity:0,duration:.9,ease:'power2.inOut',stagger:.035},32.58);
-tl.to('.app-shell',{scale:.09,opacity:0,duration:.98,ease:'power2.inOut'},32.62);
-tl.to('.brand-lockup',{x:760,y:330,scale:1.85,duration:.95,ease:'power2.inOut'},32.62);
-tl.to('.tabs,.top-rule,.shell-glow,.route-line,.grid,.folder-piece,.artifact-piece,.file-mini,.wash,.eyebrow',{opacity:0,duration:.4},32.64);
-tl.set('.heading-primary',{textContent:'Ship games,'},33.55);
-tl.set('.heading-secondary',{textContent:'not release scripts.'},33.55);
-tl.to('.headline',{x:614,y:485,scale:.6,opacity:1,duration:.72,ease:'power2.out'},33.55);
-tl.to('.camera',{scale:1,x:0,y:0,duration:.45,ease:'power2.out'},32.8);
+function move(kind,target,at,duration,ease='power2.inOut',extra={}){
+  const selector=elements[kind],el=document.querySelector(selector),origin=base[kind];
+  const scale=target.w/el.offsetWidth;
+  tl.to(selector,{x:target.x-origin.x,y:target.y-origin.y,scale:scale,duration:duration,ease:ease,...extra},at);
+}
+function rect(kind,target){
+  const el=document.querySelector(elements[kind]),scale=target.w/el.offsetWidth;
+  return {x:target.x,y:target.y,w:el.offsetWidth*scale,h:el.offsetHeight*scale};
+}
+function center(kind,target){const r=rect(kind,target);return {x:r.x+r.w/2,y:r.y+r.h/2};}
+function routePath(from,to){
+  const a=rect(from,layout.workspace[from]),b=rect(to,layout.workspace[to]);
+  const ac={x:a.x+a.w/2,y:a.y+a.h/2},bc={x:b.x+b.w/2,y:b.y+b.h/2};
+  const dx=bc.x-ac.x,dy=bc.y-ac.y;
+  if(Math.abs(dx)>=Math.abs(dy)){
+    const sx=dx>=0?a.x+a.w:a.x,ex=dx>=0?b.x:b.x+b.w,sy=ac.y,ey=bc.y;
+    const bend=Math.max(34,Math.abs(ex-sx)*.42)*(dx>=0?1:-1);
+    return 'M '+sx+' '+sy+' C '+(sx+bend)+' '+sy+' '+(ex-bend)+' '+ey+' '+ex+' '+ey;
+  }
+  const sy=dy>=0?a.y+a.h:a.y,ey=dy>=0?b.y:b.y+b.h,sx=ac.x,ex=bc.x;
+  const bend=Math.max(34,Math.abs(ey-sy)*.42)*(dy>=0?1:-1);
+  return 'M '+sx+' '+sy+' C '+sx+' '+(sy+bend)+' '+ex+' '+(ey-bend)+' '+ex+' '+ey;
+}
+const routeDefs=[
+  ['.route-source-web','project','web'],['.route-web-poki','web','poki'],['.route-web-build','web','build'],
+  ['.route-build-steam','build','steam'],['.route-build-itch','build','itch']
+];
+routeDefs.forEach(([selector,from,to])=>{
+  const path=document.querySelector(selector);path.setAttribute('d',routePath(from,to));
+  const length=path.getTotalLength();path.style.strokeDasharray=length;path.style.strokeDashoffset=length;
+});
+const execCenters={};
+Object.keys(layout.execution).forEach(kind=>{execCenters[kind]=center(kind,layout.execution[kind]);});
+tl.set('.frame-outline',{strokeDasharray:document.querySelector('.frame-outline').getTotalLength(),strokeDashoffset:document.querySelector('.frame-outline').getTotalLength()},0);
+
+// 0–7s — one game, then a calm, sequential view of the destinations.
+tl.fromTo('.opening-copy',{opacity:0,y:16},{opacity:1,y:0,duration:.7,ease:'power3.out'},.2);
+move('project',layout.intro.project,.35,.65,'power3.out',{opacity:1});
+tl.fromTo('.opening-subline',{opacity:0,y:10},{opacity:1,y:0,duration:.5,ease:'power2.out'},3.02);
+move('web',layout.intro.web,3.08,.62,'power2.out',{opacity:1});
+move('build',layout.intro.build,3.82,.62,'power2.out',{opacity:1});
+move('steam',layout.intro.steam,4.45,.58,'power2.out',{opacity:1});
+move('itch',layout.intro.itch,5.02,.58,'power2.out',{opacity:1});
+move('poki',layout.intro.poki,5.59,.58,'power2.out',{opacity:1});
+tl.to('.opening-copy,.opening-subline',{opacity:0,y:-8,duration:.32,ease:'power2.inOut'},6.84);
+
+// 7–12s — a restrained Pipelab frame forms around the same objects.
+tl.to('.app-shell',{opacity:1,duration:.72,ease:'power2.out'},7.02);
+tl.to('.frame-outline',{strokeDashoffset:0,duration:1.18,ease:'power2.out'},7.03);
+tl.to('.top-rule',{scaleX:1,opacity:1,duration:.55,ease:'power2.out'},7.52);
+tl.fromTo('.brand-lockup',{opacity:0,y:12},{opacity:1,y:0,duration:.56,ease:'power2.out'},7.46);
+tl.fromTo('.tabs',{opacity:0,y:10},{opacity:1,y:0,duration:.52,ease:'power2.out'},7.68);
+tl.fromTo('.ship-button',{opacity:0,y:-8},{opacity:1,y:0,duration:.42,ease:'power2.out'},7.12);
+tl.fromTo('.context-organize',{opacity:0,y:10},{opacity:1,y:0,duration:.45,ease:'power2.out'},8.08);
+move('project',layout.workspace.project,7.22,1.42,'power2.inOut',{opacity:1});
+move('web',layout.workspace.web,7.28,1.42,'power2.inOut',{opacity:1});
+move('build',layout.workspace.build,7.44,1.42,'power2.inOut',{opacity:1});
+move('steam',layout.workspace.steam,7.54,1.38,'power2.inOut',{opacity:1});
+move('itch',layout.workspace.itch,7.65,1.38,'power2.inOut',{opacity:1});
+move('poki',layout.workspace.poki,7.76,1.38,'power2.inOut',{opacity:1});
+tl.to('.web-title,.web-detail',{opacity:0,duration:.32},8.65);
+tl.to('.web-route-title,.web-route-detail',{opacity:1,duration:.42},8.84);
+tl.to('.build-heading,.build-detail',{opacity:0,duration:.28},8.8);
+tl.to('.build-heading-generic',{opacity:1,duration:.42},9.0);
+tl.to('.context-organize',{opacity:1,duration:.3},9.1);
+
+// 12–17s — explicit destination choice while source and output cards remain anchored.
+tl.to('.context-organize',{opacity:0,y:-8,duration:.24},11.84);
+tl.fromTo('.context-destinations',{opacity:0,y:8},{opacity:1,y:0,duration:.36,ease:'power2.out'},12.02);
+tl.to('.steam-card',{borderColor:'#68a0ff',duration:.24},12.18);
+tl.to('.steam-card .selection-mark',{opacity:1,backgroundColor:'#8bb5ff',borderColor:'#8bb5ff',duration:.2},12.2);
+tl.to('.itch-card',{borderColor:'#68a0ff',duration:.24},13.02);
+tl.to('.itch-card .selection-mark',{opacity:1,backgroundColor:'#8bb5ff',borderColor:'#8bb5ff',duration:.2},13.04);
+tl.to('.poki-card',{borderColor:'#68a0ff',duration:.24},13.86);
+tl.to('.poki-card .selection-mark',{opacity:1,backgroundColor:'#8bb5ff',borderColor:'#8bb5ff',duration:.2},13.88);
+tl.to('.context-destinations',{opacity:1,duration:.28},14.18);
+
+// 17–25s — measured paths reveal the direct web delivery and the resolved desktop branch.
+tl.to('.context-destinations',{opacity:0,y:-8,duration:.24},16.82);
+tl.fromTo('.context-routes',{opacity:0,y:8},{opacity:1,y:0,duration:.36,ease:'power2.out'},17.0);
+function draw(selector,at,duration){const el=document.querySelector(selector);tl.to(selector,{opacity:1,strokeDashoffset:0,duration:duration,ease:'power2.out'},at);}
+draw('.route-source-web',17.26,.56);
+tl.to('.route-pulse',{opacity:1,attr:{cx:center('project',layout.workspace.project).x,cy:center('project',layout.workspace.project).y},duration:.01},17.3);
+tl.to('.route-pulse',{attr:{cx:center('web',layout.workspace.web).x,cy:center('web',layout.workspace.web).y},duration:.55,ease:'none'},17.34);
+draw('.route-web-poki',17.96,.7);
+tl.to('.route-pulse',{attr:{cx:center('poki',layout.workspace.poki).x,cy:center('poki',layout.workspace.poki).y},duration:.7,ease:'none'},18.0);
+draw('.route-web-build',18.78,.66);
+tl.to('.route-pulse',{attr:{cx:center('build',layout.workspace.build).x,cy:center('build',layout.workspace.build).y},duration:.66,ease:'none'},18.82);
+tl.to('.route-pulse',{opacity:0,duration:.16},19.48);
+tl.to('.build-heading-generic',{opacity:0,duration:.18},19.46);
+tl.to('.build-resolving',{opacity:1,duration:.2},19.48);
+tl.to('.build-card',{borderColor:'#68a0ff',boxShadow:'0 0 36px rgba(59,130,246,.28),0 24px 70px #0007',duration:.24},19.48);
+tl.to('.resolve-bar',{opacity:1,scaleX:1,duration:.12},19.5);
+tl.to('.resolve-bar i',{scaleX:1,duration:1.08,ease:'power2.inOut'},19.58);
+tl.to('.build-resolving',{opacity:0,duration:.18},20.72);
+tl.to('.build-electron',{opacity:1,duration:.28},20.78);
+tl.to('.resolve-bar',{opacity:0,duration:.16},20.82);
+tl.to('.build-card',{borderColor:'#68a0ff',duration:.2},20.82);
+draw('.route-build-steam',21.28,.62);
+tl.to('.route-pulse',{opacity:1,attr:{cx:center('steam',layout.workspace.steam).x,cy:center('steam',layout.workspace.steam).y},duration:.62,ease:'none'},21.32);
+draw('.route-build-itch',21.96,.62);
+tl.to('.route-pulse',{attr:{cx:center('itch',layout.workspace.itch).x,cy:center('itch',layout.workspace.itch).y},duration:.62,ease:'none'},22.0);
+tl.to('.route-pulse',{opacity:0,duration:.15},22.66);
+tl.to('.route-line',{opacity:.9,duration:.3},22.7);
+tl.to('.context-routes',{opacity:1,duration:.32},22.76);
+
+// 25–29s — the same six objects settle into two readable execution rows.
+tl.to('.context-routes',{opacity:0,y:-8,duration:.24},24.78);
+tl.to('.route-line',{opacity:0,duration:.28},24.88);
+tl.to('.route-pulse',{opacity:0,duration:.12},24.9);
+tl.fromTo('.ready-title',{opacity:0,y:10},{opacity:1,y:0,duration:.38,ease:'power2.out'},25.04);
+tl.fromTo('.context-ready',{opacity:0,y:8},{opacity:1,y:0,duration:.34,ease:'power2.out'},25.18);
+Object.keys(layout.execution).forEach(kind=>move(kind,layout.execution[kind],25.02,.92,'power2.inOut',{opacity:1}));
+tl.to('.web-route-title,.web-route-detail',{opacity:0,duration:.18},25.12);
+tl.to('.web-card .exec-title',{opacity:1,duration:.22},25.25);
+tl.to('.build-electron',{opacity:0,duration:.18},25.12);
+tl.to('.project-main,.web-kicker,.web-mark,.build-kicker,.build-heading-generic,.steam-card .destination-main,.itch-card .destination-main,.poki-card .destination-main,.destination-logo',{opacity:0,duration:.22},25.2);
+tl.to('.steam-card .selection-mark,.itch-card .selection-mark,.poki-card .selection-mark',{opacity:0,duration:.18},25.12);
+tl.to('.exec-operation,.exec-title,.state-waiting',{opacity:1,duration:.28,stagger:.035},25.68);
+tl.to('.focus-ring',{opacity:1,scale:1,duration:.28,ease:'power2.out'},28.28);
+tl.to('.focus-ring',{scale:.7,duration:.1,ease:'power2.in'},28.66);
+tl.to('.ship-button',{scale:.93,backgroundColor:'#235ec1',duration:.1,ease:'power2.in'},28.66);
+tl.to('.focus-ring',{opacity:0,duration:.18},28.78);
+tl.to('.ship-label',{opacity:0,duration:.15},28.78);
+tl.to('.run-label',{opacity:1,duration:.15},28.82);
+tl.to('.ship-button',{scale:1,backgroundColor:'#3b82f6',duration:.2,ease:'power2.out'},28.82);
+tl.to('.context-ready',{opacity:0,duration:.18},28.88);
+tl.to('.ready-title',{opacity:0,duration:.18},28.88);
+tl.fromTo('.running-title',{opacity:0,y:8},{opacity:1,y:0,duration:.28,ease:'power2.out'},28.95);
+tl.fromTo('.context-execute',{opacity:0,y:8},{opacity:1,y:0,duration:.28,ease:'power2.out'},29.02);
+
+// 29–37s — each operation completes before the traveling focus moves to the next.
+const steps=[
+  {kind:'project',op:'Prepare source',start:29.12,duration:.94},
+  {kind:'web',op:'Build web artifact',start:30.14,duration:1.02},
+  {kind:'poki',op:'Poki delivery',start:31.26,duration:1.0},
+  {kind:'build',op:'Electron · Windows x64',start:32.36,duration:1.36},
+  {kind:'steam',op:'Steam delivery',start:33.82,duration:1.18},
+  {kind:'itch',op:'itch.io delivery',start:35.10,duration:1.35}
+];
+const first=steps[0],firstPoint=execCenters[first.kind];
+tl.set('.execution-pulse',{x:firstPoint.x-10,y:firstPoint.y-10,opacity:0},29.05);
+steps.forEach((step,index)=>{
+  const selector=elements[step.kind],point=execCenters[step.kind];
+  if(index===0)tl.to('.execution-pulse',{opacity:1,duration:.18},step.start);
+  else tl.to('.execution-pulse',{x:point.x-10,y:point.y-10,duration:.22,ease:'power2.inOut'},step.start);
+  tl.to(selector,{borderColor:'#68a0ff',boxShadow:'0 0 30px rgba(59,130,246,.3),0 22px 60px #0007',duration:.18},step.start);
+  tl.to(selector+' .state-waiting',{opacity:0,duration:.12},step.start);
+  tl.to(selector+' .state-active',{opacity:1,duration:.12},step.start);
+  tl.to(selector+' .row-progress',{opacity:1,scaleX:1,duration:.12},step.start);
+  tl.to(selector+' .row-progress i',{scaleX:1,duration:step.duration,ease:'power2.inOut'},step.start+.04);
+  tl.to(selector+' .state-active',{opacity:0,duration:.12},step.start+step.duration);
+  tl.to(selector+' .state-success',{opacity:1,duration:.14},step.start+step.duration);
+  tl.to(selector,{borderColor:'#58d9a0',boxShadow:'0 0 20px rgba(34,197,94,.17),0 22px 60px #0007',duration:.18},step.start+step.duration);
+});
+tl.to('.execution-pulse',{opacity:0,duration:.18},36.5);
+tl.to('.context-execute,.running-title',{opacity:0,duration:.2},36.76);
+tl.to('.run-label',{opacity:0,duration:.18},36.82);
+tl.to('.ship-button',{opacity:.78,duration:.18},36.82);
+
+// 37–41s — successful output objects become two artifacts and three delivery receipts.
+tl.fromTo('.result-copy',{opacity:0,y:10},{opacity:1,y:0,duration:.42,ease:'power2.out'},37.0);
+tl.to('.artifacts-label',{opacity:1,duration:.28},37.08);
+tl.to('.deliveries-label',{opacity:1,duration:.28},37.08);
+tl.to('.project-card',{opacity:0,y:10,duration:.45,ease:'power2.inOut'},37.05);
+move('web',layout.result.web,37.02,.6,'power2.inOut',{opacity:1});
+move('build',layout.result.build,37.02,.6,'power2.inOut',{opacity:1});
+move('poki',layout.result.poki,37.02,.62,'power2.inOut',{opacity:1});
+move('steam',layout.result.steam,37.02,.62,'power2.inOut',{opacity:1});
+move('itch',layout.result.itch,37.02,.62,'power2.inOut',{opacity:1});
+tl.to('.exec-operation,.exec-title,.state-success,.row-progress,.destination-main',{opacity:0,duration:.18},37.08);
+tl.to('.web-result-copy,.build-result-copy,.artifact-caption,.delivery-result',{opacity:1,duration:.32,stagger:.04},37.32);
+tl.to('.context-ready',{opacity:0,duration:.16},37.08);
+tl.to('.ship-button,.top-rule,.brand-lockup,.tabs',{opacity:0,duration:.4},40.72);
+tl.to('.frame-outline,.app-shell',{opacity:0,duration:.42},40.72);
+tl.to('.result-copy,.artifacts-label,.deliveries-label,.artifact-caption,.web-result-copy,.build-result-copy,.delivery-result',{opacity:0,y:-7,duration:.42,ease:'power2.inOut',stagger:.025},41.02);
+tl.to('.web-card,.build-card,.poki-card,.steam-card,.itch-card',{opacity:0,scale:0.96,y:-8,duration:.44,ease:'power2.inOut',stagger:.025},41.02);
+
+// 41–45s — separate, nearly static brand lockup; no text morph or large travel.
+tl.to('.end-card',{opacity:1,duration:.01},41.78);
+tl.fromTo('.end-brand',{opacity:0,y:12},{opacity:1,y:0,duration:.5,ease:'power2.out'},42.0);
+tl.fromTo('.end-headline',{opacity:0,y:12},{opacity:1,y:0,duration:.5,ease:'power2.out'},42.24);
 window.__timelines['pipelab-continuous']=tl;
 </script>
 </template>

@@ -8,7 +8,7 @@ The commercial must feel like one continuous piece of motion, not a succession o
 
 Do not add more visual complexity. Improve clarity, pacing, hierarchy and product accuracy.
 
-☐ 1. REPLACE THE INTRO COMPLETELY
+☑ 1. REPLACE THE INTRO COMPLETELY
 
 Do not use:
 
@@ -64,7 +64,7 @@ Do not immediately explain Pipelab.
 
 Let the problem exist for a moment first.
 
-☐ 2. SLOW THE GLOBAL PACING
+☑ 2. SLOW THE GLOBAL PACING
 
 Increase the commercial from 35 seconds to approximately 40–45 seconds.
 
@@ -102,7 +102,7 @@ Brand ending.
 
 Avoid having a major new concept every 2 seconds.
 
-☐ 3. ADD SHORT DESCRIPTIVE COPY
+☑ 3. ADD SHORT DESCRIPTIVE COPY
 
 The video currently relies too heavily on the viewer understanding the UI.
 
@@ -142,7 +142,7 @@ The descriptive copy must support what is visibly happening at that exact moment
 
 Never display marketing copy unrelated to the current visual action.
 
-☐ 4. USE “YOUR GAME” EVERYWHERE
+☑ 4. USE “YOUR GAME” EVERYWHERE
 
 Remove:
 
@@ -164,7 +164,7 @@ Construct 3
 
 The commercial should demonstrate Pipelab rather than advertise a fictional game.
 
-☐ 5. KEEP “BUILD PROFILE” GENERIC FIRST
+☑ 5. KEEP “BUILD PROFILE” GENERIC FIRST
 
 Do not show Electron immediately.
 
@@ -203,7 +203,7 @@ The Build Profile card itself should remain in place and transform into the Elec
 
 Do not replace it with an unrelated new card.
 
-☐ 6. ADD THE MISSING WEB ARTIFACT PATH
+☑ 6. ADD THE MISSING WEB ARTIFACT PATH
 
 The current commercial incorrectly makes Electron look like the only output.
 
@@ -236,7 +236,7 @@ It is a conceptual release route visualization inside the commercial.
 
 Use cards and spatial relationships, not graph-editor nodes.
 
-☐ 7. ADD POKI AS A DESTINATION
+☑ 7. ADD POKI AS A DESTINATION
 
 Poki is currently missing and this makes the release story incomplete.
 
@@ -262,7 +262,7 @@ That is a much stronger product story than:
 
 Your Game → Electron → everything.
 
-☐ 8. MAKE THE RELEASE ROUTES THE HERO MOMENT
+☑ 8. MAKE THE RELEASE ROUTES THE HERO MOMENT
 
 Around 17–25 seconds, hold the composition long enough for the user to understand it.
 
@@ -308,7 +308,7 @@ Do not immediately move into the next sequence.
 
 Give the viewer approximately 2 seconds to absorb it.
 
-☐ 9. REMOVE THE ARTIFACTS BLOCK FROM THE ROUTE GRAPH
+☑ 9. REMOVE THE ARTIFACTS BLOCK FROM THE ROUTE GRAPH
 
 The current animation moves the Package/Artifacts card into the main route visualization.
 
@@ -343,7 +343,7 @@ Windows x64 build
 
 Do not put an “Artifacts” navigation-style card in the middle of the release path.
 
-☐ 10. REMOVE THE WEIRD CAMERA ZOOMS
+☑ 10. REMOVE THE WEIRD CAMERA ZOOMS
 
 The current camera regularly scales between roughly 0.94, 1.00, 1.035, 1.07 and 1.11.
 
@@ -377,7 +377,7 @@ Do not zoom simply because the timeline enters a new section.
 
 The interface should feel physically stable.
 
-☐ 11. MAKE THE PIPELАB REVEAL CALMER
+☑ 11. MAKE THE PIPELАB REVEAL CALMER
 
 The current “everything gets sucked into a tiny point and the app explodes outward” idea is visually clever but too aggressive.
 
@@ -405,7 +405,7 @@ Not:
 
 Prefer choreography over spectacle.
 
-☐ 12. CLEAN UP THE HEADER
+☑ 12. CLEAN UP THE HEADER
 
 Once inside Pipelab:
 
@@ -432,7 +432,7 @@ Ship
 
 Use the real Pipelab terminology consistently.
 
-☐ 13. REWORK READY TO SHIP
+☑ 13. REWORK READY TO SHIP
 
 After the release paths are resolved, the objects should smoothly reorganize into an execution view.
 
@@ -467,7 +467,7 @@ If the number of cards makes the horizontal row too dense, use two visually rela
 
 Readability is more important than mathematical symmetry.
 
-☐ 14. KEEP EXECUTION SEQUENTIAL AND SLOW
+☑ 14. KEEP EXECUTION SEQUENTIAL AND SLOW
 
 This part of the current version works conceptually.
 
@@ -507,7 +507,7 @@ Status text must remain readable.
 
 Avoid tiny Waiting / Building / Succeeded labels.
 
-☐ 15. MAKE ARTIFACTS APPEAR WHERE THEY ACTUALLY MATTER
+☑ 15. MAKE ARTIFACTS APPEAR WHERE THEY ACTUALLY MATTER
 
 After the run completes:
 
@@ -542,7 +542,7 @@ Rather than:
 
 “Artifacts is another mysterious node in my release.”
 
-☐ 16. REWORK THE RESULT MESSAGE
+☑ 16. REWORK THE RESULT MESSAGE
 
 Potential result copy:
 
@@ -565,7 +565,7 @@ Choose the wording that best matches the final visual composition.
 
 Do not force “Built once” if the visualization explicitly demonstrates both a web artifact and an Electron desktop build.
 
-☐ 17. COMPLETELY FIX THE FINAL TEXT TRANSITION
+☑ 17. COMPLETELY FIX THE FINAL TEXT TRANSITION
 
 The current ending changes textContent inside the existing headline while it is moving/scaling.
 
@@ -621,7 +621,7 @@ No changing textContent while animated.
 
 Hold the final frame for at least 2 seconds.
 
-☐ 18. KEEP THE FINAL BRAND MOMENT SIMPLE
+☑ 18. KEEP THE FINAL BRAND MOMENT SIMPLE
 
 The commercial spends 40+ seconds explaining the product.
 
@@ -643,7 +643,7 @@ Nothing else.
 
 Let it breathe.
 
-☐ 19. TECHNICAL CLEANUP OF THE EXISTING IMPLEMENTATION
+☑ 19. TECHNICAL CLEANUP OF THE EXISTING IMPLEMENTATION
 
 Do not rebuild the project architecture.
 
@@ -684,7 +684,7 @@ end-card headline
 
 This will make transitions much cleaner.
 
-☐ 20. REMOVE CAMERA MAGIC NUMBERS
+☑ 20. REMOVE CAMERA MAGIC NUMBERS
 
 The current timeline contains camera states such as:
 
@@ -709,7 +709,7 @@ scale around 1.03–1.05 on the OBJECT itself
 
 Do not make the entire application breathe in and out.
 
-☐ 21. DERIVE ROUTES FROM CARD GEOMETRY
+☑ 21. DERIVE ROUTES FROM CARD GEOMETRY
 
 Do not keep hardcoded connector coordinates that become wrong when the layout changes.
 
@@ -729,7 +729,7 @@ Connectors should start/end at actual card boundaries and vertical centerlines.
 
 When a layout coordinate changes, the routes should stay aligned automatically.
 
-☐ 22. UPDATE THE DOCUMENTATION BEFORE RENDERING
+☑ 22. UPDATE THE DOCUMENTATION BEFORE RENDERING
 
 Update BRIEF.md and MOTION-STORYBOARD.md so Codex/HyperFrames are not working from contradictory requirements.
 
@@ -757,7 +757,7 @@ Remove the obsolete:
 
 and any storyboard instructions that no longer match the final concept.
 
-☐ 23. FINAL MUTED-PLAYBACK TEST
+☑ 23. FINAL MUTED-PLAYBACK TEST
 
 Before considering the commercial finished, watch it with no sound.
 
@@ -787,7 +787,7 @@ Done.
 
 If any of those ideas are unclear without sound, refine that section before adding more visual effects.
 
-☐ 24. FINAL POLISH TEST
+☑ 24. FINAL POLISH TEST
 
 Check every frozen keyframe for:
 
