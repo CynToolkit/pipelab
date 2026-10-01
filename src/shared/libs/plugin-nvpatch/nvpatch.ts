@@ -11,6 +11,9 @@ export const NVPatch = createAction({
   id: ID,
   name: 'Patch binary',
   description: '',
+  deprecated: true,
+  deprecatedMessage:
+    'Enable Patch executable in Electron Package app with configuration, or Configure Electron, and remove this NVPatch step. Existing NVPatch workflows remain supported.',
   icon: '',
   displayString: "`Patch binary ${fmt.param(params['input'], 'primary')}`",
   meta: {},
