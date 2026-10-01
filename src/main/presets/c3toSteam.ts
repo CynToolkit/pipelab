@@ -185,6 +185,10 @@ export const c3toSteamPreset: PresetFn = async () => {
               editor: 'simple',
               value: 'false'
             },
+            patchExecutable: {
+              editor: 'simple',
+              value: 'false'
+            },
             websocketApi: {
               editor: 'simple',
               value: '[]'

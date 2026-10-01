@@ -17,6 +17,7 @@ import { app } from 'electron'
 import { detectRuntime } from '@@/plugins'
 import { dirname } from 'node:path'
 import * as esbuild from 'esbuild'
+import { patchExecutableWithGpupatch } from './gpupatch'
 
 // TODO: https://js.electronforge.io/modules/_electron_forge_core.html
 
@@ -329,6 +330,18 @@ export const configureParams = {
     description:
       'Enabling this forces the app to always use the high-performance GPU, which can improve rendering but may increase power consumption.',
     label: 'Force high performance GPU',
+    value: false,
+    control: {
+      type: 'boolean'
+    }
+  },
+
+  patchExecutable: {
+    required: false,
+    description:
+      'Patch the packaged Windows executable with gpupatch to request high-performance discrete GPU usage. Applies to Package app actions.',
+    label: 'Patch executable',
+    platforms: ['win32'],
     value: false,
     control: {
       type: 'boolean'
@@ -878,6 +891,9 @@ export const forge = async (
         }
       )
     } catch (e) {
+      if (action === 'package' && completeConfiguration.patchExecutable) {
+        throw e
+      }
       console.error('e', e)
     }
 
@@ -887,13 +903,23 @@ export const forge = async (
         finalPlatform as NodeJS.Platform,
         finalArch as NodeJS.Architecture
       )
-      const binName = getBinName(completeConfiguration.name)
+      const binName =
+        finalPlatform === 'win32'
+          ? `${completeConfiguration.name}.exe`
+          : getBinName(completeConfiguration.name)
 
       const output = join(destinationFolder, 'out', outName)
+      const binary = join(output, binName)
+      if (completeConfiguration.patchExecutable) {
+        await patchExecutableWithGpupatch(binary, finalPlatform as NodeJS.Platform, {
+          log,
+          abortSignal
+        })
+      }
       setOutput('output', output)
       return {
         folder: output,
-        binary: join(output, binName)
+        binary
       }
     } else {
       const output = join(destinationFolder, 'out', 'make')
@@ -904,6 +930,9 @@ export const forge = async (
       }
     }
   } catch (e) {
+    if (action === 'package' && completeConfiguration.patchExecutable) {
+      throw e
+    }
     if (e instanceof Error) {
       if (e.name === 'RequestError') {
         log('Request error')

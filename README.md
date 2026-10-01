@@ -14,13 +14,37 @@ A visual tool to create task automation workflows.
 
 # Getting Started
 
+## Patch a packaged Windows executable
+
+Enable **Patch executable** in Electron's **Package app with configuration** action
+to patch its Windows executable with [gpupatch](https://github.com/CynToolkit/gpupatch).
+For workflows using **Configure Electron** followed by **Package app**, enable the
+same option in **Configure Electron**. The option defaults to off.
+
+Patching requests high-performance NVIDIA or AMD discrete GPU usage on Windows
+laptops. It runs after packaging and before the output folder is published. It
+applies only to Package app actions; **Create Installer** and **Preview app** do not
+apply it. Non-Windows targets skip patching with a log message.
+
+Pipelab downloads gpupatch v0.2.1 on first use and caches the matching host binary.
+Supported hosts are Windows x64, Linux x64, and macOS x64 or arm64. A supported host
+can patch a Windows target; .NET is not required. Download or patch failures fail
+the packaging action, and failed or cancelled patches preserve the original file.
+
+The standalone **NVPatch / Patch binary** action is deprecated. To migrate, enable
+**Patch executable** in the Electron packaging configuration, then remove the
+separate NVPatch step. Existing NVPatch workflows remain available with their
+existing .NET requirements.
+
 # Making a release
+
 ```
 pnpm changeset version
 pnpm changeset tag
 ```
 
 # Architecture
+
 ```mermaid
 graph TD
     classDef pipelab fill:#0096FF,stroke:#333,stroke-width:4px;
@@ -78,7 +102,9 @@ graph TD
 ```
 
 # Development
+
 ## Enable source maps
+
 ```bash
 NODE_OPTIONS=--enable-source-maps pnpm xxx
 ```
