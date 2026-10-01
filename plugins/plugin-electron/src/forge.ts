@@ -23,6 +23,7 @@ import { platform as osPlatform, arch as osArch } from "node:os";
 import { kebabCase } from "change-case";
 import semver from "semver";
 import { pathToFileURL } from "node:url";
+import { patchExecutableWithGpupatch } from "./gpupatch";
 
 // TODO: https://js.electronforge.io/modules/_electron_forge_core.html
 
@@ -340,6 +341,13 @@ export const configureParams = {
       type: "boolean",
     },
   },
+  patchExecutable: createBooleanParam(false, {
+    required: false,
+    label: "Patch executable",
+    platforms: ["win32"],
+    description:
+      "Patch the packaged Windows executable with gpupatch to request the high-performance GPU.",
+  }),
 
   // websocket apis
   websocketApi: {
@@ -831,6 +839,19 @@ export const forge = async (
           if (!existsSync(outDir)) {
             throw new Error("Electron Forge completed without producing an output directory");
           }
+          if (action === "package" && completeConfiguration.patchExecutable) {
+            const outName = outFolderName(
+              completeConfiguration.name,
+              finalPlatform as NodeJS.Platform,
+              finalArch as NodeJS.Architecture,
+            );
+            const binary = join(outDir, outName, getBinName(completeConfiguration.name, finalPlatform));
+            await patchExecutableWithGpupatch(binary, finalPlatform as NodeJS.Platform, {
+              context,
+              log,
+              abortSignal,
+            });
+          }
           await cp(outDir, join(cwd, "out"), { recursive: true });
         } finally {
           process.noAsar = originalNoAsar;
@@ -843,7 +864,7 @@ export const forge = async (
           finalPlatform as NodeJS.Platform,
           finalArch as NodeJS.Architecture,
         );
-        const binName = getBinName(completeConfiguration.name);
+        const binName = getBinName(completeConfiguration.name, finalPlatform);
 
         const output = join(cwd, "out", outName);
         if (!existsSync(output)) {

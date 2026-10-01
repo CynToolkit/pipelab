@@ -32,7 +32,8 @@
     "typecheck": "tsc -b",
     "lint": "oxlint .",
     "build": "tsdown",
-    "test": "vitest run -c tests/e2e/vitest.config.mts"
+    "test": "pnpm test:unit && vitest run -c tests/e2e/vitest.config.mts",
+    "test:unit": "vitest run -c vitest.unit.config.mts"
   },
   "dependencies": {
     "@pipelab/constants": "workspace:*",

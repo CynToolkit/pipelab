@@ -4,7 +4,6 @@
 "@pipelab/plugin-electron": major
 "@pipelab/plugin-discord": major
 "@pipelab/plugin-netlify": major
-"@pipelab/plugin-nvpatch": major
 "@pipelab/asset-electron": major
 "@pipelab/plugin-minify": major
 "@pipelab/plugin-system": major

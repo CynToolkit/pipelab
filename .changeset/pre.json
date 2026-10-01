@@ -25,7 +25,6 @@
     "@pipelab/plugin-itch": "0.9.9",
     "@pipelab/plugin-minify": "0.9.9",
     "@pipelab/plugin-netlify": "0.9.9",
-    "@pipelab/plugin-nvpatch": "0.9.9",
     "@pipelab/plugin-poki": "0.9.9",
     "@pipelab/plugin-steam": "0.9.9",
     "@pipelab/plugin-system": "0.9.9",
