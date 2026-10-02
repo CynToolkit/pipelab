@@ -7,7 +7,6 @@ export const DEFAULT_PLUGIN_IDS = [
   "electron",
   "discord",
   "poki",
-  "nvpatch",
   "netlify",
 ];
 

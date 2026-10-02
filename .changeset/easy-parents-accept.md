@@ -4,7 +4,6 @@
 "@pipelab/plugin-electron": patch
 "@pipelab/plugin-discord": patch
 "@pipelab/plugin-netlify": patch
-"@pipelab/plugin-nvpatch": patch
 "mini-c3-electron": patch
 "@pipelab/asset-electron": patch
 "@pipelab/plugin-minify": patch

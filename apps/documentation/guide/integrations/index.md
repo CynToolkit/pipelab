@@ -40,7 +40,6 @@ Pipelab; see [Folder and ZIP providers](./folder-zip). Provider details:
 | Discord | Package and preview a Discord Activity | [Discord Activity](./discord-activity) |
 | Netlify | Build Netlify site, Upload to Netlify | [Netlify](./netlify) |
 | Minify | Minify code, Minify images | [Minify](./minify) |
-| NVPatch | Patch binary | [NVPatch](./nvpatch) |
 
 Construct, Godot, Steam, itch.io, and Poki also register legacy pipeline tasks;
 their provider pages describe the Release workflow surface and call out task

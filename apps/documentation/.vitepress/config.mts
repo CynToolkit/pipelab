@@ -51,7 +51,6 @@ export default defineConfig({
             { text: 'System actions', link: '/guide/integrations/system' },
             { text: 'Minify', link: '/guide/integrations/minify' },
             { text: 'Netlify', link: '/guide/integrations/netlify' },
-            { text: 'NVPatch', link: '/guide/integrations/nvpatch' },
             { text: 'Publishing overview', link: '/guide/publishing/' },
             { text: 'Steam', link: '/guide/publishing/steam' },
             { text: 'itch.io', link: '/guide/publishing/itch' },

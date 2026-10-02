@@ -118,7 +118,6 @@ const getFallbackIcon = (name: string) => {
   if (n.includes("construct")) return "pi pi-clone";
   if (n.includes("electron")) return "pi pi-desktop";
   if (n.includes("poki")) return "pi pi-globe";
-  if (n.includes("nvpatch")) return "pi pi-shield";
   if (n.includes("tauri")) return "pi pi-box";
   if (n.includes("minify")) return "pi pi-compress";
   if (n.includes("netlify")) return "pi pi-cloud";

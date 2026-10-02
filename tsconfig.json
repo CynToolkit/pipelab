@@ -18,7 +18,6 @@
     { "path": "./plugins/plugin-itch" },
     { "path": "./plugins/plugin-minify" },
     { "path": "./plugins/plugin-netlify" },
-    { "path": "./plugins/plugin-nvpatch" },
     { "path": "./plugins/plugin-poki" },
     { "path": "./plugins/plugin-steam" },
     { "path": "./plugins/plugin-system" },
