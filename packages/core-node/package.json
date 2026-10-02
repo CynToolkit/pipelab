@@ -43,7 +43,6 @@
     "@pipelab/plugin-itch": "workspace:*",
     "@pipelab/plugin-minify": "workspace:*",
     "@pipelab/plugin-netlify": "workspace:*",
-    "@pipelab/plugin-nvpatch": "workspace:*",
     "@pipelab/plugin-poki": "workspace:*",
     "@pipelab/plugin-steam": "workspace:*",
     "@pipelab/plugin-system": "workspace:*",

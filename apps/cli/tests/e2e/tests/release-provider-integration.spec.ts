@@ -102,7 +102,7 @@ describe("release provider integration wiring", () => {
           type: "desktop",
           engine: "@pipelab/plugin-electron/producer",
           enabled: true,
-          config: {},
+          config: { patchExecutable: true },
           targets: [{ id: "windows-x64", enabled: true, config: {} }],
         },
       ],
@@ -137,7 +137,11 @@ describe("release provider integration wiring", () => {
       stepId: "construct-source-extract",
       artifact: "output",
     });
-    expect(electronStep?.with).toMatchObject({ platform: "win32", arch: "x64" });
+    expect(electronStep?.with).toMatchObject({
+      platform: "win32",
+      arch: "x64",
+      patchExecutable: true,
+    });
     expect(steamStep?.artifactInputs?.folder).toEqual({
       stepId: "electron-windows-x64",
       artifact: "electron-build",

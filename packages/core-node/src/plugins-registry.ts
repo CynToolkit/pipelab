@@ -10,7 +10,6 @@ import steamPlugin from "@pipelab/plugin-steam";
 import itchPlugin from "@pipelab/plugin-itch";
 import minifyPlugin from "@pipelab/plugin-minify";
 import netlifyPlugin from "@pipelab/plugin-netlify";
-import nvpatchPlugin from "@pipelab/plugin-nvpatch";
 import pokiPlugin from "@pipelab/plugin-poki";
 import tauriPlugin from "@pipelab/plugin-tauri";
 import godotPlugin from "@pipelab/plugin-godot";
@@ -28,7 +27,6 @@ export const bundledPlugins: RendererPluginDefinition[] = [
   itchPlugin,
   minifyPlugin,
   netlifyPlugin,
-  nvpatchPlugin,
   pokiPlugin,
   tauriPlugin,
   godotPlugin,
