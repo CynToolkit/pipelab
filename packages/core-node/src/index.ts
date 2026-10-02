@@ -7,10 +7,6 @@ export {
   setupSettingsConfigFile,
   setupConnectionsConfigFile,
   setupProjectsConfigFile,
-  setupPipelineConfigFileByName,
-  setupPipelineConfigFileByPath,
-  deletePipelineConfigFileByName,
-  deletePipelineConfigFileByPath,
   deleteWorkflowConfigFileByName,
 } from "./config";
 export * from "./paths";
@@ -20,7 +16,6 @@ export * from "./plugins-registry";
 export * from "./utils/remote";
 export * from "./utils/fs-extras";
 export * from "./types/runner";
-export * from "./runner";
 export * from "./workflow-tasks";
 export * from "./workflow-tasks/filesystem";
 export * from "./release/builtins";

@@ -12,7 +12,7 @@
         <div>
           <h3>Import Data from {{ report?.sourceChannel || "Pipelab" }}</h3>
           <p class="description">
-            Select the pipelines and settings you want to import into your current workspace.
+            Select settings, connections, or project metadata to import into your current workspace.
           </p>
         </div>
       </div>
@@ -146,10 +146,10 @@
             </div>
           </div>
 
-          <!-- Section 3: Projects & Pipelines -->
+          <!-- Section 3: Projects -->
           <div v-if="report && report.projects.length > 0" class="projects-section">
             <div class="flex align-items-center justify-content-between mb-2">
-              <h4 class="section-title mb-0">Projects & Pipelines</h4>
+              <h4 class="section-title mb-0">Projects</h4>
               <span v-if="!report.projectsImportable" class="error-badge small text-xs"
                 >⚠️ Projects version newer (cannot import)</span
               >
@@ -196,9 +196,6 @@
                   <div class="flex-1">
                     <span class="font-bold flex align-items-center gap-2">
                       📁 Project: {{ proj.name }}
-                      <span v-if="projectOverwrites(proj)" class="warning-badge small"
-                        >⚠️ Overwrites Existing</span
-                      >
                     </span>
                     <p v-if="proj.description" class="text-xs text-muted mb-0">
                       {{ proj.description }}
@@ -206,56 +203,6 @@
                   </div>
                 </div>
 
-                <!-- Pipelines inside project -->
-                <div class="pipelines-list flex flex-column pl-5 pr-3 py-2 border-top">
-                  <div
-                    v-for="pipe in proj.pipelines"
-                    :key="pipe.id"
-                    class="pipeline-item flex align-items-start gap-3 py-2"
-                  >
-                    <Checkbox
-                      :model-value="selectedPipelines.includes(pipe.id)"
-                      binary
-                      :disabled="!report.projectsImportable"
-                      @update:model-value="togglePipeline(proj, pipe, $event)"
-                    />
-                    <div class="flex-1 flex flex-column">
-                      <span class="pipeline-name flex align-items-center gap-2">
-                        ⚡ {{ pipe.name }}
-                        <span v-if="pipe.existsInBeta" class="warning-badge small text-xs"
-                          >⚠️ Overwrites Current</span
-                        >
-                        <span v-else class="new-badge small text-xs">New</span>
-                      </span>
-                      <p v-if="pipe.description" class="text-xs text-muted mb-1">
-                        {{ pipe.description }}
-                      </p>
-
-                      <!-- Timestamps -->
-                      <div class="timestamp-comparison flex align-items-center gap-2 text-xs">
-                        <span
-                          >{{ report.sourceChannel }}:
-                          <span class="time-val">{{
-                            formatTime(pipe.lastModifiedStable)
-                          }}</span></span
-                        >
-                        <span v-if="pipe.existsInBeta" class="separator">|</span>
-                        <span v-if="pipe.existsInBeta"
-                          >{{ report.targetChannel }}:
-                          <span class="time-val">{{
-                            formatTime(pipe.lastModifiedBeta)
-                          }}</span></span
-                        >
-                      </div>
-                    </div>
-                  </div>
-                  <div
-                    v-if="proj.pipelines.length === 0"
-                    class="py-2 text-xs text-center text-muted"
-                  >
-                    No pipelines in this project
-                  </div>
-                </div>
               </div>
             </div>
           </div>
@@ -322,15 +269,13 @@ const report = ref<StableDataReport | null>(null);
 const migrateSettings = ref(false);
 const migrateConnections = ref(false);
 const selectedProjects = ref<string[]>([]);
-const selectedPipelines = ref<string[]>([]);
 const loading = ref(false);
 
 const hasSelection = computed(() => {
   return (
     migrateSettings.value ||
     migrateConnections.value ||
-    selectedProjects.value.length > 0 ||
-    selectedPipelines.value.length > 0
+    selectedProjects.value.length > 0
   );
 });
 
@@ -355,10 +300,6 @@ onMounted(() => {
   loadReport();
 });
 
-const projectOverwrites = (proj: any) => {
-  return proj.pipelines.some((p: any) => p.existsInBeta);
-};
-
 const formatTime = (isoString?: string | number) => {
   if (!isoString) return "N/A";
   try {
@@ -380,32 +321,8 @@ const toggleProject = (proj: any, checked: boolean) => {
     if (!selectedProjects.value.includes(proj.id)) {
       selectedProjects.value.push(proj.id);
     }
-    proj.pipelines.forEach((p: any) => {
-      if (!selectedPipelines.value.includes(p.id)) {
-        selectedPipelines.value.push(p.id);
-      }
-    });
   } else {
     selectedProjects.value = selectedProjects.value.filter((id) => id !== proj.id);
-    const pipeIds = proj.pipelines.map((p: any) => p.id);
-    selectedPipelines.value = selectedPipelines.value.filter((id) => !pipeIds.includes(id));
-  }
-};
-
-const togglePipeline = (proj: any, pipe: any, checked: boolean) => {
-  if (checked) {
-    if (!selectedPipelines.value.includes(pipe.id)) {
-      selectedPipelines.value.push(pipe.id);
-    }
-    if (!selectedProjects.value.includes(proj.id)) {
-      selectedProjects.value.push(proj.id);
-    }
-  } else {
-    selectedPipelines.value = selectedPipelines.value.filter((id) => id !== pipe.id);
-    const hasAnyChecked = proj.pipelines.some((p: any) => selectedPipelines.value.includes(p.id));
-    if (!hasAnyChecked) {
-      selectedProjects.value = selectedProjects.value.filter((id) => id !== proj.id);
-    }
   }
 };
 
@@ -416,7 +333,6 @@ const performMigration = async () => {
       migrateSettings: migrateSettings.value,
       migrateConnections: migrateConnections.value,
       selectedProjects: selectedProjects.value,
-      selectedPipelines: selectedPipelines.value,
       sourceChannel: props.sourceChannel,
     };
 
@@ -425,7 +341,7 @@ const performMigration = async () => {
       toast.add({
         severity: "success",
         summary: "Migration Successful",
-        detail: "Selected configurations and pipelines have been imported.",
+        detail: "Selected data has been imported.",
         life: 4000,
       });
 
@@ -597,37 +513,6 @@ const performMigration = async () => {
     }
   }
 
-  .pipelines-list {
-    background: var(--surface-ground, var(--p-surface-ground, #f8fafc));
-
-    :root.dark & {
-      background: var(--surface-ground, var(--p-surface-900, #121212));
-    }
-
-    .pipeline-item {
-      &:not(:last-child) {
-        border-bottom: 1px dashed var(--p-surface-border, #e2e8f0);
-      }
-    }
-
-    .pipeline-name {
-      font-weight: 600;
-      font-size: 0.875rem;
-    }
-
-    .timestamp-comparison {
-      color: var(--p-text-muted-color, #64748b);
-
-      .time-val {
-        font-weight: 500;
-        color: var(--p-text-color, #334155);
-      }
-
-      .separator {
-        opacity: 0.4;
-      }
-    }
-  }
 }
 
 .border-top {

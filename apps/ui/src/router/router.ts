@@ -39,31 +39,6 @@ const routes: RouterOptions["routes"] = [
     },
   },
   {
-    path: "/scenarios",
-    name: "Scenarios",
-    component: () => import("../pages/scenarios.vue"),
-    meta: {
-      title: t("headers.pipelines"),
-    },
-    children: [],
-  },
-  {
-    path: "/scenarios/editor/:pipelineId/:projectId",
-    name: "Editor",
-    component: () => import("../pages/editor.vue"),
-    meta: {
-      title: t("headers.editor"),
-    },
-  },
-  {
-    path: "/billing",
-    name: "Billing",
-    component: () => import("../pages/editor.vue"),
-    meta: {
-      title: t("headers.billing"),
-    },
-  },
-  {
     path: "/team",
     name: "Team",
     component: () => import("../pages/team.vue"),

@@ -1,6 +1,5 @@
 import { PipelabContext, BuildHistoryStorage } from "@pipelab/core-node";
 import { getDefaultUserDataPath } from "../paths";
-import { join } from "node:path";
 
 function formatBytes(bytes: number, decimals = 2) {
   if (bytes === 0) return "0 Bytes";
@@ -21,7 +20,7 @@ export async function usageCommand(options: { userData?: string }) {
   console.log("Build History Storage Usage:");
   console.table({
     "Total Entries": info.totalEntries,
-    "Pipelines with History": info.numberOfPipelines,
+    "Workflow History Files": info.numberOfPipelines,
     "Total Size": formatBytes(info.totalSize),
     "Oldest Entry": info.oldestEntry ? new Date(info.oldestEntry).toLocaleString() : "N/A",
     "Newest Entry": info.newestEntry ? new Date(info.newestEntry).toLocaleString() : "N/A",
@@ -31,7 +30,7 @@ export async function usageCommand(options: { userData?: string }) {
 }
 
 export async function purgeCommand(
-  pipelineId: string | undefined,
+  projectId: string | undefined,
   options: { force?: boolean; userData?: string },
 ) {
   if (!options.force) {
@@ -45,9 +44,9 @@ export async function purgeCommand(
   const context = new PipelabContext({ userDataPath });
   const storage = new BuildHistoryStorage(context);
 
-  if (pipelineId) {
-    await storage.clearByPipeline(pipelineId);
-    console.log(`Successfully purged history for pipeline: ${pipelineId}`);
+  if (projectId) {
+    await storage.clearByPipeline(projectId);
+    console.log(`Successfully purged workflow history for project: ${projectId}`);
   } else {
     await storage.clear();
     console.log("Successfully purged all build history.");

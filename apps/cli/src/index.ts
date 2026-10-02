@@ -1,12 +1,7 @@
 #!/usr/bin/env node
-import { isDev, runPipelineCommand, serveCommand } from "@pipelab/core-node";
+import { isDev, serveCommand } from "@pipelab/core-node";
 import { historyCommand } from "./commands/history";
 import { usageCommand, purgeCommand } from "./commands/maintenance";
-import {
-  listPipelinesCommand,
-  deletePipelineCommand,
-  showPipelineCommand,
-} from "./commands/pipelines";
 import { setupCommand } from "./commands/setup";
 import { registerSettingsCommands } from "./commands/settings";
 import {
@@ -95,32 +90,14 @@ program
   });
 
 program
-  .command("run <file>")
-  .description("Run a pipeline from a JSON file")
-  .option("--user-data <path>", "Custom user data path")
-  .option("--variables <json>", "JSON string of variables to override")
-  .option("-o, --output <path>", "Path to write the result file")
-  .option("--cloud", "Run the pipeline in a cloud environment")
-  .action(async (file, options) => {
-    try {
-      options.userData = options.userData || getDefaultUserDataPath();
-      await runPipelineCommand(file, options, version);
-      process.exit(0);
-    } catch (e) {
-      console.error("Pipeline execution failed:", e);
-      process.exit(1);
-    }
-  });
-
-program
-  .command("history [pipeline-id]")
-  .description("View build history for a pipeline")
+  .command("history [project-id]")
+  .description("View workflow run history for a project")
   .option("--get <build-id>", "Get a specific build entry by ID")
   .option("--user-data <path>", "Custom user data path")
   .option("--limit <number>", "Limit the number of history entries to show", "10")
-  .action(async (pipelineId, options) => {
+  .action(async (projectId, options) => {
     try {
-      await historyCommand(pipelineId, options);
+      await historyCommand(projectId, options);
     } catch (e) {
       console.error(e);
       process.exit(1);
@@ -141,13 +118,13 @@ program
   });
 
 program
-  .command("purge [pipeline-id]")
+  .command("purge [project-id]")
   .description("Purge build history")
   .option("--user-data <path>", "Custom user data path")
   .option("-f, --force", "Force the destructive operation")
-  .action(async (pipelineId, options) => {
+  .action(async (projectId, options) => {
     try {
-      await purgeCommand(pipelineId, options);
+      await purgeCommand(projectId, options);
     } catch (e) {
       console.error(e);
       process.exit(1);
@@ -166,8 +143,6 @@ program
       process.exit(1);
     }
   });
-
-const pipelines = program.command("pipelines").alias("pipeline").description("Manage pipelines");
 
 const workflows = program.command("workflow").alias("workflows").description("Manage workflows");
 
@@ -210,64 +185,6 @@ workflows
   .action(async (id, options) => {
     try {
       await deleteWorkflowCommand(id, options);
-    } catch (e) {
-      console.error(e);
-      process.exit(1);
-    }
-  });
-
-pipelines
-  .command("ls")
-  .alias("list")
-  .description("List all pipelines")
-  .option("--user-data <path>", "Custom user data path")
-  .action(async (options) => {
-    try {
-      await listPipelinesCommand(options);
-    } catch (e) {
-      console.error(e);
-      process.exit(1);
-    }
-  });
-
-pipelines
-  .command("show <id-or-name>")
-  .alias("shw")
-  .description("Display basic information about a pipeline")
-  .option("--user-data <path>", "Custom user data path")
-  .action(async (idOrName, options) => {
-    try {
-      await showPipelineCommand(idOrName, { ...options, detailed: false });
-    } catch (e) {
-      console.error(e);
-      process.exit(1);
-    }
-  });
-
-pipelines
-  .command("detail <id-or-name>")
-  .alias("details")
-  .description("Display detailed information about a pipeline")
-  .option("--user-data <path>", "Custom user data path")
-  .action(async (idOrName, options) => {
-    try {
-      await showPipelineCommand(idOrName, { ...options, detailed: true });
-    } catch (e) {
-      console.error(e);
-      process.exit(1);
-    }
-  });
-
-pipelines
-  .command("rm <id>")
-  .alias("remove")
-  .alias("delete")
-  .description("Delete a pipeline")
-  .option("--user-data <path>", "Custom user data path")
-  .option("-f, --force", "Force the destructive operation")
-  .action(async (id, options) => {
-    try {
-      await deletePipelineCommand(id, options);
     } catch (e) {
       console.error(e);
       process.exit(1);

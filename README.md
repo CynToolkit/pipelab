@@ -27,13 +27,13 @@ graph TD
     UI <-->|WebSocket| CLI
     UI <-->|IPC| Electron
     Electron ---|Spawns Sidecar| CLI
-    CLI ---|Executes| Pipelines[Automation Pipelines]
+    CLI ---|Executes| Workflows[Release Workflows]
 
     class UI,Electron,CLI main;
 ```
 
-- **The Engine (@pipelab/cli)**: A standalone Node.js server that handles the heavy lifting. It executes pipelines, manages plugin logic, and exposes a WebSocket API.
-- **The Interface (@pipelab/ui)**: A Vue 3 application that provides the visual graph editor. It connects to the CLI via WebSockets for real-time execution feedback.
+- **The Engine (@pipelab/cli)**: A standalone Node.js server that handles workflow execution, manages plugin logic, and exposes a WebSocket API.
+- **The Interface (@pipelab/ui)**: A Vue 3 application that provides the Release workflow editor. It connects to the CLI via WebSockets for real-time execution feedback.
 - **The Container (@pipelab/app)**: An Electron wrapper that provides native OS integration (file dialogs, system tray). In production, it automatically manages the CLI as a "sidecar" process.
 
 ---

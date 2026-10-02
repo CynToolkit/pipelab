@@ -1,8 +1,7 @@
 # Build and ship with a Release workflow
 
 A Release workflow prepares an artifact and routes it to one or more
-destinations. It uses a different editor and runtime from the graph-based
-[pipeline](/guide/pipelines).
+destinations.
 
 ## Configure a workflow
 

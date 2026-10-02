@@ -2,9 +2,7 @@
 
 Release workflows compile into a versioned task workflow. Pipelab's Release
 editor builds that task plan from your source, build profiles, and destinations.
-This page explains how values and artifacts move between its steps. It does
-not describe the legacy graph pipeline evaluator; see
-[Edit and run a pipeline](/guide/pipelines) for that model.
+This page explains how values and artifacts move between its steps.
 
 ## Pass values between steps
 

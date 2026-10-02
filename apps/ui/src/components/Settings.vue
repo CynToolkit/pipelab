@@ -75,21 +75,6 @@
         <div class="settings-group">
           <div class="setting-item">
             <div class="setting-content">
-              <label for="autosave" class="setting-title">{{ t("settings.autosave") }}</label>
-              <div class="setting-description">{{ t("settings.autosaveDescription") }}</div>
-            </div>
-            <div class="setting-action">
-              <ToggleSwitch
-                :disabled="!settingsRef"
-                input-id="autosave"
-                :model-value="settingsRef?.autosave ?? true"
-                @update:model-value="updateAutosave"
-              />
-            </div>
-          </div>
-
-          <div class="setting-item">
-            <div class="setting-content">
               <label for="app-theme" class="setting-title">{{ t("settings.darkTheme") }}</label>
               <div class="setting-description">
                 Toggle between light and dark mode for the application interface.
@@ -138,10 +123,8 @@
 
           <div class="setting-item">
             <div class="setting-content">
-              <div class="setting-title">Onboarding Tours</div>
-              <div class="setting-description">
-                Restart the interactive guides for different sections of the app.
-              </div>
+              <div class="setting-title">Dashboard Guide</div>
+              <div class="setting-description">Restart the interactive dashboard guide.</div>
             </div>
             <div class="setting-action flex gap-2">
               <Button
@@ -149,18 +132,7 @@
                 severity="secondary"
                 size="small"
                 :label="t('settings.restart-dashboard-tour')"
-                @click="restartTour('dashboard')"
-              >
-                <template #icon>
-                  <i class="mdi mdi-refresh mr-2"></i>
-                </template>
-              </Button>
-              <Button
-                outlined
-                severity="secondary"
-                size="small"
-                :label="t('settings.restart-editor-tour')"
-                @click="restartTour('editor')"
+                @click="restartTour"
               >
                 <template #icon>
                   <i class="mdi mdi-refresh mr-2"></i>
@@ -369,7 +341,7 @@
           <div class="setting-item flex-column align-items-stretch">
             <div class="setting-content mb-2">
               <span class="setting-title">{{
-                t("settings.pipeline-cache-folder", "Pipeline Cache Folder")
+                t("settings.pipeline-cache-folder", "Plugin Cache Folder")
               }}</span>
               <span class="setting-description">
                 Change the directory where downloaded plugins and dependencies are cached. Leave
@@ -407,7 +379,7 @@
 
           <div class="setting-item flex-column align-items-stretch mt-3">
             <div class="setting-content mb-2">
-              <span class="setting-title">Pipeline Temporary Folder</span>
+              <span class="setting-title">Workflow Temporary Folder</span>
               <span class="setting-description">
                 Change the directory where temporary build and intermediate files are processed.
                 Leave blank to use default workspace storage.
@@ -475,7 +447,7 @@
           <div class="setting-item">
             <div class="setting-content">
               <span class="setting-title">Agent Version</span>
-              <span class="setting-description">The version of the headless pipeline runner.</span>
+              <span class="setting-description">The version of the workflow execution engine.</span>
             </div>
             <div class="setting-action flex items-center gap-2">
               <span class="font-mono text-sm mr-2">{{ formatVersion(agentVersion) }}</span>
@@ -723,7 +695,7 @@
       <div v-if="currentSection === 'team'" class="settings-panel">
         <div class="section-header">
           <h3>Team Management</h3>
-          <p class="description">Collaborate with other developers on your automation pipelines.</p>
+              <p class="description">Collaborate with other developers on your Release workflows.</p>
         </div>
 
         <div
@@ -732,7 +704,7 @@
           <i class="mdi mdi-account-multiple text-4xl mb-2 text-primary"></i>
           <span class="text-sm font-bold block mb-1">Teams Coming Soon</span>
           <span class="text-xs text-muted max-w-[320px]">
-            Manage team billing, roles, shared variables, and run pipelines in a collaborative
+            Manage team billing, roles, shared variables, and run workflows in a collaborative
             workspace.
           </span>
         </div>
@@ -873,13 +845,6 @@ const updateTheme = (value: boolean) => {
   });
 };
 
-const updateAutosave = (value: boolean) => {
-  return appSettings.updateSettings({
-    ...(toRaw(settingsRef.value) as any),
-    autosave: value,
-  });
-};
-
 const isBillingPortalUrlLoading = ref(false);
 
 const openBillingPortal = async () => {
@@ -977,9 +942,9 @@ const cleanPackagesCache = () => {
   });
 };
 
-const restartTour = (tourId: "dashboard" | "editor") => {
+const restartTour = () => {
   const tours = { ...settingsRef.value.tours };
-  tours[tourId] = {
+  tours.dashboard = {
     step: 0,
     completed: false,
   };

@@ -3,7 +3,6 @@ flowchart LR
   UI[Vue UI] -->|WebSocket requests| CLI
   UI -->|native operations via preload IPC| Desktop
   CLI --> Core[core-node]
-  Core --> Graph[Pipeline graph executor]
   Core --> Plan[Release planner and compiler]
   Plan --> Runtime[Workflow runtime]
   Runtime --> Plugins[Registered plugin tasks]

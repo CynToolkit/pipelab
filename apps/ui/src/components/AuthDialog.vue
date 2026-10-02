@@ -42,7 +42,7 @@
             authModalSubTitle
               ? authModalSubTitle
               : activeTab === "login"
-                ? "Sign in to access your automation pipelines"
+                ? "Sign in to access your Release workflows"
                 : activeTab === "register"
                   ? "Join Pipelab and streamline your desktop workflows"
                   : "Enter your email address to receive a recovery link"

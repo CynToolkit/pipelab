@@ -12,7 +12,6 @@
             :source-warning="sourceWarning"
             @edit="editingSource = true"
           />
-          <button class="advanced-link" @click="goAdvanced">Advanced</button>
         </div>
 
         <!-- Destinations -->
@@ -75,7 +74,6 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import { useRouter } from "vue-router";
 import Layout from "@renderer/components/Layout.vue";
 import SourceCard from "@renderer/components/paths/SourceCard.vue";
 import SourceEditPanel from "@renderer/components/paths/SourceEditPanel.vue";
@@ -215,10 +213,6 @@ const skip = (index: number) => {
   };
 };
 
-const router = useRouter();
-const goAdvanced = () => {
-  router.push("/scenarios/editor/new");
-};
 </script>
 
 <style scoped>

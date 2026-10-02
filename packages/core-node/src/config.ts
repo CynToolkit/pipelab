@@ -8,11 +8,9 @@ import {
   AppConfig,
   ConnectionsConfig,
   FileRepo,
-  SavedFile,
   appSettingsMigrator,
   connectionsMigrator,
   fileRepoMigrations,
-  savedFileMigrator,
 } from "@pipelab/shared";
 
 export const setupConfigFile = async <T>(
@@ -142,37 +140,10 @@ export const setupProjectsConfigFile = (context: PipelabContext) => {
   });
 };
 
-export const setupPipelineConfigFileByName = (name: string, context: PipelabContext) => {
-  const filesPath = context.getConfigPath(`${name}.json`);
-  return setupConfigFile<SavedFile>(filesPath, {
-    context,
-    migrator: savedFileMigrator,
-  });
-};
-
-export const setupPipelineConfigFileByPath = (absolutePath: string, context: PipelabContext) => {
-  return setupConfigFile<SavedFile>(absolutePath, {
-    context,
-    migrator: savedFileMigrator,
-  });
-};
-
 const deleteConfigFile = async (filesPath: string) => {
   await fs.rm(filesPath, { force: true });
 };
 
-export const deletePipelineConfigFileByName = async (name: string, context: PipelabContext) => {
-  const filesPath = context.getConfigPath(`${name}.json`);
-  await deleteConfigFile(filesPath);
-};
-
 export const deleteWorkflowConfigFileByName = async (name: string, context: PipelabContext) => {
   await deleteConfigFile(context.getConfigPath(`${name}.json`));
-};
-
-export const deletePipelineConfigFileByPath = async (
-  absolutePath: string,
-  context: PipelabContext,
-) => {
-  await deleteConfigFile(absolutePath);
 };

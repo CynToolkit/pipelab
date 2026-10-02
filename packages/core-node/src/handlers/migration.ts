@@ -4,30 +4,13 @@ import { PipelabContext, getDefaultUserDataPath, isDev, PipelabEnv } from "../co
 import fs from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { join, dirname } from "node:path";
-import {
-  FileRepo,
-  SaveLocation,
-  AppConfig,
-  ConnectionsConfig,
-  savedFileMigrator,
-} from "@pipelab/shared";
+import { FileRepo, AppConfig, ConnectionsConfig } from "@pipelab/shared";
 import semver from "semver";
-
-interface MigrationPipelineItem {
-  id: string;
-  name: string;
-  description: string;
-  type: "internal" | "external" | "pipelab-cloud";
-  lastModifiedStable?: string;
-  lastModifiedBeta?: string;
-  existsInBeta: boolean;
-}
 
 interface MigrationProjectItem {
   id: string;
   name: string;
   description: string;
-  pipelines: MigrationPipelineItem[];
 }
 
 export const registerMigrationHandlers = (context: PipelabContext) => {
@@ -185,80 +168,22 @@ export const registerMigrationHandlers = (context: PipelabContext) => {
       }
 
       let sourceProjectsList: FileRepo["projects"] = [];
-      let sourcePipelinesList: SaveLocation[] = [];
       try {
         if (sourceProjectsMeta.exists) {
           const projContent = await fs.readFile(sourceProjectsPath, "utf8");
           const projJson = JSON.parse(projContent) as FileRepo;
           sourceProjectsList = projJson.projects || [];
-          sourcePipelinesList = projJson.pipelines || [];
         }
       } catch (err) {
         logger().error("[Migration] Error parsing source projects.json:", err);
       }
 
-      let targetPipelinesList: SaveLocation[] = [];
-      try {
-        if (targetProjectsMeta.exists) {
-          const targetProjContent = await fs.readFile(targetProjectsPath, "utf8");
-          const targetProjJson = JSON.parse(targetProjContent) as FileRepo;
-          targetPipelinesList = targetProjJson.pipelines || [];
-        }
-      } catch (err) {
-        // Safe to ignore if target hasn't initialized projects yet
-      }
-
       const projectsReport: MigrationProjectItem[] = [];
       for (const proj of sourceProjectsList) {
-        const projPipelines = sourcePipelinesList.filter((p) => p.project === proj.id);
-        const pipelinesReport: MigrationPipelineItem[] = [];
-
-        for (const pipe of projPipelines) {
-          const targetPipe = targetPipelinesList.find((bp) => bp.id === pipe.id);
-          const existsInBeta = !!targetPipe;
-
-          let pipeName = pipe.id;
-          let pipeDesc = "";
-          if (pipe.type === "internal") {
-            const sourcePipeFile = sourceContext.getConfigPath(`${pipe.configName}.json`);
-            try {
-              if (existsSync(sourcePipeFile)) {
-                const pipeContent = await fs.readFile(sourcePipeFile, "utf8");
-                const rawJson = JSON.parse(pipeContent);
-                const pipeJson = await savedFileMigrator.migrate(rawJson);
-                pipeName = pipeJson.name || pipeName;
-                pipeDesc = pipeJson.description || pipeDesc;
-              }
-            } catch (err) {
-              logger().error(
-                `[Migration] Error reading source pipeline file ${sourcePipeFile}:`,
-                err,
-              );
-            }
-          } else if (pipe.type === "external") {
-            pipeName = pipe.summary?.name || pipeName;
-            pipeDesc = pipe.summary?.description || pipeDesc;
-          }
-
-          pipelinesReport.push({
-            id: pipe.id,
-            name: pipeName,
-            description: pipeDesc,
-            type: pipe.type,
-            lastModifiedStable: pipe.type !== "pipelab-cloud" ? pipe.lastModified : undefined,
-            lastModifiedBeta:
-              targetPipe && targetPipe.type !== "pipelab-cloud"
-                ? targetPipe.lastModified
-                : undefined,
-            existsInBeta,
-          });
-        }
-
         projectsReport.push({
           id: proj.id,
           name: proj.name,
           description: proj.description || "",
-          pipelines: pipelinesReport,
         });
       }
 
@@ -311,13 +236,7 @@ export const registerMigrationHandlers = (context: PipelabContext) => {
   handle("migration:perform", async (_, { send, value }) => {
     logger().info("[Migration] Performing migration...");
     try {
-      const {
-        migrateSettings,
-        migrateConnections,
-        selectedProjects,
-        selectedPipelines,
-        sourceChannel,
-      } = value;
+      const { migrateSettings, migrateConnections, selectedProjects, sourceChannel } = value;
 
       let sourceEnv: PipelabEnv = "prod";
       if (sourceChannel === "stable") {
@@ -332,7 +251,6 @@ export const registerMigrationHandlers = (context: PipelabContext) => {
       const sourcePath = getDefaultUserDataPath(sourceEnv);
       const sourceContext = new PipelabContext({ userDataPath: sourcePath, releaseTag: sourceEnv });
 
-      const sourceConfigDir = sourceContext.getConfigPath();
       const targetConfigDir = context.getConfigPath();
 
       // 1. Check folder validity
@@ -513,8 +431,8 @@ export const registerMigrationHandlers = (context: PipelabContext) => {
         }
       }
 
-      // 5. Projects and Pipelines migration
-      if (selectedPipelines.length > 0 || selectedProjects.length > 0) {
+      // 5. Project metadata migration
+      if (selectedProjects.length > 0) {
         const sourceProjectsFile = sourceContext.getProjectsPath();
         const targetProjectsFile = context.getProjectsPath();
 
@@ -557,62 +475,6 @@ export const registerMigrationHandlers = (context: PipelabContext) => {
               betaFileRepo.projects[existingProjIdx] = { ...stableProj };
             } else {
               betaFileRepo.projects.push({ ...stableProj });
-            }
-          }
-        }
-
-        // Copy selected pipelines metadata and copy the pipeline config files
-        for (const pipeId of selectedPipelines) {
-          const stablePipe = (stableFileRepo.pipelines || []).find((p) => p.id === pipeId);
-          if (stablePipe) {
-            // Ensure the parent project metadata exists in target
-            const parentProjId = stablePipe.project;
-            const projectExists = betaFileRepo.projects.some((p) => p.id === parentProjId);
-            if (!projectExists) {
-              const stableProj = stableFileRepo.projects.find((p) => p.id === parentProjId);
-              if (stableProj) {
-                betaFileRepo.projects.push({ ...stableProj });
-              }
-            }
-
-            // Copy and migrate pipeline file if internal
-            if (stablePipe.type === "internal") {
-              const stablePipeFile = sourceContext.getConfigPath(`${stablePipe.configName}.json`);
-              const betaPipeFile = context.getConfigPath(`${stablePipe.configName}.json`);
-              if (existsSync(stablePipeFile)) {
-                await fs.mkdir(dirname(betaPipeFile), { recursive: true });
-                try {
-                  const pipeContent = await fs.readFile(stablePipeFile, "utf8");
-                  const rawJson = JSON.parse(pipeContent);
-                  const migratedJson = await savedFileMigrator.migrate(rawJson);
-                  await fs.writeFile(betaPipeFile, JSON.stringify(migratedJson, null, 2));
-                  logger().info(
-                    `[Migration] Migrated and copied pipeline file: ${stablePipe.configName}`,
-                  );
-                } catch (err) {
-                  await fs.copyFile(stablePipeFile, betaPipeFile);
-                  logger().error(
-                    `[Migration] Error migrating during copy of ${stablePipe.configName}, fallback to direct copy:`,
-                    err,
-                  );
-                }
-              }
-            }
-
-            // Create updated pipeline metadata with modification date set to now timestamp
-            const updatedPipe = {
-              ...stablePipe,
-            };
-            if (updatedPipe.type !== "pipelab-cloud") {
-              (updatedPipe as any).lastModified = new Date().toISOString();
-            }
-
-            // Update target projects.json
-            const existingPipeIdx = betaFileRepo.pipelines.findIndex((p) => p.id === pipeId);
-            if (existingPipeIdx >= 0) {
-              betaFileRepo.pipelines[existingPipeIdx] = updatedPipe;
-            } else {
-              betaFileRepo.pipelines.push(updatedPipe);
             }
           }
         }

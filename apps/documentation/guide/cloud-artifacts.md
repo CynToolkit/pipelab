@@ -6,10 +6,10 @@ in this build. The run detail page can show a Cloud download button when a run
 already contains hosted artifact metadata; a signed-in Pipelab account is
 required to retrieve that file.
 
-Cloud project and pipeline storage is unavailable in the current build. The
-Cloud Save benefit and project-storage UI are not wired to working create,
-load, or save flows. Artifact transfer is a separate service and is described
-below only for runs that already contain hosted artifact metadata.
+Cloud project storage is unavailable in the current build. The Cloud Save
+benefit and project-storage UI are not wired to working create, load, or save
+flows. Artifact transfer is a separate service and is described below only for
+runs that already contain hosted artifact metadata.
 
 ## Current transfer limits
 
