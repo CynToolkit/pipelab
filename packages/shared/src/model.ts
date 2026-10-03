@@ -254,10 +254,6 @@ export type SavedFileV6 = InferOutput<typeof SavedFileValidatorV6>;
 export type SavedFile = SavedFileV6;
 export const SavedFileValidator = SavedFileValidatorV6;
 
-export type Preset = SavedFile;
-export type PresetResult = { data: Preset; hightlight?: boolean; disabled?: boolean };
-export type PresetFn = () => Promise<PresetResult>;
-
 export type Steps = Record<
   string,
   {

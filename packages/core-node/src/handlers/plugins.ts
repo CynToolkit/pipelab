@@ -2,12 +2,10 @@ import { useAPI } from "../ipc-core";
 import type { PipelabContext } from "../context";
 // import pacote from "pacote"; // [DISABLED] npm registry lookup — plugin marketplace disabled
 // import { rm } from "node:fs/promises"; // [DISABLED] only used by plugin:uninstall body — re-enable with it
-import { usePlugins } from "@pipelab/shared";
 // import { webSocketServer } from "../websocket-server"; // [DISABLED] only used by plugin:install body — re-enable with it
 
 // [DISABLED] Plugin dynamic loading is disabled. Plugins are statically bundled with the CLI.
-// All original handler bodies are preserved below, commented out, for easy re-enable.
-// Re-enable: remove the early-return stub blocks and uncomment the original bodies + imports.
+// Runtime plugin marketplace behavior remains disabled in bundled builds.
 
 export const registerPluginsHandlers = (_context: PipelabContext) => {
   const { handle } = useAPI();
@@ -118,52 +116,5 @@ export const registerPluginsHandlers = (_context: PipelabContext) => {
     //   .filter((item) => !defaultPluginIds.some((id) => item.name === `@pipelab/plugin-${id}`))
     //   .map((item) => ({ name: item.name, version: item.version, description: item.description }));
     // send({ type: "end", data: { type: "success", result: { installed } } });
-  });
-
-  // Ensures all required plugin IDs are loaded. Bundled mode: no versions —
-  // callers pass a plain plugin-ID list, missing = not in bundle.
-  // Called before opening a pipeline in the editor.
-  handle("plugin:ensure-loaded", async (_, { send, value }) => {
-    const { plugins } = value as { plugins: string[] };
-    const { plugins: registeredPlugins } = usePlugins();
-
-    const loaded: string[] = [];
-    const failed: string[] = [];
-
-    // [DISABLED] JIT-install missing plugins — plugins are bundled, so missing = not in bundle.
-    // Re-enable: accept Record<string, string> again + uncomment the original block below.
-    if (Array.isArray(plugins)) {
-      for (const pluginId of plugins) {
-        if (pluginId && registeredPlugins.value.some((p) => p.id === pluginId)) {
-          loaded.push(pluginId);
-        } else {
-          failed.push(pluginId);
-        }
-      }
-    }
-
-    send({
-      type: "end",
-      data: {
-        type: "success",
-        result: { loaded, failed },
-      },
-    });
-    return;
-    // const pluginsToEnsure = new Set<string>();
-    // if (plugins && typeof plugins === "object") {
-    //   for (const id of Object.keys(plugins)) if (id) pluginsToEnsure.add(id);
-    // }
-    // const { registerPlugins } = usePlugins();
-    // for (const packageName of pluginsToEnsure) {
-    //   const isRegistered = registeredPlugins.value.some((p) => {
-    //     if (p.packageName !== packageName) return false;
-    //     if (mappedVersion === "latest") return true;
-    //     return p.version === mappedVersion;
-    //   });
-    //   if (isRegistered) { loaded.push(packageName); continue; }
-    //   failed.push(packageName);
-    // }
-    // send({ type: "end", data: { type: "success", result: { loaded, failed } } });
   });
 };

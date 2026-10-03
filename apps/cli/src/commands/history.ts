@@ -3,7 +3,7 @@ import { getDefaultUserDataPath } from "../paths";
 import { BuildHistoryEntry } from "@pipelab/shared";
 
 export async function historyCommand(
-  pipelineId: string | undefined,
+  projectId: string | undefined,
   options: { get?: string; userData?: string; limit?: number },
 ) {
   const userDataPath = options.userData || getDefaultUserDataPath();
@@ -11,15 +11,15 @@ export async function historyCommand(
   const storage = new BuildHistoryStorage(context);
 
   if (options.get) {
-    const entry = await storage.get(options.get, pipelineId);
+    const entry = await storage.get(options.get, projectId);
     if (entry) {
       console.log(JSON.stringify(entry, null, 2));
     } else {
       console.error(`Build history entry with ID "${options.get}" not found.`);
       process.exit(1);
     }
-  } else if (pipelineId) {
-    const entries = await storage.getByPipeline(pipelineId);
+  } else if (projectId) {
+    const entries = await storage.getByPipeline(projectId);
     if (entries.length > 0) {
       const limit = options.limit || 10;
       const recentEntries = entries.slice(-limit);
@@ -32,11 +32,11 @@ export async function historyCommand(
       }));
       console.table(formatted);
     } else {
-      console.log(`No history found for pipeline "${pipelineId}".`);
+      console.log(`No workflow history found for project "${projectId}".`);
     }
   } else {
     console.error(
-      "Please provide a pipeline ID to list its history, or use the --get option with a build ID.",
+      "Please provide a project ID to list its workflow history, or use the --get option with a build ID.",
     );
     process.exit(1);
   }

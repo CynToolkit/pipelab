@@ -1,10 +1,5 @@
 import { describe, test, expect, beforeEach, vi } from "vitest";
-import {
-  setupConfigFile,
-  setupProjectsConfigFile,
-  deletePipelineConfigFileByName,
-  deletePipelineConfigFileByPath,
-} from "./config";
+import { setupConfigFile, setupProjectsConfigFile } from "./config";
 import { FileRepo } from "@pipelab/shared";
 import { PipelabContext } from "./context";
 import fs from "node:fs/promises";
@@ -183,47 +178,5 @@ describe("setupConfigFile & Backup Creation", () => {
     const savedContent = JSON.parse(await fs.readFile(context.getProjectsPath(), "utf8"));
     expect(savedContent.pipelines).toHaveLength(1);
     expect(savedContent.pipelines[0].id).toBe("pipeline-new");
-  });
-});
-
-describe("deletePipelineConfigFile", () => {
-  let tempDir: string;
-  let context: PipelabContext;
-
-  beforeEach(() => {
-    vol.reset();
-    tempDir = "/tmp/pipelab-test-config";
-    context = new PipelabContext({ userDataPath: tempDir });
-  });
-
-  test("should delete pipeline config file using relative name", async () => {
-    const configDir = context.getConfigPath();
-    await fs.mkdir(configDir, { recursive: true });
-
-    const pipelineFilePath = path.join(configDir, "my-pipeline.json");
-    await fs.writeFile(pipelineFilePath, JSON.stringify({ name: "My Pipeline" }));
-    expect(existsSync(pipelineFilePath)).toBe(true);
-
-    await deletePipelineConfigFileByName("my-pipeline", context);
-    expect(existsSync(pipelineFilePath)).toBe(false);
-  });
-
-  test("should delete pipeline config file using absolute path", async () => {
-    const configDir = context.getConfigPath();
-    await fs.mkdir(configDir, { recursive: true });
-
-    const pipelineFilePath = path.join(configDir, "another-pipeline.json");
-    await fs.writeFile(pipelineFilePath, JSON.stringify({ name: "Another Pipeline" }));
-    expect(existsSync(pipelineFilePath)).toBe(true);
-
-    await deletePipelineConfigFileByPath(pipelineFilePath, context);
-    expect(existsSync(pipelineFilePath)).toBe(false);
-  });
-
-  test("should not throw error when attempting to delete non-existent pipeline file", async () => {
-    const nonExistentPath = context.getConfigPath("does-not-exist.json");
-    expect(existsSync(nonExistentPath)).toBe(false);
-
-    await expect(deletePipelineConfigFileByName("does-not-exist", context)).resolves.not.toThrow();
   });
 });

@@ -33,16 +33,5 @@ If a step fails, review its log and the provider's setup page before rerunning
 the workflow. Pipelab does not show a user-facing retry action in the run detail
 screen.
 
-## Pipeline Build History is separate
-
-The graph editor also has a legacy **Build History** dialog. It belongs to
-pipeline runs and is distinct from the Release workflow Runs tab. Use the
-workflow's Runs tab for source/build/destination executions.
-
 To inspect a workflow plan without running provider tasks, use
 [`pipelab workflow run <id-or-name> --dry-run`](/cli/reference#run-a-saved-release-workflow).
-
-Pipeline history is recorded locally by default, unless disabled by the host
-environment. The legacy pipeline **Build History** dialog is a premium
-feature and appears only for accounts with the required benefit. Release
-workflow history is available separately in its **Runs** tab.

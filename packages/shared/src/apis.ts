@@ -1,7 +1,6 @@
 import { RendererPluginDefinition } from "./plugins/definitions";
 import { User, UserResponse } from "@supabase/supabase-js";
 import type { Tagged } from "type-fest";
-import { PresetResult, Steps, SavedFile } from "./model";
 import { AppConfig, ConnectionsConfig } from "./config.schema";
 import { FileRepo } from "./config/projects-definition";
 import type {
@@ -27,9 +26,6 @@ export type BrowserProfileCandidate = {
   reason?: string;
 };
 
-type Event<TYPE extends string, DATA> =
-  | { type: TYPE; data: DATA }
-  | { type: "log"; data: { decorator: string; message: unknown[]; time: number } };
 type EndEvent<DATA> = {
   type: "end";
   data:
@@ -43,8 +39,6 @@ type EndEvent<DATA> = {
         code?: string;
       };
 };
-
-export type Presets = Record<string, PresetResult>;
 
 export type StableDataReport = {
   sourceChannel: "Stable" | "Beta" | "Dev";
@@ -79,15 +73,6 @@ export type StableDataReport = {
     id: string;
     name: string;
     description: string;
-    pipelines: Array<{
-      id: string;
-      name: string;
-      description: string;
-      type: "internal" | "external" | "pipelab-cloud";
-      lastModifiedStable?: string;
-      lastModifiedBeta?: string;
-      existsInBeta: boolean;
-    }>;
   }>;
 };
 
@@ -98,7 +83,6 @@ export type MigrationOptions = {
   migrateSettings: boolean;
   migrateConnections: boolean;
   selectedProjects: string[];
-  selectedPipelines: string[];
   sourceChannel?: MigrationChannel;
 };
 
@@ -159,22 +143,6 @@ export type IpcDefinition = {
     EndEvent<{ canceled: boolean; filePath: string | undefined }>,
   ];
   "nodes:get": [void, EndEvent<{ nodes: RendererPluginDefinition[] }>];
-  "presets:get": [void, EndEvent<Presets>];
-  "action:execute": [
-    {
-      pluginId: string;
-      nodeId: string;
-      params: any;
-      steps: Steps;
-    },
-    (
-      | Event<"progress", unknown>
-      | Event<"progress", unknown>
-      | EndEvent<{ outputs: Record<string, unknown>; tmp: string }>
-    ),
-  ];
-
-  "constants:get": [void, EndEvent<{ result: { userData: string } }>];
 
   "settings:load": [void, EndEvent<AppConfig>];
   "settings:save": [{ data: AppConfig }, EndEvent<"ok">];
@@ -192,12 +160,6 @@ export type IpcDefinition = {
   "projects:save": [{ data: FileRepo }, EndEvent<"ok">];
   "projects:reset": [{ key: string }, EndEvent<"ok">];
 
-  "pipeline:load-by-name": [{ name: string }, EndEvent<SavedFile>];
-  "pipeline:load-by-path": [{ path: string }, EndEvent<SavedFile>];
-  "pipeline:save-by-name": [{ name: string; data: string }, EndEvent<"ok">];
-  "pipeline:save-by-path": [{ path: string; data: string }, EndEvent<"ok">];
-  "pipeline:delete-by-name": [{ name: string }, EndEvent<"ok">];
-  "pipeline:delete-by-path": [{ path: string }, EndEvent<"ok">];
   "workflow:load": [{ workflowId: string; projectId?: string }, EndEvent<ReleaseConfig>];
   "release:catalog:get": [void, EndEvent<ReleaseCatalog>];
   "release:source:inspect": [
@@ -226,7 +188,6 @@ export type IpcDefinition = {
   ];
   "workflow:cancel": [{ runId: string }, EndEvent<{ result: "ok" | "ko" }>];
   "pipelab-cloud:artifact-download-url": [{ hostedArtifactId: string }, EndEvent<{ url: string }>];
-  "action:cancel": [void, EndEvent<{ result: "ok" | "ko" }>];
 
   // Build History APIs
   "build-history:save": [{ entry: BuildHistoryEntry }, EndEvent<{ result: "ok" | "ko" }>];
@@ -252,30 +213,6 @@ export type IpcDefinition = {
     }>,
   ];
   "agents:get": [void, EndEvent<{ agents: Agent[] }>];
-  "graph:execute": [
-    {
-      graph: any[];
-      variables: any[];
-      pipelineId?: string;
-      projectId?: string;
-      projectName?: string;
-      projectPath?: string;
-    },
-    (
-      | { type: "node-enter"; data: { nodeUid: string; nodeName: string } }
-      | { type: "node-exit"; data: { nodeUid: string; nodeName: string } }
-      | { type: "node-log"; data: { nodeUid: string; logData: any } }
-      | {
-          type: "node-artifact";
-          data: { nodeUid: string; artifact: { name: string; path: string } };
-        }
-      | {
-          type: "node-artifacts-finalized";
-          data: { artifacts: import("@pipelab/shared").Artifact[] };
-        }
-      | EndEvent<{ result: any; buildId: string }>
-    ),
-  ];
   "auth:getUser": [void, EndEvent<{ user: User | null }>];
   "auth:signInWithPassword": [{ email: string; password: string }, EndEvent<UserResponse>];
   "auth:signUp": [{ email: string; password: string }, EndEvent<UserResponse>];
@@ -325,7 +262,6 @@ export type IpcDefinition = {
       }>;
     }>,
   ];
-  "plugin:ensure-loaded": [{ plugins: string[] }, EndEvent<{ loaded: string[]; failed: string[] }>];
   "migration:scan-stable": [{ sourceChannel?: MigrationChannel }, EndEvent<StableDataReport>];
   "migration:perform": [MigrationOptions, EndEvent<{ result: "ok" }>];
 };

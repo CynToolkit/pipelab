@@ -845,7 +845,11 @@ export const forge = async (
               finalPlatform as NodeJS.Platform,
               finalArch as NodeJS.Architecture,
             );
-            const binary = join(outDir, outName, getBinName(completeConfiguration.name, finalPlatform));
+            const binary = join(
+              outDir,
+              outName,
+              getBinName(completeConfiguration.name, finalPlatform),
+            );
             await patchExecutableWithGpupatch(binary, finalPlatform as NodeJS.Platform, {
               context,
               log,

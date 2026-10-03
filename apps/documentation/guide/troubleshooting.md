@@ -16,19 +16,6 @@ loads. If the app stays on **Connecting** or shows **Disconnected**:
 4. If packaged desktop startup reports a CLI/server failure, restart the app
    and collect the displayed error for diagnosis.
 
-## Pipeline validation and execution
-
-- **Required parameter is missing:** Open the task editor and complete the
-  required fields shown by that task.
-- **Plugin or node is unavailable:** The bundled desktop task picker does not
-  install or activate plugins. Choose an action available in this build or
-  remove the unavailable task from the graph.
-- **Advanced value becomes empty:** Pipeline parameter evaluation logs errors
-  and substitutes an empty string for that parameter. Review the task log and
-  expression inputs.
-- **A later task did not run:** Legacy graph execution stops when an action
-  fails. Fix the failing task before running the pipeline again.
-
 ## Release workflow planning
 
 - **Needs attention:** Open the issue detail on the source, build, destination,
@@ -43,8 +30,6 @@ loads. If the app stays on **Connecting** or shows **Disconnected**:
 
 ## CLI and provider failures
 
-- `pipelab run` requires a readable JSON file with `graph` or `canvas.blocks`
-  and any referenced plugins available to the CLI.
 - `pipelab workflow run` requires a saved workflow. Use an ID or a unique name;
   use `--dry-run` to inspect planning issues before execution.
 - Provider errors often indicate missing account connections, external tools,

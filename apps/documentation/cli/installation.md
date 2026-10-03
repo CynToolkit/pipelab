@@ -36,7 +36,7 @@ upload path. See [Cloud artifacts](/guide/cloud-artifacts) for current
 availability and limits. `POSTHOG_API_KEY`, when included in a production
 build, enables command telemetry.
 
-Use `pipelab --help` for the command list and `pipelab <command> --help` for a command's options. See the [CLI reference](/cli/reference) for command behavior and the distinction between graph pipeline runs and Release workflow runs.
+Use `pipelab --help` for the command list and `pipelab <command> --help` for a command's options. See the [CLI reference](/cli/reference) for command behavior and Release workflow execution.
 
 ## Development install
 

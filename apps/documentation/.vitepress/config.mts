@@ -25,20 +25,19 @@ export default defineConfig({
           items: [
             { text: 'What is Pipelab?', link: '/guide/what-is-pipelab' },
             { text: 'Install and start', link: '/guide/installation' },
-            { text: 'First project and pipeline', link: '/guide/getting-started' },
+            { text: 'First project and workflow', link: '/guide/getting-started' },
           ],
         },
         {
           text: 'Build and run',
           items: [
-            { text: 'Edit and run a pipeline', link: '/guide/pipelines' },
             { text: 'Release workflows', link: '/guide/release-workflows' },
             { text: 'Workflow inputs and dependencies', link: '/guide/workflow-references' },
             { text: 'Runs and history', link: '/guide/runs-and-history' },
           ],
         },
         {
-          text: 'Providers and tasks',
+          text: 'Providers',
           items: [
             { text: 'Catalog', link: '/guide/integrations/' },
             { text: 'Folder and ZIP', link: '/guide/integrations/folder-zip' },
@@ -46,11 +45,6 @@ export default defineConfig({
             { text: 'Godot', link: '/guide/integrations/godot' },
             { text: 'Electron', link: '/guide/integrations/electron' },
             { text: 'Tauri', link: '/guide/integrations/tauri' },
-            { text: 'Discord Activity', link: '/guide/integrations/discord-activity' },
-            { text: 'Filesystem', link: '/guide/integrations/filesystem' },
-            { text: 'System actions', link: '/guide/integrations/system' },
-            { text: 'Minify', link: '/guide/integrations/minify' },
-            { text: 'Netlify', link: '/guide/integrations/netlify' },
             { text: 'Publishing overview', link: '/guide/publishing/' },
             { text: 'Steam', link: '/guide/publishing/steam' },
             { text: 'itch.io', link: '/guide/publishing/itch' },

@@ -16,7 +16,7 @@ const forgeArgs = process.platform === "linux" ? ["--headless", "--no-sandbox"] 
 
 const isUiUp = () =>
   new Promise((resolve) => {
-    const request = http.get("http://127.0.0.1:5173", (response) => {
+    const request = http.get("http://localhost:5173", (response) => {
       response.resume();
       resolve(true);
     });
@@ -37,7 +37,7 @@ const child = spawn(command, ["run", "start", "--", ...forgeArgs], {
   cwd: desktopDir,
   env: { ...process.env, PIPELAB_E2E: "1" },
   shell: process.platform === "win32",
-  stdio: ["ignore", "pipe", "pipe"],
+  stdio: ["pipe", "pipe", "pipe"],
   windowsVerbatimArguments: false,
   detached: process.platform !== "win32",
 });
@@ -72,7 +72,7 @@ const waitForUi = uiAlreadyRunning
   : new Promise((resolve, reject) => {
       const deadline = Date.now() + 30_000;
       const check = () => {
-        const request = http.get("http://127.0.0.1:5173", (response) => {
+        const request = http.get("http://localhost:5173", (response) => {
           response.resume();
           resolve();
         });

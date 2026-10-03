@@ -23,22 +23,10 @@
           to="/dashboard"
           class="sidebar-nav-item"
           active-class="active"
-          :class="{ active: route.name === 'Editor' }"
-          v-tooltip.right="
-            isSidebarCollapsed
-              ? route.name === 'Editor'
-                ? 'Back to Dashboard'
-                : 'Dashboard'
-              : undefined
-          "
+          v-tooltip.right="isSidebarCollapsed ? 'Dashboard' : undefined"
         >
-          <i
-            class="mdi nav-icon"
-            :class="route.name === 'Editor' ? 'mdi-arrow-left' : 'mdi-view-dashboard-outline'"
-          />
-          <span v-show="!isSidebarCollapsed" class="nav-label">
-            {{ route.name === "Editor" ? "Back to Dashboard" : "Dashboard" }}
-          </span>
+          <i class="mdi mdi-view-dashboard-outline nav-icon" />
+          <span v-show="!isSidebarCollapsed" class="nav-label">Dashboard</span>
         </router-link>
 
         <router-link
@@ -255,11 +243,9 @@ import { UpdateStatus } from "@pipelab/shared";
 import posthog from "posthog-js";
 import { storeToRefs } from "pinia";
 import { handle } from "@renderer/composables/handlers";
-import { useRoute } from "vue-router";
 import { websocketManager } from "@renderer/composables/websocket-manager";
 
 const { logger } = useLogger();
-const route = useRoute();
 const shell = useShell();
 
 const isElectron = !!window.electron;
@@ -277,19 +263,6 @@ const toggleSidebar = () => {
   isSidebarCollapsed.value = !isSidebarCollapsed.value;
   userSidebarPreference.value = isSidebarCollapsed.value;
 };
-
-// Auto-collapse on editor route
-watch(
-  () => route.name,
-  (routeName) => {
-    if (routeName === "Editor") {
-      isSidebarCollapsed.value = true;
-    } else {
-      isSidebarCollapsed.value = userSidebarPreference.value;
-    }
-  },
-  { immediate: true },
-);
 
 const updateStatus = ref<UpdateStatus>("update-not-available");
 const updateDownloadUrl = ref<string | undefined>(undefined);

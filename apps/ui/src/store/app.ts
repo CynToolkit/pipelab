@@ -1,14 +1,7 @@
 import { defineStore } from "pinia";
-import { createEventHook } from "@vueuse/core";
 import { ref } from "vue";
 import { useAPI } from "@renderer/composables/api";
-import {
-  RendererPluginDefinition,
-  Presets,
-  useLogger,
-  transformUrl,
-  ReleaseChannel,
-} from "@pipelab/shared";
+import { RendererPluginDefinition, useLogger, transformUrl, ReleaseChannel } from "@pipelab/shared";
 
 const transformPluginUrls = (plugin: RendererPluginDefinition): RendererPluginDefinition => {
   if (!plugin) return plugin;
@@ -42,9 +35,6 @@ const transformPluginUrls = (plugin: RendererPluginDefinition): RendererPluginDe
 export const useAppStore = defineStore("app", () => {
   const { logger } = useLogger();
 
-  /** Presets to load from */
-  const presets = ref<Presets>();
-
   /** All the plugins definitions */
   const pluginDefinitions = ref<Array<RendererPluginDefinition>>([]);
 
@@ -52,8 +42,6 @@ export const useAppStore = defineStore("app", () => {
   const version = ref<string>("");
 
   const api = useAPI();
-
-  const { on: onPresetsLoaded, trigger: triggerPresetsLoaded } = createEventHook();
 
   const init = async () => {
     try {
@@ -82,16 +70,6 @@ export const useAppStore = defineStore("app", () => {
       logger().error("Failed to transform plugin URLs on startup:", err);
       pluginDefinitions.value = nodeDefs || [];
     }
-
-    //
-    const presentResult = await api.execute("presets:get");
-    if (presentResult.type === "error") {
-      throw new Error(presentResult.ipcError);
-    }
-    presets.value = presentResult.result;
-
-    //
-    triggerPresetsLoaded();
 
     // Listen for dynamically loaded plugins in the background
     api.on("plugin:loaded", (event: any) => {
@@ -127,8 +105,6 @@ export const useAppStore = defineStore("app", () => {
   };
 
   return {
-    presets,
-    onPresetsLoaded,
     init,
 
     pluginDefinitions,

@@ -1,13 +1,13 @@
 # CLI reference
 
-The CLI has two separate execution paths:
-
-- `pipelab run <file>` executes a legacy graph pipeline from a JSON file.
-- `pipelab workflow run <id-or-name>` executes a saved **Release workflow** from Pipelab's user-data store.
+The CLI executes saved **Release workflows** from Pipelab's user-data store
+with `pipelab workflow run <id-or-name>`.
 
 While it runs, the CLI shows readable operation names such as “Build desktop app (Linux x64)” and “Upload to Steam.”
 
-`--dry-run` belongs only to `workflow run`. It does not apply to `run <file>`. A Release workflow can build or deliver a user's game; it does not publish a Pipelab desktop or npm release. See [Release workflows](/guide/release-workflows) and [Release Pipelab](/contributing/releases).
+A Release workflow can build or deliver a user's game; it does not publish a
+Pipelab desktop or npm release. See [Release workflows](/guide/release-workflows)
+and [Release Pipelab](/contributing/releases).
 
 Run `pipelab --help` or a command's `--help` for help. Local CLI help confirms
 the registered command list; the details below follow the command registrations
@@ -34,23 +34,6 @@ Starts the standalone HTTP/WebSocket server used by the UI and plugin handlers.
 | `--user-data <path>` | Platform default | Use a custom user-data directory. |
 
 The default is loopback-only. In production, non-loopback access requires a token; development has separate origin checks. Development requests are redirected to the UI dev server; production serves bundled UI assets, which must be present in the CLI bundle. See [architecture](/guide/architecture) for the desktop/server boundary.
-
-### Run a graph pipeline JSON file
-
-```text
-pipelab run <file>
-```
-
-Reads a JSON pipeline file (relative paths resolve from the current directory), loads its graph, and executes its actions. It records build history unless `PIPELAB_DISABLE_HISTORY=true`.
-
-| Option | Behavior |
-| --- | --- |
-| `--user-data <path>` | Use a custom user-data directory. |
-| `--variables <json>` | Replace the file's variable list with values parsed from this JSON string. |
-| `-o, --output <path>` | Write the execution result as formatted JSON; parent directories are created. |
-| `--cloud` | Enable cloud run logging when `CLOUD_RUN_ID` is also set. |
-
-The file must be valid JSON containing `graph` or `canvas.blocks`. Referenced plugin actions must be available to the runner. The command prints execution events and the build ID; errors exit with status 1. `--cloud` alone does not create or identify a cloud run.
 
 ### Run a saved Release workflow
 
@@ -87,30 +70,17 @@ pipelab workflow rm <id>
 
 `workflow ls` (alias `list`) prints saved workflow names and IDs, source provider, destination providers, and last-modified value. `workflow rm` also accepts `remove` and `delete`; it requires `-f, --force`. Both commands accept `--user-data <path>`. The parent group accepts `workflows` as an alias.
 
-### Manage graph pipelines
-
-The group accepts `pipeline` as an alias for `pipelines`.
-
-| Command | Aliases | Behavior |
-| --- | --- | --- |
-| `pipelab pipelines ls` | `list` | Lists pipeline entries and also summarizes saved workflows. |
-| `pipelab pipelines show <id-or-name>` | `shw` | Shows basic metadata. Matches ID, internal config name, or a substring of an external pipeline path; it does not search the display name. |
-| `pipelab pipelines detail <id-or-name>` | `details` | Adds version, description, variables, plugin block counts, triggers, and actions. |
-| `pipelab pipelines rm <id>` | `remove`, `delete` | Requires `-f, --force`. Removes the entry; for internal pipelines it attempts to remove the config file, while external source files are retained. |
-
-Each accepts `--user-data <path>`. Pipeline commands inspect or remove graph pipeline records; they do not manage persisted Release workflows in the same way as the `workflow` group.
-
 ### Build history and maintenance
 
 ```text
-pipelab history [pipeline-id]
+pipelab history [project-id]
 pipelab usage
-pipelab purge [pipeline-id]
+pipelab purge [project-id]
 ```
 
-- `history <pipeline-id>` prints a table with IDs, status, localized start time, and duration. `--limit <number>` defaults to `10`; `--user-data <path>` selects a different store. Use `--get <build-id>` to print one JSON history record, optionally scoped by the pipeline ID. Without either a pipeline ID or `--get`, the command exits with an error. The current implementation's ordering should not be read as a guaranteed newest-first listing.
-- `usage` reports build-history entry count, pipelines with history, history size, oldest/newest timestamps, user-data path, and cache path. It is not a general disk-usage report. It accepts `--user-data <path>`.
-- `purge [pipeline-id]` requires `-f, --force`. It removes history and associated recorded artifacts/cache data for that pipeline, or all recognized build history when no ID is supplied. It does not delete a pipeline definition. It accepts `--user-data <path>`.
+- `history <project-id>` prints workflow run history for one project. `--limit <number>` defaults to `10`; `--user-data <path>` selects a different store. Use `--get <build-id>` to print one JSON history record, optionally scoped by project ID. Without either a project ID or `--get`, the command exits with an error. The current implementation's ordering should not be read as a guaranteed newest-first listing.
+- `usage` reports workflow-history entry count, projects with history, history size, oldest/newest timestamps, user-data path, and cache path. It is not a general disk-usage report. It accepts `--user-data <path>`.
+- `purge [project-id]` requires `-f, --force`. It removes workflow history and associated recorded artifacts/cache data for that project, or all recognized build history when no ID is supplied. It accepts `--user-data <path>`.
 
 ### Setup wizard
 

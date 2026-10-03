@@ -4,7 +4,7 @@ The main visual interface for Pipelab, built with Vue 3 and PrimeVue.
 
 ## 🎨 Role & Connectivity
 
-The UI is a "thin client" designed to visualize and edit automation pipelines. It does not execute logic directly; instead, it orchestrates the `@pipelab/cli` engine.
+The UI is a "thin client" designed to configure and run Release workflows. It does not execute logic directly; instead, it orchestrates the `@pipelab/cli` engine.
 
 ### Connection Discovery
 

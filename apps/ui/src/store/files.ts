@@ -1,14 +1,9 @@
-import { SavedFile } from "@pipelab/shared";
 import { defineStore } from "pinia";
 import { Draft, create } from "mutative";
 import { klona } from "klona";
 import { FileRepo, ReleaseConfig } from "@pipelab/shared";
 import { useAPI } from "@renderer/composables/api";
 import { useProjectsConfig } from "@renderer/composables/useConfig";
-
-export interface File {
-  data: SavedFile;
-}
 
 export const useFiles = defineStore("files", () => {
   const api = useAPI();
@@ -19,33 +14,12 @@ export const useFiles = defineStore("files", () => {
     await save(klona(next));
   };
 
-  const remove = async (id: string) => {
-    const pipeline = files.value.pipelines?.find((file) => file.id === id);
-    if (pipeline && pipeline.type === "internal") {
-      const result = await api.execute("pipeline:delete-by-name", { name: pipeline.configName });
-      if (result.type === "error") throw new Error(result.ipcError);
-    }
-
-    await update((state) => {
-      state.pipelines = (state.pipelines || []).filter((file) => file.id !== id);
-    });
-  };
-
   const removeProject = async (id: string) => {
     if ((files.value.workflows || []).some((workflow) => workflow.project === id)) {
       throw new Error(`Project '${id}' cannot be deleted while a release workflow references it.`);
     }
     await update((state) => {
       state.projects = state.projects.filter((project) => project.id !== id);
-    });
-  };
-
-  const transferPipeline = async (pipelineId: string, projectId: string) => {
-    await update((state) => {
-      const pipeline = state.pipelines?.find((p) => p.id === pipelineId);
-      if (pipeline) {
-        pipeline.project = projectId;
-      }
     });
   };
 
@@ -76,9 +50,7 @@ export const useFiles = defineStore("files", () => {
 
     load,
     update,
-    remove,
     removeProject,
-    transferPipeline,
     saveWorkflow,
     removeWorkflow,
   };
