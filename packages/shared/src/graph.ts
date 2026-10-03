@@ -4,10 +4,13 @@ import { Variable } from "./variables";
 import { RendererPluginDefinition } from "./plugins/definitions";
 import { Block } from "./model";
 import { Context } from "./types";
-import { End } from "./apis";
 import { useLogger } from "./logger";
 import { variableToFormattedVariable } from "./variables";
 import { createQuickJs } from "./quickjs";
+
+type GraphActionResult =
+  | { type: "success"; result: { outputs: Record<string, unknown>; tmp: string } }
+  | { type: "error"; ipcError: string; code?: string };
 
 const getPluginDefinition = (pluginId: string, definitions: Array<RendererPluginDefinition>) => {
   const result = definitions.find((nodeDef) => {
@@ -42,7 +45,7 @@ export const processGraph = async (options: {
     node: Block,
     params: Record<string, string>,
     steps: Steps,
-  ) => Promise<End<"action:execute">>;
+  ) => Promise<GraphActionResult>;
   onNodeEnter: (node: Block) => void;
   onNodeExit: (node: Block) => void;
   abortSignal?: AbortSignal;
@@ -98,7 +101,7 @@ export const processGraph = async (options: {
         node,
         newParams,
         options.steps,
-      )) as End<"action:execute">;
+      )) as GraphActionResult;
 
       if (result.type === "error") {
         logger().error(result.ipcError);
@@ -111,7 +114,9 @@ export const processGraph = async (options: {
         ) {
           throw result.ipcError;
         }
-        throw new Error(`"${nodeDefinition?.node.name || rawNode.origin.nodeId}" action error: ${result.ipcError}`);
+        throw new Error(
+          `"${nodeDefinition?.node.name || rawNode.origin.nodeId}" action error: ${result.ipcError}`,
+        );
       }
 
       if (result.type === "success") {

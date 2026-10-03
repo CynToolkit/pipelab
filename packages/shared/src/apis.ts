@@ -2,7 +2,6 @@ import { RendererPluginDefinition } from "./plugins/definitions";
 import { User, UserResponse } from "@supabase/supabase-js";
 import type { Tagged } from "type-fest";
 import { AppConfig, ConnectionsConfig } from "./config.schema";
-import { Steps } from "./model";
 import { FileRepo } from "./config/projects-definition";
 import type {
   ReleaseCatalog,
@@ -27,9 +26,6 @@ export type BrowserProfileCandidate = {
   reason?: string;
 };
 
-type Event<TYPE extends string, DATA> =
-  | { type: TYPE; data: DATA }
-  | { type: "log"; data: { decorator: string; message: unknown[]; time: number } };
 type EndEvent<DATA> = {
   type: "end";
   data:
@@ -147,17 +143,6 @@ export type IpcDefinition = {
     EndEvent<{ canceled: boolean; filePath: string | undefined }>,
   ];
   "nodes:get": [void, EndEvent<{ nodes: RendererPluginDefinition[] }>];
-  // Internal graph adapter type retained while Workflow tasks share node runners.
-  "action:execute": [
-    {
-      pluginId: string;
-      nodeId: string;
-      params: any;
-      steps: Steps;
-    },
-    Event<"progress", unknown> | EndEvent<{ outputs: Record<string, unknown>; tmp: string }>,
-  ];
-  "constants:get": [void, EndEvent<{ result: { userData: string } }>];
 
   "settings:load": [void, EndEvent<AppConfig>];
   "settings:save": [{ data: AppConfig }, EndEvent<"ok">];
