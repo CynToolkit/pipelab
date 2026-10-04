@@ -19,7 +19,7 @@ export async function historyCommand(
       process.exit(1);
     }
   } else if (projectId) {
-    const entries = await storage.getByPipeline(projectId);
+    const entries = await storage.getByProject(projectId);
     if (entries.length > 0) {
       const limit = options.limit || 10;
       const recentEntries = entries.slice(-limit);

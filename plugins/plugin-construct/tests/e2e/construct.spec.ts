@@ -9,7 +9,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const fixturesPath = join(__dirname, "fixtures");
 
-describe("End-to-End: Construct 3 Export Pipeline", () => {
+describe("End-to-End: Construct 3 Export runner", () => {
   let sandbox: Awaited<ReturnType<typeof createSandbox>>;
 
   afterEach(async () => {
@@ -23,7 +23,7 @@ describe("End-to-End: Construct 3 Export Pipeline", () => {
   test.skip(
     "should run the full C3 export action",
     async () => {
-      sandbox = await createSandbox("c3-pipeline-e2e");
+      sandbox = await createSandbox("c3-export-e2e");
       const fixtures = fixturesPath;
 
       // 1. Prepare inputs

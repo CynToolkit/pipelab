@@ -21,7 +21,7 @@ export const filterBuildHistoryEntries = (
 ) =>
   entries.filter(
     (entry) =>
-      (!query?.pipelineId || entry.pipelineId === query.pipelineId) &&
+      (!query?.projectId || entry.projectId === query.projectId) &&
       (!query?.workflowId || entry.workflowId === query.workflowId),
   );
 
@@ -69,7 +69,7 @@ export const registerHistoryHandlers = (context: PipelabContext) => {
       logger().debug("Processing build-history:get request");
       await checkBuildHistoryAuthorization();
 
-      const entry = await buildHistoryStorage.get(value.id, value.pipelineId);
+      const entry = await buildHistoryStorage.get(value.id, value.projectId);
       send({
         type: "end",
         data: { type: "success", result: { entry } },
@@ -138,7 +138,7 @@ export const registerHistoryHandlers = (context: PipelabContext) => {
     try {
       await checkBuildHistoryAuthorization();
 
-      await buildHistoryStorage.update(value.id, value.updates, value.pipelineId);
+      await buildHistoryStorage.update(value.id, value.updates, value.projectId);
       send({
         type: "end",
         data: { type: "success", result: { result: "ok" } },
@@ -168,7 +168,7 @@ export const registerHistoryHandlers = (context: PipelabContext) => {
     try {
       await checkBuildHistoryAuthorization();
 
-      await buildHistoryStorage.delete(value.id, value.pipelineId);
+      await buildHistoryStorage.delete(value.id, value.projectId);
       send({
         type: "end",
         data: { type: "success", result: { result: "ok" } },
@@ -224,17 +224,17 @@ export const registerHistoryHandlers = (context: PipelabContext) => {
     }
   });
 
-  handle("build-history:clear-by-pipeline", async (event, { send, value }) => {
+  handle("build-history:clear-by-project", async (event, { send, value }) => {
     try {
       await checkBuildHistoryAuthorization();
 
-      await buildHistoryStorage.clearByPipeline(value.pipelineId);
+      await buildHistoryStorage.clearByProject(value.projectId);
       send({
         type: "end",
         data: { type: "success", result: { result: "ok" } },
       });
     } catch (error) {
-      logger().error(`Failed to clear build history for pipeline ${value.pipelineId}:`, error);
+      logger().error(`Failed to clear build history for project ${value.projectId}:`, error);
 
       if (error instanceof SubscriptionRequiredError) {
         send({
@@ -249,7 +249,7 @@ export const registerHistoryHandlers = (context: PipelabContext) => {
         data: {
           type: "error",
           ipcError:
-            error instanceof Error ? error.message : "Failed to clear build history for pipeline",
+            error instanceof Error ? error.message : "Failed to clear build history for project",
         },
       });
     }

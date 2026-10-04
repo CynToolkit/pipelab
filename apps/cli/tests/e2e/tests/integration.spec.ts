@@ -29,7 +29,6 @@ describe("End-to-End: Multi-Plugin Integration Test", () => {
         JSON.stringify({
           version: "3.0.0",
           projects: [{ id: "main", name: "Main", description: "CLI test" }],
-          pipelines: [],
           workflows: [
             {
               id: "release-e2e",

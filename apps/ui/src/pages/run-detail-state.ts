@@ -61,10 +61,10 @@ export const selectRunStep = (state: RunStepSelectionState, stepId: string | nul
 };
 
 export const isRunContextValid = (
-  entry: Pick<BuildHistoryEntry, "pipelineId" | "workflowId">,
+  entry: Pick<BuildHistoryEntry, "projectId" | "workflowId">,
   flowId: string,
   projectId: string,
-) => entry.pipelineId === projectId && entry.workflowId === flowId;
+) => entry.projectId === projectId && entry.workflowId === flowId;
 
 export const workflowCancellationFeedback = (result: {
   type: string;

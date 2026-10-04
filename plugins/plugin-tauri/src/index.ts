@@ -1,5 +1,5 @@
 /// <reference path="./declarations.d.ts" />
-import { createNodeDefinition } from "@pipelab/plugin-core";
+import { createDefinition } from "@pipelab/plugin-core";
 import { packageV2Runner } from "./package";
 import type { ReleaseProducerDefinition } from "@pipelab/shared";
 
@@ -75,13 +75,12 @@ const tauriProducer: ReleaseProducerDefinition = {
   }),
 };
 
-export default createNodeDefinition({
+export default createDefinition({
   id: "@pipelab/plugin-tauri",
   packageName: "@pipelab/plugin-tauri",
   name: "Tauri",
   description: "Pipelab plugin for packaging apps with Tauri",
   icon: { type: "icon", icon: "pi-box" },
   isOfficial: true,
-  nodes: [],
   release: { producers: [tauriProducer] },
 });

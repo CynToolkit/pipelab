@@ -8,15 +8,13 @@
             <div class="hero-content">
               <div class="hero-text">
                 <h1 class="hero-title fade-in mb-6">
-                  <div>Your Game's Pipeline</div>
-                  <div>
-                    <span>Fully </span><span class="accent">Automated</span>
-                  </div>
+                  <div>Game releases, simplified</div>
+                  <div><span>Fully </span><span class="accent">Automated</span></div>
                 </h1>
                 <div class="hero-description mt-4 fade-in-delay">
                   <div class="mb-2">
-                    Design custom workflows to compress assets, package for
-                    multiple platforms, deploy to Steam or itch.io and more.
+                    Configure release workflows to build your game for desktop and publish it to
+                    platforms like Steam and itch.io.
                   </div>
                 </div>
                 <div class="trusted-by fade-in-delay">
@@ -35,9 +33,7 @@
               </div>
               <div class="hero-animation">
                 <div class="node" ref="$firstNode">
-                  <MdiImageSizeSelectActual
-                    class="icon left-icon"
-                  ></MdiImageSizeSelectActual>
+                  <MdiImageSizeSelectActual class="icon left-icon"></MdiImageSizeSelectActual>
                   <div class="title">Compress images</div>
                   <CircleConfirm
                     color="green"
@@ -96,7 +92,15 @@
                 src="https://www.youtube.com/embed/akMziFN6PFA?si=RCAfSgOMLtBoj_jF"
                 title="YouTube video player"
                 frameborder="0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allow="
+                  accelerometer;
+                  autoplay;
+                  clipboard-write;
+                  encrypted-media;
+                  gyroscope;
+                  picture-in-picture;
+                  web-share;
+                "
                 referrerpolicy="strict-origin-when-cross-origin"
                 allowfullscreen
               ></iframe>
@@ -108,9 +112,7 @@
 
     <section class="features" id="features">
       <div class="container">
-        <h2 class="section-title text-center mb-5 fade-in">
-          Powerful Features
-        </h2>
+        <h2 class="section-title text-center mb-5 fade-in">Powerful Features</h2>
         <div class="grid">
           <div
             class="col-12 sm:col-12 md:col-6 lg:col-4 p-3 fade-in-delay"
@@ -136,72 +138,9 @@
 
     <TestimonialSection />
 
-    <section class="pricing" id="pricing">
-      <div class="container">
-        <h2 class="section-title text-center mb-5 fade-in">Pricing</h2>
-        <div class="grid">
-          <div class="tiers">
-            <div
-              class="col-12 sm:col-12 md:col-6 lg:col-4 p-3 fade-in-delay tier"
-              v-for="tier in tiers"
-              :key="tier.name"
-            >
-              <div class="feature-card">
-                <h3>{{ tier.name }}</h3>
-                <p class="price">
-                  <span class="price-text">${{ tier.price }}</span
-                  >/{{ tier.unit }}
-                </p>
-                <div class="get-started-button">
-                  <Button
-                    as="router-link"
-                    :to="{ name: 'Download' }"
-                    class="p-button-lg primary-btn"
-                    size="large"
-                    fluid
-                    v-if="tier.price === 0 || tier.price > 0"
-                    >Download now</Button
-                  >
-                  <Button
-                    class="p-button-lg primary-btn"
-                    size="large"
-                    fluid
-                    v-else
-                  >
-                    Choose Plan
-                  </Button>
-                </div>
-              </div>
-              <ul class="features">
-                <li
-                  v-for="feature in tier.features"
-                  :key="feature.name"
-                  class="feature"
-                >
-                  <span v-if="feature.type === 'benefit'">
-                    <i class="pi pi-check-circle green icon"></i>
-                  </span>
-                  <span v-else-if="feature.type === 'limitation'">
-                    <i class="pi pi-times-circle red icon"></i>
-                  </span>
-                  <span class="text">{{ feature.name }}</span>
-                </li>
-              </ul>
-            </div>
-          </div>
-        </div>
-        <p class="pricing-notes">All plans are free during beta</p>
-        <p class="pricing-notes small-notes">
-          Until launch, all prices subject to change
-        </p>
-      </div>
-    </section>
-
     <section class="cta">
       <div class="container text-center">
-        <h2 class="fade-in">
-          Ready to revolutionize your game development pipeline?
-        </h2>
+        <h2 class="fade-in">Ready to streamline your next game release?</h2>
         <Button
           label="Download now"
           class="p-button-lg mt-3 fade-in-delay primary-btn"
@@ -240,70 +179,6 @@ import MdiImageSizeSelectActual from "~icons/mdi/image-size-select-actual";
 // @ts-ignore - Iconify icons don't have TypeScript declarations
 import MdiPackage from "~icons/mdi/package";
 
-interface Feature {
-  name: string;
-  type: "benefit" | "limitation";
-}
-
-interface Tier {
-  name: string;
-  price: number;
-  unit: string;
-  features: Feature[];
-}
-
-const tiers = ref<Tier[]>([
-  {
-    name: "Free",
-    price: 0,
-    unit: "month",
-    features: [
-      { name: "Actions from all integrations", type: "benefit" },
-      { name: "Unlimited local pipelines", type: "benefit" },
-
-      { name: "Email support", type: "benefit" },
-      { name: "Community support", type: "benefit" },
-
-      { name: "Single user", type: "limitation" },
-      { name: "Pipelines limited to 10 actions", type: "limitation" },
-      { name: "Only manual pipelines", type: "limitation" },
-    ],
-  },
-  {
-    name: "Individual",
-    price: 0,
-    unit: "month",
-    features: [
-      { name: "Actions from all integrations", type: "benefit" },
-      { name: "Unlimited pipelines (cloud & local)", type: "benefit" },
-      { name: "Unlimited actions & triggers", type: "benefit" },
-      { name: "Themes", type: "benefit" },
-
-      { name: "Email support", type: "benefit" },
-      { name: "Community support", type: "benefit" },
-
-      { name: "Single user", type: "limitation" },
-    ],
-  },
-  {
-    name: "Team",
-    price: 0,
-    unit: "month",
-    features: [
-      { name: "Actions from all integrations", type: "benefit" },
-      { name: "Unlimited pipelines (cloud & local)", type: "benefit" },
-      { name: "Unlimited actions & triggers", type: "benefit" },
-      { name: "Shared pipelines", type: "benefit" },
-
-      { name: "Faster email support", type: "benefit" },
-      { name: "Community support", type: "benefit" },
-
-      { name: "Analytics", type: "benefit" },
-    ],
-  },
-  // ... other tiers
-]);
-
 const features = ref([
   {
     title: "Cross-Platform Support",
@@ -314,57 +189,35 @@ const features = ref([
   },
   {
     title: "Deploy anywhere",
-    description:
-      "Upload your game to platforms like Steam and itch.io for quick deployments.",
+    description: "Upload your game to platforms like Steam and itch.io for quick deployments.",
     inDevelopment: false,
     icon: "pi pi-cloud",
   },
   {
     title: "Integrate with anything",
-    description:
-      "Seamlessly integrate with popular game editors like Construct 3 and Godot.",
+    description: "Seamlessly integrate with popular game editors like Construct 3 and Godot.",
     inDevelopment: false,
     icon: "pi pi-code",
   },
   {
-    title: "Easy to Use",
+    title: "Release workflows",
     description:
-      "Intuitive design, so you can automate your pipeline without needing a degree in DevOps.",
+      "Choose a source, configure build profiles, and connect the destinations for your release.",
     inDevelopment: false,
     icon: "pi pi-check-circle",
   },
   {
-    title: "Custom Script Integration",
+    title: "Build and publish",
     description:
-      "Incorporate custom scripts and tools into your automation pipelines.",
+      "Build for desktop targets and publish releases to supported destinations such as Steam and itch.io.",
     inDevelopment: false,
     icon: "pi pi-code",
   },
   {
-    title: "Cloud-Powered Workflows",
-    description:
-      "Offload complex builds to the cloud, freeing up your local resources.",
-    inDevelopment: true,
-    icon: "pi pi-cloud",
-  },
-  {
-    title: "Secure Data Storage",
-    description:
-      "Your game pipeline can be stored securely in our cloud infrastructure.",
-    inDevelopment: true,
-    icon: "pi pi-lock",
-  },
-  {
-    title: "Secrets support",
-    description: "Share pipelines with others without exposing your secrets.",
-    inDevelopment: true,
-    icon: "pi pi-key",
-  },
-  {
-    title: "Analytics",
-    description: "Get insights into your pipeline's performance.",
-    inDevelopment: true,
-    icon: "pi pi-key",
+    title: "Run history and artifacts",
+    description: "Review recent workflow runs and inspect the files they produced.",
+    inDevelopment: false,
+    icon: "pi pi-history",
   },
 ]);
 
@@ -449,14 +302,16 @@ const interval = setInterval(() => {
 .cta-primary {
   background: linear-gradient(135deg, var(--primary-color), #6a11cb) !important;
   border: none !important;
-  box-shadow: 0 8px 25px -5px rgba(106, 17, 203, 0.3),
+  box-shadow:
+    0 8px 25px -5px rgba(106, 17, 203, 0.3),
     0 8px 10px -6px rgba(106, 17, 203, 0.2) !important;
   transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
   transform: translateY(0);
 
   &:hover {
     transform: translateY(-2px);
-    box-shadow: 0 12px 35px -5px rgba(106, 17, 203, 0.4),
+    box-shadow:
+      0 12px 35px -5px rgba(106, 17, 203, 0.4),
       0 12px 15px -6px rgba(106, 17, 203, 0.3) !important;
   }
 
@@ -499,11 +354,7 @@ const interval = setInterval(() => {
 }
 
 .hero {
-  background: linear-gradient(
-    135deg,
-    var(--surface-ground) 0%,
-    rgba(245, 245, 250, 1) 100%
-  );
+  background: linear-gradient(135deg, var(--surface-ground) 0%, rgba(245, 245, 250, 1) 100%);
   padding: 6rem 0 4rem;
   position: relative;
   overflow: hidden;
@@ -515,21 +366,10 @@ const interval = setInterval(() => {
   left: 0;
   width: 100%;
   height: 100%;
-  background-image: radial-gradient(
-      circle at 20% 50%,
-      rgba(106, 17, 203, 0.05) 0%,
-      transparent 50%
-    ),
-    radial-gradient(
-      circle at 80% 20%,
-      rgba(106, 17, 203, 0.03) 0%,
-      transparent 50%
-    ),
-    radial-gradient(
-      circle at 40% 80%,
-      rgba(106, 17, 203, 0.02) 0%,
-      transparent 50%
-    );
+  background-image:
+    radial-gradient(circle at 20% 50%, rgba(106, 17, 203, 0.05) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(106, 17, 203, 0.03) 0%, transparent 50%),
+    radial-gradient(circle at 40% 80%, rgba(106, 17, 203, 0.02) 0%, transparent 50%);
   opacity: 0.3;
   pointer-events: none;
 }
@@ -708,20 +548,6 @@ const interval = setInterval(() => {
   background: #fff;
 }
 
-.pricing {
-  padding: 2rem 0 4rem;
-  background: var(--surface-ground);
-
-  .pricing-notes {
-    text-align: center;
-
-    &.small-notes {
-      font-size: 0.75rem;
-      color: #666;
-    }
-  }
-}
-
 .demo {
   background-color: var(--surface-section);
   padding: 4rem 0;
@@ -739,7 +565,9 @@ const interval = setInterval(() => {
   padding: 1rem 2rem;
   height: 100%;
   box-shadow: 0px 0px 8px rgba(0, 0, 0, 0.05);
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  transition:
+    transform 0.3s ease,
+    box-shadow 0.3s ease;
   position: relative;
   border: 1px solid #f1f1f1;
 
@@ -875,7 +703,9 @@ const interval = setInterval(() => {
   border: 1px solid #dfdfdf;
 
   &.animate-node {
-    animation: slideInFade 0.5s forwards, slideIn 0.5s forwards;
+    animation:
+      slideInFade 0.5s forwards,
+      slideIn 0.5s forwards;
   }
 
   .title {
@@ -904,40 +734,6 @@ const interval = setInterval(() => {
   }
 }
 
-.tiers {
-  display: flex;
-  justify-content: center;
-  gap: 1rem;
-  width: 100%;
-  flex-wrap: wrap;
-
-  .feature-card {
-    height: auto;
-  }
-
-  .features {
-    padding: 1.5rem;
-    background-color: var(--surface-ground);
-
-    li {
-      padding: 0.25rem 0;
-    }
-  }
-
-  .tier {
-    width: calc(1200px / 3);
-    padding: 20px;
-    border-radius: 5px;
-  }
-
-  .price {
-    .price-text {
-      font-size: 2em;
-      font-weight: bold;
-    }
-  }
-}
-
 @media (max-width: 1280px) {
   .hero-content {
     grid-template-columns: 1fr;
@@ -946,11 +742,6 @@ const interval = setInterval(() => {
   .hero-animation {
     display: none;
   }
-
-  //   .tiers {
-  //     flex-direction: column;
-  //     justify-content: center;
-  //   }
 }
 
 .red {

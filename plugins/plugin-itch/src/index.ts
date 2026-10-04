@@ -1,6 +1,6 @@
 import { uploadToItchRunner } from "./export";
 
-import { createNodeDefinition } from "@pipelab/plugin-core";
+import { createDefinition } from "@pipelab/plugin-core";
 import type { ReleaseDestinationDefinition } from "@pipelab/shared";
 
 export const workflowTaskRunners = {
@@ -65,14 +65,13 @@ export const itchDestination: ReleaseDestinationDefinition = {
   ],
 };
 
-export default createNodeDefinition({
+export default createDefinition({
   id: "@pipelab/plugin-itch",
   packageName: "@pipelab/plugin-itch",
   name: "Itch.io",
   description: "Pipelab plugin for publishing games to itch.io",
   icon: { type: "icon", icon: "pi-palette" },
   isOfficial: true,
-  nodes: [],
   integrations: [
     {
       name: "Itch Butler Account",

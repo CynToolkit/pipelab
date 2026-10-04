@@ -407,7 +407,7 @@ const formatSize = (bytes: number) => {
       <section class="nudge-card">
         <h3 class="nudge-title">💡 Build native desktop apps with Pipelab</h3>
         <p class="nudge-subtitle">
-          Enjoy advanced publishing options, proper installers, code-signing, and seamless pipeline workflows with our desktop app.
+          Create desktop builds and manage releases to supported publishing destinations from one workflow.
         </p>
 
         <table class="nudge-features-table">
@@ -435,21 +435,16 @@ const formatSize = (bytes: number) => {
               <td class="native-col">✓ Steam & Itch.io automatic publish</td>
             </tr>
             <tr>
-              <td class="feature-col">Asset Compression & Minifying</td>
-              <td class="web-col">✗ No changes</td>
-              <td class="native-col">✓ Automatic (reduce app sizes by 40%)</td>
-            </tr>
-            <tr>
-              <td class="feature-col">Workflow Automation Nodes</td>
+              <td class="feature-col">Release workflow</td>
               <td class="web-col">✗ Packaging only</td>
-              <td class="native-col">✓ Filesystem, Discord, Netlify, Custom scripts</td>
+              <td class="native-col">✓ Configure sources, builds, and destinations</td>
             </tr>
           </tbody>
         </table>
 
         <div class="nudge-cta-box">
           <p class="nudge-cta-text">
-            Pipelab is a visual node editor that handles compiling, code signing, and distributing games. Bring your pipeline automations to the next level.
+            Pipelab uses release workflows to configure builds, review run artifacts, and publish games to supported destinations.
           </p>
           <a href="https://pipelab.dev" target="_blank" class="nudge-btn">
             Get Pipelab Desktop App (Free)

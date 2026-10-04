@@ -74,7 +74,7 @@ describe("End-to-End: Poki Upload Action", () => {
       await mkdir(join(pokiDir, "node_modules"), { recursive: true });
       await writeFile(join(pokiDir, "node_modules", ".keep"), "");
 
-      // 3. Run Pipeline
+      // 3. Run the upload task
       try {
         await runAction(uploadToPokiRunner, {
           inputs: {

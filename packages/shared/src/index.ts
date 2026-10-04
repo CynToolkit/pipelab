@@ -53,7 +53,6 @@ export * from "./plugins";
 export * from "./plugins-list";
 export * from "./plugins/definitions"; // <-- RE-ADDED
 export * from "./quickjs";
-export * from "./save-location";
 export * from "./subscription-errors";
 export * from "./supabase";
 export * from "./types";
@@ -61,7 +60,6 @@ export * from "./utils";
 export * from "./validation";
 export * from "./variables";
 export * from "./websocket.types";
-export * from "./path";
 export * from "./persisted-id";
 export * from "./release/types";
 export * from "./release/matcher";

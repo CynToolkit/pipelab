@@ -63,7 +63,6 @@ describe("CLI release dry-run", () => {
       JSON.stringify({
         version: "3.0.0",
         projects: [{ id: "main", name: "Main", description: "CLI test" }],
-        pipelines: [],
         workflows: [
           {
             id: config.id,
@@ -131,7 +130,6 @@ describe("CLI release dry-run", () => {
         JSON.stringify({
           version: "3.0.0",
           projects: [{ id: "main", name: "Main", description: "CLI test" }],
-          pipelines: [],
           workflows: [
             {
               id: workflowId,
@@ -164,7 +162,6 @@ describe("CLI release dry-run", () => {
         JSON.stringify({
           version: "3.0.0",
           projects: [{ id: "main", name: "Main", description: "CLI test" }],
-          pipelines: [],
           workflows: [
             {
               id: workflowId,
@@ -237,7 +234,6 @@ describe("CLI release dry-run", () => {
         JSON.stringify({
           version: "3.0.0",
           projects: [{ id: "main", name: "Main", description: "CLI test" }],
-          pipelines: [],
           workflows: [
             {
               id: "release-dry-run",
@@ -693,7 +689,6 @@ describe("CLI release dry-run", () => {
         JSON.stringify({
           version: "3.0.0",
           projects: [{ id: "main", name: "Main", description: "CLI test" }],
-          pipelines: [],
           workflows: [
             {
               id: "godot-steam",

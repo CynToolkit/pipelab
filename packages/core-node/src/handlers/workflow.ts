@@ -160,12 +160,12 @@ export const executeWorkflow = async (
   const buildId = nanoid();
   const history = new BuildHistoryStorage(context);
   const startTime = Date.now();
-  const pipelineId = config.project;
+  const projectId = config.project;
   const liveSteps: ExecutionStep[] = executionPlan(workflow);
   const liveLogs: LogEntry[] = [];
   await history.save({
     id: buildId,
-    pipelineId,
+    projectId,
     workflowId: config.id,
     workflowName: config.name,
     projectName: storedEntity.project.name,
@@ -201,7 +201,7 @@ export const executeWorkflow = async (
             ).length,
             cancelledSteps: steps.filter((step) => step.status === "cancelled").length,
           },
-          pipelineId,
+          projectId,
         );
       })
       .catch((error) => {
@@ -309,7 +309,7 @@ export const executeWorkflow = async (
           timestamp: Date.now(),
         },
       },
-      pipelineId,
+      projectId,
     );
     throw error;
   }
@@ -345,7 +345,7 @@ export const executeWorkflow = async (
       ).length,
       cancelledSteps: 0,
     },
-    pipelineId,
+    projectId,
   );
   return { result, runId: buildId };
 };

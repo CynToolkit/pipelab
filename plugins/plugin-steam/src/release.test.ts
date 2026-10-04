@@ -11,8 +11,8 @@ import {
 import plugin, { steamDestination, workflowTaskRunners } from "./index";
 
 describe("Steam release credentials", () => {
-  it("keeps its Release destination and task after removing legacy nodes", () => {
-    expect(plugin.nodes).toEqual([]);
+  it("keeps its Release destination and task without legacy node metadata", () => {
+    expect("nodes" in plugin).toBe(false);
     expect(plugin.release?.destinations?.map((destination) => destination.id)).toContain(
       steamDestination.id,
     );

@@ -341,7 +341,7 @@
           <div class="setting-item flex-column align-items-stretch">
             <div class="setting-content mb-2">
               <span class="setting-title">{{
-                t("settings.pipeline-cache-folder", "Plugin Cache Folder")
+                t("settings.plugin-cache-folder", "Plugin Cache Folder")
               }}</span>
               <span class="setting-description">
                 Change the directory where downloaded plugins and dependencies are cached. Leave

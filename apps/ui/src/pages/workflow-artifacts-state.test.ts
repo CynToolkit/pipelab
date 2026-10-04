@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { aggregateWorkflowArtifacts } from "./workflow-artifacts-state";
 
 const run = (
-  values: Pick<BuildHistoryEntry, "id" | "workflowId" | "pipelineId" | "startTime" | "artifacts"> &
+  values: Pick<BuildHistoryEntry, "id" | "workflowId" | "projectId" | "startTime" | "artifacts"> &
     Partial<BuildHistoryEntry>,
 ): BuildHistoryEntry => ({
   projectName: "Project",
@@ -25,7 +25,7 @@ describe("aggregateWorkflowArtifacts", () => {
       run({
         id: "older-run",
         workflowId: "flow-1",
-        pipelineId: "project-1",
+        projectId: "project-1",
         startTime: 10,
         version: "1.0.0",
         artifacts: [
@@ -41,7 +41,7 @@ describe("aggregateWorkflowArtifacts", () => {
       run({
         id: "wrong-project",
         workflowId: "flow-1",
-        pipelineId: "project-2",
+        projectId: "project-2",
         startTime: 30,
         artifacts: [
           {
@@ -56,7 +56,7 @@ describe("aggregateWorkflowArtifacts", () => {
       run({
         id: "newer-run",
         workflowId: "flow-1",
-        pipelineId: "project-1",
+        projectId: "project-1",
         startTime: 20,
         version: "2.0.0",
         artifacts: [
@@ -80,7 +80,7 @@ describe("aggregateWorkflowArtifacts", () => {
       run({
         id: "wrong-workflow",
         workflowId: "flow-2",
-        pipelineId: "project-1",
+        projectId: "project-1",
         startTime: 40,
         artifacts: [
           {
@@ -119,7 +119,7 @@ describe("aggregateWorkflowArtifacts", () => {
         run({
           id: "run-1",
           workflowId: "flow-1",
-          pipelineId: "project-1",
+          projectId: "project-1",
           startTime: 10,
           artifacts: [
             {

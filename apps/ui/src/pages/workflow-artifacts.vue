@@ -137,32 +137,38 @@ let loadGeneration = 0;
 const loadArtifacts = async () => {
   const generation = ++loadGeneration;
   const workflowId = flowId.value;
-  const pipelineId = projectId.value;
+  const requestedProjectId = projectId.value;
   const isCurrentRequest = () =>
-    generation === loadGeneration && flowId.value === workflowId && projectId.value === pipelineId;
+    generation === loadGeneration &&
+    flowId.value === workflowId &&
+    projectId.value === requestedProjectId;
 
   if (!artifacts.value.length) loading.value = true;
   loadError.value = "";
   actionError.value = "";
   void api
-    .execute("workflow:load", { workflowId, projectId: pipelineId })
+    .execute("workflow:load", { workflowId, projectId: requestedProjectId })
     .then((response) => {
       if (
         isCurrentRequest() &&
         response.type === "success" &&
         response.result.id === workflowId &&
-        response.result.project === pipelineId
+        response.result.project === requestedProjectId
       )
         workflowName.value = response.result.name;
     })
     .catch(() => {});
   try {
     const response = await api.execute("build-history:get-all", {
-      query: { workflowId, pipelineId },
+      query: { workflowId, projectId: requestedProjectId },
     });
     if (!isCurrentRequest()) return;
     if (response.type === "error") throw new Error(response.ipcError);
-    artifacts.value = aggregateWorkflowArtifacts(response.result.entries, workflowId, pipelineId);
+    artifacts.value = aggregateWorkflowArtifacts(
+      response.result.entries,
+      workflowId,
+      requestedProjectId,
+    );
   } catch (cause) {
     if (isCurrentRequest())
       loadError.value = cause instanceof Error ? cause.message : String(cause);

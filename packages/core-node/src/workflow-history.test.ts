@@ -27,7 +27,7 @@ const parseRuntimeHistory = (id: string, result: WorkflowResult): BuildHistoryEn
     entries: [
       {
         id,
-        pipelineId: "main",
+        projectId: "main",
         workflowId: "release",
         workflowName: "Release",
         projectName: "Game",

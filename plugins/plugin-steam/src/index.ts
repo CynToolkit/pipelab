@@ -1,5 +1,5 @@
 import { uploadToSteamRunner } from "./upload-to-steam";
-import { createNodeDefinition } from "@pipelab/plugin-core";
+import { createDefinition } from "@pipelab/plugin-core";
 import type { ReleaseDestinationDefinition } from "@pipelab/shared";
 
 export const workflowTaskRunners = {
@@ -66,14 +66,13 @@ export const steamDestination: ReleaseDestinationDefinition = {
   ],
 };
 
-export default createNodeDefinition({
+export default createDefinition({
   id: "@pipelab/plugin-steam",
   packageName: "@pipelab/plugin-steam",
   name: "Steam",
   description: "Pipelab plugin for publishing games to Steam via SteamCMD",
   icon: { type: "icon", icon: "mdi-steam" },
   isOfficial: true,
-  nodes: [],
   integrations: [
     {
       name: "Steam Account",

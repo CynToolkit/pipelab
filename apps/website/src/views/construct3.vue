@@ -7,9 +7,9 @@
             <div class="hero-content">
               <h1 class="hero-title fade-in">Pipelab for Construct 3 Users</h1>
               <p class="hero-description fade-in-delay">
-                Streamline your Construct 3 game development with Pipelab's
-                powerful automation tools. From asset compression to deployment,
-                focus on creating amazing games while we handle the pipeline.
+                Streamline your Construct 3 game development with Pipelab's release tools. Configure
+                builds and publishing destinations for your Construct 3 game, then focus on
+                creating.
               </p>
             </div>
           </div>
@@ -19,9 +19,7 @@
 
     <section class="benefits">
       <div class="container">
-        <h2 class="section-title text-center mb-5 fade-in">
-          Why Pipelab for Construct 3?
-        </h2>
+        <h2 class="section-title text-center mb-5 fade-in">Why Pipelab for Construct 3?</h2>
         <div class="grid">
           <div
             class="col-12 sm:col-12 md:col-6 lg:col-4 p-3 fade-in-delay"
@@ -174,7 +172,9 @@ const benefits = ref<Benefit[]>([
   padding: 1rem 2rem;
   height: 100%;
   box-shadow: 0px 0px 8px rgba(0, 0, 0, 0.05);
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  transition:
+    transform 0.3s ease,
+    box-shadow 0.3s ease;
   position: relative;
   border: 1px solid #f1f1f1;
 

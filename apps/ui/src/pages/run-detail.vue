@@ -222,12 +222,32 @@
               <span>{{ artifactKind(artifact) }}</span>
               <span>{{ formatSize(artifact.size) }}</span>
               <span class="artifact-locations">
-                <Tag v-if="'path' in artifact && artifact.path" value="Local" severity="secondary" />
+                <Tag
+                  v-if="'path' in artifact && artifact.path"
+                  value="Local"
+                  severity="secondary"
+                />
                 <Tag v-if="artifactCloud(artifact)" value="Cloud" severity="info" />
               </span>
               <div class="artifact-actions">
-                <Button v-if="'path' in artifact && artifact.path" label="Open" icon="mdi mdi-folder-open-outline" text size="small" :aria-label="`Open ${artifactTitle(artifact)}`" @click="openArtifact(artifact.path)" />
-                <Button v-if="artifactCloud(artifact)" label="Download" icon="mdi mdi-download" text size="small" :aria-label="`Download ${artifactTitle(artifact)}`" @click="downloadArtifact(artifactCloud(artifact)!.hostedArtifactId)" />
+                <Button
+                  v-if="'path' in artifact && artifact.path"
+                  label="Open"
+                  icon="mdi mdi-folder-open-outline"
+                  text
+                  size="small"
+                  :aria-label="`Open ${artifactTitle(artifact)}`"
+                  @click="openArtifact(artifact.path)"
+                />
+                <Button
+                  v-if="artifactCloud(artifact)"
+                  label="Download"
+                  icon="mdi mdi-download"
+                  text
+                  size="small"
+                  :aria-label="`Download ${artifactTitle(artifact)}`"
+                  @click="downloadArtifact(artifactCloud(artifact)!.hostedArtifactId)"
+                />
               </div>
             </article>
           </div>
@@ -326,7 +346,7 @@ const shortId = computed(() =>
   entry.value?.id ? entry.value.id.slice(0, 8) : String(route.params.runId).slice(0, 8),
 );
 const flowId = computed(() => String(route.params.flowId || entry.value?.workflowId || ""));
-const projectId = computed(() => String(route.params.projectId || entry.value?.pipelineId || ""));
+const projectId = computed(() => String(route.params.projectId || entry.value?.projectId || ""));
 const playwrightVideoPath = computed(() => {
   const messages = [
     entry.value?.error?.message,
@@ -363,7 +383,15 @@ const visibleLogs = computed(() =>
   selectedStep.value === null ? allLogs.value : selectedStepEntry.value?.logs || [],
 );
 const deliveryGroups = computed(() => {
-  const groups = new Map<string, { id: string; serviceId: string; name: string; items: NonNullable<BuildHistoryEntry["deliveries"]> }>();
+  const groups = new Map<
+    string,
+    {
+      id: string;
+      serviceId: string;
+      name: string;
+      items: NonNullable<BuildHistoryEntry["deliveries"]>;
+    }
+  >();
   for (const delivery of entry.value?.deliveries || []) {
     const metadata = deliveryDisplayMetadata(delivery);
     const group = groups.get(metadata.id) || { ...metadata, items: [] };
@@ -406,7 +434,9 @@ const artifactCloud = (artifact: NonNullable<BuildHistoryEntry["artifacts"]>[num
 const artifactDescription = (artifact: NonNullable<BuildHistoryEntry["artifacts"]>[number]) =>
   artifactDisplayDescription(artifact, entry.value?.steps || []);
 const artifactKind = (artifact: NonNullable<BuildHistoryEntry["artifacts"]>[number]) =>
-  ("descriptor" in artifact && artifact.descriptor ? artifact.descriptor.format || artifact.descriptor.kind : artifact.type);
+  "descriptor" in artifact && artifact.descriptor
+    ? artifact.descriptor.format || artifact.descriptor.kind
+    : artifact.type;
 const openArtifact = async (path: string) => {
   const response = await api.execute("shell:openPath", { path });
   if (response.type === "error") error.value = response.ipcError;
@@ -487,7 +517,9 @@ const cancel = async () => {
   cancelling.value = true;
   cancelFeedback.value = "";
   try {
-    const result = await api.execute("workflow:cancel", { runId: entry.value?.id || String(route.params.runId) });
+    const result = await api.execute("workflow:cancel", {
+      runId: entry.value?.id || String(route.params.runId),
+    });
     if (result.type === "error") error.value = result.ipcError;
     else cancelFeedback.value = workflowCancellationFeedback(result);
   } catch (cause) {
@@ -500,27 +532,32 @@ const selectStep = (stepId: string | null) => selectRunStep(stepSelection, stepI
 const load = async () => {
   const generation = ++loadGeneration;
   const runId = String(route.params.runId);
-  const pipelineId = String(route.params.projectId || "");
+  const projectId = String(route.params.projectId || "");
   const workflowId = String(route.params.flowId || "");
   const isCurrentRun = () =>
     generation === loadGeneration &&
     String(route.params.runId) === runId &&
-    String(route.params.projectId || "") === pipelineId &&
+    String(route.params.projectId || "") === projectId &&
     String(route.params.flowId || "") === workflowId;
   try {
-    const loadedEntry = await loadRunEntryWithRetry(async () => {
-      const response = await api.execute("build-history:get", {
-        id: runId,
-        ...(pipelineId ? { pipelineId } : {}),
-      });
-      if (response.type === "error") throw new Error(response.ipcError);
-      return response.result.entry;
-    }, 4, 250, isCurrentRun);
+    const loadedEntry = await loadRunEntryWithRetry(
+      async () => {
+        const response = await api.execute("build-history:get", {
+          id: runId,
+          ...(projectId ? { projectId } : {}),
+        });
+        if (response.type === "error") throw new Error(response.ipcError);
+        return response.result.entry;
+      },
+      4,
+      250,
+      isCurrentRun,
+    );
     if (!isCurrentRun()) return;
     if (loadedEntry) {
-      if (!isRunContextValid(loadedEntry, workflowId, pipelineId)) {
+      if (!isRunContextValid(loadedEntry, workflowId, projectId)) {
         entry.value = undefined;
-        await router.replace(`/workflows/${workflowId}/${pipelineId}/runs`);
+        await router.replace(`/workflows/${workflowId}/${projectId}/runs`);
         return;
       }
       const wasNearBottom =

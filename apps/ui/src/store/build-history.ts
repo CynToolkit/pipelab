@@ -11,7 +11,7 @@ interface StorageInfo {
   totalSize: number;
   oldestEntry?: number;
   newestEntry?: number;
-  numberOfPipelines: number;
+  numberOfProjects: number;
   userDataPath: string;
   disk: {
     total: number;
@@ -26,7 +26,6 @@ export const useBuildHistory = defineStore("build-history", () => {
   const logger = useLogger();
   const authStore = useAuth();
 
-  const {} = authStore;
   const { hasBuildHistoryBenefit } = storeToRefs(authStore);
 
   // IPC API functions
@@ -100,8 +99,7 @@ export const useBuildHistory = defineStore("build-history", () => {
   const storageInfo = ref<StorageInfo | undefined>();
 
   // Filtering state
-  const currentPipelineId = ref<string | undefined>();
-  const currentScenarioId = ref<string | undefined>();
+  const currentProjectId = ref<string | undefined>();
 
   // Computed
   const hasEntries = computed(() => entries.value.length > 0);
@@ -114,7 +112,7 @@ export const useBuildHistory = defineStore("build-history", () => {
   };
 
   const buildQuery = (): BuildHistoryQuery => ({
-    pipelineId: currentPipelineId.value,
+    projectId: currentProjectId.value,
   });
 
   // Actions
@@ -132,7 +130,7 @@ export const useBuildHistory = defineStore("build-history", () => {
           response.total > 0 ? Math.min(...response.entries.map((e) => e.startTime)) : undefined,
         newestEntry:
           response.total > 0 ? Math.max(...response.entries.map((e) => e.startTime)) : undefined,
-        numberOfPipelines: storageInfo.value?.numberOfPipelines || 0,
+        numberOfProjects: storageInfo.value?.numberOfProjects || 0,
         userDataPath: storageInfo.value?.userDataPath || "",
         disk: storageInfo.value?.disk || {
           total: 0,
@@ -280,27 +278,25 @@ export const useBuildHistory = defineStore("build-history", () => {
     }
   };
 
-  const clearHistoryByPipeline = async (pipelineId: string): Promise<void> => {
+  const clearHistoryByProject = async (projectId: string): Promise<void> => {
     isLoading.value = true;
 
     try {
-      // We need to add this to buildHistoryAPI but let's see if we can use delete with just pipelineId or similar
-      // For now let's assume we add a new IPC call
-      const result = await api.execute("build-history:clear-by-pipeline", {
-        pipelineId,
+      const result = await api.execute("build-history:clear-by-project", {
+        projectId,
       });
       if (result.type === "error") {
-        throw new Error(result.ipcError || "Failed to clear history for pipeline");
+        throw new Error(result.ipcError || "Failed to clear history for project");
       }
 
-      // Update local state: remove entries for this pipeline
-      entries.value = entries.value.filter((e) => e.pipelineId !== pipelineId);
-      if (currentEntry.value?.pipelineId === pipelineId) {
+      // Update local state: remove entries for this project.
+      entries.value = entries.value.filter((e) => e.projectId !== projectId);
+      if (currentEntry.value?.projectId === projectId) {
         currentEntry.value = undefined;
       }
     } catch (err) {
       const errorMessage =
-        err instanceof Error ? err.message : "Failed to clear history for pipeline";
+        err instanceof Error ? err.message : "Failed to clear history for project";
       setError(errorMessage);
       throw err;
     } finally {
@@ -317,20 +313,12 @@ export const useBuildHistory = defineStore("build-history", () => {
     }
   };
 
-  const setCurrentPipeline = (pipelineId: string | undefined): void => {
-    currentPipelineId.value = pipelineId;
+  const setCurrentProject = (projectId: string | undefined): void => {
+    currentProjectId.value = projectId;
   };
 
-  const clearCurrentPipeline = (): void => {
-    currentPipelineId.value = undefined;
-  };
-
-  const setCurrentScenario = (scenarioId: string | undefined): void => {
-    currentScenarioId.value = scenarioId;
-  };
-
-  const clearCurrentScenario = (): void => {
-    currentScenarioId.value = undefined;
+  const clearCurrentProject = (): void => {
+    currentProjectId.value = undefined;
   };
 
   return {
@@ -346,9 +334,8 @@ export const useBuildHistory = defineStore("build-history", () => {
     totalEntries,
     canUseHistory,
 
-    // Pipeline filtering
-    currentPipelineId: readonly(currentPipelineId),
-    currentScenarioId: readonly(currentScenarioId),
+    // Project filtering
+    currentProjectId: readonly(currentProjectId),
 
     // Actions
     loadEntries,
@@ -357,12 +344,10 @@ export const useBuildHistory = defineStore("build-history", () => {
     updateEntry,
     deleteEntry,
     clearHistory,
-    clearHistoryByPipeline,
+    clearHistoryByProject,
     refreshStorageInfo,
-    setCurrentPipeline,
-    clearCurrentPipeline,
-    setCurrentScenario,
-    clearCurrentScenario,
+    setCurrentProject,
+    clearCurrentProject,
 
     // Query builder
     buildQuery,

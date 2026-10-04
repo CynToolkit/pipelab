@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import plugin, { tauriTargetInputs, workflowTaskRunners } from "./index";
 
 describe("Tauri release targets", () => {
-  it("keeps its Release producer and task after removing legacy nodes", () => {
-    expect(plugin.nodes).toEqual([]);
+  it("keeps its Release producer and task without legacy node metadata", () => {
+    expect("nodes" in plugin).toBe(false);
     expect(plugin.release?.producers?.map((producer) => producer.id)).toContain(
       "@pipelab/plugin-tauri/producer",
     );

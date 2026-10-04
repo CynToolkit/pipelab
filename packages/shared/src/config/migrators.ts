@@ -26,16 +26,11 @@ const DEFAULT_PLUGINS: AppConfig["plugins"] = [
     enabled: true,
     description: "Construct 3 export & packaging",
   },
-  { name: "@pipelab/plugin-filesystem", enabled: true, description: "Filesystem utilities" },
-  { name: "@pipelab/plugin-system", enabled: true, description: "System & shell commands" },
   { name: "@pipelab/plugin-steam", enabled: true, description: "Steam publishing" },
   { name: "@pipelab/plugin-itch", enabled: true, description: "Itch.io publishing" },
   { name: "@pipelab/plugin-electron", enabled: true, description: "Electron packaging" },
-  { name: "@pipelab/plugin-discord", enabled: true, description: "Discord Rich Presence" },
   { name: "@pipelab/plugin-poki", enabled: true, description: "Poki publishing" },
   { name: "@pipelab/plugin-tauri", enabled: true, description: "Tauri packaging" },
-  { name: "@pipelab/plugin-minify", enabled: true, description: "Asset minification" },
-  { name: "@pipelab/plugin-netlify", enabled: true, description: "Netlify deployment" },
 ];
 import { FileRepoV1, FileRepoV2, FileRepoV3, FileRepoV4, FileRepo } from "./projects-types";
 

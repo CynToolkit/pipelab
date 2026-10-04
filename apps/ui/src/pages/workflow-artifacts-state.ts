@@ -61,6 +61,6 @@ export const aggregateWorkflowArtifacts = (
   projectId: string,
 ): WorkflowArtifactViewModel[] =>
   entries
-    .filter((entry) => entry.workflowId === workflowId && entry.pipelineId === projectId)
+    .filter((entry) => entry.workflowId === workflowId && entry.projectId === projectId)
     .flatMap((run) => (run.artifacts ?? []).map((artifact) => toArtifactViewModel(run, artifact)))
     .sort((a, b) => b.runDate - a.runDate);

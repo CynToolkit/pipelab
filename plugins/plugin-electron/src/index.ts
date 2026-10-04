@@ -1,5 +1,5 @@
 /// <reference path="./declarations.d.ts" />
-import { createNodeDefinition } from "@pipelab/plugin-core";
+import { createDefinition } from "@pipelab/plugin-core";
 import { packageV2Runner } from "./package-v2";
 import type { ReleaseProducerDefinition } from "@pipelab/shared";
 
@@ -75,13 +75,12 @@ const electronProducer: ReleaseProducerDefinition = {
   }),
 };
 
-export default createNodeDefinition({
+export default createDefinition({
   id: "@pipelab/plugin-electron",
   packageName: "@pipelab/plugin-electron",
   name: "Electron",
   description: "Pipelab plugin for packaging apps with Electron",
   icon: { type: "icon", icon: "pi-desktop" },
   isOfficial: true,
-  nodes: [],
   release: { producers: [electronProducer] },
 });

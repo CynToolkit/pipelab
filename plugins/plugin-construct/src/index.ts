@@ -1,5 +1,5 @@
 /// <reference path="./declarations.d.ts" />
-import { createNodeDefinition } from "@pipelab/plugin-core";
+import { createDefinition } from "@pipelab/plugin-core";
 import { ExportProjectActionRunner } from "./export-project";
 import { discoverBrowserProfiles } from "./browser-profiles";
 import type { ReleaseSourceDefinition } from "@pipelab/shared";
@@ -92,14 +92,13 @@ export const constructSource: ReleaseSourceDefinition = {
   },
 };
 
-export default createNodeDefinition({
+export default createDefinition({
   id: "@pipelab/plugin-construct",
   packageName: "@pipelab/plugin-construct",
   name: "Construct",
   description: "Pipelab plugin for exporting and packaging Construct 3 projects",
   icon: { type: "icon", icon: "pi-clone" },
   isOfficial: true,
-  nodes: [],
   integrations: [
     {
       name: "Browser Executable",

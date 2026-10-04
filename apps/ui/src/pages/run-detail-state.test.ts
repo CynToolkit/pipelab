@@ -6,7 +6,7 @@ type WorkflowEvent = Extract<Events<"workflow:execute">, { type: "workflow-event
 
 const entry = (): BuildHistoryEntry => ({
   id: "run-1",
-  pipelineId: "project-1",
+  projectId: "project-1",
   workflowId: "flow-1",
   projectName: "Project",
   projectPath: "",

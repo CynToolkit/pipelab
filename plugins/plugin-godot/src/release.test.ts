@@ -10,8 +10,8 @@ const context = (path: string) => ({
 });
 
 describe("Godot release preset validation", () => {
-  it("keeps its Release definitions and task after removing legacy nodes", () => {
-    expect(plugin.nodes).toEqual([]);
+  it("keeps its Release definitions and task without legacy node metadata", () => {
+    expect("nodes" in plugin).toBe(false);
     expect(plugin.release?.sources?.map((source) => source.id)).toContain(godotSource.id);
     expect(plugin.release?.producers?.map((producer) => producer.id)).toContain(godotExporter.id);
     expect(Object.keys(workflowTaskRunners)).toEqual(["@pipelab/plugin-godot/godot:export"]);

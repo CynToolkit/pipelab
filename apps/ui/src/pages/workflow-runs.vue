@@ -1,11 +1,6 @@
 <template>
   <Layout>
-    <WorkflowShell
-      :flow-id="flowId"
-      :project-id="projectId"
-      :title="workflowName"
-      active="runs"
-    >
+    <WorkflowShell :flow-id="flowId" :project-id="projectId" :title="workflowName" active="runs">
       <main class="runs-page">
         <div class="list-heading">
           <div>
@@ -137,7 +132,7 @@ const loadRuns = async () => {
   try {
     const [historyResult, workflowResult] = await Promise.allSettled([
       api.execute("build-history:get-all", {
-        query: { workflowId: flowId.value, pipelineId: projectId.value },
+        query: { workflowId: flowId.value, projectId: projectId.value },
       }),
       api.execute("workflow:load", { workflowId: flowId.value, projectId: projectId.value }),
     ]);

@@ -21,7 +21,7 @@
       "community-plugins": "社区插件",
       "versions": "版本"
     },
-    "pipeline-cache-folder": "插件缓存文件夹：",
+    "plugin-cache-folder": "插件缓存文件夹：",
     "enter-or-browse-for-a-folder": "输入或浏览选择文件夹",
     "browse": "浏览",
     "manage-where-the-app-stores-temporary-and-cache-files": "配置用于存储临时文件和应用程序缓存的本地目录。",
@@ -75,7 +75,6 @@
     "duplicate-project": "复制项目",
     "project-name": "项目名称",
     "new-project": "新建项目",
-    "new-pipeline": "新建流水线",
     "open": "打开",
     "import": "导入",
     "your-projects": "您的项目",
@@ -93,7 +92,6 @@
     "store-project-internally": "本地保存项目",
     "import-from-stable": "从 Stable 导入...",
     "import-from-beta": "从 Beta 导入...",
-    "import-success": "流水线已成功导入",
     "failed-to-read-file": "读取所选文件失败"
   }
 }

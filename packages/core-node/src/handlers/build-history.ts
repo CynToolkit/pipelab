@@ -8,14 +8,14 @@ import {
   isSafePersistedId,
   BuildHistoryEntry,
   IBuildHistoryStorage,
-  AppConfig,
 } from "@pipelab/shared";
 import checkDiskSpace from "check-disk-space";
 import { getFolderSize } from "../utils/fs-extras";
 import { SandboxFolder } from "@pipelab/constants";
 import { serializeFileMutation } from "../release-persistence-lock";
 
-// Simplified storage - one file per pipeline containing array of build entries
+// One history file per project. The legacy `pipelines` directory and filename
+// pattern are retained so existing user history remains available.
 
 export class BuildHistoryStorage implements IBuildHistoryStorage {
   private logger = useLogger();
@@ -25,12 +25,13 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
   }
 
   private getStoragePath() {
+    // Preserve the existing on-disk location for backward compatibility.
     return this.context.getConfigPath("pipelines");
   }
 
-  private getPipelinePath(pipelineId: string): string {
-    if (!isSafePersistedId(pipelineId)) throw new Error(`Unsafe pipeline ID '${pipelineId}'.`);
-    return join(this.getStoragePath(), `${pipelineId}.history.json`);
+  private getProjectPath(projectId: string): string {
+    if (!isSafePersistedId(projectId)) throw new Error(`Unsafe project ID '${projectId}'.`);
+    return join(this.getStoragePath(), `${projectId}.history.json`);
   }
 
   private async ensureStoragePath(): Promise<void> {
@@ -42,11 +43,11 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
     }
   }
 
-  private async loadPipelineHistory(pipelineId: string): Promise<BuildHistoryEntry[]> {
-    const pipelinePath = this.getPipelinePath(pipelineId);
+  private async loadProjectHistory(projectId: string): Promise<BuildHistoryEntry[]> {
+    const historyPath = this.getProjectPath(projectId);
     let data: string;
     try {
-      data = await readFile(pipelinePath, "utf-8");
+      data = await readFile(historyPath, "utf-8");
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
       throw error;
@@ -55,40 +56,37 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
       return parseBuildHistoryDocument(JSON.parse(data)).entries;
     } catch (error) {
       throw new Error(
-        `Invalid build history for pipeline ${pipelineId}: ${error instanceof Error ? error.message : String(error)}`,
+        `Invalid build history for project ${projectId}: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
   }
 
-  private async savePipelineHistory(
-    pipelineId: string,
-    entries: BuildHistoryEntry[],
-  ): Promise<void> {
+  private async saveProjectHistory(projectId: string, entries: BuildHistoryEntry[]): Promise<void> {
     try {
       parseBuildHistoryDocument({ version: "1.0.0", entries });
       await this.ensureStoragePath();
-      const pipelinePath = this.getPipelinePath(pipelineId);
-      const temporaryPath = `${pipelinePath}.${randomUUID()}.tmp`;
+      const historyPath = this.getProjectPath(projectId);
+      const temporaryPath = `${historyPath}.${randomUUID()}.tmp`;
       try {
         await writeFile(temporaryPath, JSON.stringify({ version: "1.0.0", entries }, null, 2), {
           encoding: "utf-8",
           flag: "wx",
         });
-        await rename(temporaryPath, pipelinePath);
+        await rename(temporaryPath, historyPath);
       } finally {
         await rm(temporaryPath, { force: true }).catch(() => {});
       }
     } catch (error) {
-      this.logger.logger().error("Failed to save pipeline history:", error);
-      throw new Error(`Failed to save pipeline history: ${error}`);
+      this.logger.logger().error("Failed to save project history:", error);
+      throw new Error(`Failed to save project history: ${error}`);
     }
   }
 
   async save(entry: BuildHistoryEntry): Promise<void> {
-    const pipelinePath = this.getPipelinePath(entry.pipelineId);
-    return serializeFileMutation(pipelinePath, async () => {
+    const historyPath = this.getProjectPath(entry.projectId);
+    return serializeFileMutation(historyPath, async () => {
       try {
-        const entries = await this.loadPipelineHistory(entry.pipelineId);
+        const entries = await this.loadProjectHistory(entry.projectId);
         const existingIndex = entries.findIndex((e) => e.id === entry.id);
 
         if (existingIndex >= 0) {
@@ -97,10 +95,10 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
           entries.push(entry);
         }
 
-        await this.savePipelineHistory(entry.pipelineId, entries);
+        await this.saveProjectHistory(entry.projectId, entries);
         this.logger
           .logger()
-          .info(`Saved build history entry: ${entry.id} for pipeline: ${entry.pipelineId}`);
+          .info(`Saved build history entry: ${entry.id} for project: ${entry.projectId}`);
       } catch (error) {
         this.logger.logger().error("Failed to save build history entry:", error);
         throw new Error(`Failed to save build history entry: ${error}`);
@@ -108,17 +106,17 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
     });
   }
 
-  async get(id: string, pipelineId?: string): Promise<BuildHistoryEntry | undefined> {
-    if (pipelineId) {
-      const entries = await this.loadPipelineHistory(pipelineId);
+  async get(id: string, projectId?: string): Promise<BuildHistoryEntry | undefined> {
+    if (projectId) {
+      const entries = await this.loadProjectHistory(projectId);
       return entries.find((e) => e.id === id);
     }
 
-    const files = await this.getAllPipelineFiles();
+    const files = await this.getAllProjectFiles();
     for (const file of files) {
-      const pId = this.parsePipelineIdFromFilename(file);
+      const pId = this.parseProjectIdFromFilename(file);
       if (!pId) continue;
-      const entries = await this.loadPipelineHistory(pId);
+      const entries = await this.loadProjectHistory(pId);
       const entry = entries.find((e) => e.id === id);
       if (entry) return entry;
     }
@@ -127,12 +125,12 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
 
   async getAll(): Promise<BuildHistoryEntry[]> {
     try {
-      const files = await this.getAllPipelineFiles();
+      const files = await this.getAllProjectFiles();
       const allEntries: BuildHistoryEntry[] = [];
       for (const file of files) {
-        const pipelineId = this.parsePipelineIdFromFilename(file);
-        if (!pipelineId) continue;
-        const entries = await this.loadPipelineHistory(pipelineId);
+        const projectId = this.parseProjectIdFromFilename(file);
+        if (!projectId) continue;
+        const entries = await this.loadProjectHistory(projectId);
         allEntries.push(...entries);
       }
       return allEntries.sort((a, b) => b.createdAt - a.createdAt);
@@ -174,36 +172,32 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
           steps,
           error: { message: interruption, code: "INTERRUPTED", timestamp },
         },
-        entry.pipelineId,
+        entry.projectId,
       );
     }
     return interrupted.length;
   }
 
-  async getByPipeline(pipelineId: string): Promise<BuildHistoryEntry[]> {
+  async getByProject(projectId: string): Promise<BuildHistoryEntry[]> {
     try {
-      const entries = await this.loadPipelineHistory(pipelineId);
+      const entries = await this.loadProjectHistory(projectId);
       return entries.sort((a, b) => b.createdAt - a.createdAt);
     } catch (error) {
-      this.logger.logger().error(`Failed to get build history for pipeline ${pipelineId}:`, error);
-      throw new Error(`Failed to get build history for pipeline: ${error}`);
+      this.logger.logger().error(`Failed to get build history for project ${projectId}:`, error);
+      throw new Error(`Failed to get build history for project: ${error}`);
     }
   }
 
-  async update(
-    id: string,
-    updates: Partial<BuildHistoryEntry>,
-    pipelineId?: string,
-  ): Promise<void> {
+  async update(id: string, updates: Partial<BuildHistoryEntry>, projectId?: string): Promise<void> {
     try {
-      if (pipelineId) {
-        if (await this.updateInPipeline(id, updates, pipelineId)) return;
+      if (projectId) {
+        if (await this.updateInProject(id, updates, projectId)) return;
       } else {
-        const files = await this.getAllPipelineFiles();
+        const files = await this.getAllProjectFiles();
         for (const file of files) {
-          const pId = this.parsePipelineIdFromFilename(file);
+          const pId = this.parseProjectIdFromFilename(file);
           if (!pId) continue;
-          if (await this.updateInPipeline(id, updates, pId)) return;
+          if (await this.updateInProject(id, updates, pId)) return;
         }
       }
       throw new Error(`Build history entry ${id} not found`);
@@ -213,34 +207,34 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
     }
   }
 
-  private async updateInPipeline(
+  private async updateInProject(
     id: string,
     updates: Partial<BuildHistoryEntry>,
-    pipelineId: string,
+    projectId: string,
   ): Promise<boolean> {
-    return serializeFileMutation(this.getPipelinePath(pipelineId), async () => {
-      const entries = await this.loadPipelineHistory(pipelineId);
+    return serializeFileMutation(this.getProjectPath(projectId), async () => {
+      const entries = await this.loadProjectHistory(projectId);
       const entryIndex = entries.findIndex((entry) => entry.id === id);
       if (entryIndex < 0) return false;
       entries[entryIndex] = { ...entries[entryIndex], ...updates, updatedAt: Date.now() };
-      await this.savePipelineHistory(pipelineId, entries);
+      await this.saveProjectHistory(projectId, entries);
       return true;
     });
   }
 
-  async delete(id: string, pipelineId?: string): Promise<void> {
+  async delete(id: string, projectId?: string): Promise<void> {
     try {
-      if (pipelineId) {
-        if (await this.deleteFromPipeline(id, pipelineId)) {
+      if (projectId) {
+        if (await this.deleteFromProject(id, projectId)) {
           this.logger.logger().info(`Deleted build history entry: ${id}`);
           return;
         }
       } else {
-        const files = await this.getAllPipelineFiles();
+        const files = await this.getAllProjectFiles();
         for (const file of files) {
-          const pId = this.parsePipelineIdFromFilename(file);
+          const pId = this.parseProjectIdFromFilename(file);
           if (!pId) continue;
-          if (await this.deleteFromPipeline(id, pId)) {
+          if (await this.deleteFromProject(id, pId)) {
             this.logger.logger().info(`Deleted build history entry: ${id}`);
             return;
           }
@@ -253,13 +247,13 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
     }
   }
 
-  private async deleteFromPipeline(id: string, pipelineId: string): Promise<boolean> {
-    return serializeFileMutation(this.getPipelinePath(pipelineId), async () => {
-      const entries = await this.loadPipelineHistory(pipelineId);
+  private async deleteFromProject(id: string, projectId: string): Promise<boolean> {
+    return serializeFileMutation(this.getProjectPath(projectId), async () => {
+      const entries = await this.loadProjectHistory(projectId);
       const entryIndex = entries.findIndex((entry) => entry.id === id);
       if (entryIndex < 0) return false;
       entries.splice(entryIndex, 1);
-      await this.savePipelineHistory(pipelineId, entries);
+      await this.saveProjectHistory(projectId, entries);
       return true;
     });
   }
@@ -267,18 +261,18 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
   async clear(): Promise<void> {
     try {
       await this.ensureStoragePath();
-      const files = await this.getAllPipelineFiles();
+      const files = await this.getAllProjectFiles();
       const cachePathsToDelete = new Set<string>();
 
       for (const file of files) {
-        const pipelineId = this.parsePipelineIdFromFilename(file);
-        if (!pipelineId) continue;
-        await serializeFileMutation(this.getPipelinePath(pipelineId), async () => {
-          const entries = await this.loadPipelineHistory(pipelineId);
+        const projectId = this.parseProjectIdFromFilename(file);
+        if (!projectId) continue;
+        await serializeFileMutation(this.getProjectPath(projectId), async () => {
+          const entries = await this.loadProjectHistory(projectId);
           for (const entry of entries) {
             if (entry.cachePath) cachePathsToDelete.add(entry.cachePath);
           }
-          await rm(this.context.getArtifactsPath(pipelineId), {
+          await rm(this.context.getArtifactsPath(projectId), {
             recursive: true,
             force: true,
           }).catch(() => {});
@@ -299,15 +293,15 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
     }
   }
 
-  async clearByPipeline(pipelineId: string): Promise<void> {
+  async clearByProject(projectId: string): Promise<void> {
     try {
-      await serializeFileMutation(this.getPipelinePath(pipelineId), async () => {
-        const pipelinePath = this.getPipelinePath(pipelineId);
-        const entries = await this.loadPipelineHistory(pipelineId);
-        await unlink(pipelinePath).catch((error) => {
+      await serializeFileMutation(this.getProjectPath(projectId), async () => {
+        const historyPath = this.getProjectPath(projectId);
+        const entries = await this.loadProjectHistory(projectId);
+        await unlink(historyPath).catch((error) => {
           if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
         });
-        this.logger.logger().info(`Cleared history for pipeline "${pipelineId}"`);
+        this.logger.logger().info(`Cleared history for project "${projectId}"`);
 
         const cachePathsToDelete = new Set<string>();
         for (const entry of entries) {
@@ -316,7 +310,7 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
         for (const cachePath of cachePathsToDelete) {
           await rm(cachePath, { recursive: true, force: true }).catch(() => {});
         }
-        await rm(this.context.getArtifactsPath(pipelineId), { recursive: true, force: true }).catch(
+        await rm(this.context.getArtifactsPath(projectId), { recursive: true, force: true }).catch(
           () => {},
         );
       });
@@ -324,11 +318,11 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
       if (error.code === "ENOENT") {
         this.logger
           .logger()
-          .warn(`No history file found for pipeline "${pipelineId}". Nothing to clear.`);
+          .warn(`No history file found for project "${projectId}". Nothing to clear.`);
         return;
       }
-      this.logger.logger().error(`Failed to clear history for pipeline "${pipelineId}":`, error);
-      throw new Error(`Failed to clear history for pipeline: ${error}`);
+      this.logger.logger().error(`Failed to clear history for project "${projectId}":`, error);
+      throw new Error(`Failed to clear history for project: ${error}`);
     }
   }
 
@@ -337,7 +331,7 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
     totalSize: number;
     oldestEntry?: number;
     newestEntry?: number;
-    numberOfPipelines: number;
+    numberOfProjects: number;
     userDataPath: string;
     disk: {
       total: number;
@@ -348,7 +342,7 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
   }> {
     try {
       const allEntries = await this.getAll();
-      const files = await this.getAllPipelineFiles();
+      const files = await this.getAllProjectFiles();
 
       const diskSpace = await checkDiskSpace(this.context.userDataPath);
       const pipelabSize = await getFolderSize(this.context.userDataPath);
@@ -367,7 +361,7 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
         return {
           totalEntries: 0,
           totalSize: 0,
-          numberOfPipelines: files.length,
+          numberOfProjects: files.length,
           userDataPath: this.context.userDataPath,
           disk: {
             total: diskSpace.size,
@@ -385,7 +379,7 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
           const stats = await stat(filePath);
           totalSize += stats.size;
         }
-      } catch (error) {
+      } catch {
         totalSize = allEntries.length * 1024; // Rough estimate
       }
 
@@ -396,7 +390,7 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
         totalSize,
         oldestEntry: sortedEntries[0]?.createdAt,
         newestEntry: sortedEntries[sortedEntries.length - 1]?.createdAt,
-        numberOfPipelines: files.length,
+        numberOfProjects: files.length,
         userDataPath: this.context.userDataPath,
         disk: {
           total: diskSpace.size,
@@ -411,7 +405,7 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
     }
   }
 
-  private async getAllPipelineFiles(): Promise<string[]> {
+  private async getAllProjectFiles(): Promise<string[]> {
     try {
       await this.ensureStoragePath();
       const files = await readdir(this.getStoragePath());
@@ -422,7 +416,7 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
     }
   }
 
-  private parsePipelineIdFromFilename(filename: string): string | null {
+  private parseProjectIdFromFilename(filename: string): string | null {
     const match = filename.match(/^(.+)\.history\.json$/);
     return match ? match[1] : null;
   }
