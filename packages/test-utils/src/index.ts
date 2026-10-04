@@ -3,8 +3,6 @@ import { fileURLToPath } from "node:url";
 import { mkdir, writeFile, chmod, rm } from "node:fs/promises";
 import { existsSync as existsSyncSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { type ActionRunner, type ActionRunnerData, type Action } from "@pipelab/plugin-core";
-import { PipelabContext as NodePipelabContext } from "@pipelab/core-node";
 import {
   createLocalHost,
   runWorkflow,
@@ -127,125 +125,6 @@ export const runCLI = async (
       ...options.env,
     },
   });
-};
-
-/**
- * Runs a Pipelab action runner directly in-process for focused testing.
- */
-export const runAction = async <A extends Action>(
-  runner: ActionRunner<A>,
-  options: {
-    inputs: ActionRunnerData<A>["inputs"];
-    sandboxPath: string;
-    extraEnv?: Record<string, string>;
-  },
-): Promise<{ outputs: Record<string, unknown> }> => {
-  const outputs: Record<string, unknown> = {};
-
-  let realPnpm = "pnpm";
-  try {
-    const { execSync } = require("child_process");
-    const isWindows = process.platform === "win32";
-    const cmd = isWindows ? "where pnpm" : "which pnpm";
-    const stdout = execSync(cmd, { encoding: "utf8" });
-    const lines = stdout
-      .split(/\r?\n/)
-      .map((line: string) => line.trim())
-      .filter(Boolean);
-    if (isWindows) {
-      realPnpm =
-        lines.find((line: string) => line.endsWith(".cmd") || line.endsWith(".exe")) ||
-        lines[0] ||
-        "pnpm";
-    } else {
-      realPnpm = lines[0] || "pnpm";
-    }
-    // Need to escape backslashes for JS string literal
-    realPnpm = realPnpm.replace(/\\/g, "\\\\");
-  } catch (e) {
-    // fallback
-  }
-
-  // Create a pnpm shim because ensureNPMPackage expects a JS file runnable by node
-  const pnpmShimPath = join(options.sandboxPath, "pnpm-shim.cjs");
-  await writeFile(
-    pnpmShimPath,
-    `const { spawnSync } = require('child_process');
-const result = spawnSync('${realPnpm}', process.argv.slice(2), { stdio: 'inherit', shell: true });
-process.exit(result.status ?? 0);`,
-  );
-
-  const context: ActionRunnerData<A> = {
-    inputs: options.inputs,
-    log: (...args: any[]) => {
-      console.log("[Runner Log]", ...args);
-    },
-    setOutput: (key: any, value: any) => {
-      console.log(`[Runner Output] ${key} = ${value}`);
-      outputs[key] = value;
-    },
-    setArtifact: (key: string, path: string) => {
-      console.log(`[Runner Artifact] ${key} = ${path}`);
-    },
-    cwd: options.sandboxPath,
-    paths: {
-      cache: join(options.sandboxPath, "cache"),
-      pnpm: pnpmShimPath,
-      node: process.execPath,
-      userData: join(options.sandboxPath, "user-data"),
-      modules: join(options.sandboxPath, "modules"),
-      thirdparty: join(options.sandboxPath, "thirdparty"),
-    },
-    api: {
-      fetchAsset: async (packageName: string) => {
-        const sandboxAssetPath = join(options.sandboxPath, "assets", packageName);
-        if (existsSyncSync(sandboxAssetPath)) {
-          return sandboxAssetPath;
-        }
-        // Fallback to real monorepo assets
-        // Normalize: remove @pipelab/ prefix if present
-        const folderName = packageName.startsWith("@pipelab/")
-          ? packageName.replace("@pipelab/", "")
-          : packageName;
-
-        const projectRoot = findProjectRoot(__dirname);
-        return join(projectRoot, "assets", folderName);
-      },
-    },
-    // @ts-ignore - Mocking BrowserWindow
-    browserWindow: undefined,
-    abortSignal: new AbortController().signal,
-    context: new NodePipelabContext({
-      userDataPath: join(options.sandboxPath, "user-data"),
-    }),
-    // @ts-ignore - Mocking setMeta
-    setMeta: () => {},
-    meta: {} as any,
-  };
-
-  // Set environment variables for the test if provided
-  const originalEnv = { ...process.env };
-  if (options.extraEnv) {
-    Object.assign(process.env, options.extraEnv);
-  }
-
-  try {
-    await runner(context);
-  } finally {
-    // Restore original environment
-    if (options.extraEnv) {
-      // Remove keys that were added
-      for (const key in options.extraEnv) {
-        if (!(key in originalEnv)) {
-          delete process.env[key];
-        }
-      }
-      // Restore original values
-      Object.assign(process.env, originalEnv);
-    }
-  }
-
-  return { outputs };
 };
 
 /** Runs a native workflow task through workflow-runtime for focused plugin tests. */

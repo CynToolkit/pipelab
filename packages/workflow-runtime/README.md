@@ -33,9 +33,8 @@ outputs and artifacts already produced by earlier steps, a cancellation `signal`
 logging helpers, and the host-injected `services` object. Return an object for
 step outputs and call `setArtifact` for declared artifacts. Pipelab hosts can
 provide their service bundle through `runWorkflow`'s `services` option; the
-standalone runtime does not import Pipelab-specific services. Existing plugin
-integrations still run through a compatibility adapter while they migrate to
-this contract.
+standalone runtime does not import Pipelab-specific services. Pipelab plugin
+registries resolve directly to native tasks that implement this contract.
 
 Step inputs can reference run variables with `${{ variables.name }}` or a
 previous step's outputs with `${{ steps.step-id.outputs.name }}`. Steps run in

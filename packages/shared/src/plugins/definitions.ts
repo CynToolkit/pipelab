@@ -1,4 +1,3 @@
-import type { ConditionalPick } from "type-fest";
 import type { OpenDialogOptions } from "electron";
 import type { PluginReleaseDefinition } from "../release/types";
 
@@ -6,18 +5,6 @@ export type PathOptions = {
   filter?: RegExp;
   type?: "file" | "folder";
 };
-
-export type PropType =
-  | "string"
-  | "number"
-  | "boolean"
-  | "array"
-  | {
-      type: "array";
-      of: PropType;
-    }
-  | "any"
-  | PropType[];
 
 export interface ControlTypeBase {
   type: string;
@@ -112,21 +99,6 @@ export type InputDefinition<T extends ControlType = ControlType> = {
 };
 
 export type InputsDefinition = Record<string, InputDefinition>;
-export type Meta = Record<string, unknown>;
-
-export interface OutputDefinition {
-  label: string;
-  description?: string;
-  deprecated?: boolean;
-  validator?: (value: any) => any;
-  control?: ControlType;
-  value: unknown;
-}
-
-export type OutputsDefinition = Record<string, OutputDefinition>;
-
-export type InputOutputDefinition = InputDefinition | OutputDefinition;
-
 export type IconType =
   | {
       type: "image";
@@ -186,62 +158,14 @@ export interface MainPluginDefinition extends PluginDefinition {
   release?: PluginReleaseDefinition;
 }
 
-export type InputsOutputsDefinition = InputsDefinition | OutputsDefinition;
-
-export type GetFlowEntries<T extends InputsOutputsDefinition> = ConditionalPick<
-  T,
-  { type: "flow" }
->;
-export type GetDataEntries<T extends InputsOutputsDefinition> = ConditionalPick<
-  T,
-  { type: "data" }
->;
-
-export type GetFlowKeys<T extends InputsOutputsDefinition> = keyof GetFlowEntries<T>;
-export type GetDataKeys<T extends InputsOutputsDefinition> = keyof GetDataEntries<T>;
-
-export type DataResult = Record<string, any>;
-
-export type SetOutputActionFn<T extends Action> = (
-  key: keyof T["outputs"],
-  value: T["outputs"][typeof key]["value"],
-) => void;
-
 export type ParamsToInput<PARAMS extends InputsDefinition> = {
   [index in keyof PARAMS]: PARAMS[index]["required"] extends true
     ? PARAMS[index]["value"]
     : PARAMS[index]["value"] | null;
 };
 
-export interface Action {
-  id: string;
-  type: "action";
-  version?: number;
-  displayString: string;
-  icon: string;
-  name: string;
-  description: string;
-  params: InputsDefinition;
-  meta: Meta;
-  outputs: OutputsDefinition;
-  platforms?: NodeJS.Platform[];
-  deprecated?: boolean;
-  deprecatedMessage?: string;
-}
-
-export type ExtractInputsFromAction<ACTION extends Action> = {
-  [index in keyof ACTION["params"]]: ACTION["params"][index]["value"];
-};
-
 export const createDefinition = <T extends MainPluginDefinition>(definition: T) => {
   return definition satisfies T;
-};
-
-export const createAction = <T extends Omit<Action, "type">>(action: T) => {
-  return {
-    ...action,
-    type: "action",
-  } satisfies Action;
 };
 
 export const createStringParam = (
@@ -258,19 +182,6 @@ export const createStringParam = (
     },
     value: `"${value}"`,
   } satisfies InputDefinition<ControlTypeInput>;
-};
-
-export const createColorPicker = (
-  value: string,
-  definition: Omit<InputDefinition<ControlTypeColor>, "value" | "control">,
-) => {
-  return {
-    ...definition,
-    control: {
-      type: "color",
-    },
-    value: `"${value}"`,
-  } satisfies InputDefinition<ControlTypeColor>;
 };
 
 export const createPasswordParam = (
@@ -300,16 +211,6 @@ export const createPathParam = (
   } satisfies InputDefinition<ControlTypePath>;
 };
 
-export const createArray = <T extends unknown[]>(
-  value: string | Array<unknown>,
-  definition: Omit<InputDefinition<ControlTypeArray>, "value">,
-) => {
-  return {
-    ...definition,
-    value: (Array.isArray(value) ? `"${value}"` : value) as unknown as T,
-  } satisfies InputDefinition<ControlTypeArray>;
-};
-
 export const createNumberParam = (
   value: number,
   definition: Omit<InputDefinition<ControlTypeInput>, "value" | "control">,
@@ -324,24 +225,4 @@ export const createNumberParam = (
     },
     value,
   } satisfies InputDefinition<ControlTypeInput>;
-};
-
-export const createBooleanParam = (
-  value: boolean,
-  definition: Omit<InputDefinition<ControlTypeBoolean>, "value" | "control">,
-) => {
-  return {
-    ...definition,
-    control: {
-      type: "boolean",
-    },
-    value,
-  } satisfies InputDefinition<ControlTypeBoolean>;
-};
-
-export const createRawParam = <T>(value: T, definition: Omit<InputDefinition, "value">) => {
-  return {
-    ...definition,
-    value,
-  };
 };

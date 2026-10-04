@@ -2,9 +2,13 @@ import { expect, test, describe, afterEach } from "vitest";
 import { mkdir, writeFile, access } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createSandbox, runAction } from "@pipelab/test-utils";
+import { createSandbox, runWorkflowTask } from "@pipelab/test-utils";
+import { PipelabContext } from "@pipelab/core-node";
 import { getBinName } from "@pipelab/constants";
-import { packageRunner } from "../../src/package";
+import {
+  electronPackageWorkflowTaskFactory,
+  type ElectronWorkflowTaskServices,
+} from "../../src/package-v2";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -42,9 +46,36 @@ describe("End-to-End: Electron Plugin", () => {
         platform: "" as const,
       };
 
-      const result = await runAction(packageRunner, {
-        inputs,
-        sandboxPath: sandbox.path,
+      const services = {
+        context: new PipelabContext({ userDataPath: join(sandbox.path, "user-data") }),
+        executables: { node: process.execPath, pnpm: "pnpm" },
+        workflowCachePath: join(sandbox.path, "cache"),
+      } satisfies ElectronWorkflowTaskServices;
+      const result = await runWorkflowTask(electronPackageWorkflowTaskFactory(services), {
+        inputs: {
+          "input-folder": inputs["input-folder"],
+          platform: process.platform,
+          arch: process.arch,
+          name: "my-app",
+        },
+        services,
+        workspacePath: sandbox.path,
+        artifacts: {
+          "electron-build": {
+            descriptor: {
+              kind: "application",
+              technology: "electron",
+              platform:
+                process.platform === "win32"
+                  ? "windows"
+                  : process.platform === "darwin"
+                    ? "macos"
+                    : "linux",
+              architecture: process.arch === "arm64" ? "arm64" : "x64",
+              container: "directory",
+            },
+          },
+        },
       });
 
       // 3. Verification

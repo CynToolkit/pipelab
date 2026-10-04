@@ -828,12 +828,6 @@ importers:
 
   packages/test-utils:
     dependencies:
-      '@pipelab/core-node':
-        specifier: workspace:*
-        version: link:../core-node
-      '@pipelab/plugin-core':
-        specifier: workspace:*
-        version: link:../../plugins/plugin-core
       '@pipelab/workflow-runtime':
         specifier: workspace:*
         version: link:../workflow-runtime

@@ -13,5 +13,5 @@ Native workflow tasks receive the `PipelabPluginServices` bundle through their
 `WorkflowTask` context. It exposes `PipelabContext`, the run's ensured Node and
 pnpm executables, and its workflow cache directory. Managed package, cache,
 third-party, connection, and temporary paths are resolved through
-`PipelabContext`. Existing plugin integrations still run through a compatibility
-adapter while they migrate to native tasks.
+`PipelabContext`. Plugin task registries resolve directly to native
+`WorkflowTask` implementations.
