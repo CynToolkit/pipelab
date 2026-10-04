@@ -198,7 +198,7 @@ export const godotExportTask: WorkflowTask = async (data) => {
   return { output: result.path };
 };
 
-export const workflowTaskRunners = {
+export const workflowTasks = {
   "@pipelab/plugin-godot/godot:export": godotExportTask,
 };
 
