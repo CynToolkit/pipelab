@@ -2,7 +2,8 @@ import { execFileSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { createActionRunner, createDefinition } from "@pipelab/plugin-core";
+import { createDefinition } from "@pipelab/plugin-core";
+import type { WorkflowTask } from "@pipelab/workflow-runtime";
 import type { ReleaseProducerDefinition, ReleaseSourceDefinition } from "@pipelab/shared";
 import {
   exportGodotProject,
@@ -170,8 +171,8 @@ export const godotSource: ReleaseSourceDefinition = {
   }),
 };
 
-const godotExportRunner = createActionRunner(async (data) => {
-  const inputs = data.inputs as Record<string, unknown>;
+export const godotExportTask: WorkflowTask = async (data) => {
+  const inputs = data.inputs;
   const project = String(inputs.project || "");
   const preset = String(inputs.preset || "").trim();
   const target = String(inputs.target || "");
@@ -188,19 +189,17 @@ const godotExportRunner = createActionRunner(async (data) => {
           ? "macos"
           : "web",
     projectName: String(inputs.projectName || "game"),
-    outputDirectory: join(data.cwd, ".pipelab-godot", target),
-    signal: data.abortSignal,
-    log: (stream, chunk) => data.log(chunk),
-    ensureDirectory: async (path) => {
-      await (await import("node:fs/promises")).mkdir(path, { recursive: true });
-    },
+    outputDirectory: join(data.workspace.root, ".pipelab-godot", target),
+    signal: data.signal,
+    log: data.logStream,
+    ensureDirectory: data.filesystem.ensureDirectory,
   });
-  data.setArtifact("output", result.path);
-  data.setOutput("output", result.path);
-});
+  data.setArtifact("output", result.path, { checksum: result.checksum, size: result.size });
+  return { output: result.path };
+};
 
 export const workflowTaskRunners = {
-  "@pipelab/plugin-godot/godot:export": godotExportRunner,
+  "@pipelab/plugin-godot/godot:export": godotExportTask,
 };
 
 export const godotExporter: ReleaseProducerDefinition = {

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import plugin, { tauriTargetInputs, workflowTaskRunners } from "./index";
+import plugin, { tauriTargetInputs } from "./index";
+import { tauriWorkflowTaskFactories } from "./package";
 
 describe("Tauri release targets", () => {
   it("keeps its Release producer and task without legacy node metadata", () => {
@@ -7,7 +8,9 @@ describe("Tauri release targets", () => {
     expect(plugin.release?.producers?.map((producer) => producer.id)).toContain(
       "@pipelab/plugin-tauri/producer",
     );
-    expect(Object.keys(workflowTaskRunners)).toEqual(["@pipelab/plugin-tauri/tauri:package:v2"]);
+    expect(Object.keys(tauriWorkflowTaskFactories)).toEqual([
+      "@pipelab/plugin-tauri/tauri:package:v2",
+    ]);
   });
 
   it("maps release targets to runner platform and architecture", () => {

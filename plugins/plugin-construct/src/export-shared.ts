@@ -1,6 +1,4 @@
 import {
-  Action,
-  ActionRunnerData,
   createNumberParam,
   createPasswordParam,
   createPathParam,
@@ -13,8 +11,8 @@ import {
 import { script } from "./assets/script.js";
 import * as v from "valibot";
 import { BrowserContext } from "playwright";
-import { dirname, join, delimiter, basename } from "node:path";
-import { cp, mkdir, readdir, stat, copyFile, chmod, rm, mkdtemp } from "node:fs/promises";
+import { dirname, join, delimiter } from "node:path";
+import { mkdir, readdir, stat, copyFile, chmod, rm, mkdtemp } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { createRequire } from "node:module";
@@ -148,7 +146,7 @@ async function resilientCopy(src: string, dest: string, log: any) {
         try {
           // Remove read-only attribute on the copied file so Playwright can use it
           await chmod(dest, 0o666);
-        } catch (e) {
+        } catch {
           // ignore chmod errors
         }
       } catch (err) {
@@ -190,10 +188,19 @@ export const preparePlaywrightProfile = async (
   await removeProfileLocks(playwrightProfile);
 };
 
-export const exportc3p = async <ACTION extends Action>(
+export interface ConstructExportExecutionContext {
+  cwd: string;
+  log: (...args: unknown[]) => void;
+  inputs: Record<string, unknown>;
+  paths: { thirdparty: string; node: string };
+  abortSignal: AbortSignal;
+  context: Parameters<typeof fetchPackage>[2]["context"];
+}
+
+export const exportc3p = async (
   file: string,
-  { cwd, log, inputs, setOutput, paths, abortSignal, context: ctx }: ActionRunnerData<ACTION>,
-) => {
+  { cwd, log, inputs, paths, abortSignal, context: ctx }: ConstructExportExecutionContext,
+): Promise<{ folder: string; parentFolder: string; zipFile: string }> => {
   let browserContext: BrowserContext | undefined = undefined;
   let browser: any | undefined = undefined;
   let customProfile: string | undefined = undefined;
@@ -216,7 +223,7 @@ export const exportc3p = async <ACTION extends Action>(
 
   // const { addonsFolder } = newInputs
 
-  const { thirdparty, node, pnpm } = paths;
+  const { thirdparty, node } = paths;
 
   const browserName: "chromium" | "firefox" | "webkit" = "chromium";
 
@@ -367,10 +374,11 @@ export const exportc3p = async <ACTION extends Action>(
 
     log("Setting output result to ", result);
 
-    setOutput("folder", result); // deprecated
-
-    setOutput("parentFolder", dirname(result));
-    setOutput("zipFile", result);
+    return {
+      folder: result, // deprecated output retained for existing workflows
+      parentFolder: dirname(result),
+      zipFile: result,
+    };
   } catch (e: any) {
     log("error, no result, crashed", e);
     // Playwright finalizes the video when its context closes. Close it before

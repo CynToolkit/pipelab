@@ -1,15 +1,12 @@
 /// <reference path="./declarations.d.ts" />
 import { createDefinition } from "@pipelab/plugin-core";
-import { ExportProjectActionRunner } from "./export-project";
 import { discoverBrowserProfiles } from "./browser-profiles";
 import type { ReleaseSourceDefinition } from "@pipelab/shared";
 import { CORE_WORKFLOW_TASKS, type WorkflowStep } from "@pipelab/workflow-runtime";
 export { discoverBrowserProfiles, inspectChromiumProfile } from "./browser-profiles";
 export type { BrowserProfileCandidate } from "./browser-profiles";
 
-export const workflowTaskRunners = {
-  "@pipelab/plugin-construct/export-construct-project": ExportProjectActionRunner,
-};
+export { constructWorkflowTaskFactories } from "./export-c3p";
 
 export const constructSource: ReleaseSourceDefinition = {
   id: "@pipelab/plugin-construct/source",
@@ -125,5 +122,3 @@ export default createDefinition({
   ],
   release: { sources: [constructSource] },
 });
-
-export type { Params as ExportParams } from "./export-c3p";

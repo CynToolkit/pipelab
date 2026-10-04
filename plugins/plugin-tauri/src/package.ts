@@ -1,43 +1,70 @@
-import { createActionRunner } from "@pipelab/plugin-core";
-import { createPackageV2Props, tauri } from "./tauri";
+import type { WorkflowTask } from "@pipelab/workflow-runtime";
 import { merge } from "ts-deepmerge";
+import { tauri, type TauriExecutionContext } from "./tauri";
 import { defaultTauriConfig } from "./utils";
 
-export const packageV2Runner = createActionRunner<ReturnType<typeof createPackageV2Props>>(
-  async (options) => {
-    const appFolder = options.inputs["input-folder"];
+export interface TauriWorkflowTaskServices {
+  context: TauriExecutionContext["context"];
+  executables: { node: string; pnpm: string };
+  workflowCachePath: string;
+}
 
+export const tauriPackageWorkflowTaskFactory =
+  (services: TauriWorkflowTaskServices): WorkflowTask<TauriWorkflowTaskServices> =>
+  async (task) => {
+    const appFolder = task.inputs["input-folder"];
     const completeConfiguration = merge(defaultTauriConfig, {
-      alwaysOnTop: options.inputs["alwaysOnTop"],
-      appBundleId: options.inputs["appBundleId"],
-      appCategoryType: options.inputs["appCategoryType"],
-      appCopyright: options.inputs["appCopyright"],
-      appVersion: options.inputs["appVersion"],
-      author: options.inputs["author"],
-      description: options.inputs["description"],
-      tauriVersion: options.inputs["tauriVersion"],
-      enableExtraLogging: options.inputs["enableExtraLogging"],
-      clearServiceWorkerOnBoot: (options.inputs as any)["clearServiceWorkerOnBoot"],
-      frame: options.inputs["frame"],
-      fullscreen: options.inputs["fullscreen"],
-      icon: options.inputs["icon"],
-      height: options.inputs["height"],
-      name: options.inputs["name"],
-      toolbar: options.inputs["toolbar"],
-      transparent: options.inputs["transparent"],
-      width: options.inputs["width"],
-      enableSteamSupport: options.inputs["enableSteamSupport"],
-      steamGameId: options.inputs["steamGameId"],
-      ignore: options.inputs["ignore"],
-      openDevtoolsOnStart: options.inputs["openDevtoolsOnStart"],
-      enableDiscordSupport: options.inputs["enableDiscordSupport"],
-      discordAppId: options.inputs["discordAppId"],
-      customPackages: (options.inputs as any)["customPackages"],
-      backgroundColor: (options.inputs as any)["backgroundColor"],
+      alwaysOnTop: task.inputs.alwaysOnTop,
+      appBundleId: task.inputs.appBundleId,
+      appCategoryType: task.inputs.appCategoryType,
+      appCopyright: task.inputs.appCopyright,
+      appVersion: task.inputs.appVersion,
+      author: task.inputs.author,
+      description: task.inputs.description,
+      tauriVersion: task.inputs.tauriVersion,
+      enableExtraLogging: task.inputs.enableExtraLogging,
+      clearServiceWorkerOnBoot: task.inputs.clearServiceWorkerOnBoot,
+      frame: task.inputs.frame,
+      fullscreen: task.inputs.fullscreen,
+      icon: task.inputs.icon,
+      height: task.inputs.height,
+      name: task.inputs.name,
+      toolbar: task.inputs.toolbar,
+      transparent: task.inputs.transparent,
+      width: task.inputs.width,
+      enableSteamSupport: task.inputs.enableSteamSupport,
+      steamGameId: task.inputs.steamGameId,
+      ignore: task.inputs.ignore,
+      openDevtoolsOnStart: task.inputs.openDevtoolsOnStart,
+      enableDiscordSupport: task.inputs.enableDiscordSupport,
+      discordAppId: task.inputs.discordAppId,
+      customPackages: task.inputs.customPackages,
+      backgroundColor: task.inputs.backgroundColor,
     }) as unknown as DesktopApp.Tauri;
 
-    console.log("completeConfiguration", completeConfiguration);
+    const execution: TauriExecutionContext = {
+      cwd: task.workspace.root,
+      log: task.log,
+      inputs: task.inputs,
+      paths: {
+        node: services.executables.node,
+        cache: services.workflowCachePath,
+      },
+      abortSignal: task.signal,
+      context: services.context,
+    };
+    const result = await tauri(
+      "package",
+      typeof appFolder === "string" ? appFolder : undefined,
+      execution,
+      completeConfiguration,
+    );
+    if (!result) return {};
 
-    await tauri("package", appFolder, options, completeConfiguration);
-  },
-);
+    task.setArtifact("output", result.folder);
+    return { output: result.folder, binary: result.binary };
+  };
+
+export const tauriWorkflowTaskFactories = {
+  "@pipelab/plugin-tauri/tauri:package:v2": tauriPackageWorkflowTaskFactory,
+};

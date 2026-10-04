@@ -1,11 +1,8 @@
 /// <reference path="./declarations.d.ts" />
 import { createDefinition } from "@pipelab/plugin-core";
-import { packageV2Runner } from "./package-v2";
 import type { ReleaseProducerDefinition } from "@pipelab/shared";
 
-export const workflowTaskRunners = {
-  "@pipelab/plugin-electron/electron:package:v2": packageV2Runner,
-};
+export { electronWorkflowTaskFactories } from "./package-v2";
 
 export const electronTargetInputs = (
   targetId: string,

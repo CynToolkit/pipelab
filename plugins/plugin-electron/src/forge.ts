@@ -1,6 +1,5 @@
 import { getBinName, outFolderName } from "@pipelab/constants";
 import {
-  ActionRunnerData,
   createAction,
   createArray,
   createBooleanParam,
@@ -32,6 +31,21 @@ export const IDPackage = "electron:package";
 export const IDPackageV2 = "electron:package:v2";
 export const IDPackageV3 = "electron:package:v3";
 export const IDPreview = "electron:preview";
+
+export interface ForgeExecutionContext {
+  cwd: string;
+  log: (...args: unknown[]) => void;
+  inputs: Record<string, unknown>;
+  paths: { node: string; pnpm: string };
+  abortSignal: AbortSignal;
+  context: Parameters<typeof runPnpm>[1]["context"];
+  setOutput?: (key: "output", value: string) => void;
+  setArtifact: (
+    outputId: string,
+    path: string,
+    metadata?: { checksum?: string; size?: number; name?: string },
+  ) => void;
+}
 
 const paramsInputFolder = {
   "input-folder": createPathParam("", {
@@ -564,7 +578,7 @@ export const createPreviewProps = (
 export const forge = async (
   action: "make" | "package" | "preview",
   appFolder: string | undefined,
-  { cwd, log, inputs, setOutput, paths, abortSignal, context, setArtifact }: ActionRunnerData<any>,
+  { cwd, log, inputs, paths, abortSignal, context, setArtifact, setOutput }: ForgeExecutionContext,
   completeConfiguration: DesktopApp.Electron,
 ): Promise<{ folder: string; binary: string | undefined } | undefined> => {
   log("Building electron");
@@ -573,7 +587,7 @@ export const forge = async (
     await detectRuntime(appFolder);
   }
 
-  const { modules, node } = paths;
+  const { node } = paths;
   const destinationFolder = await context.createTempFolder("electron-forge-");
   log(`Staging build in ${destinationFolder}`);
 
@@ -798,8 +812,9 @@ export const forge = async (
       await cp(appFolder, placeAppFolder, { recursive: true });
     }
 
-    const inputPlatform = inputs.platform === "" ? undefined : inputs.platform;
-    const inputArch = inputs.arch === "" ? undefined : inputs.arch;
+    const inputPlatform =
+      typeof inputs.platform === "string" ? inputs.platform || undefined : undefined;
+    const inputArch = typeof inputs.arch === "string" ? inputs.arch || undefined : undefined;
 
     try {
       log("typeof inputs.platform", typeof inputs.platform);
@@ -876,7 +891,6 @@ export const forge = async (
             `Electron Forge completed without producing the expected output for ${finalPlatform}/${finalArch}`,
           );
         }
-        setOutput("output", output);
         setArtifact("electron-build", output);
         return {
           folder: output,
@@ -887,7 +901,7 @@ export const forge = async (
         if (action !== "preview" && !existsSync(output)) {
           throw new Error("Electron Forge completed without producing the expected make output");
         }
-        setOutput("output", output);
+        setOutput?.("output", output);
         setArtifact("electron-build", output);
         return {
           folder: output,

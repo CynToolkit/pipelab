@@ -1,6 +1,5 @@
 import { getBinName } from "@pipelab/constants";
 import {
-  ActionRunnerData,
   createAction,
   createArray,
   createBooleanParam,
@@ -99,6 +98,16 @@ async function resolveCargoPath(): Promise<string> {
 export const IDMake = "tauri:make";
 export const IDPackageV2 = "tauri:package:v2";
 export const IDPreview = "tauri:preview";
+
+export interface TauriExecutionContext {
+  cwd: string;
+  log: (...args: unknown[]) => void;
+  inputs: Record<string, unknown>;
+  paths: { node: string; cache: string };
+  abortSignal: AbortSignal;
+  context: Parameters<typeof runPnpm>[1]["context"];
+  setOutput?: (key: "output" | "binary", value: string) => void;
+}
 
 const paramsInputFolder = {
   "input-folder": createPathParam("", {
@@ -501,7 +510,7 @@ export const createPreviewProps = (
 export const tauri = async (
   action: "make" | "package" | "preview",
   appFolder: string | undefined,
-  { cwd, log, inputs, setOutput, paths, abortSignal, context }: ActionRunnerData<any>,
+  { cwd, log, inputs, setOutput, paths, abortSignal, context }: TauriExecutionContext,
   completeConfiguration: DesktopApp.Config,
 ): Promise<{ folder: string; binary: string | undefined } | undefined> => {
   console.log("appFolder", appFolder);
@@ -512,7 +521,7 @@ export const tauri = async (
     await detectRuntime(appFolder);
   }
 
-  const { modules, cache, node } = paths;
+  const { cache, node } = paths;
 
   const destinationFolder = join(cwd, "build");
 
@@ -630,8 +639,11 @@ export const tauri = async (
   //   )
   // }
 
-  const inputPlatform = inputs.platform === "" ? undefined : inputs.platform;
-  const inputArch = inputs.arch === "" ? undefined : inputs.arch;
+  const inputPlatform =
+    inputs.platform === "win32" || inputs.platform === "linux" || inputs.platform === "darwin"
+      ? inputs.platform
+      : undefined;
+  const inputArch = inputs.arch === "x64" || inputs.arch === "arm64" ? inputs.arch : undefined;
 
   try {
     log("typeof inputs.platform", typeof inputs.platform);
@@ -800,8 +812,8 @@ export const tauri = async (
 
       log("cargoOutputPath", cargoOutputPath);
 
-      setOutput("output", cargoOutputPath);
-      setOutput("binary", join(cargoOutputPath, binName));
+      setOutput?.("output", cargoOutputPath);
+      setOutput?.("binary", join(cargoOutputPath, binName));
       return {
         folder: cargoOutputPath,
         binary: join(cargoOutputPath, binName),

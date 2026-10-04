@@ -1,76 +1,41 @@
-import {
-  ExtractInputsFromAction,
-  createAction,
-  createActionRunner,
-  createPathParam,
-  fileExists,
-} from "@pipelab/plugin-core";
-import { exportc3p, sharedParams } from "./export-shared.js";
+import { fileExists } from "@pipelab/plugin-core";
+import type { WorkflowTask } from "@pipelab/workflow-runtime";
+import { exportc3p, type ConstructExportExecutionContext } from "./export-shared.js";
 
-export const ID = "export-construct-project";
+export interface ConstructWorkflowTaskServices {
+  context: ConstructExportExecutionContext["context"] & {
+    getThirdPartyPath(...subpaths: string[]): string;
+  };
+  executables: { node: string; pnpm: string };
+}
 
-export const exportAction = createAction({
-  id: ID,
-  name: "Export .c3p",
-  displayString:
-    "`Export project ${fmt.param(params.file, 'primary', 'No path selected')} with version ${params.version ? params.version : 'stable'}`",
-  meta: {},
-  params: {
-    file: createPathParam("", {
-      label: "File (.c3p)",
-      required: true,
-      control: {
-        type: "path",
-        label: "Pick a file (.c3p)",
-        options: {
-          properties: ["openFile"],
-          filters: [{ name: "Construct Project", extensions: ["c3p"] }],
-          title: "aaaa",
-          message: "bbbb",
-        },
+export const constructExportWorkflowTaskFactory =
+  (services: ConstructWorkflowTaskServices): WorkflowTask<ConstructWorkflowTaskServices> =>
+  async (task) => {
+    const file = task.inputs.file;
+    if (typeof file !== "string" || file.length === 0) {
+      throw new Error("You must specify a .c3p file");
+    }
+    if (!(await fileExists(file))) {
+      throw new Error("You must specify a valid .c3p file");
+    }
+
+    const execution: ConstructExportExecutionContext = {
+      cwd: task.workspace.root,
+      log: task.log,
+      inputs: task.inputs,
+      paths: {
+        node: services.executables.node,
+        thirdparty: services.context.getThirdPartyPath(),
       },
-    }),
-    ...sharedParams,
-  },
-  outputs: {
-    folder: {
-      type: "path",
-      deprecated: true,
-      value: undefined as undefined | string,
-      label: "Exported zip",
-      // schema: schema.string()
-    },
-    parentFolder: {
-      type: "path",
-      deprecated: false,
-      value: undefined as undefined | string,
-      label: "Path to parent folder of exported zip",
-      // schema: schema.string()
-    },
-    zipFile: {
-      type: "path",
-      deprecated: false,
-      value: undefined as undefined | string,
-      label: "Exported zip",
-      // schema: schema.string()
-    },
-  },
-  description: "Export construct project from .c3p file",
-  icon: "",
-});
+      abortSignal: task.signal,
+      context: services.context,
+    };
+    const outputs = await exportc3p(file, execution);
+    task.setArtifact("zipFile", outputs.zipFile);
+    return outputs;
+  };
 
-export const ExportActionRunner = createActionRunner<typeof exportAction>(async (options) => {
-  const file = options.inputs.file;
-  if (!file) throw new Error("You must specify a .c3p file");
-
-  const c3pFileExists = await fileExists(file);
-
-  if (!c3pFileExists) {
-    throw new Error("You must specify a valid .c3p file");
-  }
-
-  await exportc3p(file, options);
-  options.log("exportc3p done");
-});
-
-export type Params = ExtractInputsFromAction<typeof exportAction>;
+export const constructWorkflowTaskFactories = {
+  "@pipelab/plugin-construct/export-construct-project": constructExportWorkflowTaskFactory,
+};

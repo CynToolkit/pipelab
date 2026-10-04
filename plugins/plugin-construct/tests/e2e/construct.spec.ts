@@ -1,166 +1,114 @@
-import { expect, test, describe, afterEach } from "vitest";
-import { readFile, access, mkdir, writeFile } from "node:fs/promises";
-import { join, resolve, dirname } from "node:path";
-import { fileURLToPath } from "node:url";
-import { createSandbox, runAction } from "@pipelab/test-utils";
-import { ExportActionRunner } from "../../src/export-c3p";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { runWorkflowTask } from "@pipelab/test-utils";
+import type { ConstructWorkflowTaskServices } from "../../src/export-c3p";
+import { constructExportWorkflowTaskFactory } from "../../src/export-c3p";
+import { exportc3p } from "../../src/export-shared.js";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-const fixturesPath = join(__dirname, "fixtures");
+vi.mock("../../src/export-shared.js", () => ({ exportc3p: vi.fn() }));
 
-describe("End-to-End: Construct 3 Export runner", () => {
-  let sandbox: Awaited<ReturnType<typeof createSandbox>>;
+const exportMock = vi.mocked(exportc3p);
+const roots: string[] = [];
+const artifactDefinitions = {
+  zipFile: {
+    descriptor: {
+      kind: "files" as const,
+      technology: "construct",
+      container: "archive" as const,
+      format: "zip" as const,
+    },
+  },
+};
 
-  afterEach(async () => {
-    if (sandbox) {
-      await sandbox.remove();
-    }
+const makeSandbox = async () => {
+  const root = await mkdtemp(join(tmpdir(), "pipelab-construct-task-"));
+  roots.push(root);
+  const file = join(root, "project.c3p");
+  await writeFile(file, "fixture");
+  return { root, file };
+};
+
+const taskServices = {
+  context: { getThirdPartyPath: () => "/tmp/pipelab-thirdparty" },
+  executables: { node: process.execPath, pnpm: "pnpm" },
+} as unknown as ConstructWorkflowTaskServices;
+
+afterEach(async () => {
+  exportMock.mockReset();
+  await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })));
+});
+
+describe("Construct native workflow task", () => {
+  it("returns its outputs and registers the declared artifact", async () => {
+    const { root, file } = await makeSandbox();
+    exportMock.mockImplementation(async (_file, execution) => {
+      execution.log("Construct export complete");
+      return {
+        folder: "/output/project.zip",
+        parentFolder: "/output",
+        zipFile: "/output/project.zip",
+      };
+    });
+
+    const task = constructExportWorkflowTaskFactory(taskServices);
+    const result = await runWorkflowTask(task, {
+      workspacePath: root,
+      inputs: { file, version: "stable" },
+      artifacts: artifactDefinitions,
+      services: taskServices,
+    });
+
+    expect(result.outputs).toEqual({
+      folder: "/output/project.zip",
+      parentFolder: "/output",
+      zipFile: "/output/project.zip",
+    });
+    expect(result.artifacts).toHaveLength(1);
+    expect(result.artifacts[0]).toMatchObject({ artifact: "zipFile", path: "/output/project.zip" });
+    expect(result.logs).toContain("Construct export complete");
   });
 
-  // SKIPPED: launches real Chromium — flaky outside proper CI runners
-  // (target crashes under container constraints). Re-enable: test.skip → test.
-  test.skip(
-    "should run the full C3 export action",
-    async () => {
-      sandbox = await createSandbox("c3-export-e2e");
-      const fixtures = fixturesPath;
+  it("surfaces export failures through workflow-runtime", async () => {
+    const { root, file } = await makeSandbox();
+    exportMock.mockRejectedValue(new Error("Construct export failed"));
 
-      // 1. Prepare inputs
-      const testC3pPath = resolve(fixtures, "c3-export/test.c3p");
+    await expect(
+      runWorkflowTask(constructExportWorkflowTaskFactory(taskServices), {
+        workspacePath: root,
+        inputs: { file },
+        artifacts: artifactDefinitions,
+        services: taskServices,
+      }),
+    ).rejects.toThrow("Construct export failed");
+  });
 
-      const inputs = {
-        file: testC3pPath,
-        version: "stable",
-        username: "",
-        password: "",
-        headless: true,
-        timeout: 300,
-        customProfile: undefined,
-      };
+  it("propagates workflow cancellation to the export operation", async () => {
+    const { root, file } = await makeSandbox();
+    exportMock.mockImplementation(
+      (_file, execution) =>
+        new Promise((_resolve, reject) => {
+          execution.abortSignal.addEventListener("abort", () => reject(new Error("cancelled")), {
+            once: true,
+          });
+        }),
+    );
+    const controller = new AbortController();
+    const cancellation = setTimeout(() => controller.abort("test cancellation"), 50);
 
-      // 2. Run the action directly
-      const result = await runAction(ExportActionRunner, {
-        inputs,
-        sandboxPath: sandbox.path,
-      });
-
-      // 3. Verification
-      const outputs = result.outputs;
-      expect(outputs).toBeDefined();
-
-      expect(outputs.folder).toEqual(expect.any(String));
-      expect(outputs.parentFolder).toEqual(expect.any(String));
-      expect(outputs.zipFile).toEqual(expect.any(String));
-
-      // Verify that the output files/folders actually exist
-      await expect(access(outputs.folder as string)).resolves.not.toThrow();
-      await expect(access(outputs.parentFolder as string)).resolves.not.toThrow();
-      await expect(access(outputs.zipFile as string)).resolves.not.toThrow();
-    },
-    30 * 60 * 1000,
-  );
-
-  test(
-    "should export with login credentials from env vars",
-    async () => {
-      const username = process.env.C3_USERNAME;
-      const password = process.env.C3_PASSWORD;
-
-      if (!username || !password) {
-        console.log("Skipping login test: C3_USERNAME and C3_PASSWORD not set");
-        return;
-      }
-
-      sandbox = await createSandbox("c3-login-e2e");
-      const fixtures = fixturesPath;
-
-      const testC3pPath = resolve(fixtures, "c3-export/test.c3p");
-
-      const inputs = {
-        file: testC3pPath,
-        version: "stable",
-        username,
-        password,
-        headless: true,
-        timeout: 300,
-        customProfile: undefined,
-      };
-
-      const result = await runAction(ExportActionRunner, {
-        inputs,
-        sandboxPath: sandbox.path,
-      });
-
-      const outputs = result.outputs;
-      expect(outputs).toBeDefined();
-
-      expect(outputs.folder).toEqual(expect.any(String));
-      expect(outputs.parentFolder).toEqual(expect.any(String));
-      expect(outputs.zipFile).toEqual(expect.any(String));
-
-      await expect(access(outputs.folder as string)).resolves.not.toThrow();
-      await expect(access(outputs.parentFolder as string)).resolves.not.toThrow();
-      await expect(access(outputs.zipFile as string)).resolves.not.toThrow();
-    },
-    30 * 60 * 1000,
-  );
-
-  // SKIPPED: launches real Chromium — flaky outside proper CI runners
-  // (ENOENT/target crashes under container constraints). Re-enable: test.skip → test.
-  test.skip(
-    "should copy the custom Chrome profile IndexedDB databases to the Playwright profile",
-    async () => {
-      sandbox = await createSandbox("c3-profile-clone-e2e");
-      const fixtures = fixturesPath;
-
-      // 1. Seed a mock custom Chrome profile with dummy Construct 3 addon databases
-      const mockProfileDir = join(sandbox.path, "mock-chrome-profile");
-      const sourceDbDir = join(
-        mockProfileDir,
-        "Default",
-        "IndexedDB",
-        "https_editor.construct.net_0.indexeddb.leveldb",
-      );
-      await mkdir(sourceDbDir, { recursive: true });
-      await writeFile(join(sourceDbDir, "test-addon-file-clone.txt"), "addon-database-data");
-
-      // 2. Prepare inputs
-      const testC3pPath = resolve(fixtures, "c3-export/test.c3p");
-
-      const inputs = {
-        file: testC3pPath,
-        version: "stable",
-        username: "",
-        password: "",
-        headless: true,
-        timeout: 300,
-        customProfile: mockProfileDir,
-      };
-
-      // 3. Run the action
-      const result = await runAction(ExportActionRunner, {
-        inputs,
-        sandboxPath: sandbox.path,
-      });
-
-      // 4. Verification
-      const outputs = result.outputs;
-      expect(outputs).toBeDefined();
-
-      // Assert that the generated folders were cloned to playwright-profile/Default/IndexedDB/
-      const clonedEditorDbFile = join(
-        sandbox.path,
-        "playwright-profile",
-        "Default",
-        "IndexedDB",
-        "https_editor.construct.net_0.indexeddb.leveldb",
-        "test-addon-file-clone.txt",
-      );
-
-      await expect(access(clonedEditorDbFile)).resolves.not.toThrow();
-      expect(await readFile(clonedEditorDbFile, "utf-8")).toBe("addon-database-data");
-    },
-    30 * 60 * 1000,
-  );
+    try {
+      await expect(
+        runWorkflowTask(constructExportWorkflowTaskFactory(taskServices), {
+          workspacePath: root,
+          inputs: { file },
+          artifacts: artifactDefinitions,
+          signal: controller.signal,
+          services: taskServices,
+        }),
+      ).rejects.toThrow("test cancellation");
+    } finally {
+      clearTimeout(cancellation);
+    }
+  });
 });
