@@ -32,17 +32,21 @@
     "format": "oxfmt .",
     "typecheck": "tsc -b",
     "lint": "oxlint .",
+    "test": "vitest run",
     "build": "tsdown"
   },
   "dependencies": {
     "@pipelab/plugin-core": "workspace:*",
+    "@pipelab/workflow-runtime": "workspace:*",
     "node-stream-zip": "1.15.0"
   },
   "devDependencies": {
+    "@pipelab/test-utils": "workspace:*",
     "@pipelab/tsconfig": "workspace:*",
     "@types/node": "24",
     "tsdown": "0.21.2",
-    "typescript": "5.9.3"
+    "typescript": "5.9.3",
+    "vitest": "3.1.4"
   },
   "pipelab": {
     "name": "Itch.io",

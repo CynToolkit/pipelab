@@ -1,11 +1,9 @@
-import { uploadToPokiRunner } from "./export";
+import { createPokiUploadTask, WORKFLOW_TASK_ID } from "./export";
 
 import { createDefinition } from "@pipelab/plugin-core";
 import type { ReleaseDestinationDefinition } from "@pipelab/shared";
 
-export const workflowTaskRunners = {
-  "@pipelab/plugin-poki/poki-upload": uploadToPokiRunner,
-};
+export { createPokiUploadTask, WORKFLOW_TASK_ID };
 
 const pokiDestination: ReleaseDestinationDefinition = {
   id: "@pipelab/plugin-poki/destination",
@@ -29,7 +27,7 @@ const pokiDestination: ReleaseDestinationDefinition = {
   compile: (artifact, destination, slot) => [
     {
       id: `poki-${destination.id}-${slot.id}`,
-      uses: "@pipelab/plugin-poki/poki-upload",
+      uses: WORKFLOW_TASK_ID,
       needs: [artifact.reference.stepId],
       artifactInputs: { "input-folder": artifact.reference },
       with: { ...destination.config, ...slot.config },

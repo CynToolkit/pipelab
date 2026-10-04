@@ -1,10 +1,8 @@
-import { uploadToSteamRunner } from "./upload-to-steam";
+import { createSteamUploadTask, WORKFLOW_TASK_ID } from "./upload-to-steam";
 import { createDefinition } from "@pipelab/plugin-core";
 import type { ReleaseDestinationDefinition } from "@pipelab/shared";
 
-export const workflowTaskRunners = {
-  "@pipelab/plugin-steam/steam-upload": uploadToSteamRunner,
-};
+export { createSteamUploadTask, WORKFLOW_TASK_ID };
 
 export const steamDestination: ReleaseDestinationDefinition = {
   id: "@pipelab/plugin-steam/destination",
@@ -57,7 +55,7 @@ export const steamDestination: ReleaseDestinationDefinition = {
   compile: (artifact, destination, slot) => [
     {
       id: `steam-${destination.id}-${slot.id}`,
-      uses: "@pipelab/plugin-steam/steam-upload",
+      uses: WORKFLOW_TASK_ID,
       needs: [artifact.reference.stepId],
       artifactInputs: { folder: artifact.reference },
       with: { ...destination.config, ...slot.config },

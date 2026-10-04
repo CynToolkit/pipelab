@@ -1,58 +1,24 @@
-import {
-  createAction,
-  createActionRunner,
-  createPathParam,
-  createStringParam,
-  fetchPackage,
-  runWithLiveLogs,
-} from "@pipelab/plugin-core";
+import { fetchPackage, runWithLiveLogs } from "@pipelab/plugin-core";
+import type { PipelabContext } from "@pipelab/plugin-core";
+import type { WorkflowTask, WorkflowTaskContext } from "@pipelab/workflow-runtime";
 import { dirname, join, delimiter, resolve } from "node:path";
 import { writeFile, cp, access } from "node:fs/promises";
 
-export const ID = "poki-upload";
+export const WORKFLOW_TASK_ID = "@pipelab/plugin-poki/poki-upload";
 export const POKI_CLI_VERSION = "0.1.19";
 
-export const uploadToPoki = createAction({
-  id: ID,
-  name: "Upload to Poki",
-  description: "Upload and publish your build to the Poki Developer Portal.",
-  icon: "",
-  displayString:
-    "`Upload ${fmt.param(params['input-folder'], 'primary', 'No path selected')} to Poki game ID ${fmt.param(params['project'], 'primary', 'No project')} (${fmt.param(params['name'], 'primary', 'No version name')})`",
-  meta: {},
-  params: {
-    "input-folder": createPathParam("", {
-      required: true,
-      label: "Folder to upload",
-      control: {
-        type: "path",
-        options: {
-          properties: ["openDirectory"],
-        },
-      },
-    }),
-    project: createStringParam("", {
-      required: true,
-      label: "Poki Game ID",
-      description: "Your unique Poki game ID.",
-    }),
-    name: createStringParam("", {
-      required: true,
-      label: "Version name",
-      description: "The version label for this build.",
-    }),
-    notes: createStringParam("", {
-      required: true,
-      label: "Version notes",
-      description: "Release notes describing the changes in this version.",
-    }),
-  },
-  outputs: {},
-});
+export interface PokiTaskServices {
+  context: PipelabContext;
+  executables: { node: string };
+}
 
-export const uploadToPokiRunner = createActionRunner<typeof uploadToPoki>(
-  async ({ log, inputs, paths, abortSignal, context }) => {
-    const { node, thirdparty } = paths;
+export const createPokiUploadTask =
+  <TServices extends PokiTaskServices>(services: TServices): WorkflowTask<TServices> =>
+  async (taskContext: WorkflowTaskContext<TServices>) => {
+    const { context, executables } = services;
+    const { inputs, signal, log } = taskContext;
+    const node = executables.node;
+    const thirdparty = context.getThirdPartyPath();
 
     const absoluteInputFolder = resolve(inputs["input-folder"] as string);
 
@@ -143,7 +109,7 @@ export const uploadToPokiRunner = createActionRunner<typeof uploadToPoki>(
         {
           cwd: tempUploadFolder,
           env,
-          cancelSignal: abortSignal,
+          cancelSignal: signal,
         },
         log,
         {
@@ -176,5 +142,4 @@ export const uploadToPokiRunner = createActionRunner<typeof uploadToPoki>(
     */
 
     log("Uploaded to poki");
-  },
-);
+  };
