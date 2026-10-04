@@ -3,12 +3,17 @@ import { fileURLToPath } from "node:url";
 import { mkdir, writeFile, chmod, rm } from "node:fs/promises";
 import { existsSync as existsSyncSync } from "node:fs";
 import { tmpdir } from "node:os";
-import {
-  type ActionRunner,
-  type ActionRunnerData,
-  type Action,
-} from "@pipelab/plugin-core";
+import { type ActionRunner, type ActionRunnerData, type Action } from "@pipelab/plugin-core";
 import { PipelabContext as NodePipelabContext } from "@pipelab/core-node";
+import {
+  createLocalHost,
+  runWorkflow,
+  type WorkflowArtifactDefinition,
+  type WorkflowEvent,
+  type WorkflowTask,
+  type WorkflowTaskRegistry,
+  type WorkflowHost,
+} from "@pipelab/workflow-runtime";
 import { execa } from "execa";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -143,9 +148,15 @@ export const runAction = async <A extends Action>(
     const isWindows = process.platform === "win32";
     const cmd = isWindows ? "where pnpm" : "which pnpm";
     const stdout = execSync(cmd, { encoding: "utf8" });
-    const lines = stdout.split(/\r?\n/).map((line: string) => line.trim()).filter(Boolean);
+    const lines = stdout
+      .split(/\r?\n/)
+      .map((line: string) => line.trim())
+      .filter(Boolean);
     if (isWindows) {
-      realPnpm = lines.find((line: string) => line.endsWith(".cmd") || line.endsWith(".exe")) || lines[0] || "pnpm";
+      realPnpm =
+        lines.find((line: string) => line.endsWith(".cmd") || line.endsWith(".exe")) ||
+        lines[0] ||
+        "pnpm";
     } else {
       realPnpm = lines[0] || "pnpm";
     }
@@ -235,6 +246,61 @@ process.exit(result.status ?? 0);`,
   }
 
   return { outputs };
+};
+
+/** Runs a native workflow task through workflow-runtime for focused plugin tests. */
+export const runWorkflowTask = async <TServices = unknown>(
+  task: WorkflowTask<TServices>,
+  options: {
+    inputs?: Record<string, unknown>;
+    workspacePath: string;
+    artifacts?: Record<string, WorkflowArtifactDefinition>;
+    signal?: AbortSignal;
+    services?: TServices;
+    host?: Partial<WorkflowHost>;
+  },
+) => {
+  const events: WorkflowEvent[] = [];
+  const logs: string[] = [];
+  const host = {
+    ...createLocalHost(options.workspacePath, {
+      logger: {
+        info: (...args: unknown[]) => logs.push(args.map(String).join(" ")),
+        warn: (...args: unknown[]) => logs.push(args.map(String).join(" ")),
+        error: (...args: unknown[]) => logs.push(args.map(String).join(" ")),
+      },
+    }),
+    ...options.host,
+  };
+  const tasks: WorkflowTaskRegistry<TServices> = { "test:native": task };
+  const result = await runWorkflow(
+    {
+      version: 1,
+      steps: [
+        {
+          id: "task",
+          uses: "test:native",
+          with: options.inputs,
+          artifacts: options.artifacts,
+        },
+      ],
+    },
+    {
+      host,
+      tasks,
+      services: options.services,
+      signal: options.signal,
+      onEvent: (event) => events.push(event),
+    },
+  );
+
+  return {
+    outputs: result.outputs.task,
+    artifacts: result.steps.task.artifacts,
+    result,
+    events,
+    logs,
+  };
 };
 
 /**

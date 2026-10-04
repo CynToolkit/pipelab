@@ -1,7 +1,19 @@
 import { describe, expect, it, vi } from "vitest";
 import { CORE_WORKFLOW_TASKS } from "@pipelab/workflow-runtime";
-import { createWorkflowActionTask, createPipelabWorkflowTasks } from "./workflow-tasks";
-import { workflowTaskRunners } from "./workflow-tasks/registry";
+import {
+  createWorkflowActionTask,
+  createPipelabWorkflowTasks,
+  createWorkflowTaskRegistry,
+  type PipelabPluginServices,
+} from "./workflow-tasks";
+import { workflowTaskFactories } from "./workflow-tasks/registry";
+import { PipelabContext } from "./context";
+
+const services: PipelabPluginServices = {
+  context: new PipelabContext({ userDataPath: "/tmp/pipelab-workflow-task-test" }),
+  executables: { node: "/node", pnpm: "/pnpm" },
+  workflowCachePath: "/cache/workflow",
+};
 
 describe("workflow plugin task adapter", () => {
   it("adapts a plugin runner and declared artifact output", async () => {
@@ -32,21 +44,16 @@ describe("workflow plugin task adapter", () => {
   });
 
   it("registers explicit plugin runners under their stable task IDs", () => {
-    const runner = vi.fn();
-    const tasks = createPipelabWorkflowTasks(
-      { context: {} as never, paths: {} as never },
-      {
-        "@example/plugin/build": runner,
-      },
-    );
+    const task = vi.fn(async () => ({ ready: true }));
+    const tasks = createPipelabWorkflowTasks(services, { "@example/plugin/build": task });
 
     expect(tasks["@example/plugin/build"]).toBeTypeOf("function");
   });
 
   it("registers every task ID emitted by the built-in Release providers", () => {
     const tasks = createPipelabWorkflowTasks(
-      { context: {} as never, paths: {} as never },
-      workflowTaskRunners,
+      services,
+      createWorkflowTaskRegistry(workflowTaskFactories, services),
     );
 
     for (const uses of [

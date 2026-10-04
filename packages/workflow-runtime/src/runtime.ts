@@ -281,14 +281,15 @@ const artifactForDelivery = (
   );
 };
 
-export const runWorkflow = async (
+export const runWorkflow = async <TServices = unknown>(
   workflow: Workflow,
-  context: WorkflowRunContext,
+  context: WorkflowRunContext<TServices>,
 ): Promise<WorkflowResult> => {
   validateWorkflow(workflow);
   const signal = context.signal ?? new AbortController().signal;
   const tasks = { ...builtInTasks, ...context.tasks };
   const variables = context.variables ?? {};
+  const services = context.services ?? ({} as TServices);
   const outputs: Record<string, Record<string, unknown>> = {};
   const steps: Record<string, WorkflowStepResult> = {};
   const artifacts: Array<WorkflowArtifact | WorkflowArtifactInstance> = [];
@@ -332,6 +333,9 @@ export const runWorkflow = async (
           (await task({
             step,
             inputs,
+            outputs: Object.freeze({ ...outputs }),
+            artifacts: [...artifacts],
+            services,
             ...(step.delivery && resolvedDeliveryArtifact
               ? {
                   delivery: {

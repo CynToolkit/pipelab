@@ -8,12 +8,28 @@ import type { ActionRunner, ActionRunnerData } from "./types/runner";
 import { createPipelabCloudUploadTask } from "./pipelab-cloud";
 import { createCoreFilesystemWorkflowTasks } from "./workflow-tasks/filesystem";
 
-export interface WorkflowTaskOptions {
+export interface PipelabPluginServices {
+  context: PipelabContext;
+  /** Node and pnpm executables ensured for this workflow run. */
+  executables: { node: string; pnpm: string };
+  /** Per-run build cache directory. Other managed directories come from context. */
+  workflowCachePath: string;
+}
+
+export interface LegacyWorkflowTaskOptions {
   context: PipelabContext;
   paths: ActionRunnerData<any>["paths"];
   outputAliases?: Record<string, string>;
   artifacts?: Record<string, string>;
 }
+
+export type WorkflowTaskFactory<TServices = PipelabPluginServices> = (
+  services: TServices,
+) => WorkflowTask<TServices>;
+export type WorkflowTaskFactoryRegistry<TServices = PipelabPluginServices> = Record<
+  string,
+  WorkflowTaskFactory<TServices>
+>;
 
 /**
  * Adapts a plugin action runner to the standalone workflow task contract.
@@ -23,7 +39,7 @@ export interface WorkflowTaskOptions {
  */
 export const createWorkflowActionTask = (
   runner: ActionRunner<any>,
-  options: WorkflowTaskOptions,
+  options: LegacyWorkflowTaskOptions,
 ): WorkflowTask => {
   return async (taskContext: WorkflowTaskContext) => {
     const outputs: Record<string, unknown> = {};
@@ -71,21 +87,21 @@ export const createWorkflowActionTask = (
   };
 };
 
-export const createWorkflowTaskRegistry = (
-  runners: Record<string, ActionRunner<any>>,
-  options: WorkflowTaskOptions,
-): WorkflowTaskRegistry =>
+export const createWorkflowTaskRegistry = <TServices>(
+  factories: WorkflowTaskFactoryRegistry<TServices>,
+  services: TServices,
+): WorkflowTaskRegistry<TServices> =>
   Object.fromEntries(
-    Object.entries(runners).map(([id, runner]) => [id, createWorkflowActionTask(runner, options)]),
+    Object.entries(factories).map(([id, createTask]) => [id, createTask(services)]),
   );
 
-export const createPipelabWorkflowTasks = (
-  options: WorkflowTaskOptions,
-  registeredRunners: Record<string, ActionRunner<any>>,
-): WorkflowTaskRegistry => {
+export const createPipelabWorkflowTasks = <TServices = unknown>(
+  services: PipelabPluginServices,
+  registeredTasks: WorkflowTaskRegistry<TServices>,
+): WorkflowTaskRegistry<TServices> => {
   return {
-    ...createWorkflowTaskRegistry(registeredRunners, options),
+    ...registeredTasks,
     ...createCoreFilesystemWorkflowTasks(),
-    "pipelab-cloud:upload": createPipelabCloudUploadTask(options.context),
+    "pipelab-cloud:upload": createPipelabCloudUploadTask(services.context),
   };
 };

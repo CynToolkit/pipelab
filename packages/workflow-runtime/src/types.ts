@@ -79,9 +79,15 @@ export interface WorkflowArtifact {
   path: string;
 }
 
-export interface WorkflowTaskContext {
+export interface WorkflowTaskContext<TServices = unknown> {
   step: WorkflowStep;
   inputs: Record<string, unknown>;
+  /** Outputs already produced by steps in this workflow run. */
+  outputs: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
+  /** Artifacts already produced by steps in this workflow run. */
+  artifacts: readonly (WorkflowArtifact | WorkflowArtifactInstance)[];
+  /** Host-provided services for plugin tasks. */
+  services: TServices;
   delivery?: WorkflowTaskDeliveryContext;
   workspace: Workspace;
   filesystem: FileSystem;
@@ -103,11 +109,11 @@ export interface WorkflowTaskDeliveryContext {
   artifact: WorkflowArtifactInstance;
 }
 
-export type WorkflowTask = (
-  context: WorkflowTaskContext,
+export type WorkflowTask<TServices = unknown> = (
+  context: WorkflowTaskContext<TServices>,
 ) => Promise<Record<string, unknown> | void>;
 
-export type WorkflowTaskRegistry = Record<string, WorkflowTask>;
+export type WorkflowTaskRegistry<TServices = unknown> = Record<string, WorkflowTask<TServices>>;
 
 export interface WorkflowError {
   name: string;
@@ -201,13 +207,14 @@ export type WorkflowEventInput =
 
 export type WorkflowEvent = WorkflowEventInput & { timestamp: number };
 
-export interface WorkflowRunContext {
+export interface WorkflowRunContext<TServices = unknown> {
   host: WorkflowHost;
   version?: string;
   buildId?: string;
   variables?: Record<string, unknown>;
   signal?: AbortSignal;
-  tasks?: WorkflowTaskRegistry;
+  tasks?: WorkflowTaskRegistry<TServices>;
+  services?: TServices;
   onEvent?: (event: WorkflowEvent) => void;
 }
 

@@ -834,6 +834,9 @@ importers:
       '@pipelab/plugin-core':
         specifier: workspace:*
         version: link:../../plugins/plugin-core
+      '@pipelab/workflow-runtime':
+        specifier: workspace:*
+        version: link:../workflow-runtime
       execa:
         specifier: 9.5.1
         version: 9.5.1

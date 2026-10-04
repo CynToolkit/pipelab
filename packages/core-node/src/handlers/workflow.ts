@@ -24,7 +24,8 @@ import { CacheFolder, PipelabContext } from "../context";
 import { ReleasePersistence } from "../release-persistence";
 import { ensureNodeJS, ensurePNPM } from "../utils/remote";
 import { createPipelabWorkflowTasks } from "../workflow-tasks";
-import { workflowTaskRunners } from "../workflow-tasks/registry";
+import { workflowTaskFactories } from "../workflow-tasks/registry";
+import { createWorkflowTaskRegistry, type PipelabPluginServices } from "../workflow-tasks";
 import { useAPI } from "../ipc-core";
 import { BuildHistoryStorage } from "./build-history";
 import { WorkflowRunCancellationRegistry } from "./workflow-run-cancellation";
@@ -228,19 +229,14 @@ export const executeWorkflow = async (
   await mkdir(workspaceRoot, { recursive: true });
   const node = await ensureNodeJS(context);
   const pnpm = await ensurePNPM(context);
+  const services: PipelabPluginServices = {
+    context,
+    executables: { node, pnpm },
+    workflowCachePath: context.getCachePath(CacheFolder.Pipelines, config.project, buildId),
+  };
   const tasks = createPipelabWorkflowTasks(
-    {
-      context,
-      paths: {
-        cache: context.getCachePath(CacheFolder.Pipelines, config.project, buildId),
-        pnpm,
-        node,
-        userData: context.userDataPath,
-        modules: context.getPackagesPath(),
-        thirdparty: context.getThirdPartyPath(),
-      },
-    },
-    workflowTaskRunners,
+    services,
+    createWorkflowTaskRegistry(workflowTaskFactories, services),
   );
   const observedSteps = new Map<
     string,
@@ -273,6 +269,7 @@ export const executeWorkflow = async (
       version,
       buildId,
       tasks,
+      services,
       signal: options.signal,
       onEvent,
     });
