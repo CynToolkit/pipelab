@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { godotExporter, godotSource } from "./index";
+import plugin, { godotExporter, godotSource, workflowTaskRunners } from "./index";
 
 const context = (path: string) => ({
   host: { platform: "linux", architecture: "x64" },
@@ -10,6 +10,13 @@ const context = (path: string) => ({
 });
 
 describe("Godot release preset validation", () => {
+  it("keeps its Release definitions and task after removing legacy nodes", () => {
+    expect(plugin.nodes).toEqual([]);
+    expect(plugin.release?.sources?.map((source) => source.id)).toContain(godotSource.id);
+    expect(plugin.release?.producers?.map((producer) => producer.id)).toContain(godotExporter.id);
+    expect(Object.keys(workflowTaskRunners)).toEqual(["@pipelab/plugin-godot/godot:export"]);
+  });
+
   it("reports the source field path", () => {
     expect(godotSource.validate({})).toEqual([expect.objectContaining({ path: "path" })]);
   });

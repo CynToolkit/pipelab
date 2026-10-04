@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { createAction, createActionRunner, createNodeDefinition } from "@pipelab/plugin-core";
+import { createActionRunner, createNodeDefinition } from "@pipelab/plugin-core";
 import type { ReleaseProducerDefinition, ReleaseSourceDefinition } from "@pipelab/shared";
 import {
   exportGodotProject,
@@ -170,16 +170,6 @@ export const godotSource: ReleaseSourceDefinition = {
   }),
 };
 
-const godotExportAction = createAction({
-  id: "godot:export",
-  name: "Export Godot project",
-  displayString: "Export Godot project",
-  icon: "",
-  description: "Export a Godot project",
-  meta: {},
-  params: {},
-  outputs: {},
-});
 const godotExportRunner = createActionRunner(async (data) => {
   const inputs = data.inputs as Record<string, unknown>;
   const project = String(inputs.project || "");
@@ -354,6 +344,6 @@ export default createNodeDefinition({
   description: "Godot release integration",
   icon: { type: "icon", icon: "pi-gamepad" },
   isOfficial: true,
-  nodes: [{ node: godotExportAction, runner: godotExportRunner }],
+  nodes: [],
   release: { sources: [godotSource], producers: [godotExporter] },
 });

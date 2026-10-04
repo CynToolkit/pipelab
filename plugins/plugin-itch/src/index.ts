@@ -1,4 +1,4 @@
-import { uploadToItch, uploadToItchRunner } from "./export";
+import { uploadToItchRunner } from "./export";
 
 import { createNodeDefinition } from "@pipelab/plugin-core";
 import type { ReleaseDestinationDefinition } from "@pipelab/shared";
@@ -72,13 +72,7 @@ export default createNodeDefinition({
   description: "Pipelab plugin for publishing games to itch.io",
   icon: { type: "icon", icon: "pi-palette" },
   isOfficial: true,
-  nodes: [
-    // make and package
-    {
-      node: uploadToItch,
-      runner: uploadToItchRunner,
-    },
-  ],
+  nodes: [],
   integrations: [
     {
       name: "Itch Butler Account",

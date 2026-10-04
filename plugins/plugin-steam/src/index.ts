@@ -1,4 +1,4 @@
-import { uploadToSteam, uploadToSteamRunner } from "./upload-to-steam";
+import { uploadToSteamRunner } from "./upload-to-steam";
 import { createNodeDefinition } from "@pipelab/plugin-core";
 import type { ReleaseDestinationDefinition } from "@pipelab/shared";
 
@@ -73,12 +73,7 @@ export default createNodeDefinition({
   description: "Pipelab plugin for publishing games to Steam via SteamCMD",
   icon: { type: "icon", icon: "mdi-steam" },
   isOfficial: true,
-  nodes: [
-    {
-      node: uploadToSteam,
-      runner: uploadToSteamRunner,
-    },
-  ],
+  nodes: [],
   integrations: [
     {
       name: "Steam Account",

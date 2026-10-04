@@ -637,15 +637,9 @@ importers:
 
   packages/core-node:
     dependencies:
-      '@pipelab/asset-discord':
-        specifier: workspace:*
-        version: link:../../assets/asset-discord
       '@pipelab/asset-electron':
         specifier: workspace:*
         version: link:../../assets/asset-electron
-      '@pipelab/asset-netlify':
-        specifier: workspace:*
-        version: link:../../assets/asset-netlify
       '@pipelab/asset-tauri':
         specifier: workspace:*
         version: link:../../assets/asset-tauri
@@ -658,36 +652,21 @@ importers:
       '@pipelab/plugin-core':
         specifier: workspace:*
         version: link:../../plugins/plugin-core
-      '@pipelab/plugin-discord':
-        specifier: workspace:*
-        version: link:../../plugins/plugin-discord
       '@pipelab/plugin-electron':
         specifier: workspace:*
         version: link:../../plugins/plugin-electron
-      '@pipelab/plugin-filesystem':
-        specifier: workspace:*
-        version: link:../../plugins/plugin-filesystem
       '@pipelab/plugin-godot':
         specifier: workspace:*
         version: link:../../plugins/plugin-godot
       '@pipelab/plugin-itch':
         specifier: workspace:*
         version: link:../../plugins/plugin-itch
-      '@pipelab/plugin-minify':
-        specifier: workspace:*
-        version: link:../../plugins/plugin-minify
-      '@pipelab/plugin-netlify':
-        specifier: workspace:*
-        version: link:../../plugins/plugin-netlify
       '@pipelab/plugin-poki':
         specifier: workspace:*
         version: link:../../plugins/plugin-poki
       '@pipelab/plugin-steam':
         specifier: workspace:*
         version: link:../../plugins/plugin-steam
-      '@pipelab/plugin-system':
-        specifier: workspace:*
-        version: link:../../plugins/plugin-system
       '@pipelab/plugin-tauri':
         specifier: workspace:*
         version: link:../../plugins/plugin-tauri
@@ -1037,40 +1016,6 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
 
-  plugins/plugin-discord:
-    dependencies:
-      '@pipelab/plugin-core':
-        specifier: workspace:*
-        version: link:../plugin-core
-      '@pipelab/shared':
-        specifier: workspace:*
-        version: link:../../packages/shared
-      '@types/node':
-        specifier: ^24.12.2
-        version: 24.12.2
-      electron:
-        specifier: 39.8.10
-        version: 39.8.10
-      ts-deepmerge:
-        specifier: 7.0.1
-        version: 7.0.1
-      untun:
-        specifier: 0.1.3
-        version: 0.1.3
-    devDependencies:
-      '@pipelab/tsconfig':
-        specifier: workspace:*
-        version: link:../../packages/tsconfig
-      tsdown:
-        specifier: 0.21.2
-        version: 0.21.2(@emnapi/core@1.10.0)(@emnapi/runtime@1.11.3)(@vitejs/devtools@0.1.13)(publint@0.3.18)(typescript@5.9.3)
-      typescript:
-        specifier: 5.9.3
-        version: 5.9.3
-      vitest:
-        specifier: 3.1.4
-        version: 3.1.4(@types/node@24.12.2)(jiti@2.6.1)(jsdom@27.4.0(@noble/hashes@1.8.0))(lightningcss@1.32.0)(msw@2.7.5(@types/node@24.12.2)(typescript@5.9.3))(sass-embedded@1.99.0)(sass@1.99.0)(terser@5.46.1)(tsx@4.19.1)(yaml@2.9.1)
-
   plugins/plugin-electron:
     dependencies:
       '@pipelab/constants':
@@ -1091,37 +1036,6 @@ importers:
       ts-deepmerge:
         specifier: 7.0.1
         version: 7.0.1
-    devDependencies:
-      '@pipelab/test-utils':
-        specifier: workspace:*
-        version: link:../../packages/test-utils
-      '@pipelab/tsconfig':
-        specifier: workspace:*
-        version: link:../../packages/tsconfig
-      tsdown:
-        specifier: 0.21.2
-        version: 0.21.2(@emnapi/core@1.10.0)(@emnapi/runtime@1.11.3)(@vitejs/devtools@0.1.13)(publint@0.3.18)(typescript@5.9.3)
-      typescript:
-        specifier: 5.9.3
-        version: 5.9.3
-      vitest:
-        specifier: 3.1.4
-        version: 3.1.4(@types/node@24.12.2)(jiti@2.6.1)(jsdom@27.4.0(@noble/hashes@1.8.0))(lightningcss@1.32.0)(msw@2.7.5(@types/node@24.12.2)(typescript@5.9.3))(sass-embedded@1.99.0)(sass@1.99.0)(terser@5.46.1)(tsx@4.19.1)(yaml@2.9.1)
-
-  plugins/plugin-filesystem:
-    dependencies:
-      '@pipelab/plugin-core':
-        specifier: workspace:*
-        version: link:../plugin-core
-      '@pipelab/workflow-runtime':
-        specifier: workspace:*
-        version: link:../../packages/workflow-runtime
-      '@types/node':
-        specifier: ^24.12.2
-        version: 24.12.2
-      node-stream-zip:
-        specifier: 1.15.0
-        version: 1.15.0
     devDependencies:
       '@pipelab/test-utils':
         specifier: workspace:*
@@ -1179,50 +1093,6 @@ importers:
       '@types/node':
         specifier: '24'
         version: 24.12.2
-      tsdown:
-        specifier: 0.21.2
-        version: 0.21.2(@emnapi/core@1.10.0)(@emnapi/runtime@1.11.3)(@vitejs/devtools@0.1.13)(publint@0.3.18)(typescript@5.9.3)
-      typescript:
-        specifier: 5.9.3
-        version: 5.9.3
-
-  plugins/plugin-minify:
-    dependencies:
-      '@pipelab/plugin-core':
-        specifier: workspace:*
-        version: link:../plugin-core
-      '@types/node':
-        specifier: ^24.12.2
-        version: 24.12.2
-    devDependencies:
-      '@pipelab/tsconfig':
-        specifier: workspace:*
-        version: link:../../packages/tsconfig
-      tsdown:
-        specifier: 0.21.2
-        version: 0.21.2(@emnapi/core@1.10.0)(@emnapi/runtime@1.11.3)(@vitejs/devtools@0.1.13)(publint@0.3.18)(typescript@5.9.3)
-      typescript:
-        specifier: 5.9.3
-        version: 5.9.3
-
-  plugins/plugin-netlify:
-    dependencies:
-      '@pipelab/plugin-core':
-        specifier: workspace:*
-        version: link:../plugin-core
-      '@types/node':
-        specifier: ^24.12.2
-        version: 24.12.2
-      electron:
-        specifier: 39.8.10
-        version: 39.8.10
-      untun:
-        specifier: 0.1.3
-        version: 0.1.3
-    devDependencies:
-      '@pipelab/tsconfig':
-        specifier: workspace:*
-        version: link:../../packages/tsconfig
       tsdown:
         specifier: 0.21.2
         version: 0.21.2(@emnapi/core@1.10.0)(@emnapi/runtime@1.11.3)(@vitejs/devtools@0.1.13)(publint@0.3.18)(typescript@5.9.3)
@@ -1291,25 +1161,6 @@ importers:
       vitest:
         specifier: 3.1.4
         version: 3.1.4(@types/node@24.12.2)(jiti@2.6.1)(jsdom@27.4.0(@noble/hashes@1.8.0))(lightningcss@1.32.0)(msw@2.7.5(@types/node@24.12.2)(typescript@5.9.3))(sass-embedded@1.99.0)(sass@1.99.0)(terser@5.46.1)(tsx@4.19.1)(yaml@2.9.1)
-
-  plugins/plugin-system:
-    dependencies:
-      '@pipelab/plugin-core':
-        specifier: workspace:*
-        version: link:../plugin-core
-      '@types/node':
-        specifier: ^24.12.2
-        version: 24.12.2
-    devDependencies:
-      '@pipelab/tsconfig':
-        specifier: workspace:*
-        version: link:../../packages/tsconfig
-      tsdown:
-        specifier: 0.21.2
-        version: 0.21.2(@emnapi/core@1.10.0)(@emnapi/runtime@1.11.3)(@vitejs/devtools@0.1.13)(publint@0.3.18)(typescript@5.9.3)
-      typescript:
-        specifier: 5.9.3
-        version: 5.9.3
 
   plugins/plugin-tauri:
     dependencies:
@@ -8444,9 +8295,6 @@ packages:
     resolution: {integrity: sha512-gDKb8aZMDeD/tZWs9P6+q0J9Mwkdl6xMV8TjnGP3qJVJ06bdMgkbBlLU8IdfOsIsFz2BW1rNVT3XuNEl8zPAvw==}
     engines: {node: '>=8'}
 
-  pathe@1.1.2:
-    resolution: {integrity: sha512-whLdWMYL2TwI08hn8/ZqAbrVemu0LNaNNJZX73O6qaIdCTfXutsLhMkjdENX0qhsQ9uIimo4/aQOmXkoon2nDQ==}
-
   pathe@2.0.3:
     resolution: {integrity: sha512-WUjGcAqP1gQacoQe+OBJsFA7Ld4DyXuUIjZ5cc75cLHvJ7dtNsTugphxIADwspS+AraAUePCKrSVtPLFj/F88w==}
 
@@ -9955,10 +9803,6 @@ packages:
         optional: true
       uploadthing:
         optional: true
-
-  untun@0.1.3:
-    resolution: {integrity: sha512-4luGP9LMYszMRZwsvyUd9MrxgEGZdZuZgpVQHEEX0lCYFESasVRvZd0EYpCkOIbJKHMuv0LskpXc/8Un+MJzEQ==}
-    hasBin: true
 
   untyped@2.0.0:
     resolution: {integrity: sha512-nwNCjxJTjNuLCgFr42fEak5OcLuB3ecca+9ksPFNvtfYSLpjf+iJqSIaSnIile6ZPbKYxI5k2AfXqeopGudK/g==}
@@ -18921,8 +18765,6 @@ snapshots:
 
   path-type@4.0.0: {}
 
-  pathe@1.1.2: {}
-
   pathe@2.0.3: {}
 
   pathval@2.0.1: {}
@@ -20464,12 +20306,6 @@ snapshots:
       node-fetch-native: 1.6.7
       ofetch: 1.5.1
       ufo: 1.6.3
-
-  untun@0.1.3:
-    dependencies:
-      citty: 0.1.6
-      consola: 3.4.2
-      pathe: 1.1.2
 
   untyped@2.0.0:
     dependencies:

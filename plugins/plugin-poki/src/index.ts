@@ -1,4 +1,4 @@
-import { uploadToPoki, uploadToPokiRunner } from "./export";
+import { uploadToPokiRunner } from "./export";
 
 import { createNodeDefinition } from "@pipelab/plugin-core";
 import type { ReleaseDestinationDefinition } from "@pipelab/shared";
@@ -45,12 +45,6 @@ export default createNodeDefinition({
   description: "Pipelab plugin for publishing HTML5 games to Poki",
   icon: { type: "icon", icon: "pi-globe" },
   isOfficial: true,
-  nodes: [
-    // make and package
-    {
-      node: uploadToPoki,
-      runner: uploadToPokiRunner,
-    },
-  ],
+  nodes: [],
   release: { destinations: [pokiDestination] },
 });

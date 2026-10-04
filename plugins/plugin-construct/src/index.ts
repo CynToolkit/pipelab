@@ -1,8 +1,6 @@
 /// <reference path="./declarations.d.ts" />
 import { createNodeDefinition } from "@pipelab/plugin-core";
-import { exportAction, ExportActionRunner } from "./export-c3p";
-import { exportProjectAction, ExportProjectActionRunner } from "./export-project";
-import { constructVersionValidator } from "./export-shared";
+import { ExportProjectActionRunner } from "./export-project";
 import { discoverBrowserProfiles } from "./browser-profiles";
 import type { ReleaseSourceDefinition } from "@pipelab/shared";
 import { CORE_WORKFLOW_TASKS, type WorkflowStep } from "@pipelab/workflow-runtime";
@@ -101,23 +99,7 @@ export default createNodeDefinition({
   description: "Pipelab plugin for exporting and packaging Construct 3 projects",
   icon: { type: "icon", icon: "pi-clone" },
   isOfficial: true,
-  nodes: [
-    {
-      node: exportAction,
-      runner: ExportActionRunner,
-    },
-    {
-      node: exportProjectAction,
-      runner: ExportProjectActionRunner,
-    },
-  ],
-  validators: [
-    // {
-    //   id: 'construct-version',
-    //   description: 'Version must be a valid semver',
-    //   validator: constructVersionValidator
-    // }
-  ],
+  nodes: [],
   integrations: [
     {
       name: "Browser Executable",
