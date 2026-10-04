@@ -1,4 +1,4 @@
-import { RendererPluginDefinition } from "./plugins/definitions";
+import { RendererPluginMetadata } from "./plugins/definitions";
 import { User, UserResponse } from "@supabase/supabase-js";
 import type { Tagged } from "type-fest";
 import { AppConfig, ConnectionsConfig } from "./config.schema";
@@ -142,7 +142,7 @@ export type IpcDefinition = {
     Electron.SaveDialogOptions,
     EndEvent<{ canceled: boolean; filePath: string | undefined }>,
   ];
-  "nodes:get": [void, EndEvent<{ nodes: RendererPluginDefinition[] }>];
+  "plugins:metadata:get": [void, EndEvent<{ plugins: RendererPluginMetadata[] }>];
 
   "settings:load": [void, EndEvent<AppConfig>];
   "settings:save": [{ data: AppConfig }, EndEvent<"ok">];
@@ -228,7 +228,7 @@ export type IpcDefinition = {
     void,
     { type: "progress"; data: { message: string } } | { type: "ready" } | { type: "done" },
   ];
-  "plugin:loaded": [void, { plugin: RendererPluginDefinition }];
+  "plugin:loaded": [void, { plugin: RendererPluginMetadata }];
   "plugin:search": [
     { query: string },
     EndEvent<{

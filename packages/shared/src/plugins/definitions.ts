@@ -159,10 +159,6 @@ export interface PluginDefinition {
   packageName?: string;
 }
 
-export type RendererNodeDefinition = {
-  node: PipelabNode;
-};
-
 export interface IntegrationField {
   key: string;
   label: string;
@@ -175,17 +171,25 @@ export interface IntegrationDefinition {
   fields: IntegrationField[];
 }
 
-export interface RendererPluginDefinition extends PluginDefinition {
+/** Plugin information that is safe and useful to expose to the renderer. */
+export interface RendererPluginMetadata extends PluginDefinition {
   id: string;
   name: string;
   icon: IconType;
   description: string;
   isOfficial: boolean;
   packageName: string;
-  nodes: Array<RendererNodeDefinition>;
   integrations?: Array<IntegrationDefinition>;
   release?: PluginReleaseDefinition;
 }
+
+/** @deprecated Prefer the explicit metadata name for renderer-facing plugin data. */
+export type RendererPluginDefinition = RendererPluginMetadata;
+
+type MainPluginNodeDefinition = {
+  node: PipelabNode;
+  runner: any; // Removed with the legacy graph adapter; not exposed to the renderer.
+};
 
 export interface MainPluginDefinition extends PluginDefinition {
   id: string;
@@ -194,9 +198,7 @@ export interface MainPluginDefinition extends PluginDefinition {
   icon: IconType;
   isOfficial: boolean;
   packageName: string;
-  nodes: ({
-    runner: any; // We use 'any' here to avoid importing Node runners in the safe definition
-  } & RendererNodeDefinition)[];
+  nodes: MainPluginNodeDefinition[];
   validators?: Array<{
     id: string;
     description: string;

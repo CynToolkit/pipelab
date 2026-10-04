@@ -802,10 +802,8 @@ const pluginSupportsAccounts = (pluginName: string) => {
   }
   const pluginsWithAccounts = [
     "@pipelab/plugin-google",
-    "@pipelab/plugin-discord",
     "@pipelab/plugin-steam",
     "@pipelab/plugin-itch",
-    "@pipelab/plugin-netlify",
     "@pipelab/plugin-poki",
     "@pipelab/plugin-construct",
   ];
