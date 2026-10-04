@@ -15,7 +15,7 @@ const services: PipelabPluginServices = {
 };
 
 describe("workflow plugin task registry", () => {
-  it("registers explicit plugin runners under their stable task IDs", () => {
+  it("registers plugin tasks under their stable task IDs", () => {
     const task = vi.fn(async () => ({ ready: true }));
     const tasks = createPipelabWorkflowTasks(services, { "@example/plugin/build": task });
 

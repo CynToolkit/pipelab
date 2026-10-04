@@ -17,7 +17,7 @@ test("does not expose an unsupported Poki API token connection", () => {
   expect("integrations" in pokiPlugin).toBe(false);
 });
 
-describe("End-to-End: Poki Upload Action", () => {
+describe("End-to-End: Poki Upload Workflow task", () => {
   let sandbox: Awaited<ReturnType<typeof createSandbox>>;
 
   afterEach(async () => {

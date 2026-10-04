@@ -3,7 +3,7 @@ import { mkdir, writeFile, access } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createSandbox, runWorkflowTask } from "@pipelab/test-utils";
-import { PipelabContext } from "@pipelab/core-node";
+import { ensurePNPM, PipelabContext } from "@pipelab/core-node";
 import { getBinName } from "@pipelab/constants";
 import {
   electronPackageWorkflowTaskFactory,
@@ -46,9 +46,10 @@ describe("End-to-End: Electron Plugin", () => {
         platform: "" as const,
       };
 
+      const context = new PipelabContext({ userDataPath: join(sandbox.path, "user-data") });
       const services = {
-        context: new PipelabContext({ userDataPath: join(sandbox.path, "user-data") }),
-        executables: { node: process.execPath, pnpm: "pnpm" },
+        context,
+        executables: { node: process.execPath, pnpm: await ensurePNPM(context) },
         workflowCachePath: join(sandbox.path, "cache"),
       } satisfies ElectronWorkflowTaskServices;
       const result = await runWorkflowTask(electronPackageWorkflowTaskFactory(services), {
