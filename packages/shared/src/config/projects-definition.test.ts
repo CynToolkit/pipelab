@@ -7,9 +7,8 @@ describe("parseFileRepo", () => {
   it("accepts a valid project/workflow index", () => {
     expect(
       parseFileRepo({
-        version: "3.0.0",
+        version: "4.0.0",
         projects: [project],
-        pipelines: [],
         workflows: [
           {
             id: "w1",
@@ -26,9 +25,8 @@ describe("parseFileRepo", () => {
   it("rejects duplicate IDs and stale references", () => {
     expect(() =>
       parseFileRepo({
-        version: "3.0.0",
+        version: "4.0.0",
         projects: [project, project],
-        pipelines: [],
         workflows: [
           {
             id: "w1",
@@ -45,9 +43,8 @@ describe("parseFileRepo", () => {
   it("rejects unsafe project and workflow IDs", () => {
     expect(() =>
       parseFileRepo({
-        version: "3.0.0",
+        version: "4.0.0",
         projects: [{ id: "../project", name: "Project", description: "Description" }],
-        pipelines: [],
         workflows: [],
       }),
     ).toThrow("safe non-empty persisted ID");
@@ -56,9 +53,8 @@ describe("parseFileRepo", () => {
   it("rejects workflow entries with a non-internal type", () => {
     expect(() =>
       parseFileRepo({
-        version: "3.0.0",
+        version: "4.0.0",
         projects: [project],
-        pipelines: [],
         workflows: [
           {
             id: "w1",
@@ -72,9 +68,12 @@ describe("parseFileRepo", () => {
     ).toThrow("type must be 'internal-workflow'");
   });
 
-  it("normalizes supported omitted optional arrays", () => {
-    expect(parseFileRepo({ version: "3.0.0", projects: [project] })).toMatchObject({
-      pipelines: [],
+  it("normalizes omitted workflows and drops stale pipeline metadata", () => {
+    expect(
+      parseFileRepo({ version: "4.0.0", projects: [project], pipelines: [{ id: "stale" }] }),
+    ).toMatchObject({
+      version: "4.0.0",
+      projects: [project],
       workflows: [],
     });
   });

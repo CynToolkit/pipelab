@@ -1,5 +1,4 @@
-// Path data model — what the user configures. The compiler turns this into
-// the internal SavedFile canvas at runtime. The user never sees a canvas.
+// Path data model — the release intent that the compiler turns into a task plan.
 
 export type DeliveryKind = "app" | "web" | "archive";
 

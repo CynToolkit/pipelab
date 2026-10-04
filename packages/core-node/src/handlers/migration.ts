@@ -4,7 +4,15 @@ import { PipelabContext, getDefaultUserDataPath, isDev, PipelabEnv } from "../co
 import fs from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { join, dirname } from "node:path";
-import { FileRepo, AppConfig, ConnectionsConfig } from "@pipelab/shared";
+import {
+  AppConfig,
+  ConnectionsConfig,
+  defaultFileRepo,
+  fileRepoMigrations,
+  parseFileRepo,
+  parseVersionedFileRepo,
+  type FileRepo,
+} from "@pipelab/shared";
 import semver from "semver";
 
 interface MigrationProjectItem {
@@ -16,6 +24,13 @@ interface MigrationProjectItem {
 export const registerMigrationHandlers = (context: PipelabContext) => {
   const { handle } = useAPI();
   const { logger } = useLogger();
+
+  const readFileRepo = async (filePath: string): Promise<FileRepo> => {
+    const raw = JSON.parse(await fs.readFile(filePath, "utf8")) as unknown;
+    const versioned = parseVersionedFileRepo(raw);
+    if (versioned.version === "4.0.0") return parseFileRepo(versioned);
+    return parseFileRepo(await fileRepoMigrations.migrate(versioned, { debug: false }));
+  };
 
   const getFileMetadata = async (filePath: string) => {
     const exists = existsSync(filePath);
@@ -170,8 +185,7 @@ export const registerMigrationHandlers = (context: PipelabContext) => {
       let sourceProjectsList: FileRepo["projects"] = [];
       try {
         if (sourceProjectsMeta.exists) {
-          const projContent = await fs.readFile(sourceProjectsPath, "utf8");
-          const projJson = JSON.parse(projContent) as FileRepo;
+          const projJson = await readFileRepo(sourceProjectsPath);
           sourceProjectsList = projJson.projects || [];
         }
       } catch (err) {
@@ -443,18 +457,15 @@ export const registerMigrationHandlers = (context: PipelabContext) => {
         }
 
         // Read source projects
-        let stableFileRepo: FileRepo = { version: "3.0.0", projects: [], pipelines: [] };
-        if (existsSync(sourceProjectsFile)) {
-          const stableContent = await fs.readFile(sourceProjectsFile, "utf8");
-          stableFileRepo = JSON.parse(stableContent) as FileRepo;
-        }
+        const stableFileRepo = existsSync(sourceProjectsFile)
+          ? await readFileRepo(sourceProjectsFile)
+          : defaultFileRepo;
 
         // Read or initialize current target projects
-        let betaFileRepo: FileRepo = { version: "3.0.0", projects: [], pipelines: [] };
+        let betaFileRepo: FileRepo = defaultFileRepo;
         if (existsSync(targetProjectsFile)) {
           try {
-            const betaContent = await fs.readFile(targetProjectsFile, "utf8");
-            betaFileRepo = JSON.parse(betaContent) as FileRepo;
+            betaFileRepo = await readFileRepo(targetProjectsFile);
           } catch (readErr) {
             logger().warn(
               "[Migration] Failed to parse existing target projects.json, starting fresh:",
@@ -464,7 +475,6 @@ export const registerMigrationHandlers = (context: PipelabContext) => {
         }
 
         betaFileRepo.projects = betaFileRepo.projects || [];
-        betaFileRepo.pipelines = betaFileRepo.pipelines || [];
 
         // Copy selected projects metadata
         for (const projId of selectedProjects) {
