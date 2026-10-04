@@ -1,5 +1,5 @@
 import type { ConditionalPick } from "type-fest";
-import type { BrowserWindow, OpenDialogOptions } from "electron";
+import type { OpenDialogOptions } from "electron";
 import type { PluginReleaseDefinition } from "../release/types";
 
 export type PathOptions = {
@@ -30,20 +30,6 @@ export interface ControlTypeInput extends ControlTypeBase {
     validator?: string;
     placeholder?: string;
     password?: boolean;
-  };
-}
-
-export interface ControlTypeExpression extends ControlTypeBase {
-  type: "expression";
-  options: {};
-}
-
-export interface ControlTypeNetlifySite extends ControlTypeBase {
-  type: "netlify-site";
-  options: {
-    allowCreate?: boolean;
-    placeholder?: string;
-    tokenKey: string;
   };
 }
 
@@ -110,8 +96,6 @@ export type ControlType =
   | ControlTypeCheckbox
   | ControlTypePath
   | ControlTypeJSON
-  | ControlTypeExpression
-  | ControlTypeNetlifySite
   | ControlTypeArray
   | ControlTypeColor
   | ControlTypeElectronConfigureV2;
@@ -159,10 +143,6 @@ export interface PluginDefinition {
   packageName?: string;
 }
 
-export type RendererNodeDefinition = {
-  node: PipelabNode;
-};
-
 export interface IntegrationField {
   key: string;
   label: string;
@@ -175,17 +155,20 @@ export interface IntegrationDefinition {
   fields: IntegrationField[];
 }
 
-export interface RendererPluginDefinition extends PluginDefinition {
+/** Plugin information that is safe and useful to expose to the renderer. */
+export interface RendererPluginMetadata extends PluginDefinition {
   id: string;
   name: string;
   icon: IconType;
   description: string;
   isOfficial: boolean;
   packageName: string;
-  nodes: Array<RendererNodeDefinition>;
   integrations?: Array<IntegrationDefinition>;
   release?: PluginReleaseDefinition;
 }
+
+/** @deprecated Prefer the explicit metadata name for renderer-facing plugin data. */
+export type RendererPluginDefinition = RendererPluginMetadata;
 
 export interface MainPluginDefinition extends PluginDefinition {
   id: string;
@@ -194,9 +177,6 @@ export interface MainPluginDefinition extends PluginDefinition {
   icon: IconType;
   isOfficial: boolean;
   packageName: string;
-  nodes: ({
-    runner: any; // We use 'any' here to avoid importing Node runners in the safe definition
-  } & RendererNodeDefinition)[];
   validators?: Array<{
     id: string;
     description: string;
@@ -205,10 +185,6 @@ export interface MainPluginDefinition extends PluginDefinition {
   integrations?: Array<IntegrationDefinition>;
   release?: PluginReleaseDefinition;
 }
-
-export const createNodeDefinition = (def: MainPluginDefinition) => {
-  return def;
-};
 
 export type InputsOutputsDefinition = InputsDefinition | OutputsDefinition;
 
@@ -231,24 +207,13 @@ export type SetOutputActionFn<T extends Action> = (
   value: T["outputs"][typeof key]["value"],
 ) => void;
 
-export type SetOutputExpressionFn<T extends Expression> = (
-  key: keyof T["outputs"],
-  value: T["outputs"][typeof key]["value"],
-) => void;
-
 export type ParamsToInput<PARAMS extends InputsDefinition> = {
   [index in keyof PARAMS]: PARAMS[index]["required"] extends true
     ? PARAMS[index]["value"]
     : PARAMS[index]["value"] | null;
 };
 
-export interface BaseNode {
-  disabled?: boolean | string;
-  advanced?: boolean | string;
-  updateAvailable?: boolean | string;
-}
-
-export interface Action extends BaseNode {
+export interface Action {
   id: string;
   type: "action";
   version?: number;
@@ -267,41 +232,6 @@ export interface Action extends BaseNode {
 export type ExtractInputsFromAction<ACTION extends Action> = {
   [index in keyof ACTION["params"]]: ACTION["params"][index]["value"];
 };
-
-export type ExtractInputsFromEvent<EVENT extends Event> = {
-  [index in keyof EVENT["params"]]: EVENT["params"][index]["value"];
-};
-export type ExtractInputsFromExpression<EXPRESSION extends Expression> = {
-  [index in keyof EXPRESSION["params"]]: EXPRESSION["params"][index]["value"];
-};
-
-export interface Expression extends BaseNode {
-  id: string;
-  type: "expression";
-  displayString: string;
-  version?: number;
-  icon: string;
-  name: string;
-  description: string;
-  params: InputsDefinition;
-  meta?: Meta;
-  outputs: OutputsDefinition;
-}
-
-export interface Event extends BaseNode {
-  id: string;
-  type: "event";
-  version?: number;
-  displayString: string;
-  icon: string;
-  name: string;
-  description: string;
-  params: InputsDefinition;
-  meta?: Meta;
-  platforms?: NodeJS.Platform[];
-}
-
-export type PipelabNode = Event | Expression | Action;
 
 export const createDefinition = <T extends MainPluginDefinition>(definition: T) => {
   return definition satisfies T;
@@ -380,25 +310,6 @@ export const createArray = <T extends unknown[]>(
   } satisfies InputDefinition<ControlTypeArray>;
 };
 
-export const createNetlifySiteParam = (
-  value: string,
-  tokenKey: string,
-  definition: Omit<InputDefinition<ControlTypeNetlifySite>, "value" | "control">,
-) => {
-  return {
-    ...definition,
-    control: {
-      type: "netlify-site",
-      options: {
-        allowCreate: true,
-        placeholder: "Select a site",
-        tokenKey,
-      },
-    },
-    value: `"${value}"`,
-  } satisfies InputDefinition<ControlTypeNetlifySite>;
-};
-
 export const createNumberParam = (
   value: number,
   definition: Omit<InputDefinition<ControlTypeInput>, "value" | "control">,
@@ -433,18 +344,4 @@ export const createRawParam = <T>(value: T, definition: Omit<InputDefinition, "v
     ...definition,
     value,
   };
-};
-
-export const createExpression = <T extends Omit<Expression, "type">>(expression: T) => {
-  return {
-    ...expression,
-    type: "expression",
-  } satisfies Expression;
-};
-
-export const createEvent = <T extends Omit<Event, "type">>(event: T) => {
-  return {
-    ...event,
-    type: "event",
-  } satisfies Event;
 };

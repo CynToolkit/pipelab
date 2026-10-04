@@ -242,8 +242,6 @@ export const registerConfigHandlers = (context: PipelabContext, pluginsReady?: P
         throw new Error(`Unknown projects reset key '${key}'.`);
       let next: FileRepo;
       if (key === "projects") next = { ...currentConfig, projects: defaultFileRepo.projects };
-      else if (key === "pipelines")
-        next = { ...currentConfig, pipelines: defaultFileRepo.pipelines };
       else if (key === "workflows")
         next = { ...currentConfig, workflows: defaultFileRepo.workflows };
       else throw new Error(`Unknown projects reset key '${key}'.`);

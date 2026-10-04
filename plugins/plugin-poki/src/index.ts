@@ -1,7 +1,11 @@
-import { uploadToPoki, uploadToPokiRunner } from "./export";
+import { uploadToPokiRunner } from "./export";
 
-import { createNodeDefinition } from "@pipelab/plugin-core";
+import { createDefinition } from "@pipelab/plugin-core";
 import type { ReleaseDestinationDefinition } from "@pipelab/shared";
+
+export const workflowTaskRunners = {
+  "@pipelab/plugin-poki/poki-upload": uploadToPokiRunner,
+};
 
 const pokiDestination: ReleaseDestinationDefinition = {
   id: "@pipelab/plugin-poki/destination",
@@ -34,19 +38,12 @@ const pokiDestination: ReleaseDestinationDefinition = {
   ],
 };
 
-export default createNodeDefinition({
+export default createDefinition({
   id: "@pipelab/plugin-poki",
   packageName: "@pipelab/plugin-poki",
   name: "Poki",
   description: "Pipelab plugin for publishing HTML5 games to Poki",
   icon: { type: "icon", icon: "pi-globe" },
   isOfficial: true,
-  nodes: [
-    // make and package
-    {
-      node: uploadToPoki,
-      runner: uploadToPokiRunner,
-    },
-  ],
   release: { destinations: [pokiDestination] },
 });

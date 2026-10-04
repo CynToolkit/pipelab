@@ -1,22 +1,9 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
 import { useAPI } from "@renderer/composables/api";
-import { RendererPluginDefinition, useLogger, transformUrl, ReleaseChannel } from "@pipelab/shared";
+import { RendererPluginMetadata, useLogger, transformUrl, ReleaseChannel } from "@pipelab/shared";
 
-const transformPluginUrls = (plugin: RendererPluginDefinition): RendererPluginDefinition => {
-  if (!plugin) return plugin;
-
-  const transformedNodes = (plugin.nodes || []).map((nodeDef) => {
-    if (!nodeDef || !nodeDef.node) return nodeDef;
-    return {
-      ...nodeDef,
-      node: {
-        ...nodeDef.node,
-        icon: transformUrl(nodeDef.node.icon),
-      },
-    };
-  });
-
+const transformPluginUrls = (plugin: RendererPluginMetadata): RendererPluginMetadata => {
   const transformedIcon =
     plugin.icon?.type === "image"
       ? {
@@ -28,7 +15,6 @@ const transformPluginUrls = (plugin: RendererPluginDefinition): RendererPluginDe
   return {
     ...plugin,
     icon: transformedIcon,
-    nodes: transformedNodes,
   };
 };
 
@@ -36,7 +22,7 @@ export const useAppStore = defineStore("app", () => {
   const { logger } = useLogger();
 
   /** All the plugins definitions */
-  const pluginDefinitions = ref<Array<RendererPluginDefinition>>([]);
+  const pluginDefinitions = ref<Array<RendererPluginMetadata>>([]);
 
   const channel = ref<ReleaseChannel>("stable");
   const version = ref<string>("");
@@ -55,20 +41,19 @@ export const useAppStore = defineStore("app", () => {
     }
 
     //
-    const nodeGetResult = await api.execute("nodes:get");
+    const metadataResult = await api.execute("plugins:metadata:get");
 
-    if (nodeGetResult.type === "error") {
-      throw new Error(nodeGetResult.ipcError);
+    if (metadataResult.type === "error") {
+      throw new Error(metadataResult.ipcError);
     }
 
-    const { result } = nodeGetResult;
-    const { nodes: nodeDefs } = result;
+    const { plugins } = metadataResult.result;
 
     try {
-      pluginDefinitions.value = (nodeDefs || []).map(transformPluginUrls);
+      pluginDefinitions.value = plugins.map(transformPluginUrls);
     } catch (err) {
       logger().error("Failed to transform plugin URLs on startup:", err);
-      pluginDefinitions.value = nodeDefs || [];
+      pluginDefinitions.value = plugins;
     }
 
     // Listen for dynamically loaded plugins in the background
@@ -95,15 +80,6 @@ export const useAppStore = defineStore("app", () => {
     return result;
   };
 
-  const getNodeDefinition = (nodeId: string, pluginId: string) => {
-    // const getNodeDefinition = <T extends Block>(node: T extends Block ? T : never) => {
-    const plugin = getPluginDefinition(pluginId);
-    if (plugin) {
-      return plugin.nodes.find((pluginNode) => pluginNode.node.id === nodeId);
-    }
-    return undefined;
-  };
-
   return {
     init,
 
@@ -112,7 +88,6 @@ export const useAppStore = defineStore("app", () => {
     version,
 
     getPluginDefinition,
-    getNodeDefinition,
   };
 });
 

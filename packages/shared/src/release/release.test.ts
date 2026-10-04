@@ -23,7 +23,6 @@ const fakePlugin = (id: string): MainPluginDefinition => ({
   description: id,
   icon: { type: "icon", icon: "pi-box" },
   isOfficial: false,
-  nodes: [],
   release: {
     sources: [
       {

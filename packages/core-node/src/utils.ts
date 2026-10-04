@@ -1,39 +1,27 @@
-import { usePlugins, RendererPluginDefinition, transformUrl } from "@pipelab/shared";
+import {
+  usePlugins,
+  transformUrl,
+  type MainPluginDefinition,
+  type RendererPluginMetadata,
+} from "@pipelab/shared";
 
-export const getFinalPlugins = () => {
+export const toRendererPluginMetadata = (
+  plugin: MainPluginDefinition | RendererPluginMetadata,
+): RendererPluginMetadata => ({
+  id: plugin.id,
+  name: plugin.name,
+  icon:
+    plugin.icon.type === "image"
+      ? { ...plugin.icon, image: transformUrl(plugin.icon.image) }
+      : plugin.icon,
+  description: plugin.description,
+  isOfficial: plugin.isOfficial,
+  packageName: plugin.packageName,
+  integrations: plugin.integrations,
+  release: plugin.release,
+});
+
+export const getPluginMetadata = (): RendererPluginMetadata[] => {
   const { plugins } = usePlugins();
-  // console.log('plugins.value', plugins.value)
-
-  const finalPlugins: RendererPluginDefinition[] = [];
-
-  for (const plugin of plugins.value) {
-    const finalNodes = [];
-
-    const finalIcon =
-      plugin.icon?.type === "image"
-        ? {
-            ...plugin.icon,
-            image: transformUrl(plugin.icon.image),
-          }
-        : plugin.icon;
-
-    for (const nodeDef of plugin.nodes) {
-      const node = nodeDef.node;
-      finalNodes.push({
-        ...nodeDef,
-        node: {
-          ...node,
-          icon: transformUrl(node.icon),
-        },
-      });
-    }
-
-    finalPlugins.push({
-      ...plugin,
-      icon: finalIcon,
-      nodes: finalNodes,
-    });
-  }
-
-  return finalPlugins;
+  return plugins.value.map(toRendererPluginMetadata);
 };

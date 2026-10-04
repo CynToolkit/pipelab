@@ -64,11 +64,12 @@ describe("setupConfigFile & Backup Creation", () => {
     // 3. Retrieve config (this triggers the migration process and onStep callback)
     const migratedConfig = await configInstance.getConfig();
 
-    // 4. Assert the main config is updated on disk to version 3.0.0
-    expect(migratedConfig.version).toBe("3.0.0");
+    // 4. Assert legacy Pipeline metadata is removed from the current index.
+    expect(migratedConfig.version).toBe("4.0.0");
 
     const updatedContent = JSON.parse(await fs.readFile(projectsFilePath, "utf8"));
-    expect(updatedContent.version).toBe("3.0.0");
+    expect(updatedContent.version).toBe("4.0.0");
+    expect(updatedContent).not.toHaveProperty("pipelines");
 
     // 5. Assert that the intermediate backup file was created on disk
     const backupFilePath = path.join(configDir, "projects.v2.0.0.json");
@@ -77,7 +78,7 @@ describe("setupConfigFile & Backup Creation", () => {
     const backupContent = JSON.parse(await fs.readFile(backupFilePath, "utf8"));
     expect(backupContent.version).toBe("2.0.0");
     expect(backupContent.projects).toHaveLength(1);
-    expect(backupContent.pipelines).toHaveLength(1);
+    expect(backupContent).not.toHaveProperty("pipelines");
   });
 
   test("should create default config file if missing on setup", async () => {
@@ -92,9 +93,9 @@ describe("setupConfigFile & Backup Creation", () => {
     // Should create file with default value
     expect(existsSync(projectsFilePath)).toBe(true);
     const content = JSON.parse(await fs.readFile(projectsFilePath, "utf8"));
-    expect(content.version).toBe("3.0.0");
+    expect(content.version).toBe("4.0.0");
     expect(content.projects).toHaveLength(1);
-    expect(content.pipelines).toEqual([]);
+    expect(content).not.toHaveProperty("pipelines");
   });
 
   test("should fallback to default config and preserve corrupted file if parsing fails", async () => {
@@ -107,9 +108,9 @@ describe("setupConfigFile & Backup Creation", () => {
     const configInstance = await setupProjectsConfigFile(context);
     const config = await configInstance.getConfig();
 
-    expect(config.version).toBe("3.0.0");
+    expect(config.version).toBe("4.0.0");
     expect(config.projects).toHaveLength(1);
-    expect(config.pipelines).toEqual([]);
+    expect(config).not.toHaveProperty("pipelines");
 
     // Verify a timestamped corrupted backup file exists
     const files = await fs.readdir(configDir);
@@ -127,7 +128,7 @@ describe("setupConfigFile & Backup Creation", () => {
     const projectsFilePath = context.getProjectsPath();
 
     const customMigrator = {
-      defaultValue: { version: "2.0.0", projects: [], pipelines: [] } as any,
+      defaultValue: { version: "2.0.0", projects: [] } as any,
       migrate: async () => {
         throw new Error("Migration failed!");
       },
@@ -161,22 +162,14 @@ describe("setupConfigFile & Backup Creation", () => {
 
     const newConfig: FileRepo = {
       ...initialConfig,
-      pipelines: [
-        {
-          id: "pipeline-new",
-          project: "main",
-          type: "internal",
-          configName: "pipeline-new",
-          lastModified: "2026-06-05",
-        },
-      ],
+      projects: [{ ...initialConfig.projects[0], description: "Updated project" }],
     };
 
     const success = await configInstance.setConfig(newConfig);
     expect(success).toBe(true);
 
     const savedContent = JSON.parse(await fs.readFile(context.getProjectsPath(), "utf8"));
-    expect(savedContent.pipelines).toHaveLength(1);
-    expect(savedContent.pipelines[0].id).toBe("pipeline-new");
+    expect(savedContent.projects[0].description).toBe("Updated project");
+    expect(savedContent).not.toHaveProperty("pipelines");
   });
 });

@@ -10,7 +10,7 @@ import { filterBuildHistoryEntries } from "./history";
 const workspaces: string[] = [];
 const entry = (id: string, workflowId: string, startTime: number) => ({
   id,
-  pipelineId: "project-1",
+  projectId: "project-1",
   workflowId,
   workflowName: "Release",
   projectName: "Release",
@@ -34,6 +34,31 @@ afterEach(async () => {
 });
 
 describe("BuildHistoryStorage workflow runs", () => {
+  it("reads legacy pipelineId entries from the existing project history file", async () => {
+    const root = await mkdtemp(join(tmpdir(), "pipelab-runs-"));
+    workspaces.push(root);
+    const context = new PipelabContext({ userDataPath: root });
+    const storage = new BuildHistoryStorage(context);
+    const historyDirectory = context.getConfigPath("pipelines");
+    await mkdir(historyDirectory, { recursive: true });
+    const { projectId: _projectId, ...legacyEntryFields } = entry("run-legacy", "workflow-a", 10);
+    const legacyEntry = { ...legacyEntryFields, pipelineId: "project-1" };
+    await writeFile(
+      join(historyDirectory, "project-1.history.json"),
+      JSON.stringify({ version: "1.0.0", entries: [legacyEntry] }),
+    );
+
+    expect((await storage.getByProject("project-1")).map((run) => run.id)).toEqual(["run-legacy"]);
+
+    await storage.save(entry("run-new", "workflow-a", 20));
+    const persisted = JSON.parse(
+      await readFile(join(historyDirectory, "project-1.history.json"), "utf-8"),
+    ) as { entries: Array<Record<string, unknown>> };
+    expect(persisted.entries.map((run) => run.id)).toEqual(["run-legacy", "run-new"]);
+    expect(persisted.entries.map((run) => run.projectId)).toEqual(["project-1", "project-1"]);
+    expect(persisted.entries[0]).not.toHaveProperty("pipelineId");
+  });
+
   it("marks persisted running entries interrupted during startup recovery", async () => {
     const root = await mkdtemp(join(tmpdir(), "pipelab-runs-"));
     workspaces.push(root);
@@ -142,7 +167,7 @@ describe("BuildHistoryStorage workflow runs", () => {
 
     expect((await storage.get("run-1"))?.status).toBe("completed");
     expect((await storage.get("run-1"))?.steps[0].logs[0].message).toBe("packed");
-    expect((await storage.getByPipeline("project-1")).map((item) => item.id)).toEqual([
+    expect((await storage.getByProject("project-1")).map((item) => item.id)).toEqual([
       "run-2",
       "run-1",
     ]);
@@ -225,13 +250,13 @@ describe("BuildHistoryStorage workflow runs", () => {
       second.save(entry("run-b", "workflow-b", 20)),
     ]);
 
-    expect((await first.getByPipeline("project-1")).map((run) => run.id).sort()).toEqual([
+    expect((await first.getByProject("project-1")).map((run) => run.id).sort()).toEqual([
       "run-a",
       "run-b",
     ]);
   });
 
-  it("preserves separate-process saves for the same pipeline", async () => {
+  it("preserves separate-process saves for the same project", async () => {
     const root = await mkdtemp(join(tmpdir(), "pipelab-runs-"));
     workspaces.push(root);
     const contextUrl = new URL("../context.ts", import.meta.url).href;
@@ -268,7 +293,7 @@ describe("BuildHistoryStorage workflow runs", () => {
     await Promise.all([run("run-process-a", 10), run("run-process-b", 20)]);
 
     const storage = new BuildHistoryStorage(new PipelabContext({ userDataPath: root }));
-    expect((await storage.getByPipeline("project-1")).map((run) => run.id).sort()).toEqual([
+    expect((await storage.getByProject("project-1")).map((run) => run.id).sort()).toEqual([
       "run-process-a",
       "run-process-b",
     ]);

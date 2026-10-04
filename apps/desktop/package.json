@@ -26,8 +26,7 @@
     "make": "node scripts/run-forge-deployed.mjs make",
     "make:forge": "electron-forge make",
     "publish": "electron-forge publish",
-    "make-dev-prerelease": "pnpm version prerelease --preid=dev",
-    "migrate-file": "tsx scripts/migrate-file.mts"
+    "make-dev-prerelease": "pnpm version prerelease --preid=dev"
   },
   "files": [
     "assets/build",

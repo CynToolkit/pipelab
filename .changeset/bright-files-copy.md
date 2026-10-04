@@ -1,7 +1,6 @@
 ---
 "@pipelab/core-node": patch
 "@pipelab/plugin-construct": patch
-"@pipelab/plugin-filesystem": patch
 "@pipelab/workflow-runtime": patch
 ---
 

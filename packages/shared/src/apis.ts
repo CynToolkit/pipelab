@@ -1,4 +1,4 @@
-import { RendererPluginDefinition } from "./plugins/definitions";
+import { RendererPluginMetadata } from "./plugins/definitions";
 import { User, UserResponse } from "@supabase/supabase-js";
 import type { Tagged } from "type-fest";
 import { AppConfig, ConnectionsConfig } from "./config.schema";
@@ -142,7 +142,7 @@ export type IpcDefinition = {
     Electron.SaveDialogOptions,
     EndEvent<{ canceled: boolean; filePath: string | undefined }>,
   ];
-  "nodes:get": [void, EndEvent<{ nodes: RendererPluginDefinition[] }>];
+  "plugins:metadata:get": [void, EndEvent<{ plugins: RendererPluginMetadata[] }>];
 
   "settings:load": [void, EndEvent<AppConfig>];
   "settings:save": [{ data: AppConfig }, EndEvent<"ok">];
@@ -192,17 +192,17 @@ export type IpcDefinition = {
   // Build History APIs
   "build-history:save": [{ entry: BuildHistoryEntry }, EndEvent<{ result: "ok" | "ko" }>];
   "build-history:get": [
-    { id: string; pipelineId?: string },
+    { id: string; projectId?: string },
     EndEvent<{ entry?: BuildHistoryEntry }>,
   ];
   "build-history:get-all": [{ query?: BuildHistoryQuery }, EndEvent<BuildHistoryResponse>];
   "build-history:update": [
-    { id: string; updates: Partial<BuildHistoryEntry>; pipelineId?: string },
+    { id: string; updates: Partial<BuildHistoryEntry>; projectId?: string },
     EndEvent<{ result: "ok" | "ko" }>,
   ];
-  "build-history:delete": [{ id: string; pipelineId?: string }, EndEvent<{ result: "ok" | "ko" }>];
+  "build-history:delete": [{ id: string; projectId?: string }, EndEvent<{ result: "ok" | "ko" }>];
   "build-history:clear": [void, EndEvent<{ result: "ok" | "ko" }>];
-  "build-history:clear-by-pipeline": [{ pipelineId: string }, EndEvent<{ result: "ok" | "ko" }>];
+  "build-history:clear-by-project": [{ projectId: string }, EndEvent<{ result: "ok" | "ko" }>];
   "build-history:get-storage-info": [
     void,
     EndEvent<{
@@ -228,7 +228,7 @@ export type IpcDefinition = {
     void,
     { type: "progress"; data: { message: string } } | { type: "ready" } | { type: "done" },
   ];
-  "plugin:loaded": [void, { plugin: RendererPluginDefinition }];
+  "plugin:loaded": [void, { plugin: RendererPluginMetadata }];
   "plugin:search": [
     { query: string },
     EndEvent<{

@@ -1,13 +1,15 @@
 /// <reference path="./declarations.d.ts" />
-import { createNodeDefinition } from "@pipelab/plugin-core";
-import { exportAction, ExportActionRunner } from "./export-c3p";
-import { exportProjectAction, ExportProjectActionRunner } from "./export-project";
-import { constructVersionValidator } from "./export-shared";
+import { createDefinition } from "@pipelab/plugin-core";
+import { ExportProjectActionRunner } from "./export-project";
 import { discoverBrowserProfiles } from "./browser-profiles";
 import type { ReleaseSourceDefinition } from "@pipelab/shared";
 import { CORE_WORKFLOW_TASKS, type WorkflowStep } from "@pipelab/workflow-runtime";
 export { discoverBrowserProfiles, inspectChromiumProfile } from "./browser-profiles";
 export type { BrowserProfileCandidate } from "./browser-profiles";
+
+export const workflowTaskRunners = {
+  "@pipelab/plugin-construct/export-construct-project": ExportProjectActionRunner,
+};
 
 export const constructSource: ReleaseSourceDefinition = {
   id: "@pipelab/plugin-construct/source",
@@ -90,30 +92,13 @@ export const constructSource: ReleaseSourceDefinition = {
   },
 };
 
-export default createNodeDefinition({
+export default createDefinition({
   id: "@pipelab/plugin-construct",
   packageName: "@pipelab/plugin-construct",
   name: "Construct",
   description: "Pipelab plugin for exporting and packaging Construct 3 projects",
   icon: { type: "icon", icon: "pi-clone" },
   isOfficial: true,
-  nodes: [
-    {
-      node: exportAction,
-      runner: ExportActionRunner,
-    },
-    {
-      node: exportProjectAction,
-      runner: ExportProjectActionRunner,
-    },
-  ],
-  validators: [
-    // {
-    //   id: 'construct-version',
-    //   description: 'Version must be a valid semver',
-    //   validator: constructVersionValidator
-    // }
-  ],
   integrations: [
     {
       name: "Browser Executable",

@@ -21,7 +21,7 @@
       "community-plugins": "Extensões da comunidade",
       "versions": "Versões"
     },
-    "pipeline-cache-folder": "Pasta de cache de plugins:",
+    "plugin-cache-folder": "Pasta de cache de plugins:",
     "enter-or-browse-for-a-folder": "Digite ou procure uma pasta",
     "browse": "Procurar",
     "manage-where-the-app-stores-temporary-and-cache-files": "Configurar pastas locais para arquivos temporários e cache do aplicativo.",
@@ -75,7 +75,6 @@
     "duplicate-project": "Duplicar Projeto",
     "project-name": "Nome do projeto",
     "new-project": "Novo Projeto",
-    "new-pipeline": "Nova Pipeline",
     "open": "Abrir",
     "import": "Importar",
     "your-projects": "Seus projetos",
@@ -93,7 +92,6 @@
     "store-project-internally": "Salvar projeto localmente",
     "import-from-stable": "Importar do Stable...",
     "import-from-beta": "Importar do Beta...",
-    "import-success": "Pipeline importada com sucesso",
     "failed-to-read-file": "Falha ao ler o arquivo selecionado"
   }
 }

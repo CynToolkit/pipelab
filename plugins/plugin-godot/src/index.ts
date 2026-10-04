@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { createAction, createActionRunner, createNodeDefinition } from "@pipelab/plugin-core";
+import { createActionRunner, createDefinition } from "@pipelab/plugin-core";
 import type { ReleaseProducerDefinition, ReleaseSourceDefinition } from "@pipelab/shared";
 import {
   exportGodotProject,
@@ -170,16 +170,6 @@ export const godotSource: ReleaseSourceDefinition = {
   }),
 };
 
-const godotExportAction = createAction({
-  id: "godot:export",
-  name: "Export Godot project",
-  displayString: "Export Godot project",
-  icon: "",
-  description: "Export a Godot project",
-  meta: {},
-  params: {},
-  outputs: {},
-});
 const godotExportRunner = createActionRunner(async (data) => {
   const inputs = data.inputs as Record<string, unknown>;
   const project = String(inputs.project || "");
@@ -208,6 +198,10 @@ const godotExportRunner = createActionRunner(async (data) => {
   data.setArtifact("output", result.path);
   data.setOutput("output", result.path);
 });
+
+export const workflowTaskRunners = {
+  "@pipelab/plugin-godot/godot:export": godotExportRunner,
+};
 
 export const godotExporter: ReleaseProducerDefinition = {
   id: "@pipelab/plugin-godot/producer",
@@ -343,13 +337,12 @@ export const godotExporter: ReleaseProducerDefinition = {
   }),
 };
 
-export default createNodeDefinition({
+export default createDefinition({
   id: "@pipelab/plugin-godot",
   packageName: "@pipelab/plugin-godot",
   name: "Godot",
   description: "Godot release integration",
   icon: { type: "icon", icon: "pi-gamepad" },
   isOfficial: true,
-  nodes: [{ node: godotExportAction, runner: godotExportRunner }],
   release: { sources: [godotSource], producers: [godotExporter] },
 });

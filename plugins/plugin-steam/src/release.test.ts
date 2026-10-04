@@ -8,9 +8,17 @@ import {
   createSteamUploadArgs,
   resolveSteamUsername,
 } from "./upload-to-steam";
-import { steamDestination } from "./index";
+import plugin, { steamDestination, workflowTaskRunners } from "./index";
 
 describe("Steam release credentials", () => {
+  it("keeps its Release destination and task without legacy node metadata", () => {
+    expect("nodes" in plugin).toBe(false);
+    expect(plugin.release?.destinations?.map((destination) => destination.id)).toContain(
+      steamDestination.id,
+    );
+    expect(Object.keys(workflowTaskRunners)).toEqual(["@pipelab/plugin-steam/steam-upload"]);
+  });
+
   it("reports destination field paths", () => {
     const issues = steamDestination.validate(
       {

@@ -3,7 +3,7 @@ import { parseBuildHistoryDocument } from "./build-history";
 
 const entry = {
   id: "run-1",
-  pipelineId: "project-1",
+  projectId: "project-1",
   projectName: "Project",
   projectPath: "",
   status: "failed",
@@ -21,6 +21,21 @@ const entry = {
 describe("parseBuildHistoryDocument", () => {
   it("migrates the legacy raw-array format", () => {
     expect(parseBuildHistoryDocument([entry])).toEqual({ version: "1.0.0", entries: [entry] });
+  });
+
+  it("normalizes the persisted pipelineId field to projectId", () => {
+    const { projectId, ...legacyFields } = entry;
+    const parsed = parseBuildHistoryDocument([{ ...legacyFields, pipelineId: projectId }])
+      .entries[0];
+
+    expect(parsed?.projectId).toBe(projectId);
+    expect(parsed).not.toHaveProperty("pipelineId");
+  });
+
+  it("rejects conflicting current and legacy project identifiers", () => {
+    expect(() =>
+      parseBuildHistoryDocument([{ ...entry, pipelineId: "different-project" }]),
+    ).toThrow("projectId conflicts with legacy pipelineId");
   });
 
   it("rejects malformed entries and unsupported documents", () => {

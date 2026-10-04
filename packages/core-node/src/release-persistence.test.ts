@@ -18,9 +18,8 @@ const setup = async () => {
   await writeFile(
     context.getProjectsPath(),
     JSON.stringify({
-      version: "3.0.0",
+      version: "4.0.0",
       projects: [{ id: "project-1", name: "Project", description: "" }],
-      pipelines: [],
       workflows: [
         {
           id: "workflow-1",
@@ -357,9 +356,8 @@ describe("ReleasePersistence", () => {
     await writeFile(
       context.getProjectsPath(),
       JSON.stringify({
-        version: "3.0.0",
+        version: "4.0.0",
         projects: [{ id: "other", name: "Other", description: "" }],
-        pipelines: [],
         workflows: [
           {
             id: "workflow-1",

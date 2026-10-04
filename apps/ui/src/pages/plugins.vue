@@ -128,153 +128,59 @@
                     />
                   </div>
                   <!-- Uninstall button hidden: plugin marketplace disabled in bundled mode. -->
+                </div>
+              </div>
+
+              <div class="w-full flex-grow-1 mt-4 overflow-y-auto">
+                <div v-if="selectedPluginDefinition?.integrations?.length" class="py-2">
+                  <div class="exposed-section">
+                    <div class="section-header mb-4">
+                      <div class="flex flex-column gap-1">
+                        <h3 class="section-title">Setup</h3>
+                        <p class="section-desc">
+                          Settings required to configure connection profiles for this plugin.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div class="plugins-grid">
+                      <div
+                        v-for="integration in selectedPluginDefinition.integrations"
+                        :key="integration.name"
+                        class="integration-card"
+                      >
+                        <div class="integration-card-header flex items-center gap-2 mb-3">
+                          <i class="pi pi-id-card text-primary text-sm"></i>
+                          <span class="integration-title font-bold text-xs">{{
+                            integration.name
+                          }}</span>
+                        </div>
+                        <div class="integration-fields">
+                          <div class="fields-header text-[9px] font-bold uppercase opacity-55 mb-1">
+                            Required Fields
+                          </div>
+                          <div
+                            v-for="field in integration.fields"
+                            :key="field.key"
+                            class="field-row flex justify-between items-center py-1 border-b border-surface-200 dark:border-surface-800 last:border-0"
+                          >
+                            <div class="flex flex-column">
+                              <span class="field-label text-[10px] font-medium">{{
+                                field.label
+                              }}</span>
+                            </div>
+                            <Tag
+                              :value="field.type"
+                              severity="secondary"
+                              class="text-[8px] uppercase px-1 py-0.5"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
-
-              <!-- Tabs: Blocks & Setup (Read-only) -->
-              <Tabs v-model:value="activeTab" class="w-full flex-grow-1 flex flex-column mt-4">
-                <TabList>
-                  <Tab v-if="selectedPluginDefinition?.nodes?.length" value="blocks">
-                    <i class="pi pi-box mr-2 text-[11px]"></i>Blocks
-                  </Tab>
-                  <Tab v-if="selectedPluginDefinition?.integrations?.length" value="schema">
-                    <i class="pi pi-id-card mr-2 text-[11px]"></i>Setup
-                  </Tab>
-                </TabList>
-
-                <TabPanels class="flex-grow-1 overflow-y-auto mt-2">
-                  <!-- Blocks Panel -->
-                  <TabPanel
-                    v-if="selectedPluginDefinition?.nodes?.length"
-                    value="blocks"
-                    class="py-2"
-                  >
-                    <div class="exposed-section">
-                      <div class="section-header mb-4">
-                        <div class="flex flex-column gap-1">
-                          <h3 class="section-title">Blocks</h3>
-                          <p class="section-desc">Automation blocks provided by this plugin.</p>
-                        </div>
-                      </div>
-
-                      <div class="nodes-grid">
-                        <div
-                          v-for="nodeDef in selectedPluginDefinition.nodes"
-                          :key="nodeDef.node.id"
-                          class="node-card"
-                          :class="{
-                            deprecated: nodeDef.node.type === 'action' && nodeDef.node.deprecated,
-                          }"
-                        >
-                          <div class="node-card-header flex items-start justify-between mb-2">
-                            <div class="flex items-center gap-2">
-                              <div class="node-icon-wrapper flex items-center justify-center">
-                                <i
-                                  :class="getNodeIconClass(nodeDef.node.icon)"
-                                  class="node-icon"
-                                ></i>
-                              </div>
-                              <div class="flex flex-column">
-                                <span class="node-title font-bold text-xs">{{
-                                  nodeDef.node.name
-                                }}</span>
-                                <!-- Node version hidden in bundled mode — all blocks share the bundled release.
-                                     Re-enable: uncomment the span below. -->
-                                <!-- <span
-                                  v-if="nodeDef.node.version"
-                                  class="node-version text-[9px] opacity-60"
-                                  >v{{ nodeDef.node.version }}</span
-                                > -->
-                              </div>
-                            </div>
-                            <div class="flex gap-1">
-                              <Tag
-                                v-if="nodeDef.node.type === 'action' && nodeDef.node.deprecated"
-                                value="Deprecated"
-                                severity="danger"
-                                class="text-[9px] px-1 py-0.5 font-bold"
-                                v-tooltip.top="
-                                  nodeDef.node.deprecatedMessage || 'This node is deprecated.'
-                                "
-                              />
-                              <Tag
-                                v-if="nodeDef.node.advanced"
-                                value="Advanced"
-                                severity="secondary"
-                                class="text-[9px] px-1 py-0.5"
-                              />
-                              <Tag
-                                :value="getNodeTypeLabel(nodeDef.node.type)"
-                                :severity="getNodeTypeSeverity(nodeDef.node.type)"
-                                class="text-[9px] px-1.5 py-0.5"
-                              />
-                            </div>
-                          </div>
-                          <p class="node-description text-[10px] text-secondary">
-                            {{ nodeDef.node.description || "No description available." }}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </TabPanel>
-
-                  <!-- Setup (Read-only) Panel -->
-                  <TabPanel
-                    v-if="selectedPluginDefinition?.integrations?.length"
-                    value="schema"
-                    class="py-2"
-                  >
-                    <div class="exposed-section">
-                      <div class="section-header mb-4">
-                        <div class="flex flex-column gap-1">
-                          <h3 class="section-title">Setup</h3>
-                          <p class="section-desc">
-                            Settings required to configure connection profiles for this plugin.
-                          </p>
-                        </div>
-                      </div>
-
-                      <div class="plugins-grid">
-                        <div
-                          v-for="integration in selectedPluginDefinition.integrations"
-                          :key="integration.name"
-                          class="integration-card"
-                        >
-                          <div class="integration-card-header flex items-center gap-2 mb-3">
-                            <i class="pi pi-id-card text-primary text-sm"></i>
-                            <span class="integration-title font-bold text-xs">{{
-                              integration.name
-                            }}</span>
-                          </div>
-                          <div class="integration-fields">
-                            <div
-                              class="fields-header text-[9px] font-bold uppercase opacity-55 mb-1"
-                            >
-                              Required Fields
-                            </div>
-                            <div
-                              v-for="field in integration.fields"
-                              :key="field.key"
-                              class="field-row flex justify-between items-center py-1 border-b border-surface-200 dark:border-surface-800 last:border-0"
-                            >
-                              <div class="flex flex-column">
-                                <span class="field-label text-[10px] font-medium">{{
-                                  field.label
-                                }}</span>
-                              </div>
-                              <Tag
-                                :value="field.type"
-                                severity="secondary"
-                                class="text-[8px] uppercase px-1 py-0.5"
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </TabPanel>
-                </TabPanels>
-              </Tabs>
+              </div>
             </div>
 
             <!-- Fallback View -->
@@ -302,7 +208,7 @@
       <!-- Marketplace dialog hidden: plugin marketplace is disabled in bundled mode. -->
       <div class="text-center py-8 opacity-50 text-xs">
         <i class="pi pi-lock mb-2 block text-lg"></i>
-        Plugin marketplace is disabled in bundled mode.<br>
+        Plugin marketplace is disabled in bundled mode.<br />
         All plugins are pre-bundled with the CLI.
       </div>
     </Dialog>
@@ -341,7 +247,6 @@ const { settings: settingsRef } = storeToRefs(appSettings);
 const { pluginDefinitions } = storeToRefs(appStore);
 
 const selectedPluginName = ref("");
-const activeTab = ref("blocks");
 const isMarketplaceVisible = ref(false);
 const installedSearchQuery = ref("");
 const registrySearchQuery = ref("");
@@ -383,15 +288,6 @@ const selectedPluginDefinition = computed(() => {
 });
 
 // --- Watches ---
-watch(
-  () => selectedPlugin.value?.name,
-  (newPluginName) => {
-    if (!newPluginName) return;
-    activeTab.value = "blocks";
-  },
-  { immediate: true },
-);
-
 // Registry search disabled in bundled mode — plugins are statically bundled with the CLI.
 // (Previously used watchDebounced to call plugin:search.)
 
@@ -447,31 +343,6 @@ const getIconClass = (iconObj: any) => {
     return `pi ${iconName}`;
   }
   return iconName;
-};
-
-const getNodeIconClass = (icon: string | undefined) => {
-  const iconName = icon || "pi-box";
-  if (iconName.startsWith("mdi-")) {
-    return `mdi ${iconName}`;
-  }
-  if (iconName.startsWith("pi-")) {
-    return `pi ${iconName}`;
-  }
-  return `pi ${iconName}`;
-};
-
-const getNodeTypeLabel = (type: string) => {
-  if (type === "action") return "Action";
-  if (type === "expression") return "Expression";
-  if (type === "event") return "Event";
-  return type.charAt(0).toUpperCase() + type.slice(1);
-};
-
-const getNodeTypeSeverity = (type: string) => {
-  if (type === "action") return "info";
-  if (type === "expression") return "warn";
-  if (type === "event") return "success";
-  return "secondary";
 };
 
 const isInstalled = (packageName: string) => {
@@ -898,84 +769,6 @@ const togglePlugin = async (packageName: string) => {
   margin: 0;
 }
 
-.nodes-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 16px;
-  width: 100%;
-}
-
-.node-card {
-  background: var(--p-surface-50);
-  border: 1px solid var(--p-surface-200);
-  border-radius: 12px;
-  padding: 16px;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-
-  :root.dark & {
-    background: var(--p-surface-950);
-    border-color: var(--p-surface-800);
-  }
-
-  &:hover {
-    border-color: var(--p-surface-300);
-
-    :root.dark & {
-      border-color: var(--p-surface-700);
-    }
-  }
-}
-
-.node-card-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  width: 100%;
-}
-
-.node-icon-wrapper {
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
-  background: var(--p-primary-50);
-  color: var(--p-primary-600);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-
-  :root.dark & {
-    background: var(--p-primary-950);
-    color: var(--p-primary-400);
-  }
-}
-
-.node-icon {
-  font-size: 14px;
-}
-
-.node-title {
-  font-size: 0.825rem;
-  font-weight: 700;
-  color: var(--p-text-color);
-}
-
-.node-version {
-  font-size: 0.65rem;
-  color: var(--p-text-muted-color);
-}
-
-.node-description {
-  font-size: 0.75rem;
-  color: var(--p-text-muted-color);
-  margin-top: 10px;
-  line-height: 1.4;
-  flex-grow: 1;
-}
-
 /* ─── Integrations Schema Grid ──────────────────────────── */
 .plugins-grid {
   display: grid;
@@ -1049,21 +842,6 @@ const togglePlugin = async (packageName: string) => {
   display: inline-flex;
 }
 
-.node-card.deprecated {
-  border-left: 3.5px solid var(--p-red-500);
-  opacity: 0.75;
-  background: var(--p-surface-100);
-
-  :root.dark & {
-    background: var(--p-surface-950);
-  }
-
-  &:hover {
-    opacity: 0.95;
-    border-left-color: var(--p-red-600);
-  }
-}
-
 /* ─── Mobile: drawer becomes top strip, grids single column ─ */
 @media (max-width: 860px) {
   .main-layout {
@@ -1091,7 +869,6 @@ const togglePlugin = async (packageName: string) => {
     align-items: stretch;
   }
 
-  .nodes-grid,
   .integrations-grid {
     grid-template-columns: 1fr;
   }

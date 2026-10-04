@@ -24,6 +24,7 @@ import { CacheFolder, PipelabContext } from "../context";
 import { ReleasePersistence } from "../release-persistence";
 import { ensureNodeJS, ensurePNPM } from "../utils/remote";
 import { createPipelabWorkflowTasks } from "../workflow-tasks";
+import { workflowTaskRunners } from "../workflow-tasks/registry";
 import { useAPI } from "../ipc-core";
 import { BuildHistoryStorage } from "./build-history";
 import { WorkflowRunCancellationRegistry } from "./workflow-run-cancellation";
@@ -159,12 +160,12 @@ export const executeWorkflow = async (
   const buildId = nanoid();
   const history = new BuildHistoryStorage(context);
   const startTime = Date.now();
-  const pipelineId = config.project;
+  const projectId = config.project;
   const liveSteps: ExecutionStep[] = executionPlan(workflow);
   const liveLogs: LogEntry[] = [];
   await history.save({
     id: buildId,
-    pipelineId,
+    projectId,
     workflowId: config.id,
     workflowName: config.name,
     projectName: storedEntity.project.name,
@@ -200,7 +201,7 @@ export const executeWorkflow = async (
             ).length,
             cancelledSteps: steps.filter((step) => step.status === "cancelled").length,
           },
-          pipelineId,
+          projectId,
         );
       })
       .catch((error) => {
@@ -227,17 +228,20 @@ export const executeWorkflow = async (
   await mkdir(workspaceRoot, { recursive: true });
   const node = await ensureNodeJS(context);
   const pnpm = await ensurePNPM(context);
-  const tasks = createPipelabWorkflowTasks({
-    context,
-    paths: {
-      cache: context.getCachePath(CacheFolder.Pipelines, config.project, buildId),
-      pnpm,
-      node,
-      userData: context.userDataPath,
-      modules: context.getPackagesPath(),
-      thirdparty: context.getThirdPartyPath(),
+  const tasks = createPipelabWorkflowTasks(
+    {
+      context,
+      paths: {
+        cache: context.getCachePath(CacheFolder.Pipelines, config.project, buildId),
+        pnpm,
+        node,
+        userData: context.userDataPath,
+        modules: context.getPackagesPath(),
+        thirdparty: context.getThirdPartyPath(),
+      },
     },
-  });
+    workflowTaskRunners,
+  );
   const observedSteps = new Map<
     string,
     "pending" | "running" | "completed" | "failed" | "cancelled" | "skipped"
@@ -305,7 +309,7 @@ export const executeWorkflow = async (
           timestamp: Date.now(),
         },
       },
-      pipelineId,
+      projectId,
     );
     throw error;
   }
@@ -341,7 +345,7 @@ export const executeWorkflow = async (
       ).length,
       cancelledSteps: 0,
     },
-    pipelineId,
+    projectId,
   );
   return { result, runId: buildId };
 };

@@ -1,15 +1,9 @@
 ---
-"@pipelab/plugin-filesystem": patch
 "@pipelab/plugin-construct": patch
 "@pipelab/plugin-electron": patch
-"@pipelab/plugin-discord": patch
-"@pipelab/plugin-netlify": patch
 "@pipelab/asset-electron": patch
-"@pipelab/plugin-minify": patch
-"@pipelab/plugin-system": patch
 "@pipelab/asset-discord": patch
 "@pipelab/asset-netlify": patch
-"@pipelab/cloud-azure": patch
 "@pipelab/plugin-steam": patch
 "@pipelab/plugin-tauri": patch
 "@pipelab/test-utils": patch
@@ -22,7 +16,6 @@
 "@pipelab/migration": patch
 "@pipelab/tsconfig": patch
 "@pipelab/shared": patch
-"@pipelab/cloud": patch
 "@pipelab/app": patch
 "@pipelab/cli": patch
 "@pipelab/ui": patch

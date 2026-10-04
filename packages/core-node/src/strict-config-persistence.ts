@@ -19,7 +19,7 @@ import { serializeFileMutation } from "./release-persistence-lock";
 
 const migratedProject = async (raw: unknown): Promise<FileRepo> => {
   const versioned = parseVersionedFileRepo(raw);
-  if (versioned.version === "3.0.0") return parseFileRepo(versioned);
+  if (versioned.version === "4.0.0") return parseFileRepo(versioned);
   return parseFileRepo(await fileRepoMigrations.migrate(versioned, { debug: false }));
 };
 

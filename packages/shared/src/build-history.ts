@@ -59,7 +59,7 @@ export interface Artifact {
 
 export interface BuildHistoryEntry {
   id: string;
-  pipelineId: string;
+  projectId: string;
   workflowId?: string;
   workflowName?: string;
   projectName: string;
@@ -212,7 +212,7 @@ const assertEntry: (value: unknown, path: string) => asserts value is BuildHisto
   path,
 ) => {
   if (!isRecord(value)) throw new BuildHistoryParseError(path, "run entry must be an object");
-  for (const key of ["id", "pipelineId"])
+  for (const key of ["id", "projectId"])
     if (!isNonEmptyString(value[key]))
       throw new BuildHistoryParseError(`${path}.${key}`, "must be a string");
   if (typeof value.projectName !== "string")
@@ -324,8 +324,25 @@ const assertEntry: (value: unknown, path: string) => asserts value is BuildHisto
 };
 
 const parseEntry = (value: unknown, path: string): BuildHistoryEntry => {
-  assertEntry(value, path);
-  return value;
+  if (!isRecord(value)) throw new BuildHistoryParseError(path, "run entry must be an object");
+
+  // Earlier build-history files called this value pipelineId even though it
+  // has always been the owning project ID. Read that persisted shape while
+  // normalizing all in-memory and newly written entries to projectId.
+  const legacyProjectId = value.pipelineId;
+  if (
+    legacyProjectId !== undefined &&
+    value.projectId !== undefined &&
+    legacyProjectId !== value.projectId
+  )
+    throw new BuildHistoryParseError(path, "projectId conflicts with legacy pipelineId");
+  const { pipelineId: _legacyProjectId, ...rest } = value;
+  const normalized = {
+    ...rest,
+    projectId: value.projectId ?? legacyProjectId,
+  };
+  assertEntry(normalized, path);
+  return normalized;
 };
 
 export const parseBuildHistoryDocument = (value: unknown): BuildHistoryDocument => {
@@ -342,9 +359,9 @@ export const parseBuildHistoryDocument = (value: unknown): BuildHistoryDocument 
   };
 };
 
-// Query interface supporting both pipeline and scenario filtering
+// Query interface supporting project and workflow filtering.
 export interface BuildHistoryQuery {
-  pipelineId?: string;
+  projectId?: string;
   workflowId?: string;
 }
 
@@ -353,21 +370,21 @@ export interface BuildHistoryResponse {
   total: number;
 }
 
-// Storage interfaces - Simplified for pipeline-specific storage
+// Storage interfaces - Simplified for project-specific storage
 export interface IBuildHistoryStorage {
   save(entry: BuildHistoryEntry): Promise<void>;
-  get(id: string, pipelineId?: string): Promise<BuildHistoryEntry | undefined>;
+  get(id: string, projectId?: string): Promise<BuildHistoryEntry | undefined>;
   getAll(): Promise<BuildHistoryEntry[]>;
-  getByPipeline(pipelineId: string): Promise<BuildHistoryEntry[]>;
-  update(id: string, updates: Partial<BuildHistoryEntry>, pipelineId?: string): Promise<void>;
-  delete(id: string, pipelineId?: string): Promise<void>;
+  getByProject(projectId: string): Promise<BuildHistoryEntry[]>;
+  update(id: string, updates: Partial<BuildHistoryEntry>, projectId?: string): Promise<void>;
+  delete(id: string, projectId?: string): Promise<void>;
   clear(): Promise<void>;
   getStorageInfo(): Promise<{
     totalEntries: number;
     totalSize: number;
     oldestEntry?: number;
     newestEntry?: number;
-    numberOfPipelines: number;
+    numberOfProjects: number;
     userDataPath: string;
     disk: {
       total: number;

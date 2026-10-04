@@ -20,7 +20,7 @@ export async function usageCommand(options: { userData?: string }) {
   console.log("Build History Storage Usage:");
   console.table({
     "Total Entries": info.totalEntries,
-    "Workflow History Files": info.numberOfPipelines,
+    "Workflow History Files": info.numberOfProjects,
     "Total Size": formatBytes(info.totalSize),
     "Oldest Entry": info.oldestEntry ? new Date(info.oldestEntry).toLocaleString() : "N/A",
     "Newest Entry": info.newestEntry ? new Date(info.newestEntry).toLocaleString() : "N/A",
@@ -45,7 +45,7 @@ export async function purgeCommand(
   const storage = new BuildHistoryStorage(context);
 
   if (projectId) {
-    await storage.clearByPipeline(projectId);
+    await storage.clearByProject(projectId);
     console.log(`Successfully purged workflow history for project: ${projectId}`);
   } else {
     await storage.clear();
