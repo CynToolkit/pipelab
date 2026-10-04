@@ -3,6 +3,10 @@ import { uploadToItch, uploadToItchRunner } from "./export";
 import { createNodeDefinition } from "@pipelab/plugin-core";
 import type { ReleaseDestinationDefinition } from "@pipelab/shared";
 
+export const workflowTaskRunners = {
+  "@pipelab/plugin-itch/itch-upload": uploadToItchRunner,
+};
+
 export const itchDestination: ReleaseDestinationDefinition = {
   id: "@pipelab/plugin-itch/destination",
   label: "Itch.io",

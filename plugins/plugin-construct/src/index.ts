@@ -9,6 +9,10 @@ import { CORE_WORKFLOW_TASKS, type WorkflowStep } from "@pipelab/workflow-runtim
 export { discoverBrowserProfiles, inspectChromiumProfile } from "./browser-profiles";
 export type { BrowserProfileCandidate } from "./browser-profiles";
 
+export const workflowTaskRunners = {
+  "@pipelab/plugin-construct/export-construct-project": ExportProjectActionRunner,
+};
+
 export const constructSource: ReleaseSourceDefinition = {
   id: "@pipelab/plugin-construct/source",
   label: "Construct project",

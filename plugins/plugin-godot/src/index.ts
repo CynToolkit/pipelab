@@ -209,6 +209,10 @@ const godotExportRunner = createActionRunner(async (data) => {
   data.setOutput("output", result.path);
 });
 
+export const workflowTaskRunners = {
+  "@pipelab/plugin-godot/godot:export": godotExportRunner,
+};
+
 export const godotExporter: ReleaseProducerDefinition = {
   id: "@pipelab/plugin-godot/producer",
   label: "Godot exporter",

@@ -24,6 +24,7 @@ import { CacheFolder, PipelabContext } from "../context";
 import { ReleasePersistence } from "../release-persistence";
 import { ensureNodeJS, ensurePNPM } from "../utils/remote";
 import { createPipelabWorkflowTasks } from "../workflow-tasks";
+import { workflowTaskRunners } from "../workflow-tasks/registry";
 import { useAPI } from "../ipc-core";
 import { BuildHistoryStorage } from "./build-history";
 import { WorkflowRunCancellationRegistry } from "./workflow-run-cancellation";
@@ -227,17 +228,20 @@ export const executeWorkflow = async (
   await mkdir(workspaceRoot, { recursive: true });
   const node = await ensureNodeJS(context);
   const pnpm = await ensurePNPM(context);
-  const tasks = createPipelabWorkflowTasks({
-    context,
-    paths: {
-      cache: context.getCachePath(CacheFolder.Pipelines, config.project, buildId),
-      pnpm,
-      node,
-      userData: context.userDataPath,
-      modules: context.getPackagesPath(),
-      thirdparty: context.getThirdPartyPath(),
+  const tasks = createPipelabWorkflowTasks(
+    {
+      context,
+      paths: {
+        cache: context.getCachePath(CacheFolder.Pipelines, config.project, buildId),
+        pnpm,
+        node,
+        userData: context.userDataPath,
+        modules: context.getPackagesPath(),
+        thirdparty: context.getThirdPartyPath(),
+      },
     },
-  });
+    workflowTaskRunners,
+  );
   const observedSteps = new Map<
     string,
     "pending" | "running" | "completed" | "failed" | "cancelled" | "skipped"

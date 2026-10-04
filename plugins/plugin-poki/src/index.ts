@@ -3,6 +3,10 @@ import { uploadToPoki, uploadToPokiRunner } from "./export";
 import { createNodeDefinition } from "@pipelab/plugin-core";
 import type { ReleaseDestinationDefinition } from "@pipelab/shared";
 
+export const workflowTaskRunners = {
+  "@pipelab/plugin-poki/poki-upload": uploadToPokiRunner,
+};
+
 const pokiDestination: ReleaseDestinationDefinition = {
   id: "@pipelab/plugin-poki/destination",
   label: "Poki",

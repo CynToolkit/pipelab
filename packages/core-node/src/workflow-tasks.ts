@@ -3,7 +3,6 @@ import type {
   WorkflowTaskContext,
   WorkflowTaskRegistry,
 } from "@pipelab/workflow-runtime";
-import { usePlugins } from "@pipelab/shared";
 import type { PipelabContext } from "./context";
 import type { ActionRunner, ActionRunnerData } from "./types/runner";
 import { createPipelabCloudUploadTask } from "./pipelab-cloud";
@@ -80,28 +79,12 @@ export const createWorkflowTaskRegistry = (
     Object.entries(runners).map(([id, runner]) => [id, createWorkflowActionTask(runner, options)]),
   );
 
-type RegisteredPlugin = {
-  id: string;
-  nodes: Array<{ node: { id: string }; runner: ActionRunner<any> }>;
-};
-
 export const createPipelabWorkflowTasks = (
   options: WorkflowTaskOptions,
-  // The shared registry intentionally exposes renderer-safe plugin types. At
-  // runtime the main process registry retains each node's action runner.
-  registeredPlugins = usePlugins().plugins.value as unknown as RegisteredPlugin[],
+  registeredRunners: Record<string, ActionRunner<any>>,
 ): WorkflowTaskRegistry => {
-  const pluginTasks = Object.fromEntries(
-    registeredPlugins.flatMap((plugin) =>
-      plugin.nodes.map(
-        (node) =>
-          [`${plugin.id}/${node.node.id}`, createWorkflowActionTask(node.runner, options)] as const,
-      ),
-    ),
-  );
-
   return {
-    ...pluginTasks,
+    ...createWorkflowTaskRegistry(registeredRunners, options),
     ...createCoreFilesystemWorkflowTasks(),
     "pipelab-cloud:upload": createPipelabCloudUploadTask(options.context),
   };

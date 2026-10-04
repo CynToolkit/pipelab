@@ -2,6 +2,10 @@ import { uploadToSteam, uploadToSteamRunner } from "./upload-to-steam";
 import { createNodeDefinition } from "@pipelab/plugin-core";
 import type { ReleaseDestinationDefinition } from "@pipelab/shared";
 
+export const workflowTaskRunners = {
+  "@pipelab/plugin-steam/steam-upload": uploadToSteamRunner,
+};
+
 export const steamDestination: ReleaseDestinationDefinition = {
   id: "@pipelab/plugin-steam/destination",
   label: "Steam",
