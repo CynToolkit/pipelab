@@ -11,7 +11,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 test("does not expose an unsupported Poki API token connection", () => {
-  expect(pokiPlugin.integrations).toBeUndefined();
+  expect("integrations" in pokiPlugin).toBe(false);
 });
 
 describe("End-to-End: Poki Upload Action", () => {

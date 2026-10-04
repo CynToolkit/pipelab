@@ -1,12 +1,10 @@
 import { PipelabContext, isDev, registerAllHandlers, webSocketServer } from "./index";
 import { resolveBundledUiFolder } from "./bundled-cli";
-import {
-  getUiDevServerMissingWarning,
-  uiDevPort,
-} from "@pipelab/constants";
+import { getUiDevServerMissingWarning, uiDevPort } from "@pipelab/constants";
 import { existsSync } from "node:fs";
 import http from "http";
 import { readFile } from "node:fs/promises";
+// @ts-expect-error -- serve-handler has no declaration; dependency cleanup is outside this phase.
 import handler from "serve-handler";
 import {
   DEFAULT_ALLOWED_ORIGINS,
