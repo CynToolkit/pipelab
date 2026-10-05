@@ -1,10 +1,11 @@
 import { expect, test, describe, afterEach, vi } from "vitest";
 import { mkdir, writeFile, access } from "node:fs/promises";
 import { join } from "node:path";
-import { createSandbox, runAction, isWindows } from "@pipelab/test-utils";
+import { createSandbox, runWorkflowTask, isWindows } from "@pipelab/test-utils";
 import { runWithLiveLogs } from "@pipelab/plugin-core";
+import type { PipelabContext } from "@pipelab/plugin-core";
 import type { Subprocess } from "execa";
-import { uploadToSteamRunner } from "../../src/upload-to-steam";
+import { createSteamUploadTask, type SteamTaskServices } from "../../src/upload-to-steam";
 
 vi.mock("@pipelab/plugin-core", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@pipelab/plugin-core")>();
@@ -18,6 +19,14 @@ vi.mock("@pipelab/plugin-core", async (importOriginal) => {
 
 describe("End-to-End: Steam Integration", () => {
   let sandbox: Awaited<ReturnType<typeof createSandbox>>;
+
+  const servicesFor = (sandboxPath: string): SteamTaskServices => ({
+    context: {
+      getConnectionsPath: () => join(sandboxPath, "user-data", "config", "connections.json"),
+      getThirdPartyPath: (...segments: string[]) =>
+        join(sandboxPath, "user-data", "thirdparty", ...segments),
+    } as unknown as PipelabContext,
+  });
 
   afterEach(async () => {
     vi.unstubAllEnvs();
@@ -63,9 +72,11 @@ describe("End-to-End: Steam Integration", () => {
         folder: uploadFolder,
       };
 
-      const result = await runAction(uploadToSteamRunner, {
+      const services = servicesFor(sandbox.path);
+      const result = await runWorkflowTask(createSteamUploadTask(services), {
         inputs,
-        sandboxPath: sandbox.path,
+        workspacePath: sandbox.path,
+        services,
       });
 
       // 4. Verification
@@ -149,12 +160,18 @@ describe("End-to-End: Steam Integration", () => {
       args[4]?.onStdout?.("Cached credentials not found", mockProcess);
     });
 
-    const result = runAction(uploadToSteamRunner, { inputs, sandboxPath: sandbox.path });
-    await expect(result).rejects.toThrow(
-      /SteamCMD could not reuse the saved login[\s\S]*steamcmd[\s\S]*\+login[\s\S]*testuser[\s\S]*\+quit/,
-    );
+    const services = servicesFor(sandbox.path);
+    const result = runWorkflowTask(createSteamUploadTask(services), {
+      inputs,
+      workspacePath: sandbox.path,
+      services,
+    });
     const failure = await result.catch((error: unknown) => error);
     expect(failure).toBeInstanceOf(Error);
-    if (failure instanceof Error) expect(failure.message).not.toContain("must-not-be-used");
+    if (!(failure instanceof Error)) throw new Error("Expected the Steam task to fail");
+    expect(failure.message).toMatch(
+      /SteamCMD could not reuse the saved login[\s\S]*steamcmd[\s\S]*\+login[\s\S]*testuser[\s\S]*\+quit/,
+    );
+    expect(failure.message).not.toContain("must-not-be-used");
   });
 });

@@ -9,6 +9,65 @@ const host: WorkflowHost = {
 };
 
 describe("artifact-aware workflow runtime", () => {
+  it("runs a native task with resolved inputs, prior outputs, artifacts, services, cancellation, and logging", async () => {
+    const logs: string[] = [];
+    const events: string[] = [];
+    const controller = new AbortController();
+    const result = await runWorkflow<{ pipelab: string }>(
+      {
+        version: 1,
+        steps: [
+          {
+            id: "build",
+            uses: "test:build",
+            artifacts: { output: { descriptor: { kind: "files", container: "directory" } } },
+          },
+          {
+            id: "native",
+            uses: "test:native",
+            with: { input: "${{ steps.build.outputs.value }}" },
+          },
+        ],
+      },
+      {
+        host: {
+          ...host,
+          logger: { ...host.logger, info: (...args) => logs.push(args.join(" ")) },
+        },
+        signal: controller.signal,
+        services: { pipelab: "injected" },
+        tasks: {
+          "test:build": async ({ setArtifact }) => {
+            setArtifact("output", "/workspace/dist");
+            return { value: "ready" };
+          },
+          "test:native": async (context) => {
+            expect(context.inputs).toEqual({ input: "ready" });
+            expect(context.outputs.build).toEqual({ value: "ready" });
+            expect(context.artifacts).toEqual([
+              expect.objectContaining({
+                stepId: "build",
+                artifact: "output",
+                path: "/workspace/dist",
+              }),
+            ]);
+            expect(context.services.pipelab).toBe("injected");
+            expect(context.signal).toBe(controller.signal);
+            context.log("native task ran");
+            return { completed: true };
+          },
+        },
+        onEvent: (event) => {
+          if (event.type === "step.log") events.push(event.message);
+        },
+      },
+    );
+
+    expect(result.outputs.native).toEqual({ completed: true });
+    expect(logs).toContain("native task ran");
+    expect(events).toContain("native task ran");
+  });
+
   it("materializes declared artifact descriptors without a global registry", async () => {
     const workflow = {
       version: 1,

@@ -1,59 +1,89 @@
-import { createActionRunner } from "@pipelab/plugin-core";
-import { forge } from "./forge";
-import { createPackageV2Props } from "./forge";
+import type { WorkflowTask } from "@pipelab/workflow-runtime";
 import { merge } from "ts-deepmerge";
+import { forge, type ForgeExecutionContext } from "./forge";
 import { defaultElectronConfig } from "./utils";
 
-export const packageV2Runner = createActionRunner<ReturnType<typeof createPackageV2Props>>(
-  async (options) => {
-    const appFolder = options.inputs["input-folder"];
+export interface ElectronWorkflowTaskServices {
+  context: ForgeExecutionContext["context"];
+  executables: { node: string; pnpm: string };
+  workflowCachePath: string;
+}
 
-    const inputConfiguration = {
-      alwaysOnTop: options.inputs["alwaysOnTop"],
-      appBundleId: options.inputs["appBundleId"],
-      appCategoryType: options.inputs["appCategoryType"],
-      appCopyright: options.inputs["appCopyright"],
-      appVersion: options.inputs["appVersion"],
-      author: options.inputs["author"],
-      customMainCode: options.inputs["customMainCode"],
-      description: options.inputs["description"],
-      electronVersion: options.inputs["electronVersion"],
-      disableAsarPackaging: options.inputs["disableAsarPackaging"],
-      forceHighPerformanceGpu: options.inputs["forceHighPerformanceGpu"],
-      patchExecutable: options.inputs["patchExecutable"],
-      enableExtraLogging: options.inputs["enableExtraLogging"],
-      clearServiceWorkerOnBoot: options.inputs["clearServiceWorkerOnBoot"],
-      enableDisableRendererBackgrounding: options.inputs["enableDisableRendererBackgrounding"],
-      enableInProcessGPU: options.inputs["enableInProcessGPU"],
-      frame: options.inputs["frame"],
-      fullscreen: options.inputs["fullscreen"],
-      icon: options.inputs["icon"],
-      height: options.inputs["height"],
-      name: options.inputs["name"],
-      toolbar: options.inputs["toolbar"],
-      transparent: options.inputs["transparent"],
-      width: options.inputs["width"],
-      enableSteamSupport: options.inputs["enableSteamSupport"],
-      steamGameId: options.inputs["steamGameId"],
-      ignore: options.inputs["ignore"],
-      openDevtoolsOnStart: options.inputs["openDevtoolsOnStart"],
-      enableDiscordSupport: options.inputs["enableDiscordSupport"],
-      discordAppId: options.inputs["discordAppId"],
-      customPackages: options.inputs["customPackages"],
-      backgroundColor: options.inputs["backgroundColor"],
-      enableDoctor: options.inputs["enableDoctor"],
-      serverMode: options.inputs["serverMode"],
-    } satisfies Partial<DesktopApp.Electron>;
-    const definedConfiguration = Object.fromEntries(
-      Object.entries(inputConfiguration).filter(([, value]) => value !== undefined),
+const configurationInputKeys = [
+  "alwaysOnTop",
+  "appBundleId",
+  "appCategoryType",
+  "appCopyright",
+  "appVersion",
+  "author",
+  "customMainCode",
+  "description",
+  "electronVersion",
+  "disableAsarPackaging",
+  "forceHighPerformanceGpu",
+  "patchExecutable",
+  "enableExtraLogging",
+  "clearServiceWorkerOnBoot",
+  "enableDisableRendererBackgrounding",
+  "enableInProcessGPU",
+  "frame",
+  "fullscreen",
+  "icon",
+  "height",
+  "name",
+  "toolbar",
+  "transparent",
+  "width",
+  "enableSteamSupport",
+  "steamGameId",
+  "ignore",
+  "openDevtoolsOnStart",
+  "enableDiscordSupport",
+  "discordAppId",
+  "customPackages",
+  "backgroundColor",
+  "enableDoctor",
+  "serverMode",
+] as const;
+
+export const electronPackageWorkflowTaskFactory =
+  (services: ElectronWorkflowTaskServices): WorkflowTask<ElectronWorkflowTaskServices> =>
+  async (task) => {
+    const appFolder = task.inputs["input-folder"];
+    const inputConfiguration = Object.fromEntries(
+      configurationInputKeys
+        .map((key) => [key, task.inputs[key]] as const)
+        .filter(([, value]) => value !== undefined),
     ) as Partial<DesktopApp.Electron>;
     const completeConfiguration = merge(
       defaultElectronConfig,
-      definedConfiguration,
+      inputConfiguration,
     ) as DesktopApp.Electron;
 
-    options.log("completeConfiguration", completeConfiguration);
+    task.log("completeConfiguration", completeConfiguration);
 
-    await forge("package", appFolder, options, completeConfiguration);
-  },
-);
+    const execution: ForgeExecutionContext = {
+      cwd: task.workspace.root,
+      log: task.log,
+      inputs: task.inputs,
+      paths: {
+        node: services.executables.node,
+        pnpm: services.executables.pnpm,
+      },
+      abortSignal: task.signal,
+      context: services.context,
+      setArtifact: task.setArtifact,
+    };
+    const result = await forge(
+      "package",
+      typeof appFolder === "string" ? appFolder : undefined,
+      execution,
+      completeConfiguration,
+    );
+
+    return result ? { output: result.folder } : {};
+  };
+
+export const electronWorkflowTaskFactories = {
+  "@pipelab/plugin-electron/electron:package:v2": electronPackageWorkflowTaskFactory,
+};

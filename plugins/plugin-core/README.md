@@ -1,3 +1,5 @@
 # @pipelab/plugin-core
 
-Base abstractions and utilities for creating Pipelab plugins. Provides the standard interfaces for actions, conditions, and events.
+Shared utilities for Pipelab plugins, including filesystem, archive, process,
+and bundled asset helpers. Workflow execution uses native `WorkflowTask`
+implementations from `@pipelab/workflow-runtime`.

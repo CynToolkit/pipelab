@@ -1,15 +1,11 @@
 import { dirname, delimiter } from "node:path";
 import { readFile } from "node:fs/promises";
 import { ensureButler } from "./ensure.js";
-import {
-  createAction,
-  createActionRunner,
-  createPathParam,
-  createStringParam,
-  runWithLiveLogs,
-} from "@pipelab/plugin-core";
+import { runWithLiveLogs } from "@pipelab/plugin-core";
+import type { PipelabContext } from "@pipelab/plugin-core";
+import type { WorkflowTask, WorkflowTaskContext } from "@pipelab/workflow-runtime";
 
-export const ID = "itch-upload";
+export const WORKFLOW_TASK_ID = "@pipelab/plugin-itch/itch-upload";
 
 export interface ButlerJSONOutputLog {
   level: "info";
@@ -28,8 +24,9 @@ export interface ButlerJSONOutputProgress {
 
 export const resolveItchUsername = async (apiKey: string): Promise<string> => {
   const response = await fetch(`https://itch.io/api/1/${encodeURIComponent(apiKey)}/me`);
-  if (!response.ok) throw new Error(`Unable to resolve the Itch profile (HTTP ${response.status}).`);
-  const data = await response.json() as { user?: { username?: string } };
+  if (!response.ok)
+    throw new Error(`Unable to resolve the Itch profile (HTTP ${response.status}).`);
+  const data = (await response.json()) as { user?: { username?: string } };
   const username = data.user?.username;
   if (!username) throw new Error("The Itch account does not contain a username.");
   return username;
@@ -37,57 +34,31 @@ export const resolveItchUsername = async (apiKey: string): Promise<string> => {
 
 export type ButlerJSONOutput = ButlerJSONOutputLog | ButlerJSONOutputProgress;
 
-export const uploadToItch = createAction({
-  id: ID,
-  name: "Upload to Itch.io",
-  description: "Upload your build directory to Itch.io.",
-  icon: "",
-  displayString:
-    "`Upload ${fmt.param(params['input-folder'], 'primary', 'No path selected')} to ${fmt.param(params['user'], 'primary', 'No project')}/${fmt.param(params['project'], 'primary', 'No project')}:${fmt.param(params['channel'], 'primary', 'No channel')}`",
-  meta: {},
-  params: {
-    "input-folder": createPathParam("", {
-      required: true,
-      label: "Folder to upload",
-      control: {
-        type: "path",
-        options: {
-          properties: ["openDirectory"],
-        },
-      },
-    }),
-    user: createStringParam("", {
-      required: true,
-      label: "Username",
-    }),
-    project: createStringParam("", {
-      required: true,
-      label: "Project",
-    }),
-    channel: createStringParam("", {
-      required: true,
-      label: "Channel (e.g., windows, mac, web)",
-    }),
-    "api-key": createStringParam("", {
-      required: true,
-      label: "API Key",
-    }),
-  },
-  outputs: {},
-});
+export interface ItchTaskServices {
+  context: PipelabContext;
+}
 
-export const uploadToItchRunner = createActionRunner<typeof uploadToItch>(
-  async ({ log, inputs, abortSignal, context }) => {
-    const runtimeInputs = inputs as typeof inputs & { accountConnectionId?: string };
-    if (runtimeInputs.accountConnectionId && (!inputs.user || !inputs["api-key"])) {
-      const saved = JSON.parse(await readFile(context.getConnectionsPath(), "utf8")) as { connections?: Array<Record<string, unknown>> };
-      const connection = saved.connections?.find((candidate) => candidate.id === runtimeInputs.accountConnectionId);
+export const createItchUploadTask =
+  <TServices extends ItchTaskServices>(services: TServices): WorkflowTask<TServices> =>
+  async (taskContext: WorkflowTaskContext<TServices>) => {
+    const { context } = services;
+    const { inputs, signal, log } = taskContext;
+    const runtimeInputs = { ...inputs };
+    const accountConnectionId = String(runtimeInputs.accountConnectionId || "").trim();
+    if (accountConnectionId && (!runtimeInputs.user || !runtimeInputs["api-key"])) {
+      const saved = JSON.parse(await readFile(context.getConnectionsPath(), "utf8")) as {
+        connections?: Array<Record<string, unknown>>;
+      };
+      const connection = saved.connections?.find(
+        (candidate) => candidate.id === accountConnectionId,
+      );
       if (connection) {
-        (inputs as Record<string, unknown>).user = connection.user || connection.username || "";
-        (inputs as Record<string, unknown>)["api-key"] = connection.apiKey || connection.api_key || "";
+        runtimeInputs.user = connection.user || connection.username || "";
+        runtimeInputs["api-key"] = connection.apiKey || connection.api_key || "";
       }
     }
-    if (!inputs.user && inputs["api-key"]) (inputs as Record<string, unknown>).user = await resolveItchUsername(String(inputs["api-key"]));
+    if (!runtimeInputs.user && runtimeInputs["api-key"])
+      runtimeInputs.user = await resolveItchUsername(String(runtimeInputs["api-key"]));
     const node = context.getNodePath();
     const butlerPath = await ensureButler(context);
 
@@ -97,8 +68,8 @@ export const uploadToItchRunner = createActionRunner<typeof uploadToItch>(
       butlerPath,
       [
         "push",
-        inputs["input-folder"] as string,
-        `${inputs.user as string}/${inputs.project as string}:${inputs.channel as string}`,
+        runtimeInputs["input-folder"] as string,
+        `${runtimeInputs.user as string}/${runtimeInputs.project as string}:${runtimeInputs.channel as string}`,
         "--json",
       ],
       {
@@ -106,9 +77,9 @@ export const uploadToItchRunner = createActionRunner<typeof uploadToItch>(
           ...process.env,
           // DEBUG: '*',
           PATH: `${dirname(node)}${delimiter}${process.env.PATH}`,
-          BUTLER_API_KEY: inputs["api-key"] as string,
+          BUTLER_API_KEY: runtimeInputs["api-key"] as string,
         },
-        cancelSignal: abortSignal,
+        cancelSignal: signal,
       },
       log,
       {
@@ -130,5 +101,4 @@ export const uploadToItchRunner = createActionRunner<typeof uploadToItch>(
     );
 
     log("Uploaded to itch");
-  },
-);
+  };

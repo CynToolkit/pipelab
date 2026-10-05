@@ -1,16 +1,11 @@
 import { dirname, join, resolve, win32 as win32Path } from "node:path";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import {
-  createAction,
-  createActionRunner,
-  createPathParam,
-  createStringParam,
-  ExternalCommandError,
-  runWithLiveLogs,
-} from "@pipelab/plugin-core";
+import { ExternalCommandError, runWithLiveLogs } from "@pipelab/plugin-core";
+import type { PipelabContext } from "@pipelab/plugin-core";
+import type { WorkflowTask, WorkflowTaskContext } from "@pipelab/workflow-runtime";
 import { ensureSteamCmd } from "./ensure";
 
-export const ID = "steam-upload";
+export const WORKFLOW_TASK_ID = "@pipelab/plugin-steam/steam-upload";
 
 export const createSteamLoginArgs = (username: string): string[] => [
   "+@ShutdownOnFailedCommand",
@@ -72,37 +67,19 @@ export const resolveSteamUsername = async (
   return username;
 };
 
-export const uploadToSteam = createAction({
-  id: ID,
-  name: "Upload to Steam",
-  description: "Upload your build directory directly to the Steamworks platform.",
-  icon: "",
-  displayString: "`Upload ${fmt.param(params['folder'], 'primary')} to steam`",
-  meta: {},
-  params: {
-    appId: createStringParam("", { required: true, label: "App ID" }),
-    depotId: createStringParam("", { required: true, label: "Depot ID" }),
-    description: createStringParam("", { required: true, label: "Build Description" }),
-    folder: createPathParam("", {
-      required: true,
-      label: "Folder to upload",
-      control: { type: "path", options: { properties: ["openDirectory"] } },
-    }),
-  },
-  outputs: {
-    "script-path": { label: "Script path", value: "" },
-    "output-folder": { label: "Output folder", value: "" },
-    status: { label: "Status", value: "" },
-  },
-});
+export interface SteamTaskServices {
+  context: PipelabContext;
+}
 
-export const uploadToSteamRunner = createActionRunner<typeof uploadToSteam>(
-  async ({ log, inputs, cwd, abortSignal, setOutput, context }) => {
-    const runtimeInputs = inputs as typeof inputs & { accountConnectionId?: string };
+export const createSteamUploadTask =
+  <TServices extends SteamTaskServices>(services: TServices): WorkflowTask<TServices> =>
+  async (taskContext: WorkflowTaskContext<TServices>) => {
+    const { context } = services;
+    const { log, inputs, workspace, signal } = taskContext;
     const folder = resolve(inputs.folder as string);
     const appId = inputs.appId as string;
     const depotId = inputs.depotId as string;
-    const accountConnectionId = String(runtimeInputs.accountConnectionId || "").trim();
+    const accountConnectionId = String(inputs.accountConnectionId || "").trim();
     if (!accountConnectionId) throw new Error("A Steam account connection is required");
     const username = await resolveSteamUsername(context.getConnectionsPath(), accountConnectionId);
     const description = inputs.description as string;
@@ -110,8 +87,8 @@ export const uploadToSteamRunner = createActionRunner<typeof uploadToSteam>(
     if (!/^\d+$/.test(appId) || !/^\d+$/.test(depotId))
       throw new Error("Steam App ID and Depot ID must contain only digits");
 
-    const steamcmdPath = await ensureSteamCmd(context, log, abortSignal);
-    const steamDir = join(cwd, "steam");
+    const steamcmdPath = await ensureSteamCmd(context, log, signal);
+    const steamDir = join(workspace.root, "steam");
     const buildOutput = join(steamDir, "output");
     const appBuildPath = join(steamDir, "app_build.vdf");
     const depotBuildPath = join(steamDir, `depot_build_${depotId}.vdf`);
@@ -133,7 +110,7 @@ export const uploadToSteamRunner = createActionRunner<typeof uploadToSteam>(
   }
 }
 `,
-      { encoding: "utf8", signal: abortSignal },
+      { encoding: "utf8", signal },
     );
     await writeFile(
       depotBuildPath,
@@ -148,11 +125,10 @@ export const uploadToSteamRunner = createActionRunner<typeof uploadToSteam>(
   }
 }
 `,
-      { encoding: "utf8", signal: abortSignal },
+      { encoding: "utf8", signal },
     );
 
-    setOutput("script-path", appBuildPath);
-    setOutput("output-folder", buildOutput);
+    const outputs = { "script-path": appBuildPath, "output-folder": buildOutput };
 
     let authPrompt = false;
     const streamLog = (data: string, subprocess?: { kill: () => void }) => {
@@ -186,7 +162,7 @@ export const uploadToSteamRunner = createActionRunner<typeof uploadToSteam>(
           onStdout: (data, subprocess) => streamLog(data, subprocess),
           onStderr: (data, subprocess) => streamLog(data, subprocess),
         },
-        abortSignal,
+        signal,
       );
 
     try {
@@ -194,8 +170,7 @@ export const uploadToSteamRunner = createActionRunner<typeof uploadToSteam>(
       await runSteamCommand(createSteamLoginArgs(username));
       if (authPrompt) throw new Error("SteamCMD requires an interactive login");
     } catch (error) {
-      if (abortSignal?.aborted || (error instanceof Error && error.name === "AbortError"))
-        throw error;
+      if (signal.aborted || (error instanceof Error && error.name === "AbortError")) throw error;
       const reason = error instanceof Error ? error.message : String(error);
       throw new Error(
         `SteamCMD could not reuse the saved login for ${username}. Run this command in a terminal to authenticate the same SteamCMD installation, then retry:\n\n${manualLoginCommand}\n\n${reason}`,
@@ -207,8 +182,7 @@ export const uploadToSteamRunner = createActionRunner<typeof uploadToSteam>(
       await runSteamCommand(createSteamUploadArgs(username, appBuildPath));
       if (authPrompt) throw new Error("SteamCMD requires an interactive login");
     } catch (error) {
-      if (abortSignal?.aborted || (error instanceof Error && error.name === "AbortError"))
-        throw error;
+      if (signal.aborted || (error instanceof Error && error.name === "AbortError")) throw error;
       if (authPrompt) {
         const reason = error instanceof Error ? error.message : String(error);
         throw new Error(
@@ -223,7 +197,6 @@ export const uploadToSteamRunner = createActionRunner<typeof uploadToSteam>(
       throw new Error(`SteamCMD upload failed: ${message}`);
     }
 
-    setOutput("status", "success");
     log("Done uploading");
-  },
-);
+    return { ...outputs, status: "success" };
+  };

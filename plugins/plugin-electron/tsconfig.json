@@ -16,6 +16,9 @@
     },
     {
       "path": "../../packages/shared"
+    },
+    {
+      "path": "../../packages/workflow-runtime"
     }
   ]
 }

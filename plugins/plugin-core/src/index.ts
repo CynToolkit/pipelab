@@ -1,5 +1,4 @@
 export * from "./pipelab";
-export * from "./create-plugin";
 export * from "./utils";
 export * from "./fs-utils";
 export * from "./archive-utils";

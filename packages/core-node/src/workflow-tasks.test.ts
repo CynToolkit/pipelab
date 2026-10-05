@@ -1,52 +1,31 @@
 import { describe, expect, it, vi } from "vitest";
 import { CORE_WORKFLOW_TASKS } from "@pipelab/workflow-runtime";
-import { createWorkflowActionTask, createPipelabWorkflowTasks } from "./workflow-tasks";
-import { workflowTaskRunners } from "./workflow-tasks/registry";
+import {
+  createPipelabWorkflowTasks,
+  createWorkflowTaskRegistry,
+  type PipelabPluginServices,
+} from "./workflow-tasks";
+import { workflowTaskFactories } from "./workflow-tasks/registry";
+import { PipelabContext } from "./context";
 
-describe("workflow plugin task adapter", () => {
-  it("adapts a plugin runner and declared artifact output", async () => {
-    const setArtifact = vi.fn();
-    const task = createWorkflowActionTask(
-      async ({ setOutput }) => {
-        setOutput("output", "/tmp/build");
-      },
-      { context: {} as never, paths: {} as never },
-    );
-    await task({
-      step: {
-        id: "build",
-        uses: "fake/build",
-        artifacts: { output: { descriptor: { kind: "application", container: "directory" } } },
-      },
-      inputs: {},
-      workspace: { root: "/tmp" },
-      filesystem: { ensureDirectory: async () => undefined },
-      processes: {} as never,
-      logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
-      signal: new AbortController().signal,
-      log: vi.fn(),
-      logStream: vi.fn(),
-      setArtifact,
-    } as never);
-    expect(setArtifact).toHaveBeenCalledWith("output", "/tmp/build");
-  });
+const services: PipelabPluginServices = {
+  context: new PipelabContext({ userDataPath: "/tmp/pipelab-workflow-task-test" }),
+  executables: { node: "/node", pnpm: "/pnpm" },
+  workflowCachePath: "/cache/workflow",
+};
 
-  it("registers explicit plugin runners under their stable task IDs", () => {
-    const runner = vi.fn();
-    const tasks = createPipelabWorkflowTasks(
-      { context: {} as never, paths: {} as never },
-      {
-        "@example/plugin/build": runner,
-      },
-    );
+describe("workflow plugin task registry", () => {
+  it("registers plugin tasks under their stable task IDs", () => {
+    const task = vi.fn(async () => ({ ready: true }));
+    const tasks = createPipelabWorkflowTasks(services, { "@example/plugin/build": task });
 
     expect(tasks["@example/plugin/build"]).toBeTypeOf("function");
   });
 
   it("registers every task ID emitted by the built-in Release providers", () => {
     const tasks = createPipelabWorkflowTasks(
-      { context: {} as never, paths: {} as never },
-      workflowTaskRunners,
+      services,
+      createWorkflowTaskRegistry(workflowTaskFactories, services),
     );
 
     for (const uses of [

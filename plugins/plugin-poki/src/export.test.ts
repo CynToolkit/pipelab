@@ -1,28 +1,47 @@
 import { expect, test, describe, afterEach, vi } from "vitest";
-import { uploadToPokiRunner, POKI_CLI_VERSION } from "./export.js";
-import { mkdir, writeFile, readFile, access, readdir } from "node:fs/promises";
-import { join, dirname } from "node:path";
-import { fileURLToPath } from "node:url";
-import { createSandbox, runAction } from "@pipelab/test-utils";
+import { createPokiUploadTask, POKI_CLI_VERSION } from "./export.js";
+import { mkdir, writeFile, readFile, access, readdir, mkdtemp } from "node:fs/promises";
+import { join } from "node:path";
+import { createSandbox, runWorkflowTask } from "@pipelab/test-utils";
 import { SandboxFolder } from "@pipelab/constants";
 import pokiPlugin from "./index.js";
+import { fetchPackage, type PipelabContext } from "@pipelab/plugin-core";
+import type { PokiTaskServices } from "./export.js";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+vi.mock("@pipelab/plugin-core", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@pipelab/plugin-core")>();
+  return { ...actual, fetchPackage: vi.fn() };
+});
 
 test("does not expose an unsupported Poki API token connection", () => {
   expect("integrations" in pokiPlugin).toBe(false);
 });
 
-describe("End-to-End: Poki Upload Action", () => {
+describe("End-to-End: Poki Upload Workflow task", () => {
   let sandbox: Awaited<ReturnType<typeof createSandbox>>;
 
   afterEach(async () => {
     vi.unstubAllEnvs();
+    vi.mocked(fetchPackage).mockReset();
     if (sandbox) {
       await sandbox.remove();
     }
   });
+
+  const servicesFor = (sandboxPath: string): PokiTaskServices => {
+    const thirdparty = join(sandboxPath, "user-data", "thirdparty");
+    const tempRoot = join(sandboxPath, "user-data", "temp");
+    return {
+      context: {
+        getThirdPartyPath: () => thirdparty,
+        createTempFolder: async (prefix = "pipelab-") => {
+          await mkdir(tempRoot, { recursive: true });
+          return mkdtemp(join(tempRoot, prefix));
+        },
+      } as unknown as PipelabContext,
+      executables: { node: process.execPath },
+    };
+  };
 
   test(
     "should upload to poki using mocked CLI",
@@ -33,22 +52,15 @@ describe("End-to-End: Poki Upload Action", () => {
 
       // Seed dummy input assets
       await writeFile(join(paths.input, "index.html"), "<html><body>Test</body></html>");
-      const authDir = join(sandbox.path, SandboxFolder.ThirdParty, "poki");
+      const authDir = join(sandbox.path, "user-data", SandboxFolder.ThirdParty, "poki");
       await mkdir(authDir, { recursive: true });
       await writeFile(join(authDir, "auth.json"), JSON.stringify({ access_type: "Bearer" }));
 
       // 2. Pre-seed a mock Poki CLI to avoid downloads and network issues
       // Path matches new flat fetchPackage structure
-      const relativePokiBin = join(
-        "user-data",
-        "packages",
-        "@poki/cli",
-        POKI_CLI_VERSION,
-        "bin",
-        "index.js",
-      );
+      const pokiDir = join(sandbox.path, "mock-poki-cli");
       await sandbox.mockBinary(
-        relativePokiBin,
+        join("mock-poki-cli", "bin", "index.js"),
         `
         const fs = require('fs');
         const path = require('path');
@@ -64,26 +76,27 @@ describe("End-to-End: Poki Upload Action", () => {
         process.exit(0);
         `,
       );
-      // Pre-seed node_modules and package.json to skip installation or allow pnpm to run
-      const pokiDir = join(sandbox.path, "user-data", "packages", "@poki/cli", POKI_CLI_VERSION);
-      await mkdir(pokiDir, { recursive: true });
-      await writeFile(
-        join(pokiDir, "package.json"),
-        JSON.stringify({ name: "@poki/cli", version: POKI_CLI_VERSION }),
-      );
-      await mkdir(join(pokiDir, "node_modules"), { recursive: true });
-      await writeFile(join(pokiDir, "node_modules", ".keep"), "");
+      vi.mocked(fetchPackage).mockResolvedValue({ packageDir: pokiDir } as Awaited<
+        ReturnType<typeof fetchPackage>
+      >);
 
       // 3. Run the upload task
       try {
-        await runAction(uploadToPokiRunner, {
+        const services = servicesFor(sandbox.path);
+        const result = await runWorkflowTask(createPokiUploadTask(services), {
           inputs: {
             "input-folder": paths.input,
             project: "poki-game-123",
             name: "release-v1",
             notes: "E2E test notes",
           },
-          sandboxPath: sandbox.path,
+          workspacePath: sandbox.path,
+          services,
+        });
+        expect(result.result.steps.task.status).toBe("completed");
+        expect(fetchPackage).toHaveBeenCalledWith("@poki/cli", POKI_CLI_VERSION, {
+          context: services.context,
+          installDeps: true,
         });
       } catch (e: any) {
         console.error("Execution failed:", e.message);
@@ -108,7 +121,7 @@ describe("End-to-End: Poki Upload Action", () => {
       const mockEnvPath = join(tempUploadFolder, "mock-env.json");
       await expect(access(mockEnvPath)).resolves.not.toThrow();
       const mockEnv = JSON.parse(await readFile(mockEnvPath, "utf-8"));
-      const expectedSandboxConfigDir = join(sandbox.path, SandboxFolder.ThirdParty);
+      const expectedSandboxConfigDir = join(sandbox.path, "user-data", SandboxFolder.ThirdParty);
       expect(mockEnv.XDG_CONFIG_HOME).toBe(expectedSandboxConfigDir);
       expect(mockEnv.LOCALAPPDATA).toBe(expectedSandboxConfigDir);
 
@@ -131,35 +144,25 @@ describe("End-to-End: Poki Upload Action", () => {
     sandbox = await createSandbox("poki-no-auth");
     await writeFile(join(sandbox.paths.input, "index.html"), "<html></html>");
     const browserAttemptPath = join(sandbox.path, "poki-browser-auth-attempted");
-    const relativePokiBin = join(
-      "user-data",
-      "packages",
-      "@poki/cli",
-      POKI_CLI_VERSION,
-      "bin",
-      "index.js",
-    );
+    const pokiDir = join(sandbox.path, "mock-poki-cli");
     await sandbox.mockBinary(
-      relativePokiBin,
+      join("mock-poki-cli", "bin", "index.js"),
       `require("node:fs").writeFileSync(${JSON.stringify(browserAttemptPath)}, "attempted");`,
     );
-    const pokiDir = join(sandbox.path, "user-data", "packages", "@poki/cli", POKI_CLI_VERSION);
-    await mkdir(join(pokiDir, "node_modules"), { recursive: true });
-    await writeFile(
-      join(pokiDir, "package.json"),
-      JSON.stringify({ name: "@poki/cli", version: POKI_CLI_VERSION }),
-    );
-    await writeFile(join(pokiDir, "node_modules", ".keep"), "");
+    vi.mocked(fetchPackage).mockResolvedValue({ packageDir: pokiDir } as Awaited<
+      ReturnType<typeof fetchPackage>
+    >);
 
     await expect(
-      runAction(uploadToPokiRunner, {
+      runWorkflowTask(createPokiUploadTask(servicesFor(sandbox.path)), {
         inputs: {
           "input-folder": sandbox.paths.input,
           project: "poki-game-123",
           name: "release-v1",
           notes: "test notes",
         },
-        sandboxPath: sandbox.path,
+        workspacePath: sandbox.path,
+        services: servicesFor(sandbox.path),
       }),
     ).rejects.toThrow("pipelab settings integrations poki login");
     await expect(access(browserAttemptPath)).rejects.toThrow();
@@ -168,39 +171,29 @@ describe("End-to-End: Poki Upload Action", () => {
   test("reports CLI authentication errors even when it exits successfully", async () => {
     sandbox = await createSandbox("poki-cli-auth-error");
     await writeFile(join(sandbox.paths.input, "index.html"), "<html></html>");
-    const authDir = join(sandbox.path, SandboxFolder.ThirdParty, "poki");
+    const authDir = join(sandbox.path, "user-data", SandboxFolder.ThirdParty, "poki");
     await mkdir(authDir, { recursive: true });
     await writeFile(join(authDir, "auth.json"), JSON.stringify({ access_type: "Bearer" }));
 
-    const relativePokiBin = join(
-      "user-data",
-      "packages",
-      "@poki/cli",
-      POKI_CLI_VERSION,
-      "bin",
-      "index.js",
-    );
+    const pokiDir = join(sandbox.path, "mock-poki-cli");
     await sandbox.mockBinary(
-      relativePokiBin,
+      join("mock-poki-cli", "bin", "index.js"),
       `console.error('Error: {"statusCode":401,"data":"Unauthorized"}');\nprocess.exit(0);`,
     );
-    const pokiDir = join(sandbox.path, "user-data", "packages", "@poki/cli", POKI_CLI_VERSION);
-    await mkdir(join(pokiDir, "node_modules"), { recursive: true });
-    await writeFile(
-      join(pokiDir, "package.json"),
-      JSON.stringify({ name: "@poki/cli", version: POKI_CLI_VERSION }),
-    );
-    await writeFile(join(pokiDir, "node_modules", ".keep"), "");
+    vi.mocked(fetchPackage).mockResolvedValue({ packageDir: pokiDir } as Awaited<
+      ReturnType<typeof fetchPackage>
+    >);
 
     await expect(
-      runAction(uploadToPokiRunner, {
+      runWorkflowTask(createPokiUploadTask(servicesFor(sandbox.path)), {
         inputs: {
           "input-folder": sandbox.paths.input,
           project: "poki-game-123",
           name: "release-v1",
           notes: "test notes",
         },
-        sandboxPath: sandbox.path,
+        workspacePath: sandbox.path,
+        services: servicesFor(sandbox.path),
       }),
     ).rejects.toThrow("Poki rejected the cached authentication or denied access to this game.");
   });

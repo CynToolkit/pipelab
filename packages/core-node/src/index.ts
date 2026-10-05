@@ -15,7 +15,6 @@ export * from "./heavy";
 export * from "./plugins-registry";
 export * from "./utils/remote";
 export * from "./utils/fs-extras";
-export * from "./types/runner";
 export * from "./workflow-tasks";
 export * from "./workflow-tasks/filesystem";
 export * from "./release/builtins";

@@ -8,7 +8,7 @@ import {
   createSteamUploadArgs,
   resolveSteamUsername,
 } from "./upload-to-steam";
-import plugin, { steamDestination, workflowTaskRunners } from "./index";
+import plugin, { createSteamUploadTask, steamDestination, WORKFLOW_TASK_ID } from "./index";
 
 describe("Steam release credentials", () => {
   it("keeps its Release destination and task without legacy node metadata", () => {
@@ -16,7 +16,8 @@ describe("Steam release credentials", () => {
     expect(plugin.release?.destinations?.map((destination) => destination.id)).toContain(
       steamDestination.id,
     );
-    expect(Object.keys(workflowTaskRunners)).toEqual(["@pipelab/plugin-steam/steam-upload"]);
+    expect(createSteamUploadTask).toBeTypeOf("function");
+    expect(WORKFLOW_TASK_ID).toBe("@pipelab/plugin-steam/steam-upload");
   });
 
   it("reports destination field paths", () => {

@@ -1,11 +1,9 @@
-import { uploadToItchRunner } from "./export";
+import { createItchUploadTask, WORKFLOW_TASK_ID } from "./export";
 
 import { createDefinition } from "@pipelab/plugin-core";
 import type { ReleaseDestinationDefinition } from "@pipelab/shared";
 
-export const workflowTaskRunners = {
-  "@pipelab/plugin-itch/itch-upload": uploadToItchRunner,
-};
+export { createItchUploadTask, WORKFLOW_TASK_ID };
 
 export const itchDestination: ReleaseDestinationDefinition = {
   id: "@pipelab/plugin-itch/destination",
@@ -56,7 +54,7 @@ export const itchDestination: ReleaseDestinationDefinition = {
   compile: (artifact, destination, slot) => [
     {
       id: `itch-${destination.id}-${slot.id}`,
-      uses: "@pipelab/plugin-itch/itch-upload",
+      uses: WORKFLOW_TASK_ID,
       needs: [artifact.reference.stepId],
       artifactInputs: { "input-folder": artifact.reference },
       with: { ...destination.config, ...slot.config },

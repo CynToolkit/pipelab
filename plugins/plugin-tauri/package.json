@@ -38,12 +38,14 @@
     "@pipelab/constants": "workspace:*",
     "@pipelab/plugin-core": "workspace:*",
     "@pipelab/shared": "workspace:*",
+    "@pipelab/workflow-runtime": "workspace:*",
     "@types/node": "^24.12.2",
     "electron": "39.8.10",
     "execa": "9.4.1",
     "ts-deepmerge": "7.0.1"
   },
   "devDependencies": {
+    "@pipelab/test-utils": "workspace:*",
     "@pipelab/tsconfig": "workspace:*",
     "tsdown": "0.21.2",
     "typescript": "5.9.3",

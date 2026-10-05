@@ -1,11 +1,8 @@
 /// <reference path="./declarations.d.ts" />
 import { createDefinition } from "@pipelab/plugin-core";
-import { packageV2Runner } from "./package";
 import type { ReleaseProducerDefinition } from "@pipelab/shared";
 
-export const workflowTaskRunners = {
-  "@pipelab/plugin-tauri/tauri:package:v2": packageV2Runner,
-};
+export { tauriWorkflowTaskFactories } from "./package";
 
 export const tauriTargetInputs = (
   targetId: string,

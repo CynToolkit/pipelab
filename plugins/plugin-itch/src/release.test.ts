@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { resolveItchUsername } from "./export";
-import plugin, { itchDestination, workflowTaskRunners } from "./index";
+import plugin, { createItchUploadTask, itchDestination, WORKFLOW_TASK_ID } from "./index";
 
 describe("Itch release credentials", () => {
   it("keeps its Release destination and task without legacy node metadata", () => {
@@ -8,7 +8,8 @@ describe("Itch release credentials", () => {
     expect(plugin.release?.destinations?.map((destination) => destination.id)).toContain(
       itchDestination.id,
     );
-    expect(Object.keys(workflowTaskRunners)).toEqual(["@pipelab/plugin-itch/itch-upload"]);
+    expect(createItchUploadTask).toBeTypeOf("function");
+    expect(WORKFLOW_TASK_ID).toBe("@pipelab/plugin-itch/itch-upload");
   });
 
   it("resolves the username from the Itch profile endpoint", async () => {

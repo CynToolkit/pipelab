@@ -28,8 +28,7 @@
     "lint": "oxlint ."
   },
   "dependencies": {
-    "@pipelab/core-node": "workspace:*",
-    "@pipelab/plugin-core": "workspace:*",
+    "@pipelab/workflow-runtime": "workspace:*",
     "execa": "9.5.1"
   },
   "devDependencies": {

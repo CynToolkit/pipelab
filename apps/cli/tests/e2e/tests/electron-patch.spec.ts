@@ -1,12 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { createSandbox, runAction } from "@pipelab/test-utils";
+import { createSandbox, runWorkflowTask } from "@pipelab/test-utils";
+import { PipelabContext } from "@pipelab/core-node";
 import { runWithLiveLogs, resolveBundledAsset } from "@pipelab/plugin-core";
-import { configureParams } from "../../../../../plugins/plugin-electron/src/forge";
-import { packageV2Runner } from "../../../../../plugins/plugin-electron/src/package-v2";
-import { packageRunner } from "../../../../../plugins/plugin-electron/src/package";
-import { makeRunner } from "../../../../../plugins/plugin-electron/src/make";
+import {
+  electronPackageWorkflowTaskFactory,
+  type ElectronWorkflowTaskServices,
+} from "../../../../../plugins/plugin-electron/src/package-v2";
+import { forge } from "../../../../../plugins/plugin-electron/src/forge";
 import { defaultElectronConfig } from "../../../../../plugins/plugin-electron/src/utils";
 import { patchExecutableWithGpupatch } from "../../../../../plugins/plugin-electron/src/gpupatch";
 
@@ -50,24 +52,41 @@ afterEach(async () => {
 });
 
 describe("Electron patch option in the CLI host", () => {
-  it("exposes an opt-in checkbox restricted to Windows", () => {
-    expect(defaultElectronConfig.patchExecutable).toBe(false);
-    expect(configureParams.patchExecutable).toMatchObject({
-      label: "Patch executable",
-      platforms: ["win32"],
-      value: false,
+  const runPackage = (inputs: Record<string, unknown>) => {
+    const services = {
+      context: new PipelabContext({ userDataPath: join(sandbox.path, "user-data") }),
+      executables: { node: process.execPath, pnpm: "pnpm" },
+      workflowCachePath: join(sandbox.path, "cache"),
+    } satisfies ElectronWorkflowTaskServices;
+
+    return runWorkflowTask(electronPackageWorkflowTaskFactory(services), {
+      workspacePath: sandbox.path,
+      inputs,
+      services,
+      artifacts: {
+        "electron-build": {
+          descriptor: {
+            kind: "application",
+            technology: "electron",
+            platform: "windows",
+            architecture: "x64",
+            container: "directory",
+          },
+        },
+      },
     });
+  };
+
+  it("keeps executable patching opt-in by default", () => {
+    expect(defaultElectronConfig.patchExecutable).toBe(false);
   });
   it("patches the staged Windows target and publishes the patched copy", async () => {
-    const result = await runAction(packageV2Runner, {
-      sandboxPath: sandbox.path,
-      inputs: {
-        "input-folder": sandbox.paths.input,
-        platform: "win32",
-        arch: "x64",
-        name: "My Game",
-        patchExecutable: true,
-      },
+    const result = await runPackage({
+      "input-folder": sandbox.paths.input,
+      platform: "win32",
+      arch: "x64",
+      name: "My Game",
+      patchExecutable: true,
     });
     expect(patchExecutableWithGpupatch).toHaveBeenCalledWith(
       expect.stringMatching(/My Game-win32-x64[/\\]My Game\.exe$/),
@@ -79,42 +98,24 @@ describe("Electron patch option in the CLI host", () => {
       "patched",
     );
   });
-  it("accepts the option through Package app's JSON configuration", async () => {
-    await runAction(packageRunner, {
-      sandboxPath: sandbox.path,
-      inputs: {
-        "input-folder": sandbox.paths.input,
-        platform: "win32",
-        arch: "x64",
-        configuration: { name: "My Game", patchExecutable: true },
-      },
-    });
-    expect(patchExecutableWithGpupatch).toHaveBeenCalledTimes(1);
-  });
   it("keeps existing omitted configuration disabled", async () => {
-    await runAction(packageV2Runner, {
-      sandboxPath: sandbox.path,
-      inputs: {
-        "input-folder": sandbox.paths.input,
-        platform: "win32",
-        arch: "x64",
-        name: "My Game",
-      },
+    await runPackage({
+      "input-folder": sandbox.paths.input,
+      platform: "win32",
+      arch: "x64",
+      name: "My Game",
     });
     expect(patchExecutableWithGpupatch).not.toHaveBeenCalled();
   });
   it("stops before copying output when patching fails", async () => {
     vi.mocked(patchExecutableWithGpupatch).mockRejectedValueOnce(new Error("patch failed"));
     await expect(
-      runAction(packageV2Runner, {
-        sandboxPath: sandbox.path,
-        inputs: {
-          "input-folder": sandbox.paths.input,
-          platform: "win32",
-          arch: "x64",
-          name: "My Game",
-          patchExecutable: true,
-        },
+      runPackage({
+        "input-folder": sandbox.paths.input,
+        platform: "win32",
+        arch: "x64",
+        name: "My Game",
+        patchExecutable: true,
       }),
     ).rejects.toThrow("patch failed");
     await expect(access(join(sandbox.path, "out"))).rejects.toThrow();
@@ -122,29 +123,32 @@ describe("Electron patch option in the CLI host", () => {
   it("does not invoke patching after Forge fails", async () => {
     vi.mocked(runWithLiveLogs).mockRejectedValueOnce(new Error("forge failed"));
     await expect(
-      runAction(packageV2Runner, {
-        sandboxPath: sandbox.path,
-        inputs: {
-          "input-folder": sandbox.paths.input,
-          platform: "win32",
-          arch: "x64",
-          name: "My Game",
-          patchExecutable: true,
-        },
+      runPackage({
+        "input-folder": sandbox.paths.input,
+        platform: "win32",
+        arch: "x64",
+        name: "My Game",
+        patchExecutable: true,
       }),
     ).rejects.toThrow("forge failed");
     expect(patchExecutableWithGpupatch).not.toHaveBeenCalled();
   });
-  it("does not patch Create installer", async () => {
-    await runAction(makeRunner, {
-      sandboxPath: sandbox.path,
-      inputs: {
-        "input-folder": sandbox.paths.input,
-        platform: "win32",
-        arch: "x64",
-        configuration: { name: "My Game", patchExecutable: true },
+  it("does not patch the installer output", async () => {
+    const context = new PipelabContext({ userDataPath: join(sandbox.path, "user-data") });
+    await forge(
+      "make",
+      sandbox.paths.input,
+      {
+        cwd: sandbox.path,
+        log: () => undefined,
+        inputs: { platform: "win32", arch: "x64" },
+        paths: { node: process.execPath, pnpm: "pnpm" },
+        abortSignal: new AbortController().signal,
+        context,
+        setArtifact: () => undefined,
       },
-    });
+      { ...defaultElectronConfig, name: "My Game", patchExecutable: true },
+    );
     expect(patchExecutableWithGpupatch).not.toHaveBeenCalled();
   });
 });
