@@ -9,8 +9,6 @@ import {
   HandleListenerRendererSendFn,
   HandleListenerRenderer as BaseHandleListenerRenderer,
 } from "@pipelab/shared";
-export { usePluginAPI } from "@pipelab/shared";
-export type { UseMainAPI, ListenerMain } from "@pipelab/shared";
 
 export type {
   UpdateStatus,

@@ -3,7 +3,7 @@ import { CORE_WORKFLOW_TASKS } from "@pipelab/workflow-runtime";
 import {
   createPipelabWorkflowTasks,
   createWorkflowTaskRegistry,
-  type PipelabPluginServices,
+  type ProviderServices,
 } from "./workflow-tasks";
 import {
   createBuiltInWorkflowTaskFactories,
@@ -12,7 +12,7 @@ import {
 import { builtInProviders } from "./providers-registry";
 import { PipelabContext } from "./context";
 
-const services: PipelabPluginServices = {
+const services: ProviderServices = {
   context: new PipelabContext({ userDataPath: "/tmp/pipelab-workflow-task-test" }),
   executables: { node: "/node", pnpm: "/pnpm" },
   workflowCachePath: "/cache/workflow",

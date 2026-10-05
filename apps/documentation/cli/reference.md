@@ -23,15 +23,15 @@ The root command accepts `--version` and `--help`; calling `pipelab` without a s
 pipelab serve
 ```
 
-Starts the standalone HTTP/WebSocket server used by the UI and plugin handlers.
+Starts the standalone HTTP/WebSocket server used by the UI and provider handlers.
 
-| Option | Default | Behavior |
-| --- | --- | --- |
-| `-p, --port <port>` | `33753` | Port to listen on. |
-| `--host <host>` | `127.0.0.1` | Interface to bind. |
-| `--auth-token <token>` | `PIPELAB_AUTH_TOKEN`, if set | Bearer token for non-loopback access. |
-| `--allowed-origin <origin>` | — | Adds one browser origin to the built-in localhost development origins. This option is not registered as repeatable. |
-| `--user-data <path>` | Platform default | Use a custom user-data directory. |
+| Option                      | Default                      | Behavior                                                                                                            |
+| --------------------------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `-p, --port <port>`         | `33753`                      | Port to listen on.                                                                                                  |
+| `--host <host>`             | `127.0.0.1`                  | Interface to bind.                                                                                                  |
+| `--auth-token <token>`      | `PIPELAB_AUTH_TOKEN`, if set | Bearer token for non-loopback access.                                                                               |
+| `--allowed-origin <origin>` | —                            | Adds one browser origin to the built-in localhost development origins. This option is not registered as repeatable. |
+| `--user-data <path>`        | Platform default             | Use a custom user-data directory.                                                                                   |
 
 The default is loopback-only. In production, non-loopback access requires a token; development has separate origin checks. Development requests are redirected to the UI dev server; production serves bundled UI assets, which must be present in the CLI bundle. See [architecture](/guide/architecture) for the desktop/server boundary.
 
@@ -43,13 +43,13 @@ pipelab workflow run <id-or-name>
 
 Loads a saved Release workflow by ID or unique name and executes its compiled task workflow. The `workflows` group alias is accepted.
 
-| Option | Behavior |
-| --- | --- |
-| `--user-data <path>` | Use a custom user-data directory. |
-| `-o, --output <path>` | Write the run result JSON; with `--dry-run`, write the prepared config and plan instead. |
-| `--dry-run` | Validate and prepare the workflow without executing deployment tasks. |
-| `--fail-on-error` | Exit nonzero if the workflow completes with errors. |
-| `-v, --verbose` | Registered with the description “Show workflow logs after completion”; the current command handler does not read this option, so it has no additional effect. |
+| Option                | Behavior                                                                                                                                                      |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--user-data <path>`  | Use a custom user-data directory.                                                                                                                             |
+| `-o, --output <path>` | Write the run result JSON; with `--dry-run`, write the prepared config and plan instead.                                                                      |
+| `--dry-run`           | Validate and prepare the workflow without executing deployment tasks.                                                                                         |
+| `--fail-on-error`     | Exit nonzero if the workflow completes with errors.                                                                                                           |
+| `-v, --verbose`       | Registered with the description “Show workflow logs after completion”; the current command handler does not read this option, so it has no additional effect. |
 
 Examples exercised by the CLI E2E suite:
 

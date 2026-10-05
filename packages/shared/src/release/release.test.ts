@@ -11,12 +11,12 @@ import {
   validateRelease,
   validateReleaseConnectionReferences,
   validateReleaseConfigShape,
-  type MainPluginDefinition,
+  type ProviderDefinition,
   type ReleaseConfig,
   type ReleaseRegistry,
 } from "../index";
 
-const fakePlugin = (id: string): MainPluginDefinition => ({
+const fakePlugin = (id: string): ProviderDefinition => ({
   id,
   packageName: id,
   name: id,

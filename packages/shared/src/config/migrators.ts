@@ -16,22 +16,11 @@ import {
   AppConfigV5,
   AppConfigV6,
   AppConfigV7,
+  AppConfigV8,
   ConnectionsConfig,
   ConnectionsConfigV1,
 } from "../config.schema";
 
-const DEFAULT_PLUGINS: AppConfig["plugins"] = [
-  {
-    name: "@pipelab/plugin-construct",
-    enabled: true,
-    description: "Construct 3 export & packaging",
-  },
-  { name: "@pipelab/plugin-steam", enabled: true, description: "Steam publishing" },
-  { name: "@pipelab/plugin-itch", enabled: true, description: "Itch.io publishing" },
-  { name: "@pipelab/plugin-electron", enabled: true, description: "Electron packaging" },
-  { name: "@pipelab/plugin-poki", enabled: true, description: "Poki publishing" },
-  { name: "@pipelab/plugin-tauri", enabled: true, description: "Tauri packaging" },
-];
 import { FileRepoV1, FileRepoV2, FileRepoV3, FileRepoV4, FileRepo } from "./projects-types";
 
 // --- Types ---
@@ -55,7 +44,7 @@ const settingsMigratorInternal = createMigrator<AppConfigV1, AppConfig>();
 export const defaultAppSettings = settingsMigratorInternal.createDefault({
   locale: "en-US",
   theme: "light",
-  version: "7.0.0",
+  version: "8.0.0",
   autosave: true,
   agents: [],
   tours: {
@@ -68,7 +57,6 @@ export const defaultAppSettings = settingsMigratorInternal.createDefault({
       completed: false,
     },
   },
-  plugins: DEFAULT_PLUGINS,
 });
 
 export const appSettingsMigrator = settingsMigratorInternal.createMigrations({
@@ -125,12 +113,16 @@ export const appSettingsMigrator = settingsMigratorInternal.createMigrations({
           ...rest,
           cacheFolder,
           agents: [],
-          plugins: DEFAULT_PLUGINS,
+          plugins: [],
         };
       },
     }),
-    createMigration<AppConfigV7, never>({
+    createMigration<AppConfigV7, AppConfigV8>({
       version: "7.0.0" as SemVer,
+      up: ({ plugins: _, ...state }) => state,
+    }),
+    createMigration<AppConfigV8, never>({
+      version: "8.0.0" as SemVer,
       up: finalVersion,
     }),
   ],

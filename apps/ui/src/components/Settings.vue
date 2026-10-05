@@ -341,11 +341,11 @@
           <div class="setting-item flex-column align-items-stretch">
             <div class="setting-content mb-2">
               <span class="setting-title">{{
-                t("settings.plugin-cache-folder", "Plugin Cache Folder")
+                t("settings.package-cache-folder", "Package Cache Folder")
               }}</span>
               <span class="setting-description">
-                Change the directory where downloaded plugins and dependencies are cached. Leave
-                blank to use default workspace storage.
+                Change the directory where downloaded dependencies are cached. Leave blank to use
+                default workspace storage.
               </span>
             </div>
             <div class="flex gap-2 align-items-center">
@@ -695,7 +695,7 @@
       <div v-if="currentSection === 'team'" class="settings-panel">
         <div class="section-header">
           <h3>Team Management</h3>
-              <p class="description">Collaborate with other developers on your Release workflows.</p>
+          <p class="description">Collaborate with other developers on your Release workflows.</p>
         </div>
 
         <div
@@ -716,7 +716,6 @@
 <script lang="ts" setup>
 import { computed, ref, onMounted, toRaw, watch, inject } from "vue";
 import { useAppSettings } from "@renderer/store/settings";
-import { useAppStore } from "@renderer/store/app";
 import { storeToRefs } from "pinia";
 import Button from "primevue/button";
 import Card from "primevue/card";
@@ -744,7 +743,6 @@ const { t, locale } = useI18n<{ message: MessageSchema }, Locales>();
 
 const confirm = useConfirm();
 const appSettings = useAppSettings();
-const appStore = useAppStore();
 const authStore = useAuth();
 const buildHistoryStore = useBuildHistory();
 const api = useAPI();
@@ -809,7 +807,6 @@ const resetTempFolder = () => {
 };
 
 const { settings: settingsRef } = storeToRefs(appSettings);
-const { pluginDefinitions } = storeToRefs(appStore);
 const { subscriptions, user } = storeToRefs(authStore);
 const { storageInfo } = storeToRefs(buildHistoryStore);
 
@@ -1012,219 +1009,11 @@ const copyToClipboard = (text: string) => {
   });
 };
 
-const searchQuery = ref("");
-const searchingRegistry = ref(false);
-const registryResults = ref<any[]>([]);
-const loadingPlugins = ref<Record<string, boolean>>({});
-
-// [DISABLED] Registry search is disabled in bundled mode.
-// Re-enable: uncomment + restore the plugin:search API call.
-// watchDebounced(
-//   searchQuery,
-//   async (newQuery) => {
-//     const q = newQuery.trim();
-//     if (!q) {
-//       registryResults.value = [];
-//       return;
-//     }
-//     searchingRegistry.value = true;
-//     try {
-//       const res = await api.execute("plugin:search", { query: q });
-//       if (res.type === "success") {
-//         registryResults.value = res.result.results;
-//       }
-//     } catch (e) {
-//       console.error("Registry search error:", e);
-//     } finally {
-//       searchingRegistry.value = false;
-//     }
-//   },
-//   { debounce: 500 },
-// );
-
-const isInstalled = (packageName: string) => {
-  return (settingsRef.value?.plugins || []).some((p) => p.name === packageName);
-};
-
-// [DISABLED] Plugin install is disabled in bundled mode.
-// Re-enable: uncomment + restore the plugin:install API call.
-// const installPlugin = async (packageName: string, description = "") => {
-//   loadingPlugins.value[packageName] = true;
-//   try {
-//     toast.add({ severity: "info", summary: "Installing plugin", detail: `Downloading and installing ${packageName}...`, life: 3000 });
-//     const res = await api.execute("plugin:install", { packageName, version: "latest" });
-//     if (res.type === "success") {
-//       const currentPlugins = [...(settingsRef.value?.plugins || [])];
-//       if (!currentPlugins.some((p) => p.name === packageName)) {
-//         currentPlugins.push({ name: packageName, enabled: true, description: description || "Community plugin" });
-//         await appSettings.updateSettings({ ...toRaw(settingsRef.value) as any, plugins: currentPlugins });
-//       }
-//       toast.add({ severity: "success", summary: "Plugin installed", detail: `${packageName} has been installed successfully!`, life: 3000 });
-//     } else {
-//       toast.add({ severity: "error", summary: "Installation failed", detail: res.ipcError || `Could not install ${packageName}`, life: 5000 });
-//     }
-//   } catch (err: any) {
-//     console.error("Plugin installation failed:", err);
-//     toast.add({ severity: "error", summary: "Installation error", detail: err.message || `Could not install ${packageName}`, life: 5000 });
-//   } finally {
-//     loadingPlugins.value[packageName] = false;
-//   }
-// };
-
-// [DISABLED] Plugin uninstall is disabled in bundled mode.
-// Re-enable: uncomment + restore the plugin:uninstall API call.
-// const uninstallPlugin = async (packageName: string) => {
-//   loadingPlugins.value[packageName] = true;
-//   try {
-//     toast.add({ severity: "info", summary: "Uninstalling plugin", detail: `Removing ${packageName}...`, life: 3000 });
-//     const res = await api.execute("plugin:uninstall", { packageName });
-//     if (res.type === "success") {
-//       const currentPlugins = (settingsRef.value?.plugins || []).filter((p) => p.name !== packageName);
-//       await appSettings.updateSettings({ ...toRaw(settingsRef.value) as any, plugins: currentPlugins });
-//       toast.add({ severity: "success", summary: "Plugin uninstalled", detail: `${packageName} has been uninstalled!`, life: 3000 });
-//     } else {
-//       toast.add({ severity: "error", summary: "Uninstall failed", detail: res.ipcError || `Could not uninstall ${packageName}`, life: 5000 });
-//     }
-//   } catch (err: any) {
-//     console.error("Plugin uninstallation failed:", err);
-//     toast.add({ severity: "error", summary: "Uninstall error", detail: err.message || `Could not uninstall ${packageName}`, life: 5000 });
-//   } finally {
-//     loadingPlugins.value[packageName] = false;
-//   }
-// };
-
 // Obsidian refactoring additions
 const currentSection = ref("general");
-const coreSearchQuery = ref("");
 
 const logout = async () => {
   await authStore.logout();
-};
-
-const isOfficial = (packageName: string) => {
-  return packageName.startsWith("@pipelab/");
-};
-
-const formatPluginName = (name: string) => {
-  const def = pluginDefinitions.value.find((p) => p.packageName === name || p.id === name);
-  if (def?.name) {
-    return def.name;
-  }
-  if (name.startsWith("@pipelab/plugin-")) {
-    const raw = name.replace("@pipelab/plugin-", "");
-    return raw.charAt(0).toUpperCase() + raw.slice(1);
-  }
-  if (name.startsWith("plugin-")) {
-    const raw = name.replace("plugin-", "");
-    return raw.charAt(0).toUpperCase() + raw.slice(1);
-  }
-  return name;
-};
-
-const getIconClass = (iconObj: any) => {
-  if (!iconObj || !iconObj.icon) return "";
-  const iconName = iconObj.icon;
-  if (iconName.startsWith("mdi-")) {
-    return `mdi ${iconName}`;
-  }
-  if (iconName.startsWith("pi-")) {
-    return `pi ${iconName}`;
-  }
-  return iconName;
-};
-
-const corePlugins = computed(() => {
-  return (settingsRef.value?.plugins || []).filter((p) => isOfficial(p.name));
-});
-
-const communityPlugins = computed(() => {
-  return (settingsRef.value?.plugins || []).filter((p) => !isOfficial(p.name));
-});
-
-const filteredCorePlugins = computed(() => {
-  const query = coreSearchQuery.value.trim().toLowerCase();
-  if (!query) return corePlugins.value;
-  return corePlugins.value.filter((p) => {
-    return (
-      p.name.toLowerCase().includes(query) || (p.description || "").toLowerCase().includes(query)
-    );
-  });
-});
-
-const enabledCorePlugins = computed(() => {
-  return corePlugins.value.filter((p) => p.enabled);
-});
-
-const enabledCommunityPlugins = computed(() => {
-  return communityPlugins.value.filter((p) => p.enabled);
-});
-
-const getPluginIcon = (packageName: string) => {
-  const cleanSearched = packageName
-    .replace("@pipelab/plugin-", "")
-    .replace("plugin-", "")
-    .toLowerCase();
-  const def = pluginDefinitions.value.find((p) => {
-    if (!p.packageName) return false;
-    const cleanDef = p.packageName
-      .replace("@pipelab/plugin-", "")
-      .replace("plugin-", "")
-      .toLowerCase();
-    return cleanDef === cleanSearched || p.packageName === packageName || p.id === packageName;
-  });
-  return def?.icon || null;
-};
-
-const getPluginIconImage = (packageName: string) => {
-  const icon = getPluginIcon(packageName);
-  return icon?.type === "image" ? icon.image : undefined;
-};
-
-const togglePlugin = async (packageName: string) => {
-  const currentPlugins = (settingsRef.value?.plugins || []).map((p) => {
-    if (p.name === packageName) {
-      return { ...p, enabled: !p.enabled };
-    }
-    return p;
-  });
-  await appSettings.updateSettings({
-    ...(toRaw(settingsRef.value) as any),
-    plugins: currentPlugins,
-  });
-
-  toast.add({
-    severity: "success",
-    summary: "Plugin updated",
-    detail: `${formatPluginName(packageName)} is now ${
-      currentPlugins.find((p) => p.name === packageName)?.enabled ? "enabled" : "disabled"
-    }.`,
-    life: 3000,
-  });
-};
-
-const getSelectedPluginName = (section: string) => {
-  if (section.startsWith("core-plugin-")) {
-    return section.replace("core-plugin-", "");
-  }
-  if (section.startsWith("community-plugin-")) {
-    return section.replace("community-plugin-", "");
-  }
-  return "";
-};
-
-const getSelectedPlugin = (section: string) => {
-  const name = getSelectedPluginName(section);
-  return (settingsRef.value?.plugins || []).find((p) => p.name === name);
-};
-
-const getSelectedPluginEnabled = (section: string) => {
-  const plugin = getSelectedPlugin(section);
-  return plugin ? plugin.enabled : false;
-};
-
-const getSelectedPluginDescription = (section: string) => {
-  const plugin = getSelectedPlugin(section);
-  return plugin ? plugin.description : "";
 };
 </script>
 
@@ -1310,27 +1099,6 @@ const getSelectedPluginDescription = (section: string) => {
   }
 }
 
-.plugin-sidebar-item {
-  font-size: 0.8rem;
-  padding: 0.3rem 0.6rem;
-
-  .truncate {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-}
-
-.sidebar-plugin-icon {
-  width: 16px;
-  height: 16px;
-  min-width: 16px;
-  min-height: 16px;
-  object-fit: contain;
-  margin-right: 0.5rem;
-  flex-shrink: 0;
-}
-
 .settings-content {
   flex: 1;
   padding: 1rem 1.5rem;
@@ -1357,8 +1125,7 @@ const getSelectedPluginDescription = (section: string) => {
 }
 
 /* Clear, subtle delimitations in groups */
-.settings-group,
-.plugins-list-group {
+.settings-group {
   display: flex;
   flex-direction: column;
   border: 1px solid var(--surface-border);
@@ -1367,8 +1134,7 @@ const getSelectedPluginDescription = (section: string) => {
   overflow: hidden;
 }
 
-.setting-item,
-.plugin-row {
+.setting-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1416,52 +1182,6 @@ const getSelectedPluginDescription = (section: string) => {
     display: flex;
     align-items: center;
     flex-shrink: 0;
-  }
-}
-
-/* Condensed plugin row design */
-.plugin-row {
-  .plugin-icon-wrapper {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--surface-section);
-    border: 1px solid var(--surface-border);
-    color: var(--text-color-secondary);
-    width: 32px;
-    height: 32px;
-    min-width: 32px;
-    min-height: 32px;
-    border-radius: 6px;
-    flex-shrink: 0;
-  }
-
-  .plugin-row-icon {
-    width: 20px;
-    height: 20px;
-    object-fit: contain;
-  }
-
-  .plugin-title {
-    font-size: 0.88rem;
-    color: var(--text-color);
-  }
-
-  .plugin-description {
-    font-size: 0.78rem;
-    color: var(--text-color-secondary);
-    opacity: 0.8;
-  }
-
-  .installed-badge {
-    background: rgba(34, 197, 94, 0.1);
-    color: #22c55e;
-    font-size: 0.6rem;
-    font-weight: 700;
-    padding: 0.1rem 0.3rem;
-    border-radius: 4px;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
   }
 }
 

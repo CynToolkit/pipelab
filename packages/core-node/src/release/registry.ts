@@ -1,29 +1,15 @@
-import {
-  type MainPluginDefinition,
-  type PluginReleaseDefinition,
-  type RendererPluginDefinition,
-  type ReleaseRegistry,
-} from "@pipelab/shared";
+import type { ProviderReleaseDefinition, ReleaseRegistry } from "@pipelab/shared";
 import { builtInReleaseDefinitions } from "./builtins";
-import { assertUniqueProviderIds, builtInProviders } from "../providers-registry";
+import { builtInProviders } from "../providers-registry";
 
-export const buildCoreReleaseRegistry = (
-  plugins: Array<MainPluginDefinition | RendererPluginDefinition>,
-): ReleaseRegistry => {
-  assertUniqueProviderIds(plugins);
-  const bundledProviderIds = new Set(builtInProviders.map((provider) => provider.id));
-  const releaseDefinitions: PluginReleaseDefinition[] = [
+export const buildCoreReleaseRegistry = (): ReleaseRegistry => {
+  const definitions: ProviderReleaseDefinition[] = [
     builtInReleaseDefinitions,
     ...builtInProviders.map((provider) => provider.release ?? {}),
-    // Bundled providers are already sourced from their full definitions above.
-    // The plugin store also contains their renderer metadata after startup.
-    ...plugins
-      .filter((plugin) => !bundledProviderIds.has(plugin.id))
-      .map((plugin) => plugin.release ?? {}),
   ];
   return {
-    sources: releaseDefinitions.flatMap((release) => release.sources ?? []),
-    producers: releaseDefinitions.flatMap((release) => release.producers ?? []),
-    destinations: releaseDefinitions.flatMap((release) => release.destinations ?? []),
+    sources: definitions.flatMap((release) => release.sources ?? []),
+    producers: definitions.flatMap((release) => release.producers ?? []),
+    destinations: definitions.flatMap((release) => release.destinations ?? []),
   };
 };

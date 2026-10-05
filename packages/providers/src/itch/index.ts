@@ -67,7 +67,7 @@ export const provider = createProviderDefinition({
   id: "@pipelab/plugin-itch",
   packageName: "@pipelab/plugin-itch",
   name: "Itch.io",
-  description: "Pipelab plugin for publishing games to itch.io",
+  description: "Pipelab provider for publishing games to itch.io",
   icon: { type: "icon", icon: "pi-palette" },
   isOfficial: true,
   integrations: [

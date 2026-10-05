@@ -1,9 +1,9 @@
 import type { ProviderDefinition } from "@pipelab/shared";
-import type { PipelabPluginServices, WorkflowTaskFactoryRegistry } from "../workflow-tasks";
+import type { ProviderServices, WorkflowTaskFactoryRegistry } from "../workflow-tasks";
 import { builtInProviders, assertUniqueProviderIds } from "../providers-registry";
 
 export const createBuiltInWorkflowTaskFactories = (
-  providers: readonly ProviderDefinition<PipelabPluginServices>[] = builtInProviders,
+  providers: readonly ProviderDefinition<ProviderServices>[] = builtInProviders,
 ): WorkflowTaskFactoryRegistry => {
   assertUniqueProviderIds(providers);
 

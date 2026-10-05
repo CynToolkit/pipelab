@@ -10,9 +10,14 @@ The General section includes autosave, theme, language, and onboarding tour
 controls. Advanced settings include storage and cache information and related
 controls. Changes that require a restart are labelled in the app.
 
-In the bundled desktop app, developer-only plugin and connection management
-screens may be hidden. Do not rely on development-only routes as ordinary
-desktop settings.
+Built-in providers ship with Pipelab and are available together. Settings do not
+install, uninstall or disable providers. Existing settings files are upgraded
+automatically; the unused `plugins[].enabled` list is discarded while theme,
+language, cache, temporary folders and other preferences are preserved.
+
+An **integration** configures credentials or an account used by a provider.
+Manage these profiles on the **Connections** screen. Saved connections keep
+their IDs and credentials during the settings upgrade.
 
 ## Account
 

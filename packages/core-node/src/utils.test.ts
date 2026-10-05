@@ -1,11 +1,11 @@
 import { describe, expect, test } from "vitest";
-import { toRendererPluginMetadata } from "./utils";
-import type { RendererPluginMetadata } from "@pipelab/shared";
+import { toRendererProviderMetadata } from "./utils";
+import type { RendererProviderMetadata } from "@pipelab/shared";
 
-describe("toRendererPluginMetadata", () => {
+describe("toRendererProviderMetadata", () => {
   test("keeps renderer metadata and omits legacy node definitions", () => {
     const release = { sources: [] };
-    const plugin: RendererPluginMetadata & { nodes: unknown[] } = {
+    const plugin: RendererProviderMetadata & { nodes: unknown[] } = {
       id: "@pipelab/plugin-example",
       name: "Example",
       icon: { type: "image", image: "file:///tmp/plugin.png" },
@@ -17,7 +17,7 @@ describe("toRendererPluginMetadata", () => {
       nodes: [{ node: { id: "legacy-node" }, runner: () => undefined }],
     };
 
-    const metadata = toRendererPluginMetadata(plugin);
+    const metadata = toRendererProviderMetadata(plugin);
 
     expect(metadata).toEqual({
       id: plugin.id,

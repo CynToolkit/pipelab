@@ -76,3 +76,63 @@ describe("built-in provider Release task factories", () => {
     }
   });
 });
+
+describe("provider compatibility and composition", () => {
+  it("retains all built-in provider and Workflow task IDs", async () => {
+    const { createBuiltInWorkflowTaskFactories } = await import("./workflow-tasks/registry");
+    expect(builtInProviders.map((provider) => provider.id).sort()).toEqual([
+      "@pipelab/plugin-construct",
+      "@pipelab/plugin-electron",
+      "@pipelab/plugin-godot",
+      "@pipelab/plugin-itch",
+      "@pipelab/plugin-poki",
+      "@pipelab/plugin-steam",
+      "@pipelab/plugin-tauri",
+    ]);
+    expect(Object.keys(createBuiltInWorkflowTaskFactories()).sort()).toEqual([
+      "@pipelab/plugin-construct/export-construct-project",
+      "@pipelab/plugin-electron/electron:package:v2",
+      "@pipelab/plugin-godot/godot:export",
+      "@pipelab/plugin-itch/itch-upload",
+      "@pipelab/plugin-poki/poki-upload",
+      "@pipelab/plugin-steam/steam-upload",
+      "@pipelab/plugin-tauri/tauri:package:v2",
+    ]);
+  });
+  it("derives metadata and Release definitions directly from the same list", async () => {
+    const { getProviderMetadata } = await import("./utils");
+    const { buildCoreReleaseRegistry } = await import("./release/registry");
+    const metadata = getProviderMetadata();
+    expect(metadata.map((provider) => provider.id)).toEqual(
+      builtInProviders.map((provider) => provider.id),
+    );
+    expect(metadata.every((provider) => !Object.hasOwn(provider, "workflowTasks"))).toBe(true);
+    const registry = buildCoreReleaseRegistry();
+    const contributedIds = (kind: "sources" | "producers" | "destinations") =>
+      builtInProviders
+        .flatMap((provider) => provider.release?.[kind]?.map((definition) => definition.id) ?? [])
+        .sort();
+    for (const kind of ["sources", "producers", "destinations"] as const) {
+      expect(
+        registry[kind]
+          .filter((definition) => !definition.id.startsWith("@pipelab/core/"))
+          .map((definition) => definition.id)
+          .sort(),
+      ).toEqual(contributedIds(kind));
+    }
+    expect(contributedIds("sources")).toEqual([
+      "@pipelab/plugin-construct/source",
+      "@pipelab/plugin-godot/source",
+    ]);
+    expect(contributedIds("producers")).toEqual([
+      "@pipelab/plugin-electron/producer",
+      "@pipelab/plugin-godot/producer",
+      "@pipelab/plugin-tauri/producer",
+    ]);
+    expect(contributedIds("destinations")).toEqual([
+      "@pipelab/plugin-itch/destination",
+      "@pipelab/plugin-poki/destination",
+      "@pipelab/plugin-steam/destination",
+    ]);
+  });
+});

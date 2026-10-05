@@ -6,16 +6,16 @@ Pipelab can export a Construct project for use as a web application. The Release
 
 Add **Construct project** as the source, then choose:
 
-| Field | Requirement | Default / behavior |
-|---|---|---|
-| Project file | Required `.c3p` file | Empty |
-| Browser profile | Required | Discovered from installed Chromium profiles when the editor inspects the source |
+| Field           | Requirement          | Default / behavior                                                              |
+| --------------- | -------------------- | ------------------------------------------------------------------------------- |
+| Project file    | Required `.c3p` file | Empty                                                                           |
+| Browser profile | Required             | Discovered from installed Chromium profiles when the editor inspects the source |
 
 The source compiles to an export action followed by an unzip action. Its final artifact is an application for **web**, stored as a **directory**. Use that artifact as input to a compatible producer or destination.
 
 ## Requirements and failures
 
-Use a compatible local Chromium profile that can access the Construct editor and project. Reusing a profile can preserve Construct addons installed in that browser. The Release source requires both the `.c3p` path and profile path. The standalone actions fail when their required input is missing or invalid; browser launch, sign-in, timeout, export, and archive extraction failures appear in the run logs. The plugin does not declare a host-platform allowlist, so exact OS coverage is not guaranteed here.
+Use a compatible local Chromium profile that can access the Construct editor and project. Reusing a profile can preserve Construct addons installed in that browser. The Release source requires both the `.c3p` path and profile path. The standalone actions fail when their required input is missing or invalid; browser launch, sign-in, timeout, export, and archive extraction failures appear in the run logs. The provider does not declare a host-platform allowlist, so exact OS coverage is not guaranteed here.
 
 Pipelab's currently registered Construct integration does not provide the
 in-editor addon or Discord/Steam Rich Presence actions described by older

@@ -17,7 +17,7 @@ for your operating system and architecture.
 1. Open the downloaded installer or application archive for your system.
 2. Start Pipelab. The packaged desktop app starts or resolves its local CLI
    server in the background.
-3. Wait for the startup screen to finish loading projects, plugins, settings,
+3. Wait for the startup screen to finish loading projects, providers, settings,
    account state, and other initial data.
 4. If the app reports that it cannot connect or load startup data, use the
    retry action. If it stays disconnected, see

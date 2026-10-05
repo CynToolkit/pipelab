@@ -1,27 +1,21 @@
-import {
-  usePlugins,
-  transformUrl,
-  type MainPluginDefinition,
-  type RendererPluginMetadata,
-} from "@pipelab/shared";
+import { builtInProviders } from "./providers-registry";
+import { transformUrl, type RendererProviderMetadata } from "@pipelab/shared";
 
-export const toRendererPluginMetadata = (
-  plugin: MainPluginDefinition | RendererPluginMetadata,
-): RendererPluginMetadata => ({
-  id: plugin.id,
-  name: plugin.name,
+export const toRendererProviderMetadata = (
+  provider: RendererProviderMetadata,
+): RendererProviderMetadata => ({
+  id: provider.id,
+  name: provider.name,
   icon:
-    plugin.icon.type === "image"
-      ? { ...plugin.icon, image: transformUrl(plugin.icon.image) }
-      : plugin.icon,
-  description: plugin.description,
-  isOfficial: plugin.isOfficial,
-  packageName: plugin.packageName,
-  integrations: plugin.integrations,
-  release: plugin.release,
+    provider.icon.type === "image"
+      ? { ...provider.icon, image: transformUrl(provider.icon.image) }
+      : provider.icon,
+  description: provider.description,
+  isOfficial: provider.isOfficial,
+  packageName: provider.packageName,
+  integrations: provider.integrations,
+  release: provider.release,
 });
 
-export const getPluginMetadata = (): RendererPluginMetadata[] => {
-  const { plugins } = usePlugins();
-  return plugins.value.map(toRendererPluginMetadata);
-};
+export const getProviderMetadata = (): RendererProviderMetadata[] =>
+  builtInProviders.map(toRendererProviderMetadata);

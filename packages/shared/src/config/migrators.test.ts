@@ -5,7 +5,7 @@ import {
   defaultFileRepo,
   fileRepoMigrations,
 } from "./migrators";
-import { AppConfigV6 } from "../config.schema";
+import { AppConfigV6, AppConfigV7 } from "../config.schema";
 
 describe("fileRepoMigrations", () => {
   it("migrates legacy project indexes while dropping Pipeline metadata", async () => {
@@ -116,4 +116,53 @@ describe("connectionsMigrator", () => {
       connections: [],
     });
   });
+});
+
+describe("settings without plugin enablement", () => {
+  it("drops enabled and disabled V7 entries while preserving actual preferences", async () => {
+    const settings: AppConfigV7 = {
+      version: "7.0.0",
+      theme: "dark",
+      locale: "fr-FR",
+      autosave: false,
+      cacheFolder: "/cache",
+      tempFolder: "/temp",
+      agents: [{ id: "remote", name: "Remote", url: "http://localhost:33753" }],
+      tours: { dashboard: { step: 3, completed: true }, editor: { step: 1, completed: false } },
+      plugins: [
+        { name: "@pipelab/plugin-steam", enabled: false, description: "Steam" },
+        { name: "community-example", enabled: true, description: "Obsolete" },
+      ],
+    };
+    const { plugins: _, ...preferences } = settings;
+    expect(await appSettingsMigrator.migrate(settings)).toStrictEqual({
+      ...preferences,
+      version: "8.0.0",
+    });
+  });
+  it("creates current defaults without fake provider configurability", async () => {
+    const settings = await appSettingsMigrator.migrate(undefined);
+    expect(settings.version).toBe("8.0.0");
+    expect(settings).not.toHaveProperty("plugins");
+    expect(await appSettingsMigrator.migrate(settings)).toEqual(settings);
+  });
+});
+
+it("preserves saved integration IDs and credential fields", async () => {
+  const connections = {
+    version: "1.0.0" as const,
+    connections: [
+      {
+        id: "steam-account",
+        pluginName: "@pipelab/plugin-steam",
+        integrationName: "Steam Account",
+        name: "Release account",
+        createdAt: "2026-01-01",
+        isDefault: true,
+        username: "test-account",
+        password: "test-fixture-password",
+      },
+    ],
+  };
+  expect(await connectionsMigrator.migrate(connections)).toStrictEqual(connections);
 });

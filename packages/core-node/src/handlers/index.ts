@@ -6,39 +6,28 @@ import { registerEngineHandlers } from "./engine";
 import { registerAgentsHandlers } from "./agents";
 import { registerAuthHandlers } from "./auth";
 import { registerSystemHandlers } from "./system";
-import { registerPluginsHandlers } from "./plugins";
 import { registerMigrationHandlers } from "./migration";
 import { registerWorkflowHandlers } from "./workflow";
 import { BuildHistoryStorage } from "./build-history";
-import { builtInPlugins } from "../plugins-registry";
 import { PipelabContext } from "../context";
 
 export const registerAllHandlers = async (options: {
   version: string;
   context: PipelabContext;
-  waitForPlugins?: boolean;
 }) => {
   const context = options.context;
   await new BuildHistoryStorage(context).reconcileInterruptedRuns();
-  const pluginsPromise = builtInPlugins({
-    context,
-  });
 
   registerShellHandlers(context);
   registerFsHandlers(context);
-  registerConfigHandlers(context, pluginsPromise);
+  registerConfigHandlers(context);
   registerHistoryHandlers(context);
   registerEngineHandlers(context);
-  registerWorkflowHandlers(context, pluginsPromise);
+  registerWorkflowHandlers(context);
   registerAgentsHandlers(context);
   registerAuthHandlers(context);
   registerSystemHandlers(options);
-  registerPluginsHandlers(context);
   registerMigrationHandlers(context);
-
-  if (options.waitForPlugins) {
-    await pluginsPromise;
-  }
 };
 
 export { registerShellHandlers } from "./shell";

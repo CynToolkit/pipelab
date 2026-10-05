@@ -12,7 +12,7 @@ Declared output targets are Windows x64, Linux x64, macOS arm64, and web. Each o
 
 Install Godot and the platform export templates on the machine that runs Pipelab. The project needs an export preset configured for the selected target. A missing executable is an error; missing templates are reported as a warning during inspection. An unknown preset, a preset for another platform, a nonzero Godot exit, or an export with no files fails the build. Web archive entries with paths escaping the output directory are rejected.
 
-The targets above are declared outputs, not a guarantee that every host can cross-compile every target. The plugin invokes the locally available Godot executable and does not publish a complete host-to-target support matrix.
+The targets above are declared outputs, not a guarantee that every host can cross-compile every target. The provider invokes the locally available Godot executable and does not publish a complete host-to-target support matrix.
 
 ## Minimal example
 

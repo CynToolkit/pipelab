@@ -26,4 +26,4 @@ appId: <Steam App ID>
 slot.depotId: <Depot ID for this slot>
 ```
 
-Use IDs from the matching Steamworks application and depot. A connected account and a valid Steamworks configuration are prerequisites; Pipelab does not create the app or depot. This integration page covers build delivery only; older Construct and in-game Rich Presence instructions are not part of the current Steam plugin.
+Use IDs from the matching Steamworks application and depot. A connected account and a valid Steamworks configuration are prerequisites; Pipelab does not create the app or depot. This integration page covers build delivery only; older Construct and in-game Rich Presence instructions are not part of the current Steam provider.

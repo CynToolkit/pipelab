@@ -5,7 +5,7 @@ import { afterEach, describe, expect, test } from "vitest";
 import { createSandbox, runCLI } from "@pipelab/test-utils";
 import {
   buildCoreReleaseRegistry,
-  bundledPlugins,
+  builtInProviders,
   createCoreFilesystemWorkflowTasks,
   extractZip,
   zipFolder,
@@ -104,7 +104,7 @@ describe("CLI release dry-run", () => {
   };
 
   const executeCoreRelease = async (config: ReleaseConfig, workspace: string) => {
-    const registry = buildCoreReleaseRegistry([]);
+    const registry = buildCoreReleaseRegistry();
     const context = {
       host: { platform: process.platform, architecture: process.arch },
     };
@@ -398,11 +398,11 @@ describe("CLI release dry-run", () => {
       await writeFile(join(webFolder, "index.html"), "web release");
       await zipFolder(webFolder, webZip);
 
-      const electronPlugin = bundledPlugins.find(
+      const electronPlugin = builtInProviders.find(
         (plugin) => plugin.id === "@pipelab/plugin-electron",
       );
       if (!electronPlugin) throw new Error("Electron Release provider is not bundled");
-      const registry = buildCoreReleaseRegistry([electronPlugin]);
+      const registry = buildCoreReleaseRegistry();
       const config: ReleaseConfig = {
         version: "3.0.0",
         id: "web-zip-electron-core-unzip",
@@ -486,11 +486,11 @@ describe("CLI release dry-run", () => {
       await writeFile(join(webFolder, "large.bin"), randomBytes(32 * 1024 * 1024));
       await zipFolder(webFolder, webZip, () => undefined);
 
-      const electronPlugin = bundledPlugins.find(
+      const electronPlugin = builtInProviders.find(
         (plugin) => plugin.id === "@pipelab/plugin-electron",
       );
       if (!electronPlugin) throw new Error("Electron Release provider is not bundled");
-      const registry = buildCoreReleaseRegistry([electronPlugin]);
+      const registry = buildCoreReleaseRegistry();
       const config: ReleaseConfig = {
         version: "3.0.0",
         id: "web-zip-cancel-unzip",

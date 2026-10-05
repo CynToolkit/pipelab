@@ -1,17 +1,19 @@
-import type { MainPluginDefinition, RendererPluginDefinition } from "../plugins/definitions";
+import type { ProviderDefinition, RendererProviderMetadata } from "../plugins/definitions";
 import type { ReleaseRegistry } from "./types";
 
 export const buildReleaseRegistry = (
-  plugins: Array<MainPluginDefinition | RendererPluginDefinition>,
+  providers: Array<ProviderDefinition | RendererProviderMetadata>,
 ): ReleaseRegistry => ({
-  sources: plugins.flatMap((plugin) => plugin.release?.sources ?? []),
-  producers: plugins.flatMap((plugin) => plugin.release?.producers ?? []),
-  destinations: plugins.flatMap((plugin) => plugin.release?.destinations ?? []),
+  sources: providers.flatMap((provider) => provider.release?.sources ?? []),
+  producers: providers.flatMap((provider) => provider.release?.producers ?? []),
+  destinations: providers.flatMap((provider) => provider.release?.destinations ?? []),
 });
 
 export const buildReleaseCatalog = (
   registry: ReleaseRegistry,
-  host?: Parameters<NonNullable<ReleaseRegistry["producers"][number]["targets"][number]["isAvailable"]>>[0],
+  host?: Parameters<
+    NonNullable<ReleaseRegistry["producers"][number]["targets"][number]["isAvailable"]>
+  >[0],
 ): import("./types").ReleaseCatalog => ({
   buildTypes: [
     { id: "desktop", label: "Desktop" },

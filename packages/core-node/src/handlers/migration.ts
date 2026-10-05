@@ -6,6 +6,8 @@ import { existsSync } from "node:fs";
 import { join, dirname } from "node:path";
 import {
   AppConfig,
+  appSettingsMigrator,
+  defaultAppSettings,
   ConnectionsConfig,
   defaultFileRepo,
   fileRepoMigrations,
@@ -304,41 +306,19 @@ export const registerMigrationHandlers = (context: PipelabContext) => {
         }
 
         if (existsSync(sourceSettingsFile)) {
-          let stableSettings: AppConfig = {
-            version: "7.0.0",
-            locale: "en-US",
-            theme: "light",
-            autosave: true,
-            agents: [],
-            plugins: [],
-            tours: {
-              dashboard: { step: 0, completed: false },
-              editor: { step: 0, completed: false },
-            },
-          };
+          let stableSettings: AppConfig = structuredClone(defaultAppSettings);
           try {
             const stableContent = await fs.readFile(sourceSettingsFile, "utf8");
-            stableSettings = JSON.parse(stableContent) as AppConfig;
+            stableSettings = await appSettingsMigrator.migrate(JSON.parse(stableContent));
           } catch (e) {
             logger().error("[Migration] Failed to read source settings.json:", e);
           }
 
-          let betaSettings: AppConfig = {
-            version: "7.0.0",
-            locale: "en-US",
-            theme: "light",
-            autosave: true,
-            agents: [],
-            plugins: [],
-            tours: {
-              dashboard: { step: 0, completed: false },
-              editor: { step: 0, completed: false },
-            },
-          };
+          let betaSettings: AppConfig = structuredClone(defaultAppSettings);
           if (existsSync(targetSettingsFile)) {
             try {
               const betaContent = await fs.readFile(targetSettingsFile, "utf8");
-              betaSettings = JSON.parse(betaContent) as AppConfig;
+              betaSettings = await appSettingsMigrator.migrate(JSON.parse(betaContent));
             } catch (e) {
               // Keep default
             }
@@ -375,19 +355,6 @@ export const registerMigrationHandlers = (context: PipelabContext) => {
             }
           }
           betaSettings.agents = betaAgents;
-
-          // Merge plugins (by name)
-          const betaPlugins = betaSettings.plugins || [];
-          const stablePlugins = stableSettings.plugins || [];
-          for (const sPlugin of stablePlugins) {
-            const existingIdx = betaPlugins.findIndex((p) => p.name === sPlugin.name);
-            if (existingIdx >= 0) {
-              betaPlugins[existingIdx] = { ...sPlugin };
-            } else {
-              betaPlugins.push({ ...sPlugin });
-            }
-          }
-          betaSettings.plugins = betaPlugins;
 
           await fs.mkdir(dirname(targetSettingsFile), { recursive: true });
           await fs.writeFile(targetSettingsFile, JSON.stringify(betaSettings, null, 2));

@@ -75,7 +75,7 @@ export const provider = createProviderDefinition({
   id: "@pipelab/plugin-tauri",
   packageName: "@pipelab/plugin-tauri",
   name: "Tauri",
-  description: "Pipelab plugin for packaging apps with Tauri",
+  description: "Pipelab provider for packaging apps with Tauri",
   icon: { type: "icon", icon: "pi-box" },
   isOfficial: true,
   release: { producers: [tauriProducer] },

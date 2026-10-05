@@ -49,8 +49,6 @@ export * from "./fmt";
 export * from "./i18n-utils";
 export * from "./ipc.types";
 export * from "./logger";
-export * from "./plugins";
-export * from "./plugins-list";
 export * from "./plugins/definitions"; // <-- RE-ADDED
 export * from "./quickjs";
 export * from "./subscription-errors";
@@ -69,7 +67,6 @@ export * from "./release/compiler";
 export * from "./release/validate";
 export * from "./release/planner";
 export * from "./release/preferences";
-export * from "./plugin-api";
 
 // 4. Configuration Sub-packages
 export * from "./config/projects-definition"; // <-- RE-ADDED

@@ -1,7 +1,7 @@
 import {
   transformArtifactDescriptor,
   type CompiledArtifact,
-  type PluginReleaseDefinition,
+  type ProviderReleaseDefinition,
   type ReleaseDestinationDefinition,
   type ReleaseProducerDefinition,
   type ReleaseSourceDefinition,
@@ -261,7 +261,7 @@ const passthroughProducer: ReleaseProducerDefinition = {
   },
 };
 
-export const builtInReleaseDefinitions: PluginReleaseDefinition = {
+export const builtInReleaseDefinitions: ProviderReleaseDefinition = {
   sources: [folderSource, webFolderSource, genericZipSource, webZipSource],
   producers: [passthroughProducer, unzipProducer],
   destinations: [folderDestination, zipDestination],

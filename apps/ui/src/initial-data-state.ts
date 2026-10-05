@@ -1,6 +1,6 @@
 export type InitialDataSection =
   | "projects"
-  | "plugins"
+  | "providers"
   | "settings"
   | "connections"
   | "auth"

@@ -225,7 +225,7 @@ const fetchInitialData = () => {
     const result = await loadInitialData(
       [
         { section: "projects", load: () => filesStore.load() },
-        { section: "plugins", load: () => init() },
+        { section: "providers", load: () => init() },
         { section: "settings", load: () => settingsStore.load() },
         { section: "connections", load: () => connectionsStore.load() },
         { section: "auth", load: () => authInit() },

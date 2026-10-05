@@ -1,6 +1,6 @@
 # Develop Pipelab
 
-Pipelab is a pnpm workspace with apps, shared packages, plugins, and Workers. Use the versions pinned in [`mise.toml`](https://github.com/CynToolkit/pipelab/blob/develop/mise.toml): Node.js 24 and pnpm 10.33.0.
+Pipelab is a pnpm workspace with apps, shared packages, providers, and Workers. Use the versions pinned in [`mise.toml`](https://github.com/CynToolkit/pipelab/blob/develop/mise.toml): Node.js 24 and pnpm 10.33.0.
 
 ## Get the workspace running
 

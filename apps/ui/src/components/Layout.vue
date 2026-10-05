@@ -30,7 +30,6 @@
         </router-link>
 
         <router-link
-          v-if="isDevMode"
           to="/connections"
           class="sidebar-nav-item"
           active-class="active"
@@ -39,18 +38,6 @@
           <i class="mdi mdi-link-variant nav-icon" />
           <span v-show="!isSidebarCollapsed" class="nav-label">Connections</span>
         </router-link>
-
-        <!-- [DISABLED] Plugins page hidden in bundled mode — plugin management UI disabled.
-             Re-enable: uncomment the router-link below. Route (/plugins) and page stay intact. -->
-        <!-- <router-link
-          to="/plugins"
-          class="sidebar-nav-item"
-          active-class="active"
-          v-tooltip.right="isSidebarCollapsed ? 'Plugins' : undefined"
-        >
-          <i class="mdi mdi-puzzle-outline nav-icon" />
-          <span v-show="!isSidebarCollapsed" class="nav-label">Plugins</span>
-        </router-link> -->
 
         <div
           class="sidebar-nav-item disabled"
@@ -79,14 +66,14 @@
           <span v-show="!isSidebarCollapsed" class="status-text">{{ connectionText }}</span>
         </div>
 
-        <!-- Plugin loading -->
+        <!-- Host startup progress -->
         <div
-          v-if="pluginStatus"
+          v-if="startupStatus"
           class="sidebar-status-item loading"
-          v-tooltip.right="isSidebarCollapsed ? pluginStatus : undefined"
+          v-tooltip.right="isSidebarCollapsed ? startupStatus : undefined"
         >
           <i class="mdi mdi-loading mdi-spin nav-icon" />
-          <span v-show="!isSidebarCollapsed" class="status-text">{{ pluginStatus }}</span>
+          <span v-show="!isSidebarCollapsed" class="status-text">{{ startupStatus }}</span>
         </div>
 
         <!-- Update available -->
@@ -249,7 +236,6 @@ const { logger } = useLogger();
 const shell = useShell();
 
 const isElectron = !!window.electron;
-const isDevMode = process.env.NODE_ENV === "development";
 
 const openUpgradeDialog = inject(OpenUpgradeDialogKey) as () => void;
 
@@ -273,17 +259,17 @@ const agentVersion = ref("...");
 const uiVersion = process.env.UI_VERSION;
 const electronVersion = window.pipelab?.versions?.electron || "N/A";
 
-const pluginStatus = ref("");
+const startupStatus = ref("");
 
 import { useWebSocketAPI } from "@renderer/composables/websocket-client";
 const { on } = useWebSocketAPI();
 
 on("startup:progress", (event: any) => {
   if (event.type === "progress") {
-    pluginStatus.value = event.data.message;
+    startupStatus.value = event.data.message;
   } else if (event.type === "ready" || event.type === "done") {
     setTimeout(() => {
-      pluginStatus.value = "";
+      startupStatus.value = "";
     }, 2000);
   }
 });

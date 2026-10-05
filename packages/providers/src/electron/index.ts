@@ -75,7 +75,7 @@ export const provider = createProviderDefinition({
   id: "@pipelab/plugin-electron",
   packageName: "@pipelab/plugin-electron",
   name: "Electron",
-  description: "Pipelab plugin for packaging apps with Electron",
+  description: "Pipelab provider for packaging apps with Electron",
   icon: { type: "icon", icon: "pi-desktop" },
   isOfficial: true,
   release: { producers: [electronProducer] },

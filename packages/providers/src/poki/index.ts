@@ -40,7 +40,7 @@ export const provider = createProviderDefinition({
   id: "@pipelab/plugin-poki",
   packageName: "@pipelab/plugin-poki",
   name: "Poki",
-  description: "Pipelab plugin for publishing HTML5 games to Poki",
+  description: "Pipelab provider for publishing HTML5 games to Poki",
   icon: { type: "icon", icon: "pi-globe" },
   isOfficial: true,
   release: { destinations: [pokiDestination] },
