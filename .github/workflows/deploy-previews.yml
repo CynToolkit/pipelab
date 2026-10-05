@@ -37,8 +37,6 @@ jobs:
   documentation:
     if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
     runs-on: ubuntu-latest
-    outputs:
-      preview-url-base64: ${{ steps.preview.outputs.url-base64 }}
     steps:
       - uses: actions/checkout@v4
 
@@ -80,8 +78,7 @@ jobs:
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
           command: pages deploy apps/documentation/.vitepress/dist --project-name=pipelab-docs --branch=${{ steps.branch.outputs.name }}
 
-      - name: Encode deployment URL for comment job
-        id: preview
+      - name: Save documentation preview URL
         env:
           DEPLOYMENT_URL: ${{ steps.deploy.outputs.deployment-url }}
         run: |
@@ -89,13 +86,17 @@ jobs:
             echo 'Cloudflare did not return a documentation preview URL.' >&2
             exit 1
           fi
-          echo "url-base64=$(printf '%s' "$DEPLOYMENT_URL" | base64 -w 0)" >> "$GITHUB_OUTPUT"
+          printf '%s' "$DEPLOYMENT_URL" > preview-url.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: preview-documentation
+          path: preview-url.txt
+          if-no-files-found: error
 
   editor:
     if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
     runs-on: ubuntu-latest
-    outputs:
-      preview-url-base64: ${{ steps.preview.outputs.url-base64 }}
     steps:
       - uses: actions/checkout@v4
 
@@ -142,8 +143,7 @@ jobs:
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
           command: pages deploy apps/ui/dist --project-name=${{ secrets.CLOUDFLARE_EDITOR_UI_PROJECT_NAME }} --branch=${{ steps.branch.outputs.name }}
 
-      - name: Encode deployment URL for comment job
-        id: preview
+      - name: Save editor preview URL
         env:
           DEPLOYMENT_URL: ${{ steps.deploy.outputs.deployment-url }}
         run: |
@@ -151,13 +151,17 @@ jobs:
             echo 'Cloudflare did not return an editor preview URL.' >&2
             exit 1
           fi
-          echo "url-base64=$(printf '%s' "$DEPLOYMENT_URL" | base64 -w 0)" >> "$GITHUB_OUTPUT"
+          printf '%s' "$DEPLOYMENT_URL" > preview-url.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: preview-editor
+          path: preview-url.txt
+          if-no-files-found: error
 
   website:
     if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
     runs-on: ubuntu-latest
-    outputs:
-      preview-url-base64: ${{ steps.preview.outputs.url-base64 }}
     steps:
       - uses: actions/checkout@v4
 
@@ -204,8 +208,7 @@ jobs:
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
           command: pages deploy apps/website/dist --project-name=${{ secrets.CLOUDFLARE_PAGES_PROJECT_NAME }} --branch=${{ steps.branch.outputs.name }}
 
-      - name: Encode deployment URL for comment job
-        id: preview
+      - name: Save website preview URL
         env:
           DEPLOYMENT_URL: ${{ steps.deploy.outputs.deployment-url }}
         run: |
@@ -213,28 +216,49 @@ jobs:
             echo 'Cloudflare did not return a website preview URL.' >&2
             exit 1
           fi
-          echo "url-base64=$(printf '%s' "$DEPLOYMENT_URL" | base64 -w 0)" >> "$GITHUB_OUTPUT"
+          printf '%s' "$DEPLOYMENT_URL" > preview-url.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: preview-website
+          path: preview-url.txt
+          if-no-files-found: error
 
   comment:
     if: ${{ always() && github.event.pull_request.head.repo.full_name == github.repository && !cancelled() }}
     needs: [documentation, editor, website]
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/download-artifact@v4
+        if: ${{ always() && needs.documentation.result == 'success' }}
+        with:
+          name: preview-documentation
+          path: previews/documentation
+
+      - uses: actions/download-artifact@v4
+        if: ${{ always() && needs.editor.result == 'success' }}
+        with:
+          name: preview-editor
+          path: previews/editor
+
+      - uses: actions/download-artifact@v4
+        if: ${{ always() && needs.website.result == 'success' }}
+        with:
+          name: preview-website
+          path: previews/website
+
       - name: Post preview URLs in a single pull request comment
         uses: actions/github-script@v7
         env:
-          DOCUMENTATION_URL_BASE64: ${{ needs.documentation.outputs.preview-url-base64 }}
           DOCUMENTATION_RESULT: ${{ needs.documentation.result }}
-          EDITOR_URL_BASE64: ${{ needs.editor.outputs.preview-url-base64 }}
           EDITOR_RESULT: ${{ needs.editor.result }}
-          WEBSITE_URL_BASE64: ${{ needs.website.outputs.preview-url-base64 }}
           WEBSITE_RESULT: ${{ needs.website.result }}
         with:
           script: |
             const marker = '<!-- pipelab-preview-deployments -->';
-            const decodePreviewUrl = (encoded) => {
-              if (!encoded) return undefined;
-              const url = Buffer.from(encoded, 'base64').toString('utf8');
+            const readPreviewUrl = (filePath, result) => {
+              if (result !== 'success') return undefined;
+              const url = require('node:fs').readFileSync(filePath, 'utf8').trim();
               const parsed = new URL(url);
               if (parsed.protocol !== 'https:' || !parsed.hostname.endsWith('.pages.dev')) {
                 throw new Error('Cloudflare returned an unexpected preview URL.');
@@ -242,9 +266,9 @@ jobs:
               return url;
             };
             const services = [
-              ['Documentation', decodePreviewUrl(process.env.DOCUMENTATION_URL_BASE64), process.env.DOCUMENTATION_RESULT],
-              ['Editor', decodePreviewUrl(process.env.EDITOR_URL_BASE64), process.env.EDITOR_RESULT],
-              ['Website', decodePreviewUrl(process.env.WEBSITE_URL_BASE64), process.env.WEBSITE_RESULT],
+              ['Documentation', readPreviewUrl('previews/documentation/preview-url.txt', process.env.DOCUMENTATION_RESULT), process.env.DOCUMENTATION_RESULT],
+              ['Editor', readPreviewUrl('previews/editor/preview-url.txt', process.env.EDITOR_RESULT), process.env.EDITOR_RESULT],
+              ['Website', readPreviewUrl('previews/website/preview-url.txt', process.env.WEBSITE_RESULT), process.env.WEBSITE_RESULT],
             ];
             const lines = services.map(([name, url, result]) => {
               if (result === 'success' && url) return `- **${name}:** [Open preview](${url})`;
