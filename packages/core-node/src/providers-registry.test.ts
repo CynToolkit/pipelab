@@ -56,6 +56,12 @@ describe("built-in provider Release task factories", () => {
                   },
                 ],
               },
+              {
+                id: "provider-registry-test",
+                enabled: true,
+                input: { source: true },
+                config: {},
+              },
               context,
             )
             .map((step) => step.uses),
