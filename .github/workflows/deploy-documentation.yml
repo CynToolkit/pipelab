@@ -40,6 +40,7 @@ on:
 permissions:
   contents: read
   deployments: write
+  pull-requests: write
 
 concurrency:
   group: deploy-documentation-${{ github.ref }}
@@ -332,3 +333,33 @@ jobs:
               echo "- Deployment URL: $DEPLOYMENT_URL"
             fi
           } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Post documentation preview URL to pull request
+        if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
+        uses: actions/github-script@v7
+        env:
+          DEPLOYMENT_URL: ${{ steps.deploy.outputs.deployment-url }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        with:
+          script: |
+            const marker = '<!-- pipelab-preview-documentation -->';
+            const deploymentUrl = process.env.DEPLOYMENT_URL;
+            if (!deploymentUrl) throw new Error('Cloudflare did not return a documentation preview URL.');
+
+            const body = `${marker}\n### Pipelab documentation preview\n[Open documentation preview](${deploymentUrl})`;
+            const { owner, repo } = context.repo;
+            const issue_number = Number(process.env.PR_NUMBER);
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner,
+              repo,
+              issue_number,
+            });
+            const existing = comments.find((comment) =>
+              comment.user?.login === 'github-actions[bot]' && comment.body?.includes(marker),
+            );
+
+            if (existing) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number, body });
+            }
