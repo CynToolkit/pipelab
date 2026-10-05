@@ -47,6 +47,7 @@
   "dependencies": {
     "@pipelab/constants": "workspace:*",
     "@pipelab/plugin-core": "workspace:*",
+    "@pipelab/shared": "workspace:*",
     "@pipelab/workflow-runtime": "workspace:*"
   },
   "devDependencies": {
