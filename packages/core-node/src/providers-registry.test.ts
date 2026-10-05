@@ -16,6 +16,9 @@ describe("built-in provider Release task factories", () => {
     for (const provider of builtInProviders) {
       const taskIds = new Set(Object.keys(provider.workflowTasks ?? {}));
       const emittedTaskIds = [
+        ...(provider.release?.sources ?? []).flatMap((source) =>
+          source.compile(source.createDefaultConfig(), context).steps.map((step) => step.uses),
+        ),
         ...(provider.release?.producers ?? []).flatMap((producer) =>
           producer
             .compile(
