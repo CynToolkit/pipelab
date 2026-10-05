@@ -11,9 +11,21 @@ on:
       - 'pnpm-workspace.yaml'
       - 'turbo.json'
       - '.github/workflows/deploy-editor.yml'
+  pull_request:
+    branches: [develop]
+    paths:
+      - 'apps/ui/**'
+      - 'packages/**'
+      - 'plugins/**'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'turbo.json'
+      - '.github/workflows/deploy-editor.yml'
+      - '.github/actions/upsert-preview-comment/action.yml'
 permissions:
   contents: read
   deployments: write
+  pull-requests: write
 
 concurrency:
   group: deploy-editor-${{ github.ref }}
@@ -21,6 +33,7 @@ concurrency:
 
 jobs:
   deploy:
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -45,10 +58,34 @@ jobs:
           POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
         run: pnpm --filter @pipelab/ui build
 
+      - name: Resolve Cloudflare branch name
+        id: branch
+        env:
+          GH_HEAD_REF: ${{ github.head_ref }}
+          GH_REF_NAME: ${{ github.ref_name }}
+        run: |
+          branch="${GH_HEAD_REF:-$GH_REF_NAME}"
+          branch="${branch//\//-}"
+          branch="${branch//[^a-zA-Z0-9_-]/-}"
+          if [[ -z "$branch" ]]; then
+            echo 'Could not determine the Cloudflare Pages branch name.' >&2
+            exit 1
+          fi
+          echo "name=$branch" >> "$GITHUB_OUTPUT"
+
       - name: Deploy editor UI to Cloudflare Pages
+        id: deploy
         uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
-          command: pages deploy apps/ui/dist --project-name=${{ secrets.CLOUDFLARE_EDITOR_UI_PROJECT_NAME }} --branch=${{ github.ref_name }}
+          command: pages deploy apps/ui/dist --project-name=${{ secrets.CLOUDFLARE_EDITOR_UI_PROJECT_NAME }} --branch=${{ steps.branch.outputs.name }}
+
+      - name: Post editor preview comment
+        if: ${{ github.event_name == 'pull_request' }}
+        uses: ./.github/actions/upsert-preview-comment
+        with:
+          name: Editor
+          url: ${{ steps.deploy.outputs.deployment-url }}
+          marker: "<!-- pipelab-preview-editor -->"
