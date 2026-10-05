@@ -82,4 +82,5 @@ export const provider = createProviderDefinition({
   workflowTasks: electronWorkflowTaskFactories,
 });
 
+export { electronWorkflowTaskFactories };
 export default provider;

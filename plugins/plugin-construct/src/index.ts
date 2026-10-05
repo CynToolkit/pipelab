@@ -124,4 +124,5 @@ export const provider = createProviderDefinition({
   workflowTasks: constructWorkflowTaskFactories,
 });
 
+export { constructWorkflowTaskFactories };
 export default provider;

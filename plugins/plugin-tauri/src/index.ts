@@ -82,4 +82,5 @@ export const provider = createProviderDefinition({
   workflowTasks: tauriWorkflowTaskFactories,
 });
 
+export { tauriWorkflowTaskFactories };
 export default provider;

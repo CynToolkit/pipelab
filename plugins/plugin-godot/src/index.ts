@@ -345,4 +345,5 @@ export const provider = createProviderDefinition({
   },
 });
 
+export const workflowTasks = provider.workflowTasks;
 export default provider;
