@@ -75,8 +75,8 @@ jobs:
               paths.includes('.github/workflows/deploy-website.yml');
 
             const branch = context.payload.pull_request.head.ref
-              .replaceAll('/', '-')
-              .replace(/[^a-zA-Z0-9_-]/g, '-');
+              .toLowerCase()
+              .replace(/[^a-z0-9]/g, '-');
             if (!branch) throw new Error('Could not determine the Cloudflare Pages branch name.');
 
             core.setOutput('documentation', String(documentation));
@@ -88,8 +88,6 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.documentation == 'true' && github.event.pull_request.head.repo.full_name == github.repository }}
     runs-on: ubuntu-latest
-    outputs:
-      url: ${{ steps.deploy.outputs.deployment-url }}
     steps:
       - uses: actions/checkout@v4
 
@@ -122,8 +120,6 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.editor == 'true' && github.event.pull_request.head.repo.full_name == github.repository }}
     runs-on: ubuntu-latest
-    outputs:
-      url: ${{ steps.deploy.outputs.deployment-url }}
     steps:
       - uses: actions/checkout@v4
 
@@ -161,8 +157,6 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.website == 'true' && github.event.pull_request.head.repo.full_name == github.repository }}
     runs-on: ubuntu-latest
-    outputs:
-      url: ${{ steps.deploy.outputs.deployment-url }}
     steps:
       - uses: actions/checkout@v4
 
@@ -205,37 +199,38 @@ jobs:
         uses: actions/github-script@v7
         env:
           CHANGES_RESULT: ${{ needs.changes.result }}
+          PAGES_BRANCH: ${{ needs.changes.outputs.branch }}
+          DOCUMENTATION_PROJECT_NAME: pipelab-docs
           DOCUMENTATION_CHANGED: ${{ needs.changes.outputs.documentation }}
           DOCUMENTATION_RESULT: ${{ needs.deploy-documentation.result }}
-          DOCUMENTATION_URL: ${{ needs.deploy-documentation.outputs.url }}
+          EDITOR_PROJECT_NAME: ${{ secrets.CLOUDFLARE_EDITOR_UI_PROJECT_NAME }}
           EDITOR_CHANGED: ${{ needs.changes.outputs.editor }}
           EDITOR_RESULT: ${{ needs.deploy-editor.result }}
-          EDITOR_URL: ${{ needs.deploy-editor.outputs.url }}
+          WEBSITE_PROJECT_NAME: ${{ secrets.CLOUDFLARE_PAGES_PROJECT_NAME }}
           WEBSITE_CHANGED: ${{ needs.changes.outputs.website }}
           WEBSITE_RESULT: ${{ needs.deploy-website.result }}
-          WEBSITE_URL: ${{ needs.deploy-website.outputs.url }}
         with:
           script: |
             const marker = '<!-- pipelab-preview-deployments -->';
             const previews = [
-              ['Documentation', process.env.DOCUMENTATION_CHANGED, process.env.DOCUMENTATION_RESULT, process.env.DOCUMENTATION_URL],
-              ['Editor', process.env.EDITOR_CHANGED, process.env.EDITOR_RESULT, process.env.EDITOR_URL],
-              ['Website', process.env.WEBSITE_CHANGED, process.env.WEBSITE_RESULT, process.env.WEBSITE_URL],
+              ['Documentation', process.env.DOCUMENTATION_CHANGED, process.env.DOCUMENTATION_RESULT, process.env.DOCUMENTATION_PROJECT_NAME],
+              ['Editor', process.env.EDITOR_CHANGED, process.env.EDITOR_RESULT, process.env.EDITOR_PROJECT_NAME],
+              ['Website', process.env.WEBSITE_CHANGED, process.env.WEBSITE_RESULT, process.env.WEBSITE_PROJECT_NAME],
             ];
-            const lines = previews.map(([name, changed, result, rawUrl]) => {
+            const lines = previews.map(([name, changed, result, project]) => {
               if (process.env.CHANGES_RESULT !== 'success') {
                 return `- **${name}:** change detection failed`;
               }
               if (changed !== 'true') return `- **${name}:** not affected`;
+              if (result !== 'success') return `- **${name}:** deployment failed (${result || 'no result'})`;
 
-              try {
-                const url = new URL(rawUrl);
-                if (url.protocol === 'https:' && url.hostname.endsWith('.pages.dev')) {
-                  return `- **${name}:** ${url.toString()}`;
-                }
-              } catch {}
+              if (!/^[a-z0-9-]+$/.test(project)) {
+                return `- **${name}:** deployment succeeded; preview URL could not be formed`;
+              }
 
-              return `- **${name}:** deployment failed (${result || 'no result'})`;
+              const branch = process.env.PAGES_BRANCH;
+              const url = new URL(`https://${branch}.${project}.pages.dev`);
+              return `- **${name}:** ${url.toString()}`;
             });
             const body = [marker, '### Pull request previews', '', ...lines].join('\n');
             const { owner, repo } = context.repo;
