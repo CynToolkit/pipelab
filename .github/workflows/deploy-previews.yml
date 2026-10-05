@@ -34,9 +34,62 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  deploy:
-    if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
+  changes:
     runs-on: ubuntu-latest
+    outputs:
+      documentation: ${{ steps.detect.outputs.documentation }}
+      editor: ${{ steps.detect.outputs.editor }}
+      website: ${{ steps.detect.outputs.website }}
+      branch: ${{ steps.detect.outputs.branch }}
+    steps:
+      - name: Detect affected previews
+        id: detect
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              ...context.repo,
+              pull_number: context.issue.number,
+              per_page: 100,
+            });
+            const paths = files.map(file => file.filename);
+            const hasPrefix = prefix => paths.some(path => path.startsWith(prefix));
+            const hasAny = candidates => candidates.some(path => paths.includes(path));
+            const shared = hasPrefix('packages/') || hasPrefix('plugins/') || hasAny([
+              'package.json',
+              'pnpm-lock.yaml',
+              'pnpm-workspace.yaml',
+              'turbo.json',
+            ]);
+            const previewWorkflowChanged = paths.includes('.github/workflows/deploy-previews.yml');
+
+            const documentation = previewWorkflowChanged || shared || hasAny([
+              'ARCHITECTURE.md',
+              '.github/workflows/deploy-documentation.yml',
+            ]) || hasPrefix('apps/documentation/') || hasPrefix('apps/ui/') ||
+              hasPrefix('apps/desktop/') || hasPrefix('apps/cli/') ||
+              hasPrefix('workers/') || hasPrefix('supabase/');
+            const editor = previewWorkflowChanged || shared || hasPrefix('apps/ui/') ||
+              paths.includes('.github/workflows/deploy-editor.yml');
+            const website = previewWorkflowChanged || shared || hasPrefix('apps/website/') ||
+              paths.includes('.github/workflows/deploy-website.yml');
+
+            const branch = context.payload.pull_request.head.ref
+              .replaceAll('/', '-')
+              .replace(/[^a-zA-Z0-9_-]/g, '-');
+            if (!branch) throw new Error('Could not determine the Cloudflare Pages branch name.');
+
+            core.setOutput('documentation', String(documentation));
+            core.setOutput('editor', String(editor));
+            core.setOutput('website', String(website));
+            core.setOutput('branch', branch);
+
+  deploy-documentation:
+    needs: changes
+    if: ${{ needs.changes.outputs.documentation == 'true' && github.event.pull_request.head.repo.full_name == github.repository }}
+    runs-on: ubuntu-latest
+    outputs:
+      url: ${{ steps.deploy.outputs.deployment-url }}
     steps:
       - uses: actions/checkout@v4
 
@@ -56,6 +109,37 @@ jobs:
       - name: Build documentation
         run: pnpm docs:build
 
+      - name: Deploy documentation preview
+        id: deploy
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+          command: pages deploy apps/documentation/.vitepress/dist --project-name=pipelab-docs --branch=${{ needs.changes.outputs.branch }}
+
+  deploy-editor:
+    needs: changes
+    if: ${{ needs.changes.outputs.editor == 'true' && github.event.pull_request.head.repo.full_name == github.repository }}
+    runs-on: ubuntu-latest
+    outputs:
+      url: ${{ steps.deploy.outputs.deployment-url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+          run_install: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.15.0
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
       - name: Build editor UI
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -63,6 +147,37 @@ jobs:
           SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
           POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
         run: pnpm --filter @pipelab/ui build
+
+      - name: Deploy editor preview
+        id: deploy
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+          command: pages deploy apps/ui/dist --project-name=${{ secrets.CLOUDFLARE_EDITOR_UI_PROJECT_NAME }} --branch=${{ needs.changes.outputs.branch }}
+
+  deploy-website:
+    needs: changes
+    if: ${{ needs.changes.outputs.website == 'true' && github.event.pull_request.head.repo.full_name == github.repository }}
+    runs-on: ubuntu-latest
+    outputs:
+      url: ${{ steps.deploy.outputs.deployment-url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+          run_install: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.15.0
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
 
       - name: Build website
         env:
@@ -72,73 +187,55 @@ jobs:
           POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
         run: pnpm --filter @pipelab/website build
 
-      - name: Resolve Cloudflare branch name
-        id: branch
-        env:
-          GH_HEAD_REF: ${{ github.head_ref }}
-        run: |
-          branch="${GH_HEAD_REF//\//-}"
-          branch="${branch//[^a-zA-Z0-9_-]/-}"
-          if [[ -z "$branch" ]]; then
-            echo 'Could not determine the Cloudflare Pages branch name.' >&2
-            exit 1
-          fi
-          echo "name=$branch" >> "$GITHUB_OUTPUT"
-
-      - name: Deploy documentation preview
-        id: deploy-documentation
-        uses: cloudflare/wrangler-action@v4
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
-          command: pages deploy apps/documentation/.vitepress/dist --project-name=pipelab-docs --branch=${{ steps.branch.outputs.name }}
-
-      - name: Deploy editor preview
-        id: deploy-editor
-        uses: cloudflare/wrangler-action@v4
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
-          command: pages deploy apps/ui/dist --project-name=${{ secrets.CLOUDFLARE_EDITOR_UI_PROJECT_NAME }} --branch=${{ steps.branch.outputs.name }}
-
       - name: Deploy website preview
-        id: deploy-website
+        id: deploy
         uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
-          command: pages deploy apps/website/dist --project-name=${{ secrets.CLOUDFLARE_PAGES_PROJECT_NAME }} --branch=${{ steps.branch.outputs.name }}
+          command: pages deploy apps/website/dist --project-name=${{ secrets.CLOUDFLARE_PAGES_PROJECT_NAME }} --branch=${{ needs.changes.outputs.branch }}
 
+  comment:
+    needs: [changes, deploy-documentation, deploy-editor, deploy-website]
+    if: ${{ always() && !cancelled() && github.event.pull_request.head.repo.full_name == github.repository }}
+    runs-on: ubuntu-latest
+    steps:
       - name: Update the combined preview comment
-        if: ${{ always() && !cancelled() }}
         uses: actions/github-script@v7
         env:
-          DOCUMENTATION_URL: ${{ steps.deploy-documentation.outputs.deployment-url }}
-          DOCUMENTATION_RESULT: ${{ steps.deploy-documentation.outcome }}
-          EDITOR_URL: ${{ steps.deploy-editor.outputs.deployment-url }}
-          EDITOR_RESULT: ${{ steps.deploy-editor.outcome }}
-          WEBSITE_URL: ${{ steps.deploy-website.outputs.deployment-url }}
-          WEBSITE_RESULT: ${{ steps.deploy-website.outcome }}
+          CHANGES_RESULT: ${{ needs.changes.result }}
+          DOCUMENTATION_CHANGED: ${{ needs.changes.outputs.documentation }}
+          DOCUMENTATION_RESULT: ${{ needs.deploy-documentation.result }}
+          DOCUMENTATION_URL: ${{ needs.deploy-documentation.outputs.url }}
+          EDITOR_CHANGED: ${{ needs.changes.outputs.editor }}
+          EDITOR_RESULT: ${{ needs.deploy-editor.result }}
+          EDITOR_URL: ${{ needs.deploy-editor.outputs.url }}
+          WEBSITE_CHANGED: ${{ needs.changes.outputs.website }}
+          WEBSITE_RESULT: ${{ needs.deploy-website.result }}
+          WEBSITE_URL: ${{ needs.deploy-website.outputs.url }}
         with:
           script: |
             const marker = '<!-- pipelab-preview-deployments -->';
             const previews = [
-              ['Documentation', process.env.DOCUMENTATION_URL, process.env.DOCUMENTATION_RESULT],
-              ['Editor', process.env.EDITOR_URL, process.env.EDITOR_RESULT],
-              ['Website', process.env.WEBSITE_URL, process.env.WEBSITE_RESULT],
+              ['Documentation', process.env.DOCUMENTATION_CHANGED, process.env.DOCUMENTATION_RESULT, process.env.DOCUMENTATION_URL],
+              ['Editor', process.env.EDITOR_CHANGED, process.env.EDITOR_RESULT, process.env.EDITOR_URL],
+              ['Website', process.env.WEBSITE_CHANGED, process.env.WEBSITE_RESULT, process.env.WEBSITE_URL],
             ];
-            const lines = previews.map(([name, rawUrl, result]) => {
-              let url;
+            const lines = previews.map(([name, changed, result, rawUrl]) => {
+              if (process.env.CHANGES_RESULT !== 'success') {
+                return `- **${name}:** change detection failed`;
+              }
+              if (changed !== 'true') return `- **${name}:** not affected`;
+
               try {
-                const parsed = new URL(rawUrl);
-                if (parsed.protocol === 'https:') url = parsed.toString();
+                const url = new URL(rawUrl);
+                if (url.protocol === 'https:' && url.hostname.endsWith('.pages.dev')) {
+                  return `- **${name}:** ${url.toString()}`;
+                }
               } catch {}
 
-              if (url) return `- **${name}:** ${url}`;
-              return `- **${name}:** preview unavailable (${result || 'not run'})`;
+              return `- **${name}:** deployment failed (${result || 'no result'})`;
             });
             const body = [marker, '### Pull request previews', '', ...lines].join('\n');
             const { owner, repo } = context.repo;
@@ -149,24 +246,12 @@ jobs:
               issue_number,
               per_page: 100,
             });
-            const previous = comments.filter(comment =>
-              comment.user.type === 'Bot' &&
-              (comment.body.includes(marker) || [
-                '<!-- pipelab-preview-documentation -->',
-                '<!-- pipelab-preview-editor -->',
-                '<!-- pipelab-preview-website -->',
-              ].some(oldMarker => comment.body.includes(oldMarker)))
+            const previous = comments.find(comment =>
+              comment.user.type === 'Bot' && (comment.body || '').includes(marker)
             );
-            const combined = previous.find(comment => comment.body.includes(marker));
 
-            if (combined) {
-              await github.rest.issues.updateComment({ owner, repo, comment_id: combined.id, body });
+            if (previous) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: previous.id, body });
             } else {
               await github.rest.issues.createComment({ owner, repo, issue_number, body });
-            }
-
-            for (const comment of previous) {
-              if (comment.id !== combined?.id) {
-                await github.rest.issues.deleteComment({ owner, repo, comment_id: comment.id });
-              }
             }
