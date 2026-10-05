@@ -1,27 +1,12 @@
 import { PipelabContext } from "./context";
 import { sendStartupProgress } from "./server";
-import type { RendererPluginDefinition } from "@pipelab/shared";
-import constructPlugin from "@pipelab/plugin-construct";
-import electronPlugin from "@pipelab/plugin-electron";
-import steamPlugin from "@pipelab/plugin-steam";
-import itchPlugin from "@pipelab/plugin-itch";
-import pokiPlugin from "@pipelab/plugin-poki";
-import tauriPlugin from "@pipelab/plugin-tauri";
-import godotPlugin from "@pipelab/plugin-godot";
 import { toRendererPluginMetadata } from "./utils";
+import { builtInProviders } from "./providers-registry";
 
 // Built-in plugin definitions are statically imported into the CLI. Their identities
 // live with the plugin sources, so startup never reads package metadata or resolves
 // a package directory.
-export const bundledPlugins: RendererPluginDefinition[] = [
-  constructPlugin,
-  electronPlugin,
-  steamPlugin,
-  itchPlugin,
-  pokiPlugin,
-  tauriPlugin,
-  godotPlugin,
-];
+export const bundledPlugins = builtInProviders;
 
 export const builtInPlugins = async (_options: { context: PipelabContext }): Promise<void> => {
   console.debug("[Plugins] Starting bundled plugin loading...");
@@ -39,9 +24,10 @@ export const builtInPlugins = async (_options: { context: PipelabContext }): Pro
       sendStartupProgress(`Loading bundled plugin: ${plugin.packageName}`);
       const pluginStart = Date.now();
       try {
-        registerPlugins([plugin]);
+        const metadata = toRendererPluginMetadata(plugin);
+        registerPlugins([metadata]);
         webSocketServer.broadcast("plugin:loaded", {
-          plugin: toRendererPluginMetadata(plugin),
+          plugin: metadata,
         });
         console.debug(
           `[Plugins] Loaded bundled ${plugin.packageName} in ${Date.now() - pluginStart}ms`,

@@ -5,7 +5,11 @@ import {
   createWorkflowTaskRegistry,
   type PipelabPluginServices,
 } from "./workflow-tasks";
-import { workflowTaskFactories } from "./workflow-tasks/registry";
+import {
+  createBuiltInWorkflowTaskFactories,
+  workflowTaskFactories,
+} from "./workflow-tasks/registry";
+import { builtInProviders } from "./providers-registry";
 import { PipelabContext } from "./context";
 
 const services: PipelabPluginServices = {
@@ -22,24 +26,35 @@ describe("workflow plugin task registry", () => {
     expect(tasks["@example/plugin/build"]).toBeTypeOf("function");
   });
 
-  it("registers every task ID emitted by the built-in Release providers", () => {
+  it("registers every built-in and core workflow task", () => {
     const tasks = createPipelabWorkflowTasks(
       services,
       createWorkflowTaskRegistry(workflowTaskFactories, services),
     );
 
     for (const uses of [
-      "@pipelab/plugin-construct/export-construct-project",
-      "@pipelab/plugin-electron/electron:package:v2",
-      "@pipelab/plugin-godot/godot:export",
-      "@pipelab/plugin-itch/itch-upload",
-      "@pipelab/plugin-poki/poki-upload",
-      "@pipelab/plugin-steam/steam-upload",
-      "@pipelab/plugin-tauri/tauri:package:v2",
+      ...Object.keys(workflowTaskFactories),
       ...Object.values(CORE_WORKFLOW_TASKS),
       "pipelab-cloud:upload",
     ]) {
       expect(tasks[uses], `${uses} must resolve to a workflow task`).toBeTypeOf("function");
     }
+  });
+
+  it("fails loudly when built-in providers have duplicate IDs", () => {
+    expect(() =>
+      createBuiltInWorkflowTaskFactories([builtInProviders[0]!, builtInProviders[0]!]),
+    ).toThrow("Duplicate provider ID:");
+  });
+
+  it("fails loudly when built-in providers have duplicate task IDs", () => {
+    const [first, second, ...rest] = builtInProviders;
+    expect(first).toBeDefined();
+    expect(second).toBeDefined();
+    const duplicateTaskProvider = { ...second!, workflowTasks: first!.workflowTasks };
+
+    expect(() =>
+      createBuiltInWorkflowTaskFactories([first!, duplicateTaskProvider, ...rest]),
+    ).toThrow("Duplicate workflow task ID:");
   });
 });
