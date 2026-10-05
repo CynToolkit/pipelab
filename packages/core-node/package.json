@@ -43,7 +43,6 @@
     "es-toolkit": "1.25.2",
     "execa": "9.5.2",
     "nanoid": "5.1.16",
-    "pacote": "21.5.1",
     "proper-lockfile": "4.1.2",
     "semver": "^7.7.4",
     "slash": "3.0.0",
@@ -64,6 +63,7 @@
     "@types/ws": "8.18.1",
     "@types/yauzl": "2.10.3",
     "memfs": "4.57.6",
+    "pacote": "21.5.1",
     "tsdown": "0.21.2",
     "typescript": "^5.0.0",
     "vitest": "3.1.4"

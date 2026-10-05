@@ -14,7 +14,6 @@ import { patchExecutableWithGpupatch } from "../../../../../packages/providers/s
 
 vi.mock("@pipelab/plugin-core", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@pipelab/plugin-core")>()),
-  detectRuntime: vi.fn(),
   runPnpm: vi.fn().mockResolvedValue({ all: "" }),
   runWithLiveLogs: vi.fn(),
   resolveBundledAsset: vi.fn(),
@@ -152,3 +151,5 @@ describe("Electron patch option in the CLI host", () => {
     expect(patchExecutableWithGpupatch).not.toHaveBeenCalled();
   });
 });
+
+vi.mock("../../../../../packages/providers/src/web-runtime", () => ({ detectRuntime: vi.fn() }));

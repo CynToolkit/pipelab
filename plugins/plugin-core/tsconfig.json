@@ -3,13 +3,11 @@
   "compilerOptions": {
     "outDir": "dist",
     "rootDir": "src",
-    "types": ["node"]
+    "types": ["node"],
+    "lib": ["ESNext"]
   },
   "include": ["src"],
   "references": [
-    {
-      "path": "../../packages/core-node"
-    },
     {
       "path": "../../packages/constants"
     },

@@ -8,12 +8,12 @@ import { getBinName } from "@pipelab/constants";
 import {
   electronPackageWorkflowTaskFactory,
   type ElectronWorkflowTaskServices,
-} from "../../package-v2";
+} from "../../../../../packages/providers/src/electron/package-v2";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-describe("End-to-End: Electron Plugin", () => {
+describe("End-to-End: Electron provider", () => {
   let sandbox: Awaited<ReturnType<typeof createSandbox>>;
 
   afterEach(async () => {

@@ -82,6 +82,21 @@ export class PipelabContext {
     this.releaseTag = options.releaseTag || "latest";
   }
 
+  async ensureNodeJS(): Promise<string> {
+    const { ensureNodeJS } = await import("./utils/remote");
+    return ensureNodeJS(this);
+  }
+
+  async ensurePNPM(): Promise<string> {
+    const { ensurePNPM } = await import("./utils/remote");
+    return ensurePNPM(this);
+  }
+
+  async resolveBundledAsset(packageName: string): Promise<string> {
+    const { resolveBundledAsset } = await import("./bundled-cli");
+    return resolveBundledAsset(packageName);
+  }
+
   getPackagesPath<S extends string[]>(...subpaths: S): `PACKAGES/${Join<S, "/">}`;
   getPackagesPath(...subpaths: string[]): string {
     return join(this.userDataPath, "packages", ...subpaths);

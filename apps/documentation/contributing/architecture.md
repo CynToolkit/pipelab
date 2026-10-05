@@ -13,7 +13,7 @@ This is an implementation map for contributors, not a promise of a stable public
 | `packages/shared` | Shared types, schemas, configuration, plugin definitions, and Release workflow planning/compiler contracts. |
 | `packages/workflow-runtime` | Host-abstracted version 1 task execution contracts and runtime. |
 | `packages/providers` | Construct, Electron, Godot, Tauri, Steam, Itch, and Poki implementations and tests, isolated in provider folders and versioned together. |
-| `plugins/plugin-core` | Shared filesystem, archive, process, and bundled asset helpers used by the built-in providers. |
+| `plugins/plugin-core` | Generic filesystem, archive, download, process and package helpers below providers; no core-node dependency. |
 | `workers/*`, `supabase/` | Cloudflare Worker APIs and database migrations/functions for cloud services. |
 
 Core-node's single `builtInProviders` list drives renderer metadata, Release definitions, and native Workflow task registration. Each module exports one `ProviderDefinition` combining its metadata, integrations, Release contributions, and task factories. See [Workflow runtime](/reference/workflow-runtime).
@@ -48,3 +48,24 @@ not require a Release configuration migration.
 - Implement generic scheduling/host contracts in `packages/workflow-runtime`; register Pipelab-specific tasks at the core-node boundary.
 - Keep cloud HTTP protocol logic in the Worker/client boundary and update the related tests when either side changes.
 - Update product documentation with user-visible behavior. Use the package's own tests, typecheck, and build scripts as appropriate.
+
+## Execution dependency direction
+
+The runtime is independent of Pipelab integrations. Shared provider contracts
+build on it; the existing helper package implements reusable execution utilities.
+Providers use those layers, and core-node composes and hosts the providers.
+
+```text
+workflow-runtime → shared/provider API → plugin-core helpers → providers → core-node
+```
+
+Arrows here mean “is used by.” Providers do not import core-node. The host supplies
+managed temporary/cache/package/connection paths, Node and pnpm installation,
+and bundled asset resolution through `ProviderHostContext`. Provider utilities
+such as SteamCMD, Butler and web export detection remain in provider folders.
+`fetchPackage`, `downloadFile`, `runPnpm` and `runWithLiveLogs` live in the existing
+helper package; no additional SDK or toolchain workspaces are introduced. Its
+README records the capability ownership audit.
+
+Real provider execution tests, including Electron packaging, live in the CLI
+host E2E suite. Isolated provider folder tests use mocked service boundaries.
