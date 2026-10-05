@@ -4,4 +4,4 @@
 "@pipelab/test-utils": minor
 ---
 
-Define the native Workflow task context and Pipelab services bundle, with compatibility adapters for existing plugin runners and a native task test helper.
+Define the native Workflow task context and Pipelab services bundle, with native task test utilities for plugin Workflow tasks.
