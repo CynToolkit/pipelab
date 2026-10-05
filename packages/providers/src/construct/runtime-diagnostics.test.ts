@@ -13,11 +13,7 @@ test("records Playwright video in development and CI only", () => {
 });
 
 test("parses available memory and free swap from Linux meminfo", () => {
-  expect(
-    parseLinuxMemoryInfo(
-      "MemTotal: 8000000 kB\nMemAvailable: 2097152 kB\nSwapTotal: 4000000 kB\nSwapFree: 524288 kB\n",
-    ),
-  ).toEqual({
+  expect(parseLinuxMemoryInfo("MemTotal: 8000000 kB\nMemAvailable: 2097152 kB\nSwapTotal: 4000000 kB\nSwapFree: 524288 kB\n")).toEqual({
     availableMemoryKiB: 2097152,
     freeSwapKiB: 524288,
   });
@@ -34,8 +30,6 @@ test("returns no memory snapshot off Linux or when proc data cannot be read", as
 });
 
 test("formats renderer crashes with current memory values when available", () => {
-  expect(formatRendererCrash({ availableMemoryKiB: 458 * 1024, freeSwapKiB: 0 })).toContain(
-    "458 MiB available RAM",
-  );
+  expect(formatRendererCrash({ availableMemoryKiB: 458 * 1024, freeSwapKiB: 0 })).toContain("458 MiB available RAM");
   expect(formatRendererCrash(null)).toContain("memory details are unavailable");
 });

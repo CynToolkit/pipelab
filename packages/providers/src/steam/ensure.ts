@@ -1,7 +1,12 @@
 import { join } from "node:path";
 import { access, chmod, mkdir, mkdtemp, rename, rm } from "node:fs/promises";
 import { constants } from "node:fs";
-import { downloadFile, extractTarGz, extractZip, runWithLiveLogs } from "@pipelab/plugin-core";
+import {
+  downloadFile,
+  extractTarGz,
+  extractZip,
+  runWithLiveLogs,
+} from "@pipelab/plugin-core";
 import type { PipelabContext } from "@pipelab/plugin-core";
 
 const steamCmdInstallers = {
@@ -61,10 +66,7 @@ export const ensureSteamCmd = async (
   const parentDir = context.getThirdPartyPath("steamcmd");
   await mkdir(parentDir, { recursive: true });
   const tempDir = await mkdtemp(join(parentDir, `.setup-${process.platform}-`));
-  const archivePath = join(
-    tempDir,
-    installer.archive === "zip" ? "steamcmd.zip" : "steamcmd.tar.gz",
-  );
+  const archivePath = join(tempDir, installer.archive === "zip" ? "steamcmd.zip" : "steamcmd.tar.gz");
   try {
     log(`Downloading SteamCMD for ${process.platform}...`);
     await downloadFile(installer.url, archivePath, undefined, abortSignal);
