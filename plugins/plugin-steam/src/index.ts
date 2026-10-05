@@ -1,5 +1,5 @@
-import { createSteamUploadTask, WORKFLOW_TASK_ID } from "./upload-to-steam";
-import { createDefinition } from "@pipelab/plugin-core";
+import { createSteamUploadTask, WORKFLOW_TASK_ID, type SteamTaskServices } from "./upload-to-steam";
+import { createProviderDefinition } from "@pipelab/shared";
 import type { ReleaseDestinationDefinition } from "@pipelab/shared";
 
 export { createSteamUploadTask, WORKFLOW_TASK_ID };
@@ -64,7 +64,7 @@ export const steamDestination: ReleaseDestinationDefinition = {
   ],
 };
 
-export default createDefinition({
+export const provider = createProviderDefinition({
   id: "@pipelab/plugin-steam",
   packageName: "@pipelab/plugin-steam",
   name: "Steam",
@@ -85,4 +85,9 @@ export default createDefinition({
     },
   ],
   release: { destinations: [steamDestination] },
+  workflowTasks: {
+    [WORKFLOW_TASK_ID]: (services: SteamTaskServices) => createSteamUploadTask(services),
+  },
 });
+
+export default provider;

@@ -18,6 +18,7 @@ describe("Steam release credentials", () => {
     );
     expect(createSteamUploadTask).toBeTypeOf("function");
     expect(WORKFLOW_TASK_ID).toBe("@pipelab/plugin-steam/steam-upload");
+    expect(Object.keys(plugin.workflowTasks ?? {})).toEqual([WORKFLOW_TASK_ID]);
   });
 
   it("reports destination field paths", () => {

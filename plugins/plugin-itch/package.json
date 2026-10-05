@@ -37,6 +37,7 @@
   },
   "dependencies": {
     "@pipelab/plugin-core": "workspace:*",
+    "@pipelab/shared": "workspace:*",
     "@pipelab/workflow-runtime": "workspace:*",
     "node-stream-zip": "1.15.0"
   },

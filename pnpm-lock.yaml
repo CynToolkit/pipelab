@@ -883,6 +883,9 @@ importers:
       '@pipelab/plugin-core':
         specifier: workspace:*
         version: link:../plugin-core
+      '@pipelab/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       '@pipelab/workflow-runtime':
         specifier: workspace:*
         version: link:../../packages/workflow-runtime
@@ -907,7 +910,7 @@ importers:
         version: 24.12.2
       tsdown:
         specifier: 0.21.2
-        version: 0.21.2(@emnapi/core@1.10.0)(@emnapi/runtime@1.11.3)(@vitejs/devtools@0.1.13)(publint@0.3.18)(typescript@5.9.3)
+        version: 0.21.2(@emnapi/core@1.10.0)(@emnapi/runtime@1.11.3)(@vitejs/devtools@0.1.13(@pnpm/logger@1001.0.1)(typescript@5.9.3)(vite@6.3.3(@types/node@24.12.2)(jiti@2.6.1)(lightningcss@1.32.0)(sass-embedded@1.99.0)(sass@1.99.0)(terser@5.46.1)(tsx@4.19.1)(yaml@2.9.1)))(publint@0.3.18)(typescript@5.9.3)
       typescript:
         specifier: 5.9.3
         version: 5.9.3
@@ -1055,6 +1058,9 @@ importers:
       '@pipelab/plugin-core':
         specifier: workspace:*
         version: link:../plugin-core
+      '@pipelab/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       '@pipelab/workflow-runtime':
         specifier: workspace:*
         version: link:../../packages/workflow-runtime
@@ -1073,7 +1079,7 @@ importers:
         version: 24.12.2
       tsdown:
         specifier: 0.21.2
-        version: 0.21.2(@emnapi/core@1.10.0)(@emnapi/runtime@1.11.3)(@vitejs/devtools@0.1.13(@pnpm/logger@1001.0.1)(typescript@5.9.3)(vite@6.3.3(@types/node@24.12.2)(jiti@2.6.1)(lightningcss@1.32.0)(sass-embedded@1.99.0)(sass@1.99.0)(terser@5.46.1)(tsx@4.19.1)(yaml@2.9.1)))(publint@0.3.18)(typescript@5.9.3)
+        version: 0.21.2(@emnapi/core@1.10.0)(@emnapi/runtime@1.11.3)(@vitejs/devtools@0.1.13)(publint@0.3.18)(typescript@5.9.3)
       typescript:
         specifier: 5.9.3
         version: 5.9.3
@@ -1089,6 +1095,9 @@ importers:
       '@pipelab/plugin-core':
         specifier: workspace:*
         version: link:../plugin-core
+      '@pipelab/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       '@pipelab/workflow-runtime':
         specifier: workspace:*
         version: link:../../packages/workflow-runtime
@@ -1123,6 +1132,9 @@ importers:
       '@pipelab/plugin-core':
         specifier: workspace:*
         version: link:../plugin-core
+      '@pipelab/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       '@pipelab/workflow-runtime':
         specifier: workspace:*
         version: link:../../packages/workflow-runtime

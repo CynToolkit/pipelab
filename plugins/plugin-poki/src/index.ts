@@ -1,6 +1,6 @@
-import { createPokiUploadTask, WORKFLOW_TASK_ID } from "./export";
+import { createPokiUploadTask, WORKFLOW_TASK_ID, type PokiTaskServices } from "./export";
 
-import { createDefinition } from "@pipelab/plugin-core";
+import { createProviderDefinition } from "@pipelab/shared";
 import type { ReleaseDestinationDefinition } from "@pipelab/shared";
 
 export { createPokiUploadTask, WORKFLOW_TASK_ID };
@@ -36,7 +36,7 @@ const pokiDestination: ReleaseDestinationDefinition = {
   ],
 };
 
-export default createDefinition({
+export const provider = createProviderDefinition({
   id: "@pipelab/plugin-poki",
   packageName: "@pipelab/plugin-poki",
   name: "Poki",
@@ -44,4 +44,9 @@ export default createDefinition({
   icon: { type: "icon", icon: "pi-globe" },
   isOfficial: true,
   release: { destinations: [pokiDestination] },
+  workflowTasks: {
+    [WORKFLOW_TASK_ID]: (services: PokiTaskServices) => createPokiUploadTask(services),
+  },
 });
+
+export default provider;

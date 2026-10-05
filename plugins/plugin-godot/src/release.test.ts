@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import plugin, { godotExporter, godotSource, workflowTasks } from "./index";
+import plugin, { godotExporter, godotSource } from "./index";
 
 const context = (path: string) => ({
   host: { platform: "linux", architecture: "x64" },
@@ -14,7 +14,7 @@ describe("Godot release preset validation", () => {
     expect("nodes" in plugin).toBe(false);
     expect(plugin.release?.sources?.map((source) => source.id)).toContain(godotSource.id);
     expect(plugin.release?.producers?.map((producer) => producer.id)).toContain(godotExporter.id);
-    expect(Object.keys(workflowTasks)).toEqual(["@pipelab/plugin-godot/godot:export"]);
+    expect(Object.keys(plugin.workflowTasks ?? {})).toEqual(["@pipelab/plugin-godot/godot:export"]);
   });
 
   it("reports the source field path", () => {

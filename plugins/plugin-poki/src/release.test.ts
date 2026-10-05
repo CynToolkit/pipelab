@@ -9,5 +9,6 @@ describe("Poki Release registry", () => {
     );
     expect(createPokiUploadTask).toBeTypeOf("function");
     expect(WORKFLOW_TASK_ID).toBe("@pipelab/plugin-poki/poki-upload");
+    expect(Object.keys(pokiPlugin.workflowTasks ?? {})).toEqual([WORKFLOW_TASK_ID]);
   });
 });
