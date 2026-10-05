@@ -12,10 +12,11 @@ This is an implementation map for contributors, not a promise of a stable public
 | `packages/core-node` | Node-side context, HTTP/WebSocket server, handlers, build history, persistence, and adapters that host plugins/workflows. |
 | `packages/shared` | Shared types, schemas, configuration, plugin definitions, and Release workflow planning/compiler contracts. |
 | `packages/workflow-runtime` | Host-abstracted version 1 task execution contracts and runtime. |
-| `plugins/*` | Provider-specific plugin definitions and runners. Core-node statically registers the built-in plugin packages. |
+| `packages/providers` | Construct, Electron, Godot, Tauri, Steam, Itch, and Poki implementations and tests, isolated in provider folders and versioned together. |
+| `plugins/plugin-core` | Shared filesystem, archive, process, and bundled asset helpers used by the built-in providers. |
 | `workers/*`, `supabase/` | Cloudflare Worker APIs and database migrations/functions for cloud services. |
 
-The task workflow runtime uses plugin runner definitions through an explicit core-node task registry. The legacy graph execution system and node editor model have been removed. See [Workflow runtime](/reference/workflow-runtime).
+Core-node's single `builtInProviders` list drives renderer metadata, Release definitions, and native Workflow task registration. Each module exports one `ProviderDefinition` combining its metadata, integrations, Release contributions, and task factories. See [Workflow runtime](/reference/workflow-runtime).
 
 ## Runtime boundaries
 
@@ -33,9 +34,16 @@ import { runWorkflow, createLocalHost } from "@pipelab/workflow-runtime";
 
 Check the owning package's `package.json`, `src/index.ts`, README, and scripts before changing or consuming an interface. These workspace exports are not evidence of a supported external SDK stability policy.
 
+`@pipelab/providers` exports the seven named built-in definitions from its root,
+with supported subpaths such as `@pipelab/providers/construct` for module helpers.
+Provider folders remain independently testable with scripts such as
+`pnpm --filter @pipelab/providers test:construct`. Their saved provider, Release,
+and Workflow task IDs retain the `@pipelab/plugin-*` prefix; moving the code does
+not require a Release configuration migration.
+
 ## Adding or changing behavior
 
-- Put provider-specific task behavior in its owning `plugins/plugin-*` package. The core-node plugin registry owns built-in registration.
+- Put provider-specific task behavior and tests in its owning `packages/providers/src/<provider>` folder. The package root exports definitions; core-node owns built-in composition.
 - Keep shared contracts and schemas in `packages/shared`; keep Node server, persistence, and host adapters in `packages/core-node`.
 - Implement generic scheduling/host contracts in `packages/workflow-runtime`; register Pipelab-specific tasks at the core-node boundary.
 - Keep cloud HTTP protocol logic in the Worker/client boundary and update the related tests when either side changes.

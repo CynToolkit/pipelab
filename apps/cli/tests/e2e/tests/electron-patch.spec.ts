@@ -7,10 +7,10 @@ import { runWithLiveLogs, resolveBundledAsset } from "@pipelab/plugin-core";
 import {
   electronPackageWorkflowTaskFactory,
   type ElectronWorkflowTaskServices,
-} from "../../../../../plugins/plugin-electron/src/package-v2";
-import { forge } from "../../../../../plugins/plugin-electron/src/forge";
-import { defaultElectronConfig } from "../../../../../plugins/plugin-electron/src/utils";
-import { patchExecutableWithGpupatch } from "../../../../../plugins/plugin-electron/src/gpupatch";
+} from "../../../../../packages/providers/src/electron/package-v2";
+import { forge } from "../../../../../packages/providers/src/electron/forge";
+import { defaultElectronConfig } from "../../../../../packages/providers/src/electron/utils";
+import { patchExecutableWithGpupatch } from "../../../../../packages/providers/src/electron/gpupatch";
 
 vi.mock("@pipelab/plugin-core", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@pipelab/plugin-core")>()),
@@ -19,7 +19,7 @@ vi.mock("@pipelab/plugin-core", async (importOriginal) => ({
   runWithLiveLogs: vi.fn(),
   resolveBundledAsset: vi.fn(),
 }));
-vi.mock("../../../../../plugins/plugin-electron/src/gpupatch", () => ({
+vi.mock("../../../../../packages/providers/src/electron/gpupatch", () => ({
   patchExecutableWithGpupatch: vi.fn(),
 }));
 

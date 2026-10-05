@@ -1,15 +1,10 @@
 ---
-"@pipelab/plugin-construct": patch
-"@pipelab/plugin-electron": patch
+"@pipelab/providers": patch
 "@pipelab/asset-electron": patch
 "@pipelab/asset-discord": patch
 "@pipelab/asset-netlify": patch
-"@pipelab/plugin-steam": patch
-"@pipelab/plugin-tauri": patch
 "@pipelab/test-utils": patch
 "@pipelab/plugin-core": patch
-"@pipelab/plugin-itch": patch
-"@pipelab/plugin-poki": patch
 "@pipelab/asset-tauri": patch
 "@pipelab/constants": patch
 "@pipelab/core-node": patch

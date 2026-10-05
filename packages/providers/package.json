@@ -1,0 +1,139 @@
+{
+  "name": "@pipelab/providers",
+  "version": "1.0.0-beta.0",
+  "description": "Built-in Release and Workflow providers shipped with Pipelab",
+  "license": "FSL-1.1-MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/CynToolkit/pipelab.git",
+    "directory": "packages/providers"
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "type": "module",
+  "main": "./src/index.ts",
+  "module": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./construct": {
+      "types": "./src/construct/index.ts",
+      "import": "./src/construct/index.ts",
+      "default": "./src/construct/index.ts"
+    },
+    "./electron": {
+      "types": "./src/electron/index.ts",
+      "import": "./src/electron/index.ts",
+      "default": "./src/electron/index.ts"
+    },
+    "./godot": {
+      "types": "./src/godot/index.ts",
+      "import": "./src/godot/index.ts",
+      "default": "./src/godot/index.ts"
+    },
+    "./tauri": {
+      "types": "./src/tauri/index.ts",
+      "import": "./src/tauri/index.ts",
+      "default": "./src/tauri/index.ts"
+    },
+    "./steam": {
+      "types": "./src/steam/index.ts",
+      "import": "./src/steam/index.ts",
+      "default": "./src/steam/index.ts"
+    },
+    "./itch": {
+      "types": "./src/itch/index.ts",
+      "import": "./src/itch/index.ts",
+      "default": "./src/itch/index.ts"
+    },
+    "./poki": {
+      "types": "./src/poki/index.ts",
+      "import": "./src/poki/index.ts",
+      "default": "./src/poki/index.ts"
+    },
+    "./poki/auth": {
+      "types": "./src/poki/auth.ts",
+      "import": "./src/poki/auth.ts",
+      "default": "./src/poki/auth.ts"
+    },
+    "./steam/login": {
+      "types": "./src/steam/login.ts",
+      "import": "./src/steam/login.ts",
+      "default": "./src/steam/login.ts"
+    }
+  },
+  "scripts": {
+    "format": "oxfmt .",
+    "typecheck": "tsc -b",
+    "lint": "oxlint .",
+    "build": "tsdown",
+    "test": "vitest run",
+    "test:construct": "vitest run src/construct",
+    "test:electron": "vitest run src/electron",
+    "test:godot": "vitest run src/godot",
+    "test:tauri": "vitest run src/tauri",
+    "test:steam": "vitest run src/steam",
+    "test:itch": "vitest run src/itch",
+    "test:poki": "vitest run src/poki"
+  },
+  "dependencies": {
+    "@pipelab/constants": "workspace:*",
+    "@pipelab/plugin-core": "workspace:*",
+    "@pipelab/shared": "workspace:*",
+    "@pipelab/workflow-runtime": "workspace:*",
+    "adm-zip": "0.6.0",
+    "electron": "39.8.10",
+    "es-toolkit": "1.25.2",
+    "execa": "9.4.1",
+    "node-stream-zip": "1.15.0",
+    "playwright": "1.62.1",
+    "ts-deepmerge": "7.0.1",
+    "valibot": "1.4.2"
+  },
+  "devDependencies": {
+    "@pipelab/test-utils": "workspace:*",
+    "@pipelab/tsconfig": "workspace:*",
+    "@types/node": "^24.12.2",
+    "msw": "2.7.5",
+    "tsdown": "0.21.2",
+    "typescript": "5.9.3",
+    "vitest": "3.1.4"
+  },
+  "typesVersions": {
+    "*": {
+      "construct": [
+        "src/construct/index.ts"
+      ],
+      "electron": [
+        "src/electron/index.ts"
+      ],
+      "godot": [
+        "src/godot/index.ts"
+      ],
+      "tauri": [
+        "src/tauri/index.ts"
+      ],
+      "steam": [
+        "src/steam/index.ts"
+      ],
+      "itch": [
+        "src/itch/index.ts"
+      ],
+      "poki": [
+        "src/poki/index.ts"
+      ],
+      "poki/auth": [
+        "src/poki/auth.ts"
+      ],
+      "steam/login": [
+        "src/steam/login.ts"
+      ]
+    }
+  }
+}

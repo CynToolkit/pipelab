@@ -1,5 +1,5 @@
 ---
-"@pipelab/plugin-electron": minor
+"@pipelab/providers": minor
 "@pipelab/plugin-core": minor
 "@pipelab/core-node": patch
 ---

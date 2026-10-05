@@ -1,5 +1,5 @@
 ---
-"@pipelab/plugin-electron": patch
+"@pipelab/providers": patch
 ---
 
 sd
