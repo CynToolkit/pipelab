@@ -88,6 +88,9 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.documentation == 'true' && github.event.pull_request.head.repo.full_name == github.repository }}
     runs-on: ubuntu-latest
+    # Full URLs contain masked project-name secrets, so only pass the public deployment ID between jobs.
+    outputs:
+      deployment-id: ${{ steps.deployment.outputs.id }}
     steps:
       - uses: actions/checkout@v4
 
@@ -116,10 +119,29 @@ jobs:
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
           command: pages deploy apps/documentation/.vitepress/dist --project-name=pipelab-docs --branch=${{ needs.changes.outputs.branch }}
 
+      - name: Capture deployment ID
+        id: deployment
+        env:
+          DEPLOYMENT_URL: ${{ steps.deploy.outputs.deployment-url }}
+          PROJECT_NAME: pipelab-docs
+        run: |
+          node <<'NODE' >> "$GITHUB_OUTPUT"
+          const url = new URL(process.env.DEPLOYMENT_URL);
+          const suffix = `.${process.env.PROJECT_NAME}.pages.dev`;
+          if (url.protocol !== 'https:' || !url.hostname.endsWith(suffix)) {
+            throw new Error('Cloudflare returned an unexpected documentation deployment URL.');
+          }
+          const id = url.hostname.slice(0, -suffix.length);
+          if (!/^[a-z0-9-]+$/.test(id)) throw new Error('Cloudflare returned an invalid deployment ID.');
+          console.log(`id=${id}`);
+          NODE
+
   deploy-editor:
     needs: changes
     if: ${{ needs.changes.outputs.editor == 'true' && github.event.pull_request.head.repo.full_name == github.repository }}
     runs-on: ubuntu-latest
+    outputs:
+      deployment-id: ${{ steps.deployment.outputs.id }}
     steps:
       - uses: actions/checkout@v4
 
@@ -153,10 +175,29 @@ jobs:
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
           command: pages deploy apps/ui/dist --project-name=${{ secrets.CLOUDFLARE_EDITOR_UI_PROJECT_NAME }} --branch=${{ needs.changes.outputs.branch }}
 
+      - name: Capture deployment ID
+        id: deployment
+        env:
+          DEPLOYMENT_URL: ${{ steps.deploy.outputs.deployment-url }}
+          PROJECT_NAME: ${{ secrets.CLOUDFLARE_EDITOR_UI_PROJECT_NAME }}
+        run: |
+          node <<'NODE' >> "$GITHUB_OUTPUT"
+          const url = new URL(process.env.DEPLOYMENT_URL);
+          const suffix = `.${process.env.PROJECT_NAME}.pages.dev`;
+          if (url.protocol !== 'https:' || !url.hostname.endsWith(suffix)) {
+            throw new Error('Cloudflare returned an unexpected editor deployment URL.');
+          }
+          const id = url.hostname.slice(0, -suffix.length);
+          if (!/^[a-z0-9-]+$/.test(id)) throw new Error('Cloudflare returned an invalid deployment ID.');
+          console.log(`id=${id}`);
+          NODE
+
   deploy-website:
     needs: changes
     if: ${{ needs.changes.outputs.website == 'true' && github.event.pull_request.head.repo.full_name == github.repository }}
     runs-on: ubuntu-latest
+    outputs:
+      deployment-id: ${{ steps.deployment.outputs.id }}
     steps:
       - uses: actions/checkout@v4
 
@@ -190,6 +231,23 @@ jobs:
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
           command: pages deploy apps/website/dist --project-name=${{ secrets.CLOUDFLARE_PAGES_PROJECT_NAME }} --branch=${{ needs.changes.outputs.branch }}
 
+      - name: Capture deployment ID
+        id: deployment
+        env:
+          DEPLOYMENT_URL: ${{ steps.deploy.outputs.deployment-url }}
+          PROJECT_NAME: ${{ secrets.CLOUDFLARE_PAGES_PROJECT_NAME }}
+        run: |
+          node <<'NODE' >> "$GITHUB_OUTPUT"
+          const url = new URL(process.env.DEPLOYMENT_URL);
+          const suffix = `.${process.env.PROJECT_NAME}.pages.dev`;
+          if (url.protocol !== 'https:' || !url.hostname.endsWith(suffix)) {
+            throw new Error('Cloudflare returned an unexpected website deployment URL.');
+          }
+          const id = url.hostname.slice(0, -suffix.length);
+          if (!/^[a-z0-9-]+$/.test(id)) throw new Error('Cloudflare returned an invalid deployment ID.');
+          console.log(`id=${id}`);
+          NODE
+
   comment:
     needs: [changes, deploy-documentation, deploy-editor, deploy-website]
     if: ${{ always() && !cancelled() && github.event.pull_request.head.repo.full_name == github.repository }}
@@ -199,37 +257,38 @@ jobs:
         uses: actions/github-script@v7
         env:
           CHANGES_RESULT: ${{ needs.changes.result }}
-          PAGES_BRANCH: ${{ needs.changes.outputs.branch }}
           DOCUMENTATION_PROJECT_NAME: pipelab-docs
           DOCUMENTATION_CHANGED: ${{ needs.changes.outputs.documentation }}
           DOCUMENTATION_RESULT: ${{ needs.deploy-documentation.result }}
+          DOCUMENTATION_DEPLOYMENT_ID: ${{ needs.deploy-documentation.outputs.deployment-id }}
           EDITOR_PROJECT_NAME: ${{ secrets.CLOUDFLARE_EDITOR_UI_PROJECT_NAME }}
           EDITOR_CHANGED: ${{ needs.changes.outputs.editor }}
           EDITOR_RESULT: ${{ needs.deploy-editor.result }}
+          EDITOR_DEPLOYMENT_ID: ${{ needs.deploy-editor.outputs.deployment-id }}
           WEBSITE_PROJECT_NAME: ${{ secrets.CLOUDFLARE_PAGES_PROJECT_NAME }}
           WEBSITE_CHANGED: ${{ needs.changes.outputs.website }}
           WEBSITE_RESULT: ${{ needs.deploy-website.result }}
+          WEBSITE_DEPLOYMENT_ID: ${{ needs.deploy-website.outputs.deployment-id }}
         with:
           script: |
             const marker = '<!-- pipelab-preview-deployments -->';
             const previews = [
-              ['Documentation', process.env.DOCUMENTATION_CHANGED, process.env.DOCUMENTATION_RESULT, process.env.DOCUMENTATION_PROJECT_NAME],
-              ['Editor', process.env.EDITOR_CHANGED, process.env.EDITOR_RESULT, process.env.EDITOR_PROJECT_NAME],
-              ['Website', process.env.WEBSITE_CHANGED, process.env.WEBSITE_RESULT, process.env.WEBSITE_PROJECT_NAME],
+              ['Documentation', process.env.DOCUMENTATION_CHANGED, process.env.DOCUMENTATION_RESULT, process.env.DOCUMENTATION_DEPLOYMENT_ID, process.env.DOCUMENTATION_PROJECT_NAME],
+              ['Editor', process.env.EDITOR_CHANGED, process.env.EDITOR_RESULT, process.env.EDITOR_DEPLOYMENT_ID, process.env.EDITOR_PROJECT_NAME],
+              ['Website', process.env.WEBSITE_CHANGED, process.env.WEBSITE_RESULT, process.env.WEBSITE_DEPLOYMENT_ID, process.env.WEBSITE_PROJECT_NAME],
             ];
-            const lines = previews.map(([name, changed, result, project]) => {
+            const lines = previews.map(([name, changed, result, deploymentId, project]) => {
               if (process.env.CHANGES_RESULT !== 'success') {
                 return `- **${name}:** change detection failed`;
               }
               if (changed !== 'true') return `- **${name}:** not affected`;
               if (result !== 'success') return `- **${name}:** deployment failed (${result || 'no result'})`;
 
-              if (!/^[a-z0-9-]+$/.test(project)) {
+              if (!/^[a-z0-9-]+$/.test(project) || !/^[a-z0-9-]+$/.test(deploymentId)) {
                 return `- **${name}:** deployment succeeded; preview URL could not be formed`;
               }
 
-              const branch = process.env.PAGES_BRANCH;
-              const url = new URL(`https://${branch}.${project}.pages.dev`);
+              const url = new URL(`https://${deploymentId}.${project}.pages.dev`);
               return `- **${name}:** ${url.toString()}`;
             });
             const body = [marker, '### Pull request previews', '', ...lines].join('\n');
