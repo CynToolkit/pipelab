@@ -345,5 +345,8 @@ export const provider = createProviderDefinition({
   },
 });
 
-export const workflowTasks = provider.workflowTasks;
+export const workflowTasks = {
+  "@pipelab/plugin-godot/godot:export":
+    provider.workflowTasks["@pipelab/plugin-godot/godot:export"](),
+};
 export default provider;

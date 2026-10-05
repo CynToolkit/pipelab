@@ -8,3 +8,5 @@ destination contributions, and optional native Workflow task factories.
 `RendererProviderMetadata` exposes the renderer-facing part without the task
 factory registry. Task factories are typed against a host-provided service
 bundle, so provider packages do not depend on `@pipelab/core-node`.
+`createProviderDefinition` checks this contract while preserving the concrete
+definition type, including required task factories when they are supplied.

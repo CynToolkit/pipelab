@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import plugin, { godotExporter, godotSource } from "./index";
+import plugin, { godotExporter, godotExportTask, godotSource, workflowTasks } from "./index";
 
 const context = (path: string) => ({
   host: { platform: "linux", architecture: "x64" },
@@ -10,6 +10,10 @@ const context = (path: string) => ({
 });
 
 describe("Godot release preset validation", () => {
+  it("preserves the public direct-task registry alias", () => {
+    expect(workflowTasks["@pipelab/plugin-godot/godot:export"]).toBe(godotExportTask);
+  });
+
   it("keeps its Release definitions and task without legacy node metadata", () => {
     expect("nodes" in plugin).toBe(false);
     expect(plugin.release?.sources?.map((source) => source.id)).toContain(godotSource.id);

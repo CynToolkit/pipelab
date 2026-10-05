@@ -149,9 +149,13 @@ export interface ProviderDefinition<TServices = unknown> extends RendererProvide
   workflowTasks?: WorkflowTaskFactoryRegistry<TServices>;
 }
 
-/** Infers the host service bundle from native Workflow task factories. */
-export const createProviderDefinition = <TServices>(definition: ProviderDefinition<TServices>) =>
-  definition;
+/** Validates provider contributions while preserving the supplied definition's concrete type. */
+export const createProviderDefinition = <
+  TServices,
+  TDefinition extends ProviderDefinition<TServices>,
+>(
+  definition: TDefinition & ProviderDefinition<TServices>,
+): TDefinition => definition;
 
 /** @deprecated Use ProviderIdentity for provider metadata. */
 export interface PluginDefinition {

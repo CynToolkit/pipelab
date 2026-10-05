@@ -68,6 +68,15 @@ const createProvider = (id: string) =>
   });
 
 describe("provider contract", () => {
+  it("preserves supplied workflow tasks as a required concrete registry", () => {
+    const provider = createProvider("@example/provider");
+
+    expect(Object.keys(provider.workflowTasks)).toEqual(["@example/provider/task"]);
+    expect(
+      provider.workflowTasks["@example/provider/task"]({ workspacePath: "/workspace" }),
+    ).toBeTypeOf("function");
+  });
+
   it("combines renderer metadata, integrations, Release contributions, and native tasks", () => {
     const provider: ProviderDefinition<FakeWorkflowServices> = createProvider("@example/provider");
 
