@@ -11,22 +11,9 @@ on:
       - 'pnpm-workspace.yaml'
       - 'turbo.json'
       - '.github/workflows/deploy-website.yml'
-  pull_request:
-    branches: [develop]
-    types: [opened, synchronize, reopened]
-    paths:
-      - 'apps/website/**'
-      - 'packages/**'
-      - 'plugins/**'
-      - 'pnpm-lock.yaml'
-      - 'pnpm-workspace.yaml'
-      - 'turbo.json'
-      - '.github/workflows/deploy-website.yml'
-
 permissions:
   contents: read
   deployments: write
-  pull-requests: write
 
 concurrency:
   group: deploy-website-${{ github.ref }}
@@ -34,7 +21,6 @@ concurrency:
 
 jobs:
   deploy:
-    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -59,60 +45,10 @@ jobs:
           POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
         run: pnpm --filter @pipelab/website build
 
-      - name: Resolve Cloudflare branch name
-        id: branch
-        env:
-          GH_EVENT_NAME: ${{ github.event_name }}
-          GH_REF_NAME: ${{ github.ref_name }}
-          GH_HEAD_REF: ${{ github.head_ref }}
-        run: |
-          branch="$GH_REF_NAME"
-          if [[ "$GH_EVENT_NAME" == 'pull_request' ]]; then
-            branch="$GH_HEAD_REF"
-          fi
-          branch="${branch//\//-}"
-          branch="${branch//[^a-zA-Z0-9_-]/-}"
-          if [[ -z "$branch" ]]; then
-            echo 'Could not determine the Cloudflare Pages branch name.' >&2
-            exit 1
-          fi
-          echo "name=$branch" >> "$GITHUB_OUTPUT"
-
       - name: Deploy website to Cloudflare Pages
-        id: deploy
         uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
-          command: pages deploy apps/website/dist --project-name=${{ secrets.CLOUDFLARE_PAGES_PROJECT_NAME }} --branch=${{ steps.branch.outputs.name }}
-
-      - name: Post website preview URL to pull request
-        if: ${{ github.event_name == 'pull_request' }}
-        uses: actions/github-script@v7
-        env:
-          DEPLOYMENT_URL: ${{ steps.deploy.outputs.deployment-url }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-        with:
-          script: |
-            const marker = '<!-- pipelab-preview-website -->';
-            const deploymentUrl = process.env.DEPLOYMENT_URL;
-            if (!deploymentUrl) throw new Error('Cloudflare did not return a website preview URL.');
-
-            const body = `${marker}\n### Pipelab website preview\n[Open website preview](${deploymentUrl})`;
-            const { owner, repo } = context.repo;
-            const issue_number = Number(process.env.PR_NUMBER);
-            const comments = await github.paginate(github.rest.issues.listComments, {
-              owner,
-              repo,
-              issue_number,
-            });
-            const existing = comments.find((comment) =>
-              comment.user?.login === 'github-actions[bot]' && comment.body?.includes(marker),
-            );
-
-            if (existing) {
-              await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
-            } else {
-              await github.rest.issues.createComment({ owner, repo, issue_number, body });
-            }
+          command: pages deploy apps/website/dist --project-name=${{ secrets.CLOUDFLARE_PAGES_PROJECT_NAME }} --branch=${{ github.ref_name }}
