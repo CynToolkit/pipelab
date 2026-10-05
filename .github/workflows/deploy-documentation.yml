@@ -20,7 +20,6 @@ on:
       - ".github/workflows/deploy-documentation.yml"
   pull_request:
     branches: [develop]
-    types: [opened, synchronize, reopened]
     paths:
       - "apps/documentation/**"
       - "apps/ui/**"
@@ -36,10 +35,11 @@ on:
       - "pnpm-workspace.yaml"
       - "turbo.json"
       - ".github/workflows/deploy-documentation.yml"
-
+      - ".github/actions/upsert-preview-comment/action.yml"
 permissions:
   contents: read
   deployments: write
+  pull-requests: write
 
 concurrency:
   group: deploy-documentation-${{ github.ref }}
@@ -47,6 +47,7 @@ concurrency:
 
 jobs:
   deploy:
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -70,14 +71,10 @@ jobs:
       - name: Resolve Cloudflare branch name
         id: branch
         env:
-          GH_EVENT_NAME: ${{ github.event_name }}
           GH_REF_NAME: ${{ github.ref_name }}
           GH_HEAD_REF: ${{ github.head_ref }}
         run: |
-          branch="$GH_REF_NAME"
-          if [[ "$GH_EVENT_NAME" == 'pull_request' ]]; then
-            branch="$GH_HEAD_REF"
-          fi
+          branch="${GH_HEAD_REF:-$GH_REF_NAME}"
           branch="${branch//\//-}"
           branch="${branch//[^a-zA-Z0-9_-]/-}"
           if [[ -z "$branch" ]]; then
@@ -87,7 +84,7 @@ jobs:
           echo "name=$branch" >> "$GITHUB_OUTPUT"
 
       - name: Ensure documentation Pages project uses main for production
-        if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+        if: ${{ github.event_name != 'pull_request' }}
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -159,7 +156,6 @@ jobs:
           jq --exit-status '.success == true' <<< "$response" >/dev/null
 
       - name: Deploy documentation to Cloudflare Pages
-        if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
         id: deploy
         uses: cloudflare/wrangler-action@v4
         with:
@@ -167,6 +163,14 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
           command: pages deploy apps/documentation/.vitepress/dist --project-name=pipelab-docs --branch=${{ steps.branch.outputs.name }}
+
+      - name: Post documentation preview comment
+        if: ${{ github.event_name == 'pull_request' }}
+        uses: ./.github/actions/upsert-preview-comment
+        with:
+          name: Documentation
+          url: ${{ steps.deploy.outputs.deployment-url }}
+          marker: "<!-- pipelab-preview-documentation -->"
 
       - name: Configure develop preview domain
         if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/develop' }}
@@ -307,17 +311,7 @@ jobs:
         env:
           DEPLOYMENT_URL: ${{ steps.deploy.outputs.deployment-url }}
           DEPLOY_BRANCH: ${{ steps.branch.outputs.name }}
-          IS_FORK_PR: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository }}
         run: |
-          if [[ "$IS_FORK_PR" == 'true' ]]; then
-            {
-              echo '## Documentation deployment'
-              printf -- '- Branch: `%s`\n' "$DEPLOY_BRANCH"
-              echo '- Preview skipped for fork PRs because GitHub does not provide repository secrets to them.'
-            } >> "$GITHUB_STEP_SUMMARY"
-            exit 0
-          fi
-
           if [[ "$DEPLOY_BRANCH" == 'main' ]]; then
             stable_url='https://pipelab-docs.pages.dev'
           else

@@ -1,0 +1,35 @@
+name: Upsert preview comment
+description: Create or update the sticky pull request comment for one preview.
+inputs:
+  name:
+    description: Preview name shown in the comment.
+    required: true
+  url:
+    description: URL shown in the comment.
+    required: true
+  marker:
+    description: Unique HTML marker for this preview comment.
+    required: true
+runs:
+  using: composite
+  steps:
+    - uses: actions/github-script@v7
+      env:
+        PREVIEW_NAME: ${{ inputs.name }}
+        PREVIEW_URL: ${{ inputs.url }}
+        PREVIEW_MARKER: ${{ inputs.marker }}
+      with:
+        github-token: ${{ github.token }}
+        script: |
+          const marker = process.env.PREVIEW_MARKER;
+          const url = new URL(process.env.PREVIEW_URL);
+          const body = `${marker}\n**${process.env.PREVIEW_NAME} preview:** ${url.toString()}`;
+          const { owner, repo } = context.repo;
+          const issue_number = context.issue.number;
+          const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number });
+          const previous = comments.find(comment => comment.user?.type === 'Bot' && (comment.body || '').includes(marker));
+          if (previous) {
+            await github.rest.issues.updateComment({ owner, repo, comment_id: previous.id, body });
+          } else {
+            await github.rest.issues.createComment({ owner, repo, issue_number, body });
+          }
