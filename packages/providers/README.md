@@ -17,3 +17,10 @@ a Release configuration migration.
 Run `pnpm --filter @pipelab/providers test` for all providers, or use a focused
 script such as `pnpm --filter @pipelab/providers test:construct` for one folder.
 Dependencies are declared once in this package's manifest.
+
+Providers depend on shared contracts, workflow-runtime and the existing
+`@pipelab/plugin-core` execution helpers. They do not import core-node. Managed
+paths, executable installation and bundled asset resolution are supplied by the
+host through `ProviderHostContext`; see the helper package README for the
+ownership audit. Real packaging execution coverage lives in the CLI host E2E
+suite; provider folder tests exercise isolated implementation and mocked boundaries.

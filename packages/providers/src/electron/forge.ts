@@ -1,5 +1,6 @@
 import { getBinName, outFolderName } from "@pipelab/constants";
-import { detectRuntime, runPnpm, runWithLiveLogs, resolveBundledAsset } from "@pipelab/plugin-core";
+import { runPnpm, runWithLiveLogs, resolveBundledAsset } from "@pipelab/plugin-core";
+import { detectRuntime } from "../web-runtime";
 
 import { dirname, join, basename, delimiter } from "node:path";
 import { cp, readFile, writeFile, rm, mkdir, appendFile } from "node:fs/promises";
@@ -79,7 +80,7 @@ export const forge = async (
       "electron-forge.js",
     );
 
-    const rawAssetFolder = await resolveBundledAsset("@pipelab/asset-electron");
+    const rawAssetFolder = await resolveBundledAsset("@pipelab/asset-electron", context);
     const templateFolder = join(rawAssetFolder, "template");
     console.log("templateFolder", templateFolder);
     console.log("destinationFolder", destinationFolder);

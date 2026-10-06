@@ -1,5 +1,6 @@
 import { getBinName } from "@pipelab/constants";
-import { detectRuntime, runPnpm, runWithLiveLogs, resolveBundledAsset } from "@pipelab/plugin-core";
+import { runPnpm, runWithLiveLogs, resolveBundledAsset } from "@pipelab/plugin-core";
+import { detectRuntime } from "../web-runtime";
 import { dirname, join, basename, delimiter } from "node:path";
 import { existsSync } from "node:fs";
 import { cp, readFile as readFilePromise, writeFile as writeFilePromise } from "node:fs/promises";
@@ -114,7 +115,7 @@ export const tauri = async (
 
   const destinationFolder = join(cwd, "build");
 
-  const rawAssetFolder = await resolveBundledAsset("@pipelab/asset-tauri");
+  const rawAssetFolder = await resolveBundledAsset("@pipelab/asset-tauri", context);
   const templateFolder = join(rawAssetFolder, "template");
 
   // copy template to destination
