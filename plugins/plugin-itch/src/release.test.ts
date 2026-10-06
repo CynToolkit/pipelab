@@ -10,6 +10,7 @@ describe("Itch release credentials", () => {
     );
     expect(createItchUploadTask).toBeTypeOf("function");
     expect(WORKFLOW_TASK_ID).toBe("@pipelab/plugin-itch/itch-upload");
+    expect(Object.keys(plugin.workflowTasks ?? {})).toEqual([WORKFLOW_TASK_ID]);
   });
 
   it("resolves the username from the Itch profile endpoint", async () => {

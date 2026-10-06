@@ -48,7 +48,7 @@ jobs:
 
       - name: Build TypeScript project references
         if: matrix.task == 'typecheck'
-        run: pnpm exec tsc -b --force --pretty false packages/constants packages/migration packages/shared
+        run: pnpm exec tsc -b --force --pretty false packages/constants packages/migration packages/shared packages/core-node
 
       - name: Run verification
         if: matrix.task != 'build'

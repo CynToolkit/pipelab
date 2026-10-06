@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { createDefinition } from "@pipelab/plugin-core";
+import { createProviderDefinition } from "@pipelab/shared";
 import type { WorkflowTask } from "@pipelab/workflow-runtime";
 import type { ReleaseProducerDefinition, ReleaseSourceDefinition } from "@pipelab/shared";
 import {
@@ -198,10 +198,6 @@ export const godotExportTask: WorkflowTask = async (data) => {
   return { output: result.path };
 };
 
-export const workflowTasks = {
-  "@pipelab/plugin-godot/godot:export": godotExportTask,
-};
-
 export const godotExporter: ReleaseProducerDefinition = {
   id: "@pipelab/plugin-godot/producer",
   label: "Godot exporter",
@@ -336,7 +332,7 @@ export const godotExporter: ReleaseProducerDefinition = {
   }),
 };
 
-export default createDefinition({
+export const provider = createProviderDefinition({
   id: "@pipelab/plugin-godot",
   packageName: "@pipelab/plugin-godot",
   name: "Godot",
@@ -344,4 +340,13 @@ export default createDefinition({
   icon: { type: "icon", icon: "pi-gamepad" },
   isOfficial: true,
   release: { sources: [godotSource], producers: [godotExporter] },
+  workflowTasks: {
+    "@pipelab/plugin-godot/godot:export": () => godotExportTask,
+  },
 });
+
+export const workflowTasks = {
+  "@pipelab/plugin-godot/godot:export":
+    provider.workflowTasks["@pipelab/plugin-godot/godot:export"](),
+};
+export default provider;

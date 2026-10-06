@@ -1,8 +1,7 @@
 /// <reference path="./declarations.d.ts" />
-import { createDefinition } from "@pipelab/plugin-core";
+import { createProviderDefinition } from "@pipelab/shared";
 import type { ReleaseProducerDefinition } from "@pipelab/shared";
-
-export { electronWorkflowTaskFactories } from "./package-v2";
+import { electronWorkflowTaskFactories } from "./package-v2";
 
 export const electronTargetInputs = (
   targetId: string,
@@ -72,7 +71,7 @@ const electronProducer: ReleaseProducerDefinition = {
   }),
 };
 
-export default createDefinition({
+export const provider = createProviderDefinition({
   id: "@pipelab/plugin-electron",
   packageName: "@pipelab/plugin-electron",
   name: "Electron",
@@ -80,4 +79,8 @@ export default createDefinition({
   icon: { type: "icon", icon: "pi-desktop" },
   isOfficial: true,
   release: { producers: [electronProducer] },
+  workflowTasks: electronWorkflowTaskFactories,
 });
+
+export { electronWorkflowTaskFactories };
+export default provider;

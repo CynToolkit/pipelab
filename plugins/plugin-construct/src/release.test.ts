@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
-import plugin, { constructSource, constructWorkflowTaskFactories } from "./index";
+import plugin, { constructSource } from "./index";
 
 describe("Construct release validation", () => {
   it("keeps the Release source and workflow task without legacy node metadata", () => {
     expect("nodes" in plugin).toBe(false);
     expect(plugin.release?.sources?.map((source) => source.id)).toContain(constructSource.id);
-    expect(Object.keys(constructWorkflowTaskFactories)).toEqual([
+    expect(Object.keys(plugin.workflowTasks ?? {})).toEqual([
       "@pipelab/plugin-construct/export-construct-project",
     ]);
   });

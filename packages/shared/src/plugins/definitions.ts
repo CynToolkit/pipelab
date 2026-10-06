@@ -1,5 +1,6 @@
 import type { OpenDialogOptions } from "electron";
 import type { PluginReleaseDefinition } from "../release/types";
+import type { WorkflowTask } from "@pipelab/workflow-runtime";
 
 export type PathOptions = {
   filter?: RegExp;
@@ -111,10 +112,6 @@ export type IconType =
       type: "icon";
       icon: string;
     };
-export interface PluginDefinition {
-  packageName?: string;
-}
-
 export interface IntegrationField {
   key: string;
   label: string;
@@ -127,35 +124,56 @@ export interface IntegrationDefinition {
   fields: IntegrationField[];
 }
 
-/** Plugin information that is safe and useful to expose to the renderer. */
-export interface RendererPluginMetadata extends PluginDefinition {
+/** Stable identity shared by a provider's main-process and renderer metadata. */
+export interface ProviderIdentity {
   id: string;
   name: string;
   icon: IconType;
   description: string;
   isOfficial: boolean;
   packageName: string;
+}
+
+/** Renderer-safe provider metadata; native task factories stay in the main process. */
+export interface RendererProviderMetadata extends ProviderIdentity {
   integrations?: Array<IntegrationDefinition>;
   release?: PluginReleaseDefinition;
 }
 
+export type WorkflowTaskFactory<TServices> = (services: TServices) => WorkflowTask<TServices>;
+
+export type WorkflowTaskFactoryRegistry<TServices> = Record<string, WorkflowTaskFactory<TServices>>;
+
+/** Complete built-in provider contribution consumed by Pipelab hosts. */
+export interface ProviderDefinition<TServices = unknown> extends RendererProviderMetadata {
+  workflowTasks?: WorkflowTaskFactoryRegistry<TServices>;
+}
+
+/** Validates provider contributions while preserving the supplied definition's concrete type. */
+export const createProviderDefinition = <
+  TServices,
+  TDefinition extends ProviderDefinition<TServices>,
+>(
+  definition: TDefinition & ProviderDefinition<TServices>,
+): TDefinition => definition;
+
+/** @deprecated Use ProviderIdentity for provider metadata. */
+export interface PluginDefinition {
+  packageName?: string;
+}
+
+/** Plugin information that is safe and useful to expose to the renderer. */
+export interface RendererPluginMetadata extends RendererProviderMetadata {}
+
 /** @deprecated Prefer the explicit metadata name for renderer-facing plugin data. */
 export type RendererPluginDefinition = RendererPluginMetadata;
 
-export interface MainPluginDefinition extends PluginDefinition {
-  id: string;
-  name: string;
-  description: string;
-  icon: IconType;
-  isOfficial: boolean;
-  packageName: string;
+export interface MainPluginDefinition<TServices = unknown> extends ProviderDefinition<TServices> {
   validators?: Array<{
     id: string;
     description: string;
     validator: (options: any) => any;
   }>;
-  integrations?: Array<IntegrationDefinition>;
-  release?: PluginReleaseDefinition;
 }
 
 export type ParamsToInput<PARAMS extends InputsDefinition> = {

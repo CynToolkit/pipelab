@@ -1,8 +1,7 @@
 /// <reference path="./declarations.d.ts" />
-import { createDefinition } from "@pipelab/plugin-core";
+import { createProviderDefinition } from "@pipelab/shared";
 import type { ReleaseProducerDefinition } from "@pipelab/shared";
-
-export { tauriWorkflowTaskFactories } from "./package";
+import { tauriWorkflowTaskFactories } from "./package";
 
 export const tauriTargetInputs = (
   targetId: string,
@@ -72,7 +71,7 @@ const tauriProducer: ReleaseProducerDefinition = {
   }),
 };
 
-export default createDefinition({
+export const provider = createProviderDefinition({
   id: "@pipelab/plugin-tauri",
   packageName: "@pipelab/plugin-tauri",
   name: "Tauri",
@@ -80,4 +79,8 @@ export default createDefinition({
   icon: { type: "icon", icon: "pi-box" },
   isOfficial: true,
   release: { producers: [tauriProducer] },
+  workflowTasks: tauriWorkflowTaskFactories,
 });
+
+export { tauriWorkflowTaskFactories };
+export default provider;

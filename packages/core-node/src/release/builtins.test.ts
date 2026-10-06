@@ -42,14 +42,22 @@ describe("core Release filesystem providers", () => {
       "@pipelab/core/source/web-folder",
       "@pipelab/core/source/zip",
       "@pipelab/core/source/web-zip",
+      "@pipelab/plugin-construct/source",
+      "@pipelab/plugin-godot/source",
     ]);
     expect(registry.destinations.map((destination) => destination.id)).toEqual([
       "@pipelab/core/destination/folder",
       "@pipelab/core/destination/zip",
+      "@pipelab/plugin-steam/destination",
+      "@pipelab/plugin-itch/destination",
+      "@pipelab/plugin-poki/destination",
     ]);
     expect(registry.producers.map((producer) => producer.id)).toEqual([
       "@pipelab/core/passthrough",
       "@pipelab/core/unzip",
+      "@pipelab/plugin-electron/producer",
+      "@pipelab/plugin-tauri/producer",
+      "@pipelab/plugin-godot/producer",
     ]);
     expect(CORE_WORKFLOW_TASKS).toEqual({
       copy: "@pipelab/core/fs/copy",

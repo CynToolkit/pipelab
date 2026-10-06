@@ -1,6 +1,6 @@
-import { createItchUploadTask, WORKFLOW_TASK_ID } from "./export";
+import { createItchUploadTask, WORKFLOW_TASK_ID, type ItchTaskServices } from "./export";
 
-import { createDefinition } from "@pipelab/plugin-core";
+import { createProviderDefinition } from "@pipelab/shared";
 import type { ReleaseDestinationDefinition } from "@pipelab/shared";
 
 export { createItchUploadTask, WORKFLOW_TASK_ID };
@@ -63,7 +63,7 @@ export const itchDestination: ReleaseDestinationDefinition = {
   ],
 };
 
-export default createDefinition({
+export const provider = createProviderDefinition({
   id: "@pipelab/plugin-itch",
   packageName: "@pipelab/plugin-itch",
   name: "Itch.io",
@@ -84,4 +84,9 @@ export default createDefinition({
     },
   ],
   release: { destinations: [itchDestination] },
+  workflowTasks: {
+    [WORKFLOW_TASK_ID]: (services: ItchTaskServices) => createItchUploadTask(services),
+  },
 });
+
+export default provider;
