@@ -58,7 +58,7 @@ const writeAuthFile = async (thirdPartyPath: string, auth: PokiAuthConfig) => {
     await rename(tempPath, authPath);
     await chmod(authPath, 0o600);
   } catch (error) {
-    await rm(tempPath, { force: true }).catch(() => undefined);
+    await rm(tempPath, { force: true }).catch((): undefined => undefined);
     throw error;
   }
 };

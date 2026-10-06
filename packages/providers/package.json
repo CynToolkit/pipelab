@@ -21,51 +21,6 @@
       "types": "./src/index.ts",
       "import": "./src/index.ts",
       "default": "./src/index.ts"
-    },
-    "./construct": {
-      "types": "./src/construct/index.ts",
-      "import": "./src/construct/index.ts",
-      "default": "./src/construct/index.ts"
-    },
-    "./electron": {
-      "types": "./src/electron/index.ts",
-      "import": "./src/electron/index.ts",
-      "default": "./src/electron/index.ts"
-    },
-    "./godot": {
-      "types": "./src/godot/index.ts",
-      "import": "./src/godot/index.ts",
-      "default": "./src/godot/index.ts"
-    },
-    "./tauri": {
-      "types": "./src/tauri/index.ts",
-      "import": "./src/tauri/index.ts",
-      "default": "./src/tauri/index.ts"
-    },
-    "./steam": {
-      "types": "./src/steam/index.ts",
-      "import": "./src/steam/index.ts",
-      "default": "./src/steam/index.ts"
-    },
-    "./itch": {
-      "types": "./src/itch/index.ts",
-      "import": "./src/itch/index.ts",
-      "default": "./src/itch/index.ts"
-    },
-    "./poki": {
-      "types": "./src/poki/index.ts",
-      "import": "./src/poki/index.ts",
-      "default": "./src/poki/index.ts"
-    },
-    "./poki/auth": {
-      "types": "./src/poki/auth.ts",
-      "import": "./src/poki/auth.ts",
-      "default": "./src/poki/auth.ts"
-    },
-    "./steam/login": {
-      "types": "./src/steam/login.ts",
-      "import": "./src/steam/login.ts",
-      "default": "./src/steam/login.ts"
     }
   },
   "scripts": {
@@ -104,36 +59,5 @@
     "tsdown": "0.21.2",
     "typescript": "5.9.3",
     "vitest": "3.1.4"
-  },
-  "typesVersions": {
-    "*": {
-      "construct": [
-        "src/construct/index.ts"
-      ],
-      "electron": [
-        "src/electron/index.ts"
-      ],
-      "godot": [
-        "src/godot/index.ts"
-      ],
-      "tauri": [
-        "src/tauri/index.ts"
-      ],
-      "steam": [
-        "src/steam/index.ts"
-      ],
-      "itch": [
-        "src/itch/index.ts"
-      ],
-      "poki": [
-        "src/poki/index.ts"
-      ],
-      "poki/auth": [
-        "src/poki/auth.ts"
-      ],
-      "steam/login": [
-        "src/steam/login.ts"
-      ]
-    }
   }
 }

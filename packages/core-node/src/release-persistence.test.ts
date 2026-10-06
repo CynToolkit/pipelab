@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { spawn } from "node:child_process";
 import { describe, expect, it } from "vitest";
 import { createReleaseConfig, usePlugins } from "@pipelab/shared";
-import steam from "@pipelab/providers/steam";
+import { steamProvider as steam } from "@pipelab/providers";
 import { PipelabContext } from "./context";
 import { ReleasePersistence } from "./release-persistence";
 import { writeJsonFileAtomically } from "./utils/atomic-json";

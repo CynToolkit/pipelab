@@ -2,5 +2,5 @@
 
 Pipelab plugin for building and packaging Tauri applications.
 
-Import `@pipelab/providers/tauri`'s default export or named `provider` export to consume its
+Import the named `tauriProvider` export from `@pipelab/providers` to consume its
 identity, Release producer, and native Workflow task factories.

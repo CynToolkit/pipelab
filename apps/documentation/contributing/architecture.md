@@ -35,7 +35,7 @@ import { runWorkflow, createLocalHost } from "@pipelab/workflow-runtime";
 Check the owning package's `package.json`, `src/index.ts`, README, and scripts before changing or consuming an interface. These workspace exports are not evidence of a supported external SDK stability policy.
 
 `@pipelab/providers` exports the seven named built-in definitions from its root,
-with supported subpaths such as `@pipelab/providers/construct` for module helpers.
+with one public entry point exposing provider definitions and selected host helpers.
 Provider folders remain independently testable with scripts such as
 `pnpm --filter @pipelab/providers test:construct`. Their saved provider, Release,
 and Workflow task IDs retain the `@pipelab/plugin-*` prefix; moving the code does
