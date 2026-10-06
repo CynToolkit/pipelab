@@ -1,19 +1,14 @@
 import { expect, test, describe, afterEach } from "vitest";
 import { mkdir, writeFile, access } from "node:fs/promises";
-import { join, dirname } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
 import { createSandbox, runWorkflowTask } from "@pipelab/test-utils";
 import { ensurePNPM, PipelabContext } from "@pipelab/core-node";
 import { getBinName } from "@pipelab/constants";
-import {
-  electronPackageWorkflowTaskFactory,
-  type ElectronWorkflowTaskServices,
-} from "../../../../../packages/providers/src/electron/package-v2";
+import { electronProvider } from "@pipelab/providers";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+const factory = electronProvider.workflowTasks["@pipelab/plugin-electron/electron:package:v2"];
 
-describe("End-to-End: Electron provider", () => {
+describe("Electron provider host integration", () => {
   let sandbox: Awaited<ReturnType<typeof createSandbox>>;
 
   afterEach(async () => {
@@ -23,7 +18,7 @@ describe("End-to-End: Electron provider", () => {
   });
 
   test(
-    "should package a project using 'electron-package' node",
+    "packages a project through the public provider task factory",
     async () => {
       sandbox = await createSandbox("electron-e2e");
       // 1. Setup a dummy project to package
@@ -51,8 +46,8 @@ describe("End-to-End: Electron provider", () => {
         context,
         executables: { node: process.execPath, pnpm: await ensurePNPM(context) },
         workflowCachePath: join(sandbox.path, "cache"),
-      } satisfies ElectronWorkflowTaskServices;
-      const result = await runWorkflowTask(electronPackageWorkflowTaskFactory(services), {
+      } satisfies Parameters<typeof factory>[0];
+      const result = await runWorkflowTask(factory(services), {
         inputs: {
           "input-folder": inputs["input-folder"],
           platform: process.platform,
@@ -87,7 +82,7 @@ describe("End-to-End: Electron provider", () => {
       // Verify output exists in the dynamically generated output folder
       await expect(access(outputs.output as string)).resolves.not.toThrow();
 
-      // Verify and run the binary
+      // Verify the packaged executable exists
       const platform = process.platform;
       const binName = getBinName("my-app", platform);
       const binaryPath = join(outputs.output as string, binName);

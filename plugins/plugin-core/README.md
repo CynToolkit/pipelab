@@ -26,4 +26,17 @@ The host implements that contract without exposing its server or lifecycle.
 `resolveBundledAsset(name, context)` delegates to the supplied host. No provider
 loads core-node to find assets or ensure executables. Core-node retains its
 existing helper exports for callers. The legacy `PipelabContext` type export
-here is an alias for the structural provider host contract.
+here is a provider-facing compatibility alias for `ProviderHostContext`, not the
+concrete core-node class. Import the concrete class from `@pipelab/core-node` only
+in host code.
+
+## Intentional helper API changes
+
+This is a legacy/internal helper API, not a stable external plugin SDK. The
+context alias, explicit `resolveBundledAsset(name, context)` argument, and removal
+of the public `detectRuntime` helper and its `OutputRuntimes` type are intentional
+breaking changes. Runtime detection remains internal to providers. Surviving
+helper exports include `fetchPackage`, `runPnpm`, `runWithLiveLogs`,
+`resolveBundledAsset` and the structural `ProviderHostContext` type. This
+dependency refactor does not remove marketplace APIs, settings enablement state
+or other plugin product concepts.

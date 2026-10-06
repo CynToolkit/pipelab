@@ -14,7 +14,10 @@ export interface ProviderHostContext {
   resolveBundledAsset(packageName: string): Promise<string>;
 }
 
-/** Compatible provider-facing name for the structural host contract. */
+/**
+ * Provider-facing compatibility alias for ProviderHostContext.
+ * This is a structural type, not the concrete PipelabContext class from core-node.
+ */
 export type PipelabContext = ProviderHostContext;
 
 export * from "@pipelab/shared";

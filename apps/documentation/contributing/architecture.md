@@ -69,3 +69,15 @@ README records the capability ownership audit.
 
 Real provider execution tests, including Electron packaging, live in the CLI
 host E2E suite. Isolated provider folder tests use mocked service boundaries.
+
+The plugin-core `PipelabContext` type is a provider-facing compatibility alias for
+`ProviderHostContext`, not the concrete host class. Its legacy/internal helper API
+has intentional breaking changes: bundled asset resolution now requires the
+context argument, and `detectRuntime` and its `OutputRuntimes` type are internal
+to providers. The helper README and changeset record these boundaries; obsolete
+plugin product APIs and settings are removed separately.
+
+The real Electron packaging test resolves its task factory through
+`electronProvider.workflowTasks` from `@pipelab/providers`, using a real core-node
+host context. It verifies provider/host integration without invoking a CLI command.
+Low-level Forge and executable patch tests remain in the Electron provider folder.

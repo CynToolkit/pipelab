@@ -15,11 +15,24 @@ const sourceFiles = (folder: string): string[] =>
 describe("provider dependency direction", () => {
   it.each(["packages/providers", "plugins/plugin-core"])("%s has no host dependency", (folder) => {
     const manifest = JSON.parse(readFileSync(join(root, folder, "package.json"), "utf8"));
-    expect(manifest.dependencies).not.toHaveProperty("@pipelab/core-node");
+    for (const field of [
+      "dependencies",
+      "devDependencies",
+      "peerDependencies",
+      "optionalDependencies",
+    ]) {
+      expect(manifest[field] ?? {}).not.toHaveProperty("@pipelab/core-node");
+    }
     for (const file of sourceFiles(join(root, folder, "src"))) {
       expect(readFileSync(file, "utf8"), file).not.toMatch(
-        /(?:from\s*|import\s*\()\s*["']@pipelab\/core-node/,
+        /(?:from\s*|(?:import|require)\s*\()\s*["'`]@pipelab\/core-node/,
       );
+    }
+  });
+
+  it("CLI host tests do not import private provider files", () => {
+    for (const file of sourceFiles(join(root, "apps/cli/tests/e2e"))) {
+      expect(readFileSync(file, "utf8"), file).not.toMatch(/packages\/providers\/src\//);
     }
   });
 

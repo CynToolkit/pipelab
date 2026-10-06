@@ -2,15 +2,18 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { createSandbox, runWorkflowTask } from "@pipelab/test-utils";
-import { PipelabContext } from "@pipelab/core-node";
-import { runWithLiveLogs, resolveBundledAsset } from "@pipelab/plugin-core";
+import {
+  runWithLiveLogs,
+  resolveBundledAsset,
+  type ProviderHostContext,
+} from "@pipelab/plugin-core";
 import {
   electronPackageWorkflowTaskFactory,
   type ElectronWorkflowTaskServices,
-} from "../../../../../packages/providers/src/electron/package-v2";
-import { forge } from "../../../../../packages/providers/src/electron/forge";
-import { defaultElectronConfig } from "../../../../../packages/providers/src/electron/utils";
-import { patchExecutableWithGpupatch } from "../../../../../packages/providers/src/electron/gpupatch";
+} from "../../package-v2";
+import { forge } from "../../forge";
+import { defaultElectronConfig } from "../../utils";
+import { patchExecutableWithGpupatch } from "../../gpupatch";
 
 vi.mock("@pipelab/plugin-core", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@pipelab/plugin-core")>()),
@@ -18,11 +21,29 @@ vi.mock("@pipelab/plugin-core", async (importOriginal) => ({
   runWithLiveLogs: vi.fn(),
   resolveBundledAsset: vi.fn(),
 }));
-vi.mock("../../../../../packages/providers/src/electron/gpupatch", () => ({
+vi.mock("../../gpupatch", () => ({
   patchExecutableWithGpupatch: vi.fn(),
 }));
 
 let sandbox: Awaited<ReturnType<typeof createSandbox>>;
+const createContext = (): ProviderHostContext => ({
+  releaseTag: "beta",
+  getPackagesPath: (...parts) => join(sandbox.path, "packages", ...parts),
+  getThirdPartyPath: (...parts) => join(sandbox.path, "thirdparty", ...parts),
+  getTempPath: (...parts) => join(sandbox.path, "temp", ...parts),
+  createTempFolder: async (prefix = "tmp") => {
+    const path = join(sandbox.path, "temp", prefix);
+    await mkdir(path, { recursive: true });
+    return path;
+  },
+  getCachePath: (folder = "pipelines", ...parts) => join(sandbox.path, "cache", folder, ...parts),
+  getPnpmPath: (...parts) => join(sandbox.path, "pnpm", ...parts),
+  getNodePath: () => process.execPath,
+  getConnectionsPath: () => join(sandbox.path, "connections.json"),
+  ensureNodeJS: async () => process.execPath,
+  ensurePNPM: async () => "pnpm",
+  resolveBundledAsset: async () => join(sandbox.path, "asset-electron"),
+});
 beforeEach(async () => {
   vi.clearAllMocks();
   sandbox = await createSandbox("electron-patch");
@@ -50,10 +71,10 @@ afterEach(async () => {
   await sandbox.remove();
 });
 
-describe("Electron patch option in the CLI host", () => {
+describe("Electron executable patching", () => {
   const runPackage = (inputs: Record<string, unknown>) => {
     const services = {
-      context: new PipelabContext({ userDataPath: join(sandbox.path, "user-data") }),
+      context: createContext(),
       executables: { node: process.execPath, pnpm: "pnpm" },
       workflowCachePath: join(sandbox.path, "cache"),
     } satisfies ElectronWorkflowTaskServices;
@@ -133,7 +154,7 @@ describe("Electron patch option in the CLI host", () => {
     expect(patchExecutableWithGpupatch).not.toHaveBeenCalled();
   });
   it("does not patch the installer output", async () => {
-    const context = new PipelabContext({ userDataPath: join(sandbox.path, "user-data") });
+    const context = createContext();
     await forge(
       "make",
       sandbox.paths.input,
@@ -152,4 +173,4 @@ describe("Electron patch option in the CLI host", () => {
   });
 });
 
-vi.mock("../../../../../packages/providers/src/web-runtime", () => ({ detectRuntime: vi.fn() }));
+vi.mock("../../../web-runtime", () => ({ detectRuntime: vi.fn() }));
