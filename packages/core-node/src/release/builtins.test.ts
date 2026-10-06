@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { compileReleasePlan, planRelease, type ReleaseConfig } from "@pipelab/shared";
-import electron from "@pipelab/plugin-electron";
-import steam from "@pipelab/plugin-steam";
+import { electronProvider as electron } from "@pipelab/providers";
+import { steamProvider as steam } from "@pipelab/providers";
 import { createCoreFilesystemWorkflowTasks } from "../workflow-tasks/filesystem";
 import { CORE_WORKFLOW_TASKS } from "@pipelab/workflow-runtime";
 import { builtInReleaseDefinitions } from "./builtins";

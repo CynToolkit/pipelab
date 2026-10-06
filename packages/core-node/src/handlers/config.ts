@@ -10,7 +10,7 @@ import {
 } from "@pipelab/shared";
 import { setupSettingsConfigFile } from "../config";
 import { PipelabContext } from "../context";
-import { discoverBrowserProfiles, inspectChromiumProfile } from "@pipelab/plugin-construct";
+import { discoverBrowserProfiles, inspectChromiumProfile } from "@pipelab/providers";
 import { ConstructProfileDiscoveryCache } from "./construct-profile-cache";
 import { ReleasePersistence } from "../release-persistence";
 import {

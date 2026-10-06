@@ -1,0 +1,29 @@
+{
+  "extends": "@pipelab/tsconfig/vue.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "src",
+    "types": [
+      "node"
+    ],
+    "skipLibCheck": true
+  },
+  "include": [
+    "src"
+  ],
+  "exclude": ["node_modules", "dist", "src/**/tests/**"],
+  "references": [
+    {
+      "path": "../constants"
+    },
+    {
+      "path": "../shared"
+    },
+    {
+      "path": "../workflow-runtime"
+    },
+    {
+      "path": "../../plugins/plugin-core"
+    }
+  ]
+}

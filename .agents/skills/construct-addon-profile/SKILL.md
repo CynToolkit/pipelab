@@ -6,9 +6,9 @@ description: Prepare or troubleshoot a real Chromium profile with Construct 3 ad
 # Construct Addon Profiles for Pipelab
 
 This skill is limited to the Construct integration in
-`plugins/plugin-construct`. Before changing code, inspect
-`plugins/plugin-construct/src/browser-profiles.ts`,
-`plugins/plugin-construct/src/export-shared.ts`, and their focused tests.
+`packages/providers/src/construct`. Before changing code, inspect
+`packages/providers/src/construct/browser-profiles.ts`,
+`packages/providers/src/construct/export-shared.ts`, and their focused tests.
 
 Use this skill when a Construct 3 export reports a missing addon, a Pipelab browser-profile candidate reports zero addons unexpectedly, or the user asks to install a genuine Construct addon into the profile used for export. It is specific to Construct profiles used by Pipelab; it is not general browser automation guidance.
 

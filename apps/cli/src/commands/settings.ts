@@ -1,7 +1,6 @@
 import * as p from "@clack/prompts";
 import { PipelabContext } from "@pipelab/core-node";
-import { loginToPoki } from "@pipelab/plugin-poki/auth";
-import { loginToSteam } from "@pipelab/plugin-steam/login";
+import { loginToPoki, loginToSteam } from "@pipelab/providers";
 import { Command, Option } from "commander";
 import { getDefaultUserDataPath } from "../paths";
 
