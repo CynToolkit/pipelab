@@ -267,7 +267,7 @@ const { on } = useWebSocketAPI();
 on("startup:progress", (event: any) => {
   if (event.type === "progress") {
     startupStatus.value = event.data.message;
-  } else if (event.type === "ready" || event.type === "done") {
+  } else if (event.type === "done") {
     setTimeout(() => {
       startupStatus.value = "";
     }, 2000);

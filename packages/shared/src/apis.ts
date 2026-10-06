@@ -224,10 +224,7 @@ export type IpcDefinition = {
   ];
   "agent:version:get": [void, EndEvent<{ version: string; channel: ReleaseChannel }>];
   "system:packages:cleanup": [void, EndEvent<boolean>];
-  "startup:progress": [
-    void,
-    { type: "progress"; data: { message: string } } | { type: "ready" } | { type: "done" },
-  ];
+  "startup:progress": [void, { type: "progress"; data: { message: string } } | { type: "done" }];
   "migration:scan-stable": [{ sourceChannel?: MigrationChannel }, EndEvent<StableDataReport>];
   "migration:perform": [MigrationOptions, EndEvent<{ result: "ok" }>];
 };
