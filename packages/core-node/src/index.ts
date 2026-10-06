@@ -18,7 +18,7 @@ export * from "./providers-registry";
 export * from "./workflow-tasks";
 export * from "./workflow-tasks/filesystem";
 export * from "./release/builtins";
-export * from "./release/registry";
+export { buildCoreReleaseRegistry } from "./release/registry";
 export * from "./server";
 export * from "./utils";
 export * from "./utils/github";

@@ -3,7 +3,7 @@ import { compileReleasePlan, planRelease, type ReleaseConfig } from "@pipelab/sh
 import { createCoreFilesystemWorkflowTasks } from "../workflow-tasks/filesystem";
 import { CORE_WORKFLOW_TASKS } from "@pipelab/workflow-runtime";
 import { builtInReleaseDefinitions } from "./builtins";
-import { buildCoreReleaseRegistry } from "./registry";
+import { assertUniqueReleaseIds, buildCoreReleaseRegistry } from "./registry";
 
 const host = { platform: "linux", architecture: "x64" };
 
@@ -30,6 +30,24 @@ const planAndCompile = (config: ReleaseConfig) => {
 };
 
 describe("core Release filesystem providers", () => {
+  it("keeps contribution IDs unique and rejects duplicate IDs by contribution type", () => {
+    const registry = buildCoreReleaseRegistry();
+
+    for (const definitions of [registry.sources, registry.producers, registry.destinations]) {
+      expect(new Set(definitions.map((definition) => definition.id)).size).toBe(definitions.length);
+    }
+
+    expect(() => assertUniqueReleaseIds("source", ["duplicate", "duplicate"])).toThrow(
+      "Duplicate Release source ID: duplicate",
+    );
+    expect(() => assertUniqueReleaseIds("producer", ["duplicate", "duplicate"])).toThrow(
+      "Duplicate Release producer ID: duplicate",
+    );
+    expect(() => assertUniqueReleaseIds("destination", ["duplicate", "duplicate"])).toThrow(
+      "Duplicate Release destination ID: duplicate",
+    );
+  });
+
   it("registers core Folder and ZIP provider IDs without the Filesystem plugin", () => {
     const registry = buildCoreReleaseRegistry();
     expect(registry.sources.map((source) => source.id)).toEqual([
