@@ -15,6 +15,7 @@
                 text
                 size="small"
                 class="drawer-header-icon-btn"
+                aria-label="Add connection"
                 v-tooltip.top="'Add New Connection'"
                 @click="openAddConnectionDialog"
               >
@@ -282,7 +283,7 @@
           />
         </div>
 
-        <!-- Render dynamic fields if defined by the plugin -->
+        <!-- Render dynamic fields if defined by the provider -->
         <template v-if="selectedConnectTarget?.fields?.length">
           <div
             v-for="field in selectedConnectTarget.fields"
@@ -354,7 +355,7 @@
           </div>
         </template>
 
-        <!-- Fallback if integrations is not defined on the plugin (e.g. for Google or generic) -->
+        <!-- Fallback if integrations is not defined on the provider (e.g. for Google or generic) -->
         <template v-else>
           <div class="flex flex-column gap-1">
             <label for="conn-email" class="text-xs font-bold opacity-70"
@@ -412,7 +413,7 @@
     >
       <div class="flex flex-column gap-3 py-2">
         <p class="text-xs text-secondary mb-1">
-          Select a plugin below to configure a new connection profile.
+          Select an integration to configure a new connection profile.
         </p>
 
         <!-- Search bar for new connections -->
@@ -421,7 +422,7 @@
             <InputIcon class="pi pi-search text-xs" />
             <InputText
               v-model="addSearchQuery"
-              placeholder="Search plugins & integrations..."
+              placeholder="Search integrations..."
               class="w-full"
               size="small"
             />
@@ -468,7 +469,7 @@
             v-if="filteredConnectionTargets.length === 0"
             class="text-center py-8 text-xs opacity-50 border border-dashed rounded-lg"
           >
-            No active plugins or integrations match your search.
+            No integrations match your search.
           </div>
         </div>
       </div>
@@ -485,8 +486,8 @@
 </template>
 
 <script lang="ts" setup>
+import { buildIntegrationTargets } from "./integration-targets";
 import { ref, computed, onMounted, toRaw, watch } from "vue";
-import { useAppSettings } from "@renderer/store/settings";
 import { useConnectionsStore } from "@renderer/store/connections";
 import { useAppStore } from "@renderer/store/app";
 import { storeToRefs } from "pinia";
@@ -517,15 +518,13 @@ interface ConnectedAccount {
 }
 
 // Store & Composables
-const appSettings = useAppSettings();
 const connectionsStore = useConnectionsStore();
 const appStore = useAppStore();
 const api = useAPI();
 const toast = useToast();
 
-const { settings: settingsRef } = storeToRefs(appSettings);
 const { connections: connectionsRef } = storeToRefs(connectionsStore);
-const { pluginDefinitions } = storeToRefs(appStore);
+const { providerDefinitions } = storeToRefs(appStore);
 
 // State
 const selectedConnectionId = ref("");
@@ -554,10 +553,6 @@ const editConnectionGameId = ref("");
 const editDynamicFields = ref<Record<string, string>>({});
 
 // --- Computed ---
-const allInstalledPlugins = computed(() => {
-  return settingsRef.value?.plugins || [];
-});
-
 const connectedAccounts = computed((): readonly ConnectedAccount[] => {
   return connectionsRef.value?.connections || [];
 });
@@ -571,14 +566,15 @@ const selectedConnectionPluginDefinition = computed(() => {
   if (!selectedConnection.value) return null;
   const pluginName = selectedConnection.value.pluginName;
   return (
-    pluginDefinitions.value.find((p) => p.packageName === pluginName || p.id === pluginName) || null
+    providerDefinitions.value.find((p) => p.packageName === pluginName || p.id === pluginName) ||
+    null
   );
 });
 
 const selectedConnectPluginDefinition = computed(() => {
   if (!selectedConnectPluginName.value) return null;
   return (
-    pluginDefinitions.value.find(
+    providerDefinitions.value.find(
       (p) =>
         p.packageName === selectedConnectPluginName.value ||
         p.id === selectedConnectPluginName.value,
@@ -597,44 +593,9 @@ const filteredConnections = computed(() => {
   });
 });
 
-const availableConnectionTargets = computed(() => {
-  const list: {
-    pluginName: string;
-    integrationName: string;
-    displayName: string;
-    icon: any;
-    fields: any[];
-  }[] = [];
-
-  for (const plugin of allInstalledPlugins.value) {
-    const def = pluginDefinitions.value.find(
-      (p) => p.packageName === plugin.name || p.id === plugin.name,
-    );
-    if (def?.integrations && def.integrations.length > 0) {
-      for (const integration of def.integrations) {
-        list.push({
-          pluginName: plugin.name,
-          integrationName: integration.name,
-          displayName:
-            def.integrations.length > 1
-              ? `${formatPluginName(plugin.name)} - ${integration.name}`
-              : formatPluginName(plugin.name),
-          icon: def.icon,
-          fields: integration.fields,
-        });
-      }
-    } else if (pluginSupportsAccounts(plugin.name)) {
-      list.push({
-        pluginName: plugin.name,
-        integrationName: "Account",
-        displayName: formatPluginName(plugin.name),
-        icon: getPluginIcon(plugin.name),
-        fields: [],
-      });
-    }
-  }
-  return list;
-});
+const availableConnectionTargets = computed(() =>
+  buildIntegrationTargets(providerDefinitions.value),
+);
 
 const filteredConnectionTargets = computed(() => {
   const query = addSearchQuery.value.trim().toLowerCase();
@@ -715,7 +676,7 @@ watch(
 
 // --- Helpers ---
 const formatPluginName = (name: string) => {
-  const def = pluginDefinitions.value.find((p) => p.packageName === name || p.id === name);
+  const def = providerDefinitions.value.find((p) => p.packageName === name || p.id === name);
   if (def?.name) {
     return def.name;
   }
@@ -735,7 +696,7 @@ const getPluginIcon = (packageName: string) => {
     .replace("@pipelab/plugin-", "")
     .replace("plugin-", "")
     .toLowerCase();
-  const def = pluginDefinitions.value.find((p) => {
+  const def = providerDefinitions.value.find((p) => {
     if (!p.packageName) return false;
     const cleanDef = p.packageName
       .replace("@pipelab/plugin-", "")
@@ -751,7 +712,7 @@ const getPluginDescription = (packageName: string) => {
     .replace("@pipelab/plugin-", "")
     .replace("plugin-", "")
     .toLowerCase();
-  const def = pluginDefinitions.value.find((p) => {
+  const def = providerDefinitions.value.find((p) => {
     if (!p.packageName) return false;
     const cleanDef = p.packageName
       .replace("@pipelab/plugin-", "")
@@ -766,10 +727,10 @@ const cleanPluginDescription = (desc: string) => {
   if (!desc) return "";
   let clean = desc.trim();
   clean = clean.replace(
-    /^(a\s+)?pipelab\s+plugin\s+(for|to|specifically\s+for|designed\s+to|designed\s+for)\s+/i,
+    /^(a\s+)?pipelab\s+provider\s+(for|to|specifically\s+for|designed\s+to|designed\s+for)\s+/i,
     "",
   );
-  clean = clean.replace(/^pipelab\s+plugin\s+/i, "");
+  clean = clean.replace(/^pipelab\s+provider\s+/i, "");
   if (clean.length > 0) {
     clean = clean.charAt(0).toUpperCase() + clean.slice(1);
   }
@@ -791,27 +752,6 @@ const getIconClass = (iconObj: any) => {
     return `pi ${iconName}`;
   }
   return iconName;
-};
-
-const pluginSupportsAccounts = (pluginName: string) => {
-  const def = pluginDefinitions.value.find(
-    (p) => p.packageName === pluginName || p.id === pluginName,
-  );
-  if (def?.integrations && def.integrations.length > 0) {
-    return true;
-  }
-  const pluginsWithAccounts = [
-    "@pipelab/plugin-google",
-    "@pipelab/plugin-steam",
-    "@pipelab/plugin-itch",
-    "@pipelab/plugin-poki",
-    "@pipelab/plugin-construct",
-  ];
-  return pluginsWithAccounts.some((p) => {
-    const cleanP = p.replace("@pipelab/plugin-", "").replace("plugin-", "");
-    const cleanPluginName = pluginName.replace("@pipelab/plugin-", "").replace("plugin-", "");
-    return cleanP === cleanPluginName;
-  });
 };
 
 // --- Storage Persistence ---

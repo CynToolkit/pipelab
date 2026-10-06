@@ -1,4 +1,4 @@
-import { RendererPluginMetadata } from "./plugins/definitions";
+import { RendererProviderMetadata } from "./plugins/definitions";
 import { User, UserResponse } from "@supabase/supabase-js";
 import type { Tagged } from "type-fest";
 import { AppConfig, ConnectionsConfig } from "./config.schema";
@@ -142,7 +142,7 @@ export type IpcDefinition = {
     Electron.SaveDialogOptions,
     EndEvent<{ canceled: boolean; filePath: string | undefined }>,
   ];
-  "plugins:metadata:get": [void, EndEvent<{ plugins: RendererPluginMetadata[] }>];
+  "providers:metadata:get": [void, EndEvent<{ providers: RendererProviderMetadata[] }>];
 
   "settings:load": [void, EndEvent<AppConfig>];
   "settings:save": [{ data: AppConfig }, EndEvent<"ok">];
@@ -227,40 +227,6 @@ export type IpcDefinition = {
   "startup:progress": [
     void,
     { type: "progress"; data: { message: string } } | { type: "ready" } | { type: "done" },
-  ];
-  "plugin:loaded": [void, { plugin: RendererPluginMetadata }];
-  "plugin:search": [
-    { query: string },
-    EndEvent<{
-      results: Array<{
-        name: string;
-        version: string;
-        description?: string;
-        keywords?: string[];
-        date?: string;
-      }>;
-    }>,
-  ];
-  "plugin:get-details": [
-    { packageName: string },
-    EndEvent<{
-      name: string;
-      latestVersion: string;
-      versions: string[];
-      description?: string;
-    }>,
-  ];
-  "plugin:install": [{ packageName: string; version: string }, EndEvent<{ result: "ok" }>];
-  "plugin:uninstall": [{ packageName: string }, EndEvent<{ result: "ok" }>];
-  "plugin:list-installed": [
-    void,
-    EndEvent<{
-      installed: Array<{
-        name: string;
-        version: string;
-        description?: string;
-      }>;
-    }>,
   ];
   "migration:scan-stable": [{ sourceChannel?: MigrationChannel }, EndEvent<StableDataReport>];
   "migration:perform": [MigrationOptions, EndEvent<{ result: "ok" }>];

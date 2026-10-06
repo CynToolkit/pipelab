@@ -1,18 +1,18 @@
 import { useAPI } from "../ipc-core";
 import { PipelabContext } from "../context";
-import { getPluginMetadata } from "../utils";
+import { getProviderMetadata } from "../utils";
 
 export const registerEngineHandlers = (_context: PipelabContext) => {
   const { handle } = useAPI();
 
-  handle("plugins:metadata:get", async (_, { send }) => {
-    const plugins = getPluginMetadata();
+  handle("providers:metadata:get", async (_, { send }) => {
+    const providers = getProviderMetadata();
     send({
       type: "end",
       data: {
         type: "success",
         result: {
-          plugins,
+          providers,
         },
       },
     });

@@ -1,6 +1,6 @@
 # Tauri
 
-The Tauri plugin packages a web application as a desktop app through a Release workflow producer.
+The Tauri provider packages a web application as a desktop app through a Release workflow producer.
 
 ## Release workflow producer
 

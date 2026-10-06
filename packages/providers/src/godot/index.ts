@@ -336,7 +336,7 @@ export const provider = createProviderDefinition({
   id: "@pipelab/plugin-godot",
   packageName: "@pipelab/plugin-godot",
   name: "Godot",
-  description: "Godot release integration",
+  description: "Godot Release provider",
   icon: { type: "icon", icon: "pi-gamepad" },
   isOfficial: true,
   release: { sources: [godotSource], producers: [godotExporter] },

@@ -18,14 +18,13 @@ import {
   type LogEntry,
   type ReleaseConfig,
   useLogger,
-  usePlugins,
 } from "@pipelab/shared";
 import { CacheFolder, PipelabContext } from "../context";
 import { ReleasePersistence } from "../release-persistence";
 import { ensureNodeJS, ensurePNPM } from "../utils/remote";
 import { createPipelabWorkflowTasks } from "../workflow-tasks";
 import { workflowTaskFactories } from "../workflow-tasks/registry";
-import { createWorkflowTaskRegistry, type PipelabPluginServices } from "../workflow-tasks";
+import { createWorkflowTaskRegistry, type ProviderServices } from "../workflow-tasks";
 import { useAPI } from "../ipc-core";
 import { BuildHistoryStorage } from "./build-history";
 import { WorkflowRunCancellationRegistry } from "./workflow-run-cancellation";
@@ -33,7 +32,7 @@ import { getPipelabCloudDownloadUrl } from "../pipelab-cloud";
 import { buildCoreReleaseRegistry } from "../release/registry";
 
 const host = () => ({ platform: process.platform, architecture: process.arch });
-const registry = () => buildCoreReleaseRegistry(usePlugins().plugins.value);
+const registry = () => buildCoreReleaseRegistry();
 const catalog = () => buildReleaseCatalog(registry(), host());
 
 const issuesFor = (config: ReleaseConfig) => validateRelease(config, registry(), { host: host() });
@@ -229,7 +228,7 @@ export const executeWorkflow = async (
   await mkdir(workspaceRoot, { recursive: true });
   const node = await ensureNodeJS(context);
   const pnpm = await ensurePNPM(context);
-  const services: PipelabPluginServices = {
+  const services: ProviderServices = {
     context,
     executables: { node, pnpm },
     workflowCachePath: context.getCachePath(CacheFolder.Pipelines, config.project, buildId),
@@ -347,7 +346,7 @@ export const executeWorkflow = async (
   return { result, runId: buildId };
 };
 
-export const registerWorkflowHandlers = (context: PipelabContext, pluginsReady?: Promise<void>) => {
+export const registerWorkflowHandlers = (context: PipelabContext) => {
   const { handle } = useAPI();
   const { logger } = useLogger();
   const activeRuns = new WorkflowRunCancellationRegistry();
@@ -417,7 +416,6 @@ export const registerWorkflowHandlers = (context: PipelabContext, pluginsReady?:
     const controller = new AbortController();
     let runId: string | undefined;
     try {
-      await pluginsReady;
       const result = await executeWorkflow(context, value.name, {
         release: value.release,
         signal: controller.signal,

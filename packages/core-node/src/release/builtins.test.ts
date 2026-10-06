@@ -1,7 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { compileReleasePlan, planRelease, type ReleaseConfig } from "@pipelab/shared";
-import { electronProvider as electron } from "@pipelab/providers";
-import { steamProvider as steam } from "@pipelab/providers";
 import { createCoreFilesystemWorkflowTasks } from "../workflow-tasks/filesystem";
 import { CORE_WORKFLOW_TASKS } from "@pipelab/workflow-runtime";
 import { builtInReleaseDefinitions } from "./builtins";
@@ -24,11 +22,8 @@ const release = (
   destinations,
 });
 
-const planAndCompile = (
-  config: ReleaseConfig,
-  plugins: Parameters<typeof buildCoreReleaseRegistry>[0] = [],
-) => {
-  const registry = buildCoreReleaseRegistry(plugins);
+const planAndCompile = (config: ReleaseConfig) => {
+  const registry = buildCoreReleaseRegistry();
   const plan = planRelease(config, registry, { host });
   expect(plan.issues.filter((issue) => issue.severity === "error")).toEqual([]);
   return { registry, plan, workflow: compileReleasePlan(config, plan, registry, { host }) };
@@ -36,7 +31,7 @@ const planAndCompile = (
 
 describe("core Release filesystem providers", () => {
   it("registers core Folder and ZIP provider IDs without the Filesystem plugin", () => {
-    const registry = buildCoreReleaseRegistry([]);
+    const registry = buildCoreReleaseRegistry();
     expect(registry.sources.map((source) => source.id)).toEqual([
       "@pipelab/core/source/folder",
       "@pipelab/core/source/web-folder",
@@ -165,7 +160,6 @@ describe("core Release filesystem providers", () => {
           },
         ],
       ),
-      [electron, steam],
     );
 
     expect(plan.producers.map((producer) => producer.provider)).toContain("@pipelab/core/unzip");

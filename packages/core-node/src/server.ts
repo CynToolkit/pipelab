@@ -33,7 +33,7 @@ export const sendStartupProgress = (message: string) => {
 export const sendStartupReady = () => {
   console.log(`[Startup Progress] Ready!`);
   webSocketServer.broadcast("startup:progress", {
-    type: "ready",
+    type: "done",
   });
 };
 

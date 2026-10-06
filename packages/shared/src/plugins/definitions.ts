@@ -1,5 +1,5 @@
 import type { OpenDialogOptions } from "electron";
-import type { PluginReleaseDefinition } from "../release/types";
+import type { ProviderReleaseDefinition } from "../release/types";
 import type { WorkflowTask } from "@pipelab/workflow-runtime";
 
 export type PathOptions = {
@@ -137,7 +137,7 @@ export interface ProviderIdentity {
 /** Renderer-safe provider metadata; native task factories stay in the main process. */
 export interface RendererProviderMetadata extends ProviderIdentity {
   integrations?: Array<IntegrationDefinition>;
-  release?: PluginReleaseDefinition;
+  release?: ProviderReleaseDefinition;
 }
 
 export type WorkflowTaskFactory<TServices> = (services: TServices) => WorkflowTask<TServices>;
@@ -162,10 +162,10 @@ export interface PluginDefinition {
   packageName?: string;
 }
 
-/** Plugin information that is safe and useful to expose to the renderer. */
+/** @deprecated Compatibility alias for RendererProviderMetadata. */
 export interface RendererPluginMetadata extends RendererProviderMetadata {}
 
-/** @deprecated Prefer the explicit metadata name for renderer-facing plugin data. */
+/** @deprecated Use RendererProviderMetadata. */
 export type RendererPluginDefinition = RendererPluginMetadata;
 
 export interface MainPluginDefinition<TServices = unknown> extends ProviderDefinition<TServices> {
@@ -182,6 +182,7 @@ export type ParamsToInput<PARAMS extends InputsDefinition> = {
     : PARAMS[index]["value"] | null;
 };
 
+/** @deprecated Use createProviderDefinition for provider contributions. */
 export const createDefinition = <T extends MainPluginDefinition>(definition: T) => {
   return definition satisfies T;
 };

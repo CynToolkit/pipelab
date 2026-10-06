@@ -4,13 +4,18 @@ The Release editor filters choices based on the selected input, target, and
 host. The lists below describe registered capabilities; they do not guarantee
 that every target can be built from every operating system.
 
+Built-in providers ship with Pipelab; updating Pipelab updates them together.
+A provider contributes Release sources, producers or destinations and Workflow
+tasks. Integrations are the credentials and account profiles configured on the
+Connections screen. There is no runtime provider installation or enablement switch.
+
 ## Release workflow providers
 
-| Type | Available providers | Use them to |
-|---|---|---|
-| Sources | Folder, Web app folder, ZIP, Web app ZIP, Construct 3, Godot | Bring local project files or an exported Construct/Godot project into a workflow |
-| Producers | Passthrough, Extract ZIP, Godot, Electron, Tauri | Transform an input or build a desktop/web artifact |
-| Destinations | Folder, ZIP, Steam, itch.io, Poki | Copy, archive, or publish an artifact |
+| Type         | Available providers                                          | Use them to                                                                      |
+| ------------ | ------------------------------------------------------------ | -------------------------------------------------------------------------------- |
+| Sources      | Folder, Web app folder, ZIP, Web app ZIP, Construct 3, Godot | Bring local project files or an exported Construct/Godot project into a workflow |
+| Producers    | Passthrough, Extract ZIP, Godot, Electron, Tauri             | Transform an input or build a desktop/web artifact                               |
+| Destinations | Folder, ZIP, Steam, itch.io, Poki                            | Copy, archive, or publish an artifact                                            |
 
 Core folder and ZIP sources, producers, and destinations are provided by
 Pipelab; see [Folder and ZIP providers](./folder-zip). Provider details:

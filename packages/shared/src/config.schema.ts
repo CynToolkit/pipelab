@@ -128,8 +128,7 @@ export const AppSettingsValidatorV7 = object({
       url: string(),
     }),
   ),
-  // Metadata list of plugins the user has enabled (official + community).
-  // No binaries are stored here — versions are resolved JIT at node-add time.
+  // Legacy V7 state, discarded when migrating to V8.
   plugins: array(
     object({
       name: string(),
@@ -141,8 +140,20 @@ export const AppSettingsValidatorV7 = object({
   tempFolder: optional(string()),
 });
 
+const {
+  plugins: _legacyPlugins,
+  version: _legacyVersion,
+  ...currentSettingsEntries
+} = AppSettingsValidatorV7.entries;
+
+export const AppSettingsValidatorV8 = object({
+  ...currentSettingsEntries,
+  version: literal("8.0.0"),
+});
+
 export const ConnectionValidator = looseObject({
   id: string(),
+  // Persisted provider identity; retain this key for existing connection files.
   pluginName: string(),
   integrationName: optional(string()),
   name: string(),
@@ -168,5 +179,7 @@ export type AppConfigV5 = InferInput<typeof AppSettingsValidatorV5>;
 export type AppConfigV6 = InferInput<typeof AppSettingsValidatorV6>;
 export type AppConfigV7 = InferInput<typeof AppSettingsValidatorV7>;
 
-export type AppConfig = AppConfigV7;
-export const AppSettingsValidator = AppSettingsValidatorV7;
+export type AppConfigV8 = InferInput<typeof AppSettingsValidatorV8>;
+
+export type AppConfig = AppConfigV8;
+export const AppSettingsValidator = AppSettingsValidatorV8;

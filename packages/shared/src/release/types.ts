@@ -274,7 +274,7 @@ export interface ReleaseBuildTypeDefinition {
   icon?: IconType;
 }
 
-export interface PluginReleaseDefinition {
+export interface ProviderReleaseDefinition {
   sources?: ReleaseSourceDefinition[];
   producers?: ReleaseProducerDefinition[];
   destinations?: ReleaseDestinationDefinition[];
@@ -357,3 +357,6 @@ export interface ReleasePlan {
   issues: ValidationIssue[];
   graph: ReleasePlanGraph;
 }
+
+/** @deprecated Use ProviderReleaseDefinition. */
+export type PluginReleaseDefinition = ProviderReleaseDefinition;

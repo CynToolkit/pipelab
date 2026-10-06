@@ -18,7 +18,7 @@ describe("loadInitialData", () => {
     ["projects", "project-config"],
     ["settings", "project-config"],
     ["connections", "connections"],
-    ["plugins", "other"],
+    ["providers", "other"],
   ] as const)("classifies %s load failures", async (section, kind) => {
     const load = vi.fn().mockRejectedValue(new Error("invalid persisted data"));
 

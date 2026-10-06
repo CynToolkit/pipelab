@@ -1,22 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { compileWorkflow, planRelease, type ReleaseConfig } from "@pipelab/shared";
-import { buildCoreReleaseRegistry, bundledPlugins } from "@pipelab/core-node";
+import { buildCoreReleaseRegistry } from "@pipelab/core-node";
 import { CORE_WORKFLOW_TASKS } from "@pipelab/workflow-runtime";
 
 const context = { host: { platform: "win32", architecture: "x64" } };
-const plugin = (id: string) => {
-  const result = bundledPlugins.find((candidate) => candidate.id === id);
-  if (!result) throw new Error(`Bundled plugin not found: ${id}`);
-  return result;
-};
-
-const construct = plugin("@pipelab/plugin-construct");
-const electron = plugin("@pipelab/plugin-electron");
-const godot = plugin("@pipelab/plugin-godot");
-const poki = plugin("@pipelab/plugin-poki");
-const steam = plugin("@pipelab/plugin-steam");
-const itch = plugin("@pipelab/plugin-itch");
-
 describe("release provider integration wiring", () => {
   it("maps real provider validation issues to indexed UI fields", () => {
     const plan = planRelease(
@@ -37,7 +24,7 @@ describe("release provider integration wiring", () => {
           },
         ],
       },
-      buildCoreReleaseRegistry([construct, steam]),
+      buildCoreReleaseRegistry(),
       { host: context.host },
     );
 
@@ -73,7 +60,7 @@ describe("release provider integration wiring", () => {
         },
       ],
     };
-    const plan = planRelease(config, buildCoreReleaseRegistry([construct, steam]), {
+    const plan = planRelease(config, buildCoreReleaseRegistry(), {
       host: context.host,
     });
     expect(plan.producers).toEqual([]);
@@ -123,11 +110,7 @@ describe("release provider integration wiring", () => {
         },
       ],
     };
-    const workflow = compileWorkflow(
-      config,
-      buildCoreReleaseRegistry([construct, electron, steam]),
-      context,
-    );
+    const workflow = compileWorkflow(config, buildCoreReleaseRegistry(), context);
     const electronStep = workflow.steps.find((step) => step.uses.includes("plugin-electron"));
     const steamStep = workflow.steps.find((step) => step.uses.includes("plugin-steam"));
     expect(workflow.steps.find((step) => step.id === "construct-source-extract")?.uses).toBe(
@@ -177,7 +160,7 @@ describe("release provider integration wiring", () => {
         },
       ],
     };
-    const workflow = compileWorkflow(config, buildCoreReleaseRegistry([godot, poki]), context);
+    const workflow = compileWorkflow(config, buildCoreReleaseRegistry(), context);
     const godotStep = workflow.steps.find((step) =>
       step.uses.includes("plugin-godot/godot:export"),
     );
@@ -210,7 +193,7 @@ describe("release provider integration wiring", () => {
         },
       ],
     };
-    const workflow = compileWorkflow(config, buildCoreReleaseRegistry([poki]), context);
+    const workflow = compileWorkflow(config, buildCoreReleaseRegistry(), context);
     expect(
       workflow.steps.find((step) => step.uses.includes("plugin-poki"))?.artifactInputs?.[
         "input-folder"
@@ -238,7 +221,7 @@ describe("release provider integration wiring", () => {
         },
       ],
     };
-    const workflow = compileWorkflow(config, buildCoreReleaseRegistry([itch]), context);
+    const workflow = compileWorkflow(config, buildCoreReleaseRegistry(), context);
     expect(
       workflow.steps.find((step) => step.uses.includes("plugin-itch"))?.artifactInputs?.[
         "input-folder"

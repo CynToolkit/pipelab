@@ -57,8 +57,6 @@ const loadWorkflow = async (context: PipelabContext, entry: SaveLocationWorkflow
 
 export async function listWorkflowsCommand(options: { userData?: string } = {}) {
   const context = contextFor(options.userData);
-  const { builtInPlugins } = await import("@pipelab/core-node");
-  await builtInPlugins({ context });
   const entries = await workflowEntries(context);
   const persistence = new ReleasePersistence(context);
   if (!entries.length) return console.log("No workflows found.");
@@ -95,8 +93,6 @@ export async function runWorkflowCommand(
   },
 ) {
   const context = contextFor(options.userData);
-  const { builtInPlugins } = await import("@pipelab/core-node");
-  await builtInPlugins({ context });
   const entry = await loadEntry(context, id);
   const flow = await loadWorkflow(context, entry);
   const prepared = prepareReleaseWorkflow(flow);

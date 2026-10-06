@@ -3,7 +3,6 @@ import {
   parseReleaseConfig,
   isSafePersistedId,
   validateReleaseConnectionReferences,
-  usePlugins,
   type ConnectionsConfig,
   type FileRepo,
   type ReleaseRegistry,
@@ -91,7 +90,6 @@ export class ReleasePersistence {
     private readonly context: PipelabContext,
     private readonly writeJson: typeof writeJsonFileAtomically = writeJsonFileAtomically,
     private readonly fileOps: ReleasePersistenceFileOps = { rename, rm },
-    private readonly pluginsReady: Promise<void> = Promise.resolve(),
   ) {}
 
   async load(workflowId: string, routeProjectId?: string): Promise<ReleaseConfig> {
@@ -158,7 +156,6 @@ export class ReleasePersistence {
     workflowId: string,
     routeProjectId?: string,
   ): Promise<LoadedReleaseWorkflow> {
-    await this.pluginsReady;
     const config = await this.load(workflowId, routeProjectId);
     const repo = await loadProjects(this.context);
     const index = findWorkflow(repo, workflowId);
@@ -170,7 +167,7 @@ export class ReleasePersistence {
         "identity-mismatch",
       );
     const connections = await loadStrictConnections(this.context);
-    const registry = buildCoreReleaseRegistry(usePlugins().plugins.value);
+    const registry = buildCoreReleaseRegistry();
     const connectionIssues = validateReleaseConnectionReferences(config, registry, connections);
     if (connectionIssues.length)
       throw new ReleasePersistenceError(
@@ -190,10 +187,9 @@ export class ReleasePersistence {
   }
 
   private async saveUnlocked(config: ReleaseConfig, routeProjectId?: string): Promise<void> {
-    await this.pluginsReady;
     const validated = parseReleaseConfig(config);
     assertSafeWorkflowId(validated.id);
-    const registry = buildCoreReleaseRegistry(usePlugins().plugins.value);
+    const registry = buildCoreReleaseRegistry();
     const connectionIssues = validateReleaseConnectionReferences(
       validated,
       registry,

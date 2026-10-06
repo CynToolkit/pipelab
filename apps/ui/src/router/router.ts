@@ -17,19 +17,8 @@ const routes: RouterOptions["routes"] = [
       title: t("headers.dashboard"),
     },
   },
-  {
-    path: "/plugins",
-    name: "Plugins",
-    component: () => import("../pages/plugins.vue"),
-    meta: {
-      title: "Plugins",
-    },
-  },
-  {
-    // Legacy path — the page used to live at /integrations.
-    path: "/integrations",
-    redirect: "/plugins",
-  },
+  { path: "/plugins", redirect: "/connections" },
+  { path: "/integrations", redirect: "/connections" },
   {
     path: "/connections",
     name: "Connections",

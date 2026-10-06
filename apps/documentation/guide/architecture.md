@@ -11,7 +11,7 @@ engine. In production, the server also serves the bundled UI.
 1. The Vue UI sends engine requests over the local WebSocket connection.
 2. The Electron preload bridge exposes native operations such as file dialogs
    to the UI through IPC.
-3. The Node engine owns plugin execution, file operations, and run history.
+3. The Node engine owns provider execution, file operations, and run history.
 
 The standalone CLI can start the server with `pipelab serve`; its default
 address is `127.0.0.1:33753`. Binding beyond loopback in production requires an

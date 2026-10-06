@@ -699,7 +699,7 @@ const connectionOptions = (field: ReleaseFieldDefinition) =>
     .filter((connection) => connectionMatchesIntegration(connection, field.integration))
     .map((connection) => ({ label: connection.name || connection.id, value: connection.id }));
 const connectionFields = computed(() => {
-  const definition = appStore.pluginDefinitions.find(
+  const definition = appStore.providerDefinitions.find(
     (plugin) =>
       plugin.packageName === connectionDraft.value.integration ||
       plugin.id === connectionDraft.value.integration,
@@ -934,7 +934,7 @@ const setSourceField = (key: string, value: unknown) => {
   }
 };
 const openConnection = (integration: string) => {
-  const definition = appStore.pluginDefinitions.find(
+  const definition = appStore.providerDefinitions.find(
     (plugin) => plugin.packageName === integration || plugin.id === integration,
   );
   const integrationDefinition = definition?.integrations?.[0];

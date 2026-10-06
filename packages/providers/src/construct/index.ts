@@ -93,7 +93,7 @@ export const provider = createProviderDefinition({
   id: "@pipelab/plugin-construct",
   packageName: "@pipelab/plugin-construct",
   name: "Construct",
-  description: "Pipelab plugin for exporting and packaging Construct 3 projects",
+  description: "Pipelab provider for exporting and packaging Construct 3 projects",
   icon: { type: "icon", icon: "pi-clone" },
   isOfficial: true,
   integrations: [

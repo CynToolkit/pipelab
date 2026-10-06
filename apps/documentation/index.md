@@ -1,6 +1,6 @@
 ---
 title: Pipelab Documentation
-description: Guides and references for the current Pipelab desktop app, workflows, plugins, and CLI.
+description: Guides and references for the current Pipelab desktop app, workflows, providers, and CLI.
 ---
 
 # Build and ship with Pipelab

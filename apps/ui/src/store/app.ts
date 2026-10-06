@@ -1,19 +1,19 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
 import { useAPI } from "@renderer/composables/api";
-import { RendererPluginMetadata, useLogger, transformUrl, ReleaseChannel } from "@pipelab/shared";
+import { RendererProviderMetadata, useLogger, transformUrl, ReleaseChannel } from "@pipelab/shared";
 
-const transformPluginUrls = (plugin: RendererPluginMetadata): RendererPluginMetadata => {
+const transformProviderUrls = (provider: RendererProviderMetadata): RendererProviderMetadata => {
   const transformedIcon =
-    plugin.icon?.type === "image"
+    provider.icon?.type === "image"
       ? {
-          ...plugin.icon,
-          image: transformUrl(plugin.icon.image),
+          ...provider.icon,
+          image: transformUrl(provider.icon.image),
         }
-      : plugin.icon;
+      : provider.icon;
 
   return {
-    ...plugin,
+    ...provider,
     icon: transformedIcon,
   };
 };
@@ -21,8 +21,8 @@ const transformPluginUrls = (plugin: RendererPluginMetadata): RendererPluginMeta
 export const useAppStore = defineStore("app", () => {
   const { logger } = useLogger();
 
-  /** All the plugins definitions */
-  const pluginDefinitions = ref<Array<RendererPluginMetadata>>([]);
+  /** Built-in provider metadata */
+  const providerDefinitions = ref<Array<RendererProviderMetadata>>([]);
 
   const channel = ref<ReleaseChannel>("stable");
   const version = ref<string>("");
@@ -40,42 +40,28 @@ export const useAppStore = defineStore("app", () => {
       logger().error("Failed to fetch version and channel:", e);
     }
 
-    //
-    const metadataResult = await api.execute("plugins:metadata:get");
+    const metadataResult = await api.execute("providers:metadata:get");
 
     if (metadataResult.type === "error") {
       throw new Error(metadataResult.ipcError);
     }
 
-    const { plugins } = metadataResult.result;
+    const { providers } = metadataResult.result;
 
     try {
-      pluginDefinitions.value = plugins.map(transformPluginUrls);
+      providerDefinitions.value = providers.map(transformProviderUrls);
     } catch (err) {
-      logger().error("Failed to transform plugin URLs on startup:", err);
-      pluginDefinitions.value = plugins;
+      logger().error("Failed to transform provider URLs on startup:", err);
+      providerDefinitions.value = providers;
     }
-
-    // Listen for dynamically loaded plugins in the background
-    api.on("plugin:loaded", (event: any) => {
-      if (event && event.plugin) {
-        const transformedPlugin = transformPluginUrls(event.plugin);
-        const index = pluginDefinitions.value.findIndex((p) => p.id === transformedPlugin.id);
-        if (index !== -1) {
-          pluginDefinitions.value[index] = transformedPlugin;
-        } else {
-          pluginDefinitions.value.push(transformedPlugin);
-        }
-      }
-    });
   };
 
-  const getPluginDefinition = (pluginId: string) => {
-    const result = pluginDefinitions.value.find((nodeDef) => {
-      if (!pluginId) {
-        logger().error("Missing origin: node", pluginId);
+  const getProviderDefinition = (providerId: string) => {
+    const result = providerDefinitions.value.find((nodeDef) => {
+      if (!providerId) {
+        logger().error("Missing origin: node", providerId);
       }
-      return nodeDef.id === pluginId;
+      return nodeDef.id === providerId;
     });
     return result;
   };
@@ -83,11 +69,11 @@ export const useAppStore = defineStore("app", () => {
   return {
     init,
 
-    pluginDefinitions,
+    providerDefinitions,
     channel,
     version,
 
-    getPluginDefinition,
+    getProviderDefinition,
   };
 });
 

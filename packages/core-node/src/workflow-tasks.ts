@@ -3,7 +3,7 @@ import type { PipelabContext } from "./context";
 import { createPipelabCloudUploadTask } from "./pipelab-cloud";
 import { createCoreFilesystemWorkflowTasks } from "./workflow-tasks/filesystem";
 
-export interface PipelabPluginServices {
+export interface ProviderServices {
   context: PipelabContext;
   /** Node and pnpm executables ensured for this workflow run. */
   executables: { node: string; pnpm: string };
@@ -11,10 +11,10 @@ export interface PipelabPluginServices {
   workflowCachePath: string;
 }
 
-export type WorkflowTaskFactory<TServices = PipelabPluginServices> = (
+export type WorkflowTaskFactory<TServices = ProviderServices> = (
   services: TServices,
 ) => WorkflowTask<TServices>;
-export type WorkflowTaskFactoryRegistry<TServices = PipelabPluginServices> = Record<
+export type WorkflowTaskFactoryRegistry<TServices = ProviderServices> = Record<
   string,
   WorkflowTaskFactory<TServices>
 >;
@@ -28,7 +28,7 @@ export const createWorkflowTaskRegistry = <TServices>(
   );
 
 export const createPipelabWorkflowTasks = <TServices = unknown>(
-  services: PipelabPluginServices,
+  services: ProviderServices,
   registeredTasks: WorkflowTaskRegistry<TServices>,
 ): WorkflowTaskRegistry<TServices> => {
   return {
@@ -37,3 +37,6 @@ export const createPipelabWorkflowTasks = <TServices = unknown>(
     "pipelab-cloud:upload": createPipelabCloudUploadTask(services.context),
   };
 };
+
+/** @deprecated Use ProviderServices. */
+export type PipelabPluginServices = ProviderServices;

@@ -68,7 +68,7 @@ export const provider = createProviderDefinition({
   id: "@pipelab/plugin-steam",
   packageName: "@pipelab/plugin-steam",
   name: "Steam",
-  description: "Pipelab plugin for publishing games to Steam via SteamCMD",
+  description: "Pipelab provider for publishing games to Steam via SteamCMD",
   icon: { type: "icon", icon: "mdi-steam" },
   isOfficial: true,
   integrations: [

@@ -8,10 +8,10 @@ import {
   pokiProvider,
 } from "@pipelab/providers";
 import type { ProviderDefinition } from "@pipelab/shared";
-import type { PipelabPluginServices } from "./workflow-tasks";
+import type { ProviderServices } from "./workflow-tasks";
 
 /** The statically bundled providers shared by metadata, Release, and task setup. */
-export const builtInProviders: ProviderDefinition<PipelabPluginServices>[] = [
+export const builtInProviders: ProviderDefinition<ProviderServices>[] = [
   constructProvider,
   electronProvider,
   steamProvider,

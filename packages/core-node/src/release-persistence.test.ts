@@ -3,8 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawn } from "node:child_process";
 import { describe, expect, it } from "vitest";
-import { createReleaseConfig, usePlugins } from "@pipelab/shared";
-import { steamProvider as steam } from "@pipelab/providers";
+import { createReleaseConfig } from "@pipelab/shared";
 import { PipelabContext } from "./context";
 import { ReleasePersistence } from "./release-persistence";
 import { writeJsonFileAtomically } from "./utils/atomic-json";
@@ -35,9 +34,8 @@ const setup = async () => {
 };
 
 describe("ReleasePersistence", () => {
-  it("waits for plugin readiness before validating persisted workflow connections", async () => {
+  it("validates persisted workflow connections without provider initialization", async () => {
     const { context } = await setup();
-    usePlugins().plugins.value = [];
     const config = {
       ...createReleaseConfig({
         id: "workflow-1",
@@ -73,26 +71,12 @@ describe("ReleasePersistence", () => {
       }),
     );
 
-    let resolvePlugins!: () => void;
-    const pluginsReady = new Promise<void>((resolve) => {
-      resolvePlugins = resolve;
-    });
-    const persistence = new ReleasePersistence(context, undefined, undefined, pluginsReady);
-    let settled = false;
-    const load = persistence.loadWithProject("workflow-1", "project-1").finally(() => {
-      settled = true;
-    });
-    await Promise.resolve();
-    expect(settled).toBe(false);
-
-    usePlugins().registerPlugins([steam]);
-    resolvePlugins();
+    const load = new ReleasePersistence(context).loadWithProject("workflow-1", "project-1");
     await expect(load).rejects.toThrow("does not belong to integration '@pipelab/plugin-steam'");
   });
 
   it("rejects stale connection references before workflow execution starts", async () => {
     const { context, persistence } = await setup();
-    usePlugins().registerPlugins([steam]);
     const config = {
       ...createReleaseConfig({
         id: "workflow-1",
