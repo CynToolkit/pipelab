@@ -8,8 +8,10 @@ import {
   buildTargetIsAvailable,
   buildInputControlVisible,
   applyProducerInspection,
+  blockerAtIndex,
   buildInputSelectionMode,
   connectionMatchesIntegration,
+  clampBlockerIndex,
   createBuildProfile,
   createSerializedTaskQueue,
   deduplicateValidationIssues,
@@ -25,6 +27,7 @@ import {
   deploymentSlotLabel,
   readinessLabel,
   releaseCanRun,
+  releaseBlockerPresentation,
   releaseReadinessState,
   releaseRepairRoute,
   releaseOutputRefValue,
@@ -945,6 +948,53 @@ describe("release flow model", () => {
     expect(releaseReadinessState(false, true, false, 0)).toBe("ready");
     expect(releaseReadinessState(true, true, false, 0)).toBe("checking");
     expect(releaseReadinessState(false, false, true, 0)).toBe("error");
+  });
+
+  it("clamps blocker navigation when the current issue list changes", () => {
+    const original = [
+      { code: "first", message: "First issue", severity: "error" as const },
+      { code: "second", message: "Second issue", severity: "error" as const },
+    ];
+    expect(blockerAtIndex(original, 0)?.code).toBe("first");
+    expect(blockerAtIndex(original, 1)?.code).toBe("second");
+    expect(clampBlockerIndex(-1, original.length)).toBe(0);
+    expect(clampBlockerIndex(2, original.length)).toBe(1);
+    expect(clampBlockerIndex(1, 0)).toBe(0);
+
+    const current = [original[0]!];
+    const clampedSelection = blockerAtIndex(current, clampBlockerIndex(1, current.length));
+    expect(clampedSelection?.code).toBe("first");
+    expect(releaseBlockerPresentation(clampedSelection!).actionLabel).toBe("Review issues");
+  });
+
+  it("uses the known integration for a contextual connection repair CTA", () => {
+    const issue = {
+      code: "steam.account.required",
+      message: "A Steam account connection is required.",
+      severity: "error" as const,
+      path: "destinations.0.config.accountConnectionId",
+    };
+    expect(
+      releaseBlockerPresentation(issue, {
+        targetLabel: "Steam",
+        connectionLabel: "Steam",
+        connectionFieldLabel: "account",
+        hasMatchingConnection: false,
+      }),
+    ).toEqual({
+      title: "Connect your Steam account",
+      description: "A Steam account connection is required.",
+      actionLabel: "Add Steam connection",
+    });
+    expect(
+      releaseBlockerPresentation(issue, {
+        targetLabel: "Steam",
+        connectionLabel: "Steam",
+        connectionFieldLabel: "account",
+        hasMatchingConnection: true,
+      }).actionLabel,
+    ).toBe("Select Steam connection");
+    expect(releaseRepairRoute(issue)).toBe("configuration");
   });
 
   it("routes the first blocker to its existing repair surface", () => {

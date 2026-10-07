@@ -72,23 +72,25 @@ export const buildReleaseWizardConfig = (
 
 export const releaseWizardRecap = (draft: ReleaseWizardDraft, catalog: ReleaseCatalog) => {
   const source = catalog.sources.find((candidate) => candidate.id === draft.source.provider);
-  const sourceDetails = (source?.fields || [])
-    .filter((field) => !field.deferUntilEditor)
-    .flatMap((field) => {
-      const value = draft.source.config[field.key];
-      return value === undefined || value === "" || value === null
-        ? []
-        : [{ label: field.label, value: String(value) }];
-    });
+  const pathField = source?.fields?.find(
+    (field) => !field.deferUntilEditor && (field.type === "file" || field.type === "directory"),
+  );
+  const sourcePath = pathField ? String(draft.source.config[pathField.key] || "") : "";
 
   return {
     name: draft.name.trim(),
     sourceLabel: source?.label || draft.source.provider,
-    sourceDetails,
-    destinationLabels: draft.destinations.map(
-      (destination) =>
-        catalog.destinations.find((candidate) => candidate.id === destination.provider)?.label ||
-        destination.provider,
-    ),
+    sourceIcon: source?.icon,
+    sourcePath,
+    destinations: draft.destinations.map((destination) => {
+      const definition = catalog.destinations.find(
+        (candidate) => candidate.id === destination.provider,
+      );
+      return {
+        provider: destination.provider,
+        label: definition?.label || destination.provider,
+        icon: definition?.icon,
+      };
+    }),
   };
 };

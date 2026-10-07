@@ -64,12 +64,47 @@
         <span>Need to inspect the compiled steps?</span>
         <Button label="Advanced · View plan" text size="small" @click="planExpanded = true" />
       </section>
-      <section v-if="firstBlocker" class="readiness-summary" aria-live="polite">
-        <div>
-          <strong>Action required</strong>
-          <span>{{ firstBlocker.message }}</span>
+      <section v-if="selectedBlocker" class="action-required-card" aria-live="polite">
+        <div class="blocker-icon" aria-hidden="true">
+          <i class="pi pi-info-circle" />
         </div>
-        <Button :label="firstBlockerAction.label" text @click="repairFirstBlocker" />
+        <div class="blocker-copy">
+          <div class="blocker-heading">
+            <span class="eyebrow">Action required</span>
+            <div class="blocker-navigation">
+              <span aria-live="polite"
+                >{{ activeBlockerIndex + 1 }} of {{ blockingIssues.length }}</span
+              >
+              <template v-if="blockingIssues.length > 1">
+                <Button
+                  icon="pi pi-chevron-left"
+                  text
+                  rounded
+                  size="small"
+                  aria-label="Previous blocker"
+                  :disabled="activeBlockerIndex === 0"
+                  @click="moveBlocker(-1)"
+                />
+                <Button
+                  icon="pi pi-chevron-right"
+                  text
+                  rounded
+                  size="small"
+                  aria-label="Next blocker"
+                  :disabled="activeBlockerIndex >= blockingIssues.length - 1"
+                  @click="moveBlocker(1)"
+                />
+              </template>
+            </div>
+          </div>
+          <strong>{{ blockerPresentation.title }}</strong>
+          <span>{{ blockerPresentation.description }}</span>
+          <Button
+            class="blocker-repair-button"
+            :label="blockerPresentation.actionLabel"
+            @click="repairSelectedBlocker"
+          />
+        </div>
       </section>
       <section class="release-section">
         <div class="section-heading">
@@ -450,7 +485,7 @@
       </div>
     </div>
     <template #footer
-      ><Button label="Cancel" text @click="connectionVisible = false" /><Button
+      ><Button label="Cancel" text @click="cancelConnection" /><Button
         label="Add connection"
         :loading="connectionSaving"
         :disabled="!connectionDraft.name.trim() || !connectionHasValue"
@@ -516,15 +551,17 @@ import { useConnectionsStore } from "../store/connections";
 import { useAgentAvailability } from "@renderer/composables/useAgentAvailability";
 import {
   connectionMatchesIntegration,
+  blockerAtIndex,
+  clampBlockerIndex,
   createSerializedTaskQueue,
   deploymentSlotLabel,
   issuesForPath,
   deduplicateValidationIssues,
-  firstBlockingIssue,
   outputReferenceConsumers,
   planOutputOptions,
   readinessLabel,
   releaseCanRun,
+  releaseBlockerPresentation,
   releaseReadinessState,
   releaseRepairRoute,
   releaseOutputRefValue,
@@ -559,7 +596,20 @@ const summaryIssues = computed(() => deduplicateValidationIssues(issues.value));
 const blockingIssues = computed(() =>
   summaryIssues.value.filter((issue) => issue.severity === "error"),
 );
-const firstBlocker = computed(() => firstBlockingIssue(summaryIssues.value));
+const blockerIndex = ref(0);
+const activeBlockerIndex = computed(() =>
+  clampBlockerIndex(blockerIndex.value, blockingIssues.value.length),
+);
+const selectedBlocker = computed(() =>
+  blockerAtIndex(blockingIssues.value, activeBlockerIndex.value),
+);
+watch(
+  blockingIssues,
+  (current) => {
+    blockerIndex.value = clampBlockerIndex(blockerIndex.value, current.length);
+  },
+  { deep: true },
+);
 const attentionVisible = ref(false);
 const attentionIssues = ref<ValidationIssue[]>([]);
 const planExpanded = ref(false);
@@ -582,6 +632,17 @@ const releaseVersion = ref("1.0.0");
 const releaseDescription = ref("");
 const connectionVisible = ref(false);
 const connectionSaving = ref(false);
+const pendingBlockerConnection = ref<
+  | {
+      code: string;
+      message: string;
+      path: string;
+      flowId: string;
+      projectId: string;
+      integration: string;
+    }
+  | undefined
+>();
 const connectionDraft = ref({
   name: "",
   integration: "",
@@ -636,6 +697,7 @@ let latestSourceInspection = 0;
 let latestPlanRequest = 0;
 let workflowLoadGeneration = 0;
 let saveGeneration = 0;
+let connectionDialogGeneration = 0;
 const changeRevision = ref(0);
 const persistedRevision = ref(0);
 let workflowHydrated = false;
@@ -703,35 +765,18 @@ const openIssueEditor = (issue: ValidationIssue) => {
   if (destination && slot) openSlotSettings(destination, slot);
   else if (destination) openDestinationSettings(destination);
 };
-const firstBlockerAction = computed(() => {
-  const issue = firstBlocker.value;
-  switch (issue && releaseRepairRoute(issue)) {
-    case "connections":
-      return { label: "Manage connections" };
-    case "builds":
-      return {
-        label: issue?.code.startsWith("release.connection.")
-          ? "Fix build connection"
-          : "Configure build",
-      };
-    case "configuration":
-      return {
-        label: issue?.code.startsWith("release.connection.")
-          ? issue.path?.startsWith("source")
-            ? "Fix source connection"
-            : "Fix destination connection"
-          : issue?.path?.startsWith("source")
-            ? "Configure source"
-            : "Configure destination",
-      };
-    default:
-      return { label: "Review issues" };
-  }
-});
-const repairFirstBlocker = () => {
-  const issue = firstBlocker.value;
-  if (!issue) return;
-  switch (releaseRepairRoute(issue)) {
+const moveBlocker = (delta: number) => {
+  blockerIndex.value = clampBlockerIndex(
+    activeBlockerIndex.value + delta,
+    blockingIssues.value.length,
+  );
+};
+const repairSelectedBlocker = () => {
+  const issue = selectedBlocker.value;
+  if (!issue || !blockingIssues.value.includes(issue)) return;
+  const route = releaseRepairRoute(issue);
+  const fieldContext = blockerFieldContext(issue);
+  switch (route) {
     case "connections":
       attentionVisible.value = false;
       void router.push({ name: "Connections" });
@@ -741,6 +786,24 @@ const repairFirstBlocker = () => {
       return;
     case "configuration":
       openIssueEditor(issue);
+      if (
+        fieldContext.field?.type === "connection" &&
+        fieldContext.field.integration &&
+        fieldContext.fieldConfig &&
+        fieldContext.fieldKey &&
+        issue.path &&
+        !fieldContext.hasMatchingConnection
+      ) {
+        openConnection(fieldContext.field.integration);
+        pendingBlockerConnection.value = {
+          code: issue.code,
+          message: issue.message,
+          path: issue.path,
+          flowId: flowId.value,
+          projectId: projectId.value,
+          integration: fieldContext.field.integration,
+        };
+      }
       return;
     default:
       openAttention(blockingIssues.value);
@@ -813,6 +876,76 @@ const slotCardIssues = (slot: ReleaseDestinationSlot) => {
   const path = slotIssuePath(slot);
   return path ? issuesForPath(summaryIssues.value, path) : [];
 };
+const blockerFieldContext = (issue: ValidationIssue) => {
+  if (!flow.value || !issue.path) return {};
+  let field: ReleaseFieldDefinition | undefined;
+  let targetLabel: string | undefined;
+  let fieldKey: string | undefined;
+  let fieldConfig: Record<string, unknown> | undefined;
+
+  const sourceMatch = issue.path.match(/^source\.config\.(.+)$/);
+  const buildMatch = issue.path.match(/^builds\.(\d+)\.(?:(?:targets\.(\d+)\.)?config)\.(.+)$/);
+  const destinationMatch = issue.path.match(
+    /^destinations\.(\d+)\.(?:(?:slots\.(\d+)\.)?config)\.(.+)$/,
+  );
+  if (sourceMatch) {
+    fieldKey = sourceMatch[1];
+    fieldConfig = flow.value.source.config;
+    field = sourceDefinition.value?.fields?.find((candidate) => candidate.key === fieldKey);
+    targetLabel = sourceDefinition.value?.label || "source";
+  } else if (buildMatch) {
+    const build = flow.value.builds[Number(buildMatch[1])];
+    const producer = build ? producerDefinition(build.engine) : undefined;
+    const target = buildMatch[2] ? build?.targets[Number(buildMatch[2])] : undefined;
+    fieldKey = buildMatch[3];
+    fieldConfig = target?.config || build?.config;
+    field = target
+      ? producer?.targets
+          .find((candidate) => candidate.id === target.id)
+          ?.fields?.find((candidate) => candidate.key === fieldKey)
+      : producer?.fields?.find((candidate) => candidate.key === fieldKey);
+    targetLabel = build?.name?.trim() || producer?.label || "build";
+  } else if (destinationMatch) {
+    const destination = flow.value.destinations[Number(destinationMatch[1])];
+    const definition = destination ? destinationDefinition(destination.provider) : undefined;
+    const slot = destinationMatch[2] ? destination?.slots[Number(destinationMatch[2])] : undefined;
+    fieldKey = destinationMatch[3];
+    fieldConfig = slot?.config || destination?.config;
+    field = slot
+      ? definition?.slotFields?.find((candidate) => candidate.key === fieldKey)
+      : definition?.fields?.find((candidate) => candidate.key === fieldKey);
+    targetLabel = definition?.label || "destination";
+  }
+
+  if (field?.type !== "connection" || !field.integration)
+    return { targetLabel, field, fieldKey, fieldConfig };
+  const integrationProvider = appStore.providerDefinitions.find(
+    (provider) => provider.packageName === field?.integration || provider.id === field?.integration,
+  );
+  const fallbackConnectionLabel = field.label.replace(/\s+(account|connection)$/i, "");
+  const connectionLabel = integrationProvider?.name || fallbackConnectionLabel || "provider";
+  const connectionFieldLabel = field.label.toLowerCase().startsWith(connectionLabel.toLowerCase())
+    ? field.label.slice(connectionLabel.length).trim().toLowerCase()
+    : field.label.toLowerCase();
+  return {
+    targetLabel,
+    connectionLabel,
+    connectionFieldLabel,
+    field,
+    fieldKey,
+    fieldConfig,
+    integration: field.integration,
+    hasMatchingConnection: connections.value.some((connection) =>
+      connectionMatchesIntegration(connection, field?.integration || ""),
+    ),
+  };
+};
+const blockerPresentation = computed(() => {
+  const issue = selectedBlocker.value;
+  return issue
+    ? releaseBlockerPresentation(issue, blockerFieldContext(issue))
+    : { title: "", description: "", actionLabel: "Review issues" };
+});
 const destinationReadiness = (destination: ReleaseDestinationConfig, index: number) => {
   const enabledSlots = destination.slots.filter((slot) => slot.enabled);
   const childrenReady =
@@ -1003,6 +1136,8 @@ const setSourceField = (key: string, value: unknown) => {
   }
 };
 const openConnection = (integration: string) => {
+  connectionDialogGeneration++;
+  pendingBlockerConnection.value = undefined;
   const definition = appStore.providerDefinitions.find(
     (plugin) => plugin.packageName === integration || plugin.id === integration,
   );
@@ -1017,7 +1152,14 @@ const openConnection = (integration: string) => {
   };
   connectionVisible.value = true;
 };
+const cancelConnection = () => {
+  connectionDialogGeneration++;
+  pendingBlockerConnection.value = undefined;
+  connectionVisible.value = false;
+};
 const createConnection = async () => {
+  const dialogGeneration = connectionDialogGeneration;
+  const pendingAtStart = pendingBlockerConnection.value;
   connectionSaving.value = true;
   try {
     const integration = connectionDraft.value.integration;
@@ -1040,7 +1182,30 @@ const createConnection = async () => {
       return;
     }
     await connectionsStore.load(true);
-    connectionVisible.value = false;
+    const pending = pendingBlockerConnection.value;
+    if (
+      pendingAtStart &&
+      pending === pendingAtStart &&
+      pending &&
+      pending.integration === integration &&
+      pending.flowId === flowId.value &&
+      pending.projectId === projectId.value
+    ) {
+      const currentIssue = blockingIssues.value.find(
+        (issue) =>
+          issue.code === pending.code &&
+          issue.message === pending.message &&
+          issue.path === pending.path,
+      );
+      if (currentIssue) {
+        const target = blockerFieldContext(currentIssue);
+        if (target.integration === integration && target.fieldConfig && target.fieldKey)
+          target.fieldConfig[target.fieldKey] = record.id;
+      }
+    }
+    if (pendingBlockerConnection.value === pendingAtStart)
+      pendingBlockerConnection.value = undefined;
+    if (dialogGeneration === connectionDialogGeneration) connectionVisible.value = false;
   } catch (err) {
     error.value = err instanceof Error ? err.message : "Unable to save connection.";
   } finally {
@@ -1372,6 +1537,7 @@ watch(
   { immediate: true },
 );
 watch([flowId, projectId], () => {
+  pendingBlockerConnection.value = undefined;
   workflowLoadGeneration++;
   saveGeneration++;
   workflowHydrated = false;
@@ -1418,28 +1584,85 @@ watch([flowId, projectId], () => {
   color: var(--red-500, #ef4444);
 }
 .planner-error,
-.readiness-summary,
 .plan-shortcut {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
 }
-.readiness-summary {
-  margin: 14px 0;
-  border: 1px solid color-mix(in srgb, var(--p-orange-500, #f97316) 28%, transparent);
-  border-radius: 8px;
-  padding: 10px 12px;
-  background: color-mix(in srgb, var(--p-orange-100, #ffedd5) 35%, transparent);
-}
-.readiness-summary > div {
+.action-required-card {
   display: grid;
-  gap: 3px;
+  grid-template-columns: 32px minmax(0, 1fr);
+  align-items: start;
+  gap: 4px 12px;
+  margin: 14px 0;
+  border: 1px solid color-mix(in srgb, var(--p-indigo-500, #6366f1) 24%, transparent);
+  border-radius: 8px;
+  padding: 14px 16px;
+  background: color-mix(in srgb, var(--p-indigo-100, #eef2ff) 58%, var(--p-surface-0, #fff));
 }
-.readiness-summary span,
+.blocker-icon {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  margin-top: 1px;
+  border-radius: 50%;
+  color: var(--p-indigo-700, #4338ca);
+  background: color-mix(in srgb, var(--p-indigo-500, #6366f1) 18%, transparent);
+  font-size: 0.85rem;
+}
+.blocker-copy {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+.blocker-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.blocker-copy .eyebrow {
+  color: var(--p-indigo-700, #4338ca);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.blocker-copy strong {
+  color: var(--p-text-color, var(--text-color));
+  font-size: 1rem;
+}
+.blocker-copy > span,
 .plan-shortcut span {
   color: var(--p-text-muted-color, var(--text-color-secondary));
   font-size: 0.78rem;
+}
+.blocker-navigation {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: 2px;
+}
+.blocker-navigation span {
+  color: var(--p-text-muted-color, var(--text-color-secondary));
+  font-size: 0.75rem;
+  margin-right: 2px;
+  white-space: nowrap;
+}
+.blocker-copy > .p-button {
+  justify-self: start;
+  margin-top: 3px;
+}
+.blocker-copy :deep(.blocker-repair-button) {
+  border-color: var(--p-indigo-500, #6366f1);
+  background: var(--p-indigo-500, #6366f1);
+  color: white;
+}
+.blocker-copy :deep(.blocker-repair-button:hover:not(:disabled)) {
+  border-color: var(--p-indigo-600, #4f46e5);
+  background: var(--p-indigo-600, #4f46e5);
 }
 .plan-shortcut {
   justify-content: flex-end;
@@ -1453,6 +1676,15 @@ watch([flowId, projectId], () => {
 .readiness-problem {
   color: var(--p-orange-700, #c2410c);
   font-weight: 600;
+}
+@media (max-width: 640px) {
+  .action-required-card {
+    grid-template-columns: 28px minmax(0, 1fr);
+    padding: 12px;
+  }
+  .blocker-heading {
+    align-items: flex-start;
+  }
 }
 .destination-toggle {
   display: flex;

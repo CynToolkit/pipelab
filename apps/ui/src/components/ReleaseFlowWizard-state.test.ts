@@ -21,6 +21,7 @@ const catalog: ReleaseCatalog = {
       id: "source/construct",
       label: "Construct project",
       description: "Construct 3 project",
+      icon: { type: "icon", icon: "pi pi-box" },
       output: { kind: "application", platform: "web", container: "directory" },
       defaultConfig: { path: "", profilePath: "" },
       fields: [
@@ -45,7 +46,14 @@ const catalog: ReleaseCatalog = {
       label: "Godot project",
       output: { kind: "project", technology: "godot", container: "directory" },
       defaultConfig: { path: "" },
-      fields: [{ key: "path", type: "directory", label: "Project path", required: true }],
+      fields: [
+        {
+          key: "path",
+          type: "directory",
+          label: "Project path",
+          required: true,
+        },
+      ],
     },
   ],
   producers: [],
@@ -53,6 +61,7 @@ const catalog: ReleaseCatalog = {
     {
       id: "destination/upload",
       label: "Upload",
+      icon: { type: "image", image: "https://example.com/upload.svg" },
       accepts: {},
       defaultConfig: { project: "" },
     },
@@ -121,7 +130,10 @@ describe("ReleaseFlowWizard state", () => {
   });
 
   it("reactively enables Continue when a selected Construct file path changes", () => {
-    const source = reactive({ provider: "source/construct", config: { path: "" } });
+    const source = reactive({
+      provider: "source/construct",
+      config: { path: "" },
+    });
     const ready = computed(() => releaseWizardSourceIsReady(source, catalog));
 
     expect(ready.value).toBe(false);
@@ -133,7 +145,10 @@ describe("ReleaseFlowWizard state", () => {
     const draft = createReleaseWizardDraft();
     expect(releaseWizardCanReview(draft, catalog)).toBe(false);
     draft.name = "Game release";
-    draft.source = { provider: "source/construct", config: { path: "/game.c3p" } };
+    draft.source = {
+      provider: "source/construct",
+      config: { path: "/game.c3p" },
+    };
     expect(releaseWizardCanReview(draft, catalog)).toBe(false);
     draft.destinations.push(releaseWizardDestination("destination/upload", catalog)!);
     expect(releaseWizardCanReview(draft, catalog)).toBe(true);
@@ -157,13 +172,23 @@ describe("ReleaseFlowWizard state", () => {
   it("builds a read-only recap from the chosen name, source, and destinations", () => {
     const draft = createReleaseWizardDraft();
     draft.name = "  Game release  ";
-    draft.source = { provider: "source/construct", config: { path: "/game.c3p", profilePath: "" } };
+    draft.source = {
+      provider: "source/construct",
+      config: { path: "/game.c3p", profilePath: "" },
+    };
     draft.destinations = [releaseWizardDestination("destination/upload", catalog)!];
     expect(releaseWizardRecap(draft, catalog)).toEqual({
       name: "Game release",
       sourceLabel: "Construct project",
-      sourceDetails: [{ label: "Project file", value: "/game.c3p" }],
-      destinationLabels: ["Upload"],
+      sourceIcon: { type: "icon", icon: "pi pi-box" },
+      sourcePath: "/game.c3p",
+      destinations: [
+        {
+          provider: "destination/upload",
+          label: "Upload",
+          icon: { type: "image", image: "https://example.com/upload.svg" },
+        },
+      ],
     });
     const config = buildReleaseWizardConfig(draft, "project-1", "release-1");
     expect(config.builds).toEqual([]);
@@ -177,11 +202,14 @@ describe("ReleaseFlowWizard state", () => {
 
   it("reactively updates recap after name, source path, and destination edits", () => {
     const draft = reactive(createReleaseWizardDraft());
-    draft.source = { provider: "source/construct", config: { path: "", profilePath: "" } };
+    draft.source = {
+      provider: "source/construct",
+      config: { path: "", profilePath: "" },
+    };
     const recap = computed(() => releaseWizardRecap(draft, catalog));
 
-    expect(recap.value.sourceDetails).toEqual([]);
-    expect(recap.value.destinationLabels).toEqual([]);
+    expect(recap.value.sourcePath).toBe("");
+    expect(recap.value.destinations).toEqual([]);
     draft.name = "Game release";
     draft.source.config.path = "/game.c3p";
     draft.destinations.push(releaseWizardDestination("destination/upload", catalog)!);
@@ -189,8 +217,15 @@ describe("ReleaseFlowWizard state", () => {
     expect(recap.value).toEqual({
       name: "Game release",
       sourceLabel: "Construct project",
-      sourceDetails: [{ label: "Project file", value: "/game.c3p" }],
-      destinationLabels: ["Upload"],
+      sourceIcon: { type: "icon", icon: "pi pi-box" },
+      sourcePath: "/game.c3p",
+      destinations: [
+        {
+          provider: "destination/upload",
+          label: "Upload",
+          icon: { type: "image", image: "https://example.com/upload.svg" },
+        },
+      ],
     });
   });
 

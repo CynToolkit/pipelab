@@ -27,14 +27,38 @@ const sourceFixtures = {
   folder: {
     id: "@pipelab/core/source/folder",
     label: "Folder",
+    description: "A local folder",
+    icon: { type: "icon", icon: "mdi mdi-folder-outline" },
     output: { kind: "files", container: "directory" },
+    fields: [{ key: "path", label: "Folder path", type: "directory", required: true }],
+    defaultConfig: { path: "" },
+  },
+  webFolder: {
+    id: "@pipelab/core/source/web-folder",
+    label: "Web app folder",
+    description: "A web app folder",
+    icon: { type: "icon", icon: "mdi mdi-web" },
+    output: { kind: "application", platform: "web", container: "directory" },
     fields: [{ key: "path", label: "Folder path", type: "directory", required: true }],
     defaultConfig: { path: "" },
   },
   zip: {
     id: "@pipelab/core/source/zip",
     label: "ZIP",
+    description: "A ZIP file",
+    icon: { type: "icon", icon: "mdi mdi-file-archive-outline" },
     output: { kind: "files", container: "archive", format: "zip" },
+    fields: [
+      { key: "path", label: "ZIP path", type: "file", required: true, fileExtensions: ["zip"] },
+    ],
+    defaultConfig: { path: "" },
+  },
+  webZip: {
+    id: "@pipelab/core/source/web-zip",
+    label: "Web app ZIP",
+    description: "A web app ZIP",
+    icon: { type: "icon", icon: "mdi mdi-zip-box-outline" },
+    output: { kind: "application", platform: "web", container: "archive", format: "zip" },
     fields: [
       { key: "path", label: "ZIP path", type: "file", required: true, fileExtensions: ["zip"] },
     ],
@@ -43,16 +67,20 @@ const sourceFixtures = {
   construct: {
     id: "@pipelab/plugin-construct/source",
     label: "Construct project",
+    description: "Construct .c3p",
+    icon: { type: "icon", icon: "mdi mdi-cog-outline" },
     output: { kind: "application", platform: "web", container: "directory" },
     fields: [
       { key: "path", label: "Project file", type: "file", required: true, fileExtensions: ["c3p"] },
-      { key: "profilePath", label: "Browser profile", type: "directory", deferUntilEditor: true },
+      { key: "profilePath", label: "Browser profile", type: "select", deferUntilEditor: true },
     ],
     defaultConfig: { path: "", profilePath: "" },
   },
   godot: {
     id: "@pipelab/plugin-godot/source",
     label: "Godot project",
+    description: "Godot project",
+    icon: { type: "icon", icon: "mdi mdi-robot-happy-outline" },
     output: { kind: "project", technology: "godot", container: "directory" },
     fields: [{ key: "path", label: "Project path", type: "directory", required: true }],
     defaultConfig: { path: "" },
@@ -61,20 +89,80 @@ const sourceFixtures = {
 
 const catalog = {
   buildTypes: [],
-  sources: Object.values(sourceFixtures),
+  sources: [
+    sourceFixtures.folder,
+    sourceFixtures.webFolder,
+    sourceFixtures.zip,
+    sourceFixtures.webZip,
+    sourceFixtures.construct,
+    sourceFixtures.godot,
+  ],
   producers: [],
   destinations: [
     {
+      id: "@pipelab/plugin-steam/destination",
+      label: "Steam",
+      description: "Publish through Steam",
+      icon: { type: "icon", icon: "mdi-steam" },
+      accepts: {},
+      fields: [
+        {
+          key: "accountConnectionId",
+          label: "Steam account",
+          type: "connection",
+          integration: "@pipelab/plugin-steam",
+          required: true,
+        },
+        { key: "appId", label: "Steam App ID", type: "text", required: true },
+      ],
+      slotFields: [{ key: "depotId", label: "Depot ID", type: "text", required: true }],
+      defaultConfig: { accountConnectionId: "", appId: "" },
+    },
+    {
+      id: "@pipelab/plugin-itch/destination",
+      label: "Itch.io",
+      description: "PC, web and more on itch.io",
+      icon: { type: "icon", icon: "mdi mdi-storefront-outline" },
+      accepts: {},
+      fields: [
+        {
+          key: "accountConnectionId",
+          label: "Itch account",
+          type: "connection",
+          integration: "@pipelab/plugin-itch",
+          required: true,
+        },
+        { key: "project", label: "Project", type: "text", required: true },
+      ],
+      slotFields: [{ key: "channel", label: "Channel", type: "text", required: true }],
+      defaultConfig: { accountConnectionId: "", project: "" },
+    },
+    {
       id: "@pipelab/plugin-poki/destination",
       label: "Poki",
+      description: "Publish an HTML5 game",
+      icon: { type: "icon", icon: "pi-globe" },
       accepts: {},
-      fields: [{ key: "project", label: "Project", type: "text", required: true }],
-      defaultConfig: { project: "" },
+      fields: [
+        { key: "project", label: "Poki project", type: "text", required: true },
+        { key: "name", label: "Version name", type: "text", required: true },
+        { key: "notes", label: "Release notes", type: "text", required: true },
+      ],
+      defaultConfig: { project: "", name: "", notes: "" },
+    },
+    {
+      id: "@pipelab/core/destination/folder",
+      label: "File system",
+      description: "Export to a local folder",
+      icon: { type: "icon", icon: "mdi-folder-outline" },
+      accepts: {},
+      fields: [{ key: "outputDir", label: "Output folder", type: "directory", required: true }],
+      defaultConfig: { outputDir: "" },
     },
   ],
 };
 
-async function journey(sourceKey, sourcePath) {
+async function journey(sourceKey, sourcePath, withSavedSteamAccount = false) {
   const browser = await chromium.launch({ executablePath: chromiumPath, args: ["--no-sandbox"] });
   const narrow = sourceKey === "godot";
   const expectedTheme = narrow ? "dark" : "light";
@@ -126,10 +214,56 @@ async function journey(sourceKey, sourcePath) {
           };
           break;
         case "connections:load":
-          result = { version: "1.0.0", connections: [] };
+          result = {
+            version: "1.0.0",
+            connections: withSavedSteamAccount
+              ? [
+                  {
+                    id: "steam-existing",
+                    pluginName: "@pipelab/plugin-steam",
+                    integrationName: "Steam Account",
+                    name: "Saved Steam account",
+                    createdAt: "2026-01-01",
+                    isDefault: true,
+                    username: "fixture-user",
+                  },
+                ]
+              : [],
+          };
           break;
         case "providers:metadata:get":
-          result = { providers: [] };
+          result = {
+            providers: [
+              {
+                id: "@pipelab/plugin-steam",
+                name: "Steam",
+                packageName: "@pipelab/plugin-steam",
+                icon: { type: "icon", icon: "mdi-steam" },
+                description: "Steam provider",
+                isOfficial: true,
+                integrations: [
+                  {
+                    name: "Steam Account",
+                    fields: [{ key: "username", label: "Steam Username", type: "text" }],
+                  },
+                ],
+              },
+              {
+                id: "@pipelab/plugin-itch",
+                name: "Itch.io",
+                packageName: "@pipelab/plugin-itch",
+                icon: { type: "icon", icon: "pi-palette" },
+                description: "Itch.io provider",
+                isOfficial: true,
+                integrations: [
+                  {
+                    name: "Itch Butler Account",
+                    fields: [{ key: "apiKey", label: "API key", type: "password" }],
+                  },
+                ],
+              },
+            ],
+          };
           break;
         case "release:catalog:get":
           result = catalog;
@@ -178,10 +312,16 @@ async function journey(sourceKey, sourcePath) {
             destinations: [],
             issues: [
               {
-                code: "destination.project.required",
-                path: "destinations.0.config.project",
+                code: "steam.account.required",
+                path: "destinations.0.config.accountConnectionId",
                 severity: "error",
-                message: "Choose a Poki project before publishing.",
+                message: "A Steam account connection is required.",
+              },
+              {
+                code: "itch.account.required",
+                path: "destinations.1.config.accountConnectionId",
+                severity: "error",
+                message: "An Itch account connection is required.",
               },
             ],
             graph: {
@@ -207,6 +347,13 @@ async function journey(sourceKey, sourcePath) {
               { name: "notes.txt", isDirectory: false, isSymbolicLink: false, size: 1, mtime: 0 },
               {
                 name: "Godot project",
+                isDirectory: true,
+                isSymbolicLink: false,
+                size: 0,
+                mtime: 0,
+              },
+              {
+                name: "Web app folder",
                 isDirectory: true,
                 isSymbolicLink: false,
                 size: 0,
@@ -255,10 +402,47 @@ async function journey(sourceKey, sourcePath) {
       .click();
     const dialog = page.getByRole("dialog", { name: "New release" });
     await dialog.waitFor();
-    await page.getByLabel("Name", { exact: true }).fill(`${sourceKey} first workflow`);
+    await dialog.getByRole("heading", { name: "What are you releasing?" }).waitFor();
+    const sourceGrid = dialog.locator(".source-grid");
+    assert.equal(
+      await sourceGrid.getByRole("button").count(),
+      6,
+      "all six source choices are shown",
+    );
+    const sourceCardLabels = (await sourceGrid.getByRole("button").allTextContents()).map((text) =>
+      text.replace(/\s+/g, " ").trim(),
+    );
+    for (const [index, label] of [
+      "Folder",
+      "Web app folder",
+      "ZIP",
+      "Web app ZIP",
+      "Construct project",
+      "Godot project",
+    ].entries())
+      assert.ok(sourceCardLabels[index].startsWith(label), `source card ${index + 1} is ${label}`);
+    const desktopColumns = await sourceGrid.evaluate(
+      (element) => getComputedStyle(element).gridTemplateColumns.split(" ").length,
+    );
+    assert.equal(
+      desktopColumns,
+      narrow ? 2 : 3,
+      "source cards use a three-column desktop grid and two-column narrow grid",
+    );
+    assert.equal(
+      await dialog.evaluate(() => {
+        const grid = document.querySelector(".source-grid");
+        const name = document.querySelector("#release-name");
+        return Boolean(
+          grid && name && grid.compareDocumentPosition(name) & Node.DOCUMENT_POSITION_FOLLOWING,
+        );
+      }),
+      true,
+      "Name follows source selection in the first setup step",
+    );
 
     const sourceCard = dialog.getByRole("button", {
-      name: new RegExp(sourceFixtures[sourceKey].label),
+      name: new RegExp(`^${sourceFixtures[sourceKey].label}\\b`),
     });
     await sourceCard.focus();
     await page.keyboard.press("Enter");
@@ -267,6 +451,7 @@ async function journey(sourceKey, sourcePath) {
       "true",
       `${sourceKey} can be selected with the keyboard`,
     );
+    await dialog.getByLabel("Name", { exact: true }).fill(`${sourceKey} first workflow`);
     assert.equal(
       await dialog.getByText("Browser profile", { exact: true }).count(),
       0,
@@ -282,9 +467,15 @@ async function journey(sourceKey, sourcePath) {
     await dialog.getByRole("button", { name: new RegExp(pickerButtonName, "i") }).click();
     const picker = page.getByRole("dialog").last();
     const selectedEntry =
-      sourceKey === "construct" ? /demo\.c3p/ : sourceKey === "zip" ? /demo\.zip/ : /Godot project/;
+      sourceKey === "construct"
+        ? /demo\.c3p/
+        : sourceKey === "zip" || sourceKey === "webZip"
+          ? /demo\.zip/
+          : sourceKey === "godot"
+            ? /Godot project/
+            : /Godot project/;
     await picker.getByRole("row", { name: selectedEntry }).click();
-    if (sourceKey === "construct" || sourceKey === "zip") {
+    if (sourceFixtures[sourceKey].fields[0].type === "file") {
       assert.equal(
         await picker.getByRole("row", { name: /notes\.txt/ }).count(),
         0,
@@ -308,16 +499,25 @@ async function journey(sourceKey, sourcePath) {
       fsCalls.includes("fs:listDirectory"),
       "the web picker loaded a directory from the mocked filesystem boundary",
     );
+    if (process.env.SCREENSHOT_DIR)
+      await page.screenshot({
+        path: join(process.env.SCREENSHOT_DIR, `pipelab-${sourceKey}-step1.png`),
+      });
     // The visible picker enforces these constraints; the source schema declares the native picker mode and extension.
     const sourceField = sourceFixtures[sourceKey].fields[0];
-    if (sourceKey === "construct" || sourceKey === "zip") {
+    if (sourceFixtures[sourceKey].fields[0].type === "file") {
       assert.equal(sourceField.type, "file");
       assert.deepEqual(sourceField.fileExtensions, [sourceKey === "construct" ? "c3p" : "zip"]);
     } else {
       assert.equal(sourceField.type, "directory");
     }
 
-    if (sourceKey === "folder" || sourceKey === "zip") {
+    if (
+      sourceKey === "folder" ||
+      sourceKey === "zip" ||
+      sourceKey === "webFolder" ||
+      sourceKey === "webZip"
+    ) {
       assert.equal(
         await dialog.getByRole("button", { name: "Continue" }).isEnabled(),
         true,
@@ -327,7 +527,12 @@ async function journey(sourceKey, sourcePath) {
     }
 
     await dialog.getByRole("button", { name: "Continue" }).click();
-    await dialog.getByRole("heading", { name: "Destinations" }).waitFor();
+    await dialog.getByRole("heading", { name: "Where do you want to ship?" }).waitFor();
+    assert.equal(
+      await dialog.locator(".destination-row").count(),
+      4,
+      "all four destination rows are visible",
+    );
     await dialog.getByRole("button", { name: "Back" }).click();
     assert.equal(
       await dialog.locator("input[readonly]").first().inputValue(),
@@ -335,16 +540,30 @@ async function journey(sourceKey, sourcePath) {
       "Back preserves source selection",
     );
     await dialog.getByRole("button", { name: "Continue" }).click();
-    const destination = dialog.getByRole("button", { name: /^Poki/ });
-    await destination.click();
-    assert.equal(await destination.getAttribute("aria-pressed"), "true");
+    const steam = dialog.getByRole("button", { name: /^Steam/ });
+    const itch = dialog.getByRole("button", { name: /^Itch\.io/ });
+    await steam.click();
+    await itch.click();
+    assert.equal(await steam.getAttribute("aria-pressed"), "true");
+    assert.equal(await itch.getAttribute("aria-pressed"), "true");
+    if (process.env.SCREENSHOT_DIR)
+      await page.screenshot({
+        path: join(process.env.SCREENSHOT_DIR, `pipelab-${sourceKey}-destinations.png`),
+      });
     await dialog.getByRole("button", { name: "Continue" }).click();
-    await dialog.getByRole("heading", { name: "Recap" }).waitFor();
-    await dialog.getByText("Name", { exact: true }).last().waitFor();
-    await dialog.getByText(`${sourceKey} first workflow`, { exact: true }).waitFor();
-    await dialog.getByText(sourceFixtures[sourceKey].label, { exact: true }).last().waitFor();
-    await dialog.getByText(sourcePath, { exact: false }).waitFor();
-    await dialog.getByText("Poki", { exact: true }).last().waitFor();
+    await dialog.getByRole("heading", { name: "Review your choices" }).waitFor();
+    const recap = dialog.locator(".wizard-panel:visible");
+    await recap.getByText("Name", { exact: true }).waitFor();
+    await recap.getByText(`${sourceKey} first workflow`, { exact: true }).waitFor();
+    await recap.getByText(sourceFixtures[sourceKey].label, { exact: true }).waitFor();
+    await recap.getByText(sourcePath, { exact: true }).waitFor();
+    await recap.getByText("Steam", { exact: true }).waitFor();
+    await recap.getByText("Itch.io", { exact: true }).waitFor();
+    assert.equal(
+      await recap.locator(".review-destination").count(),
+      2,
+      "recap shows each selected destination separately",
+    );
     assert.equal(
       await dialog.getByRole("button", { name: "Edit" }).count(),
       0,
@@ -371,11 +590,63 @@ async function journey(sourceKey, sourcePath) {
       0,
       "a plan blocker cannot show Ready to ship",
     );
-    await page.getByRole("button", { name: "Configure destination" }).click();
-    const destinationEditor = page.getByRole("dialog", { name: "Edit destination" });
-    await destinationEditor.waitFor();
-    await destinationEditor.getByLabel("Project", { exact: true }).waitFor();
+    const actionCard = page.locator(".action-required-card");
+    const screenshotKey = `${sourceKey}${withSavedSteamAccount ? "-saved-account" : ""}`;
+    assert.equal((await actionCard.innerText()).match(/1 of 2/)?.[0], "1 of 2");
+    assert.match(await actionCard.innerText(), /Connect your Steam account/);
+    assert.match(await actionCard.innerText(), /A Steam account connection is required/);
+    assert.equal(
+      await actionCard.getByRole("button", { name: "Previous blocker" }).isDisabled(),
+      true,
+    );
+    assert.equal(
+      await actionCard.getByRole("button", { name: "Next blocker" }).isDisabled(),
+      false,
+    );
+    if (process.env.SCREENSHOT_DIR)
+      await page.screenshot({
+        path: join(process.env.SCREENSHOT_DIR, `pipelab-${screenshotKey}-action-required.png`),
+      });
     await page.waitForTimeout(250);
+    if (process.env.SCREENSHOT_DIR)
+      await page.screenshot({
+        path: join(process.env.SCREENSHOT_DIR, `pipelab-${screenshotKey}-configuration.png`),
+      });
+    await actionCard.getByRole("button", { name: "Next blocker" }).click();
+    assert.match(await actionCard.innerText(), /2 of 2/);
+    assert.match(await actionCard.innerText(), /An Itch account connection is required/);
+    await actionCard.getByRole("button", { name: "Previous blocker" }).click();
+    assert.match(await actionCard.innerText(), /1 of 2/);
+    let destinationEditor;
+    if (withSavedSteamAccount) {
+      await actionCard.getByRole("button", { name: "Select Steam connection" }).click();
+      destinationEditor = page.getByRole("dialog", { name: "Edit destination" });
+      await destinationEditor.waitFor();
+      assert.equal(
+        await page.getByRole("dialog", { name: "Add connection" }).count(),
+        0,
+        "a matching saved account opens the destination editor without the Add dialog",
+      );
+      const connectionField = destinationEditor.locator(".connection-field").first();
+      await connectionField.getByRole("combobox").click();
+      await page.getByRole("option", { name: "Saved Steam account" }).click();
+      await page.waitForTimeout(1000);
+      assert.equal(
+        saved.destinations[0].config.accountConnectionId,
+        "steam-existing",
+        "Select CTA can set the existing matching account in the destination field",
+      );
+    } else {
+      await actionCard.getByRole("button", { name: "Add Steam connection" }).click();
+      destinationEditor = page.getByRole("dialog", { name: "Edit destination" });
+      await destinationEditor.waitFor();
+      await destinationEditor.locator(".connection-field").first().waitFor();
+      await destinationEditor.getByText("Steam account", { exact: true }).waitFor();
+      const connectionDialog = page.getByRole("dialog", { name: "Add connection" });
+      await connectionDialog.getByLabel("Steam Username", { exact: true }).waitFor();
+      await connectionDialog.getByRole("button", { name: "Cancel" }).click();
+      await connectionDialog.waitFor({ state: "hidden" });
+    }
     assert.equal(
       await page.getByText("Invalid output reference", { exact: true }).count(),
       0,
@@ -383,7 +654,7 @@ async function journey(sourceKey, sourcePath) {
     );
     if (process.env.SCREENSHOT_DIR)
       await page.screenshot({
-        path: join(process.env.SCREENSHOT_DIR, `pipelab-${sourceKey}-configuration.png`),
+        path: join(process.env.SCREENSHOT_DIR, `pipelab-${screenshotKey}-configuration.png`),
       });
     assert.ok(saved, "workflow save was called");
     assert.equal(saved.source.provider, sourceFixtures[sourceKey].id);
@@ -393,6 +664,7 @@ async function journey(sourceKey, sourcePath) {
       "fixture-default-build",
       "resolved default build reaches workflow persistence",
     );
+    assert.equal(saved.destinations.length, 2, "both selected destinations are persisted");
     assert.deepEqual(
       saved.destinations[0].slots[0].input,
       { source: true },
@@ -403,7 +675,7 @@ async function journey(sourceKey, sourcePath) {
     assert.ok(calls.includes("release:plan"));
     assert.deepEqual(errors, [], `browser had no JS or console errors: ${errors.join("; ")}`);
 
-    if (sourceKey === "construct") {
+    if (sourceKey === "construct" && !withSavedSteamAccount) {
       await destinationEditor.getByRole("button", { name: "Done" }).click();
       await page.getByRole("link", { name: "Dashboard" }).click();
       await page.waitForURL(/\/dashboard$/);
@@ -473,6 +745,7 @@ async function journey(sourceKey, sourcePath) {
   results.push(await journey("folder", "/test-home/Godot project"));
   results.push(await journey("zip", "/test-home/demo.zip"));
   results.push(await journey("construct", "/test-home/demo.c3p"));
+  results.push(await journey("construct", "/test-home/demo.c3p", true));
   results.push(await journey("godot", "/test-home/Godot project"));
   for (const result of results) console.log(result);
 })().catch((error) => {

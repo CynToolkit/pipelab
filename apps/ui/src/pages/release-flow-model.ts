@@ -375,6 +375,12 @@ export type ReleaseRepairRoute = "connections" | "builds" | "configuration" | "i
 export const firstBlockingIssue = (issues: ValidationIssue[]) =>
   issues.find((issue) => issue.severity === "error");
 
+export const clampBlockerIndex = (index: number, blockerCount: number) =>
+  blockerCount === 0 ? 0 : Math.min(Math.max(index, 0), blockerCount - 1);
+
+export const blockerAtIndex = (blockers: ValidationIssue[], index: number) =>
+  blockers[clampBlockerIndex(index, blockers.length)];
+
 export const releaseRepairRoute = (issue: ValidationIssue): ReleaseRepairRoute => {
   if (
     issue.path?.startsWith("builds.") ||
@@ -385,6 +391,49 @@ export const releaseRepairRoute = (issue: ValidationIssue): ReleaseRepairRoute =
     return "configuration";
   if (issue.code.startsWith("release.connection.")) return "connections";
   return "issues";
+};
+
+export interface ReleaseBlockerContext {
+  targetLabel?: string;
+  connectionLabel?: string;
+  connectionFieldLabel?: string;
+  hasMatchingConnection?: boolean;
+}
+
+export const releaseBlockerPresentation = (
+  issue: ValidationIssue,
+  context: ReleaseBlockerContext = {},
+) => {
+  const route = releaseRepairRoute(issue);
+  const connectionLabel = context.connectionLabel;
+  const connectionAction = connectionLabel
+    ? context.hasMatchingConnection
+      ? `Select ${connectionLabel} connection`
+      : `Add ${connectionLabel} connection`
+    : undefined;
+  const title = connectionLabel
+    ? `Connect your ${connectionLabel} ${context.connectionFieldLabel || "account"}`
+    : route === "builds"
+      ? `Configure ${context.targetLabel || "build"}`
+      : route === "configuration"
+        ? `Configure ${context.targetLabel || "release"}`
+        : route === "connections"
+          ? "Manage connections"
+          : "Resolve workflow issue";
+
+  return {
+    title,
+    description: issue.message,
+    actionLabel:
+      connectionAction ||
+      (route === "builds"
+        ? "Configure build"
+        : route === "configuration"
+          ? `Configure ${context.targetLabel || "release"}`
+          : route === "connections"
+            ? "Manage connections"
+            : "Review issues"),
+  };
 };
 
 export const releaseReadinessState = (

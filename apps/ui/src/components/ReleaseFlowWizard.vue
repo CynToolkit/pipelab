@@ -3,7 +3,7 @@
     v-model:visible="visible"
     modal
     header="New release"
-    :style="{ width: '720px', maxWidth: '96vw' }"
+    :style="{ width: '520px', maxWidth: '96vw' }"
   >
     <p v-if="!isReady" role="status">Reconnect the agent to continue setting up this workflow.</p>
     <p v-else-if="catalogLoading" role="status">Loading workflow options…</p>
@@ -32,16 +32,9 @@
       <StepPanels>
         <StepPanel value="details">
           <div class="wizard-panel">
-            <span class="eyebrow">Release setup</span>
-            <h2>Name + source</h2>
-            <div class="form-grid">
-              <div class="field wide">
-                <label for="release-name">Name</label>
-                <InputText id="release-name" v-model="draft.name" autofocus />
-              </div>
-            </div>
-            <h3>What are you releasing?</h3>
-            <div class="choice-grid">
+            <h2>What are you releasing?</h2>
+            <p>Choose the project or files this release represents.</p>
+            <div class="choice-grid source-grid">
               <button
                 v-for="source in catalog.sources"
                 :key="source.id"
@@ -51,9 +44,14 @@
                 :aria-pressed="draft.source.provider === source.id"
                 @click="chooseSource(source.id)"
               >
-                <i :class="providerIcon(source.icon)" aria-hidden="true" />
+                <img
+                  v-if="providerIconImage(sourceIcon(source))"
+                  :src="providerIconImage(sourceIcon(source))"
+                  alt=""
+                />
+                <i v-else :class="providerIconClass(sourceIcon(source))" aria-hidden="true" />
                 <strong>{{ source.label }}</strong>
-                <small>{{ source.description || source.output.kind }}</small>
+                <small>{{ sourceCaption(source) }}</small>
               </button>
             </div>
             <p v-if="!draft.source.provider" class="helper-copy">Choose a source to continue.</p>
@@ -70,6 +68,11 @@
                 @update:value="setSourceField(field.key, $event)"
               />
             </template>
+            <div class="field wide">
+              <label for="release-name">Name</label>
+              <InputText id="release-name" v-model="draft.name" />
+              <small class="field-hint">This name will be used for your workflow.</small>
+            </div>
             <div class="wizard-actions">
               <Button
                 label="Continue"
@@ -83,22 +86,37 @@
         </StepPanel>
         <StepPanel value="destinations">
           <div class="wizard-panel">
-            <span class="eyebrow">Where do you want to ship?</span>
-            <h2>Destinations</h2>
-            <p>Choose where this release should be delivered.</p>
-            <div class="choice-grid">
+            <h2>Where do you want to ship?</h2>
+            <p>
+              You can add one or more destinations. You can configure accounts and settings later.
+            </p>
+            <div class="destination-list">
               <button
                 v-for="destination in catalog.destinations"
                 :key="destination.id"
                 type="button"
-                class="choice-card"
+                class="destination-row"
                 :class="{ selected: hasDestination(destination.id) }"
                 :aria-pressed="hasDestination(destination.id)"
                 @click="toggleDestination(destination.id)"
               >
-                <i :class="providerIcon(destination.icon)" aria-hidden="true" />
-                <strong>{{ destination.label }}</strong>
-                <small>{{ destination.description || "Destination" }}</small>
+                <span class="destination-selection" aria-hidden="true">
+                  <i :class="hasDestination(destination.id) ? 'pi pi-check' : 'pi pi-circle'" />
+                </span>
+                <img
+                  v-if="providerIconImage(destinationIcon(destination.id, destination.icon))"
+                  :src="providerIconImage(destinationIcon(destination.id, destination.icon))"
+                  alt=""
+                />
+                <i
+                  v-else
+                  :class="providerIconClass(destinationIcon(destination.id, destination.icon))"
+                  aria-hidden="true"
+                />
+                <span class="destination-copy">
+                  <strong>{{ destination.label }}</strong>
+                  <small>{{ destination.description || "Ship your release" }}</small>
+                </span>
               </button>
             </div>
             <div class="wizard-actions">
@@ -120,39 +138,74 @@
         </StepPanel>
         <StepPanel value="recap">
           <div class="wizard-panel">
-            <span class="eyebrow">Review release</span>
-            <h2>Recap</h2>
+            <h2>Review your choices</h2>
+            <p class="review-intro">
+              This will create your workflow. You can configure builds, connections, and destination
+              details afterward.
+            </p>
             <div class="review-list">
               <div>
-                <i class="mdi mdi-tag-outline" aria-hidden="true" />
+                <span class="review-label">Name</span>
                 <span
-                  ><small>Name</small><strong>{{ recap.name }}</strong></span
+                  ><strong>{{ recap.name }}</strong></span
                 >
               </div>
               <div>
-                <i class="mdi mdi-source-branch" aria-hidden="true" />
-                <span>
-                  <small>Source</small>
-                  <strong>{{ recap.sourceLabel }}</strong>
-                  <small
-                    v-for="detail in recap.sourceDetails"
-                    :key="detail.label"
-                    class="review-detail"
-                  >
-                    {{ detail.label }}: {{ detail.value }}
-                  </small>
+                <span class="review-label">Source</span>
+                <span class="review-value">
+                  <img
+                    v-if="providerIconImage(sourceIcon(sourceDefinition))"
+                    :src="providerIconImage(sourceIcon(sourceDefinition))"
+                    alt=""
+                  />
+                  <i
+                    v-else
+                    :class="providerIconClass(sourceIcon(sourceDefinition))"
+                    aria-hidden="true"
+                  />
+                  <span>
+                    <strong>{{ recap.sourceLabel }}</strong>
+                    <small v-if="recap.sourcePath" class="review-detail">{{
+                      recap.sourcePath
+                    }}</small>
+                  </span>
                 </span>
               </div>
               <div>
-                <i class="mdi mdi-cloud-upload-outline" aria-hidden="true" />
-                <span
-                  ><small>Destinations</small
-                  ><strong>{{ recap.destinationLabels.join(" · ") }}</strong></span
-                >
+                <span class="review-label">Destinations ({{ recap.destinations.length }})</span>
+                <span class="review-destinations">
+                  <span
+                    v-for="destination in recap.destinations"
+                    :key="destination.provider"
+                    class="review-destination"
+                  >
+                    <img
+                      v-if="
+                        providerIconImage(destinationIcon(destination.provider, destination.icon))
+                      "
+                      :src="
+                        providerIconImage(destinationIcon(destination.provider, destination.icon))
+                      "
+                      alt=""
+                    />
+                    <i
+                      v-else
+                      :class="
+                        providerIconClass(destinationIcon(destination.provider, destination.icon))
+                      "
+                      aria-hidden="true"
+                    />
+                    <strong>{{ destination.label }}</strong>
+                  </span>
+                </span>
               </div>
             </div>
-            <p class="helper-copy">
-              You can configure builds and destination details after creation.
+            <p class="review-notice">
+              <i class="pi pi-info-circle" aria-hidden="true" />
+              <span
+                >Configuration, builds and connections can be set up after creation in the workflow
+                Configuration.</span
+              >
             </p>
             <div v-if="createError" class="wizard-create-error" role="alert">
               <span>{{ createError }}</span>
@@ -193,6 +246,7 @@ import { nanoid } from "nanoid";
 import type { IconType, ReleaseCatalog, ReleaseConfig } from "@pipelab/shared";
 import { useAPI } from "../composables/api";
 import { useAgentAvailability } from "../composables/useAgentAvailability";
+import { useAppStore } from "../store/app";
 import ReleaseFieldControl from "./ReleaseFieldControl.vue";
 import {
   buildReleaseWizardConfig,
@@ -208,8 +262,12 @@ import {
 } from "./ReleaseFlowWizard-state";
 
 const props = defineProps<{ visible: boolean; projectId: string }>();
-const emit = defineEmits<{ "update:visible": [value: boolean]; create: [flow: ReleaseConfig] }>();
+const emit = defineEmits<{
+  "update:visible": [value: boolean];
+  create: [flow: ReleaseConfig];
+}>();
 const api = useAPI();
+const appStore = useAppStore();
 const { isReady } = useAgentAvailability();
 const catalogLoading = ref(false);
 const catalogError = ref("");
@@ -222,9 +280,9 @@ const visible = computed({
   set: (value) => emit("update:visible", value),
 });
 const stepLabels: Record<ReleaseWizardStep, string> = {
-  details: "Name + source",
+  details: "Name & source",
   destinations: "Destinations",
-  recap: "Recap",
+  recap: "Review",
 };
 const steps = RELEASE_WIZARD_STEPS.map((value, index) => ({
   value,
@@ -250,18 +308,49 @@ const canContinueDetails = computed(
 );
 const canContinueDestinations = computed(() => releaseWizardCanReview(draft.value, catalog.value));
 const recap = computed(() => releaseWizardRecap(draft.value, catalog.value));
-const providerIcon = (icon?: IconType) =>
-  icon?.type === "icon"
-    ? icon.icon.includes("mdi")
-      ? icon.icon
-      : `mdi ${icon.icon}`
-    : "mdi mdi-puzzle-outline";
+const providerIconClass = (icon?: IconType) => {
+  if (icon?.type !== "icon") return "mdi mdi-puzzle-outline";
+  if (icon.icon.includes("mdi ") || icon.icon.includes("pi ")) return icon.icon;
+  if (icon.icon.startsWith("pi-")) return `pi ${icon.icon}`;
+  return `mdi ${icon.icon}`;
+};
+const providerIconImage = (icon?: IconType) => (icon?.type === "image" ? icon.image : undefined);
+const metadataIcon = (id: string) =>
+  appStore.providerDefinitions.find(
+    (provider) => id === provider.packageName || id.startsWith(`${provider.packageName}/`),
+  )?.icon;
+const sourceIcon = (source?: (typeof catalog.value.sources)[number]) => {
+  if (!source) return undefined;
+  if (source.icon) return source.icon;
+  const icon = metadataIcon(source.id);
+  if (icon) return icon;
+  const file = source.fields?.find((field) => field.type === "file");
+  if (file?.fileExtensions?.includes("c3p")) return { type: "icon", icon: "pi pi-clone" } as const;
+  if (source.output.technology === "godot") return { type: "icon", icon: "pi pi-gamepad" } as const;
+  if (source.output.platform === "web") return { type: "icon", icon: "pi pi-globe" } as const;
+  if (file?.fileExtensions?.includes("zip")) return { type: "icon", icon: "pi pi-file" } as const;
+  return { type: "icon", icon: "pi pi-folder" } as const;
+};
+const sourceCaption = (source: (typeof catalog.value.sources)[number]) => {
+  if (source.description) return source.description;
+  const file = source.fields?.find((field) => field.type === "file");
+  if (file?.fileExtensions?.includes("c3p")) return "Construct .c3p";
+  if (source.output.technology === "godot") return "Godot project";
+  if (source.output.platform === "web")
+    return file?.fileExtensions?.includes("zip") ? "A web app ZIP" : "A web app folder";
+  if (file?.fileExtensions?.includes("zip")) return "A ZIP file";
+  return "A local folder";
+};
+const destinationIcon = (id: string, icon?: IconType) => icon || metadataIcon(id);
 const hasDestination = (id: string) =>
   draft.value.destinations.some((item) => item.provider === id);
 const chooseSource = (provider: string) => {
   const definition = catalog.value.sources.find((source) => source.id === provider);
   if (definition)
-    draft.value.source = { provider, config: structuredClone(toRaw(definition.defaultConfig)) };
+    draft.value.source = {
+      provider,
+      config: structuredClone(toRaw(definition.defaultConfig)),
+    };
 };
 const setSourceField = (key: string, value: unknown) => {
   draft.value.source.config[key] = value;
@@ -382,7 +471,7 @@ watch(
   cursor: pointer;
 }
 .step[aria-selected="true"] {
-  border-bottom-color: var(--primary-color);
+  border-bottom-color: var(--p-primary-color, var(--primary-color, #6366f1));
   color: var(--text-color);
 }
 .step span {
@@ -431,7 +520,7 @@ watch(
 }
 .choice-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
 }
 .choice-card {
@@ -447,12 +536,23 @@ watch(
 }
 .choice-card:hover,
 .choice-card.selected {
-  border-color: var(--primary-color);
-  background: color-mix(in srgb, var(--primary-color) 7%, transparent);
+  border-color: var(--p-primary-color, var(--primary-color, #6366f1));
+  background: color-mix(
+    in srgb,
+    var(--p-primary-color, var(--primary-color, #6366f1)) 7%,
+    transparent
+  );
 }
 .choice-card i {
-  color: var(--primary-color);
+  color: var(--p-primary-color, var(--primary-color, #6366f1));
   font-size: 20px;
+}
+.choice-card img,
+.destination-row > img,
+.review-list > div > img {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
 }
 .choice-card strong {
   font-size: 0.78rem;
@@ -467,16 +567,123 @@ watch(
   gap: 8px;
   margin-top: 8px;
 }
-.review-list > div {
+.destination-list {
+  display: grid;
+  gap: 8px;
+}
+.destination-row {
   display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--p-surface-200, var(--surface-border));
+  border-radius: 8px;
+  padding: 12px;
+  background: transparent;
+  color: var(--text-color);
+  text-align: left;
+  cursor: pointer;
+}
+.destination-row > i {
+  flex: 0 0 24px;
+  color: var(--p-primary-color, var(--primary-color, #6366f1));
+  font-size: 22px;
+  text-align: center;
+}
+.destination-row:hover,
+.destination-row.selected {
+  border-color: var(--p-primary-color, var(--primary-color, #6366f1));
+  background: color-mix(
+    in srgb,
+    var(--p-primary-color, var(--primary-color, #6366f1)) 7%,
+    transparent
+  );
+}
+.destination-copy {
+  display: grid;
+  flex: 1;
+  gap: 3px;
+  min-width: 0;
+}
+.destination-copy strong {
+  font-size: 0.8rem;
+}
+.destination-copy small {
+  color: var(--p-text-muted-color, var(--text-color-secondary));
+  font-size: 0.7rem;
+}
+.destination-selection {
+  display: grid;
+  flex: 0 0 20px;
+  width: 20px;
+  height: 20px;
+  place-items: center;
+  border: 1px solid var(--p-surface-400, var(--surface-border));
+  border-radius: 4px;
+  color: var(--p-primary-color, var(--primary-color, #6366f1));
+  font-size: 0.72rem;
+}
+.destination-row.selected .destination-selection {
+  border-color: var(--p-primary-color, var(--primary-color, #6366f1));
+  background: var(--p-primary-color, var(--primary-color, #6366f1));
+  color: var(--p-primary-contrast-color, var(--primary-contrast-color, white));
+}
+.review-list > div {
+  display: grid;
+  grid-template-columns: minmax(112px, 0.38fr) minmax(0, 1fr);
   align-items: center;
   gap: 10px;
   border: 1px solid var(--p-surface-200, var(--surface-border));
   border-radius: 7px;
   padding: 9px;
 }
+.review-label {
+  color: var(--p-text-muted-color, var(--text-color-secondary));
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+.review-value {
+  display: flex !important;
+  align-items: center;
+  gap: 8px !important;
+  min-width: 0;
+}
+.review-value > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.review-value > img {
+  flex: 0 0 24px;
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+}
+.review-value > i {
+  flex: 0 0 20px;
+}
+.review-intro {
+  margin-bottom: 0 !important;
+}
+.review-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  border: 1px solid color-mix(in srgb, var(--p-indigo-500, #6366f1) 25%, transparent);
+  border-radius: 7px;
+  padding: 10px;
+  background: color-mix(in srgb, var(--p-indigo-500, #6366f1) 7%, transparent);
+}
+.review-notice > i {
+  flex: 0 0 16px;
+  color: var(--p-indigo-500, #6366f1);
+}
+.review-notice > span {
+  color: var(--p-text-muted-color, var(--text-color-secondary));
+  font-size: 0.74rem;
+}
 .review-list i {
-  color: var(--primary-color);
+  color: var(--p-primary-color, var(--primary-color, #6366f1));
   font-size: 18px;
 }
 .review-list span {
@@ -490,11 +697,37 @@ watch(
 .review-list strong {
   font-size: 0.8rem;
 }
+.review-destinations {
+  min-width: 0;
+}
+.review-destination {
+  display: flex !important;
+  align-items: center;
+  gap: 7px !important;
+  min-width: 0;
+  margin-top: 4px;
+}
+.review-destination i {
+  font-size: 15px;
+}
+.review-destination img {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+}
 .review-detail {
   margin-top: 3px;
 }
 .helper-copy {
   color: var(--p-text-muted-color, var(--text-color-secondary));
   font-size: 0.75rem;
+}
+@media (max-width: 640px) {
+  .choice-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .review-list > div {
+    grid-template-columns: 92px minmax(0, 1fr);
+  }
 }
 </style>

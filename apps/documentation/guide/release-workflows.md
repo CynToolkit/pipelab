@@ -17,11 +17,13 @@ destinations.
    output defaults that can be resolved. It opens the workflow's
    **Configuration** section after creation.
 
-If setup still needs information, an **Action required** card identifies the
-first blocker and offers one relevant action. It can take you to Connections
-for a missing connection, Builds for build setup, or the source or destination
-editor in Configuration for path and provider settings. Unresolved defaults
-remain visible there for you to complete.
+If setup still needs information, an **Action required** card explains the
+current blocker and offers one relevant action. Use its previous and next
+controls to move between blockers. The action opens the source, destination,
+or build editor in Configuration, or takes you to Connections. For a missing
+provider account, **Add** opens a new connection form; **Select** opens the
+existing destination field so you can choose a saved account. Unresolved
+defaults remain visible there for you to complete.
 
 Provider cards are populated from the providers available in the application.
 Compatibility depends on the artifact type, destination, selected target, and
