@@ -8,10 +8,10 @@ import {
   RELEASE_WIZARD_STEPS,
   releaseWizardCanReview,
   releaseWizardDestination,
+  releaseWizardHasSource,
   releaseWizardNextStep,
   releaseWizardPreviousStep,
   releaseWizardRecap,
-  releaseWizardSourceIsReady,
 } from "./ReleaseFlowWizard-state";
 
 const catalog: ReleaseCatalog = {
@@ -101,7 +101,7 @@ describe("ReleaseFlowWizard state", () => {
     const draft = createReleaseWizardDraft();
     expect(RELEASE_WIZARD_STEPS).toEqual(["details", "destinations", "recap"]);
     expect(draft.source.provider).toBe("");
-    expect(releaseWizardSourceIsReady(draft.source, catalog)).toBe(false);
+    expect(releaseWizardHasSource(draft.source, catalog)).toBe(false);
   });
 
   it("navigates forward and back through the three steps", () => {
@@ -111,47 +111,34 @@ describe("ReleaseFlowWizard state", () => {
     expect(releaseWizardPreviousStep("destinations")).toBe("details");
   });
 
-  it("checks required source fields while leaving deferred editor setup for later", () => {
-    expect(releaseWizardSourceIsReady({ provider: "source/construct", config: {} }, catalog)).toBe(
-      false,
-    );
-    expect(
-      releaseWizardSourceIsReady(
-        { provider: "source/construct", config: { path: "/game.c3p" } },
-        catalog,
-      ),
-    ).toBe(true);
-    expect(
-      releaseWizardSourceIsReady({ provider: "source/godot", config: { path: "" } }, catalog),
-    ).toBe(false);
-    expect(
-      releaseWizardSourceIsReady({ provider: "source/godot", config: { path: "/game" } }, catalog),
-    ).toBe(true);
-  });
-
-  it("reactively enables Continue when a selected Construct file path changes", () => {
+  it("reactively enables Continue after an explicit source selection without requiring a path", () => {
     const source = reactive({
-      provider: "source/construct",
+      provider: "",
       config: { path: "" },
     });
-    const ready = computed(() => releaseWizardSourceIsReady(source, catalog));
+    const ready = computed(() => releaseWizardHasSource(source, catalog));
 
     expect(ready.value).toBe(false);
-    source.config.path = "/game.c3p";
+    source.provider = "source/construct";
     expect(ready.value).toBe(true);
   });
 
-  it("requires a name, an explicit valid source, and at least one destination before review", () => {
+  it("requires a name, an explicit source, and a destination but defers source fields to Configuration", () => {
     const draft = createReleaseWizardDraft();
     expect(releaseWizardCanReview(draft, catalog)).toBe(false);
     draft.name = "Game release";
     draft.source = {
       provider: "source/construct",
-      config: { path: "/game.c3p" },
+      config: { path: "", profilePath: "" },
     };
     expect(releaseWizardCanReview(draft, catalog)).toBe(false);
     draft.destinations.push(releaseWizardDestination("destination/upload", catalog)!);
     expect(releaseWizardCanReview(draft, catalog)).toBe(true);
+    expect(draft.source.config.path).toBe("");
+    expect(buildReleaseWizardConfig(draft, "project-1", "release-1").source).toEqual({
+      provider: "source/construct",
+      config: { path: "", profilePath: "" },
+    });
   });
 
   it("creates only selected destinations with safe defaults and leaves routes unset", () => {

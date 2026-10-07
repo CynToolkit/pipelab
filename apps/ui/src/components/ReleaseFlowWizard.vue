@@ -33,7 +33,10 @@
         <StepPanel value="details">
           <div class="wizard-panel">
             <h2>What are you releasing?</h2>
-            <p>Choose the project or files this release represents.</p>
+            <p>
+              Choose a source type for this release. You can select the project or files in
+              Configuration.
+            </p>
             <div class="choice-grid source-grid">
               <button
                 v-for="source in catalog.sources"
@@ -55,19 +58,6 @@
               </button>
             </div>
             <p v-if="!draft.source.provider" class="helper-copy">Choose a source to continue.</p>
-            <template v-if="sourceDefinition">
-              <ReleaseFieldControl
-                v-for="field in sourceDefinition.fields?.filter((item) => !item.deferUntilEditor) ||
-                []"
-                :key="field.key"
-                :field="field"
-                :value="String(draft.source.config[field.key] || '')"
-                :options="field.options || []"
-                :issues="[]"
-                :input-id="`wizard-source-${field.key}`"
-                @update:value="setSourceField(field.key, $event)"
-              />
-            </template>
             <div class="field wide">
               <label for="release-name">Name</label>
               <InputText id="release-name" v-model="draft.name" />
@@ -140,8 +130,8 @@
           <div class="wizard-panel">
             <h2>Review your choices</h2>
             <p class="review-intro">
-              This will create your workflow. You can configure builds, connections, and destination
-              details afterward.
+              This will create your workflow. You can select the project or files, configure builds,
+              connections, and destination details in Configuration afterward.
             </p>
             <div class="review-list">
               <div>
@@ -247,16 +237,15 @@ import type { IconType, ReleaseCatalog, ReleaseConfig } from "@pipelab/shared";
 import { useAPI } from "../composables/api";
 import { useAgentAvailability } from "../composables/useAgentAvailability";
 import { useAppStore } from "../store/app";
-import ReleaseFieldControl from "./ReleaseFieldControl.vue";
 import {
   buildReleaseWizardConfig,
   createReleaseWizardDraft,
+  releaseWizardHasSource,
   releaseWizardCanReview,
   releaseWizardDestination,
   releaseWizardNextStep,
   releaseWizardPreviousStep,
   releaseWizardRecap,
-  releaseWizardSourceIsReady,
   RELEASE_WIZARD_STEPS,
   type ReleaseWizardStep,
 } from "./ReleaseFlowWizard-state";
@@ -303,8 +292,7 @@ const sourceDefinition = computed(() =>
 );
 const canContinueDetails = computed(
   () =>
-    Boolean(draft.value.name.trim()) &&
-    releaseWizardSourceIsReady(draft.value.source, catalog.value),
+    Boolean(draft.value.name.trim()) && releaseWizardHasSource(draft.value.source, catalog.value),
 );
 const canContinueDestinations = computed(() => releaseWizardCanReview(draft.value, catalog.value));
 const recap = computed(() => releaseWizardRecap(draft.value, catalog.value));
@@ -321,9 +309,10 @@ const metadataIcon = (id: string) =>
   )?.icon;
 const sourceIcon = (source?: (typeof catalog.value.sources)[number]) => {
   if (!source) return undefined;
-  if (source.icon) return source.icon;
+  if (source.icon?.type === "image") return source.icon;
   const icon = metadataIcon(source.id);
   if (icon) return icon;
+  if (source.icon) return source.icon;
   const file = source.fields?.find((field) => field.type === "file");
   if (file?.fileExtensions?.includes("c3p")) return { type: "icon", icon: "pi pi-clone" } as const;
   if (source.output.technology === "godot") return { type: "icon", icon: "pi pi-gamepad" } as const;
@@ -351,9 +340,6 @@ const chooseSource = (provider: string) => {
       provider,
       config: structuredClone(toRaw(definition.defaultConfig)),
     };
-};
-const setSourceField = (key: string, value: unknown) => {
-  draft.value.source.config[key] = value;
 };
 const toggleDestination = (provider: string) => {
   const index = draft.value.destinations.findIndex((item) => item.provider === provider);
@@ -411,10 +397,17 @@ const loadCatalog = async () => {
     if (requestId === catalogRequest) catalogLoading.value = false;
   }
 };
+const loadProviderMetadata = () => {
+  if (isReady.value && props.visible)
+    void appStore.loadProviderDefinitions().catch(() => undefined);
+};
 watch(
   isReady,
   (ready) => {
-    if (ready && props.visible) void loadCatalog();
+    if (ready && props.visible) {
+      loadProviderMetadata();
+      void loadCatalog();
+    }
     if (!ready) {
       catalogRequest++;
       catalogLoading.value = false;
@@ -451,6 +444,7 @@ watch(
     workflowId.value = nanoid();
     draft.value = createReleaseWizardDraft();
     createError.value = "";
+    loadProviderMetadata();
     await loadCatalog();
   },
   { immediate: true, flush: "sync" },

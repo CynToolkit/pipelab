@@ -6,13 +6,12 @@ destinations.
 ## Configure a workflow
 
 1. From the dashboard, choose **New workflow** in a project.
-2. In **Name + source**, enter a workflow name, choose a source, and provide
-   its required project path. Source-specific file rules apply, such as the
-   `.c3p` extension for a Construct project or `.zip` for a ZIP source.
-   Optional fields reserved for later configuration are left out of this first
-   setup.
+2. In **Name + source**, choose a source and enter a workflow name. The wizard
+   leaves local paths for Configuration, where you can choose the project file
+   or folder after creation. Source-specific file rules apply there, such as
+   the `.c3p` extension for a Construct project or `.zip` for a ZIP source.
 3. In **Destinations**, choose one or more places to publish the release.
-4. Check the **Recap** for the workflow name, source and path, and destinations,
+4. Check the **Recap** for the workflow name, source type, and destinations,
    then choose **Create workflow**. Pipelab applies any existing build and
    output defaults that can be resolved. It opens the workflow's
    **Configuration** section after creation.

@@ -32,6 +32,38 @@ const waitForRequests = async (page, calls, channel, count) => {
     await page.waitForTimeout(20);
   }
 };
+const configureSourcePath = async (page, calls, sourceKey, sourcePath) => {
+  const source = sourceFixtures[sourceKey];
+  const field = source.fields[0];
+  await waitForRequests(page, calls, "release:source:inspect", 1);
+  await waitForRequests(page, calls, "release:plan", 1);
+  await page.locator(".source-card").getByRole("button", { name: "Edit" }).click();
+  const editor = page.getByRole("dialog", { name: "Edit source" });
+  await editor.getByRole("button", { name: new RegExp(`Choose ${field.label}`, "i") }).click();
+  const picker = page.getByRole("dialog").last();
+  const entry = sourcePath.endsWith(".c3p")
+    ? /demo\.c3p/
+    : sourcePath.endsWith(".zip")
+      ? /demo\.zip/
+      : /Godot project/;
+  await picker.getByRole("row", { name: entry }).click();
+  if (field.type === "file") {
+    assert.equal(await picker.getByRole("row", { name: /notes\.txt/ }).count(), 0);
+    assert.equal(
+      await picker
+        .getByRole("row", { name: sourceKey === "construct" ? /demo\.zip/ : /demo\.c3p/ })
+        .count(),
+      0,
+      `${sourceKey} picker hides incompatible file formats`,
+    );
+  }
+  await picker.getByRole("button", { name: "Open" }).click();
+  assert.equal(await editor.locator("input[readonly]").inputValue(), sourcePath);
+  await editor.getByRole("button", { name: "Done" }).click();
+  await waitForRequests(page, calls, "release:source:inspect", 2);
+  await waitForRequests(page, calls, "release:plan", 2);
+  await waitForRequests(page, calls, "workflow:save", 2);
+};
 const sourceFixtures = {
   folder: {
     id: "@pipelab/core/source/folder",
@@ -191,7 +223,9 @@ async function journey(
   const phaseRequests = { load: [], inspection: [], planning: [] };
   const phaseResponses = { load: [], inspection: [], planning: [] };
   const phaseRequestCounts = { inspection: 0, planning: 0 };
+  const sourceInspectionConfigs = [];
   let saved;
+  let firstSaved;
   let deferNextResolve = false;
   let pendingResolve;
   let signalResolveStarted;
@@ -215,6 +249,7 @@ async function journey(
               : undefined;
       if (phase) phaseRequests[phase].push(performance.now());
       if (phase === "inspection" || phase === "planning") phaseRequestCounts[phase] += 1;
+      if (phase === "inspection") sourceInspectionConfigs.push(request.data.config);
       const phaseOrdinal =
         phase === "inspection" || phase === "planning" ? phaseRequestCounts[phase] : 0;
       let result = {};
@@ -291,6 +326,24 @@ async function journey(
                     fields: [{ key: "apiKey", label: "API key", type: "password" }],
                   },
                 ],
+              },
+              {
+                id: "@pipelab/plugin-construct",
+                name: "Construct",
+                packageName: "@pipelab/plugin-construct",
+                icon: { type: "icon", icon: "pi pi-clone" },
+                description: "Construct provider",
+                isOfficial: true,
+                integrations: [],
+              },
+              {
+                id: "@pipelab/plugin-godot",
+                name: "Godot",
+                packageName: "@pipelab/plugin-godot",
+                icon: { type: "icon", icon: "mdi mdi-gamepad-variant" },
+                description: "Godot provider",
+                isOfficial: true,
+                integrations: [],
               },
             ],
           };
@@ -432,6 +485,7 @@ async function journey(
           break;
         case "workflow:save":
           saved = request.data.data;
+          firstSaved ||= request.data.data;
           result = { success: true };
           break;
         case "workflow:load":
@@ -483,6 +537,12 @@ async function journey(
     const dialog = page.getByRole("dialog", { name: "New release" });
     await dialog.waitFor();
     await dialog.getByRole("heading", { name: "What are you releasing?" }).waitFor();
+    await dialog
+      .getByText(
+        "Choose a source type for this release. You can select the project or files in Configuration.",
+        { exact: true },
+      )
+      .waitFor();
     const sourceGrid = dialog.locator(".source-grid");
     assert.equal(
       await sourceGrid.getByRole("button").count(),
@@ -501,6 +561,11 @@ async function journey(
       "Godot project",
     ].entries())
       assert.ok(sourceCardLabels[index].startsWith(label), `source card ${index + 1} is ${label}`);
+    for (const sourceCard of await sourceGrid.getByRole("button").all())
+      assert.ok(
+        (await sourceCard.locator("img, i").count()) > 0,
+        "each source choice includes its provider icon",
+      );
     const desktopColumns = await sourceGrid.evaluate(
       (element) => getComputedStyle(element).gridTemplateColumns.split(" ").length,
     );
@@ -521,7 +586,8 @@ async function journey(
       "Name follows source selection in the first setup step",
     );
 
-    const sourceCard = dialog.getByRole("button", {
+    const firstStep = dialog.locator(".wizard-panel:visible");
+    const sourceCard = sourceGrid.getByRole("button", {
       name: new RegExp(`^${sourceFixtures[sourceKey].label}\\b`),
     });
     await sourceCard.focus();
@@ -531,7 +597,25 @@ async function journey(
       "true",
       `${sourceKey} can be selected with the keyboard`,
     );
+    const expectedIcon =
+      sourceKey === "construct"
+        ? "pi-clone"
+        : sourceKey === "godot"
+          ? "mdi-gamepad-variant"
+          : sourceFixtures[sourceKey].icon.icon.split(" ").at(-1);
+    const renderedIcon = await sourceCard.locator("i").getAttribute("class");
+    assert.ok(
+      renderedIcon?.includes(expectedIcon),
+      `${sourceKey} shows its provider icon (${expectedIcon}; rendered ${renderedIcon})`,
+    );
     await dialog.getByLabel("Name", { exact: true }).fill(`${sourceKey} first workflow`);
+    assert.equal(await firstStep.locator(".path-picker").count(), 0);
+    assert.equal(await firstStep.locator("input[readonly]").count(), 0);
+    assert.equal(
+      await firstStep.getByRole("button", { name: /Choose .* (file|path)/i }).count(),
+      0,
+      "the first step does not ask for a local source path",
+    );
     assert.equal(
       await dialog.getByText("Browser profile", { exact: true }).count(),
       0,
@@ -543,67 +627,17 @@ async function journey(
       "optional description is not requested",
     );
 
-    const pickerButtonName = `Choose ${sourceFixtures[sourceKey].fields[0].label}`;
-    await dialog.getByRole("button", { name: new RegExp(pickerButtonName, "i") }).click();
-    const picker = page.getByRole("dialog").last();
-    const selectedEntry =
-      sourceKey === "construct"
-        ? /demo\.c3p/
-        : sourceKey === "zip" || sourceKey === "webZip"
-          ? /demo\.zip/
-          : sourceKey === "godot"
-            ? /Godot project/
-            : /Godot project/;
-    await picker.getByRole("row", { name: selectedEntry }).click();
-    if (sourceFixtures[sourceKey].fields[0].type === "file") {
-      assert.equal(
-        await picker.getByRole("row", { name: /notes\.txt/ }).count(),
-        0,
-        "file picker filters out unsupported extensions",
-      );
-      assert.equal(
-        await picker
-          .getByRole("row", { name: sourceKey === "construct" ? /demo\.zip/ : /demo\.c3p/ })
-          .count(),
-        0,
-        "file picker hides other source formats",
-      );
-    } else {
-      assert.equal(await picker.getByRole("row", { name: /notes\.txt/ }).count(), 1);
-    }
-    await picker.getByRole("button", { name: "Open" }).click();
-    await dialog.locator("input[readonly]").first().waitFor();
-    assert.equal(await dialog.locator("input[readonly]").first().inputValue(), sourcePath);
-    const fsCalls = calls.filter((channel) => channel.startsWith("fs:"));
-    assert.ok(
-      fsCalls.includes("fs:listDirectory"),
-      "the web picker loaded a directory from the mocked filesystem boundary",
-    );
     if (process.env.SCREENSHOT_DIR)
       await page.screenshot({
         path: join(process.env.SCREENSHOT_DIR, `pipelab-${sourceKey}-step1.png`),
       });
-    // The visible picker enforces these constraints; the source schema declares the native picker mode and extension.
+    // Path field constraints are exercised later, in Configuration after creation.
     const sourceField = sourceFixtures[sourceKey].fields[0];
     if (sourceFixtures[sourceKey].fields[0].type === "file") {
       assert.equal(sourceField.type, "file");
       assert.deepEqual(sourceField.fileExtensions, [sourceKey === "construct" ? "c3p" : "zip"]);
     } else {
       assert.equal(sourceField.type, "directory");
-    }
-
-    if (
-      sourceKey === "folder" ||
-      sourceKey === "zip" ||
-      sourceKey === "webFolder" ||
-      sourceKey === "webZip"
-    ) {
-      assert.equal(
-        await dialog.getByRole("button", { name: "Continue" }).isEnabled(),
-        true,
-        `${sourceKey} selection enables setup`,
-      );
-      return `${sourceKey}: source picker constraint passed`;
     }
 
     await dialog.getByRole("button", { name: "Continue" }).click();
@@ -615,9 +649,13 @@ async function journey(
     );
     await dialog.getByRole("button", { name: "Back" }).click();
     assert.equal(
-      await dialog.locator("input[readonly]").first().inputValue(),
-      sourcePath,
+      await sourceCard.getAttribute("aria-pressed"),
+      "true",
       "Back preserves source selection",
+    );
+    assert.equal(
+      await dialog.getByLabel("Name", { exact: true }).inputValue(),
+      `${sourceKey} first workflow`,
     );
     await dialog.getByRole("button", { name: "Continue" }).click();
     const steam = dialog.getByRole("button", { name: /^Steam/ });
@@ -636,7 +674,11 @@ async function journey(
     await recap.getByText("Name", { exact: true }).waitFor();
     await recap.getByText(`${sourceKey} first workflow`, { exact: true }).waitFor();
     await recap.getByText(sourceFixtures[sourceKey].label, { exact: true }).waitFor();
-    await recap.getByText(sourcePath, { exact: true }).waitFor();
+    assert.equal(
+      await recap.locator(".review-detail").count(),
+      0,
+      "recap does not imply a source path was selected",
+    );
     await recap.getByText("Steam", { exact: true }).waitFor();
     await recap.getByText("Itch.io", { exact: true }).waitFor();
     assert.equal(
@@ -663,6 +705,19 @@ async function journey(
 
     await dialog.getByRole("button", { name: "Create workflow" }).click();
     await page.waitForURL(/\/workflows\//);
+    await waitForRequests(page, calls, "release:source:inspect", 1);
+    await waitForRequests(page, calls, "release:plan", 1);
+    assert.equal(
+      firstSaved.source.config.path || "",
+      "",
+      "creation keeps the selected source path empty",
+    );
+    assert.equal(
+      sourceInspectionConfigs[0]?.path || "",
+      "",
+      "initial source inspection uses the empty default path",
+    );
+    if (!readinessTiming) await configureSourcePath(page, calls, sourceKey, sourcePath);
     if (readinessTiming) {
       await waitForRequests(page, calls, "release:source:inspect", 1);
       await waitForRequests(page, calls, "release:plan", 1);
@@ -840,10 +895,7 @@ async function journey(
       await lateDialog.waitFor();
       await lateDialog.getByLabel("Name", { exact: true }).fill("Cancelled late workflow");
       await lateDialog.getByRole("button", { name: /Construct project/ }).click();
-      await lateDialog.getByRole("button", { name: /Choose Project file/i }).click();
-      const latePicker = page.getByRole("dialog").last();
-      await latePicker.getByRole("row", { name: /demo\.c3p/ }).click();
-      await latePicker.getByRole("button", { name: "Open" }).click();
+      assert.equal(await lateDialog.locator(".path-picker").count(), 0);
       await lateDialog.getByRole("button", { name: "Continue" }).click();
       await lateDialog.getByRole("button", { name: /^Poki/ }).click();
       await lateDialog.getByRole("button", { name: "Continue" }).click();
@@ -902,6 +954,8 @@ async function journey(
     results.push(await journey("construct", "/test-home/demo.c3p", false, true));
   } else if (process.env.CONFIG_ONLY === "godot") {
     results.push(await journey("godot", "/test-home/Godot project"));
+  } else if (process.env.CONFIG_ONLY === "construct") {
+    results.push(await journey("construct", "/test-home/demo.c3p"));
   } else {
     results.push(await journey("folder", "/test-home/Godot project"));
     results.push(await journey("zip", "/test-home/demo.zip"));

@@ -19,8 +19,9 @@ load when you open them.
 
 ## Create and run a workflow
 
-1. Choose **New workflow**, enter a name, and select a source and its required
-   project path.
+1. Choose **New workflow**, select a source, and enter a name. The wizard keeps
+   source paths for Configuration, where you can choose the project file or
+   folder after creation.
 2. Choose one or more destinations, review the **Name**, **Source**, and
    **Destinations** recap, then choose **Create workflow**. Pipelab applies
    build and output defaults when it can.

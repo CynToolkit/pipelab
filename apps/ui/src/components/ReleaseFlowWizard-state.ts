@@ -23,21 +23,18 @@ export const releaseWizardNextStep = (step: ReleaseWizardStep): ReleaseWizardSte
 export const releaseWizardPreviousStep = (step: ReleaseWizardStep): ReleaseWizardStep =>
   step === "recap" ? "destinations" : "details";
 
-export const releaseWizardSourceIsReady = (
+export const releaseWizardHasSource = (
   source: ReleaseConfig["source"],
   catalog: ReleaseCatalog,
 ) => {
-  if (!source.provider) return false;
-  const definition = catalog.sources.find((candidate) => candidate.id === source.provider);
-  if (!definition) return false;
-  return (definition.fields?.filter((field) => !field.deferUntilEditor) || []).every(
-    (field) => !field.required || String(source.config[field.key] || "").trim(),
+  return Boolean(
+    source.provider && catalog.sources.some((candidate) => candidate.id === source.provider),
   );
 };
 
 export const releaseWizardCanReview = (draft: ReleaseWizardDraft, catalog: ReleaseCatalog) =>
   Boolean(draft.name.trim()) &&
-  releaseWizardSourceIsReady(draft.source, catalog) &&
+  releaseWizardHasSource(draft.source, catalog) &&
   draft.destinations.length > 0;
 
 export const releaseWizardDestination = (

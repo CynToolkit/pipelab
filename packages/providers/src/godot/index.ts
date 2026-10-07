@@ -337,7 +337,7 @@ export const provider = createProviderDefinition({
   packageName: "@pipelab/plugin-godot",
   name: "Godot",
   description: "Godot Release provider",
-  icon: { type: "icon", icon: "pi-gamepad" },
+  icon: { type: "icon", icon: "mdi mdi-gamepad-variant" },
   isOfficial: true,
   release: { sources: [godotSource], producers: [godotExporter] },
   workflowTasks: {
