@@ -3,25 +3,51 @@ import type { ReleaseCatalog, ReleaseConfig } from "@pipelab/shared";
 
 export interface ReleaseWizardDraft {
   name: string;
+  description: string;
   source: ReleaseConfig["source"];
   destinations: ReleaseConfig["destinations"];
 }
 
-export type ReleaseWizardStep = "details" | "destinations" | "recap";
+export type ReleaseWizardStep = "details" | "source" | "destinations" | "recap";
 
-export const RELEASE_WIZARD_STEPS: ReleaseWizardStep[] = ["details", "destinations", "recap"];
+export const RELEASE_WIZARD_STEPS: ReleaseWizardStep[] = [
+  "details",
+  "source",
+  "destinations",
+  "recap",
+];
 
 export const createReleaseWizardDraft = (): ReleaseWizardDraft => ({
   name: "",
+  description: "",
   source: { provider: "", config: {} },
   destinations: [],
 });
 
-export const releaseWizardNextStep = (step: ReleaseWizardStep): ReleaseWizardStep =>
-  step === "details" ? "destinations" : "recap";
+export const releaseWizardNextStep = (step: ReleaseWizardStep): ReleaseWizardStep => {
+  const currentIndex = RELEASE_WIZARD_STEPS.indexOf(step);
+  return RELEASE_WIZARD_STEPS[Math.min(currentIndex + 1, RELEASE_WIZARD_STEPS.length - 1)];
+};
 
-export const releaseWizardPreviousStep = (step: ReleaseWizardStep): ReleaseWizardStep =>
-  step === "recap" ? "destinations" : "details";
+export const releaseWizardPreviousStep = (step: ReleaseWizardStep): ReleaseWizardStep => {
+  const currentIndex = RELEASE_WIZARD_STEPS.indexOf(step);
+  return RELEASE_WIZARD_STEPS[Math.max(currentIndex - 1, 0)];
+};
+
+export const releaseWizardCanContinueDetails = (draft: ReleaseWizardDraft) =>
+  Boolean(draft.name.trim());
+
+export const releaseWizardSourceIsReady = (
+  source: ReleaseConfig["source"],
+  catalog: ReleaseCatalog,
+) => {
+  if (!source.provider) return false;
+  const definition = catalog.sources.find((candidate) => candidate.id === source.provider);
+  if (!definition) return false;
+  return (definition.fields?.filter((field) => !field.deferUntilEditor) || []).every(
+    (field) => !field.required || String(source.config[field.key] || "").trim(),
+  );
+};
 
 export const releaseWizardHasSource = (
   source: ReleaseConfig["source"],
@@ -33,8 +59,8 @@ export const releaseWizardHasSource = (
 };
 
 export const releaseWizardCanReview = (draft: ReleaseWizardDraft, catalog: ReleaseCatalog) =>
-  Boolean(draft.name.trim()) &&
-  releaseWizardHasSource(draft.source, catalog) &&
+  releaseWizardCanContinueDetails(draft) &&
+  releaseWizardSourceIsReady(draft.source, catalog) &&
   draft.destinations.length > 0;
 
 export const releaseWizardDestination = (
@@ -62,6 +88,7 @@ export const buildReleaseWizardConfig = (
     id: workflowId,
     project: projectId,
     name: draft.name.trim(),
+    description: draft.description.trim() || undefined,
     source: structuredClone(draft.source),
   }),
   destinations: structuredClone(draft.destinations),
@@ -76,6 +103,7 @@ export const releaseWizardRecap = (draft: ReleaseWizardDraft, catalog: ReleaseCa
 
   return {
     name: draft.name.trim(),
+    description: draft.description.trim(),
     sourceLabel: source?.label || draft.source.provider,
     sourceIcon: source?.icon,
     sourcePath,

@@ -3,4 +3,4 @@
 "@pipelab/providers": patch
 ---
 
-The new-release wizard now defers local source-path selection to Configuration and uses the Construct and Godot provider icons.
+The new-release wizard collects a name and description first, then the source and required project path. Construct and Godot use their provider icons.

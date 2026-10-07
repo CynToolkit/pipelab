@@ -32,38 +32,6 @@ const waitForRequests = async (page, calls, channel, count) => {
     await page.waitForTimeout(20);
   }
 };
-const configureSourcePath = async (page, calls, sourceKey, sourcePath) => {
-  const source = sourceFixtures[sourceKey];
-  const field = source.fields[0];
-  await waitForRequests(page, calls, "release:source:inspect", 1);
-  await waitForRequests(page, calls, "release:plan", 1);
-  await page.locator(".source-card").getByRole("button", { name: "Edit" }).click();
-  const editor = page.getByRole("dialog", { name: "Edit source" });
-  await editor.getByRole("button", { name: new RegExp(`Choose ${field.label}`, "i") }).click();
-  const picker = page.getByRole("dialog").last();
-  const entry = sourcePath.endsWith(".c3p")
-    ? /demo\.c3p/
-    : sourcePath.endsWith(".zip")
-      ? /demo\.zip/
-      : /Godot project/;
-  await picker.getByRole("row", { name: entry }).click();
-  if (field.type === "file") {
-    assert.equal(await picker.getByRole("row", { name: /notes\.txt/ }).count(), 0);
-    assert.equal(
-      await picker
-        .getByRole("row", { name: sourceKey === "construct" ? /demo\.zip/ : /demo\.c3p/ })
-        .count(),
-      0,
-      `${sourceKey} picker hides incompatible file formats`,
-    );
-  }
-  await picker.getByRole("button", { name: "Open" }).click();
-  assert.equal(await editor.locator("input[readonly]").inputValue(), sourcePath);
-  await editor.getByRole("button", { name: "Done" }).click();
-  await waitForRequests(page, calls, "release:source:inspect", 2);
-  await waitForRequests(page, calls, "release:plan", 2);
-  await waitForRequests(page, calls, "workflow:save", 2);
-};
 const sourceFixtures = {
   folder: {
     id: "@pipelab/core/source/folder",
@@ -454,7 +422,7 @@ async function journey(
           result = { path: "/test-home" };
           break;
         case "dialog:showOpenDialog":
-          result = { canceled: false, filePaths: ["/test-home/other.c3p"] };
+          result = { canceled: false, filePaths: [sourcePath] };
           break;
         case "fs:getRoots":
           result = { roots: [{ name: "Home", path: "/test-home" }] };
@@ -536,13 +504,75 @@ async function journey(
       .click();
     const dialog = page.getByRole("dialog", { name: "New release" });
     await dialog.waitFor();
-    await dialog.getByRole("heading", { name: "What are you releasing?" }).waitFor();
-    await dialog
-      .getByText(
-        "Choose a source type for this release. You can select the project or files in Configuration.",
-        { exact: true },
-      )
-      .waitFor();
+    await dialog.getByRole("heading", { name: "Name your workflow" }).waitFor();
+    const stepLabels = await dialog.locator(".step").allTextContents();
+    assert.deepEqual(
+      stepLabels.map((label) => label.replace(/^0\d\s*/, "").trim()),
+      ["Name & description", "Source & project path", "Destinations", "Recap"],
+      "wizard presents the four agreed steps in order",
+    );
+    if (narrow) {
+      const stepStrip = dialog.locator(".wizard-step-list");
+      const stepStripLayout = await stepStrip.evaluate((element) => ({
+        scrollable: getComputedStyle(element).overflowX === "auto",
+        overflows: element.scrollWidth > element.clientWidth,
+        labelsStayOnOneLine: [...element.querySelectorAll(".step")].every(
+          (step) => getComputedStyle(step).whiteSpace === "nowrap",
+        ),
+        keyboardFocusable: element.tabIndex === 0,
+      }));
+      assert.deepEqual(
+        stepStripLayout,
+        {
+          scrollable: true,
+          overflows: true,
+          labelsStayOnOneLine: true,
+          keyboardFocusable: true,
+        },
+        "narrow step labels remain readable in a keyboard-scrollable strip",
+      );
+      const finalStepReveal = await stepStrip.evaluate((element) => {
+        const lastStep = element.querySelector(".step:last-child");
+        if (!lastStep)
+          return { visible: false, reason: "missing final step", scrollWidth: element.scrollWidth };
+        element.scrollLeft = element.scrollWidth - element.clientWidth;
+        const strip = element.getBoundingClientRect();
+        const finalStep = lastStep.getBoundingClientRect();
+        const visible =
+          lastStep.textContent?.includes("Recap") && finalStep.right <= strip.right + 1;
+        const geometry = {
+          visible,
+          label: lastStep.textContent,
+          left: finalStep.left,
+          right: finalStep.right,
+          stripLeft: strip.left,
+          stripRight: strip.right,
+          scrollLeft: element.scrollLeft,
+          scrollWidth: element.scrollWidth,
+          clientWidth: element.clientWidth,
+        };
+        element.scrollLeft = 0;
+        return geometry;
+      });
+      assert.equal(
+        finalStepReveal.visible,
+        true,
+        `horizontal scrolling reveals the full Recap step (${JSON.stringify(finalStepReveal)})`,
+      );
+    }
+    const firstStep = dialog.locator(".wizard-panel:visible");
+    assert.equal(await firstStep.locator(".source-grid").count(), 0);
+    assert.equal(await firstStep.locator(".path-picker").count(), 0);
+    await dialog.getByLabel("Name", { exact: true }).fill(`${sourceKey} first workflow`);
+    await dialog.getByLabel("Description", { exact: true }).fill("First release description");
+    assert.equal(await firstStep.getByLabel("Name", { exact: true }).count(), 1);
+    assert.equal(await firstStep.getByLabel("Description", { exact: true }).count(), 1);
+    if (process.env.SCREENSHOT_DIR)
+      await page.screenshot({
+        path: join(process.env.SCREENSHOT_DIR, `pipelab-${sourceKey}-step1.png`),
+      });
+    await dialog.getByRole("button", { name: "Continue" }).click();
+    await dialog.getByRole("heading", { name: "Choose a source" }).waitFor();
     const sourceGrid = dialog.locator(".source-grid");
     assert.equal(
       await sourceGrid.getByRole("button").count(),
@@ -574,19 +604,7 @@ async function journey(
       narrow ? 2 : 3,
       "source cards use a three-column desktop grid and two-column narrow grid",
     );
-    assert.equal(
-      await dialog.evaluate(() => {
-        const grid = document.querySelector(".source-grid");
-        const name = document.querySelector("#release-name");
-        return Boolean(
-          grid && name && grid.compareDocumentPosition(name) & Node.DOCUMENT_POSITION_FOLLOWING,
-        );
-      }),
-      true,
-      "Name follows source selection in the first setup step",
-    );
-
-    const firstStep = dialog.locator(".wizard-panel:visible");
+    const sourceStep = dialog.locator(".wizard-panel:visible");
     const sourceCard = sourceGrid.getByRole("button", {
       name: new RegExp(`^${sourceFixtures[sourceKey].label}\\b`),
     });
@@ -608,31 +626,48 @@ async function journey(
       renderedIcon?.includes(expectedIcon),
       `${sourceKey} shows its provider icon (${expectedIcon}; rendered ${renderedIcon})`,
     );
-    await dialog.getByLabel("Name", { exact: true }).fill(`${sourceKey} first workflow`);
-    assert.equal(await firstStep.locator(".path-picker").count(), 0);
-    assert.equal(await firstStep.locator("input[readonly]").count(), 0);
-    assert.equal(
-      await firstStep.getByRole("button", { name: /Choose .* (file|path)/i }).count(),
-      0,
-      "the first step does not ask for a local source path",
-    );
+    const sourceField = sourceFixtures[sourceKey].fields[0];
+    const pathPicker = sourceStep.getByLabel(sourceField.label, { exact: true });
+    await pathPicker.waitFor();
+    await sourceStep
+      .getByRole("button", { name: new RegExp(`Choose ${sourceField.label}`, "i") })
+      .click();
+    const picker = page.getByRole("dialog").last();
+    const pickerEntry = sourcePath.endsWith(".c3p")
+      ? /demo\.c3p/
+      : sourcePath.endsWith(".zip")
+        ? /demo\.zip/
+        : sourcePath.endsWith("Godot project")
+          ? /Godot project/
+          : /Web app folder/;
+    await picker.getByRole("row", { name: pickerEntry }).click();
+    if (sourceField.type === "file") {
+      assert.equal(await picker.getByRole("row", { name: /notes\.txt/ }).count(), 0);
+      const incompatibleFile = sourceField.fileExtensions.includes("c3p")
+        ? /demo\.zip/
+        : /demo\.c3p/;
+      assert.equal(await picker.getByRole("row", { name: incompatibleFile }).count(), 0);
+    }
+    await picker.getByRole("button", { name: "Open" }).click();
+    assert.equal(await pathPicker.inputValue(), sourcePath);
+    if (sourceField.type === "file") {
+      assert.deepEqual(sourceField.fileExtensions, [sourceKey === "construct" ? "c3p" : "zip"]);
+    }
     assert.equal(
       await dialog.getByText("Browser profile", { exact: true }).count(),
       0,
       "deferred optional fields stay out of first-run setup",
     );
     assert.equal(
-      await dialog.getByText("Description", { exact: true }).count(),
+      await sourceStep.getByLabel("Description", { exact: true }).count(),
       0,
-      "optional description is not requested",
+      "description is collected in the first step only",
     );
 
     if (process.env.SCREENSHOT_DIR)
       await page.screenshot({
-        path: join(process.env.SCREENSHOT_DIR, `pipelab-${sourceKey}-step1.png`),
+        path: join(process.env.SCREENSHOT_DIR, `pipelab-${sourceKey}-step2.png`),
       });
-    // Path field constraints are exercised later, in Configuration after creation.
-    const sourceField = sourceFixtures[sourceKey].fields[0];
     if (sourceFixtures[sourceKey].fields[0].type === "file") {
       assert.equal(sourceField.type, "file");
       assert.deepEqual(sourceField.fileExtensions, [sourceKey === "construct" ? "c3p" : "zip"]);
@@ -654,10 +689,23 @@ async function journey(
       "Back preserves source selection",
     );
     assert.equal(
-      await dialog.getByLabel("Name", { exact: true }).inputValue(),
+      await pathPicker.inputValue(),
+      sourcePath,
+      "Back preserves the selected project path",
+    );
+    await dialog.getByRole("button", { name: "Back" }).click();
+    const detailsPanel = dialog.locator(".wizard-panel:visible");
+    assert.equal(
+      await detailsPanel.getByLabel("Name", { exact: true }).inputValue(),
       `${sourceKey} first workflow`,
     );
-    await dialog.getByRole("button", { name: "Continue" }).click();
+    assert.equal(
+      await detailsPanel.getByLabel("Description", { exact: true }).inputValue(),
+      "First release description",
+      "Back preserves the workflow description",
+    );
+    await detailsPanel.getByRole("button", { name: "Continue" }).click();
+    await dialog.locator(".wizard-panel:visible").getByRole("button", { name: "Continue" }).click();
     const steam = dialog.getByRole("button", { name: /^Steam/ });
     const itch = dialog.getByRole("button", { name: /^Itch\.io/ });
     await steam.click();
@@ -673,12 +721,9 @@ async function journey(
     const recap = dialog.locator(".wizard-panel:visible");
     await recap.getByText("Name", { exact: true }).waitFor();
     await recap.getByText(`${sourceKey} first workflow`, { exact: true }).waitFor();
+    await recap.getByText("First release description", { exact: true }).waitFor();
     await recap.getByText(sourceFixtures[sourceKey].label, { exact: true }).waitFor();
-    assert.equal(
-      await recap.locator(".review-detail").count(),
-      0,
-      "recap does not imply a source path was selected",
-    );
+    await recap.getByText(sourcePath, { exact: true }).waitFor();
     await recap.getByText("Steam", { exact: true }).waitFor();
     await recap.getByText("Itch.io", { exact: true }).waitFor();
     assert.equal(
@@ -707,17 +752,13 @@ async function journey(
     await page.waitForURL(/\/workflows\//);
     await waitForRequests(page, calls, "release:source:inspect", 1);
     await waitForRequests(page, calls, "release:plan", 1);
+    assert.equal(firstSaved.description, "First release description");
+    assert.equal(firstSaved.source.config.path, sourcePath, "creation persists the selected path");
     assert.equal(
-      firstSaved.source.config.path || "",
-      "",
-      "creation keeps the selected source path empty",
+      sourceInspectionConfigs[0]?.path,
+      sourcePath,
+      "initial source inspection uses the selected project path",
     );
-    assert.equal(
-      sourceInspectionConfigs[0]?.path || "",
-      "",
-      "initial source inspection uses the empty default path",
-    );
-    if (!readinessTiming) await configureSourcePath(page, calls, sourceKey, sourcePath);
     if (readinessTiming) {
       await waitForRequests(page, calls, "release:source:inspect", 1);
       await waitForRequests(page, calls, "release:plan", 1);
@@ -894,8 +935,13 @@ async function journey(
       const lateDialog = page.getByRole("dialog", { name: "New release" });
       await lateDialog.waitFor();
       await lateDialog.getByLabel("Name", { exact: true }).fill("Cancelled late workflow");
+      await lateDialog.getByLabel("Description", { exact: true }).fill("Cancelled description");
+      await lateDialog.getByRole("button", { name: "Continue" }).click();
       await lateDialog.getByRole("button", { name: /Construct project/ }).click();
-      assert.equal(await lateDialog.locator(".path-picker").count(), 0);
+      await lateDialog.getByRole("button", { name: /Choose Project file/i }).click();
+      const latePicker = page.getByRole("dialog").last();
+      await latePicker.getByRole("row", { name: /demo\.c3p/ }).click();
+      await latePicker.getByRole("button", { name: "Open" }).click();
       await lateDialog.getByRole("button", { name: "Continue" }).click();
       await lateDialog.getByRole("button", { name: /^Poki/ }).click();
       await lateDialog.getByRole("button", { name: "Continue" }).click();
@@ -956,6 +1002,10 @@ async function journey(
     results.push(await journey("godot", "/test-home/Godot project"));
   } else if (process.env.CONFIG_ONLY === "construct") {
     results.push(await journey("construct", "/test-home/demo.c3p"));
+  } else if (process.env.SOURCE_ONLY === "zip") {
+    results.push(await journey("zip", "/test-home/demo.zip"));
+  } else if (process.env.SOURCE_ONLY === "folder") {
+    results.push(await journey("folder", "/test-home/Godot project"));
   } else {
     results.push(await journey("folder", "/test-home/Godot project"));
     results.push(await journey("zip", "/test-home/demo.zip"));

@@ -19,13 +19,14 @@ load when you open them.
 
 ## Create and run a workflow
 
-1. Choose **New workflow**, select a source, and enter a name. The wizard keeps
-   source paths for Configuration, where you can choose the project file or
-   folder after creation.
-2. Choose one or more destinations, review the **Name**, **Source**, and
-   **Destinations** recap, then choose **Create workflow**. Pipelab applies
-   build and output defaults when it can.
-3. Complete any **Action required** item in the workflow's **Configuration**,
+1. Choose **New workflow**. In **Name & description**, enter a workflow name
+   and description.
+2. In **Source & project path**, choose a source and its project file or
+   folder. Source-specific file rules apply, including `.c3p` for Construct
+   projects and `.zip` for ZIP sources.
+3. Choose one or more destinations, review the **Recap**, then choose
+   **Create workflow**. Pipelab applies build and output defaults when it can.
+4. Complete any **Action required** item in the workflow's **Configuration**,
    **Builds**, or **Connections** section, then use **Artifacts** and **Runs**
    to inspect the workflow after shipping.
 

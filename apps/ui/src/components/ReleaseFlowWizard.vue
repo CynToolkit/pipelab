@@ -16,7 +16,7 @@
       linear
       :inert="!isReady || catalogLoading || Boolean(catalogError)"
     >
-      <StepList>
+      <StepList class="wizard-step-list" tabindex="0" aria-label="Wizard steps">
         <Step
           v-for="item in steps"
           :key="item.value"
@@ -32,11 +32,31 @@
       <StepPanels>
         <StepPanel value="details">
           <div class="wizard-panel">
-            <h2>What are you releasing?</h2>
-            <p>
-              Choose a source type for this release. You can select the project or files in
-              Configuration.
-            </p>
+            <h2>Name your workflow</h2>
+            <p>Add a name and description for this release.</p>
+            <div class="field wide">
+              <label for="release-name">Name</label>
+              <InputText id="release-name" v-model="draft.name" />
+            </div>
+            <div class="field wide">
+              <label for="release-description">Description</label>
+              <Textarea id="release-description" v-model="draft.description" rows="3" />
+            </div>
+            <div class="wizard-actions">
+              <Button
+                label="Continue"
+                icon="pi pi-arrow-right"
+                iconPos="right"
+                :disabled="!canContinueDetails"
+                @click="step = releaseWizardNextStep(step)"
+              />
+            </div>
+          </div>
+        </StepPanel>
+        <StepPanel value="source">
+          <div class="wizard-panel">
+            <h2>Choose a source</h2>
+            <p>Choose the project or files this release represents.</p>
             <div class="choice-grid source-grid">
               <button
                 v-for="source in catalog.sources"
@@ -58,17 +78,31 @@
               </button>
             </div>
             <p v-if="!draft.source.provider" class="helper-copy">Choose a source to continue.</p>
-            <div class="field wide">
-              <label for="release-name">Name</label>
-              <InputText id="release-name" v-model="draft.name" />
-              <small class="field-hint">This name will be used for your workflow.</small>
-            </div>
+            <template v-if="sourceDefinition">
+              <ReleaseFieldControl
+                v-for="field in sourceDefinition.fields?.filter((item) => !item.deferUntilEditor) ||
+                []"
+                :key="field.key"
+                :field="field"
+                :value="String(draft.source.config[field.key] || '')"
+                :options="field.options || []"
+                :issues="[]"
+                :input-id="`wizard-source-${field.key}`"
+                @update:value="setSourceField(field.key, $event)"
+              />
+            </template>
             <div class="wizard-actions">
+              <Button
+                label="Back"
+                text
+                severity="secondary"
+                @click="step = releaseWizardPreviousStep(step)"
+              />
               <Button
                 label="Continue"
                 icon="pi pi-arrow-right"
                 iconPos="right"
-                :disabled="!canContinueDetails"
+                :disabled="!canContinueSource"
                 @click="step = releaseWizardNextStep(step)"
               />
             </div>
@@ -138,6 +172,12 @@
                 <span class="review-label">Name</span>
                 <span
                   ><strong>{{ recap.name }}</strong></span
+                >
+              </div>
+              <div v-if="recap.description">
+                <span class="review-label">Description</span>
+                <span
+                  ><strong>{{ recap.description }}</strong></span
                 >
               </div>
               <div>
@@ -231,21 +271,24 @@ import Step from "primevue/step";
 import StepPanels from "primevue/steppanels";
 import StepPanel from "primevue/steppanel";
 import InputText from "primevue/inputtext";
+import Textarea from "primevue/textarea";
 import Button from "primevue/button";
 import { nanoid } from "nanoid";
 import type { IconType, ReleaseCatalog, ReleaseConfig } from "@pipelab/shared";
 import { useAPI } from "../composables/api";
 import { useAgentAvailability } from "../composables/useAgentAvailability";
 import { useAppStore } from "../store/app";
+import ReleaseFieldControl from "./ReleaseFieldControl.vue";
 import {
   buildReleaseWizardConfig,
   createReleaseWizardDraft,
-  releaseWizardHasSource,
+  releaseWizardCanContinueDetails,
   releaseWizardCanReview,
   releaseWizardDestination,
   releaseWizardNextStep,
   releaseWizardPreviousStep,
   releaseWizardRecap,
+  releaseWizardSourceIsReady,
   RELEASE_WIZARD_STEPS,
   type ReleaseWizardStep,
 } from "./ReleaseFlowWizard-state";
@@ -269,9 +312,10 @@ const visible = computed({
   set: (value) => emit("update:visible", value),
 });
 const stepLabels: Record<ReleaseWizardStep, string> = {
-  details: "Name & source",
+  details: "Name & description",
+  source: "Source & project path",
   destinations: "Destinations",
-  recap: "Review",
+  recap: "Recap",
 };
 const steps = RELEASE_WIZARD_STEPS.map((value, index) => ({
   value,
@@ -290,9 +334,9 @@ const draft = ref(createReleaseWizardDraft());
 const sourceDefinition = computed(() =>
   catalog.value.sources.find((source) => source.id === draft.value.source.provider),
 );
-const canContinueDetails = computed(
-  () =>
-    Boolean(draft.value.name.trim()) && releaseWizardHasSource(draft.value.source, catalog.value),
+const canContinueDetails = computed(() => releaseWizardCanContinueDetails(draft.value));
+const canContinueSource = computed(() =>
+  releaseWizardSourceIsReady(draft.value.source, catalog.value),
 );
 const canContinueDestinations = computed(() => releaseWizardCanReview(draft.value, catalog.value));
 const recap = computed(() => releaseWizardRecap(draft.value, catalog.value));
@@ -348,6 +392,9 @@ const toggleDestination = (provider: string) => {
     const destination = releaseWizardDestination(provider, toRaw(catalog.value));
     if (destination) draft.value.destinations.push(destination);
   }
+};
+const setSourceField = (key: string, value: unknown) => {
+  draft.value.source.config[key] = value;
 };
 const invalidateCreateRequest = () => {
   createRequest++;
@@ -454,6 +501,7 @@ watch(
 <style scoped>
 .step {
   display: flex;
+  flex: 0 0 auto;
   gap: 7px;
   align-items: center;
   border: 0;
@@ -462,6 +510,7 @@ watch(
   background: transparent;
   color: var(--p-text-muted-color, var(--text-color-secondary));
   font-size: 0.72rem;
+  white-space: nowrap;
   cursor: pointer;
 }
 .step[aria-selected="true"] {
@@ -717,6 +766,15 @@ watch(
   font-size: 0.75rem;
 }
 @media (max-width: 640px) {
+  .wizard-step-list {
+    min-width: 0;
+    max-width: 100%;
+    justify-content: flex-start;
+    gap: 8px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: thin;
+  }
   .choice-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
