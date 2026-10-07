@@ -3,7 +3,7 @@
     v-model:visible="visible"
     modal
     header="New release"
-    :style="{ width: '520px', maxWidth: '96vw' }"
+    :style="{ width: '680px', maxWidth: '96vw' }"
   >
     <p v-if="!isReady" role="status">Reconnect the agent to continue setting up this workflow.</p>
     <p v-else-if="catalogLoading" role="status">Loading workflow options…</p>

@@ -1,9 +1,16 @@
 const assert = require("node:assert/strict");
 const { createRequire } = require("node:module");
+const { readFileSync } = require("node:fs");
 const { join, resolve } = require("node:path");
 const { performance } = require("node:perf_hooks");
 const workspaceRequire = createRequire(resolve(__dirname, "../../../../apps/website/package.json"));
 const { chromium } = workspaceRequire("playwright");
+const constructLogo = `data:image/webp;base64,${readFileSync(
+  resolve(__dirname, "../../../../packages/providers/src/construct/assets/construct.webp"),
+).toString("base64")}`;
+const godotLogo = `data:image/svg+xml;base64,${readFileSync(
+  resolve(__dirname, "../../../../packages/providers/src/godot/assets/godot.svg"),
+).toString("base64")}`;
 
 const baseUrl = process.env.UI_BASE_URL || "http://127.0.0.1:5175";
 const chromiumPath = process.env.CHROMIUM_PATH || "/usr/bin/chromium";
@@ -184,6 +191,7 @@ async function journey(
     viewport: { width: narrow ? 390 : 1280, height: 844 },
     colorScheme: expectedTheme,
   });
+  await context.route("**/favicon.ico", (route) => route.fulfill({ status: 204, body: "" }));
   const page = await context.newPage();
   page.setDefaultTimeout(8000);
   const calls = [];
@@ -202,6 +210,10 @@ async function journey(
   });
 
   page.on("pageerror", (error) => errors.push(error.message));
+  page.on("console", (message) => {
+    if (message.type() === "error")
+      errors.push(`${message.text()} (${message.location().url || "unknown source"})`);
+  });
   await context.routeWebSocket(/33753/, (socket) => {
     socket.send(JSON.stringify({ type: "connected" }));
     socket.onMessage((raw) => {
@@ -299,7 +311,7 @@ async function journey(
                 id: "@pipelab/plugin-construct",
                 name: "Construct",
                 packageName: "@pipelab/plugin-construct",
-                icon: { type: "icon", icon: "pi pi-clone" },
+                icon: { type: "image", image: constructLogo },
                 description: "Construct provider",
                 isOfficial: true,
                 integrations: [],
@@ -308,7 +320,7 @@ async function journey(
                 id: "@pipelab/plugin-godot",
                 name: "Godot",
                 packageName: "@pipelab/plugin-godot",
-                icon: { type: "icon", icon: "mdi mdi-gamepad-variant" },
+                icon: { type: "image", image: godotLogo },
                 description: "Godot provider",
                 isOfficial: true,
                 integrations: [],
@@ -559,6 +571,27 @@ async function journey(
         true,
         `horizontal scrolling reveals the full Recap step (${JSON.stringify(finalStepReveal)})`,
       );
+    } else {
+      const labelsVisible = await dialog.locator(".wizard-step-list").evaluate((element) => {
+        const strip = element.getBoundingClientRect();
+        return [...element.querySelectorAll(".step")].map((step) => {
+          const bounds = step.getBoundingClientRect();
+          return {
+            label: step.textContent?.replace(/^\s*0\d\s*/, "").trim(),
+            fullyVisible: bounds.left >= strip.left && bounds.right <= strip.right,
+          };
+        });
+      });
+      assert.deepEqual(
+        labelsVisible,
+        [
+          { label: "Name & description", fullyVisible: true },
+          { label: "Source & project path", fullyVisible: true },
+          { label: "Destinations", fullyVisible: true },
+          { label: "Recap", fullyVisible: true },
+        ],
+        "all four desktop step labels fit without clipping",
+      );
     }
     const firstStep = dialog.locator(".wizard-panel:visible");
     assert.equal(await firstStep.locator(".source-grid").count(), 0);
@@ -615,17 +648,25 @@ async function journey(
       "true",
       `${sourceKey} can be selected with the keyboard`,
     );
-    const expectedIcon =
-      sourceKey === "construct"
-        ? "pi-clone"
-        : sourceKey === "godot"
-          ? "mdi-gamepad-variant"
-          : sourceFixtures[sourceKey].icon.icon.split(" ").at(-1);
-    const renderedIcon = await sourceCard.locator("i").getAttribute("class");
-    assert.ok(
-      renderedIcon?.includes(expectedIcon),
-      `${sourceKey} shows its provider icon (${expectedIcon}; rendered ${renderedIcon})`,
-    );
+    if (sourceKey === "construct" || sourceKey === "godot") {
+      const iconImage = sourceCard.locator("img");
+      assert.equal(await iconImage.count(), 1, `${sourceKey} renders the provider image icon`);
+      const renderedSource = await iconImage.getAttribute("src");
+      const expectedSource = sourceKey === "construct" ? constructLogo : godotLogo;
+      assert.equal(renderedSource, expectedSource, `${sourceKey} image comes from bundled data`);
+      assert.ok(renderedSource.startsWith("data:image/"), "provider image has no remote URL");
+      assert.ok(
+        (await iconImage.evaluate((image) => image.decode().then(() => image.naturalWidth))) > 0,
+        `${sourceKey} provider image decodes in the browser`,
+      );
+    } else {
+      const expectedIcon = sourceFixtures[sourceKey].icon.icon.split(" ").at(-1);
+      const renderedIcon = await sourceCard.locator("i").getAttribute("class");
+      assert.ok(
+        renderedIcon?.includes(expectedIcon),
+        `${sourceKey} shows its provider icon (${expectedIcon}; rendered ${renderedIcon})`,
+      );
+    }
     const sourceField = sourceFixtures[sourceKey].fields[0];
     const pathPicker = sourceStep.getByLabel(sourceField.label, { exact: true });
     await pathPicker.waitFor();
@@ -1006,6 +1047,9 @@ async function journey(
     results.push(await journey("zip", "/test-home/demo.zip"));
   } else if (process.env.SOURCE_ONLY === "folder") {
     results.push(await journey("folder", "/test-home/Godot project"));
+  } else if (process.env.SOURCE_ONLY === "logos") {
+    results.push(await journey("construct", "/test-home/demo.c3p"));
+    results.push(await journey("godot", "/test-home/Godot project"));
   } else {
     results.push(await journey("folder", "/test-home/Godot project"));
     results.push(await journey("zip", "/test-home/demo.zip"));

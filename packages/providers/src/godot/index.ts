@@ -11,6 +11,7 @@ import {
   godotPresetMatchesTarget,
   hasGodotTemplates,
 } from "./export";
+import godotLogo from "./assets/godot.svg";
 export { godotPresetMatchesTarget } from "./export";
 
 const targetDescriptors = {
@@ -337,7 +338,7 @@ export const provider = createProviderDefinition({
   packageName: "@pipelab/plugin-godot",
   name: "Godot",
   description: "Godot Release provider",
-  icon: { type: "icon", icon: "mdi mdi-gamepad-variant" },
+  icon: { type: "image", image: godotLogo },
   isOfficial: true,
   release: { sources: [godotSource], producers: [godotExporter] },
   workflowTasks: {
