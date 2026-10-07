@@ -82,6 +82,13 @@ describe("core Release filesystem providers", () => {
     expect(builtInReleaseDefinitions.sources).toHaveLength(4);
   });
 
+  it("advertises ZIP file constraints to the source picker", () => {
+    const zipSource = buildCoreReleaseRegistry().sources.find(
+      (source) => source.id === "@pipelab/core/source/zip",
+    );
+    expect(zipSource?.fields?.[0]).toMatchObject({ type: "file", fileExtensions: ["zip"] });
+  });
+
   it.each([
     ["Folder", "@pipelab/core/source/folder", { kind: "files", container: "directory" }],
     [
