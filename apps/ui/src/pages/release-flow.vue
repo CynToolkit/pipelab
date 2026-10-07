@@ -64,15 +64,12 @@
         <span>Need to inspect the compiled steps?</span>
         <Button label="Advanced · View plan" text size="small" @click="planExpanded = true" />
       </section>
-      <section v-if="blockingIssues.length" class="readiness-summary" aria-live="polite">
+      <section v-if="firstBlocker" class="readiness-summary" aria-live="polite">
         <div>
-          <strong
-            >{{ blockingIssues.length }} item{{ blockingIssues.length === 1 ? "" : "s" }} need
-            attention</strong
-          >
-          <span>Resolve these workflow issues before shipping.</span>
+          <strong>Action required</strong>
+          <span>{{ firstBlocker.message }}</span>
         </div>
-        <Button label="Review issues" text @click="openAttention(blockingIssues)" />
+        <Button :label="firstBlockerAction.label" text @click="repairFirstBlocker" />
       </section>
       <section class="release-section">
         <div class="section-heading">
@@ -523,10 +520,13 @@ import {
   deploymentSlotLabel,
   issuesForPath,
   deduplicateValidationIssues,
+  firstBlockingIssue,
   outputReferenceConsumers,
   planOutputOptions,
   readinessLabel,
   releaseCanRun,
+  releaseReadinessState,
+  releaseRepairRoute,
   releaseOutputRefValue,
   runAfterSuccessfulSave,
 } from "./release-flow-model";
@@ -559,6 +559,7 @@ const summaryIssues = computed(() => deduplicateValidationIssues(issues.value));
 const blockingIssues = computed(() =>
   summaryIssues.value.filter((issue) => issue.severity === "error"),
 );
+const firstBlocker = computed(() => firstBlockingIssue(summaryIssues.value));
 const attentionVisible = ref(false);
 const attentionIssues = ref<ValidationIssue[]>([]);
 const planExpanded = ref(false);
@@ -592,13 +593,12 @@ const saveStateLabel = computed(() =>
   saveState.value === "saving" ? "Saving…" : saveState.value === "error" ? "Error" : "Saved",
 );
 const workflowReadinessState = computed(() =>
-  plannerError.value
-    ? "error"
-    : planning.value || !plan.value
-      ? "checking"
-      : blockingIssues.value.length
-        ? "attention"
-        : "ready",
+  releaseReadinessState(
+    planning.value,
+    Boolean(plan.value),
+    Boolean(plannerError.value),
+    blockingIssues.value.length,
+  ),
 );
 const workflowReadinessLabel = computed(() =>
   workflowReadinessState.value === "error"
@@ -702,6 +702,49 @@ const openIssueEditor = (issue: ValidationIssue) => {
   const slot = match && match[2] ? destination?.slots[Number(match[2])] : undefined;
   if (destination && slot) openSlotSettings(destination, slot);
   else if (destination) openDestinationSettings(destination);
+};
+const firstBlockerAction = computed(() => {
+  const issue = firstBlocker.value;
+  switch (issue && releaseRepairRoute(issue)) {
+    case "connections":
+      return { label: "Manage connections" };
+    case "builds":
+      return {
+        label: issue?.code.startsWith("release.connection.")
+          ? "Fix build connection"
+          : "Configure build",
+      };
+    case "configuration":
+      return {
+        label: issue?.code.startsWith("release.connection.")
+          ? issue.path?.startsWith("source")
+            ? "Fix source connection"
+            : "Fix destination connection"
+          : issue?.path?.startsWith("source")
+            ? "Configure source"
+            : "Configure destination",
+      };
+    default:
+      return { label: "Review issues" };
+  }
+});
+const repairFirstBlocker = () => {
+  const issue = firstBlocker.value;
+  if (!issue) return;
+  switch (releaseRepairRoute(issue)) {
+    case "connections":
+      attentionVisible.value = false;
+      void router.push({ name: "Connections" });
+      return;
+    case "builds":
+      openBuildIssue(issue);
+      return;
+    case "configuration":
+      openIssueEditor(issue);
+      return;
+    default:
+      openAttention(blockingIssues.value);
+  }
 };
 const sourceDefinition = computed(() =>
   catalog.value.sources.find((item) => item.id === flow.value?.source.provider),

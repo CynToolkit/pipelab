@@ -13,6 +13,7 @@ import {
   createBuildProfile,
   createSerializedTaskQueue,
   deduplicateValidationIssues,
+  firstBlockingIssue,
   issuesForPath,
   planOutputOptions,
   outputReferenceChangeImpact,
@@ -24,6 +25,8 @@ import {
   deploymentSlotLabel,
   readinessLabel,
   releaseCanRun,
+  releaseReadinessState,
+  releaseRepairRoute,
   releaseOutputRefValue,
   runAfterSuccessfulSave,
   selectBuildInput,
@@ -926,5 +929,78 @@ describe("release flow model", () => {
     expect(
       deduplicateValidationIssues([duplicate, { ...duplicate }, sameMessageAtDifferentPath]),
     ).toEqual([duplicate, sameMessageAtDifferentPath]);
+  });
+
+  it("selects the first planner blocker and keeps readiness blocked until errors clear", () => {
+    const warning = { code: "notice", message: "Optional", severity: "warning" as const };
+    const blocker = {
+      code: "release.connection.missing",
+      message: "Choose a connection.",
+      severity: "error" as const,
+      path: "source.config.account",
+    };
+    expect(firstBlockingIssue([warning, blocker])).toBe(blocker);
+    expect(firstBlockingIssue([warning])).toBeUndefined();
+    expect(releaseReadinessState(false, true, false, 1)).toBe("attention");
+    expect(releaseReadinessState(false, true, false, 0)).toBe("ready");
+    expect(releaseReadinessState(true, true, false, 0)).toBe("checking");
+    expect(releaseReadinessState(false, false, true, 0)).toBe("error");
+  });
+
+  it("routes the first blocker to its existing repair surface", () => {
+    expect(
+      releaseRepairRoute({
+        code: "release.connection.integration",
+        message: "Wrong connection.",
+        severity: "error",
+        path: "builds.0.config.account",
+      }),
+    ).toBe("builds");
+    expect(
+      releaseRepairRoute({
+        code: "release.connection.missing",
+        message: "Choose a connection.",
+        severity: "error",
+        path: "source.config.account",
+      }),
+    ).toBe("configuration");
+    expect(
+      releaseRepairRoute({
+        code: "release.connection.missing",
+        message: "Choose a connection.",
+        severity: "error",
+      }),
+    ).toBe("connections");
+    expect(
+      releaseRepairRoute({
+        code: "release.build.invalid",
+        message: "Choose a target.",
+        severity: "error",
+        path: "builds.0.targets",
+      }),
+    ).toBe("builds");
+    expect(
+      releaseRepairRoute({
+        code: "release.destination.invalid",
+        message: "Select an output.",
+        severity: "error",
+        path: "destinations.0.slots.0.input",
+      }),
+    ).toBe("builds");
+    expect(
+      releaseRepairRoute({
+        code: "release.source.invalid",
+        message: "Select a source.",
+        severity: "error",
+        path: "source.config.path",
+      }),
+    ).toBe("configuration");
+    expect(
+      releaseRepairRoute({
+        code: "release.invalid",
+        message: "Resolve this issue.",
+        severity: "error",
+      }),
+    ).toBe("issues");
   });
 });

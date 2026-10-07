@@ -370,6 +370,37 @@ export const readinessLabel = (enabled: boolean, configured: boolean, hasIssues:
   return configured && !hasIssues ? "Ready" : "Needs attention";
 };
 
+export type ReleaseRepairRoute = "connections" | "builds" | "configuration" | "issues";
+
+export const firstBlockingIssue = (issues: ValidationIssue[]) =>
+  issues.find((issue) => issue.severity === "error");
+
+export const releaseRepairRoute = (issue: ValidationIssue): ReleaseRepairRoute => {
+  if (
+    issue.path?.startsWith("builds.") ||
+    /^destinations\.\d+\.slots\.\d+\.input(?:\.|$)/.test(issue.path || "")
+  )
+    return "builds";
+  if (issue.path?.startsWith("source") || issue.path?.startsWith("destinations"))
+    return "configuration";
+  if (issue.code.startsWith("release.connection.")) return "connections";
+  return "issues";
+};
+
+export const releaseReadinessState = (
+  planning: boolean,
+  hasPlan: boolean,
+  hasPlannerError: boolean,
+  blockingIssueCount: number,
+) =>
+  hasPlannerError
+    ? "error"
+    : planning || !hasPlan
+      ? "checking"
+      : blockingIssueCount
+        ? "attention"
+        : "ready";
+
 export const applyProducerInspection = (
   build: ReleaseBuildProfileConfig,
   buildIndex: number,
