@@ -43,8 +43,26 @@ describe("useConnectionsConfig", () => {
     await config.load();
     expect(execute).toHaveBeenCalledTimes(1);
 
-    await config.load(true);
+    let resolveForced!: (value: {
+      type: "success";
+      result: { version: string; connections: [] };
+    }) => void;
+    execute.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveForced = resolve;
+      }),
+    );
+    const forced = config.load(true);
+    const joined = config.load();
+    let joinedSettled = false;
+    void joined.then(() => {
+      joinedSettled = true;
+    });
+    await Promise.resolve();
     expect(execute).toHaveBeenCalledTimes(2);
+    expect(joinedSettled).toBe(false);
+    resolveForced({ type: "success", result: { version: "1.0.0", connections: [] } });
+    await Promise.all([forced, joined]);
     expect(execute.mock.calls.map(([channel]) => channel)).toEqual([
       "connections:load",
       "connections:load",
@@ -85,6 +103,42 @@ describe("useConnectionsConfig", () => {
     expect(execute).toHaveBeenCalledTimes(2);
   });
 
+  it("allows a load to be retried after the API throws synchronously", async () => {
+    execute
+      .mockImplementationOnce(() => {
+        throw new Error("Synchronous transport failure");
+      })
+      .mockResolvedValueOnce({
+        type: "success",
+        result: { version: "1.0.0", connections: [] },
+      });
+    const config = useConnectionsConfig();
+
+    await expect(config.load()).rejects.toThrow("Synchronous transport failure");
+    await expect(config.load()).resolves.toBeUndefined();
+    expect(execute).toHaveBeenCalledTimes(2);
+  });
+
+  it("coalesces a forced load while another load is in flight", async () => {
+    let resolveLoad!: (value: {
+      type: "success";
+      result: { version: string; connections: [] };
+    }) => void;
+    execute.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveLoad = resolve;
+      }),
+    );
+    const config = useConnectionsConfig();
+    const first = config.load();
+    const forced = config.load(true);
+    await Promise.resolve();
+
+    expect(execute).toHaveBeenCalledTimes(1);
+    resolveLoad({ type: "success", result: { version: "1.0.0", connections: [] } });
+    await Promise.all([first, forced]);
+  });
+
   it("rejects disconnected loads instead of presenting defaults as persisted", async () => {
     connected = false;
     const config = useConnectionsConfig();
@@ -92,6 +146,18 @@ describe("useConnectionsConfig", () => {
     await expect(config.load()).rejects.toThrow("API is not connected");
     expect(config.error.value).toBe("API is not connected");
     expect(execute).not.toHaveBeenCalled();
+  });
+
+  it("retries an unavailable load after API connectivity recovers without an agent status change", async () => {
+    connected = false;
+    const config = useConnectionsConfig();
+
+    await expect(config.load()).rejects.toThrow("API is not connected");
+    expect(execute).not.toHaveBeenCalled();
+
+    connected = true;
+    await expect(config.load()).resolves.toBeUndefined();
+    expect(execute).toHaveBeenCalledTimes(1);
   });
 
   it("rejects disconnected saves without changing local state", async () => {
@@ -130,6 +196,39 @@ describe("useConnectionsConfig", () => {
     await pending;
     expect(config.status.value).toBe("idle");
     expect(config.loaded.value).toBe(false);
+  });
+
+  it("does not let a stale completion clear a newer reconnect load", async () => {
+    const resolvers: Array<
+      (value: { type: "success"; result: { version: string; connections: [] } }) => void
+    > = [];
+    execute.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolvers.push(resolve);
+        }),
+    );
+    const config = useConnectionsConfig();
+    const stale = config.load();
+    await Promise.resolve();
+    expect(execute).toHaveBeenCalledTimes(1);
+
+    mocks.agentStatus!.value = "offline";
+    connected = false;
+    mocks.agentStatus!.value = "ready";
+    connected = true;
+    const current = config.load();
+    await Promise.resolve();
+    expect(execute).toHaveBeenCalledTimes(2);
+
+    resolvers[0]({ type: "success", result: { version: "stale", connections: [] } });
+    await stale;
+    const joined = config.load(true);
+    expect(execute).toHaveBeenCalledTimes(2);
+
+    resolvers[1]({ type: "success", result: { version: "current", connections: [] } });
+    await Promise.all([current, joined]);
+    expect(config.data.value.version).toBe("current");
   });
 
   it("does not apply a save response after the agent disconnects", async () => {

@@ -8,14 +8,14 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Geist+Mono:wght@100..900&family=Geist:wght@100..900&family=Public+Sans:ital,wght@0,100..900;1,100..900&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@100..900&family=Geist:wght@100..900&display=swap"
       rel="stylesheet"
       media="print"
       onload="this.media = 'all'"
     />
     <noscript>
       <link
-        href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Geist+Mono:wght@100..900&family=Geist:wght@100..900&family=Public+Sans:ital,wght@0,100..900;1,100..900&display=swap"
+        href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@100..900&family=Geist:wght@100..900&display=swap"
         rel="stylesheet"
       />
     </noscript>
@@ -46,132 +46,48 @@
         color: inherit;
       }
       .boot-shell {
-        display: flex;
+        display: grid;
         width: 100%;
         height: 100%;
+        place-items: center;
         background: #f8fafc;
       }
       .dark .boot-shell {
         background: #111827;
       }
-      .boot-sidebar {
-        display: flex;
-        flex: 0 0 15rem;
-        flex-direction: column;
-        gap: 1.25rem;
-        padding: 1.25rem 1rem;
-        border-right: 1px solid #e5e7eb;
-        background: #fff;
-      }
-      .dark .boot-sidebar {
-        border-color: #374151;
-        background: #1f2937;
-      }
-      .boot-brand,
-      .boot-nav-item {
+      .boot-wordmark {
         display: flex;
         align-items: center;
-        gap: 0.75rem;
-      }
-      .boot-brand {
-        margin-bottom: 1.25rem;
-        font-size: 1.1rem;
-        font-weight: 700;
-      }
-      .boot-brand img {
-        width: 2rem;
-        height: 2rem;
-      }
-      .boot-nav-item {
-        height: 2.5rem;
-        padding: 0 0.75rem;
-        border-radius: 0.5rem;
-        color: #64748b;
-        font-size: 0.9rem;
-      }
-      .boot-nav-item.active {
-        background: #f1f5f9;
+        gap: 0.65rem;
         color: #111827;
+        font-size: 1rem;
+        font-weight: 700;
+        letter-spacing: 0.01em;
       }
-      .dark .boot-nav-item.active {
-        background: #374151;
+      .dark .boot-wordmark {
         color: #f3f4f6;
       }
-      .boot-main {
-        flex: 1;
-        min-width: 0;
-        padding: 2rem;
-      }
-      .boot-heading {
-        width: 12rem;
-        height: 1.75rem;
-        margin-bottom: 2rem;
-      }
-      .boot-skeleton {
-        border-radius: 0.5rem;
-        background: #e5e7eb;
-      }
-      .dark .boot-skeleton {
-        background: #374151;
-      }
-      .boot-card {
-        height: 8rem;
-        max-width: 38rem;
-        margin-bottom: 1rem;
-        border: 1px solid #e5e7eb;
-        border-radius: 0.75rem;
-        background: #fff;
-      }
-      .dark .boot-card {
-        border-color: #374151;
-        background: #1f2937;
-      }
-      @media (max-width: 640px) {
-        .boot-sidebar {
-          flex-basis: 4rem;
-          align-items: center;
-          padding-inline: 0.5rem;
-        }
-        .boot-nav-item span,
-        .boot-brand span {
-          display: none;
-        }
-        .boot-main {
-          padding: 1.25rem;
-        }
-      }
-      @media (prefers-reduced-motion: no-preference) {
-        .boot-skeleton {
-          animation: boot-pulse 1.5s ease-in-out infinite alternate;
-        }
-        @keyframes boot-pulse {
-          to {
-            opacity: 0.55;
-          }
-        }
+      .boot-mark {
+        width: 0.7rem;
+        height: 0.7rem;
+        border-radius: 0.22rem;
+        background: #6366f1;
       }
     </style>
     <script>
       try {
         const theme = localStorage.getItem("pipelab.theme");
-        if (theme === "dark") document.documentElement.classList.add("dark");
-        if (theme === "light") document.documentElement.classList.remove("dark");
+        document.documentElement.classList.toggle("dark", theme === "dark");
       } catch {}
     </script>
   </head>
   <body>
     <div id="app">
       <div class="boot-shell" role="status" aria-label="Loading Pipelab">
-        <aside class="boot-sidebar" aria-hidden="true">
-          <div class="boot-brand"><img src="/icon.png" alt="" /><span>Pipelab</span></div>
-          <div class="boot-nav-item active"><span>Dashboard</span></div>
-          <div class="boot-nav-item"><span>Connections</span></div>
-        </aside>
-        <main class="boot-main" aria-hidden="true">
-          <div class="boot-skeleton boot-heading"></div>
-          <div class="boot-card"></div>
-          <div class="boot-card"></div>
-        </main>
+        <div class="boot-wordmark" aria-hidden="true">
+          <span class="boot-mark"></span>
+          <span>Pipelab</span>
+        </div>
       </div>
     </div>
     <script type="module" src="/src/main.ts"></script>

@@ -1,459 +1,452 @@
 <template>
-  <Layout>
-    <WorkflowShell
-      :flow-id="flowId"
-      :project-id="projectId"
-      :title="flow?.name || 'Workflow'"
-      active="builds"
-    >
-      <template #actions>
-        <span v-if="flow" class="autosave-state" :class="`state-${saveState}`">
-          <i
-            :class="
-              saveState === 'saving'
-                ? 'pi pi-spin pi-spinner'
-                : saveState === 'error'
-                  ? 'pi pi-exclamation-circle'
-                  : 'pi pi-check-circle'
-            "
-          />
-          {{ saveStateLabel }}
-        </span>
-        <Button
-          v-if="saveState === 'error'"
-          label="Retry save"
-          text
-          size="small"
-          @click="save().catch(() => {})"
+  <WorkflowShell
+    :flow-id="flowId"
+    :project-id="projectId"
+    :title="flow?.name || 'Workflow'"
+    active="builds"
+  >
+    <template #actions>
+      <span v-if="flow" class="autosave-state" :class="`state-${saveState}`">
+        <i
+          :class="
+            saveState === 'saving'
+              ? 'pi pi-spin pi-spinner'
+              : saveState === 'error'
+                ? 'pi pi-exclamation-circle'
+                : 'pi pi-check-circle'
+          "
         />
-        <Button label="Add build" icon="pi pi-plus" @click="openAddBuild" />
-      </template>
+        {{ saveStateLabel }}
+      </span>
+      <Button
+        v-if="saveState === 'error'"
+        label="Retry save"
+        text
+        size="small"
+        @click="save().catch(() => {})"
+      />
+      <Button label="Add build" icon="pi pi-plus" @click="openAddBuild" />
+    </template>
 
-      <main class="builds-page">
-        <Message v-if="loadError" severity="error" role="alert">
+    <main class="builds-page">
+      <Message v-if="loadError" severity="error" role="alert">
+        <div class="state-copy">
+          <strong>Couldn’t load workflow builds</strong>
+          <span>{{ loadError }}</span>
+          <Button label="Retry" text size="small" @click="loadWorkflow" />
+        </div>
+      </Message>
+      <p v-else-if="!flow" class="inline-state" role="status" :aria-busy="agent.isReady.value">
+        {{
+          agent.isReady.value
+            ? "Loading workflow configuration and build options…"
+            : "Build configuration is unavailable while the engine is disconnected."
+        }}
+      </p>
+      <template v-else-if="flow">
+        <Message v-if="plannerError" severity="error" role="alert">
           <div class="state-copy">
-            <strong>Couldn’t load workflow builds</strong>
-            <span>{{ loadError }}</span>
-            <Button label="Retry" text size="small" @click="loadWorkflow" />
+            <strong>Build readiness is unavailable</strong>
+            <span>{{ plannerError }}</span>
+            <Button label="Retry planning" text size="small" @click="refreshPlan" />
           </div>
         </Message>
-        <p v-else-if="!flow" class="inline-state" role="status" :aria-busy="agent.isReady.value">
-          {{
-            agent.isReady.value
-              ? "Loading workflow configuration and build options…"
-              : "Build configuration is unavailable while the engine is disconnected."
-          }}
-        </p>
-        <template v-else-if="flow">
-          <Message v-if="plannerError" severity="error" role="alert">
-            <div class="state-copy">
-              <strong>Build readiness is unavailable</strong>
-              <span>{{ plannerError }}</span>
-              <Button label="Retry planning" text size="small" @click="refreshPlan" />
-            </div>
-          </Message>
-          <Message v-if="saveError" severity="error" role="alert">
-            <div class="state-copy">
-              <strong>Couldn’t save workflow changes</strong>
-              <span>{{ saveError }}</span>
-              <Button label="Retry save" text size="small" @click="save().catch(() => {})" />
-            </div>
-          </Message>
-          <Message v-if="requestedBuildUnavailable" severity="warn" role="status">
-            <div class="state-copy">
-              <span>
-                The requested build “{{ requestedBuildId }}” no longer exists. Choose another build
-                or return to Configuration.
-              </span>
-              <Button label="Dismiss" text size="small" @click="dismissBuildIssueRequest" />
-            </div>
-          </Message>
+        <Message v-if="saveError" severity="error" role="alert">
+          <div class="state-copy">
+            <strong>Couldn’t save workflow changes</strong>
+            <span>{{ saveError }}</span>
+            <Button label="Retry save" text size="small" @click="save().catch(() => {})" />
+          </div>
+        </Message>
+        <Message v-if="requestedBuildUnavailable" severity="warn" role="status">
+          <div class="state-copy">
+            <span>
+              The requested build “{{ requestedBuildId }}” no longer exists. Choose another build or
+              return to Configuration.
+            </span>
+            <Button label="Dismiss" text size="small" @click="dismissBuildIssueRequest" />
+          </div>
+        </Message>
 
-          <section v-if="compatibleRouteRequested" class="compatible-section">
-            <div class="section-heading">
-              <div>
-                <span class="eyebrow">Configuration shortcut</span>
-                <h2>Create a compatible build</h2>
-                <p v-if="compatibleSlot">
-                  Choices below were checked against {{ compatibleDestinationLabel }} ·
-                  {{ deploymentSlotLabel(compatibleSlot, compatibleSlotIndex) }}.
-                </p>
-                <p v-else>The requested destination slot is no longer available.</p>
-              </div>
-              <Button label="Clear" text size="small" @click="clearCompatibleRoute" />
+        <section v-if="compatibleRouteRequested" class="compatible-section">
+          <div class="section-heading">
+            <div>
+              <span class="eyebrow">Configuration shortcut</span>
+              <h2>Create a compatible build</h2>
+              <p v-if="compatibleSlot">
+                Choices below were checked against {{ compatibleDestinationLabel }} ·
+                {{ deploymentSlotLabel(compatibleSlot, compatibleSlotIndex) }}.
+              </p>
+              <p v-else>The requested destination slot is no longer available.</p>
             </div>
-            <Message v-if="compatibleError" severity="error" role="alert">
-              <div class="state-copy">
-                <span>{{ compatibleError }}</span>
-                <Button label="Retry choices" text size="small" @click="refreshCompatibleBuilds" />
+            <Button label="Clear" text size="small" @click="clearCompatibleRoute" />
+          </div>
+          <Message v-if="compatibleError" severity="error" role="alert">
+            <div class="state-copy">
+              <span>{{ compatibleError }}</span>
+              <Button label="Retry choices" text size="small" @click="refreshCompatibleBuilds" />
+            </div>
+          </Message>
+          <p v-else-if="compatibleChecking" class="inline-state" aria-live="polite">
+            Checking build choices with the planner…
+          </p>
+          <div v-else-if="compatibleSlot && compatibleCandidates.length" class="choice-list">
+            <article
+              v-for="choice in compatibleCandidates"
+              :key="`${choice.type}:${choice.engine}:${choice.target}`"
+              class="compatible-choice"
+            >
+              <div class="choice-copy">
+                <strong>{{ choice.typeLabel }} · {{ choice.engineLabel }}</strong>
+                <span>{{ choice.targetLabel }}</span>
               </div>
-            </Message>
-            <p v-else-if="compatibleChecking" class="inline-state" aria-live="polite">
-              Checking build choices with the planner…
-            </p>
-            <div v-else-if="compatibleSlot && compatibleCandidates.length" class="choice-list">
-              <article
-                v-for="choice in compatibleCandidates"
-                :key="`${choice.type}:${choice.engine}:${choice.target}`"
-                class="compatible-choice"
-              >
-                <div class="choice-copy">
-                  <strong>{{ choice.typeLabel }} · {{ choice.engineLabel }}</strong>
-                  <span>{{ choice.targetLabel }}</span>
+              <Button
+                label="Create build"
+                icon="pi pi-plus"
+                text
+                size="small"
+                @click="createCompatibleBuild(choice)"
+              />
+            </article>
+          </div>
+          <p v-else-if="compatibleSlot" class="inline-state" role="status">
+            No available build choice passed planner validation for this slot.
+          </p>
+        </section>
+
+        <section class="build-section">
+          <header class="section-heading">
+            <div>
+              <h2>Build profiles</h2>
+              <p>Choose engines and targets for outputs used by your destinations.</p>
+            </div>
+            <span v-if="!planning && plan" class="build-count">
+              {{ flow.builds.length }} {{ flow.builds.length === 1 ? "build" : "builds" }}
+            </span>
+          </header>
+
+          <div v-if="!flow.builds.length" class="empty-state" role="status">
+            <i class="mdi mdi-hammer-wrench" aria-hidden="true" />
+            <strong>No build profiles</strong>
+            <span>Add a build when a destination needs an artifact the Source cannot provide.</span>
+            <Button label="Add build" icon="pi pi-plus" text @click="openAddBuild" />
+          </div>
+
+          <div v-else class="build-list" role="list" aria-label="Build profiles">
+            <article
+              v-for="(build, index) in flow.builds"
+              :key="build.id"
+              class="build-row"
+              :class="{
+                'build-disabled': !build.enabled,
+                'build-invalid': buildIssues(build, index).length,
+              }"
+              role="listitem"
+            >
+              <div class="build-main">
+                <div class="build-icon">
+                  <i :class="producerIcon(build.engine)" aria-hidden="true" />
                 </div>
+                <div class="build-copy">
+                  <strong>{{ build.name || buildTypeLabel(build.type) }}</strong>
+                  <span>{{ buildTypeLabel(build.type) }} · {{ engineLabel(build.engine) }}</span>
+                  <small
+                    >Targets: {{ enabledTargetLabels(build).join(", ") || "None selected" }}</small
+                  >
+                  <small>Input: {{ outputLabel(build.input) }}</small>
+                </div>
+              </div>
+              <div class="build-status">
+                <Tag
+                  :value="buildReadiness(build, index)"
+                  :severity="
+                    buildReadiness(build, index) === 'Needs attention' ? 'warn' : 'secondary'
+                  "
+                />
+                <ToggleSwitch
+                  :model-value="build.enabled"
+                  :inputId="`build-enabled-${build.id}`"
+                  :aria-label="`${build.name || buildTypeLabel(build.type)} enabled`"
+                  @update:model-value="setBuildEnabled(build, $event)"
+                />
                 <Button
-                  label="Create build"
-                  icon="pi pi-plus"
+                  label="Configure"
+                  icon="pi pi-cog"
                   text
                   size="small"
-                  @click="createCompatibleBuild(choice)"
+                  :aria-label="`Configure ${build.name || engineLabel(build.engine)}`"
+                  @click="openBuildSettings(build)"
                 />
-              </article>
-            </div>
-            <p v-else-if="compatibleSlot" class="inline-state" role="status">
-              No available build choice passed planner validation for this slot.
-            </p>
-          </section>
-
-          <section class="build-section">
-            <header class="section-heading">
-              <div>
-                <h2>Build profiles</h2>
-                <p>Choose engines and targets for outputs used by your destinations.</p>
               </div>
-              <span v-if="!planning && plan" class="build-count">
-                {{ flow.builds.length }} {{ flow.builds.length === 1 ? "build" : "builds" }}
-              </span>
-            </header>
-
-            <div v-if="!flow.builds.length" class="empty-state" role="status">
-              <i class="mdi mdi-hammer-wrench" aria-hidden="true" />
-              <strong>No build profiles</strong>
-              <span
-                >Add a build when a destination needs an artifact the Source cannot provide.</span
-              >
-              <Button label="Add build" icon="pi pi-plus" text @click="openAddBuild" />
-            </div>
-
-            <div v-else class="build-list" role="list" aria-label="Build profiles">
-              <article
-                v-for="(build, index) in flow.builds"
-                :key="build.id"
-                class="build-row"
-                :class="{
-                  'build-disabled': !build.enabled,
-                  'build-invalid': buildIssues(build, index).length,
-                }"
-                role="listitem"
-              >
-                <div class="build-main">
-                  <div class="build-icon">
-                    <i :class="producerIcon(build.engine)" aria-hidden="true" />
-                  </div>
-                  <div class="build-copy">
-                    <strong>{{ build.name || buildTypeLabel(build.type) }}</strong>
-                    <span>{{ buildTypeLabel(build.type) }} · {{ engineLabel(build.engine) }}</span>
-                    <small
-                      >Targets:
-                      {{ enabledTargetLabels(build).join(", ") || "None selected" }}</small
-                    >
-                    <small>Input: {{ outputLabel(build.input) }}</small>
-                  </div>
-                </div>
-                <div class="build-status">
-                  <Tag
-                    :value="buildReadiness(build, index)"
-                    :severity="
-                      buildReadiness(build, index) === 'Needs attention' ? 'warn' : 'secondary'
-                    "
-                  />
-                  <ToggleSwitch
-                    :model-value="build.enabled"
-                    :inputId="`build-enabled-${build.id}`"
-                    :aria-label="`${build.name || buildTypeLabel(build.type)} enabled`"
-                    @update:model-value="setBuildEnabled(build, $event)"
-                  />
-                  <Button
-                    label="Configure"
-                    icon="pi pi-cog"
-                    text
-                    size="small"
-                    :aria-label="`Configure ${build.name || engineLabel(build.engine)}`"
-                    @click="openBuildSettings(build)"
-                  />
-                </div>
-                <ul v-if="buildIssues(build, index).length" class="build-issues">
-                  <li
-                    v-for="issue in buildIssues(build, index)"
-                    :key="`${issue.code}:${issue.path}:${issue.severity}:${issue.message}`"
-                  >
-                    {{ issue.message }}
-                  </li>
-                </ul>
-              </article>
-            </div>
-          </section>
-        </template>
-      </main>
-    </WorkflowShell>
-
-    <Dialog v-model:visible="addVisible" modal header="Add build" :style="dialogStyle">
-      <div class="settings-grid">
-        <div class="release-field">
-          <label for="new-build-type">Type</label>
-          <Select
-            id="new-build-type"
-            v-model="newBuildType"
-            :options="catalog.buildTypes"
-            optionLabel="label"
-            optionValue="id"
-            placeholder="Choose a build type"
-            @update:model-value="onNewBuildTypeChange"
-          />
-        </div>
-        <div class="release-field">
-          <label for="new-build-engine">Engine</label>
-          <Select
-            id="new-build-engine"
-            v-model="newBuildEngine"
-            :options="newBuildEngines"
-            optionLabel="label"
-            optionValue="id"
-            placeholder="Choose an engine"
-            :disabled="!newBuildType"
-            @update:model-value="onNewBuildEngineChange"
-          />
-        </div>
-        <div v-if="newBuildEngine" class="release-field wide">
-          <span class="field-label">Target</span>
-          <div class="target-list">
-            <button
-              v-for="target in newBuildTargets"
-              :key="target.id"
-              type="button"
-              class="target-row"
-              :class="{ selected: newBuildTarget === target.id }"
-              :disabled="!buildTargetIsAvailable(target)"
-              :aria-pressed="newBuildTarget === target.id"
-              @click="newBuildTarget = target.id"
-            >
-              <i
-                :class="
-                  newBuildTarget === target.id ? 'mdi mdi-check-circle' : 'mdi mdi-circle-outline'
-                "
-              />
-              <span>{{ target.label }}</span>
-              <small v-if="buildTargetAvailabilityReason(target)">{{
-                buildTargetAvailabilityReason(target)
-              }}</small>
-            </button>
+              <ul v-if="buildIssues(build, index).length" class="build-issues">
+                <li
+                  v-for="issue in buildIssues(build, index)"
+                  :key="`${issue.code}:${issue.path}:${issue.severity}:${issue.message}`"
+                >
+                  {{ issue.message }}
+                </li>
+              </ul>
+            </article>
           </div>
-          <small
-            v-if="newBuildEngine && !newBuildTargets.some(buildTargetIsAvailable)"
-            class="field-note"
+        </section>
+      </template>
+    </main>
+  </WorkflowShell>
+
+  <Dialog v-model:visible="addVisible" modal header="Add build" :style="dialogStyle">
+    <div class="settings-grid">
+      <div class="release-field">
+        <label for="new-build-type">Type</label>
+        <Select
+          id="new-build-type"
+          v-model="newBuildType"
+          :options="catalog.buildTypes"
+          optionLabel="label"
+          optionValue="id"
+          placeholder="Choose a build type"
+          @update:model-value="onNewBuildTypeChange"
+        />
+      </div>
+      <div class="release-field">
+        <label for="new-build-engine">Engine</label>
+        <Select
+          id="new-build-engine"
+          v-model="newBuildEngine"
+          :options="newBuildEngines"
+          optionLabel="label"
+          optionValue="id"
+          placeholder="Choose an engine"
+          :disabled="!newBuildType"
+          @update:model-value="onNewBuildEngineChange"
+        />
+      </div>
+      <div v-if="newBuildEngine" class="release-field wide">
+        <span class="field-label">Target</span>
+        <div class="target-list">
+          <button
+            v-for="target in newBuildTargets"
+            :key="target.id"
+            type="button"
+            class="target-row"
+            :class="{ selected: newBuildTarget === target.id }"
+            :disabled="!buildTargetIsAvailable(target)"
+            :aria-pressed="newBuildTarget === target.id"
+            @click="newBuildTarget = target.id"
           >
-            This engine has no available target for the selected build type.
-          </small>
+            <i
+              :class="
+                newBuildTarget === target.id ? 'mdi mdi-check-circle' : 'mdi mdi-circle-outline'
+              "
+            />
+            <span>{{ target.label }}</span>
+            <small v-if="buildTargetAvailabilityReason(target)">{{
+              buildTargetAvailabilityReason(target)
+            }}</small>
+          </button>
+        </div>
+        <small
+          v-if="newBuildEngine && !newBuildTargets.some(buildTargetIsAvailable)"
+          class="field-note"
+        >
+          This engine has no available target for the selected build type.
+        </small>
+      </div>
+    </div>
+    <template #footer>
+      <Button label="Cancel" text @click="addVisible = false" />
+      <Button label="Add build" icon="pi pi-plus" :disabled="!canCreateBuild" @click="addBuild" />
+    </template>
+  </Dialog>
+
+  <Dialog
+    v-model:visible="settingsVisible"
+    modal
+    :closable="!hasUnappliedBuildChanges"
+    :close-on-escape="!hasUnappliedBuildChanges"
+    header="Build settings"
+    :style="wideDialogStyle"
+    @show="focusSettingsIssue"
+    @hide="discardBuildSettings"
+  >
+    <div v-if="draftBuild" class="settings-grid">
+      <div v-if="settingsIssuePath" class="build-issue-context" role="status">
+        <strong>Configuration needs this build setting</strong>
+        <span>{{ settingsIssueMessage }}</span>
+        <code>{{ settingsIssuePath }}</code>
+      </div>
+      <p v-if="producerInspectionChecking" class="inline-state" role="status">
+        Checking provider settings…
+      </p>
+      <div class="release-field wide">
+        <label :for="`settings-engine-${draftBuild.id}`">Engine</label>
+        <Select
+          :id="`settings-engine-${draftBuild.id}`"
+          :class="{ 'issue-focus': isSettingsIssueControl(`settings-engine-${draftBuild.id}`) }"
+          :model-value="draftBuild.engine"
+          :options="buildEnginesFor(catalog, draftBuild.type)"
+          optionLabel="label"
+          optionValue="id"
+          @update:model-value="stageEngineChange"
+        />
+        <small v-if="engineChangeNotice" class="field-note">
+          Select at least one available target before applying this engine.
+        </small>
+      </div>
+
+      <div class="release-field wide">
+        <span class="field-label">Enabled targets</span>
+        <div class="target-list">
+          <button
+            v-for="target in draftTargets"
+            :key="target.id"
+            type="button"
+            :id="buildTargetControlId(draftBuild.id, target.id)"
+            class="target-row"
+            :class="{
+              selected: draftTargetEnabled(target.id),
+              'issue-focus': isSettingsIssueControl(buildTargetControlId(draftBuild.id, target.id)),
+            }"
+            :disabled="!buildTargetIsAvailable(target) && !draftTargetEnabled(target.id)"
+            :aria-pressed="draftTargetEnabled(target.id)"
+            @click="toggleDraftTarget(target)"
+          >
+            <i
+              :class="
+                draftTargetEnabled(target.id) ? 'mdi mdi-check-circle' : 'mdi mdi-circle-outline'
+              "
+            />
+            <span>{{ target.label }}</span>
+            <small v-if="buildTargetAvailabilityReason(target)">{{
+              buildTargetAvailabilityReason(target)
+            }}</small>
+          </button>
         </div>
       </div>
-      <template #footer>
-        <Button label="Cancel" text @click="addVisible = false" />
-        <Button label="Add build" icon="pi pi-plus" :disabled="!canCreateBuild" @click="addBuild" />
+
+      <div class="release-field wide">
+        <label :for="`settings-input-${draftBuild.id}`">Input</label>
+        <Select
+          :id="`settings-input-${draftBuild.id}`"
+          :class="{ 'issue-focus': isSettingsIssueControl(`settings-input-${draftBuild.id}`) }"
+          :model-value="releaseOutputRefValue(draftBuild.input)"
+          :options="draftBuildInputOptions"
+          optionLabel="label"
+          optionValue="value"
+          placeholder="No compatible input found"
+          :loading="buildInputChecking"
+          :disabled="!draftBuildInputOptions.length || buildInputChecking"
+          @update:model-value="setDraftBuildInput"
+        />
+        <small v-if="buildInputError" class="field-issue field-issue-error">{{
+          buildInputError
+        }}</small>
+        <small v-else-if="buildInputChecking" class="field-note"
+          >Checking planner-compatible inputs…</small
+        >
+        <small v-else-if="!draftBuildInputOptions.length" class="field-note">
+          No planner-compatible Source or build output is available.
+        </small>
+      </div>
+
+      <template
+        v-for="field in producerDefinition(draftBuild.engine)?.fields || []"
+        :key="field.key"
+      >
+        <ReleaseFieldControl
+          :field="field"
+          :class="{
+            'issue-focus': isSettingsIssueControl(`build-${draftBuild.id}-${field.key}`),
+          }"
+          :value="fieldValue(draftBuild.config, field.key)"
+          :options="fieldOptions(field)"
+          :input-id="`build-${draftBuild.id}-${field.key}`"
+          :issues="producerFieldIssues(draftBuild, field.key)"
+          @update:value="setField(draftBuild.config, field.key, $event)"
+          @add-connection="openConnection"
+        />
       </template>
-    </Dialog>
-
-    <Dialog
-      v-model:visible="settingsVisible"
-      modal
-      :closable="!hasUnappliedBuildChanges"
-      :close-on-escape="!hasUnappliedBuildChanges"
-      header="Build settings"
-      :style="wideDialogStyle"
-      @show="focusSettingsIssue"
-      @hide="discardBuildSettings"
-    >
-      <div v-if="draftBuild" class="settings-grid">
-        <div v-if="settingsIssuePath" class="build-issue-context" role="status">
-          <strong>Configuration needs this build setting</strong>
-          <span>{{ settingsIssueMessage }}</span>
-          <code>{{ settingsIssuePath }}</code>
-        </div>
-        <p v-if="producerInspectionChecking" class="inline-state" role="status">
-          Checking provider settings…
-        </p>
-        <div class="release-field wide">
-          <label :for="`settings-engine-${draftBuild.id}`">Engine</label>
-          <Select
-            :id="`settings-engine-${draftBuild.id}`"
-            :class="{ 'issue-focus': isSettingsIssueControl(`settings-engine-${draftBuild.id}`) }"
-            :model-value="draftBuild.engine"
-            :options="buildEnginesFor(catalog, draftBuild.type)"
-            optionLabel="label"
-            optionValue="id"
-            @update:model-value="stageEngineChange"
-          />
-          <small v-if="engineChangeNotice" class="field-note">
-            Select at least one available target before applying this engine.
-          </small>
-        </div>
-
-        <div class="release-field wide">
-          <span class="field-label">Enabled targets</span>
-          <div class="target-list">
-            <button
-              v-for="target in draftTargets"
-              :key="target.id"
-              type="button"
-              :id="buildTargetControlId(draftBuild.id, target.id)"
-              class="target-row"
-              :class="{
-                selected: draftTargetEnabled(target.id),
-                'issue-focus': isSettingsIssueControl(
-                  buildTargetControlId(draftBuild.id, target.id),
-                ),
-              }"
-              :disabled="!buildTargetIsAvailable(target) && !draftTargetEnabled(target.id)"
-              :aria-pressed="draftTargetEnabled(target.id)"
-              @click="toggleDraftTarget(target)"
-            >
-              <i
-                :class="
-                  draftTargetEnabled(target.id) ? 'mdi mdi-check-circle' : 'mdi mdi-circle-outline'
-                "
-              />
-              <span>{{ target.label }}</span>
-              <small v-if="buildTargetAvailabilityReason(target)">{{
-                buildTargetAvailabilityReason(target)
-              }}</small>
-            </button>
-          </div>
-        </div>
-
-        <div class="release-field wide">
-          <label :for="`settings-input-${draftBuild.id}`">Input</label>
-          <Select
-            :id="`settings-input-${draftBuild.id}`"
-            :class="{ 'issue-focus': isSettingsIssueControl(`settings-input-${draftBuild.id}`) }"
-            :model-value="releaseOutputRefValue(draftBuild.input)"
-            :options="draftBuildInputOptions"
-            optionLabel="label"
-            optionValue="value"
-            placeholder="No compatible input found"
-            :loading="buildInputChecking"
-            :disabled="!draftBuildInputOptions.length || buildInputChecking"
-            @update:model-value="setDraftBuildInput"
-          />
-          <small v-if="buildInputError" class="field-issue field-issue-error">{{
-            buildInputError
-          }}</small>
-          <small v-else-if="buildInputChecking" class="field-note"
-            >Checking planner-compatible inputs…</small
-          >
-          <small v-else-if="!draftBuildInputOptions.length" class="field-note">
-            No planner-compatible Source or build output is available.
-          </small>
-        </div>
-
+      <template
+        v-for="target in draftBuild.targets.filter((item) => item.enabled)"
+        :key="target.id"
+      >
         <template
-          v-for="field in producerDefinition(draftBuild.engine)?.fields || []"
-          :key="field.key"
+          v-for="field in targetDefinition(draftBuild.engine, draftBuild.type, target.id)?.fields ||
+          []"
+          :key="`${target.id}-${field.key}`"
         >
           <ReleaseFieldControl
             :field="field"
             :class="{
-              'issue-focus': isSettingsIssueControl(`build-${draftBuild.id}-${field.key}`),
+              'issue-focus': isSettingsIssueControl(
+                `target-${draftBuild.id}-${target.id}-${field.key}`,
+              ),
             }"
-            :value="fieldValue(draftBuild.config, field.key)"
+            :value="fieldValue(target.config, field.key)"
             :options="fieldOptions(field)"
-            :input-id="`build-${draftBuild.id}-${field.key}`"
-            :issues="producerFieldIssues(draftBuild, field.key)"
-            @update:value="setField(draftBuild.config, field.key, $event)"
+            :input-id="`target-${draftBuild.id}-${target.id}-${field.key}`"
+            :issues="producerTargetFieldIssues(draftBuild, target.id, field.key)"
+            @update:value="setField(target.config, field.key, $event)"
             @add-connection="openConnection"
           />
         </template>
-        <template
-          v-for="target in draftBuild.targets.filter((item) => item.enabled)"
-          :key="target.id"
-        >
-          <template
-            v-for="field in targetDefinition(draftBuild.engine, draftBuild.type, target.id)
-              ?.fields || []"
-            :key="`${target.id}-${field.key}`"
-          >
-            <ReleaseFieldControl
-              :field="field"
-              :class="{
-                'issue-focus': isSettingsIssueControl(
-                  `target-${draftBuild.id}-${target.id}-${field.key}`,
-                ),
-              }"
-              :value="fieldValue(target.config, field.key)"
-              :options="fieldOptions(field)"
-              :input-id="`target-${draftBuild.id}-${target.id}-${field.key}`"
-              :issues="producerTargetFieldIssues(draftBuild, target.id, field.key)"
-              @update:value="setField(target.config, field.key, $event)"
-              @add-connection="openConnection"
-            />
-          </template>
-        </template>
-      </div>
-      <template #footer>
-        <div class="settings-footer">
-          <Button
-            v-if="draftBuild"
-            label="Remove build"
-            icon="pi pi-trash"
-            text
-            severity="danger"
-            @click="removeBuild(draftBuild)"
-          />
-          <span class="settings-footer-spacer" />
-          <Button
-            :label="hasUnappliedBuildChanges ? 'Discard changes' : 'Cancel'"
-            text
-            @click="requestDiscardBuildSettings"
-          />
-          <Button
-            label="Apply changes"
-            :disabled="!canApplyBuildSettings"
-            @click="applyBuildSettings"
-          />
-        </div>
       </template>
-    </Dialog>
-
-    <Dialog v-model:visible="connectionVisible" modal header="Add connection" :style="dialogStyle">
-      <div class="settings-grid">
-        <div class="release-field">
-          <label for="build-connection-name">Name</label>
-          <InputText
-            id="build-connection-name"
-            v-model="connectionDraft.name"
-            placeholder="My account"
-          />
-        </div>
-        <div v-for="field in connectionFields" :key="field.key" class="release-field">
-          <label :for="`build-connection-${field.key}`">{{ field.label }}</label>
-          <InputText
-            :id="`build-connection-${field.key}`"
-            v-model="connectionDraft.values[field.key]"
-            :type="field.type === 'password' ? 'password' : 'text'"
-            :placeholder="field.placeholder || 'Stored securely'"
-          />
-        </div>
-      </div>
-      <template #footer>
-        <Button label="Cancel" text @click="connectionVisible = false" />
+    </div>
+    <template #footer>
+      <div class="settings-footer">
         <Button
-          label="Add connection"
-          :loading="connectionSaving"
-          :disabled="!connectionDraft.name.trim() || !connectionHasValue"
-          @click="createConnection"
+          v-if="draftBuild"
+          label="Remove build"
+          icon="pi pi-trash"
+          text
+          severity="danger"
+          @click="removeBuild(draftBuild)"
         />
-      </template>
-    </Dialog>
-    <ConfirmDialog />
-  </Layout>
+        <span class="settings-footer-spacer" />
+        <Button
+          :label="hasUnappliedBuildChanges ? 'Discard changes' : 'Cancel'"
+          text
+          @click="requestDiscardBuildSettings"
+        />
+        <Button
+          label="Apply changes"
+          :disabled="!canApplyBuildSettings"
+          @click="applyBuildSettings"
+        />
+      </div>
+    </template>
+  </Dialog>
+
+  <Dialog v-model:visible="connectionVisible" modal header="Add connection" :style="dialogStyle">
+    <div class="settings-grid">
+      <div class="release-field">
+        <label for="build-connection-name">Name</label>
+        <InputText
+          id="build-connection-name"
+          v-model="connectionDraft.name"
+          placeholder="My account"
+        />
+      </div>
+      <div v-for="field in connectionFields" :key="field.key" class="release-field">
+        <label :for="`build-connection-${field.key}`">{{ field.label }}</label>
+        <InputText
+          :id="`build-connection-${field.key}`"
+          v-model="connectionDraft.values[field.key]"
+          :type="field.type === 'password' ? 'password' : 'text'"
+          :placeholder="field.placeholder || 'Stored securely'"
+        />
+      </div>
+    </div>
+    <template #footer>
+      <Button label="Cancel" text @click="connectionVisible = false" />
+      <Button
+        label="Add connection"
+        :loading="connectionSaving"
+        :disabled="!connectionDraft.name.trim() || !connectionHasValue"
+        @click="createConnection"
+      />
+    </template>
+  </Dialog>
+  <ConfirmDialog />
 </template>
 
 <script setup lang="ts">
@@ -482,7 +475,6 @@ import type {
   ReleasePlan,
   ValidationIssue,
 } from "@pipelab/shared";
-import Layout from "../components/Layout.vue";
 import WorkflowShell from "../components/WorkflowShell.vue";
 import ReleaseFieldControl from "../components/ReleaseFieldControl.vue";
 import { useAPI } from "../composables/api";

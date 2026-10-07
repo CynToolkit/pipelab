@@ -220,7 +220,7 @@
     </div>
 
     <!-- Auth Dialog (Login / Register / Forgot Password) -->
-    <AuthDialog />
+    <AuthDialog v-if="hasOpenedAuthDialog" />
 
     <!-- Settings Dialog -->
     <Dialog
@@ -241,7 +241,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, inject, watch, onUnmounted } from "vue";
+import { ref, computed, inject, watch, onUnmounted, defineAsyncComponent } from "vue";
 import { useAuth } from "@renderer/store/auth";
 import { OpenUpgradeDialogKey } from "../utils/injection-keys";
 import { useShell } from "@renderer/composables/use-shell";
@@ -260,9 +260,7 @@ interface MenuItem {
   key?: string;
 }
 import { useLogger } from "@pipelab/shared";
-import Settings from "@renderer/components/Settings.vue";
 import UpgradeNowButton from "@renderer/components/UpgradeNowButton.vue";
-import AuthDialog from "@renderer/components/AuthDialog.vue";
 import Menu from "primevue/menu";
 import Button from "primevue/button";
 import Dialog from "primevue/dialog";
@@ -273,6 +271,9 @@ import { handle } from "@renderer/composables/handlers";
 import { websocketManager } from "@renderer/composables/websocket-manager";
 import { useAgentAvailability } from "@renderer/composables/useAgentAvailability";
 import { useAppStore } from "@renderer/store/app";
+
+const Settings = defineAsyncComponent(() => import("@renderer/components/Settings.vue"));
+const AuthDialog = defineAsyncComponent(() => import("@renderer/components/AuthDialog.vue"));
 
 const { logger } = useLogger();
 const shell = useShell();
@@ -427,7 +428,12 @@ const logout = async () => {
 };
 
 const auth = useAuth();
-const { user, subscriptionStatus, subscriptionError, isLoadingSubscriptions } = storeToRefs(auth);
+const { user, subscriptionStatus, subscriptionError, isLoadingSubscriptions, isAuthModalVisible } =
+  storeToRefs(auth);
+const hasOpenedAuthDialog = ref(isAuthModalVisible.value);
+watch(isAuthModalVisible, (visible) => {
+  if (visible) hasOpenedAuthDialog.value = true;
+});
 
 const retrySubscription = () => {
   if (isReady.value) void auth.fetchSubscription();

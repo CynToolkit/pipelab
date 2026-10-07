@@ -43,21 +43,21 @@ function createConfigComposable<T>(
 
   const load = async (force = false): Promise<void> => {
     requested.value = true;
-    if (status.value === "ready" && !force) return;
     if (loadedPromise) {
       return loadedPromise;
     }
+    if (status.value === "ready" && !force) return;
+
+    if (!agent.isReady.value || !api.isConnected()) {
+      const unavailable = new Error("API is not connected");
+      error.value = unavailable.message;
+      status.value = "error";
+      throw unavailable;
+    }
 
     const generation = ++requestGeneration;
-    loadedPromise = (async () => {
-      if (!agent.isReady.value || !api.isConnected()) {
-        const unavailable = new Error("API is not connected");
-        error.value = unavailable.message;
-        status.value = "error";
-        loadedPromise = undefined;
-        throw unavailable;
-      }
-
+    const request = Promise.resolve().then(async () => {
+      if (generation !== requestGeneration) return;
       status.value = "loading";
       error.value = undefined;
       try {
@@ -78,15 +78,16 @@ function createConfigComposable<T>(
         console.error(`[useConfig] error loading "${loadChannel}":`, err);
         error.value = err instanceof Error ? err.message : String(err);
         status.value = "error";
-        loadedPromise = undefined;
         throw err;
-      } finally {
-        if (generation === requestGeneration && status.value === "loading") {
-          status.value = "idle";
-        }
-        if (generation === requestGeneration) loadedPromise = undefined;
       }
-    })();
+    });
+    const promise = request.finally(() => {
+      if (generation === requestGeneration && status.value === "loading") {
+        status.value = "idle";
+      }
+      if (loadedPromise === promise) loadedPromise = undefined;
+    });
+    loadedPromise = promise;
 
     return loadedPromise;
   };

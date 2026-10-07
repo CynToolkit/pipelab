@@ -1,247 +1,242 @@
 <template>
   <div class="index">
     <ConfirmDialog />
-    <Layout>
-      <div class="main-layout">
-        <div class="drawer">
-          <div class="project-header">
-            <div class="project-text">
-              <i class="mdi mdi-folder mr-2"></i>
-              Projects
+    <div class="main-layout">
+      <div class="drawer">
+        <div class="project-header">
+          <div class="project-text">
+            <i class="mdi mdi-folder mr-2"></i>
+            Projects
+          </div>
+          <div class="project-header-actions">
+            <Button
+              id="tour-add-project"
+              :disabled="
+                authStore.subscriptionStatus !== 'ready' || !agent.isReady.value || !filesReady
+              "
+              v-tooltip.top="
+                authStore.subscriptionStatus === 'ready' && !hasMultipleProjectsBenefit
+                  ? $t('home.premium-feature')
+                  : undefined
+              "
+              text
+              size="small"
+              class="drawer-header-icon-btn"
+              @click="onCreateProjectClick"
+            >
+              <i class="icon mdi mdi-plus fs-16"></i>
+            </Button>
+          </div>
+        </div>
+        <div class="project-list" id="tour-projects-list">
+          <div
+            v-if="!filesReady && !agent.isReady.value"
+            class="px-3 py-3 text-sm opacity-60"
+            role="status"
+          >
+            Projects are unavailable while the engine is disconnected.
+          </div>
+          <div v-else-if="!filesReady" class="px-3 py-3 text-sm opacity-60" role="status">
+            {{
+              projectLoadError ? `Couldn’t load projects: ${projectLoadError}` : "Loading projects…"
+            }}
+          </div>
+          <div
+            v-if="filesReady"
+            v-for="project in projects"
+            :key="project.id"
+            class="project-item"
+            :class="{ active: activeProjectId === project.id }"
+            @click="selectProject(project.id)"
+          >
+            <div class="project-item-content">
+              <i class="mdi mdi-folder-outline project-icon"></i>
+              <span class="project-label">{{ project.name }}</span>
             </div>
-            <div class="project-header-actions">
+            <div class="project-item-actions" @click.stop>
               <Button
-                id="tour-add-project"
-                :disabled="
-                  authStore.subscriptionStatus !== 'ready' || !agent.isReady.value || !filesReady
-                "
-                v-tooltip.top="
-                  authStore.subscriptionStatus === 'ready' && !hasMultipleProjectsBenefit
-                    ? $t('home.premium-feature')
-                    : undefined
-                "
                 text
+                rounded
+                severity="secondary"
                 size="small"
-                class="drawer-header-icon-btn"
-                @click="onCreateProjectClick"
+                v-tooltip.top="'Rename Project'"
+                @click="openRenameProjectDialog(project.id)"
               >
-                <i class="icon mdi mdi-plus fs-16"></i>
+                <i class="mdi mdi-pencil"></i>
+              </Button>
+              <Button
+                v-if="projects.length > 1"
+                text
+                rounded
+                severity="danger"
+                size="small"
+                v-tooltip.top="'Delete Project'"
+                @click="deleteProject(project.id)"
+              >
+                <i class="mdi mdi-delete"></i>
               </Button>
             </div>
           </div>
-          <div class="project-list" id="tour-projects-list">
-            <div
-              v-if="!filesReady && !agent.isReady.value"
-              class="px-3 py-3 text-sm opacity-60"
-              role="status"
-            >
-              Projects are unavailable while the engine is disconnected.
-            </div>
-            <div v-else-if="!filesReady" class="px-3 py-3 text-sm opacity-60" role="status">
-              {{
-                projectLoadError
-                  ? `Couldn’t load projects: ${projectLoadError}`
-                  : "Loading projects…"
-              }}
-            </div>
-            <div
-              v-if="filesReady"
-              v-for="project in projects"
-              :key="project.id"
-              class="project-item"
-              :class="{ active: activeProjectId === project.id }"
-              @click="selectProject(project.id)"
-            >
-              <div class="project-item-content">
-                <i class="mdi mdi-folder-outline project-icon"></i>
-                <span class="project-label">{{ project.name }}</span>
-              </div>
-              <div class="project-item-actions" @click.stop>
-                <Button
-                  text
-                  rounded
-                  severity="secondary"
-                  size="small"
-                  v-tooltip.top="'Rename Project'"
-                  @click="openRenameProjectDialog(project.id)"
-                >
-                  <i class="mdi mdi-pencil"></i>
-                </Button>
-                <Button
-                  v-if="projects.length > 1"
-                  text
-                  rounded
-                  severity="danger"
-                  size="small"
-                  v-tooltip.top="'Delete Project'"
-                  @click="deleteProject(project.id)"
-                >
-                  <i class="mdi mdi-delete"></i>
-                </Button>
-              </div>
+        </div>
+        <Message
+          v-if="filesReady && appStore.runtimeStatus === 'error'"
+          severity="warn"
+          :closable="false"
+          role="alert"
+        >
+          Runtime information is unavailable. {{ appStore.runtimeError }}
+          <Button
+            label="Retry runtime info"
+            text
+            size="small"
+            @click="appStore.loadRuntimeInfo().catch(notifyPersistenceError)"
+          />
+        </Message>
+        <Message
+          v-if="agent.isReady.value && !filesReady && projectLoadError"
+          severity="error"
+          :closable="false"
+          role="alert"
+        >
+          {{ projectLoadError }}
+          <Button label="Retry" text size="small" @click="loadDashboardData" />
+        </Message>
+      </div>
+
+      <div class="your-projects">
+        <!-- Header Section -->
+        <div class="projects-header">
+          <div class="header-left">
+            <h2 class="project-title">{{ filesReady ? activeProject?.name : "" }}</h2>
+          </div>
+
+          <!-- Toolbar / Search and Action buttons -->
+          <div class="header-right">
+            <!-- Search Input -->
+            <IconField class="search-field">
+              <InputIcon class="pi pi-search" />
+              <InputText
+                v-model="searchQuery"
+                placeholder="Search workflows..."
+                class="search-input"
+                size="small"
+              />
+            </IconField>
+
+            <!-- Actions -->
+            <div class="action-buttons">
+              <Button
+                size="small"
+                severity="secondary"
+                variant="outlined"
+                @click="openWorkflowWizard"
+              >
+                <i class="mdi mdi-rocket-launch-outline mr-2"></i>
+                New workflow
+              </Button>
+              <Button
+                variant="outlined"
+                severity="secondary"
+                size="small"
+                @click="toggleImportMenu"
+              >
+                <i class="mdi mdi-folder-open-outline mr-2"></i>
+                {{ $t("home.import") }}
+                <i class="mdi mdi-chevron-down ml-2"></i>
+              </Button>
             </div>
           </div>
-          <Message
-            v-if="filesReady && appStore.runtimeStatus === 'error'"
-            severity="warn"
-            :closable="false"
-            role="alert"
-          >
-            Runtime information is unavailable. {{ appStore.runtimeError }}
-            <Button
-              label="Retry runtime info"
-              text
-              size="small"
-              @click="appStore.loadRuntimeInfo().catch(notifyPersistenceError)"
-            />
-          </Message>
-          <Message
-            v-if="agent.isReady.value && !filesReady && projectLoadError"
-            severity="error"
-            :closable="false"
-            role="alert"
-          >
-            {{ projectLoadError }}
-            <Button label="Retry" text size="small" @click="loadDashboardData" />
-          </Message>
         </div>
 
-        <div class="your-projects">
-          <!-- Header Section -->
-          <div class="projects-header">
-            <div class="header-left">
-              <h2 class="project-title">{{ filesReady ? activeProject?.name : "" }}</h2>
+        <!-- Loading State -->
+        <div v-if="!filesReady && !agent.isReady.value" class="inline-state" role="status">
+          Workflows are unavailable while the engine is disconnected.
+        </div>
+        <div v-else-if="!filesReady || isLoading" class="loading-state" aria-busy="true">
+          <div v-for="n in 3" :key="n" class="skeleton-row">
+            <Skeleton shape="circle" size="32px" class="mr-3" />
+            <div class="flex-grow-1 mr-4">
+              <Skeleton width="40%" class="mb-2" />
+              <Skeleton width="60%" />
             </div>
+            <Skeleton width="80px" class="mr-4" />
+            <Skeleton shape="circle" size="32px" />
+          </div>
+        </div>
 
-            <!-- Toolbar / Search and Action buttons -->
-            <div class="header-right">
-              <!-- Search Input -->
-              <IconField class="search-field">
-                <InputIcon class="pi pi-search" />
-                <InputText
-                  v-model="searchQuery"
-                  placeholder="Search workflows..."
-                  class="search-input"
+        <!-- Empty State (No Workflows) -->
+        <div v-else-if="dashboardState === 'empty'" class="no-projects">
+          <i class="mdi mdi-folder-open-outline empty-icon"></i>
+          <div class="no-workflows-text">No workflows in this project yet.</div>
+          <Button severity="secondary" variant="outlined" @click="openWorkflowWizard">
+            <i class="mdi mdi-rocket-launch-outline mr-2"></i>
+            New workflow
+          </Button>
+        </div>
+
+        <!-- No Search Results -->
+        <div v-else-if="dashboardState === 'search-empty'" class="no-search-results">
+          <i class="mdi mdi-magnify-close empty-icon"></i>
+          <div class="no-results-text">No workflows found matching "{{ searchQuery }}"</div>
+          <Button text severity="secondary" @click="searchQuery = ''"> Clear search </Button>
+        </div>
+
+        <div v-else class="workflows-list">
+          <div
+            v-for="flow in filteredWorkflowsEnhanced"
+            :key="flow.id"
+            class="workflow-row"
+            @click="openWorkflow(flow.id)"
+          >
+            <div class="workflow-icon">
+              <i class="mdi mdi-rocket-launch-outline"></i>
+            </div>
+            <div class="workflow-info">
+              <div class="workflow-title-row">
+                <span class="workflow-name">{{ flow.content.name }}</span>
+                <Tag severity="info" value="Release" class="type-tag" />
+              </div>
+              <div class="workflow-desc">
+                {{ flow.content.source.provider }} →
+                {{ flow.content.destinations.map(destinationLabel).join(", ") }}
+              </div>
+            </div>
+            <div class="workflow-meta-actions">
+              <span class="workflow-updated"
+                >Updated {{ formatLastModified(flow.lastModified) }}</span
+              >
+              <div class="row-actions" @click.stop>
+                <Button
+                  icon="mdi mdi-pencil"
+                  text
+                  rounded
+                  severity="secondary"
                   size="small"
+                  v-tooltip.top="'Edit workflow'"
+                  @click="openWorkflow(flow.id)"
+                /><Button
+                  icon="mdi mdi-dots-vertical"
+                  text
+                  rounded
+                  severity="secondary"
+                  size="small"
+                  @click="toggleWorkflowMenu($event, flow)"
                 />
-              </IconField>
-
-              <!-- Actions -->
-              <div class="action-buttons">
-                <Button
-                  size="small"
-                  severity="secondary"
-                  variant="outlined"
-                  @click="openWorkflowWizard"
-                >
-                  <i class="mdi mdi-rocket-launch-outline mr-2"></i>
-                  New workflow
-                </Button>
-                <Button
-                  variant="outlined"
-                  severity="secondary"
-                  size="small"
-                  @click="toggleImportMenu"
-                >
-                  <i class="mdi mdi-folder-open-outline mr-2"></i>
-                  {{ $t("home.import") }}
-                  <i class="mdi mdi-chevron-down ml-2"></i>
-                </Button>
               </div>
             </div>
           </div>
-
-          <!-- Loading State -->
-          <div v-if="!filesReady && !agent.isReady.value" class="inline-state" role="status">
-            Workflows are unavailable while the engine is disconnected.
-          </div>
-          <div v-else-if="!filesReady || isLoading" class="loading-state" aria-busy="true">
-            <div v-for="n in 3" :key="n" class="skeleton-row">
-              <Skeleton shape="circle" size="32px" class="mr-3" />
-              <div class="flex-grow-1 mr-4">
-                <Skeleton width="40%" class="mb-2" />
-                <Skeleton width="60%" />
-              </div>
-              <Skeleton width="80px" class="mr-4" />
-              <Skeleton shape="circle" size="32px" />
-            </div>
-          </div>
-
-          <!-- Empty State (No Workflows) -->
-          <div v-else-if="dashboardState === 'empty'" class="no-projects">
-            <i class="mdi mdi-folder-open-outline empty-icon"></i>
-            <div class="no-workflows-text">No workflows in this project yet.</div>
-            <Button severity="secondary" variant="outlined" @click="openWorkflowWizard">
-              <i class="mdi mdi-rocket-launch-outline mr-2"></i>
-              New workflow
-            </Button>
-          </div>
-
-          <!-- No Search Results -->
-          <div v-else-if="dashboardState === 'search-empty'" class="no-search-results">
-            <i class="mdi mdi-magnify-close empty-icon"></i>
-            <div class="no-results-text">No workflows found matching "{{ searchQuery }}"</div>
-            <Button text severity="secondary" @click="searchQuery = ''"> Clear search </Button>
-          </div>
-
-          <div v-else class="workflows-list">
-            <div
-              v-for="flow in filteredWorkflowsEnhanced"
-              :key="flow.id"
-              class="workflow-row"
-              @click="openWorkflow(flow.id)"
-            >
-              <div class="workflow-icon">
-                <i class="mdi mdi-rocket-launch-outline"></i>
-              </div>
-              <div class="workflow-info">
-                <div class="workflow-title-row">
-                  <span class="workflow-name">{{ flow.content.name }}</span>
-                  <Tag severity="info" value="Release" class="type-tag" />
-                </div>
-                <div class="workflow-desc">
-                  {{ flow.content.source.provider }} →
-                  {{ flow.content.destinations.map(destinationLabel).join(", ") }}
-                </div>
-              </div>
-              <div class="workflow-meta-actions">
-                <span class="workflow-updated"
-                  >Updated {{ formatLastModified(flow.lastModified) }}</span
-                >
-                <div class="row-actions" @click.stop>
-                  <Button
-                    icon="mdi mdi-pencil"
-                    text
-                    rounded
-                    severity="secondary"
-                    size="small"
-                    v-tooltip.top="'Edit workflow'"
-                    @click="openWorkflow(flow.id)"
-                  /><Button
-                    icon="mdi mdi-dots-vertical"
-                    text
-                    rounded
-                    severity="secondary"
-                    size="small"
-                    @click="toggleWorkflowMenu($event, flow)"
-                  />
-                </div>
-              </div>
-            </div>
-            <Message
-              v-for="broken in brokenWorkflows"
-              :key="broken.id"
-              severity="error"
-              class="workflow-row-error"
-            >
-              Release workflow <strong>{{ broken.id }}</strong> could not be loaded:
-              {{ broken.error }}
-            </Message>
-          </div>
+          <Message
+            v-for="broken in brokenWorkflows"
+            :key="broken.id"
+            severity="error"
+            class="workflow-row-error"
+          >
+            Release workflow <strong>{{ broken.id }}</strong> could not be loaded:
+            {{ broken.error }}
+          </Message>
         </div>
       </div>
-    </Layout>
-
+    </div>
     <Dialog
       v-model:visible="isNewProjectModalVisible"
       modal
@@ -274,6 +269,7 @@
     <Menu ref="workflowMenu" :model="workflowMenuItems" :popup="true" />
     <Menu ref="importMenu" :model="importMenuItems" :popup="true" />
     <ReleaseFlowWizard
+      v-if="isWorkflowWizardVisible"
       v-model:visible="isWorkflowWizardVisible"
       :project-id="activeProjectId"
       @create="createWorkflow"
@@ -305,7 +301,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, inject, watch } from "vue";
+import { computed, ref, inject, watch, defineAsyncComponent } from "vue";
 import { useToast } from "primevue/usetoast";
 import { storeToRefs } from "pinia";
 import Menu from "primevue/menu";
@@ -317,7 +313,6 @@ import { useAPI } from "@renderer/composables/api";
 import { useFiles } from "@renderer/store/files";
 
 import { useAppStore } from "@renderer/store/app";
-import Layout from "../components/Layout.vue";
 import { useI18n } from "vue-i18n";
 import { useAuth } from "@renderer/store/auth";
 import Skeleton from "primevue/skeleton";
@@ -327,10 +322,13 @@ import Message from "primevue/message";
 import Tag from "primevue/tag";
 import IconField from "primevue/iconfield";
 import InputIcon from "primevue/inputicon";
-import ReleaseFlowWizard from "@renderer/components/ReleaseFlowWizard.vue";
 import { partitionWorkflowLoads } from "./workflow-load-state";
 import { getDashboardDisplayState, resolveSelectedProjectId } from "./dashboard-state";
 import { useAgentAvailability } from "@renderer/composables/useAgentAvailability";
+
+const ReleaseFlowWizard = defineAsyncComponent(
+  () => import("@renderer/components/ReleaseFlowWizard.vue"),
+);
 
 const router = useRouter();
 const api = useAPI();

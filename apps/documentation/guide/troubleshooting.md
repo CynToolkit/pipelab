@@ -34,6 +34,11 @@ the unsaved draft and shows a save error. After reconnecting, use **Retry save**
 before leaving the editor. Pending requests from the old connection fail;
 they are not replayed on the new connection.
 
+If reconnecting fails to refresh an open workflow, use **Retry loading workflow**
+beside the load error. The editor retains your unsaved draft while refreshing its dependencies.
+Config sections can also retry after an unavailable initial request; a failed
+attempt does not prevent later requests after connectivity returns.
+
 ## Release workflow planning
 
 - **Needs attention:** Open the issue detail on the source, build, destination,

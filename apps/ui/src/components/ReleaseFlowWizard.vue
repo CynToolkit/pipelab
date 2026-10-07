@@ -468,6 +468,7 @@ watch(
     resolutionError.value = "";
     await loadCatalog();
   },
+  { immediate: true },
 );
 </script>
 

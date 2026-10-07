@@ -1,312 +1,301 @@
 <template>
-  <Layout>
-    <WorkflowShell
-      :flow-id="flowId"
-      :project-id="projectId"
-      :title="entry?.workflowName || entry?.projectName || 'Workflow'"
-      :subtitle="entry?.version ? `Release ${entry.version}` : `Run #${shortId}`"
-      active="runs"
-    >
-      <main v-if="entry" class="run-page">
-        <div class="run-navigation">
-          <Button
-            label="Back to runs"
-            icon="mdi mdi-arrow-left"
-            text
-            size="small"
-            @click="backToRuns"
-          />
-        </div>
-        <Message v-if="error" severity="error" :closable="false" role="alert" class="run-error">{{
-          error
-        }}</Message>
-        <Message v-if="cancelFeedback" severity="info" :closable="false" class="run-error">{{
-          cancelFeedback
-        }}</Message>
-        <header class="run-header">
-          <div class="run-title-row">
-            <span
-              class="status-mark"
-              :class="`status-${entry.status}`"
-              :aria-label="statusLabel(entry.status)"
-            >
-              <i :class="statusIcon(entry.status)" aria-hidden="true" />
-            </span>
-            <div class="run-title">
-              <div class="title-line">
-                <h2>{{ entry.version ? `Release ${entry.version}` : "Workflow run" }}</h2>
-                <Tag :value="statusLabel(entry.status)" :severity="statusSeverity(entry.status)" />
-              </div>
-              <div class="run-meta">
-                <span>{{ formatDate(entry.startTime) }}</span
-                ><span>{{ duration }}</span
-                ><code>#{{ shortId }}</code>
-              </div>
+  <WorkflowShell
+    :flow-id="flowId"
+    :project-id="projectId"
+    :title="entry?.workflowName || entry?.projectName || 'Workflow'"
+    :subtitle="entry?.version ? `Release ${entry.version}` : `Run #${shortId}`"
+    active="runs"
+  >
+    <main v-if="entry" class="run-page">
+      <div class="run-navigation">
+        <Button
+          label="Back to runs"
+          icon="mdi mdi-arrow-left"
+          text
+          size="small"
+          @click="backToRuns"
+        />
+      </div>
+      <Message v-if="error" severity="error" :closable="false" role="alert" class="run-error">{{
+        error
+      }}</Message>
+      <Message v-if="cancelFeedback" severity="info" :closable="false" class="run-error">{{
+        cancelFeedback
+      }}</Message>
+      <header class="run-header">
+        <div class="run-title-row">
+          <span
+            class="status-mark"
+            :class="`status-${entry.status}`"
+            :aria-label="statusLabel(entry.status)"
+          >
+            <i :class="statusIcon(entry.status)" aria-hidden="true" />
+          </span>
+          <div class="run-title">
+            <div class="title-line">
+              <h2>{{ entry.version ? `Release ${entry.version}` : "Workflow run" }}</h2>
+              <Tag :value="statusLabel(entry.status)" :severity="statusSeverity(entry.status)" />
+            </div>
+            <div class="run-meta">
+              <span>{{ formatDate(entry.startTime) }}</span
+              ><span>{{ duration }}</span
+              ><code>#{{ shortId }}</code>
             </div>
           </div>
-          <Button
-            v-if="entry.status === 'running'"
-            label="Cancel run"
-            icon="pi pi-stop-circle"
-            severity="danger"
-            outlined
-            :loading="cancelling"
-            @click="cancel"
-          />
-        </header>
-        <Message v-if="entry.error" severity="error" :closable="false" class="run-error">{{
-          entry.error.message
-        }}</Message>
-        <section
-          v-if="playwrightVideoPath"
-          class="video-output"
-          aria-label="Playwright video output"
+        </div>
+        <Button
+          v-if="entry.status === 'running'"
+          label="Cancel run"
+          icon="pi pi-stop-circle"
+          severity="danger"
+          outlined
+          :loading="cancelling"
+          @click="cancel"
+        />
+      </header>
+      <Message v-if="entry.error" severity="error" :closable="false" class="run-error">{{
+        entry.error.message
+      }}</Message>
+      <section v-if="playwrightVideoPath" class="video-output" aria-label="Playwright video output">
+        <i class="mdi mdi-video-outline" aria-hidden="true" />
+        <div class="video-path">
+          <strong>Playwright video output</strong>
+          <code>{{ playwrightVideoPath }}</code>
+          <small v-if="copyVideoFeedback" aria-live="polite">{{ copyVideoFeedback }}</small>
+        </div>
+        <Button
+          :label="videoCopied ? 'Copied' : 'Copy path'"
+          :icon="videoCopied ? 'pi pi-check' : 'pi pi-copy'"
+          text
+          size="small"
+          @click="copyVideoPath"
+        />
+      </section>
+      <div class="run-summary" aria-label="Run summary">
+        <span
+          ><i class="mdi mdi-check-circle-outline" />{{ entry.completedSteps }}/{{
+            entry.totalSteps
+          }}
+          steps</span
         >
-          <i class="mdi mdi-video-outline" aria-hidden="true" />
-          <div class="video-path">
-            <strong>Playwright video output</strong>
-            <code>{{ playwrightVideoPath }}</code>
-            <small v-if="copyVideoFeedback" aria-live="polite">{{ copyVideoFeedback }}</small>
+        <span
+          ><i class="mdi mdi-package-variant-closed" />{{
+            entry.artifacts?.length || 0
+          }}
+          artifacts</span
+        >
+        <span
+          ><i class="mdi mdi-cloud-upload-outline" />{{
+            entry.deliveries?.length || 0
+          }}
+          deliveries</span
+        >
+        <span v-if="entry.version"><i class="mdi mdi-tag-outline" />{{ entry.version }}</span>
+        <span v-if="entry.status === 'running'" class="live-indicator"><i />Live updates</span>
+      </div>
+
+      <nav class="detail-tabs" aria-label="Run detail sections">
+        <button
+          :class="{ active: activePanel === 'logs' }"
+          :aria-current="activePanel === 'logs' ? 'page' : undefined"
+          @click="activePanel = 'logs'"
+        >
+          <i class="mdi mdi-console-line" />Logs
+        </button>
+        <button
+          :class="{ active: activePanel === 'artifacts' }"
+          :aria-current="activePanel === 'artifacts' ? 'page' : undefined"
+          @click="activePanel = 'artifacts'"
+        >
+          <i class="mdi mdi-package-variant-closed" />Artifacts
+          <span>{{ entry.artifacts?.length || 0 }}</span>
+        </button>
+        <button
+          :class="{ active: activePanel === 'deliveries' }"
+          :aria-current="activePanel === 'deliveries' ? 'page' : undefined"
+          @click="activePanel = 'deliveries'"
+        >
+          <i class="mdi mdi-cloud-upload-outline" />Deliveries
+          <span>{{ entry.deliveries?.length || 0 }}</span>
+        </button>
+      </nav>
+
+      <section v-if="activePanel === 'logs'" class="execution-layout" aria-label="Execution logs">
+        <aside class="step-sidebar" aria-label="Execution steps">
+          <div class="sidebar-heading">
+            Execution <span>{{ entry.steps.length }}</span>
           </div>
-          <Button
-            :label="videoCopied ? 'Copied' : 'Copy path'"
-            :icon="videoCopied ? 'pi pi-check' : 'pi pi-copy'"
-            text
-            size="small"
-            @click="copyVideoPath"
-          />
-        </section>
-        <div class="run-summary" aria-label="Run summary">
-          <span
-            ><i class="mdi mdi-check-circle-outline" />{{ entry.completedSteps }}/{{
-              entry.totalSteps
-            }}
-            steps</span
-          >
-          <span
-            ><i class="mdi mdi-package-variant-closed" />{{
-              entry.artifacts?.length || 0
-            }}
-            artifacts</span
-          >
-          <span
-            ><i class="mdi mdi-cloud-upload-outline" />{{
-              entry.deliveries?.length || 0
-            }}
-            deliveries</span
-          >
-          <span v-if="entry.version"><i class="mdi mdi-tag-outline" />{{ entry.version }}</span>
-          <span v-if="entry.status === 'running'" class="live-indicator"><i />Live updates</span>
-        </div>
-
-        <nav class="detail-tabs" aria-label="Run detail sections">
           <button
-            :class="{ active: activePanel === 'logs' }"
-            :aria-current="activePanel === 'logs' ? 'page' : undefined"
-            @click="activePanel = 'logs'"
+            class="step-item all-logs"
+            :class="{ selected: selectedStep === null }"
+            :aria-pressed="selectedStep === null"
+            @click="selectStep(null)"
           >
-            <i class="mdi mdi-console-line" />Logs
+            <i class="mdi mdi-text-box-multiple-outline" aria-hidden="true" /><span>All logs</span
+            ><small>{{ allLogs.length }}</small>
           </button>
+          <div v-if="!entry.steps.length" class="step-empty">Waiting for steps…</div>
           <button
-            :class="{ active: activePanel === 'artifacts' }"
-            :aria-current="activePanel === 'artifacts' ? 'page' : undefined"
-            @click="activePanel = 'artifacts'"
+            v-for="(step, index) in entry.steps"
+            :key="step.id"
+            class="step-item"
+            :class="[{ selected: selectedStep === step.id }, `step-${step.status}`]"
+            :aria-pressed="selectedStep === step.id"
+            @click="selectStep(step.id)"
           >
-            <i class="mdi mdi-package-variant-closed" />Artifacts
-            <span>{{ entry.artifacts?.length || 0 }}</span>
+            <span class="step-icon" :class="`status-${step.status}`"
+              ><i :class="statusIcon(step.status)" aria-hidden="true"
+            /></span>
+            <span class="step-label"
+              ><strong>{{ step.name }}</strong
+              ><small>{{ stepDuration(step) }}</small></span
+            >
+            <small class="log-count">{{ step.logs.length }}</small>
+            <span class="sr-only">Step {{ index + 1 }}, {{ statusLabel(step.status) }}</span>
           </button>
-          <button
-            :class="{ active: activePanel === 'deliveries' }"
-            :aria-current="activePanel === 'deliveries' ? 'page' : undefined"
-            @click="activePanel = 'deliveries'"
-          >
-            <i class="mdi mdi-cloud-upload-outline" />Deliveries
-            <span>{{ entry.deliveries?.length || 0 }}</span>
-          </button>
-        </nav>
-
-        <section v-if="activePanel === 'logs'" class="execution-layout" aria-label="Execution logs">
-          <aside class="step-sidebar" aria-label="Execution steps">
-            <div class="sidebar-heading">
-              Execution <span>{{ entry.steps.length }}</span>
+        </aside>
+        <div class="log-panel">
+          <header class="log-heading">
+            <div>
+              <span class="log-eyebrow">Logs</span>
+              <h3>{{ selectedStepEntry?.name || "All logs" }}</h3>
             </div>
-            <button
-              class="step-item all-logs"
-              :class="{ selected: selectedStep === null }"
-              :aria-pressed="selectedStep === null"
-              @click="selectStep(null)"
-            >
-              <i class="mdi mdi-text-box-multiple-outline" aria-hidden="true" /><span>All logs</span
-              ><small>{{ allLogs.length }}</small>
-            </button>
-            <div v-if="!entry.steps.length" class="step-empty">Waiting for steps…</div>
-            <button
-              v-for="(step, index) in entry.steps"
-              :key="step.id"
-              class="step-item"
-              :class="[{ selected: selectedStep === step.id }, `step-${step.status}`]"
-              :aria-pressed="selectedStep === step.id"
-              @click="selectStep(step.id)"
-            >
-              <span class="step-icon" :class="`status-${step.status}`"
-                ><i :class="statusIcon(step.status)" aria-hidden="true"
-              /></span>
-              <span class="step-label"
-                ><strong>{{ step.name }}</strong
-                ><small>{{ stepDuration(step) }}</small></span
-              >
-              <small class="log-count">{{ step.logs.length }}</small>
-              <span class="sr-only">Step {{ index + 1 }}, {{ statusLabel(step.status) }}</span>
-            </button>
-          </aside>
-          <div class="log-panel">
-            <header class="log-heading">
-              <div>
-                <span class="log-eyebrow">Logs</span>
-                <h3>{{ selectedStepEntry?.name || "All logs" }}</h3>
-              </div>
-              <span v-if="entry.status === 'running'" class="streaming"><i />Streaming</span>
-            </header>
-            <div v-if="selectedStepEntry?.error" class="step-error">
-              <i class="mdi mdi-alert-circle-outline" />{{ selectedStepEntry.error.message }}
+            <span v-if="entry.status === 'running'" class="streaming"><i />Streaming</span>
+          </header>
+          <div v-if="selectedStepEntry?.error" class="step-error">
+            <i class="mdi mdi-alert-circle-outline" />{{ selectedStepEntry.error.message }}
+          </div>
+          <div
+            ref="logViewport"
+            class="terminal"
+            role="log"
+            aria-live="polite"
+            aria-relevant="additions text"
+            :aria-label="`${selectedStepEntry?.name || 'All'} execution logs`"
+          >
+            <div v-if="!visibleLogs.length" class="terminal-empty">
+              {{
+                entry.status === "running"
+                  ? "Waiting for log output…"
+                  : "No logs recorded for this selection."
+              }}
             </div>
             <div
-              ref="logViewport"
-              class="terminal"
-              role="log"
-              aria-live="polite"
-              aria-relevant="additions text"
-              :aria-label="`${selectedStepEntry?.name || 'All'} execution logs`"
+              v-for="(log, index) in visibleLogs"
+              :key="log.id || `${log.timestamp}-${index}`"
+              class="log-line"
+              :class="`log-${log.level}`"
             >
-              <div v-if="!visibleLogs.length" class="terminal-empty">
-                {{
-                  entry.status === "running"
-                    ? "Waiting for log output…"
-                    : "No logs recorded for this selection."
-                }}
-              </div>
-              <div
-                v-for="(log, index) in visibleLogs"
-                :key="log.id || `${log.timestamp}-${index}`"
-                class="log-line"
-                :class="`log-${log.level}`"
-              >
-                <time :datetime="new Date(log.timestamp).toISOString()">{{
-                  formatLogTime(log.timestamp)
-                }}</time>
-                <span class="log-level">{{ log.level.toUpperCase() }}</span>
-                <span v-if="log.source" class="log-source">{{ log.source }}</span>
-                <pre>{{ log.message }}</pre>
-              </div>
-              <span v-if="entry.status === 'running'" class="cursor" aria-hidden="true" />
+              <time :datetime="new Date(log.timestamp).toISOString()">{{
+                formatLogTime(log.timestamp)
+              }}</time>
+              <span class="log-level">{{ log.level.toUpperCase() }}</span>
+              <span v-if="log.source" class="log-source">{{ log.source }}</span>
+              <pre>{{ log.message }}</pre>
             </div>
+            <span v-if="entry.status === 'running'" class="cursor" aria-hidden="true" />
           </div>
-        </section>
-
-        <section
-          v-else-if="activePanel === 'artifacts'"
-          class="output-panel"
-          aria-label="Run artifacts"
-        >
-          <div v-if="!entry.artifacts?.length" class="output-empty">
-            <i class="mdi mdi-package-variant-closed" /><strong>No artifacts produced</strong
-            ><span>Artifacts created by this run will appear here.</span>
-          </div>
-          <div v-else class="artifact-list">
-            <article v-for="artifact in entry.artifacts" :key="artifact.id" class="artifact-row">
-              <i class="mdi mdi-package-variant" aria-hidden="true" />
-              <div class="artifact-name">
-                <strong>{{ artifactTitle(artifact) }}</strong
-                ><small>{{ artifactDescription(artifact) }}</small>
-              </div>
-              <span>{{ artifactKind(artifact) }}</span>
-              <span>{{ formatSize(artifact.size) }}</span>
-              <span class="artifact-locations">
-                <Tag
-                  v-if="'path' in artifact && artifact.path"
-                  value="Local"
-                  severity="secondary"
-                />
-                <Tag v-if="artifactCloud(artifact)" value="Cloud" severity="info" />
-              </span>
-              <div class="artifact-actions">
-                <Button
-                  v-if="'path' in artifact && artifact.path"
-                  label="Open"
-                  icon="mdi mdi-folder-open-outline"
-                  text
-                  size="small"
-                  :aria-label="`Open ${artifactTitle(artifact)}`"
-                  @click="openArtifact(artifact.path)"
-                />
-                <Button
-                  v-if="artifactCloud(artifact)"
-                  label="Download"
-                  icon="mdi mdi-download"
-                  text
-                  size="small"
-                  :aria-label="`Download ${artifactTitle(artifact)}`"
-                  @click="downloadArtifact(artifactCloud(artifact)!.hostedArtifactId)"
-                />
-              </div>
-            </article>
-          </div>
-        </section>
-
-        <section v-else class="output-panel" aria-label="Run deliveries">
-          <div v-if="!entry.deliveries?.length" class="output-empty">
-            <i class="mdi mdi-cloud-upload-outline" /><strong>No deliveries recorded</strong
-            ><span>Publishing results for this run will appear here.</span>
-          </div>
-          <div v-else class="delivery-list">
-            <article v-for="group in deliveryGroups" :key="group.id" class="delivery-group">
-              <header>
-                <div class="destination-icon"><i :class="destinationIcon(group.serviceId)" /></div>
-                <div>
-                  <strong>{{ group.name }}</strong
-                  ><small
-                    >{{ group.items.length }}
-                    {{ group.items.length === 1 ? "delivery" : "deliveries" }}</small
-                  >
-                </div>
-              </header>
-              <div v-for="delivery in group.items" :key="delivery.id" class="delivery-row">
-                <span class="delivery-status" :class="`status-${delivery.status}`"
-                  ><i
-                    :class="
-                      delivery.status === 'completed'
-                        ? 'mdi mdi-check-circle'
-                        : 'mdi mdi-close-circle'
-                    "
-                  />{{ delivery.status === "completed" ? "Succeeded" : "Failed" }}</span
-                >
-                <span>{{ delivery.slotId }}</span
-                ><span>{{ formatDurationMs(delivery.duration) }}</span>
-                <span v-if="delivery.error" class="delivery-error">{{ delivery.error }}</span>
-              </div>
-            </article>
-          </div>
-        </section>
-      </main>
-      <main v-else class="load-state">
-        <Message v-if="error" severity="error" :closable="false" role="alert"
-          >{{ error }} <Button label="Back to runs" text @click="backToRuns"
-        /></Message>
-        <div v-else class="loading-state" aria-busy="true">
-          <template v-if="agent.isReady.value"><i class="mdi mdi-loading" />Loading run…</template>
-          <span v-else role="status"
-            >Run details are unavailable while the engine is disconnected.</span
-          >
         </div>
-      </main>
-    </WorkflowShell>
-  </Layout>
+      </section>
+
+      <section
+        v-else-if="activePanel === 'artifacts'"
+        class="output-panel"
+        aria-label="Run artifacts"
+      >
+        <div v-if="!entry.artifacts?.length" class="output-empty">
+          <i class="mdi mdi-package-variant-closed" /><strong>No artifacts produced</strong
+          ><span>Artifacts created by this run will appear here.</span>
+        </div>
+        <div v-else class="artifact-list">
+          <article v-for="artifact in entry.artifacts" :key="artifact.id" class="artifact-row">
+            <i class="mdi mdi-package-variant" aria-hidden="true" />
+            <div class="artifact-name">
+              <strong>{{ artifactTitle(artifact) }}</strong
+              ><small>{{ artifactDescription(artifact) }}</small>
+            </div>
+            <span>{{ artifactKind(artifact) }}</span>
+            <span>{{ formatSize(artifact.size) }}</span>
+            <span class="artifact-locations">
+              <Tag v-if="'path' in artifact && artifact.path" value="Local" severity="secondary" />
+              <Tag v-if="artifactCloud(artifact)" value="Cloud" severity="info" />
+            </span>
+            <div class="artifact-actions">
+              <Button
+                v-if="'path' in artifact && artifact.path"
+                label="Open"
+                icon="mdi mdi-folder-open-outline"
+                text
+                size="small"
+                :aria-label="`Open ${artifactTitle(artifact)}`"
+                @click="openArtifact(artifact.path)"
+              />
+              <Button
+                v-if="artifactCloud(artifact)"
+                label="Download"
+                icon="mdi mdi-download"
+                text
+                size="small"
+                :aria-label="`Download ${artifactTitle(artifact)}`"
+                @click="downloadArtifact(artifactCloud(artifact)!.hostedArtifactId)"
+              />
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section v-else class="output-panel" aria-label="Run deliveries">
+        <div v-if="!entry.deliveries?.length" class="output-empty">
+          <i class="mdi mdi-cloud-upload-outline" /><strong>No deliveries recorded</strong
+          ><span>Publishing results for this run will appear here.</span>
+        </div>
+        <div v-else class="delivery-list">
+          <article v-for="group in deliveryGroups" :key="group.id" class="delivery-group">
+            <header>
+              <div class="destination-icon"><i :class="destinationIcon(group.serviceId)" /></div>
+              <div>
+                <strong>{{ group.name }}</strong
+                ><small
+                  >{{ group.items.length }}
+                  {{ group.items.length === 1 ? "delivery" : "deliveries" }}</small
+                >
+              </div>
+            </header>
+            <div v-for="delivery in group.items" :key="delivery.id" class="delivery-row">
+              <span class="delivery-status" :class="`status-${delivery.status}`"
+                ><i
+                  :class="
+                    delivery.status === 'completed'
+                      ? 'mdi mdi-check-circle'
+                      : 'mdi mdi-close-circle'
+                  "
+                />{{ delivery.status === "completed" ? "Succeeded" : "Failed" }}</span
+              >
+              <span>{{ delivery.slotId }}</span
+              ><span>{{ formatDurationMs(delivery.duration) }}</span>
+              <span v-if="delivery.error" class="delivery-error">{{ delivery.error }}</span>
+            </div>
+          </article>
+        </div>
+      </section>
+    </main>
+    <main v-else class="load-state">
+      <Message v-if="error" severity="error" :closable="false" role="alert"
+        >{{ error }} <Button label="Back to runs" text @click="backToRuns"
+      /></Message>
+      <div v-else class="loading-state" aria-busy="true">
+        <template v-if="agent.isReady.value"><i class="mdi mdi-loading" />Loading run…</template>
+        <span v-else role="status"
+          >Run details are unavailable while the engine is disconnected.</span
+        >
+      </div>
+    </main>
+  </WorkflowShell>
 </template>
 
 <script setup lang="ts">
 import { computed, nextTick, onUnmounted, reactive, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import Layout from "@renderer/components/Layout.vue";
 import WorkflowShell from "@renderer/components/WorkflowShell.vue";
 import Button from "primevue/button";
 import Tag from "primevue/tag";

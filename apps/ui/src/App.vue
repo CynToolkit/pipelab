@@ -1,16 +1,21 @@
 <template>
   <div class="app">
-    <router-view />
+    <Layout>
+      <RouterView v-slot="{ Component }">
+        <component :is="Component" v-if="Component" />
+        <div v-else class="route-loading" role="status">Loading Pipelab…</div>
+      </RouterView>
+    </Layout>
     <Dialog
       v-model:visible="isUpgradeDialogVisible"
       modal
       :style="{ width: '50vw' }"
       :breakpoints="{ '575px': '90vw' }"
     >
-      <UpgradeDialog @close="closeUpgradeDialog" />
+      <UpgradeDialog v-if="hasOpenedUpgradeDialog" @close="closeUpgradeDialog" />
     </Dialog>
-    <DevBenefitsOverride />
-    <WebFilePicker />
+    <DevBenefitsOverride v-if="isDevMode" />
+    <WebFilePicker v-if="uiStore.isFilePickerVisible" />
     <MigrationModal
       v-if="isMigrationModalVisible"
       v-model:visible="isMigrationModalVisible"
@@ -21,25 +26,33 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, provide, watch } from "vue";
+import { defineAsyncComponent, onMounted, ref, provide, watch } from "vue";
 import { handle } from "./composables/handlers";
 import { useLogger, MigrationChannel, MessageSchema, Locales } from "@pipelab/shared";
 import { useI18n } from "vue-i18n";
-import UpgradeDialog from "./components/UpgradeDialog.vue";
-import DevBenefitsOverride from "./components/DevBenefitsOverride.vue";
-import WebFilePicker from "./components/WebFilePicker.vue";
+import Layout from "./components/Layout.vue";
 import Dialog from "primevue/dialog";
 import Toast from "primevue/toast";
-import MigrationModal from "./components/MigrationModal.vue";
 import { OpenMigrationModalKey, OpenUpgradeDialogKey } from "./utils/injection-keys";
 import { useAgentAvailability } from "./composables/useAgentAvailability";
 import { useAppSettings } from "./store/settings";
+import { useUIStore } from "./store/ui";
+
+const UpgradeDialog = defineAsyncComponent(() => import("./components/UpgradeDialog.vue"));
+const DevBenefitsOverride = defineAsyncComponent(
+  () => import("./components/DevBenefitsOverride.vue"),
+);
+const WebFilePicker = defineAsyncComponent(() => import("./components/WebFilePicker.vue"));
+const MigrationModal = defineAsyncComponent(() => import("./components/MigrationModal.vue"));
 
 const { logger } = useLogger();
 const { start, isReady } = useAgentAvailability();
 const { locale, availableLocales } = useI18n<{ message: MessageSchema }, Locales>();
 const settingsStore = useAppSettings();
+const uiStore = useUIStore();
 const isUpgradeDialogVisible = ref(false);
+const hasOpenedUpgradeDialog = ref(false);
+const isDevMode = process.env.NODE_ENV === "development";
 
 const isMigrationModalVisible = ref(false);
 const migrationSourceChannel = ref<MigrationChannel | undefined>(undefined);
@@ -50,6 +63,7 @@ const openMigrationModal = (sourceChannel?: MigrationChannel) => {
 provide(OpenMigrationModalKey, openMigrationModal);
 
 const openUpgradeDialog = () => {
+  hasOpenedUpgradeDialog.value = true;
   isUpgradeDialogVisible.value = true;
 };
 
