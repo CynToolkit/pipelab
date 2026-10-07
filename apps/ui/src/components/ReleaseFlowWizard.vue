@@ -246,15 +246,10 @@ const sourceDefinition = computed(() =>
 const canContinueDetails = computed(
   () =>
     Boolean(draft.value.name.trim()) &&
-    releaseWizardSourceIsReady(toRaw(draft.value.source), catalog.value),
+    releaseWizardSourceIsReady(draft.value.source, catalog.value),
 );
 const canContinueDestinations = computed(() => releaseWizardCanReview(draft.value, catalog.value));
-const recap = computed(() =>
-  releaseWizardRecap(
-    buildReleaseWizardConfig(toRaw(draft.value), props.projectId, workflowId.value),
-    catalog.value,
-  ),
-);
+const recap = computed(() => releaseWizardRecap(draft.value, catalog.value));
 const providerIcon = (icon?: IconType) =>
   icon?.type === "icon"
     ? icon.icon.includes("mdi")

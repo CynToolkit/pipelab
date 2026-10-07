@@ -70,22 +70,22 @@ export const buildReleaseWizardConfig = (
   destinations: structuredClone(draft.destinations),
 });
 
-export const releaseWizardRecap = (config: ReleaseConfig, catalog: ReleaseCatalog) => {
-  const source = catalog.sources.find((candidate) => candidate.id === config.source.provider);
+export const releaseWizardRecap = (draft: ReleaseWizardDraft, catalog: ReleaseCatalog) => {
+  const source = catalog.sources.find((candidate) => candidate.id === draft.source.provider);
   const sourceDetails = (source?.fields || [])
     .filter((field) => !field.deferUntilEditor)
     .flatMap((field) => {
-      const value = config.source.config[field.key];
+      const value = draft.source.config[field.key];
       return value === undefined || value === "" || value === null
         ? []
         : [{ label: field.label, value: String(value) }];
     });
 
   return {
-    name: config.name,
-    sourceLabel: source?.label || config.source.provider,
+    name: draft.name.trim(),
+    sourceLabel: source?.label || draft.source.provider,
     sourceDetails,
-    destinationLabels: config.destinations.map(
+    destinationLabels: draft.destinations.map(
       (destination) =>
         catalog.destinations.find((candidate) => candidate.id === destination.provider)?.label ||
         destination.provider,

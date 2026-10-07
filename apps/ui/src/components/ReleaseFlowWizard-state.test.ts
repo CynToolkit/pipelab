@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { computed, reactive } from "vue";
 import { resolveReleaseDefaults } from "@pipelab/shared";
 import type { ReleaseCatalog, ReleaseRegistry } from "@pipelab/shared";
 import {
@@ -119,6 +120,15 @@ describe("ReleaseFlowWizard state", () => {
     ).toBe(true);
   });
 
+  it("reactively enables Continue when a selected Construct file path changes", () => {
+    const source = reactive({ provider: "source/construct", config: { path: "" } });
+    const ready = computed(() => releaseWizardSourceIsReady(source, catalog));
+
+    expect(ready.value).toBe(false);
+    source.config.path = "/game.c3p";
+    expect(ready.value).toBe(true);
+  });
+
   it("requires a name, an explicit valid source, and at least one destination before review", () => {
     const draft = createReleaseWizardDraft();
     expect(releaseWizardCanReview(draft, catalog)).toBe(false);
@@ -149,14 +159,13 @@ describe("ReleaseFlowWizard state", () => {
     draft.name = "  Game release  ";
     draft.source = { provider: "source/construct", config: { path: "/game.c3p", profilePath: "" } };
     draft.destinations = [releaseWizardDestination("destination/upload", catalog)!];
-    const config = buildReleaseWizardConfig(draft, "project-1", "release-1");
-
-    expect(releaseWizardRecap(config, catalog)).toEqual({
+    expect(releaseWizardRecap(draft, catalog)).toEqual({
       name: "Game release",
       sourceLabel: "Construct project",
       sourceDetails: [{ label: "Project file", value: "/game.c3p" }],
       destinationLabels: ["Upload"],
     });
+    const config = buildReleaseWizardConfig(draft, "project-1", "release-1");
     expect(config.builds).toEqual([]);
     expect(config.destinations[0].slots[0].input).toBeUndefined();
     expect(config.destinations).not.toBe(draft.destinations);
@@ -164,6 +173,25 @@ describe("ReleaseFlowWizard state", () => {
     expect(draft.destinations[0].config.project).toBe("");
     config.source.config.path = "/changed.c3p";
     expect(draft.source.config.path).toBe("/game.c3p");
+  });
+
+  it("reactively updates recap after name, source path, and destination edits", () => {
+    const draft = reactive(createReleaseWizardDraft());
+    draft.source = { provider: "source/construct", config: { path: "", profilePath: "" } };
+    const recap = computed(() => releaseWizardRecap(draft, catalog));
+
+    expect(recap.value.sourceDetails).toEqual([]);
+    expect(recap.value.destinationLabels).toEqual([]);
+    draft.name = "Game release";
+    draft.source.config.path = "/game.c3p";
+    draft.destinations.push(releaseWizardDestination("destination/upload", catalog)!);
+
+    expect(recap.value).toEqual({
+      name: "Game release",
+      sourceLabel: "Construct project",
+      sourceDetails: [{ label: "Project file", value: "/game.c3p" }],
+      destinationLabels: ["Upload"],
+    });
   });
 
   it("lets the existing defaults policy route a compatible source without adding a build", () => {
