@@ -140,6 +140,7 @@ websocketManager.initialize().catch((error) => {
     error,
   );
 });
+
 app.mount("#app");
 logger().info("App mounted");
 

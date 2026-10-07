@@ -3,9 +3,12 @@ import type { Subscription } from "@polar-sh/sdk/models/components/subscription"
 import { AuthChangeEvent, Session, User, UserResponse } from "@supabase/supabase-js";
 import { useAPI } from "@renderer/composables/api";
 import { defineStore } from "pinia";
-import { computed, readonly, Ref, ref, shallowRef } from "vue";
+import { computed, readonly, Ref, ref, shallowRef, watch } from "vue";
 import posthog from "posthog-js";
 import { createEventHook } from "@vueuse/core";
+import { useAgentAvailability } from "@renderer/composables/useAgentAvailability";
+
+export type SubscriptionStatus = "idle" | "loading" | "ready" | "error";
 
 // Define a more comprehensive AuthStateType
 export type AuthStateType =
@@ -24,6 +27,26 @@ export const useAuth = defineStore("auth", () => {
   const errorMessage = ref<string | null>(); // For storing error messages to display to the user
   const subscriptions = ref<Subscription[]>([]); // Store user subscriptions
   const subscriptionError = ref<string>(); // Store subscription loading errors
+  const subscriptionStatus = ref<SubscriptionStatus>("idle");
+  const isLoadingSubscriptions = computed(() => subscriptionStatus.value === "loading");
+  let subscriptionRequestId = 0;
+  let inFlightSubscription:
+    | { requestId: number; userId: string; promise: Promise<void> }
+    | undefined;
+  let initPromise: Promise<void> | undefined;
+  let authRequestId = 0;
+  const { isReady } = useAgentAvailability();
+
+  const setUser = (nextUser?: User) => {
+    const previousId = user.value?.id;
+    user.value = nextUser;
+    if (previousId !== nextUser?.id) {
+      subscriptionRequestId++;
+      subscriptions.value = [];
+      subscriptionError.value = undefined;
+      subscriptionStatus.value = "idle";
+    }
+  };
 
   const isAuthModalVisible = ref(false);
   const authModalTitle = ref<string>();
@@ -34,17 +57,23 @@ export const useAuth = defineStore("auth", () => {
 
   const api = useAPI();
   api.on("auth:getUser", (data) => {
+    if (!isReady.value) return;
+    authRequestId++;
+    initPromise = undefined;
     logger.logger().info("[Auth] Received auth state change from backend:", data);
     if (data.type === "end" && data.data.type === "success" && data.data.result.user) {
-      user.value = data.data.result.user;
+      setUser(data.data.result.user);
       posthog.identify(data.data.result.user.id, {
         email: data.data.result.user.email,
         is_anonymous: data.data.result.user.is_anonymous || false,
       });
       authState.value = "SIGNED_IN";
-      fetchSubscription();
+      if (isReady.value) void fetchSubscription();
     } else {
-      user.value = undefined;
+      setUser(undefined);
+      subscriptions.value = [];
+      subscriptionError.value = undefined;
+      subscriptionStatus.value = "ready";
       posthog.reset();
       authState.value = "SIGNED_OUT";
     }
@@ -72,101 +101,149 @@ export const useAuth = defineStore("auth", () => {
   };
 
   const fetchSubscription = async () => {
-    console.log("[Auth] fetchSubscription: Starting, setting isLoadingSubscriptions to true");
-    isLoadingSubscriptions.value = true;
-    subscriptionError.value = undefined;
-    if (user.value) {
-      if (user.value.email) {
-        try {
-          const result: any = await api.execute("auth:invoke", {
-            name: "polar-user-plan",
-          });
-          if (result.type === "error") {
-            throw new Error(result.ipcError || "Network error");
-          }
-          const { data, error } = result.result;
-          if (error) {
-            throw new Error(error.message || "Network error");
-          }
-          if (!data) {
-            throw new Error("Invalid response: no data");
-          }
-          if (!Array.isArray(data.subscriptions)) {
-            throw new Error("Invalid response: subscriptions is not an array");
-          }
-          console.log("Subscription result", result);
-          subscriptions.value = data.subscriptions;
-        } catch (error) {
-          console.error("Failed to fetch subscription:", error);
-          subscriptionError.value = error instanceof Error ? error.message : "Unknown error";
-          subscriptions.value = [];
-        }
-      } else {
-        console.warn("User email is not available, skipping subscription fetch.");
-        subscriptionError.value = "User email not available";
-        subscriptions.value = [];
-      }
-    } else {
-      console.warn("User is anonymous, skipping subscription fetch.");
-      subscriptionError.value = "User is anonymous";
+    const currentUser = user.value;
+    if (!currentUser || currentUser.is_anonymous) {
       subscriptions.value = [];
+      subscriptionError.value = undefined;
+      subscriptionStatus.value = currentUser ? "ready" : "idle";
+      onSubscriptionChanged.trigger({ subscriptions: subscriptions.value });
+      return;
     }
-    console.log("[Auth] fetchSubscription: Completed, setting isLoadingSubscriptions to false");
-    isLoadingSubscriptions.value = false;
-    onSubscriptionChanged.trigger({ subscriptions: subscriptions.value });
+    if (!isReady.value) return;
+    if (!currentUser.email) {
+      subscriptionError.value = "User email not available";
+      subscriptionStatus.value = "error";
+      return;
+    }
+    if (inFlightSubscription?.userId === currentUser.id) return inFlightSubscription.promise;
+    if (subscriptionStatus.value === "ready") return;
+
+    const requestId = ++subscriptionRequestId;
+    const userId = currentUser.id;
+    subscriptionStatus.value = "loading";
+    subscriptionError.value = undefined;
+
+    const promise = (async () => {
+      try {
+        const result = await api.execute("auth:invoke", { name: "polar-user-plan" });
+        if (result.type === "error") throw new Error(result.ipcError || "Network error");
+        const { data, error } = result.result;
+        if (error) throw new Error(error.message || "Network error");
+        if (!data || !Array.isArray(data.subscriptions)) {
+          throw new Error("Invalid response: subscriptions is not an array");
+        }
+        if (requestId !== subscriptionRequestId || user.value?.id !== userId) return;
+        subscriptions.value = data.subscriptions;
+        subscriptionStatus.value = "ready";
+      } catch (error) {
+        if (requestId !== subscriptionRequestId || user.value?.id !== userId) return;
+        subscriptionError.value = error instanceof Error ? error.message : "Unknown error";
+        subscriptionStatus.value = "error";
+      } finally {
+        if (inFlightSubscription?.requestId === requestId) inFlightSubscription = undefined;
+        if (requestId === subscriptionRequestId && user.value?.id === userId) {
+          onSubscriptionChanged.trigger({ subscriptions: subscriptions.value });
+        }
+      }
+    })();
+    inFlightSubscription = { requestId, userId, promise };
+    return promise;
   };
 
   // The backend now handles the auth state.
   // We will pull the user state during init and after each action.
 
-  // Explicitly initialize the auth state when the store is created
+  // Initialize auth only after the local agent is ready.
   const init = async () => {
     if (!isSupabaseAvailable()) {
+      setUser(undefined);
+      subscriptions.value = [];
+      subscriptionError.value = undefined;
+      subscriptionStatus.value = "ready";
+      authState.value = "SIGNED_OUT";
       return;
     }
 
+    if (!isReady.value) return;
+    if (initPromise) return initPromise;
     if (authState.value !== "INITIALIZING") {
       logger.logger().warn("[Auth] Init called when not in INITIALIZING state. Ignoring.");
       return; // Prevent duplicate init calls
     }
     logger.logger().info("[Auth] Initializing authentication...");
     setAuthState("LOADING"); // Set loading state during init
-    try {
-      const result = await api.execute("auth:getUser");
-      if (result.type === "success" && result.result.user) {
-        const currentUser = result.result.user;
-        logger
-          .logger()
-          .info(
-            "[Auth] Found existing user during init:",
-            currentUser.id,
-            "anonymous:",
-            currentUser.is_anonymous,
-            "email:",
-            currentUser.email,
-          );
-        posthog.identify(currentUser.id, {
-          email: currentUser.email,
-          is_anonymous: currentUser.is_anonymous || false,
-        });
-        user.value = currentUser;
-        authState.value = "SIGNED_IN";
-        await fetchSubscription();
-      } else {
-        logger.logger().info("[Auth] No user found during init");
-        posthog.identify();
-        authState.value = "SIGNED_OUT";
+    const requestId = ++authRequestId;
+    initPromise = (async () => {
+      try {
+        const result = await api.execute("auth:getUser");
+        if (requestId !== authRequestId) return;
+        if (result.type === "error") throw new Error(result.ipcError);
+        if (result.type === "success" && result.result.user) {
+          const currentUser = result.result.user;
+          logger
+            .logger()
+            .info(
+              "[Auth] Found existing user during init:",
+              currentUser.id,
+              "anonymous:",
+              currentUser.is_anonymous,
+              "email:",
+              currentUser.email,
+            );
+          posthog.identify(currentUser.id, {
+            email: currentUser.email,
+            is_anonymous: currentUser.is_anonymous || false,
+          });
+          setUser(currentUser);
+          authState.value = "SIGNED_IN";
+          if (isReady.value) void fetchSubscription();
+        } else {
+          logger.logger().info("[Auth] No user found during init");
+          posthog.identify();
+          setUser(undefined);
+          subscriptions.value = [];
+          subscriptionError.value = undefined;
+          subscriptionStatus.value = "ready";
+          authState.value = "SIGNED_OUT";
+        }
+      } catch (e) {
+        if (requestId !== authRequestId) return;
+        logger.logger().error("[Auth] Unexpected error during init:", e);
+        authState.value = "ERROR"; // Set error state if init fails unexpectedly
+        errorMessage.value = "Failed to initialize authentication.";
+      } finally {
+        if (requestId === authRequestId) initPromise = undefined;
       }
-    } catch (e) {
-      logger.logger().error("[Auth] Unexpected error during init:", e);
-      authState.value = "ERROR"; // Set error state if init fails unexpectedly
-      errorMessage.value = "Failed to initialize authentication.";
-    } finally {
-      // Init is done
-    }
+    })();
+    return initPromise;
   };
 
+  watch(
+    isReady,
+    (ready) => {
+      if (!ready) {
+        authRequestId++;
+        subscriptionRequestId++;
+        initPromise = undefined;
+        inFlightSubscription = undefined;
+        subscriptions.value = [];
+        subscriptionError.value = undefined;
+        subscriptionStatus.value = "idle";
+        isAuthenticating.value = false;
+        authState.value = "INITIALIZING";
+        return;
+      }
+      if (authState.value === "INITIALIZING") {
+        void init();
+      } else if (user.value && subscriptionStatus.value !== "ready") {
+        void fetchSubscription();
+      }
+    },
+    { immediate: true },
+  );
+
   const login = async (email: string, pwd: string): Promise<UserResponse> => {
+    const requestId = ++authRequestId;
     isAuthenticating.value = true;
     setAuthState("LOADING");
     clearError();
@@ -175,6 +252,11 @@ export const useAuth = defineStore("auth", () => {
         email,
         password: pwd,
       });
+      if (requestId !== authRequestId) {
+        return result.type === "success"
+          ? result.result
+          : ({ data: { user: null, session: null }, error: { message: result.ipcError } } as any);
+      }
 
       if (result.type === "error") {
         logger.logger().error("[Auth] Login error:", result.ipcError);
@@ -191,9 +273,9 @@ export const useAuth = defineStore("auth", () => {
         return result.result;
       } else {
         logger.logger().info("[Auth] Logged in user:", data.user.id);
-        user.value = data.user;
+        setUser(data.user ?? undefined);
         setAuthState("SIGNED_IN");
-        await fetchSubscription();
+        void fetchSubscription();
         return result.result;
       }
     } finally {
@@ -236,17 +318,23 @@ export const useAuth = defineStore("auth", () => {
   };
 
   const logout = async (): Promise<void> => {
+    const requestId = ++authRequestId;
     isAuthenticating.value = true; // Indicate loading during logout if needed
     setAuthState("LOADING"); // Optionally set authState to loading during logout
     clearError();
     try {
       await api.execute("auth:signOut");
+      if (requestId !== authRequestId) return;
       logger.logger().info("[Auth] Signed out.");
       user.value = undefined;
       posthog.reset();
       setAuthState("SIGNED_OUT");
       subscriptions.value = [];
+      subscriptionError.value = undefined;
+      subscriptionStatus.value = "ready";
+      subscriptionRequestId++;
     } catch (error) {
+      if (requestId !== authRequestId) return;
       logger.logger().error("[Auth] Logout error:", error);
       setAuthState("ERROR");
       errorMessage.value = "Failed to logout.";
@@ -283,9 +371,6 @@ export const useAuth = defineStore("auth", () => {
       isAuthenticating.value = false;
     }
   };
-
-  // Call init immediately when the store is created to check initial auth state
-  init();
 
   const isLoggedIn = computed(() => authState.value === "SIGNED_IN");
 
@@ -354,8 +439,6 @@ export const useAuth = defineStore("auth", () => {
   const hasCloudSaveBenefit = computed(() => hasBenefit("cloud-save"));
   const hasMultipleProjectsBenefit = computed(() => hasBenefit("multiple-projects"));
 
-  const isLoadingSubscriptions = ref(false);
-
   return {
     user,
     authState,
@@ -366,6 +449,7 @@ export const useAuth = defineStore("auth", () => {
     subscriptions: readonly(subscriptions),
     subscriptionError: readonly(subscriptionError),
     isLoadingSubscriptions,
+    subscriptionStatus: readonly(subscriptionStatus),
     hasBenefit,
     getActualBenefit,
     devOverrides: readonly(devOverrides),

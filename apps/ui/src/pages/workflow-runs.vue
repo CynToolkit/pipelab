@@ -1,117 +1,119 @@
 <template>
-  <Layout>
-    <WorkflowShell :flow-id="flowId" :project-id="projectId" :title="workflowName" active="runs">
-      <main class="runs-page">
-        <div class="list-heading">
-          <div>
-            <h2>Runs</h2>
-            <p>Recent executions for this workflow.</p>
-          </div>
-          <span v-if="!loading && !historyError && !workflowError" class="run-count"
-            >{{ entries.length }} {{ entries.length === 1 ? "run" : "runs" }}</span
+  <WorkflowShell :flow-id="flowId" :project-id="projectId" :title="workflowName" active="runs">
+    <main class="runs-page">
+      <div class="list-heading">
+        <div>
+          <h2>Runs</h2>
+          <p>Recent executions for this workflow.</p>
+        </div>
+        <span v-if="!loading && !historyError && !workflowError" class="run-count"
+          >{{ entries.length }} {{ entries.length === 1 ? "run" : "runs" }}</span
+        >
+      </div>
+      <Message v-if="workflowError" severity="error" :closable="false" role="alert">
+        <div class="state-copy">
+          <strong>Couldn’t load workflow</strong><span>{{ workflowError }}</span
+          ><Button label="Try again" text size="small" @click="loadRuns" />
+        </div>
+      </Message>
+      <Message v-if="historyError" severity="error" :closable="false" role="alert">
+        <div class="state-copy">
+          <strong>Couldn’t load run history</strong><span>{{ historyError }}</span
+          ><Button label="Try again" text size="small" @click="loadRuns" />
+        </div>
+      </Message>
+      <p v-if="!agent.isReady.value && !entries.length" class="inline-state" role="status">
+        Run history is unavailable while the engine is disconnected.
+      </p>
+      <div
+        v-else-if="loading && !entries.length"
+        class="history-skeleton"
+        aria-busy="true"
+        aria-label="Loading runs"
+      >
+        <div v-for="n in 4" :key="n" class="skeleton-row"><span /><span /><span /></div>
+      </div>
+      <div
+        v-else-if="!loading && !historyError && !workflowError && !entries.length"
+        class="empty-state"
+        role="status"
+      >
+        <i class="mdi mdi-rocket-launch-outline" aria-hidden="true" />
+        <strong>No runs yet</strong
+        ><span>Ship this workflow to see its execution history here.</span>
+        <Button
+          label="Configure workflow"
+          icon="pi pi-arrow-left"
+          text
+          @click="router.push(basePath)"
+        />
+      </div>
+      <div
+        v-else-if="!loading && entries.length"
+        class="run-list"
+        role="list"
+        aria-label="Workflow runs"
+      >
+        <button
+          v-for="entry in entries"
+          :key="entry.id"
+          class="run-row"
+          :class="{ 'is-running': entry.status === 'running' }"
+          role="listitem"
+          @click="openRun(entry)"
+        >
+          <span
+            class="status-mark"
+            :class="`status-${entry.status}`"
+            :aria-label="statusLabel(entry.status)"
           >
-        </div>
-        <Message v-if="workflowError" severity="error" :closable="false" role="alert">
-          <div class="state-copy">
-            <strong>Couldn’t load workflow</strong><span>{{ workflowError }}</span
-            ><Button label="Try again" text size="small" @click="loadRuns" />
-          </div>
-        </Message>
-        <Message v-if="historyError" severity="error" :closable="false" role="alert">
-          <div class="state-copy">
-            <strong>Couldn’t load run history</strong><span>{{ historyError }}</span
-            ><Button label="Try again" text size="small" @click="loadRuns" />
-          </div>
-        </Message>
-        <div
-          v-if="loading && !entries.length"
-          class="history-skeleton"
-          aria-busy="true"
-          aria-label="Loading runs"
-        >
-          <div v-for="n in 4" :key="n" class="skeleton-row"><span /><span /><span /></div>
-        </div>
-        <div
-          v-else-if="!loading && !historyError && !workflowError && !entries.length"
-          class="empty-state"
-          role="status"
-        >
-          <i class="mdi mdi-rocket-launch-outline" aria-hidden="true" />
-          <strong>No runs yet</strong
-          ><span>Ship this workflow to see its execution history here.</span>
-          <Button
-            label="Configure workflow"
-            icon="pi pi-arrow-left"
-            text
-            @click="router.push(basePath)"
-          />
-        </div>
-        <div
-          v-else-if="!loading && !historyError && !workflowError"
-          class="run-list"
-          role="list"
-          aria-label="Workflow runs"
-        >
-          <button
-            v-for="entry in entries"
-            :key="entry.id"
-            class="run-row"
-            :class="{ 'is-running': entry.status === 'running' }"
-            role="listitem"
-            @click="openRun(entry)"
+            <i :class="statusIcon(entry.status)" aria-hidden="true" />
+          </span>
+          <span class="run-main">
+            <strong>{{
+              entry.version
+                ? `Release ${entry.version}`
+                : entry.workflowName || entry.projectName || "Workflow run"
+            }}</strong>
+            <small
+              ><span class="run-id">#{{ shortId(entry.id) }}</span
+              ><span>{{ entry.workflowName || entry.projectName }}</span></small
+            >
+          </span>
+          <span class="run-time"
+            ><strong>{{ formatDate(entry.startTime) }}</strong
+            ><small>{{ formatTime(entry.startTime) }}</small></span
           >
-            <span
-              class="status-mark"
-              :class="`status-${entry.status}`"
-              :aria-label="statusLabel(entry.status)"
-            >
-              <i :class="statusIcon(entry.status)" aria-hidden="true" />
-            </span>
-            <span class="run-main">
-              <strong>{{
-                entry.version
-                  ? `Release ${entry.version}`
-                  : entry.workflowName || entry.projectName || "Workflow run"
-              }}</strong>
-              <small
-                ><span class="run-id">#{{ shortId(entry.id) }}</span
-                ><span>{{ entry.workflowName || entry.projectName }}</span></small
-              >
-            </span>
-            <span class="run-time"
-              ><strong>{{ formatDate(entry.startTime) }}</strong
-              ><small>{{ formatTime(entry.startTime) }}</small></span
-            >
-            <span class="run-duration">{{ formatDuration(entry) }}</span>
-            <span class="run-summary"
-              ><strong>{{ entry.completedSteps }}/{{ entry.totalSteps }} steps</strong
-              ><small
-                >{{ entry.artifacts?.length || 0 }} artifacts ·
-                {{ entry.deliveries?.length || 0 }} deliveries</small
-              ></span
-            >
-            <i class="mdi mdi-chevron-right row-chevron" aria-hidden="true" />
-          </button>
-        </div>
-      </main>
-    </WorkflowShell>
-  </Layout>
+          <span class="run-duration">{{ formatDuration(entry) }}</span>
+          <span class="run-summary"
+            ><strong>{{ entry.completedSteps }}/{{ entry.totalSteps }} steps</strong
+            ><small
+              >{{ entry.artifacts?.length || 0 }} artifacts ·
+              {{ entry.deliveries?.length || 0 }} deliveries</small
+            ></span
+          >
+          <i class="mdi mdi-chevron-right row-chevron" aria-hidden="true" />
+        </button>
+      </div>
+    </main>
+  </WorkflowShell>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from "vue";
+import { computed, onUnmounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import Layout from "@renderer/components/Layout.vue";
 import WorkflowShell from "@renderer/components/WorkflowShell.vue";
 import Button from "primevue/button";
 import Message from "primevue/message";
 import { useAPI } from "@renderer/composables/api";
 import type { BuildHistoryEntry } from "@pipelab/shared";
 import { resolveWorkflowRunsState, scheduleWorkflowRunsRefresh } from "./workflow-runs-state";
+import { useAgentAvailability } from "@renderer/composables/useAgentAvailability";
 
 const route = useRoute();
 const router = useRouter();
 const api = useAPI();
+const agent = useAgentAvailability();
 const flowId = computed(() => String(route.params.flowId));
 const projectId = computed(() => String(route.params.projectId));
 const basePath = computed(() => `/workflows/${flowId.value}/${projectId.value}`);
@@ -124,6 +126,7 @@ let refreshTimer: ReturnType<typeof setTimeout> | undefined;
 let loadGeneration = 0;
 
 const loadRuns = async () => {
+  if (!agent.isReady.value) return;
   if (refreshTimer) clearTimeout(refreshTimer);
   const generation = ++loadGeneration;
   if (!entries.value.length) loading.value = true;
@@ -193,11 +196,23 @@ const statusIcon = (status: BuildHistoryEntry["status"]) =>
     cancelled: "mdi mdi-cancel",
   })[status];
 const statusLabel = (status: BuildHistoryEntry["status"]) => status.replaceAll("-", " ");
-onMounted(loadRuns);
+watch(
+  agent.isReady,
+  (ready) => {
+    if (!ready) {
+      loadGeneration++;
+      if (!entries.value.length) loading.value = true;
+      return;
+    }
+    void loadRuns();
+  },
+  { immediate: true },
+);
 watch([flowId, projectId], () => {
   entries.value = [];
   workflowName.value = "Workflow";
-  void loadRuns();
+  if (agent.isReady.value) void loadRuns();
+  else loading.value = true;
 });
 onUnmounted(() => {
   loadGeneration++;

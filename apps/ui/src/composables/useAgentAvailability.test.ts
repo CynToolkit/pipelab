@@ -1,0 +1,45 @@
+import { describe, expect, it, vi } from "vitest";
+import { ref } from "vue";
+
+describe("useAgentAvailability", () => {
+  it("registers startup readiness before connecting and clears readiness on disconnect", async () => {
+    vi.resetModules();
+    const connectionState = ref("disconnected");
+    const stateListeners: Array<(state: string) => void> = [];
+    const events = new Map<string, (event: { type: string }) => void>();
+    const callOrder: string[] = [];
+    const manager = {
+      connectionState,
+      onStateChange: (listener: (state: string) => void) => stateListeners.push(listener),
+      connect: vi.fn(async () => {
+        callOrder.push("connect");
+        connectionState.value = "connected";
+        stateListeners.forEach((listener) => listener("connected"));
+      }),
+    };
+
+    vi.doMock("./websocket-manager", () => ({ websocketManager: manager }));
+    vi.doMock("./websocket-client", () => ({
+      useWebSocketAPI: () => ({
+        on: (channel: string, listener: (event: { type: string }) => void) => {
+          callOrder.push(`listen:${channel}`);
+          events.set(channel, listener);
+        },
+      }),
+    }));
+
+    const { useAgentAvailability } = await import("./useAgentAvailability");
+    const agent = useAgentAvailability();
+    await agent.start();
+
+    expect(callOrder).toEqual(["listen:startup:progress", "connect"]);
+    expect(agent.status.value).toBe("starting");
+    events.get("startup:progress")?.({ type: "done" });
+    expect(agent.isReady.value).toBe(true);
+
+    connectionState.value = "disconnected";
+    stateListeners.forEach((listener) => listener("disconnected"));
+    expect(agent.status.value).toBe("offline");
+    expect(agent.isReady.value).toBe(false);
+  });
+});

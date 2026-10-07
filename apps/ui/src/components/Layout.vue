@@ -25,7 +25,7 @@
           active-class="active"
           v-tooltip.right="isSidebarCollapsed ? 'Dashboard' : undefined"
         >
-          <i class="mdi mdi-view-dashboard-outline nav-icon" />
+          <i class="mdi mdi-view-dashboard-outline nav-icon" aria-hidden="true" />
           <span v-show="!isSidebarCollapsed" class="nav-label">Dashboard</span>
         </router-link>
 
@@ -35,7 +35,7 @@
           active-class="active"
           v-tooltip.right="isSidebarCollapsed ? 'Connections' : undefined"
         >
-          <i class="mdi mdi-link-variant nav-icon" />
+          <i class="mdi mdi-link-variant nav-icon" aria-hidden="true" />
           <span v-show="!isSidebarCollapsed" class="nav-label">Connections</span>
         </router-link>
 
@@ -56,7 +56,7 @@
       <div class="sidebar-status">
         <!-- Connection status -->
         <div
-          v-if="!isElectron"
+          v-if="!isElectron || !isReady"
           class="sidebar-status-item"
           :class="connectionState"
           v-tooltip.right="isSidebarCollapsed ? connectionText : undefined"
@@ -103,8 +103,34 @@
       <!-- Bottom actions -->
       <div class="sidebar-bottom">
         <!-- Upgrade -->
-        <div v-if="!isLoadingSubscriptions" class="sidebar-upgrade-wrap">
+        <div v-if="isReady && subscriptionStatus === 'ready'" class="sidebar-upgrade-wrap">
           <UpgradeNowButton @open-upgrade-dialog="openUpgradeDialog" />
+        </div>
+        <div v-else-if="isReady && user && subscriptionStatus !== 'ready'">
+          <div
+            class="sidebar-status-item muted"
+            role="status"
+            :title="subscriptionError || undefined"
+          >
+            <i class="mdi mdi-crown nav-icon" />
+            <span v-show="!isSidebarCollapsed">{{
+              subscriptionStatus === "error" ? "Plan unavailable" : "Checking plan…"
+            }}</span>
+          </div>
+          <div v-if="subscriptionStatus === 'error' && !isSidebarCollapsed" class="plan-retry-wrap">
+            <button
+              class="plan-retry"
+              type="button"
+              :disabled="isLoadingSubscriptions"
+              @click="retrySubscription"
+            >
+              Retry plan check
+            </button>
+          </div>
+          <details v-if="subscriptionError && !isSidebarCollapsed" class="plan-error-details">
+            <summary>Show lookup error</summary>
+            <p>{{ subscriptionError }}</p>
+          </details>
         </div>
 
         <!-- Help & Support -->
@@ -154,6 +180,7 @@
             v-tooltip.right="isSidebarCollapsed ? 'Logout' : undefined"
             v-tooltip.top="!isSidebarCollapsed ? 'Logout' : undefined"
             @click="logout"
+            :disabled="!isReady"
           >
             <i class="mdi mdi-logout" />
           </button>
@@ -165,6 +192,7 @@
           class="sidebar-nav-item login-btn"
           v-tooltip.right="isSidebarCollapsed ? 'Login / Register' : undefined"
           @click="auth.displayAuthModal()"
+          :disabled="!isReady || auth.authState === 'INITIALIZING' || auth.authState === 'LOADING'"
         >
           <i class="mdi mdi-login nav-icon" />
           <span v-show="!isSidebarCollapsed" class="nav-label">Login / Register</span>
@@ -174,13 +202,25 @@
 
     <!-- Main content area -->
     <div class="layout-main">
+      <div v-if="!isReady" class="agent-notice" role="status" aria-live="polite">
+        <span>{{ agentNotice }}</span>
+        <Button
+          v-if="agentStatus === 'offline'"
+          label="Reconnect"
+          text
+          size="small"
+          @click="reconnect"
+        />
+      </div>
       <main class="layout-content">
-        <slot></slot>
+        <div class="route-content" :inert="!isReady">
+          <slot></slot>
+        </div>
       </main>
     </div>
 
     <!-- Auth Dialog (Login / Register / Forgot Password) -->
-    <AuthDialog />
+    <AuthDialog v-if="hasOpenedAuthDialog" />
 
     <!-- Settings Dialog -->
     <Dialog
@@ -195,13 +235,13 @@
         </div>
       </template>
 
-      <Settings></Settings>
+      <Settings v-if="isSettingsModalVisible"></Settings>
     </Dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, inject, watch } from "vue";
+import { ref, computed, inject, watch, onUnmounted, defineAsyncComponent } from "vue";
 import { useAuth } from "@renderer/store/auth";
 import { OpenUpgradeDialogKey } from "../utils/injection-keys";
 import { useShell } from "@renderer/composables/use-shell";
@@ -220,9 +260,7 @@ interface MenuItem {
   key?: string;
 }
 import { useLogger } from "@pipelab/shared";
-import Settings from "@renderer/components/Settings.vue";
 import UpgradeNowButton from "@renderer/components/UpgradeNowButton.vue";
-import AuthDialog from "@renderer/components/AuthDialog.vue";
 import Menu from "primevue/menu";
 import Button from "primevue/button";
 import Dialog from "primevue/dialog";
@@ -231,9 +269,23 @@ import posthog from "posthog-js";
 import { storeToRefs } from "pinia";
 import { handle } from "@renderer/composables/handlers";
 import { websocketManager } from "@renderer/composables/websocket-manager";
+import { useAgentAvailability } from "@renderer/composables/useAgentAvailability";
+import { useAppStore } from "@renderer/store/app";
+
+const Settings = defineAsyncComponent(() => import("@renderer/components/Settings.vue"));
+const AuthDialog = defineAsyncComponent(() => import("@renderer/components/AuthDialog.vue"));
 
 const { logger } = useLogger();
 const shell = useShell();
+const { isReady, status: agentStatus, reconnect } = useAgentAvailability();
+const appStore = useAppStore();
+const agentNotice = computed(() =>
+  agentStatus.value === "offline"
+    ? "No agent connected. Your data and actions will be available when it reconnects."
+    : agentStatus.value === "starting"
+      ? "The agent is starting. Data will appear as it becomes available."
+      : "Connecting to the agent…",
+);
 
 const isElectron = !!window.electron;
 
@@ -255,7 +307,7 @@ const updateDownloadUrl = ref<string | undefined>(undefined);
 const updateVersion = ref<string | undefined>(undefined);
 
 const appVersion = ref(window.version);
-const agentVersion = ref("...");
+const agentVersion = computed(() => appStore.version || "...");
 const uiVersion = process.env.UI_VERSION;
 const electronVersion = window.pipelab?.versions?.electron || "N/A";
 
@@ -264,44 +316,23 @@ const startupStatus = ref("");
 import { useWebSocketAPI } from "@renderer/composables/websocket-client";
 const { on } = useWebSocketAPI();
 
-on("startup:progress", (event: any) => {
+const stopStartupProgress = on("startup:progress", (event) => {
   if (event.type === "progress") {
     startupStatus.value = event.data.message;
   } else if (event.type === "done") {
-    setTimeout(() => {
-      startupStatus.value = "";
-    }, 2000);
+    startupStatus.value = "";
   }
 });
+onUnmounted(stopStartupProgress);
 
-const updateVersions = async () => {
-  if (websocketManager.isConnected()) {
-    try {
-      const response = await websocketManager.send("agent:version:get");
-      if (response.type === "success") {
-        agentVersion.value = response.result.version;
-      }
-    } catch (error) {
-      console.error("Failed to fetch agent version:", error);
-      agentVersion.value = "Unknown";
-    }
-  } else {
-    agentVersion.value = "...";
-  }
-};
-
-websocketManager.onStateChange((state) => {
-  if (state === "connected") {
-    updateVersions();
-  } else {
-    agentVersion.value = "...";
-  }
-});
-
-// Initial fetch if already connected
-if (websocketManager.isConnected()) {
-  updateVersions();
-}
+watch(
+  isReady,
+  (ready) => {
+    if (ready) void appStore.loadRuntimeInfo().catch(() => {});
+    else startupStatus.value = "";
+  },
+  { immediate: true },
+);
 
 posthog.register({
   "app-version": appVersion.value,
@@ -397,7 +428,16 @@ const logout = async () => {
 };
 
 const auth = useAuth();
-const { user, isLoadingSubscriptions } = storeToRefs(auth);
+const { user, subscriptionStatus, subscriptionError, isLoadingSubscriptions, isAuthModalVisible } =
+  storeToRefs(auth);
+const hasOpenedAuthDialog = ref(isAuthModalVisible.value);
+watch(isAuthModalVisible, (visible) => {
+  if (visible) hasOpenedAuthDialog.value = true;
+});
+
+const retrySubscription = () => {
+  if (isReady.value) void auth.fetchSubscription();
+};
 
 const isSettingsModalVisible = ref(false);
 
@@ -672,6 +712,40 @@ handle("update:set-status", async (event, { value }) => {
   }
 }
 
+.plan-retry-wrap {
+  margin: 0 12px 4px 38px;
+}
+
+.plan-retry {
+  border: 0;
+  padding: 2px 4px;
+  background: transparent;
+  color: var(--p-primary-color);
+  font: inherit;
+  font-size: 0.75rem;
+  cursor: pointer;
+
+  &:disabled {
+    cursor: default;
+    opacity: 0.6;
+  }
+}
+
+.plan-error-details {
+  margin: 0 12px 6px 38px;
+  color: var(--p-text-muted-color);
+  font-size: 0.75rem;
+
+  summary {
+    cursor: pointer;
+  }
+
+  p {
+    margin: 4px 0 0;
+    overflow-wrap: anywhere;
+  }
+}
+
 .sidebar-collapsed .sidebar-status-item {
   justify-content: center;
   padding: 8px;
@@ -877,7 +951,27 @@ handle("update:set-status", async (event, { value }) => {
 
 .layout-content {
   flex: 1;
+  min-height: 0;
   overflow: auto;
+}
+
+.route-content {
+  height: 100%;
+}
+
+.agent-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.5rem 1rem;
+  background: var(--p-surface-100);
+  border-bottom: 1px solid var(--p-content-border-color);
+  font-size: 0.875rem;
+}
+
+:root.dark .agent-notice {
+  background: var(--p-surface-800);
 }
 
 /* ─── Mobile: bottom tab bar ─────────────────────────────── */

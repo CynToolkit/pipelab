@@ -81,7 +81,8 @@
       </div>
 
       <!-- Auth Form wrapper -->
-      <form @submit.prevent="onSubmit">
+      <p v-if="!isReady" role="status">Reconnect the agent to sign in or manage your account.</p>
+      <form :inert="!isReady" @submit.prevent="onSubmit">
         <div
           class="auth-form-container"
           :class="{
@@ -328,6 +329,7 @@ import InputText from "primevue/inputtext";
 import Password from "primevue/password";
 import Button from "primevue/button";
 import Dialog from "primevue/dialog";
+import { useAgentAvailability } from "@renderer/composables/useAgentAvailability";
 
 interface AuthFormValues {
   email?: string;
@@ -336,6 +338,7 @@ interface AuthFormValues {
 }
 
 const auth = useAuth();
+const { isReady } = useAgentAvailability();
 const { isAuthModalVisible, authModalTitle, authModalSubTitle, isAuthenticating, authState } =
   storeToRefs(auth);
 
@@ -450,6 +453,7 @@ const submitButtonLabel = computed(() => {
 
 // Form submission handler
 const onSuccess = async (values: any) => {
+  if (!isReady.value) return;
   try {
     if (activeTab.value === "register") {
       if (values.password !== values.confirmPassword) {

@@ -7,7 +7,7 @@ import { useProjectsConfig } from "@renderer/composables/useConfig";
 
 export const useFiles = defineStore("files", () => {
   const api = useAPI();
-  const { data: files, load, save } = useProjectsConfig();
+  const { data: files, load, save, status, error, loaded } = useProjectsConfig();
 
   const update = async (callback: (state: Draft<FileRepo>) => void) => {
     const next = create(klona(files.value), callback);
@@ -47,6 +47,9 @@ export const useFiles = defineStore("files", () => {
 
   return {
     files: files,
+    status,
+    error,
+    loaded,
 
     load,
     update,

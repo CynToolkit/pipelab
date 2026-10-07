@@ -1,12 +1,23 @@
 import { defineStore } from "pinia";
 import { AppConfig } from "@pipelab/shared";
-import { readonly, watch } from "vue";
+import { watch } from "vue";
 import { useAuth } from "./auth";
 import { useSettingsConfig } from "@renderer/composables/useConfig";
+import { useAgentAvailability } from "@renderer/composables/useAgentAvailability";
 
 export const useAppSettings = defineStore("settings", () => {
   const auth = useAuth();
-  const { data: settings, load, save, reset: resetConfig } = useSettingsConfig();
+  const agent = useAgentAvailability();
+  const {
+    data: settings,
+    load,
+    save,
+    reset: resetConfig,
+    status,
+    error,
+    loaded,
+    requested,
+  } = useSettingsConfig();
 
   const init = async () => {
     await load();
@@ -21,12 +32,11 @@ export const useAppSettings = defineStore("settings", () => {
   };
 
   // Reload settings when auth state changes (for cloud save)
-  watch(
-    () => auth.user,
-    () => {
-      load();
-    },
-  );
+  watch([() => auth.user, agent.isReady], ([user, ready], previous) => {
+    if (requested.value && ready && (user !== previous?.[0] || !previous?.[1])) {
+      void load(user !== previous?.[0]).catch(() => undefined);
+    }
+  });
 
-  return { init, updateSettings, settings: settings, reset, load };
+  return { init, updateSettings, settings, reset, load, status, error, loaded, requested };
 });

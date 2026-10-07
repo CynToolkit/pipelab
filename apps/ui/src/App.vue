@@ -1,43 +1,21 @@
 <template>
   <div class="app">
-    <transition name="fade" mode="out-in">
-      <ConnectingPage v-if="isConnecting" />
-      <DisconnectedPage v-else-if="isDisconnected" />
-      <div v-else class="layout">
-        <div class="container">
-          <div class="content">
-            <div class="main">
-              <section v-if="initialDataFailure" class="initial-data-error" role="alert">
-                <h1>Unable to load Pipelab data</h1>
-                <p>{{ initialDataFailureLabel }}</p>
-                <p>{{ initialDataFailure.message }}</p>
-                <Button
-                  label="Try again"
-                  icon="pi pi-refresh"
-                  :loading="isLoading"
-                  @click="fetchInitialData"
-                />
-              </section>
-              <router-view v-else-if="isDataLoaded"></router-view>
-              <div v-else>
-                <SubscriptionLoadingIndicator v-if="isLoading || !isDataLoaded" />
-              </div>
-            </div>
-          </div>
-
-          <Dialog
-            v-model:visible="isUpgradeDialogVisible"
-            modal
-            :style="{ width: '50vw' }"
-            :breakpoints="{ '575px': '90vw' }"
-          >
-            <UpgradeDialog @close="closeUpgradeDialog" />
-          </Dialog>
-        </div>
-      </div>
-    </transition>
-    <DevBenefitsOverride v-if="!isDisconnected" />
-    <WebFilePicker v-if="!isDisconnected" />
+    <Layout>
+      <RouterView v-slot="{ Component }">
+        <component :is="Component" v-if="Component" />
+        <div v-else class="route-loading" role="status">Loading Pipelab…</div>
+      </RouterView>
+    </Layout>
+    <Dialog
+      v-model:visible="isUpgradeDialogVisible"
+      modal
+      :style="{ width: '50vw' }"
+      :breakpoints="{ '575px': '90vw' }"
+    >
+      <UpgradeDialog v-if="hasOpenedUpgradeDialog" @close="closeUpgradeDialog" />
+    </Dialog>
+    <DevBenefitsOverride v-if="isDevMode" />
+    <WebFilePicker v-if="uiStore.isFilePickerVisible" />
     <MigrationModal
       v-if="isMigrationModalVisible"
       v-model:visible="isMigrationModalVisible"
@@ -48,51 +26,33 @@
 </template>
 
 <script setup lang="ts">
-import { useAppStore } from "./store/app";
-import { onMounted, ref, provide, watch, computed } from "vue";
-import { useFiles } from "./store/files";
+import { defineAsyncComponent, onMounted, ref, provide, watch } from "vue";
 import { handle } from "./composables/handlers";
-import { useLogger, MigrationChannel } from "@pipelab/shared";
-import { useAuth } from "@renderer/store/auth";
-import { storeToRefs } from "pinia";
-import { useAppSettings } from "./store/settings";
-import { useConnectionsStore } from "./store/connections";
-import SubscriptionLoadingIndicator from "./components/SubscriptionLoadingIndicator.vue";
-import DisconnectedPage from "./components/DisconnectedPage.vue";
-import ConnectingPage from "./components/ConnectingPage.vue";
-import UpgradeDialog from "./components/UpgradeDialog.vue";
-import DevBenefitsOverride from "./components/DevBenefitsOverride.vue";
-import WebFilePicker from "./components/WebFilePicker.vue";
+import { useLogger, MigrationChannel, MessageSchema, Locales } from "@pipelab/shared";
+import { useI18n } from "vue-i18n";
+import Layout from "./components/Layout.vue";
 import Dialog from "primevue/dialog";
 import Toast from "primevue/toast";
-import MigrationModal from "./components/MigrationModal.vue";
-import { useAPI } from "./composables/api";
 import { OpenMigrationModalKey, OpenUpgradeDialogKey } from "./utils/injection-keys";
-import { websocketManager } from "./composables/websocket-manager";
-import { useWebSocketAPI } from "./composables/websocket-client";
-import Button from "primevue/button";
-import { loadInitialData, type InitialDataFailureKind } from "./initial-data-state";
+import { useAgentAvailability } from "./composables/useAgentAvailability";
+import { useAppSettings } from "./store/settings";
+import { useUIStore } from "./store/ui";
 
-const appStore = useAppStore();
-const filesStore = useFiles();
-const settingsStore = useAppSettings();
-const connectionsStore = useConnectionsStore();
+const UpgradeDialog = defineAsyncComponent(() => import("./components/UpgradeDialog.vue"));
+const DevBenefitsOverride = defineAsyncComponent(
+  () => import("./components/DevBenefitsOverride.vue"),
+);
+const WebFilePicker = defineAsyncComponent(() => import("./components/WebFilePicker.vue"));
+const MigrationModal = defineAsyncComponent(() => import("./components/MigrationModal.vue"));
+
 const { logger } = useLogger();
-const authStore = useAuth();
-const { init: authInit, fetchSubscription } = authStore;
-const { isLoadingSubscriptions } = storeToRefs(authStore);
-const { settings } = storeToRefs(settingsStore);
-const { init: initSettings } = settingsStore;
-
-const { init } = appStore;
-const { on } = useWebSocketAPI();
-const isLoading = ref(false);
-const isDataLoaded = ref(false);
-const initialDataFailure = ref<{ kind: InitialDataFailureKind; message: string }>();
-const isInitialized = ref(false);
-const isServerReady = ref(false);
+const { start, isReady } = useAgentAvailability();
+const { locale, availableLocales } = useI18n<{ message: MessageSchema }, Locales>();
+const settingsStore = useAppSettings();
+const uiStore = useUIStore();
 const isUpgradeDialogVisible = ref(false);
-const minimumLoadingTimeReached = ref(false);
+const hasOpenedUpgradeDialog = ref(false);
+const isDevMode = process.env.NODE_ENV === "development";
 
 const isMigrationModalVisible = ref(false);
 const migrationSourceChannel = ref<MigrationChannel | undefined>(undefined);
@@ -102,36 +62,8 @@ const openMigrationModal = (sourceChannel?: MigrationChannel) => {
 };
 provide(OpenMigrationModalKey, openMigrationModal);
 
-const isDisconnected = computed(
-  () =>
-    isInitialized.value &&
-    minimumLoadingTimeReached.value &&
-    (websocketManager.connectionState.value === "disconnected" ||
-      websocketManager.connectionState.value === "error"),
-);
-
-const isConnecting = computed(
-  () =>
-    !isInitialized.value ||
-    !minimumLoadingTimeReached.value ||
-    websocketManager.connectionState.value === "connecting" ||
-    !isServerReady.value,
-);
-
-const initialDataFailureLabel = computed(() => {
-  switch (initialDataFailure.value?.kind) {
-    case "backend-disconnected":
-      return "The Pipelab backend disconnected while loading required data.";
-    case "project-config":
-      return "Projects or application configuration could not be loaded.";
-    case "connections":
-      return "Saved connections could not be loaded.";
-    default:
-      return "Required startup data could not be loaded.";
-  }
-});
-
 const openUpgradeDialog = () => {
+  hasOpenedUpgradeDialog.value = true;
   isUpgradeDialogVisible.value = true;
 };
 
@@ -140,6 +72,36 @@ const closeUpgradeDialog = () => {
 };
 
 provide(OpenUpgradeDialogKey, openUpgradeDialog);
+
+watch(
+  () => (settingsStore.loaded ? settingsStore.settings?.theme : undefined),
+  (theme) => {
+    if (theme === "dark" || theme === "light") {
+      document.documentElement.classList.toggle("dark", theme === "dark");
+      try {
+        localStorage.setItem("pipelab.theme", theme);
+      } catch {
+        // Browser storage can be unavailable in restricted contexts.
+      }
+    }
+  },
+  { immediate: true },
+);
+
+watch(
+  () => settingsStore.settings?.locale,
+  (savedLocale) => {
+    const supportedLocale = availableLocales.find((available) => available === savedLocale);
+    if (supportedLocale) locale.value = supportedLocale;
+  },
+  { immediate: true },
+);
+
+watch(isReady, (ready) => {
+  if (ready) {
+    void settingsStore.load().catch((error) => logger().warn("Unable to load settings:", error));
+  }
+});
 
 handle("log:message", async (event, { value, send }) => {
   console.log("value", value);
@@ -214,133 +176,14 @@ handle("log:message", async (event, { value, send }) => {
   });
 });
 
-let initialDataPromise: Promise<void> | undefined;
-const fetchInitialData = () => {
-  if (initialDataPromise) return initialDataPromise;
-  console.log("[App] fetchInitialData: Starting remote data fetch");
-  isLoading.value = true;
-  isDataLoaded.value = false;
-  initialDataFailure.value = undefined;
-  initialDataPromise = (async () => {
-    const result = await loadInitialData(
-      [
-        { section: "projects", load: () => filesStore.load() },
-        { section: "providers", load: () => init() },
-        { section: "settings", load: () => settingsStore.load() },
-        { section: "connections", load: () => connectionsStore.load() },
-        { section: "auth", load: () => authInit() },
-        { section: "subscription", load: () => fetchSubscription() },
-      ],
-      () => websocketManager.connectionState.value === "connected",
-    );
-    if (result.type === "error") {
-      initialDataFailure.value = result.failure;
-      logger().error("Failed to fetch initial data:", result.failure);
-      return;
-    }
-    isDataLoaded.value = true;
-    logger().info("Initial data fetch complete");
-  })().finally(() => {
-    isLoading.value = false;
-    initialDataPromise = undefined;
-  });
-  return initialDataPromise;
-};
-
-// Watch for WebSocket connection and server readiness to trigger data fetch
-watch(
-  [() => websocketManager.connectionState.value, isServerReady],
-  ([state, ready]) => {
-    if (state === "connected" && ready) {
-      fetchInitialData();
-    }
-  },
-  { immediate: true },
-);
-
-// Apply app theme configuration
-watch(
-  () => settingsStore.settings?.theme,
-  (newTheme) => {
-    if (newTheme === "dark") {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
-  },
-  { immediate: true },
-);
-
-// Connection failure is handled by showing the DisconnectedPage in the template
-
-onMounted(async () => {
-  console.log("[App] onMounted: UI mounted, connecting to agent");
-
-  on("startup:progress", (event) => {
-    if (event.type === "done") {
-      console.log(`[App] Startup event received: ${event.type}`);
-      isServerReady.value = true;
-    }
-  });
-
-  // Connect to the WebSocket server directly
-  await websocketManager.connect();
-  isInitialized.value = true;
-
-  // Ensure the connecting page is visible for at least a certain amount of time
-  setTimeout(() => {
-    minimumLoadingTimeReached.value = true;
-  }, 2000);
-
-  // Loading state for specific data should be handled by components
+onMounted(() => {
+  start().catch((error) => logger().warn("Unable to connect to Pipelab agent:", error));
 });
 </script>
 
 <style lang="scss">
-.app,
-.layout {
+.app {
   height: 100%;
   overflow: hidden;
-}
-
-.content {
-  display: flex;
-  position: relative;
-  flex: 1;
-  min-height: 0;
-
-  .main {
-    flex: 1;
-    display: flex;
-    width: 100%;
-    height: 100%;
-  }
-}
-
-.initial-data-error {
-  display: grid;
-  align-content: center;
-  justify-items: center;
-  gap: 0.75rem;
-  width: 100%;
-  padding: 2rem;
-  text-align: center;
-}
-
-.container {
-  height: 100%;
-  max-height: 100%;
-  display: flex;
-  flex-direction: column;
-}
-
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.8s ease;
-}
-
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
 }
 </style>

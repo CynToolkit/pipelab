@@ -1,5 +1,15 @@
 <template>
-  <div class="settings-container">
+  <div v-if="!settingsLoaded" class="settings-loading" role="status" aria-live="polite">
+    <p>
+      {{
+        !isReady
+          ? "Settings will be available when the agent connects."
+          : settingsError || "Loading settings…"
+      }}
+    </p>
+    <Button v-if="isReady && settingsStatus === 'error'" label="Retry" text @click="loadSettings" />
+  </div>
+  <div v-else class="settings-container" :inert="!isReady">
     <!-- Left Sidebar -->
     <div class="settings-sidebar">
       <!-- Options Group -->
@@ -510,7 +520,18 @@
           <p class="description">Manage your account billing details and premium subscriptions.</p>
         </div>
 
-        <div v-if="subscriptions.length > 0" class="billing-container">
+        <div v-if="subscriptionStatus !== 'ready'" role="status">
+          <p>
+            {{ subscriptionStatus === "error" ? "Unable to check your plan." : "Checking plan…" }}
+          </p>
+          <Button
+            v-if="subscriptionStatus === 'error'"
+            label="Retry"
+            text
+            @click="authStore.fetchSubscription()"
+          />
+        </div>
+        <div v-else-if="subscriptions.length > 0" class="billing-container">
           <div
             v-for="subscription in subscriptions"
             :key="subscription.id"
@@ -714,7 +735,7 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, ref, onMounted, toRaw, watch, inject } from "vue";
+import { computed, ref, toRaw, watch, inject } from "vue";
 import { useAppSettings } from "@renderer/store/settings";
 import { storeToRefs } from "pinia";
 import Button from "primevue/button";
@@ -738,6 +759,7 @@ import { watchDebounced } from "@vueuse/core";
 import InputText from "primevue/inputtext";
 import { useToast } from "primevue/usetoast";
 import { useConfirm } from "primevue/useconfirm";
+import { useAgentAvailability } from "@renderer/composables/useAgentAvailability";
 
 const { t, locale } = useI18n<{ message: MessageSchema }, Locales>();
 
@@ -747,6 +769,8 @@ const authStore = useAuth();
 const buildHistoryStore = useBuildHistory();
 const api = useAPI();
 const shell = useShell();
+const { isReady } = useAgentAvailability();
+const currentSection = ref("general");
 
 const openCacheFolder = () => {
   const path =
@@ -806,13 +830,31 @@ const resetTempFolder = () => {
   });
 };
 
-const { settings: settingsRef } = storeToRefs(appSettings);
-const { subscriptions, user } = storeToRefs(authStore);
+const {
+  settings: settingsRef,
+  loaded: settingsLoaded,
+  status: settingsStatus,
+  error: settingsError,
+} = storeToRefs(appSettings);
+const { subscriptions, user, subscriptionStatus } = storeToRefs(authStore);
 const { storageInfo } = storeToRefs(buildHistoryStore);
 
-onMounted(async () => {
-  await buildHistoryStore.refreshStorageInfo();
-});
+const loadSettings = () => appSettings.load().catch(() => {});
+watch(
+  isReady,
+  (ready) => {
+    if (ready) void loadSettings();
+  },
+  { immediate: true },
+);
+watch(
+  [isReady, currentSection],
+  ([ready, section]) => {
+    if (ready && section === "advanced")
+      void buildHistoryStore.refreshStorageInfo().catch(() => {});
+  },
+  { immediate: true },
+);
 
 const currentLocale = computed({
   get: () => (settingsRef.value?.locale as string) || "en-US",
@@ -1010,7 +1052,6 @@ const copyToClipboard = (text: string) => {
 };
 
 // Obsidian refactoring additions
-const currentSection = ref("general");
 
 const logout = async () => {
   await authStore.logout();
@@ -1018,6 +1059,10 @@ const logout = async () => {
 </script>
 
 <style lang="scss" scoped>
+.settings-loading {
+  padding: 2rem;
+}
+
 .settings-container {
   display: flex;
   width: 100%;

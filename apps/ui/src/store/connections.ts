@@ -1,12 +1,22 @@
 import { defineStore } from "pinia";
 import { ConnectionsConfig } from "@pipelab/shared";
-import { readonly, watch } from "vue";
+import { watch } from "vue";
 import { useAuth } from "./auth";
 import { useConnectionsConfig } from "@renderer/composables/useConfig";
+import { useAgentAvailability } from "@renderer/composables/useAgentAvailability";
 
 export const useConnectionsStore = defineStore("connections", () => {
   const auth = useAuth();
-  const { data: connectionsState, load, save } = useConnectionsConfig();
+  const agent = useAgentAvailability();
+  const {
+    data: connectionsState,
+    load,
+    save,
+    status,
+    error,
+    loaded,
+    requested,
+  } = useConnectionsConfig();
 
   const init = async () => {
     await load();
@@ -16,17 +26,20 @@ export const useConnectionsStore = defineStore("connections", () => {
     await save(_connections);
   };
 
-  watch(
-    () => auth.user,
-    () => {
-      load();
-    },
-  );
+  watch([() => auth.user, agent.isReady], ([user, ready], previous) => {
+    if (requested.value && ready && (user !== previous?.[0] || !previous?.[1])) {
+      void load(user !== previous?.[0]).catch(() => undefined);
+    }
+  });
 
   return {
     init,
     updateConnections,
-    connections: readonly(connectionsState),
+    connections: connectionsState,
     load,
+    status,
+    error,
+    loaded,
+    requested,
   };
 });

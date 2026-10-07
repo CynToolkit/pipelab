@@ -4,6 +4,24 @@ import { JsonFileStorage } from "../utils/storage";
 import { PipelabContext } from "../context";
 import { webSocketServer } from "../websocket-server";
 
+const normalizeFunctionError = (error: unknown) => {
+  const name = error instanceof Error ? error.name : "FunctionInvocationError";
+  let message = error instanceof Error ? error.message : "Edge Function invocation failed";
+  let status: number | undefined;
+
+  if (error instanceof Error && "context" in error) {
+    const context = error.context;
+    if (context instanceof Response) {
+      status = context.status;
+    } else if (context instanceof Error && context.message) {
+      message = `${message}: ${context.message}`;
+    }
+  }
+
+  if (status !== undefined) message = `${message} (HTTP ${status})`;
+  return { name, message, ...(status === undefined ? {} : { status }) };
+};
+
 /**
  * Registers authentication handlers for the CLI/system backend.
  */
@@ -83,14 +101,20 @@ export const registerAuthHandlers = (context: PipelabContext) => {
     const { name, options } = value;
     logger().info("[Auth] invoke function:", name);
     try {
-      const result = await client.functions.invoke(name, options);
-      return send({ type: "end", data: { type: "success", result } });
+      const { data, error } = await client.functions.invoke(name, options);
+      return send({
+        type: "end",
+        data: {
+          type: "success",
+          result: { data, error: error ? normalizeFunctionError(error) : null },
+        },
+      });
     } catch (e) {
       return send({
         type: "end",
         data: {
           type: "error",
-          ipcError: e instanceof Error ? e.message : "Edge Function invocation failed",
+          ipcError: normalizeFunctionError(e).message,
         },
       });
     }

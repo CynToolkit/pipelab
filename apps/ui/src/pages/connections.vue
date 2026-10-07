@@ -1,265 +1,287 @@
 <template>
   <div class="connections-page">
     <Toast />
-    <Layout>
-      <div class="main-layout">
-        <!-- Sidebar Drawer (Lists active connections) -->
-        <div class="drawer">
-          <div class="drawer-header">
-            <div class="drawer-header-left">
-              <i class="mdi mdi-link-variant mr-2"></i>
-              Connections
-            </div>
-            <div class="drawer-header-actions">
-              <Button
-                text
-                size="small"
-                class="drawer-header-icon-btn"
-                aria-label="Add connection"
-                v-tooltip.top="'Add New Connection'"
-                @click="openAddConnectionDialog"
-              >
-                <i class="icon mdi mdi-plus fs-16"></i>
-              </Button>
-            </div>
+    <div class="main-layout">
+      <!-- Sidebar Drawer (Lists active connections) -->
+      <div class="drawer">
+        <div class="drawer-header">
+          <div class="drawer-header-left">
+            <i class="mdi mdi-link-variant mr-2"></i>
+            Connections
           </div>
-
-          <!-- Search Filter for Connections -->
-          <div class="search-wrap px-3 py-2">
-            <IconField class="w-full">
-              <InputIcon class="pi pi-search text-xs" />
-              <InputText
-                v-model="searchQuery"
-                placeholder="Filter connections..."
-                class="w-full"
-                size="small"
-              />
-            </IconField>
-          </div>
-
-          <div class="plugin-list px-2 py-1 flex flex-column gap-1 overflow-y-auto flex-grow-1">
-            <div
-              v-for="account in filteredConnections"
-              :key="account.id"
-              class="plugin-item"
-              :class="{ active: selectedConnectionId === account.id }"
-              @click="selectedConnectionId = account.id"
+          <div class="drawer-header-actions">
+            <Button
+              text
+              size="small"
+              class="drawer-header-icon-btn"
+              :disabled="!connectionDataReady || !agent.isReady.value"
+              aria-label="Add connection"
+              v-tooltip.top="'Add New Connection'"
+              @click="openAddConnectionDialog"
             >
-              <div class="plugin-item-content">
-                <template v-if="getPluginIcon(account.pluginName)">
-                  <img
-                    v-if="getPluginIcon(account.pluginName)?.type === 'image'"
-                    :src="getPluginIconImage(account.pluginName)"
-                    class="plugin-icon"
-                  />
-                  <i
-                    v-else
-                    :class="getIconClass(getPluginIcon(account.pluginName))"
-                    class="plugin-icon-pi"
-                  ></i>
-                </template>
-                <i v-else class="pi pi-user plugin-icon-pi"></i>
-                <span class="plugin-label">{{ account.name }}</span>
-              </div>
-              <span class="status-dot enabled"></span>
-            </div>
-
-            <div
-              v-if="filteredConnections.length === 0"
-              class="text-center py-6 text-[11px] opacity-50"
-            >
-              No active connections.
-            </div>
+              <i class="icon mdi mdi-plus fs-16"></i>
+            </Button>
           </div>
         </div>
 
-        <!-- Main Content Area -->
-        <div class="content-area">
-          <transition name="fade-fast" mode="out-in">
-            <!-- Selected Connection Detail View -->
-            <div v-if="selectedConnection" class="pane-content">
-              <div class="pane-header flex justify-between items-start">
-                <div class="flex items-center gap-3">
-                  <div class="plugin-large-icon-wrapper">
-                    <template v-if="getPluginIcon(selectedConnection.pluginName)">
-                      <img
-                        v-if="getPluginIcon(selectedConnection.pluginName)?.type === 'image'"
-                        :src="getPluginIconImage(selectedConnection.pluginName)"
-                        class="plugin-large-icon"
-                      />
-                      <i
-                        v-else
-                        :class="getIconClass(getPluginIcon(selectedConnection.pluginName))"
-                        class="plugin-large-icon-pi"
-                      ></i>
-                    </template>
-                    <i v-else class="pi pi-user plugin-large-icon-pi"></i>
-                  </div>
-                  <div>
-                    <h2 class="pane-title">{{ selectedConnection.name }}</h2>
-                    <p class="pane-desc">
-                      Settings for {{ selectedConnectionIntegration?.name || "connection" }} on
-                      {{ formatPluginName(selectedConnection.pluginName) }}
-                    </p>
-                  </div>
-                </div>
+        <!-- Search Filter for Connections -->
+        <div class="search-wrap px-3 py-2">
+          <IconField class="w-full">
+            <InputIcon class="pi pi-search text-xs" />
+            <InputText
+              v-model="searchQuery"
+              placeholder="Filter connections..."
+              class="w-full"
+              size="small"
+            />
+          </IconField>
+        </div>
 
-                <div class="flex items-center gap-3">
-                  <Button
-                    label="Delete Connection"
-                    severity="danger"
-                    outlined
-                    size="small"
-                    icon="pi pi-trash"
-                    @click="disconnectAccount(selectedConnection.id)"
-                  />
+        <div class="plugin-list px-2 py-1 flex flex-column gap-1 overflow-y-auto flex-grow-1">
+          <div
+            v-for="account in filteredConnections"
+            :key="account.id"
+            class="plugin-item"
+            :class="{ active: selectedConnectionId === account.id }"
+            @click="selectedConnectionId = account.id"
+          >
+            <div class="plugin-item-content">
+              <template v-if="getPluginIcon(account.pluginName)">
+                <img
+                  v-if="getPluginIcon(account.pluginName)?.type === 'image'"
+                  :src="getPluginIconImage(account.pluginName)"
+                  class="plugin-icon"
+                />
+                <i
+                  v-else
+                  :class="getIconClass(getPluginIcon(account.pluginName))"
+                  class="plugin-icon-pi"
+                ></i>
+              </template>
+              <i v-else class="pi pi-user plugin-icon-pi"></i>
+              <span class="plugin-label">{{ account.name }}</span>
+            </div>
+            <span class="status-dot enabled"></span>
+          </div>
+
+          <div
+            v-if="!connectionDataReady"
+            class="text-center py-6 text-[11px] opacity-50"
+            role="status"
+          >
+            {{
+              !agent.isReady.value
+                ? "Connections are unavailable while the agent is disconnected."
+                : connectionLoadError ||
+                  connectionsStore.error ||
+                  appStore.providerError ||
+                  "Loading connections…"
+            }}
+            <Button
+              v-if="
+                connectionLoadError ||
+                connectionsStore.status === 'error' ||
+                appStore.providerStatus === 'error'
+              "
+              label="Retry"
+              text
+              size="small"
+              @click="loadConnectionData"
+            />
+          </div>
+          <div
+            v-else-if="filteredConnections.length === 0"
+            class="text-center py-6 text-[11px] opacity-50"
+          >
+            No active connections.
+          </div>
+        </div>
+      </div>
+
+      <!-- Main Content Area -->
+      <div class="content-area">
+        <transition name="fade-fast" mode="out-in">
+          <!-- Selected Connection Detail View -->
+          <div v-if="selectedConnection" class="pane-content">
+            <div class="pane-header flex justify-between items-start">
+              <div class="flex items-center gap-3">
+                <div class="plugin-large-icon-wrapper">
+                  <template v-if="getPluginIcon(selectedConnection.pluginName)">
+                    <img
+                      v-if="getPluginIcon(selectedConnection.pluginName)?.type === 'image'"
+                      :src="getPluginIconImage(selectedConnection.pluginName)"
+                      class="plugin-large-icon"
+                    />
+                    <i
+                      v-else
+                      :class="getIconClass(getPluginIcon(selectedConnection.pluginName))"
+                      class="plugin-large-icon-pi"
+                    ></i>
+                  </template>
+                  <i v-else class="pi pi-user plugin-large-icon-pi"></i>
+                </div>
+                <div>
+                  <h2 class="pane-title">{{ selectedConnection.name }}</h2>
+                  <p class="pane-desc">
+                    Settings for {{ selectedConnectionIntegration?.name || "connection" }} on
+                    {{ formatPluginName(selectedConnection.pluginName) }}
+                  </p>
                 </div>
               </div>
 
-              <!-- Connection Edit Form -->
-              <div class="connection-edit-form flex flex-column gap-4 max-w-[500px] mt-4">
-                <div class="flex flex-column gap-1.5">
-                  <label for="edit-conn-name" class="text-xs font-bold opacity-75"
-                    >Connection Name</label
+              <div class="flex items-center gap-3">
+                <Button
+                  label="Delete Connection"
+                  severity="danger"
+                  outlined
+                  size="small"
+                  icon="pi pi-trash"
+                  @click="disconnectAccount(selectedConnection.id)"
+                />
+              </div>
+            </div>
+
+            <!-- Connection Edit Form -->
+            <div class="connection-edit-form flex flex-column gap-4 max-w-[500px] mt-4">
+              <div class="flex flex-column gap-1.5">
+                <label for="edit-conn-name" class="text-xs font-bold opacity-75"
+                  >Connection Name</label
+                >
+                <InputText
+                  id="edit-conn-name"
+                  v-model="editConnectionName"
+                  size="small"
+                  class="w-full"
+                />
+              </div>
+
+              <!-- Dynamic inputs for connection properties -->
+              <template v-if="selectedConnectionIntegration?.fields?.length">
+                <div
+                  v-for="field in selectedConnectionIntegration.fields"
+                  :key="field.key"
+                  class="flex flex-column gap-1.5"
+                >
+                  <label
+                    :for="`edit-conn-field-${field.key}`"
+                    class="text-xs font-bold opacity-75"
+                    >{{ field.label }}</label
                   >
+
+                  <!-- File input -->
+                  <div v-if="field.type === 'file'" class="flex gap-2">
+                    <InputText
+                      :id="`edit-conn-field-${field.key}`"
+                      v-model="editDynamicFields[field.key]"
+                      :placeholder="field.placeholder"
+                      size="small"
+                      class="flex-grow-1"
+                    />
+                    <Button
+                      icon="pi pi-folder-open"
+                      severity="secondary"
+                      outlined
+                      size="small"
+                      v-tooltip.top="`Browse File`"
+                      @click="browseForEditFieldFile(field.key, field.label)"
+                    />
+                  </div>
+
+                  <!-- Directory input -->
+                  <div v-else-if="field.type === 'directory'" class="flex gap-2">
+                    <InputText
+                      :id="`edit-conn-field-${field.key}`"
+                      v-model="editDynamicFields[field.key]"
+                      :placeholder="field.placeholder"
+                      size="small"
+                      class="flex-grow-1"
+                    />
+                    <Button
+                      icon="pi pi-folder-open"
+                      severity="secondary"
+                      outlined
+                      size="small"
+                      v-tooltip.top="`Browse Directory`"
+                      @click="browseForEditFieldDirectory(field.key, field.label)"
+                    />
+                  </div>
+
+                  <!-- Password input -->
                   <InputText
-                    id="edit-conn-name"
-                    v-model="editConnectionName"
+                    v-else-if="field.type === 'password'"
+                    :id="`edit-conn-field-${field.key}`"
+                    v-model="editDynamicFields[field.key]"
+                    type="password"
+                    :placeholder="field.placeholder"
+                    size="small"
+                    class="w-full"
+                  />
+
+                  <!-- Standard text input -->
+                  <InputText
+                    v-else
+                    :id="`edit-conn-field-${field.key}`"
+                    v-model="editDynamicFields[field.key]"
+                    :placeholder="field.placeholder"
                     size="small"
                     class="w-full"
                   />
                 </div>
+              </template>
 
-                <!-- Dynamic inputs for connection properties -->
-                <template v-if="selectedConnectionIntegration?.fields?.length">
-                  <div
-                    v-for="field in selectedConnectionIntegration.fields"
-                    :key="field.key"
-                    class="flex flex-column gap-1.5"
+              <!-- Fallback standard fields if schema not explicitly declared -->
+              <template v-else>
+                <div class="flex flex-column gap-1.5">
+                  <label for="edit-conn-email" class="text-xs font-bold opacity-75"
+                    >Email / Identifier</label
                   >
-                    <label
-                      :for="`edit-conn-field-${field.key}`"
-                      class="text-xs font-bold opacity-75"
-                      >{{ field.label }}</label
-                    >
-
-                    <!-- File input -->
-                    <div v-if="field.type === 'file'" class="flex gap-2">
-                      <InputText
-                        :id="`edit-conn-field-${field.key}`"
-                        v-model="editDynamicFields[field.key]"
-                        :placeholder="field.placeholder"
-                        size="small"
-                        class="flex-grow-1"
-                      />
-                      <Button
-                        icon="pi pi-folder-open"
-                        severity="secondary"
-                        outlined
-                        size="small"
-                        v-tooltip.top="`Browse File`"
-                        @click="browseForEditFieldFile(field.key, field.label)"
-                      />
-                    </div>
-
-                    <!-- Directory input -->
-                    <div v-else-if="field.type === 'directory'" class="flex gap-2">
-                      <InputText
-                        :id="`edit-conn-field-${field.key}`"
-                        v-model="editDynamicFields[field.key]"
-                        :placeholder="field.placeholder"
-                        size="small"
-                        class="flex-grow-1"
-                      />
-                      <Button
-                        icon="pi pi-folder-open"
-                        severity="secondary"
-                        outlined
-                        size="small"
-                        v-tooltip.top="`Browse Directory`"
-                        @click="browseForEditFieldDirectory(field.key, field.label)"
-                      />
-                    </div>
-
-                    <!-- Password input -->
-                    <InputText
-                      v-else-if="field.type === 'password'"
-                      :id="`edit-conn-field-${field.key}`"
-                      v-model="editDynamicFields[field.key]"
-                      type="password"
-                      :placeholder="field.placeholder"
-                      size="small"
-                      class="w-full"
-                    />
-
-                    <!-- Standard text input -->
-                    <InputText
-                      v-else
-                      :id="`edit-conn-field-${field.key}`"
-                      v-model="editDynamicFields[field.key]"
-                      :placeholder="field.placeholder"
-                      size="small"
-                      class="w-full"
-                    />
-                  </div>
-                </template>
-
-                <!-- Fallback standard fields if schema not explicitly declared -->
-                <template v-else>
-                  <div class="flex flex-column gap-1.5">
-                    <label for="edit-conn-email" class="text-xs font-bold opacity-75"
-                      >Email / Identifier</label
-                    >
-                    <InputText
-                      id="edit-conn-email"
-                      v-model="editConnectionEmail"
-                      size="small"
-                      class="w-full"
-                    />
-                  </div>
-                  <div class="flex flex-column gap-1.5">
-                    <label for="edit-conn-key" class="text-xs font-bold opacity-75"
-                      >API Key / Token</label
-                    >
-                    <InputText
-                      id="edit-conn-key"
-                      v-model="editConnectionKey"
-                      type="password"
-                      placeholder="••••••••••••••••"
-                      size="small"
-                      class="w-full"
-                    />
-                  </div>
-                </template>
-
-                <div class="flex gap-2 mt-2">
-                  <Button
-                    label="Save Changes"
-                    icon="pi pi-check"
+                  <InputText
+                    id="edit-conn-email"
+                    v-model="editConnectionEmail"
                     size="small"
-                    class="px-4"
-                    @click="saveConnectionEdits"
+                    class="w-full"
                   />
                 </div>
-              </div>
-            </div>
+                <div class="flex flex-column gap-1.5">
+                  <label for="edit-conn-key" class="text-xs font-bold opacity-75"
+                    >API Key / Token</label
+                  >
+                  <InputText
+                    id="edit-conn-key"
+                    v-model="editConnectionKey"
+                    type="password"
+                    placeholder="••••••••••••••••"
+                    size="small"
+                    class="w-full"
+                  />
+                </div>
+              </template>
 
-            <!-- Fallback View -->
-            <div
-              v-else
-              class="pane-content flex items-center justify-center text-center opacity-60"
-            >
-              <div>
-                <i class="pi pi-user text-3xl mb-3"></i>
-                <p class="text-sm">
-                  Select a connection from the sidebar or click '+' to configure a new profile.
-                </p>
+              <div class="flex gap-2 mt-2">
+                <Button
+                  label="Save Changes"
+                  icon="pi pi-check"
+                  size="small"
+                  class="px-4"
+                  :disabled="!connectionDataReady || !agent.isReady.value"
+                  @click="saveConnectionEdits"
+                />
               </div>
             </div>
-          </transition>
-        </div>
+          </div>
+
+          <!-- Fallback View -->
+          <div v-else class="pane-content flex items-center justify-center text-center opacity-60">
+            <div>
+              <i class="pi pi-user text-3xl mb-3"></i>
+              <p class="text-sm">
+                Select a connection from the sidebar or click '+' to configure a new profile.
+              </p>
+            </div>
+          </div>
+        </transition>
       </div>
-    </Layout>
+    </div>
 
     <!-- Connect Account Dialog -->
     <Dialog
@@ -398,6 +420,7 @@
             label="Connect & Save"
             size="small"
             :loading="connectingAccountLoader"
+            :disabled="!connectionDataReady || !agent.isReady.value"
             @click="saveNewAccount"
           />
         </div>
@@ -487,7 +510,7 @@
 
 <script lang="ts" setup>
 import { buildIntegrationTargets } from "./integration-targets";
-import { ref, computed, onMounted, toRaw, watch } from "vue";
+import { ref, computed, toRaw, watch } from "vue";
 import { useConnectionsStore } from "@renderer/store/connections";
 import { useAppStore } from "@renderer/store/app";
 import { storeToRefs } from "pinia";
@@ -500,7 +523,7 @@ import IconField from "primevue/iconfield";
 import InputIcon from "primevue/inputicon";
 import { useToast } from "primevue/usetoast";
 import { useAPI } from "@renderer/composables/api";
-import Layout from "@renderer/components/Layout.vue";
+import { useAgentAvailability } from "@renderer/composables/useAgentAvailability";
 
 interface ConnectedAccount {
   id: string;
@@ -522,9 +545,13 @@ const connectionsStore = useConnectionsStore();
 const appStore = useAppStore();
 const api = useAPI();
 const toast = useToast();
+const agent = useAgentAvailability();
 
 const { connections: connectionsRef } = storeToRefs(connectionsStore);
 const { providerDefinitions } = storeToRefs(appStore);
+const connectionDataReady = computed(
+  () => connectionsStore.status === "ready" && appStore.providerStatus === "ready",
+);
 
 // State
 const selectedConnectionId = ref("");
@@ -543,6 +570,8 @@ const newConnectionPath = ref("");
 const newConnectionGameId = ref("");
 const dynamicFields = ref<Record<string, string>>({});
 const connectingAccountLoader = ref(false);
+const connectionLoadError = ref("");
+let connectionLoadGeneration = 0;
 
 // Edit Form State
 const editConnectionName = ref("");
@@ -756,6 +785,7 @@ const getIconClass = (iconObj: any) => {
 
 // --- Storage Persistence ---
 const saveConnections = async (list: ConnectedAccount[]) => {
+  if (!agent.isReady.value || !connectionDataReady.value) return;
   await connectionsStore.updateConnections({
     version: "1.0.0",
     connections: list,
@@ -873,6 +903,7 @@ const openConnectDialog = () => {
 };
 
 const saveNewAccount = async () => {
+  if (!connectionDataReady.value || !agent.isReady.value) return;
   if (!newConnectionName.value.trim()) {
     toast.add({
       severity: "error",
@@ -952,6 +983,7 @@ const saveNewAccount = async () => {
 };
 
 const saveConnectionEdits = async () => {
+  if (!connectionDataReady.value || !agent.isReady.value) return;
   if (!selectedConnection.value) return;
 
   const updated = connectedAccounts.value.map((conn) => {
@@ -1001,10 +1033,37 @@ const saveConnectionEdits = async () => {
   });
 };
 
-onMounted(() => {
-  if (connectedAccounts.value.length > 0) {
-    selectedConnectionId.value = connectedAccounts.value[0].id;
-  }
+const loadConnectionData = async () => {
+  if (!agent.isReady.value) return;
+  const generation = ++connectionLoadGeneration;
+  connectionLoadError.value = "";
+  const results = await Promise.allSettled([
+    connectionsStore.init(),
+    appStore.loadProviderDefinitions(),
+  ]);
+  const failed = results.find((result) => result.status === "rejected");
+  if (generation !== connectionLoadGeneration || !agent.isReady.value) return;
+  if (failed?.status === "rejected")
+    connectionLoadError.value =
+      failed.reason instanceof Error ? failed.reason.message : String(failed.reason);
+  else if (connectionsStore.status === "error" || appStore.providerStatus === "error")
+    connectionLoadError.value =
+      connectionsStore.error || appStore.providerError || "Unable to load connection data.";
+};
+watch(
+  agent.isReady,
+  (ready) => {
+    if (ready) void loadConnectionData();
+    else {
+      connectionLoadGeneration++;
+      connectionLoadError.value = "";
+    }
+  },
+  { immediate: true },
+);
+watch([() => connectionsStore.status, connectedAccounts], ([status, accounts]) => {
+  if (status === "ready" && !selectedConnectionId.value && accounts.length)
+    selectedConnectionId.value = accounts[0].id;
 });
 </script>
 

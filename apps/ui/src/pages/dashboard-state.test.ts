@@ -1,5 +1,18 @@
 import { describe, expect, it } from "vitest";
-import { getDashboardDisplayState } from "./dashboard-state";
+import { getDashboardDisplayState, resolveSelectedProjectId } from "./dashboard-state";
+
+describe("resolveSelectedProjectId", () => {
+  it("replaces a config default with the first persisted project after loading", () => {
+    expect(resolveSelectedProjectId([{ id: "saved-project" }], "main")).toBe("saved-project");
+  });
+
+  it("keeps a selected persisted project and clears selection when none exist", () => {
+    expect(resolveSelectedProjectId([{ id: "first" }, { id: "selected" }], "selected")).toBe(
+      "selected",
+    );
+    expect(resolveSelectedProjectId([], "main")).toBeUndefined();
+  });
+});
 
 describe("getDashboardDisplayState", () => {
   it("renders the list state when every persisted workflow is broken", () => {
