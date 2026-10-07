@@ -105,6 +105,40 @@ describe("auth startup and subscription loading", () => {
     expect(auth.subscriptions).toEqual([]);
   });
 
+  it("preserves lookup errors and allows a failed plan check to be retried", async () => {
+    let planCalls = 0;
+    execute.mockImplementation((channel: string) => {
+      if (channel === "auth:getUser") {
+        return Promise.resolve({ type: "success", result: { user: makeUser("user-a") } });
+      }
+      planCalls++;
+      if (planCalls === 1) {
+        return Promise.resolve({
+          type: "success",
+          result: { data: null, error: { message: "Plan function is unavailable" } },
+        });
+      }
+      return Promise.resolve({
+        type: "success",
+        result: { data: { subscriptions: [] }, error: null },
+      });
+    });
+
+    const auth = useAuth();
+    activeAuthStore = auth;
+    setReady(true);
+
+    await vi.waitFor(() => expect(auth.subscriptionStatus).toBe("error"));
+    expect(auth.subscriptionError).toBe("Plan function is unavailable");
+    expect(auth.subscriptions).toEqual([]);
+
+    await auth.fetchSubscription();
+
+    expect(auth.subscriptionStatus).toBe("ready");
+    expect(auth.subscriptionError).toBeUndefined();
+    expect(planCalls).toBe(2);
+  });
+
   it("treats unavailable Supabase as a known signed-out state after agent readiness", async () => {
     supabaseAvailable.mockReturnValue(false);
     const auth = useAuth();

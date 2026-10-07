@@ -140,6 +140,9 @@ websocketManager.initialize().catch((error) => {
     error,
   );
 });
+
+// Keep the static HTML shell visible until the initial route and its chunk are ready.
+await router.isReady();
 app.mount("#app");
 logger().info("App mounted");
 

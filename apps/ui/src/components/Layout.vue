@@ -106,15 +106,31 @@
         <div v-if="isReady && subscriptionStatus === 'ready'" class="sidebar-upgrade-wrap">
           <UpgradeNowButton @open-upgrade-dialog="openUpgradeDialog" />
         </div>
-        <div
-          v-else-if="isReady && user && subscriptionStatus !== 'ready'"
-          class="sidebar-status-item muted"
-          role="status"
-        >
-          <i class="mdi mdi-crown nav-icon" />
-          <span v-show="!isSidebarCollapsed">{{
-            subscriptionStatus === "error" ? "Plan unavailable" : "Checking plan…"
-          }}</span>
+        <div v-else-if="isReady && user && subscriptionStatus !== 'ready'">
+          <div
+            class="sidebar-status-item muted"
+            role="status"
+            :title="subscriptionError || undefined"
+          >
+            <i class="mdi mdi-crown nav-icon" />
+            <span v-show="!isSidebarCollapsed">{{
+              subscriptionStatus === "error" ? "Plan unavailable" : "Checking plan…"
+            }}</span>
+          </div>
+          <div v-if="subscriptionStatus === 'error' && !isSidebarCollapsed" class="plan-retry-wrap">
+            <button
+              class="plan-retry"
+              type="button"
+              :disabled="isLoadingSubscriptions"
+              @click="retrySubscription"
+            >
+              Retry plan check
+            </button>
+          </div>
+          <details v-if="subscriptionError && !isSidebarCollapsed" class="plan-error-details">
+            <summary>Show lookup error</summary>
+            <p>{{ subscriptionError }}</p>
+          </details>
         </div>
 
         <!-- Help & Support -->
@@ -411,7 +427,11 @@ const logout = async () => {
 };
 
 const auth = useAuth();
-const { user, subscriptionStatus } = storeToRefs(auth);
+const { user, subscriptionStatus, subscriptionError, isLoadingSubscriptions } = storeToRefs(auth);
+
+const retrySubscription = () => {
+  if (isReady.value) void auth.fetchSubscription();
+};
 
 const isSettingsModalVisible = ref(false);
 
@@ -683,6 +703,40 @@ handle("update:set-status", async (event, { value }) => {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+}
+
+.plan-retry-wrap {
+  margin: 0 12px 4px 38px;
+}
+
+.plan-retry {
+  border: 0;
+  padding: 2px 4px;
+  background: transparent;
+  color: var(--p-primary-color);
+  font: inherit;
+  font-size: 0.75rem;
+  cursor: pointer;
+
+  &:disabled {
+    cursor: default;
+    opacity: 0.6;
+  }
+}
+
+.plan-error-details {
+  margin: 0 12px 6px 38px;
+  color: var(--p-text-muted-color);
+  font-size: 0.75rem;
+
+  summary {
+    cursor: pointer;
+  }
+
+  p {
+    margin: 4px 0 0;
+    overflow-wrap: anywhere;
   }
 }
 

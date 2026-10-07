@@ -24,6 +24,11 @@ execution, and other agent-dependent actions are disabled. This does not
 provide offline workflow editing or execution. A slow account plan check
 should affect plan-dependent controls rather than the whole dashboard.
 
+If the sidebar reports **Plan unavailable**, inspect the displayed lookup error
+and use **Retry plan check** after restoring the service or connection. An
+unavailable lookup does not confirm a free plan; plan-dependent controls remain
+disabled until the check succeeds.
+
 If the connection drops while workflow changes are saving, the editor keeps
 the unsaved draft and shows a save error. After reconnecting, use **Retry save**
 before leaving the editor. Pending requests from the old connection fail;

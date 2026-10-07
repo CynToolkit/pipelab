@@ -12,6 +12,10 @@ This guide creates a project and a Release workflow.
 A project groups Release workflows. Project deletion is unavailable while the
 project still contains workflows.
 
+While the interface files download, a lightweight shell appears using the last
+confirmed theme on this device. Fonts load independently; screen data loads
+after the interface opens.
+
 ## Create and run a workflow
 
 1. Choose **New workflow** and provide its name and release details.

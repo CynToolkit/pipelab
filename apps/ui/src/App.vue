@@ -60,9 +60,16 @@ const closeUpgradeDialog = () => {
 provide(OpenUpgradeDialogKey, openUpgradeDialog);
 
 watch(
-  () => settingsStore.settings?.theme,
+  () => (settingsStore.loaded ? settingsStore.settings?.theme : undefined),
   (theme) => {
-    document.documentElement.classList.toggle("dark", theme === "dark");
+    if (theme === "dark" || theme === "light") {
+      document.documentElement.classList.toggle("dark", theme === "dark");
+      try {
+        localStorage.setItem("pipelab.theme", theme);
+      } catch {
+        // Browser storage can be unavailable in restricted contexts.
+      }
+    }
   },
   { immediate: true },
 );
