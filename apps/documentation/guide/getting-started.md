@@ -12,8 +12,8 @@ This guide creates a project and a Release workflow.
 A project groups Release workflows. Project deletion is unavailable while the
 project still contains workflows.
 
-While the interface files download, a small Pipelab wordmark appears using the
-last confirmed theme on this device. Navigation opens before the current
+While the interface files download, the Pipelab logo and loading animation appear
+using the last confirmed theme on this device. Navigation opens before the current
 screen finishes loading. Fonts and screen data load independently, and dialogs
 load when you open them.
 

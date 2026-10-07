@@ -46,32 +46,169 @@
         color: inherit;
       }
       .boot-shell {
-        display: grid;
-        width: 100%;
-        height: 100%;
-        place-items: center;
-        background: #f8fafc;
-      }
-      .dark .boot-shell {
-        background: #111827;
-      }
-      .boot-wordmark {
+        position: fixed;
+        inset: 0;
         display: flex;
         align-items: center;
-        gap: 0.65rem;
-        color: #111827;
-        font-size: 1rem;
-        font-weight: 700;
-        letter-spacing: 0.01em;
+        justify-content: center;
+        overflow: hidden;
+        background: #f8fafc;
+        color: #0f172a;
+      }
+      .dark .boot-shell {
+        background: #0d0d14;
+        color: #fff;
+      }
+      .boot-ambient,
+      .boot-grid {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+      }
+      .boot-orb {
+        position: absolute;
+        border-radius: 50%;
+        filter: blur(130px);
+      }
+      .boot-orb-1 {
+        width: 55vw;
+        height: 55vw;
+        top: -20%;
+        left: -15%;
+        background: radial-gradient(circle, #5b52f415 0%, transparent 70%);
+        animation: boot-drift 22s ease-in-out infinite alternate;
+      }
+      .boot-orb-2 {
+        width: 45vw;
+        height: 45vw;
+        bottom: -15%;
+        right: -10%;
+        background: radial-gradient(circle, #3b82f612 0%, transparent 70%);
+        animation: boot-drift 28s ease-in-out infinite alternate-reverse;
+      }
+      .boot-orb-3 {
+        width: 30vw;
+        height: 30vw;
+        top: 50%;
+        left: 50%;
+        background: radial-gradient(circle, #7c3aed0a 0%, transparent 70%);
+        animation: boot-drift 18s ease-in-out infinite alternate;
+      }
+      .dark .boot-orb-1 {
+        background: radial-gradient(circle, #5b52f440 0%, transparent 70%);
+      }
+      .dark .boot-orb-2 {
+        background: radial-gradient(circle, #3b82f630 0%, transparent 70%);
+      }
+      .dark .boot-orb-3 {
+        background: radial-gradient(circle, #7c3aed20 0%, transparent 70%);
+      }
+      .boot-grid {
+        background-image:
+          linear-gradient(rgba(15, 23, 42, 0.03) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(15, 23, 42, 0.03) 1px, transparent 1px);
+        background-size: 52px 52px;
+      }
+      .dark .boot-grid {
+        background-image:
+          linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+      }
+      .boot-center {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 1.2rem;
+      }
+      .boot-logo-wrap {
+        width: 80px;
+        height: 80px;
+        border-radius: 22px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(91, 82, 244, 0.06);
+        border: 1px solid rgba(91, 82, 244, 0.16);
+        box-shadow:
+          0 4px 20px rgba(91, 82, 244, 0.08),
+          inset 0 1px 0 rgba(255, 255, 255, 0.4);
+        margin-bottom: 0.4rem;
+      }
+      .dark .boot-logo-wrap {
+        background: rgba(91, 82, 244, 0.12);
+        border-color: rgba(91, 82, 244, 0.28);
+        box-shadow:
+          0 0 40px rgba(91, 82, 244, 0.2),
+          inset 0 1px 0 rgba(255, 255, 255, 0.06);
+      }
+      .boot-logo {
+        width: 60px;
+        height: 60px;
+        object-fit: contain;
+      }
+      .boot-wordmark {
+        margin: 0;
+        font-size: clamp(2rem, 5vw, 3rem);
+        font-weight: 800;
+        letter-spacing: -0.03em;
+        line-height: 1;
+        background: linear-gradient(145deg, #0f172a 20%, #64748b 100%);
+        background-clip: text;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
       }
       .dark .boot-wordmark {
-        color: #f3f4f6;
+        background-image: linear-gradient(145deg, #fff 20%, rgba(255, 255, 255, 0.45) 100%);
       }
-      .boot-mark {
-        width: 0.7rem;
-        height: 0.7rem;
-        border-radius: 0.22rem;
-        background: #6366f1;
+      .boot-progress-track {
+        width: clamp(180px, 24vw, 320px);
+        height: 2px;
+        overflow: hidden;
+        border-radius: 99px;
+        background: rgba(15, 23, 42, 0.06);
+        margin: 0.4rem 0;
+      }
+      .dark .boot-progress-track {
+        background: rgba(255, 255, 255, 0.07);
+      }
+      .boot-progress-fill {
+        width: 45%;
+        height: 100%;
+        border-radius: 99px;
+        background: linear-gradient(90deg, transparent, #5b52f4, transparent);
+        animation: boot-shimmer 1.8s ease-in-out infinite;
+      }
+      .dark .boot-progress-fill {
+        background: linear-gradient(90deg, transparent, #7c6af7, transparent);
+      }
+      .boot-message {
+        margin: 0;
+        font-size: 0.78rem;
+        line-height: 1.4;
+        opacity: 0.7;
+      }
+      @keyframes boot-drift {
+        from {
+          transform: translate(0, 0);
+        }
+        to {
+          transform: translate(6vw, 4vh);
+        }
+      }
+      @keyframes boot-shimmer {
+        from {
+          transform: translateX(-250%);
+        }
+        to {
+          transform: translateX(500%);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .boot-orb,
+        .boot-progress-fill {
+          animation: none;
+        }
       }
     </style>
     <script>
@@ -84,9 +221,21 @@
   <body>
     <div id="app">
       <div class="boot-shell" role="status" aria-label="Loading Pipelab">
-        <div class="boot-wordmark" aria-hidden="true">
-          <span class="boot-mark"></span>
-          <span>Pipelab</span>
+        <div class="boot-ambient" aria-hidden="true">
+          <div class="boot-orb boot-orb-1"></div>
+          <div class="boot-orb boot-orb-2"></div>
+          <div class="boot-orb boot-orb-3"></div>
+        </div>
+        <div class="boot-grid" aria-hidden="true"></div>
+        <div class="boot-center">
+          <div class="boot-logo-wrap">
+            <img src="/icon.png" alt="" class="boot-logo" width="60" height="60" />
+          </div>
+          <h1 class="boot-wordmark">Pipelab</h1>
+          <div class="boot-progress-track" aria-hidden="true">
+            <div class="boot-progress-fill"></div>
+          </div>
+          <p class="boot-message">Loading interface…</p>
         </div>
       </div>
     </div>
