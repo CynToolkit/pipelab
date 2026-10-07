@@ -1,6 +1,7 @@
 const assert = require("node:assert/strict");
 const { createRequire } = require("node:module");
 const { join, resolve } = require("node:path");
+const { performance } = require("node:perf_hooks");
 const workspaceRequire = createRequire(resolve(__dirname, "../../../../apps/website/package.json"));
 const { chromium } = workspaceRequire("playwright");
 
@@ -21,6 +22,14 @@ const waitForResolverStart = async (started) => {
     ]);
   } finally {
     clearTimeout(timeout);
+  }
+};
+const waitForRequests = async (page, calls, channel, count) => {
+  const deadline = Date.now() + 5000;
+  while (calls.filter((item) => item === channel).length < count) {
+    if (Date.now() >= deadline)
+      throw new Error(`Timed out waiting for ${channel} request ${count}; saw ${calls.join(", ")}`);
+    await page.waitForTimeout(20);
   }
 };
 const sourceFixtures = {
@@ -162,7 +171,12 @@ const catalog = {
   ],
 };
 
-async function journey(sourceKey, sourcePath, withSavedSteamAccount = false) {
+async function journey(
+  sourceKey,
+  sourcePath,
+  withSavedSteamAccount = false,
+  readinessTiming = false,
+) {
   const browser = await chromium.launch({ executablePath: chromiumPath, args: ["--no-sandbox"] });
   const narrow = sourceKey === "godot";
   const expectedTheme = narrow ? "dark" : "light";
@@ -174,6 +188,9 @@ async function journey(sourceKey, sourcePath, withSavedSteamAccount = false) {
   page.setDefaultTimeout(8000);
   const calls = [];
   const errors = [];
+  const phaseRequests = { load: [], inspection: [], planning: [] };
+  const phaseResponses = { load: [], inspection: [], planning: [] };
+  const phaseRequestCounts = { inspection: 0, planning: 0 };
   let saved;
   let deferNextResolve = false;
   let pendingResolve;
@@ -188,8 +205,21 @@ async function journey(sourceKey, sourcePath, withSavedSteamAccount = false) {
     socket.onMessage((raw) => {
       const request = JSON.parse(raw);
       calls.push(request.channel);
+      const phase =
+        request.channel === "workflow:load"
+          ? "load"
+          : request.channel === "release:source:inspect"
+            ? "inspection"
+            : request.channel === "release:plan"
+              ? "planning"
+              : undefined;
+      if (phase) phaseRequests[phase].push(performance.now());
+      if (phase === "inspection" || phase === "planning") phaseRequestCounts[phase] += 1;
+      const phaseOrdinal =
+        phase === "inspection" || phase === "planning" ? phaseRequestCounts[phase] : 0;
       let result = {};
       let holdResponse = false;
+      let responseDelayMs = 0;
       switch (request.channel) {
         case "auth:getUser":
           result = { user: null };
@@ -269,7 +299,22 @@ async function journey(sourceKey, sourcePath, withSavedSteamAccount = false) {
           result = catalog;
           break;
         case "release:source:inspect":
-          result = { issues: [], fieldOptions: {} };
+          result = {
+            issues:
+              readinessTiming && phaseOrdinal === 1
+                ? [
+                    {
+                      code: "stale.source.inspect",
+                      path: "path",
+                      severity: "error",
+                      message: "Stale source inspection response.",
+                    },
+                  ]
+                : [],
+            fieldOptions: {},
+          };
+          if (readinessTiming)
+            responseDelayMs = phaseOrdinal === 1 ? 4000 : phaseOrdinal === 2 ? 1200 : 150;
           break;
         case "release:resolve-defaults": {
           if (deferNextResolve) {
@@ -294,7 +339,15 @@ async function journey(sourceKey, sourcePath, withSavedSteamAccount = false) {
             ],
             destinations: request.data.config.destinations.map((destination) => ({
               ...destination,
-              slots: destination.slots.map((slot) => ({ ...slot, input: { source: true } })),
+              slots: destination.slots.flatMap((slot, index) => {
+                const routedSlot = { ...slot, input: { source: true } };
+                return destination.provider.includes("steam") && index === 0
+                  ? [
+                      routedSlot,
+                      { ...routedSlot, id: `${slot.id}-second`, name: "Second deployment" },
+                    ]
+                  : [routedSlot];
+              }),
             })),
           };
           break;
@@ -311,6 +364,16 @@ async function journey(sourceKey, sourcePath, withSavedSteamAccount = false) {
             ],
             destinations: [],
             issues: [
+              ...(readinessTiming && phaseOrdinal === 1
+                ? [
+                    {
+                      code: "stale.plan",
+                      path: "builds.0.config.mode",
+                      severity: "error",
+                      message: "Stale planner response.",
+                    },
+                  ]
+                : []),
               {
                 code: "steam.account.required",
                 path: "destinations.0.config.accountConnectionId",
@@ -332,9 +395,13 @@ async function journey(sourceKey, sourcePath, withSavedSteamAccount = false) {
               edges: [{ from: "source", to: "destination" }],
             },
           };
+          if (readinessTiming) responseDelayMs = phaseOrdinal === 1 ? 4000 : 150;
           break;
         case "fs:getHomeDirectory":
           result = { path: "/test-home" };
+          break;
+        case "dialog:showOpenDialog":
+          result = { canceled: false, filePaths: ["/test-home/other.c3p"] };
           break;
         case "fs:getRoots":
           result = { roots: [{ name: "Home", path: "/test-home" }] };
@@ -343,6 +410,7 @@ async function journey(sourceKey, sourcePath, withSavedSteamAccount = false) {
           result = {
             files: [
               { name: "demo.c3p", isDirectory: false, isSymbolicLink: false, size: 1, mtime: 0 },
+              { name: "other.c3p", isDirectory: false, isSymbolicLink: false, size: 1, mtime: 0 },
               { name: "demo.zip", isDirectory: false, isSymbolicLink: false, size: 1, mtime: 0 },
               { name: "notes.txt", isDirectory: false, isSymbolicLink: false, size: 1, mtime: 0 },
               {
@@ -368,16 +436,28 @@ async function journey(sourceKey, sourcePath, withSavedSteamAccount = false) {
           break;
         case "workflow:load":
           result = saved;
+          if (readinessTiming) responseDelayMs = 150;
           break;
       }
-      if (!holdResponse)
-        socket.send(
-          JSON.stringify({
-            type: "response",
-            requestId: request.requestId,
-            events: { type: "end", data: { type: "success", result } },
-          }),
-        );
+      if (!holdResponse) {
+        const sendResponse = () => {
+          if (phase)
+            phaseResponses[phase].push({
+              ordinal: phaseOrdinal || 1,
+              at: performance.now(),
+              requestedAt: phaseRequests[phase][(phaseOrdinal || 1) - 1],
+            });
+          socket.send(
+            JSON.stringify({
+              type: "response",
+              requestId: request.requestId,
+              events: { type: "end", data: { type: "success", result } },
+            }),
+          );
+        };
+        if (responseDelayMs) setTimeout(sendResponse, responseDelayMs);
+        else sendResponse();
+      }
     });
     setTimeout(
       () =>
@@ -389,7 +469,7 @@ async function journey(sourceKey, sourcePath, withSavedSteamAccount = false) {
   });
 
   try {
-    await page.goto(`${baseUrl}/`);
+    await page.goto(`${baseUrl}/`, { waitUntil: "domcontentloaded" });
     await page.getByText("Journey project", { exact: true }).first().waitFor();
     assert.equal(
       await page.evaluate(() => document.documentElement.classList.contains("dark")),
@@ -583,6 +663,61 @@ async function journey(sourceKey, sourcePath, withSavedSteamAccount = false) {
 
     await dialog.getByRole("button", { name: "Create workflow" }).click();
     await page.waitForURL(/\/workflows\//);
+    if (readinessTiming) {
+      await waitForRequests(page, calls, "release:source:inspect", 1);
+      await waitForRequests(page, calls, "release:plan", 1);
+      const inspectStart = phaseRequests.inspection[0];
+      const planStart = phaseRequests.planning[0];
+      assert.ok(
+        Math.abs(inspectStart - planStart) < 100,
+        `source inspection and planning start concurrently (${Math.round(Math.abs(inspectStart - planStart))}ms apart)`,
+      );
+      await page.getByText("Inspecting source…", { exact: true }).waitFor();
+      await page.getByText("Planning release…", { exact: true }).waitFor();
+      if (process.env.SCREENSHOT_DIR)
+        await page.screenshot({ path: join(process.env.SCREENSHOT_DIR, "readiness-pending.png") });
+      assert.equal(await page.getByRole("button", { name: "Ship" }).isDisabled(), true);
+
+      await page.locator(".source-card").getByRole("button", { name: "Edit" }).click();
+      const sourceEditor = page.getByRole("dialog", { name: "Edit source" });
+      await sourceEditor.getByRole("button", { name: /Choose project file/i }).click();
+      const sourcePicker = page.getByRole("dialog").last();
+      await sourcePicker.getByRole("row", { name: /other\.c3p/ }).click();
+      await sourcePicker.getByRole("button", { name: "Open" }).click();
+      await waitForRequests(page, calls, "release:source:inspect", 2);
+      await waitForRequests(page, calls, "release:plan", 2);
+      await page.getByText("Needs attention", { exact: true }).first().waitFor();
+      await page.getByText("Inspecting source…", { exact: true }).waitFor();
+      if (process.env.SCREENSHOT_DIR)
+        await page.screenshot({
+          path: join(process.env.SCREENSHOT_DIR, "readiness-blocked-pending.png"),
+        });
+      assert.equal(await page.getByText("Ready to ship", { exact: true }).count(), 0);
+      assert.equal(await page.getByRole("button", { name: "Ship" }).isDisabled(), true);
+      await sourceEditor.getByRole("button", { name: "Done" }).click();
+      await page.waitForTimeout(3000);
+      assert.equal(
+        await page.getByText(/Stale (source inspection|planner) response\./).count(),
+        0,
+        "late results from the prior source revision are ignored",
+      );
+      assert.ok(
+        phaseResponses.inspection.find((response) => response.ordinal === 2).at <
+          phaseResponses.inspection.find((response) => response.ordinal === 1).at,
+        `newer inspection response precedes stale one: ${JSON.stringify(phaseResponses.inspection)}`,
+      );
+      assert.ok(
+        phaseResponses.planning.find((response) => response.ordinal === 2).at <
+          phaseResponses.planning.find((response) => response.ordinal === 1).at,
+        "the newer plan response is accepted before the stale older response arrives",
+      );
+      assert.ok(phaseResponses.load[0].at >= phaseRequests.load[0]);
+      assert.equal(
+        phaseRequestCounts.planning,
+        2,
+        "a source edit schedules one debounced replacement plan",
+      );
+    }
     await page.getByText("Action required", { exact: true }).waitFor();
     assert.equal((await page.locator(".workflow-readiness").innerText()).trim(), "Needs attention");
     assert.equal(
@@ -652,13 +787,32 @@ async function journey(sourceKey, sourcePath, withSavedSteamAccount = false) {
       0,
       "mock plan resolves the configured source output",
     );
+    if (destinationEditor) {
+      await destinationEditor.getByRole("button", { name: "Done" }).click();
+      await destinationEditor.waitFor({ state: "hidden" });
+    }
+    const spacing = await page.locator(".job-card").evaluateAll((cards) => {
+      const firstSlotList = cards[0]?.querySelector(".slot-list");
+      return {
+        cardCount: cards.length,
+        siblingMargin: cards[1] ? getComputedStyle(cards[1]).marginTop : "0px",
+        slotGap: firstSlotList ? getComputedStyle(firstSlotList).rowGap : "0px",
+        slotInset: firstSlotList ? getComputedStyle(firstSlotList).paddingTop : "0px",
+        slotCount: firstSlotList?.querySelectorAll(".slot-row").length || 0,
+      };
+    });
+    assert.equal(spacing.cardCount, 2, "fixture shows two destination cards");
+    assert.equal(spacing.siblingMargin, "10px", "destination cards keep a ten-pixel separation");
+    assert.equal(spacing.slotGap, "8px", "deployment rows keep their eight-pixel gap");
+    assert.equal(spacing.slotInset, "2px", "deployment rows have a small top inset");
+    assert.equal(spacing.slotCount, 2, "fixture shows sibling deployment rows");
     if (process.env.SCREENSHOT_DIR)
       await page.screenshot({
         path: join(process.env.SCREENSHOT_DIR, `pipelab-${screenshotKey}-configuration.png`),
       });
     assert.ok(saved, "workflow save was called");
     assert.equal(saved.source.provider, sourceFixtures[sourceKey].id);
-    assert.equal(saved.source.config.path, sourcePath);
+    assert.equal(saved.source.config.path, readinessTiming ? "/test-home/other.c3p" : sourcePath);
     assert.equal(
       saved.builds[0].id,
       "fixture-default-build",
@@ -676,7 +830,6 @@ async function journey(sourceKey, sourcePath, withSavedSteamAccount = false) {
     assert.deepEqual(errors, [], `browser had no JS or console errors: ${errors.join("; ")}`);
 
     if (sourceKey === "construct" && !withSavedSteamAccount) {
-      await destinationEditor.getByRole("button", { name: "Done" }).click();
       await page.getByRole("link", { name: "Dashboard" }).click();
       await page.waitForURL(/\/dashboard$/);
       await page
@@ -733,7 +886,10 @@ async function journey(sourceKey, sourcePath, withSavedSteamAccount = false) {
         `browser had no JS errors after cancellation: ${errors.join("; ")}`,
       );
     }
-    return `${sourceKey}: keyboard selection, picker, recap, default resolution, and Configuration repair passed${sourceKey === "construct" ? "; late resolver cancellation passed" : ""}`;
+    const readinessEvidence = readinessTiming
+      ? `; readiness checks concurrent (${Math.round(Math.abs(phaseRequests.inspection[0] - phaseRequests.planning[0]))}ms start skew), durations (load ${Math.round(phaseResponses.load[0].at - phaseRequests.load[0])}ms; inspection ${Math.round(phaseResponses.inspection.find((response) => response.ordinal === 2).at - phaseResponses.inspection.find((response) => response.ordinal === 2).requestedAt)}ms; plan ${Math.round(phaseResponses.planning.find((response) => response.ordinal === 2).at - phaseResponses.planning.find((response) => response.ordinal === 2).requestedAt)}ms), stale replies ignored`
+      : "";
+    return `${sourceKey}: keyboard selection, picker, recap, default resolution, and Configuration repair passed${sourceKey === "construct" ? "; late resolver cancellation passed" : ""}${readinessEvidence}`;
   } finally {
     await context.close();
     await browser.close();
@@ -742,11 +898,18 @@ async function journey(sourceKey, sourcePath, withSavedSteamAccount = false) {
 
 (async () => {
   const results = [];
-  results.push(await journey("folder", "/test-home/Godot project"));
-  results.push(await journey("zip", "/test-home/demo.zip"));
-  results.push(await journey("construct", "/test-home/demo.c3p"));
-  results.push(await journey("construct", "/test-home/demo.c3p", true));
-  results.push(await journey("godot", "/test-home/Godot project"));
+  if (process.env.READINESS_ONLY === "1") {
+    results.push(await journey("construct", "/test-home/demo.c3p", false, true));
+  } else if (process.env.CONFIG_ONLY === "godot") {
+    results.push(await journey("godot", "/test-home/Godot project"));
+  } else {
+    results.push(await journey("folder", "/test-home/Godot project"));
+    results.push(await journey("zip", "/test-home/demo.zip"));
+    results.push(await journey("construct", "/test-home/demo.c3p"));
+    results.push(await journey("construct", "/test-home/demo.c3p", false, true));
+    results.push(await journey("construct", "/test-home/demo.c3p", true));
+    results.push(await journey("godot", "/test-home/Godot project"));
+  }
   for (const result of results) console.log(result);
 })().catch((error) => {
   console.error(error);

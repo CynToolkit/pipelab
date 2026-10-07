@@ -34,6 +34,18 @@
         @click="ship"
       />
     </template>
+    <div
+      v-if="workflowLoading || sourceInspectionPending || planning"
+      class="readiness-progress"
+      role="status"
+      aria-live="polite"
+    >
+      <span v-if="workflowLoading"><i class="pi pi-spin pi-spinner" /> Loading workflow…</span>
+      <span v-if="sourceInspectionPending"
+        ><i class="pi pi-spin pi-spinner" /> Inspecting source…</span
+      >
+      <span v-if="planning"><i class="pi pi-spin pi-spinner" /> Planning release…</span>
+    </div>
     <main v-if="flow" class="release-page">
       <Message v-if="loadError" severity="error" role="alert">
         <div class="planner-error">
@@ -557,6 +569,7 @@ import {
   deploymentSlotLabel,
   issuesForPath,
   deduplicateValidationIssues,
+  missingRequiredFieldIssues,
   outputReferenceConsumers,
   planOutputOptions,
   readinessLabel,
@@ -591,7 +604,14 @@ const flow = ref<ReleaseConfig>();
 const plan = ref<ReleasePlan>();
 const plannerIssues = ref<ValidationIssue[]>([]);
 const inspectionIssues = ref<ValidationIssue[]>([]);
-const issues = computed(() => [...plannerIssues.value, ...inspectionIssues.value]);
+const knownFieldIssues = computed(() =>
+  flow.value && !plan.value ? missingRequiredFieldIssues(flow.value, catalog.value) : [],
+);
+const issues = computed(() => [
+  ...plannerIssues.value,
+  ...inspectionIssues.value,
+  ...knownFieldIssues.value,
+]);
 const summaryIssues = computed(() => deduplicateValidationIssues(issues.value));
 const blockingIssues = computed(() =>
   summaryIssues.value.filter((issue) => issue.severity === "error"),
@@ -618,6 +638,8 @@ const loadError = ref("");
 const plannerError = ref("");
 const saveError = ref("");
 const running = ref(false);
+const workflowLoading = ref(false);
+const sourceInspectionPending = ref(false);
 const planning = ref(false);
 const saveState = ref<"saving" | "saved" | "error">("saved");
 const inspectionOptions = ref<Record<string, ReleaseFieldOption[]>>({});
@@ -654,12 +676,14 @@ const saveStateLabel = computed(() =>
   saveState.value === "saving" ? "Saving…" : saveState.value === "error" ? "Error" : "Saved",
 );
 const workflowReadinessState = computed(() =>
-  releaseReadinessState(
-    planning.value,
-    Boolean(plan.value),
-    Boolean(plannerError.value),
-    blockingIssues.value.length,
-  ),
+  releaseReadinessState({
+    loading: workflowLoading.value,
+    inspectingSource: sourceInspectionPending.value,
+    planning: planning.value,
+    hasPlan: Boolean(plan.value),
+    hasReadinessError: Boolean(plannerError.value || loadError.value),
+    blockingIssueCount: blockingIssues.value.length,
+  }),
 );
 const workflowReadinessLabel = computed(() =>
   workflowReadinessState.value === "error"
@@ -691,6 +715,8 @@ const canShip = computed(
       running.value,
       planning.value,
       saveState.value,
+      workflowLoading.value || sourceInspectionPending.value,
+      Boolean(loadError.value || plannerError.value),
     ),
 );
 let latestSourceInspection = 0;
@@ -1213,44 +1239,34 @@ const createConnection = async () => {
   }
 };
 const inspectSource = async () => {
-  if (!flow.value || !agent.isReady.value) return;
+  if (!flow.value || !agent.isReady.value) {
+    sourceInspectionPending.value = false;
+    return;
+  }
   const requestId = ++latestSourceInspection;
   const provider = flow.value.source.provider;
   const config = structuredClone(toRaw(flow.value.source.config));
+  sourceInspectionPending.value = true;
+  inspectionIssues.value = [];
+  inspectionOptions.value = {};
   const isCurrent = () =>
     requestId === latestSourceInspection &&
     flow.value?.source.provider === provider &&
     JSON.stringify(flow.value.source.config) === JSON.stringify(config);
-  let result: Awaited<ReturnType<typeof api.execute>>;
   try {
-    result = await api.execute("release:source:inspect", { provider, config });
-  } catch (cause) {
+    const result = await api.execute("release:source:inspect", { provider, config });
     if (!isCurrent()) return;
-    inspectionOptions.value = {};
-    inspectionIssues.value = [
-      {
-        code: "release.source.inspect",
-        message: cause instanceof Error ? cause.message : String(cause),
-        severity: "error",
-        path: "source",
-      },
-    ];
-    return;
-  }
-  if (!isCurrent()) return;
-  if (result.type === "error") {
-    inspectionOptions.value = {};
-    inspectionIssues.value = [
-      {
-        code: "release.source.inspect",
-        message: result.ipcError,
-        severity: "error",
-        path: "source",
-      },
-    ];
-    return;
-  }
-  if (result.type === "success") {
+    if (result.type === "error") {
+      inspectionIssues.value = [
+        {
+          code: "release.source.inspect",
+          message: result.ipcError,
+          severity: "error",
+          path: "source",
+        },
+      ];
+      return;
+    }
     const data = result.result as {
       issues?: ValidationIssue[];
       fieldOptions?: Record<string, ReleaseFieldOption[]>;
@@ -1264,6 +1280,18 @@ const inspectSource = async () => {
           : "source",
     }));
     inspectionOptions.value = data.fieldOptions || {};
+  } catch (cause) {
+    if (!isCurrent()) return;
+    inspectionIssues.value = [
+      {
+        code: "release.source.inspect",
+        message: cause instanceof Error ? cause.message : String(cause),
+        severity: "error",
+        path: "source",
+      },
+    ];
+  } finally {
+    if (requestId === latestSourceInspection) sourceInspectionPending.value = false;
   }
 };
 const planNodeLabel = (id: string, kind: string) => {
@@ -1476,6 +1504,7 @@ const loadWorkflow = async () => {
   const generation = ++workflowLoadGeneration;
   const requestedFlowId = flowId.value;
   const requestedProjectId = projectId.value;
+  workflowLoading.value = true;
   loadError.value = "";
   try {
     const [catalogResult, flowResult] = await Promise.all([
@@ -1509,11 +1538,18 @@ const loadWorkflow = async () => {
       flow.value = loaded;
       workflowHydrated = true;
     }
-    await inspectSource();
-    if (generation === workflowLoadGeneration) await refreshPlan();
+    inspectionIssues.value = [];
+    inspectionOptions.value = {};
+    plannerIssues.value = [];
+    plannerError.value = "";
+    plan.value = undefined;
+    workflowLoading.value = false;
+    await Promise.all([inspectSource(), refreshPlan()]);
   } catch (cause) {
     if (generation === workflowLoadGeneration)
       loadError.value = cause instanceof Error ? cause.message : String(cause);
+  } finally {
+    if (generation === workflowLoadGeneration) workflowLoading.value = false;
   }
 };
 watch(
@@ -1524,6 +1560,9 @@ watch(
       saveGeneration++;
       latestSourceInspection++;
       latestPlanRequest++;
+      workflowLoading.value = false;
+      sourceInspectionPending.value = false;
+      planning.value = false;
       clearTimeout(saveTimer);
       clearTimeout(planTimer);
       if (hasUnsavedState.value) {
@@ -1540,6 +1579,11 @@ watch([flowId, projectId], () => {
   pendingBlockerConnection.value = undefined;
   workflowLoadGeneration++;
   saveGeneration++;
+  latestSourceInspection++;
+  latestPlanRequest++;
+  workflowLoading.value = false;
+  sourceInspectionPending.value = false;
+  planning.value = false;
   workflowHydrated = false;
   flow.value = undefined;
   plan.value = undefined;
@@ -1556,6 +1600,17 @@ watch([flowId, projectId], () => {
 .autosave-state {
   color: var(--p-text-muted-color, var(--text-color-secondary));
   font-size: 0.75rem;
+}
+.readiness-progress {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin: 8px 0;
+  color: var(--p-text-muted-color, var(--text-color-secondary));
+  font-size: 0.75rem;
+}
+.readiness-progress i {
+  margin-right: 4px;
 }
 .workflow-readiness {
   display: inline-flex;
@@ -1663,6 +1718,23 @@ watch([flowId, projectId], () => {
 .blocker-copy :deep(.blocker-repair-button:hover:not(:disabled)) {
   border-color: var(--p-indigo-600, #4f46e5);
   background: var(--p-indigo-600, #4f46e5);
+}
+:root.dark .action-required-card {
+  border-color: #4338ca;
+  background: #1e1b4b;
+}
+:root.dark .blocker-icon {
+  color: #e0e7ff;
+  background: #3730a3;
+}
+:root.dark .blocker-copy .eyebrow,
+:root.dark .blocker-copy strong {
+  color: #e0e7ff;
+}
+:root.dark .blocker-copy > span,
+:root.dark .blocker-navigation span,
+:root.dark .blocker-navigation :deep(.p-button) {
+  color: #c7d2fe;
 }
 .plan-shortcut {
   justify-content: flex-end;
@@ -1809,6 +1881,9 @@ watch([flowId, projectId], () => {
 .job-card {
   overflow: hidden;
 }
+.job-card + .job-card {
+  margin-top: 10px;
+}
 .destination-picker {
   display: grid;
   gap: 8px;
@@ -1846,6 +1921,9 @@ watch([flowId, projectId], () => {
   display: grid;
   gap: 8px;
   padding: 0 14px 14px;
+}
+.slot-list {
+  padding-top: 2px;
 }
 .release-field {
   display: grid;

@@ -17,6 +17,7 @@ import {
   deduplicateValidationIssues,
   firstBlockingIssue,
   issuesForPath,
+  missingRequiredFieldIssues,
   planOutputOptions,
   outputReferenceChangeImpact,
   outputReferenceConsumers,
@@ -891,6 +892,8 @@ describe("release flow model", () => {
     expect(releaseCanRun(flow, plan, [], true, false)).toBe(false);
     expect(releaseCanRun(flow, plan, [], false, true)).toBe(false);
     expect(releaseCanRun(flow, plan, [], false, false, "error")).toBe(false);
+    expect(releaseCanRun(flow, plan, [], false, false, "saved", true)).toBe(false);
+    expect(releaseCanRun(flow, plan, [], false, false, "saved", false, true)).toBe(false);
   });
 
   it("does not run a release when persistence fails", async () => {
@@ -934,7 +937,7 @@ describe("release flow model", () => {
     ).toEqual([duplicate, sameMessageAtDifferentPath]);
   });
 
-  it("selects the first planner blocker and keeps readiness blocked until errors clear", () => {
+  it("keeps readiness attention visible while checks continue and never reports ready early", () => {
     const warning = { code: "notice", message: "Optional", severity: "warning" as const };
     const blocker = {
       code: "release.connection.missing",
@@ -944,10 +947,147 @@ describe("release flow model", () => {
     };
     expect(firstBlockingIssue([warning, blocker])).toBe(blocker);
     expect(firstBlockingIssue([warning])).toBeUndefined();
-    expect(releaseReadinessState(false, true, false, 1)).toBe("attention");
-    expect(releaseReadinessState(false, true, false, 0)).toBe("ready");
-    expect(releaseReadinessState(true, true, false, 0)).toBe("checking");
-    expect(releaseReadinessState(false, false, true, 0)).toBe("error");
+    expect(
+      releaseReadinessState({
+        loading: false,
+        inspectingSource: true,
+        planning: true,
+        hasPlan: false,
+        hasReadinessError: false,
+        blockingIssueCount: 1,
+      }),
+    ).toBe("attention");
+    expect(
+      releaseReadinessState({
+        loading: false,
+        inspectingSource: true,
+        planning: false,
+        hasPlan: true,
+        hasReadinessError: false,
+        blockingIssueCount: 0,
+      }),
+    ).toBe("checking");
+    expect(
+      releaseReadinessState({
+        loading: true,
+        inspectingSource: false,
+        planning: false,
+        hasPlan: true,
+        hasReadinessError: false,
+        blockingIssueCount: 0,
+      }),
+    ).toBe("checking");
+    expect(
+      releaseReadinessState({
+        loading: false,
+        inspectingSource: false,
+        planning: false,
+        hasPlan: true,
+        hasReadinessError: false,
+        blockingIssueCount: 0,
+      }),
+    ).toBe("ready");
+    expect(
+      releaseReadinessState({
+        loading: false,
+        inspectingSource: false,
+        planning: false,
+        hasPlan: false,
+        hasReadinessError: true,
+        blockingIssueCount: 0,
+      }),
+    ).toBe("error");
+  });
+
+  it("surfaces known required-field blockers from catalog metadata before planning finishes", () => {
+    const workflow: ReleaseConfig = {
+      ...config,
+      source: { provider: "source", config: { count: 0 } },
+    };
+    const metadata: ReleaseCatalog = {
+      ...catalog,
+      sources: [
+        {
+          ...catalog.sources[0],
+          fields: [
+            { key: "path", type: "file", label: "Project path", required: true },
+            { key: "count", type: "number", label: "Item count", required: true },
+          ],
+        },
+      ],
+      producers: catalog.producers.map((producer) =>
+        producer.id === "engine-a"
+          ? {
+              ...producer,
+              fields: [{ key: "preset", type: "select" as const, label: "Preset", required: true }],
+              targets: producer.targets.map((target) =>
+                target.id === "windows"
+                  ? {
+                      ...target,
+                      fields: [
+                        { key: "signing", type: "text" as const, label: "Signing", required: true },
+                      ],
+                    }
+                  : target,
+              ),
+            }
+          : producer,
+      ),
+      destinations: [
+        {
+          id: "destination",
+          label: "Destination",
+          accepts: {},
+          defaultConfig: {},
+          fields: [{ key: "channel", type: "text", label: "Channel", required: true }],
+          slotFields: [{ key: "token", type: "password", label: "Token", required: true }],
+        },
+      ],
+    };
+
+    expect(missingRequiredFieldIssues(workflow, metadata)).toEqual([
+      {
+        code: "release.field.required",
+        message: "Project path is required.",
+        severity: "error",
+        path: "source.config.path",
+      },
+    ]);
+    workflow.source.config.path = "/project.pok";
+    workflow.source.config.count = 0;
+    workflow.destinations = [
+      {
+        id: "destination-one",
+        provider: "destination",
+        enabled: false,
+        config: {},
+        slots: [{ id: "slot-one", enabled: false, config: {} }],
+      },
+    ];
+    workflow.builds = [
+      {
+        id: "build-one",
+        type: "desktop",
+        engine: "engine-a",
+        enabled: false,
+        config: {},
+        targets: [{ id: "windows", enabled: false, config: {} }],
+      },
+    ];
+    expect(missingRequiredFieldIssues(workflow, metadata)).toEqual([]);
+
+    workflow.destinations[0].enabled = true;
+    workflow.destinations[0].slots[0].enabled = true;
+    workflow.builds[0].enabled = true;
+    expect(missingRequiredFieldIssues(workflow, metadata).map((issue) => issue.path)).toEqual([
+      "builds.0.config.preset",
+      "destinations.0.config.channel",
+      "destinations.0.slots.0.config.token",
+    ]);
+    workflow.builds[0].targets[0].enabled = true;
+    expect(missingRequiredFieldIssues(workflow, metadata).map((issue) => issue.path)).toContain(
+      "builds.0.targets.0.config.signing",
+    );
   });
 
   it("clamps blocker navigation when the current issue list changes", () => {

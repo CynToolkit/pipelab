@@ -41,6 +41,11 @@ attempt does not prevent later requests after connectivity returns.
 
 ## Release workflow planning
 
+The configuration page reports workflow loading, source inspection, and
+release planning separately. A known blocker appears as **Needs attention**
+while other checks continue; **Ready to ship** appears only after all checks
+finish without blockers or errors.
+
 - **Needs attention:** Open the issue detail on the source, build, destination,
   or deployment slot that reports it. Check its required provider fields and
   selected artifact compatibility.
