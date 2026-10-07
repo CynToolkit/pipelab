@@ -293,7 +293,10 @@
           >{{ error }} <Button label="Back to runs" text @click="backToRuns"
         /></Message>
         <div v-else class="loading-state" aria-busy="true">
-          <i class="mdi mdi-loading" />Loading run…
+          <template v-if="agent.isReady.value"><i class="mdi mdi-loading" />Loading run…</template>
+          <span v-else role="status"
+            >Run details are unavailable while the engine is disconnected.</span
+          >
         </div>
       </main>
     </WorkflowShell>
@@ -301,7 +304,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from "vue";
+import { computed, nextTick, onUnmounted, reactive, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import Layout from "@renderer/components/Layout.vue";
 import WorkflowShell from "@renderer/components/WorkflowShell.vue";
@@ -311,6 +314,7 @@ import Message from "primevue/message";
 import { useAPI } from "@renderer/composables/api";
 import type { BuildHistoryEntry, ExecutionStep } from "@pipelab/shared";
 import { loadRunEntryWithRetry } from "./run-detail-loader";
+import { useAgentAvailability } from "@renderer/composables/useAgentAvailability";
 import {
   artifactDisplayName,
   artifactDisplayDescription,
@@ -329,6 +333,7 @@ type Panel = "logs" | "artifacts" | "deliveries";
 const route = useRoute();
 const router = useRouter();
 const api = useAPI();
+const agent = useAgentAvailability();
 const entry = ref<BuildHistoryEntry>();
 const error = ref("");
 const cancelFeedback = ref("");
@@ -530,6 +535,7 @@ const cancel = async () => {
 };
 const selectStep = (stepId: string | null) => selectRunStep(stepSelection, stepId);
 const load = async () => {
+  if (!agent.isReady.value) return;
   const generation = ++loadGeneration;
   const runId = String(route.params.runId);
   const projectId = String(route.params.projectId || "");
@@ -589,10 +595,21 @@ watch(
     error.value = "";
     resetRunStepSelectionState(stepSelection);
     activePanel.value = "logs";
-    void load();
+    if (agent.isReady.value) void load();
   },
 );
-onMounted(load);
+watch(
+  agent.isReady,
+  (ready) => {
+    if (ready) void load();
+    else {
+      loadGeneration++;
+      stopRunEvents?.();
+      stopRunEvents = undefined;
+    }
+  },
+  { immediate: true },
+);
 onUnmounted(() => {
   loadGeneration++;
   stopRunEvents?.();

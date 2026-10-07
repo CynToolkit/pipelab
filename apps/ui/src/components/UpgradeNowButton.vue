@@ -1,6 +1,8 @@
 <template>
   <button
-    v-if="!isSubscribed && isLoggedIn && hasLoginProvider"
+    v-if="
+      authStore.subscriptionStatus === 'ready' && !isSubscribed && isLoggedIn && hasLoginProvider
+    "
     class="upgrade-now-button"
     @click="openUpgradeDialog"
   >

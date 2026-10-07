@@ -1,9 +1,24 @@
 <template>
-  <div class="upgrade-dialog">
+  <p v-if="!isReady" role="status">Reconnect the agent to load plans or upgrade.</p>
+  <div class="upgrade-dialog" :inert="!isReady">
     <div class="dialog-header">
       <h2>Upgrade Your Plan</h2>
       <p>Choose the plan that works best for you</p>
     </div>
+
+    <p v-if="auth.subscriptionStatus !== 'ready'" role="status">
+      {{
+        auth.subscriptionStatus === "error"
+          ? "Unable to check your current plan."
+          : "Checking your current plan…"
+      }}
+      <button
+        v-if="isReady && auth.subscriptionStatus === 'error'"
+        @click="auth.fetchSubscription()"
+      >
+        Retry plan check
+      </button>
+    </p>
 
     <div class="plans-container">
       <!-- Loading state -->
@@ -58,17 +73,19 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, onMounted } from "vue";
+import { ref, watch } from "vue";
 import { useAPI } from "@renderer/composables/api";
 import { useAuth } from "@renderer/store/auth";
 import { supabase } from "@pipelab/shared";
 import type { Product } from "@polar-sh/sdk/models/components/product";
+import { useAgentAvailability } from "@renderer/composables/useAgentAvailability";
 
 type Plan = Product;
 
 const emit = defineEmits(["close"]);
 const api = useAPI();
 const auth = useAuth();
+const { isReady } = useAgentAvailability();
 
 // State for plans, loading, and error
 const plans = ref<Plan[]>([]);
@@ -77,6 +94,7 @@ const error = ref<string | null>(null);
 
 // Function to fetch plans from polar.sh using the actual cloud function
 const fetchPlansFromPolar = async () => {
+  if (!isReady.value) return;
   try {
     isLoading.value = true;
     error.value = null;
@@ -99,6 +117,7 @@ const fetchPlansFromPolar = async () => {
 };
 
 const isCurrentPlan = (plan: any) => {
+  if (auth.subscriptionStatus !== "ready") return false;
   // If plan is Free, it's current if user has no subscriptions
   if (plan.name === "Free") {
     return auth.subscriptions.length === 0;
@@ -113,6 +132,7 @@ const isCurrentPlan = (plan: any) => {
 };
 
 const isPlanDisabled = (plan: any) => {
+  if (!isReady.value || auth.subscriptionStatus !== "ready") return true;
   // Always disable if it's the current plan
   if (isCurrentPlan(plan)) return true;
 
@@ -127,6 +147,8 @@ const isPlanDisabled = (plan: any) => {
 };
 
 const getPlanButtonText = (plan: any) => {
+  if (auth.subscriptionStatus !== "ready")
+    return auth.subscriptionStatus === "error" ? "Plan unavailable" : "Checking plan…";
   if (isCurrentPlan(plan)) {
     return "Current Plan";
   }
@@ -150,6 +172,7 @@ const handlePlanAction = (plan: any) => {
 };
 
 const upgradeToPlan = async (plan: any) => {
+  if (!isReady.value || auth.subscriptionStatus !== "ready") return;
   const result: any = await api.execute("auth:invoke", {
     name: "checkout",
     options: {
@@ -167,9 +190,13 @@ const upgradeToPlan = async (plan: any) => {
 };
 
 // Fetch plans when component is mounted
-onMounted(() => {
-  fetchPlansFromPolar();
-});
+watch(
+  isReady,
+  (ready) => {
+    if (ready) void fetchPlansFromPolar();
+  },
+  { immediate: true },
+);
 
 const closeDialog = () => {
   emit("close");

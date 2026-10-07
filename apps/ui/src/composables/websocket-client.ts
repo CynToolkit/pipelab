@@ -8,6 +8,7 @@ import {
   WebSocketConnectionState,
   WebSocketError,
   WebSocketConnectionError,
+  WebSocketErrorMessage,
   WebSocketMessage,
   isWebSocketRequestMessage,
   isWebSocketResponseMessage,
@@ -30,7 +31,7 @@ interface QueuedMessage {
 
 export class WebSocketClient {
   private ws: WebSocket | null = null;
-  private listeners: Map<string, (data: WebSocketMessage) => void> = new Map();
+  private listeners: Map<RequestId, (data: WebSocketMessage) => void> = new Map();
   private eventListeners: Map<string, Set<(data: any) => void>> = new Map();
   private reconnectAttempts = 0;
   private maxReconnectAttempts = Infinity;
@@ -94,9 +95,11 @@ export class WebSocketClient {
     this.notifyStateChange();
 
     try {
-      this.ws = new WebSocket(targetUrl);
+      const socket = new WebSocket(targetUrl);
+      this.ws = socket;
 
-      this.ws.onopen = () => {
+      socket.onopen = () => {
+        if (this.ws !== socket) return;
         const safeTargetUrl = new URL(targetUrl);
         safeTargetUrl.searchParams.delete("token");
         console.log("WebSocket connected to", safeTargetUrl.toString());
@@ -118,20 +121,25 @@ export class WebSocketClient {
         this.flushQueue();
       };
 
-      this.ws.onmessage = (event) => {
-        this.handleMessage(event);
+      socket.onmessage = (event) => {
+        if (this.ws === socket) this.handleMessage(event);
       };
 
-      this.ws.onclose = (event) => {
+      socket.onclose = (event) => {
+        if (this.ws !== socket) return;
         console.log("WebSocket disconnected", { code: event.code, reason: event.reason });
         this.isConnecting = false;
         this.connectionState = "disconnected";
+        this.ws = null;
+        this.rejectPendingRequests("WebSocket connection lost");
+        this.clearQueue();
         this.notifyStateChange();
 
         this.scheduleReconnect();
       };
 
-      this.ws.onerror = (error) => {
+      socket.onerror = (error) => {
+        if (this.ws !== socket) return;
         console.error("WebSocket error:", error);
         this.isConnecting = false;
         this.connectionState = "error";
@@ -154,6 +162,18 @@ export class WebSocketClient {
         console.error("Error in state change listener:", error);
       }
     });
+  }
+
+  private rejectPendingRequests(message: string): void {
+    for (const [requestId, listener] of this.listeners) {
+      const error: WebSocketErrorMessage = {
+        type: "error",
+        requestId,
+        error: message,
+        code: "CONNECTION_LOST",
+      };
+      listener(error);
+    }
   }
 
   private scheduleReconnect() {
@@ -361,7 +381,9 @@ export class WebSocketClient {
   }
 
   public disconnect(options: { clearQueue?: boolean } = { clearQueue: true }) {
+    void options;
     this.connectionState = "disconnected";
+    this.isConnecting = false;
     this.notifyStateChange();
 
     // Clear any pending reconnection attempt
@@ -370,16 +392,19 @@ export class WebSocketClient {
       this.reconnectTimeout = null;
     }
 
-    // Clear any queued messages since we're disconnecting
-    if (options.clearQueue) {
-      this.clearQueue();
-    }
+    // Neither queued nor in-flight requests are safe to replay after disconnect.
+    this.clearQueue();
+    this.rejectPendingRequests("WebSocket connection lost");
 
     if (this.ws) {
-      this.ws.close();
+      const socket = this.ws;
       this.ws = null;
+      socket.onopen = null;
+      socket.onmessage = null;
+      socket.onclose = null;
+      socket.onerror = null;
+      socket.close();
     }
-    this.listeners.clear();
     this.reconnectAttempts = 0;
   }
 
@@ -395,7 +420,7 @@ export class WebSocketClient {
   }
 
   public reconnect(url?: string) {
-    this.disconnect({ clearQueue: false });
+    this.disconnect({ clearQueue: true });
     this.connect(url);
   }
   public on<KEY extends Channels>(

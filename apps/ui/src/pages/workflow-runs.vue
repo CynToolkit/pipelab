@@ -23,8 +23,11 @@
             ><Button label="Try again" text size="small" @click="loadRuns" />
           </div>
         </Message>
+        <p v-if="!agent.isReady.value && !entries.length" class="inline-state" role="status">
+          Run history is unavailable while the engine is disconnected.
+        </p>
         <div
-          v-if="loading && !entries.length"
+          v-else-if="loading && !entries.length"
           class="history-skeleton"
           aria-busy="true"
           aria-label="Loading runs"
@@ -47,7 +50,7 @@
           />
         </div>
         <div
-          v-else-if="!loading && !historyError && !workflowError"
+          v-else-if="!loading && entries.length"
           class="run-list"
           role="list"
           aria-label="Workflow runs"
@@ -99,7 +102,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from "vue";
+import { computed, onUnmounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import Layout from "@renderer/components/Layout.vue";
 import WorkflowShell from "@renderer/components/WorkflowShell.vue";
@@ -108,10 +111,12 @@ import Message from "primevue/message";
 import { useAPI } from "@renderer/composables/api";
 import type { BuildHistoryEntry } from "@pipelab/shared";
 import { resolveWorkflowRunsState, scheduleWorkflowRunsRefresh } from "./workflow-runs-state";
+import { useAgentAvailability } from "@renderer/composables/useAgentAvailability";
 
 const route = useRoute();
 const router = useRouter();
 const api = useAPI();
+const agent = useAgentAvailability();
 const flowId = computed(() => String(route.params.flowId));
 const projectId = computed(() => String(route.params.projectId));
 const basePath = computed(() => `/workflows/${flowId.value}/${projectId.value}`);
@@ -124,6 +129,7 @@ let refreshTimer: ReturnType<typeof setTimeout> | undefined;
 let loadGeneration = 0;
 
 const loadRuns = async () => {
+  if (!agent.isReady.value) return;
   if (refreshTimer) clearTimeout(refreshTimer);
   const generation = ++loadGeneration;
   if (!entries.value.length) loading.value = true;
@@ -193,11 +199,23 @@ const statusIcon = (status: BuildHistoryEntry["status"]) =>
     cancelled: "mdi mdi-cancel",
   })[status];
 const statusLabel = (status: BuildHistoryEntry["status"]) => status.replaceAll("-", " ");
-onMounted(loadRuns);
+watch(
+  agent.isReady,
+  (ready) => {
+    if (!ready) {
+      loadGeneration++;
+      if (!entries.value.length) loading.value = true;
+      return;
+    }
+    void loadRuns();
+  },
+  { immediate: true },
+);
 watch([flowId, projectId], () => {
   entries.value = [];
   workflowName.value = "Workflow";
-  void loadRuns();
+  if (agent.isReady.value) void loadRuns();
+  else loading.value = true;
 });
 onUnmounted(() => {
   loadGeneration++;

@@ -17,10 +17,13 @@ for your operating system and architecture.
 1. Open the downloaded installer or application archive for your system.
 2. Start Pipelab. The packaged desktop app starts or resolves its local CLI
    server in the background.
-3. Wait for the startup screen to finish loading projects, providers, settings,
-   account state, and other initial data.
-4. If the app reports that it cannot connect or load startup data, use the
-   retry action. If it stays disconnected, see
+3. Navigation appears while the local agent starts. Projects and workflows
+   show loading states in the dashboard; other screens load their data when
+   opened. Saved interface preferences and account plan checks load in the
+   background without blocking the dashboard.
+4. If the agent is unavailable, navigation remains visible, but actions that
+   need the agent are disabled. Use **Reconnect** for connection failures or
+   **Retry** in a section whose data failed to load. If it stays disconnected, see
    [startup troubleshooting](/guide/troubleshooting#desktop-startup).
 
 The release artifacts show which operating systems and architectures are

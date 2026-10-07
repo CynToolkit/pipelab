@@ -15,6 +15,7 @@
                 text
                 size="small"
                 class="drawer-header-icon-btn"
+                :disabled="!connectionDataReady || !agent.isReady.value"
                 aria-label="Add connection"
                 v-tooltip.top="'Add New Connection'"
                 @click="openAddConnectionDialog"
@@ -65,7 +66,32 @@
             </div>
 
             <div
-              v-if="filteredConnections.length === 0"
+              v-if="!connectionDataReady"
+              class="text-center py-6 text-[11px] opacity-50"
+              role="status"
+            >
+              {{
+                !agent.isReady.value
+                  ? "Connections are unavailable while the agent is disconnected."
+                  : connectionLoadError ||
+                    connectionsStore.error ||
+                    appStore.providerError ||
+                    "Loading connections…"
+              }}
+              <Button
+                v-if="
+                  connectionLoadError ||
+                  connectionsStore.status === 'error' ||
+                  appStore.providerStatus === 'error'
+                "
+                label="Retry"
+                text
+                size="small"
+                @click="loadConnectionData"
+              />
+            </div>
+            <div
+              v-else-if="filteredConnections.length === 0"
               class="text-center py-6 text-[11px] opacity-50"
             >
               No active connections.
@@ -238,6 +264,7 @@
                     icon="pi pi-check"
                     size="small"
                     class="px-4"
+                    :disabled="!connectionDataReady || !agent.isReady.value"
                     @click="saveConnectionEdits"
                   />
                 </div>
@@ -398,6 +425,7 @@
             label="Connect & Save"
             size="small"
             :loading="connectingAccountLoader"
+            :disabled="!connectionDataReady || !agent.isReady.value"
             @click="saveNewAccount"
           />
         </div>
@@ -487,7 +515,7 @@
 
 <script lang="ts" setup>
 import { buildIntegrationTargets } from "./integration-targets";
-import { ref, computed, onMounted, toRaw, watch } from "vue";
+import { ref, computed, toRaw, watch } from "vue";
 import { useConnectionsStore } from "@renderer/store/connections";
 import { useAppStore } from "@renderer/store/app";
 import { storeToRefs } from "pinia";
@@ -501,6 +529,7 @@ import InputIcon from "primevue/inputicon";
 import { useToast } from "primevue/usetoast";
 import { useAPI } from "@renderer/composables/api";
 import Layout from "@renderer/components/Layout.vue";
+import { useAgentAvailability } from "@renderer/composables/useAgentAvailability";
 
 interface ConnectedAccount {
   id: string;
@@ -522,9 +551,13 @@ const connectionsStore = useConnectionsStore();
 const appStore = useAppStore();
 const api = useAPI();
 const toast = useToast();
+const agent = useAgentAvailability();
 
 const { connections: connectionsRef } = storeToRefs(connectionsStore);
 const { providerDefinitions } = storeToRefs(appStore);
+const connectionDataReady = computed(
+  () => connectionsStore.status === "ready" && appStore.providerStatus === "ready",
+);
 
 // State
 const selectedConnectionId = ref("");
@@ -543,6 +576,8 @@ const newConnectionPath = ref("");
 const newConnectionGameId = ref("");
 const dynamicFields = ref<Record<string, string>>({});
 const connectingAccountLoader = ref(false);
+const connectionLoadError = ref("");
+let connectionLoadGeneration = 0;
 
 // Edit Form State
 const editConnectionName = ref("");
@@ -756,6 +791,7 @@ const getIconClass = (iconObj: any) => {
 
 // --- Storage Persistence ---
 const saveConnections = async (list: ConnectedAccount[]) => {
+  if (!agent.isReady.value || !connectionDataReady.value) return;
   await connectionsStore.updateConnections({
     version: "1.0.0",
     connections: list,
@@ -873,6 +909,7 @@ const openConnectDialog = () => {
 };
 
 const saveNewAccount = async () => {
+  if (!connectionDataReady.value || !agent.isReady.value) return;
   if (!newConnectionName.value.trim()) {
     toast.add({
       severity: "error",
@@ -952,6 +989,7 @@ const saveNewAccount = async () => {
 };
 
 const saveConnectionEdits = async () => {
+  if (!connectionDataReady.value || !agent.isReady.value) return;
   if (!selectedConnection.value) return;
 
   const updated = connectedAccounts.value.map((conn) => {
@@ -1001,10 +1039,37 @@ const saveConnectionEdits = async () => {
   });
 };
 
-onMounted(() => {
-  if (connectedAccounts.value.length > 0) {
-    selectedConnectionId.value = connectedAccounts.value[0].id;
-  }
+const loadConnectionData = async () => {
+  if (!agent.isReady.value) return;
+  const generation = ++connectionLoadGeneration;
+  connectionLoadError.value = "";
+  const results = await Promise.allSettled([
+    connectionsStore.init(),
+    appStore.loadProviderDefinitions(),
+  ]);
+  const failed = results.find((result) => result.status === "rejected");
+  if (generation !== connectionLoadGeneration || !agent.isReady.value) return;
+  if (failed?.status === "rejected")
+    connectionLoadError.value =
+      failed.reason instanceof Error ? failed.reason.message : String(failed.reason);
+  else if (connectionsStore.status === "error" || appStore.providerStatus === "error")
+    connectionLoadError.value =
+      connectionsStore.error || appStore.providerError || "Unable to load connection data.";
+};
+watch(
+  agent.isReady,
+  (ready) => {
+    if (ready) void loadConnectionData();
+    else {
+      connectionLoadGeneration++;
+      connectionLoadError.value = "";
+    }
+  },
+  { immediate: true },
+);
+watch([() => connectionsStore.status, connectedAccounts], ([status, accounts]) => {
+  if (status === "ready" && !selectedConnectionId.value && accounts.length)
+    selectedConnectionId.value = accounts[0].id;
 });
 </script>
 

@@ -209,6 +209,18 @@
           </ol>
         </section>
       </main>
+      <main v-else class="release-page">
+        <Message v-if="error" severity="error" role="alert">
+          {{ error }} <Button label="Retry" text @click="loadWorkflow" />
+        </Message>
+        <p v-else role="status" aria-busy="true">
+          {{
+            agent.isReady.value
+              ? "Loading workflow configuration…"
+              : "Workflow configuration is unavailable while the engine is disconnected."
+          }}
+        </p>
+      </main>
     </WorkflowShell>
     <ConfirmDialog group="workflow-destructive" />
     <Dialog
@@ -467,7 +479,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, toRaw, watch } from "vue";
+import { computed, onUnmounted, ref, toRaw, watch } from "vue";
 import { nanoid } from "nanoid";
 import { onBeforeRouteLeave, useRoute, useRouter } from "vue-router";
 import Button from "primevue/button";
@@ -499,6 +511,7 @@ import { useAPI } from "../composables/api";
 import { publishRunEvent } from "./run-events";
 import { useAppStore } from "../store/app";
 import { useConnectionsStore } from "../store/connections";
+import { useAgentAvailability } from "@renderer/composables/useAgentAvailability";
 import {
   connectionMatchesIntegration,
   createSerializedTaskQueue,
@@ -523,6 +536,7 @@ const api = useAPI();
 const confirm = useConfirm();
 const appStore = useAppStore();
 const connectionsStore = useConnectionsStore();
+const agent = useAgentAvailability();
 const flowId = computed(() => String(route.params.flowId));
 const projectId = computed(() => String(route.params.projectId));
 const catalog = ref<ReleaseCatalog>({
@@ -598,18 +612,24 @@ const workflowReadinessIcon = computed(() =>
         ? "pi pi-exclamation-triangle"
         : "pi pi-check-circle",
 );
-const canShip = computed(() =>
-  releaseCanRun(
-    flow.value,
-    plan.value,
-    issues.value,
-    running.value,
-    planning.value,
-    saveState.value,
-  ),
+const canShip = computed(
+  () =>
+    agent.isReady.value &&
+    connectionsStore.status === "ready" &&
+    appStore.providerStatus === "ready" &&
+    releaseCanRun(
+      flow.value,
+      plan.value,
+      issues.value,
+      running.value,
+      planning.value,
+      saveState.value,
+    ),
 );
 let latestSourceInspection = 0;
 let latestPlanRequest = 0;
+let workflowLoadGeneration = 0;
+let saveGeneration = 0;
 const changeRevision = ref(0);
 const persistedRevision = ref(0);
 let workflowHydrated = false;
@@ -979,7 +999,7 @@ const createConnection = async () => {
   }
 };
 const inspectSource = async () => {
-  if (!flow.value) return;
+  if (!flow.value || !agent.isReady.value) return;
   const requestId = ++latestSourceInspection;
   const provider = flow.value.source.provider;
   const config = structuredClone(toRaw(flow.value.source.config));
@@ -1055,7 +1075,7 @@ const nodeIcon = (kind: string) =>
         ? "mdi mdi-cog-transfer-outline"
         : "mdi mdi-hammer-wrench";
 const refreshPlan = async (): Promise<ReleasePlan | undefined> => {
-  if (!flow.value) return undefined;
+  if (!flow.value || !agent.isReady.value) return undefined;
   const requestId = ++latestPlanRequest;
   const revision = changeRevision.value;
   const config = structuredClone(toRaw(flow.value));
@@ -1093,6 +1113,17 @@ const refreshPlan = async (): Promise<ReleasePlan | undefined> => {
 };
 const save = createSerializedTaskQueue(async () => {
   if (!flow.value) return;
+  if (
+    !agent.isReady.value ||
+    connectionsStore.status !== "ready" ||
+    appStore.providerStatus !== "ready"
+  ) {
+    if (!hasUnsavedState.value) return;
+    saveState.value = "error";
+    saveError.value = "The engine or required workflow data is unavailable before save.";
+    throw new Error(saveError.value);
+  }
+  const requestGeneration = ++saveGeneration;
   const revision = changeRevision.value;
   const snapshot = structuredClone(toRaw(flow.value));
   saveState.value = "saving";
@@ -1101,6 +1132,8 @@ const save = createSerializedTaskQueue(async () => {
     data: snapshot,
     projectId: projectId.value,
   });
+  if (requestGeneration !== saveGeneration || !agent.isReady.value)
+    throw new Error("The connection changed before the save could be confirmed.");
   if (result.type === "error") {
     saveState.value = "error";
     saveError.value = result.ipcError;
@@ -1116,7 +1149,7 @@ const save = createSerializedTaskQueue(async () => {
   else saveState.value = "saved";
 });
 const ship = async () => {
-  if (!flow.value) return;
+  if (!flow.value || !canShip.value) return;
   try {
     await save();
     const revision = changeRevision.value;
@@ -1137,7 +1170,7 @@ const ship = async () => {
   }
 };
 const runShip = async () => {
-  if (!flow.value) return;
+  if (!flow.value || !canShip.value) return;
   releaseDetailsVisible.value = false;
   running.value = true;
   try {
@@ -1224,24 +1257,78 @@ onUnmounted(() => {
   clearTimeout(saveTimer);
   clearTimeout(planTimer);
 });
-onMounted(async () => {
-  await connectionsStore.init();
-  const [catalogResult, flowResult] = await Promise.all([
-    api.execute("release:catalog:get"),
-    api.execute("workflow:load", { workflowId: flowId.value, projectId: projectId.value }),
-  ]);
-  if (catalogResult.type === "success") catalog.value = catalogResult.result;
-  if (flowResult.type === "success") {
+const loadWorkflow = async () => {
+  if (!agent.isReady.value) return;
+  const generation = ++workflowLoadGeneration;
+  const requestedFlowId = flowId.value;
+  const requestedProjectId = projectId.value;
+  error.value = "";
+  try {
+    const [catalogResult, flowResult] = await Promise.all([
+      api.execute("release:catalog:get"),
+      api.execute("workflow:load", { workflowId: requestedFlowId, projectId: requestedProjectId }),
+      connectionsStore.init(),
+      appStore.loadProviderDefinitions(),
+    ]).then(([catalog, workflow]) => [catalog, workflow] as const);
+    if (
+      generation !== workflowLoadGeneration ||
+      requestedFlowId !== flowId.value ||
+      requestedProjectId !== projectId.value
+    )
+      return;
+    if (catalogResult.type === "error") throw new Error(catalogResult.ipcError);
+    if (flowResult.type === "error") throw new Error(flowResult.ipcError);
+    if (connectionsStore.status === "error")
+      throw new Error(connectionsStore.error || "Unable to load connections.");
+    if (appStore.providerStatus === "error")
+      throw new Error(appStore.providerError || "Unable to load provider definitions.");
     const loaded = flowResult.result;
-    if (loaded.id !== flowId.value || loaded.project !== projectId.value) {
-      error.value = "Loaded workflow identity does not match the requested route.";
+    if (loaded.id !== requestedFlowId || loaded.project !== requestedProjectId)
+      throw new Error("Loaded workflow identity does not match the requested route.");
+    catalog.value = catalogResult.result;
+    const preserveDraft =
+      flow.value?.id === requestedFlowId &&
+      flow.value?.project === requestedProjectId &&
+      hasUnsavedState.value;
+    if (!preserveDraft) {
+      workflowHydrated = false;
+      flow.value = loaded;
+      workflowHydrated = true;
+    }
+    await inspectSource();
+    if (generation === workflowLoadGeneration) await refreshPlan();
+  } catch (cause) {
+    if (generation === workflowLoadGeneration)
+      error.value = cause instanceof Error ? cause.message : String(cause);
+  }
+};
+watch(
+  agent.isReady,
+  (ready) => {
+    if (!ready) {
+      workflowLoadGeneration++;
+      saveGeneration++;
+      latestSourceInspection++;
+      latestPlanRequest++;
+      clearTimeout(saveTimer);
+      clearTimeout(planTimer);
+      if (hasUnsavedState.value) {
+        saveState.value = "error";
+        saveError.value = "The engine disconnected before these workflow changes could be saved.";
+      }
       return;
     }
-    flow.value = loaded;
-    workflowHydrated = true;
-    await inspectSource();
-    await refreshPlan();
-  } else error.value = flowResult.ipcError;
+    void loadWorkflow();
+  },
+  { immediate: true },
+);
+watch([flowId, projectId], () => {
+  workflowLoadGeneration++;
+  saveGeneration++;
+  workflowHydrated = false;
+  flow.value = undefined;
+  plan.value = undefined;
+  if (agent.isReady.value) void loadWorkflow();
 });
 </script>
 

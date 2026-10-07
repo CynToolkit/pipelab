@@ -6,15 +6,28 @@ you ask for help. Remove credentials and private paths first.
 
 ## Desktop startup {#desktop-startup}
 
-The desktop app starts or connects to a local CLI server before the dashboard
-loads. If the app stays on **Connecting** or shows **Disconnected**:
+The desktop app starts or connects to a local CLI server in the background.
+Navigation remains visible while it connects. If the connection notice stays
+on **Connecting** or reports that no agent is connected:
 
-1. Use the retry action on the screen.
+1. Use **Reconnect** in the connection notice.
 2. If you started the UI for development, confirm both the UI dev server and
    CLI backend are running; the desktop package starts these for you.
-3. If startup data fails to load, retry after the connection is restored.
+3. If a section's data fails to load, use **Retry** in that section after the
+   connection is restored. A failure in one section does not block navigation
+   or other loaded sections.
 4. If packaged desktop startup reports a CLI/server failure, restart the app
    and collect the displayed error for diagnosis.
+
+While disconnected, previously loaded data may remain visible, but editing,
+execution, and other agent-dependent actions are disabled. This does not
+provide offline workflow editing or execution. A slow account plan check
+should affect plan-dependent controls rather than the whole dashboard.
+
+If the connection drops while workflow changes are saving, the editor keeps
+the unsaved draft and shows a save error. After reconnecting, use **Retry save**
+before leaving the editor. Pending requests from the old connection fail;
+they are not replayed on the new connection.
 
 ## Release workflow planning
 

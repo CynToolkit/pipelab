@@ -7,7 +7,7 @@ const routes: RouterOptions["routes"] = [
   {
     path: "/",
     name: "Home",
-    redirect: "Dashboard",
+    redirect: { name: "Dashboard" },
   },
   {
     path: "/dashboard",

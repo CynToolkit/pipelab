@@ -5,7 +5,17 @@
     header="New release"
     :style="{ width: '720px', maxWidth: '96vw' }"
   >
-    <Stepper v-model:value="step" linear>
+    <p v-if="!isReady" role="status">Reconnect the agent to continue setting up this workflow.</p>
+    <p v-else-if="catalogLoading" role="status">Loading workflow options…</p>
+    <div v-else-if="catalogError" role="alert">
+      <p>{{ catalogError }}</p>
+      <Button label="Retry" text @click="loadCatalog" />
+    </div>
+    <Stepper
+      v-model:value="step"
+      linear
+      :inert="!isReady || catalogLoading || Boolean(catalogError)"
+    >
       <StepList
         ><Step
           v-for="item in steps"
@@ -194,7 +204,7 @@
               /><Button
                 label="Create release"
                 icon="mdi mdi-rocket-launch-outline"
-                :disabled="resolutionState !== 'ready' || !resolvedConfig"
+                :disabled="!isReady || resolutionState !== 'ready' || !resolvedConfig"
                 @click="create"
               />
             </div></div
@@ -218,6 +228,7 @@ import Button from "primevue/button";
 import { nanoid } from "nanoid";
 import type { IconType, ReleaseCatalog, ReleaseConfig, ReleaseFieldOption } from "@pipelab/shared";
 import { useAPI } from "../composables/api";
+import { useAgentAvailability } from "../composables/useAgentAvailability";
 import ReleaseFieldControl from "./ReleaseFieldControl.vue";
 import {
   buildReleaseWizardConfig,
@@ -239,6 +250,9 @@ import {
 const props = defineProps<{ visible: boolean; projectId: string }>();
 const emit = defineEmits<{ "update:visible": [value: boolean]; create: [flow: ReleaseConfig] }>();
 const api = useAPI();
+const { isReady } = useAgentAvailability();
+const catalogLoading = ref(false);
+const catalogError = ref("");
 const catalogRequests = createWizardRequestRevision();
 const resolutionRequests = createWizardRequestRevision();
 const visible = computed({
@@ -261,6 +275,7 @@ const catalog = ref<ReleaseCatalog>({
 });
 const draft = ref<ReleaseWizardDraft>(createReleaseWizardDraft());
 const sourceInspection = createWizardSourceInspection(async (source) => {
+  if (!isReady.value) throw new Error("The agent is not ready.");
   const result = await api.execute("release:source:inspect", source);
   if (result.type === "error") throw new Error(result.ipcError);
   return result.result as ReleaseWizardSourceInspectionResult;
@@ -344,6 +359,7 @@ const needsAdditionalBuildSetup = computed(
     Boolean(resolvedConfig.value) && releaseWizardNeedsAdditionalBuildSetup(resolvedConfig.value!),
 );
 const resolveDefaults = async () => {
+  if (!isReady.value) return;
   if (!sourceReady.value || !draft.value.destinations.length) {
     resolutionState.value = "error";
     resolutionError.value =
@@ -386,6 +402,7 @@ const resolveDefaults = async () => {
   }
 };
 const create = () => {
+  if (!isReady.value) return;
   const config = releaseWizardCreationConfig(resolutionState.value, resolvedConfig.value);
   if (!config) return;
   emit("create", config);
@@ -404,6 +421,35 @@ watch(
 watch(step, (value) => {
   if (value === "review" && resolutionState.value === "idle") void resolveDefaults();
 });
+const loadCatalog = async () => {
+  if (!isReady.value || !props.visible) return;
+  const requestId = catalogRequests.next();
+  catalogLoading.value = true;
+  catalogError.value = "";
+  try {
+    const result = await api.execute("release:catalog:get");
+    if (!catalogRequests.isCurrent(requestId) || !props.visible || !isReady.value) return;
+    if (result.type === "error") throw new Error(result.ipcError);
+    catalog.value = result.result;
+  } catch (error) {
+    if (catalogRequests.isCurrent(requestId))
+      catalogError.value =
+        error instanceof Error ? error.message : "Unable to load workflow options.";
+  } finally {
+    if (catalogRequests.isCurrent(requestId)) catalogLoading.value = false;
+  }
+};
+watch(isReady, (ready) => {
+  if (ready && props.visible) void loadCatalog();
+  if (!ready) {
+    catalogRequests.invalidate();
+    sourceInspection.invalidate();
+    resolutionRequests.invalidate();
+    catalogLoading.value = false;
+    resolvedConfig.value = undefined;
+    resolutionState.value = "idle";
+  }
+});
 watch(
   () => props.visible,
   async (open) => {
@@ -414,18 +460,13 @@ watch(
       return;
     }
     sourceInspection.invalidate();
-    const requestId = catalogRequests.next();
     step.value = "details";
     workflowId.value = nanoid();
     draft.value = createReleaseWizardDraft();
     resolutionState.value = "idle";
     resolvedConfig.value = undefined;
     resolutionError.value = "";
-    const result = await api.execute("release:catalog:get");
-    if (!catalogRequests.isCurrent(requestId) || !props.visible) return;
-    if (result.type === "success") {
-      catalog.value = result.result;
-    }
+    await loadCatalog();
   },
 );
 </script>

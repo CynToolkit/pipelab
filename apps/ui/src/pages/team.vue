@@ -1,14 +1,17 @@
 <template>
-  <div class="index">
-    <div class="header">
-      {{ headerSentence }}
+  <Layout>
+    <div class="index">
+      <div class="header">
+        {{ headerSentence }}
+      </div>
+      <div class="content">Team</div>
     </div>
-    <div class="content">Team</div>
-  </div>
+  </Layout>
 </template>
 
 <script setup lang="ts">
 import { computed } from "vue";
+import Layout from "@renderer/components/Layout.vue";
 
 const headerSentence = computed(() => {
   return `Welcome back!`;

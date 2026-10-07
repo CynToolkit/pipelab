@@ -1,7 +1,21 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { computed, ref } from "vue";
 
 const execute = vi.fn();
 let connected = true;
+const mocks = vi.hoisted(() => ({ agentStatus: undefined as ReturnType<typeof ref> | undefined }));
+
+vi.mock("./useAgentAvailability", async () => {
+  const { computed, ref } = await import("vue");
+  const agentStatus = ref("ready");
+  mocks.agentStatus = agentStatus;
+  return {
+    useAgentAvailability: () => ({
+      status: agentStatus,
+      isReady: computed(() => agentStatus.value === "ready"),
+    }),
+  };
+});
 
 vi.mock("./api", () => ({
   useAPI: () => ({
@@ -15,6 +29,7 @@ import { useConnectionsConfig } from "./useConfig";
 describe("useConnectionsConfig", () => {
   beforeEach(() => {
     connected = true;
+    mocks.agentStatus!.value = "ready";
     execute.mockReset();
     execute.mockResolvedValue({
       type: "success",
@@ -37,12 +52,13 @@ describe("useConnectionsConfig", () => {
   });
 
   it("rejects when the connection save is refused", async () => {
+    const config = useConnectionsConfig();
+    await config.load();
     execute.mockResolvedValueOnce({
       type: "error",
       ipcError: "Unable to save connections",
     });
 
-    const config = useConnectionsConfig();
     await expect(config.save({ version: "1.0.0", connections: [] })).rejects.toThrow(
       "Unable to save connections",
     );
@@ -85,6 +101,54 @@ describe("useConnectionsConfig", () => {
     const next = { version: "1.0.0" as const, connections: [] };
 
     await expect(config.save(next)).rejects.toThrow("API is not connected");
+    expect(config.data.value).toBe(original);
+  });
+
+  it("does not save defaults before persisted data is confirmed", async () => {
+    const config = useConnectionsConfig();
+    await expect(config.save({ version: "1.0.0", connections: [] })).rejects.toThrow(
+      "before loading persisted data",
+    );
+    expect(execute).not.toHaveBeenCalled();
+  });
+
+  it("invalidates an in-flight load when the agent disconnects", async () => {
+    let resolveLoad!: (value: {
+      type: "success";
+      result: { version: string; connections: [] };
+    }) => void;
+    execute.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveLoad = resolve;
+      }),
+    );
+    const config = useConnectionsConfig();
+    const pending = config.load();
+    mocks.agentStatus!.value = "offline";
+    connected = false;
+    resolveLoad({ type: "success", result: { version: "1.0.0", connections: [] } });
+    await pending;
+    expect(config.status.value).toBe("idle");
+    expect(config.loaded.value).toBe(false);
+  });
+
+  it("does not apply a save response after the agent disconnects", async () => {
+    const config = useConnectionsConfig();
+    await config.load();
+    const original = config.data.value;
+    let resolveSave!: (value: { type: "success"; result: undefined }) => void;
+    execute.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveSave = resolve;
+      }),
+    );
+    const next = { version: "1.0.0" as const, connections: [] };
+    const pending = config.save(next);
+    mocks.agentStatus!.value = "offline";
+    connected = false;
+    resolveSave({ type: "success", result: undefined });
+
+    await expect(pending).rejects.toThrow("Agent disconnected before the save completed");
     expect(config.data.value).toBe(original);
   });
 });
