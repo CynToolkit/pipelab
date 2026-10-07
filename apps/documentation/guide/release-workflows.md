@@ -6,19 +6,22 @@ destinations.
 ## Configure a workflow
 
 1. From the dashboard, choose **New workflow** in a project.
-2. Complete **Details**, select and configure a **Source**, then add
-   **Destinations** and their deployment slots. Pipelab checks the selected
-   Source as you fill its fields. Blocking issues appear beside the relevant
-   field; retry the inspection if it fails.
-3. On **Review**, check the proposed setup. Pipelab resolves a recommended
-   build when a destination needs one and validates the result with the
-   workflow planner. For a typical desktop project, this can add an Electron
-   build for Windows x64 automatically.
-4. Choose **Create release**. If a destination needs build setup that cannot
-   be resolved automatically, the workflow is still created as a draft and its
-   readiness state explains what needs attention.
+2. In **Name + source**, enter a workflow name, choose a source, and provide
+   its required project path. Source-specific file rules apply, such as the
+   `.c3p` extension for a Construct project or `.zip` for a ZIP source.
+   Optional fields reserved for later configuration are left out of this first
+   setup.
+3. In **Destinations**, choose one or more places to publish the release.
+4. Check the **Recap** for the workflow name, source and path, and destinations,
+   then choose **Create workflow**. Pipelab applies any existing build and
+   output defaults that can be resolved. It opens the workflow's
+   **Configuration** section after creation.
 
-![Release setup source step showing Folder, ZIP, Construct project, and Godot project options](../assets/current/workflow-source.png)
+If setup still needs information, an **Action required** card identifies the
+first blocker and offers one relevant action. It can take you to Connections
+for a missing connection, Builds for build setup, or the source or destination
+editor in Configuration for path and provider settings. Unresolved defaults
+remain visible there for you to complete.
 
 Provider cards are populated from the providers available in the application.
 Compatibility depends on the artifact type, destination, selected target, and
