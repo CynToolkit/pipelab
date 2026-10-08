@@ -69,7 +69,7 @@
         <p>{{ diagnostic.summary }}</p>
         <p class="failure-context">
           {{ entry.completedSteps }} of {{ entry.totalSteps }} steps succeeded;
-          {{ entry.artifacts?.length || 0 }} artifacts are available in the Artifacts tab.
+          {{ runFailureArtifactSummary(entry) }}
         </p>
         <p v-if="diagnostic.destination" class="failure-context">
           Affected destination: <strong>{{ diagnostic.destination }}</strong>
@@ -351,6 +351,7 @@ import {
   deliveryDisplayMetadata,
   isRunContextValid,
   resetRunStepSelectionState,
+  runFailureArtifactSummary,
   workflowCancellationFeedback,
   selectRunStep,
   applyWorkflowEventToRunEntry,

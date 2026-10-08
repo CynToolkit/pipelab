@@ -88,6 +88,13 @@ export interface RunFailureDiagnostic {
   errorCode?: string;
 }
 
+export const runFailureArtifactSummary = (entry: BuildHistoryEntry) => {
+  const count = entry.artifacts?.length ?? 0;
+  return count === 0
+    ? "No artifacts were recorded for this run."
+    : `${count} artifact${count === 1 ? "" : "s"} available in the Artifacts tab.`;
+};
+
 const failureGuidance = (message: string) => {
   if (/auth|credential|unauthori[sz]ed|\b401\b|\b403\b|login|sign.?in/i.test(message)) {
     return {

@@ -1,6 +1,10 @@
 import type { BuildHistoryEntry, Events } from "@pipelab/shared";
 import { describe, expect, it } from "vitest";
-import { applyWorkflowEventToRunEntry, buildRunFailureDiagnostics } from "./run-detail-state";
+import {
+  applyWorkflowEventToRunEntry,
+  buildRunFailureDiagnostics,
+  runFailureArtifactSummary,
+} from "./run-detail-state";
 
 type WorkflowEvent = Extract<Events<"workflow:execute">, { type: "workflow-event" }>["data"];
 
@@ -169,5 +173,18 @@ describe("buildRunFailureDiagnostics", () => {
     const completed = entry();
     completed.status = "completed";
     expect(buildRunFailureDiagnostics(completed)).toEqual([]);
+  });
+});
+
+describe("runFailureArtifactSummary", () => {
+  it("directs users to recorded artifacts and stays accurate when none were recorded", () => {
+    const run = entry();
+
+    expect(runFailureArtifactSummary(run)).toBe("No artifacts were recorded for this run.");
+
+    run.artifacts = [
+      { id: "package", name: "package.zip", path: "/tmp/package.zip", size: 1, type: "file" },
+    ];
+    expect(runFailureArtifactSummary(run)).toBe("1 artifact available in the Artifacts tab.");
   });
 });
