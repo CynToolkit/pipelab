@@ -67,6 +67,76 @@ export const buildInputControlVisible = (
 export const releaseOutputRefValue = (ref?: ReleaseOutputRef) =>
   ref ? ("source" in ref ? "source" : `${ref.buildId}:${ref.targetId}`) : "";
 
+export const missingRequiredFieldIssues = (config: ReleaseConfig, catalog: ReleaseCatalog) => {
+  const issues: ValidationIssue[] = [];
+  const hasConfiguredValue = (value: unknown): boolean => {
+    if (value === null || value === undefined) return false;
+    if (typeof value === "string") return value.trim().length > 0;
+    if (Array.isArray(value)) return value.some(hasConfiguredValue);
+    if (typeof value === "object")
+      return Object.values(value as Record<string, unknown>).some(hasConfiguredValue);
+    return true;
+  };
+  const addMissingFields = (
+    fields: ReleaseCatalog["sources"][number]["fields"],
+    values: Record<string, unknown>,
+    prefix: string,
+  ) => {
+    for (const field of fields || []) {
+      if (!field.required) continue;
+      if (hasConfiguredValue(values[field.key])) continue;
+      issues.push({
+        code: "release.field.required",
+        message: `${field.label} is required.`,
+        severity: "error",
+        path: `${prefix}.${field.key}`,
+      });
+    }
+  };
+
+  const source = catalog.sources.find((candidate) => candidate.id === config.source.provider);
+  if (source) addMissingFields(source.fields, config.source.config, "source.config");
+
+  config.builds.forEach((build, buildIndex) => {
+    if (!build.enabled) return;
+    const producer = catalog.producers.find((candidate) => candidate.id === build.engine);
+    if (!producer) return;
+    addMissingFields(producer.fields, build.config, `builds.${buildIndex}.config`);
+    build.targets.forEach((target, targetIndex) => {
+      if (!target.enabled) return;
+      const definition = producer.targets.find((candidate) => candidate.id === target.id);
+      if (definition)
+        addMissingFields(
+          definition.fields,
+          target.config,
+          `builds.${buildIndex}.targets.${targetIndex}.config`,
+        );
+    });
+  });
+
+  config.destinations.forEach((destination, destinationIndex) => {
+    if (!destination.enabled) return;
+    const definition = catalog.destinations.find(
+      (candidate) => candidate.id === destination.provider,
+    );
+    if (!definition) return;
+    addMissingFields(
+      definition.fields,
+      destination.config,
+      `destinations.${destinationIndex}.config`,
+    );
+    destination.slots.forEach((slot, slotIndex) => {
+      if (!slot.enabled) return;
+      addMissingFields(
+        definition.slotFields,
+        slot.config,
+        `destinations.${destinationIndex}.slots.${slotIndex}.config`,
+      );
+    });
+  });
+  return issues;
+};
+
 export const selectBuildInput = (
   build: ReleaseBuildProfileConfig,
   options: ReleaseOutputOption[],
@@ -352,12 +422,16 @@ export const releaseCanRun = (
   running: boolean,
   planning: boolean,
   saveState: "saving" | "saved" | "error" = "saved",
+  otherChecksPending = false,
+  hasReadinessError = false,
 ) =>
   Boolean(
     flow &&
     plan &&
     !running &&
     !planning &&
+    !otherChecksPending &&
+    !hasReadinessError &&
     saveState !== "error" &&
     !issues.some((issue) => issue.severity === "error"),
   );
@@ -369,6 +443,90 @@ export const readinessLabel = (enabled: boolean, configured: boolean, hasIssues:
   if (!enabled) return "Disabled";
   return configured && !hasIssues ? "Ready" : "Needs attention";
 };
+
+export type ReleaseRepairRoute = "connections" | "builds" | "configuration" | "issues";
+
+export const firstBlockingIssue = (issues: ValidationIssue[]) =>
+  issues.find((issue) => issue.severity === "error");
+
+export const clampBlockerIndex = (index: number, blockerCount: number) =>
+  blockerCount === 0 ? 0 : Math.min(Math.max(index, 0), blockerCount - 1);
+
+export const blockerAtIndex = (blockers: ValidationIssue[], index: number) =>
+  blockers[clampBlockerIndex(index, blockers.length)];
+
+export const releaseRepairRoute = (issue: ValidationIssue): ReleaseRepairRoute => {
+  if (
+    issue.path?.startsWith("builds.") ||
+    /^destinations\.\d+\.slots\.\d+\.input(?:\.|$)/.test(issue.path || "")
+  )
+    return "builds";
+  if (issue.path?.startsWith("source") || issue.path?.startsWith("destinations"))
+    return "configuration";
+  if (issue.code.startsWith("release.connection.")) return "connections";
+  return "issues";
+};
+
+export interface ReleaseBlockerContext {
+  targetLabel?: string;
+  connectionLabel?: string;
+  connectionFieldLabel?: string;
+  hasMatchingConnection?: boolean;
+}
+
+export const releaseBlockerPresentation = (
+  issue: ValidationIssue,
+  context: ReleaseBlockerContext = {},
+) => {
+  const route = releaseRepairRoute(issue);
+  const connectionLabel = context.connectionLabel;
+  const connectionAction = connectionLabel
+    ? context.hasMatchingConnection
+      ? `Select ${connectionLabel} connection`
+      : `Add ${connectionLabel} connection`
+    : undefined;
+  const title = connectionLabel
+    ? `Connect your ${connectionLabel} ${context.connectionFieldLabel || "account"}`
+    : route === "builds"
+      ? `Configure ${context.targetLabel || "build"}`
+      : route === "configuration"
+        ? `Configure ${context.targetLabel || "release"}`
+        : route === "connections"
+          ? "Manage connections"
+          : "Resolve workflow issue";
+
+  return {
+    title,
+    description: issue.message,
+    actionLabel:
+      connectionAction ||
+      (route === "builds"
+        ? "Configure build"
+        : route === "configuration"
+          ? `Configure ${context.targetLabel || "release"}`
+          : route === "connections"
+            ? "Manage connections"
+            : "Review issues"),
+  };
+};
+
+export interface ReleaseReadinessInput {
+  loading: boolean;
+  inspectingSource: boolean;
+  planning: boolean;
+  hasPlan: boolean;
+  hasReadinessError: boolean;
+  blockingIssueCount: number;
+}
+
+export const releaseReadinessState = (readiness: ReleaseReadinessInput) =>
+  readiness.hasReadinessError
+    ? "error"
+    : readiness.blockingIssueCount
+      ? "attention"
+      : readiness.loading || readiness.inspectingSource || readiness.planning || !readiness.hasPlan
+        ? "checking"
+        : "ready";
 
 export const applyProducerInspection = (
   build: ReleaseBuildProfileConfig,

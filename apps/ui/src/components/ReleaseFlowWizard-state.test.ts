@@ -1,357 +1,273 @@
-import { describe, expect, it, vi } from "vitest";
-import type { ReleaseCatalog, ReleaseConfig, ReleasePlan } from "@pipelab/shared";
+import { describe, expect, it } from "vitest";
+import { computed, reactive } from "vue";
+import { resolveReleaseDefaults } from "@pipelab/shared";
+import type { ReleaseCatalog, ReleaseRegistry } from "@pipelab/shared";
 import {
   buildReleaseWizardConfig,
   createReleaseWizardDraft,
-  createWizardSourceInspection,
-  createWizardRequestRevision,
-  releaseWizardBuildSummaries,
-  releaseWizardCreationConfig,
-  releaseWizardNeedsAdditionalBuildSetup,
-  releaseWizardResolutionIsPlannerValid,
+  RELEASE_WIZARD_STEPS,
+  releaseWizardCanContinueDetails,
+  releaseWizardCanReview,
+  releaseWizardDestination,
+  releaseWizardHasSource,
+  releaseWizardNextStep,
+  releaseWizardPreviousStep,
+  releaseWizardRecap,
   releaseWizardSourceIsReady,
-  releaseWizardSourceCanContinue,
-  releaseWizardSourceFieldIssues,
 } from "./ReleaseFlowWizard-state";
 
 const catalog: ReleaseCatalog = {
   buildTypes: [],
   sources: [
     {
-      id: "source/project",
-      label: "Project",
-      output: { kind: "project", container: "directory" },
-      defaultConfig: {},
+      id: "source/construct",
+      label: "Construct project",
+      description: "Construct 3 project",
+      icon: { type: "icon", icon: "pi pi-box" },
+      output: { kind: "application", platform: "web", container: "directory" },
+      defaultConfig: { path: "", profilePath: "" },
+      fields: [
+        {
+          key: "path",
+          type: "file",
+          label: "Project file",
+          required: true,
+          fileExtensions: ["c3p"],
+        },
+        {
+          key: "profilePath",
+          type: "select",
+          label: "Browser profile",
+          required: true,
+          deferUntilEditor: true,
+        },
+      ],
     },
-  ],
-  producers: [
     {
-      id: "@pipelab/plugin-electron/producer",
-      label: "Electron",
-      accepts: { kind: "project" },
-      planning: { mode: "build" },
-      defaultConfig: {},
-      targets: [
-        { id: "windows-x64", label: "Windows x64", buildType: "desktop", defaultConfig: {} },
+      id: "source/godot",
+      label: "Godot project",
+      output: { kind: "project", technology: "godot", container: "directory" },
+      defaultConfig: { path: "" },
+      fields: [
+        {
+          key: "path",
+          type: "directory",
+          label: "Project path",
+          required: true,
+        },
       ],
     },
   ],
+  producers: [],
   destinations: [
     {
       id: "destination/upload",
       label: "Upload",
+      icon: { type: "image", image: "https://example.com/upload.svg" },
       accepts: {},
-      defaultConfig: {},
+      defaultConfig: { project: "" },
     },
+    { id: "destination/store", label: "Store", accepts: {}, defaultConfig: {} },
   ],
 };
 
-const configWithBuild = (): ReleaseConfig => ({
-  version: "3.0.0",
-  id: "release-1",
-  project: "project-1",
-  name: "Release",
-  source: { provider: "source/project", config: {} },
-  builds: [
-    {
-      id: "desktop",
-      type: "desktop",
-      engine: "@pipelab/plugin-electron/producer",
-      enabled: true,
-      config: {},
-      targets: [{ id: "windows-x64", enabled: true, config: {} }],
-    },
-  ],
+const project = { kind: "project", container: "directory" } as const;
+const sourceDefinition = {
+  id: "source/godot",
+  label: "Godot project",
+  output: project,
+  createDefaultConfig: () => ({ path: "" }),
+  validate: () => [],
+  compile: () => ({ steps: [], artifact: null as never }),
+};
+const registry = (
+  destinationAccepts: ReleaseRegistry["destinations"][number]["accepts"],
+): ReleaseRegistry => ({
+  sources: [sourceDefinition],
+  producers: [],
   destinations: [
     {
-      id: "upload",
-      provider: "destination/upload",
-      enabled: true,
-      config: {},
-      slots: [
-        {
-          id: "windows",
-          enabled: true,
-          config: {},
-          input: { buildId: "desktop", targetId: "windows-x64" },
-        },
-      ],
+      id: "destination/upload",
+      label: "Upload",
+      accepts: destinationAccepts,
+      createDefaultConfig: () => ({}),
+      validate: () => [],
+      compile: () => [],
     },
   ],
 });
-
-const plannerOutput = (input: { source: true } | { producerId: string; outputId: string }) =>
-  ({
-    producers: [
-      {
-        id: "desktop",
-        provider: "producer/electron",
-        enabled: true,
-        targets: [],
-        config: {},
-      },
-    ],
-    outputs: [],
-    destinations: [
-      {
-        id: "upload",
-        provider: "destination/upload",
-        enabled: true,
-        config: {},
-        slots: [{ id: "windows", enabled: true, config: {}, input }],
-      },
-    ],
-    issues: [],
-    graph: { nodes: [], edges: [] },
-  }) satisfies ReleasePlan;
+const planningContext = { host: { platform: "linux", architecture: "x64" } };
 
 describe("ReleaseFlowWizard state", () => {
-  it("starts without selecting a Source", () => {
+  it("starts on the first of four steps with no source preselected", () => {
     const draft = createReleaseWizardDraft();
+    expect(RELEASE_WIZARD_STEPS).toEqual(["details", "source", "destinations", "recap"]);
     expect(draft.source.provider).toBe("");
-    expect(releaseWizardSourceIsReady(draft.source, catalog)).toBe(false);
+    expect(releaseWizardHasSource(draft.source, catalog)).toBe(false);
   });
 
-  it("allows a selected Source with no configuration fields", () => {
-    expect(releaseWizardSourceIsReady({ provider: "source/project", config: {} }, catalog)).toBe(
-      true,
-    );
+  it("navigates forward and back through setup, destinations, and recap", () => {
+    expect(releaseWizardNextStep("details")).toBe("source");
+    expect(releaseWizardNextStep("source")).toBe("destinations");
+    expect(releaseWizardNextStep("destinations")).toBe("recap");
+    expect(releaseWizardPreviousStep("recap")).toBe("destinations");
+    expect(releaseWizardPreviousStep("destinations")).toBe("source");
+    expect(releaseWizardPreviousStep("source")).toBe("details");
   });
 
-  it("builds the exact release draft snapshot without injecting build profiles", () => {
+  it("requires a name on the first step and keeps description optional", () => {
     const draft = createReleaseWizardDraft();
-    draft.name = "Desktop release";
-    draft.source = { provider: "source/project", config: { path: "/game" } };
-    draft.destinations = [
-      {
-        id: "upload",
-        provider: "destination/upload",
-        enabled: true,
-        config: { project: "game" },
-        slots: [{ id: "windows", enabled: true, config: {} }],
-      },
-    ];
+    expect(releaseWizardCanContinueDetails(draft)).toBe(false);
+    draft.description = "An optional release description";
+    expect(releaseWizardCanContinueDetails(draft)).toBe(false);
+    draft.name = "Game release";
+    expect(releaseWizardCanContinueDetails(draft)).toBe(true);
+  });
 
-    const config = buildReleaseWizardConfig(draft, "project-1", "release-1");
-
-    expect(config).toMatchObject({
-      id: "release-1",
-      project: "project-1",
-      name: "Desktop release",
-      source: { provider: "source/project", config: { path: "/game" } },
-      destinations: [{ id: "upload", slots: [{ id: "windows" }] }],
-      builds: [],
+  it("reactively enables source-step Continue after a required path is selected", () => {
+    const source = reactive({
+      provider: "source/construct",
+      config: { path: "" },
     });
-    expect(config.destinations).not.toBe(draft.destinations);
+    const ready = computed(() => releaseWizardSourceIsReady(source, catalog));
+
+    expect(ready.value).toBe(false);
+    source.config.path = "/game.c3p";
+    expect(ready.value).toBe(true);
   });
 
-  it("summarizes resolved engine and enabled target labels without hardcoding them", () => {
-    expect(releaseWizardBuildSummaries(configWithBuild(), catalog)).toEqual([
-      "Build · Electron · Windows x64",
-    ]);
-  });
-
-  it("creates exactly the planner-validated config shown in Review", () => {
-    const resolved = configWithBuild();
-    const created = releaseWizardCreationConfig("ready", resolved);
-
-    expect(created).toEqual(resolved);
-    expect(created).not.toBe(resolved);
-    expect(created?.builds[0].engine).toBe("@pipelab/plugin-electron/producer");
-    expect(created?.destinations[0].slots[0].input).toEqual({
-      buildId: "desktop",
-      targetId: "windows-x64",
+  it("requires name, a valid source path, and a destination before review", () => {
+    const draft = createReleaseWizardDraft();
+    expect(releaseWizardCanReview(draft, catalog)).toBe(false);
+    draft.name = "Game release";
+    draft.description = "Optional details";
+    draft.source = {
+      provider: "source/construct",
+      config: { path: "", profilePath: "" },
+    };
+    expect(releaseWizardCanReview(draft, catalog)).toBe(false);
+    draft.source.config.path = "/game.c3p";
+    expect(releaseWizardCanReview(draft, catalog)).toBe(false);
+    draft.destinations.push(releaseWizardDestination("destination/upload", catalog)!);
+    expect(releaseWizardCanReview(draft, catalog)).toBe(true);
+    expect(buildReleaseWizardConfig(draft, "project-1", "release-1").source).toEqual({
+      provider: "source/construct",
+      config: { path: "/game.c3p", profilePath: "" },
     });
-    expect(releaseWizardCreationConfig("error", resolved)).toBeUndefined();
-  });
-
-  it("marks only enabled, unrouted destination slots for additional build setup", () => {
-    const config = configWithBuild();
-    config.destinations[0].slots[0].input = undefined;
-    expect(releaseWizardNeedsAdditionalBuildSetup(config)).toBe(true);
-
-    config.destinations[0].slots[0].input = { source: true };
-    expect(releaseWizardNeedsAdditionalBuildSetup(config)).toBe(false);
-
-    config.destinations[0].enabled = false;
-    config.destinations[0].slots[0].input = undefined;
-    expect(releaseWizardNeedsAdditionalBuildSetup(config)).toBe(false);
-  });
-
-  it("accepts a resolved output only when the planner confirms its route", () => {
-    const config = configWithBuild();
-    const validPlan = plannerOutput({ producerId: "desktop", outputId: "windows-x64" });
-
-    expect(releaseWizardResolutionIsPlannerValid(config, validPlan)).toBe(true);
-    expect(
-      releaseWizardResolutionIsPlannerValid(config, {
-        ...validPlan,
-        issues: [
-          {
-            code: "release.destination.input.incompatible",
-            message: "Incompatible output",
-            severity: "error",
-            path: "destinations.0.slots.0.input",
-          },
-        ],
-      }),
-    ).toBe(false);
-    expect(releaseWizardResolutionIsPlannerValid(config, plannerOutput({ source: true }))).toBe(
-      false,
+    expect(buildReleaseWizardConfig(draft, "project-1", "release-1").description).toBe(
+      "Optional details",
     );
-    expect(
-      releaseWizardResolutionIsPlannerValid(config, {
-        ...validPlan,
-        issues: [
-          {
-            code: "release.build.target.unavailable",
-            message: "Target unavailable",
-            severity: "error",
-            path: "builds.0.targets.0",
-          },
-        ],
-      }),
-    ).toBe(false);
   });
 
-  it("allows a valid draft when the planner has no automatic route to accept", () => {
-    const config = configWithBuild();
-    config.builds = [];
-    config.destinations[0].slots[0].input = undefined;
-    const plan = {
-      producers: [],
-      outputs: [],
+  it("creates only selected destinations with safe defaults and leaves routes unset", () => {
+    const destination = releaseWizardDestination("destination/upload", catalog);
+    expect(destination).toEqual({
+      id: "destination/upload",
+      provider: "destination/upload",
+      enabled: true,
+      config: { project: "" },
+      slots: [{ id: "output", enabled: true, config: {} }],
+    });
+    expect(destination?.slots[0].input).toBeUndefined();
+    if (destination) destination.config.project = "changed";
+    expect(catalog.destinations[0].defaultConfig.project).toBe("");
+    expect(releaseWizardDestination("missing", catalog)).toBeUndefined();
+  });
+
+  it("builds a read-only recap from the chosen name, source, and destinations", () => {
+    const draft = createReleaseWizardDraft();
+    draft.name = "  Game release  ";
+    draft.description = "  A test description  ";
+    draft.source = {
+      provider: "source/construct",
+      config: { path: "/game.c3p", profilePath: "" },
+    };
+    draft.destinations = [releaseWizardDestination("destination/upload", catalog)!];
+    expect(releaseWizardRecap(draft, catalog)).toEqual({
+      name: "Game release",
+      description: "A test description",
+      sourceLabel: "Construct project",
+      sourceIcon: { type: "icon", icon: "pi pi-box" },
+      sourcePath: "/game.c3p",
       destinations: [
-        { ...config.destinations[0], slots: [{ ...config.destinations[0].slots[0] }] },
-      ],
-      issues: [
         {
-          code: "release.destination.input.required",
-          message: "Choose an output for this destination.",
-          severity: "error" as const,
-          path: "destinations.0.slots.0.input",
+          provider: "destination/upload",
+          label: "Upload",
+          icon: { type: "image", image: "https://example.com/upload.svg" },
         },
       ],
-      graph: { nodes: [], edges: [] },
-    } as ReleasePlan;
-
-    expect(releaseWizardResolutionIsPlannerValid(config, plan)).toBe(true);
-    expect(releaseWizardNeedsAdditionalBuildSetup(config)).toBe(true);
-  });
-
-  it("invalidates older source-inspection and defaults-resolution requests", () => {
-    const sourceRevisions = createWizardRequestRevision();
-    const sourceRequest = sourceRevisions.next();
-    sourceRevisions.next();
-
-    expect(sourceRevisions.isCurrent(sourceRequest)).toBe(false);
-
-    const defaultsRevisions = createWizardRequestRevision();
-    const defaultsRequest = defaultsRevisions.next();
-    defaultsRevisions.invalidate();
-    expect(defaultsRevisions.isCurrent(defaultsRequest)).toBe(false);
-  });
-
-  it("reruns Source inspection after a field edit", async () => {
-    vi.useFakeTimers();
-    const inspect = vi.fn(async (source: ReleaseConfig["source"]) => ({
-      fieldOptions: {
-        path: [{ label: String(source.config.path), value: String(source.config.path) }],
-      },
-      issues: [],
-    }));
-    const inspection = createWizardSourceInspection(inspect, 200);
-    const initialSource = { provider: "source/project", config: { path: "/first" } };
-    const editedSource = { provider: "source/project", config: { path: "/second" } };
-
-    await inspection.inspectNow(initialSource);
-    expect(inspect).toHaveBeenCalledTimes(1);
-    inspection.schedule(editedSource);
-    expect(inspection.state.status).toBe("checking");
-    await vi.advanceTimersByTimeAsync(200);
-
-    expect(inspect).toHaveBeenCalledTimes(2);
-    expect(inspect).toHaveBeenLastCalledWith(editedSource);
-    expect(inspection.state.fieldOptions.path?.[0].value).toBe("/second");
-    vi.useRealTimers();
-  });
-
-  it("ignores stale Source inspection responses", async () => {
-    let resolveFirst!: (value: {
-      fieldOptions: Record<string, { label: string; value: string }[]>;
-    }) => void;
-    let resolveSecond!: (value: {
-      fieldOptions: Record<string, { label: string; value: string }[]>;
-    }) => void;
-    const inspect = vi
-      .fn()
-      .mockImplementationOnce(() => new Promise((resolve) => (resolveFirst = resolve)))
-      .mockImplementationOnce(() => new Promise((resolve) => (resolveSecond = resolve)));
-    const inspection = createWizardSourceInspection(inspect);
-
-    const older = inspection.inspectNow({ provider: "source/project", config: { path: "/old" } });
-    const newer = inspection.inspectNow({ provider: "source/project", config: { path: "/new" } });
-    resolveSecond({ fieldOptions: { path: [{ label: "new", value: "/new" }] } });
-    await newer;
-    resolveFirst({ fieldOptions: { path: [{ label: "old", value: "/old" }] } });
-    await older;
-
-    expect(inspection.state.fieldOptions.path?.[0].value).toBe("/new");
-  });
-
-  it("blocks Continue for inspection errors or blocking issues and allows Retry", async () => {
-    let attempt: "fail" | "blocking" | "ready" = "fail";
-    const inspection = createWizardSourceInspection(async () => {
-      if (attempt === "fail") throw new Error("Source inspection failed");
-      return {
-        fieldOptions: {},
-        issues:
-          attempt === "blocking"
-            ? [
-                {
-                  code: "source.path.invalid",
-                  message: "Choose a valid folder.",
-                  severity: "error" as const,
-                  path: "path",
-                },
-              ]
-            : [],
-      };
     });
-    const source = { provider: "source/project", config: { path: "/game" } };
-
-    await inspection.inspectNow(source);
-    expect(inspection.state.status).toBe("error");
-    expect(inspection.state.error).toBe("Source inspection failed");
-    expect(releaseWizardSourceCanContinue(true, inspection.state)).toBe(false);
-
-    attempt = "blocking";
-    await inspection.inspectNow(source);
-    expect(inspection.state.status).toBe("ready");
-    expect(releaseWizardSourceCanContinue(true, inspection.state)).toBe(false);
-    expect(inspection.state.issues).toHaveLength(1);
-
-    attempt = "ready";
-    await inspection.inspectNow(source);
-    expect(releaseWizardSourceCanContinue(true, inspection.state)).toBe(true);
+    const config = buildReleaseWizardConfig(draft, "project-1", "release-1");
+    expect(config.description).toBe("A test description");
+    expect(config.builds).toEqual([]);
+    expect(config.destinations[0].slots[0].input).toBeUndefined();
+    expect(config.destinations).not.toBe(draft.destinations);
+    config.destinations[0].config.project = "changed";
+    expect(draft.destinations[0].config.project).toBe("");
+    config.source.config.path = "/changed.c3p";
+    expect(draft.source.config.path).toBe("/game.c3p");
   });
 
-  it("passes Source inspection issues only to the field matching the issue path", () => {
-    const issues = [
-      {
-        code: "source.path.invalid",
-        message: "Choose a valid folder.",
-        severity: "error" as const,
-        path: "source.path",
-      },
-      {
-        code: "source.name.invalid",
-        message: "Choose a valid name.",
-        severity: "error" as const,
-        path: "config.name",
-      },
-    ];
-    expect(releaseWizardSourceFieldIssues(issues, "path")).toEqual([issues[0]]);
-    expect(releaseWizardSourceFieldIssues(issues, "name")).toEqual([issues[1]]);
+  it("reactively updates recap after name, source path, and destination edits", () => {
+    const draft = reactive(createReleaseWizardDraft());
+    draft.source = {
+      provider: "source/construct",
+      config: { path: "", profilePath: "" },
+    };
+    const recap = computed(() => releaseWizardRecap(draft, catalog));
+
+    expect(recap.value.sourcePath).toBe("");
+    expect(recap.value.destinations).toEqual([]);
+    draft.name = "Game release";
+    draft.description = "Optional details";
+    draft.source.config.path = "/game.c3p";
+    draft.destinations.push(releaseWizardDestination("destination/upload", catalog)!);
+
+    expect(recap.value).toEqual({
+      name: "Game release",
+      description: "Optional details",
+      sourceLabel: "Construct project",
+      sourceIcon: { type: "icon", icon: "pi pi-box" },
+      sourcePath: "/game.c3p",
+      destinations: [
+        {
+          provider: "destination/upload",
+          label: "Upload",
+          icon: { type: "image", image: "https://example.com/upload.svg" },
+        },
+      ],
+    });
+  });
+
+  it("lets the existing defaults policy route a compatible source without adding a build", () => {
+    const draft = createReleaseWizardDraft();
+    draft.name = "Godot release";
+    draft.source = { provider: "source/godot", config: { path: "/game" } };
+    draft.destinations = [releaseWizardDestination("destination/upload", catalog)!];
+
+    const resolved = resolveReleaseDefaults(
+      buildReleaseWizardConfig(draft, "project-1", "release-1"),
+      registry({ kind: "project" }),
+      planningContext,
+    );
+
+    expect(resolved.builds).toHaveLength(0);
+    expect(resolved.destinations[0].slots[0].input).toEqual({ source: true });
+  });
+
+  it("keeps an unresolved destination output unset when no default is compatible", () => {
+    const draft = createReleaseWizardDraft();
+    draft.name = "Godot release";
+    draft.source = { provider: "source/godot", config: { path: "/game" } };
+    draft.destinations = [releaseWizardDestination("destination/upload", catalog)!];
+
+    const resolved = resolveReleaseDefaults(
+      buildReleaseWizardConfig(draft, "project-1", "release-1"),
+      registry({ kind: "application" }),
+      planningContext,
+    );
+
+    expect(resolved.builds).toHaveLength(0);
+    expect(resolved.destinations[0].slots[0].input).toBeUndefined();
   });
 });

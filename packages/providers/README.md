@@ -18,6 +18,10 @@ Run `pnpm --filter @pipelab/providers test` for all providers, or use a focused
 script such as `pnpm --filter @pipelab/providers test:construct` for one folder.
 Dependencies are declared once in this package's manifest.
 
+The Godot provider icon is the Godot Engine logo by Andrea Calabró, licensed
+under CC BY 4.0. The bundled asset and license are from
+[`godotengine/godot/misc/logo`](https://github.com/godotengine/godot/tree/master/misc/logo).
+
 Providers depend on shared contracts, workflow-runtime and the existing
 `@pipelab/plugin-core` execution helpers. They do not import core-node. Managed
 paths, executable installation and bundled asset resolution are supplied by the

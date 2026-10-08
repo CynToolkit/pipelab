@@ -89,7 +89,9 @@ const zipSource = (
 ): ReleaseSourceDefinition => ({
   id,
   label,
-  fields: [{ key: "path", type: "file", label: "ZIP path", required: true }],
+  fields: [
+    { key: "path", type: "file", label: "ZIP path", required: true, fileExtensions: ["zip"] },
+  ],
   output,
   createDefaultConfig: () => ({ path: "" }),
   validate: (config) =>

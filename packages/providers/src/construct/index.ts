@@ -7,6 +7,7 @@ export { discoverBrowserProfiles, inspectChromiumProfile } from "./browser-profi
 export type { BrowserProfileCandidate } from "./browser-profiles";
 
 import { constructWorkflowTaskFactories } from "./export-c3p";
+import { constructProviderLogo } from "../provider-icons";
 
 export const constructSource: ReleaseSourceDefinition = {
   id: "@pipelab/plugin-construct/source",
@@ -94,7 +95,7 @@ export const provider = createProviderDefinition({
   packageName: "@pipelab/plugin-construct",
   name: "Construct",
   description: "Pipelab provider for exporting and packaging Construct 3 projects",
-  icon: { type: "icon", icon: "pi-clone" },
+  icon: { type: "image", image: constructProviderLogo },
   isOfficial: true,
   integrations: [
     {

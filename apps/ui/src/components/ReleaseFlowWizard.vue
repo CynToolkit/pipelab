@@ -3,7 +3,7 @@
     v-model:visible="visible"
     modal
     header="New release"
-    :style="{ width: '720px', maxWidth: '96vw' }"
+    :style="{ width: '680px', maxWidth: '96vw' }"
   >
     <p v-if="!isReady" role="status">Reconnect the agent to continue setting up this workflow.</p>
     <p v-else-if="catalogLoading" role="status">Loading workflow options…</p>
@@ -16,206 +16,254 @@
       linear
       :inert="!isReady || catalogLoading || Boolean(catalogError)"
     >
-      <StepList
-        ><Step
+      <StepList class="wizard-step-list" tabindex="0" aria-label="Wizard steps">
+        <Step
           v-for="item in steps"
           :key="item.value"
           :value="item.value"
           asChild
           v-slot="{ activateCallback, a11yAttrs }"
-          ><button class="step" v-bind="a11yAttrs.header" @click="activateCallback">
+        >
+          <button class="step" v-bind="a11yAttrs.header" @click="activateCallback">
             {{ item.number }} <span>{{ item.label }}</span>
-          </button></Step
-        ></StepList
-      >
+          </button>
+        </Step>
+      </StepList>
       <StepPanels>
-        <StepPanel value="details" v-slot="{ activateCallback }"
-          ><div class="wizard-panel">
-            <span class="eyebrow">Release setup</span>
-            <h2>Name this release</h2>
-            <p>Give the release a recognizable name.</p>
-            <div class="form-grid">
-              <div class="field wide">
-                <label for="release-name">Name</label
-                ><InputText id="release-name" v-model="draft.name" autofocus />
-              </div>
-              <div class="field wide">
-                <label for="release-description">Description</label
-                ><Textarea id="release-description" v-model="draft.description" rows="3" />
-              </div>
+        <StepPanel value="details">
+          <div class="wizard-panel">
+            <h2>Name your workflow</h2>
+            <p>Add a name and description for this release.</p>
+            <div class="field wide">
+              <label for="release-name">Name</label>
+              <InputText id="release-name" v-model="draft.name" />
+            </div>
+            <div class="field wide">
+              <label for="release-description">Description</label>
+              <Textarea id="release-description" v-model="draft.description" rows="3" />
             </div>
             <div class="wizard-actions">
               <Button
                 label="Continue"
                 icon="pi pi-arrow-right"
                 iconPos="right"
-                :disabled="!draft.name.trim()"
-                @click="activateCallback('source')"
+                :disabled="!canContinueDetails"
+                @click="step = releaseWizardNextStep(step)"
               />
-            </div></div
-        ></StepPanel>
-        <StepPanel value="source" v-slot="{ activateCallback }"
-          ><div class="wizard-panel">
-            <span class="eyebrow">Release intent</span>
-            <h2>What are you releasing?</h2>
-            <div class="choice-grid">
+            </div>
+          </div>
+        </StepPanel>
+        <StepPanel value="source">
+          <div class="wizard-panel">
+            <h2>Choose a source</h2>
+            <p>Choose the project or files this release represents.</p>
+            <div class="choice-grid source-grid">
               <button
                 v-for="source in catalog.sources"
                 :key="source.id"
+                type="button"
                 class="choice-card"
                 :class="{ selected: draft.source.provider === source.id }"
+                :aria-pressed="draft.source.provider === source.id"
                 @click="chooseSource(source.id)"
               >
-                <i :class="providerIcon(source.icon)" /><strong>{{ source.label }}</strong
-                ><small>{{ source.description || "Provider-defined source" }}</small>
+                <img
+                  v-if="providerIconImage(sourceIcon(source))"
+                  :src="providerIconImage(sourceIcon(source))"
+                  alt=""
+                />
+                <i v-else :class="providerIconClass(sourceIcon(source))" aria-hidden="true" />
+                <strong>{{ source.label }}</strong>
+                <small>{{ sourceCaption(source) }}</small>
               </button>
             </div>
-            <ReleaseFieldControl
-              v-for="field in sourceDefinition?.fields?.filter((item) => !item.deferUntilEditor) ||
-              []"
-              :key="field.key"
-              :field="field"
-              :value="String(draft.source.config[field.key] || '')"
-              :options="fieldOptions(field.key, field.options || [])"
-              :issues="sourceFieldIssues(field.key)"
-              :input-id="`wizard-source-${field.key}`"
-              @update:value="setSourceField(field.key, $event)"
-            />
-            <div
-              v-if="sourceInspection.state.status === 'checking'"
-              class="resolution-state"
-              role="status"
-            >
-              <i class="mdi mdi-progress-clock" aria-hidden="true" />Checking Source details…
-            </div>
-            <div
-              v-else-if="sourceInspection.state.status === 'error'"
-              class="resolution-state resolution-error"
-              role="alert"
-            >
-              <p>{{ sourceInspection.state.error }}</p>
-              <Button label="Retry" icon="pi pi-refresh" @click="retrySourceInspection" />
-            </div>
-            <div
-              v-if="sourceGeneralIssues.length"
-              class="source-inspection-issues"
-              :role="
-                sourceGeneralIssues.some((issue) => issue.severity === 'error') ? 'alert' : 'status'
-              "
-            >
-              <p v-for="issue in sourceGeneralIssues" :key="`${issue.code}:${issue.path || ''}`">
-                {{ issue.message }}
-              </p>
-            </div>
-            <div class="wizard-actions">
-              <Button
-                label="Back"
-                text
-                severity="secondary"
-                @click="activateCallback('details')"
-              /><Button
-                label="Continue"
-                icon="pi pi-arrow-right"
-                iconPos="right"
-                :disabled="!canContinueSource"
-                @click="activateCallback('destinations')"
+            <p v-if="!draft.source.provider" class="helper-copy">Choose a source to continue.</p>
+            <template v-if="sourceDefinition">
+              <ReleaseFieldControl
+                v-for="field in sourceDefinition.fields?.filter((item) => !item.deferUntilEditor) ||
+                []"
+                :key="field.key"
+                :field="field"
+                :value="String(draft.source.config[field.key] || '')"
+                :options="field.options || []"
+                :issues="[]"
+                :input-id="`wizard-source-${field.key}`"
+                @update:value="setSourceField(field.key, $event)"
               />
-            </div></div
-        ></StepPanel>
-        <StepPanel value="destinations" v-slot="{ activateCallback }"
-          ><div class="wizard-panel">
-            <span class="eyebrow">Where do you want to ship?</span>
-            <h2>Destinations</h2>
-            <p>
-              Choose where this release should be delivered. We’ll prepare a recommended build setup
-              for these choices before creation.
-            </p>
-            <div class="choice-grid">
-              <button
-                v-for="destination in catalog.destinations"
-                :key="destination.id"
-                class="choice-card"
-                :class="{ selected: hasDestination(destination.id) }"
-                @click="toggleDestination(destination.id)"
-              >
-                <i :class="providerIcon(destination.icon)" /><strong>{{ destination.label }}</strong
-                ><small>Destination</small>
-              </button>
-            </div>
-            <div class="wizard-actions">
-              <Button
-                label="Back"
-                text
-                severity="secondary"
-                @click="activateCallback('source')"
-              /><Button
-                label="Review"
-                icon="pi pi-arrow-right"
-                iconPos="right"
-                :disabled="!sourceReady || !draft.destinations.length"
-                @click="activateCallback('review')"
-              />
-            </div></div
-        ></StepPanel>
-        <StepPanel value="review"
-          ><div class="wizard-panel">
-            <span class="eyebrow">Review release</span>
-            <h2>{{ resolvedConfig?.name || draft.name }}</h2>
-            <div v-if="resolutionState === 'resolving'" class="resolution-state" role="status">
-              <i class="mdi mdi-progress-clock" aria-hidden="true" />
-              Resolving recommended build setup…
-            </div>
-            <div
-              v-else-if="resolutionState === 'error'"
-              class="resolution-state resolution-error"
-              role="alert"
-            >
-              <p>{{ resolutionError }}</p>
-              <Button label="Retry" icon="pi pi-refresh" @click="resolveDefaults" />
-            </div>
-            <template v-else-if="resolvedConfig">
-              <div class="review-list">
-                <div>
-                  <i class="mdi mdi-source-branch" aria-hidden="true" /><span
-                    ><small>Source</small><strong>{{ reviewSourceLabel }}</strong></span
-                  >
-                </div>
-                <div>
-                  <i class="mdi mdi-cloud-upload-outline" aria-hidden="true" /><span
-                    ><small>Destinations</small><strong>{{ reviewDestinationLabels }}</strong></span
-                  >
-                </div>
-                <div v-for="summary in buildSummaries" :key="summary">
-                  <i class="mdi mdi-hammer-wrench" aria-hidden="true" /><span
-                    ><small>Recommended setup</small><strong>{{ summary }}</strong></span
-                  >
-                </div>
-              </div>
-              <p v-if="needsAdditionalBuildSetup" class="review-copy">
-                Additional build setup required after creation.
-              </p>
             </template>
             <div class="wizard-actions">
               <Button
                 label="Back"
                 text
                 severity="secondary"
-                @click="step = 'destinations'"
-              /><Button
-                label="Create release"
+                @click="step = releaseWizardPreviousStep(step)"
+              />
+              <Button
+                label="Continue"
+                icon="pi pi-arrow-right"
+                iconPos="right"
+                :disabled="!canContinueSource"
+                @click="step = releaseWizardNextStep(step)"
+              />
+            </div>
+          </div>
+        </StepPanel>
+        <StepPanel value="destinations">
+          <div class="wizard-panel">
+            <h2>Where do you want to ship?</h2>
+            <p>
+              You can add one or more destinations. You can configure accounts and settings later.
+            </p>
+            <div class="destination-list">
+              <button
+                v-for="destination in catalog.destinations"
+                :key="destination.id"
+                type="button"
+                class="destination-row"
+                :class="{ selected: hasDestination(destination.id) }"
+                :aria-pressed="hasDestination(destination.id)"
+                @click="toggleDestination(destination.id)"
+              >
+                <span class="destination-selection" aria-hidden="true">
+                  <i :class="hasDestination(destination.id) ? 'pi pi-check' : 'pi pi-circle'" />
+                </span>
+                <img
+                  v-if="providerIconImage(destinationIcon(destination.id, destination.icon))"
+                  :src="providerIconImage(destinationIcon(destination.id, destination.icon))"
+                  alt=""
+                />
+                <i
+                  v-else
+                  :class="providerIconClass(destinationIcon(destination.id, destination.icon))"
+                  aria-hidden="true"
+                />
+                <span class="destination-copy">
+                  <strong>{{ destination.label }}</strong>
+                  <small>{{ destination.description || "Ship your release" }}</small>
+                </span>
+              </button>
+            </div>
+            <div class="wizard-actions">
+              <Button
+                label="Back"
+                text
+                severity="secondary"
+                @click="step = releaseWizardPreviousStep(step)"
+              />
+              <Button
+                label="Continue"
+                icon="pi pi-arrow-right"
+                iconPos="right"
+                :disabled="!draft.destinations.length"
+                @click="step = releaseWizardNextStep(step)"
+              />
+            </div>
+          </div>
+        </StepPanel>
+        <StepPanel value="recap">
+          <div class="wizard-panel">
+            <h2>Review your choices</h2>
+            <p class="review-intro">
+              This will create your workflow. You can select the project or files, configure builds,
+              connections, and destination details in Configuration afterward.
+            </p>
+            <div class="review-list">
+              <div>
+                <span class="review-label">Name</span>
+                <span
+                  ><strong>{{ recap.name }}</strong></span
+                >
+              </div>
+              <div v-if="recap.description">
+                <span class="review-label">Description</span>
+                <span
+                  ><strong>{{ recap.description }}</strong></span
+                >
+              </div>
+              <div>
+                <span class="review-label">Source</span>
+                <span class="review-value">
+                  <img
+                    v-if="providerIconImage(sourceIcon(sourceDefinition))"
+                    :src="providerIconImage(sourceIcon(sourceDefinition))"
+                    alt=""
+                  />
+                  <i
+                    v-else
+                    :class="providerIconClass(sourceIcon(sourceDefinition))"
+                    aria-hidden="true"
+                  />
+                  <span>
+                    <strong>{{ recap.sourceLabel }}</strong>
+                    <small v-if="recap.sourcePath" class="review-detail">{{
+                      recap.sourcePath
+                    }}</small>
+                  </span>
+                </span>
+              </div>
+              <div>
+                <span class="review-label">Destinations ({{ recap.destinations.length }})</span>
+                <span class="review-destinations">
+                  <span
+                    v-for="destination in recap.destinations"
+                    :key="destination.provider"
+                    class="review-destination"
+                  >
+                    <img
+                      v-if="
+                        providerIconImage(destinationIcon(destination.provider, destination.icon))
+                      "
+                      :src="
+                        providerIconImage(destinationIcon(destination.provider, destination.icon))
+                      "
+                      alt=""
+                    />
+                    <i
+                      v-else
+                      :class="
+                        providerIconClass(destinationIcon(destination.provider, destination.icon))
+                      "
+                      aria-hidden="true"
+                    />
+                    <strong>{{ destination.label }}</strong>
+                  </span>
+                </span>
+              </div>
+            </div>
+            <p class="review-notice">
+              <i class="pi pi-info-circle" aria-hidden="true" />
+              <span
+                >Configuration, builds and connections can be set up after creation in the workflow
+                Configuration.</span
+              >
+            </p>
+            <div v-if="createError" class="wizard-create-error" role="alert">
+              <span>{{ createError }}</span>
+              <Button label="Retry" text @click="create" />
+            </div>
+            <div class="wizard-actions">
+              <Button
+                label="Back"
+                text
+                severity="secondary"
+                @click="step = releaseWizardPreviousStep(step)"
+              />
+              <Button
+                :label="createPending ? 'Creating workflow…' : 'Create workflow'"
                 icon="mdi mdi-rocket-launch-outline"
-                :disabled="!isReady || resolutionState !== 'ready' || !resolvedConfig"
+                :disabled="!isReady || !canContinueDestinations || createPending"
                 @click="create"
               />
-            </div></div
-        ></StepPanel>
+            </div>
+          </div>
+        </StepPanel>
       </StepPanels>
     </Stepper>
   </Dialog>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, toRaw, watch } from "vue";
+import { computed, onBeforeUnmount, ref, toRaw, watch } from "vue";
 import Dialog from "primevue/dialog";
 import Stepper from "primevue/stepper";
 import StepList from "primevue/steplist";
@@ -226,46 +274,55 @@ import InputText from "primevue/inputtext";
 import Textarea from "primevue/textarea";
 import Button from "primevue/button";
 import { nanoid } from "nanoid";
-import type { IconType, ReleaseCatalog, ReleaseConfig, ReleaseFieldOption } from "@pipelab/shared";
+import type { IconType, ReleaseCatalog, ReleaseConfig } from "@pipelab/shared";
 import { useAPI } from "../composables/api";
 import { useAgentAvailability } from "../composables/useAgentAvailability";
+import { useAppStore } from "../store/app";
 import ReleaseFieldControl from "./ReleaseFieldControl.vue";
 import {
   buildReleaseWizardConfig,
   createReleaseWizardDraft,
-  createWizardRequestRevision,
-  createWizardSourceInspection,
-  releaseWizardBuildSummaries,
-  releaseWizardCreationConfig,
-  releaseWizardNeedsAdditionalBuildSetup,
+  releaseWizardCanContinueDetails,
+  releaseWizardCanReview,
+  releaseWizardDestination,
+  releaseWizardNextStep,
+  releaseWizardPreviousStep,
+  releaseWizardRecap,
   releaseWizardSourceIsReady,
-  releaseWizardSourceCanContinue,
-  releaseWizardSourceFieldIssues,
-  type ReleaseWizardSourceInspectionResult,
-  releaseWizardResolutionIsPlannerValid,
-  type ReleaseWizardDraft,
-  type ReleaseWizardResolutionState,
+  RELEASE_WIZARD_STEPS,
+  type ReleaseWizardStep,
 } from "./ReleaseFlowWizard-state";
 
 const props = defineProps<{ visible: boolean; projectId: string }>();
-const emit = defineEmits<{ "update:visible": [value: boolean]; create: [flow: ReleaseConfig] }>();
+const emit = defineEmits<{
+  "update:visible": [value: boolean];
+  create: [flow: ReleaseConfig];
+}>();
 const api = useAPI();
+const appStore = useAppStore();
 const { isReady } = useAgentAvailability();
 const catalogLoading = ref(false);
 const catalogError = ref("");
-const catalogRequests = createWizardRequestRevision();
-const resolutionRequests = createWizardRequestRevision();
+let catalogRequest = 0;
+let createRequest = 0;
+const createPending = ref(false);
+const createError = ref("");
 const visible = computed({
   get: () => props.visible,
   set: (value) => emit("update:visible", value),
 });
-const steps = [
-  { value: "details", label: "Details", number: "01" },
-  { value: "source", label: "Source", number: "02" },
-  { value: "destinations", label: "Destinations", number: "03" },
-  { value: "review", label: "Review", number: "04" },
-];
-const step = ref("details");
+const stepLabels: Record<ReleaseWizardStep, string> = {
+  details: "Name & description",
+  source: "Source & project path",
+  destinations: "Destinations",
+  recap: "Recap",
+};
+const steps = RELEASE_WIZARD_STEPS.map((value, index) => ({
+  value,
+  label: stepLabels[value],
+  number: `0${index + 1}`,
+}));
+const step = ref<ReleaseWizardStep>("details");
 const workflowId = ref("");
 const catalog = ref<ReleaseCatalog>({
   buildTypes: [],
@@ -273,208 +330,178 @@ const catalog = ref<ReleaseCatalog>({
   producers: [],
   destinations: [],
 });
-const draft = ref<ReleaseWizardDraft>(createReleaseWizardDraft());
-const sourceInspection = createWizardSourceInspection(async (source) => {
-  if (!isReady.value) throw new Error("The agent is not ready.");
-  const result = await api.execute("release:source:inspect", source);
-  if (result.type === "error") throw new Error(result.ipcError);
-  return result.result as ReleaseWizardSourceInspectionResult;
-});
-const resolutionState = ref<ReleaseWizardResolutionState>("idle");
-const resolutionError = ref("");
-const resolvedConfig = ref<ReleaseConfig>();
+const draft = ref(createReleaseWizardDraft());
 const sourceDefinition = computed(() =>
   catalog.value.sources.find((source) => source.id === draft.value.source.provider),
 );
-const sourceReady = computed(() => releaseWizardSourceIsReady(draft.value.source, catalog.value));
+const canContinueDetails = computed(() => releaseWizardCanContinueDetails(draft.value));
 const canContinueSource = computed(() =>
-  releaseWizardSourceCanContinue(sourceReady.value, sourceInspection.state),
+  releaseWizardSourceIsReady(draft.value.source, catalog.value),
 );
-const providerIcon = (icon?: IconType) =>
-  icon?.type === "icon"
-    ? icon.icon.includes("mdi")
-      ? icon.icon
-      : `mdi ${icon.icon}`
-    : "mdi mdi-puzzle-outline";
-const destinationLabel = (id: string) =>
-  catalog.value.destinations.find((item) => item.id === id)?.label || id;
+const canContinueDestinations = computed(() => releaseWizardCanReview(draft.value, catalog.value));
+const recap = computed(() => releaseWizardRecap(draft.value, catalog.value));
+const providerIconClass = (icon?: IconType) => {
+  if (icon?.type !== "icon") return "mdi mdi-puzzle-outline";
+  if (icon.icon.includes("mdi ") || icon.icon.includes("pi ")) return icon.icon;
+  if (icon.icon.startsWith("pi-")) return `pi ${icon.icon}`;
+  return `mdi ${icon.icon}`;
+};
+const providerIconImage = (icon?: IconType) => (icon?.type === "image" ? icon.image : undefined);
+const metadataIcon = (id: string) =>
+  appStore.providerDefinitions.find(
+    (provider) => id === provider.packageName || id.startsWith(`${provider.packageName}/`),
+  )?.icon;
+const sourceIcon = (source?: (typeof catalog.value.sources)[number]) => {
+  if (!source) return undefined;
+  if (source.icon?.type === "image") return source.icon;
+  const icon = metadataIcon(source.id);
+  if (icon) return icon;
+  if (source.icon) return source.icon;
+  const file = source.fields?.find((field) => field.type === "file");
+  if (file?.fileExtensions?.includes("c3p")) return { type: "icon", icon: "pi pi-clone" } as const;
+  if (source.output.technology === "godot") return { type: "icon", icon: "pi pi-gamepad" } as const;
+  if (source.output.platform === "web") return { type: "icon", icon: "pi pi-globe" } as const;
+  if (file?.fileExtensions?.includes("zip")) return { type: "icon", icon: "pi pi-file" } as const;
+  return { type: "icon", icon: "pi pi-folder" } as const;
+};
+const sourceCaption = (source: (typeof catalog.value.sources)[number]) => {
+  if (source.description) return source.description;
+  const file = source.fields?.find((field) => field.type === "file");
+  if (file?.fileExtensions?.includes("c3p")) return "Construct .c3p";
+  if (source.output.technology === "godot") return "Godot project";
+  if (source.output.platform === "web")
+    return file?.fileExtensions?.includes("zip") ? "A web app ZIP" : "A web app folder";
+  if (file?.fileExtensions?.includes("zip")) return "A ZIP file";
+  return "A local folder";
+};
+const destinationIcon = (id: string, icon?: IconType) => icon || metadataIcon(id);
 const hasDestination = (id: string) =>
   draft.value.destinations.some((item) => item.provider === id);
-const fieldOptions = (key: string, fallback: ReleaseFieldOption[]) =>
-  sourceInspection.state.fieldOptions[key] || fallback;
-const sourceFieldIssues = (key: string) =>
-  releaseWizardSourceFieldIssues(sourceInspection.state.issues, key);
-const sourceGeneralIssues = computed(() =>
-  sourceInspection.state.issues.filter((issue) => {
-    if (!issue.path || issue.path === "source" || issue.path === "config") return true;
-    return (sourceDefinition.value?.fields || []).every(
-      (field) => !releaseWizardSourceFieldIssues([issue], field.key).length,
-    );
-  }),
-);
-const retrySourceInspection = () => sourceInspection.inspectNow(toRaw(draft.value.source));
 const chooseSource = (provider: string) => {
   const definition = catalog.value.sources.find((source) => source.id === provider);
-  if (!definition) return;
-  sourceInspection.invalidate();
-  draft.value.source = { provider, config: { ...definition.defaultConfig } };
-  void sourceInspection.inspectNow(toRaw(draft.value.source));
-};
-const setSourceField = (key: string, value: unknown) => {
-  draft.value.source.config[key] = value;
-  sourceInspection.schedule(toRaw(draft.value.source));
+  if (definition)
+    draft.value.source = {
+      provider,
+      config: structuredClone(toRaw(definition.defaultConfig)),
+    };
 };
 const toggleDestination = (provider: string) => {
   const index = draft.value.destinations.findIndex((item) => item.provider === provider);
   if (index >= 0) draft.value.destinations.splice(index, 1);
   else {
-    const definition = catalog.value.destinations.find((item) => item.id === provider);
-    if (definition)
-      draft.value.destinations.push({
-        id: `${provider.split("/").pop()}-${nanoid(6)}`,
-        provider,
-        enabled: true,
-        config: { ...definition.defaultConfig },
-        slots: [{ id: "output", enabled: true, config: {} }],
-      });
+    const destination = releaseWizardDestination(provider, toRaw(catalog.value));
+    if (destination) draft.value.destinations.push(destination);
   }
 };
-const reviewSourceLabel = computed(
-  () =>
-    catalog.value.sources.find((source) => source.id === resolvedConfig.value?.source.provider)
-      ?.label ||
-    resolvedConfig.value?.source.provider ||
-    "Not selected",
-);
-const reviewDestinationLabels = computed(
-  () =>
-    resolvedConfig.value?.destinations.map((item) => destinationLabel(item.provider)).join(" · ") ||
-    "",
-);
-const buildSummaries = computed(() =>
-  resolvedConfig.value ? releaseWizardBuildSummaries(resolvedConfig.value, catalog.value) : [],
-);
-const needsAdditionalBuildSetup = computed(
-  () =>
-    Boolean(resolvedConfig.value) && releaseWizardNeedsAdditionalBuildSetup(resolvedConfig.value!),
-);
-const resolveDefaults = async () => {
-  if (!isReady.value) return;
-  if (!sourceReady.value || !draft.value.destinations.length) {
-    resolutionState.value = "error";
-    resolutionError.value =
-      "Choose a source, complete its required fields, and select at least one destination before reviewing.";
-    resolvedConfig.value = undefined;
-    return;
-  }
-
-  const requestId = resolutionRequests.next();
-  const requestedConfig = buildReleaseWizardConfig(
-    toRaw(draft.value),
-    props.projectId,
-    workflowId.value,
-  );
-  resolutionState.value = "resolving";
-  resolutionError.value = "";
-  resolvedConfig.value = undefined;
+const setSourceField = (key: string, value: unknown) => {
+  draft.value.source.config[key] = value;
+};
+const invalidateCreateRequest = () => {
+  createRequest++;
+  createPending.value = false;
+};
+onBeforeUnmount(() => {
+  catalogRequest++;
+  invalidateCreateRequest();
+});
+const create = async () => {
+  if (!isReady.value || !canContinueDestinations.value || createPending.value) return;
+  const requestId = ++createRequest;
+  const isCurrent = () => requestId === createRequest;
+  const config = buildReleaseWizardConfig(toRaw(draft.value), props.projectId, workflowId.value);
+  createPending.value = true;
+  createError.value = "";
 
   try {
-    const result = await api.execute("release:resolve-defaults", { config: requestedConfig });
-    if (!resolutionRequests.isCurrent(requestId)) return;
+    const result = await api.execute("release:resolve-defaults", { config });
+    if (!isCurrent() || !visible.value || !isReady.value) return;
     if (result.type === "error") throw new Error(result.ipcError);
-
-    const config = structuredClone(result.result);
-    const planResult = await api.execute("release:plan", { config });
-    if (!resolutionRequests.isCurrent(requestId)) return;
-    if (planResult.type === "error") throw new Error(planResult.ipcError);
-    if (!releaseWizardResolutionIsPlannerValid(config, planResult.result))
-      throw new Error(
-        "The planner could not validate the recommended build setup. Retry to try again.",
-      );
-
-    resolvedConfig.value = config;
-    resolutionState.value = "ready";
+    emit("create", result.result);
+    visible.value = false;
   } catch (error) {
-    if (!resolutionRequests.isCurrent(requestId)) return;
-    resolutionError.value =
-      error instanceof Error ? error.message : "Unable to resolve build defaults.";
-    resolutionState.value = "error";
+    if (!isCurrent() || !visible.value || !isReady.value) return;
+    createError.value =
+      error instanceof Error ? error.message : "Unable to prepare workflow defaults.";
+  } finally {
+    if (isCurrent()) createPending.value = false;
   }
 };
-const create = () => {
-  if (!isReady.value) return;
-  const config = releaseWizardCreationConfig(resolutionState.value, resolvedConfig.value);
-  if (!config) return;
-  emit("create", config);
-  visible.value = false;
-};
-watch(
-  draft,
-  () => {
-    resolutionRequests.invalidate();
-    resolvedConfig.value = undefined;
-    resolutionState.value = "idle";
-    resolutionError.value = "";
-  },
-  { deep: true, flush: "sync" },
-);
-watch(step, (value) => {
-  if (value === "review" && resolutionState.value === "idle") void resolveDefaults();
-});
 const loadCatalog = async () => {
   if (!isReady.value || !props.visible) return;
-  const requestId = catalogRequests.next();
+  const requestId = ++catalogRequest;
   catalogLoading.value = true;
   catalogError.value = "";
   try {
     const result = await api.execute("release:catalog:get");
-    if (!catalogRequests.isCurrent(requestId) || !props.visible || !isReady.value) return;
+    if (requestId !== catalogRequest || !props.visible || !isReady.value) return;
     if (result.type === "error") throw new Error(result.ipcError);
     catalog.value = result.result;
   } catch (error) {
-    if (catalogRequests.isCurrent(requestId))
+    if (requestId === catalogRequest)
       catalogError.value =
         error instanceof Error ? error.message : "Unable to load workflow options.";
   } finally {
-    if (catalogRequests.isCurrent(requestId)) catalogLoading.value = false;
+    if (requestId === catalogRequest) catalogLoading.value = false;
   }
 };
-watch(isReady, (ready) => {
-  if (ready && props.visible) void loadCatalog();
-  if (!ready) {
-    catalogRequests.invalidate();
-    sourceInspection.invalidate();
-    resolutionRequests.invalidate();
-    catalogLoading.value = false;
-    resolvedConfig.value = undefined;
-    resolutionState.value = "idle";
-  }
-});
+const loadProviderMetadata = () => {
+  if (isReady.value && props.visible)
+    void appStore.loadProviderDefinitions().catch(() => undefined);
+};
+watch(
+  isReady,
+  (ready) => {
+    if (ready && props.visible) {
+      loadProviderMetadata();
+      void loadCatalog();
+    }
+    if (!ready) {
+      catalogRequest++;
+      catalogLoading.value = false;
+      invalidateCreateRequest();
+      createError.value = "";
+    }
+  },
+  { flush: "sync" },
+);
+watch(
+  draft,
+  () => {
+    if (createPending.value) invalidateCreateRequest();
+  },
+  { deep: true, flush: "sync" },
+);
+watch(
+  step,
+  () => {
+    if (createPending.value) invalidateCreateRequest();
+  },
+  { flush: "sync" },
+);
 watch(
   () => props.visible,
   async (open) => {
     if (!open) {
-      catalogRequests.invalidate();
-      sourceInspection.invalidate();
-      resolutionRequests.invalidate();
+      catalogRequest++;
+      invalidateCreateRequest();
+      createError.value = "";
       return;
     }
-    sourceInspection.invalidate();
     step.value = "details";
     workflowId.value = nanoid();
     draft.value = createReleaseWizardDraft();
-    resolutionState.value = "idle";
-    resolvedConfig.value = undefined;
-    resolutionError.value = "";
+    createError.value = "";
+    loadProviderMetadata();
     await loadCatalog();
   },
-  { immediate: true },
+  { immediate: true, flush: "sync" },
 );
 </script>
 
 <style scoped>
 .step {
   display: flex;
+  flex: 0 0 auto;
   gap: 7px;
   align-items: center;
   border: 0;
@@ -483,10 +510,11 @@ watch(
   background: transparent;
   color: var(--p-text-muted-color, var(--text-color-secondary));
   font-size: 0.72rem;
+  white-space: nowrap;
   cursor: pointer;
 }
 .step[aria-selected="true"] {
-  border-bottom-color: var(--primary-color);
+  border-bottom-color: var(--p-primary-color, var(--primary-color, #6366f1));
   color: var(--text-color);
 }
 .step span {
@@ -500,6 +528,10 @@ watch(
 .wizard-panel h2 {
   margin: 0;
   font-size: 1.2rem;
+}
+.wizard-panel h3 {
+  margin: 2px 0 -4px;
+  font-size: 0.9rem;
 }
 .wizard-panel p {
   margin: -4px 0 6px;
@@ -531,7 +563,7 @@ watch(
 }
 .choice-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
 }
 .choice-card {
@@ -547,12 +579,23 @@ watch(
 }
 .choice-card:hover,
 .choice-card.selected {
-  border-color: var(--primary-color);
-  background: color-mix(in srgb, var(--primary-color) 7%, transparent);
+  border-color: var(--p-primary-color, var(--primary-color, #6366f1));
+  background: color-mix(
+    in srgb,
+    var(--p-primary-color, var(--primary-color, #6366f1)) 7%,
+    transparent
+  );
 }
 .choice-card i {
-  color: var(--primary-color);
+  color: var(--p-primary-color, var(--primary-color, #6366f1));
   font-size: 20px;
+}
+.choice-card img,
+.destination-row > img,
+.review-list > div > img {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
 }
 .choice-card strong {
   font-size: 0.78rem;
@@ -567,16 +610,123 @@ watch(
   gap: 8px;
   margin-top: 8px;
 }
-.review-list > div {
+.destination-list {
+  display: grid;
+  gap: 8px;
+}
+.destination-row {
   display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--p-surface-200, var(--surface-border));
+  border-radius: 8px;
+  padding: 12px;
+  background: transparent;
+  color: var(--text-color);
+  text-align: left;
+  cursor: pointer;
+}
+.destination-row > i {
+  flex: 0 0 24px;
+  color: var(--p-primary-color, var(--primary-color, #6366f1));
+  font-size: 22px;
+  text-align: center;
+}
+.destination-row:hover,
+.destination-row.selected {
+  border-color: var(--p-primary-color, var(--primary-color, #6366f1));
+  background: color-mix(
+    in srgb,
+    var(--p-primary-color, var(--primary-color, #6366f1)) 7%,
+    transparent
+  );
+}
+.destination-copy {
+  display: grid;
+  flex: 1;
+  gap: 3px;
+  min-width: 0;
+}
+.destination-copy strong {
+  font-size: 0.8rem;
+}
+.destination-copy small {
+  color: var(--p-text-muted-color, var(--text-color-secondary));
+  font-size: 0.7rem;
+}
+.destination-selection {
+  display: grid;
+  flex: 0 0 20px;
+  width: 20px;
+  height: 20px;
+  place-items: center;
+  border: 1px solid var(--p-surface-400, var(--surface-border));
+  border-radius: 4px;
+  color: var(--p-primary-color, var(--primary-color, #6366f1));
+  font-size: 0.72rem;
+}
+.destination-row.selected .destination-selection {
+  border-color: var(--p-primary-color, var(--primary-color, #6366f1));
+  background: var(--p-primary-color, var(--primary-color, #6366f1));
+  color: var(--p-primary-contrast-color, var(--primary-contrast-color, white));
+}
+.review-list > div {
+  display: grid;
+  grid-template-columns: minmax(112px, 0.38fr) minmax(0, 1fr);
   align-items: center;
   gap: 10px;
   border: 1px solid var(--p-surface-200, var(--surface-border));
   border-radius: 7px;
   padding: 9px;
 }
+.review-label {
+  color: var(--p-text-muted-color, var(--text-color-secondary));
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+.review-value {
+  display: flex !important;
+  align-items: center;
+  gap: 8px !important;
+  min-width: 0;
+}
+.review-value > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.review-value > img {
+  flex: 0 0 24px;
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+}
+.review-value > i {
+  flex: 0 0 20px;
+}
+.review-intro {
+  margin-bottom: 0 !important;
+}
+.review-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  border: 1px solid color-mix(in srgb, var(--p-indigo-500, #6366f1) 25%, transparent);
+  border-radius: 7px;
+  padding: 10px;
+  background: color-mix(in srgb, var(--p-indigo-500, #6366f1) 7%, transparent);
+}
+.review-notice > i {
+  flex: 0 0 16px;
+  color: var(--p-indigo-500, #6366f1);
+}
+.review-notice > span {
+  color: var(--p-text-muted-color, var(--text-color-secondary));
+  font-size: 0.74rem;
+}
 .review-list i {
-  color: var(--primary-color);
+  color: var(--p-primary-color, var(--primary-color, #6366f1));
   font-size: 18px;
 }
 .review-list span {
@@ -590,25 +740,46 @@ watch(
 .review-list strong {
   font-size: 0.8rem;
 }
-.review-copy {
-  padding: 8px 10px;
-  border-left: 3px solid var(--primary-color);
-  background: var(--p-surface-50, var(--surface-ground));
+.review-destinations {
+  min-width: 0;
 }
-.resolution-state {
-  display: flex;
+.review-destination {
+  display: flex !important;
   align-items: center;
-  gap: 8px;
+  gap: 7px !important;
+  min-width: 0;
+  margin-top: 4px;
+}
+.review-destination i {
+  font-size: 15px;
+}
+.review-destination img {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+}
+.review-detail {
+  margin-top: 3px;
+}
+.helper-copy {
   color: var(--p-text-muted-color, var(--text-color-secondary));
-  font-size: 0.8rem;
+  font-size: 0.75rem;
 }
-.resolution-error {
-  align-items: flex-start;
-  flex-direction: column;
-  gap: 10px;
-}
-.resolution-error p {
-  margin: 0;
-  color: var(--p-red-600, #dc2626);
+@media (max-width: 640px) {
+  .wizard-step-list {
+    min-width: 0;
+    max-width: 100%;
+    justify-content: flex-start;
+    gap: 8px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: thin;
+  }
+  .choice-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .review-list > div {
+    grid-template-columns: 92px minmax(0, 1fr);
+  }
 }
 </style>

@@ -6,19 +6,23 @@ destinations.
 ## Configure a workflow
 
 1. From the dashboard, choose **New workflow** in a project.
-2. Complete **Details**, select and configure a **Source**, then add
-   **Destinations** and their deployment slots. Pipelab checks the selected
-   Source as you fill its fields. Blocking issues appear beside the relevant
-   field; retry the inspection if it fails.
-3. On **Review**, check the proposed setup. Pipelab resolves a recommended
-   build when a destination needs one and validates the result with the
-   workflow planner. For a typical desktop project, this can add an Electron
-   build for Windows x64 automatically.
-4. Choose **Create release**. If a destination needs build setup that cannot
-   be resolved automatically, the workflow is still created as a draft and its
-   readiness state explains what needs attention.
+2. In **Name & description**, enter the workflow name and description.
+3. In **Source & project path**, choose a source and provide its required
+   project file or folder. Source-specific file rules apply, such as `.c3p` for
+   Construct projects or `.zip` for ZIP sources.
+4. In **Destinations**, choose one or more places to publish the release.
+5. Check the **Recap** for the workflow name, description, source and path, and
+   destinations, then choose **Create workflow**. Pipelab applies any existing
+   build and output defaults that can be resolved. It opens the workflow's
+   **Configuration** section after creation.
 
-![Release setup source step showing Folder, ZIP, Construct project, and Godot project options](../assets/current/workflow-source.png)
+If setup still needs information, an **Action required** card explains the
+current blocker and offers one relevant action. Use its previous and next
+controls to move between blockers. The action opens the source, destination,
+or build editor in Configuration, or takes you to Connections. For a missing
+provider account, **Add** opens a new connection form; **Select** opens the
+existing destination field so you can choose a saved account. Unresolved
+defaults remain visible there for you to complete.
 
 Provider cards are populated from the providers available in the application.
 Compatibility depends on the artifact type, destination, selected target, and

@@ -36,6 +36,10 @@ pnpm --filter @pipelab/ui typecheck
 
 Root `pnpm test`, `pnpm lint`, `pnpm typecheck`, and `pnpm build` delegate to Turbo. Turbo task ordering and outputs are defined in `turbo.json`; use workspace scripts rather than inventing a build order. CLI end-to-end, workflow, and provider tests run in the CLI host under `apps/cli/tests/e2e`. UI behavior belongs in UI tests. The Electron startup smoke is manual-only and is not a feature-test harness.
 
+The UI dev server also allows assets from the resolved workspace `node_modules`
+directory. When a Git worktree shares dependencies through a symlink, icon fonts
+remain available through the normal UI dev command.
+
 ## Package the desktop app
 
 ```sh

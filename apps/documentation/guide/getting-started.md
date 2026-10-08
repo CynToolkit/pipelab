@@ -19,11 +19,16 @@ load when you open them.
 
 ## Create and run a workflow
 
-1. Choose **New workflow** and provide its name and release details.
-2. Select a source and configure its fields.
-3. Add destinations and review the recommended build setup.
-4. Create the workflow, then use its **Configuration**, **Builds**,
-   **Artifacts**, and **Runs** sections to manage and inspect it.
+1. Choose **New workflow**. In **Name & description**, enter a workflow name
+   and description.
+2. In **Source & project path**, choose a source and its project file or
+   folder. Source-specific file rules apply, including `.c3p` for Construct
+   projects and `.zip` for ZIP sources.
+3. Choose one or more destinations, review the **Recap**, then choose
+   **Create workflow**. Pipelab applies build and output defaults when it can.
+4. Complete any **Action required** item in the workflow's **Configuration**,
+   **Builds**, or **Connections** section, then use **Artifacts** and **Runs**
+   to inspect the workflow after shipping.
 
 For the complete setup and execution flow, see the
 [Release workflow guide](/guide/release-workflows).

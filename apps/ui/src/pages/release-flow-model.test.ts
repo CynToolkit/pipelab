@@ -8,12 +8,16 @@ import {
   buildTargetIsAvailable,
   buildInputControlVisible,
   applyProducerInspection,
+  blockerAtIndex,
   buildInputSelectionMode,
   connectionMatchesIntegration,
+  clampBlockerIndex,
   createBuildProfile,
   createSerializedTaskQueue,
   deduplicateValidationIssues,
+  firstBlockingIssue,
   issuesForPath,
+  missingRequiredFieldIssues,
   planOutputOptions,
   outputReferenceChangeImpact,
   outputReferenceConsumers,
@@ -24,6 +28,9 @@ import {
   deploymentSlotLabel,
   readinessLabel,
   releaseCanRun,
+  releaseBlockerPresentation,
+  releaseReadinessState,
+  releaseRepairRoute,
   releaseOutputRefValue,
   runAfterSuccessfulSave,
   selectBuildInput,
@@ -885,6 +892,8 @@ describe("release flow model", () => {
     expect(releaseCanRun(flow, plan, [], true, false)).toBe(false);
     expect(releaseCanRun(flow, plan, [], false, true)).toBe(false);
     expect(releaseCanRun(flow, plan, [], false, false, "error")).toBe(false);
+    expect(releaseCanRun(flow, plan, [], false, false, "saved", true)).toBe(false);
+    expect(releaseCanRun(flow, plan, [], false, false, "saved", false, true)).toBe(false);
   });
 
   it("does not run a release when persistence fails", async () => {
@@ -926,5 +935,262 @@ describe("release flow model", () => {
     expect(
       deduplicateValidationIssues([duplicate, { ...duplicate }, sameMessageAtDifferentPath]),
     ).toEqual([duplicate, sameMessageAtDifferentPath]);
+  });
+
+  it("keeps readiness attention visible while checks continue and never reports ready early", () => {
+    const warning = { code: "notice", message: "Optional", severity: "warning" as const };
+    const blocker = {
+      code: "release.connection.missing",
+      message: "Choose a connection.",
+      severity: "error" as const,
+      path: "source.config.account",
+    };
+    expect(firstBlockingIssue([warning, blocker])).toBe(blocker);
+    expect(firstBlockingIssue([warning])).toBeUndefined();
+    expect(
+      releaseReadinessState({
+        loading: false,
+        inspectingSource: true,
+        planning: true,
+        hasPlan: false,
+        hasReadinessError: false,
+        blockingIssueCount: 1,
+      }),
+    ).toBe("attention");
+    expect(
+      releaseReadinessState({
+        loading: false,
+        inspectingSource: true,
+        planning: false,
+        hasPlan: true,
+        hasReadinessError: false,
+        blockingIssueCount: 0,
+      }),
+    ).toBe("checking");
+    expect(
+      releaseReadinessState({
+        loading: true,
+        inspectingSource: false,
+        planning: false,
+        hasPlan: true,
+        hasReadinessError: false,
+        blockingIssueCount: 0,
+      }),
+    ).toBe("checking");
+    expect(
+      releaseReadinessState({
+        loading: false,
+        inspectingSource: false,
+        planning: false,
+        hasPlan: true,
+        hasReadinessError: false,
+        blockingIssueCount: 0,
+      }),
+    ).toBe("ready");
+    expect(
+      releaseReadinessState({
+        loading: false,
+        inspectingSource: false,
+        planning: false,
+        hasPlan: false,
+        hasReadinessError: true,
+        blockingIssueCount: 0,
+      }),
+    ).toBe("error");
+  });
+
+  it("surfaces known required-field blockers from catalog metadata before planning finishes", () => {
+    const workflow: ReleaseConfig = {
+      ...config,
+      source: { provider: "source", config: { count: 0 } },
+    };
+    const metadata: ReleaseCatalog = {
+      ...catalog,
+      sources: [
+        {
+          ...catalog.sources[0],
+          fields: [
+            { key: "path", type: "file", label: "Project path", required: true },
+            { key: "count", type: "number", label: "Item count", required: true },
+          ],
+        },
+      ],
+      producers: catalog.producers.map((producer) =>
+        producer.id === "engine-a"
+          ? {
+              ...producer,
+              fields: [{ key: "preset", type: "select" as const, label: "Preset", required: true }],
+              targets: producer.targets.map((target) =>
+                target.id === "windows"
+                  ? {
+                      ...target,
+                      fields: [
+                        { key: "signing", type: "text" as const, label: "Signing", required: true },
+                      ],
+                    }
+                  : target,
+              ),
+            }
+          : producer,
+      ),
+      destinations: [
+        {
+          id: "destination",
+          label: "Destination",
+          accepts: {},
+          defaultConfig: {},
+          fields: [{ key: "channel", type: "text", label: "Channel", required: true }],
+          slotFields: [{ key: "token", type: "password", label: "Token", required: true }],
+        },
+      ],
+    };
+
+    expect(missingRequiredFieldIssues(workflow, metadata)).toEqual([
+      {
+        code: "release.field.required",
+        message: "Project path is required.",
+        severity: "error",
+        path: "source.config.path",
+      },
+    ]);
+    workflow.source.config.path = "/project.pok";
+    workflow.source.config.count = 0;
+    workflow.destinations = [
+      {
+        id: "destination-one",
+        provider: "destination",
+        enabled: false,
+        config: {},
+        slots: [{ id: "slot-one", enabled: false, config: {} }],
+      },
+    ];
+    workflow.builds = [
+      {
+        id: "build-one",
+        type: "desktop",
+        engine: "engine-a",
+        enabled: false,
+        config: {},
+        targets: [{ id: "windows", enabled: false, config: {} }],
+      },
+    ];
+    expect(missingRequiredFieldIssues(workflow, metadata)).toEqual([]);
+
+    workflow.destinations[0].enabled = true;
+    workflow.destinations[0].slots[0].enabled = true;
+    workflow.builds[0].enabled = true;
+    expect(missingRequiredFieldIssues(workflow, metadata).map((issue) => issue.path)).toEqual([
+      "builds.0.config.preset",
+      "destinations.0.config.channel",
+      "destinations.0.slots.0.config.token",
+    ]);
+    workflow.builds[0].targets[0].enabled = true;
+    expect(missingRequiredFieldIssues(workflow, metadata).map((issue) => issue.path)).toContain(
+      "builds.0.targets.0.config.signing",
+    );
+  });
+
+  it("clamps blocker navigation when the current issue list changes", () => {
+    const original = [
+      { code: "first", message: "First issue", severity: "error" as const },
+      { code: "second", message: "Second issue", severity: "error" as const },
+    ];
+    expect(blockerAtIndex(original, 0)?.code).toBe("first");
+    expect(blockerAtIndex(original, 1)?.code).toBe("second");
+    expect(clampBlockerIndex(-1, original.length)).toBe(0);
+    expect(clampBlockerIndex(2, original.length)).toBe(1);
+    expect(clampBlockerIndex(1, 0)).toBe(0);
+
+    const current = [original[0]!];
+    const clampedSelection = blockerAtIndex(current, clampBlockerIndex(1, current.length));
+    expect(clampedSelection?.code).toBe("first");
+    expect(releaseBlockerPresentation(clampedSelection!).actionLabel).toBe("Review issues");
+  });
+
+  it("uses the known integration for a contextual connection repair CTA", () => {
+    const issue = {
+      code: "steam.account.required",
+      message: "A Steam account connection is required.",
+      severity: "error" as const,
+      path: "destinations.0.config.accountConnectionId",
+    };
+    expect(
+      releaseBlockerPresentation(issue, {
+        targetLabel: "Steam",
+        connectionLabel: "Steam",
+        connectionFieldLabel: "account",
+        hasMatchingConnection: false,
+      }),
+    ).toEqual({
+      title: "Connect your Steam account",
+      description: "A Steam account connection is required.",
+      actionLabel: "Add Steam connection",
+    });
+    expect(
+      releaseBlockerPresentation(issue, {
+        targetLabel: "Steam",
+        connectionLabel: "Steam",
+        connectionFieldLabel: "account",
+        hasMatchingConnection: true,
+      }).actionLabel,
+    ).toBe("Select Steam connection");
+    expect(releaseRepairRoute(issue)).toBe("configuration");
+  });
+
+  it("routes the first blocker to its existing repair surface", () => {
+    expect(
+      releaseRepairRoute({
+        code: "release.connection.integration",
+        message: "Wrong connection.",
+        severity: "error",
+        path: "builds.0.config.account",
+      }),
+    ).toBe("builds");
+    expect(
+      releaseRepairRoute({
+        code: "release.connection.missing",
+        message: "Choose a connection.",
+        severity: "error",
+        path: "source.config.account",
+      }),
+    ).toBe("configuration");
+    expect(
+      releaseRepairRoute({
+        code: "release.connection.missing",
+        message: "Choose a connection.",
+        severity: "error",
+      }),
+    ).toBe("connections");
+    expect(
+      releaseRepairRoute({
+        code: "release.build.invalid",
+        message: "Choose a target.",
+        severity: "error",
+        path: "builds.0.targets",
+      }),
+    ).toBe("builds");
+    expect(
+      releaseRepairRoute({
+        code: "release.destination.invalid",
+        message: "Select an output.",
+        severity: "error",
+        path: "destinations.0.slots.0.input",
+      }),
+    ).toBe("builds");
+    expect(
+      releaseRepairRoute({
+        code: "release.source.invalid",
+        message: "Select a source.",
+        severity: "error",
+        path: "source.config.path",
+      }),
+    ).toBe("configuration");
+    expect(
+      releaseRepairRoute({
+        code: "release.invalid",
+        message: "Resolve this issue.",
+        severity: "error",
+      }),
+    ).toBe("issues");
   });
 });
