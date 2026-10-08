@@ -30,8 +30,17 @@ request. Local artifact opening uses the desktop shell. Hosted artifacts can be
 downloaded through the browser when the run contains a supported cloud artifact.
 
 If a step fails, review its log and the provider's setup page before rerunning
-the workflow. Pipelab does not show a user-facing retry action in the run detail
-screen.
+the workflow. Failed run details summarize common authentication, permission,
+connection, missing-file or tool, and disk-space failures when the error message
+provides enough information. The summary identifies the failed step and
+destination when available, shows how many steps succeeded and how many
+artifacts were produced, and suggests a next action. Use **View step logs** to
+jump to that step's output. Expand **Technical details** to inspect the provider's
+original error and error code.
+
+Artifacts remain available from the **Artifacts** tab, including when a later
+delivery step fails. Pipelab does not show a user-facing retry action in the run
+detail screen; after addressing the cause, start a new workflow run.
 
 To inspect a workflow plan without running provider tasks, use
 [`pipelab workflow run <id-or-name> --dry-run`](/cli/reference#run-a-saved-release-workflow).

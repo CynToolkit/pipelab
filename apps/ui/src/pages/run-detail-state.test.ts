@@ -1,6 +1,6 @@
 import type { BuildHistoryEntry, Events } from "@pipelab/shared";
 import { describe, expect, it } from "vitest";
-import { applyWorkflowEventToRunEntry } from "./run-detail-state";
+import { applyWorkflowEventToRunEntry, buildRunFailureDiagnostics } from "./run-detail-state";
 
 type WorkflowEvent = Extract<Events<"workflow:execute">, { type: "workflow-event" }>["data"];
 
@@ -97,5 +97,77 @@ describe("applyWorkflowEventToRunEntry", () => {
     expect(run.artifacts).toHaveLength(1);
     expect(run.deliveries).toHaveLength(1);
     expect(run.steps[0]).toMatchObject({ id: "build", status: "completed", duration: 6 });
+  });
+});
+
+describe("buildRunFailureDiagnostics", () => {
+  it("explains a failed destination step and keeps the provider detail", () => {
+    const run = entry();
+    run.status = "completed-with-errors";
+    run.completedSteps = 1;
+    run.steps[0] = {
+      ...run.steps[0],
+      name: "Upload to Steam",
+      status: "failed",
+      destinationId: "steam",
+      slotId: "windows",
+      error: {
+        message: "Steam authentication failed. Run pipelab login steam and try again.",
+        code: "ExternalCommandError",
+        timestamp: 20,
+      },
+    };
+    run.deliveries = [
+      {
+        id: "build",
+        destinationId: "steam",
+        destinationName: "Steam",
+        slotId: "windows",
+        artifactId: "package",
+        status: "failed",
+        startedAt: 10,
+        completedAt: 20,
+        duration: 10,
+        error: "Steam authentication failed. Run pipelab login steam and try again.",
+      },
+    ];
+
+    expect(buildRunFailureDiagnostics(run)).toEqual([
+      expect.objectContaining({
+        title: "Upload to Steam",
+        destination: "Steam",
+        slotId: "windows",
+        category: "Authentication",
+        nextAction: expect.stringContaining("pipelab login steam"),
+        rawMessage: "Steam authentication failed. Run pipelab login steam and try again.",
+        errorCode: "ExternalCommandError",
+      }),
+    ]);
+  });
+
+  it("suggests checking installation for a run setup command that is missing", () => {
+    const run = entry();
+    run.status = "failed";
+    run.error = {
+      message: "spawn pnpm ENOENT",
+      code: "Error",
+      stack: "Error: spawn pnpm ENOENT\n    at setupRuntime",
+      timestamp: 20,
+    };
+
+    expect(buildRunFailureDiagnostics(run)[0]).toMatchObject({
+      title: "Run setup",
+      category: "Missing tool or file",
+      nextAction: expect.stringMatching(/install|path/i),
+      rawMessage: "spawn pnpm ENOENT",
+      rawStack: "Error: spawn pnpm ENOENT\n    at setupRuntime",
+    });
+  });
+
+  it("does not show failure diagnostics for a successful or active run", () => {
+    expect(buildRunFailureDiagnostics(entry())).toEqual([]);
+    const completed = entry();
+    completed.status = "completed";
+    expect(buildRunFailureDiagnostics(completed)).toEqual([]);
   });
 });

@@ -74,6 +74,130 @@ export const workflowCancellationFeedback = (result: {
     ? "This run is no longer active."
     : "";
 
+export interface RunFailureDiagnostic {
+  id: string;
+  title: string;
+  category: string;
+  summary: string;
+  nextAction: string;
+  stepId?: string;
+  destination?: string;
+  slotId?: string;
+  rawMessage?: string;
+  rawStack?: string;
+  errorCode?: string;
+}
+
+const failureGuidance = (message: string) => {
+  if (/auth|credential|unauthori[sz]ed|\b401\b|\b403\b|login|sign.?in/i.test(message)) {
+    return {
+      category: "Authentication",
+      summary: "The destination rejected the configured account or session.",
+      nextAction: "Sign in to the destination again, then rerun this workflow.",
+    };
+  }
+  if (/\bEACCES\b|\bEPERM\b|permission denied|access is denied/i.test(message)) {
+    return {
+      category: "Permission",
+      summary: "Pipelab could not access a required file or destination.",
+      nextAction: "Check access to the reported path or destination, then rerun this workflow.",
+    };
+  }
+  if (/\bENOSPC\b|no space left|disk full|not enough disk space/i.test(message)) {
+    return {
+      category: "Disk space",
+      summary: "There is not enough free space to complete this step.",
+      nextAction: "Free disk space at the reported location, then rerun this workflow.",
+    };
+  }
+  if (
+    /\bENOENT\b|not found|missing (?:file|tool|command)|could not find|does not exist/i.test(
+      message,
+    )
+  ) {
+    return {
+      category: "Missing tool or file",
+      summary: "A required command or file could not be found.",
+      nextAction:
+        "Install the required tool or correct its configured path, then rerun this workflow.",
+    };
+  }
+  if (
+    /\bECONN|\bENOTFOUND\b|\bETIMEDOUT\b|network|fetch failed|offline|connection refused/i.test(
+      message,
+    )
+  ) {
+    return {
+      category: "Connection",
+      summary: "Pipelab could not reach a required service.",
+      nextAction:
+        "Check the network connection and destination availability, then rerun this workflow.",
+    };
+  }
+  return {
+    category: "Step failed",
+    summary: "This step reported an error while the workflow was running.",
+    nextAction:
+      "Review this step's logs and provider details to resolve the error before rerunning.",
+  };
+};
+
+export const buildRunFailureDiagnostics = (entry: BuildHistoryEntry): RunFailureDiagnostic[] => {
+  if (entry.status !== "failed" && entry.status !== "completed-with-errors") return [];
+
+  const diagnostics: RunFailureDiagnostic[] = [];
+  const failedSteps = entry.steps.filter((step) => step.status === "failed");
+  for (const step of failedSteps) {
+    const delivery = entry.deliveries?.find((candidate) => candidate.id === step.id);
+    const rawMessage = step.error?.message || delivery?.error;
+    if (!rawMessage) continue;
+    const guidance = failureGuidance(rawMessage);
+    const loginCommand = rawMessage.match(/pipelab login\s+\S+/i)?.[0];
+    diagnostics.push({
+      id: step.id,
+      title: step.name || step.id,
+      category: guidance.category,
+      summary: guidance.summary,
+      nextAction: loginCommand
+        ? `Run ${loginCommand} and try this step again.`
+        : guidance.nextAction,
+      stepId: step.id,
+      ...(delivery?.destinationName ||
+      delivery?.destinationId ||
+      step.destinationName ||
+      step.destinationId
+        ? {
+            destination:
+              delivery?.destinationName ||
+              delivery?.destinationId ||
+              step.destinationName ||
+              step.destinationId,
+          }
+        : {}),
+      ...(delivery?.slotId || step.slotId ? { slotId: delivery?.slotId || step.slotId } : {}),
+      rawMessage,
+      ...(step.error?.stack ? { rawStack: step.error.stack } : {}),
+      ...(step.error?.code ? { errorCode: step.error.code } : {}),
+    });
+  }
+
+  if (entry.error && !failedSteps.some((step) => step.error?.message === entry.error?.message)) {
+    const guidance = failureGuidance(entry.error.message);
+    diagnostics.unshift({
+      id: "run-setup",
+      title: "Run setup",
+      category: guidance.category,
+      summary: guidance.summary,
+      nextAction: guidance.nextAction,
+      rawMessage: entry.error.message,
+      ...(entry.error.stack ? { rawStack: entry.error.stack } : {}),
+      ...(entry.error.code ? { errorCode: entry.error.code } : {}),
+    });
+  }
+
+  return diagnostics;
+};
+
 export const applyWorkflowEventToRunEntry = (entry: BuildHistoryEntry, event: WorkflowEvent) => {
   if (event.type === "workflow.completed") {
     const previousSteps = new Map(entry.steps.map((step) => [step.id, step]));
