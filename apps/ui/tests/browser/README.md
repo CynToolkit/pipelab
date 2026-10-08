@@ -74,3 +74,38 @@ UI_BASE_URL=http://127.0.0.1:5175 CHROMIUM_PATH=/usr/bin/chromium \
 This journey supplies a mocked agent over the local WebSocket boundary. It
 checks that the browser wizard loads dynamic build options after connecting and
 clearly defers destination account setup to Configuration.
+
+## Local hosted auth
+
+Run against the local Supabase stack. Do not evaluate or log the complete
+`supabase status --output env` output because it also contains server-only
+credentials. If you need to inspect CLI values, filter to public values only:
+
+```sh
+supabase status --output env | awk -F= '$1 ~ /^(API_URL|ANON_KEY|PUBLISHABLE_KEY|SUPA_API_URL|SUPA_ANON_KEY|SUPA_PUBLISHABLE_KEY)$/'
+```
+
+Use only the local API URL and public key in an ignored local environment file,
+preferring `SUPABASE_PUBLISHABLE_KEY` and retaining `SUPABASE_ANON_KEY` as a
+temporary fallback. Never pass a service-role or secret key to the UI.
+
+Start the UI in a separate terminal:
+
+```sh
+VITE_PIPELAB_MODE=hosted pnpm --filter @pipelab/ui dev --host 127.0.0.1 --port 5185
+```
+
+Then run the browser journey:
+
+```sh
+SUPABASE_URL=http://127.0.0.1:54321 \
+UI_BASE_URL=http://127.0.0.1:5185 \
+CHROMIUM_PATH=/usr/bin/chromium \
+node apps/ui/tests/browser/hosted-auth-local.cjs
+```
+
+It creates a throwaway local auth user and verifies signup, session restore
+after refresh, sign-out, and sign-in without an agent WebSocket. When local
+email confirmation is enabled, the journey must also use Mailpit to complete
+the verification callback; this smoke alone does not verify password recovery,
+profile/plan service data, or billing.
