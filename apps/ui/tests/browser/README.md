@@ -77,3 +77,11 @@ redirect, and set `EXPECT_EMAIL_CONFIRMATION=1` and `MAILPIT_URL` to that
 project's local Mailpit URL. The smoke rejects nonlocal Supabase and Mailpit
 URLs. No billing transaction is performed; the local plan Edge Function may
 be absent.
+
+To verify the signed-in Billing UI's unavailable-plan and failed-portal states,
+run the same smoke with `EXPECT_PLAN_FAILURE_UI=1` or
+`EXPECT_PORTAL_FAILURE_UI=1`. These modes intercept only the local browser's
+`polar-user-plan` and `customer-portal` calls with synthetic responses; auth
+still uses local Supabase, and no Polar request or billing transaction occurs.
+Run the modes separately. They assert that plan failures show an error and can
+be retried, and that portal failures show a user-facing message.
