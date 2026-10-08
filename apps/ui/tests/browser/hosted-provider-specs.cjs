@@ -22,6 +22,9 @@ const chromiumPath = process.env.CHROMIUM_PATH || "/usr/bin/chromium";
     if (message.type() === "error" && !message.location().url.endsWith("/favicon.ico")) {
       errors.push(message.text());
     }
+    if (message.type() === "warning" && message.text().startsWith("[Vue warn]")) {
+      errors.push(message.text());
+    }
   });
   page.on("response", (response) => {
     // Vite's default index does not include a favicon; it is unrelated to app behavior.
