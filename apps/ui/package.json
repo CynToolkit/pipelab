@@ -13,7 +13,7 @@
   "scripts": {
     "dev": "vite",
     "dev:remote": "vite --host 0.0.0.0",
-    "build": "vite build",
+    "build": "pnpm --filter @pipelab/app exec tsx ../../packages/core-node/scripts/generate-browser-provider-specs.ts && vite build",
     "typecheck": "vue-tsc --noEmit -p tsconfig.json --composite false",
     "preview": "vite preview",
     "format": "oxfmt .",

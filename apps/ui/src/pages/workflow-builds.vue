@@ -466,7 +466,6 @@ import type {
   IconType,
   ProducerInspection,
   ReleaseBuildProfileConfig,
-  ReleaseCatalog,
   ReleaseCatalogTarget,
   ReleaseConfig,
   ReleaseFieldDefinition,
@@ -540,12 +539,7 @@ const compatibleSlotId = computed(() => queryString(route.query.slotId));
 const compatibleRouteRequested = computed(() =>
   Boolean(compatibleDestinationId.value || compatibleSlotId.value),
 );
-const catalog = ref<ReleaseCatalog>({
-  buildTypes: [],
-  sources: [],
-  producers: [],
-  destinations: [],
-});
+const catalog = computed(() => appStore.releaseCatalog);
 const flow = ref<ReleaseConfig>();
 const plan = ref<ReleasePlan>();
 const planning = ref(false);
@@ -877,14 +871,13 @@ const loadWorkflow = async () => {
   loadError.value = "";
   plannerError.value = "";
   try {
-    const [catalogResult, workflowResult] = await Promise.all([
-      api.execute("release:catalog:get"),
+    const [, workflowResult] = await Promise.all([
+      appStore.loadReleaseCatalog(),
       api.execute("workflow:load", { workflowId: requestedFlowId, projectId: requestedProjectId }),
       connectionsStore.init(),
       appStore.loadProviderDefinitions(),
     ]);
     if (generation !== loadGeneration) return;
-    if (catalogResult.type === "error") throw new Error(catalogResult.ipcError);
     if (workflowResult.type === "error") throw new Error(workflowResult.ipcError);
     if (connectionsStore.status === "error")
       throw new Error(connectionsStore.error || "Unable to load connections.");
@@ -897,7 +890,6 @@ const loadWorkflow = async () => {
       throw new Error("Loaded workflow identity does not match the requested route.");
 
     hydrating = true;
-    catalog.value = catalogResult.result;
     const sameWorkflow =
       flow.value?.id === requestedFlowId && flow.value?.project === requestedProjectId;
     const preserveDraft = sameWorkflow && hasUnsavedWorkflowChanges();
@@ -1316,6 +1308,7 @@ const toggleDraftTarget = (target: ReleaseCatalogTarget) => {
     target.id,
     !draftTargetEnabled(target.id),
     target.availability,
+    target.availabilityStatus,
   );
 };
 const setDraftBuildInput = (value: string) => {

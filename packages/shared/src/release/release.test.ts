@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildReleaseCatalog,
   buildReleaseRegistry,
+  mergeReleaseCatalog,
   createReleaseConfig,
   descriptorsEqual,
   matchesArtifact,
@@ -78,6 +79,34 @@ describe("release descriptors", () => {
     const catalog = buildReleaseCatalog(buildReleaseRegistry([fakePlugin("@example/fake-engine")]));
     expect(catalog.buildTypes.map((type) => type.id)).toContain("desktop");
     expect(catalog.sources[0]).not.toHaveProperty("compile");
+  });
+
+  it("layers runtime target availability and providers without replacing bundled definitions", () => {
+    const bundled = buildReleaseCatalog(buildReleaseRegistry([fakePlugin("@example/fake-engine")]));
+    const source = bundled.sources[0];
+    const runtime = {
+      ...bundled,
+      sources: [
+        {
+          ...source,
+          label: "Runtime placeholder",
+          fields: undefined,
+          defaultConfig: { runtimeDefault: "ignored", custom: "kept" },
+        },
+        { ...source, id: "@example/new/source", label: "New runtime source" },
+      ],
+    };
+
+    const merged = mergeReleaseCatalog(bundled, runtime);
+    expect(merged.sources).toEqual([
+      expect.objectContaining({
+        id: source.id,
+        label: source.label,
+        fields: source.fields,
+        defaultConfig: { runtimeDefault: "ignored", custom: "kept" },
+      }),
+      expect.objectContaining({ id: "@example/new/source", label: "New runtime source" }),
+    ]);
   });
 
   it("accepts only the V3 Build Profile shape", () => {
@@ -247,8 +276,36 @@ describe("release descriptors", () => {
       id: "r",
       project: "p",
       name: "n",
-      source: { provider: "source", config: {} },
+      source: {
+        provider: "@new/provider/source",
+        config: { futureSourceSetting: { mode: "new" } },
+      },
     });
+    config.builds = [
+      {
+        id: "future-build",
+        type: "future-type",
+        engine: "@new/provider/producer",
+        enabled: true,
+        config: { futureProducerSetting: [1, "two"] },
+        targets: [{ id: "future-target", enabled: true, config: { futureTargetSetting: true } }],
+      },
+    ];
+    config.destinations = [
+      {
+        id: "future-destination",
+        provider: "@new/provider/destination",
+        enabled: true,
+        config: { futureDestinationSetting: "kept" },
+        slots: [
+          {
+            id: "future-slot",
+            enabled: true,
+            config: { futureSlotSetting: { x: 1 } },
+          },
+        ],
+      },
+    ];
     expect(parseReleaseConfig(JSON.parse(JSON.stringify(config)))).toEqual(config);
   });
 
