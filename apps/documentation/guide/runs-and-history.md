@@ -34,7 +34,9 @@ downloaded through the browser when the run contains a supported cloud artifact.
 If a step fails, review its log and the provider's setup page before rerunning
 the workflow. Failed run details summarize common authentication, permission,
 connection, missing-file or tool, and disk-space failures when the error message
-provides enough information. The summary identifies the failed step and
+provides enough information. Forbidden responses point to checking destination
+account permissions, while authentication failures point to signing in again.
+The summary identifies the failed step and
 destination when available, shows how many steps succeeded and how many
 artifacts were produced, and suggests a next action. Use **View step logs** to
 jump to that step's output. Expand **Technical details** to inspect the provider's

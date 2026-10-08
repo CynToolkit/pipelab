@@ -187,6 +187,24 @@ describe("buildRunFailureDiagnostics", () => {
     ]);
   });
 
+  it("treats forbidden destination responses as a permission issue, not an auth failure", () => {
+    const run = entry();
+    run.status = "failed";
+    run.steps[0] = {
+      ...run.steps[0],
+      name: "Publish release",
+      status: "failed",
+      destinationId: "store",
+      error: { message: "HTTP 403 Forbidden: insufficient scope", timestamp: 20 },
+    };
+
+    expect(buildRunFailureDiagnostics(run)[0]).toMatchObject({
+      category: "Permission",
+      summary: expect.stringMatching(/permission/i),
+      nextAction: expect.stringMatching(/permission|scope/i),
+    });
+  });
+
   it("suggests checking installation for a run setup command that is missing", () => {
     const run = entry();
     run.status = "failed";

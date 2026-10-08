@@ -154,7 +154,19 @@ export const runFailureArtifactSummary = (entry: BuildHistoryEntry) => {
 };
 
 const failureGuidance = (message: string) => {
-  if (/auth|credential|unauthori[sz]ed|\b401\b|\b403\b|login|sign.?in/i.test(message)) {
+  if (
+    /\b403\b|forbidden|permission denied|insufficient (?:permission|scope)|not allowed/i.test(
+      message,
+    )
+  ) {
+    return {
+      category: "Permission",
+      summary: "The destination account does not have permission to complete this action.",
+      nextAction:
+        "Check the account's access and required permissions for this destination, then rerun this workflow.",
+    };
+  }
+  if (/auth|credential|unauthori[sz]ed|\b401\b|login|sign.?in/i.test(message)) {
     return {
       category: "Authentication",
       summary: "The destination rejected the configured account or session.",
