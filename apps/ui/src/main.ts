@@ -23,6 +23,7 @@ import posthog from "posthog-js";
 import { i18n } from "./i18n";
 
 import { websocketManager } from "./composables/websocket-manager";
+import { uiRuntimeMode } from "./composables/ui-runtime";
 import { useLogger } from "@pipelab/shared";
 import Tooltip from "primevue/tooltip";
 
@@ -133,13 +134,16 @@ app.directive("tooltip", Tooltip as any);
 
 const { logger } = useLogger();
 
-// Initialize WebSocket manager in background
-websocketManager.initialize().catch((error) => {
-  logger().warn(
-    "WebSocket manager initialization failed, app will continue without WebSocket:",
-    error,
-  );
-});
+// Hosted builds do not initialize a local agent connection unless a future
+// explicit pairing flow asks for one.
+if (uiRuntimeMode !== "hosted") {
+  websocketManager.initialize().catch((error) => {
+    logger().warn(
+      "WebSocket manager initialization failed, app will continue without WebSocket:",
+      error,
+    );
+  });
+}
 
 app.mount("#app");
 logger().info("App mounted");

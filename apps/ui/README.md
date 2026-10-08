@@ -32,3 +32,17 @@ pnpm build      # Generates the production assets in the /dist folder
 
 > [!NOTE]
 > During development, the UI expects the `@pipelab/cli` to be running separately (via `pnpm dev` at the root).
+
+### Hosted browser mode
+
+Select hosted mode explicitly for a standalone browser deployment:
+
+```bash
+VITE_PIPELAB_MODE=hosted pnpm --filter @pipelab/ui build
+```
+
+The hosted build does not try to connect to an agent and keeps navigation and
+browser preferences available without one. Local workflows, machine settings,
+and execution still require the Desktop agent. A browser build without this
+flag remains agent-capable for local and remote development; Electron always
+uses Desktop mode even if the flag is present.

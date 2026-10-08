@@ -58,11 +58,11 @@
         <div
           v-if="!isElectron || !isReady"
           class="sidebar-status-item"
-          :class="connectionState"
+          :class="isHostedMode ? 'hosted' : connectionState"
           v-tooltip.right="isSidebarCollapsed ? connectionText : undefined"
         >
-          <span class="status-dot" :class="connectionState" />
-          <i class="mdi nav-icon" :class="connectionIcon" />
+          <span class="status-dot" :class="isHostedMode ? 'hosted' : connectionState" />
+          <i class="mdi nav-icon" :class="isHostedMode ? 'mdi-web' : connectionIcon" />
           <span v-show="!isSidebarCollapsed" class="status-text">{{ connectionText }}</span>
         </div>
 
@@ -181,6 +181,7 @@
             v-tooltip.top="!isSidebarCollapsed ? 'Logout' : undefined"
             @click="logout"
             :disabled="!isReady"
+            :title="isReady ? undefined : 'Reconnect the agent to sign out.'"
           >
             <i class="mdi mdi-logout" />
           </button>
@@ -193,10 +194,18 @@
           v-tooltip.right="isSidebarCollapsed ? 'Login / Register' : undefined"
           @click="auth.displayAuthModal()"
           :disabled="!isReady || auth.authState === 'INITIALIZING' || auth.authState === 'LOADING'"
+          :title="
+            isHostedMode
+              ? 'Browser sign-in will be available in a later update.'
+              : 'Connect an agent to sign in.'
+          "
         >
           <i class="mdi mdi-login nav-icon" />
           <span v-show="!isSidebarCollapsed" class="nav-label">Login / Register</span>
         </button>
+        <p v-if="isHostedMode && !user" class="hosted-account-note">
+          Browser sign-in is not available yet.
+        </p>
       </div>
     </aside>
 
@@ -205,7 +214,7 @@
       <div v-if="!isReady" class="agent-notice" role="status" aria-live="polite">
         <span>{{ agentNotice }}</span>
         <Button
-          v-if="agentStatus === 'offline'"
+          v-if="!isHostedMode && agentStatus === 'offline'"
           label="Reconnect"
           text
           size="small"
@@ -213,14 +222,14 @@
         />
       </div>
       <main class="layout-content">
-        <div class="route-content" :inert="!isReady">
+        <div class="route-content">
           <slot></slot>
         </div>
       </main>
     </div>
 
     <!-- Auth Dialog (Login / Register / Forgot Password) -->
-    <AuthDialog v-if="hasOpenedAuthDialog" />
+    <AuthDialog v-if="hasOpenedAuthDialog && !isHostedMode" />
 
     <!-- Settings Dialog -->
     <Dialog
@@ -245,6 +254,7 @@ import { ref, computed, inject, watch, onUnmounted, defineAsyncComponent } from 
 import { useAuth } from "@renderer/store/auth";
 import { OpenUpgradeDialogKey } from "../utils/injection-keys";
 import { useShell } from "@renderer/composables/use-shell";
+import { uiRuntimeMode } from "@renderer/composables/ui-runtime";
 interface MenuItem {
   label?: string;
   icon?: string;
@@ -278,14 +288,17 @@ const AuthDialog = defineAsyncComponent(() => import("@renderer/components/AuthD
 const { logger } = useLogger();
 const shell = useShell();
 const { isReady, status: agentStatus, reconnect } = useAgentAvailability();
+const isHostedMode = uiRuntimeMode === "hosted";
 const appStore = useAppStore();
-const agentNotice = computed(() =>
-  agentStatus.value === "offline"
-    ? "No agent connected. Your data and actions will be available when it reconnects."
-    : agentStatus.value === "starting"
-      ? "The agent is starting. Data will appear as it becomes available."
-      : "Connecting to the agent…",
-);
+const agentNotice = computed(() => {
+  if (isHostedMode)
+    return "Hosted mode is ready. Local workflows, machine settings, and execution need a connected Desktop agent.";
+  if (agentStatus.value === "offline")
+    return "No agent connected. Your data and actions will be available when it reconnects.";
+  if (agentStatus.value === "starting")
+    return "The agent is starting. Data will appear as it becomes available.";
+  return "Connecting to the agent…";
+});
 
 const isElectron = !!window.electron;
 
@@ -359,6 +372,7 @@ const connectionIcon = computed(() => {
 });
 
 const connectionText = computed(() => {
+  if (isHostedMode) return "Hosted browser";
   switch (connectionState.value) {
     case "connected":
       return "Connected";
@@ -704,6 +718,11 @@ handle("update:set-status", async (event, { value }) => {
       color: #ef4444;
     }
   }
+  &.hosted {
+    .nav-icon {
+      color: var(--p-text-muted-color);
+    }
+  }
 
   .status-text {
     overflow: hidden;
@@ -937,6 +956,12 @@ handle("update:set-status", async (event, { value }) => {
       }
     }
   }
+}
+
+.hosted-account-note {
+  margin: 0.25rem 0.5rem;
+  color: var(--p-text-muted-color);
+  font-size: 0.7rem;
 }
 
 /* ─── Main Content ──────────────────────────────────────── */

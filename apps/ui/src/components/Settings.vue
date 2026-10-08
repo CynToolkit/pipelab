@@ -1,5 +1,10 @@
 <template>
-  <div v-if="!settingsLoaded" class="settings-loading" role="status" aria-live="polite">
+  <div
+    v-if="!settingsLoaded && !isHostedMode"
+    class="settings-loading"
+    role="status"
+    aria-live="polite"
+  >
     <p>
       {{
         !isReady
@@ -9,28 +14,30 @@
     </p>
     <Button v-if="isReady && settingsStatus === 'error'" label="Retry" text @click="loadSettings" />
   </div>
-  <div v-else class="settings-container" :inert="!isReady">
+  <div v-else class="settings-container" :inert="!isHostedMode && !isReady">
     <!-- Left Sidebar -->
     <div class="settings-sidebar">
       <!-- Options Group -->
       <div class="sidebar-group">
         <div class="sidebar-group-header">Options</div>
-        <div
+        <button
+          type="button"
           class="sidebar-item"
           :class="{ active: currentSection === 'general' }"
           @click="currentSection = 'general'"
         >
           <i class="mdi mdi-tune mr-2"></i>
           <span>{{ t("settings.tabs.general") }}</span>
-        </div>
-        <div
+        </button>
+        <button
+          type="button"
           class="sidebar-item"
           :class="{ active: currentSection === 'advanced' }"
           @click="currentSection = 'advanced'"
         >
           <i class="mdi mdi-server mr-2"></i>
           <span>{{ t("settings.tabs.advanced") }}</span>
-        </div>
+        </button>
         <!-- Versions tab hidden in bundled mode — one bundle, one version; connection
              and update status already live in the sidebar. Re-enable: uncomment. -->
         <!-- <div
@@ -87,15 +94,21 @@
             <div class="setting-content">
               <label for="app-theme" class="setting-title">{{ t("settings.darkTheme") }}</label>
               <div class="setting-description">
-                Toggle between light and dark mode for the application interface.
+                {{
+                  isHostedMode
+                    ? "Stored in this browser."
+                    : "Toggle between light and dark mode for the application interface."
+                }}
               </div>
             </div>
             <div class="setting-action">
               <ToggleSwitch
-                :disabled="!settingsRef"
+                :disabled="!isHostedMode && !settingsRef"
                 aria-label="Toggle dark mode"
                 input-id="app-theme"
-                :model-value="settingsRef?.theme === 'dark'"
+                :model-value="
+                  isHostedMode ? browserPreferences.theme === 'dark' : settingsRef?.theme === 'dark'
+                "
                 @update:model-value="updateTheme"
               />
             </div>
@@ -107,7 +120,11 @@
                 $t("settings.language")
               }}</label>
               <div class="setting-description">
-                Select your preferred language for the application UI.
+                {{
+                  isHostedMode
+                    ? "Stored in this browser."
+                    : "Select your preferred language for the application UI."
+                }}
               </div>
             </div>
             <div class="setting-action">
@@ -115,6 +132,7 @@
                 input-id="language-select"
                 v-model="currentLocale"
                 :options="$i18n.availableLocales"
+                :disabled="!isHostedMode && !settingsRef"
                 class="w-[200px]"
               >
                 <template #option="slotProps">
@@ -150,11 +168,23 @@
               </Button>
             </div>
           </div>
+          <p v-if="browserPreferenceError" class="settings-preference-error" role="alert">
+            {{ browserPreferenceError }}
+          </p>
+        </div>
+      </div>
+
+      <div v-else-if="currentSection === 'advanced' && !isReady" class="settings-panel">
+        <div class="section-header">
+          <h3>{{ t("settings.tabs.advanced") }}</h3>
+          <p class="description" role="status">
+            Machine storage, cache, and filesystem settings require a connected Desktop agent.
+          </p>
         </div>
       </div>
 
       <!-- Advanced Tab Content -->
-      <div v-if="currentSection === 'advanced'" class="settings-panel">
+      <div v-else-if="currentSection === 'advanced'" class="settings-panel">
         <div class="section-header">
           <h3>{{ t("settings.tabs.advanced") }}</h3>
           <p class="description">
@@ -760,6 +790,11 @@ import InputText from "primevue/inputtext";
 import { useToast } from "primevue/usetoast";
 import { useConfirm } from "primevue/useconfirm";
 import { useAgentAvailability } from "@renderer/composables/useAgentAvailability";
+import {
+  browserPreferences,
+  saveBrowserPreference,
+} from "@renderer/composables/browser-preferences";
+import { uiRuntimeMode } from "@renderer/composables/ui-runtime";
 
 const { t, locale } = useI18n<{ message: MessageSchema }, Locales>();
 
@@ -770,7 +805,9 @@ const buildHistoryStore = useBuildHistory();
 const api = useAPI();
 const shell = useShell();
 const { isReady } = useAgentAvailability();
+const isHostedMode = uiRuntimeMode === "hosted";
 const currentSection = ref("general");
+const browserPreferenceError = ref("");
 
 const openCacheFolder = () => {
   const path =
@@ -857,8 +894,17 @@ watch(
 );
 
 const currentLocale = computed({
-  get: () => (settingsRef.value?.locale as string) || "en-US",
+  get: () =>
+    isHostedMode ? browserPreferences.locale : (settingsRef.value?.locale as string) || "en-US",
   set: (value: string) => {
+    browserPreferenceError.value = "";
+    if (isHostedMode) {
+      if (!saveBrowserPreference("locale", value as Locales)) {
+        browserPreferenceError.value =
+          "Browser storage is unavailable. Your language was not changed.";
+      }
+      return;
+    }
     appSettings.updateSettings({
       ...(toRaw(settingsRef.value) as any),
       locale: value as Locales,
@@ -878,6 +924,13 @@ watch(
 );
 
 const updateTheme = (value: boolean) => {
+  browserPreferenceError.value = "";
+  if (isHostedMode) {
+    if (!saveBrowserPreference("theme", value ? "dark" : "light")) {
+      browserPreferenceError.value = "Browser storage is unavailable. Your theme was not changed.";
+    }
+    return;
+  }
   return appSettings.updateSettings({
     ...(toRaw(settingsRef.value) as any),
     theme: value ? "dark" : "light",
@@ -1116,11 +1169,16 @@ const logout = async () => {
 .sidebar-item {
   display: flex;
   align-items: center;
+  width: 100%;
   padding: 0.4rem 0.6rem;
+  border: 0;
   border-radius: 8px;
+  background: transparent;
   font-weight: 500;
   font-size: 0.85rem;
+  font-family: inherit;
   color: var(--text-color-secondary);
+  text-align: left;
   cursor: pointer;
   transition: all 0.2s ease;
   user-select: none;
@@ -1142,6 +1200,12 @@ const logout = async () => {
     color: var(--primary-color-text);
     font-weight: 600;
   }
+}
+
+.settings-preference-error {
+  margin: 0.5rem 0;
+  color: var(--p-red-500, #ef4444);
+  font-size: 0.8rem;
 }
 
 .settings-content {

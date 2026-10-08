@@ -41,5 +41,11 @@ describe("useAgentAvailability", () => {
     stateListeners.forEach((listener) => listener("disconnected"));
     expect(agent.status.value).toBe("offline");
     expect(agent.isReady.value).toBe(false);
+
+    await agent.reconnect();
+    expect(callOrder.filter((call) => call === "connect")).toHaveLength(2);
+    expect(agent.status.value).toBe("starting");
+    events.get("startup:progress")?.({ type: "done" });
+    expect(agent.isReady.value).toBe(true);
   });
 });

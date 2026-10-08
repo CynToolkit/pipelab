@@ -20,3 +20,17 @@ light/dark rendering, narrow layout, Back navigation, and a resolver response
 arriving after the wizard closes. Set `UI_BASE_URL` to any running UI server;
 when `SCREENSHOT_DIR` is set, the run saves Step 1, Destinations, Recap, and
 Configuration captures there for review.
+
+## Hosted shell without an agent
+
+Run a hosted-mode UI server and the no-agent shell/preferences journey:
+
+```sh
+VITE_PIPELAB_MODE=hosted pnpm --filter @pipelab/ui exec vite --host 0.0.0.0 --port 5183
+UI_BASE_URL=http://127.0.0.1:5183 CHROMIUM_PATH=/usr/bin/chromium \
+  node apps/ui/tests/browser/hosted-shell.cjs
+```
+
+The journey verifies that hosted navigation and browser preferences work
+without app WebSocket connections, including when browser storage rejects a
+preference change.
