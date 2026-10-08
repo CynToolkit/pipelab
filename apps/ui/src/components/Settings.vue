@@ -560,6 +560,9 @@
             text
             @click="authStore.fetchSubscription()"
           />
+          <p v-if="subscriptionStatus === 'error' && authStore.subscriptionError" role="alert">
+            {{ authStore.subscriptionError }}
+          </p>
         </div>
         <div v-else-if="subscriptions.length > 0" class="billing-container">
           <div
@@ -650,6 +653,9 @@
             </template>
             {{ $t("settings.manage-subscription") }}
           </Button>
+          <p v-if="billingPortalError" role="alert" class="text-red-500 mt-2">
+            {{ billingPortalError }}
+          </p>
         </div>
 
         <UpgradeDialog v-else />
@@ -773,8 +779,8 @@ import Card from "primevue/card";
 import InputNumber from "primevue/inputnumber";
 import ToggleSwitch from "primevue/toggleswitch";
 import Select from "primevue/select";
-import { supabase } from "@pipelab/shared";
 import { useAuth } from "@renderer/store/auth";
+import { openAsyncUrl } from "@renderer/utils/open-async-url";
 import { useBuildHistory } from "../store/build-history";
 import { SandboxFolder } from "@pipelab/constants";
 import UpgradeDialog from "@renderer/components/UpgradeDialog.vue";
@@ -938,21 +944,26 @@ const updateTheme = (value: boolean) => {
 };
 
 const isBillingPortalUrlLoading = ref(false);
+const billingPortalError = ref("");
 
 const openBillingPortal = async () => {
+  if (!authStore.isAuthTransportReady || !user.value) return;
   isBillingPortalUrlLoading.value = true;
-  try {
-    const result: any = await api.execute("auth:invoke", { name: "customer-portal" });
-    console.log("result", result);
-    if (result.type === "success" && result.result.data?.customerPortal) {
-      window.open(result.result.data.customerPortal);
-    } else if (result.type === "error") {
-      console.error("Error from auth:invoke:", result.ipcError);
-    } else if (result.result.error) {
-      console.error("Error from Edge Function:", result.result.error);
-    }
-  } catch (error) {
-    console.error("Error opening billing portal:", error);
+  billingPortalError.value = "";
+  const result = await openAsyncUrl(async () => {
+    const { data, error } = await authStore.invokeFunction("customer-portal");
+    const portalUrl =
+      data && typeof data === "object" && "customerPortal" in data
+        ? data.customerPortal
+        : undefined;
+    if (error || typeof portalUrl !== "string") return undefined;
+    return portalUrl;
+  });
+  if (result !== "opened") {
+    billingPortalError.value =
+      result === "blocked"
+        ? "Allow pop-ups to open the billing portal, then try again."
+        : "Unable to open the billing portal. Please try again.";
   }
   isBillingPortalUrlLoading.value = false;
 };

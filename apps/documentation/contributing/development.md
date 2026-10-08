@@ -22,6 +22,14 @@ POSTHOG_API_KEY=...
 
 These values enable Supabase-backed authentication, Pipelab Cloud artifact requests, and PostHog telemetry respectively. They are optional for local development; missing cloud configuration disables the associated cloud functionality, and the CLI warns that authentication is disabled when Supabase is unavailable. Never commit real credentials. Local Supabase and Worker development is available through the `mise run local` tasks; see `mise.toml` and `supabase/README.md` for the local service setup.
 
+To run the UI as a hosted browser shell without starting an agent connection,
+set `VITE_PIPELAB_MODE=hosted` for the UI build. Browser account features also
+need `SUPABASE_URL` and the public `SUPABASE_ANON_KEY`. For email verification
+and password recovery, add the exact HTTPS deployment origin and its
+`/auth/callback` route to Supabase Auth's allowed redirect URLs and configure
+the host's SPA fallback. Desktop builds keep the `pipelab://` verification
+flow; do not expose service-role or billing secrets in UI environment values.
+
 ## Focus a package
 
 Use the workspace name and package scripts to keep iteration focused:
