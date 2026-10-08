@@ -43,6 +43,8 @@ const getConfirmationUrl = async (email) => {
   return url;
 };
 
+let stage = "launch browser";
+
 (async () => {
   const browser = await chromium.launch({
     executablePath: chromiumPath,
@@ -74,11 +76,11 @@ const getConfirmationUrl = async (email) => {
   page.on("websocket", (socket) => {
     if (!new URL(socket.url()).searchParams.has("token")) appSockets.push(socket.url());
   });
-
   try {
     const email = `hosted-auth-${Date.now()}@example.test`;
     const password = "Pipelab-Test1!";
 
+    stage = "open hosted dashboard";
     await page.goto(`${baseUrl}/dashboard`, { waitUntil: "domcontentloaded" });
     await page.getByText("Hosted mode is ready.", { exact: false }).waitFor();
     await page.getByRole("button", { name: "Login / Register" }).click();
@@ -86,20 +88,31 @@ const getConfirmationUrl = async (email) => {
     await page.locator("#email-reg").fill(email);
     await page.locator("#password-reg input").fill(password);
     await page.locator("#confirmPassword input").fill(password);
+    stage = "submit signup";
     await page.locator('button[type="submit"]').click();
 
     if (expectEmailConfirmation) {
+      stage = "wait for confirmation notice";
       await page.getByText("A confirmation e-mail has been sent").waitFor({ timeout: 15000 });
+      stage = "confirm signup from local Mailpit";
       await page.goto(await getConfirmationUrl(email), { waitUntil: "domcontentloaded" });
+      stage = "verify email confirmation callback";
       await page.getByRole("heading", { name: "Email verified" }).waitFor({ timeout: 15000 });
+      stage = "continue to signed-in dashboard";
       await page.getByRole("button", { name: "Continue" }).click();
       await page.getByText(email, { exact: true }).waitFor({ timeout: 15000 });
-    } else await page.getByText(email, { exact: true }).waitFor({ timeout: 15000 });
+    } else {
+      stage = "wait for signed-in account";
+      await page.getByText(email, { exact: true }).waitFor({ timeout: 15000 });
+    }
 
+    stage = "restore session after refresh";
     await page.reload({ waitUntil: "domcontentloaded" });
     await page.getByText(email, { exact: true }).waitFor({ timeout: 15000 });
+    stage = "sign out";
     await page.locator(".account-logout-btn").click();
     await page.getByRole("button", { name: "Login / Register" }).waitFor({ timeout: 10000 });
+    stage = "sign in again";
     await page.getByRole("button", { name: "Login / Register" }).click();
     await page.locator("#email").fill(email);
     await page.locator("#password input").fill(password);
@@ -124,6 +137,9 @@ const getConfirmationUrl = async (email) => {
   }
 })().catch((error) => {
   const message = error instanceof Error ? error.message : String(error);
-  console.error(message.replace(/([?&]code=)[^&\s]*/g, "$1[redacted]"));
+  const safeMessage = message
+    .replace(/([?&]code=)[^&\s]*/g, "$1[redacted]")
+    .replace(/hosted-auth-[^@\s]+@example\.test/g, "[test email]");
+  console.error(`Local hosted auth failed during ${stage}: ${safeMessage}`);
   process.exitCode = 1;
 });
