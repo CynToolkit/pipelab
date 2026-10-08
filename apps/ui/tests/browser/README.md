@@ -42,10 +42,14 @@ UI in a separate terminal; this exports only the local API URL and anon key to
 the UI process, not the local service-role key:
 
 ```sh
-eval "$(supabase status -o env)"
-SUPABASE_URL="$API_URL" SUPABASE_ANON_KEY="$ANON_KEY" VITE_PIPELAB_MODE=hosted \
+SUPABASE_ANON_KEY="$(supabase status --output env | sed -n 's/^ANON_KEY=//p' | tr -d '\"')" \
+SUPABASE_URL=http://127.0.0.1:54321 VITE_PIPELAB_MODE=hosted \
   pnpm --filter @pipelab/ui dev --host 127.0.0.1 --port 5185
 ```
+
+The command passes only the local API URL and public anon key to Vite; do not
+`eval` the full output of `supabase status`, which also contains local secret
+keys.
 
 Then run the browser journey:
 
@@ -57,6 +61,14 @@ node apps/ui/tests/browser/hosted-auth-local.cjs
 ```
 
 It creates a throwaway local auth user and verifies signup, session restore
-after refresh, sign-out, and sign-in without an agent WebSocket. It does not
-verify email-confirmation delivery or billing; those require the hosted
-nonproduction acceptance environment.
+after refresh, sign-out, and sign-in without an agent WebSocket. By default it
+assumes email confirmations are disabled. The optional mode below exercises
+local confirmation delivery; neither mode verifies Polar billing, which needs
+the hosted nonproduction acceptance environment.
+
+To also verify email confirmation against an isolated local Supabase project,
+enable `auth.email.enable_confirmations`, allow the local `/auth/callback`
+redirect, and set `EXPECT_EMAIL_CONFIRMATION=1` and `MAILPIT_URL` to that
+project's local Mailpit URL. The smoke rejects nonlocal Supabase and Mailpit
+URLs. No billing transaction is performed; the local plan Edge Function may
+be absent.
