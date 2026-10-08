@@ -49,6 +49,11 @@ connect an agent without rebuilding or reloading.
 Start the UI with `VITE_PIPELAB_MODE=hosted` and no local agent, then run:
 
 ```sh
+## Hosted provider specifications
+
+Start the UI with `VITE_PIPELAB_MODE=hosted` and no local agent, then run:
+
+```sh
 UI_BASE_URL=http://127.0.0.1:5175 \
 CHROMIUM_PATH=/usr/bin/chromium \
 node apps/ui/tests/browser/hosted-provider-specs.cjs
@@ -79,33 +84,32 @@ clearly defers destination account setup to Configuration.
 
 Run against the local Supabase stack. Do not evaluate or log the complete
 `supabase status --output env` output because it also contains server-only
-credentials. If you need to inspect CLI values, filter to public values only:
+credentials. The UI command below filters the local public anon key and passes
+it under the canonical `SUPABASE_PUBLISHABLE_KEY` variable:
 
 ```sh
-supabase status --output env | awk -F= '$1 ~ /^(API_URL|ANON_KEY|PUBLISHABLE_KEY|SUPA_API_URL|SUPA_ANON_KEY|SUPA_PUBLISHABLE_KEY)$/'
+SUPABASE_PUBLISHABLE_KEY="$(supabase status --output env | sed -n 's/^ANON_KEY=//p' | tr -d '\"')" \
+SUPABASE_URL=http://127.0.0.1:54321 VITE_PIPELAB_MODE=hosted \
+  pnpm --filter @pipelab/ui dev --host 127.0.0.1 --port 5185
 ```
 
-Use only the local API URL and public key in an ignored local environment file,
-preferring `SUPABASE_PUBLISHABLE_KEY` and retaining `SUPABASE_ANON_KEY` as a
-temporary fallback. Never pass a service-role or secret key to the UI.
-
-Start the UI in a separate terminal:
-
-```sh
-VITE_PIPELAB_MODE=hosted pnpm --filter @pipelab/ui dev --host 127.0.0.1 --port 5185
-```
+The app retains `SUPABASE_ANON_KEY` as a temporary compatibility fallback.
+Never pass a service-role or secret key to the UI.
 
 Then run the browser journey:
 
 ```sh
+EXPECT_EMAIL_CONFIRMATION=1 MAILPIT_URL=http://127.0.0.1:54324 \
 SUPABASE_URL=http://127.0.0.1:54321 \
 UI_BASE_URL=http://127.0.0.1:5185 \
 CHROMIUM_PATH=/usr/bin/chromium \
 node apps/ui/tests/browser/hosted-auth-local.cjs
 ```
 
-It creates a throwaway local auth user and verifies signup, session restore
-after refresh, sign-out, and sign-in without an agent WebSocket. When local
-email confirmation is enabled, the journey must also use Mailpit to complete
-the verification callback; this smoke alone does not verify password recovery,
-profile/plan service data, or billing.
+By default, the smoke assumes email confirmations are disabled. To exercise
+verification delivery, enable `auth.email.enable_confirmations`, allow
+`http://127.0.0.1:5185/auth/callback`, and set
+`EXPECT_EMAIL_CONFIRMATION=1` and the local `MAILPIT_URL`. The smoke rejects
+nonlocal Supabase and Mailpit URLs, verifies signup, optional email
+confirmation, refresh restoration, sign-out, sign-in, and no agent WebSocket.
+It does not cover password recovery or live billing.
