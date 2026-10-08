@@ -366,6 +366,9 @@
             <p v-if="!isReady" class="review-notice">
               Runtime checks and saving this draft require a Pipelab agent.
             </p>
+            <p v-else-if="!projectId" class="review-notice" role="status">
+              Choose a project before creating this workflow.
+            </p>
             <div v-if="createError" class="wizard-create-error" role="alert">
               <span>{{ createError }}</span>
               <Button label="Retry" text @click="create" />
@@ -380,7 +383,7 @@
               <Button
                 :label="createPending ? 'Creating workflow…' : 'Create workflow'"
                 icon="mdi mdi-rocket-launch-outline"
-                :disabled="!isReady || !canContinueDestinations || createPending"
+                :disabled="!isReady || !projectId || !canContinueDestinations || createPending"
                 @click="create"
               />
             </div>
@@ -424,7 +427,7 @@ import {
   type ReleaseWizardStep,
 } from "./ReleaseFlowWizard-state";
 
-const props = defineProps<{ visible: boolean; projectId: string }>();
+const props = defineProps<{ visible: boolean; projectId?: string }>();
 const emit = defineEmits<{
   "update:visible": [value: boolean];
   create: [flow: ReleaseConfig];
@@ -607,10 +610,11 @@ onBeforeUnmount(() => {
   invalidateCreateRequest();
 });
 const create = async () => {
-  if (!isReady.value || !canContinueDestinations.value || createPending.value) return;
+  const projectId = props.projectId;
+  if (!isReady.value || !projectId || !canContinueDestinations.value || createPending.value) return;
   const requestId = ++createRequest;
   const isCurrent = () => requestId === createRequest;
-  const config = buildReleaseWizardConfig(toRaw(draft.value), props.projectId, workflowId.value);
+  const config = buildReleaseWizardConfig(toRaw(draft.value), projectId, workflowId.value);
   createPending.value = true;
   createError.value = "";
 
