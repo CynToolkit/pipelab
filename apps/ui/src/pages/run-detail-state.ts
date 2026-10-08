@@ -67,12 +67,27 @@ export const isRunContextValid = (
 ) => entry.projectId === projectId && entry.workflowId === flowId;
 
 const mergeLogs = (current: BuildHistoryEntry["logs"], persisted: BuildHistoryEntry["logs"]) => {
-  const logs = new Map<string, BuildHistoryEntry["logs"][number]>();
-  for (const log of [...persisted, ...current]) {
-    logs.set(`${log.timestamp}:${log.source || ""}:${log.message}`, log);
+  const groups = new Map<
+    string,
+    { current: BuildHistoryEntry["logs"]; persisted: BuildHistoryEntry["logs"] }
+  >();
+  for (const [logs, side] of [
+    [current, "current"],
+    [persisted, "persisted"],
+  ] as const) {
+    for (const log of logs) {
+      const key = `${log.timestamp}:${log.source || ""}:${log.message}:${log.level}`;
+      const group = groups.get(key) || { current: [], persisted: [] };
+      group[side].push(log);
+      groups.set(key, group);
+    }
   }
-  return [...logs.values()].sort((left, right) => left.timestamp - right.timestamp);
+  return [...groups.values()]
+    .flatMap(({ current: live, persisted: stored }) => [...live, ...stored.slice(live.length)])
+    .sort((left, right) => left.timestamp - right.timestamp);
 };
+
+const terminalStepStatuses = new Set(["completed", "failed", "skipped", "cancelled"]);
 
 export const reconcileRunEntry = (
   current: BuildHistoryEntry,
@@ -82,9 +97,20 @@ export const reconcileRunEntry = (
   const currentSteps = new Map(current.steps.map((step) => [step.id, step]));
   const steps = persisted.steps.map((step) => {
     const currentStep = currentSteps.get(step.id);
-    return currentStep
-      ? { ...step, logs: mergeLogs(currentStep.logs, step.logs) }
-      : { ...step, logs: [...step.logs] };
+    if (!currentStep) return { ...step, logs: [...step.logs] };
+    const currentIsTerminal = terminalStepStatuses.has(currentStep.status);
+    const persistedIsTerminal = terminalStepStatuses.has(step.status);
+    const currentIsNewer =
+      currentIsTerminal && !persistedIsTerminal
+        ? true
+        : (currentStep.error?.timestamp ?? currentStep.endTime ?? 0) >
+          (step.error?.timestamp ?? step.endTime ?? 0);
+    const preferred = currentIsNewer ? currentStep : step;
+    return {
+      ...preferred,
+      error: preferred.error || currentStep.error,
+      logs: mergeLogs(currentStep.logs, step.logs),
+    };
   });
   const base = keepCurrentTerminal ? current : persisted;
   return {
@@ -93,12 +119,7 @@ export const reconcileRunEntry = (
     ...(keepCurrentTerminal
       ? { endTime: current.endTime, duration: current.duration, error: current.error }
       : {}),
-    steps: keepCurrentTerminal
-      ? current.steps.map((step) => {
-          const persistedStep = steps.find((candidate) => candidate.id === step.id);
-          return persistedStep ? { ...step, logs: persistedStep.logs } : step;
-        })
-      : steps,
+    steps,
     logs: mergeLogs(current.logs, persisted.logs),
   };
 };
