@@ -106,10 +106,15 @@ CHROMIUM_PATH=/usr/bin/chromium \
 node apps/ui/tests/browser/hosted-auth-local.cjs
 ```
 
-By default, the smoke assumes email confirmations are disabled. To exercise
-verification delivery, enable `auth.email.enable_confirmations`, allow
+The smoke rejects nonlocal Supabase and Mailpit URLs and verifies signup,
+refresh restoration, sign-out, sign-in, and no agent WebSocket.
+
+By default, email confirmations are disabled. To verify the confirmation
+callback, enable `auth.email.enable_confirmations`, allow
 `http://127.0.0.1:5185/auth/callback`, and set
-`EXPECT_EMAIL_CONFIRMATION=1` and the local `MAILPIT_URL`. The smoke rejects
-nonlocal Supabase and Mailpit URLs, verifies signup, optional email
-confirmation, refresh restoration, sign-out, sign-in, and no agent WebSocket.
-It does not cover password recovery or live billing.
+`EXPECT_EMAIL_CONFIRMATION=1` with the local `MAILPIT_URL`.
+
+To exercise password recovery end to end, set `EXPECT_PASSWORD_RESET=1` and
+provide the local `MAILPIT_URL`. The journey requests a reset email, follows
+the local verification link, updates the password, and signs in with the new
+password. These auth journeys do not verify live billing.

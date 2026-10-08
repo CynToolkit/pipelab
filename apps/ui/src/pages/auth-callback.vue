@@ -84,9 +84,7 @@ const processCallback = async () => {
   const hash = new URLSearchParams(url.hash.slice(1));
   const code = url.searchParams.get("code");
   const callbackError =
-    url.searchParams.get("error") ||
-    url.searchParams.get("error_description") ||
-    hash.get("error");
+    url.searchParams.get("error") || url.searchParams.get("error_description") || hash.get("error");
   const isRecoveryLink =
     url.searchParams.get("type") === "recovery" || hash.get("type") === "recovery";
   await clearCallbackParameters();
@@ -96,10 +94,7 @@ const processCallback = async () => {
     return;
   }
 
-  const result = await auth.completeAuthCallback(
-    code,
-    isRecoveryLink ? "recovery" : "verification",
-  );
+  const result = await auth.completeAuthCallback(code);
   if (result.error) {
     status.value = "error";
     return;
