@@ -108,3 +108,8 @@ covers the run list, artifacts, and detail view.
 Release workflows are not scheduled by Pipelab's current workflow format. The
 workflow runs when you choose **Ship** in the editor or invoke it through the
 CLI.
+
+In hosted mode, the new-workflow wizard also lets you inspect and edit packaged
+source, build, and destination fields in a browser-only draft. File paths and
+dynamic provider options are not validated there; connect a Pipelab agent for
+inspection, runtime readiness, saving, and execution.

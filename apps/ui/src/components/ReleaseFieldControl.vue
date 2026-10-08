@@ -2,6 +2,15 @@
   <div class="release-field" :data-control-id="inputId">
     <label :for="inputId">{{ field.label }}</label>
     <small v-if="field.description" class="field-help">{{ field.description }}</small>
+    <small
+      v-if="
+        allowPathEdit && (field.type === 'select' || field.type === 'connection') && !options.length
+      "
+      class="field-help"
+      role="status"
+    >
+      Options require a connected Pipelab agent.
+    </small>
     <div v-if="field.type === 'connection'" class="connection-field">
       <Select
         :id="inputId"
@@ -31,6 +40,14 @@
       optionLabel="label"
       optionValue="value"
       :placeholder="`Select ${field.label.toLowerCase()}`"
+      class="field-control"
+      @update:model-value="emitValue"
+    />
+    <InputText
+      v-else-if="allowPathEdit && (field.type === 'file' || field.type === 'directory')"
+      :id="inputId"
+      :model-value="value"
+      :placeholder="field.required ? 'Required; validation needs an agent' : 'Optional path'"
       class="field-control"
       @update:model-value="emitValue"
     />
@@ -75,6 +92,7 @@ defineProps<{
   options: ReleaseFieldOption[];
   inputId: string;
   issues?: ValidationIssue[];
+  allowPathEdit?: boolean;
 }>();
 const emit = defineEmits<{
   "update:value": [value: unknown];
