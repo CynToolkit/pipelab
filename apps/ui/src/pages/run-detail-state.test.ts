@@ -1,6 +1,11 @@
 import type { BuildHistoryEntry, Events } from "@pipelab/shared";
 import { describe, expect, it } from "vitest";
-import { applyWorkflowEventToRunEntry, reconcileRunEntry } from "./run-detail-state";
+import {
+  applyWorkflowEventToRunEntry,
+  buildRunFailureDiagnostics,
+  reconcileRunEntry,
+  runFailureArtifactSummary,
+} from "./run-detail-state";
 
 type WorkflowEvent = Extract<Events<"workflow:execute">, { type: "workflow-event" }>["data"];
 
@@ -97,6 +102,146 @@ describe("applyWorkflowEventToRunEntry", () => {
     expect(run.artifacts).toHaveLength(1);
     expect(run.deliveries).toHaveLength(1);
     expect(run.steps[0]).toMatchObject({ id: "build", status: "completed", duration: 6 });
+  });
+});
+
+describe("buildRunFailureDiagnostics", () => {
+  it("explains a failed destination step and keeps the provider detail", () => {
+    const run = entry();
+    run.status = "completed-with-errors";
+    run.completedSteps = 1;
+    run.steps[0] = {
+      ...run.steps[0],
+      name: "Upload to Steam",
+      status: "failed",
+      destinationId: "steam",
+      slotId: "windows",
+      error: {
+        message: "Steam authentication failed. Run pipelab login steam and try again.",
+        code: "ExternalCommandError",
+        timestamp: 20,
+      },
+    };
+    run.deliveries = [
+      {
+        id: "build",
+        destinationId: "steam",
+        destinationName: "Steam",
+        slotId: "windows",
+        artifactId: "package",
+        status: "failed",
+        startedAt: 10,
+        completedAt: 20,
+        duration: 10,
+        error: "Steam authentication failed. Run pipelab login steam and try again.",
+      },
+    ];
+
+    expect(buildRunFailureDiagnostics(run)).toEqual([
+      expect.objectContaining({
+        title: "Upload to Steam",
+        destination: "Steam",
+        slotId: "windows",
+        category: "Authentication",
+        nextAction: expect.stringContaining("pipelab login steam"),
+        rawMessage: "Steam authentication failed. Run pipelab login steam and try again.",
+        errorCode: "ExternalCommandError",
+      }),
+    ]);
+  });
+
+  it("uses a failed delivery error when its record id differs from the step id", () => {
+    const run = entry();
+    run.status = "completed-with-errors";
+    run.steps[0] = {
+      ...run.steps[0],
+      name: "Upload to Steam",
+      status: "failed",
+      destinationId: "steam",
+      slotId: "windows",
+    };
+    run.deliveries = [
+      {
+        id: "delivery-1",
+        destinationId: "steam",
+        destinationName: "Steam",
+        slotId: "windows",
+        artifactId: "package",
+        status: "failed",
+        startedAt: 10,
+        completedAt: 20,
+        duration: 10,
+        error: "Steam returned HTTP 503 service unavailable",
+      },
+    ];
+
+    expect(buildRunFailureDiagnostics(run)).toEqual([
+      expect.objectContaining({
+        id: "build",
+        title: "Upload to Steam",
+        destination: "Steam",
+        slotId: "windows",
+        category: "Connection",
+        rawMessage: "Steam returned HTTP 503 service unavailable",
+      }),
+    ]);
+  });
+
+  it("treats forbidden destination responses as a permission issue, not an auth failure", () => {
+    const run = entry();
+    run.status = "failed";
+    run.steps[0] = {
+      ...run.steps[0],
+      name: "Publish release",
+      status: "failed",
+      destinationId: "store",
+      error: { message: "HTTP 403 Forbidden: insufficient scope", timestamp: 20 },
+    };
+
+    expect(buildRunFailureDiagnostics(run)[0]).toMatchObject({
+      category: "Permission",
+      summary: expect.stringMatching(/permission/i),
+      nextAction: expect.stringMatching(/permission|scope/i),
+    });
+  });
+
+  it("suggests checking installation for a run setup command that is missing", () => {
+    const run = entry();
+    run.status = "failed";
+    run.error = {
+      message: "spawn pnpm ENOENT",
+      code: "Error",
+      stack: "Error: spawn pnpm ENOENT\n    at setupRuntime",
+      timestamp: 20,
+    };
+
+    expect(buildRunFailureDiagnostics(run)[0]).toMatchObject({
+      title: "Run setup",
+      category: "Missing tool or file",
+      nextAction: expect.stringMatching(/install|path/i),
+      rawMessage: "spawn pnpm ENOENT",
+      rawStack: "Error: spawn pnpm ENOENT\n    at setupRuntime",
+    });
+  });
+
+  it("does not show failure diagnostics for a successful or active run", () => {
+    expect(buildRunFailureDiagnostics(entry())).toEqual([]);
+    const completed = entry();
+    completed.status = "completed";
+    expect(buildRunFailureDiagnostics(completed)).toEqual([]);
+  });
+});
+
+describe("runFailureArtifactSummary", () => {
+  it("directs users to recorded artifacts and stays accurate when none were recorded", () => {
+    const run = entry();
+
+    expect(runFailureArtifactSummary(run)).toBe("No artifacts were recorded for this run.");
+
+    run.artifacts = [
+      { id: "package", name: "package.zip", path: "/tmp/package.zip", size: 1, type: "file" },
+    ];
+    expect(runFailureArtifactSummary(run)).toBe("1 artifact available in the Artifacts tab.");
   });
 });
 
