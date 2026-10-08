@@ -150,6 +150,43 @@ describe("buildRunFailureDiagnostics", () => {
     ]);
   });
 
+  it("uses a failed delivery error when its record id differs from the step id", () => {
+    const run = entry();
+    run.status = "completed-with-errors";
+    run.steps[0] = {
+      ...run.steps[0],
+      name: "Upload to Steam",
+      status: "failed",
+      destinationId: "steam",
+      slotId: "windows",
+    };
+    run.deliveries = [
+      {
+        id: "delivery-1",
+        destinationId: "steam",
+        destinationName: "Steam",
+        slotId: "windows",
+        artifactId: "package",
+        status: "failed",
+        startedAt: 10,
+        completedAt: 20,
+        duration: 10,
+        error: "Steam returned HTTP 503 service unavailable",
+      },
+    ];
+
+    expect(buildRunFailureDiagnostics(run)).toEqual([
+      expect.objectContaining({
+        id: "build",
+        title: "Upload to Steam",
+        destination: "Steam",
+        slotId: "windows",
+        category: "Connection",
+        rawMessage: "Steam returned HTTP 503 service unavailable",
+      }),
+    ]);
+  });
+
   it("suggests checking installation for a run setup command that is missing", () => {
     const run = entry();
     run.status = "failed";

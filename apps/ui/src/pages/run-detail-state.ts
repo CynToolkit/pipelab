@@ -190,7 +190,8 @@ const failureGuidance = (message: string) => {
   if (
     /\bECONN|\bENOTFOUND\b|\bETIMEDOUT\b|network|fetch failed|offline|connection refused/i.test(
       message,
-    )
+    ) ||
+    /\b5\d{2}\b|service unavailable/i.test(message)
   ) {
     return {
       category: "Connection",
@@ -213,7 +214,14 @@ export const buildRunFailureDiagnostics = (entry: BuildHistoryEntry): RunFailure
   const diagnostics: RunFailureDiagnostic[] = [];
   const failedSteps = entry.steps.filter((step) => step.status === "failed");
   for (const step of failedSteps) {
-    const delivery = entry.deliveries?.find((candidate) => candidate.id === step.id);
+    const delivery =
+      entry.deliveries?.find((candidate) => candidate.id === step.id) ||
+      entry.deliveries?.find(
+        (candidate) =>
+          candidate.status === "failed" &&
+          candidate.destinationId === step.destinationId &&
+          (!step.slotId || candidate.slotId === step.slotId),
+      );
     const rawMessage = step.error?.message || delivery?.error;
     if (!rawMessage) continue;
     const guidance = failureGuidance(rawMessage);
