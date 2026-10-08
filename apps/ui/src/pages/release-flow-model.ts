@@ -216,12 +216,14 @@ export const buildTargetsFor = (catalog: ReleaseCatalog, engine: string, type: s
     ?.targets.filter((target) => target.buildType === type) ?? [];
 
 export const buildTargetIsAvailable = (target: ReleaseCatalogTarget) =>
-  target.availability?.available !== false;
+  target.availabilityStatus !== "unknown" && target.availability?.available !== false;
 
 export const buildTargetAvailabilityReason = (target: ReleaseCatalogTarget) =>
-  target.availability?.available === false
-    ? target.availability.reason || "Unavailable on this device."
-    : undefined;
+  target.availabilityStatus === "unknown"
+    ? "Requires agent to check availability."
+    : target.availability?.available === false
+      ? target.availability.reason || "Unavailable on this device."
+      : undefined;
 
 export const buildProfileSummary = (catalog: ReleaseCatalog, build: ReleaseBuildProfileConfig) => {
   const producer = catalog.producers.find((candidate) => candidate.id === build.engine);
@@ -273,10 +275,12 @@ export const setBuildTargetEnabled = (
   id: string,
   enabled: boolean,
   availability?: Availability,
+  availabilityStatus?: "unknown",
 ): boolean => {
   const target = build.targets.find((candidate) => candidate.id === id);
   if (!target) return false;
-  if (enabled && availability?.available === false) return false;
+  if (enabled && (availability?.available === false || availabilityStatus === "unknown"))
+    return false;
   target.enabled = enabled;
   return true;
 };
@@ -292,23 +296,16 @@ export const switchBuildProfileEngine = (
   return {
     ...build,
     engine,
-    config: Object.fromEntries(
-      Object.keys(producer.defaultConfig).map((key) => [
-        key,
-        build.config[key] ?? producer.defaultConfig[key],
-      ]),
-    ),
+    config: { ...producer.defaultConfig, ...build.config },
     targets: producer.targets
       .filter((target) => target.buildType === build.type)
       .map((target) => ({
         id: target.id,
         enabled: false,
-        config: Object.fromEntries(
-          Object.keys(target.defaultConfig).map((key) => [
-            key,
-            previousTargets.get(target.id)?.config[key] ?? target.defaultConfig[key],
-          ]),
-        ),
+        config: {
+          ...target.defaultConfig,
+          ...previousTargets.get(target.id)?.config,
+        },
       })),
   };
 };

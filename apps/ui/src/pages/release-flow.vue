@@ -66,6 +66,10 @@
           <Button label="Retry planning" text size="small" @click="refreshPlan" />
         </div>
       </Message>
+      <Message v-if="knownFieldIssues.length" severity="warn" role="status">
+        Required-field checks are static hints. Agent inspection, default resolution, and planning
+        determine workflow readiness.
+      </Message>
       <Message v-if="saveError" severity="error" role="alert">
         <div class="planner-error">
           <span>{{ saveError }}</span>
@@ -353,6 +357,9 @@
           @update:model-value="selectSource"
         />
       </div>
+      <small v-if="sourceDefinition.requiresAgentInspection" class="field-note">
+        Additional source options require the Pipelab agent.
+      </small>
       <template v-for="field in sourceDefinition.fields || []" :key="field.key">
         <ReleaseFieldControl
           :field="field"
@@ -544,7 +551,6 @@ import ToggleSwitch from "primevue/toggleswitch";
 import { useConfirm } from "primevue/useconfirm";
 import type {
   IconType,
-  ReleaseCatalog,
   ReleaseConfig,
   ReleaseDestinationConfig,
   ReleaseDestinationSlot,
@@ -594,18 +600,18 @@ const connectionsStore = useConnectionsStore();
 const agent = useAgentAvailability();
 const flowId = computed(() => String(route.params.flowId));
 const projectId = computed(() => String(route.params.projectId));
-const catalog = ref<ReleaseCatalog>({
-  buildTypes: [],
-  sources: [],
-  producers: [],
-  destinations: [],
-});
+const catalog = computed(() => appStore.releaseCatalog);
 const flow = ref<ReleaseConfig>();
 const plan = ref<ReleasePlan>();
 const plannerIssues = ref<ValidationIssue[]>([]);
 const inspectionIssues = ref<ValidationIssue[]>([]);
 const knownFieldIssues = computed(() =>
-  flow.value && !plan.value ? missingRequiredFieldIssues(flow.value, catalog.value) : [],
+  flow.value && !plan.value
+    ? missingRequiredFieldIssues(flow.value, catalog.value).map((issue) => ({
+        ...issue,
+        severity: "warning" as const,
+      }))
+    : [],
 );
 const issues = computed(() => [
   ...plannerIssues.value,
@@ -1507,8 +1513,8 @@ const loadWorkflow = async () => {
   workflowLoading.value = true;
   loadError.value = "";
   try {
-    const [catalogResult, flowResult] = await Promise.all([
-      api.execute("release:catalog:get"),
+    const [, flowResult] = await Promise.all([
+      appStore.loadReleaseCatalog(),
       api.execute("workflow:load", { workflowId: requestedFlowId, projectId: requestedProjectId }),
       connectionsStore.init(),
       appStore.loadProviderDefinitions(),
@@ -1519,7 +1525,6 @@ const loadWorkflow = async () => {
       requestedProjectId !== projectId.value
     )
       return;
-    if (catalogResult.type === "error") throw new Error(catalogResult.ipcError);
     if (flowResult.type === "error") throw new Error(flowResult.ipcError);
     if (connectionsStore.status === "error")
       throw new Error(connectionsStore.error || "Unable to load connections.");
@@ -1528,7 +1533,6 @@ const loadWorkflow = async () => {
     const loaded = flowResult.result;
     if (loaded.id !== requestedFlowId || loaded.project !== requestedProjectId)
       throw new Error("Loaded workflow identity does not match the requested route.");
-    catalog.value = catalogResult.result;
     const preserveDraft =
       flow.value?.id === requestedFlowId &&
       flow.value?.project === requestedProjectId &&

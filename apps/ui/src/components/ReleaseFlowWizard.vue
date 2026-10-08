@@ -5,17 +5,16 @@
     header="New release"
     :style="{ width: '680px', maxWidth: '96vw' }"
   >
-    <p v-if="!isReady" role="status">Reconnect the agent to continue setting up this workflow.</p>
+    <p v-if="!isReady" role="status">
+      Provider options are available from this browser package. Agent checks and workflow creation
+      require a Pipelab agent.
+    </p>
     <p v-else-if="catalogLoading" role="status">Loading workflow options…</p>
     <div v-else-if="catalogError" role="alert">
       <p>{{ catalogError }}</p>
       <Button label="Retry" text @click="loadCatalog" />
     </div>
-    <Stepper
-      v-model:value="step"
-      linear
-      :inert="!isReady || catalogLoading || Boolean(catalogError)"
-    >
+    <Stepper v-model:value="step" linear :inert="catalogLoading">
       <StepList class="wizard-step-list" tabindex="0" aria-label="Wizard steps">
         <Step
           v-for="item in steps"
@@ -79,6 +78,9 @@
             </div>
             <p v-if="!draft.source.provider" class="helper-copy">Choose a source to continue.</p>
             <template v-if="sourceDefinition">
+              <small v-if="sourceDefinition.requiresAgentInspection" class="helper-copy">
+                Additional source options require the Pipelab agent.
+              </small>
               <ReleaseFieldControl
                 v-for="field in sourceDefinition.fields?.filter((item) => !item.deferUntilEditor) ||
                 []"
@@ -237,6 +239,9 @@
                 Configuration.</span
               >
             </p>
+            <p v-if="!isReady" class="review-notice">
+              Runtime checks and saving this draft require a Pipelab agent.
+            </p>
             <div v-if="createError" class="wizard-create-error" role="alert">
               <span>{{ createError }}</span>
               <Button label="Retry" text @click="create" />
@@ -274,7 +279,7 @@ import InputText from "primevue/inputtext";
 import Textarea from "primevue/textarea";
 import Button from "primevue/button";
 import { nanoid } from "nanoid";
-import type { IconType, ReleaseCatalog, ReleaseConfig } from "@pipelab/shared";
+import type { IconType, ReleaseConfig } from "@pipelab/shared";
 import { useAPI } from "../composables/api";
 import { useAgentAvailability } from "../composables/useAgentAvailability";
 import { useAppStore } from "../store/app";
@@ -324,12 +329,7 @@ const steps = RELEASE_WIZARD_STEPS.map((value, index) => ({
 }));
 const step = ref<ReleaseWizardStep>("details");
 const workflowId = ref("");
-const catalog = ref<ReleaseCatalog>({
-  buildTypes: [],
-  sources: [],
-  producers: [],
-  destinations: [],
-});
+const catalog = computed(() => appStore.releaseCatalog);
 const draft = ref(createReleaseWizardDraft());
 const sourceDefinition = computed(() =>
   catalog.value.sources.find((source) => source.id === draft.value.source.provider),
@@ -427,15 +427,15 @@ const create = async () => {
   }
 };
 const loadCatalog = async () => {
-  if (!isReady.value || !props.visible) return;
+  if (!props.visible) return;
+  catalogError.value = "";
+  if (!isReady.value) return;
   const requestId = ++catalogRequest;
   catalogLoading.value = true;
   catalogError.value = "";
   try {
-    const result = await api.execute("release:catalog:get");
+    await appStore.loadReleaseCatalog();
     if (requestId !== catalogRequest || !props.visible || !isReady.value) return;
-    if (result.type === "error") throw new Error(result.ipcError);
-    catalog.value = result.result;
   } catch (error) {
     if (requestId === catalogRequest)
       catalogError.value =
