@@ -1,6 +1,6 @@
 import type { BuildHistoryEntry, Events } from "@pipelab/shared";
 import { describe, expect, it } from "vitest";
-import { applyWorkflowEventToRunEntry } from "./run-detail-state";
+import { applyWorkflowEventToRunEntry, reconcileRunEntry } from "./run-detail-state";
 
 type WorkflowEvent = Extract<Events<"workflow:execute">, { type: "workflow-event" }>["data"];
 
@@ -97,5 +97,48 @@ describe("applyWorkflowEventToRunEntry", () => {
     expect(run.artifacts).toHaveLength(1);
     expect(run.deliveries).toHaveLength(1);
     expect(run.steps[0]).toMatchObject({ id: "build", status: "completed", duration: 6 });
+  });
+});
+
+describe("reconcileRunEntry", () => {
+  it("refreshes persisted state while retaining unique live logs", () => {
+    const live = entry();
+    applyWorkflowEventToRunEntry(live, {
+      type: "step.log",
+      stepId: "build",
+      stream: "stdout",
+      message: "live output",
+      timestamp: 10,
+    });
+    const persisted = entry();
+    persisted.steps[0].status = "completed";
+    persisted.steps[0].logs.push({
+      id: "persisted",
+      timestamp: 10,
+      level: "info",
+      message: "live output",
+      source: "build",
+    });
+    persisted.artifacts = [
+      { id: "artifact", name: "bundle", path: "/tmp/bundle", size: 1, type: "file" },
+    ];
+
+    const merged = reconcileRunEntry(live, persisted);
+
+    expect(merged.steps[0].status).toBe("completed");
+    expect(merged.steps[0].logs).toHaveLength(1);
+    expect(merged.logs.map((log) => log.message)).toEqual(["live output"]);
+    expect(merged.artifacts).toEqual(persisted.artifacts);
+  });
+
+  it("does not regress a locally observed terminal status to persisted running", () => {
+    const live = entry();
+    live.status = "failed";
+    live.error = { message: "failed", code: "FAILED", timestamp: 10 };
+
+    const merged = reconcileRunEntry(live, entry());
+
+    expect(merged.status).toBe("failed");
+    expect(merged.error?.message).toBe("failed");
   });
 });

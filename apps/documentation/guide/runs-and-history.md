@@ -26,7 +26,9 @@ The run detail page shows:
 - destination delivery results.
 
 When a run is still eligible for cancellation, the page can send a cancel
-request. Local artifact opening uses the desktop shell. Hosted artifacts can be
+request. While a run is active, its detail page refreshes persisted history so
+it remains current after a reload or when opened in another window. Live output
+is kept while persisted updates arrive. Local artifact opening uses the desktop shell. Hosted artifacts can be
 downloaded through the browser when the run contains a supported cloud artifact.
 
 If a step fails, review its log and the provider's setup page before rerunning

@@ -223,20 +223,6 @@ export const executeWorkflow = async (
     }
     await historyWriteTail;
   };
-  await options.onRunCreated?.(buildId);
-  const workspaceRoot = context.getArtifactsPath("workflow", buildId);
-  await mkdir(workspaceRoot, { recursive: true });
-  const node = await ensureNodeJS(context);
-  const pnpm = await ensurePNPM(context);
-  const services: ProviderServices = {
-    context,
-    executables: { node, pnpm },
-    workflowCachePath: context.getCachePath(CacheFolder.Pipelines, config.project, buildId),
-  };
-  const tasks = createPipelabWorkflowTasks(
-    services,
-    createWorkflowTaskRegistry(workflowTaskFactories, services),
-  );
   const observedSteps = new Map<
     string,
     "pending" | "running" | "completed" | "failed" | "cancelled" | "skipped"
@@ -256,6 +242,20 @@ export const executeWorkflow = async (
   };
   let result: WorkflowResult;
   try {
+    await options.onRunCreated?.(buildId);
+    const workspaceRoot = context.getArtifactsPath("workflow", buildId);
+    await mkdir(workspaceRoot, { recursive: true });
+    const node = await ensureNodeJS(context);
+    const pnpm = await ensurePNPM(context);
+    const services: ProviderServices = {
+      context,
+      executables: { node, pnpm },
+      workflowCachePath: context.getCachePath(CacheFolder.Pipelines, config.project, buildId),
+    };
+    const tasks = createPipelabWorkflowTasks(
+      services,
+      createWorkflowTaskRegistry(workflowTaskFactories, services),
+    );
     result = await runWorkflow(workflow, {
       host: createLocalHost(workspaceRoot, {
         logger: {
@@ -273,6 +273,10 @@ export const executeWorkflow = async (
       onEvent,
     });
   } catch (error) {
+    if (historyWriteTimer) {
+      clearTimeout(historyWriteTimer);
+      historyWriteTimer = undefined;
+    }
     await flushLiveHistory();
     const finalStatus = options.signal?.aborted ? ("cancelled" as const) : ("failed" as const);
     const steps = liveSteps.map((step) => ({
@@ -284,8 +288,14 @@ export const executeWorkflow = async (
             ? ("skipped" as const)
             : observedSteps.get(step.id) === "cancelled" || finalStatus === "cancelled"
               ? ("cancelled" as const)
-              : ("failed" as const),
-      endTime: Date.now(),
+              : observedSteps.get(step.id) === "running" || observedSteps.get(step.id) === "failed"
+                ? ("failed" as const)
+                : step.status,
+      ...(observedSteps.get(step.id) === "running" ||
+      observedSteps.get(step.id) === "failed" ||
+      finalStatus === "cancelled"
+        ? { endTime: Date.now() }
+        : {}),
     }));
     await history.update(
       buildId,
@@ -308,6 +318,9 @@ export const executeWorkflow = async (
       projectId,
     );
     throw error;
+  } finally {
+    if (historyWriteTimer) clearTimeout(historyWriteTimer);
+    await historyWriteTail;
   }
   await flushLiveHistory();
   await history.update(

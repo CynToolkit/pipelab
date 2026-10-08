@@ -66,6 +66,43 @@ export const isRunContextValid = (
   projectId: string,
 ) => entry.projectId === projectId && entry.workflowId === flowId;
 
+const mergeLogs = (current: BuildHistoryEntry["logs"], persisted: BuildHistoryEntry["logs"]) => {
+  const logs = new Map<string, BuildHistoryEntry["logs"][number]>();
+  for (const log of [...persisted, ...current]) {
+    logs.set(`${log.timestamp}:${log.source || ""}:${log.message}`, log);
+  }
+  return [...logs.values()].sort((left, right) => left.timestamp - right.timestamp);
+};
+
+export const reconcileRunEntry = (
+  current: BuildHistoryEntry,
+  persisted: BuildHistoryEntry,
+): BuildHistoryEntry => {
+  const keepCurrentTerminal = current.status !== "running" && persisted.status === "running";
+  const currentSteps = new Map(current.steps.map((step) => [step.id, step]));
+  const steps = persisted.steps.map((step) => {
+    const currentStep = currentSteps.get(step.id);
+    return currentStep
+      ? { ...step, logs: mergeLogs(currentStep.logs, step.logs) }
+      : { ...step, logs: [...step.logs] };
+  });
+  const base = keepCurrentTerminal ? current : persisted;
+  return {
+    ...base,
+    status: keepCurrentTerminal ? current.status : persisted.status,
+    ...(keepCurrentTerminal
+      ? { endTime: current.endTime, duration: current.duration, error: current.error }
+      : {}),
+    steps: keepCurrentTerminal
+      ? current.steps.map((step) => {
+          const persistedStep = steps.find((candidate) => candidate.id === step.id);
+          return persistedStep ? { ...step, logs: persistedStep.logs } : step;
+        })
+      : steps,
+    logs: mergeLogs(current.logs, persisted.logs),
+  };
+};
+
 export const workflowCancellationFeedback = (result: {
   type: string;
   result?: { result?: string };
