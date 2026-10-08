@@ -21,6 +21,12 @@ async function main() {
     await page.goto(`${baseUrl}/dashboard`);
     await page.waitForTimeout(1500);
     assert.equal(await page.locator(".route-content").getAttribute("inert"), null);
+    const loginButton = page.locator("button.login-btn");
+    if ((await loginButton.count()) > 0) assert.equal(await loginButton.isDisabled(), true);
+    assert.match(
+      await page.getByText("Browser sign-in is not available yet.").textContent(),
+      /not available yet/,
+    );
     assert.equal(websocketUrls.length, 0, `expected no agent sockets, saw ${websocketUrls.length}`);
 
     await page.getByRole("link", { name: "Connections" }).click();
