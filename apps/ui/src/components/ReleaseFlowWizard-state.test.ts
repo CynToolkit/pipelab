@@ -5,6 +5,7 @@ import type { ReleaseCatalog, ReleaseRegistry } from "@pipelab/shared";
 import {
   buildReleaseWizardConfig,
   createReleaseWizardDraft,
+  HOSTED_RELEASE_WIZARD_STEPS,
   RELEASE_WIZARD_STEPS,
   releaseWizardCanContinueDetails,
   releaseWizardCanReview,
@@ -113,6 +114,31 @@ describe("ReleaseFlowWizard state", () => {
     expect(releaseWizardPreviousStep("recap")).toBe("destinations");
     expect(releaseWizardPreviousStep("destinations")).toBe("source");
     expect(releaseWizardPreviousStep("source")).toBe("details");
+  });
+
+  it("includes an editable hosted build in the draft config", () => {
+    const draft = createReleaseWizardDraft();
+    draft.name = "Browser draft";
+    draft.builds = [
+      {
+        id: "build-1",
+        type: "desktop",
+        engine: "producer/electron",
+        enabled: true,
+        config: { mode: "release" },
+        targets: [{ id: "linux", enabled: true, config: { format: "appimage" } }],
+      },
+    ];
+
+    expect(HOSTED_RELEASE_WIZARD_STEPS).toEqual([
+      "details",
+      "source",
+      "builds",
+      "destinations",
+      "recap",
+    ]);
+    expect(releaseWizardNextStep("source", HOSTED_RELEASE_WIZARD_STEPS)).toBe("builds");
+    expect(buildReleaseWizardConfig(draft, "project-1", "release-1").builds).toEqual(draft.builds);
   });
 
   it("requires a name on the first step and keeps description optional", () => {
