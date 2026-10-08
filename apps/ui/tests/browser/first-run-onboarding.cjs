@@ -718,10 +718,21 @@ async function journey(
 
     await dialog.getByRole("button", { name: "Continue" }).click();
     await dialog.getByRole("heading", { name: "Where do you want to ship?" }).waitFor();
-    assert.equal(
-      await dialog.locator(".destination-row").count(),
-      4,
-      "all four destination rows are visible",
+    const destinationLabels = (await dialog.locator(".destination-row").allTextContents()).map(
+      (text) => text.replace(/\s+/g, " ").trim(),
+    );
+    for (const label of ["Steam", "Itch.io", "Poki"])
+      assert.ok(
+        destinationLabels.some((destination) => destination.startsWith(label)),
+        `${label} destination remains available`,
+      );
+    assert.ok(
+      destinationLabels.some((destination) => /^(File system|Folder)/.test(destination)),
+      "local folder destination remains available",
+    );
+    assert.ok(
+      destinationLabels.some((destination) => destination.startsWith("ZIP")),
+      "packaged provider specs remain available alongside agent catalog entries",
     );
     await dialog.getByRole("button", { name: "Back" }).click();
     assert.equal(
