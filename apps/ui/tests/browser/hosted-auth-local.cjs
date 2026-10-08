@@ -9,7 +9,14 @@ const supabaseUrl = process.env.SUPABASE_URL;
 const chromiumPath = process.env.CHROMIUM_PATH || "/usr/bin/chromium";
 const expectEmailConfirmation = process.env.EXPECT_EMAIL_CONFIRMATION === "1";
 const expectPasswordReset = process.env.EXPECT_PASSWORD_RESET === "1";
+const expectPlanFailureUi = process.env.EXPECT_PLAN_FAILURE_UI === "1";
+const expectPortalFailureUi = process.env.EXPECT_PORTAL_FAILURE_UI === "1";
 const mailpitUrl = process.env.MAILPIT_URL;
+
+assert.ok(
+  !(expectPlanFailureUi && expectPortalFailureUi),
+  "Run plan-failure and portal-failure UI checks separately.",
+);
 
 if (!supabaseUrl || !["127.0.0.1", "localhost", "::1"].includes(new URL(supabaseUrl).hostname)) {
   throw new Error("This smoke test only supports a local Supabase URL.");
@@ -96,6 +103,60 @@ let failureContext = "";
       });
     }
   });
+  if (expectPlanFailureUi || expectPortalFailureUi) {
+    const corsHeaders = {
+      "access-control-allow-origin": new URL(baseUrl).origin,
+      "access-control-allow-headers":
+        "authorization, apikey, content-type, x-client-info, x-supabase-api-version",
+      "access-control-allow-methods": "POST, OPTIONS",
+    };
+    await page.route("**/functions/v1/**", async (route) => {
+      const request = route.request();
+      const path = new URL(request.url()).pathname;
+      if (path !== "/functions/v1/polar-user-plan" && path !== "/functions/v1/customer-portal") {
+        return route.continue();
+      }
+      if (request.method() === "OPTIONS") {
+        return route.fulfill({ status: 200, headers: corsHeaders });
+      }
+      if (path === "/functions/v1/polar-user-plan" && expectPlanFailureUi) {
+        return route.fulfill({
+          status: 500,
+          headers: corsHeaders,
+          contentType: "application/json",
+          body: JSON.stringify({ message: "Plan lookup unavailable for this test." }),
+        });
+      }
+      if (path === "/functions/v1/polar-user-plan" && expectPortalFailureUi) {
+        return route.fulfill({
+          status: 200,
+          headers: corsHeaders,
+          contentType: "application/json",
+          body: JSON.stringify({
+            subscriptions: [
+              {
+                id: "test-subscription",
+                status: "active",
+                product: { id: "browser-test-plan", name: "Browser test plan", benefits: [] },
+                amount: 1000,
+                currency: "usd",
+                recurringInterval: "month",
+              },
+            ],
+          }),
+        });
+      }
+      if (path === "/functions/v1/customer-portal" && expectPortalFailureUi) {
+        return route.fulfill({
+          status: 500,
+          headers: corsHeaders,
+          contentType: "application/json",
+          body: JSON.stringify({ message: "Portal unavailable for this test." }),
+        });
+      }
+      return route.continue();
+    });
+  }
   try {
     const email = `hosted-auth-${Date.now()}@example.test`;
     const password = "Pipelab-Test1!";
@@ -139,6 +200,43 @@ let failureContext = "";
     await page.locator('button[type="submit"]').click();
     await page.getByText(email, { exact: true }).waitFor({ timeout: 15000 });
 
+    if (expectPlanFailureUi) {
+      stage = "show subscription lookup failure in billing settings";
+      await page.getByRole("button", { name: "Settings" }).click();
+      await page.locator(".settings-sidebar .sidebar-item").filter({ hasText: "Billing" }).click();
+      await page.getByText("Unable to check your plan.", { exact: true }).waitFor();
+      const planError = page.locator(".settings-panel [role='alert']");
+      await planError.waitFor();
+      assert.ok((await planError.innerText()).trim(), "billing shows the plan lookup error");
+
+      stage = "retry subscription lookup from billing settings";
+      const retriedPlanLookup = page.waitForResponse(
+        (response) =>
+          response.status() === 500 &&
+          new URL(response.url()).pathname === "/functions/v1/polar-user-plan",
+      );
+      await page.getByRole("button", { name: "Retry", exact: true }).click();
+      await retriedPlanLookup;
+    }
+
+    if (expectPortalFailureUi) {
+      stage = "show customer portal launch failure in billing settings";
+      await page.getByRole("button", { name: "Settings" }).click();
+      await page.locator(".settings-sidebar .sidebar-item").filter({ hasText: "Billing" }).click();
+      await page.getByText("Browser test plan", { exact: true }).waitFor();
+      const portalFailure = page.waitForResponse(
+        (response) =>
+          response.status() === 500 &&
+          new URL(response.url()).pathname === "/functions/v1/customer-portal",
+      );
+      await page.locator(".manage-portal-btn").click();
+      await portalFailure;
+      await page
+        .getByRole("alert")
+        .filter({ hasText: "Unable to open the billing portal. Please try again." })
+        .waitFor();
+    }
+
     if (expectPasswordReset) {
       const previousMessages = new Set((await readMailpitMessages()).map((message) => message.ID));
       stage = "open forgot password form";
@@ -176,9 +274,12 @@ let failureContext = "";
     assert.deepEqual(pageErrors, [], `browser had page errors: ${pageErrors.join("; ")}`);
     assert.deepEqual(consoleErrors, [], `browser had console errors: ${consoleErrors.join("; ")}`);
     assert.ok(
-      failedResponses.every(
-        ({ status, path }) => status === 404 && path === "/functions/v1/polar-user-plan",
-      ),
+      failedResponses.every(({ status, path }) => {
+        if (expectPlanFailureUi) return status === 500 && path === "/functions/v1/polar-user-plan";
+        if (expectPortalFailureUi)
+          return status === 500 && path === "/functions/v1/customer-portal";
+        return status === 404 && path === "/functions/v1/polar-user-plan";
+      }),
       `local auth journey had unexpected HTTP failures: ${JSON.stringify(failedResponses)}`,
     );
     console.log(

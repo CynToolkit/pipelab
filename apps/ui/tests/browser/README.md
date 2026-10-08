@@ -117,4 +117,14 @@ callback, enable `auth.email.enable_confirmations`, allow
 To exercise password recovery end to end, set `EXPECT_PASSWORD_RESET=1` and
 provide the local `MAILPIT_URL`. The journey requests a reset email, follows
 the local verification link, updates the password, and signs in with the new
-password. These auth journeys do not verify live billing.
+password.
+
+To verify email confirmation against an isolated local Supabase project, enable
+`auth.email.enable_confirmations`, allow the local `/auth/callback` redirect,
+and set `EXPECT_EMAIL_CONFIRMATION=1` with the local `MAILPIT_URL`.
+
+For signed-in Billing UI failure handling, run the same smoke with
+`EXPECT_PLAN_FAILURE_UI=1` or `EXPECT_PORTAL_FAILURE_UI=1`. These modes
+intercept only browser calls to `polar-user-plan` or `customer-portal` with
+synthetic responses; auth still uses local Supabase, and no Polar request or
+billing transaction occurs. They do not replace live billing acceptance.
