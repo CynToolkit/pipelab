@@ -17,6 +17,12 @@ const routes: RouterOptions["routes"] = [
       title: t("headers.dashboard"),
     },
   },
+  {
+    path: "/auth/callback",
+    name: "AuthCallback",
+    component: () => import("../pages/auth-callback.vue"),
+    meta: { title: "Account verification" },
+  },
   { path: "/plugins", redirect: "/connections" },
   { path: "/integrations", redirect: "/connections" },
   {

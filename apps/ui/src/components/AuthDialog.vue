@@ -81,8 +81,14 @@
       </div>
 
       <!-- Auth Form wrapper -->
-      <p v-if="!isReady" role="status">Reconnect the agent to sign in or manage your account.</p>
-      <form :inert="!isReady" @submit.prevent="onSubmit">
+      <p v-if="!auth.isAuthTransportReady" role="status">
+        {{
+          auth.hasLoginProvider
+            ? "Connect the Desktop agent to sign in or manage your account."
+            : "Browser authentication is not configured for this deployment."
+        }}
+      </p>
+      <form :inert="!auth.isAuthTransportReady" @submit.prevent="onSubmit">
         <div
           class="auth-form-container"
           :class="{
@@ -319,7 +325,6 @@
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
 import { useAuth } from "@renderer/store/auth";
-import { useLogger } from "@pipelab/shared";
 import { storeToRefs } from "pinia";
 import { useForm, type TypedSchema } from "vee-validate";
 import { useToast } from "primevue/usetoast";
@@ -329,7 +334,6 @@ import InputText from "primevue/inputtext";
 import Password from "primevue/password";
 import Button from "primevue/button";
 import Dialog from "primevue/dialog";
-import { useAgentAvailability } from "@renderer/composables/useAgentAvailability";
 
 interface AuthFormValues {
   email?: string;
@@ -338,11 +342,9 @@ interface AuthFormValues {
 }
 
 const auth = useAuth();
-const { isReady } = useAgentAvailability();
 const { isAuthModalVisible, authModalTitle, authModalSubTitle, isAuthenticating, authState } =
   storeToRefs(auth);
 
-const { logger } = useLogger();
 const toast = useToast();
 
 // Tab state: 'login' | 'register' | 'forgot-password'
@@ -453,7 +455,7 @@ const submitButtonLabel = computed(() => {
 
 // Form submission handler
 const onSuccess = async (values: any) => {
-  if (!isReady.value) return;
+  if (!auth.isAuthTransportReady) return;
   try {
     if (activeTab.value === "register") {
       if (values.password !== values.confirmPassword) {
@@ -463,7 +465,6 @@ const onSuccess = async (values: any) => {
 
       const { error } = await auth.register(values.email, values.password);
       if (error) {
-        logger().error("Registration failed", error);
         toast.add({
           severity: "error",
           summary: "Failed to register",
@@ -482,7 +483,6 @@ const onSuccess = async (values: any) => {
     } else if (activeTab.value === "forgot-password") {
       const { error } = await auth.resetPassword(values.email);
       if (error) {
-        logger().error("Password reset request failed", error);
         toast.add({
           severity: "error",
           summary: "Failed to send reset email",
@@ -502,7 +502,6 @@ const onSuccess = async (values: any) => {
       // login
       const { error } = await auth.login(values.email, values.password);
       if (error) {
-        logger().error("Login failed", error);
         toast.add({
           severity: "error",
           summary: "Failed to login",
@@ -519,22 +518,17 @@ const onSuccess = async (values: any) => {
         });
       }
     }
-  } catch (err: any) {
-    logger().error("Auth request error", err);
+  } catch {
     toast.add({
       severity: "info",
       summary: "Notice",
-      detail: err?.message || err || "An unexpected error occurred",
+      detail: "The authentication request failed. Check your connection and try again.",
       life: 4000,
     });
   }
 };
 
-const onInvalidSubmit = ({ values, errors: submitErrors }: any) => {
-  logger().warn("Form validation rejected", { values, errors: submitErrors });
-};
-
-const onSubmit = handleSubmit(onSuccess, onInvalidSubmit);
+const onSubmit = handleSubmit(onSuccess);
 </script>
 
 <style lang="scss" scoped>

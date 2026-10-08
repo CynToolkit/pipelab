@@ -103,10 +103,13 @@
       <!-- Bottom actions -->
       <div class="sidebar-bottom">
         <!-- Upgrade -->
-        <div v-if="isReady && subscriptionStatus === 'ready'" class="sidebar-upgrade-wrap">
+        <div
+          v-if="auth.isAuthTransportReady && subscriptionStatus === 'ready'"
+          class="sidebar-upgrade-wrap"
+        >
           <UpgradeNowButton @open-upgrade-dialog="openUpgradeDialog" />
         </div>
-        <div v-else-if="isReady && user && subscriptionStatus !== 'ready'">
+        <div v-else-if="auth.isAuthTransportReady && user && subscriptionStatus !== 'ready'">
           <div
             class="sidebar-status-item muted"
             role="status"
@@ -180,8 +183,8 @@
             v-tooltip.right="isSidebarCollapsed ? 'Logout' : undefined"
             v-tooltip.top="!isSidebarCollapsed ? 'Logout' : undefined"
             @click="logout"
-            :disabled="!isReady"
-            :title="isReady ? undefined : 'Reconnect the agent to sign out.'"
+            :disabled="!auth.isAuthTransportReady || auth.isAuthenticating"
+            :title="auth.isAuthTransportReady ? undefined : 'Reconnect the agent to sign out.'"
           >
             <i class="mdi mdi-logout" />
           </button>
@@ -193,18 +196,24 @@
           class="sidebar-nav-item login-btn"
           v-tooltip.right="isSidebarCollapsed ? 'Login / Register' : undefined"
           @click="auth.displayAuthModal()"
-          :disabled="!isReady || auth.authState === 'INITIALIZING' || auth.authState === 'LOADING'"
+          :disabled="
+            !auth.isAuthTransportReady ||
+            auth.authState === 'INITIALIZING' ||
+            auth.authState === 'LOADING'
+          "
           :title="
             isHostedMode
-              ? 'Browser sign-in will be available in a later update.'
+              ? auth.hasLoginProvider
+                ? undefined
+                : 'Browser authentication is not configured.'
               : 'Connect an agent to sign in.'
           "
         >
           <i class="mdi mdi-login nav-icon" />
           <span v-show="!isSidebarCollapsed" class="nav-label">Login / Register</span>
         </button>
-        <p v-if="isHostedMode && !user" class="hosted-account-note">
-          Browser sign-in is not available yet.
+        <p v-if="isHostedMode && !user && !auth.hasLoginProvider" class="hosted-account-note">
+          Browser authentication is not configured for this deployment.
         </p>
       </div>
     </aside>
@@ -229,7 +238,7 @@
     </div>
 
     <!-- Auth Dialog (Login / Register / Forgot Password) -->
-    <AuthDialog v-if="hasOpenedAuthDialog && !isHostedMode" />
+    <AuthDialog v-if="hasOpenedAuthDialog" />
 
     <!-- Settings Dialog -->
     <Dialog
@@ -450,7 +459,7 @@ watch(isAuthModalVisible, (visible) => {
 });
 
 const retrySubscription = () => {
-  if (isReady.value) void auth.fetchSubscription();
+  if (auth.isAuthTransportReady) void auth.fetchSubscription();
 };
 
 const isSettingsModalVisible = ref(false);
