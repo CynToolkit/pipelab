@@ -352,6 +352,7 @@ import {
   isRunContextValid,
   resetRunStepSelectionState,
   runFailureArtifactSummary,
+  reconcileRunEntry,
   workflowCancellationFeedback,
   selectRunStep,
   applyWorkflowEventToRunEntry,
@@ -380,6 +381,7 @@ const cancelling = ref(false);
 const logViewport = ref<HTMLElement>();
 let loadGeneration = 0;
 let stopRunEvents: (() => void) | undefined;
+let historyRefreshTimer: ReturnType<typeof setTimeout> | undefined;
 const shortId = computed(() =>
   entry.value?.id ? entry.value.id.slice(0, 8) : String(route.params.runId).slice(0, 8),
 );
@@ -571,6 +573,16 @@ const viewFailureLogs = (diagnostic: RunFailureDiagnostic) => {
   selectStep(diagnostic.stepId || null);
   activePanel.value = "logs";
 };
+const stopHistoryRefresh = () => {
+  if (historyRefreshTimer) clearTimeout(historyRefreshTimer);
+  historyRefreshTimer = undefined;
+};
+watch(
+  () => entry.value?.status,
+  (status) => {
+    if (status && status !== "running") stopHistoryRefresh();
+  },
+);
 const load = async () => {
   if (!agent.isReady.value) return;
   const generation = ++loadGeneration;
@@ -582,6 +594,24 @@ const load = async () => {
     String(route.params.runId) === runId &&
     String(route.params.projectId || "") === projectId &&
     String(route.params.flowId || "") === workflowId;
+  stopHistoryRefresh();
+  const refreshHistory = async () => {
+    try {
+      const response = await api.execute("build-history:get", {
+        id: runId,
+        ...(projectId ? { projectId } : {}),
+      });
+      if (!isCurrentRun() || !entry.value) return;
+      if (response.type === "success" && response.result.entry) {
+        entry.value = reconcileRunEntry(entry.value, response.result.entry);
+      }
+    } catch {
+      // Keep the last visible state and retry while this run remains active.
+    }
+    if (isCurrentRun() && entry.value?.status === "running") {
+      historyRefreshTimer = setTimeout(() => void refreshHistory(), 1000);
+    }
+  };
   try {
     const loadedEntry = await loadRunEntryWithRetry(
       async () => {
@@ -615,6 +645,9 @@ const load = async () => {
       stopRunEvents = subscribeToRunEvents(runId, (event) => {
         if (entry.value) applyWorkflowEventToRunEntry(entry.value, event);
       });
+      if (entry.value.status === "running") {
+        historyRefreshTimer = setTimeout(() => void refreshHistory(), 1000);
+      }
       if (activePanel.value === "logs") autoSelectInitialRunStep(stepSelection, entry.value.steps);
       await nextTick();
       if (wasNearBottom && logViewport.value)
@@ -628,6 +661,9 @@ const load = async () => {
 watch(
   () => [route.params.flowId, route.params.projectId, route.params.runId],
   () => {
+    stopHistoryRefresh();
+    stopRunEvents?.();
+    stopRunEvents = undefined;
     entry.value = undefined;
     error.value = "";
     resetRunStepSelectionState(stepSelection);
@@ -641,6 +677,7 @@ watch(
     if (ready) void load();
     else {
       loadGeneration++;
+      stopHistoryRefresh();
       stopRunEvents?.();
       stopRunEvents = undefined;
     }
@@ -649,6 +686,7 @@ watch(
 );
 onUnmounted(() => {
   loadGeneration++;
+  stopHistoryRefresh();
   stopRunEvents?.();
 });
 </script>

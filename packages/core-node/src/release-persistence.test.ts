@@ -2,13 +2,15 @@ import { mkdir, mkdtemp, readFile, rename, rm, stat, writeFile } from "node:fs/p
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawn } from "node:child_process";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createReleaseConfig } from "@pipelab/shared";
 import { PipelabContext } from "./context";
 import { ReleasePersistence } from "./release-persistence";
 import { writeJsonFileAtomically } from "./utils/atomic-json";
 import { executeWorkflow } from "./handlers/workflow";
 import { saveStrictProjects } from "./strict-config-persistence";
+import * as remote from "./utils/remote";
+import { BuildHistoryStorage } from "./handlers/build-history";
 
 const setup = async () => {
   const root = await mkdtemp(join(tmpdir(), "pipelab-release-persistence-"));
@@ -34,6 +36,48 @@ const setup = async () => {
 };
 
 describe("ReleasePersistence", () => {
+  it.each(["Node.js", "pnpm"])("persists a terminal run when %s setup fails", async (runtime) => {
+    const { context } = await setup();
+    const config = createReleaseConfig({
+      id: "workflow-1",
+      project: "project-1",
+      name: "Release",
+      source: {
+        provider: "@pipelab/core/source/folder",
+        config: { path: context.getConfigPath() },
+      },
+    });
+    await mkdir(context.getConfigPath("workflows"), { recursive: true });
+    await writeFile(context.getConfigPath("workflows", "workflow-1.json"), JSON.stringify(config));
+
+    const nodeSetup = vi.spyOn(remote, "ensureNodeJS").mockResolvedValue("node");
+    const pnpmSetup = vi.spyOn(remote, "ensurePNPM").mockResolvedValue("pnpm");
+    (runtime === "Node.js" ? nodeSetup : pnpmSetup).mockRejectedValue(
+      new Error(`${runtime} setup failed`),
+    );
+    let runId = "";
+    try {
+      await expect(
+        executeWorkflow(context, "workflows/workflow-1", {
+          onRunCreated: (id) => {
+            runId = id;
+          },
+        }),
+      ).rejects.toThrow(`${runtime} setup failed`);
+      const history = await new BuildHistoryStorage(context).get(runId, "project-1");
+      expect(history).toMatchObject({
+        status: "failed",
+        error: { message: `${runtime} setup failed` },
+        completedSteps: 0,
+        failedSteps: 0,
+      });
+      expect(history?.steps.every((step) => step.status === "pending")).toBe(true);
+    } finally {
+      nodeSetup.mockRestore();
+      pnpmSetup.mockRestore();
+    }
+  });
+
   it("validates persisted workflow connections without provider initialization", async () => {
     const { context } = await setup();
     const config = {
