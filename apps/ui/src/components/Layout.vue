@@ -272,8 +272,14 @@
             v-tooltip.right="isSidebarCollapsed ? 'Logout' : undefined"
             v-tooltip.top="!isSidebarCollapsed ? 'Logout' : undefined"
             @click="logout"
-            :disabled="!isReady"
-            :title="isReady ? undefined : 'Reconnect the agent to sign out.'"
+            :disabled="!auth.isAuthTransportReady"
+            :title="
+              auth.isAuthTransportReady
+                ? undefined
+                : isBrowser
+                  ? 'Browser authentication is not configured.'
+                  : 'Reconnect the agent to sign out.'
+            "
           >
             <i class="mdi mdi-logout" />
           </button>
@@ -285,8 +291,18 @@
           class="sidebar-nav-item login-btn"
           v-tooltip.right="isSidebarCollapsed ? 'Login / Register' : undefined"
           @click="auth.displayAuthModal()"
-          :disabled="!isReady || auth.authState === 'INITIALIZING' || auth.authState === 'LOADING'"
-          :title="isReady ? undefined : 'Connect an agent to sign in.'"
+          :disabled="
+            !auth.isAuthTransportReady ||
+            auth.authState === 'INITIALIZING' ||
+            auth.authState === 'LOADING'
+          "
+          :title="
+            auth.isAuthTransportReady
+              ? undefined
+              : isBrowser
+                ? 'Browser authentication is not configured.'
+                : 'Connect an agent to sign in.'
+          "
         >
           <i class="mdi mdi-login nav-icon" />
           <span v-show="!isSidebarCollapsed" class="nav-label">Login / Register</span>
@@ -295,15 +311,15 @@
           v-if="isBrowser && !user && !auth.hasLoginProvider && !isSidebarCollapsed"
           class="hosted-account-note"
         >
-          {{ $t("home.browser-sign-in-agent-required") }}
+          Browser authentication is not configured for this deployment.
         </p>
         <button
           v-if="isBrowser && !user && !auth.hasLoginProvider"
           type="button"
           class="hosted-account-note-trigger"
           :class="{ 'desktop-collapsed-note': isSidebarCollapsed }"
-          :aria-label="$t('home.browser-sign-in-agent-required')"
-          v-tooltip.right="$t('home.browser-sign-in-agent-required')"
+          aria-label="Browser authentication is not configured for this deployment."
+          v-tooltip.right="'Browser authentication is not configured for this deployment.'"
         >
           <i class="mdi mdi-information-outline" aria-hidden="true" />
         </button>

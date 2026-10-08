@@ -1,6 +1,12 @@
 <template>
-  <p v-if="!isReady" role="status">Reconnect the agent to load plans or upgrade.</p>
-  <div class="upgrade-dialog" :inert="!isReady">
+  <p v-if="!auth.isAuthTransportReady" role="status">
+    {{
+      auth.hasLoginProvider
+        ? "Reconnect the Desktop agent to load plans or upgrade."
+        : "Browser authentication is not configured for this deployment."
+    }}
+  </p>
+  <div class="upgrade-dialog" :inert="!auth.isAuthTransportReady">
     <div class="dialog-header">
       <h2>Upgrade Your Plan</h2>
       <p>Choose the plan that works best for you</p>
@@ -13,7 +19,7 @@
           : "Checking your current plan…"
       }}
       <button
-        v-if="isReady && auth.subscriptionStatus === 'error'"
+        v-if="auth.isAuthTransportReady && auth.subscriptionStatus === 'error'"
         @click="auth.fetchSubscription()"
       >
         Retry plan check
@@ -59,7 +65,7 @@
           </div>
           <button
             class="plan-button"
-            :disabled="isPlanDisabled(plan)"
+            :disabled="isPlanDisabled(plan) || !auth.isAuthTransportReady"
             @click="handlePlanAction(plan)"
           >
             {{ getPlanButtonText(plan) }}
@@ -74,18 +80,14 @@
 
 <script lang="ts" setup>
 import { ref, watch } from "vue";
-import { useAPI } from "@renderer/composables/api";
 import { useAuth } from "@renderer/store/auth";
-import { supabase } from "@pipelab/shared";
 import type { Product } from "@polar-sh/sdk/models/components/product";
-import { useAgentAvailability } from "@renderer/composables/useAgentAvailability";
+import { openAsyncUrl } from "@renderer/utils/open-async-url";
 
 type Plan = Product;
 
 const emit = defineEmits(["close"]);
-const api = useAPI();
 const auth = useAuth();
-const { isReady } = useAgentAvailability();
 
 // State for plans, loading, and error
 const plans = ref<Plan[]>([]);
@@ -94,23 +96,19 @@ const error = ref<string | null>(null);
 
 // Function to fetch plans from polar.sh using the actual cloud function
 const fetchPlansFromPolar = async () => {
-  if (!isReady.value) return;
+  if (!auth.isAuthTransportReady) return;
   try {
     isLoading.value = true;
     error.value = null;
 
-    // Call the actual polar-available-plans cloud function via IPC
-    const result: any = await api.execute("auth:invoke", { name: "polar-available-plans" });
-
-    if (result.type === "error" || result.result?.error) {
-      throw result.ipcError || result.result?.error;
+    const { data, error: invokeError } = await auth.invokeFunction("polar-available-plans");
+    if (invokeError) throw invokeError;
+    if (!data || typeof data !== "object" || !("plans" in data) || !Array.isArray(data.plans)) {
+      throw new Error("Invalid plans response");
     }
-
-    // Process the response data
-    plans.value = result.result?.data?.plans || [];
-  } catch (err) {
+    plans.value = data.plans as Plan[];
+  } catch {
     error.value = "Failed to fetch plans. Please try again later.";
-    console.error("Error fetching plans:", err);
   } finally {
     isLoading.value = false;
   }
@@ -132,7 +130,7 @@ const isCurrentPlan = (plan: any) => {
 };
 
 const isPlanDisabled = (plan: any) => {
-  if (!isReady.value || auth.subscriptionStatus !== "ready") return true;
+  if (!auth.isAuthTransportReady || auth.subscriptionStatus !== "ready") return true;
   // Always disable if it's the current plan
   if (isCurrentPlan(plan)) return true;
 
@@ -172,26 +170,30 @@ const handlePlanAction = (plan: any) => {
 };
 
 const upgradeToPlan = async (plan: any) => {
-  if (!isReady.value || auth.subscriptionStatus !== "ready") return;
-  const result: any = await api.execute("auth:invoke", {
-    name: "checkout",
-    options: {
-      body: {
-        itemIds: [plan.id],
-      },
-    },
+  if (!auth.isAuthTransportReady || auth.subscriptionStatus !== "ready") return;
+  error.value = null;
+  const result = await openAsyncUrl(async () => {
+    const { data, error: invokeError } = await auth.invokeFunction("checkout", {
+      body: { itemIds: [plan.id] },
+    });
+    const checkoutUrl =
+      data && typeof data === "object" && "checkoutURL" in data ? data.checkoutURL : undefined;
+    if (invokeError || typeof checkoutUrl !== "string") {
+      return undefined;
+    }
+    return checkoutUrl;
   });
-  console.log("result", result);
-  if (result.type === "success" && result.result?.data?.checkoutURL) {
-    window.open(result.result.data.checkoutURL);
-  } else {
-    console.error("No checkout URL returned or error occurred", result);
+  if (result !== "opened") {
+    error.value =
+      result === "blocked"
+        ? "Allow pop-ups to continue to checkout, then try again."
+        : "Unable to start checkout. Please try again.";
   }
 };
 
 // Fetch plans when component is mounted
 watch(
-  isReady,
+  () => auth.isAuthTransportReady,
   (ready) => {
     if (ready) void fetchPlansFromPolar();
   },

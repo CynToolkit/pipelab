@@ -26,9 +26,25 @@ password reset. Registration may wait for account validation before sign-in is
 available. Subscription and benefit information can affect whether some UI
 actions are available; the app's upgrade dialog shows the current state.
 
-If account data fails to load, check the connection and try again. Pipelab's
-account service and billing actions are external to the local settings file;
-this guide does not promise a specific billing portal outcome.
+In the hosted web app, account sign-in works without the local agent when the
+deployment has Supabase configured. Profile and plan information load from the
+signed-in browser session. Upgrade and billing-portal requests go through
+authenticated cloud functions; if a request fails, retry it from the account or
+upgrade screen. Requests show an error after a timeout rather than staying in a
+loading state indefinitely. Allow pop-ups in the browser to open the billing
+portal or continue to checkout.
+
+Hosted deployments need `SUPABASE_URL` and the public `SUPABASE_ANON_KEY` at UI
+build time. Configure the deployed HTTPS origin as an allowed Supabase Auth
+redirect URL and serve the UI's `/auth/callback` route through the SPA fallback.
+Email verification returns to the hosted app, while password-reset links open a
+page to choose a new password. Desktop keeps its `pipelab://` verification
+return flow. Privileged Supabase and billing secrets stay on the server and
+must not be added to UI build settings.
+
+If account data fails to load, check the connection and retry. A missing
+Supabase configuration disables hosted sign-in and shows an unavailable state;
+it does not affect the local settings file.
 
 ## Desktop updates
 
