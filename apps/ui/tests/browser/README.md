@@ -66,6 +66,11 @@ assumes email confirmations are disabled. The optional mode below exercises
 local confirmation delivery; neither mode verifies Polar billing, which needs
 the hosted nonproduction acceptance environment.
 
+To also exercise password recovery end to end, set `EXPECT_PASSWORD_RESET=1`
+and provide a local `MAILPIT_URL`. The journey requests a reset email, follows
+its local verification link, updates the password, and signs in with the new
+password. It still does not verify hosted billing.
+
 To also verify email confirmation against an isolated local Supabase project,
 enable `auth.email.enable_confirmations`, allow the local `/auth/callback`
 redirect, and set `EXPECT_EMAIL_CONFIRMATION=1` and `MAILPIT_URL` to that

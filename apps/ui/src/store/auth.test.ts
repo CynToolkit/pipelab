@@ -476,7 +476,7 @@ describe("hosted browser authentication", () => {
     expect(execute).not.toHaveBeenCalled();
   });
 
-  it("completes a recovery callback only after Supabase verifies the recovery event", async () => {
+  it("completes a recovery callback after the PKCE exchange produces a signed-in session", async () => {
     const user = makeUser("callback-user");
     let listeners: Array<(event: AuthChangeEvent, session: Session | null) => void> = [];
     browserClient.auth.onAuthStateChange.mockImplementation((listener) => {
@@ -485,7 +485,7 @@ describe("hosted browser authentication", () => {
     });
     browserClient.auth.exchangeCodeForSession.mockImplementation(async () => {
       for (const listener of listeners) {
-        listener("PASSWORD_RECOVERY", {
+        listener("SIGNED_IN", {
           user,
           access_token: "access",
           refresh_token: "refresh",
@@ -503,9 +503,7 @@ describe("hosted browser authentication", () => {
     const auth = useAuth();
     activeAuthStore = auth;
     await auth.init();
-    await expect(auth.completeAuthCallback("callback-code", "recovery")).resolves.toEqual({
-      error: null,
-    });
+    await expect(auth.completeAuthCallback("callback-code")).resolves.toEqual({ error: null });
     expect(browserClient.auth.exchangeCodeForSession).toHaveBeenCalledWith("callback-code");
     expect(auth.user?.id).toBe("callback-user");
   });
@@ -525,7 +523,7 @@ describe("hosted browser authentication", () => {
     activeAuthStore = auth;
     await vi.waitFor(() => expect(auth.authState).toBe("SIGNED_IN"));
 
-    await expect(auth.completeAuthCallback("invalid-code", "recovery")).resolves.toMatchObject({
+    await expect(auth.completeAuthCallback("invalid-code")).resolves.toMatchObject({
       error: expect.any(Error),
     });
     expect(auth.authState).toBe("ERROR");

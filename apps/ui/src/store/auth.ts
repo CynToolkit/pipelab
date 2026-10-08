@@ -601,10 +601,7 @@ export const useAuth = defineStore("auth", () => {
     }
   };
 
-  const completeAuthCallback = async (
-    code: string,
-    type: "verification" | "recovery",
-  ): Promise<{ error: Error | null }> => {
+  const completeAuthCallback = async (code: string): Promise<{ error: Error | null }> => {
     if (!isHostedBrowser || !browserClient) {
       return { error: new Error("Browser authentication is unavailable in this runtime.") };
     }
@@ -624,8 +621,9 @@ export const useAuth = defineStore("auth", () => {
       );
       if (requestId !== authRequestId) return { error: new Error("Account link was cancelled.") };
       if (error) throw error;
-      const expectedEvent = type === "recovery" ? "PASSWORD_RECOVERY" : "SIGNED_IN";
-      if (!data.session || !data.user || callbackEvent !== expectedEvent) {
+      // Supabase emits SIGNED_IN when exchangeCodeForSession completes a PKCE flow,
+      // including recovery links; the callback route uses the URL type to choose its UI.
+      if (!data.session || !data.user || callbackEvent !== "SIGNED_IN") {
         throw new Error("Account link could not be verified.");
       }
       applyBrowserSession(data.session);
