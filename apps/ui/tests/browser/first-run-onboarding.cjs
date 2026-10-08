@@ -578,7 +578,8 @@ async function journey(
           const bounds = step.getBoundingClientRect();
           return {
             label: step.textContent?.replace(/^\s*0\d\s*/, "").trim(),
-            fullyVisible: bounds.left >= strip.left && bounds.right <= strip.right,
+            // Allow subpixel rounding at the right edge of the step strip.
+            fullyVisible: bounds.left >= strip.left && bounds.right <= strip.right + 1,
           };
         });
       });
