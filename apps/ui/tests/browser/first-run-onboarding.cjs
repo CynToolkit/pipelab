@@ -578,7 +578,8 @@ async function journey(
           const bounds = step.getBoundingClientRect();
           return {
             label: step.textContent?.replace(/^\s*0\d\s*/, "").trim(),
-            fullyVisible: bounds.left >= strip.left && bounds.right <= strip.right,
+            // Allow subpixel rounding at the right edge of the step strip.
+            fullyVisible: bounds.left >= strip.left && bounds.right <= strip.right + 1,
           };
         });
       });
@@ -718,10 +719,21 @@ async function journey(
 
     await dialog.getByRole("button", { name: "Continue" }).click();
     await dialog.getByRole("heading", { name: "Where do you want to ship?" }).waitFor();
-    assert.equal(
-      await dialog.locator(".destination-row").count(),
-      4,
-      "all four destination rows are visible",
+    const destinationLabels = (await dialog.locator(".destination-row").allTextContents()).map(
+      (text) => text.replace(/\s+/g, " ").trim(),
+    );
+    for (const label of ["Steam", "Itch.io", "Poki"])
+      assert.ok(
+        destinationLabels.some((destination) => destination.startsWith(label)),
+        `${label} destination remains available`,
+      );
+    assert.ok(
+      destinationLabels.some((destination) => /^(File system|Folder)/.test(destination)),
+      "local folder destination remains available",
+    );
+    assert.ok(
+      destinationLabels.some((destination) => destination.startsWith("ZIP")),
+      "packaged provider specs remain available alongside agent catalog entries",
     );
     await dialog.getByRole("button", { name: "Back" }).click();
     assert.equal(

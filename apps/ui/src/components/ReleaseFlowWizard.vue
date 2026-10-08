@@ -5,17 +5,16 @@
     header="New release"
     :style="{ width: '680px', maxWidth: '96vw' }"
   >
-    <p v-if="!isReady" role="status">Reconnect the agent to continue setting up this workflow.</p>
+    <p v-if="!isReady" role="status">
+      Provider options are available from this browser package. Agent checks and workflow creation
+      require a Pipelab agent.
+    </p>
     <p v-else-if="catalogLoading" role="status">Loading workflow options…</p>
     <div v-else-if="catalogError" role="alert">
       <p>{{ catalogError }}</p>
       <Button label="Retry" text @click="loadCatalog" />
     </div>
-    <Stepper
-      v-model:value="step"
-      linear
-      :inert="!isReady || catalogLoading || Boolean(catalogError)"
-    >
+    <Stepper v-model:value="step" :linear="!isHostedBrowser" :inert="catalogLoading">
       <StepList class="wizard-step-list" tabindex="0" aria-label="Wizard steps">
         <Step
           v-for="item in steps"
@@ -48,7 +47,7 @@
                 icon="pi pi-arrow-right"
                 iconPos="right"
                 :disabled="!canContinueDetails"
-                @click="step = releaseWizardNextStep(step)"
+                @click="step = releaseWizardNextStep(step, activeSteps)"
               />
             </div>
           </div>
@@ -79,6 +78,9 @@
             </div>
             <p v-if="!draft.source.provider" class="helper-copy">Choose a source to continue.</p>
             <template v-if="sourceDefinition">
+              <small v-if="sourceDefinition.requiresAgentInspection" class="helper-copy">
+                Additional source options require the Pipelab agent.
+              </small>
               <ReleaseFieldControl
                 v-for="field in sourceDefinition.fields?.filter((item) => !item.deferUntilEditor) ||
                 []"
@@ -88,6 +90,7 @@
                 :options="field.options || []"
                 :issues="[]"
                 :input-id="`wizard-source-${field.key}`"
+                :allow-path-edit="isHostedBrowser"
                 @update:value="setSourceField(field.key, $event)"
               />
             </template>
@@ -96,14 +99,103 @@
                 label="Back"
                 text
                 severity="secondary"
-                @click="step = releaseWizardPreviousStep(step)"
+                @click="step = releaseWizardPreviousStep(step, activeSteps)"
               />
               <Button
                 label="Continue"
                 icon="pi pi-arrow-right"
                 iconPos="right"
                 :disabled="!canContinueSource"
-                @click="step = releaseWizardNextStep(step)"
+                @click="step = releaseWizardNextStep(step, activeSteps)"
+              />
+            </div>
+          </div>
+        </StepPanel>
+        <StepPanel v-if="isHostedBrowser" value="builds">
+          <div class="wizard-panel">
+            <h2>Configure a build</h2>
+            <p>Select a packaged build provider to add it to this in-memory draft.</p>
+            <div class="choice-grid">
+              <button
+                v-for="producer in buildProducers"
+                :key="producer.id"
+                type="button"
+                class="choice-card"
+                :class="{ selected: selectedBuild?.engine === producer.id }"
+                :aria-pressed="selectedBuild?.engine === producer.id"
+                @click="chooseBuildProducer(producer.id)"
+              >
+                <i :class="providerIconClass(producer.icon)" aria-hidden="true" />
+                <strong>{{ producer.label }}</strong>
+                <small>{{
+                  producer.requiresAgentInspection
+                    ? "Agent inspection required"
+                    : producer.planning.mode
+                }}</small>
+              </button>
+            </div>
+            <template v-if="selectedBuildProducer && selectedBuild">
+              <small
+                v-if="selectedBuildProducer.requiresAgentInspection"
+                class="helper-copy"
+                role="status"
+              >
+                This provider needs agent inspection. Fields below are draft values only; readiness
+                is Unknown.
+              </small>
+              <ReleaseFieldControl
+                v-for="field in selectedBuildProducer.fields || []"
+                :key="field.key"
+                :field="field"
+                :value="String(selectedBuild.config[field.key] ?? '')"
+                :options="field.options || []"
+                :issues="[]"
+                :input-id="`wizard-build-${field.key}`"
+                :allow-path-edit="true"
+                @update:value="setBuildField(field.key, $event)"
+              />
+              <h3>Target</h3>
+              <div class="choice-grid">
+                <button
+                  v-for="target in selectedBuildProducer.targets.filter(
+                    (candidate) => candidate.buildType,
+                  )"
+                  :key="target.id"
+                  type="button"
+                  class="choice-card"
+                  :class="{ selected: selectedBuild.targets[0]?.id === target.id }"
+                  :aria-pressed="selectedBuild.targets[0]?.id === target.id"
+                  @click="chooseBuildTarget(target.id)"
+                >
+                  <strong>{{ target.label }}</strong>
+                  <small>Availability: Unknown (agent required)</small>
+                </button>
+              </div>
+              <ReleaseFieldControl
+                v-for="field in selectedBuildTarget?.fields || []"
+                :key="field.key"
+                :field="field"
+                :value="String(selectedBuild.targets[0]?.config[field.key] ?? '')"
+                :options="field.options || []"
+                :issues="[]"
+                :input-id="`wizard-build-target-${field.key}`"
+                :allow-path-edit="true"
+                @update:value="setBuildTargetField(field.key, $event)"
+              />
+            </template>
+            <p v-else class="helper-copy">A build is optional for this draft.</p>
+            <div class="wizard-actions">
+              <Button
+                label="Back"
+                text
+                severity="secondary"
+                @click="step = releaseWizardPreviousStep(step, activeSteps)"
+              />
+              <Button
+                label="Continue"
+                icon="pi pi-arrow-right"
+                iconPos="right"
+                @click="step = releaseWizardNextStep(step, activeSteps)"
               />
             </div>
           </div>
@@ -115,47 +207,70 @@
               You can add one or more destinations. You can configure accounts and settings later.
             </p>
             <div class="destination-list">
-              <button
+              <div
                 v-for="destination in catalog.destinations"
                 :key="destination.id"
-                type="button"
-                class="destination-row"
-                :class="{ selected: hasDestination(destination.id) }"
-                :aria-pressed="hasDestination(destination.id)"
-                @click="toggleDestination(destination.id)"
+                class="destination-option"
               >
-                <span class="destination-selection" aria-hidden="true">
-                  <i :class="hasDestination(destination.id) ? 'pi pi-check' : 'pi pi-circle'" />
-                </span>
-                <img
-                  v-if="providerIconImage(destinationIcon(destination.id, destination.icon))"
-                  :src="providerIconImage(destinationIcon(destination.id, destination.icon))"
-                  alt=""
-                />
-                <i
-                  v-else
-                  :class="providerIconClass(destinationIcon(destination.id, destination.icon))"
-                  aria-hidden="true"
-                />
-                <span class="destination-copy">
-                  <strong>{{ destination.label }}</strong>
-                  <small>{{ destination.description || "Ship your release" }}</small>
-                </span>
-              </button>
+                <button
+                  type="button"
+                  class="destination-row"
+                  :class="{ selected: hasDestination(destination.id) }"
+                  :aria-pressed="hasDestination(destination.id)"
+                  @click="toggleDestination(destination.id)"
+                >
+                  <span class="destination-selection" aria-hidden="true">
+                    <i :class="hasDestination(destination.id) ? 'pi pi-check' : 'pi pi-circle'" />
+                  </span>
+                  <img
+                    v-if="providerIconImage(destinationIcon(destination.id, destination.icon))"
+                    :src="providerIconImage(destinationIcon(destination.id, destination.icon))"
+                    alt=""
+                  />
+                  <i
+                    v-else
+                    :class="providerIconClass(destinationIcon(destination.id, destination.icon))"
+                    aria-hidden="true"
+                  />
+                  <span class="destination-copy">
+                    <strong>{{ destination.label }}</strong>
+                    <small>{{ destination.description || "Ship your release" }}</small>
+                  </span>
+                </button>
+                <div
+                  v-if="isHostedBrowser && hasDestination(destination.id)"
+                  class="destination-fields"
+                >
+                  <small v-if="destination.fields?.length" class="helper-copy" role="status">
+                    These settings remain in the browser draft until connected to an agent.
+                  </small>
+                  <ReleaseFieldControl
+                    v-for="field in destination.fields || []"
+                    :key="field.key"
+                    :field="field"
+                    :value="String(selectedDestination(destination.id)?.config[field.key] ?? '')"
+                    :options="field.options || []"
+                    :issues="[]"
+                    :input-id="`wizard-destination-${destination.id}-${field.key}`"
+                    :allow-path-edit="isHostedBrowser"
+                    @update:value="setDestinationField(destination.id, field.key, $event)"
+                  />
+                </div>
+              </div>
             </div>
             <div class="wizard-actions">
               <Button
                 label="Back"
                 text
                 severity="secondary"
-                @click="step = releaseWizardPreviousStep(step)"
+                @click="step = releaseWizardPreviousStep(step, activeSteps)"
               />
               <Button
                 label="Continue"
                 icon="pi pi-arrow-right"
                 iconPos="right"
-                :disabled="!draft.destinations.length"
-                @click="step = releaseWizardNextStep(step)"
+                :disabled="!canContinueDestinations"
+                @click="step = releaseWizardNextStep(step, activeSteps)"
               />
             </div>
           </div>
@@ -201,6 +316,13 @@
                   </span>
                 </span>
               </div>
+              <div v-if="draft.builds.length">
+                <span class="review-label">Build</span>
+                <span
+                  ><strong>{{ selectedBuildProducer?.label }}</strong> ·
+                  {{ selectedBuildTarget?.label }}</span
+                >
+              </div>
               <div>
                 <span class="review-label">Destinations ({{ recap.destinations.length }})</span>
                 <span class="review-destinations">
@@ -232,10 +354,20 @@
             </div>
             <p class="review-notice">
               <i class="pi pi-info-circle" aria-hidden="true" />
-              <span
+              <span v-if="isHostedBrowser"
+                >Build fields and destination settings in this browser draft are not validated until
+                the Pipelab agent checks them.</span
+              >
+              <span v-else
                 >Configuration, builds and connections can be set up after creation in the workflow
                 Configuration.</span
               >
+            </p>
+            <p v-if="!isReady" class="review-notice">
+              Runtime checks and saving this draft require a Pipelab agent.
+            </p>
+            <p v-else-if="!projectId" class="review-notice" role="status">
+              Choose a project before creating this workflow.
             </p>
             <div v-if="createError" class="wizard-create-error" role="alert">
               <span>{{ createError }}</span>
@@ -246,12 +378,12 @@
                 label="Back"
                 text
                 severity="secondary"
-                @click="step = releaseWizardPreviousStep(step)"
+                @click="step = releaseWizardPreviousStep(step, activeSteps)"
               />
               <Button
                 :label="createPending ? 'Creating workflow…' : 'Create workflow'"
                 icon="mdi mdi-rocket-launch-outline"
-                :disabled="!isReady || !canContinueDestinations || createPending"
+                :disabled="!isReady || !projectId || !canContinueDestinations || createPending"
                 @click="create"
               />
             </div>
@@ -274,9 +406,10 @@ import InputText from "primevue/inputtext";
 import Textarea from "primevue/textarea";
 import Button from "primevue/button";
 import { nanoid } from "nanoid";
-import type { IconType, ReleaseCatalog, ReleaseConfig } from "@pipelab/shared";
+import type { IconType, ReleaseConfig } from "@pipelab/shared";
 import { useAPI } from "../composables/api";
 import { useAgentAvailability } from "../composables/useAgentAvailability";
+import { uiRuntimeMode } from "../composables/ui-runtime";
 import { useAppStore } from "../store/app";
 import ReleaseFieldControl from "./ReleaseFieldControl.vue";
 import {
@@ -290,10 +423,11 @@ import {
   releaseWizardRecap,
   releaseWizardSourceIsReady,
   RELEASE_WIZARD_STEPS,
+  HOSTED_RELEASE_WIZARD_STEPS,
   type ReleaseWizardStep,
 } from "./ReleaseFlowWizard-state";
 
-const props = defineProps<{ visible: boolean; projectId: string }>();
+const props = defineProps<{ visible: boolean; projectId?: string }>();
 const emit = defineEmits<{
   "update:visible": [value: boolean];
   create: [flow: ReleaseConfig];
@@ -301,6 +435,7 @@ const emit = defineEmits<{
 const api = useAPI();
 const appStore = useAppStore();
 const { isReady } = useAgentAvailability();
+const isHostedBrowser = uiRuntimeMode === "hosted";
 const catalogLoading = ref(false);
 const catalogError = ref("");
 let catalogRequest = 0;
@@ -314,31 +449,52 @@ const visible = computed({
 const stepLabels: Record<ReleaseWizardStep, string> = {
   details: "Name & description",
   source: "Source & project path",
+  builds: "Builds",
   destinations: "Destinations",
   recap: "Recap",
 };
-const steps = RELEASE_WIZARD_STEPS.map((value, index) => ({
+const activeSteps = isHostedBrowser ? HOSTED_RELEASE_WIZARD_STEPS : RELEASE_WIZARD_STEPS;
+const steps = activeSteps.map((value, index) => ({
   value,
   label: stepLabels[value],
   number: `0${index + 1}`,
 }));
 const step = ref<ReleaseWizardStep>("details");
 const workflowId = ref("");
-const catalog = ref<ReleaseCatalog>({
-  buildTypes: [],
-  sources: [],
-  producers: [],
-  destinations: [],
-});
+const catalog = computed(() => appStore.releaseCatalog);
 const draft = ref(createReleaseWizardDraft());
 const sourceDefinition = computed(() =>
   catalog.value.sources.find((source) => source.id === draft.value.source.provider),
 );
+const buildProducers = computed(() =>
+  catalog.value.producers.filter(
+    (producer) =>
+      producer.planning.mode === "build" &&
+      producer.targets.some((target) => Boolean(target.buildType)),
+  ),
+);
+const selectedBuild = computed(() => draft.value.builds[0]);
+const selectedBuildProducer = computed(() =>
+  buildProducers.value.find((producer) => producer.id === selectedBuild.value?.engine),
+);
+const selectedBuildTarget = computed(() =>
+  selectedBuildProducer.value?.targets.find(
+    (target) => target.id === selectedBuild.value?.targets[0]?.id,
+  ),
+);
 const canContinueDetails = computed(() => releaseWizardCanContinueDetails(draft.value));
 const canContinueSource = computed(() =>
-  releaseWizardSourceIsReady(draft.value.source, catalog.value),
+  isHostedBrowser
+    ? Boolean(draft.value.source.provider)
+    : releaseWizardSourceIsReady(draft.value.source, catalog.value),
 );
-const canContinueDestinations = computed(() => releaseWizardCanReview(draft.value, catalog.value));
+const canContinueDestinations = computed(() =>
+  isHostedBrowser
+    ? Boolean(
+        draft.value.name.trim() && draft.value.source.provider && draft.value.destinations.length,
+      )
+    : releaseWizardCanReview(draft.value, catalog.value),
+);
 const recap = computed(() => releaseWizardRecap(draft.value, catalog.value));
 const providerIconClass = (icon?: IconType) => {
   if (icon?.type !== "icon") return "mdi mdi-puzzle-outline";
@@ -393,8 +549,57 @@ const toggleDestination = (provider: string) => {
     if (destination) draft.value.destinations.push(destination);
   }
 };
+const selectedDestination = (provider: string) =>
+  draft.value.destinations.find((item) => item.provider === provider);
 const setSourceField = (key: string, value: unknown) => {
   draft.value.source.config[key] = value;
+};
+const chooseBuildProducer = (producerId: string) => {
+  const producer = buildProducers.value.find((candidate) => candidate.id === producerId);
+  const target = producer?.targets.find((candidate) => candidate.buildType);
+  if (!producer || !target?.buildType) return;
+  const existing = selectedBuild.value;
+  draft.value.builds = [
+    {
+      id: existing?.id || nanoid(),
+      type: target.buildType,
+      engine: producer.id,
+      enabled: true,
+      config: structuredClone(toRaw(producer.defaultConfig)),
+      targets: [
+        {
+          id: target.id,
+          enabled: true,
+          config: structuredClone(toRaw(target.defaultConfig)),
+        },
+      ],
+    },
+  ];
+};
+const chooseBuildTarget = (targetId: string) => {
+  const target = selectedBuildProducer.value?.targets.find(
+    (candidate) => candidate.id === targetId,
+  );
+  if (!target?.buildType || !selectedBuild.value) return;
+  selectedBuild.value.type = target.buildType;
+  selectedBuild.value.targets = [
+    {
+      id: target.id,
+      enabled: true,
+      config: structuredClone(toRaw(target.defaultConfig)),
+    },
+  ];
+};
+const setBuildField = (key: string, value: unknown) => {
+  if (selectedBuild.value) selectedBuild.value.config[key] = value;
+};
+const setBuildTargetField = (key: string, value: unknown) => {
+  const target = selectedBuild.value?.targets[0];
+  if (target) target.config[key] = value;
+};
+const setDestinationField = (provider: string, key: string, value: unknown) => {
+  const destination = selectedDestination(provider);
+  if (destination) destination.config[key] = value;
 };
 const invalidateCreateRequest = () => {
   createRequest++;
@@ -405,10 +610,11 @@ onBeforeUnmount(() => {
   invalidateCreateRequest();
 });
 const create = async () => {
-  if (!isReady.value || !canContinueDestinations.value || createPending.value) return;
+  const projectId = props.projectId;
+  if (!isReady.value || !projectId || !canContinueDestinations.value || createPending.value) return;
   const requestId = ++createRequest;
   const isCurrent = () => requestId === createRequest;
-  const config = buildReleaseWizardConfig(toRaw(draft.value), props.projectId, workflowId.value);
+  const config = buildReleaseWizardConfig(toRaw(draft.value), projectId, workflowId.value);
   createPending.value = true;
   createError.value = "";
 
@@ -427,15 +633,15 @@ const create = async () => {
   }
 };
 const loadCatalog = async () => {
-  if (!isReady.value || !props.visible) return;
+  if (!props.visible) return;
+  catalogError.value = "";
+  if (!isReady.value) return;
   const requestId = ++catalogRequest;
   catalogLoading.value = true;
   catalogError.value = "";
   try {
-    const result = await api.execute("release:catalog:get");
+    await appStore.loadReleaseCatalog();
     if (requestId !== catalogRequest || !props.visible || !isReady.value) return;
-    if (result.type === "error") throw new Error(result.ipcError);
-    catalog.value = result.result;
   } catch (error) {
     if (requestId === catalogRequest)
       catalogError.value =
@@ -613,6 +819,15 @@ watch(
 .destination-list {
   display: grid;
   gap: 8px;
+}
+.destination-option {
+  display: grid;
+  gap: 8px;
+}
+.destination-fields {
+  display: grid;
+  gap: 8px;
+  padding: 0 12px 12px;
 }
 .destination-row {
   display: flex;

@@ -449,6 +449,20 @@ describe("release flow model", () => {
     expect(switched?.targets.every((target) => !target.enabled)).toBe(true);
   });
 
+  it("round-trips unrecognized build settings when changing engines", () => {
+    const build = {
+      ...createBuildProfile(catalog, "desktop", "engine-a", "desktop-one")!,
+      config: { preset: "custom", futureProviderSetting: { retained: true } },
+    };
+
+    const switched = switchBuildProfileEngine(catalog, build, "engine-b");
+
+    expect(switched?.config).toEqual({
+      preset: "custom",
+      futureProviderSetting: { retained: true },
+    });
+  });
+
   it("keeps unavailable targets visible but never enables them by default", () => {
     const catalogWithUnavailableTarget: ReleaseCatalog = {
       ...catalog,
@@ -486,6 +500,34 @@ describe("release flow model", () => {
     ).toBe(true);
     expect(setBuildTargetEnabled(build, "windows", true, windows.availability)).toBe(false);
     expect(build.targets.find((target) => target.id === "windows")?.enabled).toBe(false);
+  });
+
+  it("treats static target availability as unknown until the agent inspects the host", () => {
+    const target = {
+      ...catalog.producers[0].targets[0],
+      availabilityStatus: "unknown" as const,
+    };
+
+    expect(buildTargetIsAvailable(target)).toBe(false);
+    expect(buildTargetAvailabilityReason(target)).toBe("Requires agent to check availability.");
+    expect(
+      setBuildTargetEnabled(
+        { ...createBuildProfile(catalog, "desktop", "engine-a", "unknown-target")! },
+        target.id,
+        true,
+        undefined,
+        target.availabilityStatus,
+      ),
+    ).toBe(false);
+    expect(
+      createBuildProfile(
+        { ...catalog, producers: [{ ...catalog.producers[0], targets: [target] }] },
+        "desktop",
+        "engine-a",
+        "unknown-target",
+        [target.id],
+      )?.targets[0].enabled,
+    ).toBe(false);
   });
 
   it("lists source and build output consumers with destination, slot, and downstream build labels", () => {

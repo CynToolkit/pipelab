@@ -29,6 +29,14 @@ Compatibility depends on the artifact type, destination, selected target, and
 host. The [provider catalog](/guide/integrations/) links to the exact inputs,
 credentials, tools, and target limitations for each provider.
 
+The browser package includes the built-in provider fields and safe defaults, so
+an open workflow draft can still show and edit them while the agent is
+disconnected. Fields that need host inspection and build targets whose
+availability cannot be checked are marked as requiring the agent. Static
+required-field hints do not resolve defaults, plan the workflow, or establish
+that it is ready to ship; those checks and creating or saving a workflow still
+require the agent.
+
 ## Workflow sections
 
 The workflow editor has four sections: **Configuration**, **Builds**,
@@ -100,3 +108,8 @@ covers the run list, artifacts, and detail view.
 Release workflows are not scheduled by Pipelab's current workflow format. The
 workflow runs when you choose **Ship** in the editor or invoke it through the
 CLI.
+
+In hosted mode, the new-workflow wizard also lets you inspect and edit packaged
+source, build, and destination fields in a browser-only draft. File paths and
+dynamic provider options are not validated there; connect a Pipelab agent for
+inspection, runtime readiness, saving, and execution.

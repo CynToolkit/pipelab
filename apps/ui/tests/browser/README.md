@@ -34,3 +34,19 @@ UI_BASE_URL=http://127.0.0.1:5183 CHROMIUM_PATH=/usr/bin/chromium \
 The journey verifies that hosted navigation and browser preferences work
 without app WebSocket connections, including when browser storage rejects a
 preference change.
+
+## Hosted provider specifications
+
+Start the UI with `VITE_PIPELAB_MODE=hosted` and no local agent, then run:
+
+```sh
+UI_BASE_URL=http://127.0.0.1:5175 \
+CHROMIUM_PATH=/usr/bin/chromium \
+node apps/ui/tests/browser/hosted-provider-specs.cjs
+```
+
+This journey opens the real new-workflow wizard, reads packaged source, build,
+and destination choices, and edits their fields in the browser-only draft. It
+asserts hosted mode opens no agent WebSocket and does not depend on a mocked
+`release:catalog:get` response. Creating the workflow stays unavailable until
+an agent can validate and save the draft.

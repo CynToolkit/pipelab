@@ -2,7 +2,16 @@ import { defineStore } from "pinia";
 import { ref, watch } from "vue";
 import { useAPI } from "@renderer/composables/api";
 import { useAgentAvailability } from "@renderer/composables/useAgentAvailability";
-import { RendererProviderMetadata, useLogger, transformUrl, ReleaseChannel } from "@pipelab/shared";
+import {
+  mergeReleaseCatalog,
+  type ReleaseCatalog,
+  type ReleaseChannel,
+  type RendererProviderMetadata,
+  useLogger,
+  transformUrl,
+} from "@pipelab/shared";
+import type { IntegrationDefinition } from "@pipelab/shared";
+import browserProviderSpecs from "@renderer/generated/release-provider-specs";
 
 const transformProviderUrls = (provider: RendererProviderMetadata): RendererProviderMetadata => {
   const transformedIcon =
@@ -14,25 +23,77 @@ const transformProviderUrls = (provider: RendererProviderMetadata): RendererProv
       : provider.icon;
 
   return {
-    ...provider,
+    id: provider.id,
+    name: provider.name,
     icon: transformedIcon,
+    description: provider.description,
+    isOfficial: provider.isOfficial,
+    packageName: provider.packageName,
+    integrations: provider.integrations,
   };
+};
+
+const mergeProviderMetadata = (
+  bundled: RendererProviderMetadata[],
+  runtime: RendererProviderMetadata[],
+): RendererProviderMetadata[] => {
+  const bundledById = new Map(bundled.map((provider) => [provider.id, provider]));
+  const runtimeIds = new Set(runtime.map((provider) => provider.id));
+  return [
+    ...runtime.map((provider) => {
+      const base = bundledById.get(provider.id);
+      if (!base) return transformProviderUrls(provider);
+      return {
+        ...base,
+        integrations: mergeIntegrations(base.integrations ?? [], provider.integrations ?? []),
+      };
+    }),
+    ...bundled.filter((provider) => !runtimeIds.has(provider.id)),
+  ];
+};
+
+const mergeIntegrations = (
+  bundled: IntegrationDefinition[],
+  runtime: IntegrationDefinition[],
+): IntegrationDefinition[] => {
+  const bundledByName = new Map(bundled.map((integration) => [integration.name, integration]));
+  const runtimeNames = new Set(runtime.map((integration) => integration.name));
+  return [
+    ...runtime.map((integration) => {
+      const base = bundledByName.get(integration.name);
+      if (!base) return integration;
+      const bundledFields = new Map(base.fields.map((field) => [field.key, field]));
+      const runtimeKeys = new Set(integration.fields.map((field) => field.key));
+      return {
+        ...integration,
+        ...base,
+        fields: [
+          ...integration.fields.map((field) => bundledFields.get(field.key) ?? field),
+          ...base.fields.filter((field) => !runtimeKeys.has(field.key)),
+        ],
+      };
+    }),
+    ...bundled.filter((integration) => !runtimeNames.has(integration.name)),
+  ];
 };
 
 export const useAppStore = defineStore("app", () => {
   const { logger } = useLogger();
 
   /** Built-in provider metadata */
-  const providerDefinitions = ref<Array<RendererProviderMetadata>>([]);
+  const bundledProviders: RendererProviderMetadata[] = browserProviderSpecs.providers;
+  const providerDefinitions = ref<Array<RendererProviderMetadata>>([...bundledProviders]);
+  const releaseCatalog = ref<ReleaseCatalog>(browserProviderSpecs.catalog);
 
   const channel = ref<ReleaseChannel>("stable");
   const version = ref<string>("");
   const runtimeStatus = ref<"idle" | "loading" | "ready" | "error">("idle");
   const runtimeError = ref<string>();
-  const providerStatus = ref<"idle" | "loading" | "ready" | "error">("idle");
+  const providerStatus = ref<"idle" | "loading" | "ready" | "error">("ready");
   const providerError = ref<string>();
   let runtimePromise: Promise<void> | undefined;
   let providerPromise: Promise<void> | undefined;
+  let catalogPromise: Promise<ReleaseCatalog> | undefined;
 
   const api = useAPI();
   const agent = useAgentAvailability();
@@ -45,8 +106,11 @@ export const useAppStore = defineStore("app", () => {
         generation++;
         runtimePromise = undefined;
         providerPromise = undefined;
+        catalogPromise = undefined;
+        releaseCatalog.value = browserProviderSpecs.catalog;
         runtimeStatus.value = "idle";
-        providerStatus.value = "idle";
+        providerDefinitions.value = [...bundledProviders];
+        providerStatus.value = "ready";
       }
     },
     { flush: "sync" },
@@ -80,8 +144,9 @@ export const useAppStore = defineStore("app", () => {
   };
 
   const loadProviderDefinitions = () => {
-    if (!agent.isReady.value) return Promise.reject(new Error("Agent is not ready"));
-    if (providerStatus.value === "ready") return Promise.resolve();
+    if (!agent.isReady.value) return Promise.resolve();
+    if (providerStatus.value === "ready" && providerAgentGeneration === generation)
+      return Promise.resolve();
     if (providerPromise) return providerPromise;
     providerStatus.value = "loading";
     providerError.value = undefined;
@@ -92,13 +157,9 @@ export const useAppStore = defineStore("app", () => {
         if (requestGeneration !== generation || !agent.isReady.value) return;
         if (result.type === "error") throw new Error(result.ipcError);
         const { providers } = result.result;
-        try {
-          providerDefinitions.value = providers.map(transformProviderUrls);
-        } catch (error) {
-          logger().error("Failed to transform provider URLs:", error);
-          providerDefinitions.value = providers;
-        }
+        providerDefinitions.value = mergeProviderMetadata(bundledProviders, providers);
         providerStatus.value = "ready";
+        providerAgentGeneration = generation;
       } catch (error) {
         if (requestGeneration !== generation) return;
         providerError.value = error instanceof Error ? error.message : String(error);
@@ -109,6 +170,30 @@ export const useAppStore = defineStore("app", () => {
       }
     })();
     return providerPromise;
+  };
+
+  let providerAgentGeneration = -1;
+  const loadReleaseCatalog = () => {
+    if (!agent.isReady.value) return Promise.resolve(browserProviderSpecs.catalog);
+    if (catalogPromise) return catalogPromise;
+    const requestGeneration = generation;
+    catalogPromise = (async () => {
+      try {
+        const result = await api.execute("release:catalog:get");
+        if (result.type === "error") throw new Error(result.ipcError);
+        if (requestGeneration !== generation || !agent.isReady.value)
+          return browserProviderSpecs.catalog;
+        releaseCatalog.value = mergeReleaseCatalog(browserProviderSpecs.catalog, result.result);
+        return releaseCatalog.value;
+      } catch (error) {
+        if (requestGeneration === generation)
+          logger().warn("Failed to load runtime Release catalog:", error);
+        throw error;
+      } finally {
+        if (requestGeneration === generation) catalogPromise = undefined;
+      }
+    })();
+    return catalogPromise;
   };
 
   const init = () =>
@@ -128,8 +213,10 @@ export const useAppStore = defineStore("app", () => {
     init,
     loadRuntimeInfo,
     loadProviderDefinitions,
+    loadReleaseCatalog,
 
     providerDefinitions,
+    releaseCatalog,
     channel,
     version,
     runtimeStatus,

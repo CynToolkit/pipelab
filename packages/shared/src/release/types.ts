@@ -1,5 +1,5 @@
 import type { ArtifactDescriptor, WorkflowStep } from "@pipelab/workflow-runtime";
-import type { IconType } from "../plugins/definitions";
+import type { IconType, RendererProviderMetadata } from "../plugins/definitions";
 
 export type { ArtifactDescriptor, ArtifactKind } from "@pipelab/workflow-runtime";
 
@@ -295,6 +295,7 @@ export interface ReleaseCatalogTarget {
   defaultConfig: Record<string, unknown>;
   fields?: ReleaseFieldDefinition[];
   availability?: Availability;
+  availabilityStatus?: "unknown";
 }
 
 export interface ReleaseCatalogSource {
@@ -305,6 +306,7 @@ export interface ReleaseCatalogSource {
   fields?: ReleaseFieldDefinition[];
   output: ArtifactDescriptor;
   defaultConfig: Record<string, unknown>;
+  requiresAgentInspection?: boolean;
 }
 
 export interface ReleaseCatalogProducer {
@@ -317,6 +319,7 @@ export interface ReleaseCatalogProducer {
   planning: ReleaseProducerPlanning;
   defaultConfig: Record<string, unknown>;
   targets: ReleaseCatalogTarget[];
+  requiresAgentInspection?: boolean;
 }
 
 export interface ReleaseCatalogDestination {
@@ -335,6 +338,15 @@ export interface ReleaseCatalog {
   sources: ReleaseCatalogSource[];
   producers: ReleaseCatalogProducer[];
   destinations: ReleaseCatalogDestination[];
+}
+
+export const BROWSER_PROVIDER_SPECS_SCHEMA_VERSION = 1 as const;
+
+export interface BrowserProviderSpecs {
+  schemaVersion: typeof BROWSER_PROVIDER_SPECS_SCHEMA_VERSION;
+  releaseConfigVersion: typeof RELEASE_CONFIG_VERSION;
+  catalog: ReleaseCatalog;
+  providers: Array<Omit<RendererProviderMetadata, "release">>;
 }
 
 export interface PlannedReleaseOutput {

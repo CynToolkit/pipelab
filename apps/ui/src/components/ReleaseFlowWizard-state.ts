@@ -5,14 +5,22 @@ export interface ReleaseWizardDraft {
   name: string;
   description: string;
   source: ReleaseConfig["source"];
+  builds: ReleaseConfig["builds"];
   destinations: ReleaseConfig["destinations"];
 }
 
-export type ReleaseWizardStep = "details" | "source" | "destinations" | "recap";
+export type ReleaseWizardStep = "details" | "source" | "builds" | "destinations" | "recap";
 
 export const RELEASE_WIZARD_STEPS: ReleaseWizardStep[] = [
   "details",
   "source",
+  "destinations",
+  "recap",
+];
+export const HOSTED_RELEASE_WIZARD_STEPS: ReleaseWizardStep[] = [
+  "details",
+  "source",
+  "builds",
   "destinations",
   "recap",
 ];
@@ -21,17 +29,24 @@ export const createReleaseWizardDraft = (): ReleaseWizardDraft => ({
   name: "",
   description: "",
   source: { provider: "", config: {} },
+  builds: [],
   destinations: [],
 });
 
-export const releaseWizardNextStep = (step: ReleaseWizardStep): ReleaseWizardStep => {
-  const currentIndex = RELEASE_WIZARD_STEPS.indexOf(step);
-  return RELEASE_WIZARD_STEPS[Math.min(currentIndex + 1, RELEASE_WIZARD_STEPS.length - 1)];
+export const releaseWizardNextStep = (
+  step: ReleaseWizardStep,
+  steps: ReleaseWizardStep[] = RELEASE_WIZARD_STEPS,
+): ReleaseWizardStep => {
+  const currentIndex = steps.indexOf(step);
+  return steps[Math.min(currentIndex + 1, steps.length - 1)];
 };
 
-export const releaseWizardPreviousStep = (step: ReleaseWizardStep): ReleaseWizardStep => {
-  const currentIndex = RELEASE_WIZARD_STEPS.indexOf(step);
-  return RELEASE_WIZARD_STEPS[Math.max(currentIndex - 1, 0)];
+export const releaseWizardPreviousStep = (
+  step: ReleaseWizardStep,
+  steps: ReleaseWizardStep[] = RELEASE_WIZARD_STEPS,
+): ReleaseWizardStep => {
+  const currentIndex = steps.indexOf(step);
+  return steps[Math.max(currentIndex - 1, 0)];
 };
 
 export const releaseWizardCanContinueDetails = (draft: ReleaseWizardDraft) =>
@@ -83,16 +98,20 @@ export const buildReleaseWizardConfig = (
   draft: ReleaseWizardDraft,
   projectId: string,
   workflowId: string,
-): ReleaseConfig => ({
-  ...createReleaseConfig({
+): ReleaseConfig => {
+  const config = createReleaseConfig({
     id: workflowId,
     project: projectId,
     name: draft.name.trim(),
     description: draft.description.trim() || undefined,
     source: structuredClone(draft.source),
-  }),
-  destinations: structuredClone(draft.destinations),
-});
+  });
+  return {
+    ...config,
+    builds: structuredClone(draft.builds),
+    destinations: structuredClone(draft.destinations),
+  };
+};
 
 export const releaseWizardRecap = (draft: ReleaseWizardDraft, catalog: ReleaseCatalog) => {
   const source = catalog.sources.find((candidate) => candidate.id === draft.source.provider);
