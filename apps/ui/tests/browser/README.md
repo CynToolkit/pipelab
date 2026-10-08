@@ -34,3 +34,29 @@ UI_BASE_URL=http://127.0.0.1:5183 CHROMIUM_PATH=/usr/bin/chromium \
 The journey verifies that hosted navigation and browser preferences work
 without app WebSocket connections, including when browser storage rejects a
 preference change.
+
+## Local hosted auth
+
+Run against a local Supabase stack with email confirmations disabled. Start the
+UI in a separate terminal; this exports only the local API URL and anon key to
+the UI process, not the local service-role key:
+
+```sh
+eval "$(supabase status -o env)"
+SUPABASE_URL="$API_URL" SUPABASE_ANON_KEY="$ANON_KEY" VITE_PIPELAB_MODE=hosted \
+  pnpm --filter @pipelab/ui dev --host 127.0.0.1 --port 5185
+```
+
+Then run the browser journey:
+
+```sh
+SUPABASE_URL=http://127.0.0.1:54321 \
+UI_BASE_URL=http://127.0.0.1:5185 \
+CHROMIUM_PATH=/usr/bin/chromium \
+node apps/ui/tests/browser/hosted-auth-local.cjs
+```
+
+It creates a throwaway local auth user and verifies signup, session restore
+after refresh, sign-out, and sign-in without an agent WebSocket. It does not
+verify email-confirmation delivery or billing; those require the hosted
+nonproduction acceptance environment.
