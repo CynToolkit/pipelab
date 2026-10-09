@@ -32,6 +32,12 @@ async function main() {
     await page.getByRole("link", { name: "Workflows", exact: true }).click();
     await page.waitForURL("**/workflows");
     await page.getByRole("heading", { name: "Your workflows", exact: true }).waitFor();
+    assert.match(
+      await page.locator(".inline-state").textContent(),
+      /unavailable while the engine is disconnected/i,
+    );
+    assert.equal(await page.getByRole("button", { name: "New workflow" }).isDisabled(), true);
+    assert.equal(await page.getByRole("button", { name: "Import" }).isDisabled(), true);
     assert.equal(
       await page.getByRole("heading", { name: "Project overview", exact: true }).count(),
       0,
