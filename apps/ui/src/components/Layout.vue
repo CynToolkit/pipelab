@@ -58,11 +58,11 @@
         <div
           v-if="!isElectron || !isReady"
           class="sidebar-status-item"
-          :class="isHostedMode ? 'hosted' : connectionState"
+          :class="connectionState"
           v-tooltip.right="isSidebarCollapsed ? connectionText : undefined"
         >
-          <span class="status-dot" :class="isHostedMode ? 'hosted' : connectionState" />
-          <i class="mdi nav-icon" :class="isHostedMode ? 'mdi-web' : connectionIcon" />
+          <span class="status-dot" :class="connectionState" />
+          <i class="mdi nav-icon" :class="connectionIcon" />
           <span v-show="!isSidebarCollapsed" class="status-text">{{ connectionText }}</span>
         </div>
 
@@ -194,17 +194,13 @@
           v-tooltip.right="isSidebarCollapsed ? 'Login / Register' : undefined"
           @click="auth.displayAuthModal()"
           :disabled="!isReady || auth.authState === 'INITIALIZING' || auth.authState === 'LOADING'"
-          :title="
-            isHostedMode
-              ? 'Browser sign-in will be available in a later update.'
-              : 'Connect an agent to sign in.'
-          "
+          :title="isReady ? undefined : 'Connect an agent to sign in.'"
         >
           <i class="mdi mdi-login nav-icon" />
           <span v-show="!isSidebarCollapsed" class="nav-label">Login / Register</span>
         </button>
-        <p v-if="isHostedMode && !user" class="hosted-account-note">
-          Browser sign-in is not available yet.
+        <p v-if="isBrowser && !user && !auth.hasLoginProvider" class="hosted-account-note">
+          Browser sign-in requires a connected agent.
         </p>
       </div>
     </aside>
@@ -214,7 +210,7 @@
       <div v-if="!isReady" class="agent-notice" role="status" aria-live="polite">
         <span>{{ agentNotice }}</span>
         <Button
-          v-if="!isHostedMode && agentStatus === 'offline'"
+          v-if="!isBrowser && agentStatus === 'offline'"
           label="Reconnect"
           text
           size="small"
@@ -229,7 +225,7 @@
     </div>
 
     <!-- Auth Dialog (Login / Register / Forgot Password) -->
-    <AuthDialog v-if="hasOpenedAuthDialog && !isHostedMode" />
+    <AuthDialog v-if="hasOpenedAuthDialog" />
 
     <!-- Settings Dialog -->
     <Dialog
@@ -254,7 +250,7 @@ import { ref, computed, inject, watch, onUnmounted, defineAsyncComponent } from 
 import { useAuth } from "@renderer/store/auth";
 import { OpenUpgradeDialogKey } from "../utils/injection-keys";
 import { useShell } from "@renderer/composables/use-shell";
-import { uiRuntimeMode } from "@renderer/composables/ui-runtime";
+import { uiEnvironment } from "@renderer/composables/ui-runtime";
 interface MenuItem {
   label?: string;
   icon?: string;
@@ -288,11 +284,9 @@ const AuthDialog = defineAsyncComponent(() => import("@renderer/components/AuthD
 const { logger } = useLogger();
 const shell = useShell();
 const { isReady, status: agentStatus, reconnect } = useAgentAvailability();
-const isHostedMode = uiRuntimeMode === "hosted";
+const isBrowser = uiEnvironment === "browser";
 const appStore = useAppStore();
 const agentNotice = computed(() => {
-  if (isHostedMode)
-    return "Hosted mode is ready. Local workflows, machine settings, and execution need a connected Desktop agent.";
   if (agentStatus.value === "offline")
     return "No agent connected. Your data and actions will be available when it reconnects.";
   if (agentStatus.value === "starting")
@@ -372,7 +366,6 @@ const connectionIcon = computed(() => {
 });
 
 const connectionText = computed(() => {
-  if (isHostedMode) return "Hosted browser";
   switch (connectionState.value) {
     case "connected":
       return "Connected";

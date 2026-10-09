@@ -33,16 +33,18 @@ pnpm build      # Generates the production assets in the /dist folder
 > [!NOTE]
 > During development, the UI expects the `@pipelab/cli` to be running separately (via `pnpm dev` at the root).
 
-### Hosted browser mode
+### Browser startup without an agent
 
-Select hosted mode explicitly for a standalone browser deployment:
+Select the hosted startup policy for a standalone browser deployment:
 
 ```bash
 VITE_PIPELAB_MODE=hosted pnpm --filter @pipelab/ui build
 ```
 
-The hosted build does not try to connect to an agent and keeps navigation and
-browser preferences available without one. Local workflows, machine settings,
-and execution still require the Desktop agent. A browser build without this
-flag remains agent-capable for local and remote development; Electron always
-uses Desktop mode even if the flag is present.
+The hosted startup policy skips agent discovery and keeps navigation and
+browser preferences available without an agent. It only controls startup:
+after secure pairing is available, the browser can attach an agent in the same
+session, and agent-backed capabilities follow the live connection state.
+Local workflows, machine settings, and execution require a connected agent. A
+browser build without this flag attempts agent discovery on startup; Electron
+always attempts startup connection even if the flag is present.

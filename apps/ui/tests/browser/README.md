@@ -32,5 +32,8 @@ UI_BASE_URL=http://127.0.0.1:5183 CHROMIUM_PATH=/usr/bin/chromium \
 ```
 
 The journey verifies that hosted navigation and browser preferences work
-without app WebSocket connections, including when browser storage rejects a
-preference change.
+without app WebSocket connections, confirms the selected locale is rendered
+after changing it and after reload, and checks that agent-backed guide reset is
+disabled while detached. It also covers browser storage rejecting a preference
+change. Hosted mode controls startup discovery only; a later paired attach can
+connect an agent without rebuilding or reloading.

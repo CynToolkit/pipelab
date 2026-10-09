@@ -1,19 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { getUiRuntimeMode, shouldStartAgentConnection } from "./ui-runtime";
+import { getUiEnvironment, shouldAutoConnectAgentOnStartup } from "./ui-runtime";
 
-describe("UI runtime mode", () => {
-  it("uses hosted mode only when the build explicitly selects it", () => {
-    expect(getUiRuntimeMode(false, "hosted")).toBe("hosted");
-    expect(getUiRuntimeMode(false, undefined)).toBe("agent");
+describe("UI runtime environment and startup policy", () => {
+  it("detects browser and desktop environments independently of startup policy", () => {
+    expect(getUiEnvironment(false)).toBe("browser");
+    expect(getUiEnvironment(true)).toBe("desktop");
   });
 
-  it("keeps Electron in desktop mode even if the hosted build flag is present", () => {
-    expect(getUiRuntimeMode(true, "hosted")).toBe("desktop");
-  });
-
-  it("starts an agent connection in desktop and agent-capable browser modes only", () => {
-    expect(shouldStartAgentConnection("desktop")).toBe(true);
-    expect(shouldStartAgentConnection("agent")).toBe(true);
-    expect(shouldStartAgentConnection("hosted")).toBe(false);
+  it("uses configuration only to control automatic startup, never explicit browser attachment", () => {
+    expect(shouldAutoConnectAgentOnStartup("browser", "hosted")).toBe(false);
+    expect(shouldAutoConnectAgentOnStartup("browser", undefined)).toBe(true);
+    expect(shouldAutoConnectAgentOnStartup("desktop", "hosted")).toBe(true);
   });
 });

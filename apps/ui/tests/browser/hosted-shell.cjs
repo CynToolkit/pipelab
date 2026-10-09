@@ -24,8 +24,8 @@ async function main() {
     const loginButton = page.locator("button.login-btn");
     if ((await loginButton.count()) > 0) assert.equal(await loginButton.isDisabled(), true);
     assert.match(
-      await page.getByText("Browser sign-in is not available yet.").textContent(),
-      /not available yet/,
+      await page.getByText("Browser sign-in requires a connected agent.").textContent(),
+      /requires a connected agent/,
     );
     assert.equal(websocketUrls.length, 0, `expected no agent sockets, saw ${websocketUrls.length}`);
 
@@ -39,6 +39,10 @@ async function main() {
     );
 
     await page.getByRole("button", { name: "Settings" }).click();
+    assert.equal(await page.locator(".section-header h3").textContent(), "General");
+    const restartTour = page.getByRole("button", { name: "Reset Dashboard Guide" });
+    assert.equal(await restartTour.isDisabled(), true);
+    assert.match(await restartTour.getAttribute("title"), /connect an agent/i);
     await page.getByLabel("Toggle dark mode").click();
     assert.equal(
       await page.locator("html").evaluate((element) => element.classList.contains("dark")),
@@ -47,6 +51,7 @@ async function main() {
     await page.locator("#language-select").click();
     await page.locator('[role="option"][aria-label="fr-FR"]').click();
     assert.equal(await page.locator("#language-select").getAttribute("aria-label"), "fr-FR");
+    assert.equal(await page.locator(".section-header h3").textContent(), "Général");
     await page.reload();
     assert.equal(
       await page.locator("html").evaluate((element) => element.classList.contains("dark")),
@@ -59,6 +64,7 @@ async function main() {
     );
     await page.getByRole("button", { name: "Settings" }).click();
     assert.equal(await page.locator("#language-select").getAttribute("aria-label"), "fr-FR");
+    assert.equal(await page.locator(".section-header h3").textContent(), "Général");
 
     const restrictedContext = await browser.newContext();
     await restrictedContext.addInitScript(() => {

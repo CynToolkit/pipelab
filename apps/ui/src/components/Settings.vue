@@ -1,6 +1,6 @@
 <template>
   <div
-    v-if="!settingsLoaded && !isHostedMode"
+    v-if="!settingsLoaded && !isBrowser"
     class="settings-loading"
     role="status"
     aria-live="polite"
@@ -14,7 +14,7 @@
     </p>
     <Button v-if="isReady && settingsStatus === 'error'" label="Retry" text @click="loadSettings" />
   </div>
-  <div v-else class="settings-container" :inert="!isHostedMode && !isReady">
+  <div v-else class="settings-container" :inert="!isBrowser && !isReady">
     <!-- Left Sidebar -->
     <div class="settings-sidebar">
       <!-- Options Group -->
@@ -95,7 +95,7 @@
               <label for="app-theme" class="setting-title">{{ t("settings.darkTheme") }}</label>
               <div class="setting-description">
                 {{
-                  isHostedMode
+                  isBrowser
                     ? "Stored in this browser."
                     : "Toggle between light and dark mode for the application interface."
                 }}
@@ -103,11 +103,11 @@
             </div>
             <div class="setting-action">
               <ToggleSwitch
-                :disabled="!isHostedMode && !settingsRef"
+                :disabled="!isBrowser && !settingsRef"
                 aria-label="Toggle dark mode"
                 input-id="app-theme"
                 :model-value="
-                  isHostedMode ? browserPreferences.theme === 'dark' : settingsRef?.theme === 'dark'
+                  isBrowser ? browserPreferences.theme === 'dark' : settingsRef?.theme === 'dark'
                 "
                 @update:model-value="updateTheme"
               />
@@ -121,7 +121,7 @@
               }}</label>
               <div class="setting-description">
                 {{
-                  isHostedMode
+                  isBrowser
                     ? "Stored in this browser."
                     : "Select your preferred language for the application UI."
                 }}
@@ -132,7 +132,7 @@
                 input-id="language-select"
                 v-model="currentLocale"
                 :options="$i18n.availableLocales"
-                :disabled="!isHostedMode && !settingsRef"
+                :disabled="!isBrowser && !settingsRef"
                 class="w-[200px]"
               >
                 <template #option="slotProps">
@@ -160,6 +160,10 @@
                 severity="secondary"
                 size="small"
                 :label="t('settings.restart-dashboard-tour')"
+                :disabled="!canRestartTour"
+                :title="
+                  canRestartTour ? undefined : 'Connect an agent to restart the dashboard guide.'
+                "
                 @click="restartTour"
               >
                 <template #icon>
@@ -794,7 +798,7 @@ import {
   browserPreferences,
   saveBrowserPreference,
 } from "@renderer/composables/browser-preferences";
-import { uiRuntimeMode } from "@renderer/composables/ui-runtime";
+import { uiEnvironment } from "@renderer/composables/ui-runtime";
 
 const { t, locale } = useI18n<{ message: MessageSchema }, Locales>();
 
@@ -805,7 +809,7 @@ const buildHistoryStore = useBuildHistory();
 const api = useAPI();
 const shell = useShell();
 const { isReady } = useAgentAvailability();
-const isHostedMode = uiRuntimeMode === "hosted";
+const isBrowser = uiEnvironment === "browser";
 const currentSection = ref("general");
 const browserPreferenceError = ref("");
 
@@ -895,10 +899,10 @@ watch(
 
 const currentLocale = computed({
   get: () =>
-    isHostedMode ? browserPreferences.locale : (settingsRef.value?.locale as string) || "en-US",
+    isBrowser ? browserPreferences.locale : (settingsRef.value?.locale as string) || "en-US",
   set: (value: string) => {
     browserPreferenceError.value = "";
-    if (isHostedMode) {
+    if (isBrowser) {
       if (!saveBrowserPreference("locale", value as Locales)) {
         browserPreferenceError.value =
           "Browser storage is unavailable. Your language was not changed.";
@@ -914,7 +918,7 @@ const currentLocale = computed({
 
 // Update i18n locale when settings change
 watch(
-  () => settingsRef.value?.locale,
+  () => (isBrowser ? undefined : settingsRef.value?.locale),
   (newLocale) => {
     if (newLocale) {
       locale.value = newLocale;
@@ -925,7 +929,7 @@ watch(
 
 const updateTheme = (value: boolean) => {
   browserPreferenceError.value = "";
-  if (isHostedMode) {
+  if (isBrowser) {
     if (!saveBrowserPreference("theme", value ? "dark" : "light")) {
       browserPreferenceError.value = "Browser storage is unavailable. Your theme was not changed.";
     }
@@ -1034,17 +1038,31 @@ const cleanPackagesCache = () => {
   });
 };
 
-const restartTour = () => {
+const canRestartTour = computed(() => isReady.value && Boolean(settingsRef.value));
+
+const restartTour = async () => {
+  if (!canRestartTour.value || !settingsRef.value) return;
   const tours = { ...settingsRef.value.tours };
-  tours.dashboard = {
-    step: 0,
-    completed: false,
-  };
-  appSettings.updateSettings({
-    ...(toRaw(settingsRef.value) as any),
-    tours,
-  });
-  alert(t("settings.tour-reset-success"));
+  tours.dashboard = { step: 0, completed: false };
+  try {
+    await appSettings.updateSettings({
+      ...(toRaw(settingsRef.value) as any),
+      tours,
+    });
+    toast.add({
+      severity: "success",
+      summary: t("base.success", "Success"),
+      detail: t("settings.tour-reset-success"),
+      life: 3000,
+    });
+  } catch (error) {
+    toast.add({
+      severity: "error",
+      summary: t("base.error", "Error"),
+      detail: error instanceof Error ? error.message : "Unable to restart the dashboard guide.",
+      life: 3000,
+    });
+  }
 };
 
 const toast = useToast();

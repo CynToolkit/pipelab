@@ -38,7 +38,7 @@ import { useAgentAvailability } from "./composables/useAgentAvailability";
 import { useAppSettings } from "./store/settings";
 import { useUIStore } from "./store/ui";
 import { browserPreferences } from "./composables/browser-preferences";
-import { shouldStartAgentConnection, uiRuntimeMode } from "./composables/ui-runtime";
+import { shouldAutoConnectAgent, uiEnvironment } from "./composables/ui-runtime";
 
 const UpgradeDialog = defineAsyncComponent(() => import("./components/UpgradeDialog.vue"));
 const DevBenefitsOverride = defineAsyncComponent(
@@ -77,7 +77,7 @@ provide(OpenUpgradeDialogKey, openUpgradeDialog);
 
 watch(
   () =>
-    uiRuntimeMode === "hosted"
+    uiEnvironment === "browser"
       ? browserPreferences.theme
       : settingsStore.loaded
         ? settingsStore.settings?.theme
@@ -96,7 +96,7 @@ watch(
 );
 
 watch(
-  () => (uiRuntimeMode === "hosted" ? browserPreferences.locale : settingsStore.settings?.locale),
+  () => (uiEnvironment === "browser" ? browserPreferences.locale : settingsStore.settings?.locale),
   (savedLocale) => {
     const supportedLocale = availableLocales.find((available) => available === savedLocale);
     if (supportedLocale) locale.value = supportedLocale;
@@ -184,7 +184,7 @@ handle("log:message", async (event, { value, send }) => {
 });
 
 onMounted(() => {
-  if (shouldStartAgentConnection(uiRuntimeMode)) {
+  if (shouldAutoConnectAgent) {
     start().catch((error) => logger().warn("Unable to connect to Pipelab agent:", error));
   }
 });
