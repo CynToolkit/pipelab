@@ -231,7 +231,10 @@ import Message from "primevue/message";
 import Tag from "primevue/tag";
 import IconField from "primevue/iconfield";
 import InputIcon from "primevue/inputicon";
-import { partitionWorkflowLoads } from "./workflow-load-state";
+import {
+  loadWorkflowEntries,
+  mergeWorkflowLoadState,
+} from "./workflow-load-state";
 import { readableProviderId } from "./workflow-presentation";
 import { getDashboardDisplayState } from "./dashboard-state";
 import { useAgentAvailability } from "@renderer/composables/useAgentAvailability";
@@ -344,16 +347,17 @@ watch(
       return;
     }
     const revision = ++workflowLoadRevision;
+    const requestedProjectId = activeProjectId.value;
     isLoading.value = true;
     const requestedEntries = entries.map((flow) => ({ ...flow }));
     try {
-      const results = await Promise.all(
-        requestedEntries.map((flow) =>
-          api.execute("workflow:load", { workflowId: flow.id, projectId: flow.project }),
-        ),
+      const partitioned = await loadWorkflowEntries(
+        requestedEntries,
+        (flow) => api.execute("workflow:load", { workflowId: flow.id, projectId: flow.project }),
+        () =>
+          revision === workflowLoadRevision && activeProjectId.value === requestedProjectId,
       );
-      if (revision !== workflowLoadRevision) return;
-      const partitioned = partitionWorkflowLoads(requestedEntries, results);
+      if (!partitioned) return;
       workflowsEnhanced.value = partitioned.loaded;
       brokenWorkflows.value = partitioned.broken;
     } catch (error) {
@@ -400,26 +404,18 @@ const retryWorkflowLoad = async (id: string) => {
   const entry = workflows.value.find((flow) => flow.id === id);
   if (!projectId || !entry || entry.project !== projectId) return;
 
-  try {
-    const result = await api.execute("workflow:load", { workflowId: id, projectId });
-    if (activeProjectId.value !== projectId || workflowLoadRevision !== revision) return;
-    const partitioned = partitionWorkflowLoads([entry], [result]);
-    workflowsEnhanced.value = [
-      ...workflowsEnhanced.value.filter((flow) => flow.id !== id),
-      ...partitioned.loaded,
-    ];
-    brokenWorkflows.value = [
-      ...brokenWorkflows.value.filter((flow) => flow.id !== id),
-      ...partitioned.broken,
-    ];
-  } catch (error) {
-    if (activeProjectId.value !== projectId || workflowLoadRevision !== revision) return;
-    brokenWorkflows.value = brokenWorkflows.value.map((flow) =>
-      flow.id === id
-        ? { ...flow, error: error instanceof Error ? error.message : String(error) }
-        : flow,
-    );
-  }
+  const update = await loadWorkflowEntries(
+    [entry],
+    (flow) => api.execute("workflow:load", { workflowId: flow.id, projectId }),
+    () => activeProjectId.value === projectId && workflowLoadRevision === revision,
+  );
+  if (!update) return;
+  const merged = mergeWorkflowLoadState(
+    { loaded: workflowsEnhanced.value, broken: brokenWorkflows.value },
+    update,
+  );
+  workflowsEnhanced.value = merged.loaded;
+  brokenWorkflows.value = merged.broken;
 };
 const sourceDefinition = (id: string) => catalog.value.sources.find((source) => source.id === id);
 const sourceLabel = (id: string) => sourceDefinition(id)?.label || readableProviderId(id);
