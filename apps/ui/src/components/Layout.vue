@@ -181,6 +181,7 @@
             v-tooltip.top="!isSidebarCollapsed ? 'Logout' : undefined"
             @click="logout"
             :disabled="!isReady"
+            :title="isReady ? undefined : 'Reconnect the agent to sign out.'"
           >
             <i class="mdi mdi-logout" />
           </button>
@@ -193,10 +194,14 @@
           v-tooltip.right="isSidebarCollapsed ? 'Login / Register' : undefined"
           @click="auth.displayAuthModal()"
           :disabled="!isReady || auth.authState === 'INITIALIZING' || auth.authState === 'LOADING'"
+          :title="isReady ? undefined : 'Connect an agent to sign in.'"
         >
           <i class="mdi mdi-login nav-icon" />
           <span v-show="!isSidebarCollapsed" class="nav-label">Login / Register</span>
         </button>
+        <p v-if="isBrowser && !user && !auth.hasLoginProvider" class="hosted-account-note">
+          Browser sign-in requires a connected agent.
+        </p>
       </div>
     </aside>
 
@@ -205,7 +210,7 @@
       <div v-if="!isReady" class="agent-notice" role="status" aria-live="polite">
         <span>{{ agentNotice }}</span>
         <Button
-          v-if="agentStatus === 'offline'"
+          v-if="!isBrowser && agentStatus === 'offline'"
           label="Reconnect"
           text
           size="small"
@@ -213,7 +218,7 @@
         />
       </div>
       <main class="layout-content">
-        <div class="route-content" :inert="!isReady">
+        <div class="route-content">
           <slot></slot>
         </div>
       </main>
@@ -245,6 +250,7 @@ import { ref, computed, inject, watch, onUnmounted, defineAsyncComponent } from 
 import { useAuth } from "@renderer/store/auth";
 import { OpenUpgradeDialogKey } from "../utils/injection-keys";
 import { useShell } from "@renderer/composables/use-shell";
+import { uiEnvironment } from "@renderer/composables/ui-runtime";
 interface MenuItem {
   label?: string;
   icon?: string;
@@ -278,14 +284,15 @@ const AuthDialog = defineAsyncComponent(() => import("@renderer/components/AuthD
 const { logger } = useLogger();
 const shell = useShell();
 const { isReady, status: agentStatus, reconnect } = useAgentAvailability();
+const isBrowser = uiEnvironment === "browser";
 const appStore = useAppStore();
-const agentNotice = computed(() =>
-  agentStatus.value === "offline"
-    ? "No agent connected. Your data and actions will be available when it reconnects."
-    : agentStatus.value === "starting"
-      ? "The agent is starting. Data will appear as it becomes available."
-      : "Connecting to the agent…",
-);
+const agentNotice = computed(() => {
+  if (agentStatus.value === "offline")
+    return "No agent connected. Your data and actions will be available when it reconnects.";
+  if (agentStatus.value === "starting")
+    return "The agent is starting. Data will appear as it becomes available.";
+  return "Connecting to the agent…";
+});
 
 const isElectron = !!window.electron;
 
@@ -704,6 +711,11 @@ handle("update:set-status", async (event, { value }) => {
       color: #ef4444;
     }
   }
+  &.hosted {
+    .nav-icon {
+      color: var(--p-text-muted-color);
+    }
+  }
 
   .status-text {
     overflow: hidden;
@@ -937,6 +949,12 @@ handle("update:set-status", async (event, { value }) => {
       }
     }
   }
+}
+
+.hosted-account-note {
+  margin: 0.25rem 0.5rem;
+  color: var(--p-text-muted-color);
+  font-size: 0.7rem;
 }
 
 /* ─── Main Content ──────────────────────────────────────── */

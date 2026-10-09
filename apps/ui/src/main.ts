@@ -23,6 +23,7 @@ import posthog from "posthog-js";
 import { i18n } from "./i18n";
 
 import { websocketManager } from "./composables/websocket-manager";
+import { shouldAutoConnectAgent } from "./composables/ui-runtime";
 import { useLogger } from "@pipelab/shared";
 import Tooltip from "primevue/tooltip";
 
@@ -133,13 +134,16 @@ app.directive("tooltip", Tooltip as any);
 
 const { logger } = useLogger();
 
-// Initialize WebSocket manager in background
-websocketManager.initialize().catch((error) => {
-  logger().warn(
-    "WebSocket manager initialization failed, app will continue without WebSocket:",
-    error,
-  );
-});
+// Hosted browser builds skip discovery at startup. A later explicit paired
+// connection can initialize the manager lazily through useAgentAvailability.
+if (shouldAutoConnectAgent) {
+  websocketManager.initialize().catch((error) => {
+    logger().warn(
+      "WebSocket manager initialization failed, app will continue without WebSocket:",
+      error,
+    );
+  });
+}
 
 app.mount("#app");
 logger().info("App mounted");
