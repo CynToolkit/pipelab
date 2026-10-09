@@ -1,4 +1,5 @@
 import { defineStore } from "pinia";
+import { ref } from "vue";
 import { Draft, create } from "mutative";
 import { klona } from "klona";
 import { FileRepo, ReleaseConfig } from "@pipelab/shared";
@@ -8,6 +9,11 @@ import { useProjectsConfig } from "@renderer/composables/useConfig";
 export const useFiles = defineStore("files", () => {
   const api = useAPI();
   const { data: files, load, save, status, error, loaded } = useProjectsConfig();
+  const selectedProjectId = ref<string>();
+
+  const selectProject = (id: string | undefined) => {
+    selectedProjectId.value = id;
+  };
 
   const update = async (callback: (state: Draft<FileRepo>) => void) => {
     const next = create(klona(files.value), callback);
@@ -50,6 +56,8 @@ export const useFiles = defineStore("files", () => {
     status,
     error,
     loaded,
+    selectedProjectId,
+    selectProject,
 
     load,
     update,

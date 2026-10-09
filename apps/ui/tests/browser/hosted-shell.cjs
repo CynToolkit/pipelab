@@ -26,8 +26,7 @@ async function main() {
       1,
     );
     assert.equal(await page.getByRole("heading", { name: "Workflows", exact: true }).count(), 1);
-    assert.equal(await page.getByRole("combobox", { name: "Select project" }).isDisabled(), true);
-    assert.equal(await page.getByRole("button", { name: "New project" }).isDisabled(), true);
+    assert.equal(await page.getByRole("combobox", { name: "Select Project" }).isDisabled(), true);
     assert.equal(await page.getByRole("button", { name: "Project actions" }).isDisabled(), true);
     assert.equal(await page.getByRole("navigation", { name: "Main navigation" }).count(), 1);
     const sidebarToggle = page.getByRole("button", { name: "Collapse sidebar" });
@@ -37,7 +36,7 @@ async function main() {
     await page.keyboard.press("Space");
     assert.equal(await page.getByRole("button", { name: "Collapse sidebar" }).count(), 1);
     await page.setViewportSize({ width: 390, height: 844 });
-    const hostedNote = await page.locator(".hosted-account-note").boundingBox();
+    const hostedNote = await page.locator(".hosted-account-note-trigger").boundingBox();
     assert.ok(hostedNote);
     assert.ok(hostedNote.x + hostedNote.width <= 390, "hosted status fits the narrow navigation");
     await page.setViewportSize({ width: 1280, height: 720 });

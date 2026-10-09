@@ -1,68 +1,14 @@
 <template>
   <div class="index">
-    <ConfirmDialog />
     <main class="workspace-page">
       <header class="workspace-header">
         <div class="workspace-heading">
-          <h1>Release workspace</h1>
-          <p class="workspace-description">Build and publish for each of your projects.</p>
-        </div>
-
-        <div class="workspace-project">
-          <div class="project-switcher">
-            <label for="dashboard-project-select">Project</label>
-            <Select
-              id="tour-projects-list"
-              inputId="dashboard-project-select"
-              :model-value="activeProjectId"
-              :options="projects"
-              option-label="name"
-              option-value="id"
-              placeholder="Choose a project"
-              :disabled="!filesReady || projects.length === 0"
-              aria-label="Select project"
-              class="project-select"
-              @update:model-value="selectProject"
-            />
-          </div>
-          <Button
-            id="tour-add-project"
-            label="New project"
-            icon="mdi mdi-plus"
-            aria-label="New project"
-            severity="secondary"
-            variant="outlined"
-            :disabled="
-              authStore.subscriptionStatus !== 'ready' || !agent.isReady.value || !filesReady
-            "
-            v-tooltip.top="
-              authStore.subscriptionStatus === 'ready' && !hasMultipleProjectsBenefit
-                ? $t('home.premium-feature')
-                : undefined
-            "
-            @click="onCreateProjectClick"
-          />
-          <Button
-            icon="mdi mdi-dots-horizontal"
-            severity="secondary"
-            text
-            rounded
-            aria-label="Project actions"
-            aria-haspopup="menu"
-            aria-controls="project-actions-menu"
-            :aria-expanded="isProjectMenuOpen"
-            v-tooltip.top="'Project actions'"
-            :disabled="!activeProjectId || !filesReady"
-            @click="toggleProjectMenu"
-          />
-          <Menu
-            id="project-actions-menu"
-            ref="projectMenu"
-            :model="projectMenuItems"
-            :popup="true"
-            @show="isProjectMenuOpen = true"
-            @hide="isProjectMenuOpen = false"
-          />
+          <p v-if="activeProject" class="workspace-project-context">
+            <span>{{ $t("home.project") }}</span
+            >{{ activeProject.name }}
+          </p>
+          <h1>{{ $t("home.release-workspace") }}</h1>
+          <p class="workspace-description">{{ $t("home.release-workspace-description") }}</p>
         </div>
       </header>
 
@@ -73,9 +19,9 @@
         role="alert"
         class="workspace-message"
       >
-        Runtime information is unavailable. {{ appStore.runtimeError }}
+        {{ $t("home.runtime-unavailable", { error: appStore.runtimeError || "" }) }}
         <Button
-          label="Retry runtime info"
+          :label="$t('home.retry-runtime')"
           text
           size="small"
           @click="appStore.loadRuntimeInfo().catch(notifyPersistenceError)"
@@ -89,28 +35,33 @@
         class="workspace-message"
       >
         {{ projectLoadError }}
-        <Button label="Retry" text size="small" @click="loadDashboardData" />
+        <Button
+          :label="$t('home.retry')"
+          text
+          size="small"
+          @click="reloadFiles(true).catch(notifyPersistenceError)"
+        />
       </Message>
 
       <section class="workflows-area" aria-labelledby="workflow-list-title">
         <div class="workflows-toolbar">
           <div class="section-heading">
-            <h2 id="workflow-list-title">Workflows</h2>
+            <h2 id="workflow-list-title">{{ $t("home.workflows") }}</h2>
           </div>
           <div class="header-right">
             <IconField class="search-field">
               <InputIcon class="pi pi-search" />
               <InputText
                 v-model="searchQuery"
-                placeholder="Search workflows"
-                aria-label="Search workflows"
+                :placeholder="$t('home.search-workflows')"
+                :aria-label="$t('home.search-workflows')"
                 class="search-input"
                 size="small"
               />
             </IconField>
             <div class="action-buttons">
               <Button
-                label="New workflow"
+                :label="$t('home.new-workflow')"
                 icon="mdi mdi-rocket-launch-outline"
                 @click="openWorkflowWizard"
               />
@@ -125,10 +76,10 @@
 
         <!-- Loading State -->
         <div v-if="!filesReady && !agent.isReady.value" class="inline-state" role="status">
-          Workflows are unavailable while the engine is disconnected.
+          {{ $t("home.workflows-disconnected") }}
         </div>
         <div v-else-if="!filesReady || isLoading" class="loading-state" aria-busy="true">
-          <span class="visually-hidden" role="status">Loading workflows</span>
+          <span class="visually-hidden" role="status">{{ $t("home.loading-workflows") }}</span>
           <div v-for="n in 3" :key="n" class="skeleton-row" aria-hidden="true">
             <Skeleton shape="circle" size="32px" class="mr-3" />
             <div class="flex-grow-1 mr-4">
@@ -143,18 +94,22 @@
         <!-- Empty State (No Workflows) -->
         <div v-else-if="dashboardState === 'empty'" class="no-projects">
           <i class="mdi mdi-folder-open-outline empty-icon"></i>
-          <div class="no-workflows-text">No workflows in this project yet.</div>
+          <div class="no-workflows-text">{{ $t("home.no-workflows-in-project") }}</div>
           <Button severity="secondary" variant="outlined" @click="openWorkflowWizard">
             <i class="mdi mdi-rocket-launch-outline mr-2"></i>
-            New workflow
+            {{ $t("home.new-workflow") }}
           </Button>
         </div>
 
         <!-- No Search Results -->
         <div v-else-if="dashboardState === 'search-empty'" class="no-search-results">
           <i class="mdi mdi-magnify-close empty-icon"></i>
-          <div class="no-results-text">No workflows found matching "{{ searchQuery }}"</div>
-          <Button text severity="secondary" @click="searchQuery = ''"> Clear search </Button>
+          <div class="no-results-text">
+            {{ $t("home.no-workflows-found", { query: searchQuery }) }}
+          </div>
+          <Button text severity="secondary" @click="searchQuery = ''">
+            {{ $t("home.clear-search") }}
+          </Button>
         </div>
 
         <div v-else class="workflows-list">
@@ -170,7 +125,7 @@
             <div class="workflow-info">
               <div class="workflow-title-row">
                 <span class="workflow-name">{{ flow.content.name }}</span>
-                <Tag severity="info" value="Release" class="type-tag" />
+                <Tag severity="info" :value="$t('home.release')" class="type-tag" />
               </div>
               <div class="workflow-desc">
                 {{ flow.content.source.provider }} →
@@ -178,9 +133,9 @@
               </div>
             </div>
             <div class="workflow-meta-actions">
-              <span class="workflow-updated"
-                >Updated {{ formatLastModified(flow.lastModified) }}</span
-              >
+              <span class="workflow-updated">{{
+                $t("home.updated", { date: formatLastModified(flow.lastModified) })
+              }}</span>
               <div class="row-actions" @click.stop>
                 <Button
                   icon="mdi mdi-pencil"
@@ -188,7 +143,7 @@
                   rounded
                   severity="secondary"
                   size="small"
-                  v-tooltip.top="'Edit workflow'"
+                  v-tooltip.top="$t('home.edit-workflow')"
                   @click="openWorkflow(flow.id)"
                 /><Button
                   icon="mdi mdi-dots-vertical"
@@ -207,72 +162,20 @@
             severity="error"
             class="workflow-row-error"
           >
-            Release workflow <strong>{{ broken.id }}</strong> could not be loaded:
+            {{ $t("home.broken-workflow", { id: broken.id }) }}
             {{ broken.error }}
           </Message>
         </div>
       </section>
     </main>
-    <Dialog
-      v-model:visible="isNewProjectModalVisible"
-      modal
-      :style="{ width: '400px', maxWidth: '90vw' }"
-      :pt="{ root: { class: 'project-dialog' } }"
-    >
-      <template #header>
-        <div class="flex flex-column w-full">
-          <p class="dialog-title">{{ $t("home.new-project") }}</p>
-        </div>
-      </template>
-
-      <div class="new-project">
-        <div class="form-section">
-          <label for="new-project-name" class="form-label">{{ $t("home.project-name") }}</label>
-          <InputText id="new-project-name" v-model="newProjectName" class="w-full" size="small" />
-        </div>
-
-        <div class="dialog-footer">
-          <Button
-            :disabled="!canCreateProject || !agent.isReady.value || !filesReady"
-            size="small"
-            @click="onNewProjectCreation"
-            >{{ $t("home.create-project") }}</Button
-          >
-        </div>
-      </div>
-    </Dialog>
-
     <Menu ref="workflowMenu" :model="workflowMenuItems" :popup="true" />
     <Menu ref="importMenu" :model="importMenuItems" :popup="true" />
     <ReleaseFlowWizard
       v-if="isWorkflowWizardVisible"
       v-model:visible="isWorkflowWizardVisible"
-      :project-id="activeProjectId"
+      :project-id="activeProjectId || ''"
       @create="createWorkflow"
     />
-
-    <Dialog
-      v-model:visible="isRenameProjectModalVisible"
-      modal
-      :style="{ width: '400px', maxWidth: '90vw' }"
-    >
-      <template #header>
-        <p class="text-xl font-bold">{{ $t("home.rename-project") }}</p>
-      </template>
-      <div class="flex flex-column gap-2">
-        <label for="rename-project-name">{{ $t("home.new-project-name") }}</label>
-        <InputText id="rename-project-name" v-model="renameProjectName" class="w-full" />
-      </div>
-      <template #footer>
-        <Button
-          label="Cancel"
-          text
-          severity="secondary"
-          @click="isRenameProjectModalVisible = false"
-        />
-        <Button label="Rename" :disabled="!renameProjectName" @click="onRenameProject" />
-      </template>
-    </Dialog>
   </div>
 </template>
 
@@ -282,25 +185,21 @@ import { useToast } from "primevue/usetoast";
 import { storeToRefs } from "pinia";
 import Menu from "primevue/menu";
 import { ReleaseConfig } from "@pipelab/shared";
-import { nanoid } from "nanoid";
 import { useRouter } from "vue-router";
-import { OpenMigrationModalKey, OpenUpgradeDialogKey } from "../utils/injection-keys";
+import { OpenMigrationModalKey } from "../utils/injection-keys";
 import { useAPI } from "@renderer/composables/api";
 import { useFiles } from "@renderer/store/files";
 
 import { useAppStore } from "@renderer/store/app";
 import { useI18n } from "vue-i18n";
-import { useAuth } from "@renderer/store/auth";
 import Skeleton from "primevue/skeleton";
-import ConfirmDialog from "primevue/confirmdialog";
-import Select from "primevue/select";
 import { useConfirm } from "primevue/useconfirm";
 import Message from "primevue/message";
 import Tag from "primevue/tag";
 import IconField from "primevue/iconfield";
 import InputIcon from "primevue/inputicon";
 import { partitionWorkflowLoads } from "./workflow-load-state";
-import { getDashboardDisplayState, resolveSelectedProjectId } from "./dashboard-state";
+import { getDashboardDisplayState } from "./dashboard-state";
 import { useAgentAvailability } from "@renderer/composables/useAgentAvailability";
 
 const ReleaseFlowWizard = defineAsyncComponent(
@@ -309,7 +208,6 @@ const ReleaseFlowWizard = defineAsyncComponent(
 
 const router = useRouter();
 const api = useAPI();
-const openUpgradeDialog = inject(OpenUpgradeDialogKey)!;
 const openMigrationModal = inject(OpenMigrationModalKey);
 const confirm = useConfirm();
 const toast = useToast();
@@ -318,8 +216,8 @@ const agent = useAgentAvailability();
 
 // Table data
 const fileStore = useFiles();
-const { files } = storeToRefs(fileStore);
-const { update: updateFileStore, removeProject, removeWorkflow, load: reloadFiles } = fileStore;
+const { files, selectedProjectId, error: projectLoadError } = storeToRefs(fileStore);
+const { removeWorkflow, load: reloadFiles } = fileStore;
 
 const workflowsEnhanced = ref<
   Array<{ id: string; project: string; lastModified: string; content: ReleaseConfig }>
@@ -341,19 +239,19 @@ const formatLastModified = (dateStr?: string) => {
   const diffHours = Math.floor(diffMins / 60);
   const diffDays = Math.floor(diffHours / 24);
 
-  if (diffMins < 1) return "just now";
-  if (diffMins < 60) return `${diffMins}m ago`;
-  if (diffHours < 24) return `${diffHours}h ago`;
-  if (diffDays < 7) return `${diffDays}d ago`;
+  if (diffMins < 1) return t("home.just-now");
+  if (diffMins < 60) return t("home.minutes-ago", { count: diffMins });
+  if (diffHours < 24) return t("home.hours-ago", { count: diffHours });
+  if (diffDays < 7) return t("home.days-ago", { count: diffDays });
 
-  return date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+  return new Intl.DateTimeFormat(locale.value, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(date);
 };
 
-const canCreateProject = computed(
-  () => newProjectName.value.length > 0 && authStore.subscriptionStatus === "ready",
-);
-
-const { t } = useI18n();
+const { t, locale } = useI18n();
 const notifyPersistenceError = (error: unknown) =>
   toast.add({
     severity: "error",
@@ -363,17 +261,14 @@ const notifyPersistenceError = (error: unknown) =>
   });
 
 const isLoading = ref(true);
-const projectLoadError = ref("");
 const filesReady = computed(() => fileStore.status === "ready");
 
-const selectedKey = ref<Record<string, boolean>>({});
-const activeProjectId = computed(() => Object.keys(selectedKey.value)[0]);
+const activeProjectId = computed(() => selectedProjectId.value);
 const activeProject = computed(() =>
   activeProjectId.value
-    ? projects.value.find((project) => project.id === activeProjectId.value)
+    ? files.value.projects.find((project) => project.id === activeProjectId.value)
     : undefined,
 );
-const projects = computed(() => files.value.projects);
 
 const workflows = computed(() =>
   activeProjectId.value
@@ -399,48 +294,30 @@ const dashboardState = computed(() =>
   }),
 );
 
-const selectProject = (id: string) => {
-  selectedKey.value = { [id]: true };
-};
-
-watch([workflows, filesReady, agent.isReady], async ([entries, ready, connected]) => {
-  if (!ready || !connected) {
-    workflowLoadRevision++;
-    isLoading.value = workflowsEnhanced.value.length === 0;
-    return;
-  }
-  const revision = ++workflowLoadRevision;
-  isLoading.value = true;
-  const requestedEntries = entries.map((flow) => ({ ...flow }));
-  const results = await Promise.all(
-    requestedEntries.map((flow) =>
-      api.execute("workflow:load", { workflowId: flow.id, projectId: flow.project }),
-    ),
-  );
-  if (revision !== workflowLoadRevision) return;
-  const partitioned = partitionWorkflowLoads(requestedEntries, results);
-  workflowsEnhanced.value = partitioned.loaded;
-  brokenWorkflows.value = partitioned.broken;
-  isLoading.value = false;
-});
-
 watch(
-  [projects, selectedKey, filesReady],
-  ([newProjects, newSelectedKey, loaded]) => {
-    if (!loaded) return;
-    const selectedId = resolveSelectedProjectId(newProjects, Object.keys(newSelectedKey)[0]);
-    const currentIds = Object.keys(newSelectedKey);
-    if (selectedId && (currentIds.length !== 1 || currentIds[0] !== selectedId))
-      selectedKey.value = { [selectedId]: true };
-    else if (!selectedId && currentIds.length) selectedKey.value = {};
+  [workflows, filesReady, agent.isReady],
+  async ([entries, ready, connected]) => {
+    if (!ready || !connected) {
+      workflowLoadRevision++;
+      isLoading.value = workflowsEnhanced.value.length === 0;
+      return;
+    }
+    const revision = ++workflowLoadRevision;
+    isLoading.value = true;
+    const requestedEntries = entries.map((flow) => ({ ...flow }));
+    const results = await Promise.all(
+      requestedEntries.map((flow) =>
+        api.execute("workflow:load", { workflowId: flow.id, projectId: flow.project }),
+      ),
+    );
+    if (revision !== workflowLoadRevision) return;
+    const partitioned = partitionWorkflowLoads(requestedEntries, results);
+    workflowsEnhanced.value = partitioned.loaded;
+    brokenWorkflows.value = partitioned.broken;
+    isLoading.value = false;
   },
   { immediate: true },
 );
-
-const newProjectName = ref("");
-
-const authStore = useAuth();
-const { hasMultipleProjectsBenefit } = storeToRefs(authStore);
 
 const openWorkflowWizard = () => {
   isWorkflowWizardVisible.value = true;
@@ -451,162 +328,6 @@ const createWorkflow = async (flow: ReleaseConfig) => {
 };
 const openWorkflow = (id: string) => router.push(`/workflows/${id}/${activeProjectId.value}`);
 const destinationLabel = (d: ReleaseConfig["destinations"][number]) => d.provider;
-let dashboardLoadGeneration = 0;
-const loadDashboardData = async () => {
-  if (!agent.isReady.value) return;
-  const generation = ++dashboardLoadGeneration;
-  projectLoadError.value = "";
-  const [projectsResult, runtimeResult] = await Promise.allSettled([
-    reloadFiles(),
-    appStore.loadRuntimeInfo(),
-  ]);
-  if (generation !== dashboardLoadGeneration || !agent.isReady.value) return;
-  if (projectsResult.status === "rejected") {
-    projectLoadError.value =
-      projectsResult.reason instanceof Error
-        ? projectsResult.reason.message
-        : String(projectsResult.reason);
-    notifyPersistenceError(projectsResult.reason);
-  }
-  if (runtimeResult.status === "rejected") notifyPersistenceError(runtimeResult.reason);
-};
-watch(
-  agent.isReady,
-  (ready) => {
-    if (ready) void loadDashboardData();
-    else dashboardLoadGeneration++;
-  },
-  { immediate: true },
-);
-const onNewProjectCreation = async () => {
-  if (!agent.isReady.value || !filesReady.value || authStore.subscriptionStatus !== "ready") return;
-  const projectId = nanoid();
-  try {
-    await updateFileStore((state) => {
-      state.projects.push({
-        id: projectId,
-        name: newProjectName.value,
-        description: "",
-      });
-    });
-  } catch (error) {
-    toast.add({
-      severity: "error",
-      summary: t("base.error"),
-      detail: error instanceof Error ? error.message : String(error),
-      life: 3000,
-    });
-    return;
-  }
-  isNewProjectModalVisible.value = false;
-  // Select the new project
-  selectedKey.value = { [projectId]: true };
-  newProjectName.value = "";
-};
-
-const onCreateProjectClick = () => {
-  if (authStore.subscriptionStatus !== "ready" || !agent.isReady.value || !filesReady.value) return;
-  if (hasMultipleProjectsBenefit.value) {
-    isNewProjectModalVisible.value = true;
-  } else {
-    openUpgradeDialog();
-  }
-};
-
-const isRenameProjectModalVisible = ref(false);
-const renameProjectName = ref("");
-
-const projectToRenameId = ref<string | null>(null);
-
-const openRenameProjectDialog = (projectId?: string) => {
-  const id = projectId || activeProjectId.value;
-  const project = projects.value.find((p) => p.id === id);
-
-  if (project) {
-    projectToRenameId.value = id;
-    renameProjectName.value = project.name;
-    isRenameProjectModalVisible.value = true;
-  }
-};
-
-const onRenameProject = async () => {
-  if (projectToRenameId.value && renameProjectName.value) {
-    try {
-      await updateFileStore((state) => {
-        const project = state.projects.find((p) => p.id === projectToRenameId.value);
-        if (project) {
-          project.name = renameProjectName.value;
-        }
-      });
-    } catch (error) {
-      toast.add({
-        severity: "error",
-        summary: t("base.error"),
-        detail: error instanceof Error ? error.message : String(error),
-        life: 3000,
-      });
-      return;
-    }
-    isRenameProjectModalVisible.value = false;
-    projectToRenameId.value = null;
-  }
-};
-
-const deleteProject = async (projectId?: string) => {
-  const id = projectId || activeProjectId.value;
-  if (!id) return;
-
-  const projectWorkflows = (files.value.workflows || []).filter(
-    (workflow) => workflow.project === id,
-  );
-
-  if (projectWorkflows.length > 0) {
-    toast.add({
-      severity: "error",
-      summary: t("home.cannot-delete-project"),
-      detail: t("home.project-not-empty"),
-      life: 3000,
-    });
-    return;
-  }
-
-  confirm.require({
-    message: t("home.confirm-delete-project"),
-    header: t("home.delete-project"),
-    icon: "pi pi-exclamation-triangle",
-    rejectClass: "p-button-secondary p-button-outlined",
-    acceptClass: "p-button-danger",
-    accept: async () => {
-      try {
-        await removeProject(id);
-      } catch (error) {
-        notifyPersistenceError(error);
-      }
-    },
-    reject: () => {
-      // do nothing
-    },
-  });
-};
-
-const projectMenu = ref();
-const isProjectMenuOpen = ref(false);
-const toggleProjectMenu = (event: Event) => projectMenu.value.toggle(event);
-const projectMenuItems = computed(() => [
-  {
-    label: t("home.rename-project"),
-    icon: "mdi mdi-pencil",
-    command: () => openRenameProjectDialog(),
-  },
-  {
-    label: t("home.delete-project"),
-    icon: "mdi mdi-delete",
-    class: "text-red-500",
-    disabled: projects.value.length <= 1,
-    command: () => deleteProject(),
-  },
-]);
-
 const workflowMenu = ref();
 const selectedWorkflowForMenu = ref<(typeof workflowsEnhanced.value)[number] | null>(null);
 
@@ -716,7 +437,7 @@ const isNewProjectModalVisible = ref(false);
 
 .workspace-header {
   display: flex;
-  align-items: flex-end;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 28px;
   padding-bottom: 26px;
@@ -740,39 +461,27 @@ const isNewProjectModalVisible = ref(false);
   }
 }
 
+.workspace-project-context {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  color: var(--p-text-muted-color);
+  font-size: 0.75rem;
+  font-weight: 600;
+
+  span {
+    color: var(--primary-color);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+}
+
 .workspace-description {
   margin: 8px 0 0;
   color: var(--p-text-muted-color);
   font-size: 0.875rem;
   line-height: 1.5;
-}
-
-.workspace-project {
-  display: flex;
-  flex: 0 0 auto;
-  align-items: flex-end;
-  gap: 8px;
-}
-
-.project-switcher {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  width: min(270px, 34vw);
-
-  label {
-    color: var(--p-text-muted-color);
-    font-size: 0.7rem;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    line-height: 1;
-    text-transform: uppercase;
-  }
-
-  :deep(.p-select) {
-    min-height: 40px;
-    border-radius: 9px;
-  }
 }
 
 .workspace-message {
@@ -839,17 +548,13 @@ const isNewProjectModalVisible = ref(false);
   }
 }
 
-.project-switcher :deep(.p-select:focus-visible),
-.workspace-project :deep(.p-button:focus-visible),
 .workflows-area :deep(.p-button:focus-visible),
 .workflows-area :deep(.p-inputtext:focus-visible) {
   outline: 3px solid color-mix(in srgb, var(--primary-color) 55%, transparent);
   outline-offset: 2px;
 }
 
-.workflows-area :deep(.p-button),
-.workspace-project :deep(.p-button),
-.project-switcher :deep(.p-select) {
+.workflows-area :deep(.p-button) {
   transition:
     border-color 140ms ease,
     background-color 140ms ease,
@@ -869,9 +574,7 @@ const isNewProjectModalVisible = ref(false);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .workflows-area :deep(.p-button),
-  .workspace-project :deep(.p-button),
-  .project-switcher :deep(.p-select) {
+  .workflows-area :deep(.p-button) {
     transition: none;
   }
 }
@@ -1169,16 +872,6 @@ const isNewProjectModalVisible = ref(false);
     padding-bottom: 20px;
   }
 
-  .workspace-project {
-    width: 100%;
-  }
-
-  .project-switcher {
-    flex: 1;
-    width: auto;
-    min-width: 0;
-  }
-
   .workflows-toolbar {
     gap: 16px;
   }
@@ -1239,10 +932,6 @@ const isNewProjectModalVisible = ref(false);
 
   .workspace-heading h1 {
     font-size: 1.6rem;
-  }
-
-  .workspace-project :deep(.p-button) {
-    white-space: nowrap;
   }
 }
 </style>
