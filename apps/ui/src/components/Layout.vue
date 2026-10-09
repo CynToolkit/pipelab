@@ -9,9 +9,9 @@
           <span class="sidebar-brand">Pipelab</span>
         </div>
         <button
-          v-tooltip.right="isSidebarCollapsed ? 'Expand sidebar' : undefined"
+          v-tooltip.right="isSidebarCollapsed ? $t('home.expand-sidebar') : undefined"
           class="sidebar-collapse-btn"
-          :aria-label="isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'"
+          :aria-label="isSidebarCollapsed ? $t('home.expand-sidebar') : $t('home.collapse-sidebar')"
           :aria-expanded="!isSidebarCollapsed"
           aria-controls="app-sidebar"
           @click="toggleSidebar"
@@ -88,36 +88,54 @@
       </section>
 
       <!-- Navigation -->
-      <nav id="sidebar-nav" class="sidebar-nav" aria-label="Main navigation">
+      <nav id="sidebar-nav" class="sidebar-nav" :aria-label="$t('home.main-navigation')">
         <router-link
           to="/dashboard"
           class="sidebar-nav-item"
-          aria-label="Dashboard"
-          active-class="active"
-          v-tooltip.right="isSidebarCollapsed ? 'Dashboard' : undefined"
+          :aria-label="$t('headers.dashboard')"
+          :class="{ active: route.path === '/dashboard' }"
+          :aria-current="route.path === '/dashboard' ? 'page' : undefined"
+          v-tooltip.right="isSidebarCollapsed ? $t('headers.dashboard') : undefined"
         >
           <i class="mdi mdi-view-dashboard-outline nav-icon" aria-hidden="true" />
-          <span v-show="!isSidebarCollapsed" class="nav-label">Dashboard</span>
+          <span v-show="!isSidebarCollapsed" class="nav-label">{{ $t("headers.dashboard") }}</span>
+        </router-link>
+
+        <router-link
+          to="/workflows"
+          class="sidebar-nav-item"
+          :aria-label="$t('home.workflows')"
+          :class="{ active: isWorkflowsRoute }"
+          :aria-current="isWorkflowsRoute ? 'page' : undefined"
+          v-tooltip.right="isSidebarCollapsed ? $t('home.workflows') : undefined"
+        >
+          <i class="mdi mdi-rocket-launch-outline nav-icon" aria-hidden="true" />
+          <span v-show="!isSidebarCollapsed" class="nav-label">{{ $t("home.workflows") }}</span>
         </router-link>
 
         <router-link
           to="/connections"
           class="sidebar-nav-item"
-          aria-label="Connections"
-          active-class="active"
-          v-tooltip.right="isSidebarCollapsed ? 'Connections' : undefined"
+          :aria-label="$t('home.connections')"
+          :class="{ active: route.path === '/connections' }"
+          :aria-current="route.path === '/connections' ? 'page' : undefined"
+          v-tooltip.right="isSidebarCollapsed ? $t('home.connections') : undefined"
         >
           <i class="mdi mdi-link-variant nav-icon" aria-hidden="true" />
-          <span v-show="!isSidebarCollapsed" class="nav-label">Connections</span>
+          <span v-show="!isSidebarCollapsed" class="nav-label">{{ $t("home.connections") }}</span>
         </router-link>
 
         <div
           class="sidebar-nav-item disabled"
-          v-tooltip.right="isSidebarCollapsed ? 'Global Variables (Coming Soon)' : 'Coming Soon'"
+          v-tooltip.right="
+            isSidebarCollapsed ? $t('home.global-variables-coming-soon') : $t('home.coming-soon')
+          "
         >
           <i class="mdi mdi-code-braces nav-icon" />
-          <span v-show="!isSidebarCollapsed" class="nav-label">Variables</span>
-          <span v-show="!isSidebarCollapsed" class="coming-soon-badge">Soon</span>
+          <span v-show="!isSidebarCollapsed" class="nav-label">{{ $t("home.variables") }}</span>
+          <span v-show="!isSidebarCollapsed" class="coming-soon-badge">{{
+            $t("home.coming-soon")
+          }}</span>
         </div>
       </nav>
 
@@ -463,6 +481,9 @@ const selectedProjectId = computed(() => fileStore.selectedProjectId);
 const activeProject = computed(() =>
   projects.value.find((project) => project.id === selectedProjectId.value),
 );
+const isWorkflowsRoute = computed(
+  () => route.path === "/workflows" || route.path.startsWith("/workflows/"),
+);
 const isProjectMenuOpen = ref(false);
 const $projectMenu = ref();
 const isNewProjectModalVisible = ref(false);
@@ -662,7 +683,7 @@ watch(
 const selectProject = async (projectId: string | undefined) => {
   if (!projectId || projectId === selectedProjectId.value) return;
   if (route.params.projectId && route.params.projectId !== projectId) {
-    await router.push("/dashboard");
+    await router.push("/workflows");
   }
   fileStore.selectProject(projectId);
 };
@@ -711,7 +732,7 @@ const createProject = async () => {
     });
     isNewProjectModalVisible.value = false;
     newProjectName.value = "";
-    if (route.params.projectId) await router.push("/dashboard");
+    if (route.params.projectId) await router.push("/workflows");
     fileStore.selectProject(projectId);
   } catch (error) {
     toast.add({ severity: "error", summary: t("base.error"), detail: String(error), life: 5000 });
@@ -1517,8 +1538,8 @@ handle("update:set-status", async (event, { value }) => {
   }
 
   .sidebar-nav {
-    flex: 1 0 auto;
-    min-width: max-content;
+    flex: 1 1 auto;
+    min-width: 0;
     justify-content: space-around;
   }
 
@@ -1627,14 +1648,21 @@ handle("update:set-status", async (event, { value }) => {
   .sidebar-project,
   .sidebar-collapsed .sidebar-project {
     box-sizing: border-box;
-    max-width: 136px;
+    max-width: 112px;
+    padding-inline: 2px;
   }
 
   .sidebar-project-select,
   .sidebar-collapsed .sidebar-project-select {
-    flex-basis: 92px;
-    width: 92px;
-    min-width: 72px;
+    flex-basis: 68px;
+    width: 68px;
+    min-width: 58px;
+  }
+
+  .sidebar-nav-item,
+  .sidebar-collapsed .sidebar-nav-item {
+    min-width: 40px;
+    padding-inline: 2px;
   }
 
   .sidebar-bottom .sidebar-nav-item {

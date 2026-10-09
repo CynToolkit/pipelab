@@ -16,6 +16,11 @@ const baseUrl = process.env.UI_BASE_URL || "http://127.0.0.1:5175";
 const chromiumPath = process.env.CHROMIUM_PATH || "/usr/bin/chromium";
 if (process.env.SCREENSHOT_DIR) mkdirSync(process.env.SCREENSHOT_DIR, { recursive: true });
 const captureReviewScreenshot = async (page, path) => {
+  await page.mouse.move(0, 0);
+  await page.evaluate(
+    () => document.activeElement instanceof HTMLElement && document.activeElement.blur(),
+  );
+  await page.waitForTimeout(250);
   const cleanup = await page.addStyleTag({
     content:
       ".dev-benefits-override, #vue-devtools__anchor, .vue-devtools__anchor--glowing, .vue-devtools__panel, vite-plugin-vue-devtools { display: none !important; }",
@@ -210,7 +215,7 @@ async function journey(
     await context.addInitScript(() => {
       localStorage.setItem(
         "dev-benefits-overrides",
-        JSON.stringify({ "multiple-projects": "force-on" }),
+        JSON.stringify({ "multiple-projects": "force-on", "build-history": "force-on" }),
       );
     });
   }
@@ -226,6 +231,7 @@ async function journey(
   const sourceInspectionConfigs = [];
   let saved;
   let firstSaved;
+  let historyEntries = [];
   let projectConfig = {
     version: "4.0.0",
     projects: [
@@ -290,6 +296,12 @@ async function journey(
           projectConfig = request.data.data;
           result = { success: true };
           break;
+        case "build-history:get-all": {
+          const projectIdFilter = request.data.query?.projectId;
+          const entries = historyEntries.filter((entry) => entry.projectId === projectIdFilter);
+          result = { entries, total: entries.length };
+          break;
+        }
         case "connections:load":
           result = {
             version: "1.0.0",
@@ -508,6 +520,26 @@ async function journey(
               lastModified: new Date().toISOString(),
             },
           ];
+          historyEntries = [
+            {
+              id: "fixture-recent-run",
+              projectId: request.data.projectId,
+              workflowId: request.data.workflowId,
+              workflowName: request.data.data.name,
+              projectName: "Journey project",
+              status: "completed",
+              startTime: Date.now() - 60_000,
+              endTime: Date.now(),
+              steps: [],
+              totalSteps: 2,
+              completedSteps: 2,
+              failedSteps: 0,
+              cancelledSteps: 0,
+              logs: [],
+              createdAt: Date.now(),
+              updatedAt: Date.now(),
+            },
+          ];
           result = { success: true };
           break;
         case "workflow:load":
@@ -546,7 +578,7 @@ async function journey(
 
   try {
     await page.goto(`${baseUrl}/`, { waitUntil: "domcontentloaded" });
-    await page.getByRole("heading", { name: "Release workspace" }).waitFor();
+    await page.getByRole("heading", { name: "Project overview" }).waitFor();
     await page.waitForFunction(
       (dark) => document.documentElement.classList.contains("dark") === dark,
       expectedTheme === "dark",
@@ -558,10 +590,38 @@ async function journey(
         page,
         join(
           process.env.SCREENSHOT_DIR,
-          `release-workspace-empty-${expectedTheme}-${screenshotViewport}.png`,
+          `dashboard-empty-${expectedTheme}-${screenshotViewport}.png`,
         ),
       );
     assert.equal(await page.locator("main").count(), 1, "dashboard has one main landmark");
+    const workflowsNavigation = page.getByRole("link", { name: "Workflows", exact: true });
+    await workflowsNavigation.focus();
+    await page.keyboard.press("Enter");
+    await page.waitForURL("**/workflows");
+    await page.getByRole("heading", { name: "Workflows", exact: true }).waitFor();
+    await page.getByRole("heading", { name: "Your workflows" }).waitFor();
+    assert.equal(await page.getByRole("heading", { name: "Project overview" }).count(), 0);
+    assert.equal(
+      await page.locator('#sidebar-nav a[aria-current="page"]').getAttribute("href"),
+      "/workflows",
+      "Workflows is the active sidebar destination on its catalog route",
+    );
+    assert.equal(await page.locator("main").count(), 1, "Workflows has one main landmark");
+    if (process.env.SCREENSHOT_DIR)
+      await captureReviewScreenshot(
+        page,
+        join(
+          process.env.SCREENSHOT_DIR,
+          `workflows-empty-${expectedTheme}-${screenshotViewport}.png`,
+        ),
+      );
+    await page.goBack();
+    await page.getByRole("heading", { name: "Project overview" }).waitFor();
+    await page.goForward();
+    await page.getByRole("heading", { name: "Your workflows" }).waitFor();
+    await page.getByRole("link", { name: "Dashboard" }).click();
+    await page.waitForURL("**/dashboard");
+
     if (testProjectManagement) {
       const projectSelect = page.locator("#sidebar-project-select");
       const projectCombo = page.getByRole("combobox", { name: /^Select project/ });
@@ -594,15 +654,31 @@ async function journey(
       await page.getByRole("option", { name: "Second project" }).click();
       await page.locator(".p-select-overlay").waitFor({ state: "hidden" });
       await page.getByRole("button", { name: "Collapse sidebar" }).click();
-      await page.getByRole("heading", { name: "Release workspace" }).click();
+      await page.getByRole("heading", { name: "Project overview" }).click();
       if (process.env.SCREENSHOT_DIR)
         await captureReviewScreenshot(
           page,
           join(
             process.env.SCREENSHOT_DIR,
-            `release-workspace-sidebar-collapsed-${expectedTheme}-${screenshotViewport}.png`,
+            `dashboard-sidebar-collapsed-${expectedTheme}-${screenshotViewport}.png`,
           ),
         );
+      await page.getByRole("link", { name: "Workflows", exact: true }).click();
+      await page.getByRole("heading", { name: "Your workflows" }).waitFor();
+      assert.equal(
+        await page.locator('#sidebar-nav a[aria-current="page"]').getAttribute("href"),
+        "/workflows",
+        "collapsed sidebar keeps Workflows active when navigating the catalog",
+      );
+      if (process.env.SCREENSHOT_DIR)
+        await captureReviewScreenshot(
+          page,
+          join(
+            process.env.SCREENSHOT_DIR,
+            `workflows-sidebar-collapsed-${expectedTheme}-${screenshotViewport}.png`,
+          ),
+        );
+      await page.getByRole("link", { name: "Dashboard", exact: true }).click();
       assert.equal(
         await projectSelect.isVisible(),
         true,
@@ -621,10 +697,29 @@ async function journey(
         waitUntil: "domcontentloaded",
       });
       await page.getByText("Journey project", { exact: true }).first().waitFor();
+      for (const suffix of ["", "/builds", "/artifacts", "/runs", "/runs/fixture-recent-run"]) {
+        await page.goto(`${baseUrl}/workflows/fixture-flow/${projectId}${suffix}`, {
+          waitUntil: "domcontentloaded",
+        });
+        await page.locator('#sidebar-nav a[aria-current="page"]').waitFor();
+        assert.equal(
+          await page.locator('#sidebar-nav a[aria-current="page"]').getAttribute("href"),
+          "/workflows",
+          `Workflows stays active on workflow detail route ${suffix || "configuration"}`,
+        );
+        assert.equal(
+          await page.locator("main").count(),
+          1,
+          `workflow detail route ${suffix || "configuration"} has one main landmark`,
+        );
+      }
+      await page.goto(`${baseUrl}/workflows/fixture-flow/${projectId}`, {
+        waitUntil: "domcontentloaded",
+      });
       await page.locator("#sidebar-project-select").click();
       await page.getByRole("option", { name: "Second project" }).click();
-      await page.getByRole("heading", { name: "Release workspace" }).waitFor();
-      assert.match(page.url(), /\/dashboard$/);
+      await page.getByRole("heading", { name: "Workflows", exact: true }).waitFor();
+      assert.match(page.url(), /\/workflows$/);
       await page.getByText("Second project", { exact: true }).first().waitFor();
 
       await page.getByRole("button", { name: "Project actions" }).click();
@@ -665,11 +760,17 @@ async function journey(
         const narrowPage = await context.newPage();
         await narrowPage.setViewportSize({ width: 390, height: 844 });
         await narrowPage.goto(`${baseUrl}/dashboard`, { waitUntil: "domcontentloaded" });
-        await narrowPage.getByRole("heading", { name: "Release workspace" }).waitFor();
+        await narrowPage.getByRole("heading", { name: "Project overview" }).waitFor();
         await narrowPage.getByText("No workflows in this project yet.").waitFor();
         await captureReviewScreenshot(
           narrowPage,
-          join(process.env.SCREENSHOT_DIR, `release-workspace-sidebar-narrow-${expectedTheme}.png`),
+          join(process.env.SCREENSHOT_DIR, `dashboard-sidebar-narrow-${expectedTheme}.png`),
+        );
+        await narrowPage.getByRole("link", { name: "Workflows", exact: true }).click();
+        await narrowPage.getByRole("heading", { name: "Your workflows" }).waitFor();
+        await captureReviewScreenshot(
+          narrowPage,
+          join(process.env.SCREENSHOT_DIR, `workflows-narrow-${expectedTheme}.png`),
         );
         await narrowPage.close();
       }
@@ -745,7 +846,8 @@ async function journey(
       const labelsVisible = await dialog.locator(".wizard-step-list").evaluate((element) => {
         const strip = element.getBoundingClientRect();
         return [...element.querySelectorAll(".step")].map((step) => {
-          const bounds = step.getBoundingClientRect();
+          const label = step.querySelector("span") || step;
+          const bounds = label.getBoundingClientRect();
           return {
             label: step.textContent?.replace(/^\s*0\d\s*/, "").trim(),
             fullyVisible: bounds.left >= strip.left && bounds.right <= strip.right,
@@ -1136,16 +1238,30 @@ async function journey(
     assert.ok(calls.includes("release:plan"));
     if (testProjectManagement) {
       await page.getByRole("link", { name: "Dashboard" }).click();
-      await page.getByRole("heading", { name: "Release workspace" }).waitFor();
+      await page.getByRole("heading", { name: "Project overview" }).waitFor();
+      await page.getByText("1", { exact: true }).waitFor();
+      await page.getByText("Recent executions", { exact: true }).waitFor();
       await page.getByText("construct first workflow", { exact: true }).waitFor();
       if (process.env.SCREENSHOT_DIR)
         await captureReviewScreenshot(
           page,
           join(
             process.env.SCREENSHOT_DIR,
-            `release-workspace-populated-${expectedTheme}-${screenshotViewport}.png`,
+            `dashboard-populated-${expectedTheme}-${screenshotViewport}.png`,
           ),
         );
+      await page.getByRole("link", { name: "Workflows", exact: true }).click();
+      await page.getByRole("heading", { name: "Your workflows" }).waitFor();
+      await page.getByText("construct first workflow", { exact: true }).waitFor();
+      if (process.env.SCREENSHOT_DIR)
+        await captureReviewScreenshot(
+          page,
+          join(
+            process.env.SCREENSHOT_DIR,
+            `workflows-populated-${expectedTheme}-${screenshotViewport}.png`,
+          ),
+        );
+      await page.getByRole("link", { name: "Dashboard" }).click();
       await page.locator(".dev-benefits-override .toggle-btn").click();
       await page
         .locator(".benefit-item")
@@ -1204,7 +1320,7 @@ async function journey(
         saveCount,
         "a late resolver response after close cannot save",
       );
-      assert.match(page.url(), /\/dashboard$/);
+      assert.match(page.url(), /\/workflows$/);
       await page
         .getByRole("button", { name: /New workflow/ })
         .first()

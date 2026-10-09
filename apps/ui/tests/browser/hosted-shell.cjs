@@ -19,16 +19,30 @@ async function main() {
     });
 
     await page.goto(`${baseUrl}/dashboard`, { waitUntil: "domcontentloaded" });
-    await page.getByRole("heading", { name: "Release workspace", exact: true }).waitFor();
+    await page.getByRole("heading", { name: "Project overview", exact: true }).waitFor();
     assert.equal(await page.locator(".route-content").getAttribute("inert"), null);
     assert.equal(
-      await page.getByRole("heading", { name: "Release workspace", exact: true }).count(),
+      await page.getByRole("heading", { name: "Project overview", exact: true }).count(),
       1,
     );
-    assert.equal(await page.getByRole("heading", { name: "Workflows", exact: true }).count(), 1);
+    assert.equal(await page.getByRole("link", { name: "Workflows", exact: true }).count(), 1);
     assert.equal(await page.getByRole("combobox", { name: "Select Project" }).isDisabled(), true);
     assert.equal(await page.getByRole("button", { name: "Project actions" }).isDisabled(), true);
     assert.equal(await page.getByRole("navigation", { name: "Main navigation" }).count(), 1);
+    await page.getByRole("link", { name: "Workflows", exact: true }).click();
+    await page.waitForURL("**/workflows");
+    await page.getByRole("heading", { name: "Your workflows", exact: true }).waitFor();
+    assert.equal(
+      await page.getByRole("heading", { name: "Project overview", exact: true }).count(),
+      0,
+    );
+    assert.equal(
+      await page.locator('#sidebar-nav a[aria-current="page"]').getAttribute("href"),
+      "/workflows",
+      "Workflows remains the current navigation destination when the agent is unavailable",
+    );
+    await page.getByRole("link", { name: "Dashboard", exact: true }).click();
+    await page.getByRole("heading", { name: "Project overview", exact: true }).waitFor();
     const sidebarToggle = page.getByRole("button", { name: "Collapse sidebar" });
     await sidebarToggle.focus();
     await page.keyboard.press("Enter");
