@@ -52,18 +52,26 @@ describe("useAgentAvailability", () => {
     expect(agent.isReady.value).toBe(true);
   });
 
-  it("allows explicit attach when a published browser skips startup discovery", async () => {
+  it("attaches to the selected endpoint and tracks ready, disconnect, and reconnect", async () => {
     vi.resetModules();
     const connectionState = ref("disconnected");
     const stateListeners: Array<(state: string) => void> = [];
     const events = new Map<string, (event: { type: string }) => void>();
+    const selectedTargets: string[] = [];
+    let selectedTarget = "wss://published.example";
+    const setState = (state: string) => {
+      connectionState.value = state;
+      stateListeners.forEach((listener) => listener(state));
+    };
     const manager = {
       connectionState,
       onStateChange: (listener: (state: string) => void) => stateListeners.push(listener),
-      connect: vi.fn(async () => {
-        connectionState.value = "connected";
-        stateListeners.forEach((listener) => listener("connected"));
+      connect: vi.fn(async (url?: string) => {
+        if (url) selectedTarget = url;
+        selectedTargets.push(selectedTarget);
+        setState("connecting");
       }),
+      disconnect: vi.fn(() => setState("disconnected")),
     };
     vi.doMock("./websocket-manager", () => ({ websocketManager: manager }));
     vi.doMock("./websocket-client", () => ({
@@ -79,9 +87,25 @@ describe("useAgentAvailability", () => {
     expect(shouldAutoConnectAgentOnStartup("browser", "hosted")).toBe(false);
     expect(agent.isReady.value).toBe(false);
 
-    await agent.reconnect();
+    const agentUrl = "wss://paired-agent.example:33753/session?token=trusted";
+    await agent.attach(agentUrl);
+    expect(manager.connect).toHaveBeenLastCalledWith(agentUrl);
+    expect(agent.status.value).toBe("connecting");
+    setState("connected");
+    expect(agent.status.value).toBe("starting");
     events.get("startup:progress")?.({ type: "done" });
-    expect(manager.connect).toHaveBeenCalledOnce();
+    expect(agent.isReady.value).toBe(true);
+
+    agent.disconnect();
+    expect(agent.status.value).toBe("offline");
+    expect(agent.isReady.value).toBe(false);
+
+    await agent.reconnect();
+    expect(selectedTargets).toEqual([agentUrl, agentUrl]);
+    expect(agent.status.value).toBe("connecting");
+    setState("connected");
+    expect(agent.status.value).toBe("starting");
+    events.get("startup:progress")?.({ type: "done" });
     expect(agent.isReady.value).toBe(true);
   });
 });

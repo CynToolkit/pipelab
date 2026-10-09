@@ -117,4 +117,20 @@ describe("WebSocketClient pending request cleanup", () => {
 
     await expect(nextRequest).resolves.toEqual({ type: "success", result: { user: null } });
   });
+
+  it("uses an explicitly selected agent endpoint for attach and later reconnects", () => {
+    const client = new WebSocketClient({
+      url: "wss://published.example",
+      maxReconnectAttempts: 0,
+    });
+    const agentUrl = "wss://paired-agent.example:33753/session";
+
+    client.reconnect(agentUrl);
+    expect(FakeWebSocket.instances[0].url).toBe(agentUrl);
+    expect(client.currentUrl).toBe(agentUrl);
+
+    client.disconnect();
+    client.connect();
+    expect(FakeWebSocket.instances[1].url).toBe(agentUrl);
+  });
 });
