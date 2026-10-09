@@ -101,10 +101,6 @@
         <div v-else-if="dashboardState === 'empty'" class="no-projects">
           <i class="mdi mdi-folder-open-outline empty-icon"></i>
           <div class="no-workflows-text">{{ $t("home.no-workflows-in-project") }}</div>
-          <Button severity="secondary" variant="outlined" @click="openWorkflowWizard">
-            <i class="mdi mdi-rocket-launch-outline mr-2"></i>
-            {{ $t("home.new-workflow") }}
-          </Button>
         </div>
 
         <!-- No Search Results -->

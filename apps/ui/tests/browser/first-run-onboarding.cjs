@@ -762,6 +762,11 @@ async function journey(
     await page.getByText("Journey project", { exact: true }).first().waitFor();
     await page.getByText("No workflows in this project yet.").waitFor();
     assert.equal(
+      await page.locator(".no-projects").getByRole("button").count(),
+      0,
+      "the empty state does not repeat the toolbar's New workflow action",
+    );
+    assert.equal(
       await page.getByText("Add a project description to give your team helpful context.").count(),
       0,
       "dashboard does not suggest an unavailable project-description action",
