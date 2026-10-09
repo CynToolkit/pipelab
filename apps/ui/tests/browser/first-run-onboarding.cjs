@@ -585,6 +585,14 @@ async function journey(
     );
     await page.getByText("Journey project", { exact: true }).first().waitFor();
     await page.getByText("No workflows in this project yet.").waitFor();
+    assert.equal(
+      await page.getByText("Add a project description to give your team helpful context.").count(),
+      0,
+      "dashboard does not suggest an unavailable project-description action",
+    );
+    const createFirstWorkflow = page.locator('a[href="/workflows?create=new"]');
+    await createFirstWorkflow.waitFor();
+    assert.equal(await createFirstWorkflow.innerText(), "New workflow");
     if (process.env.SCREENSHOT_DIR)
       await captureReviewScreenshot(
         page,
@@ -621,6 +629,51 @@ async function journey(
     await page.getByRole("heading", { name: "Your workflows" }).waitFor();
     await page.getByRole("link", { name: "Dashboard" }).click();
     await page.waitForURL("**/dashboard");
+
+    if (narrow) {
+      const projectSelect = page.locator("#sidebar-project-select");
+      const projectCombo = page.getByRole("combobox", { name: /^Select project/ });
+      assert.match(
+        await projectSelect.locator(".p-select-label").innerText(),
+        /Journey project/,
+        "390px project switcher visibly identifies the selected project",
+      );
+      await page.keyboard.press("Shift+Tab");
+      await page.keyboard.press("Shift+Tab");
+      assert.equal(
+        await projectCombo.evaluate((element) => element === document.activeElement),
+        true,
+        "390px project switcher is reachable in keyboard order",
+      );
+      assert.notEqual(
+        await projectSelect.evaluate((element) => getComputedStyle(element).outlineStyle),
+        "none",
+        "keyboard focus is visible on the 390px project switcher",
+      );
+      await page.keyboard.press("Enter");
+      await page.getByRole("option", { name: "Journey project" }).waitFor();
+      await page.keyboard.press("Escape");
+      const switcherBox = await projectSelect.boundingBox();
+      const projectActionsBox = await page
+        .getByRole("button", { name: "Project actions" })
+        .boundingBox();
+      assert.ok(
+        switcherBox && switcherBox.height >= 44,
+        "project switcher has a 44px touch target",
+      );
+      assert.ok(
+        projectActionsBox && projectActionsBox.width >= 44 && projectActionsBox.height >= 44,
+        "project actions have a 44px touch target",
+      );
+      await projectSelect.click();
+      await page.getByRole("option", { name: "Second project" }).click();
+      await page.getByText("Second project", { exact: true }).first().waitFor();
+      assert.match(await projectSelect.locator(".p-select-label").innerText(), /Second project/);
+      await projectSelect.click();
+      await page.getByRole("option", { name: "Journey project" }).click();
+      await page.getByText("Journey project", { exact: true }).first().waitFor();
+      assert.match(await projectSelect.locator(".p-select-label").innerText(), /Journey project/);
+    }
 
     if (testProjectManagement) {
       const projectSelect = page.locator("#sidebar-project-select");
@@ -664,6 +717,7 @@ async function journey(
           ),
         );
       await page.getByRole("link", { name: "Workflows", exact: true }).click();
+      await page.waitForURL("**/workflows");
       await page.getByRole("heading", { name: "Your workflows" }).waitFor();
       assert.equal(
         await page.locator('#sidebar-nav a[aria-current="page"]').getAttribute("href"),
@@ -1236,12 +1290,44 @@ async function journey(
     assert.ok(calls.includes("workflow:save"));
     assert.ok(calls.includes("release:resolve-defaults"));
     assert.ok(calls.includes("release:plan"));
+    if (narrow) {
+      await page.getByRole("link", { name: "Dashboard" }).click();
+      await page.getByRole("heading", { name: "Project overview" }).waitFor();
+      const workflowShortcut = page.getByRole("link", {
+        name: `Open ${saved.name}`,
+      });
+      await workflowShortcut.waitFor();
+      assert.equal(
+        await workflowShortcut.getAttribute("href"),
+        `/workflows/${saved.id}/${saved.project}`,
+        "populated Dashboard shortcut opens the saved workflow directly",
+      );
+      if (process.env.SCREENSHOT_DIR)
+        await captureReviewScreenshot(
+          page,
+          join(process.env.SCREENSHOT_DIR, `dashboard-populated-${expectedTheme}-narrow.png`),
+        );
+      await page.getByRole("link", { name: "Workflows", exact: true }).click();
+      await page.waitForURL("**/workflows");
+      await page.getByRole("heading", { name: "Your workflows" }).waitFor();
+      if (process.env.SCREENSHOT_DIR)
+        await captureReviewScreenshot(
+          page,
+          join(process.env.SCREENSHOT_DIR, `workflows-populated-${expectedTheme}-narrow.png`),
+        );
+    }
     if (testProjectManagement) {
       await page.getByRole("link", { name: "Dashboard" }).click();
       await page.getByRole("heading", { name: "Project overview" }).waitFor();
       await page.getByText("1", { exact: true }).waitFor();
       await page.getByText("Recent executions", { exact: true }).waitFor();
-      await page.getByText("construct first workflow", { exact: true }).waitFor();
+      const workflowShortcut = page.getByRole("link", { name: "Open construct first workflow" });
+      await workflowShortcut.waitFor();
+      assert.equal(
+        await workflowShortcut.getAttribute("href"),
+        `/workflows/${saved.id}/${saved.project}`,
+        "Dashboard links directly to a saved workflow",
+      );
       if (process.env.SCREENSHOT_DIR)
         await captureReviewScreenshot(
           page,

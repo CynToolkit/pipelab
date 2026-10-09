@@ -963,6 +963,22 @@ handle("update:set-status", async (event, { value }) => {
     outline: 3px solid color-mix(in srgb, var(--primary-color) 55%, transparent);
     outline-offset: 2px;
   }
+
+  :deep(.p-select-label:focus-visible) {
+    position: relative;
+    z-index: 1;
+    outline: 3px solid color-mix(in srgb, var(--primary-color) 55%, transparent);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+}
+
+:global(#sidebar-project-select:has(.p-select-label:focus-visible)) {
+  outline-color: var(--primary-color) !important;
+  outline-style: solid !important;
+  outline-width: 3px !important;
+  outline-offset: 2px !important;
+  border-radius: 6px;
 }
 
 .sidebar-project-select {
@@ -1499,17 +1515,20 @@ handle("update:set-status", async (event, { value }) => {
   .sidebar,
   .sidebar-collapsed .sidebar {
     box-sizing: border-box;
+    display: grid;
+    grid-template-columns: minmax(0, 3fr) minmax(112px, 2fr);
+    grid-template-rows: auto 44px;
     width: 100%;
+    flex: 0 0 auto;
     min-width: 0;
-    height: calc(60px + env(safe-area-inset-bottom));
+    height: auto;
+    min-height: calc(102px + env(safe-area-inset-bottom));
     padding-bottom: env(safe-area-inset-bottom);
-    flex-direction: row;
-    align-items: center;
+    align-items: stretch;
     order: 2;
     border-right: none;
     border-top: 1px solid var(--p-surface-200);
-    overflow-x: auto;
-    overflow-y: hidden;
+    overflow: visible;
 
     :root.dark & {
       border-top-color: var(--p-surface-700);
@@ -1535,19 +1554,31 @@ handle("update:set-status", async (event, { value }) => {
     align-items: center;
     padding: 0 4px;
     gap: 0;
+    min-width: 0;
   }
 
   .sidebar-nav {
-    flex: 1 1 auto;
-    min-width: 0;
+    grid-column: 1;
+    grid-row: 2;
     justify-content: space-around;
+  }
+
+  .sidebar-bottom {
+    grid-column: 2;
+    grid-row: 2;
+    justify-content: space-around;
+    padding-bottom: 0;
   }
 
   .sidebar-project,
   .sidebar-collapsed .sidebar-project {
+    box-sizing: border-box;
     flex: 0 0 auto;
-    max-width: 182px;
-    padding: 0 6px;
+    grid-column: 1 / -1;
+    grid-row: 1;
+    width: 100%;
+    max-width: none;
+    padding: 6px 12px 8px;
     border: 0;
   }
 
@@ -1557,10 +1588,19 @@ handle("update:set-status", async (event, { value }) => {
 
   .sidebar-project-select,
   .sidebar-collapsed .sidebar-project-select {
-    flex: 0 1 146px;
-    width: 146px;
-    min-width: 84px;
-    height: 36px;
+    flex: 1 1 auto;
+    width: 100%;
+    min-width: 0;
+    min-height: 44px;
+    height: auto;
+
+    :deep(.p-select-label) {
+      overflow: visible;
+      overflow-wrap: anywhere;
+      text-overflow: clip;
+      white-space: normal;
+      line-height: 1.25;
+    }
   }
 
   .sidebar-project .project-controls,
@@ -1571,11 +1611,21 @@ handle("update:set-status", async (event, { value }) => {
 
   .sidebar-project .project-controls :deep(.p-button),
   .sidebar-collapsed .sidebar-project .project-controls :deep(.p-button) {
-    flex: 0 0 36px;
+    box-sizing: border-box;
+    flex: 0 0 44px;
+    width: 44px;
+    height: 44px;
   }
 
   .project-initial {
-    text-align: left;
+    text-align: center;
+  }
+
+  .project-select-value {
+    overflow: visible;
+    overflow-wrap: anywhere;
+    text-overflow: clip;
+    white-space: normal;
   }
 
   .hosted-account-note-trigger {
@@ -1590,7 +1640,7 @@ handle("update:set-status", async (event, { value }) => {
     flex: 1;
     justify-content: center;
     padding: 8px 4px;
-    min-width: 56px;
+    min-width: 40px;
     min-height: 44px;
 
     .nav-icon {
@@ -1645,20 +1695,6 @@ handle("update:set-status", async (event, { value }) => {
 }
 
 @media (max-width: 440px) {
-  .sidebar-project,
-  .sidebar-collapsed .sidebar-project {
-    box-sizing: border-box;
-    max-width: 112px;
-    padding-inline: 2px;
-  }
-
-  .sidebar-project-select,
-  .sidebar-collapsed .sidebar-project-select {
-    flex-basis: 68px;
-    width: 68px;
-    min-width: 58px;
-  }
-
   .sidebar-nav-item,
   .sidebar-collapsed .sidebar-nav-item {
     min-width: 40px;

@@ -63,8 +63,8 @@
           </div>
           <i class="mdi mdi-rocket-launch-outline card-icon" aria-hidden="true" />
         </div>
-        <p class="project-description">
-          {{ activeProject?.description || $t("home.no-project-description") }}
+        <p v-if="activeProject?.description" class="project-description">
+          {{ activeProject.description }}
         </p>
         <div v-if="filesReady" class="workflow-count">
           <strong>{{ workflowCount }}</strong>
@@ -82,8 +82,28 @@
         <p v-else-if="workflowCount === 0" class="empty-copy">
           {{ $t("home.no-workflows-in-project") }}
         </p>
-        <RouterLink class="text-link" to="/workflows">
-          {{ $t("home.open-workflows") }}
+        <div v-if="filesReady && workflowCount > 0" class="workflow-shortcuts">
+          <RouterLink
+            v-for="workflow in workflowShortcuts"
+            :key="workflow.id"
+            class="workflow-shortcut"
+            :to="`/workflows/${workflow.id}/${selectedProjectId}`"
+            :aria-label="$t('home.open-workflow', { name: workflow.name })"
+          >
+            <span class="workflow-shortcut-name">{{ workflow.name }}</span>
+            <i class="mdi mdi-arrow-top-right" aria-hidden="true" />
+          </RouterLink>
+          <RouterLink class="text-link" to="/workflows">
+            {{ $t("home.manage-workflows") }}
+            <i class="mdi mdi-arrow-right" aria-hidden="true" />
+          </RouterLink>
+        </div>
+        <RouterLink
+          v-else-if="filesReady && workflowCount === 0"
+          class="text-link"
+          :to="{ path: '/workflows', query: { create: 'new' } }"
+        >
+          {{ $t("home.new-workflow") }}
           <i class="mdi mdi-arrow-right" aria-hidden="true" />
         </RouterLink>
       </section>
@@ -180,6 +200,7 @@ import { useAPI } from "@renderer/composables/api";
 import { useAppStore } from "@renderer/store/app";
 import { useAuth } from "@renderer/store/auth";
 import { useFiles } from "@renderer/store/files";
+import { partitionWorkflowLoads } from "./workflow-load-state";
 
 const router = useRouter();
 const api = useAPI();
@@ -199,6 +220,11 @@ const projectWorkflows = computed(() =>
   (files.value.workflows ?? []).filter((workflow) => workflow.project === selectedProjectId.value),
 );
 const workflowCount = computed(() => projectWorkflows.value.length);
+const workflowEntryVersion = computed(() =>
+  projectWorkflows.value.map((workflow) => `${workflow.id}:${workflow.lastModified}`).join("|"),
+);
+const workflowShortcuts = ref<Array<{ id: string; name: string }>>([]);
+let workflowShortcutRequest = 0;
 
 const recentExecutions = ref<BuildHistoryEntry[]>([]);
 const historyLoading = ref(false);
@@ -253,6 +279,45 @@ const formatExecutionDate = (timestamp: number) =>
   new Intl.DateTimeFormat(locale.value, { dateStyle: "medium", timeStyle: "short" }).format(
     timestamp,
   );
+
+const loadWorkflowShortcuts = async () => {
+  const request = ++workflowShortcutRequest;
+  const projectId = selectedProjectId.value;
+  workflowShortcuts.value = [];
+  if (!projectId || !filesReady.value || !agent.isReady.value) return;
+
+  const entries = projectWorkflows.value.slice(0, 3);
+  if (!entries.length) return;
+
+  const results = await Promise.all(
+    entries.map(async (workflow) => {
+      try {
+        return await api.execute("workflow:load", {
+          workflowId: workflow.id,
+          projectId: workflow.project,
+        });
+      } catch (error) {
+        return {
+          type: "error" as const,
+          ipcError: error instanceof Error ? error.message : String(error),
+        };
+      }
+    }),
+  );
+  if (request !== workflowShortcutRequest || projectId !== selectedProjectId.value) return;
+
+  const { loaded } = partitionWorkflowLoads(entries, results);
+  workflowShortcuts.value = loaded.map((workflow) => ({
+    id: workflow.id,
+    name: workflow.content.name,
+  }));
+};
+
+watch(
+  [selectedProjectId, filesReady, agent.isReady, workflowEntryVersion],
+  () => void loadWorkflowShortcuts(),
+  { immediate: true },
+);
 </script>
 
 <style lang="scss" scoped>
@@ -436,11 +501,65 @@ const formatExecutionDate = (timestamp: number) =>
 }
 
 .project-description {
-  min-height: 3em;
   margin: 0;
   color: var(--p-text-muted-color);
   font-size: 0.875rem;
   line-height: 1.5;
+}
+
+.workflow-shortcuts {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: 8px;
+  border-top: 1px solid var(--p-surface-200);
+
+  :root.dark & {
+    border-top-color: var(--p-surface-800);
+  }
+}
+
+.workflow-shortcut {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  color: var(--p-text-color);
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition:
+    background-color 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease;
+
+  &:hover {
+    border-color: var(--p-surface-200);
+    background: var(--p-surface-50);
+    color: var(--primary-color);
+  }
+
+  &:focus-visible {
+    outline: 3px solid color-mix(in srgb, var(--primary-color) 55%, transparent);
+    outline-offset: 2px;
+  }
+
+  :root.dark & {
+    &:hover {
+      border-color: var(--p-surface-800);
+      background: var(--p-surface-850);
+    }
+  }
+}
+
+.workflow-shortcut-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .workflow-count {

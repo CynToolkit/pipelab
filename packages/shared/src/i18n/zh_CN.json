@@ -128,7 +128,6 @@
     "workflow-overview": "工作流概览",
     "workflow-count-one": "个发布工作流",
     "workflow-count-many": "个发布工作流",
-    "no-project-description": "添加项目描述，为团队提供更多背景信息。",
     "project-overview-disconnected": "引擎断开连接时无法查看项目详情。",
     "open-workflows": "打开工作流",
     "execution": "执行",

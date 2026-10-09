@@ -128,7 +128,6 @@
     "workflow-overview": "Workflow-Übersicht",
     "workflow-count-one": "Release-Workflow",
     "workflow-count-many": "Release-Workflows",
-    "no-project-description": "Füge eine Projektbeschreibung hinzu, damit dein Team den Kontext kennt.",
     "project-overview-disconnected": "Projektdetails sind nicht verfügbar, solange die Engine getrennt ist.",
     "open-workflows": "Workflows öffnen",
     "execution": "Ausführung",

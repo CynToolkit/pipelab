@@ -128,7 +128,6 @@
     "workflow-overview": "Resumen de workflows",
     "workflow-count-one": "workflow de publicación",
     "workflow-count-many": "workflows de publicación",
-    "no-project-description": "Añade una descripción para dar contexto a tu equipo.",
     "project-overview-disconnected": "Los detalles del proyecto no están disponibles sin conexión con el motor.",
     "open-workflows": "Abrir workflows",
     "execution": "Ejecución",
