@@ -1,7 +1,7 @@
 <template>
   <div class="layout-shell" :class="{ 'sidebar-collapsed': isSidebarCollapsed }">
     <!-- Sidebar -->
-    <aside class="sidebar">
+    <aside id="app-sidebar" class="sidebar">
       <!-- Logo area -->
       <div class="sidebar-header">
         <div v-show="!isSidebarCollapsed" class="sidebar-logo-area">
@@ -11,6 +11,9 @@
         <button
           v-tooltip.right="isSidebarCollapsed ? 'Expand sidebar' : undefined"
           class="sidebar-collapse-btn"
+          :aria-label="isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'"
+          :aria-expanded="!isSidebarCollapsed"
+          aria-controls="app-sidebar"
           @click="toggleSidebar"
         >
           <i class="mdi" :class="isSidebarCollapsed ? 'mdi-menu' : 'mdi-chevron-left'" />
@@ -18,10 +21,11 @@
       </div>
 
       <!-- Navigation -->
-      <nav class="sidebar-nav">
+      <nav id="sidebar-nav" class="sidebar-nav" aria-label="Main navigation">
         <router-link
           to="/dashboard"
           class="sidebar-nav-item"
+          aria-label="Dashboard"
           active-class="active"
           v-tooltip.right="isSidebarCollapsed ? 'Dashboard' : undefined"
         >
@@ -32,6 +36,7 @@
         <router-link
           to="/connections"
           class="sidebar-nav-item"
+          aria-label="Connections"
           active-class="active"
           v-tooltip.right="isSidebarCollapsed ? 'Connections' : undefined"
         >
@@ -136,6 +141,7 @@
         <!-- Help & Support -->
         <button
           class="sidebar-nav-item"
+          aria-label="Help & Support"
           @click="toggleHelpMenu"
           v-tooltip.right="isSidebarCollapsed ? 'Help & Support' : undefined"
         >
@@ -159,6 +165,7 @@
         <!-- Settings -->
         <button
           class="sidebar-nav-item"
+          aria-label="Settings"
           v-tooltip.right="isSidebarCollapsed ? 'Settings' : undefined"
           @click="isSettingsModalVisible = true"
         >
@@ -545,6 +552,11 @@ handle("update:set-status", async (event, { value }) => {
   cursor: pointer;
   transition: all 0.15s ease;
 
+  &:focus-visible {
+    outline: 3px solid color-mix(in srgb, var(--primary-color) 60%, transparent);
+    outline-offset: 2px;
+  }
+
   &:hover {
     background: var(--p-surface-200);
     color: var(--p-text-color);
@@ -593,6 +605,11 @@ handle("update:set-status", async (event, { value }) => {
   transition: all 0.15s ease;
   white-space: nowrap;
   overflow: hidden;
+
+  &:focus-visible {
+    outline: 3px solid color-mix(in srgb, var(--primary-color) 60%, transparent);
+    outline-offset: 2px;
+  }
 
   &:hover {
     background: var(--p-surface-200);
@@ -1060,6 +1077,15 @@ handle("update:set-status", async (event, { value }) => {
 
   .sidebar-bottom {
     padding: 0 4px;
+  }
+
+  .hosted-account-note {
+    box-sizing: border-box;
+    flex: 0 1 100px;
+    width: 100px;
+    min-width: 80px;
+    max-width: 100px;
+    line-height: 1.25;
   }
 
   .sidebar-account-row {

@@ -1,148 +1,123 @@
 <template>
   <div class="index">
     <ConfirmDialog />
-    <div class="main-layout">
-      <div class="drawer">
-        <div class="project-header">
-          <div class="project-text">
-            <i class="mdi mdi-folder mr-2"></i>
-            Projects
-          </div>
-          <div class="project-header-actions">
-            <Button
-              id="tour-add-project"
-              :disabled="
-                authStore.subscriptionStatus !== 'ready' || !agent.isReady.value || !filesReady
-              "
-              v-tooltip.top="
-                authStore.subscriptionStatus === 'ready' && !hasMultipleProjectsBenefit
-                  ? $t('home.premium-feature')
-                  : undefined
-              "
-              text
-              size="small"
-              class="drawer-header-icon-btn"
-              @click="onCreateProjectClick"
-            >
-              <i class="icon mdi mdi-plus fs-16"></i>
-            </Button>
-          </div>
+    <main class="workspace-page">
+      <header class="workspace-header">
+        <div class="workspace-heading">
+          <h1>Release workspace</h1>
+          <p class="workspace-description">Build and publish for each of your projects.</p>
         </div>
-        <div class="project-list" id="tour-projects-list">
-          <div
-            v-if="!filesReady && !agent.isReady.value"
-            class="px-3 py-3 text-sm opacity-60"
-            role="status"
-          >
-            Projects are unavailable while the engine is disconnected.
+
+        <div class="workspace-project">
+          <div class="project-switcher">
+            <label for="dashboard-project-select">Project</label>
+            <Select
+              id="tour-projects-list"
+              inputId="dashboard-project-select"
+              :model-value="activeProjectId"
+              :options="projects"
+              option-label="name"
+              option-value="id"
+              placeholder="Choose a project"
+              :disabled="!filesReady || projects.length === 0"
+              aria-label="Select project"
+              class="project-select"
+              @update:model-value="selectProject"
+            />
           </div>
-          <div v-else-if="!filesReady" class="px-3 py-3 text-sm opacity-60" role="status">
-            {{
-              projectLoadError ? `Couldn’t load projects: ${projectLoadError}` : "Loading projects…"
-            }}
-          </div>
-          <div
-            v-if="filesReady"
-            v-for="project in projects"
-            :key="project.id"
-            class="project-item"
-            :class="{ active: activeProjectId === project.id }"
-            @click="selectProject(project.id)"
-          >
-            <div class="project-item-content">
-              <i class="mdi mdi-folder-outline project-icon"></i>
-              <span class="project-label">{{ project.name }}</span>
-            </div>
-            <div class="project-item-actions" @click.stop>
-              <Button
-                text
-                rounded
-                severity="secondary"
-                size="small"
-                v-tooltip.top="'Rename Project'"
-                @click="openRenameProjectDialog(project.id)"
-              >
-                <i class="mdi mdi-pencil"></i>
-              </Button>
-              <Button
-                v-if="projects.length > 1"
-                text
-                rounded
-                severity="danger"
-                size="small"
-                v-tooltip.top="'Delete Project'"
-                @click="deleteProject(project.id)"
-              >
-                <i class="mdi mdi-delete"></i>
-              </Button>
-            </div>
-          </div>
-        </div>
-        <Message
-          v-if="filesReady && appStore.runtimeStatus === 'error'"
-          severity="warn"
-          :closable="false"
-          role="alert"
-        >
-          Runtime information is unavailable. {{ appStore.runtimeError }}
           <Button
-            label="Retry runtime info"
-            text
-            size="small"
-            @click="appStore.loadRuntimeInfo().catch(notifyPersistenceError)"
+            id="tour-add-project"
+            label="New project"
+            icon="mdi mdi-plus"
+            aria-label="New project"
+            severity="secondary"
+            variant="outlined"
+            :disabled="
+              authStore.subscriptionStatus !== 'ready' || !agent.isReady.value || !filesReady
+            "
+            v-tooltip.top="
+              authStore.subscriptionStatus === 'ready' && !hasMultipleProjectsBenefit
+                ? $t('home.premium-feature')
+                : undefined
+            "
+            @click="onCreateProjectClick"
           />
-        </Message>
-        <Message
-          v-if="agent.isReady.value && !filesReady && projectLoadError"
-          severity="error"
-          :closable="false"
-          role="alert"
-        >
-          {{ projectLoadError }}
-          <Button label="Retry" text size="small" @click="loadDashboardData" />
-        </Message>
-      </div>
+          <Button
+            icon="mdi mdi-dots-horizontal"
+            severity="secondary"
+            text
+            rounded
+            aria-label="Project actions"
+            aria-haspopup="menu"
+            aria-controls="project-actions-menu"
+            :aria-expanded="isProjectMenuOpen"
+            v-tooltip.top="'Project actions'"
+            :disabled="!activeProjectId || !filesReady"
+            @click="toggleProjectMenu"
+          />
+          <Menu
+            id="project-actions-menu"
+            ref="projectMenu"
+            :model="projectMenuItems"
+            :popup="true"
+            @show="isProjectMenuOpen = true"
+            @hide="isProjectMenuOpen = false"
+          />
+        </div>
+      </header>
 
-      <div class="your-projects">
-        <!-- Header Section -->
-        <div class="projects-header">
-          <div class="header-left">
-            <h2 class="project-title">{{ filesReady ? activeProject?.name : "" }}</h2>
+      <Message
+        v-if="filesReady && appStore.runtimeStatus === 'error'"
+        severity="warn"
+        :closable="false"
+        role="alert"
+        class="workspace-message"
+      >
+        Runtime information is unavailable. {{ appStore.runtimeError }}
+        <Button
+          label="Retry runtime info"
+          text
+          size="small"
+          @click="appStore.loadRuntimeInfo().catch(notifyPersistenceError)"
+        />
+      </Message>
+      <Message
+        v-if="agent.isReady.value && !filesReady && projectLoadError"
+        severity="error"
+        :closable="false"
+        role="alert"
+        class="workspace-message"
+      >
+        {{ projectLoadError }}
+        <Button label="Retry" text size="small" @click="loadDashboardData" />
+      </Message>
+
+      <section class="workflows-area" aria-labelledby="workflow-list-title">
+        <div class="workflows-toolbar">
+          <div class="section-heading">
+            <h2 id="workflow-list-title">Workflows</h2>
           </div>
-
-          <!-- Toolbar / Search and Action buttons -->
           <div class="header-right">
-            <!-- Search Input -->
             <IconField class="search-field">
               <InputIcon class="pi pi-search" />
               <InputText
                 v-model="searchQuery"
-                placeholder="Search workflows..."
+                placeholder="Search workflows"
+                aria-label="Search workflows"
                 class="search-input"
                 size="small"
               />
             </IconField>
-
-            <!-- Actions -->
             <div class="action-buttons">
               <Button
-                size="small"
-                severity="secondary"
-                variant="outlined"
+                label="New workflow"
+                icon="mdi mdi-rocket-launch-outline"
                 @click="openWorkflowWizard"
-              >
-                <i class="mdi mdi-rocket-launch-outline mr-2"></i>
-                New workflow
-              </Button>
-              <Button
-                variant="outlined"
-                severity="secondary"
-                size="small"
-                @click="toggleImportMenu"
-              >
-                <i class="mdi mdi-folder-open-outline mr-2"></i>
+              />
+              <Button severity="secondary" variant="outlined" @click="toggleImportMenu">
+                <i class="mdi mdi-folder-open-outline mr-2" aria-hidden="true" />
                 {{ $t("home.import") }}
-                <i class="mdi mdi-chevron-down ml-2"></i>
+                <i class="mdi mdi-chevron-down ml-2" aria-hidden="true" />
               </Button>
             </div>
           </div>
@@ -153,7 +128,8 @@
           Workflows are unavailable while the engine is disconnected.
         </div>
         <div v-else-if="!filesReady || isLoading" class="loading-state" aria-busy="true">
-          <div v-for="n in 3" :key="n" class="skeleton-row">
+          <span class="visually-hidden" role="status">Loading workflows</span>
+          <div v-for="n in 3" :key="n" class="skeleton-row" aria-hidden="true">
             <Skeleton shape="circle" size="32px" class="mr-3" />
             <div class="flex-grow-1 mr-4">
               <Skeleton width="40%" class="mb-2" />
@@ -235,8 +211,8 @@
             {{ broken.error }}
           </Message>
         </div>
-      </div>
-    </div>
+      </section>
+    </main>
     <Dialog
       v-model:visible="isNewProjectModalVisible"
       modal
@@ -251,8 +227,8 @@
 
       <div class="new-project">
         <div class="form-section">
-          <label class="form-label">{{ $t("home.project-name") }}</label>
-          <InputText v-model="newProjectName" class="w-full" size="small" />
+          <label for="new-project-name" class="form-label">{{ $t("home.project-name") }}</label>
+          <InputText id="new-project-name" v-model="newProjectName" class="w-full" size="small" />
         </div>
 
         <div class="dialog-footer">
@@ -284,8 +260,8 @@
         <p class="text-xl font-bold">{{ $t("home.rename-project") }}</p>
       </template>
       <div class="flex flex-column gap-2">
-        <label>{{ $t("home.new-project-name") }}</label>
-        <InputText v-model="renameProjectName" class="w-full" />
+        <label for="rename-project-name">{{ $t("home.new-project-name") }}</label>
+        <InputText id="rename-project-name" v-model="renameProjectName" class="w-full" />
       </div>
       <template #footer>
         <Button
@@ -317,6 +293,7 @@ import { useI18n } from "vue-i18n";
 import { useAuth } from "@renderer/store/auth";
 import Skeleton from "primevue/skeleton";
 import ConfirmDialog from "primevue/confirmdialog";
+import Select from "primevue/select";
 import { useConfirm } from "primevue/useconfirm";
 import Message from "primevue/message";
 import Tag from "primevue/tag";
@@ -612,6 +589,24 @@ const deleteProject = async (projectId?: string) => {
   });
 };
 
+const projectMenu = ref();
+const isProjectMenuOpen = ref(false);
+const toggleProjectMenu = (event: Event) => projectMenu.value.toggle(event);
+const projectMenuItems = computed(() => [
+  {
+    label: t("home.rename-project"),
+    icon: "mdi mdi-pencil",
+    command: () => openRenameProjectDialog(),
+  },
+  {
+    label: t("home.delete-project"),
+    icon: "mdi mdi-delete",
+    class: "text-red-500",
+    disabled: projects.value.length <= 1,
+    command: () => deleteProject(),
+  },
+]);
+
 const workflowMenu = ref();
 const selectedWorkflowForMenu = ref<(typeof workflowsEnhanced.value)[number] | null>(null);
 
@@ -701,249 +696,183 @@ const isNewProjectModalVisible = ref(false);
   margin-right: 20px;
   flex-shrink: 0;
 }
-/* ─── Index Page ────────────────────────────────────────── */
+/* ─── Release workspace shell ───────────────────────────── */
 .index {
-  display: flex;
-  flex-direction: column;
+  width: 100%;
+  height: 100%;
   overflow: auto;
-  height: 100%;
-  width: 100%;
 }
 
-/* ─── Main Layout (Drawer + Content) ────────────────────── */
-.main-layout {
-  display: flex;
-  flex-direction: row;
-  height: 100%;
-  width: 100%;
-}
-
-/* ─── Project Drawer ────────────────────────────────────── */
-.drawer {
-  width: 240px;
-  flex: 0 0 240px;
-  border-right: 1px solid var(--p-surface-200);
-  background: var(--p-surface-0);
+.workspace-page {
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
+  gap: 28px;
+  width: min(100%, 1480px);
+  min-height: 100%;
+  margin: 0 auto;
+  padding: 38px 44px 48px;
+}
+
+.workspace-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 28px;
+  padding-bottom: 26px;
+  border-bottom: 1px solid var(--p-surface-200);
 
   :root.dark & {
-    border-right-color: var(--p-surface-700);
-    background: var(--p-surface-950);
+    border-bottom-color: var(--p-surface-800);
   }
+}
 
-  .project-header {
-    padding: 12px 12px 6px;
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
+.workspace-heading {
+  min-width: 0;
 
-    .project-text {
-      font-size: 0.8rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: var(--p-text-muted-color);
-      display: flex;
-      align-items: center;
-      height: 28px;
-      line-height: 1;
-    }
-
-    .project-header-actions {
-      display: flex;
-      gap: 4px;
-    }
-
-    :deep(.drawer-header-icon-btn) {
-      width: 28px;
-      height: 28px;
-      padding: 0;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: 8px;
-    }
+  h1 {
+    margin: 0;
+    color: var(--p-text-color);
+    font-size: 1.85rem;
+    font-weight: 700;
+    line-height: 1.15;
+    letter-spacing: -0.04em;
   }
+}
 
-  .project-list {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    padding: 0 12px;
-    overflow: auto;
-    flex: 1;
-  }
+.workspace-description {
+  margin: 8px 0 0;
+  color: var(--p-text-muted-color);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
 
-  .project-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 6px 10px;
-    border-radius: 8px;
-    font-size: 0.825rem;
-    font-weight: 500;
+.workspace-project {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.project-switcher {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: min(270px, 34vw);
+
+  label {
     color: var(--p-text-muted-color);
-    cursor: pointer;
-    transition: all 0.15s ease;
-    user-select: none;
-
-    &:hover {
-      background: var(--p-surface-200);
-      color: var(--p-text-color);
-
-      :root.dark & {
-        background: var(--p-surface-800);
-      }
-    }
-
-    &.active {
-      background: var(--p-surface-200);
-      color: var(--p-text-color);
-      font-weight: 600;
-
-      :root.dark & {
-        background: var(--p-surface-800);
-      }
-    }
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    line-height: 1;
+    text-transform: uppercase;
   }
 
-  .project-item-content {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    min-width: 0;
-  }
-
-  .project-icon {
-    font-size: 18px;
-    flex-shrink: 0;
-  }
-
-  .project-label {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .project-item-actions {
-    display: flex;
-    gap: 2px;
-    opacity: 0;
-    transition: opacity 0.15s ease;
-    flex-shrink: 0;
-
-    :deep(.p-button) {
-      width: 24px;
-      height: 24px;
-      padding: 0;
-
-      i {
-        font-size: 14px;
-      }
-    }
-  }
-
-  .project-item:hover .project-item-actions {
-    opacity: 1;
+  :deep(.p-select) {
+    min-height: 40px;
+    border-radius: 9px;
   }
 }
 
-/* ─── Workflow Content Area ──────────────────────────────── */
-.your-projects {
-  height: 100%;
-  width: 100%;
+.workspace-message {
+  margin: -12px 0 0;
+}
+
+.workflows-area {
   display: flex;
+  flex: 1;
   flex-direction: column;
-  padding: 16px;
-  overflow: auto;
-}
-
-/* ─── Projects Header ───────────────────────────────────── */
-.projects-header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  margin-bottom: 12px;
-  gap: 12px 16px;
-  flex-shrink: 0;
   min-width: 0;
 }
 
-.header-left {
+.workflows-toolbar {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-  flex: 0 1 auto;
-  margin-right: auto;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 18px;
 }
 
-.project-title {
-  font-size: 1.05rem;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  color: var(--p-text-color);
-  margin: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.section-heading {
+  min-width: 0;
+
+  h2 {
+    margin: 0;
+    color: var(--p-text-color);
+    font-size: 1.2rem;
+    font-weight: 650;
+    line-height: 1.25;
+    letter-spacing: -0.025em;
+  }
 }
 
 .header-right {
   display: flex;
   align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-  min-width: 0;
-  flex: 0 1 auto;
   justify-content: flex-end;
+  gap: 10px;
+  min-width: 0;
 }
 
 .search-field {
-  width: 260px;
-  max-width: 100%;
-  flex-shrink: 1;
-  min-width: 200px;
-
-  @media (max-width: 640px) {
-    flex: 1 1 100%;
-    width: 100%;
-    min-width: 0;
-  }
+  width: 230px;
+  flex: 0 1 230px;
+  min-width: 170px;
 
   .search-input {
     width: 100%;
-    border-radius: 8px;
+    min-height: 40px;
     padding-left: 2.25rem !important;
+    border-radius: 9px;
   }
 }
 
 .action-buttons {
   display: flex;
+  flex: 0 0 auto;
   gap: 8px;
-  flex-wrap: wrap;
 
   :deep(.p-button) {
+    min-height: 40px;
     white-space: nowrap;
   }
 }
 
-/* Stack everything vertically on small screens */
-@media (max-width: 640px) {
-  .projects-header {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 12px;
-  }
+.project-switcher :deep(.p-select:focus-visible),
+.workspace-project :deep(.p-button:focus-visible),
+.workflows-area :deep(.p-button:focus-visible),
+.workflows-area :deep(.p-inputtext:focus-visible) {
+  outline: 3px solid color-mix(in srgb, var(--primary-color) 55%, transparent);
+  outline-offset: 2px;
+}
 
-  .header-left {
-    margin-right: 0;
-  }
+.workflows-area :deep(.p-button),
+.workspace-project :deep(.p-button),
+.project-switcher :deep(.p-select) {
+  transition:
+    border-color 140ms ease,
+    background-color 140ms ease,
+    box-shadow 140ms ease;
+}
 
-  .header-right {
-    justify-content: stretch;
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .workflows-area :deep(.p-button),
+  .workspace-project :deep(.p-button),
+  .project-switcher :deep(.p-select) {
+    transition: none;
   }
 }
 
@@ -1203,42 +1132,66 @@ const isNewProjectModalVisible = ref(false);
   }
 }
 
-/* ─── Mobile: drawer becomes top chips, rows wrap ───────── */
-@media (max-width: 860px) {
-  .main-layout {
+/* ─── Responsive workspace ─────────────────────────────── */
+@media (max-width: 1120px) {
+  .workspace-page {
+    padding: 30px 28px 40px;
+  }
+
+  .workspace-header {
+    align-items: flex-start;
+  }
+
+  .workflows-toolbar {
+    align-items: flex-start;
     flex-direction: column;
   }
 
-  .drawer {
+  .header-right {
     width: 100%;
-    flex: 0 0 auto;
-    border-right: none;
-    border-bottom: 1px solid var(--p-surface-200);
-
-    :root.dark & {
-      border-bottom-color: var(--p-surface-700);
-    }
-
-    .project-list {
-      flex-direction: row;
-      overflow-x: auto;
-      overflow-y: hidden;
-      padding: 0 12px 10px;
-    }
-
-    .project-item {
-      flex-shrink: 0;
-      max-width: 200px;
-    }
-
-    .project-item-actions {
-      opacity: 1;
-    }
+    justify-content: space-between;
   }
 
-  .your-projects {
-    padding: 12px;
-    overflow-x: hidden;
+  .search-field {
+    flex: 1 1 230px;
+  }
+}
+
+@media (max-width: 720px) {
+  .workspace-page {
+    gap: 22px;
+    padding: 24px 20px 32px;
+  }
+
+  .workspace-header {
+    flex-direction: column;
+    gap: 20px;
+    padding-bottom: 20px;
+  }
+
+  .workspace-project {
+    width: 100%;
+  }
+
+  .project-switcher {
+    flex: 1;
+    width: auto;
+    min-width: 0;
+  }
+
+  .workflows-toolbar {
+    gap: 16px;
+  }
+
+  .header-right {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .search-field {
+    width: 100%;
+    flex: 1 1 auto;
+    min-width: 0;
   }
 
   .action-buttons {
@@ -1247,14 +1200,13 @@ const isNewProjectModalVisible = ref(false);
     :deep(.p-button) {
       flex: 1;
       justify-content: center;
-      min-height: 40px;
     }
   }
 
   .workflow-row {
     flex-wrap: wrap;
     gap: 8px;
-    padding: 12px;
+    padding: 14px;
   }
 
   .workflow-icon {
@@ -1277,6 +1229,20 @@ const isNewProjectModalVisible = ref(false);
 
   .row-actions {
     opacity: 1;
+  }
+}
+
+@media (max-width: 440px) {
+  .workspace-page {
+    padding: 20px 14px 28px;
+  }
+
+  .workspace-heading h1 {
+    font-size: 1.6rem;
+  }
+
+  .workspace-project :deep(.p-button) {
+    white-space: nowrap;
   }
 }
 </style>

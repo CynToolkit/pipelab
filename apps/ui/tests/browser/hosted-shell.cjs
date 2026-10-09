@@ -18,9 +18,29 @@ async function main() {
       if (!new URL(socket.url()).searchParams.has("token")) websocketUrls.push(socket.url());
     });
 
-    await page.goto(`${baseUrl}/dashboard`);
-    await page.waitForTimeout(1500);
+    await page.goto(`${baseUrl}/dashboard`, { waitUntil: "domcontentloaded" });
+    await page.getByRole("heading", { name: "Release workspace", exact: true }).waitFor();
     assert.equal(await page.locator(".route-content").getAttribute("inert"), null);
+    assert.equal(
+      await page.getByRole("heading", { name: "Release workspace", exact: true }).count(),
+      1,
+    );
+    assert.equal(await page.getByRole("heading", { name: "Workflows", exact: true }).count(), 1);
+    assert.equal(await page.getByRole("combobox", { name: "Select project" }).isDisabled(), true);
+    assert.equal(await page.getByRole("button", { name: "New project" }).isDisabled(), true);
+    assert.equal(await page.getByRole("button", { name: "Project actions" }).isDisabled(), true);
+    assert.equal(await page.getByRole("navigation", { name: "Main navigation" }).count(), 1);
+    const sidebarToggle = page.getByRole("button", { name: "Collapse sidebar" });
+    await sidebarToggle.focus();
+    await page.keyboard.press("Enter");
+    assert.equal(await page.getByRole("button", { name: "Expand sidebar" }).count(), 1);
+    await page.keyboard.press("Space");
+    assert.equal(await page.getByRole("button", { name: "Collapse sidebar" }).count(), 1);
+    await page.setViewportSize({ width: 390, height: 844 });
+    const hostedNote = await page.locator(".hosted-account-note").boundingBox();
+    assert.ok(hostedNote);
+    assert.ok(hostedNote.x + hostedNote.width <= 390, "hosted status fits the narrow navigation");
+    await page.setViewportSize({ width: 1280, height: 720 });
     const loginButton = page.locator("button.login-btn");
     if ((await loginButton.count()) > 0) assert.equal(await loginButton.isDisabled(), true);
     assert.match(
@@ -52,7 +72,7 @@ async function main() {
     await page.locator('[role="option"][aria-label="fr-FR"]').click();
     assert.equal(await page.locator("#language-select").getAttribute("aria-label"), "fr-FR");
     assert.equal(await page.locator(".section-header h3").textContent(), "Général");
-    await page.reload();
+    await page.reload({ waitUntil: "domcontentloaded" });
     assert.equal(
       await page.locator("html").evaluate((element) => element.classList.contains("dark")),
       true,
@@ -73,7 +93,7 @@ async function main() {
       };
     });
     const restrictedPage = await restrictedContext.newPage();
-    await restrictedPage.goto(`${baseUrl}/dashboard`);
+    await restrictedPage.goto(`${baseUrl}/dashboard`, { waitUntil: "domcontentloaded" });
     await restrictedPage.getByRole("button", { name: "Settings" }).click();
     await restrictedPage.getByLabel("Toggle dark mode").click();
     assert.equal(
