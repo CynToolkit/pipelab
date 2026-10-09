@@ -37,7 +37,9 @@ const routes: RouterOptions["routes"] = [
   },
   {
     path: "/workflows",
-    redirect: "/dashboard",
+    name: "Workflows",
+    component: () => import("../pages/workflows.vue"),
+    meta: { title: t("home.workflows") },
   },
   {
     path: "/workflows/:flowId/:projectId",

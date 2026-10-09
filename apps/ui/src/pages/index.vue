@@ -1,382 +1,236 @@
 <template>
-  <div class="index">
-    <ConfirmDialog />
-    <div class="main-layout">
-      <div class="drawer">
-        <div class="project-header">
-          <div class="project-text">
-            <i class="mdi mdi-folder mr-2"></i>
-            Projects
-          </div>
-          <div class="project-header-actions">
-            <Button
-              id="tour-add-project"
-              :disabled="
-                authStore.subscriptionStatus !== 'ready' || !agent.isReady.value || !filesReady
-              "
-              v-tooltip.top="
-                authStore.subscriptionStatus === 'ready' && !hasMultipleProjectsBenefit
-                  ? $t('home.premium-feature')
-                  : undefined
-              "
-              text
-              size="small"
-              class="drawer-header-icon-btn"
-              @click="onCreateProjectClick"
-            >
-              <i class="icon mdi mdi-plus fs-16"></i>
-            </Button>
-          </div>
-        </div>
-        <div class="project-list" id="tour-projects-list">
-          <div
-            v-if="!filesReady && !agent.isReady.value"
-            class="px-3 py-3 text-sm opacity-60"
-            role="status"
-          >
-            Projects are unavailable while the engine is disconnected.
-          </div>
-          <div v-else-if="!filesReady" class="px-3 py-3 text-sm opacity-60" role="status">
-            {{
-              projectLoadError ? `Couldn’t load projects: ${projectLoadError}` : "Loading projects…"
-            }}
-          </div>
-          <div
-            v-if="filesReady"
-            v-for="project in projects"
-            :key="project.id"
-            class="project-item"
-            :class="{ active: activeProjectId === project.id }"
-            @click="selectProject(project.id)"
-          >
-            <div class="project-item-content">
-              <i class="mdi mdi-folder-outline project-icon"></i>
-              <span class="project-label">{{ project.name }}</span>
-            </div>
-            <div class="project-item-actions" @click.stop>
-              <Button
-                text
-                rounded
-                severity="secondary"
-                size="small"
-                v-tooltip.top="'Rename Project'"
-                @click="openRenameProjectDialog(project.id)"
-              >
-                <i class="mdi mdi-pencil"></i>
-              </Button>
-              <Button
-                v-if="projects.length > 1"
-                text
-                rounded
-                severity="danger"
-                size="small"
-                v-tooltip.top="'Delete Project'"
-                @click="deleteProject(project.id)"
-              >
-                <i class="mdi mdi-delete"></i>
-              </Button>
-            </div>
-          </div>
-        </div>
-        <Message
-          v-if="filesReady && appStore.runtimeStatus === 'error'"
-          severity="warn"
-          :closable="false"
-          role="alert"
-        >
-          Runtime information is unavailable. {{ appStore.runtimeError }}
-          <Button
-            label="Retry runtime info"
-            text
-            size="small"
-            @click="appStore.loadRuntimeInfo().catch(notifyPersistenceError)"
-          />
-        </Message>
-        <Message
-          v-if="agent.isReady.value && !filesReady && projectLoadError"
-          severity="error"
-          :closable="false"
-          role="alert"
-        >
-          {{ projectLoadError }}
-          <Button label="Retry" text size="small" @click="loadDashboardData" />
-        </Message>
+  <main class="dashboard-page">
+    <header class="dashboard-header">
+      <div class="dashboard-heading">
+        <p class="project-context">
+          <span>{{ $t("home.project") }}</span>
+          {{ activeProject?.name || $t("home.choose-project") }}
+        </p>
+        <h1>{{ $t("home.project-overview") }}</h1>
+        <p class="dashboard-description">{{ $t("home.project-overview-description") }}</p>
       </div>
-
-      <div class="your-projects">
-        <!-- Header Section -->
-        <div class="projects-header">
-          <div class="header-left">
-            <h2 class="project-title">{{ filesReady ? activeProject?.name : "" }}</h2>
-          </div>
-
-          <!-- Toolbar / Search and Action buttons -->
-          <div class="header-right">
-            <!-- Search Input -->
-            <IconField class="search-field">
-              <InputIcon class="pi pi-search" />
-              <InputText
-                v-model="searchQuery"
-                placeholder="Search workflows..."
-                class="search-input"
-                size="small"
-              />
-            </IconField>
-
-            <!-- Actions -->
-            <div class="action-buttons">
-              <Button
-                size="small"
-                severity="secondary"
-                variant="outlined"
-                @click="openWorkflowWizard"
-              >
-                <i class="mdi mdi-rocket-launch-outline mr-2"></i>
-                New workflow
-              </Button>
-              <Button
-                variant="outlined"
-                severity="secondary"
-                size="small"
-                @click="toggleImportMenu"
-              >
-                <i class="mdi mdi-folder-open-outline mr-2"></i>
-                {{ $t("home.import") }}
-                <i class="mdi mdi-chevron-down ml-2"></i>
-              </Button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Loading State -->
-        <div v-if="!filesReady && !agent.isReady.value" class="inline-state" role="status">
-          Workflows are unavailable while the engine is disconnected.
-        </div>
-        <div v-else-if="!filesReady || isLoading" class="loading-state" aria-busy="true">
-          <div v-for="n in 3" :key="n" class="skeleton-row">
-            <Skeleton shape="circle" size="32px" class="mr-3" />
-            <div class="flex-grow-1 mr-4">
-              <Skeleton width="40%" class="mb-2" />
-              <Skeleton width="60%" />
-            </div>
-            <Skeleton width="80px" class="mr-4" />
-            <Skeleton shape="circle" size="32px" />
-          </div>
-        </div>
-
-        <!-- Empty State (No Workflows) -->
-        <div v-else-if="dashboardState === 'empty'" class="no-projects">
-          <i class="mdi mdi-folder-open-outline empty-icon"></i>
-          <div class="no-workflows-text">No workflows in this project yet.</div>
-          <Button severity="secondary" variant="outlined" @click="openWorkflowWizard">
-            <i class="mdi mdi-rocket-launch-outline mr-2"></i>
-            New workflow
-          </Button>
-        </div>
-
-        <!-- No Search Results -->
-        <div v-else-if="dashboardState === 'search-empty'" class="no-search-results">
-          <i class="mdi mdi-magnify-close empty-icon"></i>
-          <div class="no-results-text">No workflows found matching "{{ searchQuery }}"</div>
-          <Button text severity="secondary" @click="searchQuery = ''"> Clear search </Button>
-        </div>
-
-        <div v-else class="workflows-list">
-          <div
-            v-for="flow in filteredWorkflowsEnhanced"
-            :key="flow.id"
-            class="workflow-row"
-            @click="openWorkflow(flow.id)"
-          >
-            <div class="workflow-icon">
-              <i class="mdi mdi-rocket-launch-outline"></i>
-            </div>
-            <div class="workflow-info">
-              <div class="workflow-title-row">
-                <span class="workflow-name">{{ flow.content.name }}</span>
-                <Tag severity="info" value="Release" class="type-tag" />
-              </div>
-              <div class="workflow-desc">
-                {{ flow.content.source.provider }} →
-                {{ flow.content.destinations.map(destinationLabel).join(", ") }}
-              </div>
-            </div>
-            <div class="workflow-meta-actions">
-              <span class="workflow-updated"
-                >Updated {{ formatLastModified(flow.lastModified) }}</span
-              >
-              <div class="row-actions" @click.stop>
-                <Button
-                  icon="mdi mdi-pencil"
-                  text
-                  rounded
-                  severity="secondary"
-                  size="small"
-                  v-tooltip.top="'Edit workflow'"
-                  @click="openWorkflow(flow.id)"
-                /><Button
-                  icon="mdi mdi-dots-vertical"
-                  text
-                  rounded
-                  severity="secondary"
-                  size="small"
-                  @click="toggleWorkflowMenu($event, flow)"
-                />
-              </div>
-            </div>
-          </div>
-          <Message
-            v-for="broken in brokenWorkflows"
-            :key="broken.id"
-            severity="error"
-            class="workflow-row-error"
-          >
-            Release workflow <strong>{{ broken.id }}</strong> could not be loaded:
-            {{ broken.error }}
-          </Message>
-        </div>
-      </div>
-    </div>
-    <Dialog
-      v-model:visible="isNewProjectModalVisible"
-      modal
-      :style="{ width: '400px', maxWidth: '90vw' }"
-      :pt="{ root: { class: 'project-dialog' } }"
-    >
-      <template #header>
-        <div class="flex flex-column w-full">
-          <p class="dialog-title">{{ $t("home.new-project") }}</p>
-        </div>
-      </template>
-
-      <div class="new-project">
-        <div class="form-section">
-          <label class="form-label">{{ $t("home.project-name") }}</label>
-          <InputText v-model="newProjectName" class="w-full" size="small" />
-        </div>
-
-        <div class="dialog-footer">
-          <Button
-            :disabled="!canCreateProject || !agent.isReady.value || !filesReady"
-            size="small"
-            @click="onNewProjectCreation"
-            >{{ $t("home.create-project") }}</Button
-          >
-        </div>
-      </div>
-    </Dialog>
-
-    <Menu ref="workflowMenu" :model="workflowMenuItems" :popup="true" />
-    <Menu ref="importMenu" :model="importMenuItems" :popup="true" />
-    <ReleaseFlowWizard
-      v-if="isWorkflowWizardVisible"
-      v-model:visible="isWorkflowWizardVisible"
-      :project-id="activeProjectId"
-      @create="createWorkflow"
-    />
-
-    <Dialog
-      v-model:visible="isRenameProjectModalVisible"
-      modal
-      :style="{ width: '400px', maxWidth: '90vw' }"
-    >
-      <template #header>
-        <p class="text-xl font-bold">{{ $t("home.rename-project") }}</p>
-      </template>
-      <div class="flex flex-column gap-2">
-        <label>{{ $t("home.new-project-name") }}</label>
-        <InputText v-model="renameProjectName" class="w-full" />
-      </div>
-      <template #footer>
+      <div class="dashboard-actions">
         <Button
-          label="Cancel"
-          text
-          severity="secondary"
-          @click="isRenameProjectModalVisible = false"
+          :label="$t('home.new-workflow')"
+          icon="mdi mdi-plus"
+          :disabled="!filesReady || !agent.isReady.value || !activeProject"
+          @click="startWorkflowCreation"
         />
-        <Button label="Rename" :disabled="!renameProjectName" @click="onRenameProject" />
-      </template>
-    </Dialog>
-  </div>
+        <RouterLink class="manage-workflows-link" to="/workflows">
+          {{ $t("home.manage-workflows") }}
+          <i class="mdi mdi-arrow-right" aria-hidden="true" />
+        </RouterLink>
+      </div>
+    </header>
+
+    <Message
+      v-if="filesReady && appStore.runtimeStatus === 'error'"
+      severity="warn"
+      :closable="false"
+      role="alert"
+      class="dashboard-message"
+    >
+      {{ $t("home.runtime-unavailable", { error: appStore.runtimeError || "" }) }}
+      <Button
+        :label="$t('home.retry-runtime')"
+        text
+        size="small"
+        @click="appStore.loadRuntimeInfo().catch(notifyPersistenceError)"
+      />
+    </Message>
+    <Message
+      v-if="agent.isReady.value && !filesReady && projectLoadError"
+      severity="error"
+      :closable="false"
+      role="alert"
+      class="dashboard-message"
+    >
+      {{ projectLoadError }}
+      <Button
+        :label="$t('home.retry')"
+        text
+        size="small"
+        @click="fileStore.load(true).catch(notifyPersistenceError)"
+      />
+    </Message>
+
+    <div class="overview-grid">
+      <section class="overview-card workflow-overview" aria-labelledby="workflow-overview-title">
+        <div class="card-heading">
+          <div>
+            <p class="eyebrow">{{ $t("home.project-overview") }}</p>
+            <h2 id="workflow-overview-title">{{ $t("home.workflow-overview") }}</h2>
+          </div>
+          <i class="mdi mdi-rocket-launch-outline card-icon" aria-hidden="true" />
+        </div>
+        <p v-if="activeProject?.description" class="project-description">
+          {{ activeProject.description }}
+        </p>
+        <div v-if="filesReady" class="workflow-count">
+          <strong>{{ workflowCount }}</strong>
+          <span>{{
+            workflowCount === 1 ? $t("home.workflow-count-one") : $t("home.workflow-count-many")
+          }}</span>
+        </div>
+        <p v-if="!filesReady" class="empty-copy" role="status">
+          {{
+            agent.isReady.value
+              ? $t("home.executions-waiting-project")
+              : $t("home.project-overview-disconnected")
+          }}
+        </p>
+        <p v-else-if="workflowCount === 0" class="empty-copy">
+          {{ $t("home.no-workflows-in-project") }}
+        </p>
+        <div v-if="filesReady && workflowCount > 0" class="workflow-shortcuts">
+          <RouterLink
+            v-for="workflow in workflowShortcuts"
+            :key="workflow.id"
+            class="workflow-shortcut"
+            :to="`/workflows/${workflow.id}/${selectedProjectId}`"
+            :aria-label="$t('home.open-workflow', { name: workflow.name })"
+          >
+            <span class="workflow-shortcut-name">{{ workflow.name }}</span>
+            <i class="mdi mdi-arrow-top-right" aria-hidden="true" />
+          </RouterLink>
+          <RouterLink class="text-link" to="/workflows">
+            {{ $t("home.manage-workflows") }}
+            <i class="mdi mdi-arrow-right" aria-hidden="true" />
+          </RouterLink>
+        </div>
+        <RouterLink
+          v-else-if="filesReady && workflowCount === 0"
+          class="text-link"
+          :to="{ path: '/workflows', query: { create: 'new' } }"
+        >
+          {{ $t("home.new-workflow") }}
+          <i class="mdi mdi-arrow-right" aria-hidden="true" />
+        </RouterLink>
+      </section>
+
+      <section class="overview-card recent-executions" aria-labelledby="recent-executions-title">
+        <div class="card-heading">
+          <div>
+            <p class="eyebrow">{{ $t("home.execution") }}</p>
+            <h2 id="recent-executions-title">{{ $t("home.recent-executions") }}</h2>
+          </div>
+          <i class="mdi mdi-history card-icon" aria-hidden="true" />
+        </div>
+        <p class="card-description">{{ $t("home.recent-executions-description") }}</p>
+
+        <div v-if="!hasBuildHistoryBenefit" class="activity-state">
+          {{ $t("home.execution-history-plan-required") }}
+          <RouterLink class="text-link" to="/workflows">
+            {{ $t("home.open-workflows") }}
+          </RouterLink>
+        </div>
+        <div v-else-if="!agent.isReady.value" class="activity-state" role="status">
+          {{ $t("home.executions-disconnected") }}
+        </div>
+        <div v-else-if="!filesReady" class="activity-state" role="status">
+          {{ $t("home.executions-waiting-project") }}
+        </div>
+        <div v-else-if="historyLoading" class="activity-state" role="status" aria-busy="true">
+          {{ $t("home.loading-executions") }}
+        </div>
+        <div v-else-if="historyError" class="activity-state activity-error" role="alert">
+          {{ $t("home.executions-unavailable") }}
+          <Button :label="$t('home.retry')" text size="small" @click="loadRecentExecutions" />
+        </div>
+        <div v-else-if="!recentExecutions.length" class="activity-state">
+          {{ $t("home.no-recent-executions") }}
+          <RouterLink class="text-link" to="/workflows">
+            {{ $t("home.open-workflows") }}
+          </RouterLink>
+        </div>
+        <div v-else class="execution-list" role="list" :aria-label="$t('home.recent-executions')">
+          <template v-for="entry in recentExecutions" :key="entry.id">
+            <RouterLink
+              v-if="entry.workflowId"
+              class="execution-row"
+              role="listitem"
+              :to="executionPath(entry)"
+              :aria-label="
+                $t('home.open-execution', {
+                  workflow: entry.workflowName || $t('home.workflow-run'),
+                  status: statusLabel(entry.status),
+                })
+              "
+            >
+              <span class="execution-status" :class="`status-${entry.status}`">
+                {{ statusLabel(entry.status) }}
+              </span>
+              <span class="execution-name">{{
+                entry.workflowName || $t("home.workflow-run")
+              }}</span>
+              <time :datetime="new Date(entry.startTime).toISOString()">
+                {{ formatExecutionDate(entry.startTime) }}
+              </time>
+              <i class="mdi mdi-chevron-right" aria-hidden="true" />
+            </RouterLink>
+            <div v-else class="execution-row execution-row-static" role="listitem">
+              <span class="execution-status" :class="`status-${entry.status}`">
+                {{ statusLabel(entry.status) }}
+              </span>
+              <span class="execution-name">{{
+                entry.workflowName || $t("home.workflow-run")
+              }}</span>
+              <time :datetime="new Date(entry.startTime).toISOString()">
+                {{ formatExecutionDate(entry.startTime) }}
+              </time>
+            </div>
+          </template>
+        </div>
+      </section>
+    </div>
+  </main>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, inject, watch, defineAsyncComponent } from "vue";
-import { useToast } from "primevue/usetoast";
+import { computed, ref, watch } from "vue";
 import { storeToRefs } from "pinia";
-import Menu from "primevue/menu";
-import { ReleaseConfig } from "@pipelab/shared";
-import { nanoid } from "nanoid";
-import { useRouter } from "vue-router";
-import { OpenMigrationModalKey, OpenUpgradeDialogKey } from "../utils/injection-keys";
-import { useAPI } from "@renderer/composables/api";
-import { useFiles } from "@renderer/store/files";
-
-import { useAppStore } from "@renderer/store/app";
+import { RouterLink, useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
-import { useAuth } from "@renderer/store/auth";
-import Skeleton from "primevue/skeleton";
-import ConfirmDialog from "primevue/confirmdialog";
-import { useConfirm } from "primevue/useconfirm";
+import { useToast } from "primevue/usetoast";
+import Button from "primevue/button";
 import Message from "primevue/message";
-import Tag from "primevue/tag";
-import IconField from "primevue/iconfield";
-import InputIcon from "primevue/inputicon";
-import { partitionWorkflowLoads } from "./workflow-load-state";
-import { getDashboardDisplayState, resolveSelectedProjectId } from "./dashboard-state";
+import type { BuildHistoryEntry } from "@pipelab/shared";
 import { useAgentAvailability } from "@renderer/composables/useAgentAvailability";
-
-const ReleaseFlowWizard = defineAsyncComponent(
-  () => import("@renderer/components/ReleaseFlowWizard.vue"),
-);
+import { useAPI } from "@renderer/composables/api";
+import { useAppStore } from "@renderer/store/app";
+import { useAuth } from "@renderer/store/auth";
+import { useFiles } from "@renderer/store/files";
+import { partitionWorkflowLoads } from "./workflow-load-state";
 
 const router = useRouter();
 const api = useAPI();
-const openUpgradeDialog = inject(OpenUpgradeDialogKey)!;
-const openMigrationModal = inject(OpenMigrationModalKey);
-const confirm = useConfirm();
 const toast = useToast();
+const { t, locale } = useI18n();
 const appStore = useAppStore();
-const agent = useAgentAvailability();
-
-// Table data
+const authStore = useAuth();
 const fileStore = useFiles();
-const { files } = storeToRefs(fileStore);
-const { update: updateFileStore, removeProject, removeWorkflow, load: reloadFiles } = fileStore;
-
-const workflowsEnhanced = ref<
-  Array<{ id: string; project: string; lastModified: string; content: ReleaseConfig }>
->([]);
-const brokenWorkflows = ref<Array<{ id: string; error: string }>>([]);
-let workflowLoadRevision = 0;
-const isWorkflowWizardVisible = ref(false);
-
-const searchQuery = ref("");
-
-const formatLastModified = (dateStr?: string) => {
-  if (!dateStr) return "";
-  const date = new Date(dateStr);
-  if (isNaN(date.getTime())) return dateStr;
-
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffMins = Math.floor(diffMs / 60000);
-  const diffHours = Math.floor(diffMins / 60);
-  const diffDays = Math.floor(diffHours / 24);
-
-  if (diffMins < 1) return "just now";
-  if (diffMins < 60) return `${diffMins}m ago`;
-  if (diffHours < 24) return `${diffHours}h ago`;
-  if (diffDays < 7) return `${diffDays}d ago`;
-
-  return date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
-};
-
-const canCreateProject = computed(
-  () => newProjectName.value.length > 0 && authStore.subscriptionStatus === "ready",
+const agent = useAgentAvailability();
+const { files, selectedProjectId, error: projectLoadError } = storeToRefs(fileStore);
+const { hasBuildHistoryBenefit } = storeToRefs(authStore);
+const filesReady = computed(() => fileStore.status === "ready");
+const activeProject = computed(() =>
+  files.value.projects.find((project) => project.id === selectedProjectId.value),
 );
+const projectWorkflows = computed(() =>
+  (files.value.workflows ?? []).filter((workflow) => workflow.project === selectedProjectId.value),
+);
+const workflowCount = computed(() => projectWorkflows.value.length);
+const workflowEntryVersion = computed(() =>
+  projectWorkflows.value.map((workflow) => `${workflow.id}:${workflow.lastModified}`).join("|"),
+);
+const workflowShortcuts = ref<Array<{ id: string; name: string }>>([]);
+let workflowShortcutRequest = 0;
 
-const { t } = useI18n();
+const recentExecutions = ref<BuildHistoryEntry[]>([]);
+const historyLoading = ref(false);
+const historyError = ref("");
+let historyRequest = 0;
+
 const notifyPersistenceError = (error: unknown) =>
   toast.add({
     severity: "error",
@@ -385,898 +239,518 @@ const notifyPersistenceError = (error: unknown) =>
     life: 5000,
   });
 
-const isLoading = ref(true);
-const projectLoadError = ref("");
-const filesReady = computed(() => fileStore.status === "ready");
-
-const selectedKey = ref<Record<string, boolean>>({});
-const activeProjectId = computed(() => Object.keys(selectedKey.value)[0]);
-const activeProject = computed(() =>
-  activeProjectId.value
-    ? projects.value.find((project) => project.id === activeProjectId.value)
-    : undefined,
-);
-const projects = computed(() => files.value.projects);
-
-const workflows = computed(() =>
-  activeProjectId.value
-    ? (files.value.workflows || []).filter((flow) => flow.project === activeProjectId.value)
-    : [],
-);
-const filteredWorkflowsEnhanced = computed(() => {
-  const q = searchQuery.value.trim().toLowerCase();
-  return !q
-    ? workflowsEnhanced.value
-    : workflowsEnhanced.value.filter(
-        (flow) =>
-          flow.content.name.toLowerCase().includes(q) ||
-          (flow.content.description || "").toLowerCase().includes(q),
-      );
-});
-
-const dashboardState = computed(() =>
-  getDashboardDisplayState({
-    workflows: workflowsEnhanced.value.length,
-    brokenWorkflows: brokenWorkflows.value.length,
-    filteredWorkflows: filteredWorkflowsEnhanced.value.length,
-  }),
-);
-
-const selectProject = (id: string) => {
-  selectedKey.value = { [id]: true };
-};
-
-watch([workflows, filesReady, agent.isReady], async ([entries, ready, connected]) => {
-  if (!ready || !connected) {
-    workflowLoadRevision++;
-    isLoading.value = workflowsEnhanced.value.length === 0;
+const loadRecentExecutions = async () => {
+  const request = ++historyRequest;
+  const projectId = selectedProjectId.value;
+  recentExecutions.value = [];
+  historyError.value = "";
+  if (!projectId || !filesReady.value || !agent.isReady.value || !hasBuildHistoryBenefit.value) {
+    historyLoading.value = false;
     return;
   }
-  const revision = ++workflowLoadRevision;
-  isLoading.value = true;
-  const requestedEntries = entries.map((flow) => ({ ...flow }));
-  const results = await Promise.all(
-    requestedEntries.map((flow) =>
-      api.execute("workflow:load", { workflowId: flow.id, projectId: flow.project }),
-    ),
-  );
-  if (revision !== workflowLoadRevision) return;
-  const partitioned = partitionWorkflowLoads(requestedEntries, results);
-  workflowsEnhanced.value = partitioned.loaded;
-  brokenWorkflows.value = partitioned.broken;
-  isLoading.value = false;
-});
 
-watch(
-  [projects, selectedKey, filesReady],
-  ([newProjects, newSelectedKey, loaded]) => {
-    if (!loaded) return;
-    const selectedId = resolveSelectedProjectId(newProjects, Object.keys(newSelectedKey)[0]);
-    const currentIds = Object.keys(newSelectedKey);
-    if (selectedId && (currentIds.length !== 1 || currentIds[0] !== selectedId))
-      selectedKey.value = { [selectedId]: true };
-    else if (!selectedId && currentIds.length) selectedKey.value = {};
-  },
-  { immediate: true },
-);
-
-const newProjectName = ref("");
-
-const authStore = useAuth();
-const { hasMultipleProjectsBenefit } = storeToRefs(authStore);
-
-const openWorkflowWizard = () => {
-  isWorkflowWizardVisible.value = true;
-};
-const createWorkflow = async (flow: ReleaseConfig) => {
-  await fileStore.saveWorkflow(flow);
-  await router.push(`/workflows/${flow.id}/${flow.project}`);
-};
-const openWorkflow = (id: string) => router.push(`/workflows/${id}/${activeProjectId.value}`);
-const destinationLabel = (d: ReleaseConfig["destinations"][number]) => d.provider;
-let dashboardLoadGeneration = 0;
-const loadDashboardData = async () => {
-  if (!agent.isReady.value) return;
-  const generation = ++dashboardLoadGeneration;
-  projectLoadError.value = "";
-  const [projectsResult, runtimeResult] = await Promise.allSettled([
-    reloadFiles(),
-    appStore.loadRuntimeInfo(),
-  ]);
-  if (generation !== dashboardLoadGeneration || !agent.isReady.value) return;
-  if (projectsResult.status === "rejected") {
-    projectLoadError.value =
-      projectsResult.reason instanceof Error
-        ? projectsResult.reason.message
-        : String(projectsResult.reason);
-    notifyPersistenceError(projectsResult.reason);
-  }
-  if (runtimeResult.status === "rejected") notifyPersistenceError(runtimeResult.reason);
-};
-watch(
-  agent.isReady,
-  (ready) => {
-    if (ready) void loadDashboardData();
-    else dashboardLoadGeneration++;
-  },
-  { immediate: true },
-);
-const onNewProjectCreation = async () => {
-  if (!agent.isReady.value || !filesReady.value || authStore.subscriptionStatus !== "ready") return;
-  const projectId = nanoid();
+  historyLoading.value = true;
   try {
-    await updateFileStore((state) => {
-      state.projects.push({
-        id: projectId,
-        name: newProjectName.value,
-        description: "",
-      });
-    });
+    const result = await api.execute("build-history:get-all", { query: { projectId } });
+    if (request !== historyRequest) return;
+    if (result.type === "error") throw new Error(result.ipcError);
+    recentExecutions.value = result.result.entries
+      .filter((entry) => entry.projectId === projectId)
+      .sort((a, b) => b.startTime - a.startTime)
+      .slice(0, 4);
   } catch (error) {
-    toast.add({
-      severity: "error",
-      summary: t("base.error"),
-      detail: error instanceof Error ? error.message : String(error),
-      life: 3000,
-    });
-    return;
-  }
-  isNewProjectModalVisible.value = false;
-  // Select the new project
-  selectedKey.value = { [projectId]: true };
-  newProjectName.value = "";
-};
-
-const onCreateProjectClick = () => {
-  if (authStore.subscriptionStatus !== "ready" || !agent.isReady.value || !filesReady.value) return;
-  if (hasMultipleProjectsBenefit.value) {
-    isNewProjectModalVisible.value = true;
-  } else {
-    openUpgradeDialog();
+    if (request === historyRequest) historyError.value = String(error);
+  } finally {
+    if (request === historyRequest) historyLoading.value = false;
   }
 };
 
-const isRenameProjectModalVisible = ref(false);
-const renameProjectName = ref("");
+watch(
+  [selectedProjectId, filesReady, agent.isReady, hasBuildHistoryBenefit],
+  () => void loadRecentExecutions(),
+  { immediate: true },
+);
 
-const projectToRenameId = ref<string | null>(null);
-
-const openRenameProjectDialog = (projectId?: string) => {
-  const id = projectId || activeProjectId.value;
-  const project = projects.value.find((p) => p.id === id);
-
-  if (project) {
-    projectToRenameId.value = id;
-    renameProjectName.value = project.name;
-    isRenameProjectModalVisible.value = true;
-  }
-};
-
-const onRenameProject = async () => {
-  if (projectToRenameId.value && renameProjectName.value) {
-    try {
-      await updateFileStore((state) => {
-        const project = state.projects.find((p) => p.id === projectToRenameId.value);
-        if (project) {
-          project.name = renameProjectName.value;
-        }
-      });
-    } catch (error) {
-      toast.add({
-        severity: "error",
-        summary: t("base.error"),
-        detail: error instanceof Error ? error.message : String(error),
-        life: 3000,
-      });
-      return;
-    }
-    isRenameProjectModalVisible.value = false;
-    projectToRenameId.value = null;
-  }
-};
-
-const deleteProject = async (projectId?: string) => {
-  const id = projectId || activeProjectId.value;
-  if (!id) return;
-
-  const projectWorkflows = (files.value.workflows || []).filter(
-    (workflow) => workflow.project === id,
+const startWorkflowCreation = () => router.push({ path: "/workflows", query: { create: "new" } });
+const executionPath = (entry: BuildHistoryEntry) =>
+  `/workflows/${entry.workflowId}/${entry.projectId}/runs/${entry.id}`;
+const statusLabel = (status: BuildHistoryEntry["status"]) => t(`home.run-status-${status}`);
+const formatExecutionDate = (timestamp: number) =>
+  new Intl.DateTimeFormat(locale.value, { dateStyle: "medium", timeStyle: "short" }).format(
+    timestamp,
   );
 
-  if (projectWorkflows.length > 0) {
-    toast.add({
-      severity: "error",
-      summary: t("home.cannot-delete-project"),
-      detail: t("home.project-not-empty"),
-      life: 3000,
-    });
-    return;
-  }
+const loadWorkflowShortcuts = async () => {
+  const request = ++workflowShortcutRequest;
+  const projectId = selectedProjectId.value;
+  workflowShortcuts.value = [];
+  if (!projectId || !filesReady.value || !agent.isReady.value) return;
 
-  confirm.require({
-    message: t("home.confirm-delete-project"),
-    header: t("home.delete-project"),
-    icon: "pi pi-exclamation-triangle",
-    rejectClass: "p-button-secondary p-button-outlined",
-    acceptClass: "p-button-danger",
-    accept: async () => {
+  const entries = projectWorkflows.value.slice(0, 3);
+  if (!entries.length) return;
+
+  const results = await Promise.all(
+    entries.map(async (workflow) => {
       try {
-        await removeProject(id);
+        return await api.execute("workflow:load", {
+          workflowId: workflow.id,
+          projectId: workflow.project,
+        });
       } catch (error) {
-        notifyPersistenceError(error);
+        return {
+          type: "error" as const,
+          ipcError: error instanceof Error ? error.message : String(error),
+        };
       }
-    },
-    reject: () => {
-      // do nothing
-    },
-  });
+    }),
+  );
+  if (request !== workflowShortcutRequest || projectId !== selectedProjectId.value) return;
+
+  const { loaded } = partitionWorkflowLoads(entries, results);
+  workflowShortcuts.value = loaded.map((workflow) => ({
+    id: workflow.id,
+    name: workflow.content.name,
+  }));
 };
 
-const workflowMenu = ref();
-const selectedWorkflowForMenu = ref<(typeof workflowsEnhanced.value)[number] | null>(null);
-
-const toggleWorkflowMenu = (event: Event, flow: (typeof workflowsEnhanced.value)[number]) => {
-  selectedWorkflowForMenu.value = flow;
-  workflowMenu.value.toggle(event);
-};
-
-const deleteWorkflow = (id: string) => {
-  const workflow = workflowsEnhanced.value.find((flow) => flow.id === id);
-  if (!workflow) return;
-
-  confirm.require({
-    message: "Are you sure you want to delete this release? This action cannot be undone.",
-    header: "Delete Release",
-    icon: "pi pi-exclamation-triangle",
-    rejectClass: "p-button-secondary p-button-outlined",
-    acceptClass: "p-button-danger",
-    accept: async () => {
-      try {
-        await removeWorkflow(id);
-        workflowsEnhanced.value = workflowsEnhanced.value.filter((flow) => flow.id !== id);
-      } catch (error) {
-        notifyPersistenceError(error);
-      }
-    },
-  });
-};
-
-const importMenu = ref();
-const toggleImportMenu = (event: Event) => {
-  importMenu.value.toggle(event);
-};
-
-const importMenuItems = computed(() => {
-  if (appStore.channel === "dev") {
-    return [
-      {
-        label: t("home.import-from-stable"),
-        icon: "mdi mdi-auto-fix",
-        command: () => {
-          openMigrationModal?.("stable");
-        },
-      },
-      {
-        label: t("home.import-from-beta"),
-        icon: "mdi mdi-auto-fix",
-        command: () => {
-          openMigrationModal?.("beta");
-        },
-      },
-    ];
-  }
-
-  return [
-    {
-      label:
-        appStore.channel === "stable" ? t("home.import-from-beta") : t("home.import-from-stable"),
-      icon: "mdi mdi-auto-fix",
-      command: () => {
-        openMigrationModal?.(appStore.channel === "stable" ? "beta" : "stable");
-      },
-    },
-  ];
-});
-
-const workflowMenuItems = computed(() => [
-  {
-    label: "Delete",
-    icon: "mdi mdi-delete",
-    class: "text-red-500",
-    command: () => {
-      if (selectedWorkflowForMenu.value) deleteWorkflow(selectedWorkflowForMenu.value.id);
-    },
-  },
-]);
-
-const isNewProjectModalVisible = ref(false);
+watch(
+  [selectedProjectId, filesReady, agent.isReady, workflowEntryVersion],
+  () => void loadWorkflowShortcuts(),
+  { immediate: true },
+);
 </script>
 
 <style lang="scss" scoped>
-.workflow-icon {
-  color: var(--primary-color);
-  font-size: 24px;
-  display: flex;
-  justify-content: center;
-  margin-right: 20px;
-  flex-shrink: 0;
-}
-/* ─── Index Page ────────────────────────────────────────── */
-.index {
+.dashboard-page {
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  overflow: auto;
-  height: 100%;
-  width: 100%;
+  gap: 28px;
+  width: min(100%, 1320px);
+  min-height: 100%;
+  margin: 0 auto;
+  padding: 38px 44px 48px;
 }
 
-/* ─── Main Layout (Drawer + Content) ────────────────────── */
-.main-layout {
+.dashboard-header {
   display: flex;
-  flex-direction: row;
-  height: 100%;
-  width: 100%;
-}
-
-/* ─── Project Drawer ────────────────────────────────────── */
-.drawer {
-  width: 240px;
-  flex: 0 0 240px;
-  border-right: 1px solid var(--p-surface-200);
-  background: var(--p-surface-0);
-  display: flex;
-  flex-direction: column;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  padding-bottom: 26px;
+  border-bottom: 1px solid var(--p-surface-200);
 
   :root.dark & {
-    border-right-color: var(--p-surface-700);
-    background: var(--p-surface-950);
-  }
-
-  .project-header {
-    padding: 12px 12px 6px;
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-
-    .project-text {
-      font-size: 0.8rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: var(--p-text-muted-color);
-      display: flex;
-      align-items: center;
-      height: 28px;
-      line-height: 1;
-    }
-
-    .project-header-actions {
-      display: flex;
-      gap: 4px;
-    }
-
-    :deep(.drawer-header-icon-btn) {
-      width: 28px;
-      height: 28px;
-      padding: 0;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: 8px;
-    }
-  }
-
-  .project-list {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    padding: 0 12px;
-    overflow: auto;
-    flex: 1;
-  }
-
-  .project-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 6px 10px;
-    border-radius: 8px;
-    font-size: 0.825rem;
-    font-weight: 500;
-    color: var(--p-text-muted-color);
-    cursor: pointer;
-    transition: all 0.15s ease;
-    user-select: none;
-
-    &:hover {
-      background: var(--p-surface-200);
-      color: var(--p-text-color);
-
-      :root.dark & {
-        background: var(--p-surface-800);
-      }
-    }
-
-    &.active {
-      background: var(--p-surface-200);
-      color: var(--p-text-color);
-      font-weight: 600;
-
-      :root.dark & {
-        background: var(--p-surface-800);
-      }
-    }
-  }
-
-  .project-item-content {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    min-width: 0;
-  }
-
-  .project-icon {
-    font-size: 18px;
-    flex-shrink: 0;
-  }
-
-  .project-label {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .project-item-actions {
-    display: flex;
-    gap: 2px;
-    opacity: 0;
-    transition: opacity 0.15s ease;
-    flex-shrink: 0;
-
-    :deep(.p-button) {
-      width: 24px;
-      height: 24px;
-      padding: 0;
-
-      i {
-        font-size: 14px;
-      }
-    }
-  }
-
-  .project-item:hover .project-item-actions {
-    opacity: 1;
+    border-bottom-color: var(--p-surface-800);
   }
 }
 
-/* ─── Workflow Content Area ──────────────────────────────── */
-.your-projects {
-  height: 100%;
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  padding: 16px;
-  overflow: auto;
-}
-
-/* ─── Projects Header ───────────────────────────────────── */
-.projects-header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  margin-bottom: 12px;
-  gap: 12px 16px;
-  flex-shrink: 0;
+.dashboard-heading {
   min-width: 0;
+
+  h1 {
+    margin: 0;
+    color: var(--p-text-color);
+    font-size: 1.9rem;
+    font-weight: 700;
+    line-height: 1.15;
+    letter-spacing: -0.04em;
+    overflow-wrap: anywhere;
+  }
 }
 
-.header-left {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-  flex: 0 1 auto;
-  margin-right: auto;
-}
-
-.project-title {
-  font-size: 1.05rem;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  color: var(--p-text-color);
-  margin: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.header-right {
+.project-context {
   display: flex;
   align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-  min-width: 0;
-  flex: 0 1 auto;
+  gap: 8px;
+  margin: 0 0 8px;
+  color: var(--p-text-muted-color);
+  font-size: 0.75rem;
+  font-weight: 600;
+
+  span {
+    color: var(--primary-color);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+}
+
+.dashboard-description,
+.card-description {
+  margin: 8px 0 0;
+  color: var(--p-text-muted-color);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.dashboard-actions {
+  display: flex;
+  align-items: center;
   justify-content: flex-end;
-}
-
-.search-field {
-  width: 260px;
-  max-width: 100%;
-  flex-shrink: 1;
-  min-width: 200px;
-
-  @media (max-width: 640px) {
-    flex: 1 1 100%;
-    width: 100%;
-    min-width: 0;
-  }
-
-  .search-input {
-    width: 100%;
-    border-radius: 8px;
-    padding-left: 2.25rem !important;
-  }
-}
-
-.action-buttons {
-  display: flex;
-  gap: 8px;
   flex-wrap: wrap;
-
-  :deep(.p-button) {
-    white-space: nowrap;
-  }
+  gap: 10px;
+  flex: 0 0 auto;
 }
 
-/* Stack everything vertically on small screens */
-@media (max-width: 640px) {
-  .projects-header {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 12px;
-  }
-
-  .header-left {
-    margin-right: 0;
-  }
-
-  .header-right {
-    justify-content: stretch;
-  }
-}
-
-/* ─── Workflows List ────────────────────────────────────── */
-.workflows-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  flex: 1;
-}
-
-.workflow-row {
-  display: flex;
+.manage-workflows-link,
+.text-link {
+  display: inline-flex;
   align-items: center;
-  padding: 8px 12px;
-  background: var(--p-surface-0);
-  border: 1px solid var(--p-surface-200);
-  border-left: 3px solid var(--primary-color);
+  justify-content: center;
+  gap: 7px;
+  min-height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--p-surface-300);
   border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  position: relative;
-  overflow: hidden;
-  background: color-mix(in srgb, var(--primary-color) 4%, var(--p-surface-0));
-
-  :root.dark & {
-    background: var(--p-surface-900);
-    border-color: var(--p-surface-800);
-  }
-
-  &:hover {
-    border-color: var(--p-surface-300);
-    background: color-mix(in srgb, var(--primary-color) 9%, var(--p-surface-0));
-
-    :root.dark & {
-      background: var(--p-surface-850);
-      border-color: var(--p-surface-700);
-    }
-
-    .row-actions {
-      opacity: 1;
-    }
-  }
-}
-
-.workflow-info {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding-right: 16px;
-}
-
-.workflow-title-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.workflow-name {
+  color: var(--p-text-color);
   font-size: 0.875rem;
   font-weight: 600;
-  color: var(--p-text-color);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
+  text-decoration: none;
+  transition:
+    background-color 140ms ease,
+    border-color 140ms ease;
 
-.type-tag {
-  font-size: 0.7rem;
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-weight: 600;
-}
-
-.workflow-desc {
-  font-size: 0.75rem;
-  color: var(--p-text-muted-color);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* ─── Workflow Meta & Actions ────────────────────────────── */
-.workflow-meta-actions {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  flex-shrink: 0;
-}
-
-.workflow-updated {
-  font-size: 0.725rem;
-  color: var(--p-text-muted-color);
-  font-weight: 500;
-}
-
-.row-actions {
-  display: flex;
-  gap: 2px;
-  opacity: 0.7;
-  transition: opacity 0.15s ease;
-
-  @media (max-width: 768px) {
-    opacity: 1;
+  &:hover {
+    background: var(--p-surface-100);
+    border-color: var(--p-surface-400);
   }
-}
 
-/* ─── Empty & Loading States ────────────────────────────── */
-.no-projects,
-.no-search-results {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 16px;
-  flex: 1;
-  padding: 64px 24px;
-  border: 1px dashed var(--p-surface-300);
-  border-radius: 12px;
-  background: rgba(0, 0, 0, 0.01);
+  &:focus-visible {
+    outline: 3px solid color-mix(in srgb, var(--primary-color) 55%, transparent);
+    outline-offset: 2px;
+  }
 
   :root.dark & {
     border-color: var(--p-surface-700);
-    background: rgba(255, 255, 255, 0.01);
-  }
 
-  .empty-icon {
-    font-size: 3rem;
-    color: var(--p-text-muted-color);
-    opacity: 0.6;
-  }
-
-  .no-workflows-text,
-  .no-results-text {
-    font-size: 1.1rem;
-    font-weight: 600;
-    color: var(--p-text-muted-color);
-    text-align: center;
+    &:hover {
+      background: var(--p-surface-800);
+    }
   }
 }
 
-.loading-state {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  flex: 1;
-}
+.text-link {
+  min-height: 32px;
+  align-self: flex-start;
+  padding-inline: 0;
+  border: 0;
+  color: var(--primary-color);
 
-.skeleton-row {
-  display: flex;
-  align-items: center;
-  padding: 8px 12px;
-  background: var(--p-surface-0);
-  border: 1px solid var(--p-surface-200);
-  border-radius: 8px;
-
-  :root.dark & {
-    background: var(--p-surface-900);
-    border-color: var(--p-surface-800);
+  &:hover {
+    background: transparent;
+    border-color: transparent;
+    text-decoration: underline;
   }
 }
 
-/* ─── Project Dialog ────────────────────────────────────── */
-.project-dialog {
-  :deep(.p-dialog-header) {
-    padding: 16px 20px 8px;
-    border-bottom: none;
-  }
-
-  :deep(.p-dialog-content) {
-    padding: 8px 20px 20px;
-  }
+.dashboard-message {
+  margin: -12px 0 0;
 }
 
-.dialog-title {
-  font-size: 1.05rem;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  text-align: center;
-  margin: 0;
-  color: var(--p-text-color);
+.overview-grid {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.8fr) minmax(0, 1.2fr);
+  align-items: stretch;
+  gap: 18px;
 }
 
-.new-project {
+.overview-card {
   display: flex;
   flex-direction: column;
   gap: 14px;
+  min-width: 0;
+  padding: 22px;
+  border: 1px solid var(--p-surface-200);
+  border-radius: 12px;
+  background: var(--p-surface-0);
+  box-shadow: 0 2px 8px rgb(15 23 42 / 3%);
+
+  :root.dark & {
+    border-color: var(--p-surface-800);
+    background: var(--p-surface-900);
+    box-shadow: 0 2px 12px rgb(0 0 0 / 12%);
+  }
 }
 
-.form-section {
+.card-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+
+  h2 {
+    margin: 4px 0 0;
+    font-size: 1.1rem;
+    line-height: 1.3;
+    letter-spacing: -0.02em;
+  }
+}
+
+.eyebrow {
+  margin: 0;
+  color: var(--p-text-muted-color);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.card-icon {
+  color: var(--primary-color);
+  font-size: 1.2rem;
+}
+
+.project-description {
+  margin: 0;
+  color: var(--p-text-muted-color);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.workflow-shortcuts {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-}
+  gap: 4px;
+  padding-top: 8px;
+  border-top: 1px solid var(--p-surface-200);
 
-.form-label {
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: var(--p-text-color);
-  letter-spacing: -0.01em;
-
-  .optional {
-    font-weight: 400;
-    color: var(--p-text-muted-color);
-    margin-left: 2px;
+  :root.dark & {
+    border-top-color: var(--p-surface-800);
   }
 }
 
-.dialog-footer {
+.workflow-shortcut {
   display: flex;
-  justify-content: flex-end;
-  padding-top: 4px;
-
-  :deep(.p-button) {
-    padding: 6px 14px;
-    font-size: 0.825rem;
-  }
-}
-
-/* ─── Misc ──────────────────────────────────────────────── */
-.icon-container {
-  position: relative;
-  display: inline-block;
-}
-
-.crown-icon {
-  position: absolute;
-  top: 0.1em;
-  right: 0.1em;
-  font-size: 0.6em;
-  background-color: gold;
-  border-radius: 50%;
-  padding: 2px;
-}
-
-.header {
-  font-size: 1.5rem;
-  line-height: 2rem;
-  margin: 16px 16px 32px 16px;
-  display: flex;
-  flex-direction: row;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  color: var(--p-text-color);
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition:
+    background-color 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease;
 
-  .title {
-    margin-left: 8px;
+  &:hover {
+    border-color: var(--p-surface-200);
+    background: var(--p-surface-50);
+    color: var(--primary-color);
   }
 
-  .button {
-    display: flex;
-    gap: 8px;
-    flex-direction: row;
-    height: 40px;
-    font-weight: 500 !important;
+  &:focus-visible {
+    outline: 3px solid color-mix(in srgb, var(--primary-color) 55%, transparent);
+    outline-offset: 2px;
+  }
+
+  :root.dark & {
+    &:hover {
+      border-color: var(--p-surface-800);
+      background: var(--p-surface-850);
+    }
   }
 }
 
-/* ─── Mobile: drawer becomes top chips, rows wrap ───────── */
-@media (max-width: 860px) {
-  .main-layout {
+.workflow-shortcut-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.workflow-count {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 14px 0 6px;
+  border-top: 1px solid var(--p-surface-200);
+
+  :root.dark & {
+    border-top-color: var(--p-surface-800);
+  }
+
+  strong {
+    font-size: 2rem;
+    line-height: 1;
+    letter-spacing: -0.04em;
+  }
+
+  span {
+    color: var(--p-text-muted-color);
+    font-size: 0.875rem;
+  }
+}
+
+.empty-copy,
+.inline-state,
+.activity-state {
+  margin: 0;
+  color: var(--p-text-muted-color);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.activity-state {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 18px 0 4px;
+}
+
+.activity-error {
+  color: var(--p-red-600, #dc2626);
+}
+
+.execution-list {
+  display: flex;
+  flex-direction: column;
+  margin-top: 2px;
+}
+
+.execution-row {
+  display: grid;
+  grid-template-columns: minmax(104px, auto) minmax(0, 1fr) auto 16px;
+  align-items: center;
+  gap: 12px;
+  min-height: 54px;
+  border-top: 1px solid var(--p-surface-200);
+  color: inherit;
+  text-decoration: none;
+
+  :root.dark & {
+    border-top-color: var(--p-surface-800);
+  }
+
+  &:hover .execution-name {
+    color: var(--primary-color);
+  }
+
+  &:focus-visible {
+    position: relative;
+    outline: 3px solid color-mix(in srgb, var(--primary-color) 55%, transparent);
+    outline-offset: 2px;
+  }
+
+  time {
+    color: var(--p-text-muted-color);
+    font-size: 0.75rem;
+    white-space: nowrap;
+  }
+}
+
+.execution-row-static {
+  grid-template-columns: minmax(104px, auto) minmax(0, 1fr) auto;
+}
+
+.execution-status {
+  justify-self: start;
+  padding: 4px 8px;
+  border: 1px solid var(--p-surface-300);
+  border-radius: 999px;
+  color: var(--p-text-muted-color);
+  font-size: 0.7rem;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.status-running {
+  border-color: color-mix(in srgb, var(--p-blue-500, #3b82f6) 30%, transparent);
+  color: var(--p-blue-600, #2563eb);
+}
+
+.status-completed {
+  border-color: color-mix(in srgb, var(--p-green-500, #22c55e) 30%, transparent);
+  color: var(--p-green-600, #16a34a);
+}
+
+.status-failed,
+.status-completed-with-errors {
+  border-color: color-mix(in srgb, var(--p-red-500, #ef4444) 30%, transparent);
+  color: var(--p-red-600, #dc2626);
+}
+
+.status-cancelled {
+  border-color: var(--p-surface-400);
+}
+
+.execution-name {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: color 120ms ease;
+}
+
+.dashboard-page :deep(.p-button:focus-visible) {
+  outline: 3px solid color-mix(in srgb, var(--primary-color) 55%, transparent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .manage-workflows-link,
+  .text-link,
+  .execution-name {
+    transition: none;
+  }
+}
+
+@media (max-width: 1000px) {
+  .dashboard-page {
+    padding-inline: 28px;
+  }
+  .overview-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .dashboard-page {
+    gap: 20px;
+    padding: 24px 16px 32px;
+  }
+  .dashboard-header {
+    align-items: flex-start;
     flex-direction: column;
+    gap: 18px;
+    padding-bottom: 20px;
   }
-
-  .drawer {
+  .dashboard-actions {
     width: 100%;
-    flex: 0 0 auto;
-    border-right: none;
-    border-bottom: 1px solid var(--p-surface-200);
-
-    :root.dark & {
-      border-bottom-color: var(--p-surface-700);
-    }
-
-    .project-list {
-      flex-direction: row;
-      overflow-x: auto;
-      overflow-y: hidden;
-      padding: 0 12px 10px;
-    }
-
-    .project-item {
-      flex-shrink: 0;
-      max-width: 200px;
-    }
-
-    .project-item-actions {
-      opacity: 1;
-    }
+    justify-content: flex-start;
   }
-
-  .your-projects {
-    padding: 12px;
-    overflow-x: hidden;
+  .overview-card {
+    padding: 18px;
   }
-
-  .action-buttons {
-    width: 100%;
-
-    :deep(.p-button) {
-      flex: 1;
-      justify-content: center;
-      min-height: 40px;
-    }
-  }
-
-  .workflow-row {
-    flex-wrap: wrap;
+  .execution-row {
+    grid-template-columns: auto minmax(0, 1fr) 16px;
     gap: 8px;
-    padding: 12px;
+    padding: 9px 0;
   }
-
-  .workflow-icon {
-    margin-right: 0;
+  .execution-status {
+    grid-column: 1;
+    grid-row: 1;
   }
-
-  .workflow-info {
-    flex: 1 1 calc(100% - 60px);
-    padding-right: 0;
+  .execution-name {
+    grid-column: 2;
+    grid-row: 1;
   }
-
-  .workflow-meta-actions {
-    flex: 1 1 100%;
-    justify-content: space-between;
+  .execution-row time {
+    grid-column: 2;
+    grid-row: 2;
   }
-
-  .workflow-updated {
-    font-size: 0.7rem;
+  .execution-row > i {
+    grid-column: 3;
+    grid-row: 1 / 3;
   }
-
-  .row-actions {
-    opacity: 1;
+  .execution-row-static {
+    grid-template-columns: auto minmax(0, 1fr);
   }
 }
 </style>
