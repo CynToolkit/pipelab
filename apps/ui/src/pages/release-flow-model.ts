@@ -528,6 +528,20 @@ export const releaseReadinessState = (readiness: ReleaseReadinessInput) =>
         ? "checking"
         : "ready";
 
+export const dashboardShipIntentAction = (options: {
+  intent: boolean;
+  workflowMatchesRoute: boolean;
+  loading: boolean;
+  readiness: ReturnType<typeof releaseReadinessState>;
+  canShip: boolean;
+}) => {
+  if (!options.intent || !options.workflowMatchesRoute || options.loading) return "wait" as const;
+  if (options.readiness === "checking") return "wait" as const;
+  return options.readiness === "ready" && options.canShip
+    ? ("ship" as const)
+    : ("blocked" as const);
+};
+
 export const applyProducerInspection = (
   build: ReleaseBuildProfileConfig,
   buildIndex: number,

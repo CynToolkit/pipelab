@@ -532,6 +532,7 @@
 import { computed, onUnmounted, ref, toRaw, watch } from "vue";
 import { nanoid } from "nanoid";
 import { onBeforeRouteLeave, useRoute, useRouter } from "vue-router";
+import { useI18n } from "vue-i18n";
 import Button from "primevue/button";
 import ConfirmDialog from "primevue/confirmdialog";
 import Dialog from "primevue/dialog";
@@ -563,6 +564,7 @@ import { useConnectionsStore } from "../store/connections";
 import { useAgentAvailability } from "@renderer/composables/useAgentAvailability";
 import {
   connectionMatchesIntegration,
+  dashboardShipIntentAction,
   blockerAtIndex,
   clampBlockerIndex,
   createSerializedTaskQueue,
@@ -587,6 +589,7 @@ import {
 
 const route = useRoute();
 const router = useRouter();
+const { t } = useI18n();
 const api = useAPI();
 const confirm = useConfirm();
 const appStore = useAppStore();
@@ -718,6 +721,78 @@ const canShip = computed(
       workflowLoading.value || sourceInspectionPending.value,
       Boolean(loadError.value || plannerError.value),
     ),
+);
+let dashboardShipIntentHandled = false;
+watch(
+  [
+    () => route.query.ship === "1",
+    flow,
+    flowId,
+    projectId,
+    workflowLoading,
+    sourceInspectionPending,
+    planning,
+    workflowReadinessState,
+    canShip,
+    agent.isReady,
+  ],
+  ([intent, , , , , , , , , ready]) => {
+    if (!intent) {
+      dashboardShipIntentHandled = false;
+      return;
+    }
+    if (dashboardShipIntentHandled) return;
+
+    if (!ready) {
+      dashboardShipIntentHandled = true;
+      const query = { ...route.query };
+      delete query.ship;
+      void router
+        .replace({ path: route.path, query, hash: route.hash })
+        .then(() => {
+          error.value = t("home.ship-engine-required");
+        })
+        .catch(() => {
+          dashboardShipIntentHandled = false;
+        });
+      return;
+    }
+
+    const action = dashboardShipIntentAction({
+      intent: true,
+      workflowMatchesRoute:
+        flow.value?.id === flowId.value && flow.value?.project === projectId.value,
+      loading: workflowLoading.value || sourceInspectionPending.value || planning.value,
+      readiness: workflowReadinessState.value,
+      canShip: canShip.value,
+    });
+    if (action === "wait") return;
+
+    dashboardShipIntentHandled = true;
+    const requestedFlowId = flowId.value;
+    const requestedProjectId = projectId.value;
+    const query = { ...route.query };
+    delete query.ship;
+    void router
+      .replace({ path: route.path, query, hash: route.hash })
+      .then(() => {
+        if (
+          action !== "ship" ||
+          requestedFlowId !== flowId.value ||
+          requestedProjectId !== projectId.value ||
+          !canShip.value
+        ) {
+          if (action === "blocked" && workflowReadinessState.value === "ready")
+            error.value = t("home.ship-requirements-not-ready");
+          return;
+        }
+        void ship();
+      })
+      .catch(() => {
+        dashboardShipIntentHandled = false;
+      });
+  },
+  { immediate: true },
 );
 let latestSourceInspection = 0;
 let latestPlanRequest = 0;

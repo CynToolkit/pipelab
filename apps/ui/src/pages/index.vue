@@ -82,17 +82,39 @@
         <p v-else-if="workflowCount === 0" class="empty-copy">
           {{ $t("home.no-workflows-in-project") }}
         </p>
+        <Message
+          v-if="filesReady && workflowCount > 0 && !agent.isReady.value"
+          severity="warn"
+          :closable="false"
+          role="status"
+          class="dashboard-message"
+        >
+          {{ $t("home.workflows-disconnected") }}
+          <Button
+            :label="$t('home.reconnect-engine')"
+            text
+            size="small"
+            @click="agent.reconnect().catch(notifyPersistenceError)"
+          />
+        </Message>
         <div v-if="filesReady && workflowCount > 0" class="workflow-shortcuts">
-          <RouterLink
-            v-for="workflow in workflowShortcuts"
-            :key="workflow.id"
-            class="workflow-shortcut"
-            :to="`/workflows/${workflow.id}/${selectedProjectId}`"
-            :aria-label="$t('home.open-workflow', { name: workflow.name })"
-          >
-            <span class="workflow-shortcut-name">{{ workflow.name }}</span>
-            <i class="mdi mdi-arrow-top-right" aria-hidden="true" />
-          </RouterLink>
+          <div v-for="workflow in workflowShortcuts" :key="workflow.id" class="workflow-shortcut">
+            <RouterLink
+              class="workflow-shortcut-open"
+              :to="`/workflows/${workflow.id}/${workflow.projectId}`"
+              :aria-label="$t('home.open-workflow', { name: workflow.name })"
+            >
+              <span class="workflow-shortcut-name">{{ workflow.name }}</span>
+              <i class="mdi mdi-arrow-top-right" aria-hidden="true" />
+            </RouterLink>
+            <Button
+              class="workflow-shortcut-ship"
+              :label="t('home.ship')"
+              icon="mdi mdi-rocket-launch-outline"
+              :aria-label="t('home.ship-workflow-named', { name: workflow.name })"
+              @click="shipWorkflow(workflow)"
+            />
+          </div>
           <RouterLink class="text-link" to="/workflows">
             {{ $t("home.manage-workflows") }}
             <i class="mdi mdi-arrow-right" aria-hidden="true" />
@@ -223,7 +245,7 @@ const workflowCount = computed(() => projectWorkflows.value.length);
 const workflowEntryVersion = computed(() =>
   projectWorkflows.value.map((workflow) => `${workflow.id}:${workflow.lastModified}`).join("|"),
 );
-const workflowShortcuts = ref<Array<{ id: string; name: string }>>([]);
+const workflowShortcuts = ref<Array<{ id: string; name: string; projectId: string }>>([]);
 let workflowShortcutRequest = 0;
 
 const recentExecutions = ref<BuildHistoryEntry[]>([]);
@@ -272,6 +294,21 @@ watch(
 );
 
 const startWorkflowCreation = () => router.push({ path: "/workflows", query: { create: "new" } });
+const shipWorkflow = (workflow: { id: string; name: string; projectId: string }) => {
+  if (workflow.projectId !== selectedProjectId.value) return;
+  if (!agent.isReady.value) {
+    toast.add({
+      severity: "warn",
+      summary: t("home.ship-engine-required"),
+      life: 5000,
+    });
+    return;
+  }
+  void router.push({
+    path: `/workflows/${workflow.id}/${workflow.projectId}`,
+    query: { ship: "1" },
+  });
+};
 const executionPath = (entry: BuildHistoryEntry) =>
   `/workflows/${entry.workflowId}/${entry.projectId}/runs/${entry.id}`;
 const statusLabel = (status: BuildHistoryEntry["status"]) => t(`home.run-status-${status}`);
@@ -283,11 +320,21 @@ const formatExecutionDate = (timestamp: number) =>
 const loadWorkflowShortcuts = async () => {
   const request = ++workflowShortcutRequest;
   const projectId = selectedProjectId.value;
-  workflowShortcuts.value = [];
-  if (!projectId || !filesReady.value || !agent.isReady.value) return;
+  if (!projectId) {
+    workflowShortcuts.value = [];
+    return;
+  }
+  if (!filesReady.value || !agent.isReady.value) {
+    if (workflowShortcuts.value.some((workflow) => workflow.projectId !== projectId))
+      workflowShortcuts.value = [];
+    return;
+  }
 
   const entries = projectWorkflows.value.slice(0, 3);
-  if (!entries.length) return;
+  if (!entries.length) {
+    workflowShortcuts.value = [];
+    return;
+  }
 
   const results = await Promise.all(
     entries.map(async (workflow) => {
@@ -304,12 +351,19 @@ const loadWorkflowShortcuts = async () => {
       }
     }),
   );
-  if (request !== workflowShortcutRequest || projectId !== selectedProjectId.value) return;
+  if (
+    request !== workflowShortcutRequest ||
+    projectId !== selectedProjectId.value ||
+    !filesReady.value ||
+    !agent.isReady.value
+  )
+    return;
 
   const { loaded } = partitionWorkflowLoads(entries, results);
   workflowShortcuts.value = loaded.map((workflow) => ({
     id: workflow.id,
     name: workflow.content.name,
+    projectId: workflow.project,
   }));
 };
 
@@ -525,22 +579,44 @@ watch(
   justify-content: space-between;
   gap: 12px;
   min-width: 0;
-  min-height: 44px;
-  padding: 0 10px;
-  border: 1px solid transparent;
+  min-height: 52px;
+  padding: 4px 6px 4px 10px;
+  border: 1px solid var(--p-surface-200);
   border-radius: 7px;
+  background: var(--p-surface-0);
+  transition:
+    background-color 140ms ease,
+    border-color 140ms ease;
+
+  &:hover {
+    border-color: var(--p-surface-300);
+    background: var(--p-surface-50);
+  }
+
+  :root.dark & {
+    border-color: var(--p-surface-800);
+    background: var(--p-surface-900);
+
+    &:hover {
+      background: var(--p-surface-850);
+    }
+  }
+}
+
+.workflow-shortcut-open {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+  min-height: 44px;
+  flex: 1;
   color: var(--p-text-color);
   font-size: 0.875rem;
   font-weight: 600;
   text-decoration: none;
-  transition:
-    background-color 140ms ease,
-    border-color 140ms ease,
-    color 140ms ease;
 
   &:hover {
-    border-color: var(--p-surface-200);
-    background: var(--p-surface-50);
     color: var(--primary-color);
   }
 
@@ -548,13 +624,11 @@ watch(
     outline: 3px solid color-mix(in srgb, var(--primary-color) 55%, transparent);
     outline-offset: 2px;
   }
+}
 
-  :root.dark & {
-    &:hover {
-      border-color: var(--p-surface-800);
-      background: var(--p-surface-850);
-    }
-  }
+.workflow-shortcut-ship {
+  flex: 0 0 auto;
+  min-height: 44px;
 }
 
 .workflow-shortcut-name {
