@@ -93,12 +93,14 @@ is provided. It does not execute deployment tasks. See the
 Choose **Ship** in the editor, or use **Ship** beside a saved workflow on the
 project dashboard, to save the workflow, validate its configuration, and open
 the release details confirmation. Dashboard shipping opens the same
-Configuration page and preflight as editor shipping. Pipelab only starts the
-run after you confirm the release details and the planner reports a valid
-plan. If a workflow needs attention, its Configuration page shows the blockers
-and the available repair actions. After shipping, Pipelab opens the live run
-detail; use **Runs** to return to its status, step logs, and delivery results,
-or **Artifacts** to discover outputs across runs. The
+preflight as editor shipping while keeping the dashboard in view. Pipelab only
+starts the run after you confirm the release details and the planner reports a
+valid plan. If a workflow needs attention, the dashboard offers its blockers
+and a path to Configuration for repair. If workflow data cannot be loaded,
+retry the load or return to the dashboard; a cancelled Ship request does not
+resume automatically. After shipping, Pipelab opens the live run detail; use
+**Runs** to return to its status, step logs, and delivery results, or
+**Artifacts** to discover outputs across runs. The
 [Runs and history guide](/guide/runs-and-history) covers the run list,
 artifacts, and detail view.
 

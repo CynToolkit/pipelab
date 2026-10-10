@@ -374,7 +374,9 @@ async function journey(
   let pendingResolve;
   let pendingDashboardShipLoad;
   let activeSocket;
-  let deferFirstDashboardShipLoad = quickShipReady;
+  let deferFirstDashboardShipLoad = false;
+  let failNextDashboardShipLoad = false;
+  let failNextWorkflowExecution = false;
   let signalResolveStarted;
   const resolverStarted = new Promise((resolve) => {
     signalResolveStarted = resolve;
@@ -405,6 +407,7 @@ async function journey(
       const phaseOrdinal =
         phase === "inspection" || phase === "planning" ? phaseRequestCounts[phase] : 0;
       let result = {};
+      let apiError;
       let holdResponse = false;
       let responseDelayMs = 0;
       switch (request.channel) {
@@ -740,6 +743,10 @@ async function journey(
           result = { success: true };
           break;
         case "workflow:execute": {
+          if (failNextWorkflowExecution) {
+            failNextWorkflowExecution = false;
+            apiError = "Fixture execution failed safely.";
+          }
           const runId = "dashboard-quick-run";
           quickRunEntry = {
             id: runId,
@@ -767,13 +774,17 @@ async function journey(
             workflowFixtureConfigs.get(request.data.workflowId) ||
             (saved?.id === request.data.workflowId ? saved : undefined) ||
             saved;
+          if (failNextDashboardShipLoad && request.data.workflowId === "quick-ship-workflow") {
+            failNextDashboardShipLoad = false;
+            apiError = "Fixture workflow hydration failed.";
+          }
           if (request.data.workflowId === "fixture-retry") {
             const attempts = (workflowLoadAttempts.get(request.data.workflowId) || 0) + 1;
             workflowLoadAttempts.set(request.data.workflowId, attempts);
             if (attempts <= 2) result = { ...result, id: "fixture-invalid-identity" };
           }
           if (readinessTiming) responseDelayMs = 150;
-          if (deferFirstDashboardShipLoad && page.url().includes("ship=1")) {
+          if (deferFirstDashboardShipLoad && request.data.workflowId === "quick-ship-workflow") {
             deferFirstDashboardShipLoad = false;
             holdResponse = true;
             pendingDashboardShipLoad = { socket, request, result };
@@ -794,7 +805,9 @@ async function journey(
               requestId: request.requestId,
               events: {
                 type: "end",
-                data: { type: "success", result },
+                data: apiError
+                  ? { type: "error", ipcError: apiError }
+                  : { type: "success", result },
               },
             }),
           );
@@ -871,9 +884,10 @@ async function journey(
       if (quickShipBlocked) {
         deferFirstDashboardShipLoad = false;
         await shipButton.click();
-        await page.waitForURL("**/workflows/quick-ship-workflow/journey-project*");
+        const blockerDialog = page.getByRole("dialog", { name: "Workflow needs attention" });
         try {
-          await page.getByText("Action required", { exact: true }).waitFor();
+          await blockerDialog.waitFor();
+          await page.getByRole("heading", { name: "Project overview" }).waitFor();
         } catch (error) {
           throw new Error(
             `${error.message}; workflow text: ${await page.locator("body").innerText()}`,
@@ -897,16 +911,19 @@ async function journey(
           0,
           "an unready dashboard Ship action cannot execute",
         );
+        await blockerDialog.getByRole("button", { name: "Open configuration" }).click();
+        await page.waitForURL("**/workflows/quick-ship-workflow/journey-project");
         assert.deepEqual(errors, [], `browser has no JS errors: ${errors.join("; ")}`);
         return `dashboard Ship: unready action opens blockers without confirmation or execution (${expectedTheme}, ${screenshotViewport})`;
       }
 
       const workflowLoadCount = calls.filter((channel) => channel === "workflow:load").length;
+      deferFirstDashboardShipLoad = true;
       await shipButton.click();
       await waitForRequests(page, calls, "workflow:load", workflowLoadCount + 1);
       await page.locator("#sidebar-project-select").click();
       await page.getByRole("option", { name: "Second project" }).click();
-      await page.waitForURL("**/workflows");
+      await page.getByRole("heading", { name: "Project overview" }).waitFor();
       assert.ok(pendingDashboardShipLoad, "the project-switch test deferred workflow loading");
       pendingDashboardShipLoad.socket.send(
         JSON.stringify({
@@ -934,11 +951,24 @@ async function journey(
       await page.keyboard.press("Enter");
       const releaseDialog = page.getByRole("dialog", { name: "Release details" });
       await releaseDialog.waitFor();
+      await page.getByRole("heading", { name: "Project overview" }).waitFor();
+      assert.equal(
+        new URL(page.url()).pathname,
+        "/dashboard",
+        "ready Ship keeps the dashboard route",
+      );
+      assert.equal(await page.getByRole("heading", { name: "Configuration" }).count(), 0);
       assert.equal(
         calls.filter((channel) => channel === "workflow:execute").length,
         0,
         "release metadata confirmation is required before execution",
       );
+      if (process.env.SCREENSHOT_DIR)
+        await page
+          .locator(".p-toast-message")
+          .first()
+          .waitFor({ state: "hidden", timeout: 6000 })
+          .catch(() => {});
       if (process.env.SCREENSHOT_DIR)
         await captureReviewScreenshot(
           page,
@@ -947,18 +977,27 @@ async function journey(
             `dashboard-ship-confirmation-${expectedTheme}-${screenshotViewport}.png`,
           ),
         );
-      await releaseDialog.getByRole("button", { name: "Cancel" }).click();
+      await releaseDialog.getByRole("button", { name: "Back to dashboard" }).click();
       await releaseDialog.waitFor({ state: "hidden" });
       assert.equal(
         calls.filter((channel) => channel === "workflow:execute").length,
         0,
         "cancelling the metadata dialog does not execute the workflow",
       );
-      await page.getByRole("link", { name: "Dashboard" }).click();
+      await page.getByRole("button", { name: "Ship Quick Ship workflow" }).click();
+      const escapeDialog = page.getByRole("dialog", { name: /Release details/ });
+      await escapeDialog.waitFor();
+      await page.keyboard.press("Escape");
+      await escapeDialog.waitFor({ state: "hidden" });
+      await page.getByRole("button", { name: "Ship Quick Ship workflow" }).click();
+      const closeIconDialog = page.getByRole("dialog", { name: /Release details/ });
+      await closeIconDialog.waitFor();
+      await closeIconDialog.locator(".p-dialog-close-button").click();
+      await closeIconDialog.waitFor({ state: "hidden" });
       const confirmShip = page.getByRole("button", { name: "Ship Quick Ship workflow" });
       await focusWorkflowControlByKeyboard(page, confirmShip, "Dashboard Ship buttons");
       await page.keyboard.press("Enter");
-      const confirmedDialog = page.getByRole("dialog", { name: "Release details" });
+      const confirmedDialog = page.getByRole("dialog", { name: /Release details/ });
       await confirmedDialog.waitFor();
       const shipRelease = confirmedDialog.getByRole("button", { name: "Ship release" });
       await shipRelease.evaluate((button) => {
@@ -984,6 +1023,68 @@ async function journey(
         );
 
       await page.getByRole("link", { name: "Dashboard" }).click();
+      const failedLoadShip = page.getByRole("button", { name: "Ship Quick Ship workflow" });
+      await failedLoadShip.waitFor();
+      failNextDashboardShipLoad = true;
+      await failedLoadShip.click();
+      const failedLoadDialog = page.getByRole("dialog", { name: "Workflow could not be loaded" });
+      await failedLoadDialog.waitFor();
+      await failedLoadDialog.getByText("Fixture workflow hydration failed.").waitFor();
+      assert.equal(new URL(page.url()).pathname, "/dashboard");
+      if (process.env.SCREENSHOT_DIR)
+        await captureReviewScreenshot(
+          page,
+          join(
+            process.env.SCREENSHOT_DIR,
+            `dashboard-ship-load-failure-${expectedTheme}-${screenshotViewport}.png`,
+          ),
+        );
+      const executionsBeforeRetry = calls.filter(
+        (channel) => channel === "workflow:execute",
+      ).length;
+      await failedLoadDialog.getByRole("button", { name: "Retry loading workflow" }).click();
+      const cancelledDialog = page.getByRole("dialog", { name: "Workflow needs attention" });
+      await cancelledDialog.getByText("The previous Ship request was cancelled").waitFor();
+      await page.waitForTimeout(250);
+      assert.equal(
+        calls.filter((channel) => channel === "workflow:execute").length,
+        executionsBeforeRetry,
+        "successful hydration retry does not resume the cancelled Ship intent",
+      );
+      await cancelledDialog.getByRole("button", { name: "Back to dashboard" }).click();
+
+      const executionShip = page.getByRole("button", { name: "Ship Quick Ship workflow" });
+      await executionShip.waitFor();
+      const executionsBeforeFailure = calls.filter(
+        (channel) => channel === "workflow:execute",
+      ).length;
+      failNextWorkflowExecution = true;
+      await executionShip.click();
+      const failedExecuteConfirmation = page.getByRole("dialog", { name: /Release details/ });
+      await failedExecuteConfirmation.waitFor();
+      await failedExecuteConfirmation.getByRole("button", { name: "Ship release" }).click();
+      const executionRecovery = page.getByRole("dialog", { name: "Workflow needs attention" });
+      await executionRecovery.getByText("Fixture execution failed safely.").waitFor();
+      if (process.env.SCREENSHOT_DIR)
+        await captureReviewScreenshot(
+          page,
+          join(
+            process.env.SCREENSHOT_DIR,
+            `dashboard-ship-execution-failure-${expectedTheme}-${screenshotViewport}.png`,
+          ),
+        );
+      await executionRecovery.getByRole("button", { name: "Review release details" }).click();
+      await page.getByRole("dialog", { name: /Release details/ }).waitFor();
+      assert.equal(
+        calls.filter((channel) => channel === "workflow:execute").length,
+        executionsBeforeFailure + 1,
+        "execution failure is surfaced and requires a new explicit confirmation",
+      );
+      await page
+        .getByRole("dialog", { name: /Release details/ })
+        .getByRole("button", { name: "Back to dashboard" })
+        .click();
+
       const disconnectShip = page.getByRole("button", { name: "Ship Quick Ship workflow" });
       await disconnectShip.waitFor();
       const disconnectLoadCount = calls.filter((channel) => channel === "workflow:load").length;
@@ -993,8 +1094,7 @@ async function journey(
       assert.ok(pendingDashboardShipLoad, "disconnect test deferred workflow hydration");
       pendingDashboardShipLoad.socket.close({ code: 1001, reason: "test disconnect" });
       pendingDashboardShipLoad = undefined;
-      await page.waitForFunction(() => !new URL(location.href).searchParams.has("ship"));
-      await page.getByText("Connect an engine before shipping this workflow.").waitFor();
+      await page.getByRole("dialog").getByRole("button", { name: "Reconnect engine" }).waitFor();
       const executionsBeforeReconnect = calls.filter(
         (channel) => channel === "workflow:execute",
       ).length;
@@ -1007,6 +1107,26 @@ async function journey(
         executionsBeforeReconnect,
         "reconnecting does not resume a dashboard Ship intent after disconnection",
       );
+      await page.getByRole("dialog").getByRole("button", { name: "Back to dashboard" }).click();
+      failNextDashboardShipLoad = true;
+      await page.goto(
+        new URL("/workflows/quick-ship-workflow/journey-project?ship=1", page.url()).href,
+      );
+      await page.getByText("Fixture workflow hydration failed.").waitFor();
+      await page.waitForFunction(() => !new URL(location.href).searchParams.has("ship"));
+      assert.equal(await page.getByRole("dialog", { name: "Release details" }).count(), 0);
+      const executionsBeforeEditorRetry = calls.filter(
+        (channel) => channel === "workflow:execute",
+      ).length;
+      await page.getByRole("button", { name: "Retry" }).click();
+      await page.getByRole("heading", { name: "Quick Ship workflow" }).waitFor();
+      await page.waitForTimeout(250);
+      assert.equal(
+        calls.filter((channel) => channel === "workflow:execute").length,
+        executionsBeforeEditorRetry,
+        "retrying a failed editor hydration does not resume its consumed Ship query",
+      );
+      assert.equal(await page.getByRole("dialog", { name: "Release details" }).count(), 0);
       assert.deepEqual(errors, [], `browser has no JS errors: ${errors.join("; ")}`);
       return `dashboard Ship: project switch cancellation, keyboard access, confirmation/cancel, duplicate prevention, live run navigation, and disconnect recovery passed (${expectedTheme}, ${screenshotViewport})`;
     }

@@ -205,6 +205,13 @@
         </div>
       </section>
     </div>
+    <ReleaseFlow
+      v-if="dashboardShipWorkflow"
+      :dashboard-mode="true"
+      :dashboard-flow-id="dashboardShipWorkflow.id"
+      :dashboard-project-id="dashboardShipWorkflow.projectId"
+      @close-dashboard="dashboardShipWorkflow = undefined"
+    />
   </main>
 </template>
 
@@ -216,6 +223,7 @@ import { useI18n } from "vue-i18n";
 import { useToast } from "primevue/usetoast";
 import Button from "primevue/button";
 import Message from "primevue/message";
+import ReleaseFlow from "./release-flow.vue";
 import type { BuildHistoryEntry } from "@pipelab/shared";
 import { useAgentAvailability } from "@renderer/composables/useAgentAvailability";
 import { useAPI } from "@renderer/composables/api";
@@ -246,6 +254,7 @@ const workflowEntryVersion = computed(() =>
   projectWorkflows.value.map((workflow) => `${workflow.id}:${workflow.lastModified}`).join("|"),
 );
 const workflowShortcuts = ref<Array<{ id: string; name: string; projectId: string }>>([]);
+const dashboardShipWorkflow = ref<{ id: string; name: string; projectId: string }>();
 let workflowShortcutRequest = 0;
 
 const recentExecutions = ref<BuildHistoryEntry[]>([]);
@@ -304,11 +313,9 @@ const shipWorkflow = (workflow: { id: string; name: string; projectId: string })
     });
     return;
   }
-  void router.push({
-    path: `/workflows/${workflow.id}/${workflow.projectId}`,
-    query: { ship: "1" },
-  });
+  dashboardShipWorkflow.value = workflow;
 };
+watch(selectedProjectId, () => (dashboardShipWorkflow.value = undefined));
 const executionPath = (entry: BuildHistoryEntry) =>
   `/workflows/${entry.workflowId}/${entry.projectId}/runs/${entry.id}`;
 const statusLabel = (status: BuildHistoryEntry["status"]) => t(`home.run-status-${status}`);
