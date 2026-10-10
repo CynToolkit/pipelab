@@ -53,6 +53,110 @@ const waitForRequests = async (page, calls, channel, count) => {
     await page.waitForTimeout(20);
   }
 };
+
+const focusWorkflowControlByKeyboard = async (page, locator, description) => {
+  await page.evaluate(
+    () => document.activeElement instanceof HTMLElement && document.activeElement.blur(),
+  );
+  for (let attempt = 0; attempt < 40; attempt += 1) {
+    await page.keyboard.press("Tab");
+    if (await locator.evaluate((element) => element === document.activeElement)) return;
+  }
+  assert.fail(`${description} is reachable by keyboard Tab navigation`);
+};
+
+const verifyWorkflowManager = async (page, longWorkflowName, theme, viewport) => {
+  const longRow = page.locator('.workflow-row[data-workflow-id="fixture-long"]');
+  await longRow.waitFor();
+  await page.getByText(longWorkflowName, { exact: true }).waitFor();
+  const routeDescription = await longRow.locator(".workflow-desc").innerText();
+  assert.match(routeDescription, /Studio Pixel Factory.*Steam.*Itch\.io/);
+  assert.equal(
+    await page
+      .locator('.workflow-row[data-workflow-id="fixture-no-date"] .workflow-updated')
+      .count(),
+    0,
+    "workflows without a timestamp do not show a dangling Updated label",
+  );
+
+  const brokenAlert = page.locator(".workflow-row-error").filter({ hasText: "fixture-retry" });
+  await brokenAlert.waitFor();
+  await brokenAlert.scrollIntoViewIfNeeded();
+  if (process.env.SCREENSHOT_DIR)
+    await captureReviewScreenshot(
+      page,
+      join(process.env.SCREENSHOT_DIR, `workflows-error-${theme}-${viewport}.png`),
+    );
+  for (let retry = 0; retry < 3 && (await brokenAlert.count()) > 0; retry += 1) {
+    await brokenAlert.getByRole("button", { name: "Retry loading workflow fixture-retry" }).click();
+    await brokenAlert.waitFor({ state: "detached", timeout: 1500 }).catch(() => undefined);
+  }
+  await page.locator('.workflow-row[data-workflow-id="fixture-retry"]').waitFor();
+  assert.equal(await brokenAlert.count(), 0, "retry loads the previously broken workflow");
+  assert.equal(
+    await page.locator(".workflow-row").count(),
+    8,
+    "the manager renders a compact multi-row fixture after recovery",
+  );
+
+  const search = page.getByRole("textbox", { name: "Search workflows" });
+  await search.fill("unlisted publishing pipeline");
+  assert.equal(await page.locator(".workflow-row").count(), 1, "search matches descriptions");
+  await search.fill("no matching workflow fixture");
+  await page.getByText("No workflows found matching “no matching workflow fixture”").waitFor();
+  await page.getByRole("button", { name: "Clear search" }).click();
+  await longRow.waitFor();
+
+  const boxMetrics = await longRow.evaluate((row) => {
+    const controls = [
+      row.querySelector(".workflow-runs-link"),
+      ...row.querySelectorAll(".row-actions button"),
+    ].map((control) => {
+      const rect = control.getBoundingClientRect();
+      return { width: rect.width, height: rect.height };
+    });
+    return {
+      controls,
+      pageFits: document.documentElement.scrollWidth <= window.innerWidth,
+      rowFits: row.getBoundingClientRect().right <= window.innerWidth,
+    };
+  });
+  assert.equal(boxMetrics.pageFits, true, "the workflow list does not overflow horizontally");
+  assert.equal(boxMetrics.rowFits, true, "the long workflow row fits the current viewport");
+  for (const control of boxMetrics.controls) {
+    assert.ok(control.width >= 44 && control.height >= 44, "workflow actions have 44px targets");
+  }
+
+  const openLink = longRow.getByRole("link", { name: `Open ${longWorkflowName}` });
+  await focusWorkflowControlByKeyboard(page, openLink, "Workflow links");
+  await page.keyboard.press("Enter");
+  await page.waitForURL("**/workflows/fixture-long/*");
+  await page.goBack();
+  await page.getByRole("heading", { name: "Your workflows" }).waitFor();
+
+  const runsLink = page
+    .locator('.workflow-row[data-workflow-id="fixture-long"]')
+    .getByRole("link", { name: `View runs for ${longWorkflowName}` });
+  await focusWorkflowControlByKeyboard(page, runsLink, "Runs links");
+  await page.keyboard.press("Enter");
+  await page.waitForURL("**/workflows/fixture-long/*/runs");
+  await page.goBack();
+  await page.getByRole("heading", { name: "Your workflows" }).waitFor();
+
+  const editButton = page.getByRole("button", { name: `Edit ${longWorkflowName}` });
+  await focusWorkflowControlByKeyboard(page, editButton, "Edit buttons");
+  await page.keyboard.press("Enter");
+  await page.waitForURL("**/workflows/fixture-long/*");
+  await page.goBack();
+  await page.getByRole("heading", { name: "Your workflows" }).waitFor();
+
+  const actionsButton = page.getByRole("button", { name: `Actions for ${longWorkflowName}` });
+  await actionsButton.focus();
+  await page.keyboard.press("Enter");
+  await page.getByRole("menuitem", { name: "Delete" }).waitFor();
+  await page.keyboard.press("Escape");
+  assert.match(page.url(), /\/workflows$/);
+};
 const sourceFixtures = {
   folder: {
     id: "@pipelab/core/source/folder",
@@ -231,6 +335,10 @@ async function journey(
   const sourceInspectionConfigs = [];
   let saved;
   let firstSaved;
+  const workflowFixtureConfigs = new Map();
+  const workflowLoadAttempts = new Map();
+  const longWorkflowName =
+    "An Exceptionally Long Desktop Game Release Workflow Name That Must Stay Readable on Narrow Screens";
   let historyEntries = [];
   let projectConfig = {
     version: "4.0.0",
@@ -510,16 +618,73 @@ async function journey(
         case "workflow:save":
           saved = request.data.data;
           firstSaved ||= request.data.data;
-          projectConfig.workflows = [
-            ...(projectConfig.workflows || []).filter(
-              (flow) => flow.id !== request.data.workflowId,
-            ),
-            {
-              id: request.data.workflowId,
-              project: request.data.projectId,
-              lastModified: new Date().toISOString(),
-            },
-          ];
+          {
+            const metadata = [
+              {
+                id: request.data.workflowId,
+                project: request.data.projectId,
+                lastModified: new Date().toISOString(),
+              },
+              { id: "fixture-long", project: request.data.projectId },
+              { id: "fixture-no-date", project: request.data.projectId },
+              { id: "fixture-retry", project: request.data.projectId },
+              ...Array.from({ length: 4 }, (_, index) => ({
+                id: `fixture-sample-${index + 1}`,
+                project: request.data.projectId,
+                lastModified: new Date(Date.now() - (index + 1) * 60_000).toISOString(),
+              })),
+            ];
+            projectConfig.workflows = [
+              ...(projectConfig.workflows || []).filter(
+                (flow) => flow.id !== request.data.workflowId,
+              ),
+              ...metadata,
+            ];
+            const destinations = [
+              {
+                id: "fixture-steam",
+                provider: "@pipelab/plugin-steam/destination",
+                enabled: true,
+                config: {},
+                slots: [],
+              },
+              {
+                id: "fixture-itch",
+                provider: "@pipelab/plugin-itch/destination",
+                enabled: true,
+                config: {},
+                slots: [],
+              },
+            ];
+            workflowFixtureConfigs.set("fixture-long", {
+              ...request.data.data,
+              id: "fixture-long",
+              name: longWorkflowName,
+              description: "Unlisted publishing pipeline for the browser fixture.",
+              source: {
+                ...request.data.data.source,
+                provider: "@studio/pixel-factory/source",
+              },
+              destinations,
+            });
+            workflowFixtureConfigs.set("fixture-no-date", {
+              ...request.data.data,
+              id: "fixture-no-date",
+              name: "Workflow with no last modified date",
+            });
+            workflowFixtureConfigs.set("fixture-retry", {
+              ...request.data.data,
+              id: "fixture-retry",
+              name: "Workflow that recovers after retry",
+            });
+            for (let index = 1; index <= 4; index += 1) {
+              workflowFixtureConfigs.set(`fixture-sample-${index}`, {
+                ...request.data.data,
+                id: `fixture-sample-${index}`,
+                name: `Sample workflow ${index}`,
+              });
+            }
+          }
           historyEntries = [
             {
               id: "fixture-recent-run",
@@ -543,7 +708,15 @@ async function journey(
           result = { success: true };
           break;
         case "workflow:load":
-          result = saved;
+          result =
+            workflowFixtureConfigs.get(request.data.workflowId) ||
+            (saved?.id === request.data.workflowId ? saved : undefined) ||
+            saved;
+          if (request.data.workflowId === "fixture-retry") {
+            const attempts = (workflowLoadAttempts.get(request.data.workflowId) || 0) + 1;
+            workflowLoadAttempts.set(request.data.workflowId, attempts);
+            if (attempts <= 2) result = { ...result, id: "fixture-invalid-identity" };
+          }
           if (readinessTiming) responseDelayMs = 150;
           break;
       }
@@ -559,7 +732,10 @@ async function journey(
             JSON.stringify({
               type: "response",
               requestId: request.requestId,
-              events: { type: "end", data: { type: "success", result } },
+              events: {
+                type: "end",
+                data: { type: "success", result },
+              },
             }),
           );
         };
@@ -585,6 +761,11 @@ async function journey(
     );
     await page.getByText("Journey project", { exact: true }).first().waitFor();
     await page.getByText("No workflows in this project yet.").waitFor();
+    assert.equal(
+      await page.locator(".no-projects").getByRole("button").count(),
+      0,
+      "the empty state does not repeat the toolbar's New workflow action",
+    );
     assert.equal(
       await page.getByText("Add a project description to give your team helpful context.").count(),
       0,
@@ -799,6 +980,9 @@ async function journey(
       await page.getByText("Journey project", { exact: true }).first().waitFor();
       assert.equal(projectConfig.projects.length, 2, "project deletion persists");
       assert.equal(await page.locator("main").count(), 1, "dashboard has one main landmark");
+      await page.locator("#sidebar-project-select").click();
+      await page.getByRole("option", { name: "Second project" }).click();
+      await page.getByText("Second project", { exact: true }).first().waitFor();
       await page.getByRole("button", { name: "Project actions" }).click();
       await page.getByRole("menuitem", { name: "Delete Project" }).click();
       await page.getByRole("alertdialog").getByRole("button", { name: "Yes" }).click();
@@ -1315,11 +1499,12 @@ async function journey(
           page,
           join(process.env.SCREENSHOT_DIR, `workflows-populated-${expectedTheme}-narrow.png`),
         );
+      await verifyWorkflowManager(page, longWorkflowName, expectedTheme, screenshotViewport);
     }
     if (testProjectManagement) {
       await page.getByRole("link", { name: "Dashboard" }).click();
       await page.getByRole("heading", { name: "Project overview" }).waitFor();
-      await page.getByText("1", { exact: true }).waitFor();
+      await page.getByText("8", { exact: true }).waitFor();
       await page.getByText("Recent executions", { exact: true }).waitFor();
       const workflowShortcut = page.getByRole("link", { name: "Open construct first workflow" });
       await workflowShortcut.waitFor();
@@ -1347,6 +1532,7 @@ async function journey(
             `workflows-populated-${expectedTheme}-${screenshotViewport}.png`,
           ),
         );
+      await verifyWorkflowManager(page, longWorkflowName, expectedTheme, screenshotViewport);
       await page.getByRole("link", { name: "Dashboard" }).click();
       await page.locator(".dev-benefits-override .toggle-btn").click();
       await page

@@ -101,10 +101,6 @@
         <div v-else-if="dashboardState === 'empty'" class="no-projects">
           <i class="mdi mdi-folder-open-outline empty-icon"></i>
           <div class="no-workflows-text">{{ $t("home.no-workflows-in-project") }}</div>
-          <Button severity="secondary" variant="outlined" @click="openWorkflowWizard">
-            <i class="mdi mdi-rocket-launch-outline mr-2"></i>
-            {{ $t("home.new-workflow") }}
-          </Button>
         </div>
 
         <!-- No Search Results -->
@@ -119,7 +115,12 @@
         </div>
 
         <div v-else class="workflows-list">
-          <article v-for="flow in filteredWorkflowsEnhanced" :key="flow.id" class="workflow-row">
+          <article
+            v-for="flow in filteredWorkflowsEnhanced"
+            :key="flow.id"
+            class="workflow-row"
+            :data-workflow-id="flow.id"
+          >
             <div class="workflow-icon">
               <img
                 v-if="sourceIconImage(flow.content.source.provider)"
@@ -135,20 +136,22 @@
             >
               <div class="workflow-info">
                 <div class="workflow-title-row">
-                  <span class="workflow-name">{{ flow.content.name }}</span>
+                  <span class="workflow-name" :title="flow.content.name">{{
+                    flow.content.name
+                  }}</span>
                   <Tag severity="info" :value="$t('home.release')" class="type-tag" />
                 </div>
-                <div class="workflow-desc">
+                <div class="workflow-desc" :title="workflowRouteDescription(flow)">
                   {{ sourceLabel(flow.content.source.provider) }} →
                   {{ flow.content.destinations.map(destinationLabel).join(", ") }}
                 </div>
               </div>
             </RouterLink>
             <div class="workflow-meta-actions">
-              <span class="workflow-updated">{{
+              <span v-if="flow.lastModified" class="workflow-updated">{{
                 $t("home.updated", { date: formatLastModified(flow.lastModified) })
               }}</span>
-              <div class="row-actions" @click.stop>
+              <div class="row-actions">
                 <RouterLink
                   class="workflow-runs-link"
                   :to="workflowPath(flow.id, 'runs')"
@@ -157,34 +160,44 @@
                 >
                 <Button
                   icon="mdi mdi-pencil"
+                  :label="$t('home.edit-short')"
                   text
                   rounded
                   severity="secondary"
-                  size="small"
-                  :aria-label="$t('home.edit-workflow')"
-                  v-tooltip.top="$t('home.edit-workflow')"
+                  :aria-label="$t('home.edit-workflow-named', { name: flow.content.name })"
+                  v-tooltip.top="$t('home.edit-workflow-named', { name: flow.content.name })"
                   @click="openWorkflow(flow.id)"
-                /><Button
+                />
+                <Button
                   icon="mdi mdi-dots-vertical"
                   text
                   rounded
                   severity="secondary"
-                  size="small"
                   :aria-label="$t('home.workflow-actions', { name: flow.content.name })"
+                  v-tooltip.top="$t('home.workflow-actions', { name: flow.content.name })"
                   @click="toggleWorkflowMenu($event, flow)"
                 />
               </div>
             </div>
           </article>
-          <Message
+          <div
             v-for="broken in brokenWorkflows"
             :key="broken.id"
-            severity="error"
             class="workflow-row-error"
+            role="alert"
           >
-            {{ $t("home.broken-workflow", { id: broken.id }) }}
-            {{ broken.error }}
-          </Message>
+            <div class="workflow-error-copy">
+              <strong>{{ $t("home.broken-workflow", { id: broken.id }) }}</strong>
+              <span>{{ broken.error }}</span>
+            </div>
+            <Button
+              :label="$t('home.retry')"
+              text
+              severity="secondary"
+              :aria-label="$t('home.retry-loading-workflow', { id: broken.id })"
+              @click="retryWorkflowLoad(broken.id)"
+            />
+          </div>
         </div>
       </section>
     </main>
@@ -218,7 +231,11 @@ import Message from "primevue/message";
 import Tag from "primevue/tag";
 import IconField from "primevue/iconfield";
 import InputIcon from "primevue/inputicon";
-import { partitionWorkflowLoads } from "./workflow-load-state";
+import {
+  loadWorkflowEntries,
+  mergeWorkflowLoadState,
+} from "./workflow-load-state";
+import { readableProviderId } from "./workflow-presentation";
 import { getDashboardDisplayState } from "./dashboard-state";
 import { useAgentAvailability } from "@renderer/composables/useAgentAvailability";
 
@@ -330,18 +347,29 @@ watch(
       return;
     }
     const revision = ++workflowLoadRevision;
+    const requestedProjectId = activeProjectId.value;
     isLoading.value = true;
     const requestedEntries = entries.map((flow) => ({ ...flow }));
-    const results = await Promise.all(
-      requestedEntries.map((flow) =>
-        api.execute("workflow:load", { workflowId: flow.id, projectId: flow.project }),
-      ),
-    );
-    if (revision !== workflowLoadRevision) return;
-    const partitioned = partitionWorkflowLoads(requestedEntries, results);
-    workflowsEnhanced.value = partitioned.loaded;
-    brokenWorkflows.value = partitioned.broken;
-    isLoading.value = false;
+    try {
+      const partitioned = await loadWorkflowEntries(
+        requestedEntries,
+        (flow) => api.execute("workflow:load", { workflowId: flow.id, projectId: flow.project }),
+        () =>
+          revision === workflowLoadRevision && activeProjectId.value === requestedProjectId,
+      );
+      if (!partitioned) return;
+      workflowsEnhanced.value = partitioned.loaded;
+      brokenWorkflows.value = partitioned.broken;
+    } catch (error) {
+      if (revision !== workflowLoadRevision) return;
+      workflowsEnhanced.value = [];
+      brokenWorkflows.value = requestedEntries.map((flow) => ({
+        id: flow.id,
+        error: error instanceof Error ? error.message : String(error),
+      }));
+    } finally {
+      if (revision === workflowLoadRevision) isLoading.value = false;
+    }
   },
   { immediate: true },
 );
@@ -370,17 +398,34 @@ const createWorkflow = async (flow: ReleaseConfig) => {
 const openWorkflow = (id: string) => router.push(`/workflows/${id}/${activeProjectId.value}`);
 const workflowPath = (id: string, suffix = "") =>
   `/workflows/${id}/${activeProjectId.value}${suffix ? `/${suffix}` : ""}`;
-const readableProviderId = (id: string) =>
-  id
-    .split("/")
-    .at(-1)
-    ?.replace(/[-_]/g, " ")
-    .replace(/\b\w/g, (letter) => letter.toUpperCase()) || id;
+const retryWorkflowLoad = async (id: string) => {
+  const projectId = activeProjectId.value;
+  const revision = workflowLoadRevision;
+  const entry = workflows.value.find((flow) => flow.id === id);
+  if (!projectId || !entry || entry.project !== projectId) return;
+
+  const update = await loadWorkflowEntries(
+    [entry],
+    (flow) => api.execute("workflow:load", { workflowId: flow.id, projectId }),
+    () => activeProjectId.value === projectId && workflowLoadRevision === revision,
+  );
+  if (!update) return;
+  const merged = mergeWorkflowLoadState(
+    { loaded: workflowsEnhanced.value, broken: brokenWorkflows.value },
+    update,
+  );
+  workflowsEnhanced.value = merged.loaded;
+  brokenWorkflows.value = merged.broken;
+};
 const sourceDefinition = (id: string) => catalog.value.sources.find((source) => source.id === id);
 const sourceLabel = (id: string) => sourceDefinition(id)?.label || readableProviderId(id);
 const destinationLabel = (destination: ReleaseConfig["destinations"][number]) =>
   catalog.value.destinations.find((item) => item.id === destination.provider)?.label ||
   readableProviderId(destination.provider);
+const workflowRouteDescription = (flow: (typeof workflowsEnhanced.value)[number]) =>
+  `${sourceLabel(flow.content.source.provider)} → ${flow.content.destinations
+    .map(destinationLabel)
+    .join(", ")}`;
 const sourceIcon = (id: string) => {
   const catalogIcon = sourceDefinition(id)?.icon;
   if (catalogIcon?.type === "image") return catalogIcon;
@@ -620,7 +665,7 @@ watch(
 
   .search-input {
     width: 100%;
-    min-height: 40px;
+    min-height: 44px;
     padding-left: 2.25rem !important;
     border-radius: 9px;
   }
@@ -632,7 +677,7 @@ watch(
   gap: 8px;
 
   :deep(.p-button) {
-    min-height: 40px;
+    min-height: 44px;
     white-space: nowrap;
   }
 }
@@ -644,6 +689,7 @@ watch(
 }
 
 .workflows-area :deep(.p-button) {
+  min-height: 44px;
   transition:
     border-color 140ms ease,
     background-color 140ms ease,
@@ -666,6 +712,10 @@ watch(
   .workflows-area :deep(.p-button) {
     transition: none;
   }
+
+  .workflow-row {
+    transition: none;
+  }
 }
 
 /* ─── Workflows List ────────────────────────────────────── */
@@ -679,15 +729,16 @@ watch(
 .workflow-row {
   display: flex;
   align-items: center;
-  padding: 8px 12px;
+  gap: 8px;
+  padding: 10px 12px;
   background: var(--p-surface-0);
   border: 1px solid var(--p-surface-200);
   border-left: 3px solid var(--primary-color);
   border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition:
+    border-color 140ms ease,
+    background-color 140ms ease;
   position: relative;
-  overflow: hidden;
   background: color-mix(in srgb, var(--primary-color) 4%, var(--p-surface-0));
 
   :root.dark & {
@@ -702,10 +753,6 @@ watch(
     :root.dark & {
       background: var(--p-surface-850);
       border-color: var(--p-surface-700);
-    }
-
-    .row-actions {
-      opacity: 1;
     }
   }
 }
@@ -738,15 +785,18 @@ watch(
   display: flex;
   align-items: center;
   gap: 8px;
+  min-width: 0;
 }
 
 .workflow-name {
+  min-width: 0;
   font-size: 0.875rem;
   font-weight: 600;
   color: var(--p-text-color);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  display: block;
+  flex: 0 1 auto;
 }
 
 .type-tag {
@@ -757,18 +807,23 @@ watch(
 }
 
 .workflow-desc {
+  min-width: 0;
   font-size: 0.75rem;
   color: var(--p-text-muted-color);
-  white-space: nowrap;
+  line-height: 1.45;
+  white-space: normal;
   overflow: hidden;
-  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow-wrap: anywhere;
 }
 
 /* ─── Workflow Meta & Actions ────────────────────────────── */
 .workflow-meta-actions {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
   flex-shrink: 0;
 }
 
@@ -776,25 +831,27 @@ watch(
   font-size: 0.725rem;
   color: var(--p-text-muted-color);
   font-weight: 500;
+  white-space: nowrap;
 }
 
 .row-actions {
   display: flex;
   align-items: center;
-  gap: 2px;
-  opacity: 0.7;
-  transition: opacity 0.15s ease;
+  gap: 4px;
 
-  @media (max-width: 768px) {
-    opacity: 1;
+  :deep(.p-button) {
+    min-width: 44px;
+    min-height: 44px;
+    flex-shrink: 0;
   }
 }
 
 .workflow-runs-link {
   display: inline-flex;
   align-items: center;
-  min-height: 32px;
-  padding: 0 8px;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 10px;
   border-radius: 6px;
   color: var(--p-text-muted-color);
   font-size: 0.75rem;
@@ -824,8 +881,11 @@ watch(
   align-items: center;
   justify-content: center;
   gap: 16px;
-  flex: 1;
-  padding: 64px 24px;
+  flex: 0 0 auto;
+  align-self: flex-start;
+  box-sizing: border-box;
+  max-width: 100%;
+  padding: 28px 24px;
   border: 1px dashed var(--p-surface-300);
   border-radius: 12px;
   background: rgba(0, 0, 0, 0.01);
@@ -836,7 +896,7 @@ watch(
   }
 
   .empty-icon {
-    font-size: 3rem;
+    font-size: 2rem;
     color: var(--p-text-muted-color);
     opacity: 0.6;
   }
@@ -847,6 +907,50 @@ watch(
     font-weight: 600;
     color: var(--p-text-muted-color);
     text-align: center;
+  }
+
+  :deep(.p-button) {
+    max-width: 100%;
+  }
+}
+
+.workflow-row-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 16px;
+  color: var(--p-text-color);
+  background: color-mix(in srgb, var(--p-red-500, #ef4444) 7%, var(--p-surface-0));
+  border: 1px solid color-mix(in srgb, var(--p-red-500, #ef4444) 35%, var(--p-surface-200));
+  border-radius: 8px;
+
+  :root.dark & {
+    background: color-mix(in srgb, var(--p-red-400, #f87171) 9%, var(--p-surface-900));
+    border-color: color-mix(in srgb, var(--p-red-400, #f87171) 35%, var(--p-surface-800));
+  }
+
+  :deep(.p-button) {
+    min-width: 44px;
+    min-height: 44px;
+    flex-shrink: 0;
+  }
+}
+
+.workflow-error-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  font-size: 0.8rem;
+
+  strong {
+    font-weight: 600;
+  }
+
+  span {
+    color: var(--p-text-muted-color);
+    overflow-wrap: anywhere;
   }
 }
 
@@ -1029,8 +1133,8 @@ watch(
 
   .workflow-row {
     flex-wrap: wrap;
-    gap: 8px;
-    padding: 14px;
+    gap: 10px;
+    padding: 12px;
   }
 
   .workflow-icon {
@@ -1042,9 +1146,15 @@ watch(
     padding-right: 0;
   }
 
+  .workflow-open-link {
+    flex-basis: calc(100% - 52px);
+  }
+
   .workflow-meta-actions {
     flex: 1 1 100%;
     justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
   }
 
   .workflow-updated {
@@ -1052,7 +1162,13 @@ watch(
   }
 
   .row-actions {
-    opacity: 1;
+    margin-left: auto;
+  }
+
+  .workflow-row-error {
+    align-items: flex-start;
+    gap: 8px;
+    padding: 10px;
   }
 }
 
