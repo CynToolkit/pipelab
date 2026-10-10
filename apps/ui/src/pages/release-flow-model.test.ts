@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { reactive, toRaw, watch } from "vue";
 import {
   buildEnginesFor,
+  dashboardShipIntentAction,
   buildProfileSummary,
   buildTargetsFor,
   buildTargetAvailabilityReason,
@@ -101,6 +102,34 @@ const config: ReleaseConfig = {
 };
 
 describe("release flow model", () => {
+  it("waits for the matching workflow and settled preflight before handling dashboard Ship", () => {
+    const base = {
+      intent: true,
+      workflowMatchesRoute: true,
+      loading: false,
+      readiness: "ready" as const,
+      canShip: true,
+    };
+    expect(dashboardShipIntentAction({ ...base, workflowMatchesRoute: false })).toBe("wait");
+    expect(dashboardShipIntentAction({ ...base, loading: true })).toBe("wait");
+    expect(dashboardShipIntentAction({ ...base, readiness: "checking" })).toBe("wait");
+  });
+
+  it("starts only when all existing readiness gates pass and consumes blocked intents", () => {
+    const base = {
+      intent: true,
+      workflowMatchesRoute: true,
+      loading: false,
+      readiness: "ready" as const,
+      canShip: true,
+    };
+    expect(dashboardShipIntentAction(base)).toBe("ship");
+    expect(dashboardShipIntentAction({ ...base, canShip: false })).toBe("blocked");
+    expect(dashboardShipIntentAction({ ...base, readiness: "attention" })).toBe("blocked");
+    expect(dashboardShipIntentAction({ ...base, readiness: "error" })).toBe("blocked");
+    expect(dashboardShipIntentAction({ ...base, intent: false })).toBe("wait");
+  });
+
   it("provides the compact build-card summary without inline settings", () => {
     const build = createBuildProfile(catalog, "desktop", "engine-a", "desktop-one", ["windows"])!;
     expect(buildProfileSummary(catalog, build)).toEqual({

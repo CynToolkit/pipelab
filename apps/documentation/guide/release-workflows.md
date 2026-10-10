@@ -90,13 +90,20 @@ is provided. It does not execute deployment tasks. See the
 
 ## Follow the run
 
-Choose **Ship** to save the current workflow, validate the saved configuration,
-and start execution. Pipelab only starts the run after the current edits have
-saved and the planner reports a valid plan. After shipping, use **Runs** to
-inspect status, step logs, and delivery results, or **Artifacts** to discover
-outputs across runs. The [Runs and history guide](/guide/runs-and-history)
-covers the run list, artifacts, and detail view.
+Choose **Ship** in the editor, or use **Ship** beside a saved workflow on the
+project dashboard, to save the workflow, validate its configuration, and open
+the release details confirmation. Dashboard shipping opens the same
+preflight as editor shipping while keeping the dashboard in view. Pipelab only
+starts the run after you confirm the release details and the planner reports a
+valid plan. If a workflow needs attention, the dashboard offers its blockers
+and a path to Configuration for repair. If workflow data cannot be loaded,
+retry the load or return to the dashboard; a cancelled Ship request does not
+resume automatically. After shipping, Pipelab opens the live run detail; use
+**Runs** to return to its status, step logs, and delivery results, or
+**Artifacts** to discover outputs across runs. The
+[Runs and history guide](/guide/runs-and-history) covers the run list,
+artifacts, and detail view.
 
 Release workflows are not scheduled by Pipelab's current workflow format. The
-workflow runs when you choose **Ship** in the editor or invoke it through the
-CLI.
+workflow runs when you choose **Ship** in the editor or on the dashboard, or
+invoke it through the CLI.
