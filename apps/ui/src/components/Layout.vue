@@ -272,7 +272,7 @@
             v-tooltip.right="isSidebarCollapsed ? 'Logout' : undefined"
             v-tooltip.top="!isSidebarCollapsed ? 'Logout' : undefined"
             @click="logout"
-            :disabled="!auth.isAuthTransportReady"
+            :disabled="!auth.isAuthTransportReady || auth.isAuthenticating"
             :title="
               auth.isAuthTransportReady
                 ? undefined

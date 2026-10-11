@@ -2,7 +2,7 @@ import { useLogger, isSupabaseAvailable, supabase } from "@pipelab/shared";
 import type { Subscription } from "@polar-sh/sdk/models/components/subscription";
 import type { AuthChangeEvent, Session, User } from "@supabase/supabase-js";
 import { useAPI } from "@renderer/composables/api";
-import { uiRuntimeMode } from "@renderer/composables/ui-runtime";
+import { uiEnvironment } from "@renderer/composables/ui-runtime";
 import { defineStore } from "pinia";
 import { computed, readonly, Ref, ref, shallowRef, watch } from "vue";
 import posthog from "posthog-js";
@@ -42,8 +42,8 @@ export const useAuth = defineStore("auth", () => {
   let initPromise: Promise<void> | undefined;
   let authRequestId = 0;
   const { isReady } = useAgentAvailability();
-  const isHostedBrowser = uiRuntimeMode === "hosted";
-  const browserClient = isHostedBrowser
+  const isBrowserRuntime = uiEnvironment === "browser";
+  const browserClient = isBrowserRuntime
     ? supabase({
         auth: {
           persistSession: true,
@@ -53,8 +53,10 @@ export const useAuth = defineStore("auth", () => {
         },
       })
     : null;
-  const hasLoginProvider = isHostedBrowser ? browserClient !== null : isSupabaseAvailable();
-  const isAuthTransportReady = computed(() => (isHostedBrowser ? hasLoginProvider : isReady.value));
+  const hasLoginProvider = isBrowserRuntime ? browserClient !== null : isSupabaseAvailable();
+  const isAuthTransportReady = computed(() =>
+    isBrowserRuntime ? hasLoginProvider : isReady.value,
+  );
 
   const callbackUrl = (type?: "recovery") => {
     const origin = typeof window === "undefined" ? "http://localhost" : window.location.origin;
@@ -82,7 +84,7 @@ export const useAuth = defineStore("auth", () => {
   const onSubscriptionChanged = createEventHook<{ subscriptions: Subscription[] }>();
 
   const api = useAPI();
-  if (!isHostedBrowser)
+  if (!isBrowserRuntime)
     api.on("auth:getUser", (data) => {
       if (!isReady.value) return;
       authRequestId++;
@@ -129,7 +131,7 @@ export const useAuth = defineStore("auth", () => {
 
   const invokeFunction = async (name: string, options?: { body?: Record<string, unknown> }) => {
     try {
-      if (isHostedBrowser) {
+      if (isBrowserRuntime) {
         if (!browserClient) return { data: null, error: new Error("Supabase is not configured.") };
         const result = await withRequestTimeout(
           browserClient.functions.invoke(name, options),
@@ -225,7 +227,7 @@ export const useAuth = defineStore("auth", () => {
     authState.value = "SIGNED_OUT";
   };
 
-  if (isHostedBrowser && browserClient) {
+  if (isBrowserRuntime && browserClient) {
     browserClient.auth.onAuthStateChange((event, session) => {
       onAuthChanged.trigger({ event, session });
       if (event !== "INITIAL_SESSION") applyBrowserSession(session);
@@ -237,7 +239,7 @@ export const useAuth = defineStore("auth", () => {
 
   // Initialize auth only after the local agent is ready.
   const init = async () => {
-    if (isHostedBrowser) {
+    if (isBrowserRuntime) {
       if (!browserClient) {
         setUser(undefined);
         subscriptions.value = [];
@@ -343,7 +345,7 @@ export const useAuth = defineStore("auth", () => {
   watch(
     isReady,
     (ready) => {
-      if (isHostedBrowser) {
+      if (isBrowserRuntime) {
         if (authState.value === "INITIALIZING") void init();
         return;
       }
@@ -376,7 +378,7 @@ export const useAuth = defineStore("auth", () => {
     clearError();
     try {
       let result: AuthActionResponse;
-      if (isHostedBrowser) {
+      if (isBrowserRuntime) {
         if (!browserClient) throw new Error("Browser authentication is not configured.");
         result = await withRequestTimeout(
           browserClient.auth.signInWithPassword({ email, password: pwd }),
@@ -407,7 +409,7 @@ export const useAuth = defineStore("auth", () => {
         errorMessage.value =
           result.error.message || "Sign-in failed. Check your details and try again.";
       } else {
-        if (isHostedBrowser) {
+        if (isBrowserRuntime) {
           applyBrowserSession(result.data.session);
         } else {
           setUser(result.data.user ?? undefined);
@@ -441,7 +443,7 @@ export const useAuth = defineStore("auth", () => {
     clearError();
     try {
       let result: AuthActionResponse;
-      if (isHostedBrowser) {
+      if (isBrowserRuntime) {
         if (!browserClient) throw new Error("Browser authentication is not configured.");
         result = await withRequestTimeout(
           browserClient.auth.signUp({
@@ -473,7 +475,7 @@ export const useAuth = defineStore("auth", () => {
         setAuthState("ERROR");
         errorMessage.value = result.error.message || "Failed to register. Please try again.";
       } else {
-        if (isHostedBrowser && result.data.session) {
+        if (isBrowserRuntime && result.data.session) {
           applyBrowserSession(result.data.session);
         } else {
           setAuthState("AWAITING_VALIDATION");
@@ -498,7 +500,7 @@ export const useAuth = defineStore("auth", () => {
     setAuthState("LOADING"); // Optionally set authState to loading during logout
     clearError();
     try {
-      if (isHostedBrowser) {
+      if (isBrowserRuntime) {
         if (!browserClient) throw new Error("Browser authentication is not configured.");
         const { error } = await withRequestTimeout(
           browserClient.auth.signOut(),
@@ -538,7 +540,7 @@ export const useAuth = defineStore("auth", () => {
     clearError();
     try {
       let error: Error | null;
-      if (isHostedBrowser) {
+      if (isBrowserRuntime) {
         if (!browserClient) throw new Error("Browser authentication is not configured.");
         const result = await withRequestTimeout(
           browserClient.auth.resetPasswordForEmail(email, {
@@ -573,7 +575,7 @@ export const useAuth = defineStore("auth", () => {
   };
 
   const updatePassword = async (password: string): Promise<{ error: Error | null }> => {
-    if (!isHostedBrowser || !browserClient) {
+    if (!isBrowserRuntime || !browserClient) {
       return { error: new Error("Password recovery is unavailable in this runtime.") };
     }
     isAuthenticating.value = true;
@@ -602,7 +604,7 @@ export const useAuth = defineStore("auth", () => {
   };
 
   const completeAuthCallback = async (code: string): Promise<{ error: Error | null }> => {
-    if (!isHostedBrowser || !browserClient) {
+    if (!isBrowserRuntime || !browserClient) {
       return { error: new Error("Browser authentication is unavailable in this runtime.") };
     }
     const requestId = ++authRequestId;

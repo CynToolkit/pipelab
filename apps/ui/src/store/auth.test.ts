@@ -10,7 +10,7 @@ const {
   setReady,
   readinessRefs,
   supabaseAvailable,
-  runtimeMode,
+  runtimeEnvironment,
   browserClient,
   createBrowserClient,
 } = vi.hoisted(() => {
@@ -33,7 +33,7 @@ const {
     setReady: vi.fn(),
     readinessRefs: [] as Array<{ value: boolean }>,
     supabaseAvailable: vi.fn(() => true),
-    runtimeMode: { value: "agent" },
+    runtimeEnvironment: { value: "desktop" },
     browserClient,
     createBrowserClient: vi.fn<() => typeof browserClient | null>(() => browserClient),
   };
@@ -61,8 +61,8 @@ vi.mock("@pipelab/shared", () => ({
   supabase: createBrowserClient,
 }));
 vi.mock("@renderer/composables/ui-runtime", () => ({
-  get uiRuntimeMode() {
-    return runtimeMode.value;
+  get uiEnvironment() {
+    return runtimeEnvironment.value;
   },
 }));
 vi.mock("posthog-js", () => ({ default: { identify: vi.fn(), reset: vi.fn() } }));
@@ -82,7 +82,7 @@ describe("auth startup and subscription loading", () => {
     readinessRefs.length = 0;
     setReady(false);
     supabaseAvailable.mockReturnValue(true);
-    runtimeMode.value = "agent";
+    runtimeEnvironment.value = "desktop";
     browserClient.auth.getSession
       .mockReset()
       .mockResolvedValue({ data: { session: null }, error: null });
@@ -321,7 +321,7 @@ describe("hosted browser authentication", () => {
     readinessRefs.length = 0;
     setReady(false);
     supabaseAvailable.mockReturnValue(true);
-    runtimeMode.value = "hosted";
+    runtimeEnvironment.value = "browser";
     browserClient.auth.getSession
       .mockReset()
       .mockResolvedValue({ data: { session: null }, error: null });
@@ -361,6 +361,34 @@ describe("hosted browser authentication", () => {
     expect(auth.user?.id).toBe("browser-user");
     expect(execute).not.toHaveBeenCalled();
     expect(browserClient.functions.invoke).toHaveBeenCalledWith("polar-user-plan", undefined);
+  });
+
+  it("keeps browser account and subscription state across optional agent changes", async () => {
+    const user = makeUser("browser-user");
+    browserClient.auth.getSession.mockResolvedValue({
+      data: { session: { user, access_token: "access-token", refresh_token: "refresh-token" } },
+      error: null,
+    });
+    browserClient.functions.invoke.mockResolvedValue({
+      data: { subscriptions: [{ id: "browser-plan" }] },
+      error: null,
+    });
+    const auth = useAuth();
+    activeAuthStore = auth;
+    await vi.waitFor(() => expect(auth.subscriptionStatus).toBe("ready"));
+
+    setReady(true);
+    await nextTick();
+    expect(auth.user?.id).toBe("browser-user");
+    expect(auth.subscriptions).toEqual([{ id: "browser-plan" }]);
+
+    setReady(false);
+    await nextTick();
+    expect(auth.authState).toBe("SIGNED_IN");
+    expect(auth.user?.id).toBe("browser-user");
+    expect(auth.subscriptions).toEqual([{ id: "browser-plan" }]);
+    expect(browserClient.functions.invoke).toHaveBeenCalledOnce();
+    expect(execute).not.toHaveBeenCalled();
   });
 
   it("signs up with a hosted callback URL without waiting for an agent", async () => {
@@ -647,7 +675,7 @@ describe("Desktop auth transport compatibility", () => {
     readinessRefs.length = 0;
     setReady(false);
     supabaseAvailable.mockReturnValue(true);
-    runtimeMode.value = "agent";
+    runtimeEnvironment.value = "desktop";
     createBrowserClient.mockClear();
     createBrowserClient.mockReturnValue(browserClient);
   });

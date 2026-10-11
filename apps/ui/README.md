@@ -12,7 +12,7 @@ When the UI starts, it attempts to connect to the Pipelab Engine (CLI process):
 
 1.  **Discovery**: It looks for a running engine on the configured port (default: `33753`).
 2.  **Streaming**: Once connected, it receives real-time execution logs and progress updates via WebSockets.
-3.  **Authentication**: Syncs its authentication state with the engine's Supabase instance.
+3.  **Authentication**: Desktop syncs authentication through the engine. Browser builds use their own Supabase session for account and billing features; connecting or disconnecting an agent does not replace that identity.
 
 ## 🛠️ Development
 
