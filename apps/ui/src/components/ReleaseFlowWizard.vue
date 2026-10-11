@@ -409,7 +409,7 @@ import { nanoid } from "nanoid";
 import type { IconType, ReleaseConfig } from "@pipelab/shared";
 import { useAPI } from "../composables/api";
 import { useAgentAvailability } from "../composables/useAgentAvailability";
-import { uiRuntimeMode } from "../composables/ui-runtime";
+import { shouldAutoConnectAgent, uiEnvironment } from "../composables/ui-runtime";
 import { useAppStore } from "../store/app";
 import ReleaseFieldControl from "./ReleaseFieldControl.vue";
 import {
@@ -435,7 +435,7 @@ const emit = defineEmits<{
 const api = useAPI();
 const appStore = useAppStore();
 const { isReady } = useAgentAvailability();
-const isHostedBrowser = uiRuntimeMode === "hosted";
+const isHostedBrowser = uiEnvironment === "browser" && !shouldAutoConnectAgent;
 const catalogLoading = ref(false);
 const catalogError = ref("");
 let catalogRequest = 0;
