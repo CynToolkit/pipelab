@@ -39,7 +39,7 @@ const chromiumPath = process.env.CHROMIUM_PATH || "/usr/bin/chromium";
 
   try {
     await page.goto(`${baseUrl}/dashboard`, { waitUntil: "domcontentloaded" });
-    await page.getByText("Hosted mode is ready.", { exact: false }).waitFor();
+    await page.getByRole("heading", { name: "Project overview", exact: true }).waitFor();
     await page
       .getByRole("button", { name: /New workflow/ })
       .first()
@@ -74,7 +74,9 @@ const chromiumPath = process.env.CHROMIUM_PATH || "/usr/bin/chromium";
     await dialog.getByRole("button", { name: "Continue" }).click();
 
     await dialog.getByRole("heading", { name: "Where do you want to ship?" }).waitFor();
-    const itchDestination = dialog.getByRole("button", { name: "Itch.io", exact: true });
+    const itchDestination = dialog.getByRole("button", {
+      name: /^Itch\.io Ship your release$/,
+    });
     await itchDestination.waitFor();
     await itchDestination.click();
     await dialog.getByRole("textbox", { name: "Project", exact: true }).fill("studio/game");

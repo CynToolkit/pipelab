@@ -63,7 +63,9 @@
               <Button
                 :label="$t('home.new-workflow')"
                 icon="mdi mdi-rocket-launch-outline"
-                :disabled="!filesReady || !agent.isReady.value || !activeProjectId"
+                :disabled="
+                  !isHostedBrowser && (!filesReady || !agent.isReady.value || !activeProjectId)
+                "
                 @click="openWorkflowWizard"
               />
               <Button
@@ -231,13 +233,11 @@ import Message from "primevue/message";
 import Tag from "primevue/tag";
 import IconField from "primevue/iconfield";
 import InputIcon from "primevue/inputicon";
-import {
-  loadWorkflowEntries,
-  mergeWorkflowLoadState,
-} from "./workflow-load-state";
+import { loadWorkflowEntries, mergeWorkflowLoadState } from "./workflow-load-state";
 import { readableProviderId } from "./workflow-presentation";
 import { getDashboardDisplayState } from "./dashboard-state";
 import { useAgentAvailability } from "@renderer/composables/useAgentAvailability";
+import { shouldAutoConnectAgent, uiEnvironment } from "@renderer/composables/ui-runtime";
 
 const ReleaseFlowWizard = defineAsyncComponent(
   () => import("@renderer/components/ReleaseFlowWizard.vue"),
@@ -251,6 +251,7 @@ const confirm = useConfirm();
 const toast = useToast();
 const appStore = useAppStore();
 const agent = useAgentAvailability();
+const isHostedBrowser = uiEnvironment === "browser" && !shouldAutoConnectAgent;
 
 // Table data
 const fileStore = useFiles();
@@ -354,8 +355,7 @@ watch(
       const partitioned = await loadWorkflowEntries(
         requestedEntries,
         (flow) => api.execute("workflow:load", { workflowId: flow.id, projectId: flow.project }),
-        () =>
-          revision === workflowLoadRevision && activeProjectId.value === requestedProjectId,
+        () => revision === workflowLoadRevision && activeProjectId.value === requestedProjectId,
       );
       if (!partitioned) return;
       workflowsEnhanced.value = partitioned.loaded;
@@ -525,7 +525,7 @@ const workflowMenuItems = computed(() => [
 watch(
   [() => route.query.create, filesReady, agent.isReady, activeProjectId],
   ([create, ready, connected, projectId]) => {
-    if (create !== "new" || !ready || !connected || !projectId) return;
+    if (create !== "new" || (!isHostedBrowser && (!ready || !connected || !projectId))) return;
     isWorkflowWizardVisible.value = true;
     void router.replace({ path: "/workflows" });
   },

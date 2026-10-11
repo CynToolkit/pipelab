@@ -13,7 +13,7 @@
         <Button
           :label="$t('home.new-workflow')"
           icon="mdi mdi-plus"
-          :disabled="!filesReady || !agent.isReady.value || !activeProject"
+          :disabled="!isHostedBrowser && (!filesReady || !agent.isReady.value || !activeProject)"
           @click="startWorkflowCreation"
         />
         <RouterLink class="manage-workflows-link" to="/workflows">
@@ -227,6 +227,7 @@ import ReleaseFlow from "./release-flow.vue";
 import type { BuildHistoryEntry } from "@pipelab/shared";
 import { useAgentAvailability } from "@renderer/composables/useAgentAvailability";
 import { useAPI } from "@renderer/composables/api";
+import { shouldAutoConnectAgent, uiEnvironment } from "@renderer/composables/ui-runtime";
 import { useAppStore } from "@renderer/store/app";
 import { useAuth } from "@renderer/store/auth";
 import { useFiles } from "@renderer/store/files";
@@ -240,6 +241,7 @@ const appStore = useAppStore();
 const authStore = useAuth();
 const fileStore = useFiles();
 const agent = useAgentAvailability();
+const isHostedBrowser = uiEnvironment === "browser" && !shouldAutoConnectAgent;
 const { files, selectedProjectId, error: projectLoadError } = storeToRefs(fileStore);
 const { hasBuildHistoryBenefit } = storeToRefs(authStore);
 const filesReady = computed(() => fileStore.status === "ready");
