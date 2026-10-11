@@ -59,7 +59,7 @@ function restart() {
 }
 </script>
 <template>
-  <div class="wizard" aria-label="Try an example release workflow">
+  <div class="wizard" role="region" aria-label="Try an example release workflow">
     <div class="wizard-chrome">
       <span class="chrome-dots" aria-hidden="true">● ● ●</span
       ><img
