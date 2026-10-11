@@ -74,9 +74,9 @@ const chromiumPath = process.env.CHROMIUM_PATH || "/usr/bin/chromium";
     await dialog.getByRole("button", { name: "Continue" }).click();
 
     await dialog.getByRole("heading", { name: "Where do you want to ship?" }).waitFor();
-    const destinationRows = dialog.locator(".destination-row");
-    assert((await destinationRows.allInnerTexts()).some((name) => name.includes("Itch.io")));
-    await dialog.getByRole("button", { name: /Itch.io/ }).click();
+    const itchDestination = dialog.getByRole("button", { name: "Itch.io", exact: true });
+    await itchDestination.waitFor();
+    await itchDestination.click();
     await dialog.getByRole("textbox", { name: "Project", exact: true }).fill("studio/game");
     await dialog
       .getByText("These settings remain in the browser draft until connected to an agent.", {
