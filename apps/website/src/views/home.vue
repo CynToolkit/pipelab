@@ -52,6 +52,10 @@ const tools = [
             ><i class="pi pi-download" aria-hidden="true" /> Download
             Pipelab</RouterLink
           >
+          <RouterLink class="construct-link" :to="{ name: 'Construct3' }">
+            Using Construct 3? See how it works
+            <i class="pi pi-arrow-right" aria-hidden="true" />
+          </RouterLink>
           <p class="platforms">Available for Windows, macOS, and Linux</p>
         </div>
         <ExampleWizard />
@@ -152,6 +156,28 @@ const tools = [
             >{{ tool.label }}
           </li>
         </ul>
+        <div class="capability-notes">
+          <div>
+            <h3>Build for desktop</h3>
+            <p>
+              Package a compatible web game with Electron or Tauri. Available
+              targets depend on your host and installed tools.
+            </p>
+          </div>
+          <div>
+            <h3>Send it to a store</h3>
+            <p>
+              Route a compatible artifact to Steam or itch.io. Each store needs
+              its own account and release settings.
+            </p>
+          </div>
+          <div>
+            <h3>Find the output</h3>
+            <p>
+              Review run status, logs, deliveries, and artifacts after you ship.
+            </p>
+          </div>
+        </div>
       </div>
     </section>
     <section class="editorial-section results-section">

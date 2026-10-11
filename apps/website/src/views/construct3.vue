@@ -1,245 +1,214 @@
 <template>
-  <div>
-    <section class="hero">
-      <div class="container">
-        <div class="grid hero-grid">
-          <div class="col-12">
-            <div class="hero-content">
-              <h1 class="hero-title fade-in">Pipelab for Construct 3 Users</h1>
-              <p class="hero-description fade-in-delay">
-                Streamline your Construct 3 game development with Pipelab's release tools. Configure
-                builds and publishing destinations for your Construct 3 game, then focus on
-                creating.
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section class="benefits">
-      <div class="container">
-        <h2 class="section-title text-center mb-5 fade-in">Why Pipelab for Construct 3?</h2>
-        <div class="grid">
-          <div
-            class="col-12 sm:col-12 md:col-6 lg:col-4 p-3 fade-in-delay"
-            v-for="benefit in benefits"
-            :key="benefit.title"
+  <div class="construct-page">
+    <section class="construct-hero">
+      <div class="construct-container">
+        <p class="eyebrow">Construct 3 + Pipelab</p>
+        <h1>Take your Construct project into a release workflow.</h1>
+        <p class="intro">
+          Select your <code>.c3p</code> project and a local Chromium profile.
+          Pipelab exports a web game that you can build or send to a compatible
+          destination.
+        </p>
+        <div class="actions">
+          <RouterLink class="primary-action" :to="{ name: 'Download' }"
+            >Download Pipelab</RouterLink
           >
-            <div class="benefit-card">
-              <div class="benefit-card-icon">
-                <i :class="benefit.icon"></i>
-              </div>
-              <h3>{{ benefit.title }}</h3>
-              <p>{{ benefit.description }}</p>
-            </div>
-          </div>
+          <a href="https://docs.pipelab.app/guide/integrations/construct"
+            >Read the Construct guide
+            <i class="pi pi-arrow-up-right" aria-hidden="true"
+          /></a>
         </div>
       </div>
     </section>
 
-    <section class="cta">
-      <div class="container text-center">
-        <h2 class="fade-in">Ready to enhance your Construct 3 workflow?</h2>
-        <Button
-          label="Download now"
-          class="p-button-lg mt-3 fade-in-delay primary-btn"
-          icon="pi pi-arrow-right"
-          iconPos="right"
-          as="router-link"
-          :to="{ name: 'Download' }"
-        ></Button>
+    <section
+      class="construct-container details"
+      aria-labelledby="construct-steps"
+    >
+      <div class="details-heading">
+        <h2 id="construct-steps">From project file to artifact</h2>
+        <p>These are the parts you configure in a Release workflow.</p>
       </div>
+      <ol>
+        <li>
+          <span class="number">01</span>
+          <div>
+            <h3>Choose your project</h3>
+            <p>
+              Use a <code>.c3p</code> file and a Chromium profile that can open
+              Construct. Both paths are required.
+            </p>
+          </div>
+        </li>
+        <li>
+          <span class="number">02</span>
+          <div>
+            <h3>Configure the output</h3>
+            <p>
+              The source produces a web directory. Add a compatible build or
+              destination and complete its settings before shipping.
+            </p>
+          </div>
+        </li>
+        <li>
+          <span class="number">03</span>
+          <div>
+            <h3>Review the run</h3>
+            <p>
+              Check export and delivery status in Runs, then find available
+              outputs in Artifacts.
+            </p>
+          </div>
+        </li>
+      </ol>
+      <p class="requirements">
+        Desktop packaging depends on the selected build, target, host, and local
+        toolchain. Steam publishing has additional account and host
+        requirements.
+        <a href="https://docs.pipelab.app/guide/release-workflows"
+          >See Release workflows</a
+        >.
+      </p>
     </section>
   </div>
 </template>
 
-<script lang="ts" setup>
-import { ref } from "vue";
-import Button from "primevue/button";
-import "primeflex/primeflex.css";
-import "primeicons/primeicons.css";
-
-interface Benefit {
-  title: string;
-  description: string;
-  icon: string;
-}
-
-const benefits = ref<Benefit[]>([
-  {
-    title: "Steam Overlay Working Out of the Box",
-    description:
-      "Seamlessly integrate overlays into your Construct 3 games without complex setup. Pipelab handles the configuration automatically.",
-    icon: "pi pi-eye",
-  },
-  {
-    title: "Steam Integration",
-    description:
-      "Full Steam integration including achievements, stats, leaderboards, and workshop support. Deploy directly to Steam with ease.",
-    icon: "pi pi-trophy",
-  },
-  {
-    title: "Gamepad Support",
-    description:
-      "Built-in gamepad support for enhanced player experience. Pipelab ensures compatibility across multiple controllers and platforms.",
-    icon: "pi pi-play",
-  },
-  {
-    title: "Cross-Platform Packaging",
-    description:
-      "Package your Construct 3 games for Windows, macOS, Linux and Steamdeck with a single click. Optimized builds for each platform.",
-    icon: "pi pi-desktop",
-  },
-  {
-    title: "Asset Optimization",
-    description:
-      "Automatic asset compression and optimization to reduce file sizes and improve loading times without quality loss.",
-    icon: "pi pi-images",
-  },
-  {
-    title: "Easy Deployment",
-    description:
-      "Deploy to multiple platforms including itch.io, Steam, and custom servers. Manage updates and patches effortlessly.",
-    icon: "pi pi-cloud-upload",
-  },
-]);
-</script>
-
-<style lang="scss" scoped>
-.primary-btn {
-  text-decoration: none;
-}
-
-.primary-btn:not(.p-button-outlined) {
-  background: var(--primary-color) !important;
-  border-color: var(--primary-color) !important;
-  color: white !important;
-}
-
-.hero {
-  background-color: var(--surface-ground);
-  padding: 4rem 0;
-}
-
-.hero-grid {
-  justify-content: center;
-}
-
-.hero-content {
-  text-align: center;
-}
-
-.hero-title {
-  font-size: 3.5rem;
-  font-weight: 700;
-  margin: 0;
-  line-height: 1.2;
-  color: var(--text-color);
-  margin-bottom: 1rem;
-}
-
-.hero-description {
-  font-size: 1.25rem;
-  margin-top: 1.5rem;
-  margin-bottom: 2rem;
-}
-
-.container {
-  max-width: 1300px;
-  margin: 0 auto;
-  padding: 0 1rem;
-
-  @media (min-width: 640px) {
-    padding: 0 2rem;
-  }
-}
-
-.benefits {
-  padding: 2rem 0 4rem;
+<style scoped>
+.construct-page {
+  color: #111942;
   background: #fff;
 }
-
-.section-title {
-  font-size: 2.5rem;
-  color: var(--text-color);
-  margin-bottom: 2rem;
+.construct-container {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 0 32px;
 }
-
-.benefit-card {
-  background-color: #fff;
-  border-radius: 16px;
-  padding: 1rem 2rem;
-  height: 100%;
-  box-shadow: 0px 0px 8px rgba(0, 0, 0, 0.05);
-  transition:
-    transform 0.3s ease,
-    box-shadow 0.3s ease;
-  position: relative;
-  border: 1px solid #f1f1f1;
-
-  &:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
-  }
-
-  h3 {
-    color: var(--text-color);
-    margin-top: 1rem;
-    margin-bottom: 0.5rem;
-  }
+.construct-hero {
+  background: linear-gradient(125deg, #fff 30%, #f5f3ff 100%);
+  border-bottom: 1px solid #e8e9f5;
+  padding: 105px 0 110px;
 }
-
-.benefit-card-icon {
-  font-size: 2.5rem;
-  color: var(--primary-color);
-  margin-bottom: 1rem;
+.eyebrow {
+  color: #5751c2;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin: 0 0 22px;
 }
-
-.cta {
-  background-color: #fff;
-  padding: 4rem 0;
-  text-align: center;
-
-  h2 {
-    font-size: 2.5rem;
-    color: var(--text-color);
-    margin-bottom: 2rem;
-  }
+h1 {
+  max-width: 900px;
+  font-size: clamp(42px, 5vw, 68px);
+  line-height: 1.06;
+  letter-spacing: -0.05em;
+  margin: 0;
 }
-
-@media (max-width: 768px) {
-  .hero-title {
-    font-size: 2.5rem;
-  }
-
-  .hero-description {
-    font-size: 1rem;
-  }
-
-  .benefit-card {
-    margin-bottom: 1rem;
-  }
+.intro {
+  max-width: 690px;
+  color: #596585;
+  font-size: 20px;
+  line-height: 1.55;
+  margin: 25px 0 30px;
 }
-
-// Subtle fade-in animations
-.fade-in {
-  animation: fadeIn 0.8s ease-out;
+.actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px 25px;
 }
-
-.fade-in-delay {
-  animation: fadeIn 0.8s ease-out 0.2s both;
+.actions a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 48px;
+  gap: 8px;
+  color: #3928d5;
+  font-weight: 700;
+  text-decoration: none;
 }
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
+.actions .primary-action {
+  background: #4b3cf2;
+  border-radius: 7px;
+  color: white;
+  padding: 0 24px;
+}
+a:hover {
+  text-decoration: underline;
+}
+.actions .primary-action:hover {
+  background: #3628d4;
+  text-decoration: none;
+}
+a:focus-visible {
+  outline: 3px solid #3928d5;
+  outline-offset: 3px;
+}
+.details {
+  padding-top: 80px;
+  padding-bottom: 90px;
+}
+.details-heading h2 {
+  font-size: clamp(30px, 3vw, 42px);
+  line-height: 1.15;
+  letter-spacing: -0.04em;
+  margin: 0 0 12px;
+}
+.details-heading p {
+  color: #596585;
+  font-size: 18px;
+  margin: 0;
+}
+ol {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 32px;
+  padding: 0;
+  margin: 44px 0;
+}
+li {
+  border-top: 2px solid #dcdcf8;
+  padding-top: 18px;
+}
+.number {
+  color: #5751c2;
+  font-size: 13px;
+  font-weight: 800;
+}
+h3 {
+  margin: 16px 0 8px;
+  font-size: 19px;
+}
+li p,
+.requirements {
+  color: #596585;
+  line-height: 1.55;
+  margin: 0;
+}
+.requirements {
+  border-top: 1px solid #dcdcf8;
+  padding-top: 24px;
+}
+.requirements a {
+  color: #3928d5;
+}
+@media (max-width: 700px) {
+  .construct-container {
+    padding-left: 20px;
+    padding-right: 20px;
   }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
+  .construct-hero {
+    padding: 65px 0 70px;
+  }
+  .intro {
+    font-size: 17px;
+  }
+  .details {
+    padding-top: 60px;
+    padding-bottom: 65px;
+  }
+  ol {
+    grid-template-columns: 1fr;
+    gap: 22px;
   }
 }
 </style>

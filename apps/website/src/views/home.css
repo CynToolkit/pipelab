@@ -65,6 +65,23 @@
 .landing-button:hover {
   background: #3628d4;
 }
+.construct-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #3928d5;
+  font-weight: 700;
+  text-decoration: none;
+  margin: 16px 0 0;
+  min-height: 44px;
+}
+.construct-link:hover {
+  text-decoration: underline;
+}
+.hero-copy .construct-link {
+  display: flex;
+  width: fit-content;
+}
 .platforms {
   font-size: 13px;
   color: #687294;
@@ -303,6 +320,23 @@
   width: 29px;
   height: 29px;
 }
+.capability-notes {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 32px;
+  border-top: 1px solid #d8daf1;
+  margin-top: 46px;
+  padding-top: 30px;
+}
+.capability-notes h3 {
+  font-size: 17px;
+  margin: 0 0 8px;
+}
+.capability-notes p {
+  color: #596585;
+  line-height: 1.5;
+  margin: 0;
+}
 .reverse {
   grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
 }
@@ -374,6 +408,10 @@
   }
   .window-body {
     grid-template-columns: 95px minmax(0, 1fr);
+  }
+  .capability-notes {
+    grid-template-columns: 1fr;
+    gap: 20px;
   }
 }
 @media (max-width: 700px) {

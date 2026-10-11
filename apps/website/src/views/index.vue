@@ -14,28 +14,43 @@
               />
             </RouterLink>
           </div>
-          <nav class="hidden lg:flex">
+          <nav class="hidden lg:flex" aria-label="Primary navigation">
             <RouterLink
               v-for="item in menuItems"
               :key="item.label"
               :to="item.to"
               class="nav-link"
             >
-              <i :class="item.icon" aria-hidden="true"></i>
               <span>{{ item.label }}</span>
             </RouterLink>
+            <a
+              v-for="item in resourceItems"
+              :key="item.label"
+              :href="item.href"
+              class="nav-link"
+              >{{ item.label }}</a
+            >
           </nav>
           <Button
+            id="mobile-menu-toggle"
             icon="pi pi-bars"
             :aria-label="mobileMenuOpen ? 'Close menu' : 'Open menu'"
             :aria-expanded="mobileMenuOpen"
+            aria-controls="mobile-navigation"
             @click="toggleMobileMenu"
+            @keydown.esc="closeMobileMenuOnEscape"
             class="primary-btn lg:hidden"
           />
         </div>
       </div>
     </header>
-    <div v-if="mobileMenuOpen" class="mobile-menu lg:hidden">
+    <nav
+      v-show="mobileMenuOpen"
+      id="mobile-navigation"
+      class="mobile-menu lg:hidden"
+      aria-label="Mobile navigation"
+      @keydown.esc="closeMobileMenuOnEscape"
+    >
       <RouterLink
         v-for="item in menuItems"
         :key="item.label"
@@ -46,7 +61,15 @@
         <i :class="item.icon" aria-hidden="true"></i>
         {{ item.label }}
       </RouterLink>
-    </div>
+      <a
+        v-for="item in resourceItems"
+        :key="item.label"
+        :href="item.href"
+        class="mobile-nav-link"
+        @click="closeMobileMenu"
+        >{{ item.label }}</a
+      >
+    </nav>
     <main id="main-content" class="main-content">
       <RouterView></RouterView>
     </main>
@@ -133,6 +156,12 @@ const menuItems = ref([
   },
   { label: "Download", icon: "pi pi-download", to: { name: "Download" } },
 ]);
+const resourceItems = [
+  { label: "Docs", href: "https://docs.pipelab.app" },
+  { label: "GitHub", href: "https://github.com/CynToolkit/pipelab" },
+  { label: "Contact", href: "mailto:contact@pipelab.app" },
+  { label: "Discord", href: "https://discord.gg/MzNw26cBb5" },
+];
 
 const mobileMenuOpen = ref(false);
 
@@ -142,6 +171,11 @@ const toggleMobileMenu = () => {
 
 const closeMobileMenu = () => {
   mobileMenuOpen.value = false;
+};
+
+const closeMobileMenuOnEscape = () => {
+  closeMobileMenu();
+  document.getElementById("mobile-menu-toggle")?.focus();
 };
 </script>
 
@@ -214,7 +248,7 @@ const closeMobileMenu = () => {
 .nav-link {
   color: var(--text-color);
   text-decoration: none;
-  margin-left: 1.5rem;
+  margin-left: 1.25rem;
   font-weight: 500;
   transition: color 0.3s ease;
   cursor: pointer;
@@ -224,6 +258,12 @@ const closeMobileMenu = () => {
   }
   i {
     margin-right: 0.5rem;
+  }
+}
+@media (max-width: 1150px) {
+  .nav-link {
+    margin-left: 0.8rem;
+    font-size: 0.9rem;
   }
 }
 .nav-link:focus-visible,
@@ -245,11 +285,13 @@ const closeMobileMenu = () => {
 .mobile-menu {
   background-color: var(--surface-card);
   position: fixed;
-  top: 60px;
+  top: 85px;
   left: 0;
   right: 0;
   z-index: 999;
   padding: 1rem;
+  max-height: calc(100dvh - 85px);
+  overflow-y: auto;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
     0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }

@@ -52,7 +52,7 @@ test("example workflow follows creation steps without saving or publishing", asy
 
 test("landing page remains usable at mobile, tablet, and desktop widths", async ({ page }) => {
   await page.goto("/");
-  for (const width of [390, 768, 1440]) {
+  for (const width of [390, 768, 1024, 1440]) {
     await page.setViewportSize({ width, height: 900 });
     await expect(
       page.getByRole("heading", {
@@ -70,4 +70,56 @@ test("landing page remains usable at mobile, tablet, and desktop widths", async 
   }
   await page.emulateMedia({ reducedMotion: "reduce" });
   await expect(page.locator(".wizard-panel")).toHaveCSS("animation-name", "none");
+});
+
+test("restored content and navigation lead to the current Construct guide", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("heading", { name: "Build for desktop" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Send it to a store" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Find the output" })).toBeVisible();
+  await expect(
+    page
+      .getByRole("navigation", { name: "Primary navigation" })
+      .getByRole("link", { name: "Docs" }),
+  ).toHaveAttribute("href", "https://docs.pipelab.app");
+  await expect(
+    page
+      .getByRole("navigation", { name: "Primary navigation" })
+      .getByRole("link", { name: "GitHub" }),
+  ).toHaveAttribute("href", "https://github.com/CynToolkit/pipelab");
+  await page.getByRole("link", { name: /Using Construct 3/ }).click();
+  await expect(page).toHaveURL(/\/construct3$/);
+  await expect(
+    page.getByRole("heading", {
+      name: "Take your Construct project into a release workflow.",
+    }),
+  ).toBeVisible();
+  await expect(page.getByText("Both paths are required.")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Read the Construct guide" })).toHaveAttribute(
+    "href",
+    "https://docs.pipelab.app/guide/integrations/construct",
+  );
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole("button", { name: "Open menu" }).click();
+  const mobileNav = page.getByRole("navigation", { name: "Mobile navigation" });
+  for (const label of ["Docs", "GitHub", "Contact", "Discord"]) {
+    await expect(mobileNav.getByRole("link", { name: label })).toBeVisible();
+  }
+  await expect(mobileNav.getByRole("link", { name: "Contact" })).toHaveAttribute(
+    "href",
+    "mailto:contact@pipelab.app",
+  );
+  await page.getByRole("button", { name: "Close menu" }).click();
+  await expect(mobileNav).toBeHidden();
+  await page.setViewportSize({ width: 700, height: 300 });
+  await page.getByRole("button", { name: "Open menu" }).click();
+  await mobileNav.getByRole("link", { name: "Discord" }).focus();
+  await expect(mobileNav.getByRole("link", { name: "Discord" })).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(mobileNav).toBeHidden();
+  await expect(page.getByRole("button", { name: "Open menu" })).toBeFocused();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)).toBe(
+    false,
+  );
 });
