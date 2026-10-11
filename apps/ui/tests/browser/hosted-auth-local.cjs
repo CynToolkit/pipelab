@@ -163,7 +163,7 @@ let failureContext = "";
 
     stage = "open hosted dashboard";
     await page.goto(`${baseUrl}/dashboard`, { waitUntil: "domcontentloaded" });
-    await page.getByText("Hosted mode is ready.", { exact: false }).waitFor();
+    await page.getByRole("heading", { name: "Project overview", exact: true }).waitFor();
     await page.getByRole("button", { name: "Login / Register" }).click();
     await page.getByRole("button", { name: "Register", exact: true }).click();
     await page.locator("#email-reg").fill(email);
