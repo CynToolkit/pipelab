@@ -1,5 +1,6 @@
 <template>
   <div>
+    <a class="skip-link" href="#main-content">Skip to content</a>
     <header class="header">
       <div class="container">
         <div class="flex align-items-center justify-content-between py-3">
@@ -14,25 +15,20 @@
             </RouterLink>
           </div>
           <nav class="hidden lg:flex">
-            <component
+            <RouterLink
               v-for="item in menuItems"
               :key="item.label"
-              :is="item.external ? 'a' : 'RouterLink'"
-              :to="!item.external ? item.to : undefined"
-              :href="item.external ? item.to : undefined"
+              :to="item.to"
               class="nav-link"
-              :class="{ 'icon-only': item.iconOnly }"
-              :target="item.external ? '_blank' : undefined"
-              :rel="item.external ? 'noopener noreferrer' : undefined"
-              :disabled="item.disabled"
             >
-              <i v-if="typeof item.icon === 'string'" :class="item.icon"></i>
-              <component v-else :is="item.icon"></component>
-              <span v-if="!item.iconOnly">{{ item.label }}</span>
-            </component>
+              <i :class="item.icon" aria-hidden="true"></i>
+              <span>{{ item.label }}</span>
+            </RouterLink>
           </nav>
           <Button
             icon="pi pi-bars"
+            :aria-label="mobileMenuOpen ? 'Close menu' : 'Open menu'"
+            :aria-expanded="mobileMenuOpen"
             @click="toggleMobileMenu"
             class="primary-btn lg:hidden"
           />
@@ -40,23 +36,18 @@
       </div>
     </header>
     <div v-if="mobileMenuOpen" class="mobile-menu lg:hidden">
-      <component
+      <RouterLink
         v-for="item in menuItems"
         :key="item.label"
-        :is="item.external ? 'a' : 'RouterLink'"
-        :to="!item.external ? item.to : undefined"
-        :href="item.external ? item.to : undefined"
-        :target="item.external ? '_blank' : undefined"
-        :rel="item.external ? 'noopener noreferrer' : undefined"
-        :disabled="item.disabled"
+        :to="item.to"
         class="mobile-nav-link"
         @click="closeMobileMenu"
       >
-        <i :class="item.icon"></i>
+        <i :class="item.icon" aria-hidden="true"></i>
         {{ item.label }}
-      </component>
+      </RouterLink>
     </div>
-    <main class="main-content">
+    <main id="main-content" class="main-content">
       <RouterView></RouterView>
     </main>
     <footer class="footer">
@@ -64,14 +55,9 @@
         <div class="grid py-6">
           <div class="col-12 md:col-4">
             <div class="footer-brand">
-              <img
-                height="32"
-                src="/banner.png"
-                alt="Pipelab"
-                class="mb-3"
-              />
+              <img height="32" src="/banner.png" alt="Pipelab" class="mb-3" />
               <p class="text-sm opacity-70">
-                The visual automation tool for game developers.
+                Turn your game project into a build you can share.
               </p>
               <p class="text-sm opacity-50 mt-4">
                 © 2026 Pipelab. All rights reserved.
@@ -82,10 +68,14 @@
             <h4 class="footer-title mb-4">Legal</h4>
             <ul class="list-none p-0 m-0">
               <li class="mb-2">
-                <RouterLink :to="{ name: 'Privacy' }" class="footer-link">Privacy Policy</RouterLink>
+                <RouterLink :to="{ name: 'Privacy' }" class="footer-link"
+                  >Privacy Policy</RouterLink
+                >
               </li>
               <li class="mb-2">
-                <RouterLink :to="{ name: 'Terms' }" class="footer-link">Terms of Service</RouterLink>
+                <RouterLink :to="{ name: 'Terms' }" class="footer-link"
+                  >Terms of Service</RouterLink
+                >
               </li>
             </ul>
           </div>
@@ -93,10 +83,28 @@
             <h4 class="footer-title mb-4">Support</h4>
             <ul class="list-none p-0 m-0">
               <li class="mb-2">
-                <a href="mailto:contact@pipelab.app" class="footer-link">Contact Us</a>
+                <a href="mailto:contact@pipelab.app" class="footer-link"
+                  >Contact Us</a
+                >
               </li>
               <li class="mb-2">
-                <a href="//discord.gg/MzNw26cBb5" target="_blank" rel="noopener" class="footer-link">Community Discord</a>
+                <a href="https://docs.pipelab.app" class="footer-link">Docs</a>
+              </li>
+              <li class="mb-2">
+                <a
+                  href="https://github.com/CynToolkit/pipelab"
+                  class="footer-link"
+                  >GitHub</a
+                >
+              </li>
+              <li class="mb-2">
+                <a
+                  href="//discord.gg/MzNw26cBb5"
+                  target="_blank"
+                  rel="noopener"
+                  class="footer-link"
+                  >Community Discord</a
+                >
               </li>
             </ul>
           </div>
@@ -112,88 +120,18 @@ import Button from "primevue/button";
 import "primeflex/primeflex.css";
 import "primeicons/primeicons.css";
 
-import SimpleIconsMastodon from "~icons/simple-icons/mastodon";
-import SimpleIconsBluesky from "~icons/simple-icons/bluesky";
-import SimpleIconsDiscord from "~icons/simple-icons/discord";
-import SimpleIconsGithub from "~icons/simple-icons/github";
-import SimpleIconsX from "~icons/simple-icons/x";
-import SimpleIconsGmail from "~icons/simple-icons/gmail";
-
 const menuItems = ref([
-  { label: "Home", icon: "pi pi-home", to: { name: "Home" } },
   {
-    label: "Features",
-    icon: "pi pi-star",
-    to: { name: "Home", hash: "#features" },
+    label: "Product",
+    icon: "pi pi-desktop",
+    to: { name: "Home", hash: "#product" },
   },
   {
-    label: "Testimonials",
-    icon: "pi pi-star",
-    to: { name: "Home", hash: "#testimonials" },
-  },
-  {
-    label: "Pricing",
-    icon: "pi pi-dollar",
-    to: { name: "Home", hash: "#pricing" },
+    label: "How it works",
+    icon: "pi pi-list",
+    to: { name: "Home", hash: "#how-it-works" },
   },
   { label: "Download", icon: "pi pi-download", to: { name: "Download" } },
-
-  {
-    label: "Documentation",
-    icon: "pi pi-question-circle",
-    to: "//docs.pipelab.app",
-    external: true,
-    disabled: false,
-  },
-  {
-    label: "Github",
-    icon: SimpleIconsGithub,
-    to: "//github.com/CynToolkit/pipelab",
-    external: true,
-    disabled: false,
-    iconOnly: true,
-  },
-  {
-    label: "X",
-    icon: SimpleIconsX,
-    to: "//x.com/pipelabapp",
-    external: true,
-    disabled: false,
-    iconOnly: true,
-  },
-  {
-    label: "Mastodon",
-    icon: SimpleIconsMastodon,
-    to: "//mastodon.gamedev.place/@pipelab",
-    external: true,
-    disabled: false,
-    iconOnly: true,
-  },
-  {
-    label: "Bluesky",
-    icon: SimpleIconsBluesky,
-    to: "//bsky.app/profile/pipelab.bsky.social",
-    external: true,
-    disabled: false,
-    iconOnly: true,
-  },
-  {
-    label: "Discord",
-    icon: SimpleIconsDiscord,
-    to: "//discord.gg/MzNw26cBb5",
-    external: true,
-    disabled: false,
-    iconOnly: true,
-  },
-
-  {
-    label: "Contact",
-    icon: SimpleIconsGmail,
-    to: "mailto:contact@pipelab.app",
-    external: true,
-    disabled: false,
-    iconOnly: true,
-  },
 ]);
 
 const mobileMenuOpen = ref(false);
@@ -210,6 +148,18 @@ const closeMobileMenu = () => {
 <style lang="scss" scoped>
 .primary-btn {
   text-decoration: none;
+}
+.skip-link {
+  position: fixed;
+  top: -60px;
+  left: 12px;
+  z-index: 2000;
+  padding: 12px;
+  background: #fff;
+  color: #3324ca;
+}
+.skip-link:focus {
+  top: 12px;
 }
 
 .primary-btn:not(.p-button-outlined) {
@@ -276,6 +226,13 @@ const closeMobileMenu = () => {
     margin-right: 0.5rem;
   }
 }
+.nav-link:focus-visible,
+.mobile-nav-link:focus-visible,
+.footer-link:focus-visible,
+.nav-link-logo:focus-visible {
+  outline: 3px solid #4b3cf2;
+  outline-offset: 3px;
+}
 
 .icon-only {
   margin-left: 2rem;
@@ -293,12 +250,12 @@ const closeMobileMenu = () => {
   right: 0;
   z-index: 999;
   padding: 1rem;
-  box-shadow:
-    0 4px 6px -1px rgba(0, 0, 0, 0.1),
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
     0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }
 .mobile-nav-link {
   display: block;
+  min-height: 44px;
   color: var(--text-color);
   text-decoration: none;
   padding: 0.75rem 0;
@@ -338,6 +295,9 @@ a[disabled="true"] {
 
 .footer-link {
   color: var(--text-color);
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
   text-decoration: none;
   font-size: 0.95rem;
   transition: color 0.2s ease;
@@ -375,5 +335,14 @@ body {
   --surface-section: #ffffff;
   --text-color: #1f2937;
   --surface-card: #ffffff;
+}
+body {
+  margin: 0;
+}
+@media (max-width: 1023px) {
+  .header .primary-btn {
+    min-width: 44px;
+    min-height: 44px;
+  }
 }
 </style>
