@@ -15,11 +15,6 @@
   gap: 16px;
   padding: 0 18px;
 }
-.chrome-dots {
-  font-size: 10px;
-  color: #efaa7c;
-  letter-spacing: 2px;
-}
 .wizard-brand {
   width: 98px;
   height: auto;
@@ -129,15 +124,13 @@
 .wizard-panel input:disabled {
   background: #f6f7fa;
 }
-.optional,
-.field-note {
+.optional {
   font-size: 11px;
   font-weight: 400;
   color: #697391;
 }
-.field-note {
-  display: block;
-  margin-top: 6px;
+.wizard-panel .source-note {
+  margin-top: 18px;
 }
 .choice-row {
   display: flex;
@@ -170,7 +163,15 @@
 }
 .choice-row.stores button {
   min-height: 56px;
-  text-align: center;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+}
+.choice-row.stores svg {
+  width: 20px;
+  height: 20px;
+  flex: none;
 }
 .wizard-actions {
   display: flex;
@@ -225,8 +226,21 @@
   font-weight: 700;
   overflow-wrap: anywhere;
 }
+.build-summary {
+  display: block;
+  margin-bottom: 7px;
+}
+.build-summary:last-child {
+  margin-bottom: 0;
+}
+.build-summary small {
+  display: block;
+  color: #596585;
+  font-weight: 400;
+  margin-top: 3px;
+}
 .completion {
-  align-self: center;
+  width: 100%;
 }
 .completion p {
   font-size: 13px;
@@ -234,6 +248,55 @@
 }
 .completion button {
   margin-top: 15px;
+}
+.dashboard-preview {
+  border: 1px solid #dfe2f4;
+  border-radius: 8px;
+  overflow: hidden;
+  margin: 18px 0 6px;
+}
+.dashboard-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px;
+  border-bottom: 1px solid #eceefa;
+}
+.dashboard-avatar {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  flex: none;
+  border-radius: 6px;
+  background: #4b3cf2;
+  color: white;
+  font-weight: 700;
+}
+.dashboard-heading strong,
+.dashboard-heading small {
+  display: block;
+}
+.dashboard-heading small,
+.dashboard-meta span {
+  color: #687294;
+  font-size: 11px;
+}
+.dashboard-meta div {
+  display: grid;
+  grid-template-columns: 82px 1fr;
+  gap: 7px;
+  padding: 9px 13px;
+  border-bottom: 1px solid #eceefa;
+  font-size: 11px;
+}
+.dashboard-meta strong {
+  overflow-wrap: anywhere;
+}
+.wizard-panel .dashboard-preview p {
+  margin: 0;
+  padding: 12px 13px;
+  font-size: 11px;
 }
 .wizard button:focus-visible,
 .wizard input:focus-visible,

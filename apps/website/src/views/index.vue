@@ -75,10 +75,10 @@
     </main>
     <footer class="footer">
       <div class="container">
-        <div class="grid py-6">
-          <div class="col-12 md:col-4">
+        <div class="footer-grid">
+          <div class="footer-brand-column">
             <div class="footer-brand">
-              <img height="32" src="/banner.png" alt="Pipelab" class="mb-3" />
+              <img height="32" src="/banner.png" alt="Pipelab" />
               <p class="text-sm opacity-70">
                 Turn your game project into a build you can share.
               </p>
@@ -87,40 +87,40 @@
               </p>
             </div>
           </div>
-          <div class="col-6 md:col-4">
-            <h4 class="footer-title mb-4">Legal</h4>
+          <div>
+            <h4 class="footer-title">Legal</h4>
             <ul class="list-none p-0 m-0">
-              <li class="mb-2">
+              <li>
                 <RouterLink :to="{ name: 'Privacy' }" class="footer-link"
                   >Privacy Policy</RouterLink
                 >
               </li>
-              <li class="mb-2">
+              <li>
                 <RouterLink :to="{ name: 'Terms' }" class="footer-link"
                   >Terms of Service</RouterLink
                 >
               </li>
             </ul>
           </div>
-          <div class="col-6 md:col-4">
-            <h4 class="footer-title mb-4">Support</h4>
+          <div>
+            <h4 class="footer-title">Support</h4>
             <ul class="list-none p-0 m-0">
-              <li class="mb-2">
+              <li>
                 <a href="mailto:contact@pipelab.app" class="footer-link"
                   >Contact Us</a
                 >
               </li>
-              <li class="mb-2">
+              <li>
                 <a href="https://docs.pipelab.app" class="footer-link">Docs</a>
               </li>
-              <li class="mb-2">
+              <li>
                 <a
                   href="https://github.com/CynToolkit/pipelab"
                   class="footer-link"
                   >GitHub</a
                 >
               </li>
-              <li class="mb-2">
+              <li>
                 <a
                   href="//discord.gg/MzNw26cBb5"
                   target="_blank"
@@ -323,8 +323,13 @@ a[disabled="true"] {
 .footer {
   background-color: var(--surface-section);
   border-top: 1px solid rgba(0, 0, 0, 0.05);
-  padding: 2rem 0;
   color: var(--text-color);
+}
+.footer-grid {
+  display: grid;
+  grid-template-columns: 1.5fr 0.8fr 0.8fr;
+  gap: 32px;
+  padding: 28px 0;
 }
 
 .footer-title {
@@ -333,13 +338,14 @@ a[disabled="true"] {
   text-transform: uppercase;
   font-size: 0.875rem;
   letter-spacing: 0.05em;
+  margin: 0 0 8px;
 }
 
 .footer-link {
   color: var(--text-color);
   display: inline-flex;
   align-items: center;
-  min-height: 44px;
+  min-height: 32px;
   text-decoration: none;
   font-size: 0.95rem;
   transition: color 0.2s ease;
@@ -352,9 +358,27 @@ a[disabled="true"] {
 }
 
 .footer-brand {
+  img {
+    margin-bottom: 10px;
+  }
   p {
     margin: 0;
     line-height: 1.5;
+  }
+  p + p {
+    margin-top: 12px;
+  }
+}
+@media (max-width: 700px) {
+  .footer-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 22px;
+  }
+  .footer-brand-column {
+    grid-column: 1 / -1;
+  }
+  .footer-link {
+    min-height: 44px;
   }
 }
 </style>

@@ -16,7 +16,11 @@ const journey = [
     copy: "Pick your game project or files.",
     icon: "pi pi-folder",
   },
-  { title: "Build", copy: "Choose how to build your game.", icon: "pi pi-box" },
+  {
+    title: "Build resolved",
+    copy: "Pipelab finds a compatible build when it can.",
+    icon: "pi pi-box",
+  },
   {
     title: "Choose stores",
     copy: "Choose where you want to publish.",
@@ -45,8 +49,8 @@ const tools = [
           <p class="eyebrow">Built for indie developers</p>
           <h1>A simple way <span>to ship your game.</span></h1>
           <p class="lead">
-            Pipelab helps you turn your game project into a build you can
-            publish on Steam and itch.io.
+            Pipelab helps you turn your game project into a release you can
+            share through stores and other destinations.
           </p>
           <RouterLink class="landing-button" :to="{ name: 'Download' }"
             ><i class="pi pi-download" aria-hidden="true" /> Download
@@ -87,10 +91,10 @@ const tools = [
     <section class="editorial-section">
       <div class="landing-container editorial-layout">
         <div class="editorial-copy">
-          <h2>Set it up once.<br />Release again.</h2>
+          <h2>Keep each release together.</h2>
           <p>
-            Keep your game, build settings and stores together. Next time,
-            you’re ready to go.
+            Your project, build settings, destinations, and run history stay in
+            one workflow.
           </p>
         </div>
         <div

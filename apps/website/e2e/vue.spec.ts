@@ -18,32 +18,30 @@ test("example workflow follows creation steps without saving or publishing", asy
   await wizard.getByRole("button", { name: /Continue/ }).click();
   await expect(wizard.getByRole("button", { name: /Continue/ })).toBeDisabled();
   await wizard.getByRole("button", { name: /Construct project/ }).click();
-  await expect(wizard.getByRole("button", { name: /Continue/ })).toBeDisabled();
-  await wizard.getByLabel("Example project file path *").fill("/Games/MyGame.c3p");
+  await expect(wizard.getByLabel(/Example project.*path/)).toHaveCount(0);
   await wizard.getByRole("button", { name: /Continue/ }).click();
   await expect(wizard.getByRole("button", { name: /Continue/ })).toBeDisabled();
+  await expect(wizard.locator(".choice-row.stores svg")).toHaveCount(2);
   await wizard.getByRole("button", { name: "Steam" }).click();
   await wizard.getByRole("button", { name: /Continue/ }).click();
   await expect(wizard.getByText("My game")).toBeVisible();
   await expect(wizard.getByText("First release")).toBeVisible();
-  await expect(wizard.getByText("/Games/MyGame.c3p")).toBeVisible();
   await expect(wizard.getByText("Steam", { exact: true })).toBeVisible();
-  await expect(wizard.getByText(/Windows|Electron|Tauri/)).toHaveCount(0);
+  await expect(wizard.getByText("Electron desktop · Windows x64")).toBeVisible();
   await wizard.getByRole("button", { name: "Back" }).click();
   await wizard.getByRole("button", { name: "Back" }).click();
-  await expect(wizard.getByLabel("Example project file path *")).toHaveValue("/Games/MyGame.c3p");
   await wizard.getByRole("button", { name: /Folder Game files/ }).click();
-  await expect(wizard.getByLabel("Example project path *")).toBeEmpty();
-  await wizard.getByLabel("Example project path *").fill("/Games/Folder");
   await wizard.getByRole("button", { name: /Continue/ }).click();
   await expect(wizard.getByRole("button", { name: "Steam" })).toHaveAttribute(
     "aria-pressed",
     "true",
   );
   await wizard.getByRole("button", { name: /Continue/ }).click();
+  await expect(wizard.getByText("Desktop build needed")).toBeVisible();
   await wizard.getByRole("button", { name: "Create example workflow" }).click();
   await expect(wizard.getByText("Nothing was saved, built or uploaded.")).toBeVisible();
-  await expect(wizard.getByRole("heading", { name: "Example workflow created" })).toBeFocused();
+  await expect(wizard.getByRole("heading", { name: "Example project dashboard" })).toBeFocused();
+  await expect(wizard.getByText("Release workflow · needs setup")).toBeVisible();
   await wizard.getByRole("button", { name: "Start again" }).click();
   await expect(wizard.getByLabel("Name *")).toBeEmpty();
   await expect(wizard.getByRole("button", { name: /Continue/ })).toBeDisabled();

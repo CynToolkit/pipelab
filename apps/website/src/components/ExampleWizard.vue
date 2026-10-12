@@ -1,5 +1,9 @@
 <script setup lang="ts">
 import { computed, nextTick, ref } from "vue";
+// @ts-ignore - generated Iconify modules do not have TypeScript declarations
+import SteamIcon from "~icons/simple-icons/steam";
+// @ts-ignore - generated Iconify modules do not have TypeScript declarations
+import ItchIcon from "~icons/simple-icons/itchdotio";
 type Source = "construct" | "folder" | "";
 type Destination = "Steam" | "itch.io";
 const labels = [
@@ -16,13 +20,12 @@ const step = ref(0);
 const name = ref("");
 const description = ref("");
 const source = ref<Source>("");
-const path = ref("");
 const destinations = ref<Destination[]>([]);
 const complete = ref(false);
 const heading = ref<HTMLElement | null>(null);
 const valid = computed(() => [
   Boolean(name.value.trim()),
-  Boolean(source.value && path.value.trim()),
+  Boolean(source.value),
   destinations.value.length > 0,
 ]);
 const canAdvance = computed(() => step.value < 3 && valid.value[step.value]);
@@ -35,9 +38,34 @@ function move(target: number) {
   nextTick(() => heading.value?.focus());
 }
 function chooseSource(value: Source) {
-  if (source.value !== value) path.value = "";
   source.value = value;
 }
+const exampleBuilds = computed(() => {
+  const builds: { title: string; detail: string }[] = [];
+  if (destinations.value.includes("Steam")) {
+    builds.push(
+      source.value === "construct"
+        ? {
+            title: "Electron desktop · Windows x64",
+            detail:
+              "Example default for Steam; confirm target and host in Pipelab.",
+          }
+        : {
+            title: "Desktop build needed",
+            detail:
+              "Pipelab checks the folder and available builds during setup.",
+          }
+    );
+  }
+  if (destinations.value.includes("itch.io")) {
+    builds.push({
+      title:
+        source.value === "construct" ? "Construct web export" : "Game files",
+      detail: "Can go directly to itch.io when the artifact is compatible.",
+    });
+  }
+  return builds;
+});
 function toggleDestination(value: Destination) {
   destinations.value = destinations.value.includes(value)
     ? destinations.value.filter((item) => item !== value)
@@ -51,7 +79,6 @@ function restart() {
   name.value = "";
   description.value = "";
   source.value = "";
-  path.value = "";
   destinations.value = [];
   complete.value = false;
   step.value = 0;
@@ -59,10 +86,13 @@ function restart() {
 }
 </script>
 <template>
-  <div class="wizard" role="region" aria-label="Try an example release workflow">
+  <div
+    class="wizard"
+    role="region"
+    aria-label="Try an example release workflow"
+  >
     <div class="wizard-chrome">
-      <span class="chrome-dots" aria-hidden="true">● ● ●</span
-      ><img
+      <img
         class="wizard-brand"
         src="/banner.png"
         alt="Pipelab"
@@ -128,27 +158,10 @@ function restart() {
                   Folder <small>Game files</small>
                 </button>
               </div>
-              <label for="example-path"
-                >{{
-                  source === "construct"
-                    ? "Example project file path"
-                    : "Example project path"
-                }}
-                <span aria-hidden="true">*</span></label
-              ><input
-                id="example-path"
-                v-model="path"
-                :disabled="!source"
-                required
-                :placeholder="
-                  source === 'construct'
-                    ? '/Games/MyGame/MyGame.c3p'
-                    : '/Games/MyGame'
-                "
-              /><small class="field-note"
-                >Type an example path. This demo cannot access your
-                files.</small
-              ></template
+              <p class="source-note">
+                Choose the project file or folder in Pipelab after creating the
+                workflow.
+              </p></template
             >
             <template v-else-if="step === 2"
               ><p>
@@ -163,14 +176,18 @@ function restart() {
                   :aria-pressed="destinations.includes(store)"
                   @click="toggleDestination(store)"
                 >
+                  <component
+                    :is="store === 'Steam' ? SteamIcon : ItchIcon"
+                    aria-hidden="true"
+                  />
                   {{ store }}
                 </button>
               </div></template
             >
             <template v-else
               ><p>
-                Review your example. Builds, connections and store details are
-                configured later in the app.
+                Review this illustrative plan. Pipelab checks builds and
+                compatibility when you create a real workflow.
               </p>
               <dl class="recap">
                 <div>
@@ -186,12 +203,21 @@ function restart() {
                   <dd>{{ source ? sourceLabels[source] : "" }}</dd>
                 </div>
                 <div>
-                  <dt>Example path</dt>
-                  <dd>{{ path.trim() }}</dd>
-                </div>
-                <div>
                   <dt>Stores</dt>
                   <dd>{{ destinations.join(", ") }}</dd>
+                </div>
+                <div>
+                  <dt>Example builds</dt>
+                  <dd>
+                    <span
+                      v-for="build in exampleBuilds"
+                      :key="build.title"
+                      class="build-summary"
+                    >
+                      <strong>{{ build.title }}</strong>
+                      <small>{{ build.detail }}</small>
+                    </span>
+                  </dd>
                 </div>
               </dl></template
             >
@@ -218,12 +244,39 @@ function restart() {
           </div></template
         >
         <div v-else class="wizard-panel completion" role="status">
-          <h2 ref="heading" tabindex="-1">Example workflow created</h2>
-          <p>This was an example only. Nothing was saved, built or uploaded.</p>
-          <p>
-            In Pipelab, configure builds and store connections after creating a
-            workflow.
-          </p>
+          <h2 ref="heading" tabindex="-1">Example project dashboard</h2>
+          <p>This is a preview. Nothing was saved, built or uploaded.</p>
+          <div class="dashboard-preview">
+            <div class="dashboard-heading">
+              <span class="dashboard-avatar" aria-hidden="true">{{
+                name.trim().charAt(0).toUpperCase()
+              }}</span>
+              <div>
+                <strong>{{ name.trim() }}</strong
+                ><small>Release workflow · needs setup</small>
+              </div>
+            </div>
+            <div class="dashboard-meta">
+              <div>
+                <span>Source</span
+                ><strong>{{ source ? sourceLabels[source] : "" }}</strong>
+              </div>
+              <div>
+                <span>Build plan</span
+                ><strong>{{
+                  exampleBuilds.map((build) => build.title).join(", ")
+                }}</strong>
+              </div>
+              <div>
+                <span>Destinations</span
+                ><strong>{{ destinations.join(", ") }}</strong>
+              </div>
+            </div>
+            <p>
+              In Pipelab, add your project path and finish any build or store
+              settings before shipping.
+            </p>
+          </div>
           <button type="button" class="next" @click="restart">
             Start again
           </button>
