@@ -74,24 +74,34 @@ const buildMatchStatus = computed(() =>
 );
 const dashboardProjects = computed(() => [
   {
+    id: "current",
     name: name.value.trim(),
     detail: `${
       source.value ? sourceLabels[source.value] : "Project"
     } · ${destinations.value.join(", ")}`,
     initial: name.value.trim().charAt(0).toUpperCase(),
+    sample: false,
   },
   {
+    id: "moonlit",
     name: "Moonlit Arcade",
     detail: "Construct project · itch.io",
     initial: "M",
+    sample: true,
   },
-  { name: "Pixel Workshop", detail: "ZIP · Steam", initial: "P" },
+  {
+    id: "pixel",
+    name: "Pixel Workshop",
+    detail: "ZIP · Steam",
+    initial: "P",
+    sample: true,
+  },
 ]);
 function previewDashboardAction(action: "Edit" | "Run", projectName: string) {
   dashboardNotice.value =
     action === "Edit"
       ? `In Pipelab, Edit opens ${projectName}'s workflow configuration.`
-      : `In Pipelab, use Ship to start ${projectName}'s release after confirmation.`;
+      : `Run is a preview action here. Use Ship in Pipelab to start ${projectName}'s release after confirmation.`;
 }
 function toggleDestination(value: Destination) {
   destinations.value = destinations.value.includes(value)
@@ -279,25 +289,32 @@ function restart() {
           <h2 ref="heading" tabindex="-1">Saved workflows</h2>
           <p>Dashboard preview. Nothing was saved, built or uploaded.</p>
           <ul class="dashboard-workflows">
-            <li v-for="project in dashboardProjects" :key="project.name">
+            <li v-for="project in dashboardProjects" :key="project.id">
               <span class="dashboard-avatar" aria-hidden="true">{{
                 project.initial
               }}</span>
               <span class="dashboard-project">
                 <strong>{{ project.name }}</strong>
-                <small>{{ project.detail }}</small>
+                <small
+                  >{{ project.sample ? "Sample · " : "Your example · "
+                  }}{{ project.detail }}</small
+                >
               </span>
               <span class="dashboard-actions">
                 <button
                   type="button"
-                  :aria-label="`Edit ${project.name}`"
+                  :aria-label="`Edit ${
+                    project.sample ? 'sample workflow' : 'your example workflow'
+                  } ${project.name}`"
                   @click="previewDashboardAction('Edit', project.name)"
                 >
                   Edit
                 </button>
                 <button
                   type="button"
-                  :aria-label="`Run ${project.name}`"
+                  :aria-label="`Run ${
+                    project.sample ? 'sample workflow' : 'your example workflow'
+                  } ${project.name}`"
                   @click="previewDashboardAction('Run', project.name)"
                 >
                   Run

@@ -44,8 +44,10 @@ test("example workflow follows creation steps without saving or publishing", asy
   await expect(wizard.getByText("Nothing was saved, built or uploaded.")).toBeVisible();
   await expect(wizard.getByRole("heading", { name: "Saved workflows" })).toBeFocused();
   await expect(wizard.locator(".dashboard-workflows li")).toHaveCount(3);
-  await expect(wizard.getByRole("button", { name: "Edit Moonlit Arcade" })).toBeVisible();
-  await wizard.getByRole("button", { name: "Run My game" }).click();
+  await expect(
+    wizard.getByRole("button", { name: "Edit sample workflow Moonlit Arcade" }),
+  ).toBeVisible();
+  await wizard.getByRole("button", { name: "Run your example workflow My game" }).click();
   await expect(wizard.getByRole("status")).toContainText("start My game's release");
   await wizard.getByRole("button", { name: "Start again" }).click();
   await expect(wizard.getByLabel("Name *")).toBeEmpty();
@@ -58,6 +60,18 @@ test("example workflow follows creation steps without saving or publishing", asy
   await wizard.getByRole("button", { name: /Continue/ }).click();
   await expect(wizard.getByText("Construct web export")).toBeVisible();
   await expect(wizard.getByText("Electron desktop · Windows x64")).toHaveCount(0);
+  await wizard.getByRole("button", { name: "Back" }).click();
+  await wizard.getByRole("button", { name: "Back" }).click();
+  await wizard.getByRole("button", { name: "Back" }).click();
+  await wizard.getByLabel("Name *").fill("Moonlit Arcade");
+  await wizard.getByRole("button", { name: "Recap" }).click();
+  await wizard.getByRole("button", { name: "Create example workflow" }).click();
+  await expect(
+    wizard.getByRole("button", { name: "Run your example workflow Moonlit Arcade" }),
+  ).toBeVisible();
+  await expect(
+    wizard.getByRole("button", { name: "Run sample workflow Moonlit Arcade" }),
+  ).toBeVisible();
   expect(requests.filter((url) => /release:|workflow:|api\.pipelab/.test(url))).toEqual([]);
 });
 
