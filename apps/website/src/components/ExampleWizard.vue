@@ -57,7 +57,7 @@ const exampleBuilds = computed(() => {
           }
     );
   }
-  if (destinations.value.includes("itch.io")) {
+  if (destinations.value.some((destination) => destination === "itch.io")) {
     builds.push({
       title:
         source.value === "construct" ? "Construct web export" : "Game files",

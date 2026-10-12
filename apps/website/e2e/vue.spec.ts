@@ -45,6 +45,14 @@ test("example workflow follows creation steps without saving or publishing", asy
   await wizard.getByRole("button", { name: "Start again" }).click();
   await expect(wizard.getByLabel("Name *")).toBeEmpty();
   await expect(wizard.getByRole("button", { name: /Continue/ })).toBeDisabled();
+  await wizard.getByLabel("Name *").fill("Web game");
+  await wizard.getByRole("button", { name: /Continue/ }).click();
+  await wizard.getByRole("button", { name: /Construct project/ }).click();
+  await wizard.getByRole("button", { name: /Continue/ }).click();
+  await wizard.getByRole("button", { name: "itch.io" }).click();
+  await wizard.getByRole("button", { name: /Continue/ }).click();
+  await expect(wizard.getByText("Construct web export")).toBeVisible();
+  await expect(wizard.getByText("Electron desktop · Windows x64")).toHaveCount(0);
   expect(requests.filter((url) => /release:|workflow:|api\.pipelab/.test(url))).toEqual([]);
 });
 
