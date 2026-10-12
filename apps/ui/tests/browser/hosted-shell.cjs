@@ -63,8 +63,10 @@ async function main() {
     const loginButton = page.locator("button.login-btn");
     if ((await loginButton.count()) > 0) assert.equal(await loginButton.isDisabled(), true);
     assert.match(
-      await page.getByText("Browser sign-in requires a connected agent.").textContent(),
-      /requires a connected agent/,
+      await page
+        .getByText("Browser authentication is not configured for this deployment.")
+        .textContent(),
+      /Browser authentication is not configured for this deployment\./,
     );
     assert.equal(websocketUrls.length, 0, `expected no agent sockets, saw ${websocketUrls.length}`);
 
