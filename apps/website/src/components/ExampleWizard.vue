@@ -22,7 +22,6 @@ const description = ref("");
 const source = ref<Source>("");
 const destinations = ref<Destination[]>([]);
 const complete = ref(false);
-const dashboardNotice = ref("");
 const heading = ref<HTMLElement | null>(null);
 const valid = computed(() => [
   Boolean(name.value.trim()),
@@ -42,19 +41,15 @@ function chooseSource(value: Source) {
   source.value = value;
 }
 const exampleBuilds = computed(() => {
-  const builds: { title: string; detail: string }[] = [];
+  const builds: { title: string }[] = [];
   if (destinations.value.includes("Steam")) {
     builds.push(
       source.value === "construct"
         ? {
             title: "Electron desktop · Windows x64",
-            detail:
-              "Example default for Steam; confirm target and host in Pipelab.",
           }
         : {
             title: "Desktop build needed",
-            detail:
-              "Pipelab checks the folder and available builds during setup.",
           }
     );
   }
@@ -62,7 +57,6 @@ const exampleBuilds = computed(() => {
     builds.push({
       title:
         source.value === "construct" ? "Construct web export" : "Game files",
-      detail: "Can go directly to itch.io when the artifact is compatible.",
     });
   }
   return builds;
@@ -97,12 +91,6 @@ const dashboardProjects = computed(() => [
     sample: true,
   },
 ]);
-function previewDashboardAction(action: "Edit" | "Run", projectName: string) {
-  dashboardNotice.value =
-    action === "Edit"
-      ? `In Pipelab, Edit opens ${projectName}'s workflow configuration.`
-      : `Run is a preview action here. Use Ship in Pipelab to start ${projectName}'s release after confirmation.`;
-}
 function toggleDestination(value: Destination) {
   destinations.value = destinations.value.includes(value)
     ? destinations.value.filter((item) => item !== value)
@@ -118,17 +106,12 @@ function restart() {
   source.value = "";
   destinations.value = [];
   complete.value = false;
-  dashboardNotice.value = "";
   step.value = 0;
   nextTick(() => heading.value?.focus());
 }
 </script>
 <template>
-  <div
-    class="wizard"
-    role="region"
-    aria-label="Try an example release workflow"
-  >
+  <div class="wizard" role="region" aria-label="Try an example game workflow">
     <div class="wizard-chrome">
       <img
         class="wizard-brand"
@@ -161,7 +144,7 @@ function restart() {
               {{ step + 1 }}. {{ labels[step] }}
             </h2>
             <template v-if="step === 0"
-              ><p>Give your example release a name.</p>
+              ><p>Give your game’s workflow a name.</p>
               <label for="example-name"
                 >Name <span aria-hidden="true">*</span></label
               ><input
@@ -176,11 +159,11 @@ function restart() {
                 id="example-description"
                 v-model="description"
                 rows="2"
-                placeholder="A note about this release"
+                placeholder="A note about your game"
               />
             </template>
             <template v-else-if="step === 1"
-              ><p>Choose the project this release represents.</p>
+              ><p>Choose your game project.</p>
               <div class="choice-row">
                 <button
                   type="button"
@@ -223,10 +206,7 @@ function restart() {
               </div></template
             >
             <template v-else
-              ><p>
-                Review this illustrative plan. Pipelab checks builds and
-                compatibility when you create a real workflow.
-              </p>
+              ><p>Review your example workflow.</p>
               <dl class="recap">
                 <div>
                   <dt>Name</dt>
@@ -257,7 +237,6 @@ function restart() {
                       class="build-summary"
                     >
                       <strong>{{ build.title }}</strong>
-                      <small>{{ build.detail }}</small>
                     </span>
                   </dd>
                 </div>
@@ -300,31 +279,11 @@ function restart() {
                   }}{{ project.detail }}</small
                 >
               </span>
-              <span class="dashboard-actions">
-                <button
-                  type="button"
-                  :aria-label="`Edit ${
-                    project.sample ? 'sample workflow' : 'your example workflow'
-                  } ${project.name}`"
-                  @click="previewDashboardAction('Edit', project.name)"
-                >
-                  Edit
-                </button>
-                <button
-                  type="button"
-                  :aria-label="`Run ${
-                    project.sample ? 'sample workflow' : 'your example workflow'
-                  } ${project.name}`"
-                  @click="previewDashboardAction('Run', project.name)"
-                >
-                  Run
-                </button>
+              <span class="dashboard-actions" aria-hidden="true">
+                <span>Edit</span><span>Run</span>
               </span>
             </li>
           </ul>
-          <p v-if="dashboardNotice" class="dashboard-notice" role="status">
-            {{ dashboardNotice }}
-          </p>
           <button type="button" class="next" @click="restart">
             Start again
           </button>

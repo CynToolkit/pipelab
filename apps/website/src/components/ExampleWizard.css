@@ -245,12 +245,6 @@
 .build-summary:last-child {
   margin-bottom: 0;
 }
-.build-summary small {
-  display: block;
-  color: #596585;
-  font-weight: 400;
-  margin-top: 3px;
-}
 .completion {
   width: 100%;
 }
@@ -314,7 +308,12 @@
   gap: 4px;
   flex: none;
 }
-.dashboard-actions button {
+.dashboard-actions > span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  font: 700 10px "Public Sans", sans-serif;
   min-height: 30px;
   margin: 0;
   padding: 0 7px;
@@ -322,10 +321,6 @@
   background: #fff;
   color: #4335ca;
   font-size: 10px;
-}
-.wizard-panel .dashboard-notice {
-  margin: 10px 0 0;
-  color: #4335ca;
 }
 .wizard button:focus-visible,
 .wizard input:focus-visible,

@@ -46,53 +46,52 @@ const tools = [
     <section id="workflows" class="editorial-section">
       <div class="landing-container editorial-layout">
         <div class="editorial-copy">
-          <h2>Keep each release together.</h2>
+          <p class="eyebrow">Made for the next update</p>
+          <h2>Configure once. Ship every update.</h2>
           <p>
-            Your project, build settings, destinations, and run history stay in
-            one workflow.
+            Connect your game, builds, and destinations once. Reuse the workflow
+            when your next update is ready.
           </p>
         </div>
-        <div
-          class="product-window"
-          aria-label="Illustrative saved workflows list"
+        <figure
+          class="workflow-map"
+          aria-label="Example workflow: one Construct game produces a desktop build for Steam and a web export for itch.io"
         >
-          <div class="window-top">
-            <img
-              class="window-logo"
-              src="/banner.png"
-              alt="Pipelab"
-              width="82"
-              height="21"
-            />
+          <figcaption>
+            One game. One workflow. <span>Example workflow</span>
+          </figcaption>
+          <div class="map-source">
+            <ConstructIcon aria-hidden="true" />
+            <div><strong>My game</strong><span>Construct project</span></div>
+            <span class="map-tag">Source</span>
           </div>
-          <div class="window-body">
-            <aside>
-              <strong>Workflows</strong><span>Runs</span><span>Settings</span>
-            </aside>
-            <div class="window-main">
-              <h3>Saved workflows</h3>
-              <div class="workflow-row">
-                <span class="workflow-avatar">G</span>
-                <div>
-                  <strong>Example game</strong
-                  ><small>Project · build settings · stores</small>
-                </div>
-                <span class="workflow-action">Edit</span
-                ><span class="workflow-action">View runs</span>
+          <div class="map-routes">
+            <div class="map-route">
+              <div class="map-build">
+                <ElectronIcon aria-hidden="true" /><span>Desktop build</span>
               </div>
-              <div class="workflow-row">
-                <span class="workflow-avatar second">A</span>
-                <div>
-                  <strong>Another project</strong
-                  ><small>Project · build settings · stores</small>
-                </div>
-                <span class="workflow-action">Edit</span
-                ><span class="workflow-action">View runs</span>
+              <i class="pi pi-arrow-right" aria-hidden="true" />
+              <div class="map-destination">
+                <SteamIcon aria-hidden="true" /><strong>Steam</strong>
               </div>
-              <p class="illustration-note">Illustrative product view</p>
+            </div>
+            <div class="map-route">
+              <div class="map-build">
+                <i class="pi pi-globe" aria-hidden="true" /><span
+                  >Web export</span
+                >
+              </div>
+              <i class="pi pi-arrow-right" aria-hidden="true" />
+              <div class="map-destination">
+                <ItchIcon aria-hidden="true" /><strong>itch.io</strong>
+              </div>
             </div>
           </div>
-        </div>
+          <p class="map-caption">
+            <i class="pi pi-refresh" aria-hidden="true" /> New update. Same
+            workflow.
+          </p>
+        </figure>
       </div>
     </section>
     <section class="integrations-section">
@@ -114,28 +113,6 @@ const tools = [
             >{{ tool.label }}
           </li>
         </ul>
-        <div class="capability-notes">
-          <div>
-            <h3>Build for desktop</h3>
-            <p>
-              Package a compatible web game with Electron or Tauri. Available
-              targets depend on your host and installed tools.
-            </p>
-          </div>
-          <div>
-            <h3>Send it to a store</h3>
-            <p>
-              Route a compatible artifact to Steam or itch.io. Each store needs
-              its own account and release settings.
-            </p>
-          </div>
-          <div>
-            <h3>Find the output</h3>
-            <p>
-              Review run status, logs, deliveries, and artifacts after you ship.
-            </p>
-          </div>
-        </div>
       </div>
     </section>
     <section class="editorial-section results-section">
@@ -199,7 +176,7 @@ const tools = [
     </section>
     <section class="final-cta">
       <div class="landing-container">
-        <h2>Ready to share your game?</h2>
+        <h2>Ready to ship your game?</h2>
         <p>Start with your first release.</p>
         <RouterLink class="landing-button" :to="{ name: 'Download' }"
           ><i class="pi pi-download" aria-hidden="true" /> Download

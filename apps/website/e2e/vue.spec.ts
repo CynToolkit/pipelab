@@ -7,14 +7,14 @@ test("example workflow follows creation steps without saving or publishing", asy
       requests.push(request.url());
   });
   await page.goto("/");
-  const wizard = page.getByLabel("Try an example release workflow");
+  const wizard = page.getByLabel("Try an example game workflow");
   await expect(
     page.getByRole("heading", { name: "A simple way to ship your game." }),
   ).toBeVisible();
   await expect(wizard.getByRole("button", { name: /Continue/ })).toBeDisabled();
   await expect(wizard.getByRole("button", { name: /Project source/ })).toBeDisabled();
   await wizard.getByLabel("Name *").fill("My game");
-  await wizard.getByLabel("Description (optional)").fill("First release");
+  await wizard.getByLabel("Description (optional)").fill("Arcade platformer");
   await wizard.getByRole("button", { name: /Continue/ }).click();
   await expect(wizard.getByRole("button", { name: /Continue/ })).toBeDisabled();
   await wizard.getByRole("button", { name: /Construct project/ }).click();
@@ -25,7 +25,7 @@ test("example workflow follows creation steps without saving or publishing", asy
   await wizard.getByRole("button", { name: "Steam" }).click();
   await wizard.getByRole("button", { name: /Continue/ }).click();
   await expect(wizard.getByText("My game")).toBeVisible();
-  await expect(wizard.getByText("First release")).toBeVisible();
+  await expect(wizard.getByText("Arcade platformer")).toBeVisible();
   await expect(wizard.getByText("Steam", { exact: true })).toBeVisible();
   await expect(wizard.getByText("Auto-matched preview")).toBeVisible();
   await expect(wizard.getByText("Electron desktop · Windows x64")).toBeVisible();
@@ -44,11 +44,8 @@ test("example workflow follows creation steps without saving or publishing", asy
   await expect(wizard.getByText("Nothing was saved, built or uploaded.")).toBeVisible();
   await expect(wizard.getByRole("heading", { name: "Saved workflows" })).toBeFocused();
   await expect(wizard.locator(".dashboard-workflows li")).toHaveCount(3);
-  await expect(
-    wizard.getByRole("button", { name: "Edit sample workflow Moonlit Arcade" }),
-  ).toBeVisible();
-  await wizard.getByRole("button", { name: "Run your example workflow My game" }).click();
-  await expect(wizard.getByRole("status")).toContainText("start My game's release");
+  await expect(wizard.locator(".dashboard-actions")).toHaveCount(3);
+  await expect(wizard.getByRole("button").filter({ hasText: /^(Edit|Run)$/ })).toHaveCount(0);
   await wizard.getByRole("button", { name: "Start again" }).click();
   await expect(wizard.getByLabel("Name *")).toBeEmpty();
   await expect(wizard.getByRole("button", { name: /Continue/ })).toBeDisabled();
@@ -66,12 +63,10 @@ test("example workflow follows creation steps without saving or publishing", asy
   await wizard.getByLabel("Name *").fill("Moonlit Arcade");
   await wizard.getByRole("button", { name: "Recap" }).click();
   await wizard.getByRole("button", { name: "Create example workflow" }).click();
+  await expect(wizard.locator(".dashboard-workflows li")).toHaveCount(3);
   await expect(
-    wizard.getByRole("button", { name: "Run your example workflow Moonlit Arcade" }),
-  ).toBeVisible();
-  await expect(
-    wizard.getByRole("button", { name: "Run sample workflow Moonlit Arcade" }),
-  ).toBeVisible();
+    wizard.locator(".dashboard-project strong").filter({ hasText: "Moonlit Arcade" }),
+  ).toHaveCount(2);
   expect(requests.filter((url) => /release:|workflow:|api\.pipelab/.test(url))).toEqual([]);
 });
 
@@ -79,7 +74,9 @@ test("landing page remains usable at mobile, tablet, and desktop widths", async 
   await page.goto("/");
   for (const width of [390, 768, 1024, 1440]) {
     await page.setViewportSize({ width, height: 900 });
-    await expect(page.getByRole("heading", { name: "Keep each release together." })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Configure once. Ship every update." }),
+    ).toBeVisible();
     await expect(page.getByText("ZIP", { exact: true })).toBeVisible();
     await expect(page.locator(".window-dots")).toHaveCount(0);
     const overflow = await page.evaluate(
@@ -97,9 +94,7 @@ test("landing page remains usable at mobile, tablet, and desktop widths", async 
 
 test("restored content and navigation lead to the current Construct guide", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: "Build for desktop" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Send it to a store" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Find the output" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Ready to ship your game?" })).toBeVisible();
   await expect(
     page
       .getByRole("navigation", { name: "Primary navigation" })
