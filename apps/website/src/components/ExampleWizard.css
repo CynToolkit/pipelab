@@ -226,6 +226,18 @@
   font-weight: 700;
   overflow-wrap: anywhere;
 }
+.match-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 8px;
+  padding: 4px 7px;
+  border-radius: 5px;
+  background: #eeebff;
+  color: #4335ca;
+  font-size: 11px;
+  font-weight: 700;
+}
 .build-summary {
   display: block;
   margin-bottom: 7px;
@@ -249,54 +261,71 @@
 .completion button {
   margin-top: 15px;
 }
-.dashboard-preview {
-  border: 1px solid #dfe2f4;
-  border-radius: 8px;
-  overflow: hidden;
-  margin: 18px 0 6px;
-}
-.dashboard-heading {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 13px;
-  border-bottom: 1px solid #eceefa;
-}
 .dashboard-avatar {
   display: grid;
   place-items: center;
-  width: 34px;
-  height: 34px;
+  width: 30px;
+  height: 30px;
   flex: none;
-  border-radius: 6px;
+  border-radius: 5px;
   background: #4b3cf2;
   color: white;
-  font-weight: 700;
+  font: 700 12px "Public Sans", sans-serif;
 }
-.dashboard-heading strong,
-.dashboard-heading small {
-  display: block;
+.dashboard-workflows {
+  list-style: none;
+  margin: 14px 0 2px;
+  padding: 0;
+  border: 1px solid #dfe2f4;
+  border-radius: 7px;
+  overflow: hidden;
 }
-.dashboard-heading small,
-.dashboard-meta span {
-  color: #687294;
-  font-size: 11px;
-}
-.dashboard-meta div {
-  display: grid;
-  grid-template-columns: 82px 1fr;
-  gap: 7px;
-  padding: 9px 13px;
+.dashboard-workflows li {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 56px;
+  padding: 7px 9px;
   border-bottom: 1px solid #eceefa;
+}
+.dashboard-workflows li:last-child {
+  border-bottom: 0;
+}
+.dashboard-project {
+  min-width: 0;
+  flex: 1;
+}
+.dashboard-project strong,
+.dashboard-project small {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dashboard-project strong {
   font-size: 11px;
 }
-.dashboard-meta strong {
-  overflow-wrap: anywhere;
+.dashboard-project small {
+  color: #687294;
+  font-size: 10px;
 }
-.wizard-panel .dashboard-preview p {
+.dashboard-actions {
+  display: flex;
+  gap: 4px;
+  flex: none;
+}
+.dashboard-actions button {
+  min-height: 30px;
   margin: 0;
-  padding: 12px 13px;
-  font-size: 11px;
+  padding: 0 7px;
+  border: 1px solid #dfe2ef;
+  background: #fff;
+  color: #4335ca;
+  font-size: 10px;
+}
+.wizard-panel .dashboard-notice {
+  margin: 10px 0 0;
+  color: #4335ca;
 }
 .wizard button:focus-visible,
 .wizard input:focus-visible,

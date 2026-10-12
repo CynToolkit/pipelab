@@ -10,31 +10,9 @@ import TauriIcon from "~icons/simple-icons/tauri";
 import SteamIcon from "~icons/simple-icons/steam";
 // @ts-ignore - generated Iconify modules do not have TypeScript declarations
 import ItchIcon from "~icons/simple-icons/itchdotio";
-const journey = [
-  {
-    title: "Choose game",
-    copy: "Pick your game project or files.",
-    icon: "pi pi-folder",
-  },
-  {
-    title: "Build resolved",
-    copy: "Pipelab finds a compatible build when it can.",
-    icon: "pi pi-box",
-  },
-  {
-    title: "Choose stores",
-    copy: "Choose where you want to publish.",
-    icon: "pi pi-send",
-  },
-  {
-    title: "Publish",
-    copy: "Review everything, then start your release.",
-    icon: "pi pi-sparkles",
-  },
-];
 const tools = [
   { label: "Construct 3", icon: ConstructIcon },
-  { label: "Game files", icon: null },
+  { label: "ZIP", icon: null },
   { label: "Electron", icon: ElectronIcon },
   { label: "Tauri", icon: TauriIcon },
   { label: "Steam", icon: SteamIcon },
@@ -65,30 +43,7 @@ const tools = [
         <ExampleWizard />
       </div>
     </section>
-    <section id="how-it-works" class="journey-section landing-container">
-      <div class="section-heading">
-        <h2>Four steps. From project to players.</h2>
-        <p>
-          Pipelab handles the tricky setup, so you can focus on making your
-          game.
-        </p>
-      </div>
-      <ol class="journey-list">
-        <li v-for="(item, index) in journey" :key="item.title">
-          <span class="journey-number">{{
-            String(index + 1).padStart(2, "0")
-          }}</span>
-          <div class="journey-icon">
-            <i :class="item.icon" aria-hidden="true" />
-          </div>
-          <div>
-            <h3>{{ item.title }}</h3>
-            <p>{{ item.copy }}</p>
-          </div>
-        </li>
-      </ol>
-    </section>
-    <section class="editorial-section">
+    <section id="workflows" class="editorial-section">
       <div class="landing-container editorial-layout">
         <div class="editorial-copy">
           <h2>Keep each release together.</h2>
@@ -102,8 +57,7 @@ const tools = [
           aria-label="Illustrative saved workflows list"
         >
           <div class="window-top">
-            <span class="window-dots" aria-hidden="true">● ● ●</span
-            ><img
+            <img
               class="window-logo"
               src="/banner.png"
               alt="Pipelab"
@@ -155,7 +109,7 @@ const tools = [
                 v-if="tool.icon"
                 aria-hidden="true" /><i
                 v-else
-                class="pi pi-folder"
+                class="pi pi-file"
                 aria-hidden="true" /></span
             >{{ tool.label }}
           </li>
@@ -191,8 +145,7 @@ const tools = [
           aria-label="Illustrative release run details"
         >
           <div class="window-top">
-            <span class="window-dots" aria-hidden="true">● ● ●</span
-            ><img
+            <img
               class="window-logo"
               src="/banner.png"
               alt="Pipelab"

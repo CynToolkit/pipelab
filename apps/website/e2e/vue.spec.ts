@@ -27,6 +27,7 @@ test("example workflow follows creation steps without saving or publishing", asy
   await expect(wizard.getByText("My game")).toBeVisible();
   await expect(wizard.getByText("First release")).toBeVisible();
   await expect(wizard.getByText("Steam", { exact: true })).toBeVisible();
+  await expect(wizard.getByText("Auto-matched preview")).toBeVisible();
   await expect(wizard.getByText("Electron desktop · Windows x64")).toBeVisible();
   await wizard.getByRole("button", { name: "Back" }).click();
   await wizard.getByRole("button", { name: "Back" }).click();
@@ -38,10 +39,14 @@ test("example workflow follows creation steps without saving or publishing", asy
   );
   await wizard.getByRole("button", { name: /Continue/ }).click();
   await expect(wizard.getByText("Desktop build needed")).toBeVisible();
+  await expect(wizard.getByText("Needs project inspection")).toBeVisible();
   await wizard.getByRole("button", { name: "Create example workflow" }).click();
   await expect(wizard.getByText("Nothing was saved, built or uploaded.")).toBeVisible();
-  await expect(wizard.getByRole("heading", { name: "Example project dashboard" })).toBeFocused();
-  await expect(wizard.getByText("Release workflow · needs setup")).toBeVisible();
+  await expect(wizard.getByRole("heading", { name: "Saved workflows" })).toBeFocused();
+  await expect(wizard.locator(".dashboard-workflows li")).toHaveCount(3);
+  await expect(wizard.getByRole("button", { name: "Edit Moonlit Arcade" })).toBeVisible();
+  await wizard.getByRole("button", { name: "Run My game" }).click();
+  await expect(wizard.getByRole("status")).toContainText("start My game's release");
   await wizard.getByRole("button", { name: "Start again" }).click();
   await expect(wizard.getByLabel("Name *")).toBeEmpty();
   await expect(wizard.getByRole("button", { name: /Continue/ })).toBeDisabled();
@@ -60,11 +65,9 @@ test("landing page remains usable at mobile, tablet, and desktop widths", async 
   await page.goto("/");
   for (const width of [390, 768, 1024, 1440]) {
     await page.setViewportSize({ width, height: 900 });
-    await expect(
-      page.getByRole("heading", {
-        name: "Four steps. From project to players.",
-      }),
-    ).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Keep each release together." })).toBeVisible();
+    await expect(page.getByText("ZIP", { exact: true })).toBeVisible();
+    await expect(page.locator(".window-dots")).toHaveCount(0);
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth > window.innerWidth,
     );
@@ -93,6 +96,11 @@ test("restored content and navigation lead to the current Construct guide", asyn
       .getByRole("navigation", { name: "Primary navigation" })
       .getByRole("link", { name: "GitHub" }),
   ).toHaveAttribute("href", "https://github.com/CynToolkit/pipelab");
+  await expect(
+    page
+      .getByRole("navigation", { name: "Primary navigation" })
+      .getByRole("link", { name: "Workflows" }),
+  ).toHaveAttribute("href", "/#workflows");
   await page.getByRole("link", { name: /Using Construct 3/ }).click();
   await expect(page).toHaveURL(/\/construct3$/);
   await expect(

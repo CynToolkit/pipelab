@@ -150,9 +150,9 @@ const menuItems = ref([
     to: { name: "Home", hash: "#product" },
   },
   {
-    label: "How it works",
+    label: "Workflows",
     icon: "pi pi-list",
-    to: { name: "Home", hash: "#how-it-works" },
+    to: { name: "Home", hash: "#workflows" },
   },
   { label: "Download", icon: "pi pi-download", to: { name: "Download" } },
 ]);

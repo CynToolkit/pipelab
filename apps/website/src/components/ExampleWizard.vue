@@ -22,6 +22,7 @@ const description = ref("");
 const source = ref<Source>("");
 const destinations = ref<Destination[]>([]);
 const complete = ref(false);
+const dashboardNotice = ref("");
 const heading = ref<HTMLElement | null>(null);
 const valid = computed(() => [
   Boolean(name.value.trim()),
@@ -66,6 +67,32 @@ const exampleBuilds = computed(() => {
   }
   return builds;
 });
+const buildMatchStatus = computed(() =>
+  source.value === "folder" && destinations.value.includes("Steam")
+    ? "Needs project inspection"
+    : "Auto-matched preview"
+);
+const dashboardProjects = computed(() => [
+  {
+    name: name.value.trim(),
+    detail: `${
+      source.value ? sourceLabels[source.value] : "Project"
+    } · ${destinations.value.join(", ")}`,
+    initial: name.value.trim().charAt(0).toUpperCase(),
+  },
+  {
+    name: "Moonlit Arcade",
+    detail: "Construct project · itch.io",
+    initial: "M",
+  },
+  { name: "Pixel Workshop", detail: "ZIP · Steam", initial: "P" },
+]);
+function previewDashboardAction(action: "Edit" | "Run", projectName: string) {
+  dashboardNotice.value =
+    action === "Edit"
+      ? `In Pipelab, Edit opens ${projectName}'s workflow configuration.`
+      : `In Pipelab, use Ship to start ${projectName}'s release after confirmation.`;
+}
 function toggleDestination(value: Destination) {
   destinations.value = destinations.value.includes(value)
     ? destinations.value.filter((item) => item !== value)
@@ -81,6 +108,7 @@ function restart() {
   source.value = "";
   destinations.value = [];
   complete.value = false;
+  dashboardNotice.value = "";
   step.value = 0;
   nextTick(() => heading.value?.focus());
 }
@@ -207,8 +235,12 @@ function restart() {
                   <dd>{{ destinations.join(", ") }}</dd>
                 </div>
                 <div>
-                  <dt>Example builds</dt>
+                  <dt>Build match</dt>
                   <dd>
+                    <span class="match-badge"
+                      ><i class="pi pi-sparkles" aria-hidden="true" />
+                      {{ buildMatchStatus }}</span
+                    >
                     <span
                       v-for="build in exampleBuilds"
                       :key="build.title"
@@ -244,39 +276,38 @@ function restart() {
           </div></template
         >
         <div v-else class="wizard-panel completion">
-          <h2 ref="heading" tabindex="-1">Example project dashboard</h2>
-          <p>This is a preview. Nothing was saved, built or uploaded.</p>
-          <div class="dashboard-preview">
-            <div class="dashboard-heading">
+          <h2 ref="heading" tabindex="-1">Saved workflows</h2>
+          <p>Dashboard preview. Nothing was saved, built or uploaded.</p>
+          <ul class="dashboard-workflows">
+            <li v-for="project in dashboardProjects" :key="project.name">
               <span class="dashboard-avatar" aria-hidden="true">{{
-                name.trim().charAt(0).toUpperCase()
+                project.initial
               }}</span>
-              <div>
-                <strong>{{ name.trim() }}</strong
-                ><small>Release workflow · needs setup</small>
-              </div>
-            </div>
-            <div class="dashboard-meta">
-              <div>
-                <span>Source</span
-                ><strong>{{ source ? sourceLabels[source] : "" }}</strong>
-              </div>
-              <div>
-                <span>Build plan</span
-                ><strong>{{
-                  exampleBuilds.map((build) => build.title).join(", ")
-                }}</strong>
-              </div>
-              <div>
-                <span>Destinations</span
-                ><strong>{{ destinations.join(", ") }}</strong>
-              </div>
-            </div>
-            <p>
-              In Pipelab, add your project path and finish any build or store
-              settings before shipping.
-            </p>
-          </div>
+              <span class="dashboard-project">
+                <strong>{{ project.name }}</strong>
+                <small>{{ project.detail }}</small>
+              </span>
+              <span class="dashboard-actions">
+                <button
+                  type="button"
+                  :aria-label="`Edit ${project.name}`"
+                  @click="previewDashboardAction('Edit', project.name)"
+                >
+                  Edit
+                </button>
+                <button
+                  type="button"
+                  :aria-label="`Run ${project.name}`"
+                  @click="previewDashboardAction('Run', project.name)"
+                >
+                  Run
+                </button>
+              </span>
+            </li>
+          </ul>
+          <p v-if="dashboardNotice" class="dashboard-notice" role="status">
+            {{ dashboardNotice }}
+          </p>
           <button type="button" class="next" @click="restart">
             Start again
           </button>
