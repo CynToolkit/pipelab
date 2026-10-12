@@ -8,7 +8,7 @@ type Source = "construct" | "folder" | "";
 type Destination = "Steam" | "itch.io";
 const labels = [
   "Name & description",
-  "Source & project path",
+  "Project source",
   "Destinations",
   "Recap",
 ];
@@ -243,7 +243,7 @@ function restart() {
             </button>
           </div></template
         >
-        <div v-else class="wizard-panel completion" role="status">
+        <div v-else class="wizard-panel completion">
           <h2 ref="heading" tabindex="-1">Example project dashboard</h2>
           <p>This is a preview. Nothing was saved, built or uploaded.</p>
           <div class="dashboard-preview">

@@ -12,7 +12,7 @@ test("example workflow follows creation steps without saving or publishing", asy
     page.getByRole("heading", { name: "A simple way to ship your game." }),
   ).toBeVisible();
   await expect(wizard.getByRole("button", { name: /Continue/ })).toBeDisabled();
-  await expect(wizard.getByRole("button", { name: /Source & project path/ })).toBeDisabled();
+  await expect(wizard.getByRole("button", { name: /Project source/ })).toBeDisabled();
   await wizard.getByLabel("Name *").fill("My game");
   await wizard.getByLabel("Description (optional)").fill("First release");
   await wizard.getByRole("button", { name: /Continue/ }).click();
