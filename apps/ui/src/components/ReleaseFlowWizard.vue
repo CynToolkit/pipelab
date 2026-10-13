@@ -14,7 +14,7 @@
       <p>{{ catalogError }}</p>
       <Button label="Retry" text @click="loadCatalog" />
     </div>
-    <Stepper v-model:value="step" :linear="!isHostedBrowser" :inert="catalogLoading">
+    <Stepper v-model:value="step" :linear="!isBrowser" :inert="catalogLoading">
       <StepList class="wizard-step-list" tabindex="0" aria-label="Wizard steps">
         <Step
           v-for="item in steps"
@@ -78,7 +78,10 @@
             </div>
             <p v-if="!draft.source.provider" class="helper-copy">Choose a source to continue.</p>
             <template v-if="sourceDefinition">
-              <small v-if="sourceDefinition.requiresAgentInspection" class="helper-copy">
+              <small
+                v-if="isOfflineBrowserDraft && sourceDefinition.requiresAgentInspection"
+                class="helper-copy"
+              >
                 Additional source options require the Pipelab agent.
               </small>
               <ReleaseFieldControl
@@ -90,7 +93,7 @@
                 :options="field.options || []"
                 :issues="[]"
                 :input-id="`wizard-source-${field.key}`"
-                :allow-path-edit="isHostedBrowser"
+                :allow-path-edit="isOfflineBrowserDraft"
                 @update:value="setSourceField(field.key, $event)"
               />
             </template>
@@ -111,7 +114,7 @@
             </div>
           </div>
         </StepPanel>
-        <StepPanel v-if="isHostedBrowser" value="builds">
+        <StepPanel v-if="isBrowser" value="builds">
           <div class="wizard-panel">
             <h2>Configure a build</h2>
             <p>Select a packaged build provider to add it to this in-memory draft.</p>
@@ -140,8 +143,11 @@
                 class="helper-copy"
                 role="status"
               >
-                This provider needs agent inspection. Fields below are draft values only; readiness
-                is Unknown.
+                {{
+                  isOfflineBrowserDraft
+                    ? "This provider needs agent inspection. Fields below are draft values only; readiness is Unknown."
+                    : "The connected agent will inspect this provider during workflow validation."
+                }}
               </small>
               <ReleaseFieldControl
                 v-for="field in selectedBuildProducer.fields || []"
@@ -151,7 +157,7 @@
                 :options="field.options || []"
                 :issues="[]"
                 :input-id="`wizard-build-${field.key}`"
-                :allow-path-edit="true"
+                :allow-path-edit="isOfflineBrowserDraft"
                 @update:value="setBuildField(field.key, $event)"
               />
               <h3>Target</h3>
@@ -168,7 +174,7 @@
                   @click="chooseBuildTarget(target.id)"
                 >
                   <strong>{{ target.label }}</strong>
-                  <small>Availability: Unknown (agent required)</small>
+                  <small>{{ releaseWizardTargetAvailability(target, isReady) }}</small>
                 </button>
               </div>
               <ReleaseFieldControl
@@ -179,7 +185,7 @@
                 :options="field.options || []"
                 :issues="[]"
                 :input-id="`wizard-build-target-${field.key}`"
-                :allow-path-edit="true"
+                :allow-path-edit="isOfflineBrowserDraft"
                 @update:value="setBuildTargetField(field.key, $event)"
               />
             </template>
@@ -238,10 +244,14 @@
                   </span>
                 </button>
                 <div
-                  v-if="isHostedBrowser && hasDestination(destination.id)"
+                  v-if="isBrowser && hasDestination(destination.id)"
                   class="destination-fields"
                 >
-                  <small v-if="destination.fields?.length" class="helper-copy" role="status">
+                  <small
+                    v-if="isOfflineBrowserDraft && destination.fields?.length"
+                    class="helper-copy"
+                    role="status"
+                  >
                     These settings remain in the browser draft until connected to an agent.
                   </small>
                   <ReleaseFieldControl
@@ -252,7 +262,7 @@
                     :options="field.options || []"
                     :issues="[]"
                     :input-id="`wizard-destination-${destination.id}-${field.key}`"
-                    :allow-path-edit="isHostedBrowser"
+                    :allow-path-edit="isOfflineBrowserDraft"
                     @update:value="setDestinationField(destination.id, field.key, $event)"
                   />
                 </div>
@@ -354,7 +364,7 @@
             </div>
             <p class="review-notice">
               <i class="pi pi-info-circle" aria-hidden="true" />
-              <span v-if="isHostedBrowser"
+              <span v-if="isOfflineBrowserDraft"
                 >Build fields and destination settings in this browser draft are not validated until
                 the Pipelab agent checks them.</span
               >
@@ -409,7 +419,7 @@ import { nanoid } from "nanoid";
 import type { IconType, ReleaseConfig } from "@pipelab/shared";
 import { useAPI } from "../composables/api";
 import { useAgentAvailability } from "../composables/useAgentAvailability";
-import { shouldAutoConnectAgent, uiEnvironment } from "../composables/ui-runtime";
+import { uiEnvironment } from "../composables/ui-runtime";
 import { useAppStore } from "../store/app";
 import ReleaseFieldControl from "./ReleaseFieldControl.vue";
 import {
@@ -421,7 +431,9 @@ import {
   releaseWizardNextStep,
   releaseWizardPreviousStep,
   releaseWizardRecap,
+  releaseWizardIsOfflineBrowserDraft,
   releaseWizardSourceIsReady,
+  releaseWizardTargetAvailability,
   RELEASE_WIZARD_STEPS,
   HOSTED_RELEASE_WIZARD_STEPS,
   type ReleaseWizardStep,
@@ -435,7 +447,10 @@ const emit = defineEmits<{
 const api = useAPI();
 const appStore = useAppStore();
 const { isReady } = useAgentAvailability();
-const isHostedBrowser = uiEnvironment === "browser" && !shouldAutoConnectAgent;
+const isBrowser = uiEnvironment === "browser";
+const isOfflineBrowserDraft = computed(() =>
+  releaseWizardIsOfflineBrowserDraft(isBrowser, isReady.value),
+);
 const catalogLoading = ref(false);
 const catalogError = ref("");
 let catalogRequest = 0;
@@ -453,7 +468,7 @@ const stepLabels: Record<ReleaseWizardStep, string> = {
   destinations: "Destinations",
   recap: "Recap",
 };
-const activeSteps = isHostedBrowser ? HOSTED_RELEASE_WIZARD_STEPS : RELEASE_WIZARD_STEPS;
+const activeSteps = isBrowser ? HOSTED_RELEASE_WIZARD_STEPS : RELEASE_WIZARD_STEPS;
 const steps = activeSteps.map((value, index) => ({
   value,
   label: stepLabels[value],
@@ -484,12 +499,12 @@ const selectedBuildTarget = computed(() =>
 );
 const canContinueDetails = computed(() => releaseWizardCanContinueDetails(draft.value));
 const canContinueSource = computed(() =>
-  isHostedBrowser
+  isOfflineBrowserDraft.value
     ? Boolean(draft.value.source.provider)
     : releaseWizardSourceIsReady(draft.value.source, catalog.value),
 );
 const canContinueDestinations = computed(() =>
-  isHostedBrowser
+  isOfflineBrowserDraft.value
     ? Boolean(
         draft.value.name.trim() && draft.value.source.provider && draft.value.destinations.length,
       )

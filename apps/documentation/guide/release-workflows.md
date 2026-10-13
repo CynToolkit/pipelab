@@ -119,4 +119,7 @@ invoke it through the CLI.
 In hosted mode, the new-workflow wizard also lets you inspect and edit packaged
 source, build, and destination fields in a browser-only draft. File paths and
 dynamic provider options are not validated there; connect a Pipelab agent for
-inspection, runtime readiness, saving, and execution.
+inspection, runtime readiness, saving, and execution. If an agent attaches while
+the wizard is open, the draft stays in place while native path controls and
+live target availability become available. Hosted mode controls startup
+connection policy; it does not keep the browser in a permanent offline mode.

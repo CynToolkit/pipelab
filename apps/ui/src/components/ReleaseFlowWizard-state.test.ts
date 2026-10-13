@@ -11,10 +11,12 @@ import {
   releaseWizardCanReview,
   releaseWizardDestination,
   releaseWizardHasSource,
+  releaseWizardIsOfflineBrowserDraft,
   releaseWizardNextStep,
   releaseWizardPreviousStep,
   releaseWizardRecap,
   releaseWizardSourceIsReady,
+  releaseWizardTargetAvailability,
 } from "./ReleaseFlowWizard-state";
 
 const catalog: ReleaseCatalog = {
@@ -139,6 +141,45 @@ describe("ReleaseFlowWizard state", () => {
     ]);
     expect(releaseWizardNextStep("source", HOSTED_RELEASE_WIZARD_STEPS)).toBe("builds");
     expect(buildReleaseWizardConfig(draft, "project-1", "release-1").builds).toEqual(draft.builds);
+  });
+
+  it("uses live readiness for browser draft controls, independent of startup policy", () => {
+    expect(releaseWizardIsOfflineBrowserDraft(true, false)).toBe(true);
+    expect(releaseWizardIsOfflineBrowserDraft(true, true)).toBe(false);
+    expect(releaseWizardIsOfflineBrowserDraft(false, false)).toBe(false);
+  });
+
+  it("shows live target availability after the agent attaches", () => {
+    const target = {
+      id: "linux",
+      label: "Linux",
+      defaultConfig: {},
+      availabilityStatus: "unknown" as const,
+    };
+
+    expect(releaseWizardTargetAvailability(target, false)).toBe(
+      "Availability: Unknown (agent required)",
+    );
+    expect(
+      releaseWizardTargetAvailability(
+        {
+          ...target,
+          availabilityStatus: undefined,
+          availability: { available: false, reason: "SDK not installed" },
+        },
+        true,
+      ),
+    ).toBe("Unavailable: SDK not installed");
+    expect(
+      releaseWizardTargetAvailability(
+        {
+          ...target,
+          availabilityStatus: undefined,
+          availability: { available: true },
+        },
+        true,
+      ),
+    ).toBe("Available on this device");
   });
 
   it("requires a name on the first step and keeps description optional", () => {

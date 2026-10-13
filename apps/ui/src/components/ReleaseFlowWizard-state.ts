@@ -1,5 +1,5 @@
 import { createReleaseConfig } from "@pipelab/shared";
-import type { ReleaseCatalog, ReleaseConfig } from "@pipelab/shared";
+import type { ReleaseCatalog, ReleaseCatalogTarget, ReleaseConfig } from "@pipelab/shared";
 
 export interface ReleaseWizardDraft {
   name: string;
@@ -77,6 +77,21 @@ export const releaseWizardCanReview = (draft: ReleaseWizardDraft, catalog: Relea
   releaseWizardCanContinueDetails(draft) &&
   releaseWizardSourceIsReady(draft.source, catalog) &&
   draft.destinations.length > 0;
+
+export const releaseWizardIsOfflineBrowserDraft = (isBrowser: boolean, agentReady: boolean) =>
+  isBrowser && !agentReady;
+
+export const releaseWizardTargetAvailability = (
+  target: ReleaseCatalogTarget,
+  agentReady: boolean,
+) => {
+  if (!agentReady || target.availabilityStatus === "unknown")
+    return "Availability: Unknown (agent required)";
+  if (target.availability?.available === false)
+    return `Unavailable: ${target.availability.reason || "not supported on this device"}`;
+  if (target.availability?.available === true) return "Available on this device";
+  return "No host availability check required";
+};
 
 export const releaseWizardDestination = (
   provider: string,

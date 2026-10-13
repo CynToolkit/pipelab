@@ -64,7 +64,7 @@
                 :label="$t('home.new-workflow')"
                 icon="mdi mdi-rocket-launch-outline"
                 :disabled="
-                  !isHostedBrowser && (!filesReady || !agent.isReady.value || !activeProjectId)
+                  !isBrowser && (!filesReady || !agent.isReady.value || !activeProjectId)
                 "
                 @click="openWorkflowWizard"
               />
@@ -237,7 +237,7 @@ import { loadWorkflowEntries, mergeWorkflowLoadState } from "./workflow-load-sta
 import { readableProviderId } from "./workflow-presentation";
 import { getDashboardDisplayState } from "./dashboard-state";
 import { useAgentAvailability } from "@renderer/composables/useAgentAvailability";
-import { shouldAutoConnectAgent, uiEnvironment } from "@renderer/composables/ui-runtime";
+import { uiEnvironment } from "@renderer/composables/ui-runtime";
 
 const ReleaseFlowWizard = defineAsyncComponent(
   () => import("@renderer/components/ReleaseFlowWizard.vue"),
@@ -251,7 +251,7 @@ const confirm = useConfirm();
 const toast = useToast();
 const appStore = useAppStore();
 const agent = useAgentAvailability();
-const isHostedBrowser = uiEnvironment === "browser" && !shouldAutoConnectAgent;
+const isBrowser = uiEnvironment === "browser";
 
 // Table data
 const fileStore = useFiles();
@@ -525,7 +525,7 @@ const workflowMenuItems = computed(() => [
 watch(
   [() => route.query.create, filesReady, agent.isReady, activeProjectId],
   ([create, ready, connected, projectId]) => {
-    if (create !== "new" || (!isHostedBrowser && (!ready || !connected || !projectId))) return;
+    if (create !== "new" || (!isBrowser && (!ready || !connected || !projectId))) return;
     isWorkflowWizardVisible.value = true;
     void router.replace({ path: "/workflows" });
   },

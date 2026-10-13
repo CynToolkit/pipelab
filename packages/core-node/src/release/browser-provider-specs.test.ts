@@ -34,6 +34,20 @@ describe("browser provider specs", () => {
     for (const config of defaultConfigs)
       for (const [key, value] of Object.entries(config))
         if (/password|secret|token|credential|api.?key/i.test(key)) expect(value).toBe("");
+    const credentialFields = specs.providers.flatMap((provider) =>
+      (provider.integrations ?? []).flatMap((integration) =>
+        (integration.fields ?? []).filter((field) =>
+          /password|secret|token|credential|api.?key/i.test(field.key),
+        ),
+      ),
+    );
+    expect(credentialFields.length).toBeGreaterThan(0);
+    expect(credentialFields.every((field) => field.type === "password")).toBe(true);
+    for (const field of credentialFields) {
+      expect(field).not.toHaveProperty("value");
+      expect(field).not.toHaveProperty("default");
+      expect(field).not.toHaveProperty("defaultValue");
+    }
     expect(
       specs.catalog.producers
         .flatMap((producer) => producer.targets)
