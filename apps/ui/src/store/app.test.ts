@@ -43,7 +43,7 @@ describe("built-in provider metadata", () => {
     expect(store.providerDefinitions.find((item) => item.id === provider.id)).toMatchObject({
       id: provider.id,
       name: "Steam",
-      integrations: [{ name: "Steam Account" }],
+      integrations: [],
     });
     expect(store.providerDefinitions.some((item) => item.id === "@pipelab/plugin-godot")).toBe(
       true,
@@ -132,6 +132,45 @@ describe("built-in provider metadata", () => {
     );
     expect(store.getProviderDefinition("@pipelab/plugin-steam")?.name).toBe("Steam");
     expect(execute).not.toHaveBeenCalled();
+  });
+
+  it("uses runtime integration field schemas without advertising packaged-only fields", async () => {
+    const store = useAppStore();
+    const runtimeProvider = {
+      id: "@pipelab/plugin-construct",
+      packageName: "@pipelab/plugin-construct",
+      name: "Runtime Construct",
+      description: "Runtime description",
+      isOfficial: true,
+      icon: { type: "icon", icon: "pi-box" },
+      integrations: [
+        {
+          name: "Browser Executable",
+          fields: [
+            { key: "path", label: "Runtime browser path", type: "directory" },
+            { key: "runtimeOnly", label: "Runtime option", type: "password" },
+          ],
+        },
+      ],
+    };
+    execute.mockResolvedValueOnce({
+      type: "success",
+      result: { providers: [runtimeProvider] },
+    });
+
+    await store.loadProviderDefinitions();
+
+    const provider = store.getProviderDefinition(runtimeProvider.id);
+    expect(provider?.name).toBe("Construct");
+    expect(provider?.integrations).toEqual([
+      {
+        name: "Browser Executable",
+        fields: [
+          { key: "path", label: "Runtime browser path", type: "directory" },
+          { key: "runtimeOnly", label: "Runtime option", type: "password" },
+        ],
+      },
+    ]);
   });
 
   it("keeps packaged identity while using runtime catalog schemas and defaults", async () => {

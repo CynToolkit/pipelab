@@ -132,6 +132,22 @@ const {
     assert.ok(inspectRequest, "the connected browser requested dynamic producer inspection");
     assert.equal(inspectRequest.provider, "@pipelab/plugin-godot/producer");
     await page.getByRole("option", { name: "Web", exact: true }).click();
+    const inspectionCallsBeforeEdits = calls.filter(
+      (channel) => channel === "release:producer:inspect",
+    ).length;
+    for (const target of ["linux-x64", "macos-arm64", "windows-x64"]) {
+      await dialog.getByRole("button", { name: new RegExp(target) }).click();
+    }
+    await preset.click();
+    await page.getByRole("option", { name: "Web", exact: true }).waitFor();
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(350);
+    assert.equal(
+      calls.filter((channel) => channel === "release:producer:inspect").length -
+        inspectionCallsBeforeEdits,
+      1,
+      "rapid target edits are coalesced into one producer inspection",
+    );
     await dialog.locator(".wizard-panel:visible").getByRole("button", { name: "Continue" }).click();
     await dialog.getByRole("button", { name: /^Steam/ }).click();
     await dialog
@@ -149,6 +165,9 @@ const {
     console.log(
       "Connected hosted browser passed: runtime build options loaded and destination account setup was clearly deferred.",
     );
+  } catch (error) {
+    console.error("Connected journey requests:", calls.join(", "));
+    throw error;
   } finally {
     await context.close();
     await browser.close();

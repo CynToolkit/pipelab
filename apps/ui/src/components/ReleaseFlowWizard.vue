@@ -477,6 +477,7 @@ const producerInspectionLoading = ref(false);
 const producerInspectionError = ref(false);
 let catalogRequest = 0;
 let producerInspectionRequest = 0;
+let producerInspectionTimer: ReturnType<typeof setTimeout> | undefined;
 let createRequest = 0;
 const createPending = ref(false);
 const createError = ref("");
@@ -650,10 +651,12 @@ const inspectSelectedBuild = async () => {
   const requestId = ++producerInspectionRequest;
   const producer = selectedBuildProducer.value;
   const build = selectedBuild.value;
-  producerInspectionOptions.value = {};
   producerInspectionError.value = false;
   producerInspectionLoading.value = false;
-  if (!props.visible || !isReady.value || !producer?.requiresAgentInspection || !build) return;
+  if (!props.visible || !isReady.value || !producer?.requiresAgentInspection || !build) {
+    producerInspectionOptions.value = {};
+    return;
+  }
 
   const buildSnapshot = structuredClone(toRaw(build));
   const sourceConfig = structuredClone(toRaw(draft.value.source.config));
@@ -697,6 +700,7 @@ const invalidateCreateRequest = () => {
 onBeforeUnmount(() => {
   catalogRequest++;
   producerInspectionRequest++;
+  clearTimeout(producerInspectionTimer);
   invalidateCreateRequest();
 });
 const create = async () => {
@@ -760,7 +764,31 @@ watch(
   },
   { flush: "sync" },
 );
-watch(producerInspectionSignature, () => void inspectSelectedBuild(), { flush: "sync" });
+watch(
+  producerInspectionSignature,
+  () => {
+    producerInspectionRequest++;
+    clearTimeout(producerInspectionTimer);
+    producerInspectionTimer = undefined;
+    producerInspectionError.value = false;
+    const producer = selectedBuildProducer.value;
+    if (
+      !props.visible ||
+      !isReady.value ||
+      !producer?.requiresAgentInspection ||
+      !selectedBuild.value
+    ) {
+      producerInspectionOptions.value = {};
+      producerInspectionLoading.value = false;
+      return;
+    }
+    producerInspectionTimer = setTimeout(() => {
+      producerInspectionTimer = undefined;
+      void inspectSelectedBuild();
+    }, 250);
+  },
+  { flush: "sync" },
+);
 watch(
   draft,
   () => {

@@ -57,24 +57,14 @@ const mergeIntegrations = (
   runtime: IntegrationDefinition[],
 ): IntegrationDefinition[] => {
   const bundledByName = new Map(bundled.map((integration) => [integration.name, integration]));
-  const runtimeNames = new Set(runtime.map((integration) => integration.name));
-  return [
-    ...runtime.map((integration) => {
-      const base = bundledByName.get(integration.name);
-      if (!base) return integration;
-      const bundledFields = new Map(base.fields.map((field) => [field.key, field]));
-      const runtimeKeys = new Set(integration.fields.map((field) => field.key));
-      return {
-        ...integration,
-        ...base,
-        fields: [
-          ...integration.fields.map((field) => bundledFields.get(field.key) ?? field),
-          ...base.fields.filter((field) => !runtimeKeys.has(field.key)),
-        ],
-      };
-    }),
-    ...bundled.filter((integration) => !runtimeNames.has(integration.name)),
-  ];
+  return runtime.map((integration) => {
+    const base = bundledByName.get(integration.name);
+    if (!base) return integration;
+    return {
+      ...base,
+      fields: integration.fields,
+    };
+  });
 };
 
 export const useAppStore = defineStore("app", () => {
