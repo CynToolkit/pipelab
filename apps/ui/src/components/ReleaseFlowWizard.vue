@@ -5,9 +5,12 @@
     header="New release"
     :style="{ width: '680px', maxWidth: '96vw' }"
   >
-    <p v-if="!isReady" role="status">
+    <p v-if="!isReady && isBrowser" role="status">
       Provider options are available from this browser package. Agent checks and workflow creation
       require a Pipelab agent.
+    </p>
+    <p v-else-if="!isReady" role="status">
+      Reconnect the agent to continue setting up this workflow.
     </p>
     <p v-else-if="catalogLoading" role="status">Loading workflow options…</p>
     <div v-else-if="catalogError" role="alert">
