@@ -43,3 +43,34 @@ after changing it and after reload, and checks that agent-backed guide reset is
 disabled while detached. It also covers browser storage rejecting a preference
 change. Hosted mode controls startup discovery only; a later paired attach can
 connect an agent without rebuilding or reloading.
+
+## Hosted provider specifications
+
+Start the UI with `VITE_PIPELAB_MODE=hosted` and no local agent, then run:
+
+```sh
+UI_BASE_URL=http://127.0.0.1:5175 \
+CHROMIUM_PATH=/usr/bin/chromium \
+node apps/ui/tests/browser/hosted-provider-specs.cjs
+```
+
+This journey opens the real new-workflow wizard, reads packaged source, build,
+and destination choices, and edits their fields in the browser-only draft. It
+asserts hosted mode opens no agent WebSocket and does not depend on a mocked
+`release:catalog:get` response. Creating the workflow stays unavailable until
+an agent can validate and save the draft.
+
+## Hosted provider specifications with a connected agent
+
+Run the UI without `VITE_PIPELAB_MODE=hosted` so browser startup connects to the
+local test agent, then run the paired journey:
+
+```sh
+pnpm --filter @pipelab/ui exec vite --host 127.0.0.1 --port 5175
+UI_BASE_URL=http://127.0.0.1:5175 CHROMIUM_PATH=/usr/bin/chromium \
+  node apps/ui/tests/browser/hosted-provider-connected.cjs
+```
+
+This journey supplies a mocked agent over the local WebSocket boundary. It
+checks that the browser wizard loads dynamic build options after connecting and
+clearly defers destination account setup to Configuration.

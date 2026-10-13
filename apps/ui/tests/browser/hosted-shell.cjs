@@ -36,7 +36,7 @@ async function main() {
       await page.locator(".inline-state").textContent(),
       /unavailable while the engine is disconnected/i,
     );
-    assert.equal(await page.getByRole("button", { name: "New workflow" }).isDisabled(), true);
+    assert.equal(await page.getByRole("button", { name: "New workflow" }).isDisabled(), false);
     assert.equal(await page.getByRole("button", { name: "Import" }).isDisabled(), true);
     assert.equal(
       await page.getByRole("heading", { name: "Project overview", exact: true }).count(),
