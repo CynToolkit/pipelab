@@ -53,11 +53,6 @@ attach can connect an agent without rebuilding or reloading.
 Start the UI with `VITE_PIPELAB_MODE=hosted` and no local agent, then run:
 
 ```sh
-## Hosted provider specifications
-
-Start the UI with `VITE_PIPELAB_MODE=hosted` and no local agent, then run:
-
-```sh
 UI_BASE_URL=http://127.0.0.1:5175 \
 CHROMIUM_PATH=/usr/bin/chromium \
 node apps/ui/tests/browser/hosted-provider-specs.cjs

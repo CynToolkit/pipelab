@@ -58,6 +58,20 @@ Desktop auth remains in the agent and is exposed to the UI over IPC. These are
 implementation facts, not security acceptance: maintainers still need to
 choose an auth direction and approve a deployment-specific CSP.
 
+The browser client uses `persistSession: true`, `autoRefreshToken: true`,
+`flowType: "pkce"`, and `detectSessionInUrl: false`; the callback route clears
+the query/hash before exchanging the code and continues to a fixed Dashboard
+route. Supabase JS uses `localStorage` by default, which remains readable by
+same-origin JavaScript, so automatic refresh does not protect a token from XSS.
+Signout resets the analytics identity and clears the corresponding browser or
+Desktop session through its existing auth transport. Desktop auth logs now
+contain event labels only, not account emails or passwords. No specific
+exploitable XSS path was found in this review. The source audit found no
+`v-html`, `innerHTML`, `document.write`, `eval`, or
+`new Function` usage in the UI. `index.html` has no external script tag; the UI
+bundles PostHog and loads Google Fonts styles/assets from `fonts.googleapis.com`
+and `fonts.gstatic.com`.
+
 ### Option A: browser-managed Supabase session
 
 Keep Supabase JS in the SPA and harden the browser boundary. This is the
@@ -109,15 +123,39 @@ Supabase origin (Auth, REST, Functions, and Realtime as used), agent WebSockets
 and `https://eu.i.posthog.com`. Website/editor previews, Supabase Auth
 callbacks, and any preview iframe or popup origins must be evaluated for the
 actual environment; do not use broad wildcards to cover unknown preview hosts.
+The editor and website have separate Vite builds and Pages deployments, so
+their preview origins and resource lists must be reviewed separately. The
+editor build receives its Supabase and PostHog settings at build time; it does
+not currently produce a CSP `_headers` file or derive WebSocket destinations
+for a policy. A Pages `_headers` policy therefore needs an explicit, tested
+allowlist for each supported deployment or a reviewed deployment-specific
+header-generation step.
 
-The current `index.html` contains inline bootstrap CSS and JavaScript, and the
-UI uses component/runtime styles. Prefer moving bootstrap code to external
-files or authorizing stable hashes/nonces where the serving layer can inject
-nonces, and test whether framework styles need a targeted exception. Do not
-paper over violations with `unsafe-inline` or `unsafe-eval` without a reviewed
-need. Configure headers in the deployment layer only after origins and
-directives are agreed; start with report-only, collect violations on production
+The current `index.html` contains inline bootstrap CSS and JavaScript, plus an
+inline `onload` handler for Google Fonts; the UI also uses component/runtime
+styles. Prefer moving bootstrap code to external files or authorizing stable
+hashes/nonces where the serving layer can inject nonces, and test whether
+framework styles need a targeted exception. Do not paper over violations with
+`unsafe-inline` or `unsafe-eval` without a reviewed need. Configure headers in
+the deployment layer only after origins and directives are agreed; start with
+report-only, collect violations on production
 and preview builds, then enforce and verify auth callbacks, billing, telemetry,
 fonts, previews, and agent WebSocket connection in real browsers. `vite dev` /
 `vite preview` results do not establish the production Pages header behavior.
-No CSP header or production infrastructure change is made by this README.
+No CSP response policy exists for the hosted UI in the repository, and this
+README does not change headers or production infrastructure.
+
+### Analytics privacy
+
+Auth identification now sends the Supabase user ID as PostHog's stable
+`distinct_id` and the `is_anonymous` flag; the email property was removed from
+browser and Desktop auth calls. The account email displayed in the sidebar and
+Profile settings is marked `ph-no-capture` so PostHog autocapture does not
+include that text. The auth callback keeps pageview and autocapture disabled
+while PKCE codes or provider errors may be present in its initial URL. Logout
+resets the PostHog identity, and anonymous product analytics remain enabled.
+
+Maintainers must still decide whether sending a stable account ID to PostHog is
+approved for product analytics. If it is not approved, remove the authenticated
+`identify` calls while preserving anonymous capture; this decision remains
+open, and no email address is sent by auth identification.
