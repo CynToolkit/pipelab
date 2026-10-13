@@ -88,8 +88,8 @@ clearly defers destination account setup to Configuration.
 
 Run against the local Supabase stack. Do not evaluate or log the complete
 `supabase status --output env` output because it also contains server-only
-credentials. The UI command below filters the local public anon key and passes
-it under the canonical `SUPABASE_PUBLISHABLE_KEY` variable:
+credentials. The UI command filters the local public anon key and passes it
+under the canonical `SUPABASE_PUBLISHABLE_KEY` variable:
 
 ```sh
 SUPABASE_PUBLISHABLE_KEY="$(supabase status --output env | sed -n 's/^ANON_KEY=//p' | tr -d '\"')" \
@@ -103,32 +103,58 @@ Never pass a service-role or secret key to the UI.
 Then run the browser journey:
 
 ```sh
-EXPECT_EMAIL_CONFIRMATION=1 MAILPIT_URL=http://127.0.0.1:54324 \
+EXPECT_EMAIL_CONFIRMATION=1 EXPECT_PASSWORD_RESET=1 MAILPIT_URL=http://127.0.0.1:54324 \
 SUPABASE_URL=http://127.0.0.1:54321 \
 UI_BASE_URL=http://127.0.0.1:5185 \
 CHROMIUM_PATH=/usr/bin/chromium \
 node apps/ui/tests/browser/hosted-auth-local.cjs
 ```
 
-The smoke rejects nonlocal Supabase and Mailpit URLs and verifies signup,
-refresh restoration, sign-out, sign-in, and no agent WebSocket.
+The smoke rejects nonlocal Supabase and Mailpit URLs. With both optional modes
+enabled, it verifies signup, email verification, password recovery, session
+restoration, sign-out, sign-in with the reset password, and no agent WebSocket.
+For signed-in Billing UI failure handling, set `EXPECT_PLAN_FAILURE_UI=1` or
+`EXPECT_PORTAL_FAILURE_UI=1`; these modes use synthetic browser responses and
+do not replace live billing acceptance.
 
-By default, email confirmations are disabled. To verify the confirmation
-callback, enable `auth.email.enable_confirmations`, allow
-`http://127.0.0.1:5185/auth/callback`, and set
-`EXPECT_EMAIL_CONFIRMATION=1` with the local `MAILPIT_URL`.
+## Hosted auth acceptance (manual, nonproduction)
 
-To exercise password recovery end to end, set `EXPECT_PASSWORD_RESET=1` and
-provide the local `MAILPIT_URL`. The journey requests a reset email, follows
-the local verification link, updates the password, and signs in with the new
-password.
+The local browser journey is not acceptance of a hosted auth-and-billing
+integration. Unit/component tests and failure-UI intercepts are useful UI
+checks; they are not real Supabase, email-delivery, Polar, or Desktop
+integration tests.
 
-To verify email confirmation against an isolated local Supabase project, enable
-`auth.email.enable_confirmations`, allow the local `/auth/callback` redirect,
-and set `EXPECT_EMAIL_CONFIRMATION=1` with the local `MAILPIT_URL`.
+Complete each nonproduction step and record the environment/build and observed
+result in the PR acceptance notes:
 
-For signed-in Billing UI failure handling, run the same smoke with
-`EXPECT_PLAN_FAILURE_UI=1` or `EXPECT_PORTAL_FAILURE_UI=1`. These modes
-intercept only browser calls to `polar-user-plan` or `customer-portal` with
-synthetic responses; auth still uses local Supabase, and no Polar request or
-billing transaction occurs. They do not replace live billing acceptance.
+1. **Signup:** register a new test account with a controlled test inbox.
+   Confirm the UI reports that verification is required and the account is not
+   treated as verified before following the email link.
+2. **Email verification:** open the delivered link, confirm it returns to the
+   expected hosted `/auth/callback`, shows success, and continues to a signed-in
+   dashboard. Verify the account can sign in after verification.
+3. **Password reset:** sign out, request a reset for that account, use the
+   delivered link, set a new password, and verify the new password signs in
+   while the old password no longer does.
+4. **Session restore:** reload the signed-in hosted page and open it again in a
+   fresh tab. Confirm the current account is restored.
+5. **Profile:** open Settings → Profile. Confirm the displayed email matches
+   the test account and the subscription tier/status agrees with Billing.
+6. **Plan/subscription:** open Settings → Billing. Confirm the expected
+   nonproduction subscription name, status, amount/currency, interval, and
+   period dates are shown; also verify the intended no-subscription state for
+   an account without a plan. A mocked `polar-user-plan` response does not
+   satisfy this check.
+7. **Polar customer portal:** from Billing, open Manage Subscription and
+   confirm the real sandbox portal opens for that customer. Do not create,
+   change, or cancel a purchase unless separately approved. A mocked portal
+   error only checks error UI.
+8. **Signout:** sign out, confirm account controls disappear, reload, and verify
+   the session remains signed out.
+9. **Desktop compatibility:** separately verify the existing Desktop sign-in,
+   restored session, and sign-out path over its normal IPC transport. Browser
+   no-agent behavior does not establish Desktop compatibility.
+
+No hosted credentials or service secrets belong in this file. Do not use
+production credentials, perform production changes, or initiate any purchase,
+subscription change, or cancellation during acceptance.
