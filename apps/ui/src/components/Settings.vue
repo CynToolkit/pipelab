@@ -679,7 +679,7 @@
               <span class="setting-description">The email associated with your account.</span>
             </div>
             <div class="setting-action">
-              <span class="text-sm font-semibold">{{ user?.email }}</span>
+              <span class="text-sm font-semibold ph-no-capture">{{ user?.email }}</span>
             </div>
           </div>
 

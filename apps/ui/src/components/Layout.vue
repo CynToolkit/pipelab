@@ -264,7 +264,7 @@
         <div v-if="user" class="sidebar-account-row">
           <div v-show="!isSidebarCollapsed" class="account-left">
             <i class="mdi mdi-account nav-icon" />
-            <span class="account-email truncate font-semibold">{{ user.email }}</span>
+            <span class="account-email truncate font-semibold ph-no-capture">{{ user.email }}</span>
           </div>
           <button
             class="account-logout-btn"
