@@ -89,7 +89,7 @@ export const useAuth = defineStore("auth", () => {
       if (!isReady.value) return;
       authRequestId++;
       initPromise = undefined;
-      logger.logger().info("[Auth] Received auth state change from backend:", data);
+      // Auth events may carry session-related data. Keep payloads out of logs.
       if (data.type === "end" && data.data.type === "success" && data.data.result.user) {
         setUser(data.data.result.user);
         posthog.identify(data.data.result.user.id, {
@@ -304,16 +304,7 @@ export const useAuth = defineStore("auth", () => {
         if (result.type === "error") throw new Error(result.ipcError);
         if (result.type === "success" && result.result.user) {
           const currentUser = result.result.user;
-          logger
-            .logger()
-            .info(
-              "[Auth] Found existing user during init:",
-              currentUser.id,
-              "anonymous:",
-              currentUser.is_anonymous,
-              "email:",
-              currentUser.email,
-            );
+          logger.logger().info("[Auth] Found existing user during init.");
           posthog.identify(currentUser.id, {
             email: currentUser.email,
             is_anonymous: currentUser.is_anonymous || false,

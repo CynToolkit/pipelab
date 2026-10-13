@@ -19,8 +19,12 @@ export default {
       return;
     }
 
+    // The callback URL can contain a short-lived PKCE code or provider error
+    // details. This plugin initializes before the callback route can scrub it.
+    const isAuthCallback = window.location.pathname === "/auth/callback";
     app.config.globalProperties.$posthog = posthog.init(apiKey, {
       api_host: "https://eu.i.posthog.com",
+      ...(isAuthCallback ? { capture_pageview: false, autocapture: false } : {}),
     });
   },
 };

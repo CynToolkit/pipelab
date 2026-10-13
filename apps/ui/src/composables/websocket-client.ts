@@ -10,7 +10,6 @@ import {
   WebSocketConnectionError,
   WebSocketErrorMessage,
   WebSocketMessage,
-  isWebSocketRequestMessage,
   isWebSocketResponseMessage,
   isWebSocketErrorMessage,
 } from "@pipelab/shared";
@@ -223,9 +222,6 @@ export class WebSocketClient {
             }
           });
         }
-      } else if (isWebSocketRequestMessage(message)) {
-        // Handle incoming request messages if needed
-        console.log("Received request message:", message);
       }
     } catch (error) {
       console.error("Failed to parse WebSocket message:", error);

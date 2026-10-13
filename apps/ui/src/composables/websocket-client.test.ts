@@ -118,6 +118,27 @@ describe("WebSocketClient pending request cleanup", () => {
     await expect(nextRequest).resolves.toEqual({ type: "success", result: { user: null } });
   });
 
+  it("does not log payloads from incoming request messages", () => {
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    const client = new WebSocketClient({ url: "ws://agent.test", maxReconnectAttempts: 0 });
+    client.connect();
+    const socket = FakeWebSocket.instances[0];
+    socket.open();
+    log.mockClear();
+
+    socket.onmessage?.({
+      data: JSON.stringify({
+        type: "request",
+        requestId: "request-id",
+        channel: "auth:signInWithPassword",
+        data: { password: "sensitive-test-value" },
+      }),
+    } as MessageEvent);
+
+    expect(log).not.toHaveBeenCalled();
+    log.mockRestore();
+  });
+
   it("uses an explicitly selected agent endpoint for attach and later reconnects", () => {
     const client = new WebSocketClient({
       url: "wss://published.example",
