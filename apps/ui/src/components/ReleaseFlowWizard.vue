@@ -14,7 +14,11 @@
       <p>{{ catalogError }}</p>
       <Button label="Retry" text @click="loadCatalog" />
     </div>
-    <Stepper v-model:value="step" :linear="!isBrowser" :inert="catalogLoading">
+    <Stepper
+      v-model:value="step"
+      :linear="!isBrowser"
+      :inert="catalogLoading || (!isBrowser && (!isReady || Boolean(catalogError)))"
+    >
       <StepList class="wizard-step-list" tabindex="0" aria-label="Wizard steps">
         <Step
           v-for="item in steps"
