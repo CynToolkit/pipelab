@@ -13,6 +13,7 @@ const {
   runtimeEnvironment,
   browserClient,
   createBrowserClient,
+  posthog,
 } = vi.hoisted(() => {
   const browserClient = {
     auth: {
@@ -36,6 +37,7 @@ const {
     runtimeEnvironment: { value: "desktop" },
     browserClient,
     createBrowserClient: vi.fn<() => typeof browserClient | null>(() => browserClient),
+    posthog: { identify: vi.fn(), reset: vi.fn() },
   };
 });
 
@@ -65,7 +67,7 @@ vi.mock("@renderer/composables/ui-runtime", () => ({
     return runtimeEnvironment.value;
   },
 }));
-vi.mock("posthog-js", () => ({ default: { identify: vi.fn(), reset: vi.fn() } }));
+vi.mock("posthog-js", () => ({ default: posthog }));
 
 import { useAuth } from "./auth";
 
@@ -100,6 +102,8 @@ describe("auth startup and subscription loading", () => {
       .mockResolvedValue({ data: { subscriptions: [] }, error: null });
     createBrowserClient.mockClear();
     createBrowserClient.mockReturnValue(browserClient);
+    posthog.identify.mockReset();
+    posthog.reset.mockReset();
   });
 
   afterEach(() => {
@@ -156,6 +160,7 @@ describe("auth startup and subscription loading", () => {
 
     expect(auth.subscriptionStatus).toBe("ready");
     expect(auth.subscriptions).toEqual([]);
+    expect(posthog.reset).toHaveBeenCalled();
   });
 
   it("preserves lookup errors and allows a failed plan check to be retried", async () => {
@@ -359,6 +364,8 @@ describe("hosted browser authentication", () => {
     await vi.waitFor(() => expect(auth.subscriptionStatus).toBe("ready"));
 
     expect(auth.user?.id).toBe("browser-user");
+    expect(posthog.identify).toHaveBeenCalledWith("browser-user", { is_anonymous: false });
+    expect(posthog.identify.mock.calls[0]?.[1]).not.toHaveProperty("email");
     expect(execute).not.toHaveBeenCalled();
     expect(browserClient.functions.invoke).toHaveBeenCalledWith("polar-user-plan", undefined);
   });
@@ -443,6 +450,7 @@ describe("hosted browser authentication", () => {
     expect(browserClient.auth.signOut).toHaveBeenCalledOnce();
     expect(auth.user).toBeUndefined();
     expect(auth.authState).toBe("SIGNED_OUT");
+    expect(posthog.reset).toHaveBeenCalled();
     expect(execute).not.toHaveBeenCalled();
   });
 
@@ -678,6 +686,8 @@ describe("Desktop auth transport compatibility", () => {
     runtimeEnvironment.value = "desktop";
     createBrowserClient.mockClear();
     createBrowserClient.mockReturnValue(browserClient);
+    posthog.identify.mockReset();
+    posthog.reset.mockReset();
   });
 
   afterEach(() => {
@@ -708,6 +718,20 @@ describe("Desktop auth transport compatibility", () => {
       password: "password",
     });
     expect(execute).toHaveBeenCalledWith("auth:signOut");
+    expect(posthog.reset).toHaveBeenCalled();
     expect(createBrowserClient).not.toHaveBeenCalled();
+  });
+
+  it("identifies Desktop users without email in PostHog properties", async () => {
+    const user = makeUser("desktop-user");
+    execute.mockResolvedValue({ type: "success", result: { user } });
+    const auth = useAuth();
+    activeAuthStore = auth;
+
+    setReady(true);
+    await vi.waitFor(() => expect(auth.authState).toBe("SIGNED_IN"));
+
+    expect(posthog.identify).toHaveBeenCalledWith("desktop-user", { is_anonymous: false });
+    expect(posthog.identify.mock.calls[0]?.[1]).not.toHaveProperty("email");
   });
 });

@@ -93,7 +93,6 @@ export const useAuth = defineStore("auth", () => {
       if (data.type === "end" && data.data.type === "success" && data.data.result.user) {
         setUser(data.data.result.user);
         posthog.identify(data.data.result.user.id, {
-          email: data.data.result.user.email,
           is_anonymous: data.data.result.user.is_anonymous || false,
         });
         authState.value = "SIGNED_IN";
@@ -213,7 +212,6 @@ export const useAuth = defineStore("auth", () => {
     setUser(nextUser);
     if (nextUser) {
       posthog.identify(nextUser.id, {
-        email: nextUser.email,
         is_anonymous: nextUser.is_anonymous || false,
       });
       authState.value = "SIGNED_IN";
@@ -306,7 +304,6 @@ export const useAuth = defineStore("auth", () => {
           const currentUser = result.result.user;
           logger.logger().info("[Auth] Found existing user during init.");
           posthog.identify(currentUser.id, {
-            email: currentUser.email,
             is_anonymous: currentUser.is_anonymous || false,
           });
           setUser(currentUser);
@@ -314,7 +311,7 @@ export const useAuth = defineStore("auth", () => {
           if (isReady.value) void fetchSubscription();
         } else {
           logger.logger().info("[Auth] No user found during init");
-          posthog.identify();
+          posthog.reset();
           setUser(undefined);
           subscriptions.value = [];
           subscriptionError.value = undefined;
