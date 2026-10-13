@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { init } = vi.hoisted(() => ({ init: vi.fn() }));
 vi.mock("posthog-js", () => ({ default: { init } }));
@@ -11,6 +11,11 @@ const install = () => {
   return app;
 };
 
+const setLocation = (url: string) =>
+  vi.stubGlobal("window", {
+    location: { pathname: new URL(url, "https://pipelab.test").pathname },
+  });
+
 describe("PostHog auth callback privacy", () => {
   beforeEach(() => {
     init.mockReset();
@@ -18,12 +23,17 @@ describe("PostHog auth callback privacy", () => {
     vi.stubEnv("POSTHOG_API_KEY", "test-api-key");
   });
 
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  });
+
   it.each([
     "/auth/callback?code=short-lived-code",
     "/auth/callback?type=recovery&code=short-lived-code",
     "/auth/callback?error=provider-error&error_description=details",
   ])("disables pageview and autocapture before callback parameters are cleared (%s)", (url) => {
-    window.history.replaceState({}, "", url);
+    setLocation(url);
     install();
 
     expect(init).toHaveBeenCalledWith(
@@ -36,7 +46,7 @@ describe("PostHog auth callback privacy", () => {
   });
 
   it("keeps normal telemetry configuration on non-callback routes", () => {
-    window.history.replaceState({}, "", "/dashboard");
+    setLocation("/dashboard");
 
     install();
 
