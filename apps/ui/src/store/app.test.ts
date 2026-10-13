@@ -134,41 +134,51 @@ describe("built-in provider metadata", () => {
     expect(execute).not.toHaveBeenCalled();
   });
 
-  it("overlays runtime availability without losing packaged provider definitions", async () => {
+  it("keeps packaged identity while using runtime catalog schemas and defaults", async () => {
     const store = useAppStore();
     const bundled = structuredClone(toRaw(store.releaseCatalog));
     const runtime = structuredClone(bundled);
     runtime.sources[0].label = "Runtime placeholder";
-    runtime.sources[0].fields = undefined;
-    runtime.sources[0].defaultConfig = { futureDefault: true };
+    runtime.sources[0].fields = [{ key: "runtimeField", label: "Runtime field", type: "text" }];
+    runtime.sources[0].defaultConfig = { ...runtime.sources[0].defaultConfig, path: "/agent/path" };
     runtime.sources.push({
       ...runtime.sources[0],
       id: "@future/plugin/source",
       label: "Future source",
     });
+    const packagedTarget = bundled.producers
+      .flatMap((producer) => producer.targets)
+      .find((candidate) => "availabilityStatus" in candidate);
     const target = runtime.producers
       .flatMap((producer) => producer.targets)
       .find((candidate) => "availabilityStatus" in candidate);
-    if (!target || !("availabilityStatus" in target)) throw new Error("Expected dynamic target");
+    if (!packagedTarget || !target || !("availabilityStatus" in target))
+      throw new Error("Expected dynamic target");
     target.availability = {
       available: false,
       reason: "SDK not installed",
     };
+    target.label = "Runtime target placeholder";
+    target.fields = [{ key: "runtimeTargetField", label: "Runtime target field", type: "text" }];
+    target.defaultConfig = { ...target.defaultConfig, runtimeTargetDefault: true };
     execute.mockResolvedValueOnce({ type: "success", result: runtime });
 
     const catalog = await store.loadReleaseCatalog();
 
     expect(catalog.sources[0].label).toBe(bundled.sources[0].label);
-    expect(catalog.sources[0].fields).toEqual(bundled.sources[0].fields);
+    expect(catalog.sources[0].fields).toEqual(runtime.sources[0].fields);
     expect(catalog.sources[0].defaultConfig).toEqual({
-      ...runtime.sources[0].defaultConfig,
       ...bundled.sources[0].defaultConfig,
+      ...runtime.sources[0].defaultConfig,
     });
     expect(catalog.sources.some((source) => source.id === "@future/plugin/source")).toBe(true);
     const mergedTarget = catalog.producers
       .flatMap((producer) => producer.targets)
       .find((candidate) => candidate.id === target.id);
     expect(mergedTarget).toMatchObject({
+      label: packagedTarget.label,
+      fields: target.fields,
+      defaultConfig: { ...packagedTarget.defaultConfig, ...target.defaultConfig },
       availability: { available: false, reason: "SDK not installed" },
     });
   });

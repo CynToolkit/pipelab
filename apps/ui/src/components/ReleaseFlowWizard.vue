@@ -156,12 +156,18 @@
                     : "The connected agent will inspect this provider during workflow validation."
                 }}
               </small>
+              <small v-if="producerInspectionLoading" class="helper-copy" role="status">
+                Loading build options from the connected agent…
+              </small>
+              <small v-else-if="producerInspectionError" class="helper-copy" role="alert">
+                The connected agent could not load build options. Reconnect and try again.
+              </small>
               <ReleaseFieldControl
                 v-for="field in selectedBuildProducer.fields || []"
                 :key="field.key"
                 :field="field"
                 :value="String(selectedBuild.config[field.key] ?? '')"
-                :options="field.options || []"
+                :options="buildFieldOptions(field.key, field.options || [])"
                 :issues="[]"
                 :input-id="`wizard-build-${field.key}`"
                 :allow-path-edit="isOfflineBrowserDraft"
@@ -189,7 +195,7 @@
                 :key="field.key"
                 :field="field"
                 :value="String(selectedBuild.targets[0]?.config[field.key] ?? '')"
-                :options="field.options || []"
+                :options="buildFieldOptions(field.key, field.options || [])"
                 :issues="[]"
                 :input-id="`wizard-build-target-${field.key}`"
                 :allow-path-edit="isOfflineBrowserDraft"
@@ -250,10 +256,7 @@
                     <small>{{ destination.description || "Ship your release" }}</small>
                   </span>
                 </button>
-                <div
-                  v-if="isBrowser && hasDestination(destination.id)"
-                  class="destination-fields"
-                >
+                <div v-if="isBrowser && hasDestination(destination.id)" class="destination-fields">
                   <small
                     v-if="isOfflineBrowserDraft && destination.fields?.length"
                     class="helper-copy"
@@ -261,17 +264,21 @@
                   >
                     These settings remain in the browser draft until connected to an agent.
                   </small>
-                  <ReleaseFieldControl
-                    v-for="field in destination.fields || []"
-                    :key="field.key"
-                    :field="field"
-                    :value="String(selectedDestination(destination.id)?.config[field.key] ?? '')"
-                    :options="field.options || []"
-                    :issues="[]"
-                    :input-id="`wizard-destination-${destination.id}-${field.key}`"
-                    :allow-path-edit="isOfflineBrowserDraft"
-                    @update:value="setDestinationField(destination.id, field.key, $event)"
-                  />
+                  <template v-for="field in destination.fields || []" :key="field.key">
+                    <small v-if="field.type === 'connection'" class="helper-copy" role="status">
+                      Account selection is available in Configuration after creating the workflow.
+                    </small>
+                    <ReleaseFieldControl
+                      v-else
+                      :field="field"
+                      :value="String(selectedDestination(destination.id)?.config[field.key] ?? '')"
+                      :options="field.options || []"
+                      :issues="[]"
+                      :input-id="`wizard-destination-${destination.id}-${field.key}`"
+                      :allow-path-edit="isOfflineBrowserDraft"
+                      @update:value="setDestinationField(destination.id, field.key, $event)"
+                    />
+                  </template>
                 </div>
               </div>
             </div>
@@ -423,7 +430,12 @@ import InputText from "primevue/inputtext";
 import Textarea from "primevue/textarea";
 import Button from "primevue/button";
 import { nanoid } from "nanoid";
-import type { IconType, ReleaseConfig } from "@pipelab/shared";
+import type {
+  IconType,
+  ProducerInspection,
+  ReleaseConfig,
+  ReleaseFieldOption,
+} from "@pipelab/shared";
 import { useAPI } from "../composables/api";
 import { useAgentAvailability } from "../composables/useAgentAvailability";
 import { uiEnvironment } from "../composables/ui-runtime";
@@ -460,7 +472,11 @@ const isOfflineBrowserDraft = computed(() =>
 );
 const catalogLoading = ref(false);
 const catalogError = ref("");
+const producerInspectionOptions = ref<Record<string, ReleaseFieldOption[]>>({});
+const producerInspectionLoading = ref(false);
+const producerInspectionError = ref(false);
 let catalogRequest = 0;
+let producerInspectionRequest = 0;
 let createRequest = 0;
 const createPending = ref(false);
 const createError = ref("");
@@ -503,6 +519,15 @@ const selectedBuildTarget = computed(() =>
   selectedBuildProducer.value?.targets.find(
     (target) => target.id === selectedBuild.value?.targets[0]?.id,
   ),
+);
+const producerInspectionSignature = computed(() =>
+  JSON.stringify({
+    visible: props.visible,
+    ready: isReady.value,
+    producer: selectedBuildProducer.value?.id,
+    sourceConfig: draft.value.source.config,
+    build: selectedBuild.value,
+  }),
 );
 const canContinueDetails = computed(() => releaseWizardCanContinueDetails(draft.value));
 const canContinueSource = computed(() =>
@@ -619,6 +644,48 @@ const setBuildTargetField = (key: string, value: unknown) => {
   const target = selectedBuild.value?.targets[0];
   if (target) target.config[key] = value;
 };
+const buildFieldOptions = (key: string, fallback: ReleaseFieldOption[]) =>
+  producerInspectionOptions.value[key] || fallback;
+const inspectSelectedBuild = async () => {
+  const requestId = ++producerInspectionRequest;
+  const producer = selectedBuildProducer.value;
+  const build = selectedBuild.value;
+  producerInspectionOptions.value = {};
+  producerInspectionError.value = false;
+  producerInspectionLoading.value = false;
+  if (!props.visible || !isReady.value || !producer?.requiresAgentInspection || !build) return;
+
+  const buildSnapshot = structuredClone(toRaw(build));
+  const sourceConfig = structuredClone(toRaw(draft.value.source.config));
+  const isCurrent = () =>
+    requestId === producerInspectionRequest &&
+    props.visible &&
+    isReady.value &&
+    selectedBuild.value?.id === buildSnapshot.id &&
+    selectedBuildProducer.value?.id === producer.id;
+  producerInspectionLoading.value = true;
+  try {
+    const result = await api.execute("release:producer:inspect", {
+      provider: buildSnapshot.engine,
+      sourceConfig,
+      config: {
+        id: buildSnapshot.id,
+        provider: buildSnapshot.engine,
+        enabled: buildSnapshot.enabled,
+        config: buildSnapshot.config,
+        targets: buildSnapshot.targets,
+      },
+    });
+    if (!isCurrent()) return;
+    if (result.type === "error") throw new Error(result.ipcError);
+    const inspection = result.result as ProducerInspection;
+    producerInspectionOptions.value = inspection.fieldOptions || {};
+  } catch {
+    if (isCurrent()) producerInspectionError.value = true;
+  } finally {
+    if (isCurrent()) producerInspectionLoading.value = false;
+  }
+};
 const setDestinationField = (provider: string, key: string, value: unknown) => {
   const destination = selectedDestination(provider);
   if (destination) destination.config[key] = value;
@@ -629,6 +696,7 @@ const invalidateCreateRequest = () => {
 };
 onBeforeUnmount(() => {
   catalogRequest++;
+  producerInspectionRequest++;
   invalidateCreateRequest();
 });
 const create = async () => {
@@ -692,6 +760,7 @@ watch(
   },
   { flush: "sync" },
 );
+watch(producerInspectionSignature, () => void inspectSelectedBuild(), { flush: "sync" });
 watch(
   draft,
   () => {

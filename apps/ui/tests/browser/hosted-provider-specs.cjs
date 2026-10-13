@@ -85,6 +85,16 @@ const chromiumPath = process.env.CHROMIUM_PATH || "/usr/bin/chromium";
         exact: true,
       })
       .waitFor();
+    await dialog
+      .getByText("Account selection is available in Configuration after creating the workflow.", {
+        exact: true,
+      })
+      .waitFor();
+    assert.equal(
+      await dialog.getByRole("button", { name: "Add" }).count(),
+      0,
+      "the disconnected wizard does not show an inert account Add control",
+    );
     await page.screenshot({ path: "/tmp/pipelab-hosted-destination-specs.png", fullPage: true });
     await dialog.getByRole("button", { name: "Continue" }).click();
 

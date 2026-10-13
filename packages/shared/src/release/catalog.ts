@@ -89,6 +89,9 @@ export const mergeReleaseCatalog = (
   const mergeDefinition = <
     T extends {
       id: string;
+      label: string;
+      description?: string;
+      icon?: unknown;
       fields?: unknown[];
       defaultConfig: Record<string, unknown>;
     },
@@ -96,24 +99,36 @@ export const mergeReleaseCatalog = (
     base: T,
     current: T,
   ): T => ({
-    ...current,
     ...base,
-    defaultConfig: { ...current.defaultConfig, ...base.defaultConfig },
+    ...current,
+    id: base.id,
+    label: base.label,
+    description: base.description ?? current.description,
+    icon: base.icon ?? current.icon,
+    fields: current.fields ?? base.fields,
+    defaultConfig: { ...base.defaultConfig, ...current.defaultConfig },
   });
   return {
     buildTypes: mergeCatalogItems(bundled.buildTypes, runtime.buildTypes, (base, current) => ({
-      ...current,
       ...base,
+      ...current,
+      id: base.id,
+      label: base.label,
+      description: base.description ?? current.description,
+      icon: base.icon ?? current.icon,
     })),
     sources: mergeCatalogItems(bundled.sources, runtime.sources, mergeDefinition),
     producers: mergeCatalogItems(bundled.producers, runtime.producers, (base, current) => ({
       ...mergeDefinition(base, current),
       targets: mergeCatalogItems(base.targets, current.targets, (baseTarget, currentTarget) => ({
-        ...currentTarget,
         ...baseTarget,
+        ...currentTarget,
+        id: baseTarget.id,
+        label: baseTarget.label,
+        fields: currentTarget.fields ?? baseTarget.fields,
         availability: currentTarget.availability,
         availabilityStatus: currentTarget.availabilityStatus,
-        defaultConfig: { ...currentTarget.defaultConfig, ...baseTarget.defaultConfig },
+        defaultConfig: { ...baseTarget.defaultConfig, ...currentTarget.defaultConfig },
       })),
     })),
     destinations: mergeCatalogItems(
