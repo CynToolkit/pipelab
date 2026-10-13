@@ -171,6 +171,18 @@ describe("built-in provider metadata", () => {
         ],
       },
     ]);
+
+    availability.status!.value = "offline";
+    const offlineProvider = store.getProviderDefinition(runtimeProvider.id);
+    expect(offlineProvider?.integrations?.map((integration) => integration.name)).toEqual([
+      "Browser Executable",
+      "Browser Profile",
+    ]);
+    expect(offlineProvider?.integrations?.[0].fields[0]).toMatchObject({
+      key: "path",
+      label: "Browser Executable Path",
+      type: "file",
+    });
   });
 
   it("keeps packaged identity while using runtime catalog schemas and defaults", async () => {
