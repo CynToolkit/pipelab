@@ -41,8 +41,12 @@ The journey verifies that hosted navigation and browser preferences work
 without app WebSocket connections, confirms the selected locale is rendered
 after changing it and after reload, and checks that agent-backed guide reset is
 disabled while detached. It also covers browser storage rejecting a preference
-change. Hosted mode controls startup discovery only; a later paired attach can
-connect an agent without rebuilding or reloading.
+change. The auth check accepts both deployment states: configured public
+Supabase browser settings must expose a usable sign-in flow while the agent is
+detached; absent settings must show the existing configuration notice. Set
+`EXPECT_BROWSER_AUTH=present` or `EXPECT_BROWSER_AUTH=absent` to require one
+state explicitly. Hosted mode controls startup discovery only; a later paired
+attach can connect an agent without rebuilding or reloading.
 
 ## Hosted provider specifications
 
