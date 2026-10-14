@@ -46,29 +46,55 @@ Changesets are the release mechanism. Add a changeset when a user-facing
 package change needs release tracking, and do not manually edit generated
 versions or lockfile entries unless the task requires it.
 
-## Verification
+## Verification — shipping first
 
-Start with the narrowest relevant check, then broaden it when the change
-crosses package or runtime boundaries:
+The goal is to ship correct, working changes. Verification must be
+proportional to risk and provide useful confidence, not become a repeated
+activity that delays delivery.
 
-- logic or provider change: focused package tests;
-- TypeScript/API/config change: focused tests plus the affected package
-  typecheck;
-- UI change: focused UI tests and, when relevant, a browser check;
-- Supabase migration/function change: migration or function tests plus the
-  affected package checks;
-- plugin or cross-package change: affected package tests, typechecks, and
-  builds as needed;
-- release or repository-wide configuration change: the applicable full test,
-  lint, typecheck, and build commands.
+### During implementation
 
-Do not skip verification categorically, and do not run every expensive check
-for an isolated documentation edit. Record any unavailable check and why.
+- Complete a coherent implementation batch before routine validation. Use a
+  quick, focused check earlier only to resolve a specific uncertainty.
+- Plan one deliberate, targeted verification pass near completion rather than
+  running tests, typechecks, lint, or builds after every edit.
+- Never repeat a successful check when the relevant code and inputs have not
+  changed. After a fix, rerun the failed check and other checks actually
+  affected by that fix, not the entire previous sequence.
+- Prefer code inspection and existing tests over adding tests for incidental
+  implementation details. Add or update focused tests for meaningful new
+  behavior or regressions when they improve confidence.
 
-During iteration, prefer fast, focused local checks and rerun them as changes
-evolve. Save slower, broad CI pipelines for final verification after local
-checks and review are complete, unless earlier CI feedback is needed to resolve
-a specific issue.
+### Choose checks by risk
+
+- **Low risk:** Documentation, copy, isolated styling, or nonfunctional edits.
+  Inspect the diff and relevant output when useful; application tests,
+  typechecks, and builds are not required without a concrete reason.
+- **Normal risk:** UI behavior, business logic, API/configuration changes, and
+  bug fixes. Run the most relevant focused tests; typecheck affected packages
+  when types or contracts may be affected. Use a targeted browser check when
+  interaction or visual behavior cannot be assessed adequately otherwise.
+- **High risk:** Authentication, data integrity, migrations, workflow or
+  provider execution, plugin/runtime integration, cross-package contracts,
+  and release behavior. Run appropriate targeted integration or migration
+  tests plus the affected typechecks/builds. Broaden coverage only for
+  material failure modes that focused checks cannot cover.
+
+Prefer package scripts and affected workspaces to repository-wide commands.
+Reserve full suites, lint, typechecks, and builds for CI and changes whose
+scope genuinely requires them (such as release or repository-wide changes).
+Do not manually duplicate CI coverage without a concrete reason. A failing
+relevant check is not optional; investigate and fix regressions introduced
+by the change. Report unrelated or unavailable checks without disguising
+them as passing.
+
+**Stopping rule:** Once acceptance criteria are met and the selected
+risk-appropriate checks pass, stop validating and deliver for review. Do not
+add another round of tests, a full build, or a browser tour merely for
+reassurance. Reviewers should inspect the diff, requirements, and available
+evidence rather than reflexively repeating the implementer's checks.
+
+### Test boundaries
 
 Integration, workflow, plugin, runtime, and release execution tests belong in
 the CLI host (`apps/cli/tests/e2e`) using the existing test utilities. Keep
@@ -78,6 +104,9 @@ integration tests that must not execute providers should use
 `workflow run --dry-run`. UI behavior belongs in UI tests. Prefer fake or
 mocked provider boundaries when a third-party service is not the subject of
 the test.
+
+Record what was actually checked, relevant omissions, and remaining risks.
+Never claim checks passed unless they ran successfully.
 
 ## TypeScript and code boundaries
 
