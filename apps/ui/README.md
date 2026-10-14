@@ -140,6 +140,15 @@ the violations and the exact supported Editor, Website, preview, callback, and
 paired-agent origins, and removing inline code or adding narrowly scoped
 hash/nonce support where appropriate.
 
+On the October 14, 2026 PR preview, both Pages responses were HTTP 200 and
+returned the Report-Only header without an enforcing CSP. Chromium observed
+Editor violations for `style-src-elem` (99), `script-src-elem` (1), and
+`script-src-attr` (1), and Website violations for `style-src-elem` (41),
+`script-src-elem` (1), and `connect-src` (2). The check counted directives only
+and did not retain blocked URLs. These results confirm that Report-Only does
+not break the previews; the policy is not ready for enforcement until the
+inline-content and Website connection violations are reviewed.
+
 ### Analytics privacy
 
 PostHog receives anonymous product analytics only. Browser and Desktop auth do
