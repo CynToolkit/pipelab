@@ -5,12 +5,14 @@ Cloudflare Workers under the repository's root `workers/` directory own the auth
 ## Deploy
 
 1. Apply `migrations/20260916000000_pipelab_cloud_artifacts.sql` to the project database.
-2. Configure these Doppler secrets: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, and `R2_BUCKET_NAME`. Configure `CLOUDFLARE_API_TOKEN` for Wrangler deployment.
+2. Configure these Doppler secrets: `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, and `R2_BUCKET_NAME`. During the migration window, the deploy script still accepts `SUPABASE_ANON_KEY` when the publishable variable is absent. Configure `CLOUDFLARE_API_TOKEN` for Wrangler deployment.
 3. Run `mise run deploy:artifacts`. Wrangler deploys the Worker and uploads those Doppler values as Worker secrets.
 4. Set `PIPELAB_CLOUD_WORKER_URL` in Doppler to the deployed Worker origin, then build/package Pipelab with Doppler so the desktop and CLI use that origin.
 5. Cloudflare's `17 * * * *` Cron Trigger runs cleanup.
 
-The Worker preserves the existing upload actions (`prepareUpload`, `signParts`, `abortUpload`, and `completeUpload`). Artifacts are recorded only after R2 confirms their size and metadata. The database pins the latest upload per user and artifact output; unpinned artifacts expire after seven days. Cleanup records each deletion result and retries failures.
+The Worker preserves the existing upload actions (`prepareUpload`, `signParts`, `abortUpload`, and `completeUpload`). Its Supabase publishable key is only the project API key; each request's user access token remains in `Authorization` and is verified through Supabase Auth before the operation. Service-role credentials remain server-only. Artifacts are recorded only after R2 confirms their size and metadata. The database pins the latest upload per user and artifact output; unpinned artifacts expire after seven days. Cleanup records each deletion result and retries failures.
+
+For key migration, add `SUPABASE_PUBLISHABLE_KEY` in Doppler, deploy and verify the Worker and client builds, then remove the legacy `SUPABASE_ANON_KEY` alias in a separately reviewed change. The Worker and build configuration prefer the publishable key whenever both names exist.
 
 ## Local development
 

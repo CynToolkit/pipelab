@@ -479,6 +479,9 @@ importers:
 
   apps/website:
     dependencies:
+      '@pipelab/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       '@primevue/themes':
         specifier: ^4.5.0
         version: 4.5.4

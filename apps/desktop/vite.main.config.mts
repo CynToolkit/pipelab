@@ -3,6 +3,7 @@ import { defineConfig, loadEnv, mergeConfig } from "vite";
 import { getBuildConfig, getBuildDefine, external, pluginHotRestart } from "./vite.base.config.mts";
 import tsconfigPaths from "vite-tsconfig-paths";
 import { resolve } from "path";
+import { resolveSupabasePublishableKey } from "@pipelab/shared/supabase-key";
 
 // https://vitejs.dev/config
 export default defineConfig((env) => {
@@ -55,6 +56,9 @@ export default defineConfig((env) => {
       ...define,
       "process.env.POSTHOG_API_KEY": JSON.stringify(environment.POSTHOG_API_KEY),
       "process.env.SUPABASE_URL": JSON.stringify(environment.SUPABASE_URL),
+      "process.env.SUPABASE_PUBLISHABLE_KEY": JSON.stringify(
+        resolveSupabasePublishableKey(environment),
+      ),
       "process.env.SUPABASE_ANON_KEY": JSON.stringify(environment.SUPABASE_ANON_KEY),
       "process.env.PIPELAB_CLOUD_WORKER_URL": JSON.stringify(environment.PIPELAB_CLOUD_WORKER_URL),
     },
