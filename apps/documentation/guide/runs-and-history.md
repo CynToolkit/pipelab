@@ -35,7 +35,9 @@ If a step fails, review its log and the provider's setup page before rerunning
 the workflow. Failed run details summarize common authentication, permission,
 connection, missing-file or tool, and disk-space failures when the error message
 provides enough information. Forbidden responses point to checking destination
-account permissions, while authentication failures point to signing in again.
+account permissions, while local `EACCES` or `EPERM` errors point to checking
+permissions for the reported file path. Authentication failures point to
+signing in again.
 The summary identifies the failed step and
 destination when available, shows how many steps succeeded and how many
 artifacts were produced, and suggests a next action. Use **View step logs** to

@@ -154,6 +154,13 @@ export const runFailureArtifactSummary = (entry: BuildHistoryEntry) => {
 };
 
 const failureGuidance = (message: string) => {
+  if (/\bEACCES\b|\bEPERM\b|access is denied/i.test(message)) {
+    return {
+      category: "Permission",
+      summary: "A local file or folder could not be accessed.",
+      nextAction: "Check file permissions for the reported path, then rerun this workflow.",
+    };
+  }
   if (
     /\b403\b|forbidden|permission denied|insufficient (?:permission|scope)|not allowed/i.test(
       message,
@@ -171,13 +178,6 @@ const failureGuidance = (message: string) => {
       category: "Authentication",
       summary: "The destination rejected the configured account or session.",
       nextAction: "Sign in to the destination again, then rerun this workflow.",
-    };
-  }
-  if (/\bEACCES\b|\bEPERM\b|permission denied|access is denied/i.test(message)) {
-    return {
-      category: "Permission",
-      summary: "Pipelab could not access a required file or destination.",
-      nextAction: "Check access to the reported path or destination, then rerun this workflow.",
     };
   }
   if (/\bENOSPC\b|no space left|disk full|not enough disk space/i.test(message)) {

@@ -205,6 +205,27 @@ describe("buildRunFailureDiagnostics", () => {
     });
   });
 
+  it("distinguishes local filesystem permission errors from destination permission failures", () => {
+    const run = entry();
+    run.status = "failed";
+    run.steps[0] = {
+      ...run.steps[0],
+      name: "Package game files",
+      status: "failed",
+      error: {
+        message: "EACCES: permission denied, open '/games/output.zip'",
+        timestamp: 20,
+      },
+    };
+
+    expect(buildRunFailureDiagnostics(run)[0]).toMatchObject({
+      category: "Permission",
+      summary: expect.stringMatching(/local file or folder/i),
+      nextAction: expect.stringMatching(/file permissions.*reported path/i),
+      rawMessage: "EACCES: permission denied, open '/games/output.zip'",
+    });
+  });
+
   it("suggests checking installation for a run setup command that is missing", () => {
     const run = entry();
     run.status = "failed";
