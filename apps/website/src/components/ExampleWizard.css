@@ -54,7 +54,9 @@
   text-align: left;
   border-radius: 7px;
   padding: 6px;
-  font: 600 11px/1.25 "Public Sans", sans-serif;
+  font:
+    600 11px/1.25 "Public Sans",
+    sans-serif;
   cursor: pointer;
 }
 .wizard-steps button[aria-current="step"] {
@@ -113,7 +115,9 @@
   border: 1px solid #dce0ed;
   border-radius: 6px;
   padding: 10px;
-  font: 13px "Public Sans", sans-serif;
+  font:
+    13px "Public Sans",
+    sans-serif;
   color: #172047;
   background: #fff;
   box-sizing: border-box;
@@ -148,7 +152,9 @@
   padding: 10px;
   min-height: 60px;
   cursor: pointer;
-  font: 700 12px "Public Sans", sans-serif;
+  font:
+    700 12px "Public Sans",
+    sans-serif;
 }
 .choice-row button small {
   display: block;
@@ -184,7 +190,9 @@
   min-height: 42px;
   padding: 0 15px;
   border-radius: 6px;
-  font: 700 12px "Public Sans", sans-serif;
+  font:
+    700 12px "Public Sans",
+    sans-serif;
   cursor: pointer;
 }
 .wizard-actions .back {
@@ -226,25 +234,6 @@
   font-weight: 700;
   overflow-wrap: anywhere;
 }
-.match-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  margin-bottom: 8px;
-  padding: 4px 7px;
-  border-radius: 5px;
-  background: #eeebff;
-  color: #4335ca;
-  font-size: 11px;
-  font-weight: 700;
-}
-.build-summary {
-  display: block;
-  margin-bottom: 7px;
-}
-.build-summary:last-child {
-  margin-bottom: 0;
-}
 .completion {
   width: 100%;
 }
@@ -264,7 +253,9 @@
   border-radius: 5px;
   background: #4b3cf2;
   color: white;
-  font: 700 12px "Public Sans", sans-serif;
+  font:
+    700 12px "Public Sans",
+    sans-serif;
 }
 .dashboard-workflows {
   list-style: none;
@@ -313,7 +304,9 @@
   align-items: center;
   justify-content: center;
   border-radius: 6px;
-  font: 700 10px "Public Sans", sans-serif;
+  font:
+    700 10px "Public Sans",
+    sans-serif;
   min-height: 30px;
   margin: 0;
   padding: 0 7px;

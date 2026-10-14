@@ -6,30 +6,16 @@
         <div class="flex align-items-center justify-content-between py-3">
           <div class="logo">
             <RouterLink class="nav-link-logo" :to="{ name: 'Home' }">
-              <img
-                height="48"
-                src="/banner.png"
-                alt="Pipelab"
-                class="logo-img"
-              />
+              <img height="48" src="/banner.png" alt="Pipelab" class="logo-img" />
             </RouterLink>
           </div>
           <nav class="hidden lg:flex" aria-label="Primary navigation">
-            <RouterLink
-              v-for="item in menuItems"
-              :key="item.label"
-              :to="item.to"
-              class="nav-link"
-            >
+            <RouterLink v-for="item in menuItems" :key="item.label" :to="item.to" class="nav-link">
               <span>{{ item.label }}</span>
             </RouterLink>
-            <a
-              v-for="item in resourceItems"
-              :key="item.label"
-              :href="item.href"
-              class="nav-link"
-              >{{ item.label }}</a
-            >
+            <a v-for="item in resourceItems" :key="item.label" :href="item.href" class="nav-link">{{
+              item.label
+            }}</a>
           </nav>
           <Button
             id="mobile-menu-toggle"
@@ -79,12 +65,8 @@
           <div class="footer-brand-column">
             <div class="footer-brand">
               <img height="32" src="/banner.png" alt="Pipelab" />
-              <p class="text-sm opacity-70">
-                Turn your game project into a build you can share.
-              </p>
-              <p class="text-sm opacity-50 mt-4">
-                © 2026 Pipelab. All rights reserved.
-              </p>
+              <p class="text-sm opacity-70">Turn your game project into a build you can share.</p>
+              <p class="text-sm opacity-50 mt-4">© 2026 Pipelab. All rights reserved.</p>
             </div>
           </div>
           <div>
@@ -106,26 +88,16 @@
             <h4 class="footer-title">Support</h4>
             <ul class="list-none p-0 m-0">
               <li>
-                <a href="mailto:contact@pipelab.app" class="footer-link"
-                  >Contact Us</a
-                >
+                <a href="mailto:contact@pipelab.app" class="footer-link">Contact Us</a>
               </li>
               <li>
                 <a href="https://docs.pipelab.app" class="footer-link">Docs</a>
               </li>
               <li>
-                <a
-                  href="https://github.com/CynToolkit/pipelab"
-                  class="footer-link"
-                  >GitHub</a
-                >
+                <a href="https://github.com/CynToolkit/pipelab" class="footer-link">GitHub</a>
               </li>
               <li>
-                <a
-                  href="//discord.gg/MzNw26cBb5"
-                  target="_blank"
-                  rel="noopener"
-                  class="footer-link"
+                <a href="//discord.gg/MzNw26cBb5" target="_blank" rel="noopener" class="footer-link"
                   >Community Discord</a
                 >
               </li>
@@ -150,9 +122,9 @@ const menuItems = ref([
     to: { name: "Home", hash: "#product" },
   },
   {
-    label: "Workflows",
+    label: "How it works",
     icon: "pi pi-list",
-    to: { name: "Home", hash: "#workflows" },
+    to: { name: "Home", hash: "#how-it-works" },
   },
   { label: "Download", icon: "pi pi-download", to: { name: "Download" } },
 ]);
@@ -292,7 +264,8 @@ const closeMobileMenuOnEscape = () => {
   padding: 1rem;
   max-height: calc(100dvh - 85px);
   overflow-y: auto;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
+  box-shadow:
+    0 4px 6px -1px rgba(0, 0, 0, 0.1),
     0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }
 .mobile-nav-link {

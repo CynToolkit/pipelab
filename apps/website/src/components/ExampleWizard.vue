@@ -6,12 +6,7 @@ import SteamIcon from "~icons/simple-icons/steam";
 import ItchIcon from "~icons/simple-icons/itchdotio";
 type Source = "construct" | "folder" | "";
 type Destination = "Steam" | "itch.io";
-const labels = [
-  "Name & description",
-  "Project source",
-  "Destinations",
-  "Recap",
-];
+const labels = ["Name & description", "Project source", "Destinations", "Recap"];
 const sourceLabels: Record<Exclude<Source, "">, string> = {
   construct: "Construct project",
   folder: "Folder",
@@ -20,17 +15,18 @@ const step = ref(0);
 const name = ref("");
 const description = ref("");
 const source = ref<Source>("");
+const sourcePath = ref("");
 const destinations = ref<Destination[]>([]);
 const complete = ref(false);
 const heading = ref<HTMLElement | null>(null);
 const valid = computed(() => [
   Boolean(name.value.trim()),
-  Boolean(source.value),
+  Boolean(source.value && sourcePath.value.trim()),
   destinations.value.length > 0,
 ]);
 const canAdvance = computed(() => step.value < 3 && valid.value[step.value]);
 const maxStep = computed(() =>
-  valid.value[0] ? (valid.value[1] ? (valid.value[2] ? 3 : 2) : 1) : 0
+  valid.value[0] ? (valid.value[1] ? (valid.value[2] ? 3 : 2) : 1) : 0,
 );
 function move(target: number) {
   if (target < 0 || target > maxStep.value || complete.value) return;
@@ -38,34 +34,9 @@ function move(target: number) {
   nextTick(() => heading.value?.focus());
 }
 function chooseSource(value: Source) {
+  if (source.value !== value) sourcePath.value = "";
   source.value = value;
 }
-const exampleBuilds = computed(() => {
-  const builds: { title: string }[] = [];
-  if (destinations.value.includes("Steam")) {
-    builds.push(
-      source.value === "construct"
-        ? {
-            title: "Electron desktop · Windows x64",
-          }
-        : {
-            title: "Desktop build needed",
-          }
-    );
-  }
-  if (destinations.value.some((destination) => destination === "itch.io")) {
-    builds.push({
-      title:
-        source.value === "construct" ? "Construct web export" : "Game files",
-    });
-  }
-  return builds;
-});
-const buildMatchStatus = computed(() =>
-  source.value === "folder" && destinations.value.includes("Steam")
-    ? "Needs project inspection"
-    : "Auto-matched preview"
-);
 const dashboardProjects = computed(() => [
   {
     id: "current",
@@ -104,6 +75,7 @@ function restart() {
   name.value = "";
   description.value = "";
   source.value = "";
+  sourcePath.value = "";
   destinations.value = [];
   complete.value = false;
   step.value = 0;
@@ -113,13 +85,10 @@ function restart() {
 <template>
   <div class="wizard" role="region" aria-label="Try an example game workflow">
     <div class="wizard-chrome">
-      <img
-        class="wizard-brand"
-        src="/banner.png"
-        alt="Pipelab"
-        width="98"
-        height="25"
-      /><span class="demo-label">Interactive example</span>
+      <img class="wizard-brand" src="/banner.png" alt="Pipelab" width="98" height="25" /><span
+        class="demo-label"
+        >Interactive example</span
+      >
     </div>
     <div class="wizard-layout">
       <nav class="wizard-steps" aria-label="Example workflow steps">
@@ -140,13 +109,10 @@ function restart() {
       <div class="wizard-content">
         <template v-if="!complete"
           ><div :key="step" class="wizard-panel">
-            <h2 ref="heading" tabindex="-1">
-              {{ step + 1 }}. {{ labels[step] }}
-            </h2>
+            <h2 ref="heading" tabindex="-1">{{ step + 1 }}. {{ labels[step] }}</h2>
             <template v-if="step === 0"
               ><p>Give your game’s workflow a name.</p>
-              <label for="example-name"
-                >Name <span aria-hidden="true">*</span></label
+              <label for="example-name">Name <span aria-hidden="true">*</span></label
               ><input
                 id="example-name"
                 v-model="name"
@@ -179,28 +145,38 @@ function restart() {
                   Folder <small>Game files</small>
                 </button>
               </div>
+              <template v-if="source">
+                <label for="example-source-path">
+                  {{ source === "construct" ? "Project file path" : "Folder path" }}
+                  <span aria-hidden="true">*</span>
+                </label>
+                <input
+                  id="example-source-path"
+                  v-model="sourcePath"
+                  type="text"
+                  autocomplete="off"
+                  required
+                  :placeholder="
+                    source === 'construct' ? 'Games/MyGame/MyGame.c3p' : 'Games/MyGame/'
+                  "
+                />
+              </template>
               <p class="source-note">
-                Choose the project file or folder in Pipelab after creating the
-                workflow.
+                Enter an example path. This preview won’t open or read files; choose the real
+                project in Pipelab after creating the workflow.
               </p></template
             >
             <template v-else-if="step === 2"
-              ><p>
-                Choose at least one store. You’ll connect your account later in
-                the app.
-              </p>
+              ><p>Choose at least one store. You’ll connect your account later in the app.</p>
               <div class="choice-row stores">
                 <button
-                  v-for="store in (['Steam', 'itch.io'] as Destination[])"
+                  v-for="store in ['Steam', 'itch.io'] as Destination[]"
                   :key="store"
                   type="button"
                   :aria-pressed="destinations.includes(store)"
                   @click="toggleDestination(store)"
                 >
-                  <component
-                    :is="store === 'Steam' ? SteamIcon : ItchIcon"
-                    aria-hidden="true"
-                  />
+                  <component :is="store === 'Steam' ? SteamIcon : ItchIcon" aria-hidden="true" />
                   {{ store }}
                 </button>
               </div></template
@@ -221,36 +197,18 @@ function restart() {
                   <dd>{{ source ? sourceLabels[source] : "" }}</dd>
                 </div>
                 <div>
-                  <dt>Stores</dt>
-                  <dd>{{ destinations.join(", ") }}</dd>
+                  <dt>Project path</dt>
+                  <dd>{{ sourcePath.trim() }}</dd>
                 </div>
                 <div>
-                  <dt>Build match</dt>
-                  <dd>
-                    <span class="match-badge"
-                      ><i class="pi pi-sparkles" aria-hidden="true" />
-                      {{ buildMatchStatus }}</span
-                    >
-                    <span
-                      v-for="build in exampleBuilds"
-                      :key="build.title"
-                      class="build-summary"
-                    >
-                      <strong>{{ build.title }}</strong>
-                    </span>
-                  </dd>
+                  <dt>Stores</dt>
+                  <dd>{{ destinations.join(", ") }}</dd>
                 </div>
               </dl></template
             >
           </div>
           <div class="wizard-actions">
-            <button
-              v-if="step > 0"
-              type="button"
-              class="back"
-              @click="move(step - 1)"
-            >
-              Back</button
+            <button v-if="step > 0" type="button" class="back" @click="move(step - 1)">Back</button
             ><button
               v-if="step < 3"
               type="button"
@@ -265,28 +223,24 @@ function restart() {
           </div></template
         >
         <div v-else class="wizard-panel completion">
-          <h2 ref="heading" tabindex="-1">Saved workflows</h2>
-          <p>Dashboard preview. Nothing was saved, built or uploaded.</p>
+          <h2 ref="heading" tabindex="-1">Dashboard preview</h2>
+          <p>
+            Example only: nothing was saved, built or uploaded. In Pipelab, configure builds and
+            connect store accounts after creating a workflow.
+          </p>
           <ul class="dashboard-workflows">
             <li v-for="project in dashboardProjects" :key="project.id">
-              <span class="dashboard-avatar" aria-hidden="true">{{
-                project.initial
-              }}</span>
+              <span class="dashboard-avatar" aria-hidden="true">{{ project.initial }}</span>
               <span class="dashboard-project">
                 <strong>{{ project.name }}</strong>
-                <small
-                  >{{ project.sample ? "Sample · " : "Your example · "
-                  }}{{ project.detail }}</small
-                >
+                <small>{{ project.sample ? "Sample · " : "Example · " }}{{ project.detail }}</small>
               </span>
               <span class="dashboard-actions" aria-hidden="true">
                 <span>Edit</span><span>Run</span>
               </span>
             </li>
           </ul>
-          <button type="button" class="next" @click="restart">
-            Start again
-          </button>
+          <button type="button" class="next" @click="restart">Start again</button>
         </div>
       </div>
     </div>
