@@ -33,6 +33,18 @@ and password recovery, add the exact HTTPS deployment origin and its
 the host's SPA fallback. Desktop builds keep the `pipelab://` verification
 flow; do not expose service-role or billing secrets in UI environment values.
 
+### Local browser auth acceptance
+
+The checked-in local Supabase config enables email confirmation, sets the Auth
+site URL to `http://127.0.0.1:5185`, and allows the exact Editor callback
+`http://127.0.0.1:5185/auth/callback`. Local SMTP is captured by Mailpit at
+`http://127.0.0.1:54324`; it does not send real email. Start the local stack
+with `supabase start`, then run the hosted Editor on port `5185` with only the
+local API URL and public anon key. Use the full confirmation and recovery
+journey documented in the repository file `apps/ui/tests/browser/README.md`.
+Do not print or evaluate all of `supabase status` output: it also includes
+local service credentials. Never use production values for this journey.
+
 ## Focus a package
 
 Use the workspace name and package scripts to keep iteration focused:

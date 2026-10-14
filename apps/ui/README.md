@@ -49,14 +49,15 @@ Local workflows, machine settings, and execution require a connected agent. A
 browser build without this flag attempts agent discovery on startup; Electron
 always attempts startup connection even if the flag is present.
 
-## Hosted auth and browser security (maintainer decision)
+## Hosted auth and browser security
 
 Hosted mode currently creates a Supabase browser client with PKCE, automatic
 refresh, and persisted sessions. Signup and password recovery return to the
 SPA's `/auth/callback`; billing functions are invoked with the browser client.
 Desktop auth remains in the agent and is exposed to the UI over IPC. These are
-implementation facts, not security acceptance: maintainers still need to
-choose an auth direction and approve a deployment-specific CSP.
+implementation facts. The October 14, 2026 maintainer handoff selected the
+browser-managed session model and a Report-Only CSP rollout; the residual
+JavaScript-readable token risk remains documented below.
 
 The browser client uses `persistSession: true`, `autoRefreshToken: true`,
 `flowType: "pkce"`, and `detectSessionInUrl: false`; the callback route clears
@@ -114,48 +115,41 @@ assets to the BFF.
 
 ### CSP and deployment
 
-Do not claim a complete CSP for this static Vite/Pages project without the
-actual deployment origin allowlist and tested preview topology. At minimum,
-inventory `script-src`, `style-src`, `font-src`, `img-src`, `connect-src`, and
-`frame-src` against each deployment. Connections may include the configured
-Supabase origin (Auth, REST, Functions, and Realtime as used), agent WebSockets
-(`ws://`/`wss://` hosts, including local and remote development endpoints),
-and `https://eu.i.posthog.com`. Website/editor previews, Supabase Auth
-callbacks, and any preview iframe or popup origins must be evaluated for the
-actual environment; do not use broad wildcards to cover unknown preview hosts.
-The editor and website have separate Vite builds and Pages deployments, so
-their preview origins and resource lists must be reviewed separately. The
-editor build receives its Supabase and PostHog settings at build time; it does
-not currently produce a CSP `_headers` file or derive WebSocket destinations
-for a policy. A Pages `_headers` policy therefore needs an explicit, tested
-allowlist for each supported deployment or a reviewed deployment-specific
-header-generation step.
+Both Editor and Website production Vite builds emit a Cloudflare Pages
+`_headers` file with `Content-Security-Policy-Report-Only`. It is generated
+from each build's public `SUPABASE_URL` plus that app's reviewed dependencies;
+it never emits an enforcing `Content-Security-Policy` header. The Editor policy
+allows the fixed PostHog host and local agent loopback ports. The Website
+policy allows its GitHub release API, Umami and Tally hosts, YouTube embed, and
+Google Fonts. Supabase HTTPS and corresponding WebSocket origins are derived
+from the configured Supabase URL. No general `wss:` or third-party wildcard is
+used.
 
-The current `index.html` contains inline bootstrap CSS and JavaScript, plus an
-inline `onload` handler for Google Fonts; the UI also uses component/runtime
-styles. Prefer moving bootstrap code to external files or authorizing stable
-hashes/nonces where the serving layer can inject nonces, and test whether
-framework styles need a targeted exception. Do not paper over violations with
-`unsafe-inline` or `unsafe-eval` without a reviewed need. Configure headers in
-the deployment layer only after origins and directives are agreed; start with
-report-only, collect violations on production
-and preview builds, then enforce and verify auth callbacks, billing, telemetry,
-fonts, previews, and agent WebSocket connection in real browsers. `vite dev` /
-`vite preview` results do not establish the production Pages header behavior.
-No CSP response policy exists for the hosted UI in the repository, and this
-README does not change headers or production infrastructure.
+The policies do not include a report collector. Browsers can show violations
+in DevTools, but the current deployment does not retain reports server-side.
+The policy intentionally has no `unsafe-inline` or `unsafe-eval`. Editor
+bootstrap markup, Google Fonts' inline load handler, Website's inline Tally
+configuration, and runtime/component style attributes may therefore appear as
+Report-Only violations. Unknown paired-agent WebSocket hosts and preview
+embedding origins also require review; they are not allowed through broad
+source expressions. A violation currently cannot break rendering or auth
+callbacks because the policy is Report-Only. Vite development servers do not
+serve this Pages header, so inspect the built `_headers` artifact and the actual
+preview response before considering enforcement. Enforcement requires reviewing
+the violations and the exact supported Editor, Website, preview, callback, and
+paired-agent origins, and removing inline code or adding narrowly scoped
+hash/nonce support where appropriate.
 
 ### Analytics privacy
 
-Auth identification now sends the Supabase user ID as PostHog's stable
-`distinct_id` and the `is_anonymous` flag; the email property was removed from
-browser and Desktop auth calls. The account email displayed in the sidebar and
-Profile settings is marked `ph-no-capture` so PostHog autocapture does not
-include that text. The auth callback keeps pageview and autocapture disabled
-while PKCE codes or provider errors may be present in its initial URL. Logout
-resets the PostHog identity, and anonymous product analytics remain enabled.
-
-Maintainers must still decide whether sending a stable account ID to PostHog is
-approved for product analytics. If it is not approved, remove the authenticated
-`identify` calls while preserving anonymous capture; this decision remains
-open, and no email address is sent by auth identification.
+PostHog receives anonymous product analytics only. Browser and Desktop auth do
+not call `identify` or send a Supabase user ID, email address, or anonymous
+account flag. On auth initialization, any legacy PostHog state marked as
+identified is reset; existing anonymous visitor analytics are preserved.
+Logout resets analytics identity. The account email displayed in the sidebar
+and Profile settings is marked `ph-no-capture`, and the auth callback keeps
+pageview and autocapture disabled while PKCE codes or provider errors may be
+present in its initial URL. PostHog's initialization callback clears a legacy
+identified state before the SDK sends its initial pageview. The maintainer
+handoff selected anonymous-only analytics; historical PostHog records are not
+deleted by this code change.

@@ -187,6 +187,11 @@ let failureContext = "";
       await page.getByText(email, { exact: true }).waitFor({ timeout: 15000 });
     }
 
+    stage = "open authenticated profile";
+    await page.getByRole("button", { name: "Settings" }).click();
+    await page.locator(".settings-sidebar .sidebar-item").filter({ hasText: "Profile" }).click();
+    await page.getByRole("dialog").getByText(email, { exact: true }).waitFor({ timeout: 10000 });
+
     stage = "restore session after refresh";
     await page.reload({ waitUntil: "domcontentloaded" });
     await page.getByText(email, { exact: true }).waitFor({ timeout: 15000 });
@@ -291,9 +296,15 @@ let failureContext = "";
       .locator(".auth-callback")
       .innerText()
       .catch(() => "");
+    const visibleAlerts = await page
+      .getByRole("alert")
+      .allInnerTexts()
+      .catch(() => []);
     const failures = failedResponses.map(({ status, path }) => `${status} ${path}`).join(", ");
     const callback = callbackNavigations.length ? JSON.stringify(callbackNavigations) : "";
-    failureContext = [path, callbackText, callback, failures].filter(Boolean).join(" — ");
+    failureContext = [path, callbackText, callback, failures, visibleAlerts.join(" | ")]
+      .filter(Boolean)
+      .join(" — ");
     throw error;
   } finally {
     await context.close();

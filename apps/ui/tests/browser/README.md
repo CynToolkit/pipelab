@@ -48,6 +48,7 @@ detached; absent settings must show the existing configuration notice. Set
 state explicitly. Hosted mode controls startup discovery only; a later paired
 attach can connect an agent without rebuilding or reloading.
 
+
 ## Hosted provider specifications
 
 Start the UI with `VITE_PIPELAB_MODE=hosted` and no local agent, then run:
@@ -119,6 +120,7 @@ integration. Unit/component tests and failure-UI intercepts are useful UI
 checks; they are not real Supabase, email-delivery, Polar, or Desktop
 integration tests.
 
+
 Complete each nonproduction step and record the environment/build and observed
 result in the PR acceptance notes:
 
@@ -149,6 +151,7 @@ result in the PR acceptance notes:
 9. **Desktop compatibility:** separately verify the existing Desktop sign-in,
    restored session, and sign-out path over its normal IPC transport. Browser
    no-agent behavior does not establish Desktop compatibility.
+
 
 No hosted credentials or service secrets belong in this file. Do not use
 production credentials, perform production changes, or initiate any purchase,

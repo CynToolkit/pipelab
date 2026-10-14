@@ -25,6 +25,11 @@ export default {
     app.config.globalProperties.$posthog = posthog.init(apiKey, {
       api_host: "https://eu.i.posthog.com",
       ...(isAuthCallback ? { capture_pageview: false, autocapture: false } : {}),
+      // The SDK invokes `loaded` before its automatic initial pageview. Clear
+      // identity persisted by older app builds before any new capture occurs.
+      loaded: (instance) => {
+        if (instance.get_property("$user_state") === "identified") instance.reset();
+      },
     });
   },
 };

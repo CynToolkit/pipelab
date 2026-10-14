@@ -1,4 +1,4 @@
-import { defineConfig, loadEnv, searchForWorkspaceRoot } from "vite";
+import { defineConfig, loadEnv, searchForWorkspaceRoot, type Plugin } from "vite";
 import { realpathSync } from "node:fs";
 import vue from "@vitejs/plugin-vue";
 import { resolve } from "path";
@@ -16,6 +16,62 @@ const iconFontStylesheets = [
   "/@mdi/font/css/materialdesignicons.css",
   "/primeicons/primeicons.css",
 ] as const;
+
+function cspConnectOrigins(supabaseUrl: string | undefined) {
+  const origins = new Set([
+    "'self'",
+    "https://eu.i.posthog.com",
+    // The CLI's local agent port is selected at runtime.
+    "ws://localhost:*",
+    "ws://127.0.0.1:*",
+  ]);
+
+  if (supabaseUrl) {
+    try {
+      const url = new URL(supabaseUrl);
+      if (url.protocol === "https:" || url.protocol === "http:") {
+        origins.add(url.origin);
+        origins.add(`${url.protocol === "https:" ? "wss:" : "ws:"}//${url.host}`);
+      }
+    } catch {
+      // An absent or malformed public URL should not broaden the policy.
+    }
+  }
+
+  return [...origins].join(" ");
+}
+
+function reportOnlyCsp(supabaseUrl: string | undefined): Plugin {
+  const policy = [
+    "default-src 'self'",
+    "base-uri 'self'",
+    "object-src 'none'",
+    "frame-ancestors 'self'",
+    "form-action 'self'",
+    // QuickJS runs WebAssembly. Keep JavaScript eval and inline scripts disallowed.
+    "script-src 'self' 'wasm-unsafe-eval'",
+    "script-src-attr 'none'",
+    "style-src 'self' https://fonts.googleapis.com",
+    "style-src-attr 'none'",
+    "font-src 'self' data: https://fonts.gstatic.com",
+    "img-src 'self' data: blob:",
+    `connect-src ${cspConnectOrigins(supabaseUrl)}`,
+    "frame-src 'self'",
+    "worker-src 'self'",
+  ].join("; ");
+
+  return {
+    name: "hosted-ui-csp-report-only",
+    apply: "build",
+    generateBundle() {
+      this.emitFile({
+        type: "asset",
+        fileName: "_headers",
+        source: `/*\n  Content-Security-Policy-Report-Only: ${policy}\n`,
+      });
+    },
+  };
+}
 
 function modernIconFonts() {
   return {
@@ -82,6 +138,7 @@ export default defineConfig(({ mode }) => {
         // with project types like Steps, Message, etc.
         // resolvers: [PrimeVueResolver()]
       }),
+      reportOnlyCsp(env.SUPABASE_URL),
     ],
     define: {
       "process.env.SUPABASE_URL": JSON.stringify(env.SUPABASE_URL),
