@@ -32,3 +32,48 @@ The desktop's normal `mise run dev` remains Doppler-backed for development again
 Local R2 is exposed on `127.0.0.1:8787` through the path-style S3-compatible `PutObject`, `HeadObject`, and `DeleteObject` API. The API Worker listens on `127.0.0.1:8788`; its `R2_ENDPOINT_URL` points at the local R2 Worker and uses dummy local credentials. No production R2 credentials are needed locally, and multipart uploads remain production-only.
 
 Wrangler local state and `.dev.vars` files are gitignored. Do not expose the unauthenticated local R2 Worker to an untrusted network.
+
+## Polar billing Edge Functions
+
+The Edge Functions preserve the Editor and Desktop UI contracts:
+
+- `polar-available-plans` returns public, active recurring products as `{ plans: [...] }`.
+- `polar-user-plan` returns the signed-in user's subscriptions as `{ subscriptions: [...] }`.
+- `customer-portal` returns the signed-in customer's portal URL as `{ customerPortal: "..." }`.
+- `checkout` accepts `{ itemIds: [...] }`, validates the products, and returns `{ checkoutURL: "..." }`.
+
+The catalog endpoint is public because the upgrade dialog loads plans before sign-in. The other functions require a Supabase access token and validate it with Supabase Auth. The verified user ID supplies Polar's `external_customer_id`; subscription and customer responses are checked against that ID and the configured organization. Client-supplied IDs and email addresses are ignored. The functions need no customer mapping table, service-role key, database migration, or RLS change.
+
+Polar requests are pinned to `https://sandbox-api.polar.sh/v1`; there is no production endpoint override. Portal and checkout URLs are accepted only from HTTPS Polar sandbox hosts. Provider errors and payloads are neither logged nor returned to clients. Checkout creates a sandbox checkout session only when invoked; no checkout was invoked during implementation or testing.
+
+### Local sandbox configuration
+
+Keep these server-only values in the ignored file `supabase/functions/.env.local`. Do not add a `VITE_` prefix:
+
+```dotenv
+POLAR_TOKEN=
+POLAR_ORGANIZATION_ID=
+POLAR_ALLOWED_ORIGINS=http://127.0.0.1:5185,http://localhost:5185
+```
+
+`POLAR_TOKEN` must be an organization access token for Polar sandbox. `POLAR_ORGANIZATION_ID` must be that sandbox organization's UUID. Grant the token only the scopes this integration needs: `products:read`, `subscriptions:read`, `customers:read`, `customer_sessions:write`, and `checkouts:write`. See Polar's [product listing](https://polar.sh/docs/api-reference/products/list), [subscription listing](https://polar.sh/docs/api-reference/subscriptions/list), [customer lookup](https://polar.sh/docs/api-reference/customers/get-external), [customer session](https://polar.sh/docs/api-reference/customer-portal/sessions/create), and [checkout session](https://polar.sh/docs/api-reference/checkouts/create-session) API references.
+
+`POLAR_ALLOWED_ORIGINS` is an exact comma-separated origin list; wildcards are rejected. Without it, only the local Editor origins above are allowed. Add each required hosted Editor or Website origin explicitly in the server-side configuration for that nonproduction deployment.
+
+Start the local stack and serve the functions with the ignored local env file:
+
+```sh
+supabase start
+supabase functions serve --env-file supabase/functions/.env.local
+```
+
+If the token or organization ID is absent, billing functions fail closed with `billing_unavailable`. Live sandbox plan, subscription, and portal acceptance requires a verified sandbox token, organization, public recurring products, and a customer linked with the user's Supabase ID. Checkout must remain uncalled during read-only acceptance. No deployed-service inventory or alternate backend source was available for this task; confirm function ownership before deploying to any hosted project.
+
+Run the isolated function tests without credentials or network access:
+
+```sh
+deno check supabase/functions/polar-user-plan/index.ts supabase/functions/polar-available-plans/index.ts supabase/functions/customer-portal/index.ts supabase/functions/checkout/index.ts
+deno test supabase/functions/_shared/billing.test.ts
+```
+
+These mocked tests validate handler behavior and do not replace live sandbox acceptance. Configure secrets only in the intended nonproduction Supabase Edge Function environment. Never put `POLAR_TOKEN` in frontend builds, GitHub build variables, or browser-visible environment files.
