@@ -327,7 +327,7 @@ Deno.test("customer portal resolves only the authenticated user's customer", asy
     "customer-portal",
     dependencies(
       mockFetch((url) => {
-        if (url.pathname.endsWith("/customers/external/" + USER_A + "/")) {
+        if (url.pathname.endsWith("/customers/external/" + USER_A)) {
           return json({
             id: CUSTOMER_ID,
             external_id: USER_A,
@@ -359,7 +359,7 @@ Deno.test("customer portal resolves only the authenticated user's customer", asy
   const sessionBody = JSON.parse(String(calls[1].init.body)) as Record<string, unknown>;
   assertEquals(response.status, 200);
   assertEquals(calls.length, 2);
-  assertEquals(calls[0].url.pathname, "/v1/customers/external/" + USER_A + "/");
+  assertEquals(calls[0].url.pathname, "/v1/customers/external/" + USER_A);
   assertEquals(sessionBody.customer_id, CUSTOMER_ID);
   assertEquals(sessionBody.return_url, ORIGIN + "/");
   assertEquals(body, {

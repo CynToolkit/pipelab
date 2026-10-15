@@ -454,7 +454,7 @@ async function getCustomer(
   fetcher: typeof fetch,
 ): Promise<{ id: string }> {
   const url = new URL(
-    POLAR_SANDBOX_API + "/customers/external/" + encodeURIComponent(userId) + "/",
+    POLAR_SANDBOX_API + "/customers/external/" + encodeURIComponent(userId),
   );
   const customer = await polarRequest(url, config, fetcher);
   if (
