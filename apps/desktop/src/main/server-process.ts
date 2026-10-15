@@ -1,18 +1,19 @@
-import { spawn, ChildProcess } from "node:child_process";
-import { join, dirname } from "node:path";
+import type { ChildProcess } from "node:child_process";
+import { join } from "node:path";
 import { app } from "electron";
 import { is } from "@electron-toolkit/utils";
 import http from "node:http";
-import fs from "node:fs";
-import { websocketPort, uiDevPort, getUiDevServerFatalError } from "@pipelab/constants";
+import { uiDevPort, getUiDevServerFatalError } from "@pipelab/constants";
 import {
   fetchPipelabCli,
   projectRoot,
   PipelabContext,
   getDefaultUserDataPath,
 } from "@pipelab/core-node/desktop";
+import { monitorCliProcessExit, startAuthenticatedCliProcess } from "./cli-bootstrap";
 
 let serverProcess: ChildProcess | null = null;
+let serverPort: number | null = null;
 
 const isUp = (
   port: number,
@@ -22,7 +23,7 @@ const isUp = (
 ): Promise<boolean> =>
   new Promise<boolean>((resolve) => {
     const attempt = () => {
-      const req = http.get(`http://localhost:${port}`, (res) => {
+      const req = http.get(`http://127.0.0.1:${port}`, (res) => {
         res.resume();
         if (!silent) console.info(`[Server Check] Server is up on port ${port}`);
         resolve(true);
@@ -45,9 +46,10 @@ const isUp = (
     attempt();
   });
 
-export const startServer = async () => {
+export const startServer = async (): Promise<number> => {
   if (serverProcess) {
-    return;
+    if (serverPort === null) throw new Error("The CLI server startup is still in progress.");
+    return serverPort;
   }
 
   // 0. In dev mode, ensure UI dev server is running BEFORE anything else
@@ -58,14 +60,6 @@ export const startServer = async () => {
       console.error(getUiDevServerFatalError(uiDevPort));
       throw new Error("UI dev server not found. App cannot start in development mode.");
     }
-  }
-
-  // 1. Check if server is already running
-  let initialRetries = 1;
-  const alreadyUp = await isUp(websocketPort, 500, () => initialRetries-- > 0, true);
-  if (alreadyUp) {
-    console.info(`[Server] Server already running on port ${websocketPort}`);
-    return;
   }
 
   if (is.dev) {
@@ -79,55 +73,69 @@ export const startServer = async () => {
   const cliVersion = is.dev ? "local" : releaseTag;
   const { entryPoint, isLocal, packageDir } = await fetchPipelabCli(cliVersion, { context });
 
-  let serverPath = process.execPath;
   let args = [entryPoint, "serve"];
 
   if (isLocal && entryPoint.endsWith(".ts")) {
-    console.info(
-      `[Server] Local CLI detected at ${packageDir}, starting with hot-reload (tsx watch)`,
-    );
+    console.info(`[Server] Local CLI detected at ${packageDir}, starting with tsx`);
     const tsxPath = projectRoot ? join(projectRoot, "node_modules", ".bin", "tsx") : "tsx";
-    // When using tsx, we still use Electron as the runner
-    args = [tsxPath, "watch", entryPoint, "serve"];
+    // A single CLI process keeps its authenticated, OS-assigned port stable.
+    // The UI still uses Vite HMR; restart Desktop after changing CLI source.
+    args = [tsxPath, entryPoint, "serve"];
   } else {
     console.info(`[Server] Starting CLI server from: ${entryPoint}`);
   }
 
-  let isServerRunning = true;
-  serverProcess = spawn(serverPath, args, {
-    env: {
-      ...process.env,
-      ELECTRON_RUN_AS_NODE: "1",
-      NODE_ENV: is.dev ? "development" : "production",
-      PORT: websocketPort.toString(),
-      IS_SERVER: "true",
+  const childEnv = {
+    ...process.env,
+    ELECTRON_RUN_AS_NODE: "1",
+    NODE_ENV: is.dev ? "development" : "production",
+    PORT: "0",
+    IS_SERVER: "true",
+  };
+  args = [...args, "--port", "0", "--host", "127.0.0.1"];
+
+  const started = await startAuthenticatedCliProcess({
+    executable: process.execPath,
+    args,
+    env: childEnv,
+    desktopVersion: app.getVersion(),
+    onSpawn: (child) => {
+      serverProcess = child;
+      child.on("error", (error) => console.error("ERROR: CLI server process failed:", error));
+      monitorCliProcessExit(child, (code) => {
+        if (serverProcess === child && serverPort !== null) {
+          console.error(
+            `The authenticated CLI process exited with code ${code ?? "unknown"}. Closing Desktop to prevent reconnecting to an unverified local process; restart Desktop to try again.`,
+          );
+          serverPort = null;
+          app.exit(1);
+        }
+      });
+      child.on("close", (code) => {
+        console.info(`CLI server process exited with code ${code}`);
+        if (serverProcess === child) {
+          serverProcess = null;
+          serverPort = null;
+        }
+      });
     },
-    stdio: ["inherit", "inherit", "inherit"],
   });
-
-  serverProcess.on("error", (err) => console.error("ERROR: Failed to spawn server:", err));
-  serverProcess.stdout?.on("data", (d) => console.info(`[Server] ${d.toString().trim()}`));
-  serverProcess.stderr?.on("data", (d) => console.error(`[Server Error] ${d.toString().trim()}`));
-
-  serverProcess.on("close", (code) => {
-    console.info(`Server process exited with code ${code}`);
-    serverProcess = null;
-    isServerRunning = false;
-  });
-
-  // Wait for the server to be listening on the port
-  console.log(`[Server] Waiting for server on port ${websocketPort}...`);
-  // Wait indefinitely as long as the server process is running
-  const up = await isUp(websocketPort, 1000, () => isServerRunning);
-  if (!up) {
-    throw new Error(`Server failed to start on port ${websocketPort} (process exited)`);
+  if (serverProcess !== started.child || started.child.exitCode !== null) {
+    throw new Error(
+      "The CLI server stopped during startup verification. Restart Desktop and try again.",
+    );
   }
-  console.log(`[Server] CLI server is listening!`);
+  serverPort = started.port;
+
+  console.info(`[Server] Authenticated CLI server is ready on loopback port ${started.port}`);
+  return started.port;
 };
 
 export const stopServer = () => {
   if (serverProcess) {
-    serverProcess.kill();
+    const child = serverProcess;
     serverProcess = null;
+    serverPort = null;
+    child.kill();
   }
 };

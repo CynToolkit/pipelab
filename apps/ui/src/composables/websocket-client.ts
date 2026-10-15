@@ -18,6 +18,34 @@ import { nanoid } from "nanoid";
 
 export type WebSocketSendFn<KEY extends Channels> = WebSocketSendFunction<KEY>;
 
+export function resolveDefaultWebSocketUrl(
+  location: Pick<Location, "protocol" | "host" | "hostname" | "search"> | undefined,
+  isPackaged: boolean | undefined,
+  isDevelopment: boolean,
+): string {
+  if (!location) return `ws://localhost:${websocketPort}`;
+
+  if (!isDevelopment) {
+    const protocol = location.protocol === "https:" ? "wss:" : "ws:";
+    return `${protocol}//${location.host}`;
+  }
+
+  const queryPort = new URLSearchParams(location.search).get("cliPort");
+  const isLoopback = ["localhost", "127.0.0.1", "::1"].includes(location.hostname);
+  const isValidPort = queryPort !== null && /^\d{1,5}$/.test(queryPort);
+  if (isPackaged === false && isLoopback && isValidPort) {
+    const port = Number(queryPort);
+    if (port >= 1 && port <= 65535) {
+      // The Desktop sidecar binds IPv4 loopback. Do not let `localhost`
+      // resolve to a separate, unverified IPv6 listener on the same port.
+      return `ws://127.0.0.1:${port}`;
+    }
+  }
+
+  const cliPort = import.meta.env.VITE_PIPELAB_SERVER_PORT || websocketPort;
+  return `ws://${location.hostname}:${cliPort}`;
+}
+
 // Message queue item interface
 interface QueuedMessage {
   channel: Channels;
@@ -45,21 +73,14 @@ export class WebSocketClient {
   private isRenderer = false;
 
   constructor(private config: WebSocketClientConfig = {}) {
-    let defaultUrl = `ws://localhost:${websocketPort}`;
+    const isDev = process.env.NODE_ENV === "development";
+    let defaultUrl = resolveDefaultWebSocketUrl(
+      typeof window === "undefined" ? undefined : window.location,
+      typeof window === "undefined" ? undefined : window.isPackaged,
+      isDev,
+    );
 
     if (typeof window !== "undefined") {
-      const isDev = process.env.NODE_ENV === "development";
-      if (!isDev) {
-        const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-        defaultUrl = `${protocol}//${window.location.host}`;
-      } else {
-        // In dev, connect back to whichever host served the UI so remote
-        // browsers (e.g. over Tailscale) reach the CLI server. Identical to
-        // localhost when developing locally.
-        const cliPort = import.meta.env.VITE_PIPELAB_SERVER_PORT || websocketPort;
-        defaultUrl = `ws://${window.location.hostname}:${cliPort}`;
-      }
-
       const token =
         new URLSearchParams(window.location.search).get("token") ||
         new URLSearchParams(window.location.hash.replace(/^#/, "")).get("token");

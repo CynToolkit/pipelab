@@ -5,7 +5,7 @@ import {
   type RequestId,
   type WebSocketMessage,
 } from "@pipelab/shared";
-import { WebSocketClient } from "./websocket-client";
+import { resolveDefaultWebSocketUrl, WebSocketClient } from "./websocket-client";
 
 class FakeWebSocket {
   static readonly CONNECTING = 0;
@@ -153,5 +153,82 @@ describe("WebSocketClient pending request cleanup", () => {
     client.disconnect();
     client.connect();
     expect(FakeWebSocket.instances[1].url).toBe(agentUrl);
+  });
+});
+
+describe("Desktop CLI endpoint discovery", () => {
+  beforeEach(() => {
+    FakeWebSocket.instances = [];
+    vi.stubGlobal("WebSocket", FakeWebSocket);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  });
+
+  it("uses the authenticated Desktop launch port and matching IPv4 Origin in development", () => {
+    expect(
+      resolveDefaultWebSocketUrl(
+        {
+          protocol: "http:",
+          host: "localhost:5173",
+          hostname: "localhost",
+          search: "?cliPort=49152",
+        },
+        false,
+        true,
+      ),
+    ).toBe("ws://127.0.0.1:49152");
+  });
+
+  it("ignores an untrusted port query outside the Desktop development renderer", () => {
+    expect(
+      resolveDefaultWebSocketUrl(
+        {
+          protocol: "http:",
+          host: "localhost:5173",
+          hostname: "localhost",
+          search: "?cliPort=49152",
+        },
+        undefined,
+        true,
+      ),
+    ).toBe("ws://localhost:33753");
+    expect(
+      resolveDefaultWebSocketUrl(
+        {
+          protocol: "https:",
+          host: "editor.example",
+          hostname: "editor.example",
+          search: "?cliPort=49152",
+        },
+        true,
+        false,
+      ),
+    ).toBe("wss://editor.example");
+  });
+
+  it("keeps the dynamic local endpoint across reconnection", () => {
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubGlobal("window", {
+      location: {
+        protocol: "http:",
+        host: "localhost:5173",
+        hostname: "localhost",
+        search: "?cliPort=49152",
+        hash: "",
+      },
+      isPackaged: false,
+    });
+
+    const client = new WebSocketClient({ maxReconnectAttempts: 0 });
+    client.connect();
+    client.reconnect();
+
+    expect(FakeWebSocket.instances.map((socket) => socket.url)).toEqual([
+      "ws://127.0.0.1:49152",
+      "ws://127.0.0.1:49152",
+    ]);
   });
 });

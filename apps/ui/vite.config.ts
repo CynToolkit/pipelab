@@ -105,6 +105,9 @@ export default defineConfig(({ mode }) => {
   return {
     envDir: rootPath,
     server: {
+      // Desktop loads the dev renderer from IPv4 loopback so its WebSocket
+      // Origin matches the CLI sidecar's IPv4 loopback address.
+      host: "127.0.0.1",
       port: uiDevPort,
       strictPort: true,
       fs: {

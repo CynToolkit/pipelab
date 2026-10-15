@@ -4,12 +4,9 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { platform } from "node:os";
 import { electronApp, optimizer, is } from "@electron-toolkit/utils";
 import { startServer, stopServer } from "./main/server-process";
-import { websocketPort, uiDevPort, getProtocolName, getAppBundleId } from "@pipelab/constants";
+import { uiDevPort, getProtocolName, getAppBundleId } from "@pipelab/constants";
 import { registerIpcHandlers } from "./main/ipc-handlers";
-import {
-  getDefaultUserDataPath,
-  fetchLatestDesktopRelease,
-} from "@pipelab/core-node/desktop";
+import { getDefaultUserDataPath, fetchLatestDesktopRelease } from "@pipelab/core-node/desktop";
 import started from "electron-squirrel-startup";
 import { PostHog } from "posthog-node";
 import { parseArgs } from "node:util";
@@ -435,24 +432,19 @@ app.whenReady().then(async () => {
   registerIpcHandlers();
   createWindow();
 
-  if (mainWindow) {
-    if (is.dev) {
-      // In dev, we load the dev server up immediately but do not show it yet
-      mainWindow.loadURL(`http://localhost:${uiDevPort}`);
-    }
-  }
-
   // Start the background server (this might include downloading the CLI on first run)
   try {
     console.info("[Main] Starting standalone server...");
-    await startServer();
+    const cliPort = await startServer();
     console.info("[Main] Standalone server is ready");
 
-    // Once server is ready, load the real UI
-    if (!is.dev) {
-      console.info(`[Main] Loading production UI from localhost:${websocketPort}`);
-      mainWindow?.loadURL(`http://localhost:${websocketPort}`);
-    }
+    // Do not load any renderer until the CLI child proves its launch identity.
+    // The port is not a credential; the per-launch secret stays in the main process.
+    const uiUrl = is.dev
+      ? `http://127.0.0.1:${uiDevPort}/?cliPort=${cliPort}`
+      : `http://127.0.0.1:${cliPort}`;
+    console.info(`[Main] Loading ${is.dev ? "development" : "production"} UI`);
+    await mainWindow?.loadURL(uiUrl);
   } catch (error) {
     console.error("Failed to start standalone server:", error);
     dialog.showErrorBox(

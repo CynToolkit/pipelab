@@ -144,7 +144,9 @@ export class WebSocketServer {
           // requires an auth token; local development stays loopback-only.
           server.listen(port, securityOptions.host, () => {
             this.connectionState = "connected";
-            logger().info(`WebSocket server listening on port ${port}`);
+            const address = server.address();
+            const listeningPort = address && typeof address !== "string" ? address.port : port;
+            logger().info(`WebSocket server listening on port ${listeningPort}`);
             this.isReady = true;
             if (this.readyResolve) {
               this.readyResolve();
