@@ -413,3 +413,15 @@ enabled = true
 # formatted with uppercase keywords, indent 2, max width 180, trailing commas,
 # and column/key alignment. Set to "null" to emit raw, unformatted SQL.
 # format_options = "{\"keywordCase\":\"upper\",\"indent\":2,\"maxWidth\":180,\"commaStyle\":\"trailing\"}"
+[functions.polar-available-plans]
+# The catalog contains public product data; all other billing functions require JWT validation.
+verify_jwt = false
+
+[functions.polar-user-plan]
+verify_jwt = true
+
+[functions.customer-portal]
+verify_jwt = true
+
+[functions.checkout]
+verify_jwt = true

@@ -46,9 +46,32 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Set up Deno
+        if: matrix.task == 'test'
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.1.9
+
       - name: Run verification
         if: matrix.task != 'build'
         run: pnpm ${{ matrix.task }} --concurrency=2
+
+      - name: Verify Supabase billing functions
+        if: matrix.task == 'test'
+        run: |
+          deno lint \
+            supabase/functions/_shared/billing.ts \
+            supabase/functions/_shared/billing.test.ts \
+            supabase/functions/polar-user-plan/index.ts \
+            supabase/functions/polar-available-plans/index.ts \
+            supabase/functions/customer-portal/index.ts \
+            supabase/functions/checkout/index.ts
+          deno check \
+            supabase/functions/polar-user-plan/index.ts \
+            supabase/functions/polar-available-plans/index.ts \
+            supabase/functions/customer-portal/index.ts \
+            supabase/functions/checkout/index.ts
+          deno test supabase/functions/_shared/billing.test.ts
 
       - name: Build
         if: matrix.task == 'build'
