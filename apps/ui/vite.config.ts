@@ -67,7 +67,7 @@ function reportOnlyCsp(supabaseUrl: string | undefined): Plugin {
       this.emitFile({
         type: "asset",
         fileName: "_headers",
-        source: `/*\n  Content-Security-Policy-Report-Only: ${policy}\n`,
+        source: `/*\n  Referrer-Policy: no-referrer\n  Content-Security-Policy-Report-Only: ${policy}\n`,
       });
     },
   };

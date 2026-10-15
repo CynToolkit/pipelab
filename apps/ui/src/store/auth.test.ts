@@ -375,6 +375,31 @@ describe("hosted browser authentication", () => {
     expect(browserClient.functions.invoke).toHaveBeenCalledWith("polar-user-plan", undefined);
   });
 
+  it("treats missing or malformed product benefits as having no gated benefits", async () => {
+    const user = makeUser("browser-user");
+    browserClient.auth.getSession.mockResolvedValue({
+      data: { session: { user, access_token: "access-token", refresh_token: "refresh-token" } },
+      error: null,
+    });
+    browserClient.functions.invoke.mockResolvedValue({
+      data: {
+        subscriptions: [
+          { id: "indie-subscription", status: "active", product: { id: "indie", name: "Indie" } },
+          { id: "malformed-subscription", status: "active", product: { id: "malformed", name: "Malformed", benefits: [null] } },
+        ],
+      },
+      error: null,
+    });
+
+    const auth = useAuth();
+    activeAuthStore = auth;
+
+    await vi.waitFor(() => expect(auth.subscriptionStatus).toBe("ready"));
+
+    expect(auth.getActualBenefit("build-history")).toBe(false);
+    expect(auth.hasBenefit("build-history")).toBe(false);
+  });
+
   it("clears a legacy authenticated PostHog identity while restoring a browser session", async () => {
     posthog.get_property.mockReturnValue("identified");
     browserClient.auth.getSession.mockResolvedValue({

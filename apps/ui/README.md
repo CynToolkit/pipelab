@@ -125,6 +125,13 @@ Google Fonts. Supabase HTTPS and corresponding WebSocket origins are derived
 from the configured Supabase URL. No general `wss:` or third-party wildcard is
 used.
 
+Both builds also emit `Referrer-Policy: no-referrer`, so same-origin asset
+requests do not carry authentication callback query parameters in their
+`Referer`. Website loads Umami and Tally only after the initial route resolves
+and skips both scripts on `/auth/auth-success`, where Supabase verification links
+temporarily place bearer tokens in the URL fragment before the callback clears
+it.
+
 The policies do not include a report collector. Browsers can show violations
 in DevTools, but the current deployment does not retain reports server-side.
 The policy intentionally has no `unsafe-inline` or `unsafe-eval`. Editor

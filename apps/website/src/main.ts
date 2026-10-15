@@ -9,6 +9,7 @@ import Aura from "@primevue/themes/aura";
 
 import App from "./App.vue";
 import router from "./router";
+import { loadThirdPartyScripts } from "./utils/third-party-scripts";
 
 const app = createApp(App);
 
@@ -26,3 +27,7 @@ app.use(createPinia());
 app.use(router);
 
 app.mount("#app");
+
+void router.isReady().then(() => {
+  loadThirdPartyScripts(router.currentRoute.value.path);
+});

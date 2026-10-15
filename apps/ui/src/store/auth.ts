@@ -663,9 +663,13 @@ export const useAuth = defineStore("auth", () => {
 
   const getActualBenefit = (benefit: keyof typeof benefits) => {
     // Check subscriptions for actual status
-    return subscriptions.value.some((sub: any) =>
-      sub.product.benefits.map((b: any) => b.id).includes(benefits[benefit]),
-    );
+    return subscriptions.value.some((subscription) => {
+      const productBenefits = subscription.product?.benefits;
+      return (
+        Array.isArray(productBenefits) &&
+        productBenefits.some((productBenefit) => productBenefit?.id === benefits[benefit])
+      );
+    });
   };
 
   const hasBenefit = (benefit: keyof typeof benefits) => {
