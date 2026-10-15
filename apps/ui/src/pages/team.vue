@@ -1,10 +1,10 @@
 <template>
-  <div class="index">
+  <main class="index">
     <div class="header">
-      {{ headerSentence }}
+      <h1>{{ headerSentence }}</h1>
     </div>
     <div class="content">Team</div>
-  </div>
+  </main>
 </template>
 
 <script setup lang="ts">
@@ -18,6 +18,11 @@ const headerSentence = computed(() => {
 .header {
   font-size: 2rem;
   margin: 32px 16px 64px 16px;
+}
+
+.header h1 {
+  margin: 0;
+  font-size: inherit;
 }
 
 .content {

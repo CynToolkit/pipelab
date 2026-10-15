@@ -67,7 +67,7 @@ class WebSocketManagerImpl implements WebSocketManager {
         this.client.connect();
       }
 
-      logger().info("WebSocket connection initiated", { url });
+      logger().info("WebSocket connection initiated", { hasExplicitTarget: Boolean(url) });
     } catch (error) {
       logger().error("Failed to connect WebSocket:", error);
       throw error;

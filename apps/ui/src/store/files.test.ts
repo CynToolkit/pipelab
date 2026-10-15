@@ -71,4 +71,22 @@ describe("useFiles persistence boundaries", () => {
     ).rejects.toThrow("disk unavailable");
     expect(store.files.projects[0]?.name).toBe("Project");
   });
+
+  it("keeps the active project selection in the shared files store", () => {
+    const store = useFiles();
+
+    store.selectProject("project-1");
+    expect(store.selectedProjectId).toBe("project-1");
+
+    store.selectProject("project-2");
+    expect(store.selectedProjectId).toBe("project-2");
+  });
+
+  it("removes a project only when it has no workflows", async () => {
+    files.value.workflows = [{ id: "release-1", project: "project-1" } as never];
+    const store = useFiles();
+
+    await expect(store.removeProject("project-1")).rejects.toThrow("cannot be deleted");
+    expect(store.files.projects.map((project) => project.id)).toEqual(["project-1"]);
+  });
 });

@@ -1,5 +1,6 @@
 <template>
   <WorkflowShell
+    v-if="!dashboardMode"
     :flow-id="flowId"
     :project-id="projectId"
     :title="flow?.name || 'Release'"
@@ -65,6 +66,10 @@
           <span>Workflow readiness is unavailable: {{ plannerError }}</span>
           <Button label="Retry planning" text size="small" @click="refreshPlan" />
         </div>
+      </Message>
+      <Message v-if="knownFieldIssues.length" severity="warn" role="status">
+        Required-field checks are static hints. Agent inspection, default resolution, and planning
+        determine workflow readiness.
       </Message>
       <Message v-if="saveError" severity="error" role="alert">
         <div class="planner-error">
@@ -267,6 +272,7 @@
       <Message v-if="loadError" severity="error" role="alert">
         {{ loadError }}
         <Button label="Retry" text @click="loadWorkflow" :disabled="!agent.isReady.value" />
+        <Button :label="t('home.back-to-workflows')" text @click="router.push('/workflows')" />
       </Message>
       <p v-else role="status" aria-busy="true">
         {{
@@ -277,6 +283,97 @@
       </p>
     </main>
   </WorkflowShell>
+  <Dialog
+    v-if="dashboardMode && dashboardRecoveryVisible"
+    :visible="true"
+    :modal="!(workflowLoading || sourceInspectionPending || planning || saveState === 'saving')"
+    :header="
+      loadError
+        ? t('home.dashboard-ship-load-failed-title')
+        : flow
+          ? t('home.dashboard-ship-blocked')
+          : t('home.dashboard-ship-loading-title')
+    "
+    :style="dialogStyle"
+    @update:visible="(visible) => !visible && emit('closeDashboard')"
+  >
+    <p
+      v-if="workflowLoading || sourceInspectionPending || planning || saveState === 'saving'"
+      role="status"
+      aria-busy="true"
+    >
+      {{ workflowLoading ? t("home.dashboard-ship-loading") : t("home.dashboard-ship-checking") }}
+    </p>
+    <Message v-else-if="loadError" severity="error" role="alert">
+      <div class="planner-error">
+        <span>{{ loadError }}</span>
+        <Button
+          :label="t('home.dashboard-ship-retry')"
+          text
+          size="small"
+          :disabled="!agent.isReady.value"
+          @click="loadWorkflow"
+        />
+        <Button
+          v-if="!agent.isReady.value"
+          :label="t('home.reconnect-engine')"
+          text
+          size="small"
+          @click="
+            agent.reconnect().catch((cause) => {
+              error = String(cause);
+            })
+          "
+        />
+      </div>
+    </Message>
+    <template v-else>
+      <p v-if="selectedBlocker">{{ t("home.dashboard-ship-resolve-blockers") }}</p>
+      <ul v-if="blockingIssues.length" class="issue-summary">
+        <li v-for="issue in blockingIssues" :key="`${issue.code}:${issue.path}:${issue.message}`">
+          {{ issue.message }}
+        </li>
+      </ul>
+      <p v-else>{{ dashboardRecoveryMessage }}</p>
+      <Button
+        v-if="saveError"
+        :label="t('home.dashboard-ship-retry-save')"
+        text
+        @click="save().catch(() => {})"
+      />
+      <Button
+        v-if="plannerError"
+        :label="t('home.dashboard-ship-retry-planning')"
+        text
+        @click="refreshPlan"
+      />
+      <Button
+        v-if="dashboardMode && error && canShip"
+        :label="t('home.dashboard-ship-review-release')"
+        text
+        @click="reviewDashboardRelease"
+      />
+      <Button
+        v-if="!agent.isReady.value"
+        :label="t('home.reconnect-engine')"
+        text
+        @click="
+          agent.reconnect().catch((cause) => {
+            error = String(cause);
+          })
+        "
+      />
+    </template>
+    <template #footer>
+      <Button :label="t('home.dashboard-ship-back')" text @click="emit('closeDashboard')" />
+      <Button
+        v-if="flow"
+        :label="t('home.dashboard-ship-configuration')"
+        icon="pi pi-arrow-right"
+        @click="openDashboardWorkflow"
+      />
+    </template>
+  </Dialog>
   <ConfirmDialog group="workflow-destructive" />
   <Dialog
     v-model:visible="addDestinationVisible"
@@ -353,6 +450,9 @@
           @update:model-value="selectSource"
         />
       </div>
+      <small v-if="sourceDefinition.requiresAgentInspection" class="field-note">
+        Additional source options require the Pipelab agent.
+      </small>
       <template v-for="field in sourceDefinition.fields || []" :key="field.key">
         <ReleaseFieldControl
           :field="field"
@@ -504,10 +604,16 @@
         @click="createConnection" /></template
   ></Dialog>
   <Dialog
-    v-model:visible="releaseDetailsVisible"
+    v-if="!dashboardMode || releaseDetailsVisible"
+    :visible="releaseDetailsVisible"
     modal
-    header="Release details"
+    :header="
+      dashboardMode
+        ? t('home.dashboard-ship-confirmation-title', { name: flow?.name || '' })
+        : 'Release details'
+    "
     :style="dialogStyle"
+    @update:visible="(visible) => !visible && cancelReleaseDetails()"
     ><div class="settings-grid">
       <div class="release-field">
         <label for="release-version">Version</label
@@ -519,7 +625,10 @@
       </div>
     </div>
     <template #footer
-      ><Button label="Cancel" text @click="releaseDetailsVisible = false" /><Button
+      ><Button
+        :label="dashboardMode ? t('home.dashboard-ship-back') : 'Cancel'"
+        text
+        @click="cancelReleaseDetails" /><Button
         label="Ship release"
         icon="mdi mdi-rocket-launch-outline"
         :loading="running"
@@ -532,6 +641,7 @@
 import { computed, onUnmounted, ref, toRaw, watch } from "vue";
 import { nanoid } from "nanoid";
 import { onBeforeRouteLeave, useRoute, useRouter } from "vue-router";
+import { useI18n } from "vue-i18n";
 import Button from "primevue/button";
 import ConfirmDialog from "primevue/confirmdialog";
 import Dialog from "primevue/dialog";
@@ -544,7 +654,6 @@ import ToggleSwitch from "primevue/toggleswitch";
 import { useConfirm } from "primevue/useconfirm";
 import type {
   IconType,
-  ReleaseCatalog,
   ReleaseConfig,
   ReleaseDestinationConfig,
   ReleaseDestinationSlot,
@@ -563,6 +672,7 @@ import { useConnectionsStore } from "../store/connections";
 import { useAgentAvailability } from "@renderer/composables/useAgentAvailability";
 import {
   connectionMatchesIntegration,
+  dashboardShipIntentAction,
   blockerAtIndex,
   clampBlockerIndex,
   createSerializedTaskQueue,
@@ -587,25 +697,39 @@ import {
 
 const route = useRoute();
 const router = useRouter();
+const props = withDefaults(
+  defineProps<{
+    dashboardMode?: boolean;
+    dashboardFlowId?: string;
+    dashboardProjectId?: string;
+  }>(),
+  { dashboardMode: false },
+);
+const emit = defineEmits<{ closeDashboard: [] }>();
+const { t } = useI18n();
 const api = useAPI();
 const confirm = useConfirm();
 const appStore = useAppStore();
 const connectionsStore = useConnectionsStore();
 const agent = useAgentAvailability();
-const flowId = computed(() => String(route.params.flowId));
-const projectId = computed(() => String(route.params.projectId));
-const catalog = ref<ReleaseCatalog>({
-  buildTypes: [],
-  sources: [],
-  producers: [],
-  destinations: [],
-});
+const flowId = computed(() =>
+  props.dashboardMode ? props.dashboardFlowId || "" : String(route.params.flowId),
+);
+const projectId = computed(() =>
+  props.dashboardMode ? props.dashboardProjectId || "" : String(route.params.projectId),
+);
+const catalog = computed(() => appStore.releaseCatalog);
 const flow = ref<ReleaseConfig>();
 const plan = ref<ReleasePlan>();
 const plannerIssues = ref<ValidationIssue[]>([]);
 const inspectionIssues = ref<ValidationIssue[]>([]);
 const knownFieldIssues = computed(() =>
-  flow.value && !plan.value ? missingRequiredFieldIssues(flow.value, catalog.value) : [],
+  flow.value && !plan.value
+    ? missingRequiredFieldIssues(flow.value, catalog.value).map((issue) => ({
+        ...issue,
+        severity: "warning" as const,
+      }))
+    : [],
 );
 const issues = computed(() => [
   ...plannerIssues.value,
@@ -648,6 +772,13 @@ const sourceSettingsVisible = ref(false);
 const destinationSettingsVisible = ref(false);
 const slotSettingsVisible = ref(false);
 const releaseDetailsVisible = ref(false);
+const dashboardRecoveryVisible = ref(true);
+const dashboardShipIntentCancelled = ref(false);
+const dashboardRecoveryMessage = computed(() =>
+  dashboardShipIntentCancelled.value
+    ? t("home.dashboard-ship-cancelled")
+    : error.value || plannerError.value || saveError.value || t("home.ship-requirements-not-ready"),
+);
 const settingsDestination = ref<ReleaseDestinationConfig>();
 const settingsSlot = ref<ReleaseDestinationSlot>();
 const releaseVersion = ref("1.0.0");
@@ -718,6 +849,112 @@ const canShip = computed(
       workflowLoading.value || sourceInspectionPending.value,
       Boolean(loadError.value || plannerError.value),
     ),
+);
+let dashboardShipIntentHandled = false;
+watch(
+  [
+    () => props.dashboardMode || route.query.ship === "1",
+    flow,
+    flowId,
+    projectId,
+    workflowLoading,
+    sourceInspectionPending,
+    planning,
+    workflowReadinessState,
+    canShip,
+    agent.isReady,
+    loadError,
+  ],
+  ([intent, , , , , , , , , ready, failed]) => {
+    if (!intent) {
+      dashboardShipIntentHandled = false;
+      return;
+    }
+    if (dashboardShipIntentHandled) return;
+
+    if (failed) {
+      dashboardShipIntentHandled = true;
+      if (props.dashboardMode) {
+        dashboardShipIntentCancelled.value = true;
+        dashboardRecoveryVisible.value = true;
+        return;
+      }
+      const query = { ...route.query };
+      delete query.ship;
+      void router.replace({ path: route.path, query, hash: route.hash }).catch(() => {});
+      return;
+    }
+
+    if (!ready) {
+      dashboardShipIntentHandled = true;
+      if (props.dashboardMode) {
+        dashboardShipIntentCancelled.value = true;
+        dashboardRecoveryVisible.value = true;
+        error.value = t("home.ship-engine-required");
+        return;
+      }
+      const query = { ...route.query };
+      delete query.ship;
+      void router
+        .replace({ path: route.path, query, hash: route.hash })
+        .then(() => {
+          error.value = t("home.ship-engine-required");
+        })
+        .catch(() => {
+          dashboardShipIntentHandled = false;
+        });
+      return;
+    }
+
+    const action = dashboardShipIntentAction({
+      intent: true,
+      workflowMatchesRoute:
+        flow.value?.id === flowId.value && flow.value?.project === projectId.value,
+      loading: workflowLoading.value || sourceInspectionPending.value || planning.value,
+      readiness: workflowReadinessState.value,
+      canShip: canShip.value,
+    });
+    if (action === "wait") return;
+
+    dashboardShipIntentHandled = true;
+    const requestedFlowId = flowId.value;
+    const requestedProjectId = projectId.value;
+    if (props.dashboardMode) {
+      if (
+        action === "ship" &&
+        requestedFlowId === flowId.value &&
+        requestedProjectId === projectId.value &&
+        canShip.value
+      ) {
+        void ship();
+      } else {
+        dashboardRecoveryVisible.value = true;
+      }
+      return;
+    }
+    const query = { ...route.query };
+    delete query.ship;
+    void router
+      .replace({ path: route.path, query, hash: route.hash })
+      .then(() => {
+        if (
+          action !== "ship" ||
+          requestedFlowId !== flowId.value ||
+          requestedProjectId !== projectId.value ||
+          !canShip.value
+        ) {
+          if (action === "blocked" && workflowReadinessState.value === "ready")
+            error.value = t("home.ship-requirements-not-ready");
+          return;
+        }
+        if (props.dashboardMode) dashboardRecoveryVisible.value = false;
+        void ship();
+      })
+      .catch(() => {
+        dashboardShipIntentHandled = false;
+      });
+  },
+  { immediate: true },
 );
 let latestSourceInspection = 0;
 let latestPlanRequest = 0;
@@ -1402,14 +1639,30 @@ const ship = async () => {
       revision !== changeRevision.value ||
       JSON.stringify(flow.value) !== fingerprint ||
       issues.value.some((issue) => issue.severity === "error")
-    )
+    ) {
+      if (props.dashboardMode) dashboardRecoveryVisible.value = true;
       return;
+    }
     releaseVersion.value = "1.0.0";
     releaseDescription.value = flow.value?.description || flow.value?.name || "";
     releaseDetailsVisible.value = true;
+    if (props.dashboardMode) dashboardRecoveryVisible.value = false;
   } catch {
     // The autosave state provides the retry action and its error message.
+    if (props.dashboardMode) dashboardRecoveryVisible.value = true;
   }
+};
+const cancelReleaseDetails = () => {
+  if (props.dashboardMode) emit("closeDashboard");
+  else releaseDetailsVisible.value = false;
+};
+const reviewDashboardRelease = () => {
+  dashboardRecoveryVisible.value = false;
+  releaseDetailsVisible.value = true;
+};
+const openDashboardWorkflow = () => {
+  dashboardRecoveryVisible.value = false;
+  void router.push(`/workflows/${flowId.value}/${projectId.value}`);
 };
 const runShip = async () => {
   if (!flow.value || !canShip.value) return;
@@ -1448,7 +1701,7 @@ const runShip = async () => {
           }
         },
       );
-      if (result.type === "error") error.value = result.ipcError;
+      if (result.type === "error") throw new Error(result.ipcError);
       else if (!runId)
         await router.push(
           `/workflows/${flowId.value}/${projectId.value}/runs/${result.result.runId}`,
@@ -1456,6 +1709,7 @@ const runShip = async () => {
     });
   } catch (cause) {
     if (!error.value) error.value = cause instanceof Error ? cause.message : String(cause);
+    if (props.dashboardMode) dashboardRecoveryVisible.value = true;
   } finally {
     running.value = false;
   }
@@ -1507,8 +1761,8 @@ const loadWorkflow = async () => {
   workflowLoading.value = true;
   loadError.value = "";
   try {
-    const [catalogResult, flowResult] = await Promise.all([
-      api.execute("release:catalog:get"),
+    const [, flowResult] = await Promise.all([
+      appStore.loadReleaseCatalog(),
       api.execute("workflow:load", { workflowId: requestedFlowId, projectId: requestedProjectId }),
       connectionsStore.init(),
       appStore.loadProviderDefinitions(),
@@ -1519,7 +1773,6 @@ const loadWorkflow = async () => {
       requestedProjectId !== projectId.value
     )
       return;
-    if (catalogResult.type === "error") throw new Error(catalogResult.ipcError);
     if (flowResult.type === "error") throw new Error(flowResult.ipcError);
     if (connectionsStore.status === "error")
       throw new Error(connectionsStore.error || "Unable to load connections.");
@@ -1528,7 +1781,6 @@ const loadWorkflow = async () => {
     const loaded = flowResult.result;
     if (loaded.id !== requestedFlowId || loaded.project !== requestedProjectId)
       throw new Error("Loaded workflow identity does not match the requested route.");
-    catalog.value = catalogResult.result;
     const preserveDraft =
       flow.value?.id === requestedFlowId &&
       flow.value?.project === requestedProjectId &&

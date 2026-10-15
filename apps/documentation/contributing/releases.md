@@ -35,7 +35,7 @@ Forge is configured for Windows Squirrel outputs, Linux ZIP, and macOS DMG on re
 The workflow references these secret names; configure values in GitHub Actions secrets and never place their values in this documentation:
 
 - `SUPABASE_URL`
-- `SUPABASE_ANON_KEY`
+- `SUPABASE_PUBLISHABLE_KEY` (falls back to the legacy `SUPABASE_ANON_KEY` while migrating)
 - `SUPABASE_PROJECT_ID`
 - `POSTHOG_API_KEY`
 - `CERTIFICATE_OSX_APPLICATION`
@@ -48,7 +48,9 @@ Apple signing/notarization is enabled by Forge only when all required Apple cred
 
 ## CLI npm release
 
-The CLI workflow checks `@pipelab/cli@<version>`, builds the bundled CLI and UI, then validates the staged package manifest, `pipelab` and `plab` bins, bundled UI, assets, and npm pack contents before publishing publicly. It requires the `NPM_TOKEN` Actions secret for npm authentication. It also passes `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_PROJECT_ID`, and `POSTHOG_API_KEY` into the build.
+The CLI workflow checks `@pipelab/cli@<version>`, builds the bundled CLI and UI, then validates the staged package manifest, `pipelab` and `plab` bins, bundled UI, assets, and npm pack contents before publishing publicly. It requires the `NPM_TOKEN` Actions secret for npm authentication. It also passes `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` (falling back to the legacy `SUPABASE_ANON_KEY` secret), `SUPABASE_PROJECT_ID`, and `POSTHOG_API_KEY` into the build.
+
+For the Supabase key-name rollout, add `SUPABASE_PUBLISHABLE_KEY` to Doppler and GitHub Actions secrets first. Preview and release builds prefer it and temporarily fall back to `SUPABASE_ANON_KEY`. Verify Editor, Website, Desktop, and CLI authentication before removing the old secret in a separate approved change. Do not put service-role or secret keys in browser build variables.
 
 For a version containing a prerelease segment, the workflow derives the npm dist-tag from the segment before the first dot (for example, `beta` from `2.0.0-beta.4`). A version without a prerelease segment publishes with `latest`. This is npm dist-tag behavior; it is distinct from the desktop GitHub prerelease flag.
 

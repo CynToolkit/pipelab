@@ -6,8 +6,8 @@
           text
           rounded
           icon="mdi mdi-arrow-left"
-          aria-label="Back to workflows"
-          @click="router.push('/dashboard')"
+          :aria-label="$t('home.back-to-workflows')"
+          @click="router.push('/workflows')"
         />
         <div class="workflow-icon"><i class="mdi mdi-rocket-launch-outline" /></div>
         <div class="workflow-heading">

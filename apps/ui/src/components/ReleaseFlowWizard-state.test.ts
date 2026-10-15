@@ -5,15 +5,18 @@ import type { ReleaseCatalog, ReleaseRegistry } from "@pipelab/shared";
 import {
   buildReleaseWizardConfig,
   createReleaseWizardDraft,
+  HOSTED_RELEASE_WIZARD_STEPS,
   RELEASE_WIZARD_STEPS,
   releaseWizardCanContinueDetails,
   releaseWizardCanReview,
   releaseWizardDestination,
   releaseWizardHasSource,
+  releaseWizardIsOfflineBrowserDraft,
   releaseWizardNextStep,
   releaseWizardPreviousStep,
   releaseWizardRecap,
   releaseWizardSourceIsReady,
+  releaseWizardTargetAvailability,
 } from "./ReleaseFlowWizard-state";
 
 const catalog: ReleaseCatalog = {
@@ -113,6 +116,70 @@ describe("ReleaseFlowWizard state", () => {
     expect(releaseWizardPreviousStep("recap")).toBe("destinations");
     expect(releaseWizardPreviousStep("destinations")).toBe("source");
     expect(releaseWizardPreviousStep("source")).toBe("details");
+  });
+
+  it("includes an editable hosted build in the draft config", () => {
+    const draft = createReleaseWizardDraft();
+    draft.name = "Browser draft";
+    draft.builds = [
+      {
+        id: "build-1",
+        type: "desktop",
+        engine: "producer/electron",
+        enabled: true,
+        config: { mode: "release" },
+        targets: [{ id: "linux", enabled: true, config: { format: "appimage" } }],
+      },
+    ];
+
+    expect(HOSTED_RELEASE_WIZARD_STEPS).toEqual([
+      "details",
+      "source",
+      "builds",
+      "destinations",
+      "recap",
+    ]);
+    expect(releaseWizardNextStep("source", HOSTED_RELEASE_WIZARD_STEPS)).toBe("builds");
+    expect(buildReleaseWizardConfig(draft, "project-1", "release-1").builds).toEqual(draft.builds);
+  });
+
+  it("uses live readiness for browser draft controls, independent of startup policy", () => {
+    expect(releaseWizardIsOfflineBrowserDraft(true, false)).toBe(true);
+    expect(releaseWizardIsOfflineBrowserDraft(true, true)).toBe(false);
+    expect(releaseWizardIsOfflineBrowserDraft(false, false)).toBe(false);
+  });
+
+  it("shows live target availability after the agent attaches", () => {
+    const target = {
+      id: "linux",
+      label: "Linux",
+      defaultConfig: {},
+      availabilityStatus: "unknown" as const,
+    };
+
+    expect(releaseWizardTargetAvailability(target, false)).toBe(
+      "Availability: Unknown (agent required)",
+    );
+    expect(
+      releaseWizardTargetAvailability(
+        {
+          ...target,
+          availabilityStatus: undefined,
+          availability: { available: false, reason: "SDK not installed" },
+        },
+        true,
+      ),
+    ).toBe("Unavailable: SDK not installed");
+    expect(
+      releaseWizardTargetAvailability(
+        {
+          ...target,
+          availabilityStatus: undefined,
+          availability: { available: true },
+        },
+        true,
+      ),
+    ).toBe("Available on this device");
   });
 
   it("requires a name on the first step and keeps description optional", () => {

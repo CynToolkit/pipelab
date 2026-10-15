@@ -13,6 +13,7 @@
     "supa:types": "supabase gen types typescript --project-id uehmyyeqheqnxmzhctcd --schema public > src/database.types.ts"
   },
   "dependencies": {
+    "@pipelab/shared": "workspace:*",
     "@primevue/themes": "^4.5.0",
     "@supabase/supabase-js": "^2.86.0",
     "@vueuse/core": "^14.1.0",

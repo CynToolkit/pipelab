@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { ref } from "vue";
+import { shouldAutoConnectAgentOnStartup } from "./ui-runtime";
 
 describe("useAgentAvailability", () => {
   it("registers startup readiness before connecting and clears readiness on disconnect", async () => {
@@ -41,5 +42,70 @@ describe("useAgentAvailability", () => {
     stateListeners.forEach((listener) => listener("disconnected"));
     expect(agent.status.value).toBe("offline");
     expect(agent.isReady.value).toBe(false);
+
+    // Startup policy may skip `start()` in a published browser, while an
+    // explicit trusted attach can still use the lazy connection path later.
+    await agent.reconnect();
+    expect(callOrder.filter((call) => call === "connect")).toHaveLength(2);
+    expect(agent.status.value).toBe("starting");
+    events.get("startup:progress")?.({ type: "done" });
+    expect(agent.isReady.value).toBe(true);
+  });
+
+  it("attaches to the selected endpoint and tracks ready, disconnect, and reconnect", async () => {
+    vi.resetModules();
+    const connectionState = ref("disconnected");
+    const stateListeners: Array<(state: string) => void> = [];
+    const events = new Map<string, (event: { type: string }) => void>();
+    const selectedTargets: string[] = [];
+    let selectedTarget = "wss://published.example";
+    const setState = (state: string) => {
+      connectionState.value = state;
+      stateListeners.forEach((listener) => listener(state));
+    };
+    const manager = {
+      connectionState,
+      onStateChange: (listener: (state: string) => void) => stateListeners.push(listener),
+      connect: vi.fn(async (url?: string) => {
+        if (url) selectedTarget = url;
+        selectedTargets.push(selectedTarget);
+        setState("connecting");
+      }),
+      disconnect: vi.fn(() => setState("disconnected")),
+    };
+    vi.doMock("./websocket-manager", () => ({ websocketManager: manager }));
+    vi.doMock("./websocket-client", () => ({
+      useWebSocketAPI: () => ({
+        on: (channel: string, listener: (event: { type: string }) => void) => {
+          events.set(channel, listener);
+        },
+      }),
+    }));
+
+    const { useAgentAvailability } = await import("./useAgentAvailability");
+    const agent = useAgentAvailability();
+    expect(shouldAutoConnectAgentOnStartup("browser", "hosted")).toBe(false);
+    expect(agent.isReady.value).toBe(false);
+
+    const agentUrl = "wss://paired-agent.example:33753/session?token=trusted";
+    await agent.attach(agentUrl);
+    expect(manager.connect).toHaveBeenLastCalledWith(agentUrl);
+    expect(agent.status.value).toBe("connecting");
+    setState("connected");
+    expect(agent.status.value).toBe("starting");
+    events.get("startup:progress")?.({ type: "done" });
+    expect(agent.isReady.value).toBe(true);
+
+    agent.disconnect();
+    expect(agent.status.value).toBe("offline");
+    expect(agent.isReady.value).toBe(false);
+
+    await agent.reconnect();
+    expect(selectedTargets).toEqual([agentUrl, agentUrl]);
+    expect(agent.status.value).toBe("connecting");
+    setState("connected");
+    expect(agent.status.value).toBe("starting");
+    events.get("startup:progress")?.({ type: "done" });
+    expect(agent.isReady.value).toBe(true);
   });
 });

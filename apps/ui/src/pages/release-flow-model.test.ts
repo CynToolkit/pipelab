@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { reactive, toRaw, watch } from "vue";
 import {
   buildEnginesFor,
+  dashboardShipIntentAction,
   buildProfileSummary,
   buildTargetsFor,
   buildTargetAvailabilityReason,
@@ -101,6 +102,34 @@ const config: ReleaseConfig = {
 };
 
 describe("release flow model", () => {
+  it("waits for the matching workflow and settled preflight before handling dashboard Ship", () => {
+    const base = {
+      intent: true,
+      workflowMatchesRoute: true,
+      loading: false,
+      readiness: "ready" as const,
+      canShip: true,
+    };
+    expect(dashboardShipIntentAction({ ...base, workflowMatchesRoute: false })).toBe("wait");
+    expect(dashboardShipIntentAction({ ...base, loading: true })).toBe("wait");
+    expect(dashboardShipIntentAction({ ...base, readiness: "checking" })).toBe("wait");
+  });
+
+  it("starts only when all existing readiness gates pass and consumes blocked intents", () => {
+    const base = {
+      intent: true,
+      workflowMatchesRoute: true,
+      loading: false,
+      readiness: "ready" as const,
+      canShip: true,
+    };
+    expect(dashboardShipIntentAction(base)).toBe("ship");
+    expect(dashboardShipIntentAction({ ...base, canShip: false })).toBe("blocked");
+    expect(dashboardShipIntentAction({ ...base, readiness: "attention" })).toBe("blocked");
+    expect(dashboardShipIntentAction({ ...base, readiness: "error" })).toBe("blocked");
+    expect(dashboardShipIntentAction({ ...base, intent: false })).toBe("wait");
+  });
+
   it("provides the compact build-card summary without inline settings", () => {
     const build = createBuildProfile(catalog, "desktop", "engine-a", "desktop-one", ["windows"])!;
     expect(buildProfileSummary(catalog, build)).toEqual({
@@ -449,6 +478,20 @@ describe("release flow model", () => {
     expect(switched?.targets.every((target) => !target.enabled)).toBe(true);
   });
 
+  it("round-trips unrecognized build settings when changing engines", () => {
+    const build = {
+      ...createBuildProfile(catalog, "desktop", "engine-a", "desktop-one")!,
+      config: { preset: "custom", futureProviderSetting: { retained: true } },
+    };
+
+    const switched = switchBuildProfileEngine(catalog, build, "engine-b");
+
+    expect(switched?.config).toEqual({
+      preset: "custom",
+      futureProviderSetting: { retained: true },
+    });
+  });
+
   it("keeps unavailable targets visible but never enables them by default", () => {
     const catalogWithUnavailableTarget: ReleaseCatalog = {
       ...catalog,
@@ -486,6 +529,34 @@ describe("release flow model", () => {
     ).toBe(true);
     expect(setBuildTargetEnabled(build, "windows", true, windows.availability)).toBe(false);
     expect(build.targets.find((target) => target.id === "windows")?.enabled).toBe(false);
+  });
+
+  it("treats static target availability as unknown until the agent inspects the host", () => {
+    const target = {
+      ...catalog.producers[0].targets[0],
+      availabilityStatus: "unknown" as const,
+    };
+
+    expect(buildTargetIsAvailable(target)).toBe(false);
+    expect(buildTargetAvailabilityReason(target)).toBe("Requires agent to check availability.");
+    expect(
+      setBuildTargetEnabled(
+        { ...createBuildProfile(catalog, "desktop", "engine-a", "unknown-target")! },
+        target.id,
+        true,
+        undefined,
+        target.availabilityStatus,
+      ),
+    ).toBe(false);
+    expect(
+      createBuildProfile(
+        { ...catalog, producers: [{ ...catalog.producers[0], targets: [target] }] },
+        "desktop",
+        "engine-a",
+        "unknown-target",
+        [target.id],
+      )?.targets[0].enabled,
+    ).toBe(false);
   });
 
   it("lists source and build output consumers with destination, slot, and downstream build labels", () => {

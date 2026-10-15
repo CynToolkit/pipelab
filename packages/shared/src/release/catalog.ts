@@ -29,6 +29,7 @@ export const buildReleaseCatalog = (
     fields: source.fields,
     output: source.output,
     defaultConfig: source.createDefaultConfig(),
+    requiresAgentInspection: Boolean(source.inspect),
   })),
   producers: registry.producers.map((producer) => ({
     id: producer.id,
@@ -39,6 +40,7 @@ export const buildReleaseCatalog = (
     accepts: producer.accepts,
     planning: producer.planning ?? { mode: "build" },
     defaultConfig: producer.createDefaultConfig(),
+    requiresAgentInspection: Boolean(producer.inspect),
     targets: producer.targets.map((target) => ({
       id: target.id,
       label: target.label,
@@ -48,6 +50,7 @@ export const buildReleaseCatalog = (
       defaultConfig: target.createDefaultConfig(),
       fields: target.fields,
       availability: host && target.isAvailable ? target.isAvailable(host) : undefined,
+      availabilityStatus: target.isAvailable && !host ? "unknown" : undefined,
     })),
   })),
   destinations: registry.destinations.map((destination) => ({
@@ -61,3 +64,79 @@ export const buildReleaseCatalog = (
     defaultConfig: destination.createDefaultConfig(),
   })),
 });
+
+const mergeCatalogItems = <T extends { id: string }>(
+  bundled: T[],
+  runtime: T[],
+  merge: (bundled: T, runtime: T) => T,
+): T[] => {
+  const bundledById = new Map(bundled.map((item) => [item.id, item]));
+  const runtimeIds = new Set(runtime.map((item) => item.id));
+  return [
+    ...runtime.map((item) => {
+      const base = bundledById.get(item.id);
+      return base ? merge(base, item) : item;
+    }),
+    ...bundled.filter((item) => !runtimeIds.has(item.id)),
+  ];
+};
+
+/** Keep packaged product metadata while layering runtime-only catalog capabilities. */
+export const mergeReleaseCatalog = (
+  bundled: import("./types").ReleaseCatalog,
+  runtime: import("./types").ReleaseCatalog,
+): import("./types").ReleaseCatalog => {
+  const mergeDefinition = <
+    T extends {
+      id: string;
+      label: string;
+      description?: string;
+      icon?: unknown;
+      fields?: unknown[];
+      defaultConfig: Record<string, unknown>;
+    },
+  >(
+    base: T,
+    current: T,
+  ): T => ({
+    ...base,
+    ...current,
+    id: base.id,
+    label: base.label,
+    description: base.description ?? current.description,
+    icon: base.icon ?? current.icon,
+    fields: current.fields ?? base.fields,
+    defaultConfig: { ...base.defaultConfig, ...current.defaultConfig },
+  });
+  return {
+    buildTypes: mergeCatalogItems(bundled.buildTypes, runtime.buildTypes, (base, current) => ({
+      ...base,
+      ...current,
+      id: base.id,
+      label: base.label,
+      description: base.description ?? current.description,
+      icon: base.icon ?? current.icon,
+    })),
+    sources: mergeCatalogItems(bundled.sources, runtime.sources, mergeDefinition),
+    producers: mergeCatalogItems(bundled.producers, runtime.producers, (base, current) => ({
+      ...mergeDefinition(base, current),
+      targets: mergeCatalogItems(base.targets, current.targets, (baseTarget, currentTarget) => ({
+        ...baseTarget,
+        ...currentTarget,
+        id: baseTarget.id,
+        label: baseTarget.label,
+        fields: currentTarget.fields ?? baseTarget.fields,
+        availability: currentTarget.availability,
+        availabilityStatus: currentTarget.availabilityStatus,
+        defaultConfig: { ...baseTarget.defaultConfig, ...currentTarget.defaultConfig },
+      })),
+    })),
+    destinations: mergeCatalogItems(
+      bundled.destinations,
+      runtime.destinations,
+      (base, current) => ({
+        ...mergeDefinition(base, current),
+      }),
+    ),
+  };
+};

@@ -5,10 +5,10 @@
       <!-- Sidebar Drawer (Lists active connections) -->
       <div class="drawer">
         <div class="drawer-header">
-          <div class="drawer-header-left">
+          <h1 class="drawer-header-left">
             <i class="mdi mdi-link-variant mr-2"></i>
             Connections
-          </div>
+          </h1>
           <div class="drawer-header-actions">
             <Button
               text
@@ -99,7 +99,7 @@
       </div>
 
       <!-- Main Content Area -->
-      <div class="content-area">
+      <main class="content-area">
         <transition name="fade-fast" mode="out-in">
           <!-- Selected Connection Detail View -->
           <div v-if="selectedConnection" class="pane-content">
@@ -280,7 +280,7 @@
             </div>
           </div>
         </transition>
-      </div>
+      </main>
     </div>
 
     <!-- Connect Account Dialog -->
@@ -1089,6 +1089,7 @@ watch([() => connectionsStore.status, connectedAccounts], ([status, accounts]) =
 }
 
 .drawer-header-left {
+  margin: 0;
   font-size: 0.8rem;
   font-weight: 600;
   text-transform: uppercase;

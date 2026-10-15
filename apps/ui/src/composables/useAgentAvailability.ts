@@ -33,11 +33,11 @@ const ensureStartupListener = () => {
   });
 };
 
-const connect = async () => {
+const connect = async (url?: string) => {
   ensureStartupListener();
   status.value = "connecting";
   try {
-    await websocketManager.connect();
+    await websocketManager.connect(url);
     syncConnectionState(websocketManager.connectionState.value);
   } catch (error) {
     status.value = "offline";
@@ -53,9 +53,13 @@ const start = () => {
   return startPromise;
 };
 
+const disconnect = () => websocketManager.disconnect();
+
 export const useAgentAvailability = () => ({
   status: readonly(status),
   isReady,
   start,
-  reconnect: connect,
+  attach: (url: string) => connect(url),
+  disconnect,
+  reconnect: () => connect(),
 });

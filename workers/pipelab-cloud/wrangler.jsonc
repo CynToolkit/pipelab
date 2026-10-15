@@ -11,7 +11,7 @@
   "secrets": {
     "required": [
       "SUPABASE_URL",
-      "SUPABASE_ANON_KEY",
+      "SUPABASE_PUBLISHABLE_KEY",
       "SUPABASE_SERVICE_ROLE_KEY",
       "R2_ACCOUNT_ID",
       "R2_ACCESS_KEY_ID",
