@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createPinia, setActivePinia } from "pinia";
+import { createPinia, setActivePinia, storeToRefs } from "pinia";
 import { nextTick } from "vue";
 import type { AuthChangeEvent, Session, User } from "@supabase/supabase-js";
 import { AUTH_REQUEST_TIMEOUT_MS } from "@renderer/utils/request-timeout";
@@ -349,11 +349,53 @@ describe("hosted browser authentication", () => {
       .mockResolvedValue({ data: { subscriptions: [] }, error: null });
     createBrowserClient.mockClear();
     createBrowserClient.mockReturnValue(browserClient);
+    vi.stubEnv("VITE_PIPELAB_BILLING_ENABLED", "true");
   });
 
   afterEach(() => {
+    vi.unstubAllEnvs();
     activeAuthStore?.$dispose();
     activeAuthStore = undefined;
+  });
+
+  it("keeps browser auth usable and billing unavailable when the build flag is absent", async () => {
+    vi.stubEnv("VITE_PIPELAB_BILLING_ENABLED", "");
+    const user = makeUser("browser-user");
+    browserClient.auth.getSession.mockResolvedValue({
+      data: { session: { user, access_token: "access-token", refresh_token: "refresh-token" } },
+      error: null,
+    });
+
+    const auth = useAuth();
+    activeAuthStore = auth;
+    await vi.waitFor(() => expect(auth.authState).toBe("SIGNED_IN"));
+    await vi.waitFor(() => expect(auth.subscriptionStatus).toBe("disabled"));
+
+    expect(auth.user?.id).toBe(user.id);
+    expect(auth.billingEnabled).toBe(false);
+    expect(auth.subscriptions).toEqual([]);
+    expect(browserClient.functions.invoke).not.toHaveBeenCalled();
+
+    const result = await auth.invokeFunction("checkout", { body: { itemIds: ["product"] } });
+    expect(result.error?.message).toMatch(/billing is not enabled/i);
+    expect(browserClient.functions.invoke).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["browser billing disabled", "browser", "", false],
+    ["browser billing enabled", "browser", "true", true],
+    ["Desktop billing remains enabled", "desktop", "", true],
+  ] as const)("exposes %s through Pinia refs", async (_label, environment, billingFlag, expected) => {
+    runtimeEnvironment.value = environment;
+    vi.stubEnv("VITE_PIPELAB_BILLING_ENABLED", billingFlag);
+    const auth = useAuth();
+    activeAuthStore = auth;
+    if (environment === "browser") {
+      await vi.waitFor(() => expect(auth.authState).toBe("SIGNED_OUT"));
+    }
+    posthog.reset.mockClear();
+
+    expect(storeToRefs(auth).billingEnabled.value).toBe(expected);
   });
 
   it("restores browser sessions and loads subscriptions without agent IPC", async () => {
@@ -369,6 +411,7 @@ describe("hosted browser authentication", () => {
     await vi.waitFor(() => expect(auth.subscriptionStatus).toBe("ready"));
 
     expect(auth.user?.id).toBe("browser-user");
+    expect(auth.billingEnabled).toBe(true);
     expect(posthog.identify).not.toHaveBeenCalled();
     expect(posthog.reset).not.toHaveBeenCalled();
     expect(execute).not.toHaveBeenCalled();
@@ -385,7 +428,11 @@ describe("hosted browser authentication", () => {
       data: {
         subscriptions: [
           { id: "indie-subscription", status: "active", product: { id: "indie", name: "Indie" } },
-          { id: "malformed-subscription", status: "active", product: { id: "malformed", name: "Malformed", benefits: [null] } },
+          {
+            id: "malformed-subscription",
+            status: "active",
+            product: { id: "malformed", name: "Malformed", benefits: [null] },
+          },
         ],
       },
       error: null,
@@ -737,11 +784,13 @@ describe("Desktop auth transport compatibility", () => {
   });
 
   afterEach(() => {
+    vi.unstubAllEnvs();
     activeAuthStore?.$dispose();
     activeAuthStore = undefined;
   });
 
   it("keeps sign-in and sign-out on the existing agent IPC channels", async () => {
+    vi.stubEnv("VITE_PIPELAB_BILLING_ENABLED", "");
     const user = makeUser("desktop-user");
     execute.mockImplementation(async (channel: string) => {
       if (channel === "auth:signInWithPassword") {
@@ -752,6 +801,7 @@ describe("Desktop auth transport compatibility", () => {
     });
     const auth = useAuth();
     activeAuthStore = auth;
+    expect(auth.billingEnabled).toBe(true);
 
     const result = await auth.login("desktop-user@example.com", "password");
     expect(result.error).toBeNull();

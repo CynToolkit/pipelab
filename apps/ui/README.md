@@ -62,7 +62,21 @@ JavaScript-readable token risk remains documented below.
 The browser client uses `persistSession: true`, `autoRefreshToken: true`,
 `flowType: "pkce"`, and `detectSessionInUrl: false`; the callback route clears
 the query/hash before exchanging the code and continues to a fixed Dashboard
-route. Supabase JS uses `localStorage` by default, which remains readable by
+route. Browser billing is disabled by default and must be explicitly enabled
+at build time with `VITE_PIPELAB_BILLING_ENABLED=true`. When disabled, browser
+signup, sign-in, session restoration, and profile access continue to work, but
+subscription status is shown as unavailable and plan lookup, checkout, and
+portal calls are blocked. The UI does not treat unavailable billing as a Free
+plan. Desktop keeps its existing IPC auth and billing transport.
+
+For local integration only, enable the flag after starting local Supabase and
+the local billing functions with Polar sandbox configuration. Do not enable it
+for a hosted build until that environment's billing functions and checkout
+configuration have been deliberately deployed and validated. The Edge
+Functions currently in the repository are sandbox-only and do not enable
+production billing.
+
+Supabase JS uses `localStorage` by default, which remains readable by
 same-origin JavaScript, so automatic refresh does not protect a token from XSS.
 Signout resets the analytics identity and clears the corresponding browser or
 Desktop session through its existing auth transport. Desktop auth logs now
@@ -86,11 +100,14 @@ for the existing inline bootstrap script/styles and any runtime style
 injection; avoid `unsafe-inline` and `unsafe-eval` where possible.
 
 Deployment must provide the hosted-mode build, its Supabase URL and public
-anon key, an SPA fallback for `/auth/callback`, and matching Supabase Auth
-allowed redirect URLs and email templates. No backend is required. Migration
-is limited to preserving the current browser session and callback contract;
-changing storage strategy or PKCE behavior would require explicit sign-in,
-refresh, logout, and recovery migration handling.
+publishable key (`SUPABASE_PUBLISHABLE_KEY`, with a temporary
+`SUPABASE_ANON_KEY` fallback), an SPA fallback for `/auth/callback`, and
+matching Supabase Auth allowed redirect URLs and email templates. No backend
+service is required for SPA authentication; billing uses the existing Supabase
+Edge Functions when explicitly enabled. Migration is limited to preserving the
+current browser session and callback contract; changing storage strategy or
+PKCE behavior would require explicit sign-in, refresh, logout, and recovery
+migration handling.
 
 ### Option B: server-mediated HttpOnly session cookies
 

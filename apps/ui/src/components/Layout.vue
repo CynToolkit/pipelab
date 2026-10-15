@@ -193,10 +193,13 @@
       <!-- Bottom actions -->
       <div class="sidebar-bottom">
         <!-- Upgrade -->
-        <div v-if="isReady && subscriptionStatus === 'ready'" class="sidebar-upgrade-wrap">
+        <div
+          v-if="billingEnabled && isReady && subscriptionStatus === 'ready'"
+          class="sidebar-upgrade-wrap"
+        >
           <UpgradeNowButton @open-upgrade-dialog="openUpgradeDialog" />
         </div>
-        <div v-else-if="isReady && user && subscriptionStatus !== 'ready'">
+        <div v-else-if="billingEnabled && isReady && user && subscriptionStatus !== 'ready'">
           <div
             class="sidebar-status-item muted"
             role="status"
@@ -669,8 +672,14 @@ const logout = async () => {
 };
 
 const auth = useAuth();
-const { user, subscriptionStatus, subscriptionError, isLoadingSubscriptions, isAuthModalVisible } =
-  storeToRefs(auth);
+const {
+  user,
+  subscriptionStatus,
+  subscriptionError,
+  isLoadingSubscriptions,
+  isAuthModalVisible,
+  billingEnabled,
+} = storeToRefs(auth);
 const hasOpenedAuthDialog = ref(isAuthModalVisible.value);
 watch(isAuthModalVisible, (visible) => {
   if (visible) hasOpenedAuthDialog.value = true;

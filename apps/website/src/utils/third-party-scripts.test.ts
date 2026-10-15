@@ -12,11 +12,14 @@ describe("third-party script loading", () => {
     document.body.replaceChildren();
   });
 
-  it("does not load third-party scripts on the token-bearing verification route", () => {
-    loadThirdPartyScripts("/auth/auth-success");
+  it.each(["/auth/auth-success", "/auth/auth-success/", "/AUTH/auth-success"])(
+    "does not load third-party scripts on token-bearing verification route %s",
+    (pathname) => {
+      loadThirdPartyScripts(pathname);
 
-    expect(document.querySelectorAll("script")).toHaveLength(0);
-  });
+      expect(document.querySelectorAll("script")).toHaveLength(0);
+    },
+  );
 
   it("loads analytics and the Tally widget on ordinary routes", () => {
     loadThirdPartyScripts("/");

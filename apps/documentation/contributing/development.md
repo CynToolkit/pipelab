@@ -22,12 +22,20 @@ POSTHOG_API_KEY=...
 
 These values enable Supabase-backed authentication, Pipelab Cloud artifact requests, and PostHog telemetry respectively. `SUPABASE_PUBLISHABLE_KEY` is the canonical browser/client key; existing local env files may temporarily use `SUPABASE_ANON_KEY`, with the publishable key taking precedence if both are set. They are optional for local development; missing cloud configuration disables the associated cloud functionality, and the CLI warns that authentication is disabled when Supabase is unavailable. Never commit real credentials. Local Supabase and Worker development is available through the `mise run local` tasks; see `mise.toml` and `supabase/README.md` for the local service setup.
 
+Browser billing is disabled by default. For local-only billing acceptance, start
+the local Supabase functions with Polar sandbox configuration and set
+`VITE_PIPELAB_BILLING_ENABLED=true` for the Editor build. The automated Editor
+deployment workflow explicitly sets the flag to `false`; do not enable a
+hosted build until its billing backend and configuration are deliberately
+validated.
+
 To run the UI as a hosted browser shell without starting an agent connection,
 set `VITE_PIPELAB_MODE=hosted` for the UI build. This only skips agent
 discovery at startup; later pairing can attach an agent in the same session.
 Browser account identity always comes from the browser's Supabase session and
 does not change when an agent connects or disconnects. Browser account features
-need `SUPABASE_URL` and the public `SUPABASE_ANON_KEY`. For email verification
+need `SUPABASE_URL` and the public `SUPABASE_PUBLISHABLE_KEY` (with the
+temporary `SUPABASE_ANON_KEY` fallback). For email verification
 and password recovery, add the exact HTTPS deployment origin and its
 `/auth/callback` route to Supabase Auth's allowed redirect URLs and configure
 the host's SPA fallback. Desktop builds keep the `pipelab://` verification

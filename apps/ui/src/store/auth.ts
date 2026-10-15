@@ -10,7 +10,7 @@ import { createEventHook } from "@vueuse/core";
 import { useAgentAvailability } from "@renderer/composables/useAgentAvailability";
 import { withRequestTimeout } from "@renderer/utils/request-timeout";
 
-export type SubscriptionStatus = "idle" | "loading" | "ready" | "error";
+export type SubscriptionStatus = "idle" | "loading" | "ready" | "error" | "disabled";
 type AuthActionResponse = {
   data: { user: User | null; session: Session | null };
   error: Error | null;
@@ -43,6 +43,9 @@ export const useAuth = defineStore("auth", () => {
   let authRequestId = 0;
   const { isReady } = useAgentAvailability();
   const isBrowserRuntime = uiEnvironment === "browser";
+  const billingEnabled = ref(
+    !isBrowserRuntime || import.meta.env.VITE_PIPELAB_BILLING_ENABLED === "true",
+  );
   const browserClient = isBrowserRuntime
     ? supabase({
         auth: {
@@ -134,6 +137,13 @@ export const useAuth = defineStore("auth", () => {
 
   const invokeFunction = async (name: string, options?: { body?: Record<string, unknown> }) => {
     try {
+      if (
+        !billingEnabled.value &&
+        isBrowserRuntime &&
+        ["polar-user-plan", "polar-available-plans", "customer-portal", "checkout"].includes(name)
+      ) {
+        return { data: null, error: new Error("Billing is not enabled for this deployment.") };
+      }
       if (isBrowserRuntime) {
         if (!browserClient) return { data: null, error: new Error("Supabase is not configured.") };
         const result = await withRequestTimeout(
@@ -164,6 +174,13 @@ export const useAuth = defineStore("auth", () => {
       subscriptions.value = [];
       subscriptionError.value = undefined;
       subscriptionStatus.value = currentUser ? "ready" : "idle";
+      onSubscriptionChanged.trigger({ subscriptions: subscriptions.value });
+      return;
+    }
+    if (!billingEnabled.value) {
+      subscriptions.value = [];
+      subscriptionError.value = undefined;
+      subscriptionStatus.value = "disabled";
       onSubscriptionChanged.trigger({ subscriptions: subscriptions.value });
       return;
     }
@@ -709,6 +726,7 @@ export const useAuth = defineStore("auth", () => {
     isAuthenticating,
     hasLoginProvider,
     isAuthTransportReady,
+    billingEnabled,
     errorMessage,
     subscriptions: readonly(subscriptions),
     subscriptionError: readonly(subscriptionError),

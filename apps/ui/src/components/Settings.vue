@@ -554,7 +554,10 @@
           <p class="description">Manage your account billing details and premium subscriptions.</p>
         </div>
 
-        <div v-if="subscriptionStatus !== 'ready'" role="status">
+        <p v-if="!billingEnabled" role="status">
+          Billing is not enabled for this deployment. Your account remains available.
+        </p>
+        <div v-else-if="subscriptionStatus !== 'ready'" role="status">
           <p>
             {{ subscriptionStatus === "error" ? "Unable to check your plan." : "Checking plan…" }}
           </p>
@@ -721,19 +724,26 @@
             <div class="setting-action flex items-center gap-2">
               <span class="text-sm font-semibold">
                 {{
-                  subscriptions.length > 0 && subscriptions[0].status === "active"
-                    ? subscriptions[0].product.name
-                    : "Free Tier"
+                  billingEnabled && subscriptionStatus === "ready"
+                    ? subscriptions.length > 0 && subscriptions[0].status === "active"
+                      ? subscriptions[0].product.name
+                      : "Free Tier"
+                    : "Unavailable"
                 }}
               </span>
               <span
                 class="installed-badge"
-                :class="{ 'bg-green-100 text-green-800': subscriptions.length > 0 }"
+                :class="{
+                  'bg-green-100 text-green-800':
+                    billingEnabled && subscriptionStatus === 'ready' && subscriptions.length > 0,
+                }"
               >
                 {{
-                  subscriptions.length > 0 && subscriptions[0].status === "active"
-                    ? "Premium"
-                    : "Free"
+                  !billingEnabled || subscriptionStatus !== "ready"
+                    ? "Unavailable"
+                    : subscriptions.length > 0 && subscriptions[0].status === "active"
+                      ? "Premium"
+                      : "Free"
                 }}
               </span>
             </div>
@@ -883,7 +893,7 @@ const {
   status: settingsStatus,
   error: settingsError,
 } = storeToRefs(appSettings);
-const { subscriptions, user, subscriptionStatus } = storeToRefs(authStore);
+const { subscriptions, user, subscriptionStatus, billingEnabled } = storeToRefs(authStore);
 const { storageInfo } = storeToRefs(buildHistoryStore);
 
 const loadSettings = () => appSettings.load().catch(() => {});
@@ -951,7 +961,7 @@ const isBillingPortalUrlLoading = ref(false);
 const billingPortalError = ref("");
 
 const openBillingPortal = async () => {
-  if (!authStore.isAuthTransportReady || !user.value) return;
+  if (!authStore.billingEnabled || !authStore.isAuthTransportReady || !user.value) return;
   isBillingPortalUrlLoading.value = true;
   billingPortalError.value = "";
   const result = await openAsyncUrl(async () => {

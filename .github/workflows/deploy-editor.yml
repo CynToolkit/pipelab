@@ -55,6 +55,8 @@ jobs:
           # Browser PR previews run without a paired local agent. Keep this
           # scoped to previews so push builds retain their existing mode.
           VITE_PIPELAB_MODE: ${{ github.event_name == 'pull_request' && 'hosted' || '' }}
+          # Keep browser billing unavailable until a production backend is deliberately enabled.
+          VITE_PIPELAB_BILLING_ENABLED: "false"
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY || secrets.SUPABASE_ANON_KEY }}
           SUPABASE_KEY_SOURCE: ${{ secrets.SUPABASE_PUBLISHABLE_KEY != '' && 'SUPABASE_PUBLISHABLE_KEY' || 'SUPABASE_ANON_KEY' }}

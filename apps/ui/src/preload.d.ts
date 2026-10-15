@@ -17,7 +17,7 @@ declare global {
       };
       showOpenDialog?: (options: any) => Promise<any>;
       showSaveDialog?: (options: any) => Promise<any>;
-      openExternal?: (url: string) => Promise<any>;
+      openExternal?: (url: string) => Promise<boolean | void>;
       showItemInFolder?: (path: string) => Promise<any>;
       isPathBlacklisted?: (path: string) => Promise<boolean>;
     };

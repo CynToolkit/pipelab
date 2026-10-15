@@ -48,7 +48,6 @@ detached; absent settings must show the existing configuration notice. Set
 state explicitly. Hosted mode controls startup discovery only; a later paired
 attach can connect an agent without rebuilding or reloading.
 
-
 ## Hosted provider specifications
 
 Start the UI with `VITE_PIPELAB_MODE=hosted` and no local agent, then run:
@@ -109,41 +108,46 @@ node apps/ui/tests/browser/hosted-auth-local.cjs
 The smoke rejects nonlocal Supabase and Mailpit URLs. With both optional modes
 enabled, it verifies signup, email verification, password recovery, session
 restoration, sign-out, sign-in with the reset password, and no agent WebSocket.
-For signed-in Billing UI failure handling, set `EXPECT_PLAN_FAILURE_UI=1` or
+With `VITE_PIPELAB_BILLING_ENABLED` unset, it also verifies Billing is clearly
+unavailable, no plan/portal/checkout controls are shown, and no billing
+functions are requested. For signed-in Billing UI failure handling, start the
+local Vite server with `VITE_PIPELAB_BILLING_ENABLED=true` and set
+`EXPECT_BILLING_DISABLED=0` together with `EXPECT_PLAN_FAILURE_UI=1` or
 `EXPECT_PORTAL_FAILURE_UI=1`; these modes use synthetic browser responses and
 do not replace live billing acceptance.
 
-## Hosted auth acceptance (manual, nonproduction)
+## Auth and billing acceptance (manual, nonproduction)
 
-The local browser journey is not acceptance of a hosted auth-and-billing
-integration. Unit/component tests and failure-UI intercepts are useful UI
-checks; they are not real Supabase, email-delivery, Polar, or Desktop
+Use local Supabase, local Mailpit, and Polar sandbox. There is no hosted
+nonproduction Supabase project. Unit tests and failure-UI intercepts are useful
+UI checks; they are not real Supabase, email-delivery, Polar, or Desktop
 integration tests.
 
+Record the local environment/build and observed result in the PR acceptance
+notes:
 
-Complete each nonproduction step and record the environment/build and observed
-result in the PR acceptance notes:
-
-1. **Signup:** register a new test account with a controlled test inbox.
+1. **Signup:** register a local test account with a Mailpit inbox.
    Confirm the UI reports that verification is required and the account is not
    treated as verified before following the email link.
-2. **Email verification:** open the delivered link, confirm it returns to the
-   expected hosted `/auth/callback`, shows success, and continues to a signed-in
+2. **Email verification:** open the Mailpit link, confirm it returns to the
+   local `/auth/callback`, shows success, and continues to a signed-in
    dashboard. Verify the account can sign in after verification.
 3. **Password reset:** sign out, request a reset for that account, use the
    delivered link, set a new password, and verify the new password signs in
    while the old password no longer does.
-4. **Session restore:** reload the signed-in hosted page and open it again in a
+4. **Session restore:** reload the signed-in local page and open it again in a
    fresh tab. Confirm the current account is restored.
 5. **Profile:** open Settings → Profile. Confirm the displayed email matches
-   the test account and the subscription tier/status agrees with Billing.
-6. **Plan/subscription:** open Settings → Billing. Confirm the expected
-   nonproduction subscription name, status, amount/currency, interval, and
-   period dates are shown; also verify the intended no-subscription state for
-   an account without a plan. A mocked `polar-user-plan` response does not
-   satisfy this check.
+   the test account. With billing disabled, confirm the tier is shown as
+   unavailable rather than Free; with the local billing flag enabled, confirm
+   the tier agrees with the verified subscription response.
+6. **Plan/subscription:** with `VITE_PIPELAB_BILLING_ENABLED=true` and local
+   billing functions serving, open Settings → Billing. Confirm the existing
+   sandbox subscription name, status, amount/currency, interval, and period
+   dates; verify a no-subscription account's returned empty state separately.
+   A mocked `polar-user-plan` response does not satisfy this check.
 7. **Polar customer portal:** from Billing, open Manage Subscription and
-   confirm the real sandbox portal opens for that customer. Do not create,
+   confirm the real `sandbox.polar.sh` portal opens for that customer. Do not create,
    change, or cancel a purchase unless separately approved. A mocked portal
    error only checks error UI.
 8. **Signout:** sign out, confirm account controls disappear, reload, and verify
@@ -151,7 +155,6 @@ result in the PR acceptance notes:
 9. **Desktop compatibility:** separately verify the existing Desktop sign-in,
    restored session, and sign-out path over its normal IPC transport. Browser
    no-agent behavior does not establish Desktop compatibility.
-
 
 No hosted credentials or service secrets belong in this file. Do not use
 production credentials, perform production changes, or initiate any purchase,

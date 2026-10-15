@@ -11,11 +11,16 @@ const expectEmailConfirmation = process.env.EXPECT_EMAIL_CONFIRMATION === "1";
 const expectPasswordReset = process.env.EXPECT_PASSWORD_RESET === "1";
 const expectPlanFailureUi = process.env.EXPECT_PLAN_FAILURE_UI === "1";
 const expectPortalFailureUi = process.env.EXPECT_PORTAL_FAILURE_UI === "1";
+const expectBillingDisabled = process.env.EXPECT_BILLING_DISABLED !== "0";
 const mailpitUrl = process.env.MAILPIT_URL;
 
 assert.ok(
   !(expectPlanFailureUi && expectPortalFailureUi),
   "Run plan-failure and portal-failure UI checks separately.",
+);
+assert.ok(
+  !(expectBillingDisabled && (expectPlanFailureUi || expectPortalFailureUi)),
+  "Enable VITE_PIPELAB_BILLING_ENABLED for billing failure UI checks.",
 );
 
 if (!supabaseUrl || !["127.0.0.1", "localhost", "::1"].includes(new URL(supabaseUrl).hostname)) {
@@ -71,6 +76,7 @@ let failureContext = "";
   const pageErrors = [];
   const consoleErrors = [];
   const failedResponses = [];
+  const billingFunctionRequests = [];
   const appSockets = [];
   const callbackNavigations = [];
 
@@ -87,6 +93,16 @@ let failureContext = "";
   page.on("response", (response) => {
     if (response.status() >= 400) {
       failedResponses.push({ status: response.status(), path: new URL(response.url()).pathname });
+    }
+  });
+  page.on("request", (request) => {
+    const path = new URL(request.url()).pathname;
+    if (
+      /^\/functions\/v1\/(polar-user-plan|polar-available-plans|customer-portal|checkout)$/.test(
+        path,
+      )
+    ) {
+      billingFunctionRequests.push(path);
     }
   });
   page.on("websocket", (socket) => {
@@ -192,6 +208,24 @@ let failureContext = "";
     await page.locator(".settings-sidebar .sidebar-item").filter({ hasText: "Profile" }).click();
     await page.getByRole("dialog").getByText(email, { exact: true }).waitFor({ timeout: 10000 });
 
+    if (expectBillingDisabled) {
+      stage = "verify billing is unavailable without the build flag";
+      const profilePlanStatus = page
+        .locator(".setting-item")
+        .filter({ hasText: "Your subscription plan status." });
+      const unavailablePlanLabels = profilePlanStatus.getByText("Unavailable", { exact: true });
+      await unavailablePlanLabels.first().waitFor();
+      assert.equal(await unavailablePlanLabels.count(), 2);
+      await page.locator(".settings-sidebar .sidebar-item").filter({ hasText: "Billing" }).click();
+      await page
+        .getByText("Billing is not enabled for this deployment. Your account remains available.", {
+          exact: true,
+        })
+        .waitFor();
+      assert.equal(await page.locator(".plan-button, .manage-portal-btn").count(), 0);
+      assert.deepEqual(billingFunctionRequests, []);
+    }
+
     stage = "restore session after refresh";
     await page.reload({ waitUntil: "domcontentloaded" });
     await page.getByText(email, { exact: true }).waitFor({ timeout: 15000 });
@@ -280,6 +314,7 @@ let failureContext = "";
     assert.deepEqual(consoleErrors, [], `browser had console errors: ${consoleErrors.join("; ")}`);
     assert.ok(
       failedResponses.every(({ status, path }) => {
+        if (expectBillingDisabled) return false;
         if (expectPlanFailureUi) return status === 500 && path === "/functions/v1/polar-user-plan";
         if (expectPortalFailureUi)
           return status === 500 && path === "/functions/v1/customer-portal";

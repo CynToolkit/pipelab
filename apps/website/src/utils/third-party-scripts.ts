@@ -1,7 +1,8 @@
 export function loadThirdPartyScripts(pathname: string): void {
   // Supabase verification links put bearer tokens in the URL fragment. Keep
   // third-party code off that document while the callback clears the fragment.
-  if (pathname === "/auth/auth-success") return;
+  const normalizedPathname = pathname.replace(/\/+$/, "").toLowerCase();
+  if (normalizedPathname === "/auth/auth-success") return;
 
   const analytics = document.createElement("script");
   analytics.src = "https://cloud.umami.is/script.js";
