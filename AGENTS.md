@@ -123,6 +123,12 @@ details. Do not add speculative abstractions or unrelated cleanup.
 - Supabase changes: inspect the current schema and migration conventions,
   make migrations explicit and reversible where practical, and regenerate
   types only when the schema actually changes.
+- Supabase and Polar validation: use this repository's local Supabase project and
+  Polar sandbox for development, integration tests, and acceptance whenever
+  these services are needed. Do not point tests at production. Use a hosted
+  Supabase project only when a task explicitly requires it and names or
+  authorizes the exact project. Keep Polar credentials server-side, and do not
+  create purchases or change subscriptions without explicit approval.
 - Changesets: include only packages affected by the user-visible change and
   describe the release impact plainly.
 
