@@ -59,6 +59,7 @@ export const getBinName = (name: string, platform?: string) => {
 };
 
 export const websocketPort = 33753;
+export const desktopBootstrapProtocolVersion = 1;
 export const uiDevPort = 5173;
 
 export const uiDevServerInstruction = "pnpm dev --filter=@pipelab/ui";

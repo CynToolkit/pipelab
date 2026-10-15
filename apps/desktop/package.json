@@ -15,7 +15,7 @@
   "scripts": {
     "format": "oxfmt .",
     "lint": "oxlint .",
-    "test": "node --test scripts/run-forge-deployed.test.mjs",
+    "test": "node --test scripts/run-forge-deployed.test.mjs && node --import tsx --test src/main/cli-bootstrap.test.ts",
     "smoke:electron:manual": "node scripts/electron-smoke-test.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.json --composite false",
     "start": "electron-forge start",

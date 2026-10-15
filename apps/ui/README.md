@@ -10,7 +10,7 @@ The UI is a "thin client" designed to configure and run Release workflows. It do
 
 When the UI starts, it attempts to connect to the Pipelab Engine (CLI process):
 
-1.  **Discovery**: It looks for a running engine on the configured port (default: `33753`).
+1.  **Discovery**: Standalone browser development uses the configured engine port (default: `33753`). Desktop uses the per-launch loopback address supplied by its verified CLI server.
 2.  **Streaming**: Once connected, it receives real-time execution logs and progress updates via WebSockets.
 3.  **Authentication**: Desktop syncs authentication through the engine. Browser builds use their own Supabase session for account and billing features; connecting or disconnecting an agent does not replace that identity.
 
@@ -26,12 +26,12 @@ When the UI starts, it attempts to connect to the Pipelab Engine (CLI process):
 ### Commands
 
 ```bash
-pnpm dev        # Starts the Vite development server (port 5173)
+pnpm dev        # Starts Vite on IPv4 loopback (port 5173)
 pnpm build      # Generates the production assets in the /dist folder
 ```
 
 > [!NOTE]
-> During development, the UI expects the `@pipelab/cli` to be running separately (via `pnpm dev` at the root).
+> With root `pnpm dev`, Desktop manages its own authenticated CLI sidecar. Use `pnpm dev-remote` for standalone UI development with a separate remote CLI.
 
 ### Browser startup without an agent
 

@@ -73,4 +73,25 @@ describe("server security policy", () => {
       }),
     ).toBe(true);
   });
+
+  test("requires the development renderer Origin to match the loopback WebSocket host", () => {
+    const options = {
+      host: "127.0.0.1",
+      allowedOrigins: ["http://localhost:5173", "http://127.0.0.1:5173"],
+      allowUnauthenticated: true,
+    };
+
+    expect(
+      isAuthorizedRequest(
+        request({ host: "127.0.0.1:49152", origin: "http://127.0.0.1:5173" }),
+        options,
+      ),
+    ).toBe(true);
+    expect(
+      isAuthorizedRequest(
+        request({ host: "127.0.0.1:49152", origin: "http://localhost:5173" }),
+        options,
+      ),
+    ).toBe(false);
+  });
 });

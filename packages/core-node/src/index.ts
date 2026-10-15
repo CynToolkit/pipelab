@@ -20,6 +20,7 @@ export * from "./workflow-tasks/filesystem";
 export * from "./release/builtins";
 export { buildCoreReleaseRegistry } from "./release/registry";
 export * from "./server";
+export * from "./desktop-bootstrap";
 export * from "./utils";
 export * from "./utils/github";
 export * from "./fs-utils";

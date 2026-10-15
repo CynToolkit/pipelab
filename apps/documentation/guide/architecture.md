@@ -1,8 +1,11 @@
 # How Pipelab runs your work
 
 The desktop app is made from an Electron shell, a Vue UI, and a local Node.js
-engine. The shell starts or resolves the CLI server, and the UI connects to the
-engine. In production, the server also serves the bundled UI.
+engine. Each Desktop launch starts its own CLI server on an OS-assigned loopback
+port. Before loading the UI, the shell verifies the server's Pipelab identity,
+child process, session, protocol, and compatible CLI version with a
+per-launch challenge and secret. Startup fails with an error if verification
+does not match. In production, the server also serves the bundled UI.
 
 ![Pipelab desktop, UI, CLI server, and execution paths](../assets/architecture/architecture.svg)
 
@@ -14,7 +17,8 @@ engine. In production, the server also serves the bundled UI.
 3. The Node engine owns provider execution, file operations, and run history.
 
 The standalone CLI can start the server with `pipelab serve`; its default
-address is `127.0.0.1:33753`. Binding beyond loopback in production requires an
+address is `127.0.0.1:33753`. Desktop does not reuse this fixed default or
+adopt an existing server. Binding beyond loopback in production requires an
 authentication token. See the [CLI reference](/cli/reference#server).
 
 ## Workflow execution

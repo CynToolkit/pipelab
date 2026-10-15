@@ -6,9 +6,13 @@ you ask for help. Remove credentials and private paths first.
 
 ## Desktop startup {#desktop-startup}
 
-The desktop app starts or connects to a local CLI server in the background.
-Navigation remains visible while it connects. If the connection notice stays
-on **Connecting** or reports that no agent is connected:
+The desktop app starts a dedicated local CLI server and verifies its launch
+identity before loading the UI. If startup verification fails, use the displayed
+error to close conflicting Pipelab processes or update/reinstall the app, then
+restart it. If the authenticated CLI process stops after startup, Desktop closes
+instead of reconnecting to a different local process; restart Desktop. If the
+connection notice stays on **Connecting** while Desktop is open or reports that
+no agent is connected:
 
 1. Use **Reconnect** in the connection notice.
 2. If you started the UI for development, confirm both the UI dev server and
@@ -16,8 +20,9 @@ on **Connecting** or reports that no agent is connected:
 3. If a section's data fails to load, use **Retry** in that section after the
    connection is restored. A failure in one section does not block navigation
    or other loaded sections.
-4. If packaged desktop startup reports a CLI/server failure, restart the app
-   and collect the displayed error for diagnosis.
+4. If a packaged Desktop startup error persists after restarting, collect the
+   displayed error for diagnosis. Do not connect the UI to another local port
+   to work around an identity or session mismatch.
 
 While disconnected, previously loaded data may remain visible, but editing,
 execution, and other agent-dependent actions are disabled. This does not

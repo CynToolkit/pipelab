@@ -12,6 +12,11 @@ import {
   isAuthorizedRequest,
   type ServerSecurityOptions,
 } from "./server-security";
+import {
+  desktopBootstrapPath,
+  handleDesktopBootstrapRequest,
+  type DesktopBootstrapOptions,
+} from "./desktop-bootstrap";
 
 export interface ServeOptions {
   port: string | number;
@@ -21,6 +26,7 @@ export interface ServeOptions {
   host?: string;
   authToken?: string;
   allowedOrigin?: string;
+  desktopBootstrap?: Omit<DesktopBootstrapOptions, "version">;
 }
 
 export const sendStartupProgress = (message: string) => {
@@ -60,6 +66,13 @@ export async function serveCommand(options: ServeOptions, version: string, cliDi
 
   const server = http.createServer(async (request, response) => {
     const urlObj = request.url ? new URL(request.url, "http://localhost") : null;
+    if (urlObj?.pathname === desktopBootstrapPath && options.desktopBootstrap) {
+      await handleDesktopBootstrapRequest(request, response, {
+        ...options.desktopBootstrap,
+        version,
+      });
+      return;
+    }
     // Serve local media files securely via HTTP
     if (urlObj && urlObj.pathname.startsWith("/media-file/")) {
       if (!isAuthorizedRequest(request, security)) {
@@ -129,16 +142,39 @@ export async function serveCommand(options: ServeOptions, version: string, cliDi
     });
   });
 
-  console.log(`Starting Pipelab server on port ${options.port}...`);
-  if (isDev) {
-    console.info(getUiDevServerMissingWarning());
-    console.log(`UI available at http://localhost:${uiDevPort}`);
-  } else {
-    console.log(`UI available at http://localhost:${options.port}`);
+  if (options.desktopBootstrap) {
+    server.once("close", () => {
+      console.error("The authenticated Desktop CLI server listener closed unexpectedly.");
+      process.exit(1);
+    });
   }
 
   // Start the server EARLY so the UI can connect and receive progress updates
   await webSocketServer.start(Number(options.port), server, security);
+
+  const address = server.address();
+  if (!address || typeof address === "string") {
+    throw new Error("Pipelab server started without a TCP address.");
+  }
+  const boundPort = address.port;
+  console.log(`Pipelab server listening on port ${boundPort}`);
+
+  if (isDev) {
+    console.info(getUiDevServerMissingWarning());
+    console.log(`UI available at http://localhost:${uiDevPort}`);
+  } else {
+    console.log(`UI available at http://127.0.0.1:${boundPort}`);
+  }
+
+  if (options.desktopBootstrap) {
+    try {
+      process.stdout.write(
+        `PIPELAB_DESKTOP_READY:${JSON.stringify({ type: "ready", port: boundPort, sessionId: options.desktopBootstrap.sessionId })}\n`,
+      );
+    } catch {
+      throw new Error("Desktop bootstrap channel is unavailable; restart the Desktop app.");
+    }
+  }
 
   await registerAllHandlers({
     version,

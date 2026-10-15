@@ -33,7 +33,7 @@ Starts the standalone HTTP/WebSocket server used by the UI and provider handlers
 | `--allowed-origin <origin>` | —                            | Adds one browser origin to the built-in localhost development origins. This option is not registered as repeatable. |
 | `--user-data <path>`        | Platform default             | Use a custom user-data directory.                                                                                   |
 
-The default is loopback-only. In production, non-loopback access requires a token; development has separate origin checks. Development requests are redirected to the UI dev server; production serves bundled UI assets, which must be present in the CLI bundle. See [architecture](/guide/architecture) for the desktop/server boundary.
+The standalone CLI default is loopback-only on `127.0.0.1:33753`. Desktop starts its own server on port `0` (letting the OS choose a port) and authenticates that process and launch session before loading the UI. This internal Desktop port does not change the standalone CLI default. In production, non-loopback access requires a token; development has separate origin checks. Development requests are redirected to the UI dev server; production serves bundled UI assets, which must be present in the CLI bundle. See [architecture](/guide/architecture) for the desktop/server boundary.
 
 ### Run a saved Release workflow
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { isDev, serveCommand } from "@pipelab/core-node";
+import { isDev, readDesktopBootstrapEnvironment, serveCommand } from "@pipelab/core-node";
 import { historyCommand } from "./commands/history";
 import { usageCommand, purgeCommand } from "./commands/maintenance";
 import { setupCommand } from "./commands/setup";
@@ -82,7 +82,8 @@ program
   .action(async (options) => {
     try {
       options.userData = options.userData || getDefaultUserDataPath();
-      await serveCommand(options, version, __dirname);
+      const desktopBootstrap = readDesktopBootstrapEnvironment();
+      await serveCommand({ ...options, desktopBootstrap }, version, __dirname);
     } catch (e) {
       console.error(e);
       process.exit(1);
