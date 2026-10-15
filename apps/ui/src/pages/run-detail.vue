@@ -53,9 +53,47 @@
           @click="cancel"
         />
       </header>
-      <Message v-if="entry.error" severity="error" :closable="false" class="run-error">{{
-        entry.error.message
-      }}</Message>
+      <section
+        v-for="diagnostic in failureDiagnostics"
+        :key="diagnostic.id"
+        class="failure-diagnostic"
+        aria-label="Failure diagnosis"
+      >
+        <div class="failure-diagnostic-heading">
+          <i class="mdi mdi-alert-circle-outline" aria-hidden="true" />
+          <div>
+            <span>{{ diagnostic.category }}</span>
+            <h3>{{ diagnostic.title }}</h3>
+          </div>
+        </div>
+        <p>{{ diagnostic.summary }}</p>
+        <p class="failure-context">
+          {{ entry.completedSteps }} of {{ entry.totalSteps }} steps succeeded;
+          {{ runFailureArtifactSummary(entry) }}
+        </p>
+        <p v-if="diagnostic.destination" class="failure-context">
+          Affected destination: <strong>{{ diagnostic.destination }}</strong>
+          <template v-if="diagnostic.slotId">
+            · Slot: <strong>{{ diagnostic.slotId }}</strong></template
+          >
+        </p>
+        <p class="failure-next"><strong>Next:</strong> {{ diagnostic.nextAction }}</p>
+        <div class="failure-actions">
+          <Button
+            :label="diagnostic.stepId ? 'View step logs' : 'View run logs'"
+            icon="mdi mdi-console-line"
+            text
+            size="small"
+            @click="viewFailureLogs(diagnostic)"
+          />
+          <details v-if="diagnostic.rawMessage" class="failure-raw">
+            <summary>Technical details</summary>
+            <code v-if="diagnostic.errorCode">{{ diagnostic.errorCode }}</code>
+            <pre>{{ diagnostic.rawMessage }}</pre>
+            <pre v-if="diagnostic.rawStack">{{ diagnostic.rawStack }}</pre>
+          </details>
+        </div>
+      </section>
       <section v-if="playwrightVideoPath" class="video-output" aria-label="Playwright video output">
         <i class="mdi mdi-video-outline" aria-hidden="true" />
         <div class="video-path">
@@ -308,14 +346,17 @@ import {
   artifactDisplayName,
   artifactDisplayDescription,
   autoSelectInitialRunStep,
+  buildRunFailureDiagnostics,
   createRunStepSelectionState,
   deliveryDisplayMetadata,
   isRunContextValid,
   resetRunStepSelectionState,
+  runFailureArtifactSummary,
   reconcileRunEntry,
   workflowCancellationFeedback,
   selectRunStep,
   applyWorkflowEventToRunEntry,
+  type RunFailureDiagnostic,
 } from "./run-detail-state";
 import { subscribeToRunEvents } from "./run-events";
 
@@ -333,6 +374,9 @@ const selectedStep = computed({
   set: (stepId: string | null) => selectRunStep(stepSelection, stepId),
 });
 const activePanel = ref<Panel>("logs");
+const failureDiagnostics = computed(() =>
+  entry.value ? buildRunFailureDiagnostics(entry.value) : [],
+);
 const cancelling = ref(false);
 const logViewport = ref<HTMLElement>();
 let loadGeneration = 0;
@@ -525,6 +569,10 @@ const cancel = async () => {
   }
 };
 const selectStep = (stepId: string | null) => selectRunStep(stepSelection, stepId);
+const viewFailureLogs = (diagnostic: RunFailureDiagnostic) => {
+  selectStep(diagnostic.stepId || null);
+  activePanel.value = "logs";
+};
 const stopHistoryRefresh = () => {
   if (historyRefreshTimer) clearTimeout(historyRefreshTimer);
   historyRefreshTimer = undefined;
@@ -1164,6 +1212,63 @@ onUnmounted(() => {
 }
 .run-error {
   margin-top: 12px;
+}
+.failure-diagnostic {
+  margin-top: 14px;
+  padding: 16px 18px;
+  border: 1px solid color-mix(in srgb, var(--red-500, #ef4444) 35%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--red-500, #ef4444) 5%, var(--surface-card, #fff));
+}
+.failure-diagnostic-heading,
+.failure-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.failure-diagnostic-heading > i {
+  color: var(--red-500, #ef4444);
+  font-size: 1.25rem;
+}
+.failure-diagnostic-heading span {
+  color: var(--red-500, #ef4444);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.failure-diagnostic h3,
+.failure-diagnostic p {
+  margin: 3px 0 0;
+}
+.failure-diagnostic h3 {
+  font-size: 0.95rem;
+}
+.failure-context {
+  color: var(--text-color-secondary);
+  font-size: 0.8rem;
+}
+.failure-next {
+  font-size: 0.85rem;
+}
+.failure-actions {
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+.failure-raw {
+  font-size: 0.78rem;
+}
+.failure-raw summary {
+  cursor: pointer;
+}
+.failure-raw code,
+.failure-raw pre {
+  display: block;
+  margin: 8px 0 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.failure-raw code {
+  color: var(--text-color-secondary);
 }
 .sr-only {
   position: absolute;
