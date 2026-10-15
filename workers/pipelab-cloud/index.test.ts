@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   getUser: vi.fn(),
+  createClient: vi.fn(),
   rpc: vi.fn(),
   send: vi.fn(),
   getSignedUrl: vi.fn(),
@@ -9,11 +10,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@supabase/supabase-js", () => ({
-  createClient: vi.fn(() => ({
-    auth: { getUser: mocks.getUser },
-    rpc: mocks.rpc,
-    from: mocks.from,
-  })),
+  createClient: mocks.createClient,
 }));
 
 vi.mock("@aws-sdk/client-s3", () => {
@@ -47,7 +44,8 @@ import worker, { handleRequest, handleScheduled } from "./index";
 
 const env = {
   SUPABASE_URL: "http://127.0.0.1:54321",
-  SUPABASE_ANON_KEY: "local-anon-key",
+  SUPABASE_PUBLISHABLE_KEY: "sb_publishable_local",
+  SUPABASE_ANON_KEY: "legacy-anon-key",
   SUPABASE_SERVICE_ROLE_KEY: "local-service-role-key",
   R2_ENDPOINT_URL: "http://127.0.0.1:8787",
   R2_ACCESS_KEY_ID: "local",
@@ -65,6 +63,11 @@ const authorizedRequest = (body: unknown) =>
 describe("Pipelab Cloud Worker", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.createClient.mockImplementation(() => ({
+      auth: { getUser: mocks.getUser },
+      rpc: mocks.rpc,
+      from: mocks.from,
+    }));
     mocks.getUser.mockResolvedValue({
       data: { user: { id: "user-1", is_anonymous: false } },
       error: null,
@@ -130,6 +133,61 @@ describe("Pipelab Cloud Worker", () => {
     const response = await handleRequest(authorizedRequest({ action: "prepareUpload" }), env);
 
     expect(response.status).toBe(401);
+  });
+
+  it("uses the publishable key for the API key while forwarding the user JWT separately", async () => {
+    const response = await handleRequest(
+      authorizedRequest({
+        action: "prepareUpload",
+        artifactId: "build-1",
+        artifactOutputId: "electron.windows",
+        version: "1.4.0",
+        size: 42,
+        checksum: "a".repeat(64),
+      }),
+      env,
+    );
+
+    expect(response.status).toBe(200);
+    expect(mocks.createClient).toHaveBeenNthCalledWith(
+      1,
+      env.SUPABASE_URL,
+      env.SUPABASE_PUBLISHABLE_KEY,
+      expect.objectContaining({
+        global: { headers: { Authorization: "Bearer user-token" } },
+      }),
+    );
+    expect(mocks.createClient).toHaveBeenNthCalledWith(
+      2,
+      env.SUPABASE_URL,
+      env.SUPABASE_SERVICE_ROLE_KEY,
+      expect.any(Object),
+    );
+  });
+
+  it("continues to accept the legacy key when the publishable key is absent", async () => {
+    const legacyEnv = { ...env, SUPABASE_PUBLISHABLE_KEY: undefined };
+    const response = await handleRequest(
+      authorizedRequest({
+        action: "prepareUpload",
+        artifactId: "build-1",
+        artifactOutputId: "electron.windows",
+        version: "1.4.0",
+        size: 42,
+        checksum: "a".repeat(64),
+      }),
+      legacyEnv,
+    );
+
+    expect(response.status).toBe(200);
+    expect(mocks.createClient).toHaveBeenNthCalledWith(
+      1,
+      env.SUPABASE_URL,
+      env.SUPABASE_ANON_KEY,
+      expect.objectContaining({
+        global: { headers: { Authorization: "Bearer user-token" } },
+      }),
+    );
   });
 
   it("creates a signed single-part upload for the authenticated user", async () => {

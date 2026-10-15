@@ -2,6 +2,7 @@ import { defineConfig } from "tsdown";
 import { resolve } from "path";
 import { existsSync, readFileSync } from "node:fs";
 import { config } from "dotenv";
+import { resolveSupabasePublishableKey } from "@pipelab/shared/supabase-key";
 
 const envFile = resolve(import.meta.dirname, "../../.env");
 
@@ -16,6 +17,7 @@ export default defineConfig({
   env: {
     NODE_ENV: process.env.NODE_ENV || "production",
     SUPABASE_URL: process.env.SUPABASE_URL || "",
+    SUPABASE_PUBLISHABLE_KEY: resolveSupabasePublishableKey(process.env),
     SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY || "",
     PIPELAB_CLOUD_WORKER_URL: process.env.PIPELAB_CLOUD_WORKER_URL || "",
     POSTHOG_API_KEY: process.env.POSTHOG_API_KEY || "",

@@ -91,10 +91,10 @@ run = '''
 set -eu
 eval "$(supabase status --output env)"
 export SUPABASE_URL="${API_URL:-${SUPABASE_URL:-}}"
-export SUPABASE_ANON_KEY="${ANON_KEY:-${PUBLISHABLE_KEY:-${SUPABASE_ANON_KEY:-}}}"
+export SUPABASE_PUBLISHABLE_KEY="${PUBLISHABLE_KEY:-${SUPABASE_PUBLISHABLE_KEY:-${ANON_KEY:-${SUPABASE_ANON_KEY:-}}}}"
 export SUPABASE_SERVICE_ROLE_KEY="${SERVICE_ROLE_KEY:-${SECRET_KEY:-${SUPABASE_SERVICE_ROLE_KEY:-}}}"
 : "${SUPABASE_URL:?Could not read local Supabase URL; run mise run local:setup first}"
-: "${SUPABASE_ANON_KEY:?Could not read local Supabase publishable key}"
+: "${SUPABASE_PUBLISHABLE_KEY:?Could not read local Supabase publishable key}"
 : "${SUPABASE_SERVICE_ROLE_KEY:?Could not read local Supabase service key}"
 export R2_ENDPOINT_URL="http://127.0.0.1:8787"
 export R2_ACCOUNT_ID="local"
@@ -123,12 +123,12 @@ run = '''
 set -eu
 eval "$(supabase status --output env)"
 local_supabase_url="${API_URL:-${SUPABASE_URL:-}}"
-local_anon_key="${ANON_KEY:-${PUBLISHABLE_KEY:-${SUPABASE_ANON_KEY:-}}}"
+local_publishable_key="${PUBLISHABLE_KEY:-${SUPABASE_PUBLISHABLE_KEY:-${ANON_KEY:-${SUPABASE_ANON_KEY:-}}}}"
 local_service_role_key="${SERVICE_ROLE_KEY:-${SECRET_KEY:-${SUPABASE_SERVICE_ROLE_KEY:-}}}"
 : "${local_supabase_url:?Could not read local Supabase URL; run mise run local:setup first}"
-: "${local_anon_key:?Could not read local Supabase publishable key}"
+: "${local_publishable_key:?Could not read local Supabase publishable key}"
 : "${local_service_role_key:?Could not read local Supabase service key}"
-doppler run -- env SUPABASE_URL="$local_supabase_url" SUPABASE_ANON_KEY="$local_anon_key" SUPABASE_SERVICE_ROLE_KEY="$local_service_role_key" PIPELAB_CLOUD_WORKER_URL="http://127.0.0.1:8788" pnpm dev
+doppler run -- env SUPABASE_URL="$local_supabase_url" SUPABASE_PUBLISHABLE_KEY="$local_publishable_key" SUPABASE_SERVICE_ROLE_KEY="$local_service_role_key" PIPELAB_CLOUD_WORKER_URL="http://127.0.0.1:8788" pnpm dev
 '''
 dir = "apps/desktop"
 
@@ -138,9 +138,9 @@ run = '''
 set -eu
 eval "$(supabase status --output env)"
 export SUPABASE_URL="${API_URL:-${SUPABASE_URL:-}}"
-export SUPABASE_ANON_KEY="${ANON_KEY:-${PUBLISHABLE_KEY:-${SUPABASE_ANON_KEY:-}}}"
+export SUPABASE_PUBLISHABLE_KEY="${PUBLISHABLE_KEY:-${SUPABASE_PUBLISHABLE_KEY:-${ANON_KEY:-${SUPABASE_ANON_KEY:-}}}}"
 export PIPELAB_CLOUD_WORKER_URL="http://127.0.0.1:8788"
 : "${SUPABASE_URL:?Could not read local Supabase URL; run mise run local:setup first}"
-: "${SUPABASE_ANON_KEY:?Could not read local Supabase publishable key}"
+: "${SUPABASE_PUBLISHABLE_KEY:?Could not read local Supabase publishable key}"
 pnpm exec turbo run dev:remote --filter=@pipelab/cli --filter=@pipelab/ui
 '''

@@ -6,6 +6,7 @@ import Components from "unplugin-vue-components/vite";
 import { PrimeVueResolver } from "@primevue/auto-import-resolver";
 import AutoImport from "unplugin-auto-import/vite";
 import VueDevTools from "vite-plugin-vue-devtools";
+import { resolveSupabasePublishableKey } from "@pipelab/shared/supabase-key";
 // Keep the config self-contained when pnpm injects workspace packages into
 // node_modules. Node 24 deliberately refuses to type-strip injected .ts
 // package entrypoints, while Vite can load this workspace source directly.
@@ -43,6 +44,7 @@ function modernIconFonts() {
 export default defineConfig(({ mode }) => {
   const rootPath = resolve(__dirname, "../../");
   const env = loadEnv(mode, rootPath, "");
+  const supabasePublishableKey = resolveSupabasePublishableKey(env);
 
   return {
     envDir: rootPath,
@@ -83,6 +85,7 @@ export default defineConfig(({ mode }) => {
     ],
     define: {
       "process.env.SUPABASE_URL": JSON.stringify(env.SUPABASE_URL),
+      "process.env.SUPABASE_PUBLISHABLE_KEY": JSON.stringify(supabasePublishableKey),
       "process.env.SUPABASE_ANON_KEY": JSON.stringify(env.SUPABASE_ANON_KEY),
       "process.env.SUPABASE_PROJECT_ID": JSON.stringify(env.SUPABASE_PROJECT_ID),
       "process.env.POSTHOG_API_KEY": JSON.stringify(env.POSTHOG_API_KEY),
