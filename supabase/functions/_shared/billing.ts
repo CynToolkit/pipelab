@@ -60,6 +60,7 @@ export function createSupabaseUserResolver(
     try {
       response = await fetcher(endpoint, {
         method: "GET",
+        redirect: "error",
         headers: {
           apikey: publishableKey,
           Authorization: "Bearer " + accessToken,
@@ -477,6 +478,7 @@ async function polarRequest(
   try {
     response = await fetcher(url, {
       method: options.method ?? "GET",
+      redirect: "error",
       headers: {
         Accept: "application/json",
         Authorization: "Bearer " + config.token,
@@ -504,19 +506,12 @@ function isSandboxPolarUrl(value: string): boolean {
   try {
     const url = new URL(value);
     const host = url.hostname.toLowerCase();
-    const labels = host.split(".");
-    const isPolarDomain = host === "polar.sh" || host.endsWith(".polar.sh");
-    const hasSandboxLabel = labels.some(
-      (label) => label === "sandbox" || label.startsWith("sandbox-"),
-    );
     return (
       url.protocol === "https:" &&
       !url.username &&
       !url.password &&
       !url.port &&
-      isPolarDomain &&
-      hasSandboxLabel &&
-      host !== "sandbox-api.polar.sh"
+      host === "sandbox.polar.sh"
     );
   } catch {
     return false;

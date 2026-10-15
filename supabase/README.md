@@ -44,7 +44,7 @@ The Edge Functions preserve the Editor and Desktop UI contracts:
 
 The catalog endpoint is public because the upgrade dialog loads plans before sign-in. The other functions require a Supabase access token and validate it with Supabase Auth. The verified user ID supplies Polar's `external_customer_id`; subscription and customer responses are checked against that ID and the configured organization. Client-supplied IDs and email addresses are ignored. The functions need no customer mapping table, service-role key, database migration, or RLS change.
 
-Polar requests are pinned to `https://sandbox-api.polar.sh/v1`; there is no production endpoint override. Portal and checkout URLs are accepted only from HTTPS Polar sandbox hosts. Provider errors and payloads are neither logged nor returned to clients. Checkout creates a sandbox checkout session only when invoked; no checkout was invoked during implementation or testing.
+Polar requests are pinned to `https://sandbox-api.polar.sh/v1`; there is no production endpoint override, and API/Auth fetches reject redirects so bearer credentials cannot be forwarded to another host. Portal URLs must use the exact `https://sandbox.polar.sh` host. Checkout URLs must use that host or Polar's exact sandbox API checkout-link redirect path. Provider errors and payloads are neither logged nor returned to clients. Checkout creates a sandbox checkout session only when invoked; no checkout was invoked during implementation or testing.
 
 ### Local sandbox configuration
 

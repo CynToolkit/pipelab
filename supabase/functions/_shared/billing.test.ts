@@ -143,6 +143,7 @@ Deno.test("plans map safe public catalog fields and use the Polar sandbox API", 
   assertEquals(response.status, 200);
   assertEquals(response.headers.get("Access-Control-Allow-Origin"), ORIGIN);
   assertEquals(calls[0].url.origin, "https://sandbox-api.polar.sh");
+  assertEquals(calls[0].init.redirect, "error");
   assertEquals(calls[0].url.searchParams.get("organization_id"), ORG_ID);
   assertEquals(plans[0].id, PRODUCT_ID);
   assertEquals(plans[0].recurringInterval, "month");
@@ -170,6 +171,23 @@ Deno.test("malformed provider responses fail safely without leaking details", as
   );
   const response = await handler(request("polar-available-plans"));
   assertEquals(response.status, 502);
+  assertEquals(await response.text(), '{"error":"billing_provider_unavailable"}');
+});
+
+Deno.test("Polar API requests fail closed on redirects", async () => {
+  const calls: Array<{ url: URL; init: RequestInit }> = [];
+  const handler = createBillingHandler(
+    "polar-available-plans",
+    dependencies(
+      mockFetch((_url, init) => {
+        if (init.redirect === "error") throw new TypeError("redirect blocked");
+        return json({ items: [] });
+      }, calls),
+    ),
+  );
+  const response = await handler(request("polar-available-plans"));
+  assertEquals(response.status, 502);
+  assertEquals(calls[0].init.redirect, "error");
   assertEquals(await response.text(), '{"error":"billing_provider_unavailable"}');
 });
 
@@ -377,26 +395,33 @@ Deno.test("customer portal refuses a mismatched external customer ID", async () 
   assertEquals(sessionCalls, 0);
 });
 
-Deno.test("customer portal rejects non-sandbox destinations", async () => {
-  const handler = createBillingHandler(
-    "customer-portal",
-    dependencies(
-      mockFetch((url) =>
-        url.pathname.includes("/customers/external/")
-          ? json({
-              id: CUSTOMER_ID,
-              external_id: USER_A,
-              organization_id: ORG_ID,
-              deleted_at: null,
-            })
-          : json({ customer_portal_url: "https://polar.sh/portal/session" }),
+Deno.test("customer portal accepts only the exact sandbox host", async () => {
+  for (const destination of [
+    "https://polar.sh/portal/session",
+    "https://sandbox.attacker.polar.sh/portal/session",
+    "https://attacker.sandbox.polar.sh/portal/session",
+    "https://sandbox-attacker.polar.sh/portal/session",
+  ]) {
+    const handler = createBillingHandler(
+      "customer-portal",
+      dependencies(
+        mockFetch((url) =>
+          url.pathname.includes("/customers/external/")
+            ? json({
+                id: CUSTOMER_ID,
+                external_id: USER_A,
+                organization_id: ORG_ID,
+                deleted_at: null,
+              })
+            : json({ customer_portal_url: destination }),
+        ),
       ),
-    ),
-  );
-  const response = await handler(
-    request("customer-portal", { authorization: "Bearer valid-token" }),
-  );
-  assertEquals(response.status, 502);
+    );
+    const response = await handler(
+      request("customer-portal", { authorization: "Bearer valid-token" }),
+    );
+    assertEquals(response.status, 502);
+  }
 });
 
 Deno.test("checkout rejects products outside the active public catalog", async () => {
@@ -698,9 +723,11 @@ Deno.test("Supabase resolver treats invalid or expired JWTs as unauthenticated",
         SUPABASE_ANON_KEY: "legacy-key",
       }) as Record<string, string | undefined>
     )[name];
+  const calls: Array<{ url: URL; init: RequestInit }> = [];
   const resolver = createSupabaseUserResolver(
     env,
-    mockFetch(() => new Response("invalid token", { status: 401 })),
+    mockFetch(() => new Response("invalid token", { status: 401 }), calls),
   );
   assertEquals(await resolver("expired-token"), null);
+  assertEquals(calls[0].init.redirect, "error");
 });
