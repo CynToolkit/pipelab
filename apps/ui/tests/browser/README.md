@@ -41,8 +41,12 @@ The journey verifies that hosted navigation and browser preferences work
 without app WebSocket connections, confirms the selected locale is rendered
 after changing it and after reload, and checks that agent-backed guide reset is
 disabled while detached. It also covers browser storage rejecting a preference
-change. Hosted mode controls startup discovery only; a later paired attach can
-connect an agent without rebuilding or reloading.
+change. The auth check accepts both deployment states: configured public
+Supabase browser settings must expose a usable sign-in flow while the agent is
+detached; absent settings must show the existing configuration notice. Set
+`EXPECT_BROWSER_AUTH=present` or `EXPECT_BROWSER_AUTH=absent` to require one
+state explicitly. Hosted mode controls startup discovery only; a later paired
+attach can connect an agent without rebuilding or reloading.
 
 ## Hosted provider specifications
 
@@ -74,3 +78,84 @@ UI_BASE_URL=http://127.0.0.1:5175 CHROMIUM_PATH=/usr/bin/chromium \
 This journey supplies a mocked agent over the local WebSocket boundary. It
 checks that the browser wizard loads dynamic build options after connecting and
 clearly defers destination account setup to Configuration.
+
+## Local hosted auth
+
+Run against the local Supabase stack. Do not evaluate or log the complete
+`supabase status --output env` output because it also contains server-only
+credentials. The UI command filters the local public anon key and passes it
+under the canonical `SUPABASE_PUBLISHABLE_KEY` variable:
+
+```sh
+SUPABASE_PUBLISHABLE_KEY="$(supabase status --output env | sed -n 's/^ANON_KEY=//p' | tr -d '\"')" \
+SUPABASE_URL=http://127.0.0.1:54321 VITE_PIPELAB_MODE=hosted \
+  pnpm --filter @pipelab/ui dev --host 127.0.0.1 --port 5185
+```
+
+The app retains `SUPABASE_ANON_KEY` as a temporary compatibility fallback.
+Never pass a service-role or secret key to the UI.
+
+Then run the browser journey:
+
+```sh
+EXPECT_EMAIL_CONFIRMATION=1 EXPECT_PASSWORD_RESET=1 MAILPIT_URL=http://127.0.0.1:54324 \
+SUPABASE_URL=http://127.0.0.1:54321 \
+UI_BASE_URL=http://127.0.0.1:5185 \
+CHROMIUM_PATH=/usr/bin/chromium \
+node apps/ui/tests/browser/hosted-auth-local.cjs
+```
+
+The smoke rejects nonlocal Supabase and Mailpit URLs. With both optional modes
+enabled, it verifies signup, email verification, password recovery, session
+restoration, sign-out, sign-in with the reset password, and no agent WebSocket.
+With `VITE_PIPELAB_BILLING_ENABLED` unset, it also verifies Billing is clearly
+unavailable, no plan/portal/checkout controls are shown, and no billing
+functions are requested. For signed-in Billing UI failure handling, start the
+local Vite server with `VITE_PIPELAB_BILLING_ENABLED=true` and set
+`EXPECT_BILLING_DISABLED=0` together with `EXPECT_PLAN_FAILURE_UI=1` or
+`EXPECT_PORTAL_FAILURE_UI=1`; these modes use synthetic browser responses and
+do not replace live billing acceptance.
+
+## Auth and billing acceptance (manual, nonproduction)
+
+Use local Supabase, local Mailpit, and Polar sandbox. There is no hosted
+nonproduction Supabase project. Unit tests and failure-UI intercepts are useful
+UI checks; they are not real Supabase, email-delivery, Polar, or Desktop
+integration tests.
+
+Record the local environment/build and observed result in the PR acceptance
+notes:
+
+1. **Signup:** register a local test account with a Mailpit inbox.
+   Confirm the UI reports that verification is required and the account is not
+   treated as verified before following the email link.
+2. **Email verification:** open the Mailpit link, confirm it returns to the
+   local `/auth/callback`, shows success, and continues to a signed-in
+   dashboard. Verify the account can sign in after verification.
+3. **Password reset:** sign out, request a reset for that account, use the
+   delivered link, set a new password, and verify the new password signs in
+   while the old password no longer does.
+4. **Session restore:** reload the signed-in local page and open it again in a
+   fresh tab. Confirm the current account is restored.
+5. **Profile:** open Settings → Profile. Confirm the displayed email matches
+   the test account. With billing disabled, confirm the tier is shown as
+   unavailable rather than Free; with the local billing flag enabled, confirm
+   the tier agrees with the verified subscription response.
+6. **Plan/subscription:** with `VITE_PIPELAB_BILLING_ENABLED=true` and local
+   billing functions serving, open Settings → Billing. Confirm the existing
+   sandbox subscription name, status, amount/currency, interval, and period
+   dates; verify a no-subscription account's returned empty state separately.
+   A mocked `polar-user-plan` response does not satisfy this check.
+7. **Polar customer portal:** from Billing, open Manage Subscription and
+   confirm the real `sandbox.polar.sh` portal opens for that customer. Do not create,
+   change, or cancel a purchase unless separately approved. A mocked portal
+   error only checks error UI.
+8. **Signout:** sign out, confirm account controls disappear, reload, and verify
+   the session remains signed out.
+9. **Desktop compatibility:** separately verify the existing Desktop sign-in,
+   restored session, and sign-out path over its normal IPC transport. Browser
+   no-agent behavior does not establish Desktop compatibility.
+
+No hosted credentials or service secrets belong in this file. Do not use
+production credentials, perform production changes, or initiate any purchase,
+subscription change, or cancellation during acceptance.

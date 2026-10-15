@@ -6,6 +6,12 @@ const { chromium } = workspaceRequire("playwright");
 
 const baseUrl = process.env.UI_BASE_URL || "http://127.0.0.1:5175";
 const chromiumPath = process.env.CHROMIUM_PATH || "/usr/bin/chromium";
+const expectedAuthConfig = process.env.EXPECT_BROWSER_AUTH;
+
+assert.ok(
+  expectedAuthConfig === undefined || ["present", "absent"].includes(expectedAuthConfig),
+  'EXPECT_BROWSER_AUTH must be "present" or "absent" when provided',
+);
 
 async function main() {
   const browser = await chromium.launch({ executablePath: chromiumPath, args: ["--no-sandbox"] });
@@ -20,6 +26,8 @@ async function main() {
 
     await page.goto(`${baseUrl}/dashboard`, { waitUntil: "domcontentloaded" });
     await page.getByRole("heading", { name: "Project overview", exact: true }).waitFor();
+    // Catch startup retries as well as a single immediate socket attempt.
+    await page.waitForTimeout(3000);
     assert.equal(await page.locator(".route-content").getAttribute("inert"), null);
     assert.equal(
       await page.getByRole("heading", { name: "Project overview", exact: true }).count(),
@@ -56,16 +64,48 @@ async function main() {
     await page.keyboard.press("Space");
     assert.equal(await page.getByRole("button", { name: "Collapse sidebar" }).count(), 1);
     await page.setViewportSize({ width: 390, height: 844 });
-    const hostedNote = await page.locator(".hosted-account-note-trigger").boundingBox();
-    assert.ok(hostedNote);
-    assert.ok(hostedNote.x + hostedNote.width <= 390, "hosted status fits the narrow navigation");
+    const hostedNote = page.locator(".hosted-account-note-trigger");
+    const mobileAuthControl =
+      (await hostedNote.count()) === 1 ? hostedNote : page.locator("button.login-btn");
+    assert.equal(
+      await mobileAuthControl.count(),
+      1,
+      "browser auth or its fallback notice is visible",
+    );
+    const mobileAuthControlBox = await mobileAuthControl.boundingBox();
+    assert.ok(mobileAuthControlBox);
+    assert.ok(
+      mobileAuthControlBox.x + mobileAuthControlBox.width <= 390,
+      "browser auth status fits the narrow navigation",
+    );
     await page.setViewportSize({ width: 1280, height: 720 });
     const loginButton = page.locator("button.login-btn");
-    if ((await loginButton.count()) > 0) assert.equal(await loginButton.isDisabled(), true);
-    assert.match(
-      await page.getByText("Browser sign-in requires a connected agent.").textContent(),
-      /requires a connected agent/,
+    const authFallback = page.getByText(
+      "Browser authentication is not configured for this deployment.",
+      { exact: true },
     );
+    const hasBrowserAuth = (await loginButton.count()) === 1;
+    if (expectedAuthConfig) {
+      assert.equal(
+        hasBrowserAuth,
+        expectedAuthConfig === "present",
+        `expected browser auth config ${expectedAuthConfig}`,
+      );
+    }
+    if (hasBrowserAuth) {
+      // Auth is available while the optional agent is detached.
+      assert.equal(await loginButton.isDisabled(), false);
+      await loginButton.click();
+      await page
+        .getByRole("dialog")
+        .getByRole("button", { name: "Sign In", exact: true })
+        .first()
+        .waitFor();
+      assert.equal(await page.locator("form").getAttribute("inert"), null);
+      await page.getByRole("button", { name: "Close" }).click();
+    } else {
+      assert.equal(await authFallback.count(), 1);
+    }
     assert.equal(websocketUrls.length, 0, `expected no agent sockets, saw ${websocketUrls.length}`);
 
     await page.getByRole("link", { name: "Connections" }).click();

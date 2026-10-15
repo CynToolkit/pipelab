@@ -2,22 +2,57 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { buildBrowserProviderSpecs, renderBrowserProviderSpecs } from "./browser-provider-specs";
+import * as ts from "typescript";
+import { buildBrowserProviderSpecs } from "./browser-provider-specs";
 
 const artifactPath = resolve(
   fileURLToPath(new URL(".", import.meta.url)),
   "../../../../apps/ui/src/generated/release-provider-specs.ts",
 );
+const artifact = readFileSync(artifactPath, "utf8");
+
+const generatedValue = (node: ts.Expression): unknown => {
+  if (ts.isSatisfiesExpression(node)) return generatedValue(node.expression);
+  if (ts.isObjectLiteralExpression(node))
+    return Object.fromEntries(
+      node.properties.map((property) => {
+        if (!ts.isPropertyAssignment(property)) throw new Error("Unexpected generated property");
+        const name = property.name;
+        if (!ts.isIdentifier(name) && !ts.isStringLiteral(name))
+          throw new Error("Unexpected generated property name");
+        return [name.text, generatedValue(property.initializer)];
+      }),
+    );
+  if (ts.isArrayLiteralExpression(node)) return node.elements.map(generatedValue);
+  if (ts.isStringLiteral(node)) return node.text;
+  if (ts.isNumericLiteral(node)) return Number(node.text);
+  if (node.kind === ts.SyntaxKind.TrueKeyword) return true;
+  if (node.kind === ts.SyntaxKind.FalseKeyword) return false;
+  if (node.kind === ts.SyntaxKind.NullKeyword) return null;
+  throw new Error(`Unexpected generated expression: ${node.getText()}`);
+};
+
+const readGeneratedSpecs = () => {
+  const source = ts.createSourceFile(artifactPath, artifact, ts.ScriptTarget.Latest, true);
+  const declaration = source.statements
+    .filter(ts.isVariableStatement)
+    .flatMap((statement) => statement.declarationList.declarations)
+    .find(
+      (candidate) =>
+        ts.isIdentifier(candidate.name) && candidate.name.text === "browserProviderSpecs",
+    );
+  if (!declaration?.initializer) throw new Error("Generated browser provider specs are missing");
+  return generatedValue(declaration.initializer);
+};
 
 describe("browser provider specs", () => {
   it("matches the generated artifact to the current built-in registry", () => {
-    expect(readFileSync(artifactPath, "utf8")).toBe(renderBrowserProviderSpecs());
+    expect(readGeneratedSpecs()).toEqual(buildBrowserProviderSpecs());
   });
 
   it("contains only renderer-safe metadata and never guesses host availability", () => {
     const specs = buildBrowserProviderSpecs();
     const serialized = JSON.stringify(specs);
-    const artifact = readFileSync(artifactPath, "utf8");
 
     expect(serialized).not.toMatch(/workflowTasks|compile\s*\(|isAvailable/);
     expect(artifact).not.toMatch(/@pipelab\/core-node|node:/);

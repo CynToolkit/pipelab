@@ -1,14 +1,20 @@
-import { useLogger, isSupabaseAvailable } from "@pipelab/shared";
+import { useLogger, isSupabaseAvailable, supabase } from "@pipelab/shared";
 import type { Subscription } from "@polar-sh/sdk/models/components/subscription";
-import { AuthChangeEvent, Session, User, UserResponse } from "@supabase/supabase-js";
+import type { AuthChangeEvent, Session, User } from "@supabase/supabase-js";
 import { useAPI } from "@renderer/composables/api";
+import { uiEnvironment } from "@renderer/composables/ui-runtime";
 import { defineStore } from "pinia";
 import { computed, readonly, Ref, ref, shallowRef, watch } from "vue";
 import posthog from "posthog-js";
 import { createEventHook } from "@vueuse/core";
 import { useAgentAvailability } from "@renderer/composables/useAgentAvailability";
+import { withRequestTimeout } from "@renderer/utils/request-timeout";
 
-export type SubscriptionStatus = "idle" | "loading" | "ready" | "error";
+export type SubscriptionStatus = "idle" | "loading" | "ready" | "error" | "disabled";
+type AuthActionResponse = {
+  data: { user: User | null; session: Session | null };
+  error: Error | null;
+};
 
 // Define a more comprehensive AuthStateType
 export type AuthStateType =
@@ -36,6 +42,37 @@ export const useAuth = defineStore("auth", () => {
   let initPromise: Promise<void> | undefined;
   let authRequestId = 0;
   const { isReady } = useAgentAvailability();
+  const isBrowserRuntime = uiEnvironment === "browser";
+  const billingEnabled = ref(
+    !isBrowserRuntime || import.meta.env.VITE_PIPELAB_BILLING_ENABLED === "true",
+  );
+  const browserClient = isBrowserRuntime
+    ? supabase({
+        auth: {
+          persistSession: true,
+          autoRefreshToken: true,
+          detectSessionInUrl: false,
+          flowType: "pkce",
+        },
+      })
+    : null;
+  const hasLoginProvider = isBrowserRuntime ? browserClient !== null : isSupabaseAvailable();
+  const isAuthTransportReady = computed(() =>
+    isBrowserRuntime ? hasLoginProvider : isReady.value,
+  );
+
+  const callbackUrl = (type?: "recovery") => {
+    const origin = typeof window === "undefined" ? "http://localhost" : window.location.origin;
+    const url = new URL("/auth/callback", origin);
+    if (type) url.searchParams.set("type", type);
+    return url.toString();
+  };
+
+  const clearLegacyPostHogIdentity = () => {
+    // Older app versions identified PostHog with the Supabase user ID.
+    // Reset only that persisted identified state, keeping anonymous visitor IDs.
+    if (posthog.get_property("$user_state") === "identified") posthog.reset();
+  };
 
   const setUser = (nextUser?: User) => {
     const previousId = user.value?.id;
@@ -52,32 +89,30 @@ export const useAuth = defineStore("auth", () => {
   const authModalTitle = ref<string>();
   const authModalSubTitle = ref<string>();
 
-  const onAuthChanged = createEventHook<{ event: AuthChangeEvent; session: Session }>();
+  const onAuthChanged = createEventHook<{ event: AuthChangeEvent; session: Session | null }>();
   const onSubscriptionChanged = createEventHook<{ subscriptions: Subscription[] }>();
 
   const api = useAPI();
-  api.on("auth:getUser", (data) => {
-    if (!isReady.value) return;
-    authRequestId++;
-    initPromise = undefined;
-    logger.logger().info("[Auth] Received auth state change from backend:", data);
-    if (data.type === "end" && data.data.type === "success" && data.data.result.user) {
-      setUser(data.data.result.user);
-      posthog.identify(data.data.result.user.id, {
-        email: data.data.result.user.email,
-        is_anonymous: data.data.result.user.is_anonymous || false,
-      });
-      authState.value = "SIGNED_IN";
-      if (isReady.value) void fetchSubscription();
-    } else {
-      setUser(undefined);
-      subscriptions.value = [];
-      subscriptionError.value = undefined;
-      subscriptionStatus.value = "ready";
-      posthog.reset();
-      authState.value = "SIGNED_OUT";
-    }
-  });
+  if (!isBrowserRuntime)
+    api.on("auth:getUser", (data) => {
+      if (!isReady.value) return;
+      authRequestId++;
+      initPromise = undefined;
+      // Auth events may carry session-related data. Keep payloads out of logs.
+      if (data.type === "end" && data.data.type === "success" && data.data.result.user) {
+        setUser(data.data.result.user);
+        clearLegacyPostHogIdentity();
+        authState.value = "SIGNED_IN";
+        if (isReady.value) void fetchSubscription();
+      } else {
+        setUser(undefined);
+        subscriptions.value = [];
+        subscriptionError.value = undefined;
+        subscriptionStatus.value = "ready";
+        posthog.reset();
+        authState.value = "SIGNED_OUT";
+      }
+    });
 
   const displayAuthModal = (title?: string, subtitle?: string) => {
     isAuthModalVisible.value = true;
@@ -100,6 +135,39 @@ export const useAuth = defineStore("auth", () => {
     errorMessage.value = null;
   };
 
+  const invokeFunction = async (name: string, options?: { body?: Record<string, unknown> }) => {
+    try {
+      if (
+        !billingEnabled.value &&
+        isBrowserRuntime &&
+        ["polar-user-plan", "polar-available-plans", "customer-portal", "checkout"].includes(name)
+      ) {
+        return { data: null, error: new Error("Billing is not enabled for this deployment.") };
+      }
+      if (isBrowserRuntime) {
+        if (!browserClient) return { data: null, error: new Error("Supabase is not configured.") };
+        const result = await withRequestTimeout(
+          browserClient.functions.invoke(name, options),
+          "Cloud request timed out. Please try again.",
+        );
+        return { data: result.data, error: result.error };
+      }
+      if (!isReady.value)
+        return { data: null, error: new Error("Desktop agent is not connected.") };
+
+      const result = await withRequestTimeout(
+        api.execute("auth:invoke", { name, options }),
+        "Cloud request timed out. Please try again.",
+      );
+      if (result.type === "error") return { data: null, error: new Error(result.ipcError) };
+      const { data, error } = result.result;
+      return { data, error: error ? new Error(error.message || "Cloud request failed.") : null };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Cloud request failed.";
+      return { data: null, error: new Error(message) };
+    }
+  };
+
   const fetchSubscription = async () => {
     const currentUser = user.value;
     if (!currentUser || currentUser.is_anonymous) {
@@ -109,7 +177,14 @@ export const useAuth = defineStore("auth", () => {
       onSubscriptionChanged.trigger({ subscriptions: subscriptions.value });
       return;
     }
-    if (!isReady.value) return;
+    if (!billingEnabled.value) {
+      subscriptions.value = [];
+      subscriptionError.value = undefined;
+      subscriptionStatus.value = "disabled";
+      onSubscriptionChanged.trigger({ subscriptions: subscriptions.value });
+      return;
+    }
+    if (!isAuthTransportReady.value) return;
     if (!currentUser.email) {
       subscriptionError.value = "User email not available";
       subscriptionStatus.value = "error";
@@ -125,15 +200,18 @@ export const useAuth = defineStore("auth", () => {
 
     const promise = (async () => {
       try {
-        const result = await api.execute("auth:invoke", { name: "polar-user-plan" });
-        if (result.type === "error") throw new Error(result.ipcError || "Network error");
-        const { data, error } = result.result;
-        if (error) throw new Error(error.message || "Network error");
-        if (!data || !Array.isArray(data.subscriptions)) {
+        const { data, error } = await invokeFunction("polar-user-plan");
+        if (error) throw error;
+        if (
+          !data ||
+          typeof data !== "object" ||
+          !("subscriptions" in data) ||
+          !Array.isArray(data.subscriptions)
+        ) {
           throw new Error("Invalid response: subscriptions is not an array");
         }
         if (requestId !== subscriptionRequestId || user.value?.id !== userId) return;
-        subscriptions.value = data.subscriptions;
+        subscriptions.value = data.subscriptions as Subscription[];
         subscriptionStatus.value = "ready";
       } catch (error) {
         if (requestId !== subscriptionRequestId || user.value?.id !== userId) return;
@@ -150,11 +228,71 @@ export const useAuth = defineStore("auth", () => {
     return promise;
   };
 
+  const applyBrowserSession = (session: Session | null) => {
+    const nextUser = session?.user;
+    setUser(nextUser);
+    if (nextUser) {
+      clearLegacyPostHogIdentity();
+      authState.value = "SIGNED_IN";
+      queueMicrotask(() => void fetchSubscription());
+      return;
+    }
+    subscriptions.value = [];
+    subscriptionError.value = undefined;
+    subscriptionStatus.value = "ready";
+    posthog.reset();
+    authState.value = "SIGNED_OUT";
+  };
+
+  if (isBrowserRuntime && browserClient) {
+    browserClient.auth.onAuthStateChange((event, session) => {
+      onAuthChanged.trigger({ event, session });
+      if (event !== "INITIAL_SESSION") applyBrowserSession(session);
+    });
+  }
+
   // The backend now handles the auth state.
   // We will pull the user state during init and after each action.
 
   // Initialize auth only after the local agent is ready.
   const init = async () => {
+    if (isBrowserRuntime) {
+      if (!browserClient) {
+        setUser(undefined);
+        subscriptions.value = [];
+        subscriptionError.value = undefined;
+        subscriptionStatus.value = "ready";
+        errorMessage.value = "Browser authentication is not configured for this deployment.";
+        authState.value = "ERROR";
+        return;
+      }
+      if (initPromise) return initPromise;
+      if (authState.value !== "INITIALIZING" && authState.value !== "ERROR") return;
+      setAuthState("LOADING");
+      const requestId = ++authRequestId;
+      initPromise = (async () => {
+        try {
+          const { data, error } = await withRequestTimeout(
+            browserClient.auth.getSession(),
+            "Session restoration timed out. Try again.",
+          );
+          if (requestId !== authRequestId) return;
+          if (error) throw error;
+          applyBrowserSession(data.session);
+          clearError();
+        } catch {
+          if (requestId !== authRequestId) return;
+          setUser(undefined);
+          authState.value = "ERROR";
+          subscriptionStatus.value = "ready";
+          errorMessage.value = "Unable to restore your browser session. Try again.";
+        } finally {
+          if (requestId === authRequestId) initPromise = undefined;
+        }
+      })();
+      return initPromise;
+    }
+
     if (!isSupabaseAvailable()) {
       setUser(undefined);
       subscriptions.value = [];
@@ -175,31 +313,22 @@ export const useAuth = defineStore("auth", () => {
     const requestId = ++authRequestId;
     initPromise = (async () => {
       try {
-        const result = await api.execute("auth:getUser");
+        const result = await withRequestTimeout(
+          api.execute("auth:getUser"),
+          "Session restoration timed out. Try again.",
+        );
         if (requestId !== authRequestId) return;
         if (result.type === "error") throw new Error(result.ipcError);
         if (result.type === "success" && result.result.user) {
           const currentUser = result.result.user;
-          logger
-            .logger()
-            .info(
-              "[Auth] Found existing user during init:",
-              currentUser.id,
-              "anonymous:",
-              currentUser.is_anonymous,
-              "email:",
-              currentUser.email,
-            );
-          posthog.identify(currentUser.id, {
-            email: currentUser.email,
-            is_anonymous: currentUser.is_anonymous || false,
-          });
+          logger.logger().info("[Auth] Found existing user during init.");
+          clearLegacyPostHogIdentity();
           setUser(currentUser);
           authState.value = "SIGNED_IN";
           if (isReady.value) void fetchSubscription();
         } else {
           logger.logger().info("[Auth] No user found during init");
-          posthog.identify();
+          posthog.reset();
           setUser(undefined);
           subscriptions.value = [];
           subscriptionError.value = undefined;
@@ -221,6 +350,10 @@ export const useAuth = defineStore("auth", () => {
   watch(
     isReady,
     (ready) => {
+      if (isBrowserRuntime) {
+        if (authState.value === "INITIALIZING") void init();
+        return;
+      }
       if (!ready) {
         authRequestId++;
         subscriptionRequestId++;
@@ -242,76 +375,124 @@ export const useAuth = defineStore("auth", () => {
     { immediate: true },
   );
 
-  const login = async (email: string, pwd: string): Promise<UserResponse> => {
+  const login = async (email: string, pwd: string): Promise<AuthActionResponse> => {
     const requestId = ++authRequestId;
+    initPromise = undefined;
     isAuthenticating.value = true;
     setAuthState("LOADING");
     clearError();
     try {
-      const result = await api.execute("auth:signInWithPassword", {
-        email,
-        password: pwd,
-      });
-      if (requestId !== authRequestId) {
-        return result.type === "success"
-          ? result.result
-          : ({ data: { user: null, session: null }, error: { message: result.ipcError } } as any);
-      }
-
-      if (result.type === "error") {
-        logger.logger().error("[Auth] Login error:", result.ipcError);
-        setAuthState("ERROR");
-        errorMessage.value = result.ipcError || "Invalid login credentials.";
-        return { data: { user: null, session: null }, error: { message: result.ipcError } } as any;
-      }
-
-      const { data, error } = result.result;
-      if (error) {
-        logger.logger().error("[Auth] Login error:", error);
-        setAuthState("ERROR");
-        errorMessage.value = "Invalid login credentials.";
-        return result.result;
+      let result: AuthActionResponse;
+      if (isBrowserRuntime) {
+        if (!browserClient) throw new Error("Browser authentication is not configured.");
+        result = await withRequestTimeout(
+          browserClient.auth.signInWithPassword({ email, password: pwd }),
+          "Sign-in timed out. Check your connection and try again.",
+        );
       } else {
-        logger.logger().info("[Auth] Logged in user:", data.user.id);
-        setUser(data.user ?? undefined);
-        setAuthState("SIGNED_IN");
-        void fetchSubscription();
-        return result.result;
+        const response = await withRequestTimeout(
+          api.execute("auth:signInWithPassword", { email, password: pwd }),
+          "Sign-in timed out. Check your connection and try again.",
+        );
+        result =
+          response.type === "success"
+            ? {
+                data: { user: response.result.data.user, session: null },
+                error: response.result.error,
+              }
+            : {
+                data: { user: null, session: null },
+                error: new Error(response.ipcError || "Sign-in failed."),
+              };
       }
+      if (requestId !== authRequestId) {
+        return result;
+      }
+
+      if (result.error) {
+        setAuthState("ERROR");
+        errorMessage.value =
+          result.error.message || "Sign-in failed. Check your details and try again.";
+      } else {
+        if (isBrowserRuntime) {
+          applyBrowserSession(result.data.session);
+        } else {
+          setUser(result.data.user ?? undefined);
+          authState.value = result.data.user ? "SIGNED_IN" : "SIGNED_OUT";
+          if (result.data.user) void fetchSubscription();
+        }
+      }
+      return result;
+    } catch (error) {
+      if (requestId === authRequestId) {
+        setAuthState("ERROR");
+        errorMessage.value =
+          error instanceof Error && /timed out/i.test(error.message)
+            ? error.message
+            : "Unable to sign in. Check your connection and try again.";
+      }
+      return {
+        data: { user: null, session: null },
+        error: error instanceof Error ? error : new Error("Sign-in failed."),
+      };
     } finally {
       isAuthenticating.value = false;
     }
   };
 
-  const register = async (email: string, pwd: string): Promise<UserResponse> => {
+  const register = async (email: string, pwd: string): Promise<AuthActionResponse> => {
+    const requestId = ++authRequestId;
+    initPromise = undefined;
     isAuthenticating.value = true;
     setAuthState("LOADING");
     clearError();
     try {
-      const result = await api.execute("auth:signUp", {
-        email,
-        password: pwd,
-      });
-
-      if (result.type === "error") {
-        logger.logger().error("[Auth] Registration error:", result.ipcError);
-        setAuthState("ERROR");
-        errorMessage.value = result.ipcError || "Failed to register. Please try again.";
-        return { data: { user: null, session: null }, error: { message: result.ipcError } } as any;
-      }
-
-      const { data, error } = result.result;
-      if (error) {
-        logger.logger().error("[Auth] Registration error:", error);
-        setAuthState("ERROR");
-        errorMessage.value = "Failed to register. Please try again.";
-        return result.result;
+      let result: AuthActionResponse;
+      if (isBrowserRuntime) {
+        if (!browserClient) throw new Error("Browser authentication is not configured.");
+        result = await withRequestTimeout(
+          browserClient.auth.signUp({
+            email,
+            password: pwd,
+            options: { emailRedirectTo: callbackUrl() },
+          }),
+          "Registration timed out. Check your connection and try again.",
+        );
       } else {
-        // an email is sent, you must validate it
-        logger.logger().info("[Auth] Registered new user:", data.user.id);
-        setAuthState("AWAITING_VALIDATION");
-        return result.result;
+        const response = await withRequestTimeout(
+          api.execute("auth:signUp", { email, password: pwd }),
+          "Registration timed out. Check your connection and try again.",
+        );
+        result =
+          response.type === "success"
+            ? {
+                data: { user: response.result.data.user, session: null },
+                error: response.result.error,
+              }
+            : {
+                data: { user: null, session: null },
+                error: new Error(response.ipcError || "Registration failed."),
+              };
       }
+
+      if (requestId !== authRequestId) return result;
+      if (result.error) {
+        setAuthState("ERROR");
+        errorMessage.value = result.error.message || "Failed to register. Please try again.";
+      } else {
+        if (isBrowserRuntime && result.data.session) {
+          applyBrowserSession(result.data.session);
+        } else {
+          setAuthState("AWAITING_VALIDATION");
+        }
+      }
+      return result;
+    } catch {
+      if (requestId === authRequestId) {
+        setAuthState("ERROR");
+        errorMessage.value = "Unable to register. Check your connection and try again.";
+      }
+      return { data: { user: null, session: null }, error: new Error("Registration failed.") };
     } finally {
       isAuthenticating.value = false;
     }
@@ -319,11 +500,25 @@ export const useAuth = defineStore("auth", () => {
 
   const logout = async (): Promise<void> => {
     const requestId = ++authRequestId;
+    initPromise = undefined;
     isAuthenticating.value = true; // Indicate loading during logout if needed
     setAuthState("LOADING"); // Optionally set authState to loading during logout
     clearError();
     try {
-      await api.execute("auth:signOut");
+      if (isBrowserRuntime) {
+        if (!browserClient) throw new Error("Browser authentication is not configured.");
+        const { error } = await withRequestTimeout(
+          browserClient.auth.signOut(),
+          "Sign-out timed out. Check your connection and try again.",
+        );
+        if (error) throw error;
+      } else {
+        const result = await withRequestTimeout(
+          api.execute("auth:signOut"),
+          "Sign-out timed out. Check your connection and try again.",
+        );
+        if (result.type === "error") throw new Error(result.ipcError || "Sign-out failed.");
+      }
       if (requestId !== authRequestId) return;
       logger.logger().info("[Auth] Signed out.");
       user.value = undefined;
@@ -333,9 +528,8 @@ export const useAuth = defineStore("auth", () => {
       subscriptionError.value = undefined;
       subscriptionStatus.value = "ready";
       subscriptionRequestId++;
-    } catch (error) {
+    } catch {
       if (requestId !== authRequestId) return;
-      logger.logger().error("[Auth] Logout error:", error);
       setAuthState("ERROR");
       errorMessage.value = "Failed to logout.";
     } finally {
@@ -343,32 +537,114 @@ export const useAuth = defineStore("auth", () => {
     }
   };
 
-  const resetPassword = async (email: string): Promise<{ error: any }> => {
+  const resetPassword = async (email: string): Promise<{ error: Error | null }> => {
+    authRequestId++;
+    initPromise = undefined;
     isAuthenticating.value = true;
     setAuthState("LOADING");
     clearError();
     try {
-      const result = await api.execute("auth:resetPasswordForEmail", { email });
-      if (result.type === "error") {
-        logger.logger().error("[Auth] Reset password error:", result.ipcError);
-        setAuthState("ERROR");
-        errorMessage.value = "Failed to send reset email.";
-        return { error: { message: result.ipcError } };
+      let error: Error | null;
+      if (isBrowserRuntime) {
+        if (!browserClient) throw new Error("Browser authentication is not configured.");
+        const result = await withRequestTimeout(
+          browserClient.auth.resetPasswordForEmail(email, {
+            redirectTo: callbackUrl("recovery"),
+          }),
+          "Password reset request timed out. Check your connection and try again.",
+        );
+        error = result.error;
+      } else {
+        const result = await withRequestTimeout(
+          api.execute("auth:resetPasswordForEmail", { email }),
+          "Password reset request timed out. Check your connection and try again.",
+        );
+        if (result.type === "error") throw new Error(result.ipcError || "Reset request failed.");
+        error = result.result.error;
       }
-
-      const { error } = result.result;
       if (error) {
-        logger.logger().error("[Auth] Reset password error:", error);
         setAuthState("ERROR");
-        errorMessage.value = "Failed to send reset email.";
+        errorMessage.value = error.message || "Failed to send reset email.";
         return { error };
       } else {
-        logger.logger().info("[Auth] Reset password email sent to:", email);
         setAuthState("SIGNED_OUT"); // Reset to signed out state
         return { error: null };
       }
+    } catch {
+      setAuthState("ERROR");
+      errorMessage.value = "Unable to send the reset email. Check your connection and try again.";
+      return { error: new Error("Password reset failed.") };
     } finally {
       isAuthenticating.value = false;
+    }
+  };
+
+  const updatePassword = async (password: string): Promise<{ error: Error | null }> => {
+    if (!isBrowserRuntime || !browserClient) {
+      return { error: new Error("Password recovery is unavailable in this runtime.") };
+    }
+    isAuthenticating.value = true;
+    setAuthState("LOADING");
+    clearError();
+    try {
+      const { data, error } = await withRequestTimeout(
+        browserClient.auth.updateUser({ password }),
+        "Password update timed out. Check your connection and try again.",
+      );
+      if (error) {
+        setAuthState("ERROR");
+        errorMessage.value = error.message || "Unable to update your password.";
+        return { error };
+      }
+      if (data.user) setUser(data.user);
+      authState.value = "SIGNED_IN";
+      return { error: null };
+    } catch {
+      setAuthState("ERROR");
+      errorMessage.value = "Unable to update your password. Check your connection and try again.";
+      return { error: new Error("Password update failed.") };
+    } finally {
+      isAuthenticating.value = false;
+    }
+  };
+
+  const completeAuthCallback = async (code: string): Promise<{ error: Error | null }> => {
+    if (!isBrowserRuntime || !browserClient) {
+      return { error: new Error("Browser authentication is unavailable in this runtime.") };
+    }
+    const requestId = ++authRequestId;
+    initPromise = undefined;
+    isAuthenticating.value = true;
+    setAuthState("LOADING");
+    clearError();
+    let callbackEvent: AuthChangeEvent | undefined;
+    const { data } = browserClient.auth.onAuthStateChange((event) => {
+      callbackEvent = event;
+    });
+    try {
+      const { data, error } = await withRequestTimeout(
+        browserClient.auth.exchangeCodeForSession(code),
+        "Account link verification timed out. Request a new link and try again.",
+      );
+      if (requestId !== authRequestId) return { error: new Error("Account link was cancelled.") };
+      if (error) throw error;
+      // Supabase emits SIGNED_IN when exchangeCodeForSession completes a PKCE flow,
+      // including recovery links; the callback route uses the URL type to choose its UI.
+      if (!data.session || !data.user || callbackEvent !== "SIGNED_IN") {
+        throw new Error("Account link could not be verified.");
+      }
+      applyBrowserSession(data.session);
+      return { error: null };
+    } catch {
+      if (requestId === authRequestId) {
+        authState.value = "ERROR";
+        errorMessage.value =
+          "This account link is invalid or has expired. Request a new link and try again.";
+      }
+      return { error: new Error("Account link could not be verified.") };
+    } finally {
+      data.subscription.unsubscribe();
+      if (requestId === authRequestId) isAuthenticating.value = false;
     }
   };
 
@@ -404,9 +680,13 @@ export const useAuth = defineStore("auth", () => {
 
   const getActualBenefit = (benefit: keyof typeof benefits) => {
     // Check subscriptions for actual status
-    return subscriptions.value.some((sub: any) =>
-      sub.product.benefits.map((b: any) => b.id).includes(benefits[benefit]),
-    );
+    return subscriptions.value.some((subscription) => {
+      const productBenefits = subscription.product?.benefits;
+      return (
+        Array.isArray(productBenefits) &&
+        productBenefits.some((productBenefit) => productBenefit?.id === benefits[benefit])
+      );
+    });
   };
 
   const hasBenefit = (benefit: keyof typeof benefits) => {
@@ -444,7 +724,9 @@ export const useAuth = defineStore("auth", () => {
     authState,
     isLoggedIn,
     isAuthenticating,
-    hasLoginProvider: isSupabaseAvailable(),
+    hasLoginProvider,
+    isAuthTransportReady,
+    billingEnabled,
     errorMessage,
     subscriptions: readonly(subscriptions),
     subscriptionError: readonly(subscriptionError),
@@ -461,7 +743,10 @@ export const useAuth = defineStore("auth", () => {
     register,
     logout,
     resetPassword,
+    updatePassword,
+    completeAuthCallback,
     fetchSubscription,
+    invokeFunction,
 
     displayAuthModal,
     hideAuthModal,

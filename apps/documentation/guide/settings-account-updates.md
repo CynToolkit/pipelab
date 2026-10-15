@@ -26,9 +26,35 @@ password reset. Registration may wait for account validation before sign-in is
 available. Subscription and benefit information can affect whether some UI
 actions are available; the app's upgrade dialog shows the current state.
 
-If account data fails to load, check the connection and try again. Pipelab's
-account service and billing actions are external to the local settings file;
-this guide does not promise a specific billing portal outcome.
+In the browser app, account sign-in works without the local agent when the
+deployment has Supabase configured. The signed-in browser session keeps
+account and profile access independent of the optional agent. Plan lookup,
+checkout, and the billing portal are disabled by default until billing is
+explicitly enabled for a configured deployment. While disabled, the app shows
+billing as unavailable rather than presenting the account as a Free plan.
+Subscription-based premium actions are unavailable until billing is enabled
+with a validated backend.
+When enabled, these requests go through authenticated cloud functions; failures
+show a retryable error instead of an endless loading state. Allow pop-ups in
+the browser to open the billing portal or continue to checkout.
+
+Browser deployments need `SUPABASE_URL` and the public
+`SUPABASE_PUBLISHABLE_KEY` at UI build time. `SUPABASE_ANON_KEY` remains a
+temporary fallback for older build environments. Billing is enabled in a
+browser build only when `VITE_PIPELAB_BILLING_ENABLED=true`; keep it unset or
+false until the target backend is deliberately configured and validated. The
+Editor deployment workflow sets it to false. Configure the deployed HTTPS
+origin as an allowed Supabase Auth redirect URL and serve the UI's
+`/auth/callback` route through the SPA fallback.
+Email verification returns to the hosted app, while password-reset links open a
+page to choose a new password. Desktop keeps its `pipelab://` verification
+return flow. Privileged Supabase and billing secrets stay on the server and
+must not be added to UI build settings.
+
+If account data fails to load, check the connection and retry. A missing
+Supabase configuration disables browser sign-in and shows an unavailable
+state; disabled billing does not prevent browser sign-in or profile access and
+does not affect the local settings file.
 
 ## Desktop updates
 

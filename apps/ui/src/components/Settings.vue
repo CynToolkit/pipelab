@@ -554,7 +554,10 @@
           <p class="description">Manage your account billing details and premium subscriptions.</p>
         </div>
 
-        <div v-if="subscriptionStatus !== 'ready'" role="status">
+        <p v-if="!billingEnabled" role="status">
+          Billing is not enabled for this deployment. Your account remains available.
+        </p>
+        <div v-else-if="subscriptionStatus !== 'ready'" role="status">
           <p>
             {{ subscriptionStatus === "error" ? "Unable to check your plan." : "Checking plan…" }}
           </p>
@@ -564,6 +567,9 @@
             text
             @click="authStore.fetchSubscription()"
           />
+          <p v-if="subscriptionStatus === 'error' && authStore.subscriptionError" role="alert">
+            {{ authStore.subscriptionError }}
+          </p>
         </div>
         <div v-else-if="subscriptions.length > 0" class="billing-container">
           <div
@@ -654,6 +660,9 @@
             </template>
             {{ $t("settings.manage-subscription") }}
           </Button>
+          <p v-if="billingPortalError" role="alert" class="text-red-500 mt-2">
+            {{ billingPortalError }}
+          </p>
         </div>
 
         <UpgradeDialog v-else />
@@ -673,7 +682,7 @@
               <span class="setting-description">The email associated with your account.</span>
             </div>
             <div class="setting-action">
-              <span class="text-sm font-semibold">{{ user?.email }}</span>
+              <span class="text-sm font-semibold ph-no-capture">{{ user?.email }}</span>
             </div>
           </div>
 
@@ -715,19 +724,26 @@
             <div class="setting-action flex items-center gap-2">
               <span class="text-sm font-semibold">
                 {{
-                  subscriptions.length > 0 && subscriptions[0].status === "active"
-                    ? subscriptions[0].product.name
-                    : "Free Tier"
+                  billingEnabled && subscriptionStatus === "ready"
+                    ? subscriptions.length > 0 && subscriptions[0].status === "active"
+                      ? subscriptions[0].product.name
+                      : "Free Tier"
+                    : "Unavailable"
                 }}
               </span>
               <span
                 class="installed-badge"
-                :class="{ 'bg-green-100 text-green-800': subscriptions.length > 0 }"
+                :class="{
+                  'bg-green-100 text-green-800':
+                    billingEnabled && subscriptionStatus === 'ready' && subscriptions.length > 0,
+                }"
               >
                 {{
-                  subscriptions.length > 0 && subscriptions[0].status === "active"
-                    ? "Premium"
-                    : "Free"
+                  !billingEnabled || subscriptionStatus !== "ready"
+                    ? "Unavailable"
+                    : subscriptions.length > 0 && subscriptions[0].status === "active"
+                      ? "Premium"
+                      : "Free"
                 }}
               </span>
             </div>
@@ -777,8 +793,8 @@ import Card from "primevue/card";
 import InputNumber from "primevue/inputnumber";
 import ToggleSwitch from "primevue/toggleswitch";
 import Select from "primevue/select";
-import { supabase } from "@pipelab/shared";
 import { useAuth } from "@renderer/store/auth";
+import { openAsyncUrl } from "@renderer/utils/open-async-url";
 import { useBuildHistory } from "../store/build-history";
 import { SandboxFolder } from "@pipelab/constants";
 import UpgradeDialog from "@renderer/components/UpgradeDialog.vue";
@@ -877,7 +893,7 @@ const {
   status: settingsStatus,
   error: settingsError,
 } = storeToRefs(appSettings);
-const { subscriptions, user, subscriptionStatus } = storeToRefs(authStore);
+const { subscriptions, user, subscriptionStatus, billingEnabled } = storeToRefs(authStore);
 const { storageInfo } = storeToRefs(buildHistoryStore);
 
 const loadSettings = () => appSettings.load().catch(() => {});
@@ -942,21 +958,26 @@ const updateTheme = (value: boolean) => {
 };
 
 const isBillingPortalUrlLoading = ref(false);
+const billingPortalError = ref("");
 
 const openBillingPortal = async () => {
+  if (!authStore.billingEnabled || !authStore.isAuthTransportReady || !user.value) return;
   isBillingPortalUrlLoading.value = true;
-  try {
-    const result: any = await api.execute("auth:invoke", { name: "customer-portal" });
-    console.log("result", result);
-    if (result.type === "success" && result.result.data?.customerPortal) {
-      window.open(result.result.data.customerPortal);
-    } else if (result.type === "error") {
-      console.error("Error from auth:invoke:", result.ipcError);
-    } else if (result.result.error) {
-      console.error("Error from Edge Function:", result.result.error);
-    }
-  } catch (error) {
-    console.error("Error opening billing portal:", error);
+  billingPortalError.value = "";
+  const result = await openAsyncUrl(async () => {
+    const { data, error } = await authStore.invokeFunction("customer-portal");
+    const portalUrl =
+      data && typeof data === "object" && "customerPortal" in data
+        ? data.customerPortal
+        : undefined;
+    if (error || typeof portalUrl !== "string") return undefined;
+    return portalUrl;
+  });
+  if (result !== "opened") {
+    billingPortalError.value =
+      result === "blocked"
+        ? "Allow pop-ups to open the billing portal, then try again."
+        : "Unable to open the billing portal. Please try again.";
   }
   isBillingPortalUrlLoading.value = false;
 };
