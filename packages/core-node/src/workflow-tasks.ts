@@ -2,6 +2,10 @@ import type { WorkflowTask, WorkflowTaskRegistry } from "@pipelab/workflow-runti
 import type { PipelabContext } from "./context";
 import { createPipelabCloudUploadTask } from "./pipelab-cloud";
 import { createCoreFilesystemWorkflowTasks } from "./workflow-tasks/filesystem";
+import {
+  RELEASE_BEFORE_BUILD_TASK_ID,
+  releaseBeforeBuildWorkflowTask,
+} from "./workflow-tasks/release-before-build";
 
 export interface ProviderServices {
   context: PipelabContext;
@@ -34,9 +38,12 @@ export const createPipelabWorkflowTasks = <TServices = unknown>(
   return {
     ...registeredTasks,
     ...createCoreFilesystemWorkflowTasks(),
+    [RELEASE_BEFORE_BUILD_TASK_ID]: releaseBeforeBuildWorkflowTask,
     "pipelab-cloud:upload": createPipelabCloudUploadTask(services.context),
   };
 };
+
+export { releaseBeforeBuildWorkflowTask } from "./workflow-tasks/release-before-build";
 
 /** @deprecated Use ProviderServices. */
 export type PipelabPluginServices = ProviderServices;

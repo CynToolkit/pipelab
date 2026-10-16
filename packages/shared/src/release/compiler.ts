@@ -1,4 +1,5 @@
 import { planRelease } from "./planner";
+import { RELEASE_BEFORE_BUILD_TASK_ID } from "./types";
 import type {
   ArtifactRef,
   CompiledArtifact,
@@ -7,7 +8,8 @@ import type {
   ReleasePlan,
   ReleaseRegistry,
 } from "./types";
-import type { Workflow, WorkflowStep } from "@pipelab/workflow-runtime";
+import { isSafePersistedId } from "../persisted-id";
+import { CORE_WORKFLOW_TASKS, type Workflow, type WorkflowStep } from "@pipelab/workflow-runtime";
 
 const provider = <T extends { id: string }>(providers: T[], id: string, kind: string): T => {
   const result = providers.find((candidate) => candidate.id === id);
@@ -67,6 +69,71 @@ export const compileReleasePlan = (
   const artifacts = new Map<string, CompiledArtifact>([["source", source.artifact]]);
   const states = new Map<string, "visiting" | "compiled">();
   const producers = new Map(plan.producers.map((item) => [item.id, item]));
+  const buildProfiles = new Map(configuration.builds.map((item) => [item.id, item]));
+
+  const compileBeforeBuildHooks = (
+    producerId: string,
+    input: CompiledArtifact,
+    supportsHooks: boolean | undefined,
+  ): { steps: WorkflowStep[]; artifact: CompiledArtifact } => {
+    const profile = buildProfiles.get(producerId);
+    const hooks = profile?.beforeBuild?.filter((hook) => hook.enabled) ?? [];
+    if (!hooks.length) return { steps: [], artifact: input };
+    if (!isSafePersistedId(producerId) || hooks.some((hook) => !isSafePersistedId(hook.id)))
+      throw new Error(`Build profile ${producerId} has an unsafe beforeBuild hook ID.`);
+    if (!supportsHooks)
+      throw new Error(`Build profile ${producerId} has beforeBuild hooks its producer cannot run.`);
+    if (input.descriptor.container !== "directory")
+      throw new Error(`Build profile ${producerId} beforeBuild hooks require a directory input.`);
+
+    const stageId = `release-hook-copy-${producerId}`;
+    const compiledSteps: WorkflowStep[] = [
+      {
+        id: stageId,
+        uses: CORE_WORKFLOW_TASKS.copy,
+        needs: [input.reference.stepId],
+        artifactInputs: { from: input.reference },
+        with: {
+          to: "${{ variables.buildStaging }}/" + producerId,
+          recursive: true,
+          overwrite: true,
+          cleanup: true,
+        },
+        artifacts: { output: { descriptor: input.descriptor } },
+      },
+    ];
+    let artifact: CompiledArtifact = {
+      reference: { stepId: stageId, artifact: "output" },
+      descriptor: input.descriptor,
+    };
+
+    for (const hook of hooks) {
+      const hookStepId = `release-before-build-${producerId}-${hook.id}`;
+      compiledSteps.push({
+        id: hookStepId,
+        uses: RELEASE_BEFORE_BUILD_TASK_ID,
+        needs: [artifact.reference.stepId],
+        artifactInputs: { input: artifact.reference },
+        with: {
+          profileId: producerId,
+          profileName: profile?.name || producerId,
+          hookId: hook.id,
+          command: hook.command,
+          scriptFile: hook.scriptFile,
+          parameters: hook.parameters,
+          workingDirectory: hook.workingDirectory ?? ".",
+          failureMode: hook.failureMode ?? "fail",
+        },
+        artifacts: { output: { descriptor: artifact.descriptor } },
+      });
+      artifact = {
+        reference: { stepId: hookStepId, artifact: "output" },
+        descriptor: artifact.descriptor,
+      };
+    }
+
+    return { steps: compiledSteps, artifact };
+  };
 
   const compileProducer = (producerId: string): void => {
     if (states.get(producerId) === "compiled") return;
@@ -88,7 +155,13 @@ export const compileReleasePlan = (
       throw new Error(
         `Producer ${producer.id} references an unknown artifact ${isSourceRef(inputRef) ? "source" : `${inputRef.producerId}/${inputRef.outputId}`}.`,
       );
-    const compiled = definition.compile(input, producer, context);
+    const hookedInput = compileBeforeBuildHooks(
+      producerId,
+      input,
+      definition.supportsBeforeBuildHooks,
+    );
+    steps.push(...hookedInput.steps);
+    const compiled = definition.compile(hookedInput.artifact, producer, context);
     const compiledSteps = compiled.steps.map(addArtifactDependencies);
     for (const target of producer.targets.filter((item) => item.enabled)) {
       if (!compiled.artifacts[target.id])

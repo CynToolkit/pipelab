@@ -57,6 +57,16 @@ those edits. Pending workflow changes save automatically before navigation;
 the browser also warns if you reload or close while a save is pending or has
 failed, or while Build settings remain unapplied.
 
+Electron Build Profiles also support **Before build hooks**. Add, enable,
+disable, reorder, or remove hooks in the profile settings. Hooks run in order on
+that profile's own copy of the input, once before Electron packages its targets.
+Set an executable, a script path relative to the staged artifact, one argument
+per line, and an optional working directory relative to that artifact. Keep a
+script beside `data.json` when it uses `__dirname` to read or write that file.
+By default, a nonzero exit stops that profile's build; you can choose to warn
+and continue instead. Shipping a workflow with enabled hooks asks you to review
+and approve the local commands before they run.
+
 Use **Artifacts** to find outputs across runs of this workflow. Artifact
 metadata is shown only when the run provides it. Local artifacts can be opened
 and cloud artifacts downloaded when those actions are available. Each artifact

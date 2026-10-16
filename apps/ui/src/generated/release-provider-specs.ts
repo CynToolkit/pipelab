@@ -2,7 +2,7 @@ import type { BrowserProviderSpecs } from "@pipelab/shared";
 
 const browserProviderSpecs = {
   "schemaVersion": 1,
-  "releaseConfigVersion": "3.0.0",
+  "releaseConfigVersion": "3.1.0",
   "catalog": {
     "buildTypes": [
       {
@@ -227,6 +227,7 @@ const browserProviderSpecs = {
         "planning": {
           "mode": "build"
         },
+        "supportsBeforeBuildHooks": true,
         "defaultConfig": {},
         "requiresAgentInspection": false,
         "targets": [

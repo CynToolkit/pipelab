@@ -150,6 +150,56 @@ describe("generic release compiler", () => {
     });
   });
 
+  it("copies the profile input and chains each beforeBuild hook into its producer", () => {
+    const hookedBuild = Object.assign(config().builds[0], {
+      beforeBuild: [
+        {
+          id: "sdk-wrapper",
+          enabled: true,
+          command: "node",
+          scriptFile: "setSDKEnabled.js",
+          parameters: ["0"],
+        },
+      ],
+    });
+    const hookedConfig = config({ version: "3.1.0", builds: [hookedBuild] });
+    const hookRegistry: ReleaseRegistry = {
+      ...registry,
+      producers: [Object.assign({}, registry.producers[0], { supportsBeforeBuildHooks: true })],
+    };
+
+    const workflow = compileWorkflow(hookedConfig, hookRegistry, {
+      host: { platform: "linux", architecture: "x64" },
+      variables: { workspace: "/run/workspace", buildStaging: "/run/staging" },
+    });
+    const copy = workflow.steps.find((step) => step.id === "release-hook-copy-build");
+    const hook = workflow.steps.find(
+      (step) => step.id === "release-before-build-build-sdk-wrapper",
+    );
+    const build = workflow.steps.find((step) => step.id === "build");
+
+    expect(copy).toMatchObject({
+      uses: "@pipelab/core/fs/copy",
+      needs: ["source"],
+      artifactInputs: { from: { stepId: "source", artifact: "output" } },
+      with: { to: "${{ variables.buildStaging }}/build" },
+      artifacts: { output: { descriptor: sourceDescriptor } },
+    });
+    expect(hook).toMatchObject({
+      uses: "@pipelab/core/release/before-build",
+      needs: ["release-hook-copy-build"],
+      artifactInputs: {
+        input: { stepId: "release-hook-copy-build", artifact: "output" },
+      },
+      with: { command: "node", scriptFile: "setSDKEnabled.js", parameters: ["0"] },
+      artifacts: { output: { descriptor: sourceDescriptor } },
+    });
+    expect(build?.artifactInputs?.input).toEqual({
+      stepId: "release-before-build-build-sdk-wrapper",
+      artifact: "output",
+    });
+  });
+
   it("compiles an explicit producer chain", () => {
     const chainRegistry: ReleaseRegistry = {
       ...registry,

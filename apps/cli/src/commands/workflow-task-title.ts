@@ -8,6 +8,8 @@ const providerNames: Record<string, string> = {
   steam: "Steam",
 };
 
+const RELEASE_BEFORE_BUILD_TASK_ID = "@pipelab/core/release/before-build";
+
 const titleWords = (value: string) =>
   value
     .replace(/[:/_-]+/g, " ")
@@ -23,6 +25,7 @@ const providerFromUse = (uses: string) => {
 };
 
 export const workflowStepTitle = (step: Pick<WorkflowStep, "id" | "uses" | "delivery">) => {
+  if (step.uses === RELEASE_BEFORE_BUILD_TASK_ID) return "Run beforeBuild hook";
   const useName = step.uses.split("/").at(-1) || step.id;
   const provider = providerFromUse(step.uses);
 

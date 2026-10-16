@@ -29,6 +29,7 @@ const electronProducer: ReleaseProducerDefinition = {
   id: "@pipelab/plugin-electron/producer",
   label: "Electron",
   planning: { mode: "build" },
+  supportsBeforeBuildHooks: true,
   accepts: { kind: "application", platform: "web", container: "directory" },
   targets: ["windows-x64", "linux-x64", "macos-arm64"].map((id) => ({
     id,

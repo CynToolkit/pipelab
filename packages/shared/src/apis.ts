@@ -179,7 +179,12 @@ export type IpcDefinition = {
   ];
   "workflow:delete": [{ workflowId: string; projectId?: string }, EndEvent<"ok">];
   "workflow:execute": [
-    { name: string; destinations?: string[]; release?: { version: string; description: string } },
+    {
+      name: string;
+      destinations?: string[];
+      release?: { version: string; description: string };
+      allowUserHooks?: boolean;
+    },
     (
       | { type: "workflow-event"; data: WorkflowEvent }
       | { type: "workflow-run"; data: { runId: string } }

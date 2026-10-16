@@ -390,6 +390,15 @@
           />
         </template>
       </template>
+      <ReleaseBeforeBuildHooks
+        v-if="
+          producerDefinition(draftBuild.engine)?.supportsBeforeBuildHooks ||
+          draftBuild.beforeBuild?.length
+        "
+        :hooks="draftBuild.beforeBuild || []"
+        :supported="Boolean(producerDefinition(draftBuild.engine)?.supportsBeforeBuildHooks)"
+        @update:hooks="draftBuild.beforeBuild = $event"
+      />
     </div>
     <template #footer>
       <div class="settings-footer">
@@ -474,8 +483,10 @@ import type {
   ReleasePlan,
   ValidationIssue,
 } from "@pipelab/shared";
+import { RELEASE_CONFIG_VERSION } from "@pipelab/shared";
 import WorkflowShell from "../components/WorkflowShell.vue";
 import ReleaseFieldControl from "../components/ReleaseFieldControl.vue";
+import ReleaseBeforeBuildHooks from "../components/ReleaseBeforeBuildHooks.vue";
 import { useAPI } from "../composables/api";
 import { useAppStore } from "../store/app";
 import { useConnectionsStore } from "../store/connections";
@@ -1322,6 +1333,7 @@ const applyBuildSettings = () => {
   const commit = () => {
     const index = flow.value?.builds.findIndex((build) => build.id === nextBuild.id) ?? -1;
     if (index < 0 || !flow.value) return;
+    if (nextBuild.beforeBuild?.length) flow.value.version = RELEASE_CONFIG_VERSION;
     flow.value.builds[index] = nextBuild;
     settingsVisible.value = false;
     draftBuild.value = undefined;

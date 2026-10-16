@@ -1666,6 +1666,52 @@ const openDashboardWorkflow = () => {
 };
 const runShip = async () => {
   if (!flow.value || !canShip.value) return;
+  const userHooks = flow.value.builds
+    .filter((build) => build.enabled)
+    .flatMap((build) =>
+      (build.beforeBuild || [])
+        .filter((hook) => hook.enabled)
+        .map((hook) => ({
+          profile: build.name?.trim() || build.id,
+          command: hook.command,
+          scriptFile: hook.scriptFile,
+          parameters: hook.parameters,
+        })),
+    );
+  if (userHooks.length) {
+    const commands = userHooks
+      .map(
+        (hook) =>
+          `${hook.profile}: executable ${JSON.stringify(hook.command)}; arguments ${[
+            hook.scriptFile,
+            ...hook.parameters,
+          ]
+            .map((argument) => JSON.stringify(argument))
+            .join(" ")}`,
+      )
+      .join("\n");
+    const approved = await new Promise<boolean>((resolve) => {
+      let settled = false;
+      const settle = (result: boolean) => {
+        if (settled) return;
+        settled = true;
+        resolve(result);
+      };
+      confirm.require({
+        group: "workflow-destructive",
+        header: "Allow beforeBuild commands?",
+        message: `These commands run on this machine with your user permissions. Review the executable and script before continuing:\n\n${commands}`,
+        icon: "pi pi-exclamation-triangle",
+        acceptLabel: "Allow and ship",
+        rejectLabel: "Cancel",
+        defaultFocus: "reject",
+        accept: () => settle(true),
+        reject: () => settle(false),
+        onHide: () => settle(false),
+      });
+    });
+    if (!approved) return;
+  }
   releaseDetailsVisible.value = false;
   running.value = true;
   try {
@@ -1691,6 +1737,7 @@ const runShip = async () => {
             version: releaseVersion.value.trim(),
             description: releaseDescription.value.trim(),
           },
+          allowUserHooks: userHooks.length > 0,
         },
         async (event) => {
           if (event.type === "workflow-run") {

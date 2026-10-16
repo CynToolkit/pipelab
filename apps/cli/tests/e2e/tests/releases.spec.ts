@@ -10,8 +10,15 @@ import {
   extractZip,
   zipFolder,
 } from "@pipelab/core-node";
-import { compileReleasePlan, planRelease, type ReleaseConfig } from "@pipelab/shared";
+import {
+  compileReleasePlan,
+  planRelease,
+  RELEASE_BEFORE_BUILD_TASK_ID,
+  RELEASE_CONFIG_VERSION,
+  type ReleaseConfig,
+} from "@pipelab/shared";
 import { createLocalHost, runWorkflow } from "@pipelab/workflow-runtime";
+import { releaseBeforeBuildWorkflowTask } from "@pipelab/core-node";
 
 const constructSource = {
   provider: "@pipelab/plugin-construct/source",
@@ -604,6 +611,58 @@ describe("CLI release dry-run", () => {
   );
 
   test(
+    "dry-runs beforeBuild hooks without executing them and requires explicit CLI approval",
+    async () => {
+      const configId = "before-build-hook-cli-trust";
+      const markerPath = join(
+        "/tmp",
+        `pipelab-before-build-hook-${randomBytes(6).toString("hex")}.marker`,
+      );
+      const result = await runDryRun({
+        version: RELEASE_CONFIG_VERSION,
+        id: configId,
+        project: "main",
+        name: "Before build hook CLI trust",
+        source: { provider: "@pipelab/core/source/web-folder", config: { path: "/fixture" } },
+        builds: [
+          {
+            id: "electron-profile",
+            type: "desktop",
+            engine: "@pipelab/plugin-electron/producer",
+            enabled: true,
+            config: {},
+            targets: [{ id: "windows-x64", enabled: true, config: {} }],
+            beforeBuild: [
+              {
+                id: "write-marker",
+                enabled: true,
+                command: process.execPath,
+                scriptFile: "write-marker.js",
+                parameters: [markerPath],
+              },
+            ],
+          },
+        ],
+        destinations: [],
+      });
+
+      expect(
+        result.workflow.steps.some(
+          (step: { uses: string }) => step.uses === RELEASE_BEFORE_BUILD_TASK_ID,
+        ),
+      ).toBe(true);
+      await expect(access(markerPath)).rejects.toThrow();
+      await expect(
+        runCLI(["workflow", "run", configId, "--user-data", sandbox!.paths.userData]),
+      ).rejects.toMatchObject({
+        stderr: expect.stringContaining("explicitly allow them with --allow-user-hooks"),
+      });
+      await expect(access(markerPath)).rejects.toThrow();
+    },
+    30 * 60 * 1000,
+  );
+
+  test(
     "reuses an existing compatible Desktop build",
     async () => {
       const result = await runDryRun({
@@ -749,6 +808,351 @@ describe("CLI release dry-run", () => {
       expect(
         result.workflow.steps.some((step: { uses: string }) => step.uses.includes("unzip")),
       ).toBe(true);
+    },
+    30 * 60 * 1000,
+  );
+});
+
+describe("Release beforeBuild hooks", () => {
+  let sandbox: Awaited<ReturnType<typeof createSandbox>> | undefined;
+
+  afterEach(async () => {
+    await sandbox?.remove();
+  });
+
+  test(
+    "runs the real Construct SDK script against isolated profile copies before Electron consumes them",
+    async () => {
+      sandbox = await createSandbox("release-construct-before-build-hooks");
+      const projectFile = join(sandbox.paths.input, "game.c3p");
+      const exportedFolder = join(sandbox.paths.input, "construct-export");
+      const workspace = join(sandbox.path, "workflow-workspace");
+      const buildStaging = join(sandbox.paths.output, "workflow-staging");
+      const savedWorkflowPath = join(sandbox.path, "saved-workflow.json");
+      const sdkEntry: unknown[] = Array.from({ length: 17 }, () => null);
+      sdkEntry[0] = "DedraSDKWrapper";
+      sdkEntry[16] = [2];
+      const originalData = { project: [null, null, null, [sdkEntry]] };
+      const script = [
+        'const fs = require("node:fs");',
+        'const path = require("node:path");',
+        "const requested = process.argv[2];",
+        'if (requested !== "0" && requested !== "1") throw new Error("SDK flag must be 0 or 1");',
+        'const file = path.join(__dirname, "data.json");',
+        'const data = JSON.parse(fs.readFileSync(file, "utf8"));',
+        'const entry = data.project[3].find((candidate) => candidate[0] === "DedraSDKWrapper");',
+        'if (!entry || !Array.isArray(entry[16])) throw new Error("DedraSDKWrapper entry is missing");',
+        "entry[16][0] = Number(requested);",
+        "fs.writeFileSync(file, JSON.stringify(data));",
+      ].join("\n");
+      await mkdir(exportedFolder, { recursive: true });
+      await mkdir(workspace, { recursive: true });
+      await mkdir(buildStaging, { recursive: true });
+      await writeFile(projectFile, "original Construct project");
+      await writeFile(join(exportedFolder, "data.json"), JSON.stringify(originalData));
+      await writeFile(join(exportedFolder, "setSDKEnabled.js"), script);
+
+      const config: ReleaseConfig = {
+        version: RELEASE_CONFIG_VERSION,
+        id: "construct-sdk-before-build",
+        project: "main",
+        name: "Construct SDK profile variants",
+        source: {
+          provider: "@pipelab/plugin-construct/source",
+          config: { path: projectFile, profilePath: "/fixture/browser-profile" },
+        },
+        builds: [
+          {
+            id: "sdk-off",
+            name: "SDK disabled",
+            type: "desktop",
+            engine: "@pipelab/plugin-electron/producer",
+            enabled: true,
+            config: {},
+            targets: [{ id: "windows-x64", enabled: true, config: {} }],
+            beforeBuild: [
+              {
+                id: "set-sdk-off",
+                enabled: true,
+                command: process.execPath,
+                scriptFile: "setSDKEnabled.js",
+                parameters: ["0"],
+                workingDirectory: ".",
+              },
+            ],
+          },
+          {
+            id: "sdk-on",
+            name: "SDK enabled",
+            type: "desktop",
+            engine: "@pipelab/plugin-electron/producer",
+            enabled: true,
+            config: {},
+            targets: [{ id: "windows-x64", enabled: true, config: {} }],
+            beforeBuild: [
+              {
+                id: "set-sdk-on",
+                enabled: true,
+                command: process.execPath,
+                scriptFile: "setSDKEnabled.js",
+                parameters: ["1"],
+                workingDirectory: ".",
+              },
+            ],
+          },
+        ],
+        destinations: [],
+      };
+      await writeFile(savedWorkflowPath, JSON.stringify(config));
+      const savedConfig = JSON.parse(await readFile(savedWorkflowPath, "utf8")) as ReleaseConfig;
+      const registry = buildCoreReleaseRegistry();
+      const context = {
+        host: { platform: process.platform, architecture: process.arch },
+      };
+      const plan = planRelease(savedConfig, registry, context);
+      expect(plan.issues.filter((issue) => issue.severity === "error")).toEqual([]);
+      const workflow = compileReleasePlan(savedConfig, plan, registry, context);
+      expect(
+        workflow.steps.filter(
+          (step) => step.uses === "@pipelab/plugin-construct/export-construct-project",
+        ),
+      ).toHaveLength(1);
+      expect(
+        workflow.steps.filter((step) => step.uses === "@pipelab/core/archive/unzip"),
+      ).toHaveLength(1);
+
+      const extraction = workflow.steps.find((step) => step.id === "construct-source-extract");
+      const electronInputs: Array<{ id: string; path: string; value: number; output: string }> = [];
+      const logMessages: string[] = [];
+      let constructExportCount = 0;
+      const tasks = {
+        ...createCoreFilesystemWorkflowTasks(),
+        [RELEASE_BEFORE_BUILD_TASK_ID]: releaseBeforeBuildWorkflowTask,
+        "@pipelab/plugin-construct/export-construct-project": async (taskContext: {
+          workspace: { root: string };
+          inputs: Record<string, unknown>;
+          setArtifact(outputId: string, path: string): void;
+        }) => {
+          constructExportCount += 1;
+          const output = join(taskContext.workspace.root, "construct-export.zip");
+          await zipFolder(exportedFolder, output);
+          taskContext.setArtifact("zipFile", output);
+          return { zipFile: output };
+        },
+        "@pipelab/plugin-electron/electron:package:v2": async (taskContext: {
+          step: { id: string };
+          workspace: { root: string };
+          inputs: Record<string, unknown>;
+          setArtifact(outputId: string, path: string): void;
+        }) => {
+          const input = taskContext.inputs["input-folder"];
+          if (typeof input !== "string") throw new Error("Electron input folder was not provided");
+          const inputData = JSON.parse(await readFile(join(input, "data.json"), "utf8")) as {
+            project: unknown[];
+          };
+          const wrapper = inputData.project[3];
+          if (!Array.isArray(wrapper)) throw new Error("DedraSDKWrapper entry was not exported");
+          const sdk = wrapper.find(
+            (entry) => Array.isArray(entry) && entry[0] === "DedraSDKWrapper",
+          );
+          if (!Array.isArray(sdk) || !Array.isArray(sdk[16]) || typeof sdk[16][0] !== "number")
+            throw new Error("DedraSDKWrapper SDK flag was not set");
+          const output = join(taskContext.workspace.root, "packaged", taskContext.step.id);
+          await mkdir(output, { recursive: true });
+          await writeFile(join(output, "data.json"), JSON.stringify(inputData));
+          electronInputs.push({ id: taskContext.step.id, path: input, value: sdk[16][0], output });
+          taskContext.setArtifact("electron-build", output);
+          return { output };
+        },
+      };
+      const result = await runWorkflow(workflow, {
+        host: createLocalHost(workspace),
+        variables: { workspace, buildStaging },
+        tasks,
+        onEvent: (event) => {
+          if (event.type === "step.log") logMessages.push(event.message);
+        },
+      });
+
+      expect(result.status).toBe("completed");
+      expect(constructExportCount).toBe(1);
+      expect(electronInputs).toHaveLength(2);
+      expect(electronInputs.map((item) => item.value).sort()).toEqual([0, 1]);
+      expect(new Set(electronInputs.map((item) => item.path)).size).toBe(2);
+      expect(electronInputs.map((item) => item.id).sort()).toEqual([
+        "sdk-off-windows-x64",
+        "sdk-on-windows-x64",
+      ]);
+      const packagedValues = await Promise.all(
+        electronInputs.map(async ({ output }) => {
+          const packaged = JSON.parse(await readFile(join(output, "data.json"), "utf8")) as {
+            project: unknown[];
+          };
+          const packagedWrapper = packaged.project[3];
+          if (!Array.isArray(packagedWrapper)) throw new Error("Packaged SDK entry is missing");
+          const packagedSdk = packagedWrapper.find(
+            (entry) => Array.isArray(entry) && entry[0] === "DedraSDKWrapper",
+          );
+          if (!Array.isArray(packagedSdk) || !Array.isArray(packagedSdk[16]))
+            throw new Error("Packaged SDK flag is missing");
+          return packagedSdk[16][0];
+        }),
+      );
+      expect(packagedValues.sort()).toEqual([0, 1]);
+      expect(workflow.steps.filter((step) => step.uses === "@pipelab/core/fs/copy")).toHaveLength(
+        2,
+      );
+      for (const profileId of ["sdk-off", "sdk-on"]) {
+        const copy = workflow.steps.find((step) => step.id === `release-hook-copy-${profileId}`);
+        const hook = workflow.steps.find((step) =>
+          step.id.startsWith(`release-before-build-${profileId}-`),
+        );
+        const electron = workflow.steps.find((step) => step.id === `${profileId}-windows-x64`);
+        expect(copy?.needs).toContain(extraction?.id);
+        expect(copy?.artifactInputs?.from).toEqual({
+          stepId: extraction?.id,
+          artifact: "output",
+        });
+        expect(hook?.needs).toEqual([copy?.id]);
+        expect(electron?.artifactInputs?.["input-folder"]).toEqual({
+          stepId: hook?.id,
+          artifact: "output",
+        });
+        expect(electron?.needs).toContain(hook?.id);
+      }
+      expect(
+        logMessages.some(
+          (message) => message.includes("Script file:") && message.includes("setSDKEnabled.js"),
+        ),
+      ).toBe(true);
+      expect(
+        logMessages.some(
+          (message) => message.includes("Input artifact:") && message.includes(buildStaging),
+        ),
+      ).toBe(true);
+      expect(
+        logMessages.some(
+          (message) => message.includes("Working directory:") && message.includes(buildStaging),
+        ),
+      ).toBe(true);
+      expect(JSON.parse(await readFile(join(exportedFolder, "data.json"), "utf8"))).toEqual(
+        originalData,
+      );
+      expect(JSON.parse(await readFile(join(workspace, "data.json"), "utf8"))).toEqual(
+        originalData,
+      );
+      expect(await readFile(projectFile, "utf8")).toBe("original Construct project");
+      expect(
+        result.artifacts.filter(
+          (artifact) => "descriptor" in artifact && artifact.artifact === "electron-build",
+        ),
+      ).toHaveLength(2);
+    },
+    30 * 60 * 1000,
+  );
+
+  test(
+    "fails the Electron branch on a hook error and cancels a running hook process",
+    async () => {
+      sandbox = await createSandbox("release-before-build-hook-lifecycle");
+      const input = join(sandbox.paths.input, "web-input");
+      const workspace = join(sandbox.path, "workflow-workspace");
+      const buildStaging = join(sandbox.paths.output, "workflow-staging");
+      await mkdir(input, { recursive: true });
+      await mkdir(workspace, { recursive: true });
+      await mkdir(buildStaging, { recursive: true });
+      await writeFile(join(input, "data.json"), JSON.stringify({ project: [] }));
+      await writeFile(
+        join(input, "setSDKEnabled.js"),
+        'if (process.argv[2] !== "0" && process.argv[2] !== "1") throw new Error("SDK flag must be 0 or 1");',
+      );
+
+      const makeWorkflow = (id: string, scriptFile: string, parameters: string[]) => {
+        const config: ReleaseConfig = {
+          version: RELEASE_CONFIG_VERSION,
+          id,
+          project: "main",
+          name: id,
+          source: {
+            provider: "@pipelab/core/source/web-folder",
+            config: { path: input },
+          },
+          builds: [
+            {
+              id: "electron-profile",
+              type: "desktop",
+              engine: "@pipelab/plugin-electron/producer",
+              enabled: true,
+              config: {},
+              targets: [{ id: "windows-x64", enabled: true, config: {} }],
+              beforeBuild: [
+                {
+                  id: "run-script",
+                  enabled: true,
+                  command: process.execPath,
+                  scriptFile,
+                  parameters,
+                },
+              ],
+            },
+          ],
+          destinations: [],
+        };
+        const registry = buildCoreReleaseRegistry();
+        const context = {
+          host: { platform: process.platform, architecture: process.arch },
+        };
+        const plan = planRelease(config, registry, context);
+        expect(plan.issues.filter((issue) => issue.severity === "error")).toEqual([]);
+        return compileReleasePlan(config, plan, registry, context);
+      };
+
+      let electronStarted = false;
+      const failureWorkflow = makeWorkflow("hook-fails", "setSDKEnabled.js", ["2"]);
+      const tasks = {
+        ...createCoreFilesystemWorkflowTasks(),
+        [RELEASE_BEFORE_BUILD_TASK_ID]: releaseBeforeBuildWorkflowTask,
+        "@pipelab/plugin-electron/electron:package:v2": async () => {
+          electronStarted = true;
+          return {};
+        },
+      };
+      await expect(
+        runWorkflow(failureWorkflow, {
+          host: createLocalHost(workspace),
+          variables: { workspace, buildStaging },
+          tasks,
+        }),
+      ).rejects.toThrow("exited with code 1");
+      expect(electronStarted).toBe(false);
+
+      const waitingScript = [
+        'const fs = require("node:fs");',
+        'const path = require("node:path");',
+        'fs.writeFileSync(path.join(__dirname, "started"), "yes");',
+        'console.log("HOOK_STARTED");',
+        'setTimeout(() => fs.writeFileSync(path.join(__dirname, "completed"), "yes"), 30000);',
+      ].join("\n");
+      await writeFile(join(input, "wait.js"), waitingScript);
+      const cancellationWorkflow = makeWorkflow("hook-cancelled", "wait.js", []);
+      const cancellationController = new AbortController();
+      const cancellationRun = runWorkflow(cancellationWorkflow, {
+        host: createLocalHost(workspace),
+        variables: { workspace, buildStaging },
+        tasks,
+        signal: cancellationController.signal,
+        onEvent: (event) => {
+          if (event.type === "step.log" && event.message.includes("HOOK_STARTED"))
+            cancellationController.abort("test cancellation");
+        },
+      });
+
+      await expect(cancellationRun).rejects.toMatchObject({ name: "AbortError" });
+      expect(electronStarted).toBe(false);
+      const stagedScriptDirectory = join(buildStaging, "electron-profile");
+      await expect(readFile(join(stagedScriptDirectory, "started"), "utf8")).resolves.toBe("yes");
+      await expect(access(join(stagedScriptDirectory, "completed"))).rejects.toThrow();
+      await expect(access(join(input, "started"))).rejects.toThrow();
     },
     30 * 60 * 1000,
   );

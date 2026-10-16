@@ -20,6 +20,7 @@ export const workflowRunOptions = [
   new Option("--user-data <path>", "Custom user-data directory"),
   new Option("-o, --output <path>", "Path to write the result file"),
   new Option("--dry-run", "Validate the workflow without executing deployments"),
+  new Option("--allow-user-hooks", "Allow configured local beforeBuild commands to run"),
   new Option("--fail-on-error", "Exit nonzero when a deployment fails"),
   new Option("-v, --verbose", "Show workflow logs after completion"),
 ];
@@ -89,6 +90,7 @@ export async function runWorkflowCommand(
     output?: string;
     failOnError?: boolean;
     dryRun?: boolean;
+    allowUserHooks?: boolean;
     verbose?: boolean;
   },
 ) {
@@ -170,6 +172,7 @@ export async function runWorkflowCommand(
   for (const task of stepTasks) waitFor(task.id);
   const execution = executeWorkflow(context, `workflows/${entry.id}`, {
     release: { version: "", description: "" },
+    allowUserHooks: options.allowUserHooks,
     onEvent: (event: WorkflowEvent) => {
       if (event.type === "step.started") updateTask(event.stepId, ListrTaskState.STARTED);
       if (event.type === "step.log")
